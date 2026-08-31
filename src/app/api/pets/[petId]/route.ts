@@ -102,6 +102,18 @@ export async function DELETE(
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("DELETE pet error:", error);
-    return NextResponse.json({ error: "Failed to delete pet" }, { status: 500 });
+    // Safety net: a residual foreign-key conflict (P2003) means some record
+    // still references this pet — surface an actionable Hebrew message
+    // instead of a generic 500.
+    if (
+      typeof error === "object" && error !== null &&
+      (error as { code?: string }).code === "P2003"
+    ) {
+      return NextResponse.json(
+        { error: "לא ניתן למחוק — קיימות רשומות המקושרות לחיית המחמד (תורים, פנסיון או אילוף). נסו שוב או פנו לתמיכה." },
+        { status: 409 }
+      );
+    }
+    return NextResponse.json({ error: "שגיאה במחיקת חיית המחמד" }, { status: 500 });
   }
 }

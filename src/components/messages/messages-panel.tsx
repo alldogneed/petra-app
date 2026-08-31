@@ -123,6 +123,11 @@ const STARTER_TEMPLATES = [
     trigger: "payment_request", offset: 0,
   },
   {
+    label: "📞 מעקב אחרי ליד חדש",
+    body: "שלום {customerName}! 🐾\n\nקיבלנו את פנייתך לגבי {serviceName} ונשמח לעזור!\nנחזור אליך בהקדם." + AUTOMATED_FOOTER,
+    trigger: "lead_followup", offset: 24,
+  },
+  {
     label: "🌟 מעקב אחרי פגישה",
     body: "שלום {customerName}! 🌟\n\nרצינו לדעת איך {petName} מרגיש/ת לאחר הפגישה האחרונה.\nאם הכל בסדר – נשמח לשמוע! ואם יש משהו שלא כשורה, חשוב לנו לדעת.\n\nתודה שבחרתם בנו 💛" + AUTOMATED_FOOTER,
     trigger: "appointment_followup", offset: 24,
@@ -167,6 +172,7 @@ const TRIGGER_LOCATION: Record<string, string> = {
   appointment_reminder:     "לוח שנה ← תור ← כפתור WhatsApp",
   appointment_confirmation: "נשלח אוטומטית בעת קביעת תור",
   payment_request:          "הזמנה ← סעיף תשלומים ← כפתור דרישת תשלום",
+  lead_followup:            "נשלח אוטומטית מספר שעות אחרי יצירת ליד",
   appointment_followup:     "פרופיל לקוח ← תורים שהושלמו ← מעקב",
   birthday_reminder:        "פרופיל לקוח ← כרטיס חיית המחמד ← יום הולדת",
   new_customer:             "פרופיל לקוח ← כפתור ברוכים הבאים",
@@ -604,50 +610,14 @@ function TemplatesTab() {
 
   const manualTemplates = templates.filter(t => !t.automationRules?.length);
 
-  // ─── Manual template card ──────────────────────────────────────────────────
-  const renderManualCard = (template: MessageTemplate) => (
-    <div key={template.id} className="card p-4 group">
-      <div className="flex items-start justify-between mb-2">
-        <h3 className="text-sm font-semibold text-petra-text">{template.name}</h3>
-        <div className="flex gap-1 transition-opacity sm:opacity-0 sm:group-hover:opacity-100">
-          <button
-            onClick={() => setSendingTemplate(template)}
-            className="p-1.5 rounded-lg hover:bg-green-50 text-slate-400 hover:text-green-600"
-            title="שלח ללקוח בודד"
-          >
-            <Send className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={() => setBulkSendingTemplate(template)}
-            className="p-1.5 rounded-lg hover:bg-brand-50 text-slate-400 hover:text-brand-600"
-            title="שלח לקבוצת לקוחות"
-          >
-            <Users className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={() => openEditor(template)}
-            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400"
-            title="ערוך תבנית"
-          >
-            <Edit3 className="w-3.5 h-3.5" />
-          </button>
-          <button
-            onClick={() => { if (confirm("למחוק תבנית זו?")) deleteMutation.mutate(template.id); }}
-            className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </div>
-      <p className="text-xs text-petra-muted line-clamp-2 whitespace-pre-wrap">{template.body}</p>
-    </div>
-  );
-
   return (
     <>
       {/* Tab description */}
       <p className="text-xs text-petra-muted mb-4">
-        הודעות שנשלחות אוטומטית על ידי המערכת בהתאם לאירועים — למשל אישור תור, תזכורת לפני פגישה, או יום הולדת. הפעל כל הודעה בלחיצה על המתג.
+        הודעות שנשלחות אוטומטית על ידי המערכת בהתאם לאירועים — למשל אישור תור, תזכורת לפני פגישה, או יום הולדת. הפעל כל הודעה בלחיצה על המתג.{" "}
+        <a href="/scheduled-messages" className="text-brand-600 hover:underline font-medium">
+          צפה בהודעות שנשלחו ←
+        </a>
       </p>
 
       {/* ── Automations tab ── */}
@@ -842,7 +812,7 @@ function TemplatesTab() {
       {/* ── Manual section ── */}
       <div className="mt-8 mb-2">
         <h3 className="text-sm font-bold text-petra-text">הודעות ידניות</h3>
-        <p className="text-xs text-petra-muted mt-0.5">תבניות שניתן לשלוח ידנית ללקוחות בודדים. לחץ על עיפרון לעריכה.</p>
+        <p className="text-xs text-petra-muted mt-0.5">תבניות שניתן לשלוח ידנית — חץ ירוק לשליחה ללקוח בודד, אנשים לשליחה קבוצתית, עיפרון לעריכה.</p>
       </div>
       {(true && (
         <div className="space-y-3 mt-2">
@@ -888,6 +858,20 @@ function TemplatesTab() {
                       )}
                     </div>
                     <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        onClick={() => setSendingTemplate(templateForModal)}
+                        className="p-1.5 rounded-lg hover:bg-green-50 text-slate-400 hover:text-green-600"
+                        title="שלח ללקוח בודד"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => setBulkSendingTemplate(templateForModal)}
+                        className="p-1.5 rounded-lg hover:bg-brand-50 text-slate-400 hover:text-brand-600"
+                        title="שלח לקבוצת לקוחות"
+                      >
+                        <Users className="w-3.5 h-3.5" />
+                      </button>
                       <button
                         onClick={() => {
                           setEditingTemplate(dbVersion ?? null);
@@ -1122,7 +1106,6 @@ interface CustomerBasic {
 const AUDIENCE_OPTIONS = [
   { id: "all", label: "כל הלקוחות" },
   { id: "with_pets", label: "לקוחות עם כלבים" },
-  { id: "active_training", label: "תוכניות אילוף פעילות" },
 ];
 
 function interpolateForCustomer(body: string, customer: CustomerBasic, businessPhone = ""): string {
@@ -1151,7 +1134,7 @@ function BulkSendTab() {
 
   const { data: allCustomers = [], isLoading } = useQuery<CustomerBasic[]>({
     queryKey: ["customers-bulk"],
-    queryFn: () => fetchJSON<CustomerBasic[]>("/api/customers?fields=id,name,phone,pets"),
+    queryFn: () => fetchJSON<CustomerBasic[]>("/api/customers?full=1&take=100"),
   });
 
   const { data: settings } = useQuery<{ phone?: string }>({
@@ -1368,9 +1351,24 @@ export function MessagesPanel() {
             תבניות
           </span>
         </button>
+        <button
+          onClick={() => setActiveTab("bulk")}
+          className={cn(
+            "px-4 py-2 rounded-lg text-sm font-medium transition-all",
+            activeTab === "bulk"
+              ? "bg-white text-petra-text shadow-sm"
+              : "text-petra-muted hover:text-petra-text"
+          )}
+        >
+          <span className="flex items-center gap-2">
+            <Send className="w-4 h-4" />
+            שליחה קבוצתית
+          </span>
+        </button>
       </div>
 
       {activeTab === "templates" && <TemplatesTab />}
+      {activeTab === "bulk" && <BulkSendTab />}
     </div>
   );
 }

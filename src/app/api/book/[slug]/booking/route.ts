@@ -10,10 +10,12 @@ import { enqueueSyncJob } from "@/lib/sync-jobs"
 import { getFirstLeadStageId } from "@/lib/lead-stages"
 import { syncAppointmentToGcal } from "@/lib/google-calendar"
 import { sanitizeName } from "@/lib/validation"
+import { scheduleLeadFollowup } from "@/lib/reminder-service"
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "https://petra-app.vercel.app"
 
 async function notifyCustomerConfirmed(
+  businessId: string,
   booking: { id: string; customerToken?: string | null },
   customer: { phone: string; name: string },
   service: { name: string },
@@ -24,10 +26,11 @@ async function notifyCustomerConfirmed(
   const phone = toWhatsAppPhone(customer.phone)
   const myBookingUrl = booking.customerToken ? `${APP_URL}/my-booking/${booking.customerToken}` : ""
   const body = `שלום ${customer.name}! ✅ הזמנתך אושרה!\n\nשירות: ${service.name}\nתאריך: ${dateLabel}\nשעה: ${timeLabel}${myBookingUrl ? `\n\nלצפייה/ביטול ההזמנה:\n${myBookingUrl}` : ""}`
-  await sendWhatsAppMessage({ to: phone, body }).catch(console.error)
+  await sendWhatsAppMessage({ to: phone, body, businessId, context: "booking_confirmation" }).catch(console.error)
 }
 
 async function notifyCustomerPending(
+  businessId: string,
   booking: { id: string; customerToken?: string | null },
   customer: { phone: string; name: string },
   service: { name: string },
@@ -38,10 +41,11 @@ async function notifyCustomerPending(
   const phone = toWhatsAppPhone(customer.phone)
   const myBookingUrl = booking.customerToken ? `${APP_URL}/my-booking/${booking.customerToken}` : ""
   const body = `שלום ${customer.name}! ⏳ בקשת ההזמנה שלך התקבלה.\n\nשירות: ${service.name}\nתאריך: ${dateLabel}\nשעה: ${timeLabel}\n\nנחזור אליך עם אישור בהקדם.${myBookingUrl ? `\n\nלצפייה בהזמנה:\n${myBookingUrl}` : ""}`
-  await sendWhatsAppMessage({ to: phone, body }).catch(console.error)
+  await sendWhatsAppMessage({ to: phone, body, businessId, context: "booking_pending" }).catch(console.error)
 }
 
 async function notifyOwnerNewPending(
+  businessId: string,
   businessPhone: string | null | undefined,
   customerName: string,
   service: { name: string },
@@ -50,7 +54,7 @@ async function notifyOwnerNewPending(
   if (!businessPhone) return
   const phone = toWhatsAppPhone(businessPhone)
   const body = `🔔 הזמנה חדשה ממתינה לאישור!\n\nלקוח: ${customerName}\nשירות: ${service.name}\nתאריך: ${dateLabel}\n\nנא לאשר/לדחות בפנל הניהול.`
-  await sendWhatsAppMessage({ to: phone, body }).catch(console.error)
+  await sendWhatsAppMessage({ to: phone, body, businessId, context: "booking_owner_alert" }).catch(console.error)
 }
 
 // Zod Schema for input validation
@@ -333,7 +337,19 @@ export async function POST(
           source: "website",
           notes: `הזמנה מהאתר: ${item.name}`,
         },
-      });
+      }).then((lead) =>
+        // lead_followup automation hook. Booking-created leads carry customerId
+        // (the customer just booked), so scheduleLeadFollowup no-ops here today —
+        // the hook keeps this raw-prisma creation path covered if that ever changes.
+        scheduleLeadFollowup({
+          id: lead.id,
+          businessId: business.id,
+          name: lead.name,
+          phone: lead.phone,
+          requestedService: item.name,
+          customerId: lead.customerId,
+        })
+      );
     }).catch((err) => console.error("Failed to create lead from booking:", err))
   }
 
@@ -416,10 +432,10 @@ export async function POST(
       }
     }
 
-    await notifyCustomerConfirmed(booking, customer, { name: serviceName }, dateLabel, timeLabel)
+    await notifyCustomerConfirmed(business.id, booking, customer, { name: serviceName }, dateLabel, timeLabel)
   } else {
-    await notifyCustomerPending(booking, customer, { name: serviceName }, dateLabel, timeLabel)
-    await notifyOwnerNewPending(business.phone, customer.name, { name: serviceName }, dateLabel)
+    await notifyCustomerPending(business.id, booking, customer, { name: serviceName }, dateLabel, timeLabel)
+    await notifyOwnerNewPending(business.id, business.phone, customer.name, { name: serviceName }, dateLabel)
   }
 
   return NextResponse.json(

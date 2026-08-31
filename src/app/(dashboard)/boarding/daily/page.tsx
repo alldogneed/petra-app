@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
+import Link from "next/link";
 import {
   ChevronLeft,
   ChevronRight,
@@ -263,7 +264,16 @@ function PetCareCard({ stay, date, onLog, onDelete }: {
               <span className="font-bold text-petra-text text-lg">{stay.pet.name}</span>
               {stay.pet.breed && <span className="text-xs text-petra-muted">{stay.pet.breed}</span>}
             </div>
-            <div className="text-sm text-petra-muted">{stay.customer?.name ?? "כלב שירות"}</div>
+            {stay.customer ? (
+              <Link
+                href={`/customers/${stay.customer.id}`}
+                className="text-sm text-petra-muted hover:text-brand-600 hover:underline transition-colors"
+              >
+                {stay.customer.name}
+              </Link>
+            ) : (
+              <div className="text-sm text-petra-muted">כלב שירות</div>
+            )}
             <div className="flex items-center gap-2 mt-1 flex-wrap">
               {stay.room && (
                 <span className="text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
@@ -585,6 +595,12 @@ export default function DailyCarePage() {
           </div>
           <p className="font-semibold text-petra-text mb-1">אין כלבים בפנסיון</p>
           <p className="text-sm">לא נמצאו שהיות פעילות לתאריך זה</p>
+          <Link
+            href="/boarding"
+            className="inline-block mt-4 text-sm text-brand-500 hover:underline"
+          >
+            עבור ללוח הפנסיון
+          </Link>
         </div>
       )}
 

@@ -314,6 +314,7 @@ model Business {
   memberships            Membership[]
   onlineClasses          OnlineClass[]
   courses                Course[]
+  whatsAppConnection     WhatsAppConnection?
 
   @@index([slug])
 }
@@ -1378,7 +1379,6 @@ model TrainingGroup {
   reminderLeadHours  Int      @default(48)
   reminderSameDay    Boolean  @default(false)
   maxParticipants    Int?
-  price              Float?   // workshop price in ILS (whole workshop, not per session)
   notes              String?
   startDate          DateTime?
   endDate            DateTime?
@@ -2345,6 +2345,58 @@ model McpAuditLog {
   @@index([connectionId, createdAt]) // per-connection rate-limit window count (/api/mcp burst guard)
 }
 
+/// Delivery tracking for every WhatsApp message sent via the Meta Cloud API.
+/// Status updates arrive on /api/webhooks/whatsapp-status (Meta statuses webhook).
+model WhatsAppMessageLog {
+  id           String   @id @default(uuid())
+  wamid        String   @unique // Meta message id — key for status updates
+  businessId   String?  // set when sent on behalf of a business (platform or business number)
+  phoneNumberId String? // Meta phone_number_id the message was sent FROM (null = legacy platform sends)
+  toPhone      String
+  kind         String   // "template" | "text"
+  templateName String?
+  context      String?  // e.g. "lead_alert", "appointment_reminder"
+  status       String   @default("accepted") // accepted | sent | delivered | read | failed
+  errorCode    String?
+  errorMessage String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([createdAt])
+  @@index([businessId, createdAt])
+}
+
+/// Per-business WhatsApp Cloud API connection, created via Meta Embedded Signup
+/// (optionally "coexistence" — the business keeps using the WhatsApp Business app on
+/// the same number). While status = "active", outbound WhatsApp for the business is
+/// sent from ITS OWN number; otherwise the platform number (META_PHONE_NUMBER_ID) is used.
+model WhatsAppConnection {
+  id                String    @id @default(uuid())
+  businessId        String    @unique
+  business          Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  wabaId            String    // WhatsApp Business Account id owned by the business
+  phoneNumberId     String    @unique // Meta phone_number_id — also the webhook routing key
+  displayPhone      String?   // e.g. "+972 54-123-4567"
+  verifiedName      String?   // display name approved by Meta
+  qualityRating     String?   // GREEN | YELLOW | RED | UNKNOWN
+  accessTokenEnc    String    // business-integration system-user token, AES-256-GCM (WHATSAPP_ENCRYPTION_KEY, falls back to GCAL_ENCRYPTION_KEY)
+  tokenExpiresAt    DateTime? // Embedded Signup tokens expire after 60 days; refreshed lazily on send (fb_exchange_token)
+  status            String    @default("active") // active | disconnected | error
+  lastError         String?
+  coexistence       Boolean   @default(false) // onboarded via WhatsApp Business app coexistence flow
+  templatesJson     String?   // JSON { [templateName]: "APPROVED" | "PENDING" | "REJECTED" | "PAUSED" | ... } on the business WABA
+  templatesSyncedAt DateTime?
+  connectedByUserId String?
+  connectedAt       DateTime  @default(now())
+  disconnectedAt    DateTime?
+  lastUsedAt        DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([status])
+}
+
 /// Distributed rate-limit fallback (used when Upstash Redis is not configured/reachable).
 /// Fixed windows keyed by "namespace:key:windowStart"; rows expire by windowEnd and are
 /// pruned opportunistically. Counting is an atomic INSERT … ON CONFLICT DO UPDATE.
@@ -2574,8 +2626,6 @@ model LessonProgress {
   @@unique([membershipId, lessonId])
 }
 
-/// Issued when a student completes every lesson of a course. The serial is the
-/// public verification handle (/verify/[serial]) — never a guessable counter.
 model CourseCertificate {
   id           String   @id @default(uuid())
   businessId   String
@@ -2597,8 +2647,6 @@ model CourseCertificate {
   @@index([businessId, revokedAt])
 }
 
-/// A student question on a lesson, answered by the business. Answers are visible
-/// to every student of that course unless the asker marked it private.
 model LessonQuestion {
   id           String    @id @default(uuid())
   businessId   String
@@ -2618,7 +2666,6 @@ model LessonQuestion {
   @@index([businessId, answeredAt])
 }
 
-/// Optional end-of-module quiz. passScore is the percentage needed to pass.
 model Quiz {
   id         String   @id @default(uuid())
   businessId String
@@ -2671,53 +2718,4 @@ model QuizAttempt {
 
   @@index([membershipId, quizId])
   @@index([quizId, createdAt])
-}
-
-// ─── Per-business WhatsApp (Meta Embedded Signup) ───────────────────────────
-// Tables already exist in prod (additive DDL via prisma db execute).
-// No FK relations on purpose — mirrors the prod DDL exactly.
-
-model WhatsAppConnection {
-  id                String    @id @default(uuid())
-  businessId        String    @unique
-  wabaId            String
-  phoneNumberId     String    @unique
-  displayPhone      String?
-  verifiedName      String?
-  qualityRating     String?
-  accessTokenEnc    String    // AES-256-GCM (WHATSAPP_ENCRYPTION_KEY); "" after disconnect
-  status            String    @default("active") // active | error | disconnected
-  lastError         String?
-  coexistence       Boolean   @default(false)
-  templatesJson     String?   // JSON { templateName: STATUS } on the business WABA
-  templatesSyncedAt DateTime?
-  connectedByUserId String?
-  connectedAt       DateTime  @default(now())
-  disconnectedAt    DateTime?
-  lastUsedAt        DateTime?
-  tokenExpiresAt    DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-
-  @@index([status])
-}
-
-model WhatsAppMessageLog {
-  id            String   @id @default(uuid())
-  wamid         String   @unique
-  businessId    String?
-  phoneNumberId String?
-  toPhone       String
-  kind          String   // text | template
-  templateName  String?
-  context       String?  // caller tag e.g. appointment_reminder | boarding_confirmation | test
-  status        String   @default("accepted") // accepted | sent | delivered | read | failed
-  errorCode     String?
-  errorMessage  String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  @@index([status, createdAt])
-  @@index([createdAt])
-  @@index([businessId, createdAt])
 }

@@ -184,6 +184,7 @@ export default function TasksPage() {
   const [editTask, setEditTask] = useState<Task | null>(null);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [tick, setTick] = useState(0);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [dateFrom, setDateFrom] = useState("");
@@ -398,6 +399,39 @@ export default function TasksPage() {
       toast.success(`${ids.length} משימות הושלמו`);
     },
     onError: () => toast.error("שגיאה בעדכון המשימות. נסה שוב."),
+  });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: (ids: string[]) =>
+      // Bounded concurrency — same rationale as bulkCompleteMutation (see concurrency.ts).
+      // Each delete catches internally so one failure doesn't abort the rest.
+      mapWithConcurrency(ids, 3, async (id) => {
+        try {
+          await fetchJSON(`/api/tasks/${id}`, { method: "DELETE" });
+          return { id, ok: true };
+        } catch {
+          return { id, ok: false };
+        }
+      }),
+    onSuccess: (results) => {
+      const failed = results.filter((r) => !r.ok).length;
+      const deleted = results.length - failed;
+      if (failed > 0) {
+        toast.error(`${deleted} משימות נמחקו, ${failed} נכשלו. נסה שוב.`);
+      } else {
+        toast.success(`${deleted} משימות נמחקו`);
+      }
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["sidebar-counters"] });
+      setShowBulkDeleteConfirm(false);
+      setSelectedTaskIds(new Set());
+      setSelectionMode(false);
+    },
+    onError: () => {
+      setShowBulkDeleteConfirm(false);
+      toast.error("שגיאה במחיקת המשימות. נסה שוב.");
+    },
   });
 
   const postponeMutation = useMutation({
@@ -749,6 +783,14 @@ export default function TasksPage() {
             {bulkCompleteMutation.isPending ? "..." : "השלם הכל"}
           </button>
           <button
+            className="btn-danger text-xs py-1.5 px-3 inline-flex items-center gap-1.5"
+            disabled={bulkDeleteMutation.isPending}
+            onClick={() => setShowBulkDeleteConfirm(true)}
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            {bulkDeleteMutation.isPending ? "מוחק..." : "מחק נבחרים"}
+          </button>
+          <button
             className="text-xs text-petra-muted hover:text-petra-text ms-auto"
             onClick={() => { setSelectedTaskIds(new Set()); setSelectionMode(false); }}
           >
@@ -783,6 +825,13 @@ export default function TasksPage() {
               ? "אין משימות בסטטוס הנבחר"
               : "צור משימה חדשה כדי להתחיל"}
           </p>
+          <button
+            className="btn-primary text-sm inline-flex items-center gap-1.5 mx-auto"
+            onClick={() => setShowNewTask(true)}
+          >
+            <Plus className="w-4 h-4" />
+            משימה חדשה
+          </button>
         </div>
       ) : (
         <div className="space-y-2">
@@ -883,6 +932,37 @@ export default function TasksPage() {
                   {deleteMutation.isPending ? "מוחק..." : "מחק"}
                 </button>
                 <button className="btn-secondary flex-1" onClick={() => setDeleteConfirm(null)}>
+                  ביטול
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Delete Confirmation */}
+      {showBulkDeleteConfirm && (
+        <div className="modal-overlay">
+          <div className="modal-backdrop" onClick={() => setShowBulkDeleteConfirm(false)} />
+          <div className="modal-content max-w-sm mx-4 p-6">
+            <div className="text-center">
+              <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center mx-auto mb-4">
+                <Trash2 className="w-6 h-6 text-red-500" />
+              </div>
+              <h2 className="text-lg font-bold text-petra-text mb-2">מחיקת משימות</h2>
+              <p className="text-sm text-petra-muted mb-1">
+                למחוק {selectedTaskIds.size} משימות?
+              </p>
+              <p className="text-xs text-petra-muted mb-6">פעולה זו אינה ניתנת לביטול</p>
+              <div className="flex gap-3">
+                <button
+                  className="btn-danger flex-1"
+                  disabled={bulkDeleteMutation.isPending}
+                  onClick={() => bulkDeleteMutation.mutate([...selectedTaskIds])}
+                >
+                  {bulkDeleteMutation.isPending ? "מוחק..." : "מחק"}
+                </button>
+                <button className="btn-secondary flex-1" onClick={() => setShowBulkDeleteConfirm(false)}>
                   ביטול
                 </button>
               </div>

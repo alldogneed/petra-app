@@ -67,9 +67,7 @@ const nextConfig = {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
-              // Next.js dev mode needs eval for react-refresh/source maps; hydration
-              // dies silently without it. Production CSP stays eval-free.
-              `script-src 'self' 'unsafe-inline' https://www.youtube.com https://s.ytimg.com${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""}`,
+              "script-src 'self' 'unsafe-inline' https://connect.facebook.net https://www.youtube.com https://s.ytimg.com",
               // Sentry Replay compresses its payloads in a blob web worker;
               // without worker-src the script-src fallback blocks it on every page.
               "worker-src 'self' blob:",
@@ -77,11 +75,11 @@ const nextConfig = {
               "font-src 'self' https://fonts.gstatic.com",
               "img-src 'self' data: blob: https:",
               "media-src 'self' blob: https://*.public.blob.vercel-storage.com https://vd0izwltrfibbypf.public.blob.vercel-storage.com",
-              "connect-src 'self' https://www.youtube.com https://play.google.com https://*.public.blob.vercel-storage.com https://vd0izwltrfibbypf.public.blob.vercel-storage.com https://*.ingest.sentry.io https://*.ingest.de.sentry.io",
+              "connect-src 'self' https://www.youtube.com https://play.google.com https://*.public.blob.vercel-storage.com https://vd0izwltrfibbypf.public.blob.vercel-storage.com https://*.ingest.sentry.io https://*.ingest.de.sentry.io https://connect.facebook.net https://www.facebook.com https://graph.facebook.com",
               "frame-ancestors 'self'",
               // youtube-nocookie: recorded course lessons in the members portal (/c/[slug]).
-              "frame-src 'self' blob: https://secure.cardcom.solutions https://www.youtube-nocookie.com https://www.youtube.com",
-              "object-src 'none'",
+              "frame-src 'self' blob: https://secure.cardcom.solutions https://www.facebook.com https://web.facebook.com https://www.youtube-nocookie.com https://www.youtube.com",
+              "object-src 'self' blob:",  // PDF previews (contract template modal + signed-contract viewer) render via <object>/blob:
             ].join("; "),
           },
         ],

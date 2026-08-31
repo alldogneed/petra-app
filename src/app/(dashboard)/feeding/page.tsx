@@ -160,7 +160,7 @@ function FeedingPlanModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+    <div className="no-print fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
@@ -548,6 +548,14 @@ export default function FeedingPage() {
 
   return (
     <div className="p-6 space-y-6 animate-fade-in">
+      <style>{`.print-header{display:none} @media print { aside,nav,header,[data-topbar],[data-sidebar],.no-print{display:none!important} body{font-size:11px} .modal-overlay{display:none!important} .print-header{display:flex!important;align-items:center;gap:12px;padding-bottom:12px;border-bottom:2px solid #e2e8f0;margin-bottom:14px;} }`}</style>
+      <div className="print-header">
+        <img src="/petra-logo.png" alt="Petra" style={{ width: 38, height: 38, objectFit: "contain", borderRadius: 6 }} />
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 16, color: "#1e293b" }}>לוח האכלה — פנסיון</div>
+          <div style={{ fontSize: 11, color: "#64748b" }}>{formatHebrewDate(currentDate)} · הופק {new Date().toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}</div>
+        </div>
+      </div>
       <BoardingTabs />
 
       {/* Tab switcher */}

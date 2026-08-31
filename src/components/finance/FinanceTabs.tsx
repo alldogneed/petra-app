@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CreditCard, Send, Tag, ShoppingCart } from "lucide-react";
+import { CreditCard, Send, Tag, ShoppingCart, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TABS = [
@@ -10,6 +10,8 @@ const TABS = [
   { name: "הזמנות",        href: "/orders",           icon: ShoppingCart },
   { name: "בקשות תשלום",   href: "/payment-request", icon: Send        },
   { name: "תשלומים",       href: "/payments",        icon: CreditCard  },
+  // חשבוניות hidden until the Israeli invoicing regulation setup is complete
+  // { name: "חשבוניות",      href: "/invoices",        icon: FileText    },
 ];
 
 export function FinanceTabs() {

@@ -1,10 +1,12 @@
 "use client";
+import Link from "next/link";
 import { PageTitle } from "@/components/ui/PageTitle";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
 import { TierGate } from "@/components/paywall/TierGate";
+import { FinanceTabs } from "@/components/finance/FinanceTabs";
 import {
   Receipt,
   Plus,
@@ -19,6 +21,7 @@ import {
   CreditCard,
   X,
   Search,
+  AlertTriangle,
 } from "lucide-react";
 import { cn, formatCurrency, formatDate, fetchJSON } from "@/lib/utils";
 import { INVOICE_DOCUMENT_TYPES, INVOICE_STATUSES, VAT_RATE } from "@/lib/constants";
@@ -43,6 +46,7 @@ interface InvoiceDocument {
   failureReason: string | null;
   originalInvoiceId: string | null;
   createdAt: string;
+  customerId: string | null;
   customer: { name: string } | null;
   payment: { amount: number; method: string } | null;
 }
@@ -323,6 +327,7 @@ function InvoicesPageContent() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [docTypeFilter, setDocTypeFilter] = useState<string>("all");
   const [showCreate, setShowCreate] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<{ type: "credit" | "delete"; doc: InvoiceDocument } | null>(null);
 
   // Business settings — legal entity type drives VAT display + allowed doc types
   const { data: settings } = useQuery<{ legalEntityType: string | null; vatEnabled?: boolean; vatRate?: number }>({
@@ -373,7 +378,11 @@ function InvoicesPageContent() {
         }
         return r.json();
       }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["invoicing-documents"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["invoicing-documents"] });
+      setConfirmAction(null);
+      toast.success("חשבונית זיכוי נוצרה");
+    },
     onError: (err: Error) => toast.error(err.message || "שגיאה ביצירת זיכוי"),
   });
 
@@ -383,7 +392,11 @@ function InvoicesPageContent() {
         if (!r.ok) throw new Error("שגיאה במחיקה");
         return r.json();
       }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["invoicing-documents"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["invoicing-documents"] });
+      setConfirmAction(null);
+      toast.success("הטיוטה נמחקה");
+    },
     onError: () => toast.error("שגיאה במחיקת המסמך"),
   });
 
@@ -401,6 +414,7 @@ function InvoicesPageContent() {
 
   return (
     <div>
+      <FinanceTabs />
       <div className="flex items-center justify-between mb-6">
         <h1 className="page-title">חשבוניות</h1>
         <button className="btn-primary flex items-center gap-2" onClick={() => setShowCreate(true)}>
@@ -486,7 +500,18 @@ function InvoicesPageContent() {
                     <td className="table-cell">
                       <span className="text-xs font-medium">{doc.docTypeName}</span>
                     </td>
-                    <td className="table-cell font-medium">{doc.customer?.name ?? "—"}</td>
+                    <td className="table-cell font-medium">
+                      {doc.customer?.name && doc.customerId ? (
+                        <Link
+                          href={`/customers/${doc.customerId}`}
+                          className="hover:text-brand-600 hover:underline transition-colors"
+                        >
+                          {doc.customer.name}
+                        </Link>
+                      ) : (
+                        doc.customer?.name ?? "—"
+                      )}
+                    </td>
                     <td className="table-cell">
                       <span className={cn("font-semibold", doc.amount < 0 ? "text-red-600" : "text-petra-text")}>
                         {formatCurrency(Math.abs(doc.amount))}
@@ -539,11 +564,7 @@ function InvoicesPageContent() {
                         {doc.status === "issued" && doc.docType !== 330 && !doc.originalInvoiceId && (
                           <button
                             className="p-1.5 rounded-lg hover:bg-red-50 text-petra-muted hover:text-red-500 transition-colors"
-                            onClick={() => {
-                              if (confirm("ליצור חשבונית זיכוי?")) {
-                                creditNoteMutation.mutate(doc.id);
-                              }
-                            }}
+                            onClick={() => setConfirmAction({ type: "credit", doc })}
                             disabled={creditNoteMutation.isPending}
                             title="צור חשבונית זיכוי"
                           >
@@ -555,11 +576,7 @@ function InvoicesPageContent() {
                         {doc.status === "draft" && (
                           <button
                             className="p-1.5 rounded-lg hover:bg-red-50 text-petra-muted hover:text-red-500 transition-colors"
-                            onClick={() => {
-                              if (confirm("למחוק טיוטה זו?")) {
-                                deleteMutation.mutate(doc.id);
-                              }
-                            }}
+                            onClick={() => setConfirmAction({ type: "delete", doc })}
                             disabled={deleteMutation.isPending}
                             title="מחק טיוטה"
                           >
@@ -579,6 +596,46 @@ function InvoicesPageContent() {
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm credit-note / delete-draft dialog */}
+      {confirmAction && (
+        <div className="modal-overlay">
+          <div className="modal-backdrop" onClick={() => setConfirmAction(null)} />
+          <div className="modal-content max-w-sm mx-4 p-6 text-center">
+            <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center mx-auto mb-3">
+              <AlertTriangle className="w-6 h-6 text-red-500" />
+            </div>
+            <h3 className="text-base font-bold text-petra-text mb-1">
+              {confirmAction.type === "credit" ? "ליצור חשבונית זיכוי?" : "למחוק טיוטה זו?"}
+            </h3>
+            <p className="text-sm text-petra-muted mb-4">
+              {confirmAction.type === "credit"
+                ? `יווצר מסמך זיכוי עבור ${confirmAction.doc.customer?.name ?? "המסמך"} על סך ${formatCurrency(Math.abs(confirmAction.doc.amount))}.`
+                : "פעולה זו לא ניתנת לביטול."}
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() =>
+                  confirmAction.type === "credit"
+                    ? creditNoteMutation.mutate(confirmAction.doc.id)
+                    : deleteMutation.mutate(confirmAction.doc.id)
+                }
+                disabled={creditNoteMutation.isPending || deleteMutation.isPending}
+                className="flex-1 py-2 rounded-xl bg-red-500 text-white text-sm font-medium hover:bg-red-600 transition-colors disabled:opacity-60"
+              >
+                {creditNoteMutation.isPending || deleteMutation.isPending
+                  ? "מבצע..."
+                  : confirmAction.type === "credit"
+                    ? "כן, צור זיכוי"
+                    : "כן, מחק"}
+              </button>
+              <button onClick={() => setConfirmAction(null)} className="btn-secondary flex-1">
+                חזרה
+              </button>
+            </div>
           </div>
         </div>
       )}

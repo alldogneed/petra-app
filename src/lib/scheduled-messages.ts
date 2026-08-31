@@ -61,6 +61,15 @@ async function isEventExpired(msg: {
         const iso = msg.relatedEntityId.split("__")[1];
         return iso ? new Date(iso) <= now : false;
       }
+      case "LEAD_FOLLOWUP": {
+        // Lead closed (won/lost), converted to a customer, or deleted before
+        // sendAt → the follow-up would be confusing, cancel it.
+        const lead = await prisma.lead.findUnique({
+          where: { id: msg.relatedEntityId },
+          select: { wonAt: true, lostAt: true, customerId: true },
+        });
+        return !lead || !!lead.wonAt || !!lead.lostAt || !!lead.customerId;
+      }
       default:
         return false;
     }
@@ -205,21 +214,21 @@ export async function processPendingReminders(): Promise<{
       }
       // Prefer Meta template (works outside 24h window); fall back to text
       let result;
-      if (payload.metaTemplateName && process.env.META_WHATSAPP_TOKEN) {
+      if (payload.metaTemplateName) {
         result = await sendWhatsAppTemplate({
           to: phone,
           templateName: payload.metaTemplateName as string,
           bodyParams: (payload.metaTemplateParams as string[]) ?? [],
           businessId: msg.businessId,
-          context: msg.relatedEntityType?.toLowerCase() ?? "scheduled_message",
+          context: "scheduled_message",
         });
         // If template fails (e.g. not yet approved), fall back to text
         if (!result.success) {
           console.warn(`[Reminder] Template "${payload.metaTemplateName}" failed, falling back to text`);
-          result = await sendWhatsAppMessage({ to: phone, body, businessId: msg.businessId, context: msg.relatedEntityType?.toLowerCase() ?? "scheduled_message" });
+          result = await sendWhatsAppMessage({ to: phone, body, businessId: msg.businessId, context: "scheduled_message" });
         }
       } else {
-        result = await sendWhatsAppMessage({ to: phone, body, businessId: msg.businessId, context: msg.relatedEntityType?.toLowerCase() ?? "scheduled_message" });
+        result = await sendWhatsAppMessage({ to: phone, body, businessId: msg.businessId, context: "scheduled_message" });
       }
 
       await prisma.scheduledMessage.update({

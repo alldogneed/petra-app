@@ -1,4 +1,12 @@
 export const dynamic = 'force-dynamic';
+// SCOPE: tenant-scoped BY DESIGN. Despite living under /api/admin, this route
+// (and its siblings admin/bookings/[id], admin/blocks, admin/availability) is a
+// BUSINESS self-service tool — "admin" here is the legacy sense of "business
+// owner/admin", NOT the platform console. It uses requireBusinessAuth and only
+// ever touches the CALLER'S OWN business's online bookings. Do NOT swap this for
+// requirePlatformPermission: that would silently change the data it operates on.
+// See the note in src/app/admin/bookings/page.tsx re: the misleading platform-
+// dashboard link.
 import { NextRequest, NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards"

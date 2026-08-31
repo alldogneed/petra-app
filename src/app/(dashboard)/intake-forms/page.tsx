@@ -14,6 +14,8 @@ import {
   Search,
   ExternalLink,
   MessageCircle,
+  Eye,
+  Trash2,
 } from "lucide-react";
 import { cn, toWhatsAppPhone, copyToClipboard } from "@/lib/utils";
 import { BoardingTabs } from "@/components/boarding/BoardingTabs";
@@ -48,6 +50,200 @@ interface IntakeForm {
     name: string;
     phone: string;
   } | null;
+}
+
+// ─── View responses modal ────────────────────────────────────────────────────
+
+const SUBMISSION_SECTION_LABELS: Record<string, string> = {
+  dog: "פרטי הכלב",
+  health: "בריאות",
+  behavior: "התנהגות",
+};
+
+const SUBMISSION_FIELD_LABELS: Record<string, string> = {
+  // dog
+  customerName: "שם הלקוח",
+  customerPhone: "טלפון הלקוח",
+  name: "שם הכלב",
+  breed: "גזע",
+  gender: "מין",
+  weight: "משקל",
+  birthDate: "תאריך לידה",
+  // health
+  allergies: "אלרגיות",
+  medicalConditions: "מצבים רפואיים",
+  surgeriesHistory: "היסטוריית ניתוחים",
+  activityLimitations: "מגבלות פעילות",
+  vetName: "וטרינר מטפל",
+  vetPhone: "טלפון וטרינר",
+  neuteredSpayed: "מעוקר/מסורס",
+  originInfo: "מקור הכלב",
+  timeWithOwner: "זמן אצל הבעלים",
+  foodNotes: "הערות האכלה",
+  // behavior
+  dogAggression: "תוקפנות כלפי כלבים",
+  humanAggression: "תוקפנות כלפי אנשים",
+  leashReactivity: "ריאקטיביות ברצועה",
+  leashPulling: "משיכה ברצועה",
+  jumping: "קפיצות",
+  separationAnxiety: "חרדת נטישה",
+  excessiveBarking: "נביחות יתר",
+  destruction: "הרס חפצים",
+  resourceGuarding: "שמירת משאבים",
+  fears: "פחדים",
+  badWithKids: "קושי עם ילדים",
+  houseSoiling: "עשיית צרכים בבית",
+  biteHistory: "היסטוריית נשיכות",
+  biteDetails: "פרטי נשיכות",
+  triggers: "טריגרים",
+  customIssues: "בעיות נוספות",
+  priorTraining: "אילוף קודם",
+  priorTrainingDetails: "פרטי אילוף קודם",
+};
+
+function formatSubmissionValue(value: unknown): string {
+  if (typeof value === "boolean") return value ? "כן" : "לא";
+  if (value === null || value === undefined || value === "") return "—";
+  return String(value);
+}
+
+interface IntakeFormDetail {
+  id: string;
+  status: string;
+  phoneE164: string | null;
+  submittedAt: string | null;
+  submissionJson: string | null;
+  customer: { id: string; name: string; phone: string } | null;
+}
+
+function ViewResponsesModal({
+  formId,
+  onClose,
+}: {
+  formId: string;
+  onClose: () => void;
+}) {
+  const { data, isLoading, isError } = useQuery<IntakeFormDetail>({
+    queryKey: ["intakeForm", formId],
+    queryFn: () =>
+      fetch(`/api/intake/form/${formId}`).then((r) => {
+        if (!r.ok) throw new Error("Failed");
+        return r.json();
+      }),
+  });
+
+  let submission: Record<string, unknown> | null = null;
+  if (data?.submissionJson) {
+    try {
+      submission = JSON.parse(data.submissionJson);
+    } catch {
+      submission = null;
+    }
+  }
+
+  const medications = Array.isArray(submission?.medications)
+    ? (submission!.medications as Array<Record<string, unknown>>)
+    : [];
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onClose} />
+      <div className="modal-content max-w-lg mx-4 p-6 max-h-[85vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h2 className="text-lg font-bold text-petra-text">תשובות הטופס</h2>
+            {data && (
+              <p className="text-sm text-petra-muted mt-0.5">
+                {data.customer?.name || data.phoneE164 || ""}
+                {data.submittedAt &&
+                  ` · הוגש ${new Date(data.submittedAt).toLocaleDateString("he-IL")}`}
+              </p>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted flex-shrink-0"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {isLoading ? (
+          <div className="py-8 text-center text-petra-muted text-sm">טוען...</div>
+        ) : isError ? (
+          <div className="py-8 text-center text-red-500 text-sm">שגיאה בטעינת התשובות</div>
+        ) : !submission ? (
+          <div className="py-8 text-center text-petra-muted text-sm">
+            לא נמצאו תשובות לטופס זה
+          </div>
+        ) : (
+          <div className="space-y-5">
+            {(["dog", "health", "behavior"] as const).map((sectionKey) => {
+              const section = submission?.[sectionKey];
+              if (!section || typeof section !== "object") return null;
+              const entries = Object.entries(section as Record<string, unknown>).filter(
+                ([, v]) => v !== null && v !== undefined && v !== ""
+              );
+              if (entries.length === 0) return null;
+              return (
+                <div key={sectionKey}>
+                  <h3 className="text-sm font-bold text-petra-text mb-2 pb-1 border-b border-slate-100">
+                    {SUBMISSION_SECTION_LABELS[sectionKey]}
+                  </h3>
+                  <dl className="space-y-1.5">
+                    {entries.map(([key, value]) => (
+                      <div key={key} className="flex items-start justify-between gap-3 text-sm">
+                        <dt className="text-petra-muted flex-shrink-0">
+                          {SUBMISSION_FIELD_LABELS[key] || key}
+                        </dt>
+                        <dd
+                          className={cn(
+                            "text-left font-medium break-words",
+                            value === true ? "text-amber-600" : "text-petra-text"
+                          )}
+                        >
+                          {formatSubmissionValue(value)}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+              );
+            })}
+
+            {medications.length > 0 && (
+              <div>
+                <h3 className="text-sm font-bold text-petra-text mb-2 pb-1 border-b border-slate-100">
+                  תרופות
+                </h3>
+                <div className="space-y-2">
+                  {medications.map((med, idx) => (
+                    <div key={idx} className="bg-slate-50 rounded-xl px-3 py-2 text-sm">
+                      <p className="font-medium text-petra-text">
+                        {formatSubmissionValue(med.medName)}
+                      </p>
+                      <p className="text-xs text-petra-muted mt-0.5">
+                        {[med.dosage, med.frequency, med.instructions]
+                          .filter(Boolean)
+                          .map(String)
+                          .join(" • ") || "—"}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        <div className="mt-6">
+          <button className="btn-secondary w-full" onClick={onClose}>
+            סגור
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function CopyButton({ text }: { text: string }) {
@@ -254,7 +450,23 @@ export default function IntakeFormsPage() {
 function IntakeFormsContent() {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [showNewModal, setShowNewModal] = useState(false);
+  const [viewFormId, setViewFormId] = useState<string | null>(null);
+  const [deleteForm, setDeleteForm] = useState<IntakeForm | null>(null);
   const queryClient = useQueryClient();
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/intake/form/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["intakeForms"] });
+      toast.success("הטופס נמחק");
+      setDeleteForm(null);
+    },
+    onError: () => toast.error("שגיאה במחיקת הטופס"),
+  });
 
   const { data: rawForms, isLoading } = useQuery({
     queryKey: ["intakeForms"],
@@ -417,33 +629,55 @@ function IntakeFormsContent() {
                       </td>
                       <td className="table-cell">
                         <div className="flex items-center gap-1 justify-end">
-                          {form.customer && ["SENT", "OPENED", "EXPIRED"].includes(effectiveStatus) && (
+                          {effectiveStatus === "SUBMITTED" && (
                             <button
-                              className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 transition-colors border border-green-200"
-                              title="שלח שוב"
-                              onClick={() => {
-                                // Create a new intake for this customer
-                                fetch("/api/intake/create", {
-                                  method: "POST",
-                                  headers: { "Content-Type": "application/json" },
-                                  body: JSON.stringify({
-                                    customerId: form.customer!.id,
-                                    phone: form.customer!.phone,
-                                  }),
-                                })
-                                  .then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); })
-                                  .then((data) => {
-                                    queryClient.invalidateQueries({ queryKey: ["intakeForms"] });
-                                    const msg = `שלום! אנא מלא/י את טופס הקבלה לפני הביקור: ${data.url}`;
-                                    window.open(`https://wa.me/${toWhatsAppPhone(form.customer!.phone)}?text=${encodeURIComponent(msg)}`, "_blank");
-                                  })
-                                  .catch(() => toast.error("שגיאה בשליחת הטופס מחדש"));
-                              }}
+                              className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors border border-blue-200"
+                              title="צפה בתשובות"
+                              onClick={() => setViewFormId(form.id)}
                             >
-                              <RefreshCw className="w-3 h-3" />
-                              שלח שוב
+                              <Eye className="w-3 h-3" />
+                              צפה בתשובות
                             </button>
                           )}
+                          {(() => {
+                            // Resend works for both linked customers and phone-only forms
+                            const resendPhone = form.customer?.phone || form.phoneE164;
+                            if (!resendPhone || !["SENT", "OPENED", "EXPIRED"].includes(effectiveStatus)) return null;
+                            return (
+                              <button
+                                className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 transition-colors border border-green-200"
+                                title="שלח שוב"
+                                onClick={() => {
+                                  // Create a new intake for this customer / phone
+                                  fetch("/api/intake/create", {
+                                    method: "POST",
+                                    headers: { "Content-Type": "application/json" },
+                                    body: JSON.stringify({
+                                      customerId: form.customer?.id || null,
+                                      phone: resendPhone,
+                                    }),
+                                  })
+                                    .then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); })
+                                    .then((data) => {
+                                      queryClient.invalidateQueries({ queryKey: ["intakeForms"] });
+                                      const msg = `שלום! אנא מלא/י את טופס הקבלה לפני הביקור: ${data.url}`;
+                                      window.open(`https://wa.me/${toWhatsAppPhone(resendPhone)}?text=${encodeURIComponent(msg)}`, "_blank");
+                                    })
+                                    .catch(() => toast.error("שגיאה בשליחת הטופס מחדש"));
+                                }}
+                              >
+                                <RefreshCw className="w-3 h-3" />
+                                שלח שוב
+                              </button>
+                            );
+                          })()}
+                          <button
+                            className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-red-50 text-petra-muted hover:text-red-500 transition-colors"
+                            title="מחק טופס"
+                            onClick={() => setDeleteForm(form)}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -456,6 +690,45 @@ function IntakeFormsContent() {
       </div>
 
       <NewIntakeModal isOpen={showNewModal} onClose={() => setShowNewModal(false)} />
+
+      {viewFormId && (
+        <ViewResponsesModal formId={viewFormId} onClose={() => setViewFormId(null)} />
+      )}
+
+      {/* ── Delete confirmation ── */}
+      {deleteForm && (
+        <div className="modal-overlay">
+          <div className="modal-backdrop" onClick={() => setDeleteForm(null)} />
+          <div className="modal-content max-w-sm mx-4 p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center">
+                <Trash2 className="w-5 h-5 text-red-500" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-petra-text">מחיקת טופס</h2>
+                <p className="text-sm text-petra-muted">
+                  {deleteForm.customer?.name || deleteForm.phoneE164 || "ללא נמען"}
+                </p>
+              </div>
+            </div>
+            <p className="text-sm text-petra-muted mb-5">
+              האם למחוק את טופס הקליטה? פעולה זו בלתי הפיכה
+              {deleteForm.status === "SUBMITTED" && " — כולל התשובות שהוגשו"}.
+            </p>
+            <div className="flex gap-3">
+              <button
+                className="btn-primary flex-1 !bg-red-500 hover:!bg-red-600"
+                disabled={deleteMutation.isPending}
+                onClick={() => deleteMutation.mutate(deleteForm.id)}
+              >
+                <Trash2 className="w-4 h-4" />
+                {deleteMutation.isPending ? "מוחק..." : "מחק"}
+              </button>
+              <button className="btn-secondary flex-1" onClick={() => setDeleteForm(null)}>ביטול</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

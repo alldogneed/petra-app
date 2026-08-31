@@ -4,7 +4,16 @@ import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit } from "@/lib/rate-limit";
 import { hasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
+import { LEAD_SOURCES, LOST_REASON_CODES } from "@/lib/constants";
 import * as XLSX from "xlsx";
+
+const LEAD_SOURCE_LABELS: Record<string, string> = Object.fromEntries(
+  LEAD_SOURCES.map((s) => [s.id, s.label])
+);
+
+const LOST_REASON_LABELS: Record<string, string> = Object.fromEntries(
+  LOST_REASON_CODES.map((r) => [r.id, r.label])
+);
 
 const EXPORT_RATE_LIMIT = { max: 5, windowMs: 60 * 1000 };
 /** Safety cap per query to prevent memory exhaustion on large date ranges */
@@ -159,6 +168,7 @@ export async function GET(request: NextRequest) {
       payments,
       orders,
       leads,
+      leadsLostInRange,
       leadStages,
       trainingPrograms,
       boardingStays,
@@ -209,6 +219,12 @@ export async function GET(request: NextRequest) {
       prisma.lead.findMany({
         where: { businessId, createdAt: { gte: fromDate, lte: toDate } },
         orderBy: { createdAt: "desc" },
+        take: MAX_EXPORT_ROWS,
+      }),
+      // 5b. Leads lost in range (by lostAt, regardless of creation date)
+      prisma.lead.findMany({
+        where: { businessId, lostAt: { gte: fromDate, lte: toDate } },
+        select: { lostReasonCode: true },
         take: MAX_EXPORT_ROWS,
       }),
       // Lead stages for name lookup
@@ -393,6 +409,52 @@ export async function GET(request: NextRequest) {
     const wsLeads = XLSX.utils.aoa_to_sheet(leadRows);
     wsLeads["!cols"] = [{ wch: 18 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 20 }];
     XLSX.utils.book_append_sheet(wb, wsLeads, "לידים");
+
+    // ── Sheet 6b: Leads by Source ──
+    const sourceAgg = new Map<
+      string,
+      { total: number; won: number; lost: number; active: number }
+    >();
+    for (const l of leads) {
+      const source = l.source || "manual";
+      if (!sourceAgg.has(source)) sourceAgg.set(source, { total: 0, won: 0, lost: 0, active: 0 });
+      const entry = sourceAgg.get(source)!;
+      entry.total += 1;
+      if (l.wonAt) entry.won += 1;
+      else if (l.lostAt) entry.lost += 1;
+      else entry.active += 1;
+    }
+    const sourceHeaders = ["מקור", "סה״כ לידים", "נסגרו", "אבדו", "פעילים", "אחוז המרה"];
+    const sourceRows: (string | number)[][] = [sourceHeaders];
+    for (const [source, s] of Array.from(sourceAgg.entries()).sort((a, b) => b[1].total - a[1].total)) {
+      const conversionRate = s.won + s.lost > 0 ? Math.round((s.won / (s.won + s.lost)) * 100) : 0;
+      sourceRows.push([
+        LEAD_SOURCE_LABELS[source] ?? source,
+        s.total,
+        s.won,
+        s.lost,
+        s.active,
+        `${conversionRate}%`,
+      ]);
+    }
+    const wsSources = XLSX.utils.aoa_to_sheet(sourceRows);
+    wsSources["!cols"] = [{ wch: 14 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 12 }];
+    XLSX.utils.book_append_sheet(wb, wsSources, "לידים לפי מקור");
+
+    // ── Sheet 6c: Lost Reasons ──
+    const lostReasonAgg = new Map<string, number>();
+    for (const l of leadsLostInRange) {
+      const code = l.lostReasonCode || "OTHER";
+      lostReasonAgg.set(code, (lostReasonAgg.get(code) || 0) + 1);
+    }
+    const lostReasonHeaders = ["סיבת אובדן", "כמות"];
+    const lostReasonRows: (string | number)[][] = [lostReasonHeaders];
+    for (const [code, count] of Array.from(lostReasonAgg.entries()).sort((a, b) => b[1] - a[1])) {
+      lostReasonRows.push([LOST_REASON_LABELS[code] ?? code, count]);
+    }
+    const wsLostReasons = XLSX.utils.aoa_to_sheet(lostReasonRows);
+    wsLostReasons["!cols"] = [{ wch: 22 }, { wch: 10 }];
+    XLSX.utils.book_append_sheet(wb, wsLostReasons, "סיבות אובדן לידים");
 
     // ── Sheet 7: Training Programs ──
     const trainingHeaders = ["שם תוכנית", "כלב", "לקוח", "סוג", "סטטוס", "מפגשים מתוכננים", "מפגשים שבוצעו", "מחיר", "תאריך התחלה"];

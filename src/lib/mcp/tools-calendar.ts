@@ -28,6 +28,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
+import { ADMIN_SCOPE } from "@/lib/mcp-auth";
 import {
   textResult,
   errorResult,
@@ -797,7 +798,9 @@ export function registerCalendarTools(server: McpServer, ctx: ToolCtx): void {
     },
     async (args) => {
       if (!ctx.hasScope("write:appointments")) return ctx.denyScope("delete_block", "write:appointments");
-      // Deleting a block is owner-only — checked before any replay / DB read.
+      // Deleting a block re-opens booking slots — irreversible, owner-only.
+      // Checked before any replay / DB read, mirroring delete_task.
+      if (!ctx.hasScope(ADMIN_SCOPE)) return ctx.denyScope("delete_block", ADMIN_SCOPE);
       const params = { ...args };
       try {
         const replay = await findIdempotentReplay(connectionId, "delete_block", args.idempotency_key);

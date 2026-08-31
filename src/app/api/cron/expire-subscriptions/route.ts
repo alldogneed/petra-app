@@ -24,6 +24,18 @@ export async function GET(request: NextRequest) {
 
   try {
     const now = new Date();
+
+    // Sync contract request expiry: PENDING requests past expiresAt → EXPIRED
+    // (the sign page already rejects expired tokens; this keeps the DB status
+    // consistent for lists and resend logic)
+    const expiredContracts = await prisma.contractRequest.updateMany({
+      where: { status: "PENDING", expiresAt: { lt: now } },
+      data: { status: "EXPIRED" },
+    });
+    if (expiredContracts.count > 0) {
+      console.log(`expire-subscriptions: expired ${expiredContracts.count} contract requests`);
+    }
+
     const sevenDaysAgo = new Date(now.getTime() - 7 * 86_400_000);
 
     // Find expired active subscriptions.
@@ -43,7 +55,12 @@ export async function GET(request: NextRequest) {
     });
 
     if (expired.length === 0) {
-      return NextResponse.json({ ok: true, expired: 0, timestamp: now.toISOString() });
+      return NextResponse.json({
+        ok: true,
+        expired: 0,
+        contractsExpired: expiredContracts.count,
+        timestamp: now.toISOString(),
+      });
     }
 
     // Sequential operations (no $transaction — Supabase PgBouncer incompatible)
@@ -74,7 +91,7 @@ export async function GET(request: NextRequest) {
       const esc = (v: string) => v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
       await sendEmail({
         to: OWNER_ALERT_EMAIL,
-        subject: `‏🚨 Petra: ${recurringExpired.length} מנויים עם הוראת קבע הורדו ל-free`,
+        subject: `\u200F\ud83d\udea8 Petra: ${recurringExpired.length} מנויים עם הוראת קבע הורדו ל-free`,
         html: `<div dir="rtl" style="font-family:Arial,sans-serif;">
           <h3>עסקים עם הוראת קבע פעילה פגו אחרי 7 ימי חסד</h3>
           <p>לא אומת חיוב חודשי מול קארדקום במשך 7 ימים והמנוי הורד ל-free. נא לבדוק בפאנל קארדקום:</p>
@@ -86,6 +103,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       ok: true,
       expired: expired.length,
+      contractsExpired: expiredContracts.count,
       timestamp: now.toISOString(),
     });
   } catch (error) {

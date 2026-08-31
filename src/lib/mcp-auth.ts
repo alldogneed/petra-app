@@ -181,14 +181,17 @@ export async function touchMcpConnection(connectionId: string): Promise<void> {
  * shape is auditable) but masks the value — full names/phones/notes of
  * customers must not accumulate in McpAuditLog.
  */
-const PII_PARAM_KEYS = new Set(["name", "phone", "email", "address", "notes", "note", "reason", "search", "item_name", "requested_service", "city", "tags", "title", "description", "pet_name", "pet_notes", "checkin_notes", "checkout_notes", "medical_notes", "food_notes", "behavior_notes", "allergies", "medical_conditions", "microchip", "homework", "practice_items", "next_session_goals", "trainer_name", "invoice_number"]);
+const PII_PARAM_KEYS = new Set(["name", "phone", "email", "address", "notes", "note", "reason", "search", "item_name", "requested_service", "city", "tags", "title", "description", "text", "summary", "treatment", "breed", "color", "food_brand", "source", "goals", "pet_name", "pet_notes", "checkin_notes", "checkout_notes", "medical_notes", "food_notes", "behavior_notes", "allergies", "medical_conditions", "microchip", "homework", "practice_items", "next_session_goals", "trainer_name", "invoice_number"]);
 
 function redactParams(params: Record<string, unknown>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(params)) {
     if (value === undefined) continue;
-    if (PII_PARAM_KEYS.has(key) && typeof value === "string" && value.length > 0) {
-      out[key] = `${value.slice(0, 2)}***`;
+    if (PII_PARAM_KEYS.has(key)) {
+      // Redact fully (no leading-char preview) — arrays too (goals/tags/practice_items).
+      if (Array.isArray(value)) out[key] = value.length ? `[${value.length} items ***]` : [];
+      else if (value !== null && value !== "") out[key] = "***";
+      else out[key] = value;
     } else if (typeof value === "string" && value.length > 200) {
       out[key] = value.slice(0, 200) + "…";
     } else {

@@ -1,29 +1,140 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Loader2, Plus, Trash2, Copy, Bot, Clock, CheckCircle2, AlertCircle, Key } from "lucide-react";
-import { formatRelativeTime, copyToClipboard } from "@/lib/utils";
+import {
+  Loader2, Plus, Trash2, Copy, Bot, Clock, CheckCircle2, AlertCircle, Key, Eye, Pencil,
+  Users, CalendarDays, Home, ShieldCheck, User, CalendarClock, AlertTriangle,
+} from "lucide-react";
+import { formatRelativeTime, formatDate, copyToClipboard } from "@/lib/utils";
+import { useAuth } from "@/providers/auth-provider";
+
+// NOTE: these mirror MCP_PROFILE_LABELS in src/lib/mcp-auth.ts. That module imports
+// prisma (server-only) so it can't be imported from a client component — keep the
+// two maps in sync when adding/renaming a profile.
+type McpProfile = "read" | "intake" | "calendar" | "boarding" | "full";
+const PROFILE_ORDER: McpProfile[] = ["read", "intake", "calendar", "boarding", "full"];
+const MCP_PROFILE_LABELS: Record<McpProfile, string> = {
+  read: "קריאה בלבד",
+  intake: "קבלה — לידים, משימות, לקוחות",
+  calendar: "יומן — תורים וזמינות",
+  boarding: "פנסיון",
+  full: "מלא",
+};
+const MCP_PROFILE_DESCRIPTIONS: Record<McpProfile, string> = {
+  read: "הסוכן רק קורא נתונים",
+  intake: "לידים, משימות, לקוחות (כולל יצירה/עדכון)",
+  calendar: "תורים, זמינות, חסימות",
+  boarding: "פנסיון — שהיות, זמינות, לוח יומי",
+  full: "כל היכולות שהתפקיד שלך מאפשר",
+};
+const PROFILE_ICONS: Record<McpProfile, React.ComponentType<{ className?: string }>> = {
+  read: Eye,
+  intake: Users,
+  calendar: CalendarDays,
+  boarding: Home,
+  full: ShieldCheck,
+};
+const isMcpProfile = (v: string | null | undefined): v is McpProfile =>
+  !!v && (PROFILE_ORDER as string[]).includes(v);
 
 interface McpConnection {
   id: string;
   name: string;
   scopes: string[];
+  profile: string | null;
+  createdByUserId: string | null;
+  createdByRole: string | null;
+  createdBy: { name: string; email: string } | null;
+  expiresAt: string | null;
+  isExpired: boolean;
   createdAt: string;
   lastUsedAt: string | null;
   revokedAt: string | null;
   _count: { auditLogs: number };
 }
 
-interface NewConnection extends Omit<McpConnection, "_count"> {
+interface NewConnection {
+  id: string;
+  name: string;
+  scopes: string[];
+  profile: string;
+  expiresAt: string | null;
+  createdAt: string;
+  scopesCapped: boolean;
   token: string;
+  error?: string;
+}
+
+/** A connection is read-only when none of its scopes grant writes. */
+const isReadOnlyConnection = (scopes: string[]) => !scopes.some((s) => s.startsWith("write:"));
+
+/** Profile badge. Legacy rows (profile = null) are derived from their scopes. */
+function ProfileBadge({ profile, scopes }: { profile: string | null; scopes: string[] }) {
+  if (isMcpProfile(profile)) {
+    const Icon = PROFILE_ICONS[profile];
+    const cls =
+      profile === "read"
+        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+        : profile === "full"
+          ? "bg-amber-50 text-amber-700 border-amber-200"
+          : "bg-indigo-50 text-indigo-700 border-indigo-200";
+    return (
+      <span className={`inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded-md border ${cls}`}>
+        <Icon className="w-3 h-3" />
+        {MCP_PROFILE_LABELS[profile]}
+      </span>
+    );
+  }
+  return isReadOnlyConnection(scopes) ? (
+    <span className="inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
+      <Eye className="w-3 h-3" />
+      קריאה בלבד
+    </span>
+  ) : (
+    <span className="inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200">
+      <Pencil className="w-3 h-3" />
+      מלא (ישן)
+    </span>
+  );
+}
+
+/** Minter + expiry metadata line, shared by active and revoked rows. */
+function GovernanceMeta({ conn }: { conn: McpConnection }) {
+  if (!conn.createdBy && !conn.expiresAt) return null;
+  return (
+    <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+      {conn.createdBy && (
+        <span className="flex items-center gap-1 text-xs text-slate-500" title={conn.createdBy.email}>
+          <User className="w-3 h-3" />
+          נוצר ע״י {conn.createdBy.name || conn.createdBy.email}
+        </span>
+      )}
+      {conn.expiresAt && (
+        conn.isExpired ? (
+          <span className="flex items-center gap-1 text-xs font-medium text-red-600">
+            <AlertTriangle className="w-3 h-3" />
+            פג תוקף
+          </span>
+        ) : (
+          <span className="flex items-center gap-1 text-xs text-slate-500">
+            <CalendarClock className="w-3 h-3" />
+            תוקף עד {formatDate(conn.expiresAt)}
+          </span>
+        )
+      )}
+    </div>
+  );
 }
 
 export function McpConnectionsTab() {
   const queryClient = useQueryClient();
+  const { isManager } = useAuth();
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState("");
+  const [newProfile, setNewProfile] = useState<McpProfile>("read");
   const [newToken, setNewToken] = useState<string | null>(null);
   const [newConnectionId, setNewConnectionId] = useState<string | null>(null);
   const [confirmRevoke, setConfirmRevoke] = useState<string | null>(null);
@@ -34,20 +145,28 @@ export function McpConnectionsTab() {
   });
 
   const createMutation = useMutation({
-    mutationFn: (name: string) =>
+    mutationFn: (input: { name: string; profile: McpProfile }) =>
       fetch("/api/mcp/connections", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
-      }).then((r) => r.json()),
+        body: JSON.stringify(input),
+      }).then(async (r) => {
+        const data = (await r.json()) as NewConnection;
+        if (!r.ok || !data.token) throw new Error(data.error || "שגיאה ביצירת חיבור");
+        return data;
+      }),
     onSuccess: (data: NewConnection) => {
       queryClient.invalidateQueries({ queryKey: ["mcp-connections"] });
       setNewToken(data.token);
       setNewConnectionId(data.id);
       setNewName("");
+      setNewProfile("read");
       setShowCreate(false);
+      if (data.scopesCapped) {
+        toast.info("חלק מההרשאות הוסרו לפי התפקיד שלך");
+      }
     },
-    onError: () => toast.error("שגיאה ביצירת חיבור"),
+    onError: (err: Error) => toast.error(err.message || "שגיאה ביצירת חיבור"),
   });
 
   const revokeMutation = useMutation({
@@ -60,6 +179,17 @@ export function McpConnectionsTab() {
     },
     onError: () => toast.error("שגיאה בביטול חיבור"),
   });
+
+  const submitCreate = () => {
+    if (!newName.trim()) return;
+    createMutation.mutate({ name: newName.trim(), profile: newProfile });
+  };
+
+  const resetCreateForm = () => {
+    setShowCreate(false);
+    setNewName("");
+    setNewProfile("read");
+  };
 
   const activeConnections = connections?.filter((c) => !c.revokedAt) ?? [];
   const revokedConnections = connections?.filter((c) => c.revokedAt) ?? [];
@@ -78,6 +208,12 @@ export function McpConnectionsTab() {
               חבר את העסק שלך לעוזר AI כמו Claude או ChatGPT. תוכל לשאול "מי הלקוחות שלי השבוע?" או
               "קבע פגישה לדני ביום שלישי" והוא יבצע את זה בשבילך.
             </p>
+            <Link
+              href="/help/connect-ai"
+              className="inline-block mt-2 text-sm font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
+            >
+              מדריך חיבור מפורט ←
+            </Link>
           </div>
         </div>
       </div>
@@ -182,18 +318,76 @@ export function McpConnectionsTab() {
               placeholder="למשל: Claude Desktop"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && newName.trim() && createMutation.mutate(newName.trim())}
+              onKeyDown={(e) => e.key === "Enter" && submitCreate()}
               autoFocus
             />
+
+            {/* Access profile — read-only is the safe default */}
+            <div className="bg-white border border-slate-200 rounded-lg p-3 space-y-2">
+              <p className="text-xs font-medium text-slate-600">פרופיל גישה</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2" role="radiogroup" aria-label="פרופיל גישה">
+                {PROFILE_ORDER.map((p) => {
+                  const Icon = PROFILE_ICONS[p];
+                  const selected = newProfile === p;
+                  return (
+                    <label
+                      key={p}
+                      className={`flex items-start gap-2 rounded-lg border p-2.5 cursor-pointer select-none transition-colors ${
+                        selected
+                          ? "border-indigo-400 bg-indigo-50 ring-1 ring-indigo-300"
+                          : "border-slate-200 hover:border-slate-300 bg-white"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="mcp-profile"
+                        value={p}
+                        checked={selected}
+                        onChange={() => setNewProfile(p)}
+                        className="mt-1 w-4 h-4 border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                      />
+                      <span className="flex-1 min-w-0">
+                        <span className="flex items-center gap-1.5 text-sm font-medium text-slate-800">
+                          <Icon className={`w-4 h-4 ${p === "read" ? "text-emerald-600" : p === "full" ? "text-amber-600" : "text-indigo-600"}`} />
+                          {MCP_PROFILE_LABELS[p]}
+                          {p === "read" && <span className="text-[11px] font-normal text-emerald-700">(מומלץ)</span>}
+                        </span>
+                        <span className="block text-xs text-slate-500 mt-0.5 leading-relaxed">
+                          {MCP_PROFILE_DESCRIPTIONS[p]}
+                        </span>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+              {newProfile !== "read" && (
+                <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg p-2">
+                  <Pencil className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-700 leading-relaxed">
+                    הסוכן יוכל ליצור ולעדכן רשומות בפטרה בתחומים של הפרופיל שנבחר. כל פעולה נרשמת ביומן.
+                  </p>
+                </div>
+              )}
+              {isManager && (
+                <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg p-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-xs text-amber-800 leading-relaxed">
+                    כמנהל, חיבורים שתיצור לא יכללו: אנליטיקה/הכנסות, רישום תשלומים ומחיקות (נדרש בעלים)
+                  </p>
+                </div>
+              )}
+              <p className="text-[11px] text-slate-400">תוקף הטוקן: 180 יום מיום היצירה. ניתן לבטל בכל רגע.</p>
+            </div>
+
             <div className="flex gap-2">
               <button
-                onClick={() => createMutation.mutate(newName.trim())}
+                onClick={submitCreate}
                 disabled={!newName.trim() || createMutation.isPending}
                 className="btn-primary text-sm"
               >
                 {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "צור חיבור"}
               </button>
-              <button onClick={() => { setShowCreate(false); setNewName(""); }} className="btn-secondary text-sm">
+              <button onClick={resetCreateForm} className="btn-secondary text-sm">
                 ביטול
               </button>
             </div>
@@ -219,12 +413,22 @@ export function McpConnectionsTab() {
                       <Bot className="w-5 h-5 text-indigo-600" />
                     </div>
                     <div>
-                      <p className="font-medium text-slate-800 text-sm">{conn.name}</p>
-                      <div className="flex items-center gap-3 mt-0.5">
-                        <span className="flex items-center gap-1 text-xs text-slate-500">
-                          <CheckCircle2 className="w-3 h-3 text-emerald-500" />
-                          פעיל
-                        </span>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="font-medium text-slate-800 text-sm">{conn.name}</p>
+                        <ProfileBadge profile={conn.profile} scopes={conn.scopes} />
+                      </div>
+                      <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+                        {conn.isExpired ? (
+                          <span className="flex items-center gap-1 text-xs text-red-600">
+                            <AlertTriangle className="w-3 h-3" />
+                            פג תוקף
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1 text-xs text-slate-500">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                            פעיל
+                          </span>
+                        )}
                         {conn.lastUsedAt ? (
                           <span className="flex items-center gap-1 text-xs text-slate-500">
                             <Clock className="w-3 h-3" />
@@ -235,6 +439,7 @@ export function McpConnectionsTab() {
                         )}
                         <span className="text-xs text-slate-400">{conn._count.auditLogs} פעולות</span>
                       </div>
+                      <GovernanceMeta conn={conn} />
                     </div>
                   </div>
                   {confirmRevoke === conn.id ? (
@@ -278,9 +483,13 @@ export function McpConnectionsTab() {
               <div key={conn.id} className="bg-slate-50 border border-slate-200 rounded-lg p-3 flex items-center gap-3">
                 <AlertCircle className="w-4 h-4 text-slate-400 flex-shrink-0" />
                 <div>
-                  <p className="text-slate-500 text-sm line-through">{conn.name}</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-slate-500 text-sm line-through">{conn.name}</p>
+                    <ProfileBadge profile={conn.profile} scopes={conn.scopes} />
+                  </div>
                   <p className="text-xs text-slate-400">
                     בוטל {conn.revokedAt ? formatRelativeTime(conn.revokedAt) : ""}
+                    {conn.createdBy ? ` · נוצר ע״י ${conn.createdBy.name || conn.createdBy.email}` : ""}
                   </p>
                 </div>
               </div>

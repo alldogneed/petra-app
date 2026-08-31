@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
-import { Fence, Plus, Pencil, Trash2, Check, X, PawPrint, Search, GripVertical, Printer, Calendar, Share2, LayoutGrid } from "lucide-react";
+import { Fence, Plus, Pencil, Trash2, Check, X, PawPrint, Search, GripVertical, Printer, Calendar, Share2 } from "lucide-react";
 import {
   DndContext, DragOverlay, useDraggable, useDroppable,
   PointerSensor, useSensor, useSensors, type DragEndEvent,
@@ -252,6 +252,7 @@ export default function YardsPage() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [search, setSearch] = useState("");
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [deleteDialogYard, setDeleteDialogYard] = useState<Yard | null>(null);
 
   // Date range — defaults to today
   const [fromDate, setFromDate] = useState(todayStr());
@@ -406,6 +407,7 @@ export default function YardsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["yards"] });
       toast.success("החצר נמחקה");
+      setDeleteDialogYard(null);
     },
     onError: (err: Error) => toast.error(err.message || "שגיאה במחיקת החצר"),
   });
@@ -526,22 +528,15 @@ export default function YardsPage() {
         )}
       </div>
 
-      {/* View toggle bar — matches boarding rooms style */}
-      <div className="flex items-center justify-between mb-4 no-print">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => window.print()}
-            className="btn-primary flex items-center gap-1.5 text-sm"
-            title="הדפס מפת חצרות"
-          >
-            <Printer className="w-3.5 h-3.5" />הדפסה
-          </button>
-          <div className="flex gap-1 bg-slate-100 rounded-lg p-0.5">
-            <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all bg-white shadow-sm text-petra-text">
-              <LayoutGrid className="w-3.5 h-3.5" />כרטיסים
-            </button>
-          </div>
-        </div>
+      {/* Print bar */}
+      <div className="flex items-center mb-4 no-print">
+        <button
+          onClick={() => window.print()}
+          className="btn-primary flex items-center gap-1.5 text-sm"
+          title="הדפס מפת חצרות"
+        >
+          <Printer className="w-3.5 h-3.5" />הדפסה
+        </button>
       </div>
 
       {/* Add yard form */}
@@ -715,7 +710,7 @@ export default function YardsPage() {
                       yard={yard}
                       occupants={yard.boardingStays as unknown as ActiveStay[]}
                       onEdit={() => startEditYard(yard)}
-                      onDelete={() => deleteYardMutation.mutate(yard.id)}
+                      onDelete={() => setDeleteDialogYard(yard)}
                       onRemoveDog={(stayId) => assignYardMutation.mutate({ stayId, yardId: null })}
                       isDeleting={deleteYardMutation.isPending}
                     />
@@ -744,6 +739,38 @@ export default function YardsPage() {
             ) : null}
           </DragOverlay>
         </DndContext>
+      )}
+
+      {/* ── Delete Yard Confirmation ── */}
+      {deleteDialogYard && (
+        <div className="modal-overlay">
+          <div className="modal-backdrop" onClick={() => setDeleteDialogYard(null)} />
+          <div className="modal-content max-w-sm mx-4 p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center">
+                <Trash2 className="w-5 h-5 text-red-500" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-petra-text">מחיקת חצר</h2>
+                <p className="text-sm text-petra-muted">{deleteDialogYard.name}</p>
+              </div>
+            </div>
+            <p className="text-sm text-petra-muted mb-5">
+              האם למחוק את החצר &quot;{deleteDialogYard.name}&quot;? פעולה זו בלתי הפיכה.
+            </p>
+            <div className="flex gap-3">
+              <button
+                className="btn-primary flex-1 !bg-red-500 hover:!bg-red-600"
+                disabled={deleteYardMutation.isPending}
+                onClick={() => deleteYardMutation.mutate(deleteDialogYard.id)}
+              >
+                <Trash2 className="w-4 h-4" />
+                {deleteYardMutation.isPending ? "מוחק..." : "מחק"}
+              </button>
+              <button className="btn-secondary flex-1" onClick={() => setDeleteDialogYard(null)}>ביטול</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Print styles */}

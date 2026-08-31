@@ -1,5 +1,14 @@
 "use client";
 
+// SCOPE MISMATCH (documented, not auto-fixed): this page is TENANT-scoped — its
+// API (/api/admin/bookings) uses requireBusinessAuth and manages only the logged-in
+// user's OWN business online bookings. It is currently linked from the PLATFORM admin
+// dashboard quick-links (src/app/admin/page.tsx → "ניהול הזמנות"), which is misleading:
+// a platform admin lands here expecting platform-wide data but edits only their own
+// tenant. Recommended fix: remove that quick-link from src/app/admin/page.tsx (this
+// tool belongs in the business dashboard, not the platform console). The guard is
+// correct as-is and must not be weakened.
+
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {

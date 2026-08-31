@@ -9,6 +9,7 @@ import { sendWhatsAppTemplate, sendWhatsAppMessage, interpolateTemplate } from "
 import { toWhatsAppPhone } from "@/lib/utils";
 import { logCurrentUserActivity } from "@/lib/activity-log";
 import { getMaxOrders, normalizeTier, hasFeatureWithOverrides } from "@/lib/feature-flags";
+import { sendPaymentRequestForOrder } from "@/lib/payment-request";
 import { listOrders, createOrder, ServiceError } from "@/services/orders";
 
 export async function GET(request: NextRequest) {
@@ -71,7 +72,7 @@ export async function POST(request: NextRequest) {
 
     const biz = await prisma.business.findUnique({
       where: { id: authResult.businessId },
-      select: { tier: true, featureOverrides: true },
+      select: { tier: true, featureOverrides: true, whatsappRemindersEnabled: true },
     });
     const maxOrders = getMaxOrders(normalizeTier(biz?.tier));
 
@@ -90,15 +91,37 @@ export async function POST(request: NextRequest) {
 
     const { order, linkedAppointmentId } = result;
 
+    // payment_request automation — only for orders created directly as "confirmed"
+    // (not draft — those fire on the draft→confirmed PATCH; not in_progress/completed
+    // — back-dated historical sales must not get a payment request). Suppressed for
+    // the pay-now flow, which records the payment immediately after this POST — the
+    // customer must not receive a live payment link for money they just paid.
+    // Gated inside (toggle + tier + active rule + link + not-already-paid).
+    if (order && order.status === "confirmed" && body.suppressPaymentRequest !== true) {
+      await sendPaymentRequestForOrder(order.id, authResult.businessId, "order_created").catch(
+        (err) => console.error("sendPaymentRequestForOrder (create) failed (non-critical):", err)
+      );
+    }
+
     // Schedule WhatsApp reminder if requested
     if (body.sendReminder === true && body.startAt) {
       await createOrderReminder(order.id, body.customerId, new Date(body.startAt), authResult.businessId)
         .catch((err: unknown) => console.error("Failed to schedule reminder:", err));
     }
 
-    // WhatsApp appointment confirmation (PRO+ only, fire-and-forget)
+    // WhatsApp appointment confirmation — sends ONLY when ALL hold: tier allows it,
+    // the master "שליחת הודעות אוטומטיות" toggle is on, AND the per-message
+    // "appointment_confirmation" automation is active. Previously this fired on tier
+    // alone (ignoring both toggles), so businesses got customer messages they never
+    // enabled. A ScheduledMessage log row also dedups per appointment — a double
+    // order-create can no longer message the same appointment twice.
     const bizOverrides = (biz?.featureOverrides as Record<string, boolean> | null) ?? null;
-    if (hasFeatureWithOverrides(biz?.tier ?? "free", "whatsapp_reminders", bizOverrides) && linkedAppointmentId && body.appointmentData) {
+    if (
+      biz?.whatsappRemindersEnabled &&
+      hasFeatureWithOverrides(biz?.tier ?? "free", "whatsapp_reminders", bizOverrides) &&
+      linkedAppointmentId &&
+      body.appointmentData
+    ) {
       const customer = await prisma.customer.findUnique({
         where: { id: body.customerId },
         select: { name: true, phone: true },
@@ -111,7 +134,7 @@ export async function POST(request: NextRequest) {
           apptDate.setHours(h, m, 0, 0);
           const formattedDate = new Intl.DateTimeFormat("he-IL", { weekday: "long", day: "numeric", month: "long" }).format(apptDate);
           const APPT_TYPE_LABELS: Record<string, string> = { training: "אילוף", grooming: "טיפוח", service_dog: "כלב שירות" };
-          const TRAINING_SUBTYPE_LABELS: Record<string, string> = { individual: "פרטי", group: "קבוצתי", boarding: "פנסיון", package: "חבילה" };
+          const TRAINING_SUBTYPE_LABELS: Record<string, string> = { individual: "פרטי", private: "פרטי", group: "קבוצתי", boarding: "פנסיון", package: "חבילה" };
           const typeLabel = APPT_TYPE_LABELS[body.orderType] ?? body.orderType;
           const subtypeLabel = body.orderType === "training" && body.trainingSubType ? TRAINING_SUBTYPE_LABELS[body.trainingSubType] ?? "" : "";
           const serviceName = subtypeLabel ? `${typeLabel} (${subtypeLabel})` : typeLabel;
@@ -120,18 +143,38 @@ export async function POST(request: NextRequest) {
             where: { businessId: authResult.businessId, trigger: "appointment_confirmation", isActive: true },
             include: { template: true },
           }).catch(() => null);
+
+          // Opt-in: no active appointment_confirmation automation → no send at all
+          // (the default-template fallback used to fire even with the toggle off).
+          if (!confirmationRule) {
+            // eslint-disable-next-line no-console
+            console.log("[OrderConfirmation] appointment_confirmation automation inactive, skipping");
+          }
+
+          // Idempotency: one confirmation per appointment, ever.
+          const alreadySent = confirmationRule
+            ? await prisma.scheduledMessage.findFirst({
+                where: {
+                  businessId: authResult.businessId,
+                  relatedEntityType: "APPT_CONFIRMATION",
+                  relatedEntityId: linkedAppointmentId,
+                },
+                select: { id: true },
+              }).catch(() => null)
+            : null;
           const linkedAppt = await prisma.appointment.findUnique({
             where: { id: linkedAppointmentId },
             select: { pet: { select: { name: true } } },
           }).catch(() => null);
           const petName = linkedAppt?.pet?.name ?? "";
 
+          if (confirmationRule && !alreadySent) {
           if (confirmationRule?.template?.body) {
             const msgBody = interpolateTemplate(confirmationRule.template.body, {
               customerName: customer.name, date: formattedDate,
               time: body.appointmentData.startTime as string, serviceName, petName,
             });
-            await sendWhatsAppMessage({ to: phone, body: msgBody }).catch((err) =>
+            await sendWhatsAppMessage({ to: phone, body: msgBody, businessId: authResult.businessId, context: "appointment_confirmation" }).catch((err) =>
               console.error("Order appointment confirmation WA (custom) failed:", err)
             );
           } else {
@@ -139,7 +182,24 @@ export async function POST(request: NextRequest) {
               to: phone,
               templateName: "petra_appointment_confirmation",
               bodyParams: [customer.name, formattedDate, body.appointmentData.startTime as string, serviceName],
+              businessId: authResult.businessId,
+              context: "appointment_confirmation",
             }).catch((err) => console.error("Order appointment confirmation WA failed:", err));
+          }
+          // Log the send so the same appointment never gets a second confirmation.
+          await prisma.scheduledMessage.create({
+            data: {
+              businessId: authResult.businessId,
+              customerId: body.customerId,
+              channel: "whatsapp",
+              templateKey: "appointment_confirmation_log",
+              payloadJson: "{}",
+              sendAt: new Date(),
+              status: "SENT",
+              relatedEntityType: "APPT_CONFIRMATION",
+              relatedEntityId: linkedAppointmentId,
+            },
+          }).catch((err) => console.error("[OrderConfirmation] failed to log send:", err));
           }
         }
       }

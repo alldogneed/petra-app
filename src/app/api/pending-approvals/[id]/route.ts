@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { prisma } from "@/lib/prisma";
 import { hasTenantPermission, TENANT_PERMS } from "@/lib/permissions";
+import { deletePet } from "@/services/pets";
 
 /**
  * PATCH /api/pending-approvals/[id]
@@ -171,18 +172,11 @@ async function executeApprovedAction(
     }
     case "DELETE_PET": {
       const id = payload.petId as string;
-      // Verify the pet belongs to this business
-      const pet = await prisma.pet.findFirst({
-        where: {
-          id,
-          OR: [
-            { customer: { businessId } },
-            { businessId },
-          ],
-        },
-      });
-      if (!pet) throw new Error("Pet not found in business");
-      await prisma.pet.delete({ where: { id } });
+      // deletePet verifies ownership and runs the full sequential FK cleanup
+      // (appointments, boarding, bookings, training, service-dog records)
+      // before deleting — a bare prisma.pet.delete fails with a P2003
+      // foreign-key error whenever the pet has any linked records.
+      await deletePet(businessId, prisma, id);
       break;
     }
     case "DELETE_TRAINING": {

@@ -289,11 +289,69 @@ export async function deletePet(businessId: string, db: DbClient, petId: string)
   });
   if (!existing) throw new ServiceError("Pet not found", "NOT_FOUND");
 
+  // Sequential cleanup of every non-cascading FK that points at Pet
+  // (mirrors the Customer DELETE pattern — sequential, NO $transaction:
+  // Supabase PgBouncer transaction pooling is incompatible with Prisma
+  // interactive transactions).
+  //
+  // Rows that keep their meaning without the pet → null the reference.
+  // Pet-owned rows → delete.
+
+  // Appointment.petId is nullable, no cascade — keep the appointment history.
+  await db.appointment.updateMany({ where: { petId }, data: { petId: null } });
+
+  // ContractRequest.petId is nullable, no cascade — keep the contract.
+  await db.contractRequest.updateMany({ where: { petId }, data: { petId: null } });
+
+  // BoardingCareLog.petId is required, no cascade — logs are pet-owned.
+  await db.boardingCareLog.deleteMany({ where: { petId } });
+
+  // BoardingStay.petId is required, no cascade → the stays must go.
+  // Payment.boardingStayId is nullable — detach payments first so the
+  // financial record survives.
+  const stays = await db.boardingStay.findMany({ where: { petId }, select: { id: true } });
+  if (stays.length > 0) {
+    const stayIds = stays.map((s) => s.id);
+    await db.payment.updateMany({
+      where: { boardingStayId: { in: stayIds } },
+      data: { boardingStayId: null },
+    });
+    await db.boardingStay.deleteMany({ where: { id: { in: stayIds } } });
+  }
+
+  // BookingDog is a booking↔pet junction, no cascade on petId — remove the
+  // junction rows only (the booking itself survives).
+  await db.bookingDog.deleteMany({ where: { petId } });
+
+  // TrainingGroupParticipant.dogId has no cascade; its attendance rows
+  // cascade off the participant.
+  await db.trainingGroupParticipant.deleteMany({ where: { dogId: petId } });
+
+  // ServiceDogProfile cascades off Pet, but ServiceDogPlacement.serviceDogId
+  // does NOT cascade off the profile — clear placements first (and detach
+  // compliance events that point at those placements).
+  const sdProfile = await db.serviceDogProfile.findUnique({
+    where: { petId },
+    select: { id: true },
+  });
+  if (sdProfile) {
+    await db.serviceDogComplianceEvent.updateMany({
+      where: { serviceDogId: sdProfile.id, placementId: { not: null } },
+      data: { placementId: null },
+    });
+    await db.serviceDogPlacement.deleteMany({ where: { serviceDogId: sdProfile.id } });
+  }
+
+  // Pet-owned medical records (cascade in schema, deleted explicitly for
+  // safety on older prod DDL).
   await db.dogMedication.deleteMany({ where: { petId } });
   await db.dogHealth.deleteMany({ where: { petId } });
   await db.dogBehavior.deleteMany({ where: { petId } });
   await db.petWeightEntry.deleteMany({ where: { petId } });
-  await db.trainingGroupParticipant.deleteMany({ where: { dogId: petId } });
+
+  // TrainingProgram.dogId cascades (goals/sessions/homework cascade off the
+  // program), ServiceDogProfile + its remaining children cascade — safe to
+  // delete the pet now.
   await db.pet.delete({ where: { id: petId } });
 
   return existing;

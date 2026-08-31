@@ -140,21 +140,6 @@ Dashboard renewal banner uses `!isFree && subscriptionActive && subscriptionDays
 
 ---
 
-## WhatsApp — delivery & templates (critical)
-
-- **Owner/internal alert templates MUST be category UTILITY.** Meta silently frequency-caps repeated MARKETING templates to the same recipient — the API returns `accepted` and the message is dropped with no error. Meta may also RE-CATEGORIZE a template to MARKETING after approval if its wording matches an existing marketing template — always verify category AFTER approval, and use transactional wording ("עדכון מערכת", "התקבלה פנייה") distinct from any marketing template.
-- Current customer/owner sends: lead alerts → `petra_lead_notification`; lead followup → `petra_lead_followup_notice`; boarding thank-you → `petra_boarding_stay_summary`; appointment reminder/confirmation → `_v2` (all UTILITY).
-- **Every Meta API send is logged** to `WhatsAppMessageLog` (wamid, template, `context` tag) by `src/lib/whatsapp.ts`; the statuses webhook `/api/webhooks/whatsapp-status` updates sent/delivered/read/failed and emails the platform owner on failure (1h throttle). Verify token env: `WHATSAPP_WEBHOOK_VERIFY_TOKEN`.
-- Lead alerts are **multi-channel** (`src/lib/lead-alert.ts`): WhatsApp template chain + Resend email to owners + in-app `Notification` rows — never WhatsApp-only for critical alerts.
-- **All testing on the QA business only** (`qa-test@petra.local`, business `aa4f5cee-...`) — never on real customer businesses. Clean up test rows after.
-
-## UI resilience rules
-
-- `ChunkErrorReload` (root layout) auto-reloads once on stale-deployment chunk errors — don't remove; it's why users stopped seeing "קובץ שגיאה" after deploys.
-- Mobile bottom nav is z-30; overlays must NOT cover it (the PWA install banner sits ABOVE it via bottom-[calc(5rem+safe-area)]).
-- `deletePet` (src/services/pets.ts) runs full sequential FK cleanup (Appointment/BookingDog/BoardingStay/CareLog/ContractRequest/Placements) — mirror the Customer DELETE pattern; never bare `pet.delete()`.
-- Boarding room capacity is enforced in BOTH `createBoardingStay` and `updateBoardingStay` (`assertRoomCapacity`, overlap-aware, null checkout = open-ended) — any new room-assignment path must call it.
-
 ## MCP Server
 
 ### Architecture
@@ -182,7 +167,7 @@ MCP is visible/usable ONLY for: `alldogneed@gmail.com`, `or.rabinovich@gmail.com
 - **Token metadata:** `McpConnection` carries `createdByUserId` / `createdByRole` / `expiresAt` (180 days). Profiles `read | intake | calendar | boarding | full` via `MCP_PROFILES` (labels `MCP_PROFILE_LABELS`); `full` = everything the minter's role allows.
 
 ### 64 Tools + 2 prompts — `src/app/api/mcp/route.ts` + modules in `src/lib/mcp/`
-Core (route.ts, 20): `list_clients` (cursor), `get_client`, `create_client`, `add_client_note`, `list_upcoming_appointments`, `list_services`, `create_appointment`, `update_appointment`, `cancel_appointment`, `get_business_stats`, `list_leads` (city/source/created, created_from/to, stage_name, offset, include_closed), `get_lead`, `create_lead` (stage_name / next_follow_up / pet_* fields), `list_orders`, `get_order`, `create_order`, `list_tasks`, `list_pets`, `list_boarding_stays`, `list_training_programs`, `send_reminder`.
+Core (route.ts, 20): `list_clients` (cursor), `get_client`, `create_client`, `add_client_note`, `list_upcoming_appointments`, `list_services`, `create_appointment`, `update_appointment`, `cancel_appointment`, `get_business_stats`, `list_leads` (city/source/created, created_from/to, stage_name, offset, include_closed), `get_lead` (full card + whole journal: 50 call logs/stage changes with treatment, follow-up task history), `create_lead` (stage_name / next_follow_up / pet_* fields), `list_orders`, `get_order`, `create_order`, `list_tasks`, `list_pets`, `list_boarding_stays`, `list_training_programs`, `send_reminder`.
 Intake (`tools-intake.ts`): `find_duplicate`, `list_lead_stages`, `create_task`, `update_task`, `update_lead`.
 Boarding (`tools-boarding.ts`): `list_boarding_rooms`, `check_boarding_availability`, `quote_boarding_price`, `create_boarding_stay`, `get_boarding_daily_board`, `update_boarding_stay` (cancel of a checked_in stay → admin:destructive).
 Briefing (`tools-briefing.ts`): `list_payments`, `get_analytics`, `get_morning_briefing`; prompts `morning_briefing`, `intake_from_screenshot`.

@@ -24,6 +24,7 @@ export type FeatureKey =
   | "groomer_portfolio"
   | "invoicing"
   | "staff_management"
+  | "ai_assistant"
   | "excel_export"
   | "gcal_sync"
   | "payments"
@@ -39,6 +40,7 @@ export type FeatureKey =
   | "webhook_leads"
   | "appointments"
   | "lead_notifications"
+  | "contracts"
   | "online_classes";
 
 // ─── Feature access matrix ────────────────────────────────────────────────────
@@ -60,6 +62,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     groomer_portfolio: false,
     invoicing:         false,
     staff_management:  false,
+    ai_assistant:      false,
     excel_export:      false,
     gcal_sync:         false,
     payments:          true,   // ✅ basic payment recording — BASIC+ unlocks payment links
@@ -75,6 +78,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     webhook_leads:     false,
     appointments:      true,   // ✅ open, max 20 total (FREE_APPOINTMENT_LIMIT)
     lead_notifications: false, // WhatsApp alert to owner on new lead — PRO only
+    contracts:         false,  // Digital contracts (חוזים דיגיטליים) — BASIC+ only
     online_classes:    false,  // Online classes portal — private beta: featureOverrides only
   },
 
@@ -93,6 +97,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     groomer_portfolio: true,   // ✅ Before/after portfolio — BASIC+
     invoicing:         false,  // Invoices — PRO only
     staff_management:  false,  // Single user — team management is PRO only
+    ai_assistant:      false,  // AI assistant is PRO+
     excel_export:      false,  // Excel export — PRO only
     gcal_sync:         true,   // Google Calendar sync ✅
     payments:          true,   // Payment links ✅
@@ -108,6 +113,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     webhook_leads:     false,  // Make.com/API webhook for leads — PRO only
     appointments:      true,
     lead_notifications: false, // WhatsApp alert to owner on new lead — PRO only
+    contracts:         true,   // ✅ Digital contracts — BASIC+
     online_classes:    false,  // Online classes portal — private beta: featureOverrides only
   },
 
@@ -125,6 +131,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     groomer_portfolio: true,   // Before/after portfolio ✅
     invoicing:         true,   // Full invoicing ✅
     staff_management:  true,   // Staff/additional users ✅
+    ai_assistant:      false,
     excel_export:      true,   // Excel export ✅
     gcal_sync:         true,   // Google Calendar ✅
     payments:          true,
@@ -140,6 +147,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     webhook_leads:     false,  // CRM webhook not relevant for groomers
     appointments:      true,
     lead_notifications: false,
+    contracts:         true,   // ✅ Digital contracts
     online_classes:    false,  // Online classes portal — private beta: featureOverrides only
   },
 
@@ -155,6 +163,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     groomer_portfolio: true,
     invoicing:         true,
     staff_management:  true,
+    ai_assistant:      false,
     excel_export:      true,
     gcal_sync:         true,
     payments:          true,
@@ -170,6 +179,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     webhook_leads:     false,
     appointments:      true,
     lead_notifications: false,
+    contracts:         true,   // ✅ Digital contracts (mirrors groomer)
     online_classes:    false,  // Online classes portal — private beta: featureOverrides only
   },
 
@@ -187,6 +197,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     groomer_portfolio: true,   // ✅ Before/after portfolio (superset of Basic)
     invoicing:         true,   // Invoicing ✅
     staff_management:  true,   // ✅ Team management — PRO only
+    ai_assistant:      true,   // ✅ AI assistant (MCP) — PRO launch
     excel_export:      true,   // Excel export ✅
     gcal_sync:         true,
     payments:          true,
@@ -202,6 +213,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     webhook_leads:     true,   // API webhook for leads ✅
     appointments:      true,
     lead_notifications: true,  // WhatsApp alert to owner on new lead ✅
+    contracts:         true,   // ✅ Digital contracts
     online_classes:    false,  // Online classes portal — private beta: featureOverrides only
   },
 
@@ -218,6 +230,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     groomer_portfolio: false,
     invoicing:         true,
     staff_management:  true,
+    ai_assistant:      true,
     excel_export:      true,
     gcal_sync:         true,
     payments:          true,
@@ -233,6 +246,7 @@ const FEATURE_ACCESS: Record<TierKey, Record<FeatureKey, boolean>> = {
     webhook_leads:     true,   // API webhook for leads ✅
     appointments:      true,
     lead_notifications: true,  // WhatsApp alert to owner on new lead ✅
+    contracts:         true,   // ✅ Digital contracts
     online_classes:    false,  // Online classes portal — private beta: featureOverrides only
   },
 };

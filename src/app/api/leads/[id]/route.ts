@@ -7,6 +7,7 @@ import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 import { hasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
 import { createPendingApproval } from "@/lib/pending-approvals";
 import { shouldSyncContacts, upsertLeadContact } from "@/lib/google-contacts";
+import { cancelLeadFollowup } from "@/lib/reminder-service";
 import { updateLead, deleteLead, ServiceError, type UpdateLeadInput } from "@/services/clients";
 
 const PatchLeadSchema = z.object({
@@ -130,6 +131,11 @@ export async function DELETE(
       }
       throw e;
     }
+
+    // Lead deleted — cancel any pending lead_followup message
+    await cancelLeadFollowup(params.id).catch((err) =>
+      console.error("cancelLeadFollowup (delete) failed (non-critical):", err)
+    );
 
     logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.DELETE_LEAD);
     return NextResponse.json({ success: true, ...(deleteResult.alreadyDeleted ? { alreadyDeleted: true } : {}) });

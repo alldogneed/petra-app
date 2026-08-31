@@ -29,6 +29,7 @@ import {
   Download,
   Sheet,
   Printer,
+  CreditCard,
 } from "lucide-react";
 import { cn, formatCurrency, formatDate, toWhatsAppPhone, escapeHtml } from "@/lib/utils";
 import { toast } from "sonner";
@@ -456,7 +457,9 @@ function OrdersPageContent() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    // overflow-x-clip: a too-wide child must scroll inside its own box, never
+    // widen the page — a wide element here zoomed the whole mobile viewport out.
+    <div className="space-y-6 animate-fade-in max-w-full overflow-x-clip">
       <DesktopBanner />
       <FinanceTabs />
       {/* ── Header ─────────────────────────────────────────────────────── */}
@@ -580,7 +583,7 @@ function OrdersPageContent() {
           {/* Payment status filter */}
           <div className="flex-shrink-0">
             <p className="text-xs font-medium text-petra-muted mb-1.5">סטטוס תשלום</p>
-            <div className="flex gap-1.5">
+            <div className="flex gap-1.5 flex-wrap">
               {[
                 { id: "ALL", label: "הכל" },
                 { id: "paid", label: "שולם" },
@@ -635,7 +638,7 @@ function OrdersPageContent() {
           </div>
 
           {/* Date range */}
-          <div className="flex gap-2 items-end">
+          <div className="flex gap-2 items-end flex-wrap">
             <div>
               <p className="text-xs font-medium text-petra-muted mb-1.5 flex items-center gap-1">
                 <CalendarRange className="w-3 h-3" />
@@ -643,7 +646,7 @@ function OrdersPageContent() {
               </p>
               <input
                 type="date" lang="he"
-                className="input text-sm py-2"
+                className="input text-sm py-2 w-[8.5rem] max-w-full"
                 value={fromDate}
                 onChange={(e) => setFromDate(e.target.value)}
               />
@@ -652,7 +655,7 @@ function OrdersPageContent() {
               <p className="text-xs font-medium text-petra-muted mb-1.5">עד תאריך</p>
               <input
                 type="date" lang="he"
-                className="input text-sm py-2"
+                className="input text-sm py-2 w-[8.5rem] max-w-full"
                 value={toDate}
                 onChange={(e) => setToDate(e.target.value)}
               />
@@ -841,6 +844,16 @@ function OrdersPageContent() {
                           <Eye className="w-3.5 h-3.5" />
                           צפה בפרטים
                         </Link>
+                        {paidAmount < order.total && order.status !== "cancelled" && (
+                          <Link
+                            href={`/orders/${order.id}?pay=1`}
+                            className="btn-primary text-xs py-1.5 px-3 gap-1.5"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <CreditCard className="w-3.5 h-3.5" />
+                            רשום תשלום
+                          </Link>
+                        )}
                         {order.status === "draft" && (
                           <button
                             className="btn-primary text-xs py-1.5 px-3"
@@ -1027,15 +1040,46 @@ function OrdersPageContent() {
                             <Eye className="w-3.5 h-3.5" />
                             צפה בפרטים
                           </Link>
-                          {order.status === "confirmed" && (
+                          {paidAmountDesk < order.total && order.status !== "cancelled" && (
+                            <Link
+                              href={`/orders/${order.id}?pay=1`}
+                              className="btn-primary text-xs py-1.5 px-3 gap-1.5"
+                            >
+                              <CreditCard className="w-3.5 h-3.5" />
+                              רשום תשלום
+                            </Link>
+                          )}
+                          {order.status === "draft" && (
                             <button
                               className="btn-primary text-xs py-1.5 px-3 gap-1.5"
-                              onClick={() => statusMutation.mutate({ id: order.id, status: "completed" })}
+                              onClick={() => statusMutation.mutate({ id: order.id, status: "confirmed" })}
                               disabled={statusMutation.isPending}
                             >
                               <CheckCircle2 className="w-3.5 h-3.5" />
-                              הושלמה
+                              אשר הזמנה
                             </button>
+                          )}
+                          {order.status === "confirmed" && (
+                            <>
+                              <button
+                                className="btn-primary text-xs py-1.5 px-3 gap-1.5"
+                                onClick={() => statusMutation.mutate({ id: order.id, status: "completed" })}
+                                disabled={statusMutation.isPending}
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                הושלמה
+                              </button>
+                              <button
+                                className="text-xs py-1.5 px-3 rounded-xl font-medium text-white flex items-center gap-1.5 transition-all hover:opacity-90 disabled:opacity-60"
+                                style={{ background: "#25D366" }}
+                                disabled={sendingPaymentRequestId === order.id}
+                                onClick={() => sendOrderPaymentRequest(order)}
+                                title="שלח בקשת תשלום בוואטסאפ"
+                              >
+                                <MessageCircle className="w-3.5 h-3.5" />
+                                {sendingPaymentRequestId === order.id ? "מכין קישור..." : "שלח בקשת תשלום"}
+                              </button>
+                            </>
                           )}
                           {isCancellable && (
                             <button

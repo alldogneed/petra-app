@@ -427,6 +427,7 @@ function ServiceDogProfilePageContent() {
     { id: "insurance" as const, label: "ביטוח", icon: ShieldCheck },
     { id: "equipment" as const, label: "ציוד", icon: Package },
     { id: "medical" as const, label: "פרוטוקולים רפואיים", icon: Heart },
+    { id: "compliance" as const, label: "דיווחי ציות", icon: Flag },
     { id: "idcard" as const, label: "תעודת הסמכה", icon: CreditCard },
   ];
 

@@ -253,7 +253,7 @@ export function GlobalSearch() {
                   id: a.id,
                   title: `${a.customer!.name} – ${a.service?.name ?? a.priceListItem?.name ?? "תור"}`,
                   subtitle: `${new Date(a.date).toLocaleDateString("he-IL")} ${a.startTime}`,
-                  onClick: () => navigate(`/calendar`),
+                  onClick: () => navigate(`/calendar?date=${a.date.slice(0, 10)}&apt=${a.id}`),
                 }))}
               />
             )}

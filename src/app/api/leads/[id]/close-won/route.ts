@@ -4,6 +4,7 @@ import { clearLeadFollowUps } from "@/services/clients";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
+import { cancelLeadFollowup } from "@/lib/reminder-service";
 
 export async function POST(
   request: NextRequest,
@@ -60,6 +61,11 @@ export async function POST(
         include: { customer: true, callLogs: true },
       });
 
+      // Lead is closed-won — cancel any pending lead_followup message
+      await cancelLeadFollowup(id).catch((err) =>
+        console.error("cancelLeadFollowup (close-won) failed (non-critical):", err)
+      );
+
       return NextResponse.json({
         lead,
         customerId: existing.customerId,
@@ -96,6 +102,11 @@ export async function POST(
         businessId: authResult.businessId,
       },
     });
+
+    // Lead is closed-won — cancel any pending lead_followup message
+    await cancelLeadFollowup(id).catch((err) =>
+      console.error("cancelLeadFollowup (close-won) failed (non-critical):", err)
+    );
 
     const result = { lead, customerId: customer.id };
 

@@ -63,7 +63,8 @@ export async function PATCH(
       stay = await updateBoardingStay(authResult.businessId, prisma, params.id, body);
     } catch (e) {
       if (e instanceof ServiceError) {
-        return NextResponse.json({ error: e.message }, { status: e.code === "NOT_FOUND" ? 404 : 400 });
+        const status = e.code === "NOT_FOUND" ? 404 : e.code === "CONFLICT" ? 409 : 400;
+        return NextResponse.json({ error: e.message }, { status });
       }
       throw e;
     }

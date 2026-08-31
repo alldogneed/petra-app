@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { interpolateTemplate } from "@/lib/whatsapp";
 import { REMINDER_TEMPLATES } from "@/lib/training-groups";
 import { hasFeatureWithOverrides } from "@/lib/feature-flags";
+import { toWhatsAppPhone } from "@/lib/utils";
 
 // ─── Appointment reminder scheduling ─────────────────────────────────────────
 
@@ -234,6 +235,142 @@ export async function rescheduleAppointmentReminder(appt: AppointmentForReminder
     console.error("scheduleAppointmentFollowup (reschedule) failed (non-critical):", err)
   );
   return reminder;
+}
+
+// ─── Lead follow-up scheduling ────────────────────────────────────────────────
+
+interface LeadForFollowup {
+  id: string;
+  businessId: string;
+  name: string;
+  phone: string | null | undefined;
+  requestedService?: string | null;
+  /** If the lead is already linked to a customer it is considered converted — no follow-up. */
+  customerId?: string | null;
+}
+
+/**
+ * Schedule a follow-up WhatsApp message X hours after a lead is created (opt-in).
+ * Only fires if the business has an active `lead_followup` AutomationRule — no
+ * fallback (same pattern as scheduleAppointmentFollowup / scheduleBoardingThankYou).
+ * Sends `triggerOffset` hours after creation (default 24h). Uses relatedEntityType
+ * "LEAD_FOLLOWUP"; the send-time guard in scheduled-messages.ts cancels the message
+ * if the lead was won/lost/converted/deleted before sendAt.
+ */
+export async function scheduleLeadFollowup(lead: LeadForFollowup) {
+  if (!lead.phone?.trim()) return null; // no phone → nothing to send
+  if (lead.customerId) return null;     // already converted to a customer → no follow-up
+
+  const bizSettings = await prisma.business.findUnique({
+    where: { id: lead.businessId },
+    select: { whatsappRemindersEnabled: true, phone: true, tier: true, featureOverrides: true },
+  });
+  if (!bizSettings?.whatsappRemindersEnabled) return null;
+  const overrides = (bizSettings.featureOverrides as Record<string, boolean> | null) ?? null;
+  if (!hasFeatureWithOverrides(bizSettings.tier, "whatsapp_reminders", overrides)) return null;
+
+  // Opt-in: requires an active lead_followup rule — no rule, no message.
+  const rule = await prisma.automationRule.findFirst({
+    where: { businessId: lead.businessId, trigger: "lead_followup", isActive: true },
+    include: {
+      template: { select: { body: true } },
+      business: { select: { phone: true } },
+    },
+  });
+  if (!rule) return null;
+
+  const offsetHours = rule.triggerOffset ?? 24;
+  const sendAt = new Date(Date.now() + offsetHours * 60 * 60 * 1000);
+
+  // Deduplicate: one pending follow-up per lead
+  const existing = await prisma.scheduledMessage.findFirst({
+    where: { relatedEntityType: "LEAD_FOLLOWUP", relatedEntityId: lead.id, status: "PENDING" },
+  });
+  if (existing) return null;
+
+  const to = toWhatsAppPhone(lead.phone);
+  if (!to) return null;
+
+  // Abuse guards — the public lead webhook can create unlimited NEW leads, so the
+  // per-lead dedup above is not enough on its own:
+  // (a) one pending follow-up per destination phone per business — repeated
+  //     submissions of the same phone must not queue N messages to it;
+  // (b) hourly cap per business on newly queued follow-ups, so a webhook flood
+  //     cannot amplify into mass WhatsApp sends (Meta cost + WABA quality risk).
+  const pendingToSamePhone = await prisma.scheduledMessage.findFirst({
+    where: {
+      businessId: lead.businessId,
+      relatedEntityType: "LEAD_FOLLOWUP",
+      status: "PENDING",
+      payloadJson: { contains: `"to":"${to}"` },
+    },
+  });
+  if (pendingToSamePhone) return null;
+
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+  const queuedLastHour = await prisma.scheduledMessage.count({
+    where: {
+      businessId: lead.businessId,
+      relatedEntityType: "LEAD_FOLLOWUP",
+      createdAt: { gte: oneHourAgo },
+    },
+  });
+  if (queuedLastHour >= 30) {
+    console.warn(`[LeadFollowup] hourly cap reached for business ${lead.businessId}, skipping`);
+    return null;
+  }
+
+  const contactPhone = (rule.business?.phone ?? bizSettings.phone ?? "").trim();
+
+  let body: string;
+  if (rule.template?.body) {
+    body = interpolateTemplate(rule.template.body, {
+      customerName: lead.name,
+      // Starter body reads "פנייתך לגבי {serviceName}" — an empty service (e.g.
+      // Paycall missed-call leads) must not render "לגבי  ונשמח"; use the same
+      // fallback as the Meta template params.
+      serviceName: lead.requestedService?.trim() || "השירות שלנו",
+      businessPhone: contactPhone,
+    });
+  } else {
+    const servicePart = lead.requestedService?.trim() ? ` לגבי ${lead.requestedService.trim()}` : "";
+    const footer = `\n\n_הודעה אוטומטית – אין להשיב להודעה זו.\nלפניות ויצירת קשר ישיר עם בית העסק: ${contactPhone}_`;
+    body = `שלום ${lead.name}! 🐾\n\nקיבלנו את פנייתך${servicePart} ונשמח לעזור!\nנחזור אליך בהקדם.${footer}`;
+  }
+
+  // Meta rejects empty template params — only attach the template path when the
+  // business phone exists (mirrors scheduleBoardingThankYou's dual-path pattern).
+  const metaPayload = contactPhone
+    ? {
+        metaTemplateName: "petra_lead_followup",
+        metaTemplateParams: [lead.name, lead.requestedService?.trim() || "השירות שלנו", contactPhone],
+      }
+    : {};
+
+  return prisma.scheduledMessage.create({
+    data: {
+      businessId: lead.businessId,
+      customerId: null,
+      channel: "whatsapp",
+      templateKey: `automation-rule-${rule.id}`,
+      payloadJson: JSON.stringify({ body, to, ...metaPayload }),
+      sendAt,
+      status: "PENDING",
+      relatedEntityType: "LEAD_FOLLOWUP",
+      relatedEntityId: lead.id,
+    },
+  });
+}
+
+/**
+ * Cancel a pending lead follow-up (call when the lead is won, lost, converted,
+ * or deleted before the follow-up fires).
+ */
+export async function cancelLeadFollowup(leadId: string) {
+  return prisma.scheduledMessage.updateMany({
+    where: { relatedEntityType: "LEAD_FOLLOWUP", relatedEntityId: leadId, status: "PENDING" },
+    data: { status: "CANCELED" },
+  });
 }
 
 // ─── Boarding checkout reminder scheduling ────────────────────────────────────

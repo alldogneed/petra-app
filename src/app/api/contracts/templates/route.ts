@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { put } from "@vercel/blob";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { hasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
+import { hasFeatureWithOverrides } from "@/lib/feature-flags";
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB
 
@@ -41,6 +42,19 @@ export async function POST(request: NextRequest) {
   if (blockedPost) return blockedPost;
 
   try {
+    // Tier gate: digital contracts are BASIC+ only
+    const business = await prisma.business.findUnique({
+      where: { id: authResult.businessId },
+      select: { tier: true, featureOverrides: true },
+    });
+    const overrides = (business?.featureOverrides as Record<string, boolean> | null) ?? null;
+    if (!hasFeatureWithOverrides(business?.tier, "contracts", overrides)) {
+      return NextResponse.json(
+        { error: "חוזים דיגיטליים זמינים ממסלול בייסיק ומעלה", code: "TIER" },
+        { status: 403 }
+      );
+    }
+
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
     const name = (formData.get("name") as string | null)?.trim();
@@ -67,6 +81,11 @@ export async function POST(request: NextRequest) {
     }
     if (file.type !== "application/pdf") return NextResponse.json({ error: "יש להעלות קובץ PDF בלבד" }, { status: 400 });
     if (file.size > MAX_FILE_SIZE) return NextResponse.json({ error: "קובץ גדול מדי — מקסימום 20MB" }, { status: 400 });
+
+    // Blob storage preflight — fail with a specific message instead of a generic 500
+    if (!process.env.BLOB_READ_WRITE_TOKEN) {
+      return NextResponse.json({ error: "אחסון הקבצים אינו מוגדר — פנה לתמיכה" }, { status: 503 });
+    }
 
     const blobPath = `contracts/${authResult.businessId}/templates/${Date.now()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
     const blob = await put(blobPath, file, { access: "public" });

@@ -4,7 +4,7 @@ import { logCurrentUserActivity } from "@/lib/activity-log";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { hasFeatureWithOverrides } from "@/lib/feature-flags";
-import { sendWhatsAppMessage, sendWhatsAppTemplate } from "@/lib/whatsapp";
+import { sendLeadAlert } from "@/lib/lead-alert";
 import { toWhatsAppPhone } from "@/lib/utils";
 import { shouldSyncContacts, upsertLeadContact } from "@/lib/google-contacts";
 import { prisma } from "@/lib/prisma";
@@ -57,50 +57,26 @@ export async function POST(request: NextRequest) {
     const { lead, existingCustomer, duplicateLead, business } = result;
     logCurrentUserActivity("CREATE_LEAD");
 
-    // ── Side effect: WhatsApp notification to business owner (PRO+ only) ──
+    // ── Side effect: multi-channel lead alert (WhatsApp + email + bell) ──
     const bizOverrides = (business?.featureOverrides as Record<string, unknown> | null) ?? null;
     const canNotify = hasFeatureWithOverrides(
       business?.tier ?? "free",
       "lead_notifications",
       bizOverrides as Record<string, boolean> | null
     );
-    // Re-use the business data the service already fetched
     if (business && canNotify) {
-      const serviceParam = lead.requestedService || "לא צוין";
-      const phoneParam = lead.phone || "לא צוין";
-      const cityParam = (lead as { city?: string | null }).city || "לא צוין";
-      const SOURCE_LABELS: Record<string, string> = {
-        manual: "הוספה ידנית", facebook: "פייסבוק", instagram: "אינסטגרם",
-        website: "אתר אינטרנט", google: "גוגל", tiktok: "טיקטוק",
-        referral: "המלצה מלקוח", signage: "שלט", other: "אחר",
-      };
-      const sourceParam = SOURCE_LABELS[lead.source] ?? lead.source ?? "לא צוין";
-      const msg = `ליד חדש נכנס לפטרה!\n\nשם: ${lead.name}\nטלפון: ${phoneParam}\nשירות: ${serviceParam}\nאזור: ${cityParam}\nמקור: ${sourceParam}\n\nכנס לניהול הלידים בפטרה לפרטים.`;
-
-      const extraPhones = Array.isArray(bizOverrides?.lead_notification_phones)
-        ? (bizOverrides!.lead_notification_phones as string[])
-        : [];
-      const uniquePhones = [...new Set(
-        [...(business.phone ? [business.phone] : []), ...extraPhones]
-          .map(toWhatsAppPhone)
-          .filter((p): p is string => !!p)
-      )];
-
-      await Promise.allSettled(
-        uniquePhones.map(async (p) => {
-          try {
-            const res = await sendWhatsAppTemplate({
-              to: p, templateName: "petra_biz_lead_alert",
-              bodyParams: [lead.name, phoneParam, serviceParam, cityParam, sourceParam],
-            });
-            if (!res.success) await sendWhatsAppMessage({ to: p, body: msg });
-          } catch {
-            await sendWhatsAppMessage({ to: p, body: msg }).catch((err) =>
-              console.error("Lead notification WA (fallback) failed:", err)
-            );
-          }
-        })
-      );
+      await sendLeadAlert({
+        businessId: authResult.businessId,
+        businessPhone: business.phone ?? null,
+        featureOverrides: bizOverrides,
+        lead: {
+          name: lead.name,
+          phone: lead.phone ?? null,
+          requestedService: lead.requestedService ?? null,
+          city: (lead as { city?: string | null }).city ?? null,
+          source: lead.source ?? null,
+        },
+      });
     }
 
     // ── Side effect: Google Contacts sync ──

@@ -141,7 +141,10 @@ export default function AdminDashboardPage() {
         {[
           { href: "/admin/users", label: "ניהול משתמשים", color: "#06B6D4" },
           { href: "/admin/stats", label: "סטטיסטיקות", color: "#F97316" },
-          { href: "/admin/bookings", label: "ניהול הזמנות", color: "#A855F7" },
+          // /admin/bookings intentionally NOT linked here — it is a TENANT-scoped
+          // tool (own business only), a footgun inside the platform console where
+          // an admin expects platform-wide data. Reachable from the business flows.
+          { href: "/admin/messages", label: "הודעות שידור", color: "#A855F7" },
           { href: "/admin/feed", label: "פיד פעילות", color: "#22C55E" },
         ].map((l) => (
           <Link

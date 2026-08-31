@@ -5,6 +5,7 @@ import { useState, useMemo } from "react";
 import {
   Plus, X, Search, Edit2, Copy, Tag, Package, Clock,
   CheckCircle2, XCircle, Layers, Link2, Share2, Trash2,
+  ChevronUp, ChevronDown, AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { triggerLimitModal } from "@/lib/limit-reached";
@@ -300,12 +301,20 @@ function ItemRow({
   onDuplicate,
   onToggle,
   onDelete,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp,
+  canMoveDown,
 }: {
   item: PriceListItem;
   onEdit: () => void;
   onDuplicate: () => void;
   onToggle: () => void;
   onDelete: () => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
 }) {
   return (
     <div className={cn(
@@ -350,6 +359,26 @@ function ItemRow({
       )}
 
       <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        {onMoveUp && (
+          <button
+            onClick={onMoveUp}
+            disabled={!canMoveUp}
+            title="הזז למעלה"
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all disabled:opacity-30 disabled:pointer-events-none"
+          >
+            <ChevronUp className="w-3.5 h-3.5" />
+          </button>
+        )}
+        {onMoveDown && (
+          <button
+            onClick={onMoveDown}
+            disabled={!canMoveDown}
+            title="הזז למטה"
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all disabled:opacity-30 disabled:pointer-events-none"
+          >
+            <ChevronDown className="w-3.5 h-3.5" />
+          </button>
+        )}
         <button onClick={onEdit} title="ערוך" className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all">
           <Edit2 className="w-3.5 h-3.5" />
         </button>
@@ -360,9 +389,7 @@ function ItemRow({
           {item.isActive ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> : <XCircle className="w-3.5 h-3.5 text-red-400" />}
         </button>
         <button
-          onClick={() => {
-            if (confirm(`למחוק את "${item.name}"?`)) onDelete();
-          }}
+          onClick={onDelete}
           title="מחק"
           className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all"
         >
@@ -382,6 +409,7 @@ export default function PriceListPage() {
   const [filterType, setFilterType] = useState("");
   const [showInactive, setShowInactive] = useState(false);
   const [modalState, setModalState] = useState<{ open: boolean; item: PriceListItem | null }>({ open: false, item: null });
+  const [deleteItem, setDeleteItem] = useState<PriceListItem | null>(null);
 
   // Load the first (default) price list
   const { data: priceLists = [] } = useQuery<PriceList[]>({
@@ -426,8 +454,42 @@ export default function PriceListPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
       fetch(`/api/price-list-items/${id}`, { method: "DELETE" }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה במחיקה"); return d; }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["price-list-items", priceList?.id] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["price-list-items", priceList?.id] });
+      setDeleteItem(null);
+      toast.success("פריט נמחק");
+    },
+    onError: (err: Error) => toast.error(err.message || "שגיאה במחיקה"),
   });
+
+  // Persist a new order within a displayed group: reindex sortOrder sequentially
+  const reorderMutation = useMutation({
+    mutationFn: async (updates: { id: string; sortOrder: number }[]) => {
+      for (const u of updates) {
+        const r = await fetch(`/api/price-list-items/${u.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ sortOrder: u.sortOrder }),
+        });
+        if (!r.ok) throw new Error("שגיאה בשמירת הסדר");
+      }
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["price-list-items", priceList?.id] }),
+    onError: () => toast.error("שגיאה בשמירת סדר הפריטים"),
+  });
+
+  function moveItem(group: PriceListItem[], index: number, dir: -1 | 1) {
+    const target = index + dir;
+    if (target < 0 || target >= group.length || reorderMutation.isPending) return;
+    const newOrder = [...group];
+    const [moved] = newOrder.splice(index, 1);
+    newOrder.splice(target, 0, moved);
+    const updates = newOrder
+      .map((it, idx) => ({ id: it.id, sortOrder: idx, changed: it.sortOrder !== idx }))
+      .filter((u) => u.changed)
+      .map(({ id, sortOrder }) => ({ id, sortOrder }));
+    if (updates.length > 0) reorderMutation.mutate(updates);
+  }
 
   const filtered = useMemo(() => {
     return items.filter((item) => {
@@ -588,14 +650,18 @@ export default function PriceListPage() {
                 <span className="text-xs font-semibold text-petra-muted uppercase tracking-wider">{cat}</span>
                 <span className="text-xs text-slate-400 mr-2">({catItems.length})</span>
               </div>
-              {catItems.map((item) => (
+              {catItems.map((item, idx) => (
                 <ItemRow
                   key={item.id}
                   item={item}
                   onEdit={() => setModalState({ open: true, item })}
                   onDuplicate={() => duplicateMutation.mutate(item)}
                   onToggle={() => toggleMutation.mutate({ id: item.id, isActive: !item.isActive })}
-                  onDelete={() => deleteMutation.mutate(item.id)}
+                  onDelete={() => setDeleteItem(item)}
+                  onMoveUp={() => moveItem(catItems, idx, -1)}
+                  onMoveDown={() => moveItem(catItems, idx, 1)}
+                  canMoveUp={idx > 0}
+                  canMoveDown={idx < catItems.length - 1}
                 />
               ))}
             </div>
@@ -609,6 +675,34 @@ export default function PriceListPage() {
         isOpen={modalState.open}
         onClose={() => setModalState({ open: false, item: null })}
       />
+
+      {/* Delete item confirm dialog */}
+      {deleteItem && (
+        <div className="modal-overlay">
+          <div className="modal-backdrop" onClick={() => setDeleteItem(null)} />
+          <div className="modal-content max-w-sm mx-4 p-6 text-center">
+            <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center mx-auto mb-3">
+              <AlertTriangle className="w-6 h-6 text-red-500" />
+            </div>
+            <h3 className="text-base font-bold text-petra-text mb-1">
+              למחוק את &quot;{deleteItem.name}&quot;?
+            </h3>
+            <p className="text-sm text-petra-muted mb-4">פעולה זו לא ניתנת לביטול.</p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => deleteMutation.mutate(deleteItem.id)}
+                disabled={deleteMutation.isPending}
+                className="flex-1 py-2 rounded-xl bg-red-500 text-white text-sm font-medium hover:bg-red-600 transition-colors disabled:opacity-60"
+              >
+                {deleteMutation.isPending ? "מוחק..." : "כן, מחק"}
+              </button>
+              <button onClick={() => setDeleteItem(null)} className="btn-secondary flex-1">
+                חזרה
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

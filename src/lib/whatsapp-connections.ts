@@ -44,6 +44,8 @@ export interface WaConnectionStatus {
   lastError: string | null;
   /** Embedded Signup is configured on this deployment (NEXT_PUBLIC_META_APP_ID + NEXT_PUBLIC_META_ES_CONFIG_ID + META_APP_SECRET) */
   signupAvailable: boolean;
+  /** Private beta: the requesting user may see/use the connect flow (set by the API routes, not by the lib) */
+  betaAccess?: boolean;
 }
 
 export interface ConnectInput {
@@ -87,6 +89,9 @@ const GRAPH_BASE = "https://graph.facebook.com/v21.0";
 const GRAPH_TIMEOUT_MS = 10_000;
 /** `lastUsedAt` is written at most once per this interval (cheap updateMany, awaited). */
 const LAST_USED_MIN_INTERVAL_MS = 10 * 60 * 1000;
+// Embedded Signup system-user tokens live 60 days; refresh when this close to expiry.
+const TOKEN_LIFETIME_MS = 60 * 24 * 60 * 60 * 1000;
+const TOKEN_REFRESH_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 /** lastError values written by the template sync start with this so a later good sync can clear them. */
 const SYNC_ERR_PREFIX = "סנכרון תבניות: ";
 const MAX_TEMPLATE_PAGES = 5;
@@ -112,6 +117,21 @@ export const PLATFORM_TEMPLATE_NAMES: readonly string[] = [
   "petra_lead_followup",
   "petra_payment_request",
 ];
+
+/**
+ * Private beta allowlist for the per-business connect flow (mirrors the MCP beta):
+ * alldog + or.rabinovich + @petra.local QA users + WA_CONNECT_ALLOWED_EMAILS (comma-separated).
+ * WA_CONNECT_BETA_OPEN=true opens it to everyone. Platform admins are handled by the routes.
+ */
+export function isWaConnectBetaEmail(email: string | null | undefined): boolean {
+  if (process.env.WA_CONNECT_BETA_OPEN === "true") return true;
+  const e = (email ?? "").trim().toLowerCase();
+  if (!e) return false;
+  if (e === "alldogneed@gmail.com" || e === "or.rabinovich@gmail.com") return true;
+  if (e.endsWith("@petra.local")) return true;
+  const extra = (process.env.WA_CONNECT_ALLOWED_EMAILS ?? "").split(",").map((x) => x.trim().toLowerCase()).filter(Boolean);
+  return extra.includes(e);
+}
 
 /** True when all env needed for Embedded Signup is present. */
 export function isWhatsAppEmbeddedSignupConfigured(): boolean {
@@ -303,6 +323,16 @@ export async function resolveWhatsAppSender(
             await markWhatsAppConnectionError(businessId, "פענוח טוקן הגישה נכשל — יש לחבר את המספר מחדש");
           }
           if (token) {
+            // Lazy refresh: Embedded Signup tokens expire after 60 days — exchange for a fresh
+            // one when close to expiry (awaited; failure keeps the current token until it dies).
+            if (conn.tokenExpiresAt && conn.tokenExpiresAt.getTime() - Date.now() < TOKEN_REFRESH_WINDOW_MS) {
+              const refreshed = await refreshBusinessToken(businessId, token);
+              if (refreshed) token = refreshed;
+              else if (conn.tokenExpiresAt.getTime() < Date.now()) {
+                await markWhatsAppConnectionError(businessId, "טוקן הגישה פג ולא ניתן היה לרענן אותו — יש לחבר את המספר מחדש");
+                return platformSender();
+              }
+            }
             // Throttled lastUsedAt touch (awaited — Vercel kills fire-and-forget work).
             const now = Date.now();
             if (!conn.lastUsedAt || now - conn.lastUsedAt.getTime() > LAST_USED_MIN_INTERVAL_MS) {
@@ -322,6 +352,38 @@ export async function resolveWhatsAppSender(
     }
   }
   return platformSender();
+}
+
+/** Exchange a soon-to-expire business token for a fresh 60-day one. Returns the new token or null. */
+async function refreshBusinessToken(businessId: string, currentToken: string): Promise<string | null> {
+  const appId = getMetaAppId();
+  const appSecret = process.env.META_APP_SECRET?.trim();
+  if (!appId || !appSecret) return null;
+  const res = await graph<{ access_token?: string }>("/oauth/access_token", {
+    query: {
+      grant_type: "fb_exchange_token",
+      client_id: appId,
+      client_secret: appSecret,
+      fb_exchange_token: currentToken,
+    },
+    secrets: [appSecret, currentToken],
+  });
+  const fresh = res.data?.access_token;
+  if (!fresh) {
+    console.error(`${LOG} token refresh failed for business ${businessId}: ${res.error?.message ?? "no token in response"}`);
+    return null;
+  }
+  try {
+    await prisma.whatsAppConnection.updateMany({
+      where: { businessId },
+      data: { accessTokenEnc: encryptWhatsAppToken(fresh), tokenExpiresAt: new Date(Date.now() + TOKEN_LIFETIME_MS) },
+    });
+    console.log(`${LOG} refreshed access token for business ${businessId}`);
+    return fresh;
+  } catch (err) {
+    console.error(`${LOG} failed to store refreshed token for business ${businessId}:`, err);
+    return fresh; // still usable for this send
+  }
 }
 
 export async function getWhatsAppConnectionStatus(businessId: string): Promise<WaConnectionStatus> {
@@ -426,6 +488,7 @@ export async function connectWhatsAppBusiness(input: ConnectInput): Promise<WaCo
     verifiedName: phone.data.verified_name ?? null,
     qualityRating: phone.data.quality_rating ?? null,
     accessTokenEnc: encryptWhatsAppToken(token),
+    tokenExpiresAt: new Date(now.getTime() + TOKEN_LIFETIME_MS),
     status: "active",
     lastError,
     coexistence,

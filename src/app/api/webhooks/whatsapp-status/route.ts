@@ -153,7 +153,7 @@ export async function POST(request: NextRequest) {
 
       if (s.status === "failed") {
         console.error("[whatsapp-status] delivery FAILED:", s.id, existing.context, err?.code, err?.title);
-        alertDeliveryFailure(existing.context, existing.templateName, err).catch(() => {});
+        await alertDeliveryFailure(existing.context, existing.templateName, err).catch(() => {}); // awaited — Vercel kills fire-and-forget
       }
     }
   } catch (err) {

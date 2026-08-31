@@ -76,22 +76,31 @@ export async function GET(request: Request) {
   await Promise.all(
     selectedCalendars.map(async (cal) => {
       try {
-        const url = new URL(
-          `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events`
-        );
-        url.searchParams.set("timeMin", timeMin);
-        url.searchParams.set("timeMax", timeMax);
-        url.searchParams.set("singleEvents", "true");
-        url.searchParams.set("orderBy", "startTime");
-        url.searchParams.set("maxResults", "100");
+        // Follow pagination — maxResults=100 without pageToken truncated busy
+        // months mid-way (events simply stopped after the first 100).
+        const items: GcalEvent[] = [];
+        let pageToken: string | undefined;
+        for (let page = 0; page < 10; page++) {
+          const url = new URL(
+            `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal.id)}/events`
+          );
+          url.searchParams.set("timeMin", timeMin);
+          url.searchParams.set("timeMax", timeMax);
+          url.searchParams.set("singleEvents", "true");
+          url.searchParams.set("orderBy", "startTime");
+          url.searchParams.set("maxResults", "250");
+          if (pageToken) url.searchParams.set("pageToken", pageToken);
 
-        const res = await fetch(url.toString(), {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        });
-        if (!res.ok) return;
+          const res = await fetch(url.toString(), {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          });
+          if (!res.ok) return;
 
-        const data = await res.json();
-        const items: GcalEvent[] = data.items ?? [];
+          const data = await res.json();
+          items.push(...((data.items ?? []) as GcalEvent[]));
+          pageToken = data.nextPageToken;
+          if (!pageToken) break;
+        }
 
         for (const ev of items) {
           // Skip events Petra itself pushed to Google (marked with source=petra) —

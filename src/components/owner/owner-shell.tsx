@@ -26,7 +26,7 @@ const nav = [
   { name: "דשבורד", href: "/owner", icon: LayoutDashboard, exact: true },
   { name: "עסקים", href: "/owner/tenants", icon: Building2 },
   { name: "Customer Success", href: "/owner/customer-success", icon: HeartHandshake },
-  { name: "שידור הודעה", href: "/owner/broadcast", icon: Megaphone },
+  { name: "שידור הודעה", href: "/admin/messages", icon: Megaphone },
   { name: "תמיכה", href: "/owner/support", icon: LifeBuoy },
   { name: "משתמשים", href: "/owner/users", icon: Users },
   { name: "הסכמות תנאים", href: "/owner/consents", icon: ShieldCheck },

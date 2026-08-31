@@ -93,12 +93,26 @@ export async function listAppointments(businessId: string, db: DbClient, opts: A
     }
   }
 
-  return db.appointment.findMany({
+  const appointments = await db.appointment.findMany({
     where,
     select: APPOINTMENT_SELECT,
     orderBy: { date: "asc" },
     take: 200,
   });
+
+  // Attach the linked Order id (Order.relatedEntityType = "Appointment") so the
+  // calendar can deep-link an appointment to its order. Single batched lookup.
+  if (appointments.length === 0) return appointments.map((a) => ({ ...a, orderId: null as string | null }));
+  const linkedOrders = await db.order.findMany({
+    where: {
+      businessId,
+      relatedEntityType: "Appointment",
+      relatedEntityId: { in: appointments.map((a) => a.id) },
+    },
+    select: { id: true, relatedEntityId: true },
+  });
+  const orderByAppt = new Map(linkedOrders.map((o) => [o.relatedEntityId, o.id]));
+  return appointments.map((a) => ({ ...a, orderId: orderByAppt.get(a.id) ?? null }));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
