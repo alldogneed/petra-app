@@ -15,7 +15,7 @@ import {
   Play,
   Calendar,
   FileSignature,
-  CreditCard,
+  Sparkles,
   BarChart3,
   Smartphone,
 } from "lucide-react";
@@ -29,7 +29,7 @@ import { DashboardMockup } from "./_components/DashboardMockup";
 export const metadata: Metadata = {
   title: "Petra — מערכת ניהול לעסקי חיות מחמד | אילוף, פנסיון, גרומינג",
   description:
-    "מערכת ניהול חכמה לאלפי כלבים, גרומרים ופנסיונים בישראל. ניהול לקוחות, תורים, תזכורות WhatsApp אוטומטיות, יומן דיגיטלי ועוד — במקום אחד. מסלול חינמי ללא כרטיס אשראי.",
+    "מערכת ניהול חכמה לאלפי כלבים, גרומרים ופנסיונים בישראל. ניהול לקוחות, תורים, תזכורות WhatsApp אוטומטיות, עוזר AI, יומן דיגיטלי ועוד — במקום אחד. מסלול חינמי ללא כרטיס אשראי.",
   keywords: [
     "מערכת ניהול אלוף כלבים",
     "תוכנה לאילוף כלבים",
@@ -40,6 +40,7 @@ export const metadata: Metadata = {
     "תזכורות WhatsApp אוטומטיות",
     "אילוף כלבים תוכנה ישראל",
     "ניהול לקוחות לעסקי כלבים",
+    "עוזר AI לעסק",
     "פטרה",
   ],
   alternates: {
@@ -267,7 +268,7 @@ const FEATURES = [
     icon: Calendar,
     iconBg: "bg-orange-500",
     title: "יומן חכם",
-    desc: "חוקי זמינות גמישים. סנכרון Google Calendar.",
+    desc: "חוקי זמינות גמישים. סנכרון Google Calendar כולל צבעים וקטגוריות.",
   },
   {
     icon: FileSignature,
@@ -276,10 +277,10 @@ const FEATURES = [
     desc: "חתימות מקוונות. תוקף משפטי.",
   },
   {
-    icon: CreditCard,
+    icon: Sparkles,
     iconBg: "bg-violet-500",
-    title: "חיובים אוטומטיים",
-    desc: "חיוב חוזר בכרטיס. חשבוניות אוטומטיות.",
+    title: "עוזר AI",
+    desc: "Claude ו-ChatGPT מחוברים לעסק. שואלים, מקבלים תשובה מהנתונים שלכם.",
   },
   {
     icon: BarChart3,
@@ -401,7 +402,7 @@ export default function LandingPage() {
                 </div>
 
                 <ul className="flex flex-wrap justify-center lg:justify-start gap-x-5 gap-y-2 list-none p-0 m-0">
-                  {["ללא כרטיס אשראי למנוי החינמי", "מעבר קל ממערכות אחרות", "מסלול חינמי לצמיתות — ללא כרטיס אשראי"].map((t) => (
+                  {["מסלול חינמי לצמיתות — ללא כרטיס אשראי", "מעבר קל ממערכות אחרות", "חדש: עוזר AI במסלול Pro"].map((t) => (
                     <li key={t} className="flex items-center gap-2 text-sm" style={{ color: "rgba(226,232,240,0.75)" }}>
                       <span className="inline-flex w-[18px] h-[18px] rounded-full items-center justify-center shrink-0" style={{ background: "rgba(249,115,22,0.20)" }}>
                         <Check className="w-2.5 h-2.5" style={{ color: "#FDBA74" }} aria-hidden="true" />
@@ -668,7 +669,7 @@ export default function LandingPage() {
                 className="text-slate-900 font-extrabold"
                 style={{ fontSize: "clamp(30px, 3.5vw, 44px)", letterSpacing: "-0.03em", lineHeight: 1.1 }}
               >
-                WhatsApp, יומן, פנסיון, חיובים —{" "}
+                WhatsApp, יומן, פנסיון, עוזר AI —{" "}
                 <span className="text-brand-500">באחד.</span>
               </h2>
               <p className="mt-4 text-lg text-slate-500 max-w-xl mx-auto">
@@ -929,7 +930,7 @@ export default function LandingPage() {
                 "@id": "https://petra-app.com/#app",
                 name: "Petra",
                 url: "https://petra-app.com/landing",
-                description: "מערכת ניהול חכמה לאלפי כלבים, גרומרים ופנסיונים בישראל. ניהול לקוחות, תורים, תזכורות WhatsApp אוטומטיות ויומן דיגיטלי.",
+                description: "מערכת ניהול חכמה לאלפי כלבים, גרומרים ופנסיונים בישראל. ניהול לקוחות, תורים, תזכורות WhatsApp אוטומטיות, עוזר AI ויומן דיגיטלי.",
                 applicationCategory: "BusinessApplication",
                 operatingSystem: "Web, iOS, Android",
                 inLanguage: "he",
