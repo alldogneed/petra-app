@@ -6,7 +6,14 @@ import { checkRateLimit } from "@/lib/security/rateLimiter";
 import { timingSafeEqual } from "crypto";
 import { verifyIndicatorSignature, sanitizeUrlForLog } from "@/lib/security/cardcom-helpers";
 import { encryptCardcomToken } from "@/lib/encryption";
-import { createCardcomRecurring, getPlanPrice } from "@/lib/cardcom-recurring";
+import {
+  createCardcomRecurring,
+  getPlanPrice,
+  extractCardToken,
+  extractTokenExpiry,
+  extractDealId,
+  extractAmount,
+} from "@/lib/cardcom-recurring";
 
 const TIER_DAYS: Record<string, number> = {
   basic: 30, pro: 30, groomer: 30, service_dog: 30,
@@ -165,14 +172,20 @@ export async function GET(request: NextRequest) {
   const now = new Date();
   const subscriptionEndsAt = new Date(now.getTime() + days * 86_400_000);
 
+  const dealId = extractDealId(data);
+  const cardToken = extractCardToken(data);
+  const tokenExpiry = extractTokenExpiry(data);
+
   await prisma.business.update({
     where: { id: businessId },
     data: {
       tier,
       subscriptionStatus:  "active",
       subscriptionEndsAt,
-      cardcomDealId:       data.DealNumber ?? null,
-      cardcomToken:        data.Token ? encryptCardcomToken(data.Token) : null,
+      // Only overwrite token fields when the response actually contains them
+      ...(dealId      ? { cardcomDealId:      dealId }                            : {}),
+      ...(cardToken   ? { cardcomToken:       encryptCardcomToken(cardToken) }    : {}),
+      ...(tokenExpiry ? { cardcomTokenExpiry: encryptCardcomToken(tokenExpiry) }  : {}),
     },
   });
 
@@ -182,31 +195,33 @@ export async function GET(request: NextRequest) {
       businessId,
       eventType:      "activate",
       tier,
-      cardcomDealId:  data.DealNumber ?? null,
-      amount:         parseFloat(data.SumToBill ?? "0") || null,
+      cardcomDealId:  dealId,
+      amount:         extractAmount(data) ?? getPlanPrice(tier)?.price ?? null,
       lowprofileCode: lowProfileCode,
       ipAddress:      ip,
       metadata:       data as object,
     },
   });
 
-  console.log(`Cardcom: activated ${tier} for business ${businessId}, deal ${data.DealNumber}`);
+  console.log(`Cardcom: activated ${tier} for business ${businessId}, deal ${dealId}`);
 
   // ── Create recurring order (הוראת קבע) in Cardcom ──────────────────────
-  // Fire-and-forget — don't block the indicator response
+  // Awaited — on Vercel serverless a fire-and-forget promise may be killed
+  // after the response is returned, silently skipping recurring creation.
   const plan = getPlanPrice(tier);
   if (plan && business) {
-    createCardcomRecurring({
-      cardToken: data["ExtShvaParams.CardToken"] ?? "",
-      cardMonth: (data.CardValidityMonth ?? "").trim(),
-      cardYear: data.CardValidityYear ?? "",
-      cardOwnerId: data.CardOwnerID ?? "",
-      price: plan.price,
-      invoiceDescription: `מנוי ${plan.label} — חודשי`,
-      companyName: business.name ?? "לקוח פטרה",
-      email: business.email ?? "",
-      existingRecurringId: business.cardcomRecurringId ?? undefined,
-    }).then(async (result) => {
+    try {
+      const result = await createCardcomRecurring({
+        cardToken: cardToken ?? "",
+        cardMonth: (data.CardValidityMonth ?? "").trim(),
+        cardYear: data.CardValidityYear ?? "",
+        cardOwnerId: data.CardOwnerID ?? "",
+        price: plan.price,
+        invoiceDescription: `מנוי ${plan.label} — חודשי`,
+        companyName: business.name ?? "לקוח פטרה",
+        email: business.email ?? "",
+        existingRecurringId: business.cardcomRecurringId ?? undefined,
+      });
       if (result.success && result.recurringId) {
         await prisma.business.update({
           where: { id: businessId },
@@ -225,9 +240,9 @@ export async function GET(request: NextRequest) {
           metadata: { recurringId: result.recurringId ?? null, error: result.error ?? null },
         },
       }).catch(() => null);
-    }).catch((err) => {
+    } catch (err) {
       console.error(`Cardcom: recurring creation error for business ${businessId}:`, err);
-    });
+    }
   }
 
   return new Response("OK");

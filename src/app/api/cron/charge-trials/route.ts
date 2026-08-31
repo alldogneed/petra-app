@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { verifyCronAuth } from "@/lib/cron-auth";
 import { sendEmail } from "@/lib/email";
 import { decryptCardcomToken } from "@/lib/encryption";
+import { extractDealId } from "@/lib/cardcom-recurring";
 
 const CARDCOM_PLANS: Record<string, { price: number; label: string }> = {
   basic:       { price: 99,  label: "Petra בייסיק" },
@@ -168,7 +169,7 @@ export async function GET(request: NextRequest) {
             subscriptionStatus:  "active",
             subscriptionEndsAt,
             trialEndsAt:         null,
-            cardcomDealId:       result.DealNumber ?? null,
+            cardcomDealId:       extractDealId(result),
           },
         });
 
@@ -178,9 +179,9 @@ export async function GET(request: NextRequest) {
             eventType:     "charge_success",
             tier:          biz.tier,
             amount:        plan.price,
-            cardcomDealId: result.DealNumber ?? null,
+            cardcomDealId: extractDealId(result),
             metadata: {
-              dealNumber:         result.DealNumber ?? "",
+              dealNumber:         extractDealId(result) ?? "",
               subscriptionEndsAt: subscriptionEndsAt.toISOString(),
               chargedAt:          now.toISOString(),
             },
@@ -283,7 +284,7 @@ export async function GET(request: NextRequest) {
         }
 
         charged++;
-        console.log(`charge-trials: charged ₪${plan.price} for business ${biz.id} (${biz.tier}), deal ${result.DealNumber}`);
+        console.log(`charge-trials: charged ₪${plan.price} for business ${biz.id} (${biz.tier}), deal ${extractDealId(result)}`);
 
       } catch (err) {
         console.error(`charge-trials: error processing business ${biz.id}:`, err);

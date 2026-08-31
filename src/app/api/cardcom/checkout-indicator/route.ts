@@ -10,6 +10,7 @@ import { CURRENT_TOS_VERSION } from "@/lib/tos";
 import { randomInt, timingSafeEqual } from "crypto";
 import { verifyIndicatorSignature } from "@/lib/security/cardcom-helpers";
 import { encryptCardcomToken } from "@/lib/encryption";
+import { extractCardToken, extractTokenExpiry, extractDealId } from "@/lib/cardcom-recurring";
 import bcrypt from "bcryptjs";
 import { logAudit, AUDIT_ACTIONS } from "@/lib/audit";
 
@@ -236,9 +237,9 @@ export async function GET(request: NextRequest) {
         tier,
         subscriptionStatus:  "active",
         subscriptionEndsAt,
-        cardcomToken:        data.Token ? encryptCardcomToken(data.Token) : null,
-        cardcomTokenExpiry:  data.TokenExDate ? encryptCardcomToken(data.TokenExDate) : null,
-        cardcomDealId:       data.DealNumber ?? null,
+        cardcomToken:        extractCardToken(data)   ? encryptCardcomToken(extractCardToken(data)!)   : null,
+        cardcomTokenExpiry:  extractTokenExpiry(data) ? encryptCardcomToken(extractTokenExpiry(data)!) : null,
+        cardcomDealId:       extractDealId(data),
         ...(checkout.phone        ? { phone:             checkout.phone }        : {}),
         ...(checkout.address      ? { address:           checkout.address }      : {}),
         ...(checkout.vatNumber    ? { vatNumber:         checkout.vatNumber }    : {}),
@@ -255,13 +256,13 @@ export async function GET(request: NextRequest) {
         lowprofileCode: lowProfileCode,
         ipAddress:      ip,
         amount:         TIER_PRICE[tier] ?? 0,
-        cardcomDealId:  data.DealNumber ?? null,
+        cardcomDealId:  extractDealId(data),
         metadata: {
           flow:                "checkout_first",
           userId:              user.id,
           email:               checkout.email,
           subscriptionEndsAt:  subscriptionEndsAt.toISOString(),
-          hasToken:            !!data.Token,
+          hasToken:            !!extractCardToken(data),
         },
       },
     });
@@ -317,9 +318,9 @@ export async function GET(request: NextRequest) {
       tier,
       subscriptionStatus:  "active",
       subscriptionEndsAt,
-      cardcomToken:        data.Token ? encryptCardcomToken(data.Token) : null,
-      cardcomTokenExpiry:  data.TokenExDate ? encryptCardcomToken(data.TokenExDate) : null,
-      cardcomDealId:       data.DealNumber ?? null,
+      cardcomToken:        extractCardToken(data)   ? encryptCardcomToken(extractCardToken(data)!)   : null,
+      cardcomTokenExpiry:  extractTokenExpiry(data) ? encryptCardcomToken(extractTokenExpiry(data)!) : null,
+      cardcomDealId:       extractDealId(data),
     },
   });
 
@@ -328,14 +329,14 @@ export async function GET(request: NextRequest) {
       businessId,
       eventType:      "checkout_activate",
       tier,
-      cardcomDealId:  data.DealNumber ?? null,
+      cardcomDealId:  extractDealId(data),
       amount:         TIER_PRICE[tier] ?? 0,
       lowprofileCode: lowProfileCode,
       ipAddress:      ip,
       metadata: {
         flow:                "existing_user",
         subscriptionEndsAt:  subscriptionEndsAt.toISOString(),
-        hasToken:            !!data.Token,
+        hasToken:            !!extractCardToken(data),
       },
     },
   });

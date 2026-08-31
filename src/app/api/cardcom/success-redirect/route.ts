@@ -4,7 +4,14 @@ import prisma from "@/lib/prisma";
 import { normalizeLegalEntityLabel, isVatExempt } from "@/lib/legal-entity";
 import { isValidTier } from "@/lib/feature-flags";
 import { encryptCardcomToken } from "@/lib/encryption";
-import { createCardcomRecurring, getPlanPrice } from "@/lib/cardcom-recurring";
+import {
+  createCardcomRecurring,
+  getPlanPrice,
+  extractCardToken,
+  extractTokenExpiry,
+  extractDealId,
+  extractAmount,
+} from "@/lib/cardcom-recurring";
 import { ensureUserHasBusiness } from "@/lib/auth";
 import { sendCheckoutWelcomeEmail, sendUpgradeConfirmationEmail } from "@/lib/email";
 import { CURRENT_TOS_VERSION } from "@/lib/tos";
@@ -82,28 +89,31 @@ async function verifyCardcomPayment(lowProfileCode: string): Promise<Record<stri
   return data;
 }
 
-/** Fire-and-forget: create recurring order in Cardcom and save recurringId */
-function createRecurringForBusiness(
+/** Create recurring order in Cardcom and save recurringId.
+ *  Awaited by callers — on Vercel serverless a fire-and-forget promise may be
+ *  killed after the response is returned, silently skipping recurring creation. */
+async function createRecurringForBusiness(
   data: Record<string, string>,
   tier: string,
   businessId: string,
   businessName: string,
   email: string,
   existingRecurringId?: string,
-) {
+): Promise<void> {
   const plan = getPlanPrice(tier);
   if (!plan) return;
-  createCardcomRecurring({
-    cardToken: data["ExtShvaParams.CardToken"] ?? "",
-    cardMonth: (data.CardValidityMonth ?? "").trim(),
-    cardYear: data.CardValidityYear ?? "",
-    cardOwnerId: data.CardOwnerID ?? "",
-    price: plan.price,
-    invoiceDescription: `מנוי ${plan.label} — חודשי`,
-    companyName: businessName || "לקוח פטרה",
-    email: email || "",
-    existingRecurringId,
-  }).then(async (result) => {
+  try {
+    const result = await createCardcomRecurring({
+      cardToken: extractCardToken(data) ?? "",
+      cardMonth: (data.CardValidityMonth ?? "").trim(),
+      cardYear: data.CardValidityYear ?? "",
+      cardOwnerId: data.CardOwnerID ?? "",
+      price: plan.price,
+      invoiceDescription: `מנוי ${plan.label} — חודשי`,
+      companyName: businessName || "לקוח פטרה",
+      email: email || "",
+      existingRecurringId,
+    });
     if (result.success && result.recurringId) {
       await prisma.business.update({
         where: { id: businessId },
@@ -113,7 +123,17 @@ function createRecurringForBusiness(
     } else {
       console.error(`success-redirect: recurring failed for ${businessId}:`, result.error);
     }
-  }).catch(() => null);
+    await prisma.subscriptionEvent.create({
+      data: {
+        businessId,
+        eventType: result.success ? "recurring_created" : "recurring_failed",
+        tier,
+        metadata: { recurringId: result.recurringId ?? null, error: result.error ?? null },
+      },
+    }).catch(() => null);
+  } catch (err) {
+    console.error(`success-redirect: recurring creation error for ${businessId}:`, err);
+  }
 }
 
 /**
@@ -257,9 +277,9 @@ export async function GET(request: NextRequest) {
           tier,
           subscriptionStatus:  "active",
           subscriptionEndsAt,
-          cardcomToken:        data.Token ? encryptCardcomToken(data.Token) : null,
-          cardcomTokenExpiry:  data.TokenExDate ? encryptCardcomToken(data.TokenExDate) : null,
-          cardcomDealId:       data.DealNumber ?? null,
+          cardcomToken:        extractCardToken(data)   ? encryptCardcomToken(extractCardToken(data)!)   : null,
+          cardcomTokenExpiry:  extractTokenExpiry(data) ? encryptCardcomToken(extractTokenExpiry(data)!) : null,
+          cardcomDealId:       extractDealId(data),
           ...(checkout.phone        ? { phone:             checkout.phone }        : {}),
           ...(checkout.address      ? { address:           checkout.address }      : {}),
           ...(checkout.vatNumber    ? { vatNumber:         checkout.vatNumber }    : {}),
@@ -275,14 +295,14 @@ export async function GET(request: NextRequest) {
           tier,
           lowprofileCode: lpCode,
           ipAddress:      ip,
-          amount:         TIER_PRICE[tier] ?? 0,
-          cardcomDealId:  data.DealNumber ?? null,
+          amount:         extractAmount(data) ?? TIER_PRICE[tier] ?? 0,
+          cardcomDealId:  extractDealId(data),
           metadata: {
             flow:                "checkout_first_redirect",
             userId:              user.id,
             email:               checkout.email,
             subscriptionEndsAt:  subscriptionEndsAt.toISOString(),
-            hasToken:            !!data.Token,
+            hasToken:            !!extractCardToken(data),
           },
         },
       });
@@ -301,8 +321,8 @@ export async function GET(request: NextRequest) {
         data:  { processed: true, processedAt: now },
       });
 
-      // ── Create recurring order (fire-and-forget) ─────────────────────
-      createRecurringForBusiness(
+      // ── Create recurring order (awaited — see createRecurringForBusiness) ──
+      await createRecurringForBusiness(
         data, tier, businessId,
         checkout.businessName || checkout.name,
         checkout.billingEmail || checkout.email,
@@ -376,14 +396,20 @@ export async function GET(request: NextRequest) {
     const now = new Date();
     const subscriptionEndsAt = new Date(now.getTime() + days * 86_400_000);
 
+    const dealId = extractDealId(data);
+    const cardToken = extractCardToken(data);
+    const tokenExpiry = extractTokenExpiry(data);
+
     await prisma.business.update({
       where: { id: businessId },
       data: {
         tier,
         subscriptionStatus: "active",
         subscriptionEndsAt,
-        cardcomDealId: data.DealNumber ?? null,
-        cardcomToken: data.Token ? encryptCardcomToken(data.Token) : null,
+        // Only overwrite token fields when the response actually contains them
+        ...(dealId      ? { cardcomDealId:      dealId }                           : {}),
+        ...(cardToken   ? { cardcomToken:       encryptCardcomToken(cardToken) }   : {}),
+        ...(tokenExpiry ? { cardcomTokenExpiry: encryptCardcomToken(tokenExpiry) } : {}),
         cardcomPendingCode: null, // Clear pending code
       },
     });
@@ -394,14 +420,14 @@ export async function GET(request: NextRequest) {
         businessId,
         eventType: "activate",
         tier,
-        cardcomDealId: data.DealNumber ?? null,
-        amount: parseFloat(data.SumToBill ?? "0") || null,
+        cardcomDealId: dealId,
+        amount: extractAmount(data) ?? getPlanPrice(tier)?.price ?? null,
         lowprofileCode: lowProfileCode,
         metadata: data as object,
       },
     });
 
-    console.log(`success-redirect [FlowB]: activated ${tier} for business ${businessId}, deal ${data.DealNumber}`);
+    console.log(`success-redirect [FlowB]: activated ${tier} for business ${businessId}, deal ${dealId}`);
 
     // ── Send upgrade confirmation email (fire-and-forget) ────────────────
     const plan = getPlanPrice(tier);
@@ -414,8 +440,8 @@ export async function GET(request: NextRequest) {
       }).catch((e) => console.error("success-redirect [FlowB]: upgrade email failed:", e));
     }
 
-    // ── Create recurring order (fire-and-forget) ─────────────────────────
-    createRecurringForBusiness(
+    // ── Create recurring order (awaited — see createRecurringForBusiness) ──
+    await createRecurringForBusiness(
       data, tier, businessId,
       business.name ?? "לקוח פטרה",
       business.email ?? "",

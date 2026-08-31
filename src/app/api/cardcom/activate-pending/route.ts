@@ -4,7 +4,14 @@ import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { isValidTier } from "@/lib/feature-flags";
 import { encryptCardcomToken } from "@/lib/encryption";
-import { createCardcomRecurring, getPlanPrice } from "@/lib/cardcom-recurring";
+import {
+  createCardcomRecurring,
+  getPlanPrice,
+  extractCardToken,
+  extractTokenExpiry,
+  extractDealId,
+  extractAmount,
+} from "@/lib/cardcom-recurring";
 import { sendUpgradeConfirmationEmail } from "@/lib/email";
 
 const TIER_DAYS: Record<string, number> = {
@@ -87,14 +94,20 @@ export async function POST(request: NextRequest) {
     const days = TIER_DAYS[tier] ?? 30;
     const subscriptionEndsAt = new Date(Date.now() + days * 86_400_000);
 
+    const dealId = extractDealId(data);
+    const cardToken = extractCardToken(data);
+    const tokenExpiry = extractTokenExpiry(data);
+
     await prisma.business.update({
       where: { id: businessId },
       data: {
         tier,
         subscriptionStatus: "active",
         subscriptionEndsAt,
-        cardcomDealId: data.DealNumber ?? null,
-        cardcomToken: data.Token ? encryptCardcomToken(data.Token) : null,
+        // Only overwrite token fields when the response actually contains them
+        ...(dealId      ? { cardcomDealId:      dealId }                           : {}),
+        ...(cardToken   ? { cardcomToken:       encryptCardcomToken(cardToken) }   : {}),
+        ...(tokenExpiry ? { cardcomTokenExpiry: encryptCardcomToken(tokenExpiry) } : {}),
         cardcomPendingCode: null, // Clear pending
       },
     });
@@ -104,14 +117,14 @@ export async function POST(request: NextRequest) {
         businessId,
         eventType: "activate",
         tier,
-        cardcomDealId: data.DealNumber ?? null,
-        amount: parseFloat(data.SumToBill ?? "0") || null,
+        cardcomDealId: dealId,
+        amount: extractAmount(data) ?? getPlanPrice(tier)?.price ?? null,
         lowprofileCode: lowProfileCode,
         metadata: data as object,
       },
     });
 
-    console.log(`activate-pending: ${tier} activated for ${businessId}, deal ${data.DealNumber}`);
+    console.log(`activate-pending: ${tier} activated for ${businessId}, deal ${dealId}`);
 
     // ── Send upgrade confirmation email (fire-and-forget) ────────────────
     const plan = getPlanPrice(tier);
@@ -124,19 +137,21 @@ export async function POST(request: NextRequest) {
       }).catch((e) => console.error("activate-pending: upgrade email failed:", e));
     }
 
-    // ── Create recurring order (fire-and-forget) ─────────────────────────
+    // ── Create recurring order (awaited — fire-and-forget may be killed
+    //    on Vercel serverless after the response is returned) ──────────────
     if (plan) {
-      createCardcomRecurring({
-        cardToken: data["ExtShvaParams.CardToken"] ?? "",
-        cardMonth: (data.CardValidityMonth ?? "").trim(),
-        cardYear: data.CardValidityYear ?? "",
-        cardOwnerId: data.CardOwnerID ?? "",
-        price: plan.price,
-        invoiceDescription: `מנוי ${plan.label} — חודשי`,
-        companyName: business.name ?? "לקוח פטרה",
-        email: business.email ?? "",
-        existingRecurringId: business.cardcomRecurringId ?? undefined,
-      }).then(async (result) => {
+      try {
+        const result = await createCardcomRecurring({
+          cardToken: cardToken ?? "",
+          cardMonth: (data.CardValidityMonth ?? "").trim(),
+          cardYear: data.CardValidityYear ?? "",
+          cardOwnerId: data.CardOwnerID ?? "",
+          price: plan.price,
+          invoiceDescription: `מנוי ${plan.label} — חודשי`,
+          companyName: business.name ?? "לקוח פטרה",
+          email: business.email ?? "",
+          existingRecurringId: business.cardcomRecurringId ?? undefined,
+        });
         if (result.success && result.recurringId) {
           await prisma.business.update({
             where: { id: businessId },
@@ -146,7 +161,17 @@ export async function POST(request: NextRequest) {
         } else {
           console.error(`activate-pending: recurring failed for ${businessId}:`, result.error);
         }
-      }).catch(() => null);
+        await prisma.subscriptionEvent.create({
+          data: {
+            businessId,
+            eventType: result.success ? "recurring_created" : "recurring_failed",
+            tier,
+            metadata: { recurringId: result.recurringId ?? null, error: result.error ?? null },
+          },
+        }).catch(() => null);
+      } catch (err) {
+        console.error(`activate-pending: recurring creation error for ${businessId}:`, err);
+      }
     }
 
     return NextResponse.json({ ok: true, tier });
