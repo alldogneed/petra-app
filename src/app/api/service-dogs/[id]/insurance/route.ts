@@ -59,8 +59,19 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     }
     const body = parsed.data;
 
-    const premium = body.premium != null ? parseFloat(String(body.premium)) : null;
-    const deductible = body.deductible != null ? parseFloat(String(body.deductible)) : null;
+    // Empty strings from the form mean "not filled" — treat them as null, not as NaN
+    const toAmount = (v: unknown) => {
+      if (v == null || (typeof v === "string" && v.trim() === "")) return null;
+      return parseFloat(String(v));
+    };
+    const toDate = (v: unknown) => {
+      if (v == null || (typeof v === "string" && v.trim() === "")) return null;
+      const d = new Date(String(v));
+      return isNaN(d.getTime()) ? null : d;
+    };
+
+    const premium = toAmount(body.premium);
+    const deductible = toAmount(body.deductible);
     if ((premium != null && (!isFinite(premium) || premium < 0)) ||
         (deductible != null && (!isFinite(deductible) || deductible < 0))) {
       return NextResponse.json({ error: "סכומים לא תקינים" }, { status: 400 });
@@ -75,8 +86,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         premium,
         deductible,
         coverageType: body.coverageType || null,
-        startDate: body.startDate ? new Date(body.startDate) : null,
-        renewalDate: body.renewalDate ? new Date(body.renewalDate) : null,
+        startDate: toDate(body.startDate),
+        renewalDate: toDate(body.renewalDate),
         notes: body.notes || null,
         policyDocument: body.policyDocument || null,
         isActive: body.isActive !== false,
