@@ -337,8 +337,9 @@ export async function POST(
           title: "חוזה נחתם ✍️",
           content: `${customerName} חתם/ה על החוזה "${templateName}"`,
           type: "success",
-          actionUrl: `/customers/${contractRequest.customerId}`,
-          actionLabel: "לצפייה בלקוח",
+          // Opens the signed PDF itself — the bell treats /api/ links as downloads
+          actionUrl: `/api/contracts/requests/${contractRequest.id}/download`,
+          actionLabel: "פתח חוזה חתום",
         },
       });
     } catch (sysError) {
