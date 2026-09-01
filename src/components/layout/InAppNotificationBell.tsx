@@ -236,7 +236,14 @@ export function InAppNotificationBell() {
               {selected.actionUrl && (
                 <button
                   onClick={() => {
-                    router.push(selected.actionUrl!);
+                    const url = selected.actionUrl!;
+                    // File endpoints and external links open in a new tab; the
+                    // app router cannot navigate to a PDF response.
+                    if (/^https?:\/\//.test(url) || url.startsWith("/api/")) {
+                      window.open(url, "_blank", "noopener,noreferrer");
+                    } else {
+                      router.push(url);
+                    }
                     setSelected(null);
                     setOpen(false);
                   }}
