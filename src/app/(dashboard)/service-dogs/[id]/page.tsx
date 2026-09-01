@@ -80,6 +80,7 @@ import {
   VEST_TYPES,
   VEST_CONDITIONS,
   INSURANCE_COVERAGE_TYPES,
+  INSURANCE_PROVIDERS,
   CLAIM_STATUSES,
   CLAIM_STATUS_MAP,
   CLAIM_OPEN_STATUSES,
@@ -412,6 +413,7 @@ function ServiceDogProfilePageContent() {
     );
   }
 
+  const activePlacement = dog.placements?.find((p) => p.status === "ACTIVE");
   const phaseInfo = SERVICE_DOG_PHASE_MAP[dog.phase];
   const phaseColors = SERVICE_DOG_PHASE_COLORS[dog.phase];
   const tp = dog.trainingProgress;
@@ -566,6 +568,17 @@ function ServiceDogProfilePageContent() {
                     );
                   })()}
 
+                  {/* Jump to the recipient this dog is placed with (mirrors the dog link on the recipient card) */}
+                  {activePlacement && (
+                    <Link
+                      href={`/service-dogs/recipients/${activePlacement.recipient.id}`}
+                      className="flex items-center gap-1.5 text-sm bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1 rounded-full hover:bg-emerald-100 transition-colors"
+                    >
+                      <User className="w-3.5 h-3.5" />
+                      <span>{activePlacement.recipient.name}</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
+                  )}
                   {dog.registrationNumber && (
                     <span className="text-xs bg-slate-100 text-slate-700 px-2 py-1 rounded-full font-mono">
                       #{dog.registrationNumber}
@@ -5211,9 +5224,6 @@ function EditInsuranceModal({
   const [form, setForm] = useState({
     provider: insurance.provider ?? "",
     policyNumber: insurance.policyNumber ?? "",
-    premium: insurance.premium?.toString() ?? "",
-    deductible: insurance.deductible?.toString() ?? "",
-    coverageType: insurance.coverageType ?? "",
     startDate: insurance.startDate ? insurance.startDate.slice(0, 10) : "",
     renewalDate: insurance.renewalDate ? insurance.renewalDate.slice(0, 10) : "",
     notes: insurance.notes ?? "",
@@ -5232,18 +5242,16 @@ function EditInsuranceModal({
         </div>
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            <div><label className="label text-xs">חברת ביטוח</label><input className="input w-full text-sm" value={form.provider} onChange={f("provider")} /></div>
-            <div><label className="label text-xs">מספר פוליסה</label><input className="input w-full text-sm" value={form.policyNumber} onChange={f("policyNumber")} /></div>
-            <div><label className="label text-xs">סוג כיסוי</label>
-              <select className="input w-full text-sm" value={form.coverageType} onChange={f("coverageType")}>
-                <option value="">בחר...</option>
-                {INSURANCE_COVERAGE_TYPES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
-              </select>
+            <div>
+              <label className="label text-xs">חברת ביטוח</label>
+              <input className="input w-full text-sm" list="insurance-providers-edit" value={form.provider} onChange={f("provider")} />
+              <datalist id="insurance-providers-edit">
+                {INSURANCE_PROVIDERS.map((n) => <option key={n} value={n} />)}
+              </datalist>
             </div>
-            <div><label className="label text-xs">פרמיה שנתית (₪)</label><input type="number" className="input w-full text-sm" value={form.premium} onChange={f("premium")} /></div>
-            <div><label className="label text-xs">השתתפות עצמית (₪)</label><input type="number" className="input w-full text-sm" value={form.deductible} onChange={f("deductible")} /></div>
-            <div><label className="label text-xs">תחילת כיסוי</label><input type="date" lang="he" className="input w-full text-sm" value={form.startDate} onChange={f("startDate")} /></div>
-            <div><label className="label text-xs">תאריך חידוש</label><input type="date" lang="he" className="input w-full text-sm" value={form.renewalDate} onChange={f("renewalDate")} /></div>
+            <div><label className="label text-xs">מספר פוליסה <span className="text-petra-muted font-normal">(לא חובה)</span></label><input className="input w-full text-sm" value={form.policyNumber} onChange={f("policyNumber")} /></div>
+            <div><label className="label text-xs">תחילת פוליסה <span className="text-petra-muted font-normal">(לא חובה)</span></label><input type="date" lang="he" className="input w-full text-sm" value={form.startDate} onChange={f("startDate")} /></div>
+            <div><label className="label text-xs">סיום פוליסה <span className="text-petra-muted font-normal">(לא חובה)</span></label><input type="date" lang="he" className="input w-full text-sm" value={form.renewalDate} onChange={f("renewalDate")} /></div>
             <div className="flex items-center gap-2 pt-4">
               <input
                 type="checkbox"
@@ -5269,7 +5277,7 @@ function EditInsuranceModal({
 }
 
 function AddInsuranceForm({ onSave, onCancel, isSaving }: { onSave: (d: Record<string, unknown>) => void; onCancel: () => void; isSaving: boolean }) {
-  const [form, setForm] = useState({ provider: "", policyNumber: "", premium: "", deductible: "", coverageType: "", startDate: "", renewalDate: "", notes: "" });
+  const [form, setForm] = useState({ provider: "", policyNumber: "", startDate: "", renewalDate: "", notes: "" });
   const [policyDocument, setPolicyDocument] = useState<string | null>(null);
   const [docName, setDocName] = useState<string | null>(null);
   const f = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setForm((p) => ({ ...p, [k]: e.target.value }));
@@ -5288,18 +5296,16 @@ function AddInsuranceForm({ onSave, onCancel, isSaving }: { onSave: (d: Record<s
     <div className="card p-4 border-2 border-blue-200 bg-blue-50/30 space-y-3">
       <h4 className="text-sm font-semibold">פוליסה חדשה</h4>
       <div className="grid grid-cols-2 gap-3">
-        <div><label className="label text-xs">חברת ביטוח</label><input className="input w-full text-sm" value={form.provider} onChange={f("provider")} placeholder="שם חברת הביטוח" /></div>
-        <div><label className="label text-xs">מספר פוליסה</label><input className="input w-full text-sm" value={form.policyNumber} onChange={f("policyNumber")} /></div>
-        <div><label className="label text-xs">סוג כיסוי</label>
-          <select className="input w-full text-sm" value={form.coverageType} onChange={f("coverageType")}>
-            <option value="">בחר...</option>
-            {INSURANCE_COVERAGE_TYPES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
-          </select>
+        <div>
+          <label className="label text-xs">חברת ביטוח</label>
+          <input className="input w-full text-sm" list="insurance-providers" value={form.provider} onChange={f("provider")} placeholder="שם חברת הביטוח" />
+          <datalist id="insurance-providers">
+            {INSURANCE_PROVIDERS.map((n) => <option key={n} value={n} />)}
+          </datalist>
         </div>
-        <div><label className="label text-xs">פרמיה שנתית (₪)</label><input type="number" className="input w-full text-sm" value={form.premium} onChange={f("premium")} /></div>
-        <div><label className="label text-xs">השתתפות עצמית (₪)</label><input type="number" className="input w-full text-sm" value={form.deductible} onChange={f("deductible")} /></div>
-        <div><label className="label text-xs">תחילת כיסוי</label><input type="date" lang="he" className="input w-full text-sm" value={form.startDate} onChange={f("startDate")} /></div>
-        <div><label className="label text-xs">תאריך חידוש</label><input type="date" lang="he" className="input w-full text-sm" value={form.renewalDate} onChange={f("renewalDate")} /></div>
+        <div><label className="label text-xs">מספר פוליסה <span className="text-petra-muted font-normal">(לא חובה)</span></label><input className="input w-full text-sm" value={form.policyNumber} onChange={f("policyNumber")} /></div>
+        <div><label className="label text-xs">תחילת פוליסה <span className="text-petra-muted font-normal">(לא חובה)</span></label><input type="date" lang="he" className="input w-full text-sm" value={form.startDate} onChange={f("startDate")} /></div>
+        <div><label className="label text-xs">סיום פוליסה <span className="text-petra-muted font-normal">(לא חובה)</span></label><input type="date" lang="he" className="input w-full text-sm" value={form.renewalDate} onChange={f("renewalDate")} /></div>
       </div>
       <div><label className="label text-xs">הערות</label><textarea className="input w-full text-sm" rows={2} value={form.notes} onChange={f("notes")} /></div>
       {/* File upload */}

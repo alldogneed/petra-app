@@ -317,6 +317,9 @@ export const VEST_CONDITIONS = [
 
 // ─── Insurance Constants ───
 
+/** Suggested insurance companies — free text is still allowed (datalist, not a closed select) */
+export const INSURANCE_PROVIDERS = ["הפניקס", "חיותא"] as const;
+
 export const INSURANCE_COVERAGE_TYPES = [
   { id: "COMPREHENSIVE", label: "מקיף" },
   { id: "LIABILITY",     label: "אחריות צד שלישי" },
