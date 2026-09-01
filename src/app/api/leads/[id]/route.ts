@@ -6,7 +6,6 @@ import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 import { hasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
 import { createPendingApproval } from "@/lib/pending-approvals";
-import { shouldSyncContacts, upsertLeadContact } from "@/lib/google-contacts";
 import { cancelLeadFollowup } from "@/lib/reminder-service";
 import { updateLead, deleteLead, ServiceError, type UpdateLeadInput } from "@/services/clients";
 
@@ -58,23 +57,6 @@ export async function PATCH(
     const { session } = authResult;
     logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.UPDATE_LEAD);
 
-    // Fire-and-forget: Google Contacts sync
-    if (lead.phone || lead.email) {
-      shouldSyncContacts(authResult.businessId).then(async (enabled) => {
-        if (!enabled) return;
-        const resourceName = await upsertLeadContact({
-          id: lead.id, name: lead.name, phone: lead.phone ?? null,
-          email: lead.email ?? null, notes: lead.notes ?? null,
-          requestedService: lead.requestedService ?? null,
-          city: (lead as { city?: string | null }).city ?? null,
-          googleContactId: (lead as { googleContactId?: string | null }).googleContactId ?? null,
-          businessId: lead.businessId,
-        });
-        if (resourceName && resourceName !== (lead as { googleContactId?: string | null }).googleContactId) {
-          await prisma.lead.update({ where: { id: lead.id }, data: { googleContactId: resourceName } });
-        }
-      }).catch((err) => console.error("Google Contacts sync (lead update) failed:", err));
-    }
 
     return NextResponse.json(lead);
   } catch (error) {
