@@ -121,15 +121,24 @@ export async function DELETE(
     const membership = session.memberships.find((m) => m.businessId === businessId);
     const callerRole = (membership?.role ?? "user") as TenantRole;
 
+    // An owner-granted critical-delete override lets any member delete directly;
+    // otherwise managers still route through the pending-approval flow.
+    const canDeleteDirectly = hasTenantPermission(
+      callerRole,
+      TENANT_PERMS.CRITICAL_DELETE,
+      membership?.permissionOverrides
+    );
+
     if (
-      !hasTenantPermission(callerRole, TENANT_PERMS.CONTENT_WRITE) ||
-      callerRole === "user" ||
-      callerRole === "volunteer"
+      !canDeleteDirectly &&
+      (!hasTenantPermission(callerRole, TENANT_PERMS.CONTENT_WRITE, membership?.permissionOverrides) ||
+        callerRole === "user" ||
+        callerRole === "volunteer")
     ) {
       return NextResponse.json({ error: "אין הרשאה למחיקת לקוח" }, { status: 403 });
     }
 
-    if (callerRole === "manager") {
+    if (callerRole === "manager" && !canDeleteDirectly) {
       const customer = await prisma.customer.findFirst({
         where: { id: params.id, businessId },
         select: { id: true, name: true },
