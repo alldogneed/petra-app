@@ -4,6 +4,8 @@ import prisma from "@/lib/prisma";
 import { enqueueSyncJob } from "@/lib/sync-jobs";
 import { scheduleAppointmentReminder, scheduleBoardingCheckoutReminder } from "@/lib/reminder-service";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { sendWhatsAppMessage } from "@/lib/whatsapp";
+import { toWhatsAppPhone } from "@/lib/utils";
 
 export async function PATCH(
   request: NextRequest,
@@ -54,7 +56,7 @@ export async function PATCH(
       const endAt = new Date(booking.endAt);
       const firstPetId = booking.dogs[0]?.pet?.id ?? null;
 
-      const serviceType = booking.service?.type ?? "service";
+      const serviceType = booking.service?.type ?? booking.priceListItem?.type ?? "service";
 
       if (serviceType === "boarding") {
         // For boarding: create a BoardingStay linked to this booking (idempotent)
@@ -87,8 +89,8 @@ export async function PATCH(
             customer: { name: newStay.customer?.name ?? newStay.pet.name },
           }).catch(console.error);
         }
-      } else if (booking.serviceId) {
-        // For service-based bookings: create an Appointment
+      } else if (booking.serviceId || booking.priceListItemId) {
+        // For service- and price-list-based bookings alike: create an Appointment
         const pad = (n: number) => n.toString().padStart(2, "0");
         const startTime = `${pad(startAt.getHours())}:${pad(startAt.getMinutes())}`;
         const endTime = `${pad(endAt.getHours())}:${pad(endAt.getMinutes())}`;
@@ -98,7 +100,9 @@ export async function PATCH(
           where: {
             businessId: booking.businessId,
             customerId: booking.customerId,
-            serviceId: booking.serviceId,
+            ...(booking.serviceId
+              ? { serviceId: booking.serviceId }
+              : { priceListItemId: booking.priceListItemId }),
             date: dateOnly,
             startTime,
           },
@@ -110,6 +114,7 @@ export async function PATCH(
               businessId: booking.businessId,
               customerId: booking.customerId,
               serviceId: booking.serviceId,
+              priceListItemId: booking.priceListItemId,
               petId: firstPetId,
               date: dateOnly,
               startTime,
@@ -124,21 +129,65 @@ export async function PATCH(
             },
           });
           // Schedule appointment reminder (48h before)
-          if (newAppt.service) {
+          const apptServiceName = newAppt.service?.name ?? booking.priceListItem?.name ?? null;
+          if (apptServiceName) {
             await scheduleAppointmentReminder({
               id: newAppt.id,
               businessId: booking.businessId,
               customerId: booking.customerId,
               date: newAppt.date,
               startTime: newAppt.startTime,
-              service: { name: newAppt.service.name },
+              service: { name: apptServiceName },
               customer: { name: newAppt.customer?.name ?? "לקוח" },
               pet: newAppt.pet ? { name: newAppt.pet.name } : null,
             }).catch(console.error);
           }
         }
       }
-      // priceListItem-based bookings: appointment creation skipped (serviceId required on Appointment)
+    }
+
+    // Tell the customer what the business decided. The booking request itself only
+    // acknowledges receipt, so this is the first message that says "confirmed".
+    if (
+      (body.status === "confirmed" || body.status === "declined") &&
+      existing.status !== body.status &&
+      booking.customer?.phone
+    ) {
+      const decided = body.status;
+      Promise.resolve().then(async () => {
+        try {
+          const business = await prisma.business.findUnique({
+            where: { id: booking.businessId },
+            select: { name: true },
+          });
+          const fmtDate = new Intl.DateTimeFormat("he-IL", {
+            timeZone: "Asia/Jerusalem",
+            day: "2-digit", month: "2-digit", year: "numeric",
+          });
+          const fmtTime = new Intl.DateTimeFormat("he-IL", {
+            timeZone: "Asia/Jerusalem",
+            hour: "2-digit", minute: "2-digit", hour12: false,
+          });
+          const dateStr = fmtDate.format(booking.startAt);
+          const timeStr = fmtTime.format(booking.startAt);
+          const serviceName = booking.service?.name ?? booking.priceListItem?.name ?? "";
+          const bizName = business?.name ?? "";
+
+          const body_ =
+            decided === "confirmed"
+              ? `שלום ${booking.customer.name}! ✅\nהתור שלך אושר.\n📋 ${serviceName}\n📅 ${dateStr}\n⏰ ${timeStr}\nנשמח לראותך! – ${bizName}`
+              : `שלום ${booking.customer.name},\nלצערנו לא נוכל לקבל את הבקשה לתור ב-${dateStr} בשעה ${timeStr}.\nנשמח לתאם מועד אחר. – ${bizName}`;
+
+          await sendWhatsAppMessage({
+            to: toWhatsAppPhone(booking.customer.phone!),
+            businessId: booking.businessId,
+            context: decided === "confirmed" ? "booking_approved" : "booking_declined",
+            body: body_,
+          });
+        } catch (err) {
+          console.error("WhatsApp booking decision error:", err);
+        }
+      });
     }
 
     // Enqueue Google Calendar sync based on status change
