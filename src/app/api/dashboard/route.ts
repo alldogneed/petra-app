@@ -14,9 +14,16 @@ export async function GET(request: NextRequest) {
 
     const membership = session.memberships.find((m) => m.businessId === businessId);
     const callerRole = (membership?.role ?? "user") as TenantRole;
-    const canSeeRevenueSummary = hasTenantPermission(callerRole, TENANT_PERMS.FINANCE_SUMMARY);
+    const canSeeRevenueSummary = hasTenantPermission(
+      callerRole,
+      TENANT_PERMS.FINANCE_SUMMARY,
+      membership?.permissionOverrides ?? null
+    );
 
-    const data = await getDashboardMetrics(businessId, prisma, { canSeeRevenueSummary });
+    // ?date=YYYY-MM-DD moves the dashboard's "today" so the user can look ahead
+    const anchorDate = new URL(request.url).searchParams.get("date");
+
+    const data = await getDashboardMetrics(businessId, prisma, { canSeeRevenueSummary, anchorDate });
     return NextResponse.json(data);
   } catch (error) {
     console.error("Dashboard API error:", error);

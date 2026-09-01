@@ -258,9 +258,9 @@ const HEBREW_MONTHS = [
 export async function getDashboardMetrics(
   businessId: string,
   db: DbClient,
-  opts: { canSeeRevenueSummary: boolean }
+  opts: { canSeeRevenueSummary: boolean; anchorDate?: string | null }
 ) {
-  const { canSeeRevenueSummary } = opts;
+  const { canSeeRevenueSummary, anchorDate } = opts;
 
   const IL_TZ = "Asia/Jerusalem";
   const now = new Date();
@@ -270,7 +270,12 @@ export async function getDashboardMetrics(
     month: "2-digit",
     day: "2-digit",
   });
-  const [ilYear, ilMonth, ilDay] = ilFormatter.format(now).split("-").map(Number);
+  // The dashboard normally reports on today; anchorDate ("YYYY-MM-DD") moves the
+  // whole "day" window forwards or backwards so the user can look ahead.
+  const anchorValid = !!anchorDate && /^\d{4}-\d{2}-\d{2}$/.test(anchorDate);
+  const [ilYear, ilMonth, ilDay] = (anchorValid ? anchorDate! : ilFormatter.format(now))
+    .split("-")
+    .map(Number);
   const todayStart = new Date(
     new Date(`${ilYear}-${String(ilMonth).padStart(2, "0")}-${String(ilDay).padStart(2, "0")}T00:00:00+03:00`).getTime()
   );
