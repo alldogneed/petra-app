@@ -2122,9 +2122,21 @@ export default function DashboardPage() {
 
   const [completingTaskIds, setCompletingTaskIds] = useState<Set<string>>(new Set());
 
+  // Empty string = today. Any other value shifts the whole dashboard to that day,
+  // so the user can look at what is coming instead of only at today.
+  const [dashDate, setDashDate] = useState("");
+  const realTodayYmd = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" });
+  const viewedYmd = dashDate || realTodayYmd;
+  const shiftDash = (days: number) => {
+    const d = new Date(`${viewedYmd}T00:00:00`);
+    d.setDate(d.getDate() + days);
+    const ymd = d.toLocaleDateString("en-CA");
+    setDashDate(ymd === realTodayYmd ? "" : ymd);
+  };
+
   const { data, isLoading, isFetching: isDashFetching } = useQuery<DashboardStats>({
-    queryKey: ["dashboard"],
-    queryFn: () => fetchJSON("/api/dashboard"),
+    queryKey: ["dashboard", dashDate],
+    queryFn: () => fetchJSON(`/api/dashboard${dashDate ? `?date=${dashDate}` : ""}`),
   });
 
   const { data: activityData } = useQuery<{ activities: ActivityItem[] }>({
@@ -2237,6 +2249,42 @@ export default function DashboardPage() {
             </button>
           </div>
           <p className="text-sm text-petra-muted">{todayStr}</p>
+          {/* Date navigation — the cards below follow the selected day */}
+          <div className="flex items-center gap-1 mt-1">
+            <button
+              type="button"
+              onClick={() => shiftDash(-1)}
+              title="יום אחורה"
+              className="w-7 h-7 rounded-lg border border-petra-border text-petra-muted hover:bg-slate-50"
+            >
+              ‹
+            </button>
+            <input
+              type="date"
+              lang="he"
+              className="input !py-1 !px-2 text-xs w-[8.5rem]"
+              value={viewedYmd}
+              onChange={(e) => setDashDate(e.target.value && e.target.value !== realTodayYmd ? e.target.value : "")}
+              title="הצג את לוח הבקרה לתאריך אחר"
+            />
+            <button
+              type="button"
+              onClick={() => shiftDash(1)}
+              title="יום קדימה"
+              className="w-7 h-7 rounded-lg border border-petra-border text-petra-muted hover:bg-slate-50"
+            >
+              ›
+            </button>
+            {dashDate && (
+              <button
+                type="button"
+                onClick={() => setDashDate("")}
+                className="h-7 px-2 rounded-lg bg-orange-50 text-orange-700 text-xs font-medium hover:bg-orange-100"
+              >
+                היום
+              </button>
+            )}
+          </div>
         </div>
         <div className="flex flex-col sm:grid sm:grid-cols-2 lg:flex lg:flex-row gap-2">
           <button
