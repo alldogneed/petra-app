@@ -70,7 +70,6 @@ export interface UpdateBusinessSettingsInput {
   sdSettings?: unknown;
   whatsappRemindersEnabled?: boolean;
   whatsappReminderLeadHours?: number;
-  googleContactsSync?: boolean;
 }
 
 export async function updateBusinessSettings(
@@ -87,7 +86,7 @@ export async function updateBusinessSettings(
     legalEntityType, vatEnabled, vatRate, boardingCalcMode, boardingMinNights,
     boardingCheckInTime, boardingCheckOutTime, boardingPricePerNight,
     customerTags, cancellationPolicy, bookingWelcomeText, bookingRequiresApproval, depositInstructions,
-    sdSettings, whatsappRemindersEnabled, whatsappReminderLeadHours, googleContactsSync,
+    sdSettings, whatsappRemindersEnabled, whatsappReminderLeadHours,
   } = input;
 
   // ── Validation ─────────────────────────────────────────────────────────
@@ -233,7 +232,6 @@ export async function updateBusinessSettings(
   if (sdSettings !== undefined) data.sdSettings = sdSettings;
   if (whatsappRemindersEnabled !== undefined) data.whatsappRemindersEnabled = Boolean(whatsappRemindersEnabled);
   if (whatsappReminderLeadHours !== undefined) data.whatsappReminderLeadHours = whatsappReminderLeadHours;
-  if (googleContactsSync !== undefined) data.googleContactsSync = Boolean(googleContactsSync);
 
   const business = await db.business.update({
     where: { id: businessId },

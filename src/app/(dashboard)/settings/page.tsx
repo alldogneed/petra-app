@@ -134,7 +134,6 @@ interface Business {
   sdSettings: SdSettings | null;
   whatsappRemindersEnabled: boolean;
   whatsappReminderLeadHours: number;
-  googleContactsSync: boolean;
   _count: { customers: number; appointments: number };
 }
 
@@ -1038,29 +1037,6 @@ function IntegrationsTab() {
     onError: (e: Error) => toast.error(e.message || "שגיאה בשמירה"),
   });
 
-  const updateContactsSyncMutation = useMutation({
-    mutationFn: (enabled: boolean) =>
-      fetch("/api/settings", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ googleContactsSync: enabled }),
-      }).then((r) => r.json()),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["settings"] });
-      toast.success("הגדרות סנכרון עודכנו");
-    },
-    onError: () => toast.error("שגיאה בשמירה"),
-  });
-
-  const syncContactsMutation = useMutation({
-    mutationFn: () =>
-      fetch("/api/integrations/google/contacts/sync-all", { method: "POST" }).then((r) => r.json()),
-    onSuccess: (data) => {
-      toast.success(data.message ?? "סנכרון הושלם");
-    },
-    onError: () => toast.error("שגיאה בסנכרון — ייתכן שנדרש חיבור מחדש של Google"),
-  });
-
   const disconnectGcalMutation = useMutation({
     mutationFn: () =>
       fetch("/api/integrations/google/disconnect", { method: "POST" }).then((r) => {
@@ -1201,36 +1177,6 @@ function IntegrationsTab() {
               )}
               {isGcal && integ.connected && biz && (
                 <div className="mt-3 pt-3 border-t border-slate-100 space-y-2">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-sm text-petra-text">סנכרון לידים ל-Google Contacts</span>
-                      <span className="text-xs text-petra-muted">כל ליד חדש/מעודכן ייווצר/יעודכן אוטומטית באנשי הקשר ב-Google</span>
-                    </div>
-                    <button
-                      onClick={() => updateContactsSyncMutation.mutate(!biz.googleContactsSync)}
-                      disabled={updateContactsSyncMutation.isPending}
-                      className={cn(
-                        "relative inline-flex h-5 w-9 items-center rounded-full transition-colors flex-shrink-0",
-                        biz.googleContactsSync ? "bg-emerald-500" : "bg-slate-300"
-                      )}
-                      title={biz.googleContactsSync ? "כבה סנכרון" : "הפעל סנכרון"}
-                    >
-                      <span className={cn("inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform", biz.googleContactsSync ? "translate-x-4" : "translate-x-0.5")} />
-                    </button>
-                  </div>
-                  {biz.googleContactsSync && (
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-xs text-petra-muted">סנכרן את כל הלידים הקיימים עכשיו</span>
-                      <button
-                        onClick={() => syncContactsMutation.mutate()}
-                        disabled={syncContactsMutation.isPending}
-                        className="btn-secondary text-xs flex items-center gap-1.5 py-1 px-2.5"
-                      >
-                        {syncContactsMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Users2 className="w-3 h-3" />}
-                        סנכרן הכל
-                      </button>
-                    </div>
-                  )}
                   {/* Google Calendar overlay selector */}
                   <div className="pt-1 space-y-1.5">
                     <div className="flex items-center justify-between">

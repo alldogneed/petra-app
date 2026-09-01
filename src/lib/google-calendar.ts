@@ -1218,7 +1218,9 @@ export function buildCalendarAuthUrl(state: string): string {
       "https://www.googleapis.com/auth/calendar.events",
       "https://www.googleapis.com/auth/calendar.calendarlist.readonly",
       "https://www.googleapis.com/auth/calendar",
-      "https://www.googleapis.com/auth/contacts",
+      // No People API scope here on purpose: auth/contacts is a *restricted*
+      // scope, which forces an annual CASA security assessment on top of normal
+      // OAuth verification. Calendar-only keeps us on the sensitive-scope path.
       "email",
     ].join(" "),
     state,
