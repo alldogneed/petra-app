@@ -1,7 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError, requireBusinessPermission } from "@/lib/auth-guards";
+import { TENANT_PERMS, hasTenantPermission, type TenantRole } from "@/lib/permissions";
 import { sendPaymentRequestForOrder } from "@/lib/payment-request";
 import { getOrder, updateOrder, deleteOrder, ServiceError } from "@/services/orders";
 
@@ -35,6 +36,16 @@ export async function PATCH(
     if (isGuardError(authResult)) return authResult;
 
     const body = await request.json();
+
+    // Cancelling an order is one of the owner-managed critical capabilities.
+    if (body.status === "cancelled" || body.status === "canceled") {
+      const { session, businessId } = authResult;
+      const membership = session.memberships.find((m) => m.businessId === businessId);
+      const role = (membership?.role ?? "user") as TenantRole;
+      if (!hasTenantPermission(role, TENANT_PERMS.ORDERS_CANCEL, membership?.permissionOverrides)) {
+        return NextResponse.json({ error: "אין לך הרשאה לבטל הזמנות" }, { status: 403 });
+      }
+    }
 
     // Line editing is draft-only, and the confirm claim below changes status BEFORE
     // the service validates lines — a combined {status:"confirmed", lines} body would
@@ -103,7 +114,7 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireBusinessAuth(request);
+    const authResult = await requireBusinessPermission(request, TENANT_PERMS.ORDERS_CANCEL);
     if (isGuardError(authResult)) return authResult;
 
     try {

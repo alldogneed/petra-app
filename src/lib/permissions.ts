@@ -159,12 +159,21 @@ const TENANT_ROLE_PERMISSIONS: Record<TenantRole, TenantPermission[]> = {
     // AI_ASSISTANT removed — owner grants it per member
   ],
 
-  // Staff (user) — day-to-day operational access, no financial or PII
+  // Staff (user) — day-to-day operational access, no financial or PII.
+  // The capabilities below used to be enforced nowhere, so every member could
+  // already use them. They stay on by default and the owner switches them off
+  // per member, rather than this change silently taking work away from staff.
   user: [
     TENANT_PERMS.CONTENT_READ,
     TENANT_PERMS.CONTENT_WRITE,
     TENANT_PERMS.MESSAGES_SEND,
+    TENANT_PERMS.PRICING_WRITE,
+    TENANT_PERMS.ORDERS_CANCEL,
+    TENANT_PERMS.PAYMENTS_WRITE,
+    TENANT_PERMS.DATA_EXPORT,
+    TENANT_PERMS.BOARDING_MANAGE,
     // No FINANCE_READ, no CUSTOMERS_PII, no RECIPIENTS_SENSITIVE
+    // No AI_ASSISTANT — the owner grants it explicitly
   ],
 
   // Volunteer — read-only, no editing

@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { logCurrentUserActivity } from "@/lib/activity-log";
-import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError, requireBusinessPermission } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { InvoicingService } from "@/lib/invoicing/invoicing-service";
 import { enqueueInvoiceJob } from "@/lib/invoicing/invoicing-jobs";
@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requireBusinessAuth(request);
+    const authResult = await requireBusinessPermission(request, TENANT_PERMS.PAYMENTS_WRITE);
     if (isGuardError(authResult)) return authResult;
 
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
