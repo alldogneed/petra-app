@@ -216,8 +216,8 @@ export async function POST(request: NextRequest) {
           await sendWhatsAppMessage({
             to: toWhatsAppPhone(booking.customer.phone),
             businessId,
-            context: "booking_confirmation",
-            body: `שלום ${booking.customer.name}! ✅\nההזמנה שלך אושרה.\n📋 שירות: ${serviceName}\n📅 תאריך: ${dateStr}\n⏰ שעה: ${timeStr}\nנשמח לראותך! – ${business?.name ?? ""}`,
+            context: "booking_request_received",
+            body: `שלום ${booking.customer.name}!\nבקשתך לתור התקבלה וממתינה לאישור העסק.\n📋 שירות: ${serviceName}\n📅 תאריך: ${dateStr}\n⏰ שעה: ${timeStr}\nנעדכן אותך ברגע שהתור יאושר. – ${business?.name ?? ""}`,
           });
         }
 
@@ -226,7 +226,7 @@ export async function POST(request: NextRequest) {
             to: toWhatsAppPhone(business.phone),
             businessId,
             context: "booking_owner_alert",
-            body: `🔔 הזמנה חדשה!\n👤 ${booking.customer.name}\n📞 ${booking.customer.phone}\n📋 ${serviceName}\n📅 ${dateStr} בשעה ${timeStr}`,
+            body: `🔔 בקשת תור חדשה — ממתינה לאישור\n👤 ${booking.customer.name}\n📞 ${booking.customer.phone}\n📋 ${serviceName}\n📅 ${dateStr} בשעה ${timeStr}\nלאישור או דחייה: מודול "תורים אונליין" בפטרה`,
           });
         }
       } catch (err) {

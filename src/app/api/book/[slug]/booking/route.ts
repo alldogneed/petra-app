@@ -11,6 +11,7 @@ import { getFirstLeadStageId } from "@/lib/lead-stages"
 import { syncAppointmentToGcal } from "@/lib/google-calendar"
 import { sanitizeName } from "@/lib/validation"
 import { scheduleLeadFollowup } from "@/lib/reminder-service"
+import { notifyNewBooking } from "@/lib/engagement-service"
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "https://petra-app.vercel.app"
 
@@ -54,6 +55,20 @@ async function notifyOwnerNewPending(
   if (!businessPhone) return
   const phone = toWhatsAppPhone(businessPhone)
   const body = `🔔 הזמנה חדשה ממתינה לאישור!\n\nלקוח: ${customerName}\nשירות: ${service.name}\nתאריך: ${dateLabel}\n\nנא לאשר/לדחות בפנל הניהול.`
+  await sendWhatsAppMessage({ to: phone, body, businessId, context: "booking_owner_alert" }).catch(console.error)
+}
+
+async function notifyOwnerNewConfirmed(
+  businessId: string,
+  businessPhone: string | null | undefined,
+  customerName: string,
+  service: { name: string },
+  dateLabel: string,
+  timeLabel: string,
+) {
+  if (!businessPhone) return
+  const phone = toWhatsAppPhone(businessPhone)
+  const body = `🔔 הזמנה חדשה מהאתר\n\nלקוח: ${customerName}\nשירות: ${service.name}\nתאריך: ${dateLabel}\nשעה: ${timeLabel}`
   await sendWhatsAppMessage({ to: phone, body, businessId, context: "booking_owner_alert" }).catch(console.error)
 }
 
@@ -132,7 +147,7 @@ export async function POST(
 
   const business = await prisma.business.findUnique({
     where: { slug: params.slug },
-    select: { id: true, status: true, timezone: true, phone: true },
+    select: { id: true, status: true, timezone: true, phone: true, bookingRequiresApproval: true },
   })
 
   if (!business || business.status !== "active") {
@@ -265,7 +280,9 @@ export async function POST(
       }
 
       if (result === undefined || result !== null) {
-        const status = "confirmed"
+        // When the business requires approval the booking waits as "pending" and
+        // only /api/booking/bookings/[id] turns it into an appointment or a stay.
+        const status = business.bookingRequiresApproval ? "pending" : "confirmed"
 
         const booking = await prisma.booking.create({
           data: {
@@ -433,10 +450,16 @@ export async function POST(
     }
 
     await notifyCustomerConfirmed(business.id, booking, customer, { name: serviceName }, dateLabel, timeLabel)
+    await notifyOwnerNewConfirmed(business.id, business.phone, customer.name, { name: serviceName }, dateLabel, timeLabel)
   } else {
     await notifyCustomerPending(business.id, booking, customer, { name: serviceName }, dateLabel, timeLabel)
     await notifyOwnerNewPending(business.id, business.phone, customer.name, { name: serviceName }, dateLabel)
   }
+
+  // In-app bell for the business owners (both paths)
+  notifyNewBooking(business.id, customer.name, serviceName, booking.id).catch((err) =>
+    console.error("Failed to create in-app booking notification:", err)
+  )
 
   return NextResponse.json(
     {

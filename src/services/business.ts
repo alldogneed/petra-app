@@ -65,6 +65,7 @@ export interface UpdateBusinessSettingsInput {
   customerTags?: string[] | string;
   cancellationPolicy?: string;
   bookingWelcomeText?: string;
+  bookingRequiresApproval?: boolean;
   depositInstructions?: string;
   sdSettings?: unknown;
   whatsappRemindersEnabled?: boolean;
@@ -85,7 +86,7 @@ export async function updateBusinessSettings(
     name, phone, email, address, logo, vatNumber, businessRegNumber,
     legalEntityType, vatEnabled, vatRate, boardingCalcMode, boardingMinNights,
     boardingCheckInTime, boardingCheckOutTime, boardingPricePerNight,
-    customerTags, cancellationPolicy, bookingWelcomeText, depositInstructions,
+    customerTags, cancellationPolicy, bookingWelcomeText, bookingRequiresApproval, depositInstructions,
     sdSettings, whatsappRemindersEnabled, whatsappReminderLeadHours, googleContactsSync,
   } = input;
 
@@ -227,6 +228,7 @@ export async function updateBusinessSettings(
   if (customerTags !== undefined) data.customerTags = JSON.stringify(customerTagsArr);
   if (cancellationPolicy !== undefined) data.cancellationPolicy = cancellationPolicy;
   if (bookingWelcomeText !== undefined) data.bookingWelcomeText = bookingWelcomeText;
+  if (bookingRequiresApproval !== undefined) data.bookingRequiresApproval = Boolean(bookingRequiresApproval);
   if (depositInstructions !== undefined) data.depositInstructions = depositInstructions;
   if (sdSettings !== undefined) data.sdSettings = sdSettings;
   if (whatsappRemindersEnabled !== undefined) data.whatsappRemindersEnabled = Boolean(whatsappRemindersEnabled);

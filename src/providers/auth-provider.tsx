@@ -23,6 +23,7 @@ interface AuthUser {
   businessSubscriptionStatus: string | null;
   businessFeatureOverrides: Record<string, boolean> | null;
   businessRole: string | null;
+  businessPermissionOverrides?: Record<string, boolean> | null;
   authProvider: string;
   hasPassword: boolean;
   isImpersonating: boolean;
@@ -78,9 +79,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const hasPermission = useCallback(
     (permission: TenantPermission): boolean => {
       if (!user?.businessRole) return false;
-      return hasTenantPermission(user.businessRole as TenantRole, permission);
+      return hasTenantPermission(
+        user.businessRole as TenantRole,
+        permission,
+        user.businessPermissionOverrides ?? null
+      );
     },
-    [user?.businessRole]
+    [user?.businessRole, user?.businessPermissionOverrides]
   );
 
   const refreshUser = useCallback(async () => {

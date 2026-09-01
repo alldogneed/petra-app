@@ -9,6 +9,7 @@ import { createHash } from "crypto";
 import { prisma } from "./prisma";
 import type { SessionUser, SessionMembership } from "./permissions";
 import type { PlatformRole, TenantRole } from "./permissions";
+import { parsePermissionOverrides } from "./permissions";
 
 // ─── In-memory session cache ──────────────────────────────────────────────────
 // Caches resolved FullSession objects keyed by the raw (unhashed) session token.
@@ -169,7 +170,7 @@ export async function getSessionByToken(token: string): Promise<FullSession | nu
         include: {
           businessMemberships: {
             where: { isActive: true },
-            select: { businessId: true, role: true, isActive: true, createdAt: true },
+            select: { businessId: true, role: true, permissionOverrides: true, isActive: true, createdAt: true },
             orderBy: { createdAt: "asc" },
           },
         },
@@ -214,6 +215,7 @@ export async function getSessionByToken(token: string): Promise<FullSession | nu
     (m) => ({
       businessId: m.businessId,
       role: m.role as TenantRole,
+      permissionOverrides: parsePermissionOverrides(m.permissionOverrides),
       isActive: m.isActive,
     })
   );
