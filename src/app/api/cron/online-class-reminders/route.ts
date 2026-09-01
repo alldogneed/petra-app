@@ -46,6 +46,8 @@ function notifyWithEmailFallback(params: {
   body: string;
   emailSubject: string;
   emailHtml: string;
+  businessId: string;
+  context: string;
 }): void {
   const sendFallbackEmail = () => {
     sendEmail({ to: params.email, subject: params.emailSubject, html: params.emailHtml })
@@ -56,7 +58,12 @@ function notifyWithEmailFallback(params: {
     sendFallbackEmail();
     return;
   }
-  sendWhatsAppMessage({ to: toWhatsAppPhone(params.phone), body: params.body })
+  sendWhatsAppMessage({
+    to: toWhatsAppPhone(params.phone),
+    body: params.body,
+    businessId: params.businessId,
+    context: params.context,
+  })
     .then((r) => {
       if (!r.success) sendFallbackEmail();
     })
@@ -104,6 +111,7 @@ async function handle(request: NextRequest) {
         title: true,
         startsAt: true,
         zoomLink: true,
+        businessId: true,
         business: { select: { name: true } },
         registrations: {
           where: { status: "registered" },
@@ -153,6 +161,8 @@ async function handle(request: NextRequest) {
           body,
           emailSubject: `קישור זום — ${cls.title}`,
           emailHtml,
+          businessId: cls.businessId,
+          context: "online_class_zoom_link",
         });
       }
     }
@@ -166,6 +176,7 @@ async function handle(request: NextRequest) {
       },
       select: {
         id: true,
+        businessId: true,
         validUntil: true,
         portalUser: { select: { name: true, phone: true, email: true } },
         business: {
@@ -219,6 +230,8 @@ async function handle(request: NextRequest) {
         body,
         emailSubject: `המנוי שלך אצל ${businessName} עומד לפוג`,
         emailHtml,
+        businessId: m.businessId,
+        context: "membership_expiry",
       });
     }
 

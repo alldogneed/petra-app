@@ -1379,6 +1379,7 @@ model TrainingGroup {
   reminderLeadHours  Int      @default(48)
   reminderSameDay    Boolean  @default(false)
   maxParticipants    Int?
+  price              Float?   // workshop price (column exists in prod: double precision)
   notes              String?
   startDate          DateTime?
   endDate            DateTime?

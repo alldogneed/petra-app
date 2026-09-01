@@ -379,9 +379,12 @@ export async function approveMembership(
     `היי ${userName}, המנוי שלך אצל ${businessName} אושר ופעיל!` +
     (link ? `\nאפשר להיכנס לפורטל כאן: ${link}` : "");
   if (existing.portalUser.phone) {
-    sendWhatsAppMessage({ to: toWhatsAppPhone(existing.portalUser.phone), body: waBody }).catch(
-      () => {}
-    );
+    sendWhatsAppMessage({
+      to: toWhatsAppPhone(existing.portalUser.phone),
+      body: waBody,
+      businessId,
+      context: "membership_approved",
+    }).catch(() => {});
   }
 
   sendEmail({
@@ -666,6 +669,7 @@ export async function enrollStudentsInCourse(
           name: portalUser.name,
           email: portalUser.email,
           phone: portalUser.phone,
+          businessId,
           businessName: business?.name ?? "",
           courseTitle: course.title,
           courseUrl,
@@ -691,6 +695,7 @@ function notifyCourseEnrollment(p: {
   name: string;
   email: string;
   phone: string | null;
+  businessId: string;
   businessName: string;
   courseTitle: string;
   courseUrl: string | null;
@@ -709,6 +714,8 @@ function notifyCourseEnrollment(p: {
         `היי ${p.name}, נוספת לקורס "${p.courseTitle}" של ${p.businessName}!` +
         (link ? `\nלצפייה: ${link}` : "") +
         `\n${howToEnter}`,
+      businessId: p.businessId,
+      context: "course_enrollment",
     }).catch(() => {});
   }
 

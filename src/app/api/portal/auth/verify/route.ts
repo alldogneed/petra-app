@@ -112,8 +112,14 @@ export async function POST(request: NextRequest) {
       const slug = typeof body?.slug === "string" ? body.slug.trim() : "";
       let cap: number | null = null;
       if (slug) {
+        // The slug must resolve to a business this student actually belongs to —
+        // otherwise a client could substitute any business's slug and inherit its
+        // (possibly unlimited) cap, bypassing the real portal's device limit.
         const business = await prisma.business.findFirst({
-          where: { slug: { in: slugCandidates(slug) } },
+          where: {
+            slug: { in: slugCandidates(slug) },
+            memberships: { some: { portalUserId: result.portalUser.id } },
+          },
           select: { id: true },
         });
         if (business) cap = (await getAccessSettings(business.id)).maxDevicesPerStudent;

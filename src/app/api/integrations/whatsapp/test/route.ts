@@ -11,6 +11,15 @@ export async function POST(request: NextRequest) {
   const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
 
+  // Owner/manager of this business (or platform admin) only — this endpoint sends
+  // real WhatsApp messages to arbitrary phones from the shared platform number.
+  const { session, businessId } = authResult;
+  const membershipRole = session.memberships.find((m) => m.businessId === businessId)?.role;
+  const isPlatformAdmin = ["super_admin", "admin"].includes(session.user.platformRole ?? "");
+  if (!isPlatformAdmin && membershipRole !== "owner" && membershipRole !== "manager") {
+    return NextResponse.json({ error: "אין הרשאה לשלוח הודעת בדיקה" }, { status: 403 });
+  }
+
   // Rate limit: 3 test messages per 5 minutes per business
   const rl = await rateLimit(`wa-test:${authResult.businessId}`, authResult.businessId, {
     max: 3,

@@ -237,9 +237,11 @@ export async function GET(request: NextRequest) {
         tier,
         subscriptionStatus:  "active",
         subscriptionEndsAt,
-        cardcomToken:        extractCardToken(data)   ? encryptCardcomToken(extractCardToken(data)!)   : null,
-        cardcomTokenExpiry:  extractTokenExpiry(data) ? encryptCardcomToken(extractTokenExpiry(data)!) : null,
-        cardcomDealId:       extractDealId(data),
+        // Never overwrite a stored token with null when the verify response omits it
+        // (same conditional-spread fix as indicator/activate-pending routes).
+        ...(extractCardToken(data)   ? { cardcomToken:       encryptCardcomToken(extractCardToken(data)!) }   : {}),
+        ...(extractTokenExpiry(data) ? { cardcomTokenExpiry: encryptCardcomToken(extractTokenExpiry(data)!) } : {}),
+        ...(extractDealId(data)      ? { cardcomDealId:      extractDealId(data) } : {}),
         ...(checkout.phone        ? { phone:             checkout.phone }        : {}),
         ...(checkout.address      ? { address:           checkout.address }      : {}),
         ...(checkout.vatNumber    ? { vatNumber:         checkout.vatNumber }    : {}),
@@ -318,9 +320,11 @@ export async function GET(request: NextRequest) {
       tier,
       subscriptionStatus:  "active",
       subscriptionEndsAt,
-      cardcomToken:        extractCardToken(data)   ? encryptCardcomToken(extractCardToken(data)!)   : null,
-      cardcomTokenExpiry:  extractTokenExpiry(data) ? encryptCardcomToken(extractTokenExpiry(data)!) : null,
-      cardcomDealId:       extractDealId(data),
+      // Never overwrite a stored token with null when the verify response omits it
+      // (same conditional-spread fix as indicator/activate-pending routes).
+      ...(extractCardToken(data)   ? { cardcomToken:       encryptCardcomToken(extractCardToken(data)!) }   : {}),
+      ...(extractTokenExpiry(data) ? { cardcomTokenExpiry: encryptCardcomToken(extractTokenExpiry(data)!) } : {}),
+      ...(extractDealId(data)      ? { cardcomDealId:      extractDealId(data) } : {}),
     },
   });
 

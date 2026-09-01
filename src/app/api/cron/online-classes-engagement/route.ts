@@ -60,6 +60,8 @@ function notifyWithEmailFallback(params: {
   body: string;
   emailSubject: string;
   emailHtml: string;
+  businessId: string;
+  context: string;
 }): void {
   const sendFallbackEmail = () => {
     sendEmail({ to: params.email, subject: params.emailSubject, html: params.emailHtml })
@@ -70,7 +72,12 @@ function notifyWithEmailFallback(params: {
     sendFallbackEmail();
     return;
   }
-  sendWhatsAppMessage({ to: toWhatsAppPhone(params.phone), body: params.body })
+  sendWhatsAppMessage({
+    to: toWhatsAppPhone(params.phone),
+    body: params.body,
+    businessId: params.businessId,
+    context: params.context,
+  })
     .then((r) => {
       if (!r.success) sendFallbackEmail();
     })
@@ -356,6 +363,8 @@ async function handle(request: NextRequest) {
             body,
             emailSubject,
             emailHtml,
+            businessId: head.businessId,
+            context: "course_new_lessons",
           });
         }
       }
@@ -398,6 +407,7 @@ async function handle(request: NextRequest) {
                     select: {
                       id: true,
                       title: true,
+                      businessId: true,
                       business: {
                         select: {
                           name: true,
@@ -420,7 +430,7 @@ async function handle(request: NextRequest) {
       if (candidates.length > 0) {
         const courseInfo = new Map<
           string,
-          { id: string; title: string; businessName: string; businessSlug: string | null }
+          { id: string; title: string; businessId: string; businessName: string; businessSlug: string | null }
         >();
         const candidatePairs = new Set<string>();
         const membershipIdSet = new Set<string>();
@@ -433,6 +443,7 @@ async function handle(request: NextRequest) {
             courseInfo.set(course.id, {
               id: course.id,
               title: course.title,
+              businessId: course.businessId,
               businessName: course.business.name,
               businessSlug: course.business.slug,
             });
@@ -621,6 +632,8 @@ async function handle(request: NextRequest) {
             body,
             emailSubject: `ממשיכים בקורס ${course.title}?`,
             emailHtml,
+            businessId: course.businessId,
+            context: "course_nudge",
           });
         }
       }

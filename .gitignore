@@ -68,3 +68,4 @@ scripts/migrate-*.mjs
 
 # local video assets (large mp4s — kept on disk, not in git; caused iCloud git corruption)
 /my-video
+.mcp.json

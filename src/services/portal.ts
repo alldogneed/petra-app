@@ -344,6 +344,8 @@ export async function cancelRegistration(
       body:
         `היי ${user.name}, התפנה מקום בשיעור "${cls.title}" ` +
         `בתאריך ${heDateTime(cls.startsAt)} — עלית מרשימת ההמתנה ואת/ה רשום/ה! נתראה בשיעור.`,
+      businessId,
+      context: "waitlist_promoted",
     }).catch(() => {});
   }
 }
