@@ -1,8 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
-import { type TenantRole } from "@/lib/permissions";
+import { requireBusinessAuth, isGuardError, requireBusinessPermission } from "@/lib/auth-guards";
+import { TENANT_PERMS, type TenantRole } from "@/lib/permissions";
 
 // GET /api/payments/[id] – get a single payment
 export async function GET(
@@ -46,7 +46,7 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireBusinessAuth(request);
+    const authResult = await requireBusinessPermission(request, TENANT_PERMS.PAYMENTS_WRITE);
     if (isGuardError(authResult)) return authResult;
 
     // Verify payment belongs to this business
@@ -112,7 +112,7 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireBusinessAuth(request);
+    const authResult = await requireBusinessPermission(request, TENANT_PERMS.PAYMENTS_WRITE);
     if (isGuardError(authResult)) return authResult;
     const { session, businessId } = authResult;
 
