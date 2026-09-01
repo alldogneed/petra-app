@@ -17,6 +17,7 @@ import {
   type TenantPermission,
   type PlatformRole,
   type TenantRole,
+  type SessionMembership,
 } from "./permissions";
 
 export { type FullSession };
@@ -135,7 +136,7 @@ export async function requireTenantPermission(
   request: NextRequest,
   businessId: string,
   permission: TenantPermission
-): Promise<{ session: FullSession; membership: { businessId: string; role: TenantRole; isActive: boolean } } | NextResponse> {
+): Promise<{ session: FullSession; membership: SessionMembership } | NextResponse> {
   const session = await resolveSession(request);
 
   if (!session) {
@@ -175,7 +176,7 @@ export async function requireTenantPermission(
     );
   }
 
-  if (!hasTenantPermission(membership.role, permission)) {
+  if (!hasTenantPermission(membership.role, permission, membership.permissionOverrides)) {
     return NextResponse.json(
       { error: "Insufficient permissions for this business" },
       { status: 403 }
@@ -183,6 +184,38 @@ export async function requireTenantPermission(
   }
 
   return { session, membership };
+}
+
+/**
+ * requireBusinessAuth + a capability check against the caller's own business.
+ *
+ * Use this for the routes behind the owner-managed capabilities in
+ * CRITICAL_CAPABILITIES: the businessId still comes from the session (rule #10),
+ * and per-member overrides are honoured on top of the role default.
+ */
+export async function requireBusinessPermission(
+  request: NextRequest,
+  permission: TenantPermission
+): Promise<{ session: FullSession; businessId: string } | NextResponse> {
+  const authResult = await requireBusinessAuth(request);
+  if (isGuardError(authResult)) return authResult;
+  const { session, businessId } = authResult;
+
+  if (session.user.platformRole === "super_admin") return authResult;
+
+  const membership = session.memberships.find(
+    (m) => m.businessId === businessId && m.isActive
+  );
+  const role = (membership?.role ?? "user") as TenantRole;
+
+  if (!hasTenantPermission(role, permission, membership?.permissionOverrides)) {
+    return NextResponse.json(
+      { error: "אין לך הרשאה לפעולה זו" },
+      { status: 403 }
+    );
+  }
+
+  return authResult;
 }
 
 // ─── Simple auth guard (session only, no business check) ──────────────────────
