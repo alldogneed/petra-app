@@ -6,7 +6,6 @@ import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { hasFeatureWithOverrides } from "@/lib/feature-flags";
 import { sendLeadAlert } from "@/lib/lead-alert";
 import { toWhatsAppPhone } from "@/lib/utils";
-import { shouldSyncContacts, upsertLeadContact } from "@/lib/google-contacts";
 import { prisma } from "@/lib/prisma";
 import { listLeads, createLead, ServiceError } from "@/services/clients";
 
@@ -79,22 +78,6 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // ── Side effect: Google Contacts sync ──
-    if (lead.phone || lead.email) {
-      shouldSyncContacts(authResult.businessId).then(async (enabled) => {
-        if (!enabled) return;
-        const resourceName = await upsertLeadContact({
-          id: lead.id, name: lead.name, phone: lead.phone ?? null,
-          email: lead.email ?? null, notes: lead.notes ?? null,
-          requestedService: lead.requestedService ?? null,
-          city: (lead as { city?: string | null }).city ?? null,
-          googleContactId: null, businessId: lead.businessId,
-        });
-        if (resourceName) {
-          await prisma.lead.update({ where: { id: lead.id }, data: { googleContactId: resourceName } });
-        }
-      }).catch((err) => console.error("Google Contacts sync (lead create) failed:", err));
-    }
 
     return NextResponse.json({ ...lead, existingCustomer, duplicateLead }, { status: 201 });
   } catch (error) {
