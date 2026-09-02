@@ -90,6 +90,13 @@ export function WhatsAppConnectCard() {
   const queryClient = useQueryClient();
   const [coexistence, setCoexistence] = useState(true);
   const [launching, setLaunching] = useState(false);
+  // Diagnostic trail — every postMessage from Meta + the FB.login callback, shown on
+  // screen so a stuck signup can be diagnosed without opening devtools.
+  const [debugLog, setDebugLog] = useState<string[]>([]);
+  const pushDebug = useCallback((line: string) => {
+    const t = new Date().toLocaleTimeString("he-IL", { hour12: false });
+    setDebugLog((prev) => [...prev.slice(-14), `${t}  ${line}`]);
+  }, []);
   const [awaitingMeta, setAwaitingMeta] = useState(false);
   const [testPhone, setTestPhone] = useState("");
   const codeRef = useRef<string | null>(null);
@@ -165,6 +172,12 @@ export function WhatsAppConnectCard() {
   useEffect(() => {
     if (!status?.signupAvailable) return;
     const onMessage = (event: MessageEvent) => {
+      // Log anything Facebook sends, even shapes we don't act on — a silent signup
+      // usually means Meta posted something other than the expected FINISH.
+      if (FB_ORIGINS.has(event.origin)) {
+        const raw = typeof event.data === "string" ? event.data : JSON.stringify(event.data);
+        pushDebug(`מ-Meta: ${String(raw).slice(0, 300)}`);
+      }
       if (!FB_ORIGINS.has(event.origin) || typeof event.data !== "string") return;
       let msg: any; // eslint-disable-line @typescript-eslint/no-explicit-any
       try { msg = JSON.parse(event.data); } catch { return; }
@@ -190,7 +203,7 @@ export function WhatsAppConnectCard() {
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [status?.signupAvailable, resetFlow, tryConnect]);
+  }, [status?.signupAvailable, resetFlow, tryConnect, pushDebug]);
 
   const launchSignup = () => {
     if (!META_APP_ID || !META_ES_CONFIG_ID) { toast.error("חיבור מספר עצמאי אינו מוגדר בסביבה זו"); return; }
@@ -206,9 +219,14 @@ export function WhatsAppConnectCard() {
     setLaunching(true);
     codeRef.current = null;
     signupRef.current = null;
+    setDebugLog([]);
+    pushDebug(`נפתח חלון Meta (config ${META_ES_CONFIG_ID}, coexistence=${coexistenceRef.current ? "כן" : "לא"})`);
     setAwaitingMeta(true);
     window.FB.login(
       (response: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
+        try {
+          pushDebug(`תשובת FB.login: ${JSON.stringify({ status: response?.status, hasCode: !!response?.authResponse?.code, keys: response ? Object.keys(response) : null, authKeys: response?.authResponse ? Object.keys(response.authResponse) : null })}`);
+        } catch { pushDebug("תשובת FB.login: (לא ניתן לקריאה)"); }
         const code: string | undefined = response?.authResponse?.code;
         if (!code) {
           toast.error("ההתחברות ל-Facebook לא הושלמה");
@@ -299,6 +317,27 @@ export function WhatsAppConnectCard() {
   );
   const cancelLink = awaitingMeta && !connectMutation.isPending && (
     <button onClick={resetFlow} className="text-xs text-petra-muted underline">בטל</button>
+  );
+
+  // On-screen trail of what Meta sent back. Only appears once a signup was attempted,
+  // so a stuck flow can be diagnosed (and screenshotted) without devtools.
+  const debugPanel = debugLog.length > 0 && (
+    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+      <div className="flex items-center justify-between gap-2 mb-1.5">
+        <p className="text-xs font-semibold text-petra-text">יומן אבחון — מה Meta החזירה</p>
+        <button
+          type="button"
+          onClick={() => { navigator.clipboard?.writeText(debugLog.join("\n")); toast.success("היומן הועתק"); }}
+          className="text-[11px] text-petra-muted underline"
+        >
+          העתק
+        </button>
+      </div>
+      <div dir="ltr" className="text-left font-mono text-[11px] leading-relaxed text-slate-700 space-y-0.5 max-h-48 overflow-auto">
+        {debugLog.map((line, i) => (<div key={i} className="break-all">{line}</div>))}
+      </div>
+      <p className="text-[11px] text-petra-muted mt-1.5">אם החלון נסגר בלי כלום — צלמו את היומן הזה.</p>
+    </div>
   );
 
   // Error
@@ -437,6 +476,7 @@ export function WhatsAppConnectCard() {
           {coexistenceToggle}
           <div className="flex flex-wrap items-center gap-3">
             {connectButton("חבר את הוואטסאפ של העסק")}
+            {debugPanel}
             {cancelLink}
           </div>
         </div>
