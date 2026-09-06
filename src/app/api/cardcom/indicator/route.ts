@@ -1,23 +1,11 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { isValidTier } from "@/lib/feature-flags";
 import { checkRateLimit } from "@/lib/security/rateLimiter";
 import { timingSafeEqual } from "crypto";
 import { verifyIndicatorSignature, sanitizeUrlForLog } from "@/lib/security/cardcom-helpers";
-import { encryptCardcomToken } from "@/lib/encryption";
-import {
-  createCardcomRecurring,
-  getPlanPrice,
-  extractCardToken,
-  extractTokenExpiry,
-  extractDealId,
-  extractAmount,
-} from "@/lib/cardcom-recurring";
-
-const TIER_DAYS: Record<string, number> = {
-  basic: 30, pro: 30, groomer: 30, service_dog: 30,
-};
+import { extractDealId } from "@/lib/cardcom-recurring";
+import { resolveBusinessForPayment, activateVerifiedPayment } from "@/lib/cardcom-activation";
 
 /** Extract real client IP from request headers. */
 function getClientIp(request: NextRequest): string {
@@ -41,8 +29,8 @@ function getClientIp(request: NextRequest): string {
  *   4. Double-verify via Cardcom API
  *   5. Security event logging for all failures
  *
- * UserId we sent encodes: "{businessId}::{tier}"
- * Cardcom returns it as-is in the indicator.
+ * The business is resolved from the pending code create-payment stored
+ * (Cardcom does not return our UserId for immediate charges).
  */
 export async function GET(request: NextRequest) {
   const ip = getClientIp(request);
@@ -148,102 +136,32 @@ export async function GET(request: NextRequest) {
     return new Response("OK"); // Always return OK to Cardcom even on failure
   }
 
-  // ── Decode businessId + tier from UserId ─────────────────────────────────
-  const rawUserId = data.UserId ?? "";
-  const [businessId, tier] = rawUserId.split("::");
-
-  if (!businessId || !isValidTier(tier)) {
-    console.error(`Cardcom indicator: invalid UserId format: ${rawUserId}`);
+  // ── Resolve business + tier ──────────────────────────────────────────────
+  // Cardcom does not echo UserId back for Operation=1 charges, so this falls
+  // back to the pending code create-payment stored on the business.
+  const resolved = await resolveBusinessForPayment(data, lowProfileCode);
+  if (!resolved) {
+    console.error(`Cardcom indicator: cannot resolve business for code ${lowProfileCode} (UserId="${data.UserId ?? ""}")`);
+    await prisma.subscriptionEvent.create({
+      data: {
+        businessId: "unknown",
+        eventType: "activate_unresolved",
+        lowprofileCode: lowProfileCode,
+        ipAddress: ip,
+        metadata: { path: "indicator", dealId: extractDealId(data) ?? "" },
+      },
+    }).catch(() => null);
     return new Response("OK");
   }
 
-  // Verify the business exists and get details for recurring
-  const business = await prisma.business.findUnique({
-    where: { id: businessId },
-    select: { id: true, name: true, email: true, cardcomRecurringId: true },
+  await activateVerifiedPayment({
+    businessId: resolved.businessId,
+    tier: resolved.tier,
+    lowProfileCode,
+    data,
+    source: "indicator",
+    ipAddress: ip,
   });
-  if (!business) {
-    console.error(`Cardcom indicator: business not found: ${businessId}`);
-    return new Response("OK");
-  }
-
-  // ── Activate subscription ─────────────────────────────────────────────────
-  const days = TIER_DAYS[tier] ?? 30;
-  const now = new Date();
-  const subscriptionEndsAt = new Date(now.getTime() + days * 86_400_000);
-
-  const dealId = extractDealId(data);
-  const cardToken = extractCardToken(data);
-  const tokenExpiry = extractTokenExpiry(data);
-
-  await prisma.business.update({
-    where: { id: businessId },
-    data: {
-      tier,
-      subscriptionStatus:  "active",
-      subscriptionEndsAt,
-      // Only overwrite token fields when the response actually contains them
-      ...(dealId      ? { cardcomDealId:      dealId }                            : {}),
-      ...(cardToken   ? { cardcomToken:       encryptCardcomToken(cardToken) }    : {}),
-      ...(tokenExpiry ? { cardcomTokenExpiry: encryptCardcomToken(tokenExpiry) }  : {}),
-    },
-  });
-
-  // ── Layer 5: Log the activation event (with idempotency key + IP) ─────────
-  await prisma.subscriptionEvent.create({
-    data: {
-      businessId,
-      eventType:      "activate",
-      tier,
-      cardcomDealId:  dealId,
-      amount:         extractAmount(data) ?? getPlanPrice(tier)?.price ?? null,
-      lowprofileCode: lowProfileCode,
-      ipAddress:      ip,
-      metadata:       data as object,
-    },
-  });
-
-  console.log(`Cardcom: activated ${tier} for business ${businessId}, deal ${dealId}`);
-
-  // ── Create recurring order (הוראת קבע) in Cardcom ──────────────────────
-  // Awaited — on Vercel serverless a fire-and-forget promise may be killed
-  // after the response is returned, silently skipping recurring creation.
-  const plan = getPlanPrice(tier);
-  if (plan && business) {
-    try {
-      const result = await createCardcomRecurring({
-        cardToken: cardToken ?? "",
-        cardMonth: (data.CardValidityMonth ?? "").trim(),
-        cardYear: data.CardValidityYear ?? "",
-        cardOwnerId: data.CardOwnerID ?? "",
-        price: plan.price,
-        invoiceDescription: `מנוי ${plan.label} — חודשי`,
-        companyName: business.name ?? "לקוח פטרה",
-        email: business.email ?? "",
-        existingRecurringId: business.cardcomRecurringId ?? undefined,
-      });
-      if (result.success && result.recurringId) {
-        await prisma.business.update({
-          where: { id: businessId },
-          data: { cardcomRecurringId: result.recurringId },
-        });
-        console.log(`Cardcom: recurring order ${result.recurringId} created for business ${businessId}`);
-      } else {
-        console.error(`Cardcom: failed to create recurring for business ${businessId}:`, result.error);
-      }
-      // Log the attempt
-      await prisma.subscriptionEvent.create({
-        data: {
-          businessId,
-          eventType: result.success ? "recurring_created" : "recurring_failed",
-          tier,
-          metadata: { recurringId: result.recurringId ?? null, error: result.error ?? null },
-        },
-      }).catch(() => null);
-    } catch (err) {
-      console.error(`Cardcom: recurring creation error for business ${businessId}:`, err);
-    }
-  }
 
   return new Response("OK");
   } catch (error) {
