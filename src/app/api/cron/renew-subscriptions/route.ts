@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { verifyCronAuth } from "@/lib/cron-auth";
 import { sendEmail } from "@/lib/email";
 import { parseCardcomResponse } from "@/lib/cardcom-recurring";
+import { reconcilePendingPayments } from "@/lib/cardcom-activation";
 
 const OWNER_ALERT_EMAIL = "info@petra-app.com";
 
@@ -38,6 +39,23 @@ export async function GET(request: NextRequest) {
 
   try {
     const now = new Date();
+
+    // ── Step 0: activate payments whose browser flow never completed ───────
+    // A business still carrying cardcomPendingCode paid (or abandoned) a
+    // LowProfile page. Verify with Cardcom and activate if it was paid, so a
+    // charged customer is never left on free with no recurring order.
+    const reconciled = await reconcilePendingPayments(now).catch((err) => {
+      console.error("renew-subscriptions: reconcile failed:", err);
+      return [];
+    });
+    const reconcileAlerts = reconciled
+      .filter((r) => r.outcome === "activated" || r.outcome === "error")
+      .map((r) =>
+        r.outcome === "activated"
+          ? `${r.businessName}: הופעל מנוי מתשלום שלא הושלם בדפדפן — ${r.detail ?? ""}`
+          : `${r.businessName}: שגיאה באימות תשלום ממתין — ${r.detail ?? ""}`
+      );
+
     const windowStart = new Date(now.getTime() - 14 * 86_400_000);
     const windowEnd = new Date(now.getTime() + 3 * 86_400_000);
 
@@ -56,13 +74,9 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    if (businesses.length === 0) {
-      return NextResponse.json({ ok: true, checked: 0, renewed: 0, timestamp: now.toISOString() });
-    }
-
     let renewed = 0;
     let failures = 0;
-    const alerts: string[] = [];
+    const alerts: string[] = [...reconcileAlerts];
 
     for (const biz of businesses) {
       try {
@@ -88,23 +102,24 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // ── Alert platform owner on any failure — manual verification needed ────
+    // ── Alert platform owner on anything that needs eyes ─────────────────────
     if (alerts.length > 0) {
       await sendEmail({
         to: OWNER_ALERT_EMAIL,
-        subject: `‏⚠️ Petra: ${alerts.length} מנויים דורשים בדיקת חידוש ידנית`,
+        subject: `‏⚠️ Petra: ${alerts.length} אירועי מנוי דורשים בדיקה`,
         html: `<div dir="rtl" style="font-family:Arial,sans-serif;">
-          <h3>בדיקת חידוש מנוי מול קארדקום נכשלה</h3>
-          <p>העסקים הבאים בהוראת קבע פעילה אך לא הצלחנו לאמת חיוב חודשי מול קארדקום.
-          יש להם חלון חסד של 7 ימים לפני downgrade — נא לבדוק ידנית בפאנל קארדקום (מסוף ${process.env.CARDCOM_TERMINAL_NUMBER ?? ""}):</p>
+          <h3>אירועי מנוי מול קארדקום</h3>
+          <p>מנויים שהופעלו אוטומטית מתשלום שלא הושלם בדפדפן, או עסקים בהוראת קבע פעילה שלא הצלחנו לאמת להם חיוב חודשי
+          (להם יש חלון חסד של 7 ימים לפני downgrade). נא לבדוק בפאנל קארדקום (מסוף ${process.env.CARDCOM_TERMINAL_NUMBER ?? ""}):</p>
           <ul>${alerts.map((a) => `<li>${a.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")}</li>`).join("")}</ul>
         </div>`,
       }).catch((e) => console.error("renew-subscriptions: owner alert email failed:", e));
     }
 
-    console.log(`renew-subscriptions: checked=${businesses.length}, renewed=${renewed}, failures=${failures}`);
+    console.log(`renew-subscriptions: reconciled=${reconciled.length}, checked=${businesses.length}, renewed=${renewed}, failures=${failures}`);
     return NextResponse.json({
       ok: true,
+      reconciled,
       checked: businesses.length,
       renewed,
       failures,
