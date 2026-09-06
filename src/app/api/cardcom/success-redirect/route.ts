@@ -12,8 +12,9 @@ import {
   extractDealId,
   extractAmount,
 } from "@/lib/cardcom-recurring";
+import { resolveBusinessForPayment, activateVerifiedPayment } from "@/lib/cardcom-activation";
 import { ensureUserHasBusiness } from "@/lib/auth";
-import { sendCheckoutWelcomeEmail, sendUpgradeConfirmationEmail } from "@/lib/email";
+import { sendCheckoutWelcomeEmail } from "@/lib/email";
 import { CURRENT_TOS_VERSION } from "@/lib/tos";
 import { randomInt } from "crypto";
 import bcrypt from "bcryptjs";
@@ -147,10 +148,10 @@ async function createRecurringForBusiness(
  *      activates subscription, sends welcome email, redirects to success page.
  *
  *   B) lowprofilecode param → existing logged-in user:
- *      Verifies payment, decodes businessId from UserId, activates subscription,
- *      redirects to success page. Falls back to activate-pending on success page.
- *
- * This replaces the unreliable server-to-server IndicatorURL callback.
+ *      Verifies payment, resolves the business from UserId or the stored
+ *      pending code, activates via the shared activation lib, redirects to the
+ *      success page. activate-pending on that page and the daily reconcile
+ *      step cover the cases where this redirect never runs.
  */
 export async function GET(request: NextRequest) {
   // Rate limit to prevent abuse (public endpoint with external API calls)
@@ -374,81 +375,22 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(`${appUrl}/payment/success?tier=${tierParam}`);
     }
 
-    // ── Decode businessId + tier from UserId ─────────────────────────────
-    const rawUserId = data.UserId ?? "";
-    const [businessId, tier] = rawUserId.split("::");
-
-    if (!businessId || !isValidTier(tier)) {
-      // UserId may not be available from verification — fall through to activate-pending
-      console.warn(`success-redirect [FlowB]: invalid UserId: ${rawUserId}, falling through`);
+    // ── Resolve business + tier (UserId, else the stored pending code) ────
+    const resolved = await resolveBusinessForPayment(data, lowProfileCode);
+    if (!resolved) {
+      console.warn(`success-redirect [FlowB]: cannot resolve business for ${lowProfileCode}, falling through`);
       return NextResponse.redirect(`${appUrl}/payment/success?tier=${tierParam}`);
     }
+    const tier = resolved.tier;
 
-    const business = await prisma.business.findUnique({
-      where: { id: businessId },
-      select: { id: true, name: true, email: true, cardcomRecurringId: true },
+    await activateVerifiedPayment({
+      businessId: resolved.businessId,
+      tier,
+      lowProfileCode,
+      data,
+      source: "success-redirect",
+      ipAddress: ip,
     });
-    if (!business) {
-      console.error(`success-redirect [FlowB]: business not found: ${businessId}`);
-      return NextResponse.redirect(`${appUrl}/payment/success?tier=${tierParam}`);
-    }
-
-    // ── Activate subscription ────────────────────────────────────────────
-    const days = TIER_DAYS[tier] ?? 30;
-    const now = new Date();
-    const subscriptionEndsAt = new Date(now.getTime() + days * 86_400_000);
-
-    const dealId = extractDealId(data);
-    const cardToken = extractCardToken(data);
-    const tokenExpiry = extractTokenExpiry(data);
-
-    await prisma.business.update({
-      where: { id: businessId },
-      data: {
-        tier,
-        subscriptionStatus: "active",
-        subscriptionEndsAt,
-        // Only overwrite token fields when the response actually contains them
-        ...(dealId      ? { cardcomDealId:      dealId }                           : {}),
-        ...(cardToken   ? { cardcomToken:       encryptCardcomToken(cardToken) }   : {}),
-        ...(tokenExpiry ? { cardcomTokenExpiry: encryptCardcomToken(tokenExpiry) } : {}),
-        cardcomPendingCode: null, // Clear pending code
-      },
-    });
-
-    // ── Log activation event ─────────────────────────────────────────────
-    await prisma.subscriptionEvent.create({
-      data: {
-        businessId,
-        eventType: "activate",
-        tier,
-        cardcomDealId: dealId,
-        amount: extractAmount(data) ?? getPlanPrice(tier)?.price ?? null,
-        lowprofileCode: lowProfileCode,
-        metadata: data as object,
-      },
-    });
-
-    console.log(`success-redirect [FlowB]: activated ${tier} for business ${businessId}, deal ${dealId}`);
-
-    // ── Send upgrade confirmation email (fire-and-forget) ────────────────
-    const plan = getPlanPrice(tier);
-    if (plan && business.email) {
-      sendUpgradeConfirmationEmail({
-        to: business.email,
-        name: business.name ?? "",
-        tierName: plan.label,
-        tierPrice: plan.price,
-      }).catch((e) => console.error("success-redirect [FlowB]: upgrade email failed:", e));
-    }
-
-    // ── Create recurring order (awaited — see createRecurringForBusiness) ──
-    await createRecurringForBusiness(
-      data, tier, businessId,
-      business.name ?? "לקוח פטרה",
-      business.email ?? "",
-      business.cardcomRecurringId ?? undefined,
-    );
 
     return NextResponse.redirect(`${appUrl}/payment/success?tier=${tier}`);
   } catch (error) {
