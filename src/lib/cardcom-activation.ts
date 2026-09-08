@@ -19,6 +19,7 @@ import prisma from "@/lib/prisma";
 import { isValidTier } from "@/lib/feature-flags";
 import { encryptCardcomToken } from "@/lib/encryption";
 import { sendUpgradeConfirmationEmail } from "@/lib/email";
+import { notifyOwnerPaymentReceived } from "@/lib/notify-owner";
 import {
   createCardcomRecurring,
   getPlanPrice,
@@ -250,6 +251,20 @@ export async function activateVerifiedPayment(p: ActivateParams): Promise<Activa
       console.error(`cardcom-activation: recurring creation error for ${businessId}:`, err);
     }
   }
+
+  // Tell the platform owner — every activation, whichever path caught it.
+  // Awaited so Vercel does not kill it after the response.
+  await notifyOwnerPaymentReceived({
+    businessName: business.name ?? businessId,
+    businessEmail: business.email,
+    paidTier,
+    effectiveTier: tier,
+    amount: extractAmount(data) ?? plan?.price ?? null,
+    dealId,
+    recurringId,
+    recurringError,
+    source,
+  }).catch((e) => console.error("cardcom-activation: owner notify failed:", e));
 
   return { alreadyActivated: false, tier, recurringId, recurringError };
 }
