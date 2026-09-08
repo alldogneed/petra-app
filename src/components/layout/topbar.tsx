@@ -637,7 +637,11 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                       onClick={() => {
                         const url = selectedSysMsg.actionUrl!;
                         setSelectedSysMsg(null);
-                        if (url.startsWith("/")) router.push(url);
+                        // File endpoints return a PDF, not a page — the app router
+                        // cannot navigate to one, so those open in a new tab like
+                        // any external link. (A signed contract links to
+                        // /api/contracts/requests/[id]/download.)
+                        if (url.startsWith("/") && !url.startsWith("/api/")) router.push(url);
                         else window.open(url, "_blank", "noopener,noreferrer");
                       }}
                       className="w-full btn-primary text-sm py-2.5 rounded-xl"
