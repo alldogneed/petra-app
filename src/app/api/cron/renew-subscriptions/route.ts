@@ -3,8 +3,14 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { verifyCronAuth } from "@/lib/cron-auth";
 import { sendEmail } from "@/lib/email";
-import { parseCardcomResponse } from "@/lib/cardcom-recurring";
+import { getPlanPrice } from "@/lib/cardcom-recurring";
 import { reconcilePendingPayments } from "@/lib/cardcom-activation";
+import {
+  listTerminalTransactions,
+  cardIdentityFromEventMetadata,
+  findChargeForBusiness,
+  type CardcomTransaction,
+} from "@/lib/cardcom-transactions";
 
 const OWNER_ALERT_EMAIL = "info@petra-app.com";
 
@@ -18,17 +24,22 @@ const OWNER_ALERT_EMAIL = "info@petra-app.com";
  * Without this cron, a paying customer's `subscriptionEndsAt` passes and
  * expire-subscriptions downgrades them to free — while Cardcom keeps charging.
  *
+ * Cardcom's RecurringPayment.aspx has no read operation — it answers
+ * "8500 Unknow Operation 'Get'" — so the charge itself is what we look for.
+ * One call to Transactions/ListTransactions covers every business in the run.
+ *
  * For every business with an active subscription + cardcomRecurringId whose
  * period ends within the next 3 days (or up to 14 days ago):
- *   1. Query Cardcom RecurringPayment (Operation=Get) for the recurring order.
- *   2. If the order is active and its NextDateToBill is AFTER our current
- *      subscriptionEndsAt → Cardcom already billed the customer for the next
- *      period → extend subscriptionEndsAt to NextDateToBill + 2-day buffer
- *      and log a "renew" event.
- *   3. If the order was deactivated at Cardcom (customer canceled there) →
- *      log "recurring_inactive" + email the platform owner.
- *   4. If the API call fails or the response can't be parsed → log
- *      "renew_check_failed" + email the platform owner. The business is NOT
+ *   1. Find a successful charge on the card that business paid with, for the
+ *      amount it is billed, dated on or after (subscriptionEndsAt - 3 days).
+ *      That window starts well after the original activation charge, so only a
+ *      genuine monthly renewal can match.
+ *   2. Found → extend subscriptionEndsAt to charge date + 30 days (+2-day
+ *      buffer) and log a "renew" event.
+ *   3. Not found and more than 3 days past due → log "renew_overdue" + email
+ *      the platform owner (declined card, or the order was cancelled at
+ *      Cardcom — which we can no longer read directly).
+ *   4. Any failure → log "renew_check_failed" + email. The business is NOT
  *      expired: expire-subscriptions gives recurring businesses a 7-day grace
  *      window, so a human can intervene before anyone loses access.
  */
@@ -39,6 +50,21 @@ export async function GET(request: NextRequest) {
 
   try {
     const now = new Date();
+
+    // ?mode=verify — read-only smoke test of the Cardcom transaction feed.
+    // Confirms the credentials this cron depends on actually work in this
+    // environment, without waiting for a business to reach its billing date.
+    if (new URL(request.url).searchParams.get("mode") === "verify") {
+      try {
+        const tx = await listTerminalTransactions(new Date(now.getTime() - 21 * 86_400_000), now);
+        return NextResponse.json({ ok: true, mode: "verify", transactionsFound: tx.length });
+      } catch (err) {
+        return NextResponse.json(
+          { ok: false, mode: "verify", error: err instanceof Error ? err.message : String(err) },
+          { status: 500 }
+        );
+      }
+    }
 
     // ── Step 0: activate payments whose browser flow never completed ───────
     // A business still carrying cardcomPendingCode paid (or abandoned) a
@@ -78,9 +104,25 @@ export async function GET(request: NextRequest) {
     let failures = 0;
     const alerts: string[] = [...reconcileAlerts];
 
+    // One transaction fetch for the whole run. Covers the oldest business in the
+    // window plus a few days of slack on either side.
+    let transactions: CardcomTransaction[] = [];
+    if (businesses.length > 0) {
+      try {
+        transactions = await listTerminalTransactions(
+          new Date(windowStart.getTime() - 5 * 86_400_000),
+          new Date(now.getTime() + 86_400_000),
+        );
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error("renew-subscriptions: transaction list failed:", err);
+        alerts.push(`לא ניתן למשוך עסקאות מקארדקום — אי אפשר לאמת חידושים החודש: ${msg}`);
+      }
+    }
+
     for (const biz of businesses) {
       try {
-        const outcome = await checkAndRenew(biz, now);
+        const outcome = await checkAndRenew(biz, now, transactions);
         if (outcome.renewed) renewed++;
         if (outcome.alert) {
           failures++;
@@ -139,83 +181,58 @@ interface BizRow {
   cardcomRecurringId: string | null;
 }
 
-/** Parse Cardcom's dd/MM/yyyy date format. Returns null on garbage. */
-function parseCardcomDate(s: string | undefined): Date | null {
-  if (!s) return null;
-  const m = s.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (!m) return null;
-  const d = new Date(Date.UTC(parseInt(m[3], 10), parseInt(m[2], 10) - 1, parseInt(m[1], 10)));
-  return isNaN(d.getTime()) ? null : d;
+/**
+ * Which card, and which monthly amount, does this business pay with?
+ * Both come from the most recent activation event — the amount falls back to
+ * the plan price of the tier that was actually paid for (a business can sit on
+ * a higher tier granted by hand while being billed the price it agreed to).
+ */
+async function billingProfile(businessId: string, currentTier: string) {
+  const event = await prisma.subscriptionEvent.findFirst({
+    where: { businessId, eventType: { in: ["activate", "checkout_activate"] } },
+    orderBy: { createdAt: "desc" },
+    select: { amount: true, tier: true, metadata: true },
+  });
+
+  const paidTierRaw = (event?.metadata as Record<string, unknown> | null)?.["paidTier"];
+  const paidTier = typeof paidTierRaw === "string" ? paidTierRaw : event?.tier ?? currentTier;
+  const amount = event?.amount ?? getPlanPrice(paidTier)?.price ?? getPlanPrice(currentTier)?.price ?? null;
+
+  return { identity: cardIdentityFromEventMetadata(event?.metadata), amount };
 }
 
 async function checkAndRenew(
   biz: BizRow,
   now: Date,
+  transactions: CardcomTransaction[],
 ): Promise<{ renewed: boolean; alert: string | null }> {
-  const terminalNumber = process.env.CARDCOM_TERMINAL_NUMBER ?? "";
-  const userName = process.env.CARDCOM_API_USERNAME ?? "";
   const label = `${biz.name ?? biz.id} (recurring ${biz.cardcomRecurringId})`;
-
-  // ── Query the recurring order at Cardcom ──────────────────────────────────
-  const body = new URLSearchParams({
-    TerminalNumber: terminalNumber,
-    UserName: userName,
-    Operation: "Get",
-    "RecurringPayments.RecurringId": biz.cardcomRecurringId!,
-  });
-
-  const res = await fetch(
-    "https://secure.cardcom.solutions/interface/RecurringPayment.aspx",
-    { method: "POST", body }
-  );
-  if (!res.ok) {
-    throw new Error(`Cardcom HTTP ${res.status}`);
-  }
-  const data = parseCardcomResponse(await res.text());
-
-  if (data.ResponseCode !== "0") {
-    throw new Error(`Cardcom ResponseCode=${data.ResponseCode}: ${data.Description ?? ""}`);
-  }
-
-  // Response fields are prefixed Recurring0.* (same shape as NewAndUpdate response)
-  const isActiveRaw = (data["Recurring0.IsActive"] ?? data.IsActive ?? "").toLowerCase();
-  const nextBillRaw = data["Recurring0.NextDateToBill"] ?? data.NextDateToBill;
-  const nextBill = parseCardcomDate(nextBillRaw);
-
-  // ── Recurring order deactivated at Cardcom side ───────────────────────────
-  if (isActiveRaw === "false") {
-    console.warn(`renew-subscriptions: recurring inactive for business ${biz.id}`);
-    await prisma.subscriptionEvent.create({
-      data: {
-        businessId: biz.id,
-        eventType: "recurring_inactive",
-        tier: biz.tier,
-        // Deliberately NOT storing the raw response — it may contain card tokens
-        metadata: {
-          recurringId: biz.cardcomRecurringId,
-          responseCode: data.ResponseCode ?? "",
-          description: data.Description ?? "",
-          nextDateToBill: nextBillRaw ?? "",
-        },
-      },
-    }).catch(() => null);
-    return { renewed: false, alert: `${label}: הוראת הקבע כבויה בקארדקום` };
-  }
-
-  if (!nextBill) {
-    throw new Error(`unparseable NextDateToBill: "${nextBillRaw ?? "missing"}"`);
-  }
-
   const endsAt = biz.subscriptionEndsAt!;
 
-  // ── NextDateToBill after our period end → Cardcom already billed ──────────
-  // At creation NextDateToBill == subscriptionEndsAt (both +30d). After each
-  // successful monthly charge Cardcom advances NextDateToBill by one interval,
-  // so nextBill > endsAt proves a charge happened for the next period.
-  if (nextBill.getTime() > endsAt.getTime()) {
-    // +2-day buffer: customer keeps access on billing morning even if this
-    // cron runs a bit after Cardcom's charge cycle.
-    const newEndsAt = new Date(nextBill.getTime() + 2 * 86_400_000);
+  const { identity, amount } = await billingProfile(biz.id, biz.tier);
+
+  if (!amount) {
+    throw new Error("לא ידוע הסכום החודשי — אין אירוע הפעלה עם סכום או מחירון לטיר");
+  }
+  if (!identity.cardOwnerId && !identity.last4) {
+    throw new Error("אין פרטי כרטיס מההפעלה המקורית — לא ניתן להתאים חיוב לעסק");
+  }
+  if (transactions.length === 0) {
+    throw new Error("רשימת העסקאות מקארדקום ריקה או לא נטענה");
+  }
+
+  // 3 days before the period ends: after the original charge (30 days earlier),
+  // before Cardcom's billing date, so only a renewal can land in here.
+  const notBefore = new Date(endsAt.getTime() - 3 * 86_400_000);
+  const charge = findChargeForBusiness(transactions, identity, amount, notBefore);
+
+  if (charge) {
+    // +2-day buffer: the customer keeps access on billing morning even if this
+    // cron runs a little after Cardcom's charge cycle.
+    const newEndsAt = new Date(charge.chargedAt.getTime() + 32 * 86_400_000);
+    if (newEndsAt.getTime() <= endsAt.getTime()) {
+      return { renewed: false, alert: null }; // already credited this charge
+    }
     await prisma.business.update({
       where: { id: biz.id },
       data: { subscriptionEndsAt: newEndsAt, subscriptionStatus: "active" },
@@ -225,11 +242,14 @@ async function checkAndRenew(
         businessId: biz.id,
         eventType: "renew",
         tier: biz.tier,
+        amount: charge.amount,
         metadata: {
           recurringId: biz.cardcomRecurringId,
           previousEndsAt: endsAt.toISOString(),
           newEndsAt: newEndsAt.toISOString(),
-          nextDateToBill: nextBillRaw ?? "",
+          chargedAt: charge.chargedAt.toISOString(),
+          transactionId: charge.transactionId,
+          approvalNumber: charge.approvalNumber,
         },
       },
     }).catch(() => null);
@@ -237,11 +257,8 @@ async function checkAndRenew(
     return { renewed: true, alert: null };
   }
 
-  // ── Not billed yet ────────────────────────────────────────────────────────
-  // Billing date hasn't arrived (endsAt within next 3 days) — nothing to do,
-  // grace in expire-subscriptions covers the gap. But if we're already >3 days
-  // past due and Cardcom still hasn't advanced the billing date, the charge is
-  // probably failing (declined card) — alert the owner.
+  // No charge yet. Before the billing date that is simply normal; well past it
+  // the card is probably declining, or the order was cancelled at Cardcom.
   const daysPastDue = (now.getTime() - endsAt.getTime()) / 86_400_000;
   if (daysPastDue > 3) {
     await prisma.subscriptionEvent.create({
@@ -252,12 +269,15 @@ async function checkAndRenew(
         metadata: {
           recurringId: biz.cardcomRecurringId,
           endsAt: endsAt.toISOString(),
-          nextDateToBill: nextBillRaw ?? "",
+          expectedAmount: amount,
           daysPastDue: Math.round(daysPastDue * 10) / 10,
         },
       },
     }).catch(() => null);
-    return { renewed: false, alert: `${label}: חיוב חודשי לא בוצע — ${Math.floor(daysPastDue)} ימים באיחור` };
+    return {
+      renewed: false,
+      alert: `${label}: לא נמצא חיוב חודשי של ₪${amount} — ${Math.floor(daysPastDue)} ימים באיחור`,
+    };
   }
 
   return { renewed: false, alert: null };
