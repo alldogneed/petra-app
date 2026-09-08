@@ -3,20 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { isValidTier } from "@/lib/feature-flags";
-import { encryptCardcomToken } from "@/lib/encryption";
-import {
-  createCardcomRecurring,
-  getPlanPrice,
-  extractCardToken,
-  extractTokenExpiry,
-  extractDealId,
-  extractAmount,
-} from "@/lib/cardcom-recurring";
-import { sendUpgradeConfirmationEmail } from "@/lib/email";
-
-const TIER_DAYS: Record<string, number> = {
-  basic: 30, pro: 30, groomer: 30, service_dog: 30,
-};
+import { verifyLowProfile, activateVerifiedPayment } from "@/lib/cardcom-activation";
 
 /**
  * POST /api/cardcom/activate-pending
@@ -24,6 +11,10 @@ const TIER_DAYS: Record<string, number> = {
  * Called by the success page after payment. Uses the stored
  * cardcomPendingCode to verify the payment and activate the subscription.
  * Authenticated — requires session cookie.
+ *
+ * This is the belt-and-braces path: the Cardcom indicator (server-to-server)
+ * and the daily reconcile step activate the same payment without needing the
+ * customer's browser, so all three share `activateVerifiedPayment`.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -33,148 +24,43 @@ export async function POST(request: NextRequest) {
 
     const business = await prisma.business.findUnique({
       where: { id: businessId },
-      select: { cardcomPendingCode: true, name: true, email: true, cardcomRecurringId: true },
+      select: { cardcomPendingCode: true, tier: true, subscriptionStatus: true },
     });
 
     if (!business?.cardcomPendingCode) {
+      // Nothing pending: either never paid, or the indicator already activated
+      // it and cleared the code. Report the latter as success so the success
+      // page shows the right state instead of an error.
+      if (business?.subscriptionStatus === "active") {
+        return NextResponse.json({ ok: true, alreadyActivated: true, tier: business.tier });
+      }
       return NextResponse.json({ error: "אין תשלום ממתין" }, { status: 400 });
     }
 
-    // Format: "lowProfileCode::tier" (tier stored alongside code)
-    const parts = business.cardcomPendingCode.split("::");
-    const lowProfileCode = parts[0];
-    const storedTier = parts[1] ?? null;
-
-    // ── Idempotency ──────────────────────────────────────────────────────
-    const existing = await prisma.subscriptionEvent.findFirst({
-      where: { lowprofileCode: lowProfileCode, eventType: "activate" },
-      select: { id: true },
-    });
-    if (existing) {
-      // Already activated — clear pending and return success
-      await prisma.business.update({ where: { id: businessId }, data: { cardcomPendingCode: null } });
-      return NextResponse.json({ ok: true, alreadyActivated: true });
-    }
-
-    // ── Verify payment via Cardcom API ───────────────────────────────────
-    const verifyUrl = new URL(
-      "https://secure.cardcom.solutions/Interface/BillGoldGetLowProfileIndicator.aspx"
-    );
-    verifyUrl.searchParams.set("terminalnumber", process.env.CARDCOM_TERMINAL_NUMBER ?? "");
-    verifyUrl.searchParams.set("username", process.env.CARDCOM_API_USERNAME ?? "");
-    verifyUrl.searchParams.set("lowprofilecode", lowProfileCode);
-
-    const res = await fetch(verifyUrl.toString());
-    if (!res.ok) {
-      console.error(`activate-pending: HTTP ${res.status} from Cardcom verify API for code ${lowProfileCode}`);
-      return NextResponse.json({ error: "שגיאה באימות התשלום" }, { status: 502 });
-    }
-    const text = await res.text();
-
-    const data: Record<string, string> = {};
-    text.split("&").forEach((pair) => {
-      const eqIdx = pair.indexOf("=");
-      if (eqIdx === -1) return;
-      data[decodeURIComponent(pair.slice(0, eqIdx))] = decodeURIComponent(pair.slice(eqIdx + 1));
-    });
-
-    if (data.DealResponse !== "0") {
-      console.warn(`activate-pending: DealResponse=${data.DealResponse} for ${lowProfileCode}`);
-      return NextResponse.json({ error: "התשלום לא אושר" }, { status: 400 });
-    }
-
-    // ── Get tier from stored pending code (Cardcom doesn't return UserId) ──
-    const tier = storedTier;
-    if (!tier || !isValidTier(tier)) {
-      console.error(`activate-pending: invalid tier in pending code: ${business.cardcomPendingCode}`);
+    // Format: "lowProfileCode::tier"
+    const [lowProfileCode, storedTier] = business.cardcomPendingCode.split("::");
+    if (!lowProfileCode || !isValidTier(storedTier)) {
+      console.error(`activate-pending: malformed pending code for ${businessId}: ${business.cardcomPendingCode}`);
       return NextResponse.json({ error: "מסלול לא תקין" }, { status: 400 });
     }
 
-    // ── Activate subscription ────────────────────────────────────────────
-    const days = TIER_DAYS[tier] ?? 30;
-    const subscriptionEndsAt = new Date(Date.now() + days * 86_400_000);
-
-    const dealId = extractDealId(data);
-    const cardToken = extractCardToken(data);
-    const tokenExpiry = extractTokenExpiry(data);
-
-    await prisma.business.update({
-      where: { id: businessId },
-      data: {
-        tier,
-        subscriptionStatus: "active",
-        subscriptionEndsAt,
-        // Only overwrite token fields when the response actually contains them
-        ...(dealId      ? { cardcomDealId:      dealId }                           : {}),
-        ...(cardToken   ? { cardcomToken:       encryptCardcomToken(cardToken) }   : {}),
-        ...(tokenExpiry ? { cardcomTokenExpiry: encryptCardcomToken(tokenExpiry) } : {}),
-        cardcomPendingCode: null, // Clear pending
-      },
-    });
-
-    await prisma.subscriptionEvent.create({
-      data: {
-        businessId,
-        eventType: "activate",
-        tier,
-        cardcomDealId: dealId,
-        amount: extractAmount(data) ?? getPlanPrice(tier)?.price ?? null,
-        lowprofileCode: lowProfileCode,
-        metadata: data as object,
-      },
-    });
-
-    console.log(`activate-pending: ${tier} activated for ${businessId}, deal ${dealId}`);
-
-    // ── Send upgrade confirmation email (fire-and-forget) ────────────────
-    const plan = getPlanPrice(tier);
-    if (plan && business.email) {
-      sendUpgradeConfirmationEmail({
-        to: business.email,
-        name: business.name ?? "",
-        tierName: plan.label,
-        tierPrice: plan.price,
-      }).catch((e) => console.error("activate-pending: upgrade email failed:", e));
+    const verified = await verifyLowProfile(lowProfileCode);
+    if (!verified.ok) {
+      console.warn(`activate-pending: not paid (${verified.responseCode}/${verified.dealResponse}) for ${lowProfileCode}`);
+      return NextResponse.json({ error: "התשלום לא אושר" }, { status: 400 });
     }
 
-    // ── Create recurring order (awaited — fire-and-forget may be killed
-    //    on Vercel serverless after the response is returned) ──────────────
-    if (plan) {
-      try {
-        const result = await createCardcomRecurring({
-          cardToken: cardToken ?? "",
-          cardMonth: (data.CardValidityMonth ?? "").trim(),
-          cardYear: data.CardValidityYear ?? "",
-          cardOwnerId: data.CardOwnerID ?? "",
-          price: plan.price,
-          invoiceDescription: `מנוי ${plan.label} — חודשי`,
-          companyName: business.name ?? "לקוח פטרה",
-          email: business.email ?? "",
-          existingRecurringId: business.cardcomRecurringId ?? undefined,
-        });
-        if (result.success && result.recurringId) {
-          await prisma.business.update({
-            where: { id: businessId },
-            data: { cardcomRecurringId: result.recurringId },
-          });
-          console.log(`activate-pending: recurring ${result.recurringId} for ${businessId}`);
-        } else {
-          console.error(`activate-pending: recurring failed for ${businessId}:`, result.error);
-        }
-        await prisma.subscriptionEvent.create({
-          data: {
-            businessId,
-            eventType: result.success ? "recurring_created" : "recurring_failed",
-            tier,
-            metadata: { recurringId: result.recurringId ?? null, error: result.error ?? null },
-          },
-        }).catch(() => null);
-      } catch (err) {
-        console.error(`activate-pending: recurring creation error for ${businessId}:`, err);
-      }
-    }
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? undefined;
+    const result = await activateVerifiedPayment({
+      businessId,
+      tier: storedTier,
+      lowProfileCode,
+      data: verified.data,
+      source: "activate-pending",
+      ipAddress: ip,
+    });
 
-    return NextResponse.json({ ok: true, tier });
+    return NextResponse.json({ ok: true, tier: result.tier, alreadyActivated: result.alreadyActivated });
   } catch (error) {
     console.error("activate-pending error:", error);
     return NextResponse.json({ error: "שגיאה בהפעלת המנוי" }, { status: 500 });
