@@ -172,6 +172,8 @@ export interface PaymentReceivedParams {
   dealId?: string | null;
   recurringId?: string | null;
   recurringError?: string | null;
+  /** True when the card token could not be stored (CARDCOM_ENCRYPTION_KEY missing). */
+  tokenStoreFailed?: boolean;
   /** Which path activated it: indicator / success-redirect / activate-pending / reconcile */
   source: string;
 }
@@ -196,6 +198,10 @@ export async function notifyOwnerPaymentReceived(p: PaymentReceivedParams): Prom
     reconcile: "השלמה יומית — הדפדפן לא סיים",
   };
 
+  const tokenWarning = p.tokenStoreFailed
+    ? "⚠️ טוקן הכרטיס לא נשמר — חסר CARDCOM_ENCRYPTION_KEY ב-Vercel"
+    : null;
+
   const waMessage =
     `💳 תשלום התקבל בפטרה\n\n` +
     `🏢 ${p.businessName}\n` +
@@ -203,6 +209,7 @@ export async function notifyOwnerPaymentReceived(p: PaymentReceivedParams): Prom
     `💰 ${amountLabel}\n` +
     `🔁 ${recurringLabel}\n` +
     `🛠 ${sourceLabel[p.source] ?? p.source}\n` +
+    (tokenWarning ? `${tokenWarning}\n` : "") +
     `🕐 ${dateLabel}`;
 
   const safeName = escapeHtml(p.businessName);
@@ -224,6 +231,7 @@ export async function notifyOwnerPaymentReceived(p: PaymentReceivedParams): Prom
           <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 8px 4px; color: #64748b; font-size: 13px;">מסלול הפעלה</td><td style="padding: 8px 4px; color: #1e293b;">${escapeHtml(sourceLabel[p.source] ?? p.source)}</td></tr>
           <tr><td style="padding: 8px 4px; color: #64748b; font-size: 13px;">תאריך</td><td style="padding: 8px 4px; color: #1e293b;">${dateLabel}</td></tr>
         </table>
+        ${tokenWarning ? `<div style="margin-top: 16px; padding: 12px 16px; background: #fef2f2; border-radius: 8px; border: 1px solid #fecaca;"><p style="margin: 0; font-size: 13px; color: #b91c1c;">${escapeHtml(tokenWarning)}</p></div>` : ""}
         <div style="margin-top: 20px; padding: 12px 16px; background: #fff7ed; border-radius: 8px; border: 1px solid #fed7aa;">
           <p style="margin: 0; font-size: 13px; color: #9a3412;">💡 <a href="https://petra-app.com/owner/tenants" style="color: #f97316;">ניהול ובקרה → עסקים</a></p>
         </div>
