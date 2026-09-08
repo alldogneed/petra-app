@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { normalizeLegalEntityLabel, isVatExempt } from "@/lib/legal-entity";
 import { isValidTier } from "@/lib/feature-flags";
-import { encryptCardcomToken } from "@/lib/encryption";
+import { safeEncryptCardcomToken } from "@/lib/cardcom-activation";
 import {
   createCardcomRecurring,
   getPlanPrice,
@@ -280,8 +280,8 @@ export async function GET(request: NextRequest) {
           subscriptionEndsAt,
           // Never overwrite a stored token with null when the verify response omits it
           // (same conditional-spread fix as indicator/activate-pending routes).
-          ...(extractCardToken(data)   ? { cardcomToken:       encryptCardcomToken(extractCardToken(data)!) }   : {}),
-          ...(extractTokenExpiry(data) ? { cardcomTokenExpiry: encryptCardcomToken(extractTokenExpiry(data)!) } : {}),
+          ...(safeEncryptCardcomToken(extractCardToken(data))   ? { cardcomToken:       safeEncryptCardcomToken(extractCardToken(data))! }   : {}),
+          ...(safeEncryptCardcomToken(extractTokenExpiry(data)) ? { cardcomTokenExpiry: safeEncryptCardcomToken(extractTokenExpiry(data))! } : {}),
           ...(extractDealId(data)      ? { cardcomDealId:      extractDealId(data) } : {}),
           ...(checkout.phone        ? { phone:             checkout.phone }        : {}),
           ...(checkout.address      ? { address:           checkout.address }      : {}),

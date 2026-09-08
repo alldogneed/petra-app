@@ -114,6 +114,26 @@ export interface ActivateResult {
   recurringError: string | null;
 }
 
+/**
+ * Encrypt a Cardcom card token, or return null when that is impossible.
+ *
+ * `encryptCardcomToken` throws when CARDCOM_ENCRYPTION_KEY is missing — correct,
+ * since a payment token must never be stored in plaintext. But letting that
+ * throw propagate aborted the whole activation, so a paying customer stayed on
+ * free because of a missing env var. Storing no token is the safe degradation:
+ * the subscription activates, the recurring order is still created from the
+ * in-memory token, and the failure is recorded on the event and alerted.
+ */
+export function safeEncryptCardcomToken(value: string | null | undefined): string | null {
+  if (!value) return null;
+  try {
+    return encryptCardcomToken(value);
+  } catch (err) {
+    console.error("[SECURITY] cannot encrypt Cardcom token — storing nothing:", err);
+    return null;
+  }
+}
+
 /** Fields we never want in a stored event: the card token and its expiry. */
 function redactForEvent(data: Record<string, string>): Record<string, string> {
   const out: Record<string, string> = {};
@@ -163,6 +183,10 @@ export async function activateVerifiedPayment(p: ActivateParams): Promise<Activa
   const dealId = extractDealId(data);
   const cardToken = extractCardToken(data);
   const tokenExpiry = extractTokenExpiry(data);
+  const encryptedToken = safeEncryptCardcomToken(cardToken);
+  const encryptedExpiry = safeEncryptCardcomToken(tokenExpiry);
+  // Token present but unstorable = CARDCOM_ENCRYPTION_KEY missing in this env.
+  const tokenStoreFailed = !!cardToken && !encryptedToken;
 
   await prisma.business.update({
     where: { id: businessId },
@@ -171,9 +195,9 @@ export async function activateVerifiedPayment(p: ActivateParams): Promise<Activa
       subscriptionStatus: "active",
       subscriptionEndsAt,
       // Only overwrite token fields when the response actually contains them
-      ...(dealId      ? { cardcomDealId:      dealId }                           : {}),
-      ...(cardToken   ? { cardcomToken:       encryptCardcomToken(cardToken) }   : {}),
-      ...(tokenExpiry ? { cardcomTokenExpiry: encryptCardcomToken(tokenExpiry) } : {}),
+      ...(dealId          ? { cardcomDealId:      dealId }          : {}),
+      ...(encryptedToken  ? { cardcomToken:       encryptedToken }  : {}),
+      ...(encryptedExpiry ? { cardcomTokenExpiry: encryptedExpiry } : {}),
       cardcomPendingCode: null,
     },
   });
@@ -194,6 +218,7 @@ export async function activateVerifiedPayment(p: ActivateParams): Promise<Activa
         ...(keepManualTier ? { keptManualTier: business.tier } : {}),
         subscriptionEndsAt: subscriptionEndsAt.toISOString(),
         hasToken: !!cardToken,
+        ...(tokenStoreFailed ? { tokenStoreFailed: true } : {}),
       },
     },
   });
@@ -263,6 +288,7 @@ export async function activateVerifiedPayment(p: ActivateParams): Promise<Activa
     dealId,
     recurringId,
     recurringError,
+    tokenStoreFailed,
     source,
   }).catch((e) => console.error("cardcom-activation: owner notify failed:", e));
 
