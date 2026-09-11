@@ -3,7 +3,8 @@
  */
 
 import prisma from "@/lib/prisma";
-import { sendWhatsAppMessage, sendWhatsAppTemplate, interpolateTemplate } from "@/lib/whatsapp";
+import { interpolateTemplate } from "@/lib/whatsapp";
+import { sendWithTemplateChain, chainFromPayload, contextForScheduledMessage } from "@/lib/whatsapp-template-chain";
 import { toWhatsAppPhone, formatDate, formatTime } from "@/lib/utils";
 import { hasFeatureWithOverrides } from "@/lib/feature-flags";
 import { israelDateTime } from "@/lib/reminder-service";
@@ -212,23 +213,25 @@ export async function processPendingReminders(): Promise<{
         failed++;
         continue;
       }
-      // Prefer Meta template (works outside 24h window); fall back to text
-      let result;
-      if (payload.metaTemplateName) {
-        result = await sendWhatsAppTemplate({
-          to: phone,
-          templateName: payload.metaTemplateName as string,
-          bodyParams: (payload.metaTemplateParams as string[]) ?? [],
-          businessId: msg.businessId,
-          context: "scheduled_message",
-        });
-        // If template fails (e.g. not yet approved), fall back to text
-        if (!result.success) {
-          console.warn(`[Reminder] Template "${payload.metaTemplateName}" failed, falling back to text`);
-          result = await sendWhatsAppMessage({ to: phone, body, businessId: msg.businessId, context: "scheduled_message" });
-        }
+      // Ordered Meta template chain (works outside the 24h window); free text is the
+      // last resort. `flow` in new payloads → WhatsAppMessageLog.context; legacy rows
+      // map by relatedEntityType. Legacy metaTemplateName payloads are still honoured.
+      const context = contextForScheduledMessage(payload, msg.relatedEntityType);
+      const result = await sendWithTemplateChain({
+        to: phone,
+        steps: chainFromPayload(payload),
+        fallbackBody: body,
+        businessId: msg.businessId,
+        context,
+      });
+      if (result.success) {
+        console.log(
+          `[Reminder] ${context} ${msg.id} sent via ${result.via === "template" ? `template (${result.templateName})` : "free text"}`
+          + (result.failedTemplates.length ? ` — skipped: ${result.failedTemplates.map((f) => `${f.name}: ${f.error}`).join("; ")}` : "")
+        );
       } else {
-        result = await sendWhatsAppMessage({ to: phone, body, businessId: msg.businessId, context: "scheduled_message" });
+        console.error(`[Reminder] ${context} ${msg.id} failed — ${result.error ?? "unknown"}`
+          + (result.failedTemplates.length ? ` — templates: ${result.failedTemplates.map((f) => `${f.name}: ${f.error}`).join("; ")}` : ""));
       }
 
       await prisma.scheduledMessage.update({

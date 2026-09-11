@@ -2,7 +2,8 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
-import { sendWhatsAppMessage, interpolateTemplate } from "@/lib/whatsapp";
+import { interpolateTemplate } from "@/lib/whatsapp";
+import { sendWithTemplateChain, chainFromPayload, contextForScheduledMessage } from "@/lib/whatsapp-template-chain";
 import { toWhatsAppPhone } from "@/lib/utils";
 
 // POST /api/scheduled-messages/[id]/send
@@ -48,7 +49,21 @@ export async function POST(
     }
 
     const phone = String(payload.to ?? (msg.customer ? toWhatsAppPhone(msg.customer.phone) : ""));
-    const result = await sendWhatsAppMessage({ to: phone || "", body, businessId: msg.businessId, context: "scheduled_message" });
+    if (!phone) {
+      await prisma.scheduledMessage.update({ where: { id: params.id }, data: { status: "FAILED" } });
+      return NextResponse.json({ error: "ללקוח אין מספר טלפון" }, { status: 400 });
+    }
+
+    // Same ordered template chain as the cron — a manual "send now" outside the 24h
+    // window used to go out as free text only and silently fail.
+    const context = contextForScheduledMessage(payload, msg.relatedEntityType);
+    const result = await sendWithTemplateChain({
+      to: phone,
+      steps: chainFromPayload(payload),
+      fallbackBody: body,
+      businessId: msg.businessId,
+      context,
+    });
 
     await prisma.scheduledMessage.update({
       where: { id: params.id },
@@ -63,6 +78,8 @@ export async function POST(
       success: true,
       stub: result.messageSid?.startsWith("STUB_"),
       messageSid: result.messageSid,
+      via: result.via,
+      templateName: result.templateName,
     });
   } catch (error) {
     console.error("Send scheduled message error:", error);
