@@ -24,6 +24,15 @@ export const dynamic = 'force-dynamic';
  *   service     – requested service (appended to notes)
  *   businessId  – only needed for legacy auth
  *   timestamp   – ignored
+ *
+ * Traffic attribution (all optional, snake_case or camelCase — see src/lib/lead-attribution.ts):
+ *   traffic_source – explicit: organic|paid|direct|referral|social|whatsapp|phone|unknown
+ *   utm_source / utm_medium / utm_campaign / gclid / referrer
+ *   landing_page / first_page – full URL or path (stored as path)
+ *   page_type   – service|guide|area|tool|home
+ *   When none of these keys is present the lead is stored with trafficSource "unknown";
+ *   when the keys are present the source is inferred (gclid/cpc → paid, google/bing
+ *   referrer → organic, facebook/instagram → social, all empty → direct, else referral).
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -36,6 +45,7 @@ import { sendLeadAlert } from "@/lib/lead-alert";
 import { toWhatsAppPhone } from "@/lib/utils";
 import { sanitizeName } from "@/lib/validation";
 import { scheduleLeadFollowup } from "@/lib/reminder-service";
+import { normalizeAttributionInput } from "@/lib/lead-attribution";
 
 export async function POST(request: NextRequest) {
   // ── Rate limiting ─────────────────────────────────────────────────────────
@@ -128,6 +138,7 @@ export async function POST(request: NextRequest) {
   const petBreed = sanitizeName((str(body.petBreed) || str(body.breed)).slice(0, 100)) || undefined;
   const city = sanitizeName(str(body.city).slice(0, 100)) || undefined;
   const service = sanitizeName(str(body.service).slice(0, 200)) || undefined;
+  const attribution = normalizeAttributionInput(body);
   const rawNotes = str(body.notes).slice(0, 5000).replace(/<[^>]*>/g, "").replace(/[<>{}[\]]/g, "") || undefined;
 
   if (!name && !phone) {
@@ -161,6 +172,7 @@ export async function POST(request: NextRequest) {
         city: city || undefined,
         requestedService: service || undefined,
         notes: notes || undefined,
+        ...attribution,
       },
       select: { id: true, name: true, stage: true, createdAt: true },
     });

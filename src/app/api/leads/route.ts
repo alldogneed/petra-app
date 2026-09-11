@@ -8,6 +8,7 @@ import { sendLeadAlert } from "@/lib/lead-alert";
 import { toWhatsAppPhone } from "@/lib/utils";
 import { prisma } from "@/lib/prisma";
 import { listLeads, createLead, ServiceError } from "@/services/clients";
+import { hasAttributionPayload, normalizeAttributionInput } from "@/lib/lead-attribution";
 
 export async function GET(request: NextRequest) {
   try {
@@ -44,6 +45,7 @@ export async function POST(request: NextRequest) {
     try {
       result = await createLead(authResult.businessId, prisma, {
         name, phone, email, city, address, requestedService, source, stage, notes, customerId,
+        attribution: hasAttributionPayload(body) ? normalizeAttributionInput(body) : null,
       });
     } catch (e) {
       if (e instanceof ServiceError) {

@@ -10,6 +10,7 @@
  *   - Vercel Blob upload (logo route stays as-is)
  */
 
+import { attributionWindowStart, buildLeadAttributionReport } from "@/lib/lead-attribution";
 import type { DbClient } from "./supabase";
 import { ServiceError } from "./types";
 import { validateIsraeliPhone, validateEmail } from "@/lib/validation";
@@ -804,6 +805,13 @@ export async function getAnalytics(
     .map(([code, count]) => ({ code, count }))
     .sort((a, b) => b.count - a.count);
 
+  // Traffic attribution — fixed 12-month window, independent of the selected period
+  const attributionLeads = await db.lead.findMany({
+    where: { businessId, createdAt: { gte: attributionWindowStart(now) } },
+    select: { createdAt: true, trafficSource: true, landingPage: true, wonAt: true },
+  });
+  const leadAttribution = buildLeadAttributionReport(attributionLeads, now);
+
   // Top customers
   const topCustomerPayments = await db.payment.findMany({
     where: { businessId, status: "paid", paidAt: inPeriod },
@@ -911,6 +919,7 @@ export async function getAnalytics(
     },
     leadsBySource,
     lostReasons,
+    leadAttribution,
     training: {
       activePrograms,
       completedSessionsThisPeriod: completedTrainingSessions,
