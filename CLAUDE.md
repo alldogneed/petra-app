@@ -138,6 +138,16 @@ Dashboard renewal banner uses `!isFree && subscriptionActive && subscriptionDays
 ### 25. Search modal must close on mobile
 `src/components/search/global-search.tsx` has a permanent X button in the header (always visible, not just when `query` is filled) **and** the backdrop+dialog wrapper is a single layer so taps outside the modal close it. Without these two together, mobile users get stuck — no ESC key, X is hidden, backdrop click eaten by the dialog wrapper.
 
+### 26. Automated customer WhatsApp sends go through the ordered template chain
+`src/lib/whatsapp-template-chain.ts` — `sendWithTemplateChain()` tries an ordered list of Meta template names and only then sends free text (24h window only). All names live in `META_TEMPLATES` (`src/lib/reminder-service.ts`) with a `*Chain()` builder per flow; `buildTemplateChain()` drops any step with an empty param (Meta rejects them).
+```
+UTILITY template  →  legacy (MARKETING) template  →  free text
+```
+- Meta silently frequency-caps MARKETING templates per recipient (API says `accepted`, nothing delivered). A new UTILITY name is added at the **front** of the chain — never in place of the older names (an unapproved name is rejected at send time and skipped; a replaced name would drop the flow to free text).
+- ScheduledMessage payloads carry `flow` (→ `WhatsAppMessageLog.context`, e.g. `lead_followup`) + `templateChain: [{ name, params }]`. `chainFromPayload()` still reads the legacy `metaTemplateName`/`metaTemplateParams` shape for rows already queued.
+- `processPendingReminders()` and `POST /api/scheduled-messages/[id]/send` both use the chain; **always pass `businessId` + `context`**. Sender selection stays in `resolveWhatsAppSender()` — no parallel mechanism.
+- Do not add chain names to `PLATFORM_TEMPLATE_NAMES` (`whatsapp-connections.ts`) unless the template really exists on the platform WABA — that list feeds `missingTemplates` in the connection UI.
+
 ---
 
 ## MCP Server
