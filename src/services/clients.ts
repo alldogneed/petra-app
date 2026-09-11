@@ -8,6 +8,7 @@
  * because they are fire-and-forget and depend on session/request context.
  */
 
+import type { LeadAttribution } from "@/lib/lead-attribution";
 import { Prisma } from "@prisma/client";
 import { localTimeToUtc } from "@/lib/slots";
 import type { PrismaClient } from "@prisma/client";
@@ -608,6 +609,8 @@ export interface CreateLeadInput {
   stage?: string;
   notes?: string | null;
   customerId?: string;
+  /** Optional traffic attribution — already normalized via normalizeAttributionInput(). */
+  attribution?: LeadAttribution | null;
 }
 
 export async function createLead(businessId: string, db: DbClient, input: CreateLeadInput) {
@@ -693,6 +696,7 @@ export async function createLead(businessId: string, db: DbClient, input: Create
       source: input.source, stage: resolvedStage,
       notes: input.notes ?? undefined,
       customerId: input.customerId || undefined,
+      ...(input.attribution ?? {}),
     },
     include: { customer: true, callLogs: true },
   });

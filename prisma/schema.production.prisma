@@ -627,6 +627,15 @@ model Lead {
   followUpTaskId   String?   // ID of the auto-created follow-up Task
   googleContactId  String?   // Google People API resource name (e.g. "people/c12345678")
   previousStageId  String?   // Last active stage before archiving (won/lost) — used for restore
+  // Traffic attribution (website / webhook). See src/lib/lead-attribution.ts — separate from `source` (intake channel)
+  trafficSource    String   @default("unknown") // organic | paid | direct | referral | social | whatsapp | phone | unknown
+  medium           String?   // utm_medium
+  campaign         String?   // utm_campaign
+  landingPage      String?   // path of the page the form was submitted from
+  referrer         String?   // document.referrer at first visit
+  firstPage        String?   // first page of the session
+  gclid            String?   // Google Ads click id
+  pageType         String?   // service | guide | area | tool | home
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -637,6 +646,7 @@ model Lead {
   @@index([businessId, lastContactedAt])
   @@index([stage, lostReasonCode, createdAt])
   @@index([businessId, stage])
+  @@index([businessId, trafficSource, createdAt])
 }
 
 model LeadStage {
