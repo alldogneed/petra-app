@@ -28,6 +28,7 @@
 ## Leads (`/leads`)
 - Kanban with custom `LeadStage` (UUID strings — NOT hardcoded)
 - Drag stage, call log, won/lost with reason, convert to customer
+- Traffic attribution (`trafficSource`/`medium`/`campaign`/`landingPage`/`referrer`/`firstPage`/`gclid`/`pageType`) from the website webhook — `src/lib/lead-attribution.ts`; one-line "מקור · עמוד" on the card, 12-month tables in `/analytics`
 
 ## Messages + Automations (`/messages`)
 - Template cards with inline automation toggle

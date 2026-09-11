@@ -18,6 +18,7 @@ import { triggerLimitModal } from "@/lib/limit-reached";
 import { validateIsraeliPhone, validateEmail, sanitizeName, validateName, normalizeIsraeliPhone } from "@/lib/validation";
 import { toast } from "sonner";
 import { useSubscription } from "@/hooks/useSubscription";
+import { formatAttributionLine } from "@/lib/lead-attribution";
 import { LEAD_SOURCES, LOST_REASON_CODES } from "@/lib/constants";
 import { LeadTreatmentModal } from "@/components/leads/LeadTreatmentModal";
 import LeadDetailsModal from "@/components/leads/LeadDetailsModal";
@@ -62,6 +63,8 @@ interface Lead {
   nextFollowUpAt: string | null;
   followUpStatus: string | null;
   previousStageId: string | null;
+  trafficSource?: string | null;
+  landingPage?: string | null;
   callLogs?: {
     id: string;
     summary: string;
@@ -665,6 +668,7 @@ function DraggableLeadCard({
 
   const sourceLabel = LEAD_SOURCES.find((s) => s.id === lead.source)?.label || lead.source;
   const sourceEmoji = getSourceEmoji(lead.source);
+  const attributionLine = formatAttributionLine({ trafficSource: lead.trafficSource, landingPage: lead.landingPage });
   const callLogCount = lead.callLogs?.length || 0;
   const { city, service, cleanNotes } = parseLeadMeta(lead.notes);
   const isWon = stage.isWon;
@@ -757,6 +761,11 @@ function DraggableLeadCard({
           <span className="text-[10px] text-petra-muted flex-shrink-0">{lead.phone}</span>
         )}
       </div>
+
+      {/* Row 1.5: traffic attribution (website leads only) */}
+      {attributionLine && (
+        <div className="text-[10px] text-petra-muted truncate mt-0.5" title={attributionLine}>{attributionLine}</div>
+      )}
 
       {/* Row 2: date + badges */}
       <div className="flex items-center gap-1 mt-0.5 flex-wrap">

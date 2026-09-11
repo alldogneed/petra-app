@@ -138,6 +138,11 @@ Dashboard renewal banner uses `!isFree && subscriptionActive && subscriptionDays
 ### 25. Search modal must close on mobile
 `src/components/search/global-search.tsx` has a permanent X button in the header (always visible, not just when `query` is filled) **and** the backdrop+dialog wrapper is a single layer so taps outside the modal close it. Without these two together, mobile users get stuck — no ESC key, X is hidden, backdrop click eaten by the dialog wrapper.
 
+### 26. Lead traffic attribution — `trafficSource` ≠ `source`
+`Lead.source` (existing) = intake channel picked by the business (`manual`/`website`/`google`…, `LEAD_SOURCES` in constants). `Lead.trafficSource` (+ `medium`, `campaign`, `landingPage`, `referrer`, `firstPage`, `gclid`, `pageType`) = where the visitor came from, sent by all-dog.co.il / Make via `POST /api/webhooks/lead` (`utm_*`, `gclid`, `referrer`, `landing_page`, `first_page`, `page_type`, snake or camelCase). Never merge the two fields.
+Single source of truth: `src/lib/lead-attribution.ts` — `TRAFFIC_SOURCES` (organic|paid|direct|referral|social|whatsapp|phone|unknown, plain strings, no Prisma enum), `classifyTrafficSource()` (gclid/cpc/ppc → paid; google/bing referrer → organic; facebook/instagram → social; wa.me → whatsapp; all empty → direct; else referral), `normalizeAttributionInput()` (length caps, page URLs stored as path). Body without any attribution key → `unknown` (legacy clients unchanged); keys present but empty → `direct`.
+MCP: `create_lead` accepts the same keys (omitted → `unknown`), `get_lead` prints a "מקור תנועה" line. Card + `LeadDetailsModal` render `formatAttributionLine()` ("מקור: אורגני · עמוד: /guides/…"); hidden when `unknown` and no page. Analytics: `getAnalytics().leadAttribution` = fixed 12-month window (`buildLeadAttributionReport`), independent of the period picker. Prod DDL: `prisma/lead_attribution.sql` (additive, default `unknown`). Tests: `src/lib/__tests__/lead-attribution.test.ts`.
+
 ---
 
 ## MCP Server
@@ -167,7 +172,7 @@ MCP is visible/usable ONLY for: `alldogneed@gmail.com`, `or.rabinovich@gmail.com
 - **Token metadata:** `McpConnection` carries `createdByUserId` / `createdByRole` / `expiresAt` (180 days). Profiles `read | intake | calendar | boarding | full` via `MCP_PROFILES` (labels `MCP_PROFILE_LABELS`); `full` = everything the minter's role allows.
 
 ### 64 Tools + 2 prompts — `src/app/api/mcp/route.ts` + modules in `src/lib/mcp/`
-Core (route.ts, 20): `list_clients` (cursor), `get_client`, `create_client`, `add_client_note`, `list_upcoming_appointments`, `list_services`, `create_appointment`, `update_appointment`, `cancel_appointment`, `get_business_stats`, `list_leads` (city/source/created, created_from/to, stage_name, offset, include_closed), `get_lead` (full card + whole journal: 50 call logs/stage changes with treatment, follow-up task history), `create_lead` (stage_name / next_follow_up / pet_* fields), `list_orders`, `get_order`, `create_order`, `list_tasks`, `list_pets`, `list_boarding_stays`, `list_training_programs`, `send_reminder`.
+Core (route.ts, 20): `list_clients` (cursor), `get_client`, `create_client`, `add_client_note`, `list_upcoming_appointments`, `list_services`, `create_appointment`, `update_appointment`, `cancel_appointment`, `get_business_stats`, `list_leads` (city/source/created, created_from/to, stage_name, offset, include_closed), `get_lead` (full card + whole journal: 50 call logs/stage changes with treatment, follow-up task history), `create_lead` (stage_name / next_follow_up / pet_* fields / optional attribution: traffic_source, utm_source/medium/campaign, gclid, referrer, landing_page, first_page, page_type), `list_orders`, `get_order`, `create_order`, `list_tasks`, `list_pets`, `list_boarding_stays`, `list_training_programs`, `send_reminder`.
 Intake (`tools-intake.ts`): `find_duplicate`, `list_lead_stages`, `create_task`, `update_task`, `update_lead`.
 Boarding (`tools-boarding.ts`): `list_boarding_rooms`, `check_boarding_availability`, `quote_boarding_price`, `create_boarding_stay`, `get_boarding_daily_board`, `update_boarding_stay` (cancel of a checked_in stay → admin:destructive).
 Briefing (`tools-briefing.ts`): `list_payments`, `get_analytics`, `get_morning_briefing`; prompts `morning_briefing`, `intake_from_screenshot`.
@@ -277,6 +282,7 @@ import { env, isDev, isProd } from "@/lib/env";
 | Notes length validation | `POST /api/appointments` + `POST /api/orders` — max 2000 chars; returns 400 with Hebrew error message |
 | Dashboard stat cards | "הכנסות החודש" always shown (from `data.monthRevenue`); "היום: ₪X" as subtitle when today > 0. `data.upcomingByType` and dead `BirthdayWidget` component exist but are unused. |
 | Dashboard orders section | "הזמנות אחרונות" links to `/orders`; each row is a `<Link>` to `/orders/:id` |
+| Lead traffic attribution | `src/lib/lead-attribution.ts` — `classifyTrafficSource`, `normalizeAttributionInput`, `formatAttributionLine`, `buildLeadAttributionReport`; DDL `prisma/lead_attribution.sql`; report tables in `/analytics` (12 months) |
 | Lead WhatsApp alert | `customers/[id]/page.tsx`: blue Send button on completed appointments (follow-up wa.me). Birthday Gift button on pet card hover. `customers/page.tsx`: "שלח ברוכים הבאים" toast action on new customer creation. |
 | Onboarding wizard | `src/app/onboarding/page.tsx` — 5-step full-page flow (Welcome→Client→Pricing→GCal→Done). Shown to new users redirected from register. |
 | Onboarding checklist | `src/components/onboarding/SetupChecklist.tsx` — 7-step widget on dashboard (4 core + 3 advanced). Dismissed via "דלג" (sets `skipped:true`). |

@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { cn, formatCurrency, fetchJSON } from "@/lib/utils";
 import { LEAD_SOURCES, LOST_REASON_CODES } from "@/lib/constants";
+import { TRAFFIC_SOURCE_LABELS, formatMonthKey, type LeadAttributionReport } from "@/lib/lead-attribution";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { TierGate } from "@/components/paywall/TierGate";
 
@@ -64,6 +65,7 @@ interface AnalyticsData {
     conversionRate: number;
   }[];
   lostReasons?: { code: string; count: number }[];
+  leadAttribution?: LeadAttributionReport;
   training: {
     activePrograms: number;
     completedSessionsThisPeriod: number;
@@ -731,6 +733,83 @@ function AnalyticsContent() {
                       </div>
                     );
                   })}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Traffic attribution — last 12 months (independent of period) */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+            <div className="card p-5">
+              <h3 className="text-sm font-semibold text-petra-text mb-1 flex items-center gap-2">
+                <Share2 className="w-4 h-4 text-brand-500" />
+                לידים לפי מקור תנועה לפי חודש
+              </h3>
+              <p className="text-[11px] text-petra-muted mb-3">12 החודשים האחרונים · לפי utm / gclid / referrer שהגיעו מהאתר</p>
+              {(data.leadAttribution?.bySourceByMonth.length ?? 0) === 0 ? (
+                <div className="flex items-center justify-center h-32 text-sm text-petra-muted">
+                  אין לידים עם מקור תנועה ב-12 החודשים האחרונים
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-xs">
+                    <thead>
+                      <tr className="text-petra-muted">
+                        <th className="text-start font-medium py-1 pe-2 sticky start-0 bg-white">מקור</th>
+                        {data.leadAttribution!.months.map((m) => (
+                          <th key={m} className="font-medium py-1 px-1.5 text-center whitespace-nowrap">{formatMonthKey(m)}</th>
+                        ))}
+                        <th className="font-semibold py-1 ps-2 text-center">סה״כ</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.leadAttribution!.bySourceByMonth.map((row) => (
+                        <tr key={row.source} className="border-t border-slate-100">
+                          <td className="py-1 pe-2 font-medium text-petra-text whitespace-nowrap sticky start-0 bg-white">
+                            {TRAFFIC_SOURCE_LABELS[row.source] ?? row.source}
+                          </td>
+                          {row.counts.map((c, i) => (
+                            <td key={i} className={cn("py-1 px-1.5 text-center tabular-nums", c === 0 ? "text-slate-300" : "text-petra-text")}>{c}</td>
+                          ))}
+                          <td className="py-1 ps-2 text-center font-semibold tabular-nums">{row.total}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="card p-5">
+              <h3 className="text-sm font-semibold text-petra-text mb-1 flex items-center gap-2">
+                <Target className="w-4 h-4 text-brand-500" />
+                לידים לפי עמוד נחיתה
+              </h3>
+              <p className="text-[11px] text-petra-muted mb-3">12 החודשים האחרונים · 20 העמודים המובילים</p>
+              {(data.leadAttribution?.byLandingPage.length ?? 0) === 0 ? (
+                <div className="flex items-center justify-center h-32 text-sm text-petra-muted">
+                  אין לידים עם עמוד נחיתה ב-12 החודשים האחרונים
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-xs">
+                    <thead>
+                      <tr className="text-petra-muted">
+                        <th className="text-start font-medium py-1 pe-2">עמוד</th>
+                        <th className="font-medium py-1 px-2 text-center">לידים</th>
+                        <th className="font-medium py-1 px-2 text-center">נסגרו</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.leadAttribution!.byLandingPage.map((row) => (
+                        <tr key={row.page} className="border-t border-slate-100">
+                          <td className="py-1 pe-2 text-petra-text max-w-[280px] truncate" dir="ltr" title={row.page}>{row.page}</td>
+                          <td className="py-1 px-2 text-center tabular-nums font-medium">{row.count}</td>
+                          <td className="py-1 px-2 text-center tabular-nums text-emerald-600">{row.won}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </div>

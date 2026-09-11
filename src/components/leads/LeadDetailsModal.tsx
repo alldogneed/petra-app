@@ -6,6 +6,7 @@ import Link from "next/link";
 import { X, Trash2, Edit2, Plus, CheckCircle, Calendar, CheckCircle2, XCircle, PawPrint } from "lucide-react";
 import { formatDate, formatTime } from "@/lib/utils";
 import { LOST_REASON_CODES } from "@/lib/constants";
+import { formatAttributionLine, PAGE_TYPE_LABELS, type PageType } from "@/lib/lead-attribution";
 import LostReasonModal from "@/components/leads/LostReasonModal";
 
 interface Lead {
@@ -24,6 +25,12 @@ interface Lead {
   lostReasonText: string | null;
   createdAt: string;
   customer: { id: string; name: string } | null;
+  trafficSource?: string | null;
+  landingPage?: string | null;
+  medium?: string | null;
+  campaign?: string | null;
+  referrer?: string | null;
+  pageType?: string | null;
 }
 
 interface CallLog {
@@ -276,6 +283,13 @@ export default function LeadDetailsModal({
     ? LOST_REASON_CODES.find((r) => r.id === lead.lostReasonCode)?.label ?? lead.lostReasonCode
     : null;
 
+  const attributionLine = formatAttributionLine({ trafficSource: lead.trafficSource, landingPage: lead.landingPage });
+  const attributionExtras = [
+    lead.medium ? `מדיום: ${lead.medium}` : null,
+    lead.campaign ? `קמפיין: ${lead.campaign}` : null,
+    lead.pageType ? `סוג עמוד: ${PAGE_TYPE_LABELS[lead.pageType as PageType] ?? lead.pageType}` : null,
+  ].filter(Boolean).join(" · ");
+
   if (!isOpen) return null;
 
   return (
@@ -288,6 +302,12 @@ export default function LeadDetailsModal({
             <div>
               <h2 className="text-xl font-bold text-petra-text">{lead.name}</h2>
               <p className="text-sm text-petra-muted mt-0.5">ניהול רשומות וטיפולים</p>
+              {attributionLine && (
+                <p className="text-xs text-petra-muted mt-1" title={lead.referrer ?? undefined}>
+                  {attributionLine}
+                  {attributionExtras && <span className="opacity-75"> · {attributionExtras}</span>}
+                </p>
+              )}
             </div>
             <button
               onClick={onClose}

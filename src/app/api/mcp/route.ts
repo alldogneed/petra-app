@@ -10,6 +10,7 @@ export const dynamic = "force-dynamic";
  * Isolation: businessId is derived exclusively from the token — never from the request.
  */
 
+import { TRAFFIC_SOURCES, TRAFFIC_SOURCE_LABELS, PAGE_TYPES, normalizeAttributionInput, formatAttributionLine } from "@/lib/lead-attribution";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { localTimeToUtc } from "@/lib/slots";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
@@ -582,6 +583,11 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
         const contact = [lead.phone && `טלפון: ${safeField(lead.phone, 20)}`, lead.email && `אימייל: ${safeField(lead.email, 60)}`, lead.city && `עיר: ${safeField(lead.city, 40)}`, lead.address && `כתובת: ${safeField(lead.address, 80)}`].filter(Boolean).join(" | ");
         if (contact) out.push(contact);
         out.push(`שלב: ${stageLabel} | מקור: ${safeField(lead.source ?? "—", 30)} | שירות מבוקש: ${safeField(lead.requestedService ?? "—", 60)}`);
+        {
+          const attr = formatAttributionLine({ trafficSource: lead.trafficSource, landingPage: lead.landingPage });
+          const extras = [lead.medium && `מדיום: ${lead.medium}`, lead.campaign && `קמפיין: ${lead.campaign}`, lead.pageType && `סוג עמוד: ${lead.pageType}`, lead.referrer && `referrer: ${lead.referrer}`].filter(Boolean).join(" | ");
+          if (attr || extras) out.push(`מקור תנועה — ${safeField([attr, extras].filter(Boolean).join(" | "), 400)}`);
+        }
         out.push(`נוצר: ${heDate(lead.createdAt)}${lead.lastContactedAt ? ` | קשר אחרון: ${heDate(lead.lastContactedAt)}` : ""}${lead.nextFollowUpAt ? ` | מעקב הבא: ${heDate(lead.nextFollowUpAt)} (${lead.followUpStatus ?? "pending"})` : " | אין מעקב מתוכנן"}`);
         if (lead.wonAt) out.push(`✅ נסגר בהצלחה: ${heDate(lead.wonAt)}`);
         if (lead.lostAt) out.push(`❌ אבד: ${heDate(lead.lostAt)}${lead.lostReasonCode ? ` | סיבה: ${safeField(lead.lostReasonCode, 40)}` : ""}${lead.lostReasonText ? ` — ${safeField(lead.lostReasonText, 120)}` : ""}`);
@@ -626,7 +632,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
   // ── create_lead ───────────────────────────────────────────────────────────
   server.tool(
     "create_lead",
-    "Create a new lead (potential client) in the CRM pipeline. Call find_duplicate first to avoid duplicates. Optionally set the pipeline stage by name (list_lead_stages), the next follow-up date/time (also creates a linked follow-up task), and pet details (stored as text in the lead notes only — no Pet record is created; after the lead converts to a client, use create_pet). Returns the new lead id; if a client or lead with the same phone already exists it is reported too. Supports idempotency_key (safe retries) and dry_run (preview only).",
+    "Create a new lead (potential client) in the CRM pipeline. Call find_duplicate first to avoid duplicates. Optionally set the pipeline stage by name (list_lead_stages), the next follow-up date/time (also creates a linked follow-up task), and pet details (stored as text in the lead notes only — no Pet record is created; after the lead converts to a client, use create_pet). Returns the new lead id; if a client or lead with the same phone already exists it is reported too. Traffic attribution (traffic_source / utm_* / gclid / referrer / landing_page / page_type) is optional — pass it when the lead came from a website form or an ad; omit it for manual/phone intake. Supports idempotency_key (safe retries) and dry_run (preview only).",
     {
       name: z.string().min(2).max(200).describe("Full name of the lead"),
       phone: z.string().optional().describe("Israeli phone number"),
@@ -642,12 +648,26 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
       pet_breed: z.string().max(100).optional().describe("Pet breed"),
       pet_age: z.string().max(50).optional().describe("Pet age (free text, e.g. '4 חודשים')"),
       pet_notes: z.string().max(1000).optional().describe("Pet notes (behaviour, issue described by the lead)"),
+      traffic_source: z.enum(TRAFFIC_SOURCES).optional().describe("Explicit traffic source (organic|paid|direct|referral|social|whatsapp|phone|unknown). If omitted but any utm_*/gclid/referrer is given, it is inferred (gclid or utm_medium=cpc/ppc → paid, google/bing referrer → organic, facebook/instagram → social, all empty → direct, else referral)"),
+      utm_source: z.string().max(200).optional().describe("utm_source of the visit"),
+      utm_medium: z.string().max(200).optional().describe("utm_medium of the visit (cpc/ppc = paid)"),
+      utm_campaign: z.string().max(200).optional().describe("utm_campaign of the visit"),
+      gclid: z.string().max(200).optional().describe("Google Ads click id"),
+      referrer: z.string().max(2048).optional().describe("document.referrer of the first visit"),
+      landing_page: z.string().max(2048).optional().describe("Page the form was submitted from (URL or path; stored as path)"),
+      first_page: z.string().max(2048).optional().describe("First page of the session (URL or path)"),
+      page_type: z.enum(PAGE_TYPES).optional().describe("Landing page type: service|guide|area|tool|home"),
       idempotency_key: z.string().max(100).optional().describe("Client-generated key; a retry with the same key returns the original result instead of creating a duplicate"),
       dry_run: z.boolean().optional().describe("If true, only preview what would be created"),
     },
-    async ({ name, phone, email, requested_service, source, city, notes, stage_name, next_follow_up, follow_up_time, pet_name, pet_breed, pet_age, pet_notes, idempotency_key, dry_run }) => {
+    async ({ name, phone, email, requested_service, source, city, notes, stage_name, next_follow_up, follow_up_time, pet_name, pet_breed, pet_age, pet_notes, traffic_source, utm_source, utm_medium, utm_campaign, gclid, referrer, landing_page, first_page, page_type, idempotency_key, dry_run }) => {
       if (!hasScope("write:leads")) return denyScope("create_lead", "write:leads");
-      const params = { name, phone, email, requested_service, source, city, notes, stage_name, next_follow_up, follow_up_time, pet_name, pet_breed, pet_age, pet_notes, idempotency_key, dry_run };
+      const params = { name, phone, email, requested_service, source, city, notes, stage_name, next_follow_up, follow_up_time, pet_name, pet_breed, pet_age, pet_notes, traffic_source, utm_source, utm_medium, utm_campaign, gclid, referrer, landing_page, first_page, page_type, idempotency_key, dry_run };
+      // Attribution only when the caller actually sent something (otherwise stays "unknown")
+      const attrBody: Record<string, unknown> = { traffic_source, utm_source, utm_medium, utm_campaign, gclid, referrer, landing_page, first_page, page_type };
+      for (const k of Object.keys(attrBody)) if (attrBody[k] === undefined) delete attrBody[k];
+      const attribution = Object.keys(attrBody).length ? normalizeAttributionInput(attrBody) : null;
+      const attrLine = attribution ? formatAttributionLine(attribution) : null;
       try {
         const replay = await findIdempotentReplay(connectionId, "create_lead", idempotency_key);
         if (replay) return replayResult(replay);
@@ -682,7 +702,8 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
             `\nשלב: ${stage ? safeField(stage.name, 60) : "ברירת מחדל של העסק"}` +
             (followUpLabel ? `\nמעקב הבא: ${followUpLabel} (תיווצר משימת מעקב)` : "") +
             (petBlock ? `\n${safeField(petBlock.replace(/\n/g, " | "), 300)}` : "") +
-            (notes ? `\nהערות: ${safeField(notes, 200)}` : "")
+            (notes ? `\nהערות: ${safeField(notes, 200)}` : "") +
+            (attribution ? `\nמקור תנועה: ${safeField(attrLine ?? TRAFFIC_SOURCE_LABELS[attribution.trafficSource], 300)}` : "")
           );
         }
 
@@ -693,6 +714,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
           city: city ?? null,
           notes: combinedNotes,
           stage: stage?.id,
+          attribution,
         });
         let lead = result.lead;
         let followUpWarning = "";
@@ -711,7 +733,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
           : result.duplicateLead
             ? `\n⚠️ שים לב: קיים ליד קודם עם אותו טלפון — ${safeField(result.duplicateLead.name)} (id: ${result.duplicateLead.id})`
             : "";
-        const leadSummary = `✅ ליד חדש נוצר בהצלחה!\nשם: ${safeField(lead.name)}${lead.phone ? `\nטלפון: ${safeField(lead.phone, 20)}` : ""}${stage ? `\nשלב: ${safeField(stage.name, 60)}` : ""}${followUpLabel ? `\nמעקב הבא: ${followUpLabel}` : ""}${petBlock ? "\n🐾 פרטי הכלב נשמרו בהערות" : ""} (id: ${lead.id})${dupNote}${followUpWarning}`;
+        const leadSummary = `✅ ליד חדש נוצר בהצלחה!\nשם: ${safeField(lead.name)}${lead.phone ? `\nטלפון: ${safeField(lead.phone, 20)}` : ""}${stage ? `\nשלב: ${safeField(stage.name, 60)}` : ""}${followUpLabel ? `\nמעקב הבא: ${followUpLabel}` : ""}${petBlock ? "\n🐾 פרטי הכלב נשמרו בהערות" : ""}${attribution ? `\nמקור תנועה: ${safeField(attrLine ?? TRAFFIC_SOURCE_LABELS[attribution.trafficSource], 300)}` : ""} (id: ${lead.id})${dupNote}${followUpWarning}`;
         await auditLog(connectionId, "create_lead", params, "success", `created lead ${lead.id}`);
         return textResult(leadSummary);
       } catch (e) {
