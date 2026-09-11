@@ -9,7 +9,7 @@ import { sendCheckoutWelcomeEmail } from "@/lib/email";
 import { CURRENT_TOS_VERSION } from "@/lib/tos";
 import { randomInt, timingSafeEqual } from "crypto";
 import { verifyIndicatorSignature } from "@/lib/security/cardcom-helpers";
-import { encryptCardcomToken } from "@/lib/encryption";
+import { safeEncryptCardcomToken } from "@/lib/cardcom-activation";
 import { extractCardToken, extractTokenExpiry, extractDealId } from "@/lib/cardcom-recurring";
 import bcrypt from "bcryptjs";
 import { logAudit, AUDIT_ACTIONS } from "@/lib/audit";
@@ -239,8 +239,8 @@ export async function GET(request: NextRequest) {
         subscriptionEndsAt,
         // Never overwrite a stored token with null when the verify response omits it
         // (same conditional-spread fix as indicator/activate-pending routes).
-        ...(extractCardToken(data)   ? { cardcomToken:       encryptCardcomToken(extractCardToken(data)!) }   : {}),
-        ...(extractTokenExpiry(data) ? { cardcomTokenExpiry: encryptCardcomToken(extractTokenExpiry(data)!) } : {}),
+        ...(safeEncryptCardcomToken(extractCardToken(data))   ? { cardcomToken:       safeEncryptCardcomToken(extractCardToken(data))! }   : {}),
+        ...(safeEncryptCardcomToken(extractTokenExpiry(data)) ? { cardcomTokenExpiry: safeEncryptCardcomToken(extractTokenExpiry(data))! } : {}),
         ...(extractDealId(data)      ? { cardcomDealId:      extractDealId(data) } : {}),
         ...(checkout.phone        ? { phone:             checkout.phone }        : {}),
         ...(checkout.address      ? { address:           checkout.address }      : {}),
@@ -322,8 +322,8 @@ export async function GET(request: NextRequest) {
       subscriptionEndsAt,
       // Never overwrite a stored token with null when the verify response omits it
       // (same conditional-spread fix as indicator/activate-pending routes).
-      ...(extractCardToken(data)   ? { cardcomToken:       encryptCardcomToken(extractCardToken(data)!) }   : {}),
-      ...(extractTokenExpiry(data) ? { cardcomTokenExpiry: encryptCardcomToken(extractTokenExpiry(data)!) } : {}),
+      ...(safeEncryptCardcomToken(extractCardToken(data))   ? { cardcomToken:       safeEncryptCardcomToken(extractCardToken(data))! }   : {}),
+      ...(safeEncryptCardcomToken(extractTokenExpiry(data)) ? { cardcomTokenExpiry: safeEncryptCardcomToken(extractTokenExpiry(data))! } : {}),
       ...(extractDealId(data)      ? { cardcomDealId:      extractDealId(data) } : {}),
     },
   });

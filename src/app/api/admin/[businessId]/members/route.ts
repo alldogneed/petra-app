@@ -205,7 +205,10 @@ export async function POST(
       metadata: { email: body.email, role: body.role },
     });
 
-    return NextResponse.json({ member, user: platformUser }, { status: 201 });
+    // Return only safe user fields — the create() result carries passwordHash,
+    // 2FA secrets and OAuth tokens which must never reach the client.
+    const safeUser = { id: platformUser.id, email: platformUser.email, name: platformUser.name };
+    return NextResponse.json({ member, user: safeUser }, { status: 201 });
   } catch (error) {
     console.error("POST /api/admin/[businessId]/members error:", error);
     return NextResponse.json({ error: "שגיאה בהוספת חבר צוות" }, { status: 500 });

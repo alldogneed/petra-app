@@ -7,14 +7,18 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenantPermission, isGuardError } from "@/lib/auth-guards";
 import { prisma } from "@/lib/prisma";
-import { TENANT_PERMS } from "@/lib/permissions";
+import { TENANT_PERMS, CRITICAL_CAPABILITIES } from "@/lib/permissions";
 import { canModifyTenantRole, type TenantRole } from "@/lib/permissions";
 import { logAudit, getRequestContext, AUDIT_ACTIONS } from "@/lib/audit";
 import { z } from "zod";
 
+const CAPABILITY_KEYS = CRITICAL_CAPABILITIES.map((c) => c.key) as [string, ...string[]];
+
 const PatchMemberSchema = z.object({
   role: z.enum(["owner", "manager", "user"]).optional(),
   isActive: z.boolean().optional(),
+  // Per-member capability overrides — only the keys the owner UI offers
+  permissionOverrides: z.record(z.enum(CAPABILITY_KEYS), z.boolean()).optional(),
 }).strict();
 
 export async function PATCH(
@@ -70,9 +74,21 @@ export async function PATCH(
     );
   }
 
+  // Only the owner may hand out or take away critical capabilities.
+  if (body.permissionOverrides && actorMembership.role !== "owner") {
+    return NextResponse.json(
+      { error: "Only owner can change individual permissions" },
+      { status: 403 }
+    );
+  }
+
+  const { permissionOverrides, ...rest } = body;
   const updated = await prisma.businessUser.update({
     where: { id: params.memberId },
-    data: body,
+    data: {
+      ...rest,
+      ...(permissionOverrides !== undefined && { permissionOverrides }),
+    },
   });
 
   let action = "TENANT_MEMBER_UPDATED";

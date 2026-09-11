@@ -3,6 +3,67 @@ import { interpolateTemplate } from "@/lib/whatsapp";
 import { REMINDER_TEMPLATES } from "@/lib/training-groups";
 import { hasFeatureWithOverrides } from "@/lib/feature-flags";
 import { toWhatsAppPhone } from "@/lib/utils";
+import { buildTemplateChain, type TemplateStep } from "@/lib/whatsapp-template-chain";
+
+// ─── Meta template chains ────────────────────────────────────────────────────
+//
+// Every automated customer send goes out through an ORDERED chain of Meta
+// template names (see src/lib/whatsapp-template-chain.ts): the first name Meta
+// accepts wins, rejected names are skipped, free text is the last resort.
+// Newest UTILITY-category template FIRST, older (MARKETING) names after it —
+// never replace an older name, only prepend. All names live here.
+export const META_TEMPLATES = {
+  /** {{1}} name · {{2}} date · {{3}} time · {{4}} service · ({{5}} business phone — v2 only) */
+  appointmentReminder: ["petra_appointment_reminder_v2", "petra_appointment_reminder"],
+  /** {{1}} name · {{2}} service · {{3}} business phone */
+  leadFollowup: ["petra_lead_followup_notice", "petra_lead_followup"],
+  /** {{1}} name · {{2}} pet · ({{3}} business phone — v2 only) */
+  boardingCheckout: ["petra_boarding_checkout_v2", "petra_boarding_checkout"],
+  /** {{1}} name · {{2}} pet · ({{3}} business phone — stay_summary / v2 only) */
+  boardingThankYou: ["petra_boarding_stay_summary", "petra_boarding_thank_you_v2", "petra_boarding_thank_you"],
+  /** Reuses the appointment reminder templates: {{4}} carries the dog name */
+  trainingSessionReminder: ["petra_appointment_reminder_v2", "petra_appointment_reminder"],
+} as const;
+
+/** Steps whose params contain an empty string are dropped (Meta rejects empty params). */
+export function appointmentReminderChain(p: { customerName: string; date: string; time: string; serviceName: string; businessPhone: string }): TemplateStep[] {
+  const [v2, legacy] = META_TEMPLATES.appointmentReminder;
+  return buildTemplateChain([
+    { name: v2, params: [p.customerName, p.date, p.time, p.serviceName, p.businessPhone] },
+    { name: legacy, params: [p.customerName, p.date, p.time, p.serviceName] },
+  ]);
+}
+
+export function leadFollowupChain(p: { leadName: string; serviceName: string; businessPhone: string }): TemplateStep[] {
+  return buildTemplateChain(
+    META_TEMPLATES.leadFollowup.map((name) => ({ name, params: [p.leadName, p.serviceName, p.businessPhone] }))
+  );
+}
+
+export function boardingCheckoutChain(p: { customerName: string; petName: string; businessPhone: string }): TemplateStep[] {
+  const [v2, legacy] = META_TEMPLATES.boardingCheckout;
+  return buildTemplateChain([
+    { name: v2, params: [p.customerName, p.petName, p.businessPhone] },
+    { name: legacy, params: [p.customerName, p.petName] },
+  ]);
+}
+
+export function boardingThankYouChain(p: { customerName: string; petName: string; businessPhone: string }): TemplateStep[] {
+  const [summary, v2, legacy] = META_TEMPLATES.boardingThankYou;
+  return buildTemplateChain([
+    { name: summary, params: [p.customerName, p.petName, p.businessPhone] },
+    { name: v2, params: [p.customerName, p.petName, p.businessPhone] },
+    { name: legacy, params: [p.customerName, p.petName] },
+  ]);
+}
+
+export function trainingSessionReminderChain(p: { customerName: string; date: string; time: string; dogName: string; businessPhone: string }): TemplateStep[] {
+  const [v2, legacy] = META_TEMPLATES.trainingSessionReminder;
+  return buildTemplateChain([
+    { name: v2, params: [p.customerName, p.date, p.time, p.dogName, p.businessPhone] },
+    { name: legacy, params: [p.customerName, p.date, p.time, p.dogName] },
+  ]);
+}
 
 // ─── Appointment reminder scheduling ─────────────────────────────────────────
 
@@ -106,19 +167,16 @@ export async function scheduleAppointmentReminder(appt: AppointmentForReminder) 
     body = `שלום ${appt.customer.name}! 🐾\n\nתזכורת לתור שלך ב-${formattedDate} בשעה ${appt.startTime}.\nשירות: ${appt.service?.name ?? ""}${petPart}.\n\nנתראה! 😊${footer}`;
   }
 
-  // Contact phone drives the footer param in the _v2 approved template. Meta rejects
-  // empty parameters, so when the business has no phone we fall back to the original
-  // 4-param template (still approved) rather than risk an empty {{5}}.
+  // Ordered template chain: _v2 (footer phone param) first, original 4-param template
+  // second. A step with an empty param (no business phone) is dropped by the builder.
   const contactPhone = (rule?.business?.phone ?? bizSettings.phone ?? "").trim();
-  const metaPayload = contactPhone
-    ? {
-        metaTemplateName: "petra_appointment_reminder_v2",
-        metaTemplateParams: [appt.customer.name, formattedDate, appt.startTime, appt.service?.name ?? "", contactPhone],
-      }
-    : {
-        metaTemplateName: "petra_appointment_reminder",
-        metaTemplateParams: [appt.customer.name, formattedDate, appt.startTime, appt.service?.name ?? ""],
-      };
+  const templateChain = appointmentReminderChain({
+    customerName: appt.customer.name,
+    date: formattedDate,
+    time: appt.startTime,
+    serviceName: appt.service?.name ?? "",
+    businessPhone: contactPhone,
+  });
 
   return prisma.scheduledMessage.create({
     data: {
@@ -126,7 +184,7 @@ export async function scheduleAppointmentReminder(appt: AppointmentForReminder) 
       customerId: appt.customerId,
       channel: "whatsapp",
       templateKey: rule ? `automation-rule-${rule.id}` : "appointment_reminder_48h",
-      payloadJson: JSON.stringify({ body, ...metaPayload }),
+      payloadJson: JSON.stringify({ body, flow: "appointment_reminder", templateChain }),
       sendAt,
       status: "PENDING",
       relatedEntityType: "APPOINTMENT",
@@ -338,14 +396,14 @@ export async function scheduleLeadFollowup(lead: LeadForFollowup) {
     body = `שלום ${lead.name}! 🐾\n\nקיבלנו את פנייתך${servicePart} ונשמח לעזור!\nנחזור אליך בהקדם.${footer}`;
   }
 
-  // Meta rejects empty template params — only attach the template path when the
-  // business phone exists (mirrors scheduleBoardingThankYou's dual-path pattern).
-  const metaPayload = contactPhone
-    ? {
-        metaTemplateName: "petra_lead_followup",
-        metaTemplateParams: [lead.name, lead.requestedService?.trim() || "השירות שלנו", contactPhone],
-      }
-    : {};
+  // Ordered chain: UTILITY notice first, legacy MARKETING template second. Both
+  // need the business phone — with no phone the builder drops them (Meta rejects
+  // empty params) and the message goes out as free text, exactly as before.
+  const templateChain = leadFollowupChain({
+    leadName: lead.name,
+    serviceName: lead.requestedService?.trim() || "השירות שלנו",
+    businessPhone: contactPhone,
+  });
 
   return prisma.scheduledMessage.create({
     data: {
@@ -353,7 +411,7 @@ export async function scheduleLeadFollowup(lead: LeadForFollowup) {
       customerId: null,
       channel: "whatsapp",
       templateKey: `automation-rule-${rule.id}`,
-      payloadJson: JSON.stringify({ body, to, ...metaPayload }),
+      payloadJson: JSON.stringify({ body, to, flow: "lead_followup", templateChain }),
       sendAt,
       status: "PENDING",
       relatedEntityType: "LEAD_FOLLOWUP",
@@ -438,18 +496,13 @@ export async function scheduleBoardingCheckoutReminder(stay: BoardingStayForRemi
     body = `שלום ${stay.customer.name}! 🏨\n\nתזכורת – מחר (${formattedDate}) הוא יום האיסוף של ${stay.pet.name} מהפנסיון.\n\n${stay.pet.name} נהנה/נהנתה מאוד ומחכה לכם! 🐕${footer}`;
   }
 
-  // See scheduleAppointmentReminder: use the _v2 template (with footer phone param)
-  // only when a phone exists; otherwise fall back to the original 2-param template.
+  // Ordered chain: _v2 (footer phone param) first, original 2-param template second.
   const contactPhone = (rule?.business?.phone ?? bizSettings.phone ?? "").trim();
-  const metaPayload = contactPhone
-    ? {
-        metaTemplateName: "petra_boarding_checkout_v2",
-        metaTemplateParams: [stay.customer.name, stay.pet.name, contactPhone],
-      }
-    : {
-        metaTemplateName: "petra_boarding_checkout",
-        metaTemplateParams: [stay.customer.name, stay.pet.name],
-      };
+  const templateChain = boardingCheckoutChain({
+    customerName: stay.customer.name,
+    petName: stay.pet.name,
+    businessPhone: contactPhone,
+  });
 
   return prisma.scheduledMessage.create({
     data: {
@@ -457,7 +510,7 @@ export async function scheduleBoardingCheckoutReminder(stay: BoardingStayForRemi
       customerId: stay.customerId,
       channel: "whatsapp",
       templateKey: rule ? `automation-rule-${rule.id}` : "boarding_checkout_reminder_24h",
-      payloadJson: JSON.stringify({ body, ...metaPayload }),
+      payloadJson: JSON.stringify({ body, flow: "boarding_checkout", templateChain }),
       sendAt,
       status: "PENDING",
       relatedEntityType: "BOARDING",
@@ -527,18 +580,13 @@ export async function scheduleBoardingThankYou(stay: BoardingStayForReminder) {
   const sendAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
   const body = `שלום ${stay.customer.name}! 🐾 תודה ש-${stay.pet.name} שהה/שהתה אצלנו. היה לנו כיף ואנחנו מקווים שגם ${stay.pet.name} נהנה/נהנתה! נשמח לארח אתכם שוב 💛`;
 
-  // See scheduleAppointmentReminder: use the _v2 template (footer phone param) only
-  // when a phone exists; otherwise fall back to the original 2-param template.
+  // Ordered chain: UTILITY stay_summary first, then the MARKETING _v2 and original.
   const contactPhone = (bizSettings.phone ?? "").trim();
-  const metaPayload = contactPhone
-    ? {
-        metaTemplateName: "petra_boarding_thank_you_v2",
-        metaTemplateParams: [stay.customer.name, stay.pet.name, contactPhone],
-      }
-    : {
-        metaTemplateName: "petra_boarding_thank_you",
-        metaTemplateParams: [stay.customer.name, stay.pet.name],
-      };
+  const templateChain = boardingThankYouChain({
+    customerName: stay.customer.name,
+    petName: stay.pet.name,
+    businessPhone: contactPhone,
+  });
 
   return prisma.scheduledMessage.create({
     data: {
@@ -546,7 +594,7 @@ export async function scheduleBoardingThankYou(stay: BoardingStayForReminder) {
       customerId: stay.customerId,
       channel: "whatsapp",
       templateKey: "boarding_thank_you",
-      payloadJson: JSON.stringify({ body, ...metaPayload }),
+      payloadJson: JSON.stringify({ body, flow: "boarding_thank_you", templateChain }),
       sendAt,
       status: "PENDING",
       relatedEntityType: "BOARDING_THANKYOU",
@@ -956,10 +1004,21 @@ export async function scheduleTrainingSessionReminder(data: TrainingSessionForRe
     ? new Intl.DateTimeFormat("he-IL", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Jerusalem" }).format(data.sessionDate)
     : null;
 
-  const bizPhone = bizSettings.phone ?? "";
+  const bizPhone = (bizSettings.phone ?? "").trim();
   const footer = `\n\n_הודעה אוטומטית – אין להשיב להודעה זו.\nלפניות ויצירת קשר ישיר עם בית העסק: ${bizPhone}_`;
   const timeStr = formattedTime ? ` בשעה ${formattedTime}` : "";
   const body = `שלום ${data.customerName}! 🐾\n\nתזכורת למפגש אילוף עם ${data.dogName} ב-${formattedDate}${timeStr}.\n\nנתראה! 😊${footer}`;
+
+  // Reuses the appointment reminder templates. A date-only session has no time →
+  // every template step has an empty {{3}} and is dropped → free text only (Meta
+  // would have rejected the empty param anyway).
+  const templateChain = trainingSessionReminderChain({
+    customerName: data.customerName,
+    date: formattedDate,
+    time: formattedTime ?? "",
+    dogName: data.dogName,
+    businessPhone: bizPhone,
+  });
 
   return prisma.scheduledMessage.create({
     data: {
@@ -967,11 +1026,7 @@ export async function scheduleTrainingSessionReminder(data: TrainingSessionForRe
       customerId: data.customerId,
       channel: "whatsapp",
       templateKey: "training_session_reminder",
-      payloadJson: JSON.stringify({
-        body,
-        metaTemplateName: "petra_appointment_reminder",
-        metaTemplateParams: [data.customerName, formattedDate, formattedTime ?? "", data.dogName],
-      }),
+      payloadJson: JSON.stringify({ body, flow: "training_session_reminder", templateChain }),
       sendAt,
       status: "PENDING",
       relatedEntityType: "TRAINING_SESSION",

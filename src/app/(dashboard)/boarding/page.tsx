@@ -251,6 +251,7 @@ const RoomStatusCard = memo(function RoomStatusCard({
   onCheckin,
   onCheckout,
   onMarkClean,
+  onOpenStay,
   occPeriodStays,
   sortedStayIds,
 }: {
@@ -258,6 +259,7 @@ const RoomStatusCard = memo(function RoomStatusCard({
   onCheckin: (id: string) => void;
   onCheckout: (id: string) => void;
   onMarkClean: (roomId: string) => void;
+  onOpenStay: (stay: BoardingStay) => void;
   occPeriodStays: BoardingStay[]; // always provided (date-filtered stays for this room)
   sortedStayIds: string[];
 }) {
@@ -333,10 +335,16 @@ const RoomStatusCard = memo(function RoomStatusCard({
                   <div className="p-2 rounded-lg" style={{ background: "#FFF7ED", border: "1px solid #FDBA74" }}>
                     <div className="flex items-center gap-1 mb-1">
                       <PawPrint className="w-3 h-3 text-orange-500 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <div className="text-xs font-semibold text-petra-text truncate">{stay.pet.name}</div>
+                      <button
+                        type="button"
+                        className="flex-1 min-w-0 text-right"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={() => onOpenStay(stay)}
+                        title="פתח את ההזמנה"
+                      >
+                        <div className="text-xs font-semibold text-petra-text truncate hover:text-brand-600 hover:underline">{stay.pet.name}</div>
                         <div className="text-[10px] text-petra-muted truncate">{stay.customer?.name ?? "כלב שירות"}</div>
-                      </div>
+                      </button>
                     </div>
                     {stay.checkOut && (
                       <div className="text-[10px] text-orange-600 font-medium flex items-center gap-0.5 mb-1">
@@ -364,10 +372,16 @@ const RoomStatusCard = memo(function RoomStatusCard({
                   <div className="p-2 rounded-lg" style={{ background: "#F5F3FF", border: "1px solid #C4B5FD" }}>
                     <div className="flex items-center gap-1 mb-1">
                       <PawPrint className="w-3 h-3 text-purple-500 flex-shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <div className="text-xs font-semibold text-petra-text truncate">{stay.pet.name}</div>
+                      <button
+                        type="button"
+                        className="flex-1 min-w-0 text-right"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={() => onOpenStay(stay)}
+                        title="פתח את ההזמנה"
+                      >
+                        <div className="text-xs font-semibold text-petra-text truncate hover:text-brand-600 hover:underline">{stay.pet.name}</div>
                         <div className="text-[10px] text-petra-muted truncate">{stay.customer?.name ?? "כלב שירות"}</div>
-                      </div>
+                      </button>
                     </div>
                     <div className="text-[10px] text-purple-600 font-medium flex items-center gap-0.5 mb-1">
                       <Calendar className="w-2.5 h-2.5" />
@@ -1342,11 +1356,26 @@ function CheckoutDialog({
   const calcMode = settings.boardingCalcMode || "nights";
   const configuredCheckoutTime = settings.boardingCheckOutTime || "11:00";
 
+  // Price is editable per stay: the nightly rate starts from the business default
+  // and can be overridden here, with an optional percentage or shekel discount —
+  // the same controls a training order offers.
+  const [pricePerNight, setPricePerNight] = useState<number>(settings.boardingPricePerNight || 0);
+  const [discountType, setDiscountType] = useState<"none" | "percent" | "fixed">("none");
+  const [discountValue, setDiscountValue] = useState<number>(0);
+
+  const subtotal = nights * pricePerNight;
+  const discountAmount =
+    discountType === "percent"
+      ? Math.min(subtotal, (subtotal * Math.max(0, Math.min(100, discountValue))) / 100)
+      : discountType === "fixed"
+      ? Math.min(subtotal, Math.max(0, discountValue))
+      : 0;
+  const total = Math.max(0, subtotal - discountAmount);
+
   // Build + send the boarding payment request, including a payment link when possible.
   // Boarding has no per-product URL, so we generate a one-off Stripe checkout link.
   const sendBoardingPaymentRequest = async () => {
     if (sendingPaymentRequest || !stay.customer?.phone) return;
-    const total = nights * (settings.boardingPricePerNight || 0);
     // Open the window inside the click gesture so it isn't blocked after the async Stripe call.
     const win = window.open("", "_blank");
     setSendingPaymentRequest(true);
@@ -1375,7 +1404,8 @@ function CheckoutDialog({
       if (!link) {
         toast.warning("לא הוגדר קישור תשלום — ההודעה נשלחת ללא לינק (להגדרת Stripe: הגדרות ← אינטגרציות)");
       }
-      const msg = `שלום ${stay.customer.name}! 😊\nתודה שהיה לנו את ${stay.pet.name} בפנסיון.\nסיכום השהייה: ${nights} ${calcMode === "nights" ? "לילות" : "ימים"} × ₪${settings.boardingPricePerNight} = ₪${total.toFixed(0)}.\n\nנשמח לקבל תשלום 🙏${linkBlock}`;
+      const discountLine = discountAmount > 0 ? `\nהנחה: −₪${discountAmount.toFixed(0)}` : "";
+      const msg = `שלום ${stay.customer.name}! 😊\nתודה שהיה לנו את ${stay.pet.name} בפנסיון.\nסיכום השהייה: ${nights} ${calcMode === "nights" ? "לילות" : "ימים"} × ₪${pricePerNight} = ₪${subtotal.toFixed(0)}.${discountLine}\nלתשלום: ₪${total.toFixed(0)}\n\nנשמח לקבל תשלום 🙏${linkBlock}`;
       const waUrl = `https://wa.me/${toWhatsAppPhone(stay.customer.phone)}?text=${encodeURIComponent(msg)}`;
       if (win) win.location.href = waUrl;
       else window.open(waUrl, "_blank");
@@ -1451,6 +1481,65 @@ function CheckoutDialog({
             </div>
           )}
 
+          {/* Pricing — overrideable per stay */}
+          {stay.customer && (
+            <div className="p-4 rounded-xl border border-slate-200 space-y-3">
+              <div className="flex items-end gap-3">
+                <div className="flex-1">
+                  <label className="label text-xs">מחיר ל{calcMode === "nights" ? "לילה" : "יום"} (₪)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    className="input w-full text-sm"
+                    value={pricePerNight}
+                    onChange={(e) => setPricePerNight(Number(e.target.value) || 0)}
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="label text-xs">הנחה</label>
+                  <select
+                    className="input w-full text-sm"
+                    value={discountType}
+                    onChange={(e) => setDiscountType(e.target.value as "none" | "percent" | "fixed")}
+                  >
+                    <option value="none">ללא הנחה</option>
+                    <option value="percent">הנחה %</option>
+                    <option value="fixed">הנחה ₪</option>
+                  </select>
+                </div>
+                {discountType !== "none" && (
+                  <div className="w-24">
+                    <label className="label text-xs">{discountType === "percent" ? "%" : "₪"}</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={discountType === "percent" ? 100 : undefined}
+                      className="input w-full text-sm"
+                      value={discountValue}
+                      onChange={(e) => setDiscountValue(Number(e.target.value) || 0)}
+                    />
+                  </div>
+                )}
+              </div>
+              <div className="space-y-1 text-sm">
+                <div className="flex justify-between text-petra-muted">
+                  <span>סכום ביניים</span>
+                  <span>₪{subtotal.toLocaleString()}</span>
+                </div>
+                {discountAmount > 0 && (
+                  <div className="flex justify-between text-emerald-600">
+                    <span>הנחה{discountType === "percent" ? ` (${discountValue}%)` : ""}</span>
+                    <span>−₪{discountAmount.toLocaleString()}</span>
+                  </div>
+                )}
+                <div className="flex justify-between font-bold text-petra-text border-t pt-1">
+                  <span>לתשלום</span>
+                  <span>₪{total.toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div>
             <label className="label">הערות צ׳ק-אאוט</label>
             <textarea className="input" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="הערות ליציאה..." />
@@ -1458,7 +1547,7 @@ function CheckoutDialog({
         </div>
 
         {/* WhatsApp payment request — only when customer exists */}
-        {settings.boardingPricePerNight && stay.customer?.phone && (
+        {total > 0 && stay.customer?.phone && (
           <button
             type="button"
             onClick={sendBoardingPaymentRequest}
@@ -1478,6 +1567,111 @@ function CheckoutDialog({
           >
             <LogOut className="w-4 h-4" />
             {isPending ? "מבצע..." : "אשר צ׳ק-אאוט"}
+          </button>
+          <button className="btn-secondary" onClick={onCancel}>ביטול</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Edit Stay Dialog ────────────────────────────────────────────────────────
+
+/** Reached by clicking a dog inside a room: edit the stay's dates, room and notes. */
+function EditStayDialog({
+  stay,
+  rooms,
+  onSave,
+  onCancel,
+  isPending,
+}: {
+  stay: BoardingStay;
+  rooms: Room[];
+  onSave: (data: { checkIn: string; checkOut: string | null; roomId: string | null; notes: string }) => void;
+  onCancel: () => void;
+  isPending: boolean;
+}) {
+  const toLocalInput = (iso: string) => {
+    const d = new Date(iso);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
+  const [checkIn, setCheckIn] = useState(toLocalInput(stay.checkIn));
+  const [checkOut, setCheckOut] = useState(stay.checkOut ? toLocalInput(stay.checkOut) : "");
+  const [roomId, setRoomId] = useState(stay.room?.id ?? "");
+  const [notes, setNotes] = useState(stay.notes ?? "");
+
+  const invalidRange = !!checkOut && new Date(checkOut) <= new Date(checkIn);
+  const nights = checkOut && !invalidRange ? calcNights(checkIn, checkOut) : 0;
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-backdrop" onClick={onCancel} />
+      <div className="modal-content max-w-md mx-4 p-6">
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h2 className="text-lg font-bold text-petra-text">עריכת הזמנה</h2>
+            <p className="text-sm text-petra-muted mt-0.5">{stay.pet.name} — {stay.customer?.name ?? "כלב שירות"}</p>
+          </div>
+          <button onClick={onCancel} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="label text-xs">כניסה</label>
+              <input type="datetime-local" lang="he" className="input w-full text-sm" value={checkIn} onChange={(e) => setCheckIn(e.target.value)} />
+            </div>
+            <div>
+              <label className="label text-xs">יציאה</label>
+              <input type="datetime-local" lang="he" className="input w-full text-sm" value={checkOut} onChange={(e) => setCheckOut(e.target.value)} />
+            </div>
+          </div>
+
+          {invalidRange && (
+            <p className="text-xs text-red-600">תאריך היציאה חייב להיות אחרי תאריך הכניסה</p>
+          )}
+          {nights > 0 && (
+            <p className="text-xs text-petra-muted">{nights} לילות</p>
+          )}
+
+          <div>
+            <label className="label text-xs">חדר</label>
+            <select className="input w-full text-sm" value={roomId} onChange={(e) => setRoomId(e.target.value)}>
+              <option value="">ללא חדר</option>
+              {rooms.filter((r) => r.isActive).map((r) => (
+                <option key={r.id} value={r.id}>{r.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="label text-xs">הערות</label>
+            <textarea className="input w-full text-sm" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+          </div>
+
+          <p className="text-xs text-petra-muted">
+            המחיר וההנחה נקבעים במסך הצ׳ק-אאוט, לפני שליחת דרישת התשלום.
+          </p>
+        </div>
+
+        <div className="flex gap-3 mt-6">
+          <button
+            className="btn-primary flex-1"
+            disabled={isPending || invalidRange || !checkIn}
+            onClick={() =>
+              onSave({
+                checkIn: new Date(checkIn).toISOString(),
+                checkOut: checkOut ? new Date(checkOut).toISOString() : null,
+                roomId: roomId || null,
+                notes,
+              })
+            }
+          >
+            {isPending ? "שומר..." : "שמור שינויים"}
           </button>
           <button className="btn-secondary" onClick={onCancel}>ביטול</button>
         </div>
@@ -1948,6 +2142,7 @@ function BoardingPageContent() {
   const [calendarMonth, setCalendarMonth] = useState(() => new Date());
   const [selectedCalendarDate, setSelectedCalendarDate] = useState<string | null>(null);
   const [timelineDays, setTimelineDays] = useState(14);
+  const [editStay, setEditStay] = useState<BoardingStay | null>(null);
   // Timeline origin — "" = today. Lets the user scroll back to past weeks (retroactive stays, history).
   const [timelineStart, setTimelineStart] = useState<string>("");
 
@@ -2279,6 +2474,28 @@ function BoardingPageContent() {
     },
     onSuccess: () => toast.success("החדר סומן כנקי"),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["rooms"] }),
+  });
+
+  const editStayMutation = useMutation({
+    mutationFn: ({ id, ...data }: { id: string; checkIn: string; checkOut: string | null; roomId: string | null; notes: string }) =>
+      fetchJSON<BoardingStay>(`/api/boarding/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }),
+    onSuccess: () => {
+      setEditStay(null);
+      toast.success("ההזמנה עודכנה");
+    },
+    onError: (err: unknown) => {
+      const msg = err instanceof Error ? err.message : "שגיאה בעדכון ההזמנה";
+      toast.error(msg);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["boarding"] });
+      queryClient.invalidateQueries({ queryKey: ["boarding-occupancy"] });
+      queryClient.invalidateQueries({ queryKey: ["rooms"] });
+    },
   });
 
   const extendMutation = useMutation({
@@ -2788,6 +3005,45 @@ function BoardingPageContent() {
             >
               הצג
             </button>
+            {/* Shift the whole window by its own length, forwards or back */}
+            {(() => {
+              const shiftOcc = (dir: -1 | 1) => {
+                const from = new Date(`${occDraftFrom}T00:00:00`);
+                const to = new Date(`${occDraftTo}T00:00:00`);
+                if (isNaN(from.getTime()) || isNaN(to.getTime())) return;
+                const span = Math.max(1, Math.round((to.getTime() - from.getTime()) / 86400000));
+                from.setDate(from.getDate() + dir * span);
+                to.setDate(to.getDate() + dir * span);
+                const f = from.toLocaleDateString("en-CA");
+                const t = to.toLocaleDateString("en-CA");
+                setOccDraftFrom(f); setOccDraftTo(t);
+                setOccFrom(f); setOccTo(t);
+              };
+              const jumpToday = () => {
+                const from = new Date(`${occDraftFrom}T00:00:00`);
+                const to = new Date(`${occDraftTo}T00:00:00`);
+                const span = !isNaN(from.getTime()) && !isNaN(to.getTime())
+                  ? Math.max(1, Math.round((to.getTime() - from.getTime()) / 86400000))
+                  : 7;
+                const start = new Date();
+                const end = new Date();
+                end.setDate(end.getDate() + span);
+                const f = start.toLocaleDateString("en-CA");
+                const t = end.toLocaleDateString("en-CA");
+                setOccDraftFrom(f); setOccDraftTo(t);
+                setOccFrom(f); setOccTo(t);
+              };
+              return (
+                <>
+                  <button type="button" onClick={() => shiftOcc(-1)} title="תקופה אחורה"
+                    className="h-7 w-7 rounded-lg border border-petra-border text-petra-muted hover:bg-slate-50 flex-shrink-0">‹</button>
+                  <button type="button" onClick={() => shiftOcc(1)} title="תקופה קדימה"
+                    className="h-7 w-7 rounded-lg border border-petra-border text-petra-muted hover:bg-slate-50 flex-shrink-0">›</button>
+                  <button type="button" onClick={jumpToday} title="חזרה להיום"
+                    className="h-7 px-2 rounded-lg bg-orange-50 text-orange-700 text-xs font-medium hover:bg-orange-100 flex-shrink-0">היום</button>
+                </>
+              );
+            })()}
             {occLoading && <span className="text-xs text-petra-muted animate-pulse">טוען...</span>}
             {!occLoading && occFrom && occTo && (
               <div className="flex items-center gap-1">
@@ -2966,6 +3222,7 @@ function BoardingPageContent() {
                     onCheckin={handleCheckin}
                     onCheckout={handleCheckout}
                     onMarkClean={handleMarkClean}
+                    onOpenStay={setEditStay}
                     occPeriodStays={occStays.filter(s => s.room?.id === room.id)}
                     sortedStayIds={roomSlotOrders[room.id] ?? occStays.filter(s => s.room?.id === room.id).map(s => s.id)}
                   />
@@ -3823,6 +4080,17 @@ function BoardingPageContent() {
           onConfirm={confirmCheckout}
           onCancel={() => setCheckoutDialogStay(null)}
           isPending={statusMutation.isPending}
+        />
+      )}
+
+      {/* ── Edit Stay Dialog ── */}
+      {editStay && (
+        <EditStayDialog
+          stay={editStay}
+          rooms={rooms}
+          onSave={(data) => editStayMutation.mutate({ id: editStay.id, ...data })}
+          onCancel={() => setEditStay(null)}
+          isPending={editStayMutation.isPending}
         />
       )}
 

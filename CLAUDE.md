@@ -138,7 +138,17 @@ Dashboard renewal banner uses `!isFree && subscriptionActive && subscriptionDays
 ### 25. Search modal must close on mobile
 `src/components/search/global-search.tsx` has a permanent X button in the header (always visible, not just when `query` is filled) **and** the backdrop+dialog wrapper is a single layer so taps outside the modal close it. Without these two together, mobile users get stuck — no ESC key, X is hidden, backdrop click eaten by the dialog wrapper.
 
-### 26. Lead traffic attribution — `trafficSource` ≠ `source`
+### 26. Automated customer WhatsApp sends go through the ordered template chain
+`src/lib/whatsapp-template-chain.ts` — `sendWithTemplateChain()` tries an ordered list of Meta template names and only then sends free text (24h window only). All names live in `META_TEMPLATES` (`src/lib/reminder-service.ts`) with a `*Chain()` builder per flow; `buildTemplateChain()` drops any step with an empty param (Meta rejects them).
+```
+UTILITY template  →  legacy (MARKETING) template  →  free text
+```
+- Meta silently frequency-caps MARKETING templates per recipient (API says `accepted`, nothing delivered). A new UTILITY name is added at the **front** of the chain — never in place of the older names (an unapproved name is rejected at send time and skipped; a replaced name would drop the flow to free text).
+- ScheduledMessage payloads carry `flow` (→ `WhatsAppMessageLog.context`, e.g. `lead_followup`) + `templateChain: [{ name, params }]`. `chainFromPayload()` still reads the legacy `metaTemplateName`/`metaTemplateParams` shape for rows already queued.
+- `processPendingReminders()` and `POST /api/scheduled-messages/[id]/send` both use the chain; **always pass `businessId` + `context`**. Sender selection stays in `resolveWhatsAppSender()` — no parallel mechanism.
+- Do not add chain names to `PLATFORM_TEMPLATE_NAMES` (`whatsapp-connections.ts`) unless the template really exists on the platform WABA — that list feeds `missingTemplates` in the connection UI.
+
+### 27. Lead traffic attribution — `trafficSource` ≠ `source`
 `Lead.source` (existing) = intake channel picked by the business (`manual`/`website`/`google`…, `LEAD_SOURCES` in constants). `Lead.trafficSource` (+ `medium`, `campaign`, `landingPage`, `referrer`, `firstPage`, `gclid`, `pageType`) = where the visitor came from, sent by all-dog.co.il / Make via `POST /api/webhooks/lead` (`utm_*`, `gclid`, `referrer`, `landing_page`, `first_page`, `page_type`, snake or camelCase). Never merge the two fields.
 Single source of truth: `src/lib/lead-attribution.ts` — `TRAFFIC_SOURCES` (organic|paid|direct|referral|social|whatsapp|phone|unknown, plain strings, no Prisma enum), `classifyTrafficSource()` (gclid/cpc/ppc → paid; google/bing referrer → organic; facebook/instagram → social; wa.me → whatsapp; all empty → direct; else referral), `normalizeAttributionInput()` (length caps, page URLs stored as path). Body without any attribution key → `unknown` (legacy clients unchanged); keys present but empty → `direct`.
 MCP: `create_lead` accepts the same keys (omitted → `unknown`), `get_lead` prints a "מקור תנועה" line. Card + `LeadDetailsModal` render `formatAttributionLine()` ("מקור: אורגני · עמוד: /guides/…"); hidden when `unknown` and no page. Analytics: `getAnalytics().leadAttribution` = fixed 12-month window (`buildLeadAttributionReport`), independent of the period picker. Prod DDL: `prisma/lead_attribution.sql` (additive, default `unknown`). Tests: `src/lib/__tests__/lead-attribution.test.ts`.
@@ -271,7 +281,7 @@ import { env, isDev, isProd } from "@/lib/env";
 | Owner notifications | `src/lib/notify-owner.ts` — `notifyOwnerNewUser()` sends WhatsApp + email on new registration |
 | SEO sitemap | `src/app/sitemap.ts` — 6 public URLs, `/landing` priority 1.0 |
 | SEO robots | `src/app/robots.ts` — allows landing/register/login, disallows api/admin/dashboard |
-| In-app notifications bell | `src/components/layout/InAppNotificationBell.tsx` — title "הודעות מערכת"; per-message "קראתי" button (dismiss); "קראתי הכל" dismisses all |
+| System messages dropdown | Mail-envelope dropdown in `src/components/layout/topbar.tsx` — title "הודעות מפטרה"; queryKey `["systemMessages"]`. Clicking a row opens a detail modal; its action button uses `router.push` for app paths and a new tab for `/api/` file links and external URLs. `/api/system-messages` is also consumed by `business-admin/page.tsx` (`?all=true`) |
 | Customers page | Selection mode: "בחר" button toggles `selectionMode`; checkboxes hidden by default. Email badge → Gmail compose (`https://mail.google.com/mail/?view=cm&to=...`). No quick-book button. |
 | Tasks page | Same selection mode pattern as customers (`selectionMode` state, "בחר" button, "בטל בחירה" exits mode) |
 | Service dog tabs order | תיק כלב → חיסונים וטיפולים → שיבוצים → מבחני הסמכה → מסמכים → ביטוח → ציוד → פרוטוקולים רפואיים → יומן אימונים → תעודת הסמכה |

@@ -62,6 +62,7 @@ import { SecurityTab } from "@/components/settings/SecurityTab";
 import { toast } from "sonner";
 import { TIERS, SERVICE_TYPES } from "@/lib/constants";
 import { useAuth } from "@/providers/auth-provider";
+import { CRITICAL_CAPABILITIES, hasTenantPermission, type TenantRole } from "@/lib/permissions";
 import { usePlan } from "@/hooks/usePlan";
 import { DesktopBanner } from "@/components/ui/DesktopBanner";
 import { PaywallCard } from "@/components/paywall/PaywallCard";
@@ -128,11 +129,11 @@ interface Business {
   boardingMinNights: number | null;
   cancellationPolicy: string | null;
   bookingWelcomeText: string | null;
+  bookingRequiresApproval: boolean;
   depositInstructions: string | null;
   sdSettings: SdSettings | null;
   whatsappRemindersEnabled: boolean;
   whatsappReminderLeadHours: number;
-  googleContactsSync: boolean;
   _count: { customers: number; appointments: number };
 }
 
@@ -878,6 +879,23 @@ function BookingTab() {
                 </div>
               )}
             </div>
+            <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-4">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 mt-0.5 shrink-0"
+                  checked={editing.bookingRequiresApproval ?? false}
+                  onChange={(e) => setForm({ ...editing, bookingRequiresApproval: e.target.checked })}
+                />
+                <span>
+                  <span className="font-medium text-sm">תורים אונליין דורשים אישור שלי</span>
+                  <span className="block text-xs text-petra-muted mt-1">
+                    כשהאפשרות דולקת — כל תור שנקבע באתר נכנס כ״ממתין לאישור״, מגיע אליך בוואטסאפ ובפעמון,
+                    ונכנס ליומן רק אחרי שתאשר אותו במודול תורים אונליין. כשהיא כבויה — התור מאושר אוטומטית.
+                  </span>
+                </span>
+              </label>
+            </div>
             <div>
               <label className="label flex items-center gap-1.5">
                 <Info className="w-3.5 h-3.5" />
@@ -1017,29 +1035,6 @@ function IntegrationsTab() {
       toast.success("הגדרות תזכורת עודכנו");
     },
     onError: (e: Error) => toast.error(e.message || "שגיאה בשמירה"),
-  });
-
-  const updateContactsSyncMutation = useMutation({
-    mutationFn: (enabled: boolean) =>
-      fetch("/api/settings", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ googleContactsSync: enabled }),
-      }).then((r) => r.json()),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["settings"] });
-      toast.success("הגדרות סנכרון עודכנו");
-    },
-    onError: () => toast.error("שגיאה בשמירה"),
-  });
-
-  const syncContactsMutation = useMutation({
-    mutationFn: () =>
-      fetch("/api/integrations/google/contacts/sync-all", { method: "POST" }).then((r) => r.json()),
-    onSuccess: (data) => {
-      toast.success(data.message ?? "סנכרון הושלם");
-    },
-    onError: () => toast.error("שגיאה בסנכרון — ייתכן שנדרש חיבור מחדש של Google"),
   });
 
   const disconnectGcalMutation = useMutation({
@@ -1182,36 +1177,6 @@ function IntegrationsTab() {
               )}
               {isGcal && integ.connected && biz && (
                 <div className="mt-3 pt-3 border-t border-slate-100 space-y-2">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-sm text-petra-text">סנכרון לידים ל-Google Contacts</span>
-                      <span className="text-xs text-petra-muted">כל ליד חדש/מעודכן ייווצר/יעודכן אוטומטית באנשי הקשר ב-Google</span>
-                    </div>
-                    <button
-                      onClick={() => updateContactsSyncMutation.mutate(!biz.googleContactsSync)}
-                      disabled={updateContactsSyncMutation.isPending}
-                      className={cn(
-                        "relative inline-flex h-5 w-9 items-center rounded-full transition-colors flex-shrink-0",
-                        biz.googleContactsSync ? "bg-emerald-500" : "bg-slate-300"
-                      )}
-                      title={biz.googleContactsSync ? "כבה סנכרון" : "הפעל סנכרון"}
-                    >
-                      <span className={cn("inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform", biz.googleContactsSync ? "translate-x-4" : "translate-x-0.5")} />
-                    </button>
-                  </div>
-                  {biz.googleContactsSync && (
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-xs text-petra-muted">סנכרן את כל הלידים הקיימים עכשיו</span>
-                      <button
-                        onClick={() => syncContactsMutation.mutate()}
-                        disabled={syncContactsMutation.isPending}
-                        className="btn-secondary text-xs flex items-center gap-1.5 py-1 px-2.5"
-                      >
-                        {syncContactsMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : <Users2 className="w-3 h-3" />}
-                        סנכרן הכל
-                      </button>
-                    </div>
-                  )}
                   {/* Google Calendar overlay selector */}
                   <div className="pt-1 space-y-1.5">
                     <div className="flex items-center justify-between">
@@ -2893,6 +2858,7 @@ function DataTab() {
 interface TeamMember {
   id: string;
   role: string;
+  permissionOverrides?: Record<string, boolean> | null;
   isActive: boolean;
   createdAt: string;
   user: {
@@ -2916,6 +2882,7 @@ function TeamTab() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [showAddModal, setShowAddModal] = useState(false);
+  const [permsOpenFor, setPermsOpenFor] = useState<string | null>(null);
 
   const { data: members, isLoading } = useQuery<TeamMember[]>({
     queryKey: ["team-members"],
@@ -2938,6 +2905,23 @@ function TeamTab() {
       toast.success("הרשאות עודכנו בהצלחה");
     },
     onError: () => toast.error("שגיאה בעדכון הרשאות. נסה שוב."),
+  });
+
+  const permsMutation = useMutation({
+    mutationFn: ({ memberId, permissionOverrides }: { memberId: string; permissionOverrides: Record<string, boolean> }) =>
+      fetch(`/api/admin/${user?.businessId}/members/${memberId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ permissionOverrides }),
+      }).then((r) => {
+        if (!r.ok) throw r;
+        return r.json();
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["team-members"] });
+      toast.success("ההרשאות נשמרו");
+    },
+    onError: () => toast.error("שגיאה בשמירת ההרשאות. נסה שוב."),
   });
 
   const toggleActiveMutation = useMutation({
@@ -2985,7 +2969,8 @@ function TeamTab() {
           const lastSeen = member.user.sessions?.[0]?.lastSeenAt;
 
           return (
-            <div key={member.id} className="card p-4 flex items-center gap-4">
+            <div key={member.id} className="card p-4">
+            <div className="flex items-center gap-4">
               {/* Avatar */}
               <div className={cn(
                 "w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0",
@@ -3041,8 +3026,53 @@ function TeamTab() {
                   >
                     {member.isActive ? "השבת" : "הפעל"}
                   </button>
+                  {member.role !== "owner" && (
+                    <button
+                      className="text-xs px-3 py-1.5 rounded-lg font-medium border border-slate-200 text-petra-muted hover:bg-slate-50 transition-colors"
+                      onClick={() => setPermsOpenFor(permsOpenFor === member.id ? null : member.id)}
+                    >
+                      הרשאות
+                    </button>
+                  )}
                 </div>
               )}
+            </div>
+
+            {/* Per-member critical capabilities. Unchecked boxes are stored as an
+                explicit false so a role change can never silently hand them back. */}
+            {permsOpenFor === member.id && (
+              <div className="mt-4 pt-4 border-t space-y-2">
+                <p className="text-xs text-petra-muted">
+                  סמן מה מותר ל{member.user.name}. ברירת המחדל נגזרת מהתפקיד — כל סימון כאן גובר עליה.
+                </p>
+                <div className="grid sm:grid-cols-2 gap-x-4 gap-y-1.5">
+                  {CRITICAL_CAPABILITIES.map((cap) => {
+                    const overrides = member.permissionOverrides ?? {};
+                    const checked =
+                      typeof overrides[cap.key] === "boolean"
+                        ? (overrides[cap.key] as boolean)
+                        : hasTenantPermission(member.role as TenantRole, cap.key);
+                    return (
+                      <label key={cap.key} className="flex items-center gap-2 text-sm cursor-pointer py-0.5">
+                        <input
+                          type="checkbox"
+                          className="w-4 h-4"
+                          checked={checked}
+                          disabled={permsMutation.isPending}
+                          onChange={(e) =>
+                            permsMutation.mutate({
+                              memberId: member.id,
+                              permissionOverrides: { ...overrides, [cap.key]: e.target.checked },
+                            })
+                          }
+                        />
+                        <span>{cap.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             </div>
           );
         })}

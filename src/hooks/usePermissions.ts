@@ -24,5 +24,5 @@ export function usePermissions(): ClientPermissions {
     return getClientPermissions("owner");
   }
 
-  return getClientPermissions(user.businessRole);
+  return getClientPermissions(user.businessRole, user.businessPermissionOverrides ?? null);
 }

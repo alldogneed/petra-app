@@ -66,11 +66,11 @@ export interface UpdateBusinessSettingsInput {
   customerTags?: string[] | string;
   cancellationPolicy?: string;
   bookingWelcomeText?: string;
+  bookingRequiresApproval?: boolean;
   depositInstructions?: string;
   sdSettings?: unknown;
   whatsappRemindersEnabled?: boolean;
   whatsappReminderLeadHours?: number;
-  googleContactsSync?: boolean;
 }
 
 export async function updateBusinessSettings(
@@ -86,8 +86,8 @@ export async function updateBusinessSettings(
     name, phone, email, address, logo, vatNumber, businessRegNumber,
     legalEntityType, vatEnabled, vatRate, boardingCalcMode, boardingMinNights,
     boardingCheckInTime, boardingCheckOutTime, boardingPricePerNight,
-    customerTags, cancellationPolicy, bookingWelcomeText, depositInstructions,
-    sdSettings, whatsappRemindersEnabled, whatsappReminderLeadHours, googleContactsSync,
+    customerTags, cancellationPolicy, bookingWelcomeText, bookingRequiresApproval, depositInstructions,
+    sdSettings, whatsappRemindersEnabled, whatsappReminderLeadHours,
   } = input;
 
   // ── Validation ─────────────────────────────────────────────────────────
@@ -228,11 +228,11 @@ export async function updateBusinessSettings(
   if (customerTags !== undefined) data.customerTags = JSON.stringify(customerTagsArr);
   if (cancellationPolicy !== undefined) data.cancellationPolicy = cancellationPolicy;
   if (bookingWelcomeText !== undefined) data.bookingWelcomeText = bookingWelcomeText;
+  if (bookingRequiresApproval !== undefined) data.bookingRequiresApproval = Boolean(bookingRequiresApproval);
   if (depositInstructions !== undefined) data.depositInstructions = depositInstructions;
   if (sdSettings !== undefined) data.sdSettings = sdSettings;
   if (whatsappRemindersEnabled !== undefined) data.whatsappRemindersEnabled = Boolean(whatsappRemindersEnabled);
   if (whatsappReminderLeadHours !== undefined) data.whatsappReminderLeadHours = whatsappReminderLeadHours;
-  if (googleContactsSync !== undefined) data.googleContactsSync = Boolean(googleContactsSync);
 
   const business = await db.business.update({
     where: { id: businessId },
@@ -257,9 +257,9 @@ const HEBREW_MONTHS = [
 export async function getDashboardMetrics(
   businessId: string,
   db: DbClient,
-  opts: { canSeeRevenueSummary: boolean }
+  opts: { canSeeRevenueSummary: boolean; anchorDate?: string | null }
 ) {
-  const { canSeeRevenueSummary } = opts;
+  const { canSeeRevenueSummary, anchorDate } = opts;
 
   const IL_TZ = "Asia/Jerusalem";
   const now = new Date();
@@ -269,7 +269,12 @@ export async function getDashboardMetrics(
     month: "2-digit",
     day: "2-digit",
   });
-  const [ilYear, ilMonth, ilDay] = ilFormatter.format(now).split("-").map(Number);
+  // The dashboard normally reports on today; anchorDate ("YYYY-MM-DD") moves the
+  // whole "day" window forwards or backwards so the user can look ahead.
+  const anchorValid = !!anchorDate && /^\d{4}-\d{2}-\d{2}$/.test(anchorDate);
+  const [ilYear, ilMonth, ilDay] = (anchorValid ? anchorDate! : ilFormatter.format(now))
+    .split("-")
+    .map(Number);
   const todayStart = new Date(
     new Date(`${ilYear}-${String(ilMonth).padStart(2, "0")}-${String(ilDay).padStart(2, "0")}T00:00:00+03:00`).getTime()
   );

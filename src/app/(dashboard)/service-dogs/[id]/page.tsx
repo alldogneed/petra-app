@@ -5088,6 +5088,7 @@ function InsuranceTab({ dogId }: { dogId: string }) {
 
         {showAddInsurance && (
           <AddInsuranceForm
+            dogId={dogId}
             onSave={(data) => addInsMutation.mutate(data)}
             onCancel={() => setShowAddInsurance(false)}
             isSaving={addInsMutation.isPending}
@@ -5276,20 +5277,36 @@ function EditInsuranceModal({
   );
 }
 
-function AddInsuranceForm({ onSave, onCancel, isSaving }: { onSave: (d: Record<string, unknown>) => void; onCancel: () => void; isSaving: boolean }) {
+function AddInsuranceForm({ dogId, onSave, onCancel, isSaving }: { dogId: string; onSave: (d: Record<string, unknown>) => void; onCancel: () => void; isSaving: boolean }) {
   const [form, setForm] = useState({ provider: "", policyNumber: "", startDate: "", renewalDate: "", notes: "" });
   const [policyDocument, setPolicyDocument] = useState<string | null>(null);
   const [docName, setDocName] = useState<string | null>(null);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
   const f = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => setForm((p) => ({ ...p, [k]: e.target.value }));
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Upload straight to Blob storage and keep only the URL — the field is stored
+  // as a plain string, and a raw base64 data URL for even a small PDF is far
+  // longer than that column can hold (that was silently failing every save).
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) { toast.error("קובץ גדול מדי (מקסימום 5MB)"); return; }
-    setDocName(file.name);
-    const reader = new FileReader();
-    reader.onload = () => setPolicyDocument(reader.result as string);
-    reader.readAsDataURL(file);
+    setUploadingDoc(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch(`/api/service-dogs/${dogId}/upload`, { method: "POST", body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "שגיאה בהעלאת הקובץ");
+      setPolicyDocument(data.url);
+      setDocName(data.fileName || file.name);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "שגיאה בהעלאת הקובץ");
+      setPolicyDocument(null);
+      setDocName(null);
+    } finally {
+      setUploadingDoc(false);
+    }
   };
 
   return (
@@ -5313,17 +5330,17 @@ function AddInsuranceForm({ onSave, onCancel, isSaving }: { onSave: (d: Record<s
         <label className="label text-xs">מסמך פוליסה (PDF / תמונה)</label>
         <label className="flex items-center gap-2 cursor-pointer border-2 border-dashed border-blue-200 rounded-lg p-3 hover:border-blue-400 transition-colors">
           <Upload className="w-4 h-4 text-blue-400 shrink-0" />
-          <span className="text-sm text-blue-600 truncate">{docName || "לחץ להעלאת קובץ"}</span>
-          <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="hidden" onChange={handleFileChange} />
+          <span className="text-sm text-blue-600 truncate">{uploadingDoc ? "מעלה..." : (docName || "לחץ להעלאת קובץ")}</span>
+          <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="hidden" onChange={handleFileChange} disabled={uploadingDoc} />
         </label>
-        {policyDocument && (
+        {policyDocument && !uploadingDoc && (
           <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1">
-            <Check className="w-3 h-3" /> קובץ מוכן להעלאה: {docName}
+            <Check className="w-3 h-3" /> הקובץ הועלה: {docName}
           </p>
         )}
       </div>
       <div className="flex gap-2">
-        <button className="btn-primary text-sm" onClick={() => onSave({ ...form, policyDocument })} disabled={!form.provider || isSaving}>{isSaving ? "שומר..." : "שמור"}</button>
+        <button className="btn-primary text-sm" onClick={() => onSave({ ...form, policyDocument })} disabled={!form.provider || isSaving || uploadingDoc}>{isSaving ? "שומר..." : "שמור"}</button>
         <button className="btn-secondary text-sm" onClick={onCancel}>ביטול</button>
       </div>
     </div>

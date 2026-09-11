@@ -91,6 +91,8 @@ model BusinessUser {
   businessId String
   userId     String
   role       String   @default("user") // "owner" | "manager" | "user"
+  // Per-member overrides on top of the role defaults: { "tenant.finance.summary": false, ... }
+  permissionOverrides Json?
   isActive   Boolean  @default(true)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -248,6 +250,7 @@ model Business {
   googleContactsSync        Boolean @default(false) // sync leads to Google Contacts
   cancellationPolicy   String?  // shown in booking wizard confirm step
   bookingWelcomeText   String?  // shown as greeting on booking page
+  bookingRequiresApproval Boolean @default(false) // online bookings land as "pending" until the business approves them
   depositInstructions  String?  // payment instructions when no paymentUrl
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

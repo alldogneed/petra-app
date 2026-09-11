@@ -159,6 +159,94 @@ export async function notifyOwnerWhatsAppDown(context: string, errorMsg: string)
   }
 }
 
+// ── Payment received ─────────────────────────────────────────────────────────
+
+export interface PaymentReceivedParams {
+  businessName: string;
+  businessEmail?: string | null;
+  /** Tier the customer paid for. */
+  paidTier: string;
+  /** Tier the business ended up on (may differ when the owner set one by hand). */
+  effectiveTier: string;
+  amount: number | null;
+  dealId?: string | null;
+  recurringId?: string | null;
+  recurringError?: string | null;
+  /** True when the card token could not be stored (CARDCOM_ENCRYPTION_KEY missing). */
+  tokenStoreFailed?: boolean;
+  /** Which path activated it: indicator / success-redirect / activate-pending / reconcile */
+  source: string;
+}
+
+/**
+ * Notify the owner that a subscription payment was verified and activated.
+ * Sent on every activation regardless of which path caught it, so a charge
+ * never goes unseen. Fire-and-forget — errors are logged but never thrown.
+ */
+export async function notifyOwnerPaymentReceived(p: PaymentReceivedParams): Promise<void> {
+  const dateLabel = formatDate();
+  const amountLabel = p.amount != null ? `₪${p.amount}` : "סכום לא ידוע";
+  const tierLabel = formatPlan(p.paidTier);
+  const keptTier = p.effectiveTier !== p.paidTier ? ` (נשאר על ${formatPlan(p.effectiveTier)} לפי הגדרה ידנית)` : "";
+  const recurringLabel = p.recurringId
+    ? `הוראת קבע ${p.recurringId} נוצרה`
+    : `⚠️ הוראת קבע לא נוצרה${p.recurringError ? `: ${p.recurringError}` : ""}`;
+  const sourceLabel: Record<string, string> = {
+    indicator: "אוטומטי (קארדקום)",
+    "success-redirect": "אוטומטי (דף הצלחה)",
+    "activate-pending": "אוטומטי (דפדפן הלקוח)",
+    reconcile: "השלמה יומית — הדפדפן לא סיים",
+  };
+
+  const tokenWarning = p.tokenStoreFailed
+    ? "⚠️ טוקן הכרטיס לא נשמר — חסר CARDCOM_ENCRYPTION_KEY ב-Vercel"
+    : null;
+
+  const waMessage =
+    `💳 תשלום התקבל בפטרה\n\n` +
+    `🏢 ${p.businessName}\n` +
+    `📦 ${tierLabel}${keptTier}\n` +
+    `💰 ${amountLabel}\n` +
+    `🔁 ${recurringLabel}\n` +
+    `🛠 ${sourceLabel[p.source] ?? p.source}\n` +
+    (tokenWarning ? `${tokenWarning}\n` : "") +
+    `🕐 ${dateLabel}`;
+
+  const safeName = escapeHtml(p.businessName);
+  const emailSubject = `💳 תשלום התקבל — ${safeName} — ${amountLabel}`;
+  const emailHtml = `
+    <div dir="rtl" style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; background: #f8fafc; border-radius: 12px;">
+      <div style="background: #1e293b; padding: 20px 24px; border-radius: 8px 8px 0 0; text-align: center;">
+        <h2 style="color: #fb923c; margin: 0; font-size: 20px;">🐾 Petra</h2>
+        <p style="color: #94a3b8; margin: 4px 0 0; font-size: 13px;">תשלום מנוי התקבל</p>
+      </div>
+      <div style="background: #ffffff; padding: 24px; border-radius: 0 0 8px 8px; border: 1px solid #e2e8f0;">
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 8px 4px; color: #64748b; font-size: 13px; width: 110px;">עסק</td><td style="padding: 8px 4px; color: #1e293b; font-weight: 600;">${safeName}</td></tr>
+          ${p.businessEmail ? `<tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 8px 4px; color: #64748b; font-size: 13px;">אימייל</td><td style="padding: 8px 4px; color: #1e293b;">${escapeHtml(p.businessEmail)}</td></tr>` : ""}
+          <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 8px 4px; color: #64748b; font-size: 13px;">מסלול</td><td style="padding: 8px 4px; color: #f97316; font-weight: 600;">${escapeHtml(tierLabel)}${escapeHtml(keptTier)}</td></tr>
+          <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 8px 4px; color: #64748b; font-size: 13px;">סכום</td><td style="padding: 8px 4px; color: #1e293b; font-weight: 600;">${amountLabel}</td></tr>
+          ${p.dealId ? `<tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 8px 4px; color: #64748b; font-size: 13px;">עסקה</td><td style="padding: 8px 4px; color: #1e293b;">${escapeHtml(p.dealId)}</td></tr>` : ""}
+          <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 8px 4px; color: #64748b; font-size: 13px;">הוראת קבע</td><td style="padding: 8px 4px; color: ${p.recurringId ? "#15803d" : "#b91c1c"};">${escapeHtml(recurringLabel)}</td></tr>
+          <tr style="border-bottom: 1px solid #f1f5f9;"><td style="padding: 8px 4px; color: #64748b; font-size: 13px;">מסלול הפעלה</td><td style="padding: 8px 4px; color: #1e293b;">${escapeHtml(sourceLabel[p.source] ?? p.source)}</td></tr>
+          <tr><td style="padding: 8px 4px; color: #64748b; font-size: 13px;">תאריך</td><td style="padding: 8px 4px; color: #1e293b;">${dateLabel}</td></tr>
+        </table>
+        ${tokenWarning ? `<div style="margin-top: 16px; padding: 12px 16px; background: #fef2f2; border-radius: 8px; border: 1px solid #fecaca;"><p style="margin: 0; font-size: 13px; color: #b91c1c;">${escapeHtml(tokenWarning)}</p></div>` : ""}
+        <div style="margin-top: 20px; padding: 12px 16px; background: #fff7ed; border-radius: 8px; border: 1px solid #fed7aa;">
+          <p style="margin: 0; font-size: 13px; color: #9a3412;">💡 <a href="https://petra-app.com/owner/tenants" style="color: #f97316;">ניהול ובקרה → עסקים</a></p>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const templateParams = [p.businessName, p.businessEmail ?? "-", `${tierLabel} — ${amountLabel}`, dateLabel];
+
+  await Promise.allSettled([
+    sendOwnerWhatsApp(waMessage, templateParams),
+    sendOwnerEmail(emailSubject, emailHtml),
+  ]);
+}
+
 // ── Public API ────────────────────────────────────────────────────────────────
 
 export interface NewUserParams {

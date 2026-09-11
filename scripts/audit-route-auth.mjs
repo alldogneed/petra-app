@@ -101,6 +101,7 @@ const PUBLIC_ROUTES = new Set([
 // Patterns indicating the route IS authenticated. ANY of these is enough.
 const AUTH_PATTERNS = [
   /requireBusinessAuth\s*\(/,
+  /requireBusinessPermission\s*\(/, // requireBusinessAuth + a tenant capability check
   /requireTenantPermission\s*\(/,
   /requirePlatformPermission\s*\(/,
   /requirePlatformRole\s*\(/,

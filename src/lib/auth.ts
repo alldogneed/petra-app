@@ -20,6 +20,7 @@ import {
   getSessionByToken,
   SESSION_COOKIE,
 } from "./session";
+import { parsePermissionOverrides } from "./permissions";
 
 export { SESSION_COOKIE };
 
@@ -190,11 +191,16 @@ export async function getCurrentUser() {
   if (!membership) {
     const anyMembership = await prisma.businessUser.findFirst({
       where: { userId: session.user.id },
-      select: { businessId: true, role: true, isActive: true },
+      select: { businessId: true, role: true, permissionOverrides: true, isActive: true },
       orderBy: { updatedAt: "desc" },
     });
     if (anyMembership) {
-      membership = { businessId: anyMembership.businessId, role: anyMembership.role as import("./permissions").TenantRole, isActive: anyMembership.isActive };
+      membership = {
+        businessId: anyMembership.businessId,
+        role: anyMembership.role as import("./permissions").TenantRole,
+        permissionOverrides: parsePermissionOverrides(anyMembership.permissionOverrides),
+        isActive: anyMembership.isActive,
+      };
     }
   }
 
@@ -266,6 +272,8 @@ export async function getCurrentUser() {
       } catch { return null; }
     })(),
     businessRole: isImpersonating ? "owner" : (membership?.role ?? null),
+    // Per-member overrides on top of the role defaults — drives usePermissions()
+    businessPermissionOverrides: isImpersonating ? null : (membership?.permissionOverrides ?? null),
     authProvider: platformUser?.authProvider ?? "local",
     hasPassword: !!platformUser?.passwordHash,
     isImpersonating,
