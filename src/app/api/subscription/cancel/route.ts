@@ -4,6 +4,9 @@ import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { validateOrigin } from "@/lib/security/cardcom-helpers";
 import { cancelCardcomRecurring } from "@/lib/cardcom-recurring";
+import { sendEmail } from "@/lib/email";
+
+const OWNER_ALERT_EMAIL = "info@petra-app.com";
 
 /**
  * POST /api/subscription/cancel
@@ -41,12 +44,38 @@ export async function POST(request: NextRequest) {
 
     const previousTier = business.tier;
 
-    // Cancel recurring order in Cardcom (הוראת קבע) if exists
+    // Cancel recurring order in Cardcom (הוראת קבע) if exists.
+    // The customer's cancellation always goes through, but if Cardcom did not
+    // confirm the stop we KEEP cardcomRecurringId (so the order is not forgotten
+    // while still billing), record the failure, and alert the owner to stop it
+    // by hand. Clearing it on failure is how a cancelled customer kept being charged.
+    let recurringStillActive = false;
     if (business.cardcomRecurringId) {
-      const cancelResult = await cancelCardcomRecurring(business.cardcomRecurringId);
+      const recurringId = business.cardcomRecurringId;
+      const cancelResult = await cancelCardcomRecurring(recurringId);
+      recurringStillActive = !cancelResult.success;
+
+      await prisma.subscriptionEvent.create({
+        data: {
+          businessId,
+          eventType: cancelResult.success ? "recurring_cancelled" : "recurring_cancel_failed",
+          tier: business.tier,
+          metadata: { recurringId, error: cancelResult.error ?? null },
+        },
+      }).catch(() => null);
+
       if (!cancelResult.success) {
         console.error(`Cancel recurring failed for business ${businessId}:`, cancelResult.error);
-        // Don't block cancellation — log and continue
+        const esc = (v: string) => v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        await sendEmail({
+          to: OWNER_ALERT_EMAIL,
+          subject: `\u200F🚨 Petra: ביטול מנוי — הוראת קבע ${recurringId} לא כובתה בקארדקום`,
+          html: `<div dir="rtl" style="font-family:Arial,sans-serif;">
+            <h3>לקוח ביטל מנוי אבל הוראת הקבע עדיין פעילה</h3>
+            <p>עסק: ${esc(businessId)}<br/>הוראת קבע: ${esc(recurringId)}<br/>שגיאת קארדקום: ${esc(cancelResult.error ?? "unknown")}</p>
+            <p><b>יש לכבות את הוראת הקבע ידנית בפאנל קארדקום לפני מועד החיוב הבא.</b></p>
+          </div>`,
+        }).catch((e) => console.error("cancel: owner alert email failed:", e));
       }
     }
 
@@ -58,7 +87,7 @@ export async function POST(request: NextRequest) {
           subscriptionStatus: "cancel_pending",
           cardcomToken:       null,
           cardcomTokenExpiry: null,
-          cardcomRecurringId: null,
+          ...(recurringStillActive ? {} : { cardcomRecurringId: null }),
         },
       });
     } else {
@@ -70,7 +99,7 @@ export async function POST(request: NextRequest) {
           subscriptionStatus: "cancelled",
           cardcomToken:       null,
           cardcomTokenExpiry: null,
-          cardcomRecurringId: null,
+          ...(recurringStillActive ? {} : { cardcomRecurringId: null }),
           subscriptionEndsAt: null,
           trialEndsAt:        null,
         },
