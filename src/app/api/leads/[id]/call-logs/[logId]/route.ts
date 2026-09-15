@@ -35,6 +35,9 @@ export async function PATCH(
         { status: 404 }
       );
     }
+    if (existing.type === "deal_value") {
+      return NextResponse.json({ error: "לא ניתן לערוך רישום שינוי ערך עסקה" }, { status: 400 });
+    }
 
     const callLog = await prisma.callLog.update({
       where: { id: logId },
@@ -83,6 +86,10 @@ export async function DELETE(
         { error: "Call log not found" },
         { status: 404 }
       );
+    }
+
+    if (existing.type === "deal_value") {
+      return NextResponse.json({ error: "לא ניתן למחוק רישום שינוי ערך עסקה" }, { status: 400 });
     }
 
     await prisma.callLog.delete({ where: { id: logId } });

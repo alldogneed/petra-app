@@ -22,10 +22,12 @@ import {
   PawPrint,
   AlertCircle,
   Download,
+  Coins,
 } from "lucide-react";
 import { cn, formatCurrency, fetchJSON } from "@/lib/utils";
 import { LEAD_SOURCES, LOST_REASON_CODES } from "@/lib/constants";
 import { TRAFFIC_SOURCE_LABELS, formatMonthKey, type LeadAttributionReport } from "@/lib/lead-attribution";
+import { formatIls, type LeadSalesReport } from "@/lib/lead-deal-value";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { TierGate } from "@/components/paywall/TierGate";
 
@@ -66,6 +68,7 @@ interface AnalyticsData {
   }[];
   lostReasons?: { code: string; count: number }[];
   leadAttribution?: LeadAttributionReport;
+  leadSales?: (LeadSalesReport & { pipelineValue: number; pipelineWithValueCount: number }) | null;
   training: {
     activePrograms: number;
     completedSessionsThisPeriod: number;
@@ -262,6 +265,7 @@ function AnalyticsContent() {
                   `📅 תורים: ${data.overview.totalAppointments} (${data.overview.completionRate}% הושלמו)`,
                   `👥 לקוחות חדשים: ${data.overview.newCustomers}`,
                   `🎯 לידים שנסגרו: ${data.leads.wonThisPeriod} (${data.leads.conversionRate}% המרה)`,
+                  ...(data.leadSales ? [`💼 מכירות מלידים: ${formatIls(data.leadSales.total)} (עסקאות ${formatIls(data.leadSales.dealValueTotal)} + הזמנות ${formatIls(data.leadSales.ordersTotal)})`] : []),
                   `✅ משימות הושלמו: ${data.tasks.completedThisPeriod}`,
                   `🐾 שהות פנסיון: ${data.boarding.staysThisPeriod}`,
                 ].join("\n");
@@ -737,6 +741,86 @@ function AnalyticsContent() {
               )}
             </div>
           </div>
+
+          {/* Lead sales — deal value of leads won in the period + orders since closing */}
+          {data.leadSales && (
+            <div className="card p-5 mt-4">
+              <h3 className="text-sm font-semibold text-petra-text mb-1 flex items-center gap-2">
+                <Coins className="w-4 h-4 text-emerald-600" />
+                מכירות מלידים
+              </h3>
+              <p className="text-[11px] text-petra-muted mb-4">
+                לידים שנסגרו בתקופה · ערך העסקה שהוזן בכרטיס הליד + הזמנות שהלקוח ביצע מאז הסגירה ועד היום (ללא מבוטלות) · מדד נפרד, לא נכלל ב&quot;הכנסות&quot; · אם פתחת הזמנה על אותה עסקה היא תיספר גם בהזמנות
+              </p>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+                <div className="rounded-xl bg-emerald-50/60 border border-emerald-100 p-3">
+                  <p className="text-[11px] text-petra-muted">ערך עסקאות שנסגרו</p>
+                  <p className="text-xl font-bold text-emerald-700 tabular-nums">{formatIls(data.leadSales.dealValueTotal)}</p>
+                  <p className="text-[11px] text-petra-muted mt-0.5">
+                    {data.leadSales.withValueCount} מתוך {data.leadSales.wonCount} לידים עם ערך
+                  </p>
+                </div>
+                <div className="rounded-xl bg-slate-50 border border-slate-100 p-3">
+                  <p className="text-[11px] text-petra-muted">הזמנות מאז הסגירה</p>
+                  <p className="text-xl font-bold text-petra-text tabular-nums">{formatIls(data.leadSales.ordersTotal)}</p>
+                  <p className="text-[11px] text-petra-muted mt-0.5">{data.leadSales.ordersCount} הזמנות</p>
+                </div>
+                <div className="rounded-xl bg-brand-50/60 border border-brand-100 p-3">
+                  <p className="text-[11px] text-petra-muted">סה״כ מכירות מלידים</p>
+                  <p className="text-xl font-bold text-brand-700 tabular-nums">{formatIls(data.leadSales.total)}</p>
+                  <p className="text-[11px] text-petra-muted mt-0.5">עסקה ממוצעת {formatIls(data.leadSales.avgDealValue)}</p>
+                </div>
+                <div className="rounded-xl bg-amber-50/60 border border-amber-100 p-3">
+                  <p className="text-[11px] text-petra-muted">ערך בצנרת (לידים פתוחים)</p>
+                  <p className="text-xl font-bold text-amber-700 tabular-nums">{formatIls(data.leadSales.pipelineValue)}</p>
+                  <p className="text-[11px] text-petra-muted mt-0.5">{data.leadSales.pipelineWithValueCount} לידים עם ערך</p>
+                </div>
+              </div>
+              {data.leadSales.rows.length === 0 ? (
+                <div className="flex items-center justify-center h-20 text-sm text-petra-muted">
+                  אין לידים שנסגרו בתקופה זו
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-xs">
+                    <thead>
+                      <tr className="text-petra-muted">
+                        <th className="text-start font-medium py-1.5 pe-2">ליד</th>
+                        <th className="font-medium py-1.5 px-2 text-center">נסגר</th>
+                        <th className="font-medium py-1.5 px-2 text-center">ערך עסקה</th>
+                        <th className="font-medium py-1.5 px-2 text-center">הזמנות מאז</th>
+                        <th className="font-semibold py-1.5 ps-2 text-center">סה״כ</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data.leadSales.rows.map((r) => (
+                        <tr key={r.leadId} className="border-t border-slate-100">
+                          <td className="py-1.5 pe-2 font-medium text-petra-text whitespace-nowrap">
+                            {r.customerId ? (
+                              <Link href={`/customers/${r.customerId}`} className="hover:text-brand-600 hover:underline">{r.name}</Link>
+                            ) : r.name}
+                          </td>
+                          <td className="py-1.5 px-2 text-center text-petra-muted whitespace-nowrap">{new Date(r.wonAt).toLocaleDateString("he-IL")}</td>
+                          <td className={cn("py-1.5 px-2 text-center tabular-nums", r.dealValue == null ? "text-slate-300" : "text-emerald-700")}>
+                            {r.dealValue == null ? "—" : formatIls(r.dealValue)}
+                          </td>
+                          <td className={cn("py-1.5 px-2 text-center tabular-nums", r.ordersCount === 0 ? "text-slate-300" : "text-petra-text")}>
+                            {r.ordersCount === 0 ? "—" : `${formatIls(r.ordersTotal)} (${r.ordersCount})`}
+                          </td>
+                          <td className="py-1.5 ps-2 text-center font-semibold tabular-nums">{formatIls(r.total)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {data.leadSales.wonCount > data.leadSales.rows.length && (
+                    <p className="text-[11px] text-petra-muted mt-2">
+                      מוצגים {data.leadSales.rows.length} האחרונים מתוך {data.leadSales.wonCount} · הסכומים למעלה כוללים את כולם
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Traffic attribution — last 12 months (independent of period) */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">

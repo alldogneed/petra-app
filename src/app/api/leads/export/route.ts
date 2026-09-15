@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
       where,
       include: {
         customer: { select: { name: true } },
-        callLogs: { select: { createdAt: true }, orderBy: { createdAt: "desc" }, take: 1 },
+        callLogs: { where: { type: { not: "deal_value" } }, select: { createdAt: true }, orderBy: { createdAt: "desc" }, take: 1 },
       },
       orderBy: { createdAt: "desc" },
       take: 10000, // Safety limit to prevent memory exhaustion
@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
 
   const headers = [
     "שם", "טלפון", "אימייל", "עיר", "שירות מבוקש", "מקור הגעה",
-    "שלב", "סטטוס", "הערות", "תאריך יצירה", "תאריך סגירה",
+    "שלב", "סטטוס", "ערך עסקה", "הערות", "תאריך יצירה", "תאריך סגירה",
     "סיבת אובדן", "יצירת קשר אחרונה",
   ];
 
@@ -98,6 +98,7 @@ export async function GET(request: NextRequest) {
       l.source ? (SOURCE_LABELS[l.source] ?? l.source) : "",
       stageName,
       statusLabel,
+      l.dealValue != null ? String(l.dealValue) : "",
       l.notes ?? "",
       formatDate(l.createdAt),
       formatDate(l.wonAt ?? l.lostAt),

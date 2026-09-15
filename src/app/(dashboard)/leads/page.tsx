@@ -19,6 +19,7 @@ import { validateIsraeliPhone, validateEmail, sanitizeName, validateName, normal
 import { toast } from "sonner";
 import { useSubscription } from "@/hooks/useSubscription";
 import { formatAttributionLine } from "@/lib/lead-attribution";
+import { sumDealValues, formatIls } from "@/lib/lead-deal-value";
 import { LEAD_SOURCES, LOST_REASON_CODES } from "@/lib/constants";
 import { LeadTreatmentModal } from "@/components/leads/LeadTreatmentModal";
 import LeadDetailsModal from "@/components/leads/LeadDetailsModal";
@@ -65,8 +66,10 @@ interface Lead {
   previousStageId: string | null;
   trafficSource?: string | null;
   landingPage?: string | null;
+  dealValue?: number | null;
   callLogs?: {
     id: string;
+    type?: string;
     summary: string;
     treatment: string;
     createdAt: string;
@@ -440,6 +443,7 @@ function KanbanColumn({
     : columnBg;
 
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const columnValue = sumDealValues(leads);
 
   return (
     <>
@@ -484,7 +488,12 @@ function KanbanColumn({
           </span>
         )}
 
-        <span className="badge-neutral text-[10px] ms-auto">{leads.length}</span>
+        {columnValue > 0 && (
+          <span className="text-[11px] font-semibold text-emerald-700 ms-auto whitespace-nowrap" title="סה״כ ערך עסקאות בעמודה">
+            {formatIls(columnValue)}
+          </span>
+        )}
+        <span className={`badge-neutral text-[10px] ${columnValue > 0 ? "" : "ms-auto"}`}>{leads.length}</span>
 
         {editMode && (
           <div className="flex items-center gap-1.5 relative">
@@ -669,7 +678,8 @@ function DraggableLeadCard({
   const sourceLabel = LEAD_SOURCES.find((s) => s.id === lead.source)?.label || lead.source;
   const sourceEmoji = getSourceEmoji(lead.source);
   const attributionLine = formatAttributionLine({ trafficSource: lead.trafficSource, landingPage: lead.landingPage });
-  const callLogCount = lead.callLogs?.length || 0;
+  const contactLogs = (lead.callLogs ?? []).filter((log) => log.type !== "deal_value");
+  const callLogCount = contactLogs.length;
   const { city, service, cleanNotes } = parseLeadMeta(lead.notes);
   const isWon = stage.isWon;
   const isLost = stage.isLost;
@@ -820,9 +830,9 @@ function DraggableLeadCard({
       </div>
 
       {/* Snippet (last call or notes) */}
-      {(lead.callLogs?.length ?? 0) > 0 ? (
+      {contactLogs.length > 0 ? (
         <p className="text-[10px] text-petra-muted line-clamp-1 mt-0.5 italic">
-          &ldquo;{lead.callLogs![0].summary}&rdquo;
+          &ldquo;{contactLogs[0].summary}&rdquo;
         </p>
       ) : cleanNotes ? (
         <p className="text-[10px] text-petra-muted line-clamp-1 mt-0.5">{cleanNotes}</p>
@@ -1182,6 +1192,7 @@ function ArchiveTab({
                 <th className="font-medium p-3">שם</th>
                 <th className="font-medium p-3">טלפון</th>
                 <th className="font-medium p-3">סטטוס</th>
+                <th className="font-medium p-3">ערך עסקה</th>
                 <th className="font-medium p-3">סיבה / הערה</th>
                 <th className="font-medium p-3">תאריך</th>
                 <th className="font-medium p-3"></th>
@@ -1225,6 +1236,9 @@ function ArchiveTab({
                           <Archive className="w-3 h-3" /> אבוד
                         </span>
                       )}
+                    </td>
+                    <td className="p-3 text-xs text-petra-text whitespace-nowrap">
+                      {lead.dealValue != null ? formatIls(lead.dealValue) : "—"}
                     </td>
                     <td className="p-3 text-xs text-petra-muted max-w-[200px] truncate">
                       {lostReasonLabel || lead.lostReasonText || "—"}
@@ -1385,6 +1399,11 @@ function RestoreLeadModal({
 
 // ─── Archive Drop Zones (DnD targets inside kanban DndContext) ────────────────
 
+function archiveValueSuffix(leads: Lead[]): string {
+  const total = sumDealValues(leads);
+  return total > 0 ? ` · ${formatIls(total)}` : "";
+}
+
 function ArchiveList({
   leads,
   wonStage,
@@ -1407,7 +1426,7 @@ function ArchiveList({
             className={`rounded-xl border-2 border-dashed transition-colors p-4 text-center ${isWonOver ? "border-green-400 bg-green-50" : "border-slate-200 bg-slate-50/50"}`}>
             <Trophy className={`w-5 h-5 mx-auto mb-1 ${isWonOver ? "text-green-600" : "text-slate-400"}`} />
             <p className={`text-xs font-medium ${isWonOver ? "text-green-700" : "text-petra-muted"}`}>
-              {isWonOver ? "שחרר — סגירה!" : `גרור לכאן לסגירה · ${leads.filter(l => l.stage === wonStage.id).length} נסגרו`}
+              {isWonOver ? "שחרר — סגירה!" : `גרור לכאן לסגירה · ${leads.filter(l => l.stage === wonStage.id).length} נסגרו${archiveValueSuffix(leads.filter(l => l.stage === wonStage.id))}`}
             </p>
           </div>
         )}
@@ -1416,7 +1435,7 @@ function ArchiveList({
             className={`rounded-xl border-2 border-dashed transition-colors p-4 text-center ${isLostOver ? "border-red-400 bg-red-50" : "border-slate-200 bg-slate-50/50"}`}>
             <Archive className={`w-5 h-5 mx-auto mb-1 ${isLostOver ? "text-red-600" : "text-slate-400"}`} />
             <p className={`text-xs font-medium ${isLostOver ? "text-red-700" : "text-petra-muted"}`}>
-              {isLostOver ? "שחרר — ארכוב!" : `גרור לכאן לארכוב · ${leads.filter(l => l.stage === lostStage.id).length} אבודים`}
+              {isLostOver ? "שחרר — ארכוב!" : `גרור לכאן לארכוב · ${leads.filter(l => l.stage === lostStage.id).length} אבודים${archiveValueSuffix(leads.filter(l => l.stage === lostStage.id))}`}
             </p>
           </div>
         )}
@@ -1436,7 +1455,7 @@ function sortLeadsByPriority(leads: Lead[]): Lead[] {
   const getPriority = (lead: Lead): 0 | 1 | 2 => {
     const followUpDate = lead.nextFollowUpAt ? new Date(lead.nextFollowUpAt) : null;
     if (followUpDate && followUpDate < todayStart) return 0;
-    const hasActivity = (lead.callLogs?.length || 0) > 0 || !!lead.lastContactedAt;
+    const hasActivity = (lead.callLogs ?? []).some((log) => log.type !== "deal_value") || !!lead.lastContactedAt;
     const hasFutureFollowUp = !!followUpDate && followUpDate >= todayStart;
     return (hasActivity || hasFutureFollowUp || lead.followUpStatus === "completed") ? 2 : 1;
   };

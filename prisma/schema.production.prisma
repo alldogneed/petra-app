@@ -636,6 +636,8 @@ model Lead {
   firstPage        String?   // first page of the session
   gclid            String?   // Google Ads click id
   pageType         String?   // service | guide | area | tool | home
+  // Manual deal value ("ערך עסקה", ILS). NOT revenue — see src/lib/lead-deal-value.ts
+  dealValue        Float?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -668,7 +670,7 @@ model LeadStage {
 model CallLog {
   id        String   @id @default(uuid())
   leadId    String
-  type      String   @default("call") // "call" | "stage_change"
+  type      String   @default("call") // "call" | "stage_change" | "deal_value"
   summary   String
   treatment String   @default("")
   createdAt DateTime @default(now())

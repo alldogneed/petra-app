@@ -5,6 +5,7 @@ import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit } from "@/lib/rate-limit";
 import { hasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
 import { LEAD_SOURCES, LOST_REASON_CODES } from "@/lib/constants";
+import { buildLeadSalesReport, EXCLUDED_ORDER_STATUSES } from "@/lib/lead-deal-value";
 import * as XLSX from "xlsx";
 
 const LEAD_SOURCE_LABELS: Record<string, string> = Object.fromEntries(
@@ -230,7 +231,7 @@ export async function GET(request: NextRequest) {
       // Lead stages for name lookup
       prisma.leadStage.findMany({
         where: { businessId },
-        select: { id: true, name: true },
+        select: { id: true, name: true, isWon: true },
       }),
       // 6. Training programs started in range
       prisma.trainingProgram.findMany({
@@ -279,6 +280,38 @@ export async function GET(request: NextRequest) {
 
     const stageMap = new Map(leadStages.map((s) => [s.id, s.name]));
 
+    // Lead sales — leads WON in range (by wonAt) + orders their customers placed since closing
+    const wonStageIds = leadStages.filter((s) => s.isWon).map((s) => s.id);
+    const wonInRange = await prisma.lead.findMany({
+      where: { businessId, stage: { in: wonStageIds }, wonAt: { gte: fromDate, lte: toDate } },
+      select: { id: true, name: true, wonAt: true, dealValue: true, customerId: true },
+      orderBy: { wonAt: "desc" },
+      take: MAX_EXPORT_ROWS,
+    });
+    const wonCustomerIds = Array.from(new Set(wonInRange.map((l) => l.customerId).filter((id): id is string => !!id)));
+    const earliestWon = wonInRange.reduce<Date | null>((min, l) => (l.wonAt && (!min || l.wonAt < min) ? l.wonAt : min), null);
+    const [wonCustomerOrders, wonOwnerLeads] = wonCustomerIds.length > 0 && earliestWon
+      ? await Promise.all([
+          prisma.order.findMany({
+            where: { businessId, customerId: { in: wonCustomerIds }, createdAt: { gte: earliestWon }, status: { notIn: EXCLUDED_ORDER_STATUSES } },
+            select: { customerId: true, total: true, status: true, createdAt: true },
+            orderBy: { createdAt: "asc" },
+            take: MAX_EXPORT_ROWS,
+          }),
+          prisma.lead.findMany({
+            where: { businessId, customerId: { in: wonCustomerIds }, stage: { in: wonStageIds }, wonAt: { not: null } },
+            select: { id: true, wonAt: true, customerId: true },
+            take: MAX_EXPORT_ROWS,
+          }),
+        ])
+      : [[], []];
+    const leadSales = buildLeadSalesReport(
+      wonInRange.filter((l) => l.wonAt).map((l) => ({ ...l, wonAt: l.wonAt as Date })),
+      wonCustomerOrders,
+      MAX_EXPORT_ROWS,
+      wonOwnerLeads.map((l) => ({ ...l, wonAt: l.wonAt as Date })),
+    );
+
     const wb = XLSX.utils.book_new();
     const fromLabel = fmt(fromDate);
     const toLabel = fmt(toDate);
@@ -302,6 +335,10 @@ export async function GET(request: NextRequest) {
       ["לידים חדשים", leads.length],
       ["לידים שנסגרו (won)", leads.filter((l) => l.wonAt).length],
       ["לידים שאבדו (lost)", leads.filter((l) => l.lostAt).length],
+      ["לידים שנסגרו בטווח (לפי תאריך סגירה)", leadSales.wonCount],
+      ["ערך עסקאות שנסגרו", fmtCurrency(leadSales.dealValueTotal)],
+      ["הזמנות מאז הסגירה", fmtCurrency(leadSales.ordersTotal)],
+      ["סה״כ מכירות מלידים", fmtCurrency(leadSales.total)],
       ["תוכניות אילוף", trainingPrograms.length],
       ["שהיות בפנסיון", boardingStays.length],
       ["משימות", tasks.length],
@@ -393,7 +430,7 @@ export async function GET(request: NextRequest) {
     XLSX.utils.book_append_sheet(wb, wsOrders, "הזמנות");
 
     // ── Sheet 6: Leads ──
-    const leadHeaders = ["שם", "טלפון", "מקור", "שלב", "תאריך יצירה", "תאריך סגירה", "סיבת אובדן"];
+    const leadHeaders = ["שם", "טלפון", "מקור", "שלב", "ערך עסקה", "תאריך יצירה", "תאריך סגירה", "סיבת אובדן"];
     const leadRows: (string | number)[][] = [leadHeaders];
     for (const l of leads) {
       leadRows.push([
@@ -401,14 +438,24 @@ export async function GET(request: NextRequest) {
         l.phone || "",
         l.source || "",
         stageMap.get(l.stage) ?? l.stage ?? "",
+        l.dealValue ?? "",
         fmt(l.createdAt),
         l.wonAt || l.lostAt ? fmt(l.wonAt || l.lostAt) : "",
         l.lostReasonCode || l.lostReasonText || "",
       ]);
     }
     const wsLeads = XLSX.utils.aoa_to_sheet(leadRows);
-    wsLeads["!cols"] = [{ wch: 18 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 12 }, { wch: 12 }, { wch: 20 }];
+    wsLeads["!cols"] = [{ wch: 18 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 20 }];
     XLSX.utils.book_append_sheet(wb, wsLeads, "לידים");
+
+    // ── Sheet: Lead sales (won in range) ──
+    const salesRows: (string | number)[][] = [["ליד", "תאריך סגירה", "ערך עסקה", "מס׳ הזמנות מאז הסגירה", "סכום הזמנות מאז הסגירה", "סה״כ"]];
+    for (const r of leadSales.rows) {
+      salesRows.push([r.name, fmt(r.wonAt), r.dealValue ?? "", r.ordersCount, r.ordersTotal, r.total]);
+    }
+    const wsSales = XLSX.utils.aoa_to_sheet(salesRows);
+    wsSales["!cols"] = [{ wch: 18 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 14 }, { wch: 10 }];
+    XLSX.utils.book_append_sheet(wb, wsSales, "מכירות מלידים");
 
     // ── Sheet 6b: Leads by Source ──
     const sourceAgg = new Map<

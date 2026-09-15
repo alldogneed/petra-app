@@ -27,6 +27,7 @@ const PatchLeadSchema = z.object({
   nextFollowUpAt: z.string().datetime().nullable().optional(),
   followUpStatus: z.string().max(50).nullable().optional(),
   previousStageId: z.string().max(100).nullable().optional(),
+  dealValue: z.union([z.number(), z.string().max(30)]).nullable().optional(),
 });
 
 export async function PATCH(

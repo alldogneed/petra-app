@@ -11,6 +11,7 @@ export const dynamic = "force-dynamic";
  */
 
 import { TRAFFIC_SOURCES, TRAFFIC_SOURCE_LABELS, PAGE_TYPES, normalizeAttributionInput, formatAttributionLine } from "@/lib/lead-attribution";
+import { MAX_DEAL_VALUE, formatIls } from "@/lib/lead-deal-value";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { localTimeToUtc } from "@/lib/slots";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
@@ -589,6 +590,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
           if (attr || extras) out.push(`מקור תנועה — ${safeField([attr, extras].filter(Boolean).join(" | "), 400)}`);
         }
         out.push(`נוצר: ${heDate(lead.createdAt)}${lead.lastContactedAt ? ` | קשר אחרון: ${heDate(lead.lastContactedAt)}` : ""}${lead.nextFollowUpAt ? ` | מעקב הבא: ${heDate(lead.nextFollowUpAt)} (${lead.followUpStatus ?? "pending"})` : " | אין מעקב מתוכנן"}`);
+        out.push(`💰 ערך עסקה: ${lead.dealValue != null ? formatIls(lead.dealValue) : "לא הוזן"}`);
         if (lead.wonAt) out.push(`✅ נסגר בהצלחה: ${heDate(lead.wonAt)}`);
         if (lead.lostAt) out.push(`❌ אבד: ${heDate(lead.lostAt)}${lead.lostReasonCode ? ` | סיבה: ${safeField(lead.lostReasonCode, 40)}` : ""}${lead.lostReasonText ? ` — ${safeField(lead.lostReasonText, 120)}` : ""}`);
         if (lead.customer) out.push(`👤 לקוח מקושר: ${safeField(lead.customer.name)}${lead.customer.phone ? ` | ${safeField(lead.customer.phone, 20)}` : ""} (customer id: ${lead.customer.id})`);
@@ -614,10 +616,10 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
           out.push(`\n📞 יומן הליד — כל ההשתלשלות (${logs.length}${shownNote}):`);
           for (const c of logs as Array<Record<string, unknown>>) {
             const when = c.createdAt instanceof Date ? heDate(c.createdAt) : "";
-            const isStageChange = c.type === "stage_change";
+            const logLabel = c.type === "stage_change" ? "[שינוי שלב]" : c.type === "deal_value" ? "[ערך עסקה]" : "[שיחה]";
             const summary = typeof c.summary === "string" ? safeField(c.summary, 600) : "";
             const treatment = typeof c.treatment === "string" && c.treatment.trim() ? safeField(c.treatment, 400) : "";
-            out.push(`• ${when} ${isStageChange ? "[שינוי שלב]" : "[שיחה]"}${summary ? ` ${summary}` : ""}${treatment ? ` | סוכם: ${treatment}` : ""}`);
+            out.push(`• ${when} ${logLabel}${summary ? ` ${summary}` : ""}${treatment ? ` | סוכם: ${treatment}` : ""}`);
           }
         }
         return textResult(out.join("\n"));
@@ -657,12 +659,13 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
       landing_page: z.string().max(2048).optional().describe("Page the form was submitted from (URL or path; stored as path)"),
       first_page: z.string().max(2048).optional().describe("First page of the session (URL or path)"),
       page_type: z.enum(PAGE_TYPES).optional().describe("Landing page type: service|guide|area|tool|home"),
+      deal_value: z.number().min(0).max(MAX_DEAL_VALUE).optional().describe("Deal value in ILS (ערך עסקה) — the expected/agreed sale amount, e.g. 350. Separate from orders/revenue"),
       idempotency_key: z.string().max(100).optional().describe("Client-generated key; a retry with the same key returns the original result instead of creating a duplicate"),
       dry_run: z.boolean().optional().describe("If true, only preview what would be created"),
     },
-    async ({ name, phone, email, requested_service, source, city, notes, stage_name, next_follow_up, follow_up_time, pet_name, pet_breed, pet_age, pet_notes, traffic_source, utm_source, utm_medium, utm_campaign, gclid, referrer, landing_page, first_page, page_type, idempotency_key, dry_run }) => {
+    async ({ name, phone, email, requested_service, source, city, notes, stage_name, next_follow_up, follow_up_time, pet_name, pet_breed, pet_age, pet_notes, traffic_source, utm_source, utm_medium, utm_campaign, gclid, referrer, landing_page, first_page, page_type, deal_value, idempotency_key, dry_run }) => {
       if (!hasScope("write:leads")) return denyScope("create_lead", "write:leads");
-      const params = { name, phone, email, requested_service, source, city, notes, stage_name, next_follow_up, follow_up_time, pet_name, pet_breed, pet_age, pet_notes, traffic_source, utm_source, utm_medium, utm_campaign, gclid, referrer, landing_page, first_page, page_type, idempotency_key, dry_run };
+      const params = { name, phone, email, requested_service, source, city, notes, stage_name, next_follow_up, follow_up_time, pet_name, pet_breed, pet_age, pet_notes, traffic_source, utm_source, utm_medium, utm_campaign, gclid, referrer, landing_page, first_page, page_type, deal_value, idempotency_key, dry_run };
       // Attribution only when the caller actually sent something (otherwise stays "unknown")
       const attrBody: Record<string, unknown> = { traffic_source, utm_source, utm_medium, utm_campaign, gclid, referrer, landing_page, first_page, page_type };
       for (const k of Object.keys(attrBody)) if (attrBody[k] === undefined) delete attrBody[k];
@@ -702,6 +705,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
             `\nשלב: ${stage ? safeField(stage.name, 60) : "ברירת מחדל של העסק"}` +
             (followUpLabel ? `\nמעקב הבא: ${followUpLabel} (תיווצר משימת מעקב)` : "") +
             (petBlock ? `\n${safeField(petBlock.replace(/\n/g, " | "), 300)}` : "") +
+            (deal_value !== undefined ? `\nערך עסקה: ${formatIls(deal_value)}` : "") +
             (notes ? `\nהערות: ${safeField(notes, 200)}` : "") +
             (attribution ? `\nמקור תנועה: ${safeField(attrLine ?? TRAFFIC_SOURCE_LABELS[attribution.trafficSource], 300)}` : "")
           );
@@ -714,6 +718,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
           city: city ?? null,
           notes: combinedNotes,
           stage: stage?.id,
+          dealValue: deal_value ?? null,
           attribution,
         });
         let lead = result.lead;
@@ -733,7 +738,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
           : result.duplicateLead
             ? `\n⚠️ שים לב: קיים ליד קודם עם אותו טלפון — ${safeField(result.duplicateLead.name)} (id: ${result.duplicateLead.id})`
             : "";
-        const leadSummary = `✅ ליד חדש נוצר בהצלחה!\nשם: ${safeField(lead.name)}${lead.phone ? `\nטלפון: ${safeField(lead.phone, 20)}` : ""}${stage ? `\nשלב: ${safeField(stage.name, 60)}` : ""}${followUpLabel ? `\nמעקב הבא: ${followUpLabel}` : ""}${petBlock ? "\n🐾 פרטי הכלב נשמרו בהערות" : ""}${attribution ? `\nמקור תנועה: ${safeField(attrLine ?? TRAFFIC_SOURCE_LABELS[attribution.trafficSource], 300)}` : ""} (id: ${lead.id})${dupNote}${followUpWarning}`;
+        const leadSummary = `✅ ליד חדש נוצר בהצלחה!\nשם: ${safeField(lead.name)}${lead.phone ? `\nטלפון: ${safeField(lead.phone, 20)}` : ""}${stage ? `\nשלב: ${safeField(stage.name, 60)}` : ""}${lead.dealValue != null ? `\nערך עסקה: ${formatIls(lead.dealValue)}` : ""}${followUpLabel ? `\nמעקב הבא: ${followUpLabel}` : ""}${petBlock ? "\n🐾 פרטי הכלב נשמרו בהערות" : ""}${attribution ? `\nמקור תנועה: ${safeField(attrLine ?? TRAFFIC_SOURCE_LABELS[attribution.trafficSource], 300)}` : ""} (id: ${lead.id})${dupNote}${followUpWarning}`;
         await auditLog(connectionId, "create_lead", params, "success", `created lead ${lead.id}`);
         return textResult(leadSummary);
       } catch (e) {

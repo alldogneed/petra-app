@@ -5,9 +5,10 @@ import {
     BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
     LineChart, Line, PieChart, Pie, Cell, CartesianGrid,
 } from "recharts";
-import { TrendingUp, TrendingDown, Trophy, XCircle, Clock, Target, Users, CalendarRange, X } from "lucide-react";
+import { TrendingUp, TrendingDown, Trophy, XCircle, Clock, Target, Users, CalendarRange, X, Coins } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LOST_REASON_CODES, LEAD_SOURCES } from "@/lib/constants";
+import { sumDealValues, formatIls } from "@/lib/lead-deal-value";
 
 interface Lead {
     id: string;
@@ -20,7 +21,8 @@ interface Lead {
     lostAt: string | null;
     lostReasonCode: string | null;
     lostReasonText: string | null;
-    callLogs?: { id: string; createdAt: string }[];
+    dealValue?: number | null;
+    callLogs?: { id: string; createdAt: string; type?: string }[];
 }
 
 interface LeadStage {
@@ -121,10 +123,19 @@ export function LeadsReports({ leads, stages }: LeadsReportsProps) {
 
         // Average call logs per lead
         const avgCallLogs = total > 0
-            ? (filteredLeads.reduce((sum, l) => sum + (l.callLogs?.length ?? 0), 0) / total).toFixed(1)
+            ? (filteredLeads.reduce((sum, l) => sum + (l.callLogs?.filter(c => c.type !== "deal_value").length ?? 0), 0) / total).toFixed(1)
             : "0";
 
-        return { total, won, lost, active, conversionRate, lostRate, avgDaysToClose, avgCallLogs };
+        // Deal value ("ערך עסקה") — manual amount per lead, not revenue
+        const wonByStage = filteredLeads.filter(l => wonStage && l.stage === wonStage.id);
+        const wonValueLeads = wonByStage.filter(l => l.dealValue != null);
+        const wonValue = sumDealValues(wonByStage);
+        const openLeads = filteredLeads.filter(l => !(wonStage && l.stage === wonStage.id) && !(lostStage && l.stage === lostStage.id));
+        const pipelineValue = sumDealValues(openLeads);
+        const avgDealValue = wonValueLeads.length > 0 ? Math.round(wonValue / wonValueLeads.length) : null;
+        const hasDealValues = filteredLeads.some(l => l.dealValue != null);
+
+        return { total, won, lost, active, conversionRate, lostRate, avgDaysToClose, avgCallLogs, wonValue, wonValueCount: wonValueLeads.length, pipelineValue, avgDealValue, hasDealValues };
     }, [filteredLeads, wonStage, lostStage]);
 
     // ── Monthly trend (created + won per month) ──────────────────────────
@@ -336,6 +347,17 @@ export function LeadsReports({ leads, stages }: LeadsReportsProps) {
                     : kpiCard("בתהליך פעיל", kpis.active, "לידים פתוחים",
                         <Target className="w-4 h-4 text-violet-500" />, "bg-violet-50")}
             </div>
+
+            {kpis.hasDealValues && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {kpiCard("ערך עסקאות שנסגרו", formatIls(kpis.wonValue), `לידים שנוצרו בתקופה · ${kpis.wonValueCount} מתוך ${kpis.won} עם ערך`,
+                        <Coins className="w-4 h-4 text-emerald-600" />, "bg-emerald-50")}
+                    {kpiCard("ערך בצנרת", formatIls(kpis.pipelineValue), "לידים פתוחים",
+                        <Target className="w-4 h-4 text-amber-500" />, "bg-amber-50")}
+                    {kpiCard("עסקה ממוצעת", kpis.avgDealValue !== null ? formatIls(kpis.avgDealValue) : "—", "מתוך לידים שנסגרו עם ערך",
+                        <Trophy className="w-4 h-4 text-green-600" />, "bg-green-50")}
+                </div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                 {/* Monthly Trend Chart */}
