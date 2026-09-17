@@ -24,7 +24,7 @@ import { LEAD_SOURCES, LOST_REASON_CODES } from "@/lib/constants";
 import { LeadTreatmentModal } from "@/components/leads/LeadTreatmentModal";
 import LeadDetailsModal from "@/components/leads/LeadDetailsModal";
 const LeadsReports = dynamic(() => import("@/components/leads/LeadsReports").then(m => ({ default: m.LeadsReports })), { ssr: false });
-import { BarChart2 } from "lucide-react";
+import { BarChart2, Coins } from "lucide-react";
 import {
   DndContext,
   DragOverlay,
@@ -489,7 +489,11 @@ function KanbanColumn({
         )}
 
         {columnValue > 0 && (
-          <span className="text-[11px] font-semibold text-emerald-700 ms-auto whitespace-nowrap" title="סה״כ ערך עסקאות בעמודה">
+          <span
+            className="ms-auto inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-bold tabular-nums whitespace-nowrap"
+            title="סה״כ ערך עסקאות בעמודה"
+          >
+            <Coins className="w-3.5 h-3.5 text-emerald-600" />
             {formatIls(columnValue)}
           </span>
         )}
@@ -762,6 +766,11 @@ function DraggableLeadCard({
         {leadStatus === "overdue" && <AlertCircle className="w-3 h-3 text-red-500 flex-shrink-0" />}
         {leadStatus === "untouched" && <Sparkles className="w-3 h-3 text-amber-500 flex-shrink-0" />}
         <span className="text-xs font-bold text-petra-text truncate flex-1">{lead.name}</span>
+        {lead.dealValue != null && (
+          <span className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-bold tabular-nums flex-shrink-0 leading-tight" title="ערך עסקה">
+            {formatIls(lead.dealValue)}
+          </span>
+        )}
         {callLogCount > 0 && (
           <span className="flex items-center gap-0.5 text-[10px] text-brand-500 flex-shrink-0 font-medium">
             <PhoneCall className="w-2.5 h-2.5" />{callLogCount}
@@ -2350,7 +2359,12 @@ function LeadsPageContent() {
           <DragOverlay>
             {activeDragLead ? (
               <div className="card p-4 shadow-2xl opacity-90 rotate-2 w-[280px]">
-                <div className="text-sm font-bold text-petra-text">{activeDragLead.name}</div>
+                <div className="text-sm font-bold text-petra-text flex items-center gap-2">
+                  {activeDragLead.name}
+                  {activeDragLead.dealValue != null && (
+                    <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-md px-1.5">{formatIls(activeDragLead.dealValue)}</span>
+                  )}
+                </div>
                 <span className="badge-neutral text-[10px] mt-3 inline-block">
                   {LEAD_SOURCES.find((s) => s.id === activeDragLead.source)?.label || activeDragLead.source}
                 </span>
