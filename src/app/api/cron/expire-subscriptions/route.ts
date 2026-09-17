@@ -43,15 +43,19 @@ export async function GET(request: NextRequest) {
     // window: Cardcom bills them automatically and the renew-subscriptions
     // cron extends subscriptionEndsAt after each charge. Expiring them on day
     // one would lock out paying customers whenever the renewal check lags.
+    // "cancel_pending" is included as a safety net: charge-trials owns that
+    // downgrade, but it silently skipped it for months, so a cancelled customer
+    // kept a paid tier indefinitely. No grace window there — the customer asked
+    // to stop and their recurring order is already cancelled.
     const expired = await prisma.business.findMany({
       where: {
-        subscriptionStatus: "active",
         OR: [
-          { cardcomRecurringId: null,           subscriptionEndsAt: { lt: now } },
-          { cardcomRecurringId: { not: null },  subscriptionEndsAt: { lt: sevenDaysAgo } },
+          { subscriptionStatus: "active", cardcomRecurringId: null,          subscriptionEndsAt: { lt: now } },
+          { subscriptionStatus: "active", cardcomRecurringId: { not: null }, subscriptionEndsAt: { lt: sevenDaysAgo } },
+          { subscriptionStatus: "cancel_pending",                            subscriptionEndsAt: { lt: now } },
         ],
       },
-      select: { id: true, name: true, tier: true, cardcomRecurringId: true },
+      select: { id: true, name: true, tier: true, cardcomRecurringId: true, subscriptionStatus: true },
     });
 
     if (expired.length === 0) {
@@ -64,20 +68,31 @@ export async function GET(request: NextRequest) {
     }
 
     // Sequential operations (no $transaction — Supabase PgBouncer incompatible)
-    await prisma.business.updateMany({
-      where: { id: { in: expired.map((b) => b.id) } },
-      data: {
-        subscriptionStatus: "expired",
-        tier: "free",
-      },
-    });
+    const cancelledIds = expired.filter((b) => b.subscriptionStatus === "cancel_pending").map((b) => b.id);
+    const lapsedIds = expired.filter((b) => b.subscriptionStatus !== "cancel_pending").map((b) => b.id);
+
+    if (lapsedIds.length > 0) {
+      await prisma.business.updateMany({
+        where: { id: { in: lapsedIds } },
+        data: { subscriptionStatus: "expired", tier: "free" },
+      });
+    }
+    if (cancelledIds.length > 0) {
+      await prisma.business.updateMany({
+        where: { id: { in: cancelledIds } },
+        data: { subscriptionStatus: "cancelled", tier: "free", subscriptionEndsAt: null },
+      });
+    }
     for (const b of expired) {
+      const cancelled = b.subscriptionStatus === "cancel_pending";
       await prisma.subscriptionEvent.create({
         data: {
           businessId: b.id,
-          eventType: "expired",
+          eventType: cancelled ? "cancelled" : "expired",
           tier: b.tier,
-          metadata: { previousTier: b.tier, expiredAt: now.toISOString() },
+          metadata: cancelled
+            ? { previousTier: b.tier, cancelledAt: now.toISOString(), reason: "billing_period_ended" }
+            : { previousTier: b.tier, expiredAt: now.toISOString() },
         },
       });
     }
@@ -86,7 +101,7 @@ export async function GET(request: NextRequest) {
 
     // A recurring business reaching this point means 7 days passed with no
     // verified renewal — human attention required (failed card, Cardcom issue).
-    const recurringExpired = expired.filter((b) => b.cardcomRecurringId);
+    const recurringExpired = expired.filter((b) => b.cardcomRecurringId && b.subscriptionStatus === "active");
     if (recurringExpired.length > 0) {
       const esc = (v: string) => v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
       await sendEmail({
