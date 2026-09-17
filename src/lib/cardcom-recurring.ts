@@ -172,10 +172,14 @@ export async function cancelCardcomRecurring(recurringId: string): Promise<{ suc
     return { success: false, error: "Missing Cardcom credentials" };
   }
 
+  // UpdatePayments, not NewAndUpdate: without an Account block Cardcom treats
+  // NewAndUpdate as "add new payment" and rejects the RecurringId
+  // (8500 "RecurringId is not allow in Add New Payment"), so the order stayed
+  // active and the customer kept being billed after cancelling.
   const body = new URLSearchParams({
     TerminalNumber: terminalNumber,
     UserName: userName,
-    Operation: "NewAndUpdate",
+    Operation: "UpdatePayments",
     "RecurringPayments.RecurringId": recurringId,
     "RecurringPayments.IsActive": "false",
   });
@@ -190,7 +194,12 @@ export async function cancelCardcomRecurring(recurringId: string): Promise<{ suc
 
     if (data.ResponseCode !== "0") {
       console.error("Cardcom cancelRecurring error:", data);
-      return { success: false, error: data.Description ?? "Unknown error" };
+      return { success: false, error: `${data.ResponseCode}: ${data.Description ?? "Unknown error"}` };
+    }
+    // Make sure Cardcom updated THIS order rather than creating a new one.
+    if (data["Recurring0.RecurringId"] !== recurringId || data["Recurring0.IsNewRecurring"] === "true") {
+      console.error("Cardcom cancelRecurring unexpected response:", data);
+      return { success: false, error: `unexpected response (RecurringId=${data["Recurring0.RecurringId"] ?? "-"}, IsNewRecurring=${data["Recurring0.IsNewRecurring"] ?? "-"})` };
     }
 
     return { success: true };
