@@ -35,6 +35,7 @@ interface Lead {
 
 interface CallLog {
   id: string;
+  type?: string;
   summary: string;
   treatment: string;
   createdAt: string;
@@ -185,7 +186,7 @@ export default function LeadDetailsModal({
 
   // ─── Call logs ───────────────────────────────────────────────────────────
 
-  const { data: callLogs = [], isLoading } = useQuery({
+  const { data: allCallLogs = [], isLoading } = useQuery<CallLog[]>({
     queryKey: ["callLogs", lead.id],
     queryFn: () =>
       fetch(`/api/leads/${lead.id}/call-logs`).then((r) =>
@@ -193,6 +194,8 @@ export default function LeadDetailsModal({
       ),
     enabled: isOpen,
   });
+  // Deal-value journal entries are read-only system rows — shown in the lead card timeline, not here
+  const callLogs = allCallLogs.filter((log) => log.type !== "deal_value");
 
   const callLogMutation = useMutation({
     mutationFn: async (data: typeof summaryForm) => {

@@ -11,6 +11,7 @@
  */
 
 import { attributionWindowStart, buildLeadAttributionReport } from "@/lib/lead-attribution";
+import { buildLeadSalesReport, EXCLUDED_ORDER_STATUSES, type LeadSalesReport } from "@/lib/lead-deal-value";
 import type { DbClient } from "./supabase";
 import { ServiceError } from "./types";
 import { validateIsraeliPhone, validateEmail } from "@/lib/validation";
@@ -812,6 +813,51 @@ export async function getAnalytics(
   });
   const leadAttribution = buildLeadAttributionReport(attributionLeads, now);
 
+  // Lead sales — deal value of leads won in the period + orders their customers placed since closing.
+  // Money → hidden like revenue for roles that can't see it. Never merged into "revenue".
+  let leadSales: (LeadSalesReport & { pipelineValue: number; pipelineWithValueCount: number }) | null = null;
+  if (canSeeRevenue) {
+    const [wonPeriodLeads, pipelineAgg] = await Promise.all([
+      db.lead.findMany({
+        where: { businessId, stage: { in: wonStageIds }, wonAt: inPeriod },
+        select: { id: true, name: true, wonAt: true, dealValue: true, customerId: true },
+      }),
+      db.lead.aggregate({
+        where: { businessId, stage: { in: activeStageIds }, dealValue: { not: null } },
+        _sum: { dealValue: true },
+        _count: { _all: true },
+      }),
+    ]);
+    const customerIds = Array.from(new Set(wonPeriodLeads.map((l) => l.customerId).filter((id): id is string => !!id)));
+    const earliestWon = wonPeriodLeads.reduce<Date | null>(
+      (min, l) => (l.wonAt && (!min || l.wonAt < min) ? l.wonAt : min),
+      null,
+    );
+    const [customerOrders, ownerLeads] = customerIds.length > 0 && earliestWon
+      ? await Promise.all([
+          db.order.findMany({
+            where: { businessId, customerId: { in: customerIds }, createdAt: { gte: earliestWon }, status: { notIn: EXCLUDED_ORDER_STATUSES } },
+            select: { customerId: true, total: true, status: true, createdAt: true },
+          }),
+          // Every won lead of these customers (any date) — decides which closing owns each order
+          db.lead.findMany({
+            where: { businessId, customerId: { in: customerIds }, stage: { in: wonStageIds }, wonAt: { not: null } },
+            select: { id: true, wonAt: true, customerId: true },
+          }),
+        ])
+      : [[], []];
+    leadSales = {
+      ...buildLeadSalesReport(
+        wonPeriodLeads.filter((l) => l.wonAt).map((l) => ({ ...l, wonAt: l.wonAt as Date })),
+        customerOrders,
+        undefined,
+        ownerLeads.map((l) => ({ ...l, wonAt: l.wonAt as Date })),
+      ),
+      pipelineValue: Math.round((pipelineAgg._sum.dealValue ?? 0) * 100) / 100,
+      pipelineWithValueCount: pipelineAgg._count._all,
+    };
+  }
+
   // Top customers
   const topCustomerPayments = await db.payment.findMany({
     where: { businessId, status: "paid", paidAt: inPeriod },
@@ -920,6 +966,7 @@ export async function getAnalytics(
     leadsBySource,
     lostReasons,
     leadAttribution,
+    leadSales,
     training: {
       activePrograms,
       completedSessionsThisPeriod: completedTrainingSessions,

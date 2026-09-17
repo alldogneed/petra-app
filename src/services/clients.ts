@@ -9,6 +9,7 @@
  */
 
 import type { LeadAttribution } from "@/lib/lead-attribution";
+import { normalizeDealValue, describeDealValueChange } from "@/lib/lead-deal-value";
 import { Prisma } from "@prisma/client";
 import { localTimeToUtc } from "@/lib/slots";
 import type { PrismaClient } from "@prisma/client";
@@ -609,6 +610,8 @@ export interface CreateLeadInput {
   stage?: string;
   notes?: string | null;
   customerId?: string;
+  /** Manual deal value ("ערך עסקה", ILS). null/undefined = not entered. */
+  dealValue?: number | string | null;
   /** Optional traffic attribution — already normalized via normalizeAttributionInput(). */
   attribution?: LeadAttribution | null;
 }
@@ -643,6 +646,8 @@ export async function createLead(businessId: string, db: DbClient, input: Create
     if (phoneErr) throw new ServiceError(phoneErr, "VALIDATION");
   }
   if (input.notes && input.notes.length > 5000) throw new ServiceError("הערות ארוכות מדי (מקסימום 5000 תווים)", "VALIDATION");
+  const createDealValue = normalizeDealValue(input.dealValue);
+  if (!createDealValue.ok) throw new ServiceError(createDealValue.error, "VALIDATION");
 
   // Duplicate detection
   let existingCustomer: { id: string; name: string } | null = null;
@@ -696,10 +701,18 @@ export async function createLead(businessId: string, db: DbClient, input: Create
       source: input.source, stage: resolvedStage,
       notes: input.notes ?? undefined,
       customerId: input.customerId || undefined,
+      dealValue: createDealValue.value,
       ...(input.attribution ?? {}),
     },
     include: { customer: true, callLogs: true },
   });
+
+  if (createDealValue.value !== null) {
+    const log = await db.callLog.create({
+      data: { leadId: lead.id, type: "deal_value", summary: describeDealValueChange(null, createDealValue.value), treatment: "" },
+    });
+    lead.callLogs.push(log);
+  }
 
   // lead_followup automation — hooked here ONCE so every createLead caller
   // (POST /api/leads, MCP create_lead) is covered without per-route duplication.
@@ -742,6 +755,8 @@ export interface UpdateLeadInput {
   nextFollowUpAt?: string | null;
   followUpStatus?: string | null;
   previousStageId?: string | null;
+  /** Manual deal value ("ערך עסקה", ILS). null clears it. */
+  dealValue?: number | string | null;
 }
 
 /**
@@ -803,6 +818,12 @@ export async function updateLead(
   if (input.address !== undefined && input.address && input.address.length > 500) throw new ServiceError("כתובת ארוכה מדי (מקסימום 500 תווים)", "VALIDATION");
   if (input.requestedService !== undefined && input.requestedService && input.requestedService.length > 500) throw new ServiceError("שם שירות ארוך מדי (מקסימום 500 תווים)", "VALIDATION");
   if (input.lostReasonText !== undefined && input.lostReasonText && input.lostReasonText.length > 1000) throw new ServiceError("סיבת אובדן ארוכה מדי (מקסימום 1000 תווים)", "VALIDATION");
+  let nextDealValue: number | null | undefined;
+  if (input.dealValue !== undefined) {
+    const parsed = normalizeDealValue(input.dealValue);
+    if (!parsed.ok) throw new ServiceError(parsed.error, "VALIDATION");
+    nextDealValue = parsed.value;
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const data: any = {
@@ -827,9 +848,18 @@ export async function updateLead(
     ...(input.nextFollowUpAt !== undefined && { nextFollowUpAt: input.nextFollowUpAt ? new Date(input.nextFollowUpAt) : null }),
     ...(input.followUpStatus !== undefined && { followUpStatus: input.followUpStatus }),
     ...(input.previousStageId !== undefined && { previousStageId: input.previousStageId }),
+    ...(nextDealValue !== undefined && { dealValue: nextDealValue }),
   };
 
   const lead = await db.lead.update({ where: { id: leadId, businessId }, data, include: { customer: true, callLogs: true } });
+
+  // Deal value change → journal entry in the lead's history
+  if (nextDealValue !== undefined && nextDealValue !== existing.dealValue) {
+    const log = await db.callLog.create({
+      data: { leadId, type: "deal_value", summary: describeDealValueChange(existing.dealValue, nextDealValue), treatment: "" },
+    });
+    lead.callLogs.push(log);
+  }
 
   // Closing the lead (won/lost) clears its pending follow-up — unless the caller is
   // explicitly setting a new follow-up in the same call (post-sale check-in).

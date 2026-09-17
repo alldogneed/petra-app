@@ -7,11 +7,12 @@ import {
     Phone, Mail, Calendar, User, AlignLeft, X, Clock,
     CheckCircle2, History, Check, CalendarCheck,
     Trophy, XCircle, MessageSquare, Star, Zap, MessageCircle,
-    Pencil, Trash2, MapPin, Tag,
+    Pencil, Trash2, MapPin, Tag, Coins,
 } from "lucide-react";
 import { cn, toWhatsAppPhone } from "@/lib/utils";
 import { toast } from "sonner";
 import LostReasonModal from "@/components/leads/LostReasonModal";
+import { normalizeDealValue, formatIls } from "@/lib/lead-deal-value";
 
 interface Lead {
     id: string;
@@ -32,8 +33,10 @@ interface Lead {
     lostAt?: string | null;
     lostReasonCode?: string | null;
     lostReasonText?: string | null;
+    dealValue?: number | null;
     callLogs?: {
         id: string;
+        type?: string;
         summary: string;
         treatment: string;
         createdAt: string;
@@ -59,7 +62,7 @@ interface LeadTreatmentModalProps {
 
 // ─── Timeline ────────────────────────────────────────────────────────────────
 
-type TLType = "created" | "call_log" | "stage_change" | "follow_up" | "won" | "lost";
+type TLType = "created" | "call_log" | "stage_change" | "deal_value" | "follow_up" | "won" | "lost";
 
 interface TLEvent {
     id: string;
@@ -89,6 +92,12 @@ const TL_STYLES: Record<TLType, { icon: React.ReactNode; dot: string; line: stri
         dot: "bg-slate-100 text-slate-600 border-slate-300",
         line: "bg-slate-200",
         card: "bg-slate-50/50 border-slate-100",
+    },
+    deal_value: {
+        icon: <Coins className="w-3.5 h-3.5" />,
+        dot: "bg-emerald-100 text-emerald-600 border-emerald-300",
+        line: "bg-emerald-200",
+        card: "bg-emerald-50/50 border-emerald-100",
     },
     follow_up: {
         icon: <CalendarCheck className="w-3.5 h-3.5" />,
@@ -283,6 +292,11 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
     // Delete lead confirmation
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
+    // Deal value ("ערך עסקה") — edited only here, saved independently of "שמור וסגור"
+    const [editingDeal, setEditingDeal] = useState(false);
+    const [dealInput, setDealInput] = useState("");
+    const [dealError, setDealError] = useState<string | null>(null);
+
     const lostStage = stages.find((s) => s.isLost);
     const wonStage = stages.find((s) => s.isWon);
     const isClosed = (wonStage && lead?.stage === wonStage.id) || (lostStage && lead?.stage === lostStage.id);
@@ -299,6 +313,8 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
             setFollowUpError(false);
             setEditingLogId(null);
             setShowDeleteConfirm(false);
+            setEditingDeal(false);
+            setDealError(null);
             setNextFollowUpAt(lead.nextFollowUpAt ? new Date(lead.nextFollowUpAt).toISOString().slice(0, 16) : "");
             setFollowUpStatus(lead.followUpStatus || "pending");
         }
@@ -322,14 +338,16 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
             [...liveLead.callLogs]
                 .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
                 .forEach((log) => {
-                    const isStageChange = (log as { type?: string }).type === "stage_change";
+                    const isStageChange = log.type === "stage_change";
+                    const isDealValue = log.type === "deal_value";
+                    const isSystem = isStageChange || isDealValue;
                     events.push({
                         id: log.id,
-                        type: isStageChange ? "stage_change" : "call_log",
+                        type: isStageChange ? "stage_change" : isDealValue ? "deal_value" : "call_log",
                         date: log.createdAt,
-                        title: isStageChange ? "שינוי שלב" : "שיחה תועדה",
+                        title: isStageChange ? "שינוי שלב" : isDealValue ? "ערך עסקה" : "שיחה תועדה",
                         description: log.summary,
-                        action: !isStageChange && log.treatment && log.treatment !== "ללא טיפול" ? log.treatment : undefined,
+                        action: !isSystem && log.treatment && log.treatment !== "ללא טיפול" ? log.treatment : undefined,
                     });
                 });
         }
@@ -376,6 +394,29 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
             }).then((r) => r.json()),
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ["leads"] }),
         onError: () => toast.error("שגיאה בעדכון הליד. נסה שוב."),
+    });
+
+    const dealValueMutation = useMutation({
+        mutationFn: async (value: number | null) => {
+            const r = await fetch(`/api/leads/${lead!.id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ dealValue: value }),
+            });
+            const data = await r.json().catch(() => ({}));
+            if (!r.ok) throw new Error(data.error || "שגיאה בשמירת ערך העסקה");
+            return data;
+        },
+        onSuccess: async (data: { id?: string; dealValue?: number | null }) => {
+            // Patch the cached lead right away so the card never shows the old value while the list refetches
+            queryClient.setQueryData<Lead[]>(["leads"], (old) =>
+                old?.map((l) => (l.id === lead!.id ? { ...l, dealValue: data.dealValue ?? null } : l))
+            );
+            setEditingDeal(false);
+            setDealError(null);
+            await queryClient.invalidateQueries({ queryKey: ["leads"] });
+        },
+        onError: (err: Error) => setDealError(err.message),
     });
 
     const closeWonMutation = useMutation({
@@ -474,12 +515,37 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
         onError: (err: Error) => toast.error(err.message || "שגיאה במחיקת הליד. נסה שוב."),
     });
 
-    const isWorking = updateLeadMutation.isPending || closeWonMutation.isPending || closeLostMutation.isPending;
+    const isWorking = updateLeadMutation.isPending || closeWonMutation.isPending || closeLostMutation.isPending || dealValueMutation.isPending;
+
+    const currentDealValue = liveLead?.dealValue ?? null;
+
+    const startDealEdit = () => {
+        setDealInput(currentDealValue != null ? String(currentDealValue) : "");
+        setDealError(null);
+        setEditingDeal(true);
+    };
+
+    /** Returns false when the input is invalid (caller should stop). */
+    const saveDealValue = async (): Promise<boolean> => {
+        if (dealValueMutation.isPending) return false;
+        const parsed = normalizeDealValue(dealInput);
+        if (!parsed.ok) { setDealError(parsed.error); return false; }
+        if (parsed.value === currentDealValue) { setEditingDeal(false); setDealError(null); return true; }
+        try {
+            await dealValueMutation.mutateAsync(parsed.value);
+            return true;
+        } catch {
+            return false;
+        }
+    };
 
     // ── Handlers ──────────────────────────────────────────────────────────
 
     const handleSave = async () => {
         if (!lead) return;
+
+        // An open deal-value edit is saved first so "שמור וסגור" never drops it
+        if (editingDeal && !(await saveDealValue())) return;
 
         const hasCallContent = summary.trim() || treatment.trim();
 
@@ -703,6 +769,67 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                                     </div>
                                 </div>
                             )}
+                        </div>
+
+                        {/* ── Deal value ───────────────────────────────────── */}
+                        <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 px-4 py-3">
+                            <div className="flex flex-wrap items-center gap-3">
+                                <span className="flex items-center gap-1.5 text-sm font-semibold text-petra-text">
+                                    <Coins className="w-4 h-4 text-emerald-600" /> ערך עסקה
+                                </span>
+                                {editingDeal ? (
+                                    <>
+                                        <div className="relative">
+                                            <span className="absolute inset-y-0 right-3 flex items-center text-sm text-slate-400 pointer-events-none">₪</span>
+                                            <input
+                                                type="text"
+                                                inputMode="decimal"
+                                                dir="ltr"
+                                                autoFocus
+                                                aria-label="ערך עסקה בשקלים"
+                                                className={cn("input h-9 w-36 text-left pr-8", dealError && "border-red-400")}
+                                                placeholder="350"
+                                                value={dealInput}
+                                                onChange={(e) => { setDealInput(e.target.value); setDealError(null); }}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === "Enter") { e.preventDefault(); void saveDealValue(); }
+                                                    if (e.key === "Escape") { e.stopPropagation(); setEditingDeal(false); setDealError(null); }
+                                                }}
+                                            />
+                                        </div>
+                                        <button
+                                            onClick={() => void saveDealValue()}
+                                            disabled={dealValueMutation.isPending}
+                                            className="text-xs px-3 py-1.5 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 transition-colors disabled:opacity-50 flex items-center gap-1"
+                                        >
+                                            {dealValueMutation.isPending
+                                                ? <span className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
+                                                : <Check className="w-3 h-3" />}
+                                            שמור
+                                        </button>
+                                        <button
+                                            onClick={() => { setEditingDeal(false); setDealError(null); }}
+                                            disabled={dealValueMutation.isPending}
+                                            className="text-xs px-3 py-1.5 rounded-md bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+                                        >
+                                            ביטול
+                                        </button>
+                                    </>
+                                ) : (
+                                    <>
+                                        <span className={cn("text-base font-bold", currentDealValue != null ? "text-emerald-700" : "text-slate-400 text-sm font-medium")}>
+                                            {currentDealValue != null ? formatIls(currentDealValue) : "לא הוזן"}
+                                        </span>
+                                        <button
+                                            onClick={startDealEdit}
+                                            className="text-xs font-medium text-brand-600 hover:text-brand-700 underline underline-offset-2"
+                                        >
+                                            {currentDealValue != null ? "ערוך" : "הוסף ערך"}
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+                            {dealError && <p className="text-xs text-red-600 mt-1.5">{dealError}</p>}
                         </div>
 
                         {/* ── Stage Selector ──────────────────────────────── */}

@@ -231,6 +231,10 @@ export function registerBriefingTools(server: McpServer, ctx: ToolCtx): void {
           out.push(`הכנסות: ${ils(o.revenue ?? 0)} (${pct(o.revenueChange)}) | תשלומים: ${o.paymentCount ?? 0}`);
           out.push(`לקוחות חדשים: ${o.newCustomers} (${pct(o.newCustomersChange)}) | תורים: ${o.totalAppointments} (${pct(o.appointmentsChange)}) | הושלמו ${o.completedAppointments} / בוטלו ${o.canceledAppointments} (השלמה ${o.completionRate}%)`);
           out.push(`לידים: פעילים ${a.leads.active} | נסגרו ${a.leads.wonThisPeriod} | אבדו ${a.leads.lostThisPeriod} | המרה ${a.leads.conversionRate}%`);
+          if (a.leadSales) {
+            const ls = a.leadSales;
+            out.push(`מכירות מלידים (נסגרו בתקופה, לא נכלל בהכנסות): ערך עסקאות ${ils(ls.dealValueTotal)} (${ls.withValueCount}/${ls.wonCount} עם ערך) + הזמנות מאז הסגירה ${ils(ls.ordersTotal)} (${ls.ordersCount}) = ${ils(ls.total)} | ערך בצנרת ${ils(ls.pipelineValue)}`);
+          }
           out.push(`אימונים: תוכניות פעילות ${a.training.activePrograms} | מפגשים ${a.training.completedSessionsThisPeriod} | הכנסות ${ils(a.training.revenue ?? 0)}`);
           out.push(`פנסיון: ${a.boarding.staysThisPeriod} שהיות | שימור לקוחות: ${a.retention.retentionRate}% | משימות: ${a.tasks.open} פתוחות / ${a.tasks.completedThisPeriod} הושלמו`);
         }
