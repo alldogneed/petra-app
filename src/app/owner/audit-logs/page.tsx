@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Search, Loader2 } from "lucide-react";
+import { Search } from "lucide-react";
 import { fetchJSON, cn } from "@/lib/utils";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 interface AuditLogRow {
   id: string;
@@ -83,7 +84,7 @@ export default function AuditLogsPage() {
       <div className="card overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center py-16">
-            <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+            <PetraLoader size="sm" />
           </div>
         ) : (
           <table className="w-full text-sm">

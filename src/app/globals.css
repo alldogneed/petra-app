@@ -311,6 +311,37 @@ input::placeholder, textarea::placeholder { color: #64748b; }
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* ─── Petra loader (src/components/ui/PetraLoader.tsx) ─────────────── */
+@keyframes petra-bounce {
+  0%, 55%, 100% { transform: translateY(0); }
+  25% { transform: translateY(calc(-13px * var(--petra-loader-scale, 1))); }
+}
+@keyframes petra-pad-squash {
+  0%, 55%, 100% { transform: scale(1); }
+  25% { transform: scale(1.03, 0.97); }
+}
+@keyframes petra-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.petra-loader-inner { animation: petra-fade-in 0.25s ease-out; }
+.petra-loader-toe { animation: petra-bounce 1.5s ease-in-out infinite; }
+.petra-loader-pad {
+  border-radius: 48% 48% 45% 45% / 60% 60% 42% 42%;
+  background: #F9301E;
+  animation: petra-pad-squash 1.5s ease-in-out infinite;
+  animation-delay: 0.2s;
+}
+.petra-loader-wordmark {
+  font-family: var(--font-montserrat), var(--font-heebo), sans-serif;
+  font-weight: 800;
+  line-height: 1;
+  color: #0F1313;
+  direction: ltr;
+}
+@media (prefers-reduced-motion: reduce) {
+  .petra-loader-inner, .petra-loader-toe, .petra-loader-pad { animation: none; }
+}
 
 /* ─── Print: hide all modals, toasts, nav, and interactive UI ─────── */
 @media print {

@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { formatRelativeTime, formatDate, copyToClipboard } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 // NOTE: these mirror MCP_PROFILE_LABELS in src/lib/mcp-auth.ts. That module imports
 // prisma (server-only) so it can't be imported from a client component — keep the
@@ -396,7 +397,7 @@ export function McpConnectionsTab() {
 
         {isLoading ? (
           <div className="flex justify-center py-8">
-            <Loader2 className="w-6 h-6 animate-spin text-indigo-500" />
+            <PetraLoader size="sm" />
           </div>
         ) : activeConnections.length === 0 ? (
           <div className="text-center py-8 text-slate-500">

@@ -9,6 +9,7 @@ import StepBusinessDetails from "./StepBusinessDetails";
 import StepFirstService from "./StepFirstService";
 import StepFirstClient from "./StepFirstClient";
 import StepCompletion from "./StepCompletion";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 // ─── Step config ──────────────────────────────────────────────────────────────
 
@@ -186,10 +187,7 @@ export default function OnboardingWizardModal({ onClose }: OnboardingWizardModal
       <div className="modal-overlay">
         <div className="modal-backdrop" onClick={onClose} />
         <div className="modal-content max-w-2xl mx-4 p-8 flex items-center justify-center min-h-[300px]">
-          <div
-            className="w-10 h-10 rounded-full border-4 border-t-transparent animate-spin"
-            style={{ borderColor: "#F97316", borderTopColor: "transparent" }}
-          />
+          <PetraLoader size="md" />
         </div>
       </div>
     );

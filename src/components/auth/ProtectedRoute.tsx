@@ -3,7 +3,8 @@
 import { useAuth } from "@/providers/auth-provider";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { ShieldX, Loader2 } from "lucide-react";
+import { ShieldX } from "lucide-react";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 import Link from "next/link";
 import type { TenantPermission } from "@/lib/permissions";
 
@@ -33,9 +34,7 @@ export function ProtectedRoute({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <Loader2 className="w-6 h-6 animate-spin text-brand-500" />
-      </div>
+      <PetraLoader className="min-h-[60vh]" />
     );
   }
 

@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { CheckCircle, ArrowRight, Loader2 } from "lucide-react";
+import { CheckCircle, ArrowRight } from "lucide-react";
 import { Suspense } from "react";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 function PaymentSuccessContent() {
   const searchParams = useSearchParams();
@@ -25,7 +26,7 @@ function PaymentSuccessContent() {
       <div className="bg-white rounded-3xl shadow-xl p-10 max-w-md w-full text-center">
         {status === "loading" ? (
           <>
-            <Loader2 className="w-14 h-14 text-emerald-500 animate-spin mx-auto mb-6" />
+            <PetraLoader size="md" className="mb-6" />
             <h1 className="text-2xl font-bold text-slate-800">מאמת תשלום...</h1>
           </>
         ) : status === "success" ? (
@@ -85,7 +86,7 @@ export default function PaymentSuccessPage() {
   return (
     <Suspense fallback={
       <div className="min-h-screen flex items-center justify-center" dir="rtl">
-        <Loader2 className="w-10 h-10 text-emerald-500 animate-spin" />
+        <PetraLoader size="lg" />
       </div>
     }>
       <PaymentSuccessContent />

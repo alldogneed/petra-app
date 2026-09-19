@@ -10,9 +10,9 @@ import {
   ChevronRight,
   CheckCircle2,
   AlertTriangle,
-  Loader2,
-} from "lucide-react";
+  } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 interface FormInfo {
   id: string;
@@ -146,7 +146,7 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50" dir="rtl">
-        <Loader2 className="w-6 h-6 animate-spin text-orange-500" />
+        <PetraLoader size="lg" />
       </div>
     );
   }

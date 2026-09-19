@@ -6,6 +6,7 @@ import Link from "next/link";
 import { BookingsTabs } from "@/components/bookings/BookingsTabs";
 import { useAuth } from "@/providers/auth-provider"
 import { toast } from "sonner"
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -463,7 +464,7 @@ export default function AvailabilityPage() {
         <div className="divide-y divide-gray-100">
           {rulesLoading ? (
             <div className="flex justify-center py-10">
-              <div className="animate-spin w-6 h-6 border-4 border-amber-400 border-t-transparent rounded-full" />
+              <PetraLoader size="sm" />
             </div>
           ) : (
             rules.map((rule) => (

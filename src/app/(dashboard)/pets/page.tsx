@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import { TierGate } from "@/components/paywall/TierGate";
 import { usePermissions } from "@/hooks/usePermissions";
 import { ConfirmDeleteModal } from "@/components/ui/ConfirmDeleteModal";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 interface Pet {
   id: string;
@@ -611,7 +612,7 @@ function PetsPageContent() {
       {/* Loading / Error */}
       {isLoading && (
         <div className="card p-10 text-center text-petra-muted text-sm">
-          <RefreshCw className="w-6 h-6 mx-auto mb-2 animate-spin opacity-40" />
+          <PetraLoader size="sm" className="mb-2" />
           טוען...
         </div>
       )}

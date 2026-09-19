@@ -7,7 +7,7 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "מערכת ניהול מתקדמת לעסקי חיות מחמד",
     start_url: "/dashboard",
     display: "standalone",
-    background_color: "#ffffff",
+    background_color: "#F8FAFC",
     theme_color: "#1e293b",
     // "any" (not portrait-lock) so the installed PWA can rotate to landscape —
     // the calendar switches to week view in landscape (see calendar/page.tsx).

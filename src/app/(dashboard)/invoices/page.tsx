@@ -26,6 +26,7 @@ import {
 import { cn, formatCurrency, formatDate, fetchJSON } from "@/lib/utils";
 import { INVOICE_DOCUMENT_TYPES, INVOICE_STATUSES, VAT_RATE } from "@/lib/constants";
 import { isVatExempt } from "@/lib/legal-entity";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -462,7 +463,7 @@ function InvoicesPageContent() {
       {/* Table */}
       {isLoading ? (
         <div className="flex items-center justify-center py-20">
-          <Loader2 className="w-6 h-6 animate-spin text-brand-500" />
+          <PetraLoader size="sm" />
         </div>
       ) : documents.length === 0 ? (
         <div className="empty-state">

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import Image from "next/image"
 import { ChevronRight, ChevronLeft, Check, Clock, Calendar, PawPrint, User, Plus, X, MapPin, Mail, CreditCard, ExternalLink, Scissors, GraduationCap, Hotel, Sparkles, MessageCircle, CalendarPlus } from "lucide-react"
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -430,7 +431,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
   if (!business) {
     return (
       <div className="min-h-screen bg-petra-bg flex items-center justify-center">
-        <div className="animate-spin w-8 h-8 border-4 border-brand-400 border-t-transparent rounded-full" />
+        <PetraLoader size="lg" />
       </div>
     )
   }
@@ -701,7 +702,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
 
               {slotsLoading ? (
                 <div className="flex flex-col items-center justify-center py-10 gap-3">
-                  <div className="animate-spin w-6 h-6 border-4 border-brand-400 border-t-transparent rounded-full" />
+                  <PetraLoader size="sm" />
                   <p className="text-xs text-petra-muted">טוען זמינות...</p>
                 </div>
               ) : slots.length === 0 ? (

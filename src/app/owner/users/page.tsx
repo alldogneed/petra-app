@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Search, Shield, UserCheck, UserX, Plus, Loader2, X, Zap } from "lucide-react";
+import { Search, Shield, UserCheck, UserX, Plus, X, Zap } from "lucide-react";
 import Link from "next/link";
 import { fetchJSON, cn } from "@/lib/utils";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 interface PlatformUserRow {
   id: string;
@@ -96,7 +97,7 @@ export default function OwnerUsersPage() {
       <div className="card overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center py-16">
-            <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+            <PetraLoader size="sm" />
           </div>
         ) : (
           <table className="w-full">

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import Image from "next/image"
 import { Check, Clock, X, PawPrint, Calendar, User, Phone, MessageCircle, Loader2, AlertCircle } from "lucide-react"
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -84,7 +85,7 @@ export default function MyBookingPage({ params }: { params: { token: string } })
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center" dir="rtl">
-        <Loader2 className="w-8 h-8 text-brand-500 animate-spin" />
+        <PetraLoader size="lg" />
       </div>
     )
   }

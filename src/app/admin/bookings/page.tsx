@@ -13,7 +13,6 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   CalendarCheck,
-  Loader2,
   CheckCircle,
   XCircle,
   Clock,
@@ -22,6 +21,7 @@ import {
   ChevronDown,
   Filter,
 } from "lucide-react";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 interface BookingDog {
   pet: { id: string; name: string; breed: string | null };
@@ -152,7 +152,7 @@ export default function AdminBookingsPage() {
       {/* Content */}
       {isLoading ? (
         <div className="flex items-center justify-center py-16">
-          <Loader2 className="w-6 h-6 animate-spin" style={{ color: "#06B6D4" }} />
+          <PetraLoader size="sm" />
         </div>
       ) : bookings.length === 0 ? (
         <div

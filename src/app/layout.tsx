@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Heebo } from "next/font/google";
+import { Heebo, Montserrat } from "next/font/google";
 import "./globals.css";
 import { QueryProvider } from "@/providers/query-provider";
 import { AuthProvider } from "@/providers/auth-provider";
@@ -11,6 +11,14 @@ const heebo = Heebo({
   weight: ["300", "400", "500", "600", "700", "800"],
   display: "swap",
   variable: "--font-heebo",
+});
+
+// PETRA wordmark in <PetraLoader /> — matches the logo lettering
+const montserrat = Montserrat({
+  subsets: ["latin"],
+  weight: ["800"],
+  display: "swap",
+  variable: "--font-montserrat",
 });
 
 export const metadata: Metadata = {
@@ -104,7 +112,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="he" dir="rtl" className={heebo.variable}>
+    <html lang="he" dir="rtl" className={`${heebo.variable} ${montserrat.variable}`}>
       <body className={`${heebo.className} antialiased`}>
         <a href="#main-content" className="skip-link">דלג לתוכן הראשי</a>
         {/* Service Worker registration */}

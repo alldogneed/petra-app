@@ -9,6 +9,7 @@ import StepBusinessDetails from "./StepBusinessDetails";
 import StepFirstService from "./StepFirstService";
 import StepFirstClient from "./StepFirstClient";
 import StepCompletion from "./StepCompletion";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 // ─── Step config ──────────────────────────────────────────────────────────────
 
@@ -154,10 +155,7 @@ export default function OnboardingWizard() {
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-[400px]">
-        <div
-          className="w-12 h-12 rounded-full border-4 border-t-transparent animate-spin"
-          style={{ borderColor: "#F97316", borderTopColor: "transparent" }}
-        />
+        <PetraLoader size="lg" />
       </div>
     );
   }

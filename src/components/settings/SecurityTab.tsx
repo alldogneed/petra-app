@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Shield, Monitor, Smartphone, Tablet, X, CheckCircle2, AlertTriangle, Loader2 } from "lucide-react";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 interface SessionItem {
   id: string;
@@ -144,7 +145,7 @@ export function SecurityTab() {
 
         {isLoading ? (
           <div className="p-8 flex justify-center">
-            <Loader2 className="w-5 h-5 animate-spin text-petra-muted" />
+            <PetraLoader size="sm" />
           </div>
         ) : sessions.length === 0 ? (
           <div className="p-8 text-center text-sm text-petra-muted">לא נמצאו סשנים פעילים</div>

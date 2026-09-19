@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 /**
  * Wraps the dashboard.
@@ -78,15 +79,7 @@ export function OnboardingGuard({ children }: { children: ReactNode }) {
 
   if (!checked) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-petra-bg">
-        <div
-          className="w-8 h-8 rounded-full animate-spin"
-          style={{
-            border: "3px solid #F97316",
-            borderTopColor: "transparent",
-          }}
-        />
-      </div>
+      <PetraLoader size="lg" fullScreen />
     );
   }
 
