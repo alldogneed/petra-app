@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Palette, AlertTriangle, Dog, ShieldCheck, Award } from "lucide-react";
 import { fetchJSON } from "@/lib/utils";
 import { unwrapObject, type BrandingData } from "./shared";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 const DEFAULT_PRIMARY = "#f97316"; // petra orange fallback
 const DEFAULT_SECONDARY = "#1e293b";
@@ -128,12 +129,7 @@ export function BrandingTab({ businessName }: { businessName?: string | null }) 
   }
 
   if (isLoading || !form) {
-    return (
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="card p-6 animate-pulse h-80" />
-        <div className="card p-6 animate-pulse h-80" />
-      </div>
-    );
+    return <PetraLoader />;
   }
 
   const primary = isHex(form.primaryColor) ? form.primaryColor : DEFAULT_PRIMARY;

@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ConsentRow } from "@/app/api/owner/consents/route";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleString("he-IL", {
@@ -173,11 +174,7 @@ export default function AdminConsentsPage() {
       {/* Table */}
       <div className="rounded-xl border overflow-hidden" style={{ background: "#13131F", borderColor: "#1E1E2E" }}>
         {isLoading ? (
-          <div className="p-8 space-y-3">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="h-12 rounded-xl animate-pulse" style={{ background: "#1E1E2E" }} />
-            ))}
-          </div>
+          <PetraLoader />
         ) : isError ? (
           <div className="p-8 text-center text-red-400 text-sm">שגיאה בטעינת נתונים</div>
         ) : rows.length === 0 ? (

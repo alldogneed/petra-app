@@ -137,9 +137,7 @@ export default function TenantsPage() {
       {/* Table */}
       <div className="card overflow-hidden">
         {isLoading ? (
-          <div className="flex items-center justify-center py-16">
-            <PetraLoader size="sm" />
-          </div>
+          <PetraLoader />
         ) : (
           <table className="w-full">
             <thead>

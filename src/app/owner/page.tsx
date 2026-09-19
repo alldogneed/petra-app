@@ -71,9 +71,7 @@ export default function OwnerDashboard() {
 
       {/* MRR section */}
       {statsLoading ? (
-        <div className="flex items-center justify-center py-8">
-          <PetraLoader size="sm" />
-        </div>
+        <PetraLoader />
       ) : stats && (
         <div className="mb-6 space-y-4">
 
@@ -285,9 +283,7 @@ export default function OwnerDashboard() {
           </Link>
         </div>
         {logsLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <PetraLoader size="sm" />
-          </div>
+          <PetraLoader variant="inline" />
         ) : (
           <div className="divide-y divide-slate-50">
             {(!logsData?.logs || logsData.logs.length === 0) && (

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Activity, Clock, Filter, RefreshCw } from "lucide-react";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 const ACTION_LABELS: Record<string, string> = {
   LOGIN: "התחבר למערכת",
@@ -132,7 +133,7 @@ export default function AdminFeedPage() {
       {/* Feed */}
       <div className="rounded-2xl overflow-hidden" style={{ background: "#12121A", border: "1px solid #1E1E2E" }}>
         {isLoading ? (
-          <div className="p-12 text-center text-sm" style={{ color: "#64748B" }}>טוען...</div>
+          <PetraLoader />
         ) : !feed?.length ? (
           <div className="p-12 text-center">
             <Activity className="w-10 h-10 mx-auto mb-3" style={{ color: "#1E1E2E" }} />

@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { calcOrder, CalcLineInput } from "@/lib/order-calc";
 import { VAT_RATE } from "@/lib/constants";
 import { usePlan } from "@/hooks/usePlan";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -921,9 +922,7 @@ export function CreateOrderModal({
                 )}
               </label>
               {petsLoading ? (
-                <div className="text-sm text-petra-muted border border-dashed border-petra-border rounded-xl p-3 text-center animate-pulse">
-                  טוען כלבים...
-                </div>
+                <PetraLoader variant="inline" />
               ) : customerPets.length === 0 ? (
                 <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-xl">
                   <span className="text-xl leading-none mt-0.5">🐾</span>
@@ -975,9 +974,7 @@ export function CreateOrderModal({
 
           {/* Non-boarding: pet selection */}
           {!isBoardingOrder && petsLoading && (
-            <div className="rounded-xl border border-amber-100 bg-amber-50/50 p-3 text-xs text-amber-600 text-center animate-pulse">
-              טוען כלבים...
-            </div>
+            <PetraLoader variant="inline" />
           )}
           {!isBoardingOrder && !petsLoading && customerPets.length === 0 && (
             <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-xl">

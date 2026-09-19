@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ConsentRow } from "@/app/api/owner/consents/route";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleString("he-IL", {
@@ -172,11 +173,7 @@ export default function ConsentsPage() {
       {/* Table */}
       <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden">
         {isLoading ? (
-          <div className="p-8 space-y-3">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="h-12 bg-slate-700 rounded-xl animate-pulse" />
-            ))}
-          </div>
+          <PetraLoader />
         ) : isError ? (
           <div className="p-8 text-center text-red-400 text-sm">שגיאה בטעינת נתונים</div>
         ) : rows.length === 0 ? (

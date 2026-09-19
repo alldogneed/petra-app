@@ -144,11 +144,7 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
   }
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50" dir="rtl">
-        <PetraLoader size="lg" />
-      </div>
-    );
+    return <PetraLoader variant="splash" />;
   }
 
   if (error && !formInfo) {

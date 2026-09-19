@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { fetchJSON } from "@/lib/utils";
 import { heDateTime, unwrapList } from "./shared";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 export interface BusinessQuestionItem {
   id: string;
@@ -148,11 +149,7 @@ export function QuestionsTab() {
       </div>
 
       {isLoading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="card p-6 animate-pulse h-28" />
-          ))}
-        </div>
+        <PetraLoader />
       ) : questions.length === 0 ? (
         <div className="empty-state card">
           <div className="empty-state-icon">

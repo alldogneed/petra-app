@@ -18,6 +18,7 @@ import { ServiceDogsTabs } from "@/components/service-dogs/ServiceDogsTabs";
 import { COMPLIANCE_EVENT_MAP } from "@/lib/service-dogs";
 import { toast } from "sonner";
 import { TierGate } from "@/components/paywall/TierGate";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 interface ComplianceEvent {
   id: string;
@@ -173,7 +174,7 @@ function CompliancePageContent() {
 
       {/* Events List */}
       {isLoading ? (
-        <div className="card animate-pulse h-64" />
+        <PetraLoader />
       ) : filteredEvents.length === 0 ? (
         <div className="empty-state py-12">
           <CheckCircle2 className="empty-state-icon text-emerald-400" />

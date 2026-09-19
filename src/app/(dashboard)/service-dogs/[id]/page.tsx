@@ -89,6 +89,7 @@ import {
 } from "@/lib/service-dogs";
 import { toast } from "sonner";
 import { TierGate } from "@/components/paywall/TierGate";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 // ─── Types ───
 
@@ -393,12 +394,7 @@ function ServiceDogProfilePageContent() {
   });
 
   if (isLoading) {
-    return (
-      <div className="animate-fade-in space-y-4">
-        <div className="h-32 card animate-pulse" />
-        <div className="h-64 card animate-pulse" />
-      </div>
-    );
+    return <PetraLoader />;
   }
 
   if (isError || !dog) {
@@ -4997,7 +4993,7 @@ function InsuranceTab({ dogId }: { dogId: string }) {
     onError: () => toast.error("שגיאה בהוספת תביעה"),
   });
 
-  if (isLoading) return <div className="card h-40 animate-pulse" />;
+  if (isLoading) return <PetraLoader />;
 
   // Flatten all claims with insurance context
   const allClaims = insurances.flatMap((ins) =>
@@ -5472,7 +5468,7 @@ function EquipmentTab({ dogId }: { dogId: string }) {
   const activeVests = vests.filter((v) => v.isActive);
   const retiredVests = vests.filter((v) => !v.isActive);
 
-  if (isLoading) return <div className="card h-40 animate-pulse" />;
+  if (isLoading) return <PetraLoader />;
 
   return (
     <div className="space-y-4">
@@ -6391,7 +6387,7 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
   };
 
   if (isLoading) {
-    return <div className="card p-8 text-center text-petra-muted text-sm">טוען תוכנית חיסונים...</div>;
+    return <PetraLoader />;
   }
 
   const section = vaccinePlan?.[effectivePlanType];

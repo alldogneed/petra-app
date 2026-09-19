@@ -53,6 +53,7 @@ import {
   PROGRAM_TYPE_COLORS,
 } from "@/lib/training-programs";
 import { DISABILITY_TYPES } from "@/lib/service-dogs";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 // ─── Types ───────────────────────────────────────────
 
@@ -1695,11 +1696,7 @@ function TrainingPageContent() {
           <button className="btn-secondary text-sm" onClick={() => refetchPrograms()}>נסה שוב</button>
         </div>
       ) : isLoading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="card p-6 animate-pulse h-24" />
-          ))}
-        </div>
+        <PetraLoader />
       ) : (
         <>
           {/* ═══ OVERVIEW TAB ═══ */}
@@ -6868,11 +6865,7 @@ function ArchiveTab({ programs, isLoading, onRestore }: { programs: TrainingProg
   }, [programs, search, statusFilter, dateFrom, dateTo]);
 
   if (isLoading) {
-    return (
-      <div className="space-y-3">
-        {[1, 2, 3].map((i) => <div key={i} className="card p-6 animate-pulse h-20" />)}
-      </div>
-    );
+    return <PetraLoader />;
   }
 
   return (

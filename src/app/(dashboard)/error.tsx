@@ -72,7 +72,7 @@ export default function DashboardError({
     return (
       <div dir="rtl" className="flex items-center justify-center min-h-[60vh] p-6">
         <div className="text-center space-y-3">
-          <PetraLoader size="md" />
+          <PetraLoader variant="inline" />
           <p className="text-sm text-slate-500">מעדכן לגרסה החדשה...</p>
         </div>
       </div>

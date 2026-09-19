@@ -151,9 +151,7 @@ export default function AdminBookingsPage() {
 
       {/* Content */}
       {isLoading ? (
-        <div className="flex items-center justify-center py-16">
-          <PetraLoader size="sm" />
-        </div>
+        <PetraLoader />
       ) : bookings.length === 0 ? (
         <div
           className="rounded-2xl flex flex-col items-center justify-center py-16 text-center"

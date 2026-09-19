@@ -144,9 +144,7 @@ export function SecurityTab() {
         </div>
 
         {isLoading ? (
-          <div className="p-8 flex justify-center">
-            <PetraLoader size="sm" />
-          </div>
+          <PetraLoader />
         ) : sessions.length === 0 ? (
           <div className="p-8 text-center text-sm text-petra-muted">לא נמצאו סשנים פעילים</div>
         ) : (

@@ -12,6 +12,7 @@ import {
   ADULT_TREATMENTS, PUPPY_TREATMENTS, getCellStatus, formatPlannedDisplay,
   type VaccinePlan, type VaccinePlanEntry,
 } from "@/lib/vaccine-plan";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 const LOCATION_LABELS: Record<string, string> = {
   TRAINER: "מאלף",
@@ -255,7 +256,7 @@ export default function VaccinationsPage() {
 
       {/* Table */}
       {isLoading ? (
-        <div className="card p-8 text-center text-petra-muted text-sm">טוען...</div>
+        <PetraLoader />
       ) : filteredDogs.length === 0 ? (
         <div className="card p-8 text-center text-petra-muted text-sm">
           <Syringe className="w-8 h-8 mx-auto mb-2 text-slate-300" />

@@ -331,9 +331,7 @@ function CheckoutContent() {
 
               {/* Auth loading spinner */}
               {showAuthLoading && (
-                <div className="flex flex-col items-center justify-center py-16 gap-3">
-                  <PetraLoader size="sm" />
-                </div>
+                <PetraLoader variant="inline" />
               )}
 
               {/* ── Step 1: Name + Email + TOS form (new user, unauthenticated trial) ── */}
@@ -579,8 +577,8 @@ function CheckoutContent() {
 
               {/* ── Loading (authenticated flow) ── */}
               {iframeLoading && (
-                <div className="flex flex-col items-center justify-center py-24 gap-3">
-                  <PetraLoader size="sm" />
+                <div className="flex flex-col items-center justify-center pb-10">
+                  <PetraLoader variant="inline" />
                   <p className="text-xs text-slate-400">טוען דף תשלום מאובטח...</p>
                 </div>
               )}
@@ -620,11 +618,7 @@ function CheckoutContent() {
 export default function CheckoutPage() {
   return (
     <Suspense
-      fallback={
-        <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-          <PetraLoader size="lg" />
-        </div>
-      }
+      fallback={<PetraLoader variant="splash" />}
     >
       <CheckoutContent />
     </Suspense>

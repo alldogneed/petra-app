@@ -50,6 +50,7 @@ import {
   type CourseModuleItem,
   type LessonItem,
 } from "./shared";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 const LESSON_TYPES: { value: string; label: string; icon: React.ReactNode }[] = [
   { value: "video", label: "וידאו", icon: <Video className="w-3.5 h-3.5" /> },
@@ -136,11 +137,7 @@ export function CoursesTab() {
       </div>
 
       {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="card p-6 animate-pulse h-48" />
-          ))}
-        </div>
+        <PetraLoader />
       ) : courses.length === 0 ? (
         <div className="empty-state card">
           <div className="empty-state-icon">
@@ -784,13 +781,7 @@ function CourseBuilder({ courseId, onBack }: { courseId: string; onBack: () => v
   }
 
   if (isLoading || !course) {
-    return (
-      <div className="space-y-3">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="card p-6 animate-pulse h-20" />
-        ))}
-      </div>
-    );
+    return <PetraLoader />;
   }
 
   const published = course.status?.toLowerCase() === "published";

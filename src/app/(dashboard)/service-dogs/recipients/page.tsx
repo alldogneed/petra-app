@@ -38,6 +38,7 @@ import {
 } from "@/lib/service-dogs";
 import { toast } from "sonner";
 import { TierGate } from "@/components/paywall/TierGate";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 import { usePermissions } from "@/hooks/usePermissions";
 import { ImportModal } from "@/components/import/ImportModal";
 
@@ -501,9 +502,7 @@ function RecipientsPageContent() {
       </div>
 
       {isLoading ? (
-        <div className="flex gap-3 overflow-x-auto pb-4">
-          {[1,2,3,4].map((i) => <div key={i} className="card h-64 w-[240px] shrink-0 animate-pulse" />)}
-        </div>
+        <PetraLoader />
       ) : view === "kanban" ? (
         // ── Kanban view ──────────────────────────────────────────
         <DndContext

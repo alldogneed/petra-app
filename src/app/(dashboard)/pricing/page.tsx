@@ -16,6 +16,7 @@ import { cn, formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
 import { usePlan } from "@/hooks/usePlan";
 import { getMaxPriceItems } from "@/lib/feature-flags";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -858,13 +859,7 @@ function PricingPageContent() {
 
       {/* Content */}
       {isLoading ? (
-        <div className="card">
-          <div className="p-4 space-y-2">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="h-14 bg-slate-100 rounded-xl animate-pulse" />
-            ))}
-          </div>
-        </div>
+        <PetraLoader />
       ) : !priceList ? (
         /* No price list exists — offer to create one */
         <div className="empty-state py-20">

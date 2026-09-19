@@ -652,12 +652,7 @@ export default function FeedingPage() {
       )}
 
       {/* Loading */}
-      {isLoading && (
-        <div className="card p-10 text-center text-petra-muted text-sm">
-          <PetraLoader size="sm" className="mb-2" />
-          טוען...
-        </div>
-      )}
+      {isLoading && <PetraLoader />}
 
       {/* Error */}
       {isError && (

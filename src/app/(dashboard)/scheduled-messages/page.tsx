@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { cn, fetchJSON, formatDate } from "@/lib/utils";
 import { toast } from "sonner";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 interface ScheduledMessage {
   id: string;
@@ -334,19 +335,7 @@ export default function ScheduledMessagesPage() {
 
       {/* Table */}
       {isLoading ? (
-        <div className="card overflow-hidden">
-          <div className="divide-y divide-slate-100">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="p-4 animate-pulse flex gap-4 items-center">
-                <div className="w-32 h-4 bg-slate-200 rounded" />
-                <div className="w-20 h-4 bg-slate-200 rounded" />
-                <div className="flex-1 h-4 bg-slate-200 rounded" />
-                <div className="w-24 h-4 bg-slate-200 rounded" />
-                <div className="w-16 h-6 bg-slate-200 rounded-full" />
-              </div>
-            ))}
-          </div>
-        </div>
+        <PetraLoader />
       ) : messages.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon">

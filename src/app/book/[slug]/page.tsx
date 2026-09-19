@@ -429,11 +429,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
   }
 
   if (!business) {
-    return (
-      <div className="min-h-screen bg-petra-bg flex items-center justify-center">
-        <PetraLoader size="lg" />
-      </div>
-    )
+    return <PetraLoader variant="splash" />
   }
 
   const isOpenDay = (date: Date) => {
@@ -701,10 +697,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
               </div>
 
               {slotsLoading ? (
-                <div className="flex flex-col items-center justify-center py-10 gap-3">
-                  <PetraLoader size="sm" />
-                  <p className="text-xs text-petra-muted">טוען זמינות...</p>
-                </div>
+                <PetraLoader variant="inline" />
               ) : slots.length === 0 ? (
                 <div className="text-center py-8">
                   <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-3">

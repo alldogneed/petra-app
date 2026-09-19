@@ -34,7 +34,7 @@ export function ProtectedRoute({
 
   if (loading) {
     return (
-      <PetraLoader className="min-h-[60vh]" />
+      <PetraLoader />
     );
   }
 

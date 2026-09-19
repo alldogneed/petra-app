@@ -26,7 +26,7 @@ function PaymentSuccessContent() {
       <div className="bg-white rounded-3xl shadow-xl p-10 max-w-md w-full text-center">
         {status === "loading" ? (
           <>
-            <PetraLoader size="md" className="mb-6" />
+            <PetraLoader variant="inline" />
             <h1 className="text-2xl font-bold text-slate-800">מאמת תשלום...</h1>
           </>
         ) : status === "success" ? (
@@ -84,11 +84,7 @@ function PaymentSuccessContent() {
 
 export default function PaymentSuccessPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center" dir="rtl">
-        <PetraLoader size="lg" />
-      </div>
-    }>
+    <Suspense fallback={<PetraLoader variant="splash" />}>
       <PaymentSuccessContent />
     </Suspense>
   );

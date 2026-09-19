@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { cn, formatCurrency, formatDate, fetchJSON, toWhatsAppPhone } from "@/lib/utils";
 import { toast } from "sonner";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 interface Payment {
   id: string;
@@ -486,11 +487,7 @@ function PaymentsPageContent() {
 
       {/* Payments Table */}
       {isLoading ? (
-        <div className="space-y-2">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="card p-4 animate-pulse h-16" />
-          ))}
-        </div>
+        <PetraLoader />
       ) : isError ? (
         <div className="empty-state">
           <div className="empty-state-icon">

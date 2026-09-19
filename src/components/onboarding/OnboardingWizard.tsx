@@ -153,11 +153,7 @@ export default function OnboardingWizard() {
   // ─── Loading ───────────────────────────────────────────────────────────────
 
   if (isLoading) {
-    return (
-      <div className="flex justify-center items-center min-h-[400px]">
-        <PetraLoader size="lg" />
-      </div>
-    );
+    return <PetraLoader />;
   }
 
   // ─── Handlers ─────────────────────────────────────────────────────────────

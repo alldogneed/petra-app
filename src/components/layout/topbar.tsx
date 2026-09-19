@@ -1035,9 +1035,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                 {/* Members List */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-2">
                   {membersLoading ? (
-                    <div className="flex items-center justify-center py-8">
-                      <PetraLoader size="sm" />
-                    </div>
+                    <PetraLoader variant="inline" />
                   ) : !members?.length ? (
                     <div className="text-center py-8 text-sm text-petra-muted">
                       אין משתמשים

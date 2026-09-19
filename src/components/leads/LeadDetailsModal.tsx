@@ -8,6 +8,7 @@ import { formatDate, formatTime } from "@/lib/utils";
 import { LOST_REASON_CODES } from "@/lib/constants";
 import { formatAttributionLine, PAGE_TYPE_LABELS, type PageType } from "@/lib/lead-attribution";
 import LostReasonModal from "@/components/leads/LostReasonModal";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 interface Lead {
   id: string;
@@ -447,9 +448,7 @@ export default function LeadDetailsModal({
               <div className="space-y-2">
                 <h3 className="text-sm font-semibold text-petra-text">רשומות קודמות</h3>
                 {isLoading ? (
-                  <div className="text-center py-6 text-petra-muted text-sm">
-                    טוען...
-                  </div>
+                  <PetraLoader variant="inline" />
                 ) : callLogs.length === 0 ? (
                   <div className="text-center py-6 text-petra-muted text-sm">
                     אין רשומות שיחה עדיין

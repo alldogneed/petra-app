@@ -61,7 +61,7 @@ export default async function DashboardLayout({
 
   return (
     <AppShell>
-      <Suspense fallback={<PetraLoader className="min-h-[60vh]" />}>{children}</Suspense>
+      <Suspense fallback={<PetraLoader />}>{children}</Suspense>
       <InstallPWABanner />
     </AppShell>
   );

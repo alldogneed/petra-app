@@ -6,6 +6,7 @@ import { Clock, CheckCircle2, XCircle, AlertTriangle, ChevronDown, ChevronUp } f
 import { toast } from "sonner";
 import { cn, formatDate } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 interface PendingApproval {
   id: string;
@@ -126,7 +127,7 @@ export function PendingApprovalsPanel() {
           {/* Approvals list */}
           <div className="divide-y divide-slate-100">
             {isLoading ? (
-              <div className="px-5 py-6 text-center text-sm text-slate-400">טוען...</div>
+              <PetraLoader variant="inline" />
             ) : !data?.approvals.length ? (
               <div className="px-5 py-8 text-center text-sm text-slate-400">
                 {statusFilter === "PENDING" ? "אין בקשות ממתינות" : "אין פריטים"}

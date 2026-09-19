@@ -51,6 +51,7 @@ import { mapWithConcurrency } from "@/lib/concurrency";
 import { toast } from "sonner";
 import { usePlan } from "@/hooks/usePlan";
 import { getMaxTasks } from "@/lib/feature-flags";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -801,11 +802,7 @@ export default function TasksPage() {
 
       {/* Tasks List */}
       {isLoading ? (
-        <div className="space-y-3">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="card p-4 animate-pulse h-20" />
-          ))}
-        </div>
+        <PetraLoader />
       ) : isError ? (
         <div className="empty-state">
           <div className="empty-state-icon">
@@ -1117,7 +1114,7 @@ function AutomationTab({ onTasksGenerated }: { onTasksGenerated: () => void }) {
         )}
 
         {loadingTpl ? (
-          <div className="card p-8 text-center text-petra-muted text-sm">טוען...</div>
+          <PetraLoader />
         ) : templates.length === 0 ? (
           <div className="card p-8 text-center text-petra-muted text-sm">
             <LayoutTemplate className="w-8 h-8 mx-auto mb-2 opacity-30" />
@@ -1235,7 +1232,7 @@ function AutomationTab({ onTasksGenerated }: { onTasksGenerated: () => void }) {
         )}
 
         {loadingRules ? (
-          <div className="card p-8 text-center text-petra-muted text-sm">טוען...</div>
+          <PetraLoader />
         ) : rules.length === 0 ? (
           <div className="card p-8 text-center text-petra-muted text-sm">
             <Repeat2 className="w-8 h-8 mx-auto mb-2 opacity-30" />

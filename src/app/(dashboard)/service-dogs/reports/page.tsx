@@ -29,6 +29,7 @@ import {
   LOCATION_OPTIONS, LOCATION_MAP,
 } from "@/lib/service-dogs";
 import { TierGate } from "@/components/paywall/TierGate";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 interface ServiceDogSummary {
   id: string;
@@ -242,9 +243,7 @@ function ServiceDogsReportsPageContent() {
       </div>
 
       {isLoading ? (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[1,2,3,4].map((i) => <div key={i} className="card h-24 animate-pulse" />)}
-        </div>
+        <PetraLoader />
       ) : (
         <>
           {/* ── Location Distribution ────────────────────────────────────── */}

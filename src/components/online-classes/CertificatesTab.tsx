@@ -19,6 +19,7 @@ import {
   type MembershipItem,
   type CourseItem,
 } from "./shared";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 // ─── Types (mirror src/services/certificate-admin.ts, JSON-serialised) ───────
 
@@ -164,11 +165,7 @@ export function CertificatesTab() {
       </div>
 
       {isLoading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="card p-6 animate-pulse h-16" />
-          ))}
-        </div>
+        <PetraLoader />
       ) : certificates.length === 0 ? (
         <div className="empty-state card">
           <div className="empty-state-icon">
