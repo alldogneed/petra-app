@@ -6,6 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect, Suspense } from "react";
 import { useAuth } from "@/providers/auth-provider";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 // ─── Plan details for the summary panel ───────────────────────────────────────
 // Only public tiers (Free/Basic/Pro). Legacy tiers (groomer, service_dog) are
@@ -331,7 +332,7 @@ function CheckoutContent() {
               {/* Auth loading spinner */}
               {showAuthLoading && (
                 <div className="flex flex-col items-center justify-center py-16 gap-3">
-                  <Loader2 className="w-6 h-6 text-brand-500 animate-spin" />
+                  <PetraLoader size="sm" />
                 </div>
               )}
 
@@ -579,7 +580,7 @@ function CheckoutContent() {
               {/* ── Loading (authenticated flow) ── */}
               {iframeLoading && (
                 <div className="flex flex-col items-center justify-center py-24 gap-3">
-                  <Loader2 className="w-7 h-7 text-brand-500 animate-spin" />
+                  <PetraLoader size="sm" />
                   <p className="text-xs text-slate-400">טוען דף תשלום מאובטח...</p>
                 </div>
               )}
@@ -621,7 +622,7 @@ export default function CheckoutPage() {
     <Suspense
       fallback={
         <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-          <Loader2 className="w-7 h-7 text-brand-500 animate-spin" />
+          <PetraLoader size="lg" />
         </div>
       }
     >

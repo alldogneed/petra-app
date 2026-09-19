@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { Loader2, CheckCircle2, AlertCircle, RotateCcw, PenLine, ChevronLeft, ChevronRight, User, Phone, MapPin, CreditCard, FileText, Download, Clock, Dog, PawPrint, Cpu, Calendar, Heart, Palette } from "lucide-react";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 interface ContractField {
   id: string;
@@ -270,7 +271,7 @@ export default function SignContractPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="text-center space-y-3">
-          <Loader2 className="w-8 h-8 animate-spin text-orange-500 mx-auto" />
+          <PetraLoader size="md" />
           <p className="text-slate-600 text-sm">טוען חוזה...</p>
         </div>
       </div>
@@ -475,7 +476,7 @@ export default function SignContractPage() {
             {pdfLoading && (
               <div className="flex items-center justify-center bg-white" style={{ minHeight: 400 }}>
                 <div className="text-center space-y-2">
-                  <Loader2 className="w-7 h-7 animate-spin text-orange-400 mx-auto" />
+                  <PetraLoader size="sm" />
                   <p className="text-xs text-slate-400">טוען מסמך...</p>
                 </div>
               </div>

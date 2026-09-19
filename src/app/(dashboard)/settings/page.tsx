@@ -52,6 +52,7 @@ import {
   ImagePlus,
   Bot,
 } from "lucide-react";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 const RepeatIcon = Repeat;
 import { useSearchParams } from "next/navigation";
@@ -2745,7 +2746,7 @@ function DataTab() {
 
         {importPhase === "uploading" && (
           <div className="flex items-center gap-3 p-6 justify-center">
-            <Loader2 className="w-5 h-5 animate-spin text-brand-500" />
+            <PetraLoader size="sm" />
             <span className="text-sm text-petra-muted">מנתח קובץ...</span>
           </div>
         )}
@@ -2803,7 +2804,7 @@ function DataTab() {
         {(importPhase === "uploading" || importPhase === "executing") && (
           <div className="space-y-3">
             <div className="flex items-center gap-3 p-4 justify-center">
-              <Loader2 className="w-5 h-5 animate-spin text-brand-500 shrink-0" />
+              <PetraLoader size="sm" className="shrink-0" />
               <span className="text-sm text-petra-muted">
                 {importPhase === "uploading" ? "מנתח קובץ..." : "מייבא נתונים... עשוי לקחת עד דקה"}
               </span>
@@ -4034,7 +4035,7 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
                 >
                   {(pdfLoading || !pageBlobUrl) && (
                     <div className="absolute inset-0 flex items-center justify-center bg-slate-50">
-                      <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+                      <PetraLoader size="sm" />
                     </div>
                   )}
                   {pageBlobUrl && !pdfLoading && (
@@ -4289,7 +4290,7 @@ function EditContractTemplateModal({
             {/* PDF viewer (native browser rendering) + overlays */}
             <div>
               <div ref={containerRef} className="relative border border-slate-200 rounded-xl overflow-hidden bg-white" style={{ aspectRatio: `${pageDims.width} / ${pageDims.height}`, minHeight: 300 }}>
-                {(pdfLoading || (!pageBlobUrl && !pdfError)) && <div className="absolute inset-0 flex items-center justify-center bg-slate-50"><Loader2 className="w-6 h-6 animate-spin text-slate-400" /></div>}
+                {(pdfLoading || (!pageBlobUrl && !pdfError)) && <div className="absolute inset-0 flex items-center justify-center bg-slate-50"><PetraLoader size="sm" /></div>}
                 {pdfError && !pdfLoading && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-red-500">
                     <FileText className="w-8 h-8" />

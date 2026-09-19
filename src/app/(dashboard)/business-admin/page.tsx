@@ -35,6 +35,7 @@ import { formatCurrency } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
 import { usePlan } from "@/hooks/usePlan";
 import { toast } from "sonner";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 // ── Types ────────────────────────────────────────────────────────
 
@@ -1061,7 +1062,7 @@ function SystemMessagesTab() {
       <div className="bg-white border border-petra-border rounded-xl overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center py-10">
-            <div className="w-5 h-5 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+            <PetraLoader size="sm" />
           </div>
         ) : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 text-center">

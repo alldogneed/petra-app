@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Bot, Activity, CheckCircle2, AlertCircle, TrendingUp, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 interface McpStats {
   totalConnections: number;
@@ -42,7 +43,7 @@ export default function OwnerMcpPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full" />
+        <PetraLoader size="md" />
       </div>
     );
   }

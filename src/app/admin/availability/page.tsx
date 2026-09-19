@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Clock, Loader2, Save, CheckCircle } from "lucide-react";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 interface AvailabilityRule {
   id?: string;
@@ -72,7 +73,7 @@ export default function AdminAvailabilityPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-16">
-        <Loader2 className="w-6 h-6 animate-spin" style={{ color: "#06B6D4" }} />
+        <PetraLoader size="sm" />
       </div>
     );
   }

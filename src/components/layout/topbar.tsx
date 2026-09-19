@@ -34,6 +34,7 @@ import {
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/providers/auth-provider";
 import dynamic from "next/dynamic";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 const GlobalSearch = dynamic(
   () => import("@/components/search/global-search").then((m) => ({ default: m.GlobalSearch })),
@@ -1035,7 +1036,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                 <div className="flex-1 overflow-y-auto p-4 space-y-2">
                   {membersLoading ? (
                     <div className="flex items-center justify-center py-8">
-                      <div className="w-6 h-6 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+                      <PetraLoader size="sm" />
                     </div>
                   ) : !members?.length ? (
                     <div className="text-center py-8 text-sm text-petra-muted">

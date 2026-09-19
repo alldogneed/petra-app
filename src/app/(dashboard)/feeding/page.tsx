@@ -23,6 +23,7 @@ import {
 import { cn } from "@/lib/utils";
 import { BoardingTabs } from "@/components/boarding/BoardingTabs";
 import { toast } from "sonner";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -653,7 +654,7 @@ export default function FeedingPage() {
       {/* Loading */}
       {isLoading && (
         <div className="card p-10 text-center text-petra-muted text-sm">
-          <RefreshCw className="w-6 h-6 mx-auto mb-2 animate-spin opacity-40" />
+          <PetraLoader size="sm" className="mb-2" />
           טוען...
         </div>
       )}

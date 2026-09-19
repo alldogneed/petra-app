@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import { fetchJSON, cn } from "@/lib/utils";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 interface FeatureFlag {
   id: string;
@@ -66,7 +67,7 @@ export default function OwnerSettingsPage() {
 
         {isLoading ? (
           <div className="flex items-center justify-center py-10">
-            <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
+            <PetraLoader size="sm" />
           </div>
         ) : (
           <div className="divide-y divide-slate-50">

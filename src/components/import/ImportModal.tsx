@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
-import { X, Upload, Download, FileSpreadsheet, AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
+import { X, Upload, Download, FileSpreadsheet, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 interface ImportIssue {
   rowNumber: number;
@@ -178,7 +179,7 @@ export function ImportModal({ title, templateUrl, importUrl, onSuccess, onClose 
         {/* ── Uploading: Spinner ──────────────────────────── */}
         {stage === "uploading" && (
           <div className="flex flex-col items-center py-10">
-            <Loader2 className="w-8 h-8 text-brand-500 animate-spin mb-3" />
+            <PetraLoader size="md" className="mb-3" />
             <p className="text-sm text-petra-muted">...מנתח קובץ</p>
           </div>
         )}
@@ -248,7 +249,7 @@ export function ImportModal({ title, templateUrl, importUrl, onSuccess, onClose 
         {/* ── Executing: Spinner ──────────────────────────── */}
         {stage === "executing" && (
           <div className="flex flex-col items-center py-10">
-            <Loader2 className="w-8 h-8 text-brand-500 animate-spin mb-3" />
+            <PetraLoader size="md" className="mb-3" />
             <p className="text-sm text-petra-muted">...מייבא</p>
           </div>
         )}

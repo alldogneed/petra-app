@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import * as Sentry from "@sentry/nextjs";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 /**
  * A failed JS/CSS chunk load means this tab is running HTML from a previous
@@ -71,7 +72,7 @@ export default function DashboardError({
     return (
       <div dir="rtl" className="flex items-center justify-center min-h-[60vh] p-6">
         <div className="text-center space-y-3">
-          <div className="w-8 h-8 mx-auto rounded-full border-2 border-slate-200 border-t-brand-500 animate-spin" />
+          <PetraLoader size="md" />
           <p className="text-sm text-slate-500">מעדכן לגרסה החדשה...</p>
         </div>
       </div>

@@ -6,6 +6,7 @@ import { ArrowRight, Shield, Building2, UserCheck, UserX, Loader2, Check, Minus 
 import Link from "next/link";
 import { fetchJSON, cn } from "@/lib/utils";
 import { type FeatureKey, type TierKey, hasFeature } from "@/lib/feature-flags";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 // ─── Feature panel definitions ────────────────────────────────────────────────
 
@@ -313,7 +314,7 @@ export default function UserDetailPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+        <PetraLoader size="sm" />
       </div>
     );
   }

@@ -9,6 +9,7 @@ import {
   Building2, ChevronUp,
 } from "lucide-react";
 import { type FeatureKey, type TierKey, hasFeature } from "@/lib/feature-flags";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 // ─── Tier / Feature definitions ──────────────────────────────────────────────
 
@@ -985,7 +986,7 @@ function BusinessesTab() {
       {/* Business cards */}
       {isLoading ? (
         <div className="flex items-center justify-center py-16">
-          <Loader2 className="w-6 h-6 animate-spin" style={{ color: "#475569" }} />
+          <PetraLoader size="sm" />
         </div>
       ) : tenants.length === 0 ? (
         <div className="text-center py-16">
@@ -1362,7 +1363,7 @@ export default function AdminUsersPage() {
           >
             {detailLoading ? (
               <div className="p-12 text-center text-sm flex-1 flex items-center justify-center" style={{ color: "#64748B" }}>
-                <Loader2 className="w-5 h-5 animate-spin mx-auto" />
+                <PetraLoader size="sm" />
               </div>
             ) : userDetail ? (
               <>

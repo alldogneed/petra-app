@@ -1,9 +1,10 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Building2, Users, Activity, Loader2, TrendingUp, Clock, PauseCircle, CalendarCheck, AlertTriangle, Zap } from "lucide-react";
+import { Building2, Users, Activity, TrendingUp, Clock, PauseCircle, CalendarCheck, AlertTriangle, Zap } from "lucide-react";
 import Link from "next/link";
 import { fetchJSON, cn } from "@/lib/utils";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 interface TierBreakdownRow {
   tier: string;
@@ -71,7 +72,7 @@ export default function OwnerDashboard() {
       {/* MRR section */}
       {statsLoading ? (
         <div className="flex items-center justify-center py-8">
-          <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+          <PetraLoader size="sm" />
         </div>
       ) : stats && (
         <div className="mb-6 space-y-4">
@@ -285,7 +286,7 @@ export default function OwnerDashboard() {
         </div>
         {logsLoading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
+            <PetraLoader size="sm" />
           </div>
         ) : (
           <div className="divide-y divide-slate-50">

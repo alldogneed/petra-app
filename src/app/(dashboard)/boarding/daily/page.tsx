@@ -20,6 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 import { BoardingTabs } from "@/components/boarding/BoardingTabs";
 import { toast } from "sonner";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -582,7 +583,7 @@ export default function DailyCarePage() {
       {/* Loading */}
       {isLoading && (
         <div className="flex items-center justify-center py-16 text-petra-muted">
-          <RefreshCw className="w-5 h-5 animate-spin me-2" />
+          <PetraLoader size="sm" className="me-2" />
           טוען...
         </div>
       )}

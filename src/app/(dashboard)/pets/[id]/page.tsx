@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { cn, formatDate, formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -559,7 +560,7 @@ export default function PetProfilePage() {
   if (isLoading) {
     return (
       <div className="p-6 flex items-center justify-center h-64">
-        <RefreshCw className="w-6 h-6 animate-spin text-petra-muted" />
+        <PetraLoader size="sm" />
       </div>
     );
   }
