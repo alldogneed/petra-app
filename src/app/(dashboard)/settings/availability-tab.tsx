@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { cn, fetchJSON } from "@/lib/utils";
 import { toast } from "sonner";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -258,11 +259,7 @@ export default function AvailabilityTab() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   if (rulesLoading || settingsLoading) {
-    return (
-      <div className="animate-pulse space-y-3 max-w-2xl">
-        {[1, 2, 3].map((i) => <div key={i} className="h-16 bg-slate-100 rounded-xl" />)}
-      </div>
-    );
+    return <PetraLoader />;
   }
 
   const hasChanges = editedRules !== null;
@@ -415,9 +412,7 @@ export default function AvailabilityTab() {
         </div>
 
         {breaksLoading ? (
-          <div className="animate-pulse space-y-2">
-            {[1, 2].map((i) => <div key={i} className="h-12 bg-slate-100 rounded-xl" />)}
-          </div>
+          <PetraLoader variant="inline" />
         ) : breaksData.length === 0 ? (
           <div className="text-center py-4 text-sm text-petra-muted">אין הפסקות מוגדרות</div>
         ) : (
@@ -610,9 +605,7 @@ export default function AvailabilityTab() {
 
         {/* Existing blocks */}
         {blocksLoading ? (
-          <div className="animate-pulse space-y-2">
-            {[1, 2].map((i) => <div key={i} className="h-14 bg-slate-100 rounded-xl" />)}
-          </div>
+          <PetraLoader variant="inline" />
         ) : blocks.length === 0 ? (
           <div className="text-center py-6 text-sm text-petra-muted">
             <Calendar className="w-8 h-8 mx-auto mb-2 text-slate-300" />

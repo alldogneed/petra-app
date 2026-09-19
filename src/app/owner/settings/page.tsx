@@ -66,9 +66,7 @@ export default function OwnerSettingsPage() {
         </div>
 
         {isLoading ? (
-          <div className="flex items-center justify-center py-10">
-            <PetraLoader size="sm" />
-          </div>
+          <PetraLoader />
         ) : (
           <div className="divide-y divide-slate-50">
             {flags.map((flag) => {

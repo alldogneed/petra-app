@@ -17,6 +17,7 @@ import {
 } from "@/lib/service-dogs";
 import { toast } from "sonner";
 import { TierGate } from "@/components/paywall/TierGate";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 // ─── Types ───
 
@@ -271,12 +272,7 @@ function RecipientDetailPageContent() {
   };
 
   if (isLoading) {
-    return (
-      <div className="animate-fade-in space-y-4">
-        <div className="card animate-pulse h-32" />
-        <div className="card animate-pulse h-64" />
-      </div>
-    );
+    return <PetraLoader />;
   }
 
   if (isError || !recipient) {

@@ -72,6 +72,7 @@ import {
   copyToClipboard,
 } from "@/lib/utils";
 import { validateIsraeliPhone, validateEmail, sanitizeName, normalizeIsraeliPhone, validateName } from "@/lib/validation";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 const DOG_BREEDS = [
   "גולדן רטריוור", "לברדור", "בורדר קולי", "ג'ק ראסל", "פודל", "צ'יוואווה",
@@ -861,9 +862,7 @@ function PetDocumentsModal({
         </div>
 
         {isLoading ? (
-          <div className="text-center py-6 text-petra-muted text-sm">
-            טוען...
-          </div>
+          <PetraLoader variant="inline" />
         ) : docs.length === 0 ? (
           <div className="text-center py-6 text-petra-muted text-sm">
             אין מסמכים עדיין
@@ -3628,15 +3627,7 @@ export default function CustomerProfilePage() {
   });
 
   if (isLoading) {
-    return (
-      <div className="animate-pulse space-y-6">
-        <div className="h-8 w-48 bg-slate-100 rounded" />
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="h-64 bg-slate-100 rounded-2xl" />
-          <div className="lg:col-span-2 h-64 bg-slate-100 rounded-2xl" />
-        </div>
-      </div>
-    );
+    return <PetraLoader />;
   }
 
   if (isError || !customer) {

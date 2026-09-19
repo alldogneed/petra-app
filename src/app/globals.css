@@ -320,28 +320,51 @@ input::placeholder, textarea::placeholder { color: #64748b; }
   0%, 55%, 100% { transform: scale(1); }
   25% { transform: scale(1.03, 0.97); }
 }
-@keyframes petra-fade-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+/* Content-area inset: the loader centers in what is left of the viewport beside the sidebar (RTL → right) */
+@media (min-width: 768px) {
+  html:has([data-petra-shell]) { --petra-shell-inset: 240px; }
+  html:has([data-petra-shell="collapsed"]) { --petra-shell-inset: 72px; }
 }
-.petra-loader-inner { animation: petra-fade-in 0.25s ease-out; }
-.petra-loader-toe { animation: petra-bounce 1.5s ease-in-out infinite; }
+.petra-loader-page,
+.petra-loader-splash {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  pointer-events: none;
+}
+.petra-loader-page { right: var(--petra-shell-inset, 0px); z-index: 30; }
+.petra-loader-splash { right: 0; z-index: 100; background: #F8FAFC; pointer-events: auto; }
+.petra-loader-toe {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  animation: petra-bounce 1.5s ease-in-out infinite;
+}
 .petra-loader-pad {
+  width: 100%;
+  height: 100%;
   border-radius: 48% 48% 45% 45% / 60% 60% 42% 42%;
   background: #F9301E;
   animation: petra-pad-squash 1.5s ease-in-out infinite;
-  animation-delay: 0.2s;
 }
 .petra-loader-wordmark {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
   font-family: var(--font-montserrat), var(--font-heebo), sans-serif;
   font-weight: 800;
   line-height: 1;
   color: #0F1313;
   direction: ltr;
+  white-space: nowrap;
 }
 @media (prefers-reduced-motion: reduce) {
-  .petra-loader-inner, .petra-loader-toe, .petra-loader-pad { animation: none; }
+  .petra-loader-toe, .petra-loader-pad { animation: none; }
 }
+@media print { .petra-loader { display: none !important; } }
+/* The page loader portals to <body>; a card that held nothing else must not linger as an empty frame */
+.card:empty { display: none; }
 
 /* ─── Print: hide all modals, toasts, nav, and interactive UI ─────── */
 @media print {

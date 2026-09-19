@@ -359,11 +359,7 @@ function OverviewTab() {
         </div>
 
         {isLoading ? (
-          <div className="space-y-3">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-10 bg-slate-100 rounded-lg animate-pulse" />
-            ))}
-          </div>
+          <PetraLoader />
         ) : !data?.recentActivity?.length ? (
           <p className="text-sm text-petra-muted text-center py-6">אין פעילות עדיין</p>
         ) : (
@@ -454,11 +450,7 @@ function ActivityTab() {
       {/* Table */}
       <div className="card overflow-hidden">
         {isLoading ? (
-          <div className="p-6 space-y-3">
-            {[...Array(8)].map((_, i) => (
-              <div key={i} className="h-10 bg-slate-100 rounded-lg animate-pulse" />
-            ))}
-          </div>
+          <PetraLoader />
         ) : !data?.length ? (
           <div className="p-10 text-center text-sm text-petra-muted">
             אין פעילות להצגה
@@ -555,13 +547,7 @@ function TeamTab({ currentUserId }: { currentUserId: string }) {
   };
 
   if (isLoading) {
-    return (
-      <div className="card p-6 space-y-3">
-        {[...Array(4)].map((_, i) => (
-          <div key={i} className="h-16 bg-slate-100 rounded-xl animate-pulse" />
-        ))}
-      </div>
-    );
+    return <PetraLoader />;
   }
 
   return (
@@ -750,11 +736,7 @@ function SessionsTab({ currentUserId }: { currentUserId: string }) {
       </div>
 
       {isLoading ? (
-        <div className="card p-6 space-y-3">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-16 bg-slate-100 rounded-xl animate-pulse" />
-          ))}
-        </div>
+        <PetraLoader />
       ) : !data?.length ? (
         <div className="card p-10 text-center">
           <WifiOff className="w-10 h-10 text-slate-300 mx-auto mb-3" />
@@ -1061,9 +1043,7 @@ function SystemMessagesTab() {
       {/* Messages List */}
       <div className="bg-white border border-petra-border rounded-xl overflow-hidden">
         {isLoading ? (
-          <div className="flex items-center justify-center py-10">
-            <PetraLoader size="sm" />
-          </div>
+          <PetraLoader />
         ) : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 text-center">
             <MessageSquare className="w-8 h-8 text-slate-300 mb-2" />
@@ -1224,7 +1204,7 @@ function BillingTab() {
           </h3>
         </div>
         {isLoading ? (
-          <div className="p-6 space-y-3">{[1,2,3].map(i => <div key={i} className="h-12 bg-slate-100 rounded-xl animate-pulse" />)}</div>
+          <PetraLoader variant="inline" />
         ) : events.length === 0 ? (
           <div className="p-8 text-center text-petra-muted text-sm">אין עסקאות עדיין</div>
         ) : (

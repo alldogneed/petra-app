@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils";
 import { hasFeature } from "@/lib/feature-flags";
 import type { TierKey } from "@/lib/feature-flags";
 import { LEGAL_ENTITY_TYPES } from "@/lib/legal-entity";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -204,7 +205,7 @@ export default function OnboardingPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-brand-50 to-slate-50 flex items-center justify-center p-4">
       <Toaster position="top-center" dir="rtl" />
-      <Suspense fallback={<div className="text-petra-muted">טוען...</div>}>
+      <Suspense fallback={<PetraLoader variant="splash" />}>
         <OnboardingInner />
       </Suspense>
     </div>

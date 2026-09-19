@@ -79,7 +79,7 @@ export function OnboardingGuard({ children }: { children: ReactNode }) {
 
   if (!checked) {
     return (
-      <PetraLoader size="lg" fullScreen />
+      <PetraLoader variant="splash" />
     );
   }
 

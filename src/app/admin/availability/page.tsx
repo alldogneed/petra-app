@@ -71,11 +71,7 @@ export default function AdminAvailabilityPage() {
   }
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-16">
-        <PetraLoader size="sm" />
-      </div>
-    );
+    return <PetraLoader />;
   }
 
   return (

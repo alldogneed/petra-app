@@ -418,11 +418,7 @@ function TeamMembersRow({ userId }: { userId: string }) {
   });
 
   if (isLoading) {
-    return (
-      <div className="flex items-center gap-2 py-2 text-xs" style={{ color: "#64748B" }}>
-        <Loader2 className="w-3.5 h-3.5 animate-spin" /> טוען חברי צוות...
-      </div>
-    );
+    return <PetraLoader variant="inline" />;
   }
 
   const members = data?.businessMemberships?.[0]?.business?.members ?? [];
@@ -725,9 +721,7 @@ function BusinessCard({ biz, initialExpand = false }: { biz: TenantListItem; ini
       {expanded && (
         <div className="px-5 py-4 space-y-3">
           {detailLoading ? (
-            <div className="flex items-center gap-2 text-xs py-2" style={{ color: "#64748B" }}>
-              <Loader2 className="w-3.5 h-3.5 animate-spin" /> טוען...
-            </div>
+            <PetraLoader variant="inline" />
           ) : (
             <>
               {/* Owner */}
@@ -985,9 +979,7 @@ function BusinessesTab() {
 
       {/* Business cards */}
       {isLoading ? (
-        <div className="flex items-center justify-center py-16">
-          <PetraLoader size="sm" />
-        </div>
+        <PetraLoader />
       ) : tenants.length === 0 ? (
         <div className="text-center py-16">
           <Building2 className="w-10 h-10 mx-auto mb-3" style={{ color: "#1E1E2E" }} />
@@ -1198,7 +1190,7 @@ export default function AdminUsersPage() {
       {/* Table */}
       <div className="rounded-2xl overflow-hidden" style={{ background: "#12121A", border: "1px solid #1E1E2E" }}>
         {isLoading ? (
-          <div className="p-12 text-center text-sm" style={{ color: "#64748B" }}>טוען...</div>
+          <PetraLoader />
         ) : !users.length ? (
           <div className="p-12 text-center">
             <Users className="w-10 h-10 mx-auto mb-3" style={{ color: "#1E1E2E" }} />
@@ -1362,9 +1354,7 @@ export default function AdminUsersPage() {
             onClick={(e) => e.stopPropagation()}
           >
             {detailLoading ? (
-              <div className="p-12 text-center text-sm flex-1 flex items-center justify-center" style={{ color: "#64748B" }}>
-                <PetraLoader size="sm" />
-              </div>
+              <PetraLoader variant="inline" />
             ) : userDetail ? (
               <>
                 {/* Modal header */}

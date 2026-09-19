@@ -37,6 +37,7 @@ import { toast } from "sonner";
 import { usePlan } from "@/hooks/usePlan";
 import { getMaxAppointments } from "@/lib/feature-flags";
 import { TierGate } from "@/components/paywall/TierGate";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 // ─── Interfaces ──────────────────────────────────────────────────────────────
 
@@ -1098,7 +1099,7 @@ function CalendarContent() {
   const today = toLocalDateString(new Date());
 
   // ── Data queries ──
-  const { data: appointments = [], isError: appointmentsError } = useQuery<AppointmentEvent[]>({
+  const { data: appointments = [], isError: appointmentsError, isLoading: appointmentsLoading } = useQuery<AppointmentEvent[]>({
     queryKey: ["appointments", from, to],
     queryFn: () =>
       fetchJSON(`/api/appointments?from=${from}&to=${to}`),
@@ -1740,6 +1741,7 @@ function CalendarContent() {
   return (
     <div>
       <PageTitle title="יומן" />
+      {appointmentsLoading && <PetraLoader />}
       {appointmentsError && (
         <div className="mb-4 flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
           <AlertCircle className="w-4 h-4 flex-shrink-0" />

@@ -31,6 +31,7 @@ import {
 import { TierGate } from "@/components/paywall/TierGate";
 import { useAuth } from "@/providers/auth-provider";
 import { toast } from "sonner";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 /* ─────────────── Types ─────────────── */
 
@@ -724,14 +725,7 @@ function SchedulerContent() {
           )}
 
           {selectedServiceId && selectedDate && slotsLoading && (
-            <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="h-11 rounded-lg bg-gray-100 animate-pulse"
-                />
-              ))}
-            </div>
+            <PetraLoader variant="inline" />
           )}
 
           {selectedServiceId &&

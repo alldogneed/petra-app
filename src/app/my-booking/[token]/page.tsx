@@ -83,11 +83,7 @@ export default function MyBookingPage({ params }: { params: { token: string } })
   }
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center" dir="rtl">
-        <PetraLoader size="lg" />
-      </div>
-    )
+    return <PetraLoader variant="splash" />
   }
 
   if (error || !booking) {

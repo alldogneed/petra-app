@@ -57,6 +57,7 @@ import { usePlan } from "@/hooks/usePlan";
 import { usePermissions } from "@/hooks/usePermissions";
 import { formatCurrency, fetchJSON, cn, toWhatsAppPhone, copyToClipboard } from "@/lib/utils";
 import { validateIsraeliPhone, validateEmail, sanitizeName, validateName, normalizeIsraeliPhone } from "@/lib/validation";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 import dynamic from "next/dynamic";
 const SetupChecklist = dynamic(
   () => import("@/components/onboarding/SetupChecklist").then((m) => ({ default: m.SetupChecklist })),
@@ -78,7 +79,11 @@ const RevenueChart = dynamic(
   () => import("@/components/dashboard/RevenueChart"),
   {
     ssr: false,
-    loading: () => <div className="card p-5 h-[280px] animate-pulse bg-slate-100 rounded-2xl" />,
+    loading: () => (
+      <div className="card p-5 h-[280px] flex items-center justify-center">
+        <PetraLoader variant="inline" />
+      </div>
+    ),
   }
 );
 
@@ -515,69 +520,6 @@ function ActivityFeed({ activities }: { activities: ActivityItem[] }) {
           </div>
         );
       })}
-    </div>
-  );
-}
-
-// ─── Loading Skeleton ────────────────────────────────────────────────────────
-
-function DashboardSkeleton() {
-  return (
-    <div className="space-y-6">
-      <PageTitle title="לוח בקרה" />
-      {/* Header skeleton */}
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="h-7 w-48 bg-slate-100 rounded mb-2 animate-pulse" />
-          <div className="h-4 w-32 bg-slate-100 rounded animate-pulse" />
-        </div>
-        <div className="h-10 w-32 bg-slate-100 rounded-xl animate-pulse" />
-      </div>
-      {/* Stat cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="card p-5 animate-pulse">
-            <div className="w-11 h-11 bg-slate-100 rounded-xl mb-4" />
-            <div className="h-7 w-16 bg-slate-100 rounded mb-2" />
-            <div className="h-4 w-24 bg-slate-100 rounded" />
-          </div>
-        ))}
-      </div>
-      {/* Chart + appointments */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="card p-5 animate-pulse">
-          <div className="h-5 w-24 bg-slate-100 rounded mb-4" />
-          <div className="h-[220px] bg-slate-50 rounded-xl" />
-        </div>
-        <div className="card p-5 animate-pulse">
-          <div className="h-5 w-24 bg-slate-100 rounded mb-4" />
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="flex items-center gap-3 py-3">
-              <div className="w-8 h-8 bg-slate-100 rounded-lg" />
-              <div className="flex-1">
-                <div className="h-4 w-32 bg-slate-100 rounded mb-1" />
-                <div className="h-3 w-20 bg-slate-100 rounded" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-      {/* Orders + activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {[1, 2].map((i) => (
-          <div key={i} className="card p-5 animate-pulse">
-            <div className="h-5 w-28 bg-slate-100 rounded mb-4" />
-            {[1, 2, 3].map((j) => (
-              <div key={j} className="flex items-center gap-3 py-2.5">
-                <div className="w-7 h-7 bg-slate-100 rounded-lg" />
-                <div className="flex-1">
-                  <div className="h-4 w-36 bg-slate-100 rounded" />
-                </div>
-              </div>
-            ))}
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
@@ -2193,7 +2135,14 @@ export default function DashboardPage() {
     [completeTaskMutation]
   );
 
-  if (isLoading) return <DashboardSkeleton />;
+  if (isLoading) {
+    return (
+      <>
+        <PageTitle title="לוח בקרה" />
+        <PetraLoader />
+      </>
+    );
+  }
   if (!data) return null;
 
   const todayStr = new Date().toLocaleDateString("he-IL", {

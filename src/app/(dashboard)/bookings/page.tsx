@@ -23,6 +23,7 @@ import {
 import { cn, fetchJSON, formatCurrency, formatRelativeTime, toWhatsAppPhone, copyToClipboard } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
 import { TierGate } from "@/components/paywall/TierGate";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 interface BookingData {
   id: string;
@@ -215,11 +216,7 @@ function BookingsContent() {
 
       {/* Bookings List */}
       {isLoading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="card p-5 animate-pulse h-24" />
-          ))}
-        </div>
+        <PetraLoader />
       ) : bookings.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon">

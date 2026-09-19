@@ -370,11 +370,7 @@ function BusinessTab() {
     mutation.mutate(form);
   }
 
-  if (isLoading) return (
-    <div className="animate-pulse space-y-3 max-w-xl">
-      {[1, 2, 3].map((i) => <div key={i} className="h-12 bg-slate-100 rounded-xl" />)}
-    </div>
-  );
+  if (isLoading) return <PetraLoader />;
   if (!editing) return null;
 
   const TierIcon = TIER_ICONS[editing.tier as keyof typeof TIER_ICONS] ?? Star;
@@ -737,7 +733,7 @@ function BoardingSettingsTab() {
     onError: () => toast.error("שגיאה בשמירת ההגדרות"),
   });
 
-  if (isLoading) return <div className="animate-pulse space-y-3 max-w-xl">{[1,2].map((i) => <div key={i} className="h-12 bg-slate-100 rounded-xl" />)}</div>;
+  if (isLoading) return <PetraLoader />;
   if (!editing) return null;
 
   return (
@@ -820,7 +816,7 @@ function BookingTab() {
     onError: () => toast.error("שגיאה בשמירת ההגדרות"),
   });
 
-  if (isLoading) return <div className="animate-pulse space-y-3 max-w-xl">{[1,2,3].map((i) => <div key={i} className="h-12 bg-slate-100 rounded-xl" />)}</div>;
+  if (isLoading) return <PetraLoader />;
 
   return (
     <div className="space-y-8">
@@ -1114,14 +1110,7 @@ function IntegrationsTab() {
     onError: () => toast.error("שגיאה בניתוק Stripe. נסה שוב."),
   });
 
-  if (isLoading)
-    return (
-      <div className="animate-pulse space-y-3 max-w-2xl">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="h-24 bg-slate-100 rounded-xl" />
-        ))}
-      </div>
-    );
+  if (isLoading) return <PetraLoader />;
 
   return (
     <div className="space-y-4 max-w-2xl">
@@ -1226,7 +1215,7 @@ function IntegrationsTab() {
                         })}
                       </div>
                     ) : (
-                      <div className="text-xs text-petra-muted">טוען יומנים...</div>
+                      <PetraLoader variant="inline" />
                     )}
                   </div>
                 </div>
@@ -1826,7 +1815,7 @@ function MakeWebhookCard() {
         </div>
 
         {keyLoading ? (
-          <div className="h-10 bg-slate-100 rounded-lg animate-pulse" />
+          <PetraLoader variant="inline" />
         ) : hasKey ? (
           <div className="flex gap-2">
             <input
@@ -1958,11 +1947,7 @@ function InvoicingTab() {
   const isConnected = settings?.status === "active";
 
   if (isLoading) {
-    return (
-      <div className="animate-pulse space-y-3 max-w-2xl">
-        {[1, 2, 3].map((i) => <div key={i} className="h-20 bg-slate-100 rounded-xl" />)}
-      </div>
-    );
+    return <PetraLoader />;
   }
 
   // Parse mapping for display
@@ -2744,13 +2729,6 @@ function DataTab() {
           </div>
         )}
 
-        {importPhase === "uploading" && (
-          <div className="flex items-center gap-3 p-6 justify-center">
-            <PetraLoader size="sm" />
-            <span className="text-sm text-petra-muted">מנתח קובץ...</span>
-          </div>
-        )}
-
         {importPhase === "preview" && importStats && (
           <div className="space-y-4">
             <div className="flex items-center gap-2 p-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 text-sm">
@@ -2803,8 +2781,8 @@ function DataTab() {
 
         {(importPhase === "uploading" || importPhase === "executing") && (
           <div className="space-y-3">
-            <div className="flex items-center gap-3 p-4 justify-center">
-              <PetraLoader size="sm" className="shrink-0" />
+            <div className="text-center pb-4">
+              <PetraLoader variant="inline" className="pb-3" />
               <span className="text-sm text-petra-muted">
                 {importPhase === "uploading" ? "מנתח קובץ..." : "מייבא נתונים... עשוי לקחת עד דקה"}
               </span>
@@ -2943,11 +2921,7 @@ function TeamTab() {
   });
 
   if (isLoading) {
-    return (
-      <div className="animate-pulse space-y-3 max-w-2xl">
-        {[1, 2, 3].map((i) => <div key={i} className="h-20 bg-slate-100 rounded-xl" />)}
-      </div>
-    );
+    return <PetraLoader />;
   }
 
   return (
@@ -3261,7 +3235,7 @@ function ServiceDogsSettingsTab() {
   });
 
   if (isLoading) {
-    return <div className="space-y-4 animate-pulse">{[...Array(3)].map((_, i) => <div key={i} className="h-16 bg-slate-100 rounded-xl" />)}</div>;
+    return <PetraLoader />;
   }
 
   function toggle(field: keyof SdSettings) {
@@ -3539,7 +3513,7 @@ function ContractsTab() {
   });
 
   if (isLoading) {
-    return <div className="space-y-3 animate-pulse">{[1,2].map((i) => <div key={i} className="h-16 bg-slate-100 rounded-xl" />)}</div>;
+    return <PetraLoader />;
   }
 
   return (
@@ -4035,7 +4009,7 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
                 >
                   {(pdfLoading || !pageBlobUrl) && (
                     <div className="absolute inset-0 flex items-center justify-center bg-slate-50">
-                      <PetraLoader size="sm" />
+                      <PetraLoader variant="inline" />
                     </div>
                   )}
                   {pageBlobUrl && !pdfLoading && (
@@ -4290,7 +4264,7 @@ function EditContractTemplateModal({
             {/* PDF viewer (native browser rendering) + overlays */}
             <div>
               <div ref={containerRef} className="relative border border-slate-200 rounded-xl overflow-hidden bg-white" style={{ aspectRatio: `${pageDims.width} / ${pageDims.height}`, minHeight: 300 }}>
-                {(pdfLoading || (!pageBlobUrl && !pdfError)) && <div className="absolute inset-0 flex items-center justify-center bg-slate-50"><PetraLoader size="sm" /></div>}
+                {(pdfLoading || (!pageBlobUrl && !pdfError)) && <div className="absolute inset-0 flex items-center justify-center bg-slate-50"><PetraLoader variant="inline" /></div>}
                 {pdfError && !pdfLoading && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-red-500">
                     <FileText className="w-8 h-8" />

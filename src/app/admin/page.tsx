@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Users, TrendingUp, UserPlus, Activity, Clock, Zap, ShieldOff, BarChart2 } from "lucide-react";
 import Link from "next/link";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 const ACTION_LABELS: Record<string, string> = {
   LOGIN: "התחבר למערכת",
@@ -170,7 +171,7 @@ export default function AdminDashboardPage() {
           </div>
 
           {usersLoading ? (
-            <div className="p-8 text-center text-sm" style={{ color: "#64748B" }}>טוען...</div>
+            <PetraLoader variant="inline" />
           ) : !usersData?.users?.length ? (
             <div className="p-8 text-center text-sm" style={{ color: "#64748B" }}>אין משתמשים עדיין</div>
           ) : (
@@ -228,7 +229,7 @@ export default function AdminDashboardPage() {
 
           <div className="max-h-[420px] overflow-y-auto">
             {feedLoading ? (
-              <div className="p-8 text-center text-sm" style={{ color: "#64748B" }}>טוען...</div>
+              <PetraLoader variant="inline" />
             ) : !feed?.length ? (
               <div className="p-8 text-center text-sm" style={{ color: "#64748B" }}>אין פעילות עדיין</div>
             ) : (

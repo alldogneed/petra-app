@@ -58,6 +58,7 @@ import {
 import { cn, fetchJSON, toWhatsAppPhone } from "@/lib/utils";
 import { BoardingTabs } from "@/components/boarding/BoardingTabs";
 import { toast } from "sonner";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -2064,12 +2065,7 @@ function CareLogModal({ stayId, petName, onClose }: { stayId: string; petName: s
         </div>
 
         {/* Log timeline */}
-        {isLoading && (
-          <div className="text-center py-4 text-petra-muted text-sm">
-            <RefreshCw className="w-4 h-4 mx-auto animate-spin mb-1" />
-            טוען...
-          </div>
-        )}
+        {isLoading && <PetraLoader variant="inline" />}
         {!isLoading && logs.length === 0 && (
           <p className="text-center text-sm text-petra-muted py-4">אין רישומים עדיין</p>
         )}
@@ -3328,9 +3324,7 @@ function BoardingPageContent() {
         </div>
 
         {isLoading ? (
-          <div className="space-y-3">
-            {[1, 2, 3].map((i) => <div key={i} className="card p-4 animate-pulse h-20" />)}
-          </div>
+          <PetraLoader />
         ) : isError ? (
           <div className="empty-state">
             <div className="empty-state-icon">

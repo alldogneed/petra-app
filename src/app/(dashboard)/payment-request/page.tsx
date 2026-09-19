@@ -24,6 +24,7 @@ import {
 import { toast } from "sonner";
 import { cn, toWhatsAppPhone, fetchJSON } from "@/lib/utils";
 import { TierGate } from "@/components/paywall/TierGate";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 // ─── Types ────────────────────────────────────────────────────────
 
@@ -538,11 +539,7 @@ function PaymentRequestContent() {
 
             {/* Product Grid */}
             {productsLoading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className="rounded-xl border border-slate-200 p-4 animate-pulse h-24" />
-                ))}
-              </div>
+              <PetraLoader variant="inline" />
             ) : products.length === 0 ? (
               <div className="text-center py-8">
                 <ShoppingBag className="w-8 h-8 text-slate-300 mx-auto mb-2" />

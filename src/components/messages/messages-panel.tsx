@@ -30,6 +30,7 @@ import { cn, fetchJSON, toWhatsAppPhone } from "@/lib/utils";
 import { toast } from "sonner";
 import { TEMPLATE_VARIABLES } from "@/lib/constants";
 import { usePlan } from "@/hooks/usePlan";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -688,7 +689,7 @@ function TemplatesTab() {
         )}
         <div className="space-y-3">
           {isLoading ? (
-            [1, 2, 3, 4].map((i) => <div key={i} className="card p-4 animate-pulse h-16" />)
+            <PetraLoader />
           ) : (
             AUTOMATION_TRIGGERS.map((trigger) => {
               const linked = templates.find(
@@ -817,7 +818,7 @@ function TemplatesTab() {
       {(true && (
         <div className="space-y-3 mt-2">
           {isLoading
-            ? [1, 2, 3, 4].map((i) => <div key={i} className="card p-4 animate-pulse h-16" />)
+            ? <PetraLoader />
             : MANUAL_STARTERS.map((starter) => {
                 const dbVersion = manualTemplates.find((t) => t.name === starter.label);
                 const isCustomized = !!dbVersion;
@@ -1248,9 +1249,7 @@ function BulkSendTab() {
           <p className="text-sm text-petra-muted">בחר תבנית הודעה כדי לראות את הלקוחות ולשלוח הודעות</p>
         </div>
       ) : isLoading ? (
-        <div className="space-y-2">
-          {[1, 2, 3].map((i) => <div key={i} className="card p-3 animate-pulse h-14" />)}
-        </div>
+        <PetraLoader />
       ) : filteredCustomers.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon"><Users className="w-6 h-6 text-slate-400" /></div>

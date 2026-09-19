@@ -439,11 +439,7 @@ export default function VaccinationsPage() {
       </div>
 
       {/* Loading / Error / Empty */}
-      {isLoading && (
-        <div className="card p-10 text-center text-petra-muted text-sm">
-          <PetraLoader size="sm" className="mb-2" />טוען...
-        </div>
-      )}
+      {isLoading && <PetraLoader />}
       {isError && (
         <div className="card p-8 text-center text-red-500 text-sm">שגיאה בטעינת נתונים</div>
       )}

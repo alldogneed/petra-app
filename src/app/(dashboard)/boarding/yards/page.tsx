@@ -10,6 +10,7 @@ import {
 import { cn, fetchJSON } from "@/lib/utils";
 import { BoardingTabs } from "@/components/boarding/BoardingTabs";
 import { toast } from "sonner";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -596,7 +597,7 @@ export default function YardsPage() {
       )}
 
       {yardsLoading ? (
-        <div className="card p-8 text-center text-sm text-petra-muted">טוען חצרות...</div>
+        <PetraLoader />
       ) : yards.length === 0 ? (
         <div className="card p-12 text-center">
           <div className="w-16 h-16 rounded-2xl bg-teal-50 flex items-center justify-center mx-auto mb-4">

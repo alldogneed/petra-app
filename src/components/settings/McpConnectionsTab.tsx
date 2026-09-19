@@ -396,9 +396,7 @@ export function McpConnectionsTab() {
         )}
 
         {isLoading ? (
-          <div className="flex justify-center py-8">
-            <PetraLoader size="sm" />
-          </div>
+          <PetraLoader />
         ) : activeConnections.length === 0 ? (
           <div className="text-center py-8 text-slate-500">
             <Bot className="w-10 h-10 mx-auto mb-2 text-slate-300" />

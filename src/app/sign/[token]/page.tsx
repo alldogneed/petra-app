@@ -268,14 +268,7 @@ export default function SignContractPage() {
 
   // ── Loading ──────────────────────────────────────────────────────────────────
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="text-center space-y-3">
-          <PetraLoader size="md" />
-          <p className="text-slate-600 text-sm">טוען חוזה...</p>
-        </div>
-      </div>
-    );
+    return <PetraLoader variant="splash" />;
   }
 
   // ── Already signed (409) ─────────────────────────────────────────────────────
@@ -475,10 +468,7 @@ export default function SignContractPage() {
           <div className="relative bg-white">
             {pdfLoading && (
               <div className="flex items-center justify-center bg-white" style={{ minHeight: 400 }}>
-                <div className="text-center space-y-2">
-                  <PetraLoader size="sm" />
-                  <p className="text-xs text-slate-400">טוען מסמך...</p>
-                </div>
+                <PetraLoader variant="inline" />
               </div>
             )}
             {pdfError && !pdfLoading && (

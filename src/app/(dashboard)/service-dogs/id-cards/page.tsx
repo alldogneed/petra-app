@@ -21,6 +21,7 @@ import { ServiceDogsTabs } from "@/components/service-dogs/ServiceDogsTabs";
 import { SERVICE_DOG_PHASE_COLORS, SERVICE_DOG_PHASE_MAP } from "@/lib/service-dogs";
 import { toast } from "sonner";
 import { TierGate } from "@/components/paywall/TierGate";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 interface ServiceDogSummary {
   id: string;
@@ -310,9 +311,7 @@ function IDCardsPageContent() {
         </div>
 
         {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {[1, 2, 3].map((i) => <div key={i} className="card animate-pulse h-40" />)}
-          </div>
+          <PetraLoader />
         ) : dogsWithCards.length === 0 ? (
           <div className="empty-state py-10">
             <CreditCard className="empty-state-icon" />

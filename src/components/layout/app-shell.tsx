@@ -32,7 +32,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { user, exitImpersonation } = useAuth();
   return (
     <PWAInstallProvider>
-    <div className="min-h-screen">
+    <div className="min-h-screen" data-petra-shell={collapsed ? "collapsed" : "open"}>
       {/* Impersonation banner */}
       {user?.isImpersonating && (
         <div className="bg-red-600 text-white text-sm px-4 py-2.5 flex items-center justify-between sticky top-0 z-50">

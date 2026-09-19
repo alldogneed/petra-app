@@ -22,6 +22,7 @@ import {
   type OnlineClassItem,
   type ClassRegistration,
 } from "./shared";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 const REG_STATUS: Record<string, { label: string; cls: string }> = {
   registered: { label: "רשום", cls: "badge-success" },
@@ -159,11 +160,7 @@ export function LiveClassesTab() {
       </div>
 
       {isLoading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="card p-6 animate-pulse h-24" />
-          ))}
-        </div>
+        <PetraLoader />
       ) : classes.length === 0 ? (
         <div className="empty-state card">
           <div className="empty-state-icon">
@@ -388,11 +385,7 @@ function RegistrationsModal({
   return (
     <Modal title={`נרשמים — ${cls.title}`} onClose={onClose} maxWidth="max-w-lg">
       {isLoading ? (
-        <div className="space-y-2">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-12 rounded-xl bg-slate-100 animate-pulse" />
-          ))}
-        </div>
+        <PetraLoader variant="inline" />
       ) : registrations.length === 0 ? (
         <div className="empty-state py-10">
           <div className="empty-state-icon">

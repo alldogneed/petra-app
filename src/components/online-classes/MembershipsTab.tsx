@@ -7,6 +7,7 @@ import { Plus, UserCheck, AlertTriangle, Pencil } from "lucide-react";
 import { fetchJSON } from "@/lib/utils";
 import { Modal, heDate, unwrapList, type MembershipItem } from "./shared";
 import { StudentDossier } from "./StudentDossier";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 const STATUS_META: Record<string, { label: string; cls: string }> = {
   pending: { label: "ממתין לאישור", cls: "badge-warning" },
@@ -132,11 +133,7 @@ export function MembershipsTab() {
       </div>
 
       {isLoading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="card p-6 animate-pulse h-20" />
-          ))}
-        </div>
+        <PetraLoader />
       ) : memberships.length === 0 ? (
         <div className="empty-state card">
           <div className="empty-state-icon">

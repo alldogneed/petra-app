@@ -187,7 +187,7 @@ export default function OnboardingWizardModal({ onClose }: OnboardingWizardModal
       <div className="modal-overlay">
         <div className="modal-backdrop" onClick={onClose} />
         <div className="modal-content max-w-2xl mx-4 p-8 flex items-center justify-center min-h-[300px]">
-          <PetraLoader size="md" />
+          <PetraLoader variant="inline" />
         </div>
       </div>
     );

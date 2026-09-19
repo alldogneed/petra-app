@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { Users, TrendingUp, UserPlus, ShieldOff, Zap, BarChart2 } from "lucide-react";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 const ACTION_LABELS: Record<string, string> = {
   LOGIN: "כניסות למערכת",
@@ -147,7 +148,7 @@ export default function AdminStatsPage() {
         <div className="lg:col-span-2 rounded-2xl p-5" style={{ background: "#12121A", border: "1px solid #1E1E2E" }}>
           <h2 className="text-sm font-semibold text-white mb-4">פעילות יומית (14 יום אחרונים)</h2>
           {isLoading ? (
-            <div className="h-40 flex items-center justify-center text-sm" style={{ color: "#64748B" }}>טוען...</div>
+            <PetraLoader />
           ) : (
             <div className="flex items-end gap-1.5 h-40">
               {stats?.dailyActivity.map((day) => {
@@ -178,7 +179,7 @@ export default function AdminStatsPage() {
             <p className="text-[10px] mt-0.5" style={{ color: "#475569" }}>30 ימים אחרונים</p>
           </div>
           {isLoading ? (
-            <div className="p-8 text-center text-sm" style={{ color: "#64748B" }}>טוען...</div>
+            <PetraLoader />
           ) : !stats?.topUsers?.length ? (
             <div className="p-8 text-center text-sm" style={{ color: "#64748B" }}>אין נתונים</div>
           ) : (
@@ -217,7 +218,7 @@ export default function AdminStatsPage() {
           <p className="text-[10px] mt-0.5" style={{ color: "#475569" }}>30 ימים אחרונים · טופ 10</p>
         </div>
         {isLoading ? (
-          <div className="p-8 text-center text-sm" style={{ color: "#64748B" }}>טוען...</div>
+          <PetraLoader />
         ) : !stats?.activityByAction?.length ? (
           <div className="p-8 text-center text-sm" style={{ color: "#64748B" }}>אין נתוני פעילות</div>
         ) : (

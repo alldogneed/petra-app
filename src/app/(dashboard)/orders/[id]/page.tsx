@@ -11,6 +11,7 @@ import {
 import { cn, formatDate, toWhatsAppPhone } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 interface OrderLine {
   id: string;
@@ -404,13 +405,7 @@ export default function OrderDetailPage() {
   }
 
   if (isLoading) {
-    return (
-      <div className="space-y-4 animate-pulse">
-        <div className="h-6 w-48 bg-slate-100 rounded-lg" />
-        <div className="h-32 bg-slate-100 rounded-2xl" />
-        <div className="h-64 bg-slate-100 rounded-2xl" />
-      </div>
-    );
+    return <PetraLoader />;
   }
 
   if (!order || (order as { error?: string }).error) {

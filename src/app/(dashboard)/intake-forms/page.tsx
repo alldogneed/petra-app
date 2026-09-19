@@ -20,6 +20,7 @@ import {
 import { cn, toWhatsAppPhone, copyToClipboard } from "@/lib/utils";
 import { BoardingTabs } from "@/components/boarding/BoardingTabs";
 import { TierGate } from "@/components/paywall/TierGate";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 const STATUS_LABELS: Record<string, string> = {
   DRAFT: "טיוטה",
@@ -169,7 +170,7 @@ function ViewResponsesModal({
         </div>
 
         {isLoading ? (
-          <div className="py-8 text-center text-petra-muted text-sm">טוען...</div>
+          <PetraLoader variant="inline" />
         ) : isError ? (
           <div className="py-8 text-center text-red-500 text-sm">שגיאה בטעינת התשובות</div>
         ) : !submission ? (
@@ -540,10 +541,11 @@ function IntakeFormsContent() {
       </div>
 
       {/* Table */}
+      {isLoading ? (
+        <PetraLoader />
+      ) : (
       <div className="card overflow-hidden">
-        {isLoading ? (
-          <div className="p-8 text-center text-petra-muted text-sm">טוען...</div>
-        ) : filtered.length === 0 ? (
+        {filtered.length === 0 ? (
           <div className="empty-state py-12">
             <div className="empty-state-icon">
               <ClipboardList className="w-8 h-8" />
@@ -688,6 +690,7 @@ function IntakeFormsContent() {
           </div>
         )}
       </div>
+      )}
 
       <NewIntakeModal isOpen={showNewModal} onClose={() => setShowNewModal(false)} />
 

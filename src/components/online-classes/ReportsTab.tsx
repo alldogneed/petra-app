@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { fetchJSON } from "@/lib/utils";
 import { Modal, heDate, unwrapList } from "./shared";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 // ─── Types (mirror src/services/online-classes-reports.ts, JSON-serialised) ──
 
@@ -170,20 +171,7 @@ export function ReportsTab() {
   }
 
   if (isLoading) {
-    return (
-      <div className="space-y-4">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="card p-4 h-[72px] animate-pulse" />
-          ))}
-        </div>
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="card p-6 h-24 animate-pulse" />
-          ))}
-        </div>
-      </div>
-    );
+    return <PetraLoader />;
   }
 
   return (
@@ -448,11 +436,7 @@ function StudentDetailModal({
           </button>
         </div>
       ) : isLoading ? (
-        <div className="space-y-2">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-16 rounded-xl bg-slate-100 animate-pulse" />
-          ))}
-        </div>
+        <PetraLoader variant="inline" />
       ) : (
         <div className="space-y-4 max-h-[65vh] overflow-y-auto">
           <div className="flex items-center gap-2 flex-wrap text-xs text-petra-muted">

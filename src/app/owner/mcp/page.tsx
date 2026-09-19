@@ -41,11 +41,7 @@ export default function OwnerMcpPage() {
   });
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <PetraLoader size="md" />
-      </div>
-    );
+    return <PetraLoader />;
   }
 
   if (!data) return null;

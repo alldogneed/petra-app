@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { fetchJSON } from "@/lib/utils";
 import { Modal, heDate, heDateTime } from "./shared";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 // ─── Types (mirror src/services/student-dossier.ts; dates arrive as ISO strings) ─
 
@@ -302,15 +303,7 @@ export function StudentDossier({
       maxWidth="max-w-3xl"
     >
       {isLoading ? (
-        <div className="space-y-3">
-          <div className="card p-6 animate-pulse h-24" />
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="card animate-pulse h-16" />
-            ))}
-          </div>
-          <div className="card p-6 animate-pulse h-32" />
-        </div>
+        <PetraLoader variant="inline" />
       ) : isError || !data ? (
         <div className="card p-8 text-center">
           <AlertTriangle className="w-8 h-8 mx-auto mb-3 text-red-400" />

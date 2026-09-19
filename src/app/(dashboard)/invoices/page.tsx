@@ -462,9 +462,7 @@ function InvoicesPageContent() {
 
       {/* Table */}
       {isLoading ? (
-        <div className="flex items-center justify-center py-20">
-          <PetraLoader size="sm" />
-        </div>
+        <PetraLoader />
       ) : documents.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon">

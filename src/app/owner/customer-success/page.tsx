@@ -15,6 +15,7 @@ import {
   MessageCircle,
   Phone,
 } from "lucide-react";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 interface CSRow {
   businessId: string;
@@ -185,7 +186,7 @@ export default function CustomerSuccessPage() {
       {/* Table */}
       <div className="rounded-xl overflow-hidden" style={{ background: "#0D0D14", border: "1px solid #1E1E2E" }}>
         {isLoading ? (
-          <div className="p-8 text-center text-slate-500 text-sm">טוען...</div>
+          <PetraLoader />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

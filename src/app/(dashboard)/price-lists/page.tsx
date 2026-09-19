@@ -4,12 +4,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
 import {
   Plus, X, Search, Edit2, Copy, Tag, Package, Clock,
-  CheckCircle2, XCircle, Layers, Link2, Share2, Trash2,
+  CheckCircle2, XCircle, Link2, Share2, Trash2,
   ChevronUp, ChevronDown, AlertTriangle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { triggerLimitModal } from "@/lib/limit-reached";
 import { toast } from "sonner";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -518,14 +519,7 @@ export default function PriceListPage() {
   }, [filtered]);
 
   if (!priceList && !isLoading) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full text-center">
-        <div className="empty-state-icon mx-auto">
-          <Layers className="w-7 h-7 text-slate-400" />
-        </div>
-        <p className="text-sm text-petra-muted">טוען מחירון...</p>
-      </div>
-    );
+    return <PetraLoader />;
   }
 
   return (
@@ -623,9 +617,7 @@ export default function PriceListPage() {
       {/* Items grouped by category */}
       <div className="flex-1 overflow-y-auto card">
         {isLoading ? (
-          <div className="p-4 space-y-2">
-            {[1, 2, 3, 4].map((i) => <div key={i} className="h-14 bg-slate-100 rounded-xl animate-pulse" />)}
-          </div>
+          <PetraLoader />
         ) : filtered.length === 0 ? (
           <div className="py-16 text-center">
             <div className="empty-state-icon mx-auto">

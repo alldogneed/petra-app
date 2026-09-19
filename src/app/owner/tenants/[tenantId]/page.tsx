@@ -327,11 +327,7 @@ export default function TenantDetailPage() {
 
   // ── Loading / error ───────────────────────────────────────────────────────────
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <PetraLoader size="sm" />
-      </div>
-    );
+    return <PetraLoader />;
   }
   if (error || !tenant) {
     return (

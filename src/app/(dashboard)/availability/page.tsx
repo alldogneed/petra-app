@@ -463,9 +463,7 @@ export default function AvailabilityPage() {
 
         <div className="divide-y divide-gray-100">
           {rulesLoading ? (
-            <div className="flex justify-center py-10">
-              <PetraLoader size="sm" />
-            </div>
+            <PetraLoader variant="inline" />
           ) : (
             rules.map((rule) => (
               <div

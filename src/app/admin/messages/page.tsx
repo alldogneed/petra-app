@@ -18,6 +18,7 @@ import {
   Trash2,
   Eye,
 } from "lucide-react";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 const MESSAGE_TYPES = [
   { value: "info",    label: "מידע",    icon: Info,           color: "#06B6D4" },
@@ -529,7 +530,7 @@ export default function AdminMessagesPage() {
 
           <div className="overflow-y-auto max-h-[600px]">
             {historyLoading ? (
-              <div className="p-8 text-center text-sm" style={{ color: "#64748B" }}>טוען...</div>
+              <PetraLoader variant="inline" />
             ) : !broadcasts.length ? (
               <div className="p-8 text-center">
                 <Megaphone className="w-8 h-8 mx-auto mb-3" style={{ color: "#1E1E2E" }} />

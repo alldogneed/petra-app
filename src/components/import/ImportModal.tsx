@@ -178,8 +178,8 @@ export function ImportModal({ title, templateUrl, importUrl, onSuccess, onClose 
 
         {/* ── Uploading: Spinner ──────────────────────────── */}
         {stage === "uploading" && (
-          <div className="flex flex-col items-center py-10">
-            <PetraLoader size="md" className="mb-3" />
+          <div className="flex flex-col items-center pb-10">
+            <PetraLoader variant="inline" />
             <p className="text-sm text-petra-muted">...מנתח קובץ</p>
           </div>
         )}
@@ -248,8 +248,8 @@ export function ImportModal({ title, templateUrl, importUrl, onSuccess, onClose 
 
         {/* ── Executing: Spinner ──────────────────────────── */}
         {stage === "executing" && (
-          <div className="flex flex-col items-center py-10">
-            <PetraLoader size="md" className="mb-3" />
+          <div className="flex flex-col items-center pb-10">
+            <PetraLoader variant="inline" />
             <p className="text-sm text-petra-muted">...מייבא</p>
           </div>
         )}

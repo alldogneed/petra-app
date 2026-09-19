@@ -30,6 +30,7 @@ import { TRAFFIC_SOURCE_LABELS, formatMonthKey, type LeadAttributionReport } fro
 import { formatIls, type LeadSalesReport } from "@/lib/lead-deal-value";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { TierGate } from "@/components/paywall/TierGate";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 interface AnalyticsData {
   period: string;
@@ -284,18 +285,7 @@ function AnalyticsContent() {
       </div>
 
       {isLoading ? (
-        <div className="space-y-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="card p-5 animate-pulse h-28" />
-            ))}
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {[1, 2].map((i) => (
-              <div key={i} className="card p-5 animate-pulse h-64" />
-            ))}
-          </div>
-        </div>
+        <PetraLoader />
       ) : isError ? (
         <div className="card p-8 text-center">
           <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-3" />

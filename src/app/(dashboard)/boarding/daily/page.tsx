@@ -581,12 +581,7 @@ export default function DailyCarePage() {
       )}
 
       {/* Loading */}
-      {isLoading && (
-        <div className="flex items-center justify-center py-16 text-petra-muted">
-          <PetraLoader size="sm" className="me-2" />
-          טוען...
-        </div>
-      )}
+      {isLoading && <PetraLoader />}
 
       {/* Empty state */}
       {!isLoading && stays.length === 0 && (

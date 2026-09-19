@@ -44,6 +44,7 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 interface Lead {
   id: string;
@@ -1524,7 +1525,7 @@ function LeadsPageContent() {
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  const { data: leads = [], isFetching: leadsLoading, refetch: refetchLeads } = useQuery<Lead[]>({
+  const { data: leads = [], isFetching: leadsLoading, isLoading: leadsInitialLoading, refetch: refetchLeads } = useQuery<Lead[]>({
     queryKey: ["leads"],
     queryFn: () => fetchJSON<Lead[]>("/api/leads"),
   });
@@ -1890,6 +1891,7 @@ function LeadsPageContent() {
 
   return (
     <div>
+      {leadsInitialLoading && <PetraLoader />}
       {/* ── Row 1: Main Actions ── */}
       <div className="flex items-center gap-3 mb-3 flex-wrap">
         {/* Right: title */}

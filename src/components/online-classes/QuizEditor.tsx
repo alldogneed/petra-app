@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Plus, Trash2, AlertTriangle, HelpCircle } from "lucide-react";
 import { fetchJSON } from "@/lib/utils";
 import { Modal } from "./shared";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -300,11 +301,7 @@ export function QuizEditor({
   return (
     <Modal title={`בוחן — ${moduleTitle}`} onClose={onClose} maxWidth="max-w-2xl">
       {isLoading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-16 rounded-xl bg-slate-100 animate-pulse" />
-          ))}
-        </div>
+        <PetraLoader variant="inline" />
       ) : isError ? (
         <div className="text-center py-8">
           <AlertTriangle className="w-8 h-8 mx-auto mb-3 text-red-400" />

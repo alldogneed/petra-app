@@ -34,6 +34,7 @@ import {
 import { cn, formatCurrency, formatDate, toWhatsAppPhone, escapeHtml } from "@/lib/utils";
 import { toast } from "sonner";
 import dynamic from "next/dynamic";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 const CreateOrderModal = dynamic(
   () => import("@/components/orders/CreateOrderModal").then((m) => ({ default: m.CreateOrderModal })),
   { ssr: false }
@@ -675,11 +676,7 @@ function OrdersPageContent() {
 
       {/* ── Table ──────────────────────────────────────────────────────── */}
       {isLoading ? (
-        <div className="card p-6 space-y-3 animate-pulse">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="h-12 bg-slate-100 rounded-xl" />
-          ))}
-        </div>
+        <PetraLoader />
       ) : isOrdersError ? (
         <div className="card">
           <div className="empty-state py-20">

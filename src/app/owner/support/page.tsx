@@ -5,6 +5,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { LifeBuoy, CheckCircle, Clock, AlertCircle, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 interface SupportTicket {
   id: string;
@@ -112,11 +113,7 @@ export default function OwnerSupportPage() {
 
       {/* Ticket list */}
       {isLoading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-24 bg-slate-100 rounded-xl animate-pulse" />
-          ))}
-        </div>
+        <PetraLoader />
       ) : tickets.length === 0 ? (
         <div className="text-center py-16 text-slate-400">
           <LifeBuoy className="w-10 h-10 mx-auto mb-3 opacity-40" />

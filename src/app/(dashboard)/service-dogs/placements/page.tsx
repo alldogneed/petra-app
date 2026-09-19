@@ -30,6 +30,7 @@ import {
 } from "@/lib/service-dogs";
 import { toast } from "sonner";
 import { TierGate } from "@/components/paywall/TierGate";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 interface Placement {
   id: string;
@@ -274,7 +275,7 @@ function PlacementsPageContent() {
 
       {/* Table */}
       {isLoading ? (
-        <div className="card animate-pulse h-64" />
+        <PetraLoader />
       ) : filtered.length === 0 ? (
         <div className="empty-state">
           <Activity className="empty-state-icon" />

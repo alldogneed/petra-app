@@ -5,6 +5,7 @@ import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Mail, Lock, Eye, EyeOff, LogIn } from "lucide-react";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 const GOOGLE_ERROR_MESSAGES: Record<string, string> = {
   google_config: "חיבור Google לא מוגדר. פנה למנהל המערכת.",
@@ -28,6 +29,7 @@ function LoginForm() {
     googleError ? GOOGLE_ERROR_MESSAGES[googleError] || "שגיאה בהתחברות עם Google" : ""
   );
   const [loading, setLoading] = useState(false);
+  const [entering, setEntering] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -48,6 +50,7 @@ function LoginForm() {
         return;
       }
 
+      setEntering(true);
       window.location.href = "/dashboard";
     } catch {
       setError("שגיאה בהתחברות. נסה שוב.");
@@ -58,6 +61,7 @@ function LoginForm() {
 
   return (
     <div className="w-full max-w-[400px]">
+      {entering && <PetraLoader variant="splash" />}
       {/* Brand */}
       <div className="flex items-center gap-3 mb-9">
         <div className="w-11 h-11 rounded-xl border border-slate-200 bg-white shadow-card flex items-center justify-center overflow-hidden">

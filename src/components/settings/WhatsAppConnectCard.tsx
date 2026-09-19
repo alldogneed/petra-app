@@ -9,6 +9,7 @@ import {
 import { cn, fetchJSON } from "@/lib/utils";
 import { TierGate } from "@/components/paywall/TierGate";
 import type { WaConnectionStatus } from "@/lib/whatsapp-connections";
+import { PetraLoader } from "@/components/ui/PetraLoader";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 declare global {
@@ -254,8 +255,8 @@ export function WhatsAppConnectCard() {
   /* ── Render ──────────────────────────────────────────────────────────── */
   if (isLoading) {
     return (
-      <div className="card p-5 flex items-center gap-2 text-sm text-petra-muted">
-        <Loader2 className="w-4 h-4 animate-spin" /> טוען מצב חיבור WhatsApp…
+      <div className="card p-5">
+        <PetraLoader variant="inline" />
       </div>
     );
   }
