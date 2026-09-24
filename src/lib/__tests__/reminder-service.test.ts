@@ -22,6 +22,7 @@ jest.mock("@/lib/prisma", () => ({
       findUnique: jest.fn(),
     },
     scheduledMessage: {
+      findFirst: jest.fn(),
       create: jest.fn(),
       updateMany: jest.fn(),
     },
@@ -45,6 +46,8 @@ describe("Reminder Service", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // Default mock implementations
+    // No existing PENDING/SENT reminder → dedup check lets every message through
+    (mockPrisma.scheduledMessage.findFirst as jest.Mock).mockResolvedValue(null);
     (mockPrisma.scheduledMessage.create as jest.Mock).mockResolvedValue({ id: "msg-1" });
     (mockPrisma.scheduledMessage.updateMany as jest.Mock).mockResolvedValue({ count: 0 });
     (mockPrisma.analyticsEvent.create as jest.Mock).mockResolvedValue({ id: "evt-1" });
@@ -225,6 +228,50 @@ describe("Reminder Service", () => {
       expect(mockPrisma.scheduledMessage.create).not.toHaveBeenCalled();
     });
 
+    it("should skip messages that already have a PENDING/SENT reminder", async () => {
+      const futureDate = new Date();
+      futureDate.setDate(futureDate.getDate() + 7);
+
+      (mockPrisma.trainingGroupSession.findUnique as jest.Mock).mockResolvedValue({
+        id: "session-1",
+        sessionDatetime: futureDate,
+        status: "SCHEDULED",
+        trainingGroup: {
+          id: "group-1",
+          businessId: "demo-business-001",
+          name: "Dedup Group",
+          location: null,
+          reminderEnabled: true,
+          reminderLeadHours: 48,
+          reminderSameDay: false,
+          participants: [
+            { id: "p-1", status: "ACTIVE", customer: { id: "c-1", name: "A" }, dog: { id: "d-1", name: "B" } },
+            { id: "p-2", status: "ACTIVE", customer: { id: "c-2", name: "C" }, dog: { id: "d-2", name: "D" } },
+          ],
+        },
+      });
+      // c-1 already has a reminder queued; c-2 does not
+      (mockPrisma.scheduledMessage.findFirst as jest.Mock).mockImplementation(
+        async ({ where }: { where: { customerId: string } }) =>
+          where.customerId === "c-1" ? { id: "existing-1" } : null
+      );
+
+      const result = await scheduleGroupSessionReminders("session-1");
+
+      expect(result).toHaveLength(1);
+      expect(mockPrisma.scheduledMessage.create).toHaveBeenCalledTimes(1);
+      expect((mockPrisma.scheduledMessage.create as jest.Mock).mock.calls[0][0].data.customerId).toBe("c-2");
+      expect(mockPrisma.scheduledMessage.findFirst).toHaveBeenCalledWith({
+        where: {
+          relatedEntityType: "GROUP_SESSION",
+          relatedEntityId: "session-1",
+          templateKey: "GROUP_SESSION_REMINDER_48H",
+          customerId: "c-1",
+          status: { in: ["PENDING", "SENT"] },
+        },
+      });
+    });
+
     it("should use default location text when location is null", async () => {
       const futureDate = new Date();
       futureDate.setDate(futureDate.getDate() + 7);
@@ -331,6 +378,7 @@ describe("Reminder Service", () => {
 
       (mockPrisma.trainingGroupParticipant.findUnique as jest.Mock).mockResolvedValue({
         id: "p-new",
+        trainingGroupId: "group-1",
         status: "ACTIVE",
         customer: { id: "c-1", name: "New Customer" },
         dog: { id: "d-1", name: "New Dog" },
@@ -357,6 +405,7 @@ describe("Reminder Service", () => {
     it("should not schedule reminders for non-ACTIVE participants", async () => {
       (mockPrisma.trainingGroupParticipant.findUnique as jest.Mock).mockResolvedValue({
         id: "p-paused",
+        trainingGroupId: "group-1",
         status: "PAUSED",
         customer: { id: "c-1", name: "Paused" },
         dog: { id: "d-1", name: "Dog" },
@@ -368,9 +417,26 @@ describe("Reminder Service", () => {
       expect(mockPrisma.scheduledMessage.create).not.toHaveBeenCalled();
     });
 
+    it("should not schedule reminders when participant belongs to another group", async () => {
+      (mockPrisma.trainingGroupParticipant.findUnique as jest.Mock).mockResolvedValue({
+        id: "p-other",
+        trainingGroupId: "group-other",
+        status: "ACTIVE",
+        customer: { id: "c-1", name: "A" },
+        dog: { id: "d-1", name: "B" },
+      });
+
+      const result = await scheduleRemindersForNewParticipant("group-1", "p-other");
+
+      expect(result).toHaveLength(0);
+      expect(mockPrisma.trainingGroup.findUnique).not.toHaveBeenCalled();
+      expect(mockPrisma.scheduledMessage.create).not.toHaveBeenCalled();
+    });
+
     it("should not schedule reminders when group has reminders disabled", async () => {
       (mockPrisma.trainingGroupParticipant.findUnique as jest.Mock).mockResolvedValue({
         id: "p-1",
+        trainingGroupId: "group-1",
         status: "ACTIVE",
         customer: { id: "c-1", name: "A" },
         dog: { id: "d-1", name: "B" },
