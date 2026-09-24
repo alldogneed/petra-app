@@ -23,6 +23,8 @@ export const META_TEMPLATES = {
   boardingThankYou: ["petra_boarding_stay_summary", "petra_boarding_thank_you_v2", "petra_boarding_thank_you"],
   /** Reuses the appointment reminder templates: {{4}} carries the dog name */
   trainingSessionReminder: ["petra_appointment_reminder_v2", "petra_appointment_reminder"],
+  /** {{1}} name · {{2}} date · {{3}} time · {{4}} service · ({{5}} business phone — v2 only) */
+  appointmentConfirmation: ["petra_appointment_confirmation_v2", "petra_appointment_confirmation"],
 } as const;
 
 /** Steps whose params contain an empty string are dropped (Meta rejects empty params). */
@@ -32,6 +34,24 @@ export function appointmentReminderChain(p: { customerName: string; date: string
     { name: v2, params: [p.customerName, p.date, p.time, p.serviceName, p.businessPhone] },
     { name: legacy, params: [p.customerName, p.date, p.time, p.serviceName] },
   ]);
+}
+
+/**
+ * Sent right when an appointment is booked — usually to a customer who has not
+ * messaged the business in 24h, so a free-text body (e.g. a business's custom
+ * confirmation text) only works as the last fallback (Meta 131047 otherwise).
+ */
+export function appointmentConfirmationChain(p: { customerName: string; date: string; time: string; serviceName: string; businessPhone: string }): TemplateStep[] {
+  const [v2, legacy] = META_TEMPLATES.appointmentConfirmation;
+  return buildTemplateChain([
+    { name: v2, params: [p.customerName, p.date, p.time, p.serviceName, p.businessPhone] },
+    { name: legacy, params: [p.customerName, p.date, p.time, p.serviceName] },
+  ]);
+}
+
+/** Free-text confirmation used only when every template fails and no custom text is set. */
+export function defaultConfirmationText(p: { customerName: string; date: string; time: string; serviceName: string }): string {
+  return `שלום ${p.customerName}, התור שלך ל${p.serviceName} נקבע ל${p.date} בשעה ${p.time}. נתראה!`;
 }
 
 export function leadFollowupChain(p: { leadName: string; serviceName: string; businessPhone: string }): TemplateStep[] {

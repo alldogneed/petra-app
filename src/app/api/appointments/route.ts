@@ -3,9 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { logCurrentUserActivity } from "@/lib/activity-log";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
-import { scheduleAppointmentReminder, scheduleAppointmentFollowup } from "@/lib/reminder-service";
+import { scheduleAppointmentReminder, scheduleAppointmentFollowup, appointmentConfirmationChain, defaultConfirmationText } from "@/lib/reminder-service";
+import { sendWithTemplateChain } from "@/lib/whatsapp-template-chain";
 import { syncAppointmentToGcal } from "@/lib/google-calendar";
-import { sendWhatsAppTemplate, sendWhatsAppMessage, interpolateTemplate } from "@/lib/whatsapp";
+import { interpolateTemplate } from "@/lib/whatsapp";
 import { toWhatsAppPhone } from "@/lib/utils";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { getMaxAppointments, normalizeTier, hasFeatureWithOverrides } from "@/lib/feature-flags";
@@ -109,34 +110,25 @@ export async function POST(request: NextRequest) {
           : null;
 
         if (confirmationRule && !alreadySent) {
-        if (confirmationRule?.template?.body) {
-          const msgBody = interpolateTemplate(confirmationRule.template.body, {
-            customerName: appointment.customer.name,
-            date: formattedDate,
-            time: appointment.startTime,
-            serviceName,
-            petName: appointment.pet?.name ?? "",
-          });
-          await sendWhatsAppMessage({ to: phone, body: msgBody, businessId: authResult.businessId, context: "appointment_confirmation" }).catch((err) =>
-            console.error("Appointment confirmation WA (custom) failed:", err)
-          );
-        } else {
-          // Use the _v2 template (footer phone param) only when a phone exists;
-          // Meta rejects empty params, so fall back to the original 4-param template.
-          const contactPhone = (business?.phone ?? "").trim();
-          const templateSend = contactPhone
-            ? {
-                templateName: "petra_appointment_confirmation_v2",
-                bodyParams: [appointment.customer.name, formattedDate, appointment.startTime, serviceName, contactPhone],
-              }
-            : {
-                templateName: "petra_appointment_confirmation",
-                bodyParams: [appointment.customer.name, formattedDate, appointment.startTime, serviceName],
-              };
-          await sendWhatsAppTemplate({ to: phone, ...templateSend, businessId: authResult.businessId, context: "appointment_confirmation" }).catch((err) =>
-            console.error("Appointment confirmation WA failed:", err)
-          );
-        }
+        // Approved template first — a custom free-text confirmation is rejected
+        // by Meta (131047) whenever the customer has not written in 24h, which
+        // is almost always right after booking. The custom text is the fallback.
+        const confirmationVars = {
+          customerName: appointment.customer.name,
+          date: formattedDate,
+          time: appointment.startTime,
+          serviceName,
+        };
+        const customBody = confirmationRule.template?.body
+          ? interpolateTemplate(confirmationRule.template.body, { ...confirmationVars, petName: appointment.pet?.name ?? "" })
+          : null;
+        await sendWithTemplateChain({
+          to: phone,
+          steps: appointmentConfirmationChain({ ...confirmationVars, businessPhone: (business?.phone ?? "").trim() }),
+          fallbackBody: customBody ?? defaultConfirmationText(confirmationVars),
+          businessId: authResult.businessId,
+          context: "appointment_confirmation",
+        }).catch((err) => console.error("Appointment confirmation WA failed:", err));
         // Log the send so the same appointment never gets a second confirmation.
         await prisma.scheduledMessage.create({
           data: {
