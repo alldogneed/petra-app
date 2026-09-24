@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 
-// Petra loading animation — bouncing paw (+ PETRA wordmark on the splash).
+// Petra loading animation — bouncing paw + PETRA wordmark (the full logo, in every variant).
 // Geometry + colors come from the "Petra Splash" design; keyframes live in globals.css.
 //
 // ONE loader for the whole app, three variants:
@@ -53,7 +53,7 @@ export function PetraLoader({ variant = "page", className }: PetraLoaderProps) {
         "petra-loader flex items-center justify-center",
         variant === "page" && "petra-loader-page",
         variant === "splash" && "petra-loader-splash",
-        variant === "inline" && "py-10",
+        variant === "inline" && "pt-10 pb-16",
         className
       )}
       style={
@@ -83,15 +83,14 @@ export function PetraLoader({ variant = "page", className }: PetraLoaderProps) {
         <div className="absolute" style={{ left: px(41), top: px(70), width: px(127), height: px(100) }}>
           <div className="petra-loader-pad" style={{ animationDelay: delay(0.2) }} />
         </div>
-        {variant === "splash" && (
-          // Hangs below the paw so the paw itself stays at the exact center in every variant
-          <div
-            className="petra-loader-wordmark"
-            style={{ top: `calc(100% + ${px(22)})`, fontSize: px(43), letterSpacing: px(2) }}
-          >
-            PETRA
-          </div>
-        )}
+        {/* Wordmark is part of the logo in every variant; it hangs below the paw so the paw
+            itself stays at the exact center regardless of variant */}
+        <div
+          className="petra-loader-wordmark"
+          style={{ top: `calc(100% + ${px(22)})`, fontSize: px(43), letterSpacing: px(2) }}
+        >
+          PETRA
+        </div>
       </div>
     </div>
   );
