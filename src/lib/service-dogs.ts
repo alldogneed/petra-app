@@ -189,22 +189,40 @@ export const ADI_SKILL_CATEGORIES = [
   { id: "BASIC_OBEDIENCE", label: "משמעת בסיסית" },
   { id: "PUBLIC_ACCESS", label: "אימון מרחב ציבורי" },
   { id: "TASK_TRAINING", label: "אימון משימה" },
-  { id: "SOCIALIZATION", label: "חברות" },
   { id: "DISTRACTION", label: "הסחות" },
-  { id: "HANDLER_SKILLS", label: "כישורי מטפל" },
-  { id: "SCENT_WORK", label: "עבודת ריח" },
-  { id: "RECALL", label: "ציות לקריאה" },
-  { id: "POSITIONING", label: "שינויי מיקום" },
+  { id: "COMMAND_OBEDIENCE", label: "ציות להוראות" },
+  { id: "DOG_CONTROL", label: "שליטה בכלב" },
+  { id: "CARE_GROOMING", label: "טיפול וטיפוח" },
+  { id: "DOG_RECIPIENT_BOND", label: "קשר כלב-זכאי" },
+  { id: "ENVIRONMENT_EXPOSURE", label: "חשיפה לסביבות" },
+  { id: "NOISE_EXPOSURE", label: "חשיפה לרעש" },
+  { id: "ANIMALS", label: "בע״ח" },
+  { id: "WEARABLE_GEAR", label: "אימון ציוד לביש" },
+  { id: "VET_HANDLING", label: "התנהגות בטיפול וטרינרי" },
   { id: "CHILDREN", label: "ילדים" },
   { id: "ADULTS", label: "מבוגרים" },
-  { id: "OTHER_ANIMALS", label: "חיות אחרות" },
   { id: "TRANSPORTATION", label: "תחבורה" },
   { id: "HOME_TRAINING", label: "אימון בית מגורים" },
   { id: "OTHER", label: "אחר" },
 ] as const;
 
-export const ADI_SKILL_MAP: Record<string, string> =
-  Object.fromEntries(ADI_SKILL_CATEGORIES.map((s) => [s.id, s.label]));
+/**
+ * Categories no longer offered for new sessions (removed Sep 2026). Kept only
+ * so training sessions logged before then still show a readable label.
+ */
+const RETIRED_ADI_SKILL_LABELS: Record<string, string> = {
+  SOCIALIZATION: "חברות",
+  HANDLER_SKILLS: "כישורי מטפל",
+  SCENT_WORK: "עבודת ריח",
+  RECALL: "ציות לקריאה",
+  POSITIONING: "שינויי מיקום",
+  OTHER_ANIMALS: "חיות אחרות",
+};
+
+export const ADI_SKILL_MAP: Record<string, string> = {
+  ...RETIRED_ADI_SKILL_LABELS,
+  ...Object.fromEntries(ADI_SKILL_CATEGORIES.map((s) => [s.id, s.label])),
+};
 
 // ─── Compliance Event Types ───
 
