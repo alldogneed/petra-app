@@ -99,7 +99,6 @@ async function createRecurringForBusiness(
   businessId: string,
   businessName: string,
   email: string,
-  existingRecurringId?: string,
 ): Promise<void> {
   const plan = getPlanPrice(tier);
   if (!plan) return;
@@ -113,7 +112,6 @@ async function createRecurringForBusiness(
       invoiceDescription: `מנוי ${plan.label} — חודשי`,
       companyName: businessName || "לקוח פטרה",
       email: email || "",
-      existingRecurringId,
     });
     if (result.success && result.recurringId) {
       await prisma.business.update({

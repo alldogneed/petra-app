@@ -170,7 +170,7 @@ export async function activateVerifiedPayment(p: ActivateParams): Promise<Activa
 
   const business = await prisma.business.findUnique({
     where: { id: businessId },
-    select: { id: true, name: true, email: true, tier: true, cardcomRecurringId: true },
+    select: { id: true, name: true, email: true, tier: true, cardcomRecurringId: true, subscriptionStatus: true },
   });
   if (!business) throw new Error(`business ${businessId} not found`);
 
@@ -240,7 +240,23 @@ export async function activateVerifiedPayment(p: ActivateParams): Promise<Activa
   // customer agreed to, regardless of a manually kept higher tier.
   let recurringId: string | null = null;
   let recurringError: string | null = null;
-  if (plan) {
+  // Still-active subscription with a live recurring order (a customer who paid
+  // by hand while the order is running): keep it. Cardcom cannot re-point an
+  // existing order through NewAndUpdate, and a second order would bill the
+  // customer twice a month. A lapsed/cancelled business gets a fresh order —
+  // its old one was cancelled or stopped charging.
+  const recurringKept = business.subscriptionStatus === "active" && !!business.cardcomRecurringId;
+  if (recurringKept) {
+    recurringId = business.cardcomRecurringId;
+    await prisma.subscriptionEvent.create({
+      data: {
+        businessId,
+        eventType: "recurring_kept",
+        tier,
+        metadata: { recurringId, source, subscriptionEndsAt: subscriptionEndsAt.toISOString() },
+      },
+    }).catch(() => null);
+  } else if (plan) {
     try {
       const result = await createCardcomRecurring({
         cardToken: cardToken ?? "",
@@ -251,7 +267,6 @@ export async function activateVerifiedPayment(p: ActivateParams): Promise<Activa
         invoiceDescription: `מנוי ${plan.label} — חודשי`,
         companyName: business.name ?? "לקוח פטרה",
         email: business.email ?? "",
-        existingRecurringId: business.cardcomRecurringId ?? undefined,
       });
       if (result.success && result.recurringId) {
         recurringId = result.recurringId;
@@ -288,6 +303,7 @@ export async function activateVerifiedPayment(p: ActivateParams): Promise<Activa
     dealId,
     recurringId,
     recurringError,
+    recurringKept,
     tokenStoreFailed,
     source,
   }).catch((e) => console.error("cardcom-activation: owner notify failed:", e));

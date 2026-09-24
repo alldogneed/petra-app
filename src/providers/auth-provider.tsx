@@ -21,6 +21,8 @@ interface AuthUser {
   businessTrialEndsAt: string | null;
   businessSubscriptionEndsAt: string | null;
   businessSubscriptionStatus: string | null;
+  businessHasRecurring?: boolean;
+  businessAwaitingRecurringCharge?: boolean;
   businessFeatureOverrides: Record<string, boolean> | null;
   businessRole: string | null;
   businessPermissionOverrides?: Record<string, boolean> | null;

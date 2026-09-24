@@ -43,8 +43,13 @@ export function usePlan() {
   const subscriptionEndsAt = user?.businessSubscriptionEndsAt ? new Date(user.businessSubscriptionEndsAt) : null;
   const subscriptionStatus = user?.businessSubscriptionStatus ?? null;
   const cancelPending = subscriptionStatus === "cancel_pending";
-  const subscriptionActive = subscriptionEndsAt !== null && subscriptionEndsAt > now;
-  const subscriptionExpired = subscriptionEndsAt !== null && subscriptionEndsAt <= now;
+  // Billed by a Cardcom recurring order — renewal is automatic, never prompt a
+  // manual one (it would charge twice). Past endsAt, access continues through
+  // the grace window while the monthly charge is picked up.
+  const hasRecurring = user?.businessHasRecurring === true;
+  const awaitingRecurringCharge = user?.businessAwaitingRecurringCharge === true;
+  const subscriptionActive = (subscriptionEndsAt !== null && subscriptionEndsAt > now) || awaitingRecurringCharge;
+  const subscriptionExpired = subscriptionEndsAt !== null && subscriptionEndsAt <= now && !awaitingRecurringCharge;
   const subscriptionDaysLeft = subscriptionActive
     ? Math.max(0, Math.ceil((subscriptionEndsAt!.getTime() - now.getTime()) / 86400000))
     : 0;
@@ -78,5 +83,7 @@ export function usePlan() {
     subscriptionActive,
     subscriptionExpired,
     subscriptionDaysLeft,
+    hasRecurring,
+    awaitingRecurringCharge,
   };
 }

@@ -82,8 +82,6 @@ interface CreateRecurringParams {
   companyName: string;
   /** Business email for Cardcom account */
   email: string;
-  /** Existing recurring ID to update (prevents duplicates) */
-  existingRecurringId?: string;
 }
 
 interface RecurringResult {
@@ -133,10 +131,9 @@ export async function createCardcomRecurring(params: CreateRecurringParams): Pro
     // Flex item (line item for invoice)
     "RecurringPayments.FlexItem.InvoiceDescription": params.invoiceDescription,
     "RecurringPayments.FlexItem.Price": params.price.toString(),
-    // If updating existing order
-    ...(params.existingRecurringId
-      ? { "RecurringPayments.RecurringId": params.existingRecurringId }
-      : {}),
+    // Never send RecurringId here: Operation=NewAndUpdate treats the request as
+    // "add new payment" and rejects any RecurringId (8500 "RecurringId is not
+    // allow in Add New Payment"). Callers that already have an order keep it.
   });
 
   try {

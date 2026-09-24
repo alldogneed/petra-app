@@ -172,6 +172,8 @@ export interface PaymentReceivedParams {
   dealId?: string | null;
   recurringId?: string | null;
   recurringError?: string | null;
+  /** The business already had a recurring order — it was kept, not recreated. */
+  recurringKept?: boolean;
   /** True when the card token could not be stored (CARDCOM_ENCRYPTION_KEY missing). */
   tokenStoreFailed?: boolean;
   /** Which path activated it: indicator / success-redirect / activate-pending / reconcile */
@@ -188,7 +190,9 @@ export async function notifyOwnerPaymentReceived(p: PaymentReceivedParams): Prom
   const amountLabel = p.amount != null ? `₪${p.amount}` : "סכום לא ידוע";
   const tierLabel = formatPlan(p.paidTier);
   const keptTier = p.effectiveTier !== p.paidTier ? ` (נשאר על ${formatPlan(p.effectiveTier)} לפי הגדרה ידנית)` : "";
-  const recurringLabel = p.recurringId
+  const recurringLabel = p.recurringKept
+    ? `⚠️ הוראת קבע קיימת ${p.recurringId} נשמרה — לקוח שילם ידנית למרות הוראה פעילה. לבדוק בקארדקום את תאריך החיוב הבא (למנוע חיוב כפול)`
+    : p.recurringId
     ? `הוראת קבע ${p.recurringId} נוצרה`
     : `⚠️ הוראת קבע לא נוצרה${p.recurringError ? `: ${p.recurringError}` : ""}`;
   const sourceLabel: Record<string, string> = {
