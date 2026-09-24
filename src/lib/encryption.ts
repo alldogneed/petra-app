@@ -7,9 +7,22 @@
  * Key format: 64-char hex string (32 bytes).
  */
 
+/**
+ * The key as configured, minus surrounding whitespace / a trailing "\n".
+ * Keys added with `echo … | vercel env add` carry a trailing newline — that
+ * silently disabled CARDCOM_ENCRYPTION_KEY and TWOFA_ENCRYPTION_KEY in prod
+ * (found 2026-09-24). Returns null unless the result is 64 hex chars.
+ */
+function readKeyHex(envVar: string): string | null {
+  const raw = process.env[envVar];
+  if (!raw) return null;
+  const keyHex = raw.trim().replace(/(\\n)+$/, "").trim();
+  return /^[0-9a-fA-F]{64}$/.test(keyHex) ? keyHex : null;
+}
+
 function getKey(envVar: string): Buffer {
-  const keyHex = process.env[envVar];
-  if (!keyHex || keyHex.length !== 64) {
+  const keyHex = readKeyHex(envVar);
+  if (!keyHex) {
     throw new Error(
       `${envVar} must be a 64-char hex string (32 bytes). ` +
       "Generate with: openssl rand -hex 32"
@@ -87,7 +100,7 @@ export function decryptStripeSecret(ciphertext: string): string {
 const CARDCOM_KEY = "CARDCOM_ENCRYPTION_KEY";
 
 export function encryptCardcomToken(plaintext: string): string {
-  if (!process.env[CARDCOM_KEY] || process.env[CARDCOM_KEY]!.length !== 64) {
+  if (!readKeyHex(CARDCOM_KEY)) {
     console.error("[SECURITY] CARDCOM_ENCRYPTION_KEY missing or invalid — refusing to store payment token as plaintext");
     throw new Error("Payment encryption key not configured");
   }
@@ -97,7 +110,7 @@ export function encryptCardcomToken(plaintext: string): string {
 export function decryptCardcomToken(ciphertext: string): string {
   // Detect if stored as plaintext (legacy — no ":" separators from AES-GCM format)
   if (!ciphertext.includes(":")) return ciphertext;
-  if (!process.env[CARDCOM_KEY] || process.env[CARDCOM_KEY]!.length !== 64) {
+  if (!readKeyHex(CARDCOM_KEY)) {
     // Key not available — can't decrypt, return as-is
     return ciphertext;
   }
@@ -111,7 +124,7 @@ export function decryptCardcomToken(ciphertext: string): string {
 const TWOFA_KEY = "TWOFA_ENCRYPTION_KEY";
 
 export function encryptTwoFaSecret(plaintext: string): string {
-  if (!process.env[TWOFA_KEY] || process.env[TWOFA_KEY]!.length !== 64) {
+  if (!readKeyHex(TWOFA_KEY)) {
     console.error("[SECURITY] TWOFA_ENCRYPTION_KEY missing or invalid — 2FA secret stored as plaintext. Set a 64-char hex key.");
     return plaintext;
   }
@@ -121,7 +134,7 @@ export function encryptTwoFaSecret(plaintext: string): string {
 export function decryptTwoFaSecret(ciphertext: string): string {
   // Legacy plaintext TOTP secrets are base32-encoded (no ":" separators)
   if (!ciphertext.includes(":")) return ciphertext;
-  if (!process.env[TWOFA_KEY] || process.env[TWOFA_KEY]!.length !== 64) {
+  if (!readKeyHex(TWOFA_KEY)) {
     return ciphertext;
   }
   return decrypt(ciphertext, TWOFA_KEY);
