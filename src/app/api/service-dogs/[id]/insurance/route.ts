@@ -13,7 +13,8 @@ const InsuranceSchema = z.object({
   startDate: z.string().max(30).nullable().optional(),
   renewalDate: z.string().max(30).nullable().optional(),
   notes: z.string().max(5000).nullable().optional(),
-  policyDocument: z.string().max(500).nullable().optional(),
+  // Rendered as <a href> in the UI — only an https URL (our Blob upload), never javascript:/data:
+  policyDocument: z.string().max(500).refine((v) => v === "" || /^https:\/\//i.test(v), "קישור מסמך לא חוקי").nullable().optional(),
   isActive: z.boolean().optional(),
 });
 
