@@ -84,3 +84,78 @@ export async function POST(
     return NextResponse.json({ error: "שגיאה בהעלאת המסמך" }, { status: 500 });
   }
 }
+
+/**
+ * PATCH /api/service-dogs/[id]/documents
+ * Rename a document and/or change its type. Body: { docId, name?, docType? }
+ *
+ * Deliberately narrow: only these two fields of one existing entry can change.
+ * The file URL is never taken from the client here.
+ */
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const authResult = await requireBusinessAuth(request);
+    if (isGuardError(authResult)) return authResult;
+
+    let body: Record<string, unknown>;
+    try { body = await request.json(); } catch { return NextResponse.json({ error: "בקשה לא תקינה" }, { status: 400 }); }
+
+    const docId = typeof body.docId === "string" ? body.docId : "";
+    if (!docId || docId.length > 100) return NextResponse.json({ error: "מסמך לא נמצא" }, { status: 400 });
+
+    const nameRaw = body.name;
+    const typeRaw = body.docType;
+    if (nameRaw === undefined && typeRaw === undefined) {
+      return NextResponse.json({ error: "אין שינויים לשמור" }, { status: 400 });
+    }
+
+    let name: string | undefined;
+    if (nameRaw !== undefined) {
+      if (typeof nameRaw !== "string") return NextResponse.json({ error: "שם מסמך לא תקין" }, { status: 400 });
+      name = nameRaw.replace(/[<>"'&]/g, "").trim().slice(0, 255);
+      if (!name) return NextResponse.json({ error: "שם המסמך חסר" }, { status: 400 });
+    }
+
+    // Same allowlist as upload — TRAINING_CERT belongs to the tests tab and is not offered here
+    const VALID_DOC_TYPES = ["HEALTH_CERT", "ANTIBODIES", "LICENSE", "VACCINATION", "VET_REPORT", "PURCHASE_INVOICE", "VISIT_INVOICE", "MEDICAL", "TRAINING", "LEGAL", "INSURANCE", "ID", "OTHER"];
+    let docType: string | undefined;
+    if (typeRaw !== undefined) {
+      if (typeof typeRaw !== "string" || !VALID_DOC_TYPES.includes(typeRaw)) {
+        return NextResponse.json({ error: "סוג מסמך לא תקין" }, { status: 400 });
+      }
+      docType = typeRaw;
+    }
+
+    const profile = await prisma.serviceDogProfile.findFirst({
+      where: { id: params.id, businessId: authResult.businessId },
+      select: { id: true, documents: true },
+    });
+    if (!profile) return NextResponse.json({ error: "כלב לא נמצא" }, { status: 404 });
+
+    let docs: Array<Record<string, unknown>> = [];
+    const raw = profile.documents as unknown;
+    try { docs = Array.isArray(raw) ? (raw as Array<Record<string, unknown>>) : JSON.parse((raw as string) || "[]"); } catch { docs = []; }
+
+    const idx = docs.findIndex((d) => d && d.id === docId);
+    if (idx === -1) return NextResponse.json({ error: "מסמך לא נמצא" }, { status: 404 });
+    if (docs[idx].docType === "TRAINING_CERT") {
+      return NextResponse.json({ error: "מסמך מבחן — ניתן לעריכה מלשונית מבחני הסמכה" }, { status: 400 });
+    }
+
+    const updatedDoc = { ...docs[idx], ...(name !== undefined && { name }), ...(docType !== undefined && { docType }) };
+    docs = docs.map((d, i) => (i === idx ? updatedDoc : d));
+
+    await prisma.serviceDogProfile.update({
+      where: { id: params.id, businessId: authResult.businessId },
+      data: { documents: JSON.stringify(docs) },
+    });
+
+    return NextResponse.json(updatedDoc);
+  } catch (error) {
+    console.error("PATCH service-dog document error:", error);
+    return NextResponse.json({ error: "שגיאה בעדכון המסמך" }, { status: 500 });
+  }
+}
