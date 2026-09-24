@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
       UserName:         process.env.CARDCOM_API_USERNAME ?? "",
       APILevel:         "10",
       codepage:         "65001",
-      Operation:        "1",          // charge
+      Operation:        "2",          // BillAndCreateToken — charge + a Cardcom token the recurring order can bill (1=BillOnly leaves no usable token)
       Language:         "he",
       SumToBill:        chargeAmount.toString(),
       CoinID:           "1",          // ILS

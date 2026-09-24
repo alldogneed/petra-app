@@ -2051,7 +2051,7 @@ function NewAppointmentModal({
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const { subscriptionActive, subscriptionExpired, subscriptionDaysLeft, isFree, isGroomer } = usePlan();
+  const { subscriptionActive, subscriptionExpired, subscriptionDaysLeft, hasRecurring, isFree, isGroomer } = usePlan();
   const perms = usePermissions();
   const queryClient = useQueryClient();
   const [showNewCustomer, setShowNewCustomer] = useState(false);
@@ -2173,7 +2173,8 @@ export default function DashboardPage() {
           <a href="/upgrade" className="text-sm font-semibold underline shrink-0 mr-4">חדש מנוי</a>
         </div>
       )}
-      {!isFree && subscriptionActive && subscriptionDaysLeft <= 14 && (
+      {/* Recurring (הוראת קבע) customers renew automatically — a manual renew would charge twice */}
+      {!isFree && !hasRecurring && subscriptionActive && subscriptionDaysLeft <= 14 && (
         <div className="rounded-xl px-4 py-3 flex items-center justify-between bg-amber-50 border border-amber-200 text-amber-800">
           <span className="text-sm font-medium">⏳ המנוי שלך מסתיים בעוד {subscriptionDaysLeft} ימים</span>
           <a href="/upgrade" className="text-sm font-semibold underline shrink-0 mr-4">חדש מנוי</a>

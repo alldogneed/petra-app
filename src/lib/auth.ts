@@ -14,6 +14,7 @@ import crypto from "crypto";
 import { cookies } from "next/headers";
 import prisma from "@/lib/prisma";
 import { isMcpAllowedUser } from "@/lib/mcp-allowlist";
+import { hasActiveRecurring, isAwaitingRecurringCharge, isSubscriptionLapsed } from "@/lib/subscription-access";
 import {
   createSession as _createSession,
   deleteSession as _deleteSession,
@@ -213,7 +214,7 @@ export async function getCurrentUser() {
     effectiveBusinessId
       ? prisma.business.findUnique({
           where: { id: effectiveBusinessId },
-          select: { name: true, slug: true, tier: true, featureOverrides: true, trialEndsAt: true, subscriptionEndsAt: true, subscriptionStatus: true },
+          select: { name: true, slug: true, tier: true, featureOverrides: true, trialEndsAt: true, subscriptionEndsAt: true, subscriptionStatus: true, cardcomRecurringId: true },
         })
       : Promise.resolve(null),
     prisma.platformUser.findUnique({
@@ -238,12 +239,19 @@ export async function getCurrentUser() {
     }
   }
 
-  // Effective tier: if subscription expired, downgrade to "free"
+  // Effective tier: if subscription lapsed, downgrade to "free". A business on a
+  // Cardcom recurring order keeps access for a grace window past endsAt — the
+  // charge lands on Cardcom's schedule and renew-subscriptions extends endsAt
+  // only after it sees it (see subscription-access.ts).
   const storedTier = business?.tier ?? "free";
   const trialEndsAt = business?.trialEndsAt ?? null;
   const subscriptionEndsAt = business?.subscriptionEndsAt ?? null;
-  const subscriptionExpired = subscriptionEndsAt && subscriptionEndsAt < new Date();
-  const businessEffectiveTier = subscriptionExpired ? "free" : storedTier;
+  const accessInput = {
+    subscriptionEndsAt,
+    subscriptionStatus: business?.subscriptionStatus ?? null,
+    cardcomRecurringId: business?.cardcomRecurringId ?? null,
+  };
+  const businessEffectiveTier = isSubscriptionLapsed(accessInput) ? "free" : storedTier;
 
   const platformRole = session.user.platformRole;
   const isAdmin = platformRole === "super_admin" || platformRole === "admin";
@@ -264,6 +272,9 @@ export async function getCurrentUser() {
     businessTrialEndsAt: trialEndsAt?.toISOString() ?? null,
     businessSubscriptionEndsAt: subscriptionEndsAt?.toISOString() ?? null,
     businessSubscriptionStatus: business?.subscriptionStatus ?? "inactive",
+    // Billed automatically — never prompt these customers to renew by hand.
+    businessHasRecurring: hasActiveRecurring(accessInput),
+    businessAwaitingRecurringCharge: isAwaitingRecurringCharge(accessInput),
     businessFeatureOverrides: (() => {
       try {
         const raw = business?.featureOverrides;

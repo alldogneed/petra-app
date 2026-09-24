@@ -171,7 +171,7 @@ const TIER_ICONS: Record<string, React.ComponentType<{ className?: string }>> = 
 function SubscriptionCard({ tier, customerCount, appointmentCount }: { tier: string; customerCount: number; appointmentCount: number }) {
   const queryClient = useQueryClient();
   const { refreshUser } = useAuth();
-  const { subscriptionEndsAt, subscriptionDaysLeft, subscriptionExpired, subscriptionActive, cancelPending, subscriptionStatus } = usePlan();
+  const { subscriptionEndsAt, subscriptionDaysLeft, subscriptionExpired, subscriptionActive, cancelPending, subscriptionStatus, hasRecurring, awaitingRecurringCharge } = usePlan();
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [cancelling, setCancelling] = useState(false);
 
@@ -187,6 +187,10 @@ function SubscriptionCard({ tier, customerCount, appointmentCount }: { tier: str
     ? `בתהליך ביטול — גישה מלאה עד ${endsAtFormatted}`
     : subscriptionExpired
     ? "פג תוקף"
+    : awaitingRecurringCharge
+    ? "פעיל — החיוב החודשי בעיבוד"
+    : subscriptionActive && hasRecurring
+    ? `פעיל — מתחדש אוטומטית ב-${endsAtFormatted}`
     : subscriptionActive
     ? `פעיל עד ${endsAtFormatted}`
     : "לא פעיל";
@@ -195,7 +199,7 @@ function SubscriptionCard({ tier, customerCount, appointmentCount }: { tier: str
     ? "text-red-500"
     : cancelPending
     ? "text-amber-600"
-    : subscriptionActive && subscriptionDaysLeft <= 7
+    : subscriptionActive && !hasRecurring && subscriptionDaysLeft <= 7
     ? "text-amber-500"
     : "text-emerald-500";
 
@@ -248,7 +252,7 @@ function SubscriptionCard({ tier, customerCount, appointmentCount }: { tier: str
         </div>
       )}
 
-      {subscriptionActive && !cancelPending && subscriptionDaysLeft <= 7 && (
+      {subscriptionActive && !cancelPending && !hasRecurring && subscriptionDaysLeft <= 7 && (
         <div className="px-4 py-2 bg-amber-50 border-t border-amber-100 text-xs text-amber-700 flex items-center justify-between">
           <span>המנוי שלך יפוג בעוד {subscriptionDaysLeft} ימים</span>
           <a href="/checkout?tier=basic" className="font-semibold underline">חדש עכשיו</a>

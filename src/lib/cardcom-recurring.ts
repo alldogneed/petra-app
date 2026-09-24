@@ -1,8 +1,8 @@
 /**
  * Cardcom Recurring Billing (הוראת קבע) helpers.
  *
- * After a successful one-time charge (via LowProfile Operation=1),
- * we create a recurring order in Cardcom using the card token
+ * After a successful charge (via LowProfile Operation=2, BillAndCreateToken),
+ * we create a recurring order in Cardcom using the returned card token
  * so Cardcom handles monthly billing automatically.
  * On cancellation, we deactivate the recurring order.
  */
@@ -23,12 +23,20 @@ export function parseCardcomResponse(text: string): Record<string, string> {
 
 // ── Field extraction helpers ────────────────────────────────────────────────
 // Cardcom's LowProfile verify response (BillGoldGetLowProfileIndicator) does NOT
-// return `Token` / `DealNumber` / `SumToBill` for Operation=1 charges.
-// The real values live in ExtShvaParams.* — these helpers normalize both shapes.
+// return `DealNumber` / `SumToBill`; the real values live in ExtShvaParams.* —
+// these helpers normalize both shapes.
 
-/** Card token: `Token` (tokenization ops) or `ExtShvaParams.CardToken` (charge ops). */
+/**
+ * Cardcom card token (`Token`) — returned only by token-creating LowProfile
+ * operations (2=BillAndCreateToken, 3=CreateTokenOnly).
+ *
+ * Never `ExtShvaParams.CardToken`: that is Shva's internal reference, not a
+ * Cardcom token. Recurring orders created with it are accepted, then every
+ * monthly charge fails with "8000 Token Not Found" (all orders 20006–20009,
+ * found 2026-09-24).
+ */
 export function extractCardToken(data: Record<string, string>): string | null {
-  return data.Token || data["ExtShvaParams.CardToken"] || null;
+  return data.Token || null;
 }
 
 /** Token expiry in MMYY (e.g. "0329" = March 2029): `TokenExDate` or `ExtShvaParams.Tokef30`. */
@@ -66,7 +74,7 @@ export function getPlanPrice(tier: string): { price: number; label: string } | n
 // ── Create recurring order ──────────────────────────────────────────────────
 
 interface CreateRecurringParams {
-  /** Card token (GUID) from Cardcom deal — ExtShvaParams.CardToken */
+  /** Cardcom card token (`Token` from a BillAndCreateToken / CreateTokenOnly deal) */
   cardToken: string;
   /** Card expiry month (1-12) */
   cardMonth: string;
@@ -82,8 +90,6 @@ interface CreateRecurringParams {
   companyName: string;
   /** Business email for Cardcom account */
   email: string;
-  /** Existing recurring ID to update (prevents duplicates) */
-  existingRecurringId?: string;
 }
 
 interface RecurringResult {
@@ -114,6 +120,7 @@ export async function createCardcomRecurring(params: CreateRecurringParams): Pro
     TerminalNumber: terminalNumber,
     UserName: userName,
     Operation: "NewAndUpdate",
+    codepage: "65001", // UTF-8 — without it Hebrew descriptions land garbled on the order and its invoices
     // Account
     "Account.CompanyName": params.companyName || "לקוח פטרה",
     "Account.Email": params.email,
@@ -133,10 +140,9 @@ export async function createCardcomRecurring(params: CreateRecurringParams): Pro
     // Flex item (line item for invoice)
     "RecurringPayments.FlexItem.InvoiceDescription": params.invoiceDescription,
     "RecurringPayments.FlexItem.Price": params.price.toString(),
-    // If updating existing order
-    ...(params.existingRecurringId
-      ? { "RecurringPayments.RecurringId": params.existingRecurringId }
-      : {}),
+    // Never send RecurringId here: Operation=NewAndUpdate treats the request as
+    // "add new payment" and rejects any RecurringId (8500 "RecurringId is not
+    // allow in Add New Payment"). Callers that already have an order keep it.
   });
 
   try {

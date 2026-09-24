@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { verifyCronAuth } from "@/lib/cron-auth";
 import { sendEmail } from "@/lib/email";
+import { RECURRING_GRACE_DAYS } from "@/lib/subscription-access";
 
 const OWNER_ALERT_EMAIL = "info@petra-app.com";
 
@@ -36,7 +37,7 @@ export async function GET(request: NextRequest) {
       console.log(`expire-subscriptions: expired ${expiredContracts.count} contract requests`);
     }
 
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 86_400_000);
+    const sevenDaysAgo = new Date(now.getTime() - RECURRING_GRACE_DAYS * 86_400_000);
 
     // Find expired active subscriptions.
     // Businesses with a Cardcom recurring order (הוראת קבע) get a 7-day grace
