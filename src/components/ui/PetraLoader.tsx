@@ -53,7 +53,8 @@ export function PetraLoader({ variant = "page", className }: PetraLoaderProps) {
         "petra-loader flex items-center justify-center",
         variant === "page" && "petra-loader-page",
         variant === "splash" && "petra-loader-splash",
-        variant === "inline" && "pt-10 pb-16",
+        // inline: wordmark sits in normal flow, so any padding a caller passes can't make it overlap
+        variant === "inline" && "flex-col py-10",
         className
       )}
       style={
@@ -83,15 +84,21 @@ export function PetraLoader({ variant = "page", className }: PetraLoaderProps) {
         <div className="absolute" style={{ left: px(41), top: px(70), width: px(127), height: px(100) }}>
           <div className="petra-loader-pad" style={{ animationDelay: delay(0.2) }} />
         </div>
-        {/* Wordmark is part of the logo in every variant; it hangs below the paw so the paw
-            itself stays at the exact center regardless of variant */}
-        <div
-          className="petra-loader-wordmark"
-          style={{ top: `calc(100% + ${px(22)})`, fontSize: px(43), letterSpacing: px(2) }}
-        >
+        {/* Overlays: the wordmark hangs below the paw so the paw itself stays at the exact center */}
+        {overlay && (
+          <div
+            className="petra-loader-wordmark petra-loader-wordmark-hanging"
+            style={{ top: `calc(100% + ${px(22)})`, fontSize: px(43), letterSpacing: px(2) }}
+          >
+            PETRA
+          </div>
+        )}
+      </div>
+      {!overlay && (
+        <div className="petra-loader-wordmark" style={{ marginTop: px(22), fontSize: px(43), letterSpacing: px(2) }}>
           PETRA
         </div>
-      </div>
+      )}
     </div>
   );
 

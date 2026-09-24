@@ -161,6 +161,14 @@ MCP: `create_lead` accepts the same keys (omitted → `unknown`), `get_lead` pri
 - Reports: `getAnalytics().leadSales` (gated by `canSeeRevenue`) = leads won in period (same won definition as `wonThisPeriod`) → deal value + orders the linked customer placed since `wonAt` (excl. cancelled; each order attributed to the customer's most recent won lead → no double count) + `pipelineValue` of open leads. Never add it into `overview.revenue`. Mirrored in analytics Excel export ("מכירות מלידים" sheet), `LeadsReports` KPIs, leads CSV column.
 - MCP: `create_lead`/`update_lead` accept `deal_value` (update: `null` clears), `get_lead` prints "💰 ערך עסקה", `get_analytics` prints the lead-sales line. Prod DDL: `prisma/lead_deal_value.sql`. Tests: `src/lib/__tests__/lead-deal-value.test.ts`.
 
+### 29. Loading states — `PetraLoader` is the ONLY data-loading indicator
+`src/components/ui/PetraLoader.tsx` (bouncing paw + PETRA wordmark, from the "Petra Splash" design). No grey `animate-pulse` skeleton blocks, no "טוען..." cards, no section spinners.
+- `<PetraLoader />` (`page`, default) — main body of a screen/tab is loading. Fixed at the center of the content area (sidebar inset via `data-petra-shell` on AppShell), portaled to `<body>`, translucent backdrop. No wrapper needed; inside `<tbody>` use `<tr><td colSpan={N}><PetraLoader /></td></tr>`.
+- `variant="inline"` — modals, dropdowns, side panels, a single card on an otherwise loaded screen. `className` may override padding (`py-4` for compact spots).
+- `variant="splash"` — full-screen, no app shell: root `loading.tsx`, `OnboardingGuard`, public pages (`/book`, `/sign`, `/intake`, `/my-booking`, `/checkout`, `/payment*`), login after success.
+- Never ship the paw without the wordmark. Toes are `border-radius: 50%` (not Tailwind `rounded-full` — renders pills).
+- Leave alone: spinners inside buttons, refresh icons, "טען עוד", decorative status dots/pings, tiny inline number placeholders. Customer portal `/c/[slug]` keeps its white-label loader.
+
 ---
 
 ## MCP Server

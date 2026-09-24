@@ -1219,7 +1219,7 @@ function IntegrationsTab() {
                         })}
                       </div>
                     ) : (
-                      <PetraLoader variant="inline" />
+                      <PetraLoader variant="inline" className="py-4" />
                     )}
                   </div>
                 </div>
@@ -1819,7 +1819,7 @@ function MakeWebhookCard() {
         </div>
 
         {keyLoading ? (
-          <PetraLoader variant="inline" />
+          <PetraLoader variant="inline" className="py-4" />
         ) : hasKey ? (
           <div className="flex gap-2">
             <input

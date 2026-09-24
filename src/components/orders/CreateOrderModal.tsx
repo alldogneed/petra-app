@@ -922,7 +922,7 @@ export function CreateOrderModal({
                 )}
               </label>
               {petsLoading ? (
-                <PetraLoader variant="inline" />
+                <PetraLoader variant="inline" className="py-4" />
               ) : customerPets.length === 0 ? (
                 <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-xl">
                   <span className="text-xl leading-none mt-0.5">🐾</span>
@@ -974,7 +974,7 @@ export function CreateOrderModal({
 
           {/* Non-boarding: pet selection */}
           {!isBoardingOrder && petsLoading && (
-            <PetraLoader variant="inline" />
+            <PetraLoader variant="inline" className="py-4" />
           )}
           {!isBoardingOrder && !petsLoading && customerPets.length === 0 && (
             <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-xl">
