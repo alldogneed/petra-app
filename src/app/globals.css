@@ -355,10 +355,12 @@ input::placeholder, textarea::placeholder { color: #64748b; }
   background: #F9301E;
   animation: petra-pad-squash 1.5s ease-in-out infinite;
 }
-.petra-loader-wordmark {
+.petra-loader-wordmark-hanging {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
+}
+.petra-loader-wordmark {
   font-family: var(--font-montserrat), var(--font-heebo), sans-serif;
   font-weight: 800;
   line-height: 1;

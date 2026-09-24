@@ -413,7 +413,7 @@ export default function PriceListPage() {
   const [deleteItem, setDeleteItem] = useState<PriceListItem | null>(null);
 
   // Load the first (default) price list
-  const { data: priceLists = [] } = useQuery<PriceList[]>({
+  const { data: priceLists = [], isLoading: priceListsLoading } = useQuery<PriceList[]>({
     queryKey: ["price-lists"],
     queryFn: () => fetch("/api/price-lists").then((r) => r.json()),
   });
@@ -518,8 +518,43 @@ export default function PriceListPage() {
     return map;
   }, [filtered]);
 
-  if (!priceList && !isLoading) {
+  const createPriceListMutation = useMutation({
+    mutationFn: () =>
+      fetch("/api/price-lists", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      }).then(async (r) => {
+        if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || "שגיאה ביצירת מחירון");
+        return r.json();
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["price-lists"] }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  if (priceListsLoading) {
     return <PetraLoader />;
+  }
+
+  // Business has no price list yet — was an endless loader before
+  if (!priceList) {
+    return (
+      <div className="empty-state">
+        <div className="empty-state-icon mx-auto">
+          <Tag className="w-7 h-7 text-slate-400" />
+        </div>
+        <p className="text-sm font-semibold text-petra-text mb-1">אין עדיין מחירון</p>
+        <p className="text-xs text-petra-muted mb-4">צור מחירון כדי להתחיל להוסיף שירותים ומוצרים</p>
+        <button
+          className="btn-primary"
+          onClick={() => createPriceListMutation.mutate()}
+          disabled={createPriceListMutation.isPending}
+        >
+          <Plus className="w-4 h-4" />
+          {createPriceListMutation.isPending ? "יוצר..." : "צור מחירון"}
+        </button>
+      </div>
+    );
   }
 
   return (
