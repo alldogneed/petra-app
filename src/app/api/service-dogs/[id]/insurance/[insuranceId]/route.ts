@@ -21,6 +21,13 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
     const body = await request.json();
 
+    // Rendered as <a href> in the UI — only an https URL (our Blob upload), never javascript:/data:
+    if (body.policyDocument !== undefined && body.policyDocument !== null && body.policyDocument !== "") {
+      if (typeof body.policyDocument !== "string" || body.policyDocument.length > 500 || !/^https:\/\//i.test(body.policyDocument)) {
+        return NextResponse.json({ error: "קישור מסמך לא חוקי" }, { status: 400 });
+      }
+    }
+
     const updated = await prisma.serviceDogInsurance.update({
       where: { id: params.insuranceId, businessId: auth.businessId },
       data: {
