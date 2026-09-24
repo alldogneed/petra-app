@@ -333,7 +333,14 @@ input::placeholder, textarea::placeholder { color: #64748b; }
   left: 0;
   pointer-events: none;
 }
-.petra-loader-page { right: var(--petra-shell-inset, 0px); z-index: 30; }
+/* Dims whatever the screen already rendered (header, filters, stat cards) so the paw never clashes with text */
+.petra-loader-page {
+  right: var(--petra-shell-inset, 0px);
+  z-index: 30;
+  background: rgba(248, 250, 252, 0.82);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
 .petra-loader-splash { right: 0; z-index: 100; background: #F8FAFC; pointer-events: auto; }
 .petra-loader-toe {
   width: 100%;
