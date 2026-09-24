@@ -262,7 +262,11 @@ export async function updateServiceDog(
   if (body.documents !== undefined) {
     let docs: unknown;
     try { docs = typeof body.documents === "string" ? JSON.parse(body.documents as string) : body.documents; } catch { docs = []; }
-    if (Array.isArray(docs) && docs.length > 100) throw new ServiceError("יותר מדי מסמכים (מקסימום 100)", "VALIDATION");
+    if (!Array.isArray(docs)) throw new ServiceError("רשימת מסמכים לא חוקית", "VALIDATION");
+    if (docs.length > 100) throw new ServiceError("יותר מדי מסמכים (מקסימום 100)", "VALIDATION");
+    // Each entry is rendered as <a href={url}> — a javascript: or data: URL
+    // written through this endpoint would be clickable script in the UI.
+    for (const d of docs) assertValidDogDocument(d);
   }
   if (body.trainingTests !== undefined) {
     let tests: unknown;
@@ -303,7 +307,7 @@ export async function updateServiceDog(
       ...(body.purchasePrice !== undefined && { purchasePrice: body.purchasePrice != null ? parseFloat(body.purchasePrice as string) : null }),
       ...(body.purchaseSource !== undefined && { purchaseSource: body.purchaseSource as string }),
       ...(body.licenseNumber !== undefined && { licenseNumber: body.licenseNumber as string }),
-      ...(body.licenseExpiry !== undefined && { licenseExpiry: body.licenseExpiry ? new Date(body.licenseExpiry as string) : null }),
+      ...(body.licenseExpiry !== undefined && { licenseExpiry: parseLicenseExpiry(body.licenseExpiry) }),
       ...(body.maintenanceNotes !== undefined && { maintenanceNotes: body.maintenanceNotes as string }),
       ...(body.yardGroup !== undefined && { yardGroup: body.yardGroup as string }),
       ...(body.feedingInstructions !== undefined && { feedingInstructions: body.feedingInstructions as string }),
@@ -514,6 +518,7 @@ function maskSensitive(r: Record<string, unknown>): Record<string, unknown> {
     disabilityType: null,
     disabilityNotes: null,
     fundingSource: null,
+    crisisInstructions: null,
   };
 }
 
@@ -655,6 +660,8 @@ export async function updateRecipient(
       ...(body.attachments !== undefined && { attachments: body.attachments }),
       ...(body.meetings !== undefined && { meetings: body.meetings }),
       ...(body.contactPersons !== undefined && { contactPersons: body.contactPersons }),
+      ...(body.photoConsent !== undefined && { photoConsent: body.photoConsent === true }),
+      ...(body.crisisInstructions !== undefined && { crisisInstructions: normalizeCrisisInstructions(body.crisisInstructions) }),
     } as any,
   });
 }
@@ -668,4 +675,54 @@ export async function deleteRecipient(businessId: string, db: DbClient, id: stri
 
   await db.serviceDogRecipient.delete({ where: { id, businessId } });
   return existing;
+}
+
+// ─── Validation helpers ───────────────────────────────────────────────────────
+
+const DOG_DOC_MAX_NAME = 255;
+const DOG_DOC_MAX_TYPE = 50;
+
+/** A stored dog document: our own shape, and only an https URL (or none). */
+export function assertValidDogDocument(d: unknown): void {
+  if (!d || typeof d !== "object" || Array.isArray(d)) {
+    throw new ServiceError("מסמך לא חוקי", "VALIDATION");
+  }
+  const doc = d as Record<string, unknown>;
+  if (typeof doc.id !== "string" || !doc.id || doc.id.length > 100) {
+    throw new ServiceError("מזהה מסמך לא חוקי", "VALIDATION");
+  }
+  if (typeof doc.name !== "string" || doc.name.length > DOG_DOC_MAX_NAME) {
+    throw new ServiceError("שם מסמך לא חוקי", "VALIDATION");
+  }
+  if (doc.docType !== undefined && (typeof doc.docType !== "string" || doc.docType.length > DOG_DOC_MAX_TYPE)) {
+    throw new ServiceError("סוג מסמך לא חוקי", "VALIDATION");
+  }
+  if (doc.url !== undefined && doc.url !== null && doc.url !== "") {
+    let u: URL;
+    try { u = new URL(String(doc.url)); } catch { throw new ServiceError("קישור מסמך לא חוקי", "VALIDATION"); }
+    if (u.protocol !== "https:") throw new ServiceError("קישור מסמך לא חוקי", "VALIDATION");
+  }
+}
+
+/**
+ * Licence validity is kept as month + year. "YYYY-MM" is stored as the first
+ * of that month; a full date is still accepted for older clients.
+ */
+export function parseLicenseExpiry(v: unknown): Date | null {
+  if (v === null || v === undefined || v === "") return null;
+  const str = String(v).trim();
+  const month = /^(\d{4})-(\d{2})$/.exec(str);
+  const d = month ? new Date(Date.UTC(Number(month[1]), Number(month[2]) - 1, 1)) : new Date(str);
+  if (isNaN(d.getTime())) throw new ServiceError("תוקף רישיון לא חוקי", "VALIDATION");
+  return d;
+}
+
+const CRISIS_INSTRUCTIONS_MAX = 5000;
+
+export function normalizeCrisisInstructions(v: unknown): string | null {
+  if (v === null || v === undefined) return null;
+  if (typeof v !== "string") throw new ServiceError("הנחיות לא חוקיות", "VALIDATION");
+  const t = v.trim();
+  if (t.length > CRISIS_INSTRUCTIONS_MAX) throw new ServiceError(`הנחיות ארוכות מדי (עד ${CRISIS_INSTRUCTIONS_MAX} תווים)`, "VALIDATION");
+  return t || null;
 }

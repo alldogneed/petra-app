@@ -64,6 +64,9 @@ export async function PATCH(
       if (e instanceof ServiceError && e.code === "NOT_FOUND") {
         return NextResponse.json({ error: "זכאי לא נמצא" }, { status: 404 });
       }
+      if (e instanceof ServiceError && e.code === "VALIDATION") {
+        return NextResponse.json({ error: e.message }, { status: 400 });
+      }
       throw e;
     }
 

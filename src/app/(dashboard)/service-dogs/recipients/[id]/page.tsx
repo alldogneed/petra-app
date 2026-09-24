@@ -9,6 +9,7 @@ import {
   Dog, Calendar, Plus, X, Pencil, Trash2, Copy, FileText, Clock,
   CheckCircle2, AlertCircle, ExternalLink, ArrowRight,
   Link2, Printer, Search, Upload, Users, Smartphone, Package,
+  ClipboardList, Camera,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
 import {
@@ -82,6 +83,8 @@ interface RecipientDetail {
   approvedAt: string | null;
   handoverDate: string | null;
   notes: string | null;
+  photoConsent: boolean;
+  crisisInstructions: string | null;
   status: string;
   customerId: string | null;
   customer: { id: string; name: string; phone: string | null; email: string | null } | null;
@@ -128,7 +131,7 @@ const CONTACT_PERSON_ROLES = [
   "אחר",
 ];
 
-type Tab = "details" | "documents" | "meetings";
+type Tab = "details" | "documents" | "meetings" | "guidelines";
 
 // ─── Safe JSON array helper ───
 function safeJsonArray<T>(raw: unknown): T[] {
@@ -299,6 +302,7 @@ function RecipientDetailPageContent() {
     { id: "details" as Tab, label: "פרטים", icon: UserCheck },
     { id: "documents" as Tab, label: "מסמכים", icon: FileText, badge: mainDocs.length },
     { id: "meetings" as Tab, label: "מפגשים", icon: Calendar, badge: meetingsArray.length },
+    { id: "guidelines" as Tab, label: "הנחיות", icon: ClipboardList },
   ];
 
   return (
@@ -453,6 +457,7 @@ function RecipientDetailPageContent() {
                   { label: "אימייל", value: recipient.email, href: recipient.email ? `mailto:${recipient.email}` : undefined },
                   { label: "תעודת זהות", value: recipient.idNumber },
                   { label: "כתובת", value: recipient.address },
+                  { label: "אישור צילום", value: recipient.photoConsent ? "✓ יש הסכמה לצילום" : "אין הסכמה לצילום" },
                   { label: "תאריך רשימת המתנה", value: recipient.waitlistDate ? formatDate(recipient.waitlistDate) : null },
                 ].filter((r) => r.value).map((row) => (
                   <div key={row.label} className="py-2 border-b last:border-0">
@@ -740,6 +745,15 @@ function RecipientDetailPageContent() {
         </div>
       )}
 
+      {/* Tab: Guidelines */}
+      {activeTab === "guidelines" && (
+        <CrisisInstructionsCard
+          value={recipient.crisisInstructions}
+          isSaving={patchMutation.isPending}
+          onSave={(text) => patchMutation.mutate({ crisisInstructions: text })}
+        />
+      )}
+
       {/* Tab: Meetings */}
       {activeTab === "meetings" && (
         <div className="card p-5">
@@ -962,12 +976,87 @@ export default function RecipientDetailPage() {
 
 // ─── Edit Recipient Modal ───
 
+// ─── Crisis instructions (הנחיות בזמן התקף) ───
+
+function CrisisInstructionsCard({
+  value, isSaving, onSave,
+}: {
+  value: string | null;
+  isSaving: boolean;
+  onSave: (text: string | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(value ?? "");
+
+  const startEdit = () => { setDraft(value ?? ""); setOpen(true); };
+  const save = () => { onSave(draft.trim() || null); setOpen(false); };
+  const remove = () => {
+    if (!confirm("למחוק את ההנחיות בזמן התקף?")) return;
+    onSave(null);
+    setOpen(false);
+  };
+
+  return (
+    <div className="card p-5">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-semibold flex items-center gap-2">
+          <ClipboardList className="w-4 h-4 text-brand-500" />
+          הנחיות
+        </h3>
+      </div>
+
+      {!open && (
+        <button
+          onClick={startEdit}
+          className="w-full text-right p-4 rounded-xl border-2 border-dashed border-orange-200 bg-orange-50/40 hover:border-orange-400 transition-colors"
+        >
+          <p className="font-semibold text-sm flex items-center gap-2 text-orange-700">
+            <AlertCircle className="w-4 h-4" />
+            הנחיות בזמן התקף
+          </p>
+          {value ? (
+            <p className="text-sm text-petra-text mt-2 whitespace-pre-wrap">{value}</p>
+          ) : (
+            <p className="text-xs text-petra-muted mt-1">לחץ כדי להוסיף — למשל: לגשת מקדימה, להחזיק שתי ידיים בחוזקה, לתת מים</p>
+          )}
+        </button>
+      )}
+
+      {open && (
+        <div className="space-y-3">
+          <label className="label text-xs">הנחיות בזמן התקף</label>
+          <textarea
+            className="input w-full"
+            rows={6}
+            maxLength={5000}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            placeholder="לדוגמה: לגשת מקדימה, להחזיק שתי ידיים בחוזקה, לתת מים"
+            autoFocus
+          />
+          <div className="flex gap-2">
+            <button className="btn-primary text-sm" onClick={save} disabled={isSaving}>
+              {isSaving ? "שומר..." : "שמור"}
+            </button>
+            <button className="btn-secondary text-sm" onClick={() => setOpen(false)}>ביטול</button>
+            {value && (
+              <button className="text-sm text-red-600 hover:bg-red-50 px-3 rounded-lg mr-auto flex items-center gap-1" onClick={remove} disabled={isSaving}>
+                <Trash2 className="w-3.5 h-3.5" /> מחק
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function EditRecipientModal({
   recipient, stages, onSave, onClose, isSaving,
 }: {
   recipient: RecipientDetail;
   stages: Array<{ id: string; key: string; name: string; color: string }>;
-  onSave: (data: Record<string, string | null>) => void;
+  onSave: (data: Record<string, string | boolean | null>) => void;
   onClose: () => void;
   isSaving: boolean;
 }) {
@@ -985,6 +1074,7 @@ function EditRecipientModal({
   const [handoverDate, setHandoverDate] = useState(
     recipient.handoverDate ? recipient.handoverDate.split("T")[0] : ""
   );
+  const [photoConsent, setPhotoConsent] = useState(!!recipient.photoConsent);
 
   const DISABILITY_TYPES_LIST = [
     { id: "PTSD", label: "PTSD" }, { id: "VISUAL", label: "לקות ראייה" },
@@ -1036,6 +1126,16 @@ function EditRecipientModal({
               <label className="label text-xs">כתובת</label>
               <input className="input w-full" value={address} onChange={(e) => setAddress(e.target.value)} />
             </div>
+            <label className="col-span-2 flex items-center gap-2 cursor-pointer select-none py-1">
+              <input
+                type="checkbox"
+                className="w-4 h-4 accent-brand-500"
+                checked={photoConsent}
+                onChange={(e) => setPhotoConsent(e.target.checked)}
+              />
+              <Camera className="w-4 h-4 text-petra-muted" />
+              <span className="text-sm">אישור צילום — הזכאי מסכים להצטלם</span>
+            </label>
             <div>
               <label className="label text-xs">סוג מוגבלות</label>
               <select className="input w-full text-sm" value={disabilityType} onChange={(e) => setDisabilityType(e.target.value)}>
@@ -1067,7 +1167,7 @@ function EditRecipientModal({
         <div className="flex gap-2 mt-4">
           <button
             className="btn-primary flex-1"
-            onClick={() => onSave({ name, phone, mobile, email, idNumber, address, disabilityType, disabilityNotes, fundingSource, notes, status, handoverDate: handoverDate || null })}
+            onClick={() => onSave({ name, phone, mobile, email, idNumber, address, disabilityType, disabilityNotes, fundingSource, notes, status, handoverDate: handoverDate || null, photoConsent })}
             disabled={!name.trim() || isSaving}
           >
             {isSaving ? "שומר..." : "שמור שינויים"}

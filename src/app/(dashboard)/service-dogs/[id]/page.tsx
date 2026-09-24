@@ -2973,6 +2973,7 @@ const DOG_DOC_TYPE_MAP = Object.fromEntries(DOG_DOC_TYPES.map((d) => [d.id, d.la
 function DocumentsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
   const queryClient = useQueryClient();
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [editingDoc, setEditingDoc] = useState<DogDocument | null>(null);
 
   // Exclude training-test file attachments — they belong only in the tests tab
   const documents: DogDocument[] = (Array.isArray(dog.documents) ? (dog.documents as DogDocument[]) : [])
@@ -3051,8 +3052,15 @@ function DocumentsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) 
                       </a>
                     )}
                     <button
+                      onClick={() => setEditingDoc(doc)}
+                      className="w-8 h-8 rounded flex items-center justify-center hover:bg-slate-100 transition-colors"
+                      title="ערוך שם וסוג"
+                    >
+                      <Pencil className="w-4 h-4 text-petra-muted" />
+                    </button>
+                    <button
                       onClick={() => deleteDoc(doc.id)}
-                      className="opacity-0 group-hover:opacity-100 w-8 h-8 rounded flex items-center justify-center hover:bg-red-100 transition-all"
+                      className="w-8 h-8 rounded flex items-center justify-center hover:bg-red-100 transition-colors"
                       title="מחק"
                     >
                       <Trash2 className="w-4 h-4 text-red-500" />
@@ -3091,8 +3099,12 @@ function DocumentsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) 
                       <ExternalLink className="w-4 h-4 text-brand-500" />
                     </a>
                   )}
+                  <button onClick={() => setEditingDoc(doc)}
+                    className="w-8 h-8 rounded flex items-center justify-center hover:bg-slate-100 transition-colors" title="ערוך שם וסוג">
+                    <Pencil className="w-4 h-4 text-petra-muted" />
+                  </button>
                   <button onClick={() => deleteDoc(doc.id)}
-                    className="opacity-0 group-hover:opacity-100 w-8 h-8 rounded flex items-center justify-center hover:bg-red-100 transition-all" title="מחק">
+                    className="w-8 h-8 rounded flex items-center justify-center hover:bg-red-100 transition-colors" title="מחק">
                     <Trash2 className="w-4 h-4 text-red-500" />
                   </button>
                 </div>
@@ -3109,6 +3121,19 @@ function DocumentsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) 
         </div>
       )}
 
+      {editingDoc && (
+        <EditDogDocModal
+          dogId={dogId}
+          doc={editingDoc}
+          onClose={() => setEditingDoc(null)}
+          onSaved={() => {
+            queryClient.invalidateQueries({ queryKey: ["service-dog-detail", dogId] });
+            setEditingDoc(null);
+            toast.success("המסמך עודכן");
+          }}
+        />
+      )}
+
       {showUploadModal && (
         <UploadDogDocModal
           dogId={dogId}
@@ -3120,6 +3145,74 @@ function DocumentsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) 
           onClose={() => setShowUploadModal(false)}
         />
       )}
+    </div>
+  );
+}
+
+// ─── Edit Dog Document (name + type) ───
+
+function EditDogDocModal({
+  dogId, doc, onClose, onSaved,
+}: {
+  dogId: string;
+  doc: DogDocument;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [name, setName] = useState(doc.name);
+  // Unknown legacy types are shown as "אחר" until the user picks one
+  const [docType, setDocType] = useState(DOG_DOC_TYPES.some((d) => d.id === doc.docType) ? doc.docType : "OTHER");
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const r = await fetch(`/api/service-dogs/${dogId}/documents`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ docId: doc.id, name: name.trim(), docType }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data.error || "שגיאה בעדכון המסמך");
+      return data;
+    },
+    onSuccess: onSaved,
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-backdrop" />
+      <div className="modal-content max-w-md mx-4 p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold flex items-center gap-2">
+            <Pencil className="w-5 h-5 text-brand-500" />
+            עריכת מסמך
+          </h2>
+          <button onClick={onClose} className="btn-ghost p-1"><X className="w-5 h-5" /></button>
+        </div>
+        <div className="space-y-3">
+          <div>
+            <label className="label text-xs">שם המסמך</label>
+            <input className="input w-full" value={name} maxLength={255} onChange={(e) => setName(e.target.value)} autoFocus />
+          </div>
+          <div>
+            <label className="label text-xs">סוג מסמך</label>
+            <select className="input w-full" value={docType} onChange={(e) => setDocType(e.target.value)}>
+              {DOG_DOC_TYPES.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
+            </select>
+          </div>
+          {doc.fileName && <p className="text-xs text-petra-muted">קובץ: {doc.fileName} — הקובץ עצמו לא משתנה</p>}
+        </div>
+        <div className="flex gap-2 mt-5">
+          <button
+            className="btn-primary flex-1"
+            onClick={() => saveMutation.mutate()}
+            disabled={!name.trim() || saveMutation.isPending}
+          >
+            {saveMutation.isPending ? "שומר..." : "שמור"}
+          </button>
+          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -4402,6 +4495,47 @@ function EditPetModal({
   );
 }
 
+// ─── Month + year (licence validity) ───
+
+// HE_MONTHS is declared once, with the vaccinations tab further down.
+
+/** "יולי 2027" — read in UTC: the value is stored as the 1st of the month at 00:00Z. */
+function formatMonthYear(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  return `${HE_MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+}
+
+/**
+ * Month + year selector producing "YYYY-MM" (or "" when cleared). Two selects
+ * rather than <input type="month">, which Safari renders as plain text.
+ */
+function MonthYearPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [y, m] = value ? value.split("-") : ["", ""];
+  const thisYear = new Date().getFullYear();
+  const years = Array.from({ length: 14 }, (_, i) => thisYear - 3 + i);
+  const emit = (ny: string, nm: string) => onChange(ny && nm ? `${ny}-${nm}` : "");
+  return (
+    <div className="flex gap-2">
+      <select className="input flex-1 text-sm" value={m} onChange={(e) => emit(y || String(thisYear), e.target.value)} aria-label="חודש">
+        <option value="">חודש</option>
+        {HE_MONTHS.map((name, i) => (
+          <option key={name} value={String(i + 1).padStart(2, "0")}>{name}</option>
+        ))}
+      </select>
+      <select className="input w-24 text-sm" value={y} onChange={(e) => emit(e.target.value, m || "01")} aria-label="שנה">
+        <option value="">שנה</option>
+        {years.map((yr) => <option key={yr} value={String(yr)}>{yr}</option>)}
+      </select>
+      {value && (
+        <button type="button" className="btn-ghost px-2 text-xs text-petra-muted" onClick={() => onChange("")} title="נקה">
+          <X className="w-3.5 h-3.5" />
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ─── SD Extra Info Section (acquisition / license / logistics) ───
 
 function SDExtraInfoSection({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
@@ -4412,7 +4546,7 @@ function SDExtraInfoSection({ dog, dogId }: { dog: ServiceDogDetail; dogId: stri
     purchasePrice: dog.purchasePrice != null ? String(dog.purchasePrice) : "",
     purchaseSource: dog.purchaseSource ?? "",
     licenseNumber: dog.licenseNumber ?? "",
-    licenseExpiry: dog.licenseExpiry ? dog.licenseExpiry.split("T")[0] : "",
+    licenseExpiry: dog.licenseExpiry ? dog.licenseExpiry.slice(0, 7) : "", // "YYYY-MM"
     maintenanceNotes: dog.maintenanceNotes ?? "",
     yardGroup: dog.yardGroup ?? "",
     feedingInstructions: dog.feedingInstructions ?? "",
@@ -4477,7 +4611,7 @@ function SDExtraInfoSection({ dog, dogId }: { dog: ServiceDogDetail; dogId: stri
             </div>
             <div>
               <label className="label text-xs">תוקף רשיון</label>
-              <input type="date" lang="he" className="input w-full text-sm" value={form.licenseExpiry} onChange={(e) => setForm((p) => ({ ...p, licenseExpiry: e.target.value }))} />
+              <MonthYearPicker value={form.licenseExpiry} onChange={(v) => setForm((p) => ({ ...p, licenseExpiry: v }))} />
             </div>
             <div>
               <label className="label text-xs">קבוצת חצר</label>
@@ -4505,7 +4639,7 @@ function SDExtraInfoSection({ dog, dogId }: { dog: ServiceDogDetail; dogId: stri
           {dog.purchasePrice && <div><p className="text-xs text-petra-muted">סכום קניה</p><p className="font-medium">{dog.purchasePrice.toLocaleString("he-IL")} ₪</p></div>}
           {dog.purchaseSource && <div><p className="text-xs text-petra-muted">מקור קניה</p><p className="font-medium">{dog.purchaseSource}</p></div>}
           {dog.licenseNumber && <div><p className="text-xs text-petra-muted">רשיון עירוני</p><p className="font-medium">{dog.licenseNumber}</p></div>}
-          {dog.licenseExpiry && <div><p className="text-xs text-petra-muted">תוקף רשיון</p><p className="font-medium">{formatDate(dog.licenseExpiry)}</p></div>}
+          {dog.licenseExpiry && <div><p className="text-xs text-petra-muted">תוקף רשיון</p><p className="font-medium">{formatMonthYear(dog.licenseExpiry)}</p></div>}
           {dog.yardGroup && <div><p className="text-xs text-petra-muted">קבוצת חצר</p><p className="font-medium">{dog.yardGroup}</p></div>}
           {dog.feedingInstructions && <div className="col-span-2"><p className="text-xs text-petra-muted">הוראות האכלה</p><p className="font-medium text-xs">{dog.feedingInstructions}</p></div>}
           {dog.maintenanceNotes && <div className="col-span-2"><p className="text-xs text-petra-muted">הערות אחזקה</p><p className="text-xs text-petra-muted">{dog.maintenanceNotes}</p></div>}
@@ -5197,6 +5331,7 @@ function InsuranceTab({ dogId }: { dogId: string }) {
 
       {editingInsurance && (
         <EditInsuranceModal
+          dogId={dogId}
           insurance={editingInsurance}
           onClose={() => setEditingInsurance(null)}
           onSave={(data) => updateInsMutation.mutate({ insuranceId: editingInsurance.id, data })}
@@ -5208,16 +5343,38 @@ function InsuranceTab({ dogId }: { dogId: string }) {
 }
 
 function EditInsuranceModal({
+  dogId,
   insurance,
   onClose,
   onSave,
   isSaving,
 }: {
+  dogId: string;
   insurance: InsuranceRecord;
   onClose: () => void;
   onSave: (d: Record<string, unknown>) => void;
   isSaving: boolean;
 }) {
+  // New file picked in this modal (null = keep the existing document)
+  const [newDocUrl, setNewDocUrl] = useState<string | null>(null);
+  const [newDocName, setNewDocName] = useState<string | null>(null);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setUploadingDoc(true);
+    try {
+      const up = await uploadPolicyFile(dogId, file);
+      setNewDocUrl(up.url);
+      setNewDocName(up.fileName);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "שגיאה בהעלאת הקובץ");
+    } finally {
+      setUploadingDoc(false);
+    }
+  };
   const [form, setForm] = useState({
     provider: insurance.provider ?? "",
     policyNumber: insurance.policyNumber ?? "",
@@ -5261,8 +5418,33 @@ function EditInsuranceModal({
             </div>
           </div>
           <div><label className="label text-xs">הערות</label><textarea className="input w-full text-sm" rows={2} value={form.notes} onChange={f("notes")} /></div>
+          {/* Policy file — attach one, or replace the current one on renewal */}
+          <div>
+            <label className="label text-xs">מסמך פוליסה (PDF / תמונה, עד 4MB)</label>
+            {insurance.policyDocument && !newDocUrl && (
+              <p className="text-xs text-petra-muted mb-1.5 flex items-center gap-1">
+                <FileTextIcon className="w-3 h-3" /> קיים מסמך מצורף — בחירת קובץ חדש תחליף אותו
+              </p>
+            )}
+            <label className="flex items-center gap-2 cursor-pointer border-2 border-dashed border-blue-200 rounded-lg p-3 hover:border-blue-400 transition-colors">
+              <Upload className="w-4 h-4 text-blue-400 shrink-0" />
+              <span className="text-sm text-blue-600 truncate">
+                {uploadingDoc ? "מעלה..." : newDocName || (insurance.policyDocument ? "החלף קובץ" : "לחץ להעלאת קובץ")}
+              </span>
+              <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" className="hidden" onChange={handleFileChange} disabled={uploadingDoc} />
+            </label>
+            {newDocUrl && !uploadingDoc && (
+              <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1">
+                <Check className="w-3 h-3" /> הקובץ הועלה — יישמר עם הפוליסה: {newDocName}
+              </p>
+            )}
+          </div>
           <div className="flex gap-2 pt-1">
-            <button className="btn-primary text-sm flex-1" onClick={() => onSave(form)} disabled={isSaving}>
+            <button
+              className="btn-primary text-sm flex-1"
+              onClick={() => onSave(newDocUrl ? { ...form, policyDocument: newDocUrl } : form)}
+              disabled={isSaving || uploadingDoc}
+            >
               {isSaving ? "שומר..." : "שמור שינויים"}
             </button>
             <button className="btn-secondary text-sm flex-1" onClick={onClose}>ביטול</button>
@@ -5271,6 +5453,24 @@ function EditInsuranceModal({
       </div>
     </div>
   );
+}
+
+// Vercel rejects request bodies over 4.5MB before our route runs, with a
+// non-JSON 413 — so cap below it and translate that case into a clear message.
+const POLICY_FILE_MAX_BYTES = 4 * 1024 * 1024;
+
+async function uploadPolicyFile(dogId: string, file: File): Promise<{ url: string; fileName: string }> {
+  if (file.size > POLICY_FILE_MAX_BYTES) {
+    throw new Error(`הקובץ גדול מדי (${(file.size / 1024 / 1024).toFixed(1)}MB) — עד 4MB. אפשר לכווץ את ה-PDF ולנסות שוב`);
+  }
+  const formData = new FormData();
+  formData.append("file", file);
+  const res = await fetch(`/api/service-dogs/${dogId}/upload`, { method: "POST", body: formData });
+  if (res.status === 413) throw new Error("הקובץ גדול מדי — עד 4MB");
+  let data: { url?: string; fileName?: string; error?: string } = {};
+  try { data = await res.json(); } catch { /* non-JSON error page */ }
+  if (!res.ok || !data.url) throw new Error(data.error || "שגיאה בהעלאת הקובץ — נסה שוב");
+  return { url: data.url, fileName: data.fileName || file.name };
 }
 
 function AddInsuranceForm({ dogId, onSave, onCancel, isSaving }: { dogId: string; onSave: (d: Record<string, unknown>) => void; onCancel: () => void; isSaving: boolean }) {
@@ -5285,17 +5485,13 @@ function AddInsuranceForm({ dogId, onSave, onCancel, isSaving }: { dogId: string
   // longer than that column can hold (that was silently failing every save).
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-picking the same file after an error
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { toast.error("קובץ גדול מדי (מקסימום 5MB)"); return; }
     setUploadingDoc(true);
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await fetch(`/api/service-dogs/${dogId}/upload`, { method: "POST", body: formData });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "שגיאה בהעלאת הקובץ");
-      setPolicyDocument(data.url);
-      setDocName(data.fileName || file.name);
+      const up = await uploadPolicyFile(dogId, file);
+      setPolicyDocument(up.url);
+      setDocName(up.fileName);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "שגיאה בהעלאת הקובץ");
       setPolicyDocument(null);
