@@ -5,7 +5,9 @@ import { createOrderReminder } from "@/lib/scheduled-messages";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { syncAppointmentToGcal, syncBoardingToGcal } from "@/lib/google-calendar";
-import { sendWhatsAppTemplate, sendWhatsAppMessage, interpolateTemplate } from "@/lib/whatsapp";
+import { interpolateTemplate } from "@/lib/whatsapp";
+import { appointmentConfirmationChain, defaultConfirmationText } from "@/lib/reminder-service";
+import { sendWithTemplateChain } from "@/lib/whatsapp-template-chain";
 import { toWhatsAppPhone } from "@/lib/utils";
 import { logCurrentUserActivity } from "@/lib/activity-log";
 import { getMaxOrders, normalizeTier, hasFeatureWithOverrides } from "@/lib/feature-flags";
@@ -72,8 +74,9 @@ export async function POST(request: NextRequest) {
 
     const biz = await prisma.business.findUnique({
       where: { id: authResult.businessId },
-      select: { tier: true, featureOverrides: true, whatsappRemindersEnabled: true },
+      select: { tier: true, featureOverrides: true, whatsappRemindersEnabled: true, phone: true },
     });
+    const bizPhone = biz?.phone ?? null;
     const maxOrders = getMaxOrders(normalizeTier(biz?.tier));
 
     let result;
@@ -169,23 +172,24 @@ export async function POST(request: NextRequest) {
           const petName = linkedAppt?.pet?.name ?? "";
 
           if (confirmationRule && !alreadySent) {
-          if (confirmationRule?.template?.body) {
-            const msgBody = interpolateTemplate(confirmationRule.template.body, {
-              customerName: customer.name, date: formattedDate,
-              time: body.appointmentData.startTime as string, serviceName, petName,
-            });
-            await sendWhatsAppMessage({ to: phone, body: msgBody, businessId: authResult.businessId, context: "appointment_confirmation" }).catch((err) =>
-              console.error("Order appointment confirmation WA (custom) failed:", err)
-            );
-          } else {
-            await sendWhatsAppTemplate({
-              to: phone,
-              templateName: "petra_appointment_confirmation",
-              bodyParams: [customer.name, formattedDate, body.appointmentData.startTime as string, serviceName],
-              businessId: authResult.businessId,
-              context: "appointment_confirmation",
-            }).catch((err) => console.error("Order appointment confirmation WA failed:", err));
-          }
+          // Approved template first (see appointments route) — custom free
+          // text only as the last fallback, it fails outside Meta's 24h window.
+          const confirmationVars = {
+            customerName: customer.name,
+            date: formattedDate,
+            time: body.appointmentData.startTime as string,
+            serviceName,
+          };
+          const customBody = confirmationRule.template?.body
+            ? interpolateTemplate(confirmationRule.template.body, { ...confirmationVars, petName })
+            : null;
+          await sendWithTemplateChain({
+            to: phone,
+            steps: appointmentConfirmationChain({ ...confirmationVars, businessPhone: (bizPhone ?? "").trim() }),
+            fallbackBody: customBody ?? defaultConfirmationText(confirmationVars),
+            businessId: authResult.businessId,
+            context: "appointment_confirmation",
+          }).catch((err) => console.error("Order appointment confirmation WA failed:", err));
           // Log the send so the same appointment never gets a second confirmation.
           await prisma.scheduledMessage.create({
             data: {
