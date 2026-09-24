@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
       UserName:         process.env.CARDCOM_API_USERNAME ?? "",
       APILevel:         "10",
       codepage:         "65001",
-      Operation:        "4",           // tokenise only — no charge
+      Operation:        "3",           // CreateTokenOnly — no charge (4 is SuspendDealOnly)
       Language:         "he",
       SumToBill:        "0",           // ₪0 today
       CoinID:           "1",           // ILS

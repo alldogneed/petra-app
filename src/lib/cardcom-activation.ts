@@ -22,6 +22,7 @@ import { sendUpgradeConfirmationEmail } from "@/lib/email";
 import { notifyOwnerPaymentReceived } from "@/lib/notify-owner";
 import {
   createCardcomRecurring,
+  cancelCardcomRecurring,
   getPlanPrice,
   parseCardcomResponse,
   extractCardToken,
@@ -240,14 +241,17 @@ export async function activateVerifiedPayment(p: ActivateParams): Promise<Activa
   // customer agreed to, regardless of a manually kept higher tier.
   let recurringId: string | null = null;
   let recurringError: string | null = null;
-  // Still-active subscription with a live recurring order (a customer who paid
-  // by hand while the order is running): keep it. Cardcom cannot re-point an
-  // existing order through NewAndUpdate, and a second order would bill the
-  // customer twice a month. A lapsed/cancelled business gets a fresh order —
-  // its old one was cancelled or stopped charging.
-  const recurringKept = business.subscriptionStatus === "active" && !!business.cardcomRecurringId;
+  // Recurring order handling:
+  //  - New Cardcom token → create a fresh order. If the business already had
+  //    one, deactivate it afterwards: older orders were built on a Shva
+  //    reference instead of a Cardcom token and can never charge ("8000 Token
+  //    Not Found"), and two live orders would bill twice.
+  //  - No token (should not happen with BillAndCreateToken) on a still-active
+  //    subscription → keep the existing order and flag it for the owner.
+  const previousRecurringId = business.cardcomRecurringId;
+  const recurringKept = !cardToken && business.subscriptionStatus === "active" && !!previousRecurringId;
   if (recurringKept) {
-    recurringId = business.cardcomRecurringId;
+    recurringId = previousRecurringId;
     await prisma.subscriptionEvent.create({
       data: {
         businessId,
@@ -268,12 +272,20 @@ export async function activateVerifiedPayment(p: ActivateParams): Promise<Activa
         companyName: business.name ?? "לקוח פטרה",
         email: business.email ?? "",
       });
+      let replaced: { previousRecurringId: string; cancelled: boolean; cancelError: string | null } | null = null;
       if (result.success && result.recurringId) {
         recurringId = result.recurringId;
         await prisma.business.update({
           where: { id: businessId },
           data: { cardcomRecurringId: result.recurringId },
         });
+        if (previousRecurringId && previousRecurringId !== result.recurringId) {
+          const cancel = await cancelCardcomRecurring(previousRecurringId);
+          replaced = { previousRecurringId, cancelled: cancel.success, cancelError: cancel.error ?? null };
+          if (!cancel.success) {
+            recurringError = `הוראה חדשה ${result.recurringId} נוצרה, אבל כיבוי ההוראה הישנה ${previousRecurringId} נכשל (${cancel.error ?? "unknown"}) — לכבות ידנית בקארדקום`;
+          }
+        }
       } else {
         recurringError = result.error ?? "unknown";
         console.error(`cardcom-activation: recurring failed for ${businessId}:`, result.error);
@@ -283,7 +295,7 @@ export async function activateVerifiedPayment(p: ActivateParams): Promise<Activa
           businessId,
           eventType: result.success ? "recurring_created" : "recurring_failed",
           tier,
-          metadata: { recurringId: result.recurringId ?? null, error: result.error ?? null, source },
+          metadata: { recurringId: result.recurringId ?? null, error: result.error ?? null, source, ...(replaced ? { replaced } : {}) },
         },
       }).catch(() => null);
     } catch (err) {
