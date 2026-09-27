@@ -296,7 +296,7 @@ function NewLeadModal({ isOpen, onClose, stages }: { isOpen: boolean; onClose: (
 
 // ─── Sales pipeline helpers ──────────────────────────────────────────────────
 
-const HE_WEEKDAYS = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
+const HE_WEEKDAYS = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"];
 
 type FollowUpBucket = "overdue" | "today" | "tomorrow" | "week" | "later" | "none";
 
@@ -364,7 +364,7 @@ function getFollowUpInfo(nextFollowUpAt: string | null): FollowUpInfo {
   if (diff === 1) {
     return { bucket: "tomorrow", label: withTime(`מחר ${dayMonth(d)}`), color: "#475569", ...neutral, sortKey };
   }
-  const weekdayLabel = withTime(`יום ${HE_WEEKDAYS[d.getDay()]} ${dayMonth(d)}`);
+  const weekdayLabel = withTime(`${HE_WEEKDAYS[d.getDay()]} ${dayMonth(d)}`);
   if (diff < 7) {
     return { bucket: "week", label: weekdayLabel, color: "#475569", ...neutral, sortKey };
   }
@@ -501,7 +501,7 @@ function FollowUpPicker({ lead, onClose }: { lead: Lead; onClose: () => void }) 
   return (
     <>
       <div className="fixed inset-0 z-30" onClick={onClose} />
-      <div className={cn("absolute top-8 right-0 z-40 w-64 bg-white border border-slate-200 rounded-xl p-3", POPOVER_SHADOW)}>
+      <div className={cn("absolute top-9 inset-x-0 z-40 min-w-[200px] bg-white border border-slate-200 rounded-xl p-3", POPOVER_SHADOW)}>
         <p className="text-xs font-semibold text-slate-500 mb-2">מועד חזרה · {lead.name}</p>
         <div className="grid grid-cols-2 gap-1.5 mb-3">
           {FOLLOW_UP_QUICK.map((q) => (
@@ -516,7 +516,7 @@ function FollowUpPicker({ lead, onClose }: { lead: Lead; onClose: () => void }) 
             </button>
           ))}
         </div>
-        <div className="grid grid-cols-[1fr_88px] gap-1.5">
+        <div className="grid grid-cols-1 gap-1.5">
           <input
             type="date"
             lang="he"
@@ -678,12 +678,12 @@ function LeadCard({
 
       {/* Footer — pointer events stop here so buttons never start a drag */}
       <div
-        className="flex items-center gap-1.5 mt-2.5 pt-2.5 border-t border-slate-100"
+        className="relative flex items-center gap-1.5 mt-2.5 pt-2.5 border-t border-slate-100"
         onClick={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
         onTouchStart={(e) => e.stopPropagation()}
       >
-        <div className="flex-1 min-w-0 relative flex">
+        <div className="flex-1 min-w-0 flex">
           <button
             type="button"
             onClick={() => setShowPicker((v) => !v)}
@@ -1216,7 +1216,7 @@ function ArchiveTab({
               : null;
             const date = isWon ? lead.wonAt : lead.lostAt;
             const { service, cleanNotes } = leadMeta(lead);
-            const reason = isWon ? (cleanNotes || "—") : (lostReasonLabel || lead.lostReasonText || "—");
+            const reason = isWon ? (cleanNotes || "—") : ([lostReasonLabel, lead.lostReasonText].filter(Boolean).join(" · ") || "—");
             return (
               <div
                 key={lead.id}
@@ -2369,7 +2369,11 @@ function LeadsPageContent() {
       <LeadTreatmentModal
         lead={selectedLead}
         isOpen={!!selectedLead}
-        onClose={() => setSelectedLead(null)}
+        onClose={() => {
+          setSelectedLead(null);
+          // A won/lost drag updates the cache optimistically — resync if the drawer closed without saving
+          queryClient.invalidateQueries({ queryKey: ["leads"] });
+        }}
         stages={stages}
         onWon={(name, customerId) => {
           setSelectedLead(null);

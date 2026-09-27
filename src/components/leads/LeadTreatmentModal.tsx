@@ -603,18 +603,27 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
         if (!isOpen) return;
         const onKeyDown = (e: KeyboardEvent) => {
             if (e.key !== "Escape" || e.defaultPrevented || lostModalOpen) return;
+            // Never drop typed text: Escape inside a field, or with unsaved call notes, does not close
+            const t = e.target as HTMLElement | null;
+            if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT")) return;
+            if (editingLogId || summary.trim() || treatment.trim() || isEditing) return;
             onClose();
         };
         window.addEventListener("keydown", onKeyDown);
         return () => window.removeEventListener("keydown", onKeyDown);
-    }, [isOpen, lostModalOpen, onClose]);
+    }, [isOpen, lostModalOpen, onClose, editingLogId, summary, treatment, isEditing]);
 
     if (!lead || !isOpen) return null;
 
     const currentStage = stages.find((s) => s.id === lead.stage);
     const isWonLead = !!(wonStage && lead.stage === wonStage.id);
     const headerName = isEditing ? editForm.name : lead.name;
-    const subtitleParts = [lead.phone, lead.city, lead.requestedService].filter(Boolean) as string[];
+    // Older leads keep city / service only inside notes ("עיר: …" / "שירות מבוקש: …")
+    const notesCity = lead.notes?.match(/^עיר:\s*(.+)$/m)?.[1]?.trim() || null;
+    const notesService = lead.notes?.match(/^שירות מבוקש:\s*(.+)$/m)?.[1]?.trim() || null;
+    const displayCity = lead.city || notesCity;
+    const displayService = lead.requestedService || notesService;
+    const subtitleParts = [lead.phone, displayCity, displayService].filter(Boolean) as string[];
     const sourceLabel = LEAD_SOURCES.find((s) => s.id === lead.source)?.label ?? lead.source;
 
     // Next follow-up (display only)
@@ -897,7 +906,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                         <div className="grid grid-cols-2 gap-x-5 gap-y-4 text-sm">
                             <div className="min-w-0">
                                 <div className="text-xs text-slate-500 mb-1">שירות מבוקש</div>
-                                <div className="font-medium break-words">{lead.requestedService || "—"}</div>
+                                <div className="font-medium break-words">{displayService || "—"}</div>
                             </div>
                             {dealValueCell}
                             <div className="min-w-0">
@@ -906,7 +915,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                             </div>
                             <div className="min-w-0">
                                 <div className="text-xs text-slate-500 mb-1">עיר</div>
-                                <div className="font-medium break-words">{lead.city || "—"}</div>
+                                <div className="font-medium break-words">{displayCity || "—"}</div>
                             </div>
                         </div>
                     )}
