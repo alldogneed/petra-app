@@ -10,6 +10,7 @@ import { cn, toWhatsAppPhone } from "@/lib/utils";
 import { toast } from "sonner";
 import LostReasonModal from "@/components/leads/LostReasonModal";
 import { normalizeDealValue, formatIls } from "@/lib/lead-deal-value";
+import { validateIsraeliPhone, validateEmail, normalizeIsraeliPhone } from "@/lib/validation";
 
 interface Lead {
     id: string;
@@ -253,7 +254,12 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
 
     const lostStage = stages.find((s) => s.isLost);
     const wonStage = stages.find((s) => s.isWon);
-    const isClosed = (wonStage && lead?.stage === wonStage.id) || (lostStage && lead?.stage === lostStage.id);
+    // Closed = actually closed on the server (wonAt/lostAt). A card just dragged onto "won" is not closed
+    // until the user confirms, so the won/lost buttons stay available.
+    const isClosed = !!(
+        (wonStage && lead?.stage === wonStage.id && (liveLead?.wonAt || lead?.wonAt)) ||
+        (lostStage && lead?.stage === lostStage.id && (liveLead?.lostAt || lead?.lostAt))
+    );
     const isSelectedWon = wonStage && selectedStage === wonStage.id;
 
     useEffect(() => {
@@ -345,9 +351,14 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(data),
-            }).then((r) => r.json()),
+            }).then(async (r) => {
+                const body = await r.json().catch(() => ({}));
+                // Surface the server's validation message (e.g. invalid phone) instead of failing silently
+                if (!r.ok) throw new Error(typeof body.error === "string" && body.error !== "Invalid input" ? body.error : "שגיאה בעדכון הליד. בדוק את הפרטים ונסה שוב.");
+                return body;
+            }),
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ["leads"] }),
-        onError: () => toast.error("שגיאה בעדכון הליד. נסה שוב."),
+        onError: (err: Error) => toast.error(err.message || "שגיאה בעדכון הליד. נסה שוב."),
     });
 
     const dealValueMutation = useMutation({
@@ -495,8 +506,54 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
 
     // ── Handlers ──────────────────────────────────────────────────────────
 
+    const detailsPayload = () => ({
+        name: editForm.name.trim(),
+        phone: editForm.phone.trim() ? normalizeIsraeliPhone(editForm.phone) : null,
+        email: editForm.email.trim() || null,
+        source: editForm.source,
+        city: editForm.city.trim() || null,
+        address: editForm.address.trim() || null,
+        requestedService: editForm.requestedService.trim() || null,
+    });
+
+    /** Client-side check with the same rules the server applies — returns an error message or null. */
+    const detailsError = (): string | null => {
+        if (editForm.name.trim().length < 2) return "שם לא תקין — נא להזין לפחות 2 תווים";
+        if (editForm.phone.trim()) {
+            const e = validateIsraeliPhone(editForm.phone);
+            if (e) return e;
+        }
+        if (editForm.email.trim()) {
+            const e = validateEmail(editForm.email.trim());
+            if (e) return e;
+        }
+        return null;
+    };
+
+    const [savingDetails, setSavingDetails] = useState(false);
+    const handleSaveDetails = async () => {
+        if (!lead || savingDetails) return;
+        const err = detailsError();
+        if (err) { toast.error(err); return; }
+        setSavingDetails(true);
+        try {
+            await updateLeadMutation.mutateAsync(detailsPayload());
+            setIsEditing(false);
+            toast.success("פרטי הליד נשמרו");
+        } catch {
+            // toast already shown by the mutation
+        } finally {
+            setSavingDetails(false);
+        }
+    };
+
     const handleSave = async () => {
         if (!lead) return;
+
+        if (isEditing) {
+            const err = detailsError();
+            if (err) { toast.error(err); return; }
+        }
 
         // An open deal-value edit is saved first so "שמור וסגור" never drops it
         if (editingDeal && !(await saveDealValue())) return;
@@ -512,15 +569,12 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
         setFollowUpError(false);
 
         if (isSelectedWon) {
-            if (isEditing) {
-                await updateLeadMutation.mutateAsync({
-                    name: editForm.name, phone: editForm.phone || null,
-                    email: editForm.email || null, source: editForm.source,
-                    city: editForm.city || null, address: editForm.address || null,
-                    requestedService: editForm.requestedService || null,
-                });
+            try {
+                if (isEditing) await updateLeadMutation.mutateAsync(detailsPayload());
+                await closeWonMutation.mutateAsync();
+            } catch {
+                // error toast already shown — keep the drawer open
             }
-            await closeWonMutation.mutateAsync();
             return;
         }
 
@@ -548,19 +602,19 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
             }
         }
 
-        await updateLeadMutation.mutateAsync({
-            stage: selectedStage,
-            ...(nextFollowUpAt && {
-                nextFollowUpAt: new Date(nextFollowUpAt).toISOString(),
-                followUpStatus,
-            }),
-            ...(isEditing && {
-                name: editForm.name, phone: editForm.phone || null,
-                email: editForm.email || null, source: editForm.source,
-                city: editForm.city || null, address: editForm.address || null,
-                requestedService: editForm.requestedService || null,
-            }),
-        });
+        try {
+            await updateLeadMutation.mutateAsync({
+                stage: selectedStage,
+                ...(nextFollowUpAt && {
+                    nextFollowUpAt: new Date(nextFollowUpAt).toISOString(),
+                    followUpStatus,
+                }),
+                ...(isEditing && detailsPayload()),
+            });
+        } catch {
+            // error toast already shown — keep the drawer open so nothing typed is lost
+            return;
+        }
         onClose();
     };
 
@@ -617,14 +671,15 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
 
     const currentStage = stages.find((s) => s.id === lead.stage);
     const isWonLead = !!(wonStage && lead.stage === wonStage.id);
-    const headerName = isEditing ? editForm.name : lead.name;
+    const view = liveLead ?? lead; // cache-fresh after a save (the prop is a snapshot)
+    const headerName = isEditing ? editForm.name : view.name;
     // Older leads keep city / service only inside notes ("עיר: …" / "שירות מבוקש: …")
-    const notesCity = lead.notes?.match(/^עיר:\s*(.+)$/m)?.[1]?.trim() || null;
-    const notesService = lead.notes?.match(/^שירות מבוקש:\s*(.+)$/m)?.[1]?.trim() || null;
-    const displayCity = lead.city || notesCity;
-    const displayService = lead.requestedService || notesService;
-    const subtitleParts = [lead.phone, displayCity, displayService].filter(Boolean) as string[];
-    const sourceLabel = LEAD_SOURCES.find((s) => s.id === lead.source)?.label ?? lead.source;
+    const notesCity = view.notes?.match(/^עיר:\s*(.+)$/m)?.[1]?.trim() || null;
+    const notesService = view.notes?.match(/^שירות מבוקש:\s*(.+)$/m)?.[1]?.trim() || null;
+    const displayCity = view.city || notesCity;
+    const displayService = view.requestedService || notesService;
+    const subtitleParts = [view.phone, displayCity, displayService].filter(Boolean) as string[];
+    const sourceLabel = LEAD_SOURCES.find((s) => s.id === view.source)?.label ?? view.source;
 
     // Next follow-up (display only)
     const followUpIso = liveLead?.nextFollowUpAt ?? null;
@@ -644,12 +699,6 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
         });
     }
 
-    const focusCallSummary = () => {
-        const el = document.getElementById("lead-call-summary-input") as HTMLTextAreaElement | null;
-        if (!el) return;
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
-        el.focus({ preventScroll: true });
-    };
 
     const followUpInvalid = followUpError && !nextFollowUpAt;
 
@@ -801,35 +850,35 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                             {subtitleParts.map((part, i) => (
                                 <span key={i}>
                                     {i > 0 && " · "}
-                                    {part === lead.phone ? <span dir="ltr">{part}</span> : part}
+                                    {part === view.phone ? <span dir="ltr">{part}</span> : part}
                                 </span>
                             ))}
                         </div>
                     )}
 
-                    {lead.email && (
+                    {view.email && (
                         <a
-                            href={`https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(lead.email)}`}
+                            href={`https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(view.email)}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="mt-1 inline-flex items-center gap-1.5 text-[13px] text-slate-500 hover:text-[#EA580C] transition-colors"
                         >
                             <Mail className="w-3.5 h-3.5" />
-                            <span dir="ltr">{lead.email}</span>
+                            <span dir="ltr">{view.email}</span>
                         </a>
                     )}
 
-                    {lead.phone && (
+                    {view.phone && (
                         <div className="mt-4 flex gap-2">
                             <a
-                                href={`tel:${lead.phone}`}
+                                href={`tel:${view.phone}`}
                                 className="flex-1 h-10 rounded-[10px] inline-flex items-center justify-center gap-2 text-sm font-semibold text-white bg-[#F97316] hover:bg-[#EA580C] transition-colors"
                             >
                                 <Phone className="w-4 h-4" />
                                 חיוג ללקוח
                             </a>
                             <a
-                                href={`https://wa.me/${toWhatsAppPhone(lead.phone)}`}
+                                href={`https://wa.me/${toWhatsAppPhone(view.phone)}`}
                                 target="whatsapp_window"
                                 rel="noopener noreferrer"
                                 title="שלח הודעה בוואטסאפ"
@@ -840,18 +889,45 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                             </a>
                         </div>
                     )}
+
+                    {/* ── Won / lost — top of the card ── */}
+                    {!isClosed ? (
+                        <div className="mt-2 flex gap-2">
+                            <button
+                                onClick={handleCloseWon}
+                                disabled={isWorking}
+                                className="flex-1 h-10 rounded-[10px] inline-flex items-center justify-center gap-1.5 border border-[#6EE7B7] bg-[#ECFDF5] text-[#047857] hover:bg-[#D1FAE5] text-sm font-semibold transition-colors disabled:opacity-50"
+                            >
+                                <CheckCircle2 className="w-4 h-4" />
+                                {closeWonMutation.isPending ? "סוגר..." : "נסגר כלקוח"}
+                            </button>
+                            <button
+                                onClick={handleCloseLost}
+                                disabled={isWorking}
+                                className="flex-1 h-10 rounded-[10px] inline-flex items-center justify-center gap-1.5 border border-red-200 bg-white text-red-700 hover:bg-red-50 text-sm font-semibold transition-colors disabled:opacity-50"
+                            >
+                                <XCircle className="w-4 h-4" />
+                                {closeLostMutation.isPending ? "מסמן..." : "אבד"}
+                            </button>
+                        </div>
+                    ) : (
+                        <div className={cn(
+                            "mt-4 rounded-xl px-4 py-3 flex items-center gap-2 text-sm font-semibold border",
+                            isWonLead
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                : "bg-red-50 text-red-700 border-red-200"
+                        )}>
+                            {isWonLead
+                                ? <><CheckCircle2 className="w-4 h-4" /> ליד נסגר בהצלחה — לקוח נוצר</>
+                                : <><XCircle className="w-4 h-4" /> ליד אבוד</>
+                            }
+                        </div>
+                    )}
                 </div>
 
                 {/* ── Quick log + next follow-up ─────────────────────── */}
                 <div className="px-6 py-5 border-b border-[#F1F5F9]">
-                    <button
-                        type="button"
-                        onClick={focusCallSummary}
-                        className="w-full h-11 rounded-xl border border-[#FDBA74] bg-[#FFEDD5] text-[#9A3412] font-bold text-sm hover:bg-[#FED7AA] hover:border-[#FB923C] active:scale-[0.98] transition"
-                    >
-                        הוספת תיעוד שיחה
-                    </button>
-                    <div className="text-xs font-semibold text-slate-500 mt-4">חזרה הבאה</div>
+                    <div className="text-xs font-semibold text-slate-500">חזרה הבאה</div>
                     {followUpText ? (
                         <div className="mt-0.5 text-[15px] font-semibold tabular-nums" style={{ color: followUpColor }}>
                             {followUpText}
@@ -865,12 +941,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                 <div className="px-6 py-5 border-b border-[#F1F5F9]">
                     {isEditing ? (
                         <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                                <h4 className="text-xs font-semibold text-slate-500">עריכת פרטים</h4>
-                                <button onClick={() => setIsEditing(false)} className="text-xs text-slate-500 hover:text-slate-700">
-                                    ביטול עריכה
-                                </button>
-                            </div>
+                            <h4 className="text-xs font-semibold text-slate-500">עריכת פרטים</h4>
                             <div className="grid grid-cols-2 gap-x-4 gap-y-3">
                                 {[
                                     { key: "name", label: "שם ליד" },
@@ -885,7 +956,10 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                                         <input
                                             className={INPUT_CLS}
                                             value={(editForm as Record<string, string>)[key]}
+                                            dir={key === "phone" || key === "email" ? "ltr" : undefined}
+                                            inputMode={key === "phone" ? "tel" : key === "email" ? "email" : undefined}
                                             onChange={e => setEditForm({ ...editForm, [key]: e.target.value })}
+                                            onBlur={key === "phone" ? (e => { if (e.target.value.trim()) setEditForm((f) => ({ ...f, phone: normalizeIsraeliPhone(e.target.value) })); }) : undefined}
                                         />
                                     </div>
                                 ))}
@@ -899,6 +973,28 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                                         {LEAD_SOURCES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
                                     </select>
                                 </div>
+                            </div>
+                            <div className="flex gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => void handleSaveDetails()}
+                                    disabled={savingDetails}
+                                    className="h-10 px-5 rounded-[10px] bg-[#F97316] hover:bg-[#EA580C] text-white font-semibold text-sm transition-colors disabled:opacity-50 inline-flex items-center gap-1.5"
+                                >
+                                    <Check className="w-4 h-4" />
+                                    {savingDetails ? "שומר..." : "שמור פרטים"}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setIsEditing(false);
+                                        setEditForm({ name: view.name, phone: view.phone || "", email: view.email || "", city: view.city || "", address: view.address || "", requestedService: view.requestedService || "", source: view.source });
+                                    }}
+                                    disabled={savingDetails}
+                                    className="h-10 px-4 border border-slate-200 rounded-[10px] bg-white text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+                                >
+                                    ביטול
+                                </button>
                             </div>
                             <div className="pt-1">{dealValueCell}</div>
                         </div>
@@ -922,49 +1018,6 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                 </div>
 
                 <div className="flex-1 px-6 py-5 space-y-6">
-
-                    {/* ── Stage ──────────────────────────────────────── */}
-                    <div>
-                        <h3 className={SECTION_TITLE_CLS}>שלב במכירה</h3>
-                        {!isClosed && (
-                            <div className="flex flex-wrap gap-2">
-                                {stages.map((stage) => (
-                                    <button
-                                        key={stage.id}
-                                        onClick={() => setSelectedStage(stage.id)}
-                                        className={cn(
-                                            "h-8 px-3 rounded-full border text-[13px] font-medium transition-colors inline-flex items-center gap-1.5",
-                                            selectedStage === stage.id
-                                                ? "border-current"
-                                                : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                                        )}
-                                        style={selectedStage === stage.id ? {
-                                            color: stage.color,
-                                            backgroundColor: `${stage.color}15`,
-                                            borderColor: stage.color,
-                                        } : {}}
-                                    >
-                                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: stage.color }} />
-                                        {stage.name}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-
-                        {isClosed && (
-                            <div className={cn(
-                                "rounded-xl px-4 py-3 flex items-center gap-2 text-sm font-semibold border",
-                                isWonLead
-                                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                    : "bg-red-50 text-red-700 border-red-200"
-                            )}>
-                                {isWonLead
-                                    ? <><CheckCircle2 className="w-4 h-4" /> ליד נסגר בהצלחה — לקוח נוצר</>
-                                    : <><XCircle className="w-4 h-4" /> ליד אבוד</>
-                                }
-                            </div>
-                        )}
-                    </div>
 
                     {/* ── Call log + follow-up ───────────────────────── */}
                     <div className="border border-slate-200 rounded-xl overflow-hidden">
@@ -1089,24 +1142,6 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                         סגור
                     </button>
 
-                    {!isClosed && (
-                        <div className="ms-auto flex gap-2">
-                            <button
-                                onClick={handleCloseWon}
-                                disabled={isWorking}
-                                className="h-10 px-4 rounded-[10px] bg-[#059669] hover:bg-[#047857] text-white text-sm font-semibold transition-colors disabled:opacity-50"
-                            >
-                                {closeWonMutation.isPending ? "סוגר..." : "נסגר כלקוח"}
-                            </button>
-                            <button
-                                onClick={handleCloseLost}
-                                disabled={isWorking}
-                                className="h-10 px-4 rounded-[10px] border border-red-200 text-red-700 bg-white hover:bg-red-50 text-sm font-semibold transition-colors disabled:opacity-50"
-                            >
-                                {closeLostMutation.isPending ? "מסמן..." : "אבד"}
-                            </button>
-                        </div>
-                    )}
                 </div>
             </div>
 
