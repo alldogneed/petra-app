@@ -35,7 +35,7 @@ XFADE = 0.4  # scene overlap (--d = gap to next scene + XFADE)
 LINES = [
     "יש לכם עסק של כלבים? אילוף, פנסיון, טיפוח?",
     "אז אתם מכירים את זה. תורים בוואטסאפ, חוזים על נייר, לקוחות ששוכחים להגיע. בשביל זה בנינו את פטרה.",
-    "זאת פטרה, מערכת ניהול לעסקים של חיות מחמד.",
+    "הכירו את פטרה, מערכת ניהול לַעֲסָקִים של חיות מחמד.",
     "כל העסק במסך אחד. לקוחות, יומן, פנסיון, חוזים ותשלומים.",
     "כל ליד שנכנס, מגוגל, מפייסבוק או מהאתר, מגיע ישר ללוח המכירות. רואים מאיזה קמפיין הוא הגיע ומתי לחזור אליו, ואף לקוח לא הולך לאיבוד.",
     "הלקוחות קובעים תור לבד. שולחים להם קישור, הם בוחרים שירות ושעה פנויה, והתור נכנס ישר ליומן.",
@@ -93,6 +93,11 @@ def best_take(text, voice, out):
         tts(text, voice, tmp)
         heard = transcribe(tmp)
         sc = score(text, heard)
+        if sc == 1:  # borderline words can pass once by luck; require a second clean transcription
+            heard2 = transcribe(tmp)
+            sc = min(sc, score(text, heard2))
+            if sc < 1:
+                heard += "  //  " + heard2
         print(f"    take {k}: {sc:.2f} {heard}")
         if best is None or sc > best[0]:
             best = (sc, tmp)
@@ -196,7 +201,8 @@ LOOP_AT, LOOP_LEN, LOOP_XF = 35.25, 8.69, 0.5
 def music(src, gain_db=-8.0):
     """Lay a music bed under petra-promo-vo.mp4 -> petra-promo-final.mp4.
     The music stays at a constant level (no ducking - it must not dip under the voice); a fixed,
-    gentle EQ dip in the speech band keeps the voice clear. The last frame is held until the
+    gentle EQ dip in the speech band, plus light compression and a presence lift on the voice,
+    keep the voice clear. The last frame is held until the
     music ends (at most 4s)."""
     vo_mp4 = os.path.join(HERE, "petra-promo-vo.mp4")
     wav = os.path.join(HERE, "music.wav")
@@ -222,9 +228,10 @@ def music(src, gain_db=-8.0):
     graph = (
         f"[1:a]volume={gain_db}dB,equalizer=f=2500:t=q:w=1:g=-3,"
         f"afade=t=out:st={end - fade}:d={fade},atrim=0:{end}[m];"
-        "[0:a]aresample=48000,pan=stereo|c0=c0|c1=c0,apad[v];"
+        "[0:a]aresample=48000,highpass=f=90,acompressor=threshold=-22dB:ratio=3:attack=5:release=120:makeup=2,"
+        "equalizer=f=3200:t=q:w=1.2:g=3,pan=stereo|c0=c0|c1=c0,apad[v];"
         f"[v][m]amix=inputs=2:normalize=0:duration=shortest,"
-        f"volume=-1.6dB,alimiter=limit=0.89,aresample=48000,apad=whole_dur={end}[aout];"
+        f"volume=0.2dB,alimiter=limit=0.89,aresample=48000,apad=whole_dur={end}[aout];"
         f"[0:v]tpad=stop_mode=clone:stop_duration={hold}[vout]"
     )
     out = os.path.join(HERE, "petra-promo-final.mp4")
