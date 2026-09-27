@@ -27,3 +27,12 @@
 1. לייצר קטע אודיו לכל סצנה בנפרד, ולמדוד את האורך של כל אחד
 2. להאריך סצנה ב-promo.html כשהקריינות ארוכה ממנה (לעדכן `--s`/`--d` של הסצנות הבאות ואת `TOTAL`)
 3. לרנדר וידאו (`render.py video`), ולחבר את הקטעים עם ffmpeg (`adelay` לכל קטע לפי `--s`, ואז `amix`) לתוך ה-MP4
+
+## הרצה (`dub.py`)
+```bash
+pip install playwright imageio-ffmpeg
+python3 dub.py samples        # samples/coral.wav + samples/marin.wav
+python3 dub.py voice marin    # קטע לכל סצנה ב-vo/, מאריך סצנות ב-promo.html לפי הצורך (רק מאריך, לא מקצר)
+python3 dub.py mix            # רינדור + מיקס -> petra-promo-vo.mp4
+```
+הקריינות נכנסת 0.4 שניות אחרי תחילת הסצנה, ואחריה נשארות לפחות 0.6 שניות לפני הסצנה הבאה. האודיו מנורמל ל-‎-16 LUFS.
