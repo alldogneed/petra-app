@@ -184,9 +184,11 @@ def mix():
     print("wrote petra-promo-vo.mp4")
 
 
-def music(src, gain_db=-10.0):
+def music(src, gain_db=-8.0):
     """Lay a music bed under petra-promo-vo.mp4 -> petra-promo-final.mp4.
-    The music ducks under the voice (sidechain); the last frame is held until the music ends."""
+    The music stays at a constant level (no ducking - it must not dip under the voice); a fixed,
+    gentle EQ dip in the speech band keeps the voice clear. The last frame is held until the
+    music ends (at most 4s)."""
     vo_mp4 = os.path.join(HERE, "petra-promo-vo.mp4")
     wav = os.path.join(HERE, "music.wav")
     subprocess.run([FF, "-loglevel", "error", "-y", "-i", src, "-vn", "-ac", "2", "-ar", "48000",
@@ -194,15 +196,15 @@ def music(src, gain_db=-10.0):
                    check=True)
     video_len = json.load(open(os.path.join(VO, "timing.json")))["total"]
     music_len = duration(wav)
-    end = max(video_len, min(music_len, video_len + 4))  # hold the end card at most 4s
+    end = max(video_len, min(music_len, video_len + 4))
     hold = round(end - video_len, 2)
     fade = 1.5
     graph = (
-        f"[1:a]volume={gain_db}dB,afade=t=out:st={end - fade}:d={fade},atrim=0:{end}[m];"
-        "[0:a]aresample=48000,pan=stereo|c0=c0|c1=c0,apad,asplit[v][key];"
-        "[m][key]sidechaincompress=threshold=0.015:ratio=8:attack=30:release=500:makeup=1[duck];"
-        f"[v][duck]amix=inputs=2:normalize=0:duration=shortest,loudnorm=I=-16:TP=-1.5,"
-        f"aresample=48000,apad=whole_dur={end}[aout];"
+        f"[1:a]volume={gain_db}dB,equalizer=f=2500:t=q:w=1:g=-3,"
+        f"afade=t=out:st={end - fade}:d={fade},atrim=0:{end}[m];"
+        "[0:a]aresample=48000,pan=stereo|c0=c0|c1=c0,apad[v];"
+        f"[v][m]amix=inputs=2:normalize=0:duration=shortest,"
+        f"volume=-1.6dB,alimiter=limit=0.89,aresample=48000,apad=whole_dur={end}[aout];"
         f"[0:v]tpad=stop_mode=clone:stop_duration={hold}[vout]"
     )
     out = os.path.join(HERE, "petra-promo-final.mp4")
