@@ -7,10 +7,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Plus, X, Phone, Mail, Check, XCircle, MessageCircle,
-  Trophy, Archive, PhoneCall, PhoneMissed, Pencil, Trash2, Lock, GripVertical, UserCheck, Search, FileText,
-  CalendarClock, Clock, CheckCircle, RefreshCw, Sparkles, MapPin, Tag, Download, AlertCircle, RotateCcw, ChevronDown,
-  CheckSquare, Square, MinusSquare,
+  Plus, X, Phone, MessageCircle, Archive, Pencil, Trash2, Lock, GripVertical, UserCheck, Search, FileText,
+  Clock, RefreshCw, Sparkles, Download, RotateCcw, ChevronDown, CheckSquare, Square, MinusSquare,
 } from "lucide-react";
 import { fetchJSON, toWhatsAppPhone, cn } from "@/lib/utils";
 import { mapWithConcurrency } from "@/lib/concurrency";
@@ -24,17 +22,18 @@ import { LEAD_SOURCES, LOST_REASON_CODES } from "@/lib/constants";
 import { LeadTreatmentModal } from "@/components/leads/LeadTreatmentModal";
 import LeadDetailsModal from "@/components/leads/LeadDetailsModal";
 const LeadsReports = dynamic(() => import("@/components/leads/LeadsReports").then(m => ({ default: m.LeadsReports })), { ssr: false });
-import { BarChart2, Coins } from "lucide-react";
 import {
   DndContext,
   DragOverlay,
   closestCorners,
+  pointerWithin,
   PointerSensor,
   TouchSensor,
   useSensor,
   useSensors,
   DragEndEvent,
   DragStartEvent,
+  CollisionDetection,
 } from "@dnd-kit/core";
 import { useDroppable, useDraggable } from "@dnd-kit/core";
 import {
@@ -51,6 +50,8 @@ interface Lead {
   name: string;
   phone: string | null;
   email: string | null;
+  city?: string | null;
+  requestedService?: string | null;
   source: string;
   stage: string;
   notes: string | null;
@@ -88,10 +89,13 @@ interface LeadStage {
   isLost: boolean;
 }
 
-const STAGE_COLORS = [
-  "#8B5CF6", "#3B82F6", "#6366F1", "#06B6D4",
-  "#22C55E", "#EAB308", "#F97316", "#EF4444",
+// Stage color palette (column dot picker + stage editing)
+const STAGE_SWATCHES = [
+  "#94A3B8", "#64748B", "#6366F1", "#3B82F6", "#8B5CF6",
+  "#EC4899", "#EF4444", "#F97316", "#F59E0B", "#10B981",
 ];
+
+type SalesView = "board" | "followup" | "list" | "archive" | "reports";
 
 /** Normalize phone to 972XXXXXXXXX for local duplicate check */
 function toPhoneNormLocal(raw: string): string | null {
@@ -289,294 +293,121 @@ function NewLeadModal({ isOpen, onClose, stages }: { isOpen: boolean; onClose: (
   );
 }
 
-function getSourceEmoji(source: string): string {
-  switch (source) {
-    case "google": return "🔍";
-    case "instagram": return "📸";
-    case "facebook": return "📘";
-    case "website": return "🌐";
-    case "referral": return "🤝";
-    case "manual": return "✏️";
-    default: return "📋";
+
+// ─── Sales pipeline helpers ──────────────────────────────────────────────────
+
+const HE_WEEKDAYS = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
+
+type FollowUpBucket = "overdue" | "today" | "tomorrow" | "week" | "later" | "none";
+
+interface FollowUpInfo {
+  bucket: FollowUpBucket;
+  label: string;
+  color: string;
+  bg: string;
+  border: string;
+  sortKey: number;
+}
+
+function startOfToday(): Date {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+/** Older follow-ups were saved date-only (UTC midnight) — don't show a made-up clock time for them. */
+function hasClockTime(d: Date): boolean {
+  if (d.getUTCHours() === 0 && d.getUTCMinutes() === 0) return false;
+  if (d.getHours() === 0 && d.getMinutes() === 0) return false;
+  return true;
+}
+
+function clockOf(d: Date): string {
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function dayMonth(d: Date): string {
+  return `${d.getDate()}.${d.getMonth() + 1}`;
+}
+
+function localDateInput(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function atDayOffset(offset: number, hour: number): string {
+  const d = startOfToday();
+  d.setDate(d.getDate() + offset);
+  d.setHours(hour, 0, 0, 0);
+  return d.toISOString();
+}
+
+// Overdue = followUpDate < todayStart — the same condition sortLeadsByPriority() uses (rule #18).
+function getFollowUpInfo(nextFollowUpAt: string | null): FollowUpInfo {
+  const neutral = { bg: "#F8FAFC", border: "#E2E8F0" };
+  if (!nextFollowUpAt) {
+    return { bucket: "none", label: "ללא מועד חזרה", color: "#94A3B8", ...neutral, sortKey: Number.POSITIVE_INFINITY };
   }
+  const d = new Date(nextFollowUpAt);
+  const todayStart = startOfToday();
+  const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const diff = Math.round((dayStart.getTime() - todayStart.getTime()) / 86400000);
+  const time = hasClockTime(d) ? clockOf(d) : "";
+  const withTime = (s: string) => (time ? `${s} · ${time}` : s);
+  const sortKey = d.getTime();
+
+  if (d < todayStart) {
+    return { bucket: "overdue", label: `באיחור · ${dayMonth(d)}`, color: "#B91C1C", bg: "#FEF2F2", border: "#FECACA", sortKey };
+  }
+  if (diff <= 0) {
+    return { bucket: "today", label: withTime("היום"), color: "#C2410C", bg: "#FFF7ED", border: "#FED7AA", sortKey };
+  }
+  if (diff === 1) {
+    return { bucket: "tomorrow", label: withTime(`מחר ${dayMonth(d)}`), color: "#475569", ...neutral, sortKey };
+  }
+  const weekdayLabel = withTime(`יום ${HE_WEEKDAYS[d.getDay()]} ${dayMonth(d)}`);
+  if (diff < 7) {
+    return { bucket: "week", label: weekdayLabel, color: "#475569", ...neutral, sortKey };
+  }
+  return { bucket: "later", label: weekdayLabel, color: "#64748B", ...neutral, sortKey };
 }
 
-// ─── Edit Mode: Sortable Column Wrapper ──────────────────────────────────────
-
-function SortableColumn({
-  stage,
-  leads,
-  editMode,
-  editingStageId,
-  editingName,
-  onStartEdit,
-  onChangeName,
-  onSaveName,
-  onChangeColor,
-  onDelete,
-  onLeadClick,
-  onQuickAction,
-  onWon,
-  onDetails,
-  stages,
-}: {
-  stage: LeadStage;
-  leads: Lead[];
-  editMode: boolean;
-  editingStageId: string | null;
-  editingName: string;
-  onStartEdit: (id: string, name: string) => void;
-  onChangeName: (name: string) => void;
-  onSaveName: (id: string) => void;
-  onChangeColor: (id: string, color: string) => void;
-  onDelete: (stage: LeadStage) => void;
-  onLeadClick: (l: Lead) => void;
-  onQuickAction: (l: Lead, action: string) => void;
-  onWon: (l: Lead) => void;
-  onDetails: (l: Lead) => void;
-  stages: LeadStage[];
-}) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: stage.id, disabled: !editMode });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-
-  return (
-    <div ref={setNodeRef} style={style} className="min-w-[calc(100vw-2rem)] md:min-w-[280px] flex-1 flex flex-col snap-center">
-      <KanbanColumn
-        stage={stage}
-        leads={leads}
-        editMode={editMode}
-        editingStageId={editingStageId}
-        editingName={editingName}
-        onStartEdit={onStartEdit}
-        onChangeName={onChangeName}
-        onSaveName={onSaveName}
-        onChangeColor={onChangeColor}
-        onDelete={onDelete}
-        onLeadClick={onLeadClick}
-        onQuickAction={onQuickAction}
-        onWon={onWon}
-        onDetails={onDetails}
-        dragAttributes={attributes}
-        dragListeners={listeners}
-        stages={stages}
-      />
-    </div>
-  );
+function byFollowUp(a: Lead, b: Lead): number {
+  const ka = getFollowUpInfo(a.nextFollowUpAt).sortKey;
+  const kb = getFollowUpInfo(b.nextFollowUpAt).sortKey;
+  if (ka === kb) return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+  return ka - kb;
 }
 
-// ─── Kanban Column ───────────────────────────────────────────────────────────
+const FU_DROP_PREFIX = "fu:";
 
-function KanbanColumn({
-  stage,
-  leads,
-  editMode,
-  editingStageId,
-  editingName,
-  onStartEdit,
-  onChangeName,
-  onSaveName,
-  onChangeColor,
-  onDelete,
-  onLeadClick,
-  onQuickAction,
-  onWon,
-  onDetails,
-  dragAttributes,
-  dragListeners,
-  stages,
-  selectionMode = false,
-  selectedIds,
-  onToggleSelect,
-}: {
-  stage: LeadStage;
-  leads: Lead[];
-  editMode: boolean;
-  editingStageId: string | null;
-  editingName: string;
-  onStartEdit: (id: string, name: string) => void;
-  onChangeName: (name: string) => void;
-  onSaveName: (id: string) => void;
-  onChangeColor: (id: string, color: string) => void;
-  onDelete: (stage: LeadStage) => void;
-  onLeadClick: (l: Lead) => void;
-  onQuickAction: (l: Lead, action: string) => void;
-  onWon: (l: Lead) => void;
-  onDetails: (l: Lead) => void;
-  dragAttributes?: Record<string, any>;
-  dragListeners?: Record<string, any>;
-  stages: LeadStage[];
-  selectionMode?: boolean;
-  selectedIds?: Set<string>;
-  onToggleSelect?: (id: string) => void;
-}) {
-  const { isOver, setNodeRef } = useDroppable({
-    id: stage.id,
-    disabled: editMode,
-  });
+const FOLLOW_UP_COLUMNS: {
+  id: string;
+  name: string;
+  color: string;
+  buckets: FollowUpBucket[];
+  target: (() => string) | null;
+}[] = [
+  { id: "overdue", name: "באיחור", color: "#EF4444", buckets: ["overdue"], target: null },
+  { id: "today", name: "היום", color: "#F97316", buckets: ["today"], target: () => atDayOffset(0, 18) },
+  { id: "tomorrow", name: "מחר", color: "#3B82F6", buckets: ["tomorrow"], target: () => atDayOffset(1, 10) },
+  { id: "week", name: "השבוע", color: "#8B5CF6", buckets: ["week"], target: () => atDayOffset(3, 10) },
+  { id: "later", name: "בהמשך / ללא מועד", color: "#94A3B8", buckets: ["later", "none"], target: () => atDayOffset(7, 10) },
+];
 
-  const isWon = stage.isWon;
-  const isLost = stage.isLost;
+const FOLLOW_UP_QUICK = [
+  { label: "היום 18:00", at: () => atDayOffset(0, 18) },
+  { label: "מחר 10:00", at: () => atDayOffset(1, 10) },
+  { label: "בעוד 3 ימים", at: () => atDayOffset(3, 10) },
+  { label: "בעוד שבוע", at: () => atDayOffset(7, 10) },
+];
 
-  const columnBg = isWon
-    ? "bg-green-50/60 border-green-100"
-    : isLost
-      ? "bg-red-50/60 border-red-100"
-      : "bg-slate-50/80 border-slate-100";
-
-  const columnBgHover = isOver
-    ? isWon
-      ? "bg-green-100 border-dashed border-green-300"
-      : isLost
-        ? "bg-red-100 border-dashed border-red-300"
-        : "bg-slate-100 border-dashed border-slate-300"
-    : columnBg;
-
-  const [showColorPicker, setShowColorPicker] = useState(false);
-  const columnValue = sumDealValues(leads);
-
-  return (
-    <>
-      {/* Column Header */}
-      <div className={`flex items-center gap-2 mb-3 px-2 py-1.5 rounded-lg transition-colors ${editMode ? "bg-amber-50/80 border border-amber-200/60" : ""}`}>
-        {editMode && dragListeners && (
-          <button
-            className="cursor-grab active:cursor-grabbing text-amber-500 hover:text-amber-700"
-            {...dragAttributes}
-            {...dragListeners}
-          >
-            <GripVertical className="w-4 h-4" />
-          </button>
-        )}
-
-        {isWon ? (
-          <Trophy className="w-4 h-4 text-green-500" />
-        ) : isLost ? (
-          <Archive className="w-4 h-4 text-red-400" />
-        ) : (
-          <div className="w-2.5 h-2.5 rounded-full" style={{ background: stage.color }} />
-        )}
-
-        {editMode && editingStageId === stage.id ? (
-          <input
-            className="text-sm font-semibold text-petra-text bg-white border border-brand-300 rounded px-2 py-0.5 w-28 focus:outline-none focus:ring-1 focus:ring-brand-500"
-            value={editingName}
-            onChange={(e) => onChangeName(e.target.value)}
-            onBlur={() => onSaveName(stage.id)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") onSaveName(stage.id);
-              if (e.key === "Escape") onSaveName(stage.id);
-            }}
-            autoFocus
-          />
-        ) : (
-          <span
-            className={`text-sm font-semibold text-petra-text ${editMode ? "cursor-pointer hover:text-brand-600 border-b border-dashed border-amber-400" : ""}`}
-            onClick={() => editMode && onStartEdit(stage.id, stage.name)}
-          >
-            {stage.name}
-          </span>
-        )}
-
-        {columnValue > 0 && (
-          <span
-            className="ms-auto inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-bold tabular-nums whitespace-nowrap"
-            title="סה״כ ערך עסקאות בעמודה"
-          >
-            <Coins className="w-3.5 h-3.5 text-emerald-600" />
-            {formatIls(columnValue)}
-          </span>
-        )}
-        <span className={`badge-neutral text-[10px] ${columnValue > 0 ? "" : "ms-auto"}`}>{leads.length}</span>
-
-        {editMode && (
-          <div className="flex items-center gap-1.5 relative">
-            {/* Color picker */}
-            <button
-              className="w-6 h-6 rounded-full border-2 border-white shadow-sm hover:scale-110 transition-transform"
-              style={{ backgroundColor: stage.color }}
-              onClick={() => setShowColorPicker(!showColorPicker)}
-              title="שנה צבע"
-            />
-            {showColorPicker && (
-              <div className="absolute top-8 right-0 z-50 bg-white shadow-lg rounded-lg p-2 flex gap-1.5 border border-slate-200">
-                {STAGE_COLORS.map((c) => (
-                  <button
-                    key={c}
-                    className={`w-6 h-6 rounded-full border-2 transition-transform hover:scale-125 ${c === stage.color ? "border-slate-800 scale-110" : "border-white"}`}
-                    style={{ backgroundColor: c }}
-                    onClick={() => {
-                      onChangeColor(stage.id, c);
-                      setShowColorPicker(false);
-                    }}
-                  />
-                ))}
-              </div>
-            )}
-
-            {/* Delete / Lock */}
-            {isWon || isLost ? (
-              <span title="לא ניתן למחוק שלב זה">
-                <Lock className="w-4 h-4 text-petra-muted" />
-              </span>
-            ) : (
-              <button
-                onClick={() => onDelete(stage)}
-                className="w-6 h-6 flex items-center justify-center rounded-md text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                title="מחק שלב"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Column Body */}
-      <div
-        ref={setNodeRef}
-        className={`flex-1 space-y-3 min-h-[400px] p-3 rounded-xl transition-colors border ${columnBgHover}`}
-      >
-        {leads.length === 0 && !isOver && (
-          <p className="text-xs text-petra-muted text-center py-8">אין לידים</p>
-        )}
-        {!editMode && leads.map((lead) => (
-          <DraggableLeadCard
-            key={lead.id}
-            lead={lead}
-            stage={stage}
-            onClick={() => onLeadClick(lead)}
-            onQuickAction={(action) => onQuickAction(lead, action)}
-            onWon={() => onWon(lead)}
-            onDetails={() => onDetails(lead)}
-            stages={stages}
-            selectionMode={selectionMode}
-            isSelected={selectedIds?.has(lead.id) ?? false}
-            onToggleSelect={() => onToggleSelect?.(lead.id)}
-          />
-        ))}
-        {editMode && leads.map((lead) => (
-          <div key={lead.id} className="card p-4 opacity-60">
-            <div className="text-sm font-bold text-petra-text">{lead.name}</div>
-          </div>
-        ))}
-      </div>
-    </>
-  );
+function isHexColor(c: string | null | undefined): c is string {
+  return !!c && /^#[0-9a-fA-F]{6}$/.test(c);
 }
 
-// ─── Draggable Lead Card ─────────────────────────────────────────────────────
+function sourceLabelOf(source: string): string {
+  return LEAD_SOURCES.find((s) => s.id === source)?.label || source;
+}
 
 /** מחלץ עיר ושירות מבוקש מתוך שדה ה-notes */
 function parseLeadMeta(notes: string | null): { city: string | null; service: string | null; cleanNotes: string | null } {
@@ -594,426 +425,865 @@ function parseLeadMeta(notes: string | null): { city: string | null; service: st
   return { city, service, cleanNotes };
 }
 
-function DraggableLeadCard({
+/** City / service live in their own columns on newer leads and inside `notes` on older ones. */
+function leadMeta(lead: Lead): { city: string | null; service: string | null; cleanNotes: string | null } {
+  const parsed = parseLeadMeta(lead.notes);
+  return {
+    city: lead.city || parsed.city,
+    service: lead.requestedService || parsed.service,
+    cleanNotes: parsed.cleanNotes,
+  };
+}
+
+/** Last contact snippet — deal-value journal lines are not contact activity (rule #28). */
+function leadSnippet(lead: Lead): string | null {
+  const contactLogs = (lead.callLogs ?? []).filter((log) => log.type !== "deal_value");
+  if (contactLogs.length > 0) return contactLogs[0].summary;
+  return leadMeta(lead).cleanNotes;
+}
+
+function openWhatsApp(phone: string) {
+  window.open(`https://wa.me/${toWhatsAppPhone(phone)}`, "whatsapp_window");
+}
+
+const CARD_HOVER_SHADOW = "hover:shadow-[0_8px_24px_-4px_rgba(0,0,0,0.10),0_2px_8px_-2px_rgba(0,0,0,0.06)]";
+const POPOVER_SHADOW = "shadow-[0_8px_24px_-4px_rgba(0,0,0,0.10),0_2px_8px_-2px_rgba(0,0,0,0.06)]";
+const PANEL = "bg-white border border-slate-200 rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.06)]";
+const TOOL_BTN = "h-9 px-3 rounded-[10px] border border-slate-200 bg-white text-[13px] font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-colors flex items-center gap-1.5 whitespace-nowrap disabled:opacity-50";
+const TOOL_BTN_ON = "!bg-[#FFF7ED] !border-[#FED7AA] !text-[#C2410C]";
+const WA_BTN = "flex items-center justify-center rounded-lg bg-[#059669] hover:bg-[#047857] text-white transition-colors flex-shrink-0";
+const CALL_BTN = "flex items-center justify-center rounded-lg bg-[#F97316] hover:bg-[#EA580C] text-white transition-colors flex-shrink-0";
+
+function chipClass(on: boolean, big = false): string {
+  return cn(
+    "flex-shrink-0 whitespace-nowrap border text-[13px] font-medium transition-colors",
+    big ? "h-9 px-3.5 rounded-full" : "h-[30px] px-3 rounded-lg",
+    on ? "bg-[#0F172A] border-[#0F172A] text-white" : "bg-white border-slate-200 text-slate-700 hover:border-slate-300",
+  );
+}
+
+function StageDot({ color }: { color: string }) {
+  return <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />;
+}
+
+// ─── Follow-up picker (card pill popover) ────────────────────────────────────
+
+function FollowUpPicker({ lead, onClose }: { lead: Lead; onClose: () => void }) {
+  const queryClient = useQueryClient();
+  const initial = lead.nextFollowUpAt ? new Date(lead.nextFollowUpAt) : null;
+  const [date, setDate] = useState(initial ? localDateInput(initial) : "");
+  const [time, setTime] = useState(initial && hasClockTime(initial) ? clockOf(initial) : "10:00");
+
+  const mutation = useMutation({
+    mutationFn: (iso: string | null) =>
+      fetch(`/api/leads/${lead.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nextFollowUpAt: iso }),
+      }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
+    onSuccess: (_, iso) => {
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["sidebar-counters"] });
+      toast.success(iso ? "מועד החזרה נשמר ומשימה נוצרה" : "מועד החזרה נוקה");
+      onClose();
+    },
+    onError: () => toast.error("שגיאה בעדכון מועד החזרה"),
+  });
+
+  const saveCustom = () => {
+    if (!date) { mutation.mutate(null); return; }
+    const d = new Date(`${date}T${time || "10:00"}`);
+    if (isNaN(d.getTime())) { toast.error("תאריך לא תקין"); return; }
+    mutation.mutate(d.toISOString());
+  };
+
+  return (
+    <>
+      <div className="fixed inset-0 z-30" onClick={onClose} />
+      <div className={cn("absolute top-8 right-0 z-40 w-64 bg-white border border-slate-200 rounded-xl p-3", POPOVER_SHADOW)}>
+        <p className="text-xs font-semibold text-slate-500 mb-2">מועד חזרה · {lead.name}</p>
+        <div className="grid grid-cols-2 gap-1.5 mb-3">
+          {FOLLOW_UP_QUICK.map((q) => (
+            <button
+              key={q.label}
+              type="button"
+              disabled={mutation.isPending}
+              onClick={() => mutation.mutate(q.at())}
+              className="h-8 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-700 hover:border-[#FED7AA] hover:bg-[#FFF7ED] hover:text-[#C2410C] transition-colors disabled:opacity-50"
+            >
+              {q.label}
+            </button>
+          ))}
+        </div>
+        <div className="grid grid-cols-[1fr_88px] gap-1.5">
+          <input
+            type="date"
+            lang="he"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="h-9 w-full border border-slate-200 rounded-lg px-2 text-[13px] bg-white outline-none focus:border-[#FB923C] focus:ring-[3px] focus:ring-orange-500/15"
+          />
+          <input
+            type="time"
+            step={900}
+            value={time}
+            onChange={(e) => setTime(e.target.value)}
+            className="h-9 w-full border border-slate-200 rounded-lg px-2 text-[13px] bg-white outline-none focus:border-[#FB923C] focus:ring-[3px] focus:ring-orange-500/15"
+          />
+        </div>
+        <div className="flex gap-1.5 mt-2.5">
+          <button
+            type="button"
+            disabled={mutation.isPending}
+            onClick={saveCustom}
+            className="flex-1 h-8 rounded-lg bg-[#F97316] hover:bg-[#EA580C] text-white text-xs font-semibold transition-colors disabled:opacity-50"
+          >
+            {mutation.isPending ? "שומר..." : "שמירה"}
+          </button>
+          {lead.nextFollowUpAt && (
+            <button
+              type="button"
+              disabled={mutation.isPending}
+              onClick={() => mutation.mutate(null)}
+              className="h-8 px-3 rounded-lg border border-slate-200 bg-white text-xs text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
+            >
+              ניקוי
+            </button>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ─── Lead card (board + follow-up views) ─────────────────────────────────────
+
+function LeadCard({
   lead,
   stage,
-  onClick,
-  onQuickAction,
-  onWon,
+  showStage = false,
+  onOpen,
   onDetails,
-  stages,
   selectionMode = false,
   isSelected = false,
   onToggleSelect,
 }: {
   lead: Lead;
-  stage: LeadStage;
-  onClick: () => void;
-  onQuickAction: (action: string) => void;
-  onWon: () => void;
+  stage?: LeadStage;
+  showStage?: boolean;
+  onOpen: () => void;
   onDetails: () => void;
-  stages: LeadStage[];
   selectionMode?: boolean;
   isSelected?: boolean;
   onToggleSelect?: () => void;
 }) {
-  const [converting, setConverting] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [pickerDate, setPickerDate] = useState(
-    lead.nextFollowUpAt ? lead.nextFollowUpAt.slice(0, 10) : ""
-  );
-  const queryClient = useQueryClient();
-
-  const followUpMutation = useMutation({
-    mutationFn: (date: string | null) =>
-      fetch(`/api/leads/${lead.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nextFollowUpAt: date }),
-      }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["leads"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      toast.success(pickerDate ? "מועד מעקב נשמר ומשימה נוצרה" : "מועד מעקב נוקה");
-    },
-    onError: () => toast.error("שגיאה בעדכון מועד המעקב"),
-  });
-
-  const quickLogMutation = useMutation({
-    mutationFn: (logType: "call" | "no_answer") =>
-      fetch(`/api/leads/${lead.id}/logs`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(
-          logType === "call"
-            ? { type: "call", summary: "התקשרתי" }
-            : { type: "note", summary: "לא ענה" }
-        ),
-      }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
-    onSuccess: (_, logType) => {
-      queryClient.invalidateQueries({ queryKey: ["leads"] });
-      queryClient.invalidateQueries({ queryKey: ["sidebar-counters"] });
-      toast.success(logType === "call" ? `✓ שיחה עם ${lead.name} נרשמה` : `✓ "לא ענה" נרשם עבור ${lead.name}`);
-    },
-    onError: () => toast.error("שגיאה ברישום הפעולה"),
-  });
-
-  const markHandledMutation = useMutation({
-    mutationFn: () =>
-      fetch(`/api/leads/${lead.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ followUpStatus: lead.followUpStatus === "completed" ? null : "completed" }),
-      }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["leads"] });
-      queryClient.invalidateQueries({ queryKey: ["sidebar-counters"] });
-      toast.success(lead.followUpStatus === "completed" ? "סימון טופל הוסר" : `✓ ${lead.name} סומן כטופל`);
-    },
-    onError: () => toast.error("שגיאה בעדכון הסטטוס"),
-  });
-
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+  const [showPicker, setShowPicker] = useState(false);
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: lead.id,
     data: { lead },
     disabled: selectionMode, // no dragging while selecting — clicks toggle selection
   });
 
-  const sourceLabel = LEAD_SOURCES.find((s) => s.id === lead.source)?.label || lead.source;
-  const sourceEmoji = getSourceEmoji(lead.source);
+  const fu = getFollowUpInfo(lead.nextFollowUpAt);
+  const { city, service } = leadMeta(lead);
+  const snippet = leadSnippet(lead);
   const attributionLine = formatAttributionLine({ trafficSource: lead.trafficSource, landingPage: lead.landingPage });
-  const contactLogs = (lead.callLogs ?? []).filter((log) => log.type !== "deal_value");
-  const callLogCount = contactLogs.length;
-  const { city, service, cleanNotes } = parseLeadMeta(lead.notes);
-  const isWon = stage.isWon;
-  const isLost = stage.isLost;
-
-  const wonStage = stages.find((s) => s.isWon);
-  const lostStage = stages.find((s) => s.isLost);
-
-  // Follow-up date logic
-  const followUpDate = lead.nextFollowUpAt ? new Date(lead.nextFollowUpAt) : null;
-  const now = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const isFollowUpToday = followUpDate
-    ? followUpDate >= todayStart && followUpDate < new Date(todayStart.getTime() + 86400000)
-    : false;
-  const isFollowUpOverdue = followUpDate ? followUpDate < todayStart : false;
-  const followUpLabel = followUpDate
-    ? followUpDate.toLocaleDateString("he-IL", { day: "numeric", month: "long" })
-    : null;
-
-  const lostReasonLabel = lead.lostReasonCode
-    ? LOST_REASON_CODES.find((r) => r.id === lead.lostReasonCode)?.label
-    : null;
-
-  const style = transform ? {
-    transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-  } : undefined;
-
-  // ── Lead status (3 clear states for active leads) ──
-  const daysSinceCreation = Math.floor((Date.now() - new Date(lead.createdAt).getTime()) / (1000 * 60 * 60 * 24));
-  const hasActivity = callLogCount > 0 || !!lead.lastContactedAt;
-  const hasFutureFollowUp = !!followUpDate && !isFollowUpOverdue && lead.followUpStatus !== "completed";
-  const isHandled = hasActivity || hasFutureFollowUp || lead.followUpStatus === "completed";
-
-  type LeadStatus = "overdue" | "untouched" | "handled" | "won" | "lost";
-  const leadStatus: LeadStatus = isWon ? "won" : isLost ? "lost"
-    : isFollowUpOverdue ? "overdue"
-    : !isHandled ? "untouched"
-    : "handled";
-
-  const cardBorder = leadStatus === "overdue"
-    ? "border-2 border-red-300 bg-red-50/40"
-    : leadStatus === "untouched"
-      ? "border-2 border-amber-300 bg-amber-50/30"
-      : "border border-slate-200 bg-white";
+  const detailLine = [service, sourceLabelOf(lead.source)].filter(Boolean).join(" · ");
 
   return (
     <div
       ref={setNodeRef}
-      style={style}
       {...(selectionMode ? {} : attributes)}
       {...(selectionMode ? {} : listeners)}
-      onClick={selectionMode ? undefined : onClick}
-      className={`rounded-lg px-2 py-1.5 group cursor-pointer hover:shadow-md transition-shadow relative overflow-hidden ${cardBorder} ${isDragging ? "opacity-50 !border-2 !border-brand-500 shadow-xl" : ""} ${selectionMode && isSelected ? "!border-2 !border-brand-400 ring-2 ring-brand-200 bg-[#FEF9F4]" : ""}`}
+      onClick={selectionMode ? undefined : onOpen}
+      className={cn(
+        "relative bg-white border border-slate-200 rounded-xl px-3.5 py-3 transition-[box-shadow,border-color,opacity] duration-150 hover:border-slate-300",
+        CARD_HOVER_SHADOW,
+        selectionMode ? "cursor-pointer" : "cursor-grab active:cursor-grabbing",
+        isDragging && "opacity-35",
+        selectionMode && isSelected && "!border-[#FB923C] ring-2 ring-orange-200 bg-[#FFF7ED]",
+      )}
     >
       {/* Selection overlay — whole card toggles selection, inner actions blocked */}
       {selectionMode && (
         <button
           type="button"
           aria-label={isSelected ? "בטל בחירת ליד" : "בחר ליד"}
-          className="absolute inset-0 z-10 cursor-pointer"
+          className="absolute inset-0 z-10 cursor-pointer rounded-xl"
           onClick={(e) => { e.stopPropagation(); onToggleSelect?.(); }}
         />
       )}
-      {/* Thin colored left-edge status strip */}
-      <div className={`absolute top-0 left-0 bottom-0 w-[3px] ${
-        leadStatus === "overdue" ? "bg-red-400" :
-        leadStatus === "untouched" ? "bg-amber-400" :
-        isWon ? "bg-green-400" :
-        isLost ? "bg-slate-300" : "bg-transparent"
-      }`} />
 
-      {/* Row 1: checkbox (selection mode) / grip + status icon + name + call count + phone */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-baseline gap-2">
         {selectionMode && (
           isSelected
-            ? <CheckSquare className="w-4 h-4 text-brand-500 flex-shrink-0" />
-            : <Square className="w-4 h-4 text-slate-400 flex-shrink-0" />
+            ? <CheckSquare className="w-4 h-4 text-brand-500 flex-shrink-0 self-center" />
+            : <Square className="w-4 h-4 text-slate-400 flex-shrink-0 self-center" />
         )}
-        {!selectionMode && <GripVertical className="w-3 h-3 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 cursor-grab" />}
-        {leadStatus === "overdue" && <AlertCircle className="w-3 h-3 text-red-500 flex-shrink-0" />}
-        {leadStatus === "untouched" && <Sparkles className="w-3 h-3 text-amber-500 flex-shrink-0" />}
-        <span className="text-xs font-bold text-petra-text truncate flex-1">{lead.name}</span>
+        <span className="text-sm font-semibold text-petra-text flex-1 min-w-0 truncate">{lead.name}</span>
         {lead.dealValue != null && (
-          <span className="inline-flex items-center gap-0.5 px-1.5 py-0 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-bold tabular-nums flex-shrink-0 leading-tight" title="ערך עסקה">
-            {formatIls(lead.dealValue)}
-          </span>
+          <span className="text-xs text-slate-500 tabular-nums flex-shrink-0" title="ערך עסקה">{formatIls(lead.dealValue)}</span>
         )}
-        {callLogCount > 0 && (
-          <span className="flex items-center gap-0.5 text-[10px] text-brand-500 flex-shrink-0 font-medium">
-            <PhoneCall className="w-2.5 h-2.5" />{callLogCount}
-          </span>
-        )}
-        {lead.phone && (
-          <span className="text-[10px] text-petra-muted flex-shrink-0">{lead.phone}</span>
+        {!selectionMode && (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onDetails(); }}
+            onPointerDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            title="פרטי ליד"
+            aria-label="פרטי ליד"
+            className="w-6 h-6 -my-1 -me-1.5 rounded-md flex items-center justify-center text-slate-300 hover:text-slate-700 hover:bg-slate-100 transition-colors flex-shrink-0 self-center"
+          >
+            <FileText className="w-3.5 h-3.5" />
+          </button>
         )}
       </div>
 
-      {/* Row 1.5: traffic attribution (website leads only) */}
+      {(lead.phone || city) && (
+        <div className="text-xs text-slate-600 mt-1 truncate">
+          {lead.phone && <span dir="ltr" className="tabular-nums">{lead.phone}</span>}
+          {lead.phone && city && <span className="mx-1 text-slate-300">·</span>}
+          {city}
+        </div>
+      )}
+      {detailLine && <div className="text-xs text-slate-500 mt-0.5 truncate">{detailLine}</div>}
+      {showStage && stage && (
+        <div className="flex items-center gap-1.5 mt-1 text-xs text-slate-500">
+          <StageDot color={stage.color} />{stage.name}
+        </div>
+      )}
       {attributionLine && (
-        <div className="text-[10px] text-petra-muted truncate mt-0.5" title={attributionLine}>{attributionLine}</div>
+        <div className="text-[11px] text-slate-400 mt-0.5 truncate" title={attributionLine}>{attributionLine}</div>
       )}
 
-      {/* Row 2: date + badges */}
-      <div className="flex items-center gap-1 mt-0.5 flex-wrap">
-        <span className="text-[10px] text-petra-muted">{new Date(lead.createdAt).toLocaleDateString("he-IL")}</span>
-        <span className="text-[10px] px-1.5 py-0 rounded-full bg-slate-100 text-slate-500 leading-tight">{sourceEmoji} {sourceLabel}</span>
-        {city && (
-          <span className="text-[10px] px-1.5 py-0 rounded-full bg-blue-50 text-blue-700 border border-blue-100 leading-tight flex items-center gap-0.5">
-            <MapPin className="w-2.5 h-2.5" />{city}
-          </span>
-        )}
-        {service && (
-          <span className="text-[10px] px-1.5 py-0 rounded-full bg-violet-50 text-violet-700 border border-violet-100 leading-tight flex items-center gap-0.5">
-            <Tag className="w-2.5 h-2.5" />{service}
-          </span>
-        )}
-        {leadStatus === "handled" && isFollowUpToday && (
-          <span className="text-[10px] px-1.5 py-0 rounded-full bg-blue-50 text-blue-700 border border-blue-200 font-semibold leading-tight">פולואפ היום!</span>
-        )}
-        {leadStatus === "handled" && hasFutureFollowUp && !isFollowUpToday && followUpLabel && (
-          <span className="text-[10px] px-1.5 py-0 rounded-full bg-slate-50 text-slate-500 border border-slate-200 leading-tight flex items-center gap-0.5">
-            <CalendarClock className="w-2.5 h-2.5" />{followUpLabel}
-          </span>
-        )}
-        {leadStatus === "handled" && lead.followUpStatus === "completed" && (
-          <span className="text-[10px] px-1.5 py-0 rounded-full bg-green-50 text-green-700 border border-green-200 leading-tight">✓ טופל</span>
-        )}
-        {leadStatus === "handled" && !hasFutureFollowUp && lead.followUpStatus !== "completed" && hasActivity && (
-          <span className="text-[10px] px-1.5 py-0 rounded-full bg-slate-50 text-slate-400 border border-slate-200 leading-tight">בטיפול</span>
-        )}
-        {isWon && lead.wonAt && (
-          <span className="text-[10px] px-1.5 py-0 rounded-full bg-green-100 text-green-700 font-semibold leading-tight">✓ נסגר</span>
-        )}
-        {isLost && lostReasonLabel && (
-          <span className="text-[10px] px-1.5 py-0 rounded-full bg-red-100 text-red-700 leading-tight">{lostReasonLabel}</span>
-        )}
-        {lead.existingCustomer && (
-          <span
-            className="text-[10px] px-1.5 py-0 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 leading-tight font-semibold"
-            title={`לקוח קיים: ${lead.existingCustomer.name}`}
-          >
-            👤 לקוח קיים
-          </span>
-        )}
-        {lead.duplicateLead && !lead.existingCustomer && (
-          <span
-            className="text-[10px] px-1.5 py-0 rounded-full bg-orange-100 text-orange-800 border border-orange-300 leading-tight font-semibold"
-            title={`ליד חוזר — פנייה קודמת: ${lead.duplicateLead.name}`}
-          >
-            🔄 ליד חוזר
-          </span>
-        )}
-      </div>
-
-      {/* Snippet (last call or notes) */}
-      {contactLogs.length > 0 ? (
-        <p className="text-[10px] text-petra-muted line-clamp-1 mt-0.5 italic">
-          &ldquo;{contactLogs[0].summary}&rdquo;
-        </p>
-      ) : cleanNotes ? (
-        <p className="text-[10px] text-petra-muted line-clamp-1 mt-0.5">{cleanNotes}</p>
-      ) : null}
-
-      {/* Hover: quick action buttons (active leads only) */}
-      {!isWon && !isLost && (
-        <div
-          className="flex gap-1 mt-1.5 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <button
-            onClick={(e) => { e.stopPropagation(); quickLogMutation.mutate("call"); }}
-            disabled={quickLogMutation.isPending}
-            className="flex-1 flex items-center justify-center gap-1 text-[11px] font-medium py-0.5 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 transition-colors disabled:opacity-50"
-          >
-            <PhoneCall className="w-3 h-3" />התקשרתי
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); quickLogMutation.mutate("no_answer"); }}
-            disabled={quickLogMutation.isPending}
-            className="flex-1 flex items-center justify-center gap-1 text-[11px] font-medium py-0.5 rounded-lg bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200 transition-colors disabled:opacity-50"
-          >
-            <PhoneMissed className="w-3 h-3" />לא ענה
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); markHandledMutation.mutate(); }}
-            disabled={markHandledMutation.isPending}
-            className={`flex-1 flex items-center justify-center gap-1 text-[11px] font-medium py-0.5 rounded-lg border transition-colors disabled:opacity-50 ${
-              lead.followUpStatus === "completed"
-                ? "bg-green-100 text-green-700 border-green-300 hover:bg-green-200"
-                : "bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200"
-            }`}
-          >
-            <CheckCircle className="w-3 h-3" />
-            {lead.followUpStatus === "completed" ? "✓ טופל" : "טופל"}
-          </button>
+      {(lead.existingCustomer || lead.duplicateLead) && (
+        <div className="flex gap-1 mt-1.5 flex-wrap">
+          {lead.existingCustomer && (
+            <span className="text-[11px] px-2 py-px rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-medium" title={`לקוח קיים: ${lead.existingCustomer.name}`}>
+              לקוח קיים
+            </span>
+          )}
+          {lead.duplicateLead && !lead.existingCustomer && (
+            <span className="text-[11px] px-2 py-px rounded-full bg-orange-50 text-orange-700 border border-orange-200 font-medium" title={`ליד חוזר — פנייה קודמת: ${lead.duplicateLead.name}`}>
+              ליד חוזר
+            </span>
+          )}
         </div>
       )}
 
-      {/* Hover: icon actions */}
+      {snippet && (
+        <p className="text-xs text-slate-600 mt-2 leading-[1.45] line-clamp-2 whitespace-pre-line">{snippet}</p>
+      )}
+
+      {/* Footer — pointer events stop here so buttons never start a drag */}
       <div
-        className="flex items-center justify-end gap-0.5 mt-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity relative"
+        className="flex items-center gap-1.5 mt-2.5 pt-2.5 border-t border-slate-100"
         onClick={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()}
       >
-        {!isWon && !isLost && (
-          <div className="relative">
-            <button
-              onClick={(e) => { e.stopPropagation(); setShowDatePicker(!showDatePicker); }}
-              className={`w-6 h-6 flex items-center justify-center rounded-full transition-colors ${
-                followUpDate ? "text-blue-600 hover:bg-blue-100" : "text-petra-muted hover:bg-slate-100"
-              }`}
-              title="קבע מועד פולואפ"
-            >
-              <CalendarClock className="w-3.5 h-3.5" />
-            </button>
-            {showDatePicker && (
-              <div className="absolute left-0 top-7 z-50 bg-white shadow-xl rounded-xl border border-slate-200 p-3 w-56">
-                <p className="text-xs font-semibold text-petra-text mb-2">מועד פולואפ</p>
-                <div className="grid grid-cols-2 gap-1 mb-2">
-                  {[
-                    { label: "מחר", days: 1 },
-                    { label: "3 ימים", days: 3 },
-                    { label: "שבוע", days: 7 },
-                    { label: "חודש", days: 30 },
-                  ].map(({ label, days }) => {
-                    const d = new Date();
-                    d.setDate(d.getDate() + days);
-                    const iso = d.toISOString().slice(0, 10);
-                    return (
-                      <button
-                        key={days}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          followUpMutation.mutate(new Date(iso).toISOString());
-                          setPickerDate(iso);
-                          setShowDatePicker(false);
-                        }}
-                        className="text-[11px] font-medium py-1 rounded-lg bg-brand-50 text-brand-700 hover:bg-brand-100 border border-brand-200 transition-colors"
-                      >
-                        {label}
-                      </button>
-                    );
-                  })}
-                </div>
-                <input
-                  type="date" lang="he"
-                  className="input text-xs w-full"
-                  value={pickerDate}
-                  onChange={(e) => setPickerDate(e.target.value)}
-                />
-                <div className="flex gap-2 mt-2">
-                  <button
-                    className="btn-primary text-xs flex-1 py-1.5"
-                    disabled={followUpMutation.isPending}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      followUpMutation.mutate(pickerDate ? new Date(pickerDate).toISOString() : null);
-                      setShowDatePicker(false);
-                    }}
-                  >
-                    {followUpMutation.isPending ? "..." : "שמור"}
-                  </button>
-                  {followUpDate && (
-                    <button
-                      className="btn-secondary text-xs py-1.5"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setPickerDate("");
-                        followUpMutation.mutate(null);
-                        setShowDatePicker(false);
-                      }}
-                    >
-                      נקה
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-        <button
-          onClick={(e) => { e.stopPropagation(); onDetails(); }}
-          className="w-6 h-6 flex items-center justify-center rounded-full text-brand-600 hover:bg-brand-100 transition-colors"
-          title="פרטי ליד"
-        >
-          <FileText className="w-3.5 h-3.5" />
-        </button>
-        {lead.phone && !isWon && !isLost && (
+        <div className="flex-1 min-w-0 relative flex">
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              window.open(`https://wa.me/${toWhatsAppPhone(lead.phone!)}`, "whatsapp_window");
-            }}
-            className="w-6 h-6 flex items-center justify-center rounded-full text-green-600 hover:bg-green-100 transition-colors"
-            title="שלח וואטסאפ"
+            type="button"
+            onClick={() => setShowPicker((v) => !v)}
+            title="עדכון מועד חזרה"
+            className="inline-flex items-center gap-1 h-6 px-2 rounded-full border text-xs font-medium tabular-nums whitespace-nowrap max-w-full overflow-hidden"
+            style={{ color: fu.color, background: fu.bg, borderColor: fu.border }}
           >
+            <Clock className="w-3 h-3 flex-shrink-0" />
+            <span className="truncate">{fu.label}</span>
+          </button>
+          {showPicker && <FollowUpPicker lead={lead} onClose={() => setShowPicker(false)} />}
+        </div>
+        {lead.phone && (
+          <button type="button" onClick={() => openWhatsApp(lead.phone!)} title="וואטסאפ" className={cn(WA_BTN, "w-7 h-7")}>
             <MessageCircle className="w-3.5 h-3.5" />
           </button>
         )}
-        {!isWon && !isLost && wonStage && lostStage && (
+        <button type="button" onClick={onOpen} title="תיעוד שיחה" className={cn(CALL_BTN, "w-7 h-7")}>
+          <Phone className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Stage column (board view) ───────────────────────────────────────────────
+
+function StageColumn({
+  stage,
+  leads,
+  editMode,
+  editingStageId,
+  editingName,
+  onStartEdit,
+  onChangeName,
+  onSaveName,
+  onChangeColor,
+  onDelete,
+  onLeadClick,
+  onDetails,
+  dragAttributes,
+  dragListeners,
+  selectionMode = false,
+  selectedIds,
+  onToggleSelect,
+}: {
+  stage: LeadStage;
+  leads: Lead[];
+  editMode: boolean;
+  editingStageId: string | null;
+  editingName: string;
+  onStartEdit: (id: string, name: string) => void;
+  onChangeName: (name: string) => void;
+  onSaveName: (id: string) => void;
+  onChangeColor: (id: string, color: string) => void;
+  onDelete: (stage: LeadStage) => void;
+  onLeadClick: (l: Lead) => void;
+  onDetails: (l: Lead) => void;
+  dragAttributes?: Record<string, any>;
+  dragListeners?: Record<string, any>;
+  selectionMode?: boolean;
+  selectedIds?: Set<string>;
+  onToggleSelect?: (id: string) => void;
+}) {
+  const { isOver, setNodeRef } = useDroppable({ id: stage.id, disabled: editMode });
+  const [showColorPicker, setShowColorPicker] = useState(false);
+  const columnValue = sumDealValues(leads);
+  const tint = isHexColor(stage.color) ? stage.color : "#94A3B8";
+
+  return (
+    <div
+      ref={setNodeRef}
+      className="rounded-[14px] p-2.5 transition-colors"
+      style={{
+        background: isOver ? `${tint}1F` : "#F1F5F9",
+        outline: `2px dashed ${isOver ? tint : "transparent"}`,
+        outlineOffset: -2,
+      }}
+    >
+      {/* Column header */}
+      <div className={cn("flex items-center gap-2 px-1.5 pt-1 pb-3 relative", editMode && "bg-amber-50/80 rounded-lg -mx-0.5 px-2 pt-1.5 mb-1")}>
+        {editMode && dragListeners && (
+          <button className="cursor-grab active:cursor-grabbing text-amber-500 hover:text-amber-700" {...dragAttributes} {...dragListeners}>
+            <GripVertical className="w-4 h-4" />
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => setShowColorPicker((v) => !v)}
+          title="שינוי צבע"
+          className="w-[18px] h-[18px] rounded-full flex items-center justify-center hover:bg-slate-200 transition-colors flex-shrink-0"
+        >
+          <StageDot color={stage.color} />
+        </button>
+        {showColorPicker && (
           <>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                if (converting) return;
-                setConverting(true);
-                onWon();
-                setTimeout(() => setConverting(false), 4000);
-              }}
-              disabled={converting}
-              className="w-6 h-6 flex items-center justify-center rounded-full text-green-600 hover:bg-green-100 transition-colors disabled:opacity-50"
-              title="לקוח נסגר — ממיר ללקוח"
-            >
-              {converting
-                ? <span className="w-3 h-3 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
-                : <Check className="w-3.5 h-3.5" />}
-            </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); onQuickAction(lostStage.id); }}
-              className="w-6 h-6 flex items-center justify-center rounded-full text-red-600 hover:bg-red-100 transition-colors"
-              title="זרוק לאבודים"
-            >
-              <XCircle className="w-3.5 h-3.5" />
-            </button>
+            <div className="fixed inset-0 z-30" onClick={() => setShowColorPicker(false)} />
+            <div className={cn("absolute top-8 right-0 z-40 bg-white border border-slate-200 rounded-xl p-2.5 w-44", POPOVER_SHADOW)}>
+              <div className="text-xs text-slate-500 mb-2 truncate">צבע לשלב &quot;{stage.name}&quot;</div>
+              <div className="grid grid-cols-5 gap-1.5">
+                {STAGE_SWATCHES.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    aria-label={`צבע ${c}`}
+                    className="w-[26px] h-[26px] rounded-full"
+                    style={{
+                      background: c,
+                      boxShadow: c.toLowerCase() === (stage.color || "").toLowerCase() ? `0 0 0 2px #fff, 0 0 0 4px ${c}` : "none",
+                    }}
+                    onClick={() => { onChangeColor(stage.id, c); setShowColorPicker(false); }}
+                  />
+                ))}
+              </div>
+            </div>
           </>
+        )}
+
+        {editMode && editingStageId === stage.id ? (
+          <input
+            className="text-sm font-semibold text-petra-text bg-white border border-brand-300 rounded px-2 py-0.5 w-28 focus:outline-none focus:ring-1 focus:ring-brand-500"
+            value={editingName}
+            onChange={(e) => onChangeName(e.target.value)}
+            onBlur={() => onSaveName(stage.id)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") onSaveName(stage.id);
+              if (e.key === "Escape") onSaveName(stage.id);
+            }}
+            autoFocus
+          />
+        ) : (
+          <span
+            className={cn("text-sm font-semibold text-petra-text truncate", editMode && "cursor-pointer hover:text-brand-600 border-b border-dashed border-amber-400")}
+            onClick={() => editMode && onStartEdit(stage.id, stage.name)}
+          >
+            {stage.name}
+          </span>
+        )}
+        <span className="text-[13px] text-slate-400 tabular-nums">{leads.length}</span>
+
+        {columnValue > 0 && (
+          <span className="ms-auto text-xs text-slate-500 tabular-nums whitespace-nowrap" title="סה״כ ערך עסקאות בשלב">
+            {formatIls(columnValue)}
+          </span>
+        )}
+
+        {editMode && (
+          stage.isWon || stage.isLost ? (
+            <span title="לא ניתן למחוק שלב זה" className={columnValue > 0 ? "" : "ms-auto"}>
+              <Lock className="w-4 h-4 text-petra-muted" />
+            </span>
+          ) : (
+            <button
+              onClick={() => onDelete(stage)}
+              className={cn("w-6 h-6 flex items-center justify-center rounded-md text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors", columnValue > 0 ? "" : "ms-auto")}
+              title="מחק שלב"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )
+        )}
+      </div>
+
+      {/* Column body */}
+      <div className="flex flex-col gap-2 min-h-[420px]">
+        {!editMode && leads.map((lead) => (
+          <LeadCard
+            key={lead.id}
+            lead={lead}
+            stage={stage}
+            onOpen={() => onLeadClick(lead)}
+            onDetails={() => onDetails(lead)}
+            selectionMode={selectionMode}
+            isSelected={selectedIds?.has(lead.id) ?? false}
+            onToggleSelect={() => onToggleSelect?.(lead.id)}
+          />
+        ))}
+        {editMode && leads.map((lead) => (
+          <div key={lead.id} className="bg-white/70 border border-slate-200 rounded-xl px-3.5 py-3 text-sm font-semibold text-slate-500 truncate">
+            {lead.name}
+          </div>
+        ))}
+        {leads.length === 0 && !isOver && (
+          <div className="text-[13px] text-slate-400 text-center py-6">אין לידים בשלב הזה</div>
         )}
       </div>
     </div>
   );
 }
+
+// ─── Edit Mode: Sortable Column Wrapper ──────────────────────────────────────
+
+function SortableStageColumn(props: React.ComponentProps<typeof StageColumn>) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: props.stage.id,
+    disabled: !props.editMode,
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }}
+      className="min-w-[252px] flex-1 flex-shrink-0"
+    >
+      <StageColumn {...props} dragAttributes={attributes} dragListeners={listeners} />
+    </div>
+  );
+}
+
+// ─── Follow-up column (follow-up view) ───────────────────────────────────────
+
+function FollowUpColumn({
+  column,
+  leads,
+  stagesById,
+  onLeadClick,
+  onDetails,
+}: {
+  column: (typeof FOLLOW_UP_COLUMNS)[number];
+  leads: Lead[];
+  stagesById: Map<string, LeadStage>;
+  onLeadClick: (l: Lead) => void;
+  onDetails: (l: Lead) => void;
+}) {
+  const droppable = !!column.target;
+  const { isOver, setNodeRef } = useDroppable({ id: FU_DROP_PREFIX + column.id, disabled: !droppable });
+  const columnValue = sumDealValues(leads);
+
+  return (
+    <div
+      ref={setNodeRef}
+      className="rounded-[14px] p-2.5 transition-colors min-w-[252px] flex-1 flex-shrink-0"
+      style={{
+        background: isOver ? "#FFF7ED" : "#F1F5F9",
+        outline: `2px dashed ${isOver ? "#FDBA74" : "transparent"}`,
+        outlineOffset: -2,
+      }}
+    >
+      <div className="flex items-center gap-2 px-1.5 pt-1 pb-3">
+        <StageDot color={column.color} />
+        <span className="text-sm font-semibold text-petra-text">{column.name}</span>
+        <span className="text-[13px] text-slate-400 tabular-nums">{leads.length}</span>
+        {columnValue > 0 && (
+          <span className="ms-auto text-xs text-slate-500 tabular-nums whitespace-nowrap">{formatIls(columnValue)}</span>
+        )}
+      </div>
+      <div className="flex flex-col gap-2 min-h-[420px]">
+        {leads.map((lead) => (
+          <LeadCard
+            key={lead.id}
+            lead={lead}
+            stage={stagesById.get(lead.stage)}
+            showStage
+            onOpen={() => onLeadClick(lead)}
+            onDetails={() => onDetails(lead)}
+          />
+        ))}
+        {leads.length === 0 && !isOver && (
+          <div className="text-[13px] text-slate-400 text-center py-6">
+            {column.id === "overdue" ? "אין פולואפים באיחור" : "אין פולואפים כאן"}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Won / lost drop zones (shown while dragging) ────────────────────────────
+
+function archiveValueSuffix(leads: Lead[]): string {
+  const total = sumDealValues(leads);
+  return total > 0 ? ` · ${formatIls(total)}` : "";
+}
+
+function ArchiveDropZones({
+  leads,
+  wonStage,
+  lostStage,
+  active,
+}: {
+  leads: Lead[];
+  wonStage?: LeadStage;
+  lostStage?: LeadStage;
+  active: boolean;
+}) {
+  const won = useDroppable({ id: wonStage?.id || "__won", disabled: !wonStage });
+  const lost = useDroppable({ id: lostStage?.id || "__lost", disabled: !lostStage });
+
+  if (!wonStage && !lostStage) return null;
+
+  const wonLeads = wonStage ? leads.filter((l) => l.stage === wonStage.id) : [];
+  const lostLeads = lostStage ? leads.filter((l) => l.stage === lostStage.id) : [];
+  const zone = "flex-1 h-16 rounded-[14px] border-2 border-dashed flex flex-col items-center justify-center text-sm font-semibold shadow-[0_8px_24px_-4px_rgba(0,0,0,0.10)] transition-colors";
+
+  // Always mounted (so dnd-kit measures them on drag start) — only faded in while a card is dragged.
+  return (
+    <div
+      className={cn("fixed bottom-5 left-4 md:left-6 z-40 flex gap-3 transition-opacity duration-150", active ? "opacity-100" : "opacity-0 pointer-events-none")}
+      style={{ right: "calc(var(--petra-shell-inset, 0px) + 16px)" }}
+      aria-hidden={!active}
+    >
+      {wonStage && (
+        <div ref={won.setNodeRef} className={cn(zone, "border-[#6EE7B7] text-[#047857]", won.isOver ? "bg-[#ECFDF5]" : "bg-white")}>
+          נסגר כלקוח
+          <span className="text-[11px] font-normal text-slate-500 tabular-nums">{wonLeads.length} נסגרו{archiveValueSuffix(wonLeads)}</span>
+        </div>
+      )}
+      {lostStage && (
+        <div ref={lost.setNodeRef} className={cn(zone, "border-[#FCA5A5] text-[#B91C1C]", lost.isOver ? "bg-[#FEF2F2]" : "bg-white")}>
+          אבד · לארכיון
+          <span className="text-[11px] font-normal text-slate-500 tabular-nums">{lostLeads.length} אבודים{archiveValueSuffix(lostLeads)}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── List view ───────────────────────────────────────────────────────────────
+
+const LIST_GRID = "grid grid-cols-[minmax(150px,1.3fr)_minmax(110px,1fr)_minmax(90px,0.8fr)_minmax(90px,0.8fr)_minmax(120px,1fr)_minmax(140px,1.2fr)_minmax(70px,0.6fr)_104px] gap-3 px-5";
+
+function LeadsListView({
+  leads,
+  stagesById,
+  onLeadClick,
+  onDetails,
+}: {
+  leads: Lead[];
+  stagesById: Map<string, LeadStage>;
+  onLeadClick: (l: Lead) => void;
+  onDetails: (l: Lead) => void;
+}) {
+  return (
+    <div className={cn(PANEL, "overflow-x-auto")}>
+      <div className="min-w-[1000px]">
+        <div className={cn(LIST_GRID, "py-3 border-b border-slate-200 text-xs font-semibold text-slate-500")}>
+          <span>ליד</span><span>שירות</span><span>עיר</span><span>מקור</span><span>שלב</span><span>חזרה</span><span>שווי</span><span />
+        </div>
+        {leads.map((lead) => {
+          const { city, service } = leadMeta(lead);
+          const stage = stagesById.get(lead.stage);
+          const fu = getFollowUpInfo(lead.nextFollowUpAt);
+          return (
+            <div
+              key={lead.id}
+              onClick={() => onLeadClick(lead)}
+              className={cn(LIST_GRID, "py-3 border-b border-slate-100 items-center text-[13px] cursor-pointer hover:bg-slate-50 transition-colors")}
+            >
+              <div className="min-w-0">
+                <div className="font-semibold text-petra-text truncate">{lead.name}</div>
+                {lead.phone && <div dir="ltr" className="text-xs text-slate-500 tabular-nums text-right">{lead.phone}</div>}
+              </div>
+              <span className="text-slate-700 truncate">{service || "—"}</span>
+              <span className="text-slate-600 truncate">{city || "—"}</span>
+              <span className="text-slate-500 truncate">{sourceLabelOf(lead.source)}</span>
+              <span className="flex items-center gap-1.5 min-w-0">
+                {stage && <StageDot color={stage.color} />}
+                <span className="truncate">{stage?.name || "—"}</span>
+              </span>
+              <span className="font-medium tabular-nums truncate" style={{ color: fu.color }}>{fu.label}</span>
+              <span className="tabular-nums">{lead.dealValue != null ? formatIls(lead.dealValue) : "—"}</span>
+              <span className="flex gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
+                <button type="button" onClick={() => onDetails(lead)} title="פרטי ליד" className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors">
+                  <FileText className="w-3.5 h-3.5" />
+                </button>
+                {lead.phone && (
+                  <button type="button" onClick={() => openWhatsApp(lead.phone!)} title="וואטסאפ" className={cn(WA_BTN, "w-7 h-7")}>
+                    <MessageCircle className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                <button type="button" onClick={() => onLeadClick(lead)} title="תיעוד שיחה" className={cn(CALL_BTN, "w-7 h-7")}>
+                  <Phone className="w-3.5 h-3.5" />
+                </button>
+              </span>
+            </div>
+          );
+        })}
+        {leads.length === 0 && (
+          <div className="py-10 text-center text-[13px] text-slate-400">לא נמצאו לידים</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Mobile board (tabs: לטיפול + stages) ────────────────────────────────────
+
+function MobileBoard({
+  leads,
+  activeStages,
+  onLeadClick,
+}: {
+  leads: Lead[];
+  activeStages: LeadStage[];
+  onLeadClick: (l: Lead) => void;
+}) {
+  const [tab, setTab] = useState<string>("focus");
+  const stagesById = useMemo(() => new Map(activeStages.map((s) => [s.id, s])), [activeStages]);
+  const focus = leads.filter((l) => {
+    const b = getFollowUpInfo(l.nextFollowUpAt).bucket;
+    return b === "overdue" || b === "today";
+  });
+  const tabs = [
+    { id: "focus", label: "לטיפול", count: focus.length },
+    ...activeStages.map((s) => ({ id: s.id, label: s.name, count: leads.filter((l) => l.stage === s.id).length })),
+  ];
+  const shown = (tab === "focus" ? focus : leads.filter((l) => l.stage === tab)).slice().sort(byFollowUp);
+
+  return (
+    <div>
+      <div className="flex gap-1.5 overflow-x-auto scrollbar-hide -mx-4 px-4 pb-0.5">
+        {tabs.map((t) => (
+          <button key={t.id} type="button" onClick={() => setTab(t.id)} className={chipClass(tab === t.id, true)}>
+            {t.label} <span className="opacity-70 tabular-nums">{t.count}</span>
+          </button>
+        ))}
+      </div>
+      <div className="flex flex-col gap-2 mt-3.5 pb-8">
+        {shown.map((lead) => {
+          const fu = getFollowUpInfo(lead.nextFollowUpAt);
+          const { city, service } = leadMeta(lead);
+          const stage = stagesById.get(lead.stage);
+          return (
+            <div key={lead.id} onClick={() => onLeadClick(lead)} className="bg-white border border-slate-200 rounded-[14px] p-3.5 active:bg-slate-50">
+              <div className="flex items-baseline gap-2">
+                <span className="text-[15px] font-semibold text-petra-text flex-1 min-w-0 truncate">{lead.name}</span>
+                {lead.dealValue != null && <span className="text-xs text-slate-500 tabular-nums">{formatIls(lead.dealValue)}</span>}
+              </div>
+              {(lead.phone || city) && (
+                <div className="text-[13px] text-slate-600 mt-0.5 truncate">
+                  {lead.phone && <span dir="ltr" className="tabular-nums">{lead.phone}</span>}
+                  {lead.phone && city && <span className="mx-1 text-slate-300">·</span>}
+                  {city}
+                </div>
+              )}
+              <div className="flex items-center gap-1.5 mt-0.5 text-xs text-slate-500 min-w-0">
+                {stage && <StageDot color={stage.color} />}
+                <span className="truncate">{[stage?.name, service].filter(Boolean).join(" · ")}</span>
+              </div>
+              <div className="flex items-center gap-2 mt-3" onClick={(e) => e.stopPropagation()}>
+                <span className="flex-1 min-w-0 text-[13px] font-medium tabular-nums truncate" style={{ color: fu.color }}>{fu.label}</span>
+                {lead.phone && (
+                  <>
+                    <button type="button" onClick={() => openWhatsApp(lead.phone!)} aria-label="וואטסאפ" className={cn(WA_BTN, "w-11 h-11 rounded-xl")}>
+                      <MessageCircle className="w-[18px] h-[18px]" />
+                    </button>
+                    <a href={`tel:${lead.phone}`} aria-label="חיוג ללקוח" className={cn(CALL_BTN, "w-11 h-11 rounded-xl")}>
+                      <Phone className="w-[18px] h-[18px]" />
+                    </a>
+                  </>
+                )}
+              </div>
+            </div>
+          );
+        })}
+        {shown.length === 0 && (
+          <div className="py-10 text-center text-[13px] text-slate-400">{tab === "focus" ? "אין לידים לטיפול היום" : "אין לידים כאן"}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Archive Tab ─────────────────────────────────────────────────────────────
+
+const ARCHIVE_GRID = "grid grid-cols-[minmax(150px,1.3fr)_minmax(100px,1fr)_minmax(80px,0.7fr)_minmax(150px,1.6fr)_minmax(80px,0.8fr)_minmax(70px,0.7fr)_110px] gap-3 px-5";
+
+function ArchiveTab({
+  leads,
+  wonStage,
+  lostStage,
+  activeStages,
+  searchQuery,
+  onLeadClick,
+}: {
+  leads: Lead[];
+  wonStage?: LeadStage;
+  lostStage?: LeadStage;
+  activeStages: LeadStage[];
+  searchQuery: string;
+  onLeadClick: (l: Lead) => void;
+}) {
+  const queryClient = useQueryClient();
+  const [restoreLead, setRestoreLead] = useState<Lead | null>(null);
+  const [filterType, setFilterType] = useState<"all" | "won" | "lost">("all");
+
+  const archivedLeads = leads.filter(l => l.stage === wonStage?.id || l.stage === lostStage?.id);
+
+  const filtered = archivedLeads
+    .filter(l => filterType === "all" || (filterType === "won" ? l.stage === wonStage?.id : l.stage === lostStage?.id))
+    .filter(l => {
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase();
+      return l.name.toLowerCase().includes(q)
+        || (l.phone || "").includes(q)
+        || (l.email || "").toLowerCase().includes(q)
+        || (l.lostReasonText || "").toLowerCase().includes(q);
+    })
+    .sort((a, b) => {
+      const dateA = new Date(a.lostAt || a.wonAt || a.createdAt).getTime();
+      const dateB = new Date(b.lostAt || b.wonAt || b.createdAt).getTime();
+      return dateB - dateA;
+    });
+
+  const counts = {
+    all: archivedLeads.length,
+    won: archivedLeads.filter(l => l.stage === wonStage?.id).length,
+    lost: archivedLeads.filter(l => l.stage === lostStage?.id).length,
+  };
+
+  return (
+    <div>
+      <div className="flex items-center gap-1 mb-4 flex-wrap">
+        {([["all", "הכל"], ["won", "נסגרו"], ["lost", "אבודים"]] as const).map(([f, label]) => (
+          <button key={f} type="button" onClick={() => setFilterType(f)} className={chipClass(filterType === f)}>
+            {label} <span className="tabular-nums opacity-80">{counts[f]}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className={cn(PANEL, "overflow-x-auto")}>
+        <div className="min-w-[900px]">
+          <div className={cn(ARCHIVE_GRID, "py-3 border-b border-slate-200 text-xs font-semibold text-slate-500")}>
+            <span>ליד</span><span>שירות</span><span>סטטוס</span><span>סיבה / הערה</span><span>תאריך</span><span>שווי</span><span />
+          </div>
+          {filtered.map(lead => {
+            const isWon = lead.stage === wonStage?.id;
+            const lostReasonLabel = lead.lostReasonCode
+              ? LOST_REASON_CODES.find(r => r.id === lead.lostReasonCode)?.label
+              : null;
+            const date = isWon ? lead.wonAt : lead.lostAt;
+            const { service, cleanNotes } = leadMeta(lead);
+            const reason = isWon ? (cleanNotes || "—") : (lostReasonLabel || lead.lostReasonText || "—");
+            return (
+              <div
+                key={lead.id}
+                onClick={() => onLeadClick(lead)}
+                className={cn(ARCHIVE_GRID, "py-3 border-b border-slate-100 items-center text-[13px] cursor-pointer hover:bg-slate-50 transition-colors")}
+              >
+                <div className="min-w-0">
+                  <div className="font-semibold text-petra-text truncate">{lead.name}</div>
+                  {lead.phone && (
+                    <a
+                      href={`https://wa.me/${toWhatsAppPhone(lead.phone)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      dir="ltr"
+                      onClick={(e) => e.stopPropagation()}
+                      className="block text-xs text-slate-500 hover:text-[#047857] tabular-nums text-right"
+                      title="שלח וואטסאפ"
+                    >
+                      {lead.phone}
+                    </a>
+                  )}
+                </div>
+                <span className="text-slate-700 truncate">{service || "—"}</span>
+                <span>
+                  <span className={cn(
+                    "inline-block text-xs font-medium px-2.5 py-0.5 rounded-full border",
+                    isWon ? "bg-[#ECFDF5] text-[#047857] border-[#A7F3D0]" : "bg-[#FEF2F2] text-[#B91C1C] border-[#FECACA]",
+                  )}>
+                    {isWon ? "נסגר" : "אבוד"}
+                  </span>
+                </span>
+                <span className="text-slate-600 truncate" title={reason}>{reason}</span>
+                <span className="text-slate-500 tabular-nums whitespace-nowrap">{date ? new Date(date).toLocaleDateString("he-IL") : "—"}</span>
+                <span className="tabular-nums">{lead.dealValue != null ? formatIls(lead.dealValue) : "—"}</span>
+                <span className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setRestoreLead(lead); }}
+                    className="h-[30px] px-3 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-700 hover:border-[#FED7AA] hover:text-[#C2410C] hover:bg-[#FFF7ED] transition-colors whitespace-nowrap"
+                  >
+                    החזר ליד
+                  </button>
+                </span>
+              </div>
+            );
+          })}
+          {filtered.length === 0 && (
+            <div className="py-12 text-center text-[13px] text-slate-400">{searchQuery ? "לא נמצאו תוצאות" : "הארכיון ריק"}</div>
+          )}
+        </div>
+      </div>
+
+      {restoreLead && (
+        <RestoreLeadModal
+          lead={restoreLead}
+          activeStages={activeStages}
+          onClose={() => setRestoreLead(null)}
+          onRestored={() => {
+            queryClient.invalidateQueries({ queryKey: ["leads"] });
+            setRestoreLead(null);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
 
 // ─── Add Stage Inline ────────────────────────────────────────────────────────
 
@@ -1120,170 +1390,6 @@ function DeleteStageModal({
           </>
         )}
       </div>
-    </div>
-  );
-}
-
-// ─── Archive Tab ─────────────────────────────────────────────────────────────
-
-function ArchiveTab({
-  leads,
-  wonStage,
-  lostStage,
-  activeStages,
-  searchQuery,
-  onLeadClick,
-}: {
-  leads: Lead[];
-  wonStage?: LeadStage;
-  lostStage?: LeadStage;
-  activeStages: LeadStage[];
-  searchQuery: string;
-  onLeadClick: (l: Lead) => void;
-}) {
-  const queryClient = useQueryClient();
-  const [restoreLead, setRestoreLead] = useState<Lead | null>(null);
-  const [filterType, setFilterType] = useState<"all" | "won" | "lost">("all");
-
-  const archivedLeads = leads.filter(l => l.stage === wonStage?.id || l.stage === lostStage?.id);
-
-  const filtered = archivedLeads
-    .filter(l => filterType === "all" || (filterType === "won" ? l.stage === wonStage?.id : l.stage === lostStage?.id))
-    .filter(l => {
-      if (!searchQuery.trim()) return true;
-      const q = searchQuery.toLowerCase();
-      return l.name.toLowerCase().includes(q)
-        || (l.phone || "").includes(q)
-        || (l.email || "").toLowerCase().includes(q)
-        || (l.lostReasonText || "").toLowerCase().includes(q);
-    })
-    .sort((a, b) => {
-      const dateA = new Date(a.lostAt || a.wonAt || a.createdAt).getTime();
-      const dateB = new Date(b.lostAt || b.wonAt || b.createdAt).getTime();
-      return dateB - dateA;
-    });
-
-  return (
-    <div>
-      {/* Filter pills */}
-      <div className="flex items-center gap-2 mb-4 flex-wrap">
-        {(["all", "lost", "won"] as const).map(f => {
-          const label = f === "all" ? "הכל" : f === "lost" ? "🔴 אבודים" : "🏆 נסגרו";
-          const count = f === "all" ? archivedLeads.length
-            : f === "lost" ? archivedLeads.filter(l => l.stage === lostStage?.id).length
-            : archivedLeads.filter(l => l.stage === wonStage?.id).length;
-          return (
-            <button
-              key={f}
-              onClick={() => setFilterType(f)}
-              className={cn(
-                "px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5",
-                filterType === f ? "bg-brand-500 text-white" : "bg-slate-100 text-petra-muted hover:bg-slate-200"
-              )}
-            >
-              {label}
-              <span className={cn("text-[10px] px-1.5 rounded-full", filterType === f ? "bg-white/20" : "bg-slate-200")}>{count}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Table */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        {filtered.length === 0 ? (
-          <div className="text-center py-16">
-            <Archive className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-            <p className="text-sm text-petra-muted">{searchQuery ? "לא נמצאו תוצאות" : "הארכיון ריק"}</p>
-          </div>
-        ) : (
-          <table className="w-full text-sm text-right">
-            <thead className="bg-slate-50 text-petra-muted border-b border-slate-100 text-xs">
-              <tr>
-                <th className="font-medium p-3">שם</th>
-                <th className="font-medium p-3">טלפון</th>
-                <th className="font-medium p-3">סטטוס</th>
-                <th className="font-medium p-3">ערך עסקה</th>
-                <th className="font-medium p-3">סיבה / הערה</th>
-                <th className="font-medium p-3">תאריך</th>
-                <th className="font-medium p-3"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filtered.map(lead => {
-                const isWon = lead.stage === wonStage?.id;
-                const lostReasonLabel = lead.lostReasonCode
-                  ? LOST_REASON_CODES.find(r => r.id === lead.lostReasonCode)?.label
-                  : null;
-                const date = isWon ? lead.wonAt : lead.lostAt;
-                return (
-                  <tr key={lead.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="p-3 font-medium text-petra-text cursor-pointer" onClick={() => onLeadClick(lead)}>
-                      {lead.name}
-                    </td>
-                    <td className="p-3 text-petra-muted text-xs" dir="ltr">
-                      {lead.phone ? (
-                        <a
-                          href={`https://wa.me/${toWhatsAppPhone(lead.phone)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-green-600 hover:text-green-700 hover:underline transition-colors"
-                          title="שלח וואטסאפ"
-                        >
-                          <MessageCircle className="w-3 h-3" />
-                          {lead.phone}
-                        </a>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
-                    <td className="p-3">
-                      {isWon ? (
-                        <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200 font-medium">
-                          <Trophy className="w-3 h-3" /> נסגר
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200 font-medium">
-                          <Archive className="w-3 h-3" /> אבוד
-                        </span>
-                      )}
-                    </td>
-                    <td className="p-3 text-xs text-petra-text whitespace-nowrap">
-                      {lead.dealValue != null ? formatIls(lead.dealValue) : "—"}
-                    </td>
-                    <td className="p-3 text-xs text-petra-muted max-w-[200px] truncate">
-                      {lostReasonLabel || lead.lostReasonText || "—"}
-                    </td>
-                    <td className="p-3 text-xs text-petra-muted whitespace-nowrap">
-                      {date ? new Date(date).toLocaleDateString("he-IL") : "—"}
-                    </td>
-                    <td className="p-3">
-                      <button
-                        onClick={() => setRestoreLead(lead)}
-                        className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg bg-brand-50 text-brand-600 hover:bg-brand-100 border border-brand-200 font-medium transition-colors whitespace-nowrap"
-                      >
-                        <RotateCcw className="w-3 h-3" />
-                        החזר ליד
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      {restoreLead && (
-        <RestoreLeadModal
-          lead={restoreLead}
-          activeStages={activeStages}
-          onClose={() => setRestoreLead(null)}
-          onRestored={() => {
-            queryClient.invalidateQueries({ queryKey: ["leads"] });
-            setRestoreLead(null);
-          }}
-        />
-      )}
     </div>
   );
 }
@@ -1407,53 +1513,6 @@ function RestoreLeadModal({
   );
 }
 
-// ─── Archive Drop Zones (DnD targets inside kanban DndContext) ────────────────
-
-function archiveValueSuffix(leads: Lead[]): string {
-  const total = sumDealValues(leads);
-  return total > 0 ? ` · ${formatIls(total)}` : "";
-}
-
-function ArchiveList({
-  leads,
-  wonStage,
-  lostStage,
-}: {
-  leads: Lead[];
-  wonStage?: LeadStage;
-  lostStage?: LeadStage;
-}) {
-  const { setNodeRef: setWonNodeRef, isOver: isWonOver } = useDroppable({ id: wonStage?.id || "won", disabled: !wonStage });
-  const { setNodeRef: setLostNodeRef, isOver: isLostOver } = useDroppable({ id: lostStage?.id || "lost", disabled: !lostStage });
-
-  if (!wonStage && !lostStage) return null;
-
-  return (
-    <div className="mt-4 mb-8">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {wonStage && (
-          <div ref={setWonNodeRef}
-            className={`rounded-xl border-2 border-dashed transition-colors p-4 text-center ${isWonOver ? "border-green-400 bg-green-50" : "border-slate-200 bg-slate-50/50"}`}>
-            <Trophy className={`w-5 h-5 mx-auto mb-1 ${isWonOver ? "text-green-600" : "text-slate-400"}`} />
-            <p className={`text-xs font-medium ${isWonOver ? "text-green-700" : "text-petra-muted"}`}>
-              {isWonOver ? "שחרר — סגירה!" : `גרור לכאן לסגירה · ${leads.filter(l => l.stage === wonStage.id).length} נסגרו${archiveValueSuffix(leads.filter(l => l.stage === wonStage.id))}`}
-            </p>
-          </div>
-        )}
-        {lostStage && (
-          <div ref={setLostNodeRef}
-            className={`rounded-xl border-2 border-dashed transition-colors p-4 text-center ${isLostOver ? "border-red-400 bg-red-50" : "border-slate-200 bg-slate-50/50"}`}>
-            <Archive className={`w-5 h-5 mx-auto mb-1 ${isLostOver ? "text-red-600" : "text-slate-400"}`} />
-            <p className={`text-xs font-medium ${isLostOver ? "text-red-700" : "text-petra-muted"}`}>
-              {isLostOver ? "שחרר — ארכוב!" : `גרור לכאן לארכוב · ${leads.filter(l => l.stage === lostStage.id).length} אבודים${archiveValueSuffix(leads.filter(l => l.stage === lostStage.id))}`}
-            </p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 // ─── Priority sort ────────────────────────────────────────────────────────────
 // Groups: 0=overdue (red) → 1=untouched (amber) → 2=handled (grey)
 // Within each group: oldest first (waiting longest = top of column)
@@ -1493,14 +1552,13 @@ function LeadsPageContent() {
   const [wonToast, setWonToast] = useState<{ name: string; customerId: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"kanban" | "reports" | "archive">("kanban");
+  const [activeTab, setActiveTab] = useState<SalesView>("board");
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [exportFrom, setExportFrom] = useState("");
   const [exportTo, setExportTo] = useState("");
-  const [statsFilter, setStatsFilter] = useState<"all" | "month">("all");
   const exportMenuRef = useRef<HTMLDivElement>(null);
-  const { maxLeads, tier } = useSubscription();
+  const { maxLeads } = useSubscription();
 
   // Edit mode state
   const [editMode, setEditMode] = useState(false);
@@ -1563,6 +1621,8 @@ function LeadsPageContent() {
     queryKey: ["lead-stages"],
     queryFn: () => fetchJSON<LeadStage[]>("/api/leads/stages"),
   });
+  const wonStageId = stages.find((s) => s.isWon)?.id;
+  const lostStageId = stages.find((s) => s.isLost)?.id;
 
   const filteredLeads = useMemo(() => {
     let result = leads;
@@ -1575,7 +1635,7 @@ function LeadsPageContent() {
         if (l.name.toLowerCase().includes(q)) return true;
         if (l.phone?.includes(q)) return true;
         if (l.email?.toLowerCase().includes(q)) return true;
-        const meta = parseLeadMeta(l.notes);
+        const meta = leadMeta(l);
         if (meta.city?.toLowerCase().includes(q)) return true;
         if (meta.service?.toLowerCase().includes(q)) return true;
         if (l.callLogs?.some((log) => log.summary?.toLowerCase().includes(q))) return true;
@@ -1638,21 +1698,6 @@ function LeadsPageContent() {
     onError: () => toast.error("שגיאה בסידור השלבים. נסה שוב."),
   });
 
-  const convertMutation = useMutation({
-    mutationFn: (leadId: string) =>
-      fetch(`/api/leads/${leadId}/convert`, { method: "POST" }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
-    onSuccess: (data, leadId) => {
-      queryClient.invalidateQueries({ queryKey: ["leads"] });
-      queryClient.invalidateQueries({ queryKey: ["customers"] });
-      if (data.customer) {
-        const lead = leads.find((l) => l.id === leadId);
-        setWonToast({ name: lead?.name || data.customer.name, customerId: data.customer.id });
-        setTimeout(() => setWonToast(null), 6000);
-      }
-    },
-    onError: () => toast.error("שגיאה בהמרת הליד ללקוח. נסה שוב."),
-  });
-
   // ─── Bulk Delete mutation ──────────────────────────────────────────────
   // Loops the existing per-lead DELETE endpoint — exact same fetch shape as
   // the single-lead delete in LeadTreatmentModal (x-confirm-action header per
@@ -1694,6 +1739,33 @@ function LeadsPageContent() {
     onError: () => toast.error("שגיאה במחיקת הלידים. נסה שוב."),
   });
 
+  // ─── Follow-up reschedule (follow-up view drag) ────────────────────────
+  const followUpMoveMutation = useMutation({
+    mutationFn: ({ id, at }: { id: string; at: string; name: string }) =>
+      fetch(`/api/leads/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nextFollowUpAt: at }),
+      }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
+    onSuccess: (_, { at, name }) => {
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["sidebar-counters"] });
+      toast.success(`פולואפ ל${name}: ${getFollowUpInfo(at).label}`);
+    },
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+      toast.error("שגיאה בעדכון מועד החזרה. נסה שוב.");
+    },
+  });
+
+  // Won/lost zones sit on top of the board while dragging — they win over a column underneath.
+  const leadCollision: CollisionDetection = useCallback((args) => {
+    const hits = pointerWithin(args);
+    const zoneHit = hits.find((h) => h.id === wonStageId || h.id === lostStageId);
+    return zoneHit ? [zoneHit] : hits;
+  }, [wonStageId, lostStageId]);
+
   // ─── Lead DnD Sensors ──────────────────────────────────────────────────
 
   const sensors = useSensors(
@@ -1716,6 +1788,20 @@ function LeadsPageContent() {
   const handleDragEnd = (event: DragEndEvent) => {
     setActiveDragLead(null);
     const { active, over } = event;
+
+    // Follow-up view: dropping on a time column reschedules the next follow-up
+    if (over && typeof over.id === "string" && over.id.startsWith(FU_DROP_PREFIX)) {
+      const column = FOLLOW_UP_COLUMNS.find((c) => FU_DROP_PREFIX + c.id === over.id);
+      const lead = leads.find((l) => l.id === active.id);
+      if (!column?.target || !lead) return;
+      if (column.buckets.includes(getFollowUpInfo(lead.nextFollowUpAt).bucket)) return;
+      const at = column.target();
+      queryClient.setQueryData(["leads"], (old: Lead[]) =>
+        old.map(l => l.id === lead.id ? { ...l, nextFollowUpAt: at } : l)
+      );
+      followUpMoveMutation.mutate({ id: lead.id, at, name: lead.name });
+      return;
+    }
 
     if (over && active.id !== over.id) {
       const activeLeadId = active.id as string;
@@ -1801,9 +1887,6 @@ function LeadsPageContent() {
     createStageMutation.mutate({ name });
   };
 
-  const handleWon = useCallback((lead: Lead) => {
-    convertMutation.mutate(lead.id);
-  }, [convertMutation]);
 
   // ─── Render ─────────────────────────────────────────────────────────────
 
@@ -1841,461 +1924,331 @@ function LeadsPageContent() {
     setShowBulkDeleteConfirm(false);
   }, []);
 
-  const funnelStats = useMemo(() => {
-    const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const isMonth = statsFilter === "month";
-
-    // Won/lost are counted by close date (wonAt/lostAt) — same definition as
-    // the reports page (/analytics), so both screens show the same numbers.
-    // New/active leads are scoped by createdAt.
-    const statsLeads = isMonth
-      ? leads.filter((l) => new Date(l.createdAt) >= monthStart)
-      : leads;
-    const wonLeadsInScope = leads.filter((l) =>
-      (wonStage && l.stage === wonStage.id) &&
-      (!isMonth || (l.wonAt && new Date(l.wonAt) >= monthStart))
-    );
-    const lostLeadsInScope = leads.filter((l) =>
-      (lostStage && l.stage === lostStage.id) &&
-      (!isMonth || (l.lostAt && new Date(l.lostAt) >= monthStart))
-    );
-
-    const wonCount = wonLeadsInScope.length;
-    const lostCount = lostLeadsInScope.length;
-    const activeCount = statsLeads.filter((l) => {
-      const s = stages.find((s) => s.id === l.stage);
-      return s && !s.isWon && !s.isLost;
-    }).length;
-    const totalCount = activeCount + wonCount + lostCount;
-    const conversionRate = wonCount + lostCount > 0 ? Math.round((wonCount / (wonCount + lostCount)) * 100) : 0;
-
-    const stageBreakdown = activeStages.map((s) => ({
-      id: s.id,
-      name: s.name,
-      color: s.color,
-      count: statsLeads.filter((l) => l.stage === s.id).length,
-    }));
-
-    const sourceCounts: Record<string, number> = {};
-    for (const l of statsLeads) {
-      if (l.source) sourceCounts[l.source] = (sourceCounts[l.source] || 0) + 1;
+  // Bulk selection / stage editing belong to the board view only
+  useEffect(() => {
+    if (activeTab !== "board") {
+      exitSelectionMode();
+      setEditMode(false);
+      setEditingStageId(null);
+      setEditingName("");
     }
-    const topSourceId = Object.entries(sourceCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
-    const topSource = topSourceId
-      ? LEAD_SOURCES.find((s) => s.id === topSourceId)?.label ?? topSourceId
-      : null;
+  }, [activeTab, exitSelectionMode]);
 
-    return { totalCount, wonCount, lostCount, activeCount, conversionRate, stageBreakdown, topSource };
-  }, [leads, stages, activeStages, wonStage, lostStage, statsFilter]);
+  const stagesById = useMemo(() => new Map(stages.map((s) => [s.id, s])), [stages]);
+
+  // Header summary — all open leads (active stages), regardless of search/source filters
+  const openLeads = useMemo(() => {
+    const activeStageIds = new Set(activeStages.map((s) => s.id));
+    return leads.filter((l) => activeStageIds.has(l.stage));
+  }, [leads, activeStages]);
+  const pipelineValue = sumDealValues(openLeads);
+  const overdueCount = openLeads.filter((l) => getFollowUpInfo(l.nextFollowUpAt).bucket === "overdue").length;
+  const todayCount = openLeads.filter((l) => getFollowUpInfo(l.nextFollowUpAt).bucket === "today").length;
+  const archiveCount = (wonStage ? leads.filter(l => l.stage === wonStage.id).length : 0)
+    + (lostStage ? leads.filter(l => l.stage === lostStage.id).length : 0);
+
+  const sortedVisibleLeads = useMemo(() => [...visibleKanbanLeads].sort(byFollowUp), [visibleKanbanLeads]);
+
+  const archiveHits = useMemo(() => {
+    if (activeTab === "archive" || !searchQuery.trim()) return 0;
+    const q = searchQuery.toLowerCase();
+    return leads.filter(l =>
+      (l.stage === wonStage?.id || l.stage === lostStage?.id) &&
+      (l.name.toLowerCase().includes(q) || (l.phone || "").includes(q) || (l.email || "").toLowerCase().includes(q))
+    ).length;
+  }, [activeTab, searchQuery, leads, wonStage, lostStage]);
+
+  const atLeadLimit = maxLeads !== null && leads.length >= maxLeads;
+
+  const views: { id: SalesView; label: string }[] = [
+    { id: "board", label: "שלבי מכירה" },
+    { id: "followup", label: `פולואפים · ${overdueCount + todayCount}` },
+    { id: "list", label: "רשימה" },
+    { id: "archive", label: `ארכיון · ${archiveCount}` },
+    { id: "reports", label: "דוחות" },
+  ];
+
+  const openLead = (lead: Lead) => setSelectedLead(lead);
+  const openDetails = (lead: Lead) => setDetailsLead(lead);
 
   return (
     <div>
       {leadsInitialLoading && <PetraLoader />}
-      {/* ── Row 1: Main Actions ── */}
-      <div className="flex items-center gap-3 mb-3 flex-wrap">
-        {/* Right: title */}
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <h1 className="page-title">
-            לידים
-            <span className="text-sm font-normal text-petra-muted mr-2">
-              ({(searchQuery.trim() || sourceFilter) ? `${filteredLeads.length}/${leads.length}` : leads.length})
-            </span>
-          </h1>
-        </div>
 
-        {/* Center: search (grows to fill space) */}
-        <div className="flex-1 min-w-[180px] max-w-md">
-          <div className="relative">
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted pointer-events-none" />
+      {/* ── Header ── */}
+      <div className="flex items-end justify-between gap-4 flex-wrap">
+        <div className="min-w-0">
+          <h1 className="text-xl md:text-2xl font-bold tracking-[-0.02em] text-petra-text">מערכת מכירות</h1>
+          <div className="mt-1.5 text-[13px] md:text-sm text-slate-500 flex gap-x-3.5 gap-y-1 flex-wrap tabular-nums">
+            <span>{openLeads.length} לידים פתוחים</span>
+            {pipelineValue > 0 && <span>{formatIls(pipelineValue)} בצנרת</span>}
+            <span className="text-[#B91C1C] font-medium">{overdueCount} באיחור</span>
+            <span className="text-[#C2410C] font-medium">{todayCount} להיום</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2.5 w-full md:w-auto min-w-0">
+          <div className="flex bg-slate-100 rounded-[10px] p-[3px] gap-0.5 overflow-x-auto scrollbar-hide min-w-0 flex-1 md:flex-none">
+            {views.map((v) => (
+              <button
+                key={v.id}
+                type="button"
+                onClick={() => setActiveTab(v.id)}
+                className={cn(
+                  "h-8 px-3.5 rounded-lg text-[13px] whitespace-nowrap transition-colors tabular-nums flex-shrink-0",
+                  activeTab === v.id
+                    ? "bg-white text-petra-text font-semibold shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
+                    : "text-slate-500 font-medium hover:text-petra-text",
+                )}
+              >
+                {v.label}
+              </button>
+            ))}
+          </div>
+          {atLeadLimit ? (
+            <a href="/upgrade" className="h-[38px] px-4 rounded-[10px] bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold flex items-center gap-1.5 flex-shrink-0 transition-colors">
+              <Sparkles className="w-4 h-4" />שדרג לבייסיק
+            </a>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowModal(true)}
+              className="h-[38px] px-4 rounded-[10px] bg-[#F97316] hover:bg-[#EA580C] text-white text-sm font-semibold flex items-center gap-1.5 flex-shrink-0 transition-colors"
+            >
+              <Plus className="w-4 h-4" />ליד חדש
+              {maxLeads !== null && <span className="opacity-75 text-xs tabular-nums">({leads.length}/{maxLeads})</span>}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* ── Filters & tools ── */}
+      {activeTab !== "reports" && (
+        <div className="flex items-center gap-2.5 mt-5 flex-wrap">
+          <div className="relative w-full sm:w-[260px]">
             <input
               type="text"
-              placeholder={activeTab === "archive" ? "חפש בארכיון..." : "חפש ליד..."}
-              className="input pr-9 pl-3 text-sm w-full"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={activeTab === "archive" ? "חיפוש בארכיון" : "חיפוש לפי שם, טלפון או עיר"}
+              className="w-full h-9 border border-slate-200 rounded-[10px] pr-[34px] pl-8 text-[13px] bg-white outline-none transition-shadow focus:border-[#FB923C] focus:ring-[3px] focus:ring-orange-500/15"
             />
+            <Search className="absolute right-[11px] top-2.5 w-4 h-4 text-slate-400 pointer-events-none" />
             {searchQuery && (
-              <button
-                className="absolute left-2 top-1/2 -translate-y-1/2 text-petra-muted hover:text-petra-text"
-                onClick={() => setSearchQuery("")}
-              >
+              <button type="button" aria-label="נקה חיפוש" onClick={() => setSearchQuery("")} className="absolute left-2.5 top-2.5 text-slate-400 hover:text-slate-700">
                 <X className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
-          {activeTab === "kanban" && searchQuery.trim() && (() => {
-            const q = searchQuery.toLowerCase();
-            const archiveHits = leads.filter(l =>
-              (l.stage === wonStage?.id || l.stage === lostStage?.id) &&
-              (l.name.toLowerCase().includes(q) || (l.phone || "").includes(q) || (l.email || "").toLowerCase().includes(q))
-            ).length;
-            return archiveHits > 0 ? (
-              <button onClick={() => setActiveTab("archive")} className="text-xs text-brand-600 hover:text-brand-700 flex items-center gap-1 font-medium mt-1">
-                <Archive className="w-3 h-3" />נמצא {archiveHits} בארכיון ←
-              </button>
-            ) : null;
-          })()}
-        </div>
 
-        {/* Left: stage actions (kanban only) */}
-        {activeTab === "kanban" && (
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            <button
-              className={`btn-secondary flex items-center gap-1.5 text-sm ${selectionMode ? "!bg-brand-50 !text-brand-700 !border-brand-300" : ""}`}
-              onClick={() => {
-                if (selectionMode) {
-                  exitSelectionMode();
-                } else {
-                  setSelectionMode(true);
-                  setEditMode(false);
-                  setEditingStageId(null);
-                  setEditingName("");
-                }
-              }}
+          {archiveHits > 0 && (
+            <button type="button" onClick={() => setActiveTab("archive")} className="text-[13px] font-medium text-[#EA580C] hover:text-[#C2410C] flex items-center gap-1">
+              <Archive className="w-3.5 h-3.5" />נמצאו {archiveHits} בארכיון ←
+            </button>
+          )}
+
+          {activeTab !== "archive" && !editMode && (
+            <select
+              value={sourceFilter ?? ""}
+              onChange={(e) => setSourceFilter(e.target.value || null)}
+              aria-label="סינון לפי מקור"
+              className={cn(TOOL_BTN, "pl-2 pr-3 cursor-pointer", sourceFilter && TOOL_BTN_ON)}
             >
-              <CheckSquare className="w-3.5 h-3.5" />
-              {selectionMode ? "בטל בחירה" : "בחר"}
+              <option value="">כל המקורות</option>
+              {LEAD_SOURCES.map((src) => {
+                const count = leads.filter((l) => l.source === src.id).length;
+                if (count === 0 && sourceFilter !== src.id) return null;
+                return <option key={src.id} value={src.id}>{src.label} ({count})</option>;
+              })}
+            </select>
+          )}
+
+          <div className="flex items-center gap-1.5 ms-auto flex-wrap">
+            {activeTab === "board" && (
+              <>
+                <button
+                  type="button"
+                  className={cn(TOOL_BTN, "hidden md:flex", selectionMode && TOOL_BTN_ON)}
+                  onClick={() => {
+                    if (selectionMode) {
+                      exitSelectionMode();
+                    } else {
+                      setSelectionMode(true);
+                      setEditMode(false);
+                      setEditingStageId(null);
+                      setEditingName("");
+                    }
+                  }}
+                >
+                  <CheckSquare className="w-3.5 h-3.5" />
+                  {selectionMode ? "בטל בחירה" : "בחר"}
+                </button>
+                <button
+                  type="button"
+                  className={cn(TOOL_BTN, editMode && TOOL_BTN_ON)}
+                  onClick={() => {
+                    setEditMode(!editMode);
+                    setEditingStageId(null);
+                    setEditingName("");
+                    if (!editMode) exitSelectionMode();
+                  }}
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  {editMode ? "סיום עריכה" : "עריכת שלבים"}
+                </button>
+                {editMode && (
+                  <button
+                    type="button"
+                    className={TOOL_BTN}
+                    onClick={() => {
+                      setAddStageTrigger((t) => t + 1);
+                      setTimeout(() => { kanbanScrollRef.current?.scrollTo({ left: -kanbanScrollRef.current.scrollWidth, behavior: "smooth" }); }, 50);
+                    }}
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    הוסף שלב
+                  </button>
+                )}
+              </>
+            )}
+
+            {/* Export */}
+            <div className="relative" ref={exportMenuRef}>
+              <button type="button" className={TOOL_BTN} onClick={() => setShowExportMenu((v) => !v)} title="ייצוא לידים">
+                <Download className="w-3.5 h-3.5" />ייצוא
+              </button>
+              {showExportMenu && (
+                <div className={cn("absolute left-0 top-full mt-1.5 w-64 bg-white rounded-xl border border-slate-200 z-50 p-4 space-y-3", POPOVER_SHADOW)}>
+                  <p className="text-xs font-semibold text-petra-text">ייצוא לידים לאקסל</p>
+                  <div className="space-y-2">
+                    <div>
+                      <label className="text-xs text-petra-muted mb-1 block">מתאריך</label>
+                      <input type="date" lang="he" className="input text-sm py-1.5" value={exportFrom} onChange={(e) => setExportFrom(e.target.value)} />
+                    </div>
+                    <div>
+                      <label className="text-xs text-petra-muted mb-1 block">עד תאריך</label>
+                      <input type="date" lang="he" className="input text-sm py-1.5" value={exportTo} onChange={(e) => setExportTo(e.target.value)} />
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-petra-muted">ללא סינון תאריך — ייצא את כל הלידים</p>
+                  <button type="button" className="w-full h-9 rounded-[10px] bg-[#F97316] hover:bg-[#EA580C] text-white text-sm font-semibold flex items-center justify-center gap-1.5 transition-colors" onClick={exportLeads}>
+                    <Download className="w-3.5 h-3.5" />הורד CSV
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Refresh controls */}
+            <button
+              type="button"
+              onClick={() => refetchLeads()}
+              disabled={leadsLoading}
+              title="רענן עכשיו"
+              aria-label="רענן עכשיו"
+              className={cn(TOOL_BTN, "w-9 px-0 justify-center")}
+            >
+              <RefreshCw className={cn("w-4 h-4", leadsLoading && "animate-spin")} />
             </button>
             <button
-              className={`btn-secondary flex items-center gap-1.5 text-sm ${editMode ? "!bg-brand-50 !text-brand-700 !border-brand-300" : ""}`}
-              onClick={() => {
-                setEditMode(!editMode);
-                setEditingStageId(null);
-                setEditingName("");
-                if (!editMode) exitSelectionMode();
-              }}
+              type="button"
+              onClick={() => setAutoRefresh(!autoRefresh)}
+              title={autoRefresh ? "כבה אוטו-רענון" : "הפעל אוטו-רענון (30 שנ׳)"}
+              className={cn(TOOL_BTN, autoRefresh && "!bg-emerald-50 !border-emerald-300 !text-emerald-700")}
             >
-              <Pencil className="w-3.5 h-3.5" />
-              {editMode ? "סיום עריכה" : "עריכת שלבים"}
-            </button>
-            <button
-              className="btn-secondary flex items-center gap-1.5 text-sm"
-              onClick={() => {
-                setAddStageTrigger((t) => t + 1);
-                setTimeout(() => { kanbanScrollRef.current?.scrollTo({ left: kanbanScrollRef.current.scrollWidth, behavior: "smooth" }); }, 50);
-              }}
-            >
-              <Plus className="w-3.5 h-3.5" />
-              הוסף שלב
+              <span className={cn("w-1.5 h-1.5 rounded-full", autoRefresh ? "bg-emerald-500 animate-pulse" : "bg-slate-300")} />
+              {autoRefresh ? "אוטו פעיל" : "אוטו-רענון"}
             </button>
           </div>
-        )}
-
-        {/* Far left: new lead button */}
-        {activeTab === "kanban" && (
-          maxLeads !== null && leads.length >= maxLeads ? (
-            <a href="/upgrade" className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold transition-colors flex-shrink-0">
-              <Sparkles className="w-4 h-4" />שדרג לבייסיק
-            </a>
-          ) : (
-            <button className="btn-primary flex-shrink-0" onClick={() => setShowModal(true)}>
-              <Plus className="w-4 h-4" />ליד חדש
-              {maxLeads !== null && <span className="mr-1 opacity-70 text-xs">({leads.length}/{maxLeads})</span>}
-            </button>
-          )
-        )}
-      </div>
-
-      {/* ── Row 2: Secondary Controls ── */}
-      <div className="flex items-center gap-2 mb-6 flex-wrap">
-        {/* View tabs — button group */}
-        <div className="flex bg-slate-100 p-1 rounded-xl gap-0.5">
-          <button
-            onClick={() => setActiveTab("kanban")}
-            className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-              activeTab === "kanban" ? "bg-white text-petra-text shadow-sm" : "text-petra-muted hover:text-petra-text")}
-          >
-            <FileText className="w-3.5 h-3.5" />קנבן
-          </button>
-          <button
-            onClick={() => setActiveTab("archive")}
-            className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-              activeTab === "archive" ? "bg-white text-petra-text shadow-sm" : "text-petra-muted hover:text-petra-text")}
-          >
-            <Archive className="w-3.5 h-3.5" />ארכיון
-            {(() => {
-              const count = (wonStage ? leads.filter(l => l.stage === wonStage.id).length : 0)
-                + (lostStage ? leads.filter(l => l.stage === lostStage.id).length : 0);
-              return count > 0 ? (
-                <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full font-semibold",
-                  activeTab === "archive" ? "bg-slate-100 text-slate-600" : "bg-slate-200 text-slate-500"
-                )}>{count}</span>
-              ) : null;
-            })()}
-          </button>
-          <button
-            onClick={() => setActiveTab("reports")}
-            className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-              activeTab === "reports" ? "bg-white text-petra-text shadow-sm" : "text-petra-muted hover:text-petra-text")}
-          >
-            <BarChart2 className="w-3.5 h-3.5" />דוחות
-          </button>
         </div>
-
-        {/* Export */}
-        <div className="relative" ref={exportMenuRef}>
-          <button className="btn-secondary text-sm gap-1.5" onClick={() => setShowExportMenu((v) => !v)} title="ייצוא לידים">
-            <Download className="w-4 h-4" />ייצוא
-          </button>
-          {showExportMenu && (
-            <div className="absolute left-0 top-full mt-1.5 w-64 bg-white rounded-xl shadow-lg border border-petra-border z-50 p-4 space-y-3">
-              <p className="text-xs font-semibold text-petra-text">ייצוא לידים לאקסל</p>
-              <div className="space-y-2">
-                <div>
-                  <label className="text-xs text-petra-muted mb-1 block">מתאריך</label>
-                  <input type="date" lang="he" className="input text-sm py-1.5" value={exportFrom} onChange={(e) => setExportFrom(e.target.value)} />
-                </div>
-                <div>
-                  <label className="text-xs text-petra-muted mb-1 block">עד תאריך</label>
-                  <input type="date" lang="he" className="input text-sm py-1.5" value={exportTo} onChange={(e) => setExportTo(e.target.value)} />
-                </div>
-              </div>
-              <p className="text-[11px] text-petra-muted">ללא סינון תאריך — ייצא את כל הלידים</p>
-              <button className="btn-primary w-full text-sm" onClick={exportLeads}>
-                <Download className="w-3.5 h-3.5" />הורד CSV
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Refresh controls */}
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={() => refetchLeads()}
-            disabled={leadsLoading}
-            title="רענן עכשיו"
-            className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-petra-muted hover:text-petra-text transition-colors disabled:opacity-50"
-          >
-            <RefreshCw className={cn("w-4 h-4", leadsLoading && "animate-spin")} />
-          </button>
-          <button
-            onClick={() => setAutoRefresh(!autoRefresh)}
-            title={autoRefresh ? "כבה אוטו-רענון" : "הפעל אוטו-רענון (30 שנ׳)"}
-            className={cn("flex items-center gap-1.5 px-3 h-8 rounded-lg border text-xs font-medium transition-all",
-              autoRefresh ? "bg-emerald-50 border-emerald-300 text-emerald-700" : "bg-white border-slate-200 text-petra-muted hover:text-petra-text")}
-          >
-            <span className={cn("w-1.5 h-1.5 rounded-full", autoRefresh ? "bg-emerald-500 animate-pulse" : "bg-slate-300")} />
-            {autoRefresh ? "אוטו פעיל" : "אוטו-רענון"}
-          </button>
-        </div>
-      </div>
-
-      {/* Reports Tab */}
-      {activeTab === "reports" && (
-        <LeadsReports leads={leads} stages={stages} />
       )}
 
-      {/* Archive Tab */}
-      {activeTab === "archive" && (
-        <ArchiveTab
-          leads={leads}
-          wonStage={wonStage}
-          lostStage={lostStage}
-          activeStages={activeStages}
-          searchQuery={searchQuery}
-          onLeadClick={(lead) => setSelectedLead(lead)}
-        />
-      )}
-
-      {/* Kanban Tab */}
-      {activeTab === "kanban" && <>
-
-      {/* Limit banner — shown when free tier reaches 20 leads */}
-      {maxLeads !== null && leads.length >= maxLeads && (
-        <div className="flex items-center justify-between gap-3 mb-4 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl">
+      {/* Limit banner — shown when free tier reaches its lead cap */}
+      {atLeadLimit && activeTab !== "reports" && activeTab !== "archive" && (
+        <div className="flex items-center justify-between gap-3 mt-4 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl">
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-amber-500 flex-shrink-0" />
             <p className="text-sm text-amber-800">
               <span className="font-semibold">הגעת ל-{maxLeads} לידים</span> — מגבלת המנוי החינמי.
             </p>
           </div>
-          <a
-            href="/upgrade"
-            className="flex-shrink-0 text-xs font-semibold text-amber-700 hover:text-amber-900 underline underline-offset-2 transition-colors"
-          >
+          <a href="/upgrade" className="flex-shrink-0 text-xs font-semibold text-amber-700 hover:text-amber-900 underline underline-offset-2 transition-colors">
             שדרג לבייסיק ←
           </a>
         </div>
       )}
 
-      {/* Source Filter */}
-      {!editMode && (
-        <div className="flex items-center gap-1.5 mb-4 overflow-x-auto scrollbar-hide pb-1 flex-nowrap">
-          <button
-            onClick={() => setSourceFilter(null)}
-            className={cn(
-              "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-              sourceFilter === null
-                ? "bg-brand-500 text-white"
-                : "bg-slate-100 text-petra-muted hover:bg-slate-200"
-            )}
-          >
-            כל המקורות
-          </button>
-          {LEAD_SOURCES.map((src) => {
-            const count = leads.filter((l) => l.source === src.id).length;
-            if (count === 0) return null;
-            return (
-              <button
-                key={src.id}
-                onClick={() => setSourceFilter(sourceFilter === src.id ? null : src.id)}
-                className={cn(
-                  "px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-1.5",
-                  sourceFilter === src.id
-                    ? "bg-brand-500 text-white"
-                    : "bg-slate-100 text-petra-muted hover:bg-slate-200"
-                )}
-              >
-                {src.label}
-                <span className={cn(
-                  "text-[10px] px-1.5 py-0.5 rounded-full font-semibold",
-                  sourceFilter === src.id ? "bg-white/20 text-white" : "bg-slate-200 text-petra-muted"
-                )}>
-                  {count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      )}
+      <div className="mt-5">
+        {/* Reports */}
+        {activeTab === "reports" && <LeadsReports leads={leads} stages={stages} />}
 
-      {/* Lead Funnel Stats */}
-      {!editMode && leads.length > 0 && (
-        <div className="mb-5">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex bg-slate-100 p-0.5 rounded-lg gap-0.5">
-            <button
-              onClick={() => setStatsFilter("all")}
-              className={cn(
-                "px-3 py-1 rounded-md text-xs font-medium transition-all",
-                statsFilter === "all" ? "bg-white text-petra-text shadow-sm" : "text-petra-muted hover:text-petra-text"
+        {/* Archive */}
+        {activeTab === "archive" && (
+          <ArchiveTab
+            leads={leads}
+            wonStage={wonStage}
+            lostStage={lostStage}
+            activeStages={activeStages}
+            searchQuery={searchQuery}
+            onLeadClick={openLead}
+          />
+        )}
+
+        {/* List */}
+        {activeTab === "list" && (
+          <LeadsListView leads={sortedVisibleLeads} stagesById={stagesById} onLeadClick={openLead} onDetails={openDetails} />
+        )}
+
+        {/* ─── Bulk Selection Bar ─── */}
+        {activeTab === "board" && selectionMode && !editMode && (
+          <div className="p-3 mb-4 flex flex-wrap items-center gap-3 rounded-xl bg-[#FFF7ED] border border-[#FED7AA]">
+            <button onClick={toggleSelectAll} className="flex items-center gap-2 text-slate-500 hover:text-petra-text transition-colors">
+              {allSelected ? (
+                <CheckSquare className="w-4 h-4 text-brand-500" />
+              ) : someSelected ? (
+                <MinusSquare className="w-4 h-4 text-brand-400" />
+              ) : (
+                <Square className="w-4 h-4" />
               )}
-            >
-              הכל
+              <span className="text-xs font-medium">בחר הכל</span>
             </button>
-            <button
-              onClick={() => setStatsFilter("month")}
-              className={cn(
-                "px-3 py-1 rounded-md text-xs font-medium transition-all",
-                statsFilter === "month" ? "bg-white text-petra-text shadow-sm" : "text-petra-muted hover:text-petra-text"
-              )}
-            >
-              החודש
-            </button>
+            <div className="w-px h-5 bg-[#FED7AA]" />
+            <span className="text-sm font-semibold text-petra-text">{selectedIds.size} נבחרו</span>
+            {selectedIds.size > 0 && (
+              <button
+                className="ms-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 transition-colors"
+                onClick={() => setShowBulkDeleteConfirm(true)}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                מחק נבחרים
+              </button>
+            )}
           </div>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="bg-white rounded-xl border border-slate-200 p-4">
-            <p className="text-2xl font-bold text-petra-text">{funnelStats.totalCount}</p>
-            <p className="text-xs text-petra-muted mt-0.5">סה"כ לידים</p>
-          </div>
-          <div className="bg-white rounded-xl border border-slate-200 p-4">
-            <p className="text-2xl font-bold text-brand-600">{funnelStats.activeCount}</p>
-            <p className="text-xs text-petra-muted mt-0.5">בתהליך</p>
-          </div>
-          <div className="bg-white rounded-xl border border-slate-200 p-4">
-            <p className="text-2xl font-bold text-green-600">{funnelStats.wonCount}</p>
-            <p className="text-xs text-petra-muted mt-0.5">נסגרו</p>
-          </div>
-          <div className="bg-white rounded-xl border border-slate-200 p-4">
-            <p className="text-2xl font-bold text-petra-text">{funnelStats.conversionRate}%</p>
-            <p className="text-xs text-petra-muted mt-0.5">שיעור המרה</p>
-          </div>
-          {funnelStats.topSource && (
-            <div className="col-span-2 sm:col-span-4 bg-white rounded-xl border border-slate-200 px-4 py-3">
-              <p className="text-xs text-petra-muted">
-                מקור מוביל: <span className="font-semibold text-petra-text">{funnelStats.topSource}</span>
+        )}
+
+        {/* ─── Board: stage editing mode (column reorder) ─── */}
+        {activeTab === "board" && editMode && (
+          <>
+            <div className="mb-4 p-3 rounded-xl bg-amber-50 border border-amber-200 flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
+                <Pencil className="w-4 h-4 text-amber-600" />
+              </div>
+              <p className="text-sm text-amber-800">
+                <span className="font-semibold">{"מצב עריכה פעיל"}</span>
+                {" — "}
+                {"לחץ על שם שלב כדי לשנות אותו, גרור את "}
+                <GripVertical className="w-3.5 h-3.5 inline-block align-middle" />
+                {" לשינוי סדר, לחץ על העיגול הצבעוני לשינוי צבע, או "}
+                <Trash2 className="w-3.5 h-3.5 inline-block align-middle text-red-500" />
+                {" למחיקה."}
               </p>
             </div>
-          )}
-        </div>
-        </div>
-      )}
-
-      {/* Won Toast */}
-      {wonToast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] flex items-center gap-3 bg-white border border-green-200 shadow-xl rounded-2xl px-5 py-3.5 animate-in slide-in-from-bottom-4">
-          <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-            <UserCheck className="w-5 h-5 text-green-600" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-petra-text">🎉 {wonToast.name} הפך ללקוח!</p>
-            <p className="text-xs text-petra-muted">הליד הומר בהצלחה ללקוח חדש במערכת</p>
-          </div>
-          <button
-            onClick={() => router.push(`/customers/${wonToast.customerId}`)}
-            className="mr-2 px-3 py-1.5 text-xs font-medium rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors whitespace-nowrap"
-          >
-            צפה בלקוח
-          </button>
-          <button onClick={() => setWonToast(null)} className="text-petra-muted hover:text-petra-text">
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
-
-      {/* ─── Bulk Selection Bar ─── */}
-      {selectionMode && !editMode && (
-        <div className="card p-3 mb-4 flex flex-wrap items-center gap-3 bg-[#FEF9F4] border-brand-200">
-          <button
-            onClick={toggleSelectAll}
-            className="flex items-center gap-2 text-slate-500 hover:text-petra-text transition-colors"
-          >
-            {allSelected ? (
-              <CheckSquare className="w-4 h-4 text-brand-500" />
-            ) : someSelected ? (
-              <MinusSquare className="w-4 h-4 text-brand-400" />
-            ) : (
-              <Square className="w-4 h-4" />
-            )}
-            <span className="text-xs font-medium">בחר הכל</span>
-          </button>
-          <div className="w-px h-5 bg-brand-200" />
-          <span className="text-sm font-semibold text-petra-text">{selectedIds.size} נבחרו</span>
-          {selectedIds.size > 0 && (
-            <button
-              className="ms-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 transition-colors"
-              onClick={() => setShowBulkDeleteConfirm(true)}
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              מחק נבחרים
-            </button>
-          )}
-        </div>
-      )}
-
-      {editMode ? (
-        /* ─── Edit Mode: Column reorder DnD ─── */
-        <>
-          <div className="mb-4 p-3 rounded-xl bg-amber-50 border border-amber-200 flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
-              <Pencil className="w-4 h-4 text-amber-600" />
-            </div>
-            <p className="text-sm text-amber-800">
-              <span className="font-semibold">{"מצב עריכה פעיל"}</span>
-              {" — "}
-              {"לחץ על שם שלב כדי לשנות אותו, גרור את "}
-              <GripVertical className="w-3.5 h-3.5 inline-block align-middle" />
-              {" לשינוי סדר, לחץ על העיגול הצבעוני לשינוי צבע, או "}
-              <Trash2 className="w-3.5 h-3.5 inline-block align-middle text-red-500" />
-              {" למחיקה."}
-            </p>
-          </div>
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCorners}
-            onDragEnd={handleColumnDragEnd}
-          >
-            <SortableContext items={activeStages.map((s) => s.id)} strategy={horizontalListSortingStrategy}>
-              <div ref={kanbanScrollRef} className="flex gap-4 overflow-x-auto pb-6 items-stretch mb-8 snap-x snap-mandatory scrollbar-hide" style={{ minHeight: "500px" }}>
-                {activeStages.map((stage) => {
-                  const stageLeads = sortLeadsByPriority(filteredLeads.filter((l) => l.stage === stage.id));
-                  return (
-                    <SortableColumn
+            <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleColumnDragEnd}>
+              <SortableContext items={activeStages.map((s) => s.id)} strategy={horizontalListSortingStrategy}>
+                <div ref={kanbanScrollRef} className="flex gap-3.5 overflow-x-auto pb-6 items-start">
+                  {activeStages.map((stage) => (
+                    <SortableStageColumn
                       key={stage.id}
                       stage={stage}
-                      leads={stageLeads}
+                      leads={sortLeadsByPriority(filteredLeads.filter((l) => l.stage === stage.id))}
                       editMode={editMode}
                       editingStageId={editingStageId}
                       editingName={editingName}
@@ -2304,79 +2257,112 @@ function LeadsPageContent() {
                       onSaveName={handleSaveName}
                       onChangeColor={handleChangeColor}
                       onDelete={handleDelete}
-                      onLeadClick={(lead) => setSelectedLead(lead)}
-                      onQuickAction={(lead, action) => setSelectedLead({ ...lead, stage: action })}
-                      onWon={handleWon}
-                      onDetails={(lead) => setDetailsLead(lead)}
-                      stages={stages}
+                      onLeadClick={openLead}
+                      onDetails={openDetails}
                     />
-                  );
-                })}
-                <AddStageInline onAdd={handleAddStage} triggerOpen={addStageTrigger} />
-              </div>
-            </SortableContext>
-          </DndContext>
-        </>
-      ) : (
-        /* ─── Normal Mode: Lead card DnD ─── */
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCorners}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-        >
-          <div ref={kanbanScrollRef} className="flex gap-4 overflow-x-auto pb-6 items-stretch mb-8 snap-x snap-mandatory scrollbar-hide" style={{ minHeight: "500px" }}>
-            {activeStages.map((stage) => {
-              const stageLeads = sortLeadsByPriority(filteredLeads.filter((l) => l.stage === stage.id));
-              return (
-                <div key={stage.id} className="min-w-[calc(100vw-2rem)] md:min-w-[280px] flex-1 flex flex-col snap-center">
-                  <KanbanColumn
-                    stage={stage}
-                    leads={stageLeads}
-                    editMode={false}
-                    editingStageId={null}
-                    editingName=""
-                    onStartEdit={() => { }}
-                    onChangeName={() => { }}
-                    onSaveName={() => { }}
-                    onChangeColor={() => { }}
-                    onDelete={() => { }}
-                    onLeadClick={(lead) => setSelectedLead(lead)}
-                    onQuickAction={(lead, action) => setSelectedLead({ ...lead, stage: action })}
-                    onWon={handleWon}
-                    onDetails={(lead) => setDetailsLead(lead)}
-                    stages={stages}
-                    selectionMode={selectionMode}
-                    selectedIds={selectedIds}
-                    onToggleSelect={toggleSelect}
+                  ))}
+                  <AddStageInline onAdd={handleAddStage} triggerOpen={addStageTrigger} />
+                </div>
+              </SortableContext>
+            </DndContext>
+          </>
+        )}
+
+        {/* ─── Board / follow-up views: lead drag & drop ─── */}
+        {((activeTab === "board" && !editMode) || activeTab === "followup") && (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={leadCollision}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            onDragCancel={() => setActiveDragLead(null)}
+          >
+            {activeTab === "board" ? (
+              <>
+                <div className="hidden md:block">
+                  <div ref={kanbanScrollRef} className="flex gap-3.5 overflow-x-auto pb-28 items-start">
+                    {activeStages.map((stage) => (
+                      <div key={stage.id} className="min-w-[252px] flex-1 flex-shrink-0">
+                        <StageColumn
+                          stage={stage}
+                          leads={sortLeadsByPriority(filteredLeads.filter((l) => l.stage === stage.id))}
+                          editMode={false}
+                          editingStageId={null}
+                          editingName=""
+                          onStartEdit={() => { }}
+                          onChangeName={() => { }}
+                          onSaveName={() => { }}
+                          onChangeColor={handleChangeColor}
+                          onDelete={() => { }}
+                          onLeadClick={openLead}
+                          onDetails={openDetails}
+                          selectionMode={selectionMode}
+                          selectedIds={selectedIds}
+                          onToggleSelect={toggleSelect}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="md:hidden">
+                  <MobileBoard leads={visibleKanbanLeads} activeStages={activeStages} onLeadClick={openLead} />
+                </div>
+              </>
+            ) : (
+              <div className="flex gap-3.5 overflow-x-auto pb-28 items-start">
+                {FOLLOW_UP_COLUMNS.map((column) => (
+                  <FollowUpColumn
+                    key={column.id}
+                    column={column}
+                    leads={sortedVisibleLeads.filter((l) => column.buckets.includes(getFollowUpInfo(l.nextFollowUpAt).bucket))}
+                    stagesById={stagesById}
+                    onLeadClick={openLead}
+                    onDetails={openDetails}
                   />
-                </div>
-              );
-            })}
-            <AddStageInline onAdd={handleAddStage} triggerOpen={addStageTrigger} />
-          </div>
-
-          <ArchiveList leads={leads} wonStage={wonStage} lostStage={lostStage} />
-
-          <DragOverlay>
-            {activeDragLead ? (
-              <div className="card p-4 shadow-2xl opacity-90 rotate-2 w-[280px]">
-                <div className="text-sm font-bold text-petra-text flex items-center gap-2">
-                  {activeDragLead.name}
-                  {activeDragLead.dealValue != null && (
-                    <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-md px-1.5">{formatIls(activeDragLead.dealValue)}</span>
-                  )}
-                </div>
-                <span className="badge-neutral text-[10px] mt-3 inline-block">
-                  {LEAD_SOURCES.find((s) => s.id === activeDragLead.source)?.label || activeDragLead.source}
-                </span>
+                ))}
               </div>
-            ) : null}
-          </DragOverlay>
-        </DndContext>
-      )}
+            )}
 
-      </>}
+            <ArchiveDropZones leads={leads} wonStage={wonStage} lostStage={lostStage} active={!!activeDragLead} />
+
+            <DragOverlay>
+              {activeDragLead ? (
+                <div className="bg-white border border-slate-300 rounded-xl px-3.5 py-3 w-[252px] rotate-2 shadow-[0_24px_48px_-12px_rgba(0,0,0,0.25)] cursor-grabbing">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-sm font-semibold text-petra-text flex-1 truncate">{activeDragLead.name}</span>
+                    {activeDragLead.dealValue != null && (
+                      <span className="text-xs text-slate-500 tabular-nums">{formatIls(activeDragLead.dealValue)}</span>
+                    )}
+                  </div>
+                  <div className="text-xs text-slate-500 mt-1">{sourceLabelOf(activeDragLead.source)}</div>
+                </div>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
+        )}
+      </div>
+
+      {/* Won Toast */}
+      {wonToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] flex items-center gap-3 bg-white border border-slate-200 shadow-[0_24px_48px_-12px_rgba(0,0,0,0.18)] rounded-xl px-4 py-3 animate-in slide-in-from-bottom-4">
+          <div className="w-9 h-9 rounded-full bg-[#ECFDF5] flex items-center justify-center flex-shrink-0">
+            <UserCheck className="w-[18px] h-[18px] text-[#059669]" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-petra-text">{wonToast.name} הפך ללקוח</p>
+            <p className="text-xs text-petra-muted">הליד הומר בהצלחה ללקוח חדש במערכת</p>
+          </div>
+          <button
+            onClick={() => router.push(`/customers/${wonToast.customerId}`)}
+            className="ms-2 h-8 px-3 text-xs font-semibold rounded-lg bg-[#059669] text-white hover:bg-[#047857] transition-colors whitespace-nowrap"
+          >
+            צפה בלקוח
+          </button>
+          <button onClick={() => setWonToast(null)} aria-label="סגור" className="text-petra-muted hover:text-petra-text">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       <NewLeadModal isOpen={showModal} onClose={() => setShowModal(false)} stages={stages} />
 
@@ -2447,7 +2433,7 @@ function LeadsPageContent() {
 export default function LeadsPage() {
   return (
     <>
-      <PageTitle title="לידים" />
+      <PageTitle title="מערכת מכירות" />
       <TierGate
       feature="leads"
       title="מערכת לידים ומכירות"
