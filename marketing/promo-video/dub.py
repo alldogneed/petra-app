@@ -4,6 +4,7 @@
   python3 dub.py voice marin        # one clip per scene in vo/, retime promo.html to fit
   python3 dub.py redo marin 2 7    # regenerate only those scenes, retime again
   python3 dub.py mix                # render the video and mix the clips in -> petra-promo-vo.mp4
+  python3 dub.py music track.mp3  # music bed ducked under the voice -> petra-promo-final.mp4
 
 Needs OPENAI_API_KEY and network access to api.openai.com.
 """
@@ -183,6 +184,35 @@ def mix():
     print("wrote petra-promo-vo.mp4")
 
 
+def music(src, gain_db=-10.0):
+    """Lay a music bed under petra-promo-vo.mp4 -> petra-promo-final.mp4.
+    The music ducks under the voice (sidechain); the last frame is held until the music ends."""
+    vo_mp4 = os.path.join(HERE, "petra-promo-vo.mp4")
+    wav = os.path.join(HERE, "music.wav")
+    subprocess.run([FF, "-loglevel", "error", "-y", "-i", src, "-vn", "-ac", "2", "-ar", "48000",
+                    "-af", "silenceremove=stop_periods=-1:stop_duration=1:stop_threshold=-50dB", wav],
+                   check=True)
+    video_len = json.load(open(os.path.join(VO, "timing.json")))["total"]
+    music_len = duration(wav)
+    end = max(video_len, min(music_len, video_len + 4))  # hold the end card at most 4s
+    hold = round(end - video_len, 2)
+    fade = 1.5
+    graph = (
+        f"[1:a]volume={gain_db}dB,afade=t=out:st={end - fade}:d={fade},atrim=0:{end}[m];"
+        "[0:a]aresample=48000,pan=stereo|c0=c0|c1=c0,apad,asplit[v][key];"
+        "[m][key]sidechaincompress=threshold=0.015:ratio=8:attack=30:release=500:makeup=1[duck];"
+        f"[v][duck]amix=inputs=2:normalize=0:duration=shortest,loudnorm=I=-16:TP=-1.5,"
+        f"aresample=48000,apad=whole_dur={end}[aout];"
+        f"[0:v]tpad=stop_mode=clone:stop_duration={hold}[vout]"
+    )
+    out = os.path.join(HERE, "petra-promo-final.mp4")
+    subprocess.run([FF, "-loglevel", "error", "-y", "-i", vo_mp4, "-i", wav, "-filter_complex", graph,
+                    "-map", "[vout]", "-map", "[aout]", "-c:v", "libx264", "-crf", "18", "-preset", "medium",
+                    "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-t", str(end),
+                    "-movflags", "+faststart", out], check=True)
+    print(f"wrote petra-promo-final.mp4 ({end:g}s, end card held {hold:g}s)")
+
+
 if __name__ == "__main__":
     cmd = sys.argv[1]
     if cmd == "samples":
@@ -196,3 +226,5 @@ if __name__ == "__main__":
         voice(sys.argv[2], [int(x) for x in sys.argv[3:]])
     elif cmd == "mix":
         mix()
+    elif cmd == "music":            # python3 dub.py music track.mp3 [gain_db]
+        music(sys.argv[2], *(float(x) for x in sys.argv[3:]))
