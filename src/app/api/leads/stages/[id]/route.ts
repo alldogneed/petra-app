@@ -2,6 +2,12 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { z } from "zod";
+
+const updateStageSchema = z.object({
+  name: z.string().trim().min(1).max(100).optional(),
+  color: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+});
 
 export async function PATCH(
   request: NextRequest,
@@ -12,8 +18,11 @@ export async function PATCH(
     if (isGuardError(authResult)) return authResult;
 
     const { id } = params;
-    const body = await request.json();
-    const { name, color } = body;
+    const parsed = updateStageSchema.safeParse(await request.json().catch(() => null));
+    if (!parsed.success) {
+      return NextResponse.json({ error: "נתונים לא תקינים" }, { status: 400 });
+    }
+    const { name, color } = parsed.data;
 
     const existing = await prisma.leadStage.findFirst({
       where: { id, businessId: authResult.businessId },
@@ -29,7 +38,7 @@ export async function PATCH(
     const stage = await prisma.leadStage.update({
       where: { id, businessId: authResult.businessId },
       data: {
-        ...(name !== undefined && { name: name.trim() }),
+        ...(name !== undefined && { name }),
         ...(color !== undefined && { color }),
       },
     });

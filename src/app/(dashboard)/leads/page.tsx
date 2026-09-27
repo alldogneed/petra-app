@@ -463,7 +463,7 @@ function chipClass(on: boolean, big = false): string {
 }
 
 function StageDot({ color }: { color: string }) {
-  return <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />;
+  return <span className="inline-block w-2 h-2 rounded-full flex-shrink-0" style={{ background: isHexColor(color) ? color : "#94A3B8" }} />;
 }
 
 // ─── Follow-up picker (card pill popover) ────────────────────────────────────

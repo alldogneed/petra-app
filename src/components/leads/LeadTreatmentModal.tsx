@@ -800,7 +800,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
 
                     {lead.email && (
                         <a
-                            href={`https://mail.google.com/mail/?view=cm&to=${lead.email}`}
+                            href={`https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(lead.email)}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="mt-1 inline-flex items-center gap-1.5 text-[13px] text-slate-500 hover:text-[#EA580C] transition-colors"
