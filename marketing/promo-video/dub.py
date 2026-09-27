@@ -19,9 +19,12 @@ FF = "/usr/local/lib/python3.11/dist-packages/imageio_ffmpeg/binaries/ffmpeg-lin
 # and niqqud made every model worse, so the lines are plain text.
 MODEL = "gpt-audio-1.5"
 VOICE = "coral"
-SYSTEM = ("You are a professional native Israeli Hebrew voice-over artist. Read the user's text aloud "
-          "EXACTLY as written, word for word, nothing added. Warm, natural, conversational, normal "
-          "flowing pace - not slow, not salesy. The brand name פטרה is pronounced PET-ra.")
+SYSTEM = ("You are a native Israeli woman in her 30s recording a voice-over for a friend's small business. "
+          "Read the user's Hebrew text aloud EXACTLY as written, word for word, nothing added. "
+          "Sound like everyday spoken Israeli Hebrew - relaxed, warm, smiling, like explaining something "
+          "to a friend over coffee: natural Israeli intonation and rhythm, "
+          "no theatrical or announcer voice, no over-articulation, not slow. "
+          "The brand name פטרה is pronounced PET-ra. \"ליד\" (a sales lead) is pronounced leed.")
 TAKES = 6    # max takes per line; the one whose transcript matches the text best wins
 LEAD = 0.4   # seconds of picture before the voice starts in each scene
 TAIL = 0.6   # breathing room after the voice before the next scene
@@ -32,15 +35,16 @@ XFADE = 0.4  # scene overlap (--d = gap to next scene + XFADE)
 LINES = [
     "יש לכם עסק של כלבים? אילוף, פנסיון, טיפוח?",
     "אז אתם מכירים את זה. תורים בוואטסאפ, חוזים על נייר, לקוחות ששוכחים להגיע. בשביל זה בנינו את פטרה.",
-    "פֶּטְרָה, מערכת ניהול לעסקים של חיות מחמד.",
-    "כל העסק שלכם במסך אחד. לקוחות, יומן, פנסיון, חוזים ותשלומים.",
-    "הלקוחות קובעים תור לבד. שולחים להם קישור, הם בוחרים שירות ושעה פנויה, והתור נכנס ישר ליומן שלכם.",
+    "זאת פטרה, מערכת ניהול לעסקים של חיות מחמד.",
+    "כל העסק במסך אחד. לקוחות, יומן, פנסיון, חוזים ותשלומים.",
+    "כל ליד שנכנס, מגוגל, מפייסבוק או מהאתר, מגיע ישר ללוח המכירות. רואים מאיזה קמפיין הוא הגיע ומתי לחזור אליו, ואף לקוח לא הולך לאיבוד.",
+    "הלקוחות קובעים תור לבד. שולחים להם קישור, הם בוחרים שירות ושעה פנויה, והתור נכנס ישר ליומן.",
     "יום לפני התור, הלקוח מקבל תזכורת בוואטסאפ, אוטומטית. ככה הרבה פחות לקוחות שוכחים להגיע.",
-    "צריכים חתימה על חוזה? שולחים אותו ללקוח בוואטסאפ, ישר מהתיק שלו. הפרטים שלו ושל הכלב כבר ממולאים, הוא חותם מהטלפון, והעותק החתום נשמר אצלכם.",
+    "צריכים חתימה על חוזה? שולחים אותו ללקוח בוואטסאפ, ישר מהתיק שלו. הפרטים שלו ושל הכלב כבר ממולאים, הוא חותם מהטלפון, והעותק החתום נשמר במערכת.",
     "בפנסיון, כל החדרים מול העיניים. מי נמצא, מי נכנס היום ומי יוצא. והצוות מקבל לוח יומי של האכלות ותרופות.",
-    "ועכשיו, לראשונה בישראל: סוכן איי איי שמחובר ישירות לעסק שלכם. שואלים אותו מה יש היום, והוא עונה מהנתונים שלכם, ואם צריך גם קובע תור.",
+    "ועכשיו, לראשונה בישראל: סוכן איי איי שמחובר ישירות לעסק. שואלים אותו מה יש היום, והוא עונה לפי הנתונים של העסק, ואם צריך, גם קובע תור.",
     None,  # stats
-    "תפסיקו לרדוף אחרי זנבות. תנו לפטרה לנהל את העסק שלכם. מתחילים בחינם ב-פטרה אפ דוט קום.",
+    "תפסיקו לרדוף אחרי זנבות. תנו לפטרה לנהל את העסק. מתחילים בחינם ב-פטרה אפ דוט קום.",
 ]
 
 SAMPLE = "פטרה, מערכת ניהול לעסקים של חיות מחמד. כל העסק שלכם במסך אחד."
@@ -184,6 +188,11 @@ def mix():
     print("wrote petra-promo-vo.mp4")
 
 
+# Gemini track is ~110.5 BPM (2.17s bars). When the video outgrows it, repeat 4 bars of the main
+# groove: cut at LOOP_AT and jump back LOOP_LEN (onset-correlation best match), 0.5s crossfade.
+LOOP_AT, LOOP_LEN, LOOP_XF = 35.25, 8.69, 0.5
+
+
 def music(src, gain_db=-8.0):
     """Lay a music bed under petra-promo-vo.mp4 -> petra-promo-final.mp4.
     The music stays at a constant level (no ducking - it must not dip under the voice); a fixed,
@@ -195,6 +204,17 @@ def music(src, gain_db=-8.0):
                     "-af", "silenceremove=stop_periods=-1:stop_duration=1:stop_threshold=-50dB", wav],
                    check=True)
     video_len = json.load(open(os.path.join(VO, "timing.json")))["total"]
+    music_len = duration(wav)
+    loops = 0
+    while music_len + loops * LOOP_LEN < video_len:
+        loops += 1
+    for _ in range(loops):
+        h = LOOP_XF / 2
+        tmp = wav + ".loop.wav"
+        subprocess.run([FF, "-loglevel", "error", "-y", "-i", wav, "-i", wav, "-filter_complex",
+                        f"[0:a]atrim=0:{LOOP_AT + h}[a];[1:a]atrim={LOOP_AT - LOOP_LEN - h},asetpts=PTS-STARTPTS[b];"
+                        f"[a][b]acrossfade=d={LOOP_XF}", tmp], check=True)
+        os.replace(tmp, wav)
     music_len = duration(wav)
     end = max(video_len, min(music_len, video_len + 4))
     hold = round(end - video_len, 2)
