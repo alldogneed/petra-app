@@ -103,6 +103,11 @@ async def daily(p):
         except Exception as e: print("x",i)
     await pg.evaluate("document.querySelectorAll('*').forEach(e=>{if(e.scrollTop>0)e.scrollTop=0}); window.scrollTo(0,0)"); await pg.mouse.move(5,500); await snap(pg,"daily",2.5)
     await b.close()
+async def book1(p):
+    b,pg=await mobile(p)
+    await pg.goto(BASE+"/book/kelev-vechaver",timeout=180000)
+    await pg.wait_for_function("document.querySelectorAll('.petra-loader-toe').length===0",timeout=150000)
+    await snap(pg,"book1",3); await b.close()
 async def main():
     async with async_playwright() as p:
         for f in sys.argv[1:]: await globals()[f](p)
