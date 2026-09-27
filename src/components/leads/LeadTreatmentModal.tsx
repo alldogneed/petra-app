@@ -4,10 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { LOST_REASON_CODES, LEAD_SOURCES } from "@/lib/constants";
 import {
-    Phone, Mail, Calendar, User, AlignLeft, X, Clock,
-    CheckCircle2, History, Check, CalendarCheck,
-    Trophy, XCircle, MessageSquare, Star, Zap, MessageCircle,
-    Pencil, Trash2, MapPin, Tag, Coins,
+    Phone, Mail, X, Check, CheckCircle2, XCircle, MessageCircle, Pencil, Trash2,
 } from "lucide-react";
 import { cn, toWhatsAppPhone } from "@/lib/utils";
 import { toast } from "sonner";
@@ -60,6 +57,22 @@ interface LeadTreatmentModalProps {
     onDeleted?: () => void;
 }
 
+// ─── Shared styles ───────────────────────────────────────────────────────────
+
+const FIELD_BASE =
+    "w-full rounded-[10px] border border-slate-200 bg-white px-3 text-sm text-[#0F172A] placeholder:text-slate-400 outline-none transition-colors focus:border-[#FB923C] focus:ring-[3px] focus:ring-orange-500/15";
+const INPUT_CLS = cn(FIELD_BASE, "h-10");
+const TEXTAREA_CLS = cn(FIELD_BASE, "py-2 leading-relaxed resize-y");
+const FIELD_LABEL_CLS = "block text-[13px] font-medium text-[#0F172A] mb-1.5";
+const SECTION_TITLE_CLS = "text-xs font-semibold text-slate-500 mb-3";
+
+/** datetime-local wants local wall-clock time — toISOString() is UTC and shifted the follow-up by the TZ offset on every save. */
+function toLocalDatetimeInput(iso: string): string {
+    const d = new Date(iso);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 // ─── Timeline ────────────────────────────────────────────────────────────────
 
 type TLType = "created" | "call_log" | "stage_change" | "deal_value" | "follow_up" | "won" | "lost";
@@ -74,54 +87,15 @@ interface TLEvent {
     isFuture?: boolean;
 }
 
-const TL_STYLES: Record<TLType, { icon: React.ReactNode; dot: string; line: string; card: string }> = {
-    created: {
-        icon: <Star className="w-3.5 h-3.5" />,
-        dot: "bg-violet-100 text-violet-600 border-violet-300",
-        line: "bg-violet-200",
-        card: "bg-violet-50/60 border-violet-100",
-    },
-    call_log: {
-        icon: <MessageSquare className="w-3.5 h-3.5" />,
-        dot: "bg-blue-100 text-blue-600 border-blue-300",
-        line: "bg-blue-200",
-        card: "bg-blue-50/50 border-blue-100",
-    },
-    stage_change: {
-        icon: <Zap className="w-3.5 h-3.5" />,
-        dot: "bg-slate-100 text-slate-600 border-slate-300",
-        line: "bg-slate-200",
-        card: "bg-slate-50/50 border-slate-100",
-    },
-    deal_value: {
-        icon: <Coins className="w-3.5 h-3.5" />,
-        dot: "bg-emerald-100 text-emerald-600 border-emerald-300",
-        line: "bg-emerald-200",
-        card: "bg-emerald-50/50 border-emerald-100",
-    },
-    follow_up: {
-        icon: <CalendarCheck className="w-3.5 h-3.5" />,
-        dot: "bg-amber-100 text-amber-600 border-amber-300",
-        line: "bg-amber-200",
-        card: "bg-amber-50/50 border-amber-100",
-    },
-    won: {
-        icon: <Trophy className="w-3.5 h-3.5" />,
-        dot: "bg-green-100 text-green-600 border-green-300",
-        line: "bg-green-200",
-        card: "bg-green-50/60 border-green-100",
-    },
-    lost: {
-        icon: <XCircle className="w-3.5 h-3.5" />,
-        dot: "bg-red-100 text-red-600 border-red-300",
-        line: "bg-red-200",
-        card: "bg-red-50/50 border-red-100",
-    },
-};
+function dotClass(event: TLEvent): string {
+    if (event.type === "won") return "bg-emerald-500";
+    if (event.type === "lost") return "bg-red-500";
+    if (event.type === "follow_up" && event.isFuture) return "bg-orange-400";
+    return "bg-slate-300";
+}
 
 interface TimelineItemProps {
     event: TLEvent;
-    isLast: boolean;
     editingLogId: string | null;
     editLogSummary: string;
     editLogTreatment: string;
@@ -134,101 +108,85 @@ interface TimelineItemProps {
 }
 
 function TimelineItem({
-    event, isLast, editingLogId, editLogSummary, editLogTreatment,
+    event, editingLogId, editLogSummary, editLogTreatment,
     onEditChange, onEditSave, onEditCancel, onEdit, onDelete, isSaving,
 }: TimelineItemProps) {
-    const s = TL_STYLES[event.type];
     const isEditing = event.type === "call_log" && editingLogId === event.id;
 
     return (
-        <div className="flex gap-3 relative">
-            {/* connector line */}
-            {!isLast && (
-                <div className={cn("absolute top-9 bottom-0 w-0.5 z-0", s.line)}
-                    style={{ right: "17px" }} />
-            )}
-
+        <div className="group relative grid grid-cols-[14px_1fr] gap-2.5 p-2 rounded-[10px] hover:bg-slate-50 transition-colors">
             {/* dot */}
-            <div className={cn(
-                "w-9 h-9 rounded-full border-2 flex items-center justify-center flex-shrink-0 z-10 shadow-sm",
-                s.dot,
-                event.isFuture && "ring-2 ring-amber-300 ring-offset-1 opacity-80",
-            )}>
-                {s.icon}
+            <div className="flex justify-center pt-[5px]">
+                <span className={cn("relative z-10 w-[7px] h-[7px] rounded-full ring-2 ring-white", dotClass(event))} />
             </div>
 
             {/* content */}
-            <div className="flex-1 pb-4 min-w-0">
-                <div className="flex items-start justify-between gap-2 mb-1.5">
-                    <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm font-semibold text-petra-text leading-tight">
-                            {event.title}
-                        </span>
+            <div className="min-w-0">
+                <div className="flex items-start justify-between gap-2">
+                    <div className="text-[11px] text-slate-400 tabular-nums flex items-center gap-1.5">
+                        {new Date(event.date).toLocaleString("he-IL", {
+                            day: "2-digit", month: "2-digit", year: "2-digit",
+                            hour: "2-digit", minute: "2-digit",
+                        })}
                         {event.isFuture && (
-                            <span className="text-[10px] font-bold bg-amber-100 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded-full">
+                            <span className="text-[10px] font-semibold text-[#C2410C] bg-[#FFF7ED] border border-[#FED7AA] px-1.5 rounded-full">
                                 מתוכנן
                             </span>
                         )}
                     </div>
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                        <span className="text-[11px] text-petra-muted whitespace-nowrap bg-white/80 px-1.5 py-0.5 rounded border border-slate-100 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
-                            {new Date(event.date).toLocaleString("he-IL", {
-                                day: "2-digit", month: "2-digit", year: "2-digit",
-                                hour: "2-digit", minute: "2-digit",
-                            })}
-                        </span>
-                        {event.type === "call_log" && !isEditing && (
-                            <>
-                                <button
-                                    onClick={() => onEdit(event)}
-                                    className="w-6 h-6 flex items-center justify-center rounded hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-colors"
-                                    title="ערוך"
-                                >
-                                    <Pencil className="w-3.5 h-3.5" />
-                                </button>
-                                <button
-                                    onClick={() => onDelete(event)}
-                                    className="w-6 h-6 flex items-center justify-center rounded hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors"
-                                    title="מחק"
-                                >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                </button>
-                            </>
-                        )}
-                    </div>
+                    {event.type === "call_log" && !isEditing && (
+                        <div className="flex items-center gap-0.5 flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100 transition-opacity">
+                            <button
+                                onClick={() => onEdit(event)}
+                                className="w-6 h-6 flex items-center justify-center rounded-md text-slate-400 hover:bg-white hover:text-slate-700 transition-colors"
+                                title="ערוך"
+                            >
+                                <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                                onClick={() => onDelete(event)}
+                                className="w-6 h-6 flex items-center justify-center rounded-md text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors"
+                                title="מחק"
+                            >
+                                <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                        </div>
+                    )}
                 </div>
 
+                <div className="text-sm font-medium leading-relaxed text-[#0F172A]">{event.title}</div>
+
                 {isEditing ? (
-                    <div className={cn("rounded-lg border p-3 space-y-2 text-sm", s.card)}>
+                    <div className="mt-2 space-y-2.5 rounded-[10px] border border-slate-200 bg-white p-3">
                         <div>
-                            <label className="text-xs text-slate-500 block mb-1">סיכום השיחה</label>
+                            <label className={FIELD_LABEL_CLS}>סיכום</label>
                             <textarea
-                                className="input text-sm"
+                                className={TEXTAREA_CLS}
                                 rows={2}
                                 value={editLogSummary}
                                 onChange={e => onEditChange("summary", e.target.value)}
                             />
                         </div>
                         <div>
-                            <label className="text-xs text-slate-500 block mb-1">המשך טיפול</label>
+                            <label className={FIELD_LABEL_CLS}>משימת חזרה ללקוח</label>
                             <textarea
-                                className="input text-sm"
+                                className={TEXTAREA_CLS}
                                 rows={2}
                                 value={editLogTreatment}
                                 onChange={e => onEditChange("treatment", e.target.value)}
                             />
                         </div>
-                        <div className="flex justify-end gap-2 pt-1">
+                        <div className="flex justify-end gap-2">
                             <button
                                 onClick={onEditCancel}
-                                className="text-xs px-3 py-1.5 rounded-md bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
+                                className="h-8 px-3 rounded-lg border border-slate-200 bg-white text-[13px] text-slate-700 hover:bg-slate-50 transition-colors"
                             >
                                 ביטול
                             </button>
                             <button
                                 onClick={onEditSave}
                                 disabled={isSaving}
-                                className="text-xs px-3 py-1.5 rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center gap-1"
+                                className="h-8 px-3 rounded-lg bg-[#F97316] hover:bg-[#EA580C] text-white text-[13px] font-semibold transition-colors disabled:opacity-50 flex items-center gap-1"
                             >
                                 {isSaving
                                     ? <span className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
@@ -238,23 +196,19 @@ function TimelineItem({
                         </div>
                     </div>
                 ) : (
-                    (event.description || event.action) && (
-                        <div className={cn("rounded-lg border p-3 space-y-2 text-sm", s.card)}>
-                            {event.description && (
-                                <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">
-                                    {event.description}
-                                </p>
-                            )}
-                            {event.action && (
-                                <div className="bg-amber-50 border border-amber-100 rounded-md p-2">
-                                    <span className="text-[11px] font-bold text-amber-700 block mb-0.5">
-                                        Action Items ←
-                                    </span>
-                                    <p className="text-amber-900 whitespace-pre-wrap">{event.action}</p>
-                                </div>
-                            )}
-                        </div>
-                    )
+                    <>
+                        {event.description && (
+                            <p className="mt-0.5 text-[13px] text-slate-600 leading-relaxed whitespace-pre-wrap break-words">
+                                {event.description}
+                            </p>
+                        )}
+                        {event.action && (
+                            <div className="mt-2 rounded-lg border border-[#FED7AA] bg-[#FFF7ED] p-2 text-[13px] text-[#9A3412]">
+                                <span className="block text-[11px] font-semibold mb-0.5">משימת חזרה</span>
+                                <p className="whitespace-pre-wrap break-words">{event.action}</p>
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
         </div>
@@ -315,7 +269,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
             setShowDeleteConfirm(false);
             setEditingDeal(false);
             setDealError(null);
-            setNextFollowUpAt(lead.nextFollowUpAt ? new Date(lead.nextFollowUpAt).toISOString().slice(0, 16) : "");
+            setNextFollowUpAt(lead.nextFollowUpAt ? toLocalDatetimeInput(lead.nextFollowUpAt) : "");
             setFollowUpStatus(lead.followUpStatus || "pending");
         }
     }, [lead]);
@@ -642,30 +596,175 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
         });
     };
 
+    // Close the drawer on Escape (pure UI). Inner inputs that handle Escape
+    // themselves (deal value) stop propagation, and the lost-reason modal owns
+    // Escape while it is open.
+    useEffect(() => {
+        if (!isOpen) return;
+        const onKeyDown = (e: KeyboardEvent) => {
+            if (e.key !== "Escape" || e.defaultPrevented || lostModalOpen) return;
+            // Never drop typed text: Escape inside a field, or with unsaved call notes, does not close
+            const t = e.target as HTMLElement | null;
+            if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT")) return;
+            if (editingLogId || summary.trim() || treatment.trim() || isEditing) return;
+            onClose();
+        };
+        window.addEventListener("keydown", onKeyDown);
+        return () => window.removeEventListener("keydown", onKeyDown);
+    }, [isOpen, lostModalOpen, onClose, editingLogId, summary, treatment, isEditing]);
+
     if (!lead || !isOpen) return null;
+
+    const currentStage = stages.find((s) => s.id === lead.stage);
+    const isWonLead = !!(wonStage && lead.stage === wonStage.id);
+    const headerName = isEditing ? editForm.name : lead.name;
+    // Older leads keep city / service only inside notes ("עיר: …" / "שירות מבוקש: …")
+    const notesCity = lead.notes?.match(/^עיר:\s*(.+)$/m)?.[1]?.trim() || null;
+    const notesService = lead.notes?.match(/^שירות מבוקש:\s*(.+)$/m)?.[1]?.trim() || null;
+    const displayCity = lead.city || notesCity;
+    const displayService = lead.requestedService || notesService;
+    const subtitleParts = [lead.phone, displayCity, displayService].filter(Boolean) as string[];
+    const sourceLabel = LEAD_SOURCES.find((s) => s.id === lead.source)?.label ?? lead.source;
+
+    // Next follow-up (display only)
+    const followUpIso = liveLead?.nextFollowUpAt ?? null;
+    let followUpColor = "#0F172A";
+    let followUpText: string | null = null;
+    if (followUpIso) {
+        const d = new Date(followUpIso);
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const tomorrowStart = new Date(todayStart);
+        tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+        if (d < todayStart) followUpColor = "#B91C1C";
+        else if (d < tomorrowStart) followUpColor = "#C2410C";
+        followUpText = d.toLocaleString("he-IL", {
+            weekday: "long", day: "numeric", month: "numeric", year: "numeric",
+            hour: "2-digit", minute: "2-digit",
+        });
+    }
+
+    const focusCallSummary = () => {
+        const el = document.getElementById("lead-call-summary-input") as HTMLTextAreaElement | null;
+        if (!el) return;
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.focus({ preventScroll: true });
+    };
+
+    const followUpInvalid = followUpError && !nextFollowUpAt;
+
+    const dealValueCell = (
+        <div className="min-w-0">
+            <div className="text-xs text-slate-500 mb-1">ערך עסקה</div>
+            {editingDeal ? (
+                <div className="flex flex-wrap items-center gap-1.5">
+                    <div className="relative">
+                        <span className="absolute inset-y-0 right-3 flex items-center text-sm text-slate-400 pointer-events-none">₪</span>
+                        <input
+                            type="text"
+                            inputMode="decimal"
+                            dir="ltr"
+                            autoFocus
+                            aria-label="ערך עסקה בשקלים"
+                            className={cn(INPUT_CLS, "h-9 w-28 text-left pr-8 tabular-nums", dealError && "border-red-400 focus:border-red-400 focus:ring-red-500/15")}
+                            placeholder="350"
+                            value={dealInput}
+                            onChange={(e) => { setDealInput(e.target.value); setDealError(null); }}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter") { e.preventDefault(); void saveDealValue(); }
+                                if (e.key === "Escape") { e.stopPropagation(); setEditingDeal(false); setDealError(null); }
+                            }}
+                        />
+                    </div>
+                    <button
+                        onClick={() => void saveDealValue()}
+                        disabled={dealValueMutation.isPending}
+                        title="שמור"
+                        className="h-9 px-2.5 rounded-lg bg-[#F97316] hover:bg-[#EA580C] text-white text-xs font-semibold transition-colors disabled:opacity-50 flex items-center gap-1"
+                    >
+                        {dealValueMutation.isPending
+                            ? <span className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
+                            : <Check className="w-3 h-3" />}
+                        שמור
+                    </button>
+                    <button
+                        onClick={() => { setEditingDeal(false); setDealError(null); }}
+                        disabled={dealValueMutation.isPending}
+                        className="h-9 px-2.5 rounded-lg border border-slate-200 bg-white text-xs text-slate-600 hover:bg-slate-50 transition-colors"
+                    >
+                        ביטול
+                    </button>
+                </div>
+            ) : (
+                <div className="flex items-baseline gap-2">
+                    <span className={cn("font-medium tabular-nums", currentDealValue != null ? "text-[#0F172A]" : "text-slate-400")}>
+                        {currentDealValue != null ? formatIls(currentDealValue) : "—"}
+                    </span>
+                    <button
+                        onClick={startDealEdit}
+                        className="text-xs font-medium text-[#EA580C] hover:text-[#C2410C] hover:underline underline-offset-2"
+                    >
+                        {currentDealValue != null ? "ערוך" : "הוסף ערך"}
+                    </button>
+                </div>
+            )}
+            {dealError && <p className="text-xs text-red-600 mt-1">{dealError}</p>}
+        </div>
+    );
 
     return (
         <>
-            <div className="modal-overlay">
-                <div className="modal-backdrop" onClick={onClose} />
-                <div className="modal-content max-w-2xl mx-4 p-6 flex flex-col max-h-[90vh]">
+            {/* ── Overlay ─────────────────────────────────────────────── */}
+            <div
+                className="fixed inset-0 z-50 bg-slate-900/35 animate-in fade-in duration-200"
+                onClick={onClose}
+                aria-hidden="true"
+            />
 
-                    {/* ── Header ──────────────────────────────────────────── */}
-                    <div className="flex items-center justify-between mb-5 border-b border-petra-border pb-4">
-                        <h2 className="text-xl font-bold text-petra-text">
-                            טיפול בליד: {isEditing ? editForm.name : lead.name}
-                        </h2>
-                        <div className="flex items-center gap-1">
+            {/* ── Drawer (physical left — RTL end) ─────────────────────── */}
+            <div
+                role="dialog"
+                aria-modal="true"
+                aria-label={`כרטיס ליד: ${lead.name}`}
+                className="fixed top-0 bottom-0 left-0 z-50 w-[460px] max-w-full bg-white overflow-y-auto flex flex-col text-[#0F172A] shadow-[0_24px_48px_-12px_rgba(0,0,0,0.18)] animate-in slide-in-from-left duration-300"
+            >
+
+                {/* ── Header ─────────────────────────────────────────── */}
+                <div className="px-6 py-5 border-b border-[#F1F5F9]">
+                    <div className="flex flex-wrap items-center gap-2">
+                        {currentStage && (
+                            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-600 bg-slate-50 border border-slate-200 rounded-full px-2.5 py-0.5">
+                                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: currentStage.color }} />
+                                {currentStage.name}
+                            </span>
+                        )}
+                        <span className="text-xs text-slate-400 tabular-nums">
+                            נכנס {new Date(lead.createdAt).toLocaleDateString("he-IL")}
+                        </span>
+
+                        <div className="ms-auto flex items-center gap-1">
+                            <button
+                                onClick={() => setIsEditing(!isEditing)}
+                                className={cn(
+                                    "h-8 px-3 inline-flex items-center gap-1.5 border rounded-lg text-[13px] font-medium transition-colors",
+                                    isEditing
+                                        ? "border-[#FDBA74] bg-[#FFF7ED] text-[#9A3412]"
+                                        : "border-slate-200 text-slate-700 hover:bg-slate-50"
+                                )}
+                            >
+                                <Pencil className="w-3.5 h-3.5" />
+                                עריכה
+                            </button>
                             {!showDeleteConfirm ? (
                                 <button
                                     onClick={() => setShowDeleteConfirm(true)}
-                                    className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors"
+                                    className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors"
                                     title="מחק ליד"
                                 >
                                     <Trash2 className="w-4 h-4" />
                                 </button>
                             ) : (
-                                <div className="flex items-center gap-1.5 bg-red-50 border border-red-200 rounded-lg px-2 py-1">
+                                <div className="flex items-center gap-1.5 bg-red-50 border border-red-200 rounded-lg px-2 h-8">
                                     <span className="text-xs text-red-700 font-medium">למחוק?</span>
                                     <button
                                         onClick={() => deleteLeadMutation.mutate()}
@@ -676,373 +775,342 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                                     </button>
                                     <button
                                         onClick={() => setShowDeleteConfirm(false)}
-                                        className="text-xs px-2 py-0.5 rounded-md bg-slate-200 text-slate-600 hover:bg-slate-300 font-medium transition-colors"
+                                        className="text-xs px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 font-medium transition-colors"
                                     >
                                         ביטול
                                     </button>
                                 </div>
                             )}
-                            <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
+                            <button
+                                onClick={onClose}
+                                className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
+                                title="סגור"
+                                aria-label="סגור"
+                            >
                                 <X className="w-4 h-4" />
                             </button>
                         </div>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto space-y-5 pe-1">
+                    <h2 className="mt-3 text-[22px] font-bold tracking-tight leading-tight break-words">
+                        {headerName}
+                    </h2>
 
-                        {/* ── Lead Info ────────────────────────────────────── */}
-                        <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                            {!isEditing ? (
-                                <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                                    {lead.phone && (
-                                        <div className="flex items-center gap-1.5">
-                                            <a href={`tel:${lead.phone}`} className="flex items-center gap-1.5 text-sm text-brand-600 font-medium hover:underline transition-colors">
-                                                <Phone className="w-4 h-4" /> {lead.phone}
-                                            </a>
-                                            <a
-                                                href={`https://wa.me/${toWhatsAppPhone(lead.phone)}`}
-                                                target="whatsapp_window"
-                                                rel="noopener noreferrer"
-                                                title="שלח הודעה בוואטסאפ"
-                                                className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 hover:border-green-300 transition-colors"
-                                            >
-                                                <MessageCircle className="w-3.5 h-3.5" />
-                                                וואטסאפ
-                                            </a>
-                                        </div>
-                                    )}
-                                    {lead.city && (
-                                        <span className="flex items-center gap-1.5 text-sm text-petra-muted">
-                                            <MapPin className="w-3.5 h-3.5" /> {lead.city}
-                                        </span>
-                                    )}
-                                    {lead.requestedService && (
-                                        <span className="flex items-center gap-1.5 text-sm text-petra-muted">
-                                            <Tag className="w-3.5 h-3.5" /> {lead.requestedService}
-                                        </span>
-                                    )}
-                                    {lead.email && (
-                                        <a
-                                            href={`https://mail.google.com/mail/?view=cm&to=${lead.email}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="flex items-center gap-1.5 text-sm text-brand-600 font-medium hover:underline transition-colors"
-                                        >
-                                            <Mail className="w-4 h-4" /> {lead.email}
-                                        </a>
-                                    )}
-                                    <div className="flex items-center gap-1.5 text-xs text-petra-muted ms-auto">
-                                        <Calendar className="w-3.5 h-3.5" />
-                                        נוצר: {new Date(lead.createdAt).toLocaleDateString("he-IL")}
-                                    </div>
-                                    <button onClick={() => setIsEditing(true)} className="text-xs font-medium text-brand-600 hover:text-brand-700 underline underline-offset-2">
-                                        ערוך פרטים
-                                    </button>
-                                </div>
-                            ) : (
-                                <div className="space-y-4">
-                                    <div className="flex justify-between items-center">
-                                        <h4 className="font-medium text-sm">עריכת פרטים</h4>
-                                        <button onClick={() => setIsEditing(false)} className="text-xs text-slate-500 hover:text-slate-700">ביטול עריכה</button>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        {[
-                                            { key: "name", label: "שם ליד" },
-                                            { key: "phone", label: "טלפון" },
-                                            { key: "email", label: "אימייל" },
-                                            { key: "city", label: "עיר מגורים" },
-                                            { key: "address", label: "כתובת" },
-                                            { key: "requestedService", label: "שירות מבוקש" },
-                                        ].map(({ key, label }) => (
-                                            <div key={key}>
-                                                <label className="label text-xs">{label}</label>
-                                                <input className="input text-sm h-8" value={(editForm as Record<string, string>)[key]}
-                                                    onChange={e => setEditForm({ ...editForm, [key]: e.target.value })} />
-                                            </div>
-                                        ))}
-                                        <div>
-                                            <label className="label text-xs">מקור</label>
-                                            <select className="input text-sm h-8" value={editForm.source} onChange={e => setEditForm({ ...editForm, source: e.target.value })}>
-                                                {LEAD_SOURCES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
-                                            </select>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* ── Deal value ───────────────────────────────────── */}
-                        <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 px-4 py-3">
-                            <div className="flex flex-wrap items-center gap-3">
-                                <span className="flex items-center gap-1.5 text-sm font-semibold text-petra-text">
-                                    <Coins className="w-4 h-4 text-emerald-600" /> ערך עסקה
+                    {subtitleParts.length > 0 && (
+                        <div className="mt-1 text-sm text-slate-500 tabular-nums">
+                            {subtitleParts.map((part, i) => (
+                                <span key={i}>
+                                    {i > 0 && " · "}
+                                    {part === lead.phone ? <span dir="ltr">{part}</span> : part}
                                 </span>
-                                {editingDeal ? (
-                                    <>
-                                        <div className="relative">
-                                            <span className="absolute inset-y-0 right-3 flex items-center text-sm text-slate-400 pointer-events-none">₪</span>
-                                            <input
-                                                type="text"
-                                                inputMode="decimal"
-                                                dir="ltr"
-                                                autoFocus
-                                                aria-label="ערך עסקה בשקלים"
-                                                className={cn("input h-9 w-36 text-left pr-8", dealError && "border-red-400")}
-                                                placeholder="350"
-                                                value={dealInput}
-                                                onChange={(e) => { setDealInput(e.target.value); setDealError(null); }}
-                                                onKeyDown={(e) => {
-                                                    if (e.key === "Enter") { e.preventDefault(); void saveDealValue(); }
-                                                    if (e.key === "Escape") { e.stopPropagation(); setEditingDeal(false); setDealError(null); }
-                                                }}
-                                            />
-                                        </div>
-                                        <button
-                                            onClick={() => void saveDealValue()}
-                                            disabled={dealValueMutation.isPending}
-                                            className="text-xs px-3 py-1.5 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 transition-colors disabled:opacity-50 flex items-center gap-1"
-                                        >
-                                            {dealValueMutation.isPending
-                                                ? <span className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
-                                                : <Check className="w-3 h-3" />}
-                                            שמור
-                                        </button>
-                                        <button
-                                            onClick={() => { setEditingDeal(false); setDealError(null); }}
-                                            disabled={dealValueMutation.isPending}
-                                            className="text-xs px-3 py-1.5 rounded-md bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
-                                        >
-                                            ביטול
-                                        </button>
-                                    </>
-                                ) : (
-                                    <>
-                                        <span className={cn("text-base font-bold", currentDealValue != null ? "text-emerald-700" : "text-slate-400 text-sm font-medium")}>
-                                            {currentDealValue != null ? formatIls(currentDealValue) : "לא הוזן"}
-                                        </span>
-                                        <button
-                                            onClick={startDealEdit}
-                                            className="text-xs font-medium text-brand-600 hover:text-brand-700 underline underline-offset-2"
-                                        >
-                                            {currentDealValue != null ? "ערוך" : "הוסף ערך"}
-                                        </button>
-                                    </>
-                                )}
-                            </div>
-                            {dealError && <p className="text-xs text-red-600 mt-1.5">{dealError}</p>}
+                            ))}
                         </div>
+                    )}
 
-                        {/* ── Stage Selector ──────────────────────────────── */}
-                        {!isClosed && (
-                            <div className="space-y-3">
-                                <h3 className="font-semibold text-petra-text text-sm">סטטוס הליד</h3>
-                                <div className="flex flex-wrap gap-2">
-                                    {stages.map((stage) => (
-                                        <button
-                                            key={stage.id}
-                                            onClick={() => setSelectedStage(stage.id)}
-                                            className={cn(
-                                                "px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors flex items-center gap-1.5",
-                                                selectedStage === stage.id
-                                                    ? "border-current"
-                                                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                                            )}
-                                            style={selectedStage === stage.id ? {
-                                                color: stage.color,
-                                                backgroundColor: `${stage.color}15`,
-                                                borderColor: stage.color,
-                                            } : {}}
-                                        >
-                                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: stage.color }} />
-                                            {stage.name}
-                                        </button>
-                                    ))}
+                    {lead.email && (
+                        <a
+                            href={`https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(lead.email)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-1 inline-flex items-center gap-1.5 text-[13px] text-slate-500 hover:text-[#EA580C] transition-colors"
+                        >
+                            <Mail className="w-3.5 h-3.5" />
+                            <span dir="ltr">{lead.email}</span>
+                        </a>
+                    )}
+
+                    {lead.phone && (
+                        <div className="mt-4 flex gap-2">
+                            <a
+                                href={`tel:${lead.phone}`}
+                                className="flex-1 h-10 rounded-[10px] inline-flex items-center justify-center gap-2 text-sm font-semibold text-white bg-[#F97316] hover:bg-[#EA580C] transition-colors"
+                            >
+                                <Phone className="w-4 h-4" />
+                                חיוג ללקוח
+                            </a>
+                            <a
+                                href={`https://wa.me/${toWhatsAppPhone(lead.phone)}`}
+                                target="whatsapp_window"
+                                rel="noopener noreferrer"
+                                title="שלח הודעה בוואטסאפ"
+                                className="flex-1 h-10 rounded-[10px] inline-flex items-center justify-center gap-2 text-sm font-semibold text-white bg-[#059669] hover:bg-[#047857] transition-colors"
+                            >
+                                <MessageCircle className="w-4 h-4" />
+                                וואטסאפ
+                            </a>
+                        </div>
+                    )}
+                </div>
+
+                {/* ── Quick log + next follow-up ─────────────────────── */}
+                <div className="px-6 py-5 border-b border-[#F1F5F9]">
+                    <button
+                        type="button"
+                        onClick={focusCallSummary}
+                        className="w-full h-11 rounded-xl border border-[#FDBA74] bg-[#FFEDD5] text-[#9A3412] font-bold text-sm hover:bg-[#FED7AA] hover:border-[#FB923C] active:scale-[0.98] transition"
+                    >
+                        הוספת תיעוד שיחה
+                    </button>
+                    <div className="text-xs font-semibold text-slate-500 mt-4">חזרה הבאה</div>
+                    {followUpText ? (
+                        <div className="mt-0.5 text-[15px] font-semibold tabular-nums" style={{ color: followUpColor }}>
+                            {followUpText}
+                        </div>
+                    ) : (
+                        <div className="mt-0.5 text-[15px] font-semibold text-slate-400">לא נקבע מועד</div>
+                    )}
+                </div>
+
+                {/* ── Details ────────────────────────────────────────── */}
+                <div className="px-6 py-5 border-b border-[#F1F5F9]">
+                    {isEditing ? (
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                                <h4 className="text-xs font-semibold text-slate-500">עריכת פרטים</h4>
+                                <button onClick={() => setIsEditing(false)} className="text-xs text-slate-500 hover:text-slate-700">
+                                    ביטול עריכה
+                                </button>
+                            </div>
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                                {[
+                                    { key: "name", label: "שם ליד" },
+                                    { key: "phone", label: "טלפון" },
+                                    { key: "email", label: "אימייל" },
+                                    { key: "city", label: "עיר מגורים" },
+                                    { key: "address", label: "כתובת" },
+                                    { key: "requestedService", label: "שירות מבוקש" },
+                                ].map(({ key, label }) => (
+                                    <div key={key} className="min-w-0">
+                                        <label className={FIELD_LABEL_CLS}>{label}</label>
+                                        <input
+                                            className={INPUT_CLS}
+                                            value={(editForm as Record<string, string>)[key]}
+                                            onChange={e => setEditForm({ ...editForm, [key]: e.target.value })}
+                                        />
+                                    </div>
+                                ))}
+                                <div className="min-w-0">
+                                    <label className={FIELD_LABEL_CLS}>מקור</label>
+                                    <select
+                                        className={INPUT_CLS}
+                                        value={editForm.source}
+                                        onChange={e => setEditForm({ ...editForm, source: e.target.value })}
+                                    >
+                                        {LEAD_SOURCES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+                                    </select>
                                 </div>
+                            </div>
+                            <div className="pt-1">{dealValueCell}</div>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-2 gap-x-5 gap-y-4 text-sm">
+                            <div className="min-w-0">
+                                <div className="text-xs text-slate-500 mb-1">שירות מבוקש</div>
+                                <div className="font-medium break-words">{displayService || "—"}</div>
+                            </div>
+                            {dealValueCell}
+                            <div className="min-w-0">
+                                <div className="text-xs text-slate-500 mb-1">מקור</div>
+                                <div className="font-medium">{sourceLabel}</div>
+                            </div>
+                            <div className="min-w-0">
+                                <div className="text-xs text-slate-500 mb-1">עיר</div>
+                                <div className="font-medium break-words">{displayCity || "—"}</div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                <div className="flex-1 px-6 py-5 space-y-6">
+
+                    {/* ── Stage ──────────────────────────────────────── */}
+                    <div>
+                        <h3 className={SECTION_TITLE_CLS}>שלב במכירה</h3>
+                        {!isClosed && (
+                            <div className="flex flex-wrap gap-2">
+                                {stages.map((stage) => (
+                                    <button
+                                        key={stage.id}
+                                        onClick={() => setSelectedStage(stage.id)}
+                                        className={cn(
+                                            "h-8 px-3 rounded-full border text-[13px] font-medium transition-colors inline-flex items-center gap-1.5",
+                                            selectedStage === stage.id
+                                                ? "border-current"
+                                                : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                                        )}
+                                        style={selectedStage === stage.id ? {
+                                            color: stage.color,
+                                            backgroundColor: `${stage.color}15`,
+                                            borderColor: stage.color,
+                                        } : {}}
+                                    >
+                                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: stage.color }} />
+                                        {stage.name}
+                                    </button>
+                                ))}
                             </div>
                         )}
 
-                        {/* ── Closed banner ────────────────────────────────── */}
                         {isClosed && (
                             <div className={cn(
                                 "rounded-xl px-4 py-3 flex items-center gap-2 text-sm font-semibold border",
-                                wonStage && lead.stage === wonStage.id
-                                    ? "bg-green-50 text-green-700 border-green-200"
+                                isWonLead
+                                    ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                                     : "bg-red-50 text-red-700 border-red-200"
                             )}>
-                                {wonStage && lead.stage === wonStage.id
+                                {isWonLead
                                     ? <><CheckCircle2 className="w-4 h-4" /> ליד נסגר בהצלחה — לקוח נוצר</>
                                     : <><XCircle className="w-4 h-4" /> ליד אבוד</>
                                 }
                             </div>
                         )}
+                    </div>
 
-                        {/* ── Call Log + Follow-up Section ─────────────────── */}
-                        <div className="space-y-4 bg-brand-50/40 rounded-xl border border-brand-100 p-4">
-                            <h3 className="font-semibold text-petra-text flex items-center gap-2">
-                                <AlignLeft className="w-4 h-4 text-brand-500" />
-                                סיכום שיחה מול הלקוח
-                            </h3>
-                            <div>
-                                <label className="label text-xs text-slate-500">סיכום השיחה</label>
-                                <textarea className="input" rows={3} value={summary}
-                                    onChange={(e) => setSummary(e.target.value)}
-                                    placeholder="מה נאמר בשיחה? לאיזה סיכום הגעתם?" />
-                            </div>
-                            <div>
-                                <label className="label text-xs text-slate-500 flex items-center gap-1">
-                                    <User className="w-3 h-3" /> להמשך טיפול (Action Items)
-                                </label>
-                                <textarea className="input" rows={2} value={treatment}
-                                    onChange={(e) => setTreatment(e.target.value)}
-                                    placeholder="מה הצעדים הבאים להמשך הטיפול בליד?" />
-                            </div>
-
-                            {/* Follow-up scheduling — required before confirming */}
-                            <div id="followup-section" className={cn(
-                                "rounded-xl border p-3 space-y-3 transition-colors",
-                                followUpError && !nextFollowUpAt
-                                    ? "bg-red-50/60 border-red-300"
-                                    : "bg-amber-50/40 border-amber-200"
-                            )}>
-                                <div className="flex items-center gap-2">
-                                    <CalendarCheck className={cn("w-4 h-4", followUpError && !nextFollowUpAt ? "text-red-500" : "text-amber-500")} />
-                                    <span className="text-sm font-semibold text-petra-text">תזמון פולואפ הבא</span>
-                                    <span className={cn(
-                                        "text-[11px] font-bold px-2 py-0.5 rounded-full border",
-                                        followUpError && !nextFollowUpAt
-                                            ? "bg-red-100 text-red-600 border-red-200"
-                                            : "bg-amber-100 text-amber-600 border-amber-200"
-                                    )}>
-                                        חובה לפני אישור שיחה
-                                    </span>
-                                    {followUpError && !nextFollowUpAt && (
-                                        <span className="text-xs text-red-600">— נדרש</span>
-                                    )}
-                                </div>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label className="label text-xs text-slate-500 flex items-center gap-1">
-                                            <Clock className="w-3 h-3" /> תאריך ושעה *
-                                        </label>
-                                        <input
-                                            id="followup-date-input"
-                                            type="datetime-local"
-                                            className={cn(
-                                                "input h-9 w-full",
-                                                followUpError && !nextFollowUpAt && "border-red-400 focus:ring-red-500/20"
-                                            )}
-                                            value={nextFollowUpAt}
-                                            onChange={(e) => { setNextFollowUpAt(e.target.value); setFollowUpError(false); }}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="label text-xs text-slate-500 flex items-center gap-1">
-                                            <CheckCircle2 className="w-3 h-3" /> סטטוס פולואפ
-                                        </label>
-                                        <div className="flex bg-slate-100 p-1 rounded-lg h-9">
-                                            <button type="button"
-                                                className={cn("flex-1 text-xs font-medium rounded-md transition-colors",
-                                                    followUpStatus === "pending" ? "bg-white text-brand-600 shadow-sm" : "text-slate-500 hover:text-slate-700")}
-                                                onClick={() => setFollowUpStatus("pending")}>
-                                                ממתין
-                                            </button>
-                                            <button type="button"
-                                                className={cn("flex-1 text-xs font-medium rounded-md transition-colors",
-                                                    followUpStatus === "completed" ? "bg-green-100 text-green-700 shadow-sm" : "text-slate-500 hover:text-slate-700")}
-                                                onClick={() => setFollowUpStatus("completed")}>
-                                                הושלם
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
+                    {/* ── Call log + follow-up ───────────────────────── */}
+                    <div className="border border-slate-200 rounded-xl overflow-hidden">
+                        <div className="bg-slate-50 px-4 py-2.5 text-[13px] font-semibold border-b border-slate-200">
+                            תיעוד שיחה
                         </div>
+                        <div className="p-4 space-y-4">
+                            <div>
+                                <label htmlFor="lead-call-summary-input" className={FIELD_LABEL_CLS}>סיכום</label>
+                                <textarea
+                                    id="lead-call-summary-input"
+                                    className={TEXTAREA_CLS}
+                                    rows={3}
+                                    value={summary}
+                                    onChange={(e) => setSummary(e.target.value)}
+                                    placeholder="מה נאמר בשיחה? לאיזה סיכום הגעתם?"
+                                />
+                            </div>
+                            <div>
+                                <label className={FIELD_LABEL_CLS}>משימת חזרה ללקוח</label>
+                                <textarea
+                                    className={TEXTAREA_CLS}
+                                    rows={2}
+                                    value={treatment}
+                                    onChange={(e) => setTreatment(e.target.value)}
+                                    placeholder="מה הצעדים הבאים להמשך הטיפול בליד?"
+                                />
+                            </div>
 
-                        {/* ── CRM Timeline ─────────────────────────────────── */}
-                        <div className="space-y-3 border-t border-slate-200 pt-5">
-                            <h3 className="font-semibold text-petra-text flex items-center gap-2">
-                                <History className="w-4 h-4 text-brand-500" />
-                                היסטוריית התקשרות
-                                <span className="text-xs font-normal text-petra-muted bg-slate-100 px-2 py-0.5 rounded-full">
-                                    {timeline.length} {timeline.length === 1 ? "אירוע" : "אירועים"}
-                                </span>
-                            </h3>
-
-                            {timeline.length > 0 ? (
-                                <div className="relative pe-1">
-                                    {timeline.map((event, idx) => (
-                                        <TimelineItem
-                                            key={event.id}
-                                            event={event}
-                                            isLast={idx === timeline.length - 1}
-                                            editingLogId={editingLogId}
-                                            editLogSummary={editLogSummary}
-                                            editLogTreatment={editLogTreatment}
-                                            onEditChange={(field, value) => {
-                                                if (field === "summary") setEditLogSummary(value);
-                                                else setEditLogTreatment(value);
-                                            }}
-                                            onEditSave={handleEditLogSave}
-                                            onEditCancel={() => setEditingLogId(null)}
-                                            onEdit={handleEditLog}
-                                            onDelete={handleDeleteLog}
-                                            isSaving={editCallLogMutation.isPending}
-                                        />
-                                    ))}
+                            {/* Follow-up scheduling — required before confirming a call */}
+                            <div id="followup-section">
+                                <label htmlFor="followup-date-input" className={FIELD_LABEL_CLS}>
+                                    מועד חזרה <span className="text-red-500">*</span>
+                                </label>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <input
+                                        id="followup-date-input"
+                                        type="datetime-local"
+                                        className={cn(
+                                            INPUT_CLS,
+                                            "flex-1 min-w-[180px] tabular-nums",
+                                            followUpInvalid && "border-red-400 focus:border-red-400 focus:ring-red-500/15"
+                                        )}
+                                        value={nextFollowUpAt}
+                                        onChange={(e) => { setNextFollowUpAt(e.target.value); setFollowUpError(false); }}
+                                    />
+                                    <div className="flex h-10 p-1 rounded-[10px] bg-slate-100" role="group" aria-label="סטטוס חזרה">
+                                        <button
+                                            type="button"
+                                            className={cn(
+                                                "px-3 text-xs font-medium rounded-lg transition-colors",
+                                                followUpStatus === "pending" ? "bg-white text-[#C2410C] shadow-sm" : "text-slate-500 hover:text-slate-700"
+                                            )}
+                                            onClick={() => setFollowUpStatus("pending")}
+                                        >
+                                            ממתין
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className={cn(
+                                                "px-3 text-xs font-medium rounded-lg transition-colors",
+                                                followUpStatus === "completed" ? "bg-white text-emerald-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                                            )}
+                                            onClick={() => setFollowUpStatus("completed")}
+                                        >
+                                            הושלם
+                                        </button>
+                                    </div>
                                 </div>
-                            ) : (
-                                <div className="flex flex-col items-center justify-center py-8 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200">
-                                    <Zap className="w-8 h-8 text-slate-300 mb-2" />
-                                    <p className="text-sm text-petra-muted">אין עדיין היסטוריה</p>
-                                </div>
-                            )}
+                                {followUpInvalid && (
+                                    <p className="mt-1.5 text-xs text-red-600">יש לקבוע מועד חזרה לפני שמירת שיחה</p>
+                                )}
+                            </div>
                         </div>
                     </div>
 
-                    {/* ── Footer ──────────────────────────────────────────── */}
-                    <div className="flex items-center justify-between mt-6 pt-4 border-t border-petra-border gap-3">
-
-                        {/* Save / Close — RIGHT side (RTL start) */}
-                        <div className="flex gap-2">
-                            <button className="btn-secondary" onClick={onClose} disabled={isWorking}>
-                                סגור
-                            </button>
-                            <button
-                                className="btn-primary"
-                                onClick={handleSave}
-                                disabled={isWorking}
-                            >
-                                {updateLeadMutation.isPending ? "שומר..." : "שמור וסגור"}
-                            </button>
-                        </div>
-
-                        {/* Won / Lost — LEFT side (RTL end) */}
-                        {!isClosed && (
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={handleCloseWon}
-                                    disabled={isWorking}
-                                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-white bg-green-500 hover:bg-green-600 disabled:opacity-50 transition-colors shadow-sm"
-                                >
-                                    <CheckCircle2 className="w-4 h-4" />
-                                    {closeWonMutation.isPending ? "סוגר..." : "נסגר"}
-                                </button>
-                                <button
-                                    onClick={handleCloseLost}
-                                    disabled={isWorking}
-                                    className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-white bg-red-500 hover:bg-red-600 disabled:opacity-50 transition-colors shadow-sm"
-                                >
-                                    <XCircle className="w-4 h-4" />
-                                    {closeLostMutation.isPending ? "מסמן..." : "אבד"}
-                                </button>
+                    {/* ── History (newest first) ─────────────────────── */}
+                    <div>
+                        <h3 className={SECTION_TITLE_CLS}>היסטוריה</h3>
+                        {timeline.length > 0 ? (
+                            <div className="relative">
+                                <div className="absolute top-3 bottom-3 right-[15px] w-px bg-slate-200" aria-hidden="true" />
+                                {[...timeline].reverse().map((event) => (
+                                    <TimelineItem
+                                        key={event.id}
+                                        event={event}
+                                        editingLogId={editingLogId}
+                                        editLogSummary={editLogSummary}
+                                        editLogTreatment={editLogTreatment}
+                                        onEditChange={(field, value) => {
+                                            if (field === "summary") setEditLogSummary(value);
+                                            else setEditLogTreatment(value);
+                                        }}
+                                        onEditSave={handleEditLogSave}
+                                        onEditCancel={() => setEditingLogId(null)}
+                                        onEdit={handleEditLog}
+                                        onDelete={handleDeleteLog}
+                                        isSaving={editCallLogMutation.isPending}
+                                    />
+                                ))}
                             </div>
+                        ) : (
+                            <p className="text-sm text-slate-400 py-4 text-center">אין עדיין היסטוריה</p>
                         )}
                     </div>
                 </div>
+
+                {/* ── Footer ─────────────────────────────────────────── */}
+                <div className="sticky bottom-0 bg-white border-t border-slate-100 px-6 py-4 flex flex-wrap items-center gap-2">
+                    <button
+                        onClick={handleSave}
+                        disabled={isWorking}
+                        className="h-10 px-5 rounded-[10px] bg-[#F97316] hover:bg-[#EA580C] text-white font-semibold text-sm transition-colors disabled:opacity-50"
+                    >
+                        {updateLeadMutation.isPending ? "שומר..." : "שמור וסגור"}
+                    </button>
+                    <button
+                        onClick={onClose}
+                        disabled={isWorking}
+                        className="h-10 px-4 border border-slate-200 rounded-[10px] bg-white text-sm text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                    >
+                        סגור
+                    </button>
+
+                    {!isClosed && (
+                        <div className="ms-auto flex gap-2">
+                            <button
+                                onClick={handleCloseWon}
+                                disabled={isWorking}
+                                className="h-10 px-4 rounded-[10px] bg-[#059669] hover:bg-[#047857] text-white text-sm font-semibold transition-colors disabled:opacity-50"
+                            >
+                                {closeWonMutation.isPending ? "סוגר..." : "נסגר כלקוח"}
+                            </button>
+                            <button
+                                onClick={handleCloseLost}
+                                disabled={isWorking}
+                                className="h-10 px-4 rounded-[10px] border border-red-200 text-red-700 bg-white hover:bg-red-50 text-sm font-semibold transition-colors disabled:opacity-50"
+                            >
+                                {closeLostMutation.isPending ? "מסמן..." : "אבד"}
+                            </button>
+                        </div>
+                    )}
+                </div>
             </div>
 
-            {/* Lost Reason Modal */}
+            {/* Lost Reason Modal — rendered after the drawer (and z-60) so it stacks on top */}
             <LostReasonModal
                 isOpen={lostModalOpen}
                 onClose={() => setLostModalOpen(false)}
