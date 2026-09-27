@@ -756,9 +756,11 @@ function StageColumn({
   return (
     <div
       ref={setNodeRef}
-      className="rounded-[14px] p-2.5 transition-colors"
+      className="rounded-[14px] p-2.5 transition-colors border-t-[3px]"
       style={{
-        background: isOver ? `${tint}1F` : "#F1F5F9",
+        // The whole column carries its stage color (header strip + soft tint), so a color change is visible
+        background: isOver ? `${tint}2E` : `${tint}14`,
+        borderTopColor: tint,
         outline: `2px dashed ${isOver ? tint : "transparent"}`,
         outlineOffset: -2,
       }}
@@ -1976,9 +1978,21 @@ function LeadsPageContent() {
       {leadsInitialLoading && <PetraLoader />}
 
       {/* ── Header ── */}
-      <div className="flex items-end justify-between gap-4 flex-wrap">
-        <div className="min-w-0">
-          <h1 className="text-xl md:text-2xl font-bold tracking-[-0.02em] text-petra-text">מערכת מכירות</h1>
+      <div className="flex items-end justify-between gap-x-4 gap-y-3 flex-wrap">
+        <div className="min-w-0 flex-1 md:flex-none">
+          <div className="flex items-center justify-between gap-3">
+            <h1 className="text-xl md:text-2xl font-bold tracking-[-0.02em] text-petra-text">מערכת מכירות</h1>
+            {/* Mobile: compact new-lead button next to the title */}
+            {atLeadLimit ? (
+              <a href="/upgrade" aria-label="שדרג לבייסיק" className="md:hidden w-11 h-11 rounded-xl bg-amber-500 text-white flex items-center justify-center flex-shrink-0">
+                <Sparkles className="w-5 h-5" />
+              </a>
+            ) : (
+              <button type="button" aria-label="ליד חדש" onClick={() => setShowModal(true)} className="md:hidden w-11 h-11 rounded-xl bg-[#F97316] active:bg-[#EA580C] text-white flex items-center justify-center flex-shrink-0">
+                <Plus className="w-5 h-5" />
+              </button>
+            )}
+          </div>
           <div className="mt-1.5 text-[13px] md:text-sm text-slate-500 flex gap-x-3.5 gap-y-1 flex-wrap tabular-nums">
             <span>{openLeads.length} לידים פתוחים</span>
             {pipelineValue > 0 && <span>{formatIls(pipelineValue)} בצנרת</span>}
@@ -2005,14 +2019,14 @@ function LeadsPageContent() {
             ))}
           </div>
           {atLeadLimit ? (
-            <a href="/upgrade" className="h-[38px] px-4 rounded-[10px] bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold flex items-center gap-1.5 flex-shrink-0 transition-colors">
+            <a href="/upgrade" className="hidden md:flex h-[38px] px-4 rounded-[10px] bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold items-center gap-1.5 flex-shrink-0 transition-colors">
               <Sparkles className="w-4 h-4" />שדרג לבייסיק
             </a>
           ) : (
             <button
               type="button"
               onClick={() => setShowModal(true)}
-              className="h-[38px] px-4 rounded-[10px] bg-[#F97316] hover:bg-[#EA580C] text-white text-sm font-semibold flex items-center gap-1.5 flex-shrink-0 transition-colors"
+              className="hidden md:flex h-[38px] px-4 rounded-[10px] bg-[#F97316] hover:bg-[#EA580C] text-white text-sm font-semibold items-center gap-1.5 flex-shrink-0 transition-colors"
             >
               <Plus className="w-4 h-4" />ליד חדש
               {maxLeads !== null && <span className="opacity-75 text-xs tabular-nums">({leads.length}/{maxLeads})</span>}
@@ -2023,7 +2037,7 @@ function LeadsPageContent() {
 
       {/* ── Filters & tools ── */}
       {activeTab !== "reports" && (
-        <div className="flex items-center gap-2.5 mt-5 flex-wrap">
+        <div className="flex items-center gap-2.5 mt-4 md:mt-5 flex-wrap">
           <div className="relative w-full sm:w-[260px]">
             <input
               type="text"
@@ -2051,7 +2065,7 @@ function LeadsPageContent() {
               value={sourceFilter ?? ""}
               onChange={(e) => setSourceFilter(e.target.value || null)}
               aria-label="סינון לפי מקור"
-              className={cn(TOOL_BTN, "pl-2 pr-3 cursor-pointer", sourceFilter && TOOL_BTN_ON)}
+              className={cn(TOOL_BTN, "hidden md:flex pl-2 pr-3 cursor-pointer", sourceFilter && TOOL_BTN_ON)}
             >
               <option value="">כל המקורות</option>
               {LEAD_SOURCES.map((src) => {
@@ -2062,7 +2076,7 @@ function LeadsPageContent() {
             </select>
           )}
 
-          <div className="flex items-center gap-1.5 ms-auto flex-wrap">
+          <div className="hidden md:flex items-center gap-1.5 ms-auto flex-wrap">
             {activeTab === "board" && (
               <>
                 <button
