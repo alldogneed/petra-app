@@ -21,6 +21,13 @@ import { cn } from "@/lib/utils";
 import { BoardingTabs } from "@/components/boarding/BoardingTabs";
 import { toast } from "sonner";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import {
+  feedingTitle,
+  findFeedingLogForTime,
+  findMedicationLog,
+  medicationTitle,
+  parseMedTimes,
+} from "@/lib/care-log-match";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -205,20 +212,15 @@ function PetCareCard({ stay, date, onLog, onDelete }: {
   const medications = stay.pet.medications;
   const logs = stay.careLogs;
 
-  const isLoggedForKey = (key: string) =>
-    logs.some((l) => l.title === key || l.type + ":" + l.title === key);
+  // Matching is shared with /feeding (src/lib/care-log-match.ts) so both boards see the same logs.
+  const isFeedingLogged = (time: string) => !!findFeedingLogForTime(logs, time);
 
-  // Check if feeding slot is logged
-  const isFeedingLogged = (time: string) =>
-    logs.some((l) => l.type === "FEEDING" && l.title === `האכלה ${time}`);
-
-  // Check if medication slot is logged
-  const isMedLogged = (medId: string, time?: string) =>
-    logs.some((l) => l.type === "MEDICATION" && l.title.includes(medId + (time ? `@${time}` : "")));
+  const isMedLogged = (med: Medication, time?: string) =>
+    !!findMedicationLog(logs, med.medName, time, medTimes(med).length);
 
   const logFeeding = (time: string) => {
-    const title = `האכלה ${time}`;
-    const existingLog = logs.find((l) => l.type === "FEEDING" && l.title === title);
+    const title = feedingTitle(time);
+    const existingLog = findFeedingLogForTime(logs, time);
     if (existingLog) {
       onDelete(existingLog.id);
     } else {
@@ -232,25 +234,16 @@ function PetCareCard({ stay, date, onLog, onDelete }: {
   };
 
   const logMedication = (med: Medication, time?: string) => {
-    const titleKey = med.id + (time ? `@${time}` : "");
-    const title = `${med.medName}${time ? ` ${time}` : ""}`;
-    const existingLog = logs.find((l) => l.type === "MEDICATION" && l.title.includes(titleKey));
+    const existingLog = findMedicationLog(logs, med.medName, time, medTimes(med).length);
     if (existingLog) {
       onDelete(existingLog.id);
     } else {
       const desc = [med.dosage, med.instructions].filter(Boolean).join(" • ");
-      onLog(stay.id, stay.pet.id, "MEDICATION", title, desc || undefined);
+      onLog(stay.id, stay.pet.id, "MEDICATION", medicationTitle(med.medName, time), desc || undefined);
     }
   };
 
-  const medTimes = (med: Medication): string[] => {
-    if (!med.times) return [""];
-    try {
-      const parsed = JSON.parse(med.times);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    } catch { /* ignore */ }
-    return [""];
-  };
+  const medTimes = (med: Medication): string[] => parseMedTimes(med.times);
 
   return (
     <div className="card overflow-hidden">
@@ -354,7 +347,7 @@ function PetCareCard({ stay, date, onLog, onDelete }: {
                   </div>
                   <div className="p-2 grid grid-cols-2 gap-1.5">
                     {times.map((time, idx) => {
-                      const done = isMedLogged(med.id, time || undefined);
+                      const done = isMedLogged(med, time || undefined);
                       return (
                         <button
                           key={idx}
