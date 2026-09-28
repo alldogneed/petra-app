@@ -231,7 +231,7 @@ def music(src, gain_db=-8.0):
         "[0:a]aresample=48000,highpass=f=90,acompressor=threshold=-22dB:ratio=3:attack=5:release=120:makeup=2,"
         "equalizer=f=3200:t=q:w=1.2:g=3,pan=stereo|c0=c0|c1=c0,apad[v];"
         f"[v][m]amix=inputs=2:normalize=0:duration=shortest,"
-        f"volume=0.2dB,alimiter=limit=0.89,aresample=48000,apad=whole_dur={end}[aout];"
+        f"volume=0.6dB,alimiter=limit=0.89,aresample=48000,apad=whole_dur={end}[aout];"
         f"[0:v]tpad=stop_mode=clone:stop_duration={hold}[vout]"
     )
     out = os.path.join(HERE, "petra-promo-final.mp4")
