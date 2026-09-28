@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&display=block" rel="stylesheet">
+<style>
+:root{--navy:#0F172A;--orange:#F97316;--orange2:#EA580C;--bg:#F6F7F9;--border:#E2E8F0;--muted:#5B6678;--ease:cubic-bezier(.25,.8,.25,1)}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1920px;height:1080px;overflow:hidden;background:var(--navy);font-family:Heebo,sans-serif;color:var(--navy)}
+.scene{position:absolute;inset:0;opacity:0;animation:scene var(--d) linear var(--s) both;overflow:hidden}
+@keyframes scene{0%{opacity:0}4%{opacity:1}96%{opacity:1}100%{opacity:0}}
+.scene.first{animation-name:sceneFirst}@keyframes sceneFirst{0%{opacity:1}96%{opacity:1}100%{opacity:0}}
+.scene.last{animation-name:sceneLast}@keyframes sceneLast{0%{opacity:0}5%{opacity:1}100%{opacity:1}}
+.dark{background:var(--navy)}
+.light{background:var(--bg)}
+
+.fu{animation:fadeUp .9s var(--ease) calc(var(--s) + var(--o,0s)) both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+.fi{animation:fadeIn .7s ease calc(var(--s) + var(--o,0s)) both}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.sl{animation:slideL 1s var(--ease) calc(var(--s) + var(--o,0s)) both}
+@keyframes slideL{from{opacity:0;transform:translateX(-60px)}to{opacity:1;transform:none}}
+
+.center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.big{font-size:96px;font-weight:800;line-height:1.1;color:#fff}
+.small{font-size:36px;font-weight:500;color:#94A3B8;margin-top:28px}
+
+/* pain: plain lines, one after another */
+.lines{position:absolute;top:0;bottom:0;right:200px;display:flex;flex-direction:column;justify-content:center;gap:26px}
+.lines div{font-size:64px;font-weight:700;color:#fff}
+.lines .dim{animation:fadeUp .8s var(--ease) calc(var(--s) + var(--o)) both, dim .6s ease calc(var(--s) + 4.3s) both}
+@keyframes dim{to{color:#475569}}
+.lines .end{color:var(--orange);margin-top:30px}
+
+.logoTile{width:220px;height:220px;border-radius:48px;background:#fff;overflow:hidden}
+.logoTile img{width:112%;height:112%;margin:-6%}
+
+/* feature layout: RTL → text on the right, product on the left */
+.feat{position:absolute;inset:0;display:flex;align-items:center;padding:0 100px 0 80px;gap:70px}
+.ftext{width:600px;flex:none}
+.label{font-size:26px;font-weight:700;color:var(--orange2)}
+.ftitle{font-size:64px;font-weight:800;line-height:1.12;margin-top:18px;letter-spacing:-.5px}
+.fsub{font-size:31px;font-weight:500;color:var(--muted);margin-top:26px;line-height:1.45}
+.fnote{font-size:26px;font-weight:600;color:var(--navy);margin-top:26px;padding-top:22px;border-top:1px solid var(--border)}
+.media{flex:1;height:100%;position:relative}
+
+.browser{position:absolute;width:1120px;border-radius:14px;background:#fff;box-shadow:0 24px 60px rgba(15,23,42,.14),0 0 0 1px var(--border);overflow:hidden}
+.bbar{height:42px;background:#EEF0F3;display:flex;align-items:center;gap:8px;padding:0 16px;direction:ltr;border-bottom:1px solid var(--border)}
+.bbar i{width:12px;height:12px;border-radius:50%;background:#CBD2DB}
+.url{margin-left:16px;width:440px;height:26px;border-radius:6px;background:#fff;font-size:14px;color:#64748B;display:flex;align-items:center;padding:0 12px}
+.bscreen{position:relative;width:1120px;height:700px;overflow:hidden;background:#fff}
+.bscreen img{position:absolute;inset:0;width:100%;display:block}
+.kb{transform-origin:var(--ox) var(--oy);animation:kb var(--kd) ease-in-out calc(var(--s) + var(--ko)) both}
+@keyframes kb{from{transform:scale(1)}to{transform:scale(var(--z))}}
+
+.phone{position:absolute;width:404px;height:858px;border-radius:62px;background:#111318;padding:13px;box-shadow:0 30px 70px rgba(15,23,42,.25)}
+.pscreen{position:relative;width:378px;height:832px;border-radius:50px;overflow:hidden;background:#fff}
+.pscreen > img{position:absolute;top:44px;left:0;width:100%}
+.sbar{position:absolute;top:0;left:0;right:0;height:44px;background:#fff;z-index:4;direction:ltr;font-size:16px;font-weight:600;padding:14px 0 0 36px}
+.notch{position:absolute;top:10px;left:50%;width:118px;height:32px;margin-left:-59px;background:#111318;border-radius:20px;z-index:5}
+.step{animation:stepIn .5s ease calc(var(--s) + var(--o)) both}
+@keyframes stepIn{from{opacity:0}to{opacity:1}}
+.tap{position:absolute;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;background:rgba(15,23,42,.18);border:2px solid rgba(15,23,42,.35);z-index:6;animation:tap .6s ease-out calc(var(--s) + var(--o)) both}
+@keyframes tap{0%{opacity:0;transform:scale(.6)}35%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(1.3)}}
+
+.callout{position:absolute;background:#fff;border-radius:14px;box-shadow:0 20px 50px rgba(15,23,42,.18),0 0 0 1px var(--border);overflow:hidden}
+.callout img{display:block;width:100%}
+
+/* WhatsApp */
+.wa{background:#EFE7DD;height:100%;display:flex;flex-direction:column}
+.wabar{background:#075E54;color:#fff;padding:54px 18px 14px;display:flex;align-items:center;gap:12px;font-weight:600;font-size:19px}
+.wabar .av{width:42px;height:42px;border-radius:50%;background:#fff;overflow:hidden;flex:none}.wabar .av img{width:112%;margin:-6%}
+.wabar small{display:block;font-weight:400;font-size:14px;opacity:.8}
+.msgs{flex:1;padding:18px 12px;display:flex;flex-direction:column;gap:12px}
+.day{align-self:center;background:#E1F2FB;color:#54656F;font-size:14px;padding:4px 12px;border-radius:8px}
+.bub{max-width:92%;background:#fff;border-radius:0 12px 12px 12px;padding:10px 12px 6px;font-size:17px;line-height:1.5;box-shadow:0 1px 1px rgba(0,0,0,.12);align-self:flex-start;white-space:pre-line}
+.bub em{color:#555;font-size:15px}
+.bub.me{background:#D9FDD3;border-radius:12px 0 12px 12px;align-self:flex-end}
+.bub .t{display:block;text-align:left;font-size:12px;color:#667781;margin-top:2px}
+.bub .t b{color:#53BDEB;font-weight:400}
+
+/* AI chat (neutral window) */
+.chatwin{position:absolute;width:880px;height:720px;background:#fff;border-radius:16px;box-shadow:0 24px 60px rgba(15,23,42,.14),0 0 0 1px var(--border);overflow:hidden;display:flex;flex-direction:column}
+.chead{height:62px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;border-bottom:1px solid var(--border);font-size:20px;font-weight:700}
+.chead span{font-size:16px;font-weight:500;color:#16A34A}
+.cbody{flex:1;padding:26px;display:flex;flex-direction:column;gap:20px}
+.uq{align-self:flex-start;background:#F1F3F6;border-radius:16px;padding:14px 20px;font-size:22px;font-weight:500;max-width:80%}
+.ans{align-self:flex-end;width:90%;font-size:21px;line-height:1.6;color:#1e293b}
+.cinput{height:60px;margin:0 24px 22px;border:1px solid var(--border);border-radius:12px;display:flex;align-items:center;padding:0 20px;font-size:19px;color:#94A3B8}
+
+.stats{display:flex;gap:140px;margin-top:64px}
+.st b{display:block;font-size:120px;font-weight:800;line-height:1;direction:ltr;color:var(--navy)}
+.st small{display:block;font-size:30px;color:var(--muted);font-weight:500;margin-top:16px}
+.url2{margin-top:56px;font-size:44px;font-weight:700;color:var(--orange);direction:ltr}
+</style>
+</head>
+<body>
+
+<!-- 0–4.4 -->
+<section class="scene dark first" style="--s:0s;--d:5s">
+  <div class="center">
+    <div class="big fu" style="--o:.2s">יש לכם עסק של כלבים?</div>
+    <div class="small fu" style="--o:.9s">אילוף, פנסיון, טיפוח?</div>
+  </div>
+</section>
+
+<!-- 4–10.4 -->
+<section class="scene dark" style="--s:4.6s;--d:9.4s">
+  <div class="lines">
+    <div class="dim" style="--o:.3s">תורים בוואטסאפ</div>
+    <div class="dim" style="--o:1.1s">חוזים על נייר</div>
+    <div class="dim" style="--o:1.9s">לקוחות ששוכחים להגיע</div>
+    <div class="end fu" style="--o:4.3s">בשביל זה בנינו את פטרה</div>
+  </div>
+</section>
+
+<!-- 10–13.9 -->
+<section class="scene dark" style="--s:13.6s;--d:5.6s">
+  <div class="center">
+    <div class="logoTile fi" style="--o:.3s"><img src="../../public/petra-logo.png"></div>
+    <div class="small fu" style="--o:.9s;color:#CBD5E1">מערכת ניהול לעסקים של חיות מחמד</div>
+  </div>
+</section>
+
+<!-- 13.5–18.9 DASHBOARD -->
+<section class="scene light" style="--s:18.8s;--d:6.9s">
+  <div class="feat">
+    <div class="ftext">
+      <div class="label fu" style="--o:.2s">דשבורד</div>
+      <div class="ftitle fu" style="--o:.35s">כל העסק במסך אחד</div>
+      <div class="fsub fu" style="--o:.8s">לקוחות, יומן, פנסיון, חוזים ותשלומים</div>
+    </div>
+    <div class="media">
+      <div class="browser sl" style="--o:.3s;left:0;top:168px">
+        <div class="bbar"><i></i><i></i><i></i><div class="url">petra-app.com/dashboard</div></div>
+        <div class="bscreen"><img class="kb" src="shots/dash.jpg" style="--ko:1s;--kd:4.4s;--z:1.1;--ox:55%;--oy:25%"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SALES / LEADS -->
+<section class="scene light" style="--s:25.3s;--d:11.9s">
+  <div class="feat">
+    <div class="ftext">
+      <div class="label fu" style="--o:.2s">מודול מכירות</div>
+      <div class="ftitle fu" style="--o:.35s">אף לקוח לא הולך לאיבוד</div>
+      <div class="fsub fu" style="--o:.8s">כל ליד שנכנס, מגוגל, מפייסבוק או מהאתר, מגיע ישר ללוח המכירות. רואים מאיזה קמפיין הוא הגיע ומתי לחזור אליו</div>
+    </div>
+    <div class="media">
+      <div class="browser sl" style="--o:.3s;left:0;top:168px">
+        <div class="bbar"><i></i><i></i><i></i><div class="url">petra-app.com/leads</div></div>
+        <div class="bscreen"><img class="kb" src="shots/leads.jpg" style="--ko:1s;--kd:9s;--z:1.08;--ox:50%;--oy:30%"></div>
+      </div>
+      <div class="callout fu" style="--o:4.2s;left:-30px;top:330px;width:440px"><img src="shots/c_lead_top.png"></div>
+    </div>
+  </div>
+</section>
+
+<!-- 18.5–27.9 ONLINE BOOKING -->
+<section class="scene light" style="--s:36.8s;--d:9.4s">
+  <div class="feat">
+    <div class="ftext">
+      <div class="label fu" style="--o:.2s">קביעת תורים אונליין</div>
+      <div class="ftitle fu" style="--o:.35s">הלקוחות קובעים תור לבד</div>
+      <div class="fsub fu" style="--o:.8s">שולחים להם קישור, הם בוחרים שירות ושעה פנויה, והתור נכנס ישר ליומן</div>
+    </div>
+    <div class="media">
+      <div class="phone sl" style="--o:.3s;left:360px;top:111px">
+        <div class="pscreen">
+          <div class="notch"></div><div class="sbar">9:41</div>
+          <img src="shots/book1.jpg">
+          <img class="step" src="shots/book2.jpg" style="--o:2.4s">
+          <img class="step" src="shots/book3.jpg" style="--o:3.9s">
+          <img class="step" src="shots/book8.jpg" style="--o:5.4s">
+          <img class="step" src="shots/book9.jpg" style="--o:6.9s">
+          <div class="tap" style="--o:2s;left:190px;top:652px"></div>
+          <div class="tap" style="--o:3.5s;left:276px;top:532px"></div>
+          <div class="tap" style="--o:5s;left:320px;top:365px"></div>
+          <div class="tap" style="--o:6.5s;left:188px;top:628px"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 27.5–35.9 WHATSAPP -->
+<section class="scene light" style="--s:45.8s;--d:8.8s">
+  <div class="feat">
+    <div class="ftext">
+      <div class="label fu" style="--o:.2s">תזכורות בוואטסאפ</div>
+      <div class="ftitle fu" style="--o:.35s">פחות לקוחות ששוכחים להגיע</div>
+      <div class="fsub fu" style="--o:.8s">יום לפני התור, הלקוח מקבל תזכורת בוואטסאפ, אוטומטית</div>
+    </div>
+    <div class="media">
+      <div class="phone sl" style="--o:.3s;left:650px;top:111px">
+        <div class="pscreen">
+          <div class="notch"></div>
+          <div class="wa">
+            <div class="wabar"><div class="av"><img src="../../public/petra-logo.png"></div><div>כלב וחבר – אילוף ופנסיון<small>חשבון עסקי</small></div></div>
+            <div class="msgs">
+              <div class="day">היום</div>
+              <div class="bub fi" style="--o:2.2s">שלום דנה כהן! 🐾
+
+תזכורת לתור שלך ב-יום שני, 28 בספטמבר בשעה 09:00.
+שירות: שיעור אילוף פרטי עם רקס.
+
+נתראה! 😊
+
+<em>הודעה אוטומטית – אין להשיב להודעה זו.
+לפניות ויצירת קשר ישיר עם בית העסק: <span style="white-space:nowrap;unicode-bidi:isolate">050-1234567</span></em><span class="t">09:00</span></div>
+              <div class="bub me fi" style="--o:4.6s">מעולה, נהיה שם<span class="t">09:03 <b>✓✓</b></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="callout sl" style="--o:1s;left:0;top:390px;width:610px"><img src="shots/c_wa.png"></div>
+    </div>
+  </div>
+</section>
+
+<!-- 35.5–47.9 CONTRACTS -->
+<section class="scene light" style="--s:54.2s;--d:13.4s">
+  <div class="feat">
+    <div class="ftext">
+      <div class="label fu" style="--o:.2s">חוזים דיגיטליים</div>
+      <div class="ftitle fu" style="--o:.35s">הלקוח חותם על החוזה מהטלפון</div>
+      <div class="fsub fu" style="--o:.8s">שולחים אותו ללקוח בוואטסאפ, ישר מהתיק שלו. הפרטים שלו ושל הכלב כבר ממולאים, והעותק החתום נשמר במערכת</div>
+    </div>
+    <div class="media">
+      <div class="browser sl" style="--o:.3s;left:0;top:168px">
+        <div class="bbar"><i></i><i></i><i></i><div class="url">petra-app.com/customers</div></div>
+        <div class="bscreen"><img src="shots/contract_modal.jpg"></div>
+      </div>
+      <div class="tap" style="--o:2.6s;left:640px;top:570px"></div>
+      <div class="phone sl" style="--o:3.2s;left:60px;top:111px">
+        <div class="pscreen">
+          <div class="notch"></div><div class="sbar">9:41</div>
+          <img src="shots/sign1.jpg">
+          <img class="step" src="shots/sign3.jpg" style="--o:5.6s">
+          <img class="step" src="shots/sign4.jpg" style="--o:7.8s">
+          <div class="tap" style="--o:7.4s;left:188px;top:680px"></div>
+        </div>
+      </div>
+      <div class="callout sl" style="--o:9s;left:520px;top:500px;width:580px"><img src="shots/c_contracts.png"></div>
+    </div>
+  </div>
+</section>
+
+<!-- 47.5–57.9 BOARDING -->
+<section class="scene light" style="--s:67.2s;--d:10.8s">
+  <div class="feat">
+    <div class="ftext">
+      <div class="label fu" style="--o:.2s">פנסיון</div>
+      <div class="ftitle fu" style="--o:.35s">כל החדרים מול העיניים</div>
+      <div class="fsub fu" style="--o:.8s">מי נמצא, מי נכנס היום ומי יוצא</div>
+      <div class="fnote fu" style="--o:5.8s">והצוות מקבל לוח יומי של האכלות ותרופות</div>
+    </div>
+    <div class="media">
+      <div class="browser sl" style="--o:.3s;left:0;top:168px">
+        <div class="bbar"><i></i><i></i><i></i><div class="url">petra-app.com/boarding</div></div>
+        <div class="bscreen">
+          <img class="kb" src="shots/boarding.jpg" style="--ko:1.2s;--kd:4.5s;--z:1.2;--ox:45%;--oy:70%">
+          <img class="step" src="shots/daily.jpg" style="--o:5.6s">
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 57.5–69.9 AI AGENT -->
+<section class="scene light" style="--s:77.6s;--d:12.8s">
+  <div class="feat">
+    <div class="ftext">
+      <div class="label fu" style="--o:.2s">לראשונה בישראל</div>
+      <div class="ftitle fu" style="--o:.35s">סוכן AI שמחובר ישירות לעסק</div>
+      <div class="fsub fu" style="--o:.8s">שואלים אותו מה יש היום, והוא עונה לפי הנתונים של העסק, ואם צריך, גם קובע תור</div>
+    </div>
+    <div class="media">
+      <div class="chatwin sl" style="--o:.3s;left:170px;top:50px">
+        <div class="chead">עוזר AI<span>מחובר לפטרה</span></div>
+        <div class="cbody">
+          <div class="uq fi" style="--o:1.4s">מה יש לי היום?</div>
+          <div class="ans fi" style="--o:2.8s">
+            <div>בוקר טוב משה. היום יש לך 3 תורים:</div>
+            <div>09:00 דנה כהן (רקס), שיעור אילוף פרטי</div>
+            <div>11:00 עומר ביטון (מקס), טיפוח מלא</div>
+            <div>14:00 איתי גל (צ'ילי), הערכת התנהגות</div>
+            <div>בפנסיון יש 6 כלבים, ובל מגיעה היום לחדר 8.</div>
+          </div>
+          <div class="uq fi" style="--o:6s">תקבע לדנה עוד שיעור ביום שלישי ב-10:00</div>
+          <div class="ans fi" style="--o:7.6s">קבעתי. שיעור אילוף פרטי לדנה כהן ורקס, יום שלישי 29.9 בשעה 10:00. היא תקבל תזכורת בוואטסאפ יום לפני.</div>
+        </div>
+        <div class="cinput">כתבו הודעה</div>
+      </div>
+      <div class="callout sl" style="--o:9.8s;left:0;top:800px;width:660px"><img src="shots/c_ai.png"></div>
+    </div>
+  </div>
+</section>
+
+<!-- 69.5–73.9 NUMBERS -->
+<section class="scene light" style="--s:90s;--d:4.4s">
+  <div class="center">
+    <div class="stats">
+      <div class="st fu" style="--o:.3s"><b>130+</b><small>עסקים פעילים</small></div>
+      <div class="st fu" style="--o:.5s"><b>5,000+</b><small>תורים שנקבעו</small></div>
+      <div class="st fu" style="--o:.7s"><b>98%</b><small>שביעות רצון</small></div>
+    </div>
+  </div>
+</section>
+
+<!-- 73.5–80 CTA (landing page headline) -->
+<section class="scene dark last" style="--s:94s;--d:9.2s">
+  <div class="center">
+    <div class="logoTile fi" style="--o:.2s;width:150px;height:150px;border-radius:34px"><img src="../../public/petra-logo.png"></div>
+    <div class="big fu" style="--o:.6s;margin-top:44px;font-size:84px">תפסיקו לרדוף אחרי זנבות.<br><span style="color:#FDBA74">תנו לפטרה</span> לנהל את העסק.</div>
+    <div class="url2 fu" style="--o:1.4s">petra-app.com</div>
+    <div class="small fu" style="--o:1.8s;font-size:28px;margin-top:16px">מסלול חינמי, בלי כרטיס אשראי</div>
+  </div>
+</section>
+
+<script>
+window.renderAt = function (t) {
+  for (const a of document.getAnimations()) { a.pause(); a.currentTime = t * 1000; }
+};
+window.TOTAL = 103.2;
+</script>
+</body>
+</html>

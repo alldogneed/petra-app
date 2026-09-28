@@ -1,0 +1,22 @@
+{
+ "voice": "coral",
+ "mode": "continuous+tidy",
+ "sources": [
+  "old_00.wav",
+  "old_01.wav",
+  "old_02.wav",
+  "t0_03.wav",
+  "old_04.wav",
+  "old_05.wav",
+  "t1_06.wav"
+ ],
+ "lens": [
+  4.97,
+  6.39,
+  4.51,
+  6.05,
+  6.45,
+  7.61,
+  4.07
+ ]
+}
