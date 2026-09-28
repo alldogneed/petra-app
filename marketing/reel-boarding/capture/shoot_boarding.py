@@ -1,6 +1,6 @@
 # Boarding reel screenshots. Usage: python3 shoot_boarding.py [shot names...]  (no args = all)
 # Needs the app on http://localhost:3000 seeded with promo-seed.js + promo-seed-boarding.js.
-import asyncio, sys, os
+import asyncio, sys, os, random
 from playwright.async_api import async_playwright
 
 CH = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome"
@@ -28,7 +28,8 @@ async def ctx_for(b, mobile, who):
     else:
         ctx = await b.new_context(viewport={"width": 1600, "height": 1000}, device_scale_factor=2, **common)
     if who[0] not in STATE:  # log in once per user (login is rate-limited)
-        r = await ctx.request.post(BASE + "/api/auth/login", data={"email": who[0], "password": who[1]})
+        r = await ctx.request.post(BASE + "/api/auth/login", data={"email": who[0], "password": who[1]},
+                                   headers={"x-forwarded-for": f"10.9.{random.randint(0,255)}.{random.randint(1,254)}"})  # local limiter key
         assert r.status == 200, r.status
         STATE[who[0]] = await ctx.storage_state()
     return ctx, await ctx.new_page()
@@ -71,7 +72,7 @@ async def today_only(pg, to_offset=0):
 
 
 async def scroll_to(pg, text, off=0):
-    await pg.evaluate("""([t,off])=>{const el=[...document.querySelectorAll('h1,h2,h3,span,div,p')].find(e=>e.children.length<3&&e.textContent.trim()===t);
+    await pg.evaluate("""([t,off])=>{const el=[...document.querySelectorAll('h1,h2,h3,span,div,p')].find(e=>e.children.length<3&&e.offsetParent!==null&&e.textContent.trim()===t);
       if(el){const y=el.getBoundingClientRect().top+window.scrollY+off; const sc=document.querySelector('main')||document.scrollingElement; window.scrollTo(0,y); if(sc&&sc!==document.scrollingElement){sc.scrollTop+=el.getBoundingClientRect().top+off;}}}""", [text, off])
     await pg.wait_for_timeout(600)
 
@@ -83,7 +84,7 @@ async def rooms(b):
         await go(pg, "/boarding", 3)
         await today_only(pg)
         if mobile:
-            await scroll_to(pg, "מפת חדרים", -12)
+            await scroll_to(pg, "מפת חדרים", 44)
         await snap(pg, "rooms_mobile" if mobile else "rooms_desktop")
         await ctx.close()
 

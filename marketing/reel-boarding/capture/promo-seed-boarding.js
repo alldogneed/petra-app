@@ -58,10 +58,10 @@ async function main() {
   await prisma.boardingStay.deleteMany({ where: { businessId: B } });
   await prisma.yard.deleteMany({ where: { businessId: B } });
   const rooms = [
-    ["חדר 1 · סוויט משפחתי", "suite", 2, 260], ["חדר 2 · סוויט", "suite", 2, 240],
-    ["חדר 3", "premium", 1, 190], ["חדר 4", "premium", 1, 190], ["חדר 5", "premium", 1, 190],
-    ["חדר 6", "standard", 1, 160], ["חדר 7", "standard", 1, 160], ["חדר 8", "standard", 1, 160],
-    ["חדר 9", "standard", 1, 160], ["חדר 10", "standard", 1, 160], ["חדר 11", "standard", 1, 160], ["חדר 12", "standard", 1, 160],
+    ["חדר א1", "suite", 2, 260], ["חדר א2", "suite", 2, 240],
+    ["חדר א3", "premium", 1, 190], ["חדר א4", "premium", 1, 190], ["חדר א5", "premium", 1, 190],
+    ["חדר א6", "standard", 1, 160], ["חדר ב1", "standard", 1, 160], ["חדר ב2", "standard", 1, 160],
+    ["חדר ב3", "standard", 1, 160], ["חדר ב4", "standard", 1, 160], ["חדר ב5", "standard", 1, 160], ["חדר ב6", "standard", 1, 160],
   ];
   const ids = rooms.map((_, i) => `promo-r${i}`);
   await prisma.room.updateMany({ where: { businessId: B, id: { notIn: ids } }, data: { isActive: false } });
@@ -120,19 +120,19 @@ async function main() {
     const todayStart = today.filter((t) => t[0] === room).reduce((m, t) => Math.min(m, t[2]), room === 8 ? -4 : 0);
     let end = todayStart - ri(0, 2);
     while (end > -24) {
-      const len = ri(2, 6), start = end - len;
+      const len = ri(3, 8), start = end - len;
       const p = pickPet(start, end);
       if (p != null) { await prisma.boardingStay.create({ data: { businessId: B, roomId: ids[room], petId: `promo-p${p}`, customerId: cOf(p), checkIn: at(start, 14), checkOut: at(end, 11), status: "checked_out", feedingPlan: feeding[p % 4] } }); mark(p, start, end); }
       end = start - ri(0, 3);
     }
     // future
-    let s = (lastOut[room] ?? 0) + ri(0, 2);
+    let s = (lastOut[room] ?? 0) + ri(1, 2);
     if (room === 10 || room === 4) s = lastOut[room] + ri(1, 2);
-    while (s < 44) {
-      const len = ri(2, 7), e = s + len;
+    while (s < 38) {
+      const len = ri(4, 10), e = s + len;
       const p = pickPet(s, e);
       if (p != null) { await prisma.boardingStay.create({ data: { businessId: B, roomId: ids[room], petId: `promo-p${p}`, customerId: cOf(p), checkIn: at(s, 14), checkOut: at(e, 11), status: "reserved", feedingPlan: feeding[p % 4] } }); mark(p, s, e); }
-      s = e + ri(0, 3);
+      s = e + ri(0, 2);
     }
   }
 
