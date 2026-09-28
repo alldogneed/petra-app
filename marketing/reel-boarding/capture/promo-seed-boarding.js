@@ -119,7 +119,7 @@ async function main() {
     // past
     const todayStart = today.filter((t) => t[0] === room).reduce((m, t) => Math.min(m, t[2]), room === 8 ? -4 : 0);
     let end = todayStart - ri(0, 2);
-    while (end > -24) {
+    while (end > -45) {
       const len = ri(3, 8), start = end - len;
       const p = pickPet(start, end);
       if (p != null) { await prisma.boardingStay.create({ data: { businessId: B, roomId: ids[room], petId: `promo-p${p}`, customerId: cOf(p), checkIn: at(start, 14), checkOut: at(end, 11), status: "checked_out", feedingPlan: feeding[p % 4] } }); mark(p, start, end); }

@@ -54,6 +54,16 @@ html,body{width:1080px;height:1920px;overflow:hidden;background:var(--navy);font
   animation:strike .35s ease-out calc(var(--s) + var(--o)) both}
 @keyframes strike{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 
+/* logo */
+.wm{position:absolute;top:64px;left:60px;display:flex;align-items:center;gap:16px;opacity:0;z-index:20;animation:wm var(--wd) linear var(--ws) both}
+.wm .logoTile{width:78px;height:78px;border-radius:20px;box-shadow:0 6px 16px rgba(15,23,42,.15)}
+.wm b{font-size:44px;font-weight:800;color:var(--navy);letter-spacing:-.5px}
+@keyframes wm{0%{opacity:0}3%{opacity:1}97%{opacity:1}100%{opacity:0}}
+.bigLogo{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:30px;background:var(--navy)}
+.bigLogo .logoTile{width:260px;height:260px;border-radius:62px}
+.bigLogo b{color:#fff;font-size:110px;font-weight:800;letter-spacing:-1px}
+.brand{color:#fff;font-size:72px;font-weight:800;margin-top:24px;letter-spacing:-1px}
+
 /* CTA */
 .cta{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;padding-top:300px;text-align:center}
 .logoTile{width:210px;height:210px;border-radius:50px;background:#fff;overflow:hidden}
@@ -72,20 +82,21 @@ html,body{width:1080px;height:1920px;overflow:hidden;background:var(--navy);font
   <div class="opts">
     <div class="opt pop" style="--o:1.92s"><svg viewBox="0 0 120 120"><rect x="10" y="18" width="100" height="70" rx="6" fill="#F8FAFC" stroke="#94A3B8" stroke-width="5"/>
 <path d="M24 40 q10-10 20 0 t20 0 M24 58 h40 M70 36 l18 18 M88 36 l-18 18" stroke="#3B82F6" stroke-width="4" fill="none" stroke-linecap="round"/>
-<path d="M40 88 l-10 22 M80 88 l10 22" stroke="#94A3B8" stroke-width="5" stroke-linecap="round"/></svg><b>לוח מחיק?</b><i class="strike" style="--o:4.75s"></i></div>
+<path d="M40 88 l-10 22 M80 88 l10 22" stroke="#94A3B8" stroke-width="5" stroke-linecap="round"/></svg><b>לוח מחיק?</b><i class="strike" style="--o:4.55s"></i></div>
     <div class="opt pop" style="--o:3.18s"><svg viewBox="0 0 120 120"><rect x="14" y="22" width="92" height="84" rx="10" fill="#fff" stroke="#94A3B8" stroke-width="5"/>
 <rect x="14" y="22" width="92" height="22" rx="10" fill="#60A5FA"/><path d="M38 12v20M82 12v20" stroke="#475569" stroke-width="6" stroke-linecap="round"/>
 <g fill="#CBD5E1"><rect x="28" y="54" width="14" height="12" rx="2"/><rect x="53" y="54" width="14" height="12" rx="2"/><rect x="78" y="54" width="14" height="12" rx="2"/>
-<rect x="28" y="76" width="14" height="12" rx="2"/><rect x="53" y="76" width="14" height="12" rx="2" fill="#F97316"/><rect x="78" y="76" width="14" height="12" rx="2"/></g></svg><b>יומן גוגל?</b><i class="strike" style="--o:4.87s"></i></div>
+<rect x="28" y="76" width="14" height="12" rx="2"/><rect x="53" y="76" width="14" height="12" rx="2" fill="#F97316"/><rect x="78" y="76" width="14" height="12" rx="2"/></g></svg><b>יומן גוגל?</b><i class="strike" style="--o:4.67s"></i></div>
     <div class="opt pop" style="--o:4.48s"><svg viewBox="0 0 120 120"><rect x="26" y="12" width="74" height="96" rx="8" fill="#FDE68A" stroke="#B45309" stroke-width="5"/>
 <g stroke="#92400E" stroke-width="5" stroke-linecap="round"><path d="M18 28h16M18 48h16M18 68h16M18 88h16"/></g>
-<path d="M46 38h40M46 54h40M46 70h28" stroke="#B45309" stroke-width="4" stroke-linecap="round"/></svg><b>מחברת?</b><i class="strike" style="--o:4.99s"></i></div>
+<path d="M46 38h40M46 54h40M46 70h28" stroke="#B45309" stroke-width="4" stroke-linecap="round"/></svg><b>מחברת?</b><i class="strike" style="--o:4.79s"></i></div>
   </div>
+  <div class="bigLogo pop" style="--o:5.0s"><div class="logoTile"><img src="../../public/petra-logo.png"></div><b>Petra</b></div>
 </section>
 <section class="scene light" style="--s:5.5s;--d:7.2s">
 
   <div class="head"><div class="eyebrow fu" style="--o:.1s">מפת חדרים</div><div class="title fu" style="--o:.25s">חדר לכל כלב,<br>בגרירה אחת</div></div>
-  <div class="card fu" style="--o:.2s"><img class="pan" src="shots/rooms_mobile.jpg" style="width:960px;--x0:0px;--y0:-300px;--x1:0px;--y1:-1010px;--z0:1;--z1:1;--pd:6.25s;--po:0.5s"></div>
+  <div class="card fu" style="--o:.2s"><img class="pan" src="shots/rooms_mobile.jpg" style="width:960px;--x0:0px;--y0:-300px;--x1:0px;--y1:-1010px;--z0:1;--z1:1;--pd:3.58s;--po:0.4s"><div class="layer" style="--o:3.58s;background:#fff"><img class="pan" src="shots/rooms_desktop.jpg" style="width:1600px;--x0:-400px;--y0:-140px;--x1:-40px;--y1:-140px;--z0:1;--z1:1;--pd:3.2699999999999996s;--po:3.58s"></div></div>
 </section>
 <section class="scene light" style="--s:12.35s;--d:5.6s">
 
@@ -100,21 +111,29 @@ html,body{width:1080px;height:1920px;overflow:hidden;background:var(--navy);font
     <div class="layer" style="--o:2.86s;background:#fff"><img class="pan" src="shots/rooms_desktop.jpg" style="width:1500px;--x0:-470px;--y0:-160px;--x1:-470px;--y1:-160px;--z0:1;--z1:1;--pd:1s;--po:0s"></div></div>
   
 </section>
-<section class="scene light" style="--s:23.75s;--d:7.9s">
+<section class="scene light" style="--s:23.75s;--d:7.6s">
+
+  <div class="head"><div class="eyebrow fu" style="--o:.1s">האכלות ותרופות</div><div class="title fu" style="--o:.25s">לוח טיפול יומי<br>לכל כלב</div></div>
+  <div class="card fu" style="--o:.2s"><img class="pan" src="shots/daily_mobile.jpg" style="width:960px;--x0:0px;--y0:-150px;--x1:0px;--y1:-560px;--z0:1;--z1:1;--pd:6.65s;--po:0.4s"><div class="layer" style="--o:3.08s;background:#fff"><img class="pan" src="shots/meds_mobile.jpg" style="width:960px;--x0:0px;--y0:-150px;--x1:0px;--y1:-450px;--z0:1;--z1:1;--pd:4.17s;--po:3.08s"></div></div>
+  <div class="callout pop" style="--o:4.58s;left:140px;top:560px;width:800px"><img src="shots/c_care_top.png"></div>
+</section>
+<section class="scene light" style="--s:31.0s;--d:7.9s">
 
   <div class="head"><div class="eyebrow fu" style="--o:.1s">הרשאות לצוות</div><div class="title fu" style="--o:.25s">כל עובד רואה<br>רק את מה שצריך</div></div>
   <div class="card fu" style="--o:.2s"><img class="pan" src="shots/rooms_mobile.jpg" style="width:960px;--x0:0px;--y0:0px;--x1:0px;--y1:-200px;--z0:1;--z1:1;--pd:6.95s;--po:0.5s"></div>
   
 </section>
-<section class="scene dark last" style="--s:31.3s;--d:8.7s">
+<section class="scene dark last" style="--s:38.55s;--d:7.4s">
 
   <div class="cta">
     <div class="logoTile pop" style="--o:.15s"><img src="../../public/petra-logo.png"></div>
+    <div class="brand fu" style="--o:.35s">Petra</div>
     <div class="ctaT fu" style="--o:0.6s">רוצים לראות איך<br>זה עובד אצלכם?</div>
     <div class="wa pulse" style="--o:3.28s"><svg viewBox="0 0 32 32"><path fill="#fff" d="M16 3C9 3 3.3 8.6 3.3 15.6c0 2.3.6 4.5 1.8 6.4L3 29l7.2-1.9c1.8 1 3.8 1.5 5.8 1.5 7 0 12.7-5.7 12.7-12.6S23 3 16 3zm0 23.1c-1.9 0-3.7-.5-5.3-1.4l-.4-.2-4.3 1.1 1.1-4.2-.3-.4c-1-1.6-1.6-3.5-1.6-5.4C5.2 9.8 10 5.1 16 5.1s10.8 4.7 10.8 10.5S22 26.1 16 26.1zm5.9-7.8c-.3-.2-1.9-.9-2.2-1s-.5-.2-.7.2-.8 1-1 1.2-.4.2-.7.1c-.3-.2-1.4-.5-2.6-1.6-1-.9-1.6-1.9-1.8-2.2s0-.5.1-.6l.5-.6c.2-.2.2-.4.3-.6s0-.4 0-.6-.7-1.7-1-2.3c-.3-.6-.5-.5-.7-.5h-.6c-.2 0-.6.1-.9.4s-1.2 1.1-1.2 2.7 1.2 3.1 1.4 3.3c.2.2 2.4 3.6 5.7 5 .8.3 1.4.5 1.9.7.8.3 1.5.2 2.1.1.6-.1 1.9-.8 2.2-1.5s.3-1.4.2-1.5c-.1-.2-.3-.3-.6-.4z"/></svg>דברו איתנו בוואטסאפ</div>
     <div class="num fu" style="--o:3.68s">054-256-0964</div>
   </div>
 </section>
+<div class="wm" style="--ws:5.5s;--wd:33.25s"><div class="logoTile"><img src="../../public/petra-logo.png"></div><b>Petra</b></div>
 
 <div class="sub onDark" style="--ss:0.15s;--sd:1.53s"><span>עדיין מנהלים את הפנסיון</span></div>
 <div class="sub onDark" style="--ss:1.63s;--sd:1.55s"><span>על לוח מחיק?</span></div>
@@ -131,11 +150,14 @@ html,body{width:1080px;height:1920px;overflow:hidden;background:var(--navy);font
 <div class="sub" style="--ss:19.35s;--sd:1.61s"><span>פשוט גוררים כלב לחצר</span></div>
 <div class="sub" style="--ss:20.91s;--sd:1.31s"><span>ורואים מראש</span></div>
 <div class="sub" style="--ss:22.17s;--sd:1.53s"><span>מי מסתדר עם מי</span></div>
-<div class="sub" style="--ss:23.9s;--sd:1.41s"><span>והצוות?</span></div>
-<div class="sub" style="--ss:25.26s;--sd:2.05s"><span>כל עובד רואה רק את הפנסיון</span></div>
-<div class="sub" style="--ss:27.26s;--sd:2.21s"><span>בלי הכנסות ובלי לקוחות</span></div>
-<div class="sub" style="--ss:29.42s;--sd:1.83s"><span>אתם מחליטים מה מותר</span></div>
+<div class="sub" style="--ss:23.9s;--sd:1.95s"><span>בכל בוקר, הצוות מקבל</span></div>
+<div class="sub" style="--ss:25.8s;--sd:2.53s"><span>לוח של האכלות ותרופות לכל כלב</span></div>
+<div class="sub" style="--ss:28.28s;--sd:2.67s"><span>ומסמן מה כבר ניתן</span></div>
+<div class="sub" style="--ss:31.15s;--sd:1.41s"><span>והצוות?</span></div>
+<div class="sub" style="--ss:32.51s;--sd:2.05s"><span>כל עובד רואה רק את הפנסיון</span></div>
+<div class="sub" style="--ss:34.51s;--sd:2.21s"><span>בלי הכנסות ובלי לקוחות</span></div>
+<div class="sub" style="--ss:36.67s;--sd:1.83s"><span>אתם מחליטים מה מותר</span></div>
 <script>
 window.renderAt = function (t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t * 1000; } };
-window.TOTAL = 40.0;
+window.TOTAL = 45.95;
 </script></body></html>

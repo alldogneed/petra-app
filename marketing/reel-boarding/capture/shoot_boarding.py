@@ -103,6 +103,11 @@ async def timeline(b):
     await snap(pg, "timeline_desktop_next")
     await view(pg, "זמינות")
     await pg.mouse.move(5, 5)
+    await snap(pg, "availability_desktop_thismonth")
+    # next month = fully booked future -> main availability shot
+    await pg.locator('button[aria-label="חודש הבא"]').first.click()
+    await pg.wait_for_timeout(1500)
+    await pg.mouse.move(5, 5)
     await snap(pg, "availability_desktop")
     await ctx.close()
 
@@ -183,7 +188,52 @@ async def staff(b):
     await ctx.close()
 
 
-SHOTS = {"rooms": rooms, "timeline": timeline, "yards": yards, "warning": warning, "team": team, "staff": staff}
+def care_mode(mode):
+    import subprocess
+    env = dict(os.environ)
+    subprocess.run(["node", os.path.join(os.path.dirname(os.path.abspath(__file__)), "promo-seed-care.js"), mode], check=True, env=env)
+
+
+async def care(b):
+    care_mode("daily")
+    for mobile in (False, True):
+        ctx, pg = await ctx_for(b, mobile, OWNER)
+        await go(pg, "/boarding/daily", 3)
+        await pg.mouse.move(5, 5)
+        await snap(pg, "daily_mobile" if mobile else "daily_desktop")
+        if not mobile:
+            card = pg.locator(".card").filter(has_text="תוסף מפרקים").first
+            await card.screenshot(path=f"{OUT}/c_care.png")
+            print("shot c_care")
+        await ctx.close()
+    care_mode("feeding")
+    for mobile in (False, True):
+        ctx, pg = await ctx_for(b, mobile, OWNER)
+        await go(pg, "/feeding", 3)
+        await pg.mouse.move(5, 5)
+        await snap(pg, "feeding_mobile" if mobile else "feeding_desktop")
+        await go(pg, "/medications", 3)
+        await pg.mouse.move(5, 5)
+        await snap(pg, "meds_mobile" if mobile else "meds_desktop")
+        await ctx.close()
+    care_mode("daily")
+
+
+async def rooms_cards(b):
+    ctx, pg = await ctx_for(b, True, OWNER)
+    await go(pg, "/boarding", 3)
+    await today_only(pg)
+    await scroll_to(pg, "מפת חדרים", 44)
+    await pg.mouse.wheel(0, 0)
+    y = await pg.evaluate("""()=>{const h=[...document.querySelectorAll('span,div,h3')].find(e=>e.offsetParent!==null&&e.children.length===0&&e.textContent.trim()==='חדר א1');
+      let c=h; while(c&&!(c.className||'').toString().includes('card')) c=c.parentElement; return (c||h).getBoundingClientRect().top}""")
+    await pg.evaluate(f"window.scrollBy(0,{y}-78)")
+    await pg.wait_for_timeout(700)
+    await snap(pg, "rooms_cards_mobile")
+    await ctx.close()
+
+
+SHOTS = {"care": care, "rooms_cards": rooms_cards, "rooms": rooms, "timeline": timeline, "yards": yards, "warning": warning, "team": team, "staff": staff}
 
 
 async def main():

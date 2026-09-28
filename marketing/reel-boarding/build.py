@@ -15,8 +15,9 @@ from voice import LINES  # noqa: E402
 FF = dub.FF
 W, H, FPS = 1080, 1920, 30
 LEAD, TAIL = 0.2, 0.2
-CTA_LEAD, CTA_HOLD = 0.6, 3.5
-MUSIC_OFFSET = 0.25   # music t = reel t + offset; puts the track's built-in stop (31.55s) right before the CTA
+CTA_LEAD, CTA_HOLD = 0.6, 2.2
+MUSIC_STOP = 52.10    # the track's built-in 1.25s stop; placed exactly at the CTA, then the track's ending
+MUSIC_END = 59.36
 MUSIC_GAIN = -8.0
 
 # Subtitle chunks per line: (text, index of the word in vo/words.json where it starts)
@@ -25,6 +26,7 @@ SUBS = [
     [("בפטרה, כל כלב מקבל חדר", 0), ("בגרירה אחת", 5), ("ורואים את כל התפוסה", 7), ("על מסך אחד", 11)],
     [("מתכננים קדימה:", 0), ("כל ההזמנות של החודש הקרוב", 2), ("על ציר זמן אחד", 7)],
     [("ומה עם החצרות?", 0), ("פשוט גוררים כלב לחצר", 3), ("ורואים מראש", 7), ("מי מסתדר עם מי", 9)],
+    [("בכל בוקר, הצוות מקבל", 0), ("לוח של האכלות ותרופות לכל כלב", 4), ("ומסמן מה כבר ניתן", 10)],
     [("והצוות?", 0), ("כל עובד רואה רק את הפנסיון", 1), ("בלי הכנסות ובלי לקוחות", 7), ("אתם מחליטים מה מותר", 11)],
     [("רוצים לראות איך זה עובד אצלכם?", 0), ("דברו איתנו בוואטסאפ", 6)],
 ]
@@ -104,6 +106,16 @@ html,body{width:1080px;height:1920px;overflow:hidden;background:var(--navy);font
   animation:strike .35s ease-out calc(var(--s) + var(--o)) both}
 @keyframes strike{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 
+/* logo */
+.wm{position:absolute;top:64px;left:60px;display:flex;align-items:center;gap:16px;opacity:0;z-index:20;animation:wm var(--wd) linear var(--ws) both}
+.wm .logoTile{width:78px;height:78px;border-radius:20px;box-shadow:0 6px 16px rgba(15,23,42,.15)}
+.wm b{font-size:44px;font-weight:800;color:var(--navy);letter-spacing:-.5px}
+@keyframes wm{0%{opacity:0}3%{opacity:1}97%{opacity:1}100%{opacity:0}}
+.bigLogo{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:30px;background:var(--navy)}
+.bigLogo .logoTile{width:260px;height:260px;border-radius:62px}
+.bigLogo b{color:#fff;font-size:110px;font-weight:800;letter-spacing:-1px}
+.brand{color:#fff;font-size:72px;font-weight:800;margin-top:24px;letter-spacing:-1px}
+
 /* CTA */
 .cta{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;padding-top:300px;text-align:center}
 .logoTile{width:210px;height:210px;border-radius:50px;background:#fff;overflow:hidden}
@@ -134,6 +146,13 @@ def exists(name):
     return os.path.exists(os.path.join(HERE, "shots", name))
 
 
+def first(*names):
+    for n in names:
+        if exists(n):
+            return n
+    return names[-1]
+
+
 def img(name, w, x0, y0, x1, y1, pd, po=0.0, z0=1, z1=1, extra=""):
     return (f'<img class="pan" src="shots/{name}" style="width:{w}px;--x0:{x0}px;--y0:{y0}px;--x1:{x1}px;--y1:{y1}px;'
             f'--z0:{z0};--z1:{z1};--pd:{pd}s;--po:{po}s{extra}">')
@@ -151,32 +170,34 @@ def build_html():
         return f'<section class="scene {cls}" style="--s:{st[i]}s;--d:{round(d[i] + x, 2)}s">\n{inner}\n</section>\n'
 
     out = []
-    # 0 hook
+    # 0 hook -> big Petra logo pops as the options are struck out
     o1, o2, o3 = wt(0, 5), wt(0, 7), wt(0, 9)
-    so = round(d[0] - 0.75, 2)
+    so = round(d[0] - 0.95, 2)
     out.append(scene(0, "dark first", f"""
   <div class="hq fu" style="--o:.1s">עדיין מנהלים<br>את הפנסיון על...</div>
   <div class="opts">
     <div class="opt pop" style="--o:{o1}s">{ICON_BOARD}<b>לוח מחיק?</b><i class="strike" style="--o:{so}s"></i></div>
     <div class="opt pop" style="--o:{o2}s">{ICON_CAL}<b>יומן גוגל?</b><i class="strike" style="--o:{round(so + .12, 2)}s"></i></div>
     <div class="opt pop" style="--o:{o3}s">{ICON_BOOK}<b>מחברת?</b><i class="strike" style="--o:{round(so + .24, 2)}s"></i></div>
-  </div>"""))
+  </div>
+  <div class="bigLogo pop" style="--o:{round(so + .45, 2)}s"><div class="logoTile"><img src="../../public/petra-logo.png"></div><b>Petra</b></div>"""))
 
-    # 1 rooms (mobile shot 1170x2532 -> 960 wide, h 2077)
+    # 1 rooms: mobile counts + room card, then the full desktop room map
+    rgrid = f'<div class="layer" style="--o:{wt(1, 7)}s;background:#fff">{img("rooms_desktop.jpg", 1760, -600, -190, -140, -190, d[1] - wt(1, 7), wt(1, 7))}</div>'
+    rc = "rooms_cards_mobile.jpg" if exists("rooms_cards_mobile.jpg") else "rooms_mobile.jpg"
     out.append(scene(1, "light", f"""
   <div class="head"><div class="eyebrow fu" style="--o:.1s">מפת חדרים</div><div class="title fu" style="--o:.25s">חדר לכל כלב,<br>בגרירה אחת</div></div>
-  <div class="card fu" style="--o:.2s">{img("rooms_mobile.jpg", 960, 0, -300, 0, -1010, d[1] - 0.6, 0.5)}</div>"""))
+  <div class="card fu" style="--o:.2s">{img(rc, 960, 0, -300, 0, -1010, wt(1, 7), 0.4)}{rgrid}</div>"""))
 
     # 2 timeline
-    tl = "timeline_desktop.jpg" if exists("timeline_desktop.jpg") else "rooms_desktop.jpg"
     out.append(scene(2, "light", f"""
   <div class="head"><div class="eyebrow fu" style="--o:.1s">ציר זמן · 30 ימים</div><div class="title fu" style="--o:.25s">כל החודש הקרוב<br>במבט אחד</div></div>
-  <div class="card fu" style="--o:.2s">{img(tl, 2100, -20, -452, -780, -452, d[2] - 0.5, 0.4)}</div>"""))
+  <div class="card fu" style="--o:.2s">{img("timeline_desktop.jpg", 2100, -20, -452, -780, -452, d[2] - 0.5, 0.4)}</div>"""))
 
-    # 3 yards + warning callout
-    y1 = "yards_drag_1.jpg" if exists("yards_drag_1.jpg") else ("yards_desktop.jpg" if exists("yards_desktop.jpg") else "rooms_desktop.jpg")
-    y2 = "yards_drag_2.jpg" if exists("yards_drag_2.jpg") else y1
-    y3 = "yards_drag_3.jpg" if exists("yards_drag_3.jpg") else y2
+    # 3 yards + behaviour warning callout
+    y1 = first("yards_drag_1.jpg", "yards_desktop.jpg", "rooms_desktop.jpg")
+    y2 = first("yards_drag_2.jpg", y1)
+    y3 = first("yards_drag_3.jpg", y2)
     warn = f'<div class="callout pop" style="--o:{wt(3, 7)}s;left:120px;top:900px;width:840px"><img src="shots/c_warning.png"></div>' if exists("c_warning.png") else ""
     out.append(scene(3, "light", f"""
   <div class="head"><div class="eyebrow fu" style="--o:.1s">שיבוץ לחצרות</div><div class="title fu" style="--o:.25s">גוררים כלב לחצר,<br>רואים מי מסתדר עם מי</div></div>
@@ -185,22 +206,35 @@ def build_html():
     <div class="layer" style="--o:{round(wt(3, 6) + .1, 2)}s;background:#fff">{img(y3, 1500, -470, -160, -470, -160, 1, 0)}</div></div>
   {warn}"""))
 
-    # 4 team / permissions
-    staff = "staff_menu_mobile.jpg" if exists("staff_menu_mobile.jpg") else ("staff_mobile.jpg" if exists("staff_mobile.jpg") else "rooms_mobile.jpg")
-    perms = f'<div class="callout pop" style="--o:{wt(4, 11)}s;left:130px;top:520px;width:820px"><img src="shots/c_perms.png"></div>' if exists("c_perms.png") else ""
+    # 4 feeding + meds
+    f1 = first("daily_mobile.jpg", "feeding_mobile.jpg", "rooms_mobile.jpg")
+    meds = f'<div class="layer" style="--o:{wt(4, 7)}s;background:#fff">{img("meds_mobile.jpg", 960, 0, -150, 0, -450, d[4] - wt(4, 7), wt(4, 7))}</div>' if exists("meds_mobile.jpg") else ""
+    care = f'<div class="callout pop" style="--o:{wt(4, 10)}s;left:140px;top:560px;width:800px"><img src="shots/c_care_top.png"></div>' if exists("c_care_top.png") else ""
     out.append(scene(4, "light", f"""
+  <div class="head"><div class="eyebrow fu" style="--o:.1s">האכלות ותרופות</div><div class="title fu" style="--o:.25s">לוח טיפול יומי<br>לכל כלב</div></div>
+  <div class="card fu" style="--o:.2s">{img(f1, 960, 0, -150, 0, -560, d[4] - 0.6, 0.4)}{meds}</div>
+  {care}"""))
+
+    # 5 team / permissions
+    staff = first("staff_menu_mobile.jpg", "staff_mobile.jpg", "rooms_mobile.jpg")
+    perms = f'<div class="callout pop" style="--o:{wt(5, 11)}s;left:130px;top:520px;width:820px"><img src="shots/c_perms.png"></div>' if exists("c_perms.png") else ""
+    out.append(scene(5, "light", f"""
   <div class="head"><div class="eyebrow fu" style="--o:.1s">הרשאות לצוות</div><div class="title fu" style="--o:.25s">כל עובד רואה<br>רק את מה שצריך</div></div>
-  <div class="card fu" style="--o:.2s">{img(staff, 960, 0, 0, 0, -200, d[4] - 0.6, 0.5)}</div>
+  <div class="card fu" style="--o:.2s">{img(staff, 960, 0, 0, 0, -200, d[5] - 0.6, 0.5)}</div>
   {perms}"""))
 
-    # 5 CTA
-    out.append(scene(5, "dark last", f"""
+    # 6 CTA
+    out.append(scene(6, "dark last", f"""
   <div class="cta">
     <div class="logoTile pop" style="--o:.15s"><img src="../../public/petra-logo.png"></div>
-    <div class="ctaT fu" style="--o:{wt(5, 0)}s">רוצים לראות איך<br>זה עובד אצלכם?</div>
-    <div class="wa pulse" style="--o:{wt(5, 6)}s">{ICON_WA}דברו איתנו בוואטסאפ</div>
-    <div class="num fu" style="--o:{round(wt(5, 6) + .4, 2)}s">054-256-0964</div>
+    <div class="brand fu" style="--o:.35s">Petra</div>
+    <div class="ctaT fu" style="--o:{wt(6, 0)}s">רוצים לראות איך<br>זה עובד אצלכם?</div>
+    <div class="wa pulse" style="--o:{wt(6, 6)}s">{ICON_WA}דברו איתנו בוואטסאפ</div>
+    <div class="num fu" style="--o:{round(wt(6, 6) + .4, 2)}s">054-256-0964</div>
   </div>"""))
+
+    # persistent logo on every system screen
+    out.append(f'<div class="wm" style="--ws:{st[1]}s;--wd:{round(st[-1] - st[1] + 0.2, 2)}s"><div class="logoTile"><img src="../../public/petra-logo.png"></div><b>Petra</b></div>\n')
 
     sub_html = []
     for a, b, txt in subs:
@@ -263,11 +297,13 @@ def video(upto=None):
         labels.append(f"[a{i}]")
     n = len(labels)
     music = os.path.join(HERE, "music-gemini.mp3")
+    off = round(MUSIC_STOP - t["starts"][-1], 2)  # music t = reel t + off
+    fade_at = min(total, MUSIC_END - off) - 1.2
     graph = (";".join(chains) + ";" + "".join(labels) + f"amix=inputs={n}:normalize=0,"
              "highpass=f=90,acompressor=threshold=-22dB:ratio=3:attack=5:release=120:makeup=2,"
              "equalizer=f=3200:t=q:w=1.2:g=3,pan=stereo|c0=c0|c1=c0,apad[v];"
-             f"[{n + 1}:a]aresample=48000,atrim={MUSIC_OFFSET}:{MUSIC_OFFSET + total},asetpts=PTS-STARTPTS,"
-             f"volume={MUSIC_GAIN}dB,equalizer=f=2500:t=q:w=1:g=-3,afade=t=out:st={total - 1.2}:d=1.2[m];"
+             f"[{n + 1}:a]aresample=48000,atrim={off}:{off + total},asetpts=PTS-STARTPTS,"
+             f"volume={MUSIC_GAIN}dB,equalizer=f=2500:t=q:w=1:g=-3,afade=t=out:st={fade_at}:d=1.2[m];"
              "[v][m]amix=inputs=2:normalize=0:duration=shortest,volume=0dB,alimiter=limit=0.89,"
              f"aresample=48000,apad=whole_dur={total}[aout]")
     out = os.path.join(HERE, "reel-preview.mp4" if upto else "reel-boarding.mp4")
