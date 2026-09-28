@@ -1,31 +1,22 @@
 {
  "voice": "coral",
- "mode": "continuous",
- "scores": [
-  1.0,
-  1.0,
-  1.0,
-  1.0,
-  1.0,
-  1.0,
-  1.0
- ],
+ "mode": "continuous+tidy",
  "sources": [
-  "t6_00.wav",
-  "t7_01.wav",
-  "t8_02.wav",
+  "old_00.wav",
+  "old_01.wav",
+  "old_02.wav",
   "t0_03.wav",
-  "t8_04.wav",
-  "t5_05.wav",
-  "t6_06.wav"
+  "old_04.wav",
+  "old_05.wav",
+  "t1_06.wav"
  ],
  "lens": [
-  5.39,
-  6.76,
-  4.95,
-  6.35,
-  6.68,
-  8.05,
-  3.59
+  4.97,
+  6.39,
+  4.51,
+  6.05,
+  6.45,
+  7.61,
+  4.07
  ]
 }
