@@ -33,7 +33,7 @@ Spawn an Explore agent to map the module (exact Hebrew UI labels, routes, file p
 
 ### 2. Script
 - Reel ≈ 30–50s, hook in the first 2 seconds (pain question: "עדיין מנהלים את הפנסיון על לוח מחיק? ביומן גוגל? במחברת?"). Promo can run ~1:30–2:00.
-- One line per scene. Everyday spoken Hebrew. Avoid repeating "שלכם"/"אצלכם" (sounded unnatural; rephrase: "כל העסק במסך אחד", "ישר ליומן", "נשמר במערכת").
+- One line per scene. Everyday spoken Hebrew. **On-screen text must match the narration word for word** (headline/subtitle = what she says; no extra claims on screen that aren't said, no "שלכם" on screen when the voice says "העסק"). Avoid repeating "שלכם"/"אצלכם" (sounded unnatural; rephrase: "כל העסק במסך אחד", "ישר ליומן", "נשמר במערכת").
 - Pronunciation traps found so far (rephrase rather than fight them):
   - Brand name **at the start of a sentence gets garbled** ("פטרה, מערכת…" → "פטה/SoftPetra"). Put it mid-sentence: "הכירו את פטרה, …", "בשביל זה בנינו את פטרה", "בפטרה, כל כלב…".
   - "שיבוץ" at sentence start → "שיפוץ/טיפות"; "גוררים" → "בוררים" (use "בגרירה"); "וכל בוקר" → model says "בכל בוקר" (just use that).
@@ -52,6 +52,8 @@ Requires `OPENAI_API_KEY` and `api.openai.com` allowed in the environment's netw
 - Model **`gpt-audio-1.5`** via chat completions with audio output (`dub.tts`). `gpt-4o-mini-tts` mispronounced Hebrew and was too slow — don't use it.
 - **Record the whole script as ONE continuous take** (`voice.py continuous`): natural flow between sentences. Recording each line separately sounded robotic ("every line starts from zero"). The pool (`vo/pool/`) keeps several takes; each is split into lines at the pauses (whisper word timestamps), every line is transcribed twice, and the best version of each line wins. Add takes until every line is 1.00.
 - QA = `gpt-4o-transcribe` back to text, `dub.score()` against the script. **A take passes only if two separate transcriptions are exact** — single passes let borderline words through. `ט/ת`, `ההאכלות/האכלות` spelling variants are transcriber noise, not errors.
+- **Clean sentence edges**: `voice.tidy()` (called by `split_take`) cuts each clip right before the first word and right after the last word, before the next inhale, with short fades. A clip that ends on the start of a breath sounds like a caught breath ("תקיעה של נשימה") — the owner noticed it immediately. Check: audio after the last whisper word should be ≤ ~0.15s.
+- Pick borderline lines by the **average of 4 transcriptions** (min-of-2 can pick a bad take by luck).
 - Word timings for subtitles: `whisper-1` `verbose_json` + `timestamp_granularities[]=word` → `vo/words.json`.
 
 ### 5. Music
@@ -63,7 +65,7 @@ Requires `OPENAI_API_KEY` and `api.openai.com` allowed in the environment's netw
 ### 6. Build, render, mix
 - Scenes are CSS animations; `renderAt(t)` freezes them; Playwright screenshots every frame into ffmpeg (30fps). Scene start/duration come from voice clip lengths (`LEAD` + clip + `TAIL`), never shorten scenes the visuals need.
 - Reel layout (1080×1920): headline top (~y190), media card 960×860 at y470, subtitle pill ~y1390, **nothing important in the bottom ~360px or top ~150px** (Instagram UI). Subtitles = voice text in chunks timed from `words.json`.
-- Mix chain (see `build.py video`): voice `highpass 90 → acompressor → +2dB → EQ +3dB@3.2k`; music constant gain (-12dB for the reel) with a constant -5dB EQ dip @2.5k; `alimiter`; final gain tuned so integrated loudness = **-14 LUFS** (measure with `ebur128`, adjust the fixed `volume=` and `build.py remix` — audio-only, no re-render).
+- Mix chain (see `build.py video`): voice `highpass 90 → acompressor → +2dB → EQ +3dB@3.2k`; music constant gain (-12dB for the reel) with a constant -5dB EQ dip @2.5k; `alimiter`; final gain tuned so integrated loudness = **-14 LUFS** (promo: -15 after the owner asked for a softer voice — voice -2dB relative to the music) (measure with `ebur128`, adjust the fixed `volume=` and `build.py remix` — audio-only, no re-render).
 - `build.py preview 17.6` renders the first N seconds — send a preview early so the user can react to style/voice before the full render.
 
 ### 7. QA before sending

@@ -228,10 +228,10 @@ def music(src, gain_db=-8.0):
     graph = (
         f"[1:a]volume={gain_db}dB,equalizer=f=2500:t=q:w=1:g=-3,"
         f"afade=t=out:st={end - fade}:d={fade},atrim=0:{end}[m];"
-        "[0:a]aresample=48000,highpass=f=90,acompressor=threshold=-22dB:ratio=3:attack=5:release=120:makeup=2,"
+        "[0:a]aresample=48000,highpass=f=90,acompressor=threshold=-22dB:ratio=3:attack=5:release=120:makeup=2,volume=-2dB,"
         "equalizer=f=3200:t=q:w=1.2:g=3,pan=stereo|c0=c0|c1=c0,apad[v];"
         f"[v][m]amix=inputs=2:normalize=0:duration=shortest,"
-        f"volume=0.6dB,alimiter=limit=0.89,aresample=48000,apad=whole_dur={end}[aout];"
+        f"volume=1.4dB,alimiter=limit=0.89,aresample=48000,apad=whole_dur={end}[aout];"
         f"[0:v]tpad=stop_mode=clone:stop_duration={hold}[vout]"
     )
     out = os.path.join(HERE, "petra-promo-final.mp4")

@@ -47,6 +47,40 @@ def whisper_words(path):
     return [(w["word"], w["start"], w["end"]) for w in json.loads(r)["words"]]
 
 
+def tidy(path, words=None):
+    """Trim a line clip to the speech itself: start right before the first word, end right after the
+    last word, before the breath that follows (a cut-off inhale at the end sounded like a caught
+    breath). Short fades on both ends. Returns the new duration."""
+    import array, math, subprocess
+    raw = subprocess.run([dub.FF, "-loglevel", "error", "-i", path, "-ac", "1", "-ar", "16000", "-f", "s16le", "-"],
+                         capture_output=True, check=True).stdout
+    a = array.array("h", raw)
+    hop = 320  # 20ms
+    db = [20 * math.log10(max(1e-6, (sum(x * x for x in a[i:i + hop]) / hop) ** .5 / 32768)) for i in range(0, len(a) - hop, hop)]
+    fr = lambda t: max(0, min(len(db) - 1, int(t / 0.02)))
+    ww = words or whisper_words(path)
+    s0, e0 = ww[0][1], ww[-1][2]
+    # start: 40ms of real silence before the first word. Whisper's word start can be late, so search
+    # back from 0.1s before it (max 0.4s); if there is no silence, keep the original start.
+    start = 0.0
+    for f in range(fr(s0 - 0.1), fr(s0 - 0.5), -1):
+        if f >= 1 and db[f] < -50 and db[f - 1] < -50:
+            start = max(0.0, f * 0.02 - 0.02)
+            break
+    # end: first 40ms of quiet after the last word (search from 0.15s before whisper's end, max 0.5s after)
+    end = e0 + 0.15
+    for f in range(fr(e0 - 0.15), fr(e0 + 0.5)):
+        if f + 1 < len(db) and db[f] < -48 and db[f + 1] < -48:
+            end = f * 0.02 + 0.03
+            break
+    end = min(end, len(db) * 0.02)
+    tmp = path + ".tidy.wav"
+    subprocess.run([dub.FF, "-loglevel", "error", "-y", "-i", path, "-ss", f"{start:.3f}", "-to", f"{end:.3f}",
+                    "-af", f"afade=t=in:d=0.02,afade=t=out:st={max(0, end - start - 0.07):.3f}:d=0.07", tmp], check=True)
+    os.replace(tmp, path)
+    return end - start
+
+
 def split_take(full, prefix):
     """Split one continuous take into per-line clips at the pauses between lines."""
     import difflib, subprocess
@@ -73,6 +107,7 @@ def split_take(full, prefix):
                         "-af", "silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.05,"
                                "areverse,silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.12,areverse",
                         p], check=True)
+        tidy(p)
         out.append(p)
     return out
 
