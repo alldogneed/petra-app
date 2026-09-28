@@ -22,6 +22,7 @@ const PUBLIC_PREFIX_PATHS = [
  * EXACT paths (matched with === or === path + "/"):
  */
 const PUBLIC_EXACT_PATHS = new Set([
+  "/pdf.worker.min.mjs", // pdf.js worker — static asset needed by the PUBLIC /sign/[token] page (unauthenticated customers)
   "/login",
   "/register",
   "/forgot-password",
@@ -73,6 +74,10 @@ export function middleware(request: NextRequest) {
   if (/^\/sign\/[^/]+$/.test(pathname)) return NextResponse.next();
   // Allow public sign API: /api/sign/[token] and /api/sign/[token]/pdf
   if (/^\/api\/sign\/[^/]+(\/pdf)?$/.test(pathname)) return NextResponse.next();
+  // pdf.js assets loaded by /sign/[token] (cMapUrl + standardFontDataUrl) — flat dirs in public/,
+  // single path segment + fixed extension only so nothing else under these prefixes opens up
+  if (/^\/cmaps\/[\w.-]+\.bcmap$/.test(pathname)) return NextResponse.next();
+  if (/^\/standard_fonts\/[\w.-]+\.(pfb|ttf)$/.test(pathname)) return NextResponse.next();
 
   // Allow MCP path-based token endpoint: /api/mcp/u/petra_mcp_<64 hex>
   // Strict format match so this never opens /api/mcp/connections or any other sub-path.
