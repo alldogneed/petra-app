@@ -1062,6 +1062,17 @@ function CalendarContent() {
     }
   }, [filtersRestored, activeCategories, staffFilter]);
 
+  // Dashboard "קביעת תור" links here with ?new=1 → open the new-appointment modal right away
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("new") !== "1") return;
+    setModalDefaults({ date: toLocalDateString(new Date()), time: "09:00" });
+    setShowNewModal(true);
+    params.delete("new");
+    const qs = params.toString();
+    window.history.replaceState(null, "", window.location.pathname + (qs ? `?${qs}` : ""));
+  }, []);
+
   // Auto-scroll to current time when switching to day/week view
   useEffect(() => {
     if (viewMode !== "day" && viewMode !== "week") return;
@@ -1123,19 +1134,27 @@ function CalendarContent() {
     staleTime: 60_000,
   });
 
-  const filteredAppointments = useMemo(
-    () => appointments.filter((a) => {
-      if (!activeCategories.has(resolveAppointmentCategory(a.service, a.priceListItem))) return false;
-      if (staffFilter.length > 0 && !staffFilter.includes(a.staff?.id ?? "__none__")) return false;
-      return true;
-    }),
-    [appointments, activeCategories, staffFilter]
-  );
-
   const { data: teamMembers = [] } = useQuery<TeamMember[]>({
     queryKey: ["team-members"],
     queryFn: () => fetchJSON("/api/team-members"),
   });
+
+  // Staff filter only applies when the business actually has more than one team member,
+  // and never hides unassigned items (a stale saved filter used to blank the whole calendar).
+  const effectiveStaffFilter = useMemo(
+    () => (teamMembers.length > 1 ? staffFilter.filter((id) => teamMembers.some((m) => m.id === id)) : []),
+    [staffFilter, teamMembers]
+  );
+
+  const filteredAppointments = useMemo(
+    () => appointments.filter((a) => {
+      if (!activeCategories.has(resolveAppointmentCategory(a.service, a.priceListItem))) return false;
+      if (effectiveStaffFilter.length > 0 && a.staff?.id && !effectiveStaffFilter.includes(a.staff.id)) return false;
+      return true;
+    }),
+    [appointments, activeCategories, effectiveStaffFilter]
+  );
+
 
   // Staff list sourced from team-members API
   const staffList = teamMembers;
@@ -1191,10 +1210,10 @@ function CalendarContent() {
   const filteredBoardingStays = useMemo(
     () => boardingStays.filter((s) => {
       if (!activeCategories.has("boarding")) return false;
-      if (staffFilter.length > 0 && !staffFilter.includes(s.assignedTo?.id ?? "__none__")) return false;
+      if (effectiveStaffFilter.length > 0 && s.assignedTo?.id && !effectiveStaffFilter.includes(s.assignedTo.id)) return false;
       return true;
     }),
-    [boardingStays, activeCategories, staffFilter]
+    [boardingStays, activeCategories, effectiveStaffFilter]
   );
 
   // ── Google Calendar external events overlay ──
@@ -1981,7 +2000,7 @@ function CalendarContent() {
           ))}
 
           {/* Staff filter chips */}
-          {staffList.length > 0 && (
+          {staffList.length > 1 && (
             <div className="flex items-center gap-1.5 whitespace-nowrap">
               <div className="w-px h-4 bg-petra-border ml-1 hidden md:block" />
               <span className="text-[10px] tracking-wide text-petra-muted/80">צוות</span>

@@ -2245,7 +2245,7 @@ export default function DashboardPage() {
             לקוח חדש
           </button>
           <Link
-            href="/calendar"
+            href="/calendar?new=1"
             className="btn-secondary flex items-center justify-center gap-2 border-brand-500 text-brand-600 hover:bg-brand-50"
           >
             <CalendarClock className="w-4 h-4 shrink-0" />
