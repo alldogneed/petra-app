@@ -3,6 +3,7 @@
   python3 build.py html                 # write reel.html
   python3 build.py stills 3 9 20        # reel.html frames -> still_*.png
   python3 build.py video                # render + voice + music -> reel-boarding.mp4
+  python3 build.py remix                # redo only the audio of reel-boarding.mp4
   python3 build.py preview 17.6         # same, first N seconds only -> reel-preview.mp4
 """
 import asyncio, json, os, subprocess, sys
@@ -16,9 +17,12 @@ FF = dub.FF
 W, H, FPS = 1080, 1920, 30
 LEAD, TAIL = 0.2, 0.2
 CTA_LEAD, CTA_HOLD = 0.6, 2.2
+EXTRA_LEAD = {1: 0.35}  # start "בפטרה" after a drum hit in the music (track 19.0-19.25s) that masked the brand name
 MUSIC_STOP = 52.10    # the track's built-in 1.25s stop; placed exactly at the CTA, then the track's ending
 MUSIC_END = 59.36
 MUSIC_GAIN = -8.0
+VOICE_GAIN = 2.0     # voice sits on top of a constant-level music bed (no ducking, by request)
+MUSIC_CARVE = -5.0   # fixed EQ dip in the speech band of the music
 
 # Subtitle chunks per line: (text, index of the word in vo/words.json where it starts)
 SUBS = [
@@ -40,6 +44,7 @@ def timeline():
         starts.append(round(t, 2))
         t += LEAD + l + TAIL
     lead = [LEAD] * (len(lens) - 1) + [CTA_LEAD]
+    lead = [round(l + EXTRA_LEAD.get(i, 0), 2) for i, l in enumerate(lead)]
     total = round(starts[-1] + CTA_LEAD + lens[-1] + CTA_HOLD, 2)
     ends = starts[1:] + [total]
     subs = []  # (abs_start, abs_end, text)
@@ -198,12 +203,12 @@ def build_html():
     y1 = first("yards_drag_1.jpg", "yards_desktop.jpg", "rooms_desktop.jpg")
     y2 = first("yards_drag_2.jpg", y1)
     y3 = first("yards_drag_3.jpg", y2)
-    warn = f'<div class="callout pop" style="--o:{wt(3, 7)}s;left:120px;top:900px;width:840px"><img src="shots/c_warning.png"></div>' if exists("c_warning.png") else ""
+    warn = f'<div class="callout pop" style="--o:{wt(3, 7)}s;left:120px;top:700px;width:840px"><img src="shots/c_warning_top.png"></div>' if exists("c_warning_top.png") else ""
     out.append(scene(3, "light", f"""
   <div class="head"><div class="eyebrow fu" style="--o:.1s">שיבוץ לחצרות</div><div class="title fu" style="--o:.25s">גוררים כלב לחצר,<br>רואים מי מסתדר עם מי</div></div>
-  <div class="card fu" style="--o:.2s">{img(y1, 1500, -470, -160, -470, -160, 1, 0)}
-    <div class="layer" style="--o:{wt(3, 4)}s;background:#fff">{img(y2, 1500, -470, -160, -470, -160, 1, 0)}</div>
-    <div class="layer" style="--o:{round(wt(3, 6) + .1, 2)}s;background:#fff">{img(y3, 1500, -470, -160, -470, -160, 1, 0)}</div></div>
+  <div class="card fu" style="--o:.2s">{img(y1, 1700, -460, -150, -460, -150, 1, 0)}
+    <div class="layer" style="--o:{wt(3, 4)}s;background:#fff">{img(y2, 1700, -460, -150, -460, -150, 1, 0)}</div>
+    <div class="layer" style="--o:{round(wt(3, 6) + .1, 2)}s;background:#fff">{img(y3, 1700, -460, -150, -460, -150, 1, 0)}</div></div>
   {warn}"""))
 
     # 4 feeding + meds
@@ -216,11 +221,10 @@ def build_html():
   {care}"""))
 
     # 5 team / permissions
-    staff = first("staff_menu_mobile.jpg", "staff_mobile.jpg", "rooms_mobile.jpg")
-    perms = f'<div class="callout pop" style="--o:{wt(5, 11)}s;left:130px;top:520px;width:820px"><img src="shots/c_perms.png"></div>' if exists("c_perms.png") else ""
+    perms = f'<div class="callout pop" style="--o:{wt(5, 11)}s;left:70px;top:760px;width:940px"><img src="shots/c_perms.png"></div>' if exists("c_perms.png") else ""
     out.append(scene(5, "light", f"""
   <div class="head"><div class="eyebrow fu" style="--o:.1s">הרשאות לצוות</div><div class="title fu" style="--o:.25s">כל עובד רואה<br>רק את מה שצריך</div></div>
-  <div class="card fu" style="--o:.2s">{img(staff, 960, 0, 0, 0, -200, d[5] - 0.6, 0.5)}</div>
+  <div class="card fu" style="--o:.2s">{img("perms_modal.jpg", 1800, -590, -200, -590, -260, d[5] - 0.6, 0.5)}</div>
   {perms}"""))
 
     # 6 CTA
@@ -283,11 +287,16 @@ async def render(mode, args):
         await b.close()
 
 
-def video(upto=None):
-    """upto: render only the first N seconds (preview -> reel-preview.mp4)."""
+def video(upto=None, remix=False):
+    """upto: render only the first N seconds (preview -> reel-preview.mp4).
+    remix: keep the picture of the existing reel-boarding.mp4 and only redo the audio."""
     t = json.load(open(os.path.join(HERE, "vo", "reel_timing.json")))
     silent = os.path.join(HERE, "reel-silent.mp4")
-    asyncio.run(render("video", [silent, upto]))
+    if remix:
+        subprocess.run([FF, "-loglevel", "error", "-y", "-i", os.path.join(HERE, "reel-boarding.mp4"),
+                        "-an", "-c:v", "copy", silent], check=True)
+    else:
+        asyncio.run(render("video", [silent, upto]))
     total = upto or t["total"]
     ins, chains, labels = [], [], []
     for i, (s, ld) in enumerate(zip(t["starts"], t["lead"])):
@@ -300,11 +309,11 @@ def video(upto=None):
     off = round(MUSIC_STOP - t["starts"][-1], 2)  # music t = reel t + off
     fade_at = min(total, MUSIC_END - off) - 1.2
     graph = (";".join(chains) + ";" + "".join(labels) + f"amix=inputs={n}:normalize=0,"
-             "highpass=f=90,acompressor=threshold=-22dB:ratio=3:attack=5:release=120:makeup=2,"
+             f"highpass=f=90,acompressor=threshold=-22dB:ratio=3:attack=5:release=120:makeup=2,volume={VOICE_GAIN}dB,"
              "equalizer=f=3200:t=q:w=1.2:g=3,pan=stereo|c0=c0|c1=c0,apad[v];"
              f"[{n + 1}:a]aresample=48000,atrim={off}:{off + total},asetpts=PTS-STARTPTS,"
-             f"volume={MUSIC_GAIN}dB,equalizer=f=2500:t=q:w=1:g=-3,afade=t=out:st={fade_at}:d=1.2[m];"
-             "[v][m]amix=inputs=2:normalize=0:duration=shortest,volume=0dB,alimiter=limit=0.89,"
+             f"volume={MUSIC_GAIN}dB,equalizer=f=2500:t=q:w=1.2:g={MUSIC_CARVE},afade=t=out:st={fade_at}:d=1.2[m];"
+             "[v][m]amix=inputs=2:normalize=0:duration=shortest,volume=2.0dB,alimiter=limit=0.89,"
              f"aresample=48000,apad=whole_dur={total}[aout]")
     out = os.path.join(HERE, "reel-preview.mp4" if upto else "reel-boarding.mp4")
     subprocess.run([FF, "-loglevel", "error", "-y", "-i", silent, *ins, "-i", music, "-filter_complex", graph,
@@ -322,5 +331,7 @@ if __name__ == "__main__":
         asyncio.run(render("stills", sys.argv[2:]))
     elif cmd == "video":
         video()
+    elif cmd == "remix":            # audio only, reuses the rendered picture
+        video(remix=True)
     elif cmd == "preview":          # python3 build.py preview 17.6
         video(float(sys.argv[2]))

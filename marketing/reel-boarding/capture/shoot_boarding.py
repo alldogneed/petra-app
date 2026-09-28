@@ -113,6 +113,9 @@ async def timeline(b):
 
 
 async def yards(b):
+    # the drag below really moves a dog -> reset the data first
+    care_mode("", "promo-seed-boarding.js")
+    care_mode("daily")
     ctx, pg = await ctx_for(b, True, OWNER)
     await go(pg, "/boarding/yards", 3)
     await snap(pg, "yards_mobile")
@@ -122,7 +125,7 @@ async def yards(b):
     await snap(pg, "yards_desktop")
     await snap(pg, "yards_drag_1")
     # drag the first waiting dog into "חצר משחקים"
-    src = pg.locator("[aria-roledescription='draggable']").first
+    src = pg.locator("[aria-roledescription='draggable']").filter(has_text="פיצי").first
     sb = await src.bounding_box()
     tgt = pg.get_by_text("חצר קטנים", exact=True).first
     tb = await tgt.bounding_box()
@@ -144,11 +147,16 @@ async def yards(b):
 async def warning(b):
     ctx, pg = await ctx_for(b, False, OWNER)
     await go(pg, "/boarding", 2)
-    # open check-in dialog for זאוס (arrives today, has behaviour flags)
-    btn = pg.locator("button:has-text('צ׳ק-אין')")
-    card = pg.locator("div").filter(has_text="זאוס").filter(has=btn).last
-    await card.locator("button:has-text('צ׳ק-אין')").first.click()
-    await pg.wait_for_timeout(1200)
+    await today_only(pg)
+    # open check-in dialog for זאוס (arrives today, has behaviour flags) from the room map
+    await pg.evaluate("""()=>{for(const b of document.querySelectorAll('button')){ if(!b.textContent.includes('צ׳ק-אין')||b.offsetParent===null) continue;
+        let p=b.parentElement; while(p&&!p.textContent.includes('זאוס')) p=p.parentElement;
+        if(p&&p.textContent.length<60){b.click();return;} }}""")
+    await pg.wait_for_timeout(1000)
+    await pg.locator(".modal-content input[type=time]").fill("12:20")
+    await pg.locator(".modal-content h2").first.click()
+    await pg.mouse.move(5, 5)
+    await pg.wait_for_timeout(500)
     await snap(pg, "stay_warning")
     el = pg.locator(".modal-content").last
     await el.screenshot(path=f"{OUT}/c_warning.png")
@@ -162,9 +170,12 @@ async def team(b):
     await pg.get_by_role("button", name="ניהול צוות").first.click()
     await settle(pg, 2)
     await snap(pg, "team_desktop")
-    row = pg.locator("div.card, div").filter(has_text="דנה לוי").filter(has=pg.get_by_role("button", name="הרשאות")).last
-    await row.get_by_role("button", name="הרשאות").click()
+    await pg.get_by_role("button", name="הרשאות").nth(0).click()  # first non-owner member = דנה לוי
     await pg.wait_for_timeout(1000)
+    await pg.evaluate("""()=>{let best=null;for(const e of document.querySelectorAll('div')){const t=e.textContent;
+      if(t.includes('דנה לוי')&&t.includes('לנהל פנסיון')&&!t.includes('יוסי')&&(!best||t.length<=best.textContent.length)) best=e;}
+      let c=best; while(c.parentElement&&!c.parentElement.textContent.includes('יוסי')) c=c.parentElement; c.id='perm-card';}""")
+    row = pg.locator("#perm-card")
     await row.scroll_into_view_if_needed()
     await pg.mouse.move(5, 5)
     await snap(pg, "perms_modal")
@@ -176,22 +187,31 @@ async def team(b):
 async def staff(b):
     ctx, pg = await ctx_for(b, False, STAFF)
     await go(pg, "/boarding", 3)
+    await today_only(pg)
     await snap(pg, "staff_desktop")
     await ctx.close()
     ctx, pg = await ctx_for(b, True, STAFF)
     await go(pg, "/boarding", 3)
+    await today_only(pg)
+    await scroll_to(pg, "מפת חדרים", 44)
     await snap(pg, "staff_mobile")
-    opener = pg.locator("button[aria-label*='תפריט'], button[aria-label*='menu' i]").first
+    opener = pg.locator("button[aria-label='פתח תפריט']").first
     await opener.click()
     await pg.wait_for_timeout(1200)
     await snap(pg, "staff_menu_mobile")
     await ctx.close()
 
 
-def care_mode(mode):
+def care_mode(mode, script="promo-seed-care.js"):
     import subprocess
     env = dict(os.environ)
-    subprocess.run(["node", os.path.join(os.path.dirname(os.path.abspath(__file__)), "promo-seed-care.js"), mode], check=True, env=env)
+    envf = "/home/user/petra-app/.env.local"
+    if os.path.exists(envf):
+        for line in open(envf):
+            if "=" in line and not line.startswith("#"):
+                k, v = line.strip().split("=", 1)
+                env.setdefault(k, v.strip('"'))
+    subprocess.run(["node", os.path.join(os.path.dirname(os.path.abspath(__file__)), script), mode], check=True, env=env)
 
 
 async def care(b):
@@ -201,6 +221,11 @@ async def care(b):
         await go(pg, "/boarding/daily", 3)
         await pg.mouse.move(5, 5)
         await snap(pg, "daily_mobile" if mobile else "daily_desktop")
+        if mobile:  # a card with feeding + a given medication
+            y = await pg.evaluate("""()=>{const c=[...document.querySelectorAll('.card')].find(e=>e.textContent.includes('אומגה 3'));return c.getBoundingClientRect().top}""")
+            await pg.evaluate(f"window.scrollBy(0,{y}-76)")
+            await pg.wait_for_timeout(600)
+            await snap(pg, "daily_meds_mobile")
         if not mobile:
             card = pg.locator(".card").filter(has_text="תוסף מפרקים").first
             await card.screenshot(path=f"{OUT}/c_care.png")

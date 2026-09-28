@@ -147,8 +147,9 @@ async function main() {
     "tenant.ai.assistant": false, "tenant.boarding.manage": true,
   };
   for (const [email, name] of [["dana@petra.local", "דנה לוי"], ["yossi@petra.local", "יוסי אברהם"]]) {
-    const u = await prisma.platformUser.upsert({ where: { email }, update: { name, passwordHash: hash, isActive: true }, create: { email, name, passwordHash: hash, authProvider: "local" } });
+    const u = await prisma.platformUser.upsert({ where: { email }, update: { name, passwordHash: hash, isActive: true, lastLoginAt: at(-1, 17, 40) }, create: { email, name, passwordHash: hash, authProvider: "local", lastLoginAt: at(-1, 17, 40) } });
     await prisma.businessUser.upsert({ where: { businessId_userId: { businessId: B, userId: u.id } }, update: { role: "user", isActive: true, permissionOverrides: overrides }, create: { businessId: B, userId: u.id, role: "user", permissionOverrides: overrides } });
+    if (!(await prisma.userConsent.findFirst({ where: { userId: u.id, termsVersion: "1.0" } }))) await prisma.userConsent.create({ data: { userId: u.id, termsVersion: "1.0" } });
     await prisma.onboardingProgress.upsert({ where: { userId: u.id }, update: { completedAt: new Date() }, create: { userId: u.id, completedAt: new Date() } });
   }
   const n = await prisma.boardingStay.count({ where: { businessId: B } });
