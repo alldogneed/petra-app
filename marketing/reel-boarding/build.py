@@ -17,10 +17,14 @@ FF = dub.FF
 W, H, FPS = 1080, 1920, 30
 LEAD, TAIL = 0.2, 0.2
 CTA_LEAD, CTA_HOLD = 0.6, 2.2
-EXTRA_LEAD = {1: 0.35}  # start "בפטרה" after a drum hit in the music (track 19.0-19.25s) that masked the brand name
-MUSIC_STOP = 52.10    # the track's built-in 1.25s stop; placed exactly at the CTA, then the track's ending
-MUSIC_END = 59.36
-MUSIC_GAIN = -8.0
+EXTRA_LEAD = {}  # per-line extra delay before the voice (seconds)
+# The Gemini track has a vocal sample (strongest ~0:16-0:24). music-instrumental.wav is the same track
+# with the vocals removed (audio-separator, UVR-MDX-NET-Inst_HQ_3). Its built-in 1.25s stop (52.10s)
+# is placed exactly at the CTA, and the reel ends with the track's own ending (59.36s).
+MUSIC = "music-instrumental.wav"
+MUSIC_STOP, MUSIC_END = 52.10, 59.36
+CTA_STOP_WORD = 6  # index of "דברו" in vo/words.json for the CTA line
+MUSIC_GAIN = -12.0  # constant level (no ducking); -8 masked words in the hook and the CTA
 VOICE_GAIN = 2.0     # voice sits on top of a constant-level music bed (no ducking, by request)
 MUSIC_CARVE = -5.0   # fixed EQ dip in the speech band of the music
 
@@ -29,7 +33,7 @@ SUBS = [
     [("עדיין מנהלים את הפנסיון", 0), ("על לוח מחיק?", 4), ("ביומן גוגל?", 7), ("במחברת?", 9)],
     [("בפטרה, כל כלב מקבל חדר", 0), ("בגרירה אחת", 5), ("ורואים את כל התפוסה", 7), ("על מסך אחד", 11)],
     [("מתכננים קדימה:", 0), ("כל ההזמנות של החודש הקרוב", 2), ("על ציר זמן אחד", 7)],
-    [("ומה עם החצרות?", 0), ("פשוט גוררים כלב לחצר", 3), ("ורואים מראש", 7), ("מי מסתדר עם מי", 9)],
+    [("ומה עם החצרות?", 0), ("מעבירים כלב לחצר בגרירה", 3), ("ורואים מראש", 7), ("מי מסתדר עם מי", 9)],
     [("בכל בוקר, הצוות מקבל", 0), ("לוח של האכלות ותרופות לכל כלב", 4), ("ומסמן מה כבר ניתן", 10)],
     [("והצוות?", 0), ("כל עובד רואה רק את הפנסיון", 1), ("בלי הכנסות ובלי לקוחות", 7), ("אתם מחליטים מה מותר", 11)],
     [("רוצים לראות איך זה עובד אצלכם?", 0), ("דברו איתנו בוואטסאפ", 6)],
@@ -45,7 +49,9 @@ def timeline():
         t += LEAD + l + TAIL
     lead = [LEAD] * (len(lens) - 1) + [CTA_LEAD]
     lead = [round(l + EXTRA_LEAD.get(i, 0), 2) for i, l in enumerate(lead)]
-    total = round(starts[-1] + CTA_LEAD + lens[-1] + CTA_HOLD, 2)
+    # the track's stop lands on "דברו איתנו בוואטסאפ" (word 6 of the CTA line), then the track's ending plays
+    stop_at = round(starts[-1] + CTA_LEAD + words[str(len(lens) - 1)][CTA_STOP_WORD][1] - 0.12, 2)
+    total = round(max(starts[-1] + CTA_LEAD + lens[-1] + CTA_HOLD, stop_at + (MUSIC_END - MUSIC_STOP) + 0.15), 2)
     ends = starts[1:] + [total]
     subs = []  # (abs_start, abs_end, text)
     for i, chunks in enumerate(SUBS):
@@ -55,7 +61,7 @@ def timeline():
             a = vs + wt[wi]
             b = vs + wt[chunks[k + 1][1]] if k + 1 < len(chunks) else min(ends[i] - 0.05, vs + lens[i] + 0.3)
             subs.append((round(a - 0.05, 2), round(b, 2), txt))
-    return lens, starts, lead, total, subs
+    return lens, starts, lead, total, subs, stop_at
 
 
 CSS = """
@@ -164,7 +170,7 @@ def img(name, w, x0, y0, x1, y1, pd, po=0.0, z0=1, z1=1, extra=""):
 
 
 def build_html():
-    lens, st, lead, total, subs = timeline()
+    lens, st, lead, total, subs, stop_at = timeline()
     d = [round(b - a, 2) for a, b in zip(st, st[1:] + [total])]
     v = [st[i] + lead[i] for i in range(len(st))]  # voice start per scene (abs)
     words = json.load(open(os.path.join(HERE, "vo", "words.json")))
@@ -258,7 +264,7 @@ window.renderAt = function (t) {{ for (const a of document.getAnimations()) {{ a
 window.TOTAL = {total};
 </script></body></html>"""
     open(os.path.join(HERE, "reel.html"), "w", encoding="utf-8").write(html)
-    json.dump({"starts": st, "lead": lead, "lens": lens, "total": total}, open(os.path.join(HERE, "vo", "reel_timing.json"), "w"), indent=1)
+    json.dump({"starts": st, "lead": lead, "lens": lens, "total": total, "stop_at": stop_at}, open(os.path.join(HERE, "vo", "reel_timing.json"), "w"), indent=1)
     print(f"reel.html: {total}s, scenes at {st}")
 
 
@@ -287,6 +293,17 @@ async def render(mode, args):
         await b.close()
 
 
+def make_bed(total, stop_at):
+    """Music bed of `total` seconds from the instrumental track, its stop aligned to `stop_at` -> music-bed.wav."""
+    off = round(MUSIC_STOP - stop_at, 3)  # track t = reel t + off
+    out = os.path.join(HERE, "music-bed.wav")
+    fade = min(total, MUSIC_END - off) - 0.8
+    subprocess.run([FF, "-loglevel", "error", "-y", "-i", os.path.join(HERE, MUSIC), "-af",
+                    f"aresample=48000,atrim={off}:{off + total},asetpts=PTS-STARTPTS,afade=t=out:st={fade}:d=0.8,"
+                    f"apad=whole_dur={total}", out], check=True)
+    return out
+
+
 def video(upto=None, remix=False):
     """upto: render only the first N seconds (preview -> reel-preview.mp4).
     remix: keep the picture of the existing reel-boarding.mp4 and only redo the audio."""
@@ -305,15 +322,13 @@ def video(upto=None, remix=False):
         chains.append(f"[{i + 1}:a]aresample=48000,adelay={ms}|{ms}[a{i}]")
         labels.append(f"[a{i}]")
     n = len(labels)
-    music = os.path.join(HERE, "music-gemini.mp3")
-    off = round(MUSIC_STOP - t["starts"][-1], 2)  # music t = reel t + off
-    fade_at = min(total, MUSIC_END - off) - 1.2
+    music = make_bed(t["total"], t["stop_at"])
     graph = (";".join(chains) + ";" + "".join(labels) + f"amix=inputs={n}:normalize=0,"
              f"highpass=f=90,acompressor=threshold=-22dB:ratio=3:attack=5:release=120:makeup=2,volume={VOICE_GAIN}dB,"
              "equalizer=f=3200:t=q:w=1.2:g=3,pan=stereo|c0=c0|c1=c0,apad[v];"
-             f"[{n + 1}:a]aresample=48000,atrim={off}:{off + total},asetpts=PTS-STARTPTS,"
-             f"volume={MUSIC_GAIN}dB,equalizer=f=2500:t=q:w=1.2:g={MUSIC_CARVE},afade=t=out:st={fade_at}:d=1.2[m];"
-             "[v][m]amix=inputs=2:normalize=0:duration=shortest,volume=2.0dB,alimiter=limit=0.89,"
+             f"[{n + 1}:a]aresample=48000,atrim=0:{total},asetpts=PTS-STARTPTS,"
+             f"volume={MUSIC_GAIN}dB,equalizer=f=2500:t=q:w=1.2:g={MUSIC_CARVE}[m];"
+             "[v][m]amix=inputs=2:normalize=0:duration=shortest,volume=3.9dB,alimiter=limit=0.89,"
              f"aresample=48000,apad=whole_dur={total}[aout]")
     out = os.path.join(HERE, "reel-preview.mp4" if upto else "reel-boarding.mp4")
     subprocess.run([FF, "-loglevel", "error", "-y", "-i", silent, *ins, "-i", music, "-filter_complex", graph,

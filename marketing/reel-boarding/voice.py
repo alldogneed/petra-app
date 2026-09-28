@@ -21,7 +21,7 @@ LINES = [
     "עדיין מנהלים את הפנסיון על לוח מחיק? ביומן גוגל? במחברת?",
     "בפטרה, כל כלב מקבל חדר בגרירה אחת, ורואים את כל התפוסה על מסך אחד.",
     "מתכננים קדימה: כל ההזמנות של החודש הקרוב על ציר זמן אחד.",
-    "ומה עם החצרות? פשוט גוררים כלב לחצר, ורואים מראש מי מסתדר עם מי.",
+    "ומה עם החצרות? מעבירים כלב לחצר בגרירה, ורואים מראש מי מסתדר עם מי.",
     "בכל בוקר, הצוות מקבל לוח של האכלות ותרופות לכל כלב, ומסמן מה כבר ניתן.",
     "והצוות? כל עובד רואה רק את הפנסיון, בלי הכנסות ובלי לקוחות. אתם מחליטים מה מותר.",
     "רוצים לראות איך זה עובד אצלכם? דברו איתנו בוואטסאפ.",
@@ -47,34 +47,9 @@ def whisper_words(path):
     return [(w["word"], w["start"], w["end"]) for w in json.loads(r)["words"]]
 
 
-def continuous(takes=6):
-    """One continuous read of the whole script (natural flow between sentences), best of N takes,
-    then split into per-line clips at the pauses between lines."""
+def split_take(full, prefix):
+    """Split one continuous take into per-line clips at the pauses between lines."""
     import difflib, subprocess
-    vo = os.path.join(HERE, "vo")
-    os.makedirs(vo, exist_ok=True)
-    dub.SYSTEM = NATURAL
-    text = "\n".join(LINES)
-    best = None
-    for k in range(takes):
-        p = os.path.join(vo, f"full.take{k}.wav")
-        dub.tts(text, "coral", p)
-        heard = dub.transcribe(p)
-        sc = dub.score(text, heard)
-        if sc >= 0.97:
-            sc = min(sc, dub.score(text, dub.transcribe(p)))
-        print(f"take {k}: {sc:.3f} {dub.duration(p):.1f}s")
-        if best is None or sc > best[0]:
-            best = (sc, p)
-        if sc == 1:
-            break
-    full = os.path.join(vo, "full.wav")
-    os.replace(best[1], full)
-    for k in range(takes):
-        q = os.path.join(vo, f"full.take{k}.wav")
-        if os.path.exists(q):
-            os.remove(q)
-    # align whisper words to the script words, find each line's first/last word time
     ww = whisper_words(full)
     ref, owner = [], []
     for i, l in enumerate(LINES):
@@ -82,37 +57,87 @@ def continuous(takes=6):
             ref.append(w)
             owner.append(i)
     hyp = [dub.words(w)[0] if dub.words(w) else "" for w, _, _ in ww]
-    sm = difflib.SequenceMatcher(None, ref, hyp, autojunk=False)
     first, last = {}, {}
-    for a, b, n in sm.get_matching_blocks():
+    for a, b, n in difflib.SequenceMatcher(None, ref, hyp, autojunk=False).get_matching_blocks():
         for j in range(n):
             i = owner[a + j]
             first.setdefault(i, ww[b + j][1])
             last[i] = ww[b + j][2]
-    total = dub.duration(full)
-    cuts = [0.0]
-    for i in range(1, len(LINES)):
-        cuts.append(round((last[i - 1] + first[i]) / 2, 3))
-    cuts.append(total)
-    lens, words = [], {}
+    if len(first) < len(LINES):
+        return None
+    cuts = [0.0] + [round((last[i - 1] + first[i]) / 2, 3) for i in range(1, len(LINES))] + [dub.duration(full)]
+    out = []
     for i in range(len(LINES)):
-        a, b = cuts[i], cuts[i + 1]
-        out = os.path.join(vo, f"{i:02d}.wav")
-        subprocess.run([dub.FF, "-loglevel", "error", "-y", "-i", full, "-ss", str(a), "-to", str(b),
+        p = f"{prefix}_{i:02d}.wav"
+        subprocess.run([dub.FF, "-loglevel", "error", "-y", "-i", full, "-ss", str(cuts[i]), "-to", str(cuts[i + 1]),
                         "-af", "silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.05,"
                                "areverse,silenceremove=start_periods=1:start_threshold=-45dB:start_silence=0.12,areverse",
-                        out], check=True)
-        lens.append(dub.duration(out))
-        words[str(i)] = [(w, round(s - a, 2), round(e - a, 2)) for (w, s, e) in ww if a <= s < b]
-    # word times relative to the trimmed clip start
-    for i in range(len(LINES)):
-        if words[str(i)]:
-            off = words[str(i)][0][1]
-            words[str(i)] = [(w, round(max(0, s - off), 2), round(e - off, 2)) for w, s, e in words[str(i)]]
-    json.dump({"voice": "coral", "mode": "continuous", "score": best[0], "lens": lens},
+                        p], check=True)
+        out.append(p)
+    return out
+
+
+def continuous(takes=4):
+    """Continuous reads of the whole script (natural flow between sentences), kept in vo/pool/.
+    Every take is split into lines, each line is transcribed twice, and the best version of each
+    line across all takes becomes vo/NN.wav."""
+    import shutil
+    vo = os.path.join(HERE, "vo")
+    pool = os.path.join(vo, "pool")
+    os.makedirs(pool, exist_ok=True)
+    dub.SYSTEM = NATURAL
+    text = "\n".join(LINES)
+    scored = os.path.join(pool, "scores.json")
+    scores = json.load(open(scored)) if os.path.exists(scored) else {}
+
+    def rate(p, i):
+        if p not in scores:
+            scores[p] = min(dub.score(LINES[i], dub.transcribe(p)) for _ in range(2))
+        return scores[p]
+
+    fulls = sorted(f for f in os.listdir(pool) if f.endswith("_full.wav"))
+    for f in fulls:  # takes already in the pool
+        k = f.split("_")[0]
+        clips = [os.path.join(pool, f"{k}_{i:02d}.wav") for i in range(len(LINES))]
+        if not all(os.path.exists(c) for c in clips):
+            clips = split_take(os.path.join(pool, f), os.path.join(pool, k))
+        for i, c in enumerate(clips or []):
+            rate(c, i)
+
+    def best():
+        out = []
+        for i in range(len(LINES)):
+            cands = [(s, p) for p, s in scores.items() if p.endswith(f"_{i:02d}.wav")]
+            out.append(max(cands) if cands else (0, None))
+        return out
+
+    n0 = len(fulls)
+    for k in range(n0, n0 + takes):
+        if all(b[0] == 1 for b in best()):
+            break
+        full = os.path.join(pool, f"t{k}_full.wav")
+        dub.tts(text, "coral", full)
+        clips = split_take(full, os.path.join(pool, f"t{k}"))
+        for i, c in enumerate(clips or []):
+            rate(c, i)
+        json.dump(scores, open(scored, "w"), indent=1)
+        print(f"take {k}: best per line " + " ".join(f"{b[0]:.2f}" for b in best()), flush=True)
+    json.dump(scores, open(scored, "w"), indent=1)
+    lens, words = [], {}
+    for i, (sc, p) in enumerate(best()):
+        dst = os.path.join(vo, f"{i:02d}.wav")
+        shutil.copy(p, dst)
+        lens.append(dub.duration(dst))
+        ww = whisper_words(dst)
+        off = ww[0][1] if ww else 0
+        words[str(i)] = [(w, round(max(0, s - off), 2), round(e - off, 2)) for w, s, e in ww]
+    b = best()
+    json.dump({"voice": "coral", "mode": "continuous", "scores": [x[0] for x in b],
+               "sources": [os.path.basename(x[1]) for x in b], "lens": lens},
               open(os.path.join(vo, "timing.json"), "w"), indent=1)
     json.dump(words, open(os.path.join(vo, "words.json"), "w"), ensure_ascii=False, indent=0)
-    print("lens", [round(x, 2) for x in lens], "score", best[0])
+    print("scores", [round(x[0], 2) for x in b], "sources", [os.path.basename(x[1]) for x in b])
+    print("lens", [round(x, 2) for x in lens])
 
 
 if __name__ == "__main__":
