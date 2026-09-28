@@ -111,7 +111,8 @@ const navEntries: NavEntry[] = [
   { name: "ניהול תהליכי אילוף", href: "/training", icon: Dog, hiddenForTiers: ["groomer", "groomer_plus"] },
   { name: "חיות מחמד", href: "/pets", icon: PawPrint, minRole: "manager", lockedFeature: "pets_advanced" },
   { name: "שיעורים אונליין", href: "/online-classes", icon: MonitorPlay, lockedFeature: "online_classes", isNew: true },
-  { name: "עוזר AI", href: "/help/connect-ai", icon: Sparkles, lockedFeature: "ai_assistant", isNew: true },
+  // Connecting an AI assistant (POST /api/mcp/connections) is owner/manager-only, so staff never see it.
+  { name: "עוזר AI", href: "/help/connect-ai", icon: Sparkles, minRole: "manager", lockedFeature: "ai_assistant", isNew: true },
 
   { eyebrow: "ניהול" },
   { name: "פיננסים", href: "/pricing", icon: Wallet, minRole: "manager" },
@@ -582,8 +583,9 @@ export function Sidebar({
               </div>
             )}
 
-            {/* Upgrade banner — shown when there are locked features or user is on free/basic */}
-            {(lockedNavEntries.length > 0 || userTier === "free" || userTier === "basic") && (
+            {/* Upgrade banner — owner only (staff can't change the plan); shown when there are locked features or user is on free/basic */}
+            {canSee({ minRole: "owner" }, user?.businessRole ?? null, user?.isAdmin) &&
+              (lockedNavEntries.length > 0 || userTier === "free" || userTier === "basic") && (
               <Link
                 href="/upgrade"
                 onClick={isMobile ? onMobileClose : undefined}
