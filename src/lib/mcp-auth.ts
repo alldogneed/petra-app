@@ -172,6 +172,23 @@ export async function validateMcpToken(raw: string, opts: { touch?: boolean } = 
   };
 }
 
+/**
+ * True when `raw` hashes to an EXISTING McpConnection row (any state: revoked, expired,
+ * access-expired, business not allowlisted…). Used only on the /api/mcp failure path so a
+ * legitimately-issued-but-now-rejected token (e.g. an OAuth access token past its 1h expiry,
+ * which the client refreshes on 401) never counts against the per-IP brute-force limiter —
+ * a guess cannot hit a known hash, so only unknown hashes indicate brute force.
+ * One indexed lookup on tokenHash, id only.
+ */
+export async function isKnownMcpTokenHash(raw: string): Promise<boolean> {
+  if (!raw || !raw.startsWith(TOKEN_PREFIX)) return false;
+  const row = await prisma.mcpConnection.findFirst({
+    where: { tokenHash: hashToken(raw) },
+    select: { id: true },
+  });
+  return !!row;
+}
+
 /** Record that a connection was used (awaited — Vercel kills stray promises). */
 export async function touchMcpConnection(connectionId: string): Promise<void> {
   await prisma.mcpConnection.update({

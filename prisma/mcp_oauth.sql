@@ -11,6 +11,7 @@ ALTER TABLE "McpConnection" ADD COLUMN IF NOT EXISTS "accessExpiresAt" TIMESTAMP
 ALTER TABLE "McpConnection" ADD COLUMN IF NOT EXISTS "oauthClientId" TEXT;
 ALTER TABLE "McpConnection" ADD COLUMN IF NOT EXISTS "prevRefreshTokenHash" TEXT;
 ALTER TABLE "McpConnection" ADD COLUMN IF NOT EXISTS "refreshTokenHash" TEXT;
+ALTER TABLE "McpConnection" ADD COLUMN IF NOT EXISTS "refreshRotatedAt" TIMESTAMP(3);
 
 -- CreateTable
 CREATE TABLE IF NOT EXISTS "OAuthClient" (
@@ -38,10 +39,14 @@ CREATE TABLE IF NOT EXISTS "OAuthAuthCode" (
     "resource" TEXT,
     "expiresAt" TIMESTAMP(3) NOT NULL,
     "usedAt" TIMESTAMP(3),
+    "connectionId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "OAuthAuthCode_pkey" PRIMARY KEY ("id")
 );
+
+-- AlterTable (security-review follow-up: code-replay revocation; for DBs where the table already exists)
+ALTER TABLE "OAuthAuthCode" ADD COLUMN IF NOT EXISTS "connectionId" TEXT;
 
 -- CreateIndex
 CREATE UNIQUE INDEX IF NOT EXISTS "OAuthAuthCode_codeHash_key" ON "OAuthAuthCode"("codeHash");

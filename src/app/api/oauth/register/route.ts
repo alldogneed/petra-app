@@ -9,7 +9,9 @@ export const dynamic = "force-dynamic";
  * lets the server substitute values). Security rests on PKCE S256 + exact
  * redirect_uri matching at /oauth/authorize, plus the consent screen.
  *
- * Rate limited per IP (20/hour). Body ≤ 10KB, ≤ 10 redirect_uris.
+ * Rate limited per IP (200/hour — claude.ai registers from shared backend IPs) plus a global
+ * cap (2000/hour). Body ≤ 10KB, ≤ 10 redirect_uris. After a successful registration, stale
+ * never-connected clients (> 30 days) are cleaned up (best effort, bounded).
  */
 import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
@@ -19,11 +21,13 @@ import {
   oauthError,
   sanitizeClientName,
   validateRedirectUriForRegistration,
+  cleanupStaleOAuthClients,
 } from "@/lib/mcp-oauth";
 
 const MAX_BODY_BYTES = 10 * 1024;
 const MAX_REDIRECT_URIS = 10;
-const REGISTER_RATE_LIMIT = { max: 20, windowMs: 60 * 60 * 1000 }; // 20/hour per IP
+const REGISTER_RATE_LIMIT = { max: 200, windowMs: 60 * 60 * 1000 }; // 200/hour per IP
+const REGISTER_GLOBAL_LIMIT = { max: 2000, windowMs: 60 * 60 * 1000 }; // 2000/hour across all IPs
 const SUPPORTED_GRANT_TYPES = ["authorization_code", "refresh_token"];
 const SUPPORTED_RESPONSE_TYPES = ["code"];
 
@@ -77,6 +81,12 @@ export async function POST(request: NextRequest): Promise<Response> {
   if (!limited.allowed) {
     const res = oauthError("too_many_requests", "Too many client registrations from this IP. Try again later.", 429);
     res.headers.set("Retry-After", String(Math.max(1, Math.ceil(limited.retryAfterMs / 1000))));
+    return res;
+  }
+  const globalLimited = await rateLimitAsync("oauth:register:global", "global", REGISTER_GLOBAL_LIMIT);
+  if (!globalLimited.allowed) {
+    const res = oauthError("too_many_requests", "Too many client registrations. Try again later.", 429);
+    res.headers.set("Retry-After", String(Math.max(1, Math.ceil(globalLimited.retryAfterMs / 1000))));
     return res;
   }
 
@@ -146,6 +156,9 @@ export async function POST(request: NextRequest): Promise<Response> {
     console.error("[oauth/register] failed to store client:", err instanceof Error ? err.message : "unknown");
     return oauthError("server_error", "Could not register client", 500);
   }
+
+  // Best-effort housekeeping (awaited — Vercel kills stray promises; never throws).
+  await cleanupStaleOAuthClients().catch(() => 0);
 
   return new Response(
     JSON.stringify({

@@ -23,7 +23,10 @@ export interface ConsentParams {
 
 interface ConsentFormProps {
   clientName: string;
-  redirectHost: string;
+  /** Full redirect target incl. scheme ("https://claude.ai", "cursor://…") — never empty. */
+  redirectTarget: string;
+  /** Known MCP client redirect (isVerifiedRedirect). Unverified → red warning + default profile "read". */
+  verified: boolean;
   userEmail: string;
   businesses: ConsentBusiness[];
   profiles: Array<{ key: string; label: string }>;
@@ -42,11 +45,12 @@ const PROFILE_HINTS: Record<string, string> = {
   read: "צפייה בלבד — בלי שינויים",
 };
 
-export function ConsentForm({ clientName, redirectHost, userEmail, businesses, profiles, params }: ConsentFormProps) {
+export function ConsentForm({ clientName, redirectTarget, verified, userEmail, businesses, profiles, params }: ConsentFormProps) {
   const eligible = businesses.filter((b) => b.eligible);
   const [businessId, setBusinessId] = useState<string>(eligible[0]?.businessId ?? "");
+  const defaultProfile = verified ? "full" : "read";
   const [profile, setProfile] = useState<string>(
-    profiles.some((p) => p.key === "full") ? "full" : profiles[0]?.key ?? ""
+    profiles.some((p) => p.key === defaultProfile) ? defaultProfile : profiles[0]?.key ?? ""
   );
   const [busy, setBusy] = useState<"approve" | "deny" | null>(null);
   const [redirecting, setRedirecting] = useState(false);
@@ -113,11 +117,21 @@ export function ConsentForm({ clientName, redirectHost, userEmail, businesses, p
           <div>
             לאחר האישור תועבר/י אל:{" "}
             <span dir="ltr" className="font-bold break-all">
-              {redirectHost}
+              {redirectTarget}
             </span>
             <div className="text-xs text-amber-800 mt-0.5">אשר/י רק אם ביקשת עכשיו לחבר עוזר AI לפטרה.</div>
           </div>
         </div>
+
+        {!verified && (
+          <div
+            role="alert"
+            className="mt-3 p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700 flex items-start gap-2"
+          >
+            <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+            <span className="font-semibold">אפליקציה לא מאומתת — ודא/י שאת/ה סומך/ת על היעד לפני האישור</span>
+          </div>
+        )}
 
         <div className="mt-4 flex items-center justify-between gap-2 text-xs text-petra-muted">
           <span className="truncate">

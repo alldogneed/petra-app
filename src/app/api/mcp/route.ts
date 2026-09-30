@@ -18,7 +18,7 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import { z } from "zod";
 import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
-import { validateMcpToken, touchMcpConnection, extractBearerToken, auditLog, DEFAULT_MCP_SCOPES, capScopesForRole, ADMIN_SCOPE } from "@/lib/mcp-auth";
+import { validateMcpToken, isKnownMcpTokenHash, touchMcpConnection, extractBearerToken, auditLog, DEFAULT_MCP_SCOPES, capScopesForRole, ADMIN_SCOPE } from "@/lib/mcp-auth";
 import { rateLimitAsync, claimOnce } from "@/lib/rate-limit";
 import { getOAuthOrigin } from "@/lib/mcp-oauth";
 import { listCustomers, getCustomer, addCustomerNote, createCustomer, createLead, updateLead, listTasks } from "@/services/clients";
@@ -1341,21 +1341,29 @@ export async function handleMcpRequest(request: NextRequest, tokenFromPath?: str
         }
       );
     }
-    // A token was presented and failed. Brute-force protection: rate-limit
-    // failed auth attempts per IP. Valid tokens are throttled separately below.
+    const invalidTokenHeaders = {
+      "Content-Type": "application/json",
+      "WWW-Authenticate": `Bearer realm="petra-mcp", resource_metadata="${resourceMetadata}", error="invalid_token"`,
+    };
+    // A well-formed token whose hash belongs to an EXISTING connection (expired OAuth
+    // access token awaiting refresh, revoked, expired grant…) is not a brute-force guess:
+    // answer 401 invalid_token directly, WITHOUT counting it against the shared-IP limiter
+    // (claude.ai's backend refreshes many users' 1h tokens from the same IPs).
+    if (wellFormed && (await isKnownMcpTokenHash(token as string).catch(() => false))) {
+      return new Response(
+        JSON.stringify({ error: "invalid_token", message: "MCP token expired or revoked. Refresh the OAuth token, or create a new token in Petra → הגדרות → עוזרי AI." }),
+        { status: 401, headers: invalidTokenHeaders }
+      );
+    }
+    // Unknown token. Brute-force protection: rate-limit failed auth attempts per IP.
+    // Valid tokens are throttled separately below.
     const fail = await rateLimitAsync("mcp:auth-fail", ip, MCP_RATE_LIMIT_AUTH_FAIL);
     if (!fail.allowed) {
       return rateLimitResponse(fail.retryAfterMs);
     }
     return new Response(
       JSON.stringify({ error: "Unauthorized", message: "Invalid or missing MCP token. Pass 'Authorization: Bearer petra_mcp_...' (create a token in Petra → הגדרות → עוזרי AI)." }),
-      {
-        status: 401,
-        headers: {
-          "Content-Type": "application/json",
-          "WWW-Authenticate": `Bearer realm="petra-mcp", resource_metadata="${resourceMetadata}", error="invalid_token"`,
-        },
-      }
+      { status: 401, headers: invalidTokenHeaders }
     );
   }
 

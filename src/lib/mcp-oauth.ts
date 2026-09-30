@@ -36,6 +36,14 @@ export const OAUTH_ACCESS_TOKEN_TTL_SEC = 3600;
 export const OAUTH_REFRESH_TTL_DAYS = 90;
 export const OAUTH_CODE_TTL_SEC = 600;
 export const REFRESH_TOKEN_PREFIX = "petra_mcpr_";
+/** Absolute grant lifetime from McpConnection.createdAt — the 90-day sliding refresh never extends past it. */
+export const OAUTH_GRANT_MAX_DAYS = 365;
+/**
+ * A just-rotated-out refresh token presented again within this window is treated as a benign
+ * client race (parallel refresh / retry after a lost response): invalid_grant WITHOUT revoking.
+ * After the window it is reuse of a stolen token → the connection is revoked.
+ */
+export const OAUTH_REFRESH_REUSE_GRACE_SEC = 60;
 
 const ACCESS_TOKEN_PREFIX = "petra_mcp_";
 const REFRESH_TOKEN_RE = /^petra_mcpr_[0-9a-f]{64}$/;
@@ -48,6 +56,7 @@ const CLIENT_NAME_FALLBACK = "עוזר AI";
 const CONNECTION_NAME_SUFFIX = " (התחברות אוטומטית)";
 const CONNECTION_NAME_MAX = 100;
 const DAY_MS = 24 * 60 * 60 * 1000;
+const REDIRECT_LABEL_MAX = 80;
 
 const LIMIT_ERROR = "הגעת למקסימום 10 חיבורים פעילים";
 
@@ -114,6 +123,26 @@ export function verifyPkceS256(verifier: string, challenge: string): boolean {
   if (!PKCE_CHALLENGE_RE.test(challenge)) return false;
   const computed = base64url(crypto.createHash("sha256").update(verifier, "ascii").digest());
   return timingSafeEqualStr(computed, challenge);
+}
+
+// ─── Grant lifetime policy (pure) ─────────────────────────────────────────────
+
+/** Hard end of an OAuth grant: createdAt + OAUTH_GRANT_MAX_DAYS. */
+export function grantHardExpiry(createdAt: Date): Date {
+  return new Date(createdAt.getTime() + OAUTH_GRANT_MAX_DAYS * DAY_MS);
+}
+
+/** Sliding refresh expiry (now + 90d), capped so it never exceeds createdAt + 365d. */
+export function slidingGrantExpiry(createdAt: Date, now: Date): Date {
+  const sliding = now.getTime() + OAUTH_REFRESH_TTL_DAYS * DAY_MS;
+  return new Date(Math.min(sliding, grantHardExpiry(createdAt).getTime()));
+}
+
+/** True when the rotated-out refresh token was replaced less than OAUTH_REFRESH_REUSE_GRACE_SEC ago. */
+export function isWithinRefreshReuseGrace(rotatedAt: Date | null | undefined, now: Date): boolean {
+  if (!rotatedAt) return false;
+  const age = now.getTime() - rotatedAt.getTime();
+  return age >= 0 && age <= OAUTH_REFRESH_REUSE_GRACE_SEC * 1000;
 }
 
 // ─── Origin / resource / metadata ─────────────────────────────────────────────
@@ -195,16 +224,25 @@ export function authorizationServerMetadata(origin: string): Record<string, unkn
 // ─── Redirect URIs ────────────────────────────────────────────────────────────
 
 const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "[::1]"]);
+/** https hosts of known MCP clients (exact hostname, default port). */
+const VERIFIED_HTTPS_HOSTS = new Set(["claude.ai", "claude.com", "chatgpt.com", "vscode.dev", "insiders.vscode.dev"]);
+/** Private-use schemes of known desktop MCP clients (allowed at registration even without a "."). */
+const VERIFIED_CUSTOM_SCHEMES = new Set(["cursor", "vscode", "vscode-insiders", "windsurf"]);
 const CUSTOM_SCHEME_RE = /^[a-z][a-z0-9+.-]*$/;
 const FORBIDDEN_SCHEMES = new Set(["javascript", "data", "file", "vbscript", "about", "blob"]);
 // eslint-disable-next-line no-control-regex
 const CONTROL_OR_SPACE_RE = /[\u0000-\u0020\u007F-\u009F]/;
+// eslint-disable-next-line no-control-regex
+const CONTROL_OR_SPACE_RE_G = /[\u0000-\u0020\u007F-\u009F]/g;
 
 /**
  * Registration policy (RFC 7591 + RFC 8252):
  *  - https:// any host; http:// only loopback (127.0.0.1 / localhost / [::1]);
- *  - private-use custom schemes (cursor://, vscode://) matching /^[a-z][a-z0-9+.-]*$/,
- *    except javascript/data/file/vbscript/about/blob;
+ *  - private-use custom schemes matching /^[a-z][a-z0-9+.-]*$/ that are either reverse-DNS
+ *    (contain a ".", RFC 8252 §7.1 — e.g. com.example.app:/cb) or a known MCP client scheme
+ *    (cursor, vscode, vscode-insiders, windsurf). Anything else (ms-msdt:, search-ms:, …) is
+ *    rejected so a registration can't make the consent redirect launch an OS protocol handler;
+ *    javascript/data/file/vbscript/about/blob are always rejected;
  *  - no fragment, no userinfo, no whitespace/control chars, ≤ 500 chars.
  * Returns null when OK, otherwise an error reason.
  */
@@ -244,7 +282,53 @@ export function validateRedirectUriForRegistration(uri: string): string | null {
   }
   if (!CUSTOM_SCHEME_RE.test(schemeMatch[1])) return "סכמת redirect_uri אינה חוקית";
   if (FORBIDDEN_SCHEMES.has(scheme)) return `סכמת redirect_uri "${scheme}" אסורה`;
+  if (!scheme.includes(".") && !VERIFIED_CUSTOM_SCHEMES.has(scheme)) {
+    return `סכמת redirect_uri "${scheme}" אינה מותרת — השתמש בסכמה בפורמט reverse-DNS (למשל com.example.app:/callback) או ב-https://`;
+  }
   return null;
+}
+
+/**
+ * Known MCP clients' redirect targets (consent-screen trust hint, not an authorization rule):
+ * https claude.ai / claude.com / chatgpt.com / vscode.dev / insiders.vscode.dev (exact host,
+ * default port), loopback http (127.0.0.1 / localhost / [::1] — the native client on this
+ * machine), and custom schemes cursor / vscode / vscode-insiders / windsurf.
+ */
+export function isVerifiedRedirect(uri: string): boolean {
+  if (typeof uri !== "string" || !uri || CONTROL_OR_SPACE_RE.test(uri)) return false;
+  let url: URL;
+  try {
+    url = new URL(uri);
+  } catch {
+    return false;
+  }
+  if (url.username || url.password) return false;
+  const scheme = url.protocol.replace(/:$/, "").toLowerCase();
+  if (scheme === "https") return url.port === "" && VERIFIED_HTTPS_HOSTS.has(url.hostname);
+  if (scheme === "http") return LOOPBACK_HOSTS.has(url.hostname);
+  return VERIFIED_CUSTOM_SCHEMES.has(scheme);
+}
+
+/**
+ * What the consent screen shows as "you will be sent to": http(s) → origin with scheme
+ * (e.g. "https://claude.ai", punycode for IDN hosts); custom schemes → the whole URI
+ * (scheme included) truncated to 80 chars. Never empty.
+ */
+export function redirectTargetLabel(uri: string): string {
+  const fallback = "(כתובת לא ידועה)";
+  if (typeof uri !== "string" || !uri) return fallback;
+  const clean = uri.replace(CONTROL_OR_SPACE_RE_G, "");
+  if (!clean) return fallback;
+  try {
+    const url = new URL(clean);
+    if (url.protocol === "https:" || url.protocol === "http:") {
+      return url.origin && url.origin !== "null" ? url.origin : fallback;
+    }
+  } catch {
+    /* fall through to raw label */
+  }
+  const chars = Array.from(clean);
+  return chars.length > REDIRECT_LABEL_MAX ? chars.slice(0, REDIRECT_LABEL_MAX - 1).join("") + "…" : clean;
 }
 
 function parseLoopback(uri: string): URL | null {
@@ -325,6 +409,25 @@ export function oauthError(error: string, description: string, status = 400): Re
 
 function isPlatformAdminRole(platformRole: string | null | undefined): boolean {
   return platformRole === "super_admin" || platformRole === "admin";
+}
+
+/**
+ * Platform-admin privileges for a SESSION (consent screen / consent POST). Mirrors the
+ * requirePlatformRole / requirePlatformPermission guards in src/lib/auth-guards.ts: an admin whose
+ * account has 2FA enabled (`FullSession.user.twoFaEnabled` — SessionUser in src/lib/permissions.ts)
+ * but whose session has not passed it (`FullSession.twoFaVerified`, src/lib/session.ts) gets NO
+ * admin privileges here — they are treated as a regular user (membership role only, no
+ * impersonated business, no paywall/allowlist exemption).
+ */
+function sessionIsPlatformAdmin(session: FullSession): boolean {
+  if (!isPlatformAdminRole(session.user.platformRole)) return false;
+  if (session.user.twoFaEnabled && !session.twoFaVerified) return false;
+  return true;
+}
+
+/** platformRole to feed isMcpAllowedUser(): null when the session is not a (2FA-verified) admin. */
+function sessionPlatformRole(session: FullSession): string | null {
+  return sessionIsPlatformAdmin(session) ? session.user.platformRole : null;
 }
 
 function isOwnerOrManager(role: string | null | undefined): boolean {
@@ -409,7 +512,7 @@ function resolveGrantAccess(
   session: FullSession,
   businessId: string
 ): { allowed: boolean; membershipRole: string | null; isPlatformAdmin: boolean } {
-  const isPlatformAdmin = isPlatformAdminRole(session.user.platformRole);
+  const isPlatformAdmin = sessionIsPlatformAdmin(session);
   const membership = session.memberships.find((m) => m.businessId === businessId && m.isActive);
   const membershipRole = membership?.role ?? null;
   const viaImpersonation = isPlatformAdmin && session.impersonatedBusinessId === businessId;
@@ -420,13 +523,14 @@ function resolveGrantAccess(
  * Businesses the user may grant (active memberships with owner|manager role; platform admin:
  * all active memberships + impersonated business). Each with name + role + eligibility reason.
  *
- * Uses FullSession fields: `user.{id,email,platformRole,isActive}`, `memberships[].{businessId,role,isActive}`
- * (SessionMembership), `impersonatedBusinessId`.
+ * Uses FullSession fields: `user.{id,email,platformRole,isActive,twoFaEnabled}`, `twoFaVerified`,
+ * `memberships[].{businessId,role,isActive}` (SessionMembership), `impersonatedBusinessId`.
+ * A platform admin with 2FA enabled but not verified in this session is treated as non-admin.
  */
 export async function listGrantableBusinesses(
   session: FullSession
 ): Promise<Array<{ businessId: string; name: string; role: string; eligible: boolean; reason?: string }>> {
-  const isPlatformAdmin = isPlatformAdminRole(session.user.platformRole);
+  const isPlatformAdmin = sessionIsPlatformAdmin(session);
 
   const entries: Array<{ businessId: string; role: string }> = [];
   const seen = new Set<string>();
@@ -449,7 +553,7 @@ export async function listGrantableBusinesses(
   });
   const byId = new Map(businesses.map((b) => [b.id, b]));
 
-  const userAllowed = session.user.isActive && isMcpAllowedUser(session.user.email, session.user.platformRole);
+  const userAllowed = session.user.isActive && isMcpAllowedUser(session.user.email, sessionPlatformRole(session));
   const now = new Date();
 
   const results = await Promise.all(
@@ -484,7 +588,7 @@ export async function checkConsentGates(
   profile: string
 ): Promise<{ ok: true; scopes: string[]; role: string } | { ok: false; error: string; status: number }> {
   if (!session.user.isActive) return { ok: false, error: "החשבון מושבת", status: 403 };
-  if (!isMcpAllowedUser(session.user.email, session.user.platformRole)) {
+  if (!isMcpAllowedUser(session.user.email, sessionPlatformRole(session))) {
     return { ok: false, error: "החשבון שלך אינו בבטא של עוזרי AI", status: 403 };
   }
   if (typeof businessId !== "string" || !businessId) {
@@ -518,6 +622,53 @@ export async function checkConsentGates(
 
   // Same createdByRole rule as POST /api/mcp/connections.
   return { ok: true, scopes, role: membershipRole ?? "owner" };
+}
+
+// ─── Client housekeeping ──────────────────────────────────────────────────────
+
+const STALE_CLIENT_DAYS = 30;
+const STALE_CLIENT_BATCH = 200;
+
+/**
+ * Best-effort DCR cleanup (called after a successful registration): delete OAuthClient rows
+ * created > 30 days ago that no McpConnection references (oauthClientId, any state) and that
+ * were never used or not used for 30 days. Bounded to 200 candidates per run. Returns the
+ * number of deleted clients (their auth codes cascade). Never throws.
+ */
+export async function cleanupStaleOAuthClients(now: Date = new Date()): Promise<number> {
+  try {
+    const cutoff = new Date(now.getTime() - STALE_CLIENT_DAYS * DAY_MS);
+    const candidates = await prisma.oAuthClient.findMany({
+      where: {
+        createdAt: { lt: cutoff },
+        OR: [{ lastUsedAt: null }, { lastUsedAt: { lt: cutoff } }],
+      },
+      select: { id: true },
+      orderBy: { createdAt: "asc" },
+      take: STALE_CLIENT_BATCH,
+    });
+    if (candidates.length === 0) return 0;
+    const ids = candidates.map((c) => c.id);
+    const referenced = await prisma.mcpConnection.findMany({
+      where: { oauthClientId: { in: ids } },
+      select: { oauthClientId: true },
+      distinct: ["oauthClientId"],
+    });
+    const keep = new Set(referenced.map((r) => r.oauthClientId));
+    const stale = ids.filter((id) => !keep.has(id));
+    if (stale.length === 0) return 0;
+    // Re-assert the staleness predicate in the delete itself (a client used meanwhile survives).
+    const res = await prisma.oAuthClient.deleteMany({
+      where: {
+        id: { in: stale },
+        createdAt: { lt: cutoff },
+        OR: [{ lastUsedAt: null }, { lastUsedAt: { lt: cutoff } }],
+      },
+    });
+    return res.count;
+  } catch {
+    return 0;
+  }
 }
 
 // ─── Authorization codes ──────────────────────────────────────────────────────
@@ -562,12 +713,27 @@ export async function issueAuthCode(input: {
 
 /**
  * Re-verify the grant holder at exchange/refresh time: user active + MCP-allowed, still an
- * active owner/manager member (or platform admin), business still active and MCP-allowed.
+ * active owner/manager member (or platform admin), business still active, still on a plan with
+ * the `ai_assistant` feature (same exemptions as consent: platform admin, internal QA email),
+ * and MCP-allowed. At refresh, `grantCreatedAt` enforces the absolute OAUTH_GRANT_MAX_DAYS lifetime.
+ *
+ * Platform admin + 2FA: unlike the consent screen, there is NO session here (the caller is the
+ * OAuth client presenting a code / refresh token), so the 2FA state of the admin cannot be
+ * checked. The admin's 2FA was already required at consent time (sessionIsPlatformAdmin) for any
+ * admin-only privilege to be granted, and the granted scopes are the consent-time scopes re-capped
+ * — never widened — so `platformRole` is read from the DB as before (mirrors validateMcpToken).
  */
 async function verifyGrantHolder(
   userId: string,
-  businessId: string
+  businessId: string,
+  opts: { grantCreatedAt?: Date; now?: Date } = {}
 ): Promise<{ role: string | null; isPlatformAdmin: boolean }> {
+  if (opts.grantCreatedAt) {
+    const now = opts.now ?? new Date();
+    if (now.getTime() >= grantHardExpiry(opts.grantCreatedAt).getTime()) {
+      throw new OAuthGrantError("invalid_grant", "פג תוקף ההרשאה (שנה) — יש להתחבר מחדש");
+    }
+  }
   const user = await prisma.platformUser.findUnique({
     where: { id: userId },
     select: { isActive: true, platformRole: true, email: true },
@@ -588,10 +754,22 @@ async function verifyGrantHolder(
 
   const business = await prisma.business.findUnique({
     where: { id: businessId },
-    select: { status: true },
+    select: { status: true, tier: true, featureOverrides: true },
   });
   if (!business || business.status === "suspended" || business.status === "closed") {
     throw new OAuthGrantError("invalid_grant", "העסק אינו פעיל");
+  }
+  // Paywall — same rule + exemptions as the consent screen (businessGateError).
+  if (
+    !isPlatformAdmin &&
+    !isInternalTestEmail(user.email) &&
+    !hasFeatureWithOverrides(
+      business.tier,
+      "ai_assistant",
+      (business.featureOverrides as Record<string, boolean> | null) ?? null
+    )
+  ) {
+    throw new OAuthGrantError("invalid_grant", "עוזר AI אינו כלול במנוי הנוכחי של העסק");
   }
   if (!(await isMcpAllowedBusiness(businessId))) {
     throw new OAuthGrantError("invalid_grant", "העסק אינו בבטא של עוזרי AI");
@@ -644,6 +822,19 @@ export async function exchangeAuthCode(input: {
     data: { usedAt: now },
   });
   if (consumed.count !== 1) {
+    // RFC 6749 §4.1.2 / OAuth 2.1: a replayed (already-exchanged) code means it leaked —
+    // revoke the connection that code produced. (A replay racing the first exchange before
+    // connectionId is written finds connectionId null and only gets invalid_grant.)
+    const prior = await prisma.oAuthAuthCode.findUnique({
+      where: { codeHash },
+      select: { usedAt: true, connectionId: true },
+    });
+    if (prior?.usedAt && prior.connectionId) {
+      await prisma.mcpConnection.updateMany({
+        where: { id: prior.connectionId, revokedAt: null },
+        data: { revokedAt: now, refreshTokenHash: null },
+      });
+    }
     throw new OAuthGrantError("invalid_grant", "קוד ההרשאה אינו תקף, פג תוקפו או שכבר נוצל");
   }
 
@@ -677,7 +868,7 @@ export async function exchangeAuthCode(input: {
 
   const access = generateMcpToken();
   const refresh = generateRefreshToken();
-  await prisma.mcpConnection.create({
+  const created = await prisma.mcpConnection.create({
     data: {
       businessId: row.businessId,
       name: connectionNameFor(row.client?.clientName),
@@ -686,13 +877,19 @@ export async function exchangeAuthCode(input: {
       scopes,
       profile: row.profile,
       createdByUserId: row.userId,
-      createdByRole: row.role ?? holder.role,
-      expiresAt: new Date(now.getTime() + OAUTH_REFRESH_TTL_DAYS * DAY_MS),
+      // The role re-verified NOW wins over the consent-time snapshot on the code row.
+      createdByRole: holder.role ?? row.role,
+      expiresAt: slidingGrantExpiry(now, now),
       accessExpiresAt: new Date(now.getTime() + OAUTH_ACCESS_TOKEN_TTL_SEC * 1000),
       oauthClientId: row.clientId,
     },
     select: { id: true },
   });
+
+  // Remember which connection this code produced, so a replay of the code revokes it.
+  await prisma.oAuthAuthCode
+    .update({ where: { id: row.id }, data: { connectionId: created.id } })
+    .catch(() => {});
 
   await prisma.oAuthClient
     .update({ where: { id: row.clientId }, data: { lastUsedAt: now } })
@@ -734,17 +931,23 @@ export async function refreshAccessToken(input: {
       createdByUserId: true,
       revokedAt: true,
       expiresAt: true,
+      createdAt: true,
     },
   });
 
   if (!conn) {
     // Reuse detection: a rotated-out refresh token presented again → the token family
-    // is compromised; revoke the live connection.
+    // is compromised; revoke the live connection. Exception: within the grace window right
+    // after rotation it's almost always a benign client race (parallel refresh, retry after a
+    // lost response) → invalid_grant WITHOUT revoking, so the client keeps its new token.
     const reused = await prisma.mcpConnection.findFirst({
       where: { prevRefreshTokenHash: presentedHash, revokedAt: null },
-      select: { id: true },
+      select: { id: true, refreshRotatedAt: true },
     });
     if (reused) {
+      if (isWithinRefreshReuseGrace(reused.refreshRotatedAt, now)) {
+        throw new OAuthGrantError("invalid_grant", "refresh_token כבר הוחלף — השתמש בטוקן החדש");
+      }
       await prisma.mcpConnection.updateMany({
         where: { id: reused.id, revokedAt: null },
         data: { revokedAt: now },
@@ -762,7 +965,10 @@ export async function refreshAccessToken(input: {
   }
   if (!conn.createdByUserId) throw new OAuthGrantError("invalid_grant", "refresh_token אינו תקף");
 
-  const holder = await verifyGrantHolder(conn.createdByUserId, conn.businessId);
+  const holder = await verifyGrantHolder(conn.createdByUserId, conn.businessId, {
+    grantCreatedAt: conn.createdAt,
+    now,
+  });
   const scopes = capScopesForRole(conn.scopes, holder.role, holder.isPlatformAdmin);
 
   const access = generateMcpToken();
@@ -774,8 +980,10 @@ export async function refreshAccessToken(input: {
       tokenHash: access.hash,
       refreshTokenHash: refresh.hash,
       prevRefreshTokenHash: presentedHash,
+      refreshRotatedAt: now,
       accessExpiresAt: new Date(now.getTime() + OAUTH_ACCESS_TOKEN_TTL_SEC * 1000),
-      expiresAt: new Date(now.getTime() + OAUTH_REFRESH_TTL_DAYS * DAY_MS),
+      // 90-day sliding, but never past createdAt + OAUTH_GRANT_MAX_DAYS.
+      expiresAt: slidingGrantExpiry(conn.createdAt, now),
     },
   });
   if (rotated.count !== 1) throw new OAuthGrantError("invalid_grant", "refresh_token אינו תקף");

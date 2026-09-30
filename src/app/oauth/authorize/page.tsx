@@ -4,7 +4,10 @@
  * Order of checks (RFC 6749 §4.1.2.1 / OAuth 2.1):
  *  1. client_id unknown / missing          → Hebrew error card, NEVER redirect
  *  2. redirect_uri missing / not registered → Hebrew error card, NEVER redirect
- *  3. other param errors                    → redirect to redirect_uri with error + state + iss
+ *  3. other param errors (response_type, PKCE, resource, repeated state) → Hebrew error card too.
+ *     We deliberately do NOT redirect to redirect_uri here: nobody has acted yet, and redirecting
+ *     a registered-but-attacker-chosen redirect_uri on a crafted link would be an open redirect.
+ *     Only the user's explicit "ביטול" (POST /api/oauth/authorize, deny) sends error=access_denied.
  *  4. no session                            → /login?next=<this URL>
  *  5. render <ConsentForm/>; the decision is POSTed to /api/oauth/authorize (re-validates everything)
  *
@@ -22,6 +25,8 @@ import {
   redirectUriMatches,
   sanitizeClientName,
   listGrantableBusinesses,
+  isVerifiedRedirect,
+  redirectTargetLabel,
 } from "@/lib/mcp-oauth";
 import { MCP_PROFILES, MCP_PROFILE_LABELS } from "@/lib/mcp-auth";
 import { ConsentForm } from "./ConsentForm";
@@ -54,15 +59,6 @@ function requestOrigin(): string {
   const proto = process.env.NODE_ENV === "production" ? "https" : "http";
   const fake = { url: `${proto}://${host}/oauth/authorize`, headers: h } as unknown as Request;
   return getOAuthOrigin(fake);
-}
-
-function errorRedirect(redirectUri: string, error: string, description: string, state: string | undefined, iss: string): never {
-  const url = new URL(redirectUri);
-  url.searchParams.set("error", error);
-  url.searchParams.set("error_description", description);
-  if (state !== undefined) url.searchParams.set("state", state);
-  url.searchParams.set("iss", iss);
-  redirect(url.toString());
 }
 
 function ErrorCard({ title, message }: { title: string; message: string }) {
@@ -128,30 +124,30 @@ export default async function OAuthAuthorizePage({ searchParams }: { searchParam
     );
   }
 
-  // ── 3. remaining params → errors go back to the client ────────────────────
+  // ── 3. remaining params → Hebrew error card (NEVER redirect before the user acted) ──
   const origin = requestOrigin();
   const stateP = single(searchParams, "state");
-  const state = stateP.bad ? undefined : stateP.value;
-  const fail: (error: string, description: string) => never = (error, description) => errorRedirect(redirectUri, error, description, state, origin);
-
-  if (stateP.bad) fail("invalid_request", "state parameter is invalid");
+  if (stateP.bad) {
+    return <ErrorCard title="בקשת חיבור לא תקינה" message="הפרמטר state בבקשה אינו תקין (כפול או ארוך מדי)." />;
+  }
+  const state = stateP.value;
   const responseType = single(searchParams, "response_type");
   if (responseType.bad || responseType.value !== "code") {
-    fail("unsupported_response_type", "response_type must be 'code'");
+    return <ErrorCard title="בקשת חיבור לא נתמכת" message="סוג התגובה המבוקש (response_type) אינו נתמך — נתמך רק code." />;
   }
   const challengeP = single(searchParams, "code_challenge");
   const codeChallenge = challengeP.value;
   if (challengeP.bad || !codeChallenge || !CODE_CHALLENGE_RE.test(codeChallenge)) {
-    fail("invalid_request", "code_challenge is required (PKCE)");
+    return <ErrorCard title="בקשת חיבור לא מאובטחת" message="חסר אימות PKCE (code_challenge) בבקשה, ולכן לא נמשיך." />;
   }
   const methodP = single(searchParams, "code_challenge_method");
   if (methodP.bad || methodP.value !== "S256") {
-    fail("invalid_request", "code_challenge_method must be S256");
+    return <ErrorCard title="בקשת חיבור לא מאובטחת" message="שיטת אימות PKCE חייבת להיות S256." />;
   }
   const resourceP = single(searchParams, "resource");
   const resource = resourceP.value;
   if (resourceP.bad || !isValidResource(resource, origin)) {
-    fail("invalid_target", "resource must be this server's MCP endpoint");
+    return <ErrorCard title="בקשת חיבור לא תקינה" message="הבקשה מיועדת לשרת אחר (resource) ולא לפטרה." />;
   }
 
   // ── 4. session ───────────────────────────────────────────────────────────
@@ -167,14 +163,16 @@ export default async function OAuthAuthorizePage({ searchParams }: { searchParam
   // ── 5. consent ───────────────────────────────────────────────────────────
   const businesses = await listGrantableBusinesses(session);
   const clientName = sanitizeClientName(client.clientName);
-  const redirectHost = new URL(redirectUri).host;
+  const redirectTarget = redirectTargetLabel(redirectUri);
+  const verified = isVerifiedRedirect(redirectUri);
   const profiles = Object.keys(MCP_PROFILES).map((key) => ({ key, label: MCP_PROFILE_LABELS[key] ?? key }));
 
   return (
     <OAuthShell>
       <ConsentForm
         clientName={clientName}
-        redirectHost={redirectHost}
+        redirectTarget={redirectTarget}
+        verified={verified}
         userEmail={session.user.email}
         businesses={businesses}
         profiles={profiles}

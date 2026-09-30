@@ -1,7 +1,8 @@
 /**
  * Tests for the MCP OAuth pure helpers — redirect URI registration policy + matching
  * (RFC 8252 loopback), PKCE S256, client-name sanitizing, RFC 8707 resource check,
- * metadata documents, token/code generators. No Prisma calls.
+ * metadata documents, token/code generators, verified-client allowlist + consent redirect label,
+ * grant-lifetime / refresh-reuse-grace policies. No Prisma calls.
  */
 import crypto from "crypto";
 import {
@@ -19,6 +20,14 @@ import {
   sha256Hex,
   oauthCorsHeaders,
   REFRESH_TOKEN_PREFIX,
+  isVerifiedRedirect,
+  redirectTargetLabel,
+  grantHardExpiry,
+  slidingGrantExpiry,
+  isWithinRefreshReuseGrace,
+  OAUTH_GRANT_MAX_DAYS,
+  OAUTH_REFRESH_TTL_DAYS,
+  OAUTH_REFRESH_REUSE_GRACE_SEC,
 } from "@/lib/mcp-oauth";
 
 const ORIGIN = "https://petra-app.com";
@@ -36,10 +45,26 @@ describe("validateRedirectUriForRegistration", () => {
     expect(validateRedirectUriForRegistration("http://127.0.0.1.evil.com/cb")).not.toBeNull();
     expect(validateRedirectUriForRegistration("http://localhost.evil.com/cb")).not.toBeNull();
   });
-  it("accepts private-use custom schemes", () => {
+  it("accepts private-use custom schemes: reverse-DNS or known MCP clients", () => {
     expect(validateRedirectUriForRegistration("cursor://anysphere.cursor-retrieval/oauth/callback")).toBeNull();
     expect(validateRedirectUriForRegistration("vscode://vscode.github-authentication/did-authenticate")).toBeNull();
+    expect(validateRedirectUriForRegistration("vscode-insiders://vscode.github-authentication/cb")).toBeNull();
+    expect(validateRedirectUriForRegistration("windsurf://codeium.windsurf/cb")).toBeNull();
     expect(validateRedirectUriForRegistration("com.example.app:/oauth2redirect")).toBeNull();
+  });
+  it("rejects dot-less custom schemes that are not known MCP clients (OS protocol handlers)", () => {
+    for (const uri of [
+      "ms-msdt:/id PCWDiagnostic",
+      "ms-msdt:/id",
+      "search-ms:query=x",
+      "ms-settings:privacy",
+      "mailto:a@b.co",
+      "tel:123",
+      "myapp://cb",
+      "cursorx://cb",
+    ]) {
+      expect(validateRedirectUriForRegistration(uri)).not.toBeNull();
+    }
   });
   it("rejects dangerous schemes", () => {
     for (const uri of [
@@ -254,5 +279,104 @@ describe("generators", () => {
     expect(raw.startsWith("petra_mcp_")).toBe(false);
     expect(raw).toMatch(/^petra_mcpr_[0-9a-f]{64}$/);
     expect(hash).toBe(sha256Hex(raw));
+  });
+});
+
+describe("isVerifiedRedirect", () => {
+  it("verifies known https MCP client hosts (exact host, default port)", () => {
+    expect(isVerifiedRedirect("https://claude.ai/api/mcp/auth_callback")).toBe(true);
+    expect(isVerifiedRedirect("https://claude.com/api/mcp/auth_callback")).toBe(true);
+    expect(isVerifiedRedirect("https://chatgpt.com/connector_platform_oauth_redirect")).toBe(true);
+    expect(isVerifiedRedirect("https://vscode.dev/redirect")).toBe(true);
+    expect(isVerifiedRedirect("https://insiders.vscode.dev/redirect")).toBe(true);
+    expect(isVerifiedRedirect("https://CLAUDE.AI/cb")).toBe(true);
+  });
+  it("does not verify look-alikes, subdomains, other ports or plain http", () => {
+    expect(isVerifiedRedirect("https://evil.claude.ai/cb")).toBe(false);
+    expect(isVerifiedRedirect("https://claude.ai.evil.com/cb")).toBe(false);
+    expect(isVerifiedRedirect("https://claude-ai.com/cb")).toBe(false);
+    expect(isVerifiedRedirect("https://claude.ai:8443/cb")).toBe(false);
+    expect(isVerifiedRedirect("http://claude.ai/cb")).toBe(false);
+    expect(isVerifiedRedirect("https://user@claude.ai/cb")).toBe(false);
+    expect(isVerifiedRedirect("https://example.com/cb")).toBe(false);
+  });
+  it("verifies loopback http (native client on this machine)", () => {
+    expect(isVerifiedRedirect("http://127.0.0.1:33418/callback")).toBe(true);
+    expect(isVerifiedRedirect("http://localhost:6274/oauth/callback")).toBe(true);
+    expect(isVerifiedRedirect("http://[::1]:5000/cb")).toBe(true);
+    expect(isVerifiedRedirect("http://localhost.evil.com/cb")).toBe(false);
+  });
+  it("verifies known custom schemes only", () => {
+    expect(isVerifiedRedirect("cursor://anysphere.cursor-retrieval/oauth/callback")).toBe(true);
+    expect(isVerifiedRedirect("vscode://vscode.github-authentication/did-authenticate")).toBe(true);
+    expect(isVerifiedRedirect("vscode-insiders://x/cb")).toBe(true);
+    expect(isVerifiedRedirect("windsurf://codeium.windsurf/cb")).toBe(true);
+    expect(isVerifiedRedirect("com.example.app:/cb")).toBe(false);
+    expect(isVerifiedRedirect("")).toBe(false);
+    expect(isVerifiedRedirect("not a uri")).toBe(false);
+  });
+});
+
+describe("redirectTargetLabel", () => {
+  it("shows the origin with scheme for http(s)", () => {
+    expect(redirectTargetLabel("https://claude.ai/api/mcp/auth_callback?x=1")).toBe("https://claude.ai");
+    expect(redirectTargetLabel("https://example.com:8443/cb")).toBe("https://example.com:8443");
+    expect(redirectTargetLabel("http://127.0.0.1:33418/callback")).toBe("http://127.0.0.1:33418");
+  });
+  it("shows IDN hosts as punycode (homograph-visible)", () => {
+    expect(redirectTargetLabel("https://clаude.ai/cb")).toMatch(/^https:\/\/xn--/);
+  });
+  it("shows the whole custom-scheme URI incl. scheme, truncated to 80 chars", () => {
+    expect(redirectTargetLabel("cursor://anysphere.cursor-retrieval/oauth/callback")).toBe(
+      "cursor://anysphere.cursor-retrieval/oauth/callback"
+    );
+    expect(redirectTargetLabel("com.example.app:/cb")).toBe("com.example.app:/cb");
+    const long = "com.example.app:/" + "a".repeat(200);
+    const label = redirectTargetLabel(long);
+    expect(Array.from(label).length).toBe(80);
+    expect(label.startsWith("com.example.app:/")).toBe(true);
+    expect(label.endsWith("…")).toBe(true);
+  });
+  it("is never empty", () => {
+    expect(redirectTargetLabel("")).not.toBe("");
+    expect(redirectTargetLabel(undefined as unknown as string)).not.toBe("");
+    expect(redirectTargetLabel(String.fromCharCode(1, 2))).not.toBe("");
+  });
+});
+
+describe("grant lifetime policy", () => {
+  const DAY = 24 * 60 * 60 * 1000;
+  const created = new Date("2026-01-01T00:00:00Z");
+  it("hard expiry = createdAt + OAUTH_GRANT_MAX_DAYS (365)", () => {
+    expect(OAUTH_GRANT_MAX_DAYS).toBe(365);
+    expect(grantHardExpiry(created).getTime()).toBe(created.getTime() + 365 * DAY);
+  });
+  it("sliding expiry is now + 90d while far from the cap", () => {
+    const now = new Date(created.getTime() + 10 * DAY);
+    expect(slidingGrantExpiry(created, now).getTime()).toBe(now.getTime() + OAUTH_REFRESH_TTL_DAYS * DAY);
+  });
+  it("sliding expiry never exceeds createdAt + 365d", () => {
+    const now = new Date(created.getTime() + 300 * DAY);
+    expect(slidingGrantExpiry(created, now).getTime()).toBe(created.getTime() + 365 * DAY);
+    const later = new Date(created.getTime() + 400 * DAY);
+    expect(slidingGrantExpiry(created, later).getTime()).toBe(created.getTime() + 365 * DAY);
+  });
+});
+
+describe("refresh reuse grace window", () => {
+  const rotated = new Date("2026-05-01T12:00:00Z");
+  it("is 60 seconds", () => {
+    expect(OAUTH_REFRESH_REUSE_GRACE_SEC).toBe(60);
+  });
+  it("within 60s after rotation → grace (no revoke)", () => {
+    expect(isWithinRefreshReuseGrace(rotated, new Date(rotated.getTime()))).toBe(true);
+    expect(isWithinRefreshReuseGrace(rotated, new Date(rotated.getTime() + 59_000))).toBe(true);
+    expect(isWithinRefreshReuseGrace(rotated, new Date(rotated.getTime() + 60_000))).toBe(true);
+  });
+  it("after 60s, never rotated, or clock skew into the future → no grace (revoke)", () => {
+    expect(isWithinRefreshReuseGrace(rotated, new Date(rotated.getTime() + 60_001))).toBe(false);
+    expect(isWithinRefreshReuseGrace(null, new Date())).toBe(false);
+    expect(isWithinRefreshReuseGrace(undefined, new Date())).toBe(false);
+    expect(isWithinRefreshReuseGrace(rotated, new Date(rotated.getTime() - 1000))).toBe(false);
   });
 });

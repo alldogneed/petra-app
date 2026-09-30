@@ -8,7 +8,8 @@ export const dynamic = "force-dynamic";
  * Optional `resource` (RFC 8707) must name this server's /api/mcp.
  *
  * Accepts application/x-www-form-urlencoded (standard) and application/json.
- * Body ≤ 10KB. Rate limited per IP (60/min). Errors per RFC 6749 §5.2.
+ * Body ≤ 10KB. Rate limited per IP (600/min — claude.ai refreshes from shared IPs) and per
+ * client_id (60/min). Errors per RFC 6749 §5.2.
  * Tokens/codes/verifiers are never logged.
  */
 import { NextRequest } from "next/server";
@@ -19,10 +20,14 @@ import {
   OAuthGrantError,
   oauthCorsHeaders,
   oauthError,
+  isValidResource,
+  getOAuthOrigin,
 } from "@/lib/mcp-oauth";
 
 const MAX_BODY_BYTES = 10 * 1024;
-const TOKEN_RATE_LIMIT = { max: 60, windowMs: 60_000 }; // 60/min per IP
+const TOKEN_RATE_LIMIT = { max: 600, windowMs: 60_000 }; // 600/min per IP
+const TOKEN_CLIENT_RATE_LIMIT = { max: 60, windowMs: 60_000 }; // 60/min per client_id
+const MAX_CLIENT_ID_LEN = 100;
 
 /** Same IP extraction as getClientIp in src/app/api/mcp/route.ts (platform headers first). */
 function getClientIp(request: NextRequest): string {
@@ -143,6 +148,22 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   const clientId = p.get("client_id") || clientIdFromBasic(request);
   const resource = p.get("resource") ?? null;
+  if (clientId && clientId.length > MAX_CLIENT_ID_LEN) return tokenError("invalid_client", "Invalid client_id", 401);
+
+  // Per-client throttle (after parsing, before any grant handling / DB work).
+  if (clientId) {
+    const clientLimited = await rateLimitAsync("oauth:token:client", clientId, TOKEN_CLIENT_RATE_LIMIT);
+    if (!clientLimited.allowed) {
+      const res = tokenError("too_many_requests", "Too many token requests for this client. Try again later.", 429);
+      res.headers.set("Retry-After", String(Math.max(1, Math.ceil(clientLimited.retryAfterMs / 1000))));
+      return res;
+    }
+  }
+
+  // RFC 8707: a presented resource must be this server's MCP endpoint (both grant types).
+  if (!isValidResource(resource, getOAuthOrigin(request))) {
+    return tokenError("invalid_target", "resource must be this server's MCP endpoint");
+  }
 
   try {
     let tokens;

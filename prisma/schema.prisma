@@ -2343,6 +2343,7 @@ model McpConnection {
   refreshTokenHash     String?   @unique // SHA-256 of the current petra_mcpr_ refresh token
   prevRefreshTokenHash String?   // last rotated-out refresh token (reuse detection)
   accessExpiresAt      DateTime? // OAuth access-token expiry (1h); null for manual tokens
+  refreshRotatedAt     DateTime? // when refreshTokenHash was last rotated (60s reuse grace window for prevRefreshTokenHash)
 
   business     Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
   auditLogs    McpAuditLog[]
@@ -2377,6 +2378,7 @@ model OAuthAuthCode {
   resource      String?
   expiresAt     DateTime
   usedAt        DateTime?
+  connectionId  String?  // McpConnection created by the exchange (replayed code → that connection is revoked)
   createdAt     DateTime @default(now())
   client        OAuthClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
   @@index([expiresAt])
