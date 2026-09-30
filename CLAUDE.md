@@ -227,7 +227,21 @@ Both use `rateLimitAsync()` from `src/lib/rate-limit.ts` (Upstash Redis-backed).
 ### Paywall
 Settings tab "עוזרי AI" gated to `basic+`. The MCP endpoint itself doesn't enforce tier — token possession implies the user already passed the paywall when creating the connection.
 
+### OAuth (auto-login)
+User pastes `https://petra-app.com/api/mcp` into Claude (claude.ai/Desktop/Code) or Codex → client discovers OAuth → Petra login → consent (business + profile) → tokens. MCP Authorization spec 2025-06-18 (RFC 9728/8414/7591/7009/8707, OAuth 2.1).
+- **Files:** `src/lib/mcp-oauth.ts` (all logic), `src/app/.well-known/{oauth-protected-resource,oauth-authorization-server}/[[...path]]` + `openid-configuration`, `src/app/api/oauth/{register,token,revoke,authorize}/route.ts`, consent page `src/app/oauth/authorize/` (page + `ConsentForm.tsx`). Models `OAuthClient`, `OAuthAuthCode` + `McpConnection.{oauthClientId,refreshTokenHash,prevRefreshTokenHash,accessExpiresAt}`.
+- **Grant = `McpConnection` row.** Access token is a normal `petra_mcp_…` token → `validateMcpToken()` (allowlist, role capping, revocation, audit, rate limit) applies unchanged; it also rejects expired `accessExpiresAt`. Settings shows these rows with badge "התחברות אוטומטית"; revoke = same DELETE (also nulls `refreshTokenHash`).
+- **TTLs:** access 1h (`accessExpiresAt`), refresh `petra_mcpr_…` 90 days sliding (`expiresAt`), auth code 10 min single-use. Everything stored as SHA-256 only.
+- **Public clients only:** DCR registers `token_endpoint_auth_method: "none"`, never a secret; PKCE **S256 only**; redirect_uri exact (loopback any-port per RFC 8252). Invalid client/redirect → error page, never redirect.
+- **Refresh rotation** via conditional `updateMany` (no `$transaction` — PgBouncer); presenting the previous refresh token (`prevRefreshTokenHash`) = reuse → connection revoked.
+- **Consent gates = `POST /api/mcp/connections` gates** (allowlist, owner/manager/platform-admin, `ai_assistant` paywall, `isMcpAllowedBusiness`, `capScopesForRole`, 10-connection limit — auto-revokes the same user's LRU OAuth connection). Client-requested `scope` is ignored; scopes come from the chosen profile.
+- **`/api/mcp` 401:** `WWW-Authenticate: Bearer … resource_metadata=…/.well-known/oauth-protected-resource/api/mcp`. **Tokenless requests are NOT counted by the per-IP fail limiter** (claude.ai shares IPs; discovery probes are tokenless) — only requests that presented a bad token count.
+- **Login `next`:** `/login?next=/oauth/authorize?…` — validated by `safeNextPath()` in `src/lib/safe-redirect.ts` (relative, `/oauth/authorize` only); Google login carries it via the short-lived `petra_login_next` cookie.
+- **Middleware:** `.well-known` OAuth paths, `/oauth/authorize`, `/api/oauth/{token,register,revoke}` are public; `/api/oauth/authorize` (consent POST) stays session-protected + same-Origin check.
+- **Prod DDL:** `prisma/mcp_oauth.sql` (additive, idempotent) — run via `prisma db execute --url $DIRECT_URL` BEFORE deploying. Runbook: `docs/operations.md`.
+
 ### Claude Desktop config snippet
+Preferred: **URL only** — add `https://petra-app.com/api/mcp` as a custom connector (Claude) / `claude mcp add --transport http petra <url>` / `codex mcp add petra --url <url>` + `codex mcp login petra`; OAuth does the rest. Manual static token (advanced, still supported, as is `/api/mcp/u/<token>`):
 ```json
 {
   "petra": {

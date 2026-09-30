@@ -6,6 +6,7 @@ import { exchangeCodeForTokens, fetchGoogleProfile } from "@/lib/google-oauth";
 import { CURRENT_TOS_VERSION } from "@/lib/tos";
 import { notifyOwnerNewUser } from "@/lib/notify-owner";
 import { alertIfNewDevice } from "@/lib/login-alerts";
+import { safeNextPath } from "@/lib/safe-redirect";
 
 const APP_URL = process.env.APP_URL || "http://localhost:3000";
 
@@ -127,8 +128,10 @@ export async function GET(request: NextRequest) {
       await notifyOwnerNewUser({ name: user.name || "", email: user.email, plan: "free" });
     }
 
-    // Redirect: new/existing users without ToS consent go to /tos-accept, others to /dashboard
-    const redirectPath = consent ? "/dashboard" : "/tos-accept";
+    // Redirect: new/existing users without ToS consent go to /tos-accept, others to the
+    // validated post-login destination (petra_login_next cookie, e.g. MCP OAuth consent) or /dashboard
+    const nextPath = safeNextPath(request.cookies.get("petra_login_next")?.value);
+    const redirectPath = consent ? nextPath ?? "/dashboard" : "/tos-accept";
     const response = NextResponse.redirect(new URL(redirectPath, APP_URL));
     const cookieOpts = {
       httpOnly: true,
@@ -142,6 +145,8 @@ export async function GET(request: NextRequest) {
     response.cookies.set("petra_rm", "1", cookieOpts);
     // Clear the OAuth state cookie
     response.cookies.delete("google_oauth_state");
+    // Consume the one-shot post-login destination cookie
+    response.cookies.delete("petra_login_next");
 
     return response;
   } catch (e) {

@@ -31,7 +31,9 @@ export async function DELETE(
 
     await prisma.mcpConnection.update({
       where: { id: params.id },
-      data: { revokedAt: new Date() },
+      // Also drop the refresh token so a revoked OAuth grant can never be refreshed
+      // (the refresh path checks revokedAt too — belt and braces).
+      data: { revokedAt: new Date(), refreshTokenHash: null },
     });
 
     return NextResponse.json({ success: true });
@@ -83,8 +85,13 @@ export async function GET(
         })
       : null;
 
-    // Strip tokenHash from response
-    const { tokenHash: _, ...safe } = conn;
+    // Strip all token hashes from response (access + OAuth refresh tokens)
+    const {
+      tokenHash: _tokenHash,
+      refreshTokenHash: _refreshTokenHash,
+      prevRefreshTokenHash: _prevRefreshTokenHash,
+      ...safe
+    } = conn;
     return NextResponse.json({
       ...safe,
       createdBy: minter ? { name: minter.name, email: minter.email } : null,

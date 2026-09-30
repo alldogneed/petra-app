@@ -34,6 +34,7 @@ export async function GET(request: NextRequest) {
         createdAt: true,
         lastUsedAt: true,
         revokedAt: true,
+        oauthClientId: true, // non-null = created via OAuth auto-login (never select token hashes)
         _count: { select: { auditLogs: true } },
       },
       orderBy: { createdAt: "desc" },

@@ -112,13 +112,17 @@ export async function validateMcpToken(raw: string, opts: { touch?: boolean } = 
   const hash = hashToken(raw);
   const conn = await prisma.mcpConnection.findFirst({
     where: { tokenHash: hash, revokedAt: null },
-    select: { id: true, businessId: true, scopes: true, createdByUserId: true, expiresAt: true },
+    select: { id: true, businessId: true, scopes: true, createdByUserId: true, expiresAt: true, accessExpiresAt: true },
   });
 
   if (!conn) return null;
 
   // Expiry (new tokens default to MCP_TOKEN_TTL_DAYS; legacy rows have null = no expiry).
   if (conn.expiresAt && conn.expiresAt.getTime() < Date.now()) return null;
+
+  // OAuth access tokens are short-lived (1h, src/lib/mcp-oauth.ts) — the client refreshes
+  // on 401. Manual tokens have accessExpiresAt = null.
+  if (conn.accessExpiresAt && conn.accessExpiresAt.getTime() < Date.now()) return null;
 
   // Private beta gate: tokens of non-allowlisted businesses are inert.
   if (!(await isMcpAllowedBusiness(conn.businessId))) return null;

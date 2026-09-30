@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Mail, Lock, Eye, EyeOff, LogIn } from "lucide-react";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { safeNextPath } from "@/lib/safe-redirect";
 
 const GOOGLE_ERROR_MESSAGES: Record<string, string> = {
   google_config: "חיבור Google לא מוגדר. פנה למנהל המערכת.",
@@ -21,6 +22,11 @@ function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const googleError = searchParams.get("error");
+  // Only /oauth/authorize… is honoured (MCP OAuth consent) — see src/lib/safe-redirect.ts
+  const nextPath = safeNextPath(searchParams.get("next"));
+  const googleHref = nextPath
+    ? `/api/auth/google?next=${encodeURIComponent(nextPath)}`
+    : "/api/auth/google";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -51,7 +57,7 @@ function LoginForm() {
       }
 
       setEntering(true);
-      window.location.href = "/dashboard";
+      window.location.href = nextPath ?? "/dashboard";
     } catch {
       setError("שגיאה בהתחברות. נסה שוב.");
     } finally {
@@ -175,7 +181,7 @@ function LoginForm() {
 
         <div>
           <a
-            href="/api/auth/google"
+            href={googleHref}
             className="flex items-center justify-center gap-3 w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
           >
             <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">

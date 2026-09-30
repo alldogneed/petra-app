@@ -20,6 +20,7 @@ import { NextRequest } from "next/server";
 import prisma from "@/lib/prisma";
 import { validateMcpToken, touchMcpConnection, extractBearerToken, auditLog, DEFAULT_MCP_SCOPES, capScopesForRole, ADMIN_SCOPE } from "@/lib/mcp-auth";
 import { rateLimitAsync, claimOnce } from "@/lib/rate-limit";
+import { getOAuthOrigin } from "@/lib/mcp-oauth";
 import { listCustomers, getCustomer, addCustomerNote, createCustomer, createLead, updateLead, listTasks } from "@/services/clients";
 import { listAppointments, createAppointment, updateAppointment, deleteAppointment } from "@/services/appointments";
 import { listOrders, getOrder, createOrder } from "@/services/orders";
@@ -1322,8 +1323,26 @@ export async function handleMcpRequest(request: NextRequest, tokenFromPath?: str
   const auth = wellFormed ? await validateMcpToken(token as string, { touch: false }) : null;
 
   if (!auth) {
-    // Brute-force protection: rate-limit failed auth attempts per IP.
-    // Only failed attempts hit this counter — valid tokens are throttled separately below.
+    // RFC 9728 / MCP auth spec: point OAuth-discovering clients at the
+    // protected-resource metadata so they can run the authorization flow.
+    const resourceMetadata = `${getOAuthOrigin(request)}/.well-known/oauth-protected-resource/api/mcp`;
+    if (!token) {
+      // Tokenless request (OAuth discovery probe / first connect). Plain 401 —
+      // NOT counted by the failed-auth IP limiter: claude.ai's backend shares
+      // IPs across all users, so counting these would turn discovery into 429s.
+      return new Response(
+        JSON.stringify({ error: "Unauthorized", message: "Missing MCP token. Connect via OAuth, or pass 'Authorization: Bearer petra_mcp_...' (create a token in Petra → הגדרות → עוזרי AI)." }),
+        {
+          status: 401,
+          headers: {
+            "Content-Type": "application/json",
+            "WWW-Authenticate": `Bearer realm="petra-mcp", resource_metadata="${resourceMetadata}"`,
+          },
+        }
+      );
+    }
+    // A token was presented and failed. Brute-force protection: rate-limit
+    // failed auth attempts per IP. Valid tokens are throttled separately below.
     const fail = await rateLimitAsync("mcp:auth-fail", ip, MCP_RATE_LIMIT_AUTH_FAIL);
     if (!fail.allowed) {
       return rateLimitResponse(fail.retryAfterMs);
@@ -1334,8 +1353,7 @@ export async function handleMcpRequest(request: NextRequest, tokenFromPath?: str
         status: 401,
         headers: {
           "Content-Type": "application/json",
-          // Hint for OAuth-discovering MCP clients: this server uses static bearer tokens.
-          "WWW-Authenticate": 'Bearer realm="petra-mcp", error="invalid_token"',
+          "WWW-Authenticate": `Bearer realm="petra-mcp", resource_metadata="${resourceMetadata}", error="invalid_token"`,
         },
       }
     );
