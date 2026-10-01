@@ -168,10 +168,6 @@ export function CustomerSalesHistory({ customerId }: { customerId: string }) {
           היסטוריית מכירה
           {leads.length > 1 && <span className="text-xs font-normal text-petra-muted">({leads.length} לידים)</span>}
         </h2>
-        <Link href="/leads" className="btn-ghost text-xs">
-          <ExternalLink className="w-3.5 h-3.5" />
-          פתח בלידים
-        </Link>
       </div>
       <div className="divide-y divide-slate-100">
         {leads.map((lead, i) => (
@@ -231,6 +227,13 @@ function LeadSection({ lead, showName }: { lead: SalesHistoryLead; showName: boo
             </span>
           )}
           {showName && lead.name && <span className="text-xs text-petra-muted">· {lead.name}</span>}
+          <Link
+            href={`/leads?lead=${encodeURIComponent(lead.id)}`}
+            className="ms-auto inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:text-brand-700 hover:underline"
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+            פתח את הליד
+          </Link>
         </div>
         <p className="text-xs text-petra-muted leading-relaxed">
           נפתח {fmtDate(lead.createdAt)}
