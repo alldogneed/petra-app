@@ -57,6 +57,7 @@ export const ACTIVITY_ACTIONS = {
   ACTIVATE_MEMBER: "ACTIVATE_MEMBER",
   REVOKE_SESSION: "REVOKE_SESSION",
   UPDATE_SECURITY_ALERTS: "UPDATE_SECURITY_ALERTS",
+  CHANGE_BUSINESS_PHONE: "CHANGE_BUSINESS_PHONE",
 } as const;
 
 export type ActivityAction = (typeof ACTIVITY_ACTIONS)[keyof typeof ACTIVITY_ACTIONS];
@@ -113,6 +114,7 @@ export const ACTION_LABELS: Record<string, string> = {
   ACTIVATE_MEMBER: "הפעיל/ה עובד",
   REVOKE_SESSION: "ניתק/ה סשן",
   UPDATE_SECURITY_ALERTS: "עדכן/ה התראות אבטחה",
+  CHANGE_BUSINESS_PHONE: "שינה/תה את טלפון העסק",
 };
 
 export function actionLabel(action: string): string {
@@ -200,7 +202,7 @@ export const ENTITY_LABEL_MAX = 120;
 export function sanitizeEntityLabel(label: string | null | undefined): string | null {
   if (label == null) return null;
   // eslint-disable-next-line no-control-regex
-  const clean = String(label).replace(/[\u0000-\u001f\u007f\u2028\u2029]+/g, " ").replace(/\s+/g, " ").trim();
+  const clean = String(label).replace(/[\u0000-\u001f\u007f\u2028\u2029]+/g, " ").replace(/[\u200b-\u200f\u202a-\u202e\u2066-\u2069\ufeff]/g, "").replace(/\s+/g, " ").trim();
   if (!clean) return null;
   return clean.length > ENTITY_LABEL_MAX ? clean.slice(0, ENTITY_LABEL_MAX - 1) + "…" : clean;
 }

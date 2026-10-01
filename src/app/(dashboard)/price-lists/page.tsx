@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { triggerLimitModal } from "@/lib/limit-reached";
 import { toast } from "sonner";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { usePermissions } from "@/hooks/usePermissions";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -306,6 +307,7 @@ function ItemRow({
   onMoveDown,
   canMoveUp,
   canMoveDown,
+  readOnly = false,
 }: {
   item: PriceListItem;
   onEdit: () => void;
@@ -316,6 +318,8 @@ function ItemRow({
   onMoveDown?: () => void;
   canMoveUp?: boolean;
   canMoveDown?: boolean;
+  /** No PRICING_WRITE — hide all mutation buttons (server returns 403 anyway) */
+  readOnly?: boolean;
 }) {
   return (
     <div className={cn(
@@ -359,6 +363,7 @@ function ItemRow({
         </a>
       )}
 
+      {!readOnly && (
       <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
         {onMoveUp && (
           <button
@@ -397,6 +402,7 @@ function ItemRow({
           <Trash2 className="w-3.5 h-3.5" />
         </button>
       </div>
+      )}
     </div>
   );
 }
@@ -405,6 +411,7 @@ function ItemRow({
 
 export default function PriceListPage() {
   const qc = useQueryClient();
+  const { canEditPricing } = usePermissions();
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
   const [filterType, setFilterType] = useState("");
@@ -545,6 +552,7 @@ export default function PriceListPage() {
         </div>
         <p className="text-sm font-semibold text-petra-text mb-1">אין עדיין מחירון</p>
         <p className="text-xs text-petra-muted mb-4">צור מחירון כדי להתחיל להוסיף שירותים ומוצרים</p>
+        {canEditPricing && (
         <button
           className="btn-primary"
           onClick={() => createPriceListMutation.mutate()}
@@ -553,6 +561,7 @@ export default function PriceListPage() {
           <Plus className="w-4 h-4" />
           {createPriceListMutation.isPending ? "יוצר..." : "צור מחירון"}
         </button>
+        )}
       </div>
     );
   }
@@ -565,6 +574,7 @@ export default function PriceListPage() {
         <p className="text-sm text-petra-muted">
           {items.filter((i) => i.isActive).length} פריטים פעילים · {priceList?.name}
         </p>
+        {canEditPricing && (
         <button
           onClick={() => setModalState({ open: true, item: null })}
           className="btn-primary"
@@ -572,6 +582,7 @@ export default function PriceListPage() {
           <Plus className="w-4 h-4" />
           פריט חדש
         </button>
+        )}
         {items.filter((i) => i.isActive).length > 0 && (
           <a
             href={(() => {
@@ -664,7 +675,7 @@ export default function PriceListPage() {
             <p className="text-xs text-petra-muted mb-4">
               {search ? "נסה חיפוש אחר" : "הוסף את הפריט הראשון"}
             </p>
-            {!search && (
+            {!search && canEditPricing && (
               <button onClick={() => setModalState({ open: true, item: null })} className="btn-primary">
                 <Plus className="w-4 h-4" /> פריט חדש
               </button>
@@ -681,6 +692,7 @@ export default function PriceListPage() {
                 <ItemRow
                   key={item.id}
                   item={item}
+                  readOnly={!canEditPricing}
                   onEdit={() => setModalState({ open: true, item })}
                   onDuplicate={() => duplicateMutation.mutate(item)}
                   onToggle={() => toggleMutation.mutate({ id: item.id, isActive: !item.isActive })}

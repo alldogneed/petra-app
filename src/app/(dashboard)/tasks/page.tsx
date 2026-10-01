@@ -52,6 +52,7 @@ import { toast } from "sonner";
 import { usePlan } from "@/hooks/usePlan";
 import { getMaxTasks } from "@/lib/feature-flags";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { usePermissions } from "@/hooks/usePermissions";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -171,6 +172,7 @@ function formatShortDate(task: Task): string {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function TasksPage() {
+  const { canExportData } = usePermissions();
   const { isFree, tier } = usePlan();
   const maxTasks = getMaxTasks(tier);
   const searchParams = useSearchParams();
@@ -746,6 +748,7 @@ export default function TasksPage() {
       {/* Bottom controls: export + select */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
+          {canExportData && (
           <button
             onClick={() => setShowExportModal(true)}
             className="btn-secondary gap-1.5 text-xs py-1.5 px-3"
@@ -753,6 +756,7 @@ export default function TasksPage() {
             <Download className="w-3.5 h-3.5" />
             ייצוא
           </button>
+          )}
           <button
             className={cn(
               "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors",

@@ -70,8 +70,8 @@ export const SECURITY_ALERT_RULE_INFO: Record<SecurityAlertRuleKey, { title: str
     description: "כניסה למערכת מדפדפן/מכשיר שלא נראה אצל המשתמש ב-90 הימים האחרונים (כולל בעלים).",
   },
   permissionChange: {
-    title: "שינוי הרשאות / תפקיד",
-    description: "מישהו שאינו בעל העסק שינה תפקיד, הרשאות, או השבית/הפעיל עובד.",
+    title: "שינוי הרשאות / תפקיד / טלפון העסק",
+    description: "מישהו שאינו בעל העסק שינה תפקיד או הרשאות, השבית/הפעיל עובד, או שינה את טלפון העסק (אליו נשלחות התראות WhatsApp).",
   },
 };
 
@@ -113,7 +113,7 @@ export function parseSecurityAlertPrefs(raw: unknown): SecurityAlertPrefs {
 const EXPORT_ACTIONS = new Set(["EXPORT_CUSTOMERS", "EXPORT_DATA", "EXPORT_ACTIVITY"]);
 const PAYMENT_ACTIONS = new Set(["CANCEL_PAYMENT", "REFUND_PAYMENT", "DELETE_PAYMENT"]);
 const PERMISSION_ACTIONS = new Set([
-  "UPDATE_MEMBER_PERMISSIONS", "UPDATE_MEMBER_ROLE", "DEACTIVATE_MEMBER", "ACTIVATE_MEMBER",
+  "UPDATE_MEMBER_PERMISSIONS", "UPDATE_MEMBER_ROLE", "DEACTIVATE_MEMBER", "ACTIVATE_MEMBER", "CHANGE_BUSINESS_PHONE",
 ]);
 
 export function isDeleteAction(action: string): boolean {
@@ -363,6 +363,9 @@ export interface SecurityAlertDeps {
 }
 
 /** Returns the rule that fired (for tests/logging) or null. Never throws. */
+/** Max time an awaited alert may add to the request that triggered it. */
+export const ALERT_SEND_TIMEOUT_MS = 4000;
+
 export function createSecurityAlertDispatcher(deps: SecurityAlertDeps) {
   const log = deps.log ?? ((m: string, e?: unknown) => console.error(m, e ?? ""));
   return async function dispatch(entry: AlertEntry): Promise<SecurityAlertRuleKey | null> {
@@ -430,7 +433,14 @@ export function createSecurityAlertDispatcher(deps: SecurityAlertDeps) {
         sends.push(deps.sendWhatsApp(businessId, biz.phone, content.text)
           .catch((e) => log("[security-alerts] whatsapp failed:", e)));
       }
-      await Promise.all(sends);
+      // Alerts run after the user's action already succeeded — never hold the
+      // response hostage to a slow provider.
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      await Promise.race([
+        Promise.all(sends),
+        new Promise<void>((resolve) => { timer = setTimeout(resolve, ALERT_SEND_TIMEOUT_MS); }),
+      ]);
+      if (timer) clearTimeout(timer);
       return fired;
     } catch (err) {
       log("[security-alerts] dispatch failed:", err);

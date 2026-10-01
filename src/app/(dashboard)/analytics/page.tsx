@@ -31,6 +31,7 @@ import { formatIls, type LeadSalesReport } from "@/lib/lead-deal-value";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { TierGate } from "@/components/paywall/TierGate";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface AnalyticsData {
   period: string;
@@ -149,6 +150,7 @@ export default function AnalyticsPage() {
 }
 
 function AnalyticsContent() {
+  const { canExportData } = usePermissions();
   const [period, setPeriod] = useState("month");
   const [dateMode, setDateMode] = useState<"preset" | "custom">("preset");
   const [customFrom, setCustomFrom] = useState("");
@@ -241,7 +243,7 @@ function AnalyticsContent() {
               />
             </>
           )}
-          {data && (
+          {data && canExportData && (
             <button
               onClick={handleExport}
               disabled={isExporting || !exportFrom || !exportTo}

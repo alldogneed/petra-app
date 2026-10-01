@@ -67,7 +67,11 @@ export async function getTeamStats(
     }),
     db.adminSession.groupBy({
       by: ["userId"],
-      where: { userId: { in: memberIds }, impersonatedByAdminId: null },
+      // Session activity is platform-wide — only show it for current members.
+      where: {
+        userId: { in: memberships.filter((m) => m.isActive).map((m) => m.userId) },
+        impersonatedByAdminId: null,
+      },
       _max: { lastSeenAt: true },
     }),
   ]);

@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenantPermission, isGuardError } from "@/lib/auth-guards";
 import { prisma } from "@/lib/prisma";
-import { TENANT_PERMS, CRITICAL_CAPABILITIES } from "@/lib/permissions";
+import { TENANT_PERMS, CRITICAL_CAPABILITIES, parsePermissionOverrides } from "@/lib/permissions";
 import { canModifyTenantRole, type TenantRole } from "@/lib/permissions";
 import { logAudit, getRequestContext, AUDIT_ACTIONS } from "@/lib/audit";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
@@ -145,6 +145,24 @@ export async function PATCH(
       entityId: targetMember.userId,
       entityLabel: targetMember.user?.name ?? null,
     });
+  }
+
+  // AI access follows the member's current standing: when this change leaves them
+  // without it (deactivated, demoted below manager, or AI_ASSISTANT switched off),
+  // revoke the AI connections they minted for this business right away instead of
+  // waiting for token expiry. Owners keep theirs.
+  if (activityActions.length > 0 && updated.role !== "owner") {
+    const overrides = parsePermissionOverrides(updated.permissionOverrides);
+    const keepsAi =
+      updated.isActive &&
+      updated.role === "manager" &&
+      overrides[TENANT_PERMS.AI_ASSISTANT] !== false;
+    if (!keepsAi) {
+      await prisma.mcpConnection.updateMany({
+        where: { businessId: actorMembership.businessId, createdByUserId: targetMember.userId, revokedAt: null },
+        data: { revokedAt: new Date(), refreshTokenHash: null, prevRefreshTokenHash: null },
+      });
+    }
   }
 
   return NextResponse.json(updated);

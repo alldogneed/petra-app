@@ -1565,6 +1565,7 @@ function CustomersPermGate({ children }: { children: React.ReactNode }) {
 
 export default function CustomersPage() {
   const queryClient = useQueryClient();
+  const { canExportData } = usePermissions();
   const { maxCustomers, tier } = useSubscription();
 
   // ── State ──
@@ -1861,6 +1862,7 @@ export default function CustomersPage() {
             <ShoppingCart className="w-4 h-4" />
             הזמנה חדשה
           </button>
+          {canExportData && (
           <button
             className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-colors"
             title="ייצוא לקוחות לאקסל"
@@ -1887,6 +1889,7 @@ export default function CustomersPage() {
             <FileDown className="w-4 h-4" />
             ייצוא Excel
           </button>
+          )}
         </div>
       </div>
 

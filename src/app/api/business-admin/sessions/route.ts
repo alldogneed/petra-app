@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
 
     const sessions = await listBusinessSessions(user.businessId, prisma, {
       currentSessionId: authResult.session.sessionId,
+      actorId: user.id,
     });
     return NextResponse.json(sessions);
   } catch (error) {

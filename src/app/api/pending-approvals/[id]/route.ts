@@ -18,6 +18,11 @@ const APPROVAL_DELETE_ENTITIES: Record<string, { entityType: string; idKey: stri
   DELETE_TRAINING: { entityType: ENTITY_TYPES.TRAINING, idKey: "trainingProgramId", labelKey: "programName" },
   DELETE_APPOINTMENT: { entityType: ENTITY_TYPES.APPOINTMENT, idKey: "appointmentId" },
   DELETE_LEAD: { entityType: ENTITY_TYPES.LEAD, idKey: "leadId", labelKey: "leadName" },
+  // Service dog = Pet row + profile; only the profile is deleted. Older approvals
+  // have no petId in the payload → entityId null, label still recorded.
+  DELETE_SERVICE_DOG: { entityType: ENTITY_TYPES.PET, idKey: "petId", labelKey: "dogName" },
+  // No RECIPIENT entity type → no entityType, label only.
+  DELETE_RECIPIENT: { entityType: "", idKey: "recipientId", labelKey: "recipientName" },
 };
 
 /**
@@ -108,7 +113,7 @@ export async function PATCH(
     const label = deleteEntity.labelKey ? payload?.[deleteEntity.labelKey] : undefined;
     await logActivity(session.user.id, session.user.name, approval.action, {
       businessId,
-      entityType: deleteEntity.entityType,
+      entityType: deleteEntity.entityType || null,
       entityId: typeof entityId === "string" ? entityId : null,
       entityLabel: typeof label === "string" ? label : approval.description,
     });

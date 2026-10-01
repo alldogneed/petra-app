@@ -41,6 +41,10 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
+    const before = await prisma.business.findUnique({
+      where: { id: authResult.businessId },
+      select: { phone: true },
+    });
 
     let result;
     try {
@@ -69,6 +73,14 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
+    // The business phone receives owner WhatsApp security alerts — a change is itself alertable.
+    if (before && updated.phone !== before.phone) {
+      await logActivity(authResult.session.user.id, authResult.session.user.name, "CHANGE_BUSINESS_PHONE", {
+        businessId: authResult.businessId,
+        entityType: ENTITY_TYPES.SETTINGS,
+        entityLabel: "טלפון העסק",
+      });
+    }
     logActivity(authResult.session.user.id, authResult.session.user.name, "UPDATE_SETTINGS", {
       businessId: authResult.businessId,
       entityType: ENTITY_TYPES.SETTINGS,

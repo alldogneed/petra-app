@@ -119,13 +119,18 @@ const deps: SecurityAlertDeps = {
   async sendEmail(to, subject, html) {
     const resend = getResend();
     if (!resend) return; // email not configured — skip silently
-    const { error } = await resend.emails.send({
-      from: process.env.EMAIL_FROM || "Petra <noreply@petra-app.com>",
-      to,
-      subject,
-      html,
-    });
-    if (error) console.error("[security-alerts] Resend error:", error.message);
+    // One message per owner — co-owners don't see each other's addresses.
+    await Promise.all(
+      to.map(async (addr) => {
+        const { error } = await resend.emails.send({
+          from: process.env.EMAIL_FROM || "Petra <noreply@petra-app.com>",
+          to: addr,
+          subject,
+          html,
+        });
+        if (error) console.error("[security-alerts] Resend error:", error.message);
+      })
+    );
   },
   async sendWhatsApp(businessId, phone, text) {
     const [{ sendWhatsAppMessage }, { toWhatsAppPhone }] = await Promise.all([

@@ -37,6 +37,8 @@ export interface BusinessSessionRow {
   device: string;
   isCurrent: boolean;
   isNewDevice: boolean;
+  /** Whether this owner may revoke it (server re-checks on DELETE). */
+  canRevoke: boolean;
 }
 
 /**
@@ -46,11 +48,13 @@ export interface BusinessSessionRow {
 export async function listBusinessSessions(
   businessId: string,
   db: DbClient,
-  opts: { currentSessionId?: string | null; now?: Date } = {}
+  opts: { currentSessionId?: string | null; actorId?: string | null; now?: Date } = {}
 ): Promise<BusinessSessionRow[]> {
   const now = opts.now ?? new Date();
+  // Active members only — a former employee's sessions (IP, device, lastSeen in
+  // other businesses) are none of this owner's business.
   const members = await db.businessUser.findMany({
-    where: { businessId },
+    where: { businessId, isActive: true },
     select: { userId: true, role: true },
   });
   const memberIds = members.map((m) => m.userId);
@@ -100,8 +104,32 @@ export async function listBusinessSessions(
     });
   }
 
+  // Users whose sessions this owner may not touch: owners, platform staff, and
+  // anyone who owns another business (sessions are platform-wide).
+  const otherUserIds = [...new Set(sessions.map((x) => x.userId))].filter((id) => id !== opts.actorId);
+  const [platformStaff, ownersElsewhere] = otherUserIds.length
+    ? await Promise.all([
+        db.platformUser.findMany({
+          where: { id: { in: otherUserIds }, platformRole: { not: null } },
+          select: { id: true },
+        }),
+        db.businessUser.findMany({
+          where: { userId: { in: otherUserIds }, role: "owner", isActive: true, businessId: { not: businessId } },
+          select: { userId: true },
+        }),
+      ])
+    : [[], []];
+  const protectedIds = new Set<string>([
+    ...platformStaff.map((u) => u.id),
+    ...ownersElsewhere.map((m) => m.userId),
+    ...members.filter((m) => m.role === "owner").map((m) => m.userId),
+  ]);
+
   return withDevice.map((s) => ({
     ...s,
+    canRevoke:
+      !(!!opts.currentSessionId && s.id === opts.currentSessionId) &&
+      (s.userId === opts.actorId || !protectedIds.has(s.userId)),
     businessRole: roleMap.get(s.userId) ?? "user",
     isCurrent: !!opts.currentSessionId && s.id === opts.currentSessionId,
     isNewDevice: isNewDeviceSession({ userId: s.userId, createdAt: s.createdAt, device: s.device }, logins, now),
@@ -116,13 +144,20 @@ async function assertRevocableMember(
   actorId: string
 ) {
   const member = await db.businessUser.findFirst({
-    where: { businessId, userId: targetUserId },
-    select: { role: true, user: { select: { name: true } } },
+    where: { businessId, userId: targetUserId, isActive: true },
+    select: { role: true, user: { select: { name: true, platformRole: true } } },
   });
   if (!member) throw new ServiceError("Session not found", "NOT_FOUND");
-  if (member.role === "owner" && targetUserId !== actorId) {
+  if (targetUserId === actorId) return member;
+  if (member.role === "owner" || member.user.platformRole) {
     throw new ServiceError("Session not found", "NOT_FOUND");
   }
+  // Sessions are platform-wide: never let this owner log someone out of a business
+  // they own elsewhere.
+  const ownsElsewhere = await db.businessUser.count({
+    where: { userId: targetUserId, role: "owner", isActive: true, businessId: { not: businessId } },
+  });
+  if (ownsElsewhere > 0) throw new ServiceError("Session not found", "NOT_FOUND");
   return member;
 }
 

@@ -8,7 +8,7 @@ import { Clock, Wifi, WifiOff, RefreshCw, LogOut, Monitor, ShieldAlert } from "l
 import { SessionEntry, ROLE_LABELS, ROLE_COLORS, relativeTime, formatTs, isOnline, Avatar } from "./shared";
 
 /** GET /api/business-admin/sessions row (server adds device/isCurrent/isNewDevice). */
-type SessionRow = SessionEntry & { device: string; isCurrent: boolean; isNewDevice: boolean };
+type SessionRow = SessionEntry & { device: string; isCurrent: boolean; isNewDevice: boolean; canRevoke: boolean };
 
 async function jsonOrThrow(r: Response, fallback: string) {
   const d = await r.json().catch(() => ({}));
@@ -88,7 +88,7 @@ export function SessionsTab({ currentUserId }: { currentUserId: string }) {
           {groups.map((sessions) => {
             const first = sessions[0];
             const isMe = first.userId === currentUserId;
-            const canRevokeAll = !isMe && first.businessRole !== "owner";
+            const canRevokeAll = !isMe && first.canRevoke;
             return (
               <div key={first.userId} className="card overflow-hidden">
                 <div className="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-slate-100 bg-slate-50/50">
@@ -128,7 +128,7 @@ export function SessionsTab({ currentUserId }: { currentUserId: string }) {
                 <ul className="divide-y divide-slate-50">
                   {sessions.map((s) => {
                     const online = isOnline(s.lastSeenAt);
-                    const canRevoke = !s.isCurrent && (s.businessRole !== "owner" || isMe);
+                    const canRevoke = s.canRevoke;
                     return (
                       <li key={s.id} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-3 text-sm">
                         <Monitor className="w-4 h-4 text-slate-400 flex-shrink-0" />

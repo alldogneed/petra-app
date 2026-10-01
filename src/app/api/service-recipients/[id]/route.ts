@@ -5,6 +5,8 @@ import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { hasTenantPermission, sessionHasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
 import { createPendingApproval } from "@/lib/pending-approvals";
 import { getRecipient, updateRecipient, deleteRecipient, ServiceError } from "@/services/service-dogs";
+import { logActivity } from "@/lib/activity-log";
+import { ACTIVITY_ACTIONS } from "@/lib/activity-actions";
 
 export async function GET(
   request: NextRequest,
@@ -129,14 +131,24 @@ export async function DELETE(
       );
     }
 
+    let deleted: { id: string; name: string };
     try {
-      await deleteRecipient(businessId, prisma, params.id);
+      // Returns the recipient's name (read before the delete) for the activity log
+      deleted = await deleteRecipient(businessId, prisma, params.id);
     } catch (e) {
       if (e instanceof ServiceError && e.code === "NOT_FOUND") {
         return NextResponse.json({ error: "זכאי לא נמצא" }, { status: 404 });
       }
       throw e;
     }
+
+    // No RECIPIENT entity type (no page to link to once deleted) — label only.
+    await logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.DELETE_RECIPIENT, {
+      businessId,
+      entityType: null,
+      entityId: deleted.id,
+      entityLabel: deleted.name,
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {
