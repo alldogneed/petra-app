@@ -66,6 +66,7 @@ export async function POST(
       await cancelLeadFollowup(id).catch((err) =>
         console.error("cancelLeadFollowup (close-won) failed (non-critical):", err)
       );
+      await clearLeadFollowUps(authResult.businessId, prisma, id).catch((err) => console.error("clearLeadFollowUps failed:", err));
 
       return NextResponse.json({
         lead,

@@ -19,7 +19,7 @@ import {
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { cn, fetchJSON } from "@/lib/utils";
 import { LEAD_SOURCES, LOST_REASON_CODES } from "@/lib/constants";
-import { formatAttributionLine } from "@/lib/lead-attribution";
+import { TRAFFIC_SOURCE_LABELS, isTrafficSource } from "@/lib/lead-attribution";
 import { formatIls } from "@/lib/lead-deal-value";
 import {
   SALES_JOURNAL_KIND_LABELS,
@@ -184,11 +184,11 @@ export function CustomerSalesHistory({ customerId }: { customerId: string }) {
   );
 }
 
-function InfoItem({ label, value }: { label: string; value: string }) {
+function InfoItem({ label, value, ltr }: { label: string; value: string; ltr?: boolean }) {
   return (
     <div className="min-w-0">
       <dt className="text-[11px] text-petra-muted">{label}</dt>
-      <dd className="text-sm text-petra-text break-words">{value}</dd>
+      <dd className="text-sm text-petra-text break-words">{ltr ? <bdi dir="ltr" className="break-all">{value}</bdi> : value}</dd>
     </div>
   );
 }
@@ -200,7 +200,10 @@ function LeadSection({ lead, showName }: { lead: SalesHistoryLead; showName: boo
   const status = STATUS_BADGE[lead.status] ?? STATUS_BADGE.open;
   const endIso = lead.status === "won" ? lead.wonAt : lead.status === "lost" ? lead.lostAt : null;
   const duration = daysBetween(lead.createdAt, endIso);
-  const attribution = formatAttributionLine(lead);
+  const trafficLabel =
+    lead.trafficSource && lead.trafficSource !== "unknown"
+      ? isTrafficSource(lead.trafficSource) ? TRAFFIC_SOURCE_LABELS[lead.trafficSource] : lead.trafficSource
+      : null;
   const lostReasonLabel = lead.lostReasonCode
     ? LOST_REASON_CODES.find((r) => r.id === lead.lostReasonCode)?.label ?? lead.lostReasonCode
     : null;
@@ -245,7 +248,8 @@ function LeadSection({ lead, showName }: { lead: SalesHistoryLead; showName: boo
 
       <dl className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-3 rounded-xl bg-slate-50/70 border border-slate-100 p-3">
         <InfoItem label="מקור" value={sourceLabel(lead.source)} />
-        {attribution && <InfoItem label="מקור תנועה" value={attribution} />}
+        {trafficLabel && <InfoItem label="מקור תנועה" value={trafficLabel} />}
+        {lead.landingPage && <InfoItem label="עמוד נחיתה" value={lead.landingPage} ltr />}
         {lead.requestedService && <InfoItem label="שירות מבוקש" value={lead.requestedService} />}
         {lead.dealValue !== null && lead.dealValue !== undefined && (
           <InfoItem label="ערך עסקה" value={formatIls(lead.dealValue)} />

@@ -23,7 +23,7 @@ import { rateLimitAsync, claimOnce } from "@/lib/rate-limit";
 import { getOAuthOrigin } from "@/lib/mcp-oauth";
 import { listCustomers, getCustomer, addCustomerNote, createCustomer, createLead, updateLead, listTasks, getCustomerSalesHistory } from "@/services/clients";
 import { SALES_JOURNAL_KIND_LABELS, TASK_STATUS_LABELS, type SalesHistoryLead } from "@/lib/lead-sales-history";
-import { LOST_REASON_CODES } from "@/lib/constants";
+import { LOST_REASON_CODES, LEAD_SOURCES } from "@/lib/constants";
 import { listAppointments, createAppointment, updateAppointment, deleteAppointment } from "@/services/appointments";
 import { listOrders, getOrder, createOrder } from "@/services/orders";
 import { listPets } from "@/services/pets";
@@ -79,6 +79,7 @@ function effectiveScopes(scopes: string[]): string[] {
 // ── get_client sales-history formatter (lead journal) ───────────────────────
 const SALES_JOURNAL_MCP_CAP = 30;
 const LOST_REASON_LABEL: Record<string, string> = Object.fromEntries(LOST_REASON_CODES.map((r) => [r.id, r.label]));
+const LEAD_SOURCE_LABEL: Record<string, string> = Object.fromEntries(LEAD_SOURCES.map((s) => [s.id, s.label]));
 
 function formatSalesHistorySection(leads: SalesHistoryLead[]): string[] {
   const SALES_LEADS_MCP_CAP = 5;
@@ -94,7 +95,7 @@ function formatSalesHistorySection(leads: SalesHistoryLead[]): string[] {
     ].filter(Boolean).join(" | ");
     out.push(dates);
     const meta = [
-      l.source ? `ערוץ: ${safeField(l.source, 30)}` : null,
+      l.source ? `ערוץ: ${LEAD_SOURCE_LABEL[l.source] ?? safeField(l.source, 30)}` : null,
       l.requestedService ? `שירות מבוקש: ${safeField(l.requestedService, 80)}` : null,
       l.dealValue != null ? `💰 ערך עסקה: ${formatIls(l.dealValue)}` : null,
     ].filter(Boolean).join(" | ");

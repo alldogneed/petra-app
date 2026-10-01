@@ -940,7 +940,9 @@ export async function updateLead(
   businessId: string,
   db: DbClient,
   leadId: string,
-  input: UpdateLeadInput
+  input: UpdateLeadInput,
+  /** PlatformUser id of the acting user — recorded as wonByUserId when this update wins the lead */
+  actorUserId?: string | null
 ) {
   const existing = await db.lead.findFirst({ where: { id: leadId, businessId } });
   if (!existing) throw new ServiceError("Lead not found", "NOT_FOUND");
@@ -1004,6 +1006,10 @@ export async function updateLead(
     ...(input.lostAt !== undefined
       ? { lostAt: input.lostAt ? new Date(input.lostAt) : null }
       : autoLostAt !== undefined ? { lostAt: autoLostAt } : {}),
+    // "נסגר ע״י" for the customer sales history: stamp on win, clear when the lead leaves won
+    ...((input.wonAt !== undefined ? !!input.wonAt : autoWonAt instanceof Date)
+      ? { wonByUserId: actorUserId ?? null }
+      : (input.wonAt === null || autoWonAt === null) ? { wonByUserId: null } : {}),
     ...(input.nextFollowUpAt !== undefined && { nextFollowUpAt: input.nextFollowUpAt ? new Date(input.nextFollowUpAt) : null }),
     ...(input.followUpStatus !== undefined && { followUpStatus: input.followUpStatus }),
     ...(input.previousStageId !== undefined && { previousStageId: input.previousStageId }),
