@@ -73,6 +73,7 @@ import {
 } from "@/lib/utils";
 import { validateIsraeliPhone, validateEmail, sanitizeName, normalizeIsraeliPhone, validateName } from "@/lib/validation";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { CustomerSalesHistory, CustomerLeadChip } from "@/components/customers/CustomerSalesHistory";
 
 const DOG_BREEDS = [
   "גולדן רטריוור", "לברדור", "בורדר קולי", "ג'ק ראסל", "פודל", "צ'יוואווה",
@@ -3693,9 +3694,12 @@ export default function CustomerProfilePage() {
             <h1 className="text-xl font-bold text-petra-text truncate">
               {customer.name}
             </h1>
-            <p className="text-sm text-petra-muted">
-              נוסף {formatDate(customer.createdAt)}
-            </p>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <p className="text-sm text-petra-muted">
+                נוסף {formatDate(customer.createdAt)}
+              </p>
+              <CustomerLeadChip customerId={customerId} />
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
@@ -4738,6 +4742,11 @@ export default function CustomerProfilePage() {
                 })}
               </div>
             )}
+          </div>
+
+          {/* Sales history (leads linked to this customer) */}
+          <div id="sales-history" className="scroll-mt-20 empty:hidden">
+            <CustomerSalesHistory customerId={customerId} />
           </div>
 
           {/* Appointments */}

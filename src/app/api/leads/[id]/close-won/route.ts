@@ -58,6 +58,7 @@ export async function POST(
         data: {
           stage: wonStageId,
           wonAt: new Date(),
+          wonByUserId: authResult.session.user.id,
         },
         include: { customer: true, callLogs: true },
       });
@@ -66,6 +67,7 @@ export async function POST(
       await cancelLeadFollowup(id).catch((err) =>
         console.error("cancelLeadFollowup (close-won) failed (non-critical):", err)
       );
+      await clearLeadFollowUps(authResult.businessId, prisma, id).catch((err) => console.error("clearLeadFollowUps failed:", err));
 
       return NextResponse.json({
         lead,
@@ -90,6 +92,7 @@ export async function POST(
       data: {
         stage: wonStageId,
         wonAt: new Date(),
+        wonByUserId: authResult.session.user.id,
         customerId: customer.id,
       },
       include: { customer: true, callLogs: true },

@@ -169,13 +169,20 @@ MCP: `create_lead` accepts the same keys (omitted → `unknown`), `get_lead` pri
 - Never ship the paw without the wordmark. Toes are `border-radius: 50%` (not Tailwind `rounded-full` — renders pills).
 - Leave alone: spinners inside buttons, refresh icons, "טען עוד", decorative status dots/pings, tiny inline number placeholders. Customer portal `/c/[slug]` keeps its white-label loader.
 
-### 30. Activity log — always pass `businessId` + entity
+
+### 30. Customer sales history — the lead journal follows the customer
+Everything recorded on a lead (call logs + "מה סוכם", stage changes, deal-value changes, follow-up tasks open+closed, created/won/lost, deal value, source, attribution, who closed) is shown in the customer file for every lead with `Lead.customerId` = that customer (won, lost and open; newest first).
+- Single source of truth: `src/lib/lead-sales-history.ts` (types + `buildSalesJournal()` + `leadStatusOf()` + caps); service `getCustomerSalesHistory()` in `src/services/clients.ts`; API `GET /api/customers/[id]/sales-history` (same `CUSTOMERS_PII` gate as the customer GET).
+- UI: `src/components/customers/CustomerSalesHistory.tsx` — card "היסטוריית מכירה" in the customer page right column right after Pets (anchor `#sales-history`) + "הגיע מליד" chip in the header. Each lead has "פתח את הליד" → `/leads?lead=<id>` (leads page opens `LeadTreatmentModal` for that id, then strips the param; unknown id → toast). MCP `get_client` appends the section when the token also has `read:leads`.
+- `close-won` / `convert` / `updateLead(…, actorUserId)` (stage → won via PATCH) set `wonByUserId` (PlatformUser id; cleared when the lead leaves won); names resolved only via this business's `BusinessUser` rows. `convert` and `close-won` both run `clearLeadFollowUps()` so a won lead has no open follow-up. Never delete callLogs/tasks of a converted lead — they ARE the customer's sales history. Tests: `src/lib/__tests__/lead-sales-history.test.ts`.
+
+### 31. Activity log — always pass `businessId` + entity
 `logActivity(userId, userName, action, { businessId, entityType, entityId, entityLabel })` (`src/lib/activity-log.ts`). Action names/labels/entity links live ONLY in `src/lib/activity-actions.ts` (client-safe: `ACTIVITY_ACTIONS`, `actionLabel`, `ENTITY_TYPES`, `entityHref`, `describeDevice`). Read the label BEFORE a delete (scoped by businessId). `await` the call for sensitive actions (DELETE_*, EXPORT_*, payment cancel/refund, member/permission changes, LOGIN) — `logActivity` then runs owner security alerts (`src/lib/security-alerts.ts` + pure `security-alert-rules.ts`, prefs `Business.securityAlertPrefs`, sends capped at 4s, 20/business/hour per instance). Reading ActivityLog for a business = `businessId = X OR (businessId IS NULL AND userId IN members(X))` (legacy rows). Prod DDL: `prisma/business_admin_control.sql`.
 
-### 31. "ניהול ובקרה" (`/business-admin`) — owner only
+### 32. "ניהול ובקרה" (`/business-admin`) — owner only
 Tabs live in `src/components/business-admin/*` (page.tsx = shell + TABS only): סקירה, פעילות (filters/search/keyset paging/xlsx export), פעילות AI (McpAuditLog per business — never `params`), צוות (per-employee summary from ActivityLog + `PermissionsMatrix`), סשנים (revoke one/all — only active non-owner, non-platform members who don't own another business; never return `AdminSession.token`), התראות אבטחה, בריאות נתונים (`src/services/business-admin-health.ts`). APIs under `/api/business-admin/*` check `businessRole === "owner"`.
 
-### 32. Permission matrix is enforced server-side — use overrides
+### 33. Permission matrix is enforced server-side — use overrides
 Every check of a `CRITICAL_CAPABILITIES` permission must honour `BusinessUser.permissionOverrides`: `requireBusinessPermission(...)` or `sessionHasTenantPermission(session, businessId, PERM)` (`src/lib/permissions.ts`). Never `hasTenantPermission(role, PERM)` without overrides in a route. Gates: DATA_EXPORT (all export routes), MESSAGES_SEND (customer sends), PRICING_WRITE (pricing/price-lists/services mutations), PAYMENTS_WRITE (payment links, invoicing issue/credit), BOARDING_MANAGE (room/yard structure; status-only PATCH stays open), SETTINGS_CRITICAL (settings PATCH, lead webhook key), CRITICAL_DELETE (deletes; managers → pending approval). UI hides the matching buttons via `usePermissions()`. Member PATCH invalidates the session cache and revokes the member's `McpConnection`s when they lose AI access. Pending-approval executors read ids via `payloadId()` (throws on missing — an undefined Prisma filter = cross-tenant wipe).
 
 ---
@@ -334,6 +341,7 @@ import { env, isDev, isProd } from "@/lib/env";
 | Dashboard stat cards | "הכנסות החודש" always shown (from `data.monthRevenue`); "היום: ₪X" as subtitle when today > 0. `data.upcomingByType` and dead `BirthdayWidget` component exist but are unused. |
 | Dashboard orders section | "הזמנות אחרונות" links to `/orders`; each row is a `<Link>` to `/orders/:id` |
 | Lead deal value | `src/lib/lead-deal-value.ts` — edited in `LeadTreatmentModal`; column totals in `leads/page.tsx`; `getAnalytics().leadSales` ("מכירות מלידים" in `/analytics`); DDL `prisma/lead_deal_value.sql` |
+| Customer sales history | `src/lib/lead-sales-history.ts` + `getCustomerSalesHistory()` + `GET /api/customers/[id]/sales-history` → `CustomerSalesHistory.tsx` card on the customer page (after Pets) |
 | Lead traffic attribution | `src/lib/lead-attribution.ts` — `classifyTrafficSource`, `normalizeAttributionInput`, `formatAttributionLine`, `buildLeadAttributionReport`; DDL `prisma/lead_attribution.sql`; report tables in `/analytics` (12 months) |
 | Lead WhatsApp alert | `customers/[id]/page.tsx`: blue Send button on completed appointments (follow-up wa.me). Birthday Gift button on pet card hover. `customers/page.tsx`: "שלח ברוכים הבאים" toast action on new customer creation. |
 | Onboarding wizard | `src/app/onboarding/page.tsx` — 5-step full-page flow (Welcome→Client→Pricing→GCal→Done). Shown to new users redirected from register. |

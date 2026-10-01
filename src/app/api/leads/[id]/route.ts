@@ -47,7 +47,7 @@ export async function PATCH(
 
     let lead;
     try {
-      lead = await updateLead(authResult.businessId, prisma, params.id, parsed.data as UpdateLeadInput);
+      lead = await updateLead(authResult.businessId, prisma, params.id, parsed.data as UpdateLeadInput, authResult.session.user.id);
     } catch (e) {
       if (e instanceof ServiceError) {
         const status = e.code === "NOT_FOUND" ? 404 : e.code === "VALIDATION" ? 400 : 400;

@@ -1592,6 +1592,20 @@ function LeadsPageContent() {
     queryFn: () => fetchJSON<Lead[]>("/api/leads"),
   });
 
+  // Deep link: /leads?lead=<id> (e.g. "פתח את הליד" in the customer's sales history)
+  // opens that lead's card once the list is loaded, then drops the param from the URL.
+  const deepLinkHandled = useRef(false);
+  useEffect(() => {
+    if (deepLinkHandled.current || leadsInitialLoading) return;
+    const leadId = new URLSearchParams(window.location.search).get("lead");
+    if (!leadId) return;
+    deepLinkHandled.current = true;
+    const target = leads.find((l) => l.id === leadId);
+    if (target) setSelectedLead(target);
+    else toast.error("הליד לא נמצא");
+    router.replace("/leads", { scroll: false });
+  }, [leads, leadsInitialLoading, router]);
+
   // Auto-refresh every 30 seconds when enabled
   useEffect(() => {
     if (!autoRefresh) return;
