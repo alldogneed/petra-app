@@ -6,7 +6,6 @@ import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 import { rateLimit } from "@/lib/rate-limit";
-// @ts-ignore
 import * as XLSX from "xlsx";
 
 const EXPORT_RATE_LIMIT = { max: 5, windowMs: 60 * 1000 };

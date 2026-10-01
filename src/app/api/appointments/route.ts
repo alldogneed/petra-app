@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
+import { randomBytes } from "crypto";
 import prisma from "@/lib/prisma";
 import { logActivity } from "@/lib/activity-log";
 import { ENTITY_TYPES } from "@/lib/activity-actions";
@@ -222,7 +223,7 @@ export async function POST(request: NextRequest) {
           status: "confirmed",
           source: "manual",
           notes: body.notes || null,
-          customerToken: require("crypto").randomBytes(32).toString("hex"),
+          customerToken: randomBytes(32).toString("hex"),
           ...(body.petId ? { dogs: { create: { petId: body.petId } } } : {}),
         },
       });

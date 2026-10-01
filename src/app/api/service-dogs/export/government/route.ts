@@ -154,7 +154,7 @@ export async function GET(request: NextRequest) {
       // Owner data — use customer if placed, otherwise use business
       let ownerName = "";
       let ownerPhone = "";
-      let ownerMobile = "";
+      const ownerMobile = "";
       let ownerEmail = "";
       let ownerAddress = "";
 

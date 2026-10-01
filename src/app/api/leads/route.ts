@@ -6,7 +6,6 @@ import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { hasFeatureWithOverrides } from "@/lib/feature-flags";
 import { sendLeadAlert } from "@/lib/lead-alert";
-import { toWhatsAppPhone } from "@/lib/utils";
 import { prisma } from "@/lib/prisma";
 import { listLeads, createLead, ServiceError } from "@/services/clients";
 import { hasAttributionPayload, normalizeAttributionInput } from "@/lib/lead-attribution";
