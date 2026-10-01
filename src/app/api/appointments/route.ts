@@ -1,7 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { logCurrentUserActivity } from "@/lib/activity-log";
+import { logActivity } from "@/lib/activity-log";
+import { ENTITY_TYPES } from "@/lib/activity-actions";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { scheduleAppointmentReminder, scheduleAppointmentFollowup, appointmentConfirmationChain, defaultConfirmationText } from "@/lib/reminder-service";
 import { sendWithTemplateChain } from "@/lib/whatsapp-template-chain";
@@ -12,6 +13,12 @@ import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { getMaxAppointments, normalizeTier, hasFeatureWithOverrides } from "@/lib/feature-flags";
 import { localTimeToUtc } from "@/lib/slots";
 import { listAppointments, createAppointment, ServiceError } from "@/services/appointments";
+
+function appointmentLabel(a: { date?: Date | string | null; startTime?: string | null; customer?: { name?: string | null } | null }): string {
+  const d = a.date ? new Date(a.date).toLocaleDateString("he-IL", { timeZone: "Asia/Jerusalem" }) : "";
+  return `תור ${d} ${a.startTime ?? ""} — ${a.customer?.name ?? ""}`;
+}
+
 
 export async function GET(request: NextRequest) {
   try {
@@ -71,7 +78,12 @@ export async function POST(request: NextRequest) {
       throw e;
     }
 
-    logCurrentUserActivity("CREATE_APPOINTMENT");
+    logActivity(authResult.session.user.id, authResult.session.user.name, "CREATE_APPOINTMENT", {
+      businessId: authResult.businessId,
+      entityType: ENTITY_TYPES.APPOINTMENT,
+      entityId: appointment.id,
+      entityLabel: appointmentLabel(appointment),
+    });
 
     // ── Side effects ────────────────────────────────────────────────────────
 

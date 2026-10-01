@@ -5,6 +5,16 @@ import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { prisma } from "@/lib/prisma";
 import { hasTenantPermission, TENANT_PERMS } from "@/lib/permissions";
 import { deletePet } from "@/services/pets";
+import { logActivity } from "@/lib/activity-log";
+import { ENTITY_TYPES } from "@/lib/activity-actions";
+
+/** Approved delete actions → the activity-log entity they removed. */
+const APPROVAL_DELETE_ENTITIES: Record<string, { entityType: string; idKey: string; labelKey?: string }> = {
+  DELETE_CUSTOMER: { entityType: ENTITY_TYPES.CUSTOMER, idKey: "customerId", labelKey: "customerName" },
+  DELETE_PET: { entityType: ENTITY_TYPES.PET, idKey: "petId", labelKey: "petName" },
+  DELETE_TRAINING: { entityType: ENTITY_TYPES.TRAINING, idKey: "trainingProgramId", labelKey: "programName" },
+  DELETE_APPOINTMENT: { entityType: ENTITY_TYPES.APPOINTMENT, idKey: "appointmentId" },
+};
 
 /**
  * PATCH /api/pending-approvals/[id]
@@ -86,6 +96,19 @@ export async function PATCH(
       resolvedAt: new Date(),
     },
   });
+
+  // The approving owner performed the delete — log it (awaited: sensitive action).
+  const deleteEntity = APPROVAL_DELETE_ENTITIES[approval.action];
+  if (deleteEntity) {
+    const entityId = payload?.[deleteEntity.idKey];
+    const label = deleteEntity.labelKey ? payload?.[deleteEntity.labelKey] : undefined;
+    await logActivity(session.user.id, session.user.name, approval.action, {
+      businessId,
+      entityType: deleteEntity.entityType,
+      entityId: typeof entityId === "string" ? entityId : null,
+      entityLabel: typeof label === "string" ? label : approval.description,
+    });
+  }
 
   return NextResponse.json({ success: true, status: "APPROVED" });
 }

@@ -4,6 +4,8 @@ import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { type TenantRole } from "@/lib/permissions";
 import { createPendingApproval } from "@/lib/pending-approvals";
+import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
+import { ENTITY_TYPES } from "@/lib/activity-actions";
 import {
   getTrainingProgram,
   updateTrainingProgram,
@@ -127,6 +129,13 @@ export async function DELETE(
       }
       throw e;
     }
+
+    await logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.DELETE_TRAINING, {
+      businessId,
+      entityType: ENTITY_TYPES.TRAINING,
+      entityId: params.id,
+      entityLabel: programLabel,
+    });
 
     return NextResponse.json({ success: true, orderDowngraded: result.orderDowngraded });
   } catch (error) {

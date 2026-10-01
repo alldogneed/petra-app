@@ -257,12 +257,19 @@ export function parseAiActivityQuery(
 
 // ─── Output hygiene ───────────────────────────────────────────────────────
 
+// C0 controls, DEL, line/paragraph separators, bidi overrides/isolates, zero-width, BOM.
+// Built from a string of escapes so the source and compiled output stay free of raw
+// separator characters (a literal U+2028 inside a regex literal breaks parsing).
+const UNSAFE_TEXT_CHARS = new RegExp(
+  "[\\u0000-\\u001f\\u007f\\u2028\\u2029\\u202a-\\u202e\\u2066-\\u2069\\u200b-\\u200f\\ufeff]+",
+  "g"
+);
+
 /** Strip control/bidi chars, collapse whitespace, cap length. null when empty. */
 export function cleanText(value: unknown, max = AI_ACTIVITY_TEXT_MAX): string | null {
   if (value == null) return null;
   const clean = String(value)
-    // eslint-disable-next-line no-control-regex
-    .replace(/[\u0000-\u001f\u007f  ‪-‮⁦-⁩​-‏﻿]+/g, " ")
+    .replace(UNSAFE_TEXT_CHARS, " ")
     .replace(/\s+/g, " ")
     .trim();
   if (!clean) return null;

@@ -6,6 +6,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 import { rateLimit } from "@/lib/rate-limit";
 import * as XLSX from "xlsx";
 import { computeMedicalComplianceStatus } from "@/lib/service-dog-engine";
@@ -212,6 +213,11 @@ export async function GET(request: NextRequest) {
 
     const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
     const today = new Date().toISOString().slice(0, 10);
+
+    await logActivity(authResult.session.user.id, authResult.session.user.name, ACTIVITY_ACTIONS.EXPORT_DATA, {
+      businessId: authResult.businessId,
+      entityLabel: "כלבי שירות",
+    });
 
     return new Response(buf, {
       headers: {

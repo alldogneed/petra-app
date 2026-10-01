@@ -1,6 +1,7 @@
 "use client";
 
 
+import Link from "next/link";
 import {
   Users,
   Activity,
@@ -16,7 +17,21 @@ import {
   ListTodo,
   MessageSquare,
   Settings,
+  Undo2,
+  Ban,
+  Download,
+  LogOut,
+  ShieldCheck,
+  UserCog,
+  UserX,
+  UserCheck,
+  Link2,
+  Unlink,
+  RefreshCw,
+  PawPrint,
+  Pencil,
 } from "lucide-react";
+import { actionLabel, entityHref, DELETE_ACTIONS } from "@/lib/activity-actions";
 
 // ── Types ────────────────────────────────────────────────────────
 
@@ -34,6 +49,14 @@ export interface ActivityEntry {
   userName: string;
   action: string;
   createdAt: string;
+  entityType: string | null;
+  entityId: string | null;
+  entityLabel: string | null;
+}
+
+export interface ActivityPage {
+  items: ActivityEntry[];
+  nextCursor: string | null;
 }
 
 export interface TeamMember {
@@ -77,81 +100,111 @@ export interface SessionEntry {
 
 // ── Constants ────────────────────────────────────────────────────
 
-export const ACTION_LABELS: Record<string, string> = {
-  LOGIN: "התחבר למערכת",
-  CREATE_CUSTOMER: "יצר לקוח חדש",
-  UPDATE_CUSTOMER: "עדכן לקוח",
-  DELETE_CUSTOMER: "מחק לקוח",
-  ADD_PET: "הוסיף חיית מחמד",
-  CREATE_APPOINTMENT: "יצר תור חדש",
-  UPDATE_APPOINTMENT: "עדכן תור",
-  COMPLETE_APPOINTMENT: "סיים תור",
-  CANCEL_APPOINTMENT: "ביטל תור",
-  DELETE_APPOINTMENT: "מחק תור",
-  CREATE_ORDER: "יצר הזמנה חדשה",
-  CREATE_PAYMENT: "רשם תשלום",
-  CREATE_LEAD: "יצר ליד חדש",
-  UPDATE_LEAD: "עדכן ליד",
-  CLOSE_LEAD_WON: "סגר ליד בהצלחה",
-  CLOSE_LEAD_LOST: "סגר ליד כאבוד",
-  DELETE_LEAD: "מחק ליד",
-  CREATE_TASK: "יצר משימה",
-  COMPLETE_TASK: "השלים משימה",
-  CANCEL_TASK: "ביטל משימה",
-  CREATE_BOARDING_STAY: "יצר שהייה בפנסיון",
-  CHECKIN_BOARDING: "ביצע צ׳ק-אין",
-  CHECKOUT_BOARDING: "ביצע צ׳ק-אאוט",
-  DELETE_BOARDING: "מחק שהייה",
-  UPDATE_SETTINGS: "עדכן הגדרות",
-  CREATE_MESSAGE_TEMPLATE: "יצר תבנית הודעה",
-};
+// Hebrew action labels: actionLabel() from @/lib/activity-actions (single source of truth).
 
 export const ACTION_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   LOGIN: LogIn,
   CREATE_CUSTOMER: Users,
-  UPDATE_CUSTOMER: Users,
+  UPDATE_CUSTOMER: Pencil,
   DELETE_CUSTOMER: Trash2,
-  ADD_PET: Package,
+  ADD_PET: PawPrint,
+  DELETE_PET: Trash2,
   CREATE_APPOINTMENT: Calendar,
   UPDATE_APPOINTMENT: Calendar,
   COMPLETE_APPOINTMENT: CheckCircle2,
   CANCEL_APPOINTMENT: XCircle,
   DELETE_APPOINTMENT: Trash2,
   CREATE_ORDER: Package,
+  CANCEL_ORDER: XCircle,
+  DELETE_ORDER: Trash2,
   CREATE_PAYMENT: CreditCard,
+  UPDATE_PAYMENT: CreditCard,
+  CANCEL_PAYMENT: Ban,
+  REFUND_PAYMENT: Undo2,
+  DELETE_PAYMENT: Trash2,
   CREATE_LEAD: Target,
   UPDATE_LEAD: Target,
   CLOSE_LEAD_WON: CheckCircle2,
   CLOSE_LEAD_LOST: XCircle,
+  DELETE_LEAD: Trash2,
   CREATE_TASK: ListTodo,
   COMPLETE_TASK: CheckCircle2,
   CANCEL_TASK: XCircle,
+  DELETE_TASK: Trash2,
   CREATE_BOARDING_STAY: Hotel,
+  CHECKIN_BOARDING: Hotel,
+  CHECKOUT_BOARDING: Hotel,
+  DELETE_BOARDING: Trash2,
+  DELETE_TRAINING: Trash2,
   UPDATE_SETTINGS: Settings,
   CREATE_MESSAGE_TEMPLATE: MessageSquare,
+  EXPORT_CUSTOMERS: Download,
+  EXPORT_DATA: Download,
+  EXPORT_ACTIVITY: Download,
+  CONNECT_WHATSAPP: Link2,
+  DISCONNECT_WHATSAPP: Unlink,
+  SYNC_WHATSAPP_TEMPLATES: RefreshCw,
+  UPDATE_MEMBER_ROLE: UserCog,
+  UPDATE_MEMBER_PERMISSIONS: UserCog,
+  DEACTIVATE_MEMBER: UserX,
+  ACTIVATE_MEMBER: UserCheck,
+  REVOKE_SESSION: LogOut,
+  UPDATE_SECURITY_ALERTS: ShieldCheck,
 };
+
+const RED = "#EF4444";
+const ORANGE = "#F97316";
+const GREEN = "#10B981";
+const SLATE = "#64748B";
 
 export const ACTION_COLORS: Record<string, string> = {
   LOGIN: "#22C55E",
   CREATE_CUSTOMER: "#06B6D4",
   UPDATE_CUSTOMER: "#06B6D4",
-  DELETE_CUSTOMER: "#EF4444",
+  DELETE_CUSTOMER: RED,
   ADD_PET: "#A855F7",
+  DELETE_PET: RED,
   CREATE_APPOINTMENT: "#3B82F6",
-  COMPLETE_APPOINTMENT: "#10B981",
-  CANCEL_APPOINTMENT: "#F97316",
-  DELETE_APPOINTMENT: "#EF4444",
+  UPDATE_APPOINTMENT: "#3B82F6",
+  COMPLETE_APPOINTMENT: GREEN,
+  CANCEL_APPOINTMENT: ORANGE,
+  DELETE_APPOINTMENT: RED,
   CREATE_ORDER: "#F59E0B",
-  CREATE_PAYMENT: "#10B981",
+  CANCEL_ORDER: ORANGE,
+  DELETE_ORDER: RED,
+  CREATE_PAYMENT: GREEN,
+  UPDATE_PAYMENT: GREEN,
+  CANCEL_PAYMENT: RED,
+  REFUND_PAYMENT: ORANGE,
+  DELETE_PAYMENT: RED,
   CREATE_LEAD: "#EC4899",
   UPDATE_LEAD: "#EC4899",
-  CLOSE_LEAD_WON: "#10B981",
-  CLOSE_LEAD_LOST: "#EF4444",
+  CLOSE_LEAD_WON: GREEN,
+  CLOSE_LEAD_LOST: RED,
+  DELETE_LEAD: RED,
   CREATE_TASK: "#6366F1",
-  COMPLETE_TASK: "#10B981",
-  CREATE_BOARDING_STAY: "#F97316",
-  UPDATE_SETTINGS: "#64748B",
+  COMPLETE_TASK: GREEN,
+  CANCEL_TASK: ORANGE,
+  DELETE_TASK: RED,
+  CREATE_BOARDING_STAY: ORANGE,
+  CHECKIN_BOARDING: ORANGE,
+  CHECKOUT_BOARDING: ORANGE,
+  DELETE_BOARDING: RED,
+  DELETE_TRAINING: RED,
+  UPDATE_SETTINGS: SLATE,
   CREATE_MESSAGE_TEMPLATE: "#8B5CF6",
+  EXPORT_CUSTOMERS: "#0EA5E9",
+  EXPORT_DATA: "#0EA5E9",
+  EXPORT_ACTIVITY: "#0EA5E9",
+  CONNECT_WHATSAPP: "#22C55E",
+  DISCONNECT_WHATSAPP: ORANGE,
+  SYNC_WHATSAPP_TEMPLATES: "#22C55E",
+  UPDATE_MEMBER_ROLE: "#8B5CF6",
+  UPDATE_MEMBER_PERMISSIONS: "#8B5CF6",
+  DEACTIVATE_MEMBER: RED,
+  ACTIVATE_MEMBER: GREEN,
+  REVOKE_SESSION: ORANGE,
+  UPDATE_SECURITY_ALERTS: SLATE,
 };
 
 export const ROLE_LABELS: Record<string, string> = {
@@ -235,24 +288,42 @@ export function Avatar({ name, url, size = 8 }: { name: string; url?: string | n
   );
 }
 
-export function ActivityRow({ entry }: { entry: ActivityEntry }) {
-  const label = ACTION_LABELS[entry.action] ?? entry.action;
-  const color = ACTION_COLORS[entry.action] ?? "#64748B";
-  const Icon = ACTION_ICONS[entry.action] ?? Activity;
+/** Action icon in a tinted square (shared by ActivityRow and the activity table). */
+export function ActionIcon({ action, size = "md" }: { action: string; size?: "sm" | "md" }) {
+  const color = ACTION_COLORS[action] ?? SLATE;
+  const Icon = ACTION_ICONS[action] ?? Activity;
+  const box = size === "sm" ? "w-6 h-6 rounded-md" : "w-7 h-7 rounded-lg";
+  const icon = size === "sm" ? "w-3 h-3" : "w-3.5 h-3.5";
+  return (
+    <div className={`${box} flex items-center justify-center flex-shrink-0`} style={{ background: color + "18" }}>
+      <Icon className={icon} {...({ style: { color } } as any)} />
+    </div>
+  );
+}
 
+/** The entity label — a link when the entity still has a page, plain text otherwise. */
+export function EntityLabel({ entry }: { entry: ActivityEntry }) {
+  if (!entry.entityLabel) return null;
+  const href = entityHref(entry.entityType, entry.entityId, DELETE_ACTIONS.has(entry.action));
+  return href ? (
+    <Link href={href} className="text-sm font-medium text-brand-600 hover:underline break-words">
+      {entry.entityLabel}
+    </Link>
+  ) : (
+    <span className="text-sm font-medium text-slate-700 break-words">{entry.entityLabel}</span>
+  );
+}
+
+export function ActivityRow({ entry }: { entry: ActivityEntry }) {
   return (
     <div className="flex items-center gap-3 py-2.5 border-b border-slate-50 last:border-0">
-      <div
-        className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-        style={{ background: color + "18" }}
-      >
-        <Icon className="w-3.5 h-3.5" {...({ style: { color } } as any)} />
-      </div>
+      <ActionIcon action={entry.action} />
       <div className="flex-1 min-w-0">
         <span className="text-sm font-medium text-slate-800">{entry.userName}</span>
-        <span className="text-sm text-petra-muted"> · {label}</span>
+        <span className="text-sm text-petra-muted"> {actionLabel(entry.action)} </span>
+        <EntityLabel entry={entry} />
       </div>
-      <span className="text-xs text-petra-muted flex-shrink-0 whitespace-nowrap">
+      <span className="text-xs text-petra-muted flex-shrink-0 whitespace-nowrap" title={formatTs(entry.createdAt)}>
         {relativeTime(entry.createdAt)}
       </span>
     </div>

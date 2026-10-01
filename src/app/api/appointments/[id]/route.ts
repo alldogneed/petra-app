@@ -4,11 +4,18 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
+import { ENTITY_TYPES } from "@/lib/activity-actions";
 import { type TenantRole } from "@/lib/permissions";
 import { createPendingApproval } from "@/lib/pending-approvals";
 import { cancelAppointmentReminders, rescheduleAppointmentReminder } from "@/lib/reminder-service";
 import { syncAppointmentToGcal, deleteAppointmentFromGcal } from "@/lib/google-calendar";
 import { updateAppointment, deleteAppointment, ServiceError, type UpdateAppointmentInput } from "@/services/appointments";
+
+function appointmentLabel(a: { date?: Date | string | null; startTime?: string | null; customer?: { name?: string | null } | null }): string {
+  const d = a.date ? new Date(a.date).toLocaleDateString("he-IL", { timeZone: "Asia/Jerusalem" }) : "";
+  return `תור ${d} ${a.startTime ?? ""} — ${a.customer?.name ?? ""}`;
+}
+
 
 const PatchAppointmentSchema = z.object({
   status: z.enum(["scheduled", "completed", "canceled"]).optional(),
@@ -51,7 +58,12 @@ export async function PATCH(
       status === "completed" ? ACTIVITY_ACTIONS.COMPLETE_APPOINTMENT :
       status === "canceled" ? ACTIVITY_ACTIONS.CANCEL_APPOINTMENT :
       ACTIVITY_ACTIONS.UPDATE_APPOINTMENT;
-    logActivity(session.user.id, session.user.name, action);
+    logActivity(session.user.id, session.user.name, action, {
+      businessId: authResult.businessId,
+      entityType: ENTITY_TYPES.APPOINTMENT,
+      entityId: params.id,
+      entityLabel: appointmentLabel(appointment),
+    });
 
     // ── Side effects ────────────────────────────────────────────────────────
 
@@ -148,6 +160,12 @@ export async function DELETE(
       return NextResponse.json({ error: "נדרש אישור מפורש למחיקה", requireConfirmation: true }, { status: 428 });
     }
 
+    // Read the label before the row disappears (scoped to this business).
+    const toDelete = await prisma.appointment.findFirst({
+      where: { id: params.id, businessId },
+      select: { date: true, startTime: true, customer: { select: { name: true } } },
+    });
+
     await cancelAppointmentReminders(params.id);
     await deleteAppointmentFromGcal(params.id, businessId).catch((err) =>
       console.error("Failed to delete appointment from GCal:", err)
@@ -162,7 +180,12 @@ export async function DELETE(
       throw e;
     }
 
-    logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.DELETE_APPOINTMENT);
+    await logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.DELETE_APPOINTMENT, {
+      businessId,
+      entityType: ENTITY_TYPES.APPOINTMENT,
+      entityId: params.id,
+      entityLabel: toDelete ? appointmentLabel(toDelete) : null,
+    });
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Failed to delete appointment:", error);

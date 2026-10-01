@@ -10,6 +10,8 @@ import { requireTenantPermission, isGuardError } from "@/lib/auth-guards";
 import { prisma } from "@/lib/prisma";
 import { TENANT_PERMS } from "@/lib/permissions";
 import { logAudit, getRequestContext, AUDIT_ACTIONS } from "@/lib/audit";
+import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
+import { ENTITY_TYPES } from "@/lib/activity-actions";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { hasFeatureWithOverrides } from "@/lib/feature-flags";
@@ -181,6 +183,12 @@ export async function POST(
         ip,
         userAgent,
         metadata: { role: body.role },
+      });
+      await logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.ACTIVATE_MEMBER, {
+        businessId: membership.businessId,
+        entityType: ENTITY_TYPES.MEMBER,
+        entityId: platformUser.id,
+        entityLabel: platformUser.name,
       });
       return NextResponse.json(updated, { status: 200 });
     }

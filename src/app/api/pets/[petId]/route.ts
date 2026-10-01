@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { type TenantRole } from "@/lib/permissions";
 import { createPendingApproval } from "@/lib/pending-approvals";
+import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
+import { ENTITY_TYPES } from "@/lib/activity-actions";
 import { getPet, updatePet, deletePet, ServiceError, type UpdatePetInput } from "@/services/pets";
 
 export async function GET(
@@ -75,7 +77,7 @@ export async function DELETE(
       const approval = await createPendingApproval({
         businessId,
         requestedByUserId: session.user.id,
-        action: "DELETE_PET",
+        action: ACTIVITY_ACTIONS.DELETE_PET,
         description: `מחיקת חיית מחמד: ${existing.name}`,
         payload: { petId: params.petId, petName: existing.name },
       });
@@ -90,6 +92,12 @@ export async function DELETE(
       return NextResponse.json({ error: "נדרש אישור מפורש למחיקה", requireConfirmation: true }, { status: 428 });
     }
 
+    // Read the name before the row disappears (scoped to this business).
+    const toDelete = await prisma.pet.findFirst({
+      where: { id: params.petId, OR: [{ customer: { businessId } }, { businessId }] },
+      select: { name: true },
+    });
+
     try {
       await deletePet(businessId, prisma, params.petId);
     } catch (e) {
@@ -98,6 +106,13 @@ export async function DELETE(
       }
       throw e;
     }
+
+    await logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.DELETE_PET, {
+      businessId,
+      entityType: ENTITY_TYPES.PET,
+      entityId: params.petId,
+      entityLabel: toDelete?.name ?? null,
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

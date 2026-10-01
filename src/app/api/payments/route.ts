@@ -1,7 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { logCurrentUserActivity } from "@/lib/activity-log";
+import { logActivity } from "@/lib/activity-log";
+import { ENTITY_TYPES } from "@/lib/activity-actions";
 import { requireBusinessAuth, isGuardError, requireBusinessPermission } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { InvoicingService } from "@/lib/invoicing/invoicing-service";
@@ -207,7 +208,12 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    logCurrentUserActivity("CREATE_PAYMENT");
+    logActivity(authResult.session.user.id, authResult.session.user.name, "CREATE_PAYMENT", {
+      businessId: authResult.businessId,
+      entityType: ENTITY_TYPES.PAYMENT,
+      entityId: payment.id,
+      entityLabel: `תשלום ₪${Number(payment.amount ?? 0).toLocaleString("he-IL")} — ${payment.customer?.name ?? ""}`,
+    });
 
     // In-app notification milestone (first payment)
     if (status === "paid") {

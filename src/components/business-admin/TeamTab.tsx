@@ -2,6 +2,8 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import type { TeamStatsResponse, TeamStatsMember, TeamStatsDays } from "@/lib/team-stats";
+import { PermissionsMatrix } from "./PermissionsMatrix";
 import { useAuth } from "@/providers/auth-provider";
 import { toast } from "sonner";
 import { PetraLoader } from "@/components/ui/PetraLoader";
@@ -11,8 +13,21 @@ import {
   PenLine,
   CheckCircle2,
   XCircle,
+  BarChart3,
+  KeyRound,
+  Users,
 } from "lucide-react";
 import { TeamMember, ROLE_LABELS, ROLE_COLORS, relativeTime, formatTs, isOnline, Avatar } from "./shared";
+
+type MemberRow = TeamMember & { permissionOverrides?: Record<string, boolean> | null };
+
+const PERIODS: { days: TeamStatsDays; label: string }[] = [
+  { days: 7, label: "7 ימים" },
+  { days: 30, label: "30 יום" },
+  { days: 90, label: "90 יום" },
+];
+
+const TEAM_QUERY_KEY = ["ba-team"] as const;
 
 export function TeamTab({ currentUserId }: { currentUserId: string }) {
   const { user } = useAuth();
@@ -20,11 +35,28 @@ export function TeamTab({ currentUserId }: { currentUserId: string }) {
   const queryClient = useQueryClient();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newRole, setNewRole] = useState("");
+  const [days, setDays] = useState<TeamStatsDays>(30);
 
-  const { data: members, isLoading } = useQuery<TeamMember[]>({
-    queryKey: ["ba-team"],
+  const { data: members, isLoading } = useQuery<MemberRow[]>({
+    queryKey: TEAM_QUERY_KEY,
     enabled: !!businessId,
-    queryFn: () => fetch(`/api/admin/${businessId}/members`).then((r) => r.json()),
+    queryFn: () =>
+      fetch(`/api/admin/${businessId}/members`).then(async (r) => {
+        const d = await r.json();
+        if (!r.ok || !Array.isArray(d)) throw new Error(d?.error || "שגיאה בטעינת הצוות");
+        return d;
+      }),
+  });
+
+  const { data: stats, isLoading: statsLoading, isError: statsError } = useQuery<TeamStatsResponse>({
+    queryKey: ["ba-team-stats", days],
+    enabled: !!businessId,
+    queryFn: () =>
+      fetch(`/api/business-admin/team-stats?days=${days}`).then(async (r) => {
+        const d = await r.json();
+        if (!r.ok) throw new Error(d?.error || "שגיאה בטעינת הסיכום");
+        return d;
+      }),
   });
 
   const updateMutation = useMutation({
@@ -37,6 +69,7 @@ export function TeamTab({ currentUserId }: { currentUserId: string }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ba-team"] });
       queryClient.invalidateQueries({ queryKey: ["ba-overview"] });
+      queryClient.invalidateQueries({ queryKey: ["ba-team-stats"] });
       setEditingId(null);
       toast.success("עודכן בהצלחה");
     },
@@ -60,7 +93,55 @@ export function TeamTab({ currentUserId }: { currentUserId: string }) {
   }
 
   return (
-    <div className="card overflow-hidden">
+    <div className="space-y-6">
+      {/* ── Per-employee summary ─────────────────────────────── */}
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="w-4 h-4 text-brand-500" />
+            <h3 className="text-sm font-semibold text-petra-text">סיכום לפי עובד</h3>
+          </div>
+          <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5" role="group" aria-label="תקופה">
+            {PERIODS.map((p) => (
+              <button
+                key={p.days}
+                type="button"
+                onClick={() => setDays(p.days)}
+                aria-pressed={days === p.days}
+                className={`px-3 py-1 text-xs rounded-md transition-colors ${
+                  days === p.days ? "bg-brand-500 text-white" : "text-petra-muted hover:bg-slate-50"
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {statsLoading ? (
+          <div className="card">
+            <PetraLoader variant="inline" />
+          </div>
+        ) : statsError || !stats ? (
+          <div className="card p-6 text-center text-sm text-petra-muted">לא ניתן לטעון את סיכום הפעילות</div>
+        ) : stats.members.length === 0 ? (
+          <div className="card p-6 text-center text-sm text-petra-muted">אין עובדים להצגה</div>
+        ) : (
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {stats.members.map((m) => (
+              <MemberSummaryCard key={m.userId} member={m} isMe={m.userId === currentUserId} />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* ── Team table ───────────────────────────────────────── */}
+      <section className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Users className="w-4 h-4 text-brand-500" />
+          <h3 className="text-sm font-semibold text-petra-text">ניהול צוות</h3>
+        </div>
+    <div className="card overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-slate-100 text-xs text-petra-muted">
@@ -217,6 +298,87 @@ export function TeamTab({ currentUserId }: { currentUserId: string }) {
           })}
         </tbody>
       </table>
+    </div>
+      </section>
+
+      {/* ── Permissions matrix ───────────────────────────────── */}
+      <section className="space-y-3">
+        <div className="flex items-center gap-2">
+          <KeyRound className="w-4 h-4 text-brand-500" />
+          <h3 className="text-sm font-semibold text-petra-text">הרשאות לפי עובד</h3>
+        </div>
+        <div className="card p-4">
+          <PermissionsMatrix
+            businessId={businessId}
+            members={members ?? []}
+            currentUserId={currentUserId}
+            queryKey={TEAM_QUERY_KEY}
+          />
+        </div>
+      </section>
+    </div>
+  );
+}
+
+// ── Summary card ─────────────────────────────────────────────────
+
+function MemberSummaryCard({ member, isMe }: { member: TeamStatsMember; isMe: boolean }) {
+  const c = member.counts;
+  const items: { label: string; value: number; sub?: string; danger?: boolean }[] = [
+    { label: "תורים שהושלמו", value: c.appointmentsCompleted, sub: c.appointmentsCreated ? `${c.appointmentsCreated} נוצרו` : undefined },
+    { label: "לקוחות חדשים", value: c.customersCreated },
+    { label: "לידים שנסגרו", value: c.leadsWon, sub: c.leadsLost ? `${c.leadsLost} אבדו` : undefined },
+    { label: "משימות שהושלמו", value: c.tasksCompleted },
+    { label: "תשלומים שנרשמו", value: c.paymentsRecorded },
+    { label: "מחיקות", value: c.deletes, danger: c.deletes > 0 },
+  ];
+
+  return (
+    <div className={`card p-4 ${member.isActive ? "" : "opacity-70"}`}>
+      <div className="flex items-start justify-between gap-2 mb-3">
+        <div className="min-w-0">
+          <p className="font-medium text-slate-800 truncate">
+            {member.name}
+            {isMe && <span className="text-xs text-petra-muted font-normal"> (אתה)</span>}
+          </p>
+          <p className="text-xs text-petra-muted">
+            פעיל לאחרונה:{" "}
+            {member.lastActiveAt ? (
+              <span title={formatTs(member.lastActiveAt)}>{relativeTime(member.lastActiveAt)}</span>
+            ) : (
+              "מעולם לא"
+            )}
+          </p>
+        </div>
+        <div className="flex flex-col items-end gap-1 flex-shrink-0">
+          <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${ROLE_COLORS[member.role] ?? "bg-slate-100 text-slate-700"}`}>
+            {ROLE_LABELS[member.role] ?? member.role}
+          </span>
+          {!member.isActive && (
+            <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-red-100 text-red-600">מושבת</span>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2">
+        {items.map((it) => (
+          <div key={it.label} className={`rounded-lg px-2 py-1.5 ${it.danger ? "bg-red-50" : "bg-slate-50"}`}>
+            <p className={`text-base font-semibold leading-tight ${it.danger ? "text-red-600" : "text-slate-800"}`}>{it.value}</p>
+            <p className="text-[11px] text-petra-muted leading-tight">{it.label}</p>
+            {it.sub && <p className="text-[10px] text-slate-400 leading-tight">{it.sub}</p>}
+          </div>
+        ))}
+      </div>
+
+      {member.openTasks !== null && (
+        <p className="text-xs text-petra-muted mt-3">
+          משימות פתוחות: <span className="font-medium text-slate-700">{member.openTasks}</span>
+          {" / "}באיחור:{" "}
+          <span className={member.overdueTasks ? "font-semibold text-red-600" : "font-medium text-slate-700"}>
+            {member.overdueTasks ?? 0}
+          </span>
+        </p>
+      )}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 import { rateLimit } from "@/lib/rate-limit";
 // @ts-ignore
 import * as XLSX from "xlsx";
@@ -100,6 +101,11 @@ export async function GET(request: NextRequest) {
   XLSX.utils.book_append_sheet(wb, ws, "חיות מחמד");
 
   const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
+
+  await logActivity(auth.session.user.id, auth.session.user.name, ACTIVITY_ACTIONS.EXPORT_DATA, {
+    businessId: auth.businessId,
+    entityLabel: "חיות מחמד",
+  });
 
   return new Response(new Uint8Array(buf), {
     headers: {

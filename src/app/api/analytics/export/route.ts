@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 import { rateLimit } from "@/lib/rate-limit";
 import { hasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
 import { LEAD_SOURCES, LOST_REASON_CODES } from "@/lib/constants";
@@ -580,6 +581,11 @@ export async function GET(request: NextRequest) {
     // ── Write buffer & respond ──
     const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
     const today = new Date().toISOString().slice(0, 10);
+
+    await logActivity(authResult.session.user.id, authResult.session.user.name, ACTIVITY_ACTIONS.EXPORT_DATA, {
+      businessId: authResult.businessId,
+      entityLabel: "דוחות",
+    });
 
     return new Response(buf, {
       headers: {

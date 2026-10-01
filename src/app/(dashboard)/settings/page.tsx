@@ -4438,7 +4438,7 @@ export default function SettingsPage() {
   const { isFree, isBasic, isGroomer, can } = usePlan();
   const invoicingParam = searchParams.get("tab");
   const [activeTab, setActiveTab] = useState<"business" | "booking" | "boarding" | "team" | "payments" | "integrations" | "data" | "messages" | "service-dogs" | "security" | "ai-agents">(
-    gcalParam ? "integrations" : invoicingParam === "booking" ? "booking" : invoicingParam === "boarding" ? "boarding" : invoicingParam === "payments" ? "payments" : invoicingParam === "messages" ? "messages" : invoicingParam === "data" ? "data" : invoicingParam === "security" ? "security" : invoicingParam === "ai-agents" ? "ai-agents" : "business"
+    gcalParam ? "integrations" : invoicingParam === "booking" ? "booking" : invoicingParam === "boarding" ? "boarding" : invoicingParam === "payments" ? "payments" : invoicingParam === "messages" ? "messages" : invoicingParam === "data" ? "data" : invoicingParam === "security" ? "security" : invoicingParam === "ai-agents" ? "ai-agents" : invoicingParam === "integrations" ? "integrations" : "business"
   );
 
   // Tabs locked per tier

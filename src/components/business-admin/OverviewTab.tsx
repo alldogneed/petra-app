@@ -92,7 +92,7 @@ export function OverviewTab() {
         </div>
 
         {isLoading ? (
-          <PetraLoader />
+          <PetraLoader variant="inline" />
         ) : !data?.recentActivity?.length ? (
           <p className="text-sm text-petra-muted text-center py-6">אין פעילות עדיין</p>
         ) : (

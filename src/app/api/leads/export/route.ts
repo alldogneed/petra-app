@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 import { rateLimit } from "@/lib/rate-limit";
 
 const EXPORT_RATE_LIMIT = { max: 5, windowMs: 60 * 1000 };
@@ -122,6 +123,11 @@ export async function GET(request: NextRequest) {
 
   const today = new Date().toISOString().slice(0, 10);
   const rangeLabel = from || to ? `_${from ?? ""}${to ? "_עד_" + to : ""}` : "";
+  await logActivity(authResult.session.user.id, authResult.session.user.name, ACTIVITY_ACTIONS.EXPORT_DATA, {
+    businessId: authResult.businessId,
+    entityLabel: "לידים",
+  });
+
   return new NextResponse(csv, {
     status: 200,
     headers: {
