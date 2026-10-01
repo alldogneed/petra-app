@@ -2,7 +2,8 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { normalizeLegalEntityLabel, isVatExempt } from "@/lib/legal-entity";
-import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { isGuardError, requireBusinessPermission } from "@/lib/auth-guards";
+import { TENANT_PERMS } from "@/lib/permissions";
 import { isValidTier, type TierKey } from "@/lib/feature-flags";
 import { createOwnerLead } from "@/lib/owner-lead";
 import { buildIndicatorUrl, validateOrigin, validateInvoiceFields } from "@/lib/security/cardcom-helpers";
@@ -24,7 +25,7 @@ const CARDCOM_PLANS: Record<
 
 export async function POST(request: NextRequest) {
   try {
-    const authResult = await requireBusinessAuth(request);
+    const authResult = await requireBusinessPermission(request, TENANT_PERMS.PAYMENTS_WRITE);
     if (isGuardError(authResult)) return authResult;
     const { businessId } = authResult;
 

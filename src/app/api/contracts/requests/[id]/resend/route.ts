@@ -7,12 +7,12 @@ import { sendWhatsAppMessage } from "@/lib/whatsapp";
 import { toWhatsAppPhone } from "@/lib/utils";
 import { resolvePublicOrigin } from "@/lib/env";
 import { hasFeatureWithOverrides } from "@/lib/feature-flags";
-import { hasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
+import { sessionHasTenantPermission, hasTenantPermission, TENANT_PERMS, type TenantRole, type PermissionOverrides } from "@/lib/permissions";
 
 /** Staff cannot resend contracts — customer PII is embedded in the document */
-function staffGuard(authResult: { session: { memberships: Array<{ businessId: string; role: string; isActive: boolean }> }; businessId: string }) {
+function staffGuard(authResult: { session: { memberships: Array<{ businessId: string; role: string; isActive: boolean; permissionOverrides?: PermissionOverrides | null }> }; businessId: string }) {
   const m = authResult.session.memberships.find((mb) => mb.businessId === authResult.businessId && mb.isActive);
-  if (m && !hasTenantPermission(m.role as TenantRole, TENANT_PERMS.CUSTOMERS_PII)) {
+  if (m && !hasTenantPermission(m.role as TenantRole, TENANT_PERMS.CUSTOMERS_PII, m.permissionOverrides)) {
     return NextResponse.json({ error: "אין הרשאה לשלוח חוזים" }, { status: 403 });
   }
   return null;
@@ -24,6 +24,9 @@ export async function POST(
 ) {
   const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
+  if (!sessionHasTenantPermission(authResult.session, authResult.businessId, TENANT_PERMS.MESSAGES_SEND)) {
+    return NextResponse.json({ error: "אין לך הרשאה לשלוח הודעות ללקוחות" }, { status: 403 });
+  }
   const { businessId } = authResult;
   const blocked = staffGuard(authResult);
   if (blocked) return blocked;

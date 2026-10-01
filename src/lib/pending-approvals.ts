@@ -75,6 +75,8 @@ export const PENDING_APPROVAL_LABELS: Record<PendingApprovalAction, string> = {
   DELETE_TRAINING:    "מחיקת תוכנית אימון",
   DELETE_APPOINTMENT: "מחיקת פגישה",
   DELETE_LEAD:        "מחיקת ליד",
+  DELETE_SERVICE_DOG: "מחיקת כלב שירות",
+  DELETE_RECIPIENT:   "מחיקת זכאי",
   EDIT_PRICING:       "שינוי מחירון",
   EDIT_SETTINGS:      "שינוי הגדרות עסק",
 };

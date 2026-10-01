@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { sessionHasTenantPermission, TENANT_PERMS } from "@/lib/permissions";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 import { rateLimit } from "@/lib/rate-limit";
 import * as XLSX from "xlsx";
@@ -29,6 +30,9 @@ const ORDER_TYPE_LABELS: Record<string, string> = {
 export async function GET(request: NextRequest) {
   const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
+  if (!sessionHasTenantPermission(authResult.session, authResult.businessId, TENANT_PERMS.DATA_EXPORT)) {
+    return NextResponse.json({ error: "אין לך הרשאה לייצא נתונים" }, { status: 403 });
+  }
 
   const rl = rateLimit("export:orders", authResult.businessId, EXPORT_RATE_LIMIT);
   if (!rl.allowed) {

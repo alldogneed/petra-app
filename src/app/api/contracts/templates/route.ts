@@ -3,15 +3,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { put } from "@vercel/blob";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
-import { hasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
+import { hasTenantPermission, TENANT_PERMS, type TenantRole, type PermissionOverrides } from "@/lib/permissions";
 import { hasFeatureWithOverrides } from "@/lib/feature-flags";
 
 const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB
 
 /** Staff cannot access contract templates */
-function staffGuard(authResult: { session: { memberships: Array<{ businessId: string; role: string; isActive: boolean }> }; businessId: string }) {
+function staffGuard(authResult: { session: { memberships: Array<{ businessId: string; role: string; isActive: boolean; permissionOverrides?: PermissionOverrides | null }> }; businessId: string }) {
   const m = authResult.session.memberships.find((mb) => mb.businessId === authResult.businessId && mb.isActive);
-  if (m && !hasTenantPermission(m.role as TenantRole, TENANT_PERMS.SETTINGS_WRITE)) {
+  if (m && !hasTenantPermission(m.role as TenantRole, TENANT_PERMS.SETTINGS_WRITE, m.permissionOverrides)) {
     return NextResponse.json({ error: "אין הרשאה לצפות בחוזים" }, { status: 403 });
   }
   return null;

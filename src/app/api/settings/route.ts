@@ -4,7 +4,7 @@ import prisma from "@/lib/prisma";
 import { logActivity } from "@/lib/activity-log";
 import { ENTITY_TYPES } from "@/lib/activity-actions";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
-import { type TenantRole } from "@/lib/permissions";
+import { TENANT_PERMS, sessionHasTenantPermission } from "@/lib/permissions";
 import { sendWhatsAppMessage } from "@/lib/whatsapp";
 import { toWhatsAppPhone } from "@/lib/utils";
 import { getBusinessSettings, updateBusinessSettings, ServiceError } from "@/services/business";
@@ -35,11 +35,8 @@ export async function PATCH(request: NextRequest) {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
-    const membership = authResult.session.memberships.find(
-      (m) => m.businessId === authResult.businessId && m.isActive
-    );
-    const callerRole = (membership?.role ?? "user") as TenantRole;
-    if (callerRole !== "owner") {
+    // Owner always; anyone else only with an owner-granted SETTINGS_CRITICAL override.
+    if (!sessionHasTenantPermission(authResult.session, authResult.businessId, TENANT_PERMS.SETTINGS_CRITICAL)) {
       return NextResponse.json({ error: "רק בעלים יכול לשנות הגדרות" }, { status: 403 });
     }
 

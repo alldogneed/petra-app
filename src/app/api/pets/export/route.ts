@@ -4,6 +4,7 @@ import { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { sessionHasTenantPermission, TENANT_PERMS } from "@/lib/permissions";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 import { rateLimit } from "@/lib/rate-limit";
 import * as XLSX from "xlsx";
@@ -14,6 +15,9 @@ export async function GET(request: NextRequest) {
   try {
   const auth = await requireBusinessAuth(request);
   if (isGuardError(auth)) return auth;
+  if (!sessionHasTenantPermission(auth.session, auth.businessId, TENANT_PERMS.DATA_EXPORT)) {
+    return NextResponse.json({ error: "אין לך הרשאה לייצא נתונים" }, { status: 403 });
+  }
 
   const rl = rateLimit("export:pets", auth.businessId, EXPORT_RATE_LIMIT);
   if (!rl.allowed) {

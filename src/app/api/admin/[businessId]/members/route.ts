@@ -212,6 +212,12 @@ export async function POST(
       userAgent,
       metadata: { email: body.email, role: body.role },
     });
+    await logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.INVITE_MEMBER, {
+      businessId: membership.businessId,
+      entityType: ENTITY_TYPES.MEMBER,
+      entityId: platformUser.id,
+      entityLabel: platformUser.name || platformUser.email,
+    });
 
     // Return only safe user fields — the create() result carries passwordHash,
     // 2FA secrets and OAuth tokens which must never reach the client.

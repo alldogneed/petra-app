@@ -16,7 +16,7 @@ export async function GET(
     const { businessId, session } = authResult;
 
     const callerMembership = session.memberships.find((m) => m.businessId === businessId && m.isActive);
-    if (callerMembership && !hasTenantPermission(callerMembership.role as TenantRole, TENANT_PERMS.RECIPIENTS_SENSITIVE)) {
+    if (callerMembership && !hasTenantPermission(callerMembership.role as TenantRole, TENANT_PERMS.RECIPIENTS_SENSITIVE, callerMembership.permissionOverrides)) {
       return NextResponse.json({ error: "אין הרשאה לצפות בזכאים" }, { status: 403 });
     }
 
@@ -51,7 +51,7 @@ export async function PATCH(
     const { businessId, session } = authResult;
 
     const patchMembership = session.memberships.find((m) => m.businessId === businessId && m.isActive);
-    if (patchMembership && !hasTenantPermission(patchMembership.role as TenantRole, TENANT_PERMS.RECIPIENTS_SENSITIVE)) {
+    if (patchMembership && !hasTenantPermission(patchMembership.role as TenantRole, TENANT_PERMS.RECIPIENTS_SENSITIVE, patchMembership.permissionOverrides)) {
       return NextResponse.json({ error: "אין הרשאה לנהל זכאים" }, { status: 403 });
     }
 

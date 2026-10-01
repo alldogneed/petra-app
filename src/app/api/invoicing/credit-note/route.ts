@@ -1,12 +1,13 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { isGuardError, requireBusinessPermission } from "@/lib/auth-guards";
+import { TENANT_PERMS } from "@/lib/permissions";
 import { DOCUMENT_TYPE_LABELS } from "@/lib/invoicing/types";
 
 // POST /api/invoicing/credit-note — create a credit note referencing an original invoice
 export async function POST(request: NextRequest) {
-  const authResult = await requireBusinessAuth(request);
+  const authResult = await requireBusinessPermission(request, TENANT_PERMS.PAYMENTS_WRITE);
   if (isGuardError(authResult)) return authResult;
 
   try {

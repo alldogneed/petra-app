@@ -2,7 +2,8 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError, requireBusinessPermission } from "@/lib/auth-guards";
+import { TENANT_PERMS } from "@/lib/permissions";
 
 // GET /api/pricing – רשימת מחירונים עם הפריטים שלהם
 export async function GET(req: NextRequest) {
@@ -31,7 +32,7 @@ export async function GET(req: NextRequest) {
 
 // POST /api/pricing – יצירת מחירון חדש
 export async function POST(request: NextRequest) {
-  const authResult = await requireBusinessAuth(request);
+  const authResult = await requireBusinessPermission(request, TENANT_PERMS.PRICING_WRITE);
   if (isGuardError(authResult)) return authResult;
   const { businessId } = authResult;
 

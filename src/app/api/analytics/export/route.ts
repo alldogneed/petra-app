@@ -4,7 +4,7 @@ import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 import { rateLimit } from "@/lib/rate-limit";
-import { hasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
+import { sessionHasTenantPermission, TENANT_PERMS } from "@/lib/permissions";
 import { LEAD_SOURCES, LOST_REASON_CODES } from "@/lib/constants";
 import { buildLeadSalesReport, EXCLUDED_ORDER_STATUSES } from "@/lib/lead-deal-value";
 import * as XLSX from "xlsx";
@@ -129,9 +129,10 @@ export async function GET(request: NextRequest) {
 
     // The export contains full revenue data (payments, order totals) — gate it
     // behind the same permission the analytics API uses to hide revenue.
-    const membership = session.memberships.find((m) => m.businessId === businessId);
-    const role = (membership?.role ?? "user") as TenantRole;
-    if (!hasTenantPermission(role, TENANT_PERMS.FINANCE_SUMMARY)) {
+    if (!sessionHasTenantPermission(session, businessId, TENANT_PERMS.DATA_EXPORT)) {
+      return NextResponse.json({ error: "אין לך הרשאה לייצא נתונים" }, { status: 403 });
+    }
+    if (!sessionHasTenantPermission(session, businessId, TENANT_PERMS.FINANCE_SUMMARY)) {
       return NextResponse.json({ error: "אין לך הרשאה לייצא דוחות כספיים" }, { status: 403 });
     }
 

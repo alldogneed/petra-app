@@ -29,6 +29,12 @@ import {
 } from "@/lib/mcp-auth";
 import { isMcpAllowedUser, isMcpAllowedBusiness, isInternalTestEmail } from "@/lib/mcp-allowlist";
 import { hasFeatureWithOverrides } from "@/lib/feature-flags";
+import {
+  hasTenantPermission,
+  parsePermissionOverrides,
+  TENANT_PERMS,
+  type PermissionOverrides,
+} from "@/lib/permissions";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -430,8 +436,18 @@ function sessionPlatformRole(session: FullSession): string | null {
   return sessionIsPlatformAdmin(session) ? session.user.platformRole : null;
 }
 
-function isOwnerOrManager(role: string | null | undefined): boolean {
-  return role === "owner" || role === "manager";
+/**
+ * Who may grant/hold an AI connection: the owner always; a manager only with the
+ * AI_ASSISTANT capability (off by default — the owner grants it per member in the
+ * permissions matrix). Staff/volunteers stay blocked even with a grant.
+ */
+function canHoldAiGrant(
+  role: string | null | undefined,
+  overrides: PermissionOverrides | null | undefined
+): boolean {
+  if (role === "owner") return true;
+  if (role !== "manager") return false;
+  return hasTenantPermission("manager", TENANT_PERMS.AI_ASSISTANT, overrides);
 }
 
 type BusinessGateRow = {
@@ -511,12 +527,22 @@ async function connectionLimitError(businessId: string, userId: string, now: Dat
 function resolveGrantAccess(
   session: FullSession,
   businessId: string
-): { allowed: boolean; membershipRole: string | null; isPlatformAdmin: boolean } {
+): {
+  allowed: boolean;
+  membershipRole: string | null;
+  overrides: PermissionOverrides | null;
+  isPlatformAdmin: boolean;
+} {
   const isPlatformAdmin = sessionIsPlatformAdmin(session);
   const membership = session.memberships.find((m) => m.businessId === businessId && m.isActive);
   const membershipRole = membership?.role ?? null;
   const viaImpersonation = isPlatformAdmin && session.impersonatedBusinessId === businessId;
-  return { allowed: !!membership || viaImpersonation, membershipRole, isPlatformAdmin };
+  return {
+    allowed: !!membership || viaImpersonation,
+    membershipRole,
+    overrides: membership?.permissionOverrides ?? null,
+    isPlatformAdmin,
+  };
 }
 
 /**
@@ -532,12 +558,12 @@ export async function listGrantableBusinesses(
 ): Promise<Array<{ businessId: string; name: string; role: string; eligible: boolean; reason?: string }>> {
   const isPlatformAdmin = sessionIsPlatformAdmin(session);
 
-  const entries: Array<{ businessId: string; role: string }> = [];
+  const entries: Array<{ businessId: string; role: string; overrides?: PermissionOverrides | null }> = [];
   const seen = new Set<string>();
   for (const m of session.memberships) {
     if (!m.isActive || seen.has(m.businessId)) continue;
     seen.add(m.businessId);
-    entries.push({ businessId: m.businessId, role: m.role });
+    entries.push({ businessId: m.businessId, role: m.role, overrides: m.permissionOverrides ?? null });
   }
   if (isPlatformAdmin && session.impersonatedBusinessId && !seen.has(session.impersonatedBusinessId)) {
     seen.add(session.impersonatedBusinessId);
@@ -563,8 +589,14 @@ export async function listGrantableBusinesses(
       if (!userAllowed) {
         return { ...base, eligible: false, reason: "החשבון שלך אינו בבטא של עוזרי AI" };
       }
-      if (!isPlatformAdmin && !isOwnerOrManager(e.role)) {
-        return { ...base, eligible: false, reason: "רק בעלים או מנהל יכולים לחבר עוזר AI" };
+      if (!isPlatformAdmin && !canHoldAiGrant(e.role, e.overrides)) {
+        return {
+          ...base,
+          eligible: false,
+          reason: e.role === "manager"
+            ? "בעל העסק לא העניק לך הרשאת עוזר AI"
+            : "רק בעלים או מנהל יכולים לחבר עוזר AI",
+        };
       }
       const gate = await businessGateError(session, biz as BusinessGateRow | undefined, isPlatformAdmin);
       if (gate) return { ...base, eligible: false, reason: gate.error };
@@ -595,9 +627,9 @@ export async function checkConsentGates(
     return { ok: false, error: "יש לבחור עסק", status: 400 };
   }
 
-  const { allowed, membershipRole, isPlatformAdmin } = resolveGrantAccess(session, businessId);
+  const { allowed, membershipRole, overrides, isPlatformAdmin } = resolveGrantAccess(session, businessId);
   if (!allowed) return { ok: false, error: "אין לך גישה לעסק הזה", status: 403 };
-  if (!isPlatformAdmin && !isOwnerOrManager(membershipRole)) {
+  if (!isPlatformAdmin && !canHoldAiGrant(membershipRole, overrides)) {
     return { ok: false, error: "אין לך הרשאה ליצור חיבור AI", status: 403 };
   }
 
@@ -713,7 +745,7 @@ export async function issueAuthCode(input: {
 
 /**
  * Re-verify the grant holder at exchange/refresh time: user active + MCP-allowed, still an
- * active owner/manager member (or platform admin), business still active, still on a plan with
+ * active owner, or manager holding the AI_ASSISTANT capability (or platform admin), business still active, still on a plan with
  * the `ai_assistant` feature (same exemptions as consent: platform admin, internal QA email),
  * and MCP-allowed. At refresh, `grantCreatedAt` enforces the absolute OAUTH_GRANT_MAX_DAYS lifetime.
  *
@@ -746,10 +778,13 @@ async function verifyGrantHolder(
 
   const membership = await prisma.businessUser.findFirst({
     where: { businessId, userId, isActive: true },
-    select: { role: true },
+    select: { role: true, permissionOverrides: true },
   });
-  if (!isPlatformAdmin && (!membership || !isOwnerOrManager(membership.role))) {
-    throw new OAuthGrantError("invalid_grant", "אין הרשאת בעלים/מנהל בעסק");
+  if (
+    !isPlatformAdmin &&
+    (!membership || !canHoldAiGrant(membership.role, parsePermissionOverrides(membership.permissionOverrides)))
+  ) {
+    throw new OAuthGrantError("invalid_grant", "אין הרשאת עוזר AI בעסק");
   }
 
   const business = await prisma.business.findUnique({

@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
 
   // Staff cannot access invoicing documents
   const membership = authResult.session.memberships.find((m) => m.businessId === authResult.businessId && m.isActive);
-  if (membership && !hasTenantPermission(membership.role as TenantRole, TENANT_PERMS.FINANCE_READ)) {
+  if (membership && !hasTenantPermission(membership.role as TenantRole, TENANT_PERMS.FINANCE_READ, membership.permissionOverrides)) {
     return NextResponse.json({ error: "אין הרשאה לצפות במסמכים" }, { status: 403 });
   }
 
@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
 
   // Staff cannot create invoicing documents
   const membership = authResult.session.memberships.find((m) => m.businessId === authResult.businessId && m.isActive);
-  if (membership && !hasTenantPermission(membership.role as TenantRole, TENANT_PERMS.FINANCE_READ)) {
+  if (membership && !hasTenantPermission(membership.role as TenantRole, TENANT_PERMS.FINANCE_READ, membership.permissionOverrides)) {
     return NextResponse.json({ error: "אין הרשאה ליצירת מסמכים" }, { status: 403 });
   }
 
