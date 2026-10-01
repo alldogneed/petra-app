@@ -169,6 +169,13 @@ MCP: `create_lead` accepts the same keys (omitted → `unknown`), `get_lead` pri
 - Never ship the paw without the wordmark. Toes are `border-radius: 50%` (not Tailwind `rounded-full` — renders pills).
 - Leave alone: spinners inside buttons, refresh icons, "טען עוד", decorative status dots/pings, tiny inline number placeholders. Customer portal `/c/[slug]` keeps its white-label loader.
 
+
+### 30. Customer sales history — the lead journal follows the customer
+Everything recorded on a lead (call logs + "מה סוכם", stage changes, deal-value changes, follow-up tasks open+closed, created/won/lost, deal value, source, attribution, who closed) is shown in the customer file for every lead with `Lead.customerId` = that customer (won, lost and open; newest first).
+- Single source of truth: `src/lib/lead-sales-history.ts` (types + `buildSalesJournal()` + `leadStatusOf()` + caps); service `getCustomerSalesHistory()` in `src/services/clients.ts`; API `GET /api/customers/[id]/sales-history` (same `CUSTOMERS_PII` gate as the customer GET).
+- UI: `src/components/customers/CustomerSalesHistory.tsx` — card "היסטוריית מכירה" in the customer page right column right after Pets (anchor `#sales-history`) + "הגיע מליד" chip in the header. MCP `get_client` appends the section when the token also has `read:leads`.
+- `close-won` / `convert` set `wonByUserId` (PlatformUser id); names resolved only via this business's `BusinessUser` rows. Never delete callLogs/tasks of a converted lead — they ARE the customer's sales history. Tests: `src/lib/__tests__/lead-sales-history.test.ts`.
+
 ---
 
 ## MCP Server
@@ -325,6 +332,7 @@ import { env, isDev, isProd } from "@/lib/env";
 | Dashboard stat cards | "הכנסות החודש" always shown (from `data.monthRevenue`); "היום: ₪X" as subtitle when today > 0. `data.upcomingByType` and dead `BirthdayWidget` component exist but are unused. |
 | Dashboard orders section | "הזמנות אחרונות" links to `/orders`; each row is a `<Link>` to `/orders/:id` |
 | Lead deal value | `src/lib/lead-deal-value.ts` — edited in `LeadTreatmentModal`; column totals in `leads/page.tsx`; `getAnalytics().leadSales` ("מכירות מלידים" in `/analytics`); DDL `prisma/lead_deal_value.sql` |
+| Customer sales history | `src/lib/lead-sales-history.ts` + `getCustomerSalesHistory()` + `GET /api/customers/[id]/sales-history` → `CustomerSalesHistory.tsx` card on the customer page (after Pets) |
 | Lead traffic attribution | `src/lib/lead-attribution.ts` — `classifyTrafficSource`, `normalizeAttributionInput`, `formatAttributionLine`, `buildLeadAttributionReport`; DDL `prisma/lead_attribution.sql`; report tables in `/analytics` (12 months) |
 | Lead WhatsApp alert | `customers/[id]/page.tsx`: blue Send button on completed appointments (follow-up wa.me). Birthday Gift button on pet card hover. `customers/page.tsx`: "שלח ברוכים הבאים" toast action on new customer creation. |
 | Onboarding wizard | `src/app/onboarding/page.tsx` — 5-step full-page flow (Welcome→Client→Pricing→GCal→Done). Shown to new users redirected from register. |
