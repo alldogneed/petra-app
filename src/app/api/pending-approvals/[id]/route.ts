@@ -5,6 +5,9 @@ import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { prisma } from "@/lib/prisma";
 import { hasTenantPermission, TENANT_PERMS } from "@/lib/permissions";
 import { deletePet } from "@/services/pets";
+import { deleteLead } from "@/services/clients";
+import { deleteServiceDog, deleteRecipient } from "@/services/service-dogs";
+import { cancelLeadFollowup } from "@/lib/reminder-service";
 import { logActivity } from "@/lib/activity-log";
 import { ENTITY_TYPES } from "@/lib/activity-actions";
 
@@ -14,6 +17,7 @@ const APPROVAL_DELETE_ENTITIES: Record<string, { entityType: string; idKey: stri
   DELETE_PET: { entityType: ENTITY_TYPES.PET, idKey: "petId", labelKey: "petName" },
   DELETE_TRAINING: { entityType: ENTITY_TYPES.TRAINING, idKey: "trainingProgramId", labelKey: "programName" },
   DELETE_APPOINTMENT: { entityType: ENTITY_TYPES.APPOINTMENT, idKey: "appointmentId" },
+  DELETE_LEAD: { entityType: ENTITY_TYPES.LEAD, idKey: "leadId", labelKey: "leadName" },
 };
 
 /**
@@ -159,6 +163,14 @@ export async function DELETE(
 //    The default branch throws, preventing rogue/injected actions from executing.
 //    Never remove the default throw — it is the security boundary.
 
+/** A required id from the approval payload. A missing id must never reach a
+ *  `where: { x: undefined }` filter — Prisma drops it and the query hits every row. */
+function payloadId(payload: Record<string, unknown>, key: string): string {
+  const v = payload?.[key];
+  if (typeof v !== "string" || v.length === 0) throw new Error(`Missing ${key} in approval payload`);
+  return v;
+}
+
 async function executeApprovedAction(
   action: string,
   payload: Record<string, unknown>,
@@ -166,7 +178,10 @@ async function executeApprovedAction(
 ) {
   switch (action) {
     case "DELETE_CUSTOMER": {
-      const cid = payload.customerId as string;
+      const cid = payloadId(payload, "customerId");
+      // The cascade below is keyed by customerId only — verify ownership first.
+      const owned = await prisma.customer.findFirst({ where: { id: cid, businessId }, select: { id: true } });
+      if (!owned) throw new Error("Customer not found in this business");
       // Full cascading cleanup (must match /api/customers/[id] DELETE logic)
       await prisma.invoiceDocument.updateMany({ where: { customerId: cid }, data: { originalInvoiceId: null } });
       await prisma.invoiceDocument.deleteMany({ where: { customerId: cid } });
@@ -194,7 +209,7 @@ async function executeApprovedAction(
       break;
     }
     case "DELETE_PET": {
-      const id = payload.petId as string;
+      const id = payloadId(payload, "petId");
       // deletePet verifies ownership and runs the full sequential FK cleanup
       // (appointments, boarding, bookings, training, service-dog records)
       // before deleting — a bare prisma.pet.delete fails with a P2003
@@ -203,13 +218,33 @@ async function executeApprovedAction(
       break;
     }
     case "DELETE_TRAINING": {
-      const id = payload.trainingProgramId as string;
+      const id = payloadId(payload, "trainingProgramId");
       await prisma.trainingProgram.delete({ where: { id, businessId } });
       break;
     }
     case "DELETE_APPOINTMENT": {
-      const id = payload.appointmentId as string;
+      const id = payloadId(payload, "appointmentId");
       await prisma.appointment.delete({ where: { id, businessId } });
+      break;
+    }
+    case "DELETE_LEAD": {
+      const id = payloadId(payload, "leadId");
+      // Same service as the owner path in /api/leads/[id] DELETE (scoped by businessId,
+      // also clears the lead's tasks).
+      await deleteLead(businessId, prisma, id);
+      await cancelLeadFollowup(id).catch((err) =>
+        console.error("cancelLeadFollowup (approved delete) failed (non-critical):", err)
+      );
+      break;
+    }
+    case "DELETE_SERVICE_DOG": {
+      const id = payloadId(payload, "serviceDogId");
+      await deleteServiceDog(businessId, prisma, id);
+      break;
+    }
+    case "DELETE_RECIPIENT": {
+      const id = payloadId(payload, "recipientId");
+      await deleteRecipient(businessId, prisma, id);
       break;
     }
     case "EDIT_PRICING": {

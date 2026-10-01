@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
-import { hasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
+import { hasTenantPermission, sessionHasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
 import { createPendingApproval } from "@/lib/pending-approvals";
 import { getRecipient, updateRecipient, deleteRecipient, ServiceError } from "@/services/service-dogs";
 
@@ -89,11 +89,15 @@ export async function DELETE(
     const membership = session.memberships.find((m) => m.businessId === businessId);
     const callerRole = (membership?.role ?? "user") as TenantRole;
 
-    if (callerRole === "user" || callerRole === "volunteer") {
+    // An owner-granted critical-delete override lets any member delete directly;
+    // otherwise managers still route through the pending-approval flow.
+    const canDeleteDirectly = sessionHasTenantPermission(session, businessId, TENANT_PERMS.CRITICAL_DELETE);
+
+    if (!canDeleteDirectly && callerRole !== "manager") {
       return NextResponse.json({ error: "אין הרשאה למחיקה" }, { status: 403 });
     }
 
-    if (callerRole === "manager") {
+    if (!canDeleteDirectly) {
       // Need the name for the approval description — fetch it first
       const existing = await prisma.serviceDogRecipient.findFirst({
         where: { id: params.id, businessId },
@@ -104,7 +108,9 @@ export async function DELETE(
       const approval = await createPendingApproval({
         businessId,
         requestedByUserId: session.user.id,
-        action: "DELETE_CUSTOMER",
+        // Own action: the DELETE_CUSTOMER executor expects payload.customerId and
+        // must never run with a recipient payload.
+        action: "DELETE_RECIPIENT",
         description: `מחיקת זכאי: ${existing.name}`,
         payload: { recipientId: params.id, recipientName: existing.name },
       });

@@ -2,6 +2,8 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { TENANT_PERMS, sessionHasTenantPermission } from "@/lib/permissions";
+import { createPendingApproval } from "@/lib/pending-approvals";
 import { getServiceDog, updateServiceDog, deleteServiceDog, ServiceError } from "@/services/service-dogs";
 
 export async function GET(
@@ -66,6 +68,34 @@ export async function DELETE(
   try {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
+    const { session, businessId } = authResult;
+
+    // Same rule as pets: CRITICAL_DELETE (role default + owner overrides) deletes
+    // directly; a manager without it goes through owner approval; others are blocked.
+    const canDeleteDirectly = sessionHasTenantPermission(session, businessId, TENANT_PERMS.CRITICAL_DELETE);
+    if (!canDeleteDirectly) {
+      const membership = session.memberships.find((m) => m.businessId === businessId && m.isActive);
+      if (membership?.role !== "manager") {
+        return NextResponse.json({ error: "אין הרשאה למחיקת כלב שירות" }, { status: 403 });
+      }
+      const existing = await prisma.serviceDogProfile.findFirst({
+        where: { id: params.id, businessId },
+        select: { id: true, pet: { select: { name: true } } },
+      });
+      if (!existing) return NextResponse.json({ error: "כלב שירות לא נמצא" }, { status: 404 });
+      const dogName = existing.pet?.name ?? "";
+      const approval = await createPendingApproval({
+        businessId,
+        requestedByUserId: session.user.id,
+        action: "DELETE_SERVICE_DOG",
+        description: `מחיקת כלב שירות: ${dogName}`,
+        payload: { serviceDogId: params.id, dogName },
+      });
+      return NextResponse.json(
+        { pendingApproval: true, approvalId: approval.id, message: "הבקשה נשלחה לאישור הבעלים" },
+        { status: 202 }
+      );
+    }
 
     try {
       await deleteServiceDog(authResult.businessId, prisma, params.id);

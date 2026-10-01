@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { TierGate } from "@/components/paywall/TierGate";
-import { ShieldCheck, Users, Activity, Monitor, BarChart2, MessageSquare, CreditCard } from "lucide-react";
+import { ShieldCheck, Users, Activity, Monitor, BarChart2, MessageSquare, CreditCard, Bot, BellRing, HeartPulse } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { OverviewTab } from "@/components/business-admin/OverviewTab";
 import { ActivityTab } from "@/components/business-admin/ActivityTab";
@@ -10,16 +10,22 @@ import { TeamTab } from "@/components/business-admin/TeamTab";
 import { SessionsTab } from "@/components/business-admin/SessionsTab";
 import { SystemMessagesTab } from "@/components/business-admin/SystemMessagesTab";
 import { BillingTab } from "@/components/business-admin/BillingTab";
+import { AiActivityTab } from "@/components/business-admin/AiActivityTab";
+import { SecurityAlertsTab } from "@/components/business-admin/SecurityAlertsTab";
+import { DataHealthTab } from "@/components/business-admin/DataHealthTab";
 
 // ── Page ─────────────────────────────────────────────────────────
 
-type Tab = "overview" | "activity" | "team" | "sessions" | "messages" | "billing";
+type Tab = "overview" | "activity" | "ai" | "team" | "sessions" | "security" | "health" | "messages" | "billing";
 
 const TABS: { id: Tab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: "overview", label: "סקירה", icon: BarChart2 },
   { id: "activity", label: "פעילות", icon: Activity },
+  { id: "ai", label: "פעילות AI", icon: Bot },
   { id: "team", label: "צוות", icon: Users },
   { id: "sessions", label: "סשנים", icon: Monitor },
+  { id: "security", label: "התראות אבטחה", icon: BellRing },
+  { id: "health", label: "בריאות נתונים", icon: HeartPulse },
   { id: "messages", label: "הודעות מערכת", icon: MessageSquare },
   { id: "billing", label: "מנוי וחיוב", icon: CreditCard },
 ];
@@ -35,7 +41,7 @@ function BusinessAdminPageContent() {
           <ShieldCheck className="w-12 h-12 text-slate-300 mx-auto" />
           <h2 className="text-lg font-bold text-slate-700">גישה מוגבלת</h2>
           <p className="text-sm text-petra-muted">
-            דף זה זמין לבעלי עסק ומנהלים בלבד.
+            דף זה זמין לבעלי העסק בלבד.
           </p>
         </div>
       </div>
@@ -92,7 +98,10 @@ function BusinessAdminPageContent() {
       {activeTab === "overview" && <OverviewTab />}
       {activeTab === "activity" && <ActivityTab />}
       {activeTab === "team" && <TeamTab currentUserId={user?.id ?? ""} />}
+      {activeTab === "ai" && <AiActivityTab />}
       {activeTab === "sessions" && <SessionsTab currentUserId={user?.id ?? ""} />}
+      {activeTab === "security" && <SecurityAlertsTab />}
+      {activeTab === "health" && <DataHealthTab />}
       {activeTab === "messages" && <SystemMessagesTab />}
       {activeTab === "billing" && <BillingTab />}
     </div>

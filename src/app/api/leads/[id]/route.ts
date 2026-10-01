@@ -5,7 +5,7 @@ import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 import { ENTITY_TYPES } from "@/lib/activity-actions";
-import { hasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
+import { hasTenantPermission, sessionHasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
 import { createPendingApproval } from "@/lib/pending-approvals";
 import { cancelLeadFollowup } from "@/lib/reminder-service";
 import { updateLead, deleteLead, ServiceError, type UpdateLeadInput } from "@/services/clients";
@@ -84,15 +84,20 @@ export async function DELETE(
     const membership = session.memberships.find((m) => m.businessId === businessId);
     const callerRole = (membership?.role ?? "user") as TenantRole;
 
+    // An owner-granted critical-delete override lets any member delete directly;
+    // otherwise managers still route through the pending-approval flow.
+    const canDeleteDirectly = sessionHasTenantPermission(session, businessId, TENANT_PERMS.CRITICAL_DELETE);
+
     if (
-      !hasTenantPermission(callerRole, TENANT_PERMS.CONTENT_WRITE) ||
-      callerRole === "user" ||
-      callerRole === "volunteer"
+      !canDeleteDirectly &&
+      (!hasTenantPermission(callerRole, TENANT_PERMS.CONTENT_WRITE, membership?.permissionOverrides) ||
+        callerRole === "user" ||
+        callerRole === "volunteer")
     ) {
       return NextResponse.json({ error: "אין הרשאה למחיקת ליד" }, { status: 403 });
     }
 
-    if (callerRole === "manager") {
+    if (callerRole === "manager" && !canDeleteDirectly) {
       const existing = await prisma.lead.findFirst({ where: { id: params.id, businessId } });
       if (!existing) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
       const approval = await createPendingApproval({

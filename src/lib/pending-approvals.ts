@@ -15,6 +15,8 @@ export type PendingApprovalAction =
   | "DELETE_TRAINING"
   | "DELETE_APPOINTMENT"
   | "DELETE_LEAD"
+  | "DELETE_SERVICE_DOG"
+  | "DELETE_RECIPIENT"
   | "EDIT_PRICING"
   | "EDIT_SETTINGS";
 

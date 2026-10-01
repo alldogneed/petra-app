@@ -5,7 +5,7 @@ import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 import { ENTITY_TYPES } from "@/lib/activity-actions";
-import { type TenantRole } from "@/lib/permissions";
+import { type TenantRole, TENANT_PERMS, sessionHasTenantPermission } from "@/lib/permissions";
 import { createPendingApproval } from "@/lib/pending-approvals";
 import { cancelAppointmentReminders, rescheduleAppointmentReminder } from "@/lib/reminder-service";
 import { syncAppointmentToGcal, deleteAppointmentFromGcal } from "@/lib/google-calendar";
@@ -129,11 +129,15 @@ export async function DELETE(
     const membership = session.memberships.find((m) => m.businessId === businessId);
     const callerRole = (membership?.role ?? "user") as TenantRole;
 
-    if (callerRole === "user" || callerRole === "volunteer") {
+    // An owner-granted critical-delete override lets any member delete directly;
+    // otherwise managers still route through the pending-approval flow.
+    const canDeleteDirectly = sessionHasTenantPermission(session, businessId, TENANT_PERMS.CRITICAL_DELETE);
+
+    if (!canDeleteDirectly && callerRole !== "manager") {
       return NextResponse.json({ error: "אין הרשאה למחיקת פגישה" }, { status: 403 });
     }
 
-    if (callerRole === "manager") {
+    if (!canDeleteDirectly) {
       const existing = await prisma.appointment.findFirst({
         where: { id: params.id, businessId },
         include: { customer: { select: { name: true } }, service: { select: { name: true } } },

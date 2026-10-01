@@ -65,6 +65,7 @@ export interface TeamMember {
   role: string;
   isActive: boolean;
   createdAt: string;
+  permissionOverrides?: Record<string, boolean> | null;
   user: {
     id: string;
     name: string;
