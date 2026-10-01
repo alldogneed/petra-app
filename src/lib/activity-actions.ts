@@ -39,6 +39,8 @@ export const ACTIVITY_ACTIONS = {
   CHECKOUT_BOARDING: "CHECKOUT_BOARDING",
   DELETE_BOARDING: "DELETE_BOARDING",
   DELETE_TRAINING: "DELETE_TRAINING",
+  DELETE_SERVICE_DOG: "DELETE_SERVICE_DOG",
+  DELETE_RECIPIENT: "DELETE_RECIPIENT",
   UPDATE_SETTINGS: "UPDATE_SETTINGS",
   CREATE_MESSAGE_TEMPLATE: "CREATE_MESSAGE_TEMPLATE",
   EXPORT_CUSTOMERS: "EXPORT_CUSTOMERS",
@@ -94,6 +96,8 @@ export const ACTION_LABELS: Record<string, string> = {
   CHECKOUT_BOARDING: "ביצע/ה צ׳ק-אאוט",
   DELETE_BOARDING: "מחק/ה שהייה",
   DELETE_TRAINING: "מחק/ה תוכנית אילוף",
+  DELETE_SERVICE_DOG: "מחק/ה כלב שירות",
+  DELETE_RECIPIENT: "מחק/ה זכאי",
   UPDATE_SETTINGS: "עדכן/ה הגדרות",
   CREATE_MESSAGE_TEMPLATE: "יצר/ה תבנית הודעה",
   EXPORT_CUSTOMERS: "ייצא/ה את רשימת הלקוחות",
@@ -186,7 +190,7 @@ export function entityHref(
 /** Actions whose entity no longer exists after the action (render without a link). */
 export const DELETE_ACTIONS = new Set<string>([
   "DELETE_CUSTOMER", "DELETE_PET", "DELETE_APPOINTMENT", "DELETE_ORDER", "DELETE_PAYMENT",
-  "DELETE_LEAD", "DELETE_TASK", "DELETE_BOARDING", "DELETE_TRAINING",
+  "DELETE_LEAD", "DELETE_TASK", "DELETE_BOARDING", "DELETE_TRAINING", "DELETE_SERVICE_DOG", "DELETE_RECIPIENT",
 ]);
 
 /** Max length of ActivityLog.entityLabel. */

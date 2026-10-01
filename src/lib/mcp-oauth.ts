@@ -450,6 +450,21 @@ function canHoldAiGrant(
   return hasTenantPermission("manager", TENANT_PERMS.AI_ASSISTANT, overrides);
 }
 
+/**
+ * Refresh-time re-verification of an EXISTING grant: owners always; managers keep
+ * grants made before the AI_ASSISTANT gate existed unless the owner explicitly
+ * switched the capability off for them (override === false). New grants go
+ * through canHoldAiGrant at consent time.
+ */
+function canKeepAiGrant(
+  role: string | null | undefined,
+  overrides: PermissionOverrides | null | undefined
+): boolean {
+  if (role === "owner") return true;
+  if (role !== "manager") return false;
+  return overrides?.[TENANT_PERMS.AI_ASSISTANT] !== false;
+}
+
 type BusinessGateRow = {
   id: string;
   name: string;
@@ -782,7 +797,7 @@ async function verifyGrantHolder(
   });
   if (
     !isPlatformAdmin &&
-    (!membership || !canHoldAiGrant(membership.role, parsePermissionOverrides(membership.permissionOverrides)))
+    (!membership || !canKeepAiGrant(membership.role, parsePermissionOverrides(membership.permissionOverrides)))
   ) {
     throw new OAuthGrantError("invalid_grant", "אין הרשאת עוזר AI בעסק");
   }
