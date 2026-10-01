@@ -74,7 +74,7 @@ function effectiveScopes(scopes: string[]): string[] {
 
 // ─── Tool definitions ─────────────────────────────────────────────────────────
 
-function buildServer(businessId: string, connectionId: string, rawScopes: string[], minterRole: string | null = null): McpServer {
+function buildServer(businessId: string, connectionId: string, rawScopes: string[], minterRole: string | null = null, userId: string | null = null): McpServer {
   const server = new McpServer({
     name: "petra",
     version: "1.0.0",
@@ -1235,7 +1235,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
   );
 
   // ── Package modules (intake / boarding / briefing) ────────────────────────
-  const ctx: ToolCtx = { businessId, connectionId, hasScope, denyScope };
+  const ctx: ToolCtx = { businessId, connectionId, userId, hasScope, denyScope };
   registerIntakeTools(server, ctx);
   registerBoardingTools(server, ctx);
   registerBriefingTools(server, ctx);
@@ -1399,7 +1399,7 @@ export async function handleMcpRequest(request: NextRequest, tokenFromPath?: str
   }
   await touchMcpConnection(auth.connectionId);
 
-  const server = buildServer(auth.businessId, auth.connectionId, auth.scopes, auth.minterRole);
+  const server = buildServer(auth.businessId, auth.connectionId, auth.scopes, auth.minterRole, auth.createdByUserId);
 
   // Stateless transport: no session state, no in-memory sharing between requests
   const transport = new WebStandardStreamableHTTPServerTransport({

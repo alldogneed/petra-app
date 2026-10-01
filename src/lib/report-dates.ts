@@ -75,19 +75,19 @@ export function lastMonthKeys(n: number, now: Date = new Date()): string[] {
   return out;
 }
 
-/** Every month key from `from` to `to` inclusive (oldest first, capped at 60). */
+/** Every month key from `from` to `to` inclusive (oldest first; if more than 72, keeps the LATEST 72). */
 export function monthKeysBetween(from: Date, to: Date): string[] {
   const [fy, fm] = israelMonthKey(from).split("-").map(Number);
   const [ty, tm] = israelMonthKey(to).split("-").map(Number);
   const out: string[] = [];
   let y = fy;
   let m = fm;
-  while ((y < ty || (y === ty && m <= tm)) && out.length < 60) {
+  while ((y < ty || (y === ty && m <= tm)) && out.length < 1200) {
     out.push(`${y}-${String(m).padStart(2, "0")}`);
     m++;
     if (m > 12) { m = 1; y++; }
   }
-  return out;
+  return out.length > 72 ? out.slice(-72) : out;
 }
 
 /** Same month key one year earlier ("2026-03" → "2025-03"). */

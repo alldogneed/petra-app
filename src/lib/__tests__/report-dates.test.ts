@@ -28,6 +28,12 @@ describe("bucketing", () => {
       .toEqual(["2025-11", "2025-12", "2026-01", "2026-02"]);
     expect(prevYearMonthKey("2026-03")).toBe("2025-03");
   });
+  it("covers a full 5-year range including the current month", () => {
+    const keys = monthKeysBetween(new Date("2021-10-02T21:00:00Z"), new Date("2026-10-01T10:00:00Z"));
+    expect(keys[0]).toBe("2021-10");
+    expect(keys[keys.length - 1]).toBe("2026-10");
+    expect(keys.length).toBe(61);
+  });
 });
 
 describe("validation and rates", () => {

@@ -13,8 +13,7 @@ import {
   buildRevenueByMethod,
   computeAppointmentStats,
   PAYMENT_METHOD_LABELS_HE,
-  splitNewVsReturning,
-} from "@/lib/analytics-metrics";
+  splitNewVsReturning, MAX_CUSTOM_RANGE_DAYS } from "@/lib/analytics-metrics";
 import { computeOutstandingBalances } from "@/lib/outstanding-balances";
 import { isYmd, israelDayEnd, israelDayStart, lastMonthKeys, prevYearMonthKey } from "@/lib/report-dates";
 import { buildLeadSourceRows } from "@/lib/sales-report";
@@ -168,6 +167,13 @@ export async function GET(request: NextRequest) {
 
     if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) {
       return new Response(JSON.stringify({ error: "תאריכים לא תקינים" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    // Same ~5-year cap as /api/analytics custom ranges.
+    if (Math.abs(toDate.getTime() - fromDate.getTime()) > MAX_CUSTOM_RANGE_DAYS * 86_400_000) {
+      return new Response(JSON.stringify({ error: "טווח התאריכים ארוך מדי (עד 5 שנים)" }), {
         status: 400,
         headers: { "Content-Type": "application/json" },
       });
