@@ -2192,7 +2192,7 @@ function LeadsPageContent() {
 
       <div className="mt-5">
         {/* Reports */}
-        {activeTab === "reports" && <LeadsReports leads={leads} stages={stages} />}
+        {activeTab === "reports" && <LeadsReports />}
 
         {/* Archive */}
         {activeTab === "archive" && (
