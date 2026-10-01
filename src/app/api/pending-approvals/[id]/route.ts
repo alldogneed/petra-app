@@ -253,7 +253,8 @@ async function executeApprovedAction(
       break;
     }
     case "EDIT_PRICING": {
-      const { itemId, ...raw } = payload as { itemId: string; [k: string]: unknown };
+      const itemId = payloadId(payload, "itemId");
+      const { itemId: _itemId, ...raw } = payload as { itemId: string; [k: string]: unknown };
       // Allowlist fields to prevent mass assignment
       const ALLOWED_PRICING_FIELDS = ["name", "basePrice", "description", "duration", "isActive", "maxParticipants", "serviceId"] as const;
       const pricingData: Record<string, unknown> = {};

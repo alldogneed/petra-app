@@ -14,7 +14,10 @@ export async function PATCH(
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return NextResponse.json({ error: "Invalid body" }, { status: 400 });
+    }
     const { name, capacity, type, status, pricePerNight } = body;
 
     // Structure changes (name/capacity/type/price) need BOARDING_MANAGE; a status-only
