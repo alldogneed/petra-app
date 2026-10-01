@@ -75,6 +75,8 @@ export async function POST(
       data: {
         stage: lostStage.id,
         lostAt: new Date(),
+        lostByUserId: authResult.session.user.id,
+        wonByUserId: null,
         lostReasonCode: reasonCode,
         lostReasonText: reasonText || null,
       },

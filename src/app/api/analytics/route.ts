@@ -11,9 +11,9 @@ export async function GET(request: NextRequest) {
     if (isGuardError(authResult)) return authResult;
     const { businessId, session } = authResult;
 
-    const membership = session.memberships.find((m) => m.businessId === businessId);
+    const membership = session.memberships.find((m) => m.businessId === businessId && m.isActive);
     const analyticsRole = (membership?.role ?? "user") as TenantRole;
-    const canSeeRevenue = hasTenantPermission(analyticsRole, TENANT_PERMS.FINANCE_SUMMARY);
+    const canSeeRevenue = hasTenantPermission(analyticsRole, TENANT_PERMS.FINANCE_SUMMARY, membership?.permissionOverrides);
 
     const { searchParams } = new URL(request.url);
     const period = searchParams.get("period") || "month";

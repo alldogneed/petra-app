@@ -99,6 +99,7 @@ export async function POST(
                 stage: wonStage.id,
                 wonAt: new Date(),
                 wonByUserId: authResult.session.user.id,
+                lostByUserId: null,
                 customerId: customer!.id,
             },
         });

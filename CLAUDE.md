@@ -169,8 +169,16 @@ MCP: `create_lead` accepts the same keys (omitted → `unknown`), `get_lead` pri
 - Never ship the paw without the wordmark. Toes are `border-radius: 50%` (not Tailwind `rounded-full` — renders pills).
 - Leave alone: spinners inside buttons, refresh icons, "טען עוד", decorative status dots/pings, tiny inline number placeholders. Customer portal `/c/[slug]` keeps its white-label loader.
 
+### 30. Reports — shared definitions, server-side only
+Contracts: `src/lib/analytics-types.ts` (`AnalyticsData` → `GET /api/analytics`, `SalesReport` → `GET /api/leads/reports`). Dates: `src/lib/report-dates.ts` (Israel-day bounds `israelDayStart/End`, `israelMonthKey`, `pct` = null on 0 denominator). Never compute report numbers client-side.
+- **Lead conversion = won / (won + lost)** everywhere (open leads excluded). Won/lost = CURRENT stage `isWon`/`isLost`; activity basis additionally requires `wonAt`/`lostAt` in range. Pure logic: `src/lib/sales-report.ts` (`buildSalesReport`, `buildLeadSourceRows` — also used by `getAnalytics().leadsBySource`).
+- `/analytics` (`src/lib/analytics-metrics.ts`): avg revenue = revenue / **paying** customers; retention = customers active (completed appt or paid payment) in the previous equal period who were active again; completion = completed / due (past, non-canceled); `revenueByService` + `finance.byCategory` cover ALL paid payments (Σ = revenue); day/hour charts exclude canceled; custom range capped ~5y. Money (`finance`, boarding revenue, …) null without `FINANCE_SUMMARY` (permission overrides honoured).
+- Outstanding balances: `src/lib/outstanding-balances.ts` (`computeOutstandingBalances`) — shared by `/analytics` and MCP `get_outstanding_balances`.
+- `/api/leads/reports` = `requireBusinessPermission(ANALYTICS_READ)`; `/leads?view=reports` deep-links the tab. Funnel "reached" uses current stage + `stage_change` log names + `previousStageId`.
+- Closer: close-won / close-lost / convert / PATCH stage stamp `wonByUserId` / `lostByUserId` = session PlatformUser id (`updateLead(..., actorUserId)`); MCP passes none → null ("לא תועד").
+- Tests: `src/lib/__tests__/{sales-report,analytics-metrics,outstanding-balances,report-dates}.test.ts`.
 
-### 30. Customer sales history — the lead journal follows the customer
+### 31. Customer sales history — the lead journal follows the customer
 Everything recorded on a lead (call logs + "מה סוכם", stage changes, deal-value changes, follow-up tasks open+closed, created/won/lost, deal value, source, attribution, who closed) is shown in the customer file for every lead with `Lead.customerId` = that customer (won, lost and open; newest first).
 - Single source of truth: `src/lib/lead-sales-history.ts` (types + `buildSalesJournal()` + `leadStatusOf()` + caps); service `getCustomerSalesHistory()` in `src/services/clients.ts`; API `GET /api/customers/[id]/sales-history` (same `CUSTOMERS_PII` gate as the customer GET).
 - UI: `src/components/customers/CustomerSalesHistory.tsx` — card "היסטוריית מכירה" in the customer page right column right after Pets (anchor `#sales-history`) + "הגיע מליד" chip in the header. Each lead has "פתח את הליד" → `/leads?lead=<id>` (leads page opens `LeadTreatmentModal` for that id, then strips the param; unknown id → toast). MCP `get_client` appends the section when the token also has `read:leads`.

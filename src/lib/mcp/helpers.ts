@@ -72,6 +72,8 @@ export function parseYmd(s: string | undefined | null): string | null {
 export interface ToolCtx {
   businessId: string;
   connectionId: string;
+  /** PlatformUser who minted the connection (null for legacy tokens) — recorded as lead closer etc. */
+  userId?: string | null;
   hasScope: (scope: string) => boolean;
   /** Deny a tool call whose connection lacks the required scope (audited). */
   denyScope: (tool: string, scope: string) => Promise<ToolResult>;

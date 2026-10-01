@@ -6,6 +6,17 @@ import { rateLimit } from "@/lib/rate-limit";
 import { hasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
 import { LEAD_SOURCES, LOST_REASON_CODES } from "@/lib/constants";
 import { buildLeadSalesReport, EXCLUDED_ORDER_STATUSES } from "@/lib/lead-deal-value";
+import {
+  avgRevenuePerPayingCustomer,
+  buildMonthlyRevenue,
+  buildRevenueBreakdown,
+  buildRevenueByMethod,
+  computeAppointmentStats,
+  PAYMENT_METHOD_LABELS_HE,
+  splitNewVsReturning, MAX_CUSTOM_RANGE_DAYS } from "@/lib/analytics-metrics";
+import { computeOutstandingBalances } from "@/lib/outstanding-balances";
+import { isYmd, israelDayEnd, israelDayStart, lastMonthKeys, prevYearMonthKey } from "@/lib/report-dates";
+import { buildLeadSourceRows } from "@/lib/sales-report";
 import * as XLSX from "xlsx";
 
 const LEAD_SOURCE_LABELS: Record<string, string> = Object.fromEntries(
@@ -39,15 +50,7 @@ const APPOINTMENT_STATUS: Record<string, string> = {
   no_show: "לא הגיע",
 };
 
-const PAYMENT_METHOD: Record<string, string> = {
-  cash: "מזומן",
-  credit_card: "כרטיס אשראי",
-  bank_transfer: "העברה בנקאית",
-  check: "צ׳ק",
-  bit: "ביט",
-  paybox: "פייבוקס",
-  other: "אחר",
-};
+const PAYMENT_METHOD = PAYMENT_METHOD_LABELS_HE;
 
 const PAYMENT_STATUS: Record<string, string> = {
   paid: "שולם",
@@ -128,9 +131,9 @@ export async function GET(request: NextRequest) {
 
     // The export contains full revenue data (payments, order totals) — gate it
     // behind the same permission the analytics API uses to hide revenue.
-    const membership = session.memberships.find((m) => m.businessId === businessId);
+    const membership = session.memberships.find((m) => m.businessId === businessId && m.isActive);
     const role = (membership?.role ?? "user") as TenantRole;
-    if (!hasTenantPermission(role, TENANT_PERMS.FINANCE_SUMMARY)) {
+    if (!hasTenantPermission(role, TENANT_PERMS.FINANCE_SUMMARY, membership?.permissionOverrides)) {
       return NextResponse.json({ error: "אין לך הרשאה לייצא דוחות כספיים" }, { status: 403 });
     }
 
@@ -150,10 +153,17 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const fromDate = new Date(fromParam);
-    const toDate = new Date(toParam);
-    // Set toDate to end of day
-    toDate.setHours(23, 59, 59, 999);
+    // "YYYY-MM-DD" = Israel calendar days (same as /api/analytics). Legacy full date strings still parse.
+    let fromDate: Date;
+    let toDate: Date;
+    if (isYmd(fromParam) && isYmd(toParam)) {
+      fromDate = israelDayStart(fromParam <= toParam ? fromParam : toParam);
+      toDate = israelDayEnd(fromParam <= toParam ? toParam : fromParam);
+    } else {
+      fromDate = new Date(fromParam);
+      toDate = new Date(toParam);
+      toDate.setHours(23, 59, 59, 999);
+    }
 
     if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) {
       return new Response(JSON.stringify({ error: "תאריכים לא תקינים" }), {
@@ -161,6 +171,18 @@ export async function GET(request: NextRequest) {
         headers: { "Content-Type": "application/json" },
       });
     }
+    // Same ~5-year cap as /api/analytics custom ranges.
+    if (Math.abs(toDate.getTime() - fromDate.getTime()) > MAX_CUSTOM_RANGE_DAYS * 86_400_000) {
+      return new Response(JSON.stringify({ error: "טווח התאריכים ארוך מדי (עד 5 שנים)" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    const monthKeys = lastMonthKeys(12, toDate);
+    const [lastY, lastM] = monthKeys[monthKeys.length - 1].split("-").map(Number);
+    const monthlyFrom = israelDayStart(`${prevYearMonthKey(monthKeys[0])}-01`);
+    const monthlyTo = israelDayStart(new Date(Date.UTC(lastY, lastM, 1)).toISOString().slice(0, 10));
 
     // Run all queries in parallel
     const [
@@ -175,6 +197,9 @@ export async function GET(request: NextRequest) {
       boardingStays,
       tasks,
       pets,
+      paidInRange,
+      monthlyPayments,
+      outstanding,
     ] = await Promise.all([
       // 1. Customers created in range
       prisma.customer.findMany({
@@ -231,7 +256,7 @@ export async function GET(request: NextRequest) {
       // Lead stages for name lookup
       prisma.leadStage.findMany({
         where: { businessId },
-        select: { id: true, name: true, isWon: true },
+        select: { id: true, name: true, isWon: true, isLost: true },
       }),
       // 6. Training programs started in range
       prisma.trainingProgram.findMany({
@@ -276,9 +301,35 @@ export async function GET(request: NextRequest) {
         orderBy: { createdAt: "desc" },
         take: MAX_EXPORT_ROWS,
       }),
+      // 10. Paid payments by paidAt — revenue (same definition as /api/analytics)
+      prisma.payment.findMany({
+        where: { businessId, status: "paid", paidAt: { gte: fromDate, lte: toDate } },
+        select: {
+          amount: true,
+          method: true,
+          customerId: true,
+          appointmentId: true,
+          boardingStayId: true,
+          orderId: true,
+          appointment: { select: { service: { select: { name: true } }, priceListItem: { select: { name: true } } } },
+          order: { select: { orderType: true } },
+          customer: { select: { createdAt: true } },
+        },
+        take: MAX_EXPORT_ROWS,
+      }),
+      // 11. Last 12 months (+ a year earlier) ending with the month of `to`
+      prisma.payment.findMany({
+        where: { businessId, status: "paid", paidAt: { gte: monthlyFrom, lt: monthlyTo } },
+        select: { amount: true, paidAt: true },
+        take: MAX_EXPORT_ROWS * 2,
+      }),
+      // 12. Outstanding balances (snapshot)
+      computeOutstandingBalances(prisma, businessId),
     ]);
 
     const stageMap = new Map(leadStages.map((s) => [s.id, s.name]));
+    const wonStageSet = new Set(leadStages.filter((s) => s.isWon).map((s) => s.id));
+    const lostStageSet = new Set(leadStages.filter((s) => s.isLost).map((s) => s.id));
 
     // Lead sales — leads WON in range (by wonAt) + orders their customers placed since closing
     const wonStageIds = leadStages.filter((s) => s.isWon).map((s) => s.id);
@@ -317,9 +368,12 @@ export async function GET(request: NextRequest) {
     const toLabel = fmt(toDate);
 
     // ── Sheet 1: Summary ──
-    const totalRevenue = payments
-      .filter((p) => p.status === "paid")
-      .reduce((sum, p) => sum + p.amount, 0);
+    // Same definitions as /api/analytics (src/lib/analytics-metrics.ts)
+    const revenue = buildRevenueBreakdown(paidInRange);
+    const totalRevenue = revenue.total;
+    const payingCustomers = new Set(paidInRange.map((p) => p.customerId)).size;
+    const apptStats = computeAppointmentStats(appointments, new Date());
+    const rateLabel = (n: number | null) => (n == null ? "—" : `${n}%`);
 
     const summaryRows = [
       ["סיכום דוח", `${fromLabel} – ${toLabel}`],
@@ -327,14 +381,20 @@ export async function GET(request: NextRequest) {
       ["מדד", "ערך"],
       ["לקוחות חדשים", customers.length],
       ["תורים", appointments.length],
-      ["תורים שהושלמו", appointments.filter((a) => a.status === "completed" || a.status === "COMPLETED").length],
-      ["תורים שבוטלו", appointments.filter((a) => a.status === "canceled").length],
-      ["הכנסות (שולם)", fmtCurrency(totalRevenue)],
-      ["מספר תשלומים", payments.length],
+      ["תורים שהושלמו", apptStats.completed],
+      ["תורים שבוטלו", apptStats.canceled],
+      ["לא הגיעו", apptStats.noShow],
+      ["אחוז השלמה (מתורים שמועדם עבר)", `${apptStats.completionRate}%`],
+      ["אחוז ביטולים", rateLabel(apptStats.cancellationRate)],
+      ["הכנסות (שולם בטווח)", fmtCurrency(totalRevenue)],
+      ["תשלומים ששולמו בטווח", paidInRange.length],
+      ["לקוחות משלמים", payingCustomers],
+      ["הכנסה ממוצעת ללקוח משלם", fmtCurrency(avgRevenuePerPayingCustomer(totalRevenue, payingCustomers) ?? 0)],
+      ["תשלומים שנרשמו בטווח (כל הסטטוסים)", payments.length],
       ["הזמנות", orders.length],
       ["לידים חדשים", leads.length],
-      ["לידים שנסגרו (won)", leads.filter((l) => l.wonAt).length],
-      ["לידים שאבדו (lost)", leads.filter((l) => l.lostAt).length],
+      ["מהם נסגרו (won)", leads.filter((l) => wonStageSet.has(l.stage)).length],
+      ["מהם אבדו (lost)", leads.filter((l) => lostStageSet.has(l.stage)).length],
       ["לידים שנסגרו בטווח (לפי תאריך סגירה)", leadSales.wonCount],
       ["ערך עסקאות שנסגרו", fmtCurrency(leadSales.dealValueTotal)],
       ["הזמנות מאז הסגירה", fmtCurrency(leadSales.ordersTotal)],
@@ -348,6 +408,45 @@ export async function GET(request: NextRequest) {
     const wsSummary = XLSX.utils.aoa_to_sheet(summaryRows);
     wsSummary["!cols"] = [{ wch: 25 }, { wch: 30 }];
     XLSX.utils.book_append_sheet(wb, wsSummary, "סיכום");
+
+    // ── Sheet 1b: Finance (same definitions as the /analytics finance section) ──
+    const split = splitNewVsReturning(
+      paidInRange.map((p) => ({ amount: p.amount, customerCreatedAt: p.customer?.createdAt ?? null })),
+      fromDate,
+      toDate,
+    );
+    const financeRows: (string | number)[][] = [
+      ["כספים", `${fromLabel} – ${toLabel}`],
+      [],
+      ["הכנסות לפי קטגוריה", "סכום"],
+      ...revenue.byCategory.map((c) => [c.label, c.revenue]),
+      ["סה״כ", totalRevenue],
+      [],
+      ["הכנסות לפי שירות", "סכום"],
+      ...revenue.revenueByService.map((r) => [r.name, r.revenue]),
+      [],
+      ["אמצעי תשלום", "סכום", "מספר תשלומים"],
+      ...buildRevenueByMethod(paidInRange).map((m) => [m.label, m.revenue, m.count]),
+      [],
+      ["לקוחות חדשים (נוצרו בטווח)", split.newCustomers],
+      ["לקוחות קיימים", split.returningCustomers],
+      [],
+      ["חודש", "הכנסות", "אותו חודש בשנה הקודמת"],
+      ...buildMonthlyRevenue(monthlyPayments, monthKeys, prevYearMonthKey).map((m) => [m.month, m.revenue, m.prevYearRevenue]),
+      [],
+      ["יתרות פתוחות (נכון להיום)", `${outstanding.rows.length} לקוחות`, Math.round(outstanding.grandTotal * 100) / 100],
+      ["לקוח", "סה״כ חוב", "הזמנות לא משולמות", "תשלומים ממתינים", "פריט פתוח ותיק"],
+      ...outstanding.rows.map((r) => [
+        r.name || "לקוח לא ידוע",
+        Math.round(r.total * 100) / 100,
+        Math.round(r.ordersOutstanding * 100) / 100,
+        Math.round(r.pendingAmount * 100) / 100,
+        fmt(r.oldest),
+      ]),
+    ];
+    const wsFinance = XLSX.utils.aoa_to_sheet(financeRows);
+    wsFinance["!cols"] = [{ wch: 28 }, { wch: 16 }, { wch: 20 }, { wch: 16 }, { wch: 16 }];
+    XLSX.utils.book_append_sheet(wb, wsFinance, "כספים");
 
     // ── Sheet 2: Customers ──
     const customerHeaders = ["שם", "טלפון", "מייל", "כתובת", "תגיות", "תאריך הצטרפות", "מספר חיות", "מספר תורים"];
@@ -457,35 +556,31 @@ export async function GET(request: NextRequest) {
     wsSales["!cols"] = [{ wch: 18 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 14 }, { wch: 10 }];
     XLSX.utils.book_append_sheet(wb, wsSales, "מכירות מלידים");
 
-    // ── Sheet 6b: Leads by Source ──
-    const sourceAgg = new Map<
-      string,
-      { total: number; won: number; lost: number; active: number }
-    >();
-    for (const l of leads) {
-      const source = l.source || "manual";
-      if (!sourceAgg.has(source)) sourceAgg.set(source, { total: 0, won: 0, lost: 0, active: 0 });
-      const entry = sourceAgg.get(source)!;
-      entry.total += 1;
-      if (l.wonAt) entry.won += 1;
-      else if (l.lostAt) entry.lost += 1;
-      else entry.active += 1;
-    }
-    const sourceHeaders = ["מקור", "סה״כ לידים", "נסגרו", "אבדו", "פעילים", "אחוז המרה"];
+    // ── Sheet 6b: Leads by Source (created in range; won/lost = current stage; conversion = won/(won+lost)) ──
+    const sourceStats = buildLeadSourceRows(
+      leads.map((l) => ({
+        key: l.source || "manual",
+        isWon: wonStageSet.has(l.stage),
+        isLost: lostStageSet.has(l.stage),
+        dealValue: l.dealValue,
+      })),
+      true,
+    );
+    const sourceHeaders = ["מקור", "סה״כ לידים", "נסגרו", "אבדו", "פעילים", "אחוז המרה", "ערך עסקאות שנסגרו"];
     const sourceRows: (string | number)[][] = [sourceHeaders];
-    for (const [source, s] of Array.from(sourceAgg.entries()).sort((a, b) => b[1].total - a[1].total)) {
-      const conversionRate = s.won + s.lost > 0 ? Math.round((s.won / (s.won + s.lost)) * 100) : 0;
+    for (const r of sourceStats) {
       sourceRows.push([
-        LEAD_SOURCE_LABELS[source] ?? source,
-        s.total,
-        s.won,
-        s.lost,
-        s.active,
-        `${conversionRate}%`,
+        LEAD_SOURCE_LABELS[r.source] ?? r.source,
+        r.total,
+        r.won,
+        r.lost,
+        r.open,
+        rateLabel(r.conversionRate),
+        r.wonValue ?? 0,
       ]);
     }
     const wsSources = XLSX.utils.aoa_to_sheet(sourceRows);
-    wsSources["!cols"] = [{ wch: 14 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 12 }];
+    wsSources["!cols"] = [{ wch: 14 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 16 }];
     XLSX.utils.book_append_sheet(wb, wsSources, "לידים לפי מקור");
 
     // ── Sheet 6c: Lost Reasons ──
