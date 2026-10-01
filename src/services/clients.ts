@@ -374,22 +374,19 @@ export async function getCustomerSalesHistory(
   );
 
   // leadIds are already tenant-scoped (lead.findMany above filters by businessId).
-  const [logCounts, logsPerLead, stages, tasks, users] = await Promise.all([
+  const [logCounts, allLogs, stages, tasks, users] = await Promise.all([
     db.callLog.groupBy({
       by: ["leadId", "type"],
       where: { leadId: { in: leadIds } },
       _count: { _all: true },
     }),
-    Promise.all(
-      leadIds.map((leadId) =>
-        db.callLog.findMany({
-          where: { leadId },
-          orderBy: { createdAt: "desc" },
-          take: SALES_HISTORY_MAX_LOGS,
-          select: { id: true, type: true, summary: true, treatment: true, createdAt: true },
-        }),
-      ),
-    ),
+    // One query for all leads (PgBouncer pool is small); per-lead cap applied below.
+    db.callLog.findMany({
+      where: { leadId: { in: leadIds } },
+      orderBy: { createdAt: "desc" },
+      take: SALES_HISTORY_MAX_LOGS * leadIds.length,
+      select: { id: true, leadId: true, type: true, summary: true, treatment: true, createdAt: true },
+    }),
     stageIds.length > 0
       ? db.leadStage.findMany({
           where: { businessId, id: { in: stageIds } },
@@ -430,6 +427,13 @@ export async function getCustomerSalesHistory(
     }
   }
 
+  const logsByLead = new Map<string, typeof allLogs>();
+  for (const l of allLogs) {
+    const list = logsByLead.get(l.leadId) ?? [];
+    if (list.length < SALES_HISTORY_MAX_LOGS) list.push(l);
+    logsByLead.set(l.leadId, list);
+  }
+
   const tasksByLead = new Map<string, typeof tasks>();
   for (const t of tasks) {
     if (!t.relatedEntityId) continue;
@@ -440,7 +444,7 @@ export async function getCustomerSalesHistory(
 
   const toIso = (d: Date | null | undefined) => (d ? d.toISOString() : null);
 
-  const result: SalesHistoryLead[] = leads.map((lead, i) => {
+  const result: SalesHistoryLead[] = leads.map((lead) => {
     const s = stageById.get(lead.stage);
     const stage = s
       ? { id: s.id, name: s.name, color: s.color ?? null, isWon: s.isWon, isLost: s.isLost }
@@ -448,7 +452,7 @@ export async function getCustomerSalesHistory(
     const lostReasonLabel = lead.lostReasonCode
       ? lostLabelById.get(lead.lostReasonCode) ?? lead.lostReasonCode
       : null;
-    const logs = logsPerLead[i] ?? [];
+    const logs = logsByLead.get(lead.id) ?? [];
     return {
       id: lead.id,
       name: lead.name,

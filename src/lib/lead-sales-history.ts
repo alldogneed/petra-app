@@ -62,10 +62,12 @@ export interface CustomerSalesHistory {
 }
 
 /** Max call logs / tasks loaded per lead */
-export const SALES_HISTORY_MAX_LOGS = 300;
+export const SALES_HISTORY_MAX_LOGS = 200;
 export const SALES_HISTORY_MAX_TASKS = 100;
 /** Max leads per customer shown */
 export const SALES_HISTORY_MAX_LEADS = 20;
+/** Per-entry text cap (keeps the payload bounded; call logs allow up to 5000 chars) */
+export const SALES_HISTORY_MAX_TEXT = 2000;
 
 export const TASK_STATUS_LABELS: Record<string, string> = {
   OPEN: "פתוחה",
@@ -133,8 +135,8 @@ export function buildSalesJournal(input: {
     const at = iso(c.createdAt);
     if (!at) continue;
     const kind: SalesJournalKind = c.type === "stage_change" ? "stage_change" : c.type === "deal_value" ? "deal_value" : "call";
-    const treatment = c.treatment && c.treatment.trim() ? c.treatment.trim() : null;
-    entries.push({ id: c.id, kind, at, summary: c.summary ?? "", treatment, _order: 1 });
+    const treatment = c.treatment && c.treatment.trim() ? c.treatment.trim().slice(0, SALES_HISTORY_MAX_TEXT) : null;
+    entries.push({ id: c.id, kind, at, summary: (c.summary ?? "").slice(0, SALES_HISTORY_MAX_TEXT), treatment, _order: 1 });
   }
 
   for (const t of input.tasks) {

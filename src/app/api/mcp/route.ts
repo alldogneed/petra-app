@@ -81,8 +81,10 @@ const SALES_JOURNAL_MCP_CAP = 30;
 const LOST_REASON_LABEL: Record<string, string> = Object.fromEntries(LOST_REASON_CODES.map((r) => [r.id, r.label]));
 
 function formatSalesHistorySection(leads: SalesHistoryLead[]): string[] {
+  const SALES_LEADS_MCP_CAP = 5;
   const out: string[] = [`\n📈 היסטוריית מכירה (${leads.length} לידים):`];
-  for (const l of leads) {
+  if (leads.length > SALES_LEADS_MCP_CAP) out.push(`— מוצגים ${SALES_LEADS_MCP_CAP} הלידים האחרונים מתוך ${leads.length}; get_lead לפרטי ליד מסוים`);
+  for (const l of leads.slice(0, SALES_LEADS_MCP_CAP)) {
     const status = l.status === "won" ? "✅ נסגר כלקוח" : l.status === "lost" ? "❌ אבד" : "⏳ פתוח";
     out.push(`\n🎯 ${safeField(l.name)} — ${status}${l.stage ? ` | שלב: ${safeField(l.stage.name, 40)}` : ""} (lead id: ${l.id})`);
     const dates = [
