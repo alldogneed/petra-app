@@ -1555,6 +1555,11 @@ function LeadsPageContent() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<SalesView>("board");
+  // Deep link: /leads?view=reports (used by /analytics → "לדוחות המכירות המלאים")
+  useEffect(() => {
+    const view = new URLSearchParams(window.location.search).get("view");
+    if (view === "reports" || view === "archive" || view === "list" || view === "followup") setActiveTab(view);
+  }, []);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [exportFrom, setExportFrom] = useState("");

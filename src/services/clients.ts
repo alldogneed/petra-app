@@ -781,7 +781,9 @@ export async function updateLead(
   businessId: string,
   db: DbClient,
   leadId: string,
-  input: UpdateLeadInput
+  input: UpdateLeadInput,
+  /** PlatformUser id of whoever made the change — recorded as the closer (wonByUserId / lostByUserId). */
+  actorUserId?: string | null
 ) {
   const existing = await db.lead.findFirst({ where: { id: leadId, businessId } });
   if (!existing) throw new ServiceError("Lead not found", "NOT_FOUND");
@@ -789,6 +791,7 @@ export async function updateLead(
   // Stage validation + won/lost auto-stamp
   let autoWonAt: Date | null | undefined;
   let autoLostAt: Date | null | undefined;
+  let closerData: { wonByUserId?: string | null; lostByUserId?: string | null } = {};
   if (input.stage !== undefined) {
     const validStage = await db.leadStage.findFirst({ where: { id: input.stage, businessId } });
     if (!validStage) throw new ServiceError("Invalid stage", "VALIDATION");
@@ -796,6 +799,11 @@ export async function updateLead(
       if (validStage.isWon) { autoWonAt = new Date(); autoLostAt = null; }
       else if (validStage.isLost) { autoLostAt = new Date(); autoWonAt = null; }
       else { autoWonAt = null; autoLostAt = null; }
+      closerData = validStage.isWon
+        ? { wonByUserId: actorUserId ?? null, lostByUserId: null }
+        : validStage.isLost
+          ? { lostByUserId: actorUserId ?? null, wonByUserId: null }
+          : { wonByUserId: null, lostByUserId: null };
     }
   }
 
@@ -849,6 +857,7 @@ export async function updateLead(
     ...(input.followUpStatus !== undefined && { followUpStatus: input.followUpStatus }),
     ...(input.previousStageId !== undefined && { previousStageId: input.previousStageId }),
     ...(nextDealValue !== undefined && { dealValue: nextDealValue }),
+    ...closerData,
   };
 
   const lead = await db.lead.update({ where: { id: leadId, businessId }, data, include: { customer: true, callLogs: true } });
