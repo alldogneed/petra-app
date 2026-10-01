@@ -9,7 +9,8 @@ import { interpolateTemplate } from "@/lib/whatsapp";
 import { appointmentConfirmationChain, defaultConfirmationText } from "@/lib/reminder-service";
 import { sendWithTemplateChain } from "@/lib/whatsapp-template-chain";
 import { toWhatsAppPhone } from "@/lib/utils";
-import { logCurrentUserActivity } from "@/lib/activity-log";
+import { logActivity } from "@/lib/activity-log";
+import { ENTITY_TYPES } from "@/lib/activity-actions";
 import { getMaxOrders, normalizeTier, hasFeatureWithOverrides } from "@/lib/feature-flags";
 import { sendPaymentRequestForOrder } from "@/lib/payment-request";
 import { listOrders, createOrder, ServiceError } from "@/services/orders";
@@ -227,7 +228,14 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    logCurrentUserActivity("CREATE_ORDER");
+    logActivity(authResult.session.user.id, authResult.session.user.name, "CREATE_ORDER", {
+      businessId: authResult.businessId,
+      entityType: ENTITY_TYPES.ORDER,
+      entityId: order?.id ?? null,
+      entityLabel: order
+        ? `הזמנה ₪${Number(order.total ?? 0).toLocaleString("he-IL")} — ${order.customer?.name ?? ""}`
+        : null,
+    });
     return NextResponse.json(order, { status: 201 });
   } catch (error) {
     console.error("Error creating order:", error);

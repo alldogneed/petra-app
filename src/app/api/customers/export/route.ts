@@ -21,7 +21,10 @@ export async function GET(request: NextRequest) {
   }
 
   const { session } = authResult;
-  logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.EXPORT_CUSTOMERS);
+  await logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.EXPORT_CUSTOMERS, {
+    businessId: authResult.businessId,
+    entityLabel: "לקוחות",
+  });
 
   try {
     const customers = await prisma.customer.findMany({

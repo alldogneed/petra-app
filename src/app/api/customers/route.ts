@@ -1,7 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { logCurrentUserActivity } from "@/lib/activity-log";
+import { logActivity } from "@/lib/activity-log";
+import { ENTITY_TYPES } from "@/lib/activity-actions";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { checkFirstCustomer } from "@/lib/engagement-service";
@@ -108,7 +109,12 @@ export async function POST(request: NextRequest) {
       throw e;
     }
 
-    logCurrentUserActivity("CREATE_CUSTOMER");
+    logActivity(authResult.session.user.id, authResult.session.user.name, "CREATE_CUSTOMER", {
+      businessId,
+      entityType: ENTITY_TYPES.CUSTOMER,
+      entityId: customer.id,
+      entityLabel: customer.name,
+    });
     // Fire-and-forget: first-customer engagement notification
     checkFirstCustomer(authResult.session.user.id, businessId);
 
