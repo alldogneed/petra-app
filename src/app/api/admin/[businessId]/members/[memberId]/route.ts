@@ -13,6 +13,7 @@ import { logAudit, getRequestContext, AUDIT_ACTIONS } from "@/lib/audit";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 import { ENTITY_TYPES } from "@/lib/activity-actions";
 import { z } from "zod";
+import { invalidateUserSessionCache } from "@/lib/session";
 
 const CAPABILITY_KEYS = CRITICAL_CAPABILITIES.map((c) => c.key) as [string, ...string[]];
 
@@ -146,6 +147,10 @@ export async function PATCH(
       entityLabel: targetMember.user?.name ?? null,
     });
   }
+
+  // Role/permission/active changes must apply on the member's next request, not
+  // after the 30s session cache expires (cross-instance lag stays ≤30s).
+  invalidateUserSessionCache(targetMember.userId);
 
   // AI access follows the member's current standing: when this change leaves them
   // without it (deactivated, demoted below manager, or AI_ASSISTANT switched off),
