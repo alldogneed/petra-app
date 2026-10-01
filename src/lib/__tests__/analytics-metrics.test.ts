@@ -1,4 +1,5 @@
 import {
+  MAX_CUSTOM_RANGE_DAYS,
   avgRevenuePerPayingCustomer,
   buildAppointmentCharts,
   buildMonthlyRevenue,
@@ -266,5 +267,14 @@ describe("occupancy", () => {
 
   it("no rooms → capacity 0, rate null", () => {
     expect(computeOccupancy([], [], from, to, now).occupancyRate).toBeNull();
+  });
+});
+
+describe("resolveAnalyticsRange cap", () => {
+  it("clamps custom ranges to ~5 years", () => {
+    const r = resolveAnalyticsRange(undefined, "2001-01-01", "2026-09-30");
+    const days = (r.to.getTime() - r.from.getTime()) / 86_400_000;
+    expect(days).toBeLessThanOrEqual(MAX_CUSTOM_RANGE_DAYS + 0.001);
+    expect(r.custom).toBe(true);
   });
 });

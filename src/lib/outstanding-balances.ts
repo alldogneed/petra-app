@@ -108,6 +108,7 @@ export async function computeOutstandingBalances(
         customer: { select: { id: true, name: true } },
         payments: { where: { status: "paid" }, select: { amount: true } },
       },
+      orderBy: { createdAt: "asc" },
       take: QUERY_CAP,
     }),
     db.payment.findMany({

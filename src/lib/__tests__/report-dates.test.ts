@@ -35,6 +35,8 @@ describe("validation and rates", () => {
     expect(isYmd("2026-02-30")).toBe(false);
     expect(isYmd("2026-02-28")).toBe(true);
     expect(isYmd("2026-2-28")).toBe(false);
+    expect(isYmd("0000-01-01")).toBe(false);
+    expect(isYmd("9999-12-31")).toBe(false);
   });
   it("pct is null without a denominator", () => {
     expect(pct(1, 0)).toBeNull();

@@ -1,30 +1,24 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
-import { isPlatformAdmin, TENANT_ROLES } from "@/lib/permissions";
+import { requireBusinessPermission, isGuardError } from "@/lib/auth-guards";
+import { TENANT_PERMS } from "@/lib/permissions";
 import { getLeadsReport } from "@/services/leads-reports";
 import { ServiceError } from "@/services/types";
 
 /**
  * GET /api/leads/reports?from=YYYY-MM-DD&to=YYYY-MM-DD&basis=cohort|activity
  *
- * Access: owner / manager of the business, or a platform admin (impersonation). Staff → 403.
+ * Access: ANALYTICS_READ (owner + manager by default, honours per-member permission overrides;
+ * super_admin impersonation passes). Others → 403.
  * Money: deal values ("ערך עסקה") are already visible to managers in the leads kanban, and they are
  * NOT revenue (CLAUDE.md rule #28) — so every caller allowed here gets canSeeMoney = true.
  */
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requireBusinessAuth(request);
+    const authResult = await requireBusinessPermission(request, TENANT_PERMS.ANALYTICS_READ);
     if (isGuardError(authResult)) return authResult;
-    const { businessId, session } = authResult;
-
-    const membership = session.memberships.find((m) => m.businessId === businessId && m.isActive);
-    const isManagerOrOwner =
-      membership?.role === TENANT_ROLES.OWNER || membership?.role === TENANT_ROLES.MANAGER;
-    if (!isManagerOrOwner && !isPlatformAdmin(session.user.platformRole)) {
-      return NextResponse.json({ error: "אין לך הרשאה לצפות בדוחות מכירות" }, { status: 403 });
-    }
+    const { businessId } = authResult;
 
     const { searchParams } = new URL(request.url);
     const data = await getLeadsReport(businessId, prisma, {

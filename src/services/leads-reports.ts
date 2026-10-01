@@ -111,6 +111,8 @@ export async function getLeadsReport(
         where: { type: { not: "deal_value" } },
         select: { type: true, summary: true, createdAt: true },
         orderBy: { createdAt: "asc" },
+        // Only the first contact + the stage-change chain matter; cap per lead to bound memory.
+        take: 200,
       },
     },
     orderBy: { createdAt: "desc" },

@@ -132,9 +132,9 @@ export async function GET(request: NextRequest) {
 
     // The export contains full revenue data (payments, order totals) — gate it
     // behind the same permission the analytics API uses to hide revenue.
-    const membership = session.memberships.find((m) => m.businessId === businessId);
+    const membership = session.memberships.find((m) => m.businessId === businessId && m.isActive);
     const role = (membership?.role ?? "user") as TenantRole;
-    if (!hasTenantPermission(role, TENANT_PERMS.FINANCE_SUMMARY)) {
+    if (!hasTenantPermission(role, TENANT_PERMS.FINANCE_SUMMARY, membership?.permissionOverrides)) {
       return NextResponse.json({ error: "אין לך הרשאה לייצא דוחות כספיים" }, { status: 403 });
     }
 

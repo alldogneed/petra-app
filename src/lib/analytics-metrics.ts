@@ -76,6 +76,8 @@ const PRESET_DAYS: Record<string, number> = { week: 7, month: 30, quarter: 90, y
  * (week=7d, month=30d, quarter=90d, year=365d; unknown period → month).
  * Previous period = the equal-length window right before `from`.
  */
+export const MAX_CUSTOM_RANGE_DAYS = 5 * 366;
+
 export function resolveAnalyticsRange(
   period: string | undefined,
   fromParam: string | null | undefined,
@@ -90,6 +92,10 @@ export function resolveAnalyticsRange(
     const [a, b] = fromParam <= toParam ? [fromParam, toParam] : [toParam, fromParam];
     from = israelDayStart(a);
     to = israelDayEnd(b);
+    // Cap custom ranges at ~5 years (each request also scans the equal-length previous window).
+    if (to.getTime() - from.getTime() > MAX_CUSTOM_RANGE_DAYS * DAY_MS) {
+      from = new Date(to.getTime() - MAX_CUSTOM_RANGE_DAYS * DAY_MS);
+    }
     custom = true;
     p = period || "custom";
   } else {

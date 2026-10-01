@@ -7,8 +7,11 @@
 const TZ = "Asia/Jerusalem";
 const YMD_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+/** Valid "YYYY-MM-DD" between 2000 and 2100 (anything else is treated as junk input). */
 export function isYmd(v: unknown): v is string {
   if (typeof v !== "string" || !YMD_RE.test(v)) return false;
+  const year = Number(v.slice(0, 4));
+  if (year < 2000 || year > 2100) return false;
   const d = new Date(`${v}T00:00:00.000Z`);
   return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === v;
 }
