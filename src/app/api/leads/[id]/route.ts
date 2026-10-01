@@ -4,6 +4,7 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
+import { ENTITY_TYPES } from "@/lib/activity-actions";
 import { hasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
 import { createPendingApproval } from "@/lib/pending-approvals";
 import { cancelLeadFollowup } from "@/lib/reminder-service";
@@ -56,7 +57,12 @@ export async function PATCH(
     }
 
     const { session } = authResult;
-    logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.UPDATE_LEAD);
+    logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.UPDATE_LEAD, {
+      businessId: authResult.businessId,
+      entityType: ENTITY_TYPES.LEAD,
+      entityId: params.id,
+      entityLabel: (lead as { name?: string | null } | null)?.name ?? null,
+    });
 
 
     return NextResponse.json(lead);
@@ -105,6 +111,12 @@ export async function DELETE(
       return NextResponse.json({ error: "נדרש אישור מפורש למחיקה", requireConfirmation: true }, { status: 428 });
     }
 
+    // Read the name before the row disappears (scoped to this business).
+    const toDelete = await prisma.lead.findFirst({
+      where: { id: params.id, businessId },
+      select: { name: true },
+    });
+
     let deleteResult;
     try {
       deleteResult = await deleteLead(businessId, prisma, params.id);
@@ -120,7 +132,14 @@ export async function DELETE(
       console.error("cancelLeadFollowup (delete) failed (non-critical):", err)
     );
 
-    logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.DELETE_LEAD);
+    if (!deleteResult.alreadyDeleted) {
+      await logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.DELETE_LEAD, {
+        businessId,
+        entityType: ENTITY_TYPES.LEAD,
+        entityId: params.id,
+        entityLabel: toDelete?.name ?? null,
+      });
+    }
     return NextResponse.json({ success: true, ...(deleteResult.alreadyDeleted ? { alreadyDeleted: true } : {}) });
   } catch (error) {
     console.error("Error deleting lead:", error);

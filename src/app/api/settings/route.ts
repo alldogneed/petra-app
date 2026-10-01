@@ -1,7 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { logCurrentUserActivity } from "@/lib/activity-log";
+import { logActivity } from "@/lib/activity-log";
+import { ENTITY_TYPES } from "@/lib/activity-actions";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { type TenantRole } from "@/lib/permissions";
 import { sendWhatsAppMessage } from "@/lib/whatsapp";
@@ -71,7 +72,11 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
-    logCurrentUserActivity("UPDATE_SETTINGS");
+    logActivity(authResult.session.user.id, authResult.session.user.name, "UPDATE_SETTINGS", {
+      businessId: authResult.businessId,
+      entityType: ENTITY_TYPES.SETTINGS,
+      entityLabel: "הגדרות העסק",
+    });
     return NextResponse.json(updated);
   } catch (error) {
     console.error("Failed to update settings:", error);

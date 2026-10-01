@@ -1,7 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { logCurrentUserActivity } from "@/lib/activity-log";
+import { logActivity } from "@/lib/activity-log";
+import { ENTITY_TYPES } from "@/lib/activity-actions";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { listMessageTemplates, createMessageTemplate, ServiceError } from "@/services/notifications";
@@ -49,7 +50,12 @@ export async function POST(request: NextRequest) {
       throw e;
     }
 
-    logCurrentUserActivity("CREATE_MESSAGE_TEMPLATE");
+    logActivity(authResult.session.user.id, authResult.session.user.name, "CREATE_MESSAGE_TEMPLATE", {
+      businessId: authResult.businessId,
+      entityType: ENTITY_TYPES.SETTINGS,
+      entityId: template.id,
+      entityLabel: template.name,
+    });
     return NextResponse.json(template, { status: 201 });
   } catch (error) {
     console.error("Error creating message template:", error);

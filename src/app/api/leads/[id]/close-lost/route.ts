@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { LOST_REASON_CODES } from "@/lib/constants";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
+import { ENTITY_TYPES } from "@/lib/activity-actions";
 import { cancelLeadFollowup } from "@/lib/reminder-service";
 
 export async function POST(
@@ -89,7 +90,12 @@ export async function POST(
     await clearLeadFollowUps(authResult.businessId, prisma, id).catch((err) => console.error("clearLeadFollowUps failed:", err));
 
     const { session } = authResult;
-    logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.CLOSE_LEAD_LOST);
+    logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.CLOSE_LEAD_LOST, {
+      businessId: authResult.businessId,
+      entityType: ENTITY_TYPES.LEAD,
+      entityId: lead.id,
+      entityLabel: lead.name,
+    });
 
     return NextResponse.json(lead);
   } catch (error) {
