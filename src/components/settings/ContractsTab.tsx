@@ -7,7 +7,6 @@ import { cn, fetchJSON } from "@/lib/utils";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { usePermissions } from "@/hooks/usePermissions";
-import { useAuth } from "@/providers/auth-provider";
 
 // ─── Legacy export ────────────────────────────────────────────────────────────
 // The settings tab used to be "תשלומים" (invoicing + contracts). Invoicing
@@ -41,10 +40,10 @@ export function ContractsTab() {
   const [showModal, setShowModal] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<ContractTemplate | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ContractTemplate | null>(null);
-  const perms = usePermissions();
-  const { user } = useAuth();
-  // POST/PATCH/DELETE /api/contracts/templates → SETTINGS_WRITE (owner/manager).
-  const canEditTemplates = perms.isOwner || perms.isManager || user?.isAdmin === true;
+  // POST/PATCH/DELETE /api/contracts/templates → CONTRACTS_MANAGE (owner-grantable).
+  // Deleting a template with signed contracts additionally needs CRITICAL_DELETE
+  // (server answers 403 code SIGNED_CONTRACTS with a Hebrew message).
+  const { canManageContracts: canEditTemplates } = usePermissions();
 
   const { data: templates = [], isLoading, isError } = useQuery<ContractTemplate[]>({
     queryKey: ["contract-templates"],
@@ -54,8 +53,8 @@ export function ContractsTab() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
       fetch(`/api/contracts/templates/${id}`, { method: "DELETE" }).then(async (r) => {
-        const d = await r.json();
-        if (!r.ok) throw new Error(d.error || "שגיאה");
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error((typeof d?.error === "string" && d.error) || "שגיאה במחיקת התבנית");
         return d;
       }),
     onSuccess: () => {
@@ -63,7 +62,11 @@ export function ContractsTab() {
       setDeleteTarget(null);
       toast.success("תבנית נמחקה");
     },
-    onError: (e: Error) => toast.error(e.message && e.message !== "שגיאה" ? e.message : "שגיאה במחיקת התבנית"),
+    // Server's Hebrew message — incl. 403 SIGNED_CONTRACTS ("לתבנית יש N חוזים חתומים…").
+    onError: (e: Error) => {
+      setDeleteTarget(null);
+      toast.error(e.message || "שגיאה במחיקת התבנית");
+    },
   });
 
   if (isLoading) {
@@ -86,7 +89,7 @@ export function ContractsTab() {
       </div>
 
       {!canEditTemplates && (
-        <p className="text-xs text-petra-muted">הוספה, עריכה ומחיקה של תבניות חוזים זמינות לבעלים ולמנהלים בלבד.</p>
+        <p className="text-xs text-petra-muted">הוספה, עריכה ומחיקה של תבניות חוזים דורשות את ההרשאה &quot;לנהל תבניות חוזים&quot; — בקש מבעל העסק.</p>
       )}
 
       {isError ? (
@@ -151,7 +154,7 @@ export function ContractsTab() {
       <ConfirmDialog
         open={deleteTarget !== null}
         title="למחוק את תבנית החוזה?"
-        description={deleteTarget ? <>התבנית &quot;{deleteTarget.name}&quot; תימחק לצמיתות — <strong>יחד עם כל בקשות ההחתמה שנשלחו ממנה, כולל קבצי חוזים חתומים</strong>. לא ניתן לבטל פעולה זו.</> : undefined}
+        description={deleteTarget ? <>התבנית &quot;{deleteTarget.name}&quot; תימחק לצמיתות — <strong>יחד עם כל בקשות ההחתמה שנשלחו ממנה, כולל חוזים חתומים וקבצי ה-PDF שלהם</strong>. לא ניתן לבטל פעולה זו. מחיקת תבנית שיש לה חוזים חתומים מותרת רק למי שמורשה למחוק לקוחות וכלבים.</> : undefined}
         confirmLabel="מחק"
         danger
         loading={deleteMutation.isPending}

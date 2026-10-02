@@ -14,7 +14,7 @@ export async function DELETE(
   if (isGuardError(auth)) return auth
   const { businessId } = auth
 
-  const guard = await requireTenantPermission(req, businessId, TENANT_PERMS.SETTINGS_WRITE)
+  const guard = await requireTenantPermission(req, businessId, TENANT_PERMS.AVAILABILITY_MANAGE)
   if (isGuardError(guard)) return guard
 
   const block = await prisma.availabilityBlock.findFirst({
@@ -44,7 +44,7 @@ export async function PATCH(
   if (isGuardError(auth)) return auth
   const { businessId } = auth
 
-  const guard = await requireTenantPermission(req, businessId, TENANT_PERMS.SETTINGS_WRITE)
+  const guard = await requireTenantPermission(req, businessId, TENANT_PERMS.AVAILABILITY_MANAGE)
   if (isGuardError(guard)) return guard
 
   const block = await prisma.availabilityBlock.findFirst({

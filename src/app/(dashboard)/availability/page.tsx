@@ -1,17 +1,30 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Save, Plus, Trash2, Clock, CalendarOff, ExternalLink, Settings2, Coffee, CalendarDays } from "lucide-react"
+import { Save, Plus, Trash2, Clock, CalendarOff, ExternalLink, Settings2, Coffee, CalendarDays, Lock } from "lucide-react"
 import Link from "next/link";
 import { BookingsTabs } from "@/components/bookings/BookingsTabs";
 import { useAuth } from "@/providers/auth-provider"
 import { toast } from "sonner"
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { SettingsFieldset } from "@/components/settings/settings-ui";
+import { usePermissions } from "@/hooks/usePermissions";
+
+/** Throws with the server's Hebrew `error` (e.g. a 403 permission message) when present. */
+async function ensureOk(res: Response, fallback: string): Promise<void> {
+  if (res.ok) return
+  const body = await res.json().catch(() => ({}))
+  throw new Error((body && typeof body.error === "string" && body.error) || fallback)
+}
+
+function errorMessage(err: unknown, fallback: string): string {
+  return err instanceof Error && err.message ? err.message : fallback
+}
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 interface AvailabilityRule {
-  id: string
+  id?: string
   dayOfWeek: number
   isOpen: boolean
   openTime: string
@@ -89,17 +102,19 @@ export default function AvailabilityPage() {
   const { user } = useAuth()
   const bookingSlug = user?.businessSlug || null
 
+  // AVAILABILITY_MANAGE — without it the page is view-only (server enforces too).
+  const { canManageAvailability } = usePermissions()
+  const readOnly = !canManageAvailability
+
   // ── Load data ───────────────────────────────────────────────────────────────
   useEffect(() => {
-    fetch("/api/admin/availability")
+    // Tenant-scoped weekly rules (returns defaults when none are saved yet).
+    fetch("/api/booking/availability")
       .then((r) => { if (!r.ok) throw new Error("Failed"); return r.json() })
-      .then((d) => { setRules(d.rules ?? []); setRulesLoading(false) })
+      .then((d) => { setRules(Array.isArray(d) ? d : []); setRulesLoading(false) })
       .catch(() => setRulesLoading(false))
 
-    fetch("/api/admin/blocks")
-      .then((r) => { if (!r.ok) throw new Error("Failed"); return r.json() })
-      .then((d) => setBlocks(d.blocks ?? []))
-      .catch(() => {})
+    loadBlocks()
 
     fetch("/api/availability/settings")
       .then((r) => { if (!r.ok) throw new Error("Failed"); return r.json() })
@@ -112,21 +127,44 @@ export default function AvailabilityPage() {
       .catch(() => {})
   }, [])
 
+  // Blocks: the full list (incl. past) needs AVAILABILITY_MANAGE; view-only
+  // members fall back to the open list of upcoming blocks.
+  async function loadBlocks() {
+    try {
+      const res = await fetch("/api/admin/blocks")
+      if (res.ok) {
+        const d = await res.json()
+        setBlocks(Array.isArray(d?.blocks) ? d.blocks : [])
+        return
+      }
+      const fallback = await fetch("/api/booking/blocks")
+      if (fallback.ok) {
+        const d = await fallback.json()
+        setBlocks(Array.isArray(d) ? d : [])
+      }
+    } catch {
+      /* keep current list */
+    }
+  }
+
   // ── Save working hours ──────────────────────────────────────────────────────
   const saveRules = async () => {
+    if (readOnly) return
     setRulesSaving(true)
     try {
-      const res = await fetch("/api/admin/availability", {
-        method: "PUT",
+      const res = await fetch("/api/booking/availability", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rules }),
+        body: JSON.stringify({
+          rules: rules.map(({ dayOfWeek, isOpen, openTime, closeTime }) => ({ dayOfWeek, isOpen, openTime, closeTime })),
+        }),
       })
-      if (!res.ok) throw new Error("Failed")
+      await ensureOk(res, "שגיאה בשמירת שעות הפעילות")
       setRulesSaved(true)
       toast.success("שעות הפעילות נשמרו")
       setTimeout(() => setRulesSaved(false), 2000)
-    } catch {
-      toast.error("שגיאה בשמירת שעות הפעילות")
+    } catch (err) {
+      toast.error(errorMessage(err, "שגיאה בשמירת שעות הפעילות"))
     } finally {
       setRulesSaving(false)
     }
@@ -134,6 +172,7 @@ export default function AvailabilityPage() {
 
   // ── Save booking settings ───────────────────────────────────────────────────
   const saveBookingSettings = async () => {
+    if (readOnly) return
     setSettingsSaving(true)
     try {
       const res = await fetch("/api/availability/settings", {
@@ -141,10 +180,10 @@ export default function AvailabilityPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(bookingSettings),
       })
-      if (!res.ok) throw new Error("Failed")
+      await ensureOk(res, "שגיאה בשמירת ההגדרות")
       toast.success("הגדרות תיאום נשמרו")
-    } catch {
-      toast.error("שגיאה בשמירת ההגדרות")
+    } catch (err) {
+      toast.error(errorMessage(err, "שגיאה בשמירת ההגדרות"))
     } finally {
       setSettingsSaving(false)
     }
@@ -152,20 +191,26 @@ export default function AvailabilityPage() {
 
   // ── Add block ───────────────────────────────────────────────────────────────
   const addBlock = async () => {
+    if (readOnly) return
     if (!newBlock.startAt || !newBlock.endAt) return
     setBlockSaving(true)
     try {
       const res = await fetch("/api/admin/blocks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newBlock),
+        // datetime-local has no timezone — the API expects full ISO strings.
+        body: JSON.stringify({
+          startAt: new Date(newBlock.startAt).toISOString(),
+          endAt: new Date(newBlock.endAt).toISOString(),
+          reason: newBlock.reason || undefined,
+        }),
       })
-      if (!res.ok) throw new Error("Failed")
+      await ensureOk(res, "שגיאה בהוספת חסימה")
       const data = await res.json()
       setBlocks((prev) => [...prev, data.block].sort((a, b) => a.startAt.localeCompare(b.startAt)))
       setNewBlock({ startAt: "", endAt: "", reason: "" })
-    } catch {
-      toast.error("שגיאה בהוספת חסימה")
+    } catch (err) {
+      toast.error(errorMessage(err, "שגיאה בהוספת חסימה"))
     } finally {
       setBlockSaving(false)
     }
@@ -173,17 +218,19 @@ export default function AvailabilityPage() {
 
   // ── Delete block ─────────────────────────────────────────────────────────────
   const deleteBlock = async (id: string) => {
+    if (readOnly) return
     try {
       const res = await fetch(`/api/admin/blocks/${id}`, { method: "DELETE" })
-      if (!res.ok) throw new Error("Failed")
+      await ensureOk(res, "שגיאה במחיקת החסימה")
       setBlocks((prev) => prev.filter((b) => b.id !== id))
-    } catch {
-      toast.error("שגיאה במחיקת החסימה")
+    } catch (err) {
+      toast.error(errorMessage(err, "שגיאה במחיקת החסימה"))
     }
   }
 
   // ── Add break ──────────────────────────────────────────────────────────────
   const addBreak = async () => {
+    if (readOnly) return
     if (!newBreak.startTime || !newBreak.endTime) return
     setBreakSaving(true)
     try {
@@ -197,13 +244,13 @@ export default function AvailabilityPage() {
           label: newBreak.label || null,
         }),
       })
-      if (!res.ok) throw new Error("Failed")
+      await ensureOk(res, "שגיאה בהוספת הפסקה")
       const data = await res.json()
       setBreaks((prev) => [...prev, data.break])
       setNewBreak({ dayOfWeek: -1, startTime: "13:00", endTime: "14:00", label: "" })
       toast.success("הפסקה נוספה")
-    } catch {
-      toast.error("שגיאה בהוספת הפסקה")
+    } catch (err) {
+      toast.error(errorMessage(err, "שגיאה בהוספת הפסקה"))
     } finally {
       setBreakSaving(false)
     }
@@ -211,37 +258,35 @@ export default function AvailabilityPage() {
 
   // ── Delete break ────────────────────────────────────────────────────────────
   const deleteBreak = async (id: string) => {
+    if (readOnly) return
     try {
       const res = await fetch(`/api/availability/breaks/${id}`, { method: "DELETE" })
-      if (!res.ok) throw new Error("Failed")
+      await ensureOk(res, "שגיאה במחיקת ההפסקה")
       setBreaks((prev) => prev.filter((b) => b.id !== id))
-    } catch {
-      toast.error("שגיאה במחיקת ההפסקה")
+    } catch (err) {
+      toast.error(errorMessage(err, "שגיאה במחיקת ההפסקה"))
     }
   }
 
   // ── Import holidays ─────────────────────────────────────────────────────────
   const importHolidays = async () => {
+    if (readOnly) return
     setHolidaysImporting(true)
     try {
       const res = await fetch("/api/availability/import-holidays", { method: "POST" })
-      if (!res.ok) throw new Error("Failed")
+      await ensureOk(res, "שגיאה בייבוא חגים")
       const data = await res.json()
       toast.success(`נוצרו ${data.created} חסימות חגים`)
-      // Reload blocks
-      const blocksRes = await fetch("/api/admin/blocks")
-      if (blocksRes.ok) {
-        const d = await blocksRes.json()
-        setBlocks(d.blocks ?? [])
-      }
-    } catch {
-      toast.error("שגיאה בייבוא חגים")
+      await loadBlocks()
+    } catch (err) {
+      toast.error(errorMessage(err, "שגיאה בייבוא חגים"))
     } finally {
       setHolidaysImporting(false)
     }
   }
 
   const updateRule = (dayOfWeek: number, field: keyof AvailabilityRule, value: unknown) => {
+    if (readOnly) return
     setRules((prev) =>
       prev.map((r) => (r.dayOfWeek === dayOfWeek ? { ...r, [field]: value } : r))
     )
@@ -273,12 +318,25 @@ export default function AvailabilityPage() {
         )}
       </div>
 
+      {readOnly && (
+        <div
+          role="note"
+          className="mb-6 flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+        >
+          <Lock className="w-4 h-4 mt-0.5 flex-shrink-0" />
+          <span>
+            תצוגה בלבד — רק בעלי העסק, או מי שקיבל ממנו את ההרשאה &quot;לשנות שעות פעילות וזמינות&quot;, יכולים לשנות שעות, הפסקות וחסימות.
+          </span>
+        </div>
+      )}
+
       {/* ── Section A: Booking Settings ──────────────────────────────────────── */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm mb-6 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-100 flex items-center gap-2">
           <Settings2 className="w-5 h-5 text-blue-500" />
           <h2 className="font-semibold text-gray-800">הגדרות תיאום</h2>
         </div>
+        <SettingsFieldset readOnly={readOnly}>
         <div className="px-6 py-5 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
@@ -338,6 +396,7 @@ export default function AvailabilityPage() {
             </button>
             <span className="text-sm text-gray-700">חסום פגישות גוגל קלנדר (כולל אישיות)</span>
           </label>
+          {!readOnly && (
           <button
             onClick={saveBookingSettings}
             disabled={settingsSaving}
@@ -346,7 +405,9 @@ export default function AvailabilityPage() {
             <Save className="w-4 h-4" />
             {settingsSaving ? "שומר..." : "שמור הגדרות"}
           </button>
+          )}
         </div>
+        </SettingsFieldset>
       </div>
 
       {/* ── Section B: Daily Breaks ───────────────────────────────────────────── */}
@@ -357,6 +418,7 @@ export default function AvailabilityPage() {
         </div>
 
         {/* Add break form */}
+        {!readOnly && (
         <div className="px-6 py-4 bg-gray-50 border-b border-gray-100">
           <p className="text-xs text-gray-500 mb-3">הוסף הפסקה חוזרת (צהריים, תפילה וכד׳)</p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -412,6 +474,7 @@ export default function AvailabilityPage() {
             {breakSaving ? "שומר..." : "הוסף הפסקה"}
           </button>
         </div>
+        )}
 
         {/* Breaks list */}
         <div className="divide-y divide-gray-100">
@@ -428,12 +491,15 @@ export default function AvailabilityPage() {
                     {br.label && <span className="mr-2 text-gray-500 text-xs">({br.label})</span>}
                   </p>
                 </div>
+                {!readOnly && (
                 <button
                   onClick={() => deleteBreak(br.id)}
+                  aria-label="מחק הפסקה"
                   className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
+                )}
               </div>
             ))
           )}
@@ -447,6 +513,7 @@ export default function AvailabilityPage() {
             <Clock className="w-5 h-5 text-amber-500" />
             <h2 className="font-semibold text-gray-800">שעות פעילות שבועיות</h2>
           </div>
+          {!readOnly && (
           <button
             onClick={saveRules}
             disabled={rulesSaving}
@@ -459,8 +526,10 @@ export default function AvailabilityPage() {
             <Save className="w-4 h-4" />
             {rulesSaving ? "שומר..." : rulesSaved ? "נשמר!" : "שמור"}
           </button>
+          )}
         </div>
 
+        <SettingsFieldset readOnly={readOnly}>
         <div className="divide-y divide-gray-100">
           {rulesLoading ? (
             <PetraLoader variant="inline" />
@@ -517,6 +586,7 @@ export default function AvailabilityPage() {
             ))
           )}
         </div>
+        </SettingsFieldset>
       </div>
 
       {/* ── Blocks Card ──────────────────────────────────────────────────────── */}
@@ -527,6 +597,7 @@ export default function AvailabilityPage() {
             <h2 className="font-semibold text-gray-800">חסימות וחופשות</h2>
           </div>
           {/* Section C: Import Israeli holidays */}
+          {!readOnly && (
           <button
             onClick={importHolidays}
             disabled={holidaysImporting}
@@ -535,9 +606,11 @@ export default function AvailabilityPage() {
             <CalendarDays className="w-4 h-4" />
             {holidaysImporting ? "מייבא..." : "ייבא חגי ישראל 5786-5787"}
           </button>
+          )}
         </div>
 
         {/* Add block form */}
+        {!readOnly && (
         <div className="px-6 py-4 bg-gray-50 border-b border-gray-100">
           <p className="text-xs text-gray-500 mb-3">הוסף תקופת חסימה (חגים, חופשות, סגירה חד-פעמית)</p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -579,6 +652,7 @@ export default function AvailabilityPage() {
             {blockSaving ? "שומר..." : "הוסף חסימה"}
           </button>
         </div>
+        )}
 
         {/* Blocks list */}
         <div className="divide-y divide-gray-100">
@@ -601,12 +675,15 @@ export default function AvailabilityPage() {
                     <p className="text-xs text-gray-500 mt-0.5">{block.reason}</p>
                   )}
                 </div>
+                {!readOnly && (
                 <button
                   onClick={() => deleteBlock(block.id)}
+                  aria-label="מחק חסימה"
                   className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
+                )}
               </div>
             ))
           )}

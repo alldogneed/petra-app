@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { RotateCcw, ShieldCheck } from "lucide-react";
-import { CRITICAL_CAPABILITIES } from "@/lib/permissions";
+import { CAPABILITY_GROUPS, CRITICAL_CAPABILITIES } from "@/lib/permissions";
 import { capabilityCell } from "@/lib/team-stats";
 import { ROLE_LABELS, ROLE_COLORS } from "./shared";
 
@@ -73,6 +73,20 @@ export function PermissionsMatrix({
       <div className="overflow-x-auto -mx-4 px-4">
         <table className="text-sm border-separate border-spacing-0 min-w-max">
           <thead>
+            {/* Group row — CRITICAL_CAPABILITIES is ordered by group */}
+            <tr className="text-[11px] text-petra-muted">
+              <th className="sticky right-0 z-10 bg-white" />
+              {CAPABILITY_GROUPS.map((g) => {
+                const span = CRITICAL_CAPABILITIES.filter((c) => c.group === g.id).length;
+                if (span === 0) return null;
+                return (
+                  <th key={g.id} colSpan={span} scope="colgroup" className="px-2 pt-1 pb-1 font-semibold uppercase tracking-wide text-center border-b-2 border-slate-200">
+                    {g.label}
+                  </th>
+                );
+              })}
+              <th />
+            </tr>
             <tr className="text-xs text-petra-muted">
               <th className="sticky right-0 z-10 bg-white text-right font-medium px-3 py-2 border-b border-slate-100 min-w-[150px]">
                 עובד
@@ -80,7 +94,9 @@ export function PermissionsMatrix({
               {CRITICAL_CAPABILITIES.map((cap) => (
                 <th
                   key={cap.key}
-                  className="font-medium px-2 py-2 border-b border-slate-100 text-center align-bottom w-24 max-w-[96px] leading-tight"
+                  scope="col"
+                  title={cap.hint}
+                  className="font-medium px-2 py-2 border-b border-slate-100 text-center align-bottom w-24 max-w-[96px] leading-tight cursor-help"
                 >
                   {cap.label}
                 </th>

@@ -1,7 +1,7 @@
 "use client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import React, { useState, useRef } from "react";
-import { CheckCircle2, Loader2, XCircle, CheckCircle, AlertCircle, Download, Upload, FileSpreadsheet, Clock, Info, Users, PawPrint, RefreshCw, CalendarRange } from "lucide-react";
+import { CheckCircle2, Loader2, XCircle, CheckCircle, AlertCircle, Download, Upload, FileSpreadsheet, Clock, Info, Users, PawPrint, RefreshCw, CalendarRange, Lock } from "lucide-react";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { cn, fetchJSON } from "@/lib/utils";
 import { toast } from "sonner";
@@ -68,9 +68,9 @@ function fmtFileSize(bytes: number | null): string {
 
 export function DataTab() {
   const queryClient = useQueryClient();
-  const { canExportData, isVolunteer } = usePermissions();
-  // Volunteers are read-only; /api/import/* itself only requires business auth (see report).
-  const canImport = !isVolunteer;
+  const { canExportData, canImportData } = usePermissions();
+  // POST /api/import/parse + /api/import/execute require DATA_IMPORT (owner-grantable).
+  const canImport = canImportData;
 
   // Export state (async job system)
   const [exportType, setExportType] = useState<"customers" | "dogs" | "customers_dogs">("customers");
@@ -135,7 +135,7 @@ export function DataTab() {
   // File upload & parse
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !canImport) return;
 
     setImportPhase("uploading");
     setImportError(null);
@@ -168,7 +168,7 @@ export function DataTab() {
 
   // Execute import
   async function handleExecuteImport() {
-    if (!importBatchId) return;
+    if (!importBatchId || !canImport) return;
     setImportPhase("executing");
 
     try {
@@ -345,14 +345,23 @@ export function DataTab() {
       )}
 
       {/* ── Import Section ── */}
-      {canImport && (
-      <div className="card p-4 sm:p-6">
+      <div className={cn("card p-4 sm:p-6", !canImport && "opacity-80")}>
         <div className="flex items-center gap-2 mb-4">
           <Upload className="w-5 h-5 text-brand-500" />
           <h3 className="text-base font-semibold text-petra-text">ייבוא נתונים</h3>
         </div>
 
-        {importPhase === "idle" && (
+        {!canImport && (
+          <div
+            role="note"
+            className="flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
+          >
+            <Lock className="w-4 h-4 mt-0.5 flex-shrink-0" />
+            <span>ייבוא לקוחות דורש את ההרשאה &apos;לייבא לקוחות מאקסל&apos; — בקש מבעל העסק</span>
+          </div>
+        )}
+
+        {canImport && importPhase === "idle" && (
           <div className="space-y-4">
             <button className="btn-secondary flex items-center gap-2 text-sm" onClick={handleDownloadTemplate}>
               <FileSpreadsheet className="w-4 h-4" />
@@ -479,11 +488,6 @@ export function DataTab() {
           </div>
         )}
       </div>
-      )}
-
-      {!canExportData && !canImport && (
-        <div className="card p-6 text-sm text-petra-muted">אין לך הרשאה לייבא או לייצא נתונים.</div>
-      )}
     </div>
   );
 }

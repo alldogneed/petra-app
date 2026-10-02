@@ -1,7 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessPermission, isGuardError } from "@/lib/auth-guards";
+import { TENANT_PERMS } from "@/lib/permissions";
 
 // DELETE - remove a block
 export async function DELETE(
@@ -9,7 +10,7 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireBusinessAuth(request);
+    const authResult = await requireBusinessPermission(request, TENANT_PERMS.AVAILABILITY_MANAGE);
     if (isGuardError(authResult)) return authResult;
 
     // Verify the block belongs to the business
