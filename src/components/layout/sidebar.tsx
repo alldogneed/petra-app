@@ -112,14 +112,14 @@ const navEntries: NavEntry[] = [
   { name: "חיות מחמד", href: "/pets", icon: PawPrint, minRole: "manager", lockedFeature: "pets_advanced" },
   { name: "שיעורים אונליין", href: "/online-classes", icon: MonitorPlay, lockedFeature: "online_classes", isNew: true },
   // Connecting an AI assistant (POST /api/mcp/connections) is owner/manager-only, so staff never see it.
-  { name: "עוזר AI", href: "/help/connect-ai", icon: Sparkles, minRole: "manager", lockedFeature: "ai_assistant", isNew: true },
+  { name: "עוזר AI", href: "/help/connect-ai", icon: Sparkles, minRole: "manager", lockedFeature: "ai_assistant" },
 
   { eyebrow: "ניהול" },
   { name: "פיננסים", href: "/pricing", icon: Wallet, minRole: "manager" },
-  { name: "הודעות", href: "/scheduled-messages", icon: MessageSquare, minRole: "manager", isNew: true },
+  { name: "הודעות", href: "/scheduled-messages", icon: MessageSquare, minRole: "manager" },
   { name: "דוחות", href: "/analytics", icon: BarChart3, minRole: "owner", lockedFeature: "analytics" },
   { name: "ניהול ובקרה", href: "/business-admin", icon: ShieldCheck, minRole: "owner", lockedFeature: "staff_management" },
-  { name: "סרטוני הדרכה", href: "/tutorials", icon: PlayCircle, isNew: true },
+  { name: "סרטוני הדרכה", href: "/tutorials", icon: PlayCircle },
   { name: "הגדרות", href: "/settings", icon: Settings, minRole: "owner" },
 ];
 

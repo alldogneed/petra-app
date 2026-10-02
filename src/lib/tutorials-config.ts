@@ -38,7 +38,6 @@ export const TUTORIAL_VIDEOS: TutorialVideo[] = [
     url: `${BASE}/%D7%93%D7%A9%D7%91%D7%95%D7%A8%D7%93%20-%20%D7%94%D7%93%D7%A8%D7%9B%D7%94.mp4`,
     category: "start",
     durationLabel: "1:09",
-    isNew: true,
   },
   {
     id: "calendar",
@@ -47,7 +46,6 @@ export const TUTORIAL_VIDEOS: TutorialVideo[] = [
     url: `${BASE}/%D7%99%D7%95%D7%9E%D7%9F%20%D7%A4%D7%98%D7%A8%D7%94%20-%20%D7%94%D7%93%D7%A8%D7%9B%D7%94.mp4`,
     category: "start",
     durationLabel: "0:48",
-    isNew: true,
   },
 
   // ── לקוחות ובעלי חיים ─────────────────────────────────────────────────────
@@ -58,7 +56,6 @@ export const TUTORIAL_VIDEOS: TutorialVideo[] = [
     url: `${BASE}/%D7%9E%D7%A2%D7%A8%D7%9B%D7%AA%20%D7%9C%D7%A7%D7%95%D7%97%D7%95%D7%AA%20-%20%D7%94%D7%93%D7%A8%D7%9B%D7%94%20.mp4`,
     category: "clients",
     durationLabel: "1:47",
-    isNew: true,
   },
   {
     id: "pets",
@@ -67,7 +64,6 @@ export const TUTORIAL_VIDEOS: TutorialVideo[] = [
     url: `${BASE}/%D7%97%D7%99%D7%95%D7%AA%20%D7%9E%D7%97%D7%9E%D7%93%20-%20%D7%94%D7%93%D7%A8%D7%9B%D7%94.mp4`,
     category: "clients",
     durationLabel: "0:40",
-    isNew: true,
   },
 
   // ── מכירות ומשימות ────────────────────────────────────────────────────────
@@ -78,7 +74,6 @@ export const TUTORIAL_VIDEOS: TutorialVideo[] = [
     url: `${BASE}/%D7%9E%D7%A2%D7%A8%D7%9B%D7%AA%20%D7%9E%D7%9B%D7%99%D7%A8%D7%95%D7%AA%20-%20%D7%94%D7%93%D7%A8%D7%9B%D7%94%20.mp4`,
     category: "sales",
     durationLabel: "1:18",
-    isNew: true,
   },
   {
     id: "tasks",
@@ -87,7 +82,6 @@ export const TUTORIAL_VIDEOS: TutorialVideo[] = [
     url: `${BASE}/%D7%9E%D7%A2%D7%A8%D7%9B%D7%AA%20%D7%9E%D7%A9%D7%99%D7%9E%D7%95%D7%AA%20-%20%D7%94%D7%93%D7%A8%D7%9B%D7%94%20.mp4`,
     category: "sales",
     durationLabel: "1:31",
-    isNew: true,
   },
 
   // ── הזמנות ופיננסים ───────────────────────────────────────────────────────
@@ -98,7 +92,6 @@ export const TUTORIAL_VIDEOS: TutorialVideo[] = [
     url: `${BASE}/%D7%94%D7%96%D7%9E%D7%A0%D7%95%D7%AA%20%D7%90%D7%95%D7%A0%D7%9C%D7%99%D7%99%D7%9F%20-%20%D7%94%D7%93%D7%A8%D7%9B%D7%94.mp4`,
     category: "bookings",
     durationLabel: "1:18",
-    isNew: true,
   },
   {
     id: "orders",
@@ -107,7 +100,6 @@ export const TUTORIAL_VIDEOS: TutorialVideo[] = [
     url: `${BASE}/%D7%9E%D7%A2%D7%A8%D7%9B%D7%AA%20%D7%94%D7%96%D7%9E%D7%A0%D7%95%D7%AA%20-%20%D7%94%D7%93%D7%A8%D7%9B%D7%94%20.mp4`,
     category: "bookings",
     durationLabel: "1:33",
-    isNew: true,
   },
   {
     id: "finances",
@@ -116,7 +108,6 @@ export const TUTORIAL_VIDEOS: TutorialVideo[] = [
     url: `${BASE}/%D7%9E%D7%A2%D7%A8%D7%9B%D7%AA%20%D7%A4%D7%99%D7%A0%D7%A0%D7%A1%D7%99%D7%9D%20-%20%D7%94%D7%93%D7%A8%D7%9B%D7%94%20.mp4`,
     category: "bookings",
     durationLabel: "2:09",
-    isNew: true,
   },
 
   // ── פנסיון ────────────────────────────────────────────────────────────────
@@ -127,7 +118,6 @@ export const TUTORIAL_VIDEOS: TutorialVideo[] = [
     url: `${BASE}/%D7%9E%D7%A2%D7%A8%D7%9B%D7%AA%20%D7%94%D7%A4%D7%A0%D7%A1%D7%99%D7%95%D7%9F%20-%20%D7%94%D7%93%D7%A8%D7%9B%D7%94.mp4`,
     category: "boarding",
     durationLabel: "2:08",
-    isNew: true,
   },
 
   // ── ניהול עסק ─────────────────────────────────────────────────────────────
@@ -138,7 +128,6 @@ export const TUTORIAL_VIDEOS: TutorialVideo[] = [
     url: `${BASE}/%D7%9C%D7%95%D7%97%20%D7%95%D7%94%D7%A7%D7%A8%D7%94%20-%20%D7%94%D7%93%D7%A8%D7%9B%D7%94.mp4`,
     category: "management",
     durationLabel: "1:01",
-    isNew: true,
   },
   {
     id: "training",
@@ -147,7 +136,6 @@ export const TUTORIAL_VIDEOS: TutorialVideo[] = [
     url: `${BASE}/%D7%A0%D7%99%D7%94%D7%95%D7%9C%20%D7%AA%D7%94%D7%9C%D7%99%D7%9B%D7%99%20%D7%90%D7%99%D7%9C%D7%95%D7%A3%20-%20%D7%94%D7%93%D7%A8%D7%9B%D7%94%20.mp4`,
     category: "management",
     durationLabel: "1:38",
-    isNew: true,
   },
   {
     id: "settings",
@@ -156,6 +144,5 @@ export const TUTORIAL_VIDEOS: TutorialVideo[] = [
     url: `${BASE}/%D7%94%D7%92%D7%93%D7%A8%D7%95%D7%AA%20%D7%94%D7%93%D7%A8%D7%9B%D7%94.mp4`,
     category: "management",
     durationLabel: "2:22",
-    isNew: true,
   },
 ];
