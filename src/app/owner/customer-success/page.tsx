@@ -77,7 +77,7 @@ const SEGMENTS: SegmentDef[] = [
   {
     key: "churn_risk",
     label: "סיכון נטישה",
-    meaning: "היו פעילים והפסיקו להתחבר (14+ ימים)",
+    meaning: "היו פעילים ואין מהם פעילות 14+ ימים",
     statKey: "churnRisk",
     icon: AlertTriangle,
     accent: "text-red-600",
@@ -97,7 +97,7 @@ const SEGMENTS: SegmentDef[] = [
   {
     key: "watch",
     label: "במעקב",
-    meaning: "שימוש דל או 7+ ימים בלי כניסה",
+    meaning: "שימוש דל או 7+ ימים בלי פעילות",
     statKey: "watch",
     icon: Eye,
     accent: "text-yellow-700",
@@ -117,7 +117,7 @@ const SEGMENTS: SegmentDef[] = [
   {
     key: "healthy",
     label: "בריאים",
-    meaning: "פעילים ומתחברים באופן קבוע",
+    meaning: "פעילים באופן קבוע",
     statKey: "healthy",
     icon: CheckCircle,
     accent: "text-green-600",
@@ -324,7 +324,7 @@ export default function CustomerSuccessPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-slate-200">
-                      {["עסק", "בעלים", "ותק", "כניסה אחרונה", "לקוחות", "תורים", "מנוי/ניסיון", "מצב", "יצירת קשר"].map(
+                      {["עסק", "בעלים", "ותק", "פעילות אחרונה", "לקוחות", "תורים", "מנוי/ניסיון", "מצב", "יצירת קשר"].map(
                         (h) => (
                           <th key={h} scope="col" className="table-header-cell text-right whitespace-nowrap">
                             {h}
