@@ -26,10 +26,11 @@ import type { FullSession } from "@/lib/session";
 import { useEffect, useState } from "react";
 import { PLATFORM_ROLE_LABELS } from "@/lib/platform-labels";
 import { OwnerSearch } from "@/components/owner/owner-search";
+import { PLATFORM_PERMS, hasPlatformPermission, type PlatformPermission } from "@/lib/permissions";
 
 type NavEntry =
   | { eyebrow: string }
-  | { name: string; href: string; icon: typeof LayoutDashboard; exact?: boolean };
+  | { name: string; href: string; icon: typeof LayoutDashboard; exact?: boolean; perm?: PlatformPermission };
 
 // Grouped by eyebrows, same pattern as the main app sidebar.
 const navEntries: NavEntry[] = [
@@ -38,17 +39,17 @@ const navEntries: NavEntry[] = [
   { eyebrow: "לקוחות" },
   { name: "עסקים", href: "/owner/tenants", icon: Building2 },
   { name: "משתמשים", href: "/owner/users", icon: Users },
-  { name: "בריאות לקוחות", href: "/owner/customer-success", icon: HeartHandshake },
+  { name: "בריאות לקוחות", href: "/owner/customer-success", icon: HeartHandshake, perm: PLATFORM_PERMS.SETTINGS_WRITE },
   { name: "תמיכה", href: "/owner/support", icon: LifeBuoy },
   { eyebrow: "תקשורת" },
-  { name: "הודעות שידור", href: "/owner/broadcast", icon: Megaphone },
+  { name: "הודעות שידור", href: "/owner/broadcast", icon: Megaphone, perm: PLATFORM_PERMS.SETTINGS_WRITE },
   { eyebrow: "תאימות ויומנים" },
   { name: "הסכמות תנאים", href: "/owner/consents", icon: ShieldCheck },
   { name: "יומן פעולות", href: "/owner/audit-logs", icon: FileText },
   { eyebrow: "מערכת" },
   { name: "עוזרי AI (MCP)", href: "/owner/mcp", icon: Bot },
-  { name: "ייבוא נתונים", href: "/owner/migration", icon: Database },
-  { name: "הגדרות", href: "/owner/settings", icon: Settings },
+  { name: "ייבוא נתונים", href: "/owner/migration", icon: Database, perm: PLATFORM_PERMS.SETTINGS_WRITE },
+  { name: "הגדרות", href: "/owner/settings", icon: Settings, perm: PLATFORM_PERMS.SETTINGS_WRITE },
 ];
 
 export function OwnerShell({
@@ -67,6 +68,14 @@ export function OwnerShell({
   useEffect(() => {
     setMobileOpen(false);
   }, [pathname]);
+
+  // Hide pages the role cannot use (their APIs return 403 anyway), then drop empty groups
+  const allowed = navEntries.filter(
+    (e) => "eyebrow" in e || !e.perm || hasPlatformPermission(session.user.platformRole, e.perm)
+  );
+  const visibleEntries = allowed.filter(
+    (e, i) => !("eyebrow" in e) || (allowed[i + 1] !== undefined && !("eyebrow" in allowed[i + 1]))
+  );
 
   async function handleLogout() {
     setLoggingOut(true);
@@ -119,7 +128,7 @@ export function OwnerShell({
 
         {/* Nav */}
         <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
-          {navEntries.map((entry) => {
+          {visibleEntries.map((entry) => {
             if ("eyebrow" in entry) {
               return (
                 <div

@@ -16,13 +16,18 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const actorId = searchParams.get("actorId") ?? undefined;
-  const action = searchParams.get("action") ?? undefined;
+  const action = searchParams.get("action")?.slice(0, 80) || undefined;
   const targetType = searchParams.get("targetType") ?? undefined;
   const businessId = searchParams.get("businessId") ?? undefined;
-  const from = searchParams.get("from") ? new Date(searchParams.get("from")!) : undefined;
-  const to = searchParams.get("to") ? new Date(searchParams.get("to")!) : undefined;
-  const page = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
-  const limit = Math.min(200, parseInt(searchParams.get("limit") ?? "50"));
+  const parseDate = (v: string | null) => {
+    if (!v) return undefined;
+    const d = new Date(v);
+    return Number.isNaN(d.getTime()) ? undefined : d;
+  };
+  const from = parseDate(searchParams.get("from"));
+  const to = parseDate(searchParams.get("to"));
+  const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10) || 1);
+  const limit = Math.max(1, Math.min(200, parseInt(searchParams.get("limit") ?? "50", 10) || 50));
 
   const where: Record<string, unknown> = {};
   if (actorId) where.actorUserId = actorId;

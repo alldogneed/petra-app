@@ -22,6 +22,19 @@ const TIER_PRICES: Record<string, number> = {
   service_dog: 229,
 };
 
+function israelYmd(d: Date): string {
+  return d.toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" });
+}
+
+/** UTC instant of 00:00 Israel time on the given YYYY-MM-DD (DST-aware). */
+function israelMidnightUtc(ymd: string): Date {
+  const utcMidnight = new Date(`${ymd}T00:00:00.000Z`);
+  const israelHour = Number(
+    new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Jerusalem", hour: "2-digit", hourCycle: "h23" }).format(utcMidnight)
+  );
+  return new Date(utcMidnight.getTime() - israelHour * 3_600_000);
+}
+
 export async function GET(request: NextRequest) {
   try {
   const guard = await requirePlatformRole(request, [
@@ -46,10 +59,14 @@ export async function GET(request: NextRequest) {
   const day = 86_400_000;
   const last24h = new Date(now.getTime() - day);
   const sevenDaysAgo = new Date(now.getTime() - 7 * day);
-  const fourteenDaysAgo = new Date(now.getTime() - 14 * day);
   const thirtyDaysAgo = new Date(now.getTime() - 30 * day);
   const sevenDaysFromNow = new Date(now.getTime() + 7 * day);
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  // Day buckets follow the Israeli calendar day, not the server's UTC day
+  const days = Array.from({ length: 14 }, (_, i) => {
+    const ymd = israelYmd(new Date(now.getTime() - (13 - i) * day));
+    return { ymd, start: israelMidnightUtc(ymd) };
+  });
+  const todayStart = days[13].start;
 
   const [
     totalTenants,
@@ -71,7 +88,6 @@ export async function GET(request: NextRequest) {
     activeTodayRows,
     topUsersRaw,
     activityByActionRaw,
-    dailyActivityRaw,
   ] = await Promise.all([
     prisma.business.count({ where: bizScope }),
     prisma.business.count({ where: { ...bizScope, status: "active" } }),
@@ -105,7 +121,8 @@ export async function GET(request: NextRequest) {
         ...(testBiz.length ? { businessId: { notIn: testBiz } } : {}),
       },
       orderBy: { createdAt: "desc" },
-      include: { business: { select: { id: true, name: true } } },
+      // Explicit select — never ship Cardcom deal ids / payer IPs to the dashboard
+      select: { id: true, createdAt: true, business: { select: { id: true, name: true } } },
     }),
     prisma.supportTicket.count({ where: { status: { in: ["open", "in_progress"] } } }),
     prisma.platformUser.count({ where: { ...userScope, createdAt: { gte: sevenDaysAgo } } }),
@@ -131,11 +148,19 @@ export async function GET(request: NextRequest) {
       orderBy: { _count: { id: "desc" } },
       take: 8,
     }),
-    prisma.activityLog.findMany({
-      where: { ...activityScope, createdAt: { gte: fourteenDaysAgo } },
-      select: { createdAt: true },
-    }),
   ]);
+
+  // One bounded count per day instead of loading every log row of the last 14 days
+  const dailyCounts = await Promise.all(
+    days.map((d, i) =>
+      prisma.activityLog.count({
+        where: {
+          ...activityScope,
+          createdAt: { gte: d.start, ...(i < 13 ? { lt: days[i + 1].start } : {}) },
+        },
+      })
+    )
+  );
 
   // MCP errors in the last 24h (best-effort — never fails the dashboard)
   let mcpErrors24h = 0;
@@ -155,15 +180,6 @@ export async function GET(request: NextRequest) {
     contribution: g._count.id * (TIER_PRICES[g.tier] ?? 0),
   }));
   const mrr = tierBreakdown.reduce((sum, g) => sum + g.contribution, 0);
-
-  const dailyMap: Record<string, number> = {};
-  for (let i = 13; i >= 0; i--) {
-    dailyMap[new Date(now.getTime() - i * day).toISOString().slice(0, 10)] = 0;
-  }
-  for (const log of dailyActivityRaw) {
-    const key = new Date(log.createdAt).toISOString().slice(0, 10);
-    if (key in dailyMap) dailyMap[key]++;
-  }
 
   return NextResponse.json({
     includeTest,
@@ -195,7 +211,7 @@ export async function GET(request: NextRequest) {
       newSignups7d,
       topUsers: topUsersRaw.map((u) => ({ userId: u.userId, userName: u.userName, count: u._count.id })),
       activityByAction: activityByActionRaw.map((a) => ({ action: a.action, count: a._count.id })),
-      dailyActivity: Object.entries(dailyMap).map(([date, count]) => ({ date, count })),
+      dailyActivity: days.map((d, i) => ({ date: d.ymd, count: dailyCounts[i] })),
     },
   });
   } catch (error) {

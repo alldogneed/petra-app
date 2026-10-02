@@ -11,6 +11,8 @@
 
 import { prisma } from "@/lib/prisma";
 
+// "petra-test.com" stays open for self-registration on purpose (onboarding QA signs up
+// with it), so anyone could use it — hence the paid-business safety net below.
 const TEST_EMAIL_DOMAINS = ["petra.local", "petra-test.com"];
 const TEST_EMAILS = ["testuser@petra-app.com"];
 
@@ -48,6 +50,15 @@ export async function getTestBusinessIds(): Promise<Set<string>> {
   allTest.forEach((isTest, id) => {
     if (isTest) ids.add(id);
   });
+  if (ids.size === 0) return ids;
+
+  // Safety net: a business that actually paid through Cardcom is never "test",
+  // whatever its members' emails — real revenue must not disappear from MRR.
+  const paid = await prisma.business.findMany({
+    where: { id: { in: Array.from(ids) }, subscriptionStatus: "active", cardcomDealId: { not: null } },
+    select: { id: true },
+  });
+  for (const b of paid) ids.delete(b.id);
   return ids;
 }
 
@@ -57,8 +68,8 @@ export async function getTestUserIds(): Promise<Set<string>> {
   const users = await prisma.platformUser.findMany({
     where: {
       OR: [
-        ...TEST_EMAIL_DOMAINS.map((d) => ({ email: { endsWith: `@${d}` } })),
-        { email: { in: [...TEST_EMAILS, ...extra] } },
+        ...TEST_EMAIL_DOMAINS.map((d) => ({ email: { endsWith: `@${d}`, mode: "insensitive" as const } })),
+        ...[...TEST_EMAILS, ...extra].map((e) => ({ email: { equals: e, mode: "insensitive" as const } })),
       ],
     },
     select: { id: true },
