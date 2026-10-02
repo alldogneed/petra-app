@@ -125,3 +125,6 @@ checks), corrections to anything you said earlier.
 - `booking-engine` / `order-calc` jest suites fail on main — not yours; check with a worktree of
   `origin/main` before blaming the branch.
 - The full-page Playwright screenshot shows the off-screen "לקוח חדש" bottom sheet — artifact.
+- Login rate limits are in-memory **per IP** and every local request has IP "unknown" → after ~5 QA logins everything 429s (also the per-email limit). Give each Playwright context / curl its own `x-forwarded-for` (e.g. `10.0.0.<random>`) instead of restarting; a restart only helps if the old `next-server` PID is really gone (check `ps`).
+- Extra QA users need a `UserConsent` row (current `CURRENT_TOS_VERSION`) AND an `OnboardingProgress` row (`skipped=true`), else `(dashboard)/layout.tsx` redirects them to `/tos-accept` / onboarding and a "hidden for staff" check passes vacuously — assert the URL, not just absence of text.
+- Claude Design files: `DesignSync` can't authorize in cloud sessions — ask for "Send to Claude Code Web" or the exported bundle HTML. The bundle (`__bundler/template` + base64 `manifest`) unpacks with python; serve it over `python3 -m http.server` (it fetches itself) and route unpkg React to the bundled copies to screenshot it.
