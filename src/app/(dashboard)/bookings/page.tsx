@@ -498,7 +498,11 @@ function BookingsContent() {
                         עריכת תור
                       </button>
                       <button
-                        onClick={() => updateMutation.mutate({ id: booking.id, status: "cancelled" })}
+                        onClick={() => {
+                          if (window.confirm(`לבטל את התור של ${booking.customer.name}?`)) {
+                            updateMutation.mutate({ id: booking.id, status: "cancelled" });
+                          }
+                        }}
                         disabled={updateMutation.isPending}
                         className="flex-1 px-4 py-2.5 rounded-lg bg-red-50 text-red-600 text-sm font-semibold hover:bg-red-100 transition-colors flex items-center justify-center gap-2"
                       >
@@ -602,12 +606,26 @@ function BookingsContent() {
                             return (
                               <button
                                 onClick={() => {
+                                  const waUrl = `https://wa.me/${toWhatsAppPhone(booking.customer.phone)}?text=${encodeURIComponent(confirmMsg)}`;
+                                  // Open the window inside the click gesture so iOS Safari doesn't
+                                  // block it after the async request; its URL is set on success.
+                                  const win = window.open("", "_blank");
                                   updateMutation.mutate({ id: booking.id, status: "confirmed" }, {
                                     onSuccess: () => {
-                                      window.open(`https://wa.me/${toWhatsAppPhone(booking.customer.phone)}?text=${encodeURIComponent(confirmMsg)}`, "_blank", "noopener,noreferrer");
-                                    }
+                                      if (win) {
+                                        win.opener = null;
+                                        win.location.href = waUrl;
+                                      } else {
+                                        toast.warning("ההזמנה אושרה, אבל הדפדפן חסם את פתיחת WhatsApp", {
+                                          duration: 15000,
+                                          action: { label: "פתח WhatsApp", onClick: () => window.open(waUrl, "_blank", "noopener,noreferrer") },
+                                        });
+                                      }
+                                    },
+                                    onError: () => win?.close(),
                                   });
                                 }}
+                                disabled={updateMutation.isPending}
                                 className="w-full px-4 py-2.5 rounded-lg bg-green-50 text-green-700 text-sm font-semibold hover:bg-green-100 transition-colors flex items-center justify-center gap-2 border border-green-200"
                               >
                                 <MessageCircle className="w-4 h-4" />

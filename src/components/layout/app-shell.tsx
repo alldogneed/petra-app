@@ -70,10 +70,10 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Floating help button */}
       <button
         onClick={() => setHelpOpen(true)}
-        className="fixed bottom-28 left-4 sm:bottom-6 sm:left-6 z-40 w-11 h-11 rounded-full bg-brand-500 text-white shadow-lg hover:bg-brand-600 transition-all flex items-center justify-center"
+        className="fixed bottom-24 left-3 sm:bottom-6 sm:left-6 z-40 w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-brand-500 text-white shadow-lg hover:bg-brand-600 transition-all flex items-center justify-center opacity-90 sm:opacity-100"
         aria-label="מרכז עזרה"
       >
-        <HelpCircle className="w-5 h-5" />
+        <HelpCircle className="w-4 h-4 sm:w-5 sm:h-5" />
       </button>
 
       <HelpCenter open={helpOpen} onOpenChange={setHelpOpen} />

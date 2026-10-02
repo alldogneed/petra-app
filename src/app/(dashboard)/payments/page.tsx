@@ -277,17 +277,29 @@ function PaymentsPageContent() {
       return;
     }
     setIsSendingAll(true);
+    // Mobile browsers block every popup after the first — count only windows
+    // that really opened and stop at the first blocked one.
+    let opened = 0;
     for (let i = 0; i < pending.length; i++) {
       const p = pending[i];
       const url = `https://wa.me/${toWhatsAppPhone(p.customer?.phone)}?text=${encodeURIComponent(buildReminderText(p))}`;
-      window.open(url, "_blank");
+      const win = window.open(url, "_blank");
+      if (!win) break;
+      opened++;
       setSentReminders((prev) => new Set([...prev, p.id]));
       if (i < pending.length - 1) {
         await new Promise((res) => setTimeout(res, 700));
       }
     }
     setIsSendingAll(false);
-    toast.success(`נשלחו ${pending.length} תזכורות`);
+    const blocked = pending.length - opened;
+    if (blocked === 0) {
+      toast.success(`נשלחו ${opened} תזכורות`);
+    } else if (opened === 0) {
+      toast.error("הדפדפן חסם את פתיחת WhatsApp. שלח את התזכורות אחת-אחת מכפתור התזכורת בכל שורה.");
+    } else {
+      toast.warning(`נפתחו ${opened} מתוך ${pending.length} תזכורות — הדפדפן חסם את השאר (${blocked}). שלח אותן אחת-אחת מכפתור התזכורת בכל שורה.`);
+    }
   }
 
   function exportCSV() {
@@ -645,7 +657,11 @@ function PaymentsPageContent() {
                     {payment.status === "pending" && canWritePayments && (
                       <button
                         className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-red-600 hover:bg-red-50 px-2 py-1 rounded-lg transition-colors"
-                        onClick={() => cancelPaymentMutation.mutate(payment.id)}
+                        onClick={() => {
+                          if (window.confirm(`לבטל את התשלום של ${payment.customer?.name ?? "הלקוח"} על סך ${formatCurrency(payment.amount)}?`)) {
+                            cancelPaymentMutation.mutate(payment.id);
+                          }
+                        }}
                         disabled={cancelPaymentMutation.isPending}
                       >
                         <XCircle className="w-3 h-3" />
@@ -845,7 +861,11 @@ function PaymentsPageContent() {
                           {payment.status === "pending" && canWritePayments && (
                             <button
                               className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                              onClick={() => cancelPaymentMutation.mutate(payment.id)}
+                              onClick={() => {
+                          if (window.confirm(`לבטל את התשלום של ${payment.customer?.name ?? "הלקוח"} על סך ${formatCurrency(payment.amount)}?`)) {
+                            cancelPaymentMutation.mutate(payment.id);
+                          }
+                        }}
                               disabled={cancelPaymentMutation.isPending}
                               title="בטל תשלום"
                             >
