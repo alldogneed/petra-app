@@ -79,6 +79,17 @@ export async function PATCH(
   });
   if (!existing) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
+  // Only super_admin can block, demote or edit another super_admin
+  if (
+    existing.platformRole === PLATFORM_ROLES.SUPER_ADMIN &&
+    session.user.platformRole !== PLATFORM_ROLES.SUPER_ADMIN
+  ) {
+    return NextResponse.json(
+      { error: "Only super_admin can modify a super_admin" },
+      { status: 403 }
+    );
+  }
+
   // Only super_admin can grant super_admin role
   if (
     body.platformRole === PLATFORM_ROLES.SUPER_ADMIN &&

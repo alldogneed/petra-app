@@ -10,6 +10,7 @@ import { requirePlatformPermission, isGuardError } from "@/lib/auth-guards";
 import { prisma } from "@/lib/prisma";
 import { PLATFORM_PERMS } from "@/lib/permissions";
 import { logAudit, getRequestContext, AUDIT_ACTIONS } from "@/lib/audit";
+import { getTestBusinessIds, wantsTestData } from "@/lib/platform-test-accounts";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 
@@ -21,18 +22,27 @@ export async function GET(request: NextRequest) {
   const search = searchParams.get("search") ?? "";
   const status = searchParams.get("status") ?? undefined;
   const tier = searchParams.get("tier") ?? undefined;
-  const page = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
-  const limit = Math.min(100, parseInt(searchParams.get("limit") ?? "20"));
+  const page = Math.max(1, parseInt(searchParams.get("page") ?? "1", 10) || 1);
+  const limit = Math.max(1, Math.min(100, parseInt(searchParams.get("limit") ?? "20", 10) || 20));
 
   const VALID_TIERS = ["free", "basic", "pro", "groomer", "groomer_plus", "service_dog"];
 
+  try {
+  const includeTest = wantsTestData(searchParams);
+  const testIds = await getTestBusinessIds();
+
   const where: Record<string, unknown> = {};
-  if (status) where.status = status;
+  if (status && ["active", "suspended", "closed"].includes(status)) where.status = status;
   if (tier && VALID_TIERS.includes(tier)) where.tier = tier;
+  if (!includeTest && testIds.size) where.id = { notIn: Array.from(testIds) };
   if (search) {
+    const q = search.trim().slice(0, 100);
     where.OR = [
-      { name: { contains: search } },
-      { email: { contains: search } },
+      { name: { contains: q, mode: "insensitive" } },
+      { email: { contains: q, mode: "insensitive" } },
+      { phone: { contains: q } },
+      { members: { some: { user: { email: { contains: q, mode: "insensitive" } } } } },
+      { members: { some: { user: { name: { contains: q, mode: "insensitive" } } } } },
     ];
   }
 
@@ -50,13 +60,36 @@ export async function GET(request: NextRequest) {
         tier: true,
         status: true,
         createdAt: true,
+        subscriptionStatus: true,
+        subscriptionEndsAt: true,
+        trialEndsAt: true,
+        members: {
+          where: { role: "owner", isActive: true },
+          take: 1,
+          select: { user: { select: { id: true, name: true, email: true, lastLoginAt: true } } },
+        },
         _count: { select: { members: { where: { isActive: true } } } },
       },
     }),
     prisma.business.count({ where }),
   ]);
 
-  return NextResponse.json({ tenants, total, page, limit });
+  return NextResponse.json({
+    tenants: tenants.map(({ members, ...t }) => ({
+      ...t,
+      owner: members[0]?.user ?? null,
+      isTest: testIds.has(t.id),
+    })),
+    total,
+    page,
+    limit,
+    includeTest,
+    testCount: testIds.size,
+  });
+  } catch (error) {
+    console.error("GET /api/owner/tenants error:", error);
+    return NextResponse.json({ error: "Failed to fetch tenants" }, { status: 500 });
+  }
 }
 
 const CreateTenantSchema = z.object({

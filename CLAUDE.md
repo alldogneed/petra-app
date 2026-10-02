@@ -224,6 +224,14 @@ Every check of a `CRITICAL_CAPABILITIES` permission must honour `BusinessUser.pe
 
 ---
 
+### 40. Platform admin = one panel at `/owner` (no `/admin` UI)
+The legacy dark "Master Admin" (`/admin/*`) was merged into the light platform panel. Every page under `src/app/admin/` is a `redirect()`; `src/components/admin/admin-shell.tsx` is gone. The main sidebar's crown link ("ניהול פלטפורמה", shown when `isAdmin`) points to `/owner`. `/api/admin/*` routes still exist and are consumed by `/owner` pages — don't move them.
+- Shell: `src/components/owner/owner-shell.tsx` — nav grouped by eyebrows (סקירה / לקוחות / תקשורת / תאימות ויומנים / מערכת), mobile drawer, global search (`owner-search.tsx` → `GET /api/owner/search`). New platform pages go under `/owner` in the right group, light theme only (`.page-title`, `.card`; never `text-white` headings or dark surfaces).
+- Labels: `src/lib/platform-labels.ts` (`auditActionLabel`, `activityActionLabel`, `TIER_LABELS`, `PLATFORM_ROLE_LABELS`) + `actionLabel` in `activity-actions.ts`. Never render a raw `ACTION_CODE` or a bare uuid — `/api/owner/audit-logs` returns `targetName`.
+- Test accounts: `src/lib/platform-test-accounts.ts` — a business is "test" when ALL its members have a test email (`@petra.local`, `@petra-test.com`, `testuser@petra-app.com`, env `PLATFORM_TEST_EMAILS`). `/api/owner/{stats,customer-success,tenants}` exclude them unless `?includeTest=1`; MRR and churn numbers must never include them.
+- Customer health (`/api/owner/customer-success`): `segment` = `churn_risk` (used the product, no login 14d+) | `never_activated` (no customer/appointment after 3d) | `watch` | `new` | `healthy`; rows sorted by `priority` (paying at-risk first). Don't collapse back to a single "high risk" bucket.
+- Security invariants: only `super_admin` may grant super_admin, or block/demote/edit an existing super_admin (both `/api/owner/users/[userId]` and `/api/admin/users/[id]`); blocking kills the user's sessions; every user create/update/delete writes `logAudit`. Suspend/block/delete/broadcast in the UI go through a confirmation modal (no one-click, no `window.confirm`).
+
 ## MCP Server
 
 ### Architecture
@@ -366,7 +374,7 @@ import { env, isDev, isProd } from "@/lib/env";
 | Owner stats API | `GET /api/owner/stats` — includes `gcalConnectedCount` (Business.gcalConnected=true count, limit 100 in Testing mode) |
 | Owner notifications | `src/lib/notify-owner.ts` — `notifyOwnerNewUser()` sends WhatsApp + email on new registration |
 | SEO sitemap | `src/app/sitemap.ts` — 6 public URLs, `/landing` priority 1.0 |
-| SEO robots | `src/app/robots.ts` — allows landing/register/login, disallows api/admin/dashboard |
+| SEO robots | `src/app/robots.ts` — allows landing/register/login, disallows api/admin/owner/dashboard |
 | System messages dropdown | Mail-envelope dropdown in `src/components/layout/topbar.tsx` — title "הודעות מפטרה"; queryKey `["systemMessages"]`. Clicking a row opens a detail modal; its action button uses `router.push` for app paths and a new tab for `/api/` file links and external URLs. `/api/system-messages` is also consumed by `business-admin/page.tsx` (`?all=true`) |
 | Customers page | Selection mode: "בחר" button toggles `selectionMode`; checkboxes hidden by default. Email badge → Gmail compose (`https://mail.google.com/mail/?view=cm&to=...`). No quick-book button. |
 | Tasks page | Same selection mode pattern as customers (`selectionMode` state, "בחר" button, "בטל בחירה" exits mode) |

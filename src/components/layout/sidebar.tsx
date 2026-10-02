@@ -605,19 +605,19 @@ export function Sidebar({
         <div className="border-t border-white/[0.07]">
           {isMaster && (
             <Link
-              href="/admin"
+              href="/owner"
               onClick={isMobile ? onMobileClose : undefined}
-              title={!isMobile && collapsed ? "Master Admin" : undefined}
+              title={!isMobile && collapsed ? "ניהול פלטפורמה" : undefined}
               className={cn(
                 "w-full flex items-center h-11 transition-colors",
                 !isMobile && collapsed ? "justify-center" : "px-4 gap-2.5",
-                pathname.startsWith("/admin")
+                pathname.startsWith("/owner")
                   ? "text-cyan-400"
                   : "text-amber-400 hover:text-amber-300 hover:bg-white/[0.06]"
               )}
             >
               <Crown className="w-[18px] h-[18px] flex-shrink-0" />
-              {isExpanded && <span className="text-sm font-bold">Master Admin</span>}
+              {isExpanded && <span className="text-sm font-bold">ניהול פלטפורמה</span>}
             </Link>
           )}
 

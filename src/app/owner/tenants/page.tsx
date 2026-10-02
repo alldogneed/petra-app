@@ -1,11 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Building2, Search, Plus, X, ChevronDown } from "lucide-react";
+import { Building2, Search, Plus, X, ChevronDown, AlertTriangle } from "lucide-react";
 import Link from "next/link";
+import { toast } from "sonner";
 import { fetchJSON, cn } from "@/lib/utils";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { TIER_LABELS } from "@/lib/platform-labels";
 
 interface Tenant {
   id: string;
@@ -15,7 +18,21 @@ interface Tenant {
   tier: string;
   status: string;
   createdAt: string;
+  subscriptionStatus: string | null;
+  subscriptionEndsAt: string | null;
+  trialEndsAt: string | null;
+  owner: { id: string; name: string; email: string; lastLoginAt: string | null } | null;
+  isTest: boolean;
   _count: { members: number };
+}
+
+interface TenantsResponse {
+  tenants: Tenant[];
+  total: number;
+  page: number;
+  limit: number;
+  includeTest: boolean;
+  testCount: number;
 }
 
 const STATUS_BADGE: Record<string, string> = {
@@ -30,14 +47,44 @@ const STATUS_LABEL: Record<string, string> = {
   closed: "סגור",
 };
 
-const TIER_LABEL: Record<string, string> = {
-  free:        "חינמי",
-  basic:       "Basic",
-  pro:         "Pro",
-  groomer:     "Groomer+ (legacy)",
-  groomer_plus:"Groomer+ (legacy)",
-  service_dog: "Service Dog (ארגוני)",
-};
+const VALID_STATUSES = ["active", "suspended", "closed"];
+
+/** dd.MM.yy */
+function shortDate(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${String(d.getFullYear()).slice(-2)}`;
+}
+
+/** Relative Hebrew time ("לפני 3 ימים"); "מעולם לא" when null. */
+function relativeHe(iso: string | null): string {
+  if (!iso) return "מעולם לא";
+  const diff = Date.now() - new Date(iso).getTime();
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return "הרגע";
+  if (minutes < 60) return minutes === 1 ? "לפני דקה" : `לפני ${minutes} דקות`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return hours === 1 ? "לפני שעה" : hours === 2 ? "לפני שעתיים" : `לפני ${hours} שעות`;
+  const days = Math.floor(hours / 24);
+  if (days === 1) return "אתמול";
+  if (days === 2) return "לפני יומיים";
+  if (days < 30) return `לפני ${days} ימים`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return months === 1 ? "לפני חודש" : months === 2 ? "לפני חודשיים" : `לפני ${months} חודשים`;
+  const years = Math.floor(days / 365) || 1;
+  return years === 1 ? "לפני שנה" : years === 2 ? "לפני שנתיים" : `לפני ${years} שנים`;
+}
+
+/** Secondary line under the tier badge: paid-until or trial-until. */
+function subscriptionLine(t: Tenant): string | null {
+  if (t.subscriptionStatus === "active" && t.subscriptionEndsAt) {
+    return `מנוי עד ${shortDate(t.subscriptionEndsAt)}`;
+  }
+  if (t.trialEndsAt && new Date(t.trialEndsAt).getTime() > Date.now()) {
+    return `ניסיון עד ${shortDate(t.trialEndsAt)}`;
+  }
+  return null;
+}
 
 const TIERS = [
   { value: "free",        label: "חינמי",                price: "₪0"   },
@@ -48,20 +95,35 @@ const TIERS = [
 ];
 
 export default function TenantsPage() {
+  return (
+    <Suspense fallback={<PetraLoader />}>
+      <TenantsPageInner />
+    </Suspense>
+  );
+}
+
+function TenantsPageInner() {
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
+  const initialStatus = searchParams.get("status") ?? "";
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState(
+    VALID_STATUSES.includes(initialStatus) ? initialStatus : ""
+  );
+  const [includeTest, setIncludeTest] = useState(false);
+  const [suspendTarget, setSuspendTarget] = useState<Tenant | null>(null);
   const [tierFilter, setTierFilter] = useState("");
   const [page, setPage] = useState(1);
   const [showCreate, setShowCreate] = useState(false);
 
-  const { data, isLoading, error } = useQuery<{ tenants: Tenant[]; total: number }>({
-    queryKey: ["owner", "tenants", { search, statusFilter, tierFilter, page }],
+  const { data, isLoading, error } = useQuery<TenantsResponse>({
+    queryKey: ["owner", "tenants", { search, statusFilter, tierFilter, page, includeTest }],
     queryFn: () => {
       const params = new URLSearchParams({ page: String(page), limit: "20" });
       if (search) params.set("search", search);
       if (statusFilter) params.set("status", statusFilter);
       if (tierFilter) params.set("tier", tierFilter);
+      if (includeTest) params.set("includeTest", "1");
       return fetchJSON(`/api/owner/tenants?${params}`);
     },
   });
@@ -73,19 +135,30 @@ export default function TenantsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: tenant.status === "active" ? "suspended" : "active" }),
       }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["owner", "tenants"] }),
+    onSuccess: (_res, tenant) => {
+      queryClient.invalidateQueries({ queryKey: ["owner", "tenants"] });
+      toast.success(tenant.status === "active" ? `העסק "${tenant.name}" הושהה` : `העסק "${tenant.name}" הופעל`);
+      setSuspendTarget(null);
+    },
+    onError: (err: Error) => toast.error(err.message || "הפעולה נכשלה"),
   });
 
   const tenants = data?.tenants ?? [];
   const total = data?.total ?? 0;
+  const hiddenTestCount = !includeTest ? data?.testCount ?? 0 : 0;
   const totalPages = Math.ceil(total / 20);
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
           <h1 className="page-title">עסקים</h1>
-          <p className="text-sm text-slate-400 mt-1">{total} סה״כ</p>
+          <p className="text-sm text-slate-500 mt-1">
+            {total} סה״כ
+            {hiddenTestCount > 0 && (
+              <span className="text-slate-500"> · {hiddenTestCount} עסקי בדיקה מוסתרים</span>
+            )}
+          </p>
         </div>
         <button onClick={() => setShowCreate(true)} className="btn-primary flex items-center gap-2">
           <Plus className="w-4 h-4" />
@@ -94,12 +167,12 @@ export default function TenantsPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex gap-3 mb-4">
-        <div className="relative flex-1 max-w-sm">
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <div className="relative flex-1 min-w-[220px] max-w-md">
           <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
-            placeholder="חיפוש עסקים..."
+            placeholder="חיפוש לפי שם עסק, בעלים, אימייל או טלפון..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             className="input w-full pr-10"
@@ -125,6 +198,15 @@ export default function TenantsPage() {
             <option key={t.value} value={t.value}>{t.label}</option>
           ))}
         </select>
+        <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={includeTest}
+            onChange={(e) => { setIncludeTest(e.target.checked); setPage(1); }}
+            className="rounded border-slate-300 text-orange-500 focus:ring-orange-400"
+          />
+          הצג חשבונות בדיקה
+        </label>
       </div>
 
       {/* Error */}
@@ -139,10 +221,13 @@ export default function TenantsPage() {
         {isLoading ? (
           <PetraLoader />
         ) : (
+          <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-100">
                 <th className="table-header-cell">עסק</th>
+                <th className="table-header-cell">בעלים</th>
+                <th className="table-header-cell">כניסה אחרונה</th>
                 <th className="table-header-cell">מנוי</th>
                 <th className="table-header-cell">חברי צוות</th>
                 <th className="table-header-cell">סטטוס</th>
@@ -165,17 +250,44 @@ export default function TenantsPage() {
                         >
                           {tenant.name}
                         </Link>
+                        {tenant.isTest && (
+                          <span className="badge badge-neutral ms-2">בדיקה</span>
+                        )}
                         {tenant.email && (
-                          <div className="text-xs text-slate-400">{tenant.email}</div>
+                          <div className="text-xs text-slate-500">{tenant.email}</div>
                         )}
                         {tenant.phone && (
-                          <div className="text-xs text-slate-400">{tenant.phone}</div>
+                          <div className="text-xs text-slate-500" dir="ltr">{tenant.phone}</div>
                         )}
                       </div>
                     </div>
                   </td>
                   <td className="table-cell">
-                    <span className="badge badge-neutral">{TIER_LABEL[tenant.tier] ?? tenant.tier}</span>
+                    {tenant.owner ? (
+                      <div>
+                        <Link
+                          href={`/owner/users/${tenant.owner.id}`}
+                          className="text-sm font-medium text-slate-900 hover:text-orange-600 transition-colors"
+                        >
+                          {tenant.owner.name || tenant.owner.email}
+                        </Link>
+                        <div className="text-xs text-slate-500">{tenant.owner.email}</div>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-slate-500">ללא בעלים</span>
+                    )}
+                  </td>
+                  <td
+                    className="table-cell text-sm text-slate-700 whitespace-nowrap"
+                    title={tenant.owner?.lastLoginAt ? new Date(tenant.owner.lastLoginAt).toLocaleString("he-IL") : undefined}
+                  >
+                    {tenant.owner ? relativeHe(tenant.owner.lastLoginAt) : "—"}
+                  </td>
+                  <td className="table-cell">
+                    <span className="badge badge-neutral">{TIER_LABELS[tenant.tier] ?? tenant.tier}</span>
+                    {subscriptionLine(tenant) && (
+                      <div className="text-xs text-slate-500 mt-1 whitespace-nowrap">{subscriptionLine(tenant)}</div>
+                    )}
                   </td>
                   <td className="table-cell text-sm text-slate-600">
                     {tenant._count.members}
@@ -185,12 +297,14 @@ export default function TenantsPage() {
                       {STATUS_LABEL[tenant.status] ?? tenant.status}
                     </span>
                   </td>
-                  <td className="table-cell text-xs text-slate-400">
+                  <td className="table-cell text-xs text-slate-500">
                     {new Date(tenant.createdAt).toLocaleDateString("he-IL")}
                   </td>
                   <td className="table-cell">
                     <button
-                      onClick={() => toggleMutation.mutate(tenant)}
+                      onClick={() =>
+                        tenant.status === "active" ? setSuspendTarget(tenant) : toggleMutation.mutate(tenant)
+                      }
                       disabled={toggleMutation.isPending || tenant.status === "closed"}
                       className={cn(
                         "text-xs px-3 py-1.5 rounded-lg font-medium transition-colors disabled:opacity-40",
@@ -206,19 +320,20 @@ export default function TenantsPage() {
               ))}
               {tenants.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-5 py-12 text-center text-slate-400 text-sm">
-                    לא נמצאו עסקים
+                  <td colSpan={8} className="px-5 py-12 text-center text-slate-500 text-sm">
+                    לא נמצאו עסקים התואמים לחיפוש ולסינון
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
+          </div>
         )}
 
         {/* Pagination */}
         {totalPages > 1 && (
           <div className="px-5 py-3 border-t border-slate-100 flex items-center justify-between">
-            <span className="text-xs text-slate-400">
+            <span className="text-xs text-slate-500">
               עמוד {page} מתוך {totalPages}
             </span>
             <div className="flex gap-2">
@@ -240,6 +355,54 @@ export default function TenantsPage() {
           </div>
         )}
       </div>
+
+      {/* Suspend confirmation */}
+      {suspendTarget && (
+        <div
+          className="modal-overlay"
+          onClick={() => !toggleMutation.isPending && setSuspendTarget(null)}
+        >
+          <div className="modal-backdrop" />
+          <div
+            className="modal-content max-w-md"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="suspend-tenant-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center flex-shrink-0">
+                <AlertTriangle className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h2 id="suspend-tenant-title" className="text-lg font-bold text-slate-900">
+                  להשהות את העסק &quot;{suspendTarget.name}&quot;?
+                </h2>
+                <p className="text-sm text-slate-700 mt-1">
+                  כל המשתמשים של העסק ({suspendTarget._count.members}) יאבדו גישה למערכת עד שהעסק יופעל מחדש.
+                  הנתונים נשמרים, וניתן להפעיל את העסק שוב בכל עת.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-2 mt-5">
+              <button
+                onClick={() => setSuspendTarget(null)}
+                disabled={toggleMutation.isPending}
+                className="btn-secondary flex-1 disabled:opacity-40"
+              >
+                ביטול
+              </button>
+              <button
+                onClick={() => toggleMutation.mutate(suspendTarget)}
+                disabled={toggleMutation.isPending}
+                className="btn-danger flex-1 disabled:opacity-40"
+              >
+                {toggleMutation.isPending ? "משהה..." : "השהה עסק"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Create Tenant Modal */}
       {showCreate && (
@@ -295,7 +458,7 @@ function CreateTenantModal({ onClose, onCreated }: { onClose: () => void; onCrea
       <div className="modal-content max-w-md" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold text-slate-900">עסק חדש</h2>
-          <button onClick={onClose} className="btn-ghost p-1 rounded-lg">
+          <button onClick={onClose} className="btn-ghost p-1 rounded-lg" aria-label="סגור" title="סגור">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -356,7 +519,7 @@ function CreateTenantModal({ onClose, onCreated }: { onClose: () => void; onCrea
             </button>
             {showOwner && (
               <div className="p-4 space-y-3">
-                <p className="text-xs text-slate-400">אם לא תמלא, תוכל להוסיף מנהל מאוחר יותר</p>
+                <p className="text-xs text-slate-500">אם לא תמלא, תוכל להוסיף מנהל מאוחר יותר</p>
                 <div>
                   <label className="label">שם מלא</label>
                   <input

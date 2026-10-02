@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { requirePlatformPermission, isGuardError } from "@/lib/auth-guards";
-import { PLATFORM_PERMS, PLATFORM_ROLES, type PlatformRole } from "@/lib/permissions";
+import { PLATFORM_PERMS, PLATFORM_ROLES } from "@/lib/permissions";
+import { logAudit, getRequestContext, AUDIT_ACTIONS } from "@/lib/audit";
 
 const VALID_PLATFORM_ROLES = Object.values(PLATFORM_ROLES) as string[];
 
@@ -117,9 +118,10 @@ export async function POST(request: NextRequest) {
   try {
   const guard = await requirePlatformPermission(request, PLATFORM_PERMS.USERS_WRITE);
   if (isGuardError(guard)) return guard;
+  const { session } = guard;
 
   const body = await request.json();
-  const { name, email, password, role, platformRole } = body;
+  const { name, email, password, platformRole } = body;
 
   if (!name?.trim()) {
     return NextResponse.json({ error: "שם חובה" }, { status: 400 });
@@ -149,6 +151,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "תפקיד פלטפורמה לא תקין" }, { status: 400 });
   }
 
+  // Only super_admin can grant super_admin role
+  if (
+    platformRole === PLATFORM_ROLES.SUPER_ADMIN &&
+    session.user.platformRole !== PLATFORM_ROLES.SUPER_ADMIN
+  ) {
+    return NextResponse.json(
+      { error: "רק Super Admin יכול להעניק תפקיד Super Admin" },
+      { status: 403 }
+    );
+  }
+
   const existing = await prisma.platformUser.findUnique({
     where: { email: email.toLowerCase().trim() },
   });
@@ -163,12 +176,24 @@ export async function POST(request: NextRequest) {
       name: name.trim(),
       email: email.toLowerCase().trim(),
       passwordHash,
-      role: role === "MASTER" ? "MASTER" : "USER",
+      role: "USER",
       platformRole: platformRole || null,
       isActive: true,
       authProvider: "local",
     },
     select: { id: true, name: true, email: true, role: true, platformRole: true, isActive: true, createdAt: true },
+  });
+
+  const { ip, userAgent } = getRequestContext(request);
+  await logAudit({
+    actorUserId: session.user.id,
+    actorPlatformRole: session.user.platformRole,
+    action: AUDIT_ACTIONS.PLATFORM_USER_CREATED,
+    targetType: "user",
+    targetId: user.id,
+    ip,
+    userAgent,
+    metadata: { email: user.email, platformRole: user.platformRole },
   });
 
   return NextResponse.json(user, { status: 201 });

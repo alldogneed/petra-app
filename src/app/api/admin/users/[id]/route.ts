@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { requirePlatformPermission, isGuardError } from "@/lib/auth-guards";
 import { PLATFORM_PERMS, PLATFORM_ROLES } from "@/lib/permissions";
 import { logAudit, getRequestContext, AUDIT_ACTIONS } from "@/lib/audit";
+import { deleteAllUserSessions } from "@/lib/session";
 import { z } from "zod";
 
 export async function GET(
@@ -119,6 +120,23 @@ export async function PATCH(
     return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
   }
 
+  const existing = await prisma.platformUser.findUnique({
+    where: { id: params.id },
+    select: { id: true, isActive: true, platformRole: true },
+  });
+  if (!existing) return NextResponse.json({ error: "User not found" }, { status: 404 });
+
+  // Only super_admin can block, demote or edit another super_admin
+  if (
+    existing.platformRole === PLATFORM_ROLES.SUPER_ADMIN &&
+    session.user.platformRole !== PLATFORM_ROLES.SUPER_ADMIN
+  ) {
+    return NextResponse.json(
+      { error: "Only super_admin can modify a super_admin" },
+      { status: 403 }
+    );
+  }
+
   const updated = await prisma.platformUser.update({
     where: { id: params.id },
     data,
@@ -130,6 +148,27 @@ export async function PATCH(
       platformRole: true,
       isActive: true,
     },
+  });
+
+  // Blocking a user must end their live sessions immediately
+  if (body.isActive === false) {
+    await deleteAllUserSessions(params.id);
+  }
+
+  let action = "PLATFORM_USER_UPDATED";
+  if (body.isActive === false) action = AUDIT_ACTIONS.PLATFORM_USER_BLOCKED;
+  else if (body.isActive === true) action = AUDIT_ACTIONS.PLATFORM_USER_UNBLOCKED;
+  else if (body.platformRole !== undefined) action = AUDIT_ACTIONS.PLATFORM_ROLE_CHANGED;
+  const { ip, userAgent } = getRequestContext(request);
+  await logAudit({
+    actorUserId: session.user.id,
+    actorPlatformRole: session.user.platformRole,
+    action,
+    targetType: "user",
+    targetId: params.id,
+    ip,
+    userAgent,
+    metadata: { changes: body, previous: { isActive: existing.isActive, platformRole: existing.platformRole } },
   });
 
   return NextResponse.json(updated);
@@ -149,12 +188,12 @@ export async function DELETE(
 
   // Only super_admin may delete users
   if (session.user.platformRole !== PLATFORM_ROLES.SUPER_ADMIN) {
-    return NextResponse.json({ error: "Only super_admin can delete users" }, { status: 403 });
+    return NextResponse.json({ error: "רק Super Admin יכול למחוק משתמשים" }, { status: 403 });
   }
 
   // Cannot delete self
   if (params.id === session.user.id) {
-    return NextResponse.json({ error: "Cannot delete your own account" }, { status: 400 });
+    return NextResponse.json({ error: "לא ניתן למחוק את החשבון שלך" }, { status: 400 });
   }
 
   const target = await prisma.platformUser.findUnique({
@@ -165,7 +204,7 @@ export async function DELETE(
 
   // Cannot delete another super_admin
   if (target.platformRole === PLATFORM_ROLES.SUPER_ADMIN) {
-    return NextResponse.json({ error: "Cannot delete another super_admin" }, { status: 403 });
+    return NextResponse.json({ error: "לא ניתן למחוק Super Admin אחר" }, { status: 403 });
   }
 
   // Cascade-delete all user-related records sequentially (no $transaction — Supabase PgBouncer)
