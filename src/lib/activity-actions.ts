@@ -185,8 +185,8 @@ export function entityHref(
     case "CUSTOMER": return `/customers/${id}`;
     case "PET": return `/pets/${id}`;
     case "ORDER": return `/orders/${id}`;
-    case "LEAD": return `/leads`;
-    case "TASK": return `/tasks`;
+    case "LEAD": return `/leads?lead=${id}`;
+    case "TASK": return `/tasks?task=${id}`;
     case "BOARDING": return `/boarding`;
     case "TRAINING": return `/training`;
     case "APPOINTMENT": return `/calendar`;

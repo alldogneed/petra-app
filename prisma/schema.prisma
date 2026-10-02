@@ -93,6 +93,8 @@ model BusinessUser {
   role       String   @default("user") // "owner" | "manager" | "user"
   // Per-member overrides on top of the role defaults: { "tenant.finance.summary": false, ... }
   permissionOverrides Json?
+  // Per-member dashboard layout: { v: 1, hidden: string[], order: string[] } — ids from src/lib/dashboard-widgets.ts
+  dashboardPrefs Json?
   isActive   Boolean  @default(true)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
