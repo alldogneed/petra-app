@@ -6,6 +6,7 @@ import { Plus, X, Pencil, Upload, FileText, Trash2, Download, Scissors, File } f
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { DogMedication, MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, Pet, PetDoc, compressImage, formatFileSize } from "./types";
 
 export const DOG_BREEDS = [
@@ -583,29 +584,14 @@ export function PetDocumentsModal({
                 >
                   <Download className="w-3.5 h-3.5" />
                 </a>
-                {confirmDeleteId === doc.id ? (
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => { deleteMutation.mutate(doc.id); setConfirmDeleteId(null); }}
-                      className="px-2 py-1 text-[10px] font-medium bg-red-500 text-white rounded-md hover:bg-red-600"
-                    >
-                      מחק
-                    </button>
-                    <button
-                      onClick={() => setConfirmDeleteId(null)}
-                      className="px-2 py-1 text-[10px] font-medium bg-slate-100 text-slate-600 rounded-md hover:bg-slate-200"
-                    >
-                      ביטול
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setConfirmDeleteId(doc.id)}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                )}
+                <button
+                  onClick={() => setConfirmDeleteId(doc.id)}
+                  className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600"
+                  title="מחק מסמך"
+                  aria-label="מחק מסמך"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
               </div>
             ))}
           </div>
@@ -632,12 +618,24 @@ export function PetDocumentsModal({
           onChange={handleUpload}
         />
       </div>
+      <ConfirmDialog
+        open={!!confirmDeleteId}
+        title="מחיקת מסמך"
+        description="המסמך יימחק לצמיתות. להמשיך?"
+        confirmLabel="מחק"
+        danger
+        loading={deleteMutation.isPending}
+        onCancel={() => setConfirmDeleteId(null)}
+        onConfirm={() => {
+          if (!confirmDeleteId) return;
+          deleteMutation.mutate(confirmDeleteId, { onSettled: () => setConfirmDeleteId(null) });
+        }}
+      />
     </div>
   );
 }
 
-// ─── Edit Customer Modal ─────────────────────────────────────────────────────
-
+// ─── Edit Pet Modal ──────────────────────────────────────────────────────────
 
 export function EditPetModal({
   pet,
@@ -980,5 +978,3 @@ export function MedicationModal({
     </div>
   );
 }
-
-// ─── Send Contract Section ────────────────────────────────────────────────────

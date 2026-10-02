@@ -206,5 +206,3 @@ export function NewAppointmentModal({
     </div>
   );
 }
-
-// ─── Edit Feeding Modal ───────────────────────────────────────────────────────

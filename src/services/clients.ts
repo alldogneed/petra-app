@@ -26,6 +26,10 @@ import {
   type CustomerSalesHistory, type SalesHistoryLead,
 } from "@/lib/lead-sales-history";
 import { ServiceError } from "./types";
+import {
+  getCustomerSummary, CUSTOMER_APPOINTMENT_SELECT, CUSTOMER_PAYMENT_SELECT, CUSTOMER_TIMELINE_SELECT,
+  type CustomerSummary,
+} from "./customer-detail";
 
 export type DbClient = PrismaClient;
 export { ServiceError };
@@ -46,6 +50,22 @@ function phoneToNorm(raw: string): string | null {
   }
 }
 
+/**
+ * Duplicate-phone filter: match on phoneNorm, plus legacy rows whose phoneNorm was never
+ * filled (older imports) by their stored phone spellings. Always derived server-side.
+ */
+function duplicatePhoneWhere(rawPhone: string, phoneNorm: string) {
+  const formatted = normalizeIsraeliPhone(rawPhone);
+  const digits = formatted.replace(/\D/g, "");
+  const spellings = Array.from(new Set([formatted, digits, rawPhone.trim()].filter(Boolean)));
+  return {
+    OR: [
+      { phoneNorm },
+      { phoneNorm: null, phone: { in: spellings } },
+    ],
+  };
+}
+
 // Customers list (listCustomers, EnrichedCustomer) lives in ./customer-list.ts — re-exported here.
 export { listCustomers, type CustomerListOptions, type CustomerListResult, type EnrichedCustomer } from "./customer-list";
 
@@ -54,29 +74,18 @@ export { listCustomers, type CustomerListOptions, type CustomerListResult, type 
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function getCustomer(businessId: string, db: DbClient, customerId: string) {
-  return db.customer.findFirst({
+  const customer = await db.customer.findFirst({
     where: { id: customerId, businessId },
     include: {
       pets: {
         include: { health: true, behavior: true, medications: { orderBy: { createdAt: "desc" }, take: 50 } },
       },
       appointments: {
-        select: {
-          id: true, date: true, startTime: true, endTime: true,
-          status: true, notes: true, cancellationNote: true,
-          service: { select: { id: true, name: true, color: true } },
-          priceListItem: { select: { id: true, name: true } },
-          pet: { select: { id: true, name: true, species: true } },
-        },
+        select: CUSTOMER_APPOINTMENT_SELECT,
         orderBy: { date: "desc" }, take: 100,
       },
       payments: {
-        select: {
-          id: true, amount: true, status: true, method: true,
-          paidAt: true, createdAt: true, notes: true, isDeposit: true,
-          appointment: { select: { id: true, date: true, service: { select: { name: true } } } },
-          boardingStay: { select: { id: true, pet: { select: { name: true } }, room: { select: { name: true } } } },
-        },
+        select: CUSTOMER_PAYMENT_SELECT,
         orderBy: { createdAt: "desc" }, take: 20,
       },
       orders: {
@@ -99,17 +108,29 @@ export async function getCustomer(businessId: string, db: DbClient, customerId: 
             select: { id: true, title: true, status: true, progressPercent: true, sortOrder: true },
             orderBy: { sortOrder: "asc" }, take: 30,
           },
-          sessions: { where: { status: "COMPLETED" }, select: { id: true } },
+          // A count, not one row per completed session.
+          _count: { select: { sessions: { where: { status: "COMPLETED" } } } },
         },
         orderBy: { createdAt: "desc" }, take: 20,
       },
       timelineEvents: {
-        select: { id: true, type: true, description: true, metadata: true, createdAt: true },
+        select: CUSTOMER_TIMELINE_SELECT,
         orderBy: { createdAt: "desc" }, take: 50,
       },
     },
   });
+  if (!customer) return null;
+
+  const summary: CustomerSummary = await getCustomerSummary(businessId, db, customerId);
+  const { trainingPrograms, ...rest } = customer;
+  return {
+    ...rest,
+    trainingPrograms: trainingPrograms.map(({ _count, ...p }) => ({ ...p, completedSessions: _count.sessions })),
+    summary,
+  };
 }
+
+export type CustomerDetail = NonNullable<Awaited<ReturnType<typeof getCustomer>>>;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Customers — sales history (leads linked to the customer)
@@ -320,14 +341,14 @@ export async function createCustomer(
   // Duplicate phone check
   if (phoneNorm) {
     const existing = await db.customer.findFirst({
-      where: { businessId, phoneNorm },
+      where: { businessId, ...duplicatePhoneWhere(input.phone, phoneNorm) },
       select: { id: true, name: true },
     });
     if (existing) {
       throw new ServiceError(
         `לקוח עם מספר טלפון זה כבר קיים במערכת (${existing.name})`,
         "CONFLICT",
-        { code: "DUPLICATE_PHONE", existingId: existing.id }
+        { code: "DUPLICATE_PHONE", existingId: existing.id, existingName: existing.name }
       );
     }
   }
@@ -369,6 +390,7 @@ export async function createCustomer(
 export interface UpdateCustomerInput {
   name?: string;
   phone?: string;
+  /** @deprecated ignored — derived server-side from `phone`. */
   phoneNorm?: string | null;
   email?: string | null;
   address?: string | null;
@@ -386,9 +408,18 @@ export async function updateCustomer(
   customerId: string,
   input: UpdateCustomerInput
 ) {
+  const existing = await db.customer.findFirst({ where: { id: customerId, businessId }, select: { id: true } });
+  if (!existing) throw new ServiceError("לקוח לא נמצא", "NOT_FOUND");
+
+  // Whitelisted columns only. phoneNorm is NEVER taken from the caller — it is derived
+  // from `phone` below so duplicate detection can't be bypassed.
+  const UPDATABLE = [
+    "name", "phone", "email", "address", "idNumber", "secondContactName",
+    "secondContactPhone", "notes", "tags", "source",
+  ] as const;
   const data: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(input)) {
-    if (v !== undefined) data[k] = v;
+  for (const k of UPDATABLE) {
+    if (input[k] !== undefined) data[k] = input[k];
   }
 
   if (input.name !== undefined) {
@@ -407,14 +438,14 @@ export async function updateCustomer(
 
     if (newPhoneNorm) {
       const duplicate = await db.customer.findFirst({
-        where: { businessId, phoneNorm: newPhoneNorm, NOT: { id: customerId } },
+        where: { businessId, NOT: { id: customerId }, ...duplicatePhoneWhere(input.phone, newPhoneNorm) },
         select: { id: true, name: true },
       });
       if (duplicate) {
         throw new ServiceError(
           `לקוח עם מספר טלפון זה כבר קיים במערכת (${duplicate.name})`,
           "CONFLICT",
-          { code: "DUPLICATE_PHONE", existingId: duplicate.id }
+          { code: "DUPLICATE_PHONE", existingId: duplicate.id, existingName: duplicate.name }
         );
       }
     }

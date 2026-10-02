@@ -378,7 +378,7 @@ export function SendContractSection({ customerId, customerName, pets }: { custom
   );
 }
 
-// ─── Customer Documents Section ──────────────────────────────────────────────
+// ─── Document categories ─────────────────────────────────────────────────────
 
 export const DOC_CATEGORY_LABELS: Record<string, string> = {
   contract: "חוזה",

@@ -236,5 +236,3 @@ export function EditCustomerModal({
     </div>
   );
 }
-
-// ─── Edit Pet Modal ───────────────────────────────────────────────────────────

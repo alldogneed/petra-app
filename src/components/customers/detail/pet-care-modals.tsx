@@ -643,5 +643,3 @@ export function EditBehaviorModal({
     </div>
   );
 }
-
-// ─── Main Page ───────────────────────────────────────────────────────────────

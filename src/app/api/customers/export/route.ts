@@ -5,12 +5,20 @@ import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { sessionHasTenantPermission, TENANT_PERMS } from "@/lib/permissions";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 import { rateLimit } from "@/lib/rate-limit";
+import { parseCustomerFilters, compareCustomerNames } from "@/lib/customer-filters";
+import { computeCustomerBalances, type CustomerBalance } from "@/lib/customer-balance";
+import { listCustomerIds } from "@/services/customer-list";
 import * as XLSX from "xlsx";
 
 const EXPORT_RATE_LIMIT = { max: 5, windowMs: 60 * 1000 }; // 5 exports per minute
+const EXPORT_CAP = 10_000;
+const MAX_SELECTED_IDS = 2_000;
+const CHUNK = 1_000;
 
 // GET /api/customers/export
-// Returns an XLSX workbook with all customers and their pets.
+// Returns an XLSX workbook with customers and their pets.
+// Honours the list filters (same params as GET /api/customers — src/lib/customer-filters.ts),
+// or `ids=<comma list>` (selected rows). Adds a balance column with FINANCE_READ.
 export async function GET(request: NextRequest) {
   const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
@@ -24,17 +32,32 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "יותר מדי בקשות ייצוא. נסה שוב בעוד דקה." }, { status: 429 });
   }
 
-  const { session } = authResult;
+  const { session, businessId } = authResult;
+  const canSeeFinance = sessionHasTenantPermission(session, businessId, TENANT_PERMS.FINANCE_READ);
+  const { searchParams } = new URL(request.url);
+  const filters = parseCustomerFilters(searchParams);
+  const idsParam = searchParams.get("ids");
+  const selectedIds = idsParam
+    ? Array.from(new Set(idsParam.split(",").map((s) => s.trim()).filter((s) => s.length > 0 && s.length <= 64))).slice(0, MAX_SELECTED_IDS)
+    : null;
+
   await logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.EXPORT_CUSTOMERS, {
-    businessId: authResult.businessId,
-    entityLabel: "לקוחות",
+    businessId,
+    entityLabel: selectedIds ? `לקוחות נבחרים (${selectedIds.length})` : "לקוחות",
   });
 
   try {
-    const customers = await prisma.customer.findMany({
-      where: { businessId: authResult.businessId },
-      orderBy: { name: "asc" },
-      take: 10000, // Safety limit to prevent memory exhaustion
+    // Ordered ids: selected rows (scoped to this business below) or the filtered list.
+    const orderedIds = selectedIds
+      ? selectedIds
+      : await listCustomerIds(businessId, prisma, { ...filters, includeFinance: canSeeFinance }, EXPORT_CAP);
+
+    const customers = [];
+    for (let i = 0; i < orderedIds.length; i += CHUNK) {
+      const chunk = orderedIds.slice(i, i + CHUNK);
+      if (chunk.length === 0) continue;
+      const rows = await prisma.customer.findMany({
+      where: { businessId, id: { in: chunk } },
       include: {
         pets: {
           select: {
@@ -49,7 +72,25 @@ export async function GET(request: NextRequest) {
           select: { appointments: true },
         },
       },
-    });
+      });
+      customers.push(...rows);
+    }
+    if (selectedIds) {
+      customers.sort(compareCustomerNames);
+    } else {
+      const pos = new Map(orderedIds.map((id, i) => [id, i]));
+      customers.sort((a, b) => (pos.get(a.id) ?? 0) - (pos.get(b.id) ?? 0));
+    }
+
+    const balances = new Map<string, CustomerBalance>();
+    if (canSeeFinance) {
+      const ids = customers.map((c) => c.id);
+      for (let i = 0; i < ids.length; i += CHUNK) {
+        const chunk = ids.slice(i, i + CHUNK);
+        const m = await computeCustomerBalances(prisma, businessId, chunk);
+        m.forEach((v, k) => balances.set(k, v));
+      }
+    }
 
     const SOURCE_LABELS: Record<string, string> = {
       referral: "המלצה מלקוח", google: "גוגל", instagram: "אינסטגרם",
@@ -59,6 +100,7 @@ export async function GET(request: NextRequest) {
     const headers = [
       "שם לקוח", "טלפון", "אימייל", "כתובת", "תגיות", "מקור הגעה",
       "הערות", "תורים", "תאריך הצטרפות",
+      ...(canSeeFinance ? ["יתרת חוב (₪)", "סה״כ שולם (₪)"] : []),
       "שם חיית מחמד", "סוג", "גזע", "מין", "משקל (ק״ג)",
     ];
 
@@ -74,7 +116,7 @@ export async function GET(request: NextRequest) {
       }
 
       const joinedDate = new Date(c.createdAt).toLocaleDateString("he-IL", {
-        day: "2-digit", month: "2-digit", year: "numeric",
+        day: "2-digit", month: "2-digit", year: "numeric", timeZone: "Asia/Jerusalem",
       });
 
       const customerBase: (string | number)[] = [
@@ -87,6 +129,9 @@ export async function GET(request: NextRequest) {
         c.notes ?? "",
         c._count.appointments,
         joinedDate,
+        ...(canSeeFinance
+          ? [balances.get(c.id)?.outstanding ?? 0, balances.get(c.id)?.totalPaid ?? 0]
+          : []),
       ];
 
       if (c.pets.length === 0) {
@@ -120,6 +165,7 @@ export async function GET(request: NextRequest) {
       { wch: 30 }, // הערות
       { wch: 8  }, // תורים
       { wch: 14 }, // תאריך
+      ...(canSeeFinance ? [{ wch: 12 }, { wch: 12 }] : []),
       { wch: 16 }, // שם חיה
       { wch: 8  }, // סוג
       { wch: 14 }, // גזע

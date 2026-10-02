@@ -5,7 +5,9 @@ import { prisma } from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 import { ENTITY_TYPES } from "@/lib/activity-actions";
-import { hasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
+import { TENANT_PERMS, type TenantRole } from "@/lib/permissions";
+import { requireCustomerAccess, canWriteCustomers, callerCan } from "@/lib/customer-access";
+import { redactCustomerMoney } from "@/lib/customer-summary";
 import { createPendingApproval } from "@/lib/pending-approvals";
 import {
   getCustomer, updateCustomer, deleteCustomer, ServiceError,
@@ -32,25 +34,16 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireBusinessAuth(request);
+    const authResult = await requireCustomerAccess(request, "read");
     if (isGuardError(authResult)) return authResult;
+    const { session, businessId } = authResult;
 
-    const callerMembership = authResult.session.memberships.find(
-      (m) => m.businessId === authResult.businessId && m.isActive
-    );
-    if (callerMembership && !hasTenantPermission(callerMembership.role, TENANT_PERMS.CUSTOMERS_PII)) {
-      return NextResponse.json({ error: "אין הרשאה לצפות בלקוחות" }, { status: 403 });
-    }
-
-    const customer = await getCustomer(authResult.businessId, prisma, params.id);
+    const customer = await getCustomer(businessId, prisma, params.id);
     if (!customer) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-    const membership = authResult.session.memberships.find((m) => m.businessId === authResult.businessId);
-    const callerRole = (membership?.role ?? "user") as TenantRole;
-    const canSeePii = hasTenantPermission(callerRole, TENANT_PERMS.CUSTOMERS_PII);
-    const responseData = canSeePii ? customer : { ...customer, address: null };
-
-    return NextResponse.json(responseData);
+    // Money (balance, payments, order amounts) only with FINANCE_READ — shapes stay the same.
+    const canSeeFinance = callerCan(session, businessId, TENANT_PERMS.FINANCE_READ);
+    return NextResponse.json(canSeeFinance ? customer : redactCustomerMoney(customer));
   } catch (error) {
     console.error("Customer GET error:", error);
     return NextResponse.json({ error: "Failed to fetch customer" }, { status: 500 });
@@ -62,7 +55,7 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireBusinessAuth(request);
+    const authResult = await requireCustomerAccess(request, "write");
     if (isGuardError(authResult)) return authResult;
 
     const raw = await request.json();
@@ -87,7 +80,7 @@ export async function PATCH(
       );
     } catch (e) {
       if (e instanceof ServiceError) {
-        const status = e.code === "CONFLICT" ? 409 : e.code === "VALIDATION" ? 400 : 400;
+        const status = e.code === "CONFLICT" ? 409 : e.code === "NOT_FOUND" ? 404 : 400;
         return NextResponse.json({ error: e.message, ...(e.details as object | null ?? {}) }, { status });
       }
       throw e;
@@ -124,22 +117,17 @@ export async function DELETE(
     if (isGuardError(authResult)) return authResult;
     const { session, businessId } = authResult;
 
-    const membership = session.memberships.find((m) => m.businessId === businessId);
+    const membership = session.memberships.find((m) => m.businessId === businessId && m.isActive);
     const callerRole = (membership?.role ?? "user") as TenantRole;
 
     // An owner-granted critical-delete override lets any member delete directly;
     // otherwise managers still route through the pending-approval flow.
-    const canDeleteDirectly = hasTenantPermission(
-      callerRole,
-      TENANT_PERMS.CRITICAL_DELETE,
-      membership?.permissionOverrides
-    );
+    // Overrides-aware (and platform super_admin passes) — CLAUDE.md #34.
+    const canDeleteDirectly = callerCan(session, businessId, TENANT_PERMS.CRITICAL_DELETE);
 
     if (
       !canDeleteDirectly &&
-      (!hasTenantPermission(callerRole, TENANT_PERMS.CONTENT_WRITE, membership?.permissionOverrides) ||
-        callerRole === "user" ||
-        callerRole === "volunteer")
+      (!canWriteCustomers(session, businessId) || callerRole === "user" || callerRole === "volunteer")
     ) {
       return NextResponse.json({ error: "אין הרשאה למחיקת לקוח" }, { status: 403 });
     }

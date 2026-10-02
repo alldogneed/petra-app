@@ -3,7 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
 import { put, del } from "@vercel/blob";
-import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { isGuardError } from "@/lib/auth-guards";
+import { requireCustomerAccess } from "@/lib/customer-access";
+import { getCustomerDocuments, mutateCustomerDocuments } from "@/services/customer-detail";
+import { ServiceError } from "@/services/types";
 import { MAX_FILE_SIZE, ALLOWED_FILE_EXTENSIONS, ALLOWED_MIME_TYPES } from "@/lib/file-upload-constants";
 
 const DOCUMENT_CATEGORIES = [
@@ -22,22 +25,17 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireBusinessAuth(request);
+    const authResult = await requireCustomerAccess(request, "read");
     if (isGuardError(authResult)) return authResult;
 
-    const customer = await prisma.customer.findFirst({
-      where: { id: params.id, businessId: authResult.businessId },
-      select: { documents: true },
-    });
-    if (!customer) {
-      return NextResponse.json({ error: "Customer not found" }, { status: 404 });
-    }
-
-    let docs = [];
+    let docs;
     try {
-      docs = JSON.parse(customer.documents || "[]");
-    } catch {
-      docs = [];
+      docs = await getCustomerDocuments(authResult.businessId, prisma, params.id);
+    } catch (e) {
+      if (e instanceof ServiceError && e.code === "NOT_FOUND") {
+        return NextResponse.json({ error: "Customer not found" }, { status: 404 });
+      }
+      throw e;
     }
 
     return NextResponse.json(docs);
@@ -55,7 +53,7 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireBusinessAuth(request);
+    const authResult = await requireCustomerAccess(request, "write");
     if (isGuardError(authResult)) return authResult;
 
     const formData = await request.formData();
@@ -94,7 +92,7 @@ export async function POST(
 
     const customer = await prisma.customer.findFirst({
       where: { id: params.id, businessId: authResult.businessId },
-      select: { documents: true },
+      select: { id: true },
     });
     if (!customer) {
       return NextResponse.json({ error: "Customer not found" }, { status: 404 });
@@ -116,18 +114,21 @@ export async function POST(
       createdAt: new Date().toISOString(),
     };
 
-    let docs = [];
+    // Compare-and-swap append (concurrent uploads must not drop each other).
     try {
-      docs = JSON.parse(customer.documents || "[]");
-    } catch {
-      docs = [];
+      await mutateCustomerDocuments(authResult.businessId, prisma, params.id, (docs) => ({
+        docs: [...docs, newDoc],
+        result: null,
+      }));
+    } catch (e) {
+      // The row write failed → don't leave an orphan blob behind.
+      await del(blob.url).catch(() => {});
+      if (e instanceof ServiceError) {
+        const status = e.code === "NOT_FOUND" ? 404 : e.code === "CONFLICT" ? 409 : 400;
+        return NextResponse.json({ error: e.message }, { status });
+      }
+      throw e;
     }
-    docs.push(newDoc);
-
-    await prisma.customer.update({
-      where: { id: params.id, businessId: authResult.businessId },
-      data: { documents: JSON.stringify(docs) },
-    });
 
     return NextResponse.json(newDoc, { status: 201 });
   } catch (error) {
@@ -144,7 +145,7 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireBusinessAuth(request);
+    const authResult = await requireCustomerAccess(request, "write");
     if (isGuardError(authResult)) return authResult;
 
     const { searchParams } = new URL(request.url);
@@ -154,36 +155,28 @@ export async function DELETE(
       return NextResponse.json({ error: "Missing docId" }, { status: 400 });
     }
 
-    const customer = await prisma.customer.findFirst({
-      where: { id: params.id, businessId: authResult.businessId },
-      select: { documents: true },
-    });
-    if (!customer) {
-      return NextResponse.json({ error: "Customer not found" }, { status: 404 });
-    }
-
-    let docs: { id: string; url: string }[] = [];
+    // Compare-and-swap removal; the blob is deleted only after the row no longer references it.
+    let removed: { id: string; url?: string } | null;
     try {
-      docs = JSON.parse(customer.documents || "[]");
-    } catch {
-      docs = [];
+      removed = await mutateCustomerDocuments(authResult.businessId, prisma, params.id, (docs) => ({
+        docs: docs.filter((d) => d.id !== docId),
+        result: docs.find((d) => d.id === docId) ?? null,
+      }));
+    } catch (e) {
+      if (e instanceof ServiceError) {
+        const status = e.code === "NOT_FOUND" ? 404 : e.code === "CONFLICT" ? 409 : 400;
+        return NextResponse.json({ error: e.code === "NOT_FOUND" ? "Customer not found" : e.message }, { status });
+      }
+      throw e;
     }
 
-    const docToDelete = docs.find((d) => d.id === docId);
-    if (docToDelete?.url?.includes("vercel-storage.com")) {
+    if (typeof removed?.url === "string" && removed.url.includes("vercel-storage.com")) {
       try {
-        await del(docToDelete.url);
+        await del(removed.url);
       } catch {
         // Blob may not exist — continue anyway
       }
     }
-
-    const filtered = docs.filter((d) => d.id !== docId);
-
-    await prisma.customer.update({
-      where: { id: params.id, businessId: authResult.businessId },
-      data: { documents: JSON.stringify(filtered) },
-    });
 
     return NextResponse.json({ ok: true });
   } catch (error) {

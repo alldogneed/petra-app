@@ -143,5 +143,3 @@ export function QuickTaskModal({
     </div>
   );
 }
-
-// ─── New Appointment Modal (from customer profile) ───────────────────────────

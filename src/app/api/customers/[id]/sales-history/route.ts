@@ -1,8 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
-import { hasTenantPermission, TENANT_PERMS } from "@/lib/permissions";
+import { isGuardError } from "@/lib/auth-guards";
+import { requireCustomerAccess } from "@/lib/customer-access";
 import { getCustomerSalesHistory } from "@/services/clients";
 
 /**
@@ -15,15 +15,9 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireBusinessAuth(request);
+    // Same CUSTOMERS_PII gate as GET /api/customers/[id] (overrides honoured).
+    const authResult = await requireCustomerAccess(request, "read");
     if (isGuardError(authResult)) return authResult;
-
-    const callerMembership = authResult.session.memberships.find(
-      (m) => m.businessId === authResult.businessId && m.isActive
-    );
-    if (callerMembership && !hasTenantPermission(callerMembership.role, TENANT_PERMS.CUSTOMERS_PII)) {
-      return NextResponse.json({ error: "אין הרשאה לצפות בלקוחות" }, { status: 403 });
-    }
 
     const history = await getCustomerSalesHistory(authResult.businessId, prisma, params.id);
     if (!history) return NextResponse.json({ error: "Not found" }, { status: 404 });

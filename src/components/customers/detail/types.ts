@@ -1,5 +1,3 @@
-import { File } from "lucide-react";
-
 export interface PetDoc {
   id: string;
   name: string;
@@ -103,8 +101,10 @@ export interface PaymentInfo {
   status: string;
   paidAt: string | null;
   createdAt: string;
-  appointment: { service: { name: string } } | null;
-  boardingStay: { pet: { name: string }; room: { name: string } | null } | null;
+  notes?: string | null;
+  isDeposit?: boolean;
+  appointment: { service: { name: string } | null } | null;
+  boardingStay: { pet: { name: string } | null; room: { name: string } | null } | null;
 }
 
 export interface TrainingGoal {
@@ -126,7 +126,8 @@ export interface TrainingProgramInfo {
   notes: string | null;
   dog: { name: string } | null;
   goals: TrainingGoal[];
-  sessions: { id: string }[];
+  /** Number of COMPLETED sessions (server-counted). */
+  completedSessions: number;
 }
 
 export interface OrderLineInfo {
@@ -162,6 +163,49 @@ export interface OrderInfo {
   payments: OrderPaymentInfo[];
 }
 
+export interface CustomerAppointment {
+  id: string;
+  date: string;
+  startTime: string;
+  endTime: string;
+  status: string;
+  notes?: string | null;
+  service: { name: string; color: string | null } | null;
+  priceListItem?: { name: string } | null;
+  pet: { name: string; species: string } | null;
+}
+
+export interface CustomerTimelineEvent {
+  id: string;
+  type: string;
+  description: string;
+  metadata?: string | null;
+  createdAt: string;
+}
+
+export interface CustomerBalanceSummary {
+  outstanding: number;
+  ordersOutstanding: number;
+  pendingAmount: number;
+  totalPaid: number;
+}
+
+export interface CustomerSummary {
+  /** null when the caller lacks FINANCE_READ. */
+  balance: CustomerBalanceSummary | null;
+  counts: {
+    appointments: number;
+    upcomingAppointments: number;
+    pastVisits: number;
+    payments: number;
+    orders: number;
+    timelineEvents: number;
+    pets: number;
+  };
+  nextAppointment: { id: string; date: string; startTime: string; serviceName: string | null; petName: string | null } | null;
+  lastVisit: { id: string; date: string; startTime: string; serviceName: string | null } | null;
+}
+
 export interface CustomerDetail {
   id: string;
   name: string;
@@ -175,24 +219,39 @@ export interface CustomerDetail {
   documents: string;
   createdAt: string;
   pets: Pet[];
-  appointments: {
-    id: string;
-    date: string;
-    startTime: string;
-    endTime: string;
-    status: string;
-    service: { name: string; color: string | null };
-    pet: { name: string; species: string } | null;
-  }[];
+  appointments: CustomerAppointment[];
   payments: PaymentInfo[];
   orders: OrderInfo[];
   trainingPrograms: TrainingProgramInfo[];
-  timelineEvents: {
-    id: string;
-    type: string;
-    description: string;
-    createdAt: string;
-  }[];
+  timelineEvents: CustomerTimelineEvent[];
+  summary: CustomerSummary;
+}
+
+/** Paged list responses (GET /api/customers/[id]/{appointments,payments,timeline}). */
+export interface PagedAppointments { appointments: CustomerAppointment[]; nextCursor: string | null; total: number }
+export interface PagedPayments { payments: PaymentInfo[]; nextCursor: string | null; total: number }
+export interface PagedTimeline { events: CustomerTimelineEvent[]; nextCursor: string | null }
+
+/** Service name for an appointment row (service → price-list item → fallback). */
+export function appointmentServiceName(apt: Pick<CustomerAppointment, "service" | "priceListItem">, fallback = "שירות"): string {
+  return apt.service?.name || apt.priceListItem?.name || fallback;
+}
+
+/** "2.10.2026" from an ISO date (date part only — no timezone shift). */
+export function formatDayDate(date: string): string {
+  const [y, m, d] = String(date).slice(0, 10).split("-");
+  if (!y || !m || !d) return "";
+  return `${Number(d)}.${Number(m)}.${y}`;
+}
+
+/** Parse the customer's JSON tags column safely. */
+export function parseTags(raw: string | null | undefined): string[] {
+  try {
+    const parsed = JSON.parse(raw || "[]");
+    return Array.isArray(parsed) ? parsed.filter((t): t is string => typeof t === "string") : [];
+  } catch {
+    return [];
+  }
 }
 
 export function calcAge(birthDate: string | null): string | null {
@@ -241,5 +300,3 @@ export async function compressImage(file: File, maxPx = 1600, quality = 0.82): P
     img.src = blobUrl;
   });
 }
-
-// ─── Add Pet Modal ───────────────────────────────────────────────────────────
