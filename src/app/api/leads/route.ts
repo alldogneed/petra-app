@@ -6,6 +6,7 @@ import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { hasFeatureWithOverrides } from "@/lib/feature-flags";
 import { sendLeadAlert } from "@/lib/lead-alert";
+import { runAfterResponse } from "@/lib/wait-until";
 import { prisma } from "@/lib/prisma";
 import { listLeads, createLead, ServiceError } from "@/services/clients";
 import { hasAttributionPayload, normalizeAttributionInput } from "@/lib/lead-attribution";
@@ -71,7 +72,9 @@ export async function POST(request: NextRequest) {
       bizOverrides as Record<string, boolean> | null
     );
     if (business && canNotify) {
-      await sendLeadAlert({
+      // The alert calls WhatsApp/email and used to hold the response for seconds.
+      // Hand it to the platform so the lead form returns as soon as the row exists.
+      await runAfterResponse(sendLeadAlert({
         businessId: authResult.businessId,
         businessPhone: business.phone ?? null,
         featureOverrides: bizOverrides,
@@ -82,7 +85,7 @@ export async function POST(request: NextRequest) {
           city: (lead as { city?: string | null }).city ?? null,
           source: lead.source ?? null,
         },
-      });
+      }));
     }
 
 
