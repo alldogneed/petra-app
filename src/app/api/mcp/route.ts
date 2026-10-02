@@ -38,6 +38,7 @@ import { scheduleAppointmentReminder, rescheduleAppointmentReminder, cancelAppoi
 import { syncAppointmentToGcal, deleteAppointmentFromGcal, findConnectedUsersForBusiness } from "@/lib/google-calendar";
 
 // ─── Tool helpers (shared with tool modules in src/lib/mcp/) ─────────────────
+import { CRITICAL_CAPABILITIES, TENANT_PERMS, hasTenantPermission, type PermissionOverrides, type TenantPermission, type TenantRole } from "@/lib/permissions";
 import { textResult, errorResult, safeField, israelStartOfToday, heDate, parseYmd, findIdempotentReplay, replayResult, dryRunResult, type ToolCtx } from "@/lib/mcp/helpers";
 import { registerIntakeTools, resolveLeadStageByName, israelLocalToIso } from "@/lib/mcp/tools-intake";
 import { registerBoardingTools } from "@/lib/mcp/tools-boarding";
@@ -133,7 +134,7 @@ function formatSalesHistorySection(leads: SalesHistoryLead[]): string[] {
   return out;
 }
 
-function buildServer(businessId: string, connectionId: string, rawScopes: string[], minterRole: string | null = null, userId: string | null = null): McpServer {
+function buildServer(businessId: string, connectionId: string, rawScopes: string[], minterRole: string | null = null, userId: string | null = null, minterOverrides: PermissionOverrides | null = null): McpServer {
   const server = new McpServer({
     name: "petra",
     version: "1.0.0",
@@ -149,6 +150,17 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
   const denyScope = async (tool: string, scope: string) => {
     await auditLog(connectionId, tool, {}, "denied", undefined, `missing scope ${scope}`);
     return errorResult(`לחיבור הזה אין הרשאת ${scope}`);
+  };
+  // Scopes say what the TOKEN may do; the owner's per-member matrix says what the
+  // PERSON who minted it may do. Both must pass (rule #34) — re-read every request.
+  const hasPermission = (perm: TenantPermission): boolean =>
+    minterRole === null || minterRole === "owner"
+      ? true
+      : hasTenantPermission(minterRole as TenantRole, perm, minterOverrides);
+  const denyPermission = async (tool: string, perm: TenantPermission) => {
+    await auditLog(connectionId, tool, {}, "denied", undefined, `missing permission ${perm}`);
+    const label = CRITICAL_CAPABILITIES.find((c) => c.key === perm)?.label ?? perm;
+    return errorResult(`למי שיצר את החיבור אין את ההרשאה "${label}". בעל העסק יכול להעניק אותה בהגדרות ← צוות והרשאות.`);
   };
 
   // ── list_clients ──────────────────────────────────────────────────────────
@@ -415,6 +427,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
     },
     async ({ appointment_id }) => {
       if (!hasScope("write:reminders")) return denyScope("send_reminder", "write:reminders");
+      if (!hasPermission(TENANT_PERMS.MESSAGES_SEND)) return denyPermission("send_reminder", TENANT_PERMS.MESSAGES_SEND);
       const params = { appointment_id };
       try {
         const [appt, biz] = await Promise.all([
@@ -1306,7 +1319,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
   );
 
   // ── Package modules (intake / boarding / briefing) ────────────────────────
-  const ctx: ToolCtx = { businessId, connectionId, userId, hasScope, denyScope };
+  const ctx: ToolCtx = { businessId, connectionId, userId, hasScope, denyScope, hasPermission, denyPermission };
   registerIntakeTools(server, ctx);
   registerBoardingTools(server, ctx);
   registerBriefingTools(server, ctx);
@@ -1470,7 +1483,7 @@ export async function handleMcpRequest(request: NextRequest, tokenFromPath?: str
   }
   await touchMcpConnection(auth.connectionId);
 
-  const server = buildServer(auth.businessId, auth.connectionId, auth.scopes, auth.minterRole, auth.createdByUserId);
+  const server = buildServer(auth.businessId, auth.connectionId, auth.scopes, auth.minterRole, auth.createdByUserId, auth.minterOverrides);
 
   // Stateless transport: no session state, no in-memory sharing between requests
   const transport = new WebStandardStreamableHTTPServerTransport({

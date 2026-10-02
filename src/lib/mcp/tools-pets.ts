@@ -10,6 +10,7 @@
  * services/pets.ts petOwnership() — `OR: [{ customer: { businessId } }, { businessId }]`;
  * customers/services by businessId. businessId always comes from ctx, never from args.
  */
+import { TENANT_PERMS } from "@/lib/permissions";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
@@ -582,6 +583,7 @@ export function registerPetsTools(server: McpServer, ctx: ToolCtx): void {
     },
     async (args) => {
       if (!ctx.hasScope("write:services")) return ctx.denyScope("create_service", "write:services");
+      if (!ctx.hasPermission(TENANT_PERMS.PRICING_WRITE)) return ctx.denyPermission("create_service", TENANT_PERMS.PRICING_WRITE);
       const params = { ...args };
       try {
         const replay = await findIdempotentReplay(connectionId, "create_service", args.idempotency_key);
