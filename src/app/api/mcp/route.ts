@@ -24,7 +24,7 @@ import { getOAuthOrigin } from "@/lib/mcp-oauth";
 import { listCustomers, getCustomer, addCustomerNote, createCustomer, createLead, updateLead, listTasks, getCustomerSalesHistory } from "@/services/clients";
 import { SALES_JOURNAL_KIND_LABELS, TASK_STATUS_LABELS, type SalesHistoryLead } from "@/lib/lead-sales-history";
 import { LOST_REASON_CODES, LEAD_SOURCES } from "@/lib/constants";
-import { listAppointments, createAppointment, updateAppointment, deleteAppointment } from "@/services/appointments";
+import { listAppointments, createAppointment, updateAppointment } from "@/services/appointments";
 import { listOrders, getOrder, createOrder } from "@/services/orders";
 import { listPets } from "@/services/pets";
 import { listBoardingStays } from "@/services/boarding";
