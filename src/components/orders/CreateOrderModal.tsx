@@ -2004,7 +2004,7 @@ export function CreateOrderModal({
               }}
               className="text-xs text-petra-muted hover:text-petra-text flex items-center gap-1"
             >
-              ← חזרה
+              → חזרה
             </button>
           </div>
         )}

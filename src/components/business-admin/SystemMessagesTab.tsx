@@ -240,8 +240,8 @@ export function SystemMessagesTab() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <p className="font-medium text-petra-text truncate max-w-xs">{msg.title}</p>
-                      <p className="text-[11px] text-petra-muted truncate max-w-xs mt-0.5">{msg.content}</p>
+                      <p className="font-medium text-petra-text truncate max-w-[160px] sm:max-w-xs">{msg.title}</p>
+                      <p className="text-[11px] text-petra-muted truncate max-w-[160px] sm:max-w-xs mt-0.5">{msg.content}</p>
                     </td>
                     <td className="px-4 py-3 text-petra-muted text-xs hidden sm:table-cell">
                       {new Date(msg.createdAt).toLocaleDateString("he-IL")}

@@ -12,6 +12,13 @@
     overflow-x: clip;
   }
 
+  /* sr-only captions/headers are position:absolute; without a positioned
+     ancestor they escape the overflow-x-auto wrapper and widen the whole
+     page on mobile (seen on /pets). Anchor them to their table. */
+  table {
+    position: relative;
+  }
+
   body {
     @apply bg-petra-bg text-petra-text font-sans antialiased;
     overflow-x: clip;
@@ -185,7 +192,7 @@
   /* ─── Form Elements ─── */
   .input {
     @apply w-full px-3.5 py-2.5
-    bg-white border border-petra-border rounded-xl text-sm
+    bg-white border border-petra-border rounded-xl text-base sm:text-sm
     placeholder:text-slate-400
     focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400
     transition-all duration-150
@@ -235,7 +242,7 @@
   }
 
   .modal-backdrop {
-    @apply absolute inset-0 bg-slate-900/50 backdrop-blur-sm;
+    @apply fixed inset-0 bg-slate-900/50 backdrop-blur-sm;
   }
 
   .modal-content {

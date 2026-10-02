@@ -132,10 +132,12 @@ function FeedingPlanModal({
   stay,
   onClose,
   onSave,
+  isSaving,
 }: {
   stay: BoardingStay;
   onClose: () => void;
   onSave: (stayId: string, plan: FeedingPlan) => void;
+  isSaving?: boolean;
 }) {
   const existing = parseFeedingPlan(stay.feedingPlan);
   // Pre-populate from pet profile if no boarding-level plan exists
@@ -162,8 +164,8 @@ function FeedingPlanModal({
   }
 
   return (
-    <div className="no-print fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+    <div className="no-print fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
           <div>
@@ -251,7 +253,7 @@ function FeedingPlanModal({
             </button>
             <button
               type="submit"
-              disabled={!foodType.trim() || !amountGrams}
+              disabled={!foodType.trim() || !amountGrams || isSaving}
               className="btn-primary flex-1"
             >
               שמור
@@ -543,7 +545,7 @@ export default function FeedingPage() {
   const isToday = dateToISO(new Date()) === dateStr;
 
   return (
-    <div className="p-6 space-y-6 animate-fade-in">
+    <div className="p-0 sm:p-6 space-y-6 animate-fade-in">
       <style>{`.print-header{display:none} @media print { aside,nav,header,[data-topbar],[data-sidebar],.no-print{display:none!important} body{font-size:11px} .modal-overlay{display:none!important} .print-header{display:flex!important;align-items:center;gap:12px;padding-bottom:12px;border-bottom:2px solid #e2e8f0;margin-bottom:14px;} }`}</style>
       <div className="print-header">
         <img src="/petra-logo.png" alt="Petra" style={{ width: 38, height: 38, objectFit: "contain", borderRadius: 6 }} />
@@ -567,13 +569,14 @@ export default function FeedingPage() {
             )}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {/* Date nav */}
           <div className="flex items-center gap-1 border border-slate-200 rounded-lg overflow-hidden bg-white">
             <button
-              onClick={() => setCurrentDate((d) => addDays(d, 1))}
+              onClick={() => setCurrentDate((d) => addDays(d, -1))}
               className="px-3 py-2 hover:bg-slate-50 text-petra-muted transition-colors"
-              title="אתמול"
+              title="יום קודם"
+              aria-label="יום קודם"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
@@ -587,9 +590,10 @@ export default function FeedingPage() {
               היום
             </button>
             <button
-              onClick={() => setCurrentDate((d) => addDays(d, -1))}
+              onClick={() => setCurrentDate((d) => addDays(d, 1))}
               className="px-3 py-2 hover:bg-slate-50 text-petra-muted transition-colors"
-              title="מחר"
+              title="יום הבא"
+              aria-label="יום הבא"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
@@ -678,7 +682,7 @@ export default function FeedingPage() {
               כל ההאכלות הושלמו!
             </p>
             <p className="text-sm text-emerald-600">
-              כל {activePets.length} הכלבים האכילו ב
+              כל {activePets.length} הכלבים הואכלו ב
               {isToday ? "יום" : "תאריך"} זה
             </p>
           </div>
@@ -878,6 +882,7 @@ export default function FeedingPage() {
           stay={editPlanStay}
           onClose={() => setEditPlanStay(null)}
           onSave={(stayId, plan) => savePlanMutation.mutate({ stayId, plan })}
+          isSaving={savePlanMutation.isPending}
         />
       )}
     </div>

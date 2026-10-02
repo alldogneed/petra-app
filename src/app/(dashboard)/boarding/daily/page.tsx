@@ -150,8 +150,8 @@ function NoteModal({
   ];
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-5" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-5 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-bold text-petra-text">הוסף רשומה</h3>
           <button onClick={onClose} className="text-petra-muted hover:text-petra-text">
@@ -359,7 +359,7 @@ function PetCareCard({ stay, date, onLog, onDelete }: {
                               : "bg-white border-slate-200 text-petra-text hover:bg-purple-50 hover:border-purple-200"
                           )}
                         >
-                          <span className="font-medium">{time || "נתן"}</span>
+                          <span className="font-medium">{time || "ניתן"}</span>
                           {done ? (
                             <Check className="w-4 h-4 text-purple-600" />
                           ) : (
@@ -412,7 +412,7 @@ function PetCareCard({ stay, date, onLog, onDelete }: {
                   </div>
                   <button
                     onClick={() => onDelete(log.id)}
-                    className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 transition-all flex-shrink-0"
+                    className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 text-slate-400 hover:text-red-500 transition-all flex-shrink-0"
                     title="בטל"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -519,20 +519,24 @@ export default function DailyCarePage() {
       {/* Date navigator */}
       <div className="flex items-center gap-3">
         <button
-          onClick={() => setDate((d) => addDays(d, 1))}
+          onClick={() => setDate((d) => addDays(d, -1))}
           className="w-9 h-9 rounded-xl border border-slate-200 flex items-center justify-center text-petra-muted hover:bg-slate-100 transition-colors"
+          title="יום קודם"
+          aria-label="יום קודם"
         >
-          <ChevronLeft className="w-4 h-4" />
+          <ChevronRight className="w-4 h-4" />
         </button>
         <div className="flex-1 text-center">
           <div className="font-bold text-petra-text">{formatDateHe(date)}</div>
           {isToday && <div className="text-xs text-brand-600 font-medium">היום</div>}
         </div>
         <button
-          onClick={() => setDate((d) => addDays(d, -1))}
+          onClick={() => setDate((d) => addDays(d, 1))}
           className="w-9 h-9 rounded-xl border border-slate-200 flex items-center justify-center text-petra-muted hover:bg-slate-100 transition-colors"
+          title="יום הבא"
+          aria-label="יום הבא"
         >
-          <ChevronRight className="w-4 h-4" />
+          <ChevronLeft className="w-4 h-4" />
         </button>
         {!isToday && (
           <button

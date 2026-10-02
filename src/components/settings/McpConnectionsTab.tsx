@@ -315,7 +315,7 @@ export function McpConnectionsTab() {
               <li>ב-<strong>Remote MCP server URL</strong> הדבק את הכתובת הבאה (כוללת את הטוקן שלך):</li>
             </ol>
             <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-2 flex items-center gap-2 font-mono text-xs break-all">
-              <span className="flex-1 text-slate-700 select-all">
+              <span dir="ltr" className="flex-1 min-w-0 text-left text-slate-700 select-all">
                 {appOrigin}/api/mcp/u/{newToken}
               </span>
               <button
@@ -340,7 +340,7 @@ export function McpConnectionsTab() {
                 <li>ב-Claude Desktop: <strong>Settings → Developer → Edit Config</strong></li>
                 <li>הוסף את הבלוק הבא תחת <code>mcpServers</code>:</li>
               </ol>
-              <pre className="bg-white border border-amber-200 rounded p-2 text-xs overflow-x-auto mt-1 whitespace-pre-wrap">
+              <pre dir="ltr" className="bg-white border border-amber-200 rounded p-2 text-xs text-left overflow-x-auto mt-1 whitespace-pre-wrap">
 {`"petra": {
   "url": "${mcpUrl}",
   "headers": {

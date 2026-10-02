@@ -246,9 +246,9 @@ function CreateInvoiceModal({
             </div>
             <div className="space-y-2">
               {lines.map((line, i) => (
-                <div key={i} className="grid grid-cols-[1fr_80px_100px_32px] gap-2 items-center">
+                <div key={i} className="grid grid-cols-[1fr_1fr_32px] sm:grid-cols-[1fr_80px_100px_32px] gap-2 items-center">
                   <input
-                    className="input text-sm"
+                    className="input text-sm col-span-3 sm:col-span-1"
                     placeholder="תיאור"
                     value={line.description}
                     onChange={(e) => updateLine(i, "description", e.target.value)}

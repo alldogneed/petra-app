@@ -197,11 +197,13 @@ function NewLeadModal({ isOpen, onClose, stages }: { isOpen: boolean; onClose: (
             />
             {leadFieldErrors.name && <p className="text-xs text-red-500 mt-1">{leadFieldErrors.name}</p>}
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="label">טלפון *</label>
               <input
-                className={cn("input", leadFieldErrors.phone && "border-red-300 focus:ring-red-200", phoneWarning && !leadFieldErrors.phone && "border-amber-400")}
+                type="tel"
+                dir="ltr"
+                className={cn("input text-right", leadFieldErrors.phone && "border-red-300 focus:ring-red-200", phoneWarning && !leadFieldErrors.phone && "border-amber-400")}
                 value={form.phone}
                 onChange={(e) => { setForm({ ...form, phone: e.target.value }); if (leadFieldErrors.phone) setLeadFieldErrors({ ...leadFieldErrors, phone: undefined }); }}
                 onBlur={(e) => checkPhoneDuplicate(e.target.value)}
@@ -226,7 +228,9 @@ function NewLeadModal({ isOpen, onClose, stages }: { isOpen: boolean; onClose: (
             <div>
               <label className="label">אימייל</label>
               <input
-                className={cn("input", leadFieldErrors.email && "border-red-300 focus:ring-red-200")}
+                dir="ltr"
+                inputMode="email"
+                className={cn("input text-right", leadFieldErrors.email && "border-red-300 focus:ring-red-200")}
                 value={form.email}
                 onChange={(e) => { setForm({ ...form, email: e.target.value }); if (leadFieldErrors.email) setLeadFieldErrors({ ...leadFieldErrors, email: undefined }); }}
               />
@@ -634,7 +638,7 @@ function LeadCard({
             onTouchStart={(e) => e.stopPropagation()}
             title="פרטי ליד"
             aria-label="פרטי ליד"
-            className="w-6 h-6 -my-1 -me-1.5 rounded-md flex items-center justify-center text-slate-300 hover:text-slate-700 hover:bg-slate-100 transition-colors flex-shrink-0 self-center"
+            className="w-8 h-8 sm:w-6 sm:h-6 -my-1 -me-1.5 rounded-md flex items-center justify-center text-slate-300 hover:text-slate-700 hover:bg-slate-100 transition-colors flex-shrink-0 self-center"
           >
             <FileText className="w-3.5 h-3.5" />
           </button>
@@ -689,7 +693,7 @@ function LeadCard({
             type="button"
             onClick={() => setShowPicker((v) => !v)}
             title="עדכון מועד חזרה"
-            className="inline-flex items-center gap-1 h-6 px-2 rounded-full border text-xs font-medium tabular-nums whitespace-nowrap max-w-full overflow-hidden"
+            className="inline-flex items-center gap-1 h-8 sm:h-6 px-2 rounded-full border text-xs font-medium tabular-nums whitespace-nowrap max-w-full overflow-hidden"
             style={{ color: fu.color, background: fu.bg, borderColor: fu.border }}
           >
             <Clock className="w-3 h-3 flex-shrink-0" />
@@ -698,11 +702,11 @@ function LeadCard({
           {showPicker && <FollowUpPicker lead={lead} onClose={() => setShowPicker(false)} />}
         </div>
         {lead.phone && (
-          <button type="button" onClick={() => openWhatsApp(lead.phone!)} title="וואטסאפ" className={cn(WA_BTN, "w-7 h-7")}>
+          <button type="button" onClick={() => openWhatsApp(lead.phone!)} title="וואטסאפ" className={cn(WA_BTN, "w-9 h-9 sm:w-7 sm:h-7")}>
             <MessageCircle className="w-3.5 h-3.5" />
           </button>
         )}
-        <button type="button" onClick={onOpen} title="תיעוד שיחה" className={cn(CALL_BTN, "w-7 h-7")}>
+        <button type="button" onClick={onOpen} title="תיעוד שיחה" className={cn(CALL_BTN, "w-9 h-9 sm:w-7 sm:h-7")}>
           <Phone className="w-3.5 h-3.5" />
         </button>
       </div>
@@ -2020,7 +2024,7 @@ function LeadsPageContent() {
             )}
           </div>
           <div className="mt-1.5 text-[13px] md:text-sm text-slate-500 flex gap-x-3.5 gap-y-1 flex-wrap tabular-nums">
-            <span>{openLeads.length} לידים פתוחים</span>
+            <span>{openLeads.length === 1 ? "ליד פתוח אחד" : `${openLeads.length} לידים פתוחים`}</span>
             {pipelineValue > 0 && <span>{formatIls(pipelineValue)} בצנרת</span>}
             <span className="text-[#B91C1C] font-medium">{overdueCount} באיחור</span>
             <span className="text-[#C2410C] font-medium">{todayCount} להיום</span>

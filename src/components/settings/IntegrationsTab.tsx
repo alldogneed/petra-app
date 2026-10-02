@@ -247,11 +247,11 @@ export function IntegrationsTab() {
 
         return (
           <React.Fragment key={integ.id}>
-          <div className="card p-5 flex items-start gap-4">
+          <div className="card p-5 flex flex-wrap sm:flex-nowrap items-start gap-4">
             <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0", integ.connected ? "bg-emerald-50" : "bg-slate-100")}>
               <Icon className={cn("w-6 h-6", integ.connected ? "text-emerald-600" : "text-slate-400")} />
             </div>
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-[calc(100%-4rem)] sm:min-w-0">
               <div className="flex items-center gap-2">
                 <h3 className="font-semibold text-petra-text">{integ.name}</h3>
                 {integ.connected ? (
@@ -351,7 +351,7 @@ export function IntegrationsTab() {
                           )}
                           title={optimisticEnabled ? "כבה תזכורות" : "הפעל תזכורות"}
                         >
-                          <span className={cn("inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform", optimisticEnabled ? "translate-x-4" : "translate-x-0.5")} />
+                          <span className={cn("inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform", optimisticEnabled ? "-translate-x-4" : "-translate-x-0.5")} />
                         </button>
                       );
                     })()}
@@ -608,7 +608,7 @@ function StripeConnectModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-100">
           <div className="flex items-center gap-3">
@@ -653,7 +653,7 @@ function StripeConnectModal({
             <label className="label">Secret Key (sk_...)</label>
             <div className="relative">
               <input
-                className="input w-full font-mono text-sm pr-10"
+                className="input w-full font-mono text-sm pl-10"
                 placeholder="sk_live_... או sk_test_..."
                 type={showSecret ? "text" : "password"}
                 value={secretKey}
@@ -674,7 +674,7 @@ function StripeConnectModal({
             <label className="label">Webhook Secret (whsec_...) — אופציונלי</label>
             <div className="relative">
               <input
-                className="input w-full font-mono text-sm pr-10"
+                className="input w-full font-mono text-sm pl-10"
                 placeholder="whsec_... (לאימות אירועי Stripe)"
                 type={showWebhook ? "text" : "password"}
                 value={webhookSecret}
@@ -767,7 +767,7 @@ function WhatsAppTestModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-slate-100">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center">

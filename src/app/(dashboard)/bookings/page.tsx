@@ -330,7 +330,7 @@ function BookingsContent() {
       {selectedBooking && (
         <div className="modal-overlay" onClick={() => { setSelectedBooking(null); setEditMode(false); }}>
           <div className="modal-backdrop" />
-          <div className="modal-content max-w-lg" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content max-w-lg p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-petra-text flex items-center gap-2">
                 <CalendarCheck className="w-5 h-5 text-brand-500" />
@@ -441,7 +441,7 @@ function BookingsContent() {
                   {editMode && (
                     <div className="border border-brand-200 rounded-xl p-4 bg-brand-50/30 space-y-3">
                       <p className="text-xs font-semibold text-petra-text">עריכת פרטי תור</p>
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                           <label className="label text-xs">תאריך</label>
                           <input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} className="input w-full text-sm" />
@@ -595,10 +595,10 @@ function BookingsContent() {
                               `📅 תאריך: ${dateStr}`,
                               `🕐 שעה: ${timeStr}`,
                               `🐾 שירות: ${modalSvcInfo.name}`,
-                              petNames ? `🐕 חיית מחמד: ${petNames}` : "",
+                              petNames ? `🐕 חיית מחמד: ${petNames}` : null,
                               "",
                               `מחכים לראותכם! 🐾`,
-                            ].filter(Boolean).join("\n");
+                            ].filter((line) => line !== null).join("\n");
                             return (
                               <button
                                 onClick={() => {

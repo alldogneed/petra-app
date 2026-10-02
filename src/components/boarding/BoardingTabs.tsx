@@ -30,6 +30,8 @@ export function BoardingTabs() {
           <Link
             key={tab.href}
             href={tab.href}
+            aria-label={tab.name}
+            title={tab.name}
             className={cn(
               "flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all flex-1 whitespace-nowrap",
               isActive

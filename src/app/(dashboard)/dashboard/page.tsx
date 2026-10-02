@@ -1591,11 +1591,13 @@ function NewCustomerModal({
             />
             {fieldErrors.name && <p className="text-xs text-red-500 mt-1">{fieldErrors.name}</p>}
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="label">טלפון *</label>
               <input
-                className={cn("input", fieldErrors.phone && "border-red-300 focus:ring-red-200")}
+                className={cn("input text-right", fieldErrors.phone && "border-red-300 focus:ring-red-200")}
+                type="tel"
+                dir="ltr"
                 value={form.phone}
                 onChange={(e) => { setForm({ ...form, phone: e.target.value }); if (fieldErrors.phone) setFieldErrors({ ...fieldErrors, phone: undefined }); }}
                 placeholder="050-0000000"
@@ -1606,8 +1608,9 @@ function NewCustomerModal({
             <div>
               <label className="label">אימייל</label>
               <input
-                className={cn("input", fieldErrors.email && "border-red-300 focus:ring-red-200")}
+                className={cn("input text-right", fieldErrors.email && "border-red-300 focus:ring-red-200")}
                 type="email"
+                dir="ltr"
                 value={form.email}
                 onChange={(e) => { setForm({ ...form, email: e.target.value }); if (fieldErrors.email) setFieldErrors({ ...fieldErrors, email: undefined }); }}
               />
@@ -1844,7 +1847,8 @@ function NewAppointmentModal({
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-backdrop" />
+      <div className="modal-content max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold text-petra-text flex items-center gap-2">
             <CalendarClock className="w-5 h-5 text-brand-500" />
@@ -1904,8 +1908,8 @@ function NewAppointmentModal({
           </div>
 
           {/* Date + Times */}
-          <div className="grid grid-cols-3 gap-3">
-            <div className="col-span-3 sm:col-span-1">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="col-span-2 sm:col-span-1">
               <label className="label">תאריך *</label>
               <input
                 type="date" lang="he"

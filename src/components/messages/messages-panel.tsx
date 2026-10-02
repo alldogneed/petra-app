@@ -785,7 +785,8 @@ function TemplatesTab() {
           const TriggerIcon = TRIGGER_ICONS[trigger.id] ?? Zap;
           return (
             <div className="modal-overlay" onClick={() => setPreviewTriggerId(null)}>
-              <div className="modal-content max-w-lg w-full" onClick={(e) => e.stopPropagation()}>
+              <div className="modal-backdrop" onClick={() => setPreviewTriggerId(null)} />
+              <div className="modal-content max-w-lg w-full p-6" onClick={(e) => e.stopPropagation()}>
                 {/* Header */}
                 <div className="flex items-center gap-3 mb-5">
                   <div className="w-9 h-9 rounded-lg bg-brand-50 flex items-center justify-center flex-shrink-0">

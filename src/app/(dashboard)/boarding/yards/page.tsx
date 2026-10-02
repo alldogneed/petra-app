@@ -120,7 +120,7 @@ function DraggableOccupantCard({ stay, onRemove }: { stay: ActiveStay; onRemove:
         <button
           onPointerDown={(e) => e.stopPropagation()}
           onClick={onRemove}
-          className="no-print opacity-0 group-hover:opacity-100 w-3.5 h-3.5 flex items-center justify-center rounded text-red-400 hover:text-red-600 transition-all flex-shrink-0"
+          className="no-print opacity-100 sm:opacity-0 sm:group-hover:opacity-100 w-3.5 h-3.5 flex items-center justify-center rounded text-red-400 hover:text-red-600 transition-all flex-shrink-0"
           title="הסר מהחצר"
         >
           <X className="w-2.5 h-2.5" />

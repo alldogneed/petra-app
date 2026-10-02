@@ -325,7 +325,7 @@ export default function VaccinationsPage() {
   }, [typeFilter]);
 
   return (
-    <div className="p-6 space-y-6 animate-fade-in">
+    <div className="p-0 sm:p-6 space-y-6 animate-fade-in">
       <BoardingTabs />
 
       {/* Header */}

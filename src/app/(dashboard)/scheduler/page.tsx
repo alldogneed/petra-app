@@ -642,14 +642,14 @@ function SchedulerContent() {
             {/* Month nav */}
             <div className="flex items-center justify-between mb-3">
               <button
-                onClick={nextMonth}
+                onClick={prevMonth}
                 className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
               >
                 <ChevronRight className="w-4 h-4 text-gray-600" />
               </button>
               <span className="text-sm font-bold text-gray-800">{monthLabel}</span>
               <button
-                onClick={prevMonth}
+                onClick={nextMonth}
                 className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
               >
                 <ChevronLeft className="w-4 h-4 text-gray-600" />
@@ -818,8 +818,8 @@ function SchedulerContent() {
                           }}
                           className="w-full text-right px-3 py-2 hover:bg-orange-50 flex items-center justify-between text-sm transition-colors"
                         >
-                          <span className="text-gray-400 text-xs">{c.phone}</span>
                           <span className="font-medium text-gray-800">{c.name}</span>
+                          <span className="text-gray-400 text-xs" dir="ltr">{c.phone}</span>
                         </button>
                       ))}
                       {filteredCustomers.length === 0 && (
@@ -853,7 +853,7 @@ function SchedulerContent() {
                       }}
                       className="text-xs text-gray-500 hover:text-gray-700"
                     >
-                      ← חזור לחיפוש
+                      → חזור לחיפוש
                     </button>
                     <span className="text-xs font-medium text-orange-700">
                       לקוח חדש

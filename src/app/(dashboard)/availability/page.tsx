@@ -300,7 +300,7 @@ export default function AvailabilityPage() {
   const labelClass  = "block text-xs font-medium text-gray-600 mb-1"
 
   return (
-    <div className="p-6 max-w-3xl mx-auto" dir="rtl">
+    <div className="sm:p-6 max-w-3xl mx-auto" dir="rtl">
       <BookingsTabs />
       {/* Header */}
       <div className="flex items-center gap-3 mb-6 flex-wrap">
@@ -390,7 +390,7 @@ export default function AvailabilityPage() {
             >
               <span
                 className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                  bookingSettings.gcalBlockExternal ? "translate-x-0" : "translate-x-5"
+                  bookingSettings.gcalBlockExternal ? "-translate-x-5" : "translate-x-0"
                 }`}
               />
             </button>
@@ -537,12 +537,12 @@ export default function AvailabilityPage() {
             rules.map((rule) => (
               <div
                 key={rule.dayOfWeek}
-                className={`px-6 py-4 flex items-center gap-4 transition-colors ${
+                className={`px-4 sm:px-6 py-4 flex items-center gap-2 sm:gap-4 transition-colors ${
                   rule.isOpen ? "" : "bg-gray-50 opacity-60"
                 }`}
               >
                 {/* Day name */}
-                <span className="w-16 text-sm font-medium text-gray-700 flex-shrink-0">
+                <span className="w-12 sm:w-16 text-sm font-medium text-gray-700 flex-shrink-0">
                   {DAY_NAMES[rule.dayOfWeek]}
                 </span>
 
@@ -555,14 +555,14 @@ export default function AvailabilityPage() {
                 >
                   <span
                     className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                      rule.isOpen ? "translate-x-0" : "translate-x-5"
+                      rule.isOpen ? "-translate-x-5" : "translate-x-0"
                     }`}
                   />
                 </button>
 
                 {/* Times */}
                 {rule.isOpen ? (
-                  <div className="flex items-center gap-2 text-sm">
+                  <div className="flex items-center gap-2 text-sm min-w-0 flex-wrap">
                     <select
                       value={rule.openTime}
                       onChange={(e) => updateRule(rule.dayOfWeek, "openTime", e.target.value)}
@@ -591,7 +591,7 @@ export default function AvailabilityPage() {
 
       {/* ── Blocks Card ──────────────────────────────────────────────────────── */}
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <CalendarOff className="w-5 h-5 text-red-400" />
             <h2 className="font-semibold text-gray-800">חסימות וחופשות</h2>
@@ -666,7 +666,7 @@ export default function AvailabilityPage() {
                     {new Date(block.startAt).toLocaleString("he-IL", {
                       day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
                     })}
-                    {" → "}
+                    {" ← "}
                     {new Date(block.endAt).toLocaleString("he-IL", {
                       day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit",
                     })}
@@ -695,8 +695,8 @@ export default function AvailabilityPage() {
         <p className="font-semibold mb-1">טיפ: הפעלת הזמנה אונליין לשירותים</p>
         <p className="text-amber-700">
           כדי ששירות יופיע בדף ההזמנה הציבורי, עבור ל
-          <Link href="/settings" className="underline mx-1 hover:text-amber-900">הגדרות → שירותים</Link>
-          {`והפעל "זמין להזמנה אונליין" עבור כל שירות רצוי.`}
+          <Link href="/pricing" className="underline mx-1 hover:text-amber-900">מחירון</Link>
+          {`והפעל "זמין לתיאום תור אונליין" עבור כל שירות רצוי.`}
         </p>
       </div>
     </div>

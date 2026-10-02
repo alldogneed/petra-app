@@ -173,7 +173,7 @@ function ServiceDogsReportsPageContent() {
           <a
             href="/api/service-dogs/export"
             download
-            className="btn-outline flex items-center gap-2 text-sm px-3 py-2"
+            className="btn-secondary flex items-center gap-2 text-sm px-3 py-2"
           >
             <Download className="w-4 h-4" />
             ייצוא כלבים לאקסל
@@ -181,7 +181,7 @@ function ServiceDogsReportsPageContent() {
           <a
             href="/api/service-recipients/export"
             download
-            className="btn-outline flex items-center gap-2 text-sm px-3 py-2"
+            className="btn-secondary flex items-center gap-2 text-sm px-3 py-2"
           >
             <Download className="w-4 h-4" />
             ייצוא זכאים לאקסל
@@ -189,7 +189,7 @@ function ServiceDogsReportsPageContent() {
           <a
             href="/api/service-recipients/export/by-funding?source=BITUACH_LEUMI"
             download
-            className="btn-outline flex items-center gap-2 text-sm px-3 py-2"
+            className="btn-secondary flex items-center gap-2 text-sm px-3 py-2"
           >
             <Download className="w-4 h-4" />
             ייצוא ביטוח לאומי
@@ -197,7 +197,7 @@ function ServiceDogsReportsPageContent() {
           <a
             href="/api/service-recipients/export/by-funding?source=MINISTRY_OF_DEFENSE"
             download
-            className="btn-outline flex items-center gap-2 text-sm px-3 py-2"
+            className="btn-secondary flex items-center gap-2 text-sm px-3 py-2"
           >
             <Download className="w-4 h-4" />
             ייצוא משרד הביטחון
@@ -205,7 +205,7 @@ function ServiceDogsReportsPageContent() {
           <a
             href="/api/service-dogs/export/care"
             download
-            className="btn-outline flex items-center gap-2 text-sm px-3 py-2"
+            className="btn-secondary flex items-center gap-2 text-sm px-3 py-2"
             title="גיליון 1: האכלות | גיליון 2: תרופות — כלבי שירות בלבד"
           >
             <Download className="w-4 h-4" />
