@@ -119,6 +119,7 @@ const AUTH_PATTERNS = [
   /handleMcpRequest\s*\(/,   // delegates to the MCP handler, which always runs validateMcpToken
   /requirePortalAuth\s*\(/,   // portal session auth (PortalSession cookie, SHA-256 token, slug-scoped)
   /requireOnlineClassesAuth\s*\(/, // _lib wrapper: requireBusinessAuth + online_classes tier gate
+  /requireCustomerAccess\s*\(/,   // src/lib/customer-access.ts: requireBusinessAuth + customer read/write rule
   /verifyPortalOtp\s*\(/,     // portal OTP verify — the auth step itself (rate-limited, hashed, atomic consume)
 ];
 
