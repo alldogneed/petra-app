@@ -50,7 +50,31 @@ export async function GET(request: NextRequest) {
       prisma.auditLog.count({ where }),
     ]);
 
-    return NextResponse.json({ logs, total, page, limit });
+    // Resolve target ids to display names so the log reads "עסק: שם" instead of a uuid
+    const idsOf = (type: string) =>
+      Array.from(new Set(logs.filter((l) => l.targetType === type && l.targetId).map((l) => l.targetId as string)));
+    const businessTargetIds = idsOf("business");
+    const userTargetIds = idsOf("user");
+    const [targetBusinesses, targetUsers] = await Promise.all([
+      businessTargetIds.length
+        ? prisma.business.findMany({ where: { id: { in: businessTargetIds } }, select: { id: true, name: true } })
+        : [],
+      userTargetIds.length
+        ? prisma.platformUser.findMany({ where: { id: { in: userTargetIds } }, select: { id: true, name: true, email: true } })
+        : [],
+    ]);
+    const bizName = new Map(targetBusinesses.map((b) => [b.id, b.name]));
+    const userName = new Map(targetUsers.map((u) => [u.id, u.name || u.email]));
+
+    const enriched = logs.map((l) => ({
+      ...l,
+      targetName:
+        l.targetType === "business" ? bizName.get(l.targetId ?? "") ?? null
+        : l.targetType === "user" ? userName.get(l.targetId ?? "") ?? null
+        : null,
+    }));
+
+    return NextResponse.json({ logs: enriched, total, page, limit });
   } catch (error) {
     console.error("GET /api/owner/audit-logs error:", error);
     return NextResponse.json({ error: "Failed to fetch audit logs" }, { status: 500 });

@@ -3,12 +3,27 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requirePlatformPermission, isGuardError } from "@/lib/auth-guards";
 
+import { getTestBusinessIds, wantsTestData } from "@/lib/platform-test-accounts";
+
+const DAY = 86_400_000;
+
+/**
+ * Health segments — separates "signed up and never started" (onboarding failure)
+ * from "was active and stopped" (real churn), so the two get different follow-up.
+ */
+type Segment = "churn_risk" | "never_activated" | "watch" | "new" | "healthy";
+
 export async function GET(request: NextRequest) {
   const authResult = await requirePlatformPermission(request, "platform.settings.write");
   if (isGuardError(authResult)) return authResult;
 
   try {
+  const includeTest = wantsTestData(new URL(request.url).searchParams);
+  const testIdSet = await getTestBusinessIds();
+  const testIds = includeTest ? [] : Array.from(testIdSet);
+
   const businesses = await prisma.business.findMany({
+    where: testIds.length ? { id: { notIn: testIds } } : undefined,
     select: {
       id: true,
       name: true,
@@ -19,22 +34,15 @@ export async function GET(request: NextRequest) {
       subscriptionStatus: true,
       subscriptionEndsAt: true,
       members: {
-        where: { role: "owner", isActive: true },
-        take: 1,
+        where: { isActive: true },
         select: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              lastLoginAt: true,
-            },
-          },
+          role: true,
+          user: { select: { id: true, name: true, email: true, lastLoginAt: true } },
         },
       },
     },
     orderBy: { createdAt: "desc" },
-    take: 200,
+    take: 500,
   });
 
   const now = new Date();
@@ -50,53 +58,64 @@ export async function GET(request: NextRequest) {
   const apptMap = Object.fromEntries(apptCounts.map((r) => [r.businessId, r._count._all]));
 
   const rows = businesses.map((b) => {
-    const owner = b.members[0]?.user ?? null;
-    const daysActive = Math.floor(
-      (now.getTime() - new Date(b.createdAt).getTime()) / 86400000
-    );
-    const lastLoginDaysAgo = owner?.lastLoginAt
-      ? Math.floor((now.getTime() - new Date(owner.lastLoginAt).getTime()) / 86400000)
-      : null;
+    const owner = (b.members.find((m) => m.role === "owner") ?? b.members[0])?.user ?? null;
+    const daysActive = Math.floor((now.getTime() - new Date(b.createdAt).getTime()) / DAY);
+
+    // Last login of ANY active team member — a business whose staff works daily is not churning
+    const lastLoginMs = b.members.reduce<number | null>((max, m) => {
+      const t = m.user?.lastLoginAt ? new Date(m.user.lastLoginAt).getTime() : null;
+      return t !== null && (max === null || t > max) ? t : max;
+    }, null);
+    const lastLoginDaysAgo = lastLoginMs !== null ? Math.floor((now.getTime() - lastLoginMs) / DAY) : null;
+
     const customerCount = customerMap[b.id] ?? 0;
     const appointmentCount = apptMap[b.id] ?? 0;
 
-    // Trial status
     const trialActive = b.trialEndsAt ? new Date(b.trialEndsAt) > now : false;
     const trialDaysLeft = trialActive && b.trialEndsAt
-      ? Math.ceil((new Date(b.trialEndsAt).getTime() - now.getTime()) / 86400000)
+      ? Math.ceil((new Date(b.trialEndsAt).getTime() - now.getTime()) / DAY)
       : null;
-
-    // Subscription status
     const subDaysLeft = b.subscriptionEndsAt
-      ? Math.ceil((new Date(b.subscriptionEndsAt).getTime() - now.getTime()) / 86400000)
+      ? Math.ceil((new Date(b.subscriptionEndsAt).getTime() - now.getTime()) / DAY)
       : null;
 
-    // Churn risk heuristic
-    let churnRisk: "high" | "medium" | "healthy";
-    if (
-      daysActive > 7 &&
-      (customerCount === 0 || (lastLoginDaysAgo !== null && lastLoginDaysAgo > 7))
-    ) {
-      churnRisk = "high";
-    } else if (
-      daysActive > 3 &&
-      (customerCount <= 2 || (lastLoginDaysAgo !== null && lastLoginDaysAgo > 3))
-    ) {
-      churnRisk = "medium";
+    const paying = b.tier !== "free" && b.subscriptionStatus === "active";
+    const everUsed = customerCount > 0 || appointmentCount > 0;
+
+    let segment: Segment;
+    if (daysActive <= 3) {
+      segment = "new";
+    } else if (!everUsed) {
+      segment = "never_activated";
+    } else if (lastLoginDaysAgo === null || lastLoginDaysAgo > 14) {
+      segment = "churn_risk";
+    } else if (lastLoginDaysAgo > 7 || customerCount <= 2) {
+      segment = "watch";
     } else {
-      churnRisk = "healthy";
+      segment = "healthy";
     }
+
+    // Higher = handle first. Paying customers at risk outrank everything.
+    const segmentWeight: Record<Segment, number> = {
+      churn_risk: 60, never_activated: 30, watch: 20, new: 10, healthy: 0,
+    };
+    const priority =
+      segmentWeight[segment] +
+      (paying && segment !== "healthy" ? 40 : 0) +
+      (subDaysLeft !== null && subDaysLeft >= 0 && subDaysLeft <= 7 ? 25 : 0) +
+      (trialDaysLeft !== null && trialDaysLeft <= 3 ? 10 : 0);
 
     return {
       businessId: b.id,
       businessName: b.name,
       tier: b.tier,
+      paying,
       phone: b.phone ?? null,
       createdAt: b.createdAt,
       daysActive,
       ownerName: owner?.name ?? null,
       ownerEmail: owner?.email ?? null,
-      lastLoginAt: owner?.lastLoginAt ?? null,
+      lastLoginAt: lastLoginMs !== null ? new Date(lastLoginMs) : null,
       lastLoginDaysAgo,
       customerCount,
       appointmentCount,
@@ -104,18 +123,26 @@ export async function GET(request: NextRequest) {
       trialDaysLeft,
       subscriptionStatus: b.subscriptionStatus ?? null,
       subDaysLeft,
-      churnRisk,
+      segment,
+      priority,
+      isTest: testIdSet.has(b.id),
     };
   });
 
+  rows.sort((a, b) => b.priority - a.priority || a.daysActive - b.daysActive);
+
+  const count = (s: Segment) => rows.filter((r) => r.segment === s).length;
   const stats = {
     total: rows.length,
-    highRisk: rows.filter((r) => r.churnRisk === "high").length,
-    medium: rows.filter((r) => r.churnRisk === "medium").length,
-    healthy: rows.filter((r) => r.churnRisk === "healthy").length,
+    churnRisk: count("churn_risk"),
+    payingAtRisk: rows.filter((r) => r.paying && r.segment === "churn_risk").length,
+    neverActivated: count("never_activated"),
+    watch: count("watch"),
+    fresh: count("new"),
+    healthy: count("healthy"),
   };
 
-  return NextResponse.json({ rows, stats });
+  return NextResponse.json({ rows, stats, includeTest });
   } catch (error) {
     console.error("GET /api/owner/customer-success error:", error);
     return NextResponse.json({ error: "Failed to fetch customer success data" }, { status: 500 });

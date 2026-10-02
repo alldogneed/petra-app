@@ -13,6 +13,7 @@ import { fetchJSON, cn } from "@/lib/utils";
 import { useState, useCallback } from "react";
 import { type FeatureKey, type TierKey, hasFeature } from "@/lib/feature-flags";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { TIER_LABELS, PLATFORM_ROLE_LABELS } from "@/lib/platform-labels";
 
 // ─── Tier definitions ────────────────────────────────────────────────────────
 
@@ -98,7 +99,7 @@ interface TenantDetail {
 
 function TierBadge({ tier }: { tier: string }) {
   const t = TIERS.find((t) => t.key === tier);
-  if (!t) return <span className="text-xs text-slate-500">{tier}</span>;
+  if (!t) return <span className="text-xs text-slate-500">{TIER_LABELS[tier] ?? tier}</span>;
   return (
     <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border", t.color)}>
       {t.label}
@@ -152,6 +153,8 @@ export default function TenantDetailPage() {
   const [newMemberEmail, setNewMemberEmail] = useState("");
   const [newMemberPassword, setNewMemberPassword] = useState("");
   const [newMemberRole, setNewMemberRole] = useState<"owner" | "manager" | "user">("user");
+  const [showSuspendConfirm, setShowSuspendConfirm] = useState(false);
+  const [memberToRemove, setMemberToRemove] = useState<TenantMember | null>(null);
 
   // ── Queries ──────────────────────────────────────────────────────────────────
   const { data: tenant, isLoading, error } = useQuery<TenantDetail>({
@@ -178,6 +181,7 @@ export default function TenantDetailPage() {
       queryClient.invalidateQueries({ queryKey: ["owner", "tenants", tenantId, "features"] });
       queryClient.invalidateQueries({ queryKey: ["owner", "tenants"] });
       setTierSelectOpen(false);
+      setShowSuspendConfirm(false);
     },
   });
 
@@ -244,7 +248,10 @@ export default function TenantDetailPage() {
   const deleteMemberMutation = useMutation({
     mutationFn: (memberId: string) =>
       fetchJSON(`/api/owner/tenants/${tenantId}/members/${memberId}`, { method: "DELETE" }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["owner", "tenants", tenantId] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["owner", "tenants", tenantId] });
+      setMemberToRemove(null);
+    },
   });
 
   const addMemberMutation = useMutation({
@@ -386,7 +393,11 @@ export default function TenantDetailPage() {
             כנס כעסק
           </button>
           <button
-            onClick={() => patchTenantMutation.mutate({ status: tenant.status === "active" ? "suspended" : "active" })}
+            onClick={() =>
+              tenant.status === "active"
+                ? (patchTenantMutation.reset(), setShowSuspendConfirm(true))
+                : patchTenantMutation.mutate({ status: "active" })
+            }
             disabled={patchTenantMutation.isPending || tenant.status === "closed"}
             className={cn(
               "text-sm px-4 py-2 rounded-xl font-medium transition-colors disabled:opacity-40",
@@ -916,7 +927,7 @@ export default function TenantDetailPage() {
                     {member.user.platformRole ? (
                       <span className="flex items-center gap-1 text-xs text-orange-600">
                         <Shield className="w-3.5 h-3.5" />
-                        {member.user.platformRole.replace("_", " ")}
+                        {PLATFORM_ROLE_LABELS[member.user.platformRole] ?? member.user.platformRole.replace(/_/g, " ")}
                       </span>
                     ) : (
                       <span className="text-xs text-slate-400">—</span>
@@ -943,13 +954,10 @@ export default function TenantDetailPage() {
                         {member.isActive ? <UserX className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}
                       </button>
                       <button
-                        onClick={() => {
-                          if (confirm(`האם למחוק את ${member.user.name} מהעסק?`)) {
-                            deleteMemberMutation.mutate(member.id);
-                          }
-                        }}
+                        onClick={() => { deleteMemberMutation.reset(); setMemberToRemove(member); }}
                         disabled={deleteMemberMutation.isPending}
                         title="הסר מהעסק"
+                        aria-label="הסר מהעסק"
                         className="p-1.5 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -962,6 +970,98 @@ export default function TenantDetailPage() {
           </table>
         )}
       </div>
+
+      {/* ── Suspend business confirmation ─────────────────────────────────── */}
+      {showSuspendConfirm && (
+        <div
+          className="modal-overlay"
+          onClick={() => !patchTenantMutation.isPending && setShowSuspendConfirm(false)}
+        >
+          <div className="modal-backdrop" />
+          <div
+            className="modal-content max-w-md"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="suspend-tenant-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="suspend-tenant-title" className="text-lg font-bold text-slate-900">
+              להשהות את העסק &quot;{tenant.name}&quot;?
+            </h2>
+            <p className="text-sm text-slate-700 mt-2">
+              כל המשתמשים של העסק ({tenant.members.length}) יאבדו גישה למערכת עד שהעסק יופעל מחדש.
+              הנתונים נשמרים, וניתן להפעיל את העסק שוב בכל עת.
+            </p>
+            {patchTenantMutation.isError && (
+              <p className="text-xs text-red-600 mt-3">
+                {(patchTenantMutation.error as Error)?.message ?? "הפעולה נכשלה"}
+              </p>
+            )}
+            <div className="flex gap-2 mt-5">
+              <button
+                onClick={() => setShowSuspendConfirm(false)}
+                disabled={patchTenantMutation.isPending}
+                className="btn-secondary flex-1 disabled:opacity-40"
+              >
+                ביטול
+              </button>
+              <button
+                onClick={() => patchTenantMutation.mutate({ status: "suspended" })}
+                disabled={patchTenantMutation.isPending}
+                className="btn-danger flex-1 disabled:opacity-40"
+              >
+                {patchTenantMutation.isPending ? "משהה..." : "השהה עסק"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Remove member confirmation ────────────────────────────────────── */}
+      {memberToRemove && (
+        <div
+          className="modal-overlay"
+          onClick={() => !deleteMemberMutation.isPending && setMemberToRemove(null)}
+        >
+          <div className="modal-backdrop" />
+          <div
+            className="modal-content max-w-md"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="remove-member-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="remove-member-title" className="text-lg font-bold text-slate-900">
+              להסיר את {memberToRemove.user.name} מהעסק?
+            </h2>
+            <p className="text-sm text-slate-700 mt-2">
+              {memberToRemove.user.name} ({memberToRemove.user.email}) יוסר/תוסר מהצוות של &quot;{tenant.name}&quot;
+              ויאבד/תאבד גישה לעסק. כדי להחזיר את הגישה יהיה צורך להוסיף אותו/ה מחדש.
+            </p>
+            {deleteMemberMutation.isError && (
+              <p className="text-xs text-red-600 mt-3">
+                {(deleteMemberMutation.error as Error)?.message ?? "ההסרה נכשלה"}
+              </p>
+            )}
+            <div className="flex gap-2 mt-5">
+              <button
+                onClick={() => setMemberToRemove(null)}
+                disabled={deleteMemberMutation.isPending}
+                className="btn-secondary flex-1 disabled:opacity-40"
+              >
+                ביטול
+              </button>
+              <button
+                onClick={() => deleteMemberMutation.mutate(memberToRemove.id)}
+                disabled={deleteMemberMutation.isPending}
+                className="btn-danger flex-1 disabled:opacity-40"
+              >
+                {deleteMemberMutation.isPending ? "מסיר..." : "הסר מהעסק"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );
