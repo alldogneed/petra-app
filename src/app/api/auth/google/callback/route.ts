@@ -1,7 +1,9 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { createSession, ensureUserHasBusiness } from "@/lib/auth";
+import { createSession, ensureUserHasBusiness, validateSession } from "@/lib/auth";
+import { logActivity } from "@/lib/activity-log";
+import { ENTITY_TYPES, describeDevice } from "@/lib/activity-actions";
 import { exchangeCodeForTokens, fetchGoogleProfile } from "@/lib/google-oauth";
 import { CURRENT_TOS_VERSION } from "@/lib/tos";
 import { notifyOwnerNewUser } from "@/lib/notify-owner";
@@ -117,6 +119,26 @@ export async function GET(request: NextRequest) {
     // Google OAuth always creates a 30-day persistent session (mobile-friendly).
     // Prior sessions on other devices are preserved — user can revoke them from settings.
     const { token } = await createSession(user.id, request, true);
+
+    // One LOGIN row per active business membership (cap 5) — see /api/auth/login.
+    // Device label only — no IP. Awaited so the new-device alert completes.
+    const loginSession = await validateSession(token).catch(() => null);
+    const loginBusinessIds = Array.from(new Set(
+      (loginSession?.memberships ?? []).map((m) => m.businessId)
+    )).slice(0, 5);
+    const loginCtx = {
+      entityType: ENTITY_TYPES.SESSION,
+      entityId: loginSession?.sessionId ?? null,
+      entityLabel: describeDevice(request.headers.get("user-agent")),
+    };
+    const loginUserName = user.name || profile.name || "";
+    if (loginBusinessIds.length === 0) {
+      await logActivity(user.id, loginUserName, "LOGIN", loginCtx);
+    } else {
+      await Promise.all(
+        loginBusinessIds.map((businessId) => logActivity(user.id, loginUserName, "LOGIN", { ...loginCtx, businessId }))
+      );
+    }
 
     // Check if user has accepted current ToS version
     const consent = await prisma.userConsent.findFirst({

@@ -1548,6 +1548,7 @@ function sortLeadsByPriority(leads: Lead[]): Lead[] {
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 function LeadsPageContent() {
+  const { canExportData } = usePermissions();
   const [showModal, setShowModal] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [detailsLead, setDetailsLead] = useState<Lead | null>(null);
@@ -2151,6 +2152,7 @@ function LeadsPageContent() {
             )}
 
             {/* Export */}
+            {canExportData && (
             <div className="relative" ref={exportMenuRef}>
               <button type="button" className={TOOL_BTN} onClick={() => setShowExportMenu((v) => !v)} title="ייצוא לידים">
                 <Download className="w-3.5 h-3.5" />ייצוא
@@ -2175,6 +2177,7 @@ function LeadsPageContent() {
                 </div>
               )}
             </div>
+            )}
 
             {/* Refresh controls */}
             <button

@@ -1,9 +1,10 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { logCurrentUserActivity } from "@/lib/activity-log";
+import { logActivity } from "@/lib/activity-log";
+import { ENTITY_TYPES } from "@/lib/activity-actions";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
-import { type TenantRole } from "@/lib/permissions";
+import { TENANT_PERMS, sessionHasTenantPermission } from "@/lib/permissions";
 import { sendWhatsAppMessage } from "@/lib/whatsapp";
 import { toWhatsAppPhone } from "@/lib/utils";
 import { getBusinessSettings, updateBusinessSettings, ServiceError } from "@/services/business";
@@ -34,15 +35,16 @@ export async function PATCH(request: NextRequest) {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
-    const membership = authResult.session.memberships.find(
-      (m) => m.businessId === authResult.businessId && m.isActive
-    );
-    const callerRole = (membership?.role ?? "user") as TenantRole;
-    if (callerRole !== "owner") {
+    // Owner always; anyone else only with an owner-granted SETTINGS_CRITICAL override.
+    if (!sessionHasTenantPermission(authResult.session, authResult.businessId, TENANT_PERMS.SETTINGS_CRITICAL)) {
       return NextResponse.json({ error: "רק בעלים יכול לשנות הגדרות" }, { status: 403 });
     }
 
     const body = await request.json();
+    const before = await prisma.business.findUnique({
+      where: { id: authResult.businessId },
+      select: { phone: true },
+    });
 
     let result;
     try {
@@ -71,7 +73,19 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
-    logCurrentUserActivity("UPDATE_SETTINGS");
+    // The business phone receives owner WhatsApp security alerts — a change is itself alertable.
+    if (before && updated.phone !== before.phone) {
+      await logActivity(authResult.session.user.id, authResult.session.user.name, "CHANGE_BUSINESS_PHONE", {
+        businessId: authResult.businessId,
+        entityType: ENTITY_TYPES.SETTINGS,
+        entityLabel: "טלפון העסק",
+      });
+    }
+    logActivity(authResult.session.user.id, authResult.session.user.name, "UPDATE_SETTINGS", {
+      businessId: authResult.businessId,
+      entityType: ENTITY_TYPES.SETTINGS,
+      entityLabel: "הגדרות העסק",
+    });
     return NextResponse.json(updated);
   } catch (error) {
     console.error("Failed to update settings:", error);

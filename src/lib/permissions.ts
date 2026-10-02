@@ -238,6 +238,25 @@ export function hasTenantPermission(
   return TENANT_ROLE_PERMISSIONS[role]?.includes(permission) ?? false;
 }
 
+/**
+ * Session-level check against the caller's own business, honouring the member's
+ * permissionOverrides. Mirrors requireBusinessPermission (auth-guards.ts): a
+ * platform super_admin (incl. impersonation) always passes. Use it after
+ * requireBusinessAuth when a route needs a custom 403 message or a conditional gate.
+ */
+export function sessionHasTenantPermission(
+  session: {
+    user: { platformRole?: string | null };
+    memberships: { businessId: string; role: string; permissionOverrides?: PermissionOverrides | null; isActive: boolean }[];
+  },
+  businessId: string,
+  permission: TenantPermission
+): boolean {
+  if (session.user.platformRole === PLATFORM_ROLES.SUPER_ADMIN) return true;
+  const m = session.memberships.find((x) => x.businessId === businessId && x.isActive);
+  return hasTenantPermission((m?.role ?? "user") as TenantRole, permission, m?.permissionOverrides);
+}
+
 /** Returns true if the role is a platform admin (requires 2FA) */
 export function isPlatformAdmin(role: string | null | undefined): boolean {
   return role === PLATFORM_ROLES.SUPER_ADMIN || role === PLATFORM_ROLES.ADMIN;

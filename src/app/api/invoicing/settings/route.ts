@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { TENANT_PERMS, sessionHasTenantPermission } from "@/lib/permissions";
 import { InvoicingService } from "@/lib/invoicing/invoicing-service";
 
 // GET /api/invoicing/settings — get current invoicing settings (never exposes decrypted keys)
@@ -38,6 +39,10 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
+  // Invoicing-provider credentials: owner/manager only (staff & volunteers were not blocked before).
+  if (!sessionHasTenantPermission(authResult.session, authResult.businessId, TENANT_PERMS.SETTINGS_WRITE)) {
+    return NextResponse.json({ error: "אין לך הרשאה לשנות הגדרות חשבוניות" }, { status: 403 });
+  }
 
   try {
     const body = await request.json();
@@ -85,6 +90,10 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
+  // Invoicing-provider credentials: owner/manager only (staff & volunteers were not blocked before).
+  if (!sessionHasTenantPermission(authResult.session, authResult.businessId, TENANT_PERMS.SETTINGS_WRITE)) {
+    return NextResponse.json({ error: "אין לך הרשאה לשנות הגדרות חשבוניות" }, { status: 403 });
+  }
 
   try {
     await prisma.invoicingSettings.deleteMany({

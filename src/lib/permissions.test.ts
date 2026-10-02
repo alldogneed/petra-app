@@ -61,7 +61,8 @@ describe("hasTenantPermission", () => {
 
   test("manager has most permissions", () => {
     expect(hasTenantPermission("manager", TENANT_PERMS.USERS_READ)).toBe(true);
-    expect(hasTenantPermission("manager", TENANT_PERMS.USERS_WRITE)).toBe(true);
+    // Only the owner adds/removes team members (USERS_WRITE intentionally not granted to manager)
+    expect(hasTenantPermission("manager", TENANT_PERMS.USERS_WRITE)).toBe(false);
     expect(hasTenantPermission("manager", TENANT_PERMS.ANALYTICS_READ)).toBe(true);
     expect(hasTenantPermission("manager", TENANT_PERMS.SETTINGS_WRITE)).toBe(true);
     expect(hasTenantPermission("manager", TENANT_PERMS.AUDIT_READ)).toBe(true);

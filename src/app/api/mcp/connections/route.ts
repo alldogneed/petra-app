@@ -11,6 +11,7 @@ import {
 import { isMcpAllowedUser, isMcpAllowedBusiness, isInternalTestEmail } from "@/lib/mcp-allowlist";
 import { hasFeatureWithOverrides } from "@/lib/feature-flags";
 import { normalizeTier } from "@/lib/feature-flags";
+import { hasTenantPermission, TENANT_PERMS } from "@/lib/permissions";
 
 /** GET /api/mcp/connections — list all MCP connections for the business */
 export async function GET(request: NextRequest) {
@@ -75,13 +76,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "לא נמצא" }, { status: 404 });
     }
 
-    // Only owners/managers (or platform admins) may mint tokens — a token grants
-    // API access beyond the minting user's UI permissions.
-    const membershipRole = authResult.session.memberships.find(
+    // Only owners (or platform admins) may mint tokens, plus managers the owner granted
+    // the AI_ASSISTANT capability — a token grants API access beyond the minting user's
+    // UI permissions. Staff stay blocked even with a grant.
+    const callerMembership = authResult.session.memberships.find(
       (m) => m.businessId === authResult.businessId
-    )?.role;
+    );
+    const membershipRole = callerMembership?.role;
     const isPlatformAdmin = ["super_admin", "admin"].includes(authResult.session.user.platformRole ?? "");
-    if (!isPlatformAdmin && membershipRole !== "owner" && membershipRole !== "manager") {
+    const canMint =
+      membershipRole === "owner" ||
+      (membershipRole === "manager" &&
+        hasTenantPermission("manager", TENANT_PERMS.AI_ASSISTANT, callerMembership?.permissionOverrides));
+    if (!isPlatformAdmin && !canMint) {
       return NextResponse.json({ error: "אין לך הרשאה ליצור חיבור AI" }, { status: 403 });
     }
 

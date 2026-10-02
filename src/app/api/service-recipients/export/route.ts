@@ -6,8 +6,9 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 import { rateLimit } from "@/lib/rate-limit";
-import { hasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
+import { sessionHasTenantPermission, hasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
 import * as XLSX from "xlsx";
 
 const EXPORT_RATE_LIMIT = { max: 5, windowMs: 60 * 1000 };
@@ -55,6 +56,9 @@ export async function GET(request: NextRequest) {
   try {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
+    if (!sessionHasTenantPermission(authResult.session, authResult.businessId, TENANT_PERMS.DATA_EXPORT)) {
+      return NextResponse.json({ error: "אין לך הרשאה לייצא נתונים" }, { status: 403 });
+    }
 
     const rl = rateLimit("export:recipients", authResult.businessId, EXPORT_RATE_LIMIT);
     if (!rl.allowed) {
@@ -63,7 +67,7 @@ export async function GET(request: NextRequest) {
 
     // Staff cannot export recipients
     const membership = authResult.session.memberships.find((m) => m.businessId === authResult.businessId && m.isActive);
-    if (membership && !hasTenantPermission(membership.role as TenantRole, TENANT_PERMS.RECIPIENTS_SENSITIVE)) {
+    if (membership && !hasTenantPermission(membership.role as TenantRole, TENANT_PERMS.RECIPIENTS_SENSITIVE, membership.permissionOverrides)) {
       return NextResponse.json({ error: "אין הרשאה לייצא זכאים" }, { status: 403 });
     }
 
@@ -152,6 +156,11 @@ export async function GET(request: NextRequest) {
 
     const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
     const today = new Date().toISOString().slice(0, 10);
+
+    await logActivity(authResult.session.user.id, authResult.session.user.name, ACTIVITY_ACTIONS.EXPORT_DATA, {
+      businessId: authResult.businessId,
+      entityLabel: "מקבלי שירות",
+    });
 
     return new Response(buf, {
       headers: {

@@ -1,7 +1,8 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { isGuardError, requireBusinessPermission } from "@/lib/auth-guards";
+import { TENANT_PERMS } from "@/lib/permissions";
 import { decryptStripeSecret } from "@/lib/encryption";
 import { createCheckoutSession } from "@/lib/stripe";
 
@@ -9,7 +10,7 @@ import { createCheckoutSession } from "@/lib/stripe";
 // Body: { amount, description, customerId?, appointmentId?, orderId?, currency? }
 // Returns: { sessionId, url }
 export async function POST(request: NextRequest) {
-  const authResult = await requireBusinessAuth(request);
+  const authResult = await requireBusinessPermission(request, TENANT_PERMS.PAYMENTS_WRITE);
   if (isGuardError(authResult)) return authResult;
 
   try {

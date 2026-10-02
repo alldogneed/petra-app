@@ -35,6 +35,7 @@ import { cn, formatCurrency, formatDate, toWhatsAppPhone, escapeHtml } from "@/l
 import { toast } from "sonner";
 import dynamic from "next/dynamic";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { usePermissions } from "@/hooks/usePermissions";
 const CreateOrderModal = dynamic(
   () => import("@/components/orders/CreateOrderModal").then((m) => ({ default: m.CreateOrderModal })),
   { ssr: false }
@@ -188,6 +189,7 @@ function get30DaysAgoStr() {
 }
 
 function OrdersPageContent() {
+  const { canExportData } = usePermissions();
   const [activeStatus, setActiveStatus] = useState("ALL");
   const [paymentFilter, setPaymentFilter] = useState("ALL");
   const [showNewOrder, setShowNewOrder] = useState(false);
@@ -477,6 +479,7 @@ function OrdersPageContent() {
         </div>
         <div className="flex items-center gap-2">
           {/* Export dropdown */}
+          {canExportData && (
           <div className="relative" ref={exportMenuRef}>
             <button
               className="btn-secondary gap-1.5"
@@ -506,6 +509,7 @@ function OrdersPageContent() {
               </div>
             )}
           </div>
+          )}
 
           <button className="btn-primary" onClick={() => setShowNewOrder(true)}>
             <Plus className="w-4 h-4" />

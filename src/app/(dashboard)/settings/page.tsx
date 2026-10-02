@@ -69,6 +69,7 @@ import { DesktopBanner } from "@/components/ui/DesktopBanner";
 import { PaywallCard } from "@/components/paywall/PaywallCard";
 import { McpConnectionsTab } from "@/components/settings/McpConnectionsTab";
 import { WhatsAppConnectCard } from "@/components/settings/WhatsAppConnectCard";
+import { usePermissions } from "@/hooks/usePermissions";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -2442,6 +2443,7 @@ function fmtFileSize(bytes: number | null): string {
 
 function DataTab() {
   const queryClient = useQueryClient();
+  const { canExportData } = usePermissions();
 
   // Export state (async job system)
   const [exportType, setExportType] = useState<"customers" | "dogs" | "customers_dogs">("customers");
@@ -2564,6 +2566,7 @@ function DataTab() {
   return (
     <div className="space-y-8 max-w-4xl">
       {/* ── Export Section ── */}
+      {canExportData && (
       <div>
         <div className="flex items-center gap-2 mb-4">
           <Download className="w-5 h-5 text-brand-500" />
@@ -2700,6 +2703,7 @@ function DataTab() {
           </div>
         </div>
       </div>
+      )}
 
       {/* ── Import Section ── */}
       <div className="card p-6">
@@ -4438,7 +4442,7 @@ export default function SettingsPage() {
   const { isFree, isBasic, isGroomer, can } = usePlan();
   const invoicingParam = searchParams.get("tab");
   const [activeTab, setActiveTab] = useState<"business" | "booking" | "boarding" | "team" | "payments" | "integrations" | "data" | "messages" | "service-dogs" | "security" | "ai-agents">(
-    gcalParam ? "integrations" : invoicingParam === "booking" ? "booking" : invoicingParam === "boarding" ? "boarding" : invoicingParam === "payments" ? "payments" : invoicingParam === "messages" ? "messages" : invoicingParam === "data" ? "data" : invoicingParam === "security" ? "security" : invoicingParam === "ai-agents" ? "ai-agents" : "business"
+    gcalParam ? "integrations" : invoicingParam === "booking" ? "booking" : invoicingParam === "boarding" ? "boarding" : invoicingParam === "payments" ? "payments" : invoicingParam === "messages" ? "messages" : invoicingParam === "data" ? "data" : invoicingParam === "security" ? "security" : invoicingParam === "ai-agents" ? "ai-agents" : invoicingParam === "integrations" ? "integrations" : "business"
   );
 
   // Tabs locked per tier

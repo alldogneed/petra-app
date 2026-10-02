@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { sessionHasTenantPermission, TENANT_PERMS } from "@/lib/permissions";
 import { interpolateTemplate } from "@/lib/whatsapp";
 import { sendWithTemplateChain, chainFromPayload, contextForScheduledMessage } from "@/lib/whatsapp-template-chain";
 import { toWhatsAppPhone } from "@/lib/utils";
@@ -14,6 +15,9 @@ export async function POST(
 ) {
   const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
+  if (!sessionHasTenantPermission(authResult.session, authResult.businessId, TENANT_PERMS.MESSAGES_SEND)) {
+    return NextResponse.json({ error: "אין לך הרשאה לשלוח הודעות ללקוחות" }, { status: 403 });
+  }
 
   try {
     const msg = await prisma.scheduledMessage.findFirst({

@@ -4,8 +4,9 @@ import { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { sessionHasTenantPermission, TENANT_PERMS } from "@/lib/permissions";
+import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 import { rateLimit } from "@/lib/rate-limit";
-// @ts-ignore
 import * as XLSX from "xlsx";
 
 const EXPORT_RATE_LIMIT = { max: 5, windowMs: 60 * 1000 };
@@ -14,6 +15,9 @@ export async function GET(request: NextRequest) {
   try {
   const auth = await requireBusinessAuth(request);
   if (isGuardError(auth)) return auth;
+  if (!sessionHasTenantPermission(auth.session, auth.businessId, TENANT_PERMS.DATA_EXPORT)) {
+    return NextResponse.json({ error: "אין לך הרשאה לייצא נתונים" }, { status: 403 });
+  }
 
   const rl = rateLimit("export:pets", auth.businessId, EXPORT_RATE_LIMIT);
   if (!rl.allowed) {
@@ -100,6 +104,11 @@ export async function GET(request: NextRequest) {
   XLSX.utils.book_append_sheet(wb, ws, "חיות מחמד");
 
   const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
+
+  await logActivity(auth.session.user.id, auth.session.user.name, ACTIVITY_ACTIONS.EXPORT_DATA, {
+    businessId: auth.businessId,
+    entityLabel: "חיות מחמד",
+  });
 
   return new Response(new Uint8Array(buf), {
     headers: {

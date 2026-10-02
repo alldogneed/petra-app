@@ -1658,6 +1658,7 @@ function getDaysUntilExpiry(expiresAt: string): number {
 
 function SendContractSection({ customerId, customerName, pets }: { customerId: string; customerName: string; pets: { id: string; name: string }[] }) {
   const queryClient = useQueryClient();
+  const { canSendMessages } = usePermissions();
   const [showModal, setShowModal] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [selectedPetId, setSelectedPetId] = useState("");
@@ -1748,6 +1749,7 @@ function SendContractSection({ customerId, customerName, pets }: { customerId: s
           <PenLine className="w-4 h-4 text-petra-muted" />
           חוזים ({requests.length})
         </h2>
+        {canSendMessages && (
         <button
           onClick={() => setShowModal(true)}
           className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl btn-ghost text-petra-muted"
@@ -1757,6 +1759,7 @@ function SendContractSection({ customerId, customerName, pets }: { customerId: s
           <Send className="w-3.5 h-3.5" />
           שלח לחתימה
         </button>
+        )}
       </div>
 
       {requests.length === 0 ? (
@@ -1790,7 +1793,7 @@ function SendContractSection({ customerId, customerName, pets }: { customerId: s
                     העתק קישור
                   </button>
                 )}
-                {(effective === "PENDING" || effective === "VIEWED") && (
+                {canSendMessages && (effective === "PENDING" || effective === "VIEWED") && (
                   <button
                     type="button"
                     className="text-xs text-blue-600 hover:text-blue-800 px-2 py-0.5 rounded hover:bg-blue-50 transition-colors flex items-center gap-1 flex-shrink-0"
@@ -1802,7 +1805,7 @@ function SendContractSection({ customerId, customerName, pets }: { customerId: s
                     תזכורת
                   </button>
                 )}
-                {effective === "EXPIRED" && (
+                {canSendMessages && effective === "EXPIRED" && (
                   <button
                     type="button"
                     className="text-xs text-amber-600 hover:text-amber-800 px-2 py-0.5 rounded hover:bg-amber-50 transition-colors flex items-center gap-1 flex-shrink-0"
@@ -4807,7 +4810,7 @@ export default function CustomerProfilePage() {
                         >
                           {getStatusLabel(apt.status)}
                         </span>
-                        {apt.status === "scheduled" && customer.phone && can("whatsapp_reminders") && (
+                        {apt.status === "scheduled" && customer.phone && can("whatsapp_reminders") && perms.canSendMessages && (
                           <button
                             className="w-6 h-6 flex items-center justify-center rounded-full bg-green-50 hover:bg-green-100 text-green-600 transition-colors flex-shrink-0"
                             title="שלח תזכורת WhatsApp"

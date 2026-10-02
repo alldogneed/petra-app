@@ -27,6 +27,7 @@ import { cn, formatCurrency, formatDate, fetchJSON } from "@/lib/utils";
 import { INVOICE_DOCUMENT_TYPES, INVOICE_STATUSES, VAT_RATE } from "@/lib/constants";
 import { isVatExempt } from "@/lib/legal-entity";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { usePermissions } from "@/hooks/usePermissions";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -325,6 +326,7 @@ function CreateInvoiceModal({
 
 function InvoicesPageContent() {
   const queryClient = useQueryClient();
+  const { canWritePayments } = usePermissions();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [docTypeFilter, setDocTypeFilter] = useState<string>("all");
   const [showCreate, setShowCreate] = useState(false);
@@ -542,7 +544,7 @@ function InvoicesPageContent() {
                         )}
 
                         {/* Issue draft / re-issue failed */}
-                        {(doc.status === "draft" || doc.status === "failed") && (
+                        {canWritePayments && (doc.status === "draft" || doc.status === "failed") && (
                           <button
                             className="p-1.5 rounded-lg hover:bg-emerald-50 text-petra-muted hover:text-emerald-600 transition-colors"
                             onClick={() => issueMutation.mutate(doc.id)}
@@ -560,7 +562,7 @@ function InvoicesPageContent() {
                         )}
 
                         {/* Create credit note */}
-                        {doc.status === "issued" && doc.docType !== 330 && !doc.originalInvoiceId && (
+                        {canWritePayments && doc.status === "issued" && doc.docType !== 330 && !doc.originalInvoiceId && (
                           <button
                             className="p-1.5 rounded-lg hover:bg-red-50 text-petra-muted hover:text-red-500 transition-colors"
                             onClick={() => setConfirmAction({ type: "credit", doc })}

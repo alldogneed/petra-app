@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { type TenantRole } from "@/lib/permissions";
+import { actionLabel } from "@/lib/activity-actions";
 
 const ACTION_LABELS: Record<string, string> = {
   LOGIN: "התחברות למערכת",
@@ -69,7 +70,14 @@ export async function GET(request: NextRequest) {
 
     const [activityLogs, scheduledMessages] = await Promise.all([
       prisma.activityLog.findMany({
-        where: { createdAt: { gte: since }, userId: { in: businessUserIds } },
+        // Rows of this business, plus legacy rows (no businessId) by its members.
+        where: {
+          createdAt: { gte: since },
+          OR: [
+            { businessId },
+            { businessId: null, userId: { in: businessUserIds } },
+          ],
+        },
         orderBy: { createdAt: "desc" },
         take: 30,
       }),
@@ -91,7 +99,7 @@ export async function GET(request: NextRequest) {
         type: "activity" as const,
         userName: log.userName,
         action: log.action,
-        description: ACTION_LABELS[log.action] || log.action,
+        description: ACTION_LABELS[log.action] || actionLabel(log.action),
         createdAt: log.createdAt.toISOString(),
       })),
       ...scheduledMessages.map((msg) => ({

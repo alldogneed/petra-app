@@ -5,6 +5,25 @@ import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { prisma } from "@/lib/prisma";
 import { hasTenantPermission, TENANT_PERMS } from "@/lib/permissions";
 import { deletePet } from "@/services/pets";
+import { deleteLead } from "@/services/clients";
+import { deleteServiceDog, deleteRecipient } from "@/services/service-dogs";
+import { cancelLeadFollowup } from "@/lib/reminder-service";
+import { logActivity } from "@/lib/activity-log";
+import { ENTITY_TYPES } from "@/lib/activity-actions";
+
+/** Approved delete actions → the activity-log entity they removed. */
+const APPROVAL_DELETE_ENTITIES: Record<string, { entityType: string; idKey: string; labelKey?: string }> = {
+  DELETE_CUSTOMER: { entityType: ENTITY_TYPES.CUSTOMER, idKey: "customerId", labelKey: "customerName" },
+  DELETE_PET: { entityType: ENTITY_TYPES.PET, idKey: "petId", labelKey: "petName" },
+  DELETE_TRAINING: { entityType: ENTITY_TYPES.TRAINING, idKey: "trainingProgramId", labelKey: "programName" },
+  DELETE_APPOINTMENT: { entityType: ENTITY_TYPES.APPOINTMENT, idKey: "appointmentId" },
+  DELETE_LEAD: { entityType: ENTITY_TYPES.LEAD, idKey: "leadId", labelKey: "leadName" },
+  // Service dog = Pet row + profile; only the profile is deleted. Older approvals
+  // have no petId in the payload → entityId null, label still recorded.
+  DELETE_SERVICE_DOG: { entityType: ENTITY_TYPES.PET, idKey: "petId", labelKey: "dogName" },
+  // No RECIPIENT entity type → no entityType, label only.
+  DELETE_RECIPIENT: { entityType: "", idKey: "recipientId", labelKey: "recipientName" },
+};
 
 /**
  * PATCH /api/pending-approvals/[id]
@@ -87,6 +106,19 @@ export async function PATCH(
     },
   });
 
+  // The approving owner performed the delete — log it (awaited: sensitive action).
+  const deleteEntity = APPROVAL_DELETE_ENTITIES[approval.action];
+  if (deleteEntity) {
+    const entityId = payload?.[deleteEntity.idKey];
+    const label = deleteEntity.labelKey ? payload?.[deleteEntity.labelKey] : undefined;
+    await logActivity(session.user.id, session.user.name, approval.action, {
+      businessId,
+      entityType: deleteEntity.entityType || null,
+      entityId: typeof entityId === "string" ? entityId : null,
+      entityLabel: typeof label === "string" ? label : approval.description,
+    });
+  }
+
   return NextResponse.json({ success: true, status: "APPROVED" });
 }
 
@@ -136,6 +168,14 @@ export async function DELETE(
 //    The default branch throws, preventing rogue/injected actions from executing.
 //    Never remove the default throw — it is the security boundary.
 
+/** A required id from the approval payload. A missing id must never reach a
+ *  `where: { x: undefined }` filter — Prisma drops it and the query hits every row. */
+function payloadId(payload: Record<string, unknown>, key: string): string {
+  const v = payload?.[key];
+  if (typeof v !== "string" || v.length === 0) throw new Error(`Missing ${key} in approval payload`);
+  return v;
+}
+
 async function executeApprovedAction(
   action: string,
   payload: Record<string, unknown>,
@@ -143,7 +183,10 @@ async function executeApprovedAction(
 ) {
   switch (action) {
     case "DELETE_CUSTOMER": {
-      const cid = payload.customerId as string;
+      const cid = payloadId(payload, "customerId");
+      // The cascade below is keyed by customerId only — verify ownership first.
+      const owned = await prisma.customer.findFirst({ where: { id: cid, businessId }, select: { id: true } });
+      if (!owned) throw new Error("Customer not found in this business");
       // Full cascading cleanup (must match /api/customers/[id] DELETE logic)
       await prisma.invoiceDocument.updateMany({ where: { customerId: cid }, data: { originalInvoiceId: null } });
       await prisma.invoiceDocument.deleteMany({ where: { customerId: cid } });
@@ -171,7 +214,7 @@ async function executeApprovedAction(
       break;
     }
     case "DELETE_PET": {
-      const id = payload.petId as string;
+      const id = payloadId(payload, "petId");
       // deletePet verifies ownership and runs the full sequential FK cleanup
       // (appointments, boarding, bookings, training, service-dog records)
       // before deleting — a bare prisma.pet.delete fails with a P2003
@@ -180,17 +223,38 @@ async function executeApprovedAction(
       break;
     }
     case "DELETE_TRAINING": {
-      const id = payload.trainingProgramId as string;
+      const id = payloadId(payload, "trainingProgramId");
       await prisma.trainingProgram.delete({ where: { id, businessId } });
       break;
     }
     case "DELETE_APPOINTMENT": {
-      const id = payload.appointmentId as string;
+      const id = payloadId(payload, "appointmentId");
       await prisma.appointment.delete({ where: { id, businessId } });
       break;
     }
+    case "DELETE_LEAD": {
+      const id = payloadId(payload, "leadId");
+      // Same service as the owner path in /api/leads/[id] DELETE (scoped by businessId,
+      // also clears the lead's tasks).
+      await deleteLead(businessId, prisma, id);
+      await cancelLeadFollowup(id).catch((err) =>
+        console.error("cancelLeadFollowup (approved delete) failed (non-critical):", err)
+      );
+      break;
+    }
+    case "DELETE_SERVICE_DOG": {
+      const id = payloadId(payload, "serviceDogId");
+      await deleteServiceDog(businessId, prisma, id);
+      break;
+    }
+    case "DELETE_RECIPIENT": {
+      const id = payloadId(payload, "recipientId");
+      await deleteRecipient(businessId, prisma, id);
+      break;
+    }
     case "EDIT_PRICING": {
-      const { itemId, ...raw } = payload as { itemId: string; [k: string]: unknown };
+      const itemId = payloadId(payload, "itemId");
+      const { itemId: _itemId, ...raw } = payload as { itemId: string; [k: string]: unknown };
       // Allowlist fields to prevent mass assignment
       const ALLOWED_PRICING_FIELDS = ["name", "basePrice", "description", "duration", "isActive", "maxParticipants", "serviceId"] as const;
       const pricingData: Record<string, unknown> = {};

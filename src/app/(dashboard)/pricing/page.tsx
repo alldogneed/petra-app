@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import { usePlan } from "@/hooks/usePlan";
 import { getMaxPriceItems } from "@/lib/feature-flags";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { usePermissions } from "@/hooks/usePermissions";
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -422,6 +423,7 @@ function ItemRow({
   canMoveUp,
   canMoveDown,
   isVatExempt,
+  readOnly = false,
 }: {
   item: PriceListItem;
   onEdit: () => void;
@@ -433,6 +435,8 @@ function ItemRow({
   canMoveUp?: boolean;
   canMoveDown?: boolean;
   isVatExempt?: boolean;
+  /** No PRICING_WRITE — hide all mutation buttons (server returns 403 anyway) */
+  readOnly?: boolean;
 }) {
   return (
     <div
@@ -507,6 +511,7 @@ function ItemRow({
         {/* Push action buttons to the left */}
         <div className="flex-1" />
 
+        {!readOnly && (
         <div className="flex items-center gap-0.5">
           {onMoveUp && (
             <button
@@ -567,6 +572,7 @@ function ItemRow({
             <Trash2 className="w-3.5 h-3.5" />
           </button>
         </div>
+        )}
       </div>
     </div>
   );
@@ -576,6 +582,7 @@ function ItemRow({
 
 function PricingPageContent() {
   const { isFree, tier } = usePlan();
+  const { canEditPricing } = usePermissions();
   const maxPriceItems = getMaxPriceItems(tier);
   const queryClient = useQueryClient();
   const [showAddItem, setShowAddItem] = useState(false);
@@ -807,7 +814,7 @@ function PricingPageContent() {
             ניהול שירותים ומוצרים לפי קטגוריות
           </p>
         </div>
-        {priceList && (
+        {priceList && canEditPricing && (
           isFree && maxPriceItems !== null && activeItems.length >= maxPriceItems ? (
             <a href="/upgrade" className="btn-primary gap-2 bg-amber-500 hover:bg-amber-600 border-amber-500">
               <Sparkles className="w-4 h-4" />
@@ -870,6 +877,7 @@ function PricingPageContent() {
           <p className="text-sm text-petra-muted mt-1 max-w-xs text-center">
             צור מחירון ראשי כדי להתחיל להגדיר שירותים ומוצרים
           </p>
+          {canEditPricing && (
           <button
             type="button"
             onClick={() => createDefaultMutation.mutate()}
@@ -883,6 +891,7 @@ function PricingPageContent() {
             )}
             צור מחירון ראשי
           </button>
+          )}
         </div>
       ) : items.length === 0 ? (
         /* Price list exists but no items */
@@ -895,6 +904,7 @@ function PricingPageContent() {
             <p className="text-xs text-petra-muted mt-1 max-w-xs text-center">
               הוסף שירותים ומוצרים לפי קטגוריות (פנסיון, אילוף, טיפוח, מוצרים)
             </p>
+            {canEditPricing && (
             <button
               type="button"
               onClick={() => setShowAddItem(true)}
@@ -903,6 +913,7 @@ function PricingPageContent() {
               <Plus className="w-4 h-4" />
               הוסף פריט ראשון
             </button>
+            )}
           </div>
         </div>
       ) : (
@@ -923,6 +934,7 @@ function PricingPageContent() {
                   key={item.id}
                   item={item}
                   isVatExempt={isVatExempt}
+                  readOnly={!canEditPricing}
                   onEdit={() => setEditItem(item)}
                   onDuplicate={() => duplicateMutation.mutate(item)}
                   onToggle={() =>
@@ -952,6 +964,7 @@ function PricingPageContent() {
                   key={item.id}
                   item={item}
                   isVatExempt={isVatExempt}
+                  readOnly={!canEditPricing}
                   onEdit={() => setEditItem(item)}
                   onDuplicate={() => duplicateMutation.mutate(item)}
                   onToggle={() =>

@@ -21,6 +21,7 @@ import {
 import { cn, fetchJSON, formatDate } from "@/lib/utils";
 import { toast } from "sonner";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface ScheduledMessage {
   id: string;
@@ -124,6 +125,7 @@ function formatSendAt(dateStr: string): { date: string; time: string } {
 }
 
 export default function ScheduledMessagesPage() {
+  const { canSendMessages } = usePermissions();
   const [activeStatus, setActiveStatus] = useState("ALL");
   const [activeChannel, setActiveChannel] = useState("ALL");
   const [page, setPage] = useState(1);
@@ -456,7 +458,7 @@ export default function ScheduledMessagesPage() {
                       {/* Actions */}
                       <td className="table-cell">
                         <div className="flex items-center gap-1.5">
-                          {(msg.status === "PENDING" || msg.status === "FAILED") && (
+                          {canSendMessages && (msg.status === "PENDING" || msg.status === "FAILED") && (
                             <button
                               onClick={() => sendNowMutation.mutate(msg.id)}
                               disabled={sendNowMutation.isPending}

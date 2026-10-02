@@ -1,7 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { logCurrentUserActivity } from "@/lib/activity-log";
+import { logActivity } from "@/lib/activity-log";
+import { ENTITY_TYPES } from "@/lib/activity-actions";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { scheduleBoardingCheckoutReminder } from "@/lib/reminder-service";
@@ -57,7 +58,12 @@ export async function POST(request: NextRequest) {
       throw e;
     }
 
-    logCurrentUserActivity("CREATE_BOARDING_STAY");
+    logActivity(authResult.session.user.id, authResult.session.user.name, "CREATE_BOARDING_STAY", {
+      businessId: authResult.businessId,
+      entityType: ENTITY_TYPES.BOARDING,
+      entityId: stay.id,
+      entityLabel: stay.pet?.name ?? null,
+    });
 
     // WhatsApp booking confirmation (PRO+ only, fire-and-forget).
     // Sends only when ALL hold: the business tier allows it, the master

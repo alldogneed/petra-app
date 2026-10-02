@@ -7,12 +7,24 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenantPermission, isGuardError } from "@/lib/auth-guards";
 import { prisma } from "@/lib/prisma";
-import { TENANT_PERMS, CRITICAL_CAPABILITIES } from "@/lib/permissions";
+import { TENANT_PERMS, CRITICAL_CAPABILITIES, parsePermissionOverrides } from "@/lib/permissions";
 import { canModifyTenantRole, type TenantRole } from "@/lib/permissions";
 import { logAudit, getRequestContext, AUDIT_ACTIONS } from "@/lib/audit";
+import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
+import { ENTITY_TYPES } from "@/lib/activity-actions";
 import { z } from "zod";
+import { invalidateUserSessionCache } from "@/lib/session";
 
 const CAPABILITY_KEYS = CRITICAL_CAPABILITIES.map((c) => c.key) as [string, ...string[]];
+
+/** Order-insensitive comparison of two permissionOverrides maps. */
+function sameOverrides(a: unknown, b: unknown): boolean {
+  const norm = (v: unknown) => {
+    const obj = v && typeof v === "object" ? (v as Record<string, unknown>) : {};
+    return JSON.stringify(Object.keys(obj).sort().map((k) => [k, obj[k]]));
+  };
+  return norm(a) === norm(b);
+}
 
 const PatchMemberSchema = z.object({
   role: z.enum(["owner", "manager", "user"]).optional(),
@@ -44,6 +56,7 @@ export async function PATCH(
 
   const targetMember = await prisma.businessUser.findFirst({
     where: { id: params.memberId, businessId: params.businessId },
+    include: { user: { select: { name: true } } },
   });
 
   if (!targetMember) {
@@ -113,6 +126,49 @@ export async function PATCH(
       previous: { role: targetMember.role, isActive: targetMember.isActive },
     },
   });
+
+  // Activity log (ניהול ובקרה) — one row per kind of change, awaited (sensitive).
+  // businessId comes from the guard-verified membership, not the URL.
+  const activityActions: string[] = [];
+  if (body.role !== undefined && body.role !== targetMember.role) {
+    activityActions.push(ACTIVITY_ACTIONS.UPDATE_MEMBER_ROLE);
+  }
+  if (permissionOverrides !== undefined && !sameOverrides(permissionOverrides, targetMember.permissionOverrides)) {
+    activityActions.push(ACTIVITY_ACTIONS.UPDATE_MEMBER_PERMISSIONS);
+  }
+  if (body.isActive !== undefined && body.isActive !== targetMember.isActive) {
+    activityActions.push(body.isActive ? ACTIVITY_ACTIONS.ACTIVATE_MEMBER : ACTIVITY_ACTIONS.DEACTIVATE_MEMBER);
+  }
+  for (const activityAction of activityActions) {
+    await logActivity(session.user.id, session.user.name, activityAction, {
+      businessId: actorMembership.businessId,
+      entityType: ENTITY_TYPES.MEMBER,
+      entityId: targetMember.userId,
+      entityLabel: targetMember.user?.name ?? null,
+    });
+  }
+
+  // Role/permission/active changes must apply on the member's next request, not
+  // after the 30s session cache expires (cross-instance lag stays ≤30s).
+  invalidateUserSessionCache(targetMember.userId);
+
+  // AI access follows the member's current standing: when this change leaves them
+  // without it (deactivated, demoted below manager, or AI_ASSISTANT switched off),
+  // revoke the AI connections they minted for this business right away instead of
+  // waiting for token expiry. Owners keep theirs.
+  if (activityActions.length > 0 && updated.role !== "owner") {
+    const overrides = parsePermissionOverrides(updated.permissionOverrides);
+    const keepsAi =
+      updated.isActive &&
+      updated.role === "manager" &&
+      overrides[TENANT_PERMS.AI_ASSISTANT] !== false;
+    if (!keepsAi) {
+      await prisma.mcpConnection.updateMany({
+        where: { businessId: actorMembership.businessId, createdByUserId: targetMember.userId, revokedAt: null },
+        data: { revokedAt: new Date(), refreshTokenHash: null, prevRefreshTokenHash: null },
+      });
+    }
+  }
 
   return NextResponse.json(updated);
 }

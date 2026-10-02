@@ -175,11 +175,19 @@ model ActivityLog {
   userName  String   // Denormalized for live feed display
   action    String   // "LOGIN", "CREATE_CUSTOMER", "ADD_PET", etc.
   createdAt DateTime @default(now())
+  // Business the action happened in (null on legacy rows written before 2026-10)
+  businessId  String?
+  // What was acted on — internal business data, shown only to that business's owner
+  entityType  String?  // "CUSTOMER" | "PET" | "APPOINTMENT" | "LEAD" | "TASK" | "ORDER" | "PAYMENT" | "BOARDING" | "SESSION" ...
+  entityId    String?
+  entityLabel String?  // short display label (customer/pet name, device), max 120 chars
 
   user PlatformUser @relation("ActivityLogs", fields: [userId], references: [id])
 
   @@index([createdAt])
   @@index([userId, createdAt])
+  @@index([businessId, createdAt])
+  @@index([businessId, action, createdAt])
 }
 
 /// Platform-level feature flags and system settings
@@ -246,6 +254,8 @@ model Business {
   webhookApiKeyCreatedAt DateTime?
   sdSettings    Json?   // service-dog settings: { trackHours, defaultTargetHours, allowManualCert }
   whatsappRemindersEnabled  Boolean @default(false)
+  // Owner security alerts for sensitive actions — see src/lib/security-alerts.ts (null = defaults)
+  securityAlertPrefs        Json?
   whatsappReminderLeadHours Int     @default(48)
   googleContactsSync        Boolean @default(false) // sync leads to Google Contacts
   cancellationPolicy   String?  // shown in booking wizard confirm step

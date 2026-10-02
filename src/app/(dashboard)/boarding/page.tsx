@@ -59,6 +59,7 @@ import { cn, fetchJSON, toWhatsAppPhone } from "@/lib/utils";
 import { BoardingTabs } from "@/components/boarding/BoardingTabs";
 import { toast } from "sonner";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { usePermissions } from "@/hooks/usePermissions";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -2104,6 +2105,7 @@ function CareLogModal({ stayId, petName, onClose }: { stayId: string; petName: s
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 function BoardingPageContent() {
+  const { canExportData, canManageBoarding } = usePermissions();
   const [showNewStay, setShowNewStay] = useState(false);
   const [careLogStay, setCareLogStay] = useState<{ id: string; petName: string } | null>(null);
   const [form, setForm] = useState({
@@ -2900,6 +2902,7 @@ function BoardingPageContent() {
               </a>
             );
           })()}
+          {canExportData && (
           <a
             href="/api/boarding/export"
             download
@@ -2909,9 +2912,12 @@ function BoardingPageContent() {
             <ClipboardList className="w-4 h-4" />
             ייצוא יומי
           </a>
+          )}
+          {canManageBoarding && (
           <button className="btn-secondary" onClick={() => setShowRoomsManager(true)}>
             <Settings2 className="w-4 h-4" />ניהול חדרים
           </button>
+          )}
 <button className="btn-primary" onClick={() => { setForm((f) => ({ ...f, pricePerNight: settings.boardingPricePerNight || 150, checkInTime: settings.boardingCheckInTime || "14:00", checkOutTime: settings.boardingCheckOutTime || "11:00" })); setShowNewStay(true); }}>
             <Plus className="w-4 h-4" />שהייה חדשה
           </button>
@@ -3191,9 +3197,11 @@ function BoardingPageContent() {
                   <Hotel className="w-6 h-6 text-slate-400" />
                 </div>
                 <p className="text-sm text-petra-muted mb-3">אין חדרים מוגדרים במערכת</p>
+                {canManageBoarding && (
                 <button className="btn-primary mx-auto" onClick={() => setShowRoomsManager(true)}>
                   <Plus className="w-4 h-4" />הוסף חדר ראשון
                 </button>
+                )}
               </div>
             ) : (
               <>

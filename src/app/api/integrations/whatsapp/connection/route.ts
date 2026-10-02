@@ -6,6 +6,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { hasFeatureWithOverrides } from "@/lib/feature-flags";
 import { isInternalTestEmail } from "@/lib/mcp-allowlist";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
+import { ENTITY_TYPES } from "@/lib/activity-actions";
 import {
   getWhatsAppConnectionStatus,
   connectWhatsAppBusiness,
@@ -140,7 +141,11 @@ export async function POST(request: NextRequest) {
       return libErrorResponse(err, "חיבור WhatsApp נכשל. נסה שוב מאוחר יותר.");
     }
 
-    await logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.CONNECT_WHATSAPP);
+    await logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.CONNECT_WHATSAPP, {
+      businessId,
+      entityType: ENTITY_TYPES.SETTINGS,
+      entityLabel: "WhatsApp",
+    });
 
     return NextResponse.json(status, { status: 201 });
   } catch (error) {
@@ -166,7 +171,11 @@ export async function DELETE(request: NextRequest) {
       return libErrorResponse(err, "ניתוק WhatsApp נכשל. נסה שוב מאוחר יותר.");
     }
 
-    await logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.DISCONNECT_WHATSAPP);
+    await logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.DISCONNECT_WHATSAPP, {
+      businessId,
+      entityType: ENTITY_TYPES.SETTINGS,
+      entityLabel: "WhatsApp",
+    });
 
     return NextResponse.json({ ok: true });
   } catch (error) {

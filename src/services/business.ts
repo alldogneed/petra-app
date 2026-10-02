@@ -31,6 +31,18 @@ import { computeOutstandingBalances } from "@/lib/outstanding-balances";
 import { israelDayStart, lastMonthKeys, pct, pctChange, prevYearMonthKey } from "@/lib/report-dates";
 import { buildLeadSourceRows } from "@/lib/sales-report";
 import type { DbClient } from "./supabase";
+import type { Prisma } from "@prisma/client";
+import {
+  israelOverviewBoundaries,
+  keysetAfter,
+  paginate,
+  cleanText,
+  ACTIVITY_PAGE_MAX,
+  ACTIVITY_EXPORT_MAX_ROWS,
+  AI_ACTIVITY_WINDOW_DAYS,
+  type ActivityQuery,
+  type AiActivityQuery,
+} from "@/lib/business-admin-activity";
 import { ServiceError } from "./types";
 import { validateIsraeliPhone, validateEmail } from "@/lib/validation";
 import { VALID_LEGAL_ENTITY_TYPES } from "@/lib/legal-entity";
@@ -1008,32 +1020,54 @@ export async function getAnalytics(
 
 // ─── Business Admin ────────────────────────────────────────────────────────
 
-export async function getBusinessOverview(businessId: string, db: DbClient) {
+/** Fields of an ActivityLog row returned to the business owner (no extra columns). */
+const ACTIVITY_SELECT = {
+  id: true,
+  userId: true,
+  userName: true,
+  action: true,
+  createdAt: true,
+  entityType: true,
+  entityId: true,
+  entityLabel: true,
+} as const;
+
+/**
+ * Tenant rule for ActivityLog: rows written for this business, plus legacy rows
+ * (businessId IS NULL, written before 2026-10) by users who are members of it.
+ */
+async function activityTenantWhere(businessId: string, db: DbClient) {
   const businessUsers = await db.businessUser.findMany({
     where: { businessId },
     select: { userId: true },
   });
-  const userIds = businessUsers.map((bu) => bu.userId);
+  const memberIds = businessUsers.map((bu) => bu.userId);
+  const where: Prisma.ActivityLogWhereInput = {
+    OR: [{ businessId }, { businessId: null, userId: { in: memberIds } }],
+  };
+  return { where, memberIds };
+}
 
-  const now = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const todayEnd = new Date(todayStart.getTime() + 86400000);
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+export async function getBusinessOverview(businessId: string, db: DbClient) {
+  // Israel-time boundaries (server runs in UTC on Vercel) — see business-admin-activity.ts
+  const { apptDayStart, apptDayEnd, monthStart } = israelOverviewBoundaries();
+  const { where: activityWhere } = await activityTenantWhere(businessId, db);
 
   const [teamCount, customerCount, todayAppts, monthlyRevenue, recentActivity] = await Promise.all([
     db.businessUser.count({ where: { businessId, isActive: true } }),
     db.customer.count({ where: { businessId } }),
     db.appointment.count({
-      where: { businessId, date: { gte: todayStart, lt: todayEnd }, status: { notIn: ["canceled", "cancelled"] } },
+      where: { businessId, date: { gte: apptDayStart, lt: apptDayEnd }, status: { notIn: ["canceled", "cancelled"] } },
     }),
     db.payment.aggregate({
       where: { businessId, paidAt: { gte: monthStart }, status: "paid" },
       _sum: { amount: true },
     }),
     db.activityLog.findMany({
-      where: { userId: { in: userIds } },
-      orderBy: { createdAt: "desc" },
+      where: activityWhere,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: 15,
+      select: ACTIVITY_SELECT,
     }),
   ]);
 
@@ -1046,33 +1080,145 @@ export async function getBusinessOverview(businessId: string, db: DbClient) {
   };
 }
 
-export async function getBusinessActivity(
+/** Build the filtered ActivityLog where clause; null = filter can match nothing. */
+async function buildActivityWhere(
   businessId: string,
   db: DbClient,
-  opts: { userId?: string | null; action?: string | null; take?: number } = {}
-) {
-  const { userId: filterUserId, action: filterAction, take = 50 } = opts;
-  const clampedTake = Math.min(take, 100);
+  filters: ActivityQuery
+): Promise<Prisma.ActivityLogWhereInput | null> {
+  const { where: tenant, memberIds } = await activityTenantWhere(businessId, db);
+  // A userId that isn't a member of this business matches nothing.
+  if (filters.userId && !memberIds.includes(filters.userId)) return null;
 
-  const businessUsers = await db.businessUser.findMany({
-    where: { businessId },
-    select: { userId: true },
+  const and: Prisma.ActivityLogWhereInput[] = [tenant];
+  if (filters.userId) and.push({ userId: filters.userId });
+  if (filters.action) and.push({ action: filters.action });
+  if (filters.gte || filters.lt) {
+    and.push({ createdAt: { ...(filters.gte ? { gte: filters.gte } : {}), ...(filters.lt ? { lt: filters.lt } : {}) } });
+  }
+  if (filters.q) {
+    and.push({
+      OR: [
+        { userName: { contains: filters.q, mode: "insensitive" } },
+        { entityLabel: { contains: filters.q, mode: "insensitive" } },
+      ],
+    });
+  }
+  return { AND: and };
+}
+
+/**
+ * Activity log page for the business owner — keyset pagination on
+ * (createdAt desc, id desc). Filters are pre-validated by parseActivityQuery().
+ */
+export async function getBusinessActivity(businessId: string, db: DbClient, filters: ActivityQuery) {
+  const where = await buildActivityWhere(businessId, db, filters);
+  if (!where) return { items: [], nextCursor: null as string | null };
+  const take = Math.min(Math.max(filters.take, 1), ACTIVITY_PAGE_MAX);
+  const rows = await db.activityLog.findMany({
+    where: filters.cursor ? { AND: [where, keysetAfter(filters.cursor)] } : where,
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: take + 1,
+    select: ACTIVITY_SELECT,
   });
-  const bizUserIds = businessUsers.map((bu) => bu.userId);
+  return paginate(rows, take);
+}
 
-  const resolvedUserId =
-    filterUserId && bizUserIds.includes(filterUserId) ? filterUserId : undefined;
-
-  const where: Record<string, unknown> = {
-    userId: resolvedUserId ? resolvedUserId : { in: bizUserIds },
-  };
-  if (filterAction) where.action = filterAction;
-
+/** All activity rows matching the filters (cursor/take ignored), capped at ACTIVITY_EXPORT_MAX_ROWS. */
+export async function getBusinessActivityForExport(businessId: string, db: DbClient, filters: ActivityQuery) {
+  const where = await buildActivityWhere(businessId, db, filters);
+  if (!where) return [];
   return db.activityLog.findMany({
-    where: where as any,
-    orderBy: { createdAt: "desc" },
-    take: clampedTake,
+    where,
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: ACTIVITY_EXPORT_MAX_ROWS,
+    select: ACTIVITY_SELECT,
   });
+}
+
+/**
+ * AI (MCP) tool-call feed for the business owner: McpAuditLog rows of this
+ * business's connections, last AI_ACTIVITY_WINDOW_DAYS days. Never returns
+ * params / token hashes.
+ */
+export async function getBusinessAiActivity(
+  businessId: string,
+  db: DbClient,
+  opts: AiActivityQuery & { includeConnections?: boolean }
+) {
+  const take = Math.min(Math.max(opts.take, 1), ACTIVITY_PAGE_MAX);
+  const since = new Date(Date.now() - AI_ACTIVITY_WINDOW_DAYS * 86_400_000);
+
+  const and: Prisma.McpAuditLogWhereInput[] = [
+    { connection: { businessId } },
+    { createdAt: { gte: since } },
+  ];
+  if (opts.connectionId) and.push({ connectionId: opts.connectionId });
+  if (opts.status) and.push({ status: opts.status });
+  if (opts.cursor) and.push(keysetAfter(opts.cursor));
+
+  const [rows, connections] = await Promise.all([
+    db.mcpAuditLog.findMany({
+      where: { AND: and },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: take + 1,
+      select: {
+        id: true,
+        createdAt: true,
+        toolName: true,
+        status: true,
+        resultSummary: true,
+        errorMessage: true,
+        connection: { select: { id: true, name: true, createdByUserId: true, oauthClientId: true } },
+      },
+    }),
+    opts.includeConnections
+      ? db.mcpConnection.findMany({
+          where: { businessId },
+          orderBy: { createdAt: "desc" },
+          take: 100,
+          select: { id: true, name: true, revokedAt: true },
+        })
+      : Promise.resolve(null),
+  ]);
+
+  const page = paginate(rows, take);
+  const creatorIds = Array.from(
+    new Set(page.items.map((r) => r.connection.createdByUserId).filter((x): x is string => !!x))
+  );
+  const creators = creatorIds.length
+    ? await db.platformUser.findMany({ where: { id: { in: creatorIds } }, select: { id: true, name: true } })
+    : [];
+  const nameById = new Map(creators.map((u) => [u.id, u.name]));
+
+  return {
+    items: page.items.map((r) => ({
+      id: r.id,
+      createdAt: r.createdAt,
+      toolName: cleanText(r.toolName, 80) ?? "",
+      status: r.status,
+      resultSummary: cleanText(r.resultSummary),
+      errorMessage: r.status === "error" || r.status === "denied" ? cleanText(r.errorMessage) : null,
+      connection: {
+        id: r.connection.id,
+        name: cleanText(r.connection.name, 80) ?? "",
+        createdByName: r.connection.createdByUserId
+          ? cleanText(nameById.get(r.connection.createdByUserId), 80)
+          : null,
+        oauth: r.connection.oauthClientId != null,
+      },
+    })),
+    nextCursor: page.nextCursor,
+    ...(connections
+      ? {
+          connections: connections.map((c) => ({
+            id: c.id,
+            name: cleanText(c.name, 80) ?? "",
+            revoked: c.revokedAt != null,
+          })),
+        }
+      : {}),
+  };
 }
 
 export async function getActiveBusinessSessions(businessId: string, db: DbClient) {

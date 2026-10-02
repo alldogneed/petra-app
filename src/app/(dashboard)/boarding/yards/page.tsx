@@ -11,6 +11,7 @@ import { cn, fetchJSON } from "@/lib/utils";
 import { BoardingTabs } from "@/components/boarding/BoardingTabs";
 import { toast } from "sonner";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { usePermissions } from "@/hooks/usePermissions";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -140,6 +141,7 @@ function DroppableYardCard({
   onDelete,
   onRemoveDog,
   isDeleting,
+  canManage = true,
 }: {
   yard: Yard;
   occupants: ActiveStay[];
@@ -147,6 +149,8 @@ function DroppableYardCard({
   onDelete: () => void;
   onRemoveDog: (stayId: string) => void;
   isDeleting: boolean;
+  /** BOARDING_MANAGE — edit/delete yard structure (server enforces too) */
+  canManage?: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: yard.id });
 
@@ -184,6 +188,7 @@ function DroppableYardCard({
             >
               {statusInfo.label}
             </span>
+            {canManage && (<>
             <button
               className="no-print w-6 h-6 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted hover:text-petra-text transition-colors"
               onClick={onEdit} title="ערוך"
@@ -198,6 +203,7 @@ function DroppableYardCard({
             >
               <Trash2 className="w-3 h-3" />
             </button>
+            </>)}
           </div>
         </div>
 
@@ -244,6 +250,7 @@ function DroppableYardCard({
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function YardsPage() {
+  const { canManageBoarding } = usePermissions();
   const queryClient = useQueryClient();
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
@@ -490,6 +497,7 @@ export default function YardsPage() {
               </a>
             );
           })()}
+          {canManageBoarding && (
           <button
             className="btn-primary !bg-teal-600 hover:!bg-teal-700 !border-teal-600 no-print"
             onClick={() => setShowAddForm((v) => !v)}
@@ -497,6 +505,7 @@ export default function YardsPage() {
             <Plus className="w-4 h-4" />
             הוסף חצר
           </button>
+          )}
         </div>
       </div>
 
@@ -605,9 +614,11 @@ export default function YardsPage() {
           </div>
           <p className="text-sm font-medium text-petra-text mb-1">אין חצרות עדיין</p>
           <p className="text-xs text-petra-muted mb-4">לחץ על &quot;הוסף חצר&quot; כדי להתחיל</p>
+          {canManageBoarding && (
           <button className="btn-primary !bg-teal-600 hover:!bg-teal-700 !border-teal-600 mx-auto" onClick={() => setShowAddForm(true)}>
             <Plus className="w-4 h-4" />הוסף חצר ראשונה
           </button>
+          )}
         </div>
       ) : (
         <DndContext
@@ -714,6 +725,7 @@ export default function YardsPage() {
                       onDelete={() => setDeleteDialogYard(yard)}
                       onRemoveDog={(stayId) => assignYardMutation.mutate({ stayId, yardId: null })}
                       isDeleting={deleteYardMutation.isPending}
+                      canManage={canManageBoarding}
                     />
                   );
                 })}

@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { sessionHasTenantPermission, TENANT_PERMS } from "@/lib/permissions";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 import { rateLimit } from "@/lib/rate-limit";
 import * as XLSX from "xlsx";
@@ -13,6 +14,9 @@ const EXPORT_RATE_LIMIT = { max: 5, windowMs: 60 * 1000 }; // 5 exports per minu
 export async function GET(request: NextRequest) {
   const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
+  if (!sessionHasTenantPermission(authResult.session, authResult.businessId, TENANT_PERMS.DATA_EXPORT)) {
+    return NextResponse.json({ error: "אין לך הרשאה לייצא נתונים" }, { status: 403 });
+  }
 
   // Rate limit exports to prevent abuse
   const rl = rateLimit("export:customers", authResult.businessId, EXPORT_RATE_LIMIT);
@@ -21,7 +25,10 @@ export async function GET(request: NextRequest) {
   }
 
   const { session } = authResult;
-  logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.EXPORT_CUSTOMERS);
+  await logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.EXPORT_CUSTOMERS, {
+    businessId: authResult.businessId,
+    entityLabel: "לקוחות",
+  });
 
   try {
     const customers = await prisma.customer.findMany({

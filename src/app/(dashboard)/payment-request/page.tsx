@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { cn, toWhatsAppPhone, fetchJSON } from "@/lib/utils";
 import { TierGate } from "@/components/paywall/TierGate";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { usePermissions } from "@/hooks/usePermissions";
 
 // ─── Types ────────────────────────────────────────────────────────
 
@@ -59,6 +60,7 @@ export default function PaymentRequestPage() {
 }
 
 function PaymentRequestContent() {
+  const { canWritePayments } = usePermissions();
   const searchParams = useSearchParams();
   const prefilledCustomerId = searchParams.get("customerId");
   const prefilledName = searchParams.get("name");
@@ -744,7 +746,7 @@ function PaymentRequestContent() {
                     )}
                   </div>
                   {/* Stripe generate button */}
-                  {canSend && (
+                  {canSend && canWritePayments && (
                     <button
                       onClick={generateStripeLink}
                       disabled={stripeLoading}

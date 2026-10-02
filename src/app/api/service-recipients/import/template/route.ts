@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
   const { businessId, session } = authResult;
 
   const membership = session.memberships.find((m) => m.businessId === businessId && m.isActive);
-  if (membership && !hasTenantPermission(membership.role as TenantRole, TENANT_PERMS.RECIPIENTS_SENSITIVE)) {
+  if (membership && !hasTenantPermission(membership.role as TenantRole, TENANT_PERMS.RECIPIENTS_SENSITIVE, membership.permissionOverrides)) {
     return NextResponse.json({ error: "אין הרשאה" }, { status: 403 });
   }
 

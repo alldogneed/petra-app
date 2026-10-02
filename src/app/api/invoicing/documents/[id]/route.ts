@@ -14,7 +14,7 @@ export async function GET(
 
   // Staff cannot access invoicing documents
   const membership = authResult.session.memberships.find((m) => m.businessId === authResult.businessId && m.isActive);
-  if (membership && !hasTenantPermission(membership.role as TenantRole, TENANT_PERMS.FINANCE_READ)) {
+  if (membership && !hasTenantPermission(membership.role as TenantRole, TENANT_PERMS.FINANCE_READ, membership.permissionOverrides)) {
     return NextResponse.json({ error: "אין הרשאה לצפות במסמכים" }, { status: 403 });
   }
 
@@ -54,7 +54,7 @@ export async function PATCH(
 
   // Staff cannot modify invoicing documents
   const patchMembership = authResult.session.memberships.find((m) => m.businessId === authResult.businessId && m.isActive);
-  if (patchMembership && !hasTenantPermission(patchMembership.role as TenantRole, TENANT_PERMS.FINANCE_READ)) {
+  if (patchMembership && !hasTenantPermission(patchMembership.role as TenantRole, TENANT_PERMS.FINANCE_READ, patchMembership.permissionOverrides)) {
     return NextResponse.json({ error: "אין הרשאה לעדכון מסמכים" }, { status: 403 });
   }
 
@@ -118,7 +118,7 @@ export async function DELETE(
 
   // Staff cannot delete invoicing documents
   const delMembership = authResult.session.memberships.find((m) => m.businessId === authResult.businessId && m.isActive);
-  if (delMembership && !hasTenantPermission(delMembership.role as TenantRole, TENANT_PERMS.FINANCE_READ)) {
+  if (delMembership && !hasTenantPermission(delMembership.role as TenantRole, TENANT_PERMS.FINANCE_READ, delMembership.permissionOverrides)) {
     return NextResponse.json({ error: "אין הרשאה למחיקת מסמכים" }, { status: 403 });
   }
 

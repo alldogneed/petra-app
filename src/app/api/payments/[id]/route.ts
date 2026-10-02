@@ -3,6 +3,12 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError, requireBusinessPermission } from "@/lib/auth-guards";
 import { TENANT_PERMS, type TenantRole } from "@/lib/permissions";
+import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
+import { ENTITY_TYPES } from "@/lib/activity-actions";
+
+function paymentLabel(p: { amount?: number | null; customer?: { name?: string | null } | null }): string {
+  return `תשלום ₪${Number(p.amount ?? 0).toLocaleString("he-IL")} — ${p.customer?.name ?? ""}`;
+}
 
 // GET /api/payments/[id] – get a single payment
 export async function GET(
@@ -99,6 +105,22 @@ export async function PATCH(
       },
     });
 
+    // Audit: a status change to canceled/refunded is sensitive (awaited so the
+    // owner security alert completes); any other edit is a routine UPDATE_PAYMENT.
+    if (Object.keys(data).length > 0) {
+      const statusChanged = data.status !== undefined && data.status !== existing.status;
+      const action =
+        statusChanged && data.status === "canceled" ? ACTIVITY_ACTIONS.CANCEL_PAYMENT :
+        statusChanged && data.status === "refunded" ? ACTIVITY_ACTIONS.REFUND_PAYMENT :
+        ACTIVITY_ACTIONS.UPDATE_PAYMENT;
+      await logActivity(authResult.session.user.id, authResult.session.user.name, action, {
+        businessId: authResult.businessId,
+        entityType: ENTITY_TYPES.PAYMENT,
+        entityId: params.id,
+        entityLabel: paymentLabel(payment),
+      });
+    }
+
     return NextResponse.json(payment);
   } catch (error) {
     console.error("PATCH payment error:", error);
@@ -126,12 +148,19 @@ export async function DELETE(
 
     const existing = await prisma.payment.findFirst({
       where: { id: params.id, businessId },
+      include: { customer: { select: { name: true } } },
     });
     if (!existing) {
       return NextResponse.json({ error: "תשלום לא נמצא" }, { status: 404 });
     }
 
     await prisma.payment.delete({ where: { id: params.id, businessId } });
+    await logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.DELETE_PAYMENT, {
+      businessId,
+      entityType: ENTITY_TYPES.PAYMENT,
+      entityId: params.id,
+      entityLabel: paymentLabel(existing),
+    });
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("DELETE payment error:", error);
