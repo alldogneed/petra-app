@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   if (isGuardError(auth)) return auth
   const { businessId } = auth
 
-  const guard = await requireTenantPermission(req, businessId, TENANT_PERMS.AVAILABILITY_MANAGE)
+  const guard = await requireTenantPermission(req, businessId, TENANT_PERMS.CONTENT_READ)
   if (isGuardError(guard)) return guard
 
   const { searchParams } = new URL(req.url)

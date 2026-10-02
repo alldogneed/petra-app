@@ -1,7 +1,7 @@
 "use client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import React, { useState } from "react";
-import { CheckCircle2, Zap, Plug, Calendar, MessageCircle, Mail, ExternalLink, Loader2, XCircle, CheckCircle, AlertCircle, FileText, Settings2, X, Eye, EyeOff, Copy, CreditCard, RefreshCw, Repeat } from "lucide-react";
+import { CheckCircle2, Zap, Plug, Calendar, MessageCircle, Mail, ExternalLink, Loader2, XCircle, CheckCircle, AlertCircle, FileText, Settings2, X, Eye, EyeOff, Copy, CreditCard, RefreshCw, Repeat, Lock } from "lucide-react";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { useSearchParams } from "next/navigation";
 import { cn, fetchJSON, copyToClipboard } from "@/lib/utils";
@@ -73,6 +73,10 @@ export function IntegrationsTab() {
   const canCriticalSettings = perms.canCriticalSettings;
   // Invoicing credentials (SETTINGS_WRITE), WhatsApp test → owner/manager (or platform admin).
   const canManageIntegrations = perms.isOwner || perms.isManager || user?.isAdmin === true;
+  // CALENDAR_SYNC — business bookings pushed into this member's own Google Calendar
+  // (POST /api/integrations/google/sync + automatic push). Connecting stays allowed:
+  // the connection also powers busy-time blocking.
+  const canSyncCalendar = perms.canSyncCalendar;
   const [confirmDisconnect, setConfirmDisconnect] = useState<DisconnectTarget | null>(null);
   const gcalStatus = searchParams.get("gcal");
   const [showInvoicingModal, setShowInvoicingModal] = useState(false);
@@ -131,12 +135,14 @@ export function IntegrationsTab() {
   });
 
   const syncGcalMutation = useMutation({
-    mutationFn: () =>
-      fetch("/api/integrations/google/sync", { method: "POST" }).then(async (r) => {
-        const data = await r.json();
-        if (!r.ok) throw new Error(data.error || "שגיאה בסנכרון");
+    mutationFn: () => {
+      if (!canSyncCalendar) return Promise.reject(new Error("הבעלים לא אישר לך לקבל את פגישות העסק ביומן Google"));
+      return fetch("/api/integrations/google/sync", { method: "POST" }).then(async (r) => {
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error((typeof data?.error === "string" && data.error) || "שגיאה בסנכרון");
         return data;
-      }),
+      });
+    },
     onSuccess: (data) => {
       toast.success(data.message || "הסנכרון הושלם בהצלחה");
     },
@@ -257,6 +263,12 @@ export function IntegrationsTab() {
               <p className="text-sm text-petra-muted mt-0.5">{integ.description}</p>
               {integ.connected && integ.connectedEmail && (
                 <p className="text-xs text-emerald-600 mt-1">{integ.connectedEmail}</p>
+              )}
+              {isGcal && !canSyncCalendar && (
+                <p className="text-xs text-amber-700 mt-1 flex items-center gap-1.5">
+                  <Lock className="w-3.5 h-3.5 flex-shrink-0" />
+                  הבעלים לא אישר לך לקבל את פגישות העסק ביומן Google
+                </p>
               )}
               {isStripe && integ.connected && integ.accountId && (
                 <p className="text-xs text-emerald-600 mt-1">Account: {integ.accountId}</p>
@@ -426,6 +438,7 @@ export function IntegrationsTab() {
                 )
               ) : isGcal && integ.connected && integ.disconnectUrl ? (
                 <>
+                  {canSyncCalendar && (
                   <button
                     className="btn-secondary text-sm flex items-center gap-1.5"
                     onClick={() => syncGcalMutation.mutate()}
@@ -435,6 +448,7 @@ export function IntegrationsTab() {
                     {syncGcalMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <RepeatIcon className="w-3.5 h-3.5" />}
                     סנכרן עכשיו
                   </button>
+                  )}
                   <button
                     className="btn-ghost text-sm text-red-500 hover:text-red-600 hover:bg-red-50"
                     onClick={() => setConfirmDisconnect("gcal")}

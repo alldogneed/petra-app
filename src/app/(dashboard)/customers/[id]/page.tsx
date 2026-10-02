@@ -1667,7 +1667,13 @@ function SendContractSection({ customerId, customerName, pets }: { customerId: s
 
   const { data: templates = [] } = useQuery<ContractTemplate[]>({
     queryKey: ["contract-templates"],
-    queryFn: () => fetch("/api/contracts/templates").then((r) => r.json()),
+    // Non-ok (e.g. 403) or a non-array body → empty list, never an error object.
+    queryFn: async () => {
+      const r = await fetch("/api/contracts/templates");
+      if (!r.ok) return [];
+      const d = await r.json().catch(() => null);
+      return Array.isArray(d) ? (d as ContractTemplate[]) : [];
+    },
   });
 
   const { data: requests = [] } = useQuery<ContractReq[]>({
