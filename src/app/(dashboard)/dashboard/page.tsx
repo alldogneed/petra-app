@@ -230,6 +230,7 @@ interface ActivityItem {
   action: string;
   description: string;
   createdAt: string;
+  href?: string | null;
   channel?: string;
   status?: string;
 }
@@ -486,11 +487,9 @@ function ActivityFeed({ activities }: { activities: ActivityItem[] }) {
       {activities.slice(0, 10).map((item) => {
         const iconInfo = ACTIVITY_ICONS[item.action] || ACTIVITY_ICONS.LOGIN;
         const IconComp = iconInfo.icon;
-        return (
-          <div
-            key={item.id}
-            className="flex items-start gap-3 py-3 px-1 hover:bg-slate-50/40 rounded-lg transition-colors"
-          >
+        const rowClass = "flex items-start gap-3 py-3 px-1 hover:bg-slate-50/40 rounded-lg transition-colors";
+        const rowBody = (
+          <>
             <div
               className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
               style={{ background: iconInfo.bg }}
@@ -517,7 +516,12 @@ function ActivityFeed({ activities }: { activities: ActivityItem[] }) {
                 {item.status === "SENT" ? "נשלח" : "נכשל"}
               </span>
             )}
-          </div>
+          </>
+        );
+        return item.href ? (
+          <Link key={item.id} href={item.href} className={rowClass}>{rowBody}</Link>
+        ) : (
+          <div key={item.id} className={rowClass}>{rowBody}</div>
         );
       })}
     </div>
@@ -608,7 +612,7 @@ function DailyFocusSection({ todayTasks, overdueTasks, onComplete }: {
           </p>
         </div>
         <Link
-          href="/tasks"
+          href={focusFilter === "overdue" ? "/tasks?filter=overdue" : "/tasks"}
           className="text-xs font-medium text-brand-500 hover:text-brand-600 flex items-center gap-1 mt-1"
         >
           כל המשימות
@@ -646,13 +650,16 @@ function DailyFocusSection({ todayTasks, overdueTasks, onComplete }: {
                 {isCompleting && <Check className="w-3 h-3 text-white" />}
               </button>
 
-              {/* Title */}
-              <span className={cn(
-                "text-sm font-medium text-petra-text flex-1 truncate transition-all duration-200",
-                isCompleting && "line-through text-petra-muted"
-              )}>
+              {/* Title — opens the task */}
+              <Link
+                href={`/tasks?task=${task.id}`}
+                className={cn(
+                  "text-sm font-medium text-petra-text flex-1 truncate transition-all duration-200 hover:text-brand-600",
+                  isCompleting && "line-through text-petra-muted"
+                )}
+              >
                 {task.title}
-              </span>
+              </Link>
 
               {/* Time */}
               <span
@@ -726,8 +733,8 @@ function TodayFollowUpsWidget({ leads }: { leads: DashboardStats["urgentLeads"] 
             </p>
           </div>
         </div>
-        <Link href="/leads" className="text-xs font-medium text-brand-500 hover:text-brand-600 flex items-center gap-1">
-          ללוח הלידים
+        <Link href="/leads?view=followup" className="text-xs font-medium text-brand-500 hover:text-brand-600 flex items-center gap-1">
+          למעקבים
           <ArrowLeft className="w-3 h-3" />
         </Link>
       </div>
@@ -735,19 +742,19 @@ function TodayFollowUpsWidget({ leads }: { leads: DashboardStats["urgentLeads"] 
         {todayLeads.map((lead) => (
           <div key={lead.id} className="px-5 py-3 flex items-center gap-3 transition-colors hover:bg-slate-50/50">
             <div className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
-            <div className="flex-1 min-w-0">
+            <Link href={`/leads?lead=${lead.id}`} className="flex-1 min-w-0 hover:text-brand-600">
               <div className="text-sm font-medium text-petra-text truncate">{lead.name}</div>
               {lead.customer?.name && (
                 <div className="text-[11px] text-petra-muted truncate">לקוח: {lead.customer.name}</div>
               )}
-            </div>
+            </Link>
             <div className="flex items-center gap-2 flex-shrink-0">
               <span className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-100 flex items-center gap-1">
                 <Clock className="w-3 h-3" />
                 מעקב היום
               </span>
               <Link
-                href={`/leads`}
+                href={`/leads?lead=${lead.id}`}
                 className="w-7 h-7 rounded-md bg-brand-50 text-brand-600 hover:bg-brand-100 flex items-center justify-center transition-colors"
                 title="לטפל בליד"
               >
@@ -814,7 +821,7 @@ function UrgentLeadsAlert({ leads }: { leads: DashboardStats["urgentLeads"] }) {
             >
               <div className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
 
-              <div className="flex-1 min-w-0">
+              <Link href={`/leads?lead=${lead.id}`} className="flex-1 min-w-0 hover:text-brand-600">
                 <div className="text-sm font-medium text-petra-text truncate">
                   {lead.name}
                 </div>
@@ -823,7 +830,7 @@ function UrgentLeadsAlert({ leads }: { leads: DashboardStats["urgentLeads"] }) {
                     לקוח: {lead.customer.name}
                   </div>
                 )}
-              </div>
+              </Link>
 
               <div className="flex items-center gap-2 flex-shrink-0">
                 <span className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-red-50 text-red-700 border border-red-100 flex items-center gap-1">
@@ -832,7 +839,7 @@ function UrgentLeadsAlert({ leads }: { leads: DashboardStats["urgentLeads"] }) {
                 </span>
 
                 <Link
-                  href={`/leads`}
+                  href={`/leads?lead=${lead.id}`}
                   className="w-7 h-7 rounded-md bg-brand-50 text-brand-600 hover:bg-brand-100 flex items-center justify-center transition-colors"
                   title="לטפל בליד"
                 >
@@ -869,7 +876,7 @@ function TopDebtorsWidget({ debtors }: { debtors: DashboardStats["topDebtors"] }
           </div>
         </div>
         <Link
-          href="/orders"
+          href="/orders?status=confirmed&payment=unpaid"
           className="text-xs font-medium text-brand-500 hover:text-brand-600 flex items-center gap-1"
         >
           לכל ההזמנות
@@ -1206,10 +1213,10 @@ function VaccinationAlertWidget() {
           </div>
         </div>
         <Link
-          href="/customers"
+          href="/vaccinations"
           className="text-xs font-medium text-brand-500 hover:text-brand-600 flex items-center gap-1"
         >
-          לרשימת לקוחות
+          לכל החיסונים
           <ArrowLeft className="w-3 h-3" />
         </Link>
       </div>
@@ -2170,14 +2177,14 @@ export default function DashboardPage() {
       {subscriptionExpired && !isFree && (
         <div className="rounded-xl px-4 py-3 flex items-center justify-between bg-red-50 border border-red-200 text-red-800">
           <span className="text-sm font-medium">⚠️ המנוי שלך פג — הגישה לתכונות מתקדמות הוגבלה</span>
-          <a href="/upgrade" className="text-sm font-semibold underline shrink-0 mr-4">חדש מנוי</a>
+          <Link href="/upgrade" className="text-sm font-semibold underline shrink-0 mr-4">חדש מנוי</Link>
         </div>
       )}
       {/* Recurring (הוראת קבע) customers renew automatically — a manual renew would charge twice */}
       {!isFree && !hasRecurring && subscriptionActive && subscriptionDaysLeft <= 14 && (
         <div className="rounded-xl px-4 py-3 flex items-center justify-between bg-amber-50 border border-amber-200 text-amber-800">
           <span className="text-sm font-medium">⏳ המנוי שלך מסתיים בעוד {subscriptionDaysLeft} ימים</span>
-          <a href="/upgrade" className="text-sm font-semibold underline shrink-0 mr-4">חדש מנוי</a>
+          <Link href="/upgrade" className="text-sm font-semibold underline shrink-0 mr-4">חדש מנוי</Link>
         </div>
       )}
       {/* Greeting Header */}
@@ -2343,7 +2350,7 @@ export default function DashboardPage() {
             </button>
 
             <Link
-              href="/calendar"
+              href="/calendar?new=1"
               className="card p-5 text-right hover:border-brand-300 hover:shadow-md transition-all group"
             >
               <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center mb-3 group-hover:bg-violet-100 transition-colors">
@@ -2354,7 +2361,7 @@ export default function DashboardPage() {
             </Link>
 
             <Link
-              href="/settings"
+              href="/pricing"
               className="card p-5 text-right hover:border-brand-300 hover:shadow-md transition-all group"
             >
               <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center mb-3 group-hover:bg-emerald-100 transition-colors">
@@ -2431,7 +2438,7 @@ export default function DashboardPage() {
             subtitle={(data.todayRevenue ?? 0) > 0 ? `היום: ${formatCurrency(data.todayRevenue)}` : undefined}
             icon={TrendingUp}
             color="#10B981"
-            href="/payments"
+            href="/payments?status=paid&period=month"
           />
         )}
         {perms.canSeeFinance && (
@@ -2450,7 +2457,7 @@ export default function DashboardPage() {
             subtitle={perms.canSeeRevenueSummary && data.pendingPaymentsAmount > 0 ? formatCurrency(data.pendingPaymentsAmount) : undefined}
             icon={CreditCard}
             color="#F59E0B"
-            href="/orders"
+            href="/orders?status=confirmed&payment=unpaid"
           />
         )}
         <StatCard
@@ -2458,7 +2465,7 @@ export default function DashboardPage() {
           value={data.todayAppointments}
           icon={Calendar}
           color="#3B82F6"
-          href="/calendar"
+          href={`/calendar?date=${viewedYmd}`}
         />
         {!perms.isStaff && (
           <StatCard
@@ -2489,7 +2496,7 @@ export default function DashboardPage() {
                 <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
                   <LogIn className="w-4 h-4 text-emerald-600" />
                 </div>
-                <h3 className="text-sm font-semibold text-petra-text">כניסות היום לפנסיון</h3>
+                <Link href="/boarding" className="text-sm font-semibold text-petra-text hover:text-brand-600">כניסות היום לפנסיון</Link>
                 <span className="badge-success text-[10px] ms-auto">{data.todayArrivals.length}</span>
               </div>
               <div className="space-y-2">
@@ -2524,7 +2531,7 @@ export default function DashboardPage() {
                 <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center">
                   <Hotel className="w-4 h-4 text-amber-600" />
                 </div>
-                <h3 className="text-sm font-semibold text-petra-text">יציאות היום מהפנסיון</h3>
+                <Link href="/boarding" className="text-sm font-semibold text-petra-text hover:text-brand-600">יציאות היום מהפנסיון</Link>
                 <span className="badge-warning text-[10px] ms-auto">{data.todayDepartures.length}</span>
               </div>
               <div className="space-y-2">
@@ -2563,6 +2570,7 @@ export default function DashboardPage() {
             data={data.revenueByMonth}
             target={data.revenueTarget}
             topService={data.topService}
+            reportsHref={perms.canViewAnalytics ? "/analytics" : undefined}
           />
         )}
 
@@ -2571,7 +2579,7 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-base font-bold text-petra-text">תורים קרובים</h2>
             <Link
-              href="/calendar"
+              href={`/calendar?date=${viewedYmd}`}
               className="text-xs font-medium text-brand-500 hover:text-brand-600 flex items-center gap-1"
             >
               הצג הכל
@@ -2762,12 +2770,15 @@ export default function DashboardPage() {
                               : "#94A3B8",
                     }}
                   />
-                  <span className={cn(
-                    "text-sm text-petra-text flex-1 truncate transition-all duration-200",
-                    isCompleting && "line-through text-petra-muted"
-                  )}>
+                  <Link
+                    href={`/tasks?task=${task.id}`}
+                    className={cn(
+                      "text-sm text-petra-text flex-1 truncate transition-all duration-200 hover:text-brand-600",
+                      isCompleting && "line-through text-petra-muted"
+                    )}
+                  >
                     {task.title}
-                  </span>
+                  </Link>
                   <span className="badge-neutral text-[10px]">{TASK_CATEGORY_LABELS[task.category] ?? task.category}</span>
                 </div>
               );

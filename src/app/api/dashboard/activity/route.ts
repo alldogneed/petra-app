@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { type TenantRole } from "@/lib/permissions";
-import { actionLabel } from "@/lib/activity-actions";
+import { actionLabel, entityHref, DELETE_ACTIONS } from "@/lib/activity-actions";
 
 const ACTION_LABELS: Record<string, string> = {
   LOGIN: "התחברות למערכת",
@@ -101,6 +101,7 @@ export async function GET(request: NextRequest) {
         action: log.action,
         description: ACTION_LABELS[log.action] || actionLabel(log.action),
         createdAt: log.createdAt.toISOString(),
+        href: entityHref(log.entityType, log.entityId, DELETE_ACTIONS.has(log.action)),
       })),
       ...scheduledMessages.map((msg) => ({
         id: msg.id,
@@ -109,6 +110,7 @@ export async function GET(request: NextRequest) {
         action: "WHATSAPP_SEND",
         description: `תזכורת וואטסאפ ל${msg.customer?.name ?? "נמען"}`,
         createdAt: msg.updatedAt.toISOString(),
+        href: msg.customerId ? entityHref("CUSTOMER", msg.customerId) : null,
         channel: msg.channel,
         status: msg.status,
       })),
