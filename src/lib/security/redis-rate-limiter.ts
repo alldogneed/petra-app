@@ -1,63 +1,18 @@
 /**
- * Distributed rate limiter using Upstash Redis.
- * Falls back to in-memory if UPSTASH_REDIS_REST_URL is not configured.
+ * Rate limiter for the Cardcom payment routes.
+ *
+ * Thin wrapper over `rateLimitAsync()` (src/lib/rate-limit.ts) so payments get the
+ * same chain as every other limiter: Upstash Redis → (on failure: 60s circuit breaker)
+ * Postgres fixed-window counter (atomic across serverless instances) → in-memory.
+ * It used to have its own Redis client with no breaker and only a per-instance memory
+ * fallback — with Redis unreachable, every payment call paid a failed lookup and the
+ * limit was not enforced across instances.
  *
  * Usage:
  *   const rl = await rateLimitRedis("cardcom:create", ip, { max: 5, windowSec: 900 });
  *   if (!rl.allowed) return 429;
  */
-import { Ratelimit } from "@upstash/ratelimit";
-import { Redis } from "@upstash/redis";
-
-// ── Redis client (singleton) ──────────────────────────────────────────────────
-
-let redis: Redis | null = null;
-function getRedis(): Redis | null {
-  if (redis) return redis;
-  const url = process.env.UPSTASH_REDIS_REST_URL?.replace(/\s+/g, "");
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN?.replace(/\s+/g, "");
-  if (!url || !token) return null;
-  redis = new Redis({ url, token, retry: { retries: 1, backoff: () => 100 } });
-  return redis;
-}
-
-// ── In-memory fallback (same as before, for local dev) ────────────────────────
-
-const memStore = new Map<string, { count: number; resetAt: number }>();
-
-function memoryRateLimit(key: string, max: number, windowMs: number) {
-  const now = Date.now();
-  let entry = memStore.get(key);
-  if (!entry || entry.resetAt <= now) {
-    entry = { count: 0, resetAt: now + windowMs };
-  }
-  entry.count++;
-  memStore.set(key, entry);
-  return { allowed: entry.count <= max };
-}
-
-// ── Cache of Upstash Ratelimit instances per namespace ────────────────────────
-
-const limiters = new Map<string, Ratelimit>();
-
-function getLimiter(namespace: string, max: number, windowSec: number): Ratelimit | null {
-  const r = getRedis();
-  if (!r) return null;
-
-  const key = `${namespace}:${max}:${windowSec}`;
-  let limiter = limiters.get(key);
-  if (!limiter) {
-    limiter = new Ratelimit({
-      redis: r,
-      limiter: Ratelimit.slidingWindow(max, `${windowSec} s`),
-      prefix: `rl:${namespace}`,
-    });
-    limiters.set(key, limiter);
-  }
-  return limiter;
-}
-
-// ── Public API ────────────────────────────────────────────────────────────────
+import { rateLimitAsync } from "@/lib/rate-limit";
 
 interface RateLimitOpts {
   /** Max requests in window */
@@ -70,29 +25,14 @@ interface RateLimitResult {
   allowed: boolean;
 }
 
-/**
- * Distributed rate limit check.
- * Uses Upstash Redis when available, falls back to in-memory.
- */
+/** Distributed rate limit check (Redis → Postgres → memory). */
 export async function rateLimitRedis(
   namespace: string,
   key: string,
   opts: RateLimitOpts
 ): Promise<RateLimitResult> {
-  try {
-    const limiter = getLimiter(namespace, opts.max, opts.windowSec);
-
-    if (!limiter) {
-      // Fallback to in-memory (dev or no Redis configured)
-      return memoryRateLimit(`${namespace}:${key}`, opts.max, opts.windowSec * 1000);
-    }
-
-    const result = await limiter.limit(key);
-    return { allowed: result.success };
-  } catch (err) {
-    console.error("Redis rate limit error, falling back to memory:", err);
-    return memoryRateLimit(`${namespace}:${key}`, opts.max, opts.windowSec * 1000);
-  }
+  const result = await rateLimitAsync(namespace, key, { max: opts.max, windowMs: opts.windowSec * 1000 });
+  return { allowed: result.allowed };
 }
 
 /** Presets for common rate limit scenarios */
