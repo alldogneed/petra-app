@@ -49,7 +49,7 @@ export function TodayFollowUpsWidget({ leads }: { leads: DashboardStats["urgentL
       <DashCardHeader
         title="מעקבים להיום"
         subtitle={`${todayLeads.length} ${todayLeads.length === 1 ? "ליד" : "לידים"} לטיפול היום`}
-        actions={<DashLink href="/leads?view=followup">ללוח הלידים</DashLink>}
+        actions={<DashLink href="/leads?view=followup">למעקבים</DashLink>}
       />
       {todayLeads.map((lead) => (
         <LeadRow key={lead.id} lead={lead} meta="מעקב היום" metaClass="text-blue-700" />

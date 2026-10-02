@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePlan } from "@/hooks/usePlan";
 import { toWhatsAppPhone } from "@/lib/utils";
 import { DashboardStats } from "@/components/dashboard/dashboard-shared";
-import { DashCard, DashCardHeader, DashLink, MiniButton, SentMark, WaTextButton } from "@/components/dashboard/dash-ui";
+import { DashCard, DashCardHeader, DashLink, MiniButton, WaTextButton } from "@/components/dashboard/dash-ui";
 
 // ─── Tomorrow Reminders Widget ───────────────────────────────────────────────
 
@@ -81,13 +81,9 @@ export function TomorrowReminders({
             </Link>
             {canWhatsApp ? (
               a.customerPhone ? (
-                hasSent ? (
-                  <SentMark />
-                ) : (
-                  <WaTextButton onClick={() => sendOne(a)} title="שלח תזכורת בוואטסאפ">
-                    שלח
-                  </WaTextButton>
-                )
+                <WaTextButton onClick={() => sendOne(a)} title={hasSent ? "שלח שוב" : "שלח תזכורת בוואטסאפ"}>
+                  {hasSent ? "נשלח ✓" : "שלח"}
+                </WaTextButton>
               ) : (
                 <span className="text-xs text-slate-500 whitespace-nowrap">אין טלפון</span>
               )

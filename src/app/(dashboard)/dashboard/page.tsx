@@ -1,6 +1,6 @@
 "use client";
 import { PageTitle } from "@/components/ui/PageTitle";
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import Link from "next/link";
 import { Plus, ShoppingCart, UserPlus, CalendarClock, Copy, ClipboardCheck, RefreshCw, Tag, SlidersHorizontal, ChevronLeft, ChevronRight } from "lucide-react";
@@ -100,7 +100,6 @@ export default function DashboardPage() {
     month: "long",
     year: "numeric",
   });
-  const dateInputRef = useRef<HTMLInputElement>(null);
   const shiftDash = (days: number) => {
     const d = new Date(`${viewedYmd}T00:00:00`);
     d.setDate(d.getDate() + days);
@@ -511,34 +510,26 @@ export default function DashboardPage() {
             >
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => {
-                  const el = dateInputRef.current;
-                  if (!el) return;
-                  try {
-                    el.showPicker();
-                  } catch {
-                    el.focus();
-                  }
-                }}
-                title="הצג את לוח הבקרה לתאריך אחר"
-                className="text-sm text-slate-700 px-2 min-w-[190px] text-center tabular-nums rounded-lg hover:bg-slate-100 h-7"
-              >
-                {viewedLabel}
-              </button>
+            {/* Transparent native date input over the label: a tap opens the picker everywhere (incl. iOS) */}
+            <label className="relative h-7 px-2 min-w-[190px] flex items-center justify-center rounded-lg text-sm text-slate-700 tabular-nums hover:bg-slate-100 cursor-pointer">
+              {viewedLabel}
               <input
-                ref={dateInputRef}
                 type="date"
                 lang="he"
-                tabIndex={-1}
-                aria-hidden="true"
-                className="absolute inset-0 opacity-0 pointer-events-none"
+                aria-label="הצג את לוח הבקרה לתאריך אחר"
+                title="הצג את לוח הבקרה לתאריך אחר"
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                 value={viewedYmd}
+                onClick={(e) => {
+                  try {
+                    e.currentTarget.showPicker();
+                  } catch {
+                    /* older browsers open the picker natively on tap */
+                  }
+                }}
                 onChange={(e) => setDashDate(e.target.value && e.target.value !== realTodayYmd ? e.target.value : "")}
               />
-            </div>
+            </label>
             <button
               type="button"
               onClick={() => shiftDash(1)}

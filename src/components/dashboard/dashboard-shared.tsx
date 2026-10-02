@@ -1,5 +1,5 @@
 // Shared dashboard types, labels and helpers (used by the page and widgets/*).
-import { Users, Calendar, PawPrint, Clock, CheckCircle2, AlertCircle, Target, CreditCard, ShoppingCart, LogIn, UserPlus, MessageCircle, Hotel, Package, ClipboardList, Dumbbell, Scissors } from "lucide-react";
+import { Calendar, Clock, CheckCircle2, AlertCircle, Hotel, Package, Dumbbell, Scissors } from "lucide-react";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -176,14 +176,6 @@ export const CATEGORY_TO_FILTER: Record<string, string> = {
 };
 
 // Maps filter key → Hebrew label for badge display
-export const FILTER_TO_LABEL: Record<string, string> = {
-  training: "אילוף",
-  boarding: "פנסיון",
-  grooming: "טיפוח",
-  consultation: "ייעוץ",
-  daycare: "דיי קר",
-};
-
 export const ORDER_TYPE_INFO: Record<string, { label: string; icon: React.ElementType }> = {
   sale: { label: "מוצרים", icon: Package },
   products: { label: "מוצרים", icon: Package },
@@ -191,14 +183,6 @@ export const ORDER_TYPE_INFO: Record<string, { label: string; icon: React.Elemen
   boarding: { label: "פנסיון", icon: Hotel },
   training: { label: "אילוף", icon: Dumbbell },
   grooming: { label: "טיפוח", icon: Scissors },
-};
-
-export const ORDER_STATUS_BADGE: Record<string, string> = {
-  draft: "badge-neutral",
-  confirmed: "badge-brand",
-  completed: "badge-success",
-  canceled: "badge-danger",
-  cancelled: "badge-danger",
 };
 
 /** Order status text colours (new dashboard design — status as coloured text, no pill). */
@@ -217,26 +201,6 @@ export const ORDER_STATUS_LABEL: Record<string, string> = {
   completed: "הושלם",
   canceled: "בוטל",
   cancelled: "בוטל",
-};
-
-export const ACTIVITY_ICONS: Record<string, { icon: React.ElementType; color: string; bg: string }> = {
-  LOGIN: { icon: LogIn, color: "#64748B", bg: "#F1F5F9" },
-  CREATE_CUSTOMER: { icon: UserPlus, color: "#3B82F6", bg: "#EFF6FF" },
-  UPDATE_CUSTOMER: { icon: Users, color: "#3B82F6", bg: "#EFF6FF" },
-  CREATE_ORDER: { icon: ShoppingCart, color: "#F97316", bg: "#FFF7ED" },
-  UPDATE_ORDER: { icon: ShoppingCart, color: "#F97316", bg: "#FFF7ED" },
-  CREATE_PAYMENT: { icon: CreditCard, color: "#10B981", bg: "#ECFDF5" },
-  CREATE_APPOINTMENT: { icon: Calendar, color: "#8B5CF6", bg: "#F5F3FF" },
-  UPDATE_APPOINTMENT: { icon: Calendar, color: "#8B5CF6", bg: "#F5F3FF" },
-  CANCEL_APPOINTMENT: { icon: AlertCircle, color: "#EF4444", bg: "#FEF2F2" },
-  CREATE_LEAD: { icon: Target, color: "#EC4899", bg: "#FDF2F8" },
-  ADD_PET: { icon: PawPrint, color: "#06B6D4", bg: "#ECFEFF" },
-  CREATE_TASK: { icon: ClipboardList, color: "#F59E0B", bg: "#FFFBEB" },
-  COMPLETE_TASK: { icon: CheckCircle2, color: "#10B981", bg: "#ECFDF5" },
-  CREATE_BOARDING: { icon: Hotel, color: "#6366F1", bg: "#EEF2FF" },
-  CHECK_IN: { icon: Hotel, color: "#10B981", bg: "#ECFDF5" },
-  CHECK_OUT: { icon: Hotel, color: "#64748B", bg: "#F1F5F9" },
-  WHATSAPP_SEND: { icon: MessageCircle, color: "#22C55E", bg: "#F0FDF4" },
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
