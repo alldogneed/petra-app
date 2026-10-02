@@ -202,6 +202,14 @@ Every check of a `CRITICAL_CAPABILITIES` permission must honour `BusinessUser.pe
 - **Read-only:** PATCH `/api/settings`, `/api/settings/logo` and `/api/service-dogs/vaccinations/apply-schedule` require `SETTINGS_CRITICAL` (owner, or an owner-granted override). UI: `usePermissions().canCriticalSettings` false → `<ReadOnlyNotice/>` + `<SettingsFieldset readOnly>`.
 - Logo upload AND removal save immediately (no save bar). `POST /api/subscription/cancel` is owner-only and logs `CANCEL_SUBSCRIPTION`. Use `ConfirmDialog` (`src/components/ui/ConfirmDialog.tsx`) — no `window.confirm` in settings; every disconnect/delete/regenerate asks first.
 
+### 36. Dashboard — per-member layout, permissions win, every number is a link
+- Widgets come ONLY from `src/lib/dashboard-widgets.ts`: `DASHBOARD_BLOCKS` (id, label, hint, `span` full/half, `requires` finance/revenue/leads/activity) + `DASHBOARD_STATS` (stat cards). `dashboard/page.tsx` renders `renderBlock(id)` for `layoutBlocks(visibleBlocks(prefs, flags))`; consecutive half blocks pair up, a lone half spans the row. Wrappers use `empty:hidden`, so a block that returns null leaves no gap.
+- Prefs = `BusinessUser.dashboardPrefs` `{ v, hidden, order }` — per member, per business, stored server-side. `GET/PUT /api/dashboard/preferences` (`src/services/dashboard-prefs.ts`) reads `businessId` + `userId` from the session only; body ids are ignored; `{prefs:null}` resets. Inactive/absent membership (impersonating admin) → read defaults, PUT 403. `normalizeDashboardPrefs()` drops unknown ids → stored JSON is bounded by the catalog.
+- Prefs only HIDE/REORDER: `requires` is checked first (`isAllowed`) and the server keeps withholding money (`canSeeRevenueSummary`). Never let a pref show a widget the role can't see.
+- `hidden` (not "visible") is stored, so a new widget appears for everyone; `resolveBlockOrder()` slots blocks missing from a saved order right after their default predecessor. A new widget = catalog entry + `case` in `renderBlock` (+ `requires` if gated).
+- Defaults when never saved: `defaultHiddenFor(owner's OnboardingProfile.businessType)` (מאלף → no boarding/medications; מספרה → also no vaccinations).
+- Every number/row links to the filtered target: `/payments?status=&period=`, `/orders?status=&payment=` (deep link drops the 30-day default window), `/tasks?filter=|task=<id>`, `/leads?lead=<id>|view=followup`, `/calendar?date=`. Activity feed rows use `entityHref()` (`/api/dashboard/activity` returns `href`). Prod DDL: `prisma/dashboard_prefs.sql`. Tests: `src/lib/__tests__/dashboard-widgets.test.ts`.
+
 ---
 
 ## MCP Server
@@ -356,7 +364,7 @@ import { env, isDev, isProd } from "@/lib/env";
 | Boarding yards print | `boarding/yards/page.tsx` — print CSS hides sidebar/header via `no-print` class; `data-print-yards` attr on main div; 2-col grid for print; print-only heading injected |
 | Bug report (Help Center) | `src/components/help/HelpCenter.tsx` — FileReader reads screenshot as base64 (max 2MB); sent to `/api/support/report` as `screenshotBase64`; API attaches to Resend email as attachment; tickets visible at `/owner/support` + emailed to `info@petra-app.com` |
 | Notes length validation | `POST /api/appointments` + `POST /api/orders` — max 2000 chars; returns 400 with Hebrew error message |
-| Dashboard stat cards | "הכנסות החודש" always shown (from `data.monthRevenue`); "היום: ₪X" as subtitle when today > 0. `data.upcomingByType` and dead `BirthdayWidget` component exist but are unused. |
+| Dashboard stat cards | "הכנסות החודש" always shown (from `data.monthRevenue`); "היום: ₪X" as subtitle when today > 0. `data.upcomingByType` exists but is unused. Each card can be hidden per member (rule #36). |
 | Dashboard orders section | "הזמנות אחרונות" links to `/orders`; each row is a `<Link>` to `/orders/:id` |
 | Lead deal value | `src/lib/lead-deal-value.ts` — edited in `LeadTreatmentModal`; column totals in `leads/page.tsx`; `getAnalytics().leadSales` ("מכירות מלידים" in `/analytics`); DDL `prisma/lead_deal_value.sql` |
 | Customer sales history | `src/lib/lead-sales-history.ts` + `getCustomerSalesHistory()` + `GET /api/customers/[id]/sales-history` → `CustomerSalesHistory.tsx` card on the customer page (after Pets) |

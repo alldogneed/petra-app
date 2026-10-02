@@ -34,8 +34,12 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "יותר מדי בקשות. נסה שוב בעוד דקה." }, { status: 429 });
     }
 
+    const declared = Number(request.headers.get("content-length") ?? 0);
+    if (declared > MAX_BODY_BYTES) {
+      return NextResponse.json({ error: "הבקשה גדולה מדי" }, { status: 413 });
+    }
     const text = await request.text();
-    if (text.length > MAX_BODY_BYTES) {
+    if (new TextEncoder().encode(text).length > MAX_BODY_BYTES) {
       return NextResponse.json({ error: "הבקשה גדולה מדי" }, { status: 413 });
     }
     let body: unknown;

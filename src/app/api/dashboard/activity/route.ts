@@ -101,7 +101,10 @@ export async function GET(request: NextRequest) {
         action: log.action,
         description: ACTION_LABELS[log.action] || actionLabel(log.action),
         createdAt: log.createdAt.toISOString(),
-        href: entityHref(log.entityType, log.entityId, DELETE_ACTIONS.has(log.action)),
+        // Legacy rows (no businessId) may belong to another business of the same member → no link.
+        href: log.businessId
+          ? entityHref(log.entityType, log.entityId, DELETE_ACTIONS.has(log.action))
+          : null,
       })),
       ...scheduledMessages.map((msg) => ({
         id: msg.id,
