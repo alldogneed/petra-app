@@ -80,7 +80,7 @@ export function SubscriptionCard({ tier, customerCount, appointmentCount }: { ti
           <TierIcon className="w-5 h-5 text-brand-500" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-petra-text">מנוי: {tierInfo?.name ?? tier}</p>
+          <p className="text-sm font-semibold text-petra-text">מנוי: {tierInfo?.name ?? (tier === "service_dog" ? "Service Dog" : tier)}</p>
           <p className={`text-xs font-medium ${statusColor}`}>{statusLabel}</p>
           <p className="text-xs text-petra-muted">{customerCount} לקוחות · {appointmentCount} פגישות</p>
         </div>

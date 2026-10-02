@@ -247,11 +247,11 @@ export function IntegrationsTab() {
 
         return (
           <React.Fragment key={integ.id}>
-          <div className="card p-5 flex items-start gap-4">
+          <div className="card p-5 flex flex-wrap sm:flex-nowrap items-start gap-4">
             <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0", integ.connected ? "bg-emerald-50" : "bg-slate-100")}>
               <Icon className={cn("w-6 h-6", integ.connected ? "text-emerald-600" : "text-slate-400")} />
             </div>
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-[calc(100%-4rem)] sm:min-w-0">
               <div className="flex items-center gap-2">
                 <h3 className="font-semibold text-petra-text">{integ.name}</h3>
                 {integ.connected ? (
