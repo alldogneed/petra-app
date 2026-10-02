@@ -91,7 +91,16 @@ export async function DELETE(
     }
 
     if (relatedRequests.length > 0) {
-      await prisma.contractRequest.deleteMany({ where: { templateId: params.id, businessId: authResult.businessId } });
+      // Without CRITICAL_DELETE never touch a signed row, even one signed after the
+      // check above (race) — the template delete then fails on the FK instead.
+      const canDeleteSigned = sessionHasTenantPermission(authResult.session, authResult.businessId, TENANT_PERMS.CRITICAL_DELETE);
+      await prisma.contractRequest.deleteMany({
+        where: {
+          templateId: params.id,
+          businessId: authResult.businessId,
+          ...(canDeleteSigned ? {} : { status: { not: "SIGNED" }, signedFileUrl: null }),
+        },
+      });
     }
 
     // Delete template blob

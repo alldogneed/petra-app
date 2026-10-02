@@ -19,8 +19,8 @@ function contractsGuard(authResult: { session: Parameters<typeof sessionHasTenan
 export async function GET(request: NextRequest) {
   const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
-  // Listing is open to every member — sending a contract from the customer file
-  // needs the template list; managing templates is gated below.
+  // Listing is open to every member (names + blank template PDFs, no customer data —
+  // the PDF proxy was already open); managing templates is gated below.
 
   try {
     const templates = await prisma.contractTemplate.findMany({

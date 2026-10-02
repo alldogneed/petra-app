@@ -60,6 +60,7 @@ export const ACTIVITY_ACTIONS = {
   CHANGE_BUSINESS_PHONE: "CHANGE_BUSINESS_PHONE",
   CANCEL_SUBSCRIPTION: "CANCEL_SUBSCRIPTION",
   DELETE_CONTRACT_TEMPLATE: "DELETE_CONTRACT_TEMPLATE",
+  DELETE_IMPORT_BATCH: "DELETE_IMPORT_BATCH",
 } as const;
 
 export type ActivityAction = (typeof ACTIVITY_ACTIONS)[keyof typeof ACTIVITY_ACTIONS];
@@ -119,6 +120,7 @@ export const ACTION_LABELS: Record<string, string> = {
   CHANGE_BUSINESS_PHONE: "שינה/תה את טלפון העסק",
   CANCEL_SUBSCRIPTION: "ביטל/ה את המנוי",
   DELETE_CONTRACT_TEMPLATE: "מחק/ה תבנית חוזה",
+  DELETE_IMPORT_BATCH: "ביטל/ה ייבוא לקוחות",
 };
 
 export function actionLabel(action: string): string {

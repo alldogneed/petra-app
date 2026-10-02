@@ -153,6 +153,21 @@ export async function processPendingSyncJobs(): Promise<{
         continue;
       }
 
+      // The owner may have revoked CALENDAR_SYNC after the job was queued —
+      // never push into that member's calendar (deletes still run, for cleanup).
+      if (["create", "update"].includes(job.action)) {
+        const allowed = (await findConnectedUsersForBusiness(booking.businessId))
+          .some((u) => u.id === job.userId && u.gcalSyncEnabled);
+        if (!allowed) {
+          await prisma.syncJob.update({
+            where: { id: job.id },
+            data: { status: "done", lastError: "Skipped: calendar sync not allowed for this member" },
+          });
+          skipped++;
+          continue;
+        }
+      }
+
       // Execute the sync action
       switch (job.action as SyncAction) {
         case "create":
