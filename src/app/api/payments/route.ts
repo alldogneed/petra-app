@@ -163,10 +163,14 @@ export async function POST(request: NextRequest) {
     if (orderId) {
       const orderCheck = await prisma.order.findFirst({
         where: { id: orderId, businessId: authResult.businessId },
-        select: { id: true },
+        select: { id: true, customerId: true },
       });
       if (!orderCheck) {
         return NextResponse.json({ error: "הזמנה לא נמצאה" }, { status: 404 });
+      }
+      // A payment on another customer's order would skew both customers' balances.
+      if (orderCheck.customerId !== customerId) {
+        return NextResponse.json({ error: "ההזמנה לא שייכת ללקוח הזה" }, { status: 400 });
       }
     }
 

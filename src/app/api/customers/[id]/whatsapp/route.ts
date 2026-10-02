@@ -1,8 +1,9 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
-import { sessionHasTenantPermission, TENANT_PERMS } from "@/lib/permissions";
+import { isGuardError } from "@/lib/auth-guards";
+import { TENANT_PERMS } from "@/lib/permissions";
+import { requireCustomerAccess, callerCan } from "@/lib/customer-access";
 import { sendWhatsAppMessage } from "@/lib/whatsapp";
 import { toWhatsAppPhone } from "@/lib/utils";
 import { rateLimit } from "@/lib/rate-limit";
@@ -14,9 +15,10 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const authResult = await requireBusinessAuth(request);
+  // Customer read (CUSTOMERS_PII — the phone number is PII) + MESSAGES_SEND, overrides honoured.
+  const authResult = await requireCustomerAccess(request, "read");
   if (isGuardError(authResult)) return authResult;
-  if (!sessionHasTenantPermission(authResult.session, authResult.businessId, TENANT_PERMS.MESSAGES_SEND)) {
+  if (!callerCan(authResult.session, authResult.businessId, TENANT_PERMS.MESSAGES_SEND)) {
     return NextResponse.json({ error: "אין לך הרשאה לשלוח הודעות ללקוחות" }, { status: 403 });
   }
 
@@ -41,10 +43,10 @@ export async function POST(
     if (!customer) return NextResponse.json({ error: "לקוח לא נמצא" }, { status: 404 });
     if (!customer.phone) return NextResponse.json({ error: "אין מספר טלפון ללקוח" }, { status: 400 });
 
-    const body = await request.json();
-    const { message } = body;
+    const body = await request.json().catch(() => null);
+    const message = (body as { message?: unknown } | null)?.message;
 
-    if (!message?.trim()) return NextResponse.json({ error: "נדרש תוכן ההודעה" }, { status: 400 });
+    if (typeof message !== "string" || !message.trim()) return NextResponse.json({ error: "נדרש תוכן ההודעה" }, { status: 400 });
     if (message.length > 1500) return NextResponse.json({ error: "ההודעה ארוכה מדי (מקסימום 1500 תווים)" }, { status: 400 });
 
     const phone = toWhatsAppPhone(customer.phone);
