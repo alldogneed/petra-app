@@ -2,8 +2,9 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
-import { createSession, setSessionCookie, ensureUserHasBusiness } from "@/lib/auth";
+import { createSession, setSessionCookie, ensureUserHasBusiness, validateSession } from "@/lib/auth";
 import { logActivity } from "@/lib/activity-log";
+import { ENTITY_TYPES, describeDevice } from "@/lib/activity-actions";
 import { rateLimitAsync, RATE_LIMITS } from "@/lib/rate-limit";
 import { alertIfNewDevice } from "@/lib/login-alerts";
 
@@ -117,7 +118,25 @@ export async function POST(request: NextRequest) {
       data: { lastLoginAt: new Date() },
     }).catch((err) => console.error("[login] lastLoginAt update failed:", err)); // fire-and-forget
 
-    logActivity(user.id, user.name, "LOGIN");
+    // One LOGIN row per active business membership (cap 5) so each business's
+    // "ניהול ובקרה" log + new-device alert sees it. Device label only — no IP.
+    // Awaited: the new-device security alert must finish inside the lambda.
+    const loginSession = await validateSession(token).catch(() => null);
+    const loginBusinessIds = Array.from(new Set(
+      (loginSession?.memberships ?? user.businessMemberships).map((m) => m.businessId)
+    )).slice(0, 5);
+    const loginCtx = {
+      entityType: ENTITY_TYPES.SESSION,
+      entityId: loginSession?.sessionId ?? null,
+      entityLabel: describeDevice(request.headers.get("user-agent")),
+    };
+    if (loginBusinessIds.length === 0) {
+      await logActivity(user.id, user.name, "LOGIN", loginCtx);
+    } else {
+      await Promise.all(
+        loginBusinessIds.map((businessId) => logActivity(user.id, user.name, "LOGIN", { ...loginCtx, businessId }))
+      );
+    }
 
     const membership = user.businessMemberships[0] || null;
 

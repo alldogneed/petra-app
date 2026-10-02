@@ -25,6 +25,7 @@
  *
  * `findAppointmentConflicts` is exported for route.ts (create/update_appointment upgrades).
  */
+import { TENANT_PERMS } from "@/lib/permissions";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
@@ -688,6 +689,7 @@ export function registerCalendarTools(server: McpServer, ctx: ToolCtx): void {
     },
     async (args) => {
       if (!ctx.hasScope("write:appointments")) return ctx.denyScope("block_time", "write:appointments");
+      if (!ctx.hasPermission(TENANT_PERMS.AVAILABILITY_MANAGE)) return ctx.denyPermission("block_time", TENANT_PERMS.AVAILABILITY_MANAGE);
       const params = { ...args };
       try {
         const replay = await findIdempotentReplay(connectionId, "block_time", args.idempotency_key);
@@ -798,6 +800,7 @@ export function registerCalendarTools(server: McpServer, ctx: ToolCtx): void {
     },
     async (args) => {
       if (!ctx.hasScope("write:appointments")) return ctx.denyScope("delete_block", "write:appointments");
+      if (!ctx.hasPermission(TENANT_PERMS.AVAILABILITY_MANAGE)) return ctx.denyPermission("delete_block", TENANT_PERMS.AVAILABILITY_MANAGE);
       // Deleting a block re-opens booking slots — irreversible, owner-only.
       // Checked before any replay / DB read, mirroring delete_task.
       if (!ctx.hasScope(ADMIN_SCOPE)) return ctx.denyScope("delete_block", ADMIN_SCOPE);

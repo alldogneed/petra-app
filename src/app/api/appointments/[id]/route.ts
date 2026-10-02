@@ -4,11 +4,18 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
-import { type TenantRole } from "@/lib/permissions";
+import { ENTITY_TYPES } from "@/lib/activity-actions";
+import { type TenantRole, TENANT_PERMS, sessionHasTenantPermission } from "@/lib/permissions";
 import { createPendingApproval } from "@/lib/pending-approvals";
 import { cancelAppointmentReminders, rescheduleAppointmentReminder } from "@/lib/reminder-service";
 import { syncAppointmentToGcal, deleteAppointmentFromGcal } from "@/lib/google-calendar";
 import { updateAppointment, deleteAppointment, ServiceError, type UpdateAppointmentInput } from "@/services/appointments";
+
+function appointmentLabel(a: { date?: Date | string | null; startTime?: string | null; customer?: { name?: string | null } | null }): string {
+  const d = a.date ? new Date(a.date).toLocaleDateString("he-IL", { timeZone: "Asia/Jerusalem" }) : "";
+  return `תור ${d} ${a.startTime ?? ""} — ${a.customer?.name ?? ""}`;
+}
+
 
 const PatchAppointmentSchema = z.object({
   status: z.enum(["scheduled", "completed", "canceled"]).optional(),
@@ -51,7 +58,12 @@ export async function PATCH(
       status === "completed" ? ACTIVITY_ACTIONS.COMPLETE_APPOINTMENT :
       status === "canceled" ? ACTIVITY_ACTIONS.CANCEL_APPOINTMENT :
       ACTIVITY_ACTIONS.UPDATE_APPOINTMENT;
-    logActivity(session.user.id, session.user.name, action);
+    logActivity(session.user.id, session.user.name, action, {
+      businessId: authResult.businessId,
+      entityType: ENTITY_TYPES.APPOINTMENT,
+      entityId: params.id,
+      entityLabel: appointmentLabel(appointment),
+    });
 
     // ── Side effects ────────────────────────────────────────────────────────
 
@@ -117,11 +129,15 @@ export async function DELETE(
     const membership = session.memberships.find((m) => m.businessId === businessId);
     const callerRole = (membership?.role ?? "user") as TenantRole;
 
-    if (callerRole === "user" || callerRole === "volunteer") {
+    // An owner-granted critical-delete override lets any member delete directly;
+    // otherwise managers still route through the pending-approval flow.
+    const canDeleteDirectly = sessionHasTenantPermission(session, businessId, TENANT_PERMS.CRITICAL_DELETE);
+
+    if (!canDeleteDirectly && callerRole !== "manager") {
       return NextResponse.json({ error: "אין הרשאה למחיקת פגישה" }, { status: 403 });
     }
 
-    if (callerRole === "manager") {
+    if (!canDeleteDirectly) {
       const existing = await prisma.appointment.findFirst({
         where: { id: params.id, businessId },
         include: { customer: { select: { name: true } }, service: { select: { name: true } } },
@@ -148,6 +164,12 @@ export async function DELETE(
       return NextResponse.json({ error: "נדרש אישור מפורש למחיקה", requireConfirmation: true }, { status: 428 });
     }
 
+    // Read the label before the row disappears (scoped to this business).
+    const toDelete = await prisma.appointment.findFirst({
+      where: { id: params.id, businessId },
+      select: { date: true, startTime: true, customer: { select: { name: true } } },
+    });
+
     await cancelAppointmentReminders(params.id);
     await deleteAppointmentFromGcal(params.id, businessId).catch((err) =>
       console.error("Failed to delete appointment from GCal:", err)
@@ -162,7 +184,12 @@ export async function DELETE(
       throw e;
     }
 
-    logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.DELETE_APPOINTMENT);
+    await logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.DELETE_APPOINTMENT, {
+      businessId,
+      entityType: ENTITY_TYPES.APPOINTMENT,
+      entityId: params.id,
+      entityLabel: toDelete ? appointmentLabel(toDelete) : null,
+    });
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Failed to delete appointment:", error);

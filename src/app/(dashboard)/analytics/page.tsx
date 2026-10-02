@@ -1,112 +1,33 @@
 "use client";
-import Link from "next/link";
-import { PageTitle } from "@/components/ui/PageTitle";
 
+import { Suspense, useCallback, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { DesktopBanner } from "@/components/ui/DesktopBanner";
-import { useState } from "react";
 import {
   BarChart3,
-  Users,
-  Calendar,
-  CreditCard,
-  Target,
-  TrendingUp,
-  ListTodo,
-  GraduationCap,
-  Hotel,
-  ArrowUpRight,
-  ArrowDownRight,
-  Minus,
   Share2,
-  PawPrint,
   AlertCircle,
   Download,
-  Coins,
+  LayoutDashboard,
+  Wallet,
+  CalendarDays,
+  Target,
+  GraduationCap,
 } from "lucide-react";
-import { cn, formatCurrency, fetchJSON } from "@/lib/utils";
-import { LEAD_SOURCES, LOST_REASON_CODES } from "@/lib/constants";
-import { TRAFFIC_SOURCE_LABELS, formatMonthKey, type LeadAttributionReport } from "@/lib/lead-attribution";
-import { formatIls, type LeadSalesReport } from "@/lib/lead-deal-value";
+import { PageTitle } from "@/components/ui/PageTitle";
+import { DesktopBanner } from "@/components/ui/DesktopBanner";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { TierGate } from "@/components/paywall/TierGate";
 import { PetraLoader } from "@/components/ui/PetraLoader";
-
-interface AnalyticsData {
-  period: string;
-  from: string;
-  to: string;
-  overview: {
-    totalCustomers: number;
-    newCustomers: number;
-    newCustomersChange: number | null;
-    totalAppointments: number;
-    appointmentsChange: number | null;
-    completedAppointments: number;
-    canceledAppointments: number;
-    completionRate: number;
-    revenue: number;
-    revenueChange: number | null;
-    paymentCount: number;
-  };
-  tasks: {
-    open: number;
-    completedThisPeriod: number;
-  };
-  leads: {
-    active: number;
-    wonThisPeriod: number;
-    lostThisPeriod: number;
-    conversionRate: number;
-  };
-  leadsBySource?: {
-    source: string;
-    total: number;
-    won: number;
-    lost: number;
-    active: number;
-    conversionRate: number;
-  }[];
-  lostReasons?: { code: string; count: number }[];
-  leadAttribution?: LeadAttributionReport;
-  leadSales?: (LeadSalesReport & { pipelineValue: number; pipelineWithValueCount: number }) | null;
-  training: {
-    activePrograms: number;
-    completedSessionsThisPeriod: number;
-    activeGroups: number;
-    groupSessionsThisPeriod: number;
-    revenue: number | null;
-  };
-  boarding: {
-    staysThisPeriod: number;
-  };
-  charts: {
-    appointmentsByDate: { date: string; count: number }[];
-    revenueByService: { name: string; revenue: number }[];
-    appointmentsByDayOfWeek: { day: string; count: number }[];
-    appointmentsByHour: { hour: number; label: string; count: number }[];
-  };
-  topCustomers: { id: string; name: string; revenue: number; count: number }[];
-  petDemographics?: {
-    total: number;
-    bySpecies: { species: string; count: number }[];
-    topBreeds: { breed: string; count: number }[];
-  };
-  retention?: {
-    returningCustomers: number;
-    customersWithAppointments: number;
-    retentionRate: number;
-    avgRevenuePerCustomer: number;
-  };
-}
-
-const LEAD_SOURCE_LABELS: Record<string, string> = Object.fromEntries(
-  LEAD_SOURCES.map((s) => [s.id, s.label])
-);
-
-const LOST_REASON_LABELS: Record<string, string> = Object.fromEntries(
-  LOST_REASON_CODES.map((r) => [r.id, r.label])
-);
+import { cn, formatCurrency, fetchJSON } from "@/lib/utils";
+import { formatIls } from "@/lib/lead-deal-value";
+import type { AnalyticsData } from "@/lib/analytics-types";
+import { israelTodayYmd, israelYmdOf } from "@/lib/report-dates";
+import { OverviewTab } from "@/components/analytics/OverviewTab";
+import { FinanceTab } from "@/components/analytics/FinanceTab";
+import { AppointmentsTab } from "@/components/analytics/AppointmentsTab";
+import { LeadsTab } from "@/components/analytics/LeadsTab";
+import { OperationsTab } from "@/components/analytics/OperationsTab";
 
 const PERIODS = [
   { id: "week", label: "שבוע" },
@@ -115,23 +36,18 @@ const PERIODS = [
   { id: "year", label: "שנה" },
 ];
 
-function ChangeIndicator({ value }: { value: number | null }) {
-  if (value === null)
-    return <span className="text-xs font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-md">חדש</span>;
-  if (value === 0) return <span className="flex items-center gap-0.5 text-xs text-slate-400"><Minus className="w-3 h-3" /> 0%</span>;
-  if (value > 0)
-    return (
-      <span className="flex items-center gap-0.5 text-xs text-emerald-600">
-        <ArrowUpRight className="w-3 h-3" />
-        {value}%
-      </span>
-    );
-  return (
-    <span className="flex items-center gap-0.5 text-xs text-red-500">
-      <ArrowDownRight className="w-3 h-3" />
-      {Math.abs(value)}%
-    </span>
-  );
+const TABS = [
+  { id: "overview", label: "סקירה", icon: LayoutDashboard },
+  { id: "finance", label: "כספים", icon: Wallet },
+  { id: "appointments", label: "תורים ולקוחות", icon: CalendarDays },
+  { id: "leads", label: "לידים ומכירות", icon: Target },
+  { id: "operations", label: "אילוף ופנסיון", icon: GraduationCap },
+] as const;
+
+type TabId = (typeof TABS)[number]["id"];
+
+function isTabId(v: string | null): v is TabId {
+  return !!v && TABS.some((t) => t.id === v);
 }
 
 export default function AnalyticsPage() {
@@ -142,35 +58,81 @@ export default function AnalyticsPage() {
         title="דוחות"
         description="גרפים, סטטיסטיקות ומעקב ביצועים של העסק. שדרג כדי לגשת לדוחות מפורטים."
       >
-        <AnalyticsContent />
+        {/* useSearchParams (tab in the URL) needs a Suspense boundary in the app router */}
+        <Suspense fallback={<PetraLoader />}>
+          <AnalyticsContent />
+        </Suspense>
       </TierGate>
     </ProtectedRoute>
   );
 }
 
+function buildShareText(data: AnalyticsData, periodLabel: string): string {
+  const from = new Date(data.from).toLocaleDateString("he-IL");
+  const to = new Date(data.to).toLocaleDateString("he-IL");
+  const o = data.overview;
+  const closed = data.leads.wonThisPeriod + data.leads.lostThisPeriod;
+  const lines = [
+    `📊 *דוח ביצועים — ${periodLabel}*`,
+    `${from} – ${to}`,
+    "",
+    ...(o.revenue != null ? [`💰 הכנסות: ${formatCurrency(o.revenue)}`] : []),
+    `📅 תורים: ${o.totalAppointments} (${o.completionRate}% הושלמו)`,
+    `👥 לקוחות חדשים: ${o.newCustomers}`,
+    `🎯 לידים שנסגרו: ${data.leads.wonThisPeriod}${closed > 0 ? ` (${data.leads.conversionRate}% המרה)` : ""}`,
+    ...(data.leadSales
+      ? [`💼 מכירות מלידים: ${formatIls(data.leadSales.total)} (עסקאות ${formatIls(data.leadSales.dealValueTotal)} + הזמנות ${formatIls(data.leadSales.ordersTotal)})`]
+      : []),
+    `✅ משימות הושלמו: ${data.tasks.completedThisPeriod}`,
+    `🐾 שהות פנסיון: ${data.boarding.staysThisPeriod}${data.boarding.occupancyRate != null ? ` (${data.boarding.occupancyRate}% תפוסה)` : ""}`,
+    ...(data.finance && data.finance.outstanding.total > 0
+      ? [`🧾 יתרות פתוחות: ${formatCurrency(data.finance.outstanding.total)}`]
+      : []),
+  ];
+  return lines.join("\n");
+}
+
 function AnalyticsContent() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const activeTab: TabId = isTabId(tabParam) ? tabParam : "overview";
+
+  const setTab = useCallback(
+    (tab: TabId) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (tab === "overview") params.delete("tab");
+      else params.set("tab", tab);
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [router, pathname, searchParams]
+  );
+
   const [period, setPeriod] = useState("month");
   const [dateMode, setDateMode] = useState<"preset" | "custom">("preset");
   const [customFrom, setCustomFrom] = useState("");
   const [customTo, setCustomTo] = useState("");
   const [isExporting, setIsExporting] = useState(false);
 
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStr = israelTodayYmd();
   const effectiveCustomTo = customTo || todayStr;
+  const rangeInvalid = dateMode === "custom" && !!customFrom && customFrom > effectiveCustomTo;
+  const customReady = dateMode === "custom" && !!customFrom && !rangeInvalid;
 
-  const queryUrl =
-    dateMode === "custom" && customFrom
-      ? `/api/analytics?from=${customFrom}&to=${effectiveCustomTo}`
-      : `/api/analytics?period=${period}`;
+  const queryUrl = customReady
+    ? `/api/analytics?from=${customFrom}&to=${effectiveCustomTo}`
+    : `/api/analytics?period=${period}`;
 
   const { data, isLoading, isError } = useQuery<AnalyticsData>({
-    queryKey: ["analytics", dateMode === "custom" ? `custom-${customFrom}-${effectiveCustomTo}` : period],
+    queryKey: ["analytics", customReady ? `custom-${customFrom}-${effectiveCustomTo}` : period],
     queryFn: () => fetchJSON<AnalyticsData>(queryUrl),
-    enabled: dateMode === "preset" || !!customFrom,
+    enabled: dateMode === "preset" || customReady,
   });
 
-  const exportFrom = dateMode === "custom" && customFrom ? customFrom : data?.from?.slice(0, 10) ?? "";
-  const exportTo = dateMode === "custom" ? effectiveCustomTo : data?.to?.slice(0, 10) ?? "";
+  const exportFrom = customReady ? customFrom : data?.from ? israelYmdOf(data.from) : "";
+  const exportTo = customReady ? effectiveCustomTo : data?.to ? israelYmdOf(data.to) : "";
 
   const handleExport = () => {
     if (!exportFrom || !exportTo) return;
@@ -179,112 +141,138 @@ function AnalyticsContent() {
     setTimeout(() => setIsExporting(false), 3000);
   };
 
-  const maxChartValue = data
-    ? Math.max(...data.charts.appointmentsByDate.map((d) => d.count), 1)
-    : 1;
+  const periodLabel = dateMode === "custom" ? "מותאם אישית" : PERIODS.find((p) => p.id === period)?.label ?? period;
+  const shareHref = useMemo(
+    () => (data ? `https://wa.me/?text=${encodeURIComponent(buildShareText(data, periodLabel))}` : ""),
+    [data, periodLabel]
+  );
+
+  const startCustom = () => {
+    setDateMode("custom");
+    if (!customFrom) {
+      // Start from the range currently shown so switching modes doesn't jump to a 1-day report
+      setCustomFrom(data?.from ? israelYmdOf(data.from) : todayStr);
+      if (!customTo) setCustomTo(todayStr);
+    }
+  };
+
+  const pill = (active: boolean) =>
+    cn(
+      "px-3 sm:px-4 py-2 rounded-xl text-sm font-medium transition-all whitespace-nowrap",
+      active ? "bg-brand-500 text-white shadow-sm" : "bg-white text-petra-muted hover:bg-slate-50 border border-slate-200"
+    );
 
   return (
-    <div className="animate-fade-in">
+    <div className="animate-fade-in min-w-0">
       <PageTitle title="דוחות" />
-      {/* Header */}
       <DesktopBanner />
-      <div className="flex items-center gap-3 mb-6 flex-wrap">
-        <h1 className="page-title flex items-center gap-2">
-          <BarChart3 className="w-6 h-6 text-brand-500" />
-          דוחות
-        </h1>
-        <p className="text-sm text-petra-muted">דוחות וסטטיסטיקות של העסק</p>
-        <div className="flex gap-1.5 flex-wrap items-center">
-          {PERIODS.map((p) => (
+
+      {/* Header */}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="min-w-0">
+          <h1 className="page-title flex items-center gap-2">
+            <BarChart3 className="w-6 h-6 text-brand-500" />
+            דוחות
+          </h1>
+          <p className="text-sm text-petra-muted">דוחות וסטטיסטיקות של העסק</p>
+        </div>
+        {data && (
+          <div className="flex items-center gap-2">
             <button
-              key={p.id}
-              onClick={() => { setPeriod(p.id); setDateMode("preset"); }}
-              className={cn(
-                "px-4 py-2 rounded-xl text-sm font-medium transition-all",
-                dateMode === "preset" && period === p.id
-                  ? "bg-brand-500 text-white shadow-sm"
-                  : "bg-white text-petra-muted hover:bg-slate-50 border border-slate-200"
-              )}
-            >
-              {p.label}
-            </button>
-          ))}
-          <button
-            onClick={() => {
-              setDateMode("custom");
-              if (!customFrom) setCustomFrom(new Date().toISOString().slice(0, 10));
-            }}
-            className={cn(
-              "px-4 py-2 rounded-xl text-sm font-medium transition-all",
-              dateMode === "custom"
-                ? "bg-brand-500 text-white shadow-sm"
-                : "bg-white text-petra-muted hover:bg-slate-50 border border-slate-200"
-            )}
-          >
-            מותאם אישית
-          </button>
-          {dateMode === "custom" && (
-            <>
-              <input
-                type="date" lang="he"
-                value={customFrom}
-                onChange={(e) => setCustomFrom(e.target.value)}
-                className="input px-3 py-1.5 text-sm w-36"
-              />
-              <span className="text-xs text-petra-muted">עד</span>
-              <input
-                type="date" lang="he"
-                value={customTo}
-                onChange={(e) => setCustomTo(e.target.value)}
-                className="input px-3 py-1.5 text-sm w-36"
-                placeholder="היום"
-              />
-            </>
-          )}
-          {data && (
-            <button
+              type="button"
               onClick={handleExport}
               disabled={isExporting || !exportFrom || !exportTo}
-              className="btn-secondary flex items-center gap-1.5 hidden sm:flex disabled:opacity-50"
+              className="btn-secondary flex items-center gap-1.5 disabled:opacity-50"
               title="ייצוא דוח לאקסל"
             >
               <Download className="w-4 h-4" />
-              {isExporting ? "מייצא..." : "ייצוא Excel"}
+              <span>{isExporting ? "מייצא..." : "Excel"}</span>
             </button>
-          )}
-          {data && (
             <a
-              href={(() => {
-                const periodLabel = dateMode === "custom" ? "מותאם אישית" : (PERIODS.find((p) => p.id === period)?.label ?? period);
-                const from = new Date(data.from).toLocaleDateString("he-IL");
-                const to = new Date(data.to).toLocaleDateString("he-IL");
-                const lines = [
-                  `📊 *דוח ביצועים — ${periodLabel}*`,
-                  `${from} – ${to}`,
-                  "",
-                  `💰 הכנסות: ${formatCurrency(data.overview.revenue)}`,
-                  `📅 תורים: ${data.overview.totalAppointments} (${data.overview.completionRate}% הושלמו)`,
-                  `👥 לקוחות חדשים: ${data.overview.newCustomers}`,
-                  `🎯 לידים שנסגרו: ${data.leads.wonThisPeriod} (${data.leads.conversionRate}% המרה)`,
-                  ...(data.leadSales ? [`💼 מכירות מלידים: ${formatIls(data.leadSales.total)} (עסקאות ${formatIls(data.leadSales.dealValueTotal)} + הזמנות ${formatIls(data.leadSales.ordersTotal)})`] : []),
-                  `✅ משימות הושלמו: ${data.tasks.completedThisPeriod}`,
-                  `🐾 שהות פנסיון: ${data.boarding.staysThisPeriod}`,
-                ].join("\n");
-                return `https://wa.me/?text=${encodeURIComponent(lines)}`;
-              })()}
+              href={shareHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="btn-secondary flex items-center gap-1.5 hidden sm:flex"
+              className="btn-secondary flex items-center gap-1.5"
               title="שתף דוח בוואטסאפ"
             >
               <Share2 className="w-4 h-4" />
-              שתף דוח
+              <span>שתף</span>
             </a>
-          )}
+          </div>
+        )}
+      </div>
+
+      {/* Date range */}
+      <div className="flex flex-wrap items-center gap-1.5 mb-4">
+        {PERIODS.map((p) => (
+          <button
+            type="button"
+            key={p.id}
+            onClick={() => {
+              setPeriod(p.id);
+              setDateMode("preset");
+            }}
+            className={pill(dateMode === "preset" && period === p.id)}
+          >
+            {p.label}
+          </button>
+        ))}
+        <button type="button" onClick={startCustom} className={pill(dateMode === "custom")}>
+          מותאם אישית
+        </button>
+        {dateMode === "custom" && (
+          <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto">
+            <input
+              type="date"
+              lang="he"
+              value={customFrom}
+              max={todayStr}
+              onChange={(e) => setCustomFrom(e.target.value)}
+              className={cn("input px-3 py-1.5 text-sm w-36", rangeInvalid && "border-red-300")}
+              aria-label="מתאריך"
+            />
+            <span className="text-xs text-petra-muted">עד</span>
+            <input
+              type="date"
+              lang="he"
+              value={customTo}
+              onChange={(e) => setCustomTo(e.target.value)}
+              className={cn("input px-3 py-1.5 text-sm w-36", rangeInvalid && "border-red-300")}
+              placeholder="היום"
+              aria-label="עד תאריך"
+            />
+            {rangeInvalid && <span className="text-xs text-red-500 w-full sm:w-auto">תאריך ההתחלה חייב להיות לפני תאריך הסיום</span>}
+          </div>
+        )}
+      </div>
+
+      {/* Tabs — horizontally scrollable on mobile, never the page */}
+      <div className="max-w-full overflow-x-auto mb-4 -mx-1 px-1">
+        <div role="tablist" aria-label="קטגוריות דוחות" className="inline-flex gap-1 p-1 bg-slate-100 rounded-xl">
+          {TABS.map((t) => {
+            const Icon = t.icon;
+            const active = activeTab === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setTab(t.id)}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all",
+                  active ? "bg-white text-petra-text shadow-sm" : "text-petra-muted hover:text-petra-text"
+                )}
+              >
+                <Icon className={cn("w-4 h-4", active ? "text-brand-500" : "")} />
+                {t.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {isLoading ? (
+      {rangeInvalid ? null : isLoading ? (
         <PetraLoader />
       ) : isError ? (
         <div className="card p-8 text-center">
@@ -293,739 +281,13 @@ function AnalyticsContent() {
           <p className="text-xs text-petra-muted mt-1">נסה לרענן את הדף</p>
         </div>
       ) : data ? (
-        <>
-          {/* Main Stats Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            {/* Revenue */}
-            <div className="stat-card">
-              <div className="flex items-center justify-between mb-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
-                  <CreditCard className="w-5 h-5 text-emerald-500" />
-                </div>
-                <ChangeIndicator value={data.overview.revenueChange} />
-              </div>
-              <div className="text-2xl font-bold text-petra-text">{formatCurrency(data.overview.revenue)}</div>
-              <div className="text-xs text-petra-muted mt-1">הכנסות · {data.overview.paymentCount} תשלומים</div>
-            </div>
-
-            {/* Appointments */}
-            <div className="stat-card">
-              <div className="flex items-center justify-between mb-3">
-                <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
-                  <Calendar className="w-5 h-5 text-blue-500" />
-                </div>
-                <ChangeIndicator value={data.overview.appointmentsChange} />
-              </div>
-              <div className="text-2xl font-bold text-petra-text">{data.overview.totalAppointments}</div>
-              <div className="text-xs text-petra-muted mt-1">
-                תורים · {data.overview.completionRate}% הושלמו
-              </div>
-              {data.overview.totalAppointments > 0 && (
-                <div className="mt-2 h-1 bg-slate-100 rounded-full">
-                  <div className="h-full rounded-full bg-blue-400" style={{ width: `${data.overview.completionRate}%` }} />
-                </div>
-              )}
-            </div>
-
-            {/* New Customers */}
-            <div className="stat-card">
-              <div className="flex items-center justify-between mb-3">
-                <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center">
-                  <Users className="w-5 h-5 text-purple-500" />
-                </div>
-                <ChangeIndicator value={data.overview.newCustomersChange} />
-              </div>
-              <div className="text-2xl font-bold text-petra-text">{data.overview.newCustomers}</div>
-              <div className="text-xs text-petra-muted mt-1">לקוחות חדשים · {data.overview.totalCustomers} סה״כ</div>
-            </div>
-
-            {/* Leads */}
-            <div className="stat-card">
-              <div className="flex items-center justify-between mb-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">
-                  <Target className="w-5 h-5 text-amber-500" />
-                </div>
-                {data.leads.conversionRate > 0 && (
-                  <span className="text-xs text-emerald-600 font-medium">{data.leads.conversionRate}% המרה</span>
-                )}
-              </div>
-              <div className="text-2xl font-bold text-petra-text">{data.leads.active}</div>
-              <div className="text-xs text-petra-muted mt-1">
-                לידים פעילים כעת · {data.leads.wonThisPeriod} נסגרו בתקופה
-              </div>
-            </div>
-          </div>
-
-          {/* Charts & Details Row */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-            {/* Appointments Chart */}
-            <div className="card p-5">
-              <h3 className="text-sm font-semibold text-petra-text mb-4 flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-brand-500" />
-                תורים לפי תאריך
-              </h3>
-              {data.charts.appointmentsByDate.length === 0 ? (
-                <div className="flex items-center justify-center h-40 text-sm text-petra-muted">
-                  אין נתונים לתקופה זו
-                </div>
-              ) : (
-                <div role="img" aria-label="גרף תורים לפי תאריך" className="flex items-end gap-1 h-40">
-                  {data.charts.appointmentsByDate.map((d, i) => {
-                    const height = Math.max((d.count / maxChartValue) * 100, 4);
-                    const dateStr = new Date(d.date).toLocaleDateString("he-IL", {
-                      day: "numeric",
-                      month: "numeric",
-                    });
-                    return (
-                      <div key={i} className="flex-1 flex flex-col items-center gap-1 group">
-                        <span className="text-[9px] text-petra-muted opacity-0 group-hover:opacity-100 transition-opacity">
-                          {d.count}
-                        </span>
-                        <div
-                          className="w-full rounded-t-md bg-brand-400 hover:bg-brand-500 transition-colors cursor-default"
-                          style={{ height: `${height}%`, minHeight: "4px" }}
-                          title={`${dateStr}: ${d.count} תורים`}
-                        />
-                        {data.charts.appointmentsByDate.length <= 15 && (
-                          <span className="text-[8px] text-petra-muted">{dateStr}</span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Performance Summary */}
-            <div className="card p-5">
-              <h3 className="text-sm font-semibold text-petra-text mb-4 flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-brand-500" />
-                סיכום ביצועים
-              </h3>
-              <div className="space-y-3">
-                {/* Appointments Breakdown */}
-                <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                    <span className="text-sm text-petra-muted">תורים שהושלמו</span>
-                  </div>
-                  <span className="text-sm font-semibold text-petra-text">{data.overview.completedAppointments}</span>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-red-400" />
-                    <span className="text-sm text-petra-muted">תורים שבוטלו</span>
-                  </div>
-                  <span className="text-sm font-semibold text-petra-text">{data.overview.canceledAppointments}</span>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-amber-400" />
-                    <span className="text-sm text-petra-muted">לידים שאבדו</span>
-                  </div>
-                  <span className="text-sm font-semibold text-petra-text">{data.leads.lostThisPeriod}</span>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-blue-400" />
-                    <span className="text-sm text-petra-muted">משימות שהושלמו</span>
-                  </div>
-                  <span className="text-sm font-semibold text-petra-text">{data.tasks.completedThisPeriod}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Secondary Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div className="card p-4 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center">
-                <ListTodo className="w-4 h-4 text-indigo-500" />
-              </div>
-              <div>
-                <div className="text-lg font-bold text-petra-text">{data.tasks.open}</div>
-                <div className="text-xs text-petra-muted">משימות פתוחות</div>
-              </div>
-            </div>
-
-            <div className="card p-4 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-teal-50 flex items-center justify-center">
-                <GraduationCap className="w-4 h-4 text-teal-500" />
-              </div>
-              <div>
-                <div className="text-lg font-bold text-petra-text">{data.training.activePrograms}</div>
-                <div className="text-xs text-petra-muted">תוכניות אילוף פעילות</div>
-              </div>
-            </div>
-
-            <div className="card p-4 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-pink-50 flex items-center justify-center">
-                <Hotel className="w-4 h-4 text-pink-500" />
-              </div>
-              <div>
-                <div className="text-lg font-bold text-petra-text">{data.boarding.staysThisPeriod}</div>
-                <div className="text-xs text-petra-muted">שהיות בפנסיון</div>
-              </div>
-            </div>
-
-            <div className="card p-4 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-orange-50 flex items-center justify-center">
-                <Target className="w-4 h-4 text-orange-500" />
-              </div>
-              <div>
-                <div className="text-lg font-bold text-petra-text">{data.leads.wonThisPeriod}</div>
-                <div className="text-xs text-petra-muted">לידים שנסגרו</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Training metrics */}
-          <h2 className="text-sm font-semibold text-petra-muted mb-3 flex items-center gap-1.5">
-            <GraduationCap className="w-4 h-4" /> אילוף
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div className="card p-4 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-teal-50 flex items-center justify-center">
-                <TrendingUp className="w-4 h-4 text-teal-500" />
-              </div>
-              <div>
-                <div className="text-lg font-bold text-petra-text">{data.training.completedSessionsThisPeriod}</div>
-                <div className="text-xs text-petra-muted">מפגשים שהושלמו בתקופה</div>
-              </div>
-            </div>
-
-            <div className="card p-4 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-violet-50 flex items-center justify-center">
-                <Users className="w-4 h-4 text-violet-500" />
-              </div>
-              <div>
-                <div className="text-lg font-bold text-petra-text">{data.training.activeGroups}</div>
-                <div className="text-xs text-petra-muted">קבוצות אילוף פעילות</div>
-              </div>
-            </div>
-
-            <div className="card p-4 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-fuchsia-50 flex items-center justify-center">
-                <Calendar className="w-4 h-4 text-fuchsia-500" />
-              </div>
-              <div>
-                <div className="text-lg font-bold text-petra-text">{data.training.groupSessionsThisPeriod}</div>
-                <div className="text-xs text-petra-muted">מפגשי קבוצה בתקופה</div>
-              </div>
-            </div>
-
-            {data.training.revenue !== null && (
-              <div className="card p-4 flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center">
-                  <CreditCard className="w-4 h-4 text-emerald-500" />
-                </div>
-                <div>
-                  <div className="text-lg font-bold text-petra-text">{formatCurrency(data.training.revenue)}</div>
-                  <div className="text-xs text-petra-muted">הכנסות אילוף בתקופה</div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Top Customers + Revenue by Service */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {/* Top Customers by Revenue */}
-            {(data.topCustomers?.length ?? 0) > 0 && (
-              <div className="card p-5">
-                <h3 className="text-sm font-semibold text-petra-text mb-4 flex items-center gap-2">
-                  <Users className="w-4 h-4 text-brand-500" />
-                  לקוחות מובילים לפי הכנסות
-                </h3>
-                <div className="space-y-3">
-                  {data.topCustomers.map((c, i) => {
-                    const maxRev = data.topCustomers[0].revenue;
-                    const pct = maxRev > 0 ? Math.round((c.revenue / maxRev) * 100) : 0;
-                    return (
-                      <div key={c.id} className="flex items-center gap-3">
-                        <span className="text-xs font-bold text-petra-muted w-5 text-right">{i + 1}</span>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between mb-1">
-                            <Link
-                              href={`/customers/${c.id}`}
-                              className="text-sm font-medium text-petra-text truncate hover:text-brand-600 hover:underline transition-colors"
-                            >
-                              {c.name}
-                            </Link>
-                            <span className="text-xs font-semibold text-brand-600 flex-shrink-0 ms-2">
-                              {formatCurrency(c.revenue)}
-                            </span>
-                          </div>
-                          <div className="h-1.5 bg-slate-100 rounded-full">
-                            <div
-                              className="h-full rounded-full bg-brand-400"
-                              style={{ width: `${pct}%` }}
-                            />
-                          </div>
-                          <div className="text-[10px] text-petra-muted mt-0.5">{c.count} תשלומים</div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Revenue by Service */}
-            {(data.charts.revenueByService?.length ?? 0) > 0 && (
-              <div className="card p-5">
-                <h3 className="text-sm font-semibold text-petra-text mb-4 flex items-center gap-2">
-                  <CreditCard className="w-4 h-4 text-brand-500" />
-                  הכנסות לפי שירות
-                </h3>
-                <div className="space-y-3">
-                  {data.charts.revenueByService.map((s, i) => {
-                    const maxRev = data.charts.revenueByService[0].revenue;
-                    const pct = maxRev > 0 ? Math.round((s.revenue / maxRev) * 100) : 0;
-                    const colors = [
-                      "bg-emerald-400", "bg-blue-400", "bg-violet-400",
-                      "bg-amber-400", "bg-pink-400", "bg-teal-400",
-                      "bg-orange-400", "bg-indigo-400"
-                    ];
-                    return (
-                      <div key={i} className="flex items-center gap-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm text-petra-text truncate">{s.name}</span>
-                            <span className="text-xs font-semibold text-petra-text flex-shrink-0 ms-2">
-                              {formatCurrency(s.revenue)}
-                            </span>
-                          </div>
-                          <div className="h-1.5 bg-slate-100 rounded-full">
-                            <div
-                              className={cn("h-full rounded-full", colors[i % colors.length])}
-                              style={{ width: `${pct}%` }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-          {/* Retention & Avg Revenue per Customer */}
-          {data.retention && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
-              <div className="card p-5">
-                <div className="flex items-center gap-2 mb-2">
-                  <TrendingUp className="w-4 h-4 text-emerald-500" />
-                  <span className="text-xs font-semibold text-petra-muted">אחוז שימור לקוחות</span>
-                </div>
-                <p className="text-3xl font-bold text-emerald-600">{data.retention.retentionRate}%</p>
-                <p className="text-[11px] text-petra-muted mt-1">
-                  {data.retention.returningCustomers} מתוך {data.retention.customersWithAppointments} לקוחות חזרו
-                </p>
-                <div className="mt-3 h-1.5 bg-slate-100 rounded-full">
-                  <div
-                    className="h-full rounded-full bg-emerald-400"
-                    style={{ width: `${data.retention.retentionRate}%` }}
-                  />
-                </div>
-              </div>
-              <div className="card p-5">
-                <div className="flex items-center gap-2 mb-2">
-                  <CreditCard className="w-4 h-4 text-brand-500" />
-                  <span className="text-xs font-semibold text-petra-muted">הכנסה ממוצעת ללקוח</span>
-                </div>
-                <p className="text-3xl font-bold text-petra-text">{formatCurrency(data.retention.avgRevenuePerCustomer)}</p>
-                <p className="text-[11px] text-petra-muted mt-1">בתקופה הנבחרת</p>
-              </div>
-              <div className="card p-5">
-                <div className="flex items-center gap-2 mb-2">
-                  <Target className="w-4 h-4 text-violet-500" />
-                  <span className="text-xs font-semibold text-petra-muted">המרת לידים</span>
-                </div>
-                <p className="text-3xl font-bold text-violet-600">{data.leads.conversionRate}%</p>
-                <p className="text-[11px] text-petra-muted mt-1">
-                  {data.leads.wonThisPeriod} נסגרו · {data.leads.lostThisPeriod} אבדו
-                </p>
-                <div className="mt-3 h-1.5 bg-slate-100 rounded-full">
-                  <div
-                    className="h-full rounded-full bg-violet-400"
-                    style={{ width: `${data.leads.conversionRate}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Leads by Source + Lost Reasons */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
-            {/* Leads by Source */}
-            <div className="card p-5">
-              <h3 className="text-sm font-semibold text-petra-text mb-4 flex items-center gap-2">
-                <Target className="w-4 h-4 text-brand-500" />
-                לידים לפי מקור
-              </h3>
-              {(data.leadsBySource?.length ?? 0) === 0 ? (
-                <div className="flex items-center justify-center h-32 text-sm text-petra-muted">
-                  אין נתוני לידים בתקופה זו
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {(data.leadsBySource ?? []).map((s) => {
-                    const maxTotal = data.leadsBySource![0].total;
-                    const pct = maxTotal > 0 ? Math.round((s.total / maxTotal) * 100) : 0;
-                    return (
-                      <div key={s.source}>
-                        <div className="flex items-center justify-between text-xs mb-1">
-                          <span className="font-medium text-petra-text truncate">
-                            {LEAD_SOURCE_LABELS[s.source] ?? s.source}
-                          </span>
-                          <span className="text-petra-muted flex-shrink-0 ms-2">
-                            {s.total} לידים · {s.won} נסגרו · {s.conversionRate}% המרה
-                          </span>
-                        </div>
-                        <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                          <div
-                            className="h-full rounded-full bg-brand-400"
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Lost Reasons */}
-            <div className="card p-5">
-              <h3 className="text-sm font-semibold text-petra-text mb-4 flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-red-400" />
-                סיבות אובדן לידים
-              </h3>
-              {(data.lostReasons?.length ?? 0) === 0 ? (
-                <div className="flex items-center justify-center h-32 text-sm text-petra-muted">
-                  אין לידים שאבדו בתקופה זו
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {(data.lostReasons ?? []).map((r) => {
-                    const maxCount = data.lostReasons![0].count;
-                    const pct = maxCount > 0 ? Math.round((r.count / maxCount) * 100) : 0;
-                    return (
-                      <div key={r.code}>
-                        <div className="flex items-center justify-between text-xs mb-1">
-                          <span className="font-medium text-petra-text truncate">
-                            {LOST_REASON_LABELS[r.code] ?? r.code}
-                          </span>
-                          <span className="text-petra-muted flex-shrink-0 ms-2">{r.count}</span>
-                        </div>
-                        <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                          <div
-                            className="h-full rounded-full bg-red-300"
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Lead sales — deal value of leads won in the period + orders since closing */}
-          {data.leadSales && (
-            <div className="card p-5 mt-4">
-              <h3 className="text-sm font-semibold text-petra-text mb-1 flex items-center gap-2">
-                <Coins className="w-4 h-4 text-emerald-600" />
-                מכירות מלידים
-              </h3>
-              <p className="text-[11px] text-petra-muted mb-4">
-                לידים שנסגרו בתקופה · ערך העסקה שהוזן בכרטיס הליד + הזמנות שהלקוח ביצע מאז הסגירה ועד היום (ללא מבוטלות) · מדד נפרד, לא נכלל ב&quot;הכנסות&quot; · אם פתחת הזמנה על אותה עסקה היא תיספר גם בהזמנות
-              </p>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-                <div className="rounded-xl bg-emerald-50/60 border border-emerald-100 p-3">
-                  <p className="text-[11px] text-petra-muted">ערך עסקאות שנסגרו</p>
-                  <p className="text-xl font-bold text-emerald-700 tabular-nums">{formatIls(data.leadSales.dealValueTotal)}</p>
-                  <p className="text-[11px] text-petra-muted mt-0.5">
-                    {data.leadSales.withValueCount} מתוך {data.leadSales.wonCount} לידים עם ערך
-                  </p>
-                </div>
-                <div className="rounded-xl bg-slate-50 border border-slate-100 p-3">
-                  <p className="text-[11px] text-petra-muted">הזמנות מאז הסגירה</p>
-                  <p className="text-xl font-bold text-petra-text tabular-nums">{formatIls(data.leadSales.ordersTotal)}</p>
-                  <p className="text-[11px] text-petra-muted mt-0.5">{data.leadSales.ordersCount} הזמנות</p>
-                </div>
-                <div className="rounded-xl bg-brand-50/60 border border-brand-100 p-3">
-                  <p className="text-[11px] text-petra-muted">סה״כ מכירות מלידים</p>
-                  <p className="text-xl font-bold text-brand-700 tabular-nums">{formatIls(data.leadSales.total)}</p>
-                  <p className="text-[11px] text-petra-muted mt-0.5">עסקה ממוצעת {formatIls(data.leadSales.avgDealValue)}</p>
-                </div>
-                <div className="rounded-xl bg-amber-50/60 border border-amber-100 p-3">
-                  <p className="text-[11px] text-petra-muted">ערך בצנרת (לידים פתוחים)</p>
-                  <p className="text-xl font-bold text-amber-700 tabular-nums">{formatIls(data.leadSales.pipelineValue)}</p>
-                  <p className="text-[11px] text-petra-muted mt-0.5">{data.leadSales.pipelineWithValueCount} לידים עם ערך</p>
-                </div>
-              </div>
-              {data.leadSales.rows.length === 0 ? (
-                <div className="flex items-center justify-center h-20 text-sm text-petra-muted">
-                  אין לידים שנסגרו בתקופה זו
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full text-xs">
-                    <thead>
-                      <tr className="text-petra-muted">
-                        <th className="text-start font-medium py-1.5 pe-2">ליד</th>
-                        <th className="font-medium py-1.5 px-2 text-center">נסגר</th>
-                        <th className="font-medium py-1.5 px-2 text-center">ערך עסקה</th>
-                        <th className="font-medium py-1.5 px-2 text-center">הזמנות מאז</th>
-                        <th className="font-semibold py-1.5 ps-2 text-center">סה״כ</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.leadSales.rows.map((r) => (
-                        <tr key={r.leadId} className="border-t border-slate-100">
-                          <td className="py-1.5 pe-2 font-medium text-petra-text whitespace-nowrap">
-                            {r.customerId ? (
-                              <Link href={`/customers/${r.customerId}`} className="hover:text-brand-600 hover:underline">{r.name}</Link>
-                            ) : r.name}
-                          </td>
-                          <td className="py-1.5 px-2 text-center text-petra-muted whitespace-nowrap">{new Date(r.wonAt).toLocaleDateString("he-IL")}</td>
-                          <td className={cn("py-1.5 px-2 text-center tabular-nums", r.dealValue == null ? "text-slate-300" : "text-emerald-700")}>
-                            {r.dealValue == null ? "—" : formatIls(r.dealValue)}
-                          </td>
-                          <td className={cn("py-1.5 px-2 text-center tabular-nums", r.ordersCount === 0 ? "text-slate-300" : "text-petra-text")}>
-                            {r.ordersCount === 0 ? "—" : `${formatIls(r.ordersTotal)} (${r.ordersCount})`}
-                          </td>
-                          <td className="py-1.5 ps-2 text-center font-semibold tabular-nums">{formatIls(r.total)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  {data.leadSales.wonCount > data.leadSales.rows.length && (
-                    <p className="text-[11px] text-petra-muted mt-2">
-                      מוצגים {data.leadSales.rows.length} האחרונים מתוך {data.leadSales.wonCount} · הסכומים למעלה כוללים את כולם
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Traffic attribution — last 12 months (independent of period) */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
-            <div className="card p-5">
-              <h3 className="text-sm font-semibold text-petra-text mb-1 flex items-center gap-2">
-                <Share2 className="w-4 h-4 text-brand-500" />
-                לידים לפי מקור תנועה לפי חודש
-              </h3>
-              <p className="text-[11px] text-petra-muted mb-3">12 החודשים האחרונים · לפי utm / gclid / referrer שהגיעו מהאתר</p>
-              {(data.leadAttribution?.bySourceByMonth.length ?? 0) === 0 ? (
-                <div className="flex items-center justify-center h-32 text-sm text-petra-muted">
-                  אין לידים עם מקור תנועה ב-12 החודשים האחרונים
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full text-xs">
-                    <thead>
-                      <tr className="text-petra-muted">
-                        <th className="text-start font-medium py-1 pe-2 sticky start-0 bg-white">מקור</th>
-                        {data.leadAttribution!.months.map((m) => (
-                          <th key={m} className="font-medium py-1 px-1.5 text-center whitespace-nowrap">{formatMonthKey(m)}</th>
-                        ))}
-                        <th className="font-semibold py-1 ps-2 text-center">סה״כ</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.leadAttribution!.bySourceByMonth.map((row) => (
-                        <tr key={row.source} className="border-t border-slate-100">
-                          <td className="py-1 pe-2 font-medium text-petra-text whitespace-nowrap sticky start-0 bg-white">
-                            {TRAFFIC_SOURCE_LABELS[row.source] ?? row.source}
-                          </td>
-                          {row.counts.map((c, i) => (
-                            <td key={i} className={cn("py-1 px-1.5 text-center tabular-nums", c === 0 ? "text-slate-300" : "text-petra-text")}>{c}</td>
-                          ))}
-                          <td className="py-1 ps-2 text-center font-semibold tabular-nums">{row.total}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-
-            <div className="card p-5">
-              <h3 className="text-sm font-semibold text-petra-text mb-1 flex items-center gap-2">
-                <Target className="w-4 h-4 text-brand-500" />
-                לידים לפי עמוד נחיתה
-              </h3>
-              <p className="text-[11px] text-petra-muted mb-3">12 החודשים האחרונים · 20 העמודים המובילים</p>
-              {(data.leadAttribution?.byLandingPage.length ?? 0) === 0 ? (
-                <div className="flex items-center justify-center h-32 text-sm text-petra-muted">
-                  אין לידים עם עמוד נחיתה ב-12 החודשים האחרונים
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full text-xs">
-                    <thead>
-                      <tr className="text-petra-muted">
-                        <th className="text-start font-medium py-1 pe-2">עמוד</th>
-                        <th className="font-medium py-1 px-2 text-center">לידים</th>
-                        <th className="font-medium py-1 px-2 text-center">נסגרו</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.leadAttribution!.byLandingPage.map((row) => (
-                        <tr key={row.page} className="border-t border-slate-100">
-                          <td className="py-1 pe-2 text-petra-text max-w-[280px] truncate" dir="ltr" title={row.page}>{row.page}</td>
-                          <td className="py-1 px-2 text-center tabular-nums font-medium">{row.count}</td>
-                          <td className="py-1 px-2 text-center tabular-nums text-emerald-600">{row.won}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Scheduling Heatmap */}
-          {((data.charts.appointmentsByDayOfWeek?.some((d) => d.count > 0)) ||
-            (data.charts.appointmentsByHour?.length ?? 0) > 0) && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
-              {/* By Day of Week */}
-              {data.charts.appointmentsByDayOfWeek?.some((d) => d.count > 0) && (
-                <div className="card p-5">
-                  <h3 className="text-sm font-semibold text-petra-text mb-4 flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-brand-500" />
-                    תורים לפי יום בשבוע
-                  </h3>
-                  {(() => {
-                    const maxCount = Math.max(...data.charts.appointmentsByDayOfWeek.map((d) => d.count), 1);
-                    return (
-                      <div className="flex items-end gap-2 h-32">
-                        {data.charts.appointmentsByDayOfWeek.map((d, i) => {
-                          const pct = Math.max((d.count / maxCount) * 100, d.count > 0 ? 4 : 0);
-                          return (
-                            <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                              {d.count > 0 && (
-                                <span className="text-[9px] text-petra-muted font-medium">{d.count}</span>
-                              )}
-                              <div
-                                className="w-full rounded-t-md bg-brand-400 hover:bg-brand-500 transition-colors"
-                                style={{ height: `${pct}%`, minHeight: d.count > 0 ? "4px" : "0" }}
-                              />
-                              <span className="text-[9px] text-petra-muted">{d.day}</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    );
-                  })()}
-                </div>
-              )}
-
-              {/* By Hour */}
-              {(data.charts.appointmentsByHour?.length ?? 0) > 0 && (
-                <div className="card p-5">
-                  <h3 className="text-sm font-semibold text-petra-text mb-4 flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4 text-brand-500" />
-                    תורים לפי שעה
-                  </h3>
-                  {(() => {
-                    const maxCount = Math.max(...data.charts.appointmentsByHour.map((h) => h.count), 1);
-                    return (
-                      <div className="flex items-end gap-1 h-32">
-                        {data.charts.appointmentsByHour.map((h) => {
-                          const pct = Math.max((h.count / maxCount) * 100, 4);
-                          return (
-                            <div key={h.hour} className="flex-1 flex flex-col items-center gap-1 group">
-                              <span className="text-[9px] text-petra-muted opacity-0 group-hover:opacity-100 transition-opacity">
-                                {h.count}
-                              </span>
-                              <div
-                                className="w-full rounded-t-md bg-violet-400 hover:bg-violet-500 transition-colors"
-                                style={{ height: `${pct}%` }}
-                                title={`${h.label}: ${h.count} תורים`}
-                              />
-                              <span className="text-[8px] text-petra-muted">{h.hour}:00</span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    );
-                  })()}
-                </div>
-              )}
-            </div>
-          )}
-        {/* Pet Demographics */}
-        {data.petDemographics && data.petDemographics.total > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-            {/* Species breakdown */}
-            <div className="card p-5">
-              <div className="flex items-center gap-2 mb-4">
-                <PawPrint className="w-4 h-4 text-brand-500" />
-                <h3 className="text-sm font-bold text-petra-text">הרכב חיות המחמד</h3>
-                <span className="text-xs text-petra-muted ms-auto">{data.petDemographics.total} חיות</span>
-              </div>
-              <div className="space-y-2">
-                {data.petDemographics.bySpecies.map(({ species, count }) => {
-                  const pct = Math.round((count / data.petDemographics!.total) * 100);
-                  const labels: Record<string, string> = { dog: "🐕 כלבים", cat: "🐈 חתולים", other: "🐾 אחר" };
-                  return (
-                    <div key={species}>
-                      <div className="flex items-center justify-between text-xs mb-1">
-                        <span className="font-medium text-petra-text">{labels[species] ?? species}</span>
-                        <span className="text-petra-muted">{count} ({pct}%)</span>
-                      </div>
-                      <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-brand-400"
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Top breeds */}
-            {data.petDemographics.topBreeds.length > 0 && (
-              <div className="card p-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <PawPrint className="w-4 h-4 text-violet-500" />
-                  <h3 className="text-sm font-bold text-petra-text">גזעים מובילים</h3>
-                </div>
-                <div className="space-y-2">
-                  {data.petDemographics.topBreeds.map(({ breed, count }, i) => {
-                    const maxCount = data.petDemographics!.topBreeds[0].count;
-                    const pct = Math.round((count / maxCount) * 100);
-                    return (
-                      <div key={breed} className="flex items-center gap-3">
-                        <span className="text-[11px] text-petra-muted w-4 text-right">{i + 1}</span>
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between text-xs mb-0.5">
-                            <span className="font-medium text-petra-text truncate">{breed}</span>
-                            <span className="text-petra-muted flex-shrink-0 ms-2">{count}</span>
-                          </div>
-                          <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                            <div
-                              className="h-full rounded-full bg-violet-400"
-                              style={{ width: `${pct}%` }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-        </>
+        <div role="tabpanel">
+          {activeTab === "overview" && <OverviewTab data={data} />}
+          {activeTab === "finance" && <FinanceTab data={data} />}
+          {activeTab === "appointments" && <AppointmentsTab data={data} />}
+          {activeTab === "leads" && <LeadsTab data={data} />}
+          {activeTab === "operations" && <OperationsTab data={data} />}
+        </div>
       ) : null}
     </div>
   );

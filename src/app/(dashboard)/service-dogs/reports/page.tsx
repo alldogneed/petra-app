@@ -30,6 +30,7 @@ import {
 } from "@/lib/service-dogs";
 import { TierGate } from "@/components/paywall/TierGate";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface ServiceDogSummary {
   id: string;
@@ -57,6 +58,7 @@ interface TrainingProgram {
 }
 
 function ServiceDogsReportsPageContent() {
+  const { canExportData } = usePermissions();
   const { data: dogs = [], isLoading: dogsLoading } = useQuery<ServiceDogSummary[]>({
     queryKey: ["service-dogs"],
     queryFn: () => fetch("/api/service-dogs").then((r) => r.ok ? r.json() : []),
@@ -158,6 +160,7 @@ function ServiceDogsReportsPageContent() {
             <Printer className="w-4 h-4" />
             הדפס
           </button>
+          {canExportData && (<>
           <a
             href="/api/service-dogs/export/government"
             download
@@ -208,6 +211,7 @@ function ServiceDogsReportsPageContent() {
             <Download className="w-4 h-4" />
             האכלות ותרופות
           </a>
+          </>)}
           <button
             onClick={() => {
               const certRows = certified.map((dog) => `<tr><td>${escapeHtml(dog.pet.name)}</td><td>${escapeHtml(dog.pet.breed) || "—"}</td><td>${dog.certificationDate ? formatDate(dog.certificationDate) : "—"}</td><td>${dog.activePlacement ? `משובץ — ${escapeHtml(dog.activePlacement.recipientName)}` : "ללא שיבוץ"}</td></tr>`).join("");

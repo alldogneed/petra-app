@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { BoardingTabs } from "@/components/boarding/BoardingTabs";
 import { toast } from "sonner";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { findAnyMedicationLog, findFeedingLogForSlot } from "@/lib/care-log-match";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -283,9 +284,7 @@ function MedicationsBoard({
   onDelete: (logId: string) => void;
 }) {
   function toggleMed(stay: BoardingStay, med: Medication) {
-    const existingLog = stay.careLogs.find(
-      (l) => l.type === "MEDICATION" && l.title === med.medName
-    );
+    const existingLog = findAnyMedicationLog(stay.careLogs, med.medName);
     if (existingLog) {
       onDelete(existingLog.id);
     } else {
@@ -310,7 +309,7 @@ function MedicationsBoard({
     <div className="space-y-4">
       {staysWithMeds.map((stay) => {
         const allGiven = stay.pet.medications.every(
-          (m) => stay.careLogs.some((l) => l.type === "MEDICATION" && l.title === m.medName)
+          (m) => !!findAnyMedicationLog(stay.careLogs, m.medName)
         );
         return (
           <div
@@ -363,9 +362,7 @@ function MedicationsBoard({
             {/* Medications list */}
             <div className="p-4 space-y-3">
               {stay.pet.medications.map((med) => {
-                const isGiven = stay.careLogs.some(
-                  (l) => l.type === "MEDICATION" && l.title === med.medName
-                );
+                const isGiven = !!findAnyMedicationLog(stay.careLogs, med.medName);
                 const times = med.times
                   ? med.times.split(",").map((t) => MED_TIME_LABELS[t.trim()] ?? t.trim()).join(", ")
                   : null;
@@ -504,9 +501,7 @@ export default function FeedingPage() {
   });
 
   function toggleMeal(stay: BoardingStay, slot: MealSlot) {
-    const existingLog = stay.careLogs.find(
-      (l) => l.type === "FEEDING" && l.title === slot
-    );
+    const existingLog = findFeedingLogForSlot(stay.careLogs, slot);
     if (existingLog) {
       deleteMutation.mutate(existingLog.id);
     } else {
@@ -539,7 +534,7 @@ export default function FeedingPage() {
     let done = 0;
     for (const stay of activePets) {
       for (const slot of MEAL_SLOTS) {
-        if (stay.careLogs.some((l) => l.type === "FEEDING" && l.title === slot)) {
+        if (!!findFeedingLogForSlot(stay.careLogs, slot)) {
           done++;
         }
       }
@@ -717,7 +712,7 @@ export default function FeedingPage() {
               <tbody className="divide-y divide-slate-50">
                 {activePets.map((stay) => {
                   const petDoneMeals = MEAL_SLOTS.filter(
-                    (s) => stay.careLogs.some((l) => l.type === "FEEDING" && l.title === s)
+                    (s) => !!findFeedingLogForSlot(stay.careLogs, s)
                   ).length;
                   const petAllDone = petDoneMeals === MEAL_SLOTS.length;
 
@@ -835,9 +830,7 @@ export default function FeedingPage() {
 
                       {/* Meal slots */}
                       {MEAL_SLOTS.map((slot) => {
-                        const mealLog = stay.careLogs.find(
-                          (l) => l.type === "FEEDING" && l.title === slot
-                        );
+                        const mealLog = findFeedingLogForSlot(stay.careLogs, slot);
                         const done = !!mealLog;
                         return (
                           <td key={slot} className="table-cell text-center">

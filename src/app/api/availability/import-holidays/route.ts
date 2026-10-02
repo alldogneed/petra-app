@@ -2,7 +2,8 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards"
+import { requireBusinessPermission, isGuardError } from "@/lib/auth-guards"
+import { TENANT_PERMS } from "@/lib/permissions"
 
 // Israeli holidays 5786-5787
 const HOLIDAYS: { label: string; dates: string[][] }[] = [
@@ -25,7 +26,7 @@ const HOLIDAYS: { label: string; dates: string[][] }[] = [
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = await requireBusinessAuth(request)
+    const auth = await requireBusinessPermission(request, TENANT_PERMS.AVAILABILITY_MANAGE)
     if (isGuardError(auth)) return auth
     const { businessId } = auth
 

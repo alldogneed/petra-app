@@ -21,6 +21,11 @@ import {
 } from "@/lib/feature-flags";
 import { getFirstLeadStageId } from "@/lib/lead-stages";
 import { scheduleLeadFollowup } from "@/lib/reminder-service";
+import { LOST_REASON_CODES } from "@/lib/constants";
+import {
+  buildSalesJournal, leadStatusOf, SALES_HISTORY_MAX_LEADS, SALES_HISTORY_MAX_LOGS, SALES_HISTORY_MAX_TASKS,
+  type CustomerSalesHistory, type SalesHistoryLead,
+} from "@/lib/lead-sales-history";
 import { ServiceError } from "./types";
 
 export type DbClient = PrismaClient;
@@ -331,6 +336,160 @@ export async function getCustomer(businessId: string, db: DbClient, customerId: 
       },
     },
   });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Customers — sales history (leads linked to the customer)
+// Shape: src/lib/lead-sales-history.ts (CustomerSalesHistory)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function getCustomerSalesHistory(
+  businessId: string,
+  db: DbClient,
+  customerId: string,
+): Promise<CustomerSalesHistory | null> {
+  const customer = await db.customer.findFirst({
+    where: { id: customerId, businessId },
+    select: { id: true },
+  });
+  if (!customer) return null;
+
+  const leads = await db.lead.findMany({
+    where: { businessId, customerId },
+    orderBy: { createdAt: "desc" },
+    take: SALES_HISTORY_MAX_LEADS,
+    select: {
+      id: true, name: true, phone: true, source: true, requestedService: true, notes: true,
+      stage: true, createdAt: true, wonAt: true, wonByUserId: true, lostAt: true,
+      lostReasonCode: true, lostReasonText: true, lastContactedAt: true, nextFollowUpAt: true,
+      dealValue: true, trafficSource: true, landingPage: true, campaign: true, medium: true,
+    },
+  });
+  if (leads.length === 0) return { customerId, leads: [] };
+
+  const leadIds = leads.map((l) => l.id);
+  const stageIds = Array.from(new Set(leads.map((l) => l.stage).filter(Boolean)));
+  const wonByUserIds = Array.from(
+    new Set(leads.map((l) => l.wonByUserId).filter((x): x is string => !!x)),
+  );
+
+  // leadIds are already tenant-scoped (lead.findMany above filters by businessId).
+  const [logCounts, allLogs, stages, tasks, users] = await Promise.all([
+    db.callLog.groupBy({
+      by: ["leadId", "type"],
+      where: { leadId: { in: leadIds } },
+      _count: { _all: true },
+    }),
+    // One query for all leads (PgBouncer pool is small); per-lead cap applied below.
+    db.callLog.findMany({
+      where: { leadId: { in: leadIds } },
+      orderBy: { createdAt: "desc" },
+      take: SALES_HISTORY_MAX_LOGS * leadIds.length,
+      select: { id: true, leadId: true, type: true, summary: true, treatment: true, createdAt: true },
+    }),
+    stageIds.length > 0
+      ? db.leadStage.findMany({
+          where: { businessId, id: { in: stageIds } },
+          select: { id: true, name: true, color: true, isWon: true, isLost: true },
+        })
+      : Promise.resolve([]),
+    db.task.findMany({
+      where: { businessId, relatedEntityType: "LEAD", relatedEntityId: { in: leadIds } },
+      orderBy: { createdAt: "desc" },
+      // Upper bound across all leads; per-lead cap applied below.
+      take: SALES_HISTORY_MAX_TASKS * leadIds.length,
+      select: {
+        id: true, title: true, status: true, dueAt: true, dueDate: true,
+        completedAt: true, createdAt: true, relatedEntityId: true,
+      },
+    }),
+    // wonByUserId = session.user.id = PlatformUser id. Resolve names only through this
+    // business's memberships (active or former) — never other tenants' users, never emails.
+    wonByUserIds.length > 0
+      ? db.businessUser.findMany({
+          where: { businessId, userId: { in: wonByUserIds } },
+          select: { userId: true, user: { select: { name: true } } },
+        })
+      : Promise.resolve([] as Array<{ userId: string; user: { name: string } }>),
+  ]);
+
+  const stageById = new Map(stages.map((s) => [s.id, s]));
+  const userNameById = new Map<string, string>(users.map((m) => [m.userId, m.user.name]));
+  const lostLabelById = new Map<string, string>(LOST_REASON_CODES.map((r) => [r.id, r.label]));
+
+  const totalLogs = new Map<string, number>();
+  const callCounts = new Map<string, number>();
+  for (const row of logCounts) {
+    const n = row._count._all;
+    totalLogs.set(row.leadId, (totalLogs.get(row.leadId) ?? 0) + n);
+    if (row.type !== "stage_change" && row.type !== "deal_value") {
+      callCounts.set(row.leadId, (callCounts.get(row.leadId) ?? 0) + n);
+    }
+  }
+
+  const logsByLead = new Map<string, typeof allLogs>();
+  for (const l of allLogs) {
+    const list = logsByLead.get(l.leadId) ?? [];
+    if (list.length < SALES_HISTORY_MAX_LOGS) list.push(l);
+    logsByLead.set(l.leadId, list);
+  }
+
+  const tasksByLead = new Map<string, typeof tasks>();
+  for (const t of tasks) {
+    if (!t.relatedEntityId) continue;
+    const list = tasksByLead.get(t.relatedEntityId) ?? [];
+    if (list.length < SALES_HISTORY_MAX_TASKS) list.push(t);
+    tasksByLead.set(t.relatedEntityId, list);
+  }
+
+  const toIso = (d: Date | null | undefined) => (d ? d.toISOString() : null);
+
+  const result: SalesHistoryLead[] = leads.map((lead) => {
+    const s = stageById.get(lead.stage);
+    const stage = s
+      ? { id: s.id, name: s.name, color: s.color ?? null, isWon: s.isWon, isLost: s.isLost }
+      : null;
+    const lostReasonLabel = lead.lostReasonCode
+      ? lostLabelById.get(lead.lostReasonCode) ?? lead.lostReasonCode
+      : null;
+    const logs = logsByLead.get(lead.id) ?? [];
+    return {
+      id: lead.id,
+      name: lead.name,
+      phone: lead.phone,
+      source: lead.source,
+      requestedService: lead.requestedService,
+      notes: lead.notes,
+      stage,
+      status: leadStatusOf(lead, stage),
+      createdAt: lead.createdAt.toISOString(),
+      wonAt: toIso(lead.wonAt),
+      wonByName: lead.wonByUserId ? userNameById.get(lead.wonByUserId) ?? null : null,
+      lostAt: toIso(lead.lostAt),
+      lostReasonCode: lead.lostReasonCode,
+      lostReasonText: lead.lostReasonText,
+      lastContactedAt: toIso(lead.lastContactedAt),
+      nextFollowUpAt: toIso(lead.nextFollowUpAt),
+      dealValue: lead.dealValue,
+      trafficSource: lead.trafficSource,
+      landingPage: lead.landingPage,
+      campaign: lead.campaign,
+      medium: lead.medium,
+      callCount: callCounts.get(lead.id) ?? 0,
+      journal: buildSalesJournal({
+        leadId: lead.id,
+        createdAt: lead.createdAt,
+        wonAt: lead.wonAt,
+        lostAt: lead.lostAt,
+        lostReasonLabel,
+        callLogs: logs,
+        tasks: tasksByLead.get(lead.id) ?? [],
+      }),
+      journalTruncated: (totalLogs.get(lead.id) ?? 0) > logs.length,
+    };
+  });
+
+  return { customerId, leads: result };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -781,7 +940,9 @@ export async function updateLead(
   businessId: string,
   db: DbClient,
   leadId: string,
-  input: UpdateLeadInput
+  input: UpdateLeadInput,
+  /** PlatformUser id of whoever made the change — recorded as the closer (wonByUserId / lostByUserId). */
+  actorUserId?: string | null
 ) {
   const existing = await db.lead.findFirst({ where: { id: leadId, businessId } });
   if (!existing) throw new ServiceError("Lead not found", "NOT_FOUND");
@@ -789,6 +950,8 @@ export async function updateLead(
   // Stage validation + won/lost auto-stamp
   let autoWonAt: Date | null | undefined;
   let autoLostAt: Date | null | undefined;
+  // lostByUserId follows the stage (wonByUserId is handled below together with wonAt)
+  let closerData: { lostByUserId?: string | null } = {};
   if (input.stage !== undefined) {
     const validStage = await db.leadStage.findFirst({ where: { id: input.stage, businessId } });
     if (!validStage) throw new ServiceError("Invalid stage", "VALIDATION");
@@ -796,6 +959,7 @@ export async function updateLead(
       if (validStage.isWon) { autoWonAt = new Date(); autoLostAt = null; }
       else if (validStage.isLost) { autoLostAt = new Date(); autoWonAt = null; }
       else { autoWonAt = null; autoLostAt = null; }
+      closerData = { lostByUserId: validStage.isLost ? actorUserId ?? null : null };
     }
   }
 
@@ -845,10 +1009,15 @@ export async function updateLead(
     ...(input.lostAt !== undefined
       ? { lostAt: input.lostAt ? new Date(input.lostAt) : null }
       : autoLostAt !== undefined ? { lostAt: autoLostAt } : {}),
+    // "נסגר ע״י" for the customer sales history: stamp on win, clear when the lead leaves won
+    ...((input.wonAt !== undefined ? !!input.wonAt : autoWonAt instanceof Date)
+      ? { wonByUserId: actorUserId ?? null }
+      : (input.wonAt === null || autoWonAt === null) ? { wonByUserId: null } : {}),
     ...(input.nextFollowUpAt !== undefined && { nextFollowUpAt: input.nextFollowUpAt ? new Date(input.nextFollowUpAt) : null }),
     ...(input.followUpStatus !== undefined && { followUpStatus: input.followUpStatus }),
     ...(input.previousStageId !== undefined && { previousStageId: input.previousStageId }),
     ...(nextDealValue !== undefined && { dealValue: nextDealValue }),
+    ...closerData,
   };
 
   const lead = await db.lead.update({ where: { id: leadId, businessId }, data, include: { customer: true, callLogs: true } });

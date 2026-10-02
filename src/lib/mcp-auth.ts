@@ -5,6 +5,7 @@
 import crypto from "crypto";
 import prisma from "@/lib/prisma";
 import { isMcpAllowedBusiness } from "@/lib/mcp-allowlist";
+import { parsePermissionOverrides, type PermissionOverrides } from "@/lib/permissions";
 
 const TOKEN_PREFIX = "petra_mcp_";
 const TOKEN_BYTES = 32;
@@ -100,6 +101,8 @@ export interface McpAuthResult {
   createdByUserId: string | null;
   /** Current tenant role of the minter (null when unknown/legacy → treated as owner-level). */
   minterRole: string | null;
+  /** The minter's CURRENT per-member overrides (settings → צוות והרשאות), re-read every request. */
+  minterOverrides: PermissionOverrides | null;
 }
 
 /**
@@ -112,13 +115,17 @@ export async function validateMcpToken(raw: string, opts: { touch?: boolean } = 
   const hash = hashToken(raw);
   const conn = await prisma.mcpConnection.findFirst({
     where: { tokenHash: hash, revokedAt: null },
-    select: { id: true, businessId: true, scopes: true, createdByUserId: true, expiresAt: true },
+    select: { id: true, businessId: true, scopes: true, createdByUserId: true, expiresAt: true, accessExpiresAt: true },
   });
 
   if (!conn) return null;
 
   // Expiry (new tokens default to MCP_TOKEN_TTL_DAYS; legacy rows have null = no expiry).
   if (conn.expiresAt && conn.expiresAt.getTime() < Date.now()) return null;
+
+  // OAuth access tokens are short-lived (1h, src/lib/mcp-oauth.ts) — the client refreshes
+  // on 401. Manual tokens have accessExpiresAt = null.
+  if (conn.accessExpiresAt && conn.accessExpiresAt.getTime() < Date.now()) return null;
 
   // Private beta gate: tokens of non-allowlisted businesses are inert.
   if (!(await isMcpAllowedBusiness(conn.businessId))) return null;
@@ -127,16 +134,18 @@ export async function validateMcpToken(raw: string, opts: { touch?: boolean } = 
   // removed/deactivated from the business the token dies; if their role changed
   // the scopes are re-capped to the CURRENT role on every request.
   let minterRole: string | null = null;
+  let minterOverrides: PermissionOverrides | null = null;
   if (conn.createdByUserId) {
     const membership = await prisma.businessUser.findFirst({
       where: { businessId: conn.businessId, userId: conn.createdByUserId, isActive: true },
-      select: { role: true, user: { select: { isActive: true, platformRole: true } } },
+      select: { role: true, permissionOverrides: true, user: { select: { isActive: true, platformRole: true } } },
     });
     if (membership) {
       if (!membership.user.isActive) return null;
       const isPlatformAdmin = membership.user.platformRole === "super_admin" || membership.user.platformRole === "admin";
       // A platform admin is owner-level everywhere (mirrors requireBusinessAuth impersonation).
       minterRole = isPlatformAdmin ? "owner" : membership.role;
+      minterOverrides = isPlatformAdmin ? null : parsePermissionOverrides(membership.permissionOverrides);
       conn.scopes = capScopesForRole(conn.scopes, minterRole, isPlatformAdmin);
     } else {
       // No membership row: only an active platform admin (impersonation minting) may keep the token.
@@ -165,7 +174,25 @@ export async function validateMcpToken(raw: string, opts: { touch?: boolean } = 
     scopes: conn.scopes,
     createdByUserId: conn.createdByUserId ?? null,
     minterRole,
+    minterOverrides,
   };
+}
+
+/**
+ * True when `raw` hashes to an EXISTING McpConnection row (any state: revoked, expired,
+ * access-expired, business not allowlisted…). Used only on the /api/mcp failure path so a
+ * legitimately-issued-but-now-rejected token (e.g. an OAuth access token past its 1h expiry,
+ * which the client refreshes on 401) never counts against the per-IP brute-force limiter —
+ * a guess cannot hit a known hash, so only unknown hashes indicate brute force.
+ * One indexed lookup on tokenHash, id only.
+ */
+export async function isKnownMcpTokenHash(raw: string): Promise<boolean> {
+  if (!raw || !raw.startsWith(TOKEN_PREFIX)) return false;
+  const row = await prisma.mcpConnection.findFirst({
+    where: { tokenHash: hashToken(raw) },
+    select: { id: true },
+  });
+  return !!row;
 }
 
 /** Record that a connection was used (awaited — Vercel kills stray promises). */

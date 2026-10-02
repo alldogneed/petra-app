@@ -1,7 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
-import { logCurrentUserActivity } from "@/lib/activity-log";
+import { logActivity } from "@/lib/activity-log";
+import { ENTITY_TYPES } from "@/lib/activity-actions";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
 export async function GET(
@@ -89,7 +90,12 @@ export async function POST(
       });
     }
 
-    logCurrentUserActivity("ADD_PET");
+    logActivity(authResult.session.user.id, authResult.session.user.name, "ADD_PET", {
+      businessId: authResult.businessId,
+      entityType: ENTITY_TYPES.PET,
+      entityId: pet.id,
+      entityLabel: pet.name,
+    });
 
     await prisma.timelineEvent.create({
       data: {

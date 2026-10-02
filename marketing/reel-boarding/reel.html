@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="he" dir="rtl"><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&display=block" rel="stylesheet">
+<style>
+:root{--navy:#0F172A;--orange:#F97316;--orange2:#EA580C;--bg:#F6F7F9;--border:#E2E8F0;--muted:#5B6678;--wa:#25D366;--ease:cubic-bezier(.25,.8,.25,1)}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1080px;height:1920px;overflow:hidden;background:var(--navy);font-family:Heebo,sans-serif;color:var(--navy)}
+.scene{position:absolute;inset:0;opacity:0;animation:scene var(--d) linear var(--s) both;overflow:hidden}
+@keyframes scene{0%{opacity:0}3%{opacity:1}97%{opacity:1}100%{opacity:0}}
+.scene.first{animation-name:sceneFirst}@keyframes sceneFirst{0%{opacity:1}97%{opacity:1}100%{opacity:0}}
+.scene.last{animation-name:sceneLast}@keyframes sceneLast{0%{opacity:0}4%{opacity:1}100%{opacity:1}}
+.dark{background:var(--navy)}.light{background:var(--bg)}
+.fu{animation:fadeUp .7s var(--ease) calc(var(--s) + var(--o,0s)) both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:none}}
+.pop{animation:pop .45s cubic-bezier(.3,1.6,.5,1) calc(var(--s) + var(--o,0s)) both}
+@keyframes pop{from{opacity:0;transform:scale(.4)}to{opacity:1;transform:none}}
+.fi{animation:fadeIn .5s ease calc(var(--s) + var(--o,0s)) both}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+/* top headline */
+.head{position:absolute;top:190px;left:70px;right:70px;text-align:right}
+.eyebrow{font-size:36px;font-weight:700;color:var(--orange2)}
+.title{font-size:78px;font-weight:800;line-height:1.08;margin-top:10px;letter-spacing:-.5px}
+
+/* media card */
+.card{position:absolute;left:60px;top:470px;width:960px;height:860px;border-radius:36px;background:#fff;overflow:hidden;
+  box-shadow:0 30px 70px rgba(15,23,42,.16),0 0 0 2px var(--border)}
+.card img.pan{position:absolute;left:0;top:0;transform-origin:0 0;
+  animation:pan var(--pd) ease-in-out calc(var(--s) + var(--po,0s)) both}
+@keyframes pan{from{transform:translate(var(--x0),var(--y0)) scale(var(--z0,1))}to{transform:translate(var(--x1),var(--y1)) scale(var(--z1,1))}}
+.layer{position:absolute;inset:0;animation:fadeIn .45s ease calc(var(--s) + var(--o)) both}
+.callout{position:absolute;border-radius:28px;background:#fff;overflow:hidden;
+  box-shadow:0 30px 70px rgba(15,23,42,.28),0 0 0 2px var(--border)}
+.callout img{display:block;width:100%}
+.ring{position:absolute;border:6px solid var(--orange);border-radius:22px;
+  animation:ring 1.2s ease-out calc(var(--s) + var(--o)) both}
+@keyframes ring{0%{opacity:0;transform:scale(1.25)}30%{opacity:1;transform:scale(1)}85%{opacity:1}100%{opacity:.9}}
+
+/* subtitles */
+.sub{position:absolute;left:60px;right:60px;top:1390px;display:flex;justify-content:center;opacity:0;
+  animation:sub var(--sd) linear var(--ss) both}
+.sub span{background:var(--navy);color:#fff;font-size:58px;font-weight:800;line-height:1.25;padding:14px 34px 18px;border-radius:22px;text-align:center;
+  box-shadow:0 12px 30px rgba(15,23,42,.25)}
+.sub.onDark span{background:#fff;color:var(--navy)}
+@keyframes sub{0%{opacity:0;transform:translateY(14px)}6%{opacity:1;transform:none}94%{opacity:1}100%{opacity:0}}
+
+/* hook */
+.hq{position:absolute;top:300px;left:60px;right:60px;text-align:center;color:#fff;font-size:84px;font-weight:800;line-height:1.1}
+.opts{position:absolute;top:610px;left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:44px}
+.opt{display:flex;align-items:center;gap:34px;background:#1E293B;border-radius:30px;padding:26px 44px;width:760px;position:relative}
+.opt svg{width:120px;height:120px;flex:none}
+.opt b{font-size:64px;font-weight:800;color:#fff}
+.strike{position:absolute;left:30px;right:30px;top:50%;height:10px;margin-top:-5px;background:#EF4444;border-radius:6px;transform-origin:right;
+  animation:strike .35s ease-out calc(var(--s) + var(--o)) both}
+@keyframes strike{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+
+/* logo */
+.wm{position:absolute;top:64px;left:60px;display:flex;align-items:center;gap:16px;opacity:0;z-index:20;animation:wm var(--wd) linear var(--ws) both}
+.wm .logoTile{width:78px;height:78px;border-radius:20px;box-shadow:0 6px 16px rgba(15,23,42,.15)}
+.wm b{font-size:44px;font-weight:800;color:var(--navy);letter-spacing:-.5px}
+@keyframes wm{0%{opacity:0}3%{opacity:1}97%{opacity:1}100%{opacity:0}}
+.bigLogo{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:30px;background:var(--navy)}
+.bigLogo .logoTile{width:260px;height:260px;border-radius:62px}
+.bigLogo b{color:#fff;font-size:110px;font-weight:800;letter-spacing:-1px}
+.brand{color:#fff;font-size:72px;font-weight:800;margin-top:24px;letter-spacing:-1px}
+
+/* CTA */
+.cta{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;padding-top:300px;text-align:center}
+.logoTile{width:210px;height:210px;border-radius:50px;background:#fff;overflow:hidden}
+.logoTile img{width:112%;height:112%;margin:-6%}
+.ctaT{color:#fff;font-size:80px;font-weight:800;line-height:1.1;margin-top:60px}
+.wa{margin-top:70px;display:flex;align-items:center;gap:26px;background:var(--wa);color:#fff;border-radius:999px;padding:30px 64px;font-size:62px;font-weight:800;
+  box-shadow:0 20px 50px rgba(37,211,102,.35)}
+.wa svg{width:78px;height:78px}
+.num{margin-top:40px;color:#CBD5E1;font-size:56px;font-weight:700;direction:ltr;letter-spacing:1px}
+.pulse{animation:fadeUp .7s var(--ease) calc(var(--s) + var(--o)) both, pulse 1.4s ease-in-out calc(var(--s) + var(--o) + .8s) infinite}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+</style></head><body>
+<section class="scene dark first" style="--s:0.0s;--d:5.72s">
+
+  <div class="hq fu" style="--o:.1s">עדיין מנהלים<br>את הפנסיון על...</div>
+  <div class="opts">
+    <div class="opt pop" style="--o:2.0s"><svg viewBox="0 0 120 120"><rect x="10" y="18" width="100" height="70" rx="6" fill="#F8FAFC" stroke="#94A3B8" stroke-width="5"/>
+<path d="M24 40 q10-10 20 0 t20 0 M24 58 h40 M70 36 l18 18 M88 36 l-18 18" stroke="#3B82F6" stroke-width="4" fill="none" stroke-linecap="round"/>
+<path d="M40 88 l-10 22 M80 88 l10 22" stroke="#94A3B8" stroke-width="5" stroke-linecap="round"/></svg><b>לוח מחיק?</b><i class="strike" style="--o:4.42s"></i></div>
+    <div class="opt pop" style="--o:3.24s"><svg viewBox="0 0 120 120"><rect x="14" y="22" width="92" height="84" rx="10" fill="#fff" stroke="#94A3B8" stroke-width="5"/>
+<rect x="14" y="22" width="92" height="22" rx="10" fill="#60A5FA"/><path d="M38 12v20M82 12v20" stroke="#475569" stroke-width="6" stroke-linecap="round"/>
+<g fill="#CBD5E1"><rect x="28" y="54" width="14" height="12" rx="2"/><rect x="53" y="54" width="14" height="12" rx="2"/><rect x="78" y="54" width="14" height="12" rx="2"/>
+<rect x="28" y="76" width="14" height="12" rx="2"/><rect x="53" y="76" width="14" height="12" rx="2" fill="#F97316"/><rect x="78" y="76" width="14" height="12" rx="2"/></g></svg><b>יומן גוגל?</b><i class="strike" style="--o:4.54s"></i></div>
+    <div class="opt pop" style="--o:4.6s"><svg viewBox="0 0 120 120"><rect x="26" y="12" width="74" height="96" rx="8" fill="#FDE68A" stroke="#B45309" stroke-width="5"/>
+<g stroke="#92400E" stroke-width="5" stroke-linecap="round"><path d="M18 28h16M18 48h16M18 68h16M18 88h16"/></g>
+<path d="M46 38h40M46 54h40M46 70h28" stroke="#B45309" stroke-width="4" stroke-linecap="round"/></svg><b>מחברת?</b><i class="strike" style="--o:4.66s"></i></div>
+  </div>
+  <div class="bigLogo pop" style="--o:4.87s"><div class="logoTile"><img src="../../public/petra-logo.png"></div><b>Petra</b></div>
+</section>
+<section class="scene light" style="--s:5.37s;--d:7.14s">
+
+  <div class="head"><div class="eyebrow fu" style="--o:.1s">מפת חדרים</div><div class="title fu" style="--o:.25s">חדר לכל כלב,<br>בגרירה אחת</div></div>
+  <div class="card fu" style="--o:.2s"><img class="pan" src="shots/rooms_cards_mobile.jpg" style="width:960px;--x0:0px;--y0:-300px;--x1:0px;--y1:-1010px;--z0:1;--z1:1;--pd:3.8s;--po:0.4s"><div class="layer" style="--o:3.8s;background:#fff"><img class="pan" src="shots/rooms_desktop.jpg" style="width:1760px;--x0:-600px;--y0:-190px;--x1:-140px;--y1:-190px;--z0:1;--z1:1;--pd:2.99s;--po:3.8s"></div></div>
+</section>
+<section class="scene light" style="--s:12.16s;--d:5.26s">
+
+  <div class="head"><div class="eyebrow fu" style="--o:.1s">ציר זמן · 30 ימים</div><div class="title fu" style="--o:.25s">כל החודש הקרוב<br>במבט אחד</div></div>
+  <div class="card fu" style="--o:.2s"><img class="pan" src="shots/timeline_desktop.jpg" style="width:2100px;--x0:-20px;--y0:-452px;--x1:-780px;--y1:-452px;--z0:1;--z1:1;--pd:4.41s;--po:0.4s"></div>
+</section>
+<section class="scene light" style="--s:17.07s;--d:6.8s">
+
+  <div class="head"><div class="eyebrow fu" style="--o:.1s">שיבוץ לחצרות</div><div class="title fu" style="--o:.25s">גוררים כלב לחצר,<br>רואים מי מסתדר עם מי</div></div>
+  <div class="card fu" style="--o:.2s"><img class="pan" src="shots/yards_drag_1.jpg" style="width:1700px;--x0:-460px;--y0:-150px;--x1:-460px;--y1:-150px;--z0:1;--z1:1;--pd:1s;--po:0s">
+    <div class="layer" style="--o:2.44s;background:#fff"><img class="pan" src="shots/yards_drag_2.jpg" style="width:1700px;--x0:-460px;--y0:-150px;--x1:-460px;--y1:-150px;--z0:1;--z1:1;--pd:1s;--po:0s"></div>
+    <div class="layer" style="--o:3.32s;background:#fff"><img class="pan" src="shots/yards_drag_3.jpg" style="width:1700px;--x0:-460px;--y0:-150px;--x1:-460px;--y1:-150px;--z0:1;--z1:1;--pd:1s;--po:0s"></div></div>
+  <div class="callout pop" style="--o:3.92s;left:120px;top:700px;width:840px"><img src="shots/c_warning_top.png"></div>
+</section>
+<section class="scene light" style="--s:23.52s;--d:7.2s">
+
+  <div class="head"><div class="eyebrow fu" style="--o:.1s">האכלות ותרופות</div><div class="title fu" style="--o:.25s">לוח טיפול יומי<br>לכל כלב</div></div>
+  <div class="card fu" style="--o:.2s"><img class="pan" src="shots/daily_mobile.jpg" style="width:960px;--x0:0px;--y0:-150px;--x1:0px;--y1:-560px;--z0:1;--z1:1;--pd:6.25s;--po:0.4s"><div class="layer" style="--o:3.6s;background:#fff"><img class="pan" src="shots/meds_mobile.jpg" style="width:960px;--x0:0px;--y0:-150px;--x1:0px;--y1:-450px;--z0:1;--z1:1;--pd:3.2499999999999996s;--po:3.6s"></div></div>
+  <div class="callout pop" style="--o:5.12s;left:140px;top:560px;width:800px"><img src="shots/c_care_top.png"></div>
+</section>
+<section class="scene light" style="--s:30.37s;--d:8.36s">
+
+  <div class="head"><div class="eyebrow fu" style="--o:.1s">הרשאות לצוות</div><div class="title fu" style="--o:.25s">כל עובד רואה<br>רק את מה שצריך</div></div>
+  <div class="card fu" style="--o:.2s"><img class="pan" src="shots/perms_modal.jpg" style="width:1800px;--x0:-590px;--y0:-200px;--x1:-590px;--y1:-260px;--z0:1;--z1:1;--pd:7.41s;--po:0.5s"></div>
+  <div class="callout pop" style="--o:6.36s;left:70px;top:760px;width:940px"><img src="shots/c_perms.png"></div>
+</section>
+<section class="scene dark last" style="--s:38.38s;--d:10.95s">
+
+  <div class="cta">
+    <div class="logoTile pop" style="--o:.15s"><img src="../../public/petra-logo.png"></div>
+    <div class="brand fu" style="--o:.35s">Petra</div>
+    <div class="ctaT fu" style="--o:0.6s">רוצים לראות איך<br>זה עובד אצלכם?</div>
+    <div class="wa pulse" style="--o:3.66s"><svg viewBox="0 0 32 32"><path fill="#fff" d="M16 3C9 3 3.3 8.6 3.3 15.6c0 2.3.6 4.5 1.8 6.4L3 29l7.2-1.9c1.8 1 3.8 1.5 5.8 1.5 7 0 12.7-5.7 12.7-12.6S23 3 16 3zm0 23.1c-1.9 0-3.7-.5-5.3-1.4l-.4-.2-4.3 1.1 1.1-4.2-.3-.4c-1-1.6-1.6-3.5-1.6-5.4C5.2 9.8 10 5.1 16 5.1s10.8 4.7 10.8 10.5S22 26.1 16 26.1zm5.9-7.8c-.3-.2-1.9-.9-2.2-1s-.5-.2-.7.2-.8 1-1 1.2-.4.2-.7.1c-.3-.2-1.4-.5-2.6-1.6-1-.9-1.6-1.9-1.8-2.2s0-.5.1-.6l.5-.6c.2-.2.2-.4.3-.6s0-.4 0-.6-.7-1.7-1-2.3c-.3-.6-.5-.5-.7-.5h-.6c-.2 0-.6.1-.9.4s-1.2 1.1-1.2 2.7 1.2 3.1 1.4 3.3c.2.2 2.4 3.6 5.7 5 .8.3 1.4.5 1.9.7.8.3 1.5.2 2.1.1.6-.1 1.9-.8 2.2-1.5s.3-1.4.2-1.5c-.1-.2-.3-.3-.6-.4z"/></svg>דברו איתנו בוואטסאפ</div>
+    <div class="num fu" style="--o:4.06s">054-256-0964</div>
+  </div>
+</section>
+<div class="wm" style="--ws:5.37s;--wd:33.21s"><div class="logoTile"><img src="../../public/petra-logo.png"></div><b>Petra</b></div>
+
+<div class="sub onDark" style="--ss:0.15s;--sd:1.55s"><span>עדיין מנהלים את הפנסיון</span></div>
+<div class="sub onDark" style="--ss:1.65s;--sd:1.59s"><span>על לוח מחיק?</span></div>
+<div class="sub onDark" style="--ss:3.19s;--sd:1.41s"><span>ביומן גוגל?</span></div>
+<div class="sub onDark" style="--ss:4.55s;--sd:0.77s"><span>במחברת?</span></div>
+<div class="sub" style="--ss:5.52s;--sd:2.63s"><span>בפטרה, כל כלב מקבל חדר</span></div>
+<div class="sub" style="--ss:8.1s;--sd:1.07s"><span>בגרירה אחת</span></div>
+<div class="sub" style="--ss:9.12s;--sd:2.11s"><span>ורואים את כל התפוסה</span></div>
+<div class="sub" style="--ss:11.18s;--sd:0.93s"><span>על מסך אחד</span></div>
+<div class="sub" style="--ss:12.31s;--sd:1.89s"><span>מתכננים קדימה:</span></div>
+<div class="sub" style="--ss:14.15s;--sd:1.49s"><span>כל ההזמנות של החודש הקרוב</span></div>
+<div class="sub" style="--ss:15.59s;--sd:1.43s"><span>על ציר זמן אחד</span></div>
+<div class="sub" style="--ss:17.22s;--sd:1.81s"><span>ומה עם החצרות?</span></div>
+<div class="sub" style="--ss:18.98s;--sd:2.01s"><span>מעבירים כלב לחצר בגרירה</span></div>
+<div class="sub" style="--ss:20.94s;--sd:1.29s"><span>ורואים מראש</span></div>
+<div class="sub" style="--ss:22.18s;--sd:1.29s"><span>מי מסתדר עם מי</span></div>
+<div class="sub" style="--ss:23.67s;--sd:2.39s"><span>בכל בוקר, הצוות מקבל</span></div>
+<div class="sub" style="--ss:26.01s;--sd:2.63s"><span>לוח של האכלות ותרופות לכל כלב</span></div>
+<div class="sub" style="--ss:28.59s;--sd:1.73s"><span>ומסמן מה כבר ניתן</span></div>
+<div class="sub" style="--ss:30.52s;--sd:1.55s"><span>והצוות?</span></div>
+<div class="sub" style="--ss:32.02s;--sd:2.55s"><span>כל עובד רואה רק את הפנסיון</span></div>
+<div class="sub" style="--ss:34.52s;--sd:2.21s"><span>בלי הכנסות ובלי לקוחות</span></div>
+<div class="sub" style="--ss:36.68s;--sd:1.65s"><span>אתם מחליטים מה מותר</span></div>
+<script>
+window.renderAt = function (t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t * 1000; } };
+window.TOTAL = 49.33;
+</script></body></html>

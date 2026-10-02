@@ -479,6 +479,7 @@ function PetsPageContent() {
             <Plus className="w-4 h-4" />
             הוסף חיית מחמד
           </button>
+          {perms.canExportData && (
           <button
             onClick={handleExport}
             disabled={isExporting}
@@ -487,6 +488,7 @@ function PetsPageContent() {
             <Download className="w-4 h-4" />
             {isExporting ? "מייצא..." : "ייצוא XLSX"}
           </button>
+          )}
           <button onClick={() => refetch()} className="btn-secondary gap-2 inline-flex items-center">
             <RefreshCw className="w-4 h-4" />
             רענן

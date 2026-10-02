@@ -33,6 +33,7 @@ import {
 import { toast } from "sonner";
 import { TierGate } from "@/components/paywall/TierGate";
 import { ImportModal } from "@/components/import/ImportModal";
+import { usePermissions } from "@/hooks/usePermissions";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 
 interface ServiceDogCard {
@@ -71,6 +72,7 @@ function ServiceDogsListPageContent() {
   const [showArchive, setShowArchive] = useState(searchParams.get("archive") === "1");
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const { canImportData } = usePermissions();
   const [phaseDropdownId, setPhaseDropdownId] = useState<string | null>(null);
   const [view, setView] = useState<"grid" | "table">("table");
   const queryClient = useQueryClient();
@@ -184,13 +186,15 @@ function ServiceDogsListPageContent() {
           </div>
           {!showArchive && (
             <>
-              <button
-                onClick={() => setShowImportModal(true)}
-                className="btn-secondary flex items-center gap-2"
-              >
-                <Upload className="w-4 h-4" />
-                ייבוא מקובץ
-              </button>
+              {canImportData && (
+                <button
+                  onClick={() => setShowImportModal(true)}
+                  className="btn-secondary flex items-center gap-2"
+                >
+                  <Upload className="w-4 h-4" />
+                  ייבוא מקובץ
+                </button>
+              )}
               <button
                 onClick={() => setShowAddModal(true)}
                 className="btn-primary flex items-center gap-2"

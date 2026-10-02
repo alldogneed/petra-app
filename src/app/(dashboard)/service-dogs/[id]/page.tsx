@@ -362,11 +362,17 @@ function ServiceDogProfilePageContent() {
 
   const deleteDogMutation = useMutation({
     mutationFn: () =>
-      fetch(`/api/service-dogs/${dogId}`, { method: "DELETE" }).then((r) => {
+      fetch(`/api/service-dogs/${dogId}`, { method: "DELETE" }).then(async (r) => {
         if (!r.ok) throw new Error("Failed");
-        return r.json();
+        return r.json() as Promise<{ pendingApproval?: boolean }>;
       }),
-    onSuccess: () => {
+    onSuccess: (data) => {
+      setConfirmDelete(false);
+      // Managers without CRITICAL_DELETE get 202 { pendingApproval: true } — nothing was deleted yet
+      if (data?.pendingApproval) {
+        toast.success("הבקשה נשלחה לאישור הבעלים");
+        return;
+      }
       queryClient.invalidateQueries({ queryKey: ["service-dogs"] });
       toast.success("הכלב נמחק בהצלחה");
       router.push("/service-dogs/dogs");

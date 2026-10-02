@@ -4,6 +4,7 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
+import { ENTITY_TYPES } from "@/lib/activity-actions";
 import { getTask, updateTask, deleteTask, ServiceError, type UpdateTaskInput } from "@/services/clients";
 
 const PatchTaskSchema = z.object({
@@ -70,7 +71,14 @@ export async function PATCH(
     const action =
       status === "COMPLETED" ? ACTIVITY_ACTIONS.COMPLETE_TASK :
       status === "CANCELED"  ? ACTIVITY_ACTIONS.CANCEL_TASK : undefined;
-    if (action) logActivity(session.user.id, session.user.name, action);
+    if (action) {
+      logActivity(session.user.id, session.user.name, action, {
+        businessId: authResult.businessId,
+        entityType: ENTITY_TYPES.TASK,
+        entityId: params.id,
+        entityLabel: (task as { title?: string | null } | null)?.title ?? null,
+      });
+    }
 
     return NextResponse.json(task);
   } catch (error) {
@@ -87,14 +95,22 @@ export async function DELETE(
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
+    let deleted;
     try {
-      await deleteTask(authResult.businessId, prisma, params.id, authResult.session.user.id);
+      deleted = await deleteTask(authResult.businessId, prisma, params.id, authResult.session.user.id);
     } catch (e) {
       if (e instanceof ServiceError && e.code === "NOT_FOUND") {
         return NextResponse.json({ error: "Task not found" }, { status: 404 });
       }
       throw e;
     }
+
+    await logActivity(authResult.session.user.id, authResult.session.user.name, ACTIVITY_ACTIONS.DELETE_TASK, {
+      businessId: authResult.businessId,
+      entityType: ENTITY_TYPES.TASK,
+      entityId: params.id,
+      entityLabel: deleted.title,
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

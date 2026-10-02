@@ -46,6 +46,23 @@ To cut off a single business/connection rather than all of MCP, revoke its token
 in the app: **Settings → עוזרי AI** → revoke the connection. (Bulk "revoke all tokens
 for a business" in one action is not yet built — tracked in `docs/mcp-audit-report.md`.)
 
+#### OAuth (auto-login) connections
+
+Connections created by pasting `https://petra-app.com/api/mcp` into Claude / Codex
+(badge "התחברות אוטומטית" in **Settings → עוזרי AI**) are ordinary `McpConnection` rows:
+
+- **Revoke one:** same as above — revoke it in Settings → עוזרי AI. This sets `revokedAt`
+  and clears `refreshTokenHash`, so the client can neither call MCP nor refresh; it must
+  log in again. A client may also self-revoke via `POST /api/oauth/revoke` (RFC 7009).
+- **Kill switch still applies:** `MCP_ENABLED=false` makes `/api/mcp` return 503 for OAuth
+  tokens too. The OAuth endpoints (`/api/oauth/*`, `/oauth/authorize`) keep working, but
+  the tokens they issue are useless while MCP is off.
+- **Refresh-token reuse** (a rotated-out refresh token presented again) auto-revokes the
+  connection — if a user reports "Claude disconnected by itself", check `revokedAt` on it.
+- **Before deploying the OAuth code** run the additive DDL once against prod:
+  `npx prisma db execute --url "$DIRECT_URL" --file prisma/mcp_oauth.sql` (idempotent;
+  never `db push`). Without it, `/api/mcp/connections` and the OAuth endpoints fail.
+
 #### Who is authorized
 
 - Or Rabinovich

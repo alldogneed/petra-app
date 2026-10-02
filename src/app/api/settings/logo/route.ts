@@ -4,6 +4,9 @@ import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
 import { put } from "@vercel/blob";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { TENANT_PERMS, sessionHasTenantPermission } from "@/lib/permissions";
+import { logActivity } from "@/lib/activity-log";
+import { ENTITY_TYPES } from "@/lib/activity-actions";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
 // SVG excluded — can contain embedded JavaScript (stored XSS risk)
@@ -13,6 +16,12 @@ export async function POST(request: NextRequest) {
   try {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
+
+    // Same gate as PATCH /api/settings — the logo is shown on the public booking
+    // page, contracts and invoices.
+    if (!sessionHasTenantPermission(authResult.session, authResult.businessId, TENANT_PERMS.SETTINGS_CRITICAL)) {
+      return NextResponse.json({ error: "רק בעלים יכול לשנות הגדרות" }, { status: 403 });
+    }
 
     const formData = await request.formData();
     const file = formData.get("file") as File;
@@ -35,6 +44,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // The declared MIME type is client-controlled — check the file signature too.
+    const head = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+    const startsWith = (...bytes: number[]) => bytes.every((b, i) => head[i] === b);
+    const signatureOk =
+      (file.type === "image/png" && startsWith(0x89, 0x50, 0x4e, 0x47)) ||
+      (file.type === "image/jpeg" && startsWith(0xff, 0xd8, 0xff)) ||
+      (file.type === "image/gif" && startsWith(0x47, 0x49, 0x46, 0x38)) ||
+      (file.type === "image/webp" && startsWith(0x52, 0x49, 0x46, 0x46) && head[8] === 0x57 && head[9] === 0x45 && head[10] === 0x42 && head[11] === 0x50);
+    if (!signatureOk) {
+      return NextResponse.json({ error: "הקובץ אינו תמונה תקינה" }, { status: 400 });
+    }
+
     const MIME_TO_EXT: Record<string, string> = {
       "image/jpeg": "jpg",
       "image/png": "png",
@@ -44,12 +65,18 @@ export async function POST(request: NextRequest) {
     const ext = MIME_TO_EXT[file.type] || "png";
     const fileId = crypto.randomBytes(12).toString("hex");
     const blobPath = `logos/${authResult.businessId}/${fileId}.${ext}`;
-    const blob = await put(blobPath, file, { access: "public" });
+    const blob = await put(blobPath, file, { access: "public", contentType: file.type });
 
     // Save URL to business record
     await prisma.business.update({
       where: { id: authResult.businessId },
       data: { logo: blob.url },
+    });
+
+    logActivity(authResult.session.user.id, authResult.session.user.name, "UPDATE_SETTINGS", {
+      businessId: authResult.businessId,
+      entityType: ENTITY_TYPES.SETTINGS,
+      entityLabel: "לוגו העסק",
     });
 
     return NextResponse.json({ url: blob.url }, { status: 201 });

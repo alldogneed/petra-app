@@ -2,6 +2,17 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { TENANT_PERMS, sessionHasTenantPermission } from "@/lib/permissions";
+import { logActivity } from "@/lib/activity-log";
+import { ENTITY_TYPES } from "@/lib/activity-actions";
+
+/** Stripe keys route card payments to an account — owner (or SETTINGS_CRITICAL override) only. */
+function denyUnlessCritical(authResult: { session: Parameters<typeof sessionHasTenantPermission>[0]; businessId: string }) {
+  if (!sessionHasTenantPermission(authResult.session, authResult.businessId, TENANT_PERMS.SETTINGS_CRITICAL)) {
+    return NextResponse.json({ error: "רק בעלים יכול לנהל את חיבור Stripe" }, { status: 403 });
+  }
+  return null;
+}
 import { encryptStripeSecret } from "@/lib/encryption";
 import { verifyStripeKey } from "@/lib/stripe";
 
@@ -37,6 +48,8 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
+  const denied = denyUnlessCritical(authResult);
+  if (denied) return denied;
 
   try {
     const body = await request.json();
@@ -103,6 +116,11 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    await logActivity(authResult.session.user.id, authResult.session.user.name, "UPDATE_SETTINGS", {
+      businessId: authResult.businessId,
+      entityType: ENTITY_TYPES.SETTINGS,
+      entityLabel: "חיבור Stripe",
+    });
     return NextResponse.json({ success: true, accountId: verification.accountId });
   } catch (error) {
     console.error("POST stripe settings error:", error);
@@ -114,12 +132,19 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
+  const denied = denyUnlessCritical(authResult);
+  if (denied) return denied;
 
   try {
     await prisma.stripeSettings.deleteMany({
       where: { businessId: authResult.businessId },
     });
 
+    await logActivity(authResult.session.user.id, authResult.session.user.name, "UPDATE_SETTINGS", {
+      businessId: authResult.businessId,
+      entityType: ENTITY_TYPES.SETTINGS,
+      entityLabel: "ניתוק Stripe",
+    });
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("DELETE stripe settings error:", error);

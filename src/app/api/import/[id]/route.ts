@@ -6,7 +6,10 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, requireBusinessPermission, isGuardError } from "@/lib/auth-guards";
+import { TENANT_PERMS } from "@/lib/permissions";
+import { logActivity } from "@/lib/activity-log";
+import { ACTIVITY_ACTIONS, ENTITY_TYPES } from "@/lib/activity-actions";
 
 // ── GET ───────────────────────────────────────────────────────────────────────
 
@@ -71,7 +74,7 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  const authResult = await requireBusinessAuth(req);
+  const authResult = await requireBusinessPermission(req, TENANT_PERMS.DATA_IMPORT);
   if (isGuardError(authResult)) return authResult;
   const { businessId } = authResult;
 
@@ -127,6 +130,13 @@ export async function DELETE(
       await prisma.importBatch.update({
         where: { id: params.id },
         data: { status: "rolled_back" },
+      });
+
+      await logActivity(authResult.session.user.id, authResult.session.user.name, ACTIVITY_ACTIONS.DELETE_IMPORT_BATCH, {
+        businessId,
+        entityType: ENTITY_TYPES.SETTINGS,
+        entityId: batch.id,
+        entityLabel: `${batch.sourceFilename} (${createdCustomerIds.length} לקוחות, ${createdPetIds.length} חיות)`,
       });
 
       return NextResponse.json({

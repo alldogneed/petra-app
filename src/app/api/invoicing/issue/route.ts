@@ -1,7 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { isGuardError, requireBusinessPermission } from "@/lib/auth-guards";
+import { TENANT_PERMS } from "@/lib/permissions";
 import { InvoicingService } from "@/lib/invoicing/invoicing-service";
 import { DOCUMENT_TYPES, type DocumentType } from "@/lib/invoicing/types";
 import { maskSensitive, logInvoicing } from "@/lib/invoicing/logger";
@@ -13,7 +14,7 @@ const VALID_DOC_TYPES = new Set(Object.values(DOCUMENT_TYPES));
 // 1. Issue from draft: { invoiceId } — loads draft, sends to provider, updates record
 // 2. Direct issue from payment: { paymentId, docType? } — original flow
 export async function POST(request: NextRequest) {
-  const authResult = await requireBusinessAuth(request);
+  const authResult = await requireBusinessPermission(request, TENANT_PERMS.PAYMENTS_WRITE);
   if (isGuardError(authResult)) return authResult;
 
   try {

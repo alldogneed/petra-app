@@ -2,6 +2,8 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { sessionHasTenantPermission, TENANT_PERMS } from "@/lib/permissions";
+import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 import { rateLimit } from "@/lib/rate-limit";
 
 const EXPORT_RATE_LIMIT = { max: 5, windowMs: 60 * 1000 };
@@ -13,6 +15,9 @@ export async function GET(request: NextRequest) {
   try {
   const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
+  if (!sessionHasTenantPermission(authResult.session, authResult.businessId, TENANT_PERMS.DATA_EXPORT)) {
+    return NextResponse.json({ error: "אין לך הרשאה לייצא נתונים" }, { status: 403 });
+  }
 
   const rl = rateLimit("export:leads", authResult.businessId, EXPORT_RATE_LIMIT);
   if (!rl.allowed) {
@@ -122,6 +127,11 @@ export async function GET(request: NextRequest) {
 
   const today = new Date().toISOString().slice(0, 10);
   const rangeLabel = from || to ? `_${from ?? ""}${to ? "_עד_" + to : ""}` : "";
+  await logActivity(authResult.session.user.id, authResult.session.user.name, ACTIVITY_ACTIONS.EXPORT_DATA, {
+    businessId: authResult.businessId,
+    entityLabel: "לידים",
+  });
+
   return new NextResponse(csv, {
     status: 200,
     headers: {

@@ -22,6 +22,7 @@ const PUBLIC_PREFIX_PATHS = [
  * EXACT paths (matched with === or === path + "/"):
  */
 const PUBLIC_EXACT_PATHS = new Set([
+  "/pdf.worker.min.mjs", // pdf.js worker — static asset needed by the PUBLIC /sign/[token] page (unauthenticated customers)
   "/login",
   "/register",
   "/forgot-password",
@@ -43,6 +44,13 @@ const PUBLIC_EXACT_PATHS = new Set([
   "/api/booking/availability",
   "/api/booking/slots",
   "/api/booking/book",
+  // MCP OAuth 2.1 (auto-login connectors) — public by spec; each route does its own
+  // validation + per-IP rate limit. /api/oauth/authorize stays session-protected.
+  "/.well-known/openid-configuration", // RFC 8414 metadata served under the OIDC name (some clients probe it)
+  "/oauth/authorize",   // consent page — checks the session itself (redirects to /login?next=…)
+  "/api/oauth/token",   // RFC 6749 token endpoint (PKCE / refresh-token auth, no session)
+  "/api/oauth/register", // RFC 7591 dynamic client registration (public clients only)
+  "/api/oauth/revoke",  // RFC 7009 token revocation
   "/api/mcp", // MCP endpoint — self-contained Bearer-token auth + rate limit + audit (NOT a prefix: /api/mcp/connections stays session-protected)
   "/api/cardcom/indicator",
   "/api/cardcom/success-redirect",
@@ -73,11 +81,22 @@ export function middleware(request: NextRequest) {
   if (/^\/sign\/[^/]+$/.test(pathname)) return NextResponse.next();
   // Allow public sign API: /api/sign/[token] and /api/sign/[token]/pdf
   if (/^\/api\/sign\/[^/]+(\/pdf)?$/.test(pathname)) return NextResponse.next();
+  // pdf.js assets loaded by /sign/[token] (cMapUrl + standardFontDataUrl) — flat dirs in public/,
+  // single path segment + fixed extension only so nothing else under these prefixes opens up
+  if (/^\/cmaps\/[\w.-]+\.bcmap$/.test(pathname)) return NextResponse.next();
+  if (/^\/standard_fonts\/[\w.-]+\.(pfb|ttf)$/.test(pathname)) return NextResponse.next();
 
   // Allow MCP path-based token endpoint: /api/mcp/u/petra_mcp_<64 hex>
   // Strict format match so this never opens /api/mcp/connections or any other sub-path.
   // The route itself does the real Bearer-token auth + rate limit + audit.
   if (/^\/api\/mcp\/u\/petra_mcp_[0-9a-f]{64}$/.test(pathname)) return NextResponse.next();
+
+  // OAuth discovery metadata (RFC 9728 / RFC 8414) — the base path or any
+  // path-suffixed variant (e.g. /.well-known/oauth-protected-resource/api/mcp).
+  // Segment-anchored so e.g. /.well-known/oauth-protected-resourceX never matches.
+  if (/^\/\.well-known\/oauth-(protected-resource|authorization-server)(\/.*)?$/.test(pathname)) {
+    return NextResponse.next();
+  }
 
   // Allow exact public paths
   if (PUBLIC_EXACT_PATHS.has(pathname)) {

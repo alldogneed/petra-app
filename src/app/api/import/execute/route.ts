@@ -8,7 +8,8 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { normalizePhone, RawCustomerRow, RawPetRow } from "@/lib/import-utils";
-import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessPermission, isGuardError } from "@/lib/auth-guards";
+import { TENANT_PERMS } from "@/lib/permissions";
 import { rateLimit } from "@/lib/rate-limit";
 import { sanitizeName } from "@/lib/validation";
 
@@ -19,7 +20,7 @@ function sanitizeField(value: string | null | undefined, maxLen = 500): string |
 }
 
 export async function POST(req: NextRequest) {
-  const authResult = await requireBusinessAuth(req);
+  const authResult = await requireBusinessPermission(req, TENANT_PERMS.DATA_IMPORT);
   if (isGuardError(authResult)) return authResult;
 
   const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";

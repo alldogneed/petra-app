@@ -73,6 +73,7 @@ import {
 } from "@/lib/utils";
 import { validateIsraeliPhone, validateEmail, sanitizeName, normalizeIsraeliPhone, validateName } from "@/lib/validation";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { CustomerSalesHistory, CustomerLeadChip } from "@/components/customers/CustomerSalesHistory";
 
 const DOG_BREEDS = [
   "גולדן רטריוור", "לברדור", "בורדר קולי", "ג'ק ראסל", "פודל", "צ'יוואווה",
@@ -1660,6 +1661,7 @@ function getDaysUntilExpiry(expiresAt: string): number {
 
 function SendContractSection({ customerId, customerName, pets }: { customerId: string; customerName: string; pets: { id: string; name: string }[] }) {
   const queryClient = useQueryClient();
+  const { canSendMessages } = usePermissions();
   const [showModal, setShowModal] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [selectedPetId, setSelectedPetId] = useState("");
@@ -1668,7 +1670,13 @@ function SendContractSection({ customerId, customerName, pets }: { customerId: s
 
   const { data: templates = [] } = useQuery<ContractTemplate[]>({
     queryKey: ["contract-templates"],
-    queryFn: () => fetch("/api/contracts/templates").then((r) => r.json()),
+    // Non-ok (e.g. 403) or a non-array body → empty list, never an error object.
+    queryFn: async () => {
+      const r = await fetch("/api/contracts/templates");
+      if (!r.ok) return [];
+      const d = await r.json().catch(() => null);
+      return Array.isArray(d) ? (d as ContractTemplate[]) : [];
+    },
   });
 
   const { data: requests = [] } = useQuery<ContractReq[]>({
@@ -1750,6 +1758,7 @@ function SendContractSection({ customerId, customerName, pets }: { customerId: s
           <PenLine className="w-4 h-4 text-petra-muted" />
           חוזים ({requests.length})
         </h2>
+        {canSendMessages && (
         <button
           onClick={() => setShowModal(true)}
           className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl btn-ghost text-petra-muted"
@@ -1759,6 +1768,7 @@ function SendContractSection({ customerId, customerName, pets }: { customerId: s
           <Send className="w-3.5 h-3.5" />
           שלח לחתימה
         </button>
+        )}
       </div>
 
       {requests.length === 0 ? (
@@ -1792,7 +1802,7 @@ function SendContractSection({ customerId, customerName, pets }: { customerId: s
                     העתק קישור
                   </button>
                 )}
-                {(effective === "PENDING" || effective === "VIEWED") && (
+                {canSendMessages && (effective === "PENDING" || effective === "VIEWED") && (
                   <button
                     type="button"
                     className="text-xs text-blue-600 hover:text-blue-800 px-2 py-0.5 rounded hover:bg-blue-50 transition-colors flex items-center gap-1 flex-shrink-0"
@@ -1804,7 +1814,7 @@ function SendContractSection({ customerId, customerName, pets }: { customerId: s
                     תזכורת
                   </button>
                 )}
-                {effective === "EXPIRED" && (
+                {canSendMessages && effective === "EXPIRED" && (
                   <button
                     type="button"
                     className="text-xs text-amber-600 hover:text-amber-800 px-2 py-0.5 rounded hover:bg-amber-50 transition-colors flex items-center gap-1 flex-shrink-0"
@@ -3693,9 +3703,12 @@ export default function CustomerProfilePage() {
             <h1 className="text-xl font-bold text-petra-text truncate">
               {customer.name}
             </h1>
-            <p className="text-sm text-petra-muted">
-              נוסף {formatDate(customer.createdAt)}
-            </p>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <p className="text-sm text-petra-muted">
+                נוסף {formatDate(customer.createdAt)}
+              </p>
+              <CustomerLeadChip customerId={customerId} />
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
@@ -4746,6 +4759,11 @@ export default function CustomerProfilePage() {
             )}
           </div>
 
+          {/* Sales history (leads linked to this customer) */}
+          <div id="sales-history" className="scroll-mt-20 empty:hidden">
+            <CustomerSalesHistory customerId={customerId} />
+          </div>
+
           {/* Appointments */}
           <div className="card p-5">
             <div className="flex items-center justify-between mb-4">
@@ -4807,7 +4825,7 @@ export default function CustomerProfilePage() {
                         >
                           {getStatusLabel(apt.status)}
                         </span>
-                        {apt.status === "scheduled" && customer.phone && can("whatsapp_reminders") && (
+                        {apt.status === "scheduled" && customer.phone && can("whatsapp_reminders") && perms.canSendMessages && (
                           <button
                             className="w-6 h-6 flex items-center justify-center rounded-full bg-green-50 hover:bg-green-100 text-green-600 transition-colors flex-shrink-0"
                             title="שלח תזכורת WhatsApp"

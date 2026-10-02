@@ -2,8 +2,10 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
-import { type TenantRole } from "@/lib/permissions";
+import { type TenantRole, TENANT_PERMS, sessionHasTenantPermission } from "@/lib/permissions";
 import { createPendingApproval } from "@/lib/pending-approvals";
+import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
+import { ENTITY_TYPES } from "@/lib/activity-actions";
 import { getPet, updatePet, deletePet, ServiceError, type UpdatePetInput } from "@/services/pets";
 
 export async function GET(
@@ -62,11 +64,15 @@ export async function DELETE(
     const membership = session.memberships.find((m) => m.businessId === businessId);
     const callerRole = (membership?.role ?? "user") as TenantRole;
 
-    if (callerRole === "user" || callerRole === "volunteer") {
+    // An owner-granted critical-delete override lets any member delete directly;
+    // otherwise managers still route through the pending-approval flow.
+    const canDeleteDirectly = sessionHasTenantPermission(session, businessId, TENANT_PERMS.CRITICAL_DELETE);
+
+    if (!canDeleteDirectly && callerRole !== "manager") {
       return NextResponse.json({ error: "אין הרשאה למחיקת חיית מחמד" }, { status: 403 });
     }
 
-    if (callerRole === "manager") {
+    if (!canDeleteDirectly) {
       const existing = await prisma.pet.findFirst({
         where: { id: params.petId, OR: [{ customer: { businessId } }, { businessId }] },
         select: { id: true, name: true },
@@ -75,7 +81,7 @@ export async function DELETE(
       const approval = await createPendingApproval({
         businessId,
         requestedByUserId: session.user.id,
-        action: "DELETE_PET",
+        action: ACTIVITY_ACTIONS.DELETE_PET,
         description: `מחיקת חיית מחמד: ${existing.name}`,
         payload: { petId: params.petId, petName: existing.name },
       });
@@ -90,6 +96,12 @@ export async function DELETE(
       return NextResponse.json({ error: "נדרש אישור מפורש למחיקה", requireConfirmation: true }, { status: 428 });
     }
 
+    // Read the name before the row disappears (scoped to this business).
+    const toDelete = await prisma.pet.findFirst({
+      where: { id: params.petId, OR: [{ customer: { businessId } }, { businessId }] },
+      select: { name: true },
+    });
+
     try {
       await deletePet(businessId, prisma, params.petId);
     } catch (e) {
@@ -98,6 +110,13 @@ export async function DELETE(
       }
       throw e;
     }
+
+    await logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.DELETE_PET, {
+      businessId,
+      entityType: ENTITY_TYPES.PET,
+      entityId: params.petId,
+      entityLabel: toDelete?.name ?? null,
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

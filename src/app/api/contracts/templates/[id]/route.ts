@@ -3,12 +3,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { del } from "@vercel/blob";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
-import { hasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
+import { sessionHasTenantPermission, TENANT_PERMS } from "@/lib/permissions";
+import { logActivity } from "@/lib/activity-log";
+import { ACTIVITY_ACTIONS, ENTITY_TYPES } from "@/lib/activity-actions";
 
-function staffGuard(authResult: { session: { memberships: Array<{ businessId: string; role: string; isActive: boolean }> }; businessId: string }) {
-  const m = authResult.session.memberships.find((mb) => mb.businessId === authResult.businessId && mb.isActive);
-  if (m && !hasTenantPermission(m.role as TenantRole, TENANT_PERMS.SETTINGS_WRITE)) {
-    return NextResponse.json({ error: "אין הרשאה לנהל חוזים" }, { status: 403 });
+/** Creating, editing and deleting templates needs the owner-grantable CONTRACTS_MANAGE. */
+function contractsGuard(authResult: { session: Parameters<typeof sessionHasTenantPermission>[0]; businessId: string }) {
+  if (!sessionHasTenantPermission(authResult.session, authResult.businessId, TENANT_PERMS.CONTRACTS_MANAGE)) {
+    return NextResponse.json({ error: "אין לך הרשאה לנהל תבניות חוזים" }, { status: 403 });
   }
   return null;
 }
@@ -19,7 +21,7 @@ export async function PATCH(
 ) {
   const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
-  const blocked = staffGuard(authResult);
+  const blocked = contractsGuard(authResult);
   if (blocked) return blocked;
 
   try {
@@ -56,7 +58,7 @@ export async function DELETE(
 ) {
   const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
-  const blockedDel = staffGuard(authResult);
+  const blockedDel = contractsGuard(authResult);
   if (blockedDel) return blockedDel;
 
   try {
@@ -68,8 +70,18 @@ export async function DELETE(
     // Delete related contract requests first (FK constraint)
     const relatedRequests = await prisma.contractRequest.findMany({
       where: { templateId: params.id },
-      select: { id: true, signedFileUrl: true },
+      select: { id: true, signedFileUrl: true, status: true },
     });
+
+    // Deleting the template also deletes every request made from it — including
+    // SIGNED contracts and their PDFs. That is a critical delete, not template upkeep.
+    const signedCount = relatedRequests.filter((r) => r.status === "SIGNED" || !!r.signedFileUrl).length;
+    if (signedCount > 0 && !sessionHasTenantPermission(authResult.session, authResult.businessId, TENANT_PERMS.CRITICAL_DELETE)) {
+      return NextResponse.json(
+        { error: `לתבנית יש ${signedCount} חוזים חתומים — רק מי שמורשה למחוק לקוחות וכלבים יכול למחוק אותה`, code: "SIGNED_CONTRACTS" },
+        { status: 403 }
+      );
+    }
 
     // Clean up signed PDF blobs
     for (const req of relatedRequests) {
@@ -79,7 +91,16 @@ export async function DELETE(
     }
 
     if (relatedRequests.length > 0) {
-      await prisma.contractRequest.deleteMany({ where: { templateId: params.id, businessId: authResult.businessId } });
+      // Without CRITICAL_DELETE never touch a signed row, even one signed after the
+      // check above (race) — the template delete then fails on the FK instead.
+      const canDeleteSigned = sessionHasTenantPermission(authResult.session, authResult.businessId, TENANT_PERMS.CRITICAL_DELETE);
+      await prisma.contractRequest.deleteMany({
+        where: {
+          templateId: params.id,
+          businessId: authResult.businessId,
+          ...(canDeleteSigned ? {} : { status: { not: "SIGNED" }, signedFileUrl: null }),
+        },
+      });
     }
 
     // Delete template blob
@@ -92,6 +113,13 @@ export async function DELETE(
     }
 
     await prisma.contractTemplate.delete({ where: { id: params.id, businessId: authResult.businessId } });
+
+    await logActivity(authResult.session.user.id, authResult.session.user.name, ACTIVITY_ACTIONS.DELETE_CONTRACT_TEMPLATE, {
+      businessId: authResult.businessId,
+      entityType: ENTITY_TYPES.SETTINGS,
+      entityId: template.id,
+      entityLabel: signedCount > 0 ? `${template.name} (כולל ${signedCount} חוזים חתומים)` : template.name,
+    });
 
     return NextResponse.json({ ok: true });
   } catch (error) {

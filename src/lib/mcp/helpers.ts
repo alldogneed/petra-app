@@ -5,6 +5,7 @@
  * its tools on the McpServer. Keep all customer-controlled strings inside
  * safeField() and all dates inside heDate() — see route.ts header for why.
  */
+import type { TenantPermission } from "@/lib/permissions";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import prisma from "@/lib/prisma";
 import { auditLog } from "@/lib/mcp-auth";
@@ -72,9 +73,19 @@ export function parseYmd(s: string | undefined | null): string | null {
 export interface ToolCtx {
   businessId: string;
   connectionId: string;
+  /** PlatformUser who minted the connection (null for legacy tokens) — recorded as lead closer etc. */
+  userId?: string | null;
   hasScope: (scope: string) => boolean;
   /** Deny a tool call whose connection lacks the required scope (audited). */
   denyScope: (tool: string, scope: string) => Promise<ToolResult>;
+  /**
+   * Owner-grantable capability of the person who minted the token, honouring their
+   * CURRENT role + per-member overrides — the same check the UI routes make
+   * (rule #34). Legacy tokens / platform admins are owner-level.
+   */
+  hasPermission: (perm: TenantPermission) => boolean;
+  /** Deny a tool call whose minter lacks the capability (audited, Hebrew message naming it). */
+  denyPermission: (tool: string, perm: TenantPermission) => Promise<ToolResult>;
 }
 
 /**

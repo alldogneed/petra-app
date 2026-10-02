@@ -1,9 +1,10 @@
 export const dynamic = 'force-dynamic';
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { buildGoogleAuthUrl } from "@/lib/google-oauth";
+import { safeNextPath } from "@/lib/safe-redirect";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const state = crypto.randomBytes(16).toString("hex");
     const url = buildGoogleAuthUrl(state);
@@ -16,6 +17,20 @@ export async function GET() {
       path: "/",
       maxAge: 600, // 10 minutes
     });
+
+    // Post-login destination (MCP OAuth consent) — only a validated relative path, 10 min
+    const next = safeNextPath(request.nextUrl.searchParams.get("next"));
+    if (next) {
+      response.cookies.set("petra_login_next", next, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        path: "/",
+        maxAge: 600,
+      });
+    } else {
+      response.cookies.delete("petra_login_next");
+    }
 
     return response;
   } catch (e) {

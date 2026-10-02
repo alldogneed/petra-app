@@ -1,15 +1,16 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   Loader2, Plus, Trash2, Copy, Bot, Clock, CheckCircle2, AlertCircle, Key, Eye, Pencil,
-  Users, CalendarDays, Home, ShieldCheck, User, CalendarClock, AlertTriangle,
+  Users, CalendarDays, Home, ShieldCheck, User, CalendarClock, AlertTriangle, Zap, RefreshCw,
 } from "lucide-react";
 import { formatRelativeTime, formatDate, copyToClipboard } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
+import { usePermissions } from "@/hooks/usePermissions";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 
 // NOTE: these mirror MCP_PROFILE_LABELS in src/lib/mcp-auth.ts. That module imports
@@ -54,6 +55,8 @@ interface McpConnection {
   createdAt: string;
   lastUsedAt: string | null;
   revokedAt: string | null;
+  /** Set when the connection was created via OAuth auto-login (URL-only connect). */
+  oauthClientId?: string | null;
   _count: { auditLogs: number };
 }
 
@@ -102,6 +105,16 @@ function ProfileBadge({ profile, scopes }: { profile: string | null; scopes: str
   );
 }
 
+/** Badge for connections created via OAuth auto-login (client pasted the URL + logged in). */
+function OAuthBadge() {
+  return (
+    <span className="inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded-md border bg-sky-50 text-sky-700 border-sky-200">
+      <Zap className="w-3 h-3" />
+      התחברות אוטומטית
+    </span>
+  );
+}
+
 /** Minter + expiry metadata line, shared by active and revoked rows. */
 function GovernanceMeta({ conn }: { conn: McpConnection }) {
   if (!conn.createdBy && !conn.expiresAt) return null;
@@ -119,6 +132,15 @@ function GovernanceMeta({ conn }: { conn: McpConnection }) {
             <AlertTriangle className="w-3 h-3" />
             פג תוקף
           </span>
+        ) : conn.oauthClientId ? (
+          // OAuth grants: expiresAt is a sliding 90-day refresh window — renewed on every token refresh.
+          <span
+            className="flex items-center gap-1 text-xs text-slate-500"
+            title={`אם לא ייעשה שימוש — יפוג ב-${formatDate(conn.expiresAt)}`}
+          >
+            <RefreshCw className="w-3 h-3" />
+            מתחדש אוטומטית בזמן שימוש
+          </span>
         ) : (
           <span className="flex items-center gap-1 text-xs text-slate-500">
             <CalendarClock className="w-3 h-3" />
@@ -132,13 +154,24 @@ function GovernanceMeta({ conn }: { conn: McpConnection }) {
 
 export function McpConnectionsTab() {
   const queryClient = useQueryClient();
-  const { isManager } = useAuth();
+  const { user, isManager, isOwner } = useAuth();
+  const { canUseAiAssistant } = usePermissions();
+  // Mirrors the server gates: create = owner / manager with AI access / platform admin;
+  // revoke = owner / platform admin, or the member who created that connection.
+  const canCreate = isOwner || (isManager && canUseAiAssistant) || user?.isAdmin === true;
+  const canRevoke = (conn: McpConnection) => isOwner || user?.isAdmin === true || (!!conn.createdByUserId && conn.createdByUserId === user?.id);
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState("");
   const [newProfile, setNewProfile] = useState<McpProfile>("read");
   const [newToken, setNewToken] = useState<string | null>(null);
-  const [newConnectionId, setNewConnectionId] = useState<string | null>(null);
+  const [, setNewConnectionId] = useState<string | null>(null);
   const [confirmRevoke, setConfirmRevoke] = useState<string | null>(null);
+  // Real app origin (preview/staging/prod) — resolved after mount to avoid SSR mismatch.
+  const [appOrigin, setAppOrigin] = useState("https://petra-app.com");
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.location?.origin) setAppOrigin(window.location.origin);
+  }, []);
+  const mcpUrl = `${appOrigin}/api/mcp`;
 
   const { data: connections, isLoading } = useQuery<McpConnection[]>({
     queryKey: ["mcp-connections"],
@@ -172,13 +205,17 @@ export function McpConnectionsTab() {
 
   const revokeMutation = useMutation({
     mutationFn: (id: string) =>
-      fetch(`/api/mcp/connections/${id}`, { method: "DELETE" }).then((r) => r.json()),
+      fetch(`/api/mcp/connections/${id}`, { method: "DELETE" }).then(async (r) => {
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(d.error || "שגיאה בביטול חיבור");
+        return d;
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["mcp-connections"] });
       setConfirmRevoke(null);
       toast.success("החיבור בוטל בהצלחה");
     },
-    onError: () => toast.error("שגיאה בביטול חיבור"),
+    onError: (err: Error) => toast.error(err.message || "שגיאה בביטול חיבור"),
   });
 
   const submitCreate = () => {
@@ -206,8 +243,8 @@ export function McpConnectionsTab() {
           <div>
             <h3 className="font-semibold text-slate-800 text-base">חבר עוזר AI לעסק שלך</h3>
             <p className="text-slate-600 text-sm mt-1 leading-relaxed">
-              חבר את העסק שלך לעוזר AI כמו Claude או ChatGPT. תוכל לשאול "מי הלקוחות שלי השבוע?" או
-              "קבע פגישה לדני ביום שלישי" והוא יבצע את זה בשבילך.
+              חבר את העסק שלך לעוזר AI כמו Claude או ChatGPT. תוכל לשאול &quot;מי הלקוחות שלי השבוע?&quot; או
+              &quot;קבע פגישה לדני ביום שלישי&quot; והוא יבצע את זה בשבילך.
             </p>
             <Link
               href="/help/connect-ai"
@@ -217,6 +254,36 @@ export function McpConnectionsTab() {
             </Link>
           </div>
         </div>
+      </div>
+
+      {/* Easiest way — URL only, OAuth auto-login (no token needed) */}
+      <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 space-y-2">
+        <div className="flex items-center gap-2">
+          <Zap className="w-4 h-4 text-emerald-600" />
+          <h4 className="font-semibold text-emerald-800 text-sm">הדרך הקלה (מומלץ): רק כתובת, בלי טוקן</h4>
+        </div>
+        <p className="text-sm text-emerald-900/80 leading-relaxed">
+          הדבק את הכתובת הזו כ-connector ב-Claude או ב-Codex, התחבר עם המייל והסיסמה של פטרה ואשר — החיבור יופיע כאן אוטומטית.
+        </p>
+        <div className="bg-white border border-emerald-200 rounded-lg p-2 flex items-center gap-2 font-mono text-xs break-all" dir="ltr">
+          <span className="flex-1 text-slate-700 select-all">{mcpUrl}</span>
+          <button
+            onClick={() => { copyToClipboard(mcpUrl); toast.success("הכתובת הועתקה"); }}
+            className="text-emerald-600 hover:text-emerald-800 flex-shrink-0"
+            title="העתק כתובת"
+          >
+            <Copy className="w-4 h-4" />
+          </button>
+        </div>
+        <Link
+          href="/help/connect-ai"
+          className="inline-block text-sm font-medium text-emerald-700 hover:text-emerald-900 hover:underline"
+        >
+          הוראות ל-Claude, Claude Code ו-Codex ←
+        </Link>
+        <p className="text-xs text-slate-500">
+          הכפתור &quot;חבר עוזר חדש&quot; למטה (טוקן ידני) מיועד לחיבור מתקדם בלבד.
+        </p>
       </div>
 
       {/* Token reveal — shown immediately after creation */}
@@ -249,12 +316,11 @@ export function McpConnectionsTab() {
             </ol>
             <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-2 flex items-center gap-2 font-mono text-xs break-all">
               <span dir="ltr" className="flex-1 min-w-0 text-left text-slate-700 select-all">
-                {(typeof window !== "undefined" ? window.location.origin : "https://petra-app.com")}/api/mcp/u/{newToken}
+                {appOrigin}/api/mcp/u/{newToken}
               </span>
               <button
                 onClick={() => {
-                  const origin = typeof window !== "undefined" ? window.location.origin : "https://petra-app.com";
-                  copyToClipboard(`${origin}/api/mcp/u/${newToken}`);
+                  copyToClipboard(`${appOrigin}/api/mcp/u/${newToken}`);
                   toast.success("הכתובת הועתקה");
                 }}
                 className="text-emerald-600 hover:text-emerald-800 flex-shrink-0"
@@ -276,7 +342,7 @@ export function McpConnectionsTab() {
               </ol>
               <pre dir="ltr" className="bg-white border border-amber-200 rounded p-2 text-xs text-left overflow-x-auto mt-1 whitespace-pre-wrap">
 {`"petra": {
-  "url": "${typeof window !== "undefined" ? window.location.origin : "https://petra-app.com"}/api/mcp",
+  "url": "${mcpUrl}",
   "headers": {
     "Authorization": "Bearer ${newToken}"
   }
@@ -298,7 +364,7 @@ export function McpConnectionsTab() {
       <div>
         <div className="flex items-center justify-between mb-3">
           <h4 className="font-semibold text-slate-700">חיבורים פעילים ({activeConnections.length})</h4>
-          {!showCreate && (
+          {!showCreate && canCreate && (
             <button
               onClick={() => setShowCreate(true)}
               className="btn-primary text-sm flex items-center gap-1.5"
@@ -415,6 +481,7 @@ export function McpConnectionsTab() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="font-medium text-slate-800 text-sm">{conn.name}</p>
                         <ProfileBadge profile={conn.profile} scopes={conn.scopes} />
+                        {conn.oauthClientId && <OAuthBadge />}
                       </div>
                       <div className="flex items-center gap-3 mt-0.5 flex-wrap">
                         {conn.isExpired ? (
@@ -441,7 +508,7 @@ export function McpConnectionsTab() {
                       <GovernanceMeta conn={conn} />
                     </div>
                   </div>
-                  {confirmRevoke === conn.id ? (
+                  {!canRevoke(conn) ? null : confirmRevoke === conn.id ? (
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-red-600">לבטל?</span>
                       <button
@@ -485,6 +552,7 @@ export function McpConnectionsTab() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-slate-500 text-sm line-through">{conn.name}</p>
                     <ProfileBadge profile={conn.profile} scopes={conn.scopes} />
+                    {conn.oauthClientId && <OAuthBadge />}
                   </div>
                   <p className="text-xs text-slate-400">
                     בוטל {conn.revokedAt ? formatRelativeTime(conn.revokedAt) : ""}

@@ -1,7 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { logCurrentUserActivity } from "@/lib/activity-log";
+import { logActivity } from "@/lib/activity-log";
+import { ENTITY_TYPES } from "@/lib/activity-actions";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { listTasks, createTask, ServiceError } from "@/services/clients";
@@ -65,7 +66,12 @@ export async function POST(request: NextRequest) {
       throw e;
     }
 
-    logCurrentUserActivity("CREATE_TASK");
+    logActivity(authResult.session.user.id, authResult.session.user.name, "CREATE_TASK", {
+      businessId: authResult.businessId,
+      entityType: ENTITY_TYPES.TASK,
+      entityId: task.id,
+      entityLabel: task.title,
+    });
 
     await prisma.taskAuditLog.create({
       data: {

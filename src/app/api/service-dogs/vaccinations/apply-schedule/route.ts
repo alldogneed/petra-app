@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { TENANT_PERMS, sessionHasTenantPermission } from "@/lib/permissions";
 import { buildAdultYearPlan, getEmptyPuppyPlan, type VaccinePlan, type VaccineSchedule } from "@/lib/vaccine-plan";
 
 /**
@@ -15,6 +16,11 @@ export async function POST(request: NextRequest) {
   try {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
+    // Rewrites the vaccine plan of every service dog in the business — same gate
+    // as editing the schedule itself (PATCH /api/settings sdSettings).
+    if (!sessionHasTenantPermission(authResult.session, authResult.businessId, TENANT_PERMS.SETTINGS_CRITICAL)) {
+      return NextResponse.json({ error: "רק בעלים יכול להחיל את לוח החיסונים" }, { status: 403 });
+    }
 
     const biz = await prisma.business.findUnique({
       where: { id: authResult.businessId },

@@ -2,9 +2,11 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
-import { hasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
+import { hasTenantPermission, sessionHasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
 import { createPendingApproval } from "@/lib/pending-approvals";
 import { getRecipient, updateRecipient, deleteRecipient, ServiceError } from "@/services/service-dogs";
+import { logActivity } from "@/lib/activity-log";
+import { ACTIVITY_ACTIONS } from "@/lib/activity-actions";
 
 export async function GET(
   request: NextRequest,
@@ -16,7 +18,7 @@ export async function GET(
     const { businessId, session } = authResult;
 
     const callerMembership = session.memberships.find((m) => m.businessId === businessId && m.isActive);
-    if (callerMembership && !hasTenantPermission(callerMembership.role as TenantRole, TENANT_PERMS.RECIPIENTS_SENSITIVE)) {
+    if (callerMembership && !hasTenantPermission(callerMembership.role as TenantRole, TENANT_PERMS.RECIPIENTS_SENSITIVE, callerMembership.permissionOverrides)) {
       return NextResponse.json({ error: "אין הרשאה לצפות בזכאים" }, { status: 403 });
     }
 
@@ -51,7 +53,7 @@ export async function PATCH(
     const { businessId, session } = authResult;
 
     const patchMembership = session.memberships.find((m) => m.businessId === businessId && m.isActive);
-    if (patchMembership && !hasTenantPermission(patchMembership.role as TenantRole, TENANT_PERMS.RECIPIENTS_SENSITIVE)) {
+    if (patchMembership && !hasTenantPermission(patchMembership.role as TenantRole, TENANT_PERMS.RECIPIENTS_SENSITIVE, patchMembership.permissionOverrides)) {
       return NextResponse.json({ error: "אין הרשאה לנהל זכאים" }, { status: 403 });
     }
 
@@ -89,11 +91,15 @@ export async function DELETE(
     const membership = session.memberships.find((m) => m.businessId === businessId);
     const callerRole = (membership?.role ?? "user") as TenantRole;
 
-    if (callerRole === "user" || callerRole === "volunteer") {
+    // An owner-granted critical-delete override lets any member delete directly;
+    // otherwise managers still route through the pending-approval flow.
+    const canDeleteDirectly = sessionHasTenantPermission(session, businessId, TENANT_PERMS.CRITICAL_DELETE);
+
+    if (!canDeleteDirectly && callerRole !== "manager") {
       return NextResponse.json({ error: "אין הרשאה למחיקה" }, { status: 403 });
     }
 
-    if (callerRole === "manager") {
+    if (!canDeleteDirectly) {
       // Need the name for the approval description — fetch it first
       const existing = await prisma.serviceDogRecipient.findFirst({
         where: { id: params.id, businessId },
@@ -104,7 +110,9 @@ export async function DELETE(
       const approval = await createPendingApproval({
         businessId,
         requestedByUserId: session.user.id,
-        action: "DELETE_CUSTOMER",
+        // Own action: the DELETE_CUSTOMER executor expects payload.customerId and
+        // must never run with a recipient payload.
+        action: "DELETE_RECIPIENT",
         description: `מחיקת זכאי: ${existing.name}`,
         payload: { recipientId: params.id, recipientName: existing.name },
       });
@@ -123,14 +131,24 @@ export async function DELETE(
       );
     }
 
+    let deleted: { id: string; name: string };
     try {
-      await deleteRecipient(businessId, prisma, params.id);
+      // Returns the recipient's name (read before the delete) for the activity log
+      deleted = await deleteRecipient(businessId, prisma, params.id);
     } catch (e) {
       if (e instanceof ServiceError && e.code === "NOT_FOUND") {
         return NextResponse.json({ error: "זכאי לא נמצא" }, { status: 404 });
       }
       throw e;
     }
+
+    // No RECIPIENT entity type (no page to link to once deleted) — label only.
+    await logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.DELETE_RECIPIENT, {
+      businessId,
+      entityType: null,
+      entityId: deleted.id,
+      entityLabel: deleted.name,
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

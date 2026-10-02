@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit } from "@/lib/rate-limit";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
+import { ENTITY_TYPES } from "@/lib/activity-actions";
 import { syncWhatsAppTemplates } from "@/lib/whatsapp-connections";
 
 // POST /api/integrations/whatsapp/connection/sync-templates
@@ -37,7 +38,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "סנכרון תבניות נכשל. נסה שוב מאוחר יותר." }, { status: 500 });
     }
 
-    await logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.SYNC_WHATSAPP_TEMPLATES);
+    await logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.SYNC_WHATSAPP_TEMPLATES, {
+      businessId,
+      entityType: ENTITY_TYPES.SETTINGS,
+      entityLabel: "WhatsApp",
+    });
 
     return NextResponse.json(status);
   } catch (error) {

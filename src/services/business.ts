@@ -11,8 +11,38 @@
  */
 
 import { attributionWindowStart, buildLeadAttributionReport } from "@/lib/lead-attribution";
-import { buildLeadSalesReport, EXCLUDED_ORDER_STATUSES, type LeadSalesReport } from "@/lib/lead-deal-value";
+import { buildLeadSalesReport, EXCLUDED_ORDER_STATUSES } from "@/lib/lead-deal-value";
+import type { AnalyticsData } from "@/lib/analytics-types";
+import {
+  avgRevenuePerPayingCustomer,
+  BOARDING_CANCELED_STATUSES,
+  buildAppointmentCharts,
+  buildMonthlyRevenue,
+  buildRevenueBreakdown,
+  buildRevenueByMethod,
+  computeAppointmentStats,
+  computeOccupancy,
+  computeRetention,
+  isCompletedStatus,
+  resolveAnalyticsRange,
+  splitNewVsReturning,
+} from "@/lib/analytics-metrics";
+import { computeOutstandingBalances } from "@/lib/outstanding-balances";
+import { israelDayStart, lastMonthKeys, pct, pctChange, prevYearMonthKey } from "@/lib/report-dates";
+import { buildLeadSourceRows } from "@/lib/sales-report";
 import type { DbClient } from "./supabase";
+import type { Prisma } from "@prisma/client";
+import {
+  israelOverviewBoundaries,
+  keysetAfter,
+  paginate,
+  cleanText,
+  ACTIVITY_PAGE_MAX,
+  ACTIVITY_EXPORT_MAX_ROWS,
+  AI_ACTIVITY_WINDOW_DAYS,
+  type ActivityQuery,
+  type AiActivityQuery,
+} from "@/lib/business-admin-activity";
 import { ServiceError } from "./types";
 import { validateIsraeliPhone, validateEmail } from "@/lib/validation";
 import { VALID_LEGAL_ENTITY_TYPES } from "@/lib/legal-entity";
@@ -643,86 +673,109 @@ export async function getDashboardMetrics(
 
 // ─── Analytics ────────────────────────────────────────────────────────────
 
+/**
+ * GET /api/analytics — contract `AnalyticsData` (src/lib/analytics-types.ts).
+ * Pure computations live in src/lib/analytics-metrics.ts (unit-tested); this function only loads data.
+ */
 export async function getAnalytics(
   businessId: string,
   db: DbClient,
   opts: { period?: string; from?: string | null; to?: string | null; canSeeRevenue: boolean }
-) {
-  const { period = "month", from: fromParam, to: toParam, canSeeRevenue } = opts;
-
+): Promise<AnalyticsData> {
+  const { canSeeRevenue } = opts;
   const now = new Date();
-  let fromDate: Date;
-  let toDate: Date = now;
-
-  if (fromParam && toParam) {
-    fromDate = new Date(fromParam);
-    toDate = new Date(toParam);
-    toDate.setHours(23, 59, 59, 999);
-  } else {
-    switch (period) {
-      case "week":
-        fromDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        break;
-      case "quarter":
-        fromDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-        break;
-      case "year":
-        fromDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
-        break;
-      default:
-        fromDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-    }
-  }
-
-  const periodLength = toDate.getTime() - fromDate.getTime();
-  const prevFrom = new Date(fromDate.getTime() - periodLength);
-  const prevTo = fromDate;
+  const range = resolveAnalyticsRange(opts.period, opts.from, opts.to, now);
+  const { from: fromDate, to: toDate } = range;
 
   const inPeriod = { gte: fromDate, lte: toDate };
-  const inPrevPeriod = { gte: prevFrom, lt: prevTo };
+  const inPrevPeriod = { gte: range.prevFrom, lt: range.prevTo };
 
-  const leadStages = await db.leadStage.findMany({ where: { businessId } });
+  // Finance: last 12 Israel months ending with the month of `to` + the same months a year earlier.
+  const monthKeys = lastMonthKeys(12, toDate);
+  const [lastY, lastM] = monthKeys[monthKeys.length - 1].split("-").map(Number);
+  const monthlyFrom = israelDayStart(`${prevYearMonthKey(monthKeys[0])}-01`);
+  const monthlyTo = israelDayStart(new Date(Date.UTC(lastY, lastM, 1)).toISOString().slice(0, 10));
+
+  const leadStages = await db.leadStage.findMany({
+    where: { businessId },
+    select: { id: true, isWon: true, isLost: true },
+  });
   const activeStageIds = leadStages.filter((s) => !s.isWon && !s.isLost).map((s) => s.id);
   const wonStageIds = leadStages.filter((s) => s.isWon).map((s) => s.id);
   const lostStageIds = leadStages.filter((s) => s.isLost).map((s) => s.id);
+  const wonStageSet = new Set(wonStageIds);
+  const lostStageSet = new Set(lostStageIds);
+
+  const appointmentSelect = { date: true, startTime: true, endTime: true, status: true, customerId: true } as const;
+  const petsWhere = { OR: [{ customer: { businessId } }, { businessId }] };
 
   const [
     totalCustomers,
     newCustomers,
     prevNewCustomers,
-    totalAppointments,
+    periodAppointments,
     prevAppointments,
-    completedAppointments,
-    canceledAppointments,
-    totalPayments,
-    prevPayments,
+    periodPayments,
+    prevRevenueAgg,
+    prevPayers,
     openTasks,
     completedTasks,
     activeLeads,
     wonLeads,
+    prevWonLeads,
     lostLeads,
+    periodLeads,
+    lostReasonGroups,
+    attributionLeads,
     activePrograms,
     completedTrainingSessions,
     activeTrainingGroups,
     completedGroupSessions,
     trainingRevenueAgg,
     boardingStays,
-    appointmentsByDate,
+    prevBoardingStays,
+    overlappingStays,
+    rooms,
+    monthlyPayments,
+    outstanding,
+    speciesGroups,
+    breedGroups,
   ] = await Promise.all([
     db.customer.count({ where: { businessId } }),
     db.customer.count({ where: { businessId, createdAt: inPeriod } }),
     db.customer.count({ where: { businessId, createdAt: inPrevPeriod } }),
-    db.appointment.count({ where: { businessId, date: inPeriod } }),
-    db.appointment.count({ where: { businessId, date: inPrevPeriod } }),
-    db.appointment.count({ where: { businessId, date: inPeriod, status: { in: ["completed", "COMPLETED"] } } }),
-    db.appointment.count({ where: { businessId, date: inPeriod, status: "canceled" } }),
-    db.payment.aggregate({ where: { businessId, status: "paid", paidAt: inPeriod }, _sum: { amount: true }, _count: true }),
+    db.appointment.findMany({ where: { businessId, date: inPeriod }, select: appointmentSelect }),
+    db.appointment.findMany({ where: { businessId, date: inPrevPeriod }, select: appointmentSelect }),
+    // Every paid payment in the period — revenue, categories, methods, top customers, retention.
+    db.payment.findMany({
+      where: { businessId, status: "paid", paidAt: inPeriod },
+      select: {
+        amount: true,
+        method: true,
+        customerId: true,
+        appointmentId: true,
+        boardingStayId: true,
+        orderId: true,
+        appointment: { select: { service: { select: { name: true } }, priceListItem: { select: { name: true } } } },
+        order: { select: { orderType: true } },
+        customer: { select: { name: true, createdAt: true } },
+      },
+    }),
     db.payment.aggregate({ where: { businessId, status: "paid", paidAt: inPrevPeriod }, _sum: { amount: true } }),
+    db.payment.groupBy({ by: ["customerId"], where: { businessId, status: "paid", paidAt: inPrevPeriod } }),
     db.task.count({ where: { businessId, status: "OPEN" } }),
     db.task.count({ where: { businessId, status: "COMPLETED", completedAt: inPeriod } }),
     db.lead.count({ where: { businessId, stage: { in: activeStageIds } } }),
     db.lead.count({ where: { businessId, stage: { in: wonStageIds }, wonAt: inPeriod } }),
+    db.lead.count({ where: { businessId, stage: { in: wonStageIds }, wonAt: inPrevPeriod } }),
     db.lead.count({ where: { businessId, stage: { in: lostStageIds }, lostAt: inPeriod } }),
+    db.lead.findMany({ where: { businessId, createdAt: inPeriod }, select: { source: true, stage: true, dealValue: true } }),
+    db.lead.groupBy({ by: ["lostReasonCode"], where: { businessId, lostAt: inPeriod }, _count: { _all: true } }),
+    // Traffic attribution — fixed 12-month window, independent of the selected period
+    db.lead.findMany({
+      where: { businessId, createdAt: { gte: attributionWindowStart(now) } },
+      select: { createdAt: true, trafficSource: true, landingPage: true, wonAt: true },
+    }),
     db.trainingProgram.count({ where: { businessId, status: "ACTIVE" } }),
     db.trainingProgramSession.count({ where: { program: { businessId }, status: "COMPLETED", sessionDate: inPeriod } }),
     db.trainingGroup.count({ where: { businessId, isActive: true } }),
@@ -731,91 +784,97 @@ export async function getAnalytics(
       where: { businessId, status: { in: ["ACTIVE", "COMPLETED"] }, startDate: inPeriod },
       _sum: { price: true },
     }),
-    db.boardingStay.count({ where: { businessId, checkIn: inPeriod } }),
-    db.appointment.groupBy({
-      by: ["date"],
-      where: { businessId, date: inPeriod },
-      _count: true,
-      orderBy: { date: "asc" },
+    db.boardingStay.count({ where: { businessId, checkIn: inPeriod, status: { notIn: BOARDING_CANCELED_STATUSES } } }),
+    db.boardingStay.count({ where: { businessId, checkIn: inPrevPeriod, status: { notIn: BOARDING_CANCELED_STATUSES } } }),
+    db.boardingStay.findMany({
+      where: {
+        businessId,
+        status: { notIn: BOARDING_CANCELED_STATUSES },
+        roomId: { not: null },
+        checkIn: { lte: toDate },
+        OR: [{ checkOut: null }, { checkOut: { gte: fromDate } }],
+      },
+      select: { checkIn: true, checkOut: true, roomId: true },
+    }),
+    db.room.findMany({ where: { businessId, isActive: true }, select: { id: true, capacity: true } }),
+    canSeeRevenue
+      ? db.payment.findMany({
+          where: { businessId, status: "paid", paidAt: { gte: monthlyFrom, lt: monthlyTo } },
+          select: { amount: true, paidAt: true },
+        })
+      : Promise.resolve([] as { amount: number; paidAt: Date | null }[]),
+    canSeeRevenue ? computeOutstandingBalances(db, businessId) : Promise.resolve(null),
+    db.pet.groupBy({ by: ["species"], where: petsWhere, _count: { _all: true } }),
+    db.pet.groupBy({
+      by: ["breed"],
+      where: { ...petsWhere, breed: { not: null } },
+      _count: { _all: true },
+      orderBy: { _count: { breed: "desc" } },
+      take: 8,
     }),
   ]);
 
-  const currentRevenue = totalPayments._sum.amount || 0;
-  const previousRevenue = prevPayments._sum.amount || 0;
+  // ── Appointments ──
+  const apptStats = computeAppointmentStats(periodAppointments, now);
+  const prevApptStats = computeAppointmentStats(prevAppointments, now);
+  const apptCharts = buildAppointmentCharts(periodAppointments);
 
-  // Day-of-week and hour heatmap
-  const allAppointments = await db.appointment.findMany({
-    where: { businessId, date: inPeriod },
-    select: { date: true, startTime: true },
-  });
+  // ── Revenue ──
+  const revenue = buildRevenueBreakdown(periodPayments);
+  const currentRevenue = revenue.total;
+  const previousRevenue = prevRevenueAgg._sum.amount || 0;
+  const payingCustomerIds = new Set(periodPayments.map((p) => p.customerId));
 
-  const dayLabels = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
-  const byDayOfWeek = Array.from({ length: 7 }, (_, i) => ({ day: dayLabels[i], count: 0 }));
-  const byHour: Record<number, number> = {};
-  for (const a of allAppointments) {
-    const dow = new Date(a.date).getDay();
-    byDayOfWeek[dow].count += 1;
-    const hour = parseInt(a.startTime.split(":")[0], 10);
-    if (!isNaN(hour)) byHour[hour] = (byHour[hour] || 0) + 1;
+  const customerRevenueMap = new Map<string, { id: string; name: string; revenue: number; count: number }>();
+  for (const p of periodPayments) {
+    const entry = customerRevenueMap.get(p.customerId) ?? { id: p.customerId, name: p.customer.name, revenue: 0, count: 0 };
+    entry.revenue += p.amount;
+    entry.count += 1;
+    customerRevenueMap.set(p.customerId, entry);
   }
-  const appointmentsByHour = Object.entries(byHour)
-    .map(([h, count]) => ({ hour: parseInt(h, 10), label: `${h}:00`, count }))
-    .sort((a, b) => a.hour - b.hour);
+  const topCustomers = Array.from(customerRevenueMap.values())
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 5)
+    .map((c) => ({ ...c, revenue: Math.round(c.revenue * 100) / 100 }));
 
-  // Leads by source (created in period) + lost reasons (lost in period)
-  const [periodLeads, lostPeriodLeads] = await Promise.all([
-    db.lead.findMany({
-      where: { businessId, createdAt: inPeriod },
-      select: { source: true, wonAt: true, lostAt: true },
-    }),
-    db.lead.findMany({
-      where: { businessId, lostAt: inPeriod },
-      select: { lostReasonCode: true },
-    }),
-  ]);
+  // ── Retention: active (completed appointment / paid payment) in previous period → active again now ──
+  const activeIds = (appts: { customerId: string; status: string }[], payers: Iterable<string>) => {
+    const ids = new Set<string>(payers);
+    for (const a of appts) if (isCompletedStatus(a.status)) ids.add(a.customerId);
+    return ids;
+  };
+  const retention = computeRetention(
+    activeIds(prevAppointments, prevPayers.map((p) => p.customerId)),
+    activeIds(periodAppointments, payingCustomerIds),
+  );
 
-  const sourceMap = new Map<
-    string,
-    { source: string; total: number; won: number; lost: number; active: number }
-  >();
-  for (const l of periodLeads) {
-    const source = l.source || "manual";
-    if (!sourceMap.has(source)) {
-      sourceMap.set(source, { source, total: 0, won: 0, lost: 0, active: 0 });
-    }
-    const entry = sourceMap.get(source)!;
-    entry.total += 1;
-    if (l.wonAt) entry.won += 1;
-    else if (l.lostAt) entry.lost += 1;
-    else entry.active += 1;
-  }
-  const leadsBySource = Array.from(sourceMap.values())
-    .map((s) => ({
-      ...s,
-      conversionRate:
-        s.won + s.lost > 0 ? Math.round((s.won / (s.won + s.lost)) * 100) : 0,
-    }))
-    .sort((a, b) => b.total - a.total);
+  // ── Boarding ──
+  const occupancy = computeOccupancy(overlappingStays, rooms, fromDate, toDate, now);
+  const boardingRevenue = revenue.byCategory.find((c) => c.category === "boarding")?.revenue ?? 0;
 
+  // ── Leads ──
+  const leadsBySource = buildLeadSourceRows(
+    periodLeads.map((l) => ({
+      key: l.source || "manual",
+      isWon: wonStageSet.has(l.stage),
+      isLost: lostStageSet.has(l.stage),
+      dealValue: l.dealValue,
+    })),
+    canSeeRevenue,
+  );
   const lostReasonMap = new Map<string, number>();
-  for (const l of lostPeriodLeads) {
-    const code = l.lostReasonCode || "OTHER";
-    lostReasonMap.set(code, (lostReasonMap.get(code) || 0) + 1);
+  for (const g of lostReasonGroups) {
+    const code = g.lostReasonCode || "OTHER";
+    lostReasonMap.set(code, (lostReasonMap.get(code) || 0) + g._count._all);
   }
   const lostReasons = Array.from(lostReasonMap.entries())
     .map(([code, count]) => ({ code, count }))
     .sort((a, b) => b.count - a.count);
-
-  // Traffic attribution — fixed 12-month window, independent of the selected period
-  const attributionLeads = await db.lead.findMany({
-    where: { businessId, createdAt: { gte: attributionWindowStart(now) } },
-    select: { createdAt: true, trafficSource: true, landingPage: true, wonAt: true },
-  });
   const leadAttribution = buildLeadAttributionReport(attributionLeads, now);
 
   // Lead sales — deal value of leads won in the period + orders their customers placed since closing.
   // Money → hidden like revenue for roles that can't see it. Never merged into "revenue".
-  let leadSales: (LeadSalesReport & { pipelineValue: number; pipelineWithValueCount: number }) | null = null;
+  let leadSales: AnalyticsData["leadSales"] = null;
   if (canSeeRevenue) {
     const [wonPeriodLeads, pipelineAgg] = await Promise.all([
       db.lead.findMany({
@@ -858,110 +917,71 @@ export async function getAnalytics(
     };
   }
 
-  // Top customers
-  const topCustomerPayments = await db.payment.findMany({
-    where: { businessId, status: "paid", paidAt: inPeriod },
-    select: { amount: true, customer: { select: { id: true, name: true } } },
-  });
-  const customerRevenueMap = new Map<string, { id: string; name: string; revenue: number; count: number }>();
-  for (const p of topCustomerPayments) {
-    const key = p.customer.id;
-    if (!customerRevenueMap.has(key)) {
-      customerRevenueMap.set(key, { id: p.customer.id, name: p.customer.name, revenue: 0, count: 0 });
-    }
-    const entry = customerRevenueMap.get(key)!;
-    entry.revenue += p.amount;
-    entry.count += 1;
-  }
-  const topCustomers = Array.from(customerRevenueMap.values())
-    .sort((a, b) => b.revenue - a.revenue)
-    .slice(0, 5);
-
-  // Revenue by service
-  const servicePayments = await db.payment.findMany({
-    where: { businessId, status: "paid", paidAt: inPeriod, appointmentId: { not: null } },
-    select: { amount: true, appointment: { select: { service: { select: { name: true } } } } },
-  });
-  const serviceRevenueMap = new Map<string, { name: string; revenue: number }>();
-  for (const p of servicePayments) {
-    const serviceName = p.appointment?.service?.name;
-    if (!serviceName) continue;
-    if (!serviceRevenueMap.has(serviceName)) serviceRevenueMap.set(serviceName, { name: serviceName, revenue: 0 });
-    serviceRevenueMap.get(serviceName)!.revenue += p.amount;
-  }
-  const revenueByService = Array.from(serviceRevenueMap.values())
-    .sort((a, b) => b.revenue - a.revenue)
-    .slice(0, 8);
-
-  // Retention
-  const allCustomerAppointments = await db.appointment.groupBy({
-    by: ["customerId"],
-    where: { businessId },
-    _count: true,
-  });
-  const returningCustomers = allCustomerAppointments.filter((c) => c._count > 1).length;
-  const customersWithAppointments = allCustomerAppointments.length;
-  const retentionRate =
-    customersWithAppointments > 0
-      ? Math.round((returningCustomers / customersWithAppointments) * 100)
-      : 0;
-  const avgRevenuePerCustomer =
-    totalCustomers > 0 ? Math.round((currentRevenue / totalCustomers) * 100) / 100 : 0;
-
-  // Pet demographics
-  const allPets = await db.pet.findMany({
-    where: {
-      OR: [{ customer: { businessId } }, { businessId }],
-    },
-    select: { species: true, breed: true },
-  });
-  const speciesCount: Record<string, number> = {};
-  const breedCount: Record<string, number> = {};
-  for (const pet of allPets) {
-    speciesCount[pet.species] = (speciesCount[pet.species] || 0) + 1;
-    if (pet.breed) breedCount[pet.breed] = (breedCount[pet.breed] || 0) + 1;
-  }
+  // ── Pets ──
   const petDemographics = {
-    total: allPets.length,
-    bySpecies: Object.entries(speciesCount)
-      .map(([species, count]) => ({ species, count }))
+    total: speciesGroups.reduce((s, g) => s + g._count._all, 0),
+    bySpecies: speciesGroups
+      .map((g) => ({ species: g.species, count: g._count._all }))
       .sort((a, b) => b.count - a.count),
-    topBreeds: Object.entries(breedCount)
-      .map(([breed, count]) => ({ breed, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 8),
+    topBreeds: breedGroups
+      .filter((g): g is typeof g & { breed: string } => !!g.breed)
+      .map((g) => ({ breed: g.breed, count: g._count._all })),
   };
 
-  const calcChange = (current: number, previous: number): number | null => {
-    if (previous === 0) return current > 0 ? null : 0;
-    return Math.round(((current - previous) / previous) * 100);
-  };
+  // ── Finance (owner only) ──
+  const finance: AnalyticsData["finance"] = canSeeRevenue
+    ? {
+        monthly: buildMonthlyRevenue(monthlyPayments, monthKeys, prevYearMonthKey),
+        byCategory: revenue.byCategory,
+        byMethod: buildRevenueByMethod(periodPayments),
+        newVsReturning: splitNewVsReturning(
+          periodPayments.map((p) => ({ amount: p.amount, customerCreatedAt: p.customer.createdAt })),
+          fromDate,
+          toDate,
+        ),
+        payingCustomers: payingCustomerIds.size,
+        outstanding: {
+          total: Math.round((outstanding?.grandTotal ?? 0) * 100) / 100,
+          customers: outstanding?.rows.length ?? 0,
+          top: (outstanding?.rows ?? []).slice(0, 5).map((r) => ({
+            customerId: r.id,
+            name: r.name,
+            total: Math.round(r.total * 100) / 100,
+            oldest: r.oldest.toISOString(),
+          })),
+        },
+      }
+    : null;
 
   return {
-    period,
+    period: range.period,
     from: fromDate.toISOString(),
     to: toDate.toISOString(),
     overview: {
       totalCustomers,
       newCustomers,
-      newCustomersChange: calcChange(newCustomers, prevNewCustomers),
-      totalAppointments,
-      appointmentsChange: calcChange(totalAppointments, prevAppointments),
-      completedAppointments,
-      canceledAppointments,
-      completionRate:
-        totalAppointments > 0 ? Math.round((completedAppointments / totalAppointments) * 100) : 0,
+      newCustomersChange: pctChange(newCustomers, prevNewCustomers),
+      totalAppointments: apptStats.total,
+      appointmentsChange: pctChange(apptStats.total, prevApptStats.total),
+      completedAppointments: apptStats.completed,
+      canceledAppointments: apptStats.canceled,
+      noShowAppointments: apptStats.noShow,
+      completionRate: apptStats.completionRate,
+      completionRateChange:
+        apptStats.due > 0 && prevApptStats.due > 0 ? apptStats.completionRate - prevApptStats.completionRate : null,
+      cancellationRate: apptStats.cancellationRate,
+      noShowRate: apptStats.noShowRate,
       revenue: canSeeRevenue ? currentRevenue : null,
-      revenueChange: canSeeRevenue ? calcChange(currentRevenue, previousRevenue) : null,
-      paymentCount: canSeeRevenue ? totalPayments._count : null,
+      revenueChange: canSeeRevenue ? pctChange(currentRevenue, previousRevenue) : null,
+      paymentCount: canSeeRevenue ? periodPayments.length : null,
     },
     tasks: { open: openTasks, completedThisPeriod: completedTasks },
     leads: {
       active: activeLeads,
       wonThisPeriod: wonLeads,
       lostThisPeriod: lostLeads,
-      conversionRate:
-        wonLeads + lostLeads > 0 ? Math.round((wonLeads / (wonLeads + lostLeads)) * 100) : 0,
+      conversionRate: pct(wonLeads, wonLeads + lostLeads) ?? 0,
+      wonChange: pctChange(wonLeads, prevWonLeads),
     },
     leadsBySource,
     lostReasons,
@@ -974,52 +994,80 @@ export async function getAnalytics(
       groupSessionsThisPeriod: completedGroupSessions,
       revenue: canSeeRevenue ? (trainingRevenueAgg._sum.price || 0) : null,
     },
-    boarding: { staysThisPeriod: boardingStays },
+    boarding: {
+      staysThisPeriod: boardingStays,
+      staysChange: pctChange(boardingStays, prevBoardingStays),
+      occupiedNights: occupancy.occupiedNights,
+      capacityNights: occupancy.capacityNights,
+      occupancyRate: occupancy.occupancyRate,
+      revenue: canSeeRevenue ? boardingRevenue : null,
+    },
+    finance,
     charts: {
-      appointmentsByDate: appointmentsByDate.map((a) => ({ date: a.date, count: a._count })),
-      revenueByService: canSeeRevenue ? revenueByService : [],
-      appointmentsByDayOfWeek: byDayOfWeek,
-      appointmentsByHour,
+      appointmentsByDate: apptCharts.appointmentsByDate,
+      revenueByService: canSeeRevenue ? revenue.revenueByService : [],
+      appointmentsByDayOfWeek: apptCharts.appointmentsByDayOfWeek,
+      appointmentsByHour: apptCharts.appointmentsByHour,
     },
     topCustomers: canSeeRevenue ? topCustomers : [],
     petDemographics,
     retention: {
-      returningCustomers,
-      customersWithAppointments,
-      retentionRate,
-      avgRevenuePerCustomer: canSeeRevenue ? avgRevenuePerCustomer : null,
+      ...retention,
+      avgRevenuePerCustomer: canSeeRevenue ? avgRevenuePerPayingCustomer(currentRevenue, payingCustomerIds.size) : null,
     },
   };
 }
 
 // ─── Business Admin ────────────────────────────────────────────────────────
 
-export async function getBusinessOverview(businessId: string, db: DbClient) {
+/** Fields of an ActivityLog row returned to the business owner (no extra columns). */
+const ACTIVITY_SELECT = {
+  id: true,
+  userId: true,
+  userName: true,
+  action: true,
+  createdAt: true,
+  entityType: true,
+  entityId: true,
+  entityLabel: true,
+} as const;
+
+/**
+ * Tenant rule for ActivityLog: rows written for this business, plus legacy rows
+ * (businessId IS NULL, written before 2026-10) by users who are members of it.
+ */
+async function activityTenantWhere(businessId: string, db: DbClient) {
   const businessUsers = await db.businessUser.findMany({
     where: { businessId },
     select: { userId: true },
   });
-  const userIds = businessUsers.map((bu) => bu.userId);
+  const memberIds = businessUsers.map((bu) => bu.userId);
+  const where: Prisma.ActivityLogWhereInput = {
+    OR: [{ businessId }, { businessId: null, userId: { in: memberIds } }],
+  };
+  return { where, memberIds };
+}
 
-  const now = new Date();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const todayEnd = new Date(todayStart.getTime() + 86400000);
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+export async function getBusinessOverview(businessId: string, db: DbClient) {
+  // Israel-time boundaries (server runs in UTC on Vercel) — see business-admin-activity.ts
+  const { apptDayStart, apptDayEnd, monthStart } = israelOverviewBoundaries();
+  const { where: activityWhere } = await activityTenantWhere(businessId, db);
 
   const [teamCount, customerCount, todayAppts, monthlyRevenue, recentActivity] = await Promise.all([
     db.businessUser.count({ where: { businessId, isActive: true } }),
     db.customer.count({ where: { businessId } }),
     db.appointment.count({
-      where: { businessId, date: { gte: todayStart, lt: todayEnd }, status: { notIn: ["canceled", "cancelled"] } },
+      where: { businessId, date: { gte: apptDayStart, lt: apptDayEnd }, status: { notIn: ["canceled", "cancelled"] } },
     }),
     db.payment.aggregate({
       where: { businessId, paidAt: { gte: monthStart }, status: "paid" },
       _sum: { amount: true },
     }),
     db.activityLog.findMany({
-      where: { userId: { in: userIds } },
-      orderBy: { createdAt: "desc" },
+      where: activityWhere,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: 15,
+      select: ACTIVITY_SELECT,
     }),
   ]);
 
@@ -1032,33 +1080,145 @@ export async function getBusinessOverview(businessId: string, db: DbClient) {
   };
 }
 
-export async function getBusinessActivity(
+/** Build the filtered ActivityLog where clause; null = filter can match nothing. */
+async function buildActivityWhere(
   businessId: string,
   db: DbClient,
-  opts: { userId?: string | null; action?: string | null; take?: number } = {}
-) {
-  const { userId: filterUserId, action: filterAction, take = 50 } = opts;
-  const clampedTake = Math.min(take, 100);
+  filters: ActivityQuery
+): Promise<Prisma.ActivityLogWhereInput | null> {
+  const { where: tenant, memberIds } = await activityTenantWhere(businessId, db);
+  // A userId that isn't a member of this business matches nothing.
+  if (filters.userId && !memberIds.includes(filters.userId)) return null;
 
-  const businessUsers = await db.businessUser.findMany({
-    where: { businessId },
-    select: { userId: true },
+  const and: Prisma.ActivityLogWhereInput[] = [tenant];
+  if (filters.userId) and.push({ userId: filters.userId });
+  if (filters.action) and.push({ action: filters.action });
+  if (filters.gte || filters.lt) {
+    and.push({ createdAt: { ...(filters.gte ? { gte: filters.gte } : {}), ...(filters.lt ? { lt: filters.lt } : {}) } });
+  }
+  if (filters.q) {
+    and.push({
+      OR: [
+        { userName: { contains: filters.q, mode: "insensitive" } },
+        { entityLabel: { contains: filters.q, mode: "insensitive" } },
+      ],
+    });
+  }
+  return { AND: and };
+}
+
+/**
+ * Activity log page for the business owner — keyset pagination on
+ * (createdAt desc, id desc). Filters are pre-validated by parseActivityQuery().
+ */
+export async function getBusinessActivity(businessId: string, db: DbClient, filters: ActivityQuery) {
+  const where = await buildActivityWhere(businessId, db, filters);
+  if (!where) return { items: [], nextCursor: null as string | null };
+  const take = Math.min(Math.max(filters.take, 1), ACTIVITY_PAGE_MAX);
+  const rows = await db.activityLog.findMany({
+    where: filters.cursor ? { AND: [where, keysetAfter(filters.cursor)] } : where,
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: take + 1,
+    select: ACTIVITY_SELECT,
   });
-  const bizUserIds = businessUsers.map((bu) => bu.userId);
+  return paginate(rows, take);
+}
 
-  const resolvedUserId =
-    filterUserId && bizUserIds.includes(filterUserId) ? filterUserId : undefined;
-
-  const where: Record<string, unknown> = {
-    userId: resolvedUserId ? resolvedUserId : { in: bizUserIds },
-  };
-  if (filterAction) where.action = filterAction;
-
+/** All activity rows matching the filters (cursor/take ignored), capped at ACTIVITY_EXPORT_MAX_ROWS. */
+export async function getBusinessActivityForExport(businessId: string, db: DbClient, filters: ActivityQuery) {
+  const where = await buildActivityWhere(businessId, db, filters);
+  if (!where) return [];
   return db.activityLog.findMany({
-    where: where as any,
-    orderBy: { createdAt: "desc" },
-    take: clampedTake,
+    where,
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    take: ACTIVITY_EXPORT_MAX_ROWS,
+    select: ACTIVITY_SELECT,
   });
+}
+
+/**
+ * AI (MCP) tool-call feed for the business owner: McpAuditLog rows of this
+ * business's connections, last AI_ACTIVITY_WINDOW_DAYS days. Never returns
+ * params / token hashes.
+ */
+export async function getBusinessAiActivity(
+  businessId: string,
+  db: DbClient,
+  opts: AiActivityQuery & { includeConnections?: boolean }
+) {
+  const take = Math.min(Math.max(opts.take, 1), ACTIVITY_PAGE_MAX);
+  const since = new Date(Date.now() - AI_ACTIVITY_WINDOW_DAYS * 86_400_000);
+
+  const and: Prisma.McpAuditLogWhereInput[] = [
+    { connection: { businessId } },
+    { createdAt: { gte: since } },
+  ];
+  if (opts.connectionId) and.push({ connectionId: opts.connectionId });
+  if (opts.status) and.push({ status: opts.status });
+  if (opts.cursor) and.push(keysetAfter(opts.cursor));
+
+  const [rows, connections] = await Promise.all([
+    db.mcpAuditLog.findMany({
+      where: { AND: and },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: take + 1,
+      select: {
+        id: true,
+        createdAt: true,
+        toolName: true,
+        status: true,
+        resultSummary: true,
+        errorMessage: true,
+        connection: { select: { id: true, name: true, createdByUserId: true, oauthClientId: true } },
+      },
+    }),
+    opts.includeConnections
+      ? db.mcpConnection.findMany({
+          where: { businessId },
+          orderBy: { createdAt: "desc" },
+          take: 100,
+          select: { id: true, name: true, revokedAt: true },
+        })
+      : Promise.resolve(null),
+  ]);
+
+  const page = paginate(rows, take);
+  const creatorIds = Array.from(
+    new Set(page.items.map((r) => r.connection.createdByUserId).filter((x): x is string => !!x))
+  );
+  const creators = creatorIds.length
+    ? await db.platformUser.findMany({ where: { id: { in: creatorIds } }, select: { id: true, name: true } })
+    : [];
+  const nameById = new Map(creators.map((u) => [u.id, u.name]));
+
+  return {
+    items: page.items.map((r) => ({
+      id: r.id,
+      createdAt: r.createdAt,
+      toolName: cleanText(r.toolName, 80) ?? "",
+      status: r.status,
+      resultSummary: cleanText(r.resultSummary),
+      errorMessage: r.status === "error" || r.status === "denied" ? cleanText(r.errorMessage) : null,
+      connection: {
+        id: r.connection.id,
+        name: cleanText(r.connection.name, 80) ?? "",
+        createdByName: r.connection.createdByUserId
+          ? cleanText(nameById.get(r.connection.createdByUserId), 80)
+          : null,
+        oauth: r.connection.oauthClientId != null,
+      },
+    })),
+    nextCursor: page.nextCursor,
+    ...(connections
+      ? {
+          connections: connections.map((c) => ({
+            id: c.id,
+            name: cleanText(c.name, 80) ?? "",
+            revoked: c.revokedAt != null,
+          })),
+        }
+      : {}),
+  };
 }
 
 export async function getActiveBusinessSessions(businessId: string, db: DbClient) {

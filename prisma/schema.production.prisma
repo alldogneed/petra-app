@@ -175,11 +175,19 @@ model ActivityLog {
   userName  String   // Denormalized for live feed display
   action    String   // "LOGIN", "CREATE_CUSTOMER", "ADD_PET", etc.
   createdAt DateTime @default(now())
+  // Business the action happened in (null on legacy rows written before 2026-10)
+  businessId  String?
+  // What was acted on — internal business data, shown only to that business's owner
+  entityType  String?  // "CUSTOMER" | "PET" | "APPOINTMENT" | "LEAD" | "TASK" | "ORDER" | "PAYMENT" | "BOARDING" | "SESSION" ...
+  entityId    String?
+  entityLabel String?  // short display label (customer/pet name, device), max 120 chars
 
   user PlatformUser @relation("ActivityLogs", fields: [userId], references: [id])
 
   @@index([createdAt])
   @@index([userId, createdAt])
+  @@index([businessId, createdAt])
+  @@index([businessId, action, createdAt])
 }
 
 /// Platform-level feature flags and system settings
@@ -246,6 +254,8 @@ model Business {
   webhookApiKeyCreatedAt DateTime?
   sdSettings    Json?   // service-dog settings: { trackHours, defaultTargetHours, allowManualCert }
   whatsappRemindersEnabled  Boolean @default(false)
+  // Owner security alerts for sensitive actions — see src/lib/security-alerts.ts (null = defaults)
+  securityAlertPrefs        Json?
   whatsappReminderLeadHours Int     @default(48)
   googleContactsSync        Boolean @default(false) // sync leads to Google Contacts
   cancellationPolicy   String?  // shown in booking wizard confirm step
@@ -2338,6 +2348,12 @@ model McpConnection {
   createdAt    DateTime  @default(now())
   lastUsedAt   DateTime?
   revokedAt    DateTime? // null = active
+  // OAuth 2.1 (auto-login from Claude/Codex connectors) — see src/lib/mcp-oauth.ts
+  oauthClientId        String?   // set for connections created via OAuth (null = manual token)
+  refreshTokenHash     String?   @unique // SHA-256 of the current petra_mcpr_ refresh token
+  prevRefreshTokenHash String?   // last rotated-out refresh token (reuse detection)
+  accessExpiresAt      DateTime? // OAuth access-token expiry (1h); null for manual tokens
+  refreshRotatedAt     DateTime? // when refreshTokenHash was last rotated (60s reuse grace window for prevRefreshTokenHash)
 
   business     Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
   auditLogs    McpAuditLog[]
@@ -2345,6 +2361,37 @@ model McpConnection {
   @@index([businessId])
   @@index([tokenHash])
   @@index([createdByUserId])
+}
+
+/// OAuth 2.1 public client registered via RFC 7591 Dynamic Client Registration (MCP connectors).
+model OAuthClient {
+  id                      String   @id @default(uuid())   // = client_id
+  clientName              String
+  redirectUris            String[]
+  createdAt               DateTime @default(now())
+  lastUsedAt              DateTime?
+  authCodes               OAuthAuthCode[]
+}
+
+/// Single-use OAuth authorization code (stored as SHA-256; TTL 10 min; PKCE S256-bound).
+model OAuthAuthCode {
+  id            String   @id @default(uuid())
+  codeHash      String   @unique
+  clientId      String
+  userId        String
+  businessId    String
+  redirectUri   String
+  codeChallenge String
+  scopes        String[]
+  profile       String
+  role          String?  // minter tenant role at consent (owner|manager) — becomes McpConnection.createdByRole
+  resource      String?
+  expiresAt     DateTime
+  usedAt        DateTime?
+  connectionId  String?  // McpConnection created by the exchange (replayed code → that connection is revoked)
+  createdAt     DateTime @default(now())
+  client        OAuthClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  @@index([expiresAt])
 }
 
 /// Audit trail of every MCP tool invocation

@@ -28,6 +28,7 @@ import {
 import { cn, formatCurrency, formatDate, fetchJSON, toWhatsAppPhone } from "@/lib/utils";
 import { toast } from "sonner";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface Payment {
   id: string;
@@ -99,6 +100,7 @@ const METHOD_LABELS: Record<string, string> = {
 };
 
 function PaymentsPageContent() {
+  const { canExportData, canWritePayments } = usePermissions();
   const [activeStatus, setActiveStatus] = useState("ALL");
   const [activePeriod, setActivePeriod] = useState("ALL");
   const [showNewPayment, setShowNewPayment] = useState(false);
@@ -314,10 +316,12 @@ function PaymentsPageContent() {
         <p className="text-sm text-petra-muted">
           {searchQuery.trim() ? `${filteredPayments.length} מתוך ${payments.length}` : payments.length} תשלומים
         </p>
+        {canWritePayments && (
         <button className="btn-primary" onClick={() => setShowNewPayment(true)}>
           <Plus className="w-4 h-4" />
           תשלום חדש
         </button>
+        )}
         {pendingCount > 0 && (
           <button
             className="btn-secondary flex items-center gap-2"
@@ -329,6 +333,7 @@ function PaymentsPageContent() {
             {isSendingAll ? "שולח..." : `שלח לכולם (${pendingCount})`}
           </button>
         )}
+        {canExportData && (
         <button
           className="btn-secondary"
           onClick={exportCSV}
@@ -338,6 +343,7 @@ function PaymentsPageContent() {
           <Download className="w-4 h-4" />
           ייצוא CSV
         </button>
+        )}
         {/* Refresh controls */}
         <div className="flex items-center gap-2">
           <button
@@ -556,7 +562,7 @@ function PaymentsPageContent() {
                     <p className="text-xs text-petra-muted mt-0.5">{association}</p>
                   )}
                   <div className="mt-1.5 flex items-center gap-2 flex-wrap">
-                    {payment.status === "pending" && (
+                    {payment.status === "pending" && canWritePayments && (
                       <button
                         className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2 py-1 rounded-lg transition-colors"
                         disabled={markingPaidId === payment.id}
@@ -578,7 +584,7 @@ function PaymentsPageContent() {
                         <FileText className="w-3 h-3" />
                         {payment.invoiceNumber}
                       </span>
-                    ) : payment.status === "paid" && invoicingConfigured ? (
+                    ) : payment.status === "paid" && invoicingConfigured && canWritePayments ? (
                       <button
                         className="text-xs text-brand-500 hover:text-brand-600 flex items-center gap-1"
                         disabled={issuingPaymentId === payment.id}
@@ -627,7 +633,7 @@ function PaymentsPageContent() {
                         </a>
                       )
                     )}
-                    {payment.status === "pending" && (
+                    {payment.status === "pending" && canWritePayments && (
                       <button
                         className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-red-600 hover:bg-red-50 px-2 py-1 rounded-lg transition-colors"
                         onClick={() => cancelPaymentMutation.mutate(payment.id)}
@@ -637,7 +643,7 @@ function PaymentsPageContent() {
                         בטל
                       </button>
                     )}
-                    {confirmDeleteId === payment.id ? (
+                    {canWritePayments && (confirmDeleteId === payment.id ? (
                       <span className="inline-flex items-center gap-1 text-xs">
                         <button
                           className="text-red-600 font-medium hover:underline"
@@ -661,7 +667,7 @@ function PaymentsPageContent() {
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
-                    )}
+                    ))}
                   </div>
                 </div>
               );
@@ -757,7 +763,7 @@ function PaymentsPageContent() {
                       </td>
                       <td className="table-cell">
                         <div className="flex items-center gap-2 flex-wrap">
-                          {payment.status === "pending" && (
+                          {payment.status === "pending" && canWritePayments && (
                             <button
                               className="inline-flex items-center gap-1 text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2 py-1 rounded-lg transition-colors"
                               disabled={markingPaidId === payment.id}
@@ -779,7 +785,7 @@ function PaymentsPageContent() {
                               <FileText className="w-3 h-3" />
                               {payment.invoiceNumber}
                             </span>
-                          ) : payment.status === "paid" && invoicingConfigured ? (
+                          ) : payment.status === "paid" && invoicingConfigured && canWritePayments ? (
                             <button
                               className="text-xs text-brand-500 hover:text-brand-600 flex items-center gap-1"
                               disabled={issuingPaymentId === payment.id}
@@ -827,7 +833,7 @@ function PaymentsPageContent() {
                               </a>
                             )
                           )}
-                          {payment.status === "pending" && (
+                          {payment.status === "pending" && canWritePayments && (
                             <button
                               className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
                               onClick={() => cancelPaymentMutation.mutate(payment.id)}
@@ -837,7 +843,7 @@ function PaymentsPageContent() {
                               <XCircle className="w-3.5 h-3.5" />
                             </button>
                           )}
-                          {confirmDeleteId === payment.id ? (
+                          {canWritePayments && (confirmDeleteId === payment.id ? (
                             <span className="flex items-center gap-1 text-xs">
                               <button
                                 className="text-red-600 font-medium hover:underline"
@@ -861,7 +867,7 @@ function PaymentsPageContent() {
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
-                          )}
+                          ))}
                         </div>
                       </td>
                       <td className="table-cell">

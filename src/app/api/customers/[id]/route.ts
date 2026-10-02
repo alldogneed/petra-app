@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
+import { ENTITY_TYPES } from "@/lib/activity-actions";
 import { hasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
 import { createPendingApproval } from "@/lib/pending-approvals";
 import {
@@ -93,7 +94,12 @@ export async function PATCH(
     }
 
     const { session } = authResult;
-    logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.UPDATE_CUSTOMER);
+    logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.UPDATE_CUSTOMER, {
+      businessId: authResult.businessId,
+      entityType: ENTITY_TYPES.CUSTOMER,
+      entityId: params.id,
+      entityLabel: customer.name,
+    });
 
     // Address changed → re-sync upcoming appointments so gcal reflects the new address.
     if (before && before.address !== customer.address) {
@@ -162,6 +168,12 @@ export async function DELETE(
       return NextResponse.json({ error: "נדרש אישור מפורש למחיקה", requireConfirmation: true }, { status: 428 });
     }
 
+    // Read the name before the row disappears (scoped to this business).
+    const toDelete = await prisma.customer.findFirst({
+      where: { id: params.id, businessId },
+      select: { name: true },
+    });
+
     try {
       await deleteCustomer(businessId, prisma, params.id);
     } catch (e) {
@@ -171,7 +183,12 @@ export async function DELETE(
       throw e;
     }
 
-    logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.DELETE_CUSTOMER);
+    await logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.DELETE_CUSTOMER, {
+      businessId,
+      entityType: ENTITY_TYPES.CUSTOMER,
+      entityId: params.id,
+      entityLabel: toDelete?.name ?? null,
+    });
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Customer DELETE error:", error);

@@ -1,11 +1,14 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { createSession, ensureUserHasBusiness } from "@/lib/auth";
+import { createSession, ensureUserHasBusiness, validateSession } from "@/lib/auth";
+import { logActivity } from "@/lib/activity-log";
+import { ENTITY_TYPES, describeDevice } from "@/lib/activity-actions";
 import { exchangeCodeForTokens, fetchGoogleProfile } from "@/lib/google-oauth";
 import { CURRENT_TOS_VERSION } from "@/lib/tos";
 import { notifyOwnerNewUser } from "@/lib/notify-owner";
 import { alertIfNewDevice } from "@/lib/login-alerts";
+import { safeNextPath } from "@/lib/safe-redirect";
 
 const APP_URL = process.env.APP_URL || "http://localhost:3000";
 
@@ -117,6 +120,26 @@ export async function GET(request: NextRequest) {
     // Prior sessions on other devices are preserved — user can revoke them from settings.
     const { token } = await createSession(user.id, request, true);
 
+    // One LOGIN row per active business membership (cap 5) — see /api/auth/login.
+    // Device label only — no IP. Awaited so the new-device alert completes.
+    const loginSession = await validateSession(token).catch(() => null);
+    const loginBusinessIds = Array.from(new Set(
+      (loginSession?.memberships ?? []).map((m) => m.businessId)
+    )).slice(0, 5);
+    const loginCtx = {
+      entityType: ENTITY_TYPES.SESSION,
+      entityId: loginSession?.sessionId ?? null,
+      entityLabel: describeDevice(request.headers.get("user-agent")),
+    };
+    const loginUserName = user.name || profile.name || "";
+    if (loginBusinessIds.length === 0) {
+      await logActivity(user.id, loginUserName, "LOGIN", loginCtx);
+    } else {
+      await Promise.all(
+        loginBusinessIds.map((businessId) => logActivity(user.id, loginUserName, "LOGIN", { ...loginCtx, businessId }))
+      );
+    }
+
     // Check if user has accepted current ToS version
     const consent = await prisma.userConsent.findFirst({
       where: { userId: user.id, termsVersion: CURRENT_TOS_VERSION },
@@ -127,8 +150,10 @@ export async function GET(request: NextRequest) {
       await notifyOwnerNewUser({ name: user.name || "", email: user.email, plan: "free" });
     }
 
-    // Redirect: new/existing users without ToS consent go to /tos-accept, others to /dashboard
-    const redirectPath = consent ? "/dashboard" : "/tos-accept";
+    // Redirect: new/existing users without ToS consent go to /tos-accept, others to the
+    // validated post-login destination (petra_login_next cookie, e.g. MCP OAuth consent) or /dashboard
+    const nextPath = safeNextPath(request.cookies.get("petra_login_next")?.value);
+    const redirectPath = consent ? nextPath ?? "/dashboard" : "/tos-accept";
     const response = NextResponse.redirect(new URL(redirectPath, APP_URL));
     const cookieOpts = {
       httpOnly: true,
@@ -142,6 +167,8 @@ export async function GET(request: NextRequest) {
     response.cookies.set("petra_rm", "1", cookieOpts);
     // Clear the OAuth state cookie
     response.cookies.delete("google_oauth_state");
+    // Consume the one-shot post-login destination cookie
+    response.cookies.delete("petra_login_next");
 
     return response;
   } catch (e) {

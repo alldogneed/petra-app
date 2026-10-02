@@ -3,10 +3,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import React, { useState } from "react";
 import {
-  Plus,
   X,
   MessageSquare,
-  Trash2,
   Edit3,
   Zap,
   Clock,
@@ -25,11 +23,13 @@ import {
   UserPlus,
   Gift,
   Home,
+  Lock,
 } from "lucide-react";
 import { cn, fetchJSON, toWhatsAppPhone } from "@/lib/utils";
 import { toast } from "sonner";
 import { TEMPLATE_VARIABLES } from "@/lib/constants";
 import { usePlan } from "@/hooks/usePlan";
+import { usePermissions } from "@/hooks/usePermissions";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -70,10 +70,6 @@ const AUTOMATION_TRIGGERS = [
 ];
 
 const IMMEDIATE_TRIGGERS = new Set(["appointment_confirmation", "payment_request", "new_customer", "birthday_reminder"]);
-
-const TRIGGER_LABEL: Record<string, string> = Object.fromEntries(
-  AUTOMATION_TRIGGERS.map((t) => [t.id, t.label])
-);
 
 function triggerOffsetLabel(trigger: string, offset: number): string {
   if (trigger === "appointment_confirmation") return "מיידי בקביעת פגישה";
@@ -448,7 +444,7 @@ const TRIGGER_ICONS: Record<string, React.ElementType> = {
 // ─── Templates Tab ────────────────────────────────────────────────────────────
 
 function TemplatesTab() {
-  const [innerTab, setInnerTab] = useState<"auto" | "manual">("auto");
+  const [innerTab] = useState<"auto" | "manual">("auto");
   const [previewTriggerId, setPreviewTriggerId] = useState<string | null>(null);
   const [showEditor, setShowEditor] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<MessageTemplate | null>(null);
@@ -466,6 +462,8 @@ function TemplatesTab() {
   });
 
   const { can } = usePlan();
+  // PATCH /api/settings requires SETTINGS_CRITICAL (owner or override) — managers can't flip these.
+  const { canCriticalSettings } = usePermissions();
   const { data: bizSettings } = useQuery<{ whatsappRemindersEnabled: boolean; whatsappReminderLeadHours: number }>({
     queryKey: ["settings"],
     queryFn: () => fetchJSON("/api/settings"),
@@ -473,6 +471,7 @@ function TemplatesTab() {
 
   const reminderSettingsMutation = useMutation({
     mutationFn: async (data: { whatsappRemindersEnabled?: boolean; whatsappReminderLeadHours?: number }) => {
+      if (!canCriticalSettings) throw new Error("רק בעל העסק יכול לשנות את הגדרות ההודעות האוטומטיות");
       const r = await fetch("/api/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -641,6 +640,12 @@ function TemplatesTab() {
                   ? "המערכת שולחת תזכורות והודעות אוטומטיות ללקוחות."
                   : "כבוי — שום תזכורת או הודעה אוטומטית לא נשלחת ללקוחות, גם אם האוטומציות למטה פעילות."}
               </p>
+              {!canCriticalSettings && (
+                <p className="text-xs text-amber-700 mt-1 leading-snug flex items-center gap-1">
+                  <Lock className="w-3 h-3 flex-shrink-0" />
+                  רק בעל העסק (או מי שקיבל ממנו הרשאה) יכול לשנות הגדרה זו.
+                </p>
+              )}
             </div>
             {bizSettings.whatsappRemindersEnabled && (
               <div className="flex items-center gap-2">
@@ -649,7 +654,7 @@ function TemplatesTab() {
                   className="text-sm border border-slate-200 rounded-lg px-2 py-1 bg-white text-petra-text"
                   value={bizSettings.whatsappReminderLeadHours}
                   onChange={(e) => reminderSettingsMutation.mutate({ whatsappReminderLeadHours: Number(e.target.value) })}
-                  disabled={reminderSettingsMutation.isPending}
+                  disabled={reminderSettingsMutation.isPending || !canCriticalSettings}
                 >
                   <option value={24}>24 שעות</option>
                   <option value={48}>48 שעות</option>
@@ -659,10 +664,13 @@ function TemplatesTab() {
               </div>
             )}
             <button
+              type="button"
+              role="switch"
+              aria-checked={bizSettings.whatsappRemindersEnabled}
               onClick={() => reminderSettingsMutation.mutate({ whatsappRemindersEnabled: !bizSettings.whatsappRemindersEnabled })}
-              disabled={reminderSettingsMutation.isPending}
+              disabled={reminderSettingsMutation.isPending || !canCriticalSettings}
               className={cn(
-                "relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0",
+                "relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed",
                 bizSettings.whatsappRemindersEnabled ? "bg-emerald-500" : "bg-slate-300"
               )}
               title={bizSettings.whatsappRemindersEnabled ? "כבה הודעות אוטומטיות" : "הפעל הודעות אוטומטיות"}

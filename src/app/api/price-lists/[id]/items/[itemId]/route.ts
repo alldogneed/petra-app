@@ -1,7 +1,8 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError, requireBusinessPermission } from "@/lib/auth-guards";
+import { TENANT_PERMS } from "@/lib/permissions";
 import { validateSafeUrl } from "@/lib/validation";
 
 // GET /api/price-lists/[id]/items/[itemId]
@@ -30,7 +31,7 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string; itemId: string } }
 ) {
-  const authResult = await requireBusinessAuth(request);
+  const authResult = await requireBusinessPermission(request, TENANT_PERMS.PRICING_WRITE);
   if (isGuardError(authResult)) return authResult;
 
   try {
@@ -108,7 +109,7 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string; itemId: string } }
 ) {
-  const authResult = await requireBusinessAuth(request);
+  const authResult = await requireBusinessPermission(request, TENANT_PERMS.PRICING_WRITE);
   if (isGuardError(authResult)) return authResult;
 
   try {

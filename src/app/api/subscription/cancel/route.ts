@@ -5,6 +5,8 @@ import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { validateOrigin } from "@/lib/security/cardcom-helpers";
 import { cancelCardcomRecurring } from "@/lib/cardcom-recurring";
 import { sendEmail } from "@/lib/email";
+import { logActivity } from "@/lib/activity-log";
+import { ACTIVITY_ACTIONS, ENTITY_TYPES } from "@/lib/activity-actions";
 
 const OWNER_ALERT_EMAIL = "info@petra-app.com";
 
@@ -27,7 +29,13 @@ export async function POST(request: NextRequest) {
 
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
-    const { businessId } = authResult;
+    const { businessId, session } = authResult;
+
+    // Cancelling the plan stops billing and downgrades every member — owner only.
+    const isOwner = session.memberships.some((m) => m.businessId === businessId && m.isActive && m.role === "owner");
+    if (!isOwner) {
+      return NextResponse.json({ error: "רק בעלי העסק יכולים לבטל את המנוי" }, { status: 403 });
+    }
 
     const business = await prisma.business.findUnique({
       where: { id: businessId },
@@ -116,6 +124,12 @@ export async function POST(request: NextRequest) {
           accessUntil:       business.subscriptionEndsAt?.toISOString() ?? null,
         },
       },
+    });
+
+    await logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.CANCEL_SUBSCRIPTION, {
+      businessId,
+      entityType: ENTITY_TYPES.SETTINGS,
+      entityLabel: "מנוי",
     });
 
     return NextResponse.json({ ok: true, accessUntil: business.subscriptionEndsAt?.toISOString() ?? null });

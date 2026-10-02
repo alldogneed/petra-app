@@ -1,11 +1,11 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
-import { logCurrentUserActivity } from "@/lib/activity-log";
+import { logActivity } from "@/lib/activity-log";
+import { ENTITY_TYPES } from "@/lib/activity-actions";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { hasFeatureWithOverrides } from "@/lib/feature-flags";
 import { sendLeadAlert } from "@/lib/lead-alert";
-import { toWhatsAppPhone } from "@/lib/utils";
 import { prisma } from "@/lib/prisma";
 import { listLeads, createLead, ServiceError } from "@/services/clients";
 import { hasAttributionPayload, normalizeAttributionInput } from "@/lib/lead-attribution";
@@ -56,7 +56,12 @@ export async function POST(request: NextRequest) {
     }
 
     const { lead, existingCustomer, duplicateLead, business } = result;
-    logCurrentUserActivity("CREATE_LEAD");
+    logActivity(authResult.session.user.id, authResult.session.user.name, "CREATE_LEAD", {
+      businessId: authResult.businessId,
+      entityType: ENTITY_TYPES.LEAD,
+      entityId: lead.id,
+      entityLabel: lead.name,
+    });
 
     // ── Side effect: multi-channel lead alert (WhatsApp + email + bell) ──
     const bizOverrides = (business?.featureOverrides as Record<string, unknown> | null) ?? null;

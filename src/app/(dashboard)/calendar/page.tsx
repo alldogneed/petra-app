@@ -38,6 +38,7 @@ import { usePlan } from "@/hooks/usePlan";
 import { getMaxAppointments } from "@/lib/feature-flags";
 import { TierGate } from "@/components/paywall/TierGate";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { usePermissions } from "@/hooks/usePermissions";
 
 // ─── Interfaces ──────────────────────────────────────────────────────────────
 
@@ -457,6 +458,7 @@ function NewAppointmentModal({
 }) {
   const queryClient = useQueryClient();
   const { can: canPlan } = usePlan();
+  const { canSendMessages } = usePermissions();
   const [form, setForm] = useState({
     customerId: "",
     priceListItemId: "",
@@ -542,7 +544,7 @@ function NewAppointmentModal({
         toast.success(`נקבעו ${result.created} פגישות חוזרות בהצלחה`);
       } else {
         const newId = result?.id as string | undefined;
-        toast.success("התור נקבע בהצלחה", newId && selectedCustomer?.phone && canPlan("whatsapp_reminders") ? {
+        toast.success("התור נקבע בהצלחה", newId && selectedCustomer?.phone && canPlan("whatsapp_reminders") && canSendMessages ? {
           action: {
             label: "שלח תזכורת WhatsApp",
             onClick: () => fetch(`/api/appointments/${newId}/remind`, { method: "POST" })
@@ -912,6 +914,7 @@ export default function CalendarPage() {
 function CalendarContent() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const { canSendMessages } = usePermissions();
   const { isFree, tier, can } = usePlan();
   const maxAppts = getMaxAppointments(tier);
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1062,6 +1065,17 @@ function CalendarContent() {
     }
   }, [filtersRestored, activeCategories, staffFilter]);
 
+  // Dashboard "קביעת תור" links here with ?new=1 → open the new-appointment modal right away
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("new") !== "1") return;
+    setModalDefaults({ date: toLocalDateString(new Date()), time: "09:00" });
+    setShowNewModal(true);
+    params.delete("new");
+    const qs = params.toString();
+    window.history.replaceState(null, "", window.location.pathname + (qs ? `?${qs}` : ""));
+  }, []);
+
   // Auto-scroll to current time when switching to day/week view
   useEffect(() => {
     if (viewMode !== "day" && viewMode !== "week") return;
@@ -1123,19 +1137,27 @@ function CalendarContent() {
     staleTime: 60_000,
   });
 
-  const filteredAppointments = useMemo(
-    () => appointments.filter((a) => {
-      if (!activeCategories.has(resolveAppointmentCategory(a.service, a.priceListItem))) return false;
-      if (staffFilter.length > 0 && !staffFilter.includes(a.staff?.id ?? "__none__")) return false;
-      return true;
-    }),
-    [appointments, activeCategories, staffFilter]
-  );
-
   const { data: teamMembers = [] } = useQuery<TeamMember[]>({
     queryKey: ["team-members"],
     queryFn: () => fetchJSON("/api/team-members"),
   });
+
+  // Staff filter only applies when the business actually has more than one team member,
+  // and never hides unassigned items (a stale saved filter used to blank the whole calendar).
+  const effectiveStaffFilter = useMemo(
+    () => (teamMembers.length > 1 ? staffFilter.filter((id) => teamMembers.some((m) => m.id === id)) : []),
+    [staffFilter, teamMembers]
+  );
+
+  const filteredAppointments = useMemo(
+    () => appointments.filter((a) => {
+      if (!activeCategories.has(resolveAppointmentCategory(a.service, a.priceListItem))) return false;
+      if (effectiveStaffFilter.length > 0 && a.staff?.id && !effectiveStaffFilter.includes(a.staff.id)) return false;
+      return true;
+    }),
+    [appointments, activeCategories, effectiveStaffFilter]
+  );
+
 
   // Staff list sourced from team-members API
   const staffList = teamMembers;
@@ -1191,10 +1213,10 @@ function CalendarContent() {
   const filteredBoardingStays = useMemo(
     () => boardingStays.filter((s) => {
       if (!activeCategories.has("boarding")) return false;
-      if (staffFilter.length > 0 && !staffFilter.includes(s.assignedTo?.id ?? "__none__")) return false;
+      if (effectiveStaffFilter.length > 0 && s.assignedTo?.id && !effectiveStaffFilter.includes(s.assignedTo.id)) return false;
       return true;
     }),
-    [boardingStays, activeCategories, staffFilter]
+    [boardingStays, activeCategories, effectiveStaffFilter]
   );
 
   // ── Google Calendar external events overlay ──
@@ -1981,7 +2003,7 @@ function CalendarContent() {
           ))}
 
           {/* Staff filter chips */}
-          {staffList.length > 0 && (
+          {staffList.length > 1 && (
             <div className="flex items-center gap-1.5 whitespace-nowrap">
               <div className="w-px h-4 bg-petra-border ml-1 hidden md:block" />
               <span className="text-[10px] tracking-wide text-petra-muted/80">צוות</span>
@@ -3512,7 +3534,7 @@ function CalendarContent() {
                 </div>
               ) : (
                 <>
-                  {selectedAppointment.status === "scheduled" && selectedAppointment.customer.phone && can("whatsapp_reminders") && (
+                  {selectedAppointment.status === "scheduled" && selectedAppointment.customer.phone && can("whatsapp_reminders") && canSendMessages && (
                     <button
                       className="w-9 h-9 flex items-center justify-center rounded-xl bg-green-50 text-green-600 hover:bg-green-100 border border-transparent hover:border-green-200 transition-colors flex-shrink-0"
                       disabled={remindMutation.isPending}

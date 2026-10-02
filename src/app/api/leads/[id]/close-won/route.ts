@@ -4,6 +4,7 @@ import { clearLeadFollowUps } from "@/services/clients";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
+import { ENTITY_TYPES } from "@/lib/activity-actions";
 import { cancelLeadFollowup } from "@/lib/reminder-service";
 
 export async function POST(
@@ -57,6 +58,8 @@ export async function POST(
         data: {
           stage: wonStageId,
           wonAt: new Date(),
+          wonByUserId: authResult.session.user.id,
+          lostByUserId: null,
         },
         include: { customer: true, callLogs: true },
       });
@@ -65,6 +68,7 @@ export async function POST(
       await cancelLeadFollowup(id).catch((err) =>
         console.error("cancelLeadFollowup (close-won) failed (non-critical):", err)
       );
+      await clearLeadFollowUps(authResult.businessId, prisma, id).catch((err) => console.error("clearLeadFollowUps failed:", err));
 
       return NextResponse.json({
         lead,
@@ -89,6 +93,8 @@ export async function POST(
       data: {
         stage: wonStageId,
         wonAt: new Date(),
+        wonByUserId: authResult.session.user.id,
+        lostByUserId: null,
         customerId: customer.id,
       },
       include: { customer: true, callLogs: true },
@@ -113,7 +119,12 @@ export async function POST(
     await clearLeadFollowUps(authResult.businessId, prisma, id).catch((err) => console.error("clearLeadFollowUps failed:", err));
 
     const { session } = authResult;
-    logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.CLOSE_LEAD_WON);
+    logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.CLOSE_LEAD_WON, {
+      businessId: authResult.businessId,
+      entityType: ENTITY_TYPES.LEAD,
+      entityId: lead.id,
+      entityLabel: lead.name,
+    });
 
     return NextResponse.json(result);
   } catch (error) {

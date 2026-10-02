@@ -26,6 +26,9 @@ const ACTION_LABELS: Record<string, string> = {
   DELETE_PET:         "מחיקת חיית מחמד",
   DELETE_TRAINING:    "מחיקת תוכנית אימון",
   DELETE_APPOINTMENT: "מחיקת פגישה",
+  DELETE_LEAD:        "מחיקת ליד",
+  DELETE_SERVICE_DOG: "מחיקת כלב שירות",
+  DELETE_RECIPIENT:   "מחיקת זכאי",
   EDIT_PRICING:       "שינוי מחירון",
   EDIT_SETTINGS:      "שינוי הגדרות עסק",
 };

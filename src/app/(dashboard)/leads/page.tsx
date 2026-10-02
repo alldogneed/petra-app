@@ -44,6 +44,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface Lead {
   id: string;
@@ -1551,6 +1552,7 @@ function sortLeadsByPriority(leads: Lead[]): Lead[] {
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 function LeadsPageContent() {
+  const { canExportData } = usePermissions();
   const [showModal, setShowModal] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [detailsLead, setDetailsLead] = useState<Lead | null>(null);
@@ -1559,6 +1561,16 @@ function LeadsPageContent() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<SalesView>("board");
+  // Reports need ANALYTICS_READ (owner/manager by default) — same gate as GET /api/leads/reports.
+  const { canViewAnalytics } = usePermissions();
+  // Deep link: /leads?view=reports (used by /analytics → "לדוחות המכירות המלאים")
+  useEffect(() => {
+    const view = new URLSearchParams(window.location.search).get("view");
+    if (view === "reports" || view === "archive" || view === "list" || view === "followup") setActiveTab(view);
+  }, []);
+  useEffect(() => {
+    if (activeTab === "reports" && !canViewAnalytics) setActiveTab("board");
+  }, [activeTab, canViewAnalytics]);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [exportFrom, setExportFrom] = useState("");
@@ -1593,6 +1605,20 @@ function LeadsPageContent() {
     queryKey: ["leads"],
     queryFn: () => fetchJSON<Lead[]>("/api/leads"),
   });
+
+  // Deep link: /leads?lead=<id> (e.g. "פתח את הליד" in the customer's sales history)
+  // opens that lead's card once the list is loaded, then drops the param from the URL.
+  const deepLinkHandled = useRef(false);
+  useEffect(() => {
+    if (deepLinkHandled.current || leadsInitialLoading) return;
+    const leadId = new URLSearchParams(window.location.search).get("lead");
+    if (!leadId) return;
+    deepLinkHandled.current = true;
+    const target = leads.find((l) => l.id === leadId);
+    if (target) setSelectedLead(target);
+    else toast.error("הליד לא נמצא");
+    router.replace("/leads", { scroll: false });
+  }, [leads, leadsInitialLoading, router]);
 
   // Auto-refresh every 30 seconds when enabled
   useEffect(() => {
@@ -1971,7 +1997,7 @@ function LeadsPageContent() {
     { id: "followup", label: `פולואפים · ${overdueCount + todayCount}` },
     { id: "list", label: "רשימה" },
     { id: "archive", label: `ארכיון · ${archiveCount}` },
-    { id: "reports", label: "דוחות" },
+    ...(canViewAnalytics ? [{ id: "reports" as const, label: "דוחות" }] : []),
   ];
 
   const openLead = (lead: Lead) => setSelectedLead(lead);
@@ -2130,6 +2156,7 @@ function LeadsPageContent() {
             )}
 
             {/* Export */}
+            {canExportData && (
             <div className="relative" ref={exportMenuRef}>
               <button type="button" className={TOOL_BTN} onClick={() => setShowExportMenu((v) => !v)} title="ייצוא לידים">
                 <Download className="w-3.5 h-3.5" />ייצוא
@@ -2154,6 +2181,7 @@ function LeadsPageContent() {
                 </div>
               )}
             </div>
+            )}
 
             {/* Refresh controls */}
             <button
@@ -2196,7 +2224,7 @@ function LeadsPageContent() {
 
       <div className="mt-5">
         {/* Reports */}
-        {activeTab === "reports" && <LeadsReports leads={leads} stages={stages} />}
+        {activeTab === "reports" && canViewAnalytics && <LeadsReports />}
 
         {/* Archive */}
         {activeTab === "archive" && (

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { usePermissions } from "@/hooks/usePermissions";
 import { X, Link2, Check, Loader2, Phone, ExternalLink } from "lucide-react";
 
 interface IntakeWhatsAppModalProps {
@@ -31,6 +32,7 @@ export function IntakeWhatsAppModal({
   dogId,
 }: IntakeWhatsAppModalProps) {
   const queryClient = useQueryClient();
+  const { canSendMessages } = usePermissions();
   const [phone, setPhone] = useState(customerPhone);
   const [messageOverride, setMessageOverride] = useState("");
   const [created, setCreated] = useState<IntakeCreateResponse | null>(null);
@@ -191,7 +193,8 @@ export function IntakeWhatsAppModal({
         <div className="flex gap-3 mt-6">
           <button
             onClick={handleSendWhatsApp}
-            disabled={!phone.trim() || createMutation.isPending}
+            disabled={!canSendMessages || !phone.trim() || createMutation.isPending}
+            title={!canSendMessages ? "אין לך הרשאה" : undefined}
             className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl font-semibold text-sm hover:bg-emerald-700 transition-colors shadow-sm disabled:opacity-50"
           >
             {createMutation.isPending ? (

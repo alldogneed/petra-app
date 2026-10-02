@@ -2,8 +2,10 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
-import { type TenantRole } from "@/lib/permissions";
+import { type TenantRole, TENANT_PERMS, sessionHasTenantPermission } from "@/lib/permissions";
 import { createPendingApproval } from "@/lib/pending-approvals";
+import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
+import { ENTITY_TYPES } from "@/lib/activity-actions";
 import {
   getTrainingProgram,
   updateTrainingProgram,
@@ -76,7 +78,11 @@ export async function DELETE(
     const membership = session.memberships.find((m) => m.businessId === businessId);
     const callerRole = (membership?.role ?? "user") as TenantRole;
 
-    if (callerRole === "user" || callerRole === "volunteer") {
+    // An owner-granted critical-delete override lets any member delete directly;
+    // otherwise managers still route through the pending-approval flow.
+    const canDeleteDirectly = sessionHasTenantPermission(session, businessId, TENANT_PERMS.CRITICAL_DELETE);
+
+    if (!canDeleteDirectly && callerRole !== "manager") {
       return NextResponse.json({ error: "אין הרשאה למחיקת תוכנית אימון" }, { status: 403 });
     }
 
@@ -91,7 +97,7 @@ export async function DELETE(
 
     const programLabel = existing.name ?? (existing.dog ? `אימון: ${existing.dog.name}` : "תוכנית אימון");
 
-    if (callerRole === "manager") {
+    if (!canDeleteDirectly) {
       const approval = await createPendingApproval({
         businessId,
         requestedByUserId: session.user.id,
@@ -127,6 +133,13 @@ export async function DELETE(
       }
       throw e;
     }
+
+    await logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.DELETE_TRAINING, {
+      businessId,
+      entityType: ENTITY_TYPES.TRAINING,
+      entityId: params.id,
+      entityLabel: programLabel,
+    });
 
     return NextResponse.json({ success: true, orderDowngraded: result.orderDowngraded });
   } catch (error) {

@@ -77,6 +77,12 @@ const PUBLIC_ROUTES = new Set([
   "webhooks/lead",
   "webhooks/whatsapp-status",
 
+  // ── MCP OAuth 2.1 (public by spec: PKCE / refresh-token auth, per-IP rate limits) ──
+  // (oauth/authorize uses requireAuth/resolveSession — pattern-detected.)
+  "oauth/register",
+  "oauth/token",
+  "oauth/revoke",
+
   // ── Internal health/utility ───────────────────────────────────────────────
   "test-notify",
 

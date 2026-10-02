@@ -1,7 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessAuth, isGuardError, requireBusinessPermission } from "@/lib/auth-guards";
+import { TENANT_PERMS, sessionHasTenantPermission } from "@/lib/permissions";
 import { updateYard, deleteYard, ServiceError } from "@/services/boarding";
 import type { UpdateYardData } from "@/services/boarding";
 
@@ -13,8 +14,18 @@ export async function PATCH(
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
 
-    const body = await request.json();
+    const body = await request.json().catch(() => null);
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return NextResponse.json({ error: "Invalid body" }, { status: 400 });
+    }
     const { name, capacity, type, status, pricePerSession } = body;
+
+    // Structure changes (name/capacity/type/price) need BOARDING_MANAGE; a status-only
+    // update (e.g. "mark clean") is daily operational work and stays open.
+    const changesStructure = ["name", "capacity", "type", "pricePerSession"].some((k) => k in body);
+    if (changesStructure && !sessionHasTenantPermission(authResult.session, authResult.businessId, TENANT_PERMS.BOARDING_MANAGE)) {
+      return NextResponse.json({ error: "אין לך הרשאה לנהל חדרים וחצרות בפנסיון" }, { status: 403 });
+    }
 
     const data: UpdateYardData = {};
     if (name !== undefined) data.name = name;
@@ -42,7 +53,7 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireBusinessAuth(request);
+    const authResult = await requireBusinessPermission(request, TENANT_PERMS.BOARDING_MANAGE);
     if (isGuardError(authResult)) return authResult;
 
     try {

@@ -5,6 +5,12 @@ import { requireBusinessAuth, isGuardError, requireBusinessPermission } from "@/
 import { TENANT_PERMS, hasTenantPermission, type TenantRole } from "@/lib/permissions";
 import { sendPaymentRequestForOrder } from "@/lib/payment-request";
 import { getOrder, updateOrder, deleteOrder, ServiceError } from "@/services/orders";
+import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
+import { ENTITY_TYPES } from "@/lib/activity-actions";
+
+function orderLabel(o: { total?: number | null; customer?: { name?: string | null } | null }): string {
+  return `הזמנה ₪${Number(o.total ?? 0).toLocaleString("he-IL")} — ${o.customer?.name ?? ""}`;
+}
 
 export async function GET(
   request: NextRequest,
@@ -38,7 +44,8 @@ export async function PATCH(
     const body = await request.json();
 
     // Cancelling an order is one of the owner-managed critical capabilities.
-    if (body.status === "cancelled" || body.status === "canceled") {
+    const isCancelRequest = body.status === "cancelled" || body.status === "canceled";
+    if (isCancelRequest) {
       const { session, businessId } = authResult;
       const membership = session.memberships.find((m) => m.businessId === businessId);
       const role = (membership?.role ?? "user") as TenantRole;
@@ -64,6 +71,14 @@ export async function PATCH(
     // only the request whose claim count === 1 fires the payment request below.
     // (A read-then-compare here was racy.) The service update afterwards is a
     // no-op for status but still applies notes/orderType and runs validation.
+    // Previous status — only a real transition to cancelled is logged as CANCEL_ORDER.
+    const prevStatus = isCancelRequest
+      ? (await prisma.order.findFirst({
+          where: { id: params.id, businessId: authResult.businessId },
+          select: { status: true },
+        }))?.status ?? null
+      : null;
+
     let claimedDraftToConfirmed = false;
     if (body.status === "confirmed") {
       const claim = await prisma.order.updateMany({
@@ -102,6 +117,15 @@ export async function PATCH(
       );
     }
 
+    if (isCancelRequest && order.status === "cancelled" && prevStatus && prevStatus !== "cancelled") {
+      await logActivity(authResult.session.user.id, authResult.session.user.name, ACTIVITY_ACTIONS.CANCEL_ORDER, {
+        businessId: authResult.businessId,
+        entityType: ENTITY_TYPES.ORDER,
+        entityId: params.id,
+        entityLabel: orderLabel(order),
+      });
+    }
+
     return NextResponse.json(order);
   } catch (error) {
     console.error("Error updating order:", error);
@@ -117,6 +141,12 @@ export async function DELETE(
     const authResult = await requireBusinessPermission(request, TENANT_PERMS.ORDERS_CANCEL);
     if (isGuardError(authResult)) return authResult;
 
+    // Read the label before the row disappears (scoped to this business).
+    const existing = await prisma.order.findFirst({
+      where: { id: params.id, businessId: authResult.businessId },
+      select: { total: true, customer: { select: { name: true } } },
+    });
+
     try {
       await deleteOrder(authResult.businessId, prisma, params.id);
     } catch (e) {
@@ -125,6 +155,12 @@ export async function DELETE(
       }
       throw e;
     }
+    await logActivity(authResult.session.user.id, authResult.session.user.name, ACTIVITY_ACTIONS.DELETE_ORDER, {
+      businessId: authResult.businessId,
+      entityType: ENTITY_TYPES.ORDER,
+      entityId: params.id,
+      entityLabel: existing ? orderLabel(existing) : null,
+    });
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("Error deleting order:", error);

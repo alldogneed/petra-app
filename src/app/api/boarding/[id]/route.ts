@@ -4,6 +4,7 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
+import { ENTITY_TYPES } from "@/lib/activity-actions";
 import { cancelBoardingCheckoutReminders, rescheduleBoardingCheckoutReminder, scheduleBoardingThankYou } from "@/lib/reminder-service";
 import { syncBoardingToGcal, deleteBoardingFromGcal } from "@/lib/google-calendar";
 import { getBoardingStay, updateBoardingStay, deleteBoardingStay, ServiceError } from "@/services/boarding";
@@ -98,7 +99,14 @@ export async function PATCH(
       body.status === "checked_in" ? ACTIVITY_ACTIONS.CHECKIN_BOARDING :
       body.status === "checked_out" ? ACTIVITY_ACTIONS.CHECKOUT_BOARDING :
       undefined;
-    if (action) logActivity(session.user.id, session.user.name, action);
+    if (action) {
+      logActivity(session.user.id, session.user.name, action, {
+        businessId: authResult.businessId,
+        entityType: ENTITY_TYPES.BOARDING,
+        entityId: params.id,
+        entityLabel: stay.pet?.name ?? null,
+      });
+    }
 
     if (body.status === "canceled") {
       await deleteBoardingFromGcal(params.id, authResult.businessId).catch((err) =>
@@ -127,6 +135,12 @@ export async function DELETE(
 
     await cancelBoardingCheckoutReminders(params.id);
 
+    // Read the pet name before the row disappears (scoped to this business).
+    const toDelete = await prisma.boardingStay.findFirst({
+      where: { id: params.id, businessId: authResult.businessId },
+      select: { pet: { select: { name: true } } },
+    });
+
     try {
       await deleteBoardingStay(authResult.businessId, prisma, params.id);
     } catch (e) {
@@ -135,7 +149,12 @@ export async function DELETE(
     }
 
     const { session } = authResult;
-    logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.DELETE_BOARDING);
+    await logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.DELETE_BOARDING, {
+      businessId: authResult.businessId,
+      entityType: ENTITY_TYPES.BOARDING,
+      entityId: params.id,
+      entityLabel: toDelete?.pet?.name ?? null,
+    });
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("DELETE boarding stay error:", error);
