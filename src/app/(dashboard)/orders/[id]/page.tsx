@@ -234,7 +234,8 @@ export default function OrderDetailPage() {
   const router = useRouter();
   const qc = useQueryClient();
   const orderId = params.id as string;
-  const [confirmCancel, setConfirmCancel] = useState(false);
+  // false = closed; "cancel" = cancel the order; "delete" = delete a cancelled order
+  const [confirmCancel, setConfirmCancel] = useState<false | "cancel" | "delete">(false);
   // ?pay=1 (from the orders-list "רשום תשלום" button) opens the payment modal
   const searchParams = useSearchParams();
   const [showAddPayment, setShowAddPayment] = useState(searchParams.get("pay") === "1");
@@ -300,6 +301,7 @@ export default function OrderDetailPage() {
       toast.success("ההזמנה נמחקה");
       router.push("/orders");
     },
+    onError: (err: Error) => toast.error(err.message || "שגיאה במחיקת ההזמנה"),
   });
 
   const cancelMutation = useMutation({
@@ -533,7 +535,7 @@ export default function OrderDetailPage() {
                   אשר הזמנה
                 </button>
                 <button
-                  onClick={() => setConfirmCancel(true)}
+                  onClick={() => setConfirmCancel("cancel")}
                   className="btn-secondary text-sm text-red-500 hover:bg-red-50 hover:border-red-200"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -552,7 +554,7 @@ export default function OrderDetailPage() {
                   סמן כהושלמה
                 </button>
                 <button
-                  onClick={() => setConfirmCancel(true)}
+                  onClick={() => setConfirmCancel("cancel")}
                   className="btn-secondary text-sm text-red-500 hover:bg-red-50 hover:border-red-200"
                 >
                   <XCircle className="w-4 h-4" />
@@ -562,7 +564,7 @@ export default function OrderDetailPage() {
             )}
             {order.status === "cancelled" && (
               <button
-                onClick={() => deleteCancelledMutation.mutate()}
+                onClick={() => setConfirmCancel("delete")}
                 disabled={deleteCancelledMutation.isPending}
                 className="btn-secondary text-sm text-red-500 hover:bg-red-50 hover:border-red-200"
               >
@@ -1002,15 +1004,23 @@ export default function OrderDetailPage() {
             <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center mx-auto mb-3">
               <XCircle className="w-6 h-6 text-red-500" />
             </div>
-            <h3 className="text-base font-bold text-petra-text mb-1">לבטל את ההזמנה?</h3>
-            <p className="text-sm text-petra-muted mb-4">פעולה זו לא ניתנת לביטול.</p>
+            <h3 className="text-base font-bold text-petra-text mb-1">
+              {confirmCancel === "delete" ? "למחוק את ההזמנה?" : "לבטל את ההזמנה?"}
+            </h3>
+            <p className="text-sm text-petra-muted mb-4">
+              {confirmCancel === "delete" ? "ההזמנה תימחק לצמיתות. פעולה זו לא ניתנת לביטול." : "פעולה זו לא ניתנת לביטול."}
+            </p>
             <div className="flex gap-3">
               <button
-                onClick={() => { cancelMutation.mutate(); setConfirmCancel(false); }}
-                disabled={cancelMutation.isPending}
+                onClick={() => {
+                  if (confirmCancel === "delete") deleteCancelledMutation.mutate();
+                  else cancelMutation.mutate();
+                  setConfirmCancel(false);
+                }}
+                disabled={cancelMutation.isPending || deleteCancelledMutation.isPending}
                 className="flex-1 py-2 rounded-xl bg-red-500 text-white text-sm font-medium hover:bg-red-600 transition-colors"
               >
-                {cancelMutation.isPending ? "מבטל..." : "כן, בטל"}
+                {confirmCancel === "delete" ? "כן, מחק" : cancelMutation.isPending ? "מבטל..." : "כן, בטל"}
               </button>
               <button onClick={() => setConfirmCancel(false)} className="btn-secondary flex-1">
                 חזרה

@@ -1161,7 +1161,7 @@ function AutomationTab({ onTasksGenerated }: { onTasksGenerated: () => void }) {
                   <button onClick={() => useTplMutation.mutate(tpl)} disabled={useTplMutation.isPending} className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-brand-500 text-white hover:bg-brand-600 transition-colors">
                     <Plus className="w-3 h-3" />צור משימה
                   </button>
-                  <button onClick={() => deleteTplMutation.mutate(tpl.id)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors">
+                  <button onClick={() => { if (window.confirm(`למחוק את התבנית "${tpl.name}"?`)) deleteTplMutation.mutate(tpl.id); }} disabled={deleteTplMutation.isPending} title="מחק תבנית" className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
