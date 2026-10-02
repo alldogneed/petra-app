@@ -208,7 +208,7 @@ Every check of a `CRITICAL_CAPABILITIES` permission must honour `BusinessUser.pe
 - Prefs only HIDE/REORDER: `requires` is checked first (`isAllowed`) and the server keeps withholding money (`canSeeRevenueSummary`). Never let a pref show a widget the role can't see.
 - `hidden` (not "visible") is stored, so a new widget appears for everyone; `resolveBlockOrder()` slots blocks missing from a saved order right after their default predecessor. A new widget = catalog entry + `case` in `renderBlock` (+ `requires` if gated).
 - Defaults when never saved: `defaultHiddenFor(owner's OnboardingProfile.businessType)` (מאלף → no boarding/medications; מספרה → also no vaccinations).
-- Every number/row links to the filtered target: `/payments?status=&period=`, `/orders?status=&payment=` (deep link drops the 30-day default window), `/tasks?filter=|task=<id>`, `/leads?lead=<id>|view=followup`, `/calendar?date=`. Activity feed rows use `entityHref()` (`/api/dashboard/activity` returns `href`). Prod DDL: `prisma/dashboard_prefs.sql`. Tests: `src/lib/__tests__/dashboard-widgets.test.ts`.
+- Every number/row links to the filtered target: `/payments?status=&period=`, `/orders?status=&payment=` (deep link drops the 30-day default window; "הזמנות פעילות" → `status=active` = `ACTIVE_ORDER_STATUSES` draft+confirmed in `src/lib/constants.ts`, shared by the dashboard count, `listOrders()` and the orders export), `/tasks?filter=|task=<id>`, `/leads?lead=<id>|view=followup`, `/calendar?date=`. Activity feed rows use `entityHref()` (`/api/dashboard/activity` returns `href`). Prod DDL: `prisma/dashboard_prefs.sql`. Tests: `src/lib/__tests__/dashboard-widgets.test.ts`.
 
 ---
 

@@ -8,6 +8,7 @@
  * stay in routes.
  */
 
+import { ACTIVE_ORDER_STATUSES, ACTIVE_ORDER_STATUS_FILTER } from "@/lib/constants";
 import type { PrismaClient } from "@prisma/client";
 import { ServiceError } from "./types";
 import { calcOrder } from "@/lib/order-calc";
@@ -95,13 +96,15 @@ export interface CreateOrderResult {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function listOrders(businessId: string, db: DbClient, opts: ListOrdersOptions = {}) {
-  if (opts.status && !VALID_ORDER_STATUSES.includes(opts.status)) {
+  const isActiveFilter = opts.status === ACTIVE_ORDER_STATUS_FILTER;
+  if (opts.status && !isActiveFilter && !VALID_ORDER_STATUSES.includes(opts.status)) {
     throw new ServiceError("סטטוס הזמנה לא תקין", "VALIDATION");
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const where: any = { businessId };
-  if (opts.status) where.status = opts.status;
+  if (isActiveFilter) where.status = { in: [...ACTIVE_ORDER_STATUSES] };
+  else if (opts.status) where.status = opts.status;
   if (opts.customerId) where.customerId = opts.customerId;
   if (opts.from || opts.to) {
     where.createdAt = {

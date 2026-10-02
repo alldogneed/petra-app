@@ -10,6 +10,7 @@
  *   - Vercel Blob upload (logo route stays as-is)
  */
 
+import { ACTIVE_ORDER_STATUSES } from "@/lib/constants";
 import { attributionWindowStart, buildLeadAttributionReport } from "@/lib/lead-attribution";
 import { buildLeadSalesReport, EXCLUDED_ORDER_STATUSES } from "@/lib/lead-deal-value";
 import type { AnalyticsData } from "@/lib/analytics-types";
@@ -388,7 +389,7 @@ export async function getDashboardMetrics(
       where: { businessId, ...(openStageIds.length > 0 ? { stage: { in: openStageIds } } : {}) },
     }),
     db.order.count({
-      where: { businessId, status: { in: ["draft", "confirmed"] } },
+      where: { businessId, status: { in: [...ACTIVE_ORDER_STATUSES] } },
     }),
     db.appointment.count({
       where: { businessId, date: { gte: todayStart }, service: { type: "training" } },

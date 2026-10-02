@@ -2157,7 +2157,7 @@ export default function DashboardPage() {
                 value={data.activeOrders}
                 icon={ShoppingCart}
                 color="#F97316"
-                href="/orders"
+                href="/orders?status=active"
               />
             )}
             {shownStats.has("stat_pending_payments") && perms.canSeeFinance && (

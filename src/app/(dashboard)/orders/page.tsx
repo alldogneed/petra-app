@@ -71,6 +71,7 @@ interface Order {
 
 const ORDER_STATUSES = [
   { id: "ALL", label: "כל הסטטוסים" },
+  { id: "active", label: "פעילות (טיוטות + מאושרות)" },
   { id: "draft", label: "טיוטות" },
   { id: "confirmed", label: "מאושרות" },
   { id: "completed", label: "הושלמו" },
