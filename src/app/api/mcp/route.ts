@@ -24,7 +24,7 @@ import { getOAuthOrigin } from "@/lib/mcp-oauth";
 import { listCustomers, getCustomer, addCustomerNote, createCustomer, createLead, updateLead, listTasks, getCustomerSalesHistory } from "@/services/clients";
 import { SALES_JOURNAL_KIND_LABELS, TASK_STATUS_LABELS, type SalesHistoryLead } from "@/lib/lead-sales-history";
 import { LOST_REASON_CODES, LEAD_SOURCES } from "@/lib/constants";
-import { listAppointments, createAppointment, updateAppointment, deleteAppointment } from "@/services/appointments";
+import { listAppointments, createAppointment, updateAppointment } from "@/services/appointments";
 import { listOrders, getOrder, createOrder } from "@/services/orders";
 import { listPets } from "@/services/pets";
 import { listBoardingStays } from "@/services/boarding";
@@ -38,6 +38,7 @@ import { scheduleAppointmentReminder, rescheduleAppointmentReminder, cancelAppoi
 import { syncAppointmentToGcal, deleteAppointmentFromGcal, findConnectedUsersForBusiness } from "@/lib/google-calendar";
 
 // ─── Tool helpers (shared with tool modules in src/lib/mcp/) ─────────────────
+import { formatShekel } from "@/lib/customer-summary";
 import { CRITICAL_CAPABILITIES, TENANT_PERMS, hasTenantPermission, type PermissionOverrides, type TenantPermission, type TenantRole } from "@/lib/permissions";
 import { textResult, errorResult, safeField, israelStartOfToday, heDate, parseYmd, findIdempotentReplay, replayResult, dryRunResult, type ToolCtx } from "@/lib/mcp/helpers";
 import { registerIntakeTools, resolveLeadStageByName, israelLocalToIso } from "@/lib/mcp/tools-intake";
@@ -174,7 +175,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
     },
     async ({ search, limit, cursor }) => {
       if (!hasScope("read:clients")) return denyScope("list_clients", "read:clients");
-      const params = { search: search ?? undefined, take: limit ?? 20, cursor: cursor ?? undefined, enhanced: true as const };
+      const params = { search: search ?? undefined, take: limit ?? 20, cursor: cursor ?? undefined, enhanced: true as const, includeFinance: false };
       try {
         const result = await listCustomers(businessId, prisma, params);
         const customers = result.customers ?? [];
@@ -1084,6 +1085,29 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
         if (contact) sections.push(contact);
         if (c.notes) sections.push(`הערות: ${safeField(c.notes, 300)}`);
 
+        // Summary — money only with read:payments AND the minter's FINANCE_READ
+        // (same balance definition as the customer card).
+        const canSeeMoney = hasScope("read:payments") && hasPermission(TENANT_PERMS.FINANCE_READ);
+        const { summary } = c;
+        const summaryLines: string[] = [];
+        if (canSeeMoney && summary.balance) {
+          summaryLines.push(`💳 יתרה לתשלום: ${formatShekel(summary.balance.outstanding)} | שולם עד היום: ${formatShekel(summary.balance.totalPaid)}`);
+        }
+        if (summary.nextAppointment) {
+          const n = summary.nextAppointment;
+          summaryLines.push(`⏭️ ביקור הבא: ${heDate(n.date)} ${n.startTime}${n.serviceName ? ` — ${safeField(n.serviceName, 60)}` : ""}${n.petName ? ` (${safeField(n.petName, 40)})` : ""} (id: ${n.id})`);
+        } else {
+          summaryLines.push("⏭️ ביקור הבא: אין");
+        }
+        if (summary.lastVisit) {
+          const l = summary.lastVisit;
+          summaryLines.push(`⏮️ ביקור אחרון: ${heDate(l.date)} ${l.startTime}${l.serviceName ? ` — ${safeField(l.serviceName, 60)}` : ""} (id: ${l.id})`);
+        } else {
+          summaryLines.push("⏮️ ביקור אחרון: אין");
+        }
+        summaryLines.push(`סה"כ: ${summary.counts.appointments} תורים (${summary.counts.upcomingAppointments} עתידיים, ${summary.counts.pastVisits} ביקורים) · ${summary.counts.pets} חיות · ${summary.counts.orders} הזמנות`);
+        sections.push(...summaryLines);
+
         if (c.pets.length) {
           sections.push(`\n🐾 חיות (${c.pets.length}):`);
           for (const p of c.pets.slice(0, 10)) {
@@ -1094,13 +1118,13 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
         }
 
         if (c.appointments.length) {
-          sections.push(`\n📅 תורים אחרונים (${Math.min(c.appointments.length, 8)} מתוך ${c.appointments.length}):`);
+          sections.push(`\n📅 תורים אחרונים (${Math.min(c.appointments.length, 8)} מתוך ${summary.counts.appointments}):`);
           for (const a of c.appointments.slice(0, 8)) {
             sections.push(`• ${heDate(a.date)}${a.startTime ? ` ${a.startTime}` : ""} — ${safeField(a.service?.name ?? a.priceListItem?.name ?? "")} [${a.status}] (id: ${a.id})`);
           }
         }
 
-        if (c.payments.length) {
+        if (canSeeMoney && c.payments.length) {
           const paid = c.payments.filter((p) => p.status === "paid").reduce((s, p) => s + p.amount, 0);
           sections.push(`\n💰 תשלומים אחרונים (סה"כ שולם ב-20 האחרונים: ₪${paid.toLocaleString("he-IL")}):`);
           for (const p of c.payments.slice(0, 5)) {
@@ -1111,14 +1135,14 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
         if (c.orders.length) {
           sections.push(`\n🧾 הזמנות אחרונות:`);
           for (const o of c.orders.slice(0, 5)) {
-            sections.push(`• ₪${o.total.toLocaleString("he-IL")} [${o.status}] ${heDate(o.createdAt)} (id: ${o.id})`);
+            sections.push(`• ${canSeeMoney ? `₪${o.total.toLocaleString("he-IL")} ` : ""}[${o.status}] ${heDate(o.createdAt)} (id: ${o.id})`);
           }
         }
 
         if (c.trainingPrograms.length) {
           sections.push(`\n🎓 תוכניות אילוף:`);
           for (const t of c.trainingPrograms.slice(0, 5)) {
-            sections.push(`• ${safeField(t.name)}${t.dog?.name ? ` — ${safeField(t.dog.name, 40)}` : ""} [${t.status}] ${t.sessions.length}/${t.totalSessions ?? "?"} מפגשים (id: ${t.id})`);
+            sections.push(`• ${safeField(t.name)}${t.dog?.name ? ` — ${safeField(t.dog.name, 40)}` : ""} [${t.status}] ${t.completedSessions}/${t.totalSessions ?? "?"} מפגשים (id: ${t.id})`);
           }
         }
 

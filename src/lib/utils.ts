@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { Calendar, PawPrint, CreditCard, User, Clock } from "lucide-react"
+import { Calendar, PawPrint, CreditCard, User, Clock, FileText, MessageCircle } from "lucide-react"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -162,7 +162,13 @@ export function getTimelineIcon(type: string) {
     case "payment_received":
       return CreditCard
     case "customer_created":
+    case "CUSTOMER_CREATED":
       return User
+    case "note":
+    case "MANUAL_NOTE":
+      return FileText
+    case "whatsapp_sent":
+      return MessageCircle
     default:
       return Clock
   }
