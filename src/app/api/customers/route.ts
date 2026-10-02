@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/activity-log";
 import { ENTITY_TYPES } from "@/lib/activity-actions";
 import { isGuardError } from "@/lib/auth-guards";
-import { requireCustomerAccess, callerCan } from "@/lib/customer-access";
+import { canReadCustomers, requireCustomerAccess, callerCan } from "@/lib/customer-access";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { checkFirstCustomer } from "@/lib/engagement-service";
 import { TENANT_PERMS } from "@/lib/permissions";
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "יותר מדי בקשות. נסה שוב מאוחר יותר." }, { status: 429 });
     }
 
-    const authResult = await requireCustomerAccess(request, "write");
+    const authResult = await requireCustomerAccess(request, "create");
     if (isGuardError(authResult)) return authResult;
     const { businessId } = authResult;
 
@@ -95,7 +95,10 @@ export async function POST(request: NextRequest) {
         const status =
           e.code === "CONFLICT" ? 409 :
           e.code === "NOT_FOUND" ? 404 : 400;
-        return NextResponse.json({ error: e.message, ...(e.details as object | null ?? {}) }, { status });
+        const details = { ...((e.details as Record<string, unknown> | null) ?? {}) };
+        // Quick-add is open to members without CUSTOMERS_PII — don't reveal who owns a phone.
+        if (!canReadCustomers(authResult.session, businessId)) delete details.existingName;
+        return NextResponse.json({ error: e.message, ...details }, { status });
       }
       throw e;
     }

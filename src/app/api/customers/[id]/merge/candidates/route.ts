@@ -1,7 +1,8 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireBusinessPermission, isGuardError } from "@/lib/auth-guards";
+import { isGuardError } from "@/lib/auth-guards";
+import { requireCustomerAccess, callerCan } from "@/lib/customer-access";
 import { TENANT_PERMS } from "@/lib/permissions";
 import { findMergeCandidates, ServiceError } from "@/services/customer-merge";
 
@@ -12,8 +13,11 @@ import { findMergeCandidates, ServiceError } from "@/services/customer-merge";
  */
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const authResult = await requireBusinessPermission(request, TENANT_PERMS.CRITICAL_DELETE);
+    const authResult = await requireCustomerAccess(request, "write");
     if (isGuardError(authResult)) return authResult;
+    if (!callerCan(authResult.session, authResult.businessId, TENANT_PERMS.CRITICAL_DELETE)) {
+      return NextResponse.json({ error: "אין לך הרשאה לפעולה זו" }, { status: 403 });
+    }
     const { businessId } = authResult;
 
     const q = (request.nextUrl.searchParams.get("q") ?? "").slice(0, 100);

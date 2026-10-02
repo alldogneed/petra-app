@@ -2,7 +2,8 @@ export const dynamic = "force-dynamic";
 import { z } from "zod";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireBusinessPermission, isGuardError } from "@/lib/auth-guards";
+import { isGuardError } from "@/lib/auth-guards";
+import { requireCustomerAccess, callerCan } from "@/lib/customer-access";
 import { TENANT_PERMS } from "@/lib/permissions";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 import { ENTITY_TYPES } from "@/lib/activity-actions";
@@ -27,8 +28,11 @@ function serviceErrorResponse(e: ServiceError) {
 /** GET /api/customers/[id]/merge?sourceId=<dupId> — preview of what would move into [id]. */
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const authResult = await requireBusinessPermission(request, TENANT_PERMS.CRITICAL_DELETE);
+    const authResult = await requireCustomerAccess(request, "write");
     if (isGuardError(authResult)) return authResult;
+    if (!callerCan(authResult.session, authResult.businessId, TENANT_PERMS.CRITICAL_DELETE)) {
+      return NextResponse.json({ error: "אין לך הרשאה לפעולה זו" }, { status: 403 });
+    }
     const { businessId } = authResult;
 
     const sourceId = (request.nextUrl.searchParams.get("sourceId") ?? "").trim();
@@ -48,8 +52,11 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
 /** POST /api/customers/[id]/merge { sourceId, confirm: "MERGE_<sourceId>" } — [id] stays, sourceId is deleted. */
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const authResult = await requireBusinessPermission(request, TENANT_PERMS.CRITICAL_DELETE);
+    const authResult = await requireCustomerAccess(request, "write");
     if (isGuardError(authResult)) return authResult;
+    if (!callerCan(authResult.session, authResult.businessId, TENANT_PERMS.CRITICAL_DELETE)) {
+      return NextResponse.json({ error: "אין לך הרשאה לפעולה זו" }, { status: 403 });
+    }
     const { businessId, session } = authResult;
 
     const rl = rateLimit("api:customers:merge", `${businessId}:${session.user.id}`, MERGE_RATE_LIMIT);
@@ -69,12 +76,13 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     const result = await mergeCustomers(businessId, prisma, params.id, sourceId);
 
+    // Merge already completed — logging failures must not surface as a 500.
     await logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.MERGE_CUSTOMER, {
       businessId,
       entityType: ENTITY_TYPES.CUSTOMER,
       entityId: result.target.id,
       entityLabel: result.target.name,
-    });
+    }).catch((err) => console.error("Customer merge: activity log failed (merge completed):", err));
 
     // Moved upcoming appointments now belong to the target → refresh their Google Calendar events
     // (title/address come from the customer). Non-critical.

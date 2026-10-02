@@ -8,6 +8,7 @@ import { rateLimit } from "@/lib/rate-limit";
 import { parseCustomerFilters, compareCustomerNames } from "@/lib/customer-filters";
 import { computeCustomerBalances, type CustomerBalance } from "@/lib/customer-balance";
 import { listCustomerIds } from "@/services/customer-list";
+import { canReadCustomers } from "@/lib/customer-access";
 import * as XLSX from "xlsx";
 
 const EXPORT_RATE_LIMIT = { max: 5, windowMs: 60 * 1000 }; // 5 exports per minute
@@ -20,10 +21,28 @@ const CHUNK = 1_000;
 // Honours the list filters (same params as GET /api/customers — src/lib/customer-filters.ts),
 // or `ids=<comma list>` (selected rows). Adds a balance column with FINANCE_READ.
 export async function GET(request: NextRequest) {
+  return exportCustomers(request, null);
+}
+
+// POST /api/customers/export { ids: string[] } — selected rows (a long id list doesn't fit in a URL).
+export async function POST(request: NextRequest) {
+  const body = await request.json().catch(() => null);
+  const ids = body && Array.isArray(body.ids) ? body.ids.filter((x: unknown): x is string => typeof x === "string") : null;
+  if (!ids || ids.length === 0) {
+    return NextResponse.json({ error: "לא נבחרו לקוחות" }, { status: 400 });
+  }
+  return exportCustomers(request, ids);
+}
+
+async function exportCustomers(request: NextRequest, bodyIds: string[] | null) {
   const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
   if (!sessionHasTenantPermission(authResult.session, authResult.businessId, TENANT_PERMS.DATA_EXPORT)) {
     return NextResponse.json({ error: "אין לך הרשאה לייצא נתונים" }, { status: 403 });
+  }
+  // The export IS the customer file (name, phone, address…) — same gate as viewing the list.
+  if (!canReadCustomers(authResult.session, authResult.businessId)) {
+    return NextResponse.json({ error: "אין הרשאה לצפות בלקוחות" }, { status: 403 });
   }
 
   // Rate limit exports to prevent abuse
@@ -36,9 +55,9 @@ export async function GET(request: NextRequest) {
   const canSeeFinance = sessionHasTenantPermission(session, businessId, TENANT_PERMS.FINANCE_READ);
   const { searchParams } = new URL(request.url);
   const filters = parseCustomerFilters(searchParams);
-  const idsParam = searchParams.get("ids");
-  const selectedIds = idsParam
-    ? Array.from(new Set(idsParam.split(",").map((s) => s.trim()).filter((s) => s.length > 0 && s.length <= 64))).slice(0, MAX_SELECTED_IDS)
+  const rawIds = bodyIds ?? searchParams.get("ids")?.split(",") ?? null;
+  const selectedIds = rawIds
+    ? Array.from(new Set(rawIds.slice(0, MAX_SELECTED_IDS * 2).map((s) => s.trim()).filter((s) => s.length > 0 && s.length <= 64))).slice(0, MAX_SELECTED_IDS)
     : null;
 
   await logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.EXPORT_CUSTOMERS, {

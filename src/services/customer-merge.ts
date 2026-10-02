@@ -250,15 +250,18 @@ export async function mergeCustomers(
   // 4. Delete the source (scoped by business).
   await db.customer.deleteMany({ where: { id: s, businessId } });
 
-  // 5. Journal line on the target (rule 8: no title field).
-  await db.timelineEvent.create({
-    data: {
-      type: "note",
-      description: `מוזג לקוח כפול: ${source.name} (${source.phone})`.slice(0, 2000),
-      businessId,
-      customerId: t,
-    },
-  });
+  // 5. Journal line on the target (rule 8: no title field). The merge is already done —
+  //    a failure here must not turn into an error response (a retry would 404).
+  await db.timelineEvent
+    .create({
+      data: {
+        type: "note",
+        description: `מוזג לקוח כפול: ${source.name} (${source.phone})`.slice(0, 2000),
+        businessId,
+        customerId: t,
+      },
+    })
+    .catch((err) => console.error("[customer-merge] timeline note failed (merge completed):", err));
 
   return {
     target: { id: t, name: target.name },

@@ -163,7 +163,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
     },
     async ({ search, limit, cursor }) => {
       if (!hasScope("read:clients")) return denyScope("list_clients", "read:clients");
-      const params = { search: search ?? undefined, take: limit ?? 20, cursor: cursor ?? undefined, enhanced: true as const };
+      const params = { search: search ?? undefined, take: limit ?? 20, cursor: cursor ?? undefined, enhanced: true as const, includeFinance: false };
       try {
         const result = await listCustomers(businessId, prisma, params);
         const customers = result.customers ?? [];

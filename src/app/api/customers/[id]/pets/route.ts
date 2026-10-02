@@ -36,7 +36,7 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireCustomerAccess(request, "write");
+    const authResult = await requireCustomerAccess(request, "create");
     if (isGuardError(authResult)) return authResult;
 
     // Verify customer exists and belongs to this business

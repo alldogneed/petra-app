@@ -328,9 +328,13 @@ function CustomersList() {
   const handleExport = useCallback(async () => {
     setExporting(true);
     try {
-      const params = new URLSearchParams(listParams);
-      if (selectedIds.size > 0) params.set("ids", Array.from(selectedIds).join(","));
-      const res = await fetch(`/api/customers/export?${params}`);
+      const res = selectedIds.size > 0
+        ? await fetch("/api/customers/export", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ids: Array.from(selectedIds) }),
+          })
+        : await fetch(`/api/customers/export?${new URLSearchParams(listParams)}`);
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error || "Export failed");
