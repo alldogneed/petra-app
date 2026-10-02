@@ -4,12 +4,18 @@ import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { sessionHasTenantPermission, TENANT_PERMS } from "@/lib/permissions";
 import { getAnalytics } from "@/services/business";
+import { businessHasFeature } from "@/lib/feature-gate";
 
 export async function GET(request: NextRequest) {
   try {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
     const { businessId, session } = authResult;
+
+    // Tier gate (server-side twin of <TierGate feature="analytics">)
+    if (!(await businessHasFeature(prisma, businessId, "analytics"))) {
+      return NextResponse.json({ error: "הדוחות אינם זמינים במסלול הנוכחי. שדרג למסלול בייסיק ומעלה.", code: "FEATURE_LOCKED" }, { status: 403 });
+    }
 
     const canSeeRevenue = sessionHasTenantPermission(session, businessId, TENANT_PERMS.FINANCE_SUMMARY);
 
