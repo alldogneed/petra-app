@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { isMcpAllowedUser } from "@/lib/mcp-allowlist";
+import { isPlatformAdmin } from "@/lib/permissions";
 
 /** DELETE /api/mcp/connections/[id] — revoke an MCP connection */
 export async function DELETE(
@@ -18,11 +19,20 @@ export async function DELETE(
 
     const conn = await prisma.mcpConnection.findFirst({
       where: { id: params.id, businessId: authResult.businessId },
-      select: { id: true, revokedAt: true },
+      select: { id: true, revokedAt: true, createdByUserId: true },
     });
 
     if (!conn) {
       return NextResponse.json({ error: "חיבור לא נמצא" }, { status: 404 });
+    }
+
+    // Owner / platform admin may revoke any connection of the business; other
+    // members only connections they minted themselves (legacy rows: owner only).
+    const { session, businessId } = authResult;
+    const isOwner = session.memberships.some((m) => m.businessId === businessId && m.isActive && m.role === "owner");
+    const isPlatformAdminUser = isPlatformAdmin(session.user.platformRole);
+    if (!isOwner && !isPlatformAdminUser && conn.createdByUserId !== session.user.id) {
+      return NextResponse.json({ error: "רק בעלי העסק או מי שיצר את החיבור יכולים לבטל אותו" }, { status: 403 });
     }
 
     if (conn.revokedAt) {

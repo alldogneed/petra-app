@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { formatRelativeTime, formatDate, copyToClipboard } from "@/lib/utils";
 import { useAuth } from "@/providers/auth-provider";
+import { usePermissions } from "@/hooks/usePermissions";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 
 // NOTE: these mirror MCP_PROFILE_LABELS in src/lib/mcp-auth.ts. That module imports
@@ -153,12 +154,17 @@ function GovernanceMeta({ conn }: { conn: McpConnection }) {
 
 export function McpConnectionsTab() {
   const queryClient = useQueryClient();
-  const { isManager } = useAuth();
+  const { user, isManager, isOwner } = useAuth();
+  const { canUseAiAssistant } = usePermissions();
+  // Mirrors the server gates: create = owner / manager with AI access / platform admin;
+  // revoke = owner / platform admin, or the member who created that connection.
+  const canCreate = isOwner || (isManager && canUseAiAssistant) || user?.isAdmin === true;
+  const canRevoke = (conn: McpConnection) => isOwner || user?.isAdmin === true || (!!conn.createdByUserId && conn.createdByUserId === user?.id);
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState("");
   const [newProfile, setNewProfile] = useState<McpProfile>("read");
   const [newToken, setNewToken] = useState<string | null>(null);
-  const [newConnectionId, setNewConnectionId] = useState<string | null>(null);
+  const [, setNewConnectionId] = useState<string | null>(null);
   const [confirmRevoke, setConfirmRevoke] = useState<string | null>(null);
   // Real app origin (preview/staging/prod) — resolved after mount to avoid SSR mismatch.
   const [appOrigin, setAppOrigin] = useState("https://petra-app.com");
@@ -199,13 +205,17 @@ export function McpConnectionsTab() {
 
   const revokeMutation = useMutation({
     mutationFn: (id: string) =>
-      fetch(`/api/mcp/connections/${id}`, { method: "DELETE" }).then((r) => r.json()),
+      fetch(`/api/mcp/connections/${id}`, { method: "DELETE" }).then(async (r) => {
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(d.error || "שגיאה בביטול חיבור");
+        return d;
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["mcp-connections"] });
       setConfirmRevoke(null);
       toast.success("החיבור בוטל בהצלחה");
     },
-    onError: () => toast.error("שגיאה בביטול חיבור"),
+    onError: (err: Error) => toast.error(err.message || "שגיאה בביטול חיבור"),
   });
 
   const submitCreate = () => {
@@ -233,8 +243,8 @@ export function McpConnectionsTab() {
           <div>
             <h3 className="font-semibold text-slate-800 text-base">חבר עוזר AI לעסק שלך</h3>
             <p className="text-slate-600 text-sm mt-1 leading-relaxed">
-              חבר את העסק שלך לעוזר AI כמו Claude או ChatGPT. תוכל לשאול "מי הלקוחות שלי השבוע?" או
-              "קבע פגישה לדני ביום שלישי" והוא יבצע את זה בשבילך.
+              חבר את העסק שלך לעוזר AI כמו Claude או ChatGPT. תוכל לשאול &quot;מי הלקוחות שלי השבוע?&quot; או
+              &quot;קבע פגישה לדני ביום שלישי&quot; והוא יבצע את זה בשבילך.
             </p>
             <Link
               href="/help/connect-ai"
@@ -354,7 +364,7 @@ export function McpConnectionsTab() {
       <div>
         <div className="flex items-center justify-between mb-3">
           <h4 className="font-semibold text-slate-700">חיבורים פעילים ({activeConnections.length})</h4>
-          {!showCreate && (
+          {!showCreate && canCreate && (
             <button
               onClick={() => setShowCreate(true)}
               className="btn-primary text-sm flex items-center gap-1.5"
@@ -498,7 +508,7 @@ export function McpConnectionsTab() {
                       <GovernanceMeta conn={conn} />
                     </div>
                   </div>
-                  {confirmRevoke === conn.id ? (
+                  {!canRevoke(conn) ? null : confirmRevoke === conn.id ? (
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-red-600">לבטל?</span>
                       <button
