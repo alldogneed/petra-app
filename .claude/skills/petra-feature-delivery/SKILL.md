@@ -84,10 +84,15 @@ LOWs; re-run tsc/jest/build/API QA. Patch with python scripts that `assert s.cou
 3. Open the PR (`mcp__github__create_pull_request`, body per repo conventions). **Merging to main =
    production deploy. The auto-mode classifier blocks deploy steps and prod reads unless the user
    explicitly approved them in this session — ask the user, quoting what will ship, then merge.**
-4. Wait for Vercel prod READY (`mcp__Vercel__list_deployments` projectId `prj_wzZjjUtcerJwTo0dUgbFtvaPlAyU`,
-   teamId `team_St4dFT8fDNopaeGXTwmXBg4d`, filter by sha).
-5. Live checks: unauthenticated probes of every new route (401/403, never 500); `get_runtime_errors` /
-   runtime logs for the new paths; with user-provided QA credentials (never stored in repo) run the UI
+4. Before merging, re-check `mergeable_state` (`mcp__github__pull_request_read get`): other sessions
+   merge to main constantly (it moved TWICE during PR #79). "dirty" → merge origin/main again, re-run
+   tsc + jest + build + API QA, push, wait for the preview status = success, then
+   `merge_pull_request` with `expectedHeadSha`.
+5. Wait for Vercel prod READY (`mcp__Vercel__list_deployments` projectId `prj_wzZjjUtcerJwTo0dUgbFtvaPlAyU`,
+   teamId `team_St4dFT8fDNopaeGXTwmXBg4d`, target production). PR #79: preview ~5 min, prod ~10 min.
+   Wait with a background `sleep N` Bash (foreground sleep is blocked), then re-check.
+6. Live checks: unauthenticated probes of every new route (401/403, never 500); `get_runtime_errors` /
+   runtime logs for the new deployment id (`get_runtime_logs` level ["error","fatal"]); with user-provided QA credentials (never stored in repo) run the UI
    script against `https://petra-app.com` on the QA business only.
 
 ## Phase 7 — Close out
@@ -96,6 +101,13 @@ what shipped, evidence (numbers), behaviour changes per role, what needs them (a
 checks), corrections to anything you said earlier.
 
 ## Gotchas (all hit in practice)
+- The auto-mode classifier blocks prod DB reads ("Production Reads") and anything heading to a deploy
+  ("Production Deploy" — even a `git fetch` + ancestry check right before the merge). Don't route
+  around it: open the PR, ask the user with AskUserQuestion (deploy approval + whether to do an
+  authenticated live test), then merge. `apply_migration` for additive DDL was allowed.
+- After a merged PR, follow-up work restarts the same branch from origin/main (`git checkout -B <branch> origin/main`).
+- Merge conflicts in a file another PR rewrote (e.g. analytics page in #78): take theirs, then
+  re-apply only your intent — and check whether it's still needed (the page had become owner-only).
 - `pkill -f "next …"` matches your own bash command line and kills the shell (exit 144) — kill by PID
   from `ps aux | grep next-server`.
 - Write/Edit tools turn `\u0000`-style escapes in regex literals into raw control bytes → TS1161.
