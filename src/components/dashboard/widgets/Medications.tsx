@@ -1,9 +1,6 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
-import Link from "next/link";
-import { PawPrint, ArrowLeft, Pill } from "lucide-react";
-
-
+import { DashCard, DashCardHeader, DashLink, DashRow } from "@/components/dashboard/dash-ui";
 
 // ─── Medications Widget ───────────────────────────────────────────────────────
 
@@ -21,44 +18,30 @@ export function MedicationsWidget() {
   if (pets.length === 0) return null;
 
   return (
-    <div className="card p-5">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-base font-bold text-petra-text flex items-center gap-2">
-          <Pill className="w-4 h-4 text-violet-500" />
-          תרופות – חיות בפנסיון
-        </h2>
-        <Link
-          href="/medications"
-          className="text-xs font-medium text-brand-500 hover:text-brand-600 flex items-center gap-1"
-        >
-          לוח מלא
-          <ArrowLeft className="w-3 h-3" />
-        </Link>
-      </div>
-      <div className="space-y-2">
-        {pets.slice(0, 5).map((p) => (
-          <div key={p.petName + p.customerName} className="flex items-center justify-between gap-2 py-2 border-b last:border-0">
-            <div className="flex items-center gap-2 min-w-0">
-              <PawPrint className="w-3.5 h-3.5 text-brand-400 flex-shrink-0" />
-              <span className="text-sm font-medium text-petra-text truncate">{p.petName}</span>
-              <span className="text-xs text-petra-muted truncate">({p.customerName})</span>
-            </div>
-            <div className="flex gap-1 flex-wrap justify-end">
-              {p.medications.slice(0, 2).map((m) => (
-                <span key={m.medName} className="badge badge-neutral text-[10px] truncate max-w-[100px]">{m.medName}</span>
-              ))}
-              {p.medications.length > 2 && (
-                <span className="badge badge-neutral text-[10px]">+{p.medications.length - 2}</span>
-              )}
-            </div>
-          </div>
-        ))}
-        {pets.length > 5 && (
-          <p className="text-xs text-petra-muted text-center pt-1">
-            ועוד {pets.length - 5} חיות נוספות
-          </p>
-        )}
-      </div>
-    </div>
+    <DashCard>
+      <DashCardHeader
+        title="תרופות – חיות בפנסיון"
+        actions={<DashLink href="/medications">לוח מלא</DashLink>}
+      />
+      {pets.slice(0, 5).map((p) => (
+        <DashRow key={p.petName + p.customerName} className="justify-between">
+          <span className="text-sm font-medium text-slate-900 truncate min-w-0">
+            {p.petName}
+            {p.customerName && <span className="font-normal text-xs text-slate-500"> · {p.customerName}</span>}
+          </span>
+          <span
+            className="text-xs text-slate-600 text-left truncate min-w-0 max-w-[50%]"
+            title={p.medications.map((m) => m.medName).join(", ")}
+          >
+            {p.medications.map((m) => m.medName).join(", ")}
+          </span>
+        </DashRow>
+      ))}
+      {pets.length > 5 && (
+        <p className="m-0 py-2.5 border-t border-slate-100 text-xs text-slate-500">
+          ועוד {pets.length - 5} חיות נוספות
+        </p>
+      )}
+    </DashCard>
   );
 }

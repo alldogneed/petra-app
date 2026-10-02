@@ -1,10 +1,17 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { Clock, ArrowLeft, Flame, Check } from "lucide-react";
-import { isToday, isPast, differenceInMinutes, format, startOfDay } from "date-fns";
+import { isToday, isPast, isYesterday, differenceInMinutes, format, startOfDay } from "date-fns";
 import { cn } from "@/lib/utils";
-import { DashboardStats } from "@/components/dashboard/dashboard-shared";
+import { DashboardStats, TASK_CATEGORY_LABELS } from "@/components/dashboard/dashboard-shared";
+import {
+  DashCard,
+  DashCardHeader,
+  DashLink,
+  Segmented,
+  TaskCheckbox,
+  PriorityDot,
+} from "@/components/dashboard/dash-ui";
 
 
 // ─── Daily Focus Task Status Logic ───────────────────────────────────────────
@@ -34,10 +41,21 @@ export function formatFocusTime(task: { dueAt: string | null; dueDate: string | 
   return "כל היום";
 }
 
-const FOCUS_CONFIG: Record<FocusStatus, { label: string; color: string; bg: string; border: string }> = {
-  active: { label: "עכשיו", color: "#16A34A", bg: "#F0FDF4", border: "#BBF7D0" },
-  overdue: { label: "באיחור", color: "#DC2626", bg: "#FEF2F2", border: "#FECACA" },
-};
+/** Time text per the design: overdue → "באיחור · 09:00" / "באיחור · אתמול" / "באיחור · 28/09". */
+function focusTimeLabel(task: { dueAt: string | null; dueDate: string | null }, status: FocusStatus): string {
+  if (status !== "overdue") return formatFocusTime(task);
+  const ref = task.dueAt ?? task.dueDate;
+  if (!ref) return "באיחור";
+  const d = new Date(ref);
+  const when = task.dueAt && isToday(d)
+    ? format(d, "HH:mm")
+    : isYesterday(d)
+      ? "אתמול"
+      : format(d, "dd/MM");
+  return `באיחור · ${when}`;
+}
+
+type FocusFilter = "all" | "overdue" | "today";
 
 export function DailyFocusSection({ todayTasks, overdueTasks, onComplete }: {
   todayTasks: DashboardStats["todayTasks"];
@@ -45,10 +63,16 @@ export function DailyFocusSection({ todayTasks, overdueTasks, onComplete }: {
   onComplete: (taskId: string) => void;
 }) {
   const [completingIds, setCompletingIds] = useState<Set<string>>(new Set());
-  const [focusFilter, setFocusFilter] = useState<"overdue" | "today" | null>(null);
+  const [focusFilterState, setFocusFilter] = useState<"overdue" | "today" | null>(null);
+  // A filter whose bucket emptied (e.g. all overdue tasks completed) falls back to "all"
+  // so the card never disappears while the other bucket still has tasks.
+  const focusFilter =
+    (focusFilterState === "overdue" && overdueTasks.length === 0) || (focusFilterState === "today" && todayTasks.length === 0)
+      ? null
+      : focusFilterState;
   const allFocusTasks = focusFilter === "overdue" ? overdueTasks : focusFilter === "today" ? todayTasks : [...overdueTasks, ...todayTasks];
-  const visibleTasks = allFocusTasks.filter((t) => !completingIds.has(t.id));
-  if (visibleTasks.length === 0 && allFocusTasks.length === 0) return null;
+  const totalCount = overdueTasks.length + todayTasks.length;
+  if (allFocusTasks.length === 0) return null;
 
   const handleComplete = (taskId: string) => {
     setCompletingIds((prev) => new Set(prev).add(taskId));
@@ -56,128 +80,68 @@ export function DailyFocusSection({ todayTasks, overdueTasks, onComplete }: {
     setTimeout(() => onComplete(taskId), 350);
   };
 
-  return (
-    <div className="card overflow-hidden"
-      style={{ borderTop: "3px solid #F97316" }}
-    >
-      <div className="px-6 pt-5 pb-4 flex items-start justify-between border-b border-slate-100">
-        <div>
-          <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-orange-700">
-            <Flame className="w-3.5 h-3.5" />
-            <span>מיקוד יומי</span>
-          </div>
-          <h2 className="mt-2 text-base font-bold text-petra-text leading-tight">
-            {allFocusTasks.length} {allFocusTasks.length === 1 ? "משימה" : "משימות"} מחכות
-          </h2>
-          <p className="mt-1 text-[12px] text-petra-muted flex items-center gap-1.5">
-            {overdueTasks.length > 0 && (
-              <button
-                onClick={() => setFocusFilter(focusFilter === "overdue" ? null : "overdue")}
-                className={cn("font-medium transition-colors", focusFilter === "overdue" ? "text-red-600 underline" : "text-red-500 hover:text-red-600")}
-              >
-                {overdueTasks.length} באיחור
-              </button>
-            )}
-            {overdueTasks.length > 0 && todayTasks.length > 0 && <span className="text-slate-300">·</span>}
-            {todayTasks.length > 0 && (
-              <button
-                onClick={() => setFocusFilter(focusFilter === "today" ? null : "today")}
-                className={cn("transition-colors", focusFilter === "today" ? "text-blue-600 underline" : "hover:text-petra-text")}
-              >
-                {todayTasks.length} להיום
-              </button>
-            )}
-            {focusFilter && <button onClick={() => setFocusFilter(null)} className="text-slate-400 hover:text-slate-600 mr-1">× הכל</button>}
-          </p>
-        </div>
-        <Link
-          href={focusFilter === "overdue" ? "/tasks?filter=overdue" : "/tasks"}
-          className="text-xs font-medium text-brand-500 hover:text-brand-600 flex items-center gap-1 mt-1"
-        >
-          כל המשימות
-          <ArrowLeft className="w-3 h-3" />
-        </Link>
-      </div>
+  const options: { key: FocusFilter; label: React.ReactNode }[] = [{ key: "all", label: "הכל" }];
+  if (overdueTasks.length > 0) options.push({ key: "overdue", label: `${overdueTasks.length} באיחור` });
+  if (todayTasks.length > 0) options.push({ key: "today", label: `${todayTasks.length} להיום` });
 
-      <div className="divide-y divide-slate-50">
-        {allFocusTasks.slice(0, 5).map((task) => {
-          const isCompleting = completingIds.has(task.id);
-          const focusStatus = computeFocusStatus(task);
-          const config = FOCUS_CONFIG[focusStatus];
-          const timeStr = formatFocusTime(task);
-          return (
-            <div
-              key={task.id}
+  return (
+    <DashCard>
+      <DashCardHeader
+        title="מיקוד יומי"
+        subtitle={`${totalCount} ${totalCount === 1 ? "משימה מחכה" : "משימות מחכות"}`}
+        actions={
+          <>
+            <Segmented<FocusFilter>
+              options={options}
+              value={focusFilter ?? "all"}
+              onChange={(k) => setFocusFilter(k === "all" ? null : k)}
+            />
+            <DashLink href={focusFilter === "overdue" ? "/tasks?filter=overdue" : "/tasks"}>כל המשימות</DashLink>
+          </>
+        }
+      />
+
+      {allFocusTasks.slice(0, 5).map((task) => {
+        const isCompleting = completingIds.has(task.id);
+        const focusStatus = computeFocusStatus(task);
+        const overdue = focusStatus === "overdue";
+        const category = TASK_CATEGORY_LABELS[task.category] ?? null;
+        return (
+          <div
+            key={task.id}
+            className={cn(
+              "flex items-center gap-3 py-[11px] border-t border-slate-100 max-h-20 transition-all duration-300",
+              isCompleting && "opacity-0 max-h-0 py-0 overflow-hidden"
+            )}
+          >
+            <TaskCheckbox onClick={() => handleComplete(task.id)} completing={isCompleting} />
+            <PriorityDot priority={task.priority} />
+            <Link
+              href={`/tasks?task=${task.id}`}
               className={cn(
-                "px-5 py-3 flex items-center gap-3 transition-all duration-300",
-                focusStatus === "overdue" ? "bg-red-50/30" : "hover:bg-slate-50/50",
-                isCompleting && "opacity-0 max-h-0 py-0 overflow-hidden"
+                "flex-1 min-w-0 truncate text-sm font-medium text-slate-900 hover:text-orange-600 transition-colors",
+                isCompleting && "line-through text-slate-400"
               )}
             >
-              {/* Complete checkbox */}
-              <button
-                onClick={() => handleComplete(task.id)}
-                disabled={isCompleting}
-                className={cn(
-                  "w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all duration-200",
-                  isCompleting
-                    ? "bg-green-500 border-green-500"
-                    : "border-slate-300 hover:border-green-500 hover:bg-green-50"
-                )}
-                title="סמן כבוצע"
-              >
-                {isCompleting && <Check className="w-3 h-3 text-white" />}
-              </button>
-
-              {/* Title — opens the task */}
-              <Link
-                href={`/tasks?task=${task.id}`}
-                className={cn(
-                  "text-sm font-medium text-petra-text flex-1 truncate transition-all duration-200 hover:text-brand-600",
-                  isCompleting && "line-through text-petra-muted"
-                )}
-              >
-                {task.title}
-              </Link>
-
-              {/* Time */}
-              <span
-                className="text-[10px] font-medium flex items-center gap-0.5 px-1.5 py-0.5 rounded flex-shrink-0"
-                style={{ color: config.color, background: config.bg }}
-              >
-                <Clock className="w-3 h-3" />
-                {timeStr}
-              </span>
-
-              {/* Status badge */}
-              <span
-                className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex-shrink-0"
-                style={{ color: config.color, background: config.bg, border: `1px solid ${config.border}` }}
-              >
-                {config.label}
-              </span>
-
-              {/* Priority */}
-              <div
-                className="w-2 h-2 rounded-full flex-shrink-0"
-                style={{
-                  background:
-                    task.priority === "URGENT" ? "#DC2626" :
-                      task.priority === "HIGH" ? "#EF4444" :
-                        task.priority === "MEDIUM" ? "#F59E0B" : "#94A3B8",
-                }}
-              />
-            </div>
-          );
-        })}
-        {allFocusTasks.length > 5 && (
-          <div className="px-5 py-2.5 border-t border-slate-100">
-            <Link href="/tasks" className="text-xs text-brand-500 hover:text-brand-600 font-medium">
-              הצג {allFocusTasks.length - 5} נוספות ←
+              {task.title}
             </Link>
+            {category && <span className="text-xs text-slate-500 flex-shrink-0">{category}</span>}
+            <span
+              className={cn(
+                "text-xs font-medium flex-shrink-0 min-w-[64px] text-left tabular-nums whitespace-nowrap",
+                overdue ? "text-red-700" : "text-slate-500"
+              )}
+            >
+              {focusTimeLabel(task, focusStatus)}
+            </span>
           </div>
-        )}
-      </div>
-    </div>
+        );
+      })}
+      {allFocusTasks.length > 5 && (
+        <div className="py-2.5 border-t border-slate-100">
+          <DashLink href="/tasks">הצג {allFocusTasks.length - 5} נוספות</DashLink>
+        </div>
+      )}
+    </DashCard>
   );
 }

@@ -1,11 +1,10 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
-import { MessageCircle, Zap } from "lucide-react";
 import { usePlan } from "@/hooks/usePlan";
-import { cn, toWhatsAppPhone } from "@/lib/utils";
+import { toWhatsAppPhone } from "@/lib/utils";
 import { DashboardStats } from "@/components/dashboard/dashboard-shared";
-
+import { DashCard, DashCardHeader, DashLink, MiniButton, SentMark, WaTextButton } from "@/components/dashboard/dash-ui";
 
 // ─── Tomorrow Reminders Widget ───────────────────────────────────────────────
 
@@ -45,89 +44,71 @@ export function TomorrowReminders({
   }
 
   return (
-    <div className="card p-5 mb-6">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", canWhatsApp ? "bg-green-50" : "bg-amber-50")}>
-            <MessageCircle className={cn("w-4 h-4", canWhatsApp ? "text-green-600" : "text-amber-600")} />
-          </div>
-          <div>
-            <h2 className="text-base font-bold text-petra-text">{canWhatsApp ? "תזכורות למחר" : "תורים מחר"}</h2>
-            <p className="text-xs text-petra-muted">
-              {canWhatsApp ? `${appointments.length} תורים מתוכננים` : `${appointments.length} תורים — זכור ליצור קשר עם הלקוחות`}
-            </p>
-          </div>
-        </div>
-        {canWhatsApp && withPhone.length > 1 && (
-          <button
-            onClick={sendAll}
-            className="btn-secondary text-xs flex items-center gap-1.5"
-          >
-            <MessageCircle className="w-3.5 h-3.5 text-green-600" />
-            שלח הכל ({withPhone.length})
-          </button>
-        )}
-        {!canWhatsApp && (
-          <Link href="/upgrade" className="text-xs text-brand-500 hover:text-brand-600 flex items-center gap-1 flex-shrink-0">
-            <Zap className="w-3 h-3" />
-            שדרג לשליחת WhatsApp
-          </Link>
-        )}
-      </div>
+    <DashCard>
+      <DashCardHeader
+        title={canWhatsApp ? "תזכורות למחר" : "תורים מחר"}
+        subtitle={
+          canWhatsApp
+            ? `${appointments.length} תורים מתוכננים`
+            : `${appointments.length} תורים — זכור ליצור קשר עם הלקוחות`
+        }
+        actions={
+          canWhatsApp ? (
+            withPhone.length > 1 ? (
+              <MiniButton onClick={sendAll}>שלח הכל ({withPhone.length})</MiniButton>
+            ) : undefined
+          ) : (
+            <DashLink href="/upgrade">שדרג לשליחת WhatsApp</DashLink>
+          )
+        }
+      />
 
-      <div className="space-y-2">
-        {appointments.map((a) => {
-          const hasSent = sent.has(a.id);
-          return (
-            <div
-              key={a.id}
-              className={cn(
-                "flex items-center gap-3 p-3 rounded-xl transition-colors",
-                hasSent ? "bg-green-50" : "bg-slate-50 hover:bg-slate-100"
-              )}
+      {appointments.map((a) => {
+        const hasSent = sent.has(a.id);
+        const detail = [a.petName, a.serviceName].filter(Boolean).join(" · ");
+        return (
+          <div
+            key={a.id}
+            className="grid grid-cols-[48px_minmax(0,1fr)_auto] gap-3 items-center py-[11px] border-t border-slate-100"
+          >
+            <span className="text-sm font-semibold text-slate-900 tabular-nums">{a.startTime}</span>
+            <Link
+              href={`/customers/${a.customerId}`}
+              className="flex flex-col gap-0.5 min-w-0 text-slate-900 hover:text-orange-600"
             >
-              <div className="w-10 h-10 rounded-xl bg-white border border-petra-border flex flex-col items-center justify-center flex-shrink-0">
-                <span className="text-[10px] text-petra-muted leading-none">מחר</span>
-                <span className="text-sm font-bold text-petra-text leading-tight">{a.startTime}</span>
-              </div>
-              <Link href={`/customers/${a.customerId}`} className="flex-1 min-w-0 hover:text-brand-600">
-                <p className="text-sm font-semibold text-petra-text truncate">{a.customerName}</p>
-                <p className="text-xs text-petra-muted truncate">
-                  {a.petName ? `${a.petName} • ` : ""}{a.serviceName}
-                </p>
-              </Link>
-              {canWhatsApp ? (
-                a.customerPhone ? (
-                  <button
-                    onClick={() => sendOne(a)}
-                    className={cn(
-                      "flex-shrink-0 inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors",
-                      hasSent
-                        ? "bg-green-100 text-green-700 cursor-default"
-                        : "bg-green-50 text-green-700 hover:bg-green-100 border border-green-200"
-                    )}
-                  >
-                    <MessageCircle className="w-3.5 h-3.5" />
-                    {hasSent ? "נשלח ✓" : "שלח"}
-                  </button>
+              <span className="text-sm font-medium truncate">{a.customerName}</span>
+              {detail && <span className="text-xs text-slate-500 truncate">{detail}</span>}
+            </Link>
+            {canWhatsApp ? (
+              a.customerPhone ? (
+                hasSent ? (
+                  <SentMark />
                 ) : (
-                  <span className="text-[10px] text-petra-muted">אין טלפון</span>
+                  <WaTextButton onClick={() => sendOne(a)} title="שלח תזכורת בוואטסאפ">
+                    שלח
+                  </WaTextButton>
                 )
               ) : (
-                <span className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-100 flex-shrink-0">
-                  📞 {a.customerPhone || "אין טלפון"}
-                </span>
-              )}
-            </div>
-          );
-        })}
-      </div>
+                <span className="text-xs text-slate-500 whitespace-nowrap">אין טלפון</span>
+              )
+            ) : (
+              <span className="text-xs text-slate-500 whitespace-nowrap tabular-nums [unicode-bidi:plaintext]">
+                {a.customerPhone || "אין טלפון"}
+              </span>
+            )}
+          </div>
+        );
+      })}
 
       {!canWhatsApp && (
-        <p className="mt-3 text-[11px] text-petra-muted text-center">
-          שדרג ל<Link href="/upgrade" className="text-brand-500 hover:underline">פרו</Link> כדי לשלוח תזכורות WhatsApp אוטומטיות
+        <p className="m-0 pt-3 pb-1 text-xs text-slate-500">
+          שדרג ל
+          <Link href="/upgrade" className="text-orange-600 hover:text-orange-700 hover:underline">
+            פרו
+          </Link>{" "}
+          כדי לשלוח תזכורות WhatsApp אוטומטיות
         </p>
       )}
-    </div>
+    </DashCard>
   );
 }

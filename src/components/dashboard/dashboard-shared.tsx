@@ -201,6 +201,16 @@ export const ORDER_STATUS_BADGE: Record<string, string> = {
   cancelled: "badge-danger",
 };
 
+/** Order status text colours (new dashboard design — status as coloured text, no pill). */
+export const ORDER_STATUS_COLOR: Record<string, string> = {
+  draft: "#64748B",
+  confirmed: "#C2410C",
+  in_progress: "#1D4ED8",
+  completed: "#047857",
+  cancelled: "#B91C1C",
+  canceled: "#B91C1C",
+};
+
 export const ORDER_STATUS_LABEL: Record<string, string> = {
   draft: "טיוטה",
   confirmed: "מאושר",
