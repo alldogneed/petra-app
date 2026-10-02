@@ -193,6 +193,13 @@ Tabs live in `src/components/business-admin/*` (page.tsx = shell + TABS only): �
 ### 34. Permission matrix is enforced server-side — use overrides
 Every check of a `CRITICAL_CAPABILITIES` permission must honour `BusinessUser.permissionOverrides`: `requireBusinessPermission(...)` or `sessionHasTenantPermission(session, businessId, PERM)` (`src/lib/permissions.ts`). Never `hasTenantPermission(role, PERM)` without overrides in a route. Gates: DATA_EXPORT (all export routes), MESSAGES_SEND (customer sends), PRICING_WRITE (pricing/price-lists/services mutations), PAYMENTS_WRITE (payment links, invoicing issue/credit), BOARDING_MANAGE (room/yard structure; status-only PATCH stays open), SETTINGS_CRITICAL (settings PATCH, lead webhook key), CRITICAL_DELETE (deletes; managers → pending approval). UI hides the matching buttons via `usePermissions()`. Member PATCH invalidates the session cache and revokes the member's `McpConnection`s when they lose AI access. Pending-approval executors read ids via `payloadId()` (throws on missing — an undefined Prisma filter = cross-tenant wipe).
 
+### 35. Settings screen — tab config, shared save hook, read-only mode
+`src/app/(dashboard)/settings/page.tsx` is only the shell; each tab is a file in `src/components/settings/`.
+- **Tabs** come ONLY from `SETTINGS_TABS` in `src/components/settings/settings-tabs.ts` (id = `?tab=` value, label, group, `feature` from `feature-flags.ts` or `paidOnly`, `visibility`). The nav lock icon and the `PaywallCard` both use `isTabLocked()` — never hardcode tier sets in the page. Tab ids are linked app-wide: never rename one; add an alias in `TAB_ALIASES` instead. The URL is the source of truth (refresh/back/deep links); `?gcal=` opens integrations.
+- **Business-column forms** use `useBusinessSettings({ dirtyKey })` (`src/hooks/useBusinessSettings.ts`): draft of touched fields → PATCH `/api/settings` with ONLY the changed fields, `SettingsSaveBar` (`settings-ui.tsx`) for save/discard. Custom forms register with `useRegisterDirty(key, dirty)` — the shell then confirms before switching tab / following a link / reload.
+- **Read-only:** PATCH `/api/settings`, `/api/settings/logo` and `/api/service-dogs/vaccinations/apply-schedule` require `SETTINGS_CRITICAL` (owner, or an owner-granted override). UI: `usePermissions().canCriticalSettings` false → `<ReadOnlyNotice/>` + `<SettingsFieldset readOnly>`.
+- Logo upload AND removal save immediately (no save bar). `POST /api/subscription/cancel` is owner-only and logs `CANCEL_SUBSCRIPTION`. Use `ConfirmDialog` (`src/components/ui/ConfirmDialog.tsx`) — no `window.confirm` in settings; every disconnect/delete/regenerate asks first.
+
 ---
 
 ## MCP Server
@@ -357,7 +364,7 @@ import { env, isDev, isProd } from "@/lib/env";
 | Onboarding progress API | `GET /api/onboarding/progress` — smart live detection: step1=business.phone set, step2=service.count>0, step3=customer.count>0, step4=appointment.count>0, step5=order.count>0, step6=contractTemplate.count>0, step7=whatsappRemindersEnabled. `PATCH` updates `skipped`/`completedAt`/`stepCompleted1-4`. |
 | Onboarding DB models | `OnboardingProfile` (businessType, activeClientsRange, primaryGoal) + `OnboardingProgress` (currentStep, stepCompleted1-4, skipped, completedAt, lastCustomerId) — both keyed on `userId`. |
 | Onboarding guard | `src/components/onboarding/OnboardingGuard.tsx` — wraps dashboard layout; redirects brand-new users (no progress record) to `/dashboard`; allows through once `skipped` or `completedAt` set. |
-| Settings tabs | "פרטי העסק" (business info only) · "הזמנות" (AvailabilityTab + online booking, PRO+) · "פנסיון" (boarding settings, BASIC+) · "תשלומים" (InvoicingTab + ContractsTab, BASIC+) · "צוות" · "הודעות" · "אינטגרציות" · "כלבי שירות" · "נתונים" |
+| Settings tabs | `SETTINGS_TABS` (rule #35), 5 groups: העסק (פרטי העסק · מנוי וחיוב) · תפעול (זמינות והזמנות `online_bookings` · פנסיון `boarding` · כלבי שירות · חוזים `contracts`) · תקשורת וצוות (הודעות ואוטומציות · צוות והרשאות, owner) · חיבורים ונתונים (אינטגרציות · עוזרי AI · ייבוא וייצוא) · החשבון שלי (פרופיל ואבטחה: name, password, 2FA, sessions) |
 | MCP endpoint | `POST /api/mcp` — Streamable HTTP, stateless, SHA-256 bearer auth |
 | MCP token management | `POST/GET/DELETE /api/mcp/connections` — create (shown once), list, revoke |
 | MCP auth lib | `src/lib/mcp-auth.ts` — `generateMcpToken()`, `validateMcpToken()`, `auditLog()`, `DEFAULT_MCP_SCOPES` |

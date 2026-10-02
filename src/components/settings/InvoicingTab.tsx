@@ -5,6 +5,7 @@ import { Plug, Loader2, XCircle, CheckCircle, FileText, Settings2, X } from "luc
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { cn, fetchJSON, formatRelativeTime } from "@/lib/utils";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 // ─── Invoicing Tab ──────────────────────────────────────────────────────────
 
@@ -12,6 +13,7 @@ export function InvoicingTab() {
   const queryClient = useQueryClient();
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [showMappingModal, setShowMappingModal] = useState(false);
+  const [confirmDisconnect, setConfirmDisconnect] = useState(false);
 
   const { data: settings, isLoading } = useQuery<{
     providerName: string;
@@ -53,6 +55,7 @@ export function InvoicingTab() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["invoicing-settings"] });
       queryClient.invalidateQueries({ queryKey: ["integrations"] });
+      setConfirmDisconnect(false);
       toast.success("מערכת החשבוניות נותקה");
     },
     onError: () => toast.error("שגיאה בניתוק. נסה שוב."),
@@ -117,7 +120,7 @@ export function InvoicingTab() {
               <>
                 <button
                   className="btn-ghost text-sm text-red-500 hover:text-red-600 hover:bg-red-50"
-                  onClick={() => disconnectMutation.mutate()}
+                  onClick={() => setConfirmDisconnect(true)}
                   disabled={disconnectMutation.isPending}
                 >
                   {disconnectMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "נתק"}
@@ -153,7 +156,7 @@ export function InvoicingTab() {
             </button>
           </div>
           {mappingEntries.length > 0 ? (
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {mappingEntries.map((entry) => (
                 <div key={entry.method} className="flex items-center justify-between px-3 py-2 bg-slate-50 rounded-lg">
                   <span className="text-sm text-petra-text">{entry.label}</span>
@@ -210,6 +213,17 @@ export function InvoicingTab() {
           </button>
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmDisconnect}
+        title="לנתק את מערכת החשבוניות?"
+        description="הפקת חשבוניות וקבלות אוטומטית תיפסק עד לחיבור מחדש. מסמכים שכבר הופקו לא יימחקו."
+        confirmLabel="נתק"
+        danger
+        loading={disconnectMutation.isPending}
+        onConfirm={() => disconnectMutation.mutate()}
+        onCancel={() => setConfirmDisconnect(false)}
+      />
 
       {showConnectModal && (
         <InvoicingConnectModal

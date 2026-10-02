@@ -1,7 +1,7 @@
 "use client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import React, { useState } from "react";
-import { CheckCircle2, Zap, Plug, Calendar, MessageCircle, Mail, ExternalLink, Loader2, XCircle, CheckCircle, AlertCircle, FileText, Info, Settings2, X, Eye, EyeOff, Copy, CreditCard, RefreshCw, Repeat } from "lucide-react";
+import { CheckCircle2, Zap, Plug, Calendar, MessageCircle, Mail, ExternalLink, Loader2, XCircle, CheckCircle, AlertCircle, FileText, Settings2, X, Eye, EyeOff, Copy, CreditCard, RefreshCw, Repeat } from "lucide-react";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { useSearchParams } from "next/navigation";
 import { cn, fetchJSON, copyToClipboard } from "@/lib/utils";
@@ -12,7 +12,28 @@ import { PaywallCard } from "@/components/paywall/PaywallCard";
 import { WhatsAppConnectCard } from "@/components/settings/WhatsAppConnectCard";
 import { Business } from "./shared";
 import { InvoicingConnectModal, InvoicingMappingModal } from "./InvoicingTab";
+import { usePermissions } from "@/hooks/usePermissions";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { ReadOnlyNotice, SettingsFieldset } from "./settings-ui";
+import { BUSINESS_SETTINGS_QUERY_KEY } from "@/hooks/useBusinessSettings";
 const RepeatIcon = Repeat;
+
+type DisconnectTarget = "gcal" | "stripe" | "invoicing";
+
+const DISCONNECT_COPY: Record<DisconnectTarget, { title: string; description: string }> = {
+  gcal: {
+    title: "לנתק את Google Calendar?",
+    description: "פגישות חדשות לא יסונכרנו יותר ליומן Google שלך. אירועים שכבר סונכרנו יישארו ביומן Google. אפשר לחבר מחדש בכל עת.",
+  },
+  stripe: {
+    title: "לנתק את Stripe?",
+    description: "מפתחות Stripe יימחקו מהעסק וקישורי תשלום בכרטיס אשראי יפסיקו לעבוד עד לחיבור מחדש.",
+  },
+  invoicing: {
+    title: "לנתק את מערכת החשבוניות?",
+    description: "הפקת חשבוניות וקבלות אוטומטית תיפסק עד לחיבור מחדש. מסמכים שכבר הופקו לא יימחקו.",
+  },
+};
 
 // ─── Integrations Tab ────────────────────────────────────────────────────────
 
@@ -47,6 +68,12 @@ export function IntegrationsTab() {
   const searchParams = useSearchParams();
   const { can } = usePlan();
   const { user } = useAuth();
+  const perms = usePermissions();
+  // PATCH /api/settings + lead-webhook key → SETTINGS_CRITICAL (owner, or member granted it).
+  const canCriticalSettings = perms.canCriticalSettings;
+  // Invoicing credentials (SETTINGS_WRITE), WhatsApp test → owner/manager (or platform admin).
+  const canManageIntegrations = perms.isOwner || perms.isManager || user?.isAdmin === true;
+  const [confirmDisconnect, setConfirmDisconnect] = useState<DisconnectTarget | null>(null);
   const gcalStatus = searchParams.get("gcal");
   const [showInvoicingModal, setShowInvoicingModal] = useState(false);
   const [showMappingModal, setShowMappingModal] = useState(false);
@@ -59,12 +86,13 @@ export function IntegrationsTab() {
   });
 
   const { data: biz } = useQuery<Business>({
-    queryKey: ["settings"],
+    queryKey: BUSINESS_SETTINGS_QUERY_KEY,
     queryFn: () => fetchJSON<Business>("/api/settings"),
   });
 
   const updateReminderMutation = useMutation({
     mutationFn: async (data: { whatsappRemindersEnabled?: boolean; whatsappReminderLeadHours?: number }) => {
+      if (!canCriticalSettings) throw new Error("אין לך הרשאה לשנות הגדרות עסק");
       const r = await fetch("/api/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -80,8 +108,8 @@ export function IntegrationsTab() {
       // Write the new value straight into the cache so the toggle reflects it
       // immediately and doesn't depend on a refetch (which previously returned
       // a stale HTTP-cached value and made the toggle snap back).
-      queryClient.setQueryData<Business>(["settings"], (old) => old ? { ...old, ...vars } : old);
-      queryClient.invalidateQueries({ queryKey: ["settings"] });
+      queryClient.setQueryData<Business>(BUSINESS_SETTINGS_QUERY_KEY, (old) => old ? { ...old, ...vars } : old);
+      queryClient.invalidateQueries({ queryKey: BUSINESS_SETTINGS_QUERY_KEY });
       toast.success("הגדרות תזכורת עודכנו");
     },
     onError: (e: Error) => toast.error(e.message || "שגיאה בשמירה"),
@@ -95,6 +123,8 @@ export function IntegrationsTab() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["integrations"] });
+      queryClient.removeQueries({ queryKey: ["gcal-calendar-list"] });
+      setConfirmDisconnect(null);
       toast.success("Google Calendar נותק בהצלחה");
     },
     onError: () => toast.error("שגיאה בניתוק Google Calendar. נסה שוב."),
@@ -132,7 +162,10 @@ export function IntegrationsTab() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ calendars }),
-      }).then((r) => r.json()),
+      }).then((r) => {
+        if (!r.ok) throw new Error("save failed");
+        return r.json();
+      }),
     onSuccess: () => toast.success("יומנים לתצוגה עודכנו"),
     onError: () => toast.error("שגיאה בשמירת הגדרות יומן"),
   });
@@ -145,6 +178,7 @@ export function IntegrationsTab() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["integrations"] });
+      setConfirmDisconnect(null);
       toast.success("מערכת החשבוניות נותקה");
     },
     onError: () => toast.error("שגיאה בניתוק מערכת החשבוניות. נסה שוב."),
@@ -158,12 +192,21 @@ export function IntegrationsTab() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["integrations"] });
+      setConfirmDisconnect(null);
       toast.success("Stripe נותק");
     },
     onError: () => toast.error("שגיאה בניתוק Stripe. נסה שוב."),
   });
 
   if (isLoading) return <PetraLoader />;
+
+  const disconnectPending =
+    disconnectGcalMutation.isPending || disconnectStripeMutation.isPending || disconnectInvoicingMutation.isPending;
+  const runDisconnect = () => {
+    if (confirmDisconnect === "gcal") disconnectGcalMutation.mutate();
+    else if (confirmDisconnect === "stripe") disconnectStripeMutation.mutate();
+    else if (confirmDisconnect === "invoicing") disconnectInvoicingMutation.mutate();
+  };
 
   return (
     <div className="space-y-4 max-w-2xl">
@@ -275,6 +318,8 @@ export function IntegrationsTab() {
               )}
               {isWhatsApp && integ.connected && biz && can("whatsapp_reminders") && (
                 <div className="mt-3 pt-3 border-t border-slate-100 space-y-2">
+                  {!canCriticalSettings && <ReadOnlyNotice className="text-xs px-3 py-2" />}
+                  <SettingsFieldset readOnly={!canCriticalSettings} className="space-y-2">
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-sm text-petra-text">תזכורות אוטומטיות לתורים</span>
                     {(() => {
@@ -284,7 +329,10 @@ export function IntegrationsTab() {
                       return (
                         <button
                           onClick={() => updateReminderMutation.mutate({ whatsappRemindersEnabled: !biz.whatsappRemindersEnabled })}
-                          disabled={updateReminderMutation.isPending}
+                          disabled={updateReminderMutation.isPending || !canCriticalSettings}
+                          role="switch"
+                          aria-checked={!!optimisticEnabled}
+                          aria-label="תזכורות אוטומטיות לתורים"
                           className={cn(
                             "relative inline-flex h-5 w-9 items-center rounded-full transition-colors flex-shrink-0",
                             optimisticEnabled ? "bg-emerald-500" : "bg-slate-300"
@@ -303,7 +351,8 @@ export function IntegrationsTab() {
                         className="text-sm border border-slate-200 rounded-lg px-2 py-1 bg-white text-petra-text"
                         value={biz.whatsappReminderLeadHours}
                         onChange={(e) => updateReminderMutation.mutate({ whatsappReminderLeadHours: Number(e.target.value) })}
-                        disabled={updateReminderMutation.isPending}
+                        disabled={updateReminderMutation.isPending || !canCriticalSettings}
+                        aria-label="שלח שעות לפני התור"
                       >
                         <option value={24}>24 שעות</option>
                         <option value={48}>48 שעות</option>
@@ -312,12 +361,15 @@ export function IntegrationsTab() {
                       </select>
                     </div>
                   )}
+                  </SettingsFieldset>
                 </div>
               )}
             </div>
-            <div className="flex-shrink-0 flex items-center gap-2">
+            <div className="flex-shrink-0 flex items-center gap-2 flex-wrap justify-end">
               {isStripe ? (
-                integ.connected ? (
+                !canCriticalSettings ? (
+                  <span className="text-xs text-petra-muted">בעלים בלבד</span>
+                ) : integ.connected ? (
                   <>
                     <button
                       className="btn-ghost text-sm flex items-center gap-1.5"
@@ -328,7 +380,7 @@ export function IntegrationsTab() {
                     </button>
                     <button
                       className="btn-ghost text-sm text-red-500 hover:text-red-600 hover:bg-red-50"
-                      onClick={() => disconnectStripeMutation.mutate()}
+                      onClick={() => setConfirmDisconnect("stripe")}
                       disabled={disconnectStripeMutation.isPending}
                     >
                       {disconnectStripeMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "נתק"}
@@ -344,7 +396,9 @@ export function IntegrationsTab() {
                   </button>
                 )
               ) : isInvoicing ? (
-                integ.connected ? (
+                !canManageIntegrations ? (
+                  <span className="text-xs text-petra-muted">בעלים ומנהלים בלבד</span>
+                ) : integ.connected ? (
                   <>
                     <button
                       className="btn-ghost text-sm flex items-center gap-1.5"
@@ -355,7 +409,7 @@ export function IntegrationsTab() {
                     </button>
                     <button
                       className="btn-ghost text-sm text-red-500 hover:text-red-600 hover:bg-red-50"
-                      onClick={() => disconnectInvoicingMutation.mutate()}
+                      onClick={() => setConfirmDisconnect("invoicing")}
                       disabled={disconnectInvoicingMutation.isPending}
                     >
                       {disconnectInvoicingMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "נתק"}
@@ -383,7 +437,7 @@ export function IntegrationsTab() {
                   </button>
                   <button
                     className="btn-ghost text-sm text-red-500 hover:text-red-600 hover:bg-red-50"
-                    onClick={() => disconnectGcalMutation.mutate()}
+                    onClick={() => setConfirmDisconnect("gcal")}
                     disabled={disconnectGcalMutation.isPending}
                   >
                     {disconnectGcalMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "נתק"}
@@ -394,7 +448,7 @@ export function IntegrationsTab() {
                   <ExternalLink className="w-3.5 h-3.5" />
                   חבר
                 </a>
-              ) : isWhatsApp ? (
+              ) : isWhatsApp && canManageIntegrations ? (
                 <button
                   className="btn-secondary text-sm flex items-center gap-1.5"
                   onClick={() => setShowWhatsAppTestModal(true)}
@@ -402,7 +456,7 @@ export function IntegrationsTab() {
                   <MessageCircle className="w-3.5 h-3.5" />
                   {integ.connected ? "בדיקת חיבור" : user?.isAdmin ? "בדיקת Stub" : "בדיקת חיבור"}
                 </button>
-              ) : (
+              ) : isWhatsApp ? null : (
                 <span className="text-xs text-petra-muted">בקרוב</span>
               )}
             </div>
@@ -443,13 +497,38 @@ export function IntegrationsTab() {
         />
       )}
 
+      <ConfirmDialog
+        open={confirmDisconnect !== null}
+        title={confirmDisconnect ? DISCONNECT_COPY[confirmDisconnect].title : ""}
+        description={confirmDisconnect ? DISCONNECT_COPY[confirmDisconnect].description : undefined}
+        confirmLabel="נתק"
+        danger
+        loading={disconnectPending}
+        onConfirm={runDisconnect}
+        onCancel={() => { if (!disconnectPending) setConfirmDisconnect(null); }}
+      />
+
       {showWhatsAppTestModal && (
         <WhatsAppTestModal onClose={() => setShowWhatsAppTestModal(false)} />
       )}
 
       {/* ── Make.com Webhook ── */}
       {can('webhook_leads') ? (
-        <MakeWebhookCard />
+        canCriticalSettings ? (
+          <MakeWebhookCard />
+        ) : (
+          <div className="card p-5 flex items-start gap-4">
+            <div className="w-12 h-12 rounded-xl bg-violet-50 flex items-center justify-center flex-shrink-0">
+              <Zap className="w-6 h-6 text-violet-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-petra-text">חיבור לידים מהאתר</h3>
+              <p className="text-sm text-petra-muted mt-0.5">
+                ניהול כתובת ה-Webhook ומפתח ה-API זמין רק לבעלי העסק, או למי שקיבל ממנו את ההרשאה &quot;לשנות הגדרות עסק&quot;.
+              </p>
+            </div>
+          </div>
+        )
       ) : (
         <PaywallCard
           title="אינטגרציית Webhook ללידים"
@@ -822,12 +901,12 @@ function MakeWebhookCard() {
       {/* Webhook URL */}
       <div className="space-y-1.5">
         <label className="label text-xs">Webhook URL</label>
-        <div className="flex gap-2">
+        <div className="flex gap-2 min-w-0">
           <input
             readOnly
             value={webhookUrl}
             dir="ltr"
-            className="input flex-1 font-mono text-sm bg-slate-50 select-all"
+            className="input flex-1 min-w-0 font-mono text-sm bg-slate-50 select-all"
             onFocus={(e) => e.target.select()}
           />
           <button
@@ -844,39 +923,38 @@ function MakeWebhookCard() {
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
           <label className="label text-xs">מפתח API</label>
-          {!confirmRegen ? (
-            <button
-              className="text-xs text-petra-muted hover:text-petra-text flex items-center gap-1"
-              onClick={() => setConfirmRegen(true)}
-            >
-              <RefreshCw className="w-3 h-3" />
-              {hasKey ? "צור מפתח חדש" : "צור מפתח"}
-            </button>
-          ) : (
-            <div className="flex items-center gap-2 text-xs">
-              <span className="text-amber-600">בטוח? המפתח הישן יפסיק לעבוד</span>
-              <button
-                className="text-red-500 hover:text-red-600 font-medium"
-                onClick={() => regenMutation.mutate()}
-                disabled={regenMutation.isPending}
-              >
-                {regenMutation.isPending ? "יוצר..." : "אישור"}
-              </button>
-              <button className="text-petra-muted" onClick={() => setConfirmRegen(false)}>ביטול</button>
-            </div>
-          )}
+          <button
+            className="text-xs text-petra-muted hover:text-petra-text flex items-center gap-1"
+            // Replacing an existing key breaks the live website form → confirm first.
+            // The very first key has nothing to break, so it's created directly.
+            onClick={() => (hasKey ? setConfirmRegen(true) : regenMutation.mutate())}
+            disabled={regenMutation.isPending}
+          >
+            {regenMutation.isPending && !confirmRegen ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+            {hasKey ? "צור מפתח חדש" : "צור מפתח"}
+          </button>
         </div>
+        <ConfirmDialog
+          open={confirmRegen}
+          title="ליצור מפתח API חדש?"
+          description="המפתח הנוכחי יפסיק לעבוד מיד. טפסים באתר, ב-Make או בכל חיבור אחר שמשתמשים בו יפסיקו ליצור לידים עד שתעדכנו בהם את המפתח החדש."
+          confirmLabel="צור מפתח חדש"
+          danger
+          loading={regenMutation.isPending}
+          onConfirm={() => regenMutation.mutate()}
+          onCancel={() => setConfirmRegen(false)}
+        />
 
         {keyLoading ? (
           <PetraLoader variant="inline" className="py-4" />
         ) : hasKey ? (
-          <div className="flex gap-2">
+          <div className="flex gap-2 min-w-0">
             <input
               readOnly
               type={showKey ? "text" : "password"}
               value={currentKey}
               dir="ltr"
-              className="input flex-1 font-mono text-sm bg-slate-50 select-all"
+              className="input flex-1 min-w-0 font-mono text-sm bg-slate-50 select-all"
               onFocus={(e) => e.target.select()}
             />
             <button className="btn-ghost flex-shrink-0" onClick={() => setShowKey((v) => !v)} title={showKey ? "הסתר" : "הצג"}>
@@ -920,7 +998,7 @@ function MakeWebhookCard() {
       {/* Fields reference */}
       <div className="rounded-xl bg-slate-50 border border-slate-200 p-4 text-xs text-petra-muted space-y-2">
         <p className="font-medium text-petra-text text-sm">שדות נתמכים</p>
-        <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
           {[
             ["firstName", "שם פרטי"],
             ["lastName", "שם משפחה"],

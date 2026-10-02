@@ -3,18 +3,19 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Save, Loader2, FileText, X, Pencil, Trash2, Plus, AlertTriangle } from "lucide-react";
 import { PetraLoader } from "@/components/ui/PetraLoader";
-import { cn } from "@/lib/utils";
+import { cn, fetchJSON } from "@/lib/utils";
 import { toast } from "sonner";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { usePermissions } from "@/hooks/usePermissions";
+import { useAuth } from "@/providers/auth-provider";
 
-// ─── Payments Tab ─────────────────────────────────────────────────────────────
+// ─── Legacy export ────────────────────────────────────────────────────────────
+// The settings tab used to be "תשלומים" (invoicing + contracts). Invoicing
+// (Morning) is hidden while under construction, so the tab is just contracts.
+// Kept under the old name because the settings shell imports `PaymentsTab`.
 
 export function PaymentsTab() {
-  return (
-    <div className="space-y-10">
-      {/* InvoicingTab (Morning) hidden — feature under construction */}
-      <ContractsTab />
-    </div>
-  );
+  return <ContractsTab />;
 }
 
 
@@ -39,10 +40,15 @@ export function ContractsTab() {
   const queryClient = useQueryClient();
   const [showModal, setShowModal] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<ContractTemplate | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ContractTemplate | null>(null);
+  const perms = usePermissions();
+  const { user } = useAuth();
+  // POST/PATCH/DELETE /api/contracts/templates → SETTINGS_WRITE (owner/manager).
+  const canEditTemplates = perms.isOwner || perms.isManager || user?.isAdmin === true;
 
-  const { data: templates = [], isLoading } = useQuery<ContractTemplate[]>({
+  const { data: templates = [], isLoading, isError } = useQuery<ContractTemplate[]>({
     queryKey: ["contract-templates"],
-    queryFn: () => fetch("/api/contracts/templates").then((r) => r.json()),
+    queryFn: () => fetchJSON<ContractTemplate[]>("/api/contracts/templates"),
   });
 
   const deleteMutation = useMutation({
@@ -54,9 +60,10 @@ export function ContractsTab() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["contract-templates"] });
+      setDeleteTarget(null);
       toast.success("תבנית נמחקה");
     },
-    onError: () => toast.error("שגיאה במחיקת התבנית"),
+    onError: (e: Error) => toast.error(e.message && e.message !== "שגיאה" ? e.message : "שגיאה במחיקת התבנית"),
   });
 
   if (isLoading) {
@@ -65,25 +72,35 @@ export function ContractsTab() {
 
   return (
     <div className="space-y-5 max-w-2xl">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-base font-semibold text-petra-text">תבניות חוזים</h2>
-          <p className="text-sm text-petra-muted mt-0.5">העלה תבניות PDF להחתמת לקוחות</p>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="min-w-0">
+          <h2 className="text-base font-semibold text-petra-text">חוזים</h2>
+          <p className="text-sm text-petra-muted mt-0.5">תבניות PDF להחתמת לקוחות</p>
         </div>
-        <button onClick={() => setShowModal(true)} className="btn-primary flex items-center gap-2">
-          <Plus className="w-4 h-4" />
-          תבנית חדשה
-        </button>
+        {canEditTemplates && (
+          <button onClick={() => setShowModal(true)} className="btn-primary flex items-center gap-2">
+            <Plus className="w-4 h-4" />
+            תבנית חדשה
+          </button>
+        )}
       </div>
 
-      {templates.length === 0 ? (
+      {!canEditTemplates && (
+        <p className="text-xs text-petra-muted">הוספה, עריכה ומחיקה של תבניות חוזים זמינות לבעלים ולמנהלים בלבד.</p>
+      )}
+
+      {isError ? (
+        <div className="card p-4 text-sm text-red-600">שגיאה בטעינת תבניות החוזים</div>
+      ) : templates.length === 0 ? (
         <div className="border-2 border-dashed border-slate-200 rounded-2xl p-10 text-center space-y-3">
           <FileText className="w-10 h-10 text-slate-300 mx-auto" />
           <p className="text-sm text-petra-muted">אין תבניות חוזים עדיין</p>
-          <button onClick={() => setShowModal(true)} className="btn-primary text-sm">
-            <Plus className="w-4 h-4" />
-            העלה תבנית ראשונה
-          </button>
+          {canEditTemplates && (
+            <button onClick={() => setShowModal(true)} className="btn-primary text-sm inline-flex items-center gap-2">
+              <Plus className="w-4 h-4" />
+              העלה תבנית ראשונה
+            </button>
+          )}
         </div>
       ) : (
         <div className="space-y-3">
@@ -96,8 +113,8 @@ export function ContractsTab() {
                   <FileText className="w-5 h-5 text-orange-500" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-petra-text text-sm">{t.name}</p>
-                  <p className="text-xs text-petra-muted mt-0.5">
+                  <p className="font-medium text-petra-text text-sm truncate">{t.name}</p>
+                  <p className="text-xs text-petra-muted mt-0.5 break-all">
                     {t.fileName} · {(t.fileSize / 1024).toFixed(0)} KB
                     {fieldCount > 0 ? ` · ${fieldCount} שדות` : " · ללא שדות"}
                   </p>
@@ -105,27 +122,42 @@ export function ContractsTab() {
                     נוצר: {new Date(t.createdAt).toLocaleDateString("he-IL")}
                   </p>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <button
-                    onClick={() => setEditingTemplate(t)}
-                    className="btn-ghost text-xs py-1.5 px-3"
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                    ערוך
-                  </button>
-                  <button
-                    onClick={() => { if (confirm(`למחוק את "${t.name}"?`)) deleteMutation.mutate(t.id); }}
-                    className="p-2 rounded-lg text-red-400 hover:bg-red-50 transition-colors"
-                    disabled={deleteMutation.isPending}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
+                {canEditTemplates && (
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <button
+                      onClick={() => setEditingTemplate(t)}
+                      className="btn-ghost text-xs py-1.5 px-3 inline-flex items-center gap-1"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                      ערוך
+                    </button>
+                    <button
+                      onClick={() => setDeleteTarget(t)}
+                      className="p-2 rounded-lg text-red-400 hover:bg-red-50 transition-colors"
+                      disabled={deleteMutation.isPending}
+                      aria-label={`מחק את ${t.name}`}
+                      title="מחק תבנית"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
       )}
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="למחוק את תבנית החוזה?"
+        description={deleteTarget ? <>התבנית &quot;{deleteTarget.name}&quot; תימחק לצמיתות — <strong>יחד עם כל בקשות ההחתמה שנשלחו ממנה, כולל קבצי חוזים חתומים</strong>. לא ניתן לבטל פעולה זו.</> : undefined}
+        confirmLabel="מחק"
+        danger
+        loading={deleteMutation.isPending}
+        onConfirm={() => { if (deleteTarget) deleteMutation.mutate(deleteTarget.id); }}
+        onCancel={() => setDeleteTarget(null)}
+      />
 
       {showModal && <AddContractTemplateModal onClose={() => setShowModal(false)} onSaved={() => { setShowModal(false); queryClient.invalidateQueries({ queryKey: ["contract-templates"] }); }} />}
       {editingTemplate && <EditContractTemplateModal template={editingTemplate} onClose={() => setEditingTemplate(null)} onSaved={() => { setEditingTemplate(null); queryClient.invalidateQueries({ queryKey: ["contract-templates"] }); }} />}

@@ -1,55 +1,54 @@
 "use client";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Save, CheckCircle2, Loader2, RefreshCw } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 import { PetraLoader } from "@/components/ui/PetraLoader";
-import { cn, fetchJSON } from "@/lib/utils";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useBusinessSettings, patchBusinessSettings, BUSINESS_SETTINGS_QUERY_KEY } from "@/hooks/useBusinessSettings";
+import { ReadOnlyNotice, SettingsFieldset, SettingsSaveBar } from "./settings-ui";
 import { SdSettings, DEFAULT_SD_SETTINGS, SD_VACCINE_TREATMENTS, SD_PUPPY_TREATMENTS, HE_MONTHS_SETTINGS, PUPPY_WEEKS_OPTIONS, Business } from "./shared";
+
+// Stable reference — the hook memoises on it.
+const SD_DEFAULTS: Partial<Business> = { sdSettings: DEFAULT_SD_SETTINGS };
 
 // ─── Service Dogs Settings Tab ───────────────────────────────────────────────
 
 export function ServiceDogsSettingsTab() {
   const queryClient = useQueryClient();
-  const { data: biz, isLoading } = useQuery<Business>({
-    queryKey: ["settings"],
-    queryFn: () => fetchJSON<Business>("/api/settings"),
+  const { values, isLoading, set, save, reset, dirty, changes, isSaving, canEdit } = useBusinessSettings({
+    dirtyKey: "service-dogs",
+    successMessage: "הגדרות כלבי שירות נשמרו",
+    defaults: SD_DEFAULTS,
   });
+  const [confirmApply, setConfirmApply] = useState(false);
 
-  const [form, setForm] = useState<SdSettings | null>(null);
-  const [saved, setSaved] = useState(false);
+  const settings: SdSettings = { ...DEFAULT_SD_SETTINGS, ...(values?.sdSettings ?? {}) };
+  const setForm = (next: SdSettings) => set("sdSettings", next);
 
-  const settings: SdSettings = form ?? (biz?.sdSettings ? { ...DEFAULT_SD_SETTINGS, ...biz.sdSettings } : DEFAULT_SD_SETTINGS);
-
-  const mutation = useMutation({
-    mutationFn: (data: SdSettings) =>
-      fetch("/api/settings", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sdSettings: data }),
-      }).then(async (r) => {
-        const d = await r.json();
-        if (!r.ok) throw new Error(d.error || "שגיאה");
-        return d;
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["settings"] });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2500);
-      toast.success("הגדרות כלבי שירות נשמרו");
-    },
-    onError: () => toast.error("שגיאה בשמירה"),
-  });
-
+  // "Apply to all dogs" rewrites the planned dates in every service dog's vaccine
+  // plan from the SAVED schedule — so unsaved edits are saved first.
   const applyMutation = useMutation({
-    mutationFn: () =>
-      fetch("/api/service-dogs/vaccinations/apply-schedule", { method: "POST" }).then(async r => {
-        const d = await r.json();
-        if (!r.ok) throw new Error(d.error || "שגיאה");
-        return d;
-      }),
-    onSuccess: (d) => toast.success(`לוח החיסונים הוחל על ${d.updatedCount} כלבים`),
-    onError: (e: Error) => toast.error(e.message || "שגיאה בהחלת לוח החיסונים"),
+    mutationFn: async () => {
+      if (dirty && changes.sdSettings) {
+        await patchBusinessSettings({ sdSettings: changes.sdSettings });
+        await queryClient.invalidateQueries({ queryKey: BUSINESS_SETTINGS_QUERY_KEY });
+        reset();
+      }
+      const r = await fetch("/api/service-dogs/vaccinations/apply-schedule", { method: "POST" });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || "שגיאה בהחלת לוח החיסונים");
+      return d as { updatedCount: number };
+    },
+    onSuccess: (d) => {
+      setConfirmApply(false);
+      toast.success(`לוח החיסונים הוחל על ${d.updatedCount} כלבים`);
+    },
+    onError: (e: Error) => {
+      setConfirmApply(false);
+      toast.error(e.message || "שגיאה בהחלת לוח החיסונים");
+    },
   });
 
   if (isLoading) {
@@ -62,6 +61,8 @@ export function ServiceDogsSettingsTab() {
 
   return (
     <div className="space-y-6 max-w-2xl">
+      {!canEdit && <ReadOnlyNotice />}
+      <SettingsFieldset readOnly={!canEdit} className="space-y-6">
       {/* Track hours */}
       <div className="card p-5">
         <div className="flex items-center justify-between gap-4">
@@ -70,6 +71,10 @@ export function ServiceDogsSettingsTab() {
             <p className="text-sm text-petra-muted mt-0.5">האם לעקוב אחרי שעות ולהציג התקדמות לכל כלב</p>
           </div>
           <button
+            type="button"
+            role="switch"
+            aria-checked={settings.trackHours}
+            aria-label="מעקב שעות הכשרה"
             onClick={() => toggle("trackHours")}
             className={cn("flex-shrink-0 w-12 h-6 rounded-full transition-colors relative", settings.trackHours ? "bg-orange-500" : "bg-slate-300")}
           >
@@ -109,6 +114,10 @@ export function ServiceDogsSettingsTab() {
             </p>
           </div>
           <button
+            type="button"
+            role="switch"
+            aria-checked={settings.allowManualCert}
+            aria-label="אפשר הסמכה ידנית"
             onClick={() => toggle("allowManualCert")}
             className={cn("flex-shrink-0 w-12 h-6 rounded-full transition-colors relative", settings.allowManualCert ? "bg-orange-500" : "bg-slate-300")}
           >
@@ -125,7 +134,7 @@ export function ServiceDogsSettingsTab() {
       {/* Vaccination schedule */}
       <div className="card p-5">
         {/* Toggle header */}
-        <div className="flex items-center justify-between mb-1">
+        <div className="flex items-center justify-between gap-4 mb-1">
           <div>
             <p className="font-semibold text-petra-text">לוח חיסונים שנתי ברירת מחדל</p>
             <p className="text-sm text-petra-muted mt-0.5">
@@ -134,6 +143,9 @@ export function ServiceDogsSettingsTab() {
           </div>
           <button
             type="button"
+            role="switch"
+            aria-checked={!!settings.vaccinationScheduleEnabled}
+            aria-label="לוח חיסונים שנתי ברירת מחדל"
             onClick={() => setForm({ ...settings, vaccinationScheduleEnabled: !settings.vaccinationScheduleEnabled })}
             className={`relative inline-flex h-6 w-11 flex-shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${settings.vaccinationScheduleEnabled ? "bg-brand-500" : "bg-slate-200"}`}
           >
@@ -238,7 +250,7 @@ export function ServiceDogsSettingsTab() {
             </p>
 
             {/* Apply to all dogs */}
-            <div className="flex items-center justify-between pt-3 border-t border-slate-100 mt-1">
+            <div className="flex items-center justify-between flex-wrap gap-3 pt-3 border-t border-slate-100 mt-1">
               <div>
                 <p className="text-sm font-medium text-petra-text">החל על כלל הכלבים עכשיו</p>
                 <p className="text-xs text-petra-muted mt-0.5">
@@ -247,13 +259,9 @@ export function ServiceDogsSettingsTab() {
               </div>
               <button
                 type="button"
-                onClick={() => {
-                  if (!mutation.isPending) mutation.mutate(settings, {
-                    onSuccess: () => applyMutation.mutate(),
-                  });
-                }}
-                disabled={applyMutation.isPending || mutation.isPending}
-                className="btn-secondary text-sm flex items-center gap-2 flex-shrink-0 mr-4"
+                onClick={() => setConfirmApply(true)}
+                disabled={applyMutation.isPending || isSaving}
+                className="btn-secondary text-sm flex items-center gap-2 flex-shrink-0"
               >
                 {applyMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
                 {applyMutation.isPending ? "מחיל..." : "החל על כלל הכלבים"}
@@ -277,14 +285,25 @@ export function ServiceDogsSettingsTab() {
         <p>• הסמכה ידנית: <span className="font-medium text-petra-text">{settings.allowManualCert ? "מאושרת" : "לא מאושרת"}</span></p>
       </div>
 
-      <button
-        className="btn-primary"
-        disabled={mutation.isPending}
-        onClick={() => mutation.mutate(settings)}
-      >
-        {mutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : saved ? <CheckCircle2 className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-        {mutation.isPending ? "שומר..." : saved ? "נשמר!" : "שמור הגדרות"}
-      </button>
+      </SettingsFieldset>
+
+      <SettingsSaveBar dirty={dirty} saving={isSaving} onSave={save} onReset={reset} canEdit={canEdit} />
+
+      <ConfirmDialog
+        open={confirmApply}
+        title="להחיל את לוח החיסונים על כל הכלבים?"
+        description={
+          <>
+            תוכניות החיסונים של <span className="font-medium text-petra-text">כל כלבי השירות</span> יעודכנו לפי הלוח שהוגדר כאן:
+            תאריכים מתוכננים יוחלפו (תאריכי ביצוע שכבר נרשמו יישמרו), וכלבים ללא תוכנית יקבלו תוכנית חדשה.
+            {dirty && <><br />השינויים שלא נשמרו בעמוד זה יישמרו קודם.</>}
+          </>
+        }
+        confirmLabel="החל על כל הכלבים"
+        loading={applyMutation.isPending}
+        onConfirm={() => applyMutation.mutate()}
+        onCancel={() => setConfirmApply(false)}
+      />
     </div>
   );
 }

@@ -10,6 +10,9 @@ import { cn, fetchJSON } from "@/lib/utils";
 import { TierGate } from "@/components/paywall/TierGate";
 import type { WaConnectionStatus } from "@/lib/whatsapp-connections";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { usePermissions } from "@/hooks/usePermissions";
+import { useAuth } from "@/providers/auth-provider";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 declare global {
@@ -89,6 +92,11 @@ type SignupData = { phoneNumberId: string; wabaId: string };
 
 export function WhatsAppConnectCard() {
   const queryClient = useQueryClient();
+  const perms = usePermissions();
+  const { user } = useAuth();
+  // connect / disconnect / sync-templates / test → owner or manager of the business, or platform admin.
+  const canManage = perms.isOwner || perms.isManager || user?.isAdmin === true;
+  const [confirmDisconnect, setConfirmDisconnect] = useState(false);
   const [coexistence, setCoexistence] = useState(true);
   const [launching, setLaunching] = useState(false);
   // Diagnostic trail — every postMessage from Meta + the FB.login callback, shown on
@@ -139,7 +147,7 @@ export function WhatsAppConnectCard() {
   });
   const disconnectMutation = useMutation({
     mutationFn: () => fetchJSON<{ ok: boolean }>("/api/integrations/whatsapp/connection", { method: "DELETE" }),
-    onSuccess: () => { invalidate(); toast.success("המספר נותק. הודעות יישלחו שוב מהמספר של Petra"); },
+    onSuccess: () => { invalidate(); setConfirmDisconnect(false); toast.success("המספר נותק. הודעות יישלחו שוב מהמספר של Petra"); },
     onError: (err: Error) => toast.error(err.message || "הניתוק נכשל"),
   });
   const testMutation = useMutation({
@@ -262,6 +270,22 @@ export function WhatsAppConnectCard() {
   }
   if (!status) return null;
 
+  const disconnectDialog = (
+    <ConfirmDialog
+      open={confirmDisconnect}
+      title="לנתק את מספר העסק?"
+      description="ההודעות האוטומטיות יחזרו לצאת מהמספר של Petra. אפשר לחבר את המספר מחדש בכל עת."
+      confirmLabel="נתק"
+      danger
+      loading={disconnectMutation.isPending}
+      onConfirm={() => disconnectMutation.mutate()}
+      onCancel={() => setConfirmDisconnect(false)}
+    />
+  );
+  const readOnlyNote = (
+    <p className="text-xs text-petra-muted">חיבור, ניתוק וניהול המספר זמינים לבעלים ולמנהלים בלבד.</p>
+  );
+
   const header = (
     <div className="flex items-start gap-3">
       <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0", status.status === "active" ? "bg-emerald-50" : "bg-slate-100")}>
@@ -354,18 +378,22 @@ export function WhatsAppConnectCard() {
             <p className="text-xs mt-0.5">עד לתיקון, ההודעות יוצאות מהמספר של Petra.</p>
           </div>
         </div>
-        <TierGate feature="whatsapp_reminders" title="WhatsApp מהמספר של העסק" description="חיבור מספר WhatsApp עצמאי זמין במנוי PRO ומעלה.">
-          <div className="space-y-3">
-            {coexistenceToggle}
-            <div className="flex flex-wrap items-center gap-3">
-              {connectButton("חבר מחדש")}
-              <button onClick={() => { if (confirm("לנתק את המספר? ההודעות יחזרו לצאת מהמספר של Petra.")) disconnectMutation.mutate(); }} disabled={disconnectMutation.isPending} className="btn-danger text-sm flex items-center gap-1.5">
-                {disconnectMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Unplug className="w-4 h-4" />} נתק
-              </button>
-              {cancelLink}
+        {canManage ? (
+          <TierGate feature="whatsapp_reminders" title="WhatsApp מהמספר של העסק" description="חיבור מספר WhatsApp עצמאי זמין במנוי PRO ומעלה.">
+            <div className="space-y-3">
+              {coexistenceToggle}
+              <div className="flex flex-wrap items-center gap-3">
+                {connectButton("חבר מחדש")}
+                <button onClick={() => setConfirmDisconnect(true)} disabled={disconnectMutation.isPending} className="btn-danger text-sm flex items-center gap-1.5">
+                  {disconnectMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Unplug className="w-4 h-4" />} נתק
+                </button>
+                {cancelLink}
+              </div>
+              {debugPanel}
             </div>
-          </div>
-        </TierGate>
+          </TierGate>
+        ) : readOnlyNote}
+        {disconnectDialog}
       </div>
     );
   }
@@ -403,13 +431,15 @@ export function WhatsAppConnectCard() {
             <h4 className="text-sm font-semibold text-petra-text">תבניות הודעה</h4>
             <div className="flex items-center gap-2">
               {status.templatesSyncedAt && <span className="text-xs text-petra-muted hidden sm:inline">סונכרן {heDate(status.templatesSyncedAt)}</span>}
-              <button onClick={() => syncMutation.mutate()} disabled={syncMutation.isPending} className="btn-secondary text-xs flex items-center gap-1.5">
-                <RefreshCw className={cn("w-3.5 h-3.5", syncMutation.isPending && "animate-spin")} /> סנכרן תבניות
-              </button>
+              {canManage && (
+                <button onClick={() => syncMutation.mutate()} disabled={syncMutation.isPending} className="btn-secondary text-xs flex items-center gap-1.5">
+                  <RefreshCw className={cn("w-3.5 h-3.5", syncMutation.isPending && "animate-spin")} /> סנכרן תבניות
+                </button>
+              )}
             </div>
           </div>
           {templateRows.length === 0 ? (
-            <p className="text-xs text-petra-muted">עדיין לא סונכרנו תבניות. לחצו "סנכרן תבניות".</p>
+            <p className="text-xs text-petra-muted">עדיין לא סונכרנו תבניות.{canManage && <> לחצו &quot;סנכרן תבניות&quot;.</>}</p>
           ) : (
             <div className="rounded-xl border border-slate-200 overflow-hidden">
               <table className="w-full text-sm">
@@ -436,9 +466,10 @@ export function WhatsAppConnectCard() {
           )}
         </div>
 
+        {canManage ? (
         <div className="flex flex-col sm:flex-row sm:items-center gap-2">
           <input
-            className="input flex-1"
+            className="input flex-1 min-w-0"
             placeholder="05X-XXXXXXX"
             dir="ltr"
             value={testPhone}
@@ -449,13 +480,15 @@ export function WhatsAppConnectCard() {
             {testMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} שלח הודעת בדיקה
           </button>
           <button
-            onClick={() => { if (confirm("לנתק את מספר העסק מ-Petra? ההודעות האוטומטיות יחזרו לצאת מהמספר של Petra.")) disconnectMutation.mutate(); }}
+            onClick={() => setConfirmDisconnect(true)}
             disabled={disconnectMutation.isPending}
             className="btn-danger text-sm flex items-center gap-1.5 justify-center"
           >
             {disconnectMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Unplug className="w-4 h-4" />} נתק
           </button>
         </div>
+        ) : readOnlyNote}
+        {disconnectDialog}
       </div>
     );
   }
@@ -467,6 +500,7 @@ export function WhatsAppConnectCard() {
       {status.status === "disconnected" && (
         <p className="text-xs text-petra-muted">המספר נותק. עד לחיבור מחדש ההודעות יוצאות מהמספר של Petra.</p>
       )}
+      {!canManage ? readOnlyNote : (
       <TierGate feature="whatsapp_reminders" title="WhatsApp מהמספר של העסק" description="חיבור מספר WhatsApp עצמאי זמין במנוי PRO ומעלה.">
         <div className="space-y-4">
           <ul className="text-sm text-petra-text space-y-1.5">
@@ -477,11 +511,12 @@ export function WhatsAppConnectCard() {
           {coexistenceToggle}
           <div className="flex flex-wrap items-center gap-3">
             {connectButton("חבר את הוואטסאפ של העסק")}
-            {debugPanel}
             {cancelLink}
           </div>
+          {debugPanel}
         </div>
       </TierGate>
+      )}
     </div>
   );
 }

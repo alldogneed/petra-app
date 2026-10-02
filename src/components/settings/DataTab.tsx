@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import React, { useState, useRef } from "react";
 import { CheckCircle2, Loader2, XCircle, CheckCircle, AlertCircle, Download, Upload, FileSpreadsheet, Clock, Info, Users, PawPrint, RefreshCw, CalendarRange } from "lucide-react";
 import { PetraLoader } from "@/components/ui/PetraLoader";
-import { cn } from "@/lib/utils";
+import { cn, fetchJSON } from "@/lib/utils";
 import { toast } from "sonner";
 import { usePermissions } from "@/hooks/usePermissions";
 
@@ -68,7 +68,9 @@ function fmtFileSize(bytes: number | null): string {
 
 export function DataTab() {
   const queryClient = useQueryClient();
-  const { canExportData } = usePermissions();
+  const { canExportData, isVolunteer } = usePermissions();
+  // Volunteers are read-only; /api/import/* itself only requires business auth (see report).
+  const canImport = !isVolunteer;
 
   // Export state (async job system)
   const [exportType, setExportType] = useState<"customers" | "dogs" | "customers_dogs">("customers");
@@ -89,7 +91,8 @@ export function DataTab() {
   // Export jobs query
   const { data: exportJobs = [] } = useQuery<ExportJob[]>({
     queryKey: ["exports"],
-    queryFn: () => fetch("/api/exports").then((r) => r.json()),
+    queryFn: () => fetchJSON<ExportJob[]>("/api/exports"),
+    enabled: canExportData,
     refetchInterval: (query) => {
       const data = query.state.data as ExportJob[] | undefined;
       return data?.some((j) => j.status === "pending" || j.status === "processing") ? 3000 : false;
@@ -104,7 +107,7 @@ export function DataTab() {
         body: JSON.stringify({ exportType, format: exportFormat, outputMode, filterFromDate: filterFromDate || null, filterToDate: filterToDate || null }),
       }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה ביצירת הייצוא"); return d; }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["exports"] }),
-    onError: () => toast.error("שגיאה ביצירת הייצוא"),
+    onError: (e: Error) => toast.error(e.message || "שגיאה ביצירת הייצוא"),
   });
 
   function handleDownloadExport(jobId: string) {
@@ -113,8 +116,11 @@ export function DataTab() {
 
   // Template download
   async function handleDownloadTemplate() {
-    const res = await fetch("/api/import/template");
-    if (!res.ok) return;
+    const res = await fetch("/api/import/template").catch(() => null);
+    if (!res?.ok) {
+      toast.error("שגיאה בהורדת התבנית. נסה שוב.");
+      return;
+    }
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -140,15 +146,19 @@ export function DataTab() {
       formData.append("includePets", "true");
 
       const res = await fetch("/api/import/parse", { method: "POST", body: formData });
-      if (!res.ok) throw new Error("Parse failed");
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(typeof d.error === "string" ? d.error : "");
+      }
 
       const data = await res.json();
       setImportBatchId(data.batchId);
       setImportStats(data.stats);
       setImportTopIssues(data.topIssues?.map((i: { row: number; message: string }) => ({ row: i.row, message: i.message })) || []);
       setImportPhase("preview");
-    } catch {
-      setImportError("שגיאה בניתוח הקובץ");
+    } catch (err) {
+      const msg = err instanceof Error && /[\u0590-\u05FF]/.test(err.message) ? err.message : "";
+      setImportError(msg || "שגיאה בניתוח הקובץ");
       setImportPhase("error");
     }
 
@@ -167,14 +177,18 @@ export function DataTab() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ batchId: importBatchId }),
       });
-      if (!res.ok) throw new Error("Execute failed");
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(typeof d.error === "string" ? d.error : "");
+      }
 
       const data = await res.json();
       setImportResult(data);
       setImportPhase("done");
       queryClient.invalidateQueries({ queryKey: ["customers"] });
-    } catch {
-      setImportError("שגיאה בביצוע הייבוא");
+    } catch (err) {
+      const msg = err instanceof Error && /[\u0590-\u05FF]/.test(err.message) ? err.message : "";
+      setImportError(msg || "שגיאה בביצוע הייבוא");
       setImportPhase("error");
     }
   }
@@ -199,7 +213,7 @@ export function DataTab() {
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
           {/* Export Form */}
-          <div className="lg:col-span-2 card p-5 space-y-4 self-start">
+          <div className="lg:col-span-2 card p-4 sm:p-5 space-y-4 self-start min-w-0">
             <h4 className="text-sm font-bold text-petra-text">ייצוא חדש</h4>
             {/* Type */}
             <div>
@@ -277,13 +291,13 @@ export function DataTab() {
             {createExportMutation.isSuccess && <p className="text-xs text-emerald-600 text-center">בקשת הייצוא נשלחה. הקובץ יופיע בהיסטוריה.</p>}
           </div>
           {/* Export History */}
-          <div className="lg:col-span-3 card p-5">
+          <div className="lg:col-span-3 card p-4 sm:p-5 min-w-0">
             <h4 className="text-sm font-bold text-petra-text mb-4">היסטוריית ייצואים</h4>
             {exportJobs.length === 0 ? (
               <div className="py-10 text-center text-petra-muted text-sm">אין ייצואים עדיין</div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="w-full text-sm min-w-[560px]">
                   <thead>
                     <tr>
                       {["סוג", "פורמט", "מצב", "רשומות", "גודל", "תאריך", ""].map((h) => (
@@ -331,7 +345,8 @@ export function DataTab() {
       )}
 
       {/* ── Import Section ── */}
-      <div className="card p-6">
+      {canImport && (
+      <div className="card p-4 sm:p-6">
         <div className="flex items-center gap-2 mb-4">
           <Upload className="w-5 h-5 text-brand-500" />
           <h3 className="text-base font-semibold text-petra-text">ייבוא נתונים</h3>
@@ -347,6 +362,9 @@ export function DataTab() {
             <div
               className="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center hover:border-brand-300 hover:bg-brand-50/30 transition-colors cursor-pointer"
               onClick={() => fileInputRef.current?.click()}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInputRef.current?.click(); } }}
             >
               <Upload className="w-8 h-8 text-petra-muted mx-auto mb-3" />
               <p className="text-sm font-medium text-petra-text">לחץ להעלאת קובץ</p>
@@ -421,7 +439,7 @@ export function DataTab() {
               </span>
             </div>
             <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm">
-              <span className="shrink-0 text-base">⚠️</span>
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
               <span>המערכת טוענת נתונים — נא לא לצאת מדף ההגדרות עד שהייבוא יסתיים</span>
             </div>
           </div>
@@ -461,6 +479,11 @@ export function DataTab() {
           </div>
         )}
       </div>
+      )}
+
+      {!canExportData && !canImport && (
+        <div className="card p-6 text-sm text-petra-muted">אין לך הרשאה לייבא או לייצא נתונים.</div>
+      )}
     </div>
   );
 }
