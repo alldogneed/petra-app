@@ -97,30 +97,37 @@ export function DashboardCustomizeModal({
   const visibleCount = allowedBlocks.filter((id) => !hidden.has(id)).length;
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-[60] bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4"
+      onClick={onClose}
+    >
       <div
-        className="modal-content max-w-lg w-full max-h-[90vh] flex flex-col"
+        className="w-full max-w-lg max-h-[90vh] flex flex-col bg-white rounded-2xl shadow-[0_24px_48px_-12px_rgba(0,0,0,0.18),0_0_0_1px_rgba(0,0,0,0.05)] animate-scale-in"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby="dashboard-customize-title"
       >
-        <div className="flex items-center justify-between p-5 border-b border-slate-100">
-          <div>
-            <h2 id="dashboard-customize-title" className="text-lg font-bold text-petra-text">התאמת הדשבורד</h2>
-            <p className="text-xs text-petra-muted mt-0.5">
+        <div className="flex items-start justify-between gap-3 p-5 border-b border-slate-100">
+          <div className="flex flex-col gap-0.5">
+            <h2 id="dashboard-customize-title" className="m-0 text-lg font-bold text-slate-900">התאמת הדשבורד</h2>
+            <p className="m-0 text-xs text-slate-500">
               בחרו מה יוצג ובאיזה סדר. ההגדרה אישית — רק לכם, בכל מכשיר.
             </p>
           </div>
-          <button onClick={onClose} className="btn-ghost p-1.5" aria-label="סגור">
-            <X className="w-5 h-5" />
+          <button
+            onClick={onClose}
+            className="w-8 h-8 flex-shrink-0 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 flex items-center justify-center"
+            aria-label="סגור"
+          >
+            <X className="w-[18px] h-[18px]" />
           </button>
         </div>
 
         <div className="overflow-y-auto p-5 space-y-6">
           <section>
-            <h3 className="text-sm font-semibold text-petra-text mb-2">
-              אזורים <span className="text-petra-muted font-normal">({visibleCount} מוצגים)</span>
+            <h3 className="text-sm font-semibold text-slate-900 mb-2">
+              אזורים <span className="text-slate-500 font-normal">({visibleCount} מוצגים)</span>
             </h3>
             <ul className="space-y-1.5">
               {allowedBlocks.map((id, i) => {
@@ -130,7 +137,7 @@ export function DashboardCustomizeModal({
                   <li
                     key={id}
                     className={cn(
-                      "flex items-center gap-2 p-2.5 rounded-xl border transition-colors",
+                      "flex items-center gap-2.5 py-2 ps-2.5 pe-3 rounded-xl border transition-colors",
                       shown ? "border-slate-200 bg-white" : "border-slate-100 bg-slate-50"
                     )}
                   >
@@ -139,7 +146,7 @@ export function DashboardCustomizeModal({
                         type="button"
                         onClick={() => move(id, -1)}
                         disabled={i === 0}
-                        className="p-0.5 text-slate-400 hover:text-petra-text disabled:opacity-30"
+                        className="w-[22px] h-[18px] flex items-center justify-center text-slate-400 hover:text-slate-900 disabled:opacity-30"
                         aria-label={`הזז למעלה: ${def.label}`}
                       >
                         <ChevronUp className="w-4 h-4" />
@@ -148,17 +155,17 @@ export function DashboardCustomizeModal({
                         type="button"
                         onClick={() => move(id, 1)}
                         disabled={i === allowedBlocks.length - 1}
-                        className="p-0.5 text-slate-400 hover:text-petra-text disabled:opacity-30"
+                        className="w-[22px] h-[18px] flex items-center justify-center text-slate-400 hover:text-slate-900 disabled:opacity-30"
                         aria-label={`הזז למטה: ${def.label}`}
                       >
                         <ChevronDown className="w-4 h-4" />
                       </button>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className={cn("text-sm font-medium truncate", shown ? "text-petra-text" : "text-petra-muted")}>
+                      <div className={cn("text-sm font-medium truncate", shown ? "text-slate-900" : "text-slate-500")}>
                         {def.label}
                       </div>
-                      <div className="text-[11px] text-petra-muted truncate">{def.hint}</div>
+                      <div className="text-xs text-slate-500 truncate">{def.hint}</div>
                     </div>
                     <Toggle on={shown} onClick={() => toggle(id)} label={`הצג ${def.label}`} />
                   </li>
@@ -169,8 +176,8 @@ export function DashboardCustomizeModal({
 
           {allowedStats.length > 0 && !hidden.has("stats") && (
             <section>
-              <h3 className="text-sm font-semibold text-petra-text mb-2">כרטיסי מספרים</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+              <h3 className="text-sm font-semibold text-slate-900 mb-2">כרטיסי מספרים</h3>
+              <div className="grid [grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr))] gap-1.5">
                 {allowedStats.map((s) => {
                   const shown = !hidden.has(s.id);
                   return (
@@ -180,13 +187,13 @@ export function DashboardCustomizeModal({
                       onClick={() => toggle(s.id)}
                       aria-pressed={shown}
                       className={cn(
-                        "flex items-center gap-2 p-2.5 rounded-xl border text-sm text-right transition-colors",
+                        "flex items-center gap-2 py-2.5 px-3 rounded-xl border text-sm text-right transition-colors",
                         shown
-                          ? "border-brand-200 bg-brand-50/50 text-petra-text"
-                          : "border-slate-100 bg-slate-50 text-petra-muted"
+                          ? "border-orange-200 bg-orange-50/50 text-slate-900"
+                          : "border-slate-100 bg-slate-50 text-slate-500"
                       )}
                     >
-                      {shown ? <Eye className="w-4 h-4 text-brand-500" /> : <EyeOff className="w-4 h-4" />}
+                      {shown ? <Eye className="w-4 h-4 text-orange-500" /> : <EyeOff className="w-4 h-4" />}
                       {s.label}
                     </button>
                   );
@@ -196,20 +203,24 @@ export function DashboardCustomizeModal({
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 p-5 border-t border-slate-100">
+        <div className="flex flex-wrap items-center gap-2 px-5 py-4 border-t border-slate-100">
           <button
-            className="btn-primary"
+            className="h-[38px] px-[18px] rounded-xl bg-gradient-brand text-white text-sm font-semibold hover:brightness-105 active:scale-[0.98] transition-all disabled:opacity-60"
             disabled={save.isPending}
             onClick={() => save.mutate({ prefs: { hidden: Array.from(hidden), order } })}
           >
             {save.isPending ? "שומר..." : "שמור"}
           </button>
-          <button className="btn-secondary" onClick={onClose} disabled={save.isPending}>
+          <button
+            className="h-[38px] px-4 rounded-xl border border-slate-200 bg-white text-slate-900 text-sm font-medium hover:bg-slate-50 hover:border-slate-300"
+            onClick={onClose}
+            disabled={save.isPending}
+          >
             ביטול
           </button>
           <button
             type="button"
-            className="ms-auto text-xs text-petra-muted hover:text-petra-text flex items-center gap-1"
+            className="ms-auto text-xs text-slate-500 hover:text-slate-900 flex items-center gap-1"
             disabled={save.isPending}
             onClick={() => save.mutate({ prefs: null })}
           >
