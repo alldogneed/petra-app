@@ -333,6 +333,7 @@ export function getClientPermissions(
     canSeeFinance:          can(TENANT_PERMS.FINANCE_READ),
     canSeeRevenueSummary:   can(TENANT_PERMS.FINANCE_SUMMARY),
     canSeePii:              can(TENANT_PERMS.CUSTOMERS_PII),
+    canWriteCustomers:      can(TENANT_PERMS.CUSTOMERS_PII) && can(TENANT_PERMS.CONTENT_WRITE),
     canSeeRecipientsSensitive: can(TENANT_PERMS.RECIPIENTS_SENSITIVE),
     canCriticalDelete:      can(TENANT_PERMS.CRITICAL_DELETE),
     canCriticalSettings:    can(TENANT_PERMS.SETTINGS_CRITICAL),

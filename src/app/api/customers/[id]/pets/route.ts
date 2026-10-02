@@ -3,14 +3,16 @@ import { prisma } from "@/lib/prisma";
 import { NextRequest, NextResponse } from "next/server";
 import { logActivity } from "@/lib/activity-log";
 import { ENTITY_TYPES } from "@/lib/activity-actions";
-import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { isGuardError } from "@/lib/auth-guards";
+import { requireCustomerAccess } from "@/lib/customer-access";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireBusinessAuth(request);
+    // Only caller: CreateOrderModal (customer picked from /api/customers, itself CUSTOMERS_PII-gated).
+    const authResult = await requireCustomerAccess(request, "read");
     if (isGuardError(authResult)) return authResult;
 
     const pets = await prisma.pet.findMany({
@@ -34,15 +36,15 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireBusinessAuth(request);
+    const authResult = await requireCustomerAccess(request, "create");
     if (isGuardError(authResult)) return authResult;
 
     // Verify customer exists and belongs to this business
-    const customer = await prisma.customer.findUnique({
-      where: { id: params.id },
-      select: { id: true, businessId: true },
+    const customer = await prisma.customer.findFirst({
+      where: { id: params.id, businessId: authResult.businessId },
+      select: { id: true },
     });
-    if (!customer || customer.businessId !== authResult.businessId) {
+    if (!customer) {
       return NextResponse.json({ error: "Customer not found" }, { status: 404 });
     }
 

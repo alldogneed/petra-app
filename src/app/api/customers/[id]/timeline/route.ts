@@ -1,7 +1,11 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { isGuardError } from "@/lib/auth-guards";
+import { requireCustomerAccess } from "@/lib/customer-access";
+import { clampTake, parseCursor } from "@/lib/customer-summary";
+import { listCustomerTimeline } from "@/services/customer-detail";
+import { ServiceError } from "@/services/types";
 
 const VALID_TIMELINE_EVENT_TYPES = new Set([
   "note",
@@ -20,18 +24,48 @@ const VALID_TIMELINE_EVENT_TYPES = new Set([
   "payment_received",
 ]);
 
+/**
+ * GET /api/customers/[id]/timeline?cursor=<eventId>&take=30
+ * → { events: [{ id, type, description, metadata, createdAt }], nextCursor } (newest first, take ≤ 100)
+ */
+export async function GET(
+  request: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const authResult = await requireCustomerAccess(request, "read");
+    if (isGuardError(authResult)) return authResult;
+
+    const sp = request.nextUrl.searchParams;
+    const rawCursor = sp.get("cursor");
+    const cursor = parseCursor(rawCursor);
+    if (rawCursor && !cursor) return NextResponse.json({ error: "cursor לא תקין" }, { status: 400 });
+    const take = clampTake(sp.get("take"), 30, 100);
+
+    const page = await listCustomerTimeline(authResult.businessId, prisma, params.id, { cursor, take });
+    return NextResponse.json({ events: page.items, nextCursor: page.nextCursor });
+  } catch (error) {
+    if (error instanceof ServiceError) {
+      const status = error.code === "NOT_FOUND" ? 404 : 400;
+      return NextResponse.json({ error: error.message }, { status });
+    }
+    console.error("GET timeline error:", error);
+    return NextResponse.json({ error: "Failed to fetch timeline" }, { status: 500 });
+  }
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireBusinessAuth(request);
+    const authResult = await requireCustomerAccess(request, "write");
     if (isGuardError(authResult)) return authResult;
 
-    const body = await request.json();
-    const { description, type = "note" } = body;
+    const body = await request.json().catch(() => null);
+    const { description, type = "note" } = (body ?? {}) as { description?: unknown; type?: unknown };
 
-    if (!description?.trim()) {
+    if (typeof description !== "string" || typeof type !== "string" || !description.trim()) {
       return NextResponse.json({ error: "Description is required" }, { status: 400 });
     }
     if (description.trim().length > 2000) {
