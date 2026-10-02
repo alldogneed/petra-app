@@ -126,7 +126,7 @@ function EditModal({
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div
-        className="modal-content max-w-lg w-full"
+        className="modal-content max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-5">
@@ -295,7 +295,7 @@ function AddModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div
-        className="modal-content max-w-lg w-full"
+        className="modal-content max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-5">
@@ -482,7 +482,7 @@ export default function MedicationsPage() {
   }
 
   return (
-    <div className="p-6 space-y-6 animate-fade-in">
+    <div className="p-0 sm:p-6 space-y-6 animate-fade-in">
       <BoardingTabs />
       {/* Header */}
       <div className="page-header">
@@ -492,7 +492,7 @@ export default function MedicationsPage() {
             מעקב תרופות לכלבים – כל העסק
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={() => refetch()}
             disabled={isFetching}

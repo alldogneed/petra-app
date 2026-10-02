@@ -976,11 +976,11 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
                 />
               </div>
 
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-nowrap overflow-x-auto scrollbar-hide sm:flex-wrap sm:overflow-visible gap-2">
                 <button
                   onClick={() => setSelectedCategory(null)}
                   className={cn(
-                    "badge transition-colors duration-150 cursor-pointer",
+                    "badge flex-shrink-0 whitespace-nowrap transition-colors duration-150 cursor-pointer",
                     !selectedCategory
                       ? "bg-brand-50 text-brand-700 border border-brand-100"
                       : "bg-slate-100 text-slate-600 hover:bg-slate-200"
@@ -999,7 +999,7 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
                         )
                       }
                       className={cn(
-                        "badge gap-1.5 transition-colors duration-150 cursor-pointer",
+                        "badge flex-shrink-0 whitespace-nowrap gap-1.5 transition-colors duration-150 cursor-pointer",
                         selectedCategory === cat.id
                           ? "bg-brand-50 text-brand-700 border border-brand-100"
                           : "bg-slate-100 text-slate-600 hover:bg-slate-200"

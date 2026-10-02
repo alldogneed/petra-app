@@ -664,10 +664,10 @@ export function Sidebar({
 
       <div
         className={cn(
-          "fixed top-0 right-0 h-screen z-50 md:hidden transition-transform duration-300",
+          "fixed top-0 right-0 h-dvh z-50 md:hidden transition-transform duration-300",
           mobileOpen ? "translate-x-0" : "translate-x-full"
         )}
-        style={{ boxShadow: "-8px 0 32px rgba(0,0,0,0.4)" }}
+        style={mobileOpen ? { boxShadow: "-8px 0 32px rgba(0,0,0,0.4)" } : undefined}
       >
         {sidebarContent(true)}
       </div>

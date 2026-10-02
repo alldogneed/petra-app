@@ -981,12 +981,12 @@ function StayRow({
   const overdue = isOverdue(stay, settings.boardingCheckOutTime || "11:00");
 
   return (
-    <div className={cn("card p-4 flex items-center gap-4", overdue && "ring-2 ring-red-200")}>
+    <div className={cn("card p-4 flex flex-wrap sm:flex-nowrap items-center gap-4", overdue && "ring-2 ring-red-200")}>
       <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: st.bg }}>
         <PawPrint className="w-5 h-5" style={{ color: st.color }} />
       </div>
 
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-[60%] sm:min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm font-semibold text-petra-text">{stay.pet.name}</span>
           {stay.pet.breed && <span className="text-xs text-petra-muted">({stay.pet.breed})</span>}
@@ -3054,7 +3054,7 @@ function BoardingPageContent() {
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {viewMode === "timeline" && (
             <div className="flex items-center gap-1 text-xs">
               {(() => {

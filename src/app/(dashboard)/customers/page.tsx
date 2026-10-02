@@ -915,11 +915,13 @@ function EditCustomerModal({
             />
             {editFieldErrors.name && <p className="text-xs text-red-500 mt-1">{editFieldErrors.name}</p>}
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="label">טלפון *</label>
               <input
-                className={cn("input", editFieldErrors.phone && "border-red-300 focus:ring-red-200")}
+                type="tel"
+                dir="ltr"
+                className={cn("input text-right", editFieldErrors.phone && "border-red-300 focus:ring-red-200")}
                 value={form.phone}
                 onChange={(e) => { setForm({ ...form, phone: e.target.value }); if (editFieldErrors.phone) setEditFieldErrors({ ...editFieldErrors, phone: undefined }); }}
                 inputMode="tel"
@@ -929,7 +931,9 @@ function EditCustomerModal({
             <div>
               <label className="label">אימייל</label>
               <input
-                className={cn("input", editFieldErrors.email && "border-red-300 focus:ring-red-200")}
+                dir="ltr"
+                inputMode="email"
+                className={cn("input text-right", editFieldErrors.email && "border-red-300 focus:ring-red-200")}
                 value={form.email}
                 onChange={(e) => { setForm({ ...form, email: e.target.value }); if (editFieldErrors.email) setEditFieldErrors({ ...editFieldErrors, email: undefined }); }}
               />
@@ -1403,7 +1407,9 @@ function NewCustomerModal({
               <label htmlFor="nc-phone" className="label">טלפון *</label>
               <input
                 id="nc-phone"
-                className={cn("input", fieldErrors.phone && "border-red-300 focus:ring-red-200")}
+                type="tel"
+                dir="ltr"
+                className={cn("input text-right", fieldErrors.phone && "border-red-300 focus:ring-red-200")}
                 value={form.phone}
                 onChange={(e) => { setForm({ ...form, phone: e.target.value }); if (fieldErrors.phone) setFieldErrors({ ...fieldErrors, phone: undefined }); setPhoneWarning(null); }}
                 onBlur={(e) => checkPhoneDuplicate(e.target.value)}
@@ -1420,7 +1426,9 @@ function NewCustomerModal({
               <label htmlFor="nc-email" className="label">אימייל</label>
               <input
                 id="nc-email"
-                className={cn("input", fieldErrors.email && "border-red-300 focus:ring-red-200")}
+                dir="ltr"
+                inputMode="email"
+                className={cn("input text-right", fieldErrors.email && "border-red-300 focus:ring-red-200")}
                 value={form.email}
                 onChange={(e) => { setForm({ ...form, email: e.target.value }); if (fieldErrors.email) setFieldErrors({ ...fieldErrors, email: undefined }); }}
                 aria-describedby={fieldErrors.email ? "nc-email-error" : undefined}
@@ -1463,7 +1471,9 @@ function NewCustomerModal({
                 placeholder="שם איש הקשר"
               />
               <input
-                className="input flex-1"
+                type="tel"
+                dir="ltr"
+                className="input flex-1 text-right"
                 value={form.secondContactPhone}
                 onChange={(e) => setForm({ ...form, secondContactPhone: e.target.value })}
                 placeholder="050-0000000"
@@ -2228,7 +2238,7 @@ export default function CustomersPage() {
               <div className="flex items-center gap-3 px-4 py-2.5 bg-[#FAF7F3] border-b border-[#E8DFD5]">
                 <button
                   onClick={toggleSelectAll}
-                  className="text-slate-400 hover:text-petra-text transition-colors"
+                  className="p-2 -m-2 text-slate-400 hover:text-petra-text transition-colors"
                 >
                   {allSelected ? (
                     <CheckSquare className="w-4 h-4 text-brand-500" />
@@ -2254,7 +2264,7 @@ export default function CustomersPage() {
                     {selectionMode && (
                       <button
                         onClick={() => toggleSelect(customer.id)}
-                        className="mt-1 flex-shrink-0 text-slate-400 hover:text-petra-text transition-colors"
+                        className="p-2 -m-2 -mt-1 flex-shrink-0 text-slate-400 hover:text-petra-text transition-colors"
                       >
                         {isSelected ? (
                           <CheckSquare className="w-4 h-4 text-brand-500" />

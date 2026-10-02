@@ -150,7 +150,7 @@ function ServiceDogsListPageContent() {
               : `${activeDogs.length} כלבים בתהליך פעיל`}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => { setShowArchive(!showArchive); setPhaseFilter(""); }}
             className={cn(
@@ -172,14 +172,14 @@ function ServiceDogsListPageContent() {
             </button>
           </div>
           {/* Search */}
-          <div className="relative">
+          <div className="relative w-full sm:w-auto">
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted" />
             <input
               type="text"
               placeholder="חיפוש לפי שם או גזע..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="input pr-10 w-48 sm:w-56"
+              className="input pr-10 w-full sm:w-56"
             />
           </div>
           {!showArchive && (
@@ -253,7 +253,7 @@ function ServiceDogsListPageContent() {
           </p>
         </div>
       ) : view === "table" ? (
-        <div className="card overflow-hidden">
+        <div className="card overflow-x-auto">
           <table className="w-full text-right text-sm">
             <thead>
               <tr className="border-b bg-slate-50">

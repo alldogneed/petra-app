@@ -772,7 +772,7 @@ function NewAppointmentModal({
                   />
                 </div>
                 <div className="col-span-2 text-xs text-petra-muted bg-orange-50 border border-orange-100 rounded-lg px-3 py-2">
-                  ייצרו <strong>{occurrences}</strong> פגישות החל מ-{form.date || "התאריך שנבחר"}
+                  ייווצרו <strong>{occurrences}</strong> פגישות החל מ-{form.date || "התאריך שנבחר"}
                 </div>
               </div>
             )}
@@ -3326,7 +3326,7 @@ function CalendarContent() {
                       <p className="text-petra-muted/50 text-xs italic flex-1">אין הערות</p>
                     )}
                     <button
-                      className="w-6 h-6 flex items-center justify-center rounded text-slate-400 hover:text-brand-500 hover:bg-slate-100 transition-colors flex-shrink-0 opacity-0 group-hover/notes:opacity-100"
+                      className="w-6 h-6 flex items-center justify-center rounded text-slate-400 hover:text-brand-500 hover:bg-slate-100 transition-colors flex-shrink-0 md:opacity-0 md:group-hover/notes:opacity-100"
                       title="ערוך הערות"
                       onClick={() => { setNotesInput(selectedAppointment.notes ?? ""); setEditingNotes(true); }}
                     >
@@ -3462,7 +3462,7 @@ function CalendarContent() {
               כרטיס לקוח
             </a>
 
-            <div className="flex gap-2 mt-2 pt-3 border-t border-slate-100">
+            <div className="flex flex-wrap gap-2 mt-2 pt-3 border-t border-slate-100">
               {confirmDeleteId === selectedAppointment.id ? (
                 <div className="flex-1 flex items-center gap-2 bg-red-50 rounded-xl px-3 py-2">
                   <span className="text-xs text-red-700 flex-1">למחוק את התור לצמיתות?</span>

@@ -1164,7 +1164,9 @@ function EditCustomerModal({
             <div>
               <label className="label">טלפון *</label>
               <input
-                className="input"
+                className="input text-right"
+                type="tel"
+                dir="ltr"
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
               />
@@ -1172,8 +1174,9 @@ function EditCustomerModal({
             <div>
               <label className="label">אימייל</label>
               <input
-                className="input"
+                className="input text-right"
                 type="email"
+                dir="ltr"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
               />
@@ -2329,7 +2332,7 @@ function CustomerDocumentsSection({
                     {new Date(doc.createdAt).toLocaleDateString("he-IL")}
                   </p>
                 </div>
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                   <a
                     href={doc.url}
                     target="_blank"
@@ -3031,7 +3034,7 @@ function EditHealthModal({
             {/* משושה גורים */}
             <div>
               <p className="text-xs font-medium text-petra-text mb-2">משושה גורים — 3 מנות, שבועיים בין כל מנה</p>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="label">מנה 1</label>
                   <input className="input" type="date" lang="he" value={form.dhppPuppy1Date} onChange={(e) => setForm({ ...form, dhppPuppy1Date: e.target.value })} />
@@ -3184,7 +3187,7 @@ function EditHealthModal({
               </div>
               <div>
                 <label className="label">טלפון וטרינר</label>
-                <input className="input" value={form.vetPhone} onChange={(e) => setForm({ ...form, vetPhone: e.target.value })} />
+                <input className="input text-right" type="tel" dir="ltr" value={form.vetPhone} onChange={(e) => setForm({ ...form, vetPhone: e.target.value })} />
               </div>
             </div>
           </div>
@@ -3727,11 +3730,14 @@ export default function CustomerProfilePage() {
                       setIntakeSending(true);
                       try {
                         const res = await fetch("/api/intake/create", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ customerId: customer.id }) });
+                        if (!res.ok) throw new Error("intake create failed");
                         const data = await res.json();
                         if (data.url && customer.phone) {
                           const msg = `שלום ${customer.name}! 📋\nאנא מלא טופס קבלה:\n${data.url}`;
                           window.open(`https://wa.me/${toWhatsAppPhone(customer.phone)}?text=${encodeURIComponent(msg)}`, "_blank");
                         }
+                      } catch {
+                        toast.error("שגיאה ביצירת טופס קבלה");
                       } finally { setIntakeSending(false); }
                     }}
                     className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 text-right disabled:opacity-50"
@@ -3781,11 +3787,14 @@ export default function CustomerProfilePage() {
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({ customerId: customer.id }),
                 });
+                if (!res.ok) throw new Error("intake create failed");
                 const data = await res.json();
                 if (data.url && customer.phone) {
                   const msg = `שלום ${customer.name}! 📋\nאנא מלא טופס קבלה עבור הכלב שלך:\n${data.url}\nהקישור בתוקף ל-7 ימים. תודה! 🐾`;
                   window.open(`https://wa.me/${toWhatsAppPhone(customer.phone)}?text=${encodeURIComponent(msg)}`, "_blank");
                 }
+              } catch {
+                toast.error("שגיאה ביצירת טופס קבלה");
               } finally {
                 setIntakeSending(false);
               }
@@ -4133,7 +4142,7 @@ export default function CustomerProfilePage() {
                                   href={`https://wa.me/${toWhatsAppPhone(customer.phone)}?text=${encodeURIComponent(bdMsg)}`}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded hover:bg-amber-200 transition-all"
+                                  className="sm:opacity-0 sm:group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded hover:bg-amber-200 transition-all"
                                   title="שלח ברכת יום הולדת WhatsApp"
                                   onClick={(e) => e.stopPropagation()}
                                 >
@@ -4142,7 +4151,7 @@ export default function CustomerProfilePage() {
                               );
                             })()}
                             <button
-                              className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded hover:bg-amber-200 transition-all"
+                              className="sm:opacity-0 sm:group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded hover:bg-amber-200 transition-all"
                               onClick={(e) => { e.stopPropagation(); setEditPetModal({ pet }); }}
                               title="ערוך"
                             >
@@ -4150,7 +4159,7 @@ export default function CustomerProfilePage() {
                             </button>
                             {!perms.isStaff && !perms.isVolunteer && (
                               <button
-                                className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded hover:bg-red-100 transition-all"
+                                className="sm:opacity-0 sm:group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded hover:bg-red-100 transition-all"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   if (perms.isOwner) {
@@ -4301,14 +4310,14 @@ export default function CustomerProfilePage() {
                                         </span>
                                       )}
                                       <button
-                                        className="opacity-0 group-hover:opacity-100 w-5 h-5 rounded flex items-center justify-center hover:bg-brand-50 transition-all"
+                                        className="sm:opacity-0 sm:group-hover:opacity-100 w-5 h-5 rounded flex items-center justify-center hover:bg-brand-50 transition-all"
                                         onClick={(e) => { e.stopPropagation(); setMedModal({ petId: pet.id, petName: pet.name, med }); }}
                                         title="ערוך"
                                       >
                                         <Pencil className="w-3 h-3 text-brand-500" />
                                       </button>
                                       <button
-                                        className="opacity-0 group-hover:opacity-100 w-5 h-5 rounded flex items-center justify-center hover:bg-red-100 transition-all"
+                                        className="sm:opacity-0 sm:group-hover:opacity-100 w-5 h-5 rounded flex items-center justify-center hover:bg-red-100 transition-all"
                                         onClick={(e) => { e.stopPropagation(); setDeletingMed({ id: med.id, petId: pet.id }); }}
                                         title="מחק"
                                       >
@@ -4695,7 +4704,7 @@ export default function CustomerProfilePage() {
                                 <span className="text-stone-700">{pet.medicalNotes || <span className="italic text-stone-400">לא הוזן</span>}</span>
                               </div>
                               <button
-                                className="opacity-0 group-hover:opacity-100 w-5 h-5 rounded flex items-center justify-center hover:bg-brand-50 transition-all flex-shrink-0"
+                                className="sm:opacity-0 sm:group-hover:opacity-100 w-5 h-5 rounded flex items-center justify-center hover:bg-brand-50 transition-all flex-shrink-0"
                                 onClick={(e) => { e.stopPropagation(); setNoteModal({ petId: pet.id, field: "medicalNotes", label: "הערות רפואיות", value: pet.medicalNotes || "" }); }}
                               >
                                 <Pencil className="w-3 h-3 text-brand-500" />
@@ -4707,7 +4716,7 @@ export default function CustomerProfilePage() {
                                 <span className="text-stone-700">{pet.behaviorNotes || <span className="italic text-stone-400">לא הוזן</span>}</span>
                               </div>
                               <button
-                                className="opacity-0 group-hover:opacity-100 w-5 h-5 rounded flex items-center justify-center hover:bg-brand-50 transition-all flex-shrink-0"
+                                className="sm:opacity-0 sm:group-hover:opacity-100 w-5 h-5 rounded flex items-center justify-center hover:bg-brand-50 transition-all flex-shrink-0"
                                 onClick={(e) => { e.stopPropagation(); setNoteModal({ petId: pet.id, field: "behaviorNotes", label: "הערות התנהגות", value: pet.behaviorNotes || "" }); }}
                               >
                                 <Pencil className="w-3 h-3 text-brand-500" />

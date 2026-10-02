@@ -677,7 +677,7 @@ function PaymentRequestContent() {
                       />
                       <span className="text-sm text-slate-500">%</span>
                       {discountAmount > 0 && (
-                        <span className="text-sm text-green-600 ms-auto">
+                        <span className="text-sm text-green-600 mr-auto" dir="ltr">
                           -₪{discountAmount}
                         </span>
                       )}
@@ -766,7 +766,8 @@ function PaymentRequestContent() {
                       if (stripeLink && e.target.value !== stripeLink) setStripeLink(null);
                     }}
                     placeholder={autoPaymentUrl || "הדבק קישור לדף תשלום..."}
-                    className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 placeholder:text-slate-300"
+                    dir="ltr"
+                    className={cn("w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 placeholder:text-slate-300", !autoPaymentUrl && "placeholder:text-right")}
                   />
                   {stripeLink && customPaymentUrl === stripeLink && (
                     <p className="text-xs text-violet-600 flex items-center gap-1">

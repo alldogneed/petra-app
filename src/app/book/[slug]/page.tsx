@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react"
 import Image from "next/image"
 import { ChevronRight, ChevronLeft, Check, Clock, Calendar, PawPrint, User, Plus, X, MapPin, Mail, CreditCard, ExternalLink, Scissors, GraduationCap, Hotel, Sparkles, MessageCircle, CalendarPlus } from "lucide-react"
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { toWhatsAppPhone } from "@/lib/utils";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -877,7 +878,8 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                       onChange={(e) => { setPhone(e.target.value); if (phoneError) setPhoneError("") }}
                       onBlur={() => { if (phone && !validatePhone(phone)) setPhoneError("מספר טלפון לא תקין (לדוגמה: 050-1234567)") }}
                       placeholder="050-0000000"
-                      className={`input flex-1 ${phoneError ? "border-red-400 focus:ring-red-300" : ""}`}
+                      className={`input flex-1 text-right ${phoneError ? "border-red-400 focus:ring-red-300" : ""}`}
+                      dir="ltr"
                       autoComplete="tel"
                     />
                     {isLookingUpPhone && (
@@ -1015,7 +1017,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                       {dogs.length > 1 && dog.isNew && (
                         <button
                           onClick={() => setDogs((d) => d.filter((_, i) => i !== idx))}
-                          className="absolute top-3 left-3 text-slate-400 hover:text-red-500 transition-colors"
+                          className="absolute top-1 left-1 p-2 text-slate-400 hover:text-red-500 transition-colors"
                         >
                           <X className="w-4 h-4" />
                         </button>
@@ -1300,7 +1302,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-3 text-sm text-blue-800 text-center">
                   <p className="font-semibold mb-1">ליצירת קשר לתשלום:</p>
                   {business?.phone && (
-                    <a href={`https://wa.me/972${business.phone.replace(/^0/, "")}?text=${encodeURIComponent(`שלום, קבעתי תור ל${selectedService.name} (מס' ${bookingResult.bookingId.slice(0, 8).toUpperCase()}). אשמח לשלם מקדמה.`)}`} className="text-green-600 hover:underline flex items-center justify-center gap-1 mt-1">
+                    <a href={`https://wa.me/${toWhatsAppPhone(business.phone)}?text=${encodeURIComponent(`שלום, קבעתי תור ל${selectedService.name} (מס' ${bookingResult.bookingId.slice(0, 8).toUpperCase()}). אשמח לשלם מקדמה.`)}`} className="text-green-600 hover:underline flex items-center justify-center gap-1 mt-1">
                       <MessageCircle className="w-4 h-4" /> שלח WhatsApp לתשלום
                     </a>
                   )}

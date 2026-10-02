@@ -97,7 +97,7 @@ export default function ConnectAiPage() {
       {/* Header */}
       <div>
         <Link href="/settings?tab=ai-agents" className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 mb-4">
-          <ArrowRight className="w-4 h-4 rotate-180" />
+          <ArrowRight className="w-4 h-4" />
           חזרה להגדרות
         </Link>
         <div className="flex items-center gap-3 mb-2">

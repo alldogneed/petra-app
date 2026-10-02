@@ -185,7 +185,7 @@
   /* ─── Form Elements ─── */
   .input {
     @apply w-full px-3.5 py-2.5
-    bg-white border border-petra-border rounded-xl text-sm
+    bg-white border border-petra-border rounded-xl text-base sm:text-sm
     placeholder:text-slate-400
     focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400
     transition-all duration-150
@@ -235,7 +235,7 @@
   }
 
   .modal-backdrop {
-    @apply absolute inset-0 bg-slate-900/50 backdrop-blur-sm;
+    @apply fixed inset-0 bg-slate-900/50 backdrop-blur-sm;
   }
 
   .modal-content {

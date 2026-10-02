@@ -508,7 +508,7 @@ function RecipientDetailPageContent() {
                               </a>
                             )}
                           </div>
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                             <button
                               onClick={() => { setEditingContact(cp); setShowAddContact(true); }}
                               className="w-7 h-7 rounded flex items-center justify-center hover:bg-brand-50 transition-colors"
@@ -542,14 +542,14 @@ function RecipientDetailPageContent() {
                                   )}
                                   <button
                                     onClick={() => renameAttachment(f.id, f.name)}
-                                    className="opacity-0 group-hover/file:opacity-100 w-6 h-6 rounded flex items-center justify-center hover:bg-slate-200 transition-all"
+                                    className="opacity-100 sm:opacity-0 sm:group-hover/file:opacity-100 w-6 h-6 rounded flex items-center justify-center hover:bg-slate-200 transition-all"
                                     title="ערוך שם"
                                   >
                                     <Pencil className="w-3 h-3 text-slate-500" />
                                   </button>
                                   <button
                                     onClick={() => deleteAttachment(f.id)}
-                                    className="opacity-0 group-hover/file:opacity-100 w-6 h-6 rounded flex items-center justify-center hover:bg-red-100 transition-all"
+                                    className="opacity-100 sm:opacity-0 sm:group-hover/file:opacity-100 w-6 h-6 rounded flex items-center justify-center hover:bg-red-100 transition-all"
                                     title="מחק"
                                   >
                                     <Trash2 className="w-3 h-3 text-red-500" />
@@ -715,14 +715,14 @@ function RecipientDetailPageContent() {
                         )}
                         <button
                           onClick={() => renameAttachment(att.id, att.name)}
-                          className="opacity-0 group-hover:opacity-100 w-8 h-8 rounded flex items-center justify-center hover:bg-slate-200 transition-all"
+                          className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 w-8 h-8 rounded flex items-center justify-center hover:bg-slate-200 transition-all"
                           title="ערוך שם"
                         >
                           <Pencil className="w-4 h-4 text-slate-500" />
                         </button>
                         <button
                           onClick={() => deleteAttachment(att.id)}
-                          className="opacity-0 group-hover:opacity-100 w-8 h-8 rounded flex items-center justify-center hover:bg-red-100 transition-all"
+                          className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 w-8 h-8 rounded flex items-center justify-center hover:bg-red-100 transition-all"
                           title="מחק"
                         >
                           <Trash2 className="w-4 h-4 text-red-500" />
@@ -807,21 +807,21 @@ function RecipientDetailPageContent() {
                     <div className="flex items-center gap-1 shrink-0">
                       <button
                         onClick={() => setCopyingMeeting(meeting)}
-                        className="opacity-0 group-hover:opacity-100 w-7 h-7 rounded flex items-center justify-center hover:bg-indigo-50 transition-all"
+                        className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 w-7 h-7 rounded flex items-center justify-center hover:bg-indigo-50 transition-all"
                         title="העתק מפגש לזכאי אחר"
                       >
                         <Copy className="w-3.5 h-3.5 text-indigo-500" />
                       </button>
                       <button
                         onClick={() => setEditingMeeting(meeting)}
-                        className="opacity-0 group-hover:opacity-100 w-7 h-7 rounded flex items-center justify-center hover:bg-brand-50 transition-all"
+                        className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 w-7 h-7 rounded flex items-center justify-center hover:bg-brand-50 transition-all"
                         title="ערוך"
                       >
                         <Pencil className="w-3.5 h-3.5 text-brand-500" />
                       </button>
                       <button
                         onClick={() => deleteMeeting(meeting.id)}
-                        className="opacity-0 group-hover:opacity-100 w-7 h-7 rounded flex items-center justify-center hover:bg-red-100 transition-all"
+                        className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 w-7 h-7 rounded flex items-center justify-center hover:bg-red-100 transition-all"
                         title="מחק"
                       >
                         <Trash2 className="w-3.5 h-3.5 text-red-500" />
@@ -1102,15 +1102,15 @@ function EditRecipientModal({
             </div>
             <div>
               <label className="label text-xs">נייד</label>
-              <input type="tel" className="input w-full" value={mobile} onChange={(e) => setMobile(e.target.value)} />
+              <input type="tel" dir="ltr" className="input w-full text-right" value={mobile} onChange={(e) => setMobile(e.target.value)} />
             </div>
             <div>
               <label className="label text-xs">מייל</label>
-              <input type="email" className="input w-full" value={email} onChange={(e) => setEmail(e.target.value)} />
+              <input type="email" dir="ltr" className="input w-full text-right" value={email} onChange={(e) => setEmail(e.target.value)} />
             </div>
             <div>
               <label className="label text-xs">טלפון</label>
-              <input type="tel" className="input w-full" value={phone} onChange={(e) => setPhone(e.target.value)} />
+              <input type="tel" dir="ltr" className="input w-full text-right" value={phone} onChange={(e) => setPhone(e.target.value)} />
             </div>
             <div>
               <label className="label text-xs">ת.ז.</label>
@@ -1333,7 +1333,7 @@ function ContactPersonModal({
           </div>
           <div>
             <label className="label">טלפון</label>
-            <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="input w-full" placeholder="05X-XXXXXXX" />
+            <input type="tel" dir="ltr" value={phone} onChange={(e) => setPhone(e.target.value)} className="input w-full text-right" placeholder="05X-XXXXXXX" />
           </div>
           <div className="flex gap-2 pt-2">
             <button

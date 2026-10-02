@@ -282,7 +282,7 @@ function PlacementsPageContent() {
           <p className="text-petra-muted">אין שיבוצים</p>
         </div>
       ) : (
-        <div className="card p-0 overflow-hidden">
+        <div className="card p-0 overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b bg-slate-50/50">

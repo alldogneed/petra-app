@@ -331,7 +331,7 @@ function ItemModal({
               >
                 <span className={cn(
                   "inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform",
-                  form.isBookableOnline ? "translate-x-4" : "translate-x-1"
+                  form.isBookableOnline ? "-translate-x-4" : "-translate-x-1"
                 )} />
               </button>
             </div>
@@ -353,7 +353,7 @@ function ItemModal({
                   >
                     <span className={cn(
                       "inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform",
-                      form.depositRequired ? "translate-x-4" : "translate-x-1"
+                      form.depositRequired ? "-translate-x-4" : "-translate-x-1"
                     )} />
                   </button>
                 </div>

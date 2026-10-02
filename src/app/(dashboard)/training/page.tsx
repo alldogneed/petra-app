@@ -3,7 +3,7 @@ import { PageTitle } from "@/components/ui/PageTitle";
 
 import { TierGate } from "@/components/paywall/TierGate";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import { Fragment, useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { usePlan } from "@/hooks/usePlan";
 import { getMaxTrainingPrograms } from "@/lib/feature-flags";
 import {
@@ -2523,7 +2523,7 @@ function OverviewTab({ dogs, onFocus }: { dogs: UnifiedDog[]; onFocus: (dog: Uni
           </section>
         ))
       ) : (
-        <div className="card overflow-hidden">
+        <div className="card overflow-x-auto">
           <table className="w-full text-right text-sm">
             <thead>
               <tr className="border-b bg-slate-50">
@@ -2537,15 +2537,17 @@ function OverviewTab({ dogs, onFocus }: { dogs: UnifiedDog[]; onFocus: (dog: Uni
             </thead>
             <tbody>
               {sections.map((section) => (
-                <>
-                  <tr key={section.label} className="bg-slate-50/80">
-                    <td colSpan={6} className={cn("px-3 py-1.5 text-xs font-semibold flex items-center gap-1.5", section.labelClass)}>
-                      {section.icon}
-                      {section.label}
+                <Fragment key={section.label}>
+                  <tr className="bg-slate-50/80">
+                    <td colSpan={6} className={cn("px-3 py-1.5 text-xs font-semibold", section.labelClass)}>
+                      <div className="flex items-center gap-1.5">
+                        {section.icon}
+                        {section.label}
+                      </div>
                     </td>
                   </tr>
                   {section.dogs.map((dog) => <OverviewDogRow key={dog.key} dog={dog} onFocus={onFocus} />)}
-                </>
+                </Fragment>
               ))}
             </tbody>
           </table>
@@ -2764,7 +2766,7 @@ function HomeworkSection({ program }: { program: TrainingProgram }) {
             <button
               onClick={() => deleteMutation.mutate(hw.id)}
               disabled={deleteMutation.isPending}
-              className="text-petra-muted hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+              className="text-petra-muted hover:text-red-500 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
             >
               <X className="w-3 h-3" />
             </button>
@@ -4751,7 +4753,7 @@ function GroupCard({
                         </button>
                       )}
                       <button
-                        className="w-6 h-6 flex items-center justify-center rounded hover:bg-red-50 text-slate-300 hover:text-red-500 opacity-0 group-hover/item:opacity-100 transition-opacity flex-shrink-0"
+                        className="w-6 h-6 flex items-center justify-center rounded hover:bg-red-50 text-slate-300 hover:text-red-500 opacity-100 sm:opacity-0 sm:group-hover/item:opacity-100 transition-opacity flex-shrink-0"
                         onClick={(e) => { e.stopPropagation(); onRemoveParticipant(p.id); }}
                         title="הסר משתתף"
                       >
@@ -4798,7 +4800,7 @@ function GroupCard({
                       {promoteMutation.isPending ? "מקדם..." : "קדם"}
                     </button>
                     <button
-                      className="w-6 h-6 flex items-center justify-center rounded hover:bg-red-50 text-slate-300 hover:text-red-500 opacity-0 group-hover/item:opacity-100 transition-opacity flex-shrink-0"
+                      className="w-6 h-6 flex items-center justify-center rounded hover:bg-red-50 text-slate-300 hover:text-red-500 opacity-100 sm:opacity-0 sm:group-hover/item:opacity-100 transition-opacity flex-shrink-0"
                       onClick={(e) => { e.stopPropagation(); onRemoveParticipant(p.id); }}
                       title="הסר מרשימת ההמתנה"
                     >
@@ -7275,11 +7277,11 @@ function AddRecipientInlineModal({ onClose }: { onClose: () => void }) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">טלפון</label>
-              <input type="tel" className="input" placeholder="05x-xxxxxxx" value={phone} onChange={(e) => setPhone(e.target.value)} />
+              <input type="tel" dir="ltr" className="input text-right" placeholder="05x-xxxxxxx" value={phone} onChange={(e) => setPhone(e.target.value)} />
             </div>
             <div>
               <label className="label">אימייל</label>
-              <input type="email" className="input" placeholder="mail@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+              <input type="email" dir="ltr" className="input text-right" placeholder="mail@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">

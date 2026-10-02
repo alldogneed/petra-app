@@ -751,7 +751,7 @@ function ServiceDogProfilePageContent() {
       {/* Delete confirmation modal */}
       {confirmDelete && (
         <div className="modal-overlay" onClick={() => setConfirmDelete(false)}>
-          <div className="modal-content max-w-sm" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold mb-2">מחיקת כלב</h3>
             <p className="text-sm text-petra-muted mb-4">
               האם למחוק את <strong>{dog.pet.name}</strong>? פעולה זו אינה הפיכה.
@@ -1107,14 +1107,14 @@ function TrainingLogRow({
           )}
           <button
             onClick={() => setCopying(true)}
-            className="opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center rounded hover:bg-indigo-50 transition-all"
+            className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 w-7 h-7 flex items-center justify-center rounded hover:bg-indigo-50 transition-all"
             title="העתק מפגש לכלב אחר"
           >
             <Copy className="w-3.5 h-3.5 text-indigo-500" />
           </button>
           <button
             onClick={() => setEditing(true)}
-            className="opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center rounded hover:bg-brand-50 transition-all"
+            className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 w-7 h-7 flex items-center justify-center rounded hover:bg-brand-50 transition-all"
             title="ערוך מפגש"
           >
             <Pencil className="w-3.5 h-3.5 text-brand-500" />
@@ -1122,7 +1122,7 @@ function TrainingLogRow({
           <button
             onClick={handleDelete}
             disabled={deleting}
-            className="opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center rounded hover:bg-red-50 transition-all disabled:opacity-40"
+            className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 w-7 h-7 flex items-center justify-center rounded hover:bg-red-50 transition-all disabled:opacity-40"
             title="מחק מפגש"
           >
             <Trash2 className="w-3.5 h-3.5 text-red-400" />
@@ -3911,7 +3911,7 @@ function DogFileTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string }) {
                       {entry.foodNotes && <span className="text-xs text-petra-muted truncate">{entry.foodNotes}</span>}
                     </div>
                     <button
-                      className="opacity-0 group-hover:opacity-100 w-7 h-7 flex items-center justify-center rounded hover:bg-red-100 transition-all shrink-0"
+                      className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 w-7 h-7 flex items-center justify-center rounded hover:bg-red-100 transition-all shrink-0"
                       title="מחק רשומה"
                       onClick={async () => {
                         if (!confirm("למחוק רשומה זו?")) return;
@@ -4408,7 +4408,7 @@ function EditPetModal({
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content max-w-lg" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-content max-w-lg p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold flex items-center gap-2">
             <Dog className="w-5 h-5 text-brand-500" />
@@ -5005,7 +5005,7 @@ function ClaimCard({
                       </div>
                       <button
                         onClick={() => handleDeleteNote(idx)}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-300 hover:text-red-400 mt-1 shrink-0"
+                        className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity text-slate-300 hover:text-red-400 mt-1 shrink-0"
                         title="מחק עדכון"
                       >
                         <X className="w-3.5 h-3.5" />
@@ -5047,7 +5047,7 @@ function ClaimCard({
                     </a>
                     <button
                       onClick={() => handleDeleteDoc(di)}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-300 hover:text-red-400 shrink-0"
+                      className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity text-slate-300 hover:text-red-400 shrink-0"
                       title="מחק מסמך"
                     >
                       <X className="w-3.5 h-3.5" />
@@ -5995,7 +5995,7 @@ function SDHealthModal({
             </div>
             <div>
               <p className="text-xs font-medium mb-2">משושה גורים — 3 מנות</p>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div><label className="label">מנה 1</label><input className="input" type="date" lang="he" value={form.dhppPuppy1Date} onChange={(e) => setForm({ ...form, dhppPuppy1Date: e.target.value })} /></div>
                 <div><label className="label">מנה 2</label><input className="input" type="date" lang="he" value={form.dhppPuppy2Date} onChange={(e) => setForm({ ...form, dhppPuppy2Date: e.target.value })} /></div>
                 <div><label className="label">מנה 3</label><input className="input" type="date" lang="he" value={form.dhppPuppy3Date} onChange={(e) => setForm({ ...form, dhppPuppy3Date: e.target.value })} /></div>

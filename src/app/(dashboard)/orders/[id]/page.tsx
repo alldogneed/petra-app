@@ -490,14 +490,14 @@ export default function OrderDetailPage() {
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm">
         <Link href="/orders" className="text-petra-muted hover:text-brand-600 transition-colors">הזמנות</Link>
-        <ArrowRight className="w-3.5 h-3.5 text-slate-300" />
+        <ArrowRight className="w-3.5 h-3.5 text-slate-300 rotate-180" />
         <span className="text-petra-text font-medium">#{orderId.slice(-8).toUpperCase()}</span>
       </div>
 
       {/* Header card */}
       <div className="card p-5">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-3">
+        <div className="flex items-start justify-between gap-4 flex-wrap sm:flex-nowrap">
+          <div className="flex items-center gap-3 min-w-0">
             <div className="w-12 h-12 rounded-2xl bg-brand-50 flex items-center justify-center flex-shrink-0">
               <ShoppingCart className="w-5 h-5 text-brand-500" />
             </div>
@@ -521,7 +521,7 @@ export default function OrderDetailPage() {
           </div>
 
           {/* Actions */}
-          <div className="flex gap-2 flex-shrink-0">
+          <div className="flex gap-2 flex-wrap">
             {order.status === "draft" && (
               <>
                 <button
@@ -659,9 +659,9 @@ export default function OrderDetailPage() {
             {/* Editable line rows */}
             <div className="space-y-2">
               {editLines.map((line, i) => (
-                <div key={i} className="grid grid-cols-[1fr_70px_100px_32px] gap-2 items-center">
+                <div key={i} className="grid grid-cols-[1fr_1fr_32px] sm:grid-cols-[1fr_70px_100px_32px] gap-2 items-center">
                   <input
-                    className="input text-sm"
+                    className="input text-sm col-span-3 sm:col-span-1"
                     placeholder="שם פריט"
                     value={line.name}
                     onChange={(e) => updateEditLine(i, "name", e.target.value)}
@@ -759,6 +759,7 @@ export default function OrderDetailPage() {
           <div className="py-10 text-center text-sm text-petra-muted">אין פריטים בהזמנה</div>
         ) : (
           <>
+            <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-petra-border">
@@ -787,6 +788,7 @@ export default function OrderDetailPage() {
                 ))}
               </tbody>
             </table>
+            </div>
 
             {/* Totals footer */}
             <div className="border-t border-petra-border px-5 py-4 space-y-1.5 bg-slate-50/40">
@@ -826,7 +828,7 @@ export default function OrderDetailPage() {
 
         return (
           <div className="card overflow-hidden">
-            <div className="px-5 py-3.5 border-b border-petra-border bg-slate-50/60 flex items-center justify-between">
+            <div className="px-5 py-3.5 border-b border-petra-border bg-slate-50/60 flex items-center justify-between flex-wrap gap-2">
               <h2 className="font-semibold text-petra-text text-sm flex items-center gap-2">
                 <CreditCard className="w-4 h-4 text-brand-500" />
                 תשלומים
@@ -845,7 +847,7 @@ export default function OrderDetailPage() {
                   </span>
                 )}
               </h2>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 {order.status !== "cancelled" && (
                   <button
                     className="text-xs py-1.5 px-3 rounded-xl font-semibold flex items-center gap-1.5 border-2 transition-all disabled:opacity-60"

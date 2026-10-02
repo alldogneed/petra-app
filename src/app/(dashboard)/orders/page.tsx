@@ -561,7 +561,7 @@ function OrdersPageContent() {
       <div className="card p-4">
         <div className="flex flex-wrap gap-3 items-end">
           {/* Status tabs */}
-          <div className="flex-shrink-0">
+          <div className="min-w-0 max-w-full">
             <p className="text-xs font-medium text-petra-muted mb-1.5">סטטוס</p>
             <div className="flex gap-1.5 flex-wrap">
               {ORDER_STATUSES.map((s) => (
@@ -582,7 +582,7 @@ function OrdersPageContent() {
           </div>
 
           {/* Payment status filter */}
-          <div className="flex-shrink-0">
+          <div className="min-w-0 max-w-full">
             <p className="text-xs font-medium text-petra-muted mb-1.5">סטטוס תשלום</p>
             <div className="flex gap-1.5 flex-wrap">
               {[

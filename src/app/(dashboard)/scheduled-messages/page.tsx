@@ -519,7 +519,7 @@ export default function ScheduledMessagesPage() {
       {cancelId && (
         <div className="modal-overlay" onClick={() => setCancelId(null)}>
           <div className="modal-backdrop" />
-          <div className="modal-content max-w-sm" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
             <div className="text-center py-2">
               <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-3">
                 <Ban className="w-6 h-6 text-red-500" />

@@ -461,7 +461,7 @@ function PetsPageContent() {
   const cats = pets.filter((p) => p.species === "cat").length;
 
   return (
-    <div className="p-6 space-y-6 animate-fade-in">
+    <div className="p-0 sm:p-6 space-y-6 animate-fade-in">
       <PageTitle title="חיות מחמד" />
       {/* Header */}
       <div className="page-header">
@@ -471,7 +471,7 @@ function PetsPageContent() {
             כל החיות הרשומות בעסק
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={() => setShowAddModal(true)}
             className="btn-primary gap-2 inline-flex items-center"

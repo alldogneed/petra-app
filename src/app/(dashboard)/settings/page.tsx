@@ -848,7 +848,7 @@ function BookingTab() {
               </label>
               {biz?.slug ? (
                 <div className="flex items-center gap-2">
-                  <span className="flex-1 text-sm text-petra-text font-mono bg-white border border-slate-200 rounded-lg px-3 py-2 truncate select-all">
+                  <span dir="ltr" className="flex-1 min-w-0 text-sm text-petra-text font-mono bg-white border border-slate-200 rounded-lg px-3 py-2 truncate select-all">
                     {`${process.env.NEXT_PUBLIC_APP_URL || "https://petra-app.com"}/book/${biz.slug}`}
                   </span>
                   <button
@@ -867,11 +867,12 @@ function BookingTab() {
               ) : (
                 <div className="space-y-2">
                   <p className="text-xs text-amber-600">הגדר כתובת הזמנה (slug) כדי לשתף את הקישור:</p>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-petra-muted font-mono">petra-app.com/book/</span>
+                  <div className="flex items-center gap-2" dir="ltr">
+                    <span className="text-xs sm:text-sm text-petra-muted font-mono flex-shrink-0">petra-app.com/book/</span>
                     <input
                       type="text"
-                      className="input flex-1"
+                      dir="ltr"
+                      className="input flex-1 min-w-0"
                       placeholder="my-business"
                       value={editing.slug ?? ""}
                       onChange={(e) => setForm({ ...editing, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-") })}
@@ -1242,7 +1243,7 @@ function IntegrationsTab() {
                           )}
                           title={optimisticEnabled ? "כבה תזכורות" : "הפעל תזכורות"}
                         >
-                          <span className={cn("inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform", optimisticEnabled ? "translate-x-4" : "translate-x-0.5")} />
+                          <span className={cn("inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform", optimisticEnabled ? "-translate-x-4" : "-translate-x-0.5")} />
                         </button>
                       );
                     })()}
@@ -1466,7 +1467,7 @@ function StripeConnectModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-slate-100">
           <div className="flex items-center gap-3">
@@ -1511,7 +1512,7 @@ function StripeConnectModal({
             <label className="label">Secret Key (sk_...)</label>
             <div className="relative">
               <input
-                className="input w-full font-mono text-sm pr-10"
+                className="input w-full font-mono text-sm pl-10"
                 placeholder="sk_live_... או sk_test_..."
                 type={showSecret ? "text" : "password"}
                 value={secretKey}
@@ -1532,7 +1533,7 @@ function StripeConnectModal({
             <label className="label">Webhook Secret (whsec_...) — אופציונלי</label>
             <div className="relative">
               <input
-                className="input w-full font-mono text-sm pr-10"
+                className="input w-full font-mono text-sm pl-10"
                 placeholder="whsec_... (לאימות אירועי Stripe)"
                 type={showWebhook ? "text" : "password"}
                 value={webhookSecret}
@@ -1625,7 +1626,7 @@ function WhatsAppTestModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-slate-100">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center">

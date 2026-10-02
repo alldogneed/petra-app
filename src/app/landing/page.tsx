@@ -423,7 +423,7 @@ export default function LandingPage() {
 
                   {/* Floating toast — top-left of frame (RTL: physical left) */}
                   <div
-                    className="absolute -top-6 -left-8 bg-white rounded-2xl flex items-center gap-3 px-4 py-3 min-w-[240px] pointer-events-none"
+                    className="absolute -top-6 left-0 sm:-left-8 bg-white rounded-2xl flex items-center gap-3 px-4 py-3 min-w-[240px] pointer-events-none"
                     style={{
                       boxShadow: "0 24px 60px -12px rgba(0,0,0,0.45), 0 0 0 1px rgba(0,0,0,0.05)",
                       animation: "float 6s ease-in-out infinite",
@@ -440,7 +440,7 @@ export default function LandingPage() {
 
                   {/* Floating WhatsApp bubble — bottom-left */}
                   <div
-                    className="absolute -bottom-4 -left-8 bg-white rounded-2xl px-4 py-3 min-w-[220px] pointer-events-none"
+                    className="absolute -bottom-4 left-0 sm:-left-8 bg-white rounded-2xl px-4 py-3 min-w-[220px] pointer-events-none"
                     style={{
                       boxShadow: "0 24px 60px -12px rgba(0,0,0,0.45), 0 0 0 1px rgba(0,0,0,0.05)",
                       animation: "float 6s ease-in-out infinite",

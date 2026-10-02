@@ -1132,7 +1132,7 @@ function AutomationTab({ onTasksGenerated }: { onTasksGenerated: () => void }) {
                     <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-600">{PRIORITIES[tpl.defaultPriority]?.label ?? tpl.defaultPriority}</span>
                   </div>
                 </div>
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                   <button onClick={() => useTplMutation.mutate(tpl)} disabled={useTplMutation.isPending} className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-brand-500 text-white hover:bg-brand-600 transition-colors">
                     <Plus className="w-3 h-3" />צור משימה
                   </button>

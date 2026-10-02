@@ -181,7 +181,7 @@ export function GlobalSearch() {
               value={query}
               onChange={(e) => handleInput(e.target.value)}
               placeholder="חפש לקוח, חיית מחמד, תור, ליד, משימה..."
-              className="flex-1 text-sm text-petra-text bg-transparent border-none outline-none placeholder-slate-400"
+              className="flex-1 text-base sm:text-sm text-petra-text bg-transparent border-none outline-none placeholder-slate-400"
               dir="rtl"
               aria-label="חיפוש"
             />

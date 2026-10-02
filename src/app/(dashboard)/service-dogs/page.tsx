@@ -618,11 +618,11 @@ function AddRecipientModal({ onClose }: { onClose: () => void }) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">טלפון</label>
-              <input type="tel" className="input" placeholder="05x-xxxxxxx" value={phone} onChange={(e) => setPhone(e.target.value)} />
+              <input type="tel" dir="ltr" className="input text-right" placeholder="05x-xxxxxxx" value={phone} onChange={(e) => setPhone(e.target.value)} />
             </div>
             <div>
               <label className="label">אימייל</label>
-              <input type="email" className="input" placeholder="mail@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+              <input type="email" dir="ltr" className="input text-right" placeholder="mail@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">

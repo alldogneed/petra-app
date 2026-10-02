@@ -551,7 +551,7 @@ function TeamTab({ currentUserId }: { currentUserId: string }) {
   }
 
   return (
-    <div className="card overflow-hidden">
+    <div className="card overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-slate-100 text-xs text-petra-muted">
@@ -743,7 +743,7 @@ function SessionsTab({ currentUserId }: { currentUserId: string }) {
           <p className="text-sm text-petra-muted">אין סשנים פעילים כרגע</p>
         </div>
       ) : (
-        <div className="card overflow-hidden">
+        <div className="card overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-100 text-xs text-petra-muted">
@@ -1041,7 +1041,7 @@ function SystemMessagesTab() {
       )}
 
       {/* Messages List */}
-      <div className="bg-white border border-petra-border rounded-xl overflow-hidden">
+      <div className="bg-white border border-petra-border rounded-xl overflow-x-auto">
         {isLoading ? (
           <PetraLoader />
         ) : messages.length === 0 ? (
@@ -1071,8 +1071,8 @@ function SystemMessagesTab() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <p className="font-medium text-petra-text truncate max-w-xs">{msg.title}</p>
-                      <p className="text-[11px] text-petra-muted truncate max-w-xs mt-0.5">{msg.content}</p>
+                      <p className="font-medium text-petra-text truncate max-w-[160px] sm:max-w-xs">{msg.title}</p>
+                      <p className="text-[11px] text-petra-muted truncate max-w-[160px] sm:max-w-xs mt-0.5">{msg.content}</p>
                     </td>
                     <td className="px-4 py-3 text-petra-muted text-xs hidden sm:table-cell">
                       {new Date(msg.createdAt).toLocaleDateString("he-IL")}

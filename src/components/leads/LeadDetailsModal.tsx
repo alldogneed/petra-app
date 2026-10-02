@@ -467,7 +467,7 @@ export default function LeadDetailsModal({
                               {formatTime(log.createdAt)}
                             </p>
                           </div>
-                          <div className="flex gap-1 ml-2">
+                          <div className="flex gap-1 ms-2">
                             <button
                               onClick={() => handleEditLog(log)}
                               className="w-6 h-6 flex items-center justify-center rounded text-petra-muted hover:text-brand-600 hover:bg-brand-50 transition-colors"
@@ -475,7 +475,10 @@ export default function LeadDetailsModal({
                               <Edit2 className="w-3.5 h-3.5" />
                             </button>
                             <button
-                              onClick={() => deleteMutation.mutate(log.id)}
+                              onClick={() => {
+                                if (confirm("למחוק את תיעוד השיחה?")) deleteMutation.mutate(log.id);
+                              }}
+                              disabled={deleteMutation.isPending}
                               className="w-6 h-6 flex items-center justify-center rounded text-petra-muted hover:text-red-600 hover:bg-red-50 transition-colors"
                             >
                               <Trash2 className="w-3.5 h-3.5" />

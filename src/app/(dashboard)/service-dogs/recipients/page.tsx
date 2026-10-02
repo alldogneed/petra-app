@@ -133,7 +133,7 @@ function DraggableRecipientCard({ recipient, stageKey, onDelete }: { recipient: 
       <button
         onPointerDown={(e) => e.stopPropagation()}
         onClick={(e) => { e.stopPropagation(); onDelete(recipient.id, recipient.name); }}
-        className="absolute top-2 left-2 w-6 h-6 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 hover:bg-red-50 text-petra-muted hover:text-red-500 transition-all"
+        className="absolute top-2 left-2 w-6 h-6 flex items-center justify-center rounded opacity-100 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-red-50 text-petra-muted hover:text-red-500 transition-all"
         title="מחק זכאי"
       >
         <Trash2 className="w-3 h-3" />
@@ -452,21 +452,21 @@ function RecipientsPageContent() {
             {recipients.filter((r) => r.status === "ACTIVE").length} פעילים
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Search */}
-          <div className="relative">
+          <div className="relative w-full sm:w-auto">
             <Search className="w-4 h-4 absolute top-2.5 right-3 text-petra-muted pointer-events-none" />
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="חיפוש לפי שם או טלפון..."
-              className="input pr-9 text-sm w-52"
+              className="input pr-9 text-sm w-full sm:w-52"
             />
           </div>
           {/* Edit mode toggle */}
           <button
             onClick={() => setIsEditMode(!isEditMode)}
-            className={cn("btn-outline text-sm flex items-center gap-1.5", isEditMode && "border-brand-400 text-brand-600 bg-brand-50")}
+            className={cn("btn-secondary text-sm flex items-center gap-1.5", isEditMode && "border-brand-400 text-brand-600 bg-brand-50")}
             title="ערוך עמודות"
           >
             <Pencil className="w-3.5 h-3.5" />
@@ -598,7 +598,7 @@ function RecipientsPageContent() {
       ) : (
         // ── Table view ──────────────────────────────────────────
         <div className="card overflow-hidden">
-          <div className="flex items-center gap-3 p-4 border-b">
+          <div className="flex flex-wrap items-center gap-3 p-4 border-b">
             {activeStages.map((s) => (
               <button
                 key={s.key}
@@ -609,6 +609,7 @@ function RecipientsPageContent() {
               </button>
             ))}
           </div>
+          <div className="overflow-x-auto">
           <table className="w-full text-right text-sm">
             <thead>
               <tr className="border-b bg-slate-50">
@@ -653,6 +654,7 @@ function RecipientsPageContent() {
               })}
             </tbody>
           </table>
+          </div>
           {filtered.length === 0 && (
             <div className="p-10 text-center text-petra-muted">אין זכאים</div>
           )}
@@ -793,15 +795,15 @@ function AddRecipientModal({
             </div>
             <div>
               <label className="label text-xs">נייד</label>
-              <input type="tel" className="input w-full" value={mobile} onChange={(e) => setMobile(e.target.value)} />
+              <input type="tel" dir="ltr" className="input w-full text-right" value={mobile} onChange={(e) => setMobile(e.target.value)} />
             </div>
             <div>
               <label className="label text-xs">מייל</label>
-              <input type="email" className="input w-full" value={email} onChange={(e) => setEmail(e.target.value)} />
+              <input type="email" dir="ltr" className="input w-full text-right" value={email} onChange={(e) => setEmail(e.target.value)} />
             </div>
             <div>
               <label className="label text-xs">טלפון</label>
-              <input type="tel" className="input w-full" value={phone} onChange={(e) => setPhone(e.target.value)} />
+              <input type="tel" dir="ltr" className="input w-full text-right" value={phone} onChange={(e) => setPhone(e.target.value)} />
             </div>
             <div>
               <label className="label text-xs">ת.ז.</label>

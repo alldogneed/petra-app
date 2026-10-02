@@ -275,7 +275,7 @@ export default function AvailabilityTab() {
         </div>
 
         <div className="card p-4 space-y-4">
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="label">מרווח בין פגישות</label>
               <div className="flex items-center gap-2">
