@@ -149,6 +149,14 @@ export const ORDER_STATUSES = [
   { id: "cancelled", label: "בוטל", color: "#EF4444" },
 ] as const;
 
+/**
+ * "Active" orders = drafts + confirmed (not completed / cancelled).
+ * Shared by the dashboard "הזמנות פעילות" count and the `status=active`
+ * filter of GET /api/orders, /api/orders/export and the orders page.
+ */
+export const ACTIVE_ORDER_STATUSES = ["draft", "confirmed"] as const;
+export const ACTIVE_ORDER_STATUS_FILTER = "active";
+
 export const ORDER_UNITS = [
   { id: "per_session", label: "לאימון" },
   { id: "per_hour", label: "לשעה" },

@@ -1,4 +1,5 @@
 export const dynamic = "force-dynamic";
+import { ACTIVE_ORDER_STATUSES, ACTIVE_ORDER_STATUS_FILTER } from "@/lib/constants";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
@@ -46,7 +47,9 @@ export async function GET(request: NextRequest) {
 
   const VALID_ORDER_STATUSES = ["draft", "confirmed", "completed", "cancelled", "canceled"];
   const where: Record<string, unknown> = { businessId: authResult.businessId };
-  if (status && status !== "ALL") {
+  if (status === ACTIVE_ORDER_STATUS_FILTER) {
+    where.status = { in: [...ACTIVE_ORDER_STATUSES] };
+  } else if (status && status !== "ALL") {
     if (!VALID_ORDER_STATUSES.includes(status)) {
       return NextResponse.json({ error: "סטטוס לא חוקי" }, { status: 400 });
     }
