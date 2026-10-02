@@ -1,1553 +1,136 @@
 "use client";
+/**
+ * Customers list. Every filter / sort / count is computed server-side (GET /api/customers,
+ * contract in src/lib/customer-filters.ts + src/services/customer-list.ts) — never over the
+ * loaded pages. Modals / popovers / cells live in src/components/customers/list/*.
+ */
 import { PageTitle } from "@/components/ui/PageTitle";
-import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { usePermissions } from "@/hooks/usePermissions";
-
-import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useMemo, useCallback, useEffect, useRef, DragEvent } from "react";
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   Users,
   Plus,
   Search,
   Phone,
   Mail,
-  PawPrint,
-  Calendar,
-  X,
-  Pencil,
   Crown,
-  Check,
-  Clock,
   ChevronDown,
+  ChevronUp,
   Sparkles,
-  Filter,
   CheckSquare,
   Square,
   MinusSquare,
   ShoppingCart,
-  ArrowLeft,
   MessageCircle,
   Tag,
-  Settings2,
   Trash2,
-  GripVertical,
   FileDown,
+  Upload,
   RefreshCw,
 } from "lucide-react";
-import { cn, toWhatsAppPhone, fetchJSON, formatCurrency } from "@/lib/utils";
+import { cn, fetchJSON } from "@/lib/utils";
 import { mapWithConcurrency } from "@/lib/concurrency";
-import { triggerLimitModal } from "@/lib/limit-reached";
-import { validateIsraeliPhone, validateEmail, sanitizeName, validateName, normalizeIsraeliPhone, isValidEmail } from "@/lib/validation";
-import { SERVICE_TYPES } from "@/lib/constants";
+import {
+  EMPTY_CUSTOMER_FILTERS,
+  FINANCE_SORTS,
+  customerFiltersToParams,
+  type CustomerSort,
+} from "@/lib/customer-filters";
 import { useSubscription } from "@/hooks/useSubscription";
-import { PaywallCard } from "@/components/paywall/PaywallCard";
 import dynamic from "next/dynamic";
+import { toast } from "sonner";
+import { PetraLoader } from "@/components/ui/PetraLoader";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import {
+  DEFAULT_CUSTOMER_TAGS,
+  type CustomerListPage,
+  type EnhancedCustomer,
+} from "@/components/customers/list/types";
+import {
+  StatusBadge,
+  FinancialBadge,
+  PetsCell,
+  AppointmentDates,
+  QuickActions,
+} from "@/components/customers/list/cells";
+import { InlineTagEditor } from "@/components/customers/list/InlineTagEditor";
+import { ManageTagsPopover } from "@/components/customers/list/ManageTagsPopover";
+import { EditCustomerModal } from "@/components/customers/list/EditCustomerModal";
+import { NewCustomerModal } from "@/components/customers/list/NewCustomerModal";
+import { BulkWhatsAppModal } from "@/components/customers/list/BulkWhatsAppModal";
+import { BulkTagModal } from "@/components/customers/list/BulkTagModal";
+import { CustomerFiltersPanel, type ListFilters } from "@/components/customers/list/CustomerFiltersPanel";
+
 const CreateOrderModal = dynamic(
   () => import("@/components/orders/CreateOrderModal").then((m) => ({ default: m.CreateOrderModal })),
   { ssr: false }
 );
-import { toast } from "sonner";
-import { PetraLoader } from "@/components/ui/PetraLoader";
 
-const DEFAULT_CUSTOMER_TAGS = ["VIP", "קבוע", "מזדמן", "פוטנציאל", "לשעבר", "עסקי"];
+const { search: _omitSearch, ...DEFAULT_LIST_FILTERS } = EMPTY_CUSTOMER_FILTERS;
+void _omitSearch;
 
-// ─── Types ──────────────────────────────────────────────────────
-
-interface PetInfo {
-  id: string;
-  name: string;
-  species: string;
-  breed: string | null;
-}
-
-interface AppointmentInfo {
-  date: string;
-  startTime: string;
-  serviceName: string;
-}
-
-interface FinancialInfo {
-  totalPaid: number;
-  totalPending: number;
-  hasDeposits: boolean;
-}
-
-interface EnhancedCustomer {
-  id: string;
-  name: string;
-  phone: string;
-  email: string | null;
-  address: string | null;
-  idNumber: string | null;
-  notes: string | null;
-  tags: string;
-  source: string | null;
-  createdAt: string;
-  pets: PetInfo[];
-  _count: { pets: number; appointments: number };
-  status: "active" | "dormant" | "vip";
-  isVip?: boolean;
-  isInBoarding?: boolean;
-  hasActiveTraining?: boolean;
-  appointmentsLast30?: number;
-  lastAppointment: AppointmentInfo | null;
-  nextAppointment: AppointmentInfo | null;
-  financial: FinancialInfo;
-  serviceTypes: string[];
-}
-
-interface ServiceOption {
-  id: string;
-  name: string;
-  type: string;
-  duration: number;
-  price: number;
-  color: string | null;
-}
-
-// ─── Helper Functions ───────────────────────────────────────────
-
-function formatShortDate(dateStr: string): string {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString("he-IL", { day: "numeric", month: "short" });
-}
-
-function computeEndTime(startTime: string, durationMinutes: number): string {
-  const [h, m] = startTime.split(":").map(Number);
-  const total = h * 60 + m + durationMinutes;
-  const endH = Math.floor(total / 60) % 24;
-  const endM = total % 60;
-  return `${String(endH).padStart(2, "0")}:${String(endM).padStart(2, "0")}`;
-}
-
-function parseTags(tagsStr: string): string[] {
-  try {
-    return JSON.parse(tagsStr);
-  } catch {
-    return [];
-  }
-}
-
-// ─── Customer Tag & Source Constants ────────────────────────────
-
-const REFERRAL_SOURCES = [
-  { value: "referral", label: "המלצה מלקוח" },
-  { value: "google", label: "גוגל" },
-  { value: "instagram", label: "אינסטגרם" },
-  { value: "facebook", label: "פייסבוק" },
-  { value: "tiktok", label: "טיקטוק" },
-  { value: "signage", label: "שלט / מעבר ברחוב" },
-  { value: "other", label: "אחר" },
-];
-
-// Generate time slots from 08:00 to 20:00 in 30-min intervals
-const TIME_SLOTS = Array.from({ length: 25 }, (_, i) => {
-  const h = Math.floor(i / 2) + 8;
-  const m = (i % 2) * 30;
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-});
-
-// ─── Status Badge ───────────────────────────────────────────────
-
-function StatusBadge({ status }: { status: string }) {
+function getAvatarGradient(status: string) {
   switch (status) {
     case "vip":
-      return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-          <Crown className="w-3 h-3" />
-          VIP
-        </span>
-      );
-    case "active":
-      return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-          פעיל
-        </span>
-      );
+      return "linear-gradient(135deg, #F59E0B, #D97706)";
     case "dormant":
-      return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-500 border border-slate-200">
-          <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-          רדום
-        </span>
-      );
+      return "linear-gradient(135deg, #94A3B8, #64748B)";
     default:
-      return null;
+      return "linear-gradient(135deg, #F97316, #FB923C)";
   }
 }
 
-// ─── Financial Badge ────────────────────────────────────────────
-
-function FinancialBadge({ financial }: { financial: FinancialInfo }) {
-  if (financial.totalPending > 0) {
-    return (
-      <div className="flex flex-col items-start gap-0.5">
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-600 border border-red-100">
-          חוב
-        </span>
-        <span className="text-xs font-bold text-red-600 mr-1">
-          ₪{financial.totalPending.toLocaleString()}
-        </span>
-      </div>
-    );
-  }
-  if (financial.hasDeposits) {
-    return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-600 border border-blue-100">
-        <Sparkles className="w-3 h-3" />
-        קרדיט
-      </span>
-    );
-  }
-  if (financial.totalPaid > 0) {
-    return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-600 border border-emerald-100">
-        <Check className="w-3 h-3" />
-        מאוזן
-      </span>
-    );
-  }
-  return <span className="text-xs text-slate-400">—</span>;
-}
-
-// ─── Pets Cell ──────────────────────────────────────────────────
-
-function PetsCell({ pets, count }: { pets: PetInfo[]; count: number }) {
-  if (count === 0) {
-    return <span className="text-xs text-slate-400">אין חיות</span>;
-  }
-  const primary = pets[0];
+function NewBadge({ createdAt }: { createdAt: string }) {
+  const daysAgo = Math.floor((Date.now() - new Date(createdAt).getTime()) / 86400000);
+  if (daysAgo > 7) return null;
+  const label = daysAgo <= 0 ? "היום" : daysAgo === 1 ? "אתמול" : `לפני ${daysAgo} ימים`;
   return (
-    <div className="flex items-center gap-2">
-      <div className="w-7 h-7 rounded-full bg-[#FEF3E2] flex items-center justify-center flex-shrink-0">
-        <PawPrint className="w-3.5 h-3.5 text-[#C4956A]" />
-      </div>
-      <div className="min-w-0">
-        <div className="text-sm font-medium text-petra-text truncate max-w-[160px]">
-          {primary.name}
-          {primary.breed && (
-            <span className="text-petra-muted font-normal text-xs">
-              {" "}
-              — {primary.breed}
-            </span>
-          )}
-        </div>
-        {count > 1 && (
-          <span className="text-[10px] text-[#A0845C] font-medium">
-            +{count - 1} נוספים
-          </span>
-        )}
-      </div>
-    </div>
+    <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-green-100 text-green-700 border border-green-200 flex-shrink-0">
+      חדש · {label}
+    </span>
   );
 }
 
-// ─── Appointment Dates Cell ─────────────────────────────────────
-
-function AppointmentDates({
-  last,
-  next,
-}: {
-  last: AppointmentInfo | null;
-  next: AppointmentInfo | null;
-}) {
-  return (
-    <div className="space-y-1">
-      <div className="flex items-center gap-1.5">
-        <Clock className="w-3 h-3 text-slate-400 flex-shrink-0" />
-        <span className="text-[11px] text-petra-muted">
-          {last ? <>אחרון: {formatShortDate(last.date)}</> : "אין היסטוריה"}
-        </span>
-      </div>
-      <div className="flex items-center gap-1.5">
-        <Calendar className="w-3 h-3 text-brand-500 flex-shrink-0" />
-        <span
-          className={`text-[11px] font-medium ${next ? "text-petra-text" : "text-slate-400"}`}
-        >
-          {next ? <>הבא: {formatShortDate(next.date)}</> : "לא נקבע"}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-// ─── WhatsApp Icon (official logo SVG) ─────────────────────────
-
-function WhatsAppIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      className={className}
-    >
-      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z" />
-    </svg>
-  );
-}
-
-// ─── Quick Actions ──────────────────────────────────────────────
-
-function QuickActions({
-  customer,
-  onEdit,
-}: {
-  customer: EnhancedCustomer;
-  onEdit: () => void;
-}) {
-  const waPhone = toWhatsAppPhone(customer.phone);
-  const isValidPhone = customer.phone.replace(/\D/g, "").length >= 9;
-
-  return (
-    <div className="flex items-center gap-1 flex-nowrap">
-      {/* WhatsApp — only for valid phone numbers */}
-      {isValidPhone && (
-        <a
-          href={`https://wa.me/${waPhone}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="w-8 h-8 rounded-lg flex items-center justify-center text-[#25D366] hover:bg-[#E8FEF0] transition-colors"
-          title="שלח הודעת WhatsApp"
-          aria-label={`שלח הודעת WhatsApp`}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <WhatsAppIcon className="w-4 h-4" />
-        </a>
-      )}
-
-      {/* Phone call */}
-      {isValidPhone && (
-        <a
-          href={`tel:${customer.phone}`}
-          className="w-8 h-8 rounded-lg flex items-center justify-center text-emerald-600 hover:bg-emerald-50 transition-colors"
-          title={`התקשר ל־${customer.phone}`}
-          aria-label={`התקשר ל־${customer.phone}`}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <Phone className="w-4 h-4" />
-        </a>
-      )}
-
-      {/* Email — only when customer has a valid email address */}
-      {customer.email && isValidEmail(customer.email) ? (
-        <button
-          className="w-8 h-8 rounded-lg flex items-center justify-center text-blue-500 hover:bg-blue-50 transition-colors"
-          title={`שלח אימייל ל־${customer.email}`}
-          onClick={(e) => {
-            e.stopPropagation();
-            window.open(`https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(customer.email!)}`, "_blank");
-          }}
-        >
-          <Mail className="w-4 h-4" />
-        </button>
-      ) : (
-        <span className="w-8 h-8" />
-      )}
-
-      {/* Edit */}
-      <button
-        className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 transition-colors"
-        title="עריכת לקוח"
-        onClick={(e) => {
-          e.stopPropagation();
-          onEdit();
-        }}
-      >
-        <Pencil className="w-4 h-4" />
-      </button>
-    </div>
-  );
-}
-
-// ─── Inline Tag Editor ──────────────────────────────────────────
-
-function InlineTagEditor({ customer, presetTags }: { customer: EnhancedCustomer; presetTags: string[] }) {
-  const queryClient = useQueryClient();
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const tags = parseTags(customer.tags);
-
-  const mutation = useMutation({
-    mutationFn: (newTags: string[]) =>
-      fetch(`/api/customers/${customer.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tags: JSON.stringify(newTags) }),
-      }).then((r) => {
-        if (!r.ok) throw new Error("Failed");
-        return r.json();
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["customers"] });
-    },
-    onError: () => toast.error("שגיאה בעדכון התגיות. נסה שוב."),
-  });
-
-  const toggleTag = (tag: string) => {
-    const newTags = tags.includes(tag)
-      ? tags.filter((t) => t !== tag)
-      : [...tags, tag];
-    mutation.mutate(newTags);
-  };
-
-  // Close dropdown on outside click
-  useEffect(() => {
-    if (!isOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [isOpen]);
-
-  return (
-    <div className="relative" ref={dropdownRef}>
-      <button
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          setIsOpen(!isOpen);
-        }}
-        className="flex items-center gap-1 group/tags cursor-pointer"
-        title="עריכת תגיות"
-      >
-        {tags.filter((t) => t !== "VIP").length > 0 ? (
-          <div className="flex gap-1 flex-wrap">
-            {tags
-              .filter((t) => t !== "VIP")
-              .slice(0, 3)
-              .map((tag) => (
-                <span
-                  key={tag}
-                  className="inline-flex px-1.5 py-0 rounded text-[10px] bg-[#F3EDE6] text-[#8B7355] font-medium group-hover/tags:bg-[#E8DFD5] transition-colors"
-                >
-                  {tag}
-                </span>
-              ))}
-            {tags.filter((t) => t !== "VIP").length > 3 && (
-              <span className="text-[10px] text-[#8B7355]">
-                +{tags.filter((t) => t !== "VIP").length - 3}
-              </span>
-            )}
-            <Pencil className="w-3 h-3 text-slate-300 opacity-0 group-hover/tags:opacity-100 transition-opacity mr-0.5" />
-          </div>
-        ) : (
-          <span className="flex items-center gap-1 text-[10px] text-slate-300 group-hover/tags:text-[#8B7355] transition-colors">
-            <Tag className="w-3 h-3" />
-            הוסף תגיות
-          </span>
-        )}
-      </button>
-
-      {isOpen && (
-        <div
-          className="absolute top-full right-0 mt-1 bg-white rounded-xl shadow-lg border border-[#E8DFD5] p-2.5 z-50 min-w-[200px] animate-fade-in"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-          }}
-        >
-          <div className="text-[11px] font-semibold text-[#8B7355] mb-2 px-1">
-            תגיות לקוח
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {presetTags.map((tag) => (
-              <button
-                key={tag}
-                type="button"
-                onClick={() => toggleTag(tag)}
-                className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-all border ${tags.includes(tag)
-                  ? tag === "VIP"
-                    ? "bg-amber-500 text-white border-amber-500"
-                    : "bg-[#3D2E1F] text-white border-[#3D2E1F]"
-                  : "bg-[#FAF7F3] text-[#8B7355] border-[#E8DFD5] hover:border-[#C4956A]"
-                  }`}
-              >
-                {tag}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ─── Filter Pill Button ─────────────────────────────────────────
-
-function FilterPill({
+/** Clickable, sortable desktop column header. */
+function SortHeader({
   label,
-  active,
-  onClick,
-  count,
+  sortBy,
+  primary,
+  secondary,
+  onSort,
+  className,
 }: {
   label: string;
-  active: boolean;
-  onClick: () => void;
-  count?: number;
+  sortBy: CustomerSort;
+  primary: CustomerSort;
+  /** Second click toggles to this sort (or back to "newest" when absent). */
+  secondary?: CustomerSort;
+  onSort: (s: CustomerSort) => void;
+  className?: string;
 }) {
+  const active = sortBy === primary || (secondary !== undefined && sortBy === secondary);
+  const next = sortBy === primary ? secondary ?? "newest" : primary;
+  const ariaSort = active ? (sortBy === "last_visit_asc" || sortBy === "name_asc" ? "ascending" : "descending") : "none";
   return (
-    <button
-      onClick={onClick}
-      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-150 ${active
-        ? "bg-[#3D2E1F] text-white shadow-sm"
-        : "bg-[#FAF7F3] text-[#8B7355] border border-[#E8DFD5] hover:bg-[#F3EDE6] hover:border-[#D4C5B2]"
-        }`}
-    >
-      {label}
-      {count !== undefined && count > 0 && (
-        <span
-          className={`text-[10px] px-1.5 py-0.5 rounded-full ${active ? "bg-white/20 text-white" : "bg-[#E8DFD5] text-[#8B7355]"
-            }`}
-        >
-          {count}
-        </span>
-      )}
-    </button>
-  );
-}
-
-// ─── Manage Tags Popover ─────────────────────────────────────────
-
-function ManageTagsPopover({
-  tags,
-  onSave,
-  isSaving,
-}: {
-  tags: string[];
-  onSave: (tags: string[]) => void;
-  isSaving: boolean;
-}) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [localTags, setLocalTags] = useState<string[]>(tags);
-  const [newTag, setNewTag] = useState("");
-  const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [editValue, setEditValue] = useState("");
-  const [confirmDeleteIndex, setConfirmDeleteIndex] = useState<number | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-  const dragIndexRef = useRef<number | null>(null);
-  const popoverRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  // Sync when tags prop changes
-  useEffect(() => {
-    setLocalTags(tags);
-  }, [tags]);
-
-  // Focus input when opening
-  useEffect(() => {
-    if (isOpen) {
-      setTimeout(() => inputRef.current?.focus(), 100);
-    }
-  }, [isOpen]);
-
-  // Close on outside click
-  useEffect(() => {
-    if (!isOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
-        setIsOpen(false);
-        setEditingIndex(null);
-        setEditValue("");
-        setConfirmDeleteIndex(null);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [isOpen]);
-
-  const addTag = () => {
-    const trimmed = newTag.trim();
-    if (!trimmed || localTags.includes(trimmed)) return;
-    const updated = [...localTags, trimmed];
-    setLocalTags(updated);
-    setNewTag("");
-    onSave(updated);
-    inputRef.current?.focus();
-  };
-
-  const removeTag = (index: number) => {
-    const updated = localTags.filter((_, i) => i !== index);
-    setLocalTags(updated);
-    setConfirmDeleteIndex(null);
-    onSave(updated);
-  };
-
-  const startEdit = (index: number) => {
-    setEditingIndex(index);
-    setEditValue(localTags[index]);
-    setConfirmDeleteIndex(null);
-  };
-
-  const saveEdit = () => {
-    if (editingIndex === null) return;
-    const trimmed = editValue.trim();
-    if (!trimmed || localTags.some((t, i) => i !== editingIndex && t === trimmed)) {
-      setEditingIndex(null);
-      setEditValue("");
-      return;
-    }
-    const updated = localTags.map((t, i) => (i === editingIndex ? trimmed : t));
-    setLocalTags(updated);
-    setEditingIndex(null);
-    setEditValue("");
-    onSave(updated);
-  };
-
-  const cancelEdit = () => {
-    setEditingIndex(null);
-    setEditValue("");
-  };
-
-  // ── Drag to reorder ────────────────────────────────────────────
-  const handleDragStart = (e: DragEvent<HTMLDivElement>, index: number) => {
-    dragIndexRef.current = index;
-    e.dataTransfer.effectAllowed = "move";
-  };
-
-  const handleDragOver = (e: DragEvent<HTMLDivElement>, index: number) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    setDragOverIndex(index);
-  };
-
-  const handleDrop = (e: DragEvent<HTMLDivElement>, dropIndex: number) => {
-    e.preventDefault();
-    const fromIndex = dragIndexRef.current;
-    if (fromIndex === null || fromIndex === dropIndex) {
-      setDragOverIndex(null);
-      return;
-    }
-    const updated = [...localTags];
-    const [moved] = updated.splice(fromIndex, 1);
-    updated.splice(dropIndex, 0, moved);
-    setLocalTags(updated);
-    setDragOverIndex(null);
-    dragIndexRef.current = null;
-    onSave(updated);
-  };
-
-  const handleDragEnd = () => {
-    setDragOverIndex(null);
-    dragIndexRef.current = null;
-  };
-
-  return (
-    <div className="relative" ref={popoverRef}>
+    <th scope="col" className={cn("table-header-cell", className)} aria-sort={ariaSort}>
       <button
-        onClick={() => setIsOpen(!isOpen)}
-        className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${isOpen
-          ? "bg-[#3D2E1F] text-white"
-          : "text-[#A0845C] hover:bg-[#F3EDE6] hover:text-[#8B7355]"
-          }`}
-        title="ניהול תוויות"
+        type="button"
+        onClick={() => onSort(next)}
+        className={cn("inline-flex items-center gap-1 hover:text-petra-text transition-colors", active && "text-petra-text font-bold")}
+        title="מיון"
       >
-        <Settings2 className="w-3.5 h-3.5" />
+        {label}
+        {active ? (
+          sortBy === secondary ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />
+        ) : (
+          <ChevronDown className="w-3 h-3 opacity-30" />
+        )}
       </button>
-
-      {isOpen && (
-        <div className="absolute top-full right-0 mt-2 bg-white rounded-xl shadow-xl border border-[#E8DFD5] p-4 z-50 w-[280px] animate-fade-in">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-bold text-petra-text">ניהול תוויות</h3>
-            <span className="text-[10px] text-petra-muted">{localTags.length} תוויות</span>
-          </div>
-
-          {/* Add new tag */}
-          <div className="flex gap-2 mb-3">
-            <input
-              ref={inputRef}
-              type="text"
-              value={newTag}
-              onChange={(e) => setNewTag(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  addTag();
-                }
-              }}
-              placeholder="תווית חדשה..."
-              className="flex-1 px-3 py-1.5 text-xs rounded-lg border border-[#E8DFD5] bg-[#FAF7F3] focus:outline-none focus:border-[#C4956A] focus:ring-1 focus:ring-[#C4956A]/20"
-            />
-            <button
-              onClick={addTag}
-              disabled={!newTag.trim() || localTags.includes(newTag.trim())}
-              className="px-3 py-1.5 text-xs font-medium rounded-lg bg-[#3D2E1F] text-white hover:bg-[#2A1F14] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          {/* Tags list */}
-          <div className="space-y-1 max-h-[240px] overflow-y-auto">
-            {localTags.map((tag, index) => (
-              <div
-                key={`${tag}-${index}`}
-                draggable
-                onDragStart={(e) => handleDragStart(e, index)}
-                onDragOver={(e) => handleDragOver(e, index)}
-                onDrop={(e) => handleDrop(e, index)}
-                onDragEnd={handleDragEnd}
-                className={`flex items-center gap-2 group px-2 py-1.5 rounded-lg transition-colors cursor-grab active:cursor-grabbing ${dragOverIndex === index
-                  ? "bg-[#F3EDE6] border-2 border-dashed border-[#C4956A]"
-                  : "hover:bg-[#FAF7F3] border-2 border-transparent"
-                  }`}
-              >
-                {/* Drag handle */}
-                <GripVertical className="w-3.5 h-3.5 text-slate-300 flex-shrink-0" />
-
-                {editingIndex === index ? (
-                  <div className="flex items-center gap-1 flex-1">
-                    <input
-                      type="text"
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") saveEdit();
-                        if (e.key === "Escape") cancelEdit();
-                      }}
-                      autoFocus
-                      className="flex-1 px-2 py-0.5 text-xs rounded border border-[#C4956A] bg-white focus:outline-none focus:ring-1 focus:ring-[#C4956A]/30"
-                    />
-                    <button
-                      onClick={saveEdit}
-                      className="w-6 h-6 rounded flex items-center justify-center text-emerald-600 hover:bg-emerald-50 transition-colors flex-shrink-0"
-                      title="אישור"
-                    >
-                      <Check className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={cancelEdit}
-                      className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-colors flex-shrink-0"
-                      title="ביטול"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                ) : confirmDeleteIndex === index ? (
-                  // ── Confirm delete inline ──
-                  <div className="flex items-center gap-1.5 flex-1">
-                    <span className="flex-1 text-xs text-red-600 font-medium">מחק את &quot;{tag}&quot;?</span>
-                    <button
-                      onClick={() => removeTag(index)}
-                      className="px-2 py-0.5 rounded text-[10px] font-semibold bg-red-500 text-white hover:bg-red-600 transition-colors flex-shrink-0"
-                    >
-                      מחק
-                    </button>
-                    <button
-                      onClick={() => setConfirmDeleteIndex(null)}
-                      className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-colors flex-shrink-0"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <span
-                      className={`flex-1 text-xs font-medium cursor-pointer ${tag === "VIP" ? "text-amber-700" : "text-[#8B7355]"
-                        }`}
-                      onClick={() => startEdit(index)}
-                      title="לחץ לעריכה"
-                    >
-                      {tag}
-                    </span>
-                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={() => startEdit(index)}
-                        className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-[#8B7355] hover:bg-[#F3EDE6] transition-colors"
-                        title="ערוך"
-                      >
-                        <Pencil className="w-3 h-3" />
-                      </button>
-                      <button
-                        onClick={() => setConfirmDeleteIndex(index)}
-                        className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                        title="מחק"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-            ))}
-          </div>
-
-          {localTags.length === 0 && (
-            <div className="text-center py-3 text-xs text-petra-muted">
-              אין תוויות. הוסף תווית חדשה למעלה.
-            </div>
-          )}
-
-          {isSaving && (
-            <div className="text-center pt-2 text-[10px] text-[#C4956A] font-medium">
-              שומר...
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+    </th>
   );
 }
-
-// ─── Edit Customer Modal ────────────────────────────────────────
-
-function EditCustomerModal({
-  isOpen,
-  onClose,
-  customer,
-  presetTags,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  customer: EnhancedCustomer | null;
-  presetTags: string[];
-}) {
-  const queryClient = useQueryClient();
-  const [form, setForm] = useState({
-    name: "",
-    phone: "",
-    email: "",
-    address: "",
-    idNumber: "",
-    notes: "",
-    selectedTags: [] as string[],
-    source: "",
-  });
-  const [editFieldErrors, setEditFieldErrors] = useState<{ name?: string; phone?: string; email?: string }>({});
-
-  // Sync form when customer changes
-  useEffect(() => {
-    if (customer) {
-      setForm({
-        name: customer.name,
-        phone: customer.phone,
-        email: customer.email || "",
-        address: customer.address || "",
-        idNumber: customer.idNumber || "",
-        notes: customer.notes || "",
-        selectedTags: parseTags(customer.tags),
-        source: customer.source || "",
-      });
-      setEditFieldErrors({});
-    }
-  }, [customer?.id]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const toggleEditTag = (tag: string) => {
-    setForm((f) => ({
-      ...f,
-      selectedTags: f.selectedTags.includes(tag)
-        ? f.selectedTags.filter((t) => t !== tag)
-        : [...f.selectedTags, tag],
-    }));
-  };
-
-  const mutation = useMutation({
-    mutationFn: (data: typeof form) =>
-      fetch(`/api/customers/${customer?.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: data.name,
-          phone: data.phone,
-          email: data.email || null,
-          address: data.address || null,
-          idNumber: data.idNumber || null,
-          notes: data.notes || null,
-          tags: JSON.stringify(data.selectedTags),
-          source: data.source || null,
-        }),
-      }).then((r) => {
-        if (!r.ok) throw new Error("Failed");
-        return r.json();
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["customers"] });
-      onClose();
-      toast.success("פרטי הלקוח עודכנו");
-    },
-    onError: () => toast.error("שגיאה בעדכון הלקוח. נסה שוב."),
-  });
-
-  function validateAndSubmitEdit() {
-    const errors: typeof editFieldErrors = {};
-    const nameErr = validateName(form.name);
-    if (nameErr) errors.name = nameErr;
-    const phoneErr = validateIsraeliPhone(form.phone);
-    if (phoneErr) errors.phone = phoneErr;
-    const emailErr = validateEmail(form.email);
-    if (emailErr) errors.email = emailErr;
-    setEditFieldErrors(errors);
-    if (Object.keys(errors).length > 0) return;
-    mutation.mutate({ ...form, name: sanitizeName(form.name), phone: normalizeIsraeliPhone(form.phone) });
-  }
-
-  if (!isOpen || !customer) return null;
-
-  return (
-    <div className="modal-overlay">
-      <div className="modal-backdrop" onClick={onClose} />
-      <div className="modal-content max-w-lg mx-4 p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-xl font-bold text-petra-text">עריכת לקוח</h2>
-            <p className="text-sm text-petra-muted mt-0.5">{customer.name}</p>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        <div className="space-y-4">
-          <div>
-            <label className="label">שם מלא *</label>
-            <input
-              className={cn("input", editFieldErrors.name && "border-red-300 focus:ring-red-200")}
-              value={form.name}
-              onChange={(e) => { setForm({ ...form, name: e.target.value }); if (editFieldErrors.name) setEditFieldErrors({ ...editFieldErrors, name: undefined }); }}
-            />
-            {editFieldErrors.name && <p className="text-xs text-red-500 mt-1">{editFieldErrors.name}</p>}
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label">טלפון *</label>
-              <input
-                className={cn("input", editFieldErrors.phone && "border-red-300 focus:ring-red-200")}
-                value={form.phone}
-                onChange={(e) => { setForm({ ...form, phone: e.target.value }); if (editFieldErrors.phone) setEditFieldErrors({ ...editFieldErrors, phone: undefined }); }}
-                inputMode="tel"
-              />
-              {editFieldErrors.phone && <p className="text-xs text-red-500 mt-1">{editFieldErrors.phone}</p>}
-            </div>
-            <div>
-              <label className="label">אימייל</label>
-              <input
-                className={cn("input", editFieldErrors.email && "border-red-300 focus:ring-red-200")}
-                value={form.email}
-                onChange={(e) => { setForm({ ...form, email: e.target.value }); if (editFieldErrors.email) setEditFieldErrors({ ...editFieldErrors, email: undefined }); }}
-              />
-              {editFieldErrors.email && <p className="text-xs text-red-500 mt-1">{editFieldErrors.email}</p>}
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label">כתובת</label>
-              <input
-                className="input"
-                value={form.address}
-                onChange={(e) => setForm({ ...form, address: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="label">תעודת זהות</label>
-              <input
-                className="input"
-                value={form.idNumber}
-                onChange={(e) => setForm({ ...form, idNumber: e.target.value })}
-                inputMode="numeric"
-                placeholder="000000000"
-              />
-            </div>
-          </div>
-          <div>
-            <label className="label">תגיות לקוח</label>
-            <div className="flex flex-wrap gap-1.5 mt-1">
-              {presetTags.map((tag) => (
-                <button
-                  key={tag}
-                  type="button"
-                  onClick={() => toggleEditTag(tag)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all border ${form.selectedTags.includes(tag)
-                    ? tag === "VIP"
-                      ? "bg-amber-500 text-white border-amber-500"
-                      : "bg-[#3D2E1F] text-white border-[#3D2E1F]"
-                    : "bg-[#FAF7F3] text-[#8B7355] border-[#E8DFD5] hover:border-[#C4956A]"
-                    }`}
-                >
-                  {tag}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <label className="label">מקור הגעה</label>
-            <select
-              className="input"
-              value={form.source}
-              onChange={(e) => setForm({ ...form, source: e.target.value })}
-            >
-              <option value="">— לא ידוע —</option>
-              {REFERRAL_SOURCES.map((s) => (
-                <option key={s.value} value={s.value}>{s.label}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="label">הערות</label>
-            <textarea
-              className="input"
-              rows={3}
-              value={form.notes}
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
-            />
-          </div>
-        </div>
-
-        <div className="flex gap-3 mt-6">
-          <button
-            className="btn-primary flex-1"
-            disabled={mutation.isPending}
-            onClick={validateAndSubmitEdit}
-          >
-            {mutation.isPending ? "שומר..." : "שמור שינויים"}
-          </button>
-          <button className="btn-secondary" onClick={onClose}>
-            ביטול
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Quick Book Modal ───────────────────────────────────────────
-
-function QuickBookModal({
-  isOpen,
-  onClose,
-  customer,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  customer: EnhancedCustomer | null;
-}) {
-  const queryClient = useQueryClient();
-  const [form, setForm] = useState({
-    serviceId: "",
-    date: new Date().toISOString().slice(0, 10),
-    startTime: "09:00",
-    petId: "",
-    notes: "",
-  });
-
-  const { data: services = [] } = useQuery<ServiceOption[]>({
-    queryKey: ["services"],
-    queryFn: () => fetchJSON<ServiceOption[]>("/api/services"),
-    enabled: isOpen,
-  });
-
-  const selectedService = services.find((s) => s.id === form.serviceId);
-
-  const mutation = useMutation({
-    mutationFn: (data: {
-      serviceId: string;
-      date: string;
-      startTime: string;
-      endTime: string;
-      customerId: string;
-      petId?: string;
-      notes?: string;
-    }) =>
-      fetch("/api/appointments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      }).then((r) => {
-        if (!r.ok) throw new Error("Failed");
-        return r.json();
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["customers"] });
-      queryClient.invalidateQueries({ queryKey: ["appointments"] });
-      onClose();
-      setForm({
-        serviceId: "",
-        date: new Date().toISOString().slice(0, 10),
-        startTime: "09:00",
-        petId: "",
-        notes: "",
-      });
-      toast.success("התור נקבע בהצלחה");
-    },
-    onError: () => toast.error("שגיאה בקביעת התור. נסה שוב."),
-  });
-
-  const [serviceError, setServiceError] = useState(false);
-
-  const handleSubmit = () => {
-    if (!form.serviceId) {
-      setServiceError(true);
-      return;
-    }
-    if (!customer || !form.date || !form.startTime) return;
-    const duration = selectedService?.duration || 60;
-    const endTime = computeEndTime(form.startTime, duration);
-    mutation.mutate({
-      serviceId: form.serviceId,
-      date: form.date,
-      startTime: form.startTime,
-      endTime,
-      customerId: customer.id,
-      petId: form.petId || undefined,
-      notes: form.notes || undefined,
-    });
-  };
-
-  if (!isOpen || !customer) return null;
-
-  return (
-    <div className="modal-overlay">
-      <div className="modal-backdrop" onClick={onClose} />
-      <div className="modal-content max-w-md mx-4 p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-xl font-bold text-petra-text">קביעת תור מהיר</h2>
-            <p className="text-sm text-petra-muted mt-0.5">
-              עבור {customer.name}
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        <div className="space-y-4">
-          {/* Service */}
-          <div>
-            <label className="label">שירות *</label>
-            <select
-              className={cn("input", serviceError && !form.serviceId && "border-red-300 focus:ring-red-200")}
-              value={form.serviceId}
-              onChange={(e) => { setForm({ ...form, serviceId: e.target.value }); setServiceError(false); }}
-            >
-              <option value="">בחר שירות</option>
-              {services.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name} ({s.duration} דק&apos; — ₪{s.price})
-                </option>
-              ))}
-            </select>
-            {serviceError && !form.serviceId && (
-              <p className="text-xs text-red-500 mt-1">יש לבחור שירות</p>
-            )}
-          </div>
-
-          {/* Date & Time */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label">תאריך *</label>
-              <input
-                type="date" lang="he"
-                className="input"
-                value={form.date}
-                onChange={(e) => setForm({ ...form, date: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="label">שעה *</label>
-              <select
-                className="input"
-                value={form.startTime}
-                onChange={(e) =>
-                  setForm({ ...form, startTime: e.target.value })
-                }
-              >
-                {TIME_SLOTS.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Display end time */}
-          {selectedService && (
-            <div className="flex items-center gap-2 text-xs text-petra-muted bg-[#FAF7F3] px-3 py-2 rounded-lg border border-[#E8DFD5]">
-              <Clock className="w-3.5 h-3.5" />
-              <span>
-                משך: {selectedService.duration} דקות | סיום:{" "}
-                {computeEndTime(form.startTime, selectedService.duration)}
-              </span>
-            </div>
-          )}
-
-          {/* Pet (optional) */}
-          {customer.pets.length > 0 && (
-            <div>
-              <label className="label">חיה (אופציונלי)</label>
-              <select
-                className="input"
-                value={form.petId}
-                onChange={(e) => setForm({ ...form, petId: e.target.value })}
-              >
-                <option value="">ללא בחירה</option>
-                {customer.pets.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                    {p.breed ? ` (${p.breed})` : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* Notes */}
-          <div>
-            <label className="label">הערות</label>
-            <textarea
-              className="input"
-              rows={2}
-              value={form.notes}
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              placeholder="הערות לתור..."
-            />
-          </div>
-        </div>
-
-        <div className="flex gap-3 mt-6">
-          <button
-            className="btn-primary flex-1"
-            disabled={mutation.isPending}
-            onClick={handleSubmit}
-          >
-            <Calendar className="w-4 h-4" />
-            {mutation.isPending ? "קובע..." : "קבע תור"}
-          </button>
-          <button className="btn-secondary" onClick={onClose}>
-            ביטול
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── New Customer Modal ─────────────────────────────────────────
-
-function NewCustomerModal({
-  isOpen,
-  onClose,
-  presetTags,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  presetTags: string[];
-}) {
-  const queryClient = useQueryClient();
-  const router = useRouter();
-  const [form, setForm] = useState({
-    name: "",
-    phone: "",
-    email: "",
-    address: "",
-    idNumber: "",
-    secondContactName: "",
-    secondContactPhone: "",
-    notes: "",
-    selectedTags: [] as string[],
-    source: "",
-  });
-  const [fieldErrors, setFieldErrors] = useState<{ name?: string; phone?: string; email?: string }>({});
-  const [phoneWarning, setPhoneWarning] = useState<string | null>(null);
-
-  const toggleNewTag = (tag: string) => {
-    setForm((f) => ({
-      ...f,
-      selectedTags: f.selectedTags.includes(tag)
-        ? f.selectedTags.filter((t) => t !== tag)
-        : [...f.selectedTags, tag],
-    }));
-  };
-
-  const mutation = useMutation({
-    mutationFn: (data: typeof form) =>
-      fetch("/api/customers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: data.name,
-          phone: data.phone,
-          email: data.email || null,
-          address: data.address || null,
-          idNumber: data.idNumber || null,
-          secondContactName: data.secondContactName || null,
-          secondContactPhone: data.secondContactPhone || null,
-          notes: data.notes || null,
-          tags: JSON.stringify(data.selectedTags),
-          source: data.source || null,
-        }),
-      }).then(async (r) => {
-        if (!r.ok) {
-          const body = await r.json().catch(() => ({ error: "שגיאה" }));
-          const err = new Error(body.error || "שגיאה");
-          if (body.code) (err as unknown as Record<string, unknown>).code = body.code;
-          throw err;
-        }
-        return r.json();
-      }),
-    onSuccess: (newCustomer: { id: string; name: string; phone: string | null }) => {
-      queryClient.invalidateQueries({ queryKey: ["customers"] });
-      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
-      onClose();
-      setForm({ name: "", phone: "", email: "", address: "", idNumber: "", secondContactName: "", secondContactPhone: "", notes: "", selectedTags: [], source: "" });
-      setFieldErrors({});
-      const waPhone = newCustomer.phone ? toWhatsAppPhone(newCustomer.phone) : null;
-      if (waPhone) {
-        const welcomeMsg = `שלום ${newCustomer.name} 😊\n\nברוכים הבאים! שמחים שהצטרפתם אלינו 🐾\nאנחנו כאן לכל שאלה ובקשה.\n\nנשמח לראותכם בקרוב!`;
-        toast.success("הלקוח נוצר בהצלחה", {
-          action: {
-            label: "שלח ברוכים הבאים",
-            onClick: () => window.open(`https://wa.me/${waPhone}?text=${encodeURIComponent(welcomeMsg)}`, "_blank"),
-          },
-        });
-      } else {
-        toast.success("הלקוח נוצר בהצלחה");
-      }
-      router.push(`/customers/${newCustomer.id}`);
-    },
-    onError: (err: Error) => {
-      if ((err as unknown as Record<string, unknown>).code === "LIMIT_REACHED") {
-        triggerLimitModal(err.message);
-      } else {
-        // Surface the real server message (e.g. "לקוח עם מספר טלפון זה כבר קיים")
-        // instead of a generic error, so a 409 duplicate is actually explained.
-        toast.error(err.message || "שגיאה ביצירת הלקוח. נסה שוב.");
-      }
-    },
-  });
-
-  const modalRef = useFocusTrap(isOpen);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, [isOpen, onClose]);
-
-  function checkPhoneDuplicate(phone: string) {
-    const cleaned = phone.replace(/[\s\-(). ]/g, "");
-    if (cleaned.length < 9) return;
-    fetch(`/api/customers?search=${encodeURIComponent(phone)}&take=5`)
-      .then((r) => r.json())
-      .then((data) => {
-        const list: Array<{ id: string; name: string; phone: string }> =
-          data?.customers ?? (Array.isArray(data) ? data : []);
-        const exact = list.find((c) => c.phone.replace(/[\s\-(). ]/g, "") === cleaned);
-        setPhoneWarning(exact ? `⚠️ מספר טלפון זה כבר קיים עבור הלקוח ${exact.name}` : null);
-      })
-      .catch(() => {});
-  }
-
-  function validateAndSubmit() {
-    const errors: typeof fieldErrors = {};
-    const nameErr = validateName(form.name);
-    if (nameErr) errors.name = nameErr;
-    const phoneErr = validateIsraeliPhone(form.phone);
-    if (phoneErr) errors.phone = phoneErr;
-    const emailErr = validateEmail(form.email);
-    if (emailErr) errors.email = emailErr;
-    setFieldErrors(errors);
-    if (Object.keys(errors).length > 0) return;
-    mutation.mutate({ ...form, name: sanitizeName(form.name), phone: normalizeIsraeliPhone(form.phone) });
-  }
-
-  if (!isOpen) return null;
-
-  return (
-    <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="new-customer-modal-title">
-      <div className="modal-backdrop" onClick={onClose} aria-hidden="true" />
-      <div className="modal-content max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto" ref={modalRef}>
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 id="new-customer-modal-title" className="text-xl font-bold text-petra-text">לקוח חדש</h2>
-            <p className="text-sm text-petra-muted mt-0.5">הוסף לקוח למערכת</p>
-          </div>
-          <button
-            onClick={onClose}
-            aria-label="סגור"
-            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted"
-          >
-            <X className="w-4 h-4" aria-hidden="true" />
-          </button>
-        </div>
-
-        <div className="space-y-4">
-          <div>
-            <label htmlFor="nc-name" className="label">שם מלא *</label>
-            <input
-              id="nc-name"
-              className={cn("input", fieldErrors.name && "border-red-300 focus:ring-red-200")}
-              value={form.name}
-              onChange={(e) => { setForm({ ...form, name: e.target.value }); if (fieldErrors.name) setFieldErrors({ ...fieldErrors, name: undefined }); }}
-              placeholder="שם הלקוח"
-              required
-              aria-required="true"
-              aria-describedby={fieldErrors.name ? "nc-name-error" : undefined}
-            />
-            {fieldErrors.name && <p id="nc-name-error" role="alert" className="text-xs text-red-500 mt-1">{fieldErrors.name}</p>}
-          </div>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="flex-1">
-              <label htmlFor="nc-phone" className="label">טלפון *</label>
-              <input
-                id="nc-phone"
-                className={cn("input", fieldErrors.phone && "border-red-300 focus:ring-red-200")}
-                value={form.phone}
-                onChange={(e) => { setForm({ ...form, phone: e.target.value }); if (fieldErrors.phone) setFieldErrors({ ...fieldErrors, phone: undefined }); setPhoneWarning(null); }}
-                onBlur={(e) => checkPhoneDuplicate(e.target.value)}
-                placeholder="050-0000000"
-                inputMode="tel"
-                required
-                aria-required="true"
-                aria-describedby={fieldErrors.phone ? "nc-phone-error" : undefined}
-              />
-              {fieldErrors.phone && <p id="nc-phone-error" role="alert" className="text-xs text-red-500 mt-1">{fieldErrors.phone}</p>}
-              {!fieldErrors.phone && phoneWarning && <p className="text-xs text-amber-600 mt-1">{phoneWarning}. האם ברצונך להמשיך?</p>}
-            </div>
-            <div className="flex-1">
-              <label htmlFor="nc-email" className="label">אימייל</label>
-              <input
-                id="nc-email"
-                className={cn("input", fieldErrors.email && "border-red-300 focus:ring-red-200")}
-                value={form.email}
-                onChange={(e) => { setForm({ ...form, email: e.target.value }); if (fieldErrors.email) setFieldErrors({ ...fieldErrors, email: undefined }); }}
-                aria-describedby={fieldErrors.email ? "nc-email-error" : undefined}
-              />
-              {fieldErrors.email && <p id="nc-email-error" role="alert" className="text-xs text-red-500 mt-1">{fieldErrors.email}</p>}
-            </div>
-          </div>
-          <div>
-            <label htmlFor="nc-address" className="label">כתובת</label>
-            <input
-              id="nc-address"
-              className="input"
-              value={form.address}
-              onChange={(e) => setForm({ ...form, address: e.target.value })}
-              placeholder="עיר, רחוב"
-            />
-          </div>
-          <div>
-            <label htmlFor="nc-idNumber" className="label">
-              תעודת זהות
-              <span className="text-[11px] text-brand-500 font-normal mr-1.5">חשוב לשליחת חוזים דיגיטליים</span>
-            </label>
-            <input
-              id="nc-idNumber"
-              className="input"
-              value={form.idNumber}
-              onChange={(e) => setForm({ ...form, idNumber: e.target.value })}
-              placeholder="000000000"
-              inputMode="numeric"
-              maxLength={9}
-            />
-          </div>
-          <div>
-            <label className="label">איש קשר נוסף <span className="text-[11px] text-petra-muted font-normal">(אופציונלי)</span></label>
-            <div className="flex gap-3">
-              <input
-                className="input flex-1"
-                value={form.secondContactName}
-                onChange={(e) => setForm({ ...form, secondContactName: e.target.value })}
-                placeholder="שם איש הקשר"
-              />
-              <input
-                className="input flex-1"
-                value={form.secondContactPhone}
-                onChange={(e) => setForm({ ...form, secondContactPhone: e.target.value })}
-                placeholder="050-0000000"
-                inputMode="tel"
-              />
-            </div>
-          </div>
-          <div>
-            <label className="label">תגיות לקוח</label>
-            <div className="flex flex-wrap gap-1.5 mt-1">
-              {presetTags.map((tag) => (
-                <button
-                  key={tag}
-                  type="button"
-                  onClick={() => toggleNewTag(tag)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all border ${form.selectedTags.includes(tag)
-                    ? tag === "VIP"
-                      ? "bg-amber-500 text-white border-amber-500"
-                      : "bg-[#3D2E1F] text-white border-[#3D2E1F]"
-                    : "bg-[#FAF7F3] text-[#8B7355] border-[#E8DFD5] hover:border-[#C4956A]"
-                    }`}
-                >
-                  {tag}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <label htmlFor="nc-source" className="label">מקור הגעה</label>
-            <select
-              id="nc-source"
-              className="input"
-              value={form.source}
-              onChange={(e) => setForm({ ...form, source: e.target.value })}
-            >
-              <option value="">— לא ידוע —</option>
-              {REFERRAL_SOURCES.map((s) => (
-                <option key={s.value} value={s.value}>{s.label}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label htmlFor="nc-notes" className="label">הערות</label>
-            <textarea
-              id="nc-notes"
-              className="input"
-              rows={3}
-              value={form.notes}
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
-            />
-          </div>
-        </div>
-
-        <div className="flex gap-3 mt-6">
-          <button
-            className="btn-primary flex-1"
-            disabled={mutation.isPending}
-            onClick={validateAndSubmit}
-          >
-            <Plus className="w-4 h-4" />
-            {mutation.isPending ? "שומר..." : "הוסף לקוח"}
-          </button>
-          <button className="btn-secondary" onClick={onClose}>
-            ביטול
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── New Order Modal (3-step wizard) ─────────────────────────────
-
-interface PriceListItemOption {
-  id: string;
-  name: string;
-  category: string | null;
-  unit: string;
-  basePrice: number;
-  description: string | null;
-  defaultQuantity: number;
-}
-
-// ─── Main Page ──────────────────────────────────────────────────
 
 function CustomersPermGate({ children }: { children: React.ReactNode }) {
   const perms = usePermissions();
@@ -1564,24 +147,42 @@ function CustomersPermGate({ children }: { children: React.ReactNode }) {
 }
 
 export default function CustomersPage() {
+  return (
+    <CustomersPermGate>
+      <CustomersList />
+    </CustomersPermGate>
+  );
+}
+
+function CustomersList() {
   const queryClient = useQueryClient();
-  const { canExportData } = usePermissions();
+  const { canExportData, canImportData, canSeeFinance, canSendMessages, canCriticalDelete } = usePermissions();
   const { maxCustomers, tier } = useSubscription();
 
   // ── State ──
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(search), 300);
+    const timer = setTimeout(() => setDebouncedSearch(search.trim().slice(0, 100)), 300);
     return () => clearTimeout(timer);
   }, [search]);
-  const [tagFilter, setTagFilter] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "dormant" | "vip">("all");
-  const [serviceTypeFilter, setServiceTypeFilter] = useState("");
-  const [financialFilter, setFinancialFilter] = useState<"all" | "debt" | "balanced">("all");
-  const [lastVisitFilter, setLastVisitFilter] = useState<"" | "30" | "60" | "90" | "never">("");
-  const [sortBy, setSortBy] = useState<"name_asc" | "newest" | "oldest">("newest");
+
+  const [rawFilters, setRawFilters] = useState<ListFilters>(DEFAULT_LIST_FILTERS);
+  // Money filters/sorts only for FINANCE_READ (the server ignores them anyway).
+  const filters = useMemo<ListFilters>(
+    () =>
+      canSeeFinance
+        ? rawFilters
+        : {
+            ...rawFilters,
+            balance: null,
+            minDebt: null,
+            sortBy: FINANCE_SORTS.includes(rawFilters.sortBy) ? "newest" : rawFilters.sortBy,
+          },
+    [rawFilters, canSeeFinance]
+  );
+  const updateFilters = useCallback((patch: Partial<ListFilters>) => setRawFilters((f) => ({ ...f, ...patch })), []);
+
   const [filtersCollapsed, setFiltersCollapsed] = useState(true);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -1589,17 +190,18 @@ export default function CustomersPage() {
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState<EnhancedCustomer | null>(null);
   const [showBulkWhatsApp, setShowBulkWhatsApp] = useState(false);
+  const [showBulkTags, setShowBulkTags] = useState(false);
   const [bulkDeleteStep, setBulkDeleteStep] = useState<0 | 1 | 2>(0);
-  const [bulkWaMessage, setBulkWaMessage] = useState("");
+  const [exporting, setExporting] = useState(false);
 
-  // ── Business settings (for customer tags) ──
+  // ── Business settings (customer tag presets) ──
   const { data: businessSettings } = useQuery<{ customerTags?: string }>({
     queryKey: ["settings"],
     queryFn: () => fetchJSON<{ customerTags?: string }>("/api/settings"),
-    staleTime: 0, // always fresh so tag changes are reflected immediately
+    staleTime: 0,
   });
 
-  const customerPresetTags = useMemo(() => {
+  const customerPresetTags = useMemo<string[]>(() => {
     if (!businessSettings?.customerTags) return DEFAULT_CUSTOMER_TAGS;
     try {
       const parsed = JSON.parse(businessSettings.customerTags);
@@ -1611,13 +213,10 @@ export default function CustomersPage() {
 
   const saveTagsMutation = useMutation({
     mutationFn: (tags: string[]) =>
-      fetch("/api/settings", {
+      fetchJSON("/api/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ customerTags: JSON.stringify(tags) }),
-      }).then((r) => {
-        if (!r.ok) throw new Error("Failed");
-        return r.json();
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["settings"] });
@@ -1627,7 +226,12 @@ export default function CustomersPage() {
     onError: () => toast.error("שגיאה בשמירת התגיות. נסה שוב."),
   });
 
-  // ── Data fetching with cursor pagination ──
+  // ── Data: server-side filters + cursor pagination ──
+  const listParams = useMemo(
+    () => customerFiltersToParams({ ...filters, search: debouncedSearch || null }).toString(),
+    [filters, debouncedSearch]
+  );
+
   const {
     data: customerPages,
     isLoading,
@@ -1635,82 +239,36 @@ export default function CustomersPage() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useInfiniteQuery<{ customers: EnhancedCustomer[]; nextCursor: string | null; hasMore: boolean; total: number | null }>({
-    queryKey: ["customers", debouncedSearch, serviceTypeFilter, sortBy],
+  } = useInfiniteQuery<CustomerListPage>({
+    queryKey: ["customers", "list", listParams],
     queryFn: ({ pageParam }) => {
-      const params = new URLSearchParams({ enhanced: "1", take: "50", sortBy });
-      if (debouncedSearch) params.set("search", debouncedSearch);
-      if (serviceTypeFilter) params.set("serviceType", serviceTypeFilter);
+      const params = new URLSearchParams(listParams);
+      params.set("enhanced", "1");
+      params.set("take", "50");
       if (pageParam) params.set("cursor", pageParam as string);
-      return fetchJSON<{ customers: EnhancedCustomer[]; nextCursor: string | null; hasMore: boolean; total: number | null }>(`/api/customers?${params}`);
+      return fetchJSON<CustomerListPage>(`/api/customers?${params}`);
     },
     initialPageParam: null,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
-    // Customers are created from many places the cache can't see (closed
-    // leads, intake forms submitted by the customer, the mobile drawer) —
-    // always refetch on entering the module so new customers show on top.
+    placeholderData: keepPreviousData,
+    // Customers are created from many places the cache can't see (closed leads, intake forms,
+    // the mobile drawer) — always refetch on entering the module.
     refetchOnMount: "always",
     staleTime: 0,
   });
 
-  const rawCustomers = useMemo(
-    () => customerPages?.pages.flatMap((p) => p.customers) ?? [],
-    [customerPages]
-  );
+  const customers = useMemo(() => customerPages?.pages.flatMap((p) => p.customers) ?? [], [customerPages]);
+  const firstPage = customerPages?.pages[0];
+  const stats = firstPage?.stats ?? null;
+  const filteredTotal = firstPage?.total ?? customers.length;
+  const businessTotal = stats?.businessTotal ?? null;
+  const atFreeLimit = tier === "free" && maxCustomers !== null && businessTotal !== null && businessTotal >= maxCustomers;
 
-  // Total from DB (available after first page loads)
-  const totalCount = customerPages?.pages[0]?.total ?? null;
+  // ── Selection: reset whenever the visible set changes ──
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [listParams]);
 
-  // ── Client-side filtering ──
-  const customers = useMemo(() => {
-    let filtered = rawCustomers;
-
-    // Status filter
-    if (statusFilter !== "all") {
-      filtered = filtered.filter((c) => c.status === statusFilter);
-    }
-
-    // Financial filter
-    if (financialFilter === "debt") {
-      filtered = filtered.filter((c) => c.financial.totalPending > 0);
-    } else if (financialFilter === "balanced") {
-      filtered = filtered.filter((c) => c.financial.totalPending === 0);
-    }
-
-    // Tag filter
-    if (tagFilter) {
-      filtered = filtered.filter((c) => parseTags(c.tags).includes(tagFilter));
-    }
-
-    // Last visit filter
-    if (lastVisitFilter) {
-      const now = new Date();
-      if (lastVisitFilter === "never") {
-        filtered = filtered.filter((c) => !c.lastAppointment);
-      } else {
-        const days = parseInt(lastVisitFilter, 10);
-        const cutoff = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
-        filtered = filtered.filter(
-          (c) => !c.lastAppointment || new Date(c.lastAppointment.date) < cutoff
-        );
-      }
-    }
-
-    return filtered;
-  }, [rawCustomers, statusFilter, financialFilter, tagFilter, lastVisitFilter]);
-
-  // ── Stats ──
-  const stats = useMemo(() => {
-    return {
-      total: rawCustomers.length,
-      active: rawCustomers.filter((c) => c.status === "active").length,
-      dormant: rawCustomers.filter((c) => c.status === "dormant").length,
-      vip: rawCustomers.filter((c) => c.status === "vip").length,
-      withDebt: rawCustomers.filter((c) => c.financial.totalPending > 0).length,
-    };
-  }, [rawCustomers]);
-
-  // ── Selection helpers ──
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -1720,136 +278,112 @@ export default function CustomersPage() {
     });
   }, []);
 
+  const allSelected = customers.length > 0 && customers.every((c) => selectedIds.has(c.id));
+  const someSelected = selectedIds.size > 0 && !allSelected;
+
   const toggleSelectAll = useCallback(() => {
-    if (selectedIds.size === customers.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(customers.map((c) => c.id)));
-    }
-  }, [customers, selectedIds.size]);
+    setSelectedIds((prev) => {
+      const visible = customers.map((c) => c.id);
+      if (visible.length > 0 && visible.every((id) => prev.has(id))) return new Set();
+      return new Set(visible);
+    });
+  }, [customers]);
 
   const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+  const selectedCustomers = useMemo(() => customers.filter((c) => selectedIds.has(c.id)), [customers, selectedIds]);
 
-  // ── Bulk VIP mutation ──
-  const bulkVipMutation = useMutation({
-    mutationFn: async ({ ids, addVip }: { ids: string[]; addVip: boolean }) => {
-      const selectedCustomers = rawCustomers.filter((c) => ids.includes(c.id));
-      // Bounded concurrency — avoids exhausting the DB pool on large selections.
-      return mapWithConcurrency(selectedCustomers, 3, (c) => {
-        const tags = parseTags(c.tags);
-        let newTags: string[];
-        if (addVip) {
-          newTags = tags.includes("VIP") ? tags : [...tags, "VIP"];
-        } else {
-          newTags = tags.filter((t) => t !== "VIP");
-        }
-        return fetch(`/api/customers/${c.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tags: JSON.stringify(newTags) }),
-        }).then((r) => {
-          if (!r.ok) throw new Error(`Failed: ${r.status}`);
-          return r.json();
-        });
-      });
-    },
-    onSuccess: (_, { addVip }) => {
-      queryClient.invalidateQueries({ queryKey: ["customers"] });
-      clearSelection();
-      toast.success(addVip ? "VIP הוסף ללקוחות הנבחרים" : "VIP הוסר מהלקוחות הנבחרים");
-    },
-    onError: () => toast.error("שגיאה בעדכון הלקוחות. נסה שוב."),
-  });
-
-  // ── Bulk Delete mutation ──
+  // ── Bulk delete (each delete = long sequential cleanup server-side → low concurrency) ──
   const bulkDeleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
-      // Each delete runs a long sequential cleanup server-side (see rule #17),
-      // so cap concurrency low (2) to avoid exhausting the DB pool. fn catches
-      // per-item so one failure doesn't abort the rest (allSettled semantics).
       const results = await mapWithConcurrency(ids, 2, (id) =>
         fetch(`/api/customers/${id}`, {
           method: "DELETE",
           headers: { "x-confirm-action": `DELETE_CUSTOMER_${id}` },
         })
-          .then(async (r) => {
-            if (!r.ok) {
-              const d = await r.json().catch(() => ({}));
-              throw new Error(d.error || `שגיאה ${r.status}`);
-            }
-            return true as const;
-          })
-          .catch(() => false as const)
+          .then((r) => (r.status === 202 ? ("pending" as const) : r.ok ? ("deleted" as const) : ("failed" as const)))
+          .catch(() => "failed" as const)
       );
-      const failed = results.filter((ok) => !ok).length;
-      return { total: ids.length, failed };
+      return {
+        deleted: results.filter((r) => r === "deleted").length,
+        pending: results.filter((r) => r === "pending").length,
+        failed: results.filter((r) => r === "failed").length,
+      };
     },
-    onSuccess: ({ total, failed }) => {
+    onSuccess: ({ deleted, pending, failed }) => {
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       clearSelection();
       setBulkDeleteStep(0);
-      if (failed === 0) toast.success(`${total} לקוחות נמחקו בהצלחה`);
-      else toast.error(`${total - failed} נמחקו, ${failed} נכשלו`);
+      const parts = [
+        deleted > 0 && `${deleted} נמחקו`,
+        pending > 0 && `${pending} נשלחו לאישור הבעלים`,
+        failed > 0 && `${failed} נכשלו`,
+      ].filter(Boolean);
+      if (failed > 0) toast.error(parts.join(", "));
+      else toast.success(parts.join(", ") || "לא נמחקו לקוחות");
     },
     onError: () => toast.error("שגיאה במחיקת הלקוחות. נסה שוב."),
   });
 
-  // ── Avatar colors ──
-  const getAvatarGradient = (status: string) => {
-    switch (status) {
-      case "vip":
-        return "linear-gradient(135deg, #F59E0B, #D97706)";
-      case "active":
-        return "linear-gradient(135deg, #F97316, #FB923C)";
-      case "dormant":
-        return "linear-gradient(135deg, #94A3B8, #64748B)";
-      default:
-        return "linear-gradient(135deg, #F97316, #FB923C)";
+  // ── Export (current filters, or the selected rows) ──
+  const handleExport = useCallback(async () => {
+    setExporting(true);
+    try {
+      const params = new URLSearchParams(listParams);
+      if (selectedIds.size > 0) params.set("ids", Array.from(selectedIds).join(","));
+      const res = await fetch(`/api/customers/export?${params}`);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "Export failed");
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `customers-export-${new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" })}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success("הקובץ הורד בהצלחה");
+    } catch (e) {
+      toast.error(e instanceof Error && e.message !== "Export failed" ? e.message : "שגיאה בייצוא. נסה שוב.");
+    } finally {
+      setExporting(false);
     }
-  };
+  }, [listParams, selectedIds]);
 
-  // ── Determine the "select all" checkbox state ──
-  const allSelected = customers.length > 0 && selectedIds.size === customers.length;
-  const someSelected = selectedIds.size > 0 && !allSelected;
+  const onSort = useCallback((s: CustomerSort) => updateFilters({ sortBy: s }), [updateFilters]);
+  const hasAnyFilter = !!debouncedSearch || JSON.stringify(filters) !== JSON.stringify(DEFAULT_LIST_FILTERS);
 
   return (
-    <CustomersPermGate>
-    <div>
+    <div className="min-w-0">
       <PageTitle title="לקוחות" />
       {/* ─── Page Header ─── */}
       <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
-        {/* Right side: title + refresh */}
         <div className="flex items-center gap-2">
           <div>
             <h1 className="page-title">לקוחות</h1>
             <p className="text-sm text-petra-muted">
-              {isLoading ? (
-                <span className="inline-block w-16 h-3.5 bg-slate-200 animate-pulse rounded" />
-              ) : (
-                <>{totalCount ?? stats.total} {(totalCount ?? stats.total) === 1 ? "לקוח" : "לקוחות"} במערכת</>
-              )}
+              {businessTotal === null ? "—" : <>{businessTotal} {businessTotal === 1 ? "לקוח" : "לקוחות"} במערכת</>}
             </p>
           </div>
           <button
             onClick={() => queryClient.invalidateQueries({ queryKey: ["customers"] })}
             title="רענן נתונים"
+            aria-label="רענן נתונים"
             className="w-7 h-7 flex items-center justify-center rounded-lg text-petra-muted hover:text-petra-text hover:bg-slate-100 transition-colors"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isCustomersFetching ? "animate-spin" : ""}`} />
           </button>
         </div>
-        {/* Left side: action buttons (RTL order: לקוח חדש → הזמנה חדשה → ייצוא) */}
         <div className="flex items-center gap-2 flex-wrap">
-          {tier === "free" && maxCustomers !== null && (totalCount ?? stats.total) >= maxCustomers ? (
+          {atFreeLimit ? (
             <a href="/upgrade" className="btn-primary gap-2 bg-amber-500 hover:bg-amber-600 border-amber-500 text-white rounded-xl px-4 py-2.5 text-sm font-semibold flex items-center">
               <Sparkles className="w-4 h-4" />
               שדרג לבייסיק
             </a>
           ) : (
-            <button
-              className="btn-primary"
-              onClick={() => setShowNewModal(true)}
-            >
+            <button className="btn-primary" onClick={() => setShowNewModal(true)}>
               <Plus className="w-4 h-4" />
               לקוח חדש
             </button>
@@ -1863,48 +397,40 @@ export default function CustomersPage() {
             הזמנה חדשה
           </button>
           {canExportData && (
-          <button
-            className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-colors"
-            title="ייצוא לקוחות לאקסל"
-            onClick={async () => {
-              try {
-                const res = await fetch("/api/customers/export");
-                if (!res.ok) throw new Error("Export failed");
-                const blob = await res.blob();
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                const today = new Date().toISOString().slice(0, 10);
-                a.href = url;
-                a.download = `customers-export-${today}.xlsx`;
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-                URL.revokeObjectURL(url);
-                toast.success("הקובץ הורד בהצלחה");
-              } catch {
-                toast.error("שגיאה בייצוא. נסה שוב.");
-              }
-            }}
-          >
-            <FileDown className="w-4 h-4" />
-            ייצוא Excel
-          </button>
+            <button
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-colors disabled:opacity-50"
+              title={selectedIds.size > 0 ? "ייצוא הלקוחות הנבחרים לאקסל" : "ייצוא הלקוחות המסוננים לאקסל"}
+              onClick={handleExport}
+              disabled={exporting}
+            >
+              <FileDown className="w-4 h-4" />
+              {selectedIds.size > 0 ? `ייצוא ${selectedIds.size}` : "ייצוא"}
+            </button>
+          )}
+          {canImportData && (
+            <Link
+              href="/settings?tab=data"
+              prefetch={false}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-colors"
+              title="ייבוא לקוחות מאקסל"
+            >
+              <Upload className="w-4 h-4" />
+              ייבוא
+            </Link>
           )}
         </div>
       </div>
 
-      {/* Free tier customer limit banner */}
-      {tier === "free" && maxCustomers !== null && (
-        <div className={`flex items-center justify-between gap-3 mb-4 px-4 py-3 rounded-xl border ${
-          stats.total >= maxCustomers ? "bg-amber-50 border-amber-200" : "bg-slate-50 border-slate-200"
-        }`}>
+      {/* Free tier customer limit banner (whole business, not loaded rows) */}
+      {tier === "free" && maxCustomers !== null && businessTotal !== null && (
+        <div className={`flex items-center justify-between gap-3 mb-4 px-4 py-3 rounded-xl border ${atFreeLimit ? "bg-amber-50 border-amber-200" : "bg-slate-50 border-slate-200"}`}>
           <div className="flex items-center gap-2 text-sm">
-            <Sparkles className={`w-4 h-4 flex-shrink-0 ${stats.total >= maxCustomers ? "text-amber-500" : "text-slate-400"}`} />
-            <span className={stats.total >= maxCustomers ? "text-amber-800" : "text-slate-600"}>
-              {stats.total}/{maxCustomers} לקוחות — מגבלת המנוי החינמי
+            <Sparkles className={`w-4 h-4 flex-shrink-0 ${atFreeLimit ? "text-amber-500" : "text-slate-400"}`} />
+            <span className={atFreeLimit ? "text-amber-800" : "text-slate-600"}>
+              {businessTotal}/{maxCustomers} לקוחות — מגבלת המנוי החינמי
             </span>
           </div>
-          {stats.total >= maxCustomers && (
+          {atFreeLimit && (
             <a href="/upgrade" className="text-xs font-semibold text-amber-700 hover:text-amber-900 whitespace-nowrap">
               שדרג לבייסיק ←
             </a>
@@ -1913,254 +439,73 @@ export default function CustomersPage() {
       )}
 
       {/* ─── Search & Filters Card ─── */}
-      <div className="card p-4 mb-4 space-y-3 bg-gradient-to-b from-[#FDFBF8] to-white border-[#E8DFD5]">
-        {/* Search bar */}
+      <div className="card p-4 mb-4 space-y-3 bg-gradient-to-b from-[#FDFBF8] to-white border-[#E8DFD5] min-w-0">
         <div className="relative">
           <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#A0845C]" />
           <input
-            type="text"
-            placeholder="חיפוש לפי שם לקוח, טלפון, אימייל או שם חיה..."
+            type="search"
+            placeholder="חיפוש לפי שם, טלפון, אימייל או שם חיה..."
             className="input pr-10 bg-white border-[#E8DFD5] focus:border-[#C4956A] focus:ring-[#C4956A]/20"
             value={search}
+            maxLength={100}
             onChange={(e) => setSearch(e.target.value)}
+            aria-label="חיפוש לקוחות"
           />
         </div>
-
-        {/* Mobile filter toggle */}
-        {(() => {
-          const activeFilterCount = [statusFilter !== "all", !!serviceTypeFilter, financialFilter !== "all", !!lastVisitFilter, !!tagFilter].filter(Boolean).length;
-          return (
-            <button
-              className="sm:hidden flex items-center justify-between w-full text-sm font-medium text-[#8B7355] py-0.5"
-              onClick={() => setFiltersCollapsed(!filtersCollapsed)}
-            >
-              <div className="flex items-center gap-1.5">
-                <Filter className="w-3.5 h-3.5" />
-                <span>סינון{activeFilterCount > 0 ? ` (${activeFilterCount})` : ""}</span>
-              </div>
-              <ChevronDown className={cn("w-4 h-4 transition-transform text-[#A0845C]", !filtersCollapsed && "rotate-180")} />
-            </button>
-          );
-        })()}
-
-        {/* Filter row */}
-        <div className={cn("flex flex-wrap items-center gap-3", filtersCollapsed ? "hidden sm:flex" : "flex")}>
-          <div className="flex items-center gap-1.5 text-xs text-[#8B7355] font-medium">
-            <Filter className="w-3.5 h-3.5 hidden sm:block" />
-            <span className="hidden sm:inline">סינון:</span>
-          </div>
-
-          {/* Status pills */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            <FilterPill
-              label="הכל"
-              active={statusFilter === "all"}
-              onClick={() => setStatusFilter("all")}
-              count={stats.total}
-            />
-            <FilterPill
-              label="פעילים"
-              active={statusFilter === "active"}
-              onClick={() => setStatusFilter(statusFilter === "active" ? "all" : "active")}
-              count={stats.active}
-            />
-            <FilterPill
-              label="רדומים"
-              active={statusFilter === "dormant"}
-              onClick={() => setStatusFilter(statusFilter === "dormant" ? "all" : "dormant")}
-              count={stats.dormant}
-            />
-            <FilterPill
-              label="VIP"
-              active={tagFilter === "VIP"}
-              onClick={() => {
-                setTagFilter(tagFilter === "VIP" ? null : "VIP");
-                if (statusFilter === "vip") setStatusFilter("all");
+        <CustomerFiltersPanel
+          filters={filters}
+          onChange={updateFilters}
+          onReset={() => setRawFilters(DEFAULT_LIST_FILTERS)}
+          stats={stats}
+          presetTags={customerPresetTags}
+          canSeeFinance={canSeeFinance}
+          collapsed={filtersCollapsed}
+          onToggleCollapsed={() => setFiltersCollapsed((c) => !c)}
+          manageTagsSlot={
+            <ManageTagsPopover
+              tags={customerPresetTags}
+              onSave={(updatedTags) => {
+                if (filters.tag && !updatedTags.includes(filters.tag)) updateFilters({ tag: null });
+                saveTagsMutation.mutate(updatedTags);
               }}
-              count={rawCustomers.filter((c) => parseTags(c.tags).includes("VIP")).length}
+              isSaving={saveTagsMutation.isPending}
             />
-          </div>
-
-          {/* Separator */}
-          <div className="hidden sm:block w-px h-5 bg-[#E8DFD5]" />
-
-          {/* Service type dropdown */}
-          <div className="relative">
-            <select
-              value={serviceTypeFilter}
-              onChange={(e) => setServiceTypeFilter(e.target.value)}
-              className="appearance-none bg-[#FAF7F3] border border-[#E8DFD5] rounded-full text-xs font-medium text-[#8B7355] pl-7 pr-3 py-1.5 hover:bg-[#F3EDE6] hover:border-[#D4C5B2] transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#C4956A]/20"
-            >
-              <option value="">סוג שירות</option>
-              {SERVICE_TYPES.map((st) => (
-                <option key={st.id} value={st.id}>
-                  {st.label}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-[#A0845C] pointer-events-none" />
-          </div>
-
-          {/* Financial filter */}
-          <div className="flex items-center gap-1.5">
-            <FilterPill
-              label="חוב"
-              active={financialFilter === "debt"}
-              onClick={() =>
-                setFinancialFilter(financialFilter === "debt" ? "all" : "debt")
-              }
-              count={stats.withDebt}
-            />
-            <FilterPill
-              label="מאוזן"
-              active={financialFilter === "balanced"}
-              onClick={() =>
-                setFinancialFilter(
-                  financialFilter === "balanced" ? "all" : "balanced"
-                )
-              }
-            />
-          </div>
-
-          {/* Last visit filter */}
-          <div className="relative">
-            <select
-              value={lastVisitFilter}
-              onChange={(e) => setLastVisitFilter(e.target.value as typeof lastVisitFilter)}
-              className="appearance-none bg-[#FAF7F3] border border-[#E8DFD5] rounded-full text-xs font-medium text-[#8B7355] pl-7 pr-3 py-1.5 hover:bg-[#F3EDE6] hover:border-[#D4C5B2] transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#C4956A]/20"
-            >
-              <option value="">ביקור אחרון</option>
-              <option value="30">30+ ימים</option>
-              <option value="60">60+ ימים</option>
-              <option value="90">90+ ימים</option>
-              <option value="never">אף פעם</option>
-            </select>
-            <ChevronDown className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-[#A0845C] pointer-events-none" />
-          </div>
-
-          {/* Sort dropdown */}
-          <div className="relative">
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-              className="appearance-none bg-[#FAF7F3] border border-[#E8DFD5] rounded-full text-xs font-medium text-[#8B7355] pl-7 pr-3 py-1.5 hover:bg-[#F3EDE6] hover:border-[#D4C5B2] transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#C4956A]/20"
-            >
-              <option value="name_asc">א-ב</option>
-              <option value="newest">חדש לישן</option>
-              <option value="oldest">ישן לחדש</option>
-            </select>
-            <ChevronDown className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-[#A0845C] pointer-events-none" />
-          </div>
-
-          {/* Separator */}
-          <div className="hidden sm:block w-px h-5 bg-[#E8DFD5]" />
-
-          {/* Manage tags button */}
-          <ManageTagsPopover
-            tags={customerPresetTags}
-            onSave={(updatedTags) => {
-              // If the currently active tag filter was just removed, clear it
-              if (tagFilter && !updatedTags.includes(tagFilter)) {
-                setTagFilter(null);
-              }
-              saveTagsMutation.mutate(updatedTags);
-            }}
-            isSaving={saveTagsMutation.isPending}
-          />
-        </div>
-
-        {/* Tag filter pills — shown only when there are preset tags */}
-        {customerPresetTags.length > 0 && (
-          <div className={cn("flex flex-wrap items-center gap-1.5 border-t border-[#F0E8DD] pt-2", filtersCollapsed ? "hidden sm:flex" : "flex")}>
-            <span className="text-[10px] text-[#8B7355] font-medium flex items-center gap-1">
-              <Tag className="w-3 h-3" />
-              תגיות:
-            </span>
-            {customerPresetTags.map((tag) => {
-              const count = rawCustomers.filter((c) => parseTags(c.tags).includes(tag)).length;
-              return (
-                <button
-                  key={tag}
-                  onClick={() => setTagFilter(tagFilter === tag ? null : tag)}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all border ${tagFilter === tag
-                    ? "bg-[#3D2E1F] text-white border-[#3D2E1F] shadow-sm"
-                    : "bg-[#FAF7F3] text-[#8B7355] border-[#E8DFD5] hover:bg-[#F3EDE6]"
-                    }`}
-                >
-                  {tag}
-                  {count > 0 && (
-                    <span className={`text-[10px] px-1 rounded-full ${tagFilter === tag ? "bg-white/20 text-white" : "bg-[#E8DFD5] text-[#8B7355]"
-                      }`}>
-                      {count}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-            {tagFilter && (
-              <button
-                onClick={() => setTagFilter(null)}
-                className="inline-flex items-center gap-1 text-[11px] text-slate-400 hover:text-slate-600 transition-colors"
-              >
-                <X className="w-3 h-3" /> נקה
-              </button>
-            )}
-          </div>
-        )}
+          }
+        />
       </div>
 
       {/* ─── Bulk Action Bar ─── */}
       {selectedIds.size > 0 && (
-        <div className="card p-3 mb-4 flex flex-wrap items-center gap-3 bg-[#FEF9F4] border-brand-200 animate-slide-up">
+        <div className="card p-3 mb-4 flex flex-wrap items-center gap-2 sm:gap-3 bg-[#FEF9F4] border-brand-200 animate-slide-up">
           <div className="flex items-center gap-2">
             <CheckSquare className="w-4 h-4 text-brand-500" />
-            <span className="text-sm font-semibold text-petra-text">
-              {selectedIds.size} נבחרו
-            </span>
+            <span className="text-sm font-semibold text-petra-text">{selectedIds.size} נבחרו</span>
           </div>
-          <div className="w-px h-5 bg-brand-200" />
-          <button
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 transition-colors"
-            onClick={() => setShowBulkWhatsApp(true)}
-          >
-            <MessageCircle className="w-3.5 h-3.5" />
-            שלח הודעה
-          </button>
-          <div className="w-px h-5 bg-brand-200" />
+          {canSendMessages && (
+            <button
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 transition-colors"
+              onClick={() => setShowBulkWhatsApp(true)}
+            >
+              <MessageCircle className="w-3.5 h-3.5" />
+              שלח הודעה
+            </button>
+          )}
           <button
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-colors"
-            onClick={() =>
-              bulkVipMutation.mutate({
-                ids: Array.from(selectedIds),
-                addVip: true,
-              })
-            }
-            disabled={bulkVipMutation.isPending}
+            onClick={() => setShowBulkTags(true)}
           >
-            <Crown className="w-3.5 h-3.5" />
-            סמן כ-VIP
+            <Tag className="w-3.5 h-3.5" />
+            תגיות
           </button>
-          <button
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100 transition-colors"
-            onClick={() =>
-              bulkVipMutation.mutate({
-                ids: Array.from(selectedIds),
-                addVip: false,
-              })
-            }
-            disabled={bulkVipMutation.isPending}
-          >
-            <X className="w-3.5 h-3.5" />
-            הסר VIP
-          </button>
-          <button
-            className="ms-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 transition-colors"
-            onClick={() => setBulkDeleteStep(1)}
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            מחק נבחרים
-          </button>
-          <div className="w-px h-5 bg-brand-200" />
+          {canCriticalDelete && (
+            <button
+              className="ms-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 transition-colors"
+              onClick={() => setBulkDeleteStep(1)}
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              מחק נבחרים
+            </button>
+          )}
           <button
             className="text-xs text-petra-muted hover:text-petra-text transition-colors"
             onClick={() => { clearSelection(); setSelectionMode(false); }}
@@ -2170,35 +515,29 @@ export default function CustomersPage() {
         </div>
       )}
 
-      {/* ─── Table ─── */}
+      {/* ─── List ─── */}
       {isLoading ? (
         <PetraLoader />
       ) : customers.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon">
-            {debouncedSearch ? <Search className="w-6 h-6 text-slate-400" /> : <Users className="w-6 h-6 text-slate-400" />}
+            {hasAnyFilter ? <Search className="w-6 h-6 text-slate-400" /> : <Users className="w-6 h-6 text-slate-400" />}
           </div>
           <h3 className="text-base font-semibold text-petra-text mb-1">
-            {debouncedSearch
-              ? `לא נמצאו תוצאות עבור "${debouncedSearch}"`
-              : rawCustomers.length === 0 ? "אין לקוחות" : "אין תוצאות"}
+            {debouncedSearch ? `לא נמצאו תוצאות עבור "${debouncedSearch}"` : hasAnyFilter ? "אין תוצאות" : "אין לקוחות"}
           </h3>
           <p className="text-sm text-petra-muted mb-4">
-            {debouncedSearch
-              ? "נסה מילות חיפוש אחרות"
-              : rawCustomers.length === 0
-                ? "התחל על ידי הוספת הלקוח הראשון"
-                : "נסה לשנות את הסינון"}
+            {hasAnyFilter ? "נסה לשנות את החיפוש או הסינון" : "התחל על ידי הוספת הלקוח הראשון"}
           </p>
-          {debouncedSearch ? (
-            <button className="btn-secondary text-sm" onClick={() => setSearch("")}>
-              נקה חיפוש
-            </button>
-          ) : rawCustomers.length === 0 && (
+          {hasAnyFilter ? (
             <button
-              className="btn-primary"
-              onClick={() => setShowNewModal(true)}
+              className="btn-secondary text-sm"
+              onClick={() => { setSearch(""); setRawFilters(DEFAULT_LIST_FILTERS); }}
             >
+              נקה חיפוש וסינון
+            </button>
+          ) : (
+            <button className="btn-primary" onClick={() => setShowNewModal(true)}>
               <Plus className="w-4 h-4" />
               הוסף לקוח
             </button>
@@ -2207,7 +546,7 @@ export default function CustomersPage() {
       ) : (
         <div className="card overflow-hidden">
           {/* ── Selection mode toggle bar ── */}
-          <div className="flex items-center justify-start px-4 py-2 border-b border-[#E8DFD5] bg-[#FDFBF8]">
+          <div className="flex items-center justify-start gap-3 px-4 py-2 border-b border-[#E8DFD5] bg-[#FDFBF8]">
             <button
               className={cn(
                 "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors",
@@ -2216,35 +555,29 @@ export default function CustomersPage() {
                   : "text-slate-600 hover:text-slate-900 hover:bg-slate-100 border-slate-200"
               )}
               onClick={() => {
-                setSelectionMode(!selectionMode);
                 if (selectionMode) setSelectedIds(new Set());
+                setSelectionMode(!selectionMode);
               }}
             >
               <CheckSquare className="w-3.5 h-3.5" />
               {selectionMode ? "בטל בחירה" : "בחר"}
             </button>
+            {selectionMode && (
+              <button onClick={toggleSelectAll} className="md:hidden flex items-center gap-1.5 text-xs text-[#8B7355]">
+                {allSelected ? (
+                  <CheckSquare className="w-4 h-4 text-brand-500" />
+                ) : someSelected ? (
+                  <MinusSquare className="w-4 h-4 text-brand-400" />
+                ) : (
+                  <Square className="w-4 h-4" />
+                )}
+                בחר את כל המוצגים ({customers.length})
+              </button>
+            )}
           </div>
+
           {/* ── Mobile card list (< md) ── */}
           <div className="md:hidden divide-y divide-slate-50">
-            {/* Mobile select-all header — only in selection mode */}
-            {selectionMode && (
-              <div className="flex items-center gap-3 px-4 py-2.5 bg-[#FAF7F3] border-b border-[#E8DFD5]">
-                <button
-                  onClick={toggleSelectAll}
-                  className="text-slate-400 hover:text-petra-text transition-colors"
-                >
-                  {allSelected ? (
-                    <CheckSquare className="w-4 h-4 text-brand-500" />
-                  ) : someSelected ? (
-                    <MinusSquare className="w-4 h-4 text-brand-400" />
-                  ) : (
-                    <Square className="w-4 h-4" />
-                  )}
-                </button>
-                <span className="text-xs text-[#8B7355]">בחר הכל</span>
-              </div>
-            )}
-
             {customers.map((customer) => {
               const isSelected = selectedIds.has(customer.id);
               return (
@@ -2252,28 +585,22 @@ export default function CustomersPage() {
                   key={customer.id}
                   className={`px-4 py-3.5 transition-colors ${isSelected ? "bg-[#FEF9F4]" : "hover:bg-[#FDFBF8]"}`}
                 >
-                  <div className="flex items-start gap-3">
-                    {/* Checkbox — only in selection mode */}
+                  <div className="flex items-start gap-3 min-w-0">
                     {selectionMode && (
                       <button
                         onClick={() => toggleSelect(customer.id)}
                         className="mt-1 flex-shrink-0 text-slate-400 hover:text-petra-text transition-colors"
+                        aria-label={isSelected ? `בטל בחירה של ${customer.name}` : `בחר את ${customer.name}`}
                       >
-                        {isSelected ? (
-                          <CheckSquare className="w-4 h-4 text-brand-500" />
-                        ) : (
-                          <Square className="w-4 h-4" />
-                        )}
+                        {isSelected ? <CheckSquare className="w-4 h-4 text-brand-500" /> : <Square className="w-4 h-4" />}
                       </button>
                     )}
-
-                    {/* Content */}
                     <div className="flex-1 min-w-0">
-                      {/* Top: avatar + name + status */}
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
                         <div
                           className="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0 shadow-sm"
                           style={{ background: getAvatarGradient(customer.status) }}
+                          aria-hidden="true"
                         >
                           {customer.name.charAt(0)}
                         </div>
@@ -2282,22 +609,13 @@ export default function CustomersPage() {
                             <Link
                               href={`/customers/${customer.id}`}
                               prefetch={false}
-                              className="text-sm font-semibold text-petra-text hover:text-brand-600 transition-colors leading-snug"
+                              className="text-sm font-semibold text-petra-text hover:text-brand-600 transition-colors leading-snug break-words"
                             >
                               {customer.name}
                             </Link>
-                            {(() => {
-                              const daysAgo = Math.floor((Date.now() - new Date(customer.createdAt).getTime()) / 86400000);
-                              if (daysAgo > 7) return null;
-                              const label = daysAgo === 0 ? "היום" : daysAgo === 1 ? "אתמול" : `לפני ${daysAgo} ימים`;
-                              return (
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-green-100 text-green-700 border border-green-200 flex-shrink-0">
-                                  חדש · {label}
-                                </span>
-                              );
-                            })()}
+                            <NewBadge createdAt={customer.createdAt} />
                           </div>
-                          <div className="text-[11px] text-petra-muted flex items-center gap-1 mt-0.5 whitespace-nowrap">
+                          <div className="text-[11px] text-petra-muted flex items-center gap-1 mt-0.5 whitespace-nowrap" dir="ltr">
                             <Phone className="w-3 h-3 flex-shrink-0" />
                             {customer.phone}
                           </div>
@@ -2305,23 +623,16 @@ export default function CustomersPage() {
                         <StatusBadge status={customer.status} />
                       </div>
 
-                      {/* Tags */}
                       <div className="mt-1.5 ms-11">
                         <InlineTagEditor customer={customer} presetTags={customerPresetTags} />
                       </div>
 
-                      {/* Bottom: pets + financial + actions */}
-                      <div className="mt-2 ms-11 flex items-center justify-between gap-2">
+                      <div className="mt-2 ms-11 flex items-center justify-between gap-2 flex-wrap">
                         <div className="flex items-center gap-3 min-w-0">
-                          {customer._count.pets > 0 && (
-                            <PetsCell pets={customer.pets} count={customer._count.pets} />
-                          )}
-                          <FinancialBadge financial={customer.financial} />
+                          {customer._count.pets > 0 && <PetsCell pets={customer.pets} count={customer._count.pets} />}
+                          {canSeeFinance && <FinancialBadge financial={customer.financial} />}
                         </div>
-                        <QuickActions
-                          customer={customer}
-                          onEdit={() => setEditingCustomer(customer)}
-                        />
+                        <QuickActions customer={customer} onEdit={() => setEditingCustomer(customer)} />
                       </div>
                     </div>
                   </div>
@@ -2341,7 +652,7 @@ export default function CustomersPage() {
                       <button
                         onClick={toggleSelectAll}
                         className="text-slate-400 hover:text-petra-text transition-colors"
-                        aria-label="בחר הכל"
+                        aria-label="בחר את כל המוצגים"
                       >
                         {allSelected ? (
                           <CheckSquare className="w-4 h-4 text-brand-500" aria-hidden="true" />
@@ -2353,112 +664,107 @@ export default function CustomersPage() {
                       </button>
                     </th>
                   )}
-                  <th scope="col" className="table-header-cell">שם</th>
+                  <SortHeader label="שם" sortBy={filters.sortBy} primary="name_asc" onSort={onSort} />
                   <th scope="col" className="table-header-cell">סטטוס</th>
-                  <th scope="col" className="table-header-cell hidden md:table-cell">חיות</th>
-                  <th scope="col" className="table-header-cell hidden lg:table-cell">פגישות</th>
-                  <th scope="col" className="table-header-cell hidden lg:table-cell">כספי</th>
+                  <th scope="col" className="table-header-cell">חיות</th>
+                  <SortHeader
+                    label="פגישות"
+                    sortBy={filters.sortBy}
+                    primary="last_visit_desc"
+                    secondary="last_visit_asc"
+                    onSort={onSort}
+                    className="hidden lg:table-cell"
+                  />
+                  {canSeeFinance && (
+                    <SortHeader label="כספי" sortBy={filters.sortBy} primary="balance_desc" onSort={onSort} className="hidden lg:table-cell" />
+                  )}
                   <th scope="col" className="table-header-cell w-44">פעולות</th>
                 </tr>
               </thead>
               <tbody>
                 {customers.map((customer) => {
                   const isSelected = selectedIds.has(customer.id);
-
                   return (
                     <tr
                       key={customer.id}
                       className={`border-b border-slate-50 hover:bg-[#FDFBF8] transition-colors ${isSelected ? "bg-[#FEF9F4]" : ""}`}
                     >
-                      {/* Checkbox — only in selection mode */}
                       {selectionMode && (
                         <td className="px-3 py-3.5">
                           <button
                             onClick={() => toggleSelect(customer.id)}
                             className="text-slate-400 hover:text-petra-text transition-colors"
+                            aria-label={isSelected ? `בטל בחירה של ${customer.name}` : `בחר את ${customer.name}`}
                           >
-                            {isSelected ? (
-                              <CheckSquare className="w-4 h-4 text-brand-500" />
-                            ) : (
-                              <Square className="w-4 h-4" />
-                            )}
+                            {isSelected ? <CheckSquare className="w-4 h-4 text-brand-500" /> : <Square className="w-4 h-4" />}
                           </button>
                         </td>
                       )}
 
-                      {/* Name + phone + tags */}
+                      {/* Name (link) + phone/email/tags (siblings — no buttons inside the anchor) */}
                       <td className="table-cell">
-                        <Link
-                          href={`/customers/${customer.id}`}
-                          prefetch={false}
-                          className="flex items-center gap-3 group"
-                        >
-                          <div
+                        <div className="flex items-center gap-3">
+                          <Link
+                            href={`/customers/${customer.id}`}
+                            prefetch={false}
+                            tabIndex={-1}
+                            aria-hidden="true"
                             className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0 shadow-sm"
                             style={{ background: getAvatarGradient(customer.status) }}
                           >
                             {customer.name.charAt(0)}
-                          </div>
+                          </Link>
                           <div className="min-w-0">
-                            <span className="text-sm font-semibold text-petra-text group-hover:text-brand-600 transition-colors">
-                              {customer.name}
-                            </span>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <Link
+                                href={`/customers/${customer.id}`}
+                                prefetch={false}
+                                className="text-sm font-semibold text-petra-text hover:text-brand-600 transition-colors"
+                              >
+                                {customer.name}
+                              </Link>
+                              <NewBadge createdAt={customer.createdAt} />
+                            </div>
                             <div className="flex items-center gap-2 mt-0.5">
-                              <span className="text-[11px] text-petra-muted flex items-center gap-1">
+                              <span className="text-[11px] text-petra-muted flex items-center gap-1" dir="ltr">
                                 <Phone className="w-3 h-3" />
                                 {customer.phone}
                               </span>
                               {customer.email && (
-                                <span
-                                  role="button"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    window.open(`https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(customer.email!)}`, "_blank");
-                                  }}
-                                  className="text-[11px] text-petra-muted hover:text-brand-600 hidden sm:flex items-center gap-1 transition-colors cursor-pointer"
+                                <a
+                                  href={`https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(customer.email)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-[11px] text-petra-muted hover:text-brand-600 flex items-center gap-1 transition-colors truncate max-w-[200px]"
                                 >
-                                  <Mail className="w-3 h-3" />
+                                  <Mail className="w-3 h-3 flex-shrink-0" />
                                   {customer.email}
-                                </span>
+                                </a>
                               )}
                             </div>
                             <div className="mt-1">
                               <InlineTagEditor customer={customer} presetTags={customerPresetTags} />
                             </div>
                           </div>
-                        </Link>
+                        </div>
                       </td>
 
-                      {/* Status */}
                       <td className="table-cell">
                         <StatusBadge status={customer.status} />
                       </td>
-
-                      {/* Pets */}
-                      <td className="table-cell hidden md:table-cell">
+                      <td className="table-cell">
                         <PetsCell pets={customer.pets} count={customer._count.pets} />
                       </td>
-
-                      {/* Appointments */}
                       <td className="table-cell hidden lg:table-cell">
-                        <AppointmentDates
-                          last={customer.lastAppointment}
-                          next={customer.nextAppointment}
-                        />
+                        <AppointmentDates last={customer.lastAppointment} next={customer.nextAppointment} />
                       </td>
-
-                      {/* Financial */}
-                      <td className="table-cell hidden lg:table-cell">
-                        <FinancialBadge financial={customer.financial} />
-                      </td>
-
-                      {/* Quick Actions */}
+                      {canSeeFinance && (
+                        <td className="table-cell hidden lg:table-cell">
+                          <FinancialBadge financial={customer.financial} />
+                        </td>
+                      )}
                       <td className="px-2 py-3.5 whitespace-nowrap">
-                        <QuickActions
-                          customer={customer}
-                          onEdit={() => setEditingCustomer(customer)}
-                        />
+                        <QuickActions customer={customer} onEdit={() => setEditingCustomer(customer)} />
                       </td>
                     </tr>
                   );
@@ -2467,59 +773,46 @@ export default function CustomersPage() {
             </table>
           </div>
 
-          {/* Load More */}
+          {/* Load more */}
           {hasNextPage && (
             <div className="flex justify-center py-3 border-t border-slate-100">
-              <button
-                onClick={() => fetchNextPage()}
-                disabled={isFetchingNextPage}
-                className="btn-secondary text-sm gap-2"
-              >
-                {isFetchingNextPage ? (
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <ChevronDown className="w-3.5 h-3.5" />
-                )}
+              <button onClick={() => fetchNextPage()} disabled={isFetchingNextPage} className="btn-secondary text-sm gap-2">
+                {isFetchingNextPage ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <ChevronDown className="w-3.5 h-3.5" />}
                 {isFetchingNextPage ? "טוען..." : "טען עוד לקוחות"}
               </button>
             </div>
           )}
 
-          {/* Table footer with summary */}
-          <div className="px-5 py-3 bg-[#FAF7F3] border-t border-[#E8DFD5] flex flex-wrap items-center gap-4 text-xs text-[#8B7355]">
+          {/* Footer — server totals */}
+          <div className="px-4 sm:px-5 py-3 bg-[#FAF7F3] border-t border-[#E8DFD5] flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[#8B7355]">
             <span>
-              מציג {customers.length} מתוך {rawCustomers.length}{hasNextPage ? "+" : ""} {rawCustomers.length === 1 ? "לקוח" : "לקוחות"}
-              {hasNextPage && <span className="mr-1 text-amber-600 font-medium">(לא כל הלקוחות נטענו — גלול למטה לטעינה נוספת)</span>}
+              מציג {customers.length} מתוך {filteredTotal} {filteredTotal === 1 ? "לקוח" : "לקוחות"}
             </span>
             <div className="flex-1" />
-            <div className="flex items-center gap-4">
-              <span className="flex items-center gap-1 font-medium text-[#6B5744]">
-                {stats.total} סה״כ
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                {stats.active} פעילים
-              </span>
-              <span className="flex items-center gap-1">
-                <Crown className="w-3 h-3 text-amber-600" />
-                {stats.vip} VIP
-              </span>
-              {stats.withDebt > 0 && (
-                <span className="flex items-center gap-1 text-red-500 font-medium">
-                  {stats.withDebt} עם חוב
+            {stats && (
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                <span className="font-medium text-[#6B5744]">{stats.total} סה״כ</span>
+                <span className="flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  {stats.active} פעילים
                 </span>
-              )}
-            </div>
+                <span className="flex items-center gap-1">
+                  <Crown className="w-3 h-3 text-amber-600" />
+                  {stats.vip} VIP
+                </span>
+                {canSeeFinance && stats.withDebt > 0 && (
+                  <span className="text-red-500 font-medium">
+                    {stats.withDebt} עם חוב{stats.totalDebt !== null ? ` · ₪${stats.totalDebt.toLocaleString("he-IL")}` : ""}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
 
       {/* ─── Modals ─── */}
-      <NewCustomerModal
-        isOpen={showNewModal}
-        onClose={() => setShowNewModal(false)}
-        presetTags={customerPresetTags}
-      />
+      <NewCustomerModal isOpen={showNewModal} onClose={() => setShowNewModal(false)} presetTags={customerPresetTags} />
       <EditCustomerModal
         isOpen={!!editingCustomer}
         onClose={() => setEditingCustomer(null)}
@@ -2535,141 +828,45 @@ export default function CustomersPage() {
           setShowOrderModal(false);
         }}
       />
-
-      {/* ─── Bulk WhatsApp Modal ─── */}
-      {showBulkWhatsApp && (() => {
-        const selectedCustomers = rawCustomers.filter((c) => selectedIds.has(c.id));
-        return (
-          <div className="modal-overlay" onClick={() => setShowBulkWhatsApp(false)}>
-            <div
-              className="modal-content max-w-md w-full flex flex-col max-h-[85vh]"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between p-5 border-b border-slate-100 flex-shrink-0">
-                <div>
-                  <h2 className="text-lg font-bold text-slate-900">שליחת הודעה בוואטסאפ</h2>
-                  <p className="text-xs text-petra-muted mt-0.5">{selectedCustomers.length} לקוחות נבחרו</p>
-                </div>
-                <button onClick={() => setShowBulkWhatsApp(false)} className="btn-ghost w-8 h-8 p-0 flex items-center justify-center rounded-lg">
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-5 space-y-4">
-                <div>
-                  <label className="label">תוכן ההודעה</label>
-                  <textarea
-                    className="input resize-none"
-                    rows={4}
-                    value={bulkWaMessage}
-                    onChange={(e) => setBulkWaMessage(e.target.value)}
-                    placeholder="שלום! רצינו להזמין אותך לתור הבא שלך... 🐾"
-                  />
-                  <p className="text-xs text-petra-muted mt-1">ההודעה תישלח בנפרד לכל לקוח דרך VistaApp הוואטסאפ שלך</p>
-                </div>
-
-                <div className="space-y-1.5">
-                  <p className="text-xs font-medium text-slate-600 mb-2">נמענים:</p>
-                  {selectedCustomers.map((c) => (
-                    <a
-                      key={c.id}
-                      href={`https://wa.me/${toWhatsAppPhone(c.phone)}?text=${encodeURIComponent(bulkWaMessage || "")}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-green-50 border border-slate-100 hover:border-green-200 transition-colors group"
-                    >
-                      <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-                        style={{ background: "linear-gradient(135deg, #25D366, #128C7E)" }}>
-                        {c.name.charAt(0)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-petra-text truncate">{c.name}</p>
-                        <p className="text-xs text-petra-muted" dir="ltr">{c.phone}</p>
-                      </div>
-                      <MessageCircle className="w-4 h-4 text-[#25D366] opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
-                    </a>
-                  ))}
-                </div>
-              </div>
-
-              <div className="p-5 border-t border-slate-100 flex-shrink-0 space-y-2">
-                <p className="text-xs text-petra-muted text-center">לחץ על שם לקוח כדי לפתוח שיחה בוואטסאפ</p>
-                <button
-                  onClick={() => {
-                    selectedCustomers.forEach((c, i) => {
-                      setTimeout(() => {
-                        window.open(
-                          `https://wa.me/${toWhatsAppPhone(c.phone)}?text=${encodeURIComponent(bulkWaMessage || "")}`,
-                          `_wa_${c.id}`
-                        );
-                      }, i * 400);
-                    });
-                  }}
-                  disabled={!bulkWaMessage.trim()}
-                  className="btn-primary w-full flex items-center justify-center gap-2"
-                >
-                  <MessageCircle className="w-4 h-4" />
-                  פתח וואטסאפ לכולם ({selectedCustomers.length})
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-      {/* ─── Bulk Delete Step 1 — First Confirmation ─── */}
-      {bulkDeleteStep === 1 && (
-        <div className="modal-overlay" onClick={() => setBulkDeleteStep(0)}>
-          <div className="modal-content max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
-            <div className="p-6 text-center">
-              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
-                <Trash2 className="w-6 h-6 text-red-600" />
-              </div>
-              <h2 className="text-lg font-bold text-slate-900 mb-2">מחיקת לקוחות</h2>
-              <p className="text-sm text-petra-muted mb-1">
-                אתה עומד למחוק <span className="font-semibold text-slate-900">{selectedIds.size} לקוחות</span>.
-              </p>
-              <p className="text-sm text-petra-muted mb-6">
-                פעולה זו תמחק גם את כל חיות המחמד, התורים, ונתוני הלקוח לצמיתות.
-              </p>
-              <div className="flex gap-3">
-                <button className="flex-1 btn-secondary" onClick={() => setBulkDeleteStep(0)}>ביטול</button>
-                <button className="flex-1 px-4 py-2 rounded-lg text-sm font-medium bg-red-600 text-white hover:bg-red-700 transition-colors" onClick={() => setBulkDeleteStep(2)}>
-                  המשך
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+      {showBulkWhatsApp && canSendMessages && (
+        <BulkWhatsAppModal customers={selectedCustomers} onClose={() => setShowBulkWhatsApp(false)} />
       )}
-
-      {/* ─── Bulk Delete Step 2 — Final Confirmation ─── */}
-      {bulkDeleteStep === 2 && (
-        <div className="modal-overlay" onClick={() => setBulkDeleteStep(0)}>
-          <div className="modal-content max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
-            <div className="p-6 text-center">
-              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
-                <Trash2 className="w-6 h-6 text-red-600" />
-              </div>
-              <h2 className="text-lg font-bold text-red-700 mb-2">⚠️ אישור סופי</h2>
-              <p className="text-sm text-petra-muted mb-6">
-                האם אתה בטוח שברצונך למחוק <span className="font-bold text-red-700">{selectedIds.size} לקוחות</span> לצמיתות?<br />
-                לא ניתן לשחזר פעולה זו.
-              </p>
-              <div className="flex gap-3">
-                <button className="flex-1 btn-secondary" onClick={() => setBulkDeleteStep(0)} disabled={bulkDeleteMutation.isPending}>ביטול</button>
-                <button
-                  className="flex-1 px-4 py-2 rounded-lg text-sm font-medium bg-red-700 text-white hover:bg-red-800 transition-colors disabled:opacity-50"
-                  disabled={bulkDeleteMutation.isPending}
-                  onClick={() => bulkDeleteMutation.mutate(Array.from(selectedIds))}
-                >
-                  {bulkDeleteMutation.isPending ? "מוחק..." : `מחק ${selectedIds.size} לקוחות`}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+      {showBulkTags && (
+        <BulkTagModal
+          ids={Array.from(selectedIds)}
+          presetTags={customerPresetTags}
+          onClose={() => setShowBulkTags(false)}
+          onDone={() => { setShowBulkTags(false); clearSelection(); }}
+        />
       )}
+      <ConfirmDialog
+        open={bulkDeleteStep === 1}
+        danger
+        title="מחיקת לקוחות"
+        description={
+          <>
+            אתה עומד למחוק <span className="font-semibold">{selectedIds.size} לקוחות</span>. פעולה זו תמחק גם את
+            חיות המחמד, התורים ונתוני הלקוח לצמיתות.
+          </>
+        }
+        confirmLabel="המשך"
+        onConfirm={() => setBulkDeleteStep(2)}
+        onCancel={() => setBulkDeleteStep(0)}
+      />
+      <ConfirmDialog
+        open={bulkDeleteStep === 2}
+        danger
+        loading={bulkDeleteMutation.isPending}
+        title="אישור סופי"
+        description={
+          <>
+            למחוק <span className="font-bold text-red-700">{selectedIds.size} לקוחות</span> לצמיתות? לא ניתן לשחזר פעולה זו.
+          </>
+        }
+        confirmLabel={`מחק ${selectedIds.size} לקוחות`}
+        onConfirm={() => bulkDeleteMutation.mutate(Array.from(selectedIds))}
+        onCancel={() => setBulkDeleteStep(0)}
+      />
     </div>
-    </CustomersPermGate>
   );
 }

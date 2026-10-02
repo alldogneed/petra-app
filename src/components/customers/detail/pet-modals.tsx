@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useRef } from "react";
-import { Plus, X, Pencil, Upload, FileText, Trash2, Download, Scissors, File } from "lucide-react";
+import { Plus, X, Pencil, Upload, FileText, Trash2, Download, Scissors } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { PetraLoader } from "@/components/ui/PetraLoader";

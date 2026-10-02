@@ -124,7 +124,7 @@ function CustomerProfile() {
 
   // Capabilities (flags only). Writing customers = CUSTOMERS_PII + CONTENT_WRITE on the server;
   // the client has no CONTENT_WRITE flag yet, and this page is already gated by canSeePii.
-  const canWriteCustomer = perms.canSeePii;
+  const canWriteCustomer = perms.canWriteCustomers;
   // Manager without CRITICAL_DELETE → the server opens a pending approval (existing flow).
   const canDelete = perms.canCriticalDelete || perms.isManager;
   const deleteIsRequest = !perms.canCriticalDelete;
