@@ -11,6 +11,22 @@ import { PLATFORM_PERMS } from "@/lib/permissions";
 import { logAudit, getRequestContext, AUDIT_ACTIONS } from "@/lib/audit";
 import { z } from "zod";
 
+/** Secrets and payment-provider identifiers never leave the server — the panel does not need them. */
+const SENSITIVE_BUSINESS_FIELDS = [
+  "webhookApiKey",
+  "cardcomToken",
+  "cardcomTokenExpiry",
+  "cardcomDealId",
+  "cardcomRecurringId",
+  "cardcomPendingCode",
+] as const;
+
+function stripSensitive<T extends object>(business: T): Omit<T, (typeof SENSITIVE_BUSINESS_FIELDS)[number]> {
+  const safe = { ...business } as Record<string, unknown>;
+  for (const key of SENSITIVE_BUSINESS_FIELDS) delete safe[key];
+  return safe as Omit<T, (typeof SENSITIVE_BUSINESS_FIELDS)[number]>;
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { tenantId: string } }
@@ -63,7 +79,7 @@ export async function GET(
   ]);
 
   // Strip sensitive fields before returning
-  const { webhookApiKey, cardcomToken, cardcomTokenExpiry, ...safeTenant } = tenant as any;
+  const safeTenant = stripSensitive(tenant);
 
   return NextResponse.json({
     ...safeTenant,
@@ -146,6 +162,5 @@ export async function PATCH(
   });
 
   // Strip sensitive fields before returning
-  const { webhookApiKey: _wk, cardcomToken: _ct, cardcomTokenExpiry: _ce, ...safeUpdated } = updated as any;
-  return NextResponse.json(safeUpdated);
+  return NextResponse.json(stripSensitive(updated));
 }
