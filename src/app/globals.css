@@ -12,6 +12,13 @@
     overflow-x: clip;
   }
 
+  /* sr-only captions/headers are position:absolute; without a positioned
+     ancestor they escape the overflow-x-auto wrapper and widen the whole
+     page on mobile (seen on /pets). Anchor them to their table. */
+  table {
+    position: relative;
+  }
+
   body {
     @apply bg-petra-bg text-petra-text font-sans antialiased;
     overflow-x: clip;
