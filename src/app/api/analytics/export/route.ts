@@ -33,7 +33,8 @@ const MAX_EXPORT_ROWS = 50_000;
 
 function fmt(d: Date | string | null | undefined): string {
   if (!d) return "";
-  return new Date(d).toLocaleDateString("he-IL");
+  // Server runs in UTC — format as the Israel calendar day (range bounds are Israel-day starts).
+  return new Date(d).toLocaleDateString("he-IL", { timeZone: "Asia/Jerusalem" });
 }
 
 function fmtCurrency(n: number | null | undefined): string {
