@@ -1,11 +1,13 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, isGuardError } from "@/lib/auth-guards";
+import { requireBusinessPermission, isGuardError } from "@/lib/auth-guards";
+import { TENANT_PERMS } from "@/lib/permissions";
 import { InvoicingService } from "@/lib/invoicing/invoicing-service";
 
 // POST /api/invoicing/settings/test — test credentials without saving
 export async function POST(request: NextRequest) {
-  const authResult = await requireAuth(request);
+  // Same gate as saving invoicing settings (POST /api/invoicing/settings).
+  const authResult = await requireBusinessPermission(request, TENANT_PERMS.SETTINGS_WRITE);
   if (isGuardError(authResult)) return authResult;
 
   try {

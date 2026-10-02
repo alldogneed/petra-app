@@ -7,8 +7,6 @@ import {
   Clock,
   Plus,
   Trash2,
-  Save,
-  CheckCircle2,
   Loader2,
   Ban,
   AlertCircle,
@@ -19,6 +17,9 @@ import {
 import { cn, fetchJSON } from "@/lib/utils";
 import { toast } from "sonner";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { useRegisterDirty } from "./SettingsDirtyContext";
+import { SettingsSaveBar } from "./settings-ui";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -69,7 +70,8 @@ for (let h = 6; h <= 22; h++) {
 
 export default function AvailabilityTab() {
   const queryClient = useQueryClient();
-  const [saved, setSaved] = useState(false);
+  // Pending delete confirmation (break or block).
+  const [pendingDelete, setPendingDelete] = useState<{ kind: "break" | "block"; id: string; label: string } | null>(null);
 
   // ── Weekly schedule ───────────────────────────────────────────────────────
 
@@ -87,16 +89,19 @@ export default function AvailabilityTab() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ rules: rulesData }),
-      }).then((r) => {
-        if (!r.ok) throw new Error("Save failed");
+      }).then(async (r) => {
+        if (!r.ok) {
+          const body = await r.json().catch(() => ({}));
+          throw new Error(body.error || "שגיאה בשמירת לוח הזמנים");
+        }
         return r.json();
       }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["availability-rules"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["availability-rules"] });
       setEditedRules(null);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2500);
+      toast.success("לוח הזמנים נשמר");
     },
+    onError: (err: Error) => toast.error(err.message || "שגיאה בשמירת לוח הזמנים"),
   });
 
   function updateRule(dayOfWeek: number, updates: Partial<AvailabilityRule>) {
@@ -156,7 +161,10 @@ export default function AvailabilityTab() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["availability-blocks"] });
+      setPendingDelete(null);
+      toast.success("החסימה נמחקה");
     },
+    onError: () => toast.error("שגיאה במחיקת החסימה"),
   });
 
   function handleAddBlock() {
@@ -193,8 +201,8 @@ export default function AvailabilityTab() {
         if (!r.ok) throw new Error("Save failed");
         return r.json();
       }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["booking-settings"] });
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["booking-settings"] });
       setEditedSettings(null);
       toast.success("הגדרות תיאום נשמרו");
     },
@@ -237,6 +245,8 @@ export default function AvailabilityTab() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["availability-breaks"] });
+      setPendingDelete(null);
+      toast.success("ההפסקה נמחקה");
     },
     onError: () => toast.error("שגיאה במחיקת ההפסקה"),
   });
@@ -256,13 +266,35 @@ export default function AvailabilityTab() {
     onError: () => toast.error("שגיאה בייבוא חגים"),
   });
 
+  // ── Unsaved changes (booking settings + weekly schedule share one save bar) ──
+
+  const rulesDirty = editedRules !== null && JSON.stringify(editedRules) !== JSON.stringify(rules ?? getDefaultRules());
+  const settingsDirty = editedSettings !== null && JSON.stringify(editedSettings) !== JSON.stringify(bookingSettings ?? null);
+  const dirty = rulesDirty || settingsDirty;
+  useRegisterDirty("availability", dirty);
+  const isSaving = saveRulesMutation.isPending || saveSettingsMutation.isPending;
+
+  function saveAll() {
+    if (rulesDirty && editedRules) saveRulesMutation.mutate(editedRules);
+    if (settingsDirty && editedSettings) saveSettingsMutation.mutate(editedSettings);
+  }
+
+  function resetAll() {
+    setEditedRules(null);
+    setEditedSettings(null);
+  }
+
+  function confirmDelete() {
+    if (!pendingDelete) return;
+    if (pendingDelete.kind === "break") deleteBreakMutation.mutate(pendingDelete.id);
+    else deleteBlockMutation.mutate(pendingDelete.id);
+  }
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   if (rulesLoading || settingsLoading) {
     return <PetraLoader />;
   }
-
-  const hasChanges = editedRules !== null;
 
   return (
     <div className="space-y-8 max-w-2xl">
@@ -275,7 +307,7 @@ export default function AvailabilityTab() {
         </div>
 
         <div className="card p-4 space-y-4">
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="label">מרווח בין פגישות</label>
               <div className="flex items-center gap-2">
@@ -319,6 +351,7 @@ export default function AvailabilityTab() {
 
           <label className="flex items-center gap-3 cursor-pointer select-none">
             <button
+              type="button"
               role="switch"
               aria-checked={displaySettings.gcalBlockExternal}
               onClick={() => setEditedSettings({ ...displaySettings, gcalBlockExternal: !displaySettings.gcalBlockExternal })}
@@ -337,14 +370,7 @@ export default function AvailabilityTab() {
             <span className="text-sm text-petra-text">חסום פגישות גוגל קלנדר (כולל אישיות)</span>
           </label>
 
-          <button
-            className="btn-primary flex items-center gap-2 text-sm"
-            disabled={editedSettings === null || saveSettingsMutation.isPending}
-            onClick={() => { if (editedSettings) saveSettingsMutation.mutate(editedSettings); }}
-          >
-            {saveSettingsMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            שמור הגדרות
-          </button>
+          <p className="text-xs text-petra-muted">השינויים נשמרים יחד עם לוח הזמנים השבועי — בסרגל השמירה שמופיע בתחתית.</p>
         </div>
       </div>
 
@@ -431,9 +457,15 @@ export default function AvailabilityTab() {
                   </p>
                 </div>
                 <button
-                  onClick={() => deleteBreakMutation.mutate(br.id)}
+                  type="button"
+                  onClick={() => setPendingDelete({
+                    kind: "break",
+                    id: br.id,
+                    label: `${DAY_OPTIONS.find((d) => d.value === br.dayOfWeek)?.label ?? "כל יום"} ${br.startTime}–${br.endTime}`,
+                  })}
                   disabled={deleteBreakMutation.isPending}
                   className="p-2 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors flex-shrink-0"
+                  aria-label="מחק הפסקה"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -455,12 +487,16 @@ export default function AvailabilityTab() {
             <div
               key={rule.dayOfWeek}
               className={cn(
-                "card p-3 flex items-center gap-3 transition-opacity",
+                "card p-3 flex flex-wrap items-center gap-3 transition-opacity",
                 !rule.isOpen && "opacity-50"
               )}
             >
               {/* Toggle */}
               <button
+                type="button"
+                role="switch"
+                aria-checked={rule.isOpen}
+                aria-label={`${DAYS_HE[rule.dayOfWeek]} פתוח`}
                 onClick={() => updateRule(rule.dayOfWeek, { isOpen: !rule.isOpen })}
                 className={cn(
                   "w-10 h-6 rounded-full relative transition-colors flex-shrink-0",
@@ -504,38 +540,19 @@ export default function AvailabilityTab() {
           ))}
         </div>
 
-        <button
-          className={cn(
-            "btn-primary flex items-center gap-2 mt-4 transition-all",
-            saved && "bg-emerald-500 hover:brightness-100",
-            !hasChanges && !saved && "opacity-50 cursor-not-allowed"
-          )}
-          style={saved ? { background: "#10B981" } : undefined}
-          disabled={!hasChanges || saveRulesMutation.isPending}
-          onClick={() => {
-            if (editedRules) saveRulesMutation.mutate(editedRules);
-          }}
-        >
-          {saveRulesMutation.isPending ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : saved ? (
-            <CheckCircle2 className="w-4 h-4" />
-          ) : (
-            <Save className="w-4 h-4" />
-          )}
-          {saved ? "נשמר!" : "שמור לוח זמנים"}
-        </button>
+        <SettingsSaveBar dirty={dirty} saving={isSaving} onSave={saveAll} onReset={resetAll} />
       </div>
 
       {/* ── Availability Blocks ── */}
       <div className="border-t border-slate-100 pt-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
+          <div className="flex items-center gap-2 flex-wrap">
             <Ban className="w-5 h-5 text-brand-500" />
             <h3 className="text-base font-semibold text-petra-text">חסימות זמינות</h3>
             <span className="text-sm text-petra-muted">חופשות, ימי סגירה מיוחדים</span>
           </div>
           <button
+            type="button"
             onClick={() => importHolidaysMutation.mutate()}
             disabled={importHolidaysMutation.isPending}
             className="flex items-center gap-2 px-3 py-1.5 text-sm border border-slate-200 text-petra-muted hover:text-petra-text hover:bg-slate-50 rounded-lg disabled:opacity-50"
@@ -551,7 +568,7 @@ export default function AvailabilityTab() {
 
         {/* Add block form */}
         <div className="card p-4 mb-4">
-          <div className="grid grid-cols-2 gap-3 mb-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
             <div>
               <label className="label">תאריך ושעת התחלה *</label>
               <input
@@ -636,8 +653,14 @@ export default function AvailabilityTab() {
                     )}
                   </div>
                   <button
-                    onClick={() => deleteBlockMutation.mutate(block.id)}
+                    type="button"
+                    onClick={() => setPendingDelete({
+                      kind: "block",
+                      id: block.id,
+                      label: `${start.toLocaleDateString("he-IL", { day: "numeric", month: "short" })} — ${end.toLocaleDateString("he-IL", { day: "numeric", month: "short" })}${block.reason ? ` (${block.reason})` : ""}`,
+                    })}
                     disabled={deleteBlockMutation.isPending}
+                    aria-label="מחק חסימה"
                     className="p-2 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors flex-shrink-0"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -648,6 +671,25 @@ export default function AvailabilityTab() {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        title={pendingDelete?.kind === "break" ? "למחוק את ההפסקה?" : "למחוק את החסימה?"}
+        description={pendingDelete ? (
+          <>
+            <span className="font-medium text-petra-text">{pendingDelete.label}</span>
+            <br />
+            {pendingDelete.kind === "break"
+              ? "הזמן הזה ייפתח שוב לקביעת תורים."
+              : "הזמנים האלה ייפתחו שוב לקביעת תורים אונליין."}
+          </>
+        ) : undefined}
+        confirmLabel="מחק"
+        danger
+        loading={deleteBreakMutation.isPending || deleteBlockMutation.isPending}
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   );
 }
