@@ -36,6 +36,7 @@ import {
   type ToolCtx,
 } from "@/lib/mcp/helpers";
 import { ADMIN_SCOPE } from "@/lib/mcp-auth";
+import { computeOutstandingBalances } from "@/lib/outstanding-balances";
 
 // ─── Constants (mirror /api/payments routes + VALID_ORDER_STATUSES in services/orders.ts) ──
 
@@ -43,7 +44,6 @@ const PAYMENT_METHODS = ["cash", "credit_card", "bank_transfer", "bit", "paybox"
 const RECORD_STATUSES = ["paid", "pending"] as const; // record_payment (route also allows "canceled" — not useful at creation)
 const UPDATE_STATUSES = ["pending", "paid", "canceled", "refunded"] as const; // PATCH /api/payments/[id]
 const ORDER_STATUSES = ["draft", "confirmed", "in_progress", "completed", "cancelled"] as const; // services/orders.ts VALID_ORDER_STATUSES
-const OUTSTANDING_ORDER_STATUSES = ["confirmed", "in_progress", "completed"];
 const MAX_AMOUNT = 1_000_000;
 
 const METHOD_HE: Record<string, string> = {
@@ -554,70 +554,8 @@ export function registerFinanceTools(server: McpServer, ctx: ToolCtx): void {
       const params = { ...args };
       try {
         const limit = args.limit ?? 20;
-        const [orders, pendingPayments] = await Promise.all([
-          prisma.order.findMany({
-            where: { businessId, status: { in: OUTSTANDING_ORDER_STATUSES }, total: { gt: 0 } },
-            select: {
-              id: true,
-              total: true,
-              status: true,
-              createdAt: true,
-              customerId: true,
-              customer: { select: { id: true, name: true } },
-              payments: { where: { status: "paid" }, select: { amount: true } },
-            },
-            take: 1000,
-          }),
-          prisma.payment.findMany({
-            where: { businessId, status: "pending" },
-            select: { id: true, amount: true, createdAt: true, orderId: true, customerId: true, customer: { select: { id: true, name: true } } },
-            orderBy: { createdAt: "asc" },
-            take: 1000,
-          }),
-        ]);
-
-        type Row = {
-          id: string;
-          name: string;
-          ordersOutstanding: number;
-          orderIds: string[];
-          pendingAmount: number;
-          pendingIds: string[];
-          oldest: Date;
-        };
-        const rows = new Map<string, Row>();
-        const rowFor = (id: string, name: string, when: Date): Row => {
-          let r = rows.get(id);
-          if (!r) {
-            r = { id, name, ordersOutstanding: 0, orderIds: [], pendingAmount: 0, pendingIds: [], oldest: when };
-            rows.set(id, r);
-          }
-          if (when < r.oldest) r.oldest = when;
-          return r;
-        };
-
-        const countedOrderIds = new Set<string>();
-        for (const o of orders) {
-          const paid = o.payments.reduce((s, p) => s + p.amount, 0);
-          const outstanding = o.total - paid;
-          if (outstanding < 0.009) continue;
-          countedOrderIds.add(o.id);
-          const r = rowFor(o.customerId, o.customer?.name ?? "", o.createdAt);
-          r.ordersOutstanding += outstanding;
-          r.orderIds.push(o.id);
-        }
-        for (const p of pendingPayments) {
-          if (p.orderId && countedOrderIds.has(p.orderId)) continue; // already represented by the order's outstanding amount
-          const r = rowFor(p.customerId, p.customer?.name ?? "", p.createdAt);
-          r.pendingAmount += p.amount;
-          r.pendingIds.push(p.id);
-        }
-
-        const all = Array.from(rows.values())
-          .map((r) => ({ ...r, total: r.ordersOutstanding + r.pendingAmount }))
-          .sort((a, b) => b.total - a.total);
+        const { rows: all, grandTotal } = await computeOutstandingBalances(prisma, businessId);
         const shown = all.slice(0, limit);
-        const grandTotal = all.reduce((s, r) => s + r.total, 0);
 
         await auditLog(connectionId, "get_outstanding_balances", params, "success", `returned ${shown.length}/${all.length} debtors`);
 

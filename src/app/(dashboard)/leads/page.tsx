@@ -1557,6 +1557,16 @@ function LeadsPageContent() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<SalesView>("board");
+  // Reports need ANALYTICS_READ (owner/manager by default) — same gate as GET /api/leads/reports.
+  const { canViewAnalytics } = usePermissions();
+  // Deep link: /leads?view=reports (used by /analytics → "לדוחות המכירות המלאים")
+  useEffect(() => {
+    const view = new URLSearchParams(window.location.search).get("view");
+    if (view === "reports" || view === "archive" || view === "list" || view === "followup") setActiveTab(view);
+  }, []);
+  useEffect(() => {
+    if (activeTab === "reports" && !canViewAnalytics) setActiveTab("board");
+  }, [activeTab, canViewAnalytics]);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [exportFrom, setExportFrom] = useState("");
@@ -1983,7 +1993,7 @@ function LeadsPageContent() {
     { id: "followup", label: `פולואפים · ${overdueCount + todayCount}` },
     { id: "list", label: "רשימה" },
     { id: "archive", label: `ארכיון · ${archiveCount}` },
-    { id: "reports", label: "דוחות" },
+    ...(canViewAnalytics ? [{ id: "reports" as const, label: "דוחות" }] : []),
   ];
 
   const openLead = (lead: Lead) => setSelectedLead(lead);
@@ -2210,7 +2220,7 @@ function LeadsPageContent() {
 
       <div className="mt-5">
         {/* Reports */}
-        {activeTab === "reports" && <LeadsReports leads={leads} stages={stages} />}
+        {activeTab === "reports" && canViewAnalytics && <LeadsReports />}
 
         {/* Archive */}
         {activeTab === "archive" && (

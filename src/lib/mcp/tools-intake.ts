@@ -472,7 +472,7 @@ export function registerIntakeTools(server: McpServer, ctx: ToolCtx): void {
           return dryRunResult(`הליד "${safeField(existing.name)}" (id: ${existing.id}) יעודכן:\n• ${changes.join("\n• ")}`);
         }
 
-        const lead = await updateLead(businessId, prisma, args.lead_id, input);
+        const lead = await updateLead(businessId, prisma, args.lead_id, input, ctx.userId ?? null);
         // Verify (don't assume) the linked follow-up task — report its id so the client can see it in list_tasks.
         let followUpNote = "";
         if (input.nextFollowUpAt) {

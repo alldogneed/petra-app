@@ -59,6 +59,7 @@ export async function POST(
           stage: wonStageId,
           wonAt: new Date(),
           wonByUserId: authResult.session.user.id,
+          lostByUserId: null,
         },
         include: { customer: true, callLogs: true },
       });
@@ -93,6 +94,7 @@ export async function POST(
         stage: wonStageId,
         wonAt: new Date(),
         wonByUserId: authResult.session.user.id,
+        lostByUserId: null,
         customerId: customer.id,
       },
       include: { customer: true, callLogs: true },
