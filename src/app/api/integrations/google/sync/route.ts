@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
-import { NextResponse } from "next/server";
-import { getSession } from "@/lib/session";
+import { NextRequest, NextResponse } from "next/server";
+import { resolveSession, requireBusinessPermission, isGuardError } from "@/lib/auth-guards";
+import { TENANT_PERMS } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { updateCalendarEvent } from "@/lib/google-calendar";
 
@@ -9,9 +10,9 @@ import { updateCalendarEvent } from "@/lib/google-calendar";
  * Syncs all upcoming non-cancelled bookings to Google Calendar.
  * Only works when the user has gcalConnected = true.
  */
-export async function POST() {
+export async function POST(request: NextRequest) {
   try {
-    const session = await getSession();
+    const session = await resolveSession(request);
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -25,10 +26,11 @@ export async function POST() {
       );
     }
 
-    const businessId = session.memberships.find((m) => m.isActive)?.businessId;
-    if (!businessId) {
-      return NextResponse.json({ error: "No active business" }, { status: 403 });
-    }
+    // Same business resolution as every other route (owner membership first) +
+    // the owner-grantable CALENDAR_SYNC permission.
+    const authResult = await requireBusinessPermission(request, TENANT_PERMS.CALENDAR_SYNC);
+    if (isGuardError(authResult)) return authResult;
+    const { businessId } = authResult;
 
     const user = await prisma.platformUser.findUnique({
       where: { id: session.user.id },

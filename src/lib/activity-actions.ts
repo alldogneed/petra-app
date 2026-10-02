@@ -59,6 +59,7 @@ export const ACTIVITY_ACTIONS = {
   UPDATE_SECURITY_ALERTS: "UPDATE_SECURITY_ALERTS",
   CHANGE_BUSINESS_PHONE: "CHANGE_BUSINESS_PHONE",
   CANCEL_SUBSCRIPTION: "CANCEL_SUBSCRIPTION",
+  DELETE_CONTRACT_TEMPLATE: "DELETE_CONTRACT_TEMPLATE",
 } as const;
 
 export type ActivityAction = (typeof ACTIVITY_ACTIONS)[keyof typeof ACTIVITY_ACTIONS];
@@ -117,6 +118,7 @@ export const ACTION_LABELS: Record<string, string> = {
   UPDATE_SECURITY_ALERTS: "עדכן/ה התראות אבטחה",
   CHANGE_BUSINESS_PHONE: "שינה/תה את טלפון העסק",
   CANCEL_SUBSCRIPTION: "ביטל/ה את המנוי",
+  DELETE_CONTRACT_TEMPLATE: "מחק/ה תבנית חוזה",
 };
 
 export function actionLabel(action: string): string {

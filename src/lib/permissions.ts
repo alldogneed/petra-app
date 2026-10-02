@@ -88,6 +88,14 @@ export const TENANT_PERMS = {
   AI_ASSISTANT:         "tenant.ai.assistant",
   /** Manage boarding rooms, yards and occupancy */
   BOARDING_MANAGE:      "tenant.boarding.manage",
+  /** Change working hours, breaks, booking blocks and booking rules */
+  AVAILABILITY_MANAGE:  "tenant.availability.manage",
+  /** Bulk-import customers / pets from Excel (can merge into existing customers) */
+  DATA_IMPORT:          "tenant.data.import",
+  /** Create, edit and delete contract templates */
+  CONTRACTS_MANAGE:     "tenant.contracts.manage",
+  /** Receive the business's bookings in one's own connected Google Calendar */
+  CALENDAR_SYNC:        "tenant.calendar.sync",
 } as const;
 
 export type PlatformPermission = (typeof PLATFORM_PERMS)[keyof typeof PLATFORM_PERMS];
@@ -113,6 +121,10 @@ export type TenantPermission = (typeof TENANT_PERMS)[keyof typeof TENANT_PERMS];
 // critical.delete         |  ✅   |   ❌    |  ❌   |    ❌  ← manager→pending approval
 // settings.critical       |  ✅   |   ❌    |  ❌   |    ❌  ← manager→pending approval
 // approve.actions         |  ✅   |   ❌    |  ❌   |    ❌
+// availability.manage     |  ✅   |   ✅    |  ❌   |    ❌  ← owner can grant per member
+// data.import             |  ✅   |   ✅    |  ❌   |    ❌
+// contracts.manage        |  ✅   |   ✅    |  ❌   |    ❌
+// calendar.sync           |  ✅   |   ✅    |  ✅   |    ❌
 //
 const PLATFORM_ROLE_PERMISSIONS: Record<PlatformRole, PlatformPermission[]> = {
   super_admin: Object.values(PLATFORM_PERMS) as PlatformPermission[],
@@ -156,6 +168,10 @@ const TENANT_ROLE_PERMISSIONS: Record<TenantRole, TenantPermission[]> = {
     TENANT_PERMS.MESSAGES_SEND,
     TENANT_PERMS.DATA_EXPORT,
     TENANT_PERMS.BOARDING_MANAGE,
+    TENANT_PERMS.AVAILABILITY_MANAGE,
+    TENANT_PERMS.DATA_IMPORT,
+    TENANT_PERMS.CONTRACTS_MANAGE,
+    TENANT_PERMS.CALENDAR_SYNC,
     // AI_ASSISTANT removed — owner grants it per member
   ],
 
@@ -172,6 +188,9 @@ const TENANT_ROLE_PERMISSIONS: Record<TenantRole, TenantPermission[]> = {
     TENANT_PERMS.PAYMENTS_WRITE,
     TENANT_PERMS.DATA_EXPORT,
     TENANT_PERMS.BOARDING_MANAGE,
+    TENANT_PERMS.CALENDAR_SYNC,   // bookings already reached every connected member
+    // No AVAILABILITY_MANAGE / DATA_IMPORT / CONTRACTS_MANAGE — business configuration
+    // and bulk writes; the owner grants them per member.
     // No FINANCE_READ, no CUSTOMERS_PII, no RECIPIENTS_SENSITIVE
     // No AI_ASSISTANT — the owner grants it explicitly
   ],
@@ -188,19 +207,38 @@ const TENANT_ROLE_PERMISSIONS: Record<TenantRole, TenantPermission[]> = {
 // wins over that default in both directions — an owner can hand a staff member the
 // ability to record payments, or take message-sending away from a manager.
 //
-export const CRITICAL_CAPABILITIES = [
-  { perms: [TENANT_PERMS.FINANCE_SUMMARY, TENANT_PERMS.ANALYTICS_READ], key: TENANT_PERMS.FINANCE_SUMMARY, label: "לראות הכנסות ודוחות" },
-  { perms: [TENANT_PERMS.PRICING_WRITE],   key: TENANT_PERMS.PRICING_WRITE,   label: "לערוך מחירון" },
-  { perms: [TENANT_PERMS.CRITICAL_DELETE], key: TENANT_PERMS.CRITICAL_DELETE, label: "למחוק לקוחות וכלבים" },
-  { perms: [TENANT_PERMS.ORDERS_CANCEL],   key: TENANT_PERMS.ORDERS_CANCEL,   label: "למחוק או לבטל הזמנות" },
-  { perms: [TENANT_PERMS.PAYMENTS_WRITE],  key: TENANT_PERMS.PAYMENTS_WRITE,  label: "לרשום ולבטל תשלומים" },
-  { perms: [TENANT_PERMS.MESSAGES_SEND],   key: TENANT_PERMS.MESSAGES_SEND,   label: "לשלוח הודעות ללקוחות" },
-  { perms: [TENANT_PERMS.USERS_WRITE],     key: TENANT_PERMS.USERS_WRITE,     label: "לנהל צוות והרשאות" },
-  { perms: [TENANT_PERMS.SETTINGS_CRITICAL], key: TENANT_PERMS.SETTINGS_CRITICAL, label: "לשנות הגדרות עסק" },
-  { perms: [TENANT_PERMS.DATA_EXPORT],     key: TENANT_PERMS.DATA_EXPORT,     label: "לייצא נתונים" },
-  { perms: [TENANT_PERMS.AI_ASSISTANT],    key: TENANT_PERMS.AI_ASSISTANT,    label: "גישה לעוזר AI" },
-  { perms: [TENANT_PERMS.BOARDING_MANAGE], key: TENANT_PERMS.BOARDING_MANAGE, label: "לנהל פנסיון (חדרים ותפוסה)" },
+export const CAPABILITY_GROUPS = [
+  { id: "finance", label: "כספים" },
+  { id: "customers", label: "לקוחות ונתונים" },
+  { id: "operations", label: "תפעול ויומן" },
+  { id: "communication", label: "תקשורת ו-AI" },
+  { id: "admin", label: "ניהול העסק" },
 ] as const;
+
+export type CapabilityGroupId = (typeof CAPABILITY_GROUPS)[number]["id"];
+
+export const CRITICAL_CAPABILITIES = [
+  // ── כספים ──
+  { perms: [TENANT_PERMS.FINANCE_SUMMARY, TENANT_PERMS.ANALYTICS_READ], key: TENANT_PERMS.FINANCE_SUMMARY, group: "finance", label: "לראות הכנסות ודוחות", hint: "סה״כ הכנסות, דוחות כספיים ומכירות מלידים" },
+  { perms: [TENANT_PERMS.PAYMENTS_WRITE],  key: TENANT_PERMS.PAYMENTS_WRITE,  group: "finance", label: "לרשום ולבטל תשלומים", hint: "רישום תשלום, ביטול/החזר, קישורי תשלום וחשבוניות" },
+  { perms: [TENANT_PERMS.ORDERS_CANCEL],   key: TENANT_PERMS.ORDERS_CANCEL,   group: "finance", label: "למחוק או לבטל הזמנות", hint: "ביטול ומחיקה של הזמנות" },
+  { perms: [TENANT_PERMS.PRICING_WRITE],   key: TENANT_PERMS.PRICING_WRITE,   group: "finance", label: "לערוך מחירון", hint: "שירותים, מחירים ומחירונים" },
+  // ── לקוחות ונתונים ──
+  { perms: [TENANT_PERMS.CRITICAL_DELETE], key: TENANT_PERMS.CRITICAL_DELETE, group: "customers", label: "למחוק לקוחות וכלבים", hint: "גם מחיקת תבנית חוזה שיש לה חוזים חתומים. מנהל בלי ההרשאה — בקשה לאישור" },
+  { perms: [TENANT_PERMS.DATA_EXPORT],     key: TENANT_PERMS.DATA_EXPORT,     group: "customers", label: "לייצא נתונים", hint: "ייצוא לקוחות, דוחות ויומנים ל-Excel/CSV" },
+  { perms: [TENANT_PERMS.DATA_IMPORT],     key: TENANT_PERMS.DATA_IMPORT,     group: "customers", label: "לייבא לקוחות מאקסל", hint: "ייבוא המוני — יכול גם לעדכן לקוחות קיימים" },
+  // ── תפעול ויומן ──
+  { perms: [TENANT_PERMS.AVAILABILITY_MANAGE], key: TENANT_PERMS.AVAILABILITY_MANAGE, group: "operations", label: "לשנות שעות פעילות וזמינות", hint: "שעות פעילות, הפסקות, חסימות תאריכים, חגים וחוקי הזמנה אונליין" },
+  { perms: [TENANT_PERMS.CALENDAR_SYNC],   key: TENANT_PERMS.CALENDAR_SYNC,   group: "operations", label: "לקבל את פגישות העסק ב-Google Calendar האישי", hint: "פגישות חדשות נשלחות ליומן Google שהעובד חיבר" },
+  { perms: [TENANT_PERMS.BOARDING_MANAGE], key: TENANT_PERMS.BOARDING_MANAGE, group: "operations", label: "לנהל פנסיון (חדרים ותפוסה)", hint: "חדרים, חצרות ומבנה הפנסיון" },
+  // ── תקשורת ו-AI ──
+  { perms: [TENANT_PERMS.MESSAGES_SEND],   key: TENANT_PERMS.MESSAGES_SEND,   group: "communication", label: "לשלוח הודעות ללקוחות", hint: "WhatsApp, אימייל ותזכורות ידניות" },
+  { perms: [TENANT_PERMS.AI_ASSISTANT],    key: TENANT_PERMS.AI_ASSISTANT,    group: "communication", label: "גישה לעוזר AI", hint: "חיבור Claude/ChatGPT לעסק (מנהלים בלבד)" },
+  // ── ניהול העסק ──
+  { perms: [TENANT_PERMS.CONTRACTS_MANAGE], key: TENANT_PERMS.CONTRACTS_MANAGE, group: "admin", label: "לנהל תבניות חוזים", hint: "העלאה, עריכה ומחיקה של תבניות. שליחת חוזה ללקוח לא דורשת הרשאה זו" },
+  { perms: [TENANT_PERMS.SETTINGS_CRITICAL], key: TENANT_PERMS.SETTINGS_CRITICAL, group: "admin", label: "לשנות הגדרות עסק", hint: "פרטי העסק, לוגו, פנסיון, תזכורות, Stripe ומפתחות API" },
+  { perms: [TENANT_PERMS.USERS_WRITE],     key: TENANT_PERMS.USERS_WRITE,     group: "admin", label: "לנהל צוות והרשאות", hint: "הוספת עובדים ושינוי תפקידים" },
+] as const satisfies readonly { perms: readonly TenantPermission[]; key: TenantPermission; group: CapabilityGroupId; label: string; hint: string }[];
 
 export type PermissionOverrides = Partial<Record<TenantPermission, boolean>>;
 
@@ -310,6 +348,10 @@ export function getClientPermissions(
     canExportData:          can(TENANT_PERMS.DATA_EXPORT),
     canUseAiAssistant:      can(TENANT_PERMS.AI_ASSISTANT),
     canManageBoarding:      can(TENANT_PERMS.BOARDING_MANAGE),
+    canManageAvailability:  can(TENANT_PERMS.AVAILABILITY_MANAGE),
+    canImportData:          can(TENANT_PERMS.DATA_IMPORT),
+    canManageContracts:     can(TENANT_PERMS.CONTRACTS_MANAGE),
+    canSyncCalendar:        can(TENANT_PERMS.CALENDAR_SYNC),
     isOwner:                r === "owner",
     isManager:              r === "manager",
     isStaff:                r === "user",

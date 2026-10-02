@@ -7,7 +7,7 @@ import { cn, fetchJSON, formatRelativeTime } from "@/lib/utils";
 import { PendingApprovalsPanel } from "@/components/settings/PendingApprovalsPanel";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
-import { CRITICAL_CAPABILITIES, hasTenantPermission, type TenantRole } from "@/lib/permissions";
+import { CAPABILITY_GROUPS, CRITICAL_CAPABILITIES, hasTenantPermission, type TenantRole } from "@/lib/permissions";
 import { usePermissions } from "@/hooks/usePermissions";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
@@ -245,37 +245,11 @@ export function TeamTab() {
             {/* Per-member critical capabilities. Unchecked boxes are stored as an
                 explicit false so a role change can never silently hand them back. */}
             {isOwner && permsOpenFor === member.id && (
-              <div className="mt-4 pt-4 border-t space-y-2">
-                <p className="text-xs text-petra-muted">
-                  סמן מה מותר ל{member.user.name}. ברירת המחדל נגזרת מהתפקיד — כל סימון כאן גובר עליה.
-                </p>
-                <div className="grid sm:grid-cols-2 gap-x-4 gap-y-1.5">
-                  {CRITICAL_CAPABILITIES.map((cap) => {
-                    const overrides = member.permissionOverrides ?? {};
-                    const checked =
-                      typeof overrides[cap.key] === "boolean"
-                        ? (overrides[cap.key] as boolean)
-                        : hasTenantPermission(member.role as TenantRole, cap.key);
-                    return (
-                      <label key={cap.key} className="flex items-center gap-2 text-sm cursor-pointer py-0.5">
-                        <input
-                          type="checkbox"
-                          className="w-4 h-4"
-                          checked={checked}
-                          disabled={permsMutation.isPending}
-                          onChange={(e) =>
-                            permsMutation.mutate({
-                              memberId: member.id,
-                              permissionOverrides: { ...overrides, [cap.key]: e.target.checked },
-                            })
-                          }
-                        />
-                        <span>{cap.label}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
+              <MemberCapabilities
+                member={member}
+                pending={permsMutation.isPending}
+                onChange={(permissionOverrides) => permsMutation.mutate({ memberId: member.id, permissionOverrides })}
+              />
             )}
             </div>
           );
@@ -431,6 +405,95 @@ function AddEmployeeModal({
           <button className="btn-secondary" onClick={onClose}>ביטול</button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── Per-member capabilities (owner only) ─────────────────────────────────────
+// Grouped list of everything the owner can grant or take away. The role supplies
+// the default; any change here is stored as an explicit override (true/false) so
+// a later role change can never silently hand a capability back.
+
+function MemberCapabilities({
+  member,
+  pending,
+  onChange,
+}: {
+  member: TeamMember;
+  pending: boolean;
+  onChange: (overrides: Record<string, boolean>) => void;
+}) {
+  const overrides = member.permissionOverrides ?? {};
+  const role = member.role as TenantRole;
+  const customized = CRITICAL_CAPABILITIES.filter(
+    (c) => typeof overrides[c.key] === "boolean" && overrides[c.key] !== hasTenantPermission(role, c.key),
+  ).length;
+  const granted = CRITICAL_CAPABILITIES.filter((c) =>
+    typeof overrides[c.key] === "boolean" ? overrides[c.key] : hasTenantPermission(role, c.key),
+  ).length;
+
+  return (
+    <div className="mt-4 pt-4 border-t space-y-4">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <p className="text-xs text-petra-muted max-w-md">
+          מה מותר ל{member.user.name}? ברירת המחדל נגזרת מהתפקיד ({ROLE_LABELS[member.role] ?? member.role}) — כל שינוי כאן גובר עליה.
+          {" "}<span className="font-medium text-petra-text">{granted} מתוך {CRITICAL_CAPABILITIES.length} מותרות.</span>
+        </p>
+        {customized > 0 && (
+          <button
+            type="button"
+            className="text-xs text-brand-600 hover:underline disabled:opacity-50"
+            disabled={pending}
+            onClick={() => onChange({})}
+          >
+            אפס לברירת המחדל של התפקיד ({customized} שינויים)
+          </button>
+        )}
+      </div>
+      {CAPABILITY_GROUPS.map((group) => {
+        const caps = CRITICAL_CAPABILITIES.filter((c) => c.group === group.id);
+        if (caps.length === 0) return null;
+        return (
+          <fieldset key={group.id} className="m-0 min-w-0 border-0 p-0">
+            <legend className="text-[11px] font-semibold uppercase tracking-wide text-petra-muted mb-1.5">{group.label}</legend>
+            <div className="grid sm:grid-cols-2 gap-x-4 gap-y-2">
+              {caps.map((cap) => {
+                const roleDefault = hasTenantPermission(role, cap.key);
+                const stored = overrides[cap.key];
+                const checked = typeof stored === "boolean" ? stored : roleDefault;
+                const isCustom = typeof stored === "boolean" && stored !== roleDefault;
+                const id = `cap-${member.id}-${cap.key}`;
+                return (
+                  <label key={cap.key} htmlFor={id} className="flex items-start gap-2 text-sm cursor-pointer py-0.5">
+                    <input
+                      id={id}
+                      type="checkbox"
+                      className="w-4 h-4 mt-0.5 flex-shrink-0"
+                      checked={checked}
+                      disabled={pending}
+                      aria-describedby={`${id}-hint`}
+                      onChange={(e) => onChange({ ...overrides, [cap.key]: e.target.checked })}
+                    />
+                    <span className="min-w-0">
+                      <span className="flex items-center gap-1.5">
+                        {cap.label}
+                        {isCustom && (
+                          <span
+                            className="w-1.5 h-1.5 rounded-full bg-amber-500 flex-shrink-0"
+                            title="שונה ידנית — שונה מברירת המחדל של התפקיד"
+                            aria-label="שונה ידנית"
+                          />
+                        )}
+                      </span>
+                      <span id={`${id}-hint`} className="block text-xs text-petra-muted leading-snug">{cap.hint}</span>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
+        );
+      })}
     </div>
   );
 }

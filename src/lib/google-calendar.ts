@@ -8,6 +8,7 @@
 
 import { prisma } from "./prisma";
 import { encryptToken, decryptToken } from "./encryption";
+import { hasTenantPermission, parsePermissionOverrides, TENANT_PERMS, type TenantRole } from "./permissions";
 
 export { encryptToken, decryptToken };
 
@@ -551,6 +552,10 @@ async function fetchBookingWithRelations(bookingId: string) {
 /**
  * Find all business members who have Google Calendar connected.
  * Returns all connected members (owner, manager, user) so each can sync to their own calendar.
+ * `gcalSyncEnabled` = the member's own toggle AND the owner-grantable CALENDAR_SYNC
+ * permission — every push path filters on it, so a member without the permission
+ * never receives the business's bookings. Delete paths intentionally ignore it, so
+ * events pushed before the permission was revoked are still cleaned up.
  * Also exports the legacy alias for backwards compatibility.
  */
 export async function findConnectedUsersForBusiness(
@@ -575,7 +580,9 @@ export async function findConnectedUsersForBusiness(
 
   return memberships.map((m) => ({
     id: m.user.id,
-    gcalSyncEnabled: m.user.gcalSyncEnabled,
+    gcalSyncEnabled:
+      m.user.gcalSyncEnabled &&
+      hasTenantPermission(m.role as TenantRole, TENANT_PERMS.CALENDAR_SYNC, parsePermissionOverrides(m.permissionOverrides)),
   }));
 }
 
