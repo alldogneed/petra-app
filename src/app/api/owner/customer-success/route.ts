@@ -54,6 +54,18 @@ export async function GET(request: NextRequest) {
     prisma.appointment.groupBy({ by: ["businessId"], where: { businessId: { in: businessIds } }, _count: { _all: true } }),
   ]);
 
+  // Last real activity per member. Sessions live up to 30 days, so lastLoginAt alone
+  // makes daily users look gone — the activity log is the truthful signal.
+  const memberIds = Array.from(new Set(businesses.flatMap((b) => b.members.map((m) => m.user.id))));
+  const lastActivities = memberIds.length
+    ? await prisma.activityLog.groupBy({
+        by: ["userId"],
+        where: { userId: { in: memberIds } },
+        _max: { createdAt: true },
+      })
+    : [];
+  const lastActivityMap = new Map(lastActivities.map((a) => [a.userId, a._max.createdAt]));
+
   const customerMap = Object.fromEntries(customerCounts.map((r) => [r.businessId, r._count._all]));
   const apptMap = Object.fromEntries(apptCounts.map((r) => [r.businessId, r._count._all]));
 
@@ -61,9 +73,13 @@ export async function GET(request: NextRequest) {
     const owner = (b.members.find((m) => m.role === "owner") ?? b.members[0])?.user ?? null;
     const daysActive = Math.floor((now.getTime() - new Date(b.createdAt).getTime()) / DAY);
 
-    // Last login of ANY active team member — a business whose staff works daily is not churning
+    // Last sign of life of ANY active team member (login or logged action) —
+    // a business whose staff works daily is not churning
     const lastLoginMs = b.members.reduce<number | null>((max, m) => {
-      const t = m.user?.lastLoginAt ? new Date(m.user.lastLoginAt).getTime() : null;
+      const login = m.user?.lastLoginAt ? new Date(m.user.lastLoginAt).getTime() : null;
+      const activity = lastActivityMap.get(m.user.id);
+      const act = activity ? new Date(activity).getTime() : null;
+      const t = login !== null && act !== null ? Math.max(login, act) : login ?? act;
       return t !== null && (max === null || t > max) ? t : max;
     }, null);
     const lastLoginDaysAgo = lastLoginMs !== null ? Math.floor((now.getTime() - lastLoginMs) / DAY) : null;
