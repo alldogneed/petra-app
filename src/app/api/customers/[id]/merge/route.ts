@@ -16,7 +16,7 @@ const MERGE_RATE_LIMIT = { max: 10, windowMs: 60_000 };
 
 const MergeBodySchema = z.object({
   sourceId: z.string().min(1).max(64),
-  confirm: z.string().max(100),
+  confirm: z.string().max(100).optional(),
 });
 
 function serviceErrorResponse(e: ServiceError) {
