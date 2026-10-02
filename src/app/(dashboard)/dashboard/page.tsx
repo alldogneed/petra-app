@@ -43,6 +43,7 @@ import {
   Zap,
   Dumbbell,
   Scissors,
+  SlidersHorizontal,
 } from "lucide-react";
 import {
   isToday,
@@ -58,6 +59,16 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { formatCurrency, fetchJSON, cn, toWhatsAppPhone, copyToClipboard } from "@/lib/utils";
 import { validateIsraeliPhone, validateEmail, sanitizeName, validateName, normalizeIsraeliPhone } from "@/lib/validation";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import {
+  defaultDashboardPrefs,
+  layoutBlocks as computeLayout,
+  visibleBlocks,
+  visibleStats,
+  DASHBOARD_PREFS_QUERY_KEY,
+  type DashboardBlockId,
+  type DashboardPrefsResponse,
+  type RequirementFlags,
+} from "@/lib/dashboard-widgets";
 import dynamic from "next/dynamic";
 const SetupChecklist = dynamic(
   () => import("@/components/onboarding/SetupChecklist").then((m) => ({ default: m.SetupChecklist })),
@@ -69,6 +80,10 @@ const TeamWelcomeModal = dynamic(
 );
 const OnboardingWizardModal = dynamic(
   () => import("@/components/onboarding/OnboardingWizardModal"),
+  { ssr: false }
+);
+const DashboardCustomizeModal = dynamic(
+  () => import("@/components/dashboard/DashboardCustomizeModal").then((m) => m.DashboardCustomizeModal),
   { ssr: false }
 );
 const CreateOrderModal = dynamic(
@@ -230,6 +245,7 @@ interface ActivityItem {
   action: string;
   description: string;
   createdAt: string;
+  href?: string | null;
   channel?: string;
   status?: string;
 }
@@ -486,11 +502,9 @@ function ActivityFeed({ activities }: { activities: ActivityItem[] }) {
       {activities.slice(0, 10).map((item) => {
         const iconInfo = ACTIVITY_ICONS[item.action] || ACTIVITY_ICONS.LOGIN;
         const IconComp = iconInfo.icon;
-        return (
-          <div
-            key={item.id}
-            className="flex items-start gap-3 py-3 px-1 hover:bg-slate-50/40 rounded-lg transition-colors"
-          >
+        const rowClass = "flex items-start gap-3 py-3 px-1 hover:bg-slate-50/40 rounded-lg transition-colors";
+        const rowBody = (
+          <>
             <div
               className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
               style={{ background: iconInfo.bg }}
@@ -517,7 +531,12 @@ function ActivityFeed({ activities }: { activities: ActivityItem[] }) {
                 {item.status === "SENT" ? "נשלח" : "נכשל"}
               </span>
             )}
-          </div>
+          </>
+        );
+        return item.href ? (
+          <Link key={item.id} href={item.href} className={rowClass}>{rowBody}</Link>
+        ) : (
+          <div key={item.id} className={rowClass}>{rowBody}</div>
         );
       })}
     </div>
@@ -608,7 +627,7 @@ function DailyFocusSection({ todayTasks, overdueTasks, onComplete }: {
           </p>
         </div>
         <Link
-          href="/tasks"
+          href={focusFilter === "overdue" ? "/tasks?filter=overdue" : "/tasks"}
           className="text-xs font-medium text-brand-500 hover:text-brand-600 flex items-center gap-1 mt-1"
         >
           כל המשימות
@@ -646,13 +665,16 @@ function DailyFocusSection({ todayTasks, overdueTasks, onComplete }: {
                 {isCompleting && <Check className="w-3 h-3 text-white" />}
               </button>
 
-              {/* Title */}
-              <span className={cn(
-                "text-sm font-medium text-petra-text flex-1 truncate transition-all duration-200",
-                isCompleting && "line-through text-petra-muted"
-              )}>
+              {/* Title — opens the task */}
+              <Link
+                href={`/tasks?task=${task.id}`}
+                className={cn(
+                  "text-sm font-medium text-petra-text flex-1 truncate transition-all duration-200 hover:text-brand-600",
+                  isCompleting && "line-through text-petra-muted"
+                )}
+              >
                 {task.title}
-              </span>
+              </Link>
 
               {/* Time */}
               <span
@@ -726,8 +748,8 @@ function TodayFollowUpsWidget({ leads }: { leads: DashboardStats["urgentLeads"] 
             </p>
           </div>
         </div>
-        <Link href="/leads" className="text-xs font-medium text-brand-500 hover:text-brand-600 flex items-center gap-1">
-          ללוח הלידים
+        <Link href="/leads?view=followup" className="text-xs font-medium text-brand-500 hover:text-brand-600 flex items-center gap-1">
+          למעקבים
           <ArrowLeft className="w-3 h-3" />
         </Link>
       </div>
@@ -735,19 +757,19 @@ function TodayFollowUpsWidget({ leads }: { leads: DashboardStats["urgentLeads"] 
         {todayLeads.map((lead) => (
           <div key={lead.id} className="px-5 py-3 flex items-center gap-3 transition-colors hover:bg-slate-50/50">
             <div className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
-            <div className="flex-1 min-w-0">
+            <Link href={`/leads?lead=${lead.id}`} className="flex-1 min-w-0 hover:text-brand-600">
               <div className="text-sm font-medium text-petra-text truncate">{lead.name}</div>
               {lead.customer?.name && (
                 <div className="text-[11px] text-petra-muted truncate">לקוח: {lead.customer.name}</div>
               )}
-            </div>
+            </Link>
             <div className="flex items-center gap-2 flex-shrink-0">
               <span className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-100 flex items-center gap-1">
                 <Clock className="w-3 h-3" />
                 מעקב היום
               </span>
               <Link
-                href={`/leads`}
+                href={`/leads?lead=${lead.id}`}
                 className="w-7 h-7 rounded-md bg-brand-50 text-brand-600 hover:bg-brand-100 flex items-center justify-center transition-colors"
                 title="לטפל בליד"
               >
@@ -814,7 +836,7 @@ function UrgentLeadsAlert({ leads }: { leads: DashboardStats["urgentLeads"] }) {
             >
               <div className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" />
 
-              <div className="flex-1 min-w-0">
+              <Link href={`/leads?lead=${lead.id}`} className="flex-1 min-w-0 hover:text-brand-600">
                 <div className="text-sm font-medium text-petra-text truncate">
                   {lead.name}
                 </div>
@@ -823,7 +845,7 @@ function UrgentLeadsAlert({ leads }: { leads: DashboardStats["urgentLeads"] }) {
                     לקוח: {lead.customer.name}
                   </div>
                 )}
-              </div>
+              </Link>
 
               <div className="flex items-center gap-2 flex-shrink-0">
                 <span className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-red-50 text-red-700 border border-red-100 flex items-center gap-1">
@@ -832,7 +854,7 @@ function UrgentLeadsAlert({ leads }: { leads: DashboardStats["urgentLeads"] }) {
                 </span>
 
                 <Link
-                  href={`/leads`}
+                  href={`/leads?lead=${lead.id}`}
                   className="w-7 h-7 rounded-md bg-brand-50 text-brand-600 hover:bg-brand-100 flex items-center justify-center transition-colors"
                   title="לטפל בליד"
                 >
@@ -869,7 +891,7 @@ function TopDebtorsWidget({ debtors }: { debtors: DashboardStats["topDebtors"] }
           </div>
         </div>
         <Link
-          href="/orders"
+          href="/orders?status=confirmed&payment=unpaid"
           className="text-xs font-medium text-brand-500 hover:text-brand-600 flex items-center gap-1"
         >
           לכל ההזמנות
@@ -1050,107 +1072,6 @@ function TomorrowReminders({
 
 // ─── Birthday Widget ──────────────────────────────────────────────────────────
 
-interface BirthdayItem {
-  petId: string;
-  petName: string;
-  species: string;
-  breed: string | null;
-  customerId: string;
-  customerName: string;
-  customerPhone: string;
-  birthDate: string;
-  nextBirthday: string;
-  daysUntil: number;
-  age: number;
-}
-
-function BirthdayWidget() {
-  const { data } = useQuery<{ birthdays: BirthdayItem[]; total: number }>({
-    queryKey: ["pet-birthdays"],
-    queryFn: () => fetchJSON("/api/pets/birthdays?days=14"),
-  });
-
-  if (!data || data.total === 0) return null;
-
-  return (
-    <div className="card overflow-hidden" style={{ borderTop: "3px solid #EC4899" }}>
-      <div className="px-5 py-4 flex items-center justify-between border-b border-slate-100">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-pink-50">
-            <Cake className="w-4 h-4 text-pink-500" />
-          </div>
-          <div>
-            <h2 className="text-sm font-bold text-petra-text">ימי הולדת קרובים</h2>
-            <p className="text-[11px] text-petra-muted">
-              <span className="text-pink-500 font-medium">{data.total} חיות מחמד</span>{" "}
-              ב-14 הימים הקרובים
-            </p>
-          </div>
-        </div>
-        <Link
-          href="/customers"
-          className="text-xs font-medium text-brand-500 hover:text-brand-600 flex items-center gap-1"
-        >
-          לרשימת לקוחות
-          <ArrowLeft className="w-3 h-3" />
-        </Link>
-      </div>
-
-      <div className="divide-y divide-slate-50">
-        {data.birthdays.map((b) => {
-          const waMsg = `היי ${b.customerName}! 🎂 יום הולדת שמח ל${b.petName}! ${b.daysUntil === 0 ? "זה היום! 🎉" : `עוד ${b.daysUntil} ימים`} כבר ${b.age} שנה! 🐾`;
-          const waLink = `https://wa.me/${toWhatsAppPhone(b.customerPhone)}?text=${encodeURIComponent(waMsg)}`;
-
-          return (
-            <div
-              key={b.petId}
-              className="px-5 py-3 flex items-center gap-3 hover:bg-slate-50/50 transition-colors"
-            >
-              {/* Days pill / today emoji */}
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-pink-50 text-sm font-bold text-pink-600">
-                {b.daysUntil === 0 ? "🎂" : b.daysUntil}
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm font-medium text-petra-text">{b.petName}</span>
-                  <span className="text-xs text-petra-muted">בן/בת {b.age}</span>
-                </div>
-                <div className="text-xs text-petra-muted truncate">{b.customerName}</div>
-              </div>
-
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <span
-                  className={cn(
-                    "text-[10px] font-medium px-2 py-0.5 rounded-full",
-                    b.daysUntil === 0
-                      ? "bg-pink-100 text-pink-700 border border-pink-200"
-                      : "bg-slate-100 text-slate-600"
-                  )}
-                >
-                  {b.daysUntil === 0 ? "🎉 היום!" : `עוד ${b.daysUntil} ימים`}
-                </span>
-
-                <a
-                  href={waLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-7 h-7 rounded-md bg-green-50 text-green-600 hover:bg-green-100 flex items-center justify-center transition-colors"
-                  title="שלח ברכה בוואטסאפ"
-                >
-                  <MessageCircle className="w-3.5 h-3.5" />
-                </a>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ─── Vaccination Alert Widget ────────────────────────────────────────────────
-
 interface VaccinationItem {
   healthId: string;
   petId: string;
@@ -1206,10 +1127,10 @@ function VaccinationAlertWidget() {
           </div>
         </div>
         <Link
-          href="/customers"
+          href="/vaccinations"
           className="text-xs font-medium text-brand-500 hover:text-brand-600 flex items-center gap-1"
         >
-          לרשימת לקוחות
+          לכל החיסונים
           <ArrowLeft className="w-3 h-3" />
         </Link>
       </div>
@@ -1443,7 +1364,7 @@ function AtRiskCustomersWidget({ customers }: { customers: DashboardStats["atRis
                     לא ביקר {c.daysSinceVisit} ימים
                   </span>
                   <span className="text-[11px] text-petra-muted">
-                    · {c.totalVisits} ביקורים סה"כ
+                    · {c.totalVisits} ביקורים סה&quot;כ
                   </span>
                 </div>
               </div>
@@ -2062,6 +1983,7 @@ export default function DashboardPage() {
   const [showNewAppointment, setShowNewAppointment] = useState(false);
   const [showNewOrder, setShowNewOrder] = useState(false);
   const [showOnboardingWizard, setShowOnboardingWizard] = useState(false);
+  const [showCustomize, setShowCustomize] = useState(false);
   const [intakeCopied, setIntakeCopied] = useState(false);
   const [intakeLoading, setIntakeLoading] = useState(false);
   const [serviceFilter, setServiceFilter] = useState("all");
@@ -2083,6 +2005,14 @@ export default function DashboardPage() {
   const { data, isLoading, isFetching: isDashFetching } = useQuery<DashboardStats>({
     queryKey: ["dashboard", dashDate],
     queryFn: () => fetchJSON(`/api/dashboard${dashDate ? `?date=${dashDate}` : ""}`),
+  });
+
+  // Per-member layout (hidden + order). A failed load falls back to the defaults.
+  const { data: prefsData, isLoading: prefsLoading } = useQuery<DashboardPrefsResponse>({
+    queryKey: DASHBOARD_PREFS_QUERY_KEY,
+    queryFn: () => fetchJSON("/api/dashboard/preferences"),
+    staleTime: 5 * 60_000,
+    retry: 1,
   });
 
   const { data: activityData } = useQuery<{ activities: ActivityItem[] }>({
@@ -2139,7 +2069,7 @@ export default function DashboardPage() {
     [completeTaskMutation]
   );
 
-  if (isLoading) {
+  if (isLoading || prefsLoading) {
     return (
       <>
         <PageTitle title="לוח בקרה" />
@@ -2168,20 +2098,459 @@ export default function DashboardPage() {
           return false;
         });
 
+  const widgetFlags: RequirementFlags = {
+    finance: perms.canSeeFinance,
+    revenue: perms.canSeeRevenueSummary,
+    leads: !perms.isStaff,
+    activity: !perms.isStaff && !perms.isVolunteer,
+  };
+  const dashPrefs = prefsData?.prefs ?? defaultDashboardPrefs(null);
+  const layoutBlocks = computeLayout(visibleBlocks(dashPrefs, widgetFlags));
+  const shownStats = visibleStats(dashPrefs, widgetFlags);
+
+  // Each dashboard block, keyed by its id in src/lib/dashboard-widgets.ts.
+  // Layout (order + hidden) comes from the member's saved preferences.
+  const renderBlock = (id: DashboardBlockId): React.ReactNode => {
+    switch (id) {
+      case "daily_focus":
+        return (
+          <>
+          <DailyFocusSection
+            todayTasks={data.todayTasks || []}
+            overdueTasks={data.overdueTasks || []}
+            onComplete={handleCompleteTask}
+          />
+          </>
+        );
+      case "followups_today":
+        return (
+          <>
+          {!perms.isStaff && <TodayFollowUpsWidget leads={data.urgentLeads || []} />}
+          </>
+        );
+      case "overdue_leads":
+        return (
+          <>
+          {!perms.isStaff && <UrgentLeadsAlert leads={data.urgentLeads || []} />}
+          </>
+        );
+      case "top_debtors":
+        return (
+          <>
+          {perms.canSeeFinance && <TopDebtorsWidget debtors={data.topDebtors || []} />}
+          </>
+        );
+      case "stats":
+        if (shownStats.size === 0) return null;
+        return (
+          <>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:[grid-template-columns:repeat(auto-fit,minmax(180px,1fr))] gap-3">
+            {shownStats.has("stat_revenue") && perms.canSeeRevenueSummary && (
+              <StatCard
+                title="הכנסות החודש"
+                value={formatCurrency(data.monthRevenue)}
+                subtitle={(data.todayRevenue ?? 0) > 0 ? `היום: ${formatCurrency(data.todayRevenue)}` : undefined}
+                icon={TrendingUp}
+                color="#10B981"
+                href="/payments?status=paid&period=month"
+              />
+            )}
+            {shownStats.has("stat_active_orders") && perms.canSeeFinance && (
+              <StatCard
+                title="הזמנות פעילות"
+                value={data.activeOrders}
+                icon={ShoppingCart}
+                color="#F97316"
+                href="/orders"
+              />
+            )}
+            {shownStats.has("stat_pending_payments") && perms.canSeeFinance && (
+              <StatCard
+                title="הזמנות לתשלום"
+                value={data.pendingPayments}
+                subtitle={perms.canSeeRevenueSummary && data.pendingPaymentsAmount > 0 ? formatCurrency(data.pendingPaymentsAmount) : undefined}
+                icon={CreditCard}
+                color="#F59E0B"
+                href="/orders?status=confirmed&payment=unpaid"
+              />
+            )}
+            {shownStats.has("stat_today_appointments") && (
+              <StatCard
+                title="תורים היום"
+                value={data.todayAppointments}
+                icon={Calendar}
+                color="#3B82F6"
+                href={`/calendar?date=${viewedYmd}`}
+              />
+            )}
+            {shownStats.has("stat_open_leads") && !perms.isStaff && (
+              <StatCard
+                title="לידים פתוחים"
+                value={data.openLeads}
+                icon={Target}
+                color="#8B5CF6"
+                href="/leads"
+              />
+            )}
+            {shownStats.has("stat_pending_bookings") && (data.pendingBookings ?? 0) > 0 && (
+              <StatCard
+                title="תורים ממתינים לאישור"
+                value={data.pendingBookings ?? 0}
+                icon={CalendarClock}
+                color="#EF4444"
+                href="/bookings"
+              />
+            )}
+          </div>
+          </>
+        );
+      case "boarding_today":
+        return (
+          <>
+          {((data.todayArrivals?.length ?? 0) > 0 || (data.todayDepartures?.length ?? 0) > 0) && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {(data.todayArrivals?.length ?? 0) > 0 && (
+                <div className="card p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
+                      <LogIn className="w-4 h-4 text-emerald-600" />
+                    </div>
+                    <Link href="/boarding" className="text-sm font-semibold text-petra-text hover:text-brand-600">כניסות היום לפנסיון</Link>
+                    <span className="badge-success text-[10px] ms-auto">{data.todayArrivals.length}</span>
+                  </div>
+                  <div className="space-y-2">
+                    {data.todayArrivals.map((s) => (
+                      <div key={s.id} className="flex items-center gap-2 p-2 rounded-lg bg-slate-50">
+                        <div className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-700">
+                          {s.pet?.name?.charAt(0) ?? "🐾"}
+                        </div>
+                        <Link
+                          href={s.customer?.id ? `/customers/${s.customer.id}` : "/boarding"}
+                          className="min-w-0 flex-1 hover:text-brand-600"
+                        >
+                          <p className="text-xs font-medium text-petra-text truncate">{s.pet?.name ?? ""}</p>
+                          <p className="text-[10px] text-petra-muted truncate">{s.customer?.name}{s.room ? ` · ${s.room.name}` : ""}</p>
+                        </Link>
+                        <a
+                          href={`https://wa.me/${toWhatsAppPhone(s.customer?.phone ?? "")}?text=${encodeURIComponent(`שלום ${s.customer?.name}! מזכירים לך שהיום הגעה של ${s.pet?.name} לפנסיון 🐾`)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-7 h-7 flex items-center justify-center rounded-lg bg-green-50 text-green-600 hover:bg-green-100 flex-shrink-0"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5" />
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {(data.todayDepartures?.length ?? 0) > 0 && (
+                <div className="card p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center">
+                      <Hotel className="w-4 h-4 text-amber-600" />
+                    </div>
+                    <Link href="/boarding" className="text-sm font-semibold text-petra-text hover:text-brand-600">יציאות היום מהפנסיון</Link>
+                    <span className="badge-warning text-[10px] ms-auto">{data.todayDepartures.length}</span>
+                  </div>
+                  <div className="space-y-2">
+                    {data.todayDepartures.map((s) => (
+                      <div key={s.id} className="flex items-center gap-2 p-2 rounded-lg bg-slate-50">
+                        <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center text-xs font-bold text-amber-700">
+                          {s.pet?.name?.charAt(0) ?? "🐾"}
+                        </div>
+                        <Link
+                          href={s.customer?.id ? `/customers/${s.customer.id}` : "/boarding"}
+                          className="min-w-0 flex-1 hover:text-brand-600"
+                        >
+                          <p className="text-xs font-medium text-petra-text truncate">{s.pet?.name ?? ""}</p>
+                          <p className="text-[10px] text-petra-muted truncate">{s.customer?.name}{s.room ? ` · ${s.room.name}` : ""}</p>
+                        </Link>
+                        <a
+                          href={`https://wa.me/${toWhatsAppPhone(s.customer?.phone ?? "")}?text=${encodeURIComponent(`שלום ${s.customer?.name}! כלב שלך ${s.pet?.name} מחכה לפיקאפ היום מהפנסיון 🐾`)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-7 h-7 flex items-center justify-center rounded-lg bg-green-50 text-green-600 hover:bg-green-100 flex-shrink-0"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5" />
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+          </>
+        );
+      case "revenue_chart":
+        return (
+          <>
+          {perms.canSeeRevenueSummary && (
+            <RevenueChart
+              data={data.revenueByMonth}
+              target={data.revenueTarget}
+              topService={data.topService}
+              reportsHref={perms.canViewAnalytics ? "/analytics" : undefined}
+            />
+          )}
+          </>
+        );
+      case "upcoming_appointments":
+        return (
+          <>
+          <div className="card p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-bold text-petra-text">תורים קרובים</h2>
+              <Link
+                href={`/calendar?date=${viewedYmd}`}
+                className="text-xs font-medium text-brand-500 hover:text-brand-600 flex items-center gap-1"
+              >
+                הצג הכל
+                <ArrowLeft className="w-3 h-3" />
+              </Link>
+            </div>
+
+            {/* Service type tabs */}
+            <div className="flex gap-1 mb-3 overflow-x-auto">
+              {SERVICE_TYPE_TABS.filter((tab) => !(isGroomer && (tab.key === "training" || tab.key === "boarding"))).map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setServiceFilter(tab.key)}
+                  className={cn(
+                    "px-3 py-1 rounded-full text-xs font-medium transition-colors whitespace-nowrap",
+                    serviceFilter === tab.key
+                      ? "bg-brand-500 text-white"
+                      : "bg-slate-100 text-petra-muted hover:bg-slate-200"
+                  )}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {filteredAppointments.length === 0 ? (
+              <div className="empty-state py-8">
+                <div className="empty-state-icon">
+                  <Calendar className="w-6 h-6 text-slate-400" />
+                </div>
+                <p className="text-sm text-petra-muted">אין תורים קרובים</p>
+              </div>
+            ) : (
+              <div>
+                {filteredAppointments.map((apt) => (
+                  <AppointmentRow key={apt.id} appointment={apt} />
+                ))}
+              </div>
+            )}
+          </div>
+          </>
+        );
+      case "recent_orders":
+        return (
+          <>
+          <div className="card p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-bold text-petra-text">הזמנות אחרונות</h2>
+              <Link href="/orders" className="text-xs font-medium text-brand-500 hover:text-brand-600 flex items-center gap-1">
+                הצג הכל
+                <ArrowLeft className="w-3 h-3" />
+              </Link>
+            </div>
+
+            {data.recentOrders.length === 0 ? (
+              <div className="empty-state py-8">
+                <div className="empty-state-icon">
+                  <ShoppingCart className="w-6 h-6 text-slate-400" />
+                </div>
+                <p className="text-sm text-petra-muted">אין הזמנות</p>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {data.recentOrders.map((order) => {
+                  const typeInfo = ORDER_TYPE_INFO[order.orderType] || ORDER_TYPE_INFO.sale;
+                  const TypeIcon = typeInfo.icon;
+                  return (
+                    <Link
+                      key={order.id}
+                      href={`/orders/${order.id}`}
+                      className="flex items-center gap-3 py-2.5 px-1 hover:bg-slate-50/50 rounded-lg transition-colors"
+                    >
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-brand-50">
+                        <TypeIcon className="w-4 h-4 text-brand-500" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm font-medium text-petra-text truncate">
+                            {order.customerName}
+                          </span>
+                          <span
+                            className={cn(
+                              "text-[10px] px-1.5 py-0.5 rounded-full font-medium",
+                              ORDER_STATUS_BADGE[order.status] || "badge-neutral"
+                            )}
+                          >
+                            {ORDER_STATUS_LABEL[order.status] || order.status}
+                          </span>
+                        </div>
+                        <div className="text-xs text-petra-muted mt-0.5">
+                          {typeInfo.label}
+                        </div>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <div className="text-sm font-semibold text-petra-text">
+                          {formatCurrency(order.total)}
+                        </div>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          </>
+        );
+      case "activity_feed":
+        return (
+          <>
+          {!perms.isStaff && !perms.isVolunteer && (
+            <div className="card p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-base font-bold text-petra-text">פעילות אחרונה</h2>
+                <span className="text-[11px] text-petra-muted">24 שעות אחרונות</span>
+              </div>
+              <ActivityFeed activities={activityData?.activities || []} />
+            </div>
+          )}
+          </>
+        );
+      case "tomorrow_reminders":
+        return (
+          <>
+          <TomorrowReminders appointments={data.tomorrowAppointments ?? []} />
+          </>
+        );
+      case "vaccinations":
+        return (
+          <>
+          <VaccinationAlertWidget />
+          </>
+        );
+      case "medications":
+        return (
+          <>
+          <MedicationsWidget />
+          </>
+        );
+      case "birthdays":
+        return (
+          <>
+          <PetBirthdaysWidget birthdays={data.upcomingBirthdays ?? []} />
+          </>
+        );
+      case "at_risk":
+        return (
+          <>
+          <AtRiskCustomersWidget customers={data.atRiskCustomers ?? []} />
+          </>
+        );
+      case "open_tasks":
+        return (
+          <>
+          <div className="card p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-bold text-petra-text">משימות פתוחות</h2>
+              <Link
+                href="/tasks"
+                className="text-xs font-medium text-brand-500 hover:text-brand-600 flex items-center gap-1"
+              >
+                הצג הכל
+                <ArrowLeft className="w-3 h-3" />
+              </Link>
+            </div>
+
+            {data.recentTasks.length === 0 ? (
+              <div className="empty-state py-8">
+                <div className="empty-state-icon">
+                  <CheckCircle2 className="w-6 h-6 text-slate-400" />
+                </div>
+                <p className="text-sm text-petra-muted">אין משימות פתוחות</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {data.recentTasks.map((task) => {
+                  const isCompleting = completingTaskIds.has(task.id);
+                  return (
+                    <div
+                      key={task.id}
+                      className={cn(
+                        "flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition-all duration-300",
+                        isCompleting && "opacity-0 max-h-0 p-0 overflow-hidden"
+                      )}
+                    >
+                      <button
+                        onClick={() => handleCompleteOpenTask(task.id)}
+                        disabled={isCompleting}
+                        className={cn(
+                          "w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all duration-200",
+                          isCompleting
+                            ? "bg-green-500 border-green-500"
+                            : "border-slate-300 hover:border-green-500 hover:bg-green-50"
+                        )}
+                        title="סמן כבוצע"
+                      >
+                        {isCompleting && <Check className="w-3 h-3 text-white" />}
+                      </button>
+                      <div
+                        className="w-2 h-2 rounded-full flex-shrink-0"
+                        style={{
+                          background:
+                            task.priority === "URGENT"
+                              ? "#DC2626"
+                              : task.priority === "HIGH"
+                                ? "#EF4444"
+                                : task.priority === "MEDIUM"
+                                  ? "#F59E0B"
+                                  : "#94A3B8",
+                        }}
+                      />
+                      <Link
+                        href={`/tasks?task=${task.id}`}
+                        className={cn(
+                          "text-sm text-petra-text flex-1 truncate transition-all duration-200 hover:text-brand-600",
+                          isCompleting && "line-through text-petra-muted"
+                        )}
+                      >
+                        {task.title}
+                      </Link>
+                      <span className="badge-neutral text-[10px]">{TASK_CATEGORY_LABELS[task.category] ?? task.category}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          </>
+        );
+      default:
+        return null;
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Subscription Banner */}
       {subscriptionExpired && !isFree && (
         <div className="rounded-xl px-4 py-3 flex items-center justify-between bg-red-50 border border-red-200 text-red-800">
           <span className="text-sm font-medium">⚠️ המנוי שלך פג — הגישה לתכונות מתקדמות הוגבלה</span>
-          <a href="/upgrade" className="text-sm font-semibold underline shrink-0 mr-4">חדש מנוי</a>
+          <Link href="/upgrade" className="text-sm font-semibold underline shrink-0 mr-4">חדש מנוי</Link>
         </div>
       )}
       {/* Recurring (הוראת קבע) customers renew automatically — a manual renew would charge twice */}
       {!isFree && !hasRecurring && subscriptionActive && subscriptionDaysLeft <= 14 && (
         <div className="rounded-xl px-4 py-3 flex items-center justify-between bg-amber-50 border border-amber-200 text-amber-800">
           <span className="text-sm font-medium">⏳ המנוי שלך מסתיים בעוד {subscriptionDaysLeft} ימים</span>
-          <a href="/upgrade" className="text-sm font-semibold underline shrink-0 mr-4">חדש מנוי</a>
+          <Link href="/upgrade" className="text-sm font-semibold underline shrink-0 mr-4">חדש מנוי</Link>
         </div>
       )}
       {/* Greeting Header */}
@@ -2201,6 +2570,16 @@ export default function DashboardPage() {
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isDashFetching ? "animate-spin" : ""}`} />
             </button>
+            {data.totalCustomers > 0 && (
+              <button
+                onClick={() => setShowCustomize(true)}
+                title="התאמת הדשבורד — מה יוצג ובאיזה סדר"
+                className="h-7 px-2 flex items-center gap-1 rounded-lg text-xs text-petra-muted hover:text-petra-text hover:bg-slate-100 transition-colors"
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">התאמת הדשבורד</span>
+              </button>
+            )}
           </div>
           <p className="text-sm text-petra-muted">{todayStr}</p>
           {/* Date navigation — the cards below follow the selected day */}
@@ -2347,7 +2726,7 @@ export default function DashboardPage() {
             </button>
 
             <Link
-              href="/calendar"
+              href="/calendar?new=1"
               className="card p-5 text-right hover:border-brand-300 hover:shadow-md transition-all group"
             >
               <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center mb-3 group-hover:bg-violet-100 transition-colors">
@@ -2358,7 +2737,7 @@ export default function DashboardPage() {
             </Link>
 
             <Link
-              href="/settings"
+              href="/pricing"
               className="card p-5 text-right hover:border-brand-300 hover:shadow-md transition-all group"
             >
               <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center mb-3 group-hover:bg-emerald-100 transition-colors">
@@ -2410,376 +2789,26 @@ export default function DashboardPage() {
         </div>
       ) : (
       <>
-      {/* Daily Focus — Today's & Overdue Tasks */}
-      <DailyFocusSection
-        todayTasks={data.todayTasks || []}
-        overdueTasks={data.overdueTasks || []}
-        onComplete={handleCompleteTask}
-      />
-
-      {/* Today's Follow-Ups — hidden for staff (no leads access) */}
-      {!perms.isStaff && <TodayFollowUpsWidget leads={data.urgentLeads || []} />}
-
-      {/* Urgent Leads Alert — hidden for staff */}
-      {!perms.isStaff && <UrgentLeadsAlert leads={data.urgentLeads || []} />}
-
-      {/* Top Debtors Widget — hidden for staff (financial) */}
-      {perms.canSeeFinance && <TopDebtorsWidget debtors={data.topDebtors || []} />}
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:[grid-template-columns:repeat(auto-fit,minmax(180px,1fr))] gap-3">
-        {perms.canSeeRevenueSummary && (
-          <StatCard
-            title="הכנסות החודש"
-            value={formatCurrency(data.monthRevenue)}
-            subtitle={(data.todayRevenue ?? 0) > 0 ? `היום: ${formatCurrency(data.todayRevenue)}` : undefined}
-            icon={TrendingUp}
-            color="#10B981"
-            href="/payments"
-          />
-        )}
-        {perms.canSeeFinance && (
-          <StatCard
-            title="הזמנות פעילות"
-            value={data.activeOrders}
-            icon={ShoppingCart}
-            color="#F97316"
-            href="/orders"
-          />
-        )}
-        {perms.canSeeFinance && (
-          <StatCard
-            title="הזמנות לתשלום"
-            value={data.pendingPayments}
-            subtitle={perms.canSeeRevenueSummary && data.pendingPaymentsAmount > 0 ? formatCurrency(data.pendingPaymentsAmount) : undefined}
-            icon={CreditCard}
-            color="#F59E0B"
-            href="/orders"
-          />
-        )}
-        <StatCard
-          title="תורים היום"
-          value={data.todayAppointments}
-          icon={Calendar}
-          color="#3B82F6"
-          href="/calendar"
-        />
-        {!perms.isStaff && (
-          <StatCard
-            title="לידים פתוחים"
-            value={data.openLeads}
-            icon={Target}
-            color="#8B5CF6"
-            href="/leads"
-          />
-        )}
-        {(data.pendingBookings ?? 0) > 0 && (
-          <StatCard
-            title="תורים ממתינים לאישור"
-            value={data.pendingBookings ?? 0}
-            icon={CalendarClock}
-            color="#EF4444"
-            href="/bookings"
-          />
-        )}
-      </div>
-
-      {/* Boarding Today Widget */}
-      {((data.todayArrivals?.length ?? 0) > 0 || (data.todayDepartures?.length ?? 0) > 0) && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {(data.todayArrivals?.length ?? 0) > 0 && (
-            <div className="card p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
-                  <LogIn className="w-4 h-4 text-emerald-600" />
-                </div>
-                <h3 className="text-sm font-semibold text-petra-text">כניסות היום לפנסיון</h3>
-                <span className="badge-success text-[10px] ms-auto">{data.todayArrivals.length}</span>
-              </div>
-              <div className="space-y-2">
-                {data.todayArrivals.map((s) => (
-                  <div key={s.id} className="flex items-center gap-2 p-2 rounded-lg bg-slate-50">
-                    <div className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-700">
-                      {s.pet?.name?.charAt(0) ?? "🐾"}
-                    </div>
-                    <Link
-                      href={s.customer?.id ? `/customers/${s.customer.id}` : "/boarding"}
-                      className="min-w-0 flex-1 hover:text-brand-600"
-                    >
-                      <p className="text-xs font-medium text-petra-text truncate">{s.pet?.name ?? ""}</p>
-                      <p className="text-[10px] text-petra-muted truncate">{s.customer?.name}{s.room ? ` · ${s.room.name}` : ""}</p>
-                    </Link>
-                    <a
-                      href={`https://wa.me/${toWhatsAppPhone(s.customer?.phone ?? "")}?text=${encodeURIComponent(`שלום ${s.customer?.name}! מזכירים לך שהיום הגעה של ${s.pet?.name} לפנסיון 🐾`)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-7 h-7 flex items-center justify-center rounded-lg bg-green-50 text-green-600 hover:bg-green-100 flex-shrink-0"
-                    >
-                      <MessageCircle className="w-3.5 h-3.5" />
-                    </a>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          {(data.todayDepartures?.length ?? 0) > 0 && (
-            <div className="card p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center">
-                  <Hotel className="w-4 h-4 text-amber-600" />
-                </div>
-                <h3 className="text-sm font-semibold text-petra-text">יציאות היום מהפנסיון</h3>
-                <span className="badge-warning text-[10px] ms-auto">{data.todayDepartures.length}</span>
-              </div>
-              <div className="space-y-2">
-                {data.todayDepartures.map((s) => (
-                  <div key={s.id} className="flex items-center gap-2 p-2 rounded-lg bg-slate-50">
-                    <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center text-xs font-bold text-amber-700">
-                      {s.pet?.name?.charAt(0) ?? "🐾"}
-                    </div>
-                    <Link
-                      href={s.customer?.id ? `/customers/${s.customer.id}` : "/boarding"}
-                      className="min-w-0 flex-1 hover:text-brand-600"
-                    >
-                      <p className="text-xs font-medium text-petra-text truncate">{s.pet?.name ?? ""}</p>
-                      <p className="text-[10px] text-petra-muted truncate">{s.customer?.name}{s.room ? ` · ${s.room.name}` : ""}</p>
-                    </Link>
-                    <a
-                      href={`https://wa.me/${toWhatsAppPhone(s.customer?.phone ?? "")}?text=${encodeURIComponent(`שלום ${s.customer?.name}! כלב שלך ${s.pet?.name} מחכה לפיקאפ היום מהפנסיון 🐾`)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-7 h-7 flex items-center justify-center rounded-lg bg-green-50 text-green-600 hover:bg-green-100 flex-shrink-0"
-                    >
-                      <MessageCircle className="w-3.5 h-3.5" />
-                    </a>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Revenue Chart + Upcoming Appointments */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {perms.canSeeRevenueSummary && (
-          <RevenueChart
-            data={data.revenueByMonth}
-            target={data.revenueTarget}
-            topService={data.topService}
-          />
-        )}
-
-        {/* Upcoming Appointments with filter */}
-        <div className="card p-5">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-base font-bold text-petra-text">תורים קרובים</h2>
-            <Link
-              href="/calendar"
-              className="text-xs font-medium text-brand-500 hover:text-brand-600 flex items-center gap-1"
-            >
-              הצג הכל
-              <ArrowLeft className="w-3 h-3" />
-            </Link>
-          </div>
-
-          {/* Service type tabs */}
-          <div className="flex gap-1 mb-3 overflow-x-auto">
-            {SERVICE_TYPE_TABS.filter((tab) => !(isGroomer && (tab.key === "training" || tab.key === "boarding"))).map((tab) => (
-              <button
-                key={tab.key}
-                onClick={() => setServiceFilter(tab.key)}
-                className={cn(
-                  "px-3 py-1 rounded-full text-xs font-medium transition-colors whitespace-nowrap",
-                  serviceFilter === tab.key
-                    ? "bg-brand-500 text-white"
-                    : "bg-slate-100 text-petra-muted hover:bg-slate-200"
-                )}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          {filteredAppointments.length === 0 ? (
-            <div className="empty-state py-8">
-              <div className="empty-state-icon">
-                <Calendar className="w-6 h-6 text-slate-400" />
-              </div>
-              <p className="text-sm text-petra-muted">אין תורים קרובים</p>
-            </div>
-          ) : (
-            <div>
-              {filteredAppointments.map((apt) => (
-                <AppointmentRow key={apt.id} appointment={apt} />
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Recent Orders + Activity Feed */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Orders */}
-        <div className="card p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-bold text-petra-text">הזמנות אחרונות</h2>
-            <Link href="/orders" className="text-xs font-medium text-brand-500 hover:text-brand-600 flex items-center gap-1">
-              הצג הכל
-              <ArrowLeft className="w-3 h-3" />
-            </Link>
-          </div>
-
-          {data.recentOrders.length === 0 ? (
-            <div className="empty-state py-8">
-              <div className="empty-state-icon">
-                <ShoppingCart className="w-6 h-6 text-slate-400" />
-              </div>
-              <p className="text-sm text-petra-muted">אין הזמנות</p>
-            </div>
-          ) : (
-            <div className="space-y-1">
-              {data.recentOrders.map((order) => {
-                const typeInfo = ORDER_TYPE_INFO[order.orderType] || ORDER_TYPE_INFO.sale;
-                const TypeIcon = typeInfo.icon;
-                return (
-                  <Link
-                    key={order.id}
-                    href={`/orders/${order.id}`}
-                    className="flex items-center gap-3 py-2.5 px-1 hover:bg-slate-50/50 rounded-lg transition-colors"
-                  >
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-brand-50">
-                      <TypeIcon className="w-4 h-4 text-brand-500" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-sm font-medium text-petra-text truncate">
-                          {order.customerName}
-                        </span>
-                        <span
-                          className={cn(
-                            "text-[10px] px-1.5 py-0.5 rounded-full font-medium",
-                            ORDER_STATUS_BADGE[order.status] || "badge-neutral"
-                          )}
-                        >
-                          {ORDER_STATUS_LABEL[order.status] || order.status}
-                        </span>
-                      </div>
-                      <div className="text-xs text-petra-muted mt-0.5">
-                        {typeInfo.label}
-                      </div>
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      <div className="text-sm font-semibold text-petra-text">
-                        {formatCurrency(order.total)}
-                      </div>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Activity Feed — owner/manager only */}
-        {!perms.isStaff && !perms.isVolunteer && (
-          <div className="card p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-bold text-petra-text">פעילות אחרונה</h2>
-              <span className="text-[11px] text-petra-muted">24 שעות אחרונות</span>
-            </div>
-            <ActivityFeed activities={activityData?.activities || []} />
-          </div>
-        )}
-      </div>
-
-      {/* Tomorrow Reminders */}
-      <TomorrowReminders appointments={data.tomorrowAppointments ?? []} />
-
-      {/* Vaccination Expiry Alerts */}
-      <VaccinationAlertWidget />
-
-      {/* Medications for boarded pets */}
-      <MedicationsWidget />
-
-      {/* Pet Birthdays */}
-      <PetBirthdaysWidget birthdays={data.upcomingBirthdays ?? []} />
-
-      {/* At-Risk Customers */}
-      <AtRiskCustomersWidget customers={data.atRiskCustomers ?? []} />
-
-      {/* Open Tasks */}
-      <div className="card p-5">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-bold text-petra-text">משימות פתוחות</h2>
-          <Link
-            href="/tasks"
-            className="text-xs font-medium text-brand-500 hover:text-brand-600 flex items-center gap-1"
+        {layoutBlocks.map((b) => (
+          <div
+            key={b.id}
+            data-dashboard-block={b.id}
+            className={cn("min-w-0 empty:hidden", b.wide && "lg:col-span-2")}
           >
-            הצג הכל
-            <ArrowLeft className="w-3 h-3" />
-          </Link>
-        </div>
-
-        {data.recentTasks.length === 0 ? (
-          <div className="empty-state py-8">
-            <div className="empty-state-icon">
-              <CheckCircle2 className="w-6 h-6 text-slate-400" />
-            </div>
-            <p className="text-sm text-petra-muted">אין משימות פתוחות</p>
+            {renderBlock(b.id)}
           </div>
-        ) : (
-          <div className="space-y-2">
-            {data.recentTasks.map((task) => {
-              const isCompleting = completingTaskIds.has(task.id);
-              return (
-                <div
-                  key={task.id}
-                  className={cn(
-                    "flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition-all duration-300",
-                    isCompleting && "opacity-0 max-h-0 p-0 overflow-hidden"
-                  )}
-                >
-                  <button
-                    onClick={() => handleCompleteOpenTask(task.id)}
-                    disabled={isCompleting}
-                    className={cn(
-                      "w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all duration-200",
-                      isCompleting
-                        ? "bg-green-500 border-green-500"
-                        : "border-slate-300 hover:border-green-500 hover:bg-green-50"
-                    )}
-                    title="סמן כבוצע"
-                  >
-                    {isCompleting && <Check className="w-3 h-3 text-white" />}
-                  </button>
-                  <div
-                    className="w-2 h-2 rounded-full flex-shrink-0"
-                    style={{
-                      background:
-                        task.priority === "URGENT"
-                          ? "#DC2626"
-                          : task.priority === "HIGH"
-                            ? "#EF4444"
-                            : task.priority === "MEDIUM"
-                              ? "#F59E0B"
-                              : "#94A3B8",
-                    }}
-                  />
-                  <span className={cn(
-                    "text-sm text-petra-text flex-1 truncate transition-all duration-200",
-                    isCompleting && "line-through text-petra-muted"
-                  )}>
-                    {task.title}
-                  </span>
-                  <span className="badge-neutral text-[10px]">{TASK_CATEGORY_LABELS[task.category] ?? task.category}</span>
-                </div>
-              );
-            })}
-          </div>
-        )}
+        ))}
       </div>
       </>
+      )}
+
+      {showCustomize && (
+        <DashboardCustomizeModal
+          prefs={dashPrefs}
+          flags={widgetFlags}
+          onClose={() => setShowCustomize(false)}
+        />
       )}
 
       {/* New Customer Modal */}

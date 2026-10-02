@@ -9,23 +9,36 @@ import {
   ResponsiveContainer,
   ReferenceLine,
 } from "recharts";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
 export default function RevenueChart({
   data,
   target,
   topService,
+  reportsHref,
 }: {
   data: { month: string; amount: number }[];
   target: number;
   topService: { name: string; count: number } | null;
+  /** Shown as a "לדוחות" link when the viewer may open the reports page. */
+  reportsHref?: string;
 }) {
   const total = data.reduce((s, d) => s + d.amount, 0);
   return (
     <div className="card p-6">
       <div className="flex items-end justify-between mb-5">
         <div>
-          <h2 className="text-base font-semibold text-petra-text">הכנסות אחרונות</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-base font-semibold text-petra-text">הכנסות אחרונות</h2>
+            {reportsHref && (
+              <Link href={reportsHref} className="text-xs font-medium text-brand-500 hover:text-brand-600 flex items-center gap-1">
+                לדוחות
+                <ArrowLeft className="w-3 h-3" />
+              </Link>
+            )}
+          </div>
           <p className="text-xs text-petra-muted mt-0.5">
             סה&quot;כ {formatCurrency(total)}
             {topService && <span className="text-slate-300 mx-1.5">·</span>}

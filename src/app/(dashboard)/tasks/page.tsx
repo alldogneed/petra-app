@@ -281,6 +281,27 @@ export default function TasksPage() {
     {} as Record<string, number>
   ), [allTasks, taskStatuses]);
 
+  // Deep links from the dashboard: ?filter=overdue|active|scheduled preselects the
+  // status filter; ?task=<id> opens that task's edit modal once the list is loaded.
+  useEffect(() => {
+    const filter = new URLSearchParams(window.location.search).get("filter");
+    if (filter && STATUS_FILTERS.some((f) => f.id === filter)) setActiveFilter(filter);
+  }, []);
+  const taskDeepLinkHandled = useRef(false);
+  useEffect(() => {
+    if (taskDeepLinkHandled.current || isLoading) return;
+    const params = new URLSearchParams(window.location.search);
+    const taskId = params.get("task");
+    if (!taskId) return;
+    taskDeepLinkHandled.current = true;
+    const target = allTasks.find((t) => t.id === taskId);
+    if (target) setEditTask(target);
+    else toast.error("המשימה לא נמצאה או שכבר הושלמה");
+    params.delete("task");
+    const qs = params.toString();
+    window.history.replaceState(null, "", window.location.pathname + (qs ? `?${qs}` : ""));
+  }, [allTasks, isLoading]);
+
   const createMutation = useMutation({
     mutationFn: (data: { title: string; description: string; category: string; priority: string; dueDate: string; dueAt: string; relatedEntityType: string | null; relatedEntityId: string | null }) => {
       const payload: Record<string, unknown> = {
