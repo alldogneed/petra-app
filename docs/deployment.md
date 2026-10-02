@@ -51,6 +51,7 @@ git push origin main
 
 ## Databases
 - **Production**: Supabase `ipeshpbikcfcwkvkztxn` (aws-1-ap-northeast-2)
+- **Function region**: `icn1` (Seoul) in `vercel.json` — must stay in the same city as the database. Every Prisma query is a network round trip, so a function one region away (it was `hnd1`, Tokyo) pays ~30–35 ms per query. Measured 2026-10-02 from Israel: edge only ≈ 110 ms, function without DB ≈ 530 ms, authenticated GET ≈ 1.1–1.3 s. The ~420 ms Europe→Asia hop remains until the database itself moves to an EU region; if it does, change `regions` to `fra1` in the same release.
 - **Staging**: Neon `ep-quiet-dream-aliw6zka.c-3.eu-central-1.aws.neon.tech`
 
 ### Schema sync after every migration
