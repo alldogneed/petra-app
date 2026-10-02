@@ -633,7 +633,7 @@ export default function PetProfilePage() {
                     className="flex items-center gap-1 text-sm text-petra-muted hover:text-petra-text"
                   >
                     <Phone className="w-3.5 h-3.5" />
-                    {pet.customer.phone}
+                    <span dir="ltr" className="whitespace-nowrap">{pet.customer.phone}</span>
                   </a>
                 )}
               </>

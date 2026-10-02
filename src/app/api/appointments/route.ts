@@ -196,7 +196,9 @@ export async function POST(request: NextRequest) {
       await prisma.timelineEvent.create({
         data: {
           type: "APPOINTMENT_CREATED",
-          description: `תור נקבע: ${serviceName}${petName} — ${appointment.date} ${appointment.startTime}`,
+          // appointment.date is a Date (UTC midnight) — interpolating it raw printed
+          // "Fri Oct 02 2026 00:00:00 GMT+0000 (...)" into the customer timeline.
+          description: `תור נקבע: ${serviceName}${petName} — ${new Date(appointment.date).toLocaleDateString("he-IL", { timeZone: "UTC" })} ${appointment.startTime}`,
           businessId: authResult.businessId,
           customerId: appointment.customerId,
         },
