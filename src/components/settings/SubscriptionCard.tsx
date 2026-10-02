@@ -12,7 +12,7 @@ import { TIER_ICONS } from "./shared";
 
 export function SubscriptionCard({ tier, customerCount, appointmentCount }: { tier: string; customerCount: number; appointmentCount: number }) {
   const queryClient = useQueryClient();
-  const { refreshUser, isOwner } = useAuth();
+  const { user, refreshUser, isOwner } = useAuth();
   const { subscriptionEndsAt, subscriptionDaysLeft, subscriptionExpired, subscriptionActive, cancelPending, subscriptionStatus, hasRecurring, awaitingRecurringCharge } = usePlan();
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [cancelling, setCancelling] = useState(false);
@@ -46,7 +46,7 @@ export function SubscriptionCard({ tier, customerCount, appointmentCount }: { ti
     : "text-emerald-500";
 
   // Only the owner can cancel (server enforces it too).
-  const canCancel = isOwner && !isFree && !cancelPending && (subscriptionActive || subscriptionStatus === "active");
+  const canCancel = isOwner && !user?.isImpersonating && !isFree && !cancelPending && (subscriptionActive || subscriptionStatus === "active");
   const renewHref = `/checkout?tier=${tier === "pro" || tier === "basic" ? tier : "basic"}`;
 
   async function handleCancel() {

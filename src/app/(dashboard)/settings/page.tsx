@@ -92,7 +92,7 @@ function SettingsScreen() {
 
   const selectTab = useCallback((id: SettingsTabId) => {
     if (id === activeTab.id) return;
-    guard(() => router.replace(`${pathname}?tab=${id}`, { scroll: false }));
+    guard(() => router.push(`${pathname}?tab=${id}`, { scroll: false }));
   }, [activeTab.id, guard, pathname, router]);
 
   const onTabKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, index: number) => {

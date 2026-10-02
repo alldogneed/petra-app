@@ -63,7 +63,9 @@ export function SettingsDirtyProvider({ children }: { children: React.ReactNode 
       if (url.pathname === window.location.pathname && url.search === window.location.search) return;
       e.preventDefault();
       e.stopPropagation();
-      setPending(() => () => router.push(url.pathname + url.search + url.hash));
+      // Collapse leading slashes: "//evil.com" would be pushed as a protocol-relative URL.
+      const target = url.pathname.replace(/^\/{2,}/, "/") + url.search + url.hash;
+      setPending(() => () => router.push(target));
     };
     document.addEventListener("click", onClick, true);
     return () => document.removeEventListener("click", onClick, true);

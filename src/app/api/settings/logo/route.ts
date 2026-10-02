@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     const ext = MIME_TO_EXT[file.type] || "png";
     const fileId = crypto.randomBytes(12).toString("hex");
     const blobPath = `logos/${authResult.businessId}/${fileId}.${ext}`;
-    const blob = await put(blobPath, file, { access: "public" });
+    const blob = await put(blobPath, file, { access: "public", contentType: file.type });
 
     // Save URL to business record
     await prisma.business.update({
