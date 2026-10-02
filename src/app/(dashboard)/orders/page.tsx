@@ -201,6 +201,17 @@ function OrdersPageContent() {
   const [sortField, setSortField] = useState<"createdAt" | "total" | "customer">("createdAt");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
+  // Deep link from the dashboard: /orders?status=confirmed&payment=unpaid.
+  // Dashboard counts are all-time, so a deep link drops the default 30-day window.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get("status");
+    const payment = params.get("payment");
+    if (status && ORDER_STATUSES.some((s) => s.id === status)) setActiveStatus(status);
+    if (payment === "paid" || payment === "unpaid") setPaymentFilter(payment);
+    if (status || payment) setFromDate("");
+  }, []);
+
   function toggleSort(field: "createdAt" | "total" | "customer") {
     if (sortField === field) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     else { setSortField(field); setSortDir("desc"); }

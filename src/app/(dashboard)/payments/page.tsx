@@ -113,6 +113,15 @@ function PaymentsPageContent() {
   const [autoRefresh, setAutoRefresh] = useState(false);
   const queryClient = useQueryClient();
 
+  // Deep link from the dashboard revenue card: /payments?status=paid&period=month
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get("status");
+    const period = params.get("period");
+    if (status && PAYMENT_STATUSES.some((s) => s.id === status)) setActiveStatus(status);
+    if (period && DATE_PERIODS.some((p) => p.id === period)) setActivePeriod(period);
+  }, []);
+
   const { data: payments = [], isLoading, isError, isFetching: paymentsFetching, refetch: refetchPayments } = useQuery<Payment[]>({
     queryKey: ["payments", activeStatus],
     queryFn: () => {

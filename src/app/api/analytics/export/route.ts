@@ -16,6 +16,7 @@ import {
   PAYMENT_METHOD_LABELS_HE,
   splitNewVsReturning, MAX_CUSTOM_RANGE_DAYS } from "@/lib/analytics-metrics";
 import { computeOutstandingBalances } from "@/lib/outstanding-balances";
+import { businessHasFeature } from "@/lib/feature-gate";
 import { isYmd, israelDayEnd, israelDayStart, lastMonthKeys, prevYearMonthKey } from "@/lib/report-dates";
 import { buildLeadSourceRows } from "@/lib/sales-report";
 import * as XLSX from "xlsx";
@@ -138,6 +139,9 @@ export async function GET(request: NextRequest) {
     }
     if (!sessionHasTenantPermission(session, businessId, TENANT_PERMS.FINANCE_SUMMARY)) {
       return NextResponse.json({ error: "אין לך הרשאה לייצא דוחות כספיים" }, { status: 403 });
+    }
+    if (!(await businessHasFeature(prisma, businessId, "analytics"))) {
+      return NextResponse.json({ error: "הדוחות אינם זמינים במסלול הנוכחי. שדרג למסלול בייסיק ומעלה.", code: "FEATURE_LOCKED" }, { status: 403 });
     }
 
     const rl = rateLimit("export:analytics", businessId, EXPORT_RATE_LIMIT);

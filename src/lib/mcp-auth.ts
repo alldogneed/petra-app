@@ -5,6 +5,7 @@
 import crypto from "crypto";
 import prisma from "@/lib/prisma";
 import { isMcpAllowedBusiness } from "@/lib/mcp-allowlist";
+import { parsePermissionOverrides, type PermissionOverrides } from "@/lib/permissions";
 
 const TOKEN_PREFIX = "petra_mcp_";
 const TOKEN_BYTES = 32;
@@ -100,6 +101,8 @@ export interface McpAuthResult {
   createdByUserId: string | null;
   /** Current tenant role of the minter (null when unknown/legacy → treated as owner-level). */
   minterRole: string | null;
+  /** The minter's CURRENT per-member overrides (settings → צוות והרשאות), re-read every request. */
+  minterOverrides: PermissionOverrides | null;
 }
 
 /**
@@ -131,16 +134,18 @@ export async function validateMcpToken(raw: string, opts: { touch?: boolean } = 
   // removed/deactivated from the business the token dies; if their role changed
   // the scopes are re-capped to the CURRENT role on every request.
   let minterRole: string | null = null;
+  let minterOverrides: PermissionOverrides | null = null;
   if (conn.createdByUserId) {
     const membership = await prisma.businessUser.findFirst({
       where: { businessId: conn.businessId, userId: conn.createdByUserId, isActive: true },
-      select: { role: true, user: { select: { isActive: true, platformRole: true } } },
+      select: { role: true, permissionOverrides: true, user: { select: { isActive: true, platformRole: true } } },
     });
     if (membership) {
       if (!membership.user.isActive) return null;
       const isPlatformAdmin = membership.user.platformRole === "super_admin" || membership.user.platformRole === "admin";
       // A platform admin is owner-level everywhere (mirrors requireBusinessAuth impersonation).
       minterRole = isPlatformAdmin ? "owner" : membership.role;
+      minterOverrides = isPlatformAdmin ? null : parsePermissionOverrides(membership.permissionOverrides);
       conn.scopes = capScopesForRole(conn.scopes, minterRole, isPlatformAdmin);
     } else {
       // No membership row: only an active platform admin (impersonation minting) may keep the token.
@@ -169,6 +174,7 @@ export async function validateMcpToken(raw: string, opts: { touch?: boolean } = 
     scopes: conn.scopes,
     createdByUserId: conn.createdByUserId ?? null,
     minterRole,
+    minterOverrides,
   };
 }
 
