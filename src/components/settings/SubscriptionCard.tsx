@@ -12,7 +12,7 @@ import { TIER_ICONS } from "./shared";
 
 export function SubscriptionCard({ tier, customerCount, appointmentCount }: { tier: string; customerCount: number; appointmentCount: number }) {
   const queryClient = useQueryClient();
-  const { refreshUser } = useAuth();
+  const { refreshUser, isOwner } = useAuth();
   const { subscriptionEndsAt, subscriptionDaysLeft, subscriptionExpired, subscriptionActive, cancelPending, subscriptionStatus, hasRecurring, awaitingRecurringCharge } = usePlan();
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [cancelling, setCancelling] = useState(false);
@@ -45,7 +45,9 @@ export function SubscriptionCard({ tier, customerCount, appointmentCount }: { ti
     ? "text-amber-500"
     : "text-emerald-500";
 
-  const canCancel = !isFree && !cancelPending && (subscriptionActive || subscriptionStatus === "active");
+  // Only the owner can cancel (server enforces it too).
+  const canCancel = isOwner && !isFree && !cancelPending && (subscriptionActive || subscriptionStatus === "active");
+  const renewHref = `/checkout?tier=${tier === "pro" || tier === "basic" ? tier : "basic"}`;
 
   async function handleCancel() {
     setCancelling(true);
@@ -56,7 +58,7 @@ export function SubscriptionCard({ tier, customerCount, appointmentCount }: { ti
         toast.error(d.error ?? "שגיאה בביטול המנוי");
         return;
       }
-      toast.success(`הביטול נקלט. תמשיך ליהנות מהמנוי עד ${endsAtFormatted}.`);
+      toast.success(endsAtFormatted ? `הביטול נקלט. תמשיך ליהנות מהמנוי עד ${endsAtFormatted}.` : "המנוי בוטל.");
       setShowCancelConfirm(false);
       await refreshUser();
       queryClient.invalidateQueries({ queryKey: ["settings"] });
@@ -97,13 +99,13 @@ export function SubscriptionCard({ tier, customerCount, appointmentCount }: { ti
       {subscriptionActive && !cancelPending && !hasRecurring && subscriptionDaysLeft <= 7 && (
         <div className="px-4 py-2 bg-amber-50 border-t border-amber-100 text-xs text-amber-700 flex items-center justify-between">
           <span>המנוי שלך יפוג בעוד {subscriptionDaysLeft} ימים</span>
-          <a href="/checkout?tier=basic" className="font-semibold underline">חדש עכשיו</a>
+          <a href={renewHref} className="font-semibold underline">חדש עכשיו</a>
         </div>
       )}
       {subscriptionExpired && !isFree && (
         <div className="px-4 py-2 bg-red-50 border-t border-red-100 text-xs text-red-700 flex items-center justify-between">
           <span>המנוי שלך פג — חזרת למסלול חינמי</span>
-          <a href="/checkout?tier=basic" className="font-semibold underline">חדש עכשיו</a>
+          <a href={renewHref} className="font-semibold underline">חדש עכשיו</a>
         </div>
       )}
 
@@ -122,7 +124,9 @@ export function SubscriptionCard({ tier, customerCount, appointmentCount }: { ti
       {canCancel && showCancelConfirm && (
         <div className="px-4 py-3 border-t border-red-100 bg-red-50 flex flex-col gap-2">
           <p className="text-xs text-red-700 font-medium">
-            המנוי יבוטל בסוף תקופת החיוב ({endsAtFormatted}). עד אז תמשיך ליהנות מכל התכונות — ללא חיוב נוסף.
+            {endsAtFormatted
+              ? `המנוי יבוטל בסוף תקופת החיוב (${endsAtFormatted}). עד אז תמשיך ליהנות מכל התכונות — ללא חיוב נוסף.`
+              : "המנוי יבוטל מיד והעסק יעבור למסלול החינמי."}
           </p>
           <div className="flex gap-2">
             <button

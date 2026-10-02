@@ -1,95 +1,89 @@
 "use client";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-import { Save, CheckCircle2, Hotel, Clock, Moon } from "lucide-react";
-import { PetraLoader } from "@/components/ui/PetraLoader";
-import { cn, fetchJSON } from "@/lib/utils";
+import { Hotel, Clock, Moon } from "lucide-react";
 import { toast } from "sonner";
-import { Business } from "./shared";
+import { PetraLoader } from "@/components/ui/PetraLoader";
+import { useBusinessSettings } from "@/hooks/useBusinessSettings";
+import type { Business } from "./shared";
+import { ReadOnlyNotice, SettingsFieldset, SettingsSaveBar, SettingsSectionHeader } from "./settings-ui";
 
-// ─── Boarding Settings Tab ───────────────────────────────────────────────────
+const BOARDING_DEFAULTS: Partial<Business> = {
+  boardingCheckInTime: "14:00",
+  boardingCheckOutTime: "11:00",
+  boardingCalcMode: "nights",
+  boardingMinNights: 1,
+};
 
 export function BoardingSettingsTab() {
-  const queryClient = useQueryClient();
-  const { data: biz, isLoading } = useQuery<Business>({
-    queryKey: ["settings"],
-    queryFn: () => fetchJSON<Business>("/api/settings"),
-  });
-
-  const [form, setForm] = useState<Partial<Business> | null>(null);
-  const [saved, setSaved] = useState(false);
-
-  const rawEditing = form ?? biz;
-  const editing = rawEditing ? {
-    ...rawEditing,
-    boardingCheckInTime: rawEditing.boardingCheckInTime ?? "14:00",
-    boardingCheckOutTime: rawEditing.boardingCheckOutTime ?? "11:00",
-    boardingCalcMode: rawEditing.boardingCalcMode ?? "nights",
-  } : rawEditing;
-
-  const mutation = useMutation({
-    mutationFn: (data: Partial<Business>) =>
-      fetch("/api/settings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה"); return d; }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["settings"] });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2500);
-      toast.success("הגדרות הפנסיון נשמרו");
-    },
-    onError: () => toast.error("שגיאה בשמירת ההגדרות"),
+  const { values, isLoading, set, reset, save, dirty, isSaving, canEdit } = useBusinessSettings({
+    dirtyKey: "boarding",
+    successMessage: "הגדרות הפנסיון נשמרו",
+    defaults: BOARDING_DEFAULTS,
   });
 
   if (isLoading) return <PetraLoader />;
-  if (!editing) return null;
+  if (!values) return null;
+
+  const minNights = values.boardingMinNights ?? 1;
+  const unit = values.boardingCalcMode === "days" ? "ימים" : "לילות";
+
+  function handleSave() {
+    if (!Number.isInteger(minNights) || minNights < 0 || minNights > 365) {
+      toast.error("מינימום לילות חייב להיות מספר שלם בין 0 ל-365");
+      return;
+    }
+    save();
+  }
 
   return (
-    <div className="space-y-6 max-w-xl">
-      <div className="flex items-center gap-2">
-        <Hotel className="w-4 h-4 text-brand-500" />
-        <h2 className="text-base font-semibold text-petra-text">הגדרות פנסיון</h2>
-      </div>
-      <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="label flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5" />
-              שעת צ׳ק-אין
-            </label>
-            <input type="time" className="input" value={editing.boardingCheckInTime ?? "14:00"} onChange={(e) => setForm({ ...editing, boardingCheckInTime: e.target.value })} />
+    <div className="max-w-xl">
+      <SettingsSectionHeader icon={Hotel} title="הגדרות פנסיון" description="ברירות מחדל לשהיות חדשות ולחישוב המחיר" />
+      {!canEdit && <ReadOnlyNotice className="mb-5" />}
+      <SettingsFieldset readOnly={!canEdit}>
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="label flex items-center gap-1.5" htmlFor="boarding-checkin">
+                <Clock className="w-3.5 h-3.5" />
+                שעת צ׳ק-אין
+              </label>
+              <input id="boarding-checkin" type="time" className="input" value={values.boardingCheckInTime ?? "14:00"} onChange={(e) => set("boardingCheckInTime", e.target.value)} />
+            </div>
+            <div>
+              <label className="label flex items-center gap-1.5" htmlFor="boarding-checkout">
+                <Clock className="w-3.5 h-3.5" />
+                שעת צ׳ק-אאוט
+              </label>
+              <input id="boarding-checkout" type="time" className="input" value={values.boardingCheckOutTime ?? "11:00"} onChange={(e) => set("boardingCheckOutTime", e.target.value)} />
+            </div>
           </div>
-          <div>
-            <label className="label flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5" />
-              שעת צ׳ק-אאוט
-            </label>
-            <input type="time" className="input" value={editing.boardingCheckOutTime ?? "11:00"} onChange={(e) => setForm({ ...editing, boardingCheckOutTime: e.target.value })} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="label flex items-center gap-1.5" htmlFor="boarding-calc">
+                <Moon className="w-3.5 h-3.5" />
+                חישוב לפי
+              </label>
+              <select id="boarding-calc" className="input" value={values.boardingCalcMode ?? "nights"} onChange={(e) => set("boardingCalcMode", e.target.value)}>
+                <option value="nights">לילות</option>
+                <option value="days">ימים</option>
+              </select>
+            </div>
+            <div>
+              <label className="label" htmlFor="boarding-min">מינימום {unit}</label>
+              <input
+                id="boarding-min"
+                type="number"
+                min={0}
+                max={365}
+                step={1}
+                className="input"
+                value={Number.isFinite(minNights) ? minNights : ""}
+                onChange={(e) => set("boardingMinNights", e.target.value === "" ? 0 : Number(e.target.value))}
+              />
+            </div>
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="label flex items-center gap-1.5">
-              <Moon className="w-3.5 h-3.5" />
-              חישוב לפי
-            </label>
-            <select className="input" value={editing.boardingCalcMode ?? "nights"} onChange={(e) => setForm({ ...editing, boardingCalcMode: e.target.value })}>
-              <option value="nights">לילות</option>
-              <option value="days">ימים</option>
-            </select>
-          </div>
-          <div>
-            <label className="label">מינימום לילות</label>
-            <input type="number" min={0} className="input" value={editing.boardingMinNights ?? 1} onChange={(e) => setForm({ ...editing, boardingMinNights: Number(e.target.value) })} />
-          </div>
-        </div>
-      </div>
-      <button
-        className={cn("btn-primary flex items-center gap-2 transition-all", saved && "bg-emerald-500 hover:brightness-100")}
-        style={saved ? { background: "#10B981" } : undefined}
-        disabled={mutation.isPending || !form}
-        onClick={() => { if (form) mutation.mutate(form); }}
-      >
-        {saved ? <><CheckCircle2 className="w-4 h-4" /> נשמר!</> : <><Save className="w-4 h-4" /> שמור שינויים</>}
-      </button>
+      </SettingsFieldset>
+      <SettingsSaveBar dirty={dirty} saving={isSaving} onSave={handleSave} onReset={reset} canEdit={canEdit} />
     </div>
   );
 }

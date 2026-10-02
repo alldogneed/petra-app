@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Loader2, AlertCircle, Shield, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
+import { useRegisterDirty } from "./SettingsDirtyContext";
 
 export function ChangePasswordSection() {
   const { user } = useAuth();
@@ -15,6 +16,7 @@ export function ChangePasswordSection() {
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  useRegisterDirty("password", !!(currentPassword || newPassword || confirmPassword));
 
   const changeMutation = useMutation({
     mutationFn: async () => {
@@ -81,7 +83,7 @@ export function ChangePasswordSection() {
   }
 
   return (
-    <div className="border-t border-slate-100 pt-6">
+    <div className="card p-6">
       <div className="flex items-center gap-2 mb-4">
         <Shield className="w-4 h-4 text-brand-500" />
         <h3 className="text-sm font-semibold text-petra-text">
