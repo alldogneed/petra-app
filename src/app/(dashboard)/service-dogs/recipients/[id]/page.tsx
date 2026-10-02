@@ -318,8 +318,8 @@ function RecipientDetailPageContent() {
 
       {/* Profile Header */}
       <div className="card p-5">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-wrap sm:flex-nowrap items-start justify-between gap-4">
+          <div className="flex items-center gap-4 min-w-0">
             <div className="w-14 h-14 rounded-2xl bg-brand-50 border border-brand-100 flex items-center justify-center shrink-0">
               <UserCheck className="w-7 h-7 text-brand-500" />
             </div>
@@ -357,7 +357,7 @@ function RecipientDetailPageContent() {
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0 flex-wrap">
+          <div className="flex items-center gap-2 sm:shrink-0 flex-wrap">
             {activePlacement && (
               <Link
                 href={`/service-dogs/${activePlacement.serviceDog.id}`}
