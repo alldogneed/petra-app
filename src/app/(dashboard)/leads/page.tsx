@@ -2024,7 +2024,7 @@ function LeadsPageContent() {
             )}
           </div>
           <div className="mt-1.5 text-[13px] md:text-sm text-slate-500 flex gap-x-3.5 gap-y-1 flex-wrap tabular-nums">
-            <span>{openLeads.length} לידים פתוחים</span>
+            <span>{openLeads.length === 1 ? "ליד פתוח אחד" : `${openLeads.length} לידים פתוחים`}</span>
             {pipelineValue > 0 && <span>{formatIls(pipelineValue)} בצנרת</span>}
             <span className="text-[#B91C1C] font-medium">{overdueCount} באיחור</span>
             <span className="text-[#C2410C] font-medium">{todayCount} להיום</span>
