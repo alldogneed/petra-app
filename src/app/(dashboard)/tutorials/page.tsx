@@ -21,10 +21,7 @@ export default function TutorialsPage() {
       {/* Header */}
       <div className="page-header">
         <div>
-          <h1 className="page-title flex items-center gap-2">
-            סרטוני הדרכה
-            <span className="badge-brand text-xs px-2 py-0.5">חדש</span>
-          </h1>
+          <h1 className="page-title">סרטוני הדרכה</h1>
           <p className="text-sm text-petra-muted mt-0.5">
             סרטונים קצרים שיעזרו לך להפיק את המקסימום מפטרה
           </p>
