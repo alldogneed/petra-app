@@ -38,7 +38,7 @@ export function NewCustomerModal({
     source: "",
   });
   const [fieldErrors, setFieldErrors] = useState<{ name?: string; phone?: string; email?: string }>({});
-  const [phoneWarning, setPhoneWarning] = useState<string | null>(null);
+  const [duplicate, setDuplicate] = useState<{ id: string; name: string } | null>(null);
 
   const toggleNewTag = (tag: string) => {
     setForm((f) => ({
@@ -71,6 +71,7 @@ export function NewCustomerModal({
           const body = await r.json().catch(() => ({ error: "שגיאה" }));
           const err = new Error(body.error || "שגיאה");
           if (body.code) (err as unknown as Record<string, unknown>).code = body.code;
+          if (body.existingId) (err as unknown as Record<string, unknown>).existingId = body.existingId;
           throw err;
         }
         return r.json();
@@ -81,6 +82,7 @@ export function NewCustomerModal({
       onClose();
       setForm({ name: "", phone: "", email: "", address: "", idNumber: "", secondContactName: "", secondContactPhone: "", notes: "", selectedTags: [], source: "" });
       setFieldErrors({});
+      setDuplicate(null);
       const waPhone = newCustomer.phone ? toWhatsAppPhone(newCustomer.phone) : null;
       if (waPhone) {
         const welcomeMsg = `שלום ${newCustomer.name} 😊\n\nברוכים הבאים! שמחים שהצטרפתם אלינו 🐾\nאנחנו כאן לכל שאלה ובקשה.\n\nנשמח לראותכם בקרוב!`;
@@ -96,11 +98,16 @@ export function NewCustomerModal({
       router.push(`/customers/${newCustomer.id}`);
     },
     onError: (err: Error) => {
-      if ((err as unknown as Record<string, unknown>).code === "LIMIT_REACHED") {
+      const e = err as unknown as Record<string, unknown>;
+      if (e.code === "LIMIT_REACHED") {
         triggerLimitModal(err.message);
+      } else if (e.code === "DUPLICATE_PHONE" && typeof e.existingId === "string") {
+        const existingId = e.existingId;
+        toast.error(err.message, {
+          action: { label: "פתח את הלקוח", onClick: () => router.push(`/customers/${existingId}`) },
+        });
       } else {
-        // Surface the real server message (e.g. "לקוח עם מספר טלפון זה כבר קיים")
-        // instead of a generic error, so a 409 duplicate is actually explained.
+        // Surface the real server message instead of a generic error.
         toast.error(err.message || "שגיאה ביצירת הלקוח. נסה שוב.");
       }
     },
@@ -115,16 +122,16 @@ export function NewCustomerModal({
     return () => document.removeEventListener("keydown", handler);
   }, [isOpen, onClose]);
 
+  // Same normalized-phone match as the server list search (050-1234567 ≡ +972501234567).
   function checkPhoneDuplicate(phone: string) {
-    const cleaned = phone.replace(/[\s\-(). ]/g, "");
-    if (cleaned.length < 9) return;
-    fetch(`/api/customers?search=${encodeURIComponent(phone)}&take=5`)
-      .then((r) => r.json())
+    if (phone.replace(/\D/g, "").length < 9) return;
+    fetch(`/api/customers?search=${encodeURIComponent(phone)}&take=10`)
+      .then((r) => (r.ok ? r.json() : []))
       .then((data) => {
         const list: Array<{ id: string; name: string; phone: string }> =
           data?.customers ?? (Array.isArray(data) ? data : []);
-        const exact = list.find((c) => c.phone.replace(/[\s\-(). ]/g, "") === cleaned);
-        setPhoneWarning(exact ? `⚠️ מספר טלפון זה כבר קיים עבור הלקוח ${exact.name}` : null);
+        const exact = list.find((c) => samePhone(c.phone, phone));
+        setDuplicate(exact ? { id: exact.id, name: exact.name } : null);
       })
       .catch(() => {});
   }
@@ -184,7 +191,7 @@ export function NewCustomerModal({
                 id="nc-phone"
                 className={cn("input", fieldErrors.phone && "border-red-300 focus:ring-red-200")}
                 value={form.phone}
-                onChange={(e) => { setForm({ ...form, phone: e.target.value }); if (fieldErrors.phone) setFieldErrors({ ...fieldErrors, phone: undefined }); setPhoneWarning(null); }}
+                onChange={(e) => { setForm({ ...form, phone: e.target.value }); if (fieldErrors.phone) setFieldErrors({ ...fieldErrors, phone: undefined }); setDuplicate(null); }}
                 onBlur={(e) => checkPhoneDuplicate(e.target.value)}
                 placeholder="050-0000000"
                 inputMode="tel"
@@ -193,7 +200,14 @@ export function NewCustomerModal({
                 aria-describedby={fieldErrors.phone ? "nc-phone-error" : undefined}
               />
               {fieldErrors.phone && <p id="nc-phone-error" role="alert" className="text-xs text-red-500 mt-1">{fieldErrors.phone}</p>}
-              {!fieldErrors.phone && phoneWarning && <p className="text-xs text-amber-600 mt-1">{phoneWarning}. האם ברצונך להמשיך?</p>}
+              {!fieldErrors.phone && duplicate && (
+                <p className="text-xs text-amber-700 mt-1" role="alert">
+                  מספר טלפון זה כבר שייך ללקוח {duplicate.name} — לא ניתן ליצור לקוח נוסף עם אותו מספר.{" "}
+                  <Link href={`/customers/${duplicate.id}`} prefetch={false} className="font-semibold underline" onClick={onClose}>
+                    פתח את הלקוח הקיים
+                  </Link>
+                </p>
+              )}
             </div>
             <div className="flex-1">
               <label htmlFor="nc-email" className="label">אימייל</label>
@@ -299,7 +313,7 @@ export function NewCustomerModal({
         <div className="flex gap-3 mt-6">
           <button
             className="btn-primary flex-1"
-            disabled={mutation.isPending}
+            disabled={mutation.isPending || !!duplicate}
             onClick={validateAndSubmit}
           >
             <Plus className="w-4 h-4" />
