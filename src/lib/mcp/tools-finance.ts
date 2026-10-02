@@ -14,6 +14,7 @@
  * Tenant isolation: every query is scoped by ctx.businessId (never from args).
  * ADMIN_SCOPE (admin:destructive) is owner-only — manager-minted tokens never carry it (capScopesForRole).
  */
+import { TENANT_PERMS } from "@/lib/permissions";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
@@ -170,6 +171,7 @@ export function registerFinanceTools(server: McpServer, ctx: ToolCtx): void {
     },
     async (args) => {
       if (!ctx.hasScope("write:payments")) return ctx.denyScope("record_payment", "write:payments");
+      if (!ctx.hasPermission(TENANT_PERMS.PAYMENTS_WRITE)) return ctx.denyPermission("record_payment", TENANT_PERMS.PAYMENTS_WRITE);
       const params = { ...args };
       try {
         const replay = await findIdempotentReplay(connectionId, "record_payment", args.idempotency_key);
@@ -281,6 +283,7 @@ export function registerFinanceTools(server: McpServer, ctx: ToolCtx): void {
     },
     async (args) => {
       if (!ctx.hasScope("write:payments")) return ctx.denyScope("update_payment", "write:payments");
+      if (!ctx.hasPermission(TENANT_PERMS.PAYMENTS_WRITE)) return ctx.denyPermission("update_payment", TENANT_PERMS.PAYMENTS_WRITE);
       // Reversing money (canceled / refunded) is owner-only — checked before any replay / DB read.
       if ((args.status === "canceled" || args.status === "refunded") && !ctx.hasScope(ADMIN_SCOPE)) {
         return ctx.denyScope("update_payment", ADMIN_SCOPE);
@@ -396,6 +399,7 @@ export function registerFinanceTools(server: McpServer, ctx: ToolCtx): void {
     },
     async (args) => {
       if (!ctx.hasScope("write:orders")) return ctx.denyScope("cancel_order", "write:orders");
+      if (!ctx.hasPermission(TENANT_PERMS.ORDERS_CANCEL)) return ctx.denyPermission("cancel_order", TENANT_PERMS.ORDERS_CANCEL);
       // Forced cancel of a paid order is owner-only — checked before any replay / DB read.
       if (args.force && !ctx.hasScope(ADMIN_SCOPE)) return ctx.denyScope("cancel_order", ADMIN_SCOPE);
       const params = { ...args };
@@ -460,6 +464,9 @@ export function registerFinanceTools(server: McpServer, ctx: ToolCtx): void {
     },
     async (args) => {
       if (!ctx.hasScope("write:orders")) return ctx.denyScope("update_order_status", "write:orders");
+      if (args.status === "cancelled" && !ctx.hasPermission(TENANT_PERMS.ORDERS_CANCEL)) {
+        return ctx.denyPermission("update_order_status", TENANT_PERMS.ORDERS_CANCEL);
+      }
       const params = { ...args };
       try {
         const replay = await findIdempotentReplay(connectionId, "update_order_status", args.idempotency_key);
