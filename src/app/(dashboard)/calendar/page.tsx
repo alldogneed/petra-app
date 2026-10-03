@@ -2026,9 +2026,9 @@ function CalendarContent() {
                     title={`סנן לפי ${s.name}`}
                   >
                     <div className="w-4 h-4 rounded-full bg-slate-400 flex items-center justify-center text-[9px] text-white font-bold flex-shrink-0">
-                      {s.name.charAt(0)}
+                      {(s.name ?? "").charAt(0) || "?"}
                     </div>
-                    <span>{s.name.split(" ")[0]}</span>
+                    <span>{(s.name ?? "").split(" ")[0]}</span>
                   </button>
                 );
               })}
