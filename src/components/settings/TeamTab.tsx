@@ -68,7 +68,10 @@ export function TeamTab() {
   const [pending, setPending] = useState<PendingConfirm | null>(null);
 
   const { data: members, isLoading } = useQuery<TeamMember[]>({
-    queryKey: ["team-members"],
+    // NOT ["team-members"]: that key holds /api/team-members ({id,name}) for the
+    // calendar / orders / boarding. Sharing it fed one shape to the other and
+    // crashed both screens. Invalidating ["team-members"] still refreshes both.
+    queryKey: ["team-members", "admin"],
     queryFn: () => fetchJSON<TeamMember[]>(`/api/admin/${user?.businessId}/members`),
     enabled: !!user?.businessId,
   });
@@ -173,7 +176,7 @@ export function TeamTab() {
                 "w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0",
                 member.isActive ? "bg-brand-100 text-brand-600" : "bg-slate-100 text-slate-400"
               )}>
-                {member.user.name.charAt(0)}
+                {(member.user?.name ?? "").charAt(0) || "?"}
               </div>
 
               {/* Info */}

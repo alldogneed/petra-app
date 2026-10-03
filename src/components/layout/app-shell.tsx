@@ -9,6 +9,7 @@ import dynamic from "next/dynamic";
 import { useAuth } from "@/providers/auth-provider";
 import { LimitReachedModal } from "@/components/paywall/LimitReachedModal";
 import { PWAInstallProvider } from "./PWAInstallProvider";
+import { PullToRefresh } from "./PullToRefresh";
 
 const HelpCenter = dynamic(
   () => import("@/components/help/HelpCenter").then((m) => ({ default: m.HelpCenter })),
@@ -63,6 +64,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         ].join(" ")}
       >
         <Topbar onMenuToggle={() => setMobileOpen((prev) => !prev)} />
+        <PullToRefresh />
         <main id="main-content" tabIndex={-1} className="p-4 md:p-6 overflow-x-clip">{children}</main>
         <div className="no-print"><MobileBottomNav /></div>
       </div>

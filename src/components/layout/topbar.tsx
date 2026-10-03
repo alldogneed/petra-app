@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import {
@@ -245,6 +246,64 @@ function getBizNotifStyle(type: string): { color: string; Icon: typeof AlertCirc
   }
 }
 
+/**
+ * Envelope / bell panel. Desktop: dropdown under the icon. Phones: portaled to
+ * <body> as a panel with a backdrop. The header uses backdrop-filter, which
+ * turns it into the containing block for position:fixed children — a "fixed"
+ * panel (or modal) rendered inside it is clipped to the 64px header and can't
+ * be dismissed. Never render full-screen layers inside the header.
+ */
+function TopbarPanel({
+  isMobile,
+  label,
+  onClose,
+  children,
+}: {
+  isMobile: boolean;
+  label: string;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  if (isMobile) {
+    if (typeof document === "undefined") return null;
+    return createPortal(
+      <div className="fixed inset-0 z-[90]" data-topbar-panel>
+        <div className="absolute inset-0 bg-black/30" onClick={onClose} aria-hidden="true" />
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={label}
+          className="absolute inset-x-3 top-[calc(env(safe-area-inset-top)+68px)] max-h-[calc(100dvh-170px)] flex flex-col bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden animate-fade-in"
+        >
+          {children}
+        </div>
+      </div>,
+      document.body
+    );
+  }
+  return (
+    <div
+      data-topbar-panel
+      className="absolute left-0 top-full mt-2 w-80 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-50 animate-fade-in"
+    >
+      {children}
+    </div>
+  );
+}
+
+function PanelCloseButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="sm:hidden w-8 h-8 -me-1 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 flex-shrink-0"
+      aria-label="סגור"
+    >
+      <X className="w-4 h-4" />
+    </button>
+  );
+}
+
 export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
   const [profileOpen, setProfileOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -269,6 +328,15 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
 
   const notificationsRef = useRef<HTMLDivElement>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
+  // Phones render the envelope/bell panels via a portal (see TopbarPanel)
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 639px)");
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout, isOwner } = useAuth();
@@ -284,6 +352,8 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
   // Click-outside handler for notification and message dropdowns
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
+      // Clicks inside an open panel (portaled on phones) are not "outside"
+      if ((e.target as Element | null)?.closest?.("[data-topbar-panel]")) return;
       if (
         notificationsRef.current &&
         !notificationsRef.current.contains(e.target as Node)
@@ -348,6 +418,18 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
   const unreadCount = sysMessagesData?.unreadCount ?? 0;
   // Full-content detail modal for a Petra platform message (content is line-clamped in the list)
   const [selectedSysMsg, setSelectedSysMsg] = useState<SystemMessage | null>(null);
+  // Esc closes the open panel / message window (keyboard + some Android remotes)
+  useEffect(() => {
+    if (!messagesOpen && !notificationsOpen && !selectedSysMsg) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setSelectedSysMsg(null);
+      setMessagesOpen(false);
+      setNotificationsOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [messagesOpen, notificationsOpen, selectedSysMsg]);
 
   // Business notifications — for bell icon (real-time critical business data)
   const { data: bizNotifsData } = useQuery<{ items: BizNotifItem[]; criticalCount: number }>({
@@ -528,19 +610,22 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
 
             {/* Petra Messages Dropdown */}
             {messagesOpen && (
-              <div className="fixed sm:absolute inset-x-3 sm:inset-x-auto sm:left-0 top-[68px] sm:top-full sm:mt-2 sm:w-80 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-50 animate-fade-in">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+              <TopbarPanel isMobile={isMobile} label="הודעות מפטרה" onClose={() => setMessagesOpen(false)}>
+                <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-slate-100 flex-shrink-0">
                   <h3 className="text-sm font-bold text-petra-text">הודעות מפטרה</h3>
-                  {unreadCount > 0 && (
-                    <button
-                      onClick={handleMarkAllRead}
-                      className="text-[11px] text-brand-600 font-medium cursor-pointer hover:underline"
-                    >
-                      סמן הכל כנקרא
-                    </button>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {unreadCount > 0 && (
+                      <button
+                        onClick={handleMarkAllRead}
+                        className="text-[11px] text-brand-600 font-medium cursor-pointer hover:underline"
+                      >
+                        סמן הכל כנקרא
+                      </button>
+                    )}
+                    <PanelCloseButton onClick={() => setMessagesOpen(false)} />
+                  </div>
                 </div>
-                <div className="max-h-[60vh] sm:max-h-80 overflow-y-auto">
+                <div className="flex-1 min-h-0 max-h-[60vh] sm:max-h-80 overflow-y-auto overscroll-contain">
                   {systemMessages.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-10 text-center">
                       <Mail className="w-7 h-7 text-slate-300 mb-1.5" />
@@ -584,13 +669,16 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                     })
                   )}
                 </div>
-              </div>
+              </TopbarPanel>
             )}
           </div>
 
           {/* Petra Message Detail Modal — list rows clamp content to 2 lines */}
-          {selectedSysMsg && (
+          {selectedSysMsg && typeof document !== "undefined" && createPortal(
             <div
+              role="dialog"
+              aria-modal="true"
+              aria-label={selectedSysMsg.title}
               className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4"
               onClick={() => setSelectedSysMsg(null)}
             >
@@ -627,7 +715,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                     <X className="w-4 h-4" />
                   </button>
                 </div>
-                <div className="px-5 py-4 max-h-[60vh] overflow-y-auto">
+                <div className="px-5 py-4 max-h-[60vh] overflow-y-auto overscroll-contain">
                   <p className="text-[13px] text-petra-text leading-relaxed whitespace-pre-wrap">
                     {selectedSysMsg.content}
                   </p>
@@ -652,7 +740,8 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                   </div>
                 )}
               </div>
-            </div>
+            </div>,
+            document.body
           )}
 
           {/* Business Notifications Bell */}
@@ -675,8 +764,8 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
 
             {/* Business Notifications Dropdown */}
             {notificationsOpen && (
-              <div className="fixed sm:absolute inset-x-3 sm:inset-x-auto sm:left-0 top-[68px] sm:top-full sm:mt-2 sm:w-80 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-50 animate-fade-in">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+              <TopbarPanel isMobile={isMobile} label="התראות עסקיות" onClose={() => setNotificationsOpen(false)}>
+                <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-slate-100 flex-shrink-0">
                   <div>
                     <h3 className="text-sm font-bold text-petra-text">התראות עסקיות</h3>
                     {criticalCount > 0 && (
@@ -697,8 +786,9 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                       קראתי הכל
                     </button>
                   )}
+                  <PanelCloseButton onClick={() => setNotificationsOpen(false)} />
                 </div>
-                <div className="max-h-[60vh] sm:max-h-96 overflow-y-auto">
+                <div className="flex-1 min-h-0 max-h-[60vh] sm:max-h-96 overflow-y-auto overscroll-contain">
                   {bizNotifications.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-10 text-center">
                       <CheckCircle className="w-7 h-7 text-green-400 mb-1.5" />
@@ -765,7 +855,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                     </Link>
                   </div>
                 )}
-              </div>
+              </TopbarPanel>
             )}
           </div>
 
