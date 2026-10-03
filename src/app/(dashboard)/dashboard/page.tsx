@@ -483,7 +483,8 @@ export default function DashboardPage() {
               }}
               title="רענן נתונים"
               aria-label="רענן נתונים"
-              className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+              // Phones refresh by pulling down (PullToRefresh) — no button there
+              className="hidden md:flex w-7 h-7 items-center justify-center rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors"
             >
               <RefreshCw className={cn("w-[15px] h-[15px]", isDashFetching && "animate-spin")} />
             </button>

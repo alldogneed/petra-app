@@ -199,6 +199,36 @@
     shadow-inner-sm;
   }
 
+  /* iOS Safari gives date/time inputs an intrinsic min-width and its own height,
+     so in a 2-column grid (date | time) on a phone the field spilled out of the
+     modal and the two boxes didn't line up. Let them shrink to their cell and
+     match the other inputs. */
+  input[type="date"],
+  input[type="time"],
+  input[type="datetime-local"],
+  input[type="month"] {
+    min-width: 0;
+    max-width: 100%;
+  }
+  input.input[type="date"],
+  input.input[type="time"],
+  input.input[type="datetime-local"],
+  input.input[type="month"] {
+    -webkit-appearance: none;
+    appearance: none;
+    display: block;
+    min-height: 2.75rem;
+    padding-inline: 0.625rem;
+  }
+  input.input::-webkit-calendar-picker-indicator {
+    margin-inline-start: 0.25rem;
+    padding: 0;
+  }
+  input.input::-webkit-date-and-time-value {
+    text-align: start;
+    min-height: 1.25rem;
+  }
+
   .label {
     @apply block text-sm font-medium text-petra-text mb-1.5;
   }
