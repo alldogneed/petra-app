@@ -17,11 +17,14 @@ import {
   ChevronRight,
   ChevronLeft,
   RefreshCw,
+  X,
+  BadgeCheck,
 } from "lucide-react";
 import { cn, fetchJSON, formatDate } from "@/lib/utils";
 import { toast } from "sonner";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { usePermissions } from "@/hooks/usePermissions";
+import { messageLabel, type MessagePreview } from "@/lib/scheduled-message-preview";
 
 interface ScheduledMessage {
   id: string;
@@ -109,6 +112,90 @@ function getPayloadPreview(payloadJson: string): string {
   }
 }
 
+function getPayloadFlow(payloadJson: string): string | null {
+  try {
+    const flow = JSON.parse(payloadJson)?.flow;
+    return typeof flow === "string" ? flow : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Full message as the customer received it — approved Meta template text or the custom text. */
+function MessagePreviewModal({ msg, onClose }: { msg: ScheduledMessage; onClose: () => void }) {
+  const { data, isLoading, isError } = useQuery<MessagePreview>({
+    queryKey: ["scheduled-message-preview", msg.id],
+    queryFn: () => fetchJSON(`/api/scheduled-messages/${msg.id}`),
+    staleTime: 5 * 60 * 1000,
+  });
+  const { date, time } = formatSendAt(msg.sendAt);
+  const si = STATUS_INFO[msg.status] ?? STATUS_INFO.PENDING;
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-backdrop" />
+      <div className="modal-content max-w-md" onClick={(e) => e.stopPropagation()}>
+        <div className="p-5">
+          <div className="flex items-start justify-between gap-3 mb-4">
+            <div className="min-w-0">
+              <h3 className="text-base font-bold text-petra-text">
+                {data?.label ?? messageLabel(msg.templateKey, getPayloadFlow(msg.payloadJson))}
+              </h3>
+              <p className="text-xs text-petra-muted mt-0.5">
+                {msg.customer?.name ? `${msg.customer.name} · ` : ""}{date} {time}
+              </p>
+            </div>
+            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 text-petra-muted" aria-label="סגור">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            <span className={cn("badge flex items-center gap-1.5 w-fit", si.badgeClass)}>{si.label}</span>
+            {(data?.source === "template" || data?.source === "unavailable") && (
+              <span className="badge badge-success flex items-center gap-1 w-fit">
+                <BadgeCheck className="w-3.5 h-3.5" />
+                תבנית מאושרת של Meta
+              </span>
+            )}
+            {data?.source === "custom" && <span className="badge badge-neutral w-fit">טקסט חופשי</span>}
+          </div>
+
+          {isLoading ? (
+            <div className="py-8 flex justify-center">
+              <PetraLoader variant="inline" />
+            </div>
+          ) : isError || !data ? (
+            <p className="text-sm text-red-500 py-4">לא הצלחנו לטעון את תוכן ההודעה</p>
+          ) : data.text ? (
+            <div className="rounded-2xl bg-[#E7FFDB] border border-emerald-100 px-4 py-3">
+              <p className="text-sm text-slate-800 whitespace-pre-wrap leading-relaxed" dir="auto">
+                {data.text}
+              </p>
+              {data.footer && <p className="text-xs text-slate-500 mt-2" dir="auto">{data.footer}</p>}
+            </div>
+          ) : (
+            <p className="text-sm text-petra-muted py-2">
+              {data.source === "unavailable"
+                ? "ההודעה נשלחה בתבנית מאושרת, אבל לא ניתן להציג כרגע את הנוסח שלה."
+                : "אין תוכן שמור להודעה הזו."}
+            </p>
+          )}
+
+          {data?.templateName && (
+            <p className="text-[11px] text-slate-400 mt-3" dir="ltr">
+              {data.templateName}
+            </p>
+          )}
+          {data?.reconstructed && (
+            <p className="text-[11px] text-slate-400 mt-1">הנוסח שוחזר מפרטי התור.</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function formatSendAt(dateStr: string): { date: string; time: string } {
   const d = new Date(dateStr);
   const date = new Intl.DateTimeFormat("he-IL", {
@@ -130,6 +217,7 @@ export default function ScheduledMessagesPage() {
   const [activeChannel, setActiveChannel] = useState("ALL");
   const [page, setPage] = useState(1);
   const [cancelId, setCancelId] = useState<string | null>(null);
+  const [previewMsg, setPreviewMsg] = useState<ScheduledMessage | null>(null);
   const qc = useQueryClient();
 
   const queryKey = ["scheduled-messages", activeStatus, activeChannel, page];
@@ -416,13 +504,14 @@ export default function ScheduledMessagesPage() {
 
                       {/* Content */}
                       <td className="table-cell max-w-xs">
-                        {preview ? (
-                          <p className="text-sm text-petra-muted truncate max-w-[220px]" title={preview}>
-                            {preview}
-                          </p>
-                        ) : (
-                          <span className="text-xs text-slate-300 italic">{msg.templateKey}</span>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => setPreviewMsg(msg)}
+                          className="block max-w-[220px] text-right text-sm text-petra-muted hover:text-brand-500 underline-offset-2 hover:underline truncate transition-colors"
+                          title="לחצו לצפייה בהודעה המלאה"
+                        >
+                          {preview || messageLabel(msg.templateKey, getPayloadFlow(msg.payloadJson))}
+                        </button>
                       </td>
 
                       {/* Send At */}
@@ -518,6 +607,8 @@ export default function ScheduledMessagesPage() {
       )}
 
       {/* Cancel Confirm Modal */}
+      {previewMsg && <MessagePreviewModal msg={previewMsg} onClose={() => setPreviewMsg(null)} />}
+
       {cancelId && (
         <div className="modal-overlay" onClick={() => setCancelId(null)}>
           <div className="modal-backdrop" />

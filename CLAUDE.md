@@ -357,6 +357,7 @@ import { env, isDev, isProd } from "@/lib/env";
 | WhatsApp reminder (manual) | `POST /api/appointments/[id]/remind` — requires `whatsapp_reminders` tier (PRO+) |
 | WhatsApp reminder (auto) | `src/lib/reminder-service.ts` — `scheduleAppointmentReminder()` checks `whatsappRemindersEnabled` + tier |
 | Message template defaults | `STARTER_TEMPLATES` in `src/components/messages/messages-panel.tsx` — 8 templates with automated footer; pencil button opens editor modal pre-filled from DB version |
+| Scheduled message preview | `GET /api/scheduled-messages/[id]` → `MessagePreview` (custom text, or approved Meta template text from `getPlatformTemplateTexts()` filled with params). `src/lib/scheduled-message-preview.ts` — `messageLabel`, `renderTemplateText`, `confirmationLogPayload`. `appointment_confirmation_log` rows now store what went out (`flow` + `templateChain`/`body`); empty legacy rows are rebuilt from the appointment. Content cell in `/scheduled-messages` opens the preview modal |
 | Form validation utils | `src/lib/validation.ts` — `validateIsraeliPhone`, `validateEmail`, `sanitizeName`, `validateName` |
 | Service dog phases | `src/lib/service-dogs.ts` — `SERVICE_DOG_PHASES` (single source of truth; VALID_PHASES derived from it) |
 | Service dog types | `src/lib/service-dogs.ts` — `SERVICE_DOG_TYPES` (MOBILITY, PSYCHIATRIC, PTSD, GUIDE, AUTISM, ALERT, OTHER) |

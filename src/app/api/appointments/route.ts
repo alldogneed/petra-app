@@ -7,6 +7,7 @@ import { ENTITY_TYPES } from "@/lib/activity-actions";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { scheduleAppointmentReminder, scheduleAppointmentFollowup, appointmentConfirmationChain, defaultConfirmationText } from "@/lib/reminder-service";
 import { sendWithTemplateChain } from "@/lib/whatsapp-template-chain";
+import { confirmationLogPayload } from "@/lib/scheduled-message-preview";
 import { syncAppointmentToGcal } from "@/lib/google-calendar";
 import { interpolateTemplate } from "@/lib/whatsapp";
 import { toWhatsAppPhone } from "@/lib/utils";
@@ -135,13 +136,18 @@ export async function POST(request: NextRequest) {
         const customBody = confirmationRule.template?.body
           ? interpolateTemplate(confirmationRule.template.body, { ...confirmationVars, petName: appointment.pet?.name ?? "" })
           : null;
-        await sendWithTemplateChain({
+        const confirmationSteps = appointmentConfirmationChain({ ...confirmationVars, businessPhone: (business?.phone ?? "").trim() });
+        const confirmationFallback = customBody ?? defaultConfirmationText(confirmationVars);
+        const confirmationResult = await sendWithTemplateChain({
           to: phone,
-          steps: appointmentConfirmationChain({ ...confirmationVars, businessPhone: (business?.phone ?? "").trim() }),
-          fallbackBody: customBody ?? defaultConfirmationText(confirmationVars),
+          steps: confirmationSteps,
+          fallbackBody: confirmationFallback,
           businessId: authResult.businessId,
           context: "appointment_confirmation",
-        }).catch((err) => console.error("Appointment confirmation WA failed:", err));
+        }).catch((err) => {
+          console.error("Appointment confirmation WA failed:", err);
+          return null;
+        });
         // Log the send so the same appointment never gets a second confirmation.
         await prisma.scheduledMessage.create({
           data: {
@@ -149,9 +155,9 @@ export async function POST(request: NextRequest) {
             customerId: appointment.customerId,
             channel: "whatsapp",
             templateKey: "appointment_confirmation_log",
-            payloadJson: "{}",
+            payloadJson: confirmationLogPayload(confirmationSteps, confirmationFallback, confirmationResult),
             sendAt: new Date(),
-            status: "SENT",
+            status: confirmationResult?.success ? "SENT" : "FAILED",
             relatedEntityType: "APPT_CONFIRMATION",
             relatedEntityId: appointment.id,
           },
