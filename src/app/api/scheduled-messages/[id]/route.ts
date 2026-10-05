@@ -56,7 +56,7 @@ export async function GET(
         const biz = await prisma.business.findUnique({ where: { id: authResult.businessId }, select: { phone: true } });
         const [h, m] = appt.startTime.split(":").map(Number);
         const d = new Date(appt.date);
-        d.setHours(h, m, 0, 0);
+        if (Number.isFinite(h) && Number.isFinite(m)) d.setHours(h, m, 0, 0);
         const date = new Intl.DateTimeFormat("he-IL", { weekday: "long", day: "numeric", month: "long" }).format(d);
         const [v2, legacy] = META_TEMPLATES.appointmentConfirmation;
         const name = appt.customer?.name ?? "";

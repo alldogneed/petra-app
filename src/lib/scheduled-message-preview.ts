@@ -72,7 +72,6 @@ export function confirmationLogPayload(
     // nothing went out (or the send threw) — keep the intended message for the record
     payload.templateChain = steps;
     payload.body = fallbackBody;
-    if (result?.error) payload.error = String(result.error).slice(0, 300);
   }
   return JSON.stringify(payload);
 }

@@ -36,7 +36,7 @@ describe("scheduled-message-preview", () => {
     expect(text).toEqual({ flow: "appointment_confirmation", body: "גיבוי" });
     const failed = JSON.parse(confirmationLogPayload(steps, "גיבוי", { success: false, error: "boom" }));
     expect(failed.templateChain).toHaveLength(2);
-    expect(failed.error).toBe("boom");
+    expect(failed.error).toBeUndefined();
     expect(JSON.parse(confirmationLogPayload(steps, "גיבוי", null)).body).toBe("גיבוי");
   });
 });

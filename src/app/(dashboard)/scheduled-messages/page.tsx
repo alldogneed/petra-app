@@ -187,6 +187,9 @@ function MessagePreviewModal({ msg, onClose }: { msg: ScheduledMessage; onClose:
               {data.templateName}
             </p>
           )}
+          {msg.status === "FAILED" && (
+            <p className="text-xs text-red-500 mt-3">ההודעה לא נשלחה ללקוח. זה הנוסח שתוכנן.</p>
+          )}
           {data?.reconstructed && (
             <p className="text-[11px] text-slate-400 mt-1">הנוסח שוחזר מפרטי התור.</p>
           )}
@@ -547,7 +550,7 @@ export default function ScheduledMessagesPage() {
                       {/* Actions */}
                       <td className="table-cell">
                         <div className="flex items-center gap-1.5">
-                          {canSendMessages && (msg.status === "PENDING" || msg.status === "FAILED") && (
+                          {canSendMessages && (msg.status === "PENDING" || msg.status === "FAILED") && msg.templateKey !== "appointment_confirmation_log" && (
                             <button
                               onClick={() => sendNowMutation.mutate(msg.id)}
                               disabled={sendNowMutation.isPending}

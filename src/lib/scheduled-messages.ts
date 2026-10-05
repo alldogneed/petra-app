@@ -128,6 +128,9 @@ export async function processPendingReminders(): Promise<{
     where: {
       status: { in: ["PENDING", "FAILED"] },
       sendAt: { lte: now, gte: sevenDaysAgo },
+      // Confirmation log rows record a send that already happened at booking time — a
+      // FAILED one must never be retried here (the appointment may be moved/canceled by now).
+      templateKey: { not: "appointment_confirmation_log" },
     },
     take: 200,
     include: {
