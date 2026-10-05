@@ -101,6 +101,30 @@ export const RATE_LIMITS = {
 
 // ─── Distributed rate limiter (Upstash Redis) ────────────────────────────────
 
+/**
+ * Upstash REST credentials. The Vercel Marketplace "Upstash for Redis" integration
+ * provisions `KV_REST_API_URL` / `KV_REST_API_TOKEN`; the older manual setup used
+ * `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`. The KV pair wins (it is the
+ * one the integration keeps current — a stale UPSTASH_* pair pointed prod at a deleted
+ * database for weeks), and URL + token always come from the SAME pair, never mixed.
+ * Strips ALL whitespace: a newline/space pasted into a Vercel env var makes the Upstash
+ * client throw "invalid URL" (or reach a wrong host) on every call.
+ */
+export function resolveRedisCredentials(
+  env: Record<string, string | undefined>
+): { url: string; token: string; source: "KV_REST_API" | "UPSTASH_REDIS_REST" } | null {
+  const pairs = [
+    ["KV_REST_API", env.KV_REST_API_URL, env.KV_REST_API_TOKEN],
+    ["UPSTASH_REDIS_REST", env.UPSTASH_REDIS_REST_URL, env.UPSTASH_REDIS_REST_TOKEN],
+  ] as const;
+  for (const [source, rawUrl, rawToken] of pairs) {
+    const url = rawUrl?.replace(/\s+/g, "");
+    const token = rawToken?.replace(/\s+/g, "");
+    if (url && token) return { url, token, source };
+  }
+  return null;
+}
+
 let _redis: Redis | null = null;
 // Circuit breaker: after a Redis failure, skip Redis for a while instead of
 // paying a retry/backoff delay on every request (a broken URL made every
@@ -110,11 +134,16 @@ const REDIS_BREAKER_MS = 60_000;
 function _getRedis(): Redis | null {
   if (Date.now() < _redisDisabledUntil) return null;
   if (_redis) return _redis;
-  // Strip ALL whitespace: a newline/space pasted into the Vercel env var makes
-  // the Upstash client throw "invalid URL" (or reach a wrong host) on every call.
-  const url = process.env.UPSTASH_REDIS_REST_URL?.replace(/\s+/g, "");
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN?.replace(/\s+/g, "");
-  if (!url || !token) return null;
+  // Static property reads (not the whole process.env object) — the Edge runtime
+  // (middleware imports this file) only exposes env vars referenced by name.
+  const creds = resolveRedisCredentials({
+    KV_REST_API_URL: process.env.KV_REST_API_URL,
+    KV_REST_API_TOKEN: process.env.KV_REST_API_TOKEN,
+    UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
+    UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
+  });
+  if (!creds) return null;
+  const { url, token } = creds;
   _redis = new Redis({ url, token, retry: { retries: 1, backoff: () => 100 } });
   return _redis;
 }
