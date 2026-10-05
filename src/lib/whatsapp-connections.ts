@@ -550,6 +550,43 @@ async function fetchTemplates(wabaId: string, token: string, fields: string): Pr
   return all;
 }
 
+export interface TemplateText {
+  body: string;
+  footer: string | null;
+  status: string;
+  category: string | null;
+}
+
+const TEMPLATE_TEXT_TTL_MS = 10 * 60 * 1000;
+let templateTextCache: { at: number; map: Map<string, TemplateText> } | null = null;
+
+/**
+ * Body/footer text of the platform WABA's templates (name → text), cached 10 minutes.
+ * Used only to show business users what a template message looked like — never for sending.
+ * Returns an empty map when Meta is unreachable / not configured.
+ */
+export async function getPlatformTemplateTexts(): Promise<Map<string, TemplateText>> {
+  if (templateTextCache && Date.now() - templateTextCache.at < TEMPLATE_TEXT_TTL_MS) return templateTextCache.map;
+  const token = process.env.META_WHATSAPP_TOKEN?.trim();
+  if (!token) return templateTextCache?.map ?? new Map();
+  const list = await fetchTemplates(getPlatformWabaId(), token, "name,status,category,language,components");
+  if (!list) return templateTextCache?.map ?? new Map();
+  const map = new Map<string, TemplateText>();
+  for (const [name, t] of pickByName(list)) {
+    const comps = (t.components ?? []) as Array<{ type?: string; text?: string }>;
+    const body = comps.find((c) => c.type === "BODY")?.text;
+    if (!body) continue;
+    map.set(name, {
+      body,
+      footer: comps.find((c) => c.type === "FOOTER")?.text ?? null,
+      status: t.status ?? "",
+      category: t.category ?? null,
+    });
+  }
+  templateTextCache = { at: Date.now(), map };
+  return map;
+}
+
 /** Prefer the Hebrew variant when a template exists in several languages; otherwise the first APPROVED one. */
 function pickByName(list: MetaTemplate[]): Map<string, MetaTemplate> {
   const map = new Map<string, MetaTemplate>();
