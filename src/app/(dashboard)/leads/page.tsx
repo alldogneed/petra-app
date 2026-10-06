@@ -1795,7 +1795,19 @@ function LeadsPageContent() {
   const leadCollision: CollisionDetection = useCallback((args) => {
     const hits = pointerWithin(args);
     const zoneHit = hits.find((h) => h.id === wonStageId || h.id === lostStageId);
-    return zoneHit ? [zoneHit] : hits;
+    if (zoneHit) return [zoneHit];
+    if (hits.length > 0) return hits;
+    // Columns are only as tall as their own cards, so a card dragged sideways from far
+    // down a long column is released below the shorter target column and pointerWithin
+    // finds nothing. Fall back to the column the pointer is under (x within, y below top).
+    const pointer = args.pointerCoordinates;
+    if (!pointer) return [];
+    const column = args.droppableContainers.find((c) => {
+      if (c.id === wonStageId || c.id === lostStageId) return false;
+      const rect = args.droppableRects.get(c.id);
+      return !!rect && pointer.x >= rect.left && pointer.x <= rect.right && pointer.y >= rect.top;
+    });
+    return column ? [{ id: column.id }] : [];
   }, [wonStageId, lostStageId]);
 
   // ─── Lead DnD Sensors ──────────────────────────────────────────────────
