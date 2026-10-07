@@ -417,6 +417,17 @@ function AddEmployeeModal({
 // the default; any change here is stored as an explicit override (true/false) so
 // a later role change can never silently hand a capability back.
 
+/**
+ * A stored value that differs from the role default — or a screen explicitly switched
+ * off: that also blocks direct entry (isScreenBlocked), so it must stay visible and
+ * resettable even when the role default is "off" as well.
+ */
+function isCustomOverride(role: TenantRole, key: string, stored: boolean | undefined): boolean {
+  if (typeof stored !== "boolean") return false;
+  if (stored === false && key.startsWith("tenant.view.")) return true;
+  return stored !== hasTenantPermission(role, key as Parameters<typeof hasTenantPermission>[1]);
+}
+
 function MemberCapabilities({
   member,
   pending,
@@ -429,7 +440,7 @@ function MemberCapabilities({
   const overrides = member.permissionOverrides ?? {};
   const role = member.role as TenantRole;
   const customized = CRITICAL_CAPABILITIES.filter(
-    (c) => typeof overrides[c.key] === "boolean" && overrides[c.key] !== hasTenantPermission(role, c.key),
+    (c) => isCustomOverride(role, c.key, overrides[c.key]),
   ).length;
   const granted = CRITICAL_CAPABILITIES.filter((c) =>
     typeof overrides[c.key] === "boolean" ? overrides[c.key] : hasTenantPermission(role, c.key),
@@ -464,7 +475,7 @@ function MemberCapabilities({
                 const roleDefault = hasTenantPermission(role, cap.key);
                 const stored = overrides[cap.key];
                 const checked = typeof stored === "boolean" ? stored : roleDefault;
-                const isCustom = typeof stored === "boolean" && stored !== roleDefault;
+                const isCustom = isCustomOverride(role, cap.key, stored);
                 const id = `cap-${member.id}-${cap.key}`;
                 return (
                   <label key={cap.key} htmlFor={id} className="flex items-start gap-2 text-sm cursor-pointer py-0.5">

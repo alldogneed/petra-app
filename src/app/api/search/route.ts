@@ -2,11 +2,14 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { sessionHasTenantPermission, TENANT_PERMS } from "@/lib/permissions";
 
 export async function GET(request: NextRequest) {
   try {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
+    // Leads are only searchable by members who have the leads screen (rule 41).
+    const canViewLeads = sessionHasTenantPermission(authResult.session, authResult.businessId, TENANT_PERMS.VIEW_LEADS);
 
     const { searchParams } = new URL(request.url);
     const q = searchParams.get("q");
@@ -104,7 +107,7 @@ export async function GET(request: NextRequest) {
         orderBy: { checkIn: "desc" },
       }),
 
-      prisma.lead.findMany({
+      !canViewLeads ? [] : prisma.lead.findMany({
         where: {
           businessId: authResult.businessId,
           OR: [

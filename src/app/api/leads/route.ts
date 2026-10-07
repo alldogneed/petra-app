@@ -2,7 +2,8 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { logActivity } from "@/lib/activity-log";
 import { ENTITY_TYPES } from "@/lib/activity-actions";
-import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { isGuardError, requireBusinessPermission } from "@/lib/auth-guards";
+import { TENANT_PERMS } from "@/lib/permissions";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { hasFeatureWithOverrides } from "@/lib/feature-flags";
 import { sendLeadAlert } from "@/lib/lead-alert";
@@ -13,7 +14,7 @@ import { hasAttributionPayload, normalizeAttributionInput } from "@/lib/lead-att
 
 export async function GET(request: NextRequest) {
   try {
-    const authResult = await requireBusinessAuth(request);
+    const authResult = await requireBusinessPermission(request, TENANT_PERMS.VIEW_LEADS);
     if (isGuardError(authResult)) return authResult;
 
     const leads = await listLeads(authResult.businessId, prisma);
@@ -32,7 +33,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "יותר מדי בקשות. נסה שוב מאוחר יותר." }, { status: 429 });
     }
 
-    const authResult = await requireBusinessAuth(request);
+    const authResult = await requireBusinessPermission(request, TENANT_PERMS.VIEW_LEADS);
     if (isGuardError(authResult)) return authResult;
 
     const body = await request.json();

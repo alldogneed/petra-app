@@ -46,6 +46,7 @@ import { cn } from "@/lib/utils";
 import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/providers/auth-provider";
+import { hasTenantPermission, screenPermissionForPath, type PermissionOverrides, type TenantRole } from "@/lib/permissions";
 import { usePWAInstall } from "./PWAInstallProvider";
 
 interface NavItem {
@@ -87,12 +88,23 @@ function isEyebrow(entry: NavEntry): entry is NavEyebrow {
 
 const ROLE_LEVEL: Record<string, number> = { owner: 0, admin: 0, manager: 1, user: 2, volunteer: 3 };
 
-function canSee(item: { minRole?: string }, role: string | null, isAdmin?: boolean): boolean {
-  if (!item.minRole) return true;
+function canSee(
+  item: { minRole?: string; href?: string },
+  role: string | null,
+  isAdmin?: boolean,
+  overrides?: PermissionOverrides | null
+): boolean {
   if (isAdmin) return true;
   // If role is unknown (null): still loading or DB inconsistency — show the item.
   // Real authorization is enforced server-side; sidebar visibility is just UX.
   if (!role) return true;
+  // Screens the owner can grant per member (VIEW_SCREENS) follow the permission,
+  // not minRole — the role only supplies the default.
+  const screenPerm = item.href ? screenPermissionForPath(item.href) : null;
+  if (screenPerm && ROLE_LEVEL[role] !== 0) {
+    return hasTenantPermission(role as TenantRole, screenPerm, overrides);
+  }
+  if (!item.minRole) return true;
   return (ROLE_LEVEL[role] ?? 99) <= ROLE_LEVEL[item.minRole];
 }
 
@@ -229,7 +241,7 @@ export function Sidebar({
   const [lockedSectionOpen, setLockedSectionOpen] = useState(false);
 
   const visibleEntries = navEntries
-    .filter((entry) => isEyebrow(entry) || canSee(entry, user?.businessRole ?? null, user?.isAdmin))
+    .filter((entry) => isEyebrow(entry) || canSee(entry, user?.businessRole ?? null, user?.isAdmin, user?.businessPermissionOverrides))
     .filter((entry) => isGroup(entry) || isEyebrow(entry) ? true : !isItemHidden(entry as NavItem));
   const mainNavEntries = visibleEntries.filter(e => isEyebrow(e) || isGroup(e) || !isItemLocked(e as NavItem));
   const lockedNavEntries = visibleEntries.filter(e => !isGroup(e) && !isEyebrow(e) && isItemLocked(e as NavItem)) as NavItem[];
@@ -438,7 +450,7 @@ export function Sidebar({
               style={{ background: "rgba(255,255,255,0.08)" }}
             />
             {group.children
-              .filter((c) => canSee(c, user?.businessRole ?? null, user?.isAdmin))
+              .filter((c) => canSee(c, user?.businessRole ?? null, user?.isAdmin, user?.businessPermissionOverrides))
               .map((child) => renderNavItem(child, isMobile, true))}
           </div>
         )}

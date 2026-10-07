@@ -24,6 +24,11 @@ export async function GET(request: NextRequest) {
     const anchorDate = new URL(request.url).searchParams.get("date");
 
     const data = await getDashboardMetrics(businessId, prisma, { canSeeRevenueSummary, anchorDate });
+    // Lead follow-ups are for members who have the leads screen (rule 41).
+    if (!hasTenantPermission(callerRole, TENANT_PERMS.VIEW_LEADS, membership?.permissionOverrides ?? null)
+        && session.user.platformRole !== "super_admin") {
+      return NextResponse.json({ ...data, urgentLeads: [] });
+    }
     return NextResponse.json(data);
   } catch (error) {
     console.error("Dashboard API error:", error);

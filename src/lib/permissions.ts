@@ -96,6 +96,20 @@ export const TENANT_PERMS = {
   CONTRACTS_MANAGE:     "tenant.contracts.manage",
   /** Receive the business's bookings in one's own connected Google Calendar */
   CALENDAR_SYNC:        "tenant.calendar.sync",
+
+  // ── Screens (see VIEW_SCREENS) — which modules a member sees in the menu ──
+  VIEW_CUSTOMERS:       "tenant.view.customers",
+  VIEW_LEADS:           "tenant.view.leads",
+  VIEW_TASKS:           "tenant.view.tasks",
+  VIEW_SCHEDULER:       "tenant.view.scheduler",
+  VIEW_CALENDAR:        "tenant.view.calendar",
+  VIEW_BOARDING:        "tenant.view.boarding",
+  VIEW_SERVICE_DOGS:    "tenant.view.service_dogs",
+  VIEW_TRAINING:        "tenant.view.training",
+  VIEW_PETS:            "tenant.view.pets",
+  VIEW_ONLINE_CLASSES:  "tenant.view.online_classes",
+  VIEW_FINANCE:         "tenant.view.finance",
+  VIEW_MESSAGES:        "tenant.view.messages",
 } as const;
 
 export type PlatformPermission = (typeof PLATFORM_PERMS)[keyof typeof PLATFORM_PERMS];
@@ -144,6 +158,15 @@ const PLATFORM_ROLE_PERMISSIONS: Record<PlatformRole, PlatformPermission[]> = {
   ],
 };
 
+/** Screens staff and volunteers see without a grant — the pre-existing sidebar behaviour. */
+const STAFF_DEFAULT_SCREENS: TenantPermission[] = [
+  TENANT_PERMS.VIEW_TASKS,
+  TENANT_PERMS.VIEW_BOARDING,
+  TENANT_PERMS.VIEW_SERVICE_DOGS,
+  TENANT_PERMS.VIEW_TRAINING,
+  TENANT_PERMS.VIEW_ONLINE_CLASSES,
+];
+
 const TENANT_ROLE_PERMISSIONS: Record<TenantRole, TenantPermission[]> = {
   owner: Object.values(TENANT_PERMS) as TenantPermission[],
 
@@ -173,6 +196,19 @@ const TENANT_ROLE_PERMISSIONS: Record<TenantRole, TenantPermission[]> = {
     TENANT_PERMS.CONTRACTS_MANAGE,
     TENANT_PERMS.CALENDAR_SYNC,
     // AI_ASSISTANT removed — owner grants it per member
+    // Every screen — same as the sidebar showed managers before screens were grantable.
+    TENANT_PERMS.VIEW_CUSTOMERS,
+    TENANT_PERMS.VIEW_LEADS,
+    TENANT_PERMS.VIEW_TASKS,
+    TENANT_PERMS.VIEW_SCHEDULER,
+    TENANT_PERMS.VIEW_CALENDAR,
+    TENANT_PERMS.VIEW_BOARDING,
+    TENANT_PERMS.VIEW_SERVICE_DOGS,
+    TENANT_PERMS.VIEW_TRAINING,
+    TENANT_PERMS.VIEW_PETS,
+    TENANT_PERMS.VIEW_ONLINE_CLASSES,
+    TENANT_PERMS.VIEW_FINANCE,
+    TENANT_PERMS.VIEW_MESSAGES,
   ],
 
   // Staff (user) — day-to-day operational access, no financial or PII.
@@ -193,11 +229,14 @@ const TENANT_ROLE_PERMISSIONS: Record<TenantRole, TenantPermission[]> = {
     // and bulk writes; the owner grants them per member.
     // No FINANCE_READ, no CUSTOMERS_PII, no RECIPIENTS_SENSITIVE
     // No AI_ASSISTANT — the owner grants it explicitly
+    // Screens: exactly what the sidebar showed staff before (items without minRole).
+    ...STAFF_DEFAULT_SCREENS,
   ],
 
   // Volunteer — read-only, no editing
   volunteer: [
     TENANT_PERMS.CONTENT_READ,
+    ...STAFF_DEFAULT_SCREENS,
   ],
 };
 
@@ -208,6 +247,7 @@ const TENANT_ROLE_PERMISSIONS: Record<TenantRole, TenantPermission[]> = {
 // ability to record payments, or take message-sending away from a manager.
 //
 export const CAPABILITY_GROUPS = [
+  { id: "screens", label: "מסכים בתפריט" },
   { id: "finance", label: "כספים" },
   { id: "customers", label: "לקוחות ונתונים" },
   { id: "operations", label: "תפעול ויומן" },
@@ -218,6 +258,19 @@ export const CAPABILITY_GROUPS = [
 export type CapabilityGroupId = (typeof CAPABILITY_GROUPS)[number]["id"];
 
 export const CRITICAL_CAPABILITIES = [
+  // ── מסכים בתפריט ──
+  { perms: [TENANT_PERMS.VIEW_CUSTOMERS], key: TENANT_PERMS.VIEW_CUSTOMERS, group: "screens", label: "לקוחות", hint: "רשימת הלקוחות וכרטיס לקוח. פרטים רגישים (כתובת, ת.ז.) נשארים לפי התפקיד" },
+  { perms: [TENANT_PERMS.VIEW_LEADS], key: TENANT_PERMS.VIEW_LEADS, group: "screens", label: "מערכת מכירות (לידים)", hint: "לוח הלידים, שלבים ומעקב. בלי ההרשאה — גם אין גישה לנתוני הלידים" },
+  { perms: [TENANT_PERMS.VIEW_TASKS], key: TENANT_PERMS.VIEW_TASKS, group: "screens", label: "ניהול משימות", hint: "מסך המשימות" },
+  { perms: [TENANT_PERMS.VIEW_SCHEDULER], key: TENANT_PERMS.VIEW_SCHEDULER, group: "screens", label: "ניהול תורים אונליין", hint: "בקשות הזמנה מהאתר ואישורן" },
+  { perms: [TENANT_PERMS.VIEW_CALENDAR], key: TENANT_PERMS.VIEW_CALENDAR, group: "screens", label: "יומן", hint: "יומן הפגישות של העסק" },
+  { perms: [TENANT_PERMS.VIEW_BOARDING], key: TENANT_PERMS.VIEW_BOARDING, group: "screens", label: "פנסיון", hint: "מפת חדרים, שהיות ולוח האכלה" },
+  { perms: [TENANT_PERMS.VIEW_SERVICE_DOGS], key: TENANT_PERMS.VIEW_SERVICE_DOGS, group: "screens", label: "כלבי שירות", hint: "כלבים, זכאים ושיבוצים" },
+  { perms: [TENANT_PERMS.VIEW_TRAINING], key: TENANT_PERMS.VIEW_TRAINING, group: "screens", label: "תהליכי אילוף", hint: "תוכניות אילוף וקבוצות" },
+  { perms: [TENANT_PERMS.VIEW_PETS], key: TENANT_PERMS.VIEW_PETS, group: "screens", label: "חיות מחמד", hint: "רשימת כל חיות המחמד" },
+  { perms: [TENANT_PERMS.VIEW_ONLINE_CLASSES], key: TENANT_PERMS.VIEW_ONLINE_CLASSES, group: "screens", label: "שיעורים אונליין", hint: "קורסים, שיעורים ותלמידים" },
+  { perms: [TENANT_PERMS.VIEW_FINANCE], key: TENANT_PERMS.VIEW_FINANCE, group: "screens", label: "פיננסים", hint: "מחירון, תשלומים וחשבוניות. סכומים נשארים לפי הרשאות הכספים" },
+  { perms: [TENANT_PERMS.VIEW_MESSAGES], key: TENANT_PERMS.VIEW_MESSAGES, group: "screens", label: "הודעות", hint: "הודעות מתוזמנות ותבניות. בלי ההרשאה — גם אין גישה לנתוני ההודעות" },
   // ── כספים ──
   { perms: [TENANT_PERMS.FINANCE_SUMMARY, TENANT_PERMS.ANALYTICS_READ], key: TENANT_PERMS.FINANCE_SUMMARY, group: "finance", label: "לראות הכנסות ודוחות", hint: "סה״כ הכנסות, דוחות כספיים ומכירות מלידים" },
   { perms: [TENANT_PERMS.PAYMENTS_WRITE],  key: TENANT_PERMS.PAYMENTS_WRITE,  group: "finance", label: "לרשום ולבטל תשלומים", hint: "רישום תשלום, ביטול/החזר, קישורי תשלום וחשבוניות" },
@@ -241,6 +294,34 @@ export const CRITICAL_CAPABILITIES = [
 ] as const satisfies readonly { perms: readonly TenantPermission[]; key: TenantPermission; group: CapabilityGroupId; label: string; hint: string }[];
 
 export type PermissionOverrides = Partial<Record<TenantPermission, boolean>>;
+
+// ─── Screens: route prefix → view permission ───────────────────────────────────
+//
+// Single source of truth for the sidebar and the page guard (ScreenGuard). A path
+// that matches no prefix is not screen-gated. Sub-screens reached from other
+// modules (e.g. /orders from the dashboard) are deliberately left out.
+//
+export const VIEW_SCREENS: readonly { prefix: string; perm: TenantPermission }[] = [
+  { prefix: "/customers",          perm: TENANT_PERMS.VIEW_CUSTOMERS },
+  { prefix: "/leads",              perm: TENANT_PERMS.VIEW_LEADS },
+  { prefix: "/tasks",              perm: TENANT_PERMS.VIEW_TASKS },
+  { prefix: "/scheduler",          perm: TENANT_PERMS.VIEW_SCHEDULER },
+  { prefix: "/calendar",           perm: TENANT_PERMS.VIEW_CALENDAR },
+  { prefix: "/boarding",           perm: TENANT_PERMS.VIEW_BOARDING },
+  { prefix: "/service-dogs",       perm: TENANT_PERMS.VIEW_SERVICE_DOGS },
+  { prefix: "/training",           perm: TENANT_PERMS.VIEW_TRAINING },
+  { prefix: "/pets",               perm: TENANT_PERMS.VIEW_PETS },
+  { prefix: "/online-classes",     perm: TENANT_PERMS.VIEW_ONLINE_CLASSES },
+  { prefix: "/pricing",            perm: TENANT_PERMS.VIEW_FINANCE },
+  { prefix: "/price-lists",        perm: TENANT_PERMS.VIEW_FINANCE },
+  { prefix: "/scheduled-messages", perm: TENANT_PERMS.VIEW_MESSAGES },
+];
+
+/** The view permission that gates `pathname`, or null when the path is not a gated screen. */
+export function screenPermissionForPath(pathname: string): TenantPermission | null {
+  const hit = VIEW_SCREENS.find((s) => pathname === s.prefix || pathname.startsWith(s.prefix + "/"));
+  return hit?.perm ?? null;
+}
 
 /** Narrow an unknown JSON blob into a usable override map. */
 export function parsePermissionOverrides(raw: unknown): PermissionOverrides {
@@ -274,6 +355,28 @@ export function hasTenantPermission(
   const override = overrides?.[permission];
   if (typeof override === "boolean") return override;
   return TENANT_ROLE_PERMISSIONS[role]?.includes(permission) ?? false;
+}
+
+/** Screens whose data APIs are permission-gated too, so the page is blocked on the role default alone. */
+const API_ENFORCED_SCREENS: readonly TenantPermission[] = [TENANT_PERMS.VIEW_LEADS, TENANT_PERMS.VIEW_MESSAGES];
+
+/**
+ * Should the page at `pathname` be replaced by the "no access" screen?
+ *
+ * Menu visibility follows the effective permission. Direct entry is blocked only
+ * when the owner explicitly unchecked the screen (or its API is enforced anyway):
+ * staff reach some screens through the dashboard, search and the mobile nav
+ * without a menu entry, and the role default must not take that away.
+ */
+export function isScreenBlocked(
+  role: string | null | undefined,
+  overrides: PermissionOverrides | null | undefined,
+  pathname: string
+): boolean {
+  const perm = screenPermissionForPath(pathname);
+  if (!perm || !role) return false;
+  if (hasTenantPermission(role as TenantRole, perm, overrides)) return false;
+  return API_ENFORCED_SCREENS.includes(perm) || overrides?.[perm] === false;
 }
 
 /**
@@ -353,6 +456,18 @@ export function getClientPermissions(
     canImportData:          can(TENANT_PERMS.DATA_IMPORT),
     canManageContracts:     can(TENANT_PERMS.CONTRACTS_MANAGE),
     canSyncCalendar:        can(TENANT_PERMS.CALENDAR_SYNC),
+    canViewCustomers:       can(TENANT_PERMS.VIEW_CUSTOMERS),
+    canViewLeads:           can(TENANT_PERMS.VIEW_LEADS),
+    canViewTasks:           can(TENANT_PERMS.VIEW_TASKS),
+    canViewScheduler:       can(TENANT_PERMS.VIEW_SCHEDULER),
+    canViewCalendar:        can(TENANT_PERMS.VIEW_CALENDAR),
+    canViewBoarding:        can(TENANT_PERMS.VIEW_BOARDING),
+    canViewServiceDogs:     can(TENANT_PERMS.VIEW_SERVICE_DOGS),
+    canViewTraining:        can(TENANT_PERMS.VIEW_TRAINING),
+    canViewPets:            can(TENANT_PERMS.VIEW_PETS),
+    canViewOnlineClasses:   can(TENANT_PERMS.VIEW_ONLINE_CLASSES),
+    canViewFinanceScreen:   can(TENANT_PERMS.VIEW_FINANCE),
+    canViewMessages:        can(TENANT_PERMS.VIEW_MESSAGES),
     isOwner:                r === "owner",
     isManager:              r === "manager",
     isStaff:                r === "user",

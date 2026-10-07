@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
-import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { isGuardError, requireBusinessPermission } from "@/lib/auth-guards";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 import { ENTITY_TYPES } from "@/lib/activity-actions";
 import { hasTenantPermission, sessionHasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
@@ -36,7 +36,7 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireBusinessAuth(request);
+    const authResult = await requireBusinessPermission(request, TENANT_PERMS.VIEW_LEADS);
     if (isGuardError(authResult)) return authResult;
 
     const raw = await request.json();
@@ -77,7 +77,7 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireBusinessAuth(request);
+    const authResult = await requireBusinessPermission(request, TENANT_PERMS.VIEW_LEADS);
     if (isGuardError(authResult)) return authResult;
     const { session, businessId } = authResult;
 

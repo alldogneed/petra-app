@@ -10,6 +10,7 @@ import { useAuth } from "@/providers/auth-provider";
 import { LimitReachedModal } from "@/components/paywall/LimitReachedModal";
 import { PWAInstallProvider } from "./PWAInstallProvider";
 import { PullToRefresh } from "./PullToRefresh";
+import { ScreenGuard } from "./ScreenGuard";
 
 const HelpCenter = dynamic(
   () => import("@/components/help/HelpCenter").then((m) => ({ default: m.HelpCenter })),
@@ -65,7 +66,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       >
         <Topbar onMenuToggle={() => setMobileOpen((prev) => !prev)} />
         <PullToRefresh />
-        <main id="main-content" tabIndex={-1} className="p-4 md:p-6 overflow-x-clip">{children}</main>
+        <main id="main-content" tabIndex={-1} className="p-4 md:p-6 overflow-x-clip"><ScreenGuard>{children}</ScreenGuard></main>
         <div className="no-print"><MobileBottomNav /></div>
       </div>
 

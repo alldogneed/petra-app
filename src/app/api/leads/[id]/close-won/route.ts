@@ -2,7 +2,8 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { clearLeadFollowUps } from "@/services/clients";
 import prisma from "@/lib/prisma";
-import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { isGuardError, requireBusinessPermission } from "@/lib/auth-guards";
+import { TENANT_PERMS } from "@/lib/permissions";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 import { ENTITY_TYPES } from "@/lib/activity-actions";
 import { cancelLeadFollowup } from "@/lib/reminder-service";
@@ -12,7 +13,7 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireBusinessAuth(request);
+    const authResult = await requireBusinessPermission(request, TENANT_PERMS.VIEW_LEADS);
     if (isGuardError(authResult)) return authResult;
 
     const { id } = params;

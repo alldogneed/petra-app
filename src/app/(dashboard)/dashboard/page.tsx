@@ -198,7 +198,7 @@ export default function DashboardPage() {
   const widgetFlags: RequirementFlags = {
     finance: perms.canSeeFinance,
     revenue: perms.canSeeRevenueSummary,
-    leads: !perms.isStaff,
+    leads: perms.canViewLeads,
     activity: !perms.isStaff && !perms.isVolunteer,
   };
   const dashPrefs = prefsData?.prefs ?? defaultDashboardPrefs(null);
@@ -232,7 +232,7 @@ export default function DashboardPage() {
   if (shownStats.has("stat_today_appointments")) {
     kpis.push({ id: "stat_today_appointments", label: "תורים היום", value: data.todayAppointments, href: `/calendar?date=${viewedYmd}` });
   }
-  if (shownStats.has("stat_open_leads") && !perms.isStaff) {
+  if (shownStats.has("stat_open_leads") && perms.canViewLeads) {
     kpis.push({ id: "stat_open_leads", label: "לידים פתוחים", value: data.openLeads, href: "/leads" });
   }
   if (shownStats.has("stat_pending_bookings") && (data.pendingBookings ?? 0) > 0) {
@@ -270,9 +270,9 @@ export default function DashboardPage() {
           />
         );
       case "followups_today":
-        return !perms.isStaff ? <TodayFollowUpsWidget leads={data.urgentLeads || []} /> : null;
+        return perms.canViewLeads ? <TodayFollowUpsWidget leads={data.urgentLeads || []} /> : null;
       case "overdue_leads":
-        return !perms.isStaff ? <UrgentLeadsAlert leads={data.urgentLeads || []} /> : null;
+        return perms.canViewLeads ? <UrgentLeadsAlert leads={data.urgentLeads || []} /> : null;
       case "top_debtors":
         return perms.canSeeFinance ? <TopDebtorsWidget debtors={data.topDebtors || []} /> : null;
       case "stats":
