@@ -12,6 +12,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { ServiceError } from "@/services/types";
+import { TENANT_PERMS } from "@/lib/permissions";
 import { getDashboardMetrics, getAnalytics } from "@/services/business";
 import { listAppointments } from "@/services/appointments";
 import { listLeads, listTasks } from "@/services/clients";
@@ -276,7 +277,8 @@ export function registerBriefingTools(server: McpServer, ctx: ToolCtx): void {
 
         const [appts, leads, tasks, stays, pendingAgg, paidRows] = await Promise.all([
           listAppointments(ctx.businessId, prisma, { from: apptFrom, to: apptTo }),
-          listLeads(ctx.businessId, prisma),
+          // No leads screen for the minter → the briefing simply has no lead section.
+          ctx.hasPermission(TENANT_PERMS.VIEW_LEADS) ? listLeads(ctx.businessId, prisma) : Promise.resolve([] as Awaited<ReturnType<typeof listLeads>>),
           listTasks(ctx.businessId, prisma, { to: ymd, excludeCompleted: true }).then((ts) => ts.filter((t) => t.status !== "CANCELED")),
           listBoardingStays(ctx.businessId, prisma, { from: ymd, to: ymd }),
           prisma.payment.aggregate({

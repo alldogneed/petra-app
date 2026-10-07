@@ -174,9 +174,11 @@ export function registerIntakeTools(server: McpServer, ctx: ToolCtx): void {
 
         // Leads: no phoneNorm column → pull candidates by tail/email/name and normalize in memory
         const leadOr: Prisma.LeadWhereInput[] = [];
-        if (last7) leadOr.push({ phone: { contains: last7 } });
-        if (emailTrim) leadOr.push({ email: { equals: emailTrim, mode: "insensitive" } });
-        if (nameTrim) leadOr.push({ name: { contains: nameTrim, mode: "insensitive" } });
+        // Lead matches are returned only when the minter has the leads screen.
+        const canViewLeads = ctx.hasPermission(TENANT_PERMS.VIEW_LEADS);
+        if (canViewLeads && last7) leadOr.push({ phone: { contains: last7 } });
+        if (canViewLeads && emailTrim) leadOr.push({ email: { equals: emailTrim, mode: "insensitive" } });
+        if (canViewLeads && nameTrim) leadOr.push({ name: { contains: nameTrim, mode: "insensitive" } });
         const leadsRaw = leadOr.length
           ? await prisma.lead.findMany({
               where: { businessId, OR: leadOr },
@@ -296,6 +298,7 @@ export function registerIntakeTools(server: McpServer, ctx: ToolCtx): void {
         let relatedEntityId: string | undefined;
         let relatedLabel = "";
         if (args.related_lead_id) {
+          if (!ctx.hasPermission(TENANT_PERMS.VIEW_LEADS)) return ctx.denyPermission("create_task", TENANT_PERMS.VIEW_LEADS);
           const lead = await prisma.lead.findFirst({ where: { id: args.related_lead_id, businessId }, select: { id: true, name: true } });
           if (!lead) throw new ServiceError("ליד לא נמצא בעסק הזה", "NOT_FOUND");
           relatedEntityType = "LEAD"; relatedEntityId = lead.id; relatedLabel = `ליד: ${safeField(lead.name)} (id: ${lead.id})`;
