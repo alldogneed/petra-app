@@ -3,8 +3,9 @@ import json, os, sys, time, urllib.request
 from concurrent.futures import ThreadPoolExecutor
 import hedra_dog as h
 
-VO = os.path.join(h.HERE, "..", "reel-boarding", "vo")
-OUT = os.path.join(h.HERE, "reel")
+REEL = os.environ.get("REEL", "reel-boarding")  # which reel folder's vo/NN.wav to lip-sync
+VO = os.path.join(h.HERE, "..", REEL, "vo")
+OUT = os.path.join(h.HERE, "reel" if REEL == "reel-boarding" else "reel-ai")
 PROMPT = ("A friendly cartoon dog mascot in a flat vector style talking directly to the camera. The mouth shapes match "
           "every syllable of the speech precisely: opens wide on vowels, closes fully on b/m/p sounds, clear lip movement. "
           "Cheerful expression, small head nods, ears bounce slightly, natural blinking. Flat colors and plain light "
@@ -34,7 +35,7 @@ def one(i):
 
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
-    idx = [int(x) for x in sys.argv[1:]] or range(7)
+    idx = [int(x) for x in sys.argv[1:]] or range(len([f for f in os.listdir(VO) if f[:2].isdigit() and f.endswith(".wav")]))
     with ThreadPoolExecutor(4) as ex:
         for i, r in ex.map(one, idx):
             print(i, r, flush=True)

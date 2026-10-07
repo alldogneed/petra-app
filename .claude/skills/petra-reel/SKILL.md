@@ -32,3 +32,13 @@ Music: instrumental track, constant gain, stop aligned to the CTA key word (`CTA
 
 ## Cost (boarding reel, 2026-10)
 Kling pro clips $4.24 for the first 7 + $2.40 for 4 re-generations after pronunciation/CTA changes; dog experiments for the promo $1.20; ElevenLabs inside the Creator plan. Total Hedra spend for the whole dog project ≈ $7.8.
+
+## Reel with REAL screen recordings of the AI agent (marketing/reel-ai-agent, 2026-10)
+Template for "show the product working" reels: the dog narrates, the card shows real recordings of Claude (claude.ai) connected to the demo business.
+- **Never use the owner's real business.** Create a throw-away connection in the demo business (Settings -> "עוזרי AI" -> "חבר עוזר חדש", token URL `https://petra-app.com/api/mcp/u/<token>`), add it in claude.ai (Customize -> Connectors -> Add custom connector, "No sign-in"). The OAuth "easy way" needs the owner to type the Petra password himself. The owner's account already has other "petra" connectors: never touch them. Revoke both the Petra connection ("נתק" -> "כן, בטל") and the claude.ai connector (Remove) when done.
+- **Recording**: `screencapture -v -V <sec> take.mov` (Screen Recording permission; the file only exists once `-V` expires, never SIGINT it), driving the page from the built-in browser pane with a JS driver that types char by char, sends, and clicks "Allow once" (claude.ai asks approval per tool by default: show that card, it sells the safety story). Crop the pane (`crop=1380:1560:1530:215`), then `cut_cards.py`: typing and waits sped up 2-14x, approval card and answer at 1x. Look at a 1 fps contact sheet to pick the segments (this ffmpeg has no drawtext) and avoid stale banners ("Your connection to petra stopped working").
+- **Overlay**: `build.py add_cards()` lays `cards/sceneN.mp4` (762x860) over the white card (x=159, y=470) and holds the last frame; scene length = max(voice, clip + 0.7). Order matters: cards first, then the dog.
+- **Claude Desktop cannot be driven by Claude** (own app); claude.ai in the browser pane works.
+- **Voice traps**: "ליד" is read "ליעד" even with niqqud — say "פנייה". "AI" is spoken "איי איי" (`.replace("AI", "איי איי")`), shown as "AI".
+- **Hook** must be specific to the reel (not a copy of another reel's): here five screens pop in and strike out, then the logo, leading into "מה יש לי היום".
+- CTA for AI-agent reels: WhatsApp + 054-256-0964 + "הקמה אישית במתנה" (the agent is PRO-only, so no "start free").
