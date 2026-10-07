@@ -538,6 +538,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
     },
     async (args) => {
       if (!hasScope("read:leads")) return denyScope("list_leads", "read:leads");
+      if (!hasPermission(TENANT_PERMS.VIEW_LEADS)) return denyPermission("list_leads", TENANT_PERMS.VIEW_LEADS);
       try {
         const IL_TZ = "Asia/Jerusalem";
         const ymdOrThrow = (v: string | undefined, label: string) => {
@@ -627,6 +628,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
     },
     async ({ lead_id }) => {
       if (!hasScope("read:leads")) return denyScope("get_lead", "read:leads");
+      if (!hasPermission(TENANT_PERMS.VIEW_LEADS)) return denyPermission("get_lead", TENANT_PERMS.VIEW_LEADS);
       const params = { lead_id };
       try {
         const lead = await prisma.lead.findFirst({
@@ -739,6 +741,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
     },
     async ({ name, phone, email, requested_service, source, city, notes, stage_name, next_follow_up, follow_up_time, pet_name, pet_breed, pet_age, pet_notes, traffic_source, utm_source, utm_medium, utm_campaign, gclid, referrer, landing_page, first_page, page_type, deal_value, idempotency_key, dry_run }) => {
       if (!hasScope("write:leads")) return denyScope("create_lead", "write:leads");
+      if (!hasPermission(TENANT_PERMS.VIEW_LEADS)) return denyPermission("create_lead", TENANT_PERMS.VIEW_LEADS);
       const params = { name, phone, email, requested_service, source, city, notes, stage_name, next_follow_up, follow_up_time, pet_name, pet_breed, pet_age, pet_notes, traffic_source, utm_source, utm_medium, utm_campaign, gclid, referrer, landing_page, first_page, page_type, deal_value, idempotency_key, dry_run };
       // Attribution only when the caller actually sent something (otherwise stays "unknown")
       const attrBody: Record<string, unknown> = { traffic_source, utm_source, utm_medium, utm_campaign, gclid, referrer, landing_page, first_page, page_type };
@@ -1154,7 +1157,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
         }
 
         // Sales history (linked leads + journal) — only with read:leads; never fails get_client.
-        if (hasScope("read:leads")) {
+        if (hasScope("read:leads") && hasPermission(TENANT_PERMS.VIEW_LEADS)) {
           try {
             const history = await getCustomerSalesHistory(businessId, prisma, c.id);
             if (history && history.leads.length) {

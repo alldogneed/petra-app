@@ -233,6 +233,15 @@ The legacy dark "Master Admin" (`/admin/*`) was merged into the light platform p
 - Customer health (`/api/owner/customer-success`): `segment` = `churn_risk` (used the product, no login 14d+) | `never_activated` (no customer/appointment after 3d) | `watch` | `new` | `healthy`; rows sorted by `priority` (paying at-risk first). Don't collapse back to a single "high risk" bucket.
 - Security invariants: only `super_admin` may grant super_admin, or block/demote/edit an existing super_admin (both `/api/owner/users/[userId]` and `/api/admin/users/[id]`); blocking kills the user's sessions; every user create/update/delete writes `logAudit`. Suspend/block/delete/broadcast in the UI go through a confirmation modal (no one-click, no `window.confirm`).
 
+### 41. Screen (view) permissions — `VIEW_SCREENS` is the single source
+`TENANT_PERMS.VIEW_*` + `VIEW_SCREENS` (route prefix → permission) in `src/lib/permissions.ts` drive the sidebar (`canSee`), the mobile bottom nav and `ScreenGuard` (in `app-shell.tsx`). They appear as the "מסכים בתפריט" group of `CRITICAL_CAPABILITIES`, so the checkboxes in Settings → צוות והרשאות and the business-admin matrix render them automatically.
+- Role defaults reproduce the old `minRole` sidebar (manager = all screens; staff/volunteer = tasks, boarding, service dogs, training, online classes). A new gated nav item needs a `VIEW_*` perm + a `VIEW_SCREENS` row + a capability entry — not a `minRole`.
+- `isScreenBlocked()` blocks direct entry only on an **explicit `false` override** — staff reach `/customers/:id`, `/calendar` etc. from the dashboard, search and mobile nav without a menu entry. Exception: screens whose APIs are enforced (`API_ENFORCED_SCREENS`: leads, messages) block on the role default.
+- Server enforcement exists only for module-exclusive APIs: `/api/leads/**` (`VIEW_LEADS`; `/leads/calendar` returns `[]` instead of 403 so the calendar keeps working), `/api/scheduled-messages/**` (`VIEW_MESSAGES`), and MCP lead tools. `/api/customers`, `/api/pets`, `/api/boarding`… are shared by many screens — do NOT gate them on a view perm; sensitive data there is protected by the data perms (`CUSTOMERS_PII`, `FINANCE_READ`…).
+- Tests: `src/lib/__tests__/view-screens.test.ts`.
+
+---
+
 ## MCP Server
 
 ### Architecture

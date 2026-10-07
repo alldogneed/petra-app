@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { prisma } from "@/lib/prisma";
+import { sessionHasTenantPermission, TENANT_PERMS } from "@/lib/permissions";
 
 /**
  * GET /api/leads/calendar?from=YYYY-MM-DD&to=YYYY-MM-DD
@@ -10,7 +11,11 @@ import { prisma } from "@/lib/prisma";
 export async function GET(request: NextRequest) {
   const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
-  const { businessId } = authResult;
+  const { businessId, session } = authResult;
+  // The calendar overlays lead follow-ups; a member without the leads screen gets none.
+  if (!sessionHasTenantPermission(session, businessId, TENANT_PERMS.VIEW_LEADS)) {
+    return NextResponse.json({ leads: [] });
+  }
 
   const { searchParams } = new URL(request.url);
   const from = searchParams.get("from");

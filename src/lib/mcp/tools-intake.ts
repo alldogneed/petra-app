@@ -8,6 +8,7 @@
  * Tenant isolation: every query is scoped by ctx.businessId (never from args).
  */
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { TENANT_PERMS } from "@/lib/permissions";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
@@ -247,6 +248,7 @@ export function registerIntakeTools(server: McpServer, ctx: ToolCtx): void {
     {},
     async () => {
       if (!ctx.hasScope("read:leads")) return ctx.denyScope("list_lead_stages", "read:leads");
+      if (!ctx.hasPermission(TENANT_PERMS.VIEW_LEADS)) return ctx.denyPermission("list_lead_stages", TENANT_PERMS.VIEW_LEADS);
       try {
         const stages = await listStages(businessId);
         await auditLog(connectionId, "list_lead_stages", {}, "success", `returned ${stages.length} stages`);
@@ -425,6 +427,7 @@ export function registerIntakeTools(server: McpServer, ctx: ToolCtx): void {
     },
     async (args) => {
       if (!ctx.hasScope("write:leads")) return ctx.denyScope("update_lead", "write:leads");
+      if (!ctx.hasPermission(TENANT_PERMS.VIEW_LEADS)) return ctx.denyPermission("update_lead", TENANT_PERMS.VIEW_LEADS);
       const params = { ...args };
       try {
         const replay = await findIdempotentReplay(connectionId, "update_lead", args.idempotency_key);

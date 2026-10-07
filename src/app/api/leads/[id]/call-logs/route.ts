@@ -1,14 +1,15 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { isGuardError, requireBusinessPermission } from "@/lib/auth-guards";
+import { TENANT_PERMS } from "@/lib/permissions";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireBusinessAuth(request);
+    const authResult = await requireBusinessPermission(request, TENANT_PERMS.VIEW_LEADS);
     if (isGuardError(authResult)) return authResult;
 
     const { id } = params;
@@ -41,7 +42,7 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const authResult = await requireBusinessAuth(request);
+    const authResult = await requireBusinessPermission(request, TENANT_PERMS.VIEW_LEADS);
     if (isGuardError(authResult)) return authResult;
 
     const { id } = params;

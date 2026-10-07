@@ -14,6 +14,8 @@ import {
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { triggerLimitModal } from "@/lib/limit-reached";
+import { useAuth } from "@/providers/auth-provider";
+import { isScreenBlocked } from "@/lib/permissions";
 
 // ─── New Customer Drawer ──────────────────────────────────────────────────────
 
@@ -172,6 +174,11 @@ export function MobileBottomNav() {
   const router = useRouter();
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const { user } = useAuth();
+  // Screens the owner switched off for this member disappear from the bar too.
+  const screenOff = (path: string) =>
+    !!user && !user.isAdmin && !user.isImpersonating &&
+    isScreenBlocked(user.businessRole, user.businessPermissionOverrides, path);
 
   const isHome = pathname === "/dashboard" || pathname === "/";
 
@@ -219,7 +226,7 @@ export function MobileBottomNav() {
       isCenter: false,
       active: pathname.startsWith("/calendar"),
     },
-  ] as const;
+  ].filter((item) => !(item.key === "tasks" && screenOff("/tasks")) && !(item.key === "calendar" && screenOff("/calendar")));
 
   return (
     <>
