@@ -925,6 +925,38 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                     )}
                 </div>
 
+                {/* ── Stage selector (won / lost have their own buttons above) ── */}
+                {!isClosed && (
+                    <div className="px-6 py-5 border-b border-[#F1F5F9]">
+                        <div className="text-xs font-semibold text-slate-500">שלב במכירה</div>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                            {stages.filter((s) => !s.isWon && !s.isLost).map((stage) => {
+                                const selected = selectedStage === stage.id;
+                                return (
+                                    <button
+                                        key={stage.id}
+                                        type="button"
+                                        onClick={() => setSelectedStage(stage.id)}
+                                        disabled={isWorking}
+                                        aria-pressed={selected}
+                                        className={cn(
+                                            "h-8 px-3 rounded-full text-[13px] font-medium border inline-flex items-center gap-1.5 transition-colors disabled:opacity-50",
+                                            !selected && "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                                        )}
+                                        style={selected ? { color: stage.color, backgroundColor: `${stage.color}15`, borderColor: stage.color } : undefined}
+                                    >
+                                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: stage.color }} />
+                                        {stage.name}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        {selectedStage !== lead.stage && (
+                            <p className="mt-2 text-xs text-slate-500">השלב יתעדכן בלחיצה על &quot;שמור וסגור&quot;</p>
+                        )}
+                    </div>
+                )}
+
                 {/* ── Quick log + next follow-up ─────────────────────── */}
                 <div className="px-6 py-5 border-b border-[#F1F5F9]">
                     <div className="text-xs font-semibold text-slate-500">חזרה הבאה</div>
