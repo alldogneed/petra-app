@@ -71,174 +71,31 @@ All authenticated API routes derive `businessId` from session — never from req
 ### 11. `platformRole` is server-only — use `isAdmin` client-side
 `getCurrentUser()` returns `isAdmin: boolean` (not `platformRole`). The raw `platformRole` string is only available in server-side session objects (`auth-guards.ts`, `session.ts`). Never add `platformRole` back to client-facing API responses.
 
-### 12. Service dog phases — single source of truth
-`SERVICE_DOG_PHASES` in `src/lib/service-dogs.ts` drives ALL phase UI and API validation.
-`VALID_PHASES` in `/api/service-dogs/[id]/phase/route.ts` is derived from it — never hardcode phase strings elsewhere.
-Current order: SELECTION → RAISING → PUPPY → IN_TRAINING → ADVANCED_TRAINING → CERTIFIED → RETIRED → DECERTIFIED
-
-### 13. Recipient stages — REJECTED = archive
-`DEFAULT_STAGES` in `/api/service-recipient-stages/route.ts` is upserted (name + color) on every GET.
-`REJECTED` is the only "archive" stage — hidden by default in kanban + table; toggled by "ארכיון" button.
-`activeStages = stages.filter(s => showArchive || s.key !== "REJECTED")` pattern in recipients page.
-AddRecipientModal receives stages filtered without REJECTED.
-
-### 14. Placement statuses — only 2
-`SERVICE_DOG_PLACEMENT_STATUSES` = `ACTIVE` (פעיל) + `TERMINATED` (הסתיים).
-No PENDING / TRIAL / SUSPENDED / COMPLETED. New placements default to `ACTIVE`.
-`activePlacement` filter: `p.status === "ACTIVE"` (not `|| "TRIAL"`).
-
-### 15. Service dog types — includes PTSD
-`SERVICE_DOG_TYPES` in `src/lib/service-dogs.ts`: MOBILITY, PSYCHIATRIC, PTSD, GUIDE, AUTISM, ALERT, OTHER.
-
 ### 16. `shadcn init` destroys utils.ts
 Restore: `DEMO_BUSINESS_ID`, `formatCurrency`, `formatDate`, `formatTime`, `getStatusColor`, `getStatusLabel`, `toWhatsAppPhone`, `getTimelineIcon`
-
-### 17. Customer DELETE — sequential, NO $transaction
-Supabase PgBouncer (transaction pooling) is incompatible with Prisma interactive transactions. Customer delete runs all cleanup sequentially:
-```
-InvoiceDocument.updateMany(originalInvoiceId→null) → InvoiceDocument.deleteMany → InvoiceJob.deleteMany
-→ Payment.deleteMany → Appointment.deleteMany → OrderLine.deleteMany → Order.deleteMany
-→ BoardingStay.updateMany(customerId→null) → Lead.updateMany(customerId→null)
-→ TrainingProgram.updateMany(customerId→null) → Booking.deleteMany
-→ ScheduledMessage/ContractRequest/IntakeForm/TimelineEvent/ServiceDogRecipient/TrainingGroupParticipant.deleteMany
-→ Task.deleteMany(relatedEntityType="CUSTOMER") → Pet.deleteMany → Customer.delete
-```
-`Booking.customerId` is non-nullable → must deleteMany, not updateMany(null).
-`Task` has no `customerId` FK — uses `relatedEntityType`/`relatedEntityId` strings.
-`InvoiceDocument` has self-referencing credit note → must null `originalInvoiceId` before deleteMany.
-
-### 18. Leads Kanban — sort vs badge must match
-`sortLeadsByPriority()` at bottom of `leads/page.tsx`: priority 0 = overdue.
-Overdue condition: `followUpDate && followUpDate < todayStart` (no `followUpStatus` check).
-Card badge uses identical condition — never add extra conditions to one without updating the other.
-
-### 19. Lead notifications — PRO+ only
-`lead_notifications` feature flag in `src/lib/feature-flags.ts`: true for `pro` + `service_dog` only.
-When a new lead is created (manual or via webhook), `POST /api/leads` fires-and-forgets a WhatsApp to the business owner's phone.
-Uses approved template `petra_biz_lead_alert` (WABA `25882288788086856`) with fallback to free-form.
-Body params order: `[lead.name, lead.phone || "לא צוין", lead.requestedService || "לא צוין"]`.
-For non-PRO businesses the feature is silently skipped (no UI shown in leads page — handled by TierGate elsewhere).
-
-### 20. Analytics page is named "דוחות"
-Sidebar entry and page title are "דוחות" (not "אנליטיקס"). Route remains `/analytics`.
-`src/components/layout/sidebar.tsx` line: `{ name: "דוחות", href: "/analytics", ... }`
-
-### 21. Sidebar nav is grouped by eyebrows
-`navEntries` in `src/components/layout/sidebar.tsx` is interleaved with `{ eyebrow: "..." }` markers. Three sections: **תפריט ראשי** (dashboard/customers/leads/tasks/scheduler/calendar), **מודולים** (boarding/pricing/service-dogs/training/pets), **ניהול** (analytics/business-admin/settings). When adding a new nav item, place it in the correct group; eyebrows render as uppercase white/40 labels above each group.
-
-### 22. Marketing stats must stay aligned
-Login hero (`src/app/login/page.tsx`) and `AnimatedStats.tsx` both display the same three metrics: **130 / 5,000+ / 98%**. Update both files together if any number changes.
-
-### 23. Subscription expiry banner only for paid tiers
-Dashboard renewal banner uses `!isFree && subscriptionActive && subscriptionDaysLeft <= 14`. Never show "renew" warning to a user on free tier even if they have a stale `subscriptionEndsAt` from a former paid plan.
 
 ### 24. Dev webpack uses memory cache (Hebrew path)
 `next.config.mjs` sets `config.cache = { type: "memory" }` in dev. The default PackFileCacheStrategy fails snapshot resolve on the Hebrew project path (`פיתוח`) and stalls compilation. Don't remove. Production build uses default cache and is unaffected.
 
-### 25. Search modal must close on mobile
-`src/components/search/global-search.tsx` has a permanent X button in the header (always visible, not just when `query` is filled) **and** the backdrop+dialog wrapper is a single layer so taps outside the modal close it. Without these two together, mobile users get stuck — no ESC key, X is hidden, backdrop click eaten by the dialog wrapper.
-
-### 26. Automated customer WhatsApp sends go through the ordered template chain
-`src/lib/whatsapp-template-chain.ts` — `sendWithTemplateChain()` tries an ordered list of Meta template names and only then sends free text (24h window only). All names live in `META_TEMPLATES` (`src/lib/reminder-service.ts`) with a `*Chain()` builder per flow; `buildTemplateChain()` drops any step with an empty param (Meta rejects them).
-```
-UTILITY template  →  legacy (MARKETING) template  →  free text
-```
-- Meta silently frequency-caps MARKETING templates per recipient (API says `accepted`, nothing delivered). A new UTILITY name is added at the **front** of the chain — never in place of the older names (an unapproved name is rejected at send time and skipped; a replaced name would drop the flow to free text).
-- ScheduledMessage payloads carry `flow` (→ `WhatsAppMessageLog.context`, e.g. `lead_followup`) + `templateChain: [{ name, params }]`. `chainFromPayload()` still reads the legacy `metaTemplateName`/`metaTemplateParams` shape for rows already queued.
-- `processPendingReminders()` and `POST /api/scheduled-messages/[id]/send` both use the chain; **always pass `businessId` + `context`**. Sender selection stays in `resolveWhatsAppSender()` — no parallel mechanism.
-- Do not add chain names to `PLATFORM_TEMPLATE_NAMES` (`whatsapp-connections.ts`) unless the template really exists on the platform WABA — that list feeds `missingTemplates` in the connection UI.
-
-### 27. Lead traffic attribution — `trafficSource` ≠ `source`
-`Lead.source` (existing) = intake channel picked by the business (`manual`/`website`/`google`…, `LEAD_SOURCES` in constants). `Lead.trafficSource` (+ `medium`, `campaign`, `landingPage`, `referrer`, `firstPage`, `gclid`, `pageType`) = where the visitor came from, sent by all-dog.co.il / Make via `POST /api/webhooks/lead` (`utm_*`, `gclid`, `referrer`, `landing_page`, `first_page`, `page_type`, snake or camelCase). Never merge the two fields.
-Single source of truth: `src/lib/lead-attribution.ts` — `TRAFFIC_SOURCES` (organic|paid|direct|referral|social|whatsapp|phone|unknown, plain strings, no Prisma enum), `classifyTrafficSource()` (gclid/cpc/ppc → paid; google/bing referrer → organic; facebook/instagram → social; wa.me → whatsapp; all empty → direct; else referral), `normalizeAttributionInput()` (length caps, page URLs stored as path). Body without any attribution key → `unknown` (legacy clients unchanged); keys present but empty → `direct`.
-MCP: `create_lead` accepts the same keys (omitted → `unknown`), `get_lead` prints a "מקור תנועה" line. Card + `LeadDetailsModal` render `formatAttributionLine()` ("מקור: אורגני · עמוד: /guides/…"); hidden when `unknown` and no page. Analytics: `getAnalytics().leadAttribution` = fixed 12-month window (`buildLeadAttributionReport`), independent of the period picker. Prod DDL: `prisma/lead_attribution.sql` (additive, default `unknown`). Tests: `src/lib/__tests__/lead-attribution.test.ts`.
-
-### 28. Lead deal value — `dealValue` is NOT revenue
-`Lead.dealValue Float?` ("ערך עסקה", ILS) — manual amount; `null` = not entered (≠ 0). Single source of truth: `src/lib/lead-deal-value.ts` (`normalizeDealValue`, `sumDealValues`, `formatIls`, `buildLeadSalesReport`, `EXCLUDED_ORDER_STATUSES`).
-- **Edited only in the lead card** (`LeadTreatmentModal` → "ערך עסקה", saved independently via `PATCH /api/leads/[id] {dealValue}`; "שמור וסגור" flushes an open edit first). `updateLead()` writes a `CallLog` `type: "deal_value"` journal line on every change.
-- `deal_value` logs are NOT contact activity: kanban card status/snippet and `sortLeadsByPriority()` ignore them (keep rule #18 consistent).
-- Kanban column header = `sumDealValues(visible leads in column)` (hidden when 0); archive drop zones + archive table show it too.
-- Reports: `getAnalytics().leadSales` (gated by `canSeeRevenue`) = leads won in period (same won definition as `wonThisPeriod`) → deal value + orders the linked customer placed since `wonAt` (excl. cancelled; each order attributed to the customer's most recent won lead → no double count) + `pipelineValue` of open leads. Never add it into `overview.revenue`. Mirrored in analytics Excel export ("מכירות מלידים" sheet), `LeadsReports` KPIs, leads CSV column.
-- MCP: `create_lead`/`update_lead` accept `deal_value` (update: `null` clears), `get_lead` prints "💰 ערך עסקה", `get_analytics` prints the lead-sales line. Prod DDL: `prisma/lead_deal_value.sql`. Tests: `src/lib/__tests__/lead-deal-value.test.ts`.
-
-### 29. Loading states — `PetraLoader` is the ONLY data-loading indicator
-`src/components/ui/PetraLoader.tsx` (bouncing paw + PETRA wordmark, from the "Petra Splash" design). No grey `animate-pulse` skeleton blocks, no "טוען..." cards, no section spinners.
-- `<PetraLoader />` (`page`, default) — main body of a screen/tab is loading. Fixed at the center of the content area (sidebar inset via `data-petra-shell` on AppShell), portaled to `<body>`, translucent backdrop. No wrapper needed; inside `<tbody>` use `<tr><td colSpan={N}><PetraLoader /></td></tr>`.
-- `variant="inline"` — modals, dropdowns, side panels, a single card on an otherwise loaded screen. `className` may override padding (`py-4` for compact spots).
-- `variant="splash"` — full-screen, no app shell: root `loading.tsx`, `OnboardingGuard`, public pages (`/book`, `/sign`, `/intake`, `/my-booking`, `/checkout`, `/payment*`), login after success.
-- Never ship the paw without the wordmark. Toes are `border-radius: 50%` (not Tailwind `rounded-full` — renders pills).
-- Leave alone: spinners inside buttons, refresh icons, "טען עוד", decorative status dots/pings, tiny inline number placeholders. Customer portal `/c/[slug]` keeps its white-label loader.
-
-### 30. Reports — shared definitions, server-side only
-Contracts: `src/lib/analytics-types.ts` (`AnalyticsData` → `GET /api/analytics`, `SalesReport` → `GET /api/leads/reports`). Dates: `src/lib/report-dates.ts` (Israel-day bounds `israelDayStart/End`, `israelMonthKey`, `pct` = null on 0 denominator). Never compute report numbers client-side.
-- **Lead conversion = won / (won + lost)** everywhere (open leads excluded). Won/lost = CURRENT stage `isWon`/`isLost`; activity basis additionally requires `wonAt`/`lostAt` in range. Pure logic: `src/lib/sales-report.ts` (`buildSalesReport`, `buildLeadSourceRows` — also used by `getAnalytics().leadsBySource`).
-- `/analytics` (`src/lib/analytics-metrics.ts`): avg revenue = revenue / **paying** customers; retention = customers active (completed appt or paid payment) in the previous equal period who were active again; completion = completed / due (past, non-canceled); `revenueByService` + `finance.byCategory` cover ALL paid payments (Σ = revenue); day/hour charts exclude canceled; custom range capped ~5y. Money (`finance`, boarding revenue, …) null without `FINANCE_SUMMARY` (permission overrides honoured).
-- Outstanding balances: `src/lib/outstanding-balances.ts` (`computeOutstandingBalances`) — shared by `/analytics` and MCP `get_outstanding_balances`.
-- **Tier gate is enforced server-side too:** `/api/analytics` + `/api/analytics/export` → `businessHasFeature(prisma, businessId, "analytics")` (`src/lib/feature-gate.ts`, same effective-tier rule as `usePlan`: lapsed subscription → free, `featureOverrides` win) → 403 `FEATURE_LOCKED`. `/api/leads/reports` is NOT tier-gated (`leads` is open on all tiers).
-- `/api/leads/reports` = `requireBusinessPermission(ANALYTICS_READ)`; `/leads?view=reports` deep-links the tab. Funnel "reached" uses current stage + `stage_change` log names + `previousStageId`.
-- Closer: close-won / close-lost / convert / PATCH stage stamp `wonByUserId` / `lostByUserId` = session PlatformUser id (`updateLead(..., actorUserId)`); MCP passes none → null ("לא תועד").
-- Tests: `src/lib/__tests__/{sales-report,analytics-metrics,outstanding-balances,report-dates}.test.ts`.
-
-### 31. Customer sales history — the lead journal follows the customer
-Everything recorded on a lead (call logs + "מה סוכם", stage changes, deal-value changes, follow-up tasks open+closed, created/won/lost, deal value, source, attribution, who closed) is shown in the customer file for every lead with `Lead.customerId` = that customer (won, lost and open; newest first).
-- Single source of truth: `src/lib/lead-sales-history.ts` (types + `buildSalesJournal()` + `leadStatusOf()` + caps); service `getCustomerSalesHistory()` in `src/services/clients.ts`; API `GET /api/customers/[id]/sales-history` (same `CUSTOMERS_PII` gate as the customer GET).
-- UI: `src/components/customers/CustomerSalesHistory.tsx` — card "היסטוריית מכירה" in the customer page right column right after Pets (anchor `#sales-history`) + "הגיע מליד" chip in the header. Each lead has "פתח את הליד" → `/leads?lead=<id>` (leads page opens `LeadTreatmentModal` for that id, then strips the param; unknown id → toast). MCP `get_client` appends the section when the token also has `read:leads`.
-- `close-won` / `convert` / `updateLead(…, actorUserId)` (stage → won via PATCH) set `wonByUserId` (PlatformUser id; cleared when the lead leaves won); names resolved only via this business's `BusinessUser` rows. `convert` and `close-won` both run `clearLeadFollowUps()` so a won lead has no open follow-up. Never delete callLogs/tasks of a converted lead — they ARE the customer's sales history. Tests: `src/lib/__tests__/lead-sales-history.test.ts`.
-
-### 32. Activity log — always pass `businessId` + entity
-`logActivity(userId, userName, action, { businessId, entityType, entityId, entityLabel })` (`src/lib/activity-log.ts`). Action names/labels/entity links live ONLY in `src/lib/activity-actions.ts` (client-safe: `ACTIVITY_ACTIONS`, `actionLabel`, `ENTITY_TYPES`, `entityHref`, `describeDevice`). Read the label BEFORE a delete (scoped by businessId). `await` the call for sensitive actions (DELETE_*, EXPORT_*, payment cancel/refund, member/permission changes, LOGIN) — `logActivity` then runs owner security alerts (`src/lib/security-alerts.ts` + pure `security-alert-rules.ts`, prefs `Business.securityAlertPrefs`, sends capped at 4s, 20/business/hour per instance). Reading ActivityLog for a business = `businessId = X OR (businessId IS NULL AND userId IN members(X))` (legacy rows). Prod DDL: `prisma/business_admin_control.sql`.
-
-### 33. "ניהול ובקרה" (`/business-admin`) — owner only
-Tabs live in `src/components/business-admin/*` (page.tsx = shell + TABS only): סקירה, פעילות (filters/search/keyset paging/xlsx export), פעילות AI (McpAuditLog per business — never `params`), צוות (per-employee summary from ActivityLog + `PermissionsMatrix`), סשנים (revoke one/all — only active non-owner, non-platform members who don't own another business; never return `AdminSession.token`), התראות אבטחה, בריאות נתונים (`src/services/business-admin-health.ts`). APIs under `/api/business-admin/*` check `businessRole === "owner"`.
-
-### 34. Permission matrix is enforced server-side — use overrides
-Every check of a `CRITICAL_CAPABILITIES` permission must honour `BusinessUser.permissionOverrides`: `requireBusinessPermission(...)` or `sessionHasTenantPermission(session, businessId, PERM)` (`src/lib/permissions.ts`). Never `hasTenantPermission(role, PERM)` without overrides in a route. Gates: DATA_EXPORT (all export routes), MESSAGES_SEND (customer sends), PRICING_WRITE (pricing/price-lists/services mutations), PAYMENTS_WRITE (payment links, invoicing issue/credit), BOARDING_MANAGE (room/yard structure; status-only PATCH stays open), SETTINGS_CRITICAL (settings PATCH, lead webhook key), CRITICAL_DELETE (deletes; managers → pending approval; also deleting a contract template that has SIGNED requests), AVAILABILITY_MANAGE (working hours/breaks/booking blocks/holidays/booking rules — `/api/booking/{availability,blocks}`, `/api/availability/*`, `/api/admin/blocks*` mutations), DATA_IMPORT (`/api/import/{parse,execute}`), CONTRACTS_MANAGE (contract template POST/PATCH/DELETE; the GET list is open to every member so staff can send contracts), CALENDAR_SYNC (`/api/integrations/google/sync` + `findConnectedUsersForBusiness()` folds it into `gcalSyncEnabled`, so every push path skips members without it; delete paths still clean up). UI hides the matching buttons via `usePermissions()`.
-- **Owner-grantable catalog = `CRITICAL_CAPABILITIES`** (`key`, `group` from `CAPABILITY_GROUPS`, Hebrew `label` + `hint`), ordered by group — settings → צוות והרשאות (per-member panel) and `/business-admin` → צוות (`PermissionsMatrix`, one column group per `CAPABILITY_GROUPS` entry) both render it, and the member PATCH validates override keys against it. A new owner-controllable gate = new `TENANT_PERMS` entry + role defaults in `TENANT_ROLE_PERMISSIONS` + a catalog row + a `getClientPermissions` flag. Defaults: staff keep what used to be unenforced work (messages, payments, export, boarding, calendar sync); business configuration and bulk writes (availability, import, contracts) are owner+manager until granted. Tests: `src/lib/__tests__/owner-capabilities.test.ts`. Member PATCH invalidates the session cache and revokes the member's `McpConnection`s when they lose AI access. Pending-approval executors read ids via `payloadId()` (throws on missing — an undefined Prisma filter = cross-tenant wipe).
-
-### 35. Settings screen — tab config, shared save hook, read-only mode
-`src/app/(dashboard)/settings/page.tsx` is only the shell; each tab is a file in `src/components/settings/`.
-- **Tabs** come ONLY from `SETTINGS_TABS` in `src/components/settings/settings-tabs.ts` (id = `?tab=` value, label, group, `feature` from `feature-flags.ts` or `paidOnly`, `visibility`). The nav lock icon and the `PaywallCard` both use `isTabLocked()` — never hardcode tier sets in the page. Tab ids are linked app-wide: never rename one; add an alias in `TAB_ALIASES` instead. The URL is the source of truth (refresh/back/deep links); `?gcal=` opens integrations.
-- **Business-column forms** use `useBusinessSettings({ dirtyKey })` (`src/hooks/useBusinessSettings.ts`): draft of touched fields → PATCH `/api/settings` with ONLY the changed fields, `SettingsSaveBar` (`settings-ui.tsx`) for save/discard. Custom forms register with `useRegisterDirty(key, dirty)` — the shell then confirms before switching tab / following a link / reload.
-- **Read-only:** PATCH `/api/settings`, `/api/settings/logo` and `/api/service-dogs/vaccinations/apply-schedule` require `SETTINGS_CRITICAL` (owner, or an owner-granted override). UI: `usePermissions().canCriticalSettings` false → `<ReadOnlyNotice/>` + `<SettingsFieldset readOnly>`.
-- Logo upload AND removal save immediately (no save bar). `POST /api/subscription/cancel` is owner-only and logs `CANCEL_SUBSCRIPTION`. Use `ConfirmDialog` (`src/components/ui/ConfirmDialog.tsx`) — no `window.confirm` in settings; every disconnect/delete/regenerate asks first.
-
-### 36. Dashboard — per-member layout, permissions win, every number is a link
-- **Design & files:** "Petra Dashboard" design (Claude Design, 2026-10). `dashboard/page.tsx` = shell only (header, date nav, actions, KPI strip, boarding/appointments/orders/activity/open-tasks cards, `renderBlock`); each widget lives in `src/components/dashboard/widgets/*`; shared types/labels in `dashboard-shared.tsx`; ALL visuals use the primitives in `src/components/dashboard/dash-ui.tsx` (DashCard, DashCardHeader, DashLink, DashRow/DashLinkRow, Segmented, MiniButton, WaIconButton/WaTextButton, TaskCheckbox, PriorityDot, StatusDot). Flat white cards, no coloured top borders/icon tiles/pills — status = coloured text. KPI strip = one card, `auto-fit minmax(150px)`, 2 columns on phones (odd last card spans).
-- Widgets come ONLY from `src/lib/dashboard-widgets.ts`: `DASHBOARD_BLOCKS` (id, label, hint, `span` full/half, `requires` finance/revenue/leads/activity) + `DASHBOARD_STATS` (stat cards). `dashboard/page.tsx` renders `renderBlock(id)` for `layoutBlocks(visibleBlocks(prefs, flags))`; consecutive half blocks pair up, a lone half spans the row. Wrappers use `empty:hidden`, so a block that returns null leaves no gap.
-- Prefs = `BusinessUser.dashboardPrefs` `{ v, hidden, order }` — per member, per business, stored server-side. `GET/PUT /api/dashboard/preferences` (`src/services/dashboard-prefs.ts`) reads `businessId` + `userId` from the session only; body ids are ignored; `{prefs:null}` resets. Inactive/absent membership (impersonating admin) → read defaults, PUT 403. `normalizeDashboardPrefs()` drops unknown ids → stored JSON is bounded by the catalog.
-- Prefs only HIDE/REORDER: `requires` is checked first (`isAllowed`) and the server keeps withholding money (`canSeeRevenueSummary`). Never let a pref show a widget the role can't see.
-- `hidden` (not "visible") is stored, so a new widget appears for everyone; `resolveBlockOrder()` slots blocks missing from a saved order right after their default predecessor. A new widget = catalog entry + `case` in `renderBlock` (+ `requires` if gated).
-- Defaults when never saved: `defaultHiddenFor(owner's OnboardingProfile.businessType)` (מאלף → no boarding/medications; מספרה → also no vaccinations).
-- Every number/row links to the filtered target: `/payments?status=&period=`, `/orders?status=&payment=` (deep link drops the 30-day default window; "הזמנות פעילות" → `status=active` = `ACTIVE_ORDER_STATUSES` draft+confirmed in `src/lib/constants.ts`, shared by the dashboard count, `listOrders()` and the orders export), `/tasks?filter=|task=<id>`, `/leads?lead=<id>|view=followup`, `/calendar?date=`. Activity feed rows use `entityHref()` (`/api/dashboard/activity` returns `href`). Prod DDL: `prisma/dashboard_prefs.sql`. Tests: `src/lib/__tests__/dashboard-widgets.test.ts`.
-### 37. Customers — one balance, server-side filters, shared access rule
-- **Balance = `src/lib/customer-balance.ts`** (`computeCustomerBalances(db, businessId, ids|null)` / `computeCustomerBalance`) — same definition as `outstanding-balances.ts` (open orders minus paid + pending payments not linked to a counted order). Customers list (`financial.totalPending`), debt filter/balance sort, export columns, customer card `summary.balance` and MCP `get_client` all use it. Never sum `customer.payments` on the client.
-- **List = `src/services/customer-list.ts`** (re-exported from `clients.ts`). EVERY filter (status/balance/tag/lastVisit/species/source/created/minDebt/serviceType) and sort runs on the server; `stats` (first page) + `total` drive pills/footer/free-tier banner — never counts of loaded pages. Param allowlists, phone-search normalisation (digits, 972→0, matched on `regexp_replace(phone)` — `phoneNorm` is NULL on old rows), exact-tag LIKE escaping, status rules (active = upcoming appt / visit ≤60d / boarding / active training / created ≤7d; VIP = exact tag, case-insensitive) live in `src/lib/customer-filters.ts` (tests). No FINANCE_READ → balance filter/sort ignored, money zeroed.
-- **Access = `src/lib/customer-access.ts`**: `requireCustomerAccess(req, "read")` = CUSTOMERS_PII, `"write"` = + CONTENT_WRITE (overrides honoured, super_admin passes). Used by `/api/customers`, `[id]`, timeline, documents, pets, sales-history, appointments, bulk. Money (`summary.balance`, payments, order amounts) only with FINANCE_READ; `/whatsapp` also needs MESSAGES_SEND; delete/merge = CRITICAL_DELETE. Client flag `usePermissions().canWriteCustomers`.
-- Bulk: `POST /api/customers/bulk {action: add_tag|remove_tag, tag, ids≤500}` (ids re-checked against the business, logs `BULK_UPDATE_CUSTOMERS`). Export honours the same filters + `ids`. Bulk WhatsApp = one wa.me per click queue (`{שם}` personalisation) — never `window.open` in a loop.
-
-### 38. Customer card — summary contract + section components
-- `GET /api/customers/[id]` adds `summary { balance|null, counts{appointments, upcomingAppointments, pastVisits, payments, orders, timelineEvents, pets}, nextAppointment, lastVisit }` (`src/services/customer-detail.ts`, pure helpers `src/lib/customer-summary.ts`); training programs carry `completedSessions` (no `sessions[]`). Paged sub-resources: `[id]/appointments?scope=upcoming|past`, `[id]/payments` (FINANCE_READ), `[id]/timeline` (+ `PATCH/DELETE [id]/timeline/[eventId]` — notes only). Documents JSON is updated with compare-and-swap (`mutateCustomerDocuments`), never blind read-modify-write.
-- UI: `customers/[id]/page.tsx` is a thin shell; sections live in `src/components/customers/detail/*` (CustomerHeader, SummaryStrip, SectionNav, ContactCard w/ inline tags, PetsSection/PetCard, AppointmentsSection, PaymentsSection + RecordPaymentModal → `POST /api/payments`, OrdersSection, TrainingSections, TimelineSection, …). Sub-queries use keys under `["customer", id, …]`; no polling. Gate by `usePermissions()` flags only (canCriticalDelete, canWritePayments, canSendMessages, canSeeFinance, canWriteCustomers). `app-shell` `<main>` is `overflow-x-clip` (not `hidden`) so sticky section chips work.
-
-### 39. Merging duplicate customers
-`src/lib/customer-merge-plan.ts` (`MERGE_RELATIONS`) is the single source of truth for every column that references a customer; `src/services/customer-merge.ts` re-points them sequentially (no `$transaction`), merges fields (fill empties, notes concat, tag union, documents concat), re-counts and refuses to delete the source if anything still points at it, then deletes it and writes a timeline note. Routes `GET/POST /api/customers/[id]/merge` (+ `/candidates`) = CRITICAL_DELETE; POST needs `confirm: "MERGE_<sourceId>"` (else 428), awaited `MERGE_CUSTOMER` log. UI `MergeCustomerModal` (typed name confirmation). **A new schema relation to Customer needs a plan row + handler** — `customer-merge-plan.test.ts` parses the schema and fails otherwise.
+When adding a rule: a rule every task must know goes here; an area rule goes in that area's skill below, with the next free number, and is listed in the table.
 
 ---
 
-### 40. Platform admin = one panel at `/owner` (no `/admin` UI)
-The legacy dark "Master Admin" (`/admin/*`) was merged into the light platform panel. Every page under `src/app/admin/` is a `redirect()`; `src/components/admin/admin-shell.tsx` is gone. The main sidebar's crown link ("ניהול פלטפורמה", shown when `isAdmin`) points to `/owner`. `/api/admin/*` routes still exist and are consumed by `/owner` pages — don't move them.
-- Shell: `src/components/owner/owner-shell.tsx` — nav grouped by eyebrows (סקירה / לקוחות / תקשורת / תאימות ויומנים / מערכת), mobile drawer, global search (`owner-search.tsx` → `GET /api/owner/search`). New platform pages go under `/owner` in the right group, light theme only (`.page-title`, `.card`; never `text-white` headings or dark surfaces).
-- Labels: `src/lib/platform-labels.ts` (`auditActionLabel`, `activityActionLabel`, `TIER_LABELS`, `PLATFORM_ROLE_LABELS`) + `actionLabel` in `activity-actions.ts`. Never render a raw `ACTION_CODE` or a bare uuid — `/api/owner/audit-logs` returns `targetName`.
-- Test accounts: `src/lib/platform-test-accounts.ts` — a business is "test" when ALL its members have a test email (`@petra.local`, `@petra-test.com`, `testuser@petra-app.com`, env `PLATFORM_TEST_EMAILS`). `/api/owner/{stats,customer-success,tenants}` exclude them unless `?includeTest=1`; MRR and churn numbers must never include them.
-- Customer health (`/api/owner/customer-success`): `segment` = `churn_risk` (used the product, no login 14d+) | `never_activated` (no customer/appointment after 3d) | `watch` | `new` | `healthy`; rows sorted by `priority` (paying at-risk first). Don't collapse back to a single "high risk" bucket.
-- Security invariants: only `super_admin` may grant super_admin, or block/demote/edit an existing super_admin (both `/api/owner/users/[userId]` and `/api/admin/users/[id]`); blocking kills the user's sessions; every user create/update/delete writes `logAudit`. Suspend/block/delete/broadcast in the UI go through a confirmation modal (no one-click, no `window.confirm`).
+## Rules by area — load the skill BEFORE touching that area
 
-### 41. Screen (view) permissions — `VIEW_SCREENS` is the single source
-`TENANT_PERMS.VIEW_*` + `VIEW_SCREENS` (route prefix → permission) in `src/lib/permissions.ts` drive the sidebar (`canSee`), the mobile bottom nav and `ScreenGuard` (in `app-shell.tsx`). They appear as the "מסכים בתפריט" group of `CRITICAL_CAPABILITIES`, so the checkboxes in Settings → צוות והרשאות and the business-admin matrix render them automatically.
-- Role defaults reproduce the old `minRole` sidebar (manager = all screens; staff/volunteer = tasks, boarding, service dogs, training, online classes). A new gated nav item needs a `VIEW_*` perm + a `VIEW_SCREENS` row + a capability entry — not a `minRole`.
-- `isScreenBlocked()` blocks direct entry only on an **explicit `false` override** — staff reach `/customers/:id`, `/calendar` etc. from the dashboard, search and mobile nav without a menu entry. Exception: screens whose APIs are enforced (`API_ENFORCED_SCREENS`: leads, messages) block on the role default.
-- Server enforcement exists only for module-exclusive APIs: `/api/leads/**` (`VIEW_LEADS`; `/leads/calendar` returns `[]` instead of 403 so the calendar keeps working), `/api/scheduled-messages/**` (`VIEW_MESSAGES`), and MCP lead tools. `/api/customers`, `/api/pets`, `/api/boarding`… are shared by many screens — do NOT gate them on a view perm; sensitive data there is protected by the data perms (`CUSTOMERS_PII`, `FINANCE_READ`…).
-- Tests: `src/lib/__tests__/view-screens.test.ts`.
+These rules are just as binding as the ones above. They live in lazy skills (`.claude/skills/<name>/SKILL.md`) so they do not cost context in every session. **Before editing code in an area, load its skill with the Skill tool and follow it.** Rule numbers are unchanged.
+
+| Skill | Rules |
+|---|---|
+| `petra-rules-service-dogs` | **12** Service dog phases — single source of truth · **13** Recipient stages — REJECTED = archive · **14** Placement statuses — only 2 · **15** Service dog types — includes PTSD |
+| `petra-rules-leads` | **18** Leads Kanban — sort vs badge must match · **19** Lead notifications — PRO+ only · **27** Lead traffic attribution — `trafficSource` ≠ `source` · **28** Lead deal value — `dealValue` is NOT revenue · **31** Customer sales history — the lead journal follows the customer |
+| `petra-rules-whatsapp` | **26** Automated customer WhatsApp sends go through the ordered template chain · per-business WhatsApp numbers (Meta Embedded Signup) |
+| `petra-rules-ui` | **20** Analytics page is named "דוחות" · **21** Sidebar nav is grouped by eyebrows · **22** Marketing stats must stay aligned · **23** Subscription expiry banner only for paid tiers · **25** Search modal must close on mobile · **29** Loading states — `PetraLoader` is the ONLY data-loading indicator · **35** Settings screen — tab config, shared save hook, read-only mode · **36** Dashboard — per-member layout, permissions win, every number is a link |
+| `petra-rules-customers` | **17** Customer DELETE — sequential, NO $transaction · **37** Customers — one balance, server-side filters, shared access rule · **38** Customer card — summary contract + section components · **39** Merging duplicate customers |
+| `petra-rules-permissions` | **32** Activity log — always pass `businessId` + entity · **33** "ניהול ובקרה" (`/business-admin`) — owner only · **34** Permission matrix is enforced server-side — use overrides · **40** Platform admin = one panel at `/owner` (no `/admin` UI) · **41** Screen (view) permissions — `VIEW_SCREENS` is the single source |
+| `petra-rules-reports` | **30** Reports — shared definitions, server-side only |
+| `petra-mcp-reference` | MCP auth, allowlist, scopes/role capping, tool modules and conventions, rate limits, paywall, OAuth, Claude Desktop config |
+| `petra-quick-reference` | "Where does X live" table — files, routes and components per feature |
 
 ---
 
@@ -250,39 +107,6 @@ Supabase ← src/services/ ← { API routes | MCP tools }
 ```
 Both UI routes and MCP tools call the same service functions. No duplicated business logic.
 
-### Auth Pattern
-```typescript
-// Every MCP request: Bearer token → SHA-256 hash → McpConnection lookup → allowlist check → businessId + scopes
-// src/lib/mcp-auth.ts — validateMcpToken(token) returns { businessId, connectionId, scopes } or null
-```
-
-### Private beta allowlist (`src/lib/mcp-allowlist.ts`)
-MCP is visible/usable ONLY for: `alldogneed@gmail.com`, `or.rabinovich@gmail.com`, any `@petra.local` test user, plus `MCP_ALLOWED_EMAILS` env (comma-separated). `MCP_BETA_OPEN=true` opens to everyone.
-- `getCurrentUser()` returns `mcpAllowed: boolean` → settings page hides the "עוזרי AI" tab + `/help/connect-ai` when false.
-- `/api/mcp/connections*` return 404 for non-allowlisted sessions; `POST` additionally requires owner, or manager with the AI_ASSISTANT capability (or platform admin).
-- `validateMcpToken` rejects tokens whose business has no allowlisted active member (`isMcpAllowedBusiness`).
-
-### Scopes — enforced per tool
-`DEFAULT_MCP_SCOPES` in `src/lib/mcp-auth.ts` (read:clients/appointments/stats/services/leads/orders/pets/boarding/training/tasks/analytics/payments + write:appointments/notes/reminders/clients/leads/orders/tasks/boarding/pets/services/payments/training + `admin:destructive`). Every tool handler starts with `if (!hasScope("…")) return denyScope(...)` (audited as `denied`). Legacy 6-scope connections are grandfathered to the full set via `effectiveScopes()`.
-- **`admin:destructive` (`ADMIN_SCOPE`) — owner-only.** Gates irreversible paths on top of the write scope: `delete_task`, `delete_block`, `cancel_order` with `force:true` (paid order), `update_payment` status → canceled/refunded, `update_boarding_stay` status → canceled on a `checked_in` stay (dry_run answers "דורש admin:destructive — בעלים בלבד" instead of previewing). Admin checks run BEFORE `findIdempotentReplay`/any DB read (boarding: right after the stay lookup, since the status is needed). `block_time all_day:true` and normal unpaid `cancel_order` need no admin scope.
-- **Role capping — `capScopesForRole(scopes, role, isPlatformAdmin)`.** Owner/platform-admin → unchanged; manager → minus `MANAGER_DENIED_SCOPES` (`read:analytics`, `write:payments`, `admin:destructive`); staff/other → read-only. Applied at mint time AND on every `validateMcpToken` (re-capped to the minter's CURRENT role — demoted manager's token shrinks; token dies when the minter leaves the business). Grandfathered tokens whose minter is now a manager lose admin too.
-- **Per-member overrides apply to MCP too.** `validateMcpToken` returns `minterOverrides` (the minter's CURRENT `permissionOverrides`, re-read every request); `ToolCtx.hasPermission(PERM)` / `denyPermission(tool, PERM)` (audited `missing permission …`, Hebrew message naming the capability) = `hasTenantPermission(minterRole, PERM, minterOverrides)`; owner / platform admin / legacy token = always true. Checked right after the scope check, before replay/dry_run/DB: `block_time` + `delete_block` → AVAILABILITY_MANAGE, `send_reminder` → MESSAGES_SEND, `record_payment` + `update_payment` → PAYMENTS_WRITE, `cancel_order` + `update_order_status`→cancelled → ORDERS_CANCEL, `create_service` → PRICING_WRITE. A new write tool that maps to a `CRITICAL_CAPABILITIES` row must add the same check.
-- **Token metadata:** `McpConnection` carries `createdByUserId` / `createdByRole` / `expiresAt` (180 days). Profiles `read | intake | calendar | boarding | full` via `MCP_PROFILES` (labels `MCP_PROFILE_LABELS`); `full` = everything the minter's role allows.
-
-### 64 Tools + 2 prompts — `src/app/api/mcp/route.ts` + modules in `src/lib/mcp/`
-Core (route.ts, 20): `list_clients` (cursor), `get_client`, `create_client`, `add_client_note`, `list_upcoming_appointments`, `list_services`, `create_appointment`, `update_appointment`, `cancel_appointment`, `get_business_stats`, `list_leads` (city/source/created, created_from/to, stage_name, offset, include_closed), `get_lead` (full card + whole journal: 50 call logs/stage changes with treatment, follow-up task history), `create_lead` (stage_name / next_follow_up / pet_* fields / deal_value / optional attribution: traffic_source, utm_source/medium/campaign, gclid, referrer, landing_page, first_page, page_type), `list_orders`, `get_order`, `create_order`, `list_tasks`, `list_pets`, `list_boarding_stays`, `list_training_programs`, `send_reminder`.
-Intake (`tools-intake.ts`): `find_duplicate`, `list_lead_stages`, `create_task`, `update_task`, `update_lead`.
-Boarding (`tools-boarding.ts`): `list_boarding_rooms`, `check_boarding_availability`, `quote_boarding_price`, `create_boarding_stay`, `get_boarding_daily_board`, `update_boarding_stay` (cancel of a checked_in stay → admin:destructive).
-Briefing (`tools-briefing.ts`): `list_payments`, `get_analytics`, `get_morning_briefing`; prompts `morning_briefing`, `intake_from_screenshot`.
-Pets (`tools-pets.ts`): `create_pet`, `update_pet`, `get_pet`, `record_vaccination`, `add_weight_entry`, `list_expiring_vaccinations`, `create_service`, `get_whatsapp_link` (wa.me deep link — server sends nothing).
-Training (`tools-training.ts`): `get_training_program`, `create_training_program`, `update_training_program`, `log_training_session`, `update_training_session`, `add_training_goal`, `update_training_goal`.
-Calendar (`tools-calendar.ts`): `find_free_slots` (booking slot engine — hours/blocks/bookings/GCal), `get_calendar` (day/week: appointments + group sessions + blocks + boarding check-ins/outs), `reschedule_appointment` (find_next_free), `block_time`, `list_blocks`, `delete_block` (admin:destructive), `list_group_sessions`; exports `findAppointmentConflicts()` used by create/update_appointment (refuse on overlap unless `force`, warn outside hours). create/update/cancel_appointment now sync Google Calendar like the UI routes.
-Finance (`tools-finance.ts`): `record_payment`, `update_payment` (canceled/refunded → admin:destructive), `get_payment`, `cancel_order` (`force` → admin:destructive), `update_order_status`, `delete_task` (only hard delete exposed to AI; admin:destructive), `get_outstanding_balances`.
-Shared helpers: `src/lib/mcp/helpers.ts` (`ToolCtx`, `safeField`, `heDate`, `israelStartOfToday`, `findIdempotentReplay`/`replayResult`, `dryRunResult`).
-**Every write tool** accepts `idempotency_key` (replayed from McpAuditLog params — no schema) + `dry_run` (Hebrew preview, no write). Read-only tokens: `POST /api/mcp/connections {readOnly:true}` → `READ_ONLY_MCP_SCOPES` (UI default = read-only).
-
-Output hygiene: all customer/lead-controlled strings go through `safeField()` (strips newlines/control chars — prompt-injection guard); dates via `heDate()` (Asia/Jerusalem). Audit log redacts PII params (`redactParams` in mcp-auth.ts).
-
 ### Critical: Middleware bypass
 `/api/mcp` is in `PUBLIC_EXACT_PATHS` in `src/middleware.ts` — **exact match only**, not a prefix.
 This is intentional: MCP does its own token auth internally; the edge middleware must not block it.
@@ -291,51 +115,7 @@ This is intentional: MCP does its own token auth internally; the edge middleware
 `MCP_ENABLED` env var — if set to `"false"`, all MCP requests return 503 immediately.
 Runbook: `docs/operations.md`
 
-### Rate limiting
-- Per-token: 100 req/min
-- Per-IP fail: 10 req/min (login protection)
-Both use `rateLimitAsync()` from `src/lib/rate-limit.ts` (Upstash Redis-backed).
-
-### Paywall
-Settings tab "עוזרי AI" gated to `basic+`. The MCP endpoint itself doesn't enforce tier — token possession implies the user already passed the paywall when creating the connection.
-
-### OAuth (auto-login)
-User pastes `https://petra-app.com/api/mcp` into Claude (claude.ai/Desktop/Code) or Codex → client discovers OAuth → Petra login → consent (business + profile) → tokens. MCP Authorization spec 2025-06-18 (RFC 9728/8414/7591/7009/8707, OAuth 2.1).
-- **Files:** `src/lib/mcp-oauth.ts` (all logic), `src/app/.well-known/{oauth-protected-resource,oauth-authorization-server}/[[...path]]` + `openid-configuration`, `src/app/api/oauth/{register,token,revoke,authorize}/route.ts`, consent page `src/app/oauth/authorize/` (page + `ConsentForm.tsx`). Models `OAuthClient`, `OAuthAuthCode` (+`connectionId`) + `McpConnection.{oauthClientId,refreshTokenHash,prevRefreshTokenHash,refreshRotatedAt,accessExpiresAt}`.
-- **Grant = `McpConnection` row.** Access token is a normal `petra_mcp_…` token → `validateMcpToken()` (allowlist, role capping, revocation, audit, rate limit) applies unchanged; it also rejects expired `accessExpiresAt`. Settings shows these rows with badge "התחברות אוטומטית"; revoke = same DELETE (also nulls `refreshTokenHash`).
-- **TTLs:** access 1h (`accessExpiresAt`), refresh `petra_mcpr_…` 90 days sliding (`expiresAt`) but **hard cap `OAUTH_GRANT_MAX_DAYS` = 365 from `createdAt`** (refresh refused after; sliding expiry capped), auth code 10 min single-use. Everything stored as SHA-256 only. Exchange + refresh re-verify the holder (active, owner / manager not explicitly denied AI_ASSISTANT (`canKeepAiGrant`) or admin, `ai_assistant` paywall w/ same exemptions, business allowlisted); `createdByRole` = re-verified role.
-- **Public clients only:** DCR registers `token_endpoint_auth_method: "none"`, never a secret; PKCE **S256 only**; redirect_uri exact (loopback any-port per RFC 8252). Custom schemes must be reverse-DNS (contain ".") or a known client scheme (no `ms-msdt:`/`search-ms:`). **ANY `/oauth/authorize` param error → Hebrew error card, never a redirect** (open-redirect guard); only the user's "ביטול" sends `access_denied`.
-- **Verified clients (`isVerifiedRedirect`):** https `claude.ai`/`claude.com`/`chatgpt.com`/`vscode.dev`/`insiders.vscode.dev` (exact host), loopback http, schemes `cursor`/`vscode`/`vscode-insiders`/`windsurf`. Consent shows the full target (`redirectTargetLabel`: origin with scheme / custom URI ≤80 chars); unverified → red "אפליקציה לא מאומתת" box + default profile `read` (verified → `full`). A platform admin with 2FA enabled but unverified session = non-admin on the consent screen.
-- **Refresh rotation** via conditional `updateMany` (no `$transaction` — PgBouncer); presenting the previous refresh token (`prevRefreshTokenHash`) = reuse → connection revoked, except within 60s of rotation (`refreshRotatedAt`, benign client race → invalid_grant only). A replayed (already-exchanged) auth code revokes the connection it produced (`OAuthAuthCode.connectionId`).
-- **Rate limits:** token 600/min per IP + 60/min per `client_id`; register 200/hour per IP + 2000/hour global (successful register also deletes >30-day-old never-connected clients, 200/run). Token endpoint rejects a mismatching `resource` with `invalid_target`.
-- **Consent gates = `POST /api/mcp/connections` gates** (allowlist, owner / manager with AI_ASSISTANT (`canHoldAiGrant`) / platform-admin, `ai_assistant` paywall, `isMcpAllowedBusiness`, `capScopesForRole`, 10-connection limit — auto-revokes the same user's LRU OAuth connection). Client-requested `scope` is ignored; scopes come from the chosen profile.
-- **`/api/mcp` 401:** `WWW-Authenticate: Bearer … resource_metadata=…/.well-known/oauth-protected-resource/api/mcp`. **Tokenless requests are NOT counted by the per-IP fail limiter** (claude.ai shares IPs; discovery probes are tokenless), **nor are known tokens** — a well-formed token whose hash matches an existing `McpConnection` (expired access token awaiting refresh, revoked, expired) gets 401 `invalid_token` directly (`isKnownMcpTokenHash`). Only unknown hashes count.
-- **Login `next`:** `/login?next=/oauth/authorize?…` — validated by `safeNextPath()` in `src/lib/safe-redirect.ts` (relative, `/oauth/authorize` only); Google login carries it via the short-lived `petra_login_next` cookie.
-- **Middleware:** `.well-known` OAuth paths, `/oauth/authorize`, `/api/oauth/{token,register,revoke}` are public; `/api/oauth/authorize` (consent POST) stays session-protected + same-Origin check.
-- **Prod DDL:** `prisma/mcp_oauth.sql` (additive, idempotent) — run via `prisma db execute --url $DIRECT_URL` BEFORE deploying. Runbook: `docs/operations.md`.
-
-### Claude Desktop config snippet
-Preferred: **URL only** — add `https://petra-app.com/api/mcp` as a custom connector (Claude) / `claude mcp add --transport http petra <url>` / `codex mcp add petra --url <url>` + `codex mcp login petra`; OAuth does the rest. Manual static token (advanced, still supported, as is `/api/mcp/u/<token>`):
-```json
-{
-  "petra": {
-    "url": "https://petra-app.com/api/mcp",
-    "headers": { "Authorization": "Bearer <token from הגדרות → עוזרי AI>" }
-  }
-}
-```
-
----
-
-## WhatsApp — per-business numbers (Meta Embedded Signup)
-
-Full doc: `docs/whatsapp-per-business.md`.
-- `sendWhatsAppMessage` / `sendWhatsAppTemplate` accept `businessId?` + `context?`. **Always pass `businessId`** from any caller that has one — `resolveWhatsAppSender()` (`src/lib/whatsapp-connections.ts`) picks the business's own number when `WhatsAppConnection.status === "active"` **and** the template is APPROVED on its WABA (`templatesJson`), otherwise the platform number (`META_PHONE_NUMBER_ID`). Business auth failure → connection flips to `error` + one retry via platform. Unconnected businesses behave exactly as before.
-- Token stored AES-256-GCM in `accessTokenEnc` (`WHATSAPP_ENCRYPTION_KEY`, fallback `GCAL_ENCRYPTION_KEY`); disconnect blanks it. Never log it.
-- Routes: `GET/POST/DELETE /api/integrations/whatsapp/connection` (+ `/sync-templates`). POST/DELETE = owner/manager/platform-admin; POST needs tier `whatsapp_reminders` + `isWhatsAppEmbeddedSignupConfigured()`; `businessId` from session only.
-- UI: `src/components/settings/WhatsAppConnectCard.tsx` inside Settings → אינטגרציות (FB JS SDK; CSP in `next.config.mjs` allows connect.facebook.net / www.facebook.com / graph.facebook.com). Shows "בקרוב" until `NEXT_PUBLIC_META_APP_ID` + `NEXT_PUBLIC_META_ES_CONFIG_ID` + `META_APP_SECRET` are set.
-- Webhook `/api/webhooks/whatsapp-status` serves ALL subscribed WABAs; routes by `metadata.phone_number_id` → `findBusinessIdByPhoneNumberId`; verifies `X-Hub-Signature-256` when `META_APP_SECRET` is set.
-- Prod DDL for new tables: additive SQL via `prisma db execute --url $DIRECT_URL` (never `db push`).
+Everything else about the MCP server → skill `petra-mcp-reference` (load it before touching `src/app/api/mcp`, `src/lib/mcp/*`, `mcp-auth.ts`, `mcp-oauth.ts`, `mcp-allowlist.ts`).
 
 ---
 
@@ -352,70 +132,3 @@ import { env, isDev, isProd } from "@/lib/env";
 ### CSS
 - Tailwind only. RTL via `<html dir="rtl">`.
 - Custom aliases: `.btn-primary`, `.btn-secondary`, `.input`, `.label`, `.card`, `.modal-overlay`, `.modal-content`
-
----
-
-## Quick Reference
-
-| Thing | Location |
-|-------|---------|
-| Feature flags / tier limits | `src/lib/feature-flags.ts` |
-| `usePlan()` hook | `src/hooks/usePlan.ts` |
-| `TierGate` component | `src/components/paywall/TierGate.tsx` |
-| WhatsApp send | `src/lib/whatsapp.ts` — `sendWhatsAppMessage()` |
-| WhatsApp reminder (manual) | `POST /api/appointments/[id]/remind` — requires `whatsapp_reminders` tier (PRO+) |
-| WhatsApp reminder (auto) | `src/lib/reminder-service.ts` — `scheduleAppointmentReminder()` checks `whatsappRemindersEnabled` + tier |
-| Message template defaults | `STARTER_TEMPLATES` in `src/components/messages/messages-panel.tsx` — 8 templates with automated footer; pencil button opens editor modal pre-filled from DB version |
-| Scheduled message preview | `GET /api/scheduled-messages/[id]` → `MessagePreview` (custom text, or approved Meta template text from `getPlatformTemplateTexts()` filled with params). `src/lib/scheduled-message-preview.ts` — `messageLabel`, `renderTemplateText`, `confirmationLogPayload`. `appointment_confirmation_log` rows now store what went out (`flow` + `templateChain`/`body`); empty legacy rows are rebuilt from the appointment. Content cell in `/scheduled-messages` opens the preview modal |
-| Form validation utils | `src/lib/validation.ts` — `validateIsraeliPhone`, `validateEmail`, `sanitizeName`, `validateName` |
-| Service dog phases | `src/lib/service-dogs.ts` — `SERVICE_DOG_PHASES` (single source of truth; VALID_PHASES derived from it) |
-| Service dog types | `src/lib/service-dogs.ts` — `SERVICE_DOG_TYPES` (MOBILITY, PSYCHIATRIC, PTSD, GUIDE, AUTISM, ALERT, OTHER) |
-| Service dog placement statuses | `src/lib/service-dogs.ts` — `SERVICE_DOG_PLACEMENT_STATUSES` (ACTIVE + TERMINATED only) |
-| Service dog location options | `src/lib/service-dogs.ts` — `LOCATION_OPTIONS` |
-| Medical protocol categories | `MEDICAL_PROTOCOL_CATEGORIES` — order: חיסונים→טיפולים→בדיקות בריאות; label "טיפולים" (not "טפילים"); PARK_WORM = "תולעת הפארק" |
-| Medical protocol label display | Render `MEDICAL_PROTOCOL_MAP[key]?.label ?? storedLabel` — overrides stale DB labels |
-| Medical protocol date sync | `service-dog-engine.ts` — DEWORMING: `dewormingValidUntil` direct when set, else `lastDate+180d`; PARK_WORM: `parkWormValidUntil` |
-| Recipient stages | `src/app/api/service-recipient-stages/route.ts` — `DEFAULT_STAGES` (upserted on every GET; REJECTED = archive stage) |
-| Sidebar | `src/components/layout/sidebar.tsx` |
-| App shell | `src/components/layout/app-shell.tsx` |
-| Auth guards | `src/lib/auth-guards.ts` |
-| Session | `src/lib/session.ts` — `SESSION_TTL_REMEMBER_ME` for 30-day sessions |
-| Current user (client) | `useAuth().user` — has `isAdmin: boolean`, NOT `platformRole` |
-| Orders API date filters | `from`/`to` → filter by `createdAt` (orders list); `startFrom`/`startTo` → filter by `startAt` (calendar view) |
-| Owner stats API | `GET /api/owner/stats` — includes `gcalConnectedCount` (Business.gcalConnected=true count, limit 100 in Testing mode) |
-| Owner notifications | `src/lib/notify-owner.ts` — `notifyOwnerNewUser()` sends WhatsApp + email on new registration |
-| SEO sitemap | `src/app/sitemap.ts` — 6 public URLs, `/landing` priority 1.0 |
-| SEO robots | `src/app/robots.ts` — allows landing/register/login, disallows api/admin/owner/dashboard |
-| System messages dropdown | Mail-envelope dropdown in `src/components/layout/topbar.tsx` — title "הודעות מפטרה"; queryKey `["systemMessages"]`. Clicking a row opens a detail modal; its action button uses `router.push` for app paths and a new tab for `/api/` file links and external URLs. `/api/system-messages` is also consumed by `business-admin/page.tsx` (`?all=true`) |
-| Topbar panels on mobile | The topbar `<header>` has `backdrop-filter` → it is the containing block for `position:fixed` children. Envelope/bell panels go through `TopbarPanel` (phones: portaled to `<body>` with backdrop + X; desktop: dropdown) and the message detail modal is portaled. Never render a full-screen layer inside the header. Outside-click ignores `[data-topbar-panel]`; Esc closes. |
-| Pull-to-refresh | `src/components/layout/PullToRefresh.tsx` (mounted in AppShell, touch devices only): pull ≥70px at scrollTop 0 → `invalidateQueries({refetchType:"active"})` + `router.refresh()`. Sets `overscroll-behavior-y: none` (no native reload). Skipped when a dialog/sheet is open, body scroll locked, inside inputs, inner scrollers not at top, or `[data-no-pull-refresh]` (use it on maps/kanban/drag areas that pull down). |
-| Customers page | Selection mode: "בחר" button toggles `selectionMode`; checkboxes hidden by default. Email badge → Gmail compose (`https://mail.google.com/mail/?view=cm&to=...`). No quick-book button. |
-| Tasks page | Same selection mode pattern as customers (`selectionMode` state, "בחר" button, "בטל בחירה" exits mode) |
-| Service dog tabs order | תיק כלב → חיסונים וטיפולים → שיבוצים → מבחני הסמכה → מסמכים → ביטוח → ציוד → פרוטוקולים רפואיים → יומן אימונים → תעודת הסמכה |
-| Boarding room map print | `@media print` in `boarding/page.tsx` hides `.modal-overlay` — prevents "לקוח חדש" modal appearing in print |
-| Feeding board print | `boarding/daily/page.tsx` has print button + `@media print` CSS hiding nav/modals |
-| Boarding yards print | `boarding/yards/page.tsx` — print CSS hides sidebar/header via `no-print` class; `data-print-yards` attr on main div; 2-col grid for print; print-only heading injected |
-| Bug report (Help Center) | `src/components/help/HelpCenter.tsx` — FileReader reads screenshot as base64 (max 2MB); sent to `/api/support/report` as `screenshotBase64`; API attaches to Resend email as attachment; tickets visible at `/owner/support` + emailed to `info@petra-app.com` |
-| Notes length validation | `POST /api/appointments` + `POST /api/orders` — max 2000 chars; returns 400 with Hebrew error message |
-| Dashboard stat cards | "הכנסות החודש" always shown (from `data.monthRevenue`); "היום: ₪X" as subtitle when today > 0. `data.upcomingByType` exists but is unused. Each card can be hidden per member (rule #36). |
-| Dashboard orders section | "הזמנות אחרונות" links to `/orders`; each row is a `<Link>` to `/orders/:id` |
-| Lead deal value | `src/lib/lead-deal-value.ts` — edited in `LeadTreatmentModal`; column totals in `leads/page.tsx`; `getAnalytics().leadSales` ("מכירות מלידים" in `/analytics`); DDL `prisma/lead_deal_value.sql` |
-| Customer sales history | `src/lib/lead-sales-history.ts` + `getCustomerSalesHistory()` + `GET /api/customers/[id]/sales-history` → `CustomerSalesHistory.tsx` card on the customer page (after Pets) |
-| Lead traffic attribution | `src/lib/lead-attribution.ts` — `classifyTrafficSource`, `normalizeAttributionInput`, `formatAttributionLine`, `buildLeadAttributionReport`; DDL `prisma/lead_attribution.sql`; report tables in `/analytics` (12 months) |
-| Lead WhatsApp alert | `customers/[id]/page.tsx`: blue Send button on completed appointments (follow-up wa.me). Birthday Gift button on pet card hover. `customers/page.tsx`: "שלח ברוכים הבאים" toast action on new customer creation. |
-| Onboarding wizard | `src/app/onboarding/page.tsx` — 5-step full-page flow (Welcome→Client→Pricing→GCal→Done). Shown to new users redirected from register. |
-| Onboarding checklist | `src/components/onboarding/SetupChecklist.tsx` — 7-step widget on dashboard (4 core + 3 advanced). Dismissed via "דלג" (sets `skipped:true`). |
-| Onboarding progress API | `GET /api/onboarding/progress` — smart live detection: step1=business.phone set, step2=service.count>0, step3=customer.count>0, step4=appointment.count>0, step5=order.count>0, step6=contractTemplate.count>0, step7=whatsappRemindersEnabled. `PATCH` updates `skipped`/`completedAt`/`stepCompleted1-4`. |
-| Onboarding DB models | `OnboardingProfile` (businessType, activeClientsRange, primaryGoal) + `OnboardingProgress` (currentStep, stepCompleted1-4, skipped, completedAt, lastCustomerId) — both keyed on `userId`. |
-| Onboarding guard | `src/components/onboarding/OnboardingGuard.tsx` — wraps dashboard layout; redirects brand-new users (no progress record) to `/dashboard`; allows through once `skipped` or `completedAt` set. |
-| Settings tabs | `SETTINGS_TABS` (rule #35), 5 groups: העסק (פרטי העסק · מנוי וחיוב) · תפעול (זמינות והזמנות `online_bookings` · פנסיון `boarding` · כלבי שירות · חוזים `contracts`) · תקשורת וצוות (הודעות ואוטומציות · צוות והרשאות, owner) · חיבורים ונתונים (אינטגרציות · עוזרי AI · ייבוא וייצוא) · החשבון שלי (פרופיל ואבטחה: name, password, 2FA, sessions) |
-| MCP endpoint | `POST /api/mcp` — Streamable HTTP, stateless, SHA-256 bearer auth |
-| MCP token management | `POST/GET/DELETE /api/mcp/connections` — create (shown once), list, revoke |
-| MCP auth lib | `src/lib/mcp-auth.ts` — `generateMcpToken()`, `validateMcpToken()`, `auditLog()`, `DEFAULT_MCP_SCOPES` |
-| MCP allowlist | `src/lib/mcp-allowlist.ts` — `isMcpAllowedEmail()`, `isMcpAllowedBusiness()`; env `MCP_ALLOWED_EMAILS`, `MCP_BETA_OPEN` |
-| MCP settings UI | `src/components/settings/McpConnectionsTab.tsx` — Settings → "עוזרי AI" (paywall: basic+) |
-| MCP help page | `src/app/(dashboard)/help/connect-ai/page.tsx` — step-by-step guide for Claude Desktop |
-| MCP owner dashboard | `src/app/owner/mcp/page.tsx` + `GET /api/owner/mcp-stats` — active connections, calls/24h, errors, popular tools |
-| MCP DB models | `McpConnection` (businessId, name, tokenHash, scopes, lastUsedAt, revokedAt) + `McpAuditLog` (connectionId, toolName, params, status, resultSummary) |
-| Service layer | `src/services/` — 11 domains; all business logic; API routes only do auth + call service. See `docs/service-layer.md` |
-| ServiceError | `throw new ServiceError(message, code)` — codes: NOT_FOUND / UNAUTHORIZED / VALIDATION / CONFLICT / EXTERNAL |
