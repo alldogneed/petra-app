@@ -13,7 +13,9 @@ import base64, difflib, json, os, re, subprocess, sys, urllib.request
 HERE = os.path.dirname(os.path.abspath(__file__))
 HTML = os.path.join(HERE, "promo.html")
 VO = os.path.join(HERE, "vo")
-FF = "/usr/local/lib/python3.11/dist-packages/imageio_ffmpeg/binaries/ffmpeg-linux-x86_64-v7.0.2"
+FF = next((p for p in ("/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg",
+                       "/usr/local/lib/python3.11/dist-packages/imageio_ffmpeg/binaries/ffmpeg-linux-x86_64-v7.0.2")
+           if os.path.exists(p)), "ffmpeg")
 
 # gpt-audio-1.5 read Hebrew far more accurately than gpt-4o-mini-tts in side-by-side tests,
 # and niqqud made every model worse, so the lines are plain text.
@@ -170,11 +172,51 @@ def voice(name, only=None):
     print(f"total {total:g}s -> {new_total:g}s")
 
 
+DOG_SIZE, DOG_RING, DOG_X, DOG_Y = 260, 320, 1540, 720  # round mascot in the bottom-right corner (free in every scene)
+
+
+def overlay_dogs(silent, dogs, total):
+    """Round talking-dog mascot (Hedra/Kling clips + dog-ring.png / dog-mask.png) over the silent render."""
+    out = silent.replace("-silent", "-silent-dog")
+    n = len(dogs)
+    ins = []
+    for d in dogs:
+        ins += ["-i", d["clip"]]
+    ins += ["-loop", "1", "-i", os.path.join(HERE, "dog-mask.png")]  # input n+1
+    for _ in dogs:  # inputs n+2 ...
+        ins += ["-loop", "1", "-i", os.path.join(HERE, "dog-ring.png")]
+    pad = (DOG_RING - DOG_SIZE) // 2
+    graph, last = [], "[0:v]"
+    for k, d in enumerate(dogs):
+        a, b = d["start"], d["start"] + d["dur"]
+        fade = f"fade=t=in:st={a}:d=0.2:alpha=1,fade=t=out:st={b - 0.2}:d=0.2:alpha=1"
+        graph.append(f"[{1 + k}:v]scale={DOG_SIZE}:{DOG_SIZE},setpts=PTS-STARTPTS+{a}/TB,format=yuva420p[dv{k}]")
+        graph.append(f"[dv{k}][{n + 1}:v]alphamerge,{fade}[dc{k}]")
+        graph.append(f"[{n + 2 + k}:v]format=yuva420p,{fade}[rc{k}]")
+        graph.append(f"{last}[rc{k}]overlay={DOG_X}:{DOG_Y}:enable='between(t,{a},{b})'[o{k}a]")
+        graph.append(f"[o{k}a][dc{k}]overlay={DOG_X + pad}:{DOG_Y + pad - 6}:enable='between(t,{a},{b})'[o{k}]")
+        last = f"[o{k}]"
+    subprocess.run([FF, "-loglevel", "error", "-y", "-i", silent, *ins, "-filter_complex", ";".join(graph),
+                    "-map", last, "-c:v", "libx264", "-crf", "18", "-preset", "medium", "-pix_fmt", "yuv420p",
+                    "-t", str(total), out], check=True)
+    os.remove(silent)
+    return out
+
+
 def mix():
     t = json.load(open(os.path.join(VO, "timing.json")))
     silent = os.path.join(HERE, "petra-promo-silent.mp4")
     subprocess.run([sys.executable, os.path.join(HERE, "render.py"), "video", silent], check=True)
+    dogs = t.get("dog", [])
+    if dogs:
+        silent = overlay_dogs(silent, dogs, t["total"])
     ins, chains, labels = [], [], []
+    for d in dogs:  # the dog's own voice rides in the same mix
+        ins += ["-i", d["clip"]]
+        n = len(labels) + 1
+        ms = int(d["start"] * 1000)
+        chains.append(f"[{n}:a]aresample=48000,adelay={ms}|{ms}[a{n}]")
+        labels.append(f"[a{n}]")
     for i, (s, l) in enumerate(zip(t["starts"], t["lens"])):
         if not l:
             continue
@@ -231,7 +273,7 @@ def music(src, gain_db=-8.0):
         "[0:a]aresample=48000,highpass=f=90,acompressor=threshold=-22dB:ratio=3:attack=5:release=120:makeup=2,volume=-2dB,"
         "equalizer=f=3200:t=q:w=1.2:g=3,pan=stereo|c0=c0|c1=c0,apad[v];"
         f"[v][m]amix=inputs=2:normalize=0:duration=shortest,"
-        f"volume=1.4dB,alimiter=limit=0.89,aresample=48000,apad=whole_dur={end}[aout];"
+        f"volume=2.1dB,alimiter=limit=0.89,aresample=48000,apad=whole_dur={end}[aout];"
         f"[0:v]tpad=stop_mode=clone:stop_duration={hold}[vout]"
     )
     out = os.path.join(HERE, "petra-promo-final.mp4")

@@ -69,3 +69,18 @@ scripts/migrate-*.mjs
 # local video assets (large mp4s — kept on disk, not in git; caused iCloud git corruption)
 /my-video
 .mcp.json
+
+# ElevenLabs / Hedra video work: secrets + scratch
+.env.video
+marketing/eleven-sample/
+marketing/reel-boarding/cand/
+marketing/reel-boarding/dog-*-190.png
+marketing/dog-avatar/test-*.mp4
+marketing/dog-avatar/voice-*.wav
+marketing/dog-avatar/line*.wav
+marketing/dog-avatar/hedra-frames.png
+marketing/dog-avatar/promo-with-dog-experiment.mp4
+marketing/dog-avatar/clip-s*.mp4
+marketing/dog-avatar/dog-voices.mp3
+marketing/dog-avatar/dog-open-mouth.webp
+marketing/dog-avatar/dog-closed-mouth.webp

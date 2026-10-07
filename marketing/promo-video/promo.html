@@ -83,6 +83,11 @@ html,body{width:1920px;height:1080px;overflow:hidden;background:var(--navy);font
 .chatwin{position:absolute;width:880px;height:720px;background:#fff;border-radius:16px;box-shadow:0 24px 60px rgba(15,23,42,.14),0 0 0 1px var(--border);overflow:hidden;display:flex;flex-direction:column}
 .chead{height:62px;display:flex;align-items:center;justify-content:space-between;padding:0 24px;border-bottom:1px solid var(--border);font-size:20px;font-weight:700}
 .chead span{font-size:16px;font-weight:500;color:#16A34A}
+.bl{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;color:var(--navy);letter-spacing:.2px}
+.bl b{width:28px;height:28px;border-radius:8px;background:#fff url(../../public/petra-logo.png) 50% 31%/190% no-repeat;box-shadow:0 0 0 1px var(--border);display:block}
+.chead span{display:flex;align-items:center;gap:8px}
+.chead span b{width:26px;height:26px;border-radius:7px;background:#fff url(../../public/petra-logo.png) 50% 31%/190% no-repeat;box-shadow:0 0 0 1px var(--border);display:block}
+
 .cbody{flex:1;padding:26px;display:flex;flex-direction:column;gap:20px}
 .uq{align-self:flex-start;background:#F1F3F6;border-radius:16px;padding:14px 20px;font-size:22px;font-weight:500;max-width:80%}
 .ans{align-self:flex-end;width:90%;font-size:21px;line-height:1.6;color:#1e293b}
@@ -97,7 +102,7 @@ html,body{width:1920px;height:1080px;overflow:hidden;background:var(--navy);font
 <body>
 
 <!-- 0–4.4 -->
-<section class="scene dark first" style="--s:0s;--d:5s">
+<section class="scene dark first" style="--s:0s;--d:4.5s">
   <div class="center">
     <div class="big fu" style="--o:.2s">יש לכם עסק של כלבים?</div>
     <div class="small fu" style="--o:.9s">אילוף, פנסיון, טיפוח?</div>
@@ -105,7 +110,7 @@ html,body{width:1920px;height:1080px;overflow:hidden;background:var(--navy);font
 </section>
 
 <!-- 4–10.4 -->
-<section class="scene dark" style="--s:4.6s;--d:9.4s">
+<section class="scene dark" style="--s:4.1s;--d:8.5s">
   <div class="lines">
     <div class="dim" style="--o:.3s">תורים בוואטסאפ</div>
     <div class="dim" style="--o:1.1s">חוזים על נייר</div>
@@ -115,7 +120,7 @@ html,body{width:1920px;height:1080px;overflow:hidden;background:var(--navy);font
 </section>
 
 <!-- 10–13.9 -->
-<section class="scene dark" style="--s:13.6s;--d:5.6s">
+<section class="scene dark" style="--s:12.2s;--d:5.2s">
   <div class="center">
     <div class="logoTile fi" style="--o:.3s"><img src="../../public/petra-logo.png"></div>
     <div class="small fu" style="--o:.9s;color:#CBD5E1">מערכת ניהול לעסקים של חיות מחמד</div>
@@ -123,7 +128,7 @@ html,body{width:1920px;height:1080px;overflow:hidden;background:var(--navy);font
 </section>
 
 <!-- 13.5–18.9 DASHBOARD -->
-<section class="scene light" style="--s:18.8s;--d:6.9s">
+<section class="scene light" style="--s:17s;--d:5.4s">
   <div class="feat">
     <div class="ftext">
       <div class="label fu" style="--o:.2s">דשבורד</div>
@@ -132,7 +137,7 @@ html,body{width:1920px;height:1080px;overflow:hidden;background:var(--navy);font
     </div>
     <div class="media">
       <div class="browser sl" style="--o:.3s;left:0;top:168px">
-        <div class="bbar"><i></i><i></i><i></i><div class="url">petra-app.com/dashboard</div></div>
+        <div class="bbar"><i></i><i></i><i></i><div class="url">petra-app.com/dashboard</div><div class="bl"><b></b>Petra</div></div>
         <div class="bscreen"><img class="kb" src="shots/dash.jpg" style="--ko:1s;--kd:4.4s;--z:1.1;--ox:55%;--oy:25%"></div>
       </div>
     </div>
@@ -140,7 +145,7 @@ html,body{width:1920px;height:1080px;overflow:hidden;background:var(--navy);font
 </section>
 
 <!-- SALES / LEADS -->
-<section class="scene light" style="--s:25.3s;--d:11.9s">
+<section class="scene light" style="--s:22s;--d:11.9s">
   <div class="feat">
     <div class="ftext">
       <div class="label fu" style="--o:.2s">מודול מכירות</div>
@@ -149,7 +154,7 @@ html,body{width:1920px;height:1080px;overflow:hidden;background:var(--navy);font
     </div>
     <div class="media">
       <div class="browser sl" style="--o:.3s;left:0;top:168px">
-        <div class="bbar"><i></i><i></i><i></i><div class="url">petra-app.com/leads</div></div>
+        <div class="bbar"><i></i><i></i><i></i><div class="url">petra-app.com/leads</div><div class="bl"><b></b>Petra</div></div>
         <div class="bscreen"><img class="kb" src="shots/leads.jpg" style="--ko:1s;--kd:9s;--z:1.08;--ox:50%;--oy:30%"></div>
       </div>
       <div class="callout fu" style="--o:4.2s;left:-30px;top:330px;width:440px"><img src="shots/c_lead_top.png"></div>
@@ -158,7 +163,7 @@ html,body{width:1920px;height:1080px;overflow:hidden;background:var(--navy);font
 </section>
 
 <!-- 18.5–27.9 ONLINE BOOKING -->
-<section class="scene light" style="--s:36.8s;--d:9.4s">
+<section class="scene light" style="--s:33.5s;--d:9.4s">
   <div class="feat">
     <div class="ftext">
       <div class="label fu" style="--o:.2s">קביעת תורים אונליין</div>
@@ -185,7 +190,7 @@ html,body{width:1920px;height:1080px;overflow:hidden;background:var(--navy);font
 </section>
 
 <!-- 27.5–35.9 WHATSAPP -->
-<section class="scene light" style="--s:45.8s;--d:8.8s">
+<section class="scene light" style="--s:42.5s;--d:8.4s">
   <div class="feat">
     <div class="ftext">
       <div class="label fu" style="--o:.2s">תזכורות בוואטסאפ</div>
@@ -220,7 +225,7 @@ html,body{width:1920px;height:1080px;overflow:hidden;background:var(--navy);font
 </section>
 
 <!-- 35.5–47.9 CONTRACTS -->
-<section class="scene light" style="--s:54.2s;--d:13.4s">
+<section class="scene light" style="--s:50.5s;--d:12.4s">
   <div class="feat">
     <div class="ftext">
       <div class="label fu" style="--o:.2s">חוזים דיגיטליים</div>
@@ -229,7 +234,7 @@ html,body{width:1920px;height:1080px;overflow:hidden;background:var(--navy);font
     </div>
     <div class="media">
       <div class="browser sl" style="--o:.3s;left:0;top:168px">
-        <div class="bbar"><i></i><i></i><i></i><div class="url">petra-app.com/customers</div></div>
+        <div class="bbar"><i></i><i></i><i></i><div class="url">petra-app.com/customers</div><div class="bl"><b></b>Petra</div></div>
         <div class="bscreen"><img src="shots/contract_modal.jpg"></div>
       </div>
       <div class="tap" style="--o:2.6s;left:640px;top:570px"></div>
@@ -248,7 +253,7 @@ html,body{width:1920px;height:1080px;overflow:hidden;background:var(--navy);font
 </section>
 
 <!-- 47.5–57.9 BOARDING -->
-<section class="scene light" style="--s:67.2s;--d:10.8s">
+<section class="scene light" style="--s:62.5s;--d:10.4s">
   <div class="feat">
     <div class="ftext">
       <div class="label fu" style="--o:.2s">פנסיון</div>
@@ -258,7 +263,7 @@ html,body{width:1920px;height:1080px;overflow:hidden;background:var(--navy);font
     </div>
     <div class="media">
       <div class="browser sl" style="--o:.3s;left:0;top:168px">
-        <div class="bbar"><i></i><i></i><i></i><div class="url">petra-app.com/boarding</div></div>
+        <div class="bbar"><i></i><i></i><i></i><div class="url">petra-app.com/boarding</div><div class="bl"><b></b>Petra</div></div>
         <div class="bscreen">
           <img class="kb" src="shots/boarding.jpg" style="--ko:1.2s;--kd:4.5s;--z:1.2;--ox:45%;--oy:70%">
           <img class="step" src="shots/daily.jpg" style="--o:5.6s">
@@ -269,7 +274,7 @@ html,body{width:1920px;height:1080px;overflow:hidden;background:var(--navy);font
 </section>
 
 <!-- 57.5–69.9 AI AGENT -->
-<section class="scene light" style="--s:77.6s;--d:12.8s">
+<section class="scene light" style="--s:72.5s;--d:12.4s">
   <div class="feat">
     <div class="ftext">
       <div class="label fu" style="--o:.2s">לראשונה בישראל</div>
@@ -278,7 +283,7 @@ html,body{width:1920px;height:1080px;overflow:hidden;background:var(--navy);font
     </div>
     <div class="media">
       <div class="chatwin sl" style="--o:.3s;left:170px;top:50px">
-        <div class="chead">עוזר AI<span>מחובר לפטרה</span></div>
+        <div class="chead">עוזר AI<span><b></b>מחובר לפטרה</span></div>
         <div class="cbody">
           <div class="uq fi" style="--o:1.4s">מה יש לי היום?</div>
           <div class="ans fi" style="--o:2.8s">
@@ -299,7 +304,7 @@ html,body{width:1920px;height:1080px;overflow:hidden;background:var(--navy);font
 </section>
 
 <!-- 69.5–73.9 NUMBERS -->
-<section class="scene light" style="--s:90s;--d:4.4s">
+<section class="scene light" style="--s:84.5s;--d:4.4s">
   <div class="center">
     <div class="stats">
       <div class="st fu" style="--o:.3s"><b>130+</b><small>עסקים פעילים</small></div>
@@ -310,7 +315,7 @@ html,body{width:1920px;height:1080px;overflow:hidden;background:var(--navy);font
 </section>
 
 <!-- 73.5–80 CTA (landing page headline) -->
-<section class="scene dark last" style="--s:94s;--d:9.2s">
+<section class="scene dark last" style="--s:88.5s;--d:6.7s">
   <div class="center">
     <div class="logoTile fi" style="--o:.2s;width:150px;height:150px;border-radius:34px"><img src="../../public/petra-logo.png"></div>
     <div class="big fu" style="--o:.6s;margin-top:44px;font-size:84px">תפסיקו לרדוף אחרי זנבות.<br><span style="color:#FDBA74">תנו לפטרה</span> לנהל את העסק.</div>
@@ -323,7 +328,7 @@ html,body{width:1920px;height:1080px;overflow:hidden;background:var(--navy);font
 window.renderAt = function (t) {
   for (const a of document.getAnimations()) { a.pause(); a.currentTime = t * 1000; }
 };
-window.TOTAL = 103.2;
+window.TOTAL = 95.2;
 </script>
 </body>
 </html>

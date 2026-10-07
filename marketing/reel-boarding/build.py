@@ -23,7 +23,7 @@ EXTRA_LEAD = {}  # per-line extra delay before the voice (seconds)
 # is placed exactly at the CTA, and the reel ends with the track's own ending (59.36s).
 MUSIC = "music-instrumental.wav"
 MUSIC_STOP, MUSIC_END = 52.10, 59.36
-CTA_STOP_WORD = 6  # index of "דברו" in vo/words.json for the CTA line
+CTA_STOP_WORD = 7  # index of "ותתחילו" in vo/words.json for the CTA line
 MUSIC_GAIN = -12.0  # constant level (no ducking); -8 masked words in the hook and the CTA
 VOICE_GAIN = 2.0     # voice sits on top of a constant-level music bed (no ducking, by request)
 MUSIC_CARVE = -5.0   # fixed EQ dip in the speech band of the music
@@ -36,7 +36,7 @@ SUBS = [
     [("ומה עם החצרות?", 0), ("מעבירים כלב לחצר בגרירה", 3), ("ורואים מראש", 7), ("מי מסתדר עם מי", 9)],
     [("בכל בוקר, הצוות מקבל", 0), ("לוח של האכלות ותרופות לכל כלב", 4), ("ומסמן מה כבר ניתן", 10)],
     [("והצוות?", 0), ("כל עובד רואה רק את הפנסיון", 1), ("בלי הכנסות ובלי לקוחות", 7), ("אתם מחליטים מה מותר", 11)],
-    [("רוצים לראות איך זה עובד אצלכם?", 0), ("דברו איתנו בוואטסאפ", 6)],
+    [("רוצים לנסות?", 0), ("היכנסו לפטרה אפ דוט קום", 2), ("ותתחילו בחינם", 7)],
 ]
 
 
@@ -132,10 +132,11 @@ html,body{width:1080px;height:1920px;overflow:hidden;background:var(--navy);font
 .logoTile{width:210px;height:210px;border-radius:50px;background:#fff;overflow:hidden}
 .logoTile img{width:112%;height:112%;margin:-6%}
 .ctaT{color:#fff;font-size:80px;font-weight:800;line-height:1.1;margin-top:60px}
-.wa{margin-top:70px;display:flex;align-items:center;gap:26px;background:var(--wa);color:#fff;border-radius:999px;padding:30px 64px;font-size:62px;font-weight:800;
-  box-shadow:0 20px 50px rgba(37,211,102,.35)}
+.wa{margin-top:70px;display:flex;align-items:center;gap:26px;background:var(--orange);color:#fff;border-radius:999px;padding:30px 80px;font-size:68px;font-weight:800;
+  box-shadow:0 20px 50px rgba(249,115,22,.4)}
 .wa svg{width:78px;height:78px}
-.num{margin-top:40px;color:#CBD5E1;font-size:56px;font-weight:700;direction:ltr;letter-spacing:1px}
+.num{margin-top:44px;color:#fff;font-size:58px;font-weight:700;direction:ltr;letter-spacing:.5px}
+.small{margin-top:26px;color:#94A3B8;font-size:40px;font-weight:600}
 .pulse{animation:fadeUp .7s var(--ease) calc(var(--s) + var(--o)) both, pulse 1.4s ease-in-out calc(var(--s) + var(--o) + .8s) infinite}
 @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
 """
@@ -211,7 +212,7 @@ def build_html():
     y3 = first("yards_drag_3.jpg", y2)
     warn = f'<div class="callout pop" style="--o:{wt(3, 7)}s;left:120px;top:700px;width:840px"><img src="shots/c_warning_top.png"></div>' if exists("c_warning_top.png") else ""
     out.append(scene(3, "light", f"""
-  <div class="head"><div class="eyebrow fu" style="--o:.1s">שיבוץ לחצרות</div><div class="title fu" style="--o:.25s">גוררים כלב לחצר,<br>רואים מי מסתדר עם מי</div></div>
+  <div class="head"><div class="eyebrow fu" style="--o:.1s">שיבוץ לחצרות</div><div class="title fu" style="--o:.25s;font-size:68px">גוררים כלב לחצר,<br>רואים מי מסתדר עם מי</div></div>
   <div class="card fu" style="--o:.2s">{img(y1, 1700, -460, -150, -460, -150, 1, 0)}
     <div class="layer" style="--o:{wt(3, 4)}s;background:#fff">{img(y2, 1700, -460, -150, -460, -150, 1, 0)}</div>
     <div class="layer" style="--o:{round(wt(3, 6) + .1, 2)}s;background:#fff">{img(y3, 1700, -460, -150, -460, -150, 1, 0)}</div></div>
@@ -238,9 +239,10 @@ def build_html():
   <div class="cta">
     <div class="logoTile pop" style="--o:.15s"><img src="../../public/petra-logo.png"></div>
     <div class="brand fu" style="--o:.35s">Petra</div>
-    <div class="ctaT fu" style="--o:{wt(6, 0)}s">רוצים לראות איך<br>זה עובד אצלכם?</div>
-    <div class="wa pulse" style="--o:{wt(6, 6)}s">{ICON_WA}דברו איתנו בוואטסאפ</div>
-    <div class="num fu" style="--o:{round(wt(6, 6) + .4, 2)}s">054-256-0964</div>
+    <div class="ctaT fu" style="--o:{wt(6, 0)}s">רוצים לנסות?</div>
+    <div class="wa pulse" style="--o:{wt(6, 7)}s">מתחילים בחינם</div>
+    <div class="num fu" style="--o:{wt(6, 2)}s">petra-app.com/landing</div>
+    <div class="small fu" style="--o:{round(wt(6, 7) + .5, 2)}s">מסלול חינמי, בלי כרטיס אשראי</div>
   </div>"""))
 
     # persistent logo on every system screen
@@ -271,7 +273,7 @@ window.TOTAL = {total};
 async def render(mode, args):
     from playwright.async_api import async_playwright
     async with async_playwright() as p:
-        b = await p.chromium.launch(executable_path="/opt/pw-browsers/chromium-1194/chrome-linux/chrome")
+        b = await p.chromium.launch(executable_path=next((p for p in ("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "/opt/pw-browsers/chromium-1194/chrome-linux/chrome") if os.path.exists(p)), None))
         pg = await b.new_page(viewport={"width": W, "height": H})
         await pg.goto("file://" + os.path.join(HERE, "reel.html"))
         await pg.wait_for_load_state("networkidle")
@@ -304,6 +306,28 @@ def make_bed(total, stop_at):
     return out
 
 
+DOG_SIZE = 190
+DOG_DIR = os.path.join(HERE, "..", "dog-avatar", "reel")
+
+
+def add_dog(silent, t):
+    """The Petra dog narrates every line (vo/NN.wav lip-synced by Kling pro): a round avatar, top-left on the
+    app screens (beside the headline), top-centre on the hook and the CTA."""
+    sys.path.insert(0, os.path.join(HERE, ".."))
+    import dog_overlay
+    st, lead, total = t["starts"], t["lead"], t["total"]
+    items = []
+    for i, s0 in enumerate(st):
+        w1 = st[i + 1] if i + 1 < len(st) else total  # next line's dog takes over exactly here (no overlap)
+        top_center = i in (0, len(st) - 1)
+        items.append({"clip": os.path.join(DOG_DIR, f"{i:02d}.mp4"), "w0": s0, "w1": round(w1, 2), "voice": round(s0 + lead[i], 2),
+                      "x": (W - DOG_SIZE) // 2 if top_center else 60, "y": 60 if top_center else 240, "size": DOG_SIZE,
+                      "fin": i == 0, "fout": i == len(st) - 1})
+    out = dog_overlay.overlay(silent, items, total, HERE)
+    os.remove(silent)
+    return out
+
+
 def video(upto=None, remix=False):
     """upto: render only the first N seconds (preview -> reel-preview.mp4).
     remix: keep the picture of the existing reel-boarding.mp4 and only redo the audio."""
@@ -314,6 +338,7 @@ def video(upto=None, remix=False):
                         "-an", "-c:v", "copy", silent], check=True)
     else:
         asyncio.run(render("video", [silent, upto]))
+        silent = add_dog(silent, t)
     total = upto or t["total"]
     ins, chains, labels = [], [], []
     for i, (s, ld) in enumerate(zip(t["starts"], t["lead"])):
@@ -328,7 +353,7 @@ def video(upto=None, remix=False):
              "equalizer=f=3200:t=q:w=1.2:g=3,pan=stereo|c0=c0|c1=c0,apad[v];"
              f"[{n + 1}:a]aresample=48000,atrim=0:{total},asetpts=PTS-STARTPTS,"
              f"volume={MUSIC_GAIN}dB,equalizer=f=2500:t=q:w=1.2:g={MUSIC_CARVE}[m];"
-             "[v][m]amix=inputs=2:normalize=0:duration=shortest,volume=3.9dB,alimiter=limit=0.89,"
+             "[v][m]amix=inputs=2:normalize=0:duration=shortest,volume=2.9dB,alimiter=limit=0.89,"
              f"aresample=48000,apad=whole_dur={total}[aout]")
     out = os.path.join(HERE, "reel-preview.mp4" if upto else "reel-boarding.mp4")
     subprocess.run([FF, "-loglevel", "error", "-y", "-i", silent, *ins, "-i", music, "-filter_complex", graph,

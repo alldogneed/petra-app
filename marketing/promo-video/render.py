@@ -1,10 +1,12 @@
 import sys, subprocess, asyncio
 from playwright.async_api import async_playwright
-FF="/usr/local/lib/python3.11/dist-packages/imageio_ffmpeg/binaries/ffmpeg-linux-x86_64-v7.0.2"
+import os
+FF="/opt/homebrew/bin/ffmpeg" if os.path.exists("/opt/homebrew/bin/ffmpeg") else "/usr/local/lib/python3.11/dist-packages/imageio_ffmpeg/binaries/ffmpeg-linux-x86_64-v7.0.2"
+CHROME=next((p for p in ("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome","/opt/pw-browsers/chromium-1194/chrome-linux/chrome") if os.path.exists(p)),None)
 async def main():
     mode=sys.argv[1]
     async with async_playwright() as p:
-        b=await p.chromium.launch(executable_path="/opt/pw-browsers/chromium-1194/chrome-linux/chrome")
+        b=await p.chromium.launch(executable_path=CHROME)
         pg=await b.new_page(viewport={"width":1920,"height":1080})
         import os; await pg.goto("file://"+os.path.join(os.path.dirname(os.path.abspath(__file__)),"promo.html")); await pg.wait_for_load_state("networkidle")
         await pg.evaluate("document.fonts.ready")
