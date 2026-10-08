@@ -5,7 +5,7 @@ import hedra_dog as h
 
 REEL = os.environ.get("REEL", "reel-boarding")  # which reel folder's vo/NN.wav to lip-sync
 VO = os.path.join(h.HERE, "..", REEL, "vo")
-OUT = os.path.join(h.HERE, "reel" if REEL == "reel-boarding" else "reel-ai")
+OUT = os.path.join(h.HERE, {"reel-boarding": "reel", "reel-ai-agent": "reel-ai"}.get(REEL, REEL))
 PROMPT = ("A friendly cartoon dog mascot in a flat vector style talking directly to the camera. The mouth shapes match "
           "every syllable of the speech precisely: opens wide on vowels, closes fully on b/m/p sounds, clear lip movement. "
           "Cheerful expression, small head nods, ears bounce slightly, natural blinking. Flat colors and plain light "

@@ -42,3 +42,20 @@ Template for "show the product working" reels: the dog narrates, the card shows 
 - **Voice traps**: "ליד" is read "ליעד" even with niqqud — say "פנייה". "AI" is spoken "איי איי" (`.replace("AI", "איי איי")`), shown as "AI".
 - **Hook** must be specific to the reel (not a copy of another reel's): here five screens pop in and strike out, then the logo, leading into "מה יש לי היום".
 - CTA for AI-agent reels: WhatsApp + 054-256-0964 + "הקמה אישית במתנה" (the agent is PRO-only, so no "start free").
+
+## Rules learned on the "how to start" reel (marketing/reel-ai-start, 2026-10-08, owner: "יצא מושלם")
+**1. Choose takes by SOUND, never by transcript.** Scribe writes "פטרה"/"AI" correctly even when the owner hears them wrong (a swallowed "פטרה" lasts 0.24 s instead of ~0.66 s). Use `marketing/voice_match.py` (log-mel + DTW, pure numpy) through `pick_take.py <lines>`: ~8 takes per line, keep the one whose word is closest to an owner-approved reference.
+- References: "בפטרה" = `reel-boarding/vo/01.wav` 0.12-0.78 s; "AI" = `reel-ai-agent/vo/01.wav` 1.84-2.28 s and `05.wav` 1.06-1.42 s.
+- Scale: approved-vs-approved ~2.0; bad takes 2.6-3.2; aim for <= 2.1 ("AI") and <= 1.8 ("בפטרה"). If no take gets there, change the sentence, not the threshold.
+- "פטרה" right after a colon or a full stop failed in every take. Say the brand ONCE, mid-sentence after another word ("עכשיו בפטרה בוחרים...") or drop it and let the screen carry it.
+- When a new word gets approved by ear, add it to `REF` in `pick_take.py`.
+
+**2. The dog never sits frozen.** Scene length = max(voice, screen clip + 0.7). `cut_cards.py` now fits every clip to `voice - 0.3` (uniform speed-up), so the dog stops talking as the scene ends. If a clip cannot be shortened, lengthen the sentence instead. On the CTA (which holds for the music ending) the dog fades out 0.5 s after its line.
+
+**3. Lip-sync.** `dog-avatar/sync_check.py clip.mp4 line.wav` -> (corr at lag 0, best corr, lag in frames). The measure is rough (approved clips also score 0.2-0.3); only act on a clear peak (corr >= 0.5 with |lag| >= 2) by setting `DOG_LAG = {scene: frames}` in `build.py`, or regenerate the clip. The owner flagged the CTA clip; a regenerated clip + 3-frame shift fixed it.
+
+**4. Recording the real connect flow (no password typed).** With the owner logged in to Petra and to claude.ai in the built-in browser pane: claude.ai -> Customize -> Connectors -> Add custom connector -> `https://petra-app.com/api/mcp` -> Add -> Connect -> Petra consent page `/oauth/authorize` ("חיבור Claude לפטרה": business, "רמת גישה", "אשר חיבור") -> "Connected to Petra". If the account already has a connector for that URL claude.ai refuses ("already exists in your organization"); `?v=2` on the URL passes (a trailing slash does not). Pick "קריאה בלבד" for demos. Afterwards: Petra settings -> "נתק" -> "כן, בטל", and claude.ai -> the connector -> ⋮ -> Remove (check the URL shown first: the owner has his own "petra" connectors).
+
+**5. Privacy of screen recordings.** `screencapture -v` records the whole display; the pane is cropped later. Anything the owner puts on top of the pane is recorded (his platform-admin screens with real customer data were). Ask him not to touch the Mac, look at a contact sheet of every take before using it, and delete takes (raw + cropped + test stills) that show anything but the demo business. Never keep or commit them.
+
+**6. Cost / budget.** A 6-line reel is ~$3 of Kling pro clips, every changed line ~$0.4-1.0. Check `GET /v3/balance` before starting and decide the wording BEFORE generating clips (voice takes are cheap, clips are not).
