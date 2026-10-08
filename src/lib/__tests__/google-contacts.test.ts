@@ -7,6 +7,8 @@ const mockBusinessFindUnique = jest.fn();
 const mockLeadFindFirst = jest.fn();
 const mockLeadUpdate = jest.fn();
 const mockBusinessUserFindFirst = jest.fn();
+const mockLeadFindMany = jest.fn();
+const mockLeadCount = jest.fn();
 
 jest.mock("../prisma", () => ({
   prisma: {
@@ -14,6 +16,8 @@ jest.mock("../prisma", () => ({
     lead: {
       findFirst: (...a: unknown[]) => mockLeadFindFirst(...a),
       update: (...a: unknown[]) => mockLeadUpdate(...a),
+      findMany: (...a: unknown[]) => mockLeadFindMany(...a),
+      count: (...a: unknown[]) => mockLeadCount(...a),
     },
     businessUser: { findFirst: (...a: unknown[]) => mockBusinessUserFindFirst(...a) },
   },
@@ -27,6 +31,7 @@ import {
   buildContactPayload,
   scopeIncludesContacts,
   syncLeadToGoogleContacts,
+  syncPendingLeadsToGoogleContacts,
   GOOGLE_CONTACTS_SCOPE,
 } from "../google-contacts";
 
@@ -126,5 +131,49 @@ describe("syncLeadToGoogleContacts", () => {
 
     mockBusinessFindUnique.mockRejectedValue(new Error("db down"));
     await expect(syncLeadToGoogleContacts("biz1", "lead1")).resolves.toBeUndefined();
+  });
+});
+
+describe("syncPendingLeadsToGoogleContacts", () => {
+  it("refuses when the sync is off", async () => {
+    mockBusinessFindUnique.mockResolvedValue({ googleContactsSync: false });
+    await expect(syncPendingLeadsToGoogleContacts("biz1")).resolves.toEqual({ ok: false, reason: "disabled" });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("creates one batch for leads without a contact and stores the ids in order", async () => {
+    mockBusinessFindUnique.mockResolvedValue({ googleContactsSync: true });
+    mockLeadFindMany.mockResolvedValue([
+      { ...LEAD, id: "a" },
+      { ...LEAD, id: "b" },
+      { ...LEAD, id: "c" },
+    ]);
+    mockLeadCount.mockResolvedValue(4);
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        createdPeople: [{ person: { resourceName: "people/1" } }, {}, { person: { resourceName: "people/3" } }],
+      }),
+    });
+
+    const result = await syncPendingLeadsToGoogleContacts("biz1");
+
+    expect(mockLeadFindMany.mock.calls[0][0].where).toMatchObject({ businessId: "biz1", googleContactId: null });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0][0]).toContain("people:batchCreateContacts");
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body).contacts).toHaveLength(3);
+    expect(mockLeadUpdate).toHaveBeenCalledWith({ where: { id: "a" }, data: { googleContactId: "people/1" } });
+    expect(mockLeadUpdate).toHaveBeenCalledWith({ where: { id: "c" }, data: { googleContactId: "people/3" } });
+    expect(mockLeadUpdate).toHaveBeenCalledTimes(2);
+    expect(result).toEqual({ ok: true, synced: 2, failed: 1, remaining: 4 });
+  });
+
+  it("reports a Google failure without touching leads", async () => {
+    mockBusinessFindUnique.mockResolvedValue({ googleContactsSync: true });
+    mockLeadFindMany.mockResolvedValue([{ ...LEAD, id: "a" }]);
+    fetchMock.mockResolvedValue({ ok: false, status: 403, json: async () => ({}) });
+    await expect(syncPendingLeadsToGoogleContacts("biz1")).resolves.toEqual({ ok: false, reason: "google_error" });
+    expect(mockLeadUpdate).not.toHaveBeenCalled();
   });
 });

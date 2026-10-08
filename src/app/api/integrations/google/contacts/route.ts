@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { prisma } from "@/lib/prisma";
-import { userHasContactsScope } from "@/lib/google-contacts";
+import { userHasContactsScope, countLeadsPendingContactSync } from "@/lib/google-contacts";
 
 /**
  * Lead → Google Contacts sync toggle (Settings → אינטגרציות, inside the Google card).
@@ -26,7 +26,11 @@ export async function GET(request: NextRequest) {
       !session.impersonatedBusinessId &&
       session.memberships.some((m) => m.businessId === businessId && m.isActive && m.role === "owner");
 
-    return NextResponse.json({ enabled: business?.googleContactsSync ?? false, canManage });
+    const enabled = business?.googleContactsSync ?? false;
+    // Existing leads not yet in Google Contacts — feeds the "סנכרן לידים קיימים" button.
+    const pendingLeads = enabled && canManage ? await countLeadsPendingContactSync(businessId) : 0;
+
+    return NextResponse.json({ enabled, canManage, pendingLeads });
   } catch (error) {
     console.error("GET google contacts sync error:", error);
     return NextResponse.json({ error: "שגיאה בטעינת הגדרות הסנכרון" }, { status: 500 });

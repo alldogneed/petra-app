@@ -194,3 +194,78 @@ export async function syncLeadToGoogleContacts(businessId: string, leadId: strin
     console.error("[GoogleContacts] sync failed:", err instanceof Error ? err.message : err);
   }
 }
+
+// ─── Bulk sync of existing leads ─────────────────────────────────────────────
+
+/** Leads that were never written to Google Contacts and have something to write. */
+const PENDING_LEADS_WHERE = (businessId: string) => ({
+  businessId,
+  googleContactId: null,
+  OR: [{ phone: { not: null } }, { email: { not: null } }],
+});
+
+/** People API caps batchCreateContacts at 200; 50 keeps one request well inside the function timeout. */
+const BULK_CHUNK = 50;
+
+export async function countLeadsPendingContactSync(businessId: string): Promise<number> {
+  return prisma.lead.count({ where: PENDING_LEADS_WHERE(businessId) });
+}
+
+export type BulkContactSyncResult =
+  | { ok: true; synced: number; failed: number; remaining: number }
+  | { ok: false; reason: "disabled" | "not_connected" | "google_error" };
+
+/**
+ * Create Google contacts for the next chunk of leads that have none yet (one People API
+ * batch call). The caller repeats until `remaining` is 0. Leads that already have a
+ * contact are never touched here — edits keep flowing through syncLeadToGoogleContacts.
+ */
+export async function syncPendingLeadsToGoogleContacts(businessId: string): Promise<BulkContactSyncResult> {
+  const business = await prisma.business.findUnique({
+    where: { id: businessId },
+    select: { googleContactsSync: true },
+  });
+  if (!business?.googleContactsSync) return { ok: false, reason: "disabled" };
+
+  const accessToken = await getOwnerAccessToken(businessId);
+  if (!accessToken) return { ok: false, reason: "not_connected" };
+
+  const leads = await prisma.lead.findMany({
+    where: PENDING_LEADS_WHERE(businessId),
+    select: { id: true, name: true, phone: true, email: true, notes: true, requestedService: true, city: true },
+    orderBy: { createdAt: "asc" },
+    take: BULK_CHUNK,
+  });
+  if (leads.length === 0) return { ok: true, synced: 0, failed: 0, remaining: 0 };
+
+  const res = await fetch(`${PEOPLE_API_BASE}/people:batchCreateContacts`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contacts: leads.map((lead) => ({ contactPerson: buildContactPayload(lead) })),
+      readMask: "metadata",
+    }),
+  });
+  if (!res.ok) {
+    console.error(`[GoogleContacts] batchCreateContacts failed (${res.status})`);
+    return { ok: false, reason: "google_error" };
+  }
+
+  // createdPeople comes back in request order.
+  const data = (await res.json()) as { createdPeople?: { person?: { resourceName?: string } }[] };
+  const created = data.createdPeople ?? [];
+  const updates = leads
+    .map((lead, i) => ({ id: lead.id, resourceName: created[i]?.person?.resourceName }))
+    .filter((u): u is { id: string; resourceName: string } => !!u.resourceName);
+
+  for (let i = 0; i < updates.length; i += 10) {
+    await Promise.all(
+      updates.slice(i, i + 10).map((u) =>
+        prisma.lead.update({ where: { id: u.id }, data: { googleContactId: u.resourceName } })
+      )
+    );
+  }
+
+  const remaining = await countLeadsPendingContactSync(businessId);
+  return { ok: true, synced: updates.length, failed: leads.length - updates.length, remaining };
+}
