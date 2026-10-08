@@ -696,6 +696,82 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* ── Google Contacts sync ──────────────────────────────────────────────── */}
+        <section aria-labelledby="gcontacts-heading" className="py-[100px] bg-slate-50" id="google-contacts">
+          <div className="mx-auto max-w-[1240px] px-7">
+            <div className="grid lg:grid-cols-2 gap-12 items-start">
+              <div>
+                <span className="mb-4 inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-semibold"
+                  style={{ background: "var(--brand-50, #FFF7ED)", color: "var(--brand-700, #C2410C)" }}>
+                  <Users className="w-3.5 h-3.5" aria-hidden="true" />
+                  סנכרון Google Contacts
+                </span>
+                <h2
+                  id="gcontacts-heading"
+                  className="text-slate-900 font-extrabold"
+                  style={{ fontSize: "clamp(28px, 3.5vw, 42px)", letterSpacing: "-0.03em", lineHeight: 1.15, marginBottom: 18 }}
+                >
+                  ליד חדש בפטרה —{" "}
+                  <span className="text-brand-500">איש קשר בגוגל.</span>
+                </h2>
+                <p className="text-lg text-slate-600 leading-[1.6] mb-7" style={{ maxWidth: 520 }}>
+                  כשמפעילים את הסנכרון, כל ליד (לקוח פוטנציאלי) שנוצר בפטרה נשמר אוטומטית כאיש קשר ב-Google Contacts שלכם,
+                  ומתעדכן כשמשנים את הפרטים שלו בפטרה. כך השם מופיע בטלפון וב-WhatsApp כבר בשיחה הראשונה.
+                </p>
+                <ul className="space-y-3.5 list-none p-0 m-0">
+                  {[
+                    "הסנכרון פועל רק לאחר שאישרתם את הגישה במסך ההרשאות של Google (OAuth).",
+                    "פטרה רק יוצרת ומעדכנת את אנשי הקשר של הלידים שלכם — היא לא קוראת את אנשי הקשר הקיימים שלכם, לא משתפת אותם ולא מוחקת אותם.",
+                    "הסנכרון כבוי כברירת מחדל, ואפשר לכבות אותו בכל רגע בהגדרות ← אינטגרציות, או לבטל את הגישה מחשבון Google.",
+                  ].map((t) => (
+                    <li key={t} className="flex items-start gap-3 text-sm text-slate-600 leading-[1.55]">
+                      <Check className="w-4 h-4 mt-0.5 shrink-0 text-brand-500" style={{ strokeWidth: 3 }} aria-hidden="true" />
+                      {t}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* English summary — what Petra is and how it uses the Google Contacts API */}
+              <div
+                dir="ltr"
+                lang="en"
+                className="rounded-[20px] border border-slate-200 bg-white p-7 text-left"
+                style={{ boxShadow: "0 1px 3px 0 rgba(0,0,0,0.06), 0 1px 2px -1px rgba(0,0,0,0.04)" }}
+              >
+                <div className="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
+                  <Shield className="w-3.5 h-3.5" aria-hidden="true" />
+                  About Petra &amp; Google Contacts
+                </div>
+                <h3 className="text-[19px] font-bold text-slate-900 mb-3" style={{ letterSpacing: "-0.01em" }}>
+                  What is Petra?
+                </h3>
+                <p className="text-sm text-slate-600 leading-[1.65] mb-3">
+                  Petra is a business management platform (CRM) for pet-service businesses in Israel — dog trainers,
+                  boarding kennels, groomers and service-dog organizations. Business owners use it to manage leads,
+                  customers, appointments, boarding stays, payments and automated WhatsApp reminders in one place.
+                </p>
+                <p className="text-sm text-slate-600 leading-[1.65] mb-3">
+                  <strong className="font-semibold text-slate-800">How Petra uses the Google Contacts API:</strong>{" "}
+                  when a business owner chooses to connect their Google account and grants access on Google&apos;s OAuth
+                  consent screen, Petra creates a contact in the owner&apos;s own Google Contacts for each lead recorded in
+                  Petra, and updates that same contact when the lead&apos;s details change in Petra. The Google Contacts
+                  API is used only to create and update contacts for leads — Petra does not read, export, share, sell
+                  or use the user&apos;s existing contacts for advertising.
+                </p>
+                <p className="text-sm text-slate-600 leading-[1.65] m-0">
+                  The sync is optional, starts only after explicit OAuth consent, and can be turned off at any time in
+                  Petra under Settings → Integrations or from the user&apos;s Google Account permissions. See our{" "}
+                  <Link href="/privacy#google-contacts" className="font-medium text-brand-600 underline underline-offset-2">
+                    Privacy Policy
+                  </Link>{" "}
+                  for details and our Limited Use disclosure.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* ── Client logos marquee ───────────────────────────────────────────────── */}
         <ClientsMarquee />
 

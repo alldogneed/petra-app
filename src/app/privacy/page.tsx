@@ -6,14 +6,14 @@ export const metadata = {
   description: "מדיניות הפרטיות של מערכת Petra לניהול עסקי חיות מחמד",
 };
 
-const SECTIONS = [
+const SECTIONS: { id?: string; title: string; items: string[] }[] = [
   {
     title: "1. מבוא",
     items: [
       'Petra ("המערכת", "אנחנו") היא פלטפורמה לניהול עסקים בתחום חיות המחמד – מאלפי כלבים, פנסיונים, וספקי שירותים.',
       "מדיניות פרטיות זו מסבירה אילו מידע אנו אוספים, כיצד אנו משתמשים בו ואיך אנו מגנים עליו.",
       "השימוש במערכת מהווה הסכמה למדיניות זו. אם אינך מסכים/ה, אנא הפסק/י את השימוש.",
-      "תאריך עדכון אחרון: מרץ 2026.",
+      "תאריך עדכון אחרון: אוקטובר 2026.",
     ],
   },
   {
@@ -25,7 +25,8 @@ const SECTIONS = [
       "2.4 פגישות ותורים: תאריכים, שעות, שירותים וסטטוסי טיפולים.",
       "2.5 נתוני תשלום ומנוי: סוג המנוי, תאריך סיום, היסטוריית תשלומים. פרטי כרטיס אשראי אינם נשמרים בשרתינו ומטופלים ישירות על ידי Stripe.",
       "2.6 Google Calendar: כאשר אתה מחבר את Google Calendar, אנחנו קוראים וכותבים אירועים ביומן שלך בלבד לצורך סנכרון פגישות.",
-      "2.7 נתוני שימוש: לוגים טכניים, כתובת IP, סוג דפדפן – לצורך אבטחה ושיפור המערכת.",
+      "2.7 Google Contacts: כאשר אתה מחבר את Google Contacts, אנחנו יוצרים ומעדכנים בחשבונך אנשי קשר של הלידים שנרשמו ב-Petra. אנחנו לא קוראים את אנשי הקשר הקיימים שלך.",
+      "2.8 נתוני שימוש: לוגים טכניים, כתובת IP, סוג דפדפן – לצורך אבטחה ושיפור המערכת.",
     ],
   },
   {
@@ -43,7 +44,20 @@ const SECTIONS = [
     ],
   },
   {
-    title: "4. כיצד אנו משתמשים במידע",
+    id: "google-contacts",
+    title: "4. שימוש ב-Google Contacts (People API) ומדיניות שימוש מוגבל (Limited Use)",
+    items: [
+      "הסנכרון ל-Google Contacts הוא אופציונלי, כבוי כברירת מחדל, ומופעל רק לאחר אישור מפורש שלך דרך תהליך OAuth של Google.",
+      "אנחנו משתמשים בהרשאת contacts (https://www.googleapis.com/auth/contacts) אך ורק כדי ליצור ולעדכן אנשי קשר של לידים שנרשמו ב-Petra בחשבון Google Contacts שלך.",
+      "המידע שנכתב לאיש הקשר: שם הליד, מספר טלפון, כתובת מייל (אם קיימת), עיר והערה קצרה מתוך Petra. אנחנו שומרים אצלנו רק את מזהה איש הקשר שיצרנו, כדי שנוכל לעדכן אותו בהמשך.",
+      "אנחנו לא קוראים, לא מורידים, לא מאחסנים ולא מנתחים את אנשי הקשר הקיימים בחשבון Google שלך. הגישה היחידה היא לאנשי הקשר ש-Petra עצמה יצרה, לצורך עדכונם.",
+      "אנחנו לא מוכרים, לא מעבירים ולא משתפים מידע שהתקבל מ-Google APIs עם כל צד שלישי, ולא משתמשים בו לפרסום, מיקוד, מעקב או אימון מודלים של בינה מלאכותית.",
+      "ניתן לכבות את הסנכרון בכל עת בהגדרות ← אינטגרציות ב-Petra, או לבטל את הגישה דרך myaccount.google.com/permissions. לאחר הביטול לא ניצור ולא נעדכן אנשי קשר נוספים; אנשי קשר שכבר נוצרו נשארים בחשבונך ובשליטתך.",
+      "הצהרת Limited Use: השימוש של Petra במידע המתקבל מ-Google APIs, והעברתו לכל אפליקציה אחרת, עומדים ב-Google API Services User Data Policy, כולל דרישות Limited Use (שימוש מוגבל).",
+    ],
+  },
+  {
+    title: "5. כיצד אנו משתמשים במידע",
     items: [
       "הפעלת המערכת ומתן השירותים: ניהול לקוחות, פגישות, משימות ותשלומים.",
       "שליחת תזכורות ועדכונים: SMS, WhatsApp ומייל ללקוחות העסק (בהסכמתם).",
@@ -53,20 +67,20 @@ const SECTIONS = [
     ],
   },
   {
-    title: "5. שיתוף מידע עם צדדים שלישיים",
+    title: "6. שיתוף מידע עם צדדים שלישיים",
     items: [
       "אנחנו לא מוכרים, לא משכירים ולא סוחרים במידע אישי של משתמשים.",
-      "5.1 שירותי דוא\"ל: Resend – שליחת מיילים טרנזקציוניים (איפוס סיסמה, תזכורות).",
-      "5.2 WhatsApp / SMS: Twilio – שליחת הודעות WhatsApp ו-SMS ללקוחות העסק לפי בקשתך.",
-      "5.3 עיבוד תשלומים: Stripe – עיבוד תשלומים מקוונים. פרטי אשראי מועברים ישירות ל-Stripe ואינם נשמרים אצלנו.",
-      "5.4 אחסון קבצים: Vercel Blob – אחסון קבצים שהועלו למערכת (תמונות, מסמכים).",
-      "5.5 Google: ניגשים ל-Google APIs לפי הרשאה שנתת. Google כפופה למדיניות הפרטיות שלה.",
-      "5.6 דרישה חוקית: נחשוף מידע אם נדרש על פי חוק ישראלי.",
-      "5.7 העברת עסק: במקרה של מכירה או מיזוג, המידע עשוי לעבור לחברה הרוכשת תחת אותם תנאים.",
+      "6.1 שירותי דוא\"ל: Resend – שליחת מיילים טרנזקציוניים (איפוס סיסמה, תזכורות).",
+      "6.2 WhatsApp / SMS: Twilio – שליחת הודעות WhatsApp ו-SMS ללקוחות העסק לפי בקשתך.",
+      "6.3 עיבוד תשלומים: Stripe – עיבוד תשלומים מקוונים. פרטי אשראי מועברים ישירות ל-Stripe ואינם נשמרים אצלנו.",
+      "6.4 אחסון קבצים: Vercel Blob – אחסון קבצים שהועלו למערכת (תמונות, מסמכים).",
+      "6.5 Google: ניגשים ל-Google APIs לפי הרשאה שנתת. Google כפופה למדיניות הפרטיות שלה.",
+      "6.6 דרישה חוקית: נחשוף מידע אם נדרש על פי חוק ישראלי.",
+      "6.7 העברת עסק: במקרה של מכירה או מיזוג, המידע עשוי לעבור לחברה הרוכשת תחת אותם תנאים.",
     ],
   },
   {
-    title: "6. אחסון ואבטחת מידע",
+    title: "7. אחסון ואבטחת מידע",
     items: [
       "המידע מאוחסן בשרתי ענן מאובטחים (Supabase / PostgreSQL) עם הצפנה בסטנדרטים מקובלים.",
       "תוקני OAuth של Google מוצפנים באמצעות AES-256 לפני שמירה.",
@@ -76,7 +90,7 @@ const SECTIONS = [
     ],
   },
   {
-    title: "7. שמירת מידע",
+    title: "8. שמירת מידע",
     items: [
       "מידע חשבון נשמר כל עוד החשבון פעיל.",
       "לאחר סיום המנוי, המידע נשמר עד 90 ימים ולאחר מכן נמחק לצמיתות.",
@@ -84,18 +98,18 @@ const SECTIONS = [
     ],
   },
   {
-    title: "8. זכויות המשתמש",
+    title: "9. זכויות המשתמש",
     items: [
       "עיון: תוכל לצפות בכל המידע השמור על חשבונך.",
       "תיקון: תוכל לעדכן פרטים אישיים ישירות במערכת.",
       "מחיקה: תוכל לבקש מחיקת חשבונך וכל הנתונים הקשורים אליו.",
       "ניידות: תוכל לייצא את הנתונים שלך בפורמט CSV/XLSX דרך הגדרות המערכת.",
       "ביטול גישה ל-Google: תוכל לבטל גישה בכל עת דרך myaccount.google.com/permissions.",
-      "לממש את זכויותיך – פנה אלינו בכתובת המייל המופיעה בסעיף 10.",
+      "לממש את זכויותיך – פנה אלינו בכתובת המייל המופיעה בסעיף 11.",
     ],
   },
   {
-    title: "9. עוגיות (Cookies)",
+    title: "10. עוגיות (Cookies)",
     items: [
       "אנחנו משתמשים בעוגיית session בודדת (petra_session) לצורך זיהוי משתמש מחובר.",
       "אנחנו לא משתמשים בעוגיות פרסומיות או מעקב.",
@@ -103,7 +117,7 @@ const SECTIONS = [
     ],
   },
   {
-    title: "10. יצירת קשר",
+    title: "11. יצירת קשר",
     items: [
       "לשאלות, בקשות מחיקה, או כל עניין הנוגע לפרטיות:",
       "מייל: info@petra-app.com",
@@ -111,13 +125,24 @@ const SECTIONS = [
     ],
   },
   {
-    title: "11. שינויים במדיניות",
+    title: "12. שינויים במדיניות",
     items: [
       "אנחנו עשויים לעדכן מדיניות זו מעת לעת.",
       "במקרה של שינוי מהותי, נודיע לך בדוא\"ל או בהתראה במערכת 30 יום מראש.",
       "המשך השימוש לאחר השינוי מהווה הסכמה למדיניות המעודכנת.",
     ],
   },
+];
+
+const GOOGLE_CONTACTS_EN = [
+  "Petra is a business management platform for pet-service businesses (dog trainers, boarding kennels, groomers). Connecting Google Contacts is optional and happens only after you explicitly grant access through Google's OAuth consent screen.",
+  "Petra uses the Google Contacts scope (https://www.googleapis.com/auth/contacts) only to create and update contacts for the leads recorded in your Petra account, inside your own Google Contacts.",
+  "Data written to a contact: the lead's name, phone number, email address (if provided), city and a short note from Petra. Petra stores only the identifier of each contact it created, so it can update that contact later.",
+  "Petra does not read, download, store or analyze your existing Google contacts. The only contacts it accesses are the ones Petra itself created, in order to update them.",
+  "Petra does not sell Google user data, does not transfer or share it with third parties, and does not use it for advertising, targeting, tracking or training AI models.",
+  "You can turn the sync off at any time in Petra under Settings → Integrations, or revoke access at myaccount.google.com/permissions. After that Petra creates and updates no further contacts; contacts already created remain in your Google account under your control.",
+  "Limited Use: Petra's use and transfer to any other app of information received from Google APIs will adhere to the Google API Services User Data Policy, including the Limited Use requirements.",
+  "Questions: info@petra-app.com",
 ];
 
 export default function PrivacyPage() {
@@ -130,7 +155,7 @@ export default function PrivacyPage() {
             <Image src="/logo.svg" alt="Petra" width={64} height={64} className="w-full h-full object-cover" />
           </div>
           <h1 className="text-2xl font-bold text-slate-800">מדיניות פרטיות – Petra</h1>
-          <p className="text-sm text-slate-500 mt-1">עדכון אחרון: מרץ 2026</p>
+          <p className="text-sm text-slate-500 mt-1">עדכון אחרון: אוקטובר 2026</p>
         </div>
 
         {/* Content */}
@@ -143,7 +168,7 @@ export default function PrivacyPage() {
           </div>
 
           {SECTIONS.map((section) => (
-            <div key={section.title}>
+            <div key={section.title} id={section.id} className="scroll-mt-6">
               <h3 className="font-bold text-slate-800 mb-2">{section.title}</h3>
               <ul className="space-y-1.5">
                 {section.items.map((item, i) => (
@@ -154,6 +179,18 @@ export default function PrivacyPage() {
               </ul>
             </div>
           ))}
+
+          {/* English disclosure — Google API Services User Data Policy */}
+          <div dir="ltr" lang="en" id="google-contacts-en" className="pt-6 border-t border-slate-100 text-left scroll-mt-6">
+            <h3 className="font-bold text-slate-800 mb-2">Google Contacts &amp; Limited Use Disclosure (English)</h3>
+            <ul className="space-y-1.5">
+              {GOOGLE_CONTACTS_EN.map((item, i) => (
+                <li key={i} className="text-sm text-slate-600 leading-relaxed">
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
 
         {/* Footer */}

@@ -8,6 +8,7 @@ import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { hasFeatureWithOverrides } from "@/lib/feature-flags";
 import { sendLeadAlert } from "@/lib/lead-alert";
 import { runAfterResponse } from "@/lib/wait-until";
+import { syncLeadToGoogleContacts } from "@/lib/google-contacts";
 import { prisma } from "@/lib/prisma";
 import { listLeads, createLead, ServiceError } from "@/services/clients";
 import { hasAttributionPayload, normalizeAttributionInput } from "@/lib/lead-attribution";
@@ -89,6 +90,8 @@ export async function POST(request: NextRequest) {
       }));
     }
 
+    // ── Side effect: Google Contacts sync (opt-in per business, gated inside) ──
+    await runAfterResponse(syncLeadToGoogleContacts(authResult.businessId, lead.id));
 
     return NextResponse.json({ ...lead, existingCustomer, duplicateLead }, { status: 201 });
   } catch (error) {

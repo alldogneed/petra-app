@@ -8,6 +8,8 @@ import { ENTITY_TYPES } from "@/lib/activity-actions";
 import { hasTenantPermission, sessionHasTenantPermission, TENANT_PERMS, type TenantRole } from "@/lib/permissions";
 import { createPendingApproval } from "@/lib/pending-approvals";
 import { cancelLeadFollowup } from "@/lib/reminder-service";
+import { runAfterResponse } from "@/lib/wait-until";
+import { syncLeadToGoogleContacts } from "@/lib/google-contacts";
 import { updateLead, deleteLead, ServiceError, type UpdateLeadInput } from "@/services/clients";
 
 const PatchLeadSchema = z.object({
@@ -64,6 +66,11 @@ export async function PATCH(
       entityLabel: (lead as { name?: string | null } | null)?.name ?? null,
     });
 
+    // Google Contacts sync (opt-in, gated inside) — only when a field the contact carries changed.
+    const contactFields = ["name", "phone", "email", "city", "notes", "requestedService"];
+    if (contactFields.some((f) => f in (parsed.data as Record<string, unknown>))) {
+      await runAfterResponse(syncLeadToGoogleContacts(authResult.businessId, params.id));
+    }
 
     return NextResponse.json(lead);
   } catch (error) {

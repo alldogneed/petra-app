@@ -242,6 +242,12 @@ The legacy dark "Master Admin" (`/admin/*`) was merged into the light platform p
 
 ---
 
+### 42. Google Contacts sync — leads only, opt-in, incremental scope
+`src/lib/google-contacts.ts` — `syncLeadToGoogleContacts(businessId, leadId)` creates/updates one Google contact per **lead** (never customers) in the business **owner's** Google account. Gated by `Business.googleContactsSync` (default `false`); never throws; called via `runAfterResponse` from `POST /api/leads`, `PATCH /api/leads/[id]` (contact fields only) and `/api/webhooks/lead`.
+- Scope `auth/contacts` (sensitive, not restricted) is **never** in the default Google connect. It is requested only from the toggle in Settings → אינטגרציות (`GoogleContactsSyncRow`) → `GET /api/integrations/google/connect?scope=contacts`; the OAuth callback turns the flag on only if the scope was really granted. Toggle API: `/api/integrations/google/contacts` (owner only, not while impersonating).
+- Create + update only. No listing/reading of the owner's existing contacts (the only GET is the etag of the contact Petra created), no deletes. `/landing` and `/privacy` (Hebrew + English, Limited Use) state exactly this — change behaviour and those pages together.
+- Logged-out `/` is rewritten to `/landing` in `src/middleware.ts` (Google OAuth homepage requirement).
+
 ## MCP Server
 
 ### Architecture
