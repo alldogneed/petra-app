@@ -10,6 +10,13 @@ import dub  # noqa: E402  tts / transcribe / score / words / duration / FF
 
 FF = dub.FF
 
+# No OpenAI key -> use ElevenLabs Scribe for transcription / word timings (marketing/eleven.py).
+USE_SCRIBE = not os.environ.get("OPENAI_API_KEY")
+if USE_SCRIBE:
+    sys.path.insert(0, os.path.join(REPO, "marketing"))
+    import eleven  # noqa: E402
+    dub.transcribe = eleven.transcribe
+
 
 def levels(path, step=0.02, start=None, dur=None):
     """dBFS per `step` seconds (mono, 16 kHz)."""
@@ -49,6 +56,8 @@ def loudness(path):
 
 
 def whisper(path, lang=None, words=False):
+    if USE_SCRIBE:
+        return {"words": [{"word": w, "start": a, "end": b} for w, a, b in eleven.scribe_words(path)]}
     cmd = ["curl", "-sS", "https://api.openai.com/v1/audio/transcriptions",
            "-H", "Authorization: Bearer " + os.environ["OPENAI_API_KEY"],
            "-F", "model=whisper-1", "-F", "response_format=verbose_json", "-F", "file=@" + path]
