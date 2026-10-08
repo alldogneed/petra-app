@@ -10,6 +10,7 @@ import { useAuth } from "@/providers/auth-provider";
 import { usePlan } from "@/hooks/usePlan";
 import { PaywallCard } from "@/components/paywall/PaywallCard";
 import { WhatsAppConnectCard } from "@/components/settings/WhatsAppConnectCard";
+import { GoogleContactsSyncRow } from "@/components/settings/GoogleContactsSyncRow";
 import { Business } from "./shared";
 import { InvoicingConnectModal, InvoicingMappingModal } from "./InvoicingTab";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -79,6 +80,7 @@ export function IntegrationsTab() {
   const canSyncCalendar = perms.canSyncCalendar;
   const [confirmDisconnect, setConfirmDisconnect] = useState<DisconnectTarget | null>(null);
   const gcalStatus = searchParams.get("gcal");
+  const gcontactsStatus = searchParams.get("gcontacts");
   const [showInvoicingModal, setShowInvoicingModal] = useState(false);
   const [showMappingModal, setShowMappingModal] = useState(false);
   const [showStripeModal, setShowStripeModal] = useState(false);
@@ -228,6 +230,18 @@ export function IntegrationsTab() {
           החיבור בוטל. ניתן לנסות שוב בכל עת.
         </div>
       )}
+      {gcontactsStatus === "connected" && (
+        <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm">
+          <CheckCircle className="w-4 h-4 flex-shrink-0" />
+          הסנכרון ל-Google Contacts הופעל. לידים חדשים יישמרו באנשי הקשר שלך.
+        </div>
+      )}
+      {gcontactsStatus === "denied" && (
+        <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-sm">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          הגישה ל-Google Contacts לא אושרה, והסנכרון נשאר כבוי.
+        </div>
+      )}
       {gcalStatus === "error" && (
         <div className="flex items-center gap-2 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
           <XCircle className="w-4 h-4 flex-shrink-0" />
@@ -328,6 +342,7 @@ export function IntegrationsTab() {
                   </div>
                 </div>
               )}
+              {isGcal && integ.connected && <GoogleContactsSyncRow />}
               {isWhatsApp && integ.connected && biz && can("whatsapp_reminders") && (
                 <div className="mt-3 pt-3 border-t border-slate-100 space-y-2">
                   {!canCriticalSettings && <ReadOnlyNotice className="text-xs px-3 py-2" />}

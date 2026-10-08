@@ -46,6 +46,8 @@ import { toWhatsAppPhone } from "@/lib/utils";
 import { sanitizeName } from "@/lib/validation";
 import { scheduleLeadFollowup } from "@/lib/reminder-service";
 import { normalizeAttributionInput } from "@/lib/lead-attribution";
+import { runAfterResponse } from "@/lib/wait-until";
+import { syncLeadToGoogleContacts } from "@/lib/google-contacts";
 
 export async function POST(request: NextRequest) {
   // ── Rate limiting ─────────────────────────────────────────────────────────
@@ -205,6 +207,9 @@ export async function POST(request: NextRequest) {
         },
       });
     }
+
+    // Google Contacts sync (opt-in per business, gated inside; never throws)
+    await runAfterResponse(syncLeadToGoogleContacts(businessId as string, lead.id));
 
     return NextResponse.json(
       { success: true, leadId: lead.id, name: lead.name, stage: lead.stage },

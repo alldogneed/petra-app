@@ -7,6 +7,8 @@ import crypto from "crypto";
 /**
  * GET /api/integrations/google/connect?from=onboarding
  * Redirects the user to Google's OAuth consent screen for Calendar access.
+ * `?scope=contacts` additionally requests Google Contacts (incremental authorization,
+ * started from the "סנכרון לידים ל-Google Contacts" toggle) — state `from` = "contacts".
  * State = "nonce|userId|from" — nonce stored in httpOnly cookie for CSRF verification.
  */
 export async function GET(request: NextRequest) {
@@ -16,12 +18,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const from = new URL(request.url).searchParams.get("from");
+    const params = new URL(request.url).searchParams;
+    const wantsContacts = params.get("scope") === "contacts";
+    const from = wantsContacts ? "contacts" : params.get("from");
     const nonce = crypto.randomBytes(16).toString("hex");
     const state = from
       ? `${nonce}|${session.user.id}|${from}`
       : `${nonce}|${session.user.id}`;
-    const authUrl = buildCalendarAuthUrl(state);
+    const authUrl = buildCalendarAuthUrl(state, { contacts: wantsContacts });
 
     const response = NextResponse.redirect(authUrl);
     const isProd = process.env.NODE_ENV === "production";

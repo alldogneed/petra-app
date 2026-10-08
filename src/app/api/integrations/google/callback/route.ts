@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/session";
 import { exchangeCalendarCode, encryptToken, ensureUserCalendar } from "@/lib/google-calendar";
+import { scopeIncludesContacts } from "@/lib/google-contacts";
 import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
 
@@ -26,8 +27,13 @@ export async function GET(request: NextRequest) {
     const userId = stateParts[1];
     const from = stateParts[2];
     const returnBase = from === "onboarding" ? "/onboarding" : "/settings";
+    // Incremental Google Contacts consent, started from the contacts-sync toggle.
+    const isContactsFlow = from === "contacts";
+    const contactsReturn = (status: string) =>
+      NextResponse.redirect(new URL(`/settings?tab=integrations&gcontacts=${status}`, APP_URL));
 
     if (error) {
+      if (isContactsFlow) return contactsReturn("denied");
       return NextResponse.redirect(new URL(`${returnBase}?gcal=denied`, APP_URL));
     }
 
@@ -47,7 +53,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL(`${returnBase}?gcal=error`, APP_URL));
     }
 
-    const { accessToken, refreshToken, expiresAt, connectedEmail } =
+    const { accessToken, refreshToken, expiresAt, connectedEmail, scope } =
       await exchangeCalendarCode(code);
 
     await prisma.platformUser.update({
@@ -59,9 +65,28 @@ export async function GET(request: NextRequest) {
         gcalTokenExpiresAt: expiresAt,
         gcalConnectedEmail: connectedEmail,
         gcalLastConnectedAt: new Date(),
-        gcalSyncEnabled: true,
+        // The contacts flow re-consents an existing connection — keep the member's own sync toggle.
+        ...(isContactsFlow ? {} : { gcalSyncEnabled: true }),
       },
     });
+
+    if (isContactsFlow) {
+      // Turn the sync on only if the owner really granted the contacts scope
+      // (Google's consent screen lets them untick it).
+      const ownedBusinessId = session.impersonatedBusinessId
+        ? null
+        : session.memberships.find((m) => m.isActive && m.role === "owner")?.businessId ?? null;
+      const granted = scopeIncludesContacts(scope);
+      if (granted && ownedBusinessId) {
+        await prisma.business.update({
+          where: { id: ownedBusinessId },
+          data: { googleContactsSync: true },
+        });
+      }
+      const contactsResponse = contactsReturn(granted && ownedBusinessId ? "connected" : "denied");
+      contactsResponse.cookies.set("gcal_oauth_state", "", { maxAge: 0, path: "/api/integrations/google/callback" });
+      return contactsResponse;
+    }
 
     try {
       await ensureUserCalendar(session.user.id);

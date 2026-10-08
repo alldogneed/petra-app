@@ -38,6 +38,8 @@ export async function exchangeCalendarCode(code: string): Promise<{
   refreshToken: string;
   expiresAt: Date;
   connectedEmail: string;
+  /** Space-separated scopes Google actually granted (the user can untick some). */
+  scope: string;
 }> {
   const clientId = process.env.GOOGLE_CLIENT_ID!;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET!;
@@ -75,6 +77,7 @@ export async function exchangeCalendarCode(code: string): Promise<{
     refreshToken: data.refresh_token,
     expiresAt,
     connectedEmail,
+    scope: typeof data.scope === "string" ? data.scope : "",
   };
 }
 
@@ -1212,8 +1215,10 @@ export async function deleteBoardingFromGcal(stayId: string, businessId: string)
 
 /**
  * Build the Google OAuth URL for Calendar scope (separate from auth login).
+ * `opts.contacts` adds the Google Contacts scope on top (incremental authorization) —
+ * used only when the owner turns on the lead → Google Contacts sync.
  */
-export function buildCalendarAuthUrl(state: string): string {
+export function buildCalendarAuthUrl(state: string, opts: { contacts?: boolean } = {}): string {
   const clientId = process.env.GOOGLE_CLIENT_ID!;
   const redirectUri = process.env.GCAL_REDIRECT_URI!;
 
@@ -1225,12 +1230,13 @@ export function buildCalendarAuthUrl(state: string): string {
       "https://www.googleapis.com/auth/calendar.events",
       "https://www.googleapis.com/auth/calendar.calendarlist.readonly",
       "https://www.googleapis.com/auth/calendar",
-      // No People API scope here on purpose: auth/contacts is a *restricted*
-      // scope, which forces an annual CASA security assessment on top of normal
-      // OAuth verification. Calendar-only keeps us on the sensitive-scope path.
+      // The People API scope (auth/contacts, a *sensitive* scope) is never part of the
+      // default connect: it is requested only when the owner enables the contacts sync.
+      ...(opts.contacts ? ["https://www.googleapis.com/auth/contacts"] : []),
       "email",
     ].join(" "),
     state,
+    include_granted_scopes: "true",
     access_type: "offline",
     prompt: "consent", // force refresh_token to be returned
   });

@@ -138,6 +138,11 @@ export function middleware(request: NextRequest) {
   const sessionToken = request.cookies.get("petra_session")?.value;
 
   if (!sessionToken || !isValidTokenFormat(sessionToken)) {
+    // Logged-out visitors to the root see the marketing landing page (URL stays "/").
+    // Logged-in users fall through to src/app/page.tsx → /dashboard.
+    if (pathname === "/") {
+      return NextResponse.rewrite(new URL("/landing", request.url));
+    }
     // Redirect to login for page requests
     if (!pathname.startsWith("/api/")) {
       const loginUrl = new URL("/login", request.url);
