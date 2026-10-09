@@ -1,5 +1,6 @@
 // scripts/upload-tutorials.mjs
-// Usage: node scripts/upload-tutorials.mjs
+// Usage: BLOB_READ_WRITE_TOKEN=... node scripts/upload-tutorials.mjs
+// (or `node --env-file=.env.local scripts/upload-tutorials.mjs`). Never commit the token.
 import { put } from "@vercel/blob";
 import fs from "fs";
 import path from "path";
@@ -7,8 +8,11 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const TOKEN =
-  "vercel_blob_rw_VD0IZwltRfIbbypF_V6XBukdZOlkF5sGCHO7rlPHAKYocHM";
+const TOKEN = process.env.BLOB_READ_WRITE_TOKEN;
+if (!TOKEN) {
+  console.error("Missing BLOB_READ_WRITE_TOKEN — set it in the environment before running this script.");
+  process.exit(1);
+}
 
 const OUT_DIR = path.join(__dirname, "..", "my-video", "out");
 
