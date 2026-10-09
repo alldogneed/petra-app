@@ -16,6 +16,8 @@ import { normalizeIsraeliPhone } from "@/lib/validation";
 import { ensureDefaultStages } from "@/lib/lead-stages";
 import { israelDateTime } from "@/lib/reminder-service";
 import { createTask, updateTask, updateLead } from "@/services/clients";
+import { runAfterResponse } from "@/lib/wait-until";
+import { syncLeadToGoogleContacts } from "@/lib/google-contacts";
 import { MAX_DEAL_VALUE, formatIls } from "@/lib/lead-deal-value";
 import { ServiceError } from "@/services/types";
 import {
@@ -479,6 +481,10 @@ export function registerIntakeTools(server: McpServer, ctx: ToolCtx): void {
         }
 
         const lead = await updateLead(businessId, prisma, args.lead_id, input, ctx.userId ?? null);
+        // Google Contacts sync (opt-in, gated inside) — only when a field the contact carries changed.
+        if (["name", "phone", "email", "city", "notes", "requestedService"].some((f) => f in input)) {
+          await runAfterResponse(syncLeadToGoogleContacts(businessId, lead.id));
+        }
         // Verify (don't assume) the linked follow-up task — report its id so the client can see it in list_tasks.
         let followUpNote = "";
         if (input.nextFollowUpAt) {
