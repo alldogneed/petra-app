@@ -4,7 +4,7 @@ import { Sidebar } from "./sidebar";
 import { Topbar } from "./topbar";
 import { MobileBottomNav } from "./mobile-bottom-nav";
 import { type ReactNode, useState, useEffect } from "react";
-import { HelpCircle } from "lucide-react";
+import { MessageCircleQuestion } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useAuth } from "@/providers/auth-provider";
 import { LimitReachedModal } from "@/components/paywall/LimitReachedModal";
@@ -14,6 +14,11 @@ import { ScreenGuard } from "./ScreenGuard";
 
 const HelpCenter = dynamic(
   () => import("@/components/help/HelpCenter").then((m) => ({ default: m.HelpCenter })),
+  { ssr: false }
+);
+
+const AssistantDrawer = dynamic(
+  () => import("@/components/assistant/AssistantDrawer").then((m) => ({ default: m.AssistantDrawer })),
   { ssr: false }
 );
 
@@ -31,6 +36,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("resize", check);
   }, []);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [assistantOpen, setAssistantOpen] = useState(false);
   const { user, exitImpersonation } = useAuth();
   return (
     <PWAInstallProvider>
@@ -70,14 +76,20 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="no-print"><MobileBottomNav /></div>
       </div>
 
-      {/* Floating help button */}
+      {/* Floating Petra AI button — the help center stays reachable from the sidebar and from inside the drawer */}
       <button
-        onClick={() => setHelpOpen(true)}
+        onClick={() => setAssistantOpen(true)}
         className="fixed bottom-24 left-3 sm:bottom-6 sm:left-6 z-40 w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-brand-500 text-white shadow-lg hover:bg-brand-600 transition-all flex items-center justify-center opacity-90 sm:opacity-100"
-        aria-label="מרכז עזרה"
+        aria-label="Petra AI — עזרה"
       >
-        <HelpCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+        <MessageCircleQuestion className="w-4 h-4 sm:w-5 sm:h-5" />
       </button>
+
+      <AssistantDrawer
+        open={assistantOpen}
+        onOpenChange={setAssistantOpen}
+        onOpenHelpCenter={() => setHelpOpen(true)}
+      />
 
       <HelpCenter open={helpOpen} onOpenChange={setHelpOpen} />
       <LimitReachedModal />

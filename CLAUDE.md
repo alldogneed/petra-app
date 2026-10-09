@@ -249,6 +249,14 @@ The legacy dark "Master Admin" (`/admin/*`) was merged into the light platform p
 - Create + update only. No listing/reading of the owner's existing contacts (the only GET is the etag of the contact Petra created), no deletes. `/landing` and `/privacy` (Hebrew + English, Limited Use) state exactly this — change behaviour and those pages together.
 - Logged-out `/` is rewritten to `/landing` in `src/middleware.ts` (Google OAuth homepage requirement).
 
+### 43. Petra AI — in-app support assistant (read-only) ≠ "עוזר AI" (MCP)
+"Petra AI" is the support chat behind the floating button in `app-shell.tsx` (`src/components/assistant/AssistantDrawer.tsx`). It only explains how to use Petra — it never reads business data and has no tools. "עוזר AI" in the sidebar is the unrelated MCP connector. Open to every tier.
+- Knowledge is **generated**: `node scripts/build-assistant-knowledge.mjs` reads the help-center FAQ, sidebar `navEntries`, `SETTINGS_TABS`, `feature-flags.ts`, `SETUP_STEPS` and `tutorials-config.ts`, and writes `src/lib/assistant/knowledge.generated.ts` (server) + `catalog.generated.ts` (client-safe). Re-run it after changing any of those; never edit the generated files. Gaps are printed as TODO, not guessed. Extra notes/transcripts: `scripts/assistant-knowledge/*.md`.
+- `POST /api/assistant` (NDJSON stream, `maxDuration = 60`): `businessId` + `userId` from the session only; history is loaded from the DB, never from the client; the client's pathname is reduced to a catalog screen (`resolveAssistantScreen`) before it reaches the prompt. Rate limits `ASSISTANT_*` per business; caps in `src/lib/assistant/limits.ts`.
+- Prompt caching: `ASSISTANT_STABLE_PROMPT` (instructions + knowledge) must stay byte-identical across requests — per-request context goes only in `buildContextPrompt()` (second system block).
+- `/api/assistant/escalate` ("דבר עם אדם") opens a regular `SupportTicket` with the transcript; `/api/assistant/feedback` stores 👍/👎. Tables `AssistantConversation` / `AssistantMessage` — prod DDL `prisma/assistant.sql` (additive, RLS enabled without policies like every other table).
+- Env: `ANTHROPIC_API_KEY` (missing → 503, app unaffected), `ASSISTANT_MODEL` (default `claude-haiku-5-5`).
+
 ## MCP Server
 
 ### Architecture

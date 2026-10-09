@@ -60,6 +60,7 @@ model PlatformUser {
   consents       UserConsent[]
   notifications  Notification[]
   supportTickets SupportTicket[]
+  assistantConversations AssistantConversation[]
   pendingApprovalsRequested PendingApproval[] @relation("PendingApprovalRequester")
   pendingApprovalsResolved  PendingApproval[] @relation("PendingApprovalResolver")
   assignedOrders        Order[]          @relation("AssignedOrders")
@@ -290,6 +291,7 @@ model Business {
   importBatches     ImportBatch[]
   systemMessages    SystemMessage[]
   supportTickets    SupportTicket[]
+  assistantConversations AssistantConversation[]
   availabilityRules AvailabilityRule[]
   availabilityBlocks AvailabilityBlock[]
   availabilityBreaks AvailabilityBreak[]
@@ -1062,6 +1064,46 @@ model SupportTicket {
 
   @@index([status, createdAt])
   @@index([businessId])
+}
+
+// ─────────────────────────────────────────────
+// PETRA AI — in-app support assistant
+// ─────────────────────────────────────────────
+
+/// One chat with Petra AI. Scoped to a business and to the member who opened it.
+model AssistantConversation {
+  id              String    @id @default(cuid())
+  businessId      String
+  userId          String
+  screen          String?   // menu route the chat was opened from, e.g. "/customers"
+  escalated       Boolean   @default(false) // "דבר עם אדם" was used
+  escalatedAt     DateTime?
+  supportTicketId String?   // SupportTicket created by the escalation
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  business Business           @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  user     PlatformUser       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages AssistantMessage[]
+
+  @@index([businessId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model AssistantMessage {
+  id             String   @id @default(cuid())
+  conversationId String
+  businessId     String
+  role           String   // "user" | "assistant"
+  content        String
+  screen         String?  // menu route the user was on when this message was sent
+  rating         Int?     // assistant messages only: 1 = 👍, -1 = 👎
+  createdAt      DateTime @default(now())
+
+  conversation AssistantConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@index([businessId, createdAt])
 }
 
 // ─────────────────────────────────────────────

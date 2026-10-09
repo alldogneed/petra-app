@@ -88,6 +88,12 @@ export const env = {
   RESEND_API_KEY: optional("RESEND_API_KEY"),
   EMAIL_FROM: optional("EMAIL_FROM", "Petra <onboarding@resend.dev>"),
 
+  // ── Petra AI (in-app support assistant) ────────────────────────────────────
+  // Without a key the assistant answers 503; the rest of the app is unaffected.
+  ANTHROPIC_API_KEY: optional("ANTHROPIC_API_KEY"),
+  // claude-haiku-5-5 (default) or claude-sonnet-5-5.
+  ASSISTANT_MODEL: optional("ASSISTANT_MODEL", "claude-haiku-5-5"),
+
   // ── Invoicing ──────────────────────────────────────────────────────────────
   INVOICING_ENCRYPTION_KEY: optional("INVOICING_ENCRYPTION_KEY"),
 
