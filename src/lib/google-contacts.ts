@@ -65,19 +65,32 @@ export function buildContactPayload(lead: LeadForContact): ContactPayload {
 
 // ─── Token helpers ───────────────────────────────────────────────────────────
 
-/** The business owner's Google access token, or null when Google isn't connected. */
+/**
+ * A Google access token of a business owner, or null when no owner has Google connected.
+ * A business can have several owners and only one of them may have connected Google —
+ * so we look for the connected ones, never "the first owner".
+ */
 async function getOwnerAccessToken(businessId: string): Promise<string | null> {
-  const membership = await prisma.businessUser.findFirst({
-    where: { businessId, role: "owner", isActive: true },
-    select: { user: { select: { id: true, gcalConnected: true, gcalRefreshToken: true } } },
+  const owners = await prisma.businessUser.findMany({
+    where: {
+      businessId,
+      role: "owner",
+      isActive: true,
+      user: { gcalConnected: true, gcalRefreshToken: { not: null } },
+    },
+    select: { userId: true },
+    orderBy: { createdAt: "asc" },
   });
-  if (!membership?.user?.gcalConnected || !membership.user.gcalRefreshToken) return null;
 
-  try {
-    return await refreshAccessToken(membership.user.id);
-  } catch {
-    return null;
+  for (const owner of owners) {
+    try {
+      return await refreshAccessToken(owner.userId);
+    } catch {
+      // Try the next connected owner.
+    }
   }
+  console.warn(`[GoogleContacts] sync is on but no owner has a usable Google connection (business ${businessId})`);
+  return null;
 }
 
 /**

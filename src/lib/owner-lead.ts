@@ -3,6 +3,7 @@
  * whenever a prospective customer fills in their billing details on the checkout page.
  * Fire-and-forget — never throws; logs errors silently.
  */
+import { syncLeadToGoogleContacts } from "@/lib/google-contacts";
 import prisma from "@/lib/prisma";
 import { getFirstLeadStageId } from "@/lib/lead-stages";
 import { scheduleLeadFollowup } from "@/lib/reminder-service";
@@ -78,6 +79,9 @@ export async function createOwnerLead(data: OwnerLeadData): Promise<void> {
       requestedService: lead.requestedService,
       customerId: null,
     }).catch((err) => console.error("scheduleLeadFollowup (owner-lead) failed (non-critical):", err));
+
+    // Google Contacts sync (opt-in per business, gated inside; never throws).
+    await syncLeadToGoogleContacts(businessId, lead.id);
   } catch (err) {
     console.error("createOwnerLead: failed silently:", err);
   }

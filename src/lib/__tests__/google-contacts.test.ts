@@ -6,7 +6,7 @@
 const mockBusinessFindUnique = jest.fn();
 const mockLeadFindFirst = jest.fn();
 const mockLeadUpdate = jest.fn();
-const mockBusinessUserFindFirst = jest.fn();
+const mockBusinessUserFindMany = jest.fn();
 const mockLeadFindMany = jest.fn();
 const mockLeadCount = jest.fn();
 
@@ -19,7 +19,7 @@ jest.mock("../prisma", () => ({
       findMany: (...a: unknown[]) => mockLeadFindMany(...a),
       count: (...a: unknown[]) => mockLeadCount(...a),
     },
-    businessUser: { findFirst: (...a: unknown[]) => mockBusinessUserFindFirst(...a) },
+    businessUser: { findMany: (...a: unknown[]) => mockBusinessUserFindMany(...a) },
   },
 }));
 
@@ -50,9 +50,7 @@ const fetchMock = jest.fn();
 beforeEach(() => {
   jest.clearAllMocks();
   global.fetch = fetchMock as unknown as typeof fetch;
-  mockBusinessUserFindFirst.mockResolvedValue({
-    user: { id: "u1", gcalConnected: true, gcalRefreshToken: "enc" },
-  });
+  mockBusinessUserFindMany.mockResolvedValue([{ userId: "u1" }]);
 });
 
 describe("scopeIncludesContacts", () => {
@@ -121,6 +119,32 @@ describe("syncLeadToGoogleContacts", () => {
     await syncLeadToGoogleContacts("biz1", "lead1");
 
     expect(mockLeadUpdate).toHaveBeenCalledWith({ where: { id: "lead1" }, data: { googleContactId: "people/c2" } });
+  });
+
+  it("uses an owner who connected Google, even when another owner has not", async () => {
+    mockBusinessFindUnique.mockResolvedValue({ googleContactsSync: true });
+    mockLeadFindFirst.mockResolvedValue(LEAD);
+    fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => ({ resourceName: "people/c1" }) });
+
+    await syncLeadToGoogleContacts("biz1", "lead1");
+
+    // The lookup itself filters to connected owners — a business with two owners must not
+    // land on the one without a Google connection.
+    expect(mockBusinessUserFindMany.mock.calls[0][0].where).toMatchObject({
+      businessId: "biz1",
+      role: "owner",
+      isActive: true,
+      user: { gcalConnected: true, gcalRefreshToken: { not: null } },
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does nothing when no owner has Google connected", async () => {
+    mockBusinessFindUnique.mockResolvedValue({ googleContactsSync: true });
+    mockLeadFindFirst.mockResolvedValue(LEAD);
+    mockBusinessUserFindMany.mockResolvedValue([]);
+    await syncLeadToGoogleContacts("biz1", "lead1");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("skips leads with no phone and no email, and never throws", async () => {

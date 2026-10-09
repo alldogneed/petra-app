@@ -21,6 +21,8 @@ import prisma from "@/lib/prisma";
 import { validateMcpToken, isKnownMcpTokenHash, touchMcpConnection, extractBearerToken, auditLog, DEFAULT_MCP_SCOPES, capScopesForRole, ADMIN_SCOPE } from "@/lib/mcp-auth";
 import { rateLimitAsync, claimOnce } from "@/lib/rate-limit";
 import { getOAuthOrigin } from "@/lib/mcp-oauth";
+import { runAfterResponse } from "@/lib/wait-until";
+import { syncLeadToGoogleContacts } from "@/lib/google-contacts";
 import { listCustomers, getCustomer, addCustomerNote, createCustomer, createLead, updateLead, listTasks, getCustomerSalesHistory } from "@/services/clients";
 import { SALES_JOURNAL_KIND_LABELS, TASK_STATUS_LABELS, type SalesHistoryLead } from "@/lib/lead-sales-history";
 import { LOST_REASON_CODES, LEAD_SOURCES } from "@/lib/constants";
@@ -816,6 +818,8 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
             ? `\n⚠️ שים לב: קיים ליד קודם עם אותו טלפון — ${safeField(result.duplicateLead.name)} (id: ${result.duplicateLead.id})`
             : "";
         const leadSummary = `✅ ליד חדש נוצר בהצלחה!\nשם: ${safeField(lead.name)}${lead.phone ? `\nטלפון: ${safeField(lead.phone, 20)}` : ""}${stage ? `\nשלב: ${safeField(stage.name, 60)}` : ""}${lead.dealValue != null ? `\nערך עסקה: ${formatIls(lead.dealValue)}` : ""}${followUpLabel ? `\nמעקב הבא: ${followUpLabel}` : ""}${petBlock ? "\n🐾 פרטי הכלב נשמרו בהערות" : ""}${attribution ? `\nמקור תנועה: ${safeField(attrLine ?? TRAFFIC_SOURCE_LABELS[attribution.trafficSource], 300)}` : ""} (id: ${lead.id})${dupNote}${followUpWarning}`;
+        // Google Contacts sync (opt-in per business, gated inside; never throws) — same as the UI route.
+        await runAfterResponse(syncLeadToGoogleContacts(businessId, lead.id));
         await auditLog(connectionId, "create_lead", params, "success", `created lead ${lead.id}`);
         return textResult(leadSummary);
       } catch (e) {
