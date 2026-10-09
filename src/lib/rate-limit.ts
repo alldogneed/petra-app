@@ -97,6 +97,14 @@ export const RATE_LIMITS = {
   PUBLIC_READ: { max: 30, windowMs: 60 * 1000 },
   /** Sensitive token endpoints (intake, QR): 10 per minute per IP — prevents brute-force enumeration */
   STRICT_TOKEN: { max: 10, windowMs: 60 * 1000 },
+  /** Petra AI questions, per business: short burst window + daily cap (paid plans) */
+  ASSISTANT_BURST: { max: 20, windowMs: 10 * 60 * 1000 },
+  ASSISTANT_DAILY: { max: 200, windowMs: 24 * 60 * 60 * 1000 },
+  /** Petra AI questions, per business on the free plan */
+  ASSISTANT_BURST_FREE: { max: 10, windowMs: 10 * 60 * 1000 },
+  ASSISTANT_DAILY_FREE: { max: 40, windowMs: 24 * 60 * 60 * 1000 },
+  /** Petra AI "דבר עם אדם" escalations: 5 per hour per business */
+  ASSISTANT_ESCALATE: { max: 5, windowMs: 60 * 60 * 1000 },
 } as const;
 
 // ─── Distributed rate limiter (Upstash Redis) ────────────────────────────────
