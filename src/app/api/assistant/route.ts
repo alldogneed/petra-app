@@ -14,6 +14,7 @@ export const maxDuration = 60;
  * the database (never taken from the client), scoped to businessId + userId.
  */
 
+import { randomUUID } from "node:crypto";
 import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -58,7 +59,32 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Petra AI לא זמין כרגע. נסו שוב מאוחר יותר." }, { status: 503 });
   }
 
-  const context = await loadAssistantContext(session, businessId, pathname);
+  // One round trip: the request context and the conversation (ownership check,
+  // size and the latest messages) together. Must belong to this business AND this user.
+  const [context, existing] = await Promise.all([
+    loadAssistantContext(session, businessId, pathname),
+    conversationId
+      ? prisma.assistantConversation.findFirst({
+          where: { id: conversationId, businessId, userId },
+          select: {
+            id: true,
+            _count: { select: { messages: true } },
+            messages: {
+              orderBy: { createdAt: "desc" },
+              take: ASSISTANT_HISTORY_MESSAGES - 1,
+              select: { role: true, content: true },
+            },
+          },
+        })
+      : null,
+  ]);
+  if (conversationId && !existing) return NextResponse.json({ error: "השיחה לא נמצאה." }, { status: 404 });
+  if (existing && existing._count.messages >= ASSISTANT_MAX_CONVERSATION_MESSAGES) {
+    return NextResponse.json(
+      { error: "השיחה הזו ארוכה מדי. פתחו שיחה חדשה כדי להמשיך.", code: "conversation_full" },
+      { status: 409 }
+    );
+  }
 
   const isFree = normalizeTier(context.tier) === "free";
   const [burst, daily] = await Promise.all([
@@ -77,45 +103,26 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Conversation — must belong to this business AND this user.
-  let conversation: { id: string };
-  if (conversationId) {
-    const existing = await prisma.assistantConversation.findFirst({
-      where: { id: conversationId, businessId, userId },
-      select: { id: true, _count: { select: { messages: true } } },
-    });
-    if (!existing) return NextResponse.json({ error: "השיחה לא נמצאה." }, { status: 404 });
-    if (existing._count.messages >= ASSISTANT_MAX_CONVERSATION_MESSAGES) {
-      return NextResponse.json(
-        { error: "השיחה הזו ארוכה מדי. פתחו שיחה חדשה כדי להמשיך.", code: "conversation_full" },
-        { status: 409 }
-      );
-    }
-    conversation = existing;
-  } else {
-    conversation = await prisma.assistantConversation.create({
-      data: { businessId, userId, screen: context.screen?.href ?? null },
-      select: { id: true },
-    });
-  }
-
-  await prisma.assistantMessage.create({
-    data: { conversationId: conversation.id, businessId, role: "user", content: message, screen: context.screen?.href ?? null },
-  });
+  // Save the question while the model is already answering — awaited before the answer is saved.
+  const screenHref = context.screen?.href ?? null;
+  const userMessage = { role: "user", content: message, screen: screenHref, businessId };
+  const conversation = { id: existing?.id ?? randomUUID() };
+  const questionSaved: Promise<unknown> = existing
+    ? prisma.assistantMessage.create({ data: { ...userMessage, conversationId: existing.id } })
+    : prisma.assistantConversation.create({
+        data: { id: conversation.id, businessId, userId, screen: screenHref, messages: { create: userMessage } },
+      });
+  questionSaved.catch(() => {}); // surfaced where it is awaited, inside the stream
 
   // Only the latest messages go to the model; the first one must be a user turn.
-  const recent = await prisma.assistantMessage.findMany({
-    where: { conversationId: conversation.id, businessId },
-    orderBy: { createdAt: "desc" },
-    take: ASSISTANT_HISTORY_MESSAGES,
-    select: { role: true, content: true },
-  });
-  recent.reverse();
+  const recent = [...(existing?.messages ?? [])].reverse();
   while (recent.length > 0 && recent[0].role !== "user") recent.shift();
-  const messages: Anthropic.MessageParam[] = recent.map((m) => ({
-    role: m.role === "assistant" ? "assistant" : "user",
-    content: m.content,
-  }));
+  const messages: Anthropic.MessageParam[] = [
+    ...recent.map(
+      (m): Anthropic.MessageParam => ({ role: m.role === "assistant" ? "assistant" : "user", content: m.content })
+    ),
+    { role: "user", content: message },
+  ];
 
   const anthropic = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
   const stream = anthropic.messages.stream(
@@ -155,6 +162,13 @@ export async function POST(request: NextRequest) {
           send({ type: "delta", text: delta });
         });
         const final = await stream.finalMessage();
+        await questionSaved;
+
+        // One line per answer: confirms the knowledge prefix is read from the prompt cache.
+        const usage = final.usage;
+        console.log(
+          `[assistant] model=${final.model} input=${usage.input_tokens} cache_read=${usage.cache_read_input_tokens ?? 0} cache_write=${usage.cache_creation_input_tokens ?? 0} output=${usage.output_tokens}`
+        );
 
         // A safety decline or an empty answer: tell the user how to reach a person.
         if (final.stop_reason === "refusal" || !text.trim()) {

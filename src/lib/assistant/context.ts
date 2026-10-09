@@ -1,8 +1,8 @@
 /**
  * Server-side context for a Petra AI request: which screen, which plan, which
- * role, how far the business setup got. Everything is resolved from the session
- * and the database — the only client input is the pathname, and it is reduced
- * to a known menu screen before use.
+ * role, what kind of business it is and how far its setup got. Everything is
+ * resolved from the session and the database — the only client input is the
+ * pathname, and it is reduced to a known menu screen before use.
  */
 
 import prisma from "@/lib/prisma";
@@ -16,18 +16,31 @@ export async function loadAssistantContext(
   businessId: string,
   pathname: string | null | undefined
 ): Promise<AssistantContext> {
-  const [business, progress, servicesCount, customersCount] = await Promise.all([
-    prisma.business.findUnique({
-      where: { id: businessId },
-      select: { tier: true, phone: true, subscriptionEndsAt: true, subscriptionStatus: true, cardcomRecurringId: true },
-    }),
-    prisma.onboardingProgress.findUnique({
-      where: { userId: session.user.id },
-      select: { stepCompleted1: true, stepCompleted2: true, stepCompleted3: true },
-    }),
-    prisma.service.count({ where: { businessId, isActive: true } }),
-    prisma.customer.count({ where: { businessId } }),
-  ]);
+  const userId = session.user.id;
+  const [business, progress, profiles, servicesCount, customersCount, roomsCount, programsCount, groupsCount] =
+    await Promise.all([
+      prisma.business.findUnique({
+        where: { id: businessId },
+        select: { name: true, tier: true, phone: true, subscriptionEndsAt: true, subscriptionStatus: true, cardcomRecurringId: true },
+      }),
+      prisma.onboardingProgress.findUnique({
+        where: { userId },
+        select: { stepCompleted1: true, stepCompleted2: true, stepCompleted3: true },
+      }),
+      // What the business said about itself in onboarding. Answered per user — prefer
+      // the asker's own answers, otherwise the earliest member's (normally the owner).
+      prisma.onboardingProfile.findMany({
+        where: { user: { businessMemberships: { some: { businessId, isActive: true } } } },
+        orderBy: { createdAt: "asc" },
+        take: 5,
+        select: { userId: true, businessType: true, primaryGoal: true, activeClientsRange: true },
+      }),
+      prisma.service.count({ where: { businessId, isActive: true } }),
+      prisma.customer.count({ where: { businessId } }),
+      prisma.room.count({ where: { businessId } }),
+      prisma.trainingProgram.count({ where: { businessId } }),
+      prisma.trainingGroup.count({ where: { businessId } }),
+    ]);
 
   // Same rule as getCurrentUser(): a lapsed subscription is effectively the free plan.
   const tier = business && !isSubscriptionLapsed(business) ? business.tier : "free";
@@ -44,5 +57,18 @@ export async function loadAssistantContext(
     !!progress?.stepCompleted3 || customersCount > 0,
   ];
 
-  return { screen: resolveAssistantScreen(pathname), tier, role, setupDone };
+  const profile = profiles.find((p) => p.userId === userId) ?? profiles[0] ?? null;
+
+  return {
+    screen: resolveAssistantScreen(pathname),
+    tier,
+    role,
+    setupDone,
+    businessName: business?.name ?? null,
+    businessType: profile?.businessType ?? null,
+    primaryGoal: profile?.primaryGoal ?? null,
+    clientsRange: profile?.activeClientsRange ?? null,
+    usesBoarding: roomsCount > 0,
+    usesTraining: programsCount + groupsCount > 0,
+  };
 }
