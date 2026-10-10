@@ -57,6 +57,17 @@ const SECTIONS: { id?: string; title: string; items: string[] }[] = [
     ],
   },
   {
+    id: "ai-and-google-data",
+    title: "4א. בינה מלאכותית (AI) ומידע מ-Google",
+    items: [
+      "Petra AI, עוזר התמיכה בתוך המערכת, פועל באמצעות Claude API של Anthropic (שירות API מסחרי). הוא מקבל רק את השאלה שלך ונתונים כלליים על העסק במערכת (כמו מסלול המנוי ומספר הלקוחות), ולא מקבל שום מידע מ-Google APIs.",
+      "עוזרי AI (חיבור MCP, בגרסת בטא סגורה): בעל העסק יכול לחבר את חשבון Claude או ChatGPT שלו לנתוני העסק ב-Petra. החיבור לא חושף שום מידע מ-Google APIs — לא אנשי קשר, ולא אירועים או זמנים תפוסים מיומן Google.",
+      "אנחנו לא מעבירים מידע שהתקבל מ-Google APIs, גולמי, מצטבר, אנונימי או נגזר, לשום שירות AI של צד שלישי, ולא משתמשים בו כדי ליצור, לאמן או לשפר מודלים של בינה מלאכותית או למידת מכונה.",
+      "אנחנו לא משתמשים באגרגטורים או ב-gateways של מודלים, ולא מפעילים מודלים בהתקנה עצמית (self-hosted).",
+      "הצהרה: השימוש בנתונים גולמיים או נגזרים שהתקבלו מ-Google APIs יעמוד ב-Google API Services User Data Policy, כולל דרישות Limited Use (שימוש מוגבל).",
+    ],
+  },
+  {
     title: "5. כיצד אנו משתמשים במידע",
     items: [
       "הפעלת המערכת ומתן השירותים: ניהול לקוחות, פגישות, משימות ותשלומים.",
@@ -145,6 +156,14 @@ const GOOGLE_CONTACTS_EN = [
   "Questions: info@petra-app.com",
 ];
 
+const AI_EN = [
+  "Petra AI, the in-app support assistant, runs on Anthropic's Claude API (a commercial API service). It receives only the user's question and general, non-Google information about the account (such as the subscription plan and the number of clients). It never receives any data obtained from Google APIs.",
+  "AI assistants (MCP connector, private beta): a business owner can connect their own Claude or ChatGPT account to their Petra business records. This connector does not expose any data obtained from Google APIs — no Google contacts and no Google Calendar events or busy times.",
+  "Petra does not transfer raw, aggregated, anonymized or derived data obtained from Google APIs to any third-party AI service, and does not use such data to create, train or improve AI or machine-learning models.",
+  "Petra does not use AI model aggregators or gateways and does not run self-hosted models.",
+  "The use of raw or derived user data received from Google APIs will adhere to the Google API Services User Data Policy, including the Limited Use requirements.",
+];
+
 export default function PrivacyPage() {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center py-10 px-4" dir="rtl">
@@ -185,6 +204,17 @@ export default function PrivacyPage() {
             <h3 className="font-bold text-slate-800 mb-2">Google Contacts &amp; Limited Use Disclosure (English)</h3>
             <ul className="space-y-1.5">
               {GOOGLE_CONTACTS_EN.map((item, i) => (
+                <li key={i} className="text-sm text-slate-600 leading-relaxed">
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div dir="ltr" lang="en" id="ai-en" className="pt-6 border-t border-slate-100 text-left scroll-mt-6">
+            <h3 className="font-bold text-slate-800 mb-2">AI Services &amp; Google User Data (English)</h3>
+            <ul className="space-y-1.5">
+              {AI_EN.map((item, i) => (
                 <li key={i} className="text-sm text-slate-600 leading-relaxed">
                   {item}
                 </li>
