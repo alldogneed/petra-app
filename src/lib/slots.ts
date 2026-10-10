@@ -107,6 +107,7 @@ export async function getAvailableSlots(
   localDateStr: string, // "YYYY-MM-DD" in business timezone
   bufferBefore = 0,
   bufferAfter = 0,
+  opts: { useGoogleBusy?: boolean } = {},
 ): Promise<SlotResult[]> {
   // 1. Load business (including booking settings), availability rule, blocks,
   //    breaks, and existing bookings in parallel
@@ -256,8 +257,11 @@ export async function getAvailableSlots(
     ...busyFromBreaks,
   ]
 
-  // 6. If gcalBlockExternal, fetch FreeBusy from Google Calendar
-  if (gcalBlockExternal) {
+  // 6. If gcalBlockExternal, fetch FreeBusy from Google Calendar.
+  // Callers that hand the result to a third-party AI client (MCP) pass
+  // useGoogleBusy:false — Google user data, including data derived from it,
+  // never reaches an AI service (Google API Services User Data Policy, Limited Use).
+  if (gcalBlockExternal && opts.useGoogleBusy !== false) {
     try {
       const gcalIntervals = await getGcalBusyIntervals(businessId, windowStart, windowEnd)
       allBusy.push(...gcalIntervals)

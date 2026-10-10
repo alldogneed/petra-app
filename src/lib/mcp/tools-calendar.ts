@@ -11,7 +11,8 @@
  * Data sources mirror the app:
  *  - free slots      → src/lib/slots.ts getAvailableSlots (same engine as online booking:
  *                      AvailabilityRule hours, AvailabilityBlock, AvailabilityBreak, Booking,
- *                      Appointment, gcalBlockExternal, bookingMinNotice / bookingMaxAdvance)
+ *                      Appointment, bookingMinNotice / bookingMaxAdvance — Google Calendar
+ *                      busy times are excluded on purpose, see MCP_SLOT_OPTS)
  *  - appointments    → src/services/appointments.ts listAppointments / updateAppointment
  *  - group sessions  → src/services/training.ts listGroupSessionsForCalendar
  *  - boarding        → src/services/boarding.ts listBoardingStays (check-ins / check-outs)
@@ -45,6 +46,13 @@ import {
   type ToolCtx,
 } from "@/lib/mcp/helpers";
 import { getAvailableSlots, localTimeToUtc, utcToLocalHHMM } from "@/lib/slots";
+
+/**
+ * MCP results go to a third-party AI client (Claude / ChatGPT). Google Calendar
+ * busy times are Google user data, so the slot engine must not use them here —
+ * free slots for AI clients are computed from Petra's own data only.
+ */
+const MCP_SLOT_OPTS = { useGoogleBusy: false } as const;
 import { listAppointments, updateAppointment } from "@/services/appointments";
 import { listGroupSessionsForCalendar } from "@/services/training";
 import { listBoardingStays } from "@/services/boarding";
@@ -303,7 +311,7 @@ export function registerCalendarTools(server: McpServer, ctx: ToolCtx): void {
   // ── find_free_slots ───────────────────────────────────────────────────────
   server.tool(
     "find_free_slots",
-    "Find free appointment slots on a date using the same availability engine as Petra's online booking (business hours, blocks, breaks, existing appointments and online bookings, Google Calendar busy times when enabled, minimum notice and max-advance settings). Pass service_id (from list_services — gives duration + buffers) OR duration_minutes. Optional earliest/latest HH:MM window. If the day has nothing free, returns the next days that do. Times are Israel local.",
+    "Find free appointment slots on a date using the same availability engine as Petra's online booking (business hours, blocks, breaks, existing appointments and online bookings, minimum notice and max-advance settings). Pass service_id (from list_services — gives duration + buffers) OR duration_minutes. Optional earliest/latest HH:MM window. If the day has nothing free, returns the next days that do. Times are Israel local. Uses Petra's own data only — busy times from the owner's Google Calendar are not included, so tell the user to double-check personal calendar events.",
     {
       date: z.string().describe("Date YYYY-MM-DD"),
       service_id: z.string().optional().describe("Service id — uses its duration and buffers"),
@@ -352,7 +360,7 @@ export function registerCalendarTools(server: McpServer, ctx: ToolCtx): void {
           });
         const fmt = (s: { time: string; endAt: Date }) => `${s.time}–${utcToLocalHHMM(s.endAt, tz)}`;
 
-        const all = filterSlots(await getAvailableSlots(businessId, duration, ymd, bufferBefore, bufferAfter));
+        const all = filterSlots(await getAvailableSlots(businessId, duration, ymd, bufferBefore, bufferAfter, MCP_SLOT_OPTS));
         const hours = openHoursFor(rules, ymd, tz);
         const engineNote = `(מנוע ההזמנות: הודעה מוקדמת מינימלית ${settings.bookingMinNotice} שעות, עד ${settings.bookingMaxAdvance} ימים קדימה)`;
         const head = `חלונות פנויים ב-${heYmd(ymd)} (${weekdayHe(ymd)}) — ${duration} דק'${bufferBefore || bufferAfter ? ` + באפר ${bufferBefore}/${bufferAfter}` : ""}${serviceLabel} | שעות פעילות: ${openHoursLabel(hours)}`;
@@ -369,7 +377,7 @@ export function registerCalendarTools(server: McpServer, ctx: ToolCtx): void {
         const ahead: string[] = [];
         for (let i = 1; i <= 7 && ahead.length < 3; i++) {
           const d = addDaysYmd(ymd, i);
-          const s = filterSlots(await getAvailableSlots(businessId, duration, d, bufferBefore, bufferAfter));
+          const s = filterSlots(await getAvailableSlots(businessId, duration, d, bufferBefore, bufferAfter, MCP_SLOT_OPTS));
           if (s.length) {
             ahead.push(`• ${heYmd(d)} (${weekdayHe(d)}): ${s.slice(0, 6).map(fmt).join(", ")}${s.length > 6 ? ` …ועוד ${s.length - 6}` : ""}`);
           }
@@ -594,7 +602,7 @@ export function registerCalendarTools(server: McpServer, ctx: ToolCtx): void {
           let found: { ymd: string; time: string; endAt: Date } | null = null;
           for (let i = 0; i < 14 && !found; i++) {
             const d = addDaysYmd(startYmd, i);
-            const slots = await getAvailableSlots(businessId, duration, d, bufferBefore, bufferAfter);
+            const slots = await getAvailableSlots(businessId, duration, d, bufferBefore, bufferAfter, MCP_SLOT_OPTS);
             const hit = slots.find((s) => !(i === 0 && args.preferred_from_time && s.time < args.preferred_from_time));
             if (hit) found = { ymd: d, time: hit.time, endAt: hit.endAt };
           }
