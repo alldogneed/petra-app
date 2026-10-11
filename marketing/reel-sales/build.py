@@ -172,7 +172,7 @@ ICON_MAIL = """<svg viewBox="0 0 120 120"><rect x="10" y="26" width="100" height
 ICON_FORM = """<svg viewBox="0 0 120 120"><rect x="22" y="10" width="76" height="100" rx="8" fill="#FDE68A" stroke="#B45309" stroke-width="5"/><path d="M36 34h48M36 52h48M36 70h30" stroke="#B45309" stroke-width="5" stroke-linecap="round"/><rect x="36" y="84" width="34" height="14" rx="4" fill="#F97316"/></svg>"""
 # rings of scene 2 (card-relative x, y, w, h) and vertical pans of the report shots
 R_SRC, R_LATE = (585, 118, 300, 72), (690, 276, 196, 58)
-REP_Y, SRC_Y = (0, -200), (0, -60)
+REP_Y = (0, 0)
 
 
 def exists(name):
@@ -236,7 +236,7 @@ def build_html():
     # 4 the per-source table: where the ad budget pays off
     out.append(scene(4, "light", f"""
   <div class="head"><div class="eyebrow fu" style="--o:.1s">לפי מקור</div><div class="title fu" style="--o:.25s;font-size:70px">איפה שווה להשקיע<br>את תקציב הפרסום</div></div>
-  <div class="card fu" style="--o:.2s">{img("reports_sources.jpg", 960, 0, SRC_Y[0], 0, SRC_Y[1], d[4] - 0.4, 0.3)}</div>"""))
+  <div class="card fu" style="--o:.2s">{img("reports_sources.jpg", 1040, -70, 40, -40, 40, d[4] - 0.5, 0.4)}</div>"""))
 
     # 5 one connection for every ad platform
     chips = ["פייסבוק", "גוגל", "אינסטגרם", "דף נחיתה"]
