@@ -7,7 +7,9 @@ import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 import { ENTITY_TYPES } from "@/lib/activity-actions";
 import { type TenantRole, TENANT_PERMS, sessionHasTenantPermission } from "@/lib/permissions";
 import { createPendingApproval } from "@/lib/pending-approvals";
-import { cancelAppointmentReminders, rescheduleAppointmentReminder } from "@/lib/reminder-service";
+import {
+  cancelAppointmentReminders, cancelAppointmentPreReminder, rescheduleAppointmentReminder, scheduleAppointmentFollowup,
+} from "@/lib/reminder-service";
 import { syncAppointmentToGcal, deleteAppointmentFromGcal } from "@/lib/google-calendar";
 import { updateAppointment, deleteAppointment, ServiceError, type UpdateAppointmentInput } from "@/services/appointments";
 
@@ -67,10 +69,30 @@ export async function PATCH(
 
     // ── Side effects ────────────────────────────────────────────────────────
 
-    if (status === "canceled" || status === "completed") {
+    if (status === "canceled") {
       await cancelAppointmentReminders(params.id).catch((err) =>
         console.error("Failed to cancel appointment reminders:", err)
       );
+    } else if (status === "completed") {
+      // Completed: the pre-appointment reminder is moot, but the thank-you follow-up
+      // is exactly for this moment — keep it, and create it if it was never scheduled
+      // (e.g. the appointment came from an order). Gated inside (toggle + tier + rule).
+      await cancelAppointmentPreReminder(params.id).catch((err) =>
+        console.error("Failed to cancel appointment reminder:", err)
+      );
+      await scheduleAppointmentFollowup(
+        {
+          id: appointment.id,
+          businessId: authResult.businessId,
+          customerId: appointment.customerId,
+          date: appointment.date,
+          startTime: appointment.startTime,
+          service: { name: appointment.service?.name ?? appointment.priceListItem?.name ?? "תור" },
+          customer: { name: appointment.customer?.name ?? "לקוח" },
+          pet: appointment.pet ? { name: appointment.pet.name } : null,
+        },
+        { fromCompletion: true }
+      ).catch((err) => console.error("Failed to schedule appointment follow-up:", err));
     } else if (date !== undefined || startTime !== undefined) {
       await rescheduleAppointmentReminder({
         id: appointment.id,

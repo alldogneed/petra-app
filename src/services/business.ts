@@ -329,7 +329,7 @@ export async function getDashboardMetrics(
     todayAppointments,
     upcomingAppointments,
     recentTasks,
-    confirmedOrdersRaw,
+    outstanding,
     monthPayments,
     openLeads,
     activeOrders,
@@ -371,16 +371,10 @@ export async function getDashboardMetrics(
       orderBy: { createdAt: "desc" },
       take: 5,
     }),
-    db.order.findMany({
-      where: { businessId, status: "confirmed", total: { gt: 0 } },
-      select: {
-        id: true,
-        total: true,
-        payments: { where: { status: "paid" }, select: { amount: true } },
-        customer: { select: { id: true, name: true, phone: true } },
-      },
-      take: 500,
-    }),
+    // Who owes money — the shared definition (rule #37): open orders (confirmed /
+    // in_progress / completed) minus paid payments + pending payments not on a counted
+    // order. Same numbers as the customers list debt filter and /analytics.
+    computeOutstandingBalances(db, businessId),
     db.payment.aggregate({
       where: { businessId, status: "paid", paidAt: { gte: monthStart } },
       _sum: { amount: true },
@@ -521,27 +515,23 @@ export async function getDashboardMetrics(
     }),
   ]);
 
-  // Debtors map
-  let pendingPaymentsCount = 0;
-  let pendingPaymentsSum = 0;
-  const debtorMap = new Map<string, { id: string; name: string; phone: string; total: number }>();
-  for (const order of confirmedOrdersRaw) {
-    const paid = order.payments.reduce((s, p) => s + p.amount, 0);
-    const outstanding = order.total - paid;
-    if (outstanding < 0.009) continue;
-    pendingPaymentsCount++;
-    pendingPaymentsSum += outstanding;
-    const key = order.customer.id;
-    const entry = debtorMap.get(key);
-    if (entry) {
-      entry.total += outstanding;
-    } else {
-      debtorMap.set(key, { ...order.customer, total: outstanding });
-    }
-  }
-  const topDebtors = Array.from(debtorMap.values())
-    .sort((a, b) => b.total - a.total)
-    .slice(0, 5);
+  // Debtors (rows come sorted by amount owed, desc)
+  const debtorsCount = outstanding.rows.length;
+  const debtTotal = Math.round(outstanding.grandTotal * 100) / 100;
+  const topRows = outstanding.rows.slice(0, 5);
+  const debtorPhones = topRows.length
+    ? await db.customer.findMany({
+        where: { businessId, id: { in: topRows.map((r) => r.id) } },
+        select: { id: true, phone: true },
+      })
+    : [];
+  const phoneById = new Map(debtorPhones.map((c) => [c.id, c.phone]));
+  const topDebtors = topRows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    phone: phoneById.get(r.id) ?? "",
+    total: Math.round(r.total * 100) / 100,
+  }));
 
   // At-risk customers
   const atRiskCustomers = atRiskRaw
@@ -615,10 +605,12 @@ export async function getDashboardMetrics(
     todayRevenue: canSeeRevenueSummary ? todayRevenue : null,
     upcomingAppointments,
     recentTasks,
-    pendingPayments: pendingPaymentsCount,
+    pendingPayments: debtorsCount,
+    debtorsCount,
+    debtTotal: canSeeRevenueSummary ? debtTotal : null,
     openLeads,
     activeOrders,
-    pendingPaymentsAmount: canSeeRevenueSummary ? pendingPaymentsSum : null,
+    pendingPaymentsAmount: canSeeRevenueSummary ? debtTotal : null,
     upcomingByType: {
       training: upcomingTraining,
       grooming: upcomingGrooming,

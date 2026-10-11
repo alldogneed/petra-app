@@ -595,7 +595,7 @@ export default function OrderDetailPage() {
                 <Calendar className="w-3 h-3" /> תאריך התחלה
               </p>
               <p className="text-sm font-medium text-petra-text">
-                {new Date(order.startAt).toLocaleString("he-IL", { dateStyle: "medium", timeStyle: "short" })}
+                {new Date(order.startAt).toLocaleString("he-IL", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Jerusalem" })}
               </p>
             </div>
           )}
@@ -605,7 +605,7 @@ export default function OrderDetailPage() {
                 <Calendar className="w-3 h-3" /> תאריך סיום
               </p>
               <p className="text-sm font-medium text-petra-text">
-                {new Date(order.endAt).toLocaleString("he-IL", { dateStyle: "medium", timeStyle: "short" })}
+                {new Date(order.endAt).toLocaleString("he-IL", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Jerusalem" })}
               </p>
             </div>
           )}
@@ -934,7 +934,7 @@ export default function OrderDetailPage() {
             {/* Summary footer */}
             <div className="border-t border-petra-border px-5 py-3 bg-slate-50/40 space-y-1">
               <div className="flex justify-between text-sm text-petra-muted">
-                <span>סה"כ לתשלום</span>
+                <span>סה״כ לתשלום</span>
                 <span dir="ltr">{fmt(order.total)}</span>
               </div>
               {paidTotal > 0 && (

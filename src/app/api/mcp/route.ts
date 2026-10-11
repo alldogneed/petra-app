@@ -36,7 +36,10 @@ import { ServiceError } from "@/services/types";
 import { sendWhatsAppMessage } from "@/lib/whatsapp";
 import { toWhatsAppPhone } from "@/lib/utils";
 import { hasFeatureWithOverrides, getMaxAppointments, normalizeTier } from "@/lib/feature-flags";
-import { scheduleAppointmentReminder, rescheduleAppointmentReminder, cancelAppointmentReminders } from "@/lib/reminder-service";
+import {
+  scheduleAppointmentReminder, scheduleAppointmentFollowup, rescheduleAppointmentReminder, cancelAppointmentReminders,
+  cancelAppointmentPreReminder,
+} from "@/lib/reminder-service";
 import { syncAppointmentToGcal, deleteAppointmentFromGcal, findConnectedUsersForBusiness } from "@/lib/google-calendar";
 
 // ─── Tool helpers (shared with tool modules in src/lib/mcp/) ─────────────────
@@ -370,6 +373,16 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
           customer: { name: appt.customer?.name ?? "לקוח" },
           pet: appt.pet ? { name: appt.pet.name } : null,
         }).catch((err) => console.error("MCP create_appointment reminder scheduling failed:", err));
+        await scheduleAppointmentFollowup({
+          id: appt.id,
+          businessId,
+          customerId: appt.customerId,
+          date: appt.date,
+          startTime: appt.startTime,
+          service: { name: appt.service?.name ?? "תור" },
+          customer: { name: appt.customer?.name ?? "לקוח" },
+          pet: appt.pet ? { name: appt.pet.name } : null,
+        }).catch((err) => console.error("MCP create_appointment follow-up scheduling failed:", err));
         // GCal sync — same as POST /api/appointments (no-op when no calendar is connected)
         let gcalOk = false;
         await syncAppointmentToGcal(appt.id, businessId).then(() => { gcalOk = true; }).catch((err) =>
@@ -981,10 +994,25 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
           notes: notes !== undefined ? notes : undefined,
         });
         // Keep the WhatsApp reminder in sync (awaited — Vercel kills stray promises)
-        if (status === "canceled" || status === "completed") {
+        if (status === "canceled") {
           await cancelAppointmentReminders(appt.id).catch((err) =>
             console.error("MCP update_appointment reminder cancel failed:", err)
           );
+        } else if (status === "completed") {
+          // Same as PATCH /api/appointments/[id]: drop the pre-reminder, keep/create the follow-up.
+          await cancelAppointmentPreReminder(appt.id).catch((err) =>
+            console.error("MCP update_appointment reminder cancel failed:", err)
+          );
+          await scheduleAppointmentFollowup({
+            id: appt.id,
+            businessId,
+            customerId: appt.customerId,
+            date: appt.date,
+            startTime: appt.startTime,
+            service: { name: appt.service?.name ?? appt.priceListItem?.name ?? "תור" },
+            customer: { name: appt.customer?.name ?? "לקוח" },
+            pet: appt.pet ? { name: appt.pet.name } : null,
+          }, { fromCompletion: true }).catch((err) => console.error("MCP update_appointment follow-up failed:", err));
         } else if (date !== undefined || start_time !== undefined) {
           await rescheduleAppointmentReminder({
             id: appt.id,

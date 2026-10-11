@@ -223,10 +223,10 @@ export default function DashboardPage() {
   if (shownStats.has("stat_pending_payments") && perms.canSeeFinance) {
     kpis.push({
       id: "stat_pending_payments",
-      label: "הזמנות לתשלום",
-      value: data.pendingPayments,
+      label: "לקוחות עם חוב",
+      value: data.debtorsCount ?? data.pendingPayments,
       sub: perms.canSeeRevenueSummary && data.pendingPaymentsAmount > 0 ? formatCurrency(data.pendingPaymentsAmount) : undefined,
-      href: "/orders?status=confirmed&payment=unpaid",
+      href: "/customers?balance=debt",
     });
   }
   if (shownStats.has("stat_today_appointments")) {
@@ -274,7 +274,7 @@ export default function DashboardPage() {
       case "overdue_leads":
         return perms.canViewLeads ? <UrgentLeadsAlert leads={data.urgentLeads || []} /> : null;
       case "top_debtors":
-        return perms.canSeeFinance ? <TopDebtorsWidget debtors={data.topDebtors || []} /> : null;
+        return perms.canSeeFinance ? <TopDebtorsWidget debtors={data.topDebtors || []} debtorsCount={data.debtorsCount ?? 0} debtTotal={perms.canSeeRevenueSummary ? data.debtTotal : null} /> : null;
       case "stats":
         if (kpis.length === 0) return null;
         return (

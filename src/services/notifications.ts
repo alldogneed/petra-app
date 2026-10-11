@@ -290,21 +290,27 @@ export async function markAllUserNotificationsRead(userId: string, db: DbClient)
 
 // ─── Scheduled Messages ───────────────────────────────────────────────────
 
+export const SCHEDULED_MESSAGE_STATUSES = ["PENDING", "SENT", "FAILED", "CANCELED"] as const;
+export type ScheduledMessageStats = Record<(typeof SCHEDULED_MESSAGE_STATUSES)[number], number>;
+
 export async function listScheduledMessages(
   businessId: string,
   db: DbClient,
-  opts: { status?: string | null; page?: number } = {}
+  opts: { status?: string | null; channel?: string | null; page?: number; limit?: number } = {}
 ) {
-  const take = 50;
+  const take = Math.min(Math.max(Math.floor(opts.limit ?? 50) || 50, 1), 100);
   const page = Math.max(1, opts.page ?? 1);
   const skip = (page - 1) * take;
 
+  const status = opts.status && opts.status !== "ALL" ? opts.status.slice(0, 20) : null;
+  const channel = opts.channel && opts.channel !== "ALL" ? opts.channel.slice(0, 20) : null;
   const where: Record<string, unknown> = {
     businessId,
-    ...(opts.status && opts.status !== "ALL" ? { status: opts.status } : {}),
+    ...(status ? { status } : {}),
+    ...(channel ? { channel } : {}),
   };
 
-  const [messages, total] = await Promise.all([
+  const [messages, total, byStatus] = await Promise.all([
     db.scheduledMessage.findMany({
       where: where as any,
       include: { customer: { select: { id: true, name: true, phone: true } } },
@@ -313,9 +319,17 @@ export async function listScheduledMessages(
       skip,
     }),
     db.scheduledMessage.count({ where: where as any }),
+    // Summary counters on the page = the whole business, independent of the status/channel filter.
+    db.scheduledMessage.groupBy({ by: ["status"], where: { businessId }, _count: { _all: true } }),
   ]);
 
-  return { messages, total, page, pages: Math.ceil(total / take) };
+  const stats: ScheduledMessageStats = { PENDING: 0, SENT: 0, FAILED: 0, CANCELED: 0 };
+  for (const row of byStatus) {
+    const key = String(row.status).toUpperCase() as keyof ScheduledMessageStats;
+    if (key in stats) stats[key] += row._count._all;
+  }
+
+  return { messages, total, page, pages: Math.ceil(total / take), stats };
 }
 
 export async function cancelScheduledMessage(businessId: string, db: DbClient, id: string) {

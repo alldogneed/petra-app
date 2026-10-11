@@ -220,7 +220,33 @@ export async function scheduleAppointmentReminder(appt: AppointmentForReminder) 
  * hours after the appointment start (default 24h). Uses relatedEntityType
  * "APPOINTMENT_FOLLOWUP" so it never collides with the pre-appointment reminder.
  */
-export async function scheduleAppointmentFollowup(appt: AppointmentForReminder) {
+/** A follow-up for an appointment marked completed late is still sent, up to this long after it. */
+export const FOLLOWUP_LATE_COMPLETION_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+/** Small delay so a mistaken "completed" click can be undone before the message goes out. */
+const FOLLOWUP_LATE_DELAY_MS = 10 * 60 * 1000;
+
+/**
+ * When the follow-up should go out. Normally appointment start + offset. On completion
+ * (`fromCompletion`), if that moment already passed but the appointment is recent, send
+ * shortly after the completion instead of silently dropping it. null = don't schedule.
+ */
+export function followupSendAt(
+  apptStart: Date,
+  offsetHours: number,
+  now: Date,
+  fromCompletion: boolean
+): Date | null {
+  const planned = new Date(apptStart.getTime() + offsetHours * 60 * 60 * 1000);
+  if (planned > now) return planned;
+  if (!fromCompletion) return null;
+  if (now.getTime() - apptStart.getTime() > FOLLOWUP_LATE_COMPLETION_WINDOW_MS) return null;
+  return new Date(now.getTime() + FOLLOWUP_LATE_DELAY_MS);
+}
+
+export async function scheduleAppointmentFollowup(
+  appt: AppointmentForReminder,
+  opts: { fromCompletion?: boolean } = {}
+) {
   const bizSettings = await prisma.business.findUnique({
     where: { id: appt.businessId },
     select: { whatsappRemindersEnabled: true, phone: true, tier: true, featureOverrides: true },
@@ -242,12 +268,17 @@ export async function scheduleAppointmentFollowup(appt: AppointmentForReminder) 
   const apptDatetime = israelDateTime(appt.date, appt.startTime);
 
   const offsetHours = rule.triggerOffset ?? 24;
-  const sendAt = new Date(apptDatetime.getTime() + offsetHours * 60 * 60 * 1000);
-  if (sendAt <= new Date()) return null;
+  const sendAt = followupSendAt(apptDatetime, offsetHours, new Date(), opts.fromCompletion === true);
+  if (!sendAt) return null;
 
-  // Dedup on the follow-up entity type (distinct from the pre-appointment reminder).
+  // Dedup on the follow-up entity type (distinct from the pre-appointment reminder):
+  // one pending or already-sent follow-up per appointment.
   const existing = await prisma.scheduledMessage.findFirst({
-    where: { relatedEntityType: "APPOINTMENT_FOLLOWUP", relatedEntityId: appt.id, status: "PENDING" },
+    where: {
+      relatedEntityType: "APPOINTMENT_FOLLOWUP",
+      relatedEntityId: appt.id,
+      status: { in: ["PENDING", "SENT"] },
+    },
   });
   if (existing) return null;
 
@@ -284,6 +315,16 @@ export async function scheduleAppointmentFollowup(appt: AppointmentForReminder) 
       relatedEntityType: "APPOINTMENT_FOLLOWUP",
       relatedEntityId: appt.id,
     },
+  });
+}
+
+/**
+ * Cancel only the pre-appointment reminder (appointment completed — the follow-up stays).
+ */
+export async function cancelAppointmentPreReminder(appointmentId: string) {
+  return prisma.scheduledMessage.updateMany({
+    where: { relatedEntityType: "APPOINTMENT", relatedEntityId: appointmentId, status: "PENDING" },
+    data: { status: "CANCELED" },
   });
 }
 

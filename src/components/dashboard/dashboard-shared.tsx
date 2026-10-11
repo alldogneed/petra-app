@@ -25,6 +25,10 @@ export interface DashboardStats {
   openLeads: number;
   activeOrders: number;
   pendingPaymentsAmount: number;
+  /** Customers who owe money (shared definition, src/lib/outstanding-balances.ts). */
+  debtorsCount: number;
+  /** Total owed by all of them; null without FINANCE_SUMMARY. */
+  debtTotal: number | null;
   upcomingByType: {
     training: number;
     grooming: number;
