@@ -89,7 +89,7 @@ export const DASHBOARD_BLOCKS: DashboardBlockDef[] = [
 export const DASHBOARD_STATS: DashboardStatDef[] = [
   { id: "stat_revenue", label: "הכנסות החודש", requires: "revenue" },
   { id: "stat_active_orders", label: "הזמנות פעילות", requires: "finance" },
-  { id: "stat_pending_payments", label: "הזמנות לתשלום", requires: "finance" },
+  { id: "stat_pending_payments", label: "לקוחות עם חוב", requires: "finance" },
   { id: "stat_today_appointments", label: "תורים היום" },
   { id: "stat_open_leads", label: "לידים פתוחים", requires: "leads" },
   { id: "stat_pending_bookings", label: "תורים ממתינים לאישור" },

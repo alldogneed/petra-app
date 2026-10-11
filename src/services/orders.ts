@@ -12,6 +12,8 @@ import { ACTIVE_ORDER_STATUSES, ACTIVE_ORDER_STATUS_FILTER } from "@/lib/constan
 import type { PrismaClient } from "@prisma/client";
 import { ServiceError } from "./types";
 import { calcOrder } from "@/lib/order-calc";
+import { parseOrderDateTime } from "@/lib/order-time";
+import { israelDayStart, israelDayEnd } from "@/lib/report-dates";
 import type { CalcLineInput } from "@/lib/order-calc";
 
 export type DbClient = PrismaClient;
@@ -114,8 +116,9 @@ export async function listOrders(businessId: string, db: DbClient, opts: ListOrd
   }
   if (opts.startFrom || opts.startTo) {
     where.startAt = {
-      ...(opts.startFrom ? { gte: new Date(opts.startFrom + "T00:00:00") } : {}),
-      ...(opts.startTo ? { lte: new Date(opts.startTo + "T23:59:59") } : {}),
+      // Israel-day bounds (the server runs in UTC).
+      ...(opts.startFrom && /^\d{4}-\d{2}-\d{2}$/.test(opts.startFrom) ? { gte: israelDayStart(opts.startFrom) } : {}),
+      ...(opts.startTo && /^\d{4}-\d{2}-\d{2}$/.test(opts.startTo) ? { lte: israelDayEnd(opts.startTo) } : {}),
     };
   }
 
@@ -235,10 +238,10 @@ export async function createOrder(
     }
   }
 
-  // Fetch business VAT settings
+  // Fetch business VAT settings (+ timezone for start/end times)
   const business = await db.business.findUnique({
     where: { id: businessId },
-    select: { vatEnabled: true, vatRate: true, legalEntityType: true },
+    select: { vatEnabled: true, vatRate: true, legalEntityType: true, timezone: true },
   });
   if (!business) throw new ServiceError("Business not found", "NOT_FOUND");
 
@@ -267,8 +270,9 @@ export async function createOrder(
       customerId,
       orderType: orderType || "sale",
       status: status || "draft",
-      startAt: startAt ? new Date(startAt) : undefined,
-      endAt: endAt ? new Date(endAt) : undefined,
+      // Offset-less form values are Israel wall-clock time (see src/lib/order-time.ts).
+      startAt: parseOrderDateTime(startAt, business.timezone || "Asia/Jerusalem"),
+      endAt: parseOrderDateTime(endAt, business.timezone || "Asia/Jerusalem"),
       subtotal: calc.subtotal,
       discountType: discountType || "none",
       discountValue: discountValue || 0,

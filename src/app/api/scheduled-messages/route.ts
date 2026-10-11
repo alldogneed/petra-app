@@ -12,9 +12,11 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status") || undefined;
-    const page = Math.max(1, Number(searchParams.get("page") ?? "1"));
+    const channel = searchParams.get("channel") || undefined;
+    const page = Math.max(1, Number(searchParams.get("page") ?? "1") || 1);
+    const limit = Number(searchParams.get("limit") ?? "50") || 50;
 
-    const result = await listScheduledMessages(authResult.businessId, prisma, { status, page });
+    const result = await listScheduledMessages(authResult.businessId, prisma, { status, channel, page, limit });
     return NextResponse.json(result);
   } catch (error) {
     console.error("GET scheduled-messages error:", error);

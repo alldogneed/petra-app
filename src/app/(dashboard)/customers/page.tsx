@@ -34,6 +34,7 @@ import { cn, fetchJSON } from "@/lib/utils";
 import { mapWithConcurrency } from "@/lib/concurrency";
 import {
   EMPTY_CUSTOMER_FILTERS,
+  parseCustomerFilters,
   FINANCE_SORTS,
   customerFiltersToParams,
   type CustomerSort,
@@ -168,6 +169,14 @@ function CustomersList() {
   }, [search]);
 
   const [rawFilters, setRawFilters] = useState<ListFilters>(DEFAULT_LIST_FILTERS);
+  // Deep links (e.g. dashboard "לקוחות עם חוב" → /customers?balance=debt): apply the
+  // URL filters once on mount. Read from window (no useSearchParams → no Suspense needed).
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.location.search) return;
+    const { search: urlSearch, ...urlFilters } = parseCustomerFilters(new URLSearchParams(window.location.search));
+    if (JSON.stringify(urlFilters) !== JSON.stringify(DEFAULT_LIST_FILTERS)) setRawFilters(urlFilters);
+    if (urlSearch) setSearch(urlSearch);
+  }, []);
   // Money filters/sorts only for FINANCE_READ (the server ignores them anyway).
   const filters = useMemo<ListFilters>(
     () =>

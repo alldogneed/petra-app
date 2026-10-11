@@ -6,7 +6,9 @@ import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { syncAppointmentToGcal, syncBoardingToGcal } from "@/lib/google-calendar";
 import { interpolateTemplate } from "@/lib/whatsapp";
-import { appointmentConfirmationChain, defaultConfirmationText } from "@/lib/reminder-service";
+import {
+  appointmentConfirmationChain, defaultConfirmationText, scheduleAppointmentReminder, scheduleAppointmentFollowup,
+} from "@/lib/reminder-service";
 import { sendWithTemplateChain } from "@/lib/whatsapp-template-chain";
 import { confirmationLogPayload } from "@/lib/scheduled-message-preview";
 import { toWhatsAppPhone } from "@/lib/utils";
@@ -109,8 +111,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Schedule WhatsApp reminder if requested
-    if (body.sendReminder === true && body.startAt) {
-      await createOrderReminder(order.id, body.customerId, new Date(body.startAt), authResult.businessId)
+    if (body.sendReminder === true && order?.startAt) {
+      await createOrderReminder(order.id, body.customerId, order.startAt, authResult.businessId)
         .catch((err: unknown) => console.error("Failed to schedule reminder:", err));
     }
 
@@ -213,6 +215,40 @@ export async function POST(request: NextRequest) {
           }).catch((err) => console.error("[OrderConfirmation] failed to log send:", err));
           }
         }
+      }
+    }
+
+    // Pre-appointment reminder + post-appointment follow-up for the appointment the
+    // order created — same as POST /api/appointments (this path used to skip both, so
+    // order-created appointments only ever got the confirmation). Gated inside.
+    if (linkedAppointmentId) {
+      const appt = await prisma.appointment.findFirst({
+        where: { id: linkedAppointmentId, businessId: authResult.businessId },
+        select: {
+          id: true, customerId: true, date: true, startTime: true,
+          service: { select: { name: true } },
+          priceListItem: { select: { name: true } },
+          customer: { select: { name: true } },
+          pet: { select: { name: true } },
+        },
+      }).catch(() => null);
+      if (appt?.customerId) {
+        const reminderAppt = {
+          id: appt.id,
+          businessId: authResult.businessId,
+          customerId: appt.customerId,
+          date: appt.date,
+          startTime: appt.startTime,
+          service: { name: appt.service?.name ?? appt.priceListItem?.name ?? "תור" },
+          customer: { name: appt.customer?.name ?? "לקוח" },
+          pet: appt.pet ? { name: appt.pet.name } : null,
+        };
+        await scheduleAppointmentReminder(reminderAppt).catch((err) =>
+          console.error("Failed to schedule order appointment reminder:", err)
+        );
+        await scheduleAppointmentFollowup(reminderAppt).catch((err) =>
+          console.error("Failed to schedule order appointment follow-up:", err)
+        );
       }
     }
 

@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { enqueueSyncJob } from "@/lib/sync-jobs";
-import { scheduleAppointmentReminder, scheduleBoardingCheckoutReminder } from "@/lib/reminder-service";
+import { scheduleAppointmentReminder, scheduleAppointmentFollowup, scheduleBoardingCheckoutReminder } from "@/lib/reminder-service";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { sendWhatsAppMessage } from "@/lib/whatsapp";
 import { toWhatsAppPhone } from "@/lib/utils";
@@ -131,7 +131,7 @@ export async function PATCH(
           // Schedule appointment reminder (48h before)
           const apptServiceName = newAppt.service?.name ?? booking.priceListItem?.name ?? null;
           if (apptServiceName) {
-            await scheduleAppointmentReminder({
+            const reminderAppt = {
               id: newAppt.id,
               businessId: booking.businessId,
               customerId: booking.customerId,
@@ -140,7 +140,9 @@ export async function PATCH(
               service: { name: apptServiceName },
               customer: { name: newAppt.customer?.name ?? "לקוח" },
               pet: newAppt.pet ? { name: newAppt.pet.name } : null,
-            }).catch(console.error);
+            };
+            await scheduleAppointmentReminder(reminderAppt).catch(console.error);
+            await scheduleAppointmentFollowup(reminderAppt).catch(console.error);
           }
         }
       }
