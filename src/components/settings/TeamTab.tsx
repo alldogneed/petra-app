@@ -7,7 +7,8 @@ import { cn, fetchJSON, formatRelativeTime } from "@/lib/utils";
 import { PendingApprovalsPanel } from "@/components/settings/PendingApprovalsPanel";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
-import { CAPABILITY_GROUPS, CRITICAL_CAPABILITIES, hasTenantPermission, type TenantRole } from "@/lib/permissions";
+import { hasTenantPermission, type TenantRole } from "@/lib/permissions";
+import { useGrantableCapabilities } from "@/hooks/useGrantableCapabilities";
 import { usePermissions } from "@/hooks/usePermissions";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
@@ -439,10 +440,11 @@ function MemberCapabilities({
 }) {
   const overrides = member.permissionOverrides ?? {};
   const role = member.role as TenantRole;
-  const customized = CRITICAL_CAPABILITIES.filter(
+  const { groups, capabilities } = useGrantableCapabilities();
+  const customized = capabilities.filter(
     (c) => isCustomOverride(role, c.key, overrides[c.key]),
   ).length;
-  const granted = CRITICAL_CAPABILITIES.filter((c) =>
+  const granted = capabilities.filter((c) =>
     typeof overrides[c.key] === "boolean" ? overrides[c.key] : hasTenantPermission(role, c.key),
   ).length;
 
@@ -451,7 +453,7 @@ function MemberCapabilities({
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <p className="text-xs text-petra-muted max-w-md">
           מה מותר ל{member.user.name}? ברירת המחדל נגזרת מהתפקיד ({ROLE_LABELS[member.role] ?? member.role}) — כל שינוי כאן גובר עליה.
-          {" "}<span className="font-medium text-petra-text">{granted} מתוך {CRITICAL_CAPABILITIES.length} מותרות.</span>
+          {" "}<span className="font-medium text-petra-text">{granted} מתוך {capabilities.length} מותרות.</span>
         </p>
         {customized > 0 && (
           <button
@@ -464,8 +466,8 @@ function MemberCapabilities({
           </button>
         )}
       </div>
-      {CAPABILITY_GROUPS.map((group) => {
-        const caps = CRITICAL_CAPABILITIES.filter((c) => c.group === group.id);
+      {groups.map((group) => {
+        const caps = capabilities.filter((c) => c.group === group.id);
         if (caps.length === 0) return null;
         return (
           <fieldset key={group.id} className="m-0 min-w-0 border-0 p-0">

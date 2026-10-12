@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { RotateCcw, ShieldCheck } from "lucide-react";
-import { CAPABILITY_GROUPS, CRITICAL_CAPABILITIES } from "@/lib/permissions";
+import { useGrantableCapabilities } from "@/hooks/useGrantableCapabilities";
 import { capabilityCell } from "@/lib/team-stats";
 import { ROLE_LABELS, ROLE_COLORS } from "./shared";
 
@@ -34,6 +34,7 @@ export function PermissionsMatrix({
 }) {
   const queryClient = useQueryClient();
   const rows = members.filter((m) => m.role !== "owner");
+  const { groups, capabilities } = useGrantableCapabilities();
 
   const mutation = useMutation({
     mutationFn: ({ memberId, permissionOverrides }: { memberId: string; permissionOverrides: Record<string, boolean>; reset?: boolean }) =>
@@ -76,8 +77,8 @@ export function PermissionsMatrix({
             {/* Group row — CRITICAL_CAPABILITIES is ordered by group */}
             <tr className="text-[11px] text-petra-muted">
               <th className="sticky right-0 z-10 bg-white" />
-              {CAPABILITY_GROUPS.map((g) => {
-                const span = CRITICAL_CAPABILITIES.filter((c) => c.group === g.id).length;
+              {groups.map((g) => {
+                const span = capabilities.filter((c) => c.group === g.id).length;
                 if (span === 0) return null;
                 return (
                   <th key={g.id} colSpan={span} scope="colgroup" className="px-2 pt-1 pb-1 font-semibold uppercase tracking-wide text-center border-b-2 border-slate-200">
@@ -91,7 +92,7 @@ export function PermissionsMatrix({
               <th className="sticky right-0 z-10 bg-white text-right font-medium px-3 py-2 border-b border-slate-100 min-w-[150px]">
                 עובד
               </th>
-              {CRITICAL_CAPABILITIES.map((cap) => (
+              {capabilities.map((cap) => (
                 <th
                   key={cap.key}
                   scope="col"
@@ -123,7 +124,7 @@ export function PermissionsMatrix({
                     </span>
                     {!member.isActive && <span className="text-[11px] text-red-500 mr-1">מושבת</span>}
                   </td>
-                  {CRITICAL_CAPABILITIES.map((cap) => {
+                  {capabilities.map((cap) => {
                     const cell = capabilityCell(member.role, cap.key, overrides);
                     const isOverride = cell.source === "override";
                     const title = `${cap.label}: ${cell.value ? "מותר" : "חסום"}${

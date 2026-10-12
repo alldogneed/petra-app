@@ -6,13 +6,14 @@ import { cn } from "@/lib/utils";
 import { PageTitle } from "@/components/ui/PageTitle";
 import Link from "next/link";
 import {
-  Syringe, AlertTriangle, Check, X, Search, Printer, ChevronRight
+  Syringe, AlertTriangle, Check, X, Search, Printer, ChevronRight, Lock
 } from "lucide-react";
 import {
   ADULT_TREATMENTS, PUPPY_TREATMENTS, getCellStatus, formatPlannedDisplay,
   type VaccinePlan, type VaccinePlanEntry,
 } from "@/lib/vaccine-plan";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { usePermissions } from "@/hooks/usePermissions";
 
 const LOCATION_LABELS: Record<string, string> = {
   TRAINER: "מאלף",
@@ -36,7 +37,11 @@ interface DogRow {
 
 export default function VaccinationsPage() {
   const queryClient = useQueryClient();
-  const [dogTab, setDogTab] = useState<DogTab>("adults");
+  const perms = usePermissions();
+  const allowedTabs = (["adults", "puppies"] as DogTab[]).filter((tab) => perms.serviceDogVaccineTabs[tab]);
+  const [selectedTab, setDogTab] = useState<DogTab>("adults");
+  // A tab the owner switched off for this member falls back to the one that is left.
+  const dogTab: DogTab = allowedTabs.includes(selectedTab) ? selectedTab : allowedTabs[0] ?? "adults";
   const [treatmentFilter, setTreatmentFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [search, setSearch] = useState("");
@@ -48,6 +53,7 @@ export default function VaccinationsPage() {
   const { data: dogs = [], isLoading } = useQuery<DogRow[]>({
     queryKey: ["service-dogs-vaccinations", dogTab],
     queryFn: () => fetch(`/api/service-dogs/vaccinations?dogType=${dogTab}`).then(r => r.json()),
+    enabled: allowedTabs.length > 0,
   });
 
   const markDoneMutation = useMutation({
@@ -174,6 +180,25 @@ export default function VaccinationsPage() {
     not_vaccinated: "bg-orange-50 text-orange-700 border-orange-200",
   };
 
+  if (allowedTabs.length === 0) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="card p-8 max-w-sm w-full text-center">
+          <div className="w-12 h-12 mx-auto mb-4 rounded-2xl bg-slate-100 flex items-center justify-center">
+            <Lock className="w-5 h-5 text-petra-muted" />
+          </div>
+          <h1 className="text-lg font-bold text-petra-text mb-1">אין לך גישה למסך הזה</h1>
+          <p className="text-sm text-petra-muted mb-5">
+            בעל העסק יכול לפתוח אותו עבורך בהגדרות ← צוות והרשאות.
+          </p>
+          <Link href="/service-dogs" className="btn-primary inline-flex">
+            חזרה לכלבי שירות
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <>
       <style>{`.print-header{display:none} @media print { aside,nav,header,[data-topbar],[data-sidebar],.no-print{display:none!important} body{font-size:11px} .print-header{display:flex!important;align-items:center;gap:12px;padding-bottom:12px;border-bottom:2px solid #e2e8f0;margin-bottom:14px;} }`}</style>
@@ -189,7 +214,7 @@ export default function VaccinationsPage() {
       {/* Tab header */}
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <div className="flex gap-0 border border-slate-200 rounded-xl overflow-hidden">
-          {(["adults", "puppies"] as DogTab[]).map(tab => (
+          {allowedTabs.map(tab => (
             <button key={tab} onClick={() => { setDogTab(tab); setTreatmentFilter("all"); }}
               className={cn("px-5 py-2.5 text-sm font-semibold transition-colors",
                 dogTab === tab ? "bg-brand-600 text-white" : "bg-white text-petra-muted hover:bg-slate-50"

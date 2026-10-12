@@ -1,5 +1,8 @@
 import {
   CRITICAL_CAPABILITIES,
+  SERVICE_DOG_CAPABILITY_GROUPS,
+  SERVICE_DOG_PROFILE_TABS,
+  SERVICE_DOG_VACCINE_TABS,
   TENANT_PERMS,
   VIEW_SCREENS,
   getClientPermissions,
@@ -98,5 +101,36 @@ describe("client flags", () => {
   test("a granted screen shows up for staff, a revoked one disappears for a manager", () => {
     expect(getClientPermissions("user", { [TENANT_PERMS.VIEW_CUSTOMERS]: true }).canViewCustomers).toBe(true);
     expect(getClientPermissions("manager", { [TENANT_PERMS.VIEW_FINANCE]: false }).canViewFinanceScreen).toBe(false);
+  });
+});
+
+describe("service-dog tab permissions", () => {
+  const SD = Object.entries(TENANT_PERMS)
+    .filter(([k]) => k.startsWith("SD_"))
+    .map(([, v]) => v) as TenantPermission[];
+  const mapped = [...Object.values(SERVICE_DOG_PROFILE_TABS), ...Object.values(SERVICE_DOG_VACCINE_TABS)];
+
+  test("every tab permission maps to exactly one tab and is owner-grantable in a service-dog group", () => {
+    expect([...mapped].sort()).toEqual([...SD].sort());
+    for (const p of SD) {
+      const cap = CRITICAL_CAPABILITIES.find((c) => c.key === p);
+      expect(cap && SERVICE_DOG_CAPABILITY_GROUPS.includes(cap.group)).toBe(true);
+    }
+  });
+
+  test("every role sees every tab by default — nothing changes until the owner switches one off", () => {
+    for (const role of ["owner", "manager", "user", "volunteer"] as TenantRole[]) {
+      for (const p of SD) expect(hasTenantPermission(role, p)).toBe(true);
+    }
+  });
+
+  test("an override hides just that tab on the client", () => {
+    const perms = getClientPermissions("user", {
+      [TENANT_PERMS.SD_DOG_INSURANCE]: false,
+      [TENANT_PERMS.SD_VACCINES_PUPPIES]: false,
+    });
+    expect(perms.serviceDogProfileTabs.insurance).toBe(false);
+    expect(perms.serviceDogProfileTabs.dogfile).toBe(true);
+    expect(perms.serviceDogVaccineTabs).toEqual({ adults: true, puppies: false });
   });
 });
