@@ -24,7 +24,8 @@ VO = os.path.join(HERE, "vo")
 
 def spoken(t):
     t = re.sub(r"פטרה", PETRA, t)
-    return t
+    # "פניות" was read wrong without niqqud (owner, 2026-10-12): pni-YOT
+    return t.replace("והפניות", "והַפְּנִיּוֹת").replace("פניות", "פְּנִיּוֹת")
 
 
 def align_words(line, ww):

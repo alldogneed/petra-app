@@ -36,7 +36,7 @@ SUBS = [
     [("ובדוחות רואים", 0), ("מאיפה באמת מגיעות העסקאות:", 2), ("כמה פניות, כמה נסגרו,", 6), ("וכמה כסף נכנס", 10)],
     [("ככה יודעים", 0), ("איפה שווה להשקיע", 2), ("את תקציב הפרסום", 5)],
     [("והחיבור פשוט:", 0), ("מתחבר לכל פלטפורמת פרסום", 2)],
-    [("דברו איתנו ונחבר לכם,", 0), ("או התחילו בחינם בקישור", 4)],
+    [("דברו איתנו ונחבר אתכם,", 0), ("או התחילו בחינם בקישור", 4)],
 ]
 
 
@@ -255,7 +255,7 @@ def build_html():
   <div class="cta">
     <div class="logoTile pop" style="--o:.15s"><img src="../../public/petra-logo.png"></div>
     <div class="brand fu" style="--o:.35s">Petra</div>
-    <div class="ctaT fu" style="--o:{wt(6, 0)}s">דברו איתנו<br>ונחבר לכם</div>
+    <div class="ctaT fu" style="--o:{wt(6, 0)}s">דברו איתנו<br>ונחבר אתכם</div>
     <div class="wa pulse" style="--o:{round(wt(6, 0) + .3, 2)}s;font-size:60px;padding:26px 64px">{ICON_WA}054-256-0964</div>
     <div class="num fu" style="--o:{wt(6, 4)}s;font-family:Heebo;direction:rtl">או מתחילים בחינם:</div>
     <div class="num fu" style="--o:{wt(6, 5)}s;margin-top:14px;color:#FDBA74">petra-app.com/landing</div>
