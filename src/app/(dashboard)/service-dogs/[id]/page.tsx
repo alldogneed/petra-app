@@ -317,6 +317,7 @@ function ServiceDogProfilePageContent() {
   const initialTab: TabId = tabParam && VALID_TABS.includes(tabParam) ? tabParam : "dogfile";
 
   const [activeTab, setActiveTab] = useState<TabId>(initialTab);
+  const perms = usePermissions();
   const [showPhaseDropdown, setShowPhaseDropdown] = useState(false);
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -433,7 +434,10 @@ function ServiceDogProfilePageContent() {
     { id: "medical" as const, label: "פרוטוקולים רפואיים", icon: Heart },
     { id: "compliance" as const, label: "דיווחי ציות", icon: Flag },
     { id: "idcard" as const, label: "תעודת הסמכה", icon: CreditCard },
-  ];
+  ].filter((tab) => perms.serviceDogProfileTabs[tab.id]);
+  // A tab the owner switched off for this member (or a ?tab= deep link to it) falls back
+  // to the first visible one; with every tab off only the dog header is left.
+  const currentTab: TabId | null = tabs.some((tab) => tab.id === activeTab) ? activeTab : tabs[0]?.id ?? null;
 
   return (
     <div className="animate-fade-in space-y-5">
@@ -709,7 +713,7 @@ function ServiceDogProfilePageContent() {
               onClick={() => setActiveTab(tab.id)}
               className={cn(
                 "flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
-                activeTab === tab.id
+                currentTab === tab.id
                   ? "border-brand-500 text-brand-600"
                   : "border-transparent text-petra-muted hover:text-foreground"
               )}
@@ -728,21 +732,26 @@ function ServiceDogProfilePageContent() {
 
       {/* Tab Content */}
       <div className="animate-fade-in">
-        {activeTab === "training" && <TrainingTab dog={dog} dogId={dogId} />}
-        {activeTab === "medical" && <MedicalTab dog={dog} dogId={dogId} />}
-        {activeTab === "compliance" && <ComplianceTab dog={dog} dogId={dogId} />}
-        {activeTab === "placements" && <PlacementsTab dog={dog} />}
-        {activeTab === "tests" && <TrainingTestsTab dog={dog} dogId={dogId} />}
-        {activeTab === "insurance" && <InsuranceTab dogId={dogId} />}
-        {activeTab === "equipment" && <EquipmentTab dogId={dogId} />}
-        {activeTab === "documents" && <DocumentsTab dog={dog} dogId={dogId} />}
-        {activeTab === "idcard" && <IDCardTab dog={dog} dogId={dogId} allowManualCert={sdSettings.allowManualCert} trackHours={sdSettings.trackHours} />}
-        {activeTab === "dogfile" && <DogFileTab dog={dog} dogId={dogId} />}
-        {activeTab === "vaccinations" && <VaccinationsTab dog={dog} dogId={dogId} />}
+        {currentTab === null && (
+          <p className="text-sm text-petra-muted text-center py-10">
+            אין לך גישה ללשוניות של תיק הכלב. בעל העסק יכול לפתוח אותן בהגדרות ← צוות והרשאות.
+          </p>
+        )}
+        {currentTab === "training" && <TrainingTab dog={dog} dogId={dogId} />}
+        {currentTab === "medical" && <MedicalTab dog={dog} dogId={dogId} />}
+        {currentTab === "compliance" && <ComplianceTab dog={dog} dogId={dogId} />}
+        {currentTab === "placements" && <PlacementsTab dog={dog} />}
+        {currentTab === "tests" && <TrainingTestsTab dog={dog} dogId={dogId} />}
+        {currentTab === "insurance" && <InsuranceTab dogId={dogId} />}
+        {currentTab === "equipment" && <EquipmentTab dogId={dogId} />}
+        {currentTab === "documents" && <DocumentsTab dog={dog} dogId={dogId} />}
+        {currentTab === "idcard" && <IDCardTab dog={dog} dogId={dogId} allowManualCert={sdSettings.allowManualCert} trackHours={sdSettings.trackHours} />}
+        {currentTab === "dogfile" && <DogFileTab dog={dog} dogId={dogId} />}
+        {currentTab === "vaccinations" && <VaccinationsTab dog={dog} dogId={dogId} />}
       </div>
 
       {/* Notes — תיק כלב only */}
-      {activeTab === "dogfile" && dog.notes && (
+      {currentTab === "dogfile" && dog.notes && (
         <div className="card p-4 border-r-4 border-r-amber-400 bg-amber-50">
           <div className="flex items-start gap-2">
             <FileText className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />

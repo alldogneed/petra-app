@@ -110,6 +110,21 @@ export const TENANT_PERMS = {
   VIEW_ONLINE_CLASSES:  "tenant.view.online_classes",
   VIEW_FINANCE:         "tenant.view.finance",
   VIEW_MESSAGES:        "tenant.view.messages",
+
+  // ── Service dogs — tabs inside the module (see SERVICE_DOG_PROFILE_TABS) ──
+  SD_DOG_FILE:          "tenant.sd.dog_file",
+  SD_DOG_VACCINATIONS:  "tenant.sd.dog_vaccinations",
+  SD_DOG_PLACEMENTS:    "tenant.sd.dog_placements",
+  SD_DOG_TRAINING:      "tenant.sd.dog_training",
+  SD_DOG_TESTS:         "tenant.sd.dog_tests",
+  SD_DOG_DOCUMENTS:     "tenant.sd.dog_documents",
+  SD_DOG_INSURANCE:     "tenant.sd.dog_insurance",
+  SD_DOG_EQUIPMENT:     "tenant.sd.dog_equipment",
+  SD_DOG_MEDICAL:       "tenant.sd.dog_medical",
+  SD_DOG_COMPLIANCE:    "tenant.sd.dog_compliance",
+  SD_DOG_ID_CARD:       "tenant.sd.dog_id_card",
+  SD_VACCINES_ADULTS:   "tenant.sd.vaccines_adults",
+  SD_VACCINES_PUPPIES:  "tenant.sd.vaccines_puppies",
 } as const;
 
 export type PlatformPermission = (typeof PLATFORM_PERMS)[keyof typeof PLATFORM_PERMS];
@@ -167,6 +182,26 @@ const STAFF_DEFAULT_SCREENS: TenantPermission[] = [
   TENANT_PERMS.VIEW_ONLINE_CLASSES,
 ];
 
+/**
+ * Service-dog tabs are on for every role — that is what members saw before the tabs
+ * became grantable. The owner switches them off per member.
+ */
+const SERVICE_DOG_TAB_PERMS: TenantPermission[] = [
+  TENANT_PERMS.SD_DOG_FILE,
+  TENANT_PERMS.SD_DOG_VACCINATIONS,
+  TENANT_PERMS.SD_DOG_PLACEMENTS,
+  TENANT_PERMS.SD_DOG_TRAINING,
+  TENANT_PERMS.SD_DOG_TESTS,
+  TENANT_PERMS.SD_DOG_DOCUMENTS,
+  TENANT_PERMS.SD_DOG_INSURANCE,
+  TENANT_PERMS.SD_DOG_EQUIPMENT,
+  TENANT_PERMS.SD_DOG_MEDICAL,
+  TENANT_PERMS.SD_DOG_COMPLIANCE,
+  TENANT_PERMS.SD_DOG_ID_CARD,
+  TENANT_PERMS.SD_VACCINES_ADULTS,
+  TENANT_PERMS.SD_VACCINES_PUPPIES,
+];
+
 const TENANT_ROLE_PERMISSIONS: Record<TenantRole, TenantPermission[]> = {
   owner: Object.values(TENANT_PERMS) as TenantPermission[],
 
@@ -209,6 +244,7 @@ const TENANT_ROLE_PERMISSIONS: Record<TenantRole, TenantPermission[]> = {
     TENANT_PERMS.VIEW_ONLINE_CLASSES,
     TENANT_PERMS.VIEW_FINANCE,
     TENANT_PERMS.VIEW_MESSAGES,
+    ...SERVICE_DOG_TAB_PERMS,
   ],
 
   // Staff (user) — day-to-day operational access, no financial or PII.
@@ -231,12 +267,14 @@ const TENANT_ROLE_PERMISSIONS: Record<TenantRole, TenantPermission[]> = {
     // No AI_ASSISTANT — the owner grants it explicitly
     // Screens: exactly what the sidebar showed staff before (items without minRole).
     ...STAFF_DEFAULT_SCREENS,
+    ...SERVICE_DOG_TAB_PERMS,
   ],
 
   // Volunteer — read-only, no editing
   volunteer: [
     TENANT_PERMS.CONTENT_READ,
     ...STAFF_DEFAULT_SCREENS,
+    ...SERVICE_DOG_TAB_PERMS,
   ],
 };
 
@@ -248,6 +286,8 @@ const TENANT_ROLE_PERMISSIONS: Record<TenantRole, TenantPermission[]> = {
 //
 export const CAPABILITY_GROUPS = [
   { id: "screens", label: "מסכים בתפריט" },
+  { id: "sd_dogs", label: "כלבי שירות — לשוניות בתיק הכלב" },
+  { id: "sd_vaccines", label: "כלבי שירות — מסך החיסונים" },
   { id: "finance", label: "כספים" },
   { id: "customers", label: "לקוחות ונתונים" },
   { id: "operations", label: "תפעול ויומן" },
@@ -271,6 +311,21 @@ export const CRITICAL_CAPABILITIES = [
   { perms: [TENANT_PERMS.VIEW_ONLINE_CLASSES], key: TENANT_PERMS.VIEW_ONLINE_CLASSES, group: "screens", label: "שיעורים אונליין", hint: "קורסים, שיעורים ותלמידים" },
   { perms: [TENANT_PERMS.VIEW_FINANCE], key: TENANT_PERMS.VIEW_FINANCE, group: "screens", label: "פיננסים", hint: "מחירון, תשלומים וחשבוניות. סכומים נשארים לפי הרשאות הכספים" },
   { perms: [TENANT_PERMS.VIEW_MESSAGES], key: TENANT_PERMS.VIEW_MESSAGES, group: "screens", label: "הודעות", hint: "הודעות מתוזמנות ותבניות. בלי ההרשאה — גם אין גישה לנתוני ההודעות" },
+  // ── כלבי שירות — לשוניות בתיק הכלב ──
+  { perms: [TENANT_PERMS.SD_DOG_FILE], key: TENANT_PERMS.SD_DOG_FILE, group: "sd_dogs", label: "תיק כלב", hint: "פרטי הכלב, בריאות והאכלה" },
+  { perms: [TENANT_PERMS.SD_DOG_VACCINATIONS], key: TENANT_PERMS.SD_DOG_VACCINATIONS, group: "sd_dogs", label: "חיסונים וטיפולים", hint: "תוכנית החיסונים והטיפולים של הכלב" },
+  { perms: [TENANT_PERMS.SD_DOG_PLACEMENTS], key: TENANT_PERMS.SD_DOG_PLACEMENTS, group: "sd_dogs", label: "שיבוצים", hint: "שיבוצי הכלב אצל זכאים" },
+  { perms: [TENANT_PERMS.SD_DOG_TRAINING], key: TENANT_PERMS.SD_DOG_TRAINING, group: "sd_dogs", label: "יומן אימונים", hint: "שעות ואימונים שנרשמו לכלב" },
+  { perms: [TENANT_PERMS.SD_DOG_TESTS], key: TENANT_PERMS.SD_DOG_TESTS, group: "sd_dogs", label: "מבחני הסמכה", hint: "מבחנים ותוצאות" },
+  { perms: [TENANT_PERMS.SD_DOG_DOCUMENTS], key: TENANT_PERMS.SD_DOG_DOCUMENTS, group: "sd_dogs", label: "מסמכים", hint: "קבצים ומסמכים של הכלב" },
+  { perms: [TENANT_PERMS.SD_DOG_INSURANCE], key: TENANT_PERMS.SD_DOG_INSURANCE, group: "sd_dogs", label: "ביטוח", hint: "פוליסות ביטוח" },
+  { perms: [TENANT_PERMS.SD_DOG_EQUIPMENT], key: TENANT_PERMS.SD_DOG_EQUIPMENT, group: "sd_dogs", label: "ציוד", hint: "ציוד שהוקצה לכלב" },
+  { perms: [TENANT_PERMS.SD_DOG_MEDICAL], key: TENANT_PERMS.SD_DOG_MEDICAL, group: "sd_dogs", label: "פרוטוקולים רפואיים", hint: "מעקב פרוטוקולים רפואיים" },
+  { perms: [TENANT_PERMS.SD_DOG_COMPLIANCE], key: TENANT_PERMS.SD_DOG_COMPLIANCE, group: "sd_dogs", label: "דיווחי ציות", hint: "אירועי ציות ודיווחים לרשויות" },
+  { perms: [TENANT_PERMS.SD_DOG_ID_CARD], key: TENANT_PERMS.SD_DOG_ID_CARD, group: "sd_dogs", label: "תעודת הסמכה", hint: "הפקה וצפייה בתעודת ההסמכה" },
+  // ── כלבי שירות — מסך החיסונים ──
+  { perms: [TENANT_PERMS.SD_VACCINES_ADULTS], key: TENANT_PERMS.SD_VACCINES_ADULTS, group: "sd_vaccines", label: "חיסונים וטיפולים בוגרים", hint: "טבלת החיסונים של הכלבים הבוגרים" },
+  { perms: [TENANT_PERMS.SD_VACCINES_PUPPIES], key: TENANT_PERMS.SD_VACCINES_PUPPIES, group: "sd_vaccines", label: "חיסונים וטיפולים צעירים", hint: "טבלת החיסונים של הגורים" },
   // ── כספים ──
   { perms: [TENANT_PERMS.FINANCE_SUMMARY, TENANT_PERMS.ANALYTICS_READ], key: TENANT_PERMS.FINANCE_SUMMARY, group: "finance", label: "לראות הכנסות ודוחות", hint: "סה״כ הכנסות, דוחות כספיים ומכירות מלידים" },
   { perms: [TENANT_PERMS.PAYMENTS_WRITE],  key: TENANT_PERMS.PAYMENTS_WRITE,  group: "finance", label: "לרשום ולבטל תשלומים", hint: "רישום תשלום, ביטול/החזר, קישורי תשלום וחשבוניות" },
@@ -294,6 +349,35 @@ export const CRITICAL_CAPABILITIES = [
 ] as const satisfies readonly { perms: readonly TenantPermission[]; key: TenantPermission; group: CapabilityGroupId; label: string; hint: string }[];
 
 export type PermissionOverrides = Partial<Record<TenantPermission, boolean>>;
+
+// ─── Service dogs: tab id → permission ─────────────────────────────────────────
+//
+// Single source of truth for which tabs a member sees inside the service-dog module.
+// UX only, like the menu screens — the service-dog APIs are not gated per tab.
+
+/** Capability groups shown only to businesses that have the service-dog module. */
+export const SERVICE_DOG_CAPABILITY_GROUPS: readonly CapabilityGroupId[] = ["sd_dogs", "sd_vaccines"];
+
+/** Tabs of the dog profile (`/service-dogs/[id]`). */
+export const SERVICE_DOG_PROFILE_TABS = {
+  dogfile:      TENANT_PERMS.SD_DOG_FILE,
+  vaccinations: TENANT_PERMS.SD_DOG_VACCINATIONS,
+  placements:   TENANT_PERMS.SD_DOG_PLACEMENTS,
+  training:     TENANT_PERMS.SD_DOG_TRAINING,
+  tests:        TENANT_PERMS.SD_DOG_TESTS,
+  documents:    TENANT_PERMS.SD_DOG_DOCUMENTS,
+  insurance:    TENANT_PERMS.SD_DOG_INSURANCE,
+  equipment:    TENANT_PERMS.SD_DOG_EQUIPMENT,
+  medical:      TENANT_PERMS.SD_DOG_MEDICAL,
+  compliance:   TENANT_PERMS.SD_DOG_COMPLIANCE,
+  idcard:       TENANT_PERMS.SD_DOG_ID_CARD,
+} as const satisfies Record<string, TenantPermission>;
+
+/** Tabs of the vaccinations screen (`/service-dogs/vaccinations`). */
+export const SERVICE_DOG_VACCINE_TABS = {
+  adults:  TENANT_PERMS.SD_VACCINES_ADULTS,
+  puppies: TENANT_PERMS.SD_VACCINES_PUPPIES,
+} as const satisfies Record<string, TenantPermission>;
 
 // ─── Screens: route prefix → view permission ───────────────────────────────────
 //
@@ -421,6 +505,15 @@ export function canModifyTenantRole(
   return actorIdx !== -1 && actorIdx <= targetIdx;
 }
 
+function mapValues<K extends string>(
+  map: Record<K, TenantPermission>,
+  can: (p: TenantPermission) => boolean,
+): Record<K, boolean> {
+  const out = {} as Record<K, boolean>;
+  for (const k of Object.keys(map) as K[]) out[k] = can(map[k]);
+  return out;
+}
+
 /**
  * Returns the set of fine-grained booleans for client-side use.
  * Pass the role string from the session membership.
@@ -468,6 +561,10 @@ export function getClientPermissions(
     canViewOnlineClasses:   can(TENANT_PERMS.VIEW_ONLINE_CLASSES),
     canViewFinanceScreen:   can(TENANT_PERMS.VIEW_FINANCE),
     canViewMessages:        can(TENANT_PERMS.VIEW_MESSAGES),
+    /** Dog-profile tab id → visible. */
+    serviceDogProfileTabs:  mapValues(SERVICE_DOG_PROFILE_TABS, can),
+    /** Vaccinations-screen tab id → visible. */
+    serviceDogVaccineTabs:  mapValues(SERVICE_DOG_VACCINE_TABS, can),
     isOwner:                r === "owner",
     isManager:              r === "manager",
     isStaff:                r === "user",

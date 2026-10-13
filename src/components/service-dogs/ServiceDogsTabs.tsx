@@ -22,7 +22,10 @@ export function ServiceDogsTabs() {
 
   return (
     <div className="flex gap-1 p-1 bg-slate-100 rounded-xl mb-6 overflow-x-auto scrollbar-hide">
-      {TABS.filter((tab) => !tab.requirePerm || perms[tab.requirePerm]).map((tab) => {
+      {TABS.filter((tab) => !tab.requirePerm || perms[tab.requirePerm])
+        // Both vaccination tables switched off for this member → nothing left to show there.
+        .filter((tab) => tab.href !== "/service-dogs/vaccinations" || Object.values(perms.serviceDogVaccineTabs).some(Boolean))
+        .map((tab) => {
         const isActive =
           tab.href === "/service-dogs"
             ? pathname === "/service-dogs"
