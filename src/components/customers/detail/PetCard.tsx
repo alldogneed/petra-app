@@ -151,13 +151,14 @@ export function PetCard({
                 </a>
               );
             })()}
+            {/* Always visible — renaming a pet must not depend on discovering a hover. */}
             <button
-              className={HOVER_ACTION + " hover:bg-amber-200"}
+              className="w-7 h-7 flex items-center justify-center rounded transition-all hover:bg-amber-200"
               onClick={(e) => { e.stopPropagation(); actions.onEdit(pet); }}
-              title="ערוך"
-              aria-label="ערוך חיית מחמד"
+              title="ערוך פרטים"
+              aria-label="ערוך פרטי חיית המחמד"
             >
-              <Pencil className="w-3 h-3 text-amber-700" />
+              <Pencil className="w-3.5 h-3.5 text-amber-700" />
             </button>
             {canDelete && (
               <button

@@ -637,13 +637,17 @@ export function PetDocumentsModal({
 
 // ─── Edit Pet Modal ──────────────────────────────────────────────────────────
 
+/** The fields the edit form needs — the pet profile page passes its own (richer) pet shape. */
+type EditablePet = Pick<Pet, "id" | "name" | "species" | "breed" | "gender" | "weight" | "birthDate" | "microchip" | "tags">;
+
 export function EditPetModal({
   pet,
   customerId,
   onClose,
 }: {
-  pet: Pet;
-  customerId: string;
+  pet: EditablePet;
+  /** Owner's customer id — refreshes the customer card. Null for a pet without an owner. */
+  customerId: string | null;
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
@@ -682,7 +686,10 @@ export function EditPetModal({
         }),
       }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בעדכון"); return d; }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
+      if (customerId) queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
+      queryClient.invalidateQueries({ queryKey: ["pet", pet.id] });
+      queryClient.invalidateQueries({ queryKey: ["pets"] });
+      toast.success("הפרטים נשמרו");
       onClose();
     },
     onError: () => toast.error("שגיאה בעדכון חיית המחמד. נסה שוב."),
