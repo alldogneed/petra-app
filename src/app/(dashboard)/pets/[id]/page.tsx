@@ -28,10 +28,12 @@ import {
   Upload,
   ChevronLeft,
   ChevronRight,
+  Pencil,
 } from "lucide-react";
 import { cn, formatDate, formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { EditPetModal } from "@/components/customers/detail/pet-modals";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -556,6 +558,7 @@ export default function PetProfilePage() {
     queryFn: () => fetch(`/api/pets/${params.id}`).then((r) => r.json()),
     staleTime: 60000,
   });
+  const [showEdit, setShowEdit] = useState(false);
 
   if (isLoading) {
     return <PetraLoader />;
@@ -604,6 +607,14 @@ export default function PetProfilePage() {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-2xl font-bold text-petra-text">{pet.name}</h1>
+            <button
+              type="button"
+              onClick={() => setShowEdit(true)}
+              className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+              ערוך פרטים
+            </button>
             {pet.breed && <span className="text-petra-muted text-sm">({pet.breed})</span>}
             {activeMeds.length > 0 && (
               <span className="badge badge-warning gap-1 flex items-center text-xs">
@@ -963,6 +974,10 @@ export default function PetProfilePage() {
           )}
         </div>
       </div>
+
+      {showEdit && (
+        <EditPetModal pet={pet} customerId={pet.customer?.id ?? null} onClose={() => setShowEdit(false)} />
+      )}
     </div>
   );
 }
