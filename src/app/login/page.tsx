@@ -33,7 +33,11 @@ function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState(
-    googleError ? GOOGLE_ERROR_MESSAGES[googleError] || "שגיאה בהתחברות עם Google" : ""
+    googleError
+      ? GOOGLE_ERROR_MESSAGES[googleError] || "שגיאה בהתחברות עם Google"
+      : searchParams.get("reason") === "access_ended"
+        ? "הגישה שלך לעסק הסתיימה — בעל העסק השבית את המשתמש. לשאלות פנה/י אליו."
+        : ""
   );
   const [loading, setLoading] = useState(false);
   const [entering, setEntering] = useState(false);

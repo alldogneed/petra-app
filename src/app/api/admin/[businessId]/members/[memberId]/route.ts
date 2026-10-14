@@ -14,6 +14,7 @@ import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 import { ENTITY_TYPES } from "@/lib/activity-actions";
 import { z } from "zod";
 import { invalidateUserSessionCache } from "@/lib/session";
+import { endBusinessAccess } from "@/lib/team-offboarding";
 
 const CAPABILITY_KEYS = CRITICAL_CAPABILITIES.map((c) => c.key) as [string, ...string[]];
 
@@ -150,7 +151,12 @@ export async function PATCH(
 
   // Role/permission/active changes must apply on the member's next request, not
   // after the 30s session cache expires (cross-instance lag stays ≤30s).
-  invalidateUserSessionCache(targetMember.userId);
+  // Deactivation also logs the member out when this was their only business.
+  if (body.isActive === false && targetMember.isActive) {
+    await endBusinessAccess(targetMember.userId);
+  } else {
+    invalidateUserSessionCache(targetMember.userId);
+  }
 
   // AI access follows the member's current standing: when this change leaves them
   // without it (deactivated, demoted below manager, or AI_ASSISTANT switched off),
@@ -171,4 +177,65 @@ export async function PATCH(
   }
 
   return NextResponse.json(updated);
+}
+
+/**
+ * DELETE /api/admin/[businessId]/members/[memberId] — remove a DEACTIVATED member from
+ * the business (the BusinessUser row). The Petra account itself stays: it may belong to
+ * other businesses, and the person can be invited again later.
+ * Same rules as PATCH: USERS_WRITE, not yourself, never someone ranked above you.
+ */
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { businessId: string; memberId: string } }
+) {
+  const guard = await requireTenantPermission(request, params.businessId, TENANT_PERMS.USERS_WRITE);
+  if (isGuardError(guard)) return guard;
+  const { session, membership: actorMembership } = guard;
+
+  const targetMember = await prisma.businessUser.findFirst({
+    where: { id: params.memberId, businessId: params.businessId },
+    include: { user: { select: { name: true } } },
+  });
+  if (!targetMember) {
+    return NextResponse.json({ error: "חבר הצוות לא נמצא" }, { status: 404 });
+  }
+  if (targetMember.userId === session.user.id) {
+    return NextResponse.json({ error: "אי אפשר למחוק את עצמך" }, { status: 400 });
+  }
+  if (!canModifyTenantRole(actorMembership.role, targetMember.role as TenantRole)) {
+    return NextResponse.json({ error: "אין לך הרשאה למחוק חבר צוות בתפקיד גבוה משלך" }, { status: 403 });
+  }
+  // Two steps on purpose: deactivate (reversible) first, delete only after that.
+  if (targetMember.isActive) {
+    return NextResponse.json({ error: "יש להשבית את העובד לפני מחיקה" }, { status: 409 });
+  }
+
+  await prisma.businessUser.delete({ where: { id: targetMember.id } });
+  // AI connections this member created for the business go with them.
+  await prisma.mcpConnection.updateMany({
+    where: { businessId: actorMembership.businessId, createdByUserId: targetMember.userId, revokedAt: null },
+    data: { revokedAt: new Date(), refreshTokenHash: null, prevRefreshTokenHash: null },
+  });
+  await endBusinessAccess(targetMember.userId);
+
+  const { ip, userAgent } = getRequestContext(request);
+  await logAudit({
+    actorUserId: session.user.id,
+    actorBusinessId: params.businessId,
+    action: AUDIT_ACTIONS.TENANT_MEMBER_REMOVED,
+    targetType: "user",
+    targetId: targetMember.userId,
+    ip,
+    userAgent,
+    metadata: { role: targetMember.role },
+  });
+  await logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.REMOVE_MEMBER, {
+    businessId: actorMembership.businessId,
+    entityType: ENTITY_TYPES.MEMBER,
+    entityId: targetMember.userId,
+    entityLabel: targetMember.user?.name ?? null,
+  });
+
+  return NextResponse.json({ ok: true });
 }

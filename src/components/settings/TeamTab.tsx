@@ -56,7 +56,8 @@ async function patchMember(businessId: string | null | undefined, memberId: stri
 
 type PendingConfirm =
   | { kind: "role"; member: TeamMember; role: string }
-  | { kind: "deactivate"; member: TeamMember };
+  | { kind: "deactivate"; member: TeamMember }
+  | { kind: "delete"; member: TeamMember };
 
 export function TeamTab() {
   const { user } = useAuth();
@@ -110,6 +111,21 @@ export function TeamTab() {
     onError: (e: Error) => toast.error(e.message || "שגיאה בעדכון הסטטוס. נסה שוב."),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (memberId: string) => {
+      if (!user?.businessId) throw new Error("מזהה העסק חסר. נסה לרענן את הדף.");
+      const r = await fetch(`/api/admin/${user.businessId}/members/${memberId}`, { method: "DELETE" });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(typeof data.error === "string" ? data.error : "");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["team-members"] });
+      setPending(null);
+      toast.success("העובד נמחק מהצוות");
+    },
+    onError: (e: Error) => toast.error(e.message || "שגיאה במחיקת העובד. נסה שוב."),
+  });
+
   /** Role select: downgrades and promotions to owner are confirmed first. */
   const requestRoleChange = (member: TeamMember, role: string) => {
     if (role === member.role) return;
@@ -125,14 +141,18 @@ export function TeamTab() {
     return <PetraLoader />;
   }
 
-  const confirmBusy = roleMutation.isPending || toggleActiveMutation.isPending;
+  const confirmBusy = roleMutation.isPending || toggleActiveMutation.isPending || deleteMutation.isPending;
   let confirmTitle = "";
   let confirmDescription: React.ReactNode = null;
   let confirmLabel = "אישור";
   if (pending?.kind === "deactivate") {
     confirmTitle = `להשבית את ${pending.member.user.name}?`;
-    confirmDescription = "הגישה של המשתמש לעסק תיחסם מיד. אפשר להפעיל אותו מחדש בכל עת.";
+    confirmDescription = "המשתמש ינותק מהמערכת מיד והגישה שלו לעסק תיחסם. אפשר להפעיל אותו מחדש בכל עת.";
     confirmLabel = "השבת";
+  } else if (pending?.kind === "delete") {
+    confirmTitle = `למחוק את ${pending.member.user.name} מהצוות?`;
+    confirmDescription = "העובד יוסר מהעסק לצמיתות. הנתונים שיצר (משימות, הערות, פעילות) נשארים. כדי להחזיר אותו בעתיד — שולחים הזמנה חדשה.";
+    confirmLabel = "מחק לצמיתות";
   } else if (pending?.kind === "role") {
     const from = ROLE_LABELS[pending.member.role] ?? pending.member.role;
     const to = ROLE_LABELS[pending.role] ?? pending.role;
@@ -234,6 +254,15 @@ export function TeamTab() {
                   >
                     {member.isActive ? "השבת" : "הפעל"}
                   </button>
+                  {!member.isActive && (
+                    <button
+                      className="text-xs px-3 py-1.5 rounded-lg font-medium text-white bg-red-600 hover:bg-red-700 transition-colors"
+                      onClick={() => setPending({ kind: "delete", member })}
+                      disabled={deleteMutation.isPending}
+                    >
+                      מחק
+                    </button>
+                  )}
                   {isOwner && member.role !== "owner" && (
                     <button
                       className="text-xs px-3 py-1.5 rounded-lg font-medium border border-slate-200 text-petra-muted hover:bg-slate-50 transition-colors"
@@ -271,6 +300,7 @@ export function TeamTab() {
         onConfirm={() => {
           if (!pending) return;
           if (pending.kind === "deactivate") toggleActiveMutation.mutate({ memberId: pending.member.id, isActive: false });
+          else if (pending.kind === "delete") deleteMutation.mutate(pending.member.id);
           else roleMutation.mutate({ memberId: pending.member.id, role: pending.role });
         }}
         onCancel={() => setPending(null)}

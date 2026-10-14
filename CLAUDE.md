@@ -264,6 +264,7 @@ The legacy dark "Master Admin" (`/admin/*`) was merged into the light platform p
 - The inviter gets `inviteUrl` back (modal + "שלח שוב") to share by WhatsApp when the email fails; `emailError` on the row drives the "המייל לא נשלח" badge. A resend issues a new token — the old link dies.
 - UI: `src/components/settings/TeamInvitations.tsx` (invite modal + "ממתינים לאישור" list) in Settings → צוות. The topbar quick-invite posts the same route. The platform-admin route `/api/owner/tenants/[tenantId]/members` still creates accounts directly (admin-only).
 - Prod DDL: `prisma/team_invitations.sql` (additive) — apply before deploying.
+- **Offboarding:** deactivating (PATCH `isActive:false`) or removing (DELETE `/api/admin/[businessId]/members/[memberId]`, only after deactivation) calls `endBusinessAccess()` (`src/lib/team-offboarding.ts`): no other active business and no platform role → all sessions deleted; otherwise only the session cache. `AuthProvider` re-checks `/api/auth/me` every 30s + on focus and sends a dropped user to `/login?reason=access_ended`. DELETE removes only the `BusinessUser` row — the Petra account stays (other businesses, re-invite). Known gap: a removed member who logs in again gets a new empty business from `ensureUserHasBusiness` (existing behaviour).
 
 ## MCP Server
 
