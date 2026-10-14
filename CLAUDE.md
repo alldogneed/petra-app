@@ -127,7 +127,7 @@ Sidebar entry and page title are "דוחות" (not "אנליטיקס"). Route re
 `navEntries` in `src/components/layout/sidebar.tsx` is interleaved with `{ eyebrow: "..." }` markers. Three sections: **תפריט ראשי** (dashboard/customers/leads/tasks/scheduler/calendar), **מודולים** (boarding/pricing/service-dogs/training/pets), **ניהול** (analytics/business-admin/settings). When adding a new nav item, place it in the correct group; eyebrows render as uppercase white/40 labels above each group.
 
 ### 22. Marketing stats must stay aligned
-Login hero (`src/app/login/page.tsx`) and `AnimatedStats.tsx` both display the same three metrics: **130 / 5,000+ / 98%**. Update both files together if any number changes.
+Login hero (`src/app/login/page.tsx`), the landing trust bar (`TRUST_STATS` in `src/app/landing/page.tsx`) and `src/app/landing/_components/ClientsMarquee.tsx` all display **130 / 5,000+ / 98%** (the landing bar adds "15 שנות ניסיון בשטח"). Update all three together if any number changes. (`AnimatedStats.tsx` was unused and removed 2026-10-14.)
 
 ### 23. Subscription expiry banner only for paid tiers
 Dashboard renewal banner uses `!isFree && subscriptionActive && subscriptionDaysLeft <= 14`. Never show "renew" warning to a user on free tier even if they have a stale `subscriptionEndsAt` from a former paid plan.

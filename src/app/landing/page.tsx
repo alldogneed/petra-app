@@ -17,14 +17,22 @@ import {
   FileSignature,
   Sparkles,
   BarChart3,
-  Smartphone,
+  Globe,
+  Target,
+  Sunrise,
+  UserPlus,
+  BellRing,
+  MoonStar,
 } from "lucide-react";
 import { PricingSection } from "./_components/PricingSection";
 import { WhatsAppFAB } from "./_components/WhatsAppFAB";
 import { AccessibilityButton } from "./_components/AccessibilityButton";
 import { ClientsMarquee } from "./_components/ClientsMarquee";
 import { LandingNav } from "./_components/LandingNav";
-import { DashboardMockup } from "./_components/DashboardMockup";
+import { Reveal } from "./_components/Reveal";
+import { BrowserShot, PhoneShot } from "./_components/ProductShots";
+import { TeaserVideo } from "./_components/TeaserVideo";
+import { ProductDemo } from "./_components/ProductDemo";
 
 export const metadata: Metadata = {
   title: "Petra — מערכת ניהול לעסקי חיות מחמד | אילוף, פנסיון, גרומינג",
@@ -67,232 +75,149 @@ const WHATSAPP_SUPPORT = "https://wa.me/972542560964";
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
 const TRUST_STATS = [
-  { num: "130+", label: "עסקים פעילים" },
-  { num: "15", label: "שנים בשטח" },
-  { num: "4.9★", label: "דירוג ממוצע" },
-  { num: "99.9%", label: "זמינות" },
+  { num: "130", label: "עסקים פעילים" },
+  { num: "5,000+", label: "תורים שנקבעו" },
+  { num: "98%", label: "שביעות רצון" },
+  { num: "15", label: "שנות ניסיון בשטח" },
 ];
 
 const HOW_IT_WORKS = [
   {
     n: "01",
     icon: Users,
-    title: "מייצרים חשבון בשניות",
-    desc: "בלי כרטיס אשראי ובלי שאלות מיותרות. בתוך 30 שניות אתה כבר בתוך המערכת החדשה שלך.",
+    title: "פותחים חשבון",
+    desc: "נרשמים לפטרה ונכנסים למערכת. בלי התקנות ובלי תהליך הרשמה ארוך.",
   },
   {
     n: "02",
     icon: Zap,
-    title: "מנקים את השולחן",
-    desc: "שלחו לנו את רשימת הלקוחות ונייבא הכל בשבילכם תוך 24 שעות. ממחברת ישנה, מאקסל, גוגל קונטקטס או כל קובץ CSV.",
+    title: "מכניסים את הלקוחות",
+    desc: "מעבירים את רשימת הלקוחות הקיימת ומרכזים את כל הפרטים במקום אחד. לא צריך להתחיל מאפס.",
   },
   {
     n: "03",
     icon: TrendingUp,
-    title: "העסק עובד בשבילך",
-    desc: "תזכורות הוואטסאפ נשלחות לבד, היומן מתמלא ואתה חוזר למקום שאתה הכי אוהב לעבוד עם בעלי החיים.",
+    title: "חוזרים לעבוד",
+    desc: "היומן מסודר, התזכורות נשלחות אוטומטית ואתם יכולים להתרכז בעבודה עם בעלי החיים.",
   },
 ];
 
 const AUDIENCES = [
   {
     icon: Dog,
-    accentColor: "#F97316",
-    accentBg: "#FFF7ED",
     iconBg: "bg-orange-50",
     iconColor: "text-orange-600",
-    accentBorder: "border-t-[3px]",
-    accentStyle: { borderTopColor: "#F97316" },
-    checkColor: "text-orange-500",
+    checkColor: "text-orange-600",
     title: "מאלפי כלבים",
+    desc: "כל תהליך האילוף מסודר, גם כשאתם באמצע שיעור.",
     features: [
-      "כל תוכנית האילוף בכיס שלך עם מעקב התקדמות בזמן אמת מהשטח",
-      "יעדים, משימות וסדר לכל חיית מחמד בלחיצת כפתור",
-      "תזכורות WhatsApp נשלחות לבד, אפס הברזות",
+      "רואים מה כבר עבדתם על כל כלב ומה השלב הבא.",
+      "שומרים את סיכומי המפגשים, המשימות וההתקדמות במקום אחד.",
+      "הלקוחות מקבלים תזכורות בלי שתצטרכו לעצור ולשלוח הודעות.",
     ],
-    mockupBg: "from-orange-50 to-orange-100",
-    mockupContent: (
-      <div className="p-3 space-y-2">
-        <div className="bg-white rounded-xl p-3 shadow-sm">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-7 h-7 rounded-full bg-orange-500 flex items-center justify-center text-white text-[10px] font-bold shrink-0">פל</div>
-            <div>
-              <div className="text-[11px] font-semibold text-slate-800">פלאפי · אילוף</div>
-              <div className="text-[9px] text-slate-400">שיעור 8 / 12</div>
-            </div>
-          </div>
-          <div className="h-1.5 bg-orange-100 rounded-full overflow-hidden"><div className="h-full bg-orange-500 rounded-full" style={{ width: "67%" }} /></div>
-        </div>
-        <div className="bg-white rounded-xl p-3 shadow-sm">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-7 h-7 rounded-full bg-orange-400 flex items-center justify-center text-white text-[10px] font-bold shrink-0">לו</div>
-            <div>
-              <div className="text-[11px] font-semibold text-slate-800">לונה · ציות בסיסי</div>
-              <div className="text-[9px] text-slate-400">שיעור 3 / 8</div>
-            </div>
-          </div>
-          <div className="h-1.5 bg-orange-100 rounded-full overflow-hidden"><div className="h-full bg-orange-400 rounded-full" style={{ width: "38%" }} /></div>
-        </div>
-      </div>
-    ),
+    shot: { src: "/landing/screens/aud-trainers.webp", alt: "מסך תהליכי האילוף: כלבים באימון, מפגשים שבוצעו וכלבים שדורשים תשומת לב" },
   },
   {
     icon: Scissors,
-    accentColor: "#8B5CF6",
-    accentBg: "#F5F3FF",
-    iconBg: "bg-violet-50",
-    iconColor: "text-violet-600",
-    accentBorder: "border-t-[3px]",
-    accentStyle: { borderTopColor: "#8B5CF6" },
-    checkColor: "text-violet-500",
+    iconBg: "bg-orange-50",
+    iconColor: "text-orange-600",
+    checkColor: "text-orange-600",
     title: "גרומרים",
+    desc: "פחות התעסקות עם היומן. יותר זמן לטיפולים.",
     features: [
-      "יומן חכם ששולח תזכורות לבד, בלי חפירות בוואטסאפ",
-      "תיק עבודות לפני ואחרי לכל לקוח, הוכחות בשטח",
-      "לינק לתשלום נשלח בוואטסאפ — הכסף מגיע בלי מרדפים",
+      "הלקוחות קובעים תור בלי שתצטרכו לענות לכל הודעה.",
+      "תזכורות נשלחות אוטומטית ועוזרות לצמצם תורים שנשכחים.",
+      "שומרים תמונות ופרטי טיפול, כך שבביקור הבא הכול כבר מחכה לכם.",
     ],
-    mockupBg: "from-violet-50 to-violet-100",
-    mockupContent: (
-      <div className="p-3 space-y-2">
-        <div className="bg-white rounded-xl p-3 shadow-sm">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-full bg-violet-500 flex items-center justify-center text-white text-[10px] font-bold shrink-0">קו</div>
-            <div className="flex-1">
-              <div className="text-[11px] font-semibold text-slate-800">קוקו · טיפוח מלא</div>
-              <div className="text-[9px] text-slate-400">היום · 14:00</div>
-            </div>
-            <span className="text-[9px] px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 font-semibold">אושר</span>
-          </div>
-        </div>
-        <div className="bg-white rounded-xl p-3 shadow-sm">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-full bg-violet-300 flex items-center justify-center text-white text-[10px] font-bold shrink-0">בו</div>
-            <div className="flex-1">
-              <div className="text-[11px] font-semibold text-slate-800">בובי · גזירה</div>
-              <div className="text-[9px] text-slate-400">15:30</div>
-            </div>
-            <span className="text-[9px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-semibold">תשלום</span>
-          </div>
-        </div>
-      </div>
-    ),
+    shot: { src: "/landing/screens/aud-groomers.webp", alt: "כרטיס לקוח: פרטי קשר, חיות מחמד, תורים, תשלומים והזמנות" },
   },
   {
     icon: Home,
-    accentColor: "#3B82F6",
-    accentBg: "#EFF6FF",
-    iconBg: "bg-blue-50",
-    iconColor: "text-blue-600",
-    accentBorder: "border-t-[3px]",
-    accentStyle: { borderTopColor: "#3B82F6" },
-    checkColor: "text-blue-500",
+    iconBg: "bg-orange-50",
+    iconColor: "text-orange-600",
+    checkColor: "text-orange-600",
     title: "פנסיונים",
+    desc: "יודעים מי מגיע, מי עוזב ואיפה כל כלב נמצא.",
     features: [
-      "ניהול חדרים בזמן אמת, המערכת מונעת כפל הזמנות לפני שזה קורה",
-      "פרטי החיה, הרגלים ובריאות מוכנים לפני שנכנסים לצ'ק-אין",
-      "תמונות ועדכוני WhatsApp יוצאים לבד לבעלים, בלי שתזכר",
+      "רואים את תפוסת החדרים ומזהים התנגשויות בהזמנות.",
+      "מגיעים לקבלת הכלב כשפרטי הטיפול וההנחיות שלו כבר מסודרים.",
+      "שומרים את פרטי השהייה והעדכונים במקום אחד, בלי לחפש בין שיחות.",
     ],
-    mockupBg: "from-blue-50 to-blue-100",
-    mockupContent: (
-      <div className="p-3 space-y-2">
-        <div className="bg-white rounded-xl p-3 shadow-sm">
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-[11px] font-semibold text-slate-800">חדרים · ספטמבר</div>
-            <span className="text-[9px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-semibold">9 / 12</span>
-          </div>
-          <div className="grid grid-cols-6 gap-1">
-            {[1,2,3,4,5,6].map(i => (
-              <div key={i} className={`h-1.5 rounded-sm ${i <= 4 ? "bg-blue-500" : "bg-blue-100"}`} />
-            ))}
-          </div>
-        </div>
-        <div className="bg-white rounded-xl p-3 shadow-sm">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-full bg-blue-500 flex items-center justify-center text-white text-[10px] font-bold shrink-0">מק</div>
-            <div>
-              <div className="text-[11px] font-semibold text-slate-800">מאקס · 3 לילות</div>
-              <div className="text-[9px] text-slate-400">חדר 4 · אוכל מהבית</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    ),
+    shot: { src: "/landing/screens/aud-boarding.webp", alt: "מפת חדרי הפנסיון: חדרים תפוסים ופנויים ושהייה עם צ׳ק-אין" },
   },
   {
     icon: Shield,
-    accentColor: "#10B981",
-    accentBg: "#ECFDF5",
-    iconBg: "bg-emerald-50",
-    iconColor: "text-emerald-600",
-    accentBorder: "border-t-[3px]",
-    accentStyle: { borderTopColor: "#10B981" },
-    checkColor: "text-emerald-500",
+    iconBg: "bg-orange-50",
+    iconColor: "text-orange-600",
+    checkColor: "text-orange-600",
     title: "מרכזי הכשרת כלבי שירות",
+    desc: "כל כלב, זכאי ותהליך הכשרה במקום אחד.",
     features: [
-      "מעקב שלבי הכשרה מלא ודיווח למשרד החקלאות",
-      "ניהול תיקי זכאים, שיבוצים והסמכות במקום אחד",
-      "ייצוא דוחות מקצועיים וכרטיסי זיהוי עם QR",
+      "עוקבים אחרי שלבי ההכשרה ויודעים מה עוד נשאר לבצע.",
+      "מנהלים את פרטי הזכאים, הכלבים והשיבוצים בלי לפזר מידע.",
+      "מפיקים דוחות ומרכזים את המידע הנדרש לתיעוד ולמעקב.",
     ],
-    mockupBg: "from-emerald-50 to-emerald-100",
-    mockupContent: (
-      <div className="p-3 space-y-2">
-        <div className="bg-white rounded-xl p-3 shadow-sm">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center text-white text-[10px] font-bold shrink-0">בל</div>
-            <div className="flex-1">
-              <div className="text-[11px] font-semibold text-slate-800">בלאק · שלב 4 / 6</div>
-              <div className="text-[9px] text-slate-400">הכשרה מלאה</div>
-            </div>
-          </div>
-          <div className="h-1.5 bg-emerald-100 rounded-full overflow-hidden"><div className="h-full bg-emerald-500 rounded-full" style={{ width: "67%" }} /></div>
-        </div>
-        <div className="bg-white rounded-xl p-3 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div className="text-[11px] font-semibold text-slate-800">QR מוכן</div>
-            <span className="text-[9px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-semibold">דוח חודשי</span>
-          </div>
-        </div>
-      </div>
-    ),
+    shot: { src: "/landing/screens/aud-service-dogs.webp", alt: "ניהול כלבי שירות: רשימת כלבים לפי שלב הכשרה, גזע וזכאי" },
   },
 ];
 
-const FEATURES = [
+const FEATURES: {
+  icon: typeof MessageCircle;
+  name: string;
+  title: string;
+  desc: string;
+  tier?: string;
+  examples?: string[];
+}[] = [
   {
     icon: MessageCircle,
-    iconBg: "bg-emerald-500",
-    title: "WhatsApp בילט-אין",
-    desc: "שליחה ישירות מהיומן. תזכורות אוטומטיות. 98% פתיחה.",
+    name: "תזכורות בוואטסאפ",
+    tier: "במסלולי Basic ו-Pro",
+    title: "פחות הודעות. פחות שכחות.",
+    desc: "תזכורות לתורים נשלחות אוטומטית בוואטסאפ, גם כשאתם באמצע טיפול או שיעור.",
   },
   {
     icon: Calendar,
-    iconBg: "bg-orange-500",
-    title: "יומן חכם",
-    desc: "חוקי זמינות גמישים. סנכרון Google Calendar כולל צבעים וקטגוריות.",
+    name: "יומן תורים",
+    title: "היומן שלכם תמיד מסודר.",
+    desc: "רואים מה מחכה לכם היום, מנהלים זמינות ומסנכרנים עם יומן Google. בלי לקבוע בטעות על זמן שכבר תפוס.",
   },
   {
     icon: FileSignature,
-    iconBg: "bg-blue-500",
-    title: "חוזים דיגיטליים",
-    desc: "חתימות מקוונות. תוקף משפטי.",
-  },
-  {
-    icon: Sparkles,
-    iconBg: "bg-violet-500",
-    title: "עוזר AI",
-    desc: "Claude ו-ChatGPT מחוברים לעסק. שואלים, מקבלים תשובה מהנתונים שלכם.",
+    name: "חוזים דיגיטליים",
+    tier: "במסלולי Basic ו-Pro",
+    title: "בלי לרדוף אחרי חתימות.",
+    desc: "שולחים חוזה ללקוח לחתימה מרחוק ושומרים את המסמך החתום בתיק שלו. בלי הדפסות ובלי ניירת שהולכת לאיבוד.",
   },
   {
     icon: BarChart3,
-    iconBg: "bg-amber-500",
-    title: "דשבורד עסקי",
-    desc: "הכנסות, ביצועים, חזרת לקוחות בזמן אמת.",
+    name: "ניהול העסק",
+    title: "יודעים מה קורה עם הכסף.",
+    desc: "עוקבים אחרי הכנסות, תשלומים ופעילות העסק. רואים את התמונה בלי להתחיל לאסוף נתונים מכל מיני מקומות.",
   },
   {
-    icon: Smartphone,
-    iconBg: "bg-pink-500",
-    title: "אפליקציית לקוח",
-    desc: "הזמנה אונליין במיתוג שלך. PWA, ללא הורדה.",
+    icon: Globe,
+    name: "הזמנת תורים אונליין",
+    tier: "במסלולי Basic ו-Pro",
+    title: "שיקבעו תור גם כשאתם עסוקים.",
+    desc: "שולחים ללקוחות קישור להזמנת תור והם בוחרים זמן פנוי בעצמם. אתם יכולים להמשיך לעבוד בלי לעצור כדי לפתוח יומן.",
+  },
+  {
+    icon: Target,
+    name: "ניהול לידים",
+    title: "אף פנייה לא הולכת לאיבוד.",
+    desc: "רואים מי פנה, עם מי כבר דיברתם ולמי צריך לחזור. פחות לקוחות פוטנציאליים שנשכחים בתוך הוואטסאפ.",
+  },
+  {
+    icon: Sparkles,
+    name: "עוזר AI במסלול Pro",
+    title: "תשאלו את פטרה. היא מכירה.",
+    desc: "צריכים למצוא פרט על לקוח או להבין מה קורה בעסק? שואלים את העוזר ומקבלים תשובה מתוך המידע שלכם, בהתאם לנתונים הזמינים במערכת.",
+    examples: [
+      "למי צריך לחזור היום?",
+      "מה סיכמנו עם הלקוח בפגישה האחרונה?",
+      "אילו תשלומים עדיין פתוחים?",
+    ],
   },
 ];
 
@@ -318,91 +243,54 @@ export default function LandingPage() {
           className="relative"
           style={{ background: "#0B1220", paddingTop: 90, paddingBottom: 110, overflow: "clip" }}
         >
-          {/* Orange radial glow — top-right (physical right in RTL) */}
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute"
-            style={{
-              right: "-25%", top: "-10%", width: "75%", height: "75%",
-              background: "radial-gradient(ellipse at center, rgba(249,115,22,0.22) 0%, transparent 60%)",
-            }}
-          />
-          {/* Dot pattern */}
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0"
-            style={{
-              backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.07) 1px, transparent 1px)",
-              backgroundSize: "28px 28px",
-              maskImage: "radial-gradient(ellipse 80% 60% at 60% 0%, black 0%, transparent 75%)",
-              WebkitMaskImage: "radial-gradient(ellipse 80% 60% at 60% 0%, black 0%, transparent 75%)",
-            }}
-          />
 
           <div className="relative z-10 mx-auto max-w-[1240px] px-4 sm:px-7">
-            <div className="grid lg:grid-cols-[1fr_1.15fr] gap-[60px] items-center">
+            <div className="grid lg:grid-cols-[1fr_1.4fr] gap-12 items-center">
 
               {/* Text column — right side in RTL */}
               <div className="min-w-0 text-center lg:text-right">
-                {/* Eyebrow pill */}
-                <span className="mb-7 inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm font-medium"
-                  style={{ background: "rgba(249,115,22,0.10)", borderColor: "rgba(249,115,22,0.20)", color: "#FDBA74" }}>
-                  <Zap className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
-                  <span className="hidden sm:inline">המערכת שנבנתה על ידי מקצוענים בבעלי חיים, עבור מקצוענים בבעלי חיים</span>
-                  <span className="sm:hidden">בנויה במיוחד לעסקי חיות מחמד</span>
-                </span>
 
                 <h1
                   id="hero-heading"
-                  className="mb-5 font-extrabold text-white"
+                  className="lp-rise mb-5 font-extrabold text-white"
                   style={{
-                    fontSize: "clamp(26px, 7.5vw, 64px)",
+                    ["--lp-d" as string]: "80ms",
+                    fontSize: "clamp(40px, 6vw, 80px)",
                     lineHeight: 1.05,
-                    letterSpacing: "-0.035em",
-                    textShadow: "0 2px 24px rgba(0,0,0,0.35)",
+                    letterSpacing: "-0.02em",
                   }}
                 >
                   תפסיקו לרדוף<br />
-                  אחרי זנבות.<br />
-                  <span
-                    style={{
-                      color: "#FDBA74",
-                      WebkitTextFillColor: "#FDBA74",
-                      textShadow: "0 0 28px rgba(249,115,22,0.45), 0 2px 24px rgba(0,0,0,0.35)",
-                      display: "inline-block",
-                    }}
-                  >תנו לפטרה</span> לנהל<br />
-                  את העסק שלכם.
+                  אחרי זנבות.
                 </h1>
 
-                <p className="mb-8 max-w-[540px] mx-auto lg:mx-0 text-lg leading-[1.6]" style={{ color: "rgba(226,232,240,0.85)" }}>
-                  כדי שתפסיקו לאבד לקוחות מתזכורות שנשכחו, ולא תטבעו בהודעות וואטסאפ,{" "}ותחזרו לעשות את מה שאתם באמת אוהבים לעבוד עם בעלי החיים שלכם.
+                <p style={{ ["--lp-d" as string]: "160ms", color: "rgba(226,232,240,0.85)" }} className="lp-rise mb-8 max-w-[540px] mx-auto lg:mx-0 text-lg leading-[1.6]">
+                  תנו לפטרה לטפל בתורים, בלקוחות ובתזכורות. אתם תתפנו למה שאתם באמת אוהבים, לעבוד עם בעלי חיים.
                 </p>
 
-                <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3.5 mb-7">
+                <div style={{ ["--lp-d" as string]: "240ms" }} className="lp-rise flex flex-wrap items-center justify-center lg:justify-start gap-3.5 mb-7">
                   <Link
                     href="/register"
-                    className="inline-flex items-center gap-2 rounded-xl px-7 py-3.5 text-[15px] font-semibold text-white transition-all hover:-translate-y-px focus:outline-none focus:ring-2 focus:ring-brand-400"
+                    className="inline-flex items-center gap-2 rounded-xl px-7 py-3.5 text-[15px] font-semibold text-white lp-press focus:outline-none focus:ring-2 focus:ring-brand-400"
                     style={{
-                      background: "linear-gradient(135deg, #F97316 0%, #FB923C 100%)",
-                      boxShadow: "0 10px 28px -8px rgba(249,115,22,0.6), inset 0 1px 0 rgba(255,255,255,0.15)",
+                      background: "#C2410C",
                     }}
                   >
-                    התחל בחינם עכשיו
+                    התחילו בחינם
                     <ChevronLeft className="w-4 h-4" aria-hidden="true" />
                   </Link>
                   <Link
                     href="#video"
-                    className="inline-flex items-center gap-2 rounded-xl border px-5 py-3.5 text-sm font-medium text-white transition-all hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-brand-400"
+                    className="inline-flex items-center gap-2 rounded-xl border px-5 py-3.5 text-sm font-medium text-white lp-press focus:outline-none focus:ring-2 focus:ring-brand-400"
                     style={{ background: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.15)" }}
                   >
                     <Play className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
-                    צפה בדמו · 30 שניות
+                    צפו בדמו
                   </Link>
                 </div>
 
                 <ul className="flex flex-wrap justify-center lg:justify-start gap-x-5 gap-y-2 list-none p-0 m-0">
-                  {["מסלול חינמי לצמיתות — ללא כרטיס אשראי", "מעבר קל ממערכות אחרות", "חדש: עוזר AI במסלול Pro"].map((t) => (
+                  {["חינם, בלי כרטיס אשראי", "עוברים בקלות ממערכות אחרות", "עוזר AI במסלול Pro"].map((t) => (
                     <li key={t} className="flex items-center gap-2 text-sm" style={{ color: "rgba(226,232,240,0.75)" }}>
                       <span className="inline-flex w-[18px] h-[18px] rounded-full items-center justify-center shrink-0" style={{ background: "rgba(249,115,22,0.20)" }}>
                         <Check className="w-2.5 h-2.5" style={{ color: "#FDBA74" }} aria-hidden="true" />
@@ -413,284 +301,241 @@ export default function LandingPage() {
                 </ul>
               </div>
 
-              {/* Dashboard mockup column — left side in RTL */}
-              <div aria-hidden="true" className="relative mt-8 lg:mt-0 min-w-0">
-                {/* Outer glow */}
-                <div className="absolute -inset-6 rounded-3xl pointer-events-none" style={{ background: "rgba(249,115,22,0.06)", filter: "blur(32px)" }} />
+              {/* Product screenshot column — left side in RTL */}
+              <div style={{ ["--lp-d" as string]: "200ms" }} className="lp-rise relative mt-8 lg:mt-0 min-w-0 lg:pb-10">
 
                 <div className="relative">
-                  <DashboardMockup />
+                  <BrowserShot
+                    src="/landing/screens/hero-leads.webp"
+                    alt="מערכת המכירות של פטרה: לוח לידים לפי שלבים עם סה״כ לידים, לידים בתהליך ושיעור המרה"
+                    width={2400}
+                    height={1283}
+                    priority
+                  />
+
+                  {/* Phone — customer card, overlapping the frame's bottom-left (RTL: physical left) */}
+                  <div className="hidden md:block absolute -bottom-10 -left-6 w-[150px] lg:w-[170px]">
+                    <PhoneShot
+                      src="/landing/screens/phone-customer.webp"
+                      alt="כרטיס לקוח בנייד: פרטי קשר, תשלומים, מעקב חבילות וחיות מחמד"
+                      width={780}
+                      height={1580}
+                    />
+                  </div>
 
                   {/* Floating toast — top-left of frame (RTL: physical left) */}
                   <div
-                    className="absolute -top-6 left-0 sm:-left-8 bg-white rounded-2xl flex items-center gap-3 px-4 py-3 min-w-[240px] pointer-events-none"
+                    aria-hidden="true"
+                    className="lp-float hidden md:flex absolute -top-6 md:-left-2 lg:-left-8 bg-white rounded-2xl items-center gap-3 px-4 py-3 min-w-[240px] pointer-events-none"
                     style={{
                       boxShadow: "0 24px 60px -12px rgba(0,0,0,0.45), 0 0 0 1px rgba(0,0,0,0.05)",
-                      animation: "float 6s ease-in-out infinite",
+                      animation: "lpFloat 6s ease-in-out infinite",
                     }}
                   >
                     <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center shrink-0">
                       <Check className="w-3.5 h-3.5 text-white" style={{ strokeWidth: 3 }} />
                     </div>
                     <div>
-                      <div className="text-[13px] font-semibold text-slate-900">תזכורת נשלחה ✓</div>
-                      <div className="text-[11px] text-slate-500 mt-0.5">לדורית · WhatsApp · לפני שנייה</div>
+                      <div className="text-[13px] font-semibold text-slate-900">תזכורת נשלחה</div>
+                      <div className="text-[13px] text-slate-500 mt-0.5">דורית קיבלה תזכורת לתור בוואטסאפ</div>
                     </div>
                   </div>
 
-                  {/* Floating WhatsApp bubble — bottom-left */}
-                  <div
-                    className="absolute -bottom-4 left-0 sm:-left-8 bg-white rounded-2xl px-4 py-3 min-w-[220px] pointer-events-none"
-                    style={{
-                      boxShadow: "0 24px 60px -12px rgba(0,0,0,0.45), 0 0 0 1px rgba(0,0,0,0.05)",
-                      animation: "float 6s ease-in-out infinite",
-                      animationDelay: "-3s",
-                    }}
-                  >
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-6 h-6 rounded-full bg-[#25D366] flex items-center justify-center shrink-0">
-                        <MessageCircle className="w-3.5 h-3.5 text-white fill-white" />
-                      </div>
-                      <span className="text-[12px] font-semibold text-slate-900">לקוחות</span>
-                      <span className="text-[10px] font-semibold text-emerald-600 mr-auto">98% פתיחה</span>
-                    </div>
-                    <div className="text-[12px] text-slate-500 bg-slate-50 rounded-lg px-2.5 py-2 leading-snug">
-                      היי דורית, פלאפי מוזמנת מחר ב־15:30 לאילוף 🐾
-                    </div>
-                  </div>
                 </div>
               </div>
 
             </div>
           </div>
 
-          <style>{`
-            @keyframes float {
-              0%, 100% { transform: translateY(0); }
-              50% { transform: translateY(-8px); }
-            }
-          `}</style>
         </section>
 
         {/* ── Trust bar ─────────────────────────────────────────────────────────── */}
         <section
           aria-label="נתוני אמינות"
-          style={{ background: "#0F172A", borderTop: "1px solid rgba(255,255,255,0.06)", borderBottom: "1px solid rgba(255,255,255,0.06)", padding: "22px 0" }}
+          style={{ background: "#0F172A", padding: "22px 0" }}
         >
           <dl className="mx-auto max-w-[1240px] px-7 grid grid-cols-2 md:grid-cols-4 gap-6">
-            {TRUST_STATS.map(({ num, label }, i) => (
+            {TRUST_STATS.map(({ num, label }) => (
               <div
                 key={label}
                 className="flex flex-col items-center text-center py-2"
-                style={i < 3 ? { borderLeft: "1px solid rgba(255,255,255,0.10)" } : undefined}
               >
                 <dt
                   className="text-2xl font-extrabold mb-1"
-                  style={{ color: "#FDBA74", fontFamily: "SFMono-Regular, Menlo, monospace", letterSpacing: "-0.02em" }}
+                  style={{ color: "#FDBA74", fontVariantNumeric: "tabular-nums", letterSpacing: "-0.01em" }}
                 >
                   {num}
                 </dt>
-                <dd className="text-xs" style={{ color: "rgba(255,255,255,0.6)" }}>{label}</dd>
+                <dd className="text-sm" style={{ color: "rgba(255,255,255,0.72)" }}>{label}</dd>
               </div>
             ))}
           </dl>
         </section>
 
-        {/* ── How it works ──────────────────────────────────────────────────────── */}
-        <section aria-labelledby="how-heading" className="py-[100px] bg-white" id="how">
-          <div className="mx-auto max-w-[1240px] px-7">
-            <div className="text-center mb-14">
-              <span className="mb-4 inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-semibold uppercase tracking-[0.08em]"
-                style={{ background: "var(--brand-50, #FFF7ED)", color: "var(--brand-700, #C2410C)" }}>
-                תוך 3 דקות
-              </span>
-              <h2
-                id="how-heading"
-                className="text-slate-900 font-extrabold"
-                style={{ fontSize: "clamp(30px, 3.5vw, 44px)", letterSpacing: "-0.03em", lineHeight: 1.1, marginBottom: 16 }}
-              >
-                מתחילים בשלוש דקות.{" "}
-                <span className="text-brand-500">פשוט כמו לשלוח וואטסאפ.</span>
+        {/* ── Product demo: real screens + teaser video ─────────────────────────── */}
+        <section aria-labelledby="video-heading" className="py-24 bg-slate-900" id="video">
+          <div className="mx-auto max-w-[1240px] px-4 sm:px-7">
+            <div className="text-center mb-10">
+              <h2 id="video-heading" className="text-3xl md:text-4xl font-bold text-white mb-3">
+                ככה פטרה עובדת.
               </h2>
-              <p className="text-lg text-slate-500 max-w-xl mx-auto leading-[1.55]">
-                פשוט כמו לשלוח וואטסאפ. בלי ללמוד תוכנות מורכבות.
+              <p className="text-slate-300 text-lg max-w-2xl mx-auto">
+                הציצו ליומן, לניהול הלקוחות ולמעקב אחרי העבודה השוטפת. תראו איך הכול מתחבר בלי לקפוץ בין מערכות.
               </p>
             </div>
-
-            <ol className="grid md:grid-cols-3 gap-6 list-none p-0 m-0">
-              {HOW_IT_WORKS.map(({ n, icon: Icon, title, desc }) => (
-                <li
-                  key={n}
-                  className="group relative overflow-hidden rounded-[20px] border border-slate-200 bg-white p-8 transition-all duration-200 hover:-translate-y-[3px] hover:border-orange-300 shadow-sm hover:shadow-xl"
-                >
-                  {/* Decorative big number */}
-                  <div
-                    aria-hidden="true"
-                    className="absolute top-3 left-4 leading-none select-none font-black"
-                    style={{ fontSize: 96, color: "#F97316", opacity: 0.08, fontFamily: "SFMono-Regular, Menlo, monospace", letterSpacing: "-0.05em" }}
-                    dir="ltr"
-                  >
-                    {n}
-                  </div>
-
-                  {/* Icon tile */}
-                  <div className="relative z-10 mb-5 w-12 h-12 rounded-[14px] border border-orange-100 bg-orange-50 flex items-center justify-center transition-colors duration-200 group-hover:bg-brand-500 group-hover:border-brand-500">
-                    <Icon className="w-5 h-5 text-brand-500 transition-colors duration-200 group-hover:text-white" aria-hidden="true" />
-                  </div>
-
-                  <h3 className="relative z-10 text-[19px] font-bold text-slate-900 mb-2" style={{ letterSpacing: "-0.015em" }}>{title}</h3>
-                  <p className="relative z-10 text-sm text-slate-500 leading-[1.6] m-0">{desc}</p>
-                </li>
-              ))}
-            </ol>
-
-            <div className="text-center mt-12">
-              <Link
-                href="/register"
-                className="inline-flex items-center gap-2 rounded-xl px-8 py-3.5 text-[15px] font-semibold text-white transition-all hover:-translate-y-px focus:outline-none focus:ring-2 focus:ring-brand-400"
-                style={{ background: "linear-gradient(135deg, #F97316 0%, #FB923C 100%)", boxShadow: "0 10px 28px -8px rgba(249,115,22,0.6)" }}
-              >
-                בוא נראה איך זה עובד
-                <ChevronLeft className="w-4 h-4" aria-hidden="true" />
-              </Link>
+            <ProductDemo />
+            <div className="max-w-4xl mx-auto mt-16">
+              <TeaserVideo />
             </div>
           </div>
         </section>
 
-        {/* ── Teaser video ──────────────────────────────────────────────────────── */}
-        <section aria-labelledby="video-heading" className="py-24 bg-slate-900" id="video">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-10">
-              <h2 id="video-heading" className="text-3xl md:text-4xl font-bold text-white mb-3">
-                פטרה בפעולה — 30 שניות
-              </h2>
-              <p className="text-slate-400 text-lg">
-                ראה איך עסקי חיות מחמד מנהלים תורים, לידים ופנסיון — בלי אקסל ובלי בלאגן
-              </p>
-            </div>
-            <div className="relative rounded-2xl overflow-hidden shadow-2xl shadow-black/50 border border-white/8 aspect-video bg-slate-800">
-              <video
-                src="/teaser.mp4"
-                controls
-                preload="metadata"
-                className="w-full h-full object-cover"
-                aria-label="סרטון טיזר — פטרה ניהול עסקי חיות מחמד"
-              />
-            </div>
-            <div className="text-center mt-8">
-              <Link
-                href="/register"
-                className="inline-flex items-center gap-2 rounded-xl px-8 py-3.5 text-[15px] font-semibold text-white transition-all hover:-translate-y-px"
-                style={{ background: "linear-gradient(135deg, #F97316 0%, #FB923C 100%)", boxShadow: "0 10px 28px -8px rgba(249,115,22,0.6)" }}
+        {/* ── A day with Petra ───────────────────────────────────────────────────── */}
+        <section aria-labelledby="day-heading" className="py-[100px] bg-white" id="day">
+          <div className="mx-auto max-w-[1240px] px-7">
+            <Reveal className="text-center mb-12">
+              <h2
+                id="day-heading"
+                className="text-slate-900 font-extrabold"
+                style={{ fontSize: "clamp(30px, 3.5vw, 44px)", letterSpacing: "-0.03em", lineHeight: 1.1 }}
               >
-                התחל בחינם עכשיו
-              </Link>
-            </div>
+                ככה נראה יום עם פטרה
+              </h2>
+            </Reveal>
+
+            <ol className="grid gap-x-8 gap-y-8 md:grid-cols-2 lg:grid-cols-4 list-none p-0 m-0">
+              {[
+              { icon: Sunrise, when: "בבוקר", text: "פותחים את היומן ורואים מי מגיע היום, מה סוג הטיפול ומה צריך להכין." },
+              { icon: UserPlus, when: "באמצע העבודה", text: "לקוח חדש פונה אליכם. רושמים אותו כליד בכמה שניות, ואתם יודעים למי צריך לחזור." },
+              { icon: BellRing, when: "לפני התור", text: "תזכורת נשלחת ללקוח בוואטסאפ, בלי שתצטרכו לעצור את מה שאתם עושים.", note: "תזכורות אוטומטיות במסלולי Basic ו-Pro." },
+              { icon: MoonStar, when: "בסוף היום", text: "רואים את הפגישות שבוצעו, התשלומים ומה מחכה לכם מחר." },
+              ].map(({ icon: Icon, when, text, note }: { icon: typeof Sunrise; when: string; text: string; note?: string }, i) => (
+                <Reveal as="li" key={when} delay={i * 80} className="flex gap-4 lg:flex-col lg:gap-3">
+                  <div className="w-11 h-11 rounded-[12px] bg-orange-100 flex items-center justify-center shrink-0">
+                    <Icon className="w-5 h-5 text-orange-600" aria-hidden="true" style={{ strokeWidth: 1.75 }} />
+                  </div>
+                  <div>
+                    <h3 className="text-[19px] font-bold text-slate-900 mb-1.5" style={{ letterSpacing: "-0.01em" }}>{when}</h3>
+                    <p className="text-base text-slate-700 leading-[1.6] m-0">{text}</p>
+                    {note && <p className="text-[13px] text-slate-500 mt-2 m-0">{note}</p>}
+                  </div>
+                </Reveal>
+              ))}
+            </ol>
           </div>
         </section>
 
         {/* ── Audiences ─────────────────────────────────────────────────────────── */}
         <section aria-labelledby="audience-heading" className="py-[100px] bg-slate-50" id="audiences">
           <div className="mx-auto max-w-[1240px] px-7">
-            <div className="text-center mb-14">
-              <span className="mb-4 inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-semibold uppercase tracking-[0.08em]"
-                style={{ background: "var(--brand-50, #FFF7ED)", color: "var(--brand-700, #C2410C)" }}>
-                למי פטרה מתאימה
-              </span>
+            <Reveal className="text-center mb-14">
               <h2
                 id="audience-heading"
                 className="text-slate-900 font-extrabold"
                 style={{ fontSize: "clamp(30px, 3.5vw, 44px)", letterSpacing: "-0.03em", lineHeight: 1.1 }}
               >
-                בנויה במיוחד{" "}
-                <span className="text-brand-500">לעסקי חיות מחמד.</span>
+                פטרה מכירה את העבודה שלכם.
               </h2>
               <p className="mt-4 text-lg text-slate-500 max-w-xl mx-auto">
-                כלים ייעודיים לכל תחום — בלי לאלץ אותך להתאים את העסק לתוכנה.
+                לכל עסק יש את היום שלו. פטרה מתאימה את עצמה לאיך שאתם עובדים, ולא להפך.
               </p>
-            </div>
+            </Reveal>
 
             <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 list-none p-0 m-0">
-              {AUDIENCES.map((a) => {
+              {AUDIENCES.map((a, i) => {
                 const Icon = a.icon;
                 return (
-                  <li key={a.title}>
+                  <Reveal as="li" key={a.title} delay={i * 80}>
                     <article
-                      className="group flex flex-col rounded-[20px] border border-slate-200 bg-white overflow-hidden h-full transition-all duration-200 hover:-translate-y-[3px]"
-                      style={a.accentStyle}
+                      className="group flex flex-col rounded-[20px] bg-white overflow-hidden h-full lp-card"
                     >
-                      {/* Colored mockup header */}
-                      <div className={`relative bg-gradient-to-br ${a.mockupBg} shrink-0`} style={{ minHeight: 130 }}>
-                        {a.mockupContent}
+                      {/* Real screen from the app */}
+                      <div className="relative shrink-0 aspect-[16/10] overflow-hidden bg-slate-100">
+                        <Image
+                          src={a.shot.src}
+                          alt={a.shot.alt}
+                          fill
+                          sizes="(min-width: 1024px) 300px, (min-width: 640px) 50vw, 100vw"
+                          className="object-cover object-right-top transition-transform duration-500 group-hover:scale-[1.03]"
+                        />
                         {/* Icon badge */}
-                        <div className={`absolute bottom-3 right-3 w-[42px] h-[42px] rounded-xl ${a.iconBg} flex items-center justify-center shadow-md`}>
+                        <div className={`absolute bottom-3 right-3 w-[42px] h-[42px] rounded-xl ${a.iconBg} flex items-center justify-center`}>
                           <Icon className={`w-5 h-5 ${a.iconColor}`} aria-hidden="true" />
                         </div>
                       </div>
 
                       {/* Content */}
                       <div className="flex flex-col flex-1 p-5">
-                        <h3 className="text-[17px] font-bold text-slate-900 mb-3" style={{ letterSpacing: "-0.01em" }}>{a.title}</h3>
+                        <h3 className="text-[17px] font-bold text-slate-900 mb-1" style={{ letterSpacing: "-0.01em" }}>{a.title}</h3>
+                        <p className="text-[15px] font-medium text-slate-900 leading-[1.5] mb-3">{a.desc}</p>
                         <ul className="space-y-2 list-none p-0 m-0 flex-1">
                           {a.features.map((f) => (
-                            <li key={f} className="flex items-start gap-2 text-[13px] text-slate-600 leading-[1.45]">
+                            <li key={f} className="flex items-start gap-2 text-[15px] text-slate-700 leading-[1.5]">
                               <Check className={`w-3.5 h-3.5 ${a.checkColor} shrink-0 mt-0.5`} aria-hidden="true" style={{ strokeWidth: 2.5 }} />
                               {f}
                             </li>
                           ))}
                         </ul>
-                        <a
-                          href="#pricing"
-                          className="mt-4 inline-flex items-center gap-1 text-sm font-semibold transition-all hover:gap-2 focus:outline-none focus:underline"
-                          style={{ color: "var(--brand-700, #C2410C)" }}
-                        >
-                          מעבר למסלול שלי
-                          <ChevronLeft className="w-3.5 h-3.5" aria-hidden="true" />
-                        </a>
                       </div>
                     </article>
-                  </li>
+                  </Reveal>
                 );
               })}
             </ul>
+
+            <div className="text-center mt-12">
+              <Link
+                href="/register"
+                className="inline-flex items-center gap-2 rounded-xl px-8 py-3.5 text-[15px] font-semibold text-white lp-press focus:outline-none focus:ring-2 focus:ring-brand-400"
+                style={{ background: "#C2410C" }}
+              >
+                התחילו בחינם
+                <ChevronLeft className="w-4 h-4" aria-hidden="true" />
+              </Link>
+            </div>
           </div>
         </section>
 
         {/* ── Features grid ─────────────────────────────────────────────────────── */}
         <section aria-labelledby="features-heading" className="py-[100px] bg-white" id="features">
           <div className="mx-auto max-w-[1240px] px-7">
-            <div className="text-center mb-14">
-              <span className="mb-4 inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-semibold uppercase tracking-[0.08em]"
-                style={{ background: "var(--brand-50, #FFF7ED)", color: "var(--brand-700, #C2410C)" }}>
-                כל מה שצריך
-              </span>
+            <Reveal className="text-center mb-14">
               <h2
                 id="features-heading"
                 className="text-slate-900 font-extrabold"
                 style={{ fontSize: "clamp(30px, 3.5vw, 44px)", letterSpacing: "-0.03em", lineHeight: 1.1 }}
               >
-                WhatsApp, יומן, פנסיון, עוזר AI —{" "}
-                <span className="text-brand-500">באחד.</span>
+                פחות עבודה מסביב לעבודה.
               </h2>
               <p className="mt-4 text-lg text-slate-500 max-w-xl mx-auto">
-                לא עוד שש תוכנות שמדברות אחת עם השנייה דרך אקסל.
+                היומן, הלקוחות, ההודעות והתשלומים עובדים יחד. אתם לא צריכים לחבר הכול בעצמכם.
               </p>
-            </div>
+            </Reveal>
 
-            <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 list-none p-0 m-0">
-              {FEATURES.map(({ icon: Icon, iconBg, title, desc }) => (
-                <li key={title}>
+            <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 list-none p-0 m-0">
+              {FEATURES.map(({ icon: Icon, name, title, desc, tier, examples }, i) => (
+                <Reveal as="li" key={title} delay={(i % 4) * 80} className={examples ? "md:col-span-2" : undefined}>
                   <article
-                    className="group rounded-[20px] border border-slate-200 bg-white p-7 h-full transition-all duration-200 hover:-translate-y-[2px] hover:border-orange-300"
-                    style={{ boxShadow: "0 1px 3px 0 rgba(0,0,0,0.06), 0 1px 2px -1px rgba(0,0,0,0.04)" }}
+                    className="group rounded-[20px] bg-slate-50 p-7 h-full lp-card"
                   >
-                    <div className={`mb-4 w-14 h-14 rounded-[14px] ${iconBg} flex items-center justify-center`}>
-                      <Icon className="w-6 h-6 text-white" aria-hidden="true" style={{ strokeWidth: 1.75 }} />
+                    <div className="mb-4 flex items-center gap-3">
+                      <div className="w-11 h-11 rounded-[12px] bg-orange-100 flex items-center justify-center shrink-0">
+                        <Icon className="w-5 h-5 text-orange-600" aria-hidden="true" style={{ strokeWidth: 1.75 }} />
+                      </div>
+                      <span className="text-[15px] font-semibold text-brand-700">{name}</span>
                     </div>
                     <h3 className="text-[19px] font-bold text-slate-900 mb-2" style={{ letterSpacing: "-0.01em" }}>{title}</h3>
-                    <p className="text-sm text-slate-500 leading-[1.55] m-0">{desc}</p>
+                    <p className="text-base text-slate-600 leading-[1.55] m-0">{desc}</p>
+                    {examples && (
+                      <ul className="mt-4 flex flex-wrap gap-2 list-none p-0 m-0" aria-label="שאלות לדוגמה">
+                        {examples.map((q) => (
+                          <li key={q} className="rounded-xl bg-white px-3.5 py-2 text-[15px] text-slate-800">{q}</li>
+                        ))}
+                      </ul>
+                    )}
+                    {tier && <p className="text-[13px] text-slate-500 mt-3 m-0">{tier}</p>}
                   </article>
-                </li>
+                </Reveal>
               ))}
             </ul>
           </div>
@@ -780,43 +625,40 @@ export default function LandingPage() {
           aria-labelledby="about-heading"
           id="about"
           className="py-[100px] overflow-hidden"
-          style={{ background: "linear-gradient(180deg, #FFF7ED 0%, #FFEDD5 100%)" }}
+          style={{ background: "#F8FAFC" }}
         >
           <div className="mx-auto max-w-[1240px] px-7">
             <div className="grid lg:grid-cols-2 gap-16 items-center">
 
               {/* Right col — Text */}
               <div>
-                <span className="mb-5 inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-semibold"
-                  style={{ background: "var(--brand-100, #FFEDD5)", color: "var(--brand-700, #C2410C)" }}>
-                  <Dog className="w-3.5 h-3.5" aria-hidden="true" />
-                  הסיפור שלנו
-                </span>
 
                 <h2
                   id="about-heading"
                   className="text-slate-900 font-extrabold"
                   style={{ fontSize: "clamp(28px, 3.5vw, 42px)", letterSpacing: "-0.03em", lineHeight: 1.15, marginBottom: 18 }}
                 >
-                  לא נולדנו במשרד ממוזג.<br />
-                  <span className="text-brand-500">באנו מהשטח.</span>
+                  לא נולדנו במשרד ממוזג.
                 </h2>
 
                 <p className="text-lg text-slate-600 leading-[1.6] mb-8" style={{ maxWidth: 480 }}>
-                  פטרה היא החטיבה הדיגיטלית מבית All-Dog. זיקקנו 15 שנות ניסיון בעולם הכלבים לתוך פלטפורמה אחת.
+                  באנו מהשטח. פטרה היא החטיבה הדיגיטלית של All-Dog, מרכז אילוף עם 15 שנות ניסיון. בנינו מערכת שמבינה איך באמת נראה יום עבודה עם בעלי חיים.
                 </p>
 
                 <ul className="space-y-[18px] list-none p-0 m-0">
                   {[
-                    { icon: Zap, text: "פטרה נבנתה מתוך הבנה של מה קורה כשיש לך רצועה ביד אחת וטלפון ביד שנייה. המערכת חושבת כמו איש מקצוע, לא כמו מתכנת." },
-                    { icon: Users, text: "המערכת משתפרת כל יום. מאלפים, גרומרים ומנהלי פנסיונים יושבים פיזית עם צוות הפיתוח שלנו כדי לדייק כל כפתור." },
-                    { icon: MessageCircle, text: "אנחנו מבינים את הלחץ של פנסיון בשיא העונה, ואת המחיר של תור שמתבטל. בנינו את הפתרון שאנחנו חיפשנו לעצמנו." },
-                  ].map(({ icon: Icon, text }, i) => (
+                    { icon: Zap, title: "אנחנו מכירים את היום שלכם.", text: "רצועה ביד אחת, טלפון בשנייה, לקוח שמתקשר באמצע שיעור והודעה שצריך לזכור לחזור אליה. אנחנו מכירים את זה, כי גם אנחנו עובדים ככה." },
+                    { icon: Users, title: "פטרה נבנית יחד איתכם.", text: "אנחנו מקשיבים למאלפים, לגרומרים ולמנהלי פנסיונים שעובדים במערכת. מה שמסבך את היום שלהם עוזר לנו להבין מה צריך לשפר." },
+                    { icon: MessageCircle, title: "בנינו את מה שהיה חסר לנו.", text: "רצינו מקום אחד שבו אפשר לנהל לקוחות, תורים ותהליכי עבודה בלי לבזבז את היום על הודעות, טבלאות וניירת. משם פטרה התחילה." },
+                  ].map(({ icon: Icon, title, text }, i) => (
                     <li key={i} className="flex items-start gap-4">
                       <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: "var(--brand-100, #FFEDD5)" }}>
                         <Icon className="w-[18px] h-[18px]" style={{ color: "var(--brand-600, #EA580C)", strokeWidth: 2 }} aria-hidden="true" />
                       </div>
-                      <p className="text-sm text-slate-600 leading-[1.55] m-0">{text}</p>
+                      <div>
+                        <h3 className="text-base font-bold text-slate-900 mb-1">{title}</h3>
+                        <p className="text-base text-slate-700 leading-[1.55] m-0">{text}</p>
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -824,11 +666,8 @@ export default function LandingPage() {
 
               {/* Left col — Photo + stat card */}
               <div aria-hidden="true" className="relative">
-                {/* Decorative blocks */}
-                <div className="absolute -bottom-4 -left-4 w-24 h-24 rounded-2xl -z-10" style={{ background: "rgba(251,146,60,0.4)" }} />
-                <div className="absolute -top-4 -right-4 w-16 h-16 rounded-xl -z-10" style={{ background: "rgba(245,158,11,0.4)" }} />
 
-                <div className="relative aspect-[4/5] rounded-3xl overflow-hidden" style={{ boxShadow: "0 30px 60px -20px rgba(15,23,42,0.25)" }}>
+                <div className="relative aspect-[4/5] rounded-3xl overflow-hidden">
                   <Image
                     src="/about-field-2.png"
                     alt="מאלף עובד עם כלב — Petra ו-All-Dog"
@@ -845,11 +684,59 @@ export default function LandingPage() {
                   className="absolute bottom-6 right-6 bg-white rounded-[14px] px-[18px] py-3.5"
                   style={{ boxShadow: "0 12px 32px -8px rgba(0,0,0,0.25)" }}
                 >
-                  <div className="text-[28px] font-extrabold leading-tight" style={{ color: "var(--brand-700, #C2410C)", letterSpacing: "-0.025em" }}>15+ שנים</div>
-                  <div className="text-xs text-slate-500 font-medium mt-0.5">בשטח · עם כלבים</div>
+                  <div className="text-[22px] font-extrabold leading-tight" style={{ color: "var(--brand-700, #C2410C)", letterSpacing: "-0.02em" }}>15 שנות ניסיון</div>
+                  <div className="text-[13px] text-slate-600 font-medium mt-0.5">עם כלבים. בשטח.</div>
                 </div>
               </div>
 
+            </div>
+          </div>
+        </section>
+
+        {/* ── How it works ──────────────────────────────────────────────────────── */}
+        <section aria-labelledby="how-heading" className="py-[100px] bg-white" id="how">
+          <div className="mx-auto max-w-[1240px] px-7">
+            <Reveal className="text-center mb-14">
+              <h2
+                id="how-heading"
+                className="text-slate-900 font-extrabold"
+                style={{ fontSize: "clamp(30px, 3.5vw, 44px)", letterSpacing: "-0.03em", lineHeight: 1.1, marginBottom: 16 }}
+              >
+                מתחילים בלי להסתבך.
+              </h2>
+              <p className="text-lg text-slate-500 max-w-xl mx-auto leading-[1.55]">
+                פותחים חשבון, מכניסים את הלקוחות ומתחילים לעבוד. בלי ללמוד מערכת מסובכת.
+              </p>
+            </Reveal>
+
+            <ol className="grid md:grid-cols-3 gap-6 list-none p-0 m-0">
+              {HOW_IT_WORKS.map(({ n, icon: Icon, title, desc }, i) => (
+                <Reveal as="li" key={n} delay={i * 90}>
+                <div
+                  className="group relative overflow-hidden rounded-[20px] bg-slate-50 p-8 lp-card h-full"
+                >
+
+                  {/* Icon tile */}
+                  <div className="relative z-10 mb-5 w-12 h-12 rounded-[14px] bg-orange-100 flex items-center justify-center transition-colors duration-200 group-hover:bg-brand-500">
+                    <Icon className="w-5 h-5 text-brand-500 transition-colors duration-200 group-hover:text-white" aria-hidden="true" />
+                  </div>
+
+                  <h3 className="relative z-10 text-[19px] font-bold text-slate-900 mb-2" style={{ letterSpacing: "-0.015em" }}>{title}</h3>
+                  <p className="relative z-10 text-base text-slate-600 leading-[1.6] m-0">{desc}</p>
+                </div>
+                </Reveal>
+              ))}
+            </ol>
+
+            <div className="text-center mt-12">
+              <Link
+                href="/register"
+                className="inline-flex items-center gap-2 rounded-xl px-8 py-3.5 text-[15px] font-semibold text-white lp-press focus:outline-none focus:ring-2 focus:ring-brand-400"
+                style={{ background: "#C2410C", }}
+              >
+                התחילו בחינם
+                <ChevronLeft className="w-4 h-4" aria-hidden="true" />
+              </Link>
             </div>
           </div>
         </section>
@@ -863,57 +750,33 @@ export default function LandingPage() {
           className="relative overflow-hidden text-center"
           style={{ background: "#0F172A", padding: "130px 0" }}
         >
-          {/* Orange glow */}
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0"
-            style={{ background: "radial-gradient(ellipse 80% 60% at 50% 110%, rgba(249,115,22,0.32) 0%, transparent 65%)" }}
-          />
-          {/* Dot texture */}
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0"
-            style={{
-              backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px)",
-              backgroundSize: "32px 32px",
-              opacity: 0.6,
-            }}
-          />
 
           <div className="relative z-10 mx-auto max-w-[720px] px-7">
-            <span
-              className="mb-6 inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm font-medium"
-              style={{ background: "rgba(249,115,22,0.15)", borderColor: "rgba(249,115,22,0.25)", color: "#FDBA74" }}
-            >
-              <Zap className="w-3.5 h-3.5" aria-hidden="true" />
-              התחל היום — חינם לגמרי
-            </span>
 
             <h2
               id="cta-heading"
               className="font-extrabold text-white"
               style={{ fontSize: "clamp(36px, 5vw, 56px)", letterSpacing: "-0.035em", lineHeight: 1.05, marginBottom: 18 }}
             >
-              מוכן לשדרג<br />את העסק שלך?
+              תנו לפטרה לעשות קצת סדר.
             </h2>
             <p className="text-lg mb-9" style={{ color: "rgba(226,232,240,0.75)" }}>
-              הצטרף לבעלי עסקים שכבר עובדים עם פטרה.
+              הלקוחות, התורים והתזכורות במקום אחד. פחות דברים לזכור, פחות הודעות לחפש ויותר זמן לעבודה שאתם אוהבים.
             </p>
 
             <Link
               href="/register"
-              className="inline-flex items-center gap-2 rounded-xl px-8 py-4 text-base font-semibold text-white transition-all hover:-translate-y-px focus:outline-none focus:ring-2 focus:ring-brand-400"
+              className="inline-flex items-center gap-2 rounded-xl px-8 py-4 text-base font-semibold text-white lp-press focus:outline-none focus:ring-2 focus:ring-brand-400"
               style={{
-                background: "linear-gradient(135deg, #F97316 0%, #FB923C 100%)",
-                boxShadow: "0 10px 28px -8px rgba(249,115,22,0.6), inset 0 1px 0 rgba(255,255,255,0.15)",
+                background: "#C2410C",
               }}
             >
-              תעבירו אותי לפטרה
+              התחילו בחינם
               <ChevronLeft className="w-4 h-4" aria-hidden="true" />
             </Link>
 
             <ul className="mt-7 flex flex-wrap justify-center gap-x-5 gap-y-2 list-none p-0 m-0">
-              {["מסלול חינמי לצמיתות", "ביטול פשוט בכל עת", "מעבר קל ממערכות אחרות"].map((t) => (
+              {["חינם, בלי כרטיס אשראי", "עוברים בקלות ממערכות אחרות", "אפשר להתקדם למסלול בתשלום כשתרצו"].map((t) => (
                 <li key={t} className="flex items-center gap-1.5 text-sm" style={{ color: "rgba(226,232,240,0.7)" }}>
                   <Check className="w-3 h-3 shrink-0" style={{ color: "#FDBA74", strokeWidth: 3 }} aria-hidden="true" />
                   {t}
@@ -927,18 +790,18 @@ export default function LandingPage() {
 
       {/* ── Footer ────────────────────────────────────────────────────────────── */}
       <footer
-        style={{ background: "#0B1120", color: "rgba(226,232,240,0.7)", padding: "56px 0 32px", borderTop: "1px solid rgba(255,255,255,0.06)" }}
+        style={{ background: "#0B1120", color: "rgba(226,232,240,0.7)", padding: "56px 0 32px" }}
         role="contentinfo"
       >
         <div className="mx-auto max-w-[1240px] px-7">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-8 pb-7"
-            style={{ borderBottom: "1px solid rgba(255,255,255,0.06)", marginBottom: 22 }}>
+            style={{ marginBottom: 22 }}>
             {/* Brand */}
             <div className="flex items-center gap-3 shrink-0">
               <Image src="/petra-logo.png" alt="לוגו פטרה" width={30} height={30} className="object-contain" />
               <div>
                 <div className="text-white font-extrabold text-base" style={{ letterSpacing: "-0.02em" }}>פטרה</div>
-                <div className="text-xs mt-0.5" style={{ color: "rgba(148,163,184,0.7)" }}>ניהול עסקי חיות מחמד</div>
+                <div className="text-sm mt-0.5" style={{ color: "rgba(203,213,225,0.8)" }}>ניהול עסקי חיות מחמד</div>
               </div>
             </div>
 
@@ -975,7 +838,7 @@ export default function LandingPage() {
             </nav>
           </div>
 
-          <p className="text-center text-xs leading-relaxed" style={{ color: "rgba(148,163,184,0.7)" }}>
+          <p className="text-center text-sm leading-relaxed" style={{ color: "rgba(203,213,225,0.75)" }}>
             © 2026 Petra · הוקמה על ידי החטיבה הדיגיטלית של{" "}
             <a
               href="https://all-dog.co.il"
@@ -1011,7 +874,7 @@ export default function LandingPage() {
                 operatingSystem: "Web, iOS, Android",
                 inLanguage: "he",
                 offers: [
-                  { "@type": "Offer", name: "חינמי", price: "0", priceCurrency: "ILS", description: "עד 50 לקוחות, ללא כרטיס אשראי" },
+                  { "@type": "Offer", name: "חינמי", price: "0", priceCurrency: "ILS", description: "עד 30 לקוחות, ללא כרטיס אשראי" },
                   { "@type": "Offer", name: "Basic", price: "99", priceCurrency: "ILS", billingDuration: "P1M" },
                   { "@type": "Offer", name: "Pro", price: "199", priceCurrency: "ILS", billingDuration: "P1M" },
                 ],

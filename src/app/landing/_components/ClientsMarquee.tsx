@@ -1,4 +1,6 @@
 import Image from "next/image";
+import Link from "next/link";
+import { ChevronLeft } from "lucide-react";
 
 const CLIENTS = [
   { src: "/clients/shalom-lekelev.png",  alt: "שלום לכלב" },
@@ -17,7 +19,7 @@ export function ClientsMarquee() {
 
   return (
     <section
-      id="לקוחות"
+      id="clients"
       aria-label="לקוחות פטרה"
       className="relative py-16 bg-slate-950 overflow-hidden"
     >
@@ -45,47 +47,33 @@ export function ClientsMarquee() {
           align-items: center;
           justify-content: center;
           border-radius: 16px;
-          border: 1px solid rgba(255,255,255,0.09);
-          background: rgba(255,255,255,0.04);
-          backdrop-filter: blur(4px);
-          transition: border-color 0.35s ease, background 0.35s ease, box-shadow 0.35s ease;
-        }
-        .petra-logo-item:hover {
-          border-color: rgba(255,255,255,0.2);
-          background: rgba(255,255,255,0.09);
-          box-shadow: 0 4px 24px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.08);
+          background: #fff;
         }
         .petra-logo-item img {
-          filter: grayscale(100%) brightness(190%) opacity(55%);
-          transition: filter 0.35s ease;
           object-fit: contain;
           width: 116px !important;
           height: 52px !important;
           position: relative !important;
         }
-        .petra-logo-item:hover img {
-          filter: grayscale(0%) brightness(100%) opacity(100%);
-        }
       `}</style>
 
       {/* Header */}
       <div className="text-center mb-12 px-4">
-        <div className="inline-flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-4 py-1.5 mb-5">
-          <span className="w-1.5 h-1.5 rounded-full bg-brand-400 animate-pulse" />
-          <span className="text-xs font-semibold tracking-widest text-white/50 uppercase">הלקוחות שלנו</span>
-        </div>
-        <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">הם כבר עובדים עם פטרה</h2>
-        <p className="text-slate-400 text-sm">מאלפים, גרומרים ופנסיונים מובילים ברחבי הארץ</p>
+        <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">עסקים כמוכם כבר בפטרה.</h2>
+        <p className="text-slate-300 text-base">מאלפים, גרומרים ומנהלי פנסיונים משתמשים בפטרה כדי לעשות סדר ביום העבודה ולהתעסק פחות בניהול.</p>
       </div>
 
-      {/* Fade edges */}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0 w-32 z-10"
-        style={{ background: "linear-gradient(to right, #020617, transparent)" }} />
-      <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 right-0 w-32 z-10"
-        style={{ background: "linear-gradient(to left, #020617, transparent)" }} />
-
-      {/* Track — force LTR so translateX(-50%) works correctly on RTL pages */}
-      <div className="overflow-hidden" aria-hidden="true" dir="ltr">
+      {/* Track — force LTR so translateX(-50%) works correctly on RTL pages.
+          Edges fade via a mask on the track only, so nothing covers the heading or stats. */}
+      <div
+        className="overflow-hidden"
+        aria-hidden="true"
+        dir="ltr"
+        style={{
+          maskImage: "linear-gradient(to right, transparent, #000 10%, #000 90%, transparent)",
+          WebkitMaskImage: "linear-gradient(to right, transparent, #000 10%, #000 90%, transparent)",
+        }}
+      >
         <div className="petra-track">
           {track.map((c, i) => (
             <div key={i} className="petra-logo-item">
@@ -104,17 +92,26 @@ export function ClientsMarquee() {
       {/* Stats */}
       <div className="mt-12 flex items-center justify-center gap-10 px-4 flex-wrap">
         {[
-          { num: "130+", label: "עסקים פעילים בישראל" },
-          { num: "24/7", label: "תזכורות אוטומטיות" },
-        ].map(({ num, label }, i, arr) => (
-          <div key={label} className="flex items-center gap-10">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-brand-400">{num}</div>
-              <div className="text-xs text-slate-500 mt-0.5">{label}</div>
-            </div>
-            {i < arr.length - 1 && <div className="w-px h-8 bg-white/10" aria-hidden="true" />}
+          { num: "130", label: "עסקים פעילים בישראל" },
+          { num: "5,000+", label: "תורים שנקבעו במערכת" },
+          { num: "98%", label: "שביעות רצון" },
+        ].map(({ num, label }) => (
+          <div key={label} className="text-center">
+            <div className="text-2xl font-bold text-brand-400">{num}</div>
+            <div className="text-sm text-slate-300 mt-0.5">{label}</div>
           </div>
         ))}
+      </div>
+
+      <div className="text-center mt-10 px-4">
+        <Link
+          href="/register"
+          className="inline-flex items-center gap-2 rounded-xl px-8 py-3.5 text-[15px] font-semibold text-white lp-press focus:outline-none focus:ring-2 focus:ring-brand-400"
+          style={{ background: "#C2410C" }}
+        >
+          התחילו בחינם
+          <ChevronLeft className="w-4 h-4" aria-hidden="true" />
+        </Link>
       </div>
     </section>
   );
