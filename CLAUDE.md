@@ -276,6 +276,14 @@ The legacy dark "Master Admin" (`/admin/*`) was merged into the light platform p
 ### 46. Customer pickers search the server — `CustomerPicker`
 `src/components/customers/CustomerPicker.tsx` is the ONE customer picker for booking flows (calendar, scheduler, dashboard quick-book, boarding new stay, training modals): debounced `GET /api/customers?full=1&take=20&search=` → matches name, phone, email AND dog name; picking via a dog name pre-selects that dog (`matchedPetId`). Never load `/api/customers?full=1` (50 newest only) and filter on the client.
 
+### 47. Lead meetings — a lead is NOT a customer until the meeting happened
+`LeadMeeting` (model + additive `prisma/lead_meetings.sql`) = an in-person meeting booked with a lead. Same time convention as `Appointment` (`date` = Israel day at 00:00Z, `startTime`/`endTime` "HH:mm" Israel local). Statuses `scheduled | completed | no_show | canceled` — `src/lib/lead-meetings.ts` (pure) is the source of truth; DB logic only in `src/services/lead-meetings.ts`.
+- Booking keeps the lead a lead. A scheduled meeting **blocks online-booking slots** (`src/lib/slots.ts` → also MCP `find_free_slots`) and shows on the calendar via `GET /api/leads/calendar` → `meetings`.
+- Reminder: `scheduleLeadMeetingReminder()` — default ON 24h before (same gates as appointment reminders: `whatsappRemindersEnabled` + `whatsapp_reminders` tier); an active `lead_meeting_reminder` rule overrides offset/text. Sent to the lead's phone (`payload.to`, `customerId: null`, `relatedEntityType: "LEAD_MEETING"`), template chain = the approved **appointment-reminder** templates ({4} = service or "פגישת היכרות"). The send-time guard drops it if the meeting moved/closed, the lead converted, or it started.
+- Outcome (`POST /api/leads/[id]/meetings/[meetingId]/outcome`): `completed` → `convertLeadToCustomer()` (the ONE conversion implementation, also behind `POST /api/leads/[id]/convert`) + a `completed` Appointment tagged `[פגישת ליד]`; `no_show` → follow-up tomorrow 10:00. The meeting is claimed with a conditional `updateMany` first (no double conversion) and released if conversion fails. "נדחתה" = `PATCH` (reminder follows).
+- Routes `/api/leads/[id]/meetings/**` use `VIEW_LEADS` like the rest of `/api/leads/**`. UI: `src/components/leads/LeadMeetingsSection.tsx` in the lead card; calendar renders meetings as violet "פגישת ליד" items. Tests: `src/lib/__tests__/lead-meeting*.test.ts`.
+- Known gap: appointment conflict checks (`findAppointmentConflicts`) do not yet consider lead meetings — only online booking does.
+
 ## MCP Server
 
 ### Architecture

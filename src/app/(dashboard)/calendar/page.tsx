@@ -1247,11 +1247,27 @@ function CalendarContent() {
     nextFollowUpAt: string;
     requestedService?: string;
   }
-  const { data: leadFollowUpsData } = useQuery<{ leads: LeadFollowUp[] }>({
+  interface LeadMeetingEvent {
+    id: string;
+    leadId: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    location: string | null;
+    service: { id: string; name: string } | null;
+    lead: { id: string; name: string; phone: string | null };
+  }
+  const { data: leadFollowUpsData } = useQuery<{ leads: LeadFollowUp[]; meetings?: LeadMeetingEvent[] }>({
     queryKey: ["leads-calendar", from, to],
     queryFn: () => fetchJSON(`/api/leads/calendar?from=${from}&to=${to}`),
   });
   const leadFollowUps = leadFollowUpsData?.leads ?? [];
+  const leadMeetings = leadFollowUpsData?.meetings ?? [];
+  // Lead meetings render as solid violet blocks (follow-ups are pale violet)
+  const LEAD_MEETING_COLOR = "#7C3AED";
+  const leadMeetingLabel = (m: LeadMeetingEvent) => `פגישת ליד · ${m.lead.name}`;
+  const leadMeetingTitle = (m: LeadMeetingEvent) =>
+    `${leadMeetingLabel(m)}${m.service ? ` · ${m.service.name}` : ""} (${m.startTime}–${m.endTime})${m.location ? ` · ${m.location}` : ""}`;
 
   // Pending online bookings (not yet converted to appointments)
   const { data: pendingBookingsRaw = [] } = useQuery<BookingCalEvent[]>({
@@ -2385,6 +2401,43 @@ function CalendarContent() {
                   });
                 })}
 
+                {/* Lead meeting blocks - week view */}
+                {showLeads && weekDates.map((date, dayIdx) => {
+                  const dateStr = toLocalDateString(date);
+                  return leadMeetings
+                    .filter((m) => m.date.slice(0, 10) === dateStr)
+                    .map((m) => {
+                      const startMins = timeToMinutes(m.startTime);
+                      if (startMins < DAY_START || startMins >= DAY_START + 13 * 60) return null;
+                      const { top, height } = appointmentStyle(m.startTime, m.endTime);
+                      return (
+                        <a
+                          key={`lead-mtg-${m.id}`}
+                          href="/leads"
+                          className="absolute rounded-lg px-1.5 py-0.5 overflow-hidden flex flex-col justify-start hover:brightness-110 transition-all border"
+                          style={{
+                            top,
+                            height,
+                            right: `calc(60px + ${dayIdx} * (100% - 60px) / 7)`,
+                            width: `calc((100% - 60px) / 7 - 4px)`,
+                            marginRight: 2,
+                            background: LEAD_MEETING_COLOR,
+                            borderColor: LEAD_MEETING_COLOR,
+                            zIndex: 9,
+                          }}
+                          title={leadMeetingTitle(m)}
+                        >
+                          <div className="text-[10px] font-semibold text-white truncate">
+                            🤝 {leadMeetingLabel(m)}
+                          </div>
+                          <div className="text-[9px] text-white/80 truncate">
+                            {m.startTime}–{m.endTime}{m.service ? ` · ${m.service.name}` : ""}
+                          </div>
+                        </a>
+                      );
+                    });
+                })}
+
                 {/* Boarding check-in / check-out timed blocks */}
                 {weekDates.map((date, dayIdx) => {
                   const dateStr = toLocalDateString(date);
@@ -2760,6 +2813,44 @@ function CalendarContent() {
                 );
               })}
 
+            {/* Lead meeting blocks - day view */}
+            {showLeads && leadMeetings
+              .filter((m) => m.date.slice(0, 10) === toLocalDateString(selectedDay))
+              .map((m) => {
+                const startMins = timeToMinutes(m.startTime);
+                if (startMins < DAY_START || startMins >= DAY_START + 13 * 60) return null;
+                const { top, height } = appointmentStyle(m.startTime, m.endTime);
+                return (
+                  <a
+                    key={`lead-mtg-day-${m.id}`}
+                    href="/leads"
+                    className="absolute rounded-lg px-2 py-1 overflow-hidden flex flex-col justify-start hover:brightness-110 transition-all border"
+                    style={{
+                      top,
+                      height,
+                      right: 60,
+                      width: "calc(100% - 64px)",
+                      background: LEAD_MEETING_COLOR,
+                      borderColor: LEAD_MEETING_COLOR,
+                      zIndex: 9,
+                    }}
+                    title={leadMeetingTitle(m)}
+                  >
+                    <div className="text-xs font-semibold text-white truncate">
+                      🤝 {leadMeetingLabel(m)}
+                    </div>
+                    <div className="text-[10px] text-white/80 truncate">
+                      {m.startTime}–{m.endTime}{m.service ? ` · ${m.service.name}` : ""}
+                    </div>
+                    {(m.location || m.lead.phone) && (
+                      <div className="text-[10px] text-white/70 truncate">
+                        {[m.location, m.lead.phone].filter(Boolean).join(" · ")}
+                      </div>
+                    )}
+                  </a>
+                );
+              })}
+
             {/* Pending online booking blocks - day view */}
             {pendingBookings
               .filter((b) => dateTimeToDateStr(b.startAt) === toLocalDateString(selectedDay))
@@ -2961,6 +3052,20 @@ function CalendarContent() {
                 });
               }
 
+              // Lead meetings - month
+              if (showLeads) {
+                leadMeetings
+                  .filter((m) => m.date.slice(0, 10) === dateStr)
+                  .forEach((m) => {
+                    entries.push({
+                      key: `lead-mtg-${m.id}`,
+                      color: LEAD_MEETING_COLOR,
+                      label: `${m.startTime} ${leadMeetingLabel(m)}`,
+                      onClick: (e) => { e.stopPropagation(); window.location.href = "/leads"; },
+                    });
+                  });
+              }
+
               // Training group sessions - month
               if (showGroupSessions) {
                 trainingGroupSessions
@@ -3134,6 +3239,20 @@ function CalendarContent() {
                   href: "/leads",
                   icon: overdue ? "⚠️" : "📞",
                   overdue,
+                });
+              });
+            leadMeetings
+              .filter((m) => m.date.slice(0, 10) === dateStr)
+              .forEach((m) => {
+                items.push({
+                  key: `lead-mtg-${m.id}`,
+                  time: m.startTime,
+                  sortKey: m.startTime,
+                  title: leadMeetingLabel(m),
+                  subtitle: m.service ? m.service.name : `פגישה עד ${m.endTime}`,
+                  color: LEAD_MEETING_COLOR,
+                  href: "/leads",
+                  icon: "🤝",
                 });
               });
           }

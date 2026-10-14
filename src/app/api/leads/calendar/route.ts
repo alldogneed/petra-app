@@ -3,10 +3,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { prisma } from "@/lib/prisma";
 import { sessionHasTenantPermission, TENANT_PERMS } from "@/lib/permissions";
+import { listLeadMeetingsInRange } from "@/services/lead-meetings";
 
 /**
  * GET /api/leads/calendar?from=YYYY-MM-DD&to=YYYY-MM-DD
- * Returns leads with nextFollowUpAt in the given date range.
+ * Returns leads with nextFollowUpAt in the given date range, plus scheduled lead
+ * meetings (LeadMeeting) in the range as `meetings`.
  */
 export async function GET(request: NextRequest) {
   const authResult = await requireBusinessAuth(request);
@@ -14,7 +16,7 @@ export async function GET(request: NextRequest) {
   const { businessId, session } = authResult;
   // The calendar overlays lead follow-ups; a member without the leads screen gets none.
   if (!sessionHasTenantPermission(session, businessId, TENANT_PERMS.VIEW_LEADS)) {
-    return NextResponse.json({ leads: [] });
+    return NextResponse.json({ leads: [], meetings: [] });
   }
 
   const { searchParams } = new URL(request.url);
@@ -43,5 +45,10 @@ export async function GET(request: NextRequest) {
     orderBy: { nextFollowUpAt: "asc" },
   });
 
-  return NextResponse.json({ leads });
+  // Meetings booked with leads (not customers yet) — shown as their own calendar items.
+  const meetings = /^\d{4}-\d{2}-\d{2}$/.test(from) && /^\d{4}-\d{2}-\d{2}$/.test(to)
+    ? await listLeadMeetingsInRange(businessId, prisma, from, to)
+    : [];
+
+  return NextResponse.json({ leads, meetings });
 }

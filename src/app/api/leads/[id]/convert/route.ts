@@ -3,8 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { isGuardError, requireBusinessPermission } from "@/lib/auth-guards";
 import { TENANT_PERMS } from "@/lib/permissions";
-import { cancelLeadFollowup } from "@/lib/reminder-service";
-import { clearLeadFollowUps } from "@/services/clients";
+import { convertLeadToCustomer } from "@/services/lead-meetings";
+import { ServiceError } from "@/services/types";
 
 /**
  * POST /api/leads/[id]/convert
@@ -22,106 +22,15 @@ export async function POST(
     try {
         const authResult = await requireBusinessPermission(request, TENANT_PERMS.VIEW_LEADS);
         if (isGuardError(authResult)) return authResult;
-
-        const { id } = params;
         const { businessId } = authResult;
 
-        // Fetch the lead
-        const lead = await prisma.lead.findFirst({
-            where: { id, businessId },
-        });
-
-        if (!lead) {
+        // Single implementation shared with the lead-meeting "התקיימה" outcome.
+        const result = await convertLeadToCustomer(businessId, prisma, params.id, authResult.session.user.id);
+        return NextResponse.json(result);
+    } catch (error) {
+        if (error instanceof ServiceError && error.code === "NOT_FOUND") {
             return NextResponse.json({ error: "Lead not found" }, { status: 404 });
         }
-
-        if (lead.wonAt) {
-            // Already converted - return existing customer if present
-            if (lead.customerId) {
-                const customer = await prisma.customer.findUnique({
-                    where: { id: lead.customerId },
-                });
-                return NextResponse.json({ customer, alreadyConverted: true });
-            }
-        }
-
-        // Find the won stage for this business, auto-create if missing
-        let wonStage = await prisma.leadStage.findFirst({
-            where: { businessId, isWon: true },
-        });
-        if (!wonStage) {
-            const maxOrder = await prisma.leadStage.count({ where: { businessId } });
-            wonStage = await prisma.leadStage.create({
-                data: {
-                    businessId,
-                    name: "נסגר בהצלחה",
-                    color: "#10b981",
-                    sortOrder: maxOrder + 1,
-                    isWon: true,
-                    isLost: false,
-                },
-            });
-        }
-
-        // Check if a customer already exists for this lead (in case customerId is set)
-        let customer = lead.customerId
-            ? await prisma.customer.findUnique({ where: { id: lead.customerId } })
-            : null;
-
-        // Create a new customer if one doesn't exist yet
-        if (!customer) {
-            customer = await prisma.customer.create({
-                data: {
-                    name: lead.name,
-                    phone: lead.phone ?? "",
-                    email: lead.email ?? null,
-                    notes: lead.notes ?? null,
-                    source: lead.source ?? "lead",
-                    tags: "[]",
-                    businessId,
-                },
-            });
-
-            // Create a timeline event for the new customer
-            await prisma.timelineEvent.create({
-                data: {
-                    type: "customer_created",
-                    description: `לקוח נוצר מליד: ${customer.name}`,
-                    customerId: customer.id,
-                    businessId,
-                },
-            });
-        }
-
-        // Mark lead as won and link to customer
-        const updatedLead = await prisma.lead.update({
-            where: { id },
-            data: {
-                stage: wonStage.id,
-                wonAt: new Date(),
-                wonByUserId: authResult.session.user.id,
-                lostByUserId: null,
-                customerId: customer!.id,
-            },
-        });
-
-        // Lead converted to customer — cancel any pending lead_followup message
-        await cancelLeadFollowup(id).catch((err) =>
-            console.error("cancelLeadFollowup (convert) failed (non-critical):", err)
-        );
-        // Same as close-won: the lead is closed → close its open follow-up tasks
-        await clearLeadFollowUps(businessId, prisma, id).catch((err) =>
-            console.error("clearLeadFollowUps (convert) failed (non-critical):", err)
-        );
-
-        const result = { customer, lead: updatedLead };
-
-        return NextResponse.json({
-            customer: result.customer,
-            lead: result.lead,
-            alreadyConverted: false,
-        });
-    } catch (error) {
         console.error("Error converting lead to customer:", error);
         return NextResponse.json(
             { error: "Failed to convert lead" },

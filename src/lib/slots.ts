@@ -111,7 +111,7 @@ export async function getAvailableSlots(
 ): Promise<SlotResult[]> {
   // 1. Load business (including booking settings), availability rule, blocks,
   //    breaks, and existing bookings in parallel
-  const [business, rules, blocks, existingBookings, dayBreaks, existingAppointments] = await Promise.all([
+  const [business, rules, blocks, existingBookings, dayBreaks, existingAppointments, leadMeetings] = await Promise.all([
     prisma.business.findUniqueOrThrow({
       where: { id: businessId },
       select: {
@@ -155,6 +155,18 @@ export async function getAvailableSlots(
         },
       },
       select: { startTime: true, endTime: true, serviceId: true },
+    }),
+    // Meetings booked with leads (not customers yet) block the same time
+    prisma.leadMeeting.findMany({
+      where: {
+        businessId,
+        status: "scheduled",
+        date: {
+          gte: new Date(`${localDateStr}T00:00:00Z`),
+          lte: new Date(`${localDateStr}T23:59:59Z`),
+        },
+      },
+      select: { startTime: true, endTime: true },
     }),
   ])
 
@@ -250,10 +262,17 @@ export async function getAvailableSlots(
     }
   })
 
+  // 5c. Lead meetings — same buffer as a manual appointment without a service
+  const busyFromLeadMeetings: Interval[] = leadMeetings.map((m) => ({
+    start: localTimeToUtc(m.startTime, localDateStr, timezone),
+    end:   addMinutes(localTimeToUtc(m.endTime, localDateStr, timezone), bookingBuffer),
+  }))
+
   const allBusy: Interval[] = [
     ...blocks.map((b) => ({ start: b.startAt, end: b.endAt })),
     ...busyFromBookings,
     ...busyFromAppointments,
+    ...busyFromLeadMeetings,
     ...busyFromBreaks,
   ]
 

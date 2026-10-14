@@ -4,6 +4,7 @@ import { REMINDER_TEMPLATES } from "@/lib/training-groups";
 import { hasFeatureWithOverrides } from "@/lib/feature-flags";
 import { toWhatsAppPhone } from "@/lib/utils";
 import { buildTemplateChain, type TemplateStep } from "@/lib/whatsapp-template-chain";
+import { LEAD_MEETING_ENTITY, LEAD_MEETING_REMINDER_HOURS } from "@/lib/lead-meetings";
 
 // ─── Meta template chains ────────────────────────────────────────────────────
 //
@@ -488,6 +489,114 @@ export async function scheduleLeadFollowup(lead: LeadForFollowup) {
 export async function cancelLeadFollowup(leadId: string) {
   return prisma.scheduledMessage.updateMany({
     where: { relatedEntityType: "LEAD_FOLLOWUP", relatedEntityId: leadId, status: "PENDING" },
+    data: { status: "CANCELED" },
+  });
+}
+
+// ─── Lead meeting reminder (lead is not a customer yet) ─────────────────────
+
+interface LeadMeetingForReminder {
+  id: string;
+  businessId: string;
+  date: Date;
+  startTime: string; // "HH:mm" Israel local
+  location: string | null;
+  lead: { name: string; phone: string | null; customerId: string | null };
+  service: { name: string } | null;
+}
+
+/**
+ * WhatsApp reminder before a meeting booked with a LEAD. Same gates as the
+ * appointment reminder (whatsappRemindersEnabled + whatsapp_reminders tier), on by
+ * default; an active `lead_meeting_reminder` rule overrides the offset and the text.
+ * Sent to the lead's phone (payload `to`, no customer). Reuses the approved
+ * appointment-reminder templates — {{4}} carries the service / "פגישת היכרות".
+ * Idempotent: one PENDING reminder per meeting.
+ */
+export async function scheduleLeadMeetingReminder(meeting: LeadMeetingForReminder) {
+  if (meeting.lead.customerId) return null; // already a customer
+  const to = meeting.lead.phone ? toWhatsAppPhone(meeting.lead.phone) : null;
+  if (!to) return null;
+
+  const bizSettings = await prisma.business.findUnique({
+    where: { id: meeting.businessId },
+    select: { whatsappRemindersEnabled: true, phone: true, tier: true, featureOverrides: true },
+  });
+  if (!bizSettings?.whatsappRemindersEnabled) return null;
+  const overrides = (bizSettings.featureOverrides as Record<string, boolean> | null) ?? null;
+  if (!hasFeatureWithOverrides(bizSettings.tier, "whatsapp_reminders", overrides)) return null;
+
+  const rule = await prisma.automationRule.findFirst({
+    where: { businessId: meeting.businessId, trigger: "lead_meeting_reminder", isActive: true },
+    include: { template: { select: { body: true } }, business: { select: { phone: true } } },
+  });
+
+  const meetingAt = israelDateTime(meeting.date, meeting.startTime);
+  const offsetHours = rule?.triggerOffset ?? LEAD_MEETING_REMINDER_HOURS;
+  const sendAt = new Date(meetingAt.getTime() - offsetHours * 60 * 60 * 1000);
+  if (sendAt <= new Date()) return null;
+
+  const existing = await prisma.scheduledMessage.findFirst({
+    where: { relatedEntityType: LEAD_MEETING_ENTITY, relatedEntityId: meeting.id, status: "PENDING" },
+  });
+  if (existing) return null;
+
+  const formattedDate = new Intl.DateTimeFormat("he-IL", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    timeZone: "Asia/Jerusalem",
+  }).format(meetingAt);
+  const serviceName = meeting.service?.name?.trim() || "פגישת היכרות";
+  const contactPhone = (rule?.business?.phone ?? bizSettings.phone ?? "").trim();
+
+  let body: string;
+  if (rule?.template?.body) {
+    body = interpolateTemplate(rule.template.body, {
+      customerName: meeting.lead.name,
+      date: formattedDate,
+      time: meeting.startTime,
+      serviceName,
+      location: meeting.location ?? "",
+      businessPhone: contactPhone,
+    });
+  } else {
+    const placePart = meeting.location?.trim() ? `\nמיקום: ${meeting.location.trim()}` : "";
+    const footer = contactPhone
+      ? `\n\n_הודעה אוטומטית – אין להשיב להודעה זו.\nלפניות ויצירת קשר ישיר עם בית העסק: ${contactPhone}_`
+      : "";
+    body = `שלום ${meeting.lead.name}! 🐾\n\nתזכורת לפגישה שלנו ב-${formattedDate} בשעה ${meeting.startTime}.\n${serviceName}${placePart}\n\nנתראה! 😊${footer}`;
+  }
+
+  // The lead has usually not messaged in 24h — a template is required. The approved
+  // appointment-reminder templates fit (name · date · time · service · phone).
+  const templateChain = appointmentReminderChain({
+    customerName: meeting.lead.name,
+    date: formattedDate,
+    time: meeting.startTime,
+    serviceName,
+    businessPhone: contactPhone,
+  });
+
+  return prisma.scheduledMessage.create({
+    data: {
+      businessId: meeting.businessId,
+      customerId: null,
+      channel: "whatsapp",
+      templateKey: rule ? `automation-rule-${rule.id}` : "lead_meeting_reminder_24h",
+      payloadJson: JSON.stringify({ body, to, flow: "lead_meeting_reminder", templateChain }),
+      sendAt,
+      status: "PENDING",
+      relatedEntityType: LEAD_MEETING_ENTITY,
+      relatedEntityId: meeting.id,
+    },
+  });
+}
+
+/** Cancel the pending reminder of a lead meeting (moved, canceled, closed, lead converted). */
+export async function cancelLeadMeetingReminder(meetingId: string) {
+  return prisma.scheduledMessage.updateMany({
+    where: { relatedEntityType: LEAD_MEETING_ENTITY, relatedEntityId: meetingId, status: "PENDING" },
     data: { status: "CANCELED" },
   });
 }

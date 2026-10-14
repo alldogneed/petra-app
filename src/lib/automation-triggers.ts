@@ -5,7 +5,7 @@
  * These are the LOWERCASE keys used everywhere in the app:
  *   - UI: AUTOMATION_TRIGGERS / STARTER_TEMPLATES in messages-panel.tsx
  *   - Crons: birthday-reminders queries `trigger: "birthday_reminder"`
- *   - reminder-service.ts: appointment_reminder / appointment_followup / boarding_pickup / service_dog_meeting_reminder
+ *   - reminder-service.ts: appointment_reminder / appointment_followup / boarding_pickup / service_dog_meeting_reminder / lead_meeting_reminder
  *   - appointments/orders routes: appointment_confirmation
  *
  * The API validation MUST match these — a previous uppercase list
@@ -18,6 +18,7 @@ export const VALID_AUTOMATION_TRIGGERS = [
   "appointment_followup",
   "payment_request",
   "lead_followup",
+  "lead_meeting_reminder",
   "birthday_reminder",
   "boarding_confirmation",
   "boarding_pickup",
