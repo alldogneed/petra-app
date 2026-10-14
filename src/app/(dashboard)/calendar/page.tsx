@@ -476,7 +476,8 @@ function NewAppointmentModal({
   const [occurrences, setOccurrences] = useState(4);
 
   const [pickedCustomer, setPickedCustomer] = useState<PickerCustomer | null>(null);
-  const [attachToProgram, setAttachToProgram] = useState(true);
+  // null = automatic: ticked only for a training item, so a grooming slot never eats a package meeting
+  const [attachChoice, setAttachToProgram] = useState<boolean | null>(null);
   const [attachProgramId, setAttachProgramId] = useState("");
 
   // Sync form with props when modal opens with new date/time
@@ -491,7 +492,7 @@ function NewAppointmentModal({
       setRecurring(false);
       setRepeatEvery("week");
       setOccurrences(4);
-      setAttachToProgram(true);
+      setAttachToProgram(null);
       setAttachProgramId("");
     }
   }, [isOpen, defaultDate, defaultTime]);
@@ -512,7 +513,6 @@ function NewAppointmentModal({
   });
   const attachProgram =
     attachablePrograms.find((p) => p.id === attachProgramId) ?? attachablePrograms[0] ?? null;
-  const willAttach = !recurring && attachToProgram && !!attachProgram;
 
   const { data: priceListItems = [] } = useQuery<PriceListItem[]>({
     queryKey: ["price-list-items-all-active"],
@@ -522,6 +522,8 @@ function NewAppointmentModal({
 
   const selectedCustomer = pickedCustomer && pickedCustomer.id === form.customerId ? pickedCustomer : null;
   const selectedItem = priceListItems.find((i) => i.id === form.priceListItemId);
+  const attachToProgram = attachChoice ?? selectedItem?.category === "אילוף";
+  const willAttach = !recurring && attachToProgram && !!attachProgram;
   const endTime = selectedItem?.durationMinutes
     ? addMinutes(form.startTime, selectedItem.durationMinutes)
     : addMinutes(form.startTime, 60);
@@ -635,7 +637,7 @@ function NewAppointmentModal({
               onSelect={(c, matchedPetId) => {
                 setPickedCustomer(c);
                 setAttachProgramId("");
-                setAttachToProgram(true);
+                setAttachToProgram(null);
                 setForm((f) => ({
                   ...f,
                   customerId: c.id,

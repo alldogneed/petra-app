@@ -12,7 +12,9 @@
  */
 
 import type { DbClient } from "./supabase";
-import { completeAppointmentOfSession, moveAppointmentOfSession, cancelAppointmentOfSession } from "./training-appointments";
+import { sessionToAppointmentTimes, DEFAULT_TIMEZONE } from "@/lib/training-appointment-link";
+import { localTimeToUtc } from "@/lib/slots";
+import { completeAppointmentOfSession, moveAppointmentOfSession, cancelAppointmentOfSession, cancelAppointmentsOfProgram } from "./training-appointments";
 import { ServiceError } from "./types";
 import { deleteOrder, updateOrder } from "./orders";
 import { createCheckoutSession } from "@/lib/stripe";
@@ -1132,6 +1134,9 @@ export async function deleteTrainingProgram(
   });
   if (!existing) throw new ServiceError("תוכנית לא נמצאה", "NOT_FOUND");
 
+  // Meetings booked as appointments: cancel those appointments first (rule #45).
+  const canceledAppointmentIds = await cancelAppointmentsOfProgram(businessId, db, id);
+
   // Sequential deletes — Supabase PgBouncer incompatible with Prisma $transaction
   await db.trainingGoal.deleteMany({ where: { trainingProgramId: id } });
   await db.trainingProgramSession.deleteMany({ where: { trainingProgramId: id } });
@@ -1141,7 +1146,7 @@ export async function deleteTrainingProgram(
   // Apply the chosen effect to the linked order (keep / cancel / delete).
   const { orderDowngraded } = await applyOrderAction(businessId, db, existing.orderId, opts.orderAction);
 
-  return { ...existing, orderDowngraded };
+  return { ...existing, orderDowngraded, canceledAppointmentIds };
 }
 
 /**
@@ -1182,6 +1187,9 @@ export async function convertProgramToGroup(
     update: { status: "ACTIVE", customerId: program.customerId, orderId: program.orderId },
   });
 
+  // Meetings booked as appointments: cancel those appointments first (rule #45).
+  const canceledAppointmentIds = await cancelAppointmentsOfProgram(businessId, db, programId);
+
   // Delete the source program (sequential — Supabase PgBouncer)
   await db.trainingGoal.deleteMany({ where: { trainingProgramId: programId } });
   await db.trainingProgramSession.deleteMany({ where: { trainingProgramId: programId } });
@@ -1191,7 +1199,7 @@ export async function convertProgramToGroup(
   // Optional order side-effect (default keep — price stays as-is)
   const { orderDowngraded } = await applyOrderAction(businessId, db, program.orderId, input.orderAction);
 
-  return { participant, groupId: group.id, orderDowngraded };
+  return { participant, groupId: group.id, orderDowngraded, canceledAppointmentIds };
 }
 
 /**
@@ -1375,10 +1383,17 @@ export async function generateProgramSessions(
     where: { trainingProgramId: programId },
   });
 
+  // Step in Israel-local days so the wall-clock time survives a DST change
+  // (setDate on the UTC instant shifted meetings by an hour after the switch).
+  const biz = await db.business.findUnique({ where: { id: businessId }, select: { timezone: true } });
+  const tz = biz?.timezone || DEFAULT_TIMEZONE;
+  const startLocal = sessionToAppointmentTimes(input.startDate, 60, tz);
+
   const created: { id: string; sessionDate: Date }[] = [];
   for (let i = 0; i < input.count; i++) {
-    const dt = new Date(input.startDate);
-    dt.setDate(dt.getDate() + i * interval);
+    const day = new Date(`${startLocal.ymd}T00:00:00.000Z`);
+    day.setUTCDate(day.getUTCDate() + i * interval);
+    const dt = localTimeToUtc(startLocal.startTime, day.toISOString().slice(0, 10), tz);
     if (existingTimes.has(dt.getTime())) continue;
 
     sessionNumber += 1;

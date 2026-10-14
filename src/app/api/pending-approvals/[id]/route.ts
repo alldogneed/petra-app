@@ -7,6 +7,7 @@ import { hasTenantPermission, TENANT_PERMS } from "@/lib/permissions";
 import { deletePet } from "@/services/pets";
 import { deleteLead } from "@/services/clients";
 import { deleteAppointment } from "@/services/appointments";
+import { cancelAppointmentsOfProgram } from "@/services/training-appointments";
 import { afterLinkedAppointmentCanceled } from "@/lib/training-appointment-effects";
 import { deleteServiceDog, deleteRecipient } from "@/services/service-dogs";
 import { cancelLeadFollowup } from "@/lib/reminder-service";
@@ -226,6 +227,10 @@ async function executeApprovedAction(
     }
     case "DELETE_TRAINING": {
       const id = payloadId(payload, "trainingProgramId");
+      // Booked meetings: cancel their appointments + reminders + gcal events first (rule #45).
+      for (const apptId of await cancelAppointmentsOfProgram(businessId, prisma, id)) {
+        await afterLinkedAppointmentCanceled(businessId, apptId);
+      }
       await prisma.trainingProgram.delete({ where: { id, businessId } });
       break;
     }

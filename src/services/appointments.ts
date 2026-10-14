@@ -250,14 +250,15 @@ export async function updateAppointment(businessId: string, db: DbClient, id: st
     },
   });
 
-  // A training-package meeting booked as this appointment follows it (rule #45).
+  // A training-package meeting booked as this appointment follows it (rule #45). Non-fatal:
+  // the appointment change already happened and its route side effects must still run.
   await syncSessionFromAppointment(businessId, db, updated, {
     status: input.status !== undefined && input.status !== existing.status,
     time:
       (input.date !== undefined && new Date(input.date).getTime() !== existing.date.getTime()) ||
       (input.startTime !== undefined && input.startTime !== existing.startTime) ||
       (input.endTime !== undefined && input.endTime !== existing.endTime),
-  });
+  }).catch((err) => console.error("[appointments] training meeting sync failed (non-critical):", err));
 
   return updated;
 }
@@ -267,6 +268,7 @@ export async function updateAppointment(businessId: string, db: DbClient, id: st
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function deleteAppointment(businessId: string, db: DbClient, id: string) {
+  if (!id) throw new ServiceError("Appointment id required", "VALIDATION");
   const existing = await db.appointment.findFirst({
     where: { id, businessId },
     include: {

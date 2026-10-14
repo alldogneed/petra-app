@@ -1,5 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
+import { runAfterResponse } from "@/lib/wait-until";
+import { afterLinkedAppointmentCanceled } from "@/lib/training-appointment-effects";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { type TenantRole, TENANT_PERMS, sessionHasTenantPermission } from "@/lib/permissions";
@@ -132,6 +134,15 @@ export async function DELETE(
         return NextResponse.json({ error: "תוכנית לא נמצאה" }, { status: 404 });
       }
       throw e;
+    }
+
+    // Appointments of its booked meetings were canceled — drop their reminders + gcal events.
+    if (result.canceledAppointmentIds.length) {
+      await runAfterResponse(
+        (async () => {
+          for (const id of result.canceledAppointmentIds) await afterLinkedAppointmentCanceled(businessId, id);
+        })()
+      );
     }
 
     await logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.DELETE_TRAINING, {

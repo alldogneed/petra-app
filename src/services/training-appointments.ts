@@ -9,6 +9,7 @@
  */
 import type { PrismaClient } from "@prisma/client";
 import { ServiceError } from "./types";
+import { getMaxAppointments, normalizeTier } from "@/lib/feature-flags";
 import {
   isLinkableProgram,
   sessionToAppointmentTimes,
@@ -19,6 +20,17 @@ import {
 } from "@/lib/training-appointment-link";
 
 type DbClient = PrismaClient;
+
+/** Appointment statuses that are still "on" (Stripe-paid bookings become `confirmed`). */
+const LIVE_APPT_STATUSES = ["scheduled", "confirmed"];
+
+/** Planning content on a not-yet-held meeting — never thrown away with a canceled appointment. */
+function hasPlanningContent(s: {
+  summary?: string | null; rating?: number | null; practiceItems?: string | null;
+  nextSessionGoals?: string | null; homeworkForCustomer?: string | null; trainerName?: string | null;
+}): boolean {
+  return !!(s.summary || s.rating || s.practiceItems || s.nextSessionGoals || s.homeworkForCustomer || s.trainerName);
+}
 
 async function businessTz(db: DbClient, businessId: string): Promise<string> {
   const b = await db.business.findUnique({ where: { id: businessId }, select: { timezone: true } });
@@ -47,6 +59,14 @@ export async function bookSessionAsAppointment(
   if (!session || session.appointmentId || session.status !== "SCHEDULED") return null;
   const program = session.program;
   if (!isLinkableProgram(program) || !program.customerId) return null;
+
+  // Free-tier appointment cap: past it the meeting stays session-only (old behaviour).
+  const biz = await db.business.findUnique({ where: { id: businessId }, select: { tier: true } });
+  const max = getMaxAppointments(normalizeTier(biz?.tier));
+  if (max !== null && max !== undefined) {
+    const count = await db.appointment.count({ where: { businessId, status: { not: "canceled" } } });
+    if (count >= max) return null;
+  }
 
   const t = sessionToAppointmentTimes(session.sessionDate, session.durationMinutes, await businessTz(db, businessId));
   const appt = await db.appointment.create({
@@ -212,10 +232,14 @@ export async function syncSessionFromAppointment(
   if (!session) return;
 
   if (changed.status && appt.status === "canceled") {
-    if (session.status === "SCHEDULED") {
+    if (session.status === "SCHEDULED" && !hasPlanningContent(session)) {
       await db.trainingProgramSession.delete({ where: { id: session.id } });
     } else {
-      await db.trainingProgramSession.update({ where: { id: session.id }, data: { appointmentId: null } });
+      // Keep what the trainer wrote; a not-yet-held meeting becomes CANCELED (frees its number).
+      await db.trainingProgramSession.update({
+        where: { id: session.id },
+        data: { appointmentId: null, ...(session.status === "SCHEDULED" ? { status: "CANCELED" } : {}) },
+      });
     }
     return;
   }
@@ -223,7 +247,7 @@ export async function syncSessionFromAppointment(
   const data: Record<string, unknown> = {};
   if (changed.status && appt.status === "completed" && session.status === "SCHEDULED") data.status = "COMPLETED";
   if (
-    changed.status && appt.status === "scheduled" && session.status === "COMPLETED" &&
+    changed.status && LIVE_APPT_STATUSES.includes(appt.status) && session.status === "COMPLETED" &&
     !session.summary && !session.rating
   ) {
     data.status = "SCHEDULED";
@@ -244,9 +268,14 @@ export async function releaseSessionOfDeletedAppointment(
   db: DbClient,
   appointmentId: string
 ): Promise<void> {
-  await db.trainingProgramSession.deleteMany({
-    where: { appointmentId, status: "SCHEDULED", program: { businessId } },
-  });
+  if (!appointmentId || !businessId) return; // an undefined filter would widen the delete
+  const session = await db.trainingProgramSession.findFirst({ where: { appointmentId, program: { businessId } } });
+  if (!session || session.status !== "SCHEDULED") return; // FK SetNull unlinks the rest
+  if (hasPlanningContent(session)) {
+    await db.trainingProgramSession.update({ where: { id: session.id }, data: { status: "CANCELED", appointmentId: null } });
+  } else {
+    await db.trainingProgramSession.delete({ where: { id: session.id } });
+  }
 }
 
 /** After a meeting's time changed in the training screen: move its appointment. Returns the appointment id. */
@@ -258,7 +287,7 @@ export async function moveAppointmentOfSession(
   if (!session.appointmentId) return null;
   const t = sessionToAppointmentTimes(session.sessionDate, session.durationMinutes, await businessTz(db, businessId));
   const r = await db.appointment.updateMany({
-    where: { id: session.appointmentId, businessId, status: { not: "canceled" } },
+    where: { id: session.appointmentId, businessId, status: { in: LIVE_APPT_STATUSES } },
     data: { date: t.date, startTime: t.startTime, endTime: t.endTime },
   });
   return r.count ? session.appointmentId : null;
@@ -272,7 +301,7 @@ export async function completeAppointmentOfSession(
 ): Promise<string | null> {
   if (!appointmentId) return null;
   const r = await db.appointment.updateMany({
-    where: { id: appointmentId, businessId, status: "scheduled" },
+    where: { id: appointmentId, businessId, status: { in: LIVE_APPT_STATUSES } },
     data: { status: "completed" },
   });
   return r.count ? appointmentId : null;
@@ -286,8 +315,34 @@ export async function cancelAppointmentOfSession(
 ): Promise<string | null> {
   if (!appointmentId) return null;
   const r = await db.appointment.updateMany({
-    where: { id: appointmentId, businessId, status: "scheduled" },
+    where: { id: appointmentId, businessId, status: { in: LIVE_APPT_STATUSES } },
     data: { status: "canceled", cancellationNote: "המפגש נמחק מתוכנית האילוף" },
   });
   return r.count ? appointmentId : null;
+}
+
+/**
+ * Program deleted / converted to a group: its meetings' still-live appointments are
+ * canceled (otherwise they keep sending customer reminders). Returns the canceled ids —
+ * the caller runs afterLinkedAppointmentCanceled for each.
+ */
+export async function cancelAppointmentsOfProgram(
+  businessId: string,
+  db: DbClient,
+  programId: string
+): Promise<string[]> {
+  if (!programId || !businessId) return [];
+  const linked = await db.trainingProgramSession.findMany({
+    where: { trainingProgramId: programId, program: { businessId }, appointmentId: { not: null }, status: "SCHEDULED" },
+    select: { appointmentId: true },
+  });
+  const out: string[] = [];
+  for (const s of linked) {
+    const id = await db.appointment.updateMany({
+      where: { id: s.appointmentId as string, businessId, status: { in: LIVE_APPT_STATUSES } },
+      data: { status: "canceled", cancellationNote: "תוכנית האילוף נמחקה" },
+    });
+    if (id.count) out.push(s.appointmentId as string);
+  }
+  return out;
 }

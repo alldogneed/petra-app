@@ -1,5 +1,7 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
+import { runAfterResponse } from "@/lib/wait-until";
+import { afterLinkedAppointmentCanceled } from "@/lib/training-appointment-effects";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { convertProgramToGroup, ServiceError, type OrderAction } from "@/services/training";
@@ -35,6 +37,15 @@ export async function POST(
         );
       }
       throw e;
+    }
+
+    if (result.canceledAppointmentIds.length) {
+      const bid = authResult.businessId;
+      await runAfterResponse(
+        (async () => {
+          for (const id of result.canceledAppointmentIds) await afterLinkedAppointmentCanceled(bid, id);
+        })()
+      );
     }
 
     return NextResponse.json({

@@ -768,6 +768,13 @@ export function registerTrainingTools(server: McpServer, ctx: ToolCtx): void {
           } else if (args.status === "CANCELED") {
             const id = await cancelAppointmentOfSession(businessId, prisma, existing.appointmentId);
             if (id) await afterLinkedAppointmentCanceled(businessId, id);
+          } else if (args.status === "SCHEDULED" && existing.status === "CANCELED") {
+            // Restored meeting: drop the link to its canceled appointment and book a fresh one.
+            if (existing.appointmentId) {
+              await prisma.trainingProgramSession.update({ where: { id: existing.id }, data: { appointmentId: null } });
+            }
+            const apptId = await bookSessionAsAppointment(businessId, prisma, existing.id).catch(() => null);
+            if (apptId) await afterLinkedAppointmentCreated(businessId, apptId);
           }
           // Mirror createProgramSession: completing a session on a SERVICE_DOG program accumulates
           // training hours. Adjust symmetrically so COMPLETED→SCHEDULED→COMPLETED never double-counts.

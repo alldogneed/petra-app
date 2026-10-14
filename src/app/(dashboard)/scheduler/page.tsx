@@ -68,6 +68,7 @@ interface ServiceOption {
   price: number;
   isActive: boolean;
   source: "service" | "price-list";
+  isTraining: boolean;
 }
 
 interface TimeSlot {
@@ -210,7 +211,8 @@ function SchedulerContent() {
   });
   const [bookingResult, setBookingResult] = useState<BookingResult | null>(null);
   const [pickedCustomer, setPickedCustomer] = useState<PickerCustomer | null>(null);
-  const [attachToProgram, setAttachToProgram] = useState(true);
+  // null = automatic: ticked only for a training service, so a grooming slot never eats a package meeting
+  const [attachChoice, setAttachToProgram] = useState<boolean | null>(null);
   const [attachProgramId, setAttachProgramId] = useState("");
   const [showServiceDropdown, setShowServiceDropdown] = useState(false);
   const [showNewCustomer, setShowNewCustomer] = useState(false);
@@ -232,10 +234,10 @@ function SchedulerContent() {
   const activeServices = useMemo<ServiceOption[]>(() => {
     const fromServices: ServiceOption[] = services
       .filter((s) => s.isActive)
-      .map((s) => ({ id: s.id, name: s.name, duration: s.duration, price: s.price, isActive: true, source: "service" as const }));
+      .map((s) => ({ id: s.id, name: s.name, duration: s.duration, price: s.price, isActive: true, source: "service" as const, isTraining: s.type === "training" }));
     const fromPriceList: ServiceOption[] = priceListItems
       .filter((p) => p.isActive)
-      .map((p) => ({ id: p.id, name: p.name, duration: p.durationMinutes ?? 60, price: p.basePrice, isActive: true, source: "price-list" as const }));
+      .map((p) => ({ id: p.id, name: p.name, duration: p.durationMinutes ?? 60, price: p.basePrice, isActive: true, source: "price-list" as const, isTraining: p.category === "אילוף" }));
     return [...fromServices, ...fromPriceList];
   }, [services, priceListItems]);
 
@@ -316,6 +318,7 @@ function SchedulerContent() {
   });
   const attachProgram =
     attachablePrograms.find((p) => p.id === attachProgramId) ?? attachablePrograms[0] ?? null;
+  const attachToProgram = attachChoice ?? !!selectedService?.isTraining;
   const willAttach = attachToProgram && !!attachProgram && !!selectedCustomerId;
 
   /* ── Mutations ── */
@@ -437,7 +440,7 @@ function SchedulerContent() {
     setNotes("");
     setBookingResult(null);
     setPickedCustomer(null);
-    setAttachToProgram(true);
+    setAttachToProgram(null);
     setAttachProgramId("");
     setShowNewCustomer(false);
     setNewCustomerName("");
@@ -824,7 +827,7 @@ function SchedulerContent() {
                     setSelectedCustomerId(c.id);
                     setSelectedPetId(matchedPetId ?? "");
                     setAttachProgramId("");
-                    setAttachToProgram(true);
+                    setAttachToProgram(null);
                   }}
                   onClear={() => {
                     setPickedCustomer(null);
