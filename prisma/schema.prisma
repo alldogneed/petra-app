@@ -108,6 +108,31 @@ model BusinessUser {
   @@index([userId])
 }
 
+/// Pending invitation for a team member. The invitee accepts from the emailed
+/// link (/invite?token=…) and sets their own password; the BusinessUser row is
+/// created only on acceptance. Only the SHA-256 of the token is stored.
+model TeamInvitation {
+  id          String    @id @default(uuid())
+  businessId  String
+  email       String    // lower-cased
+  name        String
+  role        String    @default("user") // "owner" | "manager" | "user" | "volunteer"
+  tokenHash   String    @unique
+  invitedById String?
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  revokedAt   DateTime?
+  lastSentAt  DateTime?
+  emailError  String?   // last delivery failure, null when the last send succeeded
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  business    Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
+  @@index([email])
+}
+
 /// Secure server-side sessions
 model AdminSession {
   id           String   @id @default(uuid())
@@ -269,6 +294,7 @@ model Business {
   updatedAt   DateTime @updatedAt
 
   members           BusinessUser[]
+  teamInvitations   TeamInvitation[]
   users             User[]
   customers         Customer[]
   services          Service[]

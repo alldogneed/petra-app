@@ -258,6 +258,13 @@ The legacy dark "Master Admin" (`/admin/*`) was merged into the light platform p
 - `/api/assistant/escalate` ("דבר עם אדם") opens a regular `SupportTicket` with the transcript; `/api/assistant/feedback` stores 👍/👎. Tables `AssistantConversation` / `AssistantMessage` — prod DDL `prisma/assistant.sql` (additive, RLS enabled without policies like every other table).
 - Env: `ANTHROPIC_API_KEY` (missing → 503, app unaffected), `ASSISTANT_MODEL` (default `claude-haiku-5-5`).
 
+### 44. Team members join by invitation — no passwords set by the owner
+`POST /api/admin/[businessId]/members` creates a `TeamInvitation` (only the SHA-256 of the token is stored, 7-day TTL) and emails a link to `/invite?token=…`; the `BusinessUser` row is created only when the invitee accepts. Logic in `src/lib/team-invitations.ts`; public endpoint `POST /api/auth/invitation` (`action: lookup | accept`, token in the body, `STRICT_TOKEN` rate limit; allowlisted in `middleware.ts` + `scripts/audit-route-auth.mjs`).
+- New email → the invitee picks name + password (registration rules) and is logged in. Existing account → must be **signed in as that account** to accept (`/login?next=/invite?token=…`; `safeNextPath` allows `/invite`) — a forwarded link, or the inviter, cannot attach someone else's account. An active member keeps their role; an inactive one is reactivated with the invited role.
+- The inviter gets `inviteUrl` back (modal + "שלח שוב") to share by WhatsApp when the email fails; `emailError` on the row drives the "המייל לא נשלח" badge. A resend issues a new token — the old link dies.
+- UI: `src/components/settings/TeamInvitations.tsx` (invite modal + "ממתינים לאישור" list) in Settings → צוות. The topbar quick-invite posts the same route. The platform-admin route `/api/owner/tenants/[tenantId]/members` still creates accounts directly (admin-only).
+- Prod DDL: `prisma/team_invitations.sql` (additive) — apply before deploying.
+
 ## MCP Server
 
 ### Architecture

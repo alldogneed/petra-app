@@ -27,6 +27,7 @@ const PUBLIC_EXACT_PATHS = new Set([
   "/register",
   "/forgot-password",
   "/reset-password",
+  "/invite",          // team invitation — the token in ?token= is the credential
   "/privacy",
   "/terms",
   "/tos-accept",
@@ -122,6 +123,7 @@ export function middleware(request: NextRequest) {
     "/api/auth/exit-impersonation",
     "/api/auth/google",
     "/api/auth/google/callback",
+    "/api/auth/invitation",
     "/api/auth/me",
     "/api/auth/session",
   ];

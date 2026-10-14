@@ -1,15 +1,15 @@
 /**
  * Post-login redirect validation (`/login?next=…`, Google `petra_login_next` cookie).
  *
- * Deliberately tight: the only in-app destination that needs `next` today is the
- * MCP OAuth consent page, so anything that does not start with `/oauth/authorize`
- * is rejected. This rules out open redirects (`//evil.com`, `/\evil.com`,
+ * Deliberately tight: only two in-app destinations need `next` — the MCP OAuth
+ * consent page and the team-invitation page (an existing account logs in, then
+ * confirms) — so anything that does not start with one of them is rejected. This rules out open redirects (`//evil.com`, `/\evil.com`,
  * `https://evil.com`, `/%2F%2Fevil.com`, control-char tricks) by construction.
  *
  * Returns the path to navigate to, or null (caller falls back to /dashboard).
  */
 
-const ALLOWED_PREFIX = "/oauth/authorize";
+const ALLOWED_PREFIXES = ["/oauth/authorize", "/invite"];
 const MAX_LEN = 4096;
 
 // eslint-disable-next-line no-control-regex
@@ -31,8 +31,11 @@ export function safeNextPath(raw: string | null | undefined): string | null {
 
   // Must be exactly the allowed path, or the path followed by a query string.
   // ("/oauth/authorizeXYZ" or "/oauth/authorize/../../x" are rejected.)
-  const rest = next.slice(ALLOWED_PREFIX.length);
-  if (!next.startsWith(ALLOWED_PREFIX) || (rest !== "" && !rest.startsWith("?"))) return null;
+  const allowed = ALLOWED_PREFIXES.some((prefix) => {
+    const rest = next.slice(prefix.length);
+    return next.startsWith(prefix) && (rest === "" || rest.startsWith("?"));
+  });
+  if (!allowed) return null;
 
   // One round of decoding must not reveal a dangerous shape either
   // (e.g. "/%2F%2Fevil.com", "/%5Cevil.com", "%0d%0a" header tricks).
@@ -44,12 +47,12 @@ export function safeNextPath(raw: string | null | undefined): string | null {
   }
   if (isUnsafe(decoded)) return null;
   const decodedPath = decoded.split("?")[0];
-  if (decodedPath !== ALLOWED_PREFIX) return null;
+  if (!ALLOWED_PREFIXES.includes(decodedPath)) return null;
 
   // Final guard: resolving against a dummy origin must stay on that origin and path.
   try {
     const url = new URL(next, "https://petra.invalid");
-    if (url.origin !== "https://petra.invalid" || url.pathname !== ALLOWED_PREFIX) return null;
+    if (url.origin !== "https://petra.invalid" || !ALLOWED_PREFIXES.includes(url.pathname)) return null;
   } catch {
     return null;
   }

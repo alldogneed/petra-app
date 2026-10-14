@@ -30,6 +30,7 @@ const PUBLIC_ROUTES = new Set([
   "auth/register",
   "auth/forgot-password",
   "auth/reset-password",
+  "auth/invitation", // team invite lookup/accept — token is the credential, STRICT_TOKEN rate limit
   "auth/session",
   "auth/me",
   "auth/2fa/enroll",

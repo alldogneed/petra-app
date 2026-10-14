@@ -27,7 +27,8 @@ function LoginForm() {
   const googleHref = nextPath
     ? `/api/auth/google?next=${encodeURIComponent(nextPath)}`
     : "/api/auth/google";
-  const [email, setEmail] = useState("");
+  // Prefilled after accepting a team invitation with an existing account (/invite).
+  const [email, setEmail] = useState(() => searchParams.get("email") ?? "");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);

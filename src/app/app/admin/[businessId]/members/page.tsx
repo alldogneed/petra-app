@@ -38,7 +38,6 @@ export default function MembersPage() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteName, setInviteName] = useState("");
   const [inviteRole, setInviteRole] = useState<"owner" | "manager" | "user">("user");
-  const [invitePassword, setInvitePassword] = useState("");
   const [inviteLoading, setInviteLoading] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
 
@@ -87,7 +86,6 @@ export default function MembersPage() {
         email: inviteEmail,
         name: inviteName,
         role: inviteRole,
-        ...(invitePassword ? { temporaryPassword: invitePassword } : {}),
       }),
     });
     if (res.ok) {
@@ -95,7 +93,6 @@ export default function MembersPage() {
       setInviteEmail("");
       setInviteName("");
       setInviteRole("user");
-      setInvitePassword("");
       load();
     } else {
       const data = await res.json();
@@ -157,20 +154,6 @@ export default function MembersPage() {
                     <option key={r} value={r} className="capitalize">{r}</option>
                   ))}
                 </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">
-                  Temporary Password <span className="text-slate-400">(if new user)</span>
-                </label>
-                <input
-                  type="password"
-                  value={invitePassword}
-                  onChange={(e) => setInvitePassword(e.target.value)}
-                  dir="ltr"
-                  minLength={8}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-400"
-                  placeholder="Min 8 characters"
-                />
               </div>
             </div>
             {inviteError && (

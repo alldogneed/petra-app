@@ -1,21 +1,24 @@
 export const dynamic = 'force-dynamic';
 /**
  * GET  /api/admin/[businessId]/members  — list members of a business
- * POST /api/admin/[businessId]/members  — invite a new member
+ * POST /api/admin/[businessId]/members  — invite a new member (TeamInvitation + email;
+ *                                         the membership is created when the invitee accepts)
  * Requires: tenant.users.read / tenant.users.write
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenantPermission, isGuardError } from "@/lib/auth-guards";
 import { prisma } from "@/lib/prisma";
-import { TENANT_PERMS } from "@/lib/permissions";
+import { TENANT_PERMS, canModifyTenantRole, type TenantRole } from "@/lib/permissions";
+import { rateLimitAsync } from "@/lib/rate-limit";
 import { logAudit, getRequestContext, AUDIT_ACTIONS } from "@/lib/audit";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 import { ENTITY_TYPES } from "@/lib/activity-actions";
-import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { hasFeatureWithOverrides } from "@/lib/feature-flags";
-import { sendTeamInvitationEmail } from "@/lib/email";
+import {
+  INVITE_RATE_LIMIT, INVITE_ROLES, deliverInvitation, inviteUrl, normalizeEmail, serializeInvitation, upsertInvitation,
+} from "@/lib/team-invitations";
 
 export async function GET(
   request: NextRequest,
@@ -57,10 +60,9 @@ export async function GET(
 
 const InviteSchema = z.object({
   email: z.string().email(),
-  name: z.string().min(1).max(100),
-  role: z.enum(["owner", "manager", "user", "volunteer"]).default("user"),
-  // If user doesn't exist yet, create with temp password
-  temporaryPassword: z.string().min(8).optional(),
+  name: z.string().trim().min(1).max(100),
+  role: z.enum(INVITE_ROLES).default("user"),
+  // Legacy clients still send temporaryPassword — ignored (zod strips unknown keys).
 });
 
 export async function POST(
@@ -106,123 +108,70 @@ export async function POST(
       );
     }
 
-    // Find or create platform user
-    let platformUser = await prisma.platformUser.findUnique({
-      where: { email: body.email },
-      select: { id: true, email: true, name: true, isActive: true },
+    // Already an active member? Nothing to invite.
+    const email = normalizeEmail(body.email);
+    const existingUser = await prisma.platformUser.findFirst({
+      where: { email: { equals: email, mode: "insensitive" } },
+      select: { id: true },
     });
-    if (!platformUser) {
-      if (!body.temporaryPassword) {
-        return NextResponse.json(
-          { error: "המשתמש לא נמצא במערכת. יש לספק סיסמה זמנית כדי ליצור חשבון חדש." },
-          { status: 404 }
-        );
-      }
-      const passwordHash = await bcrypt.hash(body.temporaryPassword, 12);
-      platformUser = await prisma.platformUser.create({
-        data: {
-          email: body.email,
-          name: body.name,
-          passwordHash,
-          isActive: true,
-        },
+    if (existingUser) {
+      const existing = await prisma.businessUser.findUnique({
+        where: { businessId_userId: { businessId: params.businessId, userId: existingUser.id } },
+        select: { isActive: true, role: true },
       });
-
-      // Create completed onboarding so new user isn't stuck on onboarding flow
-      await prisma.onboardingProgress.upsert({
-        where: { userId: platformUser.id },
-        create: {
-          userId: platformUser.id,
-          currentStep: 4,
-          stepCompleted1: true,
-          stepCompleted2: true,
-          stepCompleted3: true,
-          stepCompleted4: true,
-          startedAt: new Date(),
-          completedAt: new Date(),
-        },
-        update: {},
-      });
-
-      // Send invitation email with credentials
-      try {
-        await sendTeamInvitationEmail({
-          to: body.email,
-          name: body.name,
-          tempPassword: body.temporaryPassword,
-          businessName: business?.name || "העסק",
-          role: body.role,
-          inviterName: session.user.name || "מנהל המערכת",
-        });
-      } catch (emailErr) {
-        console.error("Failed to send team invitation email:", emailErr);
-        // Don't fail the invite — user was created, email is best-effort
-      }
-    }
-
-    // Check if already a member
-    const existing = await prisma.businessUser.findUnique({
-      where: { businessId_userId: { businessId: params.businessId, userId: platformUser.id } },
-    });
-
-    if (existing) {
-      if (existing.isActive) {
+      if (existing?.isActive) {
         return NextResponse.json({ error: "המשתמש עם אימייל זה כבר רשום כחבר צוות." }, { status: 409 });
       }
-      // Reactivate
-      const updated = await prisma.businessUser.update({
-        where: { id: existing.id },
-        data: { isActive: true, role: body.role },
-      });
-      await logAudit({
-        actorUserId: session.user.id,
-        actorBusinessId: params.businessId,
-        action: AUDIT_ACTIONS.TENANT_MEMBER_REACTIVATED,
-        targetType: "user",
-        targetId: platformUser.id,
-        ip,
-        userAgent,
-        metadata: { role: body.role },
-      });
-      await logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.ACTIVATE_MEMBER, {
-        businessId: membership.businessId,
-        entityType: ENTITY_TYPES.MEMBER,
-        entityId: platformUser.id,
-        entityLabel: platformUser.name,
-      });
-      return NextResponse.json(updated, { status: 200 });
+      // Re-inviting a deactivated member reactivates them on accept — same hierarchy
+      // rule as PATCH: nobody brings back someone ranked above themselves.
+      if (existing && !canModifyTenantRole(membership.role as TenantRole, existing.role as TenantRole)) {
+        return NextResponse.json({ error: "אין לך הרשאה להחזיר חבר צוות בתפקיד גבוה משלך." }, { status: 403 });
+      }
     }
 
-    const member = await prisma.businessUser.create({
-      data: {
-        businessId: params.businessId,
-        userId: platformUser.id,
-        role: body.role,
-        isActive: true,
-      },
+    // Invitation emails go out from Petra's domain — cap them per business.
+    const rl = await rateLimitAsync("team:invite", params.businessId, INVITE_RATE_LIMIT);
+    if (!rl.allowed) {
+      return NextResponse.json({ error: "יותר מדי הזמנות בזמן קצר. נסה/י שוב בעוד שעה." }, { status: 429 });
+    }
+
+    // The member joins only after confirming from the emailed link (or a link the
+    // owner shares) and choosing their own password — no password is set here.
+    const { invitation, rawToken } = await upsertInvitation({
+      businessId: params.businessId,
+      email,
+      name: body.name,
+      role: body.role,
+      invitedById: session.user.id,
+    });
+    const { emailSent } = await deliverInvitation(invitation, rawToken, {
+      businessName: business?.name || "העסק",
+      inviterName: session.user.name || "מנהל העסק",
     });
 
     await logAudit({
       actorUserId: session.user.id,
       actorBusinessId: params.businessId,
       action: AUDIT_ACTIONS.TENANT_MEMBER_INVITED,
-      targetType: "user",
-      targetId: platformUser.id,
+      targetType: "team_invitation",
+      targetId: invitation.id,
       ip,
       userAgent,
-      metadata: { email: body.email, role: body.role },
+      metadata: { role: body.role, emailSent },
     });
     await logActivity(session.user.id, session.user.name, ACTIVITY_ACTIONS.INVITE_MEMBER, {
       businessId: membership.businessId,
       entityType: ENTITY_TYPES.MEMBER,
-      entityId: platformUser.id,
-      entityLabel: platformUser.name || platformUser.email,
+      entityId: invitation.id,
+      entityLabel: invitation.name,
     });
 
-    // Return only safe user fields — the create() result carries passwordHash,
-    // 2FA secrets and OAuth tokens which must never reach the client.
-    const safeUser = { id: platformUser.id, email: platformUser.email, name: platformUser.name };
-    return NextResponse.json({ member, user: safeUser }, { status: 201 });
+    // inviteUrl goes back to the inviter so the link can be shared another way
+    // (WhatsApp) when the email did not arrive. Only the hash is stored.
+    return NextResponse.json(
+      { invitation: serializeInvitation(invitation), emailSent, inviteUrl: inviteUrl(rawToken) },
+      { status: 201 },
+    );
   } catch (error) {
     console.error("POST /api/admin/[businessId]/members error:", error);
     return NextResponse.json({ error: "שגיאה בהוספת חבר צוות" }, { status: 500 });
