@@ -66,9 +66,9 @@ async function isEventExpired(msg: {
         // Moved/canceled/closed meeting, lead already a customer, or meeting started.
         const m = await prisma.leadMeeting.findUnique({
           where: { id: msg.relatedEntityId },
-          select: { date: true, startTime: true, status: true, lead: { select: { customerId: true } } },
+          select: { date: true, startTime: true, status: true, lead: { select: { customerId: true, wonAt: true, lostAt: true } } },
         });
-        if (!m || m.status !== "scheduled" || m.lead.customerId) return true;
+        if (!m || m.status !== "scheduled" || m.lead.customerId || m.lead.wonAt || m.lead.lostAt) return true;
         return israelDateTime(m.date, m.startTime) <= now;
       }
       case "LEAD_FOLLOWUP": {

@@ -737,6 +737,24 @@ export async function clearLeadFollowUps(businessId: string, db: DbClient, leadI
     where: { id: leadId, businessId },
     data: { nextFollowUpAt: null, followUpStatus: "completed", followUpTaskId: null },
   });
+  // Open meetings with a closed lead (won elsewhere / lost) must stop blocking the
+  // calendar and online booking, and their reminders must not go out. The "התקיימה"
+  // outcome claims its own meeting before converting, so only the OTHER ones close here.
+  const openMeetings = await db.leadMeeting.findMany({
+    where: { businessId, leadId, status: "scheduled" },
+    select: { id: true },
+  });
+  if (openMeetings.length > 0) {
+    const ids = openMeetings.map((m) => m.id);
+    await db.leadMeeting.updateMany({
+      where: { businessId, id: { in: ids }, status: "scheduled" },
+      data: { status: "canceled", outcomeAt: new Date() },
+    });
+    await db.scheduledMessage.updateMany({
+      where: { businessId, relatedEntityType: "LEAD_MEETING", relatedEntityId: { in: ids }, status: "PENDING" },
+      data: { status: "CANCELED" },
+    });
+  }
   return { tasksCanceled: res.count };
 }
 

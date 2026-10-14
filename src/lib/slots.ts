@@ -166,7 +166,7 @@ export async function getAvailableSlots(
           lte: new Date(`${localDateStr}T23:59:59Z`),
         },
       },
-      select: { startTime: true, endTime: true },
+      select: { startTime: true, endTime: true, serviceId: true },
     }),
   ])
 
@@ -224,6 +224,7 @@ export async function getAvailableSlots(
     new Set([
       ...existingBookings.map((b) => b.serviceId),
       ...existingAppointments.map((a) => a.serviceId),
+      ...leadMeetings.map((m) => m.serviceId),
     ].filter((id): id is string => id !== null))
   )
   const existingServices = uniqueServiceIds.length > 0
@@ -262,11 +263,14 @@ export async function getAvailableSlots(
     }
   })
 
-  // 5c. Lead meetings — same buffer as a manual appointment without a service
-  const busyFromLeadMeetings: Interval[] = leadMeetings.map((m) => ({
-    start: localTimeToUtc(m.startTime, localDateStr, timezone),
-    end:   addMinutes(localTimeToUtc(m.endTime, localDateStr, timezone), bookingBuffer),
-  }))
+  // 5c. Lead meetings — buffers like a manual appointment (service buffers when set)
+  const busyFromLeadMeetings: Interval[] = leadMeetings.map((m) => {
+    const svc = m.serviceId ? svcMap[m.serviceId] : null
+    return {
+      start: addMinutes(localTimeToUtc(m.startTime, localDateStr, timezone), -(svc?.bufferBefore ?? 0)),
+      end:   addMinutes(localTimeToUtc(m.endTime, localDateStr, timezone), svc?.bufferAfter ?? bookingBuffer),
+    }
+  })
 
   const allBusy: Interval[] = [
     ...blocks.map((b) => ({ start: b.startAt, end: b.endAt })),

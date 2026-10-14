@@ -12,7 +12,7 @@
  */
 import type { PrismaClient } from "@prisma/client";
 import { ServiceError } from "@/services/types";
-import { clearLeadFollowUps } from "@/services/clients";
+import { clearLeadFollowUps, updateLead } from "@/services/clients";
 import { cancelLeadFollowup, cancelLeadMeetingReminder, scheduleLeadMeetingReminder } from "@/lib/reminder-service";
 import {
   LEAD_MEETING_APPOINTMENT_TAG,
@@ -240,8 +240,9 @@ export async function convertLeadToCustomer(businessId: string, db: DbClient, le
   }
 
   const updatedLead = await db.lead.update({
-    where: { id: leadId },
-    data: { stage: wonStage.id, wonAt: new Date(), wonByUserId: userId, lostByUserId: null, customerId: customer.id },
+    where: { id: leadId, businessId },
+    // A lost lead that showed up after all: clear the lost mark so reports don't count it twice.
+    data: { stage: wonStage.id, wonAt: new Date(), wonByUserId: userId, lostAt: null, lostByUserId: null, customerId: customer.id },
   });
 
   await cancelLeadFollowup(leadId).catch((err) => console.error("cancelLeadFollowup (convert) failed (non-critical):", err));
@@ -273,6 +274,16 @@ export async function recordLeadMeetingOutcome(
   if (!meeting) throw new ServiceError("הפגישה לא נמצאה", "NOT_FOUND");
   if (!canTransition(meeting.status, outcome)) throw new ServiceError("הפגישה כבר נסגרה", "CONFLICT");
 
+  // Validate before claiming, so a bad date never leaves a closed meeting without a follow-up.
+  let followUp: Date | null = null;
+  if (outcome === "no_show") {
+    followUp = opts.followUpAt ? new Date(opts.followUpAt) : defaultFollowUp();
+    const t = followUp.getTime();
+    if (Number.isNaN(t) || t < Date.now() - 24 * 3600 * 1000 || t > Date.now() + 366 * 24 * 3600 * 1000) {
+      throw new ServiceError("תאריך מעקב לא תקין", "VALIDATION");
+    }
+  }
+
   // Claim the meeting first so a double click can't convert twice.
   const claimed = await db.leadMeeting.updateMany({
     where: { id: meetingId, businessId, status: "scheduled" },
@@ -281,13 +292,9 @@ export async function recordLeadMeetingOutcome(
   if (claimed.count === 0) throw new ServiceError("הפגישה כבר נסגרה", "CONFLICT");
   await cancelLeadMeetingReminder(meetingId);
 
-  if (outcome === "no_show") {
-    const followUp = opts.followUpAt ? new Date(opts.followUpAt) : defaultFollowUp();
-    if (Number.isNaN(followUp.getTime())) throw new ServiceError("תאריך מעקב לא תקין", "VALIDATION");
-    await db.lead.updateMany({
-      where: { id: leadId, businessId },
-      data: { nextFollowUpAt: followUp, followUpStatus: "pending" },
-    });
+  if (outcome === "no_show" && followUp) {
+    // Through updateLead so the usual "מעקב עם …" task is created / moved with the date.
+    await updateLead(businessId, db, leadId, { nextFollowUpAt: followUp.toISOString(), followUpStatus: "pending" }, userId);
     return { outcome, customer: null, appointmentId: null };
   }
 

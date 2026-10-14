@@ -4,10 +4,14 @@ jest.mock("@/lib/reminder-service", () => ({
   cancelLeadMeetingReminder: jest.fn().mockResolvedValue(undefined),
   scheduleLeadMeetingReminder: jest.fn().mockResolvedValue(null),
 }));
-jest.mock("@/services/clients", () => ({ clearLeadFollowUps: jest.fn().mockResolvedValue({ tasksCanceled: 0 }) }));
+jest.mock("@/services/clients", () => ({
+  clearLeadFollowUps: jest.fn().mockResolvedValue({ tasksCanceled: 0 }),
+  updateLead: jest.fn().mockResolvedValue({ id: "l1" }),
+}));
 
 import { recordLeadMeetingOutcome, createLeadMeeting } from "@/services/lead-meetings";
 import { cancelLeadMeetingReminder } from "@/lib/reminder-service";
+import { updateLead } from "@/services/clients";
 
 function makeDb(over: Record<string, unknown> = {}) {
   const meetingRow = { id: "m1", status: "scheduled", date: new Date("2026-10-20T00:00:00Z"), startTime: "17:00", endTime: "18:00", serviceId: null, notes: null, location: "הרצל 12" };
@@ -44,7 +48,10 @@ describe("recordLeadMeetingOutcome", () => {
     const appt = db.appointment.create.mock.calls[0][0].data;
     expect(appt).toMatchObject({ businessId: "b1", customerId: "c1", startTime: "17:00", endTime: "18:00", status: "completed" });
     expect(appt.notes).toContain("[פגישת ליד]");
-    expect(db.lead.update.mock.calls[0][0].data).toMatchObject({ wonAt: expect.any(Date), customerId: "c1", stage: "won" });
+    expect(db.lead.update.mock.calls[0][0]).toMatchObject({
+      where: { id: "l1", businessId: "b1" },
+      data: { wonAt: expect.any(Date), customerId: "c1", stage: "won", lostAt: null },
+    });
     expect(cancelLeadMeetingReminder).toHaveBeenCalledWith("m1");
   });
 
@@ -54,10 +61,18 @@ describe("recordLeadMeetingOutcome", () => {
     expect(res.customer).toBeNull();
     expect(db.customer.create).not.toHaveBeenCalled();
     expect(db.appointment.create).not.toHaveBeenCalled();
-    expect(db.lead.updateMany.mock.calls[0][0]).toMatchObject({
-      where: { id: "l1", businessId: "b1" },
-      data: { nextFollowUpAt: expect.any(Date), followUpStatus: "pending" },
-    });
+    // Through updateLead, so the follow-up task is created like any follow-up date.
+    expect(updateLead).toHaveBeenCalledWith("b1", db, "l1",
+      { nextFollowUpAt: expect.any(String), followUpStatus: "pending" }, "u1");
+  });
+
+  test("no_show with an absurd follow-up date is rejected BEFORE the meeting is closed", async () => {
+    const db = makeDb();
+    await expect(recordLeadMeetingOutcome("b1", db, "l1", "m1", "no_show", "u1", { followUpAt: "not-a-date" }))
+      .rejects.toThrow("תאריך מעקב");
+    await expect(recordLeadMeetingOutcome("b1", db, "l1", "m1", "no_show", "u1", { followUpAt: "2099-01-01T00:00:00Z" }))
+      .rejects.toThrow("תאריך מעקב");
+    expect(db.leadMeeting.updateMany).not.toHaveBeenCalled();
   });
 
   test("double click: the second claim finds nothing and converts nothing", async () => {
