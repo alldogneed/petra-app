@@ -84,13 +84,8 @@ export async function POST(request: NextRequest) {
     if (!business) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    // Check webhook key expiry (90 days)
-    if (business.webhookApiKeyCreatedAt) {
-      const ageMs = Date.now() - new Date(business.webhookApiKeyCreatedAt).getTime();
-      if (ageMs > 90 * 24 * 60 * 60 * 1000) {
-        return NextResponse.json({ error: "API key expired — please regenerate" }, { status: 401 });
-      }
-    }
+    // No time-based expiry: the key lives in the customer's site / Make scenario, so a silent cutoff
+    // just drops their leads. The owner revokes it by regenerating (Settings → אינטגרציות).
     businessId = business.id;
     businessMeta = { phone: business.phone, tier: business.tier, featureOverrides: business.featureOverrides };
   } else {
