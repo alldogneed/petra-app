@@ -125,6 +125,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: STATUS_ERRORS.accepted, status: "accepted" }, { status: 410 });
     }
 
+    // Everything after the consume is undone on failure (acceptedAt back to null), so the
+    // invitee can retry instead of holding a burned link with no membership.
+    // A new account that was created before the failure retries as an existing one.
+    const unconsume = () =>
+      prisma.teamInvitation.update({ where: { id: invitation.id }, data: { acceptedAt: null } }).catch(() => {});
+
     let userId = user?.id;
     if (!userId) {
       try {
@@ -135,47 +141,57 @@ export async function POST(request: NextRequest) {
         userId = created.id;
       } catch (err) {
         // Most likely the same email registered a moment ago — let them retry as existing.
-        await prisma.teamInvitation.update({ where: { id: invitation.id }, data: { acceptedAt: null } });
+        await unconsume();
         console.error("invitation accept: user create failed", err);
         return NextResponse.json({ error: "לא הצלחנו ליצור את החשבון. נסה/י שוב." }, { status: 409 });
       }
-      // Skip the business-setup onboarding — the business already exists.
-      await prisma.onboardingProgress.upsert({
-        where: { userId },
-        create: {
-          userId,
-          currentStep: 4,
-          stepCompleted1: true,
-          stepCompleted2: true,
-          stepCompleted3: true,
-          stepCompleted4: true,
-          startedAt: new Date(),
-          completedAt: new Date(),
-        },
-        update: {},
-      });
     }
 
-    // Membership — an already-active member keeps their current role (never downgrade
-    // or upgrade through an old invitation); an inactive one is reactivated.
-    const existing = await prisma.businessUser.findUnique({
-      where: { businessId_userId: { businessId: invitation.businessId, userId } },
-      select: { id: true, isActive: true },
-    });
-    if (!existing) {
-      await prisma.businessUser.create({
-        data: { businessId: invitation.businessId, userId, role: invitation.role, isActive: true },
+    try {
+      if (!user) {
+        // Skip the business-setup onboarding — the business already exists.
+        await prisma.onboardingProgress.upsert({
+          where: { userId },
+          create: {
+            userId,
+            currentStep: 4,
+            stepCompleted1: true,
+            stepCompleted2: true,
+            stepCompleted3: true,
+            stepCompleted4: true,
+            startedAt: new Date(),
+            completedAt: new Date(),
+          },
+          update: {},
+        });
+      }
+
+      // Membership — an already-active member keeps their current role (never downgrade
+      // or upgrade through an old invitation); an inactive one is reactivated.
+      const existing = await prisma.businessUser.findUnique({
+        where: { businessId_userId: { businessId: invitation.businessId, userId } },
+        select: { id: true, isActive: true },
       });
-    } else if (!existing.isActive) {
-      await prisma.businessUser.update({
-        where: { id: existing.id },
-        data: { isActive: true, role: invitation.role },
-      });
+      if (!existing) {
+        await prisma.businessUser.create({
+          data: { businessId: invitation.businessId, userId, role: invitation.role, isActive: true },
+        });
+      } else if (!existing.isActive) {
+        await prisma.businessUser.update({
+          where: { id: existing.id },
+          data: { isActive: true, role: invitation.role },
+        });
+      }
+    } catch (err) {
+      await unconsume();
+      console.error("invitation accept: membership failed", err);
+      return NextResponse.json({ error: "לא הצלחנו להשלים את ההצטרפות. נסה/י שוב." }, { status: 500 });
     }
     invalidateUserSessionCache(userId);
 
+    // The membership already exists — an audit failure must not turn this into an error.
     const { ip: auditIp, userAgent } = getRequestContext(request);
-    await logAudit({
+    logAudit({
       actorUserId: userId,
       actorBusinessId: invitation.businessId,
       action: AUDIT_ACTIONS.TENANT_INVITATION_ACCEPTED,
@@ -184,7 +200,7 @@ export async function POST(request: NextRequest) {
       ip: auditIp,
       userAgent,
       metadata: { role: invitation.role, newAccount: !user },
-    });
+    }).catch((err) => console.error("invitation accept: audit failed", err));
 
     if (!user) {
       // Fresh account with the password they just chose → straight in.

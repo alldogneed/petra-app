@@ -351,6 +351,11 @@ const ROLE_LABELS_HE: Record<string, string> = {
   volunteer: "מתנדב",
 };
 
+/** Free-text names go into the subject line — no line breaks, bounded length. */
+function oneLine(text: string): string {
+  return text.replace(/[\r\n\t]+/g, " ").trim().slice(0, 80);
+}
+
 export async function sendTeamInvitationEmail(params: TeamInvitationEmailParams): Promise<void> {
   const roleLabel = ROLE_LABELS_HE[params.role] || params.role;
   const safeName = escapeHtml(params.name);
@@ -366,7 +371,7 @@ export async function sendTeamInvitationEmail(params: TeamInvitationEmailParams)
   const { error } = await getResend().emails.send({
     from: getFromEmail(),
     to: params.to,
-    subject: `\u200F${params.inviterName} הזמין/ה אותך להצטרף ל-${params.businessName} בפטרה`,
+    subject: `\u200F${oneLine(params.inviterName)} הזמין/ה אותך להצטרף ל-${oneLine(params.businessName)} בפטרה`,
     html: `
       <div dir="rtl" style="font-family:'Segoe UI',Arial,sans-serif;max-width:520px;margin:0 auto;color:#1e293b;background:#ffffff;">
         ${brandHeader()}

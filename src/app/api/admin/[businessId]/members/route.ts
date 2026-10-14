@@ -9,14 +9,15 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { requireTenantPermission, isGuardError } from "@/lib/auth-guards";
 import { prisma } from "@/lib/prisma";
-import { TENANT_PERMS } from "@/lib/permissions";
+import { TENANT_PERMS, canModifyTenantRole, type TenantRole } from "@/lib/permissions";
+import { rateLimitAsync } from "@/lib/rate-limit";
 import { logAudit, getRequestContext, AUDIT_ACTIONS } from "@/lib/audit";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 import { ENTITY_TYPES } from "@/lib/activity-actions";
 import { z } from "zod";
 import { hasFeatureWithOverrides } from "@/lib/feature-flags";
 import {
-  INVITE_ROLES, deliverInvitation, inviteUrl, normalizeEmail, serializeInvitation, upsertInvitation,
+  INVITE_RATE_LIMIT, INVITE_ROLES, deliverInvitation, inviteUrl, normalizeEmail, serializeInvitation, upsertInvitation,
 } from "@/lib/team-invitations";
 
 export async function GET(
@@ -116,11 +117,22 @@ export async function POST(
     if (existingUser) {
       const existing = await prisma.businessUser.findUnique({
         where: { businessId_userId: { businessId: params.businessId, userId: existingUser.id } },
-        select: { isActive: true },
+        select: { isActive: true, role: true },
       });
       if (existing?.isActive) {
         return NextResponse.json({ error: "המשתמש עם אימייל זה כבר רשום כחבר צוות." }, { status: 409 });
       }
+      // Re-inviting a deactivated member reactivates them on accept — same hierarchy
+      // rule as PATCH: nobody brings back someone ranked above themselves.
+      if (existing && !canModifyTenantRole(membership.role as TenantRole, existing.role as TenantRole)) {
+        return NextResponse.json({ error: "אין לך הרשאה להחזיר חבר צוות בתפקיד גבוה משלך." }, { status: 403 });
+      }
+    }
+
+    // Invitation emails go out from Petra's domain — cap them per business.
+    const rl = await rateLimitAsync("team:invite", params.businessId, INVITE_RATE_LIMIT);
+    if (!rl.allowed) {
+      return NextResponse.json({ error: "יותר מדי הזמנות בזמן קצר. נסה/י שוב בעוד שעה." }, { status: 429 });
     }
 
     // The member joins only after confirming from the emailed link (or a link the

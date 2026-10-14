@@ -11,8 +11,9 @@ import { requireTenantPermission, isGuardError } from "@/lib/auth-guards";
 import { prisma } from "@/lib/prisma";
 import { TENANT_PERMS } from "@/lib/permissions";
 import { logAudit, getRequestContext, AUDIT_ACTIONS } from "@/lib/audit";
+import { rateLimitAsync } from "@/lib/rate-limit";
 import {
-  deliverInvitation, inviteUrl, refreshInvitationToken, serializeInvitation,
+  INVITE_RATE_LIMIT, deliverInvitation, inviteUrl, refreshInvitationToken, serializeInvitation,
 } from "@/lib/team-invitations";
 
 type Params = { params: { businessId: string; invitationId: string } };
@@ -30,6 +31,11 @@ export async function POST(request: NextRequest, { params }: Params) {
   // Same rule as inviting: only an owner hands out the owner role.
   if (target.role === "owner" && membership.role !== "owner") {
     return NextResponse.json({ error: "רק בעל העסק יכול לשלוח הזמנה לבעלים." }, { status: 403 });
+  }
+
+  const rl = await rateLimitAsync("team:invite", params.businessId, INVITE_RATE_LIMIT);
+  if (!rl.allowed) {
+    return NextResponse.json({ error: "יותר מדי הזמנות בזמן קצר. נסה/י שוב בעוד שעה." }, { status: 429 });
   }
 
   const refreshed = await refreshInvitationToken(params.invitationId, params.businessId);

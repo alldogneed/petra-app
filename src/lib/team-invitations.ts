@@ -12,6 +12,9 @@ import { sendTeamInvitationEmail } from "@/lib/email";
 export const INVITE_TTL_DAYS = 7;
 const INVITE_TTL_MS = INVITE_TTL_DAYS * 24 * 60 * 60 * 1000;
 
+/** Invite + resend emails per business (shared bucket). */
+export const INVITE_RATE_LIMIT = { max: 30, windowMs: 60 * 60 * 1000 };
+
 export const INVITE_ROLES = ["owner", "manager", "user", "volunteer"] as const;
 export type InviteRole = (typeof INVITE_ROLES)[number];
 
