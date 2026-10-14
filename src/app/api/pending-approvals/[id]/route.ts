@@ -6,6 +6,8 @@ import { prisma } from "@/lib/prisma";
 import { hasTenantPermission, TENANT_PERMS } from "@/lib/permissions";
 import { deletePet } from "@/services/pets";
 import { deleteLead } from "@/services/clients";
+import { deleteAppointment } from "@/services/appointments";
+import { afterLinkedAppointmentCanceled } from "@/lib/training-appointment-effects";
 import { deleteServiceDog, deleteRecipient } from "@/services/service-dogs";
 import { cancelLeadFollowup } from "@/lib/reminder-service";
 import { logActivity } from "@/lib/activity-log";
@@ -229,7 +231,10 @@ async function executeApprovedAction(
     }
     case "DELETE_APPOINTMENT": {
       const id = payloadId(payload, "appointmentId");
-      await prisma.appointment.delete({ where: { id, businessId } });
+      // Same as the owner path: reminders + gcal event go first (needs gcalEventId), then the
+      // service delete, which also removes a still-scheduled training meeting (rule #45).
+      await afterLinkedAppointmentCanceled(businessId, id);
+      await deleteAppointment(businessId, prisma, id);
       break;
     }
     case "DELETE_LEAD": {

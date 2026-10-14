@@ -18,6 +18,10 @@
  * Session date wire format mirrors training/page.tsx:512 — Israel wall time `${date}T${time||"10:00"}:00`.
  */
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { bookSessionAsAppointment, completeAppointmentOfSession, cancelAppointmentOfSession } from "@/services/training-appointments";
+import {
+  afterLinkedAppointmentCreated, afterLinkedAppointmentMoved, afterLinkedAppointmentCompleted, afterLinkedAppointmentCanceled,
+} from "@/lib/training-appointment-effects";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import {
@@ -174,6 +178,7 @@ async function findSessionScoped(businessId: string, sessionId: string) {
       status: true,
       summary: true,
       rating: true,
+      appointmentId: true,
       program: {
         select: {
           id: true,
@@ -594,7 +599,7 @@ export function registerTrainingTools(server: McpServer, ctx: ToolCtx): void {
           return dryRunResult(`יירשם מפגש אילוף עבור ${preview}`);
         }
 
-        const { session, program: fullProgram } = await createProgramSession(businessId, prisma, program.id, {
+        const { session, program: fullProgram, completedAppointmentId } = await createProgramSession(businessId, prisma, program.id, {
           sessionDate,
           durationMinutes,
           sessionNumber: args.session_number ?? null,
@@ -608,6 +613,12 @@ export function registerTrainingTools(server: McpServer, ctx: ToolCtx): void {
         });
 
         // Side effects — mirror POST /api/training-programs/[id]/sessions (awaited).
+        // Scheduled meeting of an individual customer program → booked as a calendar appointment (rule #45).
+        if (session.status === "SCHEDULED") {
+          const apptId = await bookSessionAsAppointment(businessId, prisma, session.id).catch(() => null);
+          if (apptId) await afterLinkedAppointmentCreated(businessId, apptId);
+        }
+        if (completedAppointmentId) await afterLinkedAppointmentCompleted(businessId, completedAppointmentId);
         // Reminder only makes sense for sessions that will happen (the service itself skips past dates).
         if (status !== "CANCELED" && status !== "NO_SHOW") {
           await scheduleSessionReminderSafe(businessId, session, fullProgram);
@@ -741,6 +752,7 @@ export function registerTrainingTools(server: McpServer, ctx: ToolCtx): void {
           });
           dateChanged = r.dateChanged;
           updatedDate = r.updated.sessionDate;
+          if (r.movedAppointmentId) await afterLinkedAppointmentMoved(businessId, r.movedAppointmentId);
         }
 
         // Status is not part of updateProgramSession — scoped direct write (session already verified to belong to this business's program).
@@ -749,6 +761,14 @@ export function registerTrainingTools(server: McpServer, ctx: ToolCtx): void {
             where: { id: existing.id, trainingProgramId: program.id },
             data: { status: args.status },
           });
+          // Booked as a calendar appointment → it follows the meeting status (rule #45).
+          if (args.status === "COMPLETED") {
+            const id = await completeAppointmentOfSession(businessId, prisma, existing.appointmentId);
+            if (id) await afterLinkedAppointmentCompleted(businessId, id);
+          } else if (args.status === "CANCELED") {
+            const id = await cancelAppointmentOfSession(businessId, prisma, existing.appointmentId);
+            if (id) await afterLinkedAppointmentCanceled(businessId, id);
+          }
           // Mirror createProgramSession: completing a session on a SERVICE_DOG program accumulates
           // training hours. Adjust symmetrically so COMPLETED→SCHEDULED→COMPLETED never double-counts.
           if (program.trainingType === "SERVICE_DOG") {

@@ -1033,6 +1033,7 @@ export async function syncTrainingProgramSessionToGcal(sessionId: string, busine
     where: { id: sessionId },
     select: {
       id: true, sessionDate: true, durationMinutes: true, status: true, gcalEventId: true, summary: true, trainerName: true,
+      appointmentId: true,
       program: {
         select: {
           businessId: true, name: true, trainingType: true,
@@ -1043,6 +1044,12 @@ export async function syncTrainingProgramSessionToGcal(sessionId: string, busine
     },
   });
   if (!s || s.program.businessId !== businessId || s.status === "CANCELED") return;
+  // Booked as a calendar appointment → the appointment owns the gcal event (rule #45);
+  // drop any event this meeting had from before it was linked.
+  if (s.appointmentId) {
+    if (s.gcalEventId) await deleteTrainingProgramSessionFromGcal(sessionId, businessId);
+    return;
+  }
 
   const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://petra-app.com";
   const dogName = s.program.dog?.name ?? "כלב";

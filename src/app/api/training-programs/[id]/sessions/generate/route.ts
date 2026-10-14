@@ -5,6 +5,8 @@ import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { scheduleTrainingSessionReminder } from "@/lib/reminder-service";
 import { syncTrainingProgramSessionToGcal } from "@/lib/google-calendar";
 import { generateProgramSessions, ServiceError } from "@/services/training";
+import { bookSessionAsAppointment } from "@/services/training-appointments";
+import { afterLinkedAppointmentCreated } from "@/lib/training-appointment-effects";
 
 /**
  * POST /api/training-programs/[id]/sessions/generate
@@ -60,6 +62,17 @@ export async function POST(
     }
 
     const { created, program } = result;
+
+    // Book each meeting as a calendar appointment (individual customer programs, rule #45).
+    // Linked meetings get the appointment's reminder + gcal event; the session-level
+    // reminder/gcal calls below are no-ops for them.
+    for (const s of created) {
+      const apptId = await bookSessionAsAppointment(authResult.businessId, prisma, s.id).catch((err) => {
+        console.error("bookSessionAsAppointment failed:", err);
+        return null;
+      });
+      if (apptId) await afterLinkedAppointmentCreated(authResult.businessId, apptId);
+    }
 
     // Schedule a WhatsApp reminder per created session (non-critical)
     if (program.customer) {

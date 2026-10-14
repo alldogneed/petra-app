@@ -12,6 +12,7 @@
  */
 
 import type { DbClient } from "./supabase";
+import { completeAppointmentOfSession, moveAppointmentOfSession, cancelAppointmentOfSession } from "./training-appointments";
 import { ServiceError } from "./types";
 import { deleteOrder, updateOrder } from "./orders";
 import { createCheckoutSession } from "@/lib/stripe";
@@ -1321,6 +1322,10 @@ export async function createProgramSession(
         data: { trainingProgramId: programId, ...sessionData },
       });
 
+  // Meeting booked as a calendar appointment and now logged as done → appointment completed too (rule #45).
+  const completedAppointmentId =
+    sessionStatus === "COMPLETED" ? await completeAppointmentOfSession(businessId, db, session.appointmentId) : null;
+
   // Accumulate training hours for service dog programs
   if (sessionStatus === "COMPLETED" && program.trainingType === "SERVICE_DOG") {
     const sdProfile = await db.serviceDogProfile.findFirst({
@@ -1334,7 +1339,7 @@ export async function createProgramSession(
     }
   }
 
-  return { session, program };
+  return { session, program, completedAppointmentId };
 }
 
 /**
@@ -1441,7 +1446,12 @@ export async function updateProgramSession(
     data: updateData,
   });
 
-  return { updated, dateChanged, program };
+  // Booked as a calendar appointment → the appointment moves with the meeting (rule #45).
+  const durationChanged = data.durationMinutes !== undefined && data.durationMinutes !== session.durationMinutes;
+  const movedAppointmentId =
+    dateChanged || durationChanged ? await moveAppointmentOfSession(businessId, db, updated) : null;
+
+  return { updated, dateChanged, program, movedAppointmentId };
 }
 
 export async function deleteProgramSession(
@@ -1475,9 +1485,12 @@ export async function deleteProgramSession(
     }
   }
 
+  // A meeting booked as a calendar appointment: deleting the meeting cancels the appointment (rule #45).
+  const canceledAppointmentId = await cancelAppointmentOfSession(businessId, db, session.appointmentId);
+
   await db.trainingProgramSession.delete({ where: { id: session.id } });
 
-  return { session, program };
+  return { session, program, canceledAppointmentId };
 }
 
 export async function listProgramSessionsForCalendar(
@@ -1488,6 +1501,8 @@ export async function listProgramSessionsForCalendar(
   return db.trainingProgramSession.findMany({
     where: {
       program: { businessId },
+      // Meetings booked as an appointment render as that appointment — no second block (rule #45).
+      appointmentId: null,
       ...(opts.from || opts.to
         ? {
             sessionDate: {

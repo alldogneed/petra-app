@@ -9,6 +9,7 @@
  */
 
 import { ACTIVE_ORDER_STATUSES, ACTIVE_ORDER_STATUS_FILTER } from "@/lib/constants";
+import { attachAppointmentToProgram } from "./training-appointments";
 import type { PrismaClient } from "@prisma/client";
 import { ServiceError } from "./types";
 import { calcOrder } from "@/lib/order-calc";
@@ -407,7 +408,7 @@ export async function createOrder(
         boardingStayId = stay.id;
       }
 
-      await db.trainingProgram.create({
+      const newProgram = await db.trainingProgram.create({
         data: {
           businessId,
           dogId: trainingPetId,
@@ -428,6 +429,14 @@ export async function createOrder(
           boardingStayId: boardingStayId || null,
         },
       });
+
+      // The order's appointment IS the program's first meeting (rule #45) — otherwise the
+      // package shows 0 meetings while the calendar already has one.
+      if (linkedAppointmentId && newProgram.trainingType === "HOME") {
+        await attachAppointmentToProgram(businessId, db, linkedAppointmentId, newProgram.id).catch((err) =>
+          console.error("[orders] link first training meeting failed (non-critical):", err)
+        );
+      }
     }
   }
 
