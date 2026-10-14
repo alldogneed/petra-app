@@ -43,12 +43,42 @@ function whatsappShareUrl(name: string, businessName: string, url: string) {
   return `https://wa.me/?text=${encodeURIComponent(text)}`;
 }
 
+/**
+ * The async Clipboard API is refused in some contexts (embedded browsers, iOS in-app
+ * views, a document that lost focus, missing permission). Fall back to the classic
+ * select + execCommand("copy"), which works inside the click handler almost everywhere.
+ */
+function legacyCopy(text: string): boolean {
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.setAttribute("readonly", "");
+  ta.style.position = "fixed";
+  ta.style.top = "0";
+  ta.style.opacity = "0";
+  document.body.appendChild(ta);
+  ta.select();
+  ta.setSelectionRange(0, text.length);
+  let ok = false;
+  try {
+    ok = document.execCommand("copy");
+  } catch {
+    ok = false;
+  }
+  document.body.removeChild(ta);
+  return ok;
+}
+
 async function copy(text: string) {
+  // Synchronous fallback first while still inside the user gesture, then the async API.
+  if (legacyCopy(text)) {
+    toast.success("הקישור הועתק");
+    return;
+  }
   try {
     await navigator.clipboard.writeText(text);
     toast.success("הקישור הועתק");
   } catch {
-    toast.error("לא הצלחנו להעתיק — סמן/י והעתק/י ידנית");
+    toast.error("לא הצלחנו להעתיק — לחץ/י על הקישור, סמן/י והעתק/י ידנית");
   }
 }
 

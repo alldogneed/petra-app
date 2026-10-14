@@ -73,6 +73,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .finally(() => setLoading(false));
   }, []);
 
+  // A member the owner deactivated or removed is logged out server-side
+  // (team-offboarding.ts). Re-check every 30s and whenever the tab regains focus, so
+  // an open tab leaves at once: no session → /login; business taken away while
+  // other businesses remain → reload into the business they still have.
+  const signedInUserId = user?.id ?? null;
+  const signedInBusinessId = user?.businessId ?? null;
+  useEffect(() => {
+    if (!signedInUserId) return;
+    let stopped = false;
+    const check = async () => {
+      if (stopped || document.visibilityState === "hidden") return;
+      try {
+        const res = await fetch("/api/auth/me", { cache: "no-store" });
+        if (res.status >= 500) return; // server hiccup — never log out on that
+        const data = res.ok ? await res.json() : null;
+        const me = data?.user ?? null;
+        if (!me || me.id !== signedInUserId) {
+          stopped = true;
+          queryClient.clear();
+          window.location.href = "/login?reason=access_ended";
+        } else if ((me.businessId ?? null) !== signedInBusinessId) {
+          stopped = true;
+          window.location.href = "/dashboard";
+        }
+      } catch {
+        /* offline — try again next tick */
+      }
+    };
+    const timer = window.setInterval(check, 30_000);
+    window.addEventListener("focus", check);
+    document.addEventListener("visibilitychange", check);
+    return () => {
+      stopped = true;
+      window.clearInterval(timer);
+      window.removeEventListener("focus", check);
+      document.removeEventListener("visibilitychange", check);
+    };
+  }, [signedInUserId, signedInBusinessId, queryClient]);
+
   const isOwner = user?.businessRole === "owner";
   const isManager = user?.businessRole === "manager";
   const isStaff = user?.businessRole === "user";
