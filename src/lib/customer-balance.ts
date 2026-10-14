@@ -5,10 +5,12 @@
  * customers list, the customer card, /analytics and MCP `get_outstanding_balances` agree:
  *  - open orders (confirmed / in_progress / completed, total > 0) → total minus PAID payments
  *  - pending payments → their amount, unless linked to an order already counted above
+ *  - paid payments with no order: on an order's appointment/stay → paid on that order; general →
+ *    customer credit against the oldest open debt (see aggregateOutstandingBalances)
  * Plus `totalPaid` = Σ paid payments of the customer (all time, not a capped window).
  */
 import type { PrismaClient } from "@prisma/client";
-import { aggregateOutstandingBalances, OUTSTANDING_ORDER_STATUSES } from "@/lib/outstanding-balances";
+import { aggregateOutstandingBalances, loadUnlinkedPaid, OUTSTANDING_ORDER_STATUSES } from "@/lib/outstanding-balances";
 
 export interface CustomerBalance {
   /** Total owed = ordersOutstanding + pendingAmount. */
@@ -47,6 +49,8 @@ export async function computeCustomerBalances(
         createdAt: true,
         customerId: true,
         payments: { where: { status: "paid" }, select: { amount: true } },
+        relatedEntityType: true,
+        relatedEntityId: true,
       },
       take: BUSINESS_SCAN_CAP,
     }),
@@ -64,9 +68,14 @@ export async function computeCustomerBalances(
       : Promise.resolve([] as { customerId: string; _sum: { amount: number | null } }[]),
   ]);
 
+  const unlinkedPaid = await loadUnlinkedPaid(db, businessId, [
+    ...orders.map((o) => o.customerId),
+    ...pendingPayments.map((p) => p.customerId),
+  ]);
   const agg = aggregateOutstandingBalances(
     orders.map((o) => ({ ...o, customer: null })),
-    pendingPayments.map((p) => ({ ...p, customer: null }))
+    pendingPayments.map((p) => ({ ...p, customer: null })),
+    unlinkedPaid
   );
 
   const out = new Map<string, CustomerBalance>();
