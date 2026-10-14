@@ -9,6 +9,7 @@ import {
 import { cn, toWhatsAppPhone } from "@/lib/utils";
 import { toast } from "sonner";
 import LostReasonModal from "@/components/leads/LostReasonModal";
+import { LeadMeetingsSection } from "@/components/leads/LeadMeetingsSection";
 import { normalizeDealValue, formatIls } from "@/lib/lead-deal-value";
 import { validateIsraeliPhone, validateEmail, normalizeIsraeliPhone } from "@/lib/validation";
 
@@ -27,6 +28,7 @@ interface Lead {
     lastContactedAt: string | null;
     nextFollowUpAt?: string | null;
     followUpStatus?: string | null;
+    customerId?: string | null;
     wonAt?: string | null;
     lostAt?: string | null;
     lostReasonCode?: string | null;
@@ -968,6 +970,14 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                         <div className="mt-0.5 text-[15px] font-semibold text-slate-400">לא נקבע מועד</div>
                     )}
                 </div>
+
+                {/* ── Meetings (in-person, before the lead is a customer) ── */}
+                <LeadMeetingsSection
+                  leadId={lead.id}
+                  leadName={view.name}
+                  isCustomer={!!(view.customerId || view.wonAt)}
+                  onConverted={onWon ? (c) => onWon(lead.name, c.id) : undefined}
+                />
 
                 {/* ── Details ────────────────────────────────────────── */}
                 <div className="px-6 py-5 border-b border-[#F1F5F9]">

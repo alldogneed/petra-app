@@ -116,6 +116,7 @@ export function contextForScheduledMessage(payload: LoosePayload, relatedEntityT
     case "APPOINTMENT": return "appointment_reminder";
     case "APPOINTMENT_FOLLOWUP": return "appointment_followup";
     case "LEAD_FOLLOWUP": return "lead_followup";
+    case "LEAD_MEETING": return "lead_meeting_reminder";
     case "BOARDING": return "boarding_checkout";
     case "BOARDING_THANKYOU": return "boarding_thank_you";
     case "GROUP_SESSION": return "group_session_reminder";

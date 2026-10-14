@@ -13,6 +13,7 @@ const FLOW_LABELS: Record<string, string> = {
   appointment_reminder: "תזכורת לתור",
   appointment_followup: "מעקב אחרי תור",
   lead_followup: "מעקב ליד",
+  lead_meeting_reminder: "תזכורת לפגישת ליד",
   boarding_checkout: "צ׳ק-אאוט פנסיון",
   boarding_thank_you: "תודה אחרי פנסיון",
   group_session_reminder: "תזכורת לשיעור קבוצתי",

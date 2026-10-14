@@ -108,6 +108,36 @@ model BusinessUser {
   @@index([userId])
 }
 
+/// In-person meeting booked with a LEAD (not yet a customer). It blocks online-booking
+/// slots and gets a WhatsApp reminder like an appointment; the lead becomes a customer
+/// only when the meeting is marked "completed" (→ a completed Appointment is created).
+/// date = the Israel calendar day at midnight UTC; startTime/endTime "HH:mm" Israel
+/// local — the same convention as Appointment.
+model LeadMeeting {
+  id              String    @id @default(uuid())
+  businessId      String
+  leadId          String
+  date            DateTime
+  startTime       String
+  endTime         String
+  serviceId       String?
+  location        String?
+  notes           String?
+  status          String    @default("scheduled") // scheduled | completed | no_show | canceled
+  outcomeAt       DateTime?
+  appointmentId   String?   // the completed Appointment created on conversion
+  createdByUserId String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  business        Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  lead            Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  service         Service?  @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+
+  @@index([businessId, date])
+  @@index([leadId])
+}
+
 /// Pending invitation for a team member. The invitee accepts from the emailed
 /// link (/invite?token=…) and sets their own password; the BusinessUser row is
 /// created only on acceptance. Only the SHA-256 of the token is stored.
@@ -295,6 +325,7 @@ model Business {
 
   members           BusinessUser[]
   teamInvitations   TeamInvitation[]
+  leadMeetings      LeadMeeting[]
   users             User[]
   customers         Customer[]
   services          Service[]
@@ -507,6 +538,7 @@ model Service {
   appointments Appointment[]
   bookings     Booking[]
 
+  leadMeetings  LeadMeeting[]
   @@index([businessId, isPublicBookable])
 }
 
@@ -683,6 +715,7 @@ model Lead {
   updatedAt        DateTime @updatedAt
 
   customer  Customer?    @relation(fields: [customerId], references: [id])
+  meetings  LeadMeeting[]
   business  Business     @relation(fields: [businessId], references: [id])
   callLogs  CallLog[]
 

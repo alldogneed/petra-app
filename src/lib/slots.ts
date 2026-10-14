@@ -111,7 +111,7 @@ export async function getAvailableSlots(
 ): Promise<SlotResult[]> {
   // 1. Load business (including booking settings), availability rule, blocks,
   //    breaks, and existing bookings in parallel
-  const [business, rules, blocks, existingBookings, dayBreaks, existingAppointments] = await Promise.all([
+  const [business, rules, blocks, existingBookings, dayBreaks, existingAppointments, leadMeetings] = await Promise.all([
     prisma.business.findUniqueOrThrow({
       where: { id: businessId },
       select: {
@@ -149,6 +149,18 @@ export async function getAvailableSlots(
       where: {
         businessId,
         status: { notIn: ["canceled", "CANCELED", "completed", "COMPLETED"] },
+        date: {
+          gte: new Date(`${localDateStr}T00:00:00Z`),
+          lte: new Date(`${localDateStr}T23:59:59Z`),
+        },
+      },
+      select: { startTime: true, endTime: true, serviceId: true },
+    }),
+    // Meetings booked with leads (not customers yet) block the same time
+    prisma.leadMeeting.findMany({
+      where: {
+        businessId,
+        status: "scheduled",
         date: {
           gte: new Date(`${localDateStr}T00:00:00Z`),
           lte: new Date(`${localDateStr}T23:59:59Z`),
@@ -212,6 +224,7 @@ export async function getAvailableSlots(
     new Set([
       ...existingBookings.map((b) => b.serviceId),
       ...existingAppointments.map((a) => a.serviceId),
+      ...leadMeetings.map((m) => m.serviceId),
     ].filter((id): id is string => id !== null))
   )
   const existingServices = uniqueServiceIds.length > 0
@@ -250,10 +263,20 @@ export async function getAvailableSlots(
     }
   })
 
+  // 5c. Lead meetings — buffers like a manual appointment (service buffers when set)
+  const busyFromLeadMeetings: Interval[] = leadMeetings.map((m) => {
+    const svc = m.serviceId ? svcMap[m.serviceId] : null
+    return {
+      start: addMinutes(localTimeToUtc(m.startTime, localDateStr, timezone), -(svc?.bufferBefore ?? 0)),
+      end:   addMinutes(localTimeToUtc(m.endTime, localDateStr, timezone), svc?.bufferAfter ?? bookingBuffer),
+    }
+  })
+
   const allBusy: Interval[] = [
     ...blocks.map((b) => ({ start: b.startAt, end: b.endAt })),
     ...busyFromBookings,
     ...busyFromAppointments,
+    ...busyFromLeadMeetings,
     ...busyFromBreaks,
   ]
 
