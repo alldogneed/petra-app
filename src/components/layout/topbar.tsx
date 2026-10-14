@@ -43,6 +43,7 @@ const GlobalSearch = dynamic(
 );
 import { cn, fetchJSON, formatCurrency, toWhatsAppPhone } from "@/lib/utils";
 import { ReportBugButton } from "@/components/layout/ReportBugButton";
+import { toast } from "sonner";
 
 const PAGE_TITLES: Record<string, { title: string; subtitle?: string }> = {
   "/customers": { title: "לקוחות", subtitle: "ניהול בסיס הלקוחות" },
@@ -321,7 +322,6 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
     email: "",
     name: "",
     role: "user",
-    temporaryPassword: "",
   });
   const [inviteError, setInviteError] = useState("");
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -494,15 +494,19 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
 
   // Invite member mutation
   const inviteMember = useMutation({
-    mutationFn: (data: { email: string; name: string; role: string; temporaryPassword: string }) =>
-      fetchJSON(`/api/admin/${user?.businessId}/members`, {
+    mutationFn: (data: { email: string; name: string; role: string }) =>
+      fetchJSON<{ emailSent: boolean }>(`/api/admin/${user?.businessId}/members`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       }),
-    onSuccess: () => {
+    onSuccess: (res, vars) => {
       queryClient.invalidateQueries({ queryKey: ["business-members"] });
-      setInviteData({ email: "", name: "", role: "user", temporaryPassword: "" });
+      queryClient.invalidateQueries({ queryKey: ["team-invitations"] });
+      // The member joins after confirming from the emailed link — see הגדרות ← צוות.
+      if (res.emailSent) toast.success(`ההזמנה נשלחה ל-${vars.email}`);
+      else toast.error("ההזמנה נוצרה אבל המייל לא נשלח — שלח/י את הקישור מהגדרות ← צוות והרשאות");
+      setInviteData({ email: "", name: "", role: "user" });
       setShowInviteForm(false);
       setInviteError("");
     },
@@ -1276,19 +1280,6 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                         }
                         className="w-full text-base sm:text-sm bg-slate-50 border border-petra-border rounded-xl px-3 py-2 text-petra-text placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400"
                       />
-                      <input
-                        type="password"
-                        placeholder="סיסמה זמנית (לפחות 8 תווים)"
-                        dir="ltr"
-                        value={inviteData.temporaryPassword}
-                        onChange={(e) =>
-                          setInviteData((d) => ({
-                            ...d,
-                            temporaryPassword: e.target.value,
-                          }))
-                        }
-                        className="w-full text-base sm:text-sm bg-slate-50 border border-petra-border rounded-xl px-3 py-2 text-petra-text placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400"
-                      />
                       <select
                         value={inviteData.role}
                         onChange={(e) =>
@@ -1307,16 +1298,8 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                       )}
                       <button
                         onClick={() => {
-                          if (
-                            !inviteData.email ||
-                            !inviteData.name ||
-                            !inviteData.temporaryPassword
-                          ) {
+                          if (!inviteData.email || !inviteData.name) {
                             setInviteError("נא למלא את כל השדות");
-                            return;
-                          }
-                          if (inviteData.temporaryPassword.length < 8) {
-                            setInviteError("סיסמה חייבת להכיל לפחות 8 תווים");
                             return;
                           }
                           setInviteError("");

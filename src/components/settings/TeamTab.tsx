@@ -1,7 +1,7 @@
 "use client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import React, { useState } from "react";
-import { Loader2, AlertCircle, UserPlus, Shield, X } from "lucide-react";
+import { UserPlus, Shield } from "lucide-react";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { cn, fetchJSON, formatRelativeTime } from "@/lib/utils";
 import { PendingApprovalsPanel } from "@/components/settings/PendingApprovalsPanel";
@@ -11,6 +11,7 @@ import { hasTenantPermission, type TenantRole } from "@/lib/permissions";
 import { useGrantableCapabilities } from "@/hooks/useGrantableCapabilities";
 import { usePermissions } from "@/hooks/usePermissions";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { InviteMemberModal, PendingInvitations } from "@/components/settings/TeamInvitations";
 
 // ─── Team Tab (Owner only) ───────────────────────────────────────────────────
 
@@ -157,7 +158,7 @@ export function TeamTab() {
         {canManageTeam && (
           <button className="btn-primary flex items-center gap-2 text-sm" onClick={() => setShowAddModal(true)}>
             <UserPlus className="w-4 h-4" />
-            הוסף עובד
+            הזמן עובד
           </button>
         )}
       </div>
@@ -275,140 +276,24 @@ export function TeamTab() {
         onCancel={() => setPending(null)}
       />
 
+      {/* Invited, not confirmed yet — they join only after accepting from the link. */}
+      <PendingInvitations
+        businessId={user?.businessId ?? ""}
+        businessName={user?.businessName ?? ""}
+        canManage={canManageTeam}
+      />
+
       {showAddModal && (
-        <AddEmployeeModal
+        <InviteMemberModal
           businessId={user?.businessId ?? ""}
+          businessName={user?.businessName ?? ""}
           canAddOwner={isOwner}
           onClose={() => setShowAddModal(false)}
-          onSuccess={() => {
-            setShowAddModal(false);
-            queryClient.invalidateQueries({ queryKey: ["team-members"] });
-          }}
         />
       )}
 
       {/* Pending approvals panel — visible to all team members (owner sees full controls, manager sees own requests) */}
       <PendingApprovalsPanel />
-    </div>
-  );
-}
-
-// ─── Add Employee Modal ─────────────────────────────────────────────────────
-
-function AddEmployeeModal({
-  businessId,
-  canAddOwner,
-  onClose,
-  onSuccess,
-}: {
-  businessId: string;
-  canAddOwner: boolean;
-  onClose: () => void;
-  onSuccess: () => void;
-}) {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [role, setRole] = useState("user");
-  const [error, setError] = useState<string | null>(null);
-
-  const mutation = useMutation({
-    mutationFn: () => {
-      if (!businessId) {
-        throw new Error("לא ניתן להוסיף עובד — מזהה העסק חסר. נסה לרענן את הדף.");
-      }
-      return fetch(`/api/admin/${businessId}/members`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, role, temporaryPassword: password }),
-      }).then(async (r) => {
-        if (!r.ok) {
-          const data = await r.json().catch(() => ({}));
-          throw new Error(data.error || "שגיאה ביצירת עובד");
-        }
-        return r.json();
-      });
-    },
-    onSuccess,
-    onError: (err: Error) => setError(err.message),
-  });
-
-  return (
-    <div className="modal-overlay">
-      <div className="modal-backdrop" onClick={onClose} />
-      <div className="modal-content max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-xl font-bold text-petra-text">עובד חדש</h2>
-            <p className="text-sm text-petra-muted mt-0.5">הוסף עובד חדש לצוות</p>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        {error && (
-          <div className="flex items-center gap-2 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm mb-4">
-            <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            {error}
-          </div>
-        )}
-
-        <div className="space-y-4">
-          <div>
-            <label className="label">שם מלא *</label>
-            <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="ישראל ישראלי" />
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="label">אימייל *</label>
-              <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="user@example.com" dir="ltr" />
-            </div>
-            <div>
-              <label className="label">סיסמה זמנית *</label>
-              <input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="לפחות 8 תווים" dir="ltr" minLength={8} />
-              {password.length > 0 && password.length < 8 && (
-                <p className="text-xs text-red-500 mt-1">הסיסמה חייבת להכיל לפחות 8 תווים (כרגע {password.length})</p>
-              )}
-            </div>
-          </div>
-          <div>
-            <label className="label">תפקיד</label>
-            <select className="input" value={role} onChange={(e) => setRole(e.target.value)}>
-              <option value="user">עובד</option>
-              <option value="manager">מנהל</option>
-              {canAddOwner && <option value="owner">בעלים</option>}
-            </select>
-          </div>
-        </div>
-
-        {/* Validation hint — shown only when user has started filling but can't submit yet */}
-        {(name || email || password) && (!name.trim() || !email.trim() || password.length < 8) && (
-          <div className="mt-4 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-xs space-y-1">
-            <p className="font-medium">כדי להוסיף עובד יש למלא:</p>
-            <ul className="list-disc list-inside space-y-0.5">
-              {!name.trim() && <li>שם מלא</li>}
-              {!email.trim() && <li>כתובת אימייל</li>}
-              {password.length < 8 && <li>סיסמה זמנית (לפחות 8 תווים)</li>}
-            </ul>
-          </div>
-        )}
-
-        <div className="flex gap-3 mt-4">
-          <button
-            className="btn-primary flex-1 flex items-center justify-center gap-2"
-            disabled={!name.trim() || !email.trim() || !password.trim() || password.length < 8 || mutation.isPending}
-            onClick={() => { setError(null); mutation.mutate(); }}
-          >
-            {mutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
-            {mutation.isPending ? "מוסיף..." : "הוסף עובד"}
-          </button>
-          <button className="btn-secondary" onClick={onClose}>ביטול</button>
-        </div>
-      </div>
     </div>
   );
 }

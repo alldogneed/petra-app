@@ -66,3 +66,14 @@ describe("safeNextPath", () => {
     expect(safeNextPath("/oauth/authorize?x=" + "a".repeat(5000))).toBeNull();
   });
 });
+
+describe("safeNextPath — team invitation page", () => {
+  test("accepts /invite with a token query", () => {
+    expect(safeNextPath("/invite?token=" + "a".repeat(64))).toBe("/invite?token=" + "a".repeat(64));
+  });
+  test("rejects look-alikes and traversal", () => {
+    expect(safeNextPath("/invitex")).toBeNull();
+    expect(safeNextPath("/invite/../dashboard")).toBeNull();
+    expect(safeNextPath("//invite")).toBeNull();
+  });
+});

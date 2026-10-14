@@ -334,10 +334,14 @@ function buildPasswordResetHtml(params: PasswordResetEmailParams): string {
 export interface TeamInvitationEmailParams {
   to: string;
   name: string;
-  tempPassword: string;
   businessName: string;
   role: string;
   inviterName: string;
+  /** /invite?token=… — the invitee confirms joining there. */
+  inviteUrl: string;
+  /** The email already has a Petra account: confirm only, no new password. */
+  hasAccount: boolean;
+  expiresInDays: number;
 }
 
 const ROLE_LABELS_HE: Record<string, string> = {
@@ -348,63 +352,48 @@ const ROLE_LABELS_HE: Record<string, string> = {
 };
 
 export async function sendTeamInvitationEmail(params: TeamInvitationEmailParams): Promise<void> {
-  const loginUrl = `${process.env.APP_URL || "http://localhost:3000"}/login`;
   const roleLabel = ROLE_LABELS_HE[params.role] || params.role;
   const safeName = escapeHtml(params.name);
   const safeInviter = escapeHtml(params.inviterName);
   const safeBusiness = escapeHtml(params.businessName);
   const safeTo = escapeHtml(params.to);
-  const safePass = escapeHtml(params.tempPassword);
+  const safeUrl = escapeHtml(params.inviteUrl);
+
+  const steps = params.hasAccount
+    ? `כבר יש לך חשבון בפטרה עם <strong dir="ltr">${safeTo}</strong>. לחיצה על הכפתור מאשרת את ההצטרפות — אחר כך נכנסים עם הסיסמה הרגילה שלך.`
+    : `בלחיצה על הכפתור תאשר/י את ההצטרפות ותבחר/י סיסמה משלך. שם המשתמש שלך: <strong dir="ltr">${safeTo}</strong>.`;
 
   const { error } = await getResend().emails.send({
     from: getFromEmail(),
     to: params.to,
-    subject: `\u200Fהוזמנת להצטרף ל-${params.businessName} ב-Petra`,
+    subject: `\u200F${params.inviterName} הזמין/ה אותך להצטרף ל-${params.businessName} בפטרה`,
     html: `
       <div dir="rtl" style="font-family:'Segoe UI',Arial,sans-serif;max-width:520px;margin:0 auto;color:#1e293b;background:#ffffff;">
         ${brandHeader()}
 
         <div style="padding:32px 24px;background:#fff;">
           <h2 style="font-size:20px;margin:0 0 8px;color:#0f172a;">שלום ${safeName}!</h2>
-          <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 24px;">
-            ${safeInviter} הזמין/ה אותך להצטרף ל<strong>${safeBusiness}</strong> בתפקיד <strong>${roleLabel}</strong>.
+          <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 16px;">
+            ${safeInviter} הוסיף/ה אותך לצוות של <strong>${safeBusiness}</strong> בתפקיד <strong>${roleLabel}</strong>.
           </p>
-
-          <!-- Credentials box -->
-          <div style="background:#fff7ed;border:2px solid #f97316;border-radius:12px;padding:20px 24px;margin:0 0 24px;">
-            <p style="font-size:13px;font-weight:700;color:#9a3412;letter-spacing:0.05em;margin:0 0 14px;">פרטי כניסה למערכת</p>
-            <table style="width:100%;border-collapse:collapse;">
-              <tr>
-                <td style="padding:8px 0;color:#64748b;font-size:14px;width:90px;">אימייל</td>
-                <td style="padding:8px 0;font-size:15px;font-weight:700;color:#0f172a;">${safeTo}</td>
-              </tr>
-              <tr>
-                <td style="padding:8px 0;color:#64748b;font-size:14px;">סיסמה זמנית</td>
-                <td style="padding:8px 0;">
-                  <code style="background:#1e293b;color:#f8fafc;font-size:16px;font-weight:700;padding:6px 14px;border-radius:6px;font-family:monospace;letter-spacing:0.08em;">${safePass}</code>
-                </td>
-              </tr>
-            </table>
-          </div>
+          <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 24px;">${steps}</p>
 
           <!-- CTA Button -->
           <div style="text-align:center;margin:0 0 24px;">
-            <a href="${loginUrl}" style="display:inline-block;background:#f97316;color:#fff;font-size:16px;font-weight:700;padding:14px 40px;border-radius:12px;text-decoration:none;">
-              ← כניסה למערכת
+            <a href="${safeUrl}" style="display:inline-block;background:#f97316;color:#fff;font-size:16px;font-weight:700;padding:14px 40px;border-radius:12px;text-decoration:none;">
+              אישור הצטרפות
             </a>
           </div>
 
-          <!-- Change password note -->
           <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:12px 16px;margin:0 0 24px;">
             <p style="margin:0;font-size:13px;color:#92400e;">
-              <strong>מומלץ:</strong> לשנות את הסיסמה הזמנית בכניסה הראשונה —<br/>
-              הגדרות ← פרטי משתמש ← שינוי סיסמה
+              הקישור אישי ותקף ל-${params.expiresInDays} ימים. אל תעביר/י אותו לאחרים.
             </p>
           </div>
 
           <div style="border-top:1px solid #e2e8f0;padding-top:20px;">
             <p style="font-size:13px;color:#64748b;margin:0;">
-              אם לא ביקשת חשבון זה, ניתן להתעלם מהודעה זו.
+              לא מכיר/ה את ${safeBusiness}? אפשר להתעלם מההודעה — בלי אישור לא נוצרת גישה.
             </p>
           </div>
         </div>
