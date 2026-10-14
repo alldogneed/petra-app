@@ -136,6 +136,11 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Public landing-page video (exact path only — not a blanket .mp4 allowance)
+  if (pathname === "/teaser.mp4") {
+    return NextResponse.next();
+  }
+
   // Check for session cookie
   const sessionToken = request.cookies.get("petra_session")?.value;
 

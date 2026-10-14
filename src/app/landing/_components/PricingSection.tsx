@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Check, X, ChevronDown, ChevronUp, MessageCircle, Star, Zap, CreditCard, Sparkles, Shield } from "lucide-react";
+import { Check, X, ChevronDown, ChevronUp, MessageCircle, CreditCard, Sparkles, Shield } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 
 const CARDCOM_TIERS = new Set(["basic", "pro"]);
@@ -26,7 +26,7 @@ const PLANS: {
     price: 0,
     badge: null,
     highlight: false,
-    description: "התחל לנהל את העסק שלך בחינם — ללא כרטיס אשראי",
+    description: "מתחילים לעשות סדר בלקוחות וביומן, בלי להוסיף הוצאה לעסק.",
     features: [
       "עד 30 לקוחות",
       "עד 20 תורים (סה\"כ)",
@@ -34,7 +34,7 @@ const PLANS: {
       "CRM / לידים (עד 15)",
       "ניהול תהליכי אילוף (עד 10 תוכניות)",
       "מחירון שירותים (עד 8 פריטים)",
-      "ניהול משימות",
+      "ניהול משימות (עד 20)",
     ],
     notIncluded: [
       "תזכורות WhatsApp אוטומטיות",
@@ -46,11 +46,10 @@ const PLANS: {
   {
     key: "basic",
     name: "Basic",
-    subtitle: "מושלם לגרומרים ומאלפים עצמאיים",
     price: 99,
     badge: null,
     highlight: false,
-    description: "ניהול מקצועי יומיומי — יומן, תורים, תזכורות ובקשות תשלום",
+    description: "לעסקים שרוצים לחסוך זמן על תורים, הודעות וניהול לקוחות, ולהתרכז בעבודה עצמה.",
     features: [
       "לקוחות ותורים ללא הגבלה",
       "יומן תורים ופגישות + Google Calendar",
@@ -58,6 +57,7 @@ const PLANS: {
       { text: "הזמנות אונליין — לקוחות קובעים לבד 24/7", star: true },
       "שליחת בקשת תשלום + טפסי קליטה דיגיטליים",
       "תיק עבודות לפני/אחרי",
+      "חתימת חוזים דיגיטלית",
       "דוחות ואנליטיקס",
       "משתמש יחיד (ללא ניהול צוות)",
       "תמיכה אישית בוואטסאפ",
@@ -70,11 +70,10 @@ const PLANS: {
   {
     key: "pro",
     name: "Pro",
-    subtitle: "מושלם לפנסיונים ומרכזי אילוף",
     price: 199,
     badge: "מומלץ · הכי משתלם",
     highlight: true,
-    description: "שליטה מלאה לעסק שגדל — צוות, פנסיון, אוטומציה ועוזר AI",
+    description: "לעסקים עם יותר לקוחות, תהליכים וצוות, שרוצים לנהל את הכול בצורה מסודרת, כולל עוזר AI.",
     features: [
       "הכל ב-Basic",
       { text: "עוזר AI — מחברים את Claude או ChatGPT לעסק", star: true },
@@ -85,7 +84,6 @@ const PLANS: {
       "ניהול פנסיון וחדרים",
       "מודול אילוף מתקדם",
       "אוטומציות WhatsApp מתקדמות",
-      "חתימת חוזים דיגיטלית",
       "דוחות כספיים + ייצוא Excel",
       "תמיכה אישית מועדפת בוואטסאפ",
     ],
@@ -148,7 +146,7 @@ const FEATURE_GROUPS: { category: string; features: FRow[] }[] = [
     category: "פיננסים ודוחות",
     features: [
       { name: "שליחת בקשת תשלום", free: false, basic: true, pro: true },
-      { name: "חתימת חוזים דיגיטלית", free: false, basic: false, pro: true },
+      { name: "חתימת חוזים דיגיטלית", free: false, basic: true, pro: true },
       { name: "ניהול הזמנות", free: "עד 15", basic: true, pro: true },
       { name: "דוחות ואנליטיקס", free: false, basic: true, pro: true },
       { name: "דוחות כספיים + ייצוא Excel", free: false, basic: false, pro: true },
@@ -167,7 +165,7 @@ const PLAN_KEYS = ["free", "basic", "pro"] as const;
 
 function FeatureCell({ value }: { value: FVal }) {
   if (typeof value === "string") {
-    return <span className="text-xs text-slate-600 font-medium">{value}</span>;
+    return <span className="text-[13px] text-slate-600 font-medium">{value}</span>;
   }
   return value
     ? <Check className="w-4 h-4 text-emerald-500 mx-auto" aria-label="כלול" />
@@ -233,10 +231,9 @@ function FaqAccordion() {
   const [open, setOpen] = useState<string | null>(null);
   return (
     <div className="mt-12 bg-slate-50 rounded-2xl p-6">
-      <h3 className="font-bold text-slate-900 mb-5 flex items-center gap-2 text-base">
-        <Star className="w-4 h-4 text-amber-500 fill-amber-400" aria-hidden="true" />
+      <h2 id="faq" className="font-extrabold text-slate-900 mb-5 text-2xl" style={{ letterSpacing: "-0.02em" }}>
         שאלות נפוצות
-      </h3>
+      </h2>
       <div className="space-y-2">
         {FAQ.map(({ q, a }) => {
           const isOpen = open === q;
@@ -274,14 +271,10 @@ export function PricingSection() {
 
         {/* Header */}
         <div className="text-center mb-12">
-          <p className="inline-flex items-center gap-2 bg-brand-50 text-brand-600 px-4 py-1.5 rounded-full text-sm font-medium mb-4">
-            <Zap className="w-4 h-4" aria-hidden="true" />
-            3 מסלולים פשוטים — בחר את שמתאים לך
-          </p>
           <h2 id="pricing-heading" className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">
-            מחיר ששווה לכל עסק, בלי הפתעות
+            מתחילים בחינם. גדלים בקצב שלכם.
           </h2>
-          <p className="text-slate-500 text-lg">מסלול חינמי ללא כרטיס אשראי · חיוב מיידי בתשלום · ביטול בכל עת ללא קנסות</p>
+          <p className="text-slate-500 text-lg">בוחרים את המסלול שמתאים לעסק שלכם. אפשר לשנות מסלול או לבטל את התשלום בהמשך, בלי התחייבות ארוכה.</p>
         </div>
 
         {/* 3 Plan cards */}
@@ -292,10 +285,10 @@ export function PricingSection() {
           {PLANS.map((plan) => (
             <li key={plan.key} className="flex flex-col">
               <div
-                className={`relative rounded-2xl border-2 flex flex-col h-full transition-all ${
+                className={`relative rounded-2xl border-2 flex flex-col h-full transition-colors ${
                   plan.highlight
-                    ? "border-brand-500 bg-gradient-to-b from-brand-50 to-white shadow-2xl shadow-brand-400/40 ring-4 ring-brand-400/30 scale-[1.02] sm:scale-105 p-5 pt-9 hover:shadow-brand-400/50"
-                    : "border-slate-200 bg-white p-5 hover:shadow-md hover:border-slate-300"
+                    ? "border-brand-500 bg-brand-50 p-5 pt-9"
+                    : "border-transparent bg-slate-50 p-5 hover:border-slate-200"
                 }`}
               >
                 {/* Badge */}
@@ -303,7 +296,7 @@ export function PricingSection() {
                   plan.highlight ? (
                     <div
                       aria-hidden="true"
-                      className="absolute -top-5 right-1/2 translate-x-1/2 flex items-center gap-2 text-sm font-bold px-5 py-2 rounded-full bg-gradient-to-l from-brand-600 to-brand-500 text-white shadow-xl shadow-brand-400/60 whitespace-nowrap border border-brand-400/30"
+                      className="absolute -top-5 right-1/2 translate-x-1/2 flex items-center gap-2 text-sm font-bold px-5 py-2 rounded-full bg-brand-600 text-white whitespace-nowrap"
                     >
                       <Sparkles className="w-3.5 h-3.5" />
                       {plan.badge}
@@ -326,12 +319,12 @@ export function PricingSection() {
                     {plan.badge && <span className="sr-only"> — {plan.badge}</span>}
                   </h3>
                   {plan.subtitle && (
-                    <p className="text-xs font-medium text-brand-600 mb-1 leading-snug">{plan.subtitle}</p>
+                    <p className="text-[13px] font-medium text-brand-700 mb-1 leading-snug">{plan.subtitle}</p>
                   )}
-                  <p className="text-[11px] text-slate-400 leading-snug mb-3">{plan.description}</p>
+                  <p className="text-[13px] text-slate-500 leading-snug mb-3">{plan.description}</p>
                   <div className="flex items-baseline gap-1">
                     <span className="text-2xl font-extrabold text-slate-900">
-                      {plan.price === 0 ? "חינמי" : `₪${plan.price}`}
+                      {`₪${plan.price}`}
                     </span>
                     {plan.price > 0 && (
                       <span className="text-slate-400 text-xs" aria-label="לחודש">/חודש</span>
@@ -347,7 +340,7 @@ export function PricingSection() {
                     return (
                       <li
                         key={label}
-                        className={`flex items-start gap-1.5 text-xs ${isHighlighted ? "text-brand-700 font-semibold" : "text-slate-700"}`}
+                        className={`flex items-start gap-1.5 text-[13px] ${isHighlighted ? "text-brand-700 font-semibold" : "text-slate-700"}`}
                       >
                         <Check
                           aria-hidden="true"
@@ -356,7 +349,7 @@ export function PricingSection() {
                         {isHighlighted ? (
                           <span>
                             {label}
-                            <span className="mr-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-brand-100 text-brand-600 align-middle">
+                            <span className="mr-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[11px] font-bold bg-brand-100 text-brand-600 align-middle">
                               חדש
                             </span>
                           </span>
@@ -370,9 +363,9 @@ export function PricingSection() {
 
                 {/* Not included */}
                 {plan.notIncluded.length > 0 && (
-                  <ul className="space-y-1 mb-4 list-none p-0 m-0 border-t border-slate-100 pt-2 mt-1">
+                  <ul className="space-y-1 mb-4 list-none p-0 m-0 pt-2 mt-1">
                     {plan.notIncluded.map((f) => (
-                      <li key={f} className="flex items-start gap-1.5 text-xs text-slate-400">
+                      <li key={f} className="flex items-start gap-1.5 text-[13px] text-slate-500">
                         <X aria-hidden="true" className="w-3.5 h-3.5 text-red-300 mt-0.5 shrink-0" />
                         {f}
                       </li>
@@ -388,14 +381,14 @@ export function PricingSection() {
                       aria-label={`רכוש עכשיו — מסלול ${plan.name}`}
                       className={`text-sm py-2.5 rounded-xl text-center font-semibold transition-colors flex items-center justify-center gap-1.5 ${
                         plan.highlight
-                          ? "bg-brand-500 hover:bg-brand-600 text-white"
+                          ? "bg-brand-700 hover:bg-brand-800 text-white"
                           : "bg-slate-900 hover:bg-slate-800 text-white"
                       }`}
                     >
                       <CreditCard className="w-3.5 h-3.5" aria-hidden="true" />
                       {user ? "שדרג עכשיו" : "רכוש עכשיו"}
                     </Link>
-                    <p className="text-[10px] text-center text-slate-400 leading-snug px-1">
+                    <p className="text-xs text-center text-slate-500 leading-snug px-1">
                       חיוב מיידי · ביטול בכל עת · קבלה במייל
                     </p>
                   </div>
@@ -403,13 +396,13 @@ export function PricingSection() {
                   <div className="flex flex-col gap-1.5">
                     <Link
                       href="/register"
-                      aria-label={`התחל בחינם — מסלול ${plan.name}`}
+                      aria-label={`התחילו בחינם — מסלול ${plan.name}`}
                       className="text-sm py-2.5 rounded-xl text-center font-semibold transition-colors bg-slate-900 hover:bg-slate-800 text-white"
                     >
-                      נסה עכשיו
+                      התחילו בחינם
                     </Link>
                     {!user && (
-                      <p className="text-[10px] text-center text-emerald-600 font-medium leading-snug px-1">
+                      <p className="text-xs text-center text-emerald-700 font-medium leading-snug px-1">
                         ללא הגבלת זמן, ללא צורך בכרטיס אשראי
                       </p>
                     )}
@@ -421,15 +414,15 @@ export function PricingSection() {
         </ul>
 
         {/* ── Service Dog Enterprise Banner ─────────────────────────────────────── */}
-        <div className="mt-6 rounded-2xl border border-emerald-200 bg-gradient-to-l from-emerald-50 to-white p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center gap-6">
+        <div className="mt-6 rounded-2xl bg-emerald-50 p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center gap-6">
           {/* Icon */}
-          <div className="shrink-0 w-14 h-14 rounded-2xl bg-emerald-100 border border-emerald-200 flex items-center justify-center shadow-sm">
+          <div className="shrink-0 w-14 h-14 rounded-2xl bg-emerald-100 flex items-center justify-center">
             <Shield className="w-7 h-7 text-emerald-600" aria-hidden="true" />
           </div>
 
           {/* Text */}
           <div className="flex-1 min-w-0">
-            <p className="text-[11px] font-bold uppercase tracking-widest text-emerald-600 mb-1">ייחודי בישראל</p>
+            <p className="text-sm font-bold text-emerald-700 mb-1">ייחודי בישראל</p>
             <h3 className="text-lg font-bold text-slate-900 mb-1 leading-snug">
               מרכז הכשרת כלבי שירות? יש לנו פתרון ייעודי עבורך
             </h3>
@@ -456,7 +449,7 @@ export function PricingSection() {
             onClick={() => setShowComparison((v) => !v)}
             aria-expanded={showComparison}
             aria-controls="comparison-table"
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-all focus:outline-none focus:ring-2 focus:ring-brand-400 focus:ring-offset-2"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-400 focus:ring-offset-2"
           >
             {showComparison
               ? <><ChevronUp className="w-4 h-4" aria-hidden="true" />הסתר השוואה מלאה</>
@@ -469,12 +462,12 @@ export function PricingSection() {
         {showComparison && (
           <div
             id="comparison-table"
-            className="mt-8 overflow-x-auto rounded-2xl border border-slate-200 shadow-sm"
+            className="mt-8 overflow-x-auto rounded-2xl border border-slate-200"
             role="region"
             aria-label="טבלת השוואת מסלולים"
           >
             <table className="w-full min-w-[480px] text-sm border-collapse">
-              <thead className="sticky top-0 z-10 shadow-sm">
+              <thead className="sticky top-0 z-10">
                 <tr className="bg-slate-50 border-b border-slate-200">
                   <th scope="col" className="text-right px-4 py-3 font-semibold text-slate-700 w-52">פיצ'ר</th>
                   {PLANS.map((p) => (
@@ -487,11 +480,11 @@ export function PricingSection() {
                     >
                       {p.name}
                       {p.badge && (
-                        <span className={`block text-[10px] font-bold mt-0.5 ${p.highlight ? "text-brand-500" : "text-amber-500"}`}>
+                        <span className={`block text-xs font-bold mt-0.5 ${p.highlight ? "text-brand-500" : "text-amber-500"}`}>
                           {p.badge}
                         </span>
                       )}
-                      <span className="block font-normal text-slate-400 mt-0.5 text-[11px]">
+                      <span className="block font-normal text-slate-500 mt-0.5 text-xs">
                         {p.price === 0 ? "חינמי" : `₪${p.price}`}
                       </span>
                     </th>
@@ -502,7 +495,7 @@ export function PricingSection() {
                 {FEATURE_GROUPS.map((group) => (
                   <>
                     <tr key={`cat-${group.category}`} className="bg-slate-50/80">
-                      <td colSpan={4} className="px-4 py-2 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                      <td colSpan={4} className="px-4 py-2 text-sm font-bold text-slate-600">
                         {group.category}
                       </td>
                     </tr>
@@ -511,7 +504,7 @@ export function PricingSection() {
                         key={feat.name}
                         className={`border-b border-slate-100 ${i % 2 === 0 ? "bg-white" : "bg-slate-50/30"}`}
                       >
-                        <td className="px-4 py-2.5 text-slate-700 text-xs">{feat.name}</td>
+                        <td className="px-4 py-2.5 text-slate-700 text-[13px]">{feat.name}</td>
                         {PLAN_KEYS.map((pk) => (
                           <td key={pk} className={`text-center px-3 py-2.5 ${PLANS.find(p => p.key === pk)?.highlight ? "bg-brand-50/20" : ""}`}>
                             <FeatureCell value={feat[pk as keyof typeof feat] as FVal} />
@@ -544,7 +537,7 @@ export function PricingSection() {
           </a>
         </div>
 
-        <p className="text-center text-xs text-slate-400 mt-6">
+        <p className="text-center text-[13px] text-slate-500 mt-6">
           כל המסלולים כוללים תמיכה בעברית, RTL מלא ואבטחת מידע · ניתן לשדרג, להוריד מסלול, או לבטל בכל עת
         </p>
       </div>
