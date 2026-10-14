@@ -38,6 +38,7 @@ import { usePlan } from "@/hooks/usePlan";
 import { getMaxAppointments } from "@/lib/feature-flags";
 import { TierGate } from "@/components/paywall/TierGate";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { CustomerPicker, type PickerCustomer } from "@/components/customers/CustomerPicker";
 import { usePermissions } from "@/hooks/usePermissions";
 
 // ─── Interfaces ──────────────────────────────────────────────────────────────
@@ -73,12 +74,15 @@ interface AppointmentEvent {
   orderId?: string | null;
 }
 
-interface Customer {
+interface AttachableProgram {
   id: string;
   name: string;
-  phone: string;
-  address: string | null;
-  pets: { id: string; name: string; species: string }[];
+  dogId: string;
+  dogName: string;
+  totalSessions: number | null;
+  completedSessions: number;
+  scheduledSessions: number;
+  nextSessionNumber: number;
 }
 
 /** Build a Google Calendar pre-fill URL for a home training appointment */
@@ -471,7 +475,10 @@ function NewAppointmentModal({
   const [repeatEvery, setRepeatEvery] = useState<"week" | "2weeks" | "month">("week");
   const [occurrences, setOccurrences] = useState(4);
 
-  const [customerSearch, setCustomerSearch] = useState("");
+  const [pickedCustomer, setPickedCustomer] = useState<PickerCustomer | null>(null);
+  // null = automatic: ticked only for a training item, so a grooming slot never eats a package meeting
+  const [attachChoice, setAttachToProgram] = useState<boolean | null>(null);
+  const [attachProgramId, setAttachProgramId] = useState("");
 
   // Sync form with props when modal opens with new date/time
   useEffect(() => {
@@ -485,22 +492,27 @@ function NewAppointmentModal({
       setRecurring(false);
       setRepeatEvery("week");
       setOccurrences(4);
-      setCustomerSearch("");
+      setAttachToProgram(null);
+      setAttachProgramId("");
     }
   }, [isOpen, defaultDate, defaultTime]);
 
-  const { data: customers = [] } = useQuery<Customer[]>({
-    queryKey: ["customers-for-select"],
-    queryFn: () => fetchJSON("/api/customers?full=1"),
-    enabled: isOpen,
+  // Training packages (individual programs with meetings left) this appointment can join
+  const { data: attachablePrograms = [] } = useQuery<AttachableProgram[]>({
+    queryKey: ["attachable-programs", form.customerId, form.petId || null],
+    queryFn: async () => {
+      const params = new URLSearchParams({ customerId: form.customerId });
+      if (form.petId) params.set("petId", form.petId);
+      const r = await fetch(`/api/training-programs/attachable?${params.toString()}`);
+      if (!r.ok) return [];
+      const d = await r.json();
+      return Array.isArray(d) ? d : [];
+    },
+    enabled: isOpen && !!form.customerId,
+    staleTime: 30_000,
   });
-
-  const filteredCustomers = customerSearch.trim()
-    ? customers.filter((c) =>
-        c.name.includes(customerSearch) ||
-        (c.phone && c.phone.includes(customerSearch))
-      )
-    : customers;
+  const attachProgram =
+    attachablePrograms.find((p) => p.id === attachProgramId) ?? attachablePrograms[0] ?? null;
 
   const { data: priceListItems = [] } = useQuery<PriceListItem[]>({
     queryKey: ["price-list-items-all-active"],
@@ -508,14 +520,16 @@ function NewAppointmentModal({
     enabled: isOpen,
   });
 
-  const selectedCustomer = customers.find((c) => c.id === form.customerId);
+  const selectedCustomer = pickedCustomer && pickedCustomer.id === form.customerId ? pickedCustomer : null;
   const selectedItem = priceListItems.find((i) => i.id === form.priceListItemId);
+  const attachToProgram = attachChoice ?? selectedItem?.category === "אילוף";
+  const willAttach = !recurring && attachToProgram && !!attachProgram;
   const endTime = selectedItem?.durationMinutes
     ? addMinutes(form.startTime, selectedItem.durationMinutes)
     : addMinutes(form.startTime, 60);
 
   const mutation = useMutation({
-    mutationFn: (data: typeof form & { endTime: string }) => {
+    mutationFn: (data: typeof form & { endTime: string; trainingProgramId?: string }) => {
       if (recurring) {
         return fetch("/api/appointments/recurring", {
           method: "POST",
@@ -539,12 +553,19 @@ function NewAppointmentModal({
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["gcal-external-events"] });
+      const linkedSession = result?.trainingSession as { id: string; sessionNumber: number } | undefined;
+      if (linkedSession || (!recurring && willAttach)) {
+        queryClient.invalidateQueries({ queryKey: ["training-program-sessions-cal"] });
+        queryClient.invalidateQueries({ queryKey: ["training-programs"] });
+        queryClient.invalidateQueries({ queryKey: ["training"] });
+        queryClient.invalidateQueries({ queryKey: ["attachable-programs"] });
+      }
 
       if (recurring && result?.created) {
         toast.success(`נקבעו ${result.created} פגישות חוזרות בהצלחה`);
       } else {
         const newId = result?.id as string | undefined;
-        toast.success("התור נקבע בהצלחה", newId && selectedCustomer?.phone && canPlan("whatsapp_reminders") && canSendMessages ? {
+        toast.success(linkedSession ? `התור נקבע ושויך לחבילה (מפגש ${linkedSession.sessionNumber})` : "התור נקבע בהצלחה", newId && selectedCustomer?.phone && canPlan("whatsapp_reminders") && canSendMessages ? {
           action: {
             label: "שלח תזכורת WhatsApp",
             onClick: () => fetch(`/api/appointments/${newId}/remind`, { method: "POST" })
@@ -563,6 +584,7 @@ function NewAppointmentModal({
         startTime: defaultTime,
         notes: "",
       });
+      setPickedCustomer(null);
     },
     onError: (err: Error) => {
       if (err.message?.includes("מוגבל") || err.message?.includes("50")) {
@@ -609,27 +631,25 @@ function NewAppointmentModal({
         <div className="space-y-4">
           <div>
             <label className="label">לקוח *</label>
-            <input
-              type="text"
-              className="input mb-1"
-              placeholder="חיפוש לפי שם או טלפון..."
-              value={customerSearch}
-              onChange={(e) => setCustomerSearch(e.target.value)}
+            <CustomerPicker
+              value={form.customerId || null}
+              selectedCustomer={selectedCustomer}
+              onSelect={(c, matchedPetId) => {
+                setPickedCustomer(c);
+                setAttachProgramId("");
+                setAttachToProgram(null);
+                setForm((f) => ({
+                  ...f,
+                  customerId: c.id,
+                  petId: matchedPetId ?? "",
+                }));
+              }}
+              onClear={() => {
+                setPickedCustomer(null);
+                setAttachProgramId("");
+                setForm((f) => ({ ...f, customerId: "", petId: "" }));
+              }}
             />
-            <select
-              className="input"
-              value={form.customerId}
-              onChange={(e) =>
-                setForm({ ...form, customerId: e.target.value, petId: "" })
-              }
-            >
-              <option value="">בחר לקוח...</option>
-              {filteredCustomers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name} — {c.phone}
-                </option>
-              ))}
-            </select>
           </div>
           <div>
             <label className="label">שירות / מוצר</label>
@@ -676,7 +696,10 @@ function NewAppointmentModal({
               <select
                 className="input"
                 value={form.petId}
-                onChange={(e) => setForm({ ...form, petId: e.target.value })}
+                onChange={(e) => {
+                  setForm({ ...form, petId: e.target.value });
+                  setAttachProgramId("");
+                }}
               >
                 <option value="">ללא</option>
                 {selectedCustomer.pets.map((p) => (
@@ -685,6 +708,39 @@ function NewAppointmentModal({
                   </option>
                 ))}
               </select>
+            </div>
+          )}
+          {/* Attach to a training package */}
+          {attachProgram && !recurring && (
+            <div className="border border-orange-200 bg-orange-50/60 rounded-xl p-3 space-y-2">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 mt-0.5 rounded accent-orange-500"
+                  checked={attachToProgram}
+                  onChange={(e) => setAttachToProgram(e.target.checked)}
+                />
+                <span className="text-sm text-petra-text">
+                  לשייך לחבילת אילוף: <strong>{attachProgram.name}</strong> — מפגש{" "}
+                  {attachProgram.nextSessionNumber}
+                  {attachProgram.totalSessions ? `/${attachProgram.totalSessions}` : ""}
+                  {!form.petId && attachProgram.dogName ? ` (${attachProgram.dogName})` : ""}
+                </span>
+              </label>
+              {attachToProgram && attachablePrograms.length > 1 && (
+                <select
+                  className="input text-sm"
+                  value={attachProgram.id}
+                  onChange={(e) => setAttachProgramId(e.target.value)}
+                >
+                  {attachablePrograms.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} · {p.dogName} — מפגש {p.nextSessionNumber}
+                      {p.totalSessions ? `/${p.totalSessions}` : ""}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
           )}
           <div className="grid grid-cols-2 gap-3">
@@ -790,8 +846,12 @@ function NewAppointmentModal({
                 // Server requires a service, price-list item, OR notes to describe
                 // the appointment. For a service-less general appointment, fall
                 // back to a default note so booking still succeeds.
-                notes: form.notes || (form.priceListItemId ? "" : "תור כללי"),
+                notes: form.notes || (form.priceListItemId ? "" : (willAttach ? "מפגש אילוף" : "תור כללי")),
                 endTime,
+                // Attaching to a package: link the dog of that package when none was chosen
+                ...(willAttach && attachProgram
+                  ? { trainingProgramId: attachProgram.id, petId: form.petId || attachProgram.dogId }
+                  : {}),
               })
             }
           >

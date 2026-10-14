@@ -59,6 +59,7 @@ import { cn, fetchJSON, toWhatsAppPhone } from "@/lib/utils";
 import { BoardingTabs } from "@/components/boarding/BoardingTabs";
 import { toast } from "sonner";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { CustomerPicker, type PickerCustomer } from "@/components/customers/CustomerPicker";
 import { usePermissions } from "@/hooks/usePermissions";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -2115,7 +2116,7 @@ function BoardingPageContent() {
     status: "" as "" | "reserved" | "checked_in" | "checked_out",
   });
   const [serviceDogMode, setServiceDogMode] = useState(false);
-  const [customerSearch, setCustomerSearch] = useState("");
+  const [pickedCustomer, setPickedCustomer] = useState<PickerCustomer | null>(null);
   const [serviceDogSearch, setServiceDogSearch] = useState("");
   const [staySearch, setStaySearch] = useState("");
   const [activeTab, setActiveTab] = useState<TabKey>("active");
@@ -2191,12 +2192,6 @@ function BoardingPageContent() {
     boardingPricePerNight: 150,
   };
 
-  const { data: customers = [] } = useQuery<Customer[]>({
-    queryKey: ["customers-for-select"],
-    queryFn: () => fetchJSON<Customer[]>("/api/customers?full=1"),
-    enabled: showNewStay,
-  });
-
   const { data: serviceDogsList = [] } = useQuery<Array<{ id: string; phase: string; pet: { id: string; name: string; breed?: string | null } }>>({
     queryKey: ["service-dogs-for-select"],
     queryFn: () => fetchJSON("/api/service-dogs"),
@@ -2220,20 +2215,14 @@ function BoardingPageContent() {
     queryFn: () => fetchJSON<TeamMember[]>("/api/team-members"),
   });
 
-  const selectedCustomer = customers.find((c) => c.id === form.customerId);
+  const selectedCustomer: Customer | undefined =
+    pickedCustomer && pickedCustomer.id === form.customerId ? pickedCustomer : undefined;
   const selectedServiceDog = serviceDogMode && form.petIds.length > 0
     ? serviceDogsList.find((sd) => sd.pet.id === form.petIds[0])
     : undefined;
   // Service dogs in training don't need price calculation — they board for free during training
   const isServiceDogInTraining = !!(selectedServiceDog && selectedServiceDog.phase !== "CERTIFIED");
   const showPricing = !isServiceDogInTraining;
-
-  const filteredCustomers = customers.filter(
-    (c) =>
-      !customerSearch ||
-      c.name.includes(customerSearch) ||
-      c.phone.includes(customerSearch)
-  );
 
   const filteredServiceDogs = serviceDogsList.filter(
     (sd) =>
@@ -2271,7 +2260,7 @@ function BoardingPageContent() {
       queryClient.invalidateQueries({ queryKey: ["rooms"] });
       setShowNewStay(false);
       setForm({ customerId: "", petIds: [], roomId: "", checkIn: "", checkOut: "", checkInTime: settings.boardingCheckInTime || "14:00", checkOutTime: settings.boardingCheckOutTime || "11:00", notes: "", pricePerNight: settings.boardingPricePerNight || 150, assignedToUserId: "", status: "" });
-      setCustomerSearch("");
+      setPickedCustomer(null);
       setServiceDogMode(false);
       toast.success("ההשמה נוצרה בהצלחה");
     },
@@ -3631,14 +3620,14 @@ function BoardingPageContent() {
               <div className="flex gap-1 p-0.5 bg-slate-100 rounded-lg">
                 <button
                   type="button"
-                  onClick={() => { setServiceDogMode(false); setForm({ ...form, petIds: [], customerId: "" }); setCustomerSearch(""); }}
+                  onClick={() => { setServiceDogMode(false); setForm({ ...form, petIds: [], customerId: "" }); setPickedCustomer(null); }}
                   className={cn("flex-1 text-xs py-1.5 rounded-md font-medium transition-colors", !serviceDogMode ? "bg-white shadow-sm text-petra-text" : "text-petra-muted hover:text-petra-text")}
                 >
                   לקוח רגיל
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setServiceDogMode(true); setForm({ ...form, petIds: [], customerId: "" }); setCustomerSearch(""); setServiceDogSearch(""); }}
+                  onClick={() => { setServiceDogMode(true); setForm({ ...form, petIds: [], customerId: "" }); setPickedCustomer(null); setServiceDogSearch(""); }}
                   className={cn("flex-1 text-xs py-1.5 rounded-md font-medium transition-colors", serviceDogMode ? "bg-white shadow-sm text-petra-text" : "text-petra-muted hover:text-petra-text")}
                 >
                   כלב שירות
@@ -3662,47 +3651,21 @@ function BoardingPageContent() {
                     </div>
                     <button
                       type="button"
-                      onClick={() => { setForm({ ...form, customerId: "", petIds: [] }); setCustomerSearch(""); }}
+                      onClick={() => { setForm({ ...form, customerId: "", petIds: [] }); setPickedCustomer(null); }}
                       className="text-xs text-brand-500 hover:text-brand-700 font-medium"
                     >
                       שנה
                     </button>
                   </div>
                 ) : (
-                  <div>
-                    <div className="relative mb-2">
-                      <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-                      <input
-                        className="input pr-10"
-                        placeholder="חיפוש לפי שם או טלפון..."
-                        value={customerSearch}
-                        onChange={(e) => setCustomerSearch(e.target.value)}
-                        autoFocus
-                      />
-                    </div>
-                    <div className="max-h-48 overflow-y-auto border border-petra-border rounded-xl divide-y divide-petra-border">
-                      {filteredCustomers.length === 0 ? (
-                        <div className="py-4 text-center text-sm text-petra-muted">לא נמצאו לקוחות</div>
-                      ) : (
-                        filteredCustomers.map((c) => (
-                          <button
-                            key={c.id}
-                            type="button"
-                            onClick={() => { setForm({ ...form, customerId: c.id, petIds: [], pricePerNight: settings.boardingPricePerNight || 150 }); setCustomerSearch(""); }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-slate-50 transition-colors text-right"
-                          >
-                            <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-sm font-bold text-slate-600 flex-shrink-0">
-                              {c.name.charAt(0)}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-petra-text truncate">{c.name}</p>
-                              <p className="text-[10px] text-petra-muted" dir="ltr">{c.phone}</p>
-                            </div>
-                          </button>
-                        ))
-                      )}
-                    </div>
-                  </div>
+                  <CustomerPicker
+                    value={null}
+                    autoFocus
+                    onSelect={(c, matchedPetId) => {
+                      setPickedCustomer(c);
+                      setForm({ ...form, customerId: c.id, petIds: matchedPetId ? [matchedPetId] : [], pricePerNight: settings.boardingPricePerNight || 150 });
+                    }}
+                  />
                 )}
               </div>
               )}

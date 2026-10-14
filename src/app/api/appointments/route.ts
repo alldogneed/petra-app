@@ -14,7 +14,10 @@ import { toWhatsAppPhone } from "@/lib/utils";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { getMaxAppointments, normalizeTier, hasFeatureWithOverrides } from "@/lib/feature-flags";
 import { localTimeToUtc } from "@/lib/slots";
-import { listAppointments, createAppointment, ServiceError } from "@/services/appointments";
+import { listAppointments, createAppointment, deleteAppointment, ServiceError } from "@/services/appointments";
+import { attachAppointmentToProgram } from "@/services/training-appointments";
+import { cancelTrainingSessionReminder } from "@/lib/reminder-service";
+import { deleteTrainingProgramSessionFromGcal } from "@/lib/google-calendar";
 
 function appointmentLabel(a: { date?: Date | string | null; startTime?: string | null; customer?: { name?: string | null } | null }): string {
   const d = a.date ? new Date(a.date).toLocaleDateString("he-IL", { timeZone: "Asia/Jerusalem" }) : "";
@@ -78,6 +81,26 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: e.message }, { status: e.code === "NOT_FOUND" ? 404 : 400 });
       }
       throw e;
+    }
+
+    // Optional: this appointment is the next meeting of a training package (rule #45).
+    // Validated before any side effect; on failure the appointment is rolled back.
+    let trainingSession: { id: string; sessionNumber: number } | null = null;
+    const trainingProgramId = typeof body.trainingProgramId === "string" ? body.trainingProgramId.slice(0, 64) : "";
+    if (trainingProgramId) {
+      try {
+        const r = await attachAppointmentToProgram(authResult.businessId, prisma, appointment.id, trainingProgramId);
+        trainingSession = { id: r.sessionId, sessionNumber: r.sessionNumber };
+        // A meeting scheduled before linking may carry its own gcal event / reminder — the appointment owns them now.
+        await deleteTrainingProgramSessionFromGcal(r.sessionId, authResult.businessId).catch(() => undefined);
+        await cancelTrainingSessionReminder(r.sessionId).catch(() => undefined);
+      } catch (e) {
+        await deleteAppointment(authResult.businessId, prisma, appointment.id).catch(() => undefined);
+        if (e instanceof ServiceError) {
+          return NextResponse.json({ error: e.message }, { status: e.code === "NOT_FOUND" ? 404 : e.code === "CONFLICT" ? 409 : 400 });
+        }
+        throw e;
+      }
     }
 
     logActivity(authResult.session.user.id, authResult.session.user.name, "CREATE_APPOINTMENT", {
@@ -239,7 +262,7 @@ export async function POST(request: NextRequest) {
       console.error("Failed to create companion Booking for manual appointment:", err);
     }
 
-    return NextResponse.json(appointment, { status: 201 });
+    return NextResponse.json(trainingSession ? { ...appointment, trainingSession } : appointment, { status: 201 });
   } catch (error) {
     if (error instanceof SyntaxError) {
       return NextResponse.json({ error: "Invalid JSON in request body" }, { status: 400 });

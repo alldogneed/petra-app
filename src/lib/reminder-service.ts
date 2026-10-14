@@ -1034,6 +1034,12 @@ interface TrainingSessionForReminder {
 export async function scheduleTrainingSessionReminder(data: TrainingSessionForReminder) {
   if (!data.customerId) return null;
   if (data.sessionDate <= new Date()) return null; // past/today — no reminder needed
+  // Meeting booked as a calendar appointment → the appointment reminder covers it (rule #45).
+  const linked = await prisma.trainingProgramSession.findUnique({
+    where: { id: data.sessionId },
+    select: { appointmentId: true },
+  });
+  if (linked?.appointmentId) return null;
 
   const bizSettings = await prisma.business.findUnique({
     where: { id: data.businessId },

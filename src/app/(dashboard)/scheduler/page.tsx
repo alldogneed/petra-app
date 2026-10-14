@@ -13,8 +13,6 @@ import {
   Clock,
   CheckCircle2,
   Plus,
-  Search,
-  UserPlus,
   MessageCircle,
   Loader2,
   AlertCircle,
@@ -32,6 +30,7 @@ import { TierGate } from "@/components/paywall/TierGate";
 import { useAuth } from "@/providers/auth-provider";
 import { toast } from "sonner";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { CustomerPicker, fetchPickerCustomerById, type PickerCustomer } from "@/components/customers/CustomerPicker";
 
 /* ─────────────── Types ─────────────── */
 
@@ -69,6 +68,7 @@ interface ServiceOption {
   price: number;
   isActive: boolean;
   source: "service" | "price-list";
+  isTraining: boolean;
 }
 
 interface TimeSlot {
@@ -86,8 +86,19 @@ interface Customer {
   id: string;
   name: string;
   phone: string;
-  email?: string;
+  email?: string | null;
   pets: Pet[];
+}
+
+interface AttachableProgram {
+  id: string;
+  name: string;
+  dogId: string;
+  dogName: string;
+  totalSessions: number | null;
+  completedSessions: number;
+  scheduledSessions: number;
+  nextSessionNumber: number;
 }
 
 interface BookingResult {
@@ -199,8 +210,10 @@ function SchedulerContent() {
     return { year: d.getFullYear(), month: d.getMonth() };
   });
   const [bookingResult, setBookingResult] = useState<BookingResult | null>(null);
-  const [customerSearch, setCustomerSearch] = useState("");
-  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const [pickedCustomer, setPickedCustomer] = useState<PickerCustomer | null>(null);
+  // null = automatic: ticked only for a training service, so a grooming slot never eats a package meeting
+  const [attachChoice, setAttachToProgram] = useState<boolean | null>(null);
+  const [attachProgramId, setAttachProgramId] = useState("");
   const [showServiceDropdown, setShowServiceDropdown] = useState(false);
   const [showNewCustomer, setShowNewCustomer] = useState(false);
   const [newCustomerName, setNewCustomerName] = useState("");
@@ -221,10 +234,10 @@ function SchedulerContent() {
   const activeServices = useMemo<ServiceOption[]>(() => {
     const fromServices: ServiceOption[] = services
       .filter((s) => s.isActive)
-      .map((s) => ({ id: s.id, name: s.name, duration: s.duration, price: s.price, isActive: true, source: "service" as const }));
+      .map((s) => ({ id: s.id, name: s.name, duration: s.duration, price: s.price, isActive: true, source: "service" as const, isTraining: s.type === "training" }));
     const fromPriceList: ServiceOption[] = priceListItems
       .filter((p) => p.isActive)
-      .map((p) => ({ id: p.id, name: p.name, duration: p.durationMinutes ?? 60, price: p.basePrice, isActive: true, source: "price-list" as const }));
+      .map((p) => ({ id: p.id, name: p.name, duration: p.durationMinutes ?? 60, price: p.basePrice, isActive: true, source: "price-list" as const, isTraining: p.category === "אילוף" }));
     return [...fromServices, ...fromPriceList];
   }, [services, priceListItems]);
 
@@ -269,34 +282,44 @@ function SchedulerContent() {
     });
   }, [slots, selectedDate, today]);
 
-  const { data: customers = [] } = useQuery<Customer[]>({
-    queryKey: ["customers-for-scheduler"],
-    queryFn: () => fetchJSON("/api/customers?full=1"),
+  // Auto-select customer from URL param (same cache key the picker uses for its selected row)
+  const { data: prefilledCustomer } = useQuery<PickerCustomer | null>({
+    queryKey: ["customer-picker-selected", prefilledCustomerId],
+    queryFn: () => fetchPickerCustomerById(prefilledCustomerId as string),
+    enabled: !!prefilledCustomerId,
+    staleTime: 60_000,
   });
-
-  const filteredCustomers = useMemo(() => {
-    if (!customerSearch.trim()) return customers;
-    const q = customerSearch.trim().toLowerCase();
-    return customers.filter(
-      (c) =>
-        c.name.toLowerCase().includes(q) ||
-        (c.phone && c.phone.includes(q)) ||
-        (c.email && c.email.toLowerCase().includes(q))
-    );
-  }, [customers, customerSearch]);
-
-  // Auto-select customer from URL param
+  const [prefillApplied, setPrefillApplied] = useState(false);
   useEffect(() => {
-    if (prefilledCustomerId && customers.length > 0 && !selectedCustomerId) {
-      const customer = customers.find((c) => c.id === prefilledCustomerId);
-      if (customer) {
-        setSelectedCustomerId(customer.id);
-        setCustomerSearch(customer.name);
-      }
+    if (prefillApplied || !prefilledCustomer) return;
+    setPrefillApplied(true);
+    if (!selectedCustomerId) {
+      setPickedCustomer(prefilledCustomer);
+      setSelectedCustomerId(prefilledCustomer.id);
     }
-  }, [prefilledCustomerId, customers, selectedCustomerId]);
+  }, [prefilledCustomer, prefillApplied, selectedCustomerId]);
 
-  const selectedCustomer = customers.find((c) => c.id === selectedCustomerId);
+  const selectedCustomer: Customer | undefined =
+    pickedCustomer && pickedCustomer.id === selectedCustomerId ? pickedCustomer : undefined;
+
+  // Training packages this appointment can join (individual programs with meetings left)
+  const { data: attachablePrograms = [] } = useQuery<AttachableProgram[]>({
+    queryKey: ["attachable-programs", selectedCustomerId, selectedPetId || null],
+    queryFn: async () => {
+      const params = new URLSearchParams({ customerId: selectedCustomerId });
+      if (selectedPetId) params.set("petId", selectedPetId);
+      const r = await fetch(`/api/training-programs/attachable?${params.toString()}`);
+      if (!r.ok) return [];
+      const d = await r.json();
+      return Array.isArray(d) ? d : [];
+    },
+    enabled: !!selectedCustomerId,
+    staleTime: 30_000,
+  });
+  const attachProgram =
+    attachablePrograms.find((p) => p.id === attachProgramId) ?? attachablePrograms[0] ?? null;
+  const attachToProgram = attachChoice ?? !!selectedService?.isTraining;
+  const willAttach = attachToProgram && !!attachProgram && !!selectedCustomerId;
 
   /* ── Mutations ── */
   const createAppointment = useMutation<Record<string, unknown>, Error, Record<string, unknown>>({
@@ -309,6 +332,16 @@ function SchedulerContent() {
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["booking-slots"] });
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      const linkedSession = result.trainingSession as { id: string; sessionNumber: number } | undefined;
+      if (linkedSession || result.trainingProgramId) {
+        queryClient.invalidateQueries({ queryKey: ["training-program-sessions-cal"] });
+        queryClient.invalidateQueries({ queryKey: ["training-programs"] });
+        queryClient.invalidateQueries({ queryKey: ["training"] });
+        queryClient.invalidateQueries({ queryKey: ["attachable-programs"] });
+      }
+      if (linkedSession) {
+        toast.success(`התור נקבע ושויך לחבילה (מפגש ${linkedSession.sessionNumber})`);
+      }
       setBookingResult({
         appointmentId: result.id as string,
         customerName: selectedCustomer?.name || newCustomerName,
@@ -329,7 +362,8 @@ function SchedulerContent() {
         body: JSON.stringify(data),
       }),
     onSuccess: (result) => {
-      queryClient.invalidateQueries({ queryKey: ["customers-for-scheduler"] });
+      queryClient.invalidateQueries({ queryKey: ["customer-picker"] });
+      setPickedCustomer({ id: result.id, name: result.name, phone: result.phone, email: result.email ?? null, pets: result.pets ?? [] });
       setSelectedCustomerId(result.id);
       setShowNewCustomer(false);
       setNewCustomerName("");
@@ -391,8 +425,9 @@ function SchedulerContent() {
       endTime,
       ...servicePayload,
       customerId,
-      petId: selectedPetId || undefined,
+      petId: selectedPetId || (willAttach && attachProgram ? attachProgram.dogId : undefined),
       notes: notes || undefined,
+      ...(willAttach && attachProgram ? { trainingProgramId: attachProgram.id } : {}),
     });
   }
 
@@ -404,7 +439,9 @@ function SchedulerContent() {
     setSelectedPetId("");
     setNotes("");
     setBookingResult(null);
-    setCustomerSearch("");
+    setPickedCustomer(null);
+    setAttachToProgram(null);
+    setAttachProgramId("");
     setShowNewCustomer(false);
     setNewCustomerName("");
     setNewCustomerPhone("");
@@ -782,66 +819,32 @@ function SchedulerContent() {
                 לקוח
               </label>
               {!showNewCustomer ? (
-                <div className="relative">
-                  <div className="relative">
-                    <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                      type="text"
-                      value={
-                        selectedCustomer
-                          ? selectedCustomer.name
-                          : customerSearch
-                      }
-                      onChange={(e) => {
-                        setCustomerSearch(e.target.value);
-                        setSelectedCustomerId("");
-                        setSelectedPetId("");
-                        setShowCustomerDropdown(true);
-                      }}
-                      onFocus={() => setShowCustomerDropdown(true)}
-                      placeholder="חפש לקוח..."
-                      className="input w-full pr-9"
-                    />
-                  </div>
-                  {showCustomerDropdown && !selectedCustomerId && (
-                    <>
-                      <div className="fixed inset-0 z-10" onClick={() => setShowCustomerDropdown(false)} />
-                      <div className="absolute z-20 top-full mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-52 overflow-y-auto">
-                      {filteredCustomers.slice(0, 20).map((c) => (
-                        <button
-                          key={c.id}
-                          onClick={() => {
-                            setSelectedCustomerId(c.id);
-                            setCustomerSearch("");
-                            setShowCustomerDropdown(false);
-                            setSelectedPetId("");
-                          }}
-                          className="w-full text-right px-3 py-2 hover:bg-orange-50 flex items-center justify-between text-sm transition-colors"
-                        >
-                          <span className="font-medium text-gray-800">{c.name}</span>
-                          <span className="text-gray-400 text-xs" dir="ltr">{c.phone}</span>
-                        </button>
-                      ))}
-                      {filteredCustomers.length === 0 && (
-                        <div className="px-3 py-3 text-center text-sm text-gray-400">
-                          לא נמצאו לקוחות
-                        </div>
-                      )}
-                      <button
-                        onClick={() => {
-                          setShowNewCustomer(true);
-                          setShowCustomerDropdown(false);
-                          setSelectedCustomerId("");
-                        }}
-                        className="w-full text-right px-3 py-2.5 border-t border-gray-100 text-orange-600 hover:bg-orange-50 flex items-center gap-2 text-sm font-medium transition-colors"
-                      >
-                        <UserPlus className="w-4 h-4" />
-                        צור לקוח חדש
-                      </button>
-                      </div>
-                    </>
-                  )}
-                </div>
+                <CustomerPicker
+                  value={selectedCustomerId || null}
+                  selectedCustomer={pickedCustomer}
+                  onSelect={(c, matchedPetId) => {
+                    setPickedCustomer(c);
+                    setSelectedCustomerId(c.id);
+                    setSelectedPetId(matchedPetId ?? "");
+                    setAttachProgramId("");
+                    setAttachToProgram(null);
+                  }}
+                  onClear={() => {
+                    setPickedCustomer(null);
+                    setSelectedCustomerId("");
+                    setSelectedPetId("");
+                    setAttachProgramId("");
+                  }}
+                  onCreateNew={(q) => {
+                    setShowNewCustomer(true);
+                    setSelectedCustomerId("");
+                    setPickedCustomer(null);
+                    setSelectedPetId("");
+                    if (q && !/\d/.test(q)) setNewCustomerName(q);
+                    else if (q) setNewCustomerPhone(q);
+                  }}
+                  createNewLabel="צור לקוח חדש"
+                />
               ) : (
                 <div className="space-y-2 p-3 bg-orange-50 rounded-xl border border-orange-200">
                   <div className="flex items-center justify-between mb-1">
@@ -886,7 +889,10 @@ function SchedulerContent() {
               {selectedCustomer && selectedCustomer.pets.length > 0 ? (
                 <select
                   value={selectedPetId}
-                  onChange={(e) => setSelectedPetId(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedPetId(e.target.value);
+                    setAttachProgramId("");
+                  }}
                   className="input w-full"
                 >
                   <option value="">ללא בחירה</option>
@@ -905,6 +911,40 @@ function SchedulerContent() {
               )}
             </div>
           </div>
+
+          {/* Attach to a training package */}
+          {attachProgram && selectedCustomerId && !showNewCustomer && (
+            <div className="border border-orange-200 bg-orange-50/60 rounded-xl p-3 space-y-2">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 mt-0.5 rounded accent-orange-500"
+                  checked={attachToProgram}
+                  onChange={(e) => setAttachToProgram(e.target.checked)}
+                />
+                <span className="text-sm text-gray-700">
+                  לשייך לחבילת אילוף: <strong>{attachProgram.name}</strong> — מפגש{" "}
+                  {attachProgram.nextSessionNumber}
+                  {attachProgram.totalSessions ? `/${attachProgram.totalSessions}` : ""}
+                  {!selectedPetId && attachProgram.dogName ? ` (${attachProgram.dogName})` : ""}
+                </span>
+              </label>
+              {attachToProgram && attachablePrograms.length > 1 && (
+                <select
+                  className="input text-sm w-full"
+                  value={attachProgram.id}
+                  onChange={(e) => setAttachProgramId(e.target.value)}
+                >
+                  {attachablePrograms.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.name} · {p.dogName} — מפגש {p.nextSessionNumber}
+                      {p.totalSessions ? `/${p.totalSessions}` : ""}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
 
           {/* Notes */}
           <div>

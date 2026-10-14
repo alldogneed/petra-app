@@ -1,10 +1,14 @@
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { scheduleTrainingSessionReminder } from "@/lib/reminder-service";
 import { syncTrainingProgramSessionToGcal } from "@/lib/google-calendar";
 import { generateProgramSessions, ServiceError } from "@/services/training";
+import { bookSessionAsAppointment } from "@/services/training-appointments";
+import { afterLinkedAppointmentCreated } from "@/lib/training-appointment-effects";
+import { runAfterResponse } from "@/lib/wait-until";
 
 /**
  * POST /api/training-programs/[id]/sessions/generate
@@ -61,9 +65,30 @@ export async function POST(
 
     const { created, program } = result;
 
+    // Book each meeting as a calendar appointment (individual customer programs, rule #45).
+    // The DB rows are written now; reminders + gcal pushes (up to 52) run after the response.
+    const businessId = authResult.businessId;
+    const linkedIds: string[] = [];
+    const unlinked: typeof created = [];
+    for (const s of created) {
+      const apptId = await bookSessionAsAppointment(businessId, prisma, s.id).catch((err) => {
+        console.error("bookSessionAsAppointment failed:", err);
+        return null;
+      });
+      if (apptId) linkedIds.push(apptId);
+      else unlinked.push(s);
+    }
+    if (linkedIds.length) {
+      await runAfterResponse(
+        (async () => {
+          for (const id of linkedIds) await afterLinkedAppointmentCreated(businessId, id);
+        })()
+      );
+    }
+
     // Schedule a WhatsApp reminder per created session (non-critical)
     if (program.customer) {
-      for (const s of created) {
+      for (const s of unlinked) {
         try {
           await scheduleTrainingSessionReminder({
             sessionId: s.id,
@@ -82,7 +107,7 @@ export async function POST(
     }
 
     // Sync each generated session to Google Calendar (non-critical, per session).
-    for (const s of created) {
+    for (const s of unlinked) {
       await syncTrainingProgramSessionToGcal(s.id, authResult.businessId).catch((err) =>
         console.error("syncTrainingProgramSessionToGcal failed (non-critical):", err)
       );

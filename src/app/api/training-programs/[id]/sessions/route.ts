@@ -5,6 +5,8 @@ import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { scheduleTrainingSessionReminder } from "@/lib/reminder-service";
 import { syncTrainingProgramSessionToGcal } from "@/lib/google-calendar";
 import { createProgramSession, ServiceError } from "@/services/training";
+import { bookSessionAsAppointment } from "@/services/training-appointments";
+import { afterLinkedAppointmentCreated, afterLinkedAppointmentCompleted } from "@/lib/training-appointment-effects";
 
 export async function POST(
   req: NextRequest,
@@ -70,7 +72,23 @@ export async function POST(
       throw e;
     }
 
-    const { session, program } = result;
+    const { session, program, completedAppointmentId } = result;
+
+    // A scheduled meeting of an individual customer program is booked as a real calendar
+    // appointment — the appointment then owns the gcal event + reminders (rule #45).
+    const appointmentId = session.status === "SCHEDULED"
+      ? await bookSessionAsAppointment(authResult.businessId, prisma, session.id).catch((err) => {
+          console.error("bookSessionAsAppointment failed:", err);
+          return null;
+        })
+      : session.appointmentId;
+    if (appointmentId && session.status === "SCHEDULED") {
+      await afterLinkedAppointmentCreated(authResult.businessId, appointmentId);
+      return NextResponse.json({ ...session, appointmentId }, { status: 201 });
+    }
+    if (completedAppointmentId) {
+      await afterLinkedAppointmentCompleted(authResult.businessId, completedAppointmentId);
+    }
 
     if (program.customer) {
       try {

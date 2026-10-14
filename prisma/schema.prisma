@@ -535,6 +535,7 @@ model Appointment {
   staff      User?     @relation("AssignedStaff", fields: [staffId], references: [id])
   business   Business  @relation(fields: [businessId], references: [id])
   payments   Payment[]
+  trainingSession TrainingProgramSession? // training-package meeting this appointment IS (rule #45)
 
   @@index([businessId, date])
   @@index([businessId, status])
@@ -1428,10 +1429,12 @@ model TrainingProgramSession {
   homeworkForCustomer String?  // homework assigned to customer / team notes for service dogs
   trainerName         String?  // who conducted the session
   gcalEventId         String?  // Google Calendar event id (set after first sync)
+  appointmentId       String?  @unique // calendar Appointment this meeting is booked as — then the appointment owns gcal + reminders
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
-  program TrainingProgram @relation(fields: [trainingProgramId], references: [id], onDelete: Cascade)
+  program     TrainingProgram @relation(fields: [trainingProgramId], references: [id], onDelete: Cascade)
+  appointment Appointment?    @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
 
   @@index([trainingProgramId])
   @@index([trainingProgramId, sessionDate])

@@ -271,7 +271,7 @@ export function CreateOrderModal({
   // Data
   const { data: customers = [] } = useQuery<Customer[]>({
     queryKey: ["customers-search", customerSearch],
-    queryFn: () => fetch(`/api/customers${customerSearch ? `?search=${customerSearch}` : ""}`).then((r) => r.json()),
+    queryFn: () => fetch(`/api/customers${customerSearch ? `?search=${encodeURIComponent(customerSearch)}` : ""}`).then((r) => r.json()),
     enabled: isOpen && step === "customer",
     staleTime: 30_000,
   });

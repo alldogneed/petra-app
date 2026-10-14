@@ -8,6 +8,7 @@ import {
 } from "@/lib/reminder-service";
 import { syncTrainingProgramSessionToGcal, deleteTrainingProgramSessionFromGcal } from "@/lib/google-calendar";
 import { updateProgramSession, deleteProgramSession, ServiceError } from "@/services/training";
+import { afterLinkedAppointmentMoved, afterLinkedAppointmentCanceled } from "@/lib/training-appointment-effects";
 
 export async function PATCH(
   req: NextRequest,
@@ -67,7 +68,13 @@ export async function PATCH(
       throw e;
     }
 
-    const { updated, dateChanged, program } = result;
+    const { updated, dateChanged, program, movedAppointmentId } = result;
+
+    // Booked as an appointment: it moved with the meeting — its reminder + gcal follow (rule #45).
+    if (updated.appointmentId) {
+      if (movedAppointmentId) await afterLinkedAppointmentMoved(authResult.businessId, movedAppointmentId);
+      return NextResponse.json(updated);
+    }
 
     if (dateChanged && program.customer) {
       try {
@@ -120,6 +127,10 @@ export async function DELETE(
         return NextResponse.json({ error: e.message }, { status: 404 });
       }
       throw e;
+    }
+
+    if (result.canceledAppointmentId) {
+      await afterLinkedAppointmentCanceled(authResult.businessId, result.canceledAppointmentId);
     }
 
     try {
