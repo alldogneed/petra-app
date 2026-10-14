@@ -38,4 +38,46 @@ describe("aggregateOutstandingBalances", () => {
     );
     expect(res).toEqual({ rows: [], grandTotal: 0 });
   });
+
+  it("general paid payments with no order pay off the customer's debt (the reported case)", () => {
+    const order = { id: "o1", total: 1800, createdAt: d("2026-09-23"), customerId: "c1", customer: cust("c1", "גל"), payments: [] };
+    const paid = (amount: number) => ({ customerId: "c1", amount, appointmentId: null, boardingStayId: null });
+    // Before: three unlinked ₪1,800 payments did not count → ₪1,800 debt.
+    expect(aggregateOutstandingBalances([order], [], [paid(1800), paid(1800), paid(1800)]).rows).toEqual([]);
+    // Partial credit reduces the debt, oldest order first.
+    const res = aggregateOutstandingBalances(
+      [order, { ...order, id: "o2", createdAt: d("2026-10-01") }],
+      [],
+      [paid(2000)]
+    );
+    expect(res.rows[0].ordersOutstanding).toBe(1600);
+    expect(res.rows[0].orderIds).toEqual(["o2"]);
+  });
+
+  it("an unlinked payment for an order's appointment counts as paid on that order", () => {
+    const res = aggregateOutstandingBalances(
+      [{ id: "o1", total: 500, createdAt: d("2026-09-01"), customerId: "c1", customer: cust("c1", "x"), payments: [], relatedEntityType: "Appointment", relatedEntityId: "a1" }],
+      [],
+      [{ customerId: "c1", amount: 500, appointmentId: "a1", boardingStayId: null }]
+    );
+    expect(res.rows).toEqual([]);
+  });
+
+  it("a payment for an appointment no order covers does not erase other debt", () => {
+    const res = aggregateOutstandingBalances(
+      [{ id: "o1", total: 500, createdAt: d("2026-09-01"), customerId: "c1", customer: cust("c1", "x"), payments: [] }],
+      [],
+      [{ customerId: "c1", amount: 500, appointmentId: "other-appt", boardingStayId: null }]
+    );
+    expect(res.grandTotal).toBe(500);
+  });
+
+  it("credit belongs to its own customer only and also covers pending payments", () => {
+    const res = aggregateOutstandingBalances(
+      [{ id: "o1", total: 300, createdAt: d("2026-09-01"), customerId: "c2", customer: cust("c2", "y"), payments: [] }],
+      [{ id: "p1", amount: 100, createdAt: d("2026-09-02"), orderId: null, customerId: "c1", customer: cust("c1", "x") }],
+      [{ customerId: "c1", amount: 60, appointmentId: null, boardingStayId: null }]
+    );
+    expect(res.rows.map((r) => [r.id, r.total])).toEqual([["c2", 300], ["c1", 40]]);
+  });
 });

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { OUTSTANDING_ORDER_STATUSES } from "@/lib/outstanding-balances";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { toast } from "sonner";
@@ -13,7 +14,9 @@ const METHODS = ["cash", "credit_card", "bank_transfer", "bit", "paybox", "check
 type Method = (typeof METHODS)[number];
 
 /** Orders that can still receive a payment. */
-export const OPEN_ORDER_STATUSES = ["draft", "confirmed", "partially_paid"];
+// Same statuses the debt calculation counts (src/lib/outstanding-balances.ts) — a completed
+// order that was never paid must be selectable, otherwise its payment can't be linked to it.
+export const OPEN_ORDER_STATUSES = [...OUTSTANDING_ORDER_STATUSES, "partially_paid"];
 
 function orderRemaining(order: OrderInfo): number {
   const paid = (order.payments || []).filter((p) => p.status === "paid").reduce((s, p) => s + p.amount, 0);
@@ -35,11 +38,16 @@ export function RecordPaymentModal({
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
-  const openOrders = orders.filter((o) => OPEN_ORDER_STATUSES.includes(o.status));
+  // Open orders that still have something to pay, oldest first.
+  const openOrders = orders
+    .filter((o) => OPEN_ORDER_STATUSES.includes(o.status) && orderRemaining(o) > 0.009)
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   const [amount, setAmount] = useState(defaultAmount && defaultAmount > 0 ? String(defaultAmount) : "");
   const [method, setMethod] = useState<Method>("cash");
   const [status, setStatus] = useState<"paid" | "pending">("paid");
-  const [orderId, setOrderId] = useState("");
+  // Default: link to the oldest open order, so the payment visibly pays it off
+  // (an unlinked payment used to leave the order looking unpaid).
+  const [orderId, setOrderId] = useState(openOrders[0]?.id ?? "");
   const [notes, setNotes] = useState("");
   const [isDeposit, setIsDeposit] = useState(false);
   const [cardLast4, setCardLast4] = useState("");
@@ -152,7 +160,7 @@ export function RecordPaymentModal({
 
           {openOrders.length > 0 && (
             <div>
-              <label className="label">שיוך להזמנה (אופציונלי)</label>
+              <label className="label">שיוך להזמנה</label>
               <select
                 className="input"
                 value={orderId}
