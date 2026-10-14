@@ -54,6 +54,7 @@ import {
 } from "@/lib/training-programs";
 import { DISABILITY_TYPES } from "@/lib/service-dogs";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { CustomerPicker, type PickerCustomer } from "@/components/customers/CustomerPicker";
 
 // ─── Types ───────────────────────────────────────────
 
@@ -5051,20 +5052,11 @@ function ManualAddProgramModal({
   const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10));
   const [endDate, setEndDate] = useState("");
   const [notes, setNotes] = useState("");
-  const [customerSearch, setCustomerSearch] = useState("");
-  const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
+  const [pickedCustomer, setPickedCustomer] = useState<PickerCustomer | null>(null);
 
-  const { data: customers = [], isLoading: customersLoading } = useQuery<Customer[]>({
-    queryKey: ["customers-full"],
-    queryFn: () => fetchJSON<Customer[]>("/api/customers?full=1"),
-  });
-
-  const selectedCustomer = customers.find((c) => c.id === customerId);
+  const selectedCustomer: Customer | undefined =
+    pickedCustomer && pickedCustomer.id === customerId ? pickedCustomer : undefined;
   const selectedDog = selectedCustomer?.pets.find((p) => p.id === dogId);
-
-  const filteredCustomers = customerSearch.trim()
-    ? customers.filter((c) => c.name.toLowerCase().includes(customerSearch.toLowerCase()) || c.phone?.includes(customerSearch))
-    : customers;
   const effectiveProgramType = programType === "CUSTOM" ? (customTypeName.trim() || "מותאם אישית") : (PROGRAM_TYPES_MAP[programType] || programType);
   const autoName = selectedDog
     ? `אילוף ${effectiveProgramType} - ${selectedDog.name}`
@@ -5105,45 +5097,18 @@ function ManualAddProgramModal({
         </p>
 
         <div className="space-y-4">
-          <div className="relative">
+          <div>
             <label className="label">לקוח *</label>
-            {selectedCustomer ? (
-              <div className="input flex items-center justify-between">
-                <span className="text-sm text-petra-text">{selectedCustomer.name}</span>
-                <button
-                  type="button"
-                  onClick={() => { setCustomerId(""); setDogId(""); setCustomerSearch(""); }}
-                  className="text-petra-muted hover:text-red-500 transition-colors"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ) : (
-              <input
-                className="input"
-                placeholder={customersLoading ? "טוען..." : "חפש לקוח לפי שם או טלפון..."}
-                value={customerSearch}
-                disabled={customersLoading}
-                onChange={(e) => { setCustomerSearch(e.target.value); setShowCustomerDropdown(true); }}
-                onFocus={() => setShowCustomerDropdown(true)}
-                onBlur={() => setTimeout(() => setShowCustomerDropdown(false), 150)}
-              />
-            )}
-            {showCustomerDropdown && !selectedCustomer && filteredCustomers.length > 0 && (
-              <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
-                {filteredCustomers.slice(0, 30).map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    className="w-full text-right px-3 py-2 text-sm hover:bg-slate-50 transition-colors flex items-center gap-2"
-                    onMouseDown={() => { setCustomerId(c.id); setDogId(""); setCustomerSearch(""); setShowCustomerDropdown(false); }}
-                  >
-                    <span className="font-medium text-petra-text">{c.name}</span>
-                    {c.phone && <span className="text-petra-muted text-xs">{c.phone}</span>}
-                  </button>
-                ))}
-              </div>
-            )}
+            <CustomerPicker
+              value={customerId || null}
+              selectedCustomer={pickedCustomer}
+              onSelect={(c, matchedPetId) => {
+                setPickedCustomer(c);
+                setCustomerId(c.id);
+                setDogId(matchedPetId ?? "");
+              }}
+              onClear={() => { setPickedCustomer(null); setCustomerId(""); setDogId(""); }}
+            />
           </div>
 
           {customerId && selectedCustomer && (
@@ -5271,18 +5236,10 @@ function SellPackageModal({
   const [totalSessions, setTotalSessions] = useState("10");
   const [price, setPrice] = useState("");
   const [notes, setNotes] = useState("");
+  const [pickedCustomer, setPickedCustomer] = useState<PickerCustomer | null>(null);
 
-  const { data: customers = [], isLoading: customersLoading } = useQuery<Customer[]>({
-    queryKey: ["customers-full"],
-    queryFn: () => fetchJSON<Customer[]>("/api/customers?full=1"),
-  });
-
-  const customersWithPets = useMemo(
-    () => customers.filter((c) => c.pets && c.pets.length > 0),
-    [customers]
-  );
-
-  const selectedCustomer = customers.find((c) => c.id === customerId);
+  const selectedCustomer: Customer | undefined =
+    pickedCustomer && pickedCustomer.id === customerId ? pickedCustomer : undefined;
   const selectedDog = selectedCustomer?.pets.find((p) => p.id === dogId);
   const selectedPkg = packages.find((p) => p.id === selectedPackageId);
   const effectiveProgramType = programType === "CUSTOM" ? (customTypeName.trim() || "מותאם אישית") : (PROGRAM_TYPES_MAP[programType] || programType);
@@ -5385,22 +5342,17 @@ function SellPackageModal({
               {/* Customer */}
               <div>
                 <label className="label">לקוח *</label>
-                {customersLoading ? (
-                  <div className="input bg-slate-50 text-petra-muted text-sm">טוען לקוחות...</div>
-                ) : (
-                  <select
-                    className="input"
-                    value={customerId}
-                    onChange={(e) => { setCustomerId(e.target.value); setDogId(""); }}
-                  >
-                    <option value="">בחר לקוח...</option>
-                    {customersWithPets.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name} — {c.phone} ({c.pets.length} כלבים)
-                      </option>
-                    ))}
-                  </select>
-                )}
+                <CustomerPicker
+                  value={customerId || null}
+                  selectedCustomer={pickedCustomer}
+                  requirePets
+                  onSelect={(c, matchedPetId) => {
+                    setPickedCustomer(c);
+                    setCustomerId(c.id);
+                    setDogId(matchedPetId ?? "");
+                  }}
+                  onClear={() => { setPickedCustomer(null); setCustomerId(""); setDogId(""); }}
+                />
               </div>
 
               {/* Dog */}
@@ -5717,26 +5669,11 @@ function AssignDogModal({
   const [customerId, setCustomerId] = useState("");
   const [dogId, setDogId] = useState("");
   const [waitlist, setWaitlist] = useState(false);
-  const [customerQuery, setCustomerQuery] = useState("");
+  const [pickedCustomer, setPickedCustomer] = useState<PickerCustomer | null>(null);
 
-  const { data: customers = [], isLoading: customersLoading } = useQuery<Customer[]>({
-    queryKey: ["customers-full"],
-    queryFn: () => fetchJSON<Customer[]>("/api/customers?full=1"),
-  });
+  const selectedCustomer: Customer | undefined =
+    pickedCustomer && pickedCustomer.id === customerId ? pickedCustomer : undefined;
 
-  const selectedCustomer = customers.find((c) => c.id === customerId);
-
-  const q = customerQuery.trim().toLowerCase();
-  const matches = q
-    ? customers
-        .filter(
-          (c) =>
-            c.name.toLowerCase().includes(q) ||
-            (c.phone ?? "").replace(/\D/g, "").includes(q.replace(/\D/g, "") || " ") ||
-            c.pets.some((p) => p.name.toLowerCase().includes(q))
-        )
-        .slice(0, 8)
-    : [];
 
   return (
     <div className="modal-overlay">
@@ -5753,60 +5690,17 @@ function AssignDogModal({
           {/* Customer — search-first picker */}
           <div>
             <label className="label">לקוח *</label>
-            {customersLoading ? (
-              <div className="input bg-slate-50 text-petra-muted text-sm">טוען לקוחות...</div>
-            ) : selectedCustomer ? (
-              <div className="flex items-center justify-between gap-2 rounded-xl border border-brand-200 bg-brand-50 px-3 py-2.5">
-                <span className="text-sm font-medium text-petra-text truncate">
-                  {selectedCustomer.name}
-                  {selectedCustomer.phone ? ` — ${selectedCustomer.phone}` : ""}
-                </span>
-                <button
-                  className="w-6 h-6 flex items-center justify-center rounded hover:bg-brand-100 text-petra-muted flex-shrink-0"
-                  title="החלף לקוח"
-                  onClick={() => { setCustomerId(""); setDogId(""); setCustomerQuery(""); }}
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ) : (
-              <>
-                <input
-                  className="input"
-                  placeholder="חפש לפי שם, טלפון או שם כלב..."
-                  value={customerQuery}
-                  autoFocus
-                  onChange={(e) => setCustomerQuery(e.target.value)}
-                />
-                {q && (
-                  <div className="mt-1 rounded-xl border border-slate-200 overflow-hidden divide-y divide-slate-100 max-h-56 overflow-y-auto">
-                    {matches.length === 0 ? (
-                      <p className="text-xs text-petra-muted px-3 py-2.5">לא נמצאו לקוחות תואמים</p>
-                    ) : (
-                      matches.map((c) => (
-                        <button
-                          key={c.id}
-                          className="w-full text-right px-3 py-2.5 hover:bg-brand-50 transition-colors"
-                          onClick={() => {
-                            setCustomerId(c.id);
-                            setDogId(c.pets.length === 1 ? c.pets[0].id : "");
-                          }}
-                        >
-                          <span className="text-sm font-medium text-petra-text block">{c.name}</span>
-                          <span className="text-xs text-petra-muted">
-                            {c.phone ?? ""}
-                            {c.pets.length > 0 ? ` · ${c.pets.map((p) => p.name).join(", ")}` : " · אין כלבים"}
-                          </span>
-                        </button>
-                      ))
-                    )}
-                  </div>
-                )}
-                {!q && (
-                  <p className="text-[11px] text-petra-muted mt-1">התחל להקליד כדי לחפש מבין {customers.length} לקוחות</p>
-                )}
-              </>
-            )}
+            <CustomerPicker
+              value={customerId || null}
+              selectedCustomer={pickedCustomer}
+              autoFocus
+              onSelect={(c, matchedPetId) => {
+                setPickedCustomer(c);
+                setCustomerId(c.id);
+                setDogId(matchedPetId ?? (c.pets.length === 1 ? c.pets[0].id : ""));
+              }}
+              onClear={() => { setPickedCustomer(null); setCustomerId(""); setDogId(""); }}
+            />
           </div>
 
           {/* Dog — shown after customer selected */}

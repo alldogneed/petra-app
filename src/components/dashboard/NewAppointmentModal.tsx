@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Calendar, CalendarClock, X } from "lucide-react";
 import { toast } from "sonner";
+import { CustomerPicker, type PickerCustomer } from "@/components/customers/CustomerPicker";
 
 
 
@@ -28,14 +29,7 @@ export function NewAppointmentModal({
     notes: "",
   });
 
-  const { data: customers } = useQuery<{ id: string; name: string; phone: string; pets: { id: string; name: string; species: string }[] }[]>({
-    queryKey: ["customers-for-appt"],
-    queryFn: () => fetch("/api/customers?full=1").then((r) => {
-      if (!r.ok) throw new Error("Failed");
-      return r.json();
-    }),
-    enabled: isOpen,
-  });
+  const [pickedCustomer, setPickedCustomer] = useState<PickerCustomer | null>(null);
 
   const { data: services } = useQuery<{ id: string; name: string; duration: number | null; type: string }[]>({
     queryKey: ["services-for-appt"],
@@ -46,7 +40,7 @@ export function NewAppointmentModal({
     enabled: isOpen,
   });
 
-  const selectedCustomer = customers?.find((c) => c.id === form.customerId);
+  const selectedCustomer = pickedCustomer && pickedCustomer.id === form.customerId ? pickedCustomer : null;
 
   // Auto-fill end time when service changes
   const setField = (key: keyof typeof form, value: string) => {
@@ -89,6 +83,7 @@ export function NewAppointmentModal({
       }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה ביצירת פגישה"); return d; }),
     onSuccess: () => {
       setForm({ customerId: "", petId: "", serviceId: "", date: today, startTime: "09:00", endTime: "10:00", notes: "" });
+      setPickedCustomer(null);
       toast.success("הפגישה נוצרה בהצלחה!");
       onCreated();
     },
@@ -115,16 +110,22 @@ export function NewAppointmentModal({
           {/* Customer */}
           <div>
             <label className="label">לקוח *</label>
-            <select
-              className="input"
-              value={form.customerId}
-              onChange={(e) => setField("customerId", e.target.value)}
-            >
-              <option value="">בחר לקוח...</option>
-              {customers?.map((c) => (
-                <option key={c.id} value={c.id}>{c.name} — {c.phone}</option>
-              ))}
-            </select>
+            <CustomerPicker
+              value={form.customerId || null}
+              selectedCustomer={selectedCustomer}
+              onSelect={(c, matchedPetId) => {
+                setPickedCustomer(c);
+                setForm((prev) => ({
+                  ...prev,
+                  customerId: c.id,
+                  petId: matchedPetId ?? "",
+                }));
+              }}
+              onClear={() => {
+                setPickedCustomer(null);
+                setField("customerId", "");
+              }}
+            />
           </div>
 
           {/* Pet (optional, shown when customer selected) */}
