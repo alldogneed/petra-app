@@ -266,6 +266,16 @@ The legacy dark "Master Admin" (`/admin/*`) was merged into the light platform p
 - Prod DDL: `prisma/team_invitations.sql` (additive) — apply before deploying.
 - **Offboarding:** deactivating (PATCH `isActive:false`) or removing (DELETE `/api/admin/[businessId]/members/[memberId]`, only after deactivation) calls `endBusinessAccess()` (`src/lib/team-offboarding.ts`): no other active business and no platform role → all sessions deleted; otherwise only the session cache. `AuthProvider` re-checks `/api/auth/me` every 30s + on focus and sends a dropped user to `/login?reason=access_ended`. DELETE removes only the `BusinessUser` row — the Petra account stays (other businesses, re-invite). Known gap: a removed member who logs in again gets a new empty business from `ensureUserHasBusiness` (existing behaviour).
 
+### 45. Training-package meetings ARE calendar appointments
+`TrainingProgramSession.appointmentId` (unique, → Appointment, SetNull). A meeting of a **HOME program with a customer** (`isLinkableProgram`) is booked as a real `Appointment`; the appointment owns the calendar block, the Google Calendar event and the reminders — the meeting keeps the training content. Boarding / service-dog / customer-less programs keep the old session-only behaviour.
+- Pure helpers: `src/lib/training-appointment-link.ts` (time conversion Israel-local ↔ instant, `nextSessionNumber`, notes "[אילוף] מפגש N/T · name"). DB sync: `src/services/training-appointments.ts`. Route side effects: `src/lib/training-appointment-effects.ts` (non-throwing).
+- Sync both ways: scheduling a meeting (single / series / MCP) → `bookSessionAsAppointment`; logging it done → appointment `completed`; moving it → appointment moves; deleting it → appointment `canceled`. `updateAppointment()` → `syncSessionFromAppointment` (completed → COMPLETED, canceled → SCHEDULED meeting deleted so its number is free, back to scheduled → empty meeting reverts, time → follows); `deleteAppointment()` drops a SCHEDULED linked meeting. Any new appointment/meeting mutation path must go through these services.
+- `POST /api/appointments {trainingProgramId}` attaches the new appointment as the next meeting (same customer + dog, ACTIVE, not full; failure → the appointment is rolled back). `GET /api/training-programs/attachable?customerId=&petId=` feeds the "לשייך לחבילת אילוף" checkbox (calendar + scheduler). Training orders link their appointment as meeting #1.
+- Linked meetings are excluded from `/api/training-programs/calendar` (no double block); `syncTrainingProgramSessionToGcal` / `scheduleTrainingSessionReminder` are no-ops for them. Prod DDL: `prisma/training_session_appointment.sql`. Tests: `src/lib/__tests__/training-appointment-link.test.ts`.
+
+### 46. Customer pickers search the server — `CustomerPicker`
+`src/components/customers/CustomerPicker.tsx` is the ONE customer picker for booking flows (calendar, scheduler, dashboard quick-book, boarding new stay, training modals): debounced `GET /api/customers?full=1&take=20&search=` → matches name, phone, email AND dog name; picking via a dog name pre-selects that dog (`matchedPetId`). Never load `/api/customers?full=1` (50 newest only) and filter on the client.
+
 ## MCP Server
 
 ### Architecture
