@@ -1,48 +1,35 @@
 {
- "voice": "or rabinovich (elevenlabs eleven_v3)",
+ "voice": "elevenlabs Liam (eleven_v3), takes picked by sound",
  "mode": "context",
- "scores": [
-  1.0,
-  1.0,
-  1.0,
-  1.0,
-  0.9583333333333334,
-  1.0,
-  1.0,
-  1.0,
-  1.0,
-  1.0,
-  1.0
- ],
  "starts": [
   0,
-  4.1,
-  12.2,
-  17.0,
-  22.0,
-  33.5,
-  42.5,
-  50.5,
-  62.5,
-  72.5,
-  84.5,
-  88.5
+  5.8,
+  14.1,
+  19.3,
+  25.2,
+  36.1,
+  45.1,
+  53.1,
+  65.1,
+  75.6,
+  87.6,
+  91.6
  ],
  "lens": [
-  3.14,
-  7.08,
-  3.8,
-  4.02,
-  10.46,
-  6.62,
-  5.6,
-  10.66,
-  8.2,
-  10.42,
+  4.8,
+  7.28,
+  4.16,
+  4.88,
+  9.92,
+  7.5,
+  6.72,
+  10.22,
+  9.46,
+  10.56,
   0.0,
-  5.66
+  5.6
  ],
- "total": 95.2,
+ "total": 98.2,
  "orig_starts": [
   0.0,
   4.0,
@@ -58,5 +45,24 @@
   83.5
  ],
  "orig_total": 90.0,
- "dog": []
+ "dog": [
+  {
+   "clip": "/Users/or-rabinovich/Desktop/\u05e4\u05d9\u05ea\u05d5\u05d7/projects/petra-video-dub/marketing/promo-video/../dog-avatar/promo-video/00.mp4",
+   "start": 0.4,
+   "dur": 4.8,
+   "size": 340,
+   "x": 751,
+   "y": 150,
+   "audio": false
+  },
+  {
+   "clip": "/Users/or-rabinovich/Desktop/\u05e4\u05d9\u05ea\u05d5\u05d7/projects/petra-video-dub/marketing/promo-video/../dog-avatar/promo-video/11.mp4",
+   "start": 92.0,
+   "dur": 6.0,
+   "size": 180,
+   "x": 849,
+   "y": 228,
+   "audio": false
+  }
+ ]
 }
