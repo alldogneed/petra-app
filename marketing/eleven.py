@@ -29,12 +29,17 @@ def key():
 def _req(url, data=None, headers=None, method=None):
     h = {"xi-api-key": key()}
     h.update(headers or {})
-    r = urllib.request.Request(url, data=data, headers=h, method=method)
-    try:
-        with urllib.request.urlopen(r, timeout=300) as resp:
-            return resp.read()
-    except urllib.error.HTTPError as e:
-        raise RuntimeError(f"{url.split('/v1/')[1]} -> HTTP {e.code}: {e.read()[:300].decode('utf8', 'replace')}")
+    import time
+    for attempt in range(5):  # 429 "system_busy" / 5xx from ElevenLabs are transient
+        r = urllib.request.Request(url, data=data, headers=h, method=method)
+        try:
+            with urllib.request.urlopen(r, timeout=300) as resp:
+                return resp.read()
+        except urllib.error.HTTPError as e:
+            if (e.code == 429 or e.code >= 500) and attempt < 4:
+                time.sleep(10 * (attempt + 1))
+                continue
+            raise RuntimeError(f"{url.split('/v1/')[1]} -> HTTP {e.code}: {e.read()[:300].decode('utf8', 'replace')}")
 
 
 def voice_id(name=VOICE_NAME):
