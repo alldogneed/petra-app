@@ -23,7 +23,7 @@ TAKES = 14
 #  2: an ellipsis before "לעסקים" stops "ניהול לעסקים" collapsing into "ניהול העסקים"
 #  3: a colon keeps the final ן of "פנסיון" (with a comma it was cut: "פנסיונ")
 OVERRIDE = {
-    2: "הכירו את {P}, מערכת ניהול... לעסקים של חיות מחמד.",
+    2: "ככה נולדה {P}, מערכת ניהול... לעסקים של חיות מחמד.",  # owner picked this wording by ear (2026-10-16)
     3: "כל העסק במסך אחד: לקוחות, יומן, פנסיון, חוזים ותשלומים.",
 }
 
@@ -31,7 +31,7 @@ OVERRIDE = {
 def spoken(text, i=None):
     if i in OVERRIDE:
         return OVERRIDE[i].replace("{P}", PETRA)
-    return re.sub(r"פטרה", PETRA, text)
+    return re.sub(r"פטרה", PETRA, text).replace("פטי!", "פֶּטִי!")  # the dog's name (owner, 2026-10-16)
 
 
 def main(only=None):

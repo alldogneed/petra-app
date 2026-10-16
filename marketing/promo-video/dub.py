@@ -35,18 +35,18 @@ XFADE = 0.4  # scene overlap (--d = gap to next scene + XFADE)
 # One entry per <section class="scene">, in order.
 # None = no narration.
 LINES = [
-    "יש לכם עסק של כלבים? אילוף, פנסיון, טיפוח?",
-    "אז אתם מכירים את זה. תורים בוואטסאפ, חוזים על נייר, לקוחות ששוכחים להגיע. בשביל זה בנינו את פטרה.",
-    "הכירו את פטרה, מערכת ניהול לַעֲסָקִים של חיות מחמד.",
+    "היי, אני פטי! יש לכם עסק של כלבים? אילוף, פנסיון, טיפוח?",
+    "אז אתם מכירים את זה. תורים בוואטסאפ, חוזים על נייר, לקוחות ששוכחים להגיע. בשביל זה בנינו מערכת אחרת.",
+    "ככה נולדה פטרה, מערכת ניהול לַעֲסָקִים של חיות מחמד.",
     "כל העסק במסך אחד. לקוחות, יומן, פנסיון, חוזים ותשלומים.",
-    "כל ליד שנכנס, מגוגל, מפייסבוק או מהאתר, מגיע ישר ללוח המכירות. רואים מאיזה קמפיין הוא הגיע ומתי לחזור אליו, ואף לקוח לא הולך לאיבוד.",
+    "כל פנייה שנכנסת, מגוגל, מפייסבוק או מהאתר, מגיעה ישר ללוח המכירות. רואים מאיפה היא הגיעה ומתי לחזור אליה, ואף לקוח לא הולך לאיבוד.",
     "הלקוחות קובעים תור לבד. שולחים להם קישור, הם בוחרים שירות ושעה פנויה, והתור נכנס ישר ליומן.",
     "יום לפני התור, הלקוח מקבל תזכורת בוואטסאפ, אוטומטית. ככה הרבה פחות לקוחות שוכחים להגיע.",
     "צריכים חתימה על חוזה? שולחים אותו ללקוח בוואטסאפ, ישר מהתיק שלו. הפרטים שלו ושל הכלב כבר ממולאים, הוא חותם מהטלפון, והעותק החתום נשמר במערכת.",
     "בפנסיון, כל החדרים מול העיניים. מי נמצא, מי נכנס היום ומי יוצא. והצוות מקבל לוח יומי של האכלות ותרופות.",
-    "ועכשיו, לראשונה בישראל: סוכן איי איי שמחובר ישירות לעסק. שואלים אותו מה יש היום, והוא עונה לפי הנתונים של העסק, ואם צריך, גם קובע תור.",
+    "ועכשיו, סוכן איי איי שמחובר ישירות לעסק. שואלים אותו מה יש היום, והוא עונה לפי הנתונים של העסק, ואם צריך, גם קובע תור.",
     None,  # stats
-    "תפסיקו לרדוף אחרי זנבות. תנו לפטרה לנהל את העסק. מתחילים בחינם ב-פטרה אפ דוט קום.",
+    "תפסיקו לרדוף אחרי זנבות. היכנסו לפטרה אפ דוט קום, ותתחילו בחינם.",
 ]
 
 SAMPLE = "פטרה, מערכת ניהול לעסקים של חיות מחמד. כל העסק שלכם במסך אחד."
@@ -185,16 +185,20 @@ def overlay_dogs(silent, dogs, total):
     ins += ["-loop", "1", "-i", os.path.join(HERE, "dog-mask.png")]  # input n+1
     for _ in dogs:  # inputs n+2 ...
         ins += ["-loop", "1", "-i", os.path.join(HERE, "dog-ring.png")]
-    pad = (DOG_RING - DOG_SIZE) // 2
     graph, last = [], "[0:v]"
     for k, d in enumerate(dogs):
         a, b = d["start"], d["start"] + d["dur"]
-        fade = f"fade=t=in:st={a}:d=0.2:alpha=1,fade=t=out:st={b - 0.2}:d=0.2:alpha=1"
-        graph.append(f"[{1 + k}:v]scale={DOG_SIZE}:{DOG_SIZE},setpts=PTS-STARTPTS+{a}/TB,format=yuva420p[dv{k}]")
-        graph.append(f"[dv{k}][{n + 1}:v]alphamerge,{fade}[dc{k}]")
-        graph.append(f"[{n + 2 + k}:v]format=yuva420p,{fade}[rc{k}]")
-        graph.append(f"{last}[rc{k}]overlay={DOG_X}:{DOG_Y}:enable='between(t,{a},{b})'[o{k}a]")
-        graph.append(f"[o{k}a][dc{k}]overlay={DOG_X + pad}:{DOG_Y + pad - 6}:enable='between(t,{a},{b})'[o{k}]")
+        size = d.get("size", DOG_SIZE)
+        ring = round(size * DOG_RING / DOG_SIZE)
+        pad = (ring - size) // 2
+        x, y = d.get("x", DOG_X), d.get("y", DOG_Y)
+        fade = f"fade=t=in:st={a}:d=0.3:alpha=1,fade=t=out:st={b - 0.3}:d=0.3:alpha=1"
+        graph.append(f"[{1 + k}:v]scale={size}:{size},setpts=PTS-STARTPTS+{a}/TB,format=yuva420p[dv{k}]")
+        graph.append(f"[{n + 1}:v]scale={size}:{size},format=gray[mk{k}]")
+        graph.append(f"[dv{k}][mk{k}]alphamerge,{fade}[dc{k}]")
+        graph.append(f"[{n + 2 + k}:v]scale={ring}:{ring},format=yuva420p,{fade}[rc{k}]")
+        graph.append(f"{last}[rc{k}]overlay={x}:{y}:enable='between(t,{a},{b})'[o{k}a]")
+        graph.append(f"[o{k}a][dc{k}]overlay={x + pad}:{y + pad - round(6 * size / DOG_SIZE)}:enable='between(t,{a},{b})'[o{k}]")
         last = f"[o{k}]"
     subprocess.run([FF, "-loglevel", "error", "-y", "-i", silent, *ins, "-filter_complex", ";".join(graph),
                     "-map", last, "-c:v", "libx264", "-crf", "18", "-preset", "medium", "-pix_fmt", "yuv420p",
@@ -211,7 +215,9 @@ def mix():
     if dogs:
         silent = overlay_dogs(silent, dogs, t["total"])
     ins, chains, labels = [], [], []
-    for d in dogs:  # the dog's own voice rides in the same mix
+    for d in dogs:  # the dog's own voice rides in the same mix (unless the line is already in vo/)
+        if not d.get("audio", True):
+            continue
         ins += ["-i", d["clip"]]
         n = len(labels) + 1
         ms = int(d["start"] * 1000)
