@@ -372,7 +372,7 @@ export default function LandingPage() {
           </dl>
         </section>
 
-        {/* ── Product demo: real screens + teaser video ─────────────────────────── */}
+        {/* ── Product demo: real screens + promo video ──────────────────────────── */}
         <section aria-labelledby="video-heading" className="py-24 bg-slate-900" id="video">
           <div className="mx-auto max-w-[1240px] px-4 sm:px-7">
             <div className="text-center mb-10">

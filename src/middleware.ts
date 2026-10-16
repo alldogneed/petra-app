@@ -137,7 +137,7 @@ export function middleware(request: NextRequest) {
   }
 
   // Public landing-page video (exact path only — not a blanket .mp4 allowance)
-  if (pathname === "/teaser.mp4") {
+  if (pathname === "/promo.mp4") {
     return NextResponse.next();
   }
 

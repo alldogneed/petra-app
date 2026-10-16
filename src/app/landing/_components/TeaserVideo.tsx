@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { Play } from "lucide-react";
 
-// Teaser video with a "צפו בדמו" button under it that starts playback in place.
+// The Petra promo video (narrated by פטי, marketing/promo-video) with a "צפו בדמו" button under it that starts playback in place.
 export function TeaserVideo() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);
@@ -20,14 +20,14 @@ export function TeaserVideo() {
       <div className="relative rounded-2xl overflow-hidden aspect-video bg-slate-800">
         <video
           ref={videoRef}
-          src="/teaser.mp4"
-          poster="/landing/screens/video-poster.webp"
+          src="/promo.mp4"
+          poster="/landing/screens/promo-poster.webp"
           controls
           preload="metadata"
           onPlay={() => setPlaying(true)}
           onPause={() => setPlaying(false)}
           className="w-full h-full object-cover"
-          aria-label="סרטון טיזר — פטרה ניהול עסקי חיות מחמד"
+          aria-label="סרטון תדמית — פטרה, ניהול עסקים של חיות מחמד"
         />
       </div>
       <div className="text-center mt-8">
