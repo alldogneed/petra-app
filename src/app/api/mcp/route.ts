@@ -46,6 +46,7 @@ import { syncAppointmentToGcal, deleteAppointmentFromGcal, findConnectedUsersFor
 import { formatShekel } from "@/lib/customer-summary";
 import { CRITICAL_CAPABILITIES, TENANT_PERMS, hasTenantPermission, type PermissionOverrides, type TenantPermission, type TenantRole } from "@/lib/permissions";
 import { textResult, errorResult, safeField, israelStartOfToday, heDate, parseYmd, findIdempotentReplay, replayResult, dryRunResult, type ToolCtx } from "@/lib/mcp/helpers";
+import { registerSupportTools } from "@/lib/mcp/tools-support";
 import { registerIntakeTools, resolveLeadStageByName, israelLocalToIso } from "@/lib/mcp/tools-intake";
 import { registerBoardingTools } from "@/lib/mcp/tools-boarding";
 import { registerBriefingTools } from "@/lib/mcp/tools-briefing";
@@ -1378,7 +1379,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
   );
 
   // ── Package modules (intake / boarding / briefing) ────────────────────────
-  const ctx: ToolCtx = { businessId, connectionId, userId, hasScope, denyScope, hasPermission, denyPermission };
+  const ctx: ToolCtx = { businessId, connectionId, userId, minterRole, hasScope, denyScope, hasPermission, denyPermission };
   registerIntakeTools(server, ctx);
   registerBoardingTools(server, ctx);
   registerBriefingTools(server, ctx);
@@ -1386,6 +1387,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
   registerTrainingTools(server, ctx);
   registerFinanceTools(server, ctx);
   registerCalendarTools(server, ctx);
+  registerSupportTools(server, ctx);
 
   return server;
 }

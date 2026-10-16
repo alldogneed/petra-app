@@ -24,6 +24,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { FullSession } from "@/lib/session";
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { PLATFORM_ROLE_LABELS } from "@/lib/platform-labels";
 import { OwnerSearch } from "@/components/owner/owner-search";
 import { PLATFORM_PERMS, hasPlatformPermission, type PlatformPermission } from "@/lib/permissions";
@@ -63,6 +64,13 @@ export function OwnerShell({
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Tickets waiting for our answer → badge on "תמיכה" (red when any is past the SLA)
+  const { data: supportSummary } = useQuery<{ total: number; overdue: number }>({
+    queryKey: ["owner-support-summary"],
+    queryFn: () => fetch("/api/owner/support/summary").then((r) => (r.ok ? r.json() : { total: 0, overdue: 0 })),
+    refetchInterval: 60_000,
+  });
 
   // Close the drawer on navigation
   useEffect(() => {
@@ -155,6 +163,17 @@ export function OwnerShell({
               >
                 <Icon className={cn("w-4 h-4 flex-shrink-0", isActive && "text-orange-400")} />
                 {entry.name}
+                {entry.href === "/owner/support" && (supportSummary?.total ?? 0) > 0 && (
+                  <span
+                    className={cn(
+                      "ms-auto min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-bold flex items-center justify-center",
+                      (supportSummary?.overdue ?? 0) > 0 ? "bg-red-500 text-white" : "bg-orange-500/80 text-white"
+                    )}
+                    title="פניות שממתינות לתשובה"
+                  >
+                    {supportSummary!.total}
+                  </span>
+                )}
               </Link>
             );
           })}

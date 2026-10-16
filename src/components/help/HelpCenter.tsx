@@ -2,7 +2,8 @@
 
 import { useState, useMemo, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -918,6 +919,7 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
   const [screenshotName, setScreenshotName] = useState<string | null>(null);
   const screenshotInputRef = useRef<HTMLInputElement>(null);
   const pathname = usePathname();
+  const router = useRouter();
 
   function handleScreenshotChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -948,8 +950,13 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
       }
       return res.json();
     },
-    onSuccess: () => {
-      toast.success("הפנייה נשלחה — נחזור אליך בהקדם 🙏");
+    onSuccess: (data: { id?: string }) => {
+      toast.success("הפנייה נשלחה — נחזור אליך בהקדם 🙏", {
+        description: "התשובה תגיע במייל ותופיע תחת \"הפניות שלי\"",
+        action: data?.id
+          ? { label: "לצפייה בפנייה", onClick: () => { onOpenChange(false); router.push(`/support?ticket=${data.id}`); } }
+          : undefined,
+      });
       setBugDescription("");
       setScreenshotBase64(null);
       setScreenshotName(null);
@@ -1162,6 +1169,20 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
                   יצירת קשר עם התמיכה
                 </h3>
                 <div className="space-y-3">
+                  <Link
+                    href="/support"
+                    onClick={() => onOpenChange(false)}
+                    className="flex items-center gap-3 p-3 rounded-xl border border-orange-200 bg-orange-50/50 hover:bg-orange-50 transition-colors"
+                  >
+                    <div className="w-9 h-9 rounded-xl bg-orange-100 flex items-center justify-center flex-shrink-0">
+                      <LifeBuoy className="w-4 h-4 text-orange-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-petra-text">הפניות שלי</p>
+                      <p className="text-xs text-petra-muted">תשובות הצוות וכל היסטוריית הטיפול בפניות שלך</p>
+                    </div>
+                  </Link>
+
                   <a
                     href="https://wa.me/972504828080"
                     target="_blank"

@@ -75,6 +75,8 @@ export interface ToolCtx {
   connectionId: string;
   /** PlatformUser who minted the connection (null for legacy tokens) — recorded as lead closer etc. */
   userId?: string | null;
+  /** Minter's CURRENT tenant role (null = legacy token → owner-level). */
+  minterRole?: string | null;
   hasScope: (scope: string) => boolean;
   /** Deny a tool call whose connection lacks the required scope (audited). */
   denyScope: (tool: string, scope: string) => Promise<ToolResult>;

@@ -1116,14 +1116,45 @@ model SupportTicket {
   description String
   pageUrl     String?  // the page the user was on
   status      String   @default("open")  // open | in_progress | resolved
+  /// Last time the customer wrote (open + every customer reply). Drives "waiting for us".
+  lastCustomerMessageAt DateTime?
+  /// Last staff reply visible to the customer (internal notes don't count).
+  lastStaffReplyAt      DateTime?
+  firstResponseAt       DateTime?
+  resolvedAt            DateTime?
+  /// The customer has a staff reply they haven't opened yet.
+  customerUnread        Boolean  @default(false)
+  /// Last SLA alert sent to the platform owner (cron dedup).
+  slaAlertedAt          DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   business    Business     @relation(fields: [businessId], references: [id])
   user        PlatformUser @relation(fields: [userId], references: [id])
+  events      SupportTicketEvent[]
 
   @@index([status, createdAt])
   @@index([businessId])
+}
+
+/// Handling history of a support ticket: replies both ways, internal notes, status changes.
+model SupportTicketEvent {
+  id           String   @id @default(uuid())
+  ticketId     String
+  /// created | customer_reply | staff_reply | internal_note | status_change
+  type         String
+  /// customer | staff | system
+  authorType   String
+  authorUserId String?
+  authorName   String?
+  body         String?
+  fromStatus   String?
+  toStatus     String?
+  createdAt    DateTime @default(now())
+
+  ticket       SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt])
 }
 
 // ─────────────────────────────────────────────
