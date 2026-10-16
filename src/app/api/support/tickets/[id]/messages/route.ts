@@ -17,7 +17,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     return NextResponse.json({ error: "לא ניתן להשיב בשם העסק במצב התחזות" }, { status: 403 });
   }
 
-  const rl = await rateLimitAsync("support:reply", session.user.id, RATE_LIMITS.API_WRITE);
+  const rl = await rateLimitAsync("support:reply", session.user.id, RATE_LIMITS.SUPPORT_WRITE);
   if (!rl.allowed) return NextResponse.json({ error: "יותר מדי הודעות בזמן קצר. נסו שוב בעוד רגע." }, { status: 429 });
 
   let raw: { body?: unknown };

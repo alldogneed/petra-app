@@ -16,6 +16,8 @@ import {
 } from "@/lib/support-tickets";
 import { sendSupportTicketEmail, sendSupportReplyEmail } from "@/lib/email";
 import { notifyOwnerSupportActivity, notifyOwnerSupportOverdue } from "@/lib/notify-owner";
+import { runAfterResponse } from "@/lib/wait-until";
+import { claimOnce } from "@/lib/rate-limit";
 
 export { ServiceError };
 
@@ -85,7 +87,8 @@ export async function createSupportTicket(input: {
   const business = await prisma.business.findUnique({ where: { id: input.businessId }, select: { name: true } });
   const businessName = business?.name ?? input.businessId;
   const adminUrl = `${APP_URL()}/owner/support?ticket=${ticket.id}`;
-  await Promise.all([
+  // After the response: a slow Meta/Resend must not hold the customer's request (they'd resubmit).
+  await runAfterResponse(Promise.all([
     quietly("ticket email", () =>
       sendSupportTicketEmail({
         ticketId: ticket.id,
@@ -101,7 +104,7 @@ export async function createSupportTicket(input: {
     quietly("owner alert", () =>
       notifyOwnerSupportActivity({ kind: "new", businessName, userEmail: input.actor.email ?? "", title: ticket.title, adminUrl })
     ),
-  ]);
+  ]));
   return ticket;
 }
 
@@ -208,7 +211,9 @@ export async function addCustomerReply(scope: CustomerScope, id: string, actor: 
     },
   });
 
-  await quietly("owner alert", () =>
+  // One owner alert per ticket per 10 minutes (a burst of replies = one ping); a reopen always alerts.
+  const alert = reopened || (await claimOnce(`support-alert:${id}`, 10 * 60));
+  if (alert) await runAfterResponse(quietly("owner alert", () =>
     notifyOwnerSupportActivity({
       kind: reopened ? "reopened" : "reply",
       businessName: ticket.business?.name ?? "",
@@ -217,7 +222,7 @@ export async function addCustomerReply(scope: CustomerScope, id: string, actor: 
       body,
       adminUrl: `${APP_URL()}/owner/support?ticket=${id}`,
     })
-  );
+  ));
   return { reopened };
 }
 
@@ -386,14 +391,14 @@ export async function addStaffMessage(
   let emailSent: boolean | null = null;
   if (!input.internal) {
     const ticketUrl = `${APP_URL()}/support?ticket=${id}`;
-    // In-app: the business's "הודעות מפטרה" envelope. Business-wide by design — it
-    // names the ticket title only; the reply itself is behind the ticket's access rule.
+    // In-app: the business's "הודעות מפטרה" envelope. SystemMessage is business-wide (every
+    // member sees it), so it carries no title or reply text — those stay behind the ticket's access rule.
     await quietly("system message", () =>
       prisma.systemMessage.create({
         data: {
           businessId: ticket.businessId,
           title: "התקבלה תשובה לפנייה שלך",
-          content: `צוות פטרה ענה לפנייה "${ticket.title.slice(0, 120)}". לחצו כדי לקרוא את התשובה ולהשיב.`,
+          content: "צוות פטרה ענה לפנייה ששלחת. לחצו כדי לקרוא את התשובה ולהשיב.",
           type: "info",
           actionUrl: `/support?ticket=${id}`,
           actionLabel: "לצפייה בתשובה",

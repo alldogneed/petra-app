@@ -284,6 +284,12 @@ The legacy dark "Master Admin" (`/admin/*`) was merged into the light platform p
 - Routes `/api/leads/[id]/meetings/**` use `VIEW_LEADS` like the rest of `/api/leads/**`. UI: `src/components/leads/LeadMeetingsSection.tsx` in the lead card; calendar renders meetings as violet "פגישת ליד" items. Tests: `src/lib/__tests__/lead-meeting*.test.ts`.
 - Known gap: appointment conflict checks (`findAppointmentConflicts`) do not yet consider lead meetings — only online booking does.
 
+### 48. Support tickets — every write goes through `src/services/support-tickets.ts`
+`SupportTicketEvent` = the handling history (`created` · `customer_reply` · `staff_reply` · `internal_note` · `status_change`); SLA columns on `SupportTicket` (`lastCustomerMessageAt`, `lastStaffReplyAt`, `firstResponseAt`, `resolvedAt`, `customerUnread`, `slaAlertedAt`). Pure rules in `src/lib/support-tickets.ts` (`waitingSince`, `isOverdue`, `SUPPORT_SLA_HOURS` = 4, `isCustomerVisibleEvent`). Never `prisma.supportTicket.create/update` in a route — use `createSupportTicket()` (`/api/support/report`, `/api/assistant/escalate`), `addStaffMessage()`, `setStaffTicketStatus()`, `addCustomerReply()`.
+- **Staff** (`/owner/support`, `requirePlatformPermission` tenants.read/write): `GET/PATCH /api/owner/support/[id]`, `POST …/[id]/messages {body, internal?, status?}`. A reply → email to the opener (`sendSupportReplyEmail`) + a business `SystemMessage` with a generic text (SystemMessage is business-wide → never put the title/reply in it); `open` → `in_progress`. Badge = `GET /api/owner/support/summary`.
+- **Customer** ("הפניות שלי", `/support?ticket=`): `/api/support/tickets[/id[/messages]]`, scope in `src/lib/support-access.ts` — opener sees own tickets, business owner sees all of the business, impersonating admin reads but can't reply. Internal notes are filtered out and staff names masked as "צוות פטרה". A customer reply on a resolved ticket reopens it.
+- **Monitoring:** new ticket / customer reply / reopen → `notifyOwnerSupportActivity` (WhatsApp `petra_owner_alert` + email) via `runAfterResponse`, replies throttled to one alert per ticket per 10 min (`claimOnce`); `RATE_LIMITS.SUPPORT_WRITE` on report + reply. Cron `/api/cron/support-sla` (daily) → one digest for tickets waiting > 4h, once per waiting period. Prod DDL: `prisma/support_ticket_threads.sql`. Tests: `src/lib/__tests__/support-tickets.test.ts`.
+
 ## MCP Server
 
 ### Architecture

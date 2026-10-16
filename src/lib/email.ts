@@ -469,7 +469,7 @@ export async function sendSupportReplyEmail(params: SupportReplyEmailParams): Pr
     from: getFromEmail(),
     to: params.to,
     replyTo: "info@petra-app.com",
-    subject: `\u200Fתשובה לפנייה שלך: ${params.ticketTitle.slice(0, 80)}`,
+    subject: `\u200Fתשובה לפנייה שלך: ${params.ticketTitle.replace(/[\r\n\t]+/g, " ").slice(0, 80)}`,
     html: `
       <div dir="rtl" style="font-family:'Segoe UI',Arial,sans-serif;max-width:520px;margin:0 auto;color:#1e293b;background:#ffffff;">
         ${brandHeader()}

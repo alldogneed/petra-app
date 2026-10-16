@@ -2,12 +2,22 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { rateLimitAsync, RATE_LIMITS } from "@/lib/rate-limit";
 import { createSupportTicket } from "@/services/support-tickets";
 
 export async function POST(request: NextRequest) {
   const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
   const { session, businessId } = authResult;
+
+  // Every ticket alerts the platform owner (WhatsApp + email) — cap per user and per business.
+  const [rlUser, rlBiz] = await Promise.all([
+    rateLimitAsync("support:report", session.user.id, RATE_LIMITS.SUPPORT_WRITE),
+    rateLimitAsync("support:report:biz", businessId, { max: 20, windowMs: 60 * 60 * 1000 }),
+  ]);
+  if (!rlUser.allowed || !rlBiz.allowed) {
+    return NextResponse.json({ error: "נשלחו כמה פניות בזמן קצר. נסו שוב בעוד כמה דקות." }, { status: 429 });
+  }
 
   let body: { title?: string; description?: string; pageUrl?: string; screenshotBase64?: string };
   try {

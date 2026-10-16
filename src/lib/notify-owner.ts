@@ -180,6 +180,7 @@ export async function notifyOwnerSupportActivity(p: {
   adminUrl: string;
 }): Promise<void> {
   const label = SUPPORT_KIND_LABEL[p.kind];
+  const oneLine = (v: string) => v.replace(/[\r\n\t]+/g, " ").trim();
   const dateLabel = formatDate();
   const snippet = (p.body ?? "").replace(/\s+/g, " ").slice(0, 300);
   const waMessage = `🛟 ${label} — ${p.businessName}\n${p.title}${snippet ? `\n\n"${snippet}"` : ""}\n\n${p.adminUrl}`;
@@ -191,7 +192,8 @@ export async function notifyOwnerSupportActivity(p: {
       <p><a href="${p.adminUrl}" style="color:#f97316;font-weight:bold;">← לטיפול בפנייה</a></p>
     </div>`;
   // petra_owner_alert body params: [who, contact, what, when]
-  const templateParams = [p.businessName || "-", p.userEmail || "-", `${label}: ${p.title.slice(0, 80)}`, dateLabel];
+  // Meta rejects template params with newlines → strip them (else the send drops to free text).
+  const templateParams = [oneLine(p.businessName) || "-", oneLine(p.userEmail) || "-", `${label}: ${oneLine(p.title).slice(0, 80)}`, dateLabel];
   await Promise.allSettled([
     sendOwnerWhatsApp(waMessage, templateParams),
     // A new ticket already emails info@petra-app.com (sendSupportTicketEmail) — don't double it.
@@ -205,7 +207,10 @@ export async function notifyOwnerSupportOverdue(p: {
   adminUrl: string;
 }): Promise<void> {
   const hours = (d: Date) => Math.max(1, Math.round((Date.now() - d.getTime()) / 3_600_000));
-  const lines = p.tickets.map((t) => `• ${t.businessName} — ${t.title.slice(0, 60)} (${hours(t.waitingSince)} ש׳)`);
+  const oneLine = (v: string) => v.replace(/[\r\n\t]+/g, " ").trim();
+  const MAX_LINES = 20; // WhatsApp free text caps at 4096 chars
+  const lines = p.tickets.slice(0, MAX_LINES).map((t) => `• ${oneLine(t.businessName)} — ${oneLine(t.title).slice(0, 60)} (${hours(t.waitingSince)} ש׳)`);
+  if (p.tickets.length > MAX_LINES) lines.push(`ועוד ${p.tickets.length - MAX_LINES}…`);
   const waMessage = `⏰ ${p.tickets.length} פניות ממתינות לתשובה:\n${lines.join("\n")}\n\n${p.adminUrl}`;
   const emailHtml = `
     <div style="font-family: Arial, sans-serif; direction: rtl; text-align: right; max-width: 560px; margin: 0 auto;">
@@ -213,7 +218,7 @@ export async function notifyOwnerSupportOverdue(p: {
       <ul>${p.tickets.map((t) => `<li><b>${escapeHtml(t.businessName)}</b> — ${escapeHtml(t.title)} (ממתין ${hours(t.waitingSince)} שעות)</li>`).join("")}</ul>
       <p><a href="${p.adminUrl}" style="color:#f97316;font-weight:bold;">← לפניות התמיכה</a></p>
     </div>`;
-  const templateParams = ["פניות תמיכה", `${p.tickets.length} ממתינות`, `הוותיקה: ${p.tickets[0]?.title.slice(0, 60) ?? ""}`, formatDate()];
+  const templateParams = ["פניות תמיכה", `${p.tickets.length} ממתינות`, `הוותיקה: ${oneLine(p.tickets[0]?.title ?? "").slice(0, 60)}`, formatDate()];
   await Promise.allSettled([
     sendOwnerWhatsApp(waMessage, templateParams),
     sendOwnerEmail(`⏰ Petra: ${p.tickets.length} פניות ממתינות לתשובה`, emailHtml),
