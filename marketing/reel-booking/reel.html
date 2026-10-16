@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="he" dir="rtl"><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&display=block" rel="stylesheet">
+<style>
+:root{--navy:#0F172A;--orange:#F97316;--orange2:#EA580C;--bg:#F6F7F9;--border:#E2E8F0;--muted:#5B6678;--wa:#25D366;--ease:cubic-bezier(.25,.8,.25,1)}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1080px;height:1920px;overflow:hidden;background:var(--navy);font-family:Heebo,sans-serif;color:var(--navy)}
+.scene{position:absolute;inset:0;opacity:0;animation:scene var(--d) linear var(--s) both;overflow:hidden}
+@keyframes scene{0%{opacity:0}3%{opacity:1}97%{opacity:1}100%{opacity:0}}
+.scene.first{animation-name:sceneFirst}@keyframes sceneFirst{0%{opacity:1}97%{opacity:1}100%{opacity:0}}
+.scene.last{animation-name:sceneLast}@keyframes sceneLast{0%{opacity:0}4%{opacity:1}100%{opacity:1}}
+.dark{background:var(--navy)}.light{background:var(--bg)}
+.fu{animation:fadeUp .7s var(--ease) calc(var(--s) + var(--o,0s)) both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:none}}
+.pop{animation:pop .45s cubic-bezier(.3,1.6,.5,1) calc(var(--s) + var(--o,0s)) both}
+@keyframes pop{from{opacity:0;transform:scale(.4)}to{opacity:1;transform:none}}
+.fi{animation:fadeIn .5s ease calc(var(--s) + var(--o,0s)) both}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+/* top headline */
+.head{position:absolute;top:190px;left:70px;right:70px;text-align:right}
+.eyebrow{font-size:36px;font-weight:700;color:var(--orange2)}
+.title{font-size:78px;font-weight:800;line-height:1.08;margin-top:10px;letter-spacing:-.5px}
+
+/* media card */
+.card{position:absolute;left:60px;top:470px;width:960px;height:860px;border-radius:36px;background:#fff;overflow:hidden;
+  box-shadow:0 30px 70px rgba(15,23,42,.16),0 0 0 2px var(--border)}
+.card img.pan{position:absolute;left:0;top:0;transform-origin:0 0;
+  animation:pan var(--pd) ease-in-out calc(var(--s) + var(--po,0s)) both}
+@keyframes pan{from{transform:translate(var(--x0),var(--y0)) scale(var(--z0,1))}to{transform:translate(var(--x1),var(--y1)) scale(var(--z1,1))}}
+.layer{position:absolute;inset:0;animation:fadeIn .45s ease calc(var(--s) + var(--o)) both}
+.callout{position:absolute;border-radius:28px;background:#fff;overflow:hidden;
+  box-shadow:0 30px 70px rgba(15,23,42,.28),0 0 0 2px var(--border)}
+.callout img{display:block;width:100%}
+.ring{position:absolute;border:6px solid var(--orange);border-radius:22px;
+  animation:ring 1.2s ease-out calc(var(--s) + var(--o)) both}
+@keyframes ring{0%{opacity:0;transform:scale(1.25)}30%{opacity:1;transform:scale(1)}85%{opacity:1}100%{opacity:.9}}
+
+/* subtitles */
+.sub{position:absolute;left:60px;right:60px;top:1390px;display:flex;justify-content:center;opacity:0;
+  animation:sub var(--sd) linear var(--ss) both}
+.sub span{background:var(--navy);color:#fff;font-size:58px;font-weight:800;line-height:1.25;padding:14px 34px 18px;border-radius:22px;text-align:center;
+  box-shadow:0 12px 30px rgba(15,23,42,.25)}
+.sub.onDark span{background:#fff;color:var(--navy)}
+@keyframes sub{0%{opacity:0;transform:translateY(14px)}6%{opacity:1;transform:none}94%{opacity:1}100%{opacity:0}}
+
+/* hook */
+.hq{position:absolute;top:300px;left:60px;right:60px;text-align:center;color:#fff;font-size:84px;font-weight:800;line-height:1.1}
+.opts{position:absolute;top:610px;left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:44px}
+.opt{display:flex;align-items:center;gap:34px;background:#1E293B;border-radius:30px;padding:26px 44px;width:760px;position:relative}
+.opt svg{width:120px;height:120px;flex:none}
+.opt b{font-size:64px;font-weight:800;color:#fff}
+.strike{position:absolute;left:30px;right:30px;top:50%;height:10px;margin-top:-5px;background:#EF4444;border-radius:6px;transform-origin:right;
+  animation:strike .35s ease-out calc(var(--s) + var(--o)) both}
+@keyframes strike{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+
+/* logo */
+.wm{position:absolute;top:64px;left:60px;display:flex;align-items:center;gap:16px;opacity:0;z-index:20;animation:wm var(--wd) linear var(--ws) both}
+.wm .logoTile{width:78px;height:78px;border-radius:20px;box-shadow:0 6px 16px rgba(15,23,42,.15)}
+.wm b{font-size:44px;font-weight:800;color:var(--navy);letter-spacing:-.5px}
+@keyframes wm{0%{opacity:0}3%{opacity:1}97%{opacity:1}100%{opacity:0}}
+.bigLogo{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:30px;background:var(--navy)}
+.bigLogo .logoTile{width:260px;height:260px;border-radius:62px}
+.bigLogo b{color:#fff;font-size:110px;font-weight:800;letter-spacing:-1px}
+.brand{color:#fff;font-size:72px;font-weight:800;margin-top:24px;letter-spacing:-1px}
+
+/* CTA */
+.cta{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;padding-top:300px;text-align:center}
+.logoTile{width:210px;height:210px;border-radius:50px;background:#fff;overflow:hidden}
+.logoTile img{width:112%;height:112%;margin:-6%}
+.ctaT{color:#fff;font-size:80px;font-weight:800;line-height:1.1;margin-top:60px}
+.wa{margin-top:70px;display:flex;align-items:center;gap:26px;background:var(--wa);color:#fff;border-radius:999px;padding:30px 64px;font-size:62px;font-weight:800;
+  box-shadow:0 20px 50px rgba(37,211,102,.35)}
+.wa svg{width:78px;height:78px}
+.num{margin-top:44px;color:#fff;font-size:58px;font-weight:700;direction:ltr;letter-spacing:.5px}
+.small{margin-top:26px;color:#94A3B8;font-size:40px;font-weight:600}
+.pulse{animation:fadeUp .7s var(--ease) calc(var(--s) + var(--o)) both, pulse 1.4s ease-in-out calc(var(--s) + var(--o) + .8s) infinite}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+
+/* scene 5: sources -> Petra */
+.hub{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:34px}
+.srcs{display:grid;grid-template-columns:1fr 1fr;gap:26px;width:780px}
+.src{background:#F1F5F9;border:2px solid var(--border);border-radius:26px;padding:30px 10px;text-align:center;font-size:56px;font-weight:800}
+.arrow{font-size:110px;font-weight:800;color:var(--orange);line-height:.9}
+.hubLogo{display:flex;align-items:center;gap:26px;background:var(--navy);border-radius:32px;padding:22px 44px 22px 30px}
+.hubLogo .logoTile{width:120px;height:120px;border-radius:28px}.hubLogo b{color:#fff;font-size:60px;font-weight:800}
+
+/* WhatsApp bubble (scene 6): the exact text the intake page's "שלח בוואטסאפ" pre-fills */
+.wabub{position:absolute;left:150px;right:150px;bottom:60px;background:#DCF8C6;border-radius:26px 26px 6px 26px;padding:24px 30px;font-size:34px;line-height:1.35;color:#0F172A;
+  box-shadow:0 18px 40px rgba(15,23,42,.18)}
+.wabub b{display:block;font-size:24px;color:#128C7E;margin-bottom:6px}
+.wabub u{color:#0369A1;text-decoration:none;direction:ltr;unicode-bidi:embed}
+</style></head><body>
+<section class="scene dark first" style="--s:0.0s;--d:3.11s">
+
+  <div class="hq fu" style="--o:.1s">עדיין קובעים תור<br>בעשר הודעות?</div>
+  <div class="opts" style="top:620px;gap:34px"><div class="opt pop" style="--o:0.98s;padding:22px 44px;justify-content:flex-start;width:700px"><svg viewBox="0 0 120 120"><path d="M18 22h84a8 8 0 0 1 8 8v48a8 8 0 0 1-8 8H56l-24 20V86H18a8 8 0 0 1-8-8V30a8 8 0 0 1 8-8z" fill="#22C55E"/><path d="M34 46h52M34 62h34" stroke="#fff" stroke-width="7" stroke-linecap="round"/></svg><b style="font-size:54px">מתי יש לך מקום?</b><i class="strike" style="--o:1.81s"></i></div><div class="opt pop" style="--o:1.24s;padding:22px 44px;justify-content:flex-start;width:700px"><svg viewBox="0 0 120 120"><path d="M18 22h84a8 8 0 0 1 8 8v48a8 8 0 0 1-8 8H56l-24 20V86H18a8 8 0 0 1-8-8V30a8 8 0 0 1 8-8z" fill="#22C55E"/><path d="M34 46h52M34 62h34" stroke="#fff" stroke-width="7" stroke-linecap="round"/></svg><b style="font-size:54px">ובשלישי?</b><i class="strike" style="--o:1.91s"></i></div><div class="opt pop" style="--o:1.68s;padding:22px 44px;justify-content:flex-start;width:700px"><svg viewBox="0 0 120 120"><path d="M18 22h84a8 8 0 0 1 8 8v48a8 8 0 0 1-8 8H56l-24 20V86H18a8 8 0 0 1-8-8V30a8 8 0 0 1 8-8z" fill="#22C55E"/><path d="M34 46h52M34 62h34" stroke="#fff" stroke-width="7" stroke-linecap="round"/></svg><b style="font-size:54px">אולי בחמש?</b><i class="strike" style="--o:2.01s"></i></div></div>
+  <div class="bigLogo pop" style="--o:2.26s"><div class="logoTile"><img src="../../public/petra-logo.png"></div><b>Petra</b></div>
+</section>
+<section class="scene light" style="--s:2.76s;--d:4.25s">
+
+  <div class="head"><div class="eyebrow fu" style="--o:.1s">יומן</div><div class="title fu" style="--o:.25s;font-size:70px">כל התורים<br>ביומן אחד</div></div>
+  <div class="card fu" style="--o:.2s"><img class="pan" src="shots/calendar.jpg" style="width:1900px;--x0:-480px;--y0:-300px;--x1:-340px;--y1:-300px;--z0:1;--z1:1;--pd:3.4s;--po:0.4s"></div>
+</section>
+<section class="scene light" style="--s:6.66s;--d:4.23s">
+
+  <div class="head"><div class="eyebrow fu" style="--o:.1s">פגישה חוזרת</div><div class="title fu" style="--o:.25s;font-size:70px">לקוח קבוע?<br>בלחיצה אחת</div></div>
+  <div class="card fu" style="--o:.2s"><img class="pan" src="shots/recurring.jpg" style="width:1900px;--x0:-470px;--y0:-300px;--x1:-470px;--y1:-300px;--z0:1;--z1:1;--pd:1s;--po:0s"></div><i class="ring" style="--o:1.96s;left:255px;top:890px;width:570px;height:215px"></i>
+</section>
+<section class="scene light" style="--s:10.54s;--d:5.39s">
+
+  <div class="head"><div class="eyebrow fu" style="--o:.1s">הזמנה אונליין</div><div class="title fu" style="--o:.25s;font-size:70px">הלקוחות<br>קובעים לבד</div></div>
+  <div class="card fu" style="--o:.2s"><img class="pan" src="shots/book1.jpg" style="width:760px;--x0:100px;--y0:-40px;--x1:100px;--y1:-40px;--z0:1;--z1:1;--pd:1s;--po:0s"><div class="layer" style="--o:3.48s;background:#fff"><img class="pan" src="shots/book2.jpg" style="width:760px;--x0:100px;--y0:-40px;--x1:100px;--y1:-40px;--z0:1;--z1:1;--pd:1s;--po:0s"></div><div class="layer" style="--o:4.12s;background:#fff"><img class="pan" src="shots/book3.jpg" style="width:760px;--x0:100px;--y0:-40px;--x1:100px;--y1:-40px;--z0:1;--z1:1;--pd:1s;--po:0s"></div></div>
+</section>
+<section class="scene light" style="--s:15.58s;--d:4.29s">
+
+  <div class="head"><div class="eyebrow fu" style="--o:.1s">זמינות</div><div class="title fu" style="--o:.25s;font-size:70px">רק שעות<br>שבאמת פנויות</div></div>
+  <div class="card fu" style="--o:.2s"><img class="pan" src="shots/availability.jpg" style="width:1900px;--x0:-420px;--y0:-120px;--x1:-420px;--y1:-260px;--z0:1;--z1:1;--pd:3.54s;--po:0.3s"></div>
+</section>
+<section class="scene light" style="--s:19.52s;--d:4.21s">
+
+  <div class="head"><div class="eyebrow fu" style="--o:.1s">אישור הזמנות</div><div class="title fu" style="--o:.25s;font-size:70px">מאשרים או דוחים<br>בלחיצה</div></div>
+  <div class="card fu" style="--o:.2s"><img class="pan" src="shots/approve.jpg" style="width:1900px;--x0:-470px;--y0:-170px;--x1:-470px;--y1:-170px;--z0:1;--z1:1;--pd:1s;--po:0s"></div><i class="ring" style="--o:2.0s;left:255px;top:1092px;width:570px;height:120px"></i>
+</section>
+<section class="scene light" style="--s:23.38s;--d:5.09s">
+
+  <div class="head"><div class="eyebrow fu" style="--o:.1s">טופס קליטה</div><div class="title fu" style="--o:.25s;font-size:64px">שולחים בוואטסאפ,<br>ההודעה כבר כתובה</div></div>
+  <div class="card fu" style="--o:.2s"><img class="pan" src="shots/intake-send.jpg" style="width:1900px;--x0:-480px;--y0:-300px;--x1:-480px;--y1:-300px;--z0:1;--z1:1;--pd:1s;--po:0s"><div class="wabub fu" style="--o:3.36s"><b>WhatsApp</b>שלום! אנא מלא/י את טופס הקבלה לפני הביקור:<br><u>petra-app.com/intake/…</u></div></div>
+</section>
+<section class="scene light" style="--s:28.12s;--d:6.13s">
+
+  <div class="head"><div class="eyebrow fu" style="--o:.1s">הלקוח ממלא לבד</div><div class="title fu" style="--o:.25s;font-size:66px">והכלב נפתח<br>במערכת אוטומטית</div></div>
+  <div class="card fu" style="--o:.2s"><img class="pan" src="shots/intake1.jpg" style="width:760px;--x0:100px;--y0:-40px;--x1:100px;--y1:-40px;--z0:1;--z1:1;--pd:1s;--po:0s"><div class="layer" style="--o:2.0s;background:#fff"><img class="pan" src="shots/intake2.jpg" style="width:760px;--x0:100px;--y0:-40px;--x1:100px;--y1:-40px;--z0:1;--z1:1;--pd:1s;--po:0s"></div><div class="layer" style="--o:2.54s;background:#fff"><img class="pan" src="shots/intake3.jpg" style="width:760px;--x0:100px;--y0:-40px;--x1:100px;--y1:-40px;--z0:1;--z1:1;--pd:1s;--po:0s"></div><div class="layer" style="--o:3.62s;background:#fff"><img class="pan" src="shots/newcustomer.jpg" style="width:1900px;--x0:-300px;--y0:-350px;--x1:-300px;--y1:-350px;--z0:1;--z1:1;--pd:1s;--po:0s"></div></div><i class="ring" style="--o:4.04s;left:309px;top:596px;width:485px;height:165px"></i>
+</section>
+<section class="scene dark last" style="--s:33.9s;--d:11.15s">
+
+  <div class="cta">
+    <div class="logoTile pop" style="--o:.15s"><img src="../../public/petra-logo.png"></div>
+    <div class="brand fu" style="--o:.35s">Petra</div>
+    <div class="ctaT fu" style="--o:0.72s">רוצים לנסות?</div>
+    <div class="wa pulse" style="--o:3.86s">מתחילים בחינם</div>
+    <div class="num fu" style="--o:1.98s">petra-app.com/landing</div>
+    <div class="small fu" style="--o:4.36s">תורים אונליין במנוי בייסיק ומעלה</div>
+  </div>
+</section>
+<div class="wm" style="--ws:2.76s;--wd:31.34s"><div class="logoTile"><img src="../../public/petra-logo.png"></div><b>Petra</b></div>
+
+<div class="sub onDark" style="--ss:0.23s;--sd:1.01s"><span>עדיין קובעים תור</span></div>
+<div class="sub onDark" style="--ss:1.19s;--sd:1.52s"><span>בעשר הודעות וואטסאפ?</span></div>
+<div class="sub" style="--ss:3.01s;--sd:0.85s"><span>עם פטרה,</span></div>
+<div class="sub" style="--ss:3.81s;--sd:1.43s"><span>כל התורים ביומן אחד,</span></div>
+<div class="sub" style="--ss:5.19s;--sd:1.42s"><span>ומזיזים תור בגרירה</span></div>
+<div class="sub" style="--ss:6.93s;--sd:1.35s"><span>לקוח קבוע?</span></div>
+<div class="sub" style="--ss:8.23s;--sd:1.23s"><span>קובעים פגישה חוזרת</span></div>
+<div class="sub" style="--ss:9.41s;--sd:1.08s"><span>בלחיצה אחת</span></div>
+<div class="sub" style="--ss:10.79s;--sd:2.17s"><span>והלקוחות קובעים לבד:</span></div>
+<div class="sub" style="--ss:12.91s;--sd:1.11s"><span>בוחרים שירות,</span></div>
+<div class="sub" style="--ss:13.97s;--sd:1.56s"><span>תאריך ושעה פנויה</span></div>
+<div class="sub" style="--ss:15.85s;--sd:0.81s"><span>רואים רק שעות</span></div>
+<div class="sub" style="--ss:16.61s;--sd:1.07s"><span>שבאמת פנויות,</span></div>
+<div class="sub" style="--ss:17.63s;--sd:1.84s"><span>לפי השעות וההפסקות שלכם</span></div>
+<div class="sub" style="--ss:19.79s;--sd:1.73s"><span>רוצים לאשר כל הזמנה?</span></div>
+<div class="sub" style="--ss:21.47s;--sd:1.86s"><span>מאשרים או דוחים בלחיצה</span></div>
+<div class="sub" style="--ss:23.65s;--sd:1.37s"><span>לקוח חדש?</span></div>
+<div class="sub" style="--ss:24.97s;--sd:1.77s"><span>שולחים לו בוואטסאפ טופס קליטה,</span></div>
+<div class="sub" style="--ss:26.69s;--sd:1.38s"><span>וההודעה כבר כתובה</span></div>
+<div class="sub" style="--ss:28.39s;--sd:0.81s"><span>הוא ממלא לבד</span></div>
+<div class="sub" style="--ss:29.15s;--sd:2.59s"><span>את פרטי הכלב, הבריאות וההתנהגות,</span></div>
+<div class="sub" style="--ss:31.69s;--sd:2.16s"><span>והכלב נפתח במערכת אוטומטית</span></div>
+<script>
+window.renderAt = function (t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t * 1000; } };
+window.TOTAL = 45.05;
+</script></body></html>
