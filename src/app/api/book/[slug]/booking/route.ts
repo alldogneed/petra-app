@@ -12,6 +12,7 @@ import { syncAppointmentToGcal } from "@/lib/google-calendar"
 import { sanitizeName } from "@/lib/validation"
 import { scheduleLeadFollowup } from "@/lib/reminder-service"
 import { notifyNewBooking } from "@/lib/engagement-service"
+import { hasFeatureWithOverrides } from "@/lib/feature-flags"
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "https://petra-app.vercel.app"
 
@@ -147,12 +148,18 @@ export async function POST(
 
   const business = await prisma.business.findUnique({
     where: { slug: params.slug },
-    select: { id: true, status: true, timezone: true, phone: true, bookingRequiresApproval: true },
+    select: { id: true, status: true, timezone: true, phone: true, bookingRequiresApproval: true, tier: true, featureOverrides: true, whatsappRemindersEnabled: true },
   })
 
   if (!business || business.status !== "active") {
     return NextResponse.json({ error: "Business not found" }, { status: 404 })
   }
+
+  // WhatsApp to the CUSTOMER only when the business turned automatic messages on and its tier
+  // includes them (same rule as reminders). Alerts to the business's own phone are unchanged.
+  const customerMessagesOn =
+    business.whatsappRemindersEnabled &&
+    hasFeatureWithOverrides(business.tier ?? "free", "whatsapp_reminders", (business.featureOverrides as Record<string, boolean> | null) ?? null)
 
   const item = await prisma.priceListItem.findFirst({
     where: { id: priceListItemId, businessId: business.id, isActive: true },
@@ -449,10 +456,10 @@ export async function POST(
       }
     }
 
-    await notifyCustomerConfirmed(business.id, booking, customer, { name: serviceName }, dateLabel, timeLabel)
+    if (customerMessagesOn) await notifyCustomerConfirmed(business.id, booking, customer, { name: serviceName }, dateLabel, timeLabel)
     await notifyOwnerNewConfirmed(business.id, business.phone, customer.name, { name: serviceName }, dateLabel, timeLabel)
   } else {
-    await notifyCustomerPending(business.id, booking, customer, { name: serviceName }, dateLabel, timeLabel)
+    if (customerMessagesOn) await notifyCustomerPending(business.id, booking, customer, { name: serviceName }, dateLabel, timeLabel)
     await notifyOwnerNewPending(business.id, business.phone, customer.name, { name: serviceName }, dateLabel)
   }
 

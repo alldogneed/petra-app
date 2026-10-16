@@ -66,7 +66,8 @@ type Step = "service" | "date" | "time" | "boarding-dates" | "customer" | "dogs"
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-const DAYS_HE = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"]
+// Calendar column headers: the Hebrew day letters (the first letter of each name would read "ר ש ש ר ח ש ש")
+const DAYS_HE_SHORT = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"]
 
 function formatPrice(price: number) {
   return new Intl.NumberFormat("he-IL", { style: "currency", currency: "ILS", maximumFractionDigits: 0 }).format(price)
@@ -636,8 +637,8 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
 
               {/* Day headers */}
               <div className="grid grid-cols-7 mb-1">
-                {DAYS_HE.map((d) => (
-                  <div key={d} className="text-center text-xs text-petra-muted py-1 font-medium">{d.slice(0, 1)}</div>
+                {DAYS_HE_SHORT.map((d) => (
+                  <div key={d} className="text-center text-xs text-petra-muted py-1 font-medium">{d}</div>
                 ))}
               </div>
 
