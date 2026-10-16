@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="he" dir="rtl"><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&display=block" rel="stylesheet">
+<style>
+:root{--navy:#0F172A;--orange:#F97316;--orange2:#EA580C;--bg:#F6F7F9;--border:#E2E8F0;--muted:#5B6678;--wa:#25D366;--ease:cubic-bezier(.25,.8,.25,1)}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1080px;height:1920px;overflow:hidden;background:var(--navy);font-family:Heebo,sans-serif;color:var(--navy)}
+.scene{position:absolute;inset:0;opacity:0;animation:scene var(--d) linear var(--s) both;overflow:hidden}
+@keyframes scene{0%{opacity:0}3%{opacity:1}97%{opacity:1}100%{opacity:0}}
+.scene.first{animation-name:sceneFirst}@keyframes sceneFirst{0%{opacity:1}97%{opacity:1}100%{opacity:0}}
+.scene.last{animation-name:sceneLast}@keyframes sceneLast{0%{opacity:0}4%{opacity:1}100%{opacity:1}}
+.dark{background:var(--navy)}.light{background:var(--bg)}
+.fu{animation:fadeUp .7s var(--ease) calc(var(--s) + var(--o,0s)) both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:none}}
+.pop{animation:pop .45s cubic-bezier(.3,1.6,.5,1) calc(var(--s) + var(--o,0s)) both}
+@keyframes pop{from{opacity:0;transform:scale(.4)}to{opacity:1;transform:none}}
+.fi{animation:fadeIn .5s ease calc(var(--s) + var(--o,0s)) both}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+/* top headline */
+.head{position:absolute;top:190px;left:70px;right:70px;text-align:right}
+.eyebrow{font-size:36px;font-weight:700;color:var(--orange2)}
+.title{font-size:78px;font-weight:800;line-height:1.08;margin-top:10px;letter-spacing:-.5px}
+
+/* media card */
+.card{position:absolute;left:60px;top:470px;width:960px;height:860px;border-radius:36px;background:#fff;overflow:hidden;
+  box-shadow:0 30px 70px rgba(15,23,42,.16),0 0 0 2px var(--border)}
+.card img.pan{position:absolute;left:0;top:0;transform-origin:0 0;
+  animation:pan var(--pd) ease-in-out calc(var(--s) + var(--po,0s)) both}
+@keyframes pan{from{transform:translate(var(--x0),var(--y0)) scale(var(--z0,1))}to{transform:translate(var(--x1),var(--y1)) scale(var(--z1,1))}}
+.layer{position:absolute;inset:0;animation:fadeIn .45s ease calc(var(--s) + var(--o)) both}
+.callout{position:absolute;border-radius:28px;background:#fff;overflow:hidden;
+  box-shadow:0 30px 70px rgba(15,23,42,.28),0 0 0 2px var(--border)}
+.callout img{display:block;width:100%}
+.ring{position:absolute;border:6px solid var(--orange);border-radius:22px;
+  animation:ring 1.2s ease-out calc(var(--s) + var(--o)) both}
+@keyframes ring{0%{opacity:0;transform:scale(1.25)}30%{opacity:1;transform:scale(1)}85%{opacity:1}100%{opacity:.9}}
+
+/* subtitles */
+.sub{position:absolute;left:60px;right:60px;top:1390px;display:flex;justify-content:center;opacity:0;
+  animation:sub var(--sd) linear var(--ss) both}
+.sub span{background:var(--navy);color:#fff;font-size:58px;font-weight:800;line-height:1.25;padding:14px 34px 18px;border-radius:22px;text-align:center;
+  box-shadow:0 12px 30px rgba(15,23,42,.25)}
+.sub.onDark span{background:#fff;color:var(--navy)}
+@keyframes sub{0%{opacity:0;transform:translateY(14px)}6%{opacity:1;transform:none}94%{opacity:1}100%{opacity:0}}
+
+/* hook */
+.hq{position:absolute;top:300px;left:60px;right:60px;text-align:center;color:#fff;font-size:84px;font-weight:800;line-height:1.1}
+.opts{position:absolute;top:610px;left:0;right:0;display:flex;flex-direction:column;align-items:center;gap:44px}
+.opt{display:flex;align-items:center;gap:34px;background:#1E293B;border-radius:30px;padding:26px 44px;width:760px;position:relative}
+.opt svg{width:120px;height:120px;flex:none}
+.opt b{font-size:64px;font-weight:800;color:#fff}
+.strike{position:absolute;left:30px;right:30px;top:50%;height:10px;margin-top:-5px;background:#EF4444;border-radius:6px;transform-origin:right;
+  animation:strike .35s ease-out calc(var(--s) + var(--o)) both}
+@keyframes strike{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+
+/* logo */
+.wm{position:absolute;top:64px;left:60px;display:flex;align-items:center;gap:16px;opacity:0;z-index:20;animation:wm var(--wd) linear var(--ws) both}
+.wm .logoTile{width:78px;height:78px;border-radius:20px;box-shadow:0 6px 16px rgba(15,23,42,.15)}
+.wm b{font-size:44px;font-weight:800;color:var(--navy);letter-spacing:-.5px}
+@keyframes wm{0%{opacity:0}3%{opacity:1}97%{opacity:1}100%{opacity:0}}
+.bigLogo{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:30px;background:var(--navy)}
+.bigLogo .logoTile{width:260px;height:260px;border-radius:62px}
+.bigLogo b{color:#fff;font-size:110px;font-weight:800;letter-spacing:-1px}
+.brand{color:#fff;font-size:72px;font-weight:800;margin-top:24px;letter-spacing:-1px}
+
+/* CTA */
+.cta{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;padding-top:300px;text-align:center}
+.logoTile{width:210px;height:210px;border-radius:50px;background:#fff;overflow:hidden}
+.logoTile img{width:112%;height:112%;margin:-6%}
+.ctaT{color:#fff;font-size:80px;font-weight:800;line-height:1.1;margin-top:60px}
+.wa{margin-top:70px;display:flex;align-items:center;gap:26px;background:var(--wa);color:#fff;border-radius:999px;padding:30px 64px;font-size:62px;font-weight:800;
+  box-shadow:0 20px 50px rgba(37,211,102,.35)}
+.wa svg{width:78px;height:78px}
+.num{margin-top:44px;color:#fff;font-size:58px;font-weight:700;direction:ltr;letter-spacing:.5px}
+.small{margin-top:26px;color:#94A3B8;font-size:40px;font-weight:600}
+.pulse{animation:fadeUp .7s var(--ease) calc(var(--s) + var(--o)) both, pulse 1.4s ease-in-out calc(var(--s) + var(--o) + .8s) infinite}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+
+/* scene 5: sources -> Petra */
+.hub{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:34px}
+.srcs{display:grid;grid-template-columns:1fr 1fr;gap:26px;width:780px}
+.src{background:#F1F5F9;border:2px solid var(--border);border-radius:26px;padding:30px 10px;text-align:center;font-size:56px;font-weight:800}
+.arrow{font-size:110px;font-weight:800;color:var(--orange);line-height:.9}
+.hubLogo{display:flex;align-items:center;gap:26px;background:var(--navy);border-radius:32px;padding:22px 44px 22px 30px}
+.hubLogo .logoTile{width:120px;height:120px;border-radius:28px}.hubLogo b{color:#fff;font-size:60px;font-weight:800}
+</style></head><body>
+<section class="scene dark first" style="--s:0.0s;--d:6.63s">
+
+  <div class="hq fu" style="--o:.1s">מנהלים מרכז<br>כלבי שירות?</div>
+  <div class="opts" style="top:600px;gap:30px"><div class="opt pop" style="--o:2.84s;padding:20px 44px;justify-content:center"><b style="font-size:58px">עשרות כלבים</b><i class="strike" style="--o:5.33s"></i></div><div class="opt pop" style="--o:3.52s;padding:20px 44px;justify-content:center"><b style="font-size:58px">זכאים</b><i class="strike" style="--o:5.43s"></i></div><div class="opt pop" style="--o:4.18s;padding:20px 44px;justify-content:center"><b style="font-size:58px">חיסונים</b><i class="strike" style="--o:5.53s"></i></div><div class="opt pop" style="--o:5.6s;padding:20px 44px;justify-content:center"><b style="font-size:58px">ערימת דוחות</b><i class="strike" style="--o:5.63s"></i></div></div>
+  <div class="bigLogo pop" style="--o:5.78s"><div class="logoTile"><img src="../../public/petra-logo.png"></div><b>Petra</b></div>
+</section>
+<section class="scene light" style="--s:6.28s;--d:4.85s">
+
+  <div class="head"><div class="eyebrow fu" style="--o:.1s">תיק כלב</div><div class="title fu" style="--o:.25s;font-size:70px">תיק אחד לכל כלב,<br>מהגור ועד ההסמכה</div></div>
+  <div class="card fu" style="--o:.2s"><img class="pan" src="shots/dogs.jpg" style="width:2200px;--x0:-1240px;--y0:-400px;--x1:-420px;--y1:-400px;--z0:1;--z1:1;--pd:4.0s;--po:0.4s"></div>
+</section>
+<section class="scene light" style="--s:10.78s;--d:5.41s">
+
+  <div class="head"><div class="eyebrow fu" style="--o:.1s">מיקום הכלבים</div><div class="title fu" style="--o:.25s;font-size:70px">אומנה, מאמן<br>או פנסיון</div></div>
+  <div class="card fu" style="--o:.2s"><img class="pan" src="shots/reports.jpg" style="width:1900px;--x0:-680px;--y0:-400px;--x1:-300px;--y1:-400px;--z0:1;--z1:1;--pd:4.56s;--po:0.4s"></div>
+</section>
+<section class="scene light" style="--s:15.84s;--d:5.97s">
+
+  <div class="head"><div class="eyebrow fu" style="--o:.1s">משימות והתראות</div><div class="title fu" style="--o:.25s;font-size:70px">חיסון מתקרב?<br>המשימה נפתחת לבד</div></div>
+  <div class="card fu" style="--o:.2s"><img class="pan" src="shots/tasks.jpg" style="width:1900px;--x0:-940px;--y0:-440px;--x1:-700px;--y1:-440px;--z0:1;--z1:1;--pd:5.12s;--po:0.4s"></div>
+</section>
+<section class="scene light" style="--s:21.46s;--d:6.23s">
+
+  <div class="head"><div class="eyebrow fu" style="--o:.1s">תקן ADI</div><div class="title fu" style="--o:.25s;font-size:70px">שעות אימון לפי<br>התקן הבינלאומי</div></div>
+  <div class="card fu" style="--o:.2s"><img class="pan" src="shots/dogfile.jpg" style="width:2000px;--x0:-850px;--y0:-200px;--x1:-850px;--y1:-200px;--z0:1;--z1:1;--pd:1s;--po:0s"></div><i class="ring" style="--o:3.7s;left:460px;top:620px;width:410px;height:125px"></i>
+</section>
+<section class="scene light" style="--s:27.34s;--d:4.53s">
+
+  <div class="head"><div class="eyebrow fu" style="--o:.1s">פרטים רגישים</div><div class="title fu" style="--o:.25s;font-size:64px">רק מי שקיבל הרשאה<br>רואה את הזכאים</div></div>
+  <div class="card fu" style="--o:.2s"><img class="pan" src="shots/recipients.jpg" style="width:1900px;--x0:-940px;--y0:-260px;--x1:-500px;--y1:-260px;--z0:1;--z1:1;--pd:3.6799999999999997s;--po:0.4s"></div>
+</section>
+<section class="scene light" style="--s:31.52s;--d:3.31s">
+
+  <div class="head"><div class="eyebrow fu" style="--o:.1s">הרשאות לצוות</div><div class="title fu" style="--o:.25s;font-size:70px">כל עובד רואה<br>רק את מה שצריך</div></div>
+  <div class="card fu" style="--o:.2s"><img class="pan" src="shots/perms.jpg" style="width:2000px;--x0:-460px;--y0:-551px;--x1:-460px;--y1:-700px;--z0:1;--z1:1;--pd:2.66s;--po:0.3s"></div>
+</section>
+<section class="scene light" style="--s:34.48s;--d:3.97s">
+
+  <div class="head"><div class="eyebrow fu" style="--o:.1s">דוחות לרשויות</div><div class="title fu" style="--o:.25s;font-size:70px">דוח לרשויות?<br>יוצא בלחיצה</div></div>
+  <div class="card fu" style="--o:.2s"><img class="pan" src="shots/reports.jpg" style="width:2000px;--x0:-700px;--y0:-250px;--x1:-700px;--y1:-250px;--z0:1;--z1:1;--pd:1s;--po:0s"></div><i class="ring" style="--o:1.76s;left:744px;top:560px;width:180px;height:60px"></i>
+</section>
+<section class="scene dark last" style="--s:38.1s;--d:9.81s">
+
+  <div class="cta">
+    <div class="logoTile pop" style="--o:.15s"><img src="../../public/petra-logo.png"></div>
+    <div class="brand fu" style="--o:.35s">Petra</div>
+    <div class="ctaT fu" style="--o:0.72s">רוצים לראות איך זה<br>עובד אצלכם?</div>
+    <div class="wa pulse" style="--o:2.52s"><svg viewBox="0 0 32 32"><path fill="#fff" d="M16 3C9 3 3.3 8.6 3.3 15.6c0 2.3.6 4.5 1.8 6.4L3 29l7.2-1.9c1.8 1 3.8 1.5 5.8 1.5 7 0 12.7-5.7 12.7-12.6S23 3 16 3zm0 23.1c-1.9 0-3.7-.5-5.3-1.4l-.4-.2-4.3 1.1 1.1-4.2-.3-.4c-1-1.6-1.6-3.5-1.6-5.4C5.2 9.8 10 5.1 16 5.1s10.8 4.7 10.8 10.5S22 26.1 16 26.1zm5.9-7.8c-.3-.2-1.9-.9-2.2-1s-.5-.2-.7.2-.8 1-1 1.2-.4.2-.7.1c-.3-.2-1.4-.5-2.6-1.6-1-.9-1.6-1.9-1.8-2.2s0-.5.1-.6l.5-.6c.2-.2.2-.4.3-.6s0-.4 0-.6-.7-1.7-1-2.3c-.3-.6-.5-.5-.7-.5h-.6c-.2 0-.6.1-.9.4s-1.2 1.1-1.2 2.7 1.2 3.1 1.4 3.3c.2.2 2.4 3.6 5.7 5 .8.3 1.4.5 1.9.7.8.3 1.5.2 2.1.1.6-.1 1.9-.8 2.2-1.5s.3-1.4.2-1.5c-.1-.2-.3-.3-.6-.4z"/></svg>דברו איתנו בוואטסאפ</div>
+    <div class="num fu" style="--o:2.92s">054-256-0964</div>
+    <div class="small fu" style="--o:3.24s">ניהול מלא למרכזי כלבי שירות</div>
+  </div>
+</section>
+<div class="wm" style="--ws:6.28s;--wd:32.02s"><div class="logoTile"><img src="../../public/petra-logo.png"></div><b>Petra</b></div>
+
+<div class="sub onDark" style="--ss:0.23s;--sd:2.21s"><span>מנהלים מרכז כלבי שירות?</span></div>
+<div class="sub onDark" style="--ss:2.39s;--sd:2.53s"><span>עשרות כלבים, זכאים, חיסונים,</span></div>
+<div class="sub onDark" style="--ss:4.87s;--sd:1.36s"><span>וערימה של דוחות?</span></div>
+<div class="sub" style="--ss:6.55s;--sd:0.81s"><span>עם פטרה,</span></div>
+<div class="sub" style="--ss:7.31s;--sd:1.75s"><span>לכל כלב יש תיק אחד,</span></div>
+<div class="sub" style="--ss:9.01s;--sd:1.72s"><span>מהגור ועד ההסמכה</span></div>
+<div class="sub" style="--ss:11.05s;--sd:1.57s"><span>ותמיד יודעים איפה הוא נמצא:</span></div>
+<div class="sub" style="--ss:12.57s;--sd:1.23s"><span>במשפחת אומנה,</span></div>
+<div class="sub" style="--ss:13.75s;--sd:2.04s"><span>אצל המאמן או בפנסיון</span></div>
+<div class="sub" style="--ss:16.11s;--sd:1.55s"><span>חיסון מתקרב?</span></div>
+<div class="sub" style="--ss:17.61s;--sd:1.71s"><span>המשימה נפתחת לבד,</span></div>
+<div class="sub" style="--ss:19.27s;--sd:2.14s"><span>ומקבלים התראה לפני שמשהו פג</span></div>
+<div class="sub" style="--ss:21.73s;--sd:1.01s"><span>כל אימון נרשם</span></div>
+<div class="sub" style="--ss:22.69s;--sd:2.47s"><span>לפי התקן הבינלאומי של ADI,</span></div>
+<div class="sub" style="--ss:25.11s;--sd:2.18s"><span>והשעות נספרות עד ההסמכה</span></div>
+<div class="sub" style="--ss:27.61s;--sd:1.61s"><span>פרטי הזכאים רגישים,</span></div>
+<div class="sub" style="--ss:29.17s;--sd:1.51s"><span>אז רק מי שקיבל הרשאה</span></div>
+<div class="sub" style="--ss:30.63s;--sd:0.84s"><span>רואה אותם</span></div>
+<div class="sub" style="--ss:31.79s;--sd:1.21s"><span>וכל עובד רואה</span></div>
+<div class="sub" style="--ss:32.95s;--sd:1.48s"><span>רק את מה שהגדרתם לו</span></div>
+<div class="sub" style="--ss:34.75s;--sd:1.49s"><span>ודוח לרשויות?</span></div>
+<div class="sub" style="--ss:36.19s;--sd:1.86s"><span>יוצא בלחיצה, באקסל</span></div>
+<script>
+window.renderAt = function (t) { for (const a of document.getAnimations()) { a.pause(); a.currentTime = t * 1000; } };
+window.TOTAL = 47.91;
+</script></body></html>
