@@ -159,6 +159,67 @@ export async function notifyOwnerWhatsAppDown(context: string, errorMsg: string)
   }
 }
 
+// ── Support tickets ──────────────────────────────────────────────────────────
+
+const SUPPORT_KIND_LABEL = {
+  new: "פנייה חדשה",
+  reply: "תגובה חדשה בפנייה",
+  reopened: "פנייה נפתחה מחדש",
+} as const;
+
+/**
+ * New ticket / customer reply / reopened ticket → WhatsApp + email to the owner,
+ * right away, so nothing waits for someone to open /owner/support. Never throws.
+ */
+export async function notifyOwnerSupportActivity(p: {
+  kind: keyof typeof SUPPORT_KIND_LABEL;
+  businessName: string;
+  userEmail: string;
+  title: string;
+  body?: string;
+  adminUrl: string;
+}): Promise<void> {
+  const label = SUPPORT_KIND_LABEL[p.kind];
+  const dateLabel = formatDate();
+  const snippet = (p.body ?? "").replace(/\s+/g, " ").slice(0, 300);
+  const waMessage = `🛟 ${label} — ${p.businessName}\n${p.title}${snippet ? `\n\n"${snippet}"` : ""}\n\n${p.adminUrl}`;
+  const emailHtml = `
+    <div style="font-family: Arial, sans-serif; direction: rtl; text-align: right; max-width: 560px; margin: 0 auto;">
+      <h2 style="color: #ea580c;">🛟 ${escapeHtml(label)}</h2>
+      <p><b>עסק:</b> ${escapeHtml(p.businessName)}<br/><b>משתמש:</b> ${escapeHtml(p.userEmail)}<br/><b>נושא:</b> ${escapeHtml(p.title)}<br/><b>זמן:</b> ${dateLabel}</p>
+      ${snippet ? `<p style="background:#fff7ed;border:1px solid #fed7aa;padding:12px;border-radius:8px;white-space:pre-wrap;">${escapeHtml(p.body ?? "")}</p>` : ""}
+      <p><a href="${p.adminUrl}" style="color:#f97316;font-weight:bold;">← לטיפול בפנייה</a></p>
+    </div>`;
+  // petra_owner_alert body params: [who, contact, what, when]
+  const templateParams = [p.businessName || "-", p.userEmail || "-", `${label}: ${p.title.slice(0, 80)}`, dateLabel];
+  await Promise.allSettled([
+    sendOwnerWhatsApp(waMessage, templateParams),
+    // A new ticket already emails info@petra-app.com (sendSupportTicketEmail) — don't double it.
+    p.kind === "new" ? Promise.resolve() : sendOwnerEmail(`🛟 Petra: ${label} — ${p.businessName}`, emailHtml),
+  ]);
+}
+
+/** Daily SLA digest: tickets that waited too long for an answer. Never throws. */
+export async function notifyOwnerSupportOverdue(p: {
+  tickets: { title: string; businessName: string; waitingSince: Date }[];
+  adminUrl: string;
+}): Promise<void> {
+  const hours = (d: Date) => Math.max(1, Math.round((Date.now() - d.getTime()) / 3_600_000));
+  const lines = p.tickets.map((t) => `• ${t.businessName} — ${t.title.slice(0, 60)} (${hours(t.waitingSince)} ש׳)`);
+  const waMessage = `⏰ ${p.tickets.length} פניות ממתינות לתשובה:\n${lines.join("\n")}\n\n${p.adminUrl}`;
+  const emailHtml = `
+    <div style="font-family: Arial, sans-serif; direction: rtl; text-align: right; max-width: 560px; margin: 0 auto;">
+      <h2 style="color: #dc2626;">⏰ ${p.tickets.length} פניות ממתינות לתשובה</h2>
+      <ul>${p.tickets.map((t) => `<li><b>${escapeHtml(t.businessName)}</b> — ${escapeHtml(t.title)} (ממתין ${hours(t.waitingSince)} שעות)</li>`).join("")}</ul>
+      <p><a href="${p.adminUrl}" style="color:#f97316;font-weight:bold;">← לפניות התמיכה</a></p>
+    </div>`;
+  const templateParams = ["פניות תמיכה", `${p.tickets.length} ממתינות`, `הוותיקה: ${p.tickets[0]?.title.slice(0, 60) ?? ""}`, formatDate()];
+  await Promise.allSettled([
+    sendOwnerWhatsApp(waMessage, templateParams),
+    sendOwnerEmail(`⏰ Petra: ${p.tickets.length} פניות ממתינות לתשובה`, emailHtml),
+  ]);
+}
+
 // ── Payment received ─────────────────────────────────────────────────────────
 
 export interface PaymentReceivedParams {

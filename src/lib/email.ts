@@ -451,6 +451,48 @@ export async function sendSupportTicketEmail(
   }
 }
 
+// ─── Support reply → customer ────────────────────────────────────────────────
+
+export interface SupportReplyEmailParams {
+  to: string;
+  name: string | null;
+  ticketTitle: string;
+  reply: string;
+  resolved: boolean;
+  ticketUrl: string;
+}
+
+/** The Petra team answered a support ticket — sent to the member who opened it. */
+export async function sendSupportReplyEmail(params: SupportReplyEmailParams): Promise<void> {
+  const safeName = params.name ? escapeHtml(params.name) : "";
+  const { error } = await getResend().emails.send({
+    from: getFromEmail(),
+    to: params.to,
+    replyTo: "info@petra-app.com",
+    subject: `\u200Fתשובה לפנייה שלך: ${params.ticketTitle.slice(0, 80)}`,
+    html: `
+      <div dir="rtl" style="font-family:'Segoe UI',Arial,sans-serif;max-width:520px;margin:0 auto;color:#1e293b;background:#ffffff;">
+        ${brandHeader()}
+        <div style="padding:32px 24px;background:#fff;">
+          <h2 style="font-size:20px;margin:0 0 8px;color:#0f172a;">שלום${safeName ? ` ${safeName}` : ""},</h2>
+          <p style="color:#475569;font-size:15px;line-height:1.6;margin:0 0 20px;">
+            צוות פטרה ענה לפנייה שלך: <b>${escapeHtml(params.ticketTitle)}</b>
+          </p>
+          <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px 20px;margin:0 0 24px;white-space:pre-wrap;font-size:15px;color:#334155;line-height:1.7;">${escapeHtml(params.reply)}</div>
+          ${params.resolved ? `<p style="color:#15803d;font-size:14px;margin:0 0 20px;">סימנו את הפנייה כטופלה. אם משהו עדיין לא עובד — פשוט השיבו בפנייה והיא תיפתח מחדש.</p>` : ""}
+          <div style="text-align:center;margin:0 0 16px;">
+            <a href="${params.ticketUrl}" style="display:inline-block;background:#f97316;color:#fff;font-size:16px;font-weight:700;padding:14px 40px;border-radius:12px;text-decoration:none;">
+              לצפייה בפנייה ולהשבה
+            </a>
+          </div>
+          <p style="color:#94a3b8;font-size:13px;text-align:center;margin:0;">כל היסטוריית הטיפול נמצאת במערכת, תחת "הפניות שלי".</p>
+        </div>
+        ${brandFooter()}
+      </div>`,
+  });
+  if (error) throw new Error(`Resend email failed: ${error.message}`);
+}
+
 function buildSupportTicketHtml(params: SupportTicketEmailParams): string {
   const safeBusiness = escapeHtml(params.businessName);
   const safeEmail = escapeHtml(params.userEmail);

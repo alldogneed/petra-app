@@ -12,10 +12,9 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
-import { env } from "@/lib/env";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimitAsync, RATE_LIMITS } from "@/lib/rate-limit";
-import { sendSupportTicketEmail } from "@/lib/email";
+import { createSupportTicket } from "@/services/support-tickets";
 import { resolveAssistantScreen } from "@/lib/assistant/screens";
 import { buildEscalationText } from "@/lib/assistant/transcript";
 import { ASSISTANT_MAX_NOTE_CHARS } from "@/lib/assistant/limits";
@@ -66,40 +65,19 @@ export async function POST(request: NextRequest) {
   }
 
   const screen = resolveAssistantScreen(pathname);
-  const [ticket, business] = await Promise.all([
-    prisma.supportTicket.create({
-      data: {
-        businessId,
-        userId,
-        title: `Petra AI — בקשה לדבר עם אדם${screen ? ` (${screen.name})` : ""}`,
-        description: buildEscalationText({ screenName: screen?.name ?? null, note, messages }),
-        pageUrl: screen?.href ?? null,
-        status: "open",
-      },
-    }),
-    prisma.business.findUnique({ where: { id: businessId }, select: { name: true } }),
-  ]);
+  const ticket = await createSupportTicket({
+    businessId,
+    actor: { userId, name: session.user.name ?? null, email: session.user.email },
+    title: `Petra AI — בקשה לדבר עם אדם${screen ? ` (${screen.name})` : ""}`,
+    description: buildEscalationText({ screenName: screen?.name ?? null, note, messages }),
+    pageUrl: screen?.href ?? null,
+  });
 
   if (conversation) {
     await prisma.assistantConversation.update({
       where: { id: conversation.id },
       data: { escalated: true, escalatedAt: new Date(), supportTicketId: ticket.id },
     });
-  }
-
-  // Email notification — the ticket is already saved, so a mail failure must not fail the request.
-  try {
-    await sendSupportTicketEmail({
-      ticketId: ticket.id,
-      businessName: business?.name ?? businessId,
-      userEmail: session.user.email,
-      title: ticket.title,
-      description: ticket.description,
-      pageUrl: ticket.pageUrl,
-      adminUrl: `${env.APP_URL ?? "https://petra-app.com"}/owner/support`,
-    });
-  } catch (err) {
-    console.error("[assistant/escalate] Failed to send email:", err);
   }
 
   return NextResponse.json({ id: ticket.id }, { status: 201 });
