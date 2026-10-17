@@ -90,6 +90,11 @@ interface CreateRecurringParams {
   companyName: string;
   /** Business email for Cardcom account */
   email: string;
+  /**
+   * First monthly charge. Default = 30 days from now (right after a payment).
+   * A card update (no charge) bills on the day the already-paid period ends.
+   */
+  nextBillDate?: Date;
 }
 
 interface RecurringResult {
@@ -97,6 +102,12 @@ interface RecurringResult {
   recurringId?: string;
   accountId?: string;
   error?: string;
+}
+
+/** DD/MM/YYYY of the Israel calendar day of `d` (Cardcom NextDateToBill). */
+export function cardcomBillDate(d: Date): string {
+  const [y, m, day] = d.toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" }).split("-");
+  return `${day}/${m}/${y}`;
 }
 
 export async function createCardcomRecurring(params: CreateRecurringParams): Promise<RecurringResult> {
@@ -111,10 +122,7 @@ export async function createCardcomRecurring(params: CreateRecurringParams): Pro
     return { success: false, error: "Missing card token" };
   }
 
-  // Next billing date = 30 days from now
-  const nextDate = new Date();
-  nextDate.setDate(nextDate.getDate() + 30);
-  const nextDateStr = `${String(nextDate.getDate()).padStart(2, "0")}/${String(nextDate.getMonth() + 1).padStart(2, "0")}/${nextDate.getFullYear()}`;
+  const nextDateStr = cardcomBillDate(params.nextBillDate ?? new Date(Date.now() + 30 * 86_400_000));
 
   const body = new URLSearchParams({
     TerminalNumber: terminalNumber,

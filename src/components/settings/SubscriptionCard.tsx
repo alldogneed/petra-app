@@ -1,7 +1,7 @@
 "use client";
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-import { Star, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Star, Loader2, CreditCard } from "lucide-react";
 import { toast } from "sonner";
 import { TIERS } from "@/lib/constants";
 import { useAuth } from "@/providers/auth-provider";
@@ -16,6 +16,22 @@ export function SubscriptionCard({ tier, customerCount, appointmentCount }: { ti
   const { subscriptionEndsAt, subscriptionDaysLeft, subscriptionExpired, subscriptionActive, cancelPending, subscriptionStatus, hasRecurring, awaitingRecurringCharge } = usePlan();
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const [openingCard, setOpeningCard] = useState(false);
+  const [cardPrompt, setCardPrompt] = useState(false);
+
+  // Back from Cardcom (?card=updated|error) or deep link from the "charge failed" notice (?update-card=1).
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const card = url.searchParams.get("card");
+    if (card === "updated") toast.success("הכרטיס עודכן. החיוב הבא יתבצע במועד הרגיל — לא חויבת עכשיו.");
+    if (card === "error") toast.error("עדכון הכרטיס לא הושלם. אפשר לנסות שוב.");
+    if (url.searchParams.get("update-card") === "1") setCardPrompt(true);
+    if (card || url.searchParams.has("update-card")) {
+      url.searchParams.delete("card");
+      url.searchParams.delete("update-card");
+      window.history.replaceState(null, "", url.toString());
+    }
+  }, []);
 
   const TierIcon = TIER_ICONS[tier] ?? Star;
   const tierInfo = TIERS[tier as keyof typeof TIERS];
@@ -47,6 +63,30 @@ export function SubscriptionCard({ tier, customerCount, appointmentCount }: { ti
 
   // Only the owner can cancel (server enforces it too).
   const canCancel = isOwner && !user?.isImpersonating && !isFree && !cancelPending && (subscriptionActive || subscriptionStatus === "active");
+  // Replace the card the monthly charge runs on — no charge now (owner only, server enforces it too).
+  const canUpdateCard = isOwner && !user?.isImpersonating && !isFree && !cancelPending && subscriptionStatus === "active";
+  // Same threshold as renew-subscriptions (renew_overdue): before that the charge is simply still in flight.
+  const chargeOverdue =
+    awaitingRecurringCharge && !!subscriptionEndsAt && Date.now() - new Date(subscriptionEndsAt).getTime() > 3 * 86_400_000;
+  const showCardWarning = canUpdateCard && (chargeOverdue || cardPrompt);
+
+  async function handleUpdateCard() {
+    setOpeningCard(true);
+    try {
+      const res = await fetch("/api/cardcom/update-card", { method: "POST" });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok || !d.url) {
+        toast.error(d.error ?? "שגיאה בפתיחת עדכון הכרטיס");
+        return;
+      }
+      window.location.href = d.url;
+    } catch {
+      toast.error("שגיאת רשת. נסה שוב.");
+    } finally {
+      setOpeningCard(false);
+    }
+  }
+
   const renewHref = `/checkout?tier=${tier === "pro" || tier === "basic" ? tier : "basic"}`;
 
   async function handleCancel() {
@@ -109,15 +149,35 @@ export function SubscriptionCard({ tier, customerCount, appointmentCount }: { ti
         </div>
       )}
 
+      {showCardWarning && (
+        <div className="px-4 py-3 bg-amber-50 border-t border-amber-100 text-xs text-amber-800 flex items-center justify-between gap-3 flex-wrap">
+          <span>החיוב החודשי לא עבר. עדכנו אמצעי תשלום כדי שהמנוי ימשיך — לא תחויבו עכשיו.</span>
+          <button onClick={handleUpdateCard} disabled={openingCard} className="btn-primary text-xs py-1.5 px-3 flex items-center gap-1.5">
+            {openingCard ? <Loader2 className="w-3 h-3 animate-spin" /> : <CreditCard className="w-3.5 h-3.5" />}
+            עדכון אמצעי תשלום
+          </button>
+        </div>
+      )}
+
       {/* Cancel subscription */}
-      {canCancel && !showCancelConfirm && (
-        <div className="px-4 py-3 border-t border-slate-100 flex justify-end">
-          <button
+      {(canCancel || canUpdateCard) && !showCancelConfirm && (
+        <div className="px-4 py-3 border-t border-slate-100 flex items-center justify-between gap-3">
+          {canUpdateCard && !showCardWarning ? (
+            <button
+              onClick={handleUpdateCard}
+              disabled={openingCard}
+              className="text-xs text-slate-500 hover:text-brand-600 transition-colors flex items-center gap-1.5"
+            >
+              {openingCard ? <Loader2 className="w-3 h-3 animate-spin" /> : <CreditCard className="w-3.5 h-3.5" />}
+              עדכון אמצעי תשלום
+            </button>
+          ) : <span />}
+          {canCancel && <button
             onClick={() => setShowCancelConfirm(true)}
             className="text-xs text-slate-400 hover:text-red-500 transition-colors underline"
           >
             ביטול מנוי
-          </button>
+          </button>}
         </div>
       )}
 
