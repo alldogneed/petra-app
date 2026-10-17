@@ -23,7 +23,13 @@ import {
   getPlanPrice,
 } from "@/lib/cardcom-recurring";
 import { safeEncryptCardcomToken } from "@/lib/cardcom-activation";
-import { billingProfile, cardUpdateFirstBillDate } from "@/lib/subscription-billing";
+import { billingProfile, cardUpdateFirstBillDate, canUpdateCard } from "@/lib/subscription-billing";
+import {
+  cardIdentityFromEventMetadata,
+  findChargeForBusiness,
+  listTerminalTransactions,
+  type CardIdentity,
+} from "@/lib/cardcom-transactions";
 import { sendEmail } from "@/lib/email";
 
 export const CARD_UPDATE_INDICATOR = "/api/cardcom/card-update-indicator";
@@ -134,15 +140,28 @@ export async function applyCardUpdate(p: {
     return { status: "failed", error };
   };
 
+  // Re-check at confirmation time: the owner may have cancelled (or dropped to free)
+  // between opening the Cardcom page and submitting it — never bill them again.
+  if (!canUpdateCard(business)) return fail(`המנוי אינו פעיל (${business.subscriptionStatus ?? "-"} / ${business.tier}) — לא נוצרה הוראת קבע`);
+
   const cardToken = extractCardToken(data);
   if (!cardToken) return fail("Cardcom לא החזיר טוקן לכרטיס");
 
-  const { amount, paidTier } = await billingProfile(businessId, business.tier);
+  const { amount, paidTier, identity: previousIdentity } = await billingProfile(businessId, business.tier);
   const price = amount ?? getPlanPrice(business.tier)?.price ?? null;
   if (!price) return fail(`לא ידוע הסכום החודשי למסלול ${business.tier}`);
   const plan = getPlanPrice(paidTier) ?? getPlanPrice(business.tier);
 
-  const firstBill = cardUpdateFirstBillDate(business.subscriptionEndsAt);
+  // The renewal cron recognises the monthly charge by card owner ID / last 4 digits.
+  const newIdentity = cardIdentityFromEventMetadata(data);
+  const identityMissing = !newIdentity.cardOwnerId && !newIdentity.last4;
+
+  // If the (working) old order already charged this period, start the new one a month later.
+  const alreadyCharged = await chargedThisPeriod(business.subscriptionEndsAt, previousIdentity, price);
+  const firstBill = alreadyCharged
+    ? new Date(alreadyCharged.getTime() + 30 * 86_400_000)
+    : cardUpdateFirstBillDate(business.subscriptionEndsAt);
+
   const created = await createCardcomRecurring({
     cardToken,
     cardMonth: (data.CardValidityMonth ?? "").trim(),
@@ -155,48 +174,75 @@ export async function applyCardUpdate(p: {
     nextBillDate: firstBill,
   });
   if (!created.success || !created.recurringId) return fail(created.error ?? "יצירת הוראת קבע נכשלה");
+  const newRecurringId = created.recurringId;
 
-  const encryptedToken = safeEncryptCardcomToken(cardToken);
-  const encryptedExpiry = safeEncryptCardcomToken(extractTokenExpiry(data));
-  await prisma.business.update({
-    where: { id: businessId },
-    data: {
-      cardcomRecurringId: created.recurringId,
-      ...(encryptedToken ? { cardcomToken: encryptedToken } : {}),
-      ...(encryptedExpiry ? { cardcomTokenExpiry: encryptedExpiry } : {}),
-    },
-  });
-
-  // Two live orders would bill twice — deactivate the old one (it can't charge anyway).
+  // From here a live order exists at Cardcom. Any failure must turn it off again,
+  // or a retry / parallel call would leave two orders billing the customer.
   const previousRecurringId = business.cardcomRecurringId;
   let previousCancelled: boolean | null = null;
   let cancelError: string | null = null;
-  if (previousRecurringId && previousRecurringId !== created.recurringId) {
-    const cancel = await cancelCardcomRecurring(previousRecurringId);
-    previousCancelled = cancel.success;
-    cancelError = cancel.error ?? null;
-  }
-
-  await prisma.subscriptionEvent.create({
-    data: {
-      businessId,
-      eventType: "card_updated",
-      tier: business.tier,
-      amount: price,
-      lowprofileCode: lowProfileCode,
-      ipAddress: p.ipAddress ?? null,
-      metadata: {
-        ...redactForEvent(data),
-        paidTier,
-        recurringId: created.recurringId,
-        previousRecurringId,
-        previousCancelled,
-        cancelError,
-        firstBillDate: firstBill.toISOString(),
-        tokenStored: !!encryptedToken,
+  let tokenStored = false;
+  try {
+    const encryptedToken = safeEncryptCardcomToken(cardToken);
+    const encryptedExpiry = safeEncryptCardcomToken(extractTokenExpiry(data));
+    tokenStored = !!encryptedToken;
+    // Compare-and-swap: only the call that still sees the old order wins. A parallel
+    // indicator call (or a second session) that lost the race undoes its own order.
+    const swapped = await prisma.business.updateMany({
+      where: { id: businessId, cardcomRecurringId: previousRecurringId },
+      data: {
+        cardcomRecurringId: newRecurringId,
+        ...(encryptedToken ? { cardcomToken: encryptedToken } : {}),
+        ...(encryptedExpiry ? { cardcomTokenExpiry: encryptedExpiry } : {}),
       },
-    },
-  });
+    });
+    if (swapped.count === 0) {
+      const undo = await cancelCardcomRecurring(newRecurringId);
+      if (!undo.success) return fail(`עדכון כפול — ההוראה הכפולה ${newRecurringId} לא כובתה (${undo.error ?? ""}) — לכבות ידנית בקארדקום`);
+      return { status: "duplicate" };
+    }
+
+    if (previousRecurringId && previousRecurringId !== newRecurringId) {
+      const cancel = await cancelCardcomRecurring(previousRecurringId);
+      previousCancelled = cancel.success;
+      cancelError = cancel.error ?? null;
+    }
+
+    await prisma.subscriptionEvent.create({
+      data: {
+        businessId,
+        eventType: "card_updated",
+        tier: business.tier,
+        amount: price,
+        lowprofileCode: lowProfileCode,
+        ipAddress: p.ipAddress ?? null,
+        metadata: {
+          ...redactForEvent(data),
+          paidTier,
+          recurringId: newRecurringId,
+          previousRecurringId,
+          previousCancelled,
+          cancelError,
+          firstBillDate: firstBill.toISOString(),
+          ...(alreadyCharged ? { previousOrderChargedAt: alreadyCharged.toISOString() } : {}),
+          tokenStored,
+          ...(identityMissing ? { identityMissing: true } : {}),
+        },
+      },
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("card-update: failed after creating the order:", err);
+    const undo = await cancelCardcomRecurring(newRecurringId).catch((e) => ({ success: false, error: String(e) }));
+    // Put the old order reference back if the swap already happened.
+    await prisma.business.updateMany({
+      where: { id: businessId, cardcomRecurringId: newRecurringId },
+      data: { cardcomRecurringId: previousRecurringId },
+    }).catch(() => null);
+    return fail(`שגיאה אחרי יצירת ההוראה ${newRecurringId}: ${msg}${undo.success ? " (ההוראה החדשה כובתה)" : " — ההוראה החדשה לא כובתה, לכבות ידנית בקארדקום"}`);
+  }
+  const recurringId = newRecurringId;
+  const encryptedToken = tokenStored;
 
   await sendEmail({
     to: OWNER_ALERT_EMAIL,
@@ -204,11 +250,30 @@ export async function applyCardUpdate(p: {
     html: `<div dir="rtl" style="font-family:Arial,sans-serif;">
       <p><b>${esc(business.name ?? businessId)}</b> הזין/ה כרטיס חדש.</p>
       <ul>
-        <li>הוראת קבע חדשה: ${esc(created.recurringId)} — ₪${price} לחודש, חיוב ראשון ${firstBill.toLocaleDateString("he-IL", { timeZone: "Asia/Jerusalem" })}</li>
+        <li>הוראת קבע חדשה: ${esc(recurringId)} — ₪${price} לחודש, חיוב ראשון ${firstBill.toLocaleDateString("he-IL", { timeZone: "Asia/Jerusalem" })}${alreadyCharged ? " (ההוראה הקודמת כבר חייבה את התקופה הנוכחית)" : ""}</li>
         <li>הוראה קודמת: ${esc(previousRecurringId ?? "אין")}${previousRecurringId ? (previousCancelled ? " — כובתה" : ` — <b style="color:#b91c1c">כיבוי נכשל (${esc(cancelError ?? "")}) — לכבות ידנית בקארדקום</b>`) : ""}</li>
         ${encryptedToken ? "" : `<li style="color:#b91c1c">הטוקן לא נשמר אצלנו (CARDCOM_ENCRYPTION_KEY חסר) — הוראת הקבע עדיין תקינה</li>`}
+        ${identityMissing ? `<li style="color:#b91c1c">Cardcom לא החזיר ת.ז./4 ספרות לכרטיס — החידוש האוטומטי לא יוכל לזהות את החיוב. לבדוק ידנית בתאריך החיוב.</li>` : ""}
       </ul></div>`,
   }).catch((e) => console.error("card-update: owner email failed:", e));
 
-  return { status: "updated", recurringId: created.recurringId, firstBill, previousRecurringId, previousCancelled };
+  return { status: "updated", recurringId, firstBill, previousRecurringId, previousCancelled };
+}
+
+/**
+ * Did the current order already charge this period (period end − 3 days onward)?
+ * Only working orders can — then the new order must start a month later, not
+ * charge the same period again. Unknown (feed down, no identity) → null.
+ */
+async function chargedThisPeriod(endsAt: Date | null, identity: CardIdentity, amount: number): Promise<Date | null> {
+  if (!endsAt || (!identity.cardOwnerId && !identity.last4)) return null;
+  const notBefore = new Date(endsAt.getTime() - 3 * 86_400_000);
+  if (notBefore.getTime() > Date.now()) return null; // the billing day hasn't come yet
+  try {
+    const tx = await listTerminalTransactions(new Date(notBefore.getTime() - 2 * 86_400_000), new Date(Date.now() + 86_400_000));
+    return findChargeForBusiness(tx, identity, amount, notBefore)?.chargedAt ?? null;
+  } catch (err) {
+    console.error("card-update: could not read Cardcom transactions:", err);
+    return null;
+  }
 }

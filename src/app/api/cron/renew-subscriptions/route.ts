@@ -133,6 +133,13 @@ export async function GET(request: NextRequest) {
         const msg = err instanceof Error ? err.message : String(err);
         alerts.push(`${biz.name ?? biz.id} (recurring ${biz.cardcomRecurringId}): ${msg}`);
         console.error(`renew-subscriptions: error for business ${biz.id}:`, err);
+        // We couldn't verify the charge for this business (no card identity / amount).
+        // Past the overdue threshold the customer still has to hear about it — but
+        // not when Cardcom's feed itself failed: then we don't know they weren't charged.
+        const endsAt = biz.subscriptionEndsAt;
+        if (endsAt && transactions.length > 0 && (now.getTime() - endsAt.getTime()) / 86_400_000 > 3) {
+          await notifyCustomerChargeFailed(biz, endsAt).catch((e) => console.error("renew-subscriptions: notify failed:", e));
+        }
         await prisma.subscriptionEvent.create({
           data: {
             businessId: biz.id,
@@ -241,11 +248,7 @@ async function checkAndRenew(
   // the card is probably declining, or the order was cancelled at Cardcom.
   const daysPastDue = (now.getTime() - endsAt.getTime()) / 86_400_000;
   if (daysPastDue > 3) {
-    // First overdue day of this period → tell the customer (once), not only us.
-    const alreadyOverdue = await prisma.subscriptionEvent.count({
-      where: { businessId: biz.id, eventType: "renew_overdue", createdAt: { gte: endsAt } },
-    });
-    if (alreadyOverdue === 0) await notifyCustomerChargeFailed(biz, endsAt);
+    await notifyCustomerChargeFailed(biz, endsAt);
     await prisma.subscriptionEvent.create({
       data: {
         businessId: biz.id,
@@ -274,6 +277,11 @@ async function checkAndRenew(
  * "עדכון אמצעי תשלום" (no charge, keeps the paid period).
  */
 async function notifyCustomerChargeFailed(biz: BizRow, endsAt: Date) {
+  // Once per billing period, whichever path got here first.
+  const already = await prisma.subscriptionEvent.count({
+    where: { businessId: biz.id, eventType: "charge_failed_notified", createdAt: { gte: endsAt } },
+  });
+  if (already > 0) return;
   const lapseOn = new Date(endsAt.getTime() + RECURRING_GRACE_DAYS * 86_400_000);
   const lapseLabel = lapseOn.toLocaleDateString("he-IL", { timeZone: "Asia/Jerusalem" });
   const actionUrl = "/settings?tab=subscription&update-card=1";
