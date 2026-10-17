@@ -2,12 +2,12 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { verifyCronAuth } from "@/lib/cron-auth";
-import { sendEmail } from "@/lib/email";
-import { getPlanPrice } from "@/lib/cardcom-recurring";
+import { sendEmail, sendPaymentFailedEmail } from "@/lib/email";
+import { billingProfile } from "@/lib/subscription-billing";
 import { reconcilePendingPayments } from "@/lib/cardcom-activation";
+import { RECURRING_GRACE_DAYS } from "@/lib/subscription-access";
 import {
   listTerminalTransactions,
-  cardIdentityFromEventMetadata,
   findChargeForBusiness,
   type CardcomTransaction,
 } from "@/lib/cardcom-transactions";
@@ -181,26 +181,6 @@ interface BizRow {
   cardcomRecurringId: string | null;
 }
 
-/**
- * Which card, and which monthly amount, does this business pay with?
- * Both come from the most recent activation event — the amount falls back to
- * the plan price of the tier that was actually paid for (a business can sit on
- * a higher tier granted by hand while being billed the price it agreed to).
- */
-async function billingProfile(businessId: string, currentTier: string) {
-  const event = await prisma.subscriptionEvent.findFirst({
-    where: { businessId, eventType: { in: ["activate", "checkout_activate"] } },
-    orderBy: { createdAt: "desc" },
-    select: { amount: true, tier: true, metadata: true },
-  });
-
-  const paidTierRaw = (event?.metadata as Record<string, unknown> | null)?.["paidTier"];
-  const paidTier = typeof paidTierRaw === "string" ? paidTierRaw : event?.tier ?? currentTier;
-  const amount = event?.amount ?? getPlanPrice(paidTier)?.price ?? getPlanPrice(currentTier)?.price ?? null;
-
-  return { identity: cardIdentityFromEventMetadata(event?.metadata), amount };
-}
-
 async function checkAndRenew(
   biz: BizRow,
   now: Date,
@@ -261,6 +241,11 @@ async function checkAndRenew(
   // the card is probably declining, or the order was cancelled at Cardcom.
   const daysPastDue = (now.getTime() - endsAt.getTime()) / 86_400_000;
   if (daysPastDue > 3) {
+    // First overdue day of this period → tell the customer (once), not only us.
+    const alreadyOverdue = await prisma.subscriptionEvent.count({
+      where: { businessId: biz.id, eventType: "renew_overdue", createdAt: { gte: endsAt } },
+    });
+    if (alreadyOverdue === 0) await notifyCustomerChargeFailed(biz, endsAt);
     await prisma.subscriptionEvent.create({
       data: {
         businessId: biz.id,
@@ -281,4 +266,39 @@ async function checkAndRenew(
   }
 
   return { renewed: false, alert: null };
+}
+
+/**
+ * The monthly charge didn't arrive → the business owner hears it from us before
+ * the downgrade (RECURRING_GRACE_DAYS after the period end), with a link to
+ * "עדכון אמצעי תשלום" (no charge, keeps the paid period).
+ */
+async function notifyCustomerChargeFailed(biz: BizRow, endsAt: Date) {
+  const lapseOn = new Date(endsAt.getTime() + RECURRING_GRACE_DAYS * 86_400_000);
+  const lapseLabel = lapseOn.toLocaleDateString("he-IL", { timeZone: "Asia/Jerusalem" });
+  const actionUrl = "/settings?tab=subscription&update-card=1";
+  await prisma.systemMessage.create({
+    data: {
+      businessId: biz.id,
+      title: "החיוב החודשי של המנוי לא עבר",
+      content: `לא הצלחנו לחייב את כרטיס האשראי עבור המנוי החודשי. כדי שהמנוי לא יעבור למסלול החינמי ב-${lapseLabel}, עדכנו אמצעי תשלום — זה לוקח דקה ולא מחייב עכשיו.`,
+      type: "warning",
+      actionUrl,
+      actionLabel: "עדכון אמצעי תשלום",
+    },
+  }).catch((e) => console.error("renew-subscriptions: system message failed:", e));
+
+  const owners = await prisma.businessUser.findMany({
+    where: { businessId: biz.id, role: "owner", isActive: true },
+    select: { user: { select: { email: true, name: true } } },
+  });
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://petra-app.com";
+  for (const o of owners) {
+    if (!o.user.email) continue;
+    await sendPaymentFailedEmail({ to: o.user.email, name: o.user.name, lapseDate: lapseLabel, updateUrl: `${appUrl}${actionUrl}` })
+      .catch((e) => console.error("renew-subscriptions: customer email failed:", e));
+  }
+  await prisma.subscriptionEvent.create({
+    data: { businessId: biz.id, eventType: "charge_failed_notified", tier: biz.tier, metadata: { endsAt: endsAt.toISOString(), owners: owners.length } },
+  }).catch(() => null);
 }
