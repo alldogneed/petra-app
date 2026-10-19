@@ -92,20 +92,33 @@ export function ProductDemo() {
         <p className="text-center text-lg text-slate-200 mb-8">{tab.text}</p>
 
         {/* Phone first on small screens: the desktop screen is unreadable at 375px */}
+        {/* All tabs stay mounted in one grid cell and crossfade (.lp-stack/.lp-swap): no pop, no blank frame, no height jump */}
         <div className="md:hidden mx-auto w-[240px]">
-          <PhoneShot src={tab.phone.src} alt={tab.phone.alt} width={780} height={1580} />
+          <div className="lp-stack">
+            {TABS.map((t, i) => (
+              <div key={t.id} className="lp-swap" data-active={i === active} aria-hidden={i !== active}>
+                <PhoneShot src={t.phone.src} alt={t.phone.alt} width={780} height={1580} />
+              </div>
+            ))}
+          </div>
         </div>
 
-        <div className="hidden md:block relative mx-auto max-w-[960px] pb-10">
-          <BrowserShot
-            src={tab.desktop.src}
-            alt={tab.desktop.alt}
-            width={tab.id === "leads" ? 2400 : 1920}
-            height={tab.id === "leads" ? 1283 : 1200}
-            sizes="(min-width: 1024px) 960px, 100vw"
-          />
-          <div className="absolute -bottom-2 -left-4 w-[170px]">
-            <PhoneShot src={tab.phone.src} alt={tab.phone.alt} width={780} height={1580} />
+        <div className="hidden md:block mx-auto max-w-[960px]">
+          <div className="lp-stack">
+            {TABS.map((t, i) => (
+              <div key={t.id} className="lp-swap relative pb-10" data-active={i === active} aria-hidden={i !== active}>
+                <BrowserShot
+                  src={t.desktop.src}
+                  alt={t.desktop.alt}
+                  width={t.id === "leads" ? 2400 : 1920}
+                  height={t.id === "leads" ? 1283 : 1200}
+                  sizes="(min-width: 1024px) 960px, 100vw"
+                />
+                <div className="absolute -bottom-2 -left-4 w-[170px]">
+                  <PhoneShot src={t.phone.src} alt={t.phone.alt} width={780} height={1580} />
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>

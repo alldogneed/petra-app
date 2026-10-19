@@ -235,12 +235,14 @@ function FaqAccordion() {
         שאלות נפוצות
       </h2>
       <div className="space-y-2">
-        {FAQ.map(({ q, a }) => {
+        {FAQ.map(({ q, a }, i) => {
           const isOpen = open === q;
           return (
             <div key={q} className="bg-white rounded-xl border border-slate-100 overflow-hidden">
               <button
                 onClick={() => setOpen(isOpen ? null : q)}
+                aria-expanded={isOpen}
+                aria-controls={`faq-a-${i}`}
                 className="w-full flex items-center justify-between gap-3 px-4 py-3.5 text-right hover:bg-slate-50 transition-colors"
               >
                 <span className="font-medium text-slate-800 text-sm">{q}</span>
@@ -248,11 +250,13 @@ function FaqAccordion() {
                   className={`w-4 h-4 text-slate-400 flex-shrink-0 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
                 />
               </button>
-              {isOpen && (
-                <div className="px-4 pb-4 text-slate-500 text-sm leading-relaxed border-t border-slate-100 pt-3">
-                  {a}
+              <div id={`faq-a-${i}`} className="lp-collapse" data-open={isOpen}>
+                <div>
+                  <div className="px-4 pb-4 text-slate-500 text-sm leading-relaxed border-t border-slate-100 pt-3">
+                    {a}
+                  </div>
                 </div>
-              )}
+              </div>
             </div>
           );
         })}
@@ -459,7 +463,8 @@ export function PricingSection() {
         </div>
 
         {/* Comparison table — 3 plans */}
-        {showComparison && (
+        <div className="lp-collapse" data-open={showComparison}>
+          <div>
           <div
             id="comparison-table"
             className="mt-8 overflow-x-auto rounded-2xl border border-slate-200"
@@ -517,7 +522,8 @@ export function PricingSection() {
               </tbody>
             </table>
           </div>
-        )}
+          </div>
+        </div>
 
         {/* FAQ */}
         <FaqAccordion />
