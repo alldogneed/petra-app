@@ -31,7 +31,7 @@ export function BulkWhatsAppModal({
   const doneCount = recipients.filter((c) => state[c.id] === "sent" || state[c.id] === "skipped").length;
 
   const linkFor = (c: EnhancedCustomer) =>
-    `https://wa.me/${toWhatsAppPhone(c.phone)}?text=${encodeURIComponent(personalizeMessage(message, c.name))}`;
+    `https://api.whatsapp.com/send?phone=${toWhatsAppPhone(c.phone)}&text=${encodeURIComponent(personalizeMessage(message, c.name))}`;
 
   const openFor = (c: EnhancedCustomer) => {
     window.open(linkFor(c), "_blank", "noopener,noreferrer");

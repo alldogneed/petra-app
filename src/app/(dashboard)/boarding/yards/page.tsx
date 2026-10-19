@@ -483,7 +483,7 @@ export default function YardsPage() {
               }
               lines.push("");
             }
-            const waUrl = `https://wa.me/?text=${encodeURIComponent(lines.join("\n").trim())}`;
+            const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(lines.join("\n").trim())}`;
             return (
               <a
                 href={waUrl}

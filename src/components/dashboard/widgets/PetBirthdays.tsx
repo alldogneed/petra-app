@@ -48,7 +48,7 @@ export function PetBirthdaysWidget({ birthdays }: { birthdays: DashboardStats["u
             </Link>
             {pet.customer?.phone && (
               <WaTextButton
-                href={`https://wa.me/${toWhatsAppPhone(pet.customer?.phone ?? "")}?text=${encodeURIComponent(greetingLines)}`}
+                href={`https://api.whatsapp.com/send?phone=${toWhatsAppPhone(pet.customer?.phone ?? "")}&text=${encodeURIComponent(greetingLines)}`}
                 title="שלח ברכת יום הולדת"
               >
                 ברכה

@@ -23,7 +23,7 @@ function BookingLinkBox({ slug }: { slug: string }) {
   }
 
   const waMsg = `היי! 🐾\nרוצה לקבוע תור? אפשר לעשות את זה בקלות דרך הלינק הזה:\n${bookingUrl}`;
-  const waLink = `https://wa.me/?text=${encodeURIComponent(waMsg)}`;
+  const waLink = `https://api.whatsapp.com/send?text=${encodeURIComponent(waMsg)}`;
 
   return (
     <div className="flex gap-2 items-center min-w-0">

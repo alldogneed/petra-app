@@ -4,12 +4,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { canCancelOrder } from "@/lib/order-cancel";
+import { PaymentRequestDialog } from "@/components/orders/PaymentRequestDialog";
 import {
   ArrowRight, CheckCircle2, Clock, XCircle, ShoppingCart,
   Trash2, User, FileText, Calendar, Tag, CreditCard, Plus, Send, GraduationCap,
   Pencil, X,
 } from "lucide-react";
-import { cn, formatDate, toWhatsAppPhone } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { PetraLoader } from "@/components/ui/PetraLoader";
@@ -240,7 +241,7 @@ export default function OrderDetailPage() {
   // ?pay=1 (from the orders-list "רשום תשלום" button) opens the payment modal
   const searchParams = useSearchParams();
   const [showAddPayment, setShowAddPayment] = useState(searchParams.get("pay") === "1");
-  const [sendingPaymentRequest, setSendingPaymentRequest] = useState(false);
+  const [showPaymentRequest, setShowPaymentRequest] = useState(false);
   const [cancelPayment, setCancelPayment] = useState<OrderPayment | null>(null);
   // Draft-order lines editor state
   const [editingLines, setEditingLines] = useState(false);
@@ -254,19 +255,7 @@ export default function OrderDetailPage() {
     staleTime: 30_000,
   });
 
-  // Price-list items carry the configured payment landing-page URLs.
-  // Mapped onto order lines so the payment request can include the link(s).
-  const { data: priceListItems = [] } = useQuery<Array<{ id: string; paymentUrl: string | null }>>({
-    queryKey: ["price-list-items"],
-    queryFn: () => fetch("/api/price-list-items").then((r) => r.json()),
-    staleTime: 60_000,
-  });
 
-  const { data: bizSettings } = useQuery<{ phone?: string | null }>({
-    queryKey: ["settings"],
-    queryFn: () => fetch("/api/settings").then((r) => r.json()),
-    staleTime: 300_000,
-  });
 
   useEffect(() => {
     if (order) {
@@ -423,73 +412,9 @@ export default function OrderDetailPage() {
   const s = STATUS_MAP[order.status] ?? STATUS_MAP.draft;
   const StatusIcon = s.icon;
 
-  // Resolve the payment landing-page URLs configured on the order's products.
-  const productPaymentUrls = Array.from(
-    new Set(
-      order.lines
-        .map((l) => (l.priceListItemId ? priceListItems.find((i) => i.id === l.priceListItemId)?.paymentUrl : null))
-        .filter(Boolean) as string[]
-    )
-  );
-
-  // Fallback: generate a one-off Stripe checkout link when no product URL is configured.
-  // Returns null silently if Stripe isn't set up for the business.
-  const generateStripePaymentLink = async (): Promise<string | null> => {
-    try {
-      const description = Array.from(new Set(order.lines.map((l) => l.name))).join(", ") || "תשלום";
-      const res = await fetch("/api/payments/stripe/payment-link", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: order.total,
-          description,
-          customerId: order.customer.id,
-          orderId: order.id,
-        }),
-      });
-      if (!res.ok) return null;
-      const data = await res.json();
-      return data.url ?? null;
-    } catch {
-      return null;
-    }
-  };
-
-  const sendWhatsAppPaymentRequest = async () => {
-    if (sendingPaymentRequest) return;
-    // Open the window inside the click gesture so it isn't blocked after the
-    // async Stripe call; we set its URL once the link is resolved.
-    const win = window.open("", "_blank");
-    setSendingPaymentRequest(true);
-    try {
-      let links = [...productPaymentUrls];
-      if (links.length === 0) {
-        const stripeUrl = await generateStripePaymentLink();
-        if (stripeUrl) links = [stripeUrl];
-      }
-
-      const name = order.customer.name;
-      const itemLines = order.lines
-        .map((l) => `• ${l.name}${l.quantity > 1 ? ` ×${l.quantity}` : ""} — ${fmt(l.lineTotal)}`)
-        .join("\n");
-      const discountLine = order.discountAmount > 0 ? `\nהנחה: −${fmt(order.discountAmount)}` : "";
-      const taxLine = order.taxTotal > 0 ? `\nמע"מ: ${fmt(order.taxTotal)}` : "";
-      const linkBlock = links.length > 0 ? `\n\n💳 לתשלום מאובטח לחצו כאן:\n${links.join("\n")}` : "";
-      if (links.length === 0) {
-        toast.warning("לא הוגדר קישור תשלום למוצרים בהזמנה — ההודעה נשלחת ללא לינק");
-      }
-      const contactFooter = bizSettings?.phone ? `\n_לפניות ושאלות: ${bizSettings.phone}_` : "";
-      const msg = `שלום ${name}! 🐾\n\n*דרישת תשלום*\n\n${itemLines}${discountLine}${taxLine}\n\n💰 סה"כ לתשלום: *${fmt(order.total)}*${linkBlock}\n\nתודה שבחרתם בנו! 😊${contactFooter}`;
-      const waUrl = `https://wa.me/${toWhatsAppPhone(order.customer.phone)}?text=${encodeURIComponent(msg)}`;
-      if (win) win.location.href = waUrl;
-      else window.open(waUrl, "_blank");
-    } finally {
-      setSendingPaymentRequest(false);
-    }
-  };
-
   return (
     <div className="space-y-5 animate-fade-in">
+      {showPaymentRequest && <PaymentRequestDialog order={order} onClose={() => setShowPaymentRequest(false)} />}
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm">
         <Link href="/orders" className="text-petra-muted hover:text-brand-600 transition-colors">הזמנות</Link>
@@ -866,12 +791,11 @@ export default function OrderDetailPage() {
                   <button
                     className="text-xs py-1.5 px-3 rounded-xl font-semibold flex items-center gap-1.5 border-2 transition-all disabled:opacity-60"
                     style={{ borderColor: "#25D366", color: "#16a34a", background: "#f0fdf4" }}
-                    onClick={sendWhatsAppPaymentRequest}
-                    disabled={sendingPaymentRequest}
+                    onClick={() => setShowPaymentRequest(true)}
                     title="שלח דרישת תשלום בוואטסאפ"
                   >
                     <Send className="w-3.5 h-3.5" />
-                    {sendingPaymentRequest ? "מכין קישור..." : "דרישת תשלום"}
+                    דרישת תשלום
                   </button>
                 )}
                 {!fullyPaid && order.status !== "cancelled" && (

@@ -40,7 +40,7 @@ async function postJSON<T>(url: string, init: RequestInit): Promise<T> {
 
 function whatsappShareUrl(name: string, businessName: string, url: string) {
   const text = `היי ${name}, הוספתי אותך לצוות של ${businessName} בפטרה. לאישור ההצטרפות ובחירת סיסמה: ${url}`;
-  return `https://wa.me/?text=${encodeURIComponent(text)}`;
+  return `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
 }
 
 /**

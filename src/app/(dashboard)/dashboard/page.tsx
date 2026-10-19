@@ -324,7 +324,7 @@ export default function DashboardPage() {
                       </Link>
                       {s.customer?.phone && (
                         <WaIconButton
-                          href={`https://wa.me/${toWhatsAppPhone(s.customer.phone)}?text=${encodeURIComponent(g.message(s))}`}
+                          href={`https://api.whatsapp.com/send?phone=${toWhatsAppPhone(s.customer.phone)}&text=${encodeURIComponent(g.message(s))}`}
                         />
                       )}
                     </DashRow>

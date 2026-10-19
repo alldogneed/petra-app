@@ -89,7 +89,7 @@ export function NewCustomerModal({
         toast.success("הלקוח נוצר בהצלחה", {
           action: {
             label: "שלח ברוכים הבאים",
-            onClick: () => window.open(`https://wa.me/${waPhone}?text=${encodeURIComponent(welcomeMsg)}`, "_blank"),
+            onClick: () => window.open(`https://api.whatsapp.com/send?phone=${waPhone}&text=${encodeURIComponent(welcomeMsg)}`, "_blank"),
           },
         });
       } else {

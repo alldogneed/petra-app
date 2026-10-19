@@ -2036,7 +2036,7 @@ function TrainingPageContent() {
               if (sessionSummarySend.rating) lines.push(`⭐ דירוג המפגש: ${"★".repeat(sessionSummarySend.rating)}`);
               lines.push("", "נתראה בפגישה הבאה! 🐾");
               const msg = lines.join("\n");
-              const url = `https://wa.me/${toWhatsAppPhone(sessionSummarySend.customerPhone)}?text=${encodeURIComponent(msg)}`;
+              const url = `https://api.whatsapp.com/send?phone=${toWhatsAppPhone(sessionSummarySend.customerPhone)}&text=${encodeURIComponent(msg)}`;
               return (
                 <div className="space-y-2">
                   <a
@@ -2304,7 +2304,7 @@ function OverviewDogCard({ dog, onFocus }: { dog: UnifiedDog; onFocus?: (dog: Un
   const isCompleted = dog.status === "COMPLETED";
 
   const whatsappUrl = dog.customerPhone
-    ? `https://wa.me/${toWhatsAppPhone(dog.customerPhone)}?text=${encodeURIComponent(`שלום! עדכון אימון עבור ${dog.dogName} 🐾`)}`
+    ? `https://api.whatsapp.com/send?phone=${toWhatsAppPhone(dog.customerPhone)}&text=${encodeURIComponent(`שלום! עדכון אימון עבור ${dog.dogName} 🐾`)}`
     : null;
 
   return (
@@ -2403,7 +2403,7 @@ function OverviewDogRow({ dog, onFocus }: { dog: UnifiedDog; onFocus: (dog: Unif
   const isCompleted = dog.status === "COMPLETED";
 
   const whatsappUrl = dog.customerPhone
-    ? `https://wa.me/${toWhatsAppPhone(dog.customerPhone)}?text=${encodeURIComponent(`שלום! עדכון אימון עבור ${dog.dogName} 🐾`)}`
+    ? `https://api.whatsapp.com/send?phone=${toWhatsAppPhone(dog.customerPhone)}&text=${encodeURIComponent(`שלום! עדכון אימון עבור ${dog.dogName} 🐾`)}`
     : null;
 
   return (
@@ -2716,7 +2716,7 @@ function HomeworkSection({ program }: { program: TrainingProgram }) {
           ];
           return (
             <a
-              href={`https://wa.me/${toWhatsAppPhone(program.customer?.phone ?? "")}?text=${encodeURIComponent(lines.join("\n"))}`}
+              href={`https://api.whatsapp.com/send?phone=${toWhatsAppPhone(program.customer?.phone ?? "")}&text=${encodeURIComponent(lines.join("\n"))}`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-[10px] text-green-700 hover:text-green-800 font-medium flex items-center gap-0.5 bg-green-50 px-1.5 py-0.5 rounded"
@@ -3836,7 +3836,7 @@ function IndividualTab({
                             if (lastSession?.summary) {
                               lines.push("", `💬 סיכום מפגש אחרון:`, lastSession.summary);
                             }
-                            return `https://wa.me/${toWhatsAppPhone(program.customer?.phone ?? "")}?text=${encodeURIComponent(lines.join("\n"))}`;
+                            return `https://api.whatsapp.com/send?phone=${toWhatsAppPhone(program.customer?.phone ?? "")}&text=${encodeURIComponent(lines.join("\n"))}`;
                           })()}
                           target="_blank"
                           rel="noopener noreferrer"
@@ -3864,7 +3864,7 @@ function IndividualTab({
                               `🏆 ${program.dog.name} סיים/ה בהצלחה את תוכנית האילוף!`,
                               `מברכים אתכם ומאחלים המשך הנאה עם הכלב! 🐾`,
                             ].filter(Boolean);
-                            return `https://wa.me/${toWhatsAppPhone(program.customer?.phone ?? "")}?text=${encodeURIComponent(lines.join("\n"))}`;
+                            return `https://api.whatsapp.com/send?phone=${toWhatsAppPhone(program.customer?.phone ?? "")}&text=${encodeURIComponent(lines.join("\n"))}`;
                           })()}
                           target="_blank"
                           rel="noopener noreferrer"
@@ -4503,7 +4503,7 @@ function GroupCard({
       ];
       if (data.paymentUrl) lines.push("", `לתשלום מאובטח בקישור:`, data.paymentUrl);
       lines.push("", `לשאלות אנחנו זמינים${data.businessPhone ? ` בטלפון ${data.businessPhone}` : ""}. תודה! 🐾`);
-      window.open(`https://wa.me/${phone}?text=${encodeURIComponent(lines.join("\n"))}`, "_blank");
+      window.open(`https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(lines.join("\n"))}`, "_blank");
     },
     onError: (err: Error) => toast.error(err.message || "שגיאה ביצירת דרישת התשלום"),
   });
@@ -4624,7 +4624,7 @@ function GroupCard({
                       const msg = encodeURIComponent(
                         `היי! תזכורת לסדנת "${group.name}"${group.location ? ` ב${group.location}` : ""}${group.defaultTime ? ` בשעה ${group.defaultTime}` : ""}. נתראה!`
                       );
-                      window.open(`https://wa.me/${phone}?text=${msg}`, "_blank");
+                      window.open(`https://api.whatsapp.com/send?phone=${phone}&text=${msg}`, "_blank");
                     }
                   });
                 }}

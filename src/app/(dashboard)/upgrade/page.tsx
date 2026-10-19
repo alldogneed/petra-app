@@ -182,7 +182,7 @@ export default function UpgradePage() {
     const msg = encodeURIComponent(
       `שלום, אני רוצה ${action} את המנוי שלי ב-Petra למסלול ${planName} (₪${price}/חודש). תוכלו לעזור לי?`
     );
-    window.open(`https://wa.me/${WHATSAPP_UPGRADE_PHONE}?text=${msg}`, "_blank");
+    window.open(`https://api.whatsapp.com/send?phone=${WHATSAPP_UPGRADE_PHONE}&text=${msg}`, "_blank");
   }
 
   return (

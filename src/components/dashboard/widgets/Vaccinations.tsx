@@ -58,7 +58,7 @@ export function VaccinationAlertWidget() {
         const expiry = v.validUntil ? new Date(v.validUntil) : null;
         const expiryStr = expiry && !isNaN(expiry.getTime()) ? expiry.toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" }) : "";
         const waMsg = `שלום ${v.customerName}! 💉\nחיסון ${v.vaccineLabel} של ${v.petName} ${v.isExpired ? "פג תוקפו" : `עומד לפוג בתאריך ${expiryStr}`}.\nנא לדאוג לחידוש החיסון בהקדם. 🐾`;
-        const waLink = `https://wa.me/${toWhatsAppPhone(v.customerPhone)}?text=${encodeURIComponent(waMsg)}`;
+        const waLink = `https://api.whatsapp.com/send?phone=${toWhatsAppPhone(v.customerPhone)}&text=${encodeURIComponent(waMsg)}`;
         const sent = sentIds.has(v.petId);
 
         return (
