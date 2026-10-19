@@ -59,6 +59,7 @@ const PUBLIC_EXACT_PATHS = new Set([
   "/api/cardcom/create-checkout",
   "/api/cardcom/checkout-indicator",
   "/api/cardcom/trial-indicator",
+  "/api/cardcom/card-update-indicator",
   "/api/integrations/google/callback",
   "/api/invoicing/process-jobs",           // Vercel Cron — in-route timing-safe CRON_SECRET auth
   "/api/integrations/google/process-jobs", // Vercel Cron — in-route verifyCronAuth

@@ -451,6 +451,36 @@ export async function sendSupportTicketEmail(
   }
 }
 
+// ─── Monthly charge failed → business owner ──────────────────────────────────
+
+export async function sendPaymentFailedEmail(params: { to: string; name: string | null; lapseDate: string; updateUrl: string }): Promise<void> {
+  const safeName = params.name ? escapeHtml(params.name) : "";
+  const { error } = await getResend().emails.send({
+    from: getFromEmail(),
+    to: params.to,
+    replyTo: "info@petra-app.com",
+    subject: "\u200Fהחיוב החודשי של מנוי פטרה לא עבר — נא לעדכן אמצעי תשלום",
+    html: `
+      <div dir="rtl" style="font-family:'Segoe UI',Arial,sans-serif;max-width:520px;margin:0 auto;color:#1e293b;background:#ffffff;">
+        ${brandHeader()}
+        <div style="padding:32px 24px;background:#fff;">
+          <h2 style="font-size:20px;margin:0 0 8px;color:#0f172a;">שלום${safeName ? ` ${safeName}` : ""},</h2>
+          <p style="color:#475569;font-size:15px;line-height:1.7;margin:0 0 16px;">
+            לא הצלחנו לחייב את כרטיס האשראי עבור המנוי החודשי שלך בפטרה.
+            כדי שהמנוי ימשיך כרגיל ולא יעבור למסלול החינמי ב-<b>${escapeHtml(params.lapseDate)}</b>, צריך לעדכן אמצעי תשלום.
+          </p>
+          <p style="color:#475569;font-size:14px;line-height:1.7;margin:0 0 24px;">העדכון לוקח דקה ולא מחייב אותך עכשיו — החיוב הבא יתבצע במועד הרגיל.</p>
+          <div style="text-align:center;margin:0 0 16px;">
+            <a href="${params.updateUrl}" style="display:inline-block;background:#f97316;color:#fff;font-size:16px;font-weight:700;padding:14px 40px;border-radius:12px;text-decoration:none;">עדכון אמצעי תשלום</a>
+          </div>
+          <p style="color:#94a3b8;font-size:13px;text-align:center;margin:0;">שאלות? פשוט השיבו למייל הזה.</p>
+        </div>
+        ${brandFooter()}
+      </div>`,
+  });
+  if (error) throw new Error(`Resend email failed: ${error.message}`);
+}
+
 // ─── Support reply → customer ────────────────────────────────────────────────
 
 export interface SupportReplyEmailParams {
