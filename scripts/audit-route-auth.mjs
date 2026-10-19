@@ -65,6 +65,7 @@ const PUBLIC_ROUTES = new Set([
   "cardcom/create-checkout",
   "cardcom/checkout-indicator",
   "cardcom/trial-indicator",
+  "cardcom/card-update-indicator",
 
   // ── Cron jobs (auth via verifyCronAuth, but pattern detector below) ───────
   // Listed here so PUBLIC heading shows them clearly. Each must still call
