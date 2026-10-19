@@ -450,6 +450,7 @@ import { env, isDev, isProd } from "@/lib/env";
 | Feeding board print | `boarding/daily/page.tsx` has print button + `@media print` CSS hiding nav/modals |
 | Boarding yards print | `boarding/yards/page.tsx` — print CSS hides sidebar/header via `no-print` class; `data-print-yards` attr on main div; 2-col grid for print; print-only heading injected |
 | Bug report (Help Center) | `src/components/help/HelpCenter.tsx` — FileReader reads screenshot as base64 (max 2MB); sent to `/api/support/report` as `screenshotBase64`; API attaches to Resend email as attachment; tickets visible at `/owner/support` + emailed to `info@petra-app.com` |
+| Order cancellation | `canCancelOrder(status, paidAmount)` (`src/lib/order-cancel.ts`) drives the cancel buttons (order page + orders list) and `PATCH /api/orders/[id]`: draft/confirmed always; completed/in_progress only with nothing paid (cancel/refund the payment first). MCP `cancel_order` force and training cancels keep their own owner-gated rules (they call `updateOrder` directly) |
 | Notes length validation | `POST /api/appointments` + `POST /api/orders` — max 2000 chars; returns 400 with Hebrew error message |
 | Dashboard stat cards | "הכנסות החודש" always shown (from `data.monthRevenue`); "היום: ₪X" as subtitle when today > 0. `data.upcomingByType` exists but is unused. Each card can be hidden per member (rule #36). |
 | Dashboard orders section | "הזמנות אחרונות" links to `/orders`; each row is a `<Link>` to `/orders/:id` |

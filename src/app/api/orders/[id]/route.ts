@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
+import { canCancelOrder, CANCEL_PAID_ORDER_ERROR } from "@/lib/order-cancel";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError, requireBusinessPermission } from "@/lib/auth-guards";
 import { TENANT_PERMS, hasTenantPermission, type TenantRole } from "@/lib/permissions";
@@ -78,6 +79,19 @@ export async function PATCH(
           select: { status: true },
         }))?.status ?? null
       : null;
+
+    // Same rule as the cancel button (src/lib/order-cancel.ts): a completed order can be
+    // cancelled only when nothing was paid on it. (MCP force / training cancels call the
+    // service directly and keep their own, owner-gated rules.)
+    if (isCancelRequest && prevStatus && prevStatus !== "cancelled") {
+      const paid = await prisma.payment.aggregate({
+        where: { orderId: params.id, businessId: authResult.businessId, status: "paid" },
+        _sum: { amount: true },
+      });
+      if (!canCancelOrder(prevStatus, paid._sum.amount ?? 0)) {
+        return NextResponse.json({ error: CANCEL_PAID_ORDER_ERROR }, { status: 400 });
+      }
+    }
 
     let claimedDraftToConfirmed = false;
     if (body.status === "confirmed") {
