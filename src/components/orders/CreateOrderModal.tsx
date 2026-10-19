@@ -1504,7 +1504,7 @@ export function CreateOrderModal({
   const openWhatsApp = (phone: string) => {
     const msg = encodeURIComponent(buildWhatsAppMessage());
     const waPhone = toWhatsAppPhone(phone);
-    window.open(`https://wa.me/${waPhone}?text=${msg}`, "_blank");
+    window.open(`https://api.whatsapp.com/send?phone=${waPhone}&text=${msg}`, "_blank");
   };
 
   // Payment-request–focused WhatsApp message — consistent with messages-panel template style
@@ -1572,7 +1572,7 @@ export function CreateOrderModal({
         toast.warning("לא הוגדר קישור תשלום למוצרים בהזמנה — ההודעה נשלחת ללא לינק");
       }
       const msg = encodeURIComponent(buildPaymentRequestMessage(links));
-      const waUrl = `https://wa.me/${toWhatsAppPhone(phone)}?text=${msg}`;
+      const waUrl = `https://api.whatsapp.com/send?phone=${toWhatsAppPhone(phone)}&text=${msg}`;
       if (win) win.location.href = waUrl;
       else window.open(waUrl, "_blank");
     } finally {

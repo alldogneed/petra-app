@@ -143,7 +143,7 @@ function AnalyticsContent() {
 
   const periodLabel = dateMode === "custom" ? "מותאם אישית" : PERIODS.find((p) => p.id === period)?.label ?? period;
   const shareHref = useMemo(
-    () => (data ? `https://wa.me/?text=${encodeURIComponent(buildShareText(data, periodLabel))}` : ""),
+    () => (data ? `https://api.whatsapp.com/send?text=${encodeURIComponent(buildShareText(data, periodLabel))}` : ""),
     [data, periodLabel]
   );
 

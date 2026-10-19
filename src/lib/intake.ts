@@ -46,7 +46,7 @@ export function isValidILPhone(phone: string): boolean {
 export function buildWhatsAppDeepLink(phoneE164: string, message: string): string {
   // wa.me expects number without +
   const num = phoneE164.replace("+", "");
-  return `https://wa.me/${num}?text=${encodeURIComponent(message)}`;
+  return `https://api.whatsapp.com/send?phone=${num}&text=${encodeURIComponent(message)}`;
 }
 
 // ─── Message template ───────────────────────────────────────────────────────

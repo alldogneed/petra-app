@@ -1082,7 +1082,7 @@ function StayRow({
             ].filter(Boolean).join("\n");
             return (
               <a
-                href={`https://wa.me/${toWhatsAppPhone(stay.customer!.phone)}?text=${encodeURIComponent(lines)}`}
+                href={`https://api.whatsapp.com/send?phone=${toWhatsAppPhone(stay.customer!.phone)}&text=${encodeURIComponent(lines)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 transition-colors"
@@ -1113,7 +1113,7 @@ function StayRow({
             ].join("\n");
             return (
               <a
-                href={`https://wa.me/${toWhatsAppPhone(stay.customer!.phone)}?text=${encodeURIComponent(lines)}`}
+                href={`https://api.whatsapp.com/send?phone=${toWhatsAppPhone(stay.customer!.phone)}&text=${encodeURIComponent(lines)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors"
@@ -1154,7 +1154,7 @@ function StayRow({
             const waText = lines.filter((l, i) => !(l === "" && lines[i - 1] === "")).join("\n").trim();
             return (
               <a
-                href={`https://wa.me/${toWhatsAppPhone(stay.customer!.phone)}?text=${encodeURIComponent(waText)}`}
+                href={`https://api.whatsapp.com/send?phone=${toWhatsAppPhone(stay.customer!.phone)}&text=${encodeURIComponent(waText)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-colors"
@@ -1409,7 +1409,7 @@ function CheckoutDialog({
       }
       const discountLine = discountAmount > 0 ? `\nהנחה: −₪${discountAmount.toFixed(0)}` : "";
       const msg = `שלום ${stay.customer.name}! 😊\nתודה שהיה לנו את ${stay.pet.name} בפנסיון.\nסיכום השהייה: ${nights} ${calcMode === "nights" ? "לילות" : "ימים"} × ₪${pricePerNight} = ₪${subtotal.toFixed(0)}.${discountLine}\nלתשלום: ₪${total.toFixed(0)}\n\nנשמח לקבל תשלום 🙏${linkBlock}`;
-      const waUrl = `https://wa.me/${toWhatsAppPhone(stay.customer.phone)}?text=${encodeURIComponent(msg)}`;
+      const waUrl = `https://api.whatsapp.com/send?phone=${toWhatsAppPhone(stay.customer.phone)}&text=${encodeURIComponent(msg)}`;
       if (win) win.location.href = waUrl;
       else window.open(waUrl, "_blank");
     } finally {
@@ -1862,7 +1862,7 @@ function VaccinationAlertBanner() {
                 </div>
                 {waPhone && (
                   <a
-                    href={`https://wa.me/${waPhone}?text=${msg}`}
+                    href={`https://api.whatsapp.com/send?phone=${waPhone}&text=${msg}`}
                     target="_blank"
                     rel="noreferrer"
                     className="btn-secondary text-xs py-1 px-2.5 flex items-center gap-1 shrink-0"
@@ -2840,7 +2840,7 @@ function BoardingPageContent() {
               if (s.checkOut) lines.push(`  📅 יציאה: ${new Date(s.checkOut).toLocaleDateString("he-IL")}`);
               lines.push("");
             }
-            const waUrl = `https://wa.me/?text=${encodeURIComponent(lines.join("\n"))}`;
+            const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(lines.join("\n"))}`;
             return (
               <a
                 href={waUrl}
@@ -2877,7 +2877,7 @@ function BoardingPageContent() {
               }
               lines.push("");
             }
-            const waUrl = `https://wa.me/?text=${encodeURIComponent(lines.join("\n").trim())}`;
+            const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(lines.join("\n").trim())}`;
             return (
               <a
                 href={waUrl}

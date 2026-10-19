@@ -31,7 +31,7 @@ export function TopDebtorsWidget({
       />
       {debtors.map((debtor) => {
         const waMsg = `שלום ${debtor.name}! 😊\nתזכורת לגבי תשלום ממתין בסך ${formatCurrency(debtor.total)}.\nנשמח לקבל את התשלום בהקדם 🙏`;
-        const waLink = `https://wa.me/${toWhatsAppPhone(debtor.phone)}?text=${encodeURIComponent(waMsg)}`;
+        const waLink = `https://api.whatsapp.com/send?phone=${toWhatsAppPhone(debtor.phone)}&text=${encodeURIComponent(waMsg)}`;
         const sent = sentIds.has(debtor.id);
 
         return (

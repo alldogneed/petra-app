@@ -33,7 +33,7 @@ export default function PaymentErrorPage() {
           נסה שוב
         </button>
         <button
-          onClick={() => window.open(`https://wa.me/${WHATSAPP_SUPPORT}?text=${encodeURIComponent("שלום, נכשל לי תשלום ב-Petra. אשמח לעזרה.")}`, "_blank")}
+          onClick={() => window.open(`https://api.whatsapp.com/send?phone=${WHATSAPP_SUPPORT}&text=${encodeURIComponent("שלום, נכשל לי תשלום ב-Petra. אשמח לעזרה.")}`, "_blank")}
           className="px-6 py-3 rounded-xl bg-green-500 hover:bg-green-600 text-white font-semibold transition-colors flex items-center justify-center gap-2"
         >
           <MessageCircle className="w-5 h-5" />

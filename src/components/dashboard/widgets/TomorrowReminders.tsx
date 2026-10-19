@@ -29,7 +29,7 @@ export function TomorrowReminders({
 
   function sendOne(a: DashboardStats["tomorrowAppointments"][0]) {
     const phone = toWhatsAppPhone(a.customerPhone);
-    window.open(`https://wa.me/${phone}?text=${buildMsg(a)}`, "_blank");
+    window.open(`https://api.whatsapp.com/send?phone=${phone}&text=${buildMsg(a)}`, "_blank");
     setSent((prev) => new Set([...prev, a.id]));
   }
 
@@ -37,7 +37,7 @@ export function TomorrowReminders({
     withPhone.forEach((a, i) => {
       setTimeout(() => {
         const phone = toWhatsAppPhone(a.customerPhone);
-        window.open(`https://wa.me/${phone}?text=${buildMsg(a)}`, "_blank");
+        window.open(`https://api.whatsapp.com/send?phone=${phone}&text=${buildMsg(a)}`, "_blank");
         setSent((prev) => new Set([...prev, a.id]));
       }, i * 600);
     });
