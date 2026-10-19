@@ -216,7 +216,7 @@ function SendModal({ template, onClose }: { template: MessageTemplate; onClose: 
   function handleSend() {
     if (!selected) return;
     const text = encodeURIComponent(renderBody(template.body, selected));
-    window.open(`https://wa.me/${toWhatsAppPhone(selected.phone)}?text=${text}`, "_blank");
+    window.open(`https://api.whatsapp.com/send?phone=${toWhatsAppPhone(selected.phone)}&text=${text}`, "_blank");
   }
 
   return (
@@ -342,7 +342,7 @@ function BulkSendModal({ template, onClose }: { template: MessageTemplate; onClo
     toSend.forEach((c, i) => {
       setTimeout(() => {
         const text = encodeURIComponent(renderBody(template.body, c));
-        window.open(`https://wa.me/${toWhatsAppPhone(c.phone)}?text=${text}`, "_blank");
+        window.open(`https://api.whatsapp.com/send?phone=${toWhatsAppPhone(c.phone)}&text=${text}`, "_blank");
         setSentIds((prev) => new Set([...prev, c.id]));
       }, i * 700);
     });
@@ -1180,7 +1180,7 @@ function BulkSendTab() {
     if (!selectedTemplate) return;
     const msg = encodeURIComponent(interpolateForCustomer(selectedTemplate.body, customer, bizPhone));
     const phone = toWhatsAppPhone(customer.phone);
-    window.open(`https://wa.me/${phone}?text=${msg}`, "_blank");
+    window.open(`https://api.whatsapp.com/send?phone=${phone}&text=${msg}`, "_blank");
   }
 
   return (

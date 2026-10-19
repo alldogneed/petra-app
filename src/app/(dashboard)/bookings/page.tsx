@@ -606,7 +606,7 @@ function BookingsContent() {
                             return (
                               <button
                                 onClick={() => {
-                                  const waUrl = `https://wa.me/${toWhatsAppPhone(booking.customer.phone)}?text=${encodeURIComponent(confirmMsg)}`;
+                                  const waUrl = `https://api.whatsapp.com/send?phone=${toWhatsAppPhone(booking.customer.phone)}&text=${encodeURIComponent(confirmMsg)}`;
                                   // Open the window inside the click gesture so iOS Safari doesn't
                                   // block it after the async request; its URL is set on success.
                                   const win = window.open("", "_blank");

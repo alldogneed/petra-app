@@ -7,6 +7,7 @@ import { DesktopBanner } from "@/components/ui/DesktopBanner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo, useRef, useEffect } from "react";
 import Link from "next/link";
+import { PaymentRequestDialog } from "@/components/orders/PaymentRequestDialog";
 import {
   ShoppingCart,
   Plus,
@@ -31,7 +32,7 @@ import {
   Printer,
   CreditCard,
 } from "lucide-react";
-import { cn, formatCurrency, formatDate, toWhatsAppPhone, escapeHtml } from "@/lib/utils";
+import { cn, formatCurrency, formatDate, escapeHtml } from "@/lib/utils";
 import { toast } from "sonner";
 import dynamic from "next/dynamic";
 import { PetraLoader } from "@/components/ui/PetraLoader";
@@ -238,69 +239,8 @@ function OrdersPageContent() {
     staleTime: 30_000,
   });
 
-  // Price-list items carry the configured payment landing-page URLs,
-  // mapped onto order lines so each payment request includes the link.
-  const { data: priceListItems = [] } = useQuery<Array<{ id: string; paymentUrl: string | null }>>({
-    queryKey: ["price-list-items"],
-    queryFn: () => fetch("/api/price-list-items").then((r) => r.json()),
-    staleTime: 60_000,
-  });
 
-  // Which order's payment request is currently being prepared (null = none).
-  const [sendingPaymentRequestId, setSendingPaymentRequestId] = useState<string | null>(null);
-
-  // Build + send a WhatsApp payment request for an order, including a payment link.
-  // Prefers the product's configured landing-page URL, falls back to a one-off Stripe link.
-  const sendOrderPaymentRequest = async (order: Order) => {
-    if (sendingPaymentRequestId) return;
-    // Open the window inside the click gesture so it isn't blocked after the async Stripe call.
-    const win = window.open("", "_blank");
-    setSendingPaymentRequestId(order.id);
-    try {
-      const productUrls = Array.from(
-        new Set(
-          order.lines
-            .map((l) => (l.priceListItemId ? priceListItems.find((i) => i.id === l.priceListItemId)?.paymentUrl : null))
-            .filter(Boolean) as string[]
-        )
-      );
-      let links = [...productUrls];
-      if (links.length === 0) {
-        try {
-          const description = Array.from(new Set(order.lines.map((l) => l.name))).join(", ") || "תשלום";
-          const res = await fetch("/api/payments/stripe/payment-link", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ amount: order.total, description, customerId: order.customer.id, orderId: order.id }),
-          });
-          if (res.ok) {
-            const data = await res.json();
-            if (data.url) links = [data.url];
-          }
-        } catch {
-          // Stripe not configured — fall through to link-less message.
-        }
-      }
-
-      const lineItems = order.lines
-        .map((l) => `• ${l.name} x${l.quantity} - ${fmt(l.lineTotal)}`)
-        .join("\n");
-      const discountLine = order.discountAmount > 0 ? `\nהנחה: -${fmt(order.discountAmount)}` : "";
-      const taxLine = order.taxTotal > 0 ? `\nמע"מ: ${fmt(order.taxTotal)}` : "";
-      const linkBlock = links.length > 0 ? `\n\n💳 לתשלום מאובטח לחצו כאן:\n${links.join("\n")}` : "";
-      if (links.length === 0) {
-        toast.warning("לא הוגדר קישור תשלום למוצרים בהזמנה — ההודעה נשלחת ללא לינק");
-      }
-      const msg = encodeURIComponent(
-        `שלום ${order.customer.name},\nהנה פירוט ההזמנה שלך:\n${lineItems}${discountLine}${taxLine}\n\nסה"כ לתשלום: ${fmt(order.total)}${linkBlock}`
-      );
-      const waUrl = `https://wa.me/${toWhatsAppPhone(order.customer.phone)}?text=${msg}`;
-      if (win) win.location.href = waUrl;
-      else window.open(waUrl, "_blank");
-    } finally {
-      setSendingPaymentRequestId(null);
-    }
-  };
+  const [paymentRequestOrder, setPaymentRequestOrder] = useState<Order | null>(null);
 
   // Client-side filters: customer name + payment status
   const filteredOrders = useMemo(() => {
@@ -475,6 +415,7 @@ function OrdersPageContent() {
     // overflow-x-clip: a too-wide child must scroll inside its own box, never
     // widen the page — a wide element here zoomed the whole mobile viewport out.
     <div className="space-y-6 animate-fade-in max-w-full overflow-x-clip">
+      {paymentRequestOrder && <PaymentRequestDialog order={paymentRequestOrder} onClose={() => setPaymentRequestOrder(null)} />}
       <DesktopBanner />
       <FinanceTabs />
       {/* ── Header ─────────────────────────────────────────────────────── */}
@@ -890,14 +831,13 @@ function OrdersPageContent() {
                             <button
                               className="text-xs py-1.5 px-3 rounded-xl font-medium text-white flex items-center gap-1.5 transition-all hover:opacity-90 disabled:opacity-60"
                               style={{ background: "#25D366" }}
-                              disabled={sendingPaymentRequestId === order.id}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                sendOrderPaymentRequest(order);
+                                setPaymentRequestOrder(order);
                               }}
                             >
                               <MessageCircle className="w-3 h-3" />
-                              {sendingPaymentRequestId === order.id ? "מכין קישור..." : "שלח בקשת תשלום"}
+                              שלח בקשת תשלום
                             </button>
                           </>
                         )}
@@ -1085,12 +1025,11 @@ function OrdersPageContent() {
                               <button
                                 className="text-xs py-1.5 px-3 rounded-xl font-medium text-white flex items-center gap-1.5 transition-all hover:opacity-90 disabled:opacity-60"
                                 style={{ background: "#25D366" }}
-                                disabled={sendingPaymentRequestId === order.id}
-                                onClick={() => sendOrderPaymentRequest(order)}
+                                onClick={() => setPaymentRequestOrder(order)}
                                 title="שלח בקשת תשלום בוואטסאפ"
                               >
                                 <MessageCircle className="w-3.5 h-3.5" />
-                                {sendingPaymentRequestId === order.id ? "מכין קישור..." : "שלח בקשת תשלום"}
+                                שלח בקשת תשלום
                               </button>
                             </>
                           )}

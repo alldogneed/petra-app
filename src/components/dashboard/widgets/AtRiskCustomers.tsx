@@ -23,7 +23,7 @@ export function AtRiskCustomersWidget({ customers }: { customers: DashboardStats
     withPhone.forEach((c, i) => {
       setTimeout(() => {
         const text = encodeURIComponent(buildMsg(c));
-        window.open(`https://wa.me/${toWhatsAppPhone(c.phone)}?text=${text}`, "_blank");
+        window.open(`https://api.whatsapp.com/send?phone=${toWhatsAppPhone(c.phone)}&text=${text}`, "_blank");
         setSentIds((prev) => new Set([...prev, c.id]));
         if (i === withPhone.length - 1) setBulkSending(false);
       }, i * 700);
@@ -51,7 +51,7 @@ export function AtRiskCustomersWidget({ customers }: { customers: DashboardStats
 
       {customers.map((c) => {
         const sent = sentIds.has(c.id);
-        const waLink = `https://wa.me/${toWhatsAppPhone(c.phone)}?text=${encodeURIComponent(buildMsg(c))}`;
+        const waLink = `https://api.whatsapp.com/send?phone=${toWhatsAppPhone(c.phone)}&text=${encodeURIComponent(buildMsg(c))}`;
         const urgency = c.daysSinceVisit >= 120 ? "text-red-700" : "text-[#C2410C]";
 
         return (

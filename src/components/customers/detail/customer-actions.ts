@@ -2,13 +2,12 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { toWhatsAppPhone } from "@/lib/utils";
+import { buildWhatsAppUrl } from "@/lib/utils";
 
 /** wa.me deep link (opens the user's own WhatsApp — the server sends nothing). Empty string when there's no phone. */
 export function waLink(phone: string | null | undefined, text?: string): string {
   if (!phone?.trim()) return "";
-  const base = `https://wa.me/${toWhatsAppPhone(phone)}`;
-  return text ? `${base}?text=${encodeURIComponent(text)}` : base;
+  return buildWhatsAppUrl(phone, text);
 }
 
 /** Payment-request page pre-filled for this customer (PAYMENTS_WRITE). */

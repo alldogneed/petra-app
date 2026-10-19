@@ -100,14 +100,19 @@ describe("isValidILPhone", () => {
 // ─── WhatsApp Deep Link Tests ───────────────────────────────────────────────
 
 describe("buildWhatsAppDeepLink", () => {
-  it("builds correct wa.me URL", () => {
+  it("builds an api.whatsapp.com/send URL (wa.me's redirect breaks emoji)", () => {
     const url = buildWhatsAppDeepLink("+972501234567", "שלום");
-    expect(url).toBe("https://wa.me/972501234567?text=%D7%A9%D7%9C%D7%95%D7%9D");
+    expect(url).toBe("https://api.whatsapp.com/send?phone=972501234567&text=%D7%A9%D7%9C%D7%95%D7%9D");
+  });
+
+  it("keeps 4-byte emoji intact", () => {
+    const url = buildWhatsAppDeepLink("+972501234567", "🐾 שלום");
+    expect(decodeURIComponent(url.split("text=")[1])).toBe("🐾 שלום");
   });
 
   it("URL-encodes message with link", () => {
     const url = buildWhatsAppDeepLink("+972501234567", "בדוק: https://example.com/form");
-    expect(url).toContain("wa.me/972501234567");
+    expect(url).toContain("phone=972501234567");
     expect(url).toContain("text=");
     expect(decodeURIComponent(url.split("text=")[1])).toBe("בדוק: https://example.com/form");
   });

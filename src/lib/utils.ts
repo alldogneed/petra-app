@@ -84,12 +84,14 @@ export function toWhatsAppPhone(phone: string): string {
 }
 
 /** Build a WhatsApp deep-link that works on both mobile (opens app) and desktop (opens WhatsApp Web).
- *  Uses wa.me which is the universal format recommended by WhatsApp.
+ *  With text it goes straight to api.whatsapp.com/send: the wa.me redirect re-encodes the
+ *  text and turns every emoji outside the BMP (🐾 💳 😊…) into "�". Without text wa.me is fine.
  */
 export function buildWhatsAppUrl(phone: string, text?: string): string {
   const number = toWhatsAppPhone(phone);
-  const base = `https://wa.me/${number}`;
-  return text ? `${base}?text=${encodeURIComponent(text)}` : base;
+  return text
+    ? `https://api.whatsapp.com/send?phone=${number}&text=${encodeURIComponent(text)}`
+    : `https://wa.me/${number}`;
 }
 
 /** Safe fetch that throws on non-ok responses (for use with React Query) */

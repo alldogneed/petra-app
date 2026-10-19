@@ -1303,7 +1303,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-3 text-sm text-blue-800 text-center">
                   <p className="font-semibold mb-1">ליצירת קשר לתשלום:</p>
                   {business?.phone && (
-                    <a href={`https://wa.me/${toWhatsAppPhone(business.phone)}?text=${encodeURIComponent(`שלום, קבעתי תור ל${selectedService.name} (מס' ${bookingResult.bookingId.slice(0, 8).toUpperCase()}). אשמח לשלם מקדמה.`)}`} className="text-green-600 hover:underline flex items-center justify-center gap-1 mt-1">
+                    <a href={`https://api.whatsapp.com/send?phone=${toWhatsAppPhone(business.phone)}&text=${encodeURIComponent(`שלום, קבעתי תור ל${selectedService.name} (מס' ${bookingResult.bookingId.slice(0, 8).toUpperCase()}). אשמח לשלם מקדמה.`)}`} className="text-green-600 hover:underline flex items-center justify-center gap-1 mt-1">
                       <MessageCircle className="w-4 h-4" /> שלח WhatsApp לתשלום
                     </a>
                   )}
@@ -1413,7 +1413,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                 {/* Send self WA reminder */}
                 {selectedService.type !== "boarding" && selectedSlot && (
                   <a
-                    href={`https://wa.me/?text=${buildWhatsAppReminder(selectedService, selectedDate, selectedSlot.time, customerName, dogs.filter(d => d.name.trim()).map(d => d.name))}`}
+                    href={`https://api.whatsapp.com/send?text=${buildWhatsAppReminder(selectedService, selectedDate, selectedSlot.time, customerName, dogs.filter(d => d.name.trim()).map(d => d.name))}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 transition-colors text-sm font-medium"
