@@ -669,8 +669,8 @@ export default function LandingPage() {
 
                 <div className="relative aspect-[4/5] rounded-3xl overflow-hidden">
                   <Image
-                    src="/about-field-2.png"
-                    alt="מאלף עובד עם כלב — Petra ו-All-Dog"
+                    src="/about-field-3.webp"
+                    alt="מאלפת עובדת עם כלב באימון בשטח — Petra ו-All-Dog"
                     fill
                     sizes="(max-width: 1024px) 100vw, 50vw"
                     className="object-cover"
