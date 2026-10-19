@@ -209,6 +209,7 @@ export async function POST(request: NextRequest) {
               payloadJson: confirmationLogPayload(confirmationSteps, confirmationFallback, confirmationResult),
               sendAt: new Date(),
               status: confirmationResult?.success ? "SENT" : "FAILED",
+              ...(confirmationResult?.success && confirmationResult.messageSid ? { wamid: confirmationResult.messageSid } : {}),
               relatedEntityType: "APPT_CONFIRMATION",
               relatedEntityId: linkedAppointmentId,
             },

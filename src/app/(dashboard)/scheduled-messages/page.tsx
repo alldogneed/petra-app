@@ -37,6 +37,21 @@ interface ScheduledMessage {
   relatedEntityId: string | null;
   createdAt: string;
   customer: { id: string; name: string; phone: string };
+  /** WhatsApp's own delivery report (null = sent before delivery tracking, or not reported yet). */
+  delivery?: { status: string; error: string | null; at: string } | null;
+}
+
+/** What WhatsApp reported for a SENT message: accepted/sent → on its way, delivered, read, failed. */
+function deliveryInfo(msg: ScheduledMessage): { label: string; className: string; title?: string } | null {
+  if (msg.status !== "SENT") return null;
+  const d = msg.delivery;
+  if (!d) return { label: "אין אישור מסירה", className: "text-slate-400", title: "הודעה שנשלחה לפני שהמערכת התחילה לעקוב אחרי מסירה" };
+  switch (d.status) {
+    case "read": return { label: "✓✓ נקרא", className: "text-sky-600 font-medium" };
+    case "delivered": return { label: "✓✓ נמסר", className: "text-emerald-600" };
+    case "failed": return { label: "לא נמסר", className: "text-red-600 font-medium", title: d.error ?? undefined };
+    default: return { label: "✓ בדרך ללקוח", className: "text-slate-500" };
+  }
 }
 
 interface PageData {
@@ -338,8 +353,8 @@ export default function ScheduledMessagesPage() {
           <h1 className="page-title">הודעות אוטומטיות</h1>
           <p className="text-sm text-petra-muted mt-0.5">
             הודעות שנוצרו אוטומטית על ידי המערכת ומתוזמנות לשליחה.
-            הסטטוס לצד כל הודעה מציג אישור מסירה אמיתי מוואטסאפ — כך תדעו
-            בוודאות שהלקוח קיבל את התזכורת, ואם משהו נכשל תראו את זה כאן מיד.
+            מתחת ל&quot;נשלח&quot; מופיע הדיווח של וואטסאפ עצמו: ✓ בדרך ללקוח, ✓✓ נמסר או ✓✓ נקרא —
+            ואם ההודעה לא הגיעה ללקוח תראו כאן &quot;לא נמסר&quot; ואת הסיבה.
           </p>
         </div>
         <button
@@ -545,6 +560,15 @@ export default function ScheduledMessagesPage() {
                           <StatusIcon className="w-3.5 h-3.5 flex-shrink-0" />
                           {si.label}
                         </span>
+                        {(() => {
+                          const di = deliveryInfo(msg);
+                          return di ? (
+                            <div className={cn("text-xs mt-1", di.className)} title={di.title}>
+                              {di.label}
+                              {di.title && msg.delivery?.status === "failed" && <span className="block text-[11px] text-red-400 truncate max-w-[160px]">{di.title}</span>}
+                            </div>
+                          ) : null;
+                        })()}
                       </td>
 
                       {/* Actions */}

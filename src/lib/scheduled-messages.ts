@@ -250,6 +250,7 @@ export async function processPendingReminders(): Promise<{
         where: { id: msg.id },
         data: {
           status: result.success ? "SENT" : "FAILED",
+          ...(result.success && result.messageSid ? { wamid: result.messageSid } : {}),
         },
       });
 

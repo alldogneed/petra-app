@@ -10,6 +10,7 @@
 
 import type { PrismaClient } from "@prisma/client";
 import { ServiceError } from "./types";
+import { appointmentOrderTimes } from "@/lib/order-time";
 import { syncSessionFromAppointment, releaseSessionOfDeletedAppointment } from "./training-appointments";
 
 export type DbClient = PrismaClient;
@@ -250,15 +251,25 @@ export async function updateAppointment(businessId: string, db: DbClient, id: st
     },
   });
 
+  const timeChanged =
+    (input.date !== undefined && new Date(input.date).getTime() !== existing.date.getTime()) ||
+    (input.startTime !== undefined && input.startTime !== existing.startTime) ||
+    (input.endTime !== undefined && input.endTime !== existing.endTime);
+
   // A training-package meeting booked as this appointment follows it (rule #45). Non-fatal:
   // the appointment change already happened and its route side effects must still run.
   await syncSessionFromAppointment(businessId, db, updated, {
     status: input.status !== undefined && input.status !== existing.status,
-    time:
-      (input.date !== undefined && new Date(input.date).getTime() !== existing.date.getTime()) ||
-      (input.startTime !== undefined && input.startTime !== existing.startTime) ||
-      (input.endTime !== undefined && input.endTime !== existing.endTime),
+    time: timeChanged,
   }).catch((err) => console.error("[appointments] training meeting sync failed (non-critical):", err));
+
+  // The order created with this appointment shows its start/end — moving the appointment
+  // ("העבר תור", drag, MCP reschedule) used to leave the order on the old date.
+  if (timeChanged) {
+    await syncOrderTimesFromAppointment(businessId, db, updated).catch((err) =>
+      console.error("[appointments] order time sync failed (non-critical):", err)
+    );
+  }
 
   return updated;
 }
@@ -358,4 +369,17 @@ export async function createRecurringAppointments(businessId: string, db: DbClie
 
   const result = await db.appointment.createMany({ data });
   return { created: result.count };
+}
+
+/** Linked (non-cancelled) orders take the appointment's new Israel-local start/end. */
+async function syncOrderTimesFromAppointment(
+  businessId: string,
+  db: DbClient,
+  appt: { id: string; date: Date; startTime: string; endTime: string | null }
+) {
+  const { startAt, endAt } = appointmentOrderTimes(appt.date, appt.startTime, appt.endTime);
+  await db.order.updateMany({
+    where: { businessId, relatedEntityType: "Appointment", relatedEntityId: appt.id, status: { not: "cancelled" } },
+    data: { startAt, ...(endAt ? { endAt } : {}) },
+  });
 }

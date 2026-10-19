@@ -23,3 +23,20 @@ export function parseOrderDateTime(
   const parsed = new Date(s);
   return Number.isNaN(parsed.getTime()) ? undefined : parsed;
 }
+
+/**
+ * Order start/end for an appointment: its calendar day (stored as 00:00Z) + Israel-local
+ * "HH:mm" start/end → instants. Used to keep an appointment's order in step when it moves.
+ */
+export function appointmentOrderTimes(
+  date: Date,
+  startTime: string,
+  endTime: string | null | undefined,
+  timezone: string = "Asia/Jerusalem"
+): { startAt: Date; endAt: Date | null } {
+  const ymd = date.toISOString().slice(0, 10);
+  return {
+    startAt: localTimeToUtc(startTime, ymd, timezone),
+    endAt: endTime ? localTimeToUtc(endTime, ymd, timezone) : null,
+  };
+}

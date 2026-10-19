@@ -1632,6 +1632,8 @@ model ScheduledMessage {
   status            String   @default("PENDING") // PENDING | SENT | FAILED | CANCELED
   relatedEntityType String?  // GROUP_SESSION | BOOKING
   relatedEntityId   String?
+  /// Meta message id of the send — joins WhatsAppMessageLog for the delivered/read status.
+  wamid             String?
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
