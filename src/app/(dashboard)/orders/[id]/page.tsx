@@ -3,6 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { canCancelOrder } from "@/lib/order-cancel";
 import { PaymentRequestDialog } from "@/components/orders/PaymentRequestDialog";
 import {
   ArrowRight, CheckCircle2, Clock, XCircle, ShoppingCart,
@@ -486,6 +487,17 @@ export default function OrderDetailPage() {
                   בטל הזמנה
                 </button>
               </>
+            )}
+            {(order.status === "completed" || order.status === "in_progress") &&
+              canCancelOrder(order.status, (order.payments ?? []).filter((p) => p.status === "paid").reduce((s, p) => s + p.amount, 0)) && (
+              <button
+                onClick={() => setConfirmCancel("cancel")}
+                className="btn-secondary text-sm text-red-500 hover:bg-red-50 hover:border-red-200"
+                title="ההזמנה לא שולמה — ביטול מוחק את החוב של הלקוח"
+              >
+                <XCircle className="w-4 h-4" />
+                בטל הזמנה
+              </button>
             )}
             {order.status === "cancelled" && (
               <button

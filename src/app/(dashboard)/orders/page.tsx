@@ -7,6 +7,7 @@ import { DesktopBanner } from "@/components/ui/DesktopBanner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo, useRef, useEffect } from "react";
 import Link from "next/link";
+import { canCancelOrder } from "@/lib/order-cancel";
 import { PaymentRequestDialog } from "@/components/orders/PaymentRequestDialog";
 import {
   ShoppingCart,
@@ -682,7 +683,7 @@ function OrdersPageContent() {
               const paidAmount = order.payments
                 .filter((p) => p.status === "paid")
                 .reduce((sum, p) => sum + p.amount, 0);
-              const isCancellable = order.status === "draft" || order.status === "confirmed";
+              const isCancellable = canCancelOrder(order.status, order.payments.filter((p) => p.status === "paid").reduce((s, p) => s + p.amount, 0));
 
               return (
                 <div key={order.id}>
@@ -901,7 +902,7 @@ function OrdersPageContent() {
                 {filteredOrders.map((order) => {
                   const statusInfo = STATUS_INFO[order.status] ?? STATUS_INFO.draft;
                   const StatusIcon = statusInfo.icon;
-                  const isCancellable = order.status === "draft" || order.status === "confirmed";
+                  const isCancellable = canCancelOrder(order.status, order.payments.filter((p) => p.status === "paid").reduce((s, p) => s + p.amount, 0));
 
                   const paidAmountDesk = order.payments
                     .filter((p) => p.status === "paid")
