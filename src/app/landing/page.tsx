@@ -456,7 +456,7 @@ export default function LandingPage() {
                           alt={a.shot.alt}
                           fill
                           sizes="(min-width: 1024px) 300px, (min-width: 640px) 50vw, 100vw"
-                          className="object-cover object-right-top transition-transform duration-500 [@media(hover:hover)_and_(pointer:fine)]:group-hover:scale-[1.03]"
+                          className="object-cover object-right-top transition-transform duration-300 [transition-timing-function:var(--lp-ease)] [@media(hover:hover)_and_(pointer:fine)]:group-hover:scale-[1.03]"
                         />
                         {/* Icon badge */}
                         <div className={`absolute bottom-3 right-3 w-[42px] h-[42px] rounded-xl ${a.iconBg} flex items-center justify-center`}>

@@ -471,6 +471,22 @@ input::placeholder, textarea::placeholder { color: #64748b; }
 .lp-menu[data-open="true"] { grid-template-rows: 1fr; opacity: 1; }
 .lp-menu > div { overflow: hidden; }
 
+/* Collapsible (FAQ answers, comparison table): always mounted, interruptible; closed content leaves tab order after the close */
+.lp-collapse { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows 250ms var(--lp-ease), opacity 200ms ease; }
+.lp-collapse[data-open="true"] { grid-template-rows: 1fr; opacity: 1; }
+.lp-collapse > div { overflow: hidden; min-height: 0; visibility: hidden; transition: visibility 0s linear 250ms; }
+.lp-collapse[data-open="true"] > div { visibility: visible; transition-delay: 0s; }
+
+/* Stacked crossfade (ProductDemo screenshots): all layers mounted in one grid cell; blur masks the overlap */
+.lp-stack { display: grid; }
+.lp-stack > * { grid-area: 1 / 1; }
+.lp-swap { opacity: 0; filter: blur(2px); visibility: hidden; transition: opacity 250ms var(--lp-ease), filter 250ms var(--lp-ease), visibility 0s linear 250ms; }
+.lp-swap[data-active="true"] { opacity: 1; filter: none; visibility: visible; transition-delay: 0s; }
+
+/* Popover enter from its trigger corner; exit is instant */
+@keyframes lpPop { from { opacity: 0; transform: translateY(6px) scale(0.97); } }
+.lp-pop { transform-origin: bottom right; animation: lpPop 180ms var(--lp-ease); }
+
 @keyframes lpFloat { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
 
 @media (prefers-reduced-motion: reduce) {
@@ -479,6 +495,9 @@ input::placeholder, textarea::placeholder { color: #64748b; }
   .lp-press:hover, .lp-card:hover { transform: none; }
   .lp-float { animation: none !important; }
   .lp-menu { transition: opacity 150ms ease; }
+  .lp-collapse { transition: opacity 150ms ease; }
+  .lp-swap { filter: none; transition: opacity 150ms ease, visibility 0s linear 150ms; }
+  .lp-pop { animation: none; }
 }
 @media (prefers-reduced-transparency: reduce) {
   .lp-glass { background: #0B1220; -webkit-backdrop-filter: none; backdrop-filter: none; }

@@ -172,7 +172,7 @@ export function AccessibilityButton() {
           role="dialog"
           aria-modal="true"
           aria-label="הגדרות נגישות"
-          className="mb-3 bg-white rounded-2xl shadow-2xl border border-slate-200 w-[calc(100vw-2rem)] max-w-[288px] max-h-[75vh] overflow-y-auto"
+          className="lp-pop mb-3 bg-white rounded-2xl shadow-2xl border border-slate-200 w-[calc(100vw-2rem)] max-w-[288px] max-h-[75vh] overflow-y-auto"
         >
           {/* Header */}
           <div className="sticky top-0 bg-blue-600 text-white rounded-t-2xl px-4 py-3 flex items-center justify-between">
