@@ -296,7 +296,7 @@ export function AccessibilityButton() {
         aria-label={open ? "סגור תפריט נגישות" : "פתח תפריט נגישות"}
         aria-expanded={open}
         aria-haspopup="dialog"
-        className="h-10 w-10 sm:h-14 sm:w-14 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg hover:shadow-xl hover:scale-110 transition-all duration-300 flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2"
+        className="h-10 w-10 sm:h-14 sm:w-14 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg hover:shadow-xl transition-[transform,background-color,box-shadow] duration-200 [transition-timing-function:cubic-bezier(0.22,1,0.36,1)] [@media(hover:hover)_and_(pointer:fine)]:hover:scale-105 active:scale-[0.97] flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2"
       >
         <svg className="w-4 h-4 sm:w-6 sm:h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
           <circle cx="12" cy="5" r="1.5"/>

@@ -55,6 +55,9 @@ export function ClientsMarquee() {
           height: 52px !important;
           position: relative !important;
         }
+        @media (prefers-reduced-motion: reduce) {
+          .petra-track { animation: none; transform: none; }
+        }
       `}</style>
 
       {/* Header */}

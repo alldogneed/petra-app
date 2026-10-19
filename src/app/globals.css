@@ -430,16 +430,21 @@ input::placeholder, textarea::placeholder { color: #64748b; }
 
 /* Press feedback: instant on pointer-down, eased release. Hover lift is interruptible (transition, not keyframes). */
 .lp-press {
-  transition: transform 380ms var(--lp-ease), box-shadow 380ms var(--lp-ease), opacity 200ms ease;
+  transition: transform 200ms var(--lp-ease), box-shadow 200ms var(--lp-ease), opacity 200ms ease;
   will-change: transform;
   touch-action: manipulation;
 }
-.lp-press:hover { transform: translateY(-1px); }
 .lp-press:active { transform: scale(0.97); transition-duration: 90ms; }
 
 /* Cards: lift follows hover and can reverse mid-flight */
-.lp-card { transition: transform 420ms var(--lp-ease), box-shadow 420ms var(--lp-ease), border-color 200ms ease; }
-.lp-card:hover { transform: translateY(-3px); }
+.lp-card { transition: transform 250ms var(--lp-ease), box-shadow 250ms var(--lp-ease), border-color 200ms ease; }
+
+/* Hover lifts only for real pointers: a tap on touch must not leave a card/button stuck lifted */
+@media (hover: hover) and (pointer: fine) {
+  .lp-press:hover { transform: translateY(-1px); }
+  .lp-press:active { transform: scale(0.97); }
+  .lp-card:hover { transform: translateY(-3px); }
+}
 
 /* Hero entrance: pure CSS so first paint isn't gated on hydration */
 @keyframes lpRise {
