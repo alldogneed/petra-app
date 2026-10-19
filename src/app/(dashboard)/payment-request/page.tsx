@@ -204,12 +204,46 @@ function PaymentRequestContent() {
     });
   }
 
+  // ─── Existing open orders of the customer ────────────────────
+  // A payment request for something the customer already has an open order for used to
+  // create a SECOND order → double debt (ticket 2026-10-19). Offer to attach instead.
+  const { data: customerOrders = [] } = useQuery<Array<{ id: string; status: string; total: number; createdAt: string; lines?: Array<{ name: string }>; payments?: Array<{ amount: number; status: string }> }>>({
+    queryKey: ["orders", "customer-open", selectedCustomer?.id],
+    queryFn: () => fetchJSON(`/api/orders?customerId=${encodeURIComponent(selectedCustomer!.id)}`),
+    enabled: !!selectedCustomer?.id,
+  });
+  const openOrders = useMemo(
+    () =>
+      (Array.isArray(customerOrders) ? customerOrders : [])
+        .filter((o) => o.status !== "cancelled")
+        .map((o) => {
+          const paid = (o.payments ?? []).filter((p) => p.status === "paid").reduce((s, p) => s + p.amount, 0);
+          return { ...o, remaining: Math.max(0, o.total - paid) };
+        })
+        .filter((o) => o.remaining > 0)
+        .slice(0, 10),
+    [customerOrders]
+  );
+  // "new" = create a fresh order on send; otherwise the id of an existing open order.
+  const [linkTarget, setLinkTarget] = useState<string>("new");
+  const linkTouched = useRef(false);
+  useEffect(() => {
+    linkTouched.current = false;
+    setLinkTarget("new");
+  }, [selectedCustomer?.id]);
+  useEffect(() => {
+    if (linkTouched.current) return;
+    const match = openOrders.find((o) => Math.abs(o.remaining - finalPrice) < 0.01);
+    setLinkTarget(match ? match.id : "new");
+  }, [openOrders, finalPrice]);
+
   // ─── Order creation ──────────────────────────────────────────
   // A payment request must always leave a record in Petra. Sending is
   // blocked until the Order row exists, so a paid link can never be
   // untraceable in the system.
 
   async function ensureOrder(): Promise<string | null> {
+    if (linkTarget !== "new" && openOrders.some((o) => o.id === linkTarget)) return linkTarget;
     if (createdOrderId) return createdOrderId;
     if (!selectedCustomer) return null;
 
@@ -728,6 +762,40 @@ function PaymentRequestContent() {
                     <span className="text-xl font-bold text-orange-600">₪{finalPrice}</span>
                   </div>
                 </div>
+
+                {/* Attach to an existing open order instead of creating a second one */}
+                {openOrders.length > 0 && (
+                  <div className="border-t border-slate-200 pt-3 space-y-1.5">
+                    <span className="text-xs font-medium text-slate-500">לאיזו הזמנה שייכת הבקשה?</span>
+                    {openOrders.map((o) => (
+                      <label key={o.id} className="flex items-start gap-2 text-xs cursor-pointer">
+                        <input
+                          type="radio"
+                          name="pr-order"
+                          className="mt-0.5"
+                          checked={linkTarget === o.id}
+                          onChange={() => { linkTouched.current = true; setLinkTarget(o.id); }}
+                        />
+                        <span>
+                          הזמנה קיימת #{o.id.slice(-8).toUpperCase()} — נותר לתשלום ₪{o.remaining.toLocaleString("he-IL")}
+                          {o.lines?.length ? <span className="text-slate-400"> · {o.lines.map((l) => l.name).slice(0, 2).join(", ")}</span> : null}
+                        </span>
+                      </label>
+                    ))}
+                    <label className="flex items-center gap-2 text-xs cursor-pointer">
+                      <input
+                        type="radio"
+                        name="pr-order"
+                        checked={linkTarget === "new"}
+                        onChange={() => { linkTouched.current = true; setLinkTarget("new"); }}
+                      />
+                      הזמנה חדשה (₪{finalPrice.toLocaleString("he-IL")})
+                    </label>
+                    {linkTarget !== "new" && (
+                      <p className="text-[11px] text-emerald-700">לא תיווצר הזמנה נוספת — הבקשה תשויך להזמנה הקיימת.</p>
+                    )}
+                  </div>
+                )}
 
                 {/* Payment URL */}
                 <div className="border-t border-slate-200 pt-3 space-y-1.5">

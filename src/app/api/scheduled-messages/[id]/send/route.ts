@@ -71,7 +71,10 @@ export async function POST(
 
     await prisma.scheduledMessage.update({
       where: { id: params.id },
-      data: { status: result.success ? "SENT" : "FAILED" },
+      data: {
+        status: result.success ? "SENT" : "FAILED",
+        ...(result.success && result.messageSid ? { wamid: result.messageSid } : {}),
+      },
     });
 
     if (!result.success) {

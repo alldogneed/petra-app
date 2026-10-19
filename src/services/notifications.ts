@@ -329,7 +329,25 @@ export async function listScheduledMessages(
     if (key in stats) stats[key] += row._count._all;
   }
 
-  return { messages, total, page, pages: Math.ceil(total / take), stats };
+  // Real WhatsApp delivery status (Meta webhook → WhatsAppMessageLog), joined by the
+  // wamid stored at send time. Rows sent before the wamid was recorded have none.
+  const wamids = messages.map((m: { wamid?: string | null }) => m.wamid).filter((w): w is string => !!w);
+  const logs = wamids.length
+    ? await db.whatsAppMessageLog.findMany({
+        where: { wamid: { in: wamids } },
+        select: { wamid: true, status: true, errorMessage: true, updatedAt: true },
+      })
+    : [];
+  const byWamid = new Map(logs.map((l) => [l.wamid, l]));
+  const withDelivery = messages.map(({ wamid, ...m }: { wamid?: string | null } & Record<string, unknown>) => {
+    const log = wamid ? byWamid.get(wamid) : undefined;
+    return {
+      ...m,
+      delivery: log ? { status: log.status, error: log.errorMessage, at: log.updatedAt } : null,
+    };
+  });
+
+  return { messages: withDelivery, total, page, pages: Math.ceil(total / take), stats };
 }
 
 export async function cancelScheduledMessage(businessId: string, db: DbClient, id: string) {
