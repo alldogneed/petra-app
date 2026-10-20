@@ -9,6 +9,7 @@ import {
 import { cn, toWhatsAppPhone } from "@/lib/utils";
 import { toast } from "sonner";
 import LostReasonModal from "@/components/leads/LostReasonModal";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { LeadMeetingsSection } from "@/components/leads/LeadMeetingsSection";
 import { normalizeDealValue, formatIls } from "@/lib/lead-deal-value";
 import { validateIsraeliPhone, validateEmail, normalizeIsraeliPhone } from "@/lib/validation";
@@ -240,6 +241,9 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
     const [editForm, setEditForm] = useState({ name: "", phone: "", email: "", city: "", address: "", requestedService: "", source: "" });
 
     const [lostModalOpen, setLostModalOpen] = useState(false);
+    // In-app confirmations (window.confirm froze the tab for AI browser agents and is blocked in some in-app browsers)
+    const [confirmWonOpen, setConfirmWonOpen] = useState(false);
+    const [deleteLogTarget, setDeleteLogTarget] = useState<string | null>(null);
 
     // Call log editing
     const [editingLogId, setEditingLogId] = useState<string | null>(null);
@@ -622,7 +626,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
 
     const handleCloseWon = () => {
         if (isWorking) return;
-        if (confirm("לסגור ליד וליצור לקוח חדש?")) closeWonMutation.mutate();
+        setConfirmWonOpen(true);
     };
 
     const handleCloseLost = () => {
@@ -639,8 +643,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
     };
 
     const handleDeleteLog = (event: TLEvent) => {
-        if (!confirm("למחוק את יומן השיחה הזה?")) return;
-        deleteCallLogMutation.mutate(event.id);
+        setDeleteLogTarget(event.id);
     };
 
     const handleEditLogSave = () => {
@@ -1193,6 +1196,28 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                 onClose={() => setLostModalOpen(false)}
                 onConfirm={(reasonCode, reasonText) => closeLostMutation.mutate({ reasonCode, reasonText })}
                 isPending={closeLostMutation.isPending}
+            />
+
+            <ConfirmDialog
+                open={confirmWonOpen}
+                title="לסגור את הליד כלקוח?"
+                description={liveLead?.customerId ? "הליד יסומן כנסגר בהצלחה." : "הליד יסומן כנסגר בהצלחה ויווצר ממנו לקוח חדש."}
+                confirmLabel="כן, נסגר כלקוח"
+                loading={closeWonMutation.isPending}
+                onCancel={() => setConfirmWonOpen(false)}
+                onConfirm={() => closeWonMutation.mutate(undefined, { onSettled: () => setConfirmWonOpen(false) })}
+            />
+
+            <ConfirmDialog
+                open={deleteLogTarget !== null}
+                title="למחוק את יומן השיחה הזה?"
+                confirmLabel="מחק"
+                danger
+                loading={deleteCallLogMutation.isPending}
+                onCancel={() => setDeleteLogTarget(null)}
+                onConfirm={() => {
+                    if (deleteLogTarget) deleteCallLogMutation.mutate(deleteLogTarget, { onSettled: () => setDeleteLogTarget(null) });
+                }}
             />
         </>
     );
