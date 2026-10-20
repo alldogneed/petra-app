@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { LOST_REASON_CODES, LEAD_SOURCES } from "@/lib/constants";
 import {
@@ -9,9 +9,11 @@ import {
 import { cn, toWhatsAppPhone } from "@/lib/utils";
 import { toast } from "sonner";
 import LostReasonModal from "@/components/leads/LostReasonModal";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { LeadMeetingsSection } from "@/components/leads/LeadMeetingsSection";
 import { normalizeDealValue, formatIls } from "@/lib/lead-deal-value";
 import { validateIsraeliPhone, validateEmail, normalizeIsraeliPhone } from "@/lib/validation";
+import { loadLeadCallDraft, saveLeadCallDraft, clearLeadCallDraft } from "@/lib/lead-call-draft";
 
 interface Lead {
     id: string;
@@ -229,6 +231,11 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
 
     const [summary, setSummary] = useState("");
     const [treatment, setTreatment] = useState("");
+    // Unsaved call notes survive a tap outside the drawer (src/lib/lead-call-draft.ts)
+    const [draftRestored, setDraftRestored] = useState(false);
+    // One save at a time — a second click on "שמור וסגור" used to add the call log twice
+    const [saving, setSaving] = useState(false);
+    const savingRef = useRef(false);
 
     const [selectedStage, setSelectedStage] = useState(lead?.stage || stages[0]?.id || "");
 
@@ -240,6 +247,9 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
     const [editForm, setEditForm] = useState({ name: "", phone: "", email: "", city: "", address: "", requestedService: "", source: "" });
 
     const [lostModalOpen, setLostModalOpen] = useState(false);
+    // In-app confirmations (window.confirm froze the tab for AI browser agents and is blocked in some in-app browsers)
+    const [confirmWonOpen, setConfirmWonOpen] = useState(false);
+    const [deleteLogTarget, setDeleteLogTarget] = useState<string | null>(null);
 
     // Call log editing
     const [editingLogId, setEditingLogId] = useState<string | null>(null);
@@ -269,18 +279,36 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
             setSelectedStage(lead.stage);
             setEditForm({ name: lead.name, phone: lead.phone || "", email: lead.email || "", city: lead.city || "", address: lead.address || "", requestedService: lead.requestedService || "", source: lead.source });
             setIsEditing(false);
-            setSummary("");
-            setTreatment("");
+            const draft = loadLeadCallDraft(lead.id);
+            setSummary(draft?.summary ?? "");
+            setTreatment(draft?.treatment ?? "");
+            setDraftRestored(!!draft);
 
             setFollowUpError(false);
             setEditingLogId(null);
             setShowDeleteConfirm(false);
             setEditingDeal(false);
             setDealError(null);
-            setNextFollowUpAt(lead.nextFollowUpAt ? toLocalDatetimeInput(lead.nextFollowUpAt) : "");
-            setFollowUpStatus(lead.followUpStatus || "pending");
+            setNextFollowUpAt(draft?.nextFollowUpAt || (lead.nextFollowUpAt ? toLocalDatetimeInput(lead.nextFollowUpAt) : ""));
+            setFollowUpStatus(draft?.nextFollowUpAt ? draft.followUpStatus : lead.followUpStatus || "pending");
         }
     }, [lead]);
+
+    /** Keeps the browser draft in step with what is typed (removed when the notes are empty). */
+    const persistDraft = (patch: Partial<{ summary: string; treatment: string; nextFollowUpAt: string; followUpStatus: string }>) => {
+        if (!lead) return;
+        saveLeadCallDraft(lead.id, { summary, treatment, nextFollowUpAt, followUpStatus, ...patch });
+    };
+
+    const discardDraft = () => {
+        if (!lead) return;
+        clearLeadCallDraft(lead.id);
+        setSummary("");
+        setTreatment("");
+        setDraftRestored(false);
+        setNextFollowUpAt(lead.nextFollowUpAt ? toLocalDatetimeInput(lead.nextFollowUpAt) : "");
+        setFollowUpStatus(lead.followUpStatus || "pending");
+    };
 
     // ── Build CRM Timeline ────────────────────────────────────────────────
 
@@ -482,7 +510,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
         onError: (err: Error) => toast.error(err.message || "שגיאה במחיקת הליד. נסה שוב."),
     });
 
-    const isWorking = updateLeadMutation.isPending || closeWonMutation.isPending || closeLostMutation.isPending || dealValueMutation.isPending;
+    const isWorking = saving || addCallLogMutation.isPending || updateLeadMutation.isPending || closeWonMutation.isPending || closeLostMutation.isPending || dealValueMutation.isPending;
 
     const currentDealValue = liveLead?.dealValue ?? null;
 
@@ -550,6 +578,18 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
     };
 
     const handleSave = async () => {
+        if (!lead || savingRef.current) return;
+        savingRef.current = true;
+        setSaving(true);
+        try {
+            await doSave();
+        } finally {
+            savingRef.current = false;
+            setSaving(false);
+        }
+    };
+
+    const doSave = async () => {
         if (!lead) return;
 
         if (isEditing) {
@@ -582,10 +622,19 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
 
         // Create call log entry if there's content
         if (hasCallContent) {
-            await addCallLogMutation.mutateAsync({
-                summary: summary.trim() || "ללא סיכום",
-                treatment: treatment.trim() || "ללא טיפול",
-            });
+            try {
+                const res = await addCallLogMutation.mutateAsync({
+                    summary: summary.trim() || "ללא סיכום",
+                    treatment: treatment.trim() || "ללא טיפול",
+                });
+                if (res && typeof res === "object" && "error" in res) throw new Error(String(res.error));
+            } catch {
+                // Keep the typed notes (and the draft) — nothing was lost
+                toast.error("שגיאה בשמירת תיעוד השיחה. נסה שוב.");
+                return;
+            }
+            clearLeadCallDraft(lead.id);
+            setDraftRestored(false);
             setSummary("");
             setTreatment("");
         }
@@ -622,7 +671,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
 
     const handleCloseWon = () => {
         if (isWorking) return;
-        if (confirm("לסגור ליד וליצור לקוח חדש?")) closeWonMutation.mutate();
+        setConfirmWonOpen(true);
     };
 
     const handleCloseLost = () => {
@@ -639,8 +688,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
     };
 
     const handleDeleteLog = (event: TLEvent) => {
-        if (!confirm("למחוק את יומן השיחה הזה?")) return;
-        deleteCallLogMutation.mutate(event.id);
+        setDeleteLogTarget(event.id);
     };
 
     const handleEditLogSave = () => {
@@ -1067,6 +1115,14 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                             תיעוד שיחה
                         </div>
                         <div className="p-4 space-y-4">
+                            {draftRestored && (summary.trim() || treatment.trim()) && (
+                                <div className="flex items-center justify-between gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
+                                    <span>שוחזרה טיוטה שלא נשמרה</span>
+                                    <button type="button" onClick={discardDraft} className="font-semibold underline hover:text-amber-900">
+                                        נקה טיוטה
+                                    </button>
+                                </div>
+                            )}
                             <div>
                                 <label htmlFor="lead-call-summary-input" className={FIELD_LABEL_CLS}>סיכום</label>
                                 <textarea
@@ -1074,7 +1130,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                                     className={TEXTAREA_CLS}
                                     rows={3}
                                     value={summary}
-                                    onChange={(e) => setSummary(e.target.value)}
+                                    onChange={(e) => { setSummary(e.target.value); persistDraft({ summary: e.target.value }); }}
                                     placeholder="מה נאמר בשיחה? לאיזה סיכום הגעתם?"
                                 />
                             </div>
@@ -1084,7 +1140,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                                     className={TEXTAREA_CLS}
                                     rows={2}
                                     value={treatment}
-                                    onChange={(e) => setTreatment(e.target.value)}
+                                    onChange={(e) => { setTreatment(e.target.value); persistDraft({ treatment: e.target.value }); }}
                                     placeholder="מה הצעדים הבאים להמשך הטיפול בליד?"
                                 />
                             </div>
@@ -1104,7 +1160,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                                             followUpInvalid && "border-red-400 focus:border-red-400 focus:ring-red-500/15"
                                         )}
                                         value={nextFollowUpAt}
-                                        onChange={(e) => { setNextFollowUpAt(e.target.value); setFollowUpError(false); }}
+                                        onChange={(e) => { setNextFollowUpAt(e.target.value); setFollowUpError(false); persistDraft({ nextFollowUpAt: e.target.value }); }}
                                     />
                                     <div className="flex h-10 p-1 rounded-[10px] bg-slate-100" role="group" aria-label="סטטוס חזרה">
                                         <button
@@ -1113,7 +1169,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                                                 "px-3 text-xs font-medium rounded-lg transition-colors",
                                                 followUpStatus === "pending" ? "bg-white text-[#C2410C] shadow-sm" : "text-slate-500 hover:text-slate-700"
                                             )}
-                                            onClick={() => setFollowUpStatus("pending")}
+                                            onClick={() => { setFollowUpStatus("pending"); persistDraft({ followUpStatus: "pending" }); }}
                                         >
                                             ממתין
                                         </button>
@@ -1123,7 +1179,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                                                 "px-3 text-xs font-medium rounded-lg transition-colors",
                                                 followUpStatus === "completed" ? "bg-white text-emerald-700 shadow-sm" : "text-slate-500 hover:text-slate-700"
                                             )}
-                                            onClick={() => setFollowUpStatus("completed")}
+                                            onClick={() => { setFollowUpStatus("completed"); persistDraft({ followUpStatus: "completed" }); }}
                                         >
                                             הושלם
                                         </button>
@@ -1174,7 +1230,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                         disabled={isWorking}
                         className="h-10 px-5 rounded-[10px] bg-[#F97316] hover:bg-[#EA580C] text-white font-semibold text-sm transition-colors disabled:opacity-50"
                     >
-                        {updateLeadMutation.isPending ? "שומר..." : "שמור וסגור"}
+                        {saving || updateLeadMutation.isPending ? "שומר..." : "שמור וסגור"}
                     </button>
                     <button
                         onClick={onClose}
@@ -1193,6 +1249,28 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                 onClose={() => setLostModalOpen(false)}
                 onConfirm={(reasonCode, reasonText) => closeLostMutation.mutate({ reasonCode, reasonText })}
                 isPending={closeLostMutation.isPending}
+            />
+
+            <ConfirmDialog
+                open={confirmWonOpen}
+                title="לסגור את הליד כלקוח?"
+                description={liveLead?.customerId ? "הליד יסומן כנסגר בהצלחה." : "הליד יסומן כנסגר בהצלחה ויווצר ממנו לקוח חדש."}
+                confirmLabel="כן, נסגר כלקוח"
+                loading={closeWonMutation.isPending}
+                onCancel={() => setConfirmWonOpen(false)}
+                onConfirm={() => closeWonMutation.mutate(undefined, { onSettled: () => setConfirmWonOpen(false) })}
+            />
+
+            <ConfirmDialog
+                open={deleteLogTarget !== null}
+                title="למחוק את יומן השיחה הזה?"
+                confirmLabel="מחק"
+                danger
+                loading={deleteCallLogMutation.isPending}
+                onCancel={() => setDeleteLogTarget(null)}
+                onConfirm={() => {
+                    if (deleteLogTarget) deleteCallLogMutation.mutate(deleteLogTarget, { onSettled: () => setDeleteLogTarget(null) });
+                }}
             />
         </>
     );

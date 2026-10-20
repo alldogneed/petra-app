@@ -8,6 +8,7 @@ import { formatDate, formatTime } from "@/lib/utils";
 import { LOST_REASON_CODES } from "@/lib/constants";
 import { formatAttributionLine, PAGE_TYPE_LABELS, type PageType } from "@/lib/lead-attribution";
 import LostReasonModal from "@/components/leads/LostReasonModal";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 
 interface Lead {
@@ -106,6 +107,9 @@ export default function LeadDetailsModal({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [taskForm, setTaskForm] = useState({ description: "", dueDate: new Date().toISOString().slice(0, 10) });
   const [lostModalOpen, setLostModalOpen] = useState(false);
+  // In-app confirmations instead of window.confirm (froze AI browser agents, blocked in some in-app browsers)
+  const [confirmWonOpen, setConfirmWonOpen] = useState(false);
+  const [deleteLogTarget, setDeleteLogTarget] = useState<string | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   const closed = lead.wonAt !== null || lead.lostAt !== null;
@@ -167,9 +171,7 @@ export default function LeadDetailsModal({
 
   const handleCloseWon = () => {
     if (isClosing) return;
-    if (confirm("לסגור ליד וליצור לקוח?")) {
-      closeWonMutation.mutate(lead.id);
-    }
+    setConfirmWonOpen(true);
   };
 
   const handleCloseLost = () => {
@@ -476,7 +478,7 @@ export default function LeadDetailsModal({
                             </button>
                             <button
                               onClick={() => {
-                                if (confirm("למחוק את תיעוד השיחה?")) deleteMutation.mutate(log.id);
+                                setDeleteLogTarget(log.id);
                               }}
                               disabled={deleteMutation.isPending}
                               className="w-6 h-6 flex items-center justify-center rounded text-petra-muted hover:text-red-600 hover:bg-red-50 transition-colors"
@@ -568,6 +570,28 @@ export default function LeadDetailsModal({
         onClose={() => setLostModalOpen(false)}
         onConfirm={handleLostConfirm}
         isPending={closeLostMutation.isPending}
+      />
+
+      <ConfirmDialog
+        open={confirmWonOpen}
+        title="לסגור את הליד כלקוח?"
+        description={lead.customerId ? "הליד יסומן כנסגר בהצלחה." : "הליד יסומן כנסגר בהצלחה ויווצר ממנו לקוח חדש."}
+        confirmLabel="כן, נסגר כלקוח"
+        loading={closeWonMutation.isPending}
+        onCancel={() => setConfirmWonOpen(false)}
+        onConfirm={() => closeWonMutation.mutate(lead.id, { onSettled: () => setConfirmWonOpen(false) })}
+      />
+
+      <ConfirmDialog
+        open={deleteLogTarget !== null}
+        title="למחוק את תיעוד השיחה?"
+        confirmLabel="מחק"
+        danger
+        loading={deleteMutation.isPending}
+        onCancel={() => setDeleteLogTarget(null)}
+        onConfirm={() => {
+          if (deleteLogTarget) deleteMutation.mutate(deleteLogTarget, { onSettled: () => setDeleteLogTarget(null) });
+        }}
       />
 
       {/* Toast Notifications */}
