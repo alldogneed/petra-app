@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { usePermissions } from "@/hooks/usePermissions";
 import { messageLabel, type MessagePreview } from "@/lib/scheduled-message-preview";
+import { LEAD_MEETING_ENTITY } from "@/lib/lead-meetings";
 
 interface ScheduledMessage {
   id: string;
@@ -36,7 +37,8 @@ interface ScheduledMessage {
   relatedEntityType: string | null;
   relatedEntityId: string | null;
   createdAt: string;
-  customer: { id: string; name: string; phone: string };
+  /** null for messages to non-customers (lead follow-ups, lead meetings, service-dog meetings). */
+  customer: { id: string; name: string; phone: string } | null;
   /** WhatsApp's own delivery report (null = sent before delivery tracking, or not reported yet). */
   delivery?: { status: string; error: string | null; at: string } | null;
 }
@@ -125,6 +127,24 @@ function getPayloadPreview(payloadJson: string): string {
   } catch {
     return "";
   }
+}
+
+/** Who a message without a customer was sent to — label from the related entity + phone from the payload. */
+function nonCustomerRecipient(msg: ScheduledMessage): { label: string; phone: string } {
+  let phone = "";
+  try {
+    const to = JSON.parse(msg.payloadJson)?.to;
+    if (typeof to === "string") phone = to;
+  } catch {
+    /* ignore */
+  }
+  const label =
+    msg.relatedEntityType === "LEAD_FOLLOWUP" || msg.relatedEntityType === LEAD_MEETING_ENTITY
+      ? "ליד"
+      : msg.relatedEntityType === "SERVICE_DOG_MEETING"
+        ? "מקבל כלב שירות"
+        : "נמען ללא כרטיס לקוח";
+  return { label, phone };
 }
 
 function getPayloadFlow(payloadJson: string): string | null {
@@ -493,17 +513,34 @@ export default function ScheduledMessagesPage() {
                     <tr key={msg.id} className="hover:bg-slate-50 transition-colors">
                       {/* Customer */}
                       <td className="table-cell">
-                        <Link
-                          href={`/customers/${msg.customer.id}`}
-                          className="flex items-center gap-2 group"
-                        >
-                          <div className="w-7 h-7 rounded-full bg-brand-50 flex items-center justify-center flex-shrink-0">
-                            <User className="w-3.5 h-3.5 text-brand-600" />
-                          </div>
-                          <span className="text-sm font-medium text-petra-text group-hover:text-brand-500 transition-colors">
-                            {msg.customer.name}
-                          </span>
-                        </Link>
+                        {msg.customer ? (
+                          <Link
+                            href={`/customers/${msg.customer.id}`}
+                            className="flex items-center gap-2 group"
+                          >
+                            <div className="w-7 h-7 rounded-full bg-brand-50 flex items-center justify-center flex-shrink-0">
+                              <User className="w-3.5 h-3.5 text-brand-600" />
+                            </div>
+                            <span className="text-sm font-medium text-petra-text group-hover:text-brand-500 transition-colors">
+                              {msg.customer.name}
+                            </span>
+                          </Link>
+                        ) : (
+                          (() => {
+                            const r = nonCustomerRecipient(msg);
+                            return (
+                              <div className="flex items-center gap-2">
+                                <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0">
+                                  <User className="w-3.5 h-3.5 text-slate-400" />
+                                </div>
+                                <div className="min-w-0">
+                                  <span className="block text-sm font-medium text-petra-text">{r.label}</span>
+                                  {r.phone && <span className="block text-xs text-petra-muted" dir="ltr">{r.phone}</span>}
+                                </div>
+                              </div>
+                            );
+                          })()
+                        )}
                       </td>
 
                       {/* Channel */}
