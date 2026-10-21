@@ -6,8 +6,11 @@
 -- The GitHub workflow (.github/workflows/cron.yml) stays as a fallback; overlapping runs are
 -- safe because every message is claimed before it is sent (src/lib/scheduled-message-claim.ts).
 --
--- STEP 1 — done by a person in the Supabase SQL editor (the secret never goes into git or chat):
---   select vault.create_secret('<CRON_SECRET from Vercel → Settings → Environment Variables>', 'petra_cron_secret');
+-- STEP 1 — a dedicated secret for this caller only (never in git): the same random value in
+--   Vercel env CRON_SECRET_DB (production) and in Supabase Vault:
+--   select vault.create_secret('<random value>', 'petra_cron_secret');
+-- verifyCronAuth() accepts CRON_SECRET (Vercel / GitHub) or CRON_SECRET_DB (this job).
+-- Rotate: new value in both places (vault.update_secret + Vercel env) and redeploy.
 --
 -- STEP 2 — this file (idempotent: re-running replaces the job):
 
