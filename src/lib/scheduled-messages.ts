@@ -8,6 +8,7 @@ import { sendWithTemplateChain, chainFromPayload, contextForScheduledMessage } f
 import { toWhatsAppPhone, formatDate, formatTime } from "@/lib/utils";
 import { hasFeatureWithOverrides } from "@/lib/feature-flags";
 import { israelDateTime } from "@/lib/reminder-service";
+import { claimScheduledMessage } from "@/lib/scheduled-message-claim";
 
 /**
  * True when the event a pre-event reminder points at has already started,
@@ -129,6 +130,7 @@ export async function processPendingReminders(): Promise<{
   processed: number;
   sent: number;
   failed: number;
+  skipped: number;
 }> {
   const now = new Date();
 
@@ -158,6 +160,7 @@ export async function processPendingReminders(): Promise<{
 
   let sent = 0;
   let failed = 0;
+  let skipped = 0;
 
   for (const msg of pending) {
     try {
@@ -225,6 +228,11 @@ export async function processPendingReminders(): Promise<{
         failed++;
         continue;
       }
+      // Another run (second scheduler / "שלח עכשיו") may be sending this row right now
+      if (!(await claimScheduledMessage(prisma, msg, { now }))) {
+        skipped++;
+        continue;
+      }
       // Ordered Meta template chain (works outside the 24h window); free text is the
       // last resort. `flow` in new payloads → WhatsAppMessageLog.context; legacy rows
       // map by relatedEntityType. Legacy metaTemplateName payloads are still honoured.
@@ -266,5 +274,5 @@ export async function processPendingReminders(): Promise<{
     }
   }
 
-  return { processed: pending.length, sent, failed };
+  return { processed: pending.length, sent, failed, skipped };
 }
