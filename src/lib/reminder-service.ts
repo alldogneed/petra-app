@@ -26,6 +26,12 @@ export const META_TEMPLATES = {
   trainingSessionReminder: ["petra_appointment_reminder_v2", "petra_appointment_reminder"],
   /** {{1}} name · {{2}} date · {{3}} time · {{4}} service · ({{5}} business phone — v2 only) */
   appointmentConfirmation: ["petra_appointment_confirmation_v2", "petra_appointment_confirmation"],
+  /**
+   * {{1}} name · {{2}} pet · {{3}} business phone — the "how is the dog doing" check-in
+   * after an appointment. Until Meta approves it the step is rejected and skipped, and the
+   * follow-up falls back to free text (24h window only), exactly as before.
+   */
+  appointmentFollowup: ["petra_appointment_followup"],
 } as const;
 
 /** Steps whose params contain an empty string are dropped (Meta rejects empty params). */
@@ -76,6 +82,16 @@ export function boardingThankYouChain(p: { customerName: string; petName: string
     { name: v2, params: [p.customerName, p.petName, p.businessPhone] },
     { name: legacy, params: [p.customerName, p.petName] },
   ]);
+}
+
+/** Pet is optional on an appointment — a generic word keeps the template step valid. */
+export function appointmentFollowupChain(p: { customerName: string; petName: string | null | undefined; businessPhone: string }): TemplateStep[] {
+  return buildTemplateChain(
+    META_TEMPLATES.appointmentFollowup.map((name) => ({
+      name,
+      params: [p.customerName, p.petName?.trim() || "הכלב שלכם", p.businessPhone],
+    }))
+  );
 }
 
 export function trainingSessionReminderChain(p: { customerName: string; date: string; time: string; dogName: string; businessPhone: string }): TemplateStep[] {
@@ -310,7 +326,15 @@ export async function scheduleAppointmentFollowup(
       customerId: appt.customerId,
       channel: "whatsapp",
       templateKey: `automation-rule-${rule.id}`,
-      payloadJson: JSON.stringify({ body }),
+      payloadJson: JSON.stringify({
+        body,
+        flow: "appointment_followup",
+        templateChain: appointmentFollowupChain({
+          customerName: appt.customer.name,
+          petName: appt.pet?.name,
+          businessPhone: bizPhone,
+        }),
+      }),
       sendAt,
       status: "PENDING",
       relatedEntityType: "APPOINTMENT_FOLLOWUP",

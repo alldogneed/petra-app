@@ -1,11 +1,12 @@
 export const dynamic = "force-dynamic";
 import { claimScheduledMessage } from "@/lib/scheduled-message-claim";
+import { chainForScheduledMessage } from "@/lib/scheduled-messages";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { isGuardError, requireBusinessPermission } from "@/lib/auth-guards";
 import { sessionHasTenantPermission, TENANT_PERMS } from "@/lib/permissions";
 import { interpolateTemplate } from "@/lib/whatsapp";
-import { sendWithTemplateChain, chainFromPayload, contextForScheduledMessage } from "@/lib/whatsapp-template-chain";
+import { sendWithTemplateChain, contextForScheduledMessage } from "@/lib/whatsapp-template-chain";
 import { toWhatsAppPhone } from "@/lib/utils";
 
 // POST /api/scheduled-messages/[id]/send
@@ -68,7 +69,7 @@ export async function POST(
     const context = contextForScheduledMessage(payload, msg.relatedEntityType);
     const result = await sendWithTemplateChain({
       to: phone,
-      steps: chainFromPayload(payload),
+      steps: await chainForScheduledMessage(payload, msg),
       fallbackBody: body,
       businessId: msg.businessId,
       context,

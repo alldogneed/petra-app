@@ -304,13 +304,31 @@ export async function listScheduledMessages(
 
   const status = opts.status && opts.status !== "ALL" ? opts.status.slice(0, 20) : null;
   const channel = opts.channel && opts.channel !== "ALL" ? opts.channel.slice(0, 20) : null;
+
+  // "Sent" to Meta but not delivered (webhook status failed, e.g. outside the 24h window)
+  // is a failure for the business: it counts in "נכשלו" and shows under that filter.
+  const failedLogs = await db.whatsAppMessageLog.findMany({
+    where: { businessId, status: "failed" },
+    select: { wamid: true },
+    orderBy: { createdAt: "desc" },
+    take: 1000,
+  });
+  const failedWamids = failedLogs.map((l: { wamid: string }) => l.wamid);
+  const undelivered = { status: "SENT", wamid: { in: failedWamids } };
+
+  const statusWhere =
+    status === "FAILED" && failedWamids.length
+      ? { OR: [{ status: "FAILED" }, undelivered] }
+      : status
+        ? { status }
+        : {};
   const where: Record<string, unknown> = {
     businessId,
-    ...(status ? { status } : {}),
+    ...statusWhere,
     ...(channel ? { channel } : {}),
   };
 
-  const [messages, total, byStatus] = await Promise.all([
+  const [messages, total, byStatus, undeliveredCount] = await Promise.all([
     db.scheduledMessage.findMany({
       where: where as any,
       include: { customer: { select: { id: true, name: true, phone: true } } },
@@ -321,6 +339,7 @@ export async function listScheduledMessages(
     db.scheduledMessage.count({ where: where as any }),
     // Summary counters on the page = the whole business, independent of the status/channel filter.
     db.scheduledMessage.groupBy({ by: ["status"], where: { businessId }, _count: { _all: true } }),
+    failedWamids.length ? db.scheduledMessage.count({ where: { businessId, ...undelivered } as any }) : Promise.resolve(0),
   ]);
 
   const stats: ScheduledMessageStats = { PENDING: 0, SENT: 0, FAILED: 0, CANCELED: 0 };
@@ -328,6 +347,8 @@ export async function listScheduledMessages(
     const key = String(row.status).toUpperCase() as keyof ScheduledMessageStats;
     if (key in stats) stats[key] += row._count._all;
   }
+  stats.SENT -= undeliveredCount;
+  stats.FAILED += undeliveredCount;
 
   // Real WhatsApp delivery status (Meta webhook → WhatsAppMessageLog), joined by the
   // wamid stored at send time. Rows sent before the wamid was recorded have none.
