@@ -201,6 +201,53 @@ export async function notifyOwnerSupportActivity(p: {
   ]);
 }
 
+/**
+ * A WhatsApp message to a business's customer was NOT delivered (Meta status webhook) →
+ * WhatsApp + email to the platform owner right away, with the business, the flow, the
+ * customer and the reason in Hebrew. Throttled by the caller (once per business + flow
+ * per hour). Never throws.
+ */
+export async function notifyOwnerWhatsAppFailure(p: {
+  businessName: string;
+  flowLabel: string;
+  customer: string;
+  reason: string;
+  fix: string;
+  templateName: string | null;
+  adminUrl: string;
+}): Promise<void> {
+  const oneLine = (v: string) => v.replace(/[\r\n\t]+/g, " ").trim();
+  const dateLabel = formatDate();
+  const waMessage =
+    `🔴 וואטסאפ לא נמסר — ${oneLine(p.businessName)}\n` +
+    `${p.flowLabel} · ${p.customer}\n` +
+    `סיבה: ${p.reason}\n` +
+    `מה לעשות: ${p.fix}\n\n${p.adminUrl}`;
+  const emailHtml = `
+    <div style="font-family: Arial, sans-serif; direction: rtl; text-align: right; max-width: 560px; margin: 0 auto;">
+      <h2 style="color: #dc2626;">🔴 הודעת וואטסאפ ללקוח לא נמסרה</h2>
+      <p><b>עסק:</b> ${escapeHtml(p.businessName)}<br/>
+      <b>סוג הודעה:</b> ${escapeHtml(p.flowLabel)}<br/>
+      <b>לקוח:</b> ${escapeHtml(p.customer)}<br/>
+      <b>נשלח כ:</b> ${escapeHtml(p.templateName ?? "טקסט חופשי")}<br/>
+      <b>זמן:</b> ${dateLabel}</p>
+      <p style="background:#fef2f2;border:1px solid #fecaca;padding:12px;border-radius:8px;"><b>סיבה:</b> ${escapeHtml(p.reason)}<br/><b>מה לעשות:</b> ${escapeHtml(p.fix)}</p>
+      <p><a href="${p.adminUrl}" style="color:#f97316;font-weight:bold;">← לעסק בפאנל הניהול</a></p>
+      <p style="color:#64748b;font-size:13px;">כשלים נוספים מאותו עסק ואותו סוג הודעה בשעה הקרובה לא יישלחו שוב.</p>
+    </div>`;
+  // petra_owner_alert body params: [who, contact, what, when]
+  const templateParams = [
+    oneLine(p.businessName) || "-",
+    oneLine(p.customer) || "-",
+    `וואטסאפ לא נמסר: ${oneLine(p.flowLabel)} — ${oneLine(p.reason)}`.slice(0, 120),
+    dateLabel,
+  ];
+  await Promise.allSettled([
+    sendOwnerWhatsApp(waMessage, templateParams),
+    sendOwnerEmail(`🔴 Petra: וואטסאפ לא נמסר — ${p.businessName} (${p.flowLabel})`, emailHtml),
+  ]);
+}
+
 /** Daily SLA digest: tickets that waited too long for an answer. Never throws. */
 export async function notifyOwnerSupportOverdue(p: {
   tickets: { title: string; businessName: string; waitingSince: Date }[];

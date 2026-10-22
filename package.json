@@ -5,8 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "audit:routes": "node scripts/audit-route-auth.mjs",
-    "build": "prisma generate && node scripts/audit-route-auth.mjs && next build",
-    "vercel-build": "prisma generate --schema=prisma/schema.production.prisma && node scripts/audit-route-auth.mjs && next build",
+    "build": "prisma generate && node scripts/audit-route-auth.mjs && node scripts/audit-whatsapp-free-text.mjs && next build",
+    "vercel-build": "prisma generate --schema=prisma/schema.production.prisma && node scripts/audit-route-auth.mjs && node scripts/audit-whatsapp-free-text.mjs && next build",
     "postinstall": "prisma generate && cp node_modules/pdfjs-dist/build/pdf.worker.min.mjs public/pdf.worker.min.mjs",
     "start": "next start",
     "lint": "next lint",
