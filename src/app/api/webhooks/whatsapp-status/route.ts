@@ -23,6 +23,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
 import prisma from "@/lib/prisma";
 import { findBusinessIdByPhoneNumberId } from "@/lib/whatsapp-connections";
+import { explainWhatsAppFailure, contextLabel, isCustomerFacingContext, maskPhone, type MetaError } from "@/lib/whatsapp-failure";
 
 export const dynamic = "force-dynamic";
 
@@ -153,7 +154,10 @@ export async function POST(request: NextRequest) {
 
       if (s.status === "failed") {
         console.error("[whatsapp-status] delivery FAILED:", s.id, existing.context, err?.code, err?.title);
-        await alertDeliveryFailure(existing.context, existing.templateName, err).catch(() => {}); // awaited — Vercel kills fire-and-forget
+        await alertDeliveryFailure(
+          { wamid: s.id, businessId, context: existing.context, templateName: existing.templateName, toPhone: existing.toPhone },
+          err
+        ).catch(() => {}); // awaited — Vercel kills fire-and-forget
       }
     }
   } catch (err) {
@@ -164,14 +168,44 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({ received: true });
 }
 
-/** Throttled (1h) email to the platform owner when Meta reports a delivery failure. */
+/**
+ * Meta reported a delivery failure.
+ * - A business's customer did not get a message → WhatsApp + email to the platform owner
+ *   right away (business, flow, customer, reason in Hebrew), once per business + flow per hour.
+ * - Anything else (owner alerts, tests, unknown business) → the old generic email, once an hour.
+ */
 async function alertDeliveryFailure(
-  context: string | null,
-  templateName: string | null,
-  err?: { code?: number; title?: string; message?: string; error_data?: { details?: string } }
+  log: { wamid: string; businessId: string | null; context: string | null; templateName: string | null; toPhone: string | null },
+  err?: MetaError
 ): Promise<void> {
   try {
     const { claimOnce } = await import("@/lib/rate-limit");
+
+    if (log.businessId && isCustomerFacingContext(log.context)) {
+      const fresh = await claimOnce(`whatsapp-delivery-failure:${log.businessId}:${log.context}`, 60 * 60);
+      if (!fresh) return;
+      const [business, scheduled] = await Promise.all([
+        prisma.business.findUnique({ where: { id: log.businessId }, select: { name: true } }),
+        prisma.scheduledMessage.findFirst({
+          where: { wamid: log.wamid, businessId: log.businessId },
+          select: { customer: { select: { name: true } } },
+        }),
+      ]);
+      const why = explainWhatsAppFailure(err, log.templateName);
+      const { notifyOwnerWhatsAppFailure } = await import("@/lib/notify-owner");
+      const appUrl = (process.env.APP_URL || "https://petra-app.com").replace(/\/$/, "");
+      await notifyOwnerWhatsAppFailure({
+        businessName: business?.name ?? "עסק לא ידוע",
+        flowLabel: contextLabel(log.context),
+        customer: [scheduled?.customer?.name, maskPhone(log.toPhone)].filter(Boolean).join(" · "),
+        reason: why.reason,
+        fix: why.fix,
+        templateName: log.templateName,
+        adminUrl: `${appUrl}/owner/tenants/${log.businessId}`,
+      });
+      return;
+    }
+
     const fresh = await claimOnce("whatsapp-delivery-failure", 60 * 60);
     if (!fresh) return;
 
@@ -188,8 +222,8 @@ async function alertDeliveryFailure(
         subject: "🔴 Petra: הודעת וואטסאפ נכשלה במסירה",
         html: `<div dir="rtl" style="font-family: Arial, sans-serif;">
           <p>Meta דיווח על כשל מסירה של הודעת וואטסאפ.</p>
-          <p><b>הקשר:</b> ${context ?? "לא ידוע"}<br/>
-          <b>תבנית:</b> ${templateName ?? "טקסט חופשי"}<br/>
+          <p><b>הקשר:</b> ${log.context ?? "לא ידוע"}<br/>
+          <b>תבנית:</b> ${log.templateName ?? "טקסט חופשי"}<br/>
           <b>שגיאה:</b> ${detail || "ללא פירוט"}</p>
           <p style="color:#64748b; font-size:13px;">התראה זו נשלחת לכל היותר פעם בשעה. פירוט מלא בטבלת WhatsAppMessageLog.</p>
         </div>`,
