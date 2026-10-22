@@ -1,11 +1,11 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { processPendingReminders } from "@/lib/scheduled-messages";
-import { verifyCronAuthWithVault } from "@/lib/cron-auth";
+import { verifyCronAuth, verifyCronAuthWithVault } from "@/lib/cron-auth";
 
 // GET /api/cron/send-reminders
 export async function GET(request: NextRequest) {
-  if (!(await verifyCronAuthWithVault(request))) {
+  if (!verifyCronAuth(request) && !(await verifyCronAuthWithVault(request))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
