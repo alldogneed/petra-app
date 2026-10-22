@@ -1,4 +1,5 @@
 export const dynamic = "force-dynamic";
+import { claimScheduledMessage } from "@/lib/scheduled-message-claim";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { isGuardError, requireBusinessPermission } from "@/lib/auth-guards";
@@ -28,6 +29,10 @@ export async function POST(
     if (!msg) return NextResponse.json({ error: "הודעה לא נמצאה" }, { status: 404 });
     if (msg.status === "SENT") return NextResponse.json({ error: "ההודעה כבר נשלחה" }, { status: 400 });
     if (msg.status === "CANCELED") return NextResponse.json({ error: "ההודעה בוטלה" }, { status: 400 });
+    // The reminder cron may be sending it this very moment — never send twice
+    if (!(await claimScheduledMessage(prisma, msg, { manual: true }))) {
+      return NextResponse.json({ error: "ההודעה נשלחת כרגע. רעננו את הדף בעוד דקה." }, { status: 409 });
+    }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let payload: Record<string, any> = {};
