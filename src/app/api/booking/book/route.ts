@@ -4,6 +4,8 @@ import prisma from "@/lib/prisma";
 import { enqueueSyncJob } from "@/lib/sync-jobs";
 import { rateLimit } from "@/lib/rate-limit";
 import { sendWhatsAppMessage } from "@/lib/whatsapp";
+import { sendWithTemplateChain } from "@/lib/whatsapp-template-chain";
+import { bookingRequestReceivedChain } from "@/lib/reminder-service";
 import { toWhatsAppPhone } from "@/lib/utils";
 import { notifyNewBooking } from "@/lib/engagement-service";
 import { localTimeToUtc } from "@/lib/slots";
@@ -213,11 +215,15 @@ export async function POST(request: NextRequest) {
         const serviceName = booking.priceListItem?.name ?? "";
 
         if (booking.customer.phone) {
-          await sendWhatsAppMessage({
+          // Approved template first — the customer usually never wrote to the business on WhatsApp
+          await sendWithTemplateChain({
             to: toWhatsAppPhone(booking.customer.phone),
             businessId,
             context: "booking_request_received",
-            body: `שלום ${booking.customer.name}!\nבקשתך לתור התקבלה וממתינה לאישור העסק.\n📋 שירות: ${serviceName}\n📅 תאריך: ${dateStr}\n⏰ שעה: ${timeStr}\nנעדכן אותך ברגע שהתור יאושר. – ${business?.name ?? ""}`,
+            steps: bookingRequestReceivedChain({
+              customerName: booking.customer.name, serviceName, date: dateStr, time: timeStr, businessName: business?.name ?? "",
+            }),
+            fallbackBody: `שלום ${booking.customer.name}!\nבקשתך לתור התקבלה וממתינה לאישור העסק.\n📋 שירות: ${serviceName}\n📅 תאריך: ${dateStr}\n⏰ שעה: ${timeStr}\nנעדכן אותך ברגע שהתור יאושר. – ${business?.name ?? ""}`,
           });
         }
 

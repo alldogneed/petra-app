@@ -33,12 +33,12 @@ import { listBoardingStays } from "@/services/boarding";
 import { listTrainingPrograms } from "@/services/training";
 import { getBusinessOverview } from "@/services/business";
 import { ServiceError } from "@/services/types";
-import { sendWhatsAppMessage } from "@/lib/whatsapp";
+import { sendWithTemplateChain } from "@/lib/whatsapp-template-chain";
 import { toWhatsAppPhone } from "@/lib/utils";
 import { hasFeatureWithOverrides, getMaxAppointments, normalizeTier } from "@/lib/feature-flags";
 import {
   scheduleAppointmentReminder, scheduleAppointmentFollowup, rescheduleAppointmentReminder, cancelAppointmentReminders,
-  cancelAppointmentPreReminder,
+  cancelAppointmentPreReminder, appointmentReminderChain,
 } from "@/lib/reminder-service";
 import { syncAppointmentToGcal, deleteAppointmentFromGcal, findConnectedUsersForBusiness } from "@/lib/google-calendar";
 
@@ -481,7 +481,16 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
         const dateStr = heDate(appt.date, { weekday: "long", day: "numeric", month: "long" });
         const body = `שלום ${appt.customer.name}! 👋\nתזכורת: יש לך תור ל${appt.service?.name ?? "טיפול"} ב${dateStr}${appt.startTime ? ` בשעה ${appt.startTime}` : ""}.\n— ${biz?.name ?? "העסק שלך"}`;
 
-        const result = await sendWhatsAppMessage({ to, body, businessId, context: "mcp_reminder" });
+        const result = await sendWithTemplateChain({
+          to,
+          steps: appointmentReminderChain({
+            customerName: appt.customer.name, date: dateStr, time: appt.startTime ?? "",
+            serviceName: appt.service?.name ?? "התור", businessPhone: biz?.phone ?? "",
+          }),
+          fallbackBody: body,
+          businessId,
+          context: "mcp_reminder",
+        });
         if (!result.success) {
           await auditLog(connectionId, "send_reminder", params, "error", undefined, result.error ?? "WhatsApp error");
           return errorResult("שגיאה בשליחת הודעת WhatsApp");

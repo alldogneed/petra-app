@@ -27,18 +27,13 @@ const ALLOWED_FREE_TEXT = {
   // To the business owner / the person who is using the app right now
   "lib/security-alerts.ts": { count: 1, kind: "OWNER", why: "security alert to the business owner" },
   "app/api/sign/[token]/route.ts": { count: 1, kind: "OWNER", why: "contract signed → business phone" },
-  "app/api/book/[slug]/booking/route.ts": { count: 4, kind: "KNOWN_GAP", why: "2 to the owner; booking_confirmation + booking_pending to the customer need templates" },
+  "app/api/book/[slug]/booking/route.ts": { count: 2, kind: "OWNER", why: "new-booking alerts to the business phone (customer messages use template chains)" },
   "app/api/settings/route.ts": { count: 1, kind: "BY_DESIGN", why: "test message to the user's own phone" },
   "app/api/integrations/whatsapp/test/route.ts": { count: 1, kind: "BY_DESIGN", why: "connection test message" },
   // Typed by the business for one customer, right now (UI explains the 24h window)
   "app/api/customers/[id]/whatsapp/route.ts": { count: 1, kind: "BY_DESIGN", why: "manual message from the customer card" },
   // Customer-facing free text that still needs an approved template
-  "app/api/appointments/[id]/remind/route.ts": { count: 1, kind: "KNOWN_GAP", why: "manual reminder button — use appointmentReminderChain" },
-  "app/api/mcp/route.ts": { count: 1, kind: "KNOWN_GAP", why: "MCP send_reminder — use appointmentReminderChain" },
-  "app/api/booking/book/route.ts": { count: 2, kind: "KNOWN_GAP", why: "online booking request received" },
-  "app/api/booking/bookings/[id]/route.ts": { count: 1, kind: "KNOWN_GAP", why: "online booking approved / declined" },
-  "app/api/contracts/send/route.ts": { count: 1, kind: "KNOWN_GAP", why: "contract link to the customer" },
-  "app/api/contracts/requests/[id]/resend/route.ts": { count: 2, kind: "KNOWN_GAP", why: "contract link resend" },
+  "app/api/booking/book/route.ts": { count: 1, kind: "OWNER", why: "booking request alert to the business phone" },
   "app/api/cron/online-class-reminders/route.ts": { count: 1, kind: "KNOWN_GAP", why: "online class reminder to students" },
   "app/api/cron/online-classes-engagement/route.ts": { count: 1, kind: "KNOWN_GAP", why: "online classes engagement nudge" },
   "services/online-classes.ts": { count: 2, kind: "KNOWN_GAP", why: "membership approved / class notices to students" },
@@ -54,8 +49,6 @@ const ALLOWED_SCHEDULED_WITHOUT_CHAIN = {
   "app/api/orders/route.ts": "appointment_confirmation_log — a record of a send that already happened, never sent by the cron",
   "app/api/appointments/route.ts": "appointment_confirmation_log — record only",
   "lib/scheduled-messages.ts": "generic createScheduledMessage helper; callers pass the payload",
-  "app/api/cron/vaccination-reminders/route.ts": "KNOWN_GAP — vaccination reminder needs a template",
-  "app/api/cron/birthday-reminders/route.ts": "KNOWN_GAP — pet birthday greeting needs a template",
 };
 
 

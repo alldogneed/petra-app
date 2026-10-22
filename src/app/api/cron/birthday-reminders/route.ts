@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { verifyCronAuth } from "@/lib/cron-auth";
 import { interpolateTemplate } from "@/lib/whatsapp";
 import { hasFeatureWithOverrides } from "@/lib/feature-flags";
+import { petBirthdayChain } from "@/lib/reminder-service";
 
 /**
  * GET /api/cron/birthday-reminders
@@ -55,7 +56,7 @@ export async function GET(request: NextRequest) {
     const uniqueBusinessIds = [...new Set(pets.filter(p => p.customer).map(p => p.customer!.businessId))];
     const businessSettingsList = await prisma.business.findMany({
       where: { id: { in: uniqueBusinessIds } },
-      select: { id: true, phone: true, whatsappRemindersEnabled: true, tier: true, featureOverrides: true },
+      select: { id: true, name: true, phone: true, whatsappRemindersEnabled: true, tier: true, featureOverrides: true },
     });
     const bizSettingsMap = new Map(businessSettingsList.map(b => [b.id, b]));
 
@@ -137,7 +138,14 @@ export async function GET(request: NextRequest) {
           customerId: pet.customer?.id ?? "",
           channel: "whatsapp",
           templateKey: rule ? `automation-rule-${rule.id}` : "pet_birthday",
-          payloadJson: JSON.stringify({ body, petName: pet.name, age }),
+          payloadJson: JSON.stringify({
+            body,
+            petName: pet.name,
+            age,
+            flow: "pet_birthday",
+            // Approved template first; the business's own text is the free-text fallback (24h window only)
+            templateChain: petBirthdayChain({ petName: pet.name, ageSentence: `חוגגים ${ageText}`, businessName: bizSettings?.name ?? "" }),
+          }),
           sendAt,
           status: "PENDING",
           relatedEntityType: "PET_BIRTHDAY",

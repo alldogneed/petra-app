@@ -4,7 +4,8 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { sessionHasTenantPermission, TENANT_PERMS } from "@/lib/permissions";
-import { sendWhatsAppMessage } from "@/lib/whatsapp";
+import { sendWithTemplateChain } from "@/lib/whatsapp-template-chain";
+import { appointmentReminderChain } from "@/lib/reminder-service";
 import { hasFeatureWithOverrides } from "@/lib/feature-flags";
 
 function toWhatsAppNum(phone: string): string {
@@ -94,7 +95,14 @@ export async function POST(
   }
 
   const to = toWhatsAppNum(appt.customer.phone);
-  const result = await sendWhatsAppMessage({ to, body, businessId: authResult.businessId, context: "appointment_reminder" });
+  // Approved reminder template first; the business's own text is the free-text fallback (24h window only)
+  const result = await sendWithTemplateChain({
+    to,
+    steps: appointmentReminderChain({ customerName: appt.customer.name, date: formattedDate, time: appt.startTime, serviceName, businessPhone: bizPhone }),
+    fallbackBody: body,
+    businessId: authResult.businessId,
+    context: "appointment_reminder",
+  });
 
   if (!result.success) {
     return NextResponse.json({ error: result.error ?? "שגיאה בשליחה" }, { status: 500 });

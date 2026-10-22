@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
-import { sendWhatsAppMessage } from "@/lib/whatsapp";
+import { sendWithTemplateChain } from "@/lib/whatsapp-template-chain";
+import { contractToSignChain } from "@/lib/reminder-service";
 import { toWhatsAppPhone } from "@/lib/utils";
 import { resolvePublicOrigin } from "@/lib/env";
 import { hasFeatureWithOverrides } from "@/lib/feature-flags";
@@ -104,11 +105,12 @@ export async function POST(
 
       let waDelivered = false;
       try {
-        const waResult = await sendWhatsAppMessage({
+        const waResult = await sendWithTemplateChain({
           to: toWhatsAppPhone(contractReq.customer.phone),
           businessId,
           context: "contract_resend",
-          body: `שלום ${contractReq.customer.name}! 📄\n${business?.name ?? ""} שלחו לך חוזה חדש לחתימה דיגיטלית.\n\nלחץ לצפייה ולחתימה:\n${signUrl}\n\nהקישור תקף ל-30 יום.`,
+          steps: contractToSignChain({ customerName: contractReq.customer.name, businessName: business?.name ?? "", signUrl }),
+          fallbackBody: `שלום ${contractReq.customer.name}! 📄\n${business?.name ?? ""} שלחו לך חוזה חדש לחתימה דיגיטלית.\n\nלחץ לצפייה ולחתימה:\n${signUrl}\n\nהקישור תקף ל-30 יום.`,
         });
         waDelivered = waResult.success;
       } catch (waError) {
@@ -126,11 +128,12 @@ export async function POST(
     // Track delivery so the UI can offer a copy-link fallback.
     let waDelivered = false;
     try {
-      const waResult = await sendWhatsAppMessage({
+      const waResult = await sendWithTemplateChain({
         to: toWhatsAppPhone(contractReq.customer.phone),
         businessId,
         context: "contract_resend",
-        body: `שלום ${contractReq.customer.name}! 📄\nתזכורת: ${business?.name ?? ""} שלחו לך חוזה לחתימה.\n\nלחץ לצפייה ולחתימה:\n${contractReq.signUrl}\n\nאנא חתום בהקדם.`,
+        steps: contractToSignChain({ customerName: contractReq.customer.name, businessName: business?.name ?? "", signUrl: contractReq.signUrl ?? "" }),
+        fallbackBody: `שלום ${contractReq.customer.name}! 📄\nתזכורת: ${business?.name ?? ""} שלחו לך חוזה לחתימה.\n\nלחץ לצפייה ולחתימה:\n${contractReq.signUrl}\n\nאנא חתום בהקדם.`,
       });
       waDelivered = waResult.success;
     } catch (waError) {

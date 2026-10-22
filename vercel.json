@@ -62,6 +62,10 @@
     {
       "path": "/api/cron/charge-trials",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/sync-platform-templates",
+      "schedule": "30 3 * * *"
     }
   ]
 }
