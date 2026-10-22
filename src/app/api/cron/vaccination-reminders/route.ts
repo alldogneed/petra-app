@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { verifyCronAuth } from "@/lib/cron-auth";
 import { hasFeatureWithOverrides } from "@/lib/feature-flags";
+import { vaccinationReminderChain } from "@/lib/reminder-service";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 function addDays(d: Date, n: number) { return new Date(d.getTime() + n * DAY_MS); }
@@ -192,7 +193,11 @@ export async function GET(request: NextRequest) {
               businessId, customerId,
               channel: "whatsapp",
               templateKey: "vaccination_reminder",
-              payloadJson: JSON.stringify({ body, petName, vaccineType: def.type, daysUntil: daysAhead }),
+              payloadJson: JSON.stringify({
+                body, petName, vaccineType: def.type, daysUntil: daysAhead,
+                flow: "vaccination_reminder",
+                templateChain: vaccinationReminderChain({ customerName, vaccineLabel: def.label, petName, expiry: formattedExpiry }),
+              }),
               sendAt, status: "PENDING",
               relatedEntityType: "VACCINATION",
               relatedEntityId,

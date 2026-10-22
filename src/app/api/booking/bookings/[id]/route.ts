@@ -4,7 +4,8 @@ import prisma from "@/lib/prisma";
 import { enqueueSyncJob } from "@/lib/sync-jobs";
 import { scheduleAppointmentReminder, scheduleAppointmentFollowup, scheduleBoardingCheckoutReminder } from "@/lib/reminder-service";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
-import { sendWhatsAppMessage } from "@/lib/whatsapp";
+import { sendWithTemplateChain } from "@/lib/whatsapp-template-chain";
+import { appointmentConfirmationChain, bookingDeclinedChain } from "@/lib/reminder-service";
 import { toWhatsAppPhone } from "@/lib/utils";
 
 export async function PATCH(
@@ -160,7 +161,7 @@ export async function PATCH(
         try {
           const business = await prisma.business.findUnique({
             where: { id: booking.businessId },
-            select: { name: true },
+            select: { name: true, phone: true },
           });
           const fmtDate = new Intl.DateTimeFormat("he-IL", {
             timeZone: "Asia/Jerusalem",
@@ -180,11 +181,19 @@ export async function PATCH(
               ? `שלום ${booking.customer.name}! ✅\nהתור שלך אושר.\n📋 ${serviceName}\n📅 ${dateStr}\n⏰ ${timeStr}\nנשמח לראותך! – ${bizName}`
               : `שלום ${booking.customer.name},\nלצערנו לא נוכל לקבל את הבקשה לתור ב-${dateStr} בשעה ${timeStr}.\nנשמח לתאם מועד אחר. – ${bizName}`;
 
-          await sendWhatsAppMessage({
+          // Approved templates first (free text only reaches customers who wrote in the last 24h)
+          await sendWithTemplateChain({
             to: toWhatsAppPhone(booking.customer.phone!),
             businessId: booking.businessId,
             context: decided === "confirmed" ? "booking_approved" : "booking_declined",
-            body: body_,
+            steps:
+              decided === "confirmed"
+                ? appointmentConfirmationChain({
+                    customerName: booking.customer.name, date: dateStr, time: timeStr,
+                    serviceName: serviceName || "התור", businessPhone: business?.phone ?? "",
+                  })
+                : bookingDeclinedChain({ customerName: booking.customer.name, date: dateStr, time: timeStr, businessName: bizName }),
+            fallbackBody: body_,
           });
         } catch (err) {
           console.error("WhatsApp booking decision error:", err);

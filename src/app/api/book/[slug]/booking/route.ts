@@ -5,6 +5,8 @@ import { getAvailableSlots, utcToLocalDateStr } from "@/lib/slots"
 import { z } from "zod"
 import { rateLimitAsync } from "@/lib/rate-limit"
 import { sendWhatsAppMessage } from "@/lib/whatsapp"
+import { sendWithTemplateChain } from "@/lib/whatsapp-template-chain"
+import { appointmentConfirmationChain, bookingRequestReceivedChain } from "@/lib/reminder-service"
 import { toWhatsAppPhone } from "@/lib/utils"
 import { enqueueSyncJob } from "@/lib/sync-jobs"
 import { getFirstLeadStageId } from "@/lib/lead-stages"
@@ -16,8 +18,11 @@ import { hasFeatureWithOverrides } from "@/lib/feature-flags"
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || "https://petra-app.vercel.app"
 
+// Customer messages go through approved Meta templates (the customer usually never wrote to
+// the business on WhatsApp → free text would be blocked outside the 24h window).
 async function notifyCustomerConfirmed(
   businessId: string,
+  biz: { name: string; phone: string | null },
   booking: { id: string; customerToken?: string | null },
   customer: { phone: string; name: string },
   service: { name: string },
@@ -28,11 +33,18 @@ async function notifyCustomerConfirmed(
   const phone = toWhatsAppPhone(customer.phone)
   const myBookingUrl = booking.customerToken ? `${APP_URL}/my-booking/${booking.customerToken}` : ""
   const body = `שלום ${customer.name}! ✅ הזמנתך אושרה!\n\nשירות: ${service.name}\nתאריך: ${dateLabel}\nשעה: ${timeLabel}${myBookingUrl ? `\n\nלצפייה/ביטול ההזמנה:\n${myBookingUrl}` : ""}`
-  await sendWhatsAppMessage({ to: phone, body, businessId, context: "booking_confirmation" }).catch(console.error)
+  await sendWithTemplateChain({
+    to: phone,
+    steps: appointmentConfirmationChain({ customerName: customer.name, date: dateLabel, time: timeLabel, serviceName: service.name, businessPhone: biz.phone ?? "" }),
+    fallbackBody: body,
+    businessId,
+    context: "booking_confirmation",
+  }).catch(console.error)
 }
 
 async function notifyCustomerPending(
   businessId: string,
+  biz: { name: string; phone: string | null },
   booking: { id: string; customerToken?: string | null },
   customer: { phone: string; name: string },
   service: { name: string },
@@ -43,7 +55,13 @@ async function notifyCustomerPending(
   const phone = toWhatsAppPhone(customer.phone)
   const myBookingUrl = booking.customerToken ? `${APP_URL}/my-booking/${booking.customerToken}` : ""
   const body = `שלום ${customer.name}! ⏳ בקשת ההזמנה שלך התקבלה.\n\nשירות: ${service.name}\nתאריך: ${dateLabel}\nשעה: ${timeLabel}\n\nנחזור אליך עם אישור בהקדם.${myBookingUrl ? `\n\nלצפייה בהזמנה:\n${myBookingUrl}` : ""}`
-  await sendWhatsAppMessage({ to: phone, body, businessId, context: "booking_pending" }).catch(console.error)
+  await sendWithTemplateChain({
+    to: phone,
+    steps: bookingRequestReceivedChain({ customerName: customer.name, serviceName: service.name, date: dateLabel, time: timeLabel, businessName: biz.name }),
+    fallbackBody: body,
+    businessId,
+    context: "booking_pending",
+  }).catch(console.error)
 }
 
 async function notifyOwnerNewPending(
@@ -148,7 +166,7 @@ export async function POST(
 
   const business = await prisma.business.findUnique({
     where: { slug: params.slug },
-    select: { id: true, status: true, timezone: true, phone: true, bookingRequiresApproval: true, tier: true, featureOverrides: true, whatsappRemindersEnabled: true },
+    select: { id: true, name: true, status: true, timezone: true, phone: true, bookingRequiresApproval: true, tier: true, featureOverrides: true, whatsappRemindersEnabled: true },
   })
 
   if (!business || business.status !== "active") {
@@ -456,10 +474,10 @@ export async function POST(
       }
     }
 
-    if (customerMessagesOn) await notifyCustomerConfirmed(business.id, booking, customer, { name: serviceName }, dateLabel, timeLabel)
+    if (customerMessagesOn) await notifyCustomerConfirmed(business.id, { name: business.name, phone: business.phone }, booking, customer, { name: serviceName }, dateLabel, timeLabel)
     await notifyOwnerNewConfirmed(business.id, business.phone, customer.name, { name: serviceName }, dateLabel, timeLabel)
   } else {
-    if (customerMessagesOn) await notifyCustomerPending(business.id, booking, customer, { name: serviceName }, dateLabel, timeLabel)
+    if (customerMessagesOn) await notifyCustomerPending(business.id, { name: business.name, phone: business.phone }, booking, customer, { name: serviceName }, dateLabel, timeLabel)
     await notifyOwnerNewPending(business.id, business.phone, customer.name, { name: serviceName }, dateLabel)
   }
 

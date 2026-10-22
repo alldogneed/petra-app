@@ -32,7 +32,40 @@ export const META_TEMPLATES = {
    * follow-up falls back to free text (24h window only), exactly as before.
    */
   appointmentFollowup: ["petra_appointment_followup"],
+  /** Catalog templates (src/lib/meta-template-catalog.ts) — params documented there. */
+  bookingRequestReceived: ["petra_booking_request_received"],
+  bookingDeclined: ["petra_booking_declined"],
+  contractToSign: ["petra_contract_to_sign"],
+  vaccinationReminder: ["petra_vaccination_reminder"],
+  petBirthday: ["petra_pet_birthday"],
 } as const;
+
+const single = (name: string, params: string[]): TemplateStep[] => buildTemplateChain([{ name, params }]);
+
+/** {{1}} name · {{2}} service · {{3}} date · {{4}} time · {{5}} business name */
+export function bookingRequestReceivedChain(p: { customerName: string; serviceName: string; date: string; time: string; businessName: string }): TemplateStep[] {
+  return single(META_TEMPLATES.bookingRequestReceived[0], [p.customerName, p.serviceName || "התור", p.date, p.time, p.businessName]);
+}
+
+/** {{1}} name · {{2}} date · {{3}} time · {{4}} business name */
+export function bookingDeclinedChain(p: { customerName: string; date: string; time: string; businessName: string }): TemplateStep[] {
+  return single(META_TEMPLATES.bookingDeclined[0], [p.customerName, p.date, p.time, p.businessName]);
+}
+
+/** {{1}} name · {{2}} business name · {{3}} sign URL */
+export function contractToSignChain(p: { customerName: string; businessName: string; signUrl: string }): TemplateStep[] {
+  return single(META_TEMPLATES.contractToSign[0], [p.customerName, p.businessName, p.signUrl]);
+}
+
+/** {{1}} name · {{2}} vaccine · {{3}} pet · {{4}} expiry date */
+export function vaccinationReminderChain(p: { customerName: string; vaccineLabel: string; petName: string; expiry: string }): TemplateStep[] {
+  return single(META_TEMPLATES.vaccinationReminder[0], [p.customerName, p.vaccineLabel, p.petName, p.expiry]);
+}
+
+/** {{1}} pet · {{2}} age sentence · {{3}} business name */
+export function petBirthdayChain(p: { petName: string; ageSentence: string; businessName: string }): TemplateStep[] {
+  return single(META_TEMPLATES.petBirthday[0], [p.petName, p.ageSentence, p.businessName]);
+}
 
 /** Steps whose params contain an empty string are dropped (Meta rejects empty params). */
 export function appointmentReminderChain(p: { customerName: string; date: string; time: string; serviceName: string; businessPhone: string }): TemplateStep[] {

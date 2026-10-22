@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
-import { sendWhatsAppMessage } from "@/lib/whatsapp";
+import { sendWithTemplateChain } from "@/lib/whatsapp-template-chain";
+import { contractToSignChain } from "@/lib/reminder-service";
 import { toWhatsAppPhone } from "@/lib/utils";
 import { resolvePublicOrigin } from "@/lib/env";
 import { hasFeatureWithOverrides } from "@/lib/feature-flags";
@@ -95,11 +96,13 @@ export async function POST(request: NextRequest) {
     let waDelivered = false;
     if (customer.phone) {
       try {
-        const waResult = await sendWhatsAppMessage({
+        // Approved template first — free text only reaches customers who wrote in the last 24h
+        const waResult = await sendWithTemplateChain({
           to: toWhatsAppPhone(customer.phone),
           businessId: authResult.businessId,
           context: "contract_send",
-          body: `שלום ${customer.name}! 📄\n${business?.name ?? ""} שלחו לך חוזה לחתימה דיגיטלית.\n\nלחץ לצפייה ולחתימה:\n${signUrl}\n\nהקישור תקף ל-30 יום.`,
+          steps: contractToSignChain({ customerName: customer.name, businessName: business?.name ?? "", signUrl }),
+          fallbackBody: `שלום ${customer.name}! 📄\n${business?.name ?? ""} שלחו לך חוזה לחתימה דיגיטלית.\n\nלחץ לצפייה ולחתימה:\n${signUrl}\n\nהקישור תקף ל-30 יום.`,
         });
         waDelivered = waResult.success;
       } catch (waError) {

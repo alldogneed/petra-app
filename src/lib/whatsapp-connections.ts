@@ -723,3 +723,53 @@ export async function findBusinessIdByPhoneNumberId(phoneNumberId: string): Prom
     return null;
   }
 }
+
+// ── Platform template catalog (src/lib/meta-template-catalog.ts) ───────────────
+
+export interface CatalogSyncRow {
+  name: string;
+  /** APPROVED / PENDING / REJECTED / PAUSED … as Meta reports it, or CREATED / ERROR from this run */
+  status: string;
+  category: string | null;
+  created: boolean;
+  error?: string;
+  rejectedReason?: string | null;
+}
+
+/**
+ * Make sure every catalog template exists on the PLATFORM WABA: creates the missing ones
+ * (Meta then reviews them — minutes to hours) and returns the current status of each.
+ * Idempotent: an existing name is never re-created or edited. Never throws.
+ */
+export async function ensurePlatformTemplates(): Promise<{ ok: boolean; error?: string; templates: CatalogSyncRow[] }> {
+  const { PETRA_TEMPLATE_CATALOG, toMetaTemplatePayload } = await import("./meta-template-catalog");
+  const token = process.env.META_WHATSAPP_TOKEN?.trim();
+  if (!token) return { ok: false, error: "META_WHATSAPP_TOKEN missing", templates: [] };
+  const wabaId = getPlatformWabaId();
+
+  const list = await fetchTemplates(wabaId, token, "name,status,category,language,rejected_reason");
+  if (!list) return { ok: false, error: "could not list platform templates", templates: [] };
+  const existing = pickByName(list) as Map<string, MetaTemplate & { rejected_reason?: string }>;
+
+  const rows: CatalogSyncRow[] = [];
+  for (const t of PETRA_TEMPLATE_CATALOG) {
+    const have = existing.get(t.name);
+    if (have) {
+      rows.push({ name: t.name, status: have.status ?? "UNKNOWN", category: have.category ?? null, created: false, rejectedReason: have.rejected_reason ?? null });
+      continue;
+    }
+    const res = await graph<{ id?: string; status?: string; category?: string }>(`/${wabaId}/message_templates`, {
+      method: "POST",
+      token,
+      body: toMetaTemplatePayload(t),
+    });
+    if (res.ok) {
+      rows.push({ name: t.name, status: res.data?.status || "PENDING", category: res.data?.category ?? t.category, created: true });
+    } else {
+      rows.push({ name: t.name, status: "ERROR", category: t.category, created: false, error: (res.error?.message ?? "unknown").slice(0, 300) });
+    }
+  }
+  templateTextCache = null; // new names → refresh the preview text cache
+  console.log(`${LOG} platform template catalog: ${rows.map((r) => `${r.name}=${r.status}${r.created ? "(created)" : ""}`).join(", ")}`);
+  return { ok: true, templates: rows };
+}
