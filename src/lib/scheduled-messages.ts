@@ -7,8 +7,32 @@ import { interpolateTemplate } from "@/lib/whatsapp";
 import { sendWithTemplateChain, chainFromPayload, contextForScheduledMessage } from "@/lib/whatsapp-template-chain";
 import { toWhatsAppPhone, formatDate, formatTime } from "@/lib/utils";
 import { hasFeatureWithOverrides } from "@/lib/feature-flags";
-import { israelDateTime } from "@/lib/reminder-service";
+import { israelDateTime, appointmentFollowupChain } from "@/lib/reminder-service";
+import type { TemplateStep } from "@/lib/whatsapp-template-chain";
 import { claimScheduledMessage } from "@/lib/scheduled-message-claim";
+
+/**
+ * Template chain of a scheduled message. Appointment follow-ups queued before they carried
+ * a chain (free text only → Meta blocks them outside the 24h window) get one built from
+ * the appointment at send time. Used by the cron and by "שלח עכשיו".
+ */
+export async function chainForScheduledMessage(
+  payload: Record<string, unknown>,
+  msg: { businessId: string; relatedEntityType: string | null; relatedEntityId: string | null }
+): Promise<TemplateStep[]> {
+  const steps = chainFromPayload(payload);
+  if (steps.length || msg.relatedEntityType !== "APPOINTMENT_FOLLOWUP" || !msg.relatedEntityId) return steps;
+  const appt = await prisma.appointment.findFirst({
+    where: { id: msg.relatedEntityId, businessId: msg.businessId },
+    select: { customer: { select: { name: true } }, pet: { select: { name: true } }, business: { select: { phone: true } } },
+  });
+  if (!appt) return steps;
+  return appointmentFollowupChain({
+    customerName: appt.customer.name,
+    petName: appt.pet?.name,
+    businessPhone: appt.business.phone ?? "",
+  });
+}
 
 /**
  * True when the event a pre-event reminder points at has already started,
@@ -239,7 +263,7 @@ export async function processPendingReminders(): Promise<{
       const context = contextForScheduledMessage(payload, msg.relatedEntityType);
       const result = await sendWithTemplateChain({
         to: phone,
-        steps: chainFromPayload(payload),
+        steps: await chainForScheduledMessage(payload, msg),
         fallbackBody: body,
         businessId: msg.businessId,
         context,
