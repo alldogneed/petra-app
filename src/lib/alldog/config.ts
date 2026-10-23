@@ -6,12 +6,13 @@
  * never touched. Read from process.env directly (not env.ts) so pure modules and
  * the local simulation script can import it.
  */
+import { readEnv } from "@/lib/read-env";
 
 const truthy = (v: string | undefined) => v?.trim().toLowerCase() === "true";
 
 /** The one business these automations run for. Null = not configured → everything is off. */
 export function allDogBusinessId(): string | null {
-  return process.env.ALLDOG_BUSINESS_ID?.trim() || null;
+  return readEnv("ALLDOG_BUSINESS_ID") || null;
 }
 
 export function isAllDogBusiness(businessId: string | null | undefined): boolean {
@@ -22,28 +23,28 @@ export function isAllDogBusiness(businessId: string | null | undefined): boolean
 /** Part A — answered PayCall calls → transcript → Claude summary → lead journal. */
 export function isCallSummariesEnabled(): boolean {
   return (
-    truthy(process.env.ALLDOG_CALL_SUMMARIES_ENABLED) &&
+    truthy(readEnv("ALLDOG_CALL_SUMMARIES_ENABLED")) &&
     !!allDogBusinessId() &&
-    !!process.env.ANTHROPIC_API_KEY &&
-    !!process.env.ELEVENLABS_API_KEY
+    !!readEnv("ANTHROPIC_API_KEY") &&
+    !!readEnv("ELEVENLABS_API_KEY")
   );
 }
 
 /** Part B — the AllDog WhatsApp bot (separate Meta app, its own number). */
 export function isWaBotEnabled(): boolean {
   return (
-    truthy(process.env.ALLDOG_WA_BOT_ENABLED) &&
+    truthy(readEnv("ALLDOG_WA_BOT_ENABLED")) &&
     !!allDogBusinessId() &&
-    !!process.env.ANTHROPIC_API_KEY &&
-    !!process.env.ALLDOG_WA_TOKEN?.trim() &&
-    !!process.env.ALLDOG_WA_PHONE_NUMBER_ID?.trim()
+    !!readEnv("ANTHROPIC_API_KEY") &&
+    !!readEnv("ALLDOG_WA_TOKEN") &&
+    !!readEnv("ALLDOG_WA_PHONE_NUMBER_ID")
   );
 }
 
 export function botModel(): string {
-  return process.env.ALLDOG_BOT_MODEL?.trim() || "claude-sonnet-5-5";
+  return readEnv("ALLDOG_BOT_MODEL") || "claude-sonnet-5-5";
 }
 
 export function summaryModel(): string {
-  return process.env.ALLDOG_SUMMARY_MODEL?.trim() || "claude-sonnet-5-5";
+  return readEnv("ALLDOG_SUMMARY_MODEL") || "claude-sonnet-5-5";
 }

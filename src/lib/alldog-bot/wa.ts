@@ -9,14 +9,15 @@
  * Free text only: callers must check the 24h window (botMayReply) before sendText().
  */
 import { maskPhone } from "@/lib/whatsapp-failure";
+import { readEnv } from "@/lib/read-env";
 
 const LOG = "[alldog-bot/wa]";
 
 function config(): { token: string; phoneNumberId: string; version: string } | null {
-  const token = process.env.ALLDOG_WA_TOKEN?.trim();
-  const phoneNumberId = process.env.ALLDOG_WA_PHONE_NUMBER_ID?.trim();
+  const token = readEnv("ALLDOG_WA_TOKEN");
+  const phoneNumberId = readEnv("ALLDOG_WA_PHONE_NUMBER_ID");
   if (!token || !phoneNumberId) return null;
-  return { token, phoneNumberId, version: process.env.ALLDOG_WA_GRAPH_VERSION?.trim() || "v21.0" };
+  return { token, phoneNumberId, version: readEnv("ALLDOG_WA_GRAPH_VERSION") || "v21.0" };
 }
 
 async function post(body: Record<string, unknown>): Promise<{ ok: boolean; data?: { messages?: Array<{ id?: string }> }; error?: string }> {

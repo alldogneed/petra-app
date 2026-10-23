@@ -15,6 +15,7 @@
 
 import prisma from "./prisma";
 import { scheduleLeadFollowup } from "./reminder-service";
+import { readEnv } from "@/lib/read-env";
 
 const PAYCALL_URL = "http://ws.callindex.co.il/api_v2.php";
 
@@ -52,8 +53,8 @@ function ddmmyyyy(d: Date): string {
 }
 
 function authHeader(): string {
-  const user = process.env.PAYCALL_USERNAME;
-  const password = process.env.PAYCALL_PASSWORD;
+  const user = readEnv("PAYCALL_USERNAME");
+  const password = readEnv("PAYCALL_PASSWORD");
   if (!user || !password) {
     throw new Error("PAYCALL_USERNAME / PAYCALL_PASSWORD not configured");
   }
@@ -67,7 +68,7 @@ export async function getCalls(params: {
   fromId?: string;        // fetch calls with ID > this (for incremental sync)
   limit?: number;
 }): Promise<PaycallCall[]> {
-  const uId = process.env.PAYCALL_USER_ID;
+  const uId = readEnv("PAYCALL_USER_ID");
   if (!uId) throw new Error("PAYCALL_USER_ID not configured");
 
   const body = new URLSearchParams({
@@ -140,8 +141,8 @@ export async function processMissedCall(call: PaycallCall): Promise<{
   created: boolean;
   skipped: boolean;
 }> {
-  const businessId = process.env.PAYCALL_BUSINESS_ID;
-  const newStageId = process.env.PAYCALL_NEW_LEAD_STAGE_ID;
+  const businessId = readEnv("PAYCALL_BUSINESS_ID");
+  const newStageId = readEnv("PAYCALL_NEW_LEAD_STAGE_ID");
   if (!businessId || !newStageId) {
     throw new Error("PAYCALL_BUSINESS_ID / PAYCALL_NEW_LEAD_STAGE_ID not configured");
   }
@@ -367,7 +368,7 @@ export async function fetchRecordingFromLink(url: string): Promise<CallRecording
  * Needs allow_call_records on the API user, otherwise "Service Denied".
  */
 export async function downloadRecord(callId: string, callDay: string /* dd/mm/yyyy */): Promise<CallRecording> {
-  const uId = process.env.PAYCALL_USER_ID;
+  const uId = readEnv("PAYCALL_USER_ID");
   if (!uId) throw new Error("PAYCALL_USER_ID not configured");
   const body = new URLSearchParams({ method: "downloadRecord", callId, from: callDay, uId, out: "json" });
   const res = await fetch(PAYCALL_API_URL, {
@@ -400,7 +401,7 @@ export function describeAnalyticsShape(data: unknown): string {
 
 /** Fetch getAnalyticsCalls once and return its shape description (null when skipped / failed). */
 export async function probeAnalyticsCallsShape(params: { fromDate: Date; toDate: Date }): Promise<string | null> {
-  const uId = process.env.PAYCALL_USER_ID;
+  const uId = readEnv("PAYCALL_USER_ID");
   if (!uId) return null;
   const { claimOnce } = await import("@/lib/rate-limit");
   if (!(await claimOnce("paycall-analytics-shape-log", 30 * 24 * 60 * 60))) return null;

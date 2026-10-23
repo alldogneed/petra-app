@@ -14,6 +14,7 @@ import { createLead, updateLead, createTask } from "@/services/clients";
 import { normalizeIsraeliPhone } from "@/lib/paycall";
 import { formatPetNotesBlock, hasPetNotesBlock, type LeadPetDetails } from "@/lib/lead-pet-notes";
 import type { LeadAttribution } from "@/lib/lead-attribution";
+import { readEnv } from "@/lib/read-env";
 
 /** Placeholder names given to auto-created leads — replaced once a real name is known. */
 const PLACEHOLDER_NAME_RE = /^(שיחה מ-|וואטסאפ |ליד מוואטסאפ)/;
@@ -42,7 +43,7 @@ export async function findLeadByPhone(businessId: string, rawPhone: string) {
 
 /** The business's "ליד חדש" stage (PAYCALL_NEW_LEAD_STAGE_ID wins when set; else createLead's default first stage). */
 async function newLeadStageId(businessId: string): Promise<string | undefined> {
-  const envStage = process.env.PAYCALL_NEW_LEAD_STAGE_ID?.trim();
+  const envStage = readEnv("PAYCALL_NEW_LEAD_STAGE_ID");
   if (envStage) {
     const ok = await prisma.leadStage.findFirst({ where: { id: envStage, businessId }, select: { id: true } });
     if (ok) return ok.id;

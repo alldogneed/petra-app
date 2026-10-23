@@ -5,6 +5,7 @@
  * Env: ELEVENLABS_API_KEY (required), ELEVENLABS_STT_MODEL (default "scribe_v1").
  * The key is sent only in the request header — never logged.
  */
+import { readEnv } from "@/lib/read-env";
 
 export interface TranscriptUtterance {
   speaker: string; // "1", "2", … in order of first appearance
@@ -67,11 +68,11 @@ function extFor(contentType: string): string {
 }
 
 export async function transcribeAudio(audio: AudioInput, opts: { language: string } = { language: "he" }): Promise<Transcript> {
-  const apiKey = process.env.ELEVENLABS_API_KEY?.trim();
+  const apiKey = readEnv("ELEVENLABS_API_KEY");
   if (!apiKey) throw new Error("ELEVENLABS_API_KEY not configured");
 
   const form = new FormData();
-  form.append("model_id", process.env.ELEVENLABS_STT_MODEL?.trim() || "scribe_v1");
+  form.append("model_id", readEnv("ELEVENLABS_STT_MODEL") || "scribe_v1");
   form.append("language_code", opts.language);
   form.append("diarize", "true");
   form.append("tag_audio_events", "false");

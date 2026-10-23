@@ -32,6 +32,7 @@ import { buildBotContext, enforceIdentityAnswer, HUMAN_BITE_NOTE, mentionsHumanB
 import { runBotTurn } from "@/lib/alldog-bot/agent";
 import { createDbExecutor, flagMediaForHuman, type BotConversationRef } from "@/lib/alldog-bot/actions";
 import { markReadWithTyping, sendText } from "@/lib/alldog-bot/wa";
+import { readEnv } from "@/lib/read-env";
 
 const LOG = "[alldog-bot]";
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -234,7 +235,7 @@ async function reply(item: PendingInbound): Promise<void> {
   });
 
   const result = await runBotTurn({
-    client: new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY }),
+    client: new Anthropic({ apiKey: readEnv("ANTHROPIC_API_KEY") }),
     model: botModel(),
     context,
     history,

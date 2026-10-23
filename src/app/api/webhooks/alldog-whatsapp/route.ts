@@ -15,6 +15,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
 import { runAfterResponse } from "@/lib/wait-until";
 import { isWaBotEnabled } from "@/lib/alldog/config";
+import { readEnv } from "@/lib/read-env";
 
 export const dynamic = "force-dynamic";
 // 6s quiet period + model + up to two messages with a typing pause.
@@ -28,7 +29,7 @@ function safeEqual(a: string, b: string): boolean {
 
 export async function GET(request: NextRequest) {
   const sp = request.nextUrl.searchParams;
-  const expected = process.env.ALLDOG_WA_VERIFY_TOKEN?.trim();
+  const expected = readEnv("ALLDOG_WA_VERIFY_TOKEN");
   const token = sp.get("hub.verify_token") ?? "";
   const challenge = sp.get("hub.challenge");
   if (sp.get("hub.mode") === "subscribe" && expected && challenge && safeEqual(token, expected)) {
@@ -39,7 +40,7 @@ export async function GET(request: NextRequest) {
 
 /** Meta signs the RAW body with the app secret: X-Hub-Signature-256: sha256=<hex>. */
 function verifyAllDogSignature(rawBody: string, header: string | null): boolean {
-  const secret = process.env.ALLDOG_WA_APP_SECRET?.trim();
+  const secret = readEnv("ALLDOG_WA_APP_SECRET");
   if (!secret || !header || !header.startsWith("sha256=")) return false;
   const expected = createHmac("sha256", secret).update(rawBody, "utf8").digest("hex");
   const provided = header.slice("sha256=".length).trim().toLowerCase();
@@ -53,7 +54,7 @@ export async function POST(request: NextRequest) {
   } catch {
     return NextResponse.json({ received: true });
   }
-  if (!process.env.ALLDOG_WA_APP_SECRET?.trim()) {
+  if (!readEnv("ALLDOG_WA_APP_SECRET")) {
     console.error("[alldog-whatsapp] ALLDOG_WA_APP_SECRET not configured");
     return NextResponse.json({ error: "Server not configured" }, { status: 503 });
   }
@@ -61,7 +62,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
-  const phoneNumberId = process.env.ALLDOG_WA_PHONE_NUMBER_ID?.trim();
+  const phoneNumberId = readEnv("ALLDOG_WA_PHONE_NUMBER_ID");
   if (!isWaBotEnabled() || !phoneNumberId) return NextResponse.json({ received: true, ignored: "disabled" });
 
   let body: unknown;

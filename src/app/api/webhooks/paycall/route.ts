@@ -14,6 +14,7 @@ import {
 } from "@/lib/paycall";
 import { runAfterResponse } from "@/lib/wait-until";
 import { isCallSummariesEnabled } from "@/lib/alldog/config";
+import { readEnv } from "@/lib/read-env";
 
 /**
  * GET /api/webhooks/paycall
@@ -33,7 +34,7 @@ import { isCallSummariesEnabled } from "@/lib/alldog/config";
  * is on; PayCall gets its 200 right away and the work runs after the response.
  */
 export async function GET(request: NextRequest) {
-  const expected = process.env.PAYCALL_WEBHOOK_SECRET;
+  const expected = readEnv("PAYCALL_WEBHOOK_SECRET");
   if (!expected) {
     console.error("[paycall webhook] PAYCALL_WEBHOOK_SECRET not configured");
     return NextResponse.json({ error: "Server not configured" }, { status: 503 });

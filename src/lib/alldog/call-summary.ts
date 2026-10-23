@@ -33,6 +33,7 @@ import {
   setLeadFollowUp,
   upsertLeadFromContact,
 } from "@/lib/alldog/leads";
+import { readEnv } from "@/lib/read-env";
 
 const LOG = "[alldog-calls]";
 
@@ -68,7 +69,7 @@ async function getRecording(input: AnsweredCallInput): Promise<CallRecording> {
 }
 
 async function summarize(transcript: string, startedAt: Date): Promise<CallSummary | null> {
-  const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const client = new Anthropic({ apiKey: readEnv("ANTHROPIC_API_KEY") });
   const p = israelParts(startedAt);
   const response = await client.messages.create({
     model: summaryModel(),
