@@ -229,3 +229,219 @@ function formatCallSummary(call: PaycallCall): string {
   const status = call.DISPOSITION;
   return `[paycall] שיחה שלא נענתה (${status}) ב-${date} ${time} • call_id:${call.ID}`;
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Answered calls (AllDog call summaries — src/lib/alldog/call-summary.ts)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** HTTPS endpoint for the recording / analytics actions (same Basic auth). */
+const PAYCALL_API_URL = "https://ws.callindex.co.il/api_v2.php";
+
+/** Minimum talk time worth transcribing. */
+export const MIN_SUMMARY_BILLSEC = 20;
+
+export interface LiveLinkParams {
+  status: string | null;
+  callId: string | null;
+  disposition: string | null;
+  /** Caller phone as sent by PayCall (`Cli`). */
+  cli: string | null;
+  billsec: number | null;
+  /** dlinkDirect preferred over dlink. */
+  recordingUrl: string | null;
+  gclid: string | null;
+  campaign: string | null;
+  /** Every `campaign*` query param as sent (for the call log). */
+  campaignParams: Record<string, string>;
+}
+
+/**
+ * Parse PayCall's liveLink query (GET /api/webhooks/paycall?Status=END&Id=…&Disposition=…
+ * &Cli=…&billsec=…&dlink=…&dlinkDirect=…&Gclid=…&campaign…=…). Param names are matched
+ * case-insensitively — PayCall's casing differs between accounts.
+ */
+export function parseLiveLinkParams(sp: URLSearchParams): LiveLinkParams {
+  const lower = new Map<string, string>();
+  const campaignParams: Record<string, string> = {};
+  sp.forEach((value, key) => {
+    const k = key.toLowerCase();
+    const v = value.trim();
+    if (!lower.has(k) && v) lower.set(k, v);
+    if (k.startsWith("campaign") && v) campaignParams[key] = v.slice(0, 200);
+  });
+  const get = (...keys: string[]) => {
+    for (const k of keys) {
+      const v = lower.get(k.toLowerCase());
+      if (v) return v;
+    }
+    return null;
+  };
+  const billsecRaw = get("billsec");
+  const billsec = billsecRaw !== null && /^\d+$/.test(billsecRaw) ? Number(billsecRaw) : null;
+  const recordingUrl = get("dlinkDirect") ?? get("dlink");
+  const firstCampaign = Object.values(campaignParams)[0] ?? null;
+  return {
+    status: get("Status"),
+    callId: get("Id"),
+    disposition: get("Disposition")?.toUpperCase() ?? null,
+    cli: get("Cli", "CallerId", "CALLERID"),
+    billsec,
+    recordingUrl: recordingUrl && isSafeRecordingUrl(recordingUrl) ? recordingUrl : null,
+    gclid: get("Gclid")?.slice(0, 200) ?? null,
+    campaign: (get("campaign", "campaignName", "campaign_name") ?? firstCampaign)?.slice(0, 200) ?? null,
+    campaignParams,
+  };
+}
+
+/** ANSWER with at least MIN_SUMMARY_BILLSEC seconds of talk time. */
+export function isSummarizableAnswer(p: { disposition: string | null; billsec: number | null }): boolean {
+  return p.disposition === "ANSWER" && p.billsec !== null && p.billsec >= MIN_SUMMARY_BILLSEC;
+}
+
+/** http(s) to a public host name only — never a raw IP / localhost (SSRF guard on dlink). */
+export function isSafeRecordingUrl(raw: string): boolean {
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    return false;
+  }
+  if (u.protocol !== "https:" && u.protocol !== "http:") return false;
+  const host = u.hostname.toLowerCase();
+  if (!host.includes(".") || host === "localhost" || host.endsWith(".local") || host.endsWith(".internal")) return false;
+  if (/^[\d.]+$/.test(host) || host.includes(":") || host.startsWith("[")) return false; // IPv4 / IPv6 literal
+  return true;
+}
+
+export interface CallRecording {
+  data: ArrayBuffer;
+  contentType: string;
+}
+
+/** The API user lacks allow_call_records ("Service Denied") — never retry in a loop. */
+export class PaycallRecordingDeniedError extends Error {
+  constructor(msg: string) {
+    super(msg);
+    this.name = "PaycallRecordingDeniedError";
+  }
+}
+
+const MAX_RECORDING_BYTES = 40 * 1024 * 1024;
+
+function looksLikeJson(contentType: string, bytes: Uint8Array): boolean {
+  if (contentType.includes("json") || contentType.startsWith("text/")) return true;
+  const first = bytes.find((b) => b !== 0x20 && b !== 0x0a && b !== 0x0d && b !== 0x09);
+  return first === 0x7b; // "{"
+}
+
+async function readAudioResponse(res: Response, label: string): Promise<CallRecording> {
+  if (!res.ok) throw new Error(`${label}: HTTP ${res.status}`);
+  const contentType = (res.headers.get("content-type") ?? "").toLowerCase();
+  const data = await res.arrayBuffer();
+  const bytes = new Uint8Array(data);
+  if (bytes.byteLength === 0) throw new Error(`${label}: empty body`);
+  if (bytes.byteLength > MAX_RECORDING_BYTES) throw new Error(`${label}: recording too large (${bytes.byteLength} bytes)`);
+  if (looksLikeJson(contentType, bytes)) {
+    const text = new TextDecoder().decode(bytes.slice(0, 2000));
+    let err = text.slice(0, 200);
+    try {
+      const j = JSON.parse(text) as { Err?: string; Response?: number };
+      if (j.Err) err = j.Err;
+    } catch { /* not JSON — keep the raw prefix */ }
+    if (/service denied/i.test(err)) throw new PaycallRecordingDeniedError(err);
+    throw new Error(`${label}: ${err}`);
+  }
+  return { data, contentType: contentType || "audio/mpeg" };
+}
+
+/** Download the recording from the liveLink `dlink` / `dlinkDirect`. */
+export async function fetchRecordingFromLink(url: string): Promise<CallRecording> {
+  if (!isSafeRecordingUrl(url)) throw new Error("dlink: unsafe URL");
+  const res = await fetch(url, { cache: "no-store", redirect: "follow", signal: AbortSignal.timeout(60_000) });
+  return readAudioResponse(res, "dlink");
+}
+
+/**
+ * downloadRecord (PayCall OpenAPI): POST api_v2.php method=downloadRecord, callId, from=dd/mm/yyyy
+ * of the call day, uId, out=json. 200 → binary audio; error → JSON {Response:0, Err}.
+ * Needs allow_call_records on the API user, otherwise "Service Denied".
+ */
+export async function downloadRecord(callId: string, callDay: string /* dd/mm/yyyy */): Promise<CallRecording> {
+  const uId = process.env.PAYCALL_USER_ID;
+  if (!uId) throw new Error("PAYCALL_USER_ID not configured");
+  const body = new URLSearchParams({ method: "downloadRecord", callId, from: callDay, uId, out: "json" });
+  const res = await fetch(PAYCALL_API_URL, {
+    method: "POST",
+    headers: { Authorization: authHeader(), "Content-Type": "application/x-www-form-urlencoded" },
+    body: body.toString(),
+    cache: "no-store",
+    signal: AbortSignal.timeout(60_000),
+  });
+  return readAudioResponse(res, "downloadRecord");
+}
+
+export interface AnalyticsCallInfo {
+  gclid: string | null;
+  campaign: string | null;
+  campaignParams: Record<string, string>;
+}
+
+/**
+ * getAnalyticsCalls — gclid / campaign per call id, for the daily cron (the webhook gets them
+ * inline). Same request shape as getCalls. The response is read defensively (field names are
+ * matched case-insensitively); a failure returns an empty map and never blocks the sync.
+ */
+export async function getAnalyticsCalls(params: { fromDate: Date; toDate: Date }): Promise<Map<string, AnalyticsCallInfo>> {
+  const out = new Map<string, AnalyticsCallInfo>();
+  const uId = process.env.PAYCALL_USER_ID;
+  if (!uId) return out;
+  try {
+    const body = new URLSearchParams({
+      uId,
+      action: "getAnalyticsCalls",
+      fromDate: ddmmyyyy(params.fromDate),
+      toDate: ddmmyyyy(params.toDate),
+      out: "json",
+    });
+    const res = await fetch(PAYCALL_API_URL, {
+      method: "POST",
+      headers: { Authorization: authHeader(), "Content-Type": "application/x-www-form-urlencoded" },
+      body: body.toString(),
+      cache: "no-store",
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (!res.ok) return out;
+    const data: unknown = JSON.parse(await res.text());
+    const rows = Array.isArray(data) ? data : [];
+    for (const row of rows) {
+      if (!row || typeof row !== "object") continue;
+      const info = parseAnalyticsRow(row as Record<string, unknown>);
+      if (info) out.set(info.id, info.info);
+    }
+  } catch (err) {
+    console.error("[paycall] getAnalyticsCalls failed (non-critical):", err instanceof Error ? err.message : err);
+  }
+  return out;
+}
+
+export function parseAnalyticsRow(row: Record<string, unknown>): { id: string; info: AnalyticsCallInfo } | null {
+  const lower = new Map<string, string>();
+  const campaignParams: Record<string, string> = {};
+  for (const [k, v] of Object.entries(row)) {
+    if (v === null || v === undefined || typeof v === "object") continue;
+    const s = String(v).trim();
+    if (!s) continue;
+    lower.set(k.toLowerCase(), s);
+    if (k.toLowerCase().startsWith("campaign") || k.toLowerCase().startsWith("utm_")) campaignParams[k] = s.slice(0, 200);
+  }
+  const id = lower.get("id") ?? lower.get("callid") ?? lower.get("call_id");
+  if (!id) return null;
+  return {
+    id,
+    info: {
+      gclid: lower.get("gclid")?.slice(0, 200) ?? null,
+      campaign: (lower.get("campaign") ?? lower.get("campaignname") ?? lower.get("utm_campaign") ?? Object.values(campaignParams)[0] ?? null)?.slice(0, 200) ?? null,
+      campaignParams,
+    },
+  };
+}

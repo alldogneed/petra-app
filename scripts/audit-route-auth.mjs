@@ -78,6 +78,7 @@ const PUBLIC_ROUTES = new Set([
   "webhooks/invoices",
   "webhooks/lead",
   "webhooks/whatsapp-status",
+  "webhooks/alldog-whatsapp",   // AllDog bot — HMAC X-Hub-Signature-256 (ALLDOG_WA_APP_SECRET)
 
   // ── MCP OAuth 2.1 (public by spec: PKCE / refresh-token auth, per-IP rate limits) ──
   // (oauth/authorize uses requireAuth/resolveSession — pattern-detected.)

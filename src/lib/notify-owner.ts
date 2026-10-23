@@ -465,3 +465,27 @@ export async function notifyOwnerNewUser(params: NewUserParams): Promise<void> {
     sendOwnerEmail(emailSubject, emailHtml),
   ]);
 }
+
+/**
+ * AllDog automations (src/lib/alldog*) → WhatsApp + email to Or.
+ * Used for bot handoffs and for one-off operational alerts (e.g. PayCall recording access denied).
+ * Throttling is the caller's job. Never throws. Pass only masked phones in `lines`.
+ */
+export async function notifyOwnerAllDog(p: { title: string; lines: string[]; url?: string }): Promise<void> {
+  const oneLine = (v: string) => v.replace(/[\r\n\t]+/g, " ").trim();
+  const dateLabel = formatDate();
+  const waMessage = `🐶 AllDog — ${p.title}\n${p.lines.join("\n")}${p.url ? `\n\n${p.url}` : ""}`;
+  const emailHtml = `
+    <div style="font-family: Arial, sans-serif; direction: rtl; text-align: right; max-width: 560px; margin: 0 auto;">
+      <h2 style="color: #ea580c;">🐶 ${escapeHtml(p.title)}</h2>
+      <p style="white-space:pre-wrap;">${p.lines.map(escapeHtml).join("<br/>")}</p>
+      <p style="color:#64748b;font-size:13px;">${dateLabel}</p>
+      ${p.url ? `<p><a href="${escapeHtml(p.url)}" style="color:#f97316;font-weight:bold;">← לפתיחה בפטרה</a></p>` : ""}
+    </div>`;
+  // petra_owner_alert body params: [who, contact, what, when]
+  const templateParams = ["AllDog", oneLine(p.lines[0] ?? "-").slice(0, 120) || "-", oneLine(p.title).slice(0, 120), dateLabel];
+  await Promise.allSettled([
+    sendOwnerWhatsApp(waMessage, templateParams),
+    sendOwnerEmail(`🐶 AllDog: ${oneLine(p.title)}`, emailHtml),
+  ]);
+}
