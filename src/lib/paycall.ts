@@ -380,21 +380,30 @@ export async function downloadRecord(callId: string, callDay: string /* dd/mm/yy
   return readAudioResponse(res, "downloadRecord");
 }
 
-export interface AnalyticsCallInfo {
-  gclid: string | null;
-  campaign: string | null;
-  campaignParams: Record<string, string>;
+/**
+ * getAnalyticsCalls field names are not documented yet, so nothing is mapped from it.
+ * The daily cron logs the response SHAPE once (claimOnce, 30 days): the key names of the first
+ * record only — never values. Any key containing a long digit run is masked (no phone numbers).
+ * Once a real log is seen, gclid / campaign get mapped from the actual field names.
+ */
+export function describeAnalyticsShape(data: unknown): string {
+  const safeKey = (k: string) => k.replace(/\d{5,}/g, "#####").slice(0, 40);
+  const keysOf = (o: object) => Object.keys(o).slice(0, 50).map(safeKey).join(", ");
+  if (Array.isArray(data)) {
+    const first = data[0];
+    const firstDesc = first && typeof first === "object" && !Array.isArray(first) ? `first record keys: [${keysOf(first)}]` : `first item type: ${Array.isArray(first) ? "array" : typeof first}`;
+    return `array(len=${data.length}) ${data.length ? firstDesc : ""}`.trim();
+  }
+  if (data && typeof data === "object") return `object keys: [${keysOf(data)}]`;
+  return `type: ${typeof data}`;
 }
 
-/**
- * getAnalyticsCalls — gclid / campaign per call id, for the daily cron (the webhook gets them
- * inline). Same request shape as getCalls. The response is read defensively (field names are
- * matched case-insensitively); a failure returns an empty map and never blocks the sync.
- */
-export async function getAnalyticsCalls(params: { fromDate: Date; toDate: Date }): Promise<Map<string, AnalyticsCallInfo>> {
-  const out = new Map<string, AnalyticsCallInfo>();
+/** Fetch getAnalyticsCalls once and return its shape description (null when skipped / failed). */
+export async function probeAnalyticsCallsShape(params: { fromDate: Date; toDate: Date }): Promise<string | null> {
   const uId = process.env.PAYCALL_USER_ID;
-  if (!uId) return out;
+  if (!uId) return null;
+  const { claimOnce } = await import("@/lib/rate-limit");
+  if (!(await claimOnce("paycall-analytics-shape-log", 30 * 24 * 60 * 60))) return null;
   try {
     const body = new URLSearchParams({
       uId,
@@ -410,38 +419,18 @@ export async function getAnalyticsCalls(params: { fromDate: Date; toDate: Date }
       cache: "no-store",
       signal: AbortSignal.timeout(30_000),
     });
-    if (!res.ok) return out;
-    const data: unknown = JSON.parse(await res.text());
-    const rows = Array.isArray(data) ? data : [];
-    for (const row of rows) {
-      if (!row || typeof row !== "object") continue;
-      const info = parseAnalyticsRow(row as Record<string, unknown>);
-      if (info) out.set(info.id, info.info);
+    const text = await res.text();
+    let shape: string;
+    try {
+      shape = describeAnalyticsShape(JSON.parse(text));
+    } catch {
+      shape = `non-JSON (${text.length} chars)`;
     }
+    const line = `HTTP ${res.status} ${shape}`;
+    console.log(`[paycall] getAnalyticsCalls shape (one-time): ${line}`);
+    return line;
   } catch (err) {
-    console.error("[paycall] getAnalyticsCalls failed (non-critical):", err instanceof Error ? err.message : err);
+    console.error("[paycall] getAnalyticsCalls probe failed (non-critical):", err instanceof Error ? err.message : err);
+    return null;
   }
-  return out;
-}
-
-export function parseAnalyticsRow(row: Record<string, unknown>): { id: string; info: AnalyticsCallInfo } | null {
-  const lower = new Map<string, string>();
-  const campaignParams: Record<string, string> = {};
-  for (const [k, v] of Object.entries(row)) {
-    if (v === null || v === undefined || typeof v === "object") continue;
-    const s = String(v).trim();
-    if (!s) continue;
-    lower.set(k.toLowerCase(), s);
-    if (k.toLowerCase().startsWith("campaign") || k.toLowerCase().startsWith("utm_")) campaignParams[k] = s.slice(0, 200);
-  }
-  const id = lower.get("id") ?? lower.get("callid") ?? lower.get("call_id");
-  if (!id) return null;
-  return {
-    id,
-    info: {
-      gclid: lower.get("gclid")?.slice(0, 200) ?? null,
-      campaign: (lower.get("campaign") ?? lower.get("campaignname") ?? lower.get("utm_campaign") ?? Object.values(campaignParams)[0] ?? null)?.slice(0, 200) ?? null,
-      campaignParams,
-    },
-  };
 }

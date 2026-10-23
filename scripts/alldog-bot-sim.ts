@@ -3,11 +3,8 @@
  * Talk to the bot in the terminal to check the tone. Uses the real prompt, tools,
  * reply shaping and silence rules; the tools are stubs that only print what they would do.
  *
- * Run (from the repo root):
- *   ANTHROPIC_API_KEY=sk-... TS_NODE_BASEURL=. node node_modules/.bin/ts-node --transpile-only \
- *     -r tsconfig-paths/register \
- *     --compiler-options '{"module":"CommonJS","moduleResolution":"node"}' \
- *     scripts/alldog-bot-sim.ts
+ * Run (from the repo root, ANTHROPIC_API_KEY from your env):
+ *   npm run alldog:sim
  *
  * Optional: ALLDOG_BOT_MODEL=… ; pipe a file of lines to replay a scripted conversation.
  * Commands: /reset (new conversation) · /quit

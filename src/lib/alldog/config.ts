@@ -41,9 +41,9 @@ export function isWaBotEnabled(): boolean {
 }
 
 export function botModel(): string {
-  return process.env.ALLDOG_BOT_MODEL?.trim() || "claude-opus-5-5";
+  return process.env.ALLDOG_BOT_MODEL?.trim() || "claude-sonnet-5-5";
 }
 
 export function summaryModel(): string {
-  return process.env.ALLDOG_SUMMARY_MODEL?.trim() || "claude-opus-5-5";
+  return process.env.ALLDOG_SUMMARY_MODEL?.trim() || "claude-sonnet-5-5";
 }

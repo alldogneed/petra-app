@@ -4,7 +4,7 @@ export const maxDuration = 300;
 
 import { NextRequest, NextResponse } from "next/server";
 import { verifyCronAuth } from "@/lib/cron-auth";
-import { getAnalyticsCalls, getCalls, isMissedCall, processMissedCall, MIN_SUMMARY_BILLSEC, type PaycallCall } from "@/lib/paycall";
+import { probeAnalyticsCallsShape, getCalls, isMissedCall, processMissedCall, MIN_SUMMARY_BILLSEC, type PaycallCall } from "@/lib/paycall";
 import { isCallSummariesEnabled } from "@/lib/alldog/config";
 
 /**
@@ -17,7 +17,8 @@ import { isCallSummariesEnabled } from "@/lib/alldog/config";
  * When ALLDOG_CALL_SUMMARIES_ENABLED is on, the window is 48 hours and answered calls
  * (≥ 20s talk time) the webhook missed are summarized too (src/lib/alldog/call-summary.ts),
  * within a time budget; a call seen for the second time is a final attempt (logged even
- * without a summary). gclid / campaign come from getAnalyticsCalls.
+ * without a summary). gclid / campaign are not filled here yet: getAnalyticsCalls is only probed
+ * (its key names logged once, no values) until the real field names are confirmed.
  *
  * Acts as a safety net behind the realtime webhook. Authentication via cron
  * secret (Authorization: Bearer or x-cron-secret header).
@@ -62,12 +63,13 @@ export async function GET(request: NextRequest) {
 
     // ── Answered calls (AllDog summaries) ──
     const answeredStats = { candidates: 0, logged: 0, duplicate: 0, deferred: 0, notReached: 0 };
+    let analyticsShape: string | null = null;
     if (summaries) {
+      analyticsShape = await probeAnalyticsCallsShape({ fromDate, toDate: now });
       const answered = calls.filter((c) => c.DISPOSITION === "ANSWER" && billsecOf(c) >= MIN_SUMMARY_BILLSEC && c.CALLERID);
       answeredStats.candidates = answered.length;
       if (answered.length) {
         const { processAnsweredCall } = await import("@/lib/alldog/call-summary");
-        const analytics = await getAnalyticsCalls({ fromDate, toDate: now });
         for (const call of answered) {
           if (Date.now() - startedRun > ANSWERED_BUDGET_MS) {
             answeredStats.notReached++;
@@ -75,16 +77,12 @@ export async function GET(request: NextRequest) {
           }
           try {
             const startedAt = new Date(call.START.replace(" ", "T") + "+03:00");
-            const a = analytics.get(call.ID);
             const r = await processAnsweredCall(
               {
                 callId: call.ID,
                 phone: call.CALLERID,
                 startedAt,
                 billsec: billsecOf(call),
-                gclid: a?.gclid ?? null,
-                campaign: a?.campaign ?? null,
-                campaignParams: a?.campaignParams,
               },
               // Seen by a previous daily run already → last chance, log even without a summary.
               { finalAttempt: now.getTime() - startedAt.getTime() > 22 * 60 * 60 * 1000 }
@@ -107,6 +105,7 @@ export async function GET(request: NextRequest) {
       updated,
       skipped,
       ...(summaries ? { answered: answeredStats } : {}),
+      ...(analyticsShape ? { analyticsShape } : {}),
       errors: errors.length ? errors : undefined,
       timestamp: now.toISOString(),
     });

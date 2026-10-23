@@ -71,7 +71,7 @@ jest.mock("@anthropic-ai/sdk", () => {
   };
 });
 
-import { parseLiveLinkParams, isSummarizableAnswer, isSafeRecordingUrl, parseAnalyticsRow } from "@/lib/paycall";
+import { parseLiveLinkParams, isSummarizableAnswer, isSafeRecordingUrl, describeAnalyticsShape } from "@/lib/paycall";
 import { parseCallSummary, formatAnsweredCallLog } from "@/lib/alldog/call-summary-schema";
 import { hasCallIdToken } from "@/lib/alldog/leads";
 import { processAnsweredCall, followUpFor } from "@/lib/alldog/call-summary";
@@ -121,12 +121,14 @@ describe("parseLiveLinkParams", () => {
     expect(isSummarizableAnswer({ disposition: "NOANSWER", billsec: 300 })).toBe(false);
   });
 
-  it("reads getAnalyticsCalls rows defensively", () => {
-    expect(parseAnalyticsRow({ ID: "5", GCLID: "g1", Campaign: "c1" })).toEqual({
-      id: "5",
-      info: { gclid: "g1", campaign: "c1", campaignParams: { Campaign: "c1" } },
-    });
-    expect(parseAnalyticsRow({ foo: "bar" })).toBeNull();
+  it("describes the getAnalyticsCalls shape with key names only — no values, no phone numbers", () => {
+    const d = describeAnalyticsShape([{ ID: "5", CALLERID: "0501234567", gclid: "secret-g" }, { ID: "6" }]);
+    expect(d).toBe("array(len=2) first record keys: [ID, CALLERID, gclid]");
+    expect(d).not.toContain("0501234567");
+    expect(d).not.toContain("secret-g");
+    expect(describeAnalyticsShape({ "0501234567": { a: 1 } })).toBe("object keys: [#####]");
+    expect(describeAnalyticsShape({ Response: 0, Err: "Service Denied" })).toBe("object keys: [Response, Err]");
+    expect(describeAnalyticsShape([])).toBe("array(len=0)");
   });
 });
 
