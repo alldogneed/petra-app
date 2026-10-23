@@ -16,6 +16,7 @@
 import prisma from "./prisma";
 import { scheduleLeadFollowup } from "./reminder-service";
 import { readEnv } from "@/lib/read-env";
+import { callIdLoggedOnCustomer, findCustomerForCall, logMissedCallOnCustomer } from "@/lib/paycall-customer";
 
 const PAYCALL_URL = "http://ws.callindex.co.il/api_v2.php";
 
@@ -130,14 +131,17 @@ export function normalizeIsraeliPhone(phone: string): string {
 }
 
 /**
- * Process a single missed call: find or create a Lead in the configured business,
- * then append a CallLog entry. Returns the lead id and whether it was created.
+ * Process a single missed call.
+ * - The number belongs to an existing CUSTOMER → no lead: a note + a "לחזור ללקוח" task on
+ *   the customer (src/lib/paycall-customer.ts).
+ * - Otherwise: find or create a Lead in the configured business, then append a CallLog entry.
  *
- * Idempotent on (businessId, phone, callId): if a CallLog with summary including
- * the call ID already exists for this lead, we skip.
+ * Idempotent on the call id: a CallLog (lead) or timeline note (customer) carrying
+ * `call_id:<ID>` means the call was already processed → skipped.
  */
 export async function processMissedCall(call: PaycallCall): Promise<{
-  leadId: string;
+  leadId: string | null;
+  customerId?: string;
   created: boolean;
   skipped: boolean;
 }> {
@@ -149,6 +153,21 @@ export async function processMissedCall(call: PaycallCall): Promise<{
 
   const phone = normalizeIsraeliPhone(call.CALLERID);
   const startedAt = new Date(call.START.replace(" ", "T") + "+03:00"); // Asia/Jerusalem
+
+  // A caller who is already a customer never becomes a new lead.
+  const customer = await findCustomerForCall(businessId, phone);
+  if (customer) {
+    if (await callIdLoggedOnCustomer(businessId, call.ID)) {
+      return { leadId: null, customerId: customer.id, created: false, skipped: true };
+    }
+    await logMissedCallOnCustomer(businessId, customer, {
+      callId: call.ID,
+      dateLabel: `${call.START.slice(0, 10)} ${call.START.slice(11, 16)}`,
+      disposition: call.DISPOSITION,
+      phone,
+    });
+    return { leadId: null, customerId: customer.id, created: false, skipped: false };
+  }
 
   // Find an active lead with this phone in the target business.
   // Active = not in won/lost stage. We check stage's isWon/isLost via include.

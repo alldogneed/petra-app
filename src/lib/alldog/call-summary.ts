@@ -34,6 +34,7 @@ import {
   upsertLeadFromContact,
 } from "@/lib/alldog/leads";
 import { readEnv } from "@/lib/read-env";
+import { callIdLoggedOnCustomer, findCustomerForCall, logAnsweredCallOnCustomer } from "@/lib/paycall-customer";
 
 const LOG = "[alldog-calls]";
 
@@ -52,7 +53,7 @@ export interface AnsweredCallInput {
 export type AnsweredCallResult =
   | { status: "disabled" | "in_progress" | "duplicate" }
   | { status: "retry_later"; reason: string }
-  | { status: "logged"; leadId: string; created: boolean; summarized: boolean; note?: string };
+  | { status: "logged"; leadId: string | null; customerId?: string; created: boolean; summarized: boolean; note?: string };
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -120,7 +121,11 @@ export async function processAnsweredCall(
   const businessId = allDogBusinessId();
   if (!isCallSummariesEnabled() || !businessId) return { status: "disabled" };
   if (await callIdAlreadyLogged(businessId, input.callId)) return { status: "duplicate" };
+  if (await callIdLoggedOnCustomer(businessId, input.callId)) return { status: "duplicate" };
   if (!(await claimOnce(`alldog-call:${input.callId}`, 10 * 60))) return { status: "in_progress" };
+
+  // A caller who is already a customer never becomes a new lead — the call goes on the customer.
+  const customer = await findCustomerForCall(businessId, input.phone);
 
   const p = israelParts(input.startedAt);
   const dateLabel = `${p.ymd} ${p.hhmm}`;
@@ -135,6 +140,14 @@ export async function processAnsweredCall(
 
   /** Lead + one CallLog line without a summary (no recording / denied / failure on the final attempt). */
   const logWithoutSummary = async (line: string): Promise<AnsweredCallResult> => {
+    if (customer) {
+      await logAnsweredCallOnCustomer(businessId, customer, {
+        callId: input.callId,
+        dateLabel,
+        summary: [line, campaignLine].filter(Boolean).join("\n"),
+      });
+      return { status: "logged", leadId: null, customerId: customer.id, created: false, summarized: false, note: line };
+    }
     const { leadId, created } = await upsertLeadFromContact({
       businessId,
       phone: input.phone,
@@ -198,7 +211,23 @@ export async function processAnsweredCall(
     return logWithoutSummary(`שיחה שנענתה – סיכום אוטומטי נכשל${excerpt}`);
   }
 
-  // 4. Lead (fill empty fields only) + journal + follow-up
+  const log = formatAnsweredCallLog(summary, { callId: input.callId, startedAt: input.startedAt, billsec: input.billsec, dateLabel });
+
+  // 4a. Existing customer: note with the summary (+ a task for the agreed next step) — no lead.
+  if (customer) {
+    const body = log.summary.split("\n").slice(1); // the note writes its own header line
+    await logAnsweredCallOnCustomer(businessId, customer, {
+      callId: input.callId,
+      dateLabel,
+      summary: [...body, log.treatment, campaignLine].filter(Boolean).join("\n"),
+      nextStep: summary.nextStep,
+      followUpAt: followUpFor(summary),
+    });
+    console.log(`${LOG} call ${input.callId} summarized → customer ${customer.id} (${maskPhone(input.phone)})`);
+    return { status: "logged", leadId: null, customerId: customer.id, created: false, summarized: true };
+  }
+
+  // 4b. Lead (fill empty fields only) + journal + follow-up
   const { leadId, created } = await upsertLeadFromContact({
     businessId,
     phone: input.phone,
@@ -212,7 +241,6 @@ export async function processAnsweredCall(
     attribution,
     contactedAt: input.startedAt,
   });
-  const log = formatAnsweredCallLog(summary, { callId: input.callId, startedAt: input.startedAt, billsec: input.billsec, dateLabel });
   await addLeadCallLog(leadId, [log.summary, campaignLine].filter(Boolean).join("\n"), log.treatment);
   await setLeadFollowUp(businessId, leadId, followUpFor(summary));
 

@@ -66,6 +66,25 @@ function duplicatePhoneWhere(rawPhone: string, phoneNorm: string) {
   };
 }
 
+/**
+ * Customers of this business with this phone (any spelling), most recently updated first.
+ * Same matching rule as the duplicate check on create/update. Empty for an unparseable phone.
+ */
+export async function findCustomersByPhone(
+  businessId: string,
+  db: DbClient,
+  rawPhone: string
+): Promise<Array<{ id: string; name: string }>> {
+  const norm = phoneToNorm(rawPhone);
+  if (!norm || norm.length < 9) return [];
+  return db.customer.findMany({
+    where: { businessId, ...duplicatePhoneWhere(rawPhone, norm) },
+    orderBy: { updatedAt: "desc" },
+    select: { id: true, name: true },
+    take: 5,
+  });
+}
+
 // Customers list (listCustomers, EnrichedCustomer) lives in ./customer-list.ts — re-exported here.
 export { listCustomers, type CustomerListOptions, type CustomerListResult, type EnrichedCustomer } from "./customer-list";
 
