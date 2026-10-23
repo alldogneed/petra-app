@@ -48,12 +48,14 @@ export async function GET(request: NextRequest) {
     let created = 0;
     let updated = 0;
     let skipped = 0;
+    let customer = 0; // the number belongs to an existing customer → logged there, no lead
     const errors: string[] = [];
 
     for (const call of missed) {
       try {
         const r = await processMissedCall(call);
         if (r.skipped) skipped++;
+        else if (r.customerId) customer++;
         else if (r.created) created++;
         else updated++;
       } catch (err) {
@@ -104,6 +106,7 @@ export async function GET(request: NextRequest) {
       created,
       updated,
       skipped,
+      customer,
       ...(summaries ? { answered: answeredStats } : {}),
       ...(analyticsShape ? { analyticsShape } : {}),
       errors: errors.length ? errors : undefined,

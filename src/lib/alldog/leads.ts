@@ -14,6 +14,8 @@ import { createLead, updateLead, createTask } from "@/services/clients";
 import { normalizeIsraeliPhone } from "@/lib/paycall";
 import { formatPetNotesBlock, hasPetNotesBlock, type LeadPetDetails } from "@/lib/lead-pet-notes";
 import type { LeadAttribution } from "@/lib/lead-attribution";
+import { hasCallIdToken } from "@/lib/paycall-customer";
+export { hasCallIdToken };
 import { readEnv } from "@/lib/read-env";
 
 /** Placeholder names given to auto-created leads — replaced once a real name is known. */
@@ -143,11 +145,6 @@ export async function callIdAlreadyLogged(businessId: string, callId: string): P
   return rows.some((r) => hasCallIdToken(r.summary, callId));
 }
 
-/** `call_id:12` must not match `call_id:123`. */
-export function hasCallIdToken(summary: string, callId: string): boolean {
-  const escaped = callId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`call_id:${escaped}(?![0-9A-Za-z])`).test(summary);
-}
 
 /** Next follow-up through the existing mechanism (updateLead also creates the linked LEADS task). */
 export async function setLeadFollowUp(businessId: string, leadId: string, at: Date) {

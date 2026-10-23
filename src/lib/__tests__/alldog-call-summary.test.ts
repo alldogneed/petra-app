@@ -30,6 +30,22 @@ jest.mock("@/lib/alldog/leads", () => {
     }),
   };
 });
+// Existing-customer lookup (src/lib/paycall-customer.ts) — controllable per test.
+let mockCustomer: { id: string; name: string; matches: number } | null = null;
+const mockCustomerNotes: Array<{ customerId: string; callId: string; summary: string; nextStep?: string | null }> = [];
+jest.mock("@/lib/paycall-customer", () => {
+  const actual = jest.requireActual("@/lib/paycall-customer");
+  return {
+    hasCallIdToken: actual.hasCallIdToken,
+    customerCallNote: actual.customerCallNote,
+    findCustomerForCall: jest.fn(async () => mockCustomer),
+    callIdLoggedOnCustomer: jest.fn(async (_b: string, callId: string) => mockCustomerNotes.some((n) => n.callId === callId)),
+    logAnsweredCallOnCustomer: jest.fn(async (_b: string, c: { id: string }, call: { callId: string; summary: string; nextStep?: string | null }) => {
+      mockCustomerNotes.push({ customerId: c.id, callId: call.callId, summary: call.summary, nextStep: call.nextStep });
+      return { taskCreated: !!call.nextStep };
+    }),
+  };
+});
 jest.mock("@/lib/paycall", () => {
   const actual = jest.requireActual("@/lib/paycall");
   return {
@@ -179,6 +195,8 @@ describe("processAnsweredCall", () => {
     mockLogs.length = 0;
     mockFollowUps.length = 0;
     mockClaimFree = true;
+    mockCustomer = null;
+    mockCustomerNotes.length = 0;
     process.env = {
       ...OLD_ENV,
       ALLDOG_CALL_SUMMARIES_ENABLED: "true",
@@ -201,6 +219,24 @@ describe("processAnsweredCall", () => {
     expect(mockLogs).toHaveLength(1);
     expect(mockLogs[0].summary).toContain("call_id:777");
     expect(mockFollowUps).toHaveLength(1);
+  });
+
+  it("a caller who is an existing customer gets a note with the summary — no lead", async () => {
+    mockCustomer = { id: "cust-1", name: "רונית לוי", matches: 2 };
+    const { upsertLeadFromContact } = jest.requireMock("@/lib/alldog/leads");
+    (upsertLeadFromContact as jest.Mock).mockClear();
+    const r = await processAnsweredCall(input);
+    expect(r).toEqual({ status: "logged", leadId: null, customerId: "cust-1", created: false, summarized: true });
+    expect(upsertLeadFromContact).not.toHaveBeenCalled();
+    expect(mockLogs).toHaveLength(0);
+    expect(mockCustomerNotes).toHaveLength(1);
+    expect(mockCustomerNotes[0].summary).toContain("דנה התקשרה בגלל נביחות");
+    expect(mockCustomerNotes[0].summary).toContain("הצעד הבא: אבחון בבית");
+    expect(mockCustomerNotes[0].summary).not.toContain("[paycall-answered]"); // the note adds its own header
+    expect(mockCustomerNotes[0].nextStep).toBe("אבחון בבית");
+    // Same call again → duplicate (the customer note carries the call id)
+    expect(await processAnsweredCall(input)).toEqual({ status: "duplicate" });
+    expect(mockCustomerNotes).toHaveLength(1);
   });
 
   it("skips while another run holds the call", async () => {
