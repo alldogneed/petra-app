@@ -2577,6 +2577,45 @@ model WhatsAppMessageLog {
 /// (optionally "coexistence" — the business keeps using the WhatsApp Business app on
 /// the same number). While status = "active", outbound WhatsApp for the business is
 /// sent from ITS OWN number; otherwise the platform number (META_PHONE_NUMBER_ID) is used.
+/// AllDog WhatsApp bot (src/lib/alldog-bot) — one conversation per customer phone.
+/// AllDog only (ALLDOG_BUSINESS_ID); no FK to Business/Lead on purpose. Prod DDL: prisma/alldog_wa_bot.sql
+model WaBotConversation {
+  id                String    @id @default(uuid())
+  businessId        String
+  phone             String    // E.164 digits as Meta sends them ("9725…")
+  status            String    @default("active") // active | handoff | stopped
+  leadId            String?
+  profileName       String?   // WhatsApp profile name
+  attributionSource String?   // "(הגעתי דרך: <מקור> · <עמוד>)" from the website's prefilled message
+  attributionPage   String?
+  summaryCallLogId  String?   // the lead CallLog the bot keeps updating with its summary
+  lastInboundAt     DateTime?
+  lastBotReplyAt    DateTime?
+  handoffAt         DateTime?
+  stoppedAt         DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  messages WaBotMessage[]
+
+  @@unique([businessId, phone])
+  @@index([businessId, lastInboundAt])
+}
+
+model WaBotMessage {
+  id             String   @id @default(uuid())
+  conversationId String
+  role           String   // user | assistant | human (reserved) | system
+  kind           String   @default("text") // text | media
+  text           String
+  waMessageId    String?  @unique
+  createdAt      DateTime @default(now())
+
+  conversation WaBotConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+}
+
 model WhatsAppConnection {
   id                String    @id @default(uuid())
   businessId        String    @unique

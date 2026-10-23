@@ -15,6 +15,7 @@
 
 import prisma from "./prisma";
 import { scheduleLeadFollowup } from "./reminder-service";
+import { readEnv } from "@/lib/read-env";
 
 const PAYCALL_URL = "http://ws.callindex.co.il/api_v2.php";
 
@@ -52,8 +53,8 @@ function ddmmyyyy(d: Date): string {
 }
 
 function authHeader(): string {
-  const user = process.env.PAYCALL_USERNAME;
-  const password = process.env.PAYCALL_PASSWORD;
+  const user = readEnv("PAYCALL_USERNAME");
+  const password = readEnv("PAYCALL_PASSWORD");
   if (!user || !password) {
     throw new Error("PAYCALL_USERNAME / PAYCALL_PASSWORD not configured");
   }
@@ -67,7 +68,7 @@ export async function getCalls(params: {
   fromId?: string;        // fetch calls with ID > this (for incremental sync)
   limit?: number;
 }): Promise<PaycallCall[]> {
-  const uId = process.env.PAYCALL_USER_ID;
+  const uId = readEnv("PAYCALL_USER_ID");
   if (!uId) throw new Error("PAYCALL_USER_ID not configured");
 
   const body = new URLSearchParams({
@@ -140,8 +141,8 @@ export async function processMissedCall(call: PaycallCall): Promise<{
   created: boolean;
   skipped: boolean;
 }> {
-  const businessId = process.env.PAYCALL_BUSINESS_ID;
-  const newStageId = process.env.PAYCALL_NEW_LEAD_STAGE_ID;
+  const businessId = readEnv("PAYCALL_BUSINESS_ID");
+  const newStageId = readEnv("PAYCALL_NEW_LEAD_STAGE_ID");
   if (!businessId || !newStageId) {
     throw new Error("PAYCALL_BUSINESS_ID / PAYCALL_NEW_LEAD_STAGE_ID not configured");
   }
@@ -228,4 +229,209 @@ function formatCallSummary(call: PaycallCall): string {
   const date = call.START.slice(0, 10);
   const status = call.DISPOSITION;
   return `[paycall] שיחה שלא נענתה (${status}) ב-${date} ${time} • call_id:${call.ID}`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Answered calls (AllDog call summaries — src/lib/alldog/call-summary.ts)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** HTTPS endpoint for the recording / analytics actions (same Basic auth). */
+const PAYCALL_API_URL = "https://ws.callindex.co.il/api_v2.php";
+
+/** Minimum talk time worth transcribing. */
+export const MIN_SUMMARY_BILLSEC = 20;
+
+export interface LiveLinkParams {
+  status: string | null;
+  callId: string | null;
+  disposition: string | null;
+  /** Caller phone as sent by PayCall (`Cli`). */
+  cli: string | null;
+  billsec: number | null;
+  /** dlinkDirect preferred over dlink. */
+  recordingUrl: string | null;
+  gclid: string | null;
+  campaign: string | null;
+  /** Every `campaign*` query param as sent (for the call log). */
+  campaignParams: Record<string, string>;
+}
+
+/**
+ * Parse PayCall's liveLink query (GET /api/webhooks/paycall?Status=END&Id=…&Disposition=…
+ * &Cli=…&billsec=…&dlink=…&dlinkDirect=…&Gclid=…&campaign…=…). Param names are matched
+ * case-insensitively — PayCall's casing differs between accounts.
+ */
+export function parseLiveLinkParams(sp: URLSearchParams): LiveLinkParams {
+  const lower = new Map<string, string>();
+  const campaignParams: Record<string, string> = {};
+  sp.forEach((value, key) => {
+    const k = key.toLowerCase();
+    const v = value.trim();
+    if (!lower.has(k) && v) lower.set(k, v);
+    if (k.startsWith("campaign") && v) campaignParams[key] = v.slice(0, 200);
+  });
+  const get = (...keys: string[]) => {
+    for (const k of keys) {
+      const v = lower.get(k.toLowerCase());
+      if (v) return v;
+    }
+    return null;
+  };
+  const billsecRaw = get("billsec");
+  const billsec = billsecRaw !== null && /^\d+$/.test(billsecRaw) ? Number(billsecRaw) : null;
+  const recordingUrl = get("dlinkDirect") ?? get("dlink");
+  const firstCampaign = Object.values(campaignParams)[0] ?? null;
+  return {
+    status: get("Status"),
+    callId: get("Id"),
+    disposition: get("Disposition")?.toUpperCase() ?? null,
+    cli: get("Cli", "CallerId", "CALLERID"),
+    billsec,
+    recordingUrl: recordingUrl && isSafeRecordingUrl(recordingUrl) ? recordingUrl : null,
+    gclid: get("Gclid")?.slice(0, 200) ?? null,
+    campaign: (get("campaign", "campaignName", "campaign_name") ?? firstCampaign)?.slice(0, 200) ?? null,
+    campaignParams,
+  };
+}
+
+/** ANSWER with at least MIN_SUMMARY_BILLSEC seconds of talk time. */
+export function isSummarizableAnswer(p: { disposition: string | null; billsec: number | null }): boolean {
+  return p.disposition === "ANSWER" && p.billsec !== null && p.billsec >= MIN_SUMMARY_BILLSEC;
+}
+
+/** http(s) to a public host name only — never a raw IP / localhost (SSRF guard on dlink). */
+export function isSafeRecordingUrl(raw: string): boolean {
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    return false;
+  }
+  if (u.protocol !== "https:" && u.protocol !== "http:") return false;
+  const host = u.hostname.toLowerCase();
+  if (!host.includes(".") || host === "localhost" || host.endsWith(".local") || host.endsWith(".internal")) return false;
+  if (/^[\d.]+$/.test(host) || host.includes(":") || host.startsWith("[")) return false; // IPv4 / IPv6 literal
+  return true;
+}
+
+export interface CallRecording {
+  data: ArrayBuffer;
+  contentType: string;
+}
+
+/** The API user lacks allow_call_records ("Service Denied") — never retry in a loop. */
+export class PaycallRecordingDeniedError extends Error {
+  constructor(msg: string) {
+    super(msg);
+    this.name = "PaycallRecordingDeniedError";
+  }
+}
+
+const MAX_RECORDING_BYTES = 40 * 1024 * 1024;
+
+function looksLikeJson(contentType: string, bytes: Uint8Array): boolean {
+  if (contentType.includes("json") || contentType.startsWith("text/")) return true;
+  const first = bytes.find((b) => b !== 0x20 && b !== 0x0a && b !== 0x0d && b !== 0x09);
+  return first === 0x7b; // "{"
+}
+
+async function readAudioResponse(res: Response, label: string): Promise<CallRecording> {
+  if (!res.ok) throw new Error(`${label}: HTTP ${res.status}`);
+  const contentType = (res.headers.get("content-type") ?? "").toLowerCase();
+  const data = await res.arrayBuffer();
+  const bytes = new Uint8Array(data);
+  if (bytes.byteLength === 0) throw new Error(`${label}: empty body`);
+  if (bytes.byteLength > MAX_RECORDING_BYTES) throw new Error(`${label}: recording too large (${bytes.byteLength} bytes)`);
+  if (looksLikeJson(contentType, bytes)) {
+    const text = new TextDecoder().decode(bytes.slice(0, 2000));
+    let err = text.slice(0, 200);
+    try {
+      const j = JSON.parse(text) as { Err?: string; Response?: number };
+      if (j.Err) err = j.Err;
+    } catch { /* not JSON — keep the raw prefix */ }
+    if (/service denied/i.test(err)) throw new PaycallRecordingDeniedError(err);
+    throw new Error(`${label}: ${err}`);
+  }
+  return { data, contentType: contentType || "audio/mpeg" };
+}
+
+/** Download the recording from the liveLink `dlink` / `dlinkDirect`. */
+export async function fetchRecordingFromLink(url: string): Promise<CallRecording> {
+  if (!isSafeRecordingUrl(url)) throw new Error("dlink: unsafe URL");
+  const res = await fetch(url, { cache: "no-store", redirect: "follow", signal: AbortSignal.timeout(60_000) });
+  return readAudioResponse(res, "dlink");
+}
+
+/**
+ * downloadRecord (PayCall OpenAPI): POST api_v2.php method=downloadRecord, callId, from=dd/mm/yyyy
+ * of the call day, uId, out=json. 200 → binary audio; error → JSON {Response:0, Err}.
+ * Needs allow_call_records on the API user, otherwise "Service Denied".
+ */
+export async function downloadRecord(callId: string, callDay: string /* dd/mm/yyyy */): Promise<CallRecording> {
+  const uId = readEnv("PAYCALL_USER_ID");
+  if (!uId) throw new Error("PAYCALL_USER_ID not configured");
+  const body = new URLSearchParams({ method: "downloadRecord", callId, from: callDay, uId, out: "json" });
+  const res = await fetch(PAYCALL_API_URL, {
+    method: "POST",
+    headers: { Authorization: authHeader(), "Content-Type": "application/x-www-form-urlencoded" },
+    body: body.toString(),
+    cache: "no-store",
+    signal: AbortSignal.timeout(60_000),
+  });
+  return readAudioResponse(res, "downloadRecord");
+}
+
+/**
+ * getAnalyticsCalls field names are not documented yet, so nothing is mapped from it.
+ * The daily cron logs the response SHAPE once (claimOnce, 30 days): the key names of the first
+ * record only — never values. Any key containing a long digit run is masked (no phone numbers).
+ * Once a real log is seen, gclid / campaign get mapped from the actual field names.
+ */
+export function describeAnalyticsShape(data: unknown): string {
+  const safeKey = (k: string) => k.replace(/\d{5,}/g, "#####").slice(0, 40);
+  const keysOf = (o: object) => Object.keys(o).slice(0, 50).map(safeKey).join(", ");
+  if (Array.isArray(data)) {
+    const first = data[0];
+    const firstDesc = first && typeof first === "object" && !Array.isArray(first) ? `first record keys: [${keysOf(first)}]` : `first item type: ${Array.isArray(first) ? "array" : typeof first}`;
+    return `array(len=${data.length}) ${data.length ? firstDesc : ""}`.trim();
+  }
+  if (data && typeof data === "object") return `object keys: [${keysOf(data)}]`;
+  return `type: ${typeof data}`;
+}
+
+/** Fetch getAnalyticsCalls once and return its shape description (null when skipped / failed). */
+export async function probeAnalyticsCallsShape(params: { fromDate: Date; toDate: Date }): Promise<string | null> {
+  const uId = readEnv("PAYCALL_USER_ID");
+  if (!uId) return null;
+  const { claimOnce } = await import("@/lib/rate-limit");
+  if (!(await claimOnce("paycall-analytics-shape-log", 30 * 24 * 60 * 60))) return null;
+  try {
+    const body = new URLSearchParams({
+      uId,
+      action: "getAnalyticsCalls",
+      fromDate: ddmmyyyy(params.fromDate),
+      toDate: ddmmyyyy(params.toDate),
+      out: "json",
+    });
+    const res = await fetch(PAYCALL_API_URL, {
+      method: "POST",
+      headers: { Authorization: authHeader(), "Content-Type": "application/x-www-form-urlencoded" },
+      body: body.toString(),
+      cache: "no-store",
+      signal: AbortSignal.timeout(30_000),
+    });
+    const text = await res.text();
+    let shape: string;
+    try {
+      shape = describeAnalyticsShape(JSON.parse(text));
+    } catch {
+      shape = `non-JSON (${text.length} chars)`;
+    }
+    const line = `HTTP ${res.status} ${shape}`;
+    console.log(`[paycall] getAnalyticsCalls shape (one-time): ${line}`);
+    return line;
+  } catch (err) {
+    console.error("[paycall] getAnalyticsCalls probe failed (non-critical):", err instanceof Error ? err.message : err);
+    return null;
+  }
 }

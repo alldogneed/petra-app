@@ -44,6 +44,11 @@ const ALLOWED_FREE_TEXT = {
 };
 
 
+// Not counted here: the AllDog WhatsApp bot (lib/alldog-bot/wa.ts) replies with free text from
+// AllDog's OWN Meta app/number (not sendWhatsAppMessage, not the platform number), only to a
+// customer who wrote in the last 24h — botMayReply() is checked before every message
+// (tests: src/lib/__tests__/alldog-bot.test.ts).
+
 /** Files that queue customer ScheduledMessages WITHOUT a templateChain (body only). */
 const ALLOWED_SCHEDULED_WITHOUT_CHAIN = {
   "app/api/orders/route.ts": "appointment_confirmation_log — a record of a send that already happened, never sent by the cron",

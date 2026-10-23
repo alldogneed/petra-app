@@ -1,8 +1,20 @@
 export const dynamic = "force-dynamic";
+// Answered calls are transcribed + summarized after the response (AllDog only) — needs headroom.
+export const maxDuration = 300;
 
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
-import { getCallById, isMissedCall, processMissedCall } from "@/lib/paycall";
+import {
+  getCallById,
+  isMissedCall,
+  isSummarizableAnswer,
+  parseLiveLinkParams,
+  processMissedCall,
+  type LiveLinkParams,
+} from "@/lib/paycall";
+import { runAfterResponse } from "@/lib/wait-until";
+import { isCallSummariesEnabled } from "@/lib/alldog/config";
+import { readEnv } from "@/lib/read-env";
 
 /**
  * GET /api/webhooks/paycall
@@ -15,9 +27,14 @@ import { getCallById, isMissedCall, processMissedCall } from "@/lib/paycall";
  *   Status:     "START" | "UPDATE" | "END"
  *   Id:         numeric call ID
  *   Disposition (END only): ANSWER | NOANSWER | CANCEL | BUSY | ...
+ * liveLink extras (when configured in the PayCall portal): Cli, billsec, dlink / dlinkDirect,
+ * Gclid, campaign* — used for answered calls (see src/lib/alldog/call-summary.ts).
+ *
+ * Answered calls (ANSWER, billsec ≥ 20) are summarized ONLY when ALLDOG_CALL_SUMMARIES_ENABLED
+ * is on; PayCall gets its 200 right away and the work runs after the response.
  */
 export async function GET(request: NextRequest) {
-  const expected = process.env.PAYCALL_WEBHOOK_SECRET;
+  const expected = readEnv("PAYCALL_WEBHOOK_SECRET");
   if (!expected) {
     console.error("[paycall webhook] PAYCALL_WEBHOOK_SECRET not configured");
     return NextResponse.json({ error: "Server not configured" }, { status: 503 });
@@ -33,9 +50,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const status = request.nextUrl.searchParams.get("Status");
-  const callId = request.nextUrl.searchParams.get("Id");
-  const disposition = request.nextUrl.searchParams.get("Disposition");
+  const live = parseLiveLinkParams(request.nextUrl.searchParams);
+  const status = live.status;
+  const callId = live.callId;
+  const disposition = live.disposition;
 
   // Only process END events; START is informational
   if (status !== "END") {
@@ -45,8 +63,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Missing Id" }, { status: 400 });
   }
 
-  // If disposition was passed inline and it's an answered call, short-circuit
+  // Answered call: summarized in the background for AllDog, otherwise ignored as before.
   if (disposition && disposition === "ANSWER") {
+    if (isCallSummariesEnabled() && isSummarizableAnswer(live)) {
+      await runAfterResponse(summarizeAnsweredCall(callId, live));
+      return NextResponse.json({ ok: true, queued: "answered_summary", callId });
+    }
     return NextResponse.json({ ok: true, ignored: "answered" });
   }
 
@@ -71,5 +93,40 @@ export async function GET(request: NextRequest) {
   } catch (err) {
     console.error("[paycall webhook] processMissedCall error:", err);
     return NextResponse.json({ error: "process_failed" }, { status: 500 });
+  }
+}
+
+/** Background: fill phone / start time from the API when the liveLink did not carry them, then summarize. */
+async function summarizeAnsweredCall(callId: string, live: LiveLinkParams): Promise<void> {
+  try {
+    let phone = live.cli;
+    let startedAt = new Date(Date.now() - (live.billsec ?? 0) * 1000);
+    const details = await getCallById(callId).catch(() => null);
+    if (details) {
+      phone = phone ?? details.CALLERID;
+      startedAt = new Date(details.START.replace(" ", "T") + "+03:00");
+      if (isNaN(startedAt.getTime())) startedAt = new Date(Date.now() - (live.billsec ?? 0) * 1000);
+    }
+    if (!phone) {
+      console.warn(`[paycall webhook] answered call ${callId}: no caller phone — left for the daily sync`);
+      return;
+    }
+    const { processAnsweredCall } = await import("@/lib/alldog/call-summary");
+    const result = await processAnsweredCall(
+      {
+        callId,
+        phone,
+        startedAt,
+        billsec: live.billsec,
+        recordingUrl: live.recordingUrl,
+        gclid: live.gclid,
+        campaign: live.campaign,
+        campaignParams: live.campaignParams,
+      },
+      { retryRecordingAfterMs: 20_000 }
+    );
+    console.log(`[paycall webhook] answered call ${callId}: ${result.status}`);
+  } catch (err) {
+    console.error(`[paycall webhook] answered call ${callId} failed:`, err instanceof Error ? err.message : err);
   }
 }

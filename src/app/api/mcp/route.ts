@@ -23,6 +23,7 @@ import { rateLimitAsync, claimOnce } from "@/lib/rate-limit";
 import { getOAuthOrigin } from "@/lib/mcp-oauth";
 import { runAfterResponse } from "@/lib/wait-until";
 import { syncLeadToGoogleContacts } from "@/lib/google-contacts";
+import { formatPetNotesBlock } from "@/lib/lead-pet-notes";
 import { listCustomers, getCustomer, addCustomerNote, createCustomer, createLead, updateLead, listTasks, getCustomerSalesHistory } from "@/services/clients";
 import { SALES_JOURNAL_KIND_LABELS, TASK_STATUS_LABELS, type SalesHistoryLead } from "@/lib/lead-sales-history";
 import { LOST_REASON_CODES, LEAD_SOURCES } from "@/lib/constants";
@@ -793,12 +794,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
         }
 
         // Pet details → folded into notes (CreateLeadInput has no pet fields)
-        const petBits: string[] = [];
-        if (pet_name) petBits.push(`שם: ${pet_name.trim()}`);
-        if (pet_breed) petBits.push(`גזע: ${pet_breed.trim()}`);
-        if (pet_age) petBits.push(`גיל: ${pet_age.trim()}`);
-        if (pet_notes) petBits.push(`הערות: ${pet_notes.trim()}`);
-        const petBlock = petBits.length ? `🐾 פרטי הכלב:\n${petBits.join("\n")}` : "";
+        const petBlock = formatPetNotesBlock({ name: pet_name, breed: pet_breed, age: pet_age, notes: pet_notes });
         const combinedNotes = [notes?.trim(), petBlock].filter(Boolean).join("\n\n") || null;
 
         if (dry_run) {
