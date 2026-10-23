@@ -21,6 +21,7 @@ import {
   HUMAN_QUESTION_ANSWER,
   enforceIdentityAnswer,
   identityAnswerFor,
+  mentionsHumanBite,
 } from "@/lib/alldog-bot/prompt";
 import { runBotTurn, type BotToolExecutor } from "@/lib/alldog-bot/agent";
 import { isWithinOfficeHours, nextCallbackOptions } from "@/lib/alldog/time";
@@ -78,6 +79,32 @@ describe("identity answer", () => {
     expect(ALLDOG_BOT_PROMPT).toContain(HUMAN_QUESTION_ANSWER);
     expect(ALLDOG_BOT_PROMPT).toContain(BOT_QUESTION_ANSWER);
     expect(ALLDOG_BOT_PROMPT).toContain("אף פעם אל תטען שאתה אדם");
+  });
+});
+
+describe("human bite → immediate handoff", () => {
+  it("detects a bite or attack on a person", () => {
+    for (const t of [
+      "הכלב שלי נשך את הבן שלי אתמול ביד, אני ממש בלחץ",
+      "היא נשכה את השכן",
+      "הוא תקף ילד בגינה",
+      "הילד ננשך ממנו",
+      "נשך אותי ברגל",
+    ]) expect(mentionsHumanBite(t)).toBe(true);
+  });
+
+  it("ignores 'no bites' and questions about other things", () => {
+    for (const t of [
+      "נובח בעיקר כשאנחנו יוצאים מהבית, התחיל לפני חודש. לא נשך אף אחד",
+      "בלי נשיכות, רק נביחות",
+      "הוא מושך ברצועה",
+      "כמה עולה אילוף אינטנסיבי ?",
+    ]) expect(mentionsHumanBite(t)).toBe(false);
+  });
+
+  it("the prompt forbids questions before an urgent handoff", () => {
+    expect(ALLDOG_BOT_PROMPT).toContain("בלי לשאול אף שאלה נוספת");
+    expect(ALLDOG_BOT_PROMPT).not.toContain("אחרי שאספת את המינימום");
   });
 });
 

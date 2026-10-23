@@ -28,7 +28,7 @@ import {
   waitForQuiet,
   type MetaInboundMessage,
 } from "@/lib/alldog-bot/logic";
-import { buildBotContext, enforceIdentityAnswer } from "@/lib/alldog-bot/prompt";
+import { buildBotContext, enforceIdentityAnswer, HUMAN_BITE_NOTE, mentionsHumanBite } from "@/lib/alldog-bot/prompt";
 import { runBotTurn } from "@/lib/alldog-bot/agent";
 import { createDbExecutor, flagMediaForHuman, type BotConversationRef } from "@/lib/alldog-bot/actions";
 import { markReadWithTyping, sendText } from "@/lib/alldog-bot/wa";
@@ -227,7 +227,10 @@ async function reply(item: PendingInbound): Promise<void> {
     attribution: conv.attributionSource || conv.attributionPage ? { source: conv.attributionSource, page: conv.attributionPage } : null,
     knownName,
     isFirstReply: lastAssistant < 0,
-    note: hadMedia ? "הלקוח שלח גם מדיה שאתה לא יכול לפתוח. אמור בעדינות שנציגה תראה אותה." : null,
+    note: [
+      batch.some((r) => r.kind === "text" && mentionsHumanBite(r.text)) ? HUMAN_BITE_NOTE : null,
+      hadMedia ? "הלקוח שלח גם מדיה שאתה לא יכול לפתוח. אמור בעדינות שנציגה תראה אותה." : null,
+    ].filter(Boolean).join("\n") || null,
   });
 
   const result = await runBotTurn({

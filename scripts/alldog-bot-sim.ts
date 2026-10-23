@@ -14,7 +14,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { botModel } from "@/lib/alldog/config";
 import { heDayLabel, isValidYmd, isWithinOfficeHours, israelInstant, israelParts, nextCallbackOptions } from "@/lib/alldog/time";
 import { isStopRequest, parseAttributionLine, splitReply, toChatTurns, typingDelayMs } from "@/lib/alldog-bot/logic";
-import { buildBotContext, enforceIdentityAnswer } from "@/lib/alldog-bot/prompt";
+import { buildBotContext, enforceIdentityAnswer, HUMAN_BITE_NOTE, mentionsHumanBite } from "@/lib/alldog-bot/prompt";
 import { runBotTurn, ToolError, type BotToolExecutor } from "@/lib/alldog-bot/agent";
 
 const gray = (s: string) => `\x1b[90m${s}\x1b[0m`;
@@ -73,6 +73,7 @@ async function turn(client: Anthropic, raw: string): Promise<void> {
     attribution,
     knownName,
     isFirstReply: !rows.some((r) => r.role === "assistant"),
+    note: mentionsHumanBite(text) ? HUMAN_BITE_NOTE : null,
   });
   const started = Date.now();
   const result = await runBotTurn({ client, model: botModel(), context, history: toChatTurns(rows), executor });
