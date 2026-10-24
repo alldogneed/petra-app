@@ -58,7 +58,7 @@ export function classifyInbound(m: MetaInboundMessage): InboundKind {
   }
 }
 
-export const MEDIA_REPLY = "היי , אני יודע לקרוא רק הודעות טקסט 🙂 נציגה תראה את ההודעה ותחזור אליך";
+export const MEDIA_REPLY = "היי , אני יודע לקרוא רק הודעות טקסט 🙂 נציגה תראה את ההודעה ותחזור אליכם";
 
 // ─── Attribution line from the website's prefilled message ───────────────────
 

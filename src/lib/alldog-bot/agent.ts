@@ -9,10 +9,26 @@ import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import { ALLDOG_BOT_PROMPT } from "@/lib/alldog-bot/prompt";
 import { polishReply } from "@/lib/alldog-bot/logic";
+import { lookupGuide } from "@/lib/alldog-bot/knowledge";
 
 // ─── Tools ───────────────────────────────────────────────────────────────────
 
+export const LOOKUP_GUIDE_TOOL: Anthropic.Tool = {
+  name: "lookup_guide",
+  description:
+    "חיפוש במדריכים המקצועיים של AllDog (all-dog.co.il/guides). מחזיר תובנות מקצועיות וקישור למדריך המתאים. לקרוא כשהלקוח מתאר בעיה התנהגותית או שואל שאלה מקצועית.",
+  input_schema: {
+    type: "object",
+    additionalProperties: false,
+    required: ["topic"],
+    properties: {
+      topic: { type: "string", description: "הבעיה בכמה מילים, כמו שהלקוח תיאר, למשל 'רודף אחרי חתולים' או 'נובח על אנשים שעוברים ליד הבית'" },
+    },
+  },
+};
+
 export const BOT_TOOLS: Anthropic.Tool[] = [
+  LOOKUP_GUIDE_TOOL,
   {
     name: "save_lead",
     description:
@@ -78,6 +94,9 @@ export const scheduleCallbackInput = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
 });
+export const lookupGuideInput = z.object({
+  topic: z.string().transform((s) => s.replace(/\s+/g, " ").trim().slice(0, 200)).pipe(z.string().min(2)),
+});
 export const handoffInput = z.object({
   reason: z.string().transform((s) => s.replace(/\s+/g, " ").trim().slice(0, 500)),
   urgency: z.enum(["urgent", "normal"]),
@@ -111,6 +130,12 @@ const MAX_TOOL_ROUNDS = 5;
 async function runTool(executor: BotToolExecutor, block: Anthropic.ToolUseBlock): Promise<{ content: string; isError: boolean }> {
   try {
     switch (block.name) {
+      case "lookup_guide": {
+        // Read-only and local (knowledge-data.json) — no executor needed, same in production and the simulator.
+        const p = lookupGuideInput.safeParse(block.input);
+        if (!p.success) return { content: "topic חסר", isError: true };
+        return { content: lookupGuide(p.data.topic), isError: false };
+      }
       case "save_lead": {
         const p = saveLeadInput.safeParse(block.input);
         if (!p.success) return { content: "קלט לא תקין", isError: true };
@@ -142,6 +167,9 @@ export async function runBotTurn(opts: {
   context: string;
   history: Anthropic.MessageParam[];
   executor: BotToolExecutor;
+  /** Simulator only (before/after comparison): another system prompt / tool set. */
+  systemPrompt?: string;
+  tools?: Anthropic.Tool[];
 }): Promise<BotTurnResult> {
   const messages: Anthropic.MessageParam[] = [...opts.history];
   const toolsUsed: string[] = [];
@@ -153,10 +181,10 @@ export async function runBotTurn(opts: {
       max_tokens: 4000,
       output_config: { effort: "low" },
       system: [
-        { type: "text", text: ALLDOG_BOT_PROMPT, cache_control: { type: "ephemeral" } },
+        { type: "text", text: opts.systemPrompt ?? ALLDOG_BOT_PROMPT, cache_control: { type: "ephemeral" } },
         { type: "text", text: opts.context },
       ],
-      tools: BOT_TOOLS,
+      tools: opts.tools ?? BOT_TOOLS,
       messages,
     });
 
