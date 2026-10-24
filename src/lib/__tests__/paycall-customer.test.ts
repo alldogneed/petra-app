@@ -5,7 +5,10 @@
 
 // ── In-memory stand-ins for Prisma and the customer services ──
 const mockStore = {
-  leads: [] as Array<{ id: string; phone: string; name: string }>,
+  leads: [] as Array<{
+    id: string; phone: string; name: string; stage: string; notes: string | null; customerId: string | null;
+    createdAt: Date; lastContactedAt: Date | null; nextFollowUpAt: Date | null;
+  }>,
   callLogs: [] as Array<{ leadId: string; summary: string }>,
   notes: [] as Array<{ customerId: string; description: string }>,
   tasks: [] as Array<{ id: string; title: string; priority: string; relatedEntityId: string; status: string; dueAt?: string }>,
@@ -19,14 +22,33 @@ jest.mock("@/lib/prisma", () => {
         const l = mockStore.leads.find((x) => x.phone === where.phone);
         return l ? { ...l, callLogs: mockStore.callLogs.filter((c) => c.leadId === l.id) } : null;
       }),
-      create: jest.fn(async ({ data }: { data: { phone: string; name: string } }) => {
-        const lead = { id: `lead-${mockStore.leads.length + 1}`, phone: data.phone, name: data.name };
+      findMany: jest.fn(async ({ where }: { where: { phone: { endsWith: string } } }) =>
+        mockStore.leads.filter((l) => l.phone.endsWith(where.phone.endsWith)).reverse()
+      ),
+      create: jest.fn(async ({ data }: { data: { phone: string; name: string; stage: string; notes: string } }) => {
+        const lead = {
+          id: `lead-${mockStore.leads.length + 1}`, phone: data.phone, name: data.name, stage: data.stage, notes: data.notes,
+          customerId: null, createdAt: new Date("2026-10-23T07:15:00Z"), lastContactedAt: new Date("2026-10-23T07:15:00Z"), nextFollowUpAt: null,
+        };
         mockStore.leads.push(lead);
         return lead;
       }),
-      update: jest.fn(async () => ({})),
+      update: jest.fn(async ({ where, data }: { where: { id: string }; data: { notes?: string } }) => {
+        const l = mockStore.leads.find((x) => x.id === where.id);
+        if (l && data.notes !== undefined) l.notes = data.notes;
+        return l;
+      }),
+    },
+    leadStage: {
+      findMany: jest.fn(async ({ where }: { where: { id: { in: string[] } } }) =>
+        where.id.in.filter((id) => id === "stage-won" || id === "stage-lost").map((id) => ({ id }))
+      ),
     },
     callLog: {
+      findFirst: jest.fn(async ({ where }: { where: { summary: { contains: string } } }) => {
+        const c = mockStore.callLogs.find((x) => x.summary.includes(where.summary.contains));
+        return c ? { leadId: c.leadId } : null;
+      }),
       create: jest.fn(async ({ data }: { data: { leadId: string; summary: string } }) => {
         mockStore.callLogs.push(data);
         return data;
@@ -165,5 +187,45 @@ describe("answered call on a customer", () => {
     const n = customerCallNote({ kind: "answered", callId: "5", dateLabel: "x", detail: "א".repeat(5000), matches: 3 });
     expect(n.length).toBeLessThanOrEqual(2000);
     expect(customerCallNote({ kind: "missed", callId: "6", dateLabel: "x", matches: 2 })).toContain("(המספר רשום אצל 2 לקוחות)");
+  });
+});
+
+describe("returning caller (item 24)", () => {
+  const old = (over: Partial<(typeof mockStore.leads)[number]>) => ({
+    id: "lead-old", phone: "0501112233", name: "דנה כהן", stage: "stage-new", notes: "פרטי הכלב: לולה",
+    customerId: null, createdAt: new Date("2026-01-01T08:00:00Z"), lastContactedAt: new Date("2026-01-05T08:00:00Z"), nextFollowUpAt: null,
+    ...over,
+  });
+
+  it("an active open lead keeps getting the calls", async () => {
+    mockStore.leads.push(old({ lastContactedAt: new Date("2026-10-01T08:00:00Z") }));
+    const r = await processMissedCall(call("9201", "0501112233"));
+    expect(r).toMatchObject({ leadId: "lead-old", created: false });
+    expect(mockStore.leads).toHaveLength(1);
+    // Only the counter changes — the dog details stay.
+    expect(mockStore.leads[0].notes).toContain("פרטי הכלב: לולה");
+    expect(mockStore.leads[0].notes).toContain("מספר ניסיונות: 1");
+  });
+
+  it.each([
+    ["closed (lost)", { stage: "stage-lost", lastContactedAt: new Date("2026-10-01T08:00:00Z") }],
+    ["closed (won)", { stage: "stage-won", lastContactedAt: new Date("2026-10-01T08:00:00Z") }],
+    ["no contact for > 60 days", {}],
+  ])("%s → a new lead linked to the previous one", async (_label, over) => {
+    mockStore.leads.push(old(over));
+    const r = await processMissedCall(call("9202", "0501112233"));
+    expect(r.created).toBe(true);
+    expect(r.leadId).not.toBe("lead-old");
+    const created = mockStore.leads.find((l) => l.id === r.leadId)!;
+    expect(created.name).toBe("שיחה מ-0501112233");
+    expect(created.notes).toContain("פונה חוזר – ליד קודם: https://petra-app.com/leads?lead=lead-old");
+  });
+
+  it("the same call is never logged twice, whatever lead it went to", async () => {
+    mockStore.leads.push(old({ stage: "stage-lost" }));
+    await processMissedCall(call("9203", "0501112233"));
+    const again = await processMissedCall(call("9203", "0501112233"));
+    expect(again.skipped).toBe(true);
+    expect(mockStore.leads).toHaveLength(2);
   });
 });

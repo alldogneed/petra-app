@@ -18,7 +18,7 @@ import prisma from "@/lib/prisma";
 import { maskPhone } from "@/lib/whatsapp-failure";
 import { allDogAnthropicKey, allDogBusinessId, botModel, isWaBotEnabled } from "@/lib/alldog/config";
 import { heDayLabel, israelParts } from "@/lib/alldog/time";
-import { addLeadCallLog, createLeadTask, isPlaceholderLeadName } from "@/lib/alldog/leads";
+import { addLeadCallLog, createLeadTask, findLeadByPhone, isPlaceholderLeadName } from "@/lib/alldog/leads";
 import {
   applyConversationGuards,
   botMayReply,
@@ -37,10 +37,11 @@ import {
 import { buildBotContext, enforceIdentityAnswer, enforceOpening, HUMAN_BITE_NOTE, mentionsHumanBite } from "@/lib/alldog-bot/prompt";
 import { HANDOFF_MODE_TOOLS, runBotTurn } from "@/lib/alldog-bot/agent";
 import { createDbExecutor, flagMediaForHuman, type BotConversationRef } from "@/lib/alldog-bot/actions";
+import { addressNote, addressStyleFor, applyAddressStyle, detectGender, type Gender } from "@/lib/alldog-bot/address";
 import {
   CLOSED_NOTE,
   HANDOFF_MODE_NOTE,
-  HUMAN_ON_THE_WAY,
+  humanOnTheWay,
   closingAlreadySent,
   handoffAckDue,
   handoffClosingText,
@@ -318,11 +319,17 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
   );
   if (!history.length || history[history.length - 1].role !== "user") return;
 
+  // The name of the lead this contact belongs to now: an old / closed lead does not count
+  // (a returning caller gets a new lead, named from this conversation — Or, item 24).
   let knownName: string | null = null;
-  if (conv.leadId) {
-    const lead = await prisma.lead.findFirst({ where: { id: conv.leadId, businessId: conv.businessId }, select: { name: true } });
-    if (lead && !isPlaceholderLeadName(lead.name)) knownName = lead.name;
-  }
+  const activeLead = await findLeadByPhone(conv.businessId, conv.phone).catch(() => null);
+  if (activeLead && !isPlaceholderLeadName(activeLead.name)) knownName = activeLead.name;
+  // How to address this customer (item 25): gender from their own words + name, plural only if they use it.
+  const style = addressStyleFor({
+    texts: rows.filter((r) => r.role === "user" && r.kind === "text").map((r) => r.text),
+    name: knownName ?? conv.profileName,
+  });
+  ref.gender = style.gender;
   // The closing was already sent → answer questions only, never repeat it (Or, 24/10).
   const closed = closingAlreadySent(rows);
   const now = new Date();
@@ -339,6 +346,7 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
       // Any bite reported in this conversation (not only in this batch) until the handoff happens.
       !handoffMode && rows.some((r) => r.role === "user" && r.kind === "text" && mentionsHumanBite(r.text)) ? HUMAN_BITE_NOTE : null,
       hadMedia ? "הלקוח שלח גם מדיה שאתה לא יכול לפתוח. אמור בעדינות שנציגה תראה אותה." : null,
+      addressNote(style),
     ].filter(Boolean).join("\n") || null,
   });
 
@@ -354,7 +362,7 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
 
   const latestUserText = batch.filter((r) => r.kind === "text").map((r) => r.text).pop() ?? "";
   const priorBotTexts = rows.filter((r) => r.role === "assistant").map((r) => r.text);
-  let text = applyConversationGuards(enforceIdentityAnswer(latestUserText, result.reply), priorBotTexts);
+  let text = applyAddressStyle(applyConversationGuards(enforceIdentityAnswer(latestUserText, result.reply), priorBotTexts), style);
   if (executor.closing && !closed) {
     // After schedule_callback / handoff_to_human the last message is always the fixed closing.
     text = withClosing(text, executor.closing);
@@ -368,7 +376,7 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
     if (!result.handedOff) {
       // Refusal / empty answer: a person takes over rather than the customer being ignored.
       await createDbExecutor(ref).handoff({ reason: `הבוט לא הצליח לענות (${result.stopReason ?? "ללא תשובה"})`, urgency: "normal" });
-      text = handoffClosingText();
+      text = handoffClosingText("soon", style.gender);
       afterHandoff = true;
     } else {
       return;
@@ -469,11 +477,30 @@ async function handleHandoffMessages(item: PendingInbound): Promise<void> {
       where: { id: conv.id, status: "handoff", handoffAckAt: conv.handoffAckAt },
       data: { handoffAckAt: now },
     });
-    if (ack.count > 0) await sendParts(item, conv.phone, [HUMAN_ON_THE_WAY], true);
+    if (ack.count > 0) await sendParts(item, conv.phone, [humanOnTheWay(await conversationGender(conv))], true);
     return;
   }
   // Anything else: the bot keeps helping (general questions, new details → the lead).
   await reply(item, "handoff");
+}
+
+/** The customer's gender for a fixed line sent outside reply() (item 25). */
+async function conversationGender(conv: { id: string; businessId: string; phone: string; profileName: string | null }): Promise<Gender> {
+  try {
+    const texts = (
+      await prisma.waBotMessage.findMany({
+        where: { conversationId: conv.id, role: "user", kind: "text" },
+        orderBy: { createdAt: "desc" },
+        take: 40,
+        select: { text: true },
+      })
+    ).map((m) => m.text);
+    const lead = await findLeadByPhone(conv.businessId, conv.phone).catch(() => null);
+    const name = lead && !isPlaceholderLeadName(lead.name) ? lead.name : conv.profileName;
+    return detectGender({ texts, name });
+  } catch {
+    return "unknown";
+  }
 }
 
 async function markUrgentSafe(ref: BotConversationRef, reason: string, quote: string): Promise<void> {

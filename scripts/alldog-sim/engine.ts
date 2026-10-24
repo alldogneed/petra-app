@@ -10,7 +10,9 @@
  *   - warnings: a time / slot offer or "מתי נוח", an identity line nobody asked for,
  *     a repeated closing message, more than one echo + compliment, the surname asked twice,
  *     a doubled / merged word (`warnings`);
- *   - "דחוף" when the customer says it is urgent (the lead would be marked urgent).
+ *   - "דחוף" when the customer says it is urgent (the lead would be marked urgent);
+ *   - item 25: the address style each turn (gender f/m/unknown, plural) + warnings for "רשמנו /
+ *     העברנו / אנחנו דואגים" and for "אתם / אליכם" the customer never used.
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -36,11 +38,12 @@ import {
   mentionsHumanBite,
 } from "@/lib/alldog-bot/prompt";
 import { BOT_TOOLS, HANDOFF_MODE_TOOLS, LOOKUP_GUIDE_TOOL, runBotTurn, type BotToolExecutor } from "@/lib/alldog-bot/agent";
+import { addressNote, addressStyleFor, applyAddressStyle, findAddressIssues, type AddressStyle } from "@/lib/alldog-bot/address";
 import {
   CLOSED_NOTE,
   CLOSING_MARKER,
   HANDOFF_MODE_NOTE,
-  HUMAN_ON_THE_WAY,
+  humanOnTheWay,
   callbackClosingText,
   closingAlreadySent,
   closingWhen,
@@ -98,6 +101,8 @@ export class SimConversation {
   savedAt: Partial<Record<Field, number>> = {};
   turn = 0;
   humanAckSent = false;
+  /** How the customer is addressed this turn (item 25). */
+  style: AddressStyle = { gender: "unknown", plural: false };
   /** Why the lead is urgent (null = not urgent). */
   urgent: string | null = null;
   /** Filled when the conversation closed (schedule_callback / handoff): which basics were (not) collected. */
@@ -167,14 +172,14 @@ export class SimConversation {
       scheduleCallback: async ({ note }) => {
         this.emit("tool", `schedule_callback${note ? ` ${note}` : ""} → "לחזור טלפונית" + משימה לנציגה (בלי שעה${this.urgent ? ", URGENT" : ""})`);
         this.recordBasics();
-        ex.closing = callbackClosingText(closingWhen(new Date()));
+        ex.closing = callbackClosingText(closingWhen(new Date()), this.style.gender);
         return `סומן לחזרה טלפונית. כתוב ללקוח בדיוק: "${ex.closing}"`;
       },
       handoff: async (input) => {
         this.emit("tool", `handoff_to_human ${JSON.stringify(input)} → משימה דחופה + התראה (לא נשלחות בסימולציה)`);
         this.status = "handoff";
         this.recordBasics();
-        ex.closing = handoffClosingText(closingWhen(new Date()));
+        ex.closing = handoffClosingText(closingWhen(new Date()), this.style.gender);
         return `הועבר. כתוב ללקוח בדיוק: "${ex.closing}" ואל תשאל עוד שאלות`;
       },
     };
@@ -190,6 +195,7 @@ export class SimConversation {
     this.turn = 0;
     this.humanAckSent = false;
     this.urgent = null;
+    this.style = { gender: "unknown", plural: false };
     this.basicsAtHandoff = null;
     this.warnings = [];
   }
@@ -202,6 +208,9 @@ export class SimConversation {
       const prior = this.rows.filter((r) => r.role === "assistant").map((r) => r.text);
       if (countMirrorPraise(text) && prior.some((t) => countMirrorPraise(t))) this.warn(`שיקוף + מחמאה בפעם השנייה: "${text.slice(0, 80)}"`);
       if (SURNAME_QUESTION_RE.test(text) && prior.some((t) => SURNAME_QUESTION_RE.test(t))) this.warn("שם המשפחה נשאל פעם שנייה");
+      for (const issue of findAddressIssues(text, this.style)) {
+        this.warn(`${issue.kind === "self_plural" ? "הבוט מדבר ברבים על עצמו" : "פנייה ברבים שהלקוח לא השתמש בה"}: "${issue.text}"`);
+      }
       for (const issue of findTextIssues(text)) this.warn(`${issue.kind === "duplicate_word" ? "מילה כפולה" : "מילים מחוברות"}: "${issue.text}"`);
     }
     this.emit("bot", text);
@@ -233,13 +242,21 @@ export class SimConversation {
       this.urgent = why;
       this.emit("info", `דחוף: ${why} → הליד מסומן דחוף + המשימה לנציגה URGENT`);
     }
+    const prevGender = this.style.gender;
+    this.style = addressStyleFor({
+      texts: this.rows.filter((r) => r.role === "user").map((r) => r.text),
+      name: this.knownName,
+    });
+    if (this.style.gender !== prevGender || this.turn === 1) {
+      this.emit("info", `פנייה: ${{ f: "נקבה", m: "זכר", unknown: "לא ידוע (ניטרלי)" }[this.style.gender]}${this.style.plural ? " · הלקוח מדבר ברבים" : ""}`);
+    }
     const handoffMode = this.status === "handoff";
     if (handoffMode) {
       this.emit("info", "אחרי העברה: התראה לנציגה עם הטקסט (בסימולציה לא נשלחת)");
       if (this.variant === "after" && isHumanRequest(text)) {
         if (!this.humanAckSent) {
           this.humanAckSent = true;
-          this.pushBot(HUMAN_ON_THE_WAY, text);
+          this.pushBot(humanOnTheWay(this.style.gender), text);
         }
         return;
       }
@@ -263,6 +280,7 @@ export class SimConversation {
           handoffMode ? HANDOFF_MODE_NOTE : null,
           closed ? CLOSED_NOTE : null,
           !handoffMode && this.rows.some((r) => r.role === "user" && mentionsHumanBite(r.text)) ? HUMAN_BITE_NOTE : null,
+          this.variant === "after" ? addressNote(this.style) : null,
         ]
           .filter(Boolean)
           .join("\n") || null,
@@ -286,7 +304,7 @@ export class SimConversation {
     for (const name of result.toolsUsed.filter((n) => n === "lookup_guide")) this.emit("tool", name);
     let reply = enforceIdentityAnswer(text, result.reply);
     if (this.variant === "after") {
-      reply = applyConversationGuards(reply, this.rows.filter((r) => r.role === "assistant").map((r) => r.text));
+      reply = applyAddressStyle(applyConversationGuards(reply, this.rows.filter((r) => r.role === "assistant").map((r) => r.text)), this.style);
     }
     if (this.variant === "after") {
       if (executor.closing && !closed) reply = withClosing(reply, executor.closing);

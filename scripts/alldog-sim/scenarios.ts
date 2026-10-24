@@ -45,6 +45,30 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    // Item 25: a unisex name and no gendered verbs → neutral wording all the way (closing "תחזור בטלפון").
+    id: "yuval",
+    title: "יובל (מגדר לא ידוע → ניטרלי)",
+    lines: [
+      "היי",
+      "הכלב מושך חזק ברצועה ונובח על כלבים אחרים בטיול",
+      "יובל לוי , הכלב סימבה",
+      "פתח תקווה , אם המושבות",
+      "מעורב , בן שנתיים",
+    ],
+  },
+  {
+    // Item 25: "אני מפחד" → masculine ("אליך").
+    id: "afraid-m",
+    title: "\"אני מפחד\" (זכר → אליך)",
+    lines: [
+      "שלום",
+      "הכלב התחיל לנהום כשאני מתקרב לקערה שלו , אני מפחד שהוא ינשך",
+      "עדי כהן , הכלב רקס",
+      "הוד השרון , נווה נאמן",
+      "רועה בלגי , בן 3",
+    ],
+  },
+  {
     // The website's prepared message (alldog-landing-page PR #4) + the source line.
     id: "site",
     title: "הודעה מוכנה מהאתר",

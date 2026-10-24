@@ -15,6 +15,7 @@ import {
 } from "@/lib/alldog/leads";
 import { israelYmd } from "@/lib/alldog/time";
 import { URGENT_NOTE_PREFIX } from "@/lib/alldog-bot/logic";
+import type { Gender } from "@/lib/alldog-bot/address";
 import { callbackClosingText, closingWhen, handoffClosingText } from "@/lib/alldog-bot/handoff";
 import { type BotToolExecutor, type HandoffInput, type SaveLeadInput, type ScheduleCallbackInput } from "@/lib/alldog-bot/agent";
 
@@ -29,6 +30,8 @@ export interface BotConversationRef {
   summaryCallLogId: string | null;
   attributionSource: string | null;
   attributionPage: string | null;
+  /** How to address the customer (item 25) — set per turn by inbound; drives the closing text. */
+  gender?: Gender;
 }
 
 function appUrl(): string {
@@ -146,7 +149,7 @@ export function createDbExecutor(conv: BotConversationRef): BotToolExecutor {
           dueDate: israelYmd(),
         });
       }
-      executor.closing = callbackClosingText(await closingWhenNow(conv.businessId));
+      executor.closing = callbackClosingText(await closingWhenNow(conv.businessId), conv.gender ?? "unknown");
       return `סומן לחזרה טלפונית. כתוב ללקוח בדיוק: "${executor.closing}"`;
     },
 
@@ -213,7 +216,7 @@ export function createDbExecutor(conv: BotConversationRef): BotToolExecutor {
           url: `${appUrl()}/leads?lead=${leadId}`,
         });
       }
-      executor.closing = handoffClosingText(await closingWhenNow(conv.businessId));
+      executor.closing = handoffClosingText(await closingWhenNow(conv.businessId), conv.gender ?? "unknown");
       return `הועבר. כתוב ללקוח בדיוק: "${executor.closing}" ואל תשאל עוד שאלות`;
     },
   };

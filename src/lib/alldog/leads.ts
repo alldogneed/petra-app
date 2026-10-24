@@ -4,13 +4,16 @@
  * functions behind the MCP create_lead / update_lead / create_task tools).
  * No lead logic of its own: it only decides WHICH existing call to make.
  *
- * Rules shared by the PayCall summaries and the WhatsApp bot:
- *   - one lead per phone (most recent), matched on the normalized number;
+ * Rules shared by the PayCall summaries, PayCall missed calls and the WhatsApp bot:
+ *   - one ACTIVE lead per phone, matched on the normalized number (`resolveLeadForContact`):
+ *     open stage + touched in the last 60 days (or a follow-up still ahead) → keep adding to it;
+ *   - every lead of the phone closed (won / lost) or stale > 60 days → a NEW lead with a note
+ *     "פונה חוזר – ליד קודם: <קישור>" (+ "לקוח קיים: <קישור>") — Or, item 24;
  *   - new leads land in the "ליד חדש" stage;
  *   - existing leads: only EMPTY fields are filled, filled fields are never overwritten.
  */
 import prisma from "@/lib/prisma";
-import { createLead, updateLead, createTask } from "@/services/clients";
+import { createLead, updateLead, createTask, findCustomersByPhone } from "@/services/clients";
 import { normalizeIsraeliPhone } from "@/lib/paycall";
 import { formatPetNotesBlock, hasPetNotesBlock, type LeadPetDetails } from "@/lib/lead-pet-notes";
 import type { LeadAttribution } from "@/lib/lead-attribution";
@@ -20,9 +23,41 @@ import { readEnv } from "@/lib/read-env";
 
 /** Placeholder names given to auto-created leads — replaced once a real name is known. */
 const PLACEHOLDER_NAME_RE = /^(שיחה מ-|וואטסאפ |ליד מוואטסאפ)/;
+/** Generic names a person or an import left (Or, item 24: replaced by the name the customer gave). */
+const GENERIC_NAME_RE = /^(ליד|ליד חדש|לקוח|לקוחה|לקוח חדש|ללא שם|אין שם|לא ידוע|לא צוין|פונה|פניה|פנייה|וואטסאפ|whatsapp|unknown|no name|-+|\?+)$/iu;
 
 export function isPlaceholderLeadName(name: string | null | undefined): boolean {
-  return !name || PLACEHOLDER_NAME_RE.test(name.trim());
+  const n = name?.trim() ?? "";
+  if (n.length < 2) return true;
+  if (PLACEHOLDER_NAME_RE.test(n) || GENERIC_NAME_RE.test(n)) return true;
+  return /^[\d\s+\-()]+$/.test(n); // just a phone number
+}
+
+export function appUrl(): string {
+  return (process.env.APP_URL || "https://petra-app.com").replace(/\/$/, "");
+}
+
+/** A lead with no contact for this long is "old" — a new contact opens a new lead. */
+export const STALE_LEAD_DAYS = 60;
+
+/** Open stage AND (touched in the last 60 days OR a follow-up still ahead). Pure — tested. */
+export function isActiveLead(
+  lead: { closed: boolean; lastContactedAt: Date | null; createdAt: Date; nextFollowUpAt?: Date | null },
+  now: Date = new Date()
+): boolean {
+  if (lead.closed) return false;
+  if (lead.nextFollowUpAt && lead.nextFollowUpAt.getTime() >= now.getTime()) return true;
+  const touch = Math.max(lead.createdAt.getTime(), lead.lastContactedAt?.getTime() ?? 0);
+  return now.getTime() - touch <= STALE_LEAD_DAYS * 24 * 60 * 60 * 1000;
+}
+
+/** "פונה חוזר – ליד קודם: <קישור>" (+ "לקוח קיים: <קישור>") — the note on a returning caller's new lead. */
+export function returningContactNote(previousLeadId: string | null, customerId: string | null): string | null {
+  const lines = [
+    previousLeadId ? `פונה חוזר – ליד קודם: ${appUrl()}/leads?lead=${previousLeadId}` : null,
+    customerId ? `לקוח קיים: ${appUrl()}/customers/${customerId}` : null,
+  ].filter(Boolean);
+  return lines.length ? lines.join("\n") : null;
 }
 
 /** "0501234567" — same normalization as the PayCall missed-call leads. */
@@ -30,9 +65,10 @@ export function localPhone(raw: string): string {
   return normalizeIsraeliPhone(raw);
 }
 
-export async function findLeadByPhone(businessId: string, rawPhone: string) {
+/** Every lead of this business with this phone, newest first. */
+async function findLeadsByPhone(businessId: string, rawPhone: string) {
   const target = localPhone(rawPhone);
-  if (target.length < 9) return null;
+  if (target.length < 9) return [];
   // Narrow server-side on the last 4 digits (stored formats vary: "050-1234567",
   // "+972…"), then compare the normalized number.
   const candidates = await prisma.lead.findMany({
@@ -40,7 +76,31 @@ export async function findLeadByPhone(businessId: string, rawPhone: string) {
     orderBy: { createdAt: "desc" },
     take: 50,
   });
-  return candidates.find((l) => l.phone && localPhone(l.phone) === target) ?? null;
+  return candidates.filter((l) => l.phone && localPhone(l.phone) === target);
+}
+
+/**
+ * The lead a new contact from this phone belongs to:
+ *   active   = the newest open lead touched in the last 60 days (keep adding to it), or null;
+ *   previous = when there is no active one, the newest lead of the phone (closed or stale), or null.
+ */
+export async function resolveLeadForContact(businessId: string, rawPhone: string, now: Date = new Date()) {
+  const leads = await findLeadsByPhone(businessId, rawPhone);
+  if (!leads.length) return { active: null, previous: null };
+  const stageIds = Array.from(new Set(leads.map((l) => l.stage)));
+  const closedStages = new Set(
+    (await prisma.leadStage.findMany({
+      where: { businessId, id: { in: stageIds }, OR: [{ isWon: true }, { isLost: true }] },
+      select: { id: true },
+    })).map((s) => s.id)
+  );
+  const active = leads.find((l) => isActiveLead({ ...l, closed: closedStages.has(l.stage) }, now)) ?? null;
+  return { active, previous: active ? null : leads[0] };
+}
+
+/** The ACTIVE lead for this phone (see resolveLeadForContact), or null. */
+export async function findLeadByPhone(businessId: string, rawPhone: string) {
+  return (await resolveLeadForContact(businessId, rawPhone)).active;
 }
 
 /** The business's "ליד חדש" stage (PAYCALL_NEW_LEAD_STAGE_ID wins when set; else createLead's default first stage). */
@@ -82,10 +142,15 @@ export async function upsertLeadFromContact(input: LeadContactInput): Promise<{ 
   const phone = localPhone(input.phone);
   const petBlock = input.pet ? formatPetNotesBlock(input.pet) : "";
   const realName = input.name?.trim() && input.name.trim().length >= 2 ? input.name.trim().slice(0, 100) : null;
-  const existing = await findLeadByPhone(businessId, phone);
+  const { active: existing, previous } = await resolveLeadForContact(businessId, phone);
 
   if (!existing) {
-    const notes = [input.creationNote?.trim(), petBlock].filter(Boolean).join("\n\n") || null;
+    // A returning caller (old / closed lead, or already a customer) gets a NEW lead, linked in a note.
+    const customer = previous?.customerId
+      ? { id: previous.customerId }
+      : (await findCustomersByPhone(businessId, prisma, phone).catch(() => []))[0] ?? null;
+    const returning = returningContactNote(previous?.id ?? null, customer?.id ?? null);
+    const notes = [input.creationNote?.trim(), returning, petBlock].filter(Boolean).join("\n\n") || null;
     const { lead } = await createLead(businessId, prisma, {
       name: realName ?? input.placeholderName,
       phone,
