@@ -35,6 +35,8 @@ export interface BotConversationRef {
   gender?: Gender;
   /** The transition line (item 28c) was already sent in this conversation → the closing goes without it. */
   transitionSent?: boolean;
+  /** The customer described an attack / bite → no "מעולה" in the closing (item 29c). */
+  serious?: boolean;
 }
 
 function appUrl(): string {
@@ -167,7 +169,7 @@ export function createDbExecutor(conv: BotConversationRef): BotToolExecutor {
         });
       }
       executor.closing = closingWithTransition(
-        callbackClosingText(await closingWhenNow(conv.businessId), conv.gender ?? "unknown"),
+        callbackClosingText(await closingWhenNow(conv.businessId), conv.gender ?? "unknown", { serious: conv.serious }),
         !!conv.transitionSent
       );
       return `סומן לחזרה טלפונית. כתוב ללקוח בדיוק: "${executor.closing}"`;
@@ -236,7 +238,7 @@ export function createDbExecutor(conv: BotConversationRef): BotToolExecutor {
           url: `${appUrl()}/leads?lead=${leadId}`,
         });
       }
-      const closing = handoffClosingText(await closingWhenNow(conv.businessId), conv.gender ?? "unknown");
+      const closing = handoffClosingText(await closingWhenNow(conv.businessId), conv.gender ?? "unknown", { serious: conv.serious || urgency === "urgent" });
       // An urgent (safety) handoff goes straight to the closing; a normal one explains what happens next (28c).
       executor.closing = urgency === "urgent" ? closing : closingWithTransition(closing, !!conv.transitionSent);
       return `הועבר. כתוב ללקוח בדיוק: "${executor.closing}" ואל תשאל עוד שאלות`;

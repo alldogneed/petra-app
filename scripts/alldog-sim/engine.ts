@@ -32,6 +32,14 @@ import {
   SURNAME_QUESTION_RE,
   TEL_AVIV_RE,
   toChatTurns,
+  cityAlreadyGiven,
+  dropCheerfulOpeners,
+  isSeriousIncident,
+  namePlaceNote,
+  parseNamePlace,
+  stripVocativeName,
+  voiceNameNote,
+  voiceOnlyName,
   VOICE_FAILED_REPLY,
   VOICE_FAILED_TEXT,
   voiceHistoryText,
@@ -114,6 +122,8 @@ export class SimConversation {
   status: Status = "active";
   attribution: { source: string | null; page: string | null } | null = null;
   knownName: string | null = null;
+  /** An attack / bite was described (item 29c). */
+  serious = false;
   /** Turn number at which each field was first saved. */
   savedAt: Partial<Record<Field, number>> = {};
   turn = 0;
@@ -199,14 +209,14 @@ export class SimConversation {
       scheduleCallback: async ({ note }) => {
         this.emit("tool", `schedule_callback${note ? ` ${note}` : ""} → "לחזור טלפונית" + משימה לנציגה (בלי שעה${this.urgent ? ", URGENT" : ""})`);
         this.recordBasics();
-        ex.closing = closingWithTransition(callbackClosingText(closingWhen(new Date()), this.style.gender), this.transitionSent());
+        ex.closing = closingWithTransition(callbackClosingText(closingWhen(new Date()), this.style.gender, { serious: this.serious }), this.transitionSent());
         return `סומן לחזרה טלפונית. כתוב ללקוח בדיוק: "${ex.closing}"`;
       },
       handoff: async (input) => {
         this.emit("tool", `handoff_to_human ${JSON.stringify(input)} → משימה דחופה + התראה (לא נשלחות בסימולציה)`);
         this.status = "handoff";
         this.recordBasics();
-        const closing = handoffClosingText(closingWhen(new Date()), this.style.gender);
+        const closing = handoffClosingText(closingWhen(new Date()), this.style.gender, { serious: this.serious || input.urgency === "urgent" });
         ex.closing = input.urgency === "urgent" ? closing : closingWithTransition(closing, this.transitionSent());
         return `הועבר. כתוב ללקוח בדיוק: "${ex.closing}" ואל תשאל עוד שאלות`;
       },
@@ -297,9 +307,22 @@ export class SimConversation {
       this.emit("info", `דחוף: ${why} → הליד מסומן דחוף + המשימה לנציגה URGENT`);
     }
     const prevGender = this.style.gender;
+    const userTexts = this.rows.filter((r) => r.role === "user" && r.text !== VOICE_FAILED_TEXT).map((r) => r.text);
+    const priorBot = this.rows.filter((r) => r.role === "assistant").map((r) => r.text);
+    // Item 29d: a name heard only in a voice note is not used until confirmed.
+    const voiceName = this.variant === "after"
+      ? voiceOnlyName({
+          name: this.knownName,
+          typedTexts: this.rows.filter((r) => r.role === "user" && !r.voice).map((r) => r.text),
+          voiceTexts: this.rows.filter((r) => r.role === "user" && r.voice && r.text !== VOICE_FAILED_TEXT).map((r) => r.text),
+          priorBotTexts: priorBot,
+        })
+      : null;
+    if (voiceName) this.emit("info", `השם "${voiceName}" נשמע רק בהודעה קולית → לא פונים בשם (29d)`);
+    this.serious = isSeriousIncident(userTexts);
     this.style = addressStyleFor({
-      texts: this.rows.filter((r) => r.role === "user").map((r) => r.text),
-      name: this.knownName,
+      texts: userTexts,
+      name: voiceName ? null : this.knownName,
     });
     if (this.style.gender !== prevGender || this.turn === 1) {
       this.emit("info", `פנייה: ${{ f: "נקבה", m: "זכר", unknown: "לא ידוע (ניטרלי)" }[this.style.gender]}${this.style.plural ? " · הלקוח מדבר ברבים" : ""}`);
@@ -327,10 +350,12 @@ export class SimConversation {
     let context = buildBotContext({
       nowLabel: `${heDayLabel(p.ymd)} בשעה ${p.hhmm}`,
       attribution: this.attribution,
-      knownName: this.knownName,
+      knownName: voiceName ? null : this.knownName,
       isFirstReply,
       note:
         [
+          this.variant === "after" ? namePlaceNote(text) : null,
+          voiceName ? voiceNameNote(voiceName, priorBot) : null,
           handoffMode ? HANDOFF_MODE_NOTE : null,
           closed ? CLOSED_NOTE : null,
           !handoffMode && this.rows.some((r) => r.role === "user" && mentionsHumanBite(r.text)) ? HUMAN_BITE_NOTE : null,
@@ -365,8 +390,14 @@ export class SimConversation {
       const prior = this.rows.filter((r) => r.role === "assistant").map((r) => r.text);
       if (/מחוץ\s+ל(?:ה)?אזור|לא\s+ברשימה/u.test(reply)) this.warn(`המודל כתב "מחוץ לאזור" / "לא ברשימה" (הוחלף, 28b): "${reply.slice(0, 80)}"`);
       reply = fixOutOfAreaLines(applyAddressStyle(applyConversationGuards(reply, prior, {
-        userTexts: this.rows.filter((r) => r.role === "user" && r.text !== VOICE_FAILED_TEXT).map((r) => r.text),
+        userTexts,
+        known: {
+          city: cityAlreadyGiven(this.rows),
+          dogName: userTexts.some((t) => !!parseNamePlace(t)),
+        },
       }), this.style), this.style.gender, prior);
+      reply = stripVocativeName(reply, voiceName);
+      if (this.serious) reply = dropCheerfulOpeners(reply);
     }
     if (this.variant === "after") {
       if (executor.closing && !closed) reply = withClosing(reply, executor.closing);
@@ -379,6 +410,6 @@ export class SimConversation {
       this.emit("info", `אין תשובה (${result.stopReason ?? "?"}) — בפרודקשן: העברה לנציג`);
       return;
     }
-    for (const part of splitReply(reply, 2)) this.pushBot(part, text);
+    for (const part of splitReply(reply, executor.closing && !closed ? 3 : 2)) this.pushBot(part, text);
   }
 }

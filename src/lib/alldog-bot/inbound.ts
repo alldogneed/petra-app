@@ -25,6 +25,14 @@ import {
   classifyInbound,
   cleanTranscript,
   customerWords,
+  cityAlreadyGiven,
+  dropCheerfulOpeners,
+  isSeriousIncident,
+  namePlaceNote,
+  parseNamePlace,
+  stripVocativeName,
+  voiceNameNote,
+  voiceOnlyName,
   isVoiceFailed,
   isWithin24hWindow,
   isStopRequest,
@@ -366,6 +374,16 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
   let knownName: string | null = null;
   const activeLead = await findLeadByPhone(conv.businessId, conv.phone).catch(() => null);
   if (activeLead && !isPlaceholderLeadName(activeLead.name)) knownName = activeLead.name;
+  const priorBotTexts = rows.filter((r) => r.role === "assistant").map((r) => r.text);
+  // A name heard only in a voice note is not used to address the customer until confirmed (item 29d).
+  const voiceName = voiceOnlyName({
+    name: knownName,
+    typedTexts: rows.filter((r) => r.role === "user" && r.kind === "text").map((r) => r.text),
+    voiceTexts: rows.filter((r) => r.role === "user" && r.kind === "voice").map(customerWords).filter((t): t is string => !!t),
+    profileName: conv.profileName,
+    priorBotTexts,
+  });
+  if (voiceName) knownName = null;
   // How to address this customer (item 25): gender from their own words + name, plural only if they use it.
   const style = addressStyleFor({
     texts: userWords,
@@ -373,6 +391,14 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
   });
   ref.gender = style.gender;
   ref.transitionSent = rows.some((r) => r.role === "assistant" && r.text.includes(TRANSITION_MARKER));
+  // An attack / bite was described → no "מעולה" in the closing (item 29c).
+  ref.serious = isSeriousIncident(userWords);
+  // "באלו מקרני שומרון" = a name + the city; never asked again (item 29b).
+  const namePlace = batchWords.map(namePlaceNote).find(Boolean) ?? null;
+  const known = {
+    city: cityAlreadyGiven(rows.map((r) => ({ role: r.role, text: customerWords(r) ?? r.text }))),
+    dogName: batchWords.some((t) => !!parseNamePlace(t)) || userWords.some((t) => !!parseNamePlace(t)),
+  };
   // The closing was already sent → answer questions only, never repeat it (Or, 24/10).
   const closed = closingAlreadySent(rows);
   const now = new Date();
@@ -392,6 +418,8 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
       hadFailedVoice
         ? `הלקוח שלח גם הודעה קולית שלא הצלחת לשמוע. בקש בעדינות שיכתוב בקצרה מה אמר בה ("${VOICE_FAILED_REPLY}"), בלי להזכיר נציגה.`
         : null,
+      namePlace,
+      voiceName ? voiceNameNote(voiceName, priorBotTexts) : null,
       addressNote(style),
     ].filter(Boolean).join("\n") || null,
   });
@@ -407,10 +435,12 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
   });
 
   const latestUserText = batchWords[batchWords.length - 1] ?? "";
-  const priorBotTexts = rows.filter((r) => r.role === "assistant").map((r) => r.text);
   let text = applyAddressStyle(applyConversationGuards(enforceIdentityAnswer(latestUserText, result.reply), priorBotTexts, {
     userTexts: userWords,
+    known,
   }), style);
+  text = stripVocativeName(text, voiceName);
+  if (ref.serious) text = dropCheerfulOpeners(text);
   // Never "מחוץ לאזור" / "לא ברשימה" — Or's optimistic line instead (item 28b).
   text = fixOutOfAreaLines(text, style.gender, priorBotTexts);
   if (executor.closing && !closed) {
@@ -431,7 +461,7 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
     if (!result.handedOff) {
       // Refusal / empty answer: a person takes over rather than the customer being ignored.
       await createDbExecutor(ref).handoff({ reason: `הבוט לא הצליח לענות (${result.stopReason ?? "ללא תשובה"})`, urgency: "normal" });
-      text = handoffClosingText("soon", style.gender);
+      text = handoffClosingText("soon", style.gender, { serious: ref.serious });
       afterHandoff = true;
     } else {
       return;
@@ -440,7 +470,8 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
 
   // A newer message arrived while the model was thinking → its own run will answer.
   if ((await latestInboundId(conv.id)) !== item.waMessageId) return;
-  await sendParts(item, conv.phone, splitReply(text, 2), afterHandoff);
+  // Closing turn: the bot's answer (+ guide link), the transition and the closing = up to 3 short messages (29c).
+  await sendParts(item, conv.phone, splitReply(text, executor.closing && !closed ? 3 : 2), afterHandoff);
   // The conversation just ended (closing / handoff) → one summary in the lead journal (item 27i).
   if ((executor.closing && !closed) || (afterHandoff && !handoffMode)) await summarizeBotConversation(conv.id);
 }

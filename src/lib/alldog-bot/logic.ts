@@ -401,6 +401,8 @@ export function isFillerLine(line: string): boolean {
 export interface GuardContext {
   /** The customer's messages so far (for prices / Tel Aviv). */
   userTexts?: string[];
+  /** What the customer already gave — those questions are not asked again (29b). */
+  known?: KnownFacts;
 }
 
 /**
@@ -414,6 +416,137 @@ export interface GuardContext {
  *        first reply;
  *   27f. no stand-alone filler line ("אחלה, פתח תקווה באזור שלנו 🙂") next to a real line.
  */
+// ─── Item 29 (Or's test 24/10 16:13) ─────────────────────────────────────────
+
+const NAME_PRAISE_WORDS =
+  "(?:מקסים|יפה|יפהפה|מתוק|מהמם|חמוד|מושלם|חזק|מגניב|מיוחד|מעולה|נהדר|אדיר|מדהים|קלאסי|טוב|מצוין|מצויין|מקורי|מצחיק|שווה)";
+const NAME_PRAISE_PARTS = [
+  // "באלו , שם חזק !" / "באלו, איזה שם חזק 🙂" at the start of a line
+  new RegExp(`^[^,.!?\\s]{1,15}(?:\\s+[^,.!?\\s]{1,15})?\\s*,\\s*(?:איזה\\s+)?שם\\s+${NAME_PRAISE_WORDS}(?:\\s+(?:יש\\s+(?:לו|לה)|לכלב|לכלבה))?\\s*[!.]*\\s*(?:🙂|🐶|🐾|😍|💪)?\\s*`, "u"),
+  // "שם חזק !" / "איזה שם מקסים" anywhere
+  new RegExp(`(?:^|[,.!]\\s*|\\s)(?:איזה\\s+)?שם\\s+${NAME_PRAISE_WORDS}(?:\\s+(?:יש\\s+(?:לו|לה)|לכלב|לכלבה))?\\s*[!.]*\\s*(?:🙂|🐶|🐾|😍|💪)?\\s*`, "gu"),
+];
+
+/** Removes a compliment on the dog's name (Or, item 29e). Pure — tested. */
+export function stripNamePraise(line: string): string {
+  let out = line;
+  for (const re of NAME_PRAISE_PARTS) out = out.replace(re, (m) => (/^[,.!]/.test(m) ? " " : m.startsWith(" ") ? " " : ""));
+  out = out.replace(/\s{2,}/g, " ").replace(/^\s*[,.]\s*/, "").trim();
+  // "ובאיזו עיר ?" left after "באלו , שם חזק !" → "באיזו עיר ?"
+  return out !== line.trim() ? out.replace(/^ו(?=(?:באיזו|באיזה|איך|איזה|איזו|מה|בן|בת|כמה|ממתי|מתי)(?![\p{L}]))/u, "") : out;
+}
+
+export interface KnownFacts {
+  city?: boolean;
+  dogName?: boolean;
+}
+
+/** A question about something the customer already gave → dropped / trimmed (29b). Pure — tested. */
+export function dropKnownQuestion(line: string, known: KnownFacts): string {
+  let out = line;
+  if (known.city && /\?/.test(out) && /(?:באיזו|איזו)\s+עיר|באיזה\s+אזור|איפה\s+(?:את|אתה|אתם)\s+(?:גר|גרה|גרים)|מאיפה\s+(?:את|אתה|אתם)/u.test(out)) return "";
+  if (known.dogName) {
+    // "…, ואיך קוראים לכלב ?" → keep the rest; a line asking only the dog's name → dropped.
+    out = out.replace(/\s*,?\s*ו?איך\s+קוראים\s+ל(?:ה)?כלב(?:ה)?\s*\?/u, " ?").replace(/\s+\?/g, " ?");
+    if (/^\s*(?:ו)?(?:איך\s+קוראים\s+ל(?:ה)?כלב(?:ה)?|מה\s+(?:ה)?שם\s+(?:של\s+)?(?:ה)?כלב(?:ה)?)\s*\?\s*$/u.test(out)) return "";
+  }
+  return out.trim() === "?" ? "" : out;
+}
+
+const NOT_A_NAME = new Set(["אני", "אנחנו", "גר", "גרה", "גרים", "הוא", "היא", "כלב", "כלבה", "זה", "יש", "לא", "כן", "רק", "שלום", "היי"]);
+
+/**
+ * A short answer "<שם> מ<מקום>" ("באלו מקרני שומרון") = a name + the city (29b). Pure — tested.
+ * Returns null when the text is anything else.
+ */
+export function parseNamePlace(text: string): { name: string; place: string } | null {
+  const m = text.trim().match(/^([\p{L}'׳"״-]{2,15})\s+מ([\p{L}'׳"״-]{2,}(?:\s+[\p{L}'׳"״-]{2,}){0,2})\s*[.!🙂🐶🐾]*\s*$/u);
+  if (!m || NOT_A_NAME.has(m[1])) return null;
+  return { name: m[1], place: m[2].trim() };
+}
+
+/** The customer already said the city: answered a city question, or "<שם> מ<עיר>" (29b). Pure — tested. */
+export function cityAlreadyGiven(rows: Array<{ role: string; text: string }>): boolean {
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    if (r.role === "user" && parseNamePlace(r.text)) return true;
+    if ((r.role === "assistant" || r.role === "bot") && /(?:באיזו|איזו)\s+עיר/u.test(r.text)) {
+      const next = rows.slice(i + 1).find((x) => x.role === "user");
+      if (next && next.text.trim().length >= 2) return true;
+    }
+  }
+  return false;
+}
+
+/** Context note for "באלו מקרני שומרון" (29b). */
+export function namePlaceNote(text: string): string | null {
+  const p = parseNamePlace(text);
+  if (!p) return null;
+  return `הלקוח ענה "${text.trim()}": "${p.name}" הוא השם (שם הכלב, אם שם הבעלים כבר ידוע או לא נאמר) והעיר היא "${p.place}". שמור ב-save_lead (dog_name / city) ואל תשאל שוב לא את השם ולא את העיר.`;
+}
+
+/** An attack / bite in what the customer said → no "מעולה" in the closing (29c). */
+const SERIOUS_RE = /(?:תוקף|תוקפת|תקף|תקפה|מתקיף|מתקיפה|נשך|נשכה|נושך|נושכת|נשיכה|נשיכות|תקיפה|מתנפל|מתנפלת|פצע|פציעה|דימם|תפרים)/u;
+export function isSeriousIncident(texts: string[]): boolean {
+  return texts.some((t) => SERIOUS_RE.test(t));
+}
+
+/** "מעולה ," / "אחלה ," / "יופי ," at the start of a line — dropped after an attack / bite (29c). */
+export function dropCheerfulOpeners(text: string): string {
+  return text
+    .split("\n")
+    .map((l) => l.replace(/^(\s*)(?:מעולה|אחלה|יופי|סבבה|מצוין|נהדר)\s*[,!.]?\s*(?:🙂|🙏)?\s*/u, "$1"))
+    .join("\n");
+}
+
+/** Item 29d: "רק לוודא, השם הוא אור?" — the one confirmation of a name heard only in a voice note. */
+export const NAME_CONFIRM_PREFIX = "רק לוודא, השם הוא ";
+
+/**
+ * The name the bot knows came only from a voice note (not typed, not the WhatsApp profile) and was
+ * not confirmed → the first name to keep out of the address; null = the name may be used. Pure — tested.
+ */
+export function voiceOnlyName(opts: {
+  name: string | null;
+  typedTexts: string[];
+  voiceTexts: string[];
+  profileName?: string | null;
+  priorBotTexts: string[];
+}): string | null {
+  const first = (opts.name ?? "").trim().split(/\s+/)[0];
+  if (!first || first.length < 2) return null;
+  const has = (t: string | null | undefined) => !!t && new RegExp(`(?:^|[^\\p{L}])${first.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}])`, "u").test(t);
+  if (opts.typedTexts.some(has) || has(opts.profileName)) return null;
+  if (!opts.voiceTexts.some(has)) return null;
+  const asked = opts.priorBotTexts.some((t) => t.includes(`${NAME_CONFIRM_PREFIX}${first}`));
+  if (asked && opts.typedTexts.some((t) => /^(?:כן|נכון|בדיוק|כ+ן|יס|yes)(?![\p{L}])/iu.test(t.trim()))) return null;
+  return first;
+}
+
+/** Context note for a name heard only in a voice note (29d). */
+export function voiceNameNote(first: string, priorBotTexts: string[]): string {
+  const asked = priorBotTexts.some((t) => t.includes(NAME_CONFIRM_PREFIX));
+  return asked
+    ? `השם "${first}" נשמע רק בהודעה קולית ועוד לא אושר: לא פונים אל הלקוח בשם.`
+    : `השם "${first}" נשמע רק בהודעה קולית (התמלול יכול לטעות): לא פונים אל הלקוח בשם. אם צריך, מאשרים פעם אחת בלבד: "${NAME_CONFIRM_PREFIX}${first}?"`;
+}
+
+/** "<שם> ," / ", <שם> ?" as an address → removed (29d); the confirmation question stays. Pure — tested. */
+export function stripVocativeName(text: string, first: string | null): string {
+  if (!first) return text;
+  const n = first.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return text
+    .split("\n")
+    .map((l) =>
+      l.includes(NAME_CONFIRM_PREFIX)
+        ? l
+        : l
+            .replace(new RegExp(`^(\\s*)(?:היי\\s+|שלום\\s+)?${n}\\s*,\\s*`, "u"), "$1")
+            .replace(new RegExp(`\\s*,\\s*${n}(?=\\s*(?:[?!.🙂🙏]|$))`, "gu"), "")
+    )
+    .join("\n");
+}
+
 export function applyConversationGuards(reply: string, priorBotTexts: string[], ctx: GuardContext = {}): string {
   const userTexts = ctx.userTexts ?? [];
   let praiseLeft = Math.max(0, 1 - priorBotTexts.reduce((n, t) => n + countMirrorPraise(t), 0));
@@ -426,7 +559,13 @@ export function applyConversationGuards(reply: string, priorBotTexts: string[], 
   const lines = removeInventedFamiliarity(reply).split("\n").map((raw) => {
     let line = raw.trim();
     if (!line) return raw;
+    // 29e. never a compliment on the dog's name ("באלו , שם חזק").
+    line = stripNamePraise(line);
+    if (!line) return null;
     line = fixCityQuestion(line, telAviv);
+    // 29b. never ask again what the customer already said.
+    line = dropKnownQuestion(line, ctx.known ?? {});
+    if (!line) return null;
     // a. a line the bot already sent in this conversation is not sent again.
     const n = normLine(line);
     if (n.length >= 6 && sent.has(n)) return null;
