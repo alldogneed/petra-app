@@ -28,7 +28,6 @@ import {
   HANDOFF_ACK_COOLDOWN_MS,
   autoResumeAt,
   handoffAckDue,
-  handoffAckText,
   handoffNoteText,
   isResetCommand,
   shouldAutoResume,
@@ -36,8 +35,7 @@ import {
 import { getBotConversationForLead, resumeBot, sendRepMessage } from "@/lib/alldog-bot/rep";
 import { ServiceError } from "@/services/types";
 
-// Israel is UTC+3 in this period (IDT until 2026-10-25).
-const il = (ymd: string, hhmm: string) => new Date(`${ymd}T${hhmm}:00+03:00`);
+
 const H = 60 * 60 * 1000;
 
 describe("#reset", () => {
@@ -47,25 +45,6 @@ describe("#reset", () => {
     expect(isResetCommand("#reset", "972542560963")).toBe(false);
     expect(isResetCommand("#reset please", "972542560964")).toBe(false);
     expect(isResetCommand("reset", "972542560964")).toBe(false);
-  });
-});
-
-describe("handoffAckText", () => {
-  it("inside office hours → today", () => {
-    expect(handoffAckText(il("2026-10-20", "11:00"))).toBe("קיבלנו 🙂 נציגה מהצוות חוזרת אליכם היום"); // Tuesday
-  });
-  it("evening → tomorrow morning", () => {
-    expect(handoffAckText(il("2026-10-20", "19:30"))).toBe("קיבלנו 🙂 נציגה מהצוות חוזרת אליכם מחר בבוקר");
-  });
-  it("early morning → this morning", () => {
-    expect(handoffAckText(il("2026-10-20", "06:30"))).toBe("קיבלנו 🙂 נציגה מהצוות חוזרת אליכם היום בבוקר");
-  });
-  it("Friday afternoon / Saturday → Sunday morning, not 'tomorrow'", () => {
-    expect(handoffAckText(il("2026-10-23", "15:00"))).toBe("קיבלנו 🙂 נציגה מהצוות חוזרת אליכם ביום ראשון בבוקר");
-    expect(handoffAckText(il("2026-10-24", "12:00"))).toBe("קיבלנו 🙂 נציגה מהצוות חוזרת אליכם מחר בבוקר");
-  });
-  it("last half hour of the day counts as after hours", () => {
-    expect(handoffAckText(il("2026-10-20", "16:45"))).toContain("מחר בבוקר");
   });
 });
 
@@ -166,42 +145,87 @@ describe("rep.ts", () => {
 // ─── Or's fixes from the 24/10 test (item 15) ─────────────────────────────────
 import {
   HUMAN_ON_THE_WAY,
+  CLOSED_NOTE,
+  WHO_CALLS_BACK,
   callbackClosingText,
-  callbackWhen,
+  closingAlreadySent,
+  closingText,
+  closingWhen,
   handoffClosingText,
   isHumanRequest,
   repIsActive,
   withClosing,
 } from "@/lib/alldog-bot/handoff";
 import {
+  ALLDOG_BOT_PROMPT,
+  NAME_AND_DOG_QUESTION,
   OPENING_GREETING,
   OPENING_LINE,
+  buildBotContext,
   POLITE_OPENING,
   SAFETY_GREETING,
   enforceOpening,
   isGenericFirstMessage,
   stripTemplatePlaceholders,
 } from "@/lib/alldog-bot/prompt";
-import { HANDOFF_MODE_TOOLS } from "@/lib/alldog-bot/agent";
+import { BOT_TOOLS, HANDOFF_MODE_TOOLS, scheduleCallbackInput } from "@/lib/alldog-bot/agent";
+import { parseAttributionLine } from "@/lib/alldog-bot/logic";
 
-describe("closing message (c)", () => {
-  it("handoff: urgent → the trainer, normal → a rep, with the office-hours day", () => {
-    expect(handoffClosingText("urgent", il("2026-10-20", "11:00"))).toBe(
-      "מעולה, קיבלנו הכל 🙏 המאלף שלנו יחזור אליכם היום. אם יש עוד משהו בינתיים, אפשר לכתוב פה"
-    );
-    expect(handoffClosingText("normal", il("2026-10-20", "20:00"))).toContain("נציגה מהצוות תחזור אליכם מחר בבוקר");
-    expect(callbackWhen(il("2026-10-23", "15:00"))).toBe("ביום ראשון בבוקר");
+describe("closing message (Or, 24/10 11:53: phone call, no time, no trainer, no price)", () => {
+  const closing =
+    "מעולה, קיבלנו הכל 🙏 נציגת AllDog תחזור אליכם טלפונית בהקדם, תיתן את כל הפרטים, תתאים לכם את המסלול הנכון ותגיד איזה מאלף יגיע אליכם. אם יש עוד משהו בינתיים, אפשר לכתוב פה";
+  const il = (ymd: string, hhmm: string) => new Date(`${ymd}T${hhmm}:00+03:00`);
+  it("handoff and callback close with the same line, without a time", () => {
+    expect(handoffClosingText()).toBe(closing);
+    expect(callbackClosingText()).toBe(closing);
+    expect(closing).not.toMatch(/היום|מחר|בבוקר|\d{1,2}:\d{2}|₪/);
   });
-  it("callback: the booked day and time", () => {
-    expect(callbackClosingText("יום רביעי 29/10", "10:00")).toBe(
-      "מעולה, קיבלנו הכל 🙏 נציגת AllDog תחזור אליכם ביום רביעי 29/10 ב-10:00. אם יש עוד משהו בינתיים, אפשר לכתוב פה"
-    );
+  it("Shabbat / holiday → 'אחרי השבת' / 'אחרי החג'", () => {
+    expect(closingText("after_shabbat")).toContain("תחזור אליכם טלפונית אחרי השבת,");
+    expect(closingText("after_holiday")).toContain("תחזור אליכם טלפונית אחרי החג,");
+    expect(closingWhen(il("2026-10-23", "13:59"))).toBe("soon"); // Friday before 14:00
+    expect(closingWhen(il("2026-10-23", "14:00"))).toBe("after_shabbat");
+    expect(closingWhen(il("2026-10-24", "11:00"))).toBe("after_shabbat"); // Saturday
+    expect(closingWhen(il("2026-10-25", "09:30"))).toBe("soon"); // Sunday
+    const tue = il("2026-10-20", "11:00");
+    const block = (reason: string | null) => [{ startAt: new Date(tue.getTime() - 3600e3), endAt: new Date(tue.getTime() + 3600e3), reason }];
+    expect(closingWhen(tue, block("חג סוכות"))).toBe("after_holiday");
+    expect(closingWhen(tue, block("חופשה"))).toBe("soon");
   });
   it("withClosing drops the model's own callback promise / questions, keeps the rest", () => {
-    const closing = handoffClosingText("urgent", il("2026-10-20", "11:00"));
-    expect(withClosing("זה באמת לא פשוט , שמחים שפניתם\nנציגה תחזור אליכם בהקדם", closing)).toBe(`זה באמת לא פשוט , שמחים שפניתם\n\n${closing}`);
+    expect(withClosing("זה באמת לא פשוט , שמחים שפניתם\nנציגה תחזור אליכם מחר בבוקר", closing)).toBe(`זה באמת לא פשוט , שמחים שפניתם\n\n${closing}`);
     expect(withClosing("מתי נוח לכם ?", closing)).toBe(closing);
     expect(withClosing(closing, closing)).toBe(closing);
+  });
+  it("the closing is never repeated: closingAlreadySent + CLOSED_NOTE", () => {
+    expect(closingAlreadySent([{ role: "assistant", text: closing }])).toBe(true);
+    expect(closingAlreadySent([{ role: "user", text: "קיבלנו הכל" }])).toBe(false);
+    expect(CLOSED_NOTE).toContain("בלי לחזור על הודעת הסגירה");
+    expect(CLOSED_NOTE).toContain(WHO_CALLS_BACK);
+    expect(WHO_CALLS_BACK).toBe("אחת הנציגות מהמשרד שלנו, והיא גם תתאם איתכם את המאלף שיגיע 🙂");
+  });
+});
+
+describe("no scheduling at all (Or, 24/10 11:53)", () => {
+  it("schedule_callback takes no date / time (a date is an input error)", () => {
+    const tool = BOT_TOOLS.find((t) => t.name === "schedule_callback")!;
+    expect(Object.keys((tool.input_schema as { properties: object }).properties)).toEqual(["note"]);
+    expect(scheduleCallbackInput.safeParse({}).success).toBe(true);
+    expect(scheduleCallbackInput.safeParse({ date: "2026-10-26", time: "10:00" }).success).toBe(false);
+  });
+  it("the prompt forbids offering times and 'מתי נוח', and has no slot list", () => {
+    expect(ALLDOG_BOT_PROMPT).toContain('אסור להציע שעות, ימים או חלונות זמן, ואסור לשאול "מתי נוח לכם"');
+    expect(ALLDOG_BOT_PROMPT).not.toContain("מציעים 2–3");
+    expect(buildBotContext({ nowLabel: "x", isFirstReply: true })).not.toMatch(/זמנים פנויים/);
+  });
+  it("fixed order: name + dog → area → the rest", () => {
+    expect(NAME_AND_DOG_QUESTION).toBe("נעים מאוד 🙂 איך קוראים לך (שם מלא), ואיך קוראים לכלב?");
+    const i1 = ALLDOG_BOT_PROMPT.indexOf("1. שם מלא של הבעלים + שם הכלב");
+    const i2 = ALLDOG_BOT_PROMPT.indexOf("2. אזור: עיר + שכונה");
+    const i3 = ALLDOG_BOT_PROMPT.indexOf("3. כל השאר: גזע וגיל");
+    expect(i1).toBeGreaterThan(0);
+    expect(i2).toBeGreaterThan(i1);
+    expect(i3).toBeGreaterThan(i2);
   });
 });
 
@@ -246,5 +270,46 @@ describe("first message from the website (e)", () => {
     const out = enforceOpening(true, "הכלב נשך את הילד שלי", "אוי , זה רציני");
     expect(out).toBe(`${SAFETY_GREETING}\n\nאוי , זה רציני`);
     expect(out).not.toContain("מה קורה");
+  });
+});
+
+describe("the website's prepared messages (alldog-landing-page PR #4, NEXT_PUBLIC_WA_BOT_ENABLED=1)", () => {
+  const src = " (הגעתי דרך: חיפוש אורגני · עמוד הבית)";
+  it("the source line is parsed out (saved on the lead), the bot never sees it", () => {
+    const p = parseAttributionLine(`היי AllDog, אשמח לעזרה עם הכלב שלי 🐶${src}`);
+    expect(p).toEqual({ source: "חיפוש אורגני", page: "עמוד הבית", text: "היי AllDog, אשמח לעזרה עם הכלב שלי 🐶" });
+  });
+  it("default text → POLITE_OPENING", () => {
+    const t = parseAttributionLine(`היי AllDog, אשמח לעזרה עם הכלב שלי 🐶${src}`).text;
+    expect(enforceOpening(true, t, "בן כמה הכלב ?")).toBe(POLITE_OPENING);
+  });
+  it.each([
+    "היי AllDog, אשמח לעזרה עם תוקפנות של הכלב שלי",
+    "היי AllDog, אשמח לעזרה עם חרדת נטישה של הכלב שלי",
+    "היי AllDog, יש לי גור ואשמח להתחיל אילוף נכון",
+    "היי AllDog, אשמח לשמוע על המסלולים והמחירים",
+    "היי AllDog, קראתי את המדריך על משיכה ברצועה ואשמח לעזרה עם הכלב שלי",
+    "היי AllDog, יש לי רועה גרמני ואשמח לעזרה",
+    "היי AllDog, אני מרעננה ואשמח לעזרה עם הכלב שלי",
+  ])("page-specific text carries information → greeting + the model's reaction: %s", (t) => {
+    expect(isGenericFirstMessage(t)).toBe(false);
+    expect(enforceOpening(true, t, "ספרו לי עוד ?")).toBe(`${OPENING_GREETING}\n\nספרו לי עוד ?`);
+  });
+});
+
+// ─── simulator checks (item 22e) ──────────────────────────────────────────────
+import { offersTime } from "../../../scripts/alldog-sim/engine";
+
+describe("simulator: time-offer detector", () => {
+  it.each(["מתי נוח לכם שנחזור ?", "אפשר ביום שלישי ב-10:00 ?", "מחר בבוקר או אחר הצהריים ?", "באיזו שעה נוח ?"])("flags: %s", (t) =>
+    expect(offersTime(t)).toBe(true)
+  );
+  it.each([
+    "מעולה, קיבלנו הכל 🙏 נציגת AllDog תחזור אליכם טלפונית בהקדם, תיתן את כל הפרטים, תתאים לכם את המסלול הנכון ותגיד איזה מאלף יגיע אליכם. אם יש עוד משהו בינתיים, אפשר לכתוב פה",
+    "נעים מאוד 🙂 איך קוראים לך (שם מלא), ואיך קוראים לכלב?",
+    "רשמתי שנוח לכם רק אחרי 18 , נעביר לנציגה",
+  ])("does not flag: %s", (t) => expect(offersTime(t)).toBe(false));
+  it("the prompt has the identity rule", () => {
+    expect(ALLDOG_BOT_PROMPT).toContain("הודעות זהות רק כשהלקוח שואל");
   });
 });

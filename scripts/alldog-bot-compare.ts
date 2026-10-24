@@ -61,9 +61,10 @@ async function main() {
         }
       }
       const basics = conv.basicsAtHandoff
-        ? `\n\n> פרטי בסיס בזמן ההעברה: ${conv.basicsAtHandoff.have.length}/${conv.basicsAtHandoff.have.length + conv.basicsAtHandoff.missing.length}${conv.basicsAtHandoff.missing.length ? ` · חסר: ${conv.basicsAtHandoff.missing.join(", ")}` : " ✓"}`
+        ? `\n\n> פרטי בסיס בסגירה: ${conv.basicsAtHandoff.have.length}/${conv.basicsAtHandoff.have.length + conv.basicsAtHandoff.missing.length}${conv.basicsAtHandoff.missing.length ? ` · חסר: ${conv.basicsAtHandoff.missing.join(", ")}` : " ✓"}`
         : "";
-      sections.push(`### ${v === "before" ? "לפני" : "אחרי"}\n\n${render(conv.events)}${basics}\n`);
+      const warnings = conv.warnings.length ? `\n\n> ⚠ ${conv.warnings.length} אזהרות: ${conv.warnings.join(" · ")}` : "";
+      sections.push(`### ${v === "before" ? "לפני" : "אחרי"}\n\n${render(conv.events)}${basics}${warnings}\n`);
     }
   }
   fs.writeFileSync(out, sections.join("\n\n"));

@@ -10,15 +10,14 @@
  *   - a rep can reply from the lead card in Petra (sent through the bot number) or press "החזר לבוט".
  * Test command: "#reset" from Or's number only wipes his conversation (TEST_RESET_PHONE).
  */
-import { israelParts, officeHoursFor, weekdayOfYmd, addDaysYmd } from "@/lib/alldog/time";
 
 export const HANDOFF_ACK_COOLDOWN_MS = 6 * 60 * 60 * 1000;
 export const HANDOFF_AUTO_RESUME_MS = 24 * 60 * 60 * 1000;
 
+import { israelParts, weekdayOfYmd } from "@/lib/alldog/time";
+
 /** Or's number — the only one allowed to use "#reset". */
 export const TEST_RESET_PHONE = "0542560964";
-
-const HE_WEEKDAYS = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
 
 /** "9725…" / "+972-54…" / "054…" → "054…". */
 export function localIsraeliPhone(raw: string): string {
@@ -30,38 +29,55 @@ export function isResetCommand(text: string, phone: string): boolean {
   return text.trim().toLowerCase() === "#reset" && localIsraeliPhone(phone) === TEST_RESET_PHONE;
 }
 
-/** When a person will call back: "היום" inside office hours (≥ 30 min left), else the next office morning. */
-export function callbackWhen(now: Date = new Date()): string {
+/**
+ * Closing message after schedule_callback / handoff_to_human — Or, 24/10/2026 (11:53).
+ * No callback time, no trainer name, no price — the rep does all that by phone.
+ * Shabbat (Fri from 14:00, Sat) → "אחרי השבת"; a holiday block in the business calendar → "אחרי החג".
+ */
+export function closingText(when: "soon" | "after_shabbat" | "after_holiday" = "soon"): string {
+  const back = when === "after_shabbat" ? "אחרי השבת" : when === "after_holiday" ? "אחרי החג" : "בהקדם";
+  return `מעולה, קיבלנו הכל 🙏 נציגת AllDog תחזור אליכם טלפונית ${back}, תיתן את כל הפרטים, תתאים לכם את המסלול הנכון ותגיד איזה מאלף יגיע אליכם. אם יש עוד משהו בינתיים, אפשר לכתוב פה`;
+}
+
+/** Marker of the closing message in a conversation (the bot never repeats it). */
+export const CLOSING_MARKER = "קיבלנו הכל";
+
+/**
+ * Shabbat / holiday right now? Shabbat = Friday from 14:00 (office close) to the end of Saturday,
+ * Israel time. Holiday = a calendar block of the business covering now whose reason mentions "חג".
+ */
+export function closingWhen(
+  now: Date = new Date(),
+  blocks: Array<{ startAt: Date; endAt: Date; reason: string | null }> = []
+): "soon" | "after_shabbat" | "after_holiday" {
   const p = israelParts(now);
-  const today = officeHoursFor(weekdayOfYmd(p.ymd));
-  if (today && p.hhmm >= today.open && p.hhmm < minus30(today.close)) return "היום";
-  for (let i = today && p.hhmm < today.open ? 0 : 1; i <= 7; i++) {
-    const ymd = addDaysYmd(p.ymd, i);
-    if (!officeHoursFor(weekdayOfYmd(ymd))) continue;
-    if (i === 0) return "היום בבוקר";
-    if (i === 1) return "מחר בבוקר";
-    return `ביום ${HE_WEEKDAYS[weekdayOfYmd(ymd)]} בבוקר`;
-  }
-  return "בהקדם";
+  const wd = weekdayOfYmd(p.ymd);
+  if (wd === 6 || (wd === 5 && p.hhmm >= "14:00")) return "after_shabbat";
+  const holiday = blocks.some((b) => b.startAt <= now && b.endAt > now && /חג/.test(b.reason ?? ""));
+  return holiday ? "after_holiday" : "soon";
 }
 
-/** Legacy "קיבלנו" line (kept for the tests / rep tooling). */
-export function handoffAckText(now: Date = new Date()): string {
-  return `קיבלנו 🙂 נציגה מהצוות חוזרת אליכם ${callbackWhen(now)}`;
+/** After handoff_to_human. */
+export function handoffClosingText(when: Parameters<typeof closingText>[0] = "soon"): string {
+  return closingText(when);
 }
 
-const CLOSING_TAIL = "אם יש עוד משהו בינתיים, אפשר לכתוב פה";
-
-/** Closing message after handoff_to_human (Or, 24/10): urgent → the trainer calls back. */
-export function handoffClosingText(urgency: "urgent" | "normal", now: Date = new Date()): string {
-  const who = urgency === "urgent" ? "המאלף שלנו יחזור" : "נציגה מהצוות תחזור";
-  return `מעולה, קיבלנו הכל 🙏 ${who} אליכם ${callbackWhen(now)}. ${CLOSING_TAIL}`;
+/** After schedule_callback (no time is set — the rep calls). */
+export function callbackClosingText(when: Parameters<typeof closingText>[0] = "soon"): string {
+  return closingText(when);
 }
 
-/** Closing message after schedule_callback. `dayLabel` = heDayLabel(ymd), e.g. "יום רביעי 29/10". */
-export function callbackClosingText(dayLabel: string, hhmm: string): string {
-  return `מעולה, קיבלנו הכל 🙏 נציגת AllDog תחזור אליכם ב${dayLabel} ב-${hhmm}. ${CLOSING_TAIL}`;
+/** "מי יחזור?" after the closing — Or, 24/10. */
+export const WHO_CALLS_BACK = "אחת הנציגות מהמשרד שלנו, והיא גם תתאם איתכם את המאלף שיגיע 🙂";
+
+/** The closing was already sent in this conversation. */
+export function closingAlreadySent(rows: Array<{ role: string; text: string }>): boolean {
+  return rows.some((r) => r.role === "assistant" && r.text.includes(CLOSING_MARKER));
 }
+
+/** Context note once the conversation is closed (Or, 24/10: answer, never repeat the closing). */
+export const CLOSED_NOTE =
+  `השיחה כבר נסגרה והלקוח קיבל את הודעת הסגירה. עונים רק על מה שהוא שואל בפועל, בלי לחזור על הודעת הסגירה, בלי לאסוף שוב פרטים ובלי לקרוא שוב ל-schedule_callback. "מי יחזור?" → "${"אחת הנציגות מהמשרד שלנו, והיא גם תתאם איתכם את המאלף שיגיע 🙂"}". פרט חדש → save_lead.`;
 
 /**
  * The bot's last message in a turn that handed off / booked a callback: the model's own lines
@@ -88,7 +104,7 @@ export function isHumanRequest(text: string): boolean {
 
 /** Context note for a bot turn while the conversation is with a person (Or, 24/10 — the bot does not go silent). */
 export const HANDOFF_MODE_NOTE =
-  "השיחה כבר הועברה למאלף / לנציגה והם יחזרו ללקוח. ממשיכים לעזור: עונים על שאלות כלליות (מחירים, מסלולים, מדריכים עם lookup_guide), כל פרט חדש נשמר עם save_lead, ומזכירים בקצרה שהמאלף יחזור אליהם. לא אוספים שוב פרטים, לא שואלים שאלות מכירה, לא קובעים מועד חדש.";
+  "השיחה כבר הועברה לנציגה והיא תחזור ללקוח טלפונית. ממשיכים לעזור: עונים על שאלות כלליות (מחירים, מסלולים, מדריכים עם lookup_guide) וכל פרט חדש נשמר עם save_lead. לא חוזרים על הודעת הסגירה, לא אוספים שוב פרטים, לא שואלים שאלות מכירה ולא מציעים זמנים. \"מי יחזור?\" → \"אחת הנציגות מהמשרד שלנו, והיא גם תתאם איתכם את המאלף שיגיע 🙂\".";
 
 /** A rep who replied from Petra in the last 2 hours is talking to the customer — the bot stays quiet. */
 export const REP_ACTIVE_MS = 2 * 60 * 60 * 1000;
@@ -96,11 +112,6 @@ export function repIsActive(lastHumanAt: Date | null, now: Date = new Date()): b
   return !!lastHumanAt && now.getTime() - lastHumanAt.getTime() < REP_ACTIVE_MS;
 }
 
-function minus30(hhmm: string): string {
-  const [h, m] = hhmm.split(":").map(Number);
-  const t = h * 60 + m - 30;
-  return `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
-}
 
 /** The "קיבלנו" reply is due when none was sent during this handoff, or the last one is ≥ 6h old. */
 export function handoffAckDue(c: { handoffAt: Date | null; handoffAckAt: Date | null }, now: Date = new Date()): boolean {
