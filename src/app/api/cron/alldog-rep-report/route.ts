@@ -1,4 +1,6 @@
 export const dynamic = "force-dynamic";
+// ?coach= downloads + transcribes one recording and runs the assessment.
+export const maxDuration = 120;
 
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
@@ -25,6 +27,13 @@ export async function GET(request: NextRequest) {
     // ?probe=1 — confirms the rep detection on REAL PayCall data: the latest answered calls,
     // the KEY NAMES of their records (never values) and the rep each one resolves to.
     if (request.nextUrl.searchParams.get("probe") === "1") return NextResponse.json(await probeRepDetection());
+    // ?coach=<PayCall call id> — coach one already-processed call (verification; no lead writes, nothing sent).
+    const coachId = request.nextUrl.searchParams.get("coach");
+    if (coachId) {
+      if (!/^\d{1,20}$/.test(coachId)) return NextResponse.json({ error: "bad call id" }, { status: 400 });
+      const { coachExistingCall } = await import("@/lib/alldog/call-summary");
+      return NextResponse.json({ ok: true, callId: coachId, ...(await coachExistingCall(coachId)) });
+    }
     const days = reportDays(request.nextUrl.searchParams.get("days"));
     const to = new Date();
     const from = new Date(to.getTime() - days * 24 * 60 * 60 * 1000);

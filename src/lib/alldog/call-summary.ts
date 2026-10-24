@@ -323,3 +323,39 @@ export async function processAnsweredCall(
   const coaching = await coachingFor(transcriptText, input, [summary.customerName]);
   return { status: "logged", leadId, created, summarized: true, coaching };
 }
+
+/**
+ * Item 33 verification: coach an ALREADY processed call (queue row `done`, no coaching yet) from its
+ * recording — rep from PayCall (getCalls → getAnalyticsCalls), transcript, Claude assessment, saved on
+ * the queue row only. Touches no lead / customer / task and sends nothing. Returns a short status.
+ */
+export async function coachExistingCall(callId: string): Promise<{ status: string; rep?: string | null; repSource?: string | null }> {
+  const { default: prisma } = await import("@/lib/prisma");
+  const businessId = allDogBusinessId();
+  if (!businessId) return { status: "disabled" };
+  const row = await prisma.paycallCallRetry.findUnique({ where: { callId }, select: { id: true, businessId: true, status: true, payload: true, coachedAt: true } });
+  if (!row || row.businessId !== businessId) return { status: "not_found" };
+  if (row.status !== "done") return { status: "not_done" };
+  if (row.coachedAt) return { status: "already_coached" };
+  const { fromPayload } = await import("@/lib/alldog/call-retry");
+  const input = fromPayload(row.payload);
+  if (!input) return { status: "bad_payload" };
+
+  const { getCallById, getAnalyticsCallRecord } = await import("@/lib/paycall");
+  const { repFromPaycall } = await import("@/lib/alldog/call-coaching");
+  const details = await getCallById(callId).catch(() => null);
+  let resolved = repFromPaycall(details);
+  if (resolved?.source !== "destination_name") {
+    const fromAnalytics = repFromPaycall(await getAnalyticsCallRecord(callId, input.startedAt));
+    if (fromAnalytics?.source === "destination_name" || !resolved) resolved = fromAnalytics;
+  }
+  const rep = resolved?.rep ?? input.rep ?? null;
+
+  const recording = await getRecording(input);
+  const transcriptText = formatTranscript(await transcribeAudio(recording, { language: "he" }));
+  if (!transcriptText.trim()) return { status: "empty_transcript", rep, repSource: resolved?.source ?? null };
+  const coaching = await coachCall(transcriptText.slice(0, 60_000), rep?.trim() || "לא ידוע");
+  if (!coaching) return { status: "coaching_failed", rep, repSource: resolved?.source ?? null };
+  await prisma.paycallCallRetry.update({ where: { id: row.id }, data: { coaching: coaching as object, coachedAt: new Date() } });
+  return { status: "coached", rep, repSource: resolved?.source ?? null };
+}
