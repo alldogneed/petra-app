@@ -3,6 +3,8 @@
  * goes through src/lib/alldog/leads.ts → the existing lead services.
  */
 import prisma from "@/lib/prisma";
+import { alertNewLeadIfEnabled } from "@/lib/lead-alert";
+import { runAfterResponse } from "@/lib/wait-until";
 import { claimOnce } from "@/lib/rate-limit";
 import { maskPhone } from "@/lib/whatsapp-failure";
 import {
@@ -127,7 +129,7 @@ export function createDbExecutor(conv: BotConversationRef): BotToolExecutor {
       : null;
     // Item 30d: a name heard only in a voice note is not saved; the WhatsApp profile name until one is typed.
     const typedName = fields.full_name && (!conv.typedTexts || nameWasTyped(fields.full_name, conv.typedTexts)) ? fields.full_name : null;
-    const { leadId } = await upsertLeadFromContact({
+    const { leadId, created } = await upsertLeadFromContact({
       businessId: conv.businessId,
       phone,
       name: typedName,
@@ -152,6 +154,19 @@ export function createDbExecutor(conv: BotConversationRef): BotToolExecutor {
       attribution: botLeadAttribution(conv.attributionSource, conv.attributionPage),
       contactedAt: new Date(),
     });
+    if (created) {
+      // The bot writes the lead through the service layer, so the "ליד חדש נכנס" alert
+      // (WhatsApp + email + bell) that POST /api/leads sends has to be sent here.
+      await runAfterResponse(
+        alertNewLeadIfEnabled(conv.businessId, {
+          name: typedName?.trim() || conv.profileName?.trim() || phone,
+          phone,
+          requestedService: fields.service?.trim() || null,
+          city: fields.city?.trim() || null,
+          source: BOT_LEAD_SOURCE,
+        }),
+      );
+    }
     if (conv.leadId !== leadId) {
       conv.leadId = leadId;
       await prisma.waBotConversation.update({ where: { id: conv.id }, data: { leadId } });
