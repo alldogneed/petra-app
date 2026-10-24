@@ -41,7 +41,20 @@ export function closingText(when: "soon" | "after_shabbat" | "after_holiday" = "
   const back = when === "after_shabbat" ? "אחרי השבת" : when === "after_holiday" ? "אחרי החג" : "בהקדם";
   const toYou = towardYou(gender);
   const callBack = toYou ? `תחזור ${toYou} טלפונית ${back}` : `תחזור בטלפון ${back}`;
-  return `מעולה, רשמתי הכל 🙏 אני דואג שנציגת AllDog ${callBack}, תיתן את כל הפרטים, תתאים את המסלול הנכון ותגיד איזה מאלף יגיע. אם יש עוד משהו בינתיים, אפשר לכתוב לי פה`;
+  return `מעולה, רשמתי הכל 🙏 אני דואג שנציגת AllDog ${callBack}. אם יש עוד משהו בינתיים, אפשר לכתוב לי פה`;
+}
+
+/**
+ * Before the closing (Or, item 28c): what happens next, so the bot does not jump to the closing.
+ * The closing after it is the short one above (no repeated content).
+ */
+export const TRANSITION_LINE =
+  "אני מעביר את כל הפרטים לנציגה. היא תסביר לך על כל התוכניות והמסלולים, ומשם תחליטו יחד אם מתאים לעבוד עם מאלף מקצועי ואיזה.";
+export const TRANSITION_MARKER = "תסביר לך על כל התוכניות והמסלולים";
+
+/** Transition line + closing (one bubble). Without the transition when it was already sent. */
+export function closingWithTransition(closing: string, transitionAlreadySent = false): string {
+  return transitionAlreadySent ? closing : `${TRANSITION_LINE}\n${closing}`;
 }
 
 /** Marker of the closing message in a conversation (the bot never repeats it). */
@@ -95,7 +108,7 @@ export const CLOSED_NOTE =
  * that promise a callback (or ask something) are dropped, the fixed closing is appended.
  */
 export function withClosing(modelText: string, closing: string): string {
-  if (isClosingText(modelText)) return modelText;
+  if (isClosingText(modelText)) return modelText.includes(TRANSITION_MARKER) || !closing.includes(TRANSITION_MARKER) ? modelText : `${TRANSITION_LINE}\n${modelText.trim()}`;
   const keep = modelText
     .split(/\n+/)
     .map((l) => l.trim())

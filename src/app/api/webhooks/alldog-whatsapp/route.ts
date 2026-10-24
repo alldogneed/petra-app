@@ -19,7 +19,7 @@ import { readEnv } from "@/lib/read-env";
 
 export const dynamic = "force-dynamic";
 // 6s quiet period + model + up to two messages with a typing pause.
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 function safeEqual(a: string, b: string): boolean {
   const x = Buffer.from(a);

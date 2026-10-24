@@ -16,7 +16,8 @@ import {
 import { israelYmd } from "@/lib/alldog/time";
 import { URGENT_NOTE_PREFIX } from "@/lib/alldog-bot/logic";
 import type { Gender } from "@/lib/alldog-bot/address";
-import { callbackClosingText, closingWhen, handoffClosingText } from "@/lib/alldog-bot/handoff";
+import { callbackClosingText, closingWhen, closingWithTransition, handoffClosingText } from "@/lib/alldog-bot/handoff";
+import { areaToCheckNote, isKnownServiceCity, unknownAreaToolNote } from "@/lib/alldog-bot/areas";
 import { type BotToolExecutor, type HandoffInput, type SaveLeadInput, type ScheduleCallbackInput } from "@/lib/alldog-bot/agent";
 
 export const BOT_LEAD_SOURCE = "וואטסאפ · בוט";
@@ -32,6 +33,8 @@ export interface BotConversationRef {
   attributionPage: string | null;
   /** How to address the customer (item 25) — set per turn by inbound; drives the closing text. */
   gender?: Gender;
+  /** The transition line (item 28c) was already sent in this conversation → the closing goes without it. */
+  transitionSent?: boolean;
 }
 
 function appUrl(): string {
@@ -108,6 +111,20 @@ export function createDbExecutor(conv: BotConversationRef): BotToolExecutor {
     async saveLead(input) {
       const leadId = await ensureLead(input);
       if (input.urgent_reason) await executor.markUrgent?.(input.urgent_reason);
+      const notes: string[] = [];
+      if (input.city && !isKnownServiceCity(input.city)) {
+        // Or, item 28b: a city outside the list → "אזור לבדיקה" for the rep (once per lead + city).
+        const note = areaToCheckNote(input.city);
+        const exists = await prisma.callLog.findFirst({ where: { leadId, summary: note }, select: { id: true } });
+        if (!exists) await addLeadCallLog(leadId, note);
+        notes.push(unknownAreaToolNote(input.city, conv.gender ?? "unknown"));
+      }
+      if (input.other_issues) {
+        // Item 28c: another problem mentioned on the way → noted in the lead (once per text).
+        const note = `[וואטסאפ · בוט] בעיה נוספת: ${input.other_issues}`;
+        const exists = await prisma.callLog.findFirst({ where: { leadId, summary: note }, select: { id: true } });
+        if (!exists) await addLeadCallLog(leadId, note);
+      }
       if (input.callback_time) {
         // The customer asked for a time himself — kept as a note for the rep, never a commitment.
         await addLeadCallLog(leadId, `[וואטסאפ · בוט] הלקוח ביקש לגבי זמן השיחה: ${input.callback_time}`);
@@ -123,7 +140,7 @@ export function createDbExecutor(conv: BotConversationRef): BotToolExecutor {
           await prisma.waBotConversation.update({ where: { id: conv.id }, data: { summaryCallLogId: log.id } });
         }
       }
-      return "נשמר";
+      return ["נשמר", ...notes].join(". ");
     },
 
     async scheduleCallback({ note }: ScheduleCallbackInput) {
@@ -149,7 +166,10 @@ export function createDbExecutor(conv: BotConversationRef): BotToolExecutor {
           dueDate: israelYmd(),
         });
       }
-      executor.closing = callbackClosingText(await closingWhenNow(conv.businessId), conv.gender ?? "unknown");
+      executor.closing = closingWithTransition(
+        callbackClosingText(await closingWhenNow(conv.businessId), conv.gender ?? "unknown"),
+        !!conv.transitionSent
+      );
       return `סומן לחזרה טלפונית. כתוב ללקוח בדיוק: "${executor.closing}"`;
     },
 
@@ -216,7 +236,9 @@ export function createDbExecutor(conv: BotConversationRef): BotToolExecutor {
           url: `${appUrl()}/leads?lead=${leadId}`,
         });
       }
-      executor.closing = handoffClosingText(await closingWhenNow(conv.businessId), conv.gender ?? "unknown");
+      const closing = handoffClosingText(await closingWhenNow(conv.businessId), conv.gender ?? "unknown");
+      // An urgent (safety) handoff goes straight to the closing; a normal one explains what happens next (28c).
+      executor.closing = urgency === "urgent" ? closing : closingWithTransition(closing, !!conv.transitionSent);
       return `הועבר. כתוב ללקוח בדיוק: "${executor.closing}" ואל תשאל עוד שאלות`;
     },
   };

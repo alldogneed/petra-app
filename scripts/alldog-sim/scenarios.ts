@@ -213,4 +213,14 @@ export const SCENARIOS: Scenario[] = [
     "Hi, my dog barks at every person passing by our house, can you help?", "John Smith, my dog is Charlie", "Herzliya, Herzliya Pituach", "A beagle, 2 years old", "Who will call me back?" ] },
   { id: "zoom", title: "התנגדות: זום / עיר רחוקה", lines: [
     "אנחנו גרים בבאר שבע , אתם מגיעים אלינו ?", "אפשר בזום ?", "ליאת דוד , הכלבה שושי", "באר שבע , רמות", "מעורבת , בת שנה , קופצת על אורחים" ] },
+  // Item 28a: voice notes. "🎤 <text>" = transcribed (the bot answers the transcript), "🎤!" = transcription failed
+  // → "לא הצלחתי לשמוע את ההקלטה 🙏 אפשר לכתוב לי בקצרה?" (never "נציגה תראה את ההודעה").
+  { id: "voice", title: "הודעות קוליות (סעיף 28a)", lines: [
+    "🎤 היי , יש לי כלבה בת שנה שמושכת ברצועה ונובחת על כל כלב ברחוב", "🎤!", "מיכל , הכלבה לונה", "🎤 אנחנו גרים בכפר סבא", "מעורבת , בת שנה" ] },
+  // Item 28b: a city outside the list → "מעולה, אני בודק מי מהמאלפים שלנו זמין באזור שלך…", never "מחוץ לאזור".
+  { id: "unknown-area", title: "עיר מחוץ לרשימה (סעיף 28b)", lines: [
+    "היי , הכלב שלי נובח על כל מי שעובר ליד הבית", "שירן , הכלב בונו", "קריית שמונה", "לברדור , בן 3" ] },
+  // Item 28c: an extra problem on the way → one sentence + noted in the lead, then the transition line, then the closing.
+  { id: "extra-issue", title: "בעיה נוספת בדרך + משפט מעבר (סעיף 28c)", lines: [
+    "היי , הכלב שלי חוטף אוכל מהשולחן וגונב נעליים", "עומר , הכלב צ׳ארלי", "הרצליה", "גולדן , בן חמישה חודשים , וגם על כלבים הוא נובח", "בערך חודשיים שזה ככה" ] },
 ];

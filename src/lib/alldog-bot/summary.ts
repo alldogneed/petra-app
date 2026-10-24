@@ -19,6 +19,7 @@ import { allDogAnthropicKey, botModel } from "@/lib/alldog/config";
 import { addLeadCallLog } from "@/lib/alldog/leads";
 import { israelParts } from "@/lib/alldog/time";
 import { createDbExecutor, type BotConversationRef } from "@/lib/alldog-bot/actions";
+import { customerWords } from "@/lib/alldog-bot/logic";
 
 const LOG = "[alldog-bot:summary]";
 
@@ -134,13 +135,13 @@ export async function summarizeBotConversation(conversationId: string, opts: { c
       take: 80,
       select: { id: true, role: true, kind: true, text: true, createdAt: true },
     });
-    const userTexts = rows.filter((r) => r.role === "user" && r.kind === "text");
+    const userTexts = rows.filter((r) => r.role === "user" && customerWords(r));
     if (!userTexts.length) return false;
     const last = rows[rows.length - 1];
     if (opts.claim !== false && !(await claimOnce(`alldog-bot-summary:${conv.id}:${last.id}`, 14 * 24 * 60 * 60))) return false;
 
     const transcript = rows
-      .map((r) => `${r.role === "user" ? "לקוח" : r.role === "human" ? "נציגה" : "בוט"}: ${r.text.replace(/\s+/g, " ").slice(0, 500)}`)
+      .map((r) => `${r.role === "user" ? (r.kind === "voice" ? "לקוח (הודעה קולית)" : "לקוח") : r.role === "human" ? "נציגה" : "בוט"}: ${r.text.replace(/\s+/g, " ").slice(0, 500)}`)
       .join("\n")
       .slice(-12000);
     const sum = await summarize(transcript);

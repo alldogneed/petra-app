@@ -174,7 +174,7 @@ import { parseAttributionLine } from "@/lib/alldog-bot/logic";
 
 describe("closing message (Or, 24/10 11:53: phone call, no time, no trainer, no price)", () => {
   const closing =
-    "מעולה, רשמתי הכל 🙏 אני דואג שנציגת AllDog תחזור בטלפון בהקדם, תיתן את כל הפרטים, תתאים את המסלול הנכון ותגיד איזה מאלף יגיע. אם יש עוד משהו בינתיים, אפשר לכתוב לי פה";
+    "מעולה, רשמתי הכל 🙏 אני דואג שנציגת AllDog תחזור בטלפון בהקדם. אם יש עוד משהו בינתיים, אפשר לכתוב לי פה";
   const il = (ymd: string, hhmm: string) => new Date(`${ymd}T${hhmm}:00+03:00`);
   it("handoff and callback close with the same line, without a time", () => {
     expect(handoffClosingText()).toBe(closing);
@@ -182,9 +182,9 @@ describe("closing message (Or, 24/10 11:53: phone call, no time, no trainer, no 
     expect(closing).not.toMatch(/היום|מחר|בבוקר|\d{1,2}:\d{2}|₪/);
   });
   it("Shabbat / holiday → 'אחרי השבת' / 'אחרי החג'", () => {
-    expect(closingText("after_shabbat")).toContain("תחזור בטלפון אחרי השבת,");
-    expect(closingText("after_holiday")).toContain("תחזור בטלפון אחרי החג,");
-    expect(closingText("after_shabbat", "f")).toContain("תחזור אלייך טלפונית אחרי השבת,");
+    expect(closingText("after_shabbat")).toContain("תחזור בטלפון אחרי השבת.");
+    expect(closingText("after_holiday")).toContain("תחזור בטלפון אחרי החג.");
+    expect(closingText("after_shabbat", "f")).toContain("תחזור אלייך טלפונית אחרי השבת.");
     expect(closingWhen(il("2026-10-23", "13:59"))).toBe("soon"); // Friday before 14:00
     expect(closingWhen(il("2026-10-23", "14:00"))).toBe("after_shabbat");
     expect(closingWhen(il("2026-10-24", "11:00"))).toBe("after_shabbat"); // Saturday

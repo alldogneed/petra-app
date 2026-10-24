@@ -139,7 +139,7 @@ export function AllDogBotChat({ leadId }: { leadId: string }) {
                     {m.role === "human" ? "נציגה" : "בוט"}
                   </div>
                 )}
-                {m.text}
+                {m.kind === "voice" ? `🎤 ${m.text}` : m.text}
                 <div className="mt-0.5 text-[10px] text-slate-400 tabular-nums">{timeFmt.format(new Date(m.createdAt))}</div>
               </div>
             </div>
