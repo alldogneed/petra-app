@@ -78,8 +78,45 @@ export interface GuideMatch {
   score: number;
 }
 
+// ─── The main problem wins over side words (Or, item 29a) ──────────────────────
+// "תוקף כלבים ומושך קדימה" is aggression / reactivity toward dogs, not leash pulling: when the topic
+// names one of these problems, its guides are returned first and side topics (leash, breed) drop out.
+
+const V = "(?:ו|ש|וש|כש)?";
+/** Toward people: bit / attacks a person. */
+const PEOPLE_AGGRESSION_RE = new RegExp(
+  `${V}(?:נשך|נשכה|נושך|נושכת|נשיכה|נשיכות|תוקף|תוקפת|תקף|תקפה|מתקיף|מתקיפה|מתנפל|מתנפלת|נוהם|נוהמת)\\s+(?:\\S+\\s+){0,3}?(?:את\\s+)?(?:ה(?:בן|בת)|(?:ה)?(?:אנשים|אדם|ילד|ילדה|ילדים|אחיין|אחיינית|אורח|אורחים|שכן|שכנה|שכנים|אותי|אותנו|בעלי|אשתי|תינוק|זרים))(?![\\p{L}])`,
+  "u"
+);
+/** Toward dogs — attack words. */
+const DOG_ATTACK_RE = new RegExp(
+  `${V}(?:תוקף|תוקפת|תקף|תקפה|מתקיף|מתקיפה|תוקפני|תוקפנית|נושך|נושכת|נשך|נשכה|רב|רבה|נלחם|נלחמת)\\s+(?:\\S+\\s+){0,3}?(?:את\\s+)?(?:על\\s+|ב|ל|ה)?(?:ה)?כלב(?:ים|ה|ות)?(?![\\p{L}])|תוקפנות\\s+(?:כלפי|ל|על)\\s*(?:ה)?כלב`,
+  "u"
+);
+/** Toward dogs — reactivity words (barks / lunges / goes wild when it sees a dog). */
+const DOG_REACTIVE_RE = new RegExp(
+  `${V}(?:מתפרץ|מתפרצת|מתנפל|מתנפלת|נובח|נובחת|משתולל|משתוללת|מסתער|מסתערת|משתגע|משתגעת|מושך|מושכת|קופץ|קופצת|מגיב|מגיבה)\\s+(?:\\S+\\s+){0,4}?(?:על\\s+|ל|ב|כש?רואה\\s+|ליד\\s+)?(?:ה)?כלב(?:ים|ה|ות)?(?![\\p{L}])|תגובתי|ריאקטיב`,
+  "u"
+);
+
+/** The guides of the main problem the topic names, most relevant first (empty = no main problem). */
+export function primaryProblemSlugs(topic: string): string[] {
+  const t = normalizeHe(topic);
+  if (PEOPLE_AGGRESSION_RE.test(t)) return ["dog-aggression", "reactive-dog"];
+  if (DOG_ATTACK_RE.test(t)) return ["dog-aggression", "reactive-dog"];
+  if (DOG_REACTIVE_RE.test(t)) return ["reactive-dog", "dog-aggression"];
+  return [];
+}
+
 /** Best entries for a free-text topic, highest score first (score > 0 only). */
 export function searchKnowledge(topic: string, entries: KnowledgeEntry[] = KNOWLEDGE.entries, limit = 2): GuideMatch[] {
+  const primary = primaryProblemSlugs(topic);
+  if (primary.length) {
+    const found = primary
+      .map((slug, i) => ({ entry: entries.find((e) => e.slug === slug), score: 1000 - i }))
+      .filter((m): m is GuideMatch => !!m.entry);
+    if (found.length) return found.slice(0, limit);
+  }
   const q = tokens(topic);
   if (!q.length) return [];
   const qNorm = normalizeHe(topic);

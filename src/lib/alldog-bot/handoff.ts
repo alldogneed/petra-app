@@ -37,11 +37,16 @@ export function isResetCommand(text: string, phone: string): boolean {
  * No callback time, no trainer name, no price — the rep does all that by phone.
  * Shabbat (Fri from 14:00, Sat) → "אחרי השבת"; a holiday block in the business calendar → "אחרי החג".
  */
-export function closingText(when: "soon" | "after_shabbat" | "after_holiday" = "soon", gender: Gender = "unknown"): string {
+export function closingText(
+  when: "soon" | "after_shabbat" | "after_holiday" = "soon",
+  gender: Gender = "unknown",
+  opts: { serious?: boolean } = {}
+): string {
   const back = when === "after_shabbat" ? "אחרי השבת" : when === "after_holiday" ? "אחרי החג" : "בהקדם";
   const toYou = towardYou(gender);
   const callBack = toYou ? `תחזור ${toYou} טלפונית ${back}` : `תחזור בטלפון ${back}`;
-  return `מעולה, רשמתי הכל 🙏 אני דואג שנציגת AllDog ${callBack}. אם יש עוד משהו בינתיים, אפשר לכתוב לי פה`;
+  // After an attack / bite the closing does not open with "מעולה" (Or, item 29c).
+  return `${opts.serious ? "" : "מעולה, "}רשמתי הכל 🙏 אני דואג שנציגת AllDog ${callBack}. אם יש עוד משהו בינתיים, אפשר לכתוב לי פה`;
 }
 
 /**
@@ -52,9 +57,9 @@ export const TRANSITION_LINE =
   "אני מעביר את כל הפרטים לנציגה. היא תסביר לך על כל התוכניות והמסלולים, ומשם תחליטו יחד אם מתאים לעבוד עם מאלף מקצועי ואיזה.";
 export const TRANSITION_MARKER = "תסביר לך על כל התוכניות והמסלולים";
 
-/** Transition line + closing (one bubble). Without the transition when it was already sent. */
+/** Transition line, then the closing — two separate short messages (Or, item 29c). Without the transition when it was already sent. */
 export function closingWithTransition(closing: string, transitionAlreadySent = false): string {
-  return transitionAlreadySent ? closing : `${TRANSITION_LINE}\n${closing}`;
+  return transitionAlreadySent ? closing : `${TRANSITION_LINE}\n\n${closing}`;
 }
 
 /** Marker of the closing message in a conversation (the bot never repeats it). */
@@ -82,13 +87,13 @@ export function closingWhen(
 }
 
 /** After handoff_to_human. */
-export function handoffClosingText(when: Parameters<typeof closingText>[0] = "soon", gender: Gender = "unknown"): string {
-  return closingText(when, gender);
+export function handoffClosingText(when: Parameters<typeof closingText>[0] = "soon", gender: Gender = "unknown", opts: { serious?: boolean } = {}): string {
+  return closingText(when, gender, opts);
 }
 
 /** After schedule_callback (no time is set — the rep calls). */
-export function callbackClosingText(when: Parameters<typeof closingText>[0] = "soon", gender: Gender = "unknown"): string {
-  return closingText(when, gender);
+export function callbackClosingText(when: Parameters<typeof closingText>[0] = "soon", gender: Gender = "unknown", opts: { serious?: boolean } = {}): string {
+  return closingText(when, gender, opts);
 }
 
 /** "מי יחזור?" after the closing — Or, 24/10; neutral since item 25 (it lives in the cached prompt). */
@@ -108,12 +113,13 @@ export const CLOSED_NOTE =
  * that promise a callback (or ask something) are dropped, the fixed closing is appended.
  */
 export function withClosing(modelText: string, closing: string): string {
-  if (isClosingText(modelText)) return modelText.includes(TRANSITION_MARKER) || !closing.includes(TRANSITION_MARKER) ? modelText : `${TRANSITION_LINE}\n${modelText.trim()}`;
+  if (isClosingText(modelText)) return modelText.includes(TRANSITION_MARKER) || !closing.includes(TRANSITION_MARKER) ? modelText : `${TRANSITION_LINE}\n\n${modelText.trim()}`;
   const keep = modelText
     .split(/\n+/)
     .map((l) => l.trim())
     .filter((l) => l && !/[?]/.test(l) && !/(יחזור|תחזור|יחזרו|יתקשר|תתקשר|נחזור|בהקדם|קיבלנו|רשמתי|העברתי|העברנו|מעבירה|מעביר|דואג)/.test(l));
-  return [...keep, closing].join("\n\n");
+  // The model's own lines (its answer, a guide link) = ONE message before the transition / closing.
+  return [keep.join("\n"), closing].filter(Boolean).join("\n\n");
 }
 
 /** The one reply to an explicit "I want a person" during a handoff — by gender (item 25). */

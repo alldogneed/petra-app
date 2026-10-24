@@ -223,4 +223,9 @@ export const SCENARIOS: Scenario[] = [
   // Item 28c: an extra problem on the way → one sentence + noted in the lead, then the transition line, then the closing.
   { id: "extra-issue", title: "בעיה נוספת בדרך + משפט מעבר (סעיף 28c)", lines: [
     "היי , הכלב שלי חוטף אוכל מהשולחן וגונב נעליים", "עומר , הכלב צ׳ארלי", "הרצליה", "גולדן , בן חמישה חודשים , וגם על כלבים הוא נובח", "בערך חודשיים שזה ככה" ] },
+  // Item 29 (Or's test 24/10 16:13): a German shepherd that attacks dogs. Expected: lookup_guide → reactive-dog /
+  // dog-aggression (not leash pulling), "באלו מקרני שומרון" = dog name + city (not asked again), no compliment on
+  // the name, a name heard only in a voice note is not used, no "מעולה" in the closing, transition + closing apart.
+  { id: "balu", title: "באלו, רועה גרמני שתוקף כלבים (הבדיקה של אור, 24/10 16:13)", lines: [
+    "היי", "🎤 קוראים לי אור , יש לי רועה גרמני שתוקף כלבים בטיול , מושך קדימה ומתפרץ כשהוא רואה כלב", "באלו מקרני שומרון", "בן שלוש", "זה התחיל לפני חצי שנה , פעם אחת הוא תפס כלב קטן" ] },
 ];

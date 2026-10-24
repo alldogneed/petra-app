@@ -63,11 +63,12 @@ describe("Hebrew slips (23c)", () => {
 
 describe("conversation guards (23a + 23b)", () => {
   it("keeps the first echo + compliment, drops later ones", () => {
-    expect(applyConversationGuards("יוקי , שם מקסים 🙂\nבן כמה הוא ?", [])).toBe("יוקי , שם מקסים 🙂\nבן כמה הוא ?");
+    // Item 29e: a compliment on the dog's name is always dropped; another echo + compliment once.
+    expect(applyConversationGuards("יוקי , שם מקסים 🙂\nבן כמה הוא ?", [])).toBe("בן כמה הוא ?");
     expect(applyConversationGuards("גאולים , מעולה\nבאיזה גזע מדובר ?", ["יוקי , שם מקסים 🙂\nואיפה אתם גרים ?"])).toBe("באיזה גזע מדובר ?");
     expect(applyConversationGuards("גאולים , מעולה . באיזה גזע מדובר ?", ["יוקי , שם מקסים"])).toBe("באיזה גזע מדובר ?");
     // Two in one reply → the second goes.
-    expect(applyConversationGuards("יוקי , שם מקסים\nגאולים , מעולה\nבן כמה הוא ?", [])).toBe("יוקי , שם מקסים\nבן כמה הוא ?");
+    expect(applyConversationGuards("יוקי , שם מקסים\nגאולים , מעולה\nבן כמה הוא ?", [])).toBe("גאולים , מעולה\nבן כמה הוא ?");
   });
 
   it("does not touch normal openers", () => {
