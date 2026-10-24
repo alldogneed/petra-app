@@ -40,6 +40,21 @@ export function isMissedCallWaEnabled(): boolean {
 export function isMissedCallWaTestMode(): boolean {
   return readEnv("ALLDOG_MISSED_CALL_WA_TEST_MODE")?.toLowerCase() === "true";
 }
+/**
+ * Activation time (Or, 24/10): only missed calls that STARTED at or after this instant get the
+ * message — never a backfill of older calls. `ALLDOG_MISSED_CALL_WA_SINCE` = ISO time
+ * ("2026-10-25T08:00:00+03:00"), set together with the switch. Missing / unreadable → nothing
+ * is sent at all (fail closed).
+ */
+export function missedCallActivatedAt(): Date | null {
+  const raw = readEnv("ALLDOG_MISSED_CALL_WA_SINCE");
+  if (!raw) return null;
+  const t = Date.parse(raw);
+  return isNaN(t) ? null : new Date(t);
+}
+/** A call older than this when it is scheduled is never messaged (the webhook is realtime). */
+export const MAX_CALL_AGE_AT_SCHEDULE_MS = 30 * 60 * 1000;
+
 /** The office line the automation is for (default 03-3818670). */
 export function missedCallLine(): string {
   return (readEnv("ALLDOG_MISSED_CALL_LINE") || "033818670").replace(/\D/g, "");
@@ -105,7 +120,11 @@ export type SkipReason =
   | "answered_recently"
   | "active_conversation"
   | "stopped"
-  | "sent_recently";
+  | "sent_recently"
+  | "not_activated"
+  | "call_time_unknown"
+  | "before_activation"
+  | "call_too_old";
 
 export const SKIP_REASON_LABELS: Record<SkipReason, string> = {
   disabled: "המתג כבוי",
@@ -116,7 +135,29 @@ export const SKIP_REASON_LABELS: Record<SkipReason, string> = {
   active_conversation: "יש שיחת בוט פעילה",
   stopped: "הלקוח ביקש להפסיק הודעות מהבוט",
   sent_recently: "כבר נשלחה הודעה כזו ב-7 הימים האחרונים",
+  not_activated: "לא הוגדר זמן הפעלה (ALLDOG_MISSED_CALL_WA_SINCE)",
+  call_time_unknown: "זמן השיחה לא ידוע",
+  before_activation: "השיחה הייתה לפני ההפעלה",
+  call_too_old: "השיחה ישנה (לא שולחים לשיחות עבר)",
 };
+
+/**
+ * Or's rule: the call started at or after the activation time. `maxAgeMs` (scheduling only):
+ * the call is also recent — a replayed / synced old call is never messaged. At send time the
+ * age is not checked (a night call waits for 08:00), only the activation time again.
+ */
+export function callTimeSkipReason(
+  callStart: Date | null,
+  activatedAt: Date | null,
+  now: Date,
+  maxAgeMs: number | null = MAX_CALL_AGE_AT_SCHEDULE_MS
+): SkipReason | null {
+  if (!activatedAt) return "not_activated";
+  if (!callStart) return "call_time_unknown";
+  if (callStart.getTime() < activatedAt.getTime()) return "before_activation";
+  if (maxAgeMs !== null && now.getTime() - callStart.getTime() > maxAgeMs) return "call_too_old";
+  return null;
+}
 
 /** Every rule that does not need the DB / PayCall. Returns the reason to skip, or null. */
 export function basicSkipReason(input: { prNumber: string | null | undefined; callerId: string | null | undefined }): SkipReason | null {

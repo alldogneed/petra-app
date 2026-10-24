@@ -22,6 +22,8 @@ import {
   ANSWERED_RECENTLY_MS,
   answeredSince,
   basicSkipReason,
+  callTimeSkipReason,
+  missedCallActivatedAt,
   conversationSkipReason,
   israeliMobile,
   MISSED_CALL_DEDUP_MS,
@@ -89,9 +91,15 @@ export async function scheduleMissedCallWhatsApp(
       if (basic !== "disabled") console.log(`${LOG} call ${call.ID}: skipped (${basic})`);
       return { status: "skipped", reason: basic };
     }
+    const now = new Date();
+    // Or: only calls that started after the activation time, and only fresh ones — no backfill.
+    const timeSkip = callTimeSkipReason(paycallStart(call.START), missedCallActivatedAt(), now);
+    if (timeSkip) {
+      console.log(`${LOG} call ${call.ID}: skipped (${timeSkip})`);
+      return { status: "skipped", reason: timeSkip };
+    }
     const mobile = israeliMobile(call.CALLERID)!;
     const phone = toWaId(mobile);
-    const now = new Date();
 
     const existing = await prisma.waBotConversation.findUnique({
       where: { businessId_phone: { businessId, phone } },
@@ -152,8 +160,9 @@ export async function sendMissedCallMessage(rowId: string): Promise<{ status: "s
 
   try {
     // Re-check: the customer may have written / been answered / asked to stop since.
-    const skip = conversationSkipReason(conv, await lastMissedCallMessageAt(conv.id, row.id), new Date());
-    let reason: SkipReason | null = skip;
+    // Activation time again (a row queued before the switch / the time was moved never goes out).
+    const timeSkip = callTimeSkipReason(payload.startedAt ? new Date(payload.startedAt) : null, missedCallActivatedAt(), new Date(), null);
+    let reason: SkipReason | null = timeSkip ?? conversationSkipReason(conv, await lastMissedCallMessageAt(conv.id, row.id), new Date());
     if (!reason) {
       const since = new Date((payload.startedAt ? Date.parse(payload.startedAt) : Date.now()) - ANSWERED_RECENTLY_MS);
       try {

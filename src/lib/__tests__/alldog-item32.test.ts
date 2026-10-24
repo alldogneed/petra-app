@@ -32,6 +32,7 @@ jest.mock("@/lib/alldog/failure-alerts", () => ({ alertAllDogFailure: jest.fn() 
 import {
   answeredSince,
   basicSkipReason,
+  callTimeSkipReason,
   conversationSkipReason,
   isOfficeLine,
   isQuietTime,
@@ -42,7 +43,7 @@ import {
   toWaId,
 } from "@/lib/alldog/missed-call-rules";
 import { israelInstant, israelParts } from "@/lib/alldog/time";
-import { scheduleMissedCallWhatsApp } from "@/lib/alldog/missed-call-wa";
+import { scheduleMissedCallWhatsApp, sendMissedCallMessage } from "@/lib/alldog/missed-call-wa";
 
 const OLD = process.env;
 afterEach(() => {
@@ -135,7 +136,7 @@ describe("send flow", () => {
   beforeEach(() => {
     jest.useFakeTimers().setSystemTime(israelInstant("2026-10-25", "12:01"));
     for (const f of [msgCreate, msgUpdateMany, msgUpdate, msgFindUnique, msgFindFirst, convFindUnique, convUpsert, sendTemplate, addLeadCallLog, getCalls]) f.mockReset();
-    on({ ALLDOG_BUSINESS_ID: "biz", PAYCALL_BUSINESS_ID: "biz", ALLDOG_WA_TOKEN: "t", ALLDOG_WA_PHONE_NUMBER_ID: "p" });
+    on({ ALLDOG_BUSINESS_ID: "biz", PAYCALL_BUSINESS_ID: "biz", ALLDOG_WA_TOKEN: "t", ALLDOG_WA_PHONE_NUMBER_ID: "p", ALLDOG_MISSED_CALL_WA_SINCE: "2026-10-25T08:00:00+02:00" });
     convFindUnique.mockResolvedValue(null);
     convUpsert.mockResolvedValue({ id: "conv1" });
     msgCreate.mockResolvedValue({ id: "row1" });
@@ -186,7 +187,7 @@ describe("send flow", () => {
   it("send failure → marked failed, no retry (the alert is raised by sendTemplate)", async () => {
     msgFindUnique.mockResolvedValue({
       id: "row1",
-      text: JSON.stringify({ callId: "777", sendAt: new Date().toISOString(), leadId: "L1", mobile: "0541234567", startedAt: null }),
+      text: JSON.stringify({ callId: "777", sendAt: new Date().toISOString(), leadId: "L1", mobile: "0541234567", startedAt: israelInstant("2026-10-25", "12:00").toISOString() }),
       conversation: { id: "conv1", businessId: "biz", phone: "972541234567", status: "active", lastInboundAt: null, leadId: "L1" },
     });
     sendTemplate.mockResolvedValue(null);
@@ -208,5 +209,90 @@ describe("send flow", () => {
     const r = await scheduleMissedCallWhatsApp(call, { leadId: "L1" });
     expect(r.status).toBe("skipped");
     expect(convUpsert).not.toHaveBeenCalled();
+  });
+
+  // Or (24/10): only calls that started after the switch was turned on. Never a backfill.
+  describe("activation time — no backfill", () => {
+    it("no activation time configured → nothing is sent (fail closed)", async () => {
+      process.env = { ...process.env, ALLDOG_MISSED_CALL_WA_SINCE: "" };
+      const r = await scheduleMissedCallWhatsApp(call, { leadId: "L1" });
+      expect(r).toEqual({ status: "skipped", reason: "not_activated" });
+      expect(convUpsert).not.toHaveBeenCalled();
+      expect(msgCreate).not.toHaveBeenCalled();
+      expect(sendTemplate).not.toHaveBeenCalled();
+    });
+
+    it("unreadable activation time → nothing is sent", async () => {
+      process.env = { ...process.env, ALLDOG_MISSED_CALL_WA_SINCE: "מחר" };
+      expect((await scheduleMissedCallWhatsApp(call, { leadId: "L1" })).reason).toBe("not_activated");
+      expect(sendTemplate).not.toHaveBeenCalled();
+    });
+
+    it("a call that started before the activation time → never messaged, even if it arrives now", async () => {
+      jest.setSystemTime(israelInstant("2026-10-25", "08:05"));
+      const r = await scheduleMissedCallWhatsApp({ ...call, START: "2026-10-25 07:59:00" }, { leadId: "L1" });
+      expect(r).toEqual({ status: "skipped", reason: "before_activation" });
+      expect(msgCreate).not.toHaveBeenCalled();
+      expect(sendTemplate).not.toHaveBeenCalled();
+    });
+
+    it("an old call replayed later (sync / PayCall retry) → never messaged", async () => {
+      jest.setSystemTime(israelInstant("2026-10-25", "15:00"));
+      const r = await scheduleMissedCallWhatsApp({ ...call, START: "2026-10-25 12:00:00" }, { leadId: "L1" });
+      expect(r).toEqual({ status: "skipped", reason: "call_too_old" });
+      expect(sendTemplate).not.toHaveBeenCalled();
+    });
+
+    it("call without a readable start time → never messaged", async () => {
+      const r = await scheduleMissedCallWhatsApp({ ...call, START: "" }, { leadId: "L1" });
+      expect(r).toEqual({ status: "skipped", reason: "call_time_unknown" });
+      expect(sendTemplate).not.toHaveBeenCalled();
+    });
+
+    it("the queue (cron) never sends a row whose call is before the activation time", async () => {
+      // A row queued earlier (e.g. activation time moved forward) — checked again at send time.
+      process.env = { ...process.env, ALLDOG_MISSED_CALL_WA_SINCE: "2026-10-25T13:00:00+02:00" };
+      msgFindUnique.mockResolvedValue({
+        id: "row9",
+        text: JSON.stringify({ callId: "9", sendAt: new Date().toISOString(), leadId: "L1", mobile: "0541234567", startedAt: israelInstant("2026-10-25", "12:00").toISOString() }),
+        conversation: { id: "conv1", businessId: "biz", phone: "972541234567", status: "active", lastInboundAt: null, leadId: "L1" },
+      });
+      const r = await sendMissedCallMessage("row9");
+      expect(r).toEqual({ status: "skipped", reason: "before_activation" });
+      expect(sendTemplate).not.toHaveBeenCalled();
+      expect(msgUpdate).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ kind: MISSED_CALL_KINDS.skipped }) }));
+    });
+
+    it("a queued row without a call time is never sent", async () => {
+      msgFindUnique.mockResolvedValue({
+        id: "row8",
+        text: JSON.stringify({ callId: "8", sendAt: new Date().toISOString(), leadId: "L1", mobile: "0541234567", startedAt: null }),
+        conversation: { id: "conv1", businessId: "biz", phone: "972541234567", status: "active", lastInboundAt: null, leadId: "L1" },
+      });
+      expect((await sendMissedCallMessage("row8")).reason).toBe("call_time_unknown");
+      expect(sendTemplate).not.toHaveBeenCalled();
+    });
+
+    it("a night call after the activation time still goes out at 08:00 (age is not checked at send time)", async () => {
+      jest.setSystemTime(israelInstant("2026-10-26", "08:00"));
+      msgFindUnique.mockResolvedValue({
+        id: "row7",
+        text: JSON.stringify({ callId: "7", sendAt: new Date().toISOString(), leadId: "L1", mobile: "0541234567", startedAt: israelInstant("2026-10-25", "23:09").toISOString() }),
+        conversation: { id: "conv1", businessId: "biz", phone: "972541234567", status: "active", lastInboundAt: null, leadId: "L1" },
+      });
+      sendTemplate.mockResolvedValue("wamid.7");
+      expect((await sendMissedCallMessage("row7")).status).toBe("sent");
+    });
+
+    it("pure rule", () => {
+      const act = new Date("2026-10-25T06:00:00Z");
+      const now = new Date("2026-10-25T10:00:00Z");
+      expect(callTimeSkipReason(null, act, now)).toBe("call_time_unknown");
+      expect(callTimeSkipReason(new Date("2026-10-25T09:50:00Z"), null, now)).toBe("not_activated");
+      expect(callTimeSkipReason(new Date("2026-10-25T05:59:59Z"), act, now, null)).toBe("before_activation");
+      expect(callTimeSkipReason(new Date("2026-10-25T06:00:00Z"), act, new Date("2026-10-25T06:10:00Z"))).toBeNull();
+      expect(callTimeSkipReason(new Date("2026-10-25T09:00:00Z"), act, now)).toBe("call_too_old");
+      expect(callTimeSkipReason(new Date("2026-10-25T09:00:00Z"), act, now, null)).toBeNull();
+    });
   });
 });
