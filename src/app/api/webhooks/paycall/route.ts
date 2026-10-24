@@ -89,6 +89,14 @@ export async function GET(request: NextRequest) {
 
   try {
     const result = await processMissedCall(call);
+    // Item 32 (AllDog, flag ALLDOG_MISSED_CALL_WA_ENABLED): automatic WhatsApp to the caller, after the response.
+    if (!result.skipped) {
+      const { isMissedCallWaEnabled } = await import("@/lib/alldog/missed-call-rules");
+      if (isMissedCallWaEnabled()) {
+        const { scheduleMissedCallWhatsApp } = await import("@/lib/alldog/missed-call-wa");
+        await runAfterResponse(scheduleMissedCallWhatsApp(call, { leadId: result.leadId }).then(() => undefined));
+      }
+    }
     return NextResponse.json({ ok: true, callId, ...result });
   } catch (err) {
     console.error("[paycall webhook] processMissedCall error:", err);

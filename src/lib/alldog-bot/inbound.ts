@@ -78,6 +78,7 @@ import {
 import { claimOnce } from "@/lib/rate-limit";
 import { downloadMedia, markReadWithTyping, sendText } from "@/lib/alldog-bot/wa";
 import { alertAllDogFailure, explainFailure } from "@/lib/alldog/failure-alerts";
+import { MISSED_CALL_CONTEXT_NOTE, MISSED_CALL_DEDUP_MS, MISSED_CALL_KINDS, MISSED_CALL_MARKER } from "@/lib/alldog/missed-call-rules";
 import { transcribeAudio } from "@/lib/stt";
 
 const LOG = "[alldog-bot]";
@@ -370,13 +371,22 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
   const rows = currentSession(
     (
       await prisma.waBotMessage.findMany({
-        where: { conversationId: conv.id },
+        where: { conversationId: conv.id, role: { not: "system" } }, // system = automation markers (item 32)
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: 40,
         select: { role: true, kind: true, text: true, createdAt: true },
       })
     ).reverse()
   );
+  // Item 32: the customer answers our automatic missed-call message → no forced opening, context note.
+  const missedCallSent = await prisma.waBotMessage.findFirst({
+    where: { conversationId: conv.id, role: "system", kind: MISSED_CALL_KINDS.sent, createdAt: { gte: new Date(Date.now() - MISSED_CALL_DEDUP_MS) } },
+    orderBy: { createdAt: "desc" },
+    select: { createdAt: true },
+  });
+  const answeringMissedCall =
+    !!missedCallSent &&
+    !rows.some((r) => r.role === "assistant" && r.createdAt > missedCallSent.createdAt && !r.text.includes(MISSED_CALL_MARKER));
   // What the customer typed — a name from a voice note alone is not saved as the lead's name (item 30d).
   ref.typedTexts = rows.filter((r) => r.role === "user" && r.kind === "text").map((r) => r.text);
   /** What the customer said (texts + voice transcripts), oldest first. */
@@ -474,7 +484,7 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
     nowLabel: `${heDayLabel(p.ymd)} בשעה ${p.hhmm}`,
     attribution: conv.attributionSource || conv.attributionPage ? { source: conv.attributionSource, page: conv.attributionPage } : null,
     knownName,
-    isFirstReply: lastAssistant < 0,
+    isFirstReply: lastAssistant < 0 && !answeringMissedCall,
     note: [
       handoffMode ? HANDOFF_MODE_NOTE : null,
       closed ? CLOSED_NOTE : null,
@@ -486,6 +496,7 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
         ? `הלקוח שלח גם הודעה קולית שלא הצלחת לשמוע. בקש בעדינות שיכתוב בקצרה מה אמר בה ("${VOICE_FAILED_REPLY}"), בלי להזכיר נציגה.`
         : null,
       namePlace,
+      answeringMissedCall ? MISSED_CALL_CONTEXT_NOTE : null,
       voiceName ? voiceNameNote(voiceName, priorBotTexts) : null,
       addressNote(style),
     ].filter(Boolean).join("\n") || null,
@@ -515,7 +526,7 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
     text = withClosing(text, executor.closing);
   } else if (!handoffMode) {
     const firstUserText = batchWords.join("\n");
-    text = enforceOpening(lastAssistant < 0, firstUserText, text);
+    text = enforceOpening(lastAssistant < 0 && !answeringMissedCall, firstUserText, text);
   }
   let afterHandoff = result.handedOff || handoffMode;
   if (!text && result.reply.trim() && !executor.closing) {
