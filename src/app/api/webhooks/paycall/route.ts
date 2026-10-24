@@ -5,13 +5,16 @@ export const maxDuration = 300;
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import {
+  getAnalyticsCallRecord,
   getCallById,
   isMissedCall,
   isSummarizableAnswer,
+  logCallRecordKeysOnce,
   parseLiveLinkParams,
   processMissedCall,
   type LiveLinkParams,
 } from "@/lib/paycall";
+import { repFromPaycall } from "@/lib/alldog/call-coaching";
 import { runAfterResponse } from "@/lib/wait-until";
 import { isCallSummariesEnabled } from "@/lib/alldog/config";
 import { readEnv } from "@/lib/read-env";
@@ -109,11 +112,22 @@ async function summarizeAnsweredCall(callId: string, live: LiveLinkParams): Prom
   try {
     let phone = live.cli;
     let startedAt = new Date(Date.now() - (live.billsec ?? 0) * 1000);
+    let rep: string | null = null;
     const details = await getCallById(callId).catch(() => null);
     if (details) {
       phone = phone ?? details.CALLERID;
+      rep = repFromPaycall(details)?.rep ?? null;
       startedAt = new Date(details.START.replace(" ", "T") + "+03:00");
       if (isNaN(startedAt.getTime())) startedAt = new Date(Date.now() - (live.billsec ?? 0) * 1000);
+    }
+    // Item 33: the rep = "שם יעד". Not in getCalls → look the call up in getAnalyticsCalls.
+    const fromCalls = repFromPaycall(details);
+    void logCallRecordKeysOnce("getCalls", details);
+    if (fromCalls?.source !== "destination_name") {
+      const analytics = await getAnalyticsCallRecord(callId, startedAt);
+      void logCallRecordKeysOnce("getAnalyticsCalls", analytics);
+      const fromAnalytics = repFromPaycall(analytics);
+      if (fromAnalytics?.source === "destination_name" || !rep) rep = fromAnalytics?.rep ?? rep;
     }
     if (!phone) {
       console.warn(`[paycall webhook] answered call ${callId}: no caller phone — left for the daily sync`);
@@ -132,6 +146,7 @@ async function summarizeAnsweredCall(callId: string, live: LiveLinkParams): Prom
         gclid: live.gclid,
         campaign: live.campaign,
         campaignParams: live.campaignParams,
+        rep,
       }
     );
     console.log(`[paycall webhook] answered call ${callId}: ${result.status}`);

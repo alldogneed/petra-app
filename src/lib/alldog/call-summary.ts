@@ -40,9 +40,16 @@ import {
   setLeadFollowUp,
   upsertLeadFromContact,
 } from "@/lib/alldog/leads";
+import { coachCall, isCallCoachingEnabled, type CallCoaching } from "@/lib/alldog/call-coaching";
 import { findCustomerForCall, findCustomerNoteForCall, logAnsweredCallOnCustomer, type CallCustomer } from "@/lib/paycall-customer";
 
 const LOG = "[alldog-calls]";
+
+/** Item 33: the rep coaching of a summarized call (null when off / failed — never throws). */
+async function coachingFor(transcript: string, input: AnsweredCallInput, names: Array<string | null | undefined>): Promise<CallCoaching | null> {
+  if (!(await isCallCoachingEnabled())) return null;
+  return coachCall(transcript, input.rep?.trim() || "לא ידוע", names);
+}
 
 export interface AnsweredCallInput {
   callId: string;
@@ -54,12 +61,14 @@ export interface AnsweredCallInput {
   gclid?: string | null;
   campaign?: string | null;
   campaignParams?: Record<string, string>;
+  /** Item 33: the rep — PayCall destination name ("מכירות - תמר") or the number that answered. */
+  rep?: string | null;
 }
 
 export type AnsweredCallResult =
   | { status: "disabled" | "in_progress" | "duplicate" }
   | { status: "retry_later"; reason: string; placeholder: "created" | "existing" }
-  | { status: "logged"; leadId: string | null; customerId?: string; created: boolean; summarized: boolean; note?: string };
+  | { status: "logged"; leadId: string | null; customerId?: string; created: boolean; summarized: boolean; note?: string; coaching?: CallCoaching | null };
 
 /** dlink/dlinkDirect first, then downloadRecord. "Service Denied" is rethrown as is. */
 async function getRecording(input: AnsweredCallInput): Promise<CallRecording> {
@@ -276,7 +285,8 @@ export async function processAnsweredCall(
       customerNote?.id
     );
     console.log(`${LOG} call ${input.callId} summarized → customer ${customer.id} (${maskPhone(input.phone)})`);
-    return { status: "logged", leadId: null, customerId: customer.id, created: false, summarized: true };
+    const coaching = await coachingFor(transcriptText, input, [summary.customerName, customer.name]);
+    return { status: "logged", leadId: null, customerId: customer.id, created: false, summarized: true, coaching };
   }
 
   // 4b. Lead (fill empty fields only) + journal (replacing the pending line) + follow-up
@@ -308,5 +318,8 @@ export async function processAnsweredCall(
   }
 
   console.log(`${LOG} call ${input.callId} summarized → lead ${leadId}${created ? " (new)" : ""} (${maskPhone(input.phone)})`);
-  return { status: "logged", leadId, created, summarized: true };
+  // Item 33: the coaching is stored on the call's queue row (call-retry.ts), not on the CallLog —
+  // lead APIs return every CallLog column to all members, the coaching is for Or only.
+  const coaching = await coachingFor(transcriptText, input, [summary.customerName]);
+  return { status: "logged", leadId, created, summarized: true, coaching };
 }
