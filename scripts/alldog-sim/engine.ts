@@ -8,13 +8,25 @@
  *   - the collection order: name + dog → area → breed/age (`orderCheck`);
  *   - which basics were collected when the conversation closed (`basicsAtHandoff`);
  *   - warnings: a time / slot offer or "מתי נוח", an identity line nobody asked for,
- *     a repeated closing message (`warnings`).
+ *     a repeated closing message, more than one echo + compliment, the surname asked twice,
+ *     a doubled / merged word (`warnings`);
+ *   - "דחוף" when the customer says it is urgent (the lead would be marked urgent).
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
 import Anthropic from "@anthropic-ai/sdk";
 import { heDayLabel, israelParts } from "@/lib/alldog/time";
-import { isStopRequest, parseAttributionLine, splitReply, toChatTurns } from "@/lib/alldog-bot/logic";
+import {
+  applyConversationGuards,
+  countMirrorPraise,
+  findTextIssues,
+  isStopRequest,
+  parseAttributionLine,
+  splitReply,
+  SURNAME_QUESTION_RE,
+  toChatTurns,
+  urgencyReason,
+} from "@/lib/alldog-bot/logic";
 import {
   buildBotContext,
   enforceIdentityAnswer,
@@ -86,6 +98,8 @@ export class SimConversation {
   savedAt: Partial<Record<Field, number>> = {};
   turn = 0;
   humanAckSent = false;
+  /** Why the lead is urgent (null = not urgent). */
+  urgent: string | null = null;
   /** Filled when the conversation closed (schedule_callback / handoff): which basics were (not) collected. */
   basicsAtHandoff: { have: string[]; missing: string[] } | null = null;
   warnings: string[] = [];
@@ -137,7 +151,12 @@ export class SimConversation {
   private executor(): BotToolExecutor {
     const ex: BotToolExecutor = {
       closing: null,
+      markUrgent: async (reason) => {
+        if (!this.urgent) this.emit("info", `דחוף: ${reason} → הליד מסומן דחוף`);
+        this.urgent = this.urgent ?? reason;
+      },
       saveLead: async (input) => {
+        if (input.urgent_reason) await ex.markUrgent?.(input.urgent_reason);
         if (input.full_name) this.knownName = input.full_name;
         for (const k of Object.keys(STEP).concat("dog_since", "callback_time") as Field[]) {
           if (input[k] && this.savedAt[k] === undefined) this.savedAt[k] = this.turn;
@@ -146,7 +165,7 @@ export class SimConversation {
         return "נשמר";
       },
       scheduleCallback: async ({ note }) => {
-        this.emit("tool", `schedule_callback${note ? ` ${note}` : ""} → "לחזור טלפונית" + משימה לנציגה (בלי שעה)`);
+        this.emit("tool", `schedule_callback${note ? ` ${note}` : ""} → "לחזור טלפונית" + משימה לנציגה (בלי שעה${this.urgent ? ", URGENT" : ""})`);
         this.recordBasics();
         ex.closing = callbackClosingText(closingWhen(new Date()));
         return `סומן לחזרה טלפונית. כתוב ללקוח בדיוק: "${ex.closing}"`;
@@ -170,6 +189,7 @@ export class SimConversation {
     this.savedAt = {};
     this.turn = 0;
     this.humanAckSent = false;
+    this.urgent = null;
     this.basicsAtHandoff = null;
     this.warnings = [];
   }
@@ -179,6 +199,10 @@ export class SimConversation {
       if (offersTime(text)) this.warn(`הצעת שעה / "מתי נוח": "${text.slice(0, 80)}"`);
       if (IDENTITY_LINE.test(text) && !identityAnswerFor(userText)) this.warn(`הודעת זהות בלי שנשאלו: "${text.slice(0, 80)}"`);
       if (text.includes(CLOSING_MARKER) && closingAlreadySent(this.rows)) this.warn("הודעת הסגירה חזרה פעם שנייה");
+      const prior = this.rows.filter((r) => r.role === "assistant").map((r) => r.text);
+      if (countMirrorPraise(text) && prior.some((t) => countMirrorPraise(t))) this.warn(`שיקוף + מחמאה בפעם השנייה: "${text.slice(0, 80)}"`);
+      if (SURNAME_QUESTION_RE.test(text) && prior.some((t) => SURNAME_QUESTION_RE.test(t))) this.warn("שם המשפחה נשאל פעם שנייה");
+      for (const issue of findTextIssues(text)) this.warn(`${issue.kind === "duplicate_word" ? "מילה כפולה" : "מילים מחוברות"}: "${issue.text}"`);
     }
     this.emit("bot", text);
     this.rows.push({ role: "assistant", text });
@@ -203,6 +227,11 @@ export class SimConversation {
     if (this.status === "stopped") {
       this.emit("info", "הבוט שותק (הלקוח ביקש לעצור)");
       return;
+    }
+    const why = this.urgent ? null : urgencyReason(text);
+    if (why) {
+      this.urgent = why;
+      this.emit("info", `דחוף: ${why} → הליד מסומן דחוף + המשימה לנציגה URGENT`);
     }
     const handoffMode = this.status === "handoff";
     if (handoffMode) {
@@ -256,6 +285,9 @@ export class SimConversation {
     });
     for (const name of result.toolsUsed.filter((n) => n === "lookup_guide")) this.emit("tool", name);
     let reply = enforceIdentityAnswer(text, result.reply);
+    if (this.variant === "after") {
+      reply = applyConversationGuards(reply, this.rows.filter((r) => r.role === "assistant").map((r) => r.text));
+    }
     if (this.variant === "after") {
       if (executor.closing && !closed) reply = withClosing(reply, executor.closing);
       else if (!handoffMode && !executor.closing) {

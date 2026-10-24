@@ -20,6 +20,7 @@ import { allDogAnthropicKey, allDogBusinessId, botModel, isWaBotEnabled } from "
 import { heDayLabel, israelParts } from "@/lib/alldog/time";
 import { addLeadCallLog, createLeadTask, isPlaceholderLeadName } from "@/lib/alldog/leads";
 import {
+  applyConversationGuards,
   botMayReply,
   classifyInbound,
   isWithin24hWindow,
@@ -29,6 +30,7 @@ import {
   splitReply,
   toChatTurns,
   typingDelayMs,
+  urgencyReason,
   waitForQuiet,
   type MetaInboundMessage,
 } from "@/lib/alldog-bot/logic";
@@ -287,6 +289,15 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
     await alertBiteReported(ref, batch.filter((r) => r.kind === "text").map((r) => r.text));
   }
 
+  // "דחוף" / "בהקדם" / "השכנים מתלוננים" → the lead is marked urgent with the reason (Or, 24/10 12:58).
+  for (const r of batch) {
+    const why = r.kind === "text" ? urgencyReason(r.text) : null;
+    if (why) {
+      await markUrgentSafe(ref, why, r.text);
+      break;
+    }
+  }
+
   // Only media since our last reply → fixed answer (once in a row) + a task for a person.
   const mediaOnly = batch.every((r) => r.kind === "media");
   if (mediaOnly && handoffMode) return; // the rep already got the alert
@@ -342,7 +353,8 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
   });
 
   const latestUserText = batch.filter((r) => r.kind === "text").map((r) => r.text).pop() ?? "";
-  let text = enforceIdentityAnswer(latestUserText, result.reply);
+  const priorBotTexts = rows.filter((r) => r.role === "assistant").map((r) => r.text);
+  let text = applyConversationGuards(enforceIdentityAnswer(latestUserText, result.reply), priorBotTexts);
   if (executor.closing && !closed) {
     // After schedule_callback / handoff_to_human the last message is always the fixed closing.
     text = withClosing(text, executor.closing);
@@ -462,6 +474,14 @@ async function handleHandoffMessages(item: PendingInbound): Promise<void> {
   }
   // Anything else: the bot keeps helping (general questions, new details → the lead).
   await reply(item, "handoff");
+}
+
+async function markUrgentSafe(ref: BotConversationRef, reason: string, quote: string): Promise<void> {
+  try {
+    await createDbExecutor(ref).markUrgent?.(reason, quote);
+  } catch (err) {
+    console.error(`${LOG} mark urgent failed:`, err instanceof Error ? err.message : err);
+  }
 }
 
 /** A person was bitten: URGENT alert to the team right away (once per conversation per day). */
