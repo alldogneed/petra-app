@@ -10,12 +10,13 @@
  *   - every lead of the phone closed (won / lost) or stale > 60 days → a NEW lead with a note
  *     "פונה חוזר – ליד קודם: <קישור>" (+ "לקוח קיים: <קישור>") — Or, item 24;
  *   - new leads land in the "ליד חדש" stage;
- *   - existing leads: only EMPTY fields are filled, filled fields are never overwritten.
+ *   - existing leads: only EMPTY fields are filled, filled fields are never overwritten — except the
+ *     WhatsApp bot (`refresh`, item 30c): the latest conversation's name / city / dog replace them.
  */
 import prisma from "@/lib/prisma";
 import { createLead, updateLead, createTask, findCustomersByPhone } from "@/services/clients";
 import { normalizeIsraeliPhone } from "@/lib/paycall";
-import { formatPetNotesBlock, hasPetNotesBlock, type LeadPetDetails } from "@/lib/lead-pet-notes";
+import { formatPetNotesBlock, hasPetNotesBlock, mergePetDetails, parsePetNotesBlock, replacePetNotesBlock, type LeadPetDetails } from "@/lib/lead-pet-notes";
 import type { LeadAttribution } from "@/lib/lead-attribution";
 import { hasCallIdToken } from "@/lib/paycall-customer";
 export { hasCallIdToken };
@@ -133,6 +134,11 @@ export interface LeadContactInput {
   creationNote?: string | null;
   attribution?: LeadAttribution | null;
   contactedAt?: Date;
+  /**
+   * AllDog bot (item 30c): the latest conversation wins — a name / city / dog details given now
+   * replace the lead's (the earlier conversations stay in the journal). Default: fill empty fields only.
+   */
+  refresh?: boolean;
 }
 
 /**
@@ -170,10 +176,18 @@ export async function upsertLeadFromContact(input: LeadContactInput): Promise<{ 
   }
 
   const patch: Parameters<typeof updateLead>[3] = {};
-  if (realName && isPlaceholderLeadName(existing.name)) patch.name = realName;
-  if (!existing.city && input.city?.trim()) patch.city = input.city.trim().slice(0, 200);
-  if (!existing.requestedService && input.requestedService?.trim()) patch.requestedService = input.requestedService.trim().slice(0, 500);
-  if (petBlock && !hasPetNotesBlock(existing.notes)) {
+  const refresh = !!input.refresh;
+  if (realName && (isPlaceholderLeadName(existing.name) || (refresh && realName !== existing.name))) patch.name = realName;
+  const city = input.city?.trim().slice(0, 200);
+  if (city && (!existing.city || (refresh && city !== existing.city))) patch.city = city;
+  const service = input.requestedService?.trim().slice(0, 500);
+  if (service && (!existing.requestedService || (refresh && service !== existing.requestedService))) patch.requestedService = service;
+  if (petBlock && refresh && input.pet) {
+    // The newest dog details replace the block (another dog → a fresh block).
+    const block = formatPetNotesBlock(mergePetDetails(parsePetNotesBlock(existing.notes), input.pet));
+    const merged = replacePetNotesBlock(existing.notes, block);
+    if (block && merged !== (existing.notes ?? "").trim() && merged.length <= 5000) patch.notes = merged;
+  } else if (petBlock && !hasPetNotesBlock(existing.notes)) {
     const merged = [existing.notes?.trim(), petBlock].filter(Boolean).join("\n\n");
     if (merged.length <= 5000) patch.notes = merged;
   }
@@ -183,7 +197,7 @@ export async function upsertLeadFromContact(input: LeadContactInput): Promise<{ 
   // Attribution columns are not part of UpdateLeadInput — fill them only while empty
   // (a missed-call lead created earlier gets the gclid/campaign of the answered call).
   const a = input.attribution;
-  if (a && (a.gclid || a.campaign || a.landingPage) && !existing.gclid && !existing.campaign && !existing.landingPage) {
+  if (a && !existing.gclid && !existing.campaign && !existing.landingPage && (a.gclid || a.campaign || a.landingPage || (a.trafficSource !== "unknown" && existing.trafficSource === "unknown"))) {
     await prisma.lead.updateMany({
       where: { id: existing.id, businessId },
       data: {
