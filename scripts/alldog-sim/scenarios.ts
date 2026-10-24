@@ -45,6 +45,22 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    // Item 26h: separation anxiety. Expected: the basics in 3 messages, 1–2 trainer questions (what
+    // happens when he is alone, how long he holds, since when), one insight, then the closing —
+    // ≤ 5 questions, no identity line, no repeated message.
+    id: "rocky",
+    title: "רוקי · חרדת נטישה (בדיקת שיחה 26h)",
+    lines: [
+      "שלום",
+      "יש לי כלב בשם רוקי , הוא מיילל ושורט את הדלת כל פעם שאני יוצא מהבית",
+      "אורי לוי",
+      "רמת גן , הבורסה",
+      "בוקסר , בן שנה וחצי",
+      "מחזיק בערך רבע שעה ואז מתחיל , מאז שעברנו דירה לפני חודשיים",
+      "הוא גם לא אוכל כשאני לא בבית",
+    ],
+  },
+  {
     // Item 25: a unisex name and no gendered verbs → neutral wording all the way (closing "תחזור בטלפון").
     id: "yuval",
     title: "יובל (מגדר לא ידוע → ניטרלי)",

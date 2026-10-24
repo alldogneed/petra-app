@@ -57,6 +57,10 @@ async function main() {
       if (conv.status === "stopped") break;
       await conv.send(line);
     }
+    // Item 26h: ≤ 5 questions until the closing, ≥ 1 professional question, no identity line, no repeat.
+    const report = conv.report();
+    console.log(gray(`בדיקת שיחה: ${conv.reportLine()}`));
+    if (report.problems.length) process.exitCode = 1;
     return;
   }
 

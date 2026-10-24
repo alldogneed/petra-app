@@ -230,7 +230,7 @@ export function fixHebrewSlips(text: string): string {
 
 // ─── Conversation-level guards (Or's test 24/10 12:58) ─────────────────────────────────
 
-const PRAISE = "(?:שם\\s+(?:מקסים|יפה|מתוק|מהמם|חמוד|מושלם)|מעולה|מקסים|מקסימה|יופי|נהדר|אחלה|איזה\\s+כיף)";
+const PRAISE = "(?:שם\\s+(?:מקסים|יפה|מתוק|מהמם|חמוד|מושלם)|(?:אחלה|מעולה|מהמם|יפה|נהדר)\\s+גזע|גזע\\s+(?:מעולה|מהמם|יפה|מקסים|נהדר|מדהים)|מעולה|מקסים|מקסימה|יופי|נהדר|אחלה|איזה\\s+כיף)";
 /** "יוקי , שם מקסים" / "גאולים , מעולה" — a short echo of what the customer said + a compliment. */
 const MIRROR_RE = new RegExp(`^([^,.!?\\n]{1,30}?)\\s*,\\s*(?:איזה\\s+)?${PRAISE}\\s*[!.]*\\s*(?:🙂|🐶|🐾|😍)?\\s*`, "u");
 /** "איזה שם מקסים !" on its own. */
@@ -247,17 +247,59 @@ export function countMirrorPraise(text: string): number {
 
 export const SURNAME_QUESTION_RE = /שם\s+(?:ה)?משפחה/u;
 
+// ─── Item 26 (Or): no repeated bot message, no invented familiarity ────────────────────
+
+/** Comparable form of a bot line: letters + digits only. */
+function normLine(line: string): string {
+  return line.replace(/[^\p{L}\p{N}]+/gu, "");
+}
+
+/** Bot lines already sent in this conversation (normalized). */
+function sentLines(priorBotTexts: string[]): Set<string> {
+  const out = new Set<string>();
+  for (const t of priorBotTexts) {
+    out.add(normLine(t));
+    for (const l of t.split(/\n+/)) out.add(normLine(l));
+  }
+  return out;
+}
+
+/** A bot message identical to an earlier bot message of the same conversation — never sent twice. */
+export function isRepeatedMessage(text: string, priorBotTexts: string[]): boolean {
+  const n = normLine(text);
+  return n.length >= 6 && sentLines(priorBotTexts).has(n);
+}
+
+/** "מכירים את זה טוב" and friends: the bot does not know this dog / case — no invented familiarity. */
+export const INVENTED_FAMILIARITY_RE = /(?<![\p{L}])(?:ו)?(?:אנחנו\s+)?מכירים(?![\p{L}])/u;
+const FAMILIARITY_FIXES: Array<[RegExp, string]> = [
+  [/(?<![\p{L}])(ו)?(?:אנחנו\s+)?מכירים\s+(?:את\s+)?(?:זה|הגזע(?:\s+הזה)?|המקרה(?:\s+הזה)?|הבעיה(?:\s+הזאת|\s+הזו)?|אותו|אותה|את\s+הסוג\s+הזה)(?:\s+(?:טוב|היטב|מצוין))?/gu, "$1שומעים על זה הרבה"],
+  [/(?<![\p{L}])(ו)?(?:אנחנו\s+)?מכירים(?:\s+(?:טוב|היטב))?(?![\p{L}])/gu, "$1שומעים על זה הרבה"],
+];
+
+export function removeInventedFamiliarity(text: string): string {
+  let out = text;
+  for (const [re, to] of FAMILIARITY_FIXES) out = out.replace(re, to);
+  return out;
+}
+
 /**
  * Applied to every bot reply with the bot's earlier messages:
- *   b. at most ONE echo + compliment ("יוקי , שם מקסים") in the whole conversation;
- *   a. "ומה שם המשפחה …?" is asked once — never again, answered or not.
+ *   a. no line the bot already sent in this conversation (item 26);
+ *   b. at most ONE echo + compliment ("יוקי , שם מקסים", "רועה גרמני , אחלה גזע") in the whole
+ *      conversation, and no invented familiarity ("מכירים את זה" → "שומעים על זה הרבה");
+ *   e. "ומה שם המשפחה …?" is asked once — never again, answered or not.
  */
 export function applyConversationGuards(reply: string, priorBotTexts: string[]): string {
   let praiseLeft = Math.max(0, 1 - priorBotTexts.reduce((n, t) => n + countMirrorPraise(t), 0));
   const surnameAsked = priorBotTexts.some((t) => SURNAME_QUESTION_RE.test(t));
-  const lines = reply.split("\n").map((raw) => {
+  const sent = sentLines(priorBotTexts);
+  const lines = removeInventedFamiliarity(reply).split("\n").map((raw) => {
     const line = raw.trim();
     if (!line) return raw;
+    // a. a line the bot already sent in this conversation is not sent again.
+    const n = normLine(line);
+    if (n.length >= 6 && sent.has(n)) return null;
     if (surnameAsked && SURNAME_QUESTION_RE.test(line) && /\?/.test(line)) return null;
     const m = praiseMatch(line);
     if (!m) return raw;
