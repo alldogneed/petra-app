@@ -49,10 +49,10 @@ describe("fixed texts (item 25)", () => {
   });
   it("closing by gender", () => {
     expect(closingText("soon", "f")).toBe(
-      "מעולה, רשמתי הכל 🙏 אני דואג שנציגת AllDog תחזור אלייך טלפונית בהקדם, תיתן את כל הפרטים, תתאים את המסלול הנכון ותגיד איזה מאלף יגיע. אם יש עוד משהו בינתיים, אפשר לכתוב לי פה"
+      "מעולה, רשמתי הכל 🙏 אני דואג שנציגת AllDog תחזור אלייך טלפונית בהקדם. אם יש עוד משהו בינתיים, אפשר לכתוב לי פה"
     );
-    expect(closingText("soon", "m")).toContain("תחזור אליך טלפונית בהקדם,");
-    expect(closingText("soon", "unknown")).toContain("תחזור בטלפון בהקדם,");
+    expect(closingText("soon", "m")).toContain("תחזור אליך טלפונית בהקדם.");
+    expect(closingText("soon", "unknown")).toContain("תחזור בטלפון בהקדם.");
   });
   it("conversations closed with the old text still count as closed", () => {
     expect(closingAlreadySent([{ role: "assistant", text: "מעולה, קיבלנו הכל 🙏 נציגת AllDog תחזור אליכם" }])).toBe(true);

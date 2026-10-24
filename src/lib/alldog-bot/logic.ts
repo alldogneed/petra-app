@@ -14,12 +14,15 @@ export interface MetaInboundMessage {
   text?: { body?: string };
   button?: { text?: string };
   interactive?: { button_reply?: { title?: string }; list_reply?: { title?: string } };
+  audio?: { id?: string; mime_type?: string; voice?: boolean };
+  voice?: { id?: string; mime_type?: string };
   group_id?: string;
   context?: { group_id?: string };
 }
 
 export type InboundKind =
   | { kind: "text"; text: string }
+  | { kind: "voice"; mediaId: string; mimeType: string | null }
   | { kind: "media"; label: string }
   | { kind: "ignore"; reason: string };
 
@@ -52,6 +55,13 @@ export function classifyInbound(m: MetaInboundMessage): InboundKind {
       const t = (m.interactive?.button_reply?.title ?? m.interactive?.list_reply?.title)?.trim();
       return t ? { kind: "text", text: t.slice(0, 500) } : { kind: "ignore", reason: "empty" };
     }
+    case "audio":
+    case "voice": {
+      // Voice notes are transcribed (Or, item 28a); without a media id → the old "media" path.
+      const media = m.audio ?? m.voice;
+      if (media?.id) return { kind: "voice", mediaId: media.id, mimeType: media.mime_type ?? null };
+      return { kind: "media", label: MEDIA_LABELS[m.type] };
+    }
     default:
       if (m.type && MEDIA_LABELS[m.type]) return { kind: "media", label: MEDIA_LABELS[m.type] };
       return { kind: "ignore", reason: m.type ?? "unknown" }; // system, reaction, unsupported, …
@@ -59,6 +69,52 @@ export function classifyInbound(m: MetaInboundMessage): InboundKind {
 }
 
 export const MEDIA_REPLY = "היי , אני יודע לקרוא רק הודעות טקסט 🙂 נציגה תראה את ההודעה ותחזור בטלפון";
+
+// ─── Voice notes (Or, item 28a) ───────────────────────────────────────────────
+
+/** WaBotMessage.text of a voice note until it is transcribed. */
+export const VOICE_PENDING_TEXT = "[הודעה קולית]";
+/** WaBotMessage.text of a voice note that could not be transcribed. */
+export const VOICE_FAILED_TEXT = "[הודעה קולית: התמלול נכשל]";
+/** The bot's answer when it could not transcribe — never "נציגה תראה את ההודעה" (Or). */
+export const VOICE_FAILED_REPLY = "לא הצלחתי לשמוע את ההקלטה 🙏 אפשר לכתוב לי בקצרה?";
+
+export function isVoicePending(row: { kind: string; text: string }): boolean {
+  return row.kind === "voice" && row.text === VOICE_PENDING_TEXT;
+}
+export function isVoiceFailed(row: { kind: string; text: string }): boolean {
+  return row.kind === "voice" && (row.text === VOICE_FAILED_TEXT || row.text === VOICE_PENDING_TEXT);
+}
+
+/**
+ * What the customer said in a message: the text, or a voice note's transcript.
+ * null = media / a voice note that was not transcribed.
+ */
+export function customerWords(row: { kind: string; text: string }): string | null {
+  if (row.kind === "text") return row.text;
+  if (row.kind === "voice" && !isVoiceFailed(row)) return row.text;
+  return null;
+}
+
+/** A transcript as the model sees it in the history. */
+export function voiceHistoryText(transcript: string): string {
+  return `(הודעה קולית, תומללה) ${transcript}`;
+}
+
+/** The lead journal line of a voice note: the transcript + the WhatsApp media id of the recording. */
+export function voiceNoteLogText(mediaId: string, transcript: string | null): string {
+  const body = transcript ? `תמלול: "${transcript.slice(0, 1500)}"` : "התמלול נכשל, הבוט ביקש מהלקוח לכתוב בקצרה";
+  return `[וואטסאפ · בוט] 🎤 הודעה קולית · ${body} · מזהה הקלטה ב-WhatsApp: ${mediaId}`;
+}
+
+/** Cleans a speech-to-text result; empty / audio-event only → null (= failed). */
+export function cleanTranscript(text: string | null | undefined): string | null {
+  const t = (text ?? "")
+    .replace(/\([^)]*\)/g, " ") // "(מוזיקה)", "(צחוק)" — audio events
+    .replace(/\s+/g, " ")
+    .trim();
+  return t.replace(/[\p{P}\s]/gu, "").length >= 2 ? t.slice(0, 4000) : null;
+}
 
 // ─── Attribution line from the website's prefilled message ───────────────────
 
@@ -198,9 +254,29 @@ function mergedStutter(word: string): string | null {
 }
 
 export interface TextIssue {
-  kind: "duplicate_word" | "merged_word";
+  kind: "duplicate_word" | "merged_word" | "wrong_form" | "number_gender";
   text: string;
 }
+
+/** Wrong word forms that came back from the model (Or, item 28d): "מחטף" → "חוטף". */
+const WRONG_FORMS: Array<[RegExp, string]> = [
+  [/(?<![\p{L}])(ו|ש|וש)?מחטף(?![\p{L}])/gu, "$1חוטף"],
+  [/(?<![\p{L}])(ו|ש|וש)?מחטפת(?![\p{L}])/gu, "$1חוטפת"],
+];
+
+/** Feminine number + masculine noun: "חמש חודשים" → "חמישה חודשים" (item 28d). */
+const MASC_NUMBERS: Record<string, string> = {
+  שלוש: "שלושה",
+  ארבע: "ארבעה",
+  חמש: "חמישה",
+  שש: "שישה",
+  שבע: "שבעה",
+  תשע: "תשעה",
+  עשר: "עשרה",
+  שתי: "שני",
+};
+const MASC_NOUNS = "חודשים|שבועות|ימים|מפגשים|אימונים|שיעורים|טיולים|ילדים|כלבים|גורים";
+const NUMBER_GENDER_RE = new RegExp(`(?<![\\p{L}])(ו|ה|וה|ב|ל|כ)?(${Object.keys(MASC_NUMBERS).join("|")})(\\s+)(${MASC_NOUNS})(?![\\p{L}])`, "gu");
 
 /** Doubled words ("של של") and merged stutters ("חודחודשיים") — used by the tests and the simulator. */
 export function findTextIssues(text: string): TextIssue[] {
@@ -210,6 +286,8 @@ export function findTextIssues(text: string): TextIssue[] {
     if (i > 0 && words[i].length > 1 && words[i] === words[i - 1]) issues.push({ kind: "duplicate_word", text: `${words[i]} ${words[i]}` });
     if (mergedStutter(words[i])) issues.push({ kind: "merged_word", text: words[i] });
   }
+  for (const [re] of WRONG_FORMS) for (const m of text.matchAll(re)) issues.push({ kind: "wrong_form", text: m[0] });
+  for (const m of text.matchAll(NUMBER_GENDER_RE)) issues.push({ kind: "number_gender", text: m[0] });
   return issues;
 }
 
@@ -222,6 +300,8 @@ export function fixHebrewSlips(text: string): string {
     // "של של" → "של" (same word twice in a row, single space between).
     .replace(new RegExp(`(^|[^${L}])([${L}]{2,})\\s+\\2(?=[^${L}]|$)`, "gu"), "$1$2")
     .replace(new RegExp(`[${L}]{8,}`, "gu"), (w) => mergedStutter(w) ?? w);
+  for (const [re, to] of WRONG_FORMS) out = out.replace(re, to);
+  out = out.replace(NUMBER_GENDER_RE, (_m, pre: string | undefined, num: string, sp: string, noun: string) => `${pre ?? ""}${MASC_NUMBERS[num]}${sp}${noun}`);
   // Within one sentence after נציגה / נציגת / הנציגה: the verb is feminine singular.
   out = out.replace(/(נציג[הת](?:[^.?!\n]{0,60}?\s)?)([שו]?)(?:יצרו|תיצרו|יצור)(?=\s|[,.?!]|$)/gu, "$1$2תיצור");
   out = out.replace(/(נציג[הת](?:[^.?!\n]{0,60}?\s)?)([שו]?)(?:יחזרו|תחזרו|יחזור)(?=\s|[,.?!]|$)/gu, "$1$2תחזור");

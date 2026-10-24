@@ -67,14 +67,17 @@ function extFor(contentType: string): string {
   return "mp3";
 }
 
-export async function transcribeAudio(audio: AudioInput, opts: { language: string } = { language: "he" }): Promise<Transcript> {
+export async function transcribeAudio(
+  audio: AudioInput,
+  opts: { language: string; diarize?: boolean; timeoutMs?: number } = { language: "he" }
+): Promise<Transcript> {
   const apiKey = readEnv("ELEVENLABS_API_KEY");
   if (!apiKey) throw new Error("ELEVENLABS_API_KEY not configured");
 
   const form = new FormData();
   form.append("model_id", readEnv("ELEVENLABS_STT_MODEL") || "scribe_v1");
   form.append("language_code", opts.language);
-  form.append("diarize", "true");
+  form.append("diarize", opts.diarize === false ? "false" : "true");
   form.append("tag_audio_events", "false");
   form.append("timestamps_granularity", "word");
   form.append(
@@ -87,7 +90,7 @@ export async function transcribeAudio(audio: AudioInput, opts: { language: strin
     method: "POST",
     headers: { "xi-api-key": apiKey },
     body: form,
-    signal: AbortSignal.timeout(180_000),
+    signal: AbortSignal.timeout(opts.timeoutMs ?? 180_000),
   });
   if (!res.ok) {
     const detail = (await res.text().catch(() => "")).slice(0, 300);

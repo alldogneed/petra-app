@@ -23,6 +23,9 @@ import {
   applyConversationGuards,
   botMayReply,
   classifyInbound,
+  cleanTranscript,
+  customerWords,
+  isVoiceFailed,
   isWithin24hWindow,
   isStopRequest,
   MEDIA_REPLY,
@@ -31,6 +34,11 @@ import {
   toChatTurns,
   typingDelayMs,
   urgencyReason,
+  VOICE_FAILED_REPLY,
+  VOICE_FAILED_TEXT,
+  VOICE_PENDING_TEXT,
+  voiceHistoryText,
+  voiceNoteLogText,
   waitForQuiet,
   type MetaInboundMessage,
 } from "@/lib/alldog-bot/logic";
@@ -38,6 +46,7 @@ import { buildBotContext, enforceIdentityAnswer, enforceOpening, HUMAN_BITE_NOTE
 import { HANDOFF_MODE_TOOLS, runBotTurn } from "@/lib/alldog-bot/agent";
 import { createDbExecutor, dropDeletedLeadLink, flagMediaForHuman, type BotConversationRef } from "@/lib/alldog-bot/actions";
 import { summarizeBotConversation } from "@/lib/alldog-bot/summary";
+import { fixOutOfAreaLines } from "@/lib/alldog-bot/areas";
 import { addressNote, addressStyleFor, applyAddressStyle, detectGender, type Gender } from "@/lib/alldog-bot/address";
 import {
   CLOSED_NOTE,
@@ -51,11 +60,13 @@ import {
   isResetCommand,
   repIsActive,
   RESUMED_NOTE,
+  TRANSITION_MARKER,
   shouldAutoResume,
   withClosing,
 } from "@/lib/alldog-bot/handoff";
 import { claimOnce } from "@/lib/rate-limit";
-import { markReadWithTyping, sendText } from "@/lib/alldog-bot/wa";
+import { downloadMedia, markReadWithTyping, sendText } from "@/lib/alldog-bot/wa";
+import { transcribeAudio } from "@/lib/stt";
 
 const LOG = "[alldog-bot]";
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -71,6 +82,8 @@ export interface PendingInbound {
   waMessageId: string;
   /** "reset" = Or's #reset (confirmation only); default = normal bot / handoff flow. */
   mode?: "reset";
+  /** A voice note to transcribe before the bot answers (item 28a). */
+  voice?: { mediaId: string; mimeType: string | null };
 }
 
 const RESET_CONFIRMATION = "🔄 השיחה אופסה. אפשר להתחיל מחדש";
@@ -117,9 +130,12 @@ async function ingestMessage(
     const parsed = parseAttributionLine(cls.text);
     if (parsed.source || parsed.page) attribution = { source: parsed.source, page: parsed.page };
     text = parsed.text || cls.text;
+  } else if (cls.kind === "voice") {
+    text = VOICE_PENDING_TEXT; // replaced by the transcript (or VOICE_FAILED_TEXT) in processInbound
   } else {
     text = `[${cls.label}]`;
   }
+  const voice = cls.kind === "voice" ? { mediaId: cls.mediaId, mimeType: cls.mimeType } : undefined;
 
   const upsertConversation = () =>
     prisma.waBotConversation.upsert({
@@ -187,7 +203,7 @@ async function ingestMessage(
     console.log(`${LOG} ${maskPhone(phone)} handoff expired — back to the bot`);
   }
   // active → the bot answers; handoff → alert to the rep + one "קיבלנו" (processInbound decides).
-  return { conversationId: conv.id, waMessageId: m.id! };
+  return { conversationId: conv.id, waMessageId: m.id!, ...(voice ? { voice } : {}) };
 }
 
 /** Or's "#reset": the conversation starts over (messages deleted, lead link + handoff state cleared; the lead itself stays). */
@@ -230,6 +246,11 @@ export async function processInbound(item: PendingInbound): Promise<void> {
       return;
     }
     const state = await prisma.waBotConversation.findUnique({ where: { id: item.conversationId }, select: { status: true } });
+    if (item.voice) {
+      // Transcribe first (each voice note in its own run); the reply waits for it (waitForVoiceTranscripts).
+      if (state?.status !== "handoff") await markReadWithTyping(item.waMessageId);
+      await transcribeVoiceNote(item, item.voice);
+    }
     if (state?.status === "handoff") {
       // Alerts first; "typing…" only if the bot answers (sendParts shows it).
       const isLatest = await waitForQuiet({
@@ -273,6 +294,7 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
     attributionPage: conv.attributionPage,
   };
   await dropDeletedLeadLink(ref);
+  await waitForVoiceTranscripts(conv.id);
 
   const rows = (
     await prisma.waBotMessage.findMany({
@@ -282,24 +304,35 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
       select: { role: true, kind: true, text: true },
     })
   ).reverse();
+  /** What the customer said (texts + voice transcripts), oldest first. */
+  const userWords = rows.filter((r) => r.role === "user").map(customerWords).filter((t): t is string => !!t);
   const lastAssistant = rows.map((r) => r.role).lastIndexOf("assistant");
   const lastReply = Math.max(lastAssistant, rows.map((r) => r.role).lastIndexOf("human"));
   const batch = rows.slice(lastReply + 1).filter((r) => r.role === "user");
   if (!batch.length) return;
 
   // Safety case: a person was bitten → the team hears about it NOW, while the bot collects the basics.
-  if (!handoffMode && batch.some((r) => r.kind === "text" && mentionsHumanBite(r.text))) {
-    await alertBiteReported(ref, batch.filter((r) => r.kind === "text").map((r) => r.text));
+  const batchWords = batch.map(customerWords).filter((t): t is string => !!t);
+  if (!handoffMode && batchWords.some((t) => mentionsHumanBite(t))) {
+    await alertBiteReported(ref, batchWords);
   }
 
   // "דחוף" / "בהקדם" / "השכנים מתלוננים" → the lead is marked urgent with the reason (Or, 24/10 12:58).
-  for (const r of batch) {
-    const why = r.kind === "text" ? urgencyReason(r.text) : null;
+  for (const t of batchWords) {
+    const why = urgencyReason(t);
     if (why) {
-      await markUrgentSafe(ref, why, r.text);
+      await markUrgentSafe(ref, why, t);
       break;
     }
   }
+
+  // Only voice notes that could not be transcribed → "write it briefly" (once in a row; item 28a).
+  if (batch.every((r) => isVoiceFailed(r))) {
+    if (lastAssistant >= 0 && rows[lastAssistant].text === VOICE_FAILED_REPLY) return;
+    await sendParts(item, conv.phone, [VOICE_FAILED_REPLY], handoffMode);
+    return;
+  }
+  const hadFailedVoice = batch.some((r) => isVoiceFailed(r));
 
   // Only media since our last reply → fixed answer (once in a row) + a task for a person.
   const mediaOnly = batch.every((r) => r.kind === "media");
@@ -316,7 +349,14 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
   const history = toChatTurns(
     rows.map((r) => ({
       role: r.role,
-      text: r.kind === "media" ? `${r.text} (הלקוח שלח מדיה — אין לך אפשרות לראות או לשמוע אותה)` : r.text,
+      text:
+        r.kind === "media"
+          ? `${r.text} (הלקוח שלח מדיה — אין לך אפשרות לראות או לשמוע אותה)`
+          : r.kind === "voice"
+            ? isVoiceFailed(r)
+              ? "[הודעה קולית שלא הצלחת לשמוע]"
+              : voiceHistoryText(r.text)
+            : r.text,
     }))
   );
   if (!history.length || history[history.length - 1].role !== "user") return;
@@ -328,10 +368,11 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
   if (activeLead && !isPlaceholderLeadName(activeLead.name)) knownName = activeLead.name;
   // How to address this customer (item 25): gender from their own words + name, plural only if they use it.
   const style = addressStyleFor({
-    texts: rows.filter((r) => r.role === "user" && r.kind === "text").map((r) => r.text),
+    texts: userWords,
     name: knownName ?? conv.profileName,
   });
   ref.gender = style.gender;
+  ref.transitionSent = rows.some((r) => r.role === "assistant" && r.text.includes(TRANSITION_MARKER));
   // The closing was already sent → answer questions only, never repeat it (Or, 24/10).
   const closed = closingAlreadySent(rows);
   const now = new Date();
@@ -346,8 +387,11 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
       closed ? CLOSED_NOTE : null,
       conv.resumedAt && (!conv.lastBotReplyAt || conv.lastBotReplyAt < conv.resumedAt) ? RESUMED_NOTE : null,
       // Any bite reported in this conversation (not only in this batch) until the handoff happens.
-      !handoffMode && rows.some((r) => r.role === "user" && r.kind === "text" && mentionsHumanBite(r.text)) ? HUMAN_BITE_NOTE : null,
+      !handoffMode && userWords.some((t) => mentionsHumanBite(t)) ? HUMAN_BITE_NOTE : null,
       hadMedia ? "הלקוח שלח גם מדיה שאתה לא יכול לפתוח. אמור בעדינות שנציגה תראה אותה." : null,
+      hadFailedVoice
+        ? `הלקוח שלח גם הודעה קולית שלא הצלחת לשמוע. בקש בעדינות שיכתוב בקצרה מה אמר בה ("${VOICE_FAILED_REPLY}"), בלי להזכיר נציגה.`
+        : null,
       addressNote(style),
     ].filter(Boolean).join("\n") || null,
   });
@@ -362,16 +406,18 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
     ...(handoffMode ? { tools: HANDOFF_MODE_TOOLS } : {}),
   });
 
-  const latestUserText = batch.filter((r) => r.kind === "text").map((r) => r.text).pop() ?? "";
+  const latestUserText = batchWords[batchWords.length - 1] ?? "";
   const priorBotTexts = rows.filter((r) => r.role === "assistant").map((r) => r.text);
   let text = applyAddressStyle(applyConversationGuards(enforceIdentityAnswer(latestUserText, result.reply), priorBotTexts, {
-    userTexts: rows.filter((r) => r.role === "user" && r.kind === "text").map((r) => r.text),
+    userTexts: userWords,
   }), style);
+  // Never "מחוץ לאזור" / "לא ברשימה" — Or's optimistic line instead (item 28b).
+  text = fixOutOfAreaLines(text, style.gender, priorBotTexts);
   if (executor.closing && !closed) {
     // After schedule_callback / handoff_to_human the last message is always the fixed closing.
     text = withClosing(text, executor.closing);
   } else if (!handoffMode) {
-    const firstUserText = batch.filter((r) => r.kind === "text").map((r) => r.text).join("\n");
+    const firstUserText = batchWords.join("\n");
     text = enforceOpening(lastAssistant < 0, firstUserText, text);
   }
   let afterHandoff = result.handedOff || handoffMode;
@@ -414,6 +460,7 @@ function appUrl(): string {
 async function handleHandoffMessages(item: PendingInbound): Promise<void> {
   const conv = await prisma.waBotConversation.findUnique({ where: { id: item.conversationId } });
   if (!conv || conv.status !== "handoff") return;
+  await waitForVoiceTranscripts(conv.id);
   const since = conv.handoffNotifiedAt ?? conv.handoffAt ?? new Date(0);
   const fresh = await prisma.waBotMessage.findMany({
     where: { conversationId: conv.id, role: "user", createdAt: { gt: since } },
@@ -501,12 +548,14 @@ async function conversationGender(conv: { id: string; businessId: string; phone:
   try {
     const texts = (
       await prisma.waBotMessage.findMany({
-        where: { conversationId: conv.id, role: "user", kind: "text" },
+        where: { conversationId: conv.id, role: "user", kind: { in: ["text", "voice"] } },
         orderBy: { createdAt: "desc" },
         take: 40,
-        select: { text: true },
+        select: { kind: true, text: true },
       })
-    ).map((m) => m.text);
+    )
+      .map(customerWords)
+      .filter((t): t is string => !!t);
     const lead = await findLeadByPhone(conv.businessId, conv.phone).catch(() => null);
     const name = lead && !isPlaceholderLeadName(lead.name) ? lead.name : conv.profileName;
     return detectGender({ texts, name });
@@ -564,5 +613,65 @@ async function sendParts(item: PendingInbound, to: string, parts: string[], allo
       data: { conversationId: item.conversationId, role: "assistant", text: part, waMessageId: wamid },
     });
     await prisma.waBotConversation.update({ where: { id: item.conversationId }, data: { lastBotReplyAt: new Date() } });
+  }
+}
+
+// ─── Voice notes (Or, item 28a) ───────────────────────────────────────────────
+
+/**
+ * Download + transcribe one voice note (ElevenLabs Scribe, Hebrew) and store the transcript in its
+ * WaBotMessage (kind "voice"). The lead journal gets the transcript + the WhatsApp media id.
+ * Failure → VOICE_FAILED_TEXT (the bot then asks the customer to write it briefly). Never throws.
+ */
+async function transcribeVoiceNote(item: PendingInbound, voice: { mediaId: string; mimeType: string | null }): Promise<void> {
+  let transcript: string | null = null;
+  try {
+    const audio = await downloadMedia(voice.mediaId);
+    if (audio) {
+      const t = await transcribeAudio(
+        { data: audio.data, contentType: voice.mimeType || audio.contentType, filename: "voice.ogg" },
+        { language: "he", diarize: false, timeoutMs: 30_000 }
+      );
+      transcript = cleanTranscript(t.text);
+    }
+  } catch (err) {
+    console.error(`${LOG} voice transcription failed:`, err instanceof Error ? err.message.slice(0, 200) : "error");
+  }
+  await prisma.waBotMessage.updateMany({
+    where: { conversationId: item.conversationId, waMessageId: item.waMessageId, kind: "voice", text: VOICE_PENDING_TEXT },
+    data: { text: transcript ?? VOICE_FAILED_TEXT },
+  });
+  try {
+    const conv = await prisma.waBotConversation.findUnique({ where: { id: item.conversationId } });
+    if (!conv) return;
+    const ref: BotConversationRef = {
+      id: conv.id,
+      businessId: conv.businessId,
+      phone: conv.phone,
+      profileName: conv.profileName,
+      leadId: conv.leadId,
+      summaryCallLogId: conv.summaryCallLogId,
+      attributionSource: conv.attributionSource,
+      attributionPage: conv.attributionPage,
+    };
+    await dropDeletedLeadLink(ref);
+    await createDbExecutor(ref).saveLead({});
+    if (ref.leadId) await addLeadCallLog(ref.leadId, voiceNoteLogText(voice.mediaId, transcript));
+    console.log(`${LOG} voice note ${transcript ? "transcribed" : "not transcribed"} (${maskPhone(conv.phone)})`);
+  } catch (err) {
+    console.error(`${LOG} voice note log failed:`, err instanceof Error ? err.message : err);
+  }
+}
+
+/** The reply waits until every voice note of the last minutes is transcribed (max ~45s). */
+async function waitForVoiceTranscripts(conversationId: string): Promise<void> {
+  const deadline = Date.now() + 45_000;
+  while (Date.now() < deadline) {
+    const pending = await prisma.waBotMessage.findFirst({
+      where: { conversationId, role: "user", kind: "voice", text: VOICE_PENDING_TEXT, createdAt: { gte: new Date(Date.now() - 5 * 60 * 1000) } },
+      select: { id: true },
+    });
+    if (!pending) return;
+    await sleep(1500);
   }
 }

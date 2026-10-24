@@ -60,3 +60,44 @@ export async function sendText(to: string, body: string): Promise<string | null>
   }
   return r.data?.messages?.[0]?.id ?? null;
 }
+
+/** WhatsApp voice notes are ≤ 16 MB; anything bigger is refused. */
+const MAX_MEDIA_BYTES = 16 * 1024 * 1024;
+
+/**
+ * Download an inbound media file (voice note): GET /{media-id} → a short-lived URL → the bytes,
+ * both with the bot's token. Returns null on any failure (logged without the token / URL).
+ */
+export async function downloadMedia(mediaId: string): Promise<{ data: ArrayBuffer; contentType: string } | null> {
+  const c = config();
+  if (!c) return null;
+  try {
+    const metaRes = await fetch(`https://graph.facebook.com/${c.version}/${encodeURIComponent(mediaId)}`, {
+      headers: { Authorization: `Bearer ${c.token}` },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!metaRes.ok) {
+      console.error(`${LOG} media lookup failed: HTTP ${metaRes.status}`);
+      return null;
+    }
+    const meta = (await metaRes.json()) as { url?: string; mime_type?: string; file_size?: number };
+    if (!meta.url || (meta.file_size && meta.file_size > MAX_MEDIA_BYTES)) {
+      console.error(`${LOG} media lookup: no url or too big`);
+      return null;
+    }
+    const fileRes = await fetch(meta.url, {
+      headers: { Authorization: `Bearer ${c.token}` },
+      signal: AbortSignal.timeout(20_000),
+    });
+    if (!fileRes.ok) {
+      console.error(`${LOG} media download failed: HTTP ${fileRes.status}`);
+      return null;
+    }
+    const data = await fileRes.arrayBuffer();
+    if (!data.byteLength || data.byteLength > MAX_MEDIA_BYTES) return null;
+    return { data, contentType: (meta.mime_type || fileRes.headers.get("content-type") || "audio/ogg").split(";")[0].trim() };
+  } catch (err) {
+    console.error(`${LOG} media download failed:`, err instanceof Error ? err.message : "error");
+    return null;
+  }
+}

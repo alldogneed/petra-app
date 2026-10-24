@@ -32,6 +32,9 @@ import {
   SURNAME_QUESTION_RE,
   TEL_AVIV_RE,
   toChatTurns,
+  VOICE_FAILED_REPLY,
+  VOICE_FAILED_TEXT,
+  voiceHistoryText,
   urgencyReason,
 } from "@/lib/alldog-bot/logic";
 import {
@@ -44,6 +47,7 @@ import {
 } from "@/lib/alldog-bot/prompt";
 import { BOT_TOOLS, HANDOFF_MODE_TOOLS, LOOKUP_GUIDE_TOOL, runBotTurn, type BotToolExecutor } from "@/lib/alldog-bot/agent";
 import { addressNote, addressStyleFor, applyAddressStyle, findAddressIssues, type AddressStyle } from "@/lib/alldog-bot/address";
+import { areaToCheckNote, fixOutOfAreaLines, isKnownServiceCity, unknownAreaToolNote } from "@/lib/alldog-bot/areas";
 import {
   CLOSED_NOTE,
   CLOSING_MARKER,
@@ -53,6 +57,8 @@ import {
   closingAlreadySent,
   closingWhen,
   handoffClosingText,
+  closingWithTransition,
+  TRANSITION_MARKER,
   isHumanRequest,
   withClosing,
 } from "@/lib/alldog-bot/handoff";
@@ -78,6 +84,13 @@ export function offersTime(text: string): boolean {
 
 const IDENTITY_LINE = /העוזר המנהלתי|אני בוט|אני לא בן אדם/u;
 
+/** Simulator input: "🎤 <text>" = a transcribed voice note, "🎤!" = one that could not be transcribed. */
+export function parseSimVoice(raw: string): { isVoice: boolean; failed: boolean; text: string } {
+  const m = raw.match(/^🎤\s*(!)?\s*([\s\S]*)$/u);
+  if (!m) return { isVoice: false, failed: false, text: raw };
+  return { isVoice: true, failed: !!m[1] || !m[2].trim(), text: m[2].trim() };
+}
+
 export type Variant = "before" | "after";
 
 /** "before" = the prompt + tools of the first release (no guides, old opening); "after" = current code. */
@@ -97,7 +110,7 @@ export interface SimEvent {
 type Status = "active" | "handoff" | "stopped";
 
 export class SimConversation {
-  rows: Array<{ role: string; text: string }> = [];
+  rows: Array<{ role: string; text: string; voice?: boolean }> = [];
   status: Status = "active";
   attribution: { source: string | null; page: string | null } | null = null;
   knownName: string | null = null;
@@ -157,6 +170,10 @@ export class SimConversation {
     return `סדר איסוף: ${label} ${ok ? "✓ (שם + כלב → אזור → השאר)" : "⚠ לא לפי הסדר"}`;
   }
 
+  private transitionSent(): boolean {
+    return this.rows.some((r) => r.role === "assistant" && r.text.includes(TRANSITION_MARKER));
+  }
+
   private executor(): BotToolExecutor {
     const ex: BotToolExecutor = {
       closing: null,
@@ -171,19 +188,26 @@ export class SimConversation {
           if (input[k] && this.savedAt[k] === undefined) this.savedAt[k] = this.turn;
         }
         this.emit("tool", `save_lead ${JSON.stringify(input)}`);
-        return "נשמר";
+        const notes: string[] = [];
+        if (input.city && !isKnownServiceCity(input.city)) {
+          this.emit("info", `${areaToCheckNote(input.city).replace("[וואטסאפ · בוט] ", "")} → נרשם בליד`);
+          notes.push(unknownAreaToolNote(input.city, this.style.gender));
+        }
+        if (input.other_issues) this.emit("info", `בעיה נוספת נרשמה בליד: ${input.other_issues}`);
+        return ["נשמר", ...notes].join(". ");
       },
       scheduleCallback: async ({ note }) => {
         this.emit("tool", `schedule_callback${note ? ` ${note}` : ""} → "לחזור טלפונית" + משימה לנציגה (בלי שעה${this.urgent ? ", URGENT" : ""})`);
         this.recordBasics();
-        ex.closing = callbackClosingText(closingWhen(new Date()), this.style.gender);
+        ex.closing = closingWithTransition(callbackClosingText(closingWhen(new Date()), this.style.gender), this.transitionSent());
         return `סומן לחזרה טלפונית. כתוב ללקוח בדיוק: "${ex.closing}"`;
       },
       handoff: async (input) => {
         this.emit("tool", `handoff_to_human ${JSON.stringify(input)} → משימה דחופה + התראה (לא נשלחות בסימולציה)`);
         this.status = "handoff";
         this.recordBasics();
-        ex.closing = handoffClosingText(closingWhen(new Date()), this.style.gender);
+        const closing = handoffClosingText(closingWhen(new Date()), this.style.gender);
+        ex.closing = input.urgency === "urgent" ? closing : closingWithTransition(closing, this.transitionSent());
         return `הועבר. כתוב ללקוח בדיוק: "${ex.closing}" ואל תשאל עוד שאלות`;
       },
     };
@@ -230,7 +254,7 @@ export class SimConversation {
       for (const issue of findAddressIssues(text, this.style)) {
         this.warn(`${issue.kind === "self_plural" ? "הבוט מדבר ברבים על עצמו" : "פנייה ברבים שהלקוח לא השתמש בה"}: "${issue.text}"`);
       }
-      for (const issue of findTextIssues(text)) this.warn(`${issue.kind === "duplicate_word" ? "מילה כפולה" : "מילים מחוברות"}: "${issue.text}"`);
+      for (const issue of findTextIssues(text)) this.warn(`${{ duplicate_word: "מילה כפולה", merged_word: "מילים מחוברות", wrong_form: "צורה שגויה", number_gender: "מספר במין הלא נכון" }[issue.kind]}: "${issue.text}"`);
     }
     this.emit("bot", text);
     this.rows.push({ role: "assistant", text });
@@ -243,9 +267,20 @@ export class SimConversation {
       this.attribution = { source: parsed.source, page: parsed.page };
       this.emit("info", `שיוך: ${[parsed.source, parsed.page].filter(Boolean).join(" · ")}`);
     }
-    const text = parsed.text || raw;
-    this.emit("user", text);
-    this.rows.push({ role: "user", text });
+    // "🎤 <text>" = a voice note transcribed to <text>; "🎤!" = a voice note that failed (item 28a).
+    const voice = parseSimVoice(parsed.text || raw);
+    if (voice.failed) {
+      this.emit("user", VOICE_FAILED_TEXT);
+      this.emit("info", `הודעה קולית: התמלול נכשל → "${VOICE_FAILED_REPLY}"`);
+      const last = [...this.rows].reverse().find((r) => r.role === "assistant");
+      this.rows.push({ role: "user", text: VOICE_FAILED_TEXT, voice: true });
+      if (last?.text !== VOICE_FAILED_REPLY) this.pushBot(VOICE_FAILED_REPLY, "");
+      return;
+    }
+    const text = voice.text;
+    this.emit("user", voice.isVoice ? `🎤 ${text}` : text);
+    if (voice.isVoice) this.emit("info", "הודעה קולית: תומללה (ElevenLabs בפרודקשן) → הבוט עונה לתמלול");
+    this.rows.push({ role: "user", text, ...(voice.isVoice ? { voice: true } : {}) });
 
     if (isStopRequest(text)) {
       this.status = "stopped";
@@ -315,7 +350,11 @@ export class SimConversation {
       client: this.client,
       model: this.model,
       context,
-      history: toChatTurns(this.rows),
+      history: toChatTurns(
+        this.rows.map((r) =>
+          r.voice ? { role: r.role, text: r.text === VOICE_FAILED_TEXT ? "[הודעה קולית שלא הצלחת לשמוע]" : voiceHistoryText(r.text) } : r
+        )
+      ),
       executor,
       ...variantSetup(this.variant),
       ...(handoffMode ? { tools: HANDOFF_MODE_TOOLS } : {}),
@@ -323,9 +362,11 @@ export class SimConversation {
     for (const name of result.toolsUsed.filter((n) => n === "lookup_guide")) this.emit("tool", name);
     let reply = enforceIdentityAnswer(text, result.reply);
     if (this.variant === "after") {
-      reply = applyAddressStyle(applyConversationGuards(reply, this.rows.filter((r) => r.role === "assistant").map((r) => r.text), {
-        userTexts: this.rows.filter((r) => r.role === "user").map((r) => r.text),
-      }), this.style);
+      const prior = this.rows.filter((r) => r.role === "assistant").map((r) => r.text);
+      if (/מחוץ\s+ל(?:ה)?אזור|לא\s+ברשימה/u.test(reply)) this.warn(`המודל כתב "מחוץ לאזור" / "לא ברשימה" (הוחלף, 28b): "${reply.slice(0, 80)}"`);
+      reply = fixOutOfAreaLines(applyAddressStyle(applyConversationGuards(reply, prior, {
+        userTexts: this.rows.filter((r) => r.role === "user" && r.text !== VOICE_FAILED_TEXT).map((r) => r.text),
+      }), this.style), this.style.gender, prior);
     }
     if (this.variant === "after") {
       if (executor.closing && !closed) reply = withClosing(reply, executor.closing);
