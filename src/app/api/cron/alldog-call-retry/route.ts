@@ -28,7 +28,12 @@ export async function GET(request: NextRequest) {
     const bot = isWaBotEnabled()
       ? await (await import("@/lib/alldog-bot/summary")).summarizeIdleConversations({ budgetMs: 40_000, limit: 10 })
       : { skipped: "disabled" };
-    return NextResponse.json({ ok: true, ...calls, botSummaries: bot, timestamp: new Date().toISOString() });
+    // Item 32: automatic WhatsApp after a missed call — the messages held for 08:00 / after Shabbat.
+    const { isMissedCallWaEnabled } = await import("@/lib/alldog/missed-call-rules");
+    const missedCallWa = isMissedCallWaEnabled()
+      ? await (await import("@/lib/alldog/missed-call-wa")).processDueMissedCallMessages({ limit: 20 })
+      : { skipped: "disabled" };
+    return NextResponse.json({ ok: true, ...calls, botSummaries: bot, missedCallWa, timestamp: new Date().toISOString() });
   } catch (err) {
     console.error("CRON alldog-call-retry error:", err);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });

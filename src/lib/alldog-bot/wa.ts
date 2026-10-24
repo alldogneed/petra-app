@@ -64,6 +64,20 @@ export async function sendText(to: string, body: string): Promise<string | null>
   return r.data?.messages?.[0]?.id ?? null;
 }
 
+/**
+ * Send an approved template without variables (e.g. missed_call_followup — item 32). Works outside
+ * the 24h window. Returns the wamid, or null on failure (Or is alerted, ≤ 1 / 30 min). Never retried here.
+ */
+export async function sendTemplate(to: string, name: string, language: string): Promise<string | null> {
+  const r = await post({ recipient_type: "individual", to, type: "template", template: { name, language: { code: language } } });
+  if (!r.ok) {
+    console.error(`${LOG} template ${name} to ${maskPhone(to)} failed: ${r.error}`);
+    await alertAllDogFailure({ kind: "wa_send", error: r.error ?? "send failed", detail: `תבנית ${name}`, phone: to });
+    return null;
+  }
+  return r.data?.messages?.[0]?.id ?? null;
+}
+
 /** WhatsApp voice notes are ≤ 16 MB; anything bigger is refused. */
 const MAX_MEDIA_BYTES = 16 * 1024 * 1024;
 

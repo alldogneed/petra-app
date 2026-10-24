@@ -45,7 +45,7 @@ export async function getBotConversationForLead(businessId: string, leadId: stri
   const conv = await findConversation(businessId, leadId);
   if (!conv) return null;
   const rows = await prisma.waBotMessage.findMany({
-    where: { conversationId: conv.id },
+    where: { conversationId: conv.id, role: { not: "system" } },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: 60,
     select: { id: true, role: true, kind: true, text: true, createdAt: true },

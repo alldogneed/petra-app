@@ -133,7 +133,7 @@ export async function summarizeBotConversation(conversationId: string, opts: { c
     const rows = currentSession(
       (
         await prisma.waBotMessage.findMany({
-          where: { conversationId },
+          where: { conversationId, role: { not: "system" } }, // system = automation markers (item 32)
           orderBy: [{ createdAt: "desc" }, { id: "desc" }],
           take: 80,
           select: { id: true, role: true, kind: true, text: true, createdAt: true },

@@ -1,0 +1,161 @@
+/**
+ * AllDog — automatic WhatsApp after a missed call to 03-3818670 (Or, item 32). Pure rules, tested.
+ * The DB / Meta side is src/lib/alldog/missed-call-wa.ts.
+ */
+import { readEnv } from "@/lib/read-env";
+import { addDaysYmd, israelInstant, israelParts, weekdayOfYmd } from "@/lib/alldog/time";
+
+/** Meta template (approved on the AllDog bot's WABA): no variables, Hebrew. */
+export const MISSED_CALL_TEMPLATE = { name: "missed_call_followup", language: "he" } as const;
+
+/** Or's own numbers: never, except in test mode. */
+export const OR_PHONES = ["0542560964", "0542560963"];
+
+/** No second automatic message to the same phone within this period. */
+export const MISSED_CALL_DEDUP_MS = 7 * 24 * 60 * 60 * 1000;
+/** An answered call from the same phone within this period → no message. */
+export const ANSWERED_RECENTLY_MS = 60 * 60 * 1000;
+
+/** WaBotMessage kinds (role "system") that track one automatic message per missed call. */
+export const MISSED_CALL_KINDS = {
+  pending: "missed_call_pending",
+  sending: "missed_call_sending",
+  sent: "missed_call_sent",
+  skipped: "missed_call_skipped",
+  failed: "missed_call_failed",
+} as const;
+
+/** The bot's own copy of the template message (role "assistant") — readable in the rep's chat. */
+export const MISSED_CALL_SENT_TEXT = "📩 הודעת וואטסאפ אוטומטית (missed_call_followup): הלקוח התקשר ל-03-3818670 ולא נענה";
+export const MISSED_CALL_MARKER = "(missed_call_followup)";
+
+/** Context for the bot when the customer answers the automatic message. */
+export const MISSED_CALL_CONTEXT_NOTE =
+  "הלקוח התקשר למשרד (03-3818670) ולא נענה, וקיבל מאיתנו הודעת וואטסאפ אוטומטית. עכשיו הוא עונה לה: בלי הודעת פתיחה, מגיבים למה שכתב וממשיכים לאסוף פרטים כרגיל.";
+
+export function isMissedCallWaEnabled(): boolean {
+  return readEnv("ALLDOG_MISSED_CALL_WA_ENABLED")?.toLowerCase() === "true";
+}
+/** Test mode: Or's numbers are allowed. */
+export function isMissedCallWaTestMode(): boolean {
+  return readEnv("ALLDOG_MISSED_CALL_WA_TEST_MODE")?.toLowerCase() === "true";
+}
+/** The office line the automation is for (default 03-3818670). */
+export function missedCallLine(): string {
+  return (readEnv("ALLDOG_MISSED_CALL_LINE") || "033818670").replace(/\D/g, "");
+}
+
+/** "0541234567" for an Israeli mobile number (05X, 10 digits); null for landlines, blocked / hidden ids. */
+export function israeliMobile(raw: string | null | undefined): string | null {
+  const t = (raw ?? "").trim().toLowerCase();
+  if (!t || /anonymous|restricted|private|unknown|חסוי|חסום/.test(t)) return null;
+  let d = t.replace(/\D/g, "");
+  if (d.startsWith("00972")) d = d.slice(5);
+  else if (d.startsWith("972")) d = d.slice(3);
+  if (!d.startsWith("0")) d = `0${d}`;
+  return /^05\d{8}$/.test(d) ? d : null;
+}
+
+/** "0541234567" → "972541234567" (Meta wa_id / WaBotConversation.phone format). */
+export function toWaId(mobile: string): string {
+  return `972${mobile.replace(/\D/g, "").replace(/^0/, "")}`;
+}
+
+/** The call went to the office line (PayCall PR_NUMBER has no leading 0). */
+export function isOfficeLine(prNumber: string | null | undefined, line = missedCallLine()): boolean {
+  const d = (prNumber ?? "").replace(/\D/g, "");
+  return d.length >= 8 && line.length >= 8 && d.slice(-8) === line.slice(-8);
+}
+
+/** Quiet hours: 22:00–08:00 every day, Friday 14:00 until Saturday 20:00 (after Shabbat). */
+export function isQuietTime(ymd: string, hhmm: string): boolean {
+  const wd = weekdayOfYmd(ymd);
+  if (hhmm < "08:00" || hhmm >= "22:00") return true;
+  if (wd === 5 && hhmm >= "14:00") return true;
+  if (wd === 6 && hhmm < "20:00") return true;
+  return false;
+}
+
+/** When to send: now, or the start of the next allowed window (Israel time). */
+export function nextSendTime(now: Date): Date {
+  const p = israelParts(now);
+  if (!isQuietTime(p.ymd, p.hhmm)) return now;
+  const candidates: Date[] = [];
+  for (let i = 0; i <= 3; i++) {
+    const ymd = addDaysYmd(p.ymd, i);
+    candidates.push(israelInstant(ymd, "08:00"));
+    if (weekdayOfYmd(ymd) === 6) candidates.push(israelInstant(ymd, "20:00"));
+  }
+  return (
+    candidates
+      .filter((c) => c.getTime() > now.getTime())
+      .sort((a, b) => a.getTime() - b.getTime())
+      .find((c) => {
+        const q = israelParts(c);
+        return !isQuietTime(q.ymd, q.hhmm);
+      }) ?? now
+  );
+}
+
+export type SkipReason =
+  | "disabled"
+  | "not_office_line"
+  | "not_mobile"
+  | "or_phone"
+  | "answered_recently"
+  | "active_conversation"
+  | "stopped"
+  | "sent_recently";
+
+export const SKIP_REASON_LABELS: Record<SkipReason, string> = {
+  disabled: "המתג כבוי",
+  not_office_line: "השיחה לא הייתה ל-03-3818670",
+  not_mobile: "לא מספר נייד ישראלי (נייח / חסוי)",
+  or_phone: "מספר של אור (רק במצב בדיקה)",
+  answered_recently: "הלקוח קיבל מענה בשיחה אחרת בשעה האחרונה",
+  active_conversation: "יש שיחת בוט פעילה",
+  stopped: "הלקוח ביקש להפסיק הודעות מהבוט",
+  sent_recently: "כבר נשלחה הודעה כזו ב-7 הימים האחרונים",
+};
+
+/** Every rule that does not need the DB / PayCall. Returns the reason to skip, or null. */
+export function basicSkipReason(input: { prNumber: string | null | undefined; callerId: string | null | undefined }): SkipReason | null {
+  if (!isMissedCallWaEnabled()) return "disabled";
+  if (!isOfficeLine(input.prNumber)) return "not_office_line";
+  const mobile = israeliMobile(input.callerId);
+  if (!mobile) return "not_mobile";
+  if (OR_PHONES.includes(mobile) && !isMissedCallWaTestMode()) return "or_phone";
+  return null;
+}
+
+/** The bot may not open the conversation: active in the last 24 h, or the customer asked to stop. */
+export function conversationSkipReason(
+  conv: { status: string; lastInboundAt: Date | null } | null,
+  lastMissedCallMessageAt: Date | null,
+  now: Date
+): SkipReason | null {
+  if (conv?.status === "stopped") return "stopped";
+  if (conv?.lastInboundAt && now.getTime() - conv.lastInboundAt.getTime() < 24 * 60 * 60 * 1000) return "active_conversation";
+  if (conv?.status === "handoff") return "active_conversation";
+  if (lastMissedCallMessageAt && now.getTime() - lastMissedCallMessageAt.getTime() < MISSED_CALL_DEDUP_MS) return "sent_recently";
+  return null;
+}
+
+/** "YYYY-MM-DD HH:MM:SS" (PayCall, Israel time) → instant; null when unreadable. */
+export function paycallStart(start: string | null | undefined): Date | null {
+  const m = (start ?? "").match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})/);
+  return m ? israelInstant(m[1], m[2]) : null;
+}
+
+/** An ANSWER call from this mobile number that started at or after `since`. */
+export function answeredSince(
+  calls: Array<{ CALLERID: string; DISPOSITION: string; START: string }>,
+  mobile: string,
+  since: Date
+): boolean {
+  return calls.some((c) => {
+    if (c.DISPOSITION !== "ANSWER" || israeliMobile(c.CALLERID) !== mobile) return false;
+    const at = paycallStart(c.START);
+    return !!at && at.getTime() >= since.getTime();
+  });
+}

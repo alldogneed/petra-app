@@ -262,7 +262,7 @@ export function createDbExecutor(conv: BotConversationRef): BotToolExecutor {
 
       // The rep has no WhatsApp inbox for this number — the task carries the latest messages.
       const recent = await prisma.waBotMessage.findMany({
-        where: { conversationId: conv.id },
+        where: { conversationId: conv.id, role: { not: "system" } },
         orderBy: { createdAt: "desc" },
         take: 12,
         select: { role: true, text: true },
