@@ -1,5 +1,8 @@
 /**
- * Rate limiter — Upstash Redis in production, in-memory fallback in dev.
+ * Rate limiter + one-shot claims — Postgres (table RateLimitBucket, atomic across all
+ * serverless instances), in-memory fallback when the DB is unreachable / in dev.
+ * No Redis: the Upstash database behind this file was deleted (prod logged ENOTFOUND on
+ * every call, 10/2026) and the Postgres path already carried the limiter.
  *
  * Sync usage (legacy, in-memory only — use for low-sensitivity endpoints):
  *   const result = rateLimit("api:x", ip, { max: 120, windowMs: 60_000 });
@@ -9,8 +12,6 @@
  *   const result = await rateLimitAsync("auth:login", ip, { max: 10, windowMs: 600_000 });
  *   if (!result.allowed) return 429;
  */
-import { Ratelimit } from "@upstash/ratelimit";
-import { Redis } from "@upstash/redis";
 import prisma from "@/lib/prisma";
 
 interface RateLimitEntry {
@@ -109,76 +110,7 @@ export const RATE_LIMITS = {
   ASSISTANT_ESCALATE: { max: 5, windowMs: 60 * 60 * 1000 },
 } as const;
 
-// ─── Distributed rate limiter (Upstash Redis) ────────────────────────────────
-
-/**
- * Upstash REST credentials. The Vercel Marketplace "Upstash for Redis" integration
- * provisions `KV_REST_API_URL` / `KV_REST_API_TOKEN`; the older manual setup used
- * `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`. The KV pair wins (it is the
- * one the integration keeps current — a stale UPSTASH_* pair pointed prod at a deleted
- * database for weeks), and URL + token always come from the SAME pair, never mixed.
- * Strips ALL whitespace: a newline/space pasted into a Vercel env var makes the Upstash
- * client throw "invalid URL" (or reach a wrong host) on every call.
- */
-export function resolveRedisCredentials(
-  env: Record<string, string | undefined>
-): { url: string; token: string; source: "KV_REST_API" | "UPSTASH_REDIS_REST" } | null {
-  const pairs = [
-    ["KV_REST_API", env.KV_REST_API_URL, env.KV_REST_API_TOKEN],
-    ["UPSTASH_REDIS_REST", env.UPSTASH_REDIS_REST_URL, env.UPSTASH_REDIS_REST_TOKEN],
-  ] as const;
-  for (const [source, rawUrl, rawToken] of pairs) {
-    const url = rawUrl?.replace(/\s+/g, "");
-    const token = rawToken?.replace(/\s+/g, "");
-    if (url && token) return { url, token, source };
-  }
-  return null;
-}
-
-let _redis: Redis | null = null;
-// Circuit breaker: after a Redis failure, skip Redis for a while instead of
-// paying a retry/backoff delay on every request (a broken URL made every
-// limiter call wait seconds in prod, 2026-08-21).
-let _redisDisabledUntil = 0;
-const REDIS_BREAKER_MS = 60_000;
-function _getRedis(): Redis | null {
-  if (Date.now() < _redisDisabledUntil) return null;
-  if (_redis) return _redis;
-  // Static property reads (not the whole process.env object) — the Edge runtime
-  // (middleware imports this file) only exposes env vars referenced by name.
-  const creds = resolveRedisCredentials({
-    KV_REST_API_URL: process.env.KV_REST_API_URL,
-    KV_REST_API_TOKEN: process.env.KV_REST_API_TOKEN,
-    UPSTASH_REDIS_REST_URL: process.env.UPSTASH_REDIS_REST_URL,
-    UPSTASH_REDIS_REST_TOKEN: process.env.UPSTASH_REDIS_REST_TOKEN,
-  });
-  if (!creds) return null;
-  const { url, token } = creds;
-  _redis = new Redis({ url, token, retry: { retries: 1, backoff: () => 100 } });
-  return _redis;
-}
-function _tripRedisBreaker(): void {
-  _redisDisabledUntil = Date.now() + REDIS_BREAKER_MS;
-  _redis = null;
-  _limiters.clear();
-}
-
-const _limiters = new Map<string, Ratelimit>();
-function _getLimiter(namespace: string, max: number, windowSec: number): Ratelimit | null {
-  const r = _getRedis();
-  if (!r) return null;
-  const key = `${namespace}:${max}:${windowSec}`;
-  if (!_limiters.has(key)) {
-    _limiters.set(key, new Ratelimit({
-      redis: r,
-      limiter: Ratelimit.slidingWindow(max, `${windowSec} s`),
-      prefix: `rl:${namespace}`,
-    }));
-  }
-  return _limiters.get(key)!;
-}
-
-// ─── Postgres fallback limiter ───────────────────────────────────────────────
+// ─── Postgres limiter ────────────────────────────────────────────────────────
 
 let _lastPrune = 0;
 const DB_LIMITER_TIMEOUT_MS = 1500;
@@ -240,38 +172,17 @@ async function rateLimitDb(
 }
 
 /**
- * Distributed rate limit check — uses Upstash Redis when configured,
- * falls back to in-memory for local dev.
- * Use this for all auth and public-facing endpoints.
+ * Distributed rate limit check — Postgres fixed window (atomic across instances),
+ * in-memory when the DB is unreachable or slow. Use for all auth and public endpoints.
  */
 export async function rateLimitAsync(
   namespace: string,
   key: string,
   options: RateLimitOptions
 ): Promise<RateLimitResult> {
-  const windowSec = Math.ceil(options.windowMs / 1000);
-  try {
-    const limiter = _getLimiter(namespace, options.max, windowSec);
-    if (limiter) {
-      const result = await limiter.limit(key);
-      const now = Date.now();
-      const retryAfterMs = result.success ? 0 : result.reset - now;
-      return {
-        allowed: result.success,
-        remaining: result.remaining,
-        resetAt: result.reset,
-        retryAfterMs: Math.max(0, retryAfterMs),
-      };
-    }
-  } catch (err) {
-    console.error("Redis rate limit error, falling back to memory:", err);
-    _tripRedisBreaker();
-  }
-  // Fallback 1: Postgres fixed-window counter — atomic across all serverless instances
-  // (Redis was unreachable in prod for weeks; per-instance memory let parallel bursts through).
   const dbResult = await rateLimitDb(namespace, key, options);
   if (dbResult) return dbResult;
-  // Fallback 2: in-memory (last resort, per instance)
+  // Fallback: in-memory (last resort, per instance)
   return rateLimit(namespace, key, options);
 }
 
@@ -282,25 +193,49 @@ const _claimMemory = new Map<string, number>(); // key → expiry epoch ms
  * Atomically "claim" a key for `ttlSeconds`. Returns true for the FIRST caller
  * within the window, false for subsequent ones — use it to throttle repeated
  * side effects (e.g. send an alert at most once per N hours) across serverless
- * instances. Uses Upstash Redis (SET NX EX); falls back to per-instance memory.
+ * instances. Postgres (RateLimitBucket row `claim:<key>`); per-instance memory only
+ * when the DB is unreachable.
  */
 export async function claimOnce(key: string, ttlSeconds: number): Promise<boolean> {
-  try {
-    const r = _getRedis();
-    if (r) {
-      const res = await r.set(`claim:${key}`, "1", { nx: true, ex: ttlSeconds });
-      return res === "OK";
-    }
-  } catch (err) {
-    console.error("claimOnce Redis error, falling back to memory:", err);
-    _tripRedisBreaker();
-  }
+  const db = await claimDb(key, ttlSeconds);
+  if (db !== null) return db;
   // Fallback: per-instance memory
   const now = Date.now();
   const exp = _claimMemory.get(key);
   if (exp && exp > now) return false;
   _claimMemory.set(key, now + ttlSeconds * 1000);
   return true;
+}
+
+/**
+ * One round-trip, atomic: insert the claim row, or take over an EXPIRED one; a live
+ * row makes the conditional update a no-op → no row returned → not claimed.
+ * Expired claim rows are removed by the limiter's prune (windowEnd in the past).
+ * Null on DB error / timeout (caller falls back to memory).
+ */
+async function claimDb(key: string, ttlSeconds: number): Promise<boolean | null> {
+  const bucketKey = `claim:${key}`;
+  const until = new Date(Date.now() + ttlSeconds * 1000);
+  try {
+    const query = prisma.$queryRaw<Array<{ key: string }>>`
+      INSERT INTO "RateLimitBucket" ("key", "count", "windowEnd")
+      VALUES (${bucketKey}, 1, ${until})
+      ON CONFLICT ("key") DO UPDATE SET "count" = 1, "windowEnd" = EXCLUDED."windowEnd"
+      WHERE "RateLimitBucket"."windowEnd" < NOW()
+      RETURNING "key"`;
+    const rows = await Promise.race([
+      query,
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), DB_LIMITER_TIMEOUT_MS)),
+    ]);
+    if (!rows) {
+      console.warn(`claimOnce DB timeout (${DB_LIMITER_TIMEOUT_MS}ms) for ${key} — falling back to memory`);
+      return null;
+    }
+    return rows.length > 0;
+  } catch (err) {
+    console.error("claimOnce DB error, falling back to memory:", err);
+    return null;
+  }
 }
 
 /** Periodic cleanup of expired entries (call from a cron or app init) */
