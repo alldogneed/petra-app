@@ -111,8 +111,10 @@ async function summarizeAnsweredCall(callId: string, live: LiveLinkParams): Prom
       console.warn(`[paycall webhook] answered call ${callId}: no caller phone — left for the daily sync`);
       return;
     }
-    const { processAnsweredCall } = await import("@/lib/alldog/call-summary");
-    const result = await processAnsweredCall(
+    // First attempt through the retry queue: if the recording is not ready yet, the lead shows a
+    // "summary pending" line now and /api/cron/alldog-call-retry tries again at +3/+10/+30 min/+2 h.
+    const { runAnsweredCall } = await import("@/lib/alldog/call-retry");
+    const result = await runAnsweredCall(
       {
         callId,
         phone,
@@ -122,8 +124,7 @@ async function summarizeAnsweredCall(callId: string, live: LiveLinkParams): Prom
         gclid: live.gclid,
         campaign: live.campaign,
         campaignParams: live.campaignParams,
-      },
-      { retryRecordingAfterMs: 20_000 }
+      }
     );
     console.log(`[paycall webhook] answered call ${callId}: ${result.status}`);
   } catch (err) {

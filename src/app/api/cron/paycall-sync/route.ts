@@ -16,8 +16,9 @@ import { isCallSummariesEnabled } from "@/lib/alldog/config";
  *
  * When ALLDOG_CALL_SUMMARIES_ENABLED is on, the window is 48 hours and answered calls
  * (≥ 20s talk time) the webhook missed are summarized too (src/lib/alldog/call-summary.ts),
- * within a time budget; a call seen for the second time is a final attempt (logged even
- * without a summary). gclid / campaign are not filled here yet: getAnalyticsCalls is only probed
+ * within a time budget, through the retry queue (src/lib/alldog/call-retry.ts): calls the
+ * webhook already queued are left to the queue; a missed call older than 2 h gets a final
+ * attempt (logged even without a summary). gclid / campaign are not filled here yet: getAnalyticsCalls is only probed
  * (its key names logged once, no values) until the real field names are confirmed.
  *
  * Acts as a safety net behind the realtime webhook. Authentication via cron
@@ -71,23 +72,28 @@ export async function GET(request: NextRequest) {
       const answered = calls.filter((c) => c.DISPOSITION === "ANSWER" && billsecOf(c) >= MIN_SUMMARY_BILLSEC && c.CALLERID);
       answeredStats.candidates = answered.length;
       if (answered.length) {
-        const { processAnsweredCall } = await import("@/lib/alldog/call-summary");
+        const { runAnsweredCall, isQueued } = await import("@/lib/alldog/call-retry");
         for (const call of answered) {
           if (Date.now() - startedRun > ANSWERED_BUDGET_MS) {
             answeredStats.notReached++;
             continue;
           }
           try {
+            // Already in the retry queue (the webhook saw it) → the queue owns it.
+            if (await isQueued(call.ID)) {
+              answeredStats.duplicate++;
+              continue;
+            }
             const startedAt = new Date(call.START.replace(" ", "T") + "+03:00");
-            const r = await processAnsweredCall(
+            const r = await runAnsweredCall(
               {
                 callId: call.ID,
                 phone: call.CALLERID,
                 startedAt,
                 billsec: billsecOf(call),
               },
-              // Seen by a previous daily run already → last chance, log even without a summary.
-              { finalAttempt: now.getTime() - startedAt.getTime() > 22 * 60 * 60 * 1000 }
+              // Missed by the webhook and already 2 h old → its recording should exist; last chance.
+              { forceFinal: now.getTime() - startedAt.getTime() > 2 * 60 * 60 * 1000 }
             );
             if (r.status === "logged") answeredStats.logged++;
             else if (r.status === "duplicate") answeredStats.duplicate++;

@@ -39,6 +39,20 @@ export async function callIdLoggedOnCustomer(businessId: string, callId: string)
   return rows.some((r) => hasCallIdToken(r.description, callId));
 }
 
+/** The customer timeline note of this call (exact call_id match), or null. */
+export async function findCustomerNoteForCall(
+  businessId: string,
+  callId: string
+): Promise<{ id: string; customerId: string | null; description: string } | null> {
+  const rows = await prisma.timelineEvent.findMany({
+    where: { businessId, description: { contains: `call_id:${callId}` } },
+    select: { id: true, customerId: true, description: true },
+    orderBy: { createdAt: "asc" },
+    take: 5,
+  });
+  return rows.find((r) => hasCallIdToken(r.description, callId)) ?? null;
+}
+
 const CALLBACK_TITLE_PREFIX = "לחזור ללקוח";
 
 /** Text of the customer note (≤ 2000 chars — addCustomerNote's limit). */
@@ -97,14 +111,16 @@ export async function logMissedCallOnCustomer(
 export async function logAnsweredCallOnCustomer(
   businessId: string,
   customer: CallCustomer,
-  call: { callId: string; dateLabel: string; summary: string; nextStep?: string | null; followUpAt?: Date | null }
+  call: { callId: string; dateLabel: string; summary: string; nextStep?: string | null; followUpAt?: Date | null },
+  /** A note already written for this call (the "summary pending" placeholder) → updated in place. */
+  existingNoteId?: string | null
 ): Promise<{ taskCreated: boolean }> {
-  await addCustomerNote(
-    businessId,
-    prisma,
-    customer.id,
-    customerCallNote({ kind: "answered", callId: call.callId, dateLabel: call.dateLabel, detail: call.summary, matches: customer.matches })
-  );
+  const text = customerCallNote({ kind: "answered", callId: call.callId, dateLabel: call.dateLabel, detail: call.summary, matches: customer.matches });
+  if (existingNoteId) {
+    await prisma.timelineEvent.updateMany({ where: { id: existingNoteId, businessId }, data: { description: text } });
+  } else {
+    await addCustomerNote(businessId, prisma, customer.id, text);
+  }
   if (!call.nextStep) return { taskCreated: false };
   await createTask(businessId, prisma, {
     title: `המשך טיפול: ${customer.name}`,
