@@ -74,7 +74,7 @@ jest.mock("@/lib/prisma", () => {
 });
 
 const mockAttempts: Array<{ callId: string; finalAttempt: boolean }> = [];
-let mockNextResult: { status: string; reason?: string } = { status: "retry_later", reason: "recording_unavailable" };
+let mockNextResult: { status: string; reason?: string; coaching?: unknown } = { status: "retry_later", reason: "recording_unavailable" };
 jest.mock("@/lib/alldog/call-summary", () => ({
   processAnsweredCall: jest.fn(async (input: { callId: string }, opts: { finalAttempt?: boolean }) => {
     mockAttempts.push({ callId: input.callId, finalAttempt: !!opts.finalAttempt });
@@ -126,6 +126,23 @@ describe("schedule", () => {
 });
 
 describe("runAnsweredCall", () => {
+  it("item 33: a summarized call stores its coaching on the queue row (done + coachedAt)", async () => {
+    mockNextResult = { status: "logged", coaching: { v: 1, rep: "מכירות - תמר", outcome: "יחזור", strengths: [], improve: [] } };
+    await runAnsweredCall(input);
+    const row = mockRows[0] as unknown as Record<string, unknown>;
+    expect(row.status).toBe("done");
+    expect((row.coaching as { rep: string }).rep).toBe("מכירות - תמר");
+    expect(row.coachedAt).toBeInstanceOf(Date);
+  });
+
+  it("item 33: no coaching (off / failed) → the row is done without one", async () => {
+    mockNextResult = { status: "logged", coaching: null };
+    await runAnsweredCall(input);
+    const row = mockRows[0] as unknown as Record<string, unknown>;
+    expect(row.status).toBe("done");
+    expect(row.coaching).toBeUndefined();
+  });
+
   it("first attempt not ready → row scheduled +3 min, lock released", async () => {
     const r = await runAnsweredCall(input);
     expect(r).toMatchObject({ status: "retry_later" });
