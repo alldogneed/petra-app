@@ -45,23 +45,21 @@ export const BOT_TOOLS: Anthropic.Tool[] = [
         problem: { type: "string", description: "הבעיה במשפט קצר, כולל ממתי והאם היו נשיכות אם נאמר" },
         city: { type: "string" },
         neighborhood: { type: "string", description: "שכונה או אזור בעיר, אם נאמר" },
-        callback_time: { type: "string", description: "מתי נוח ללקוח שיחזרו אליו, כפי שאמר (למשל 'אחרי 17:00')" },
+        callback_time: { type: "string", description: "רק אם הלקוח ביקש בעצמו שעה או יום (למשל 'רק אחרי 18:00'). נשמר כהערה, בלי התחייבות. אף פעם לא שואלים על זה" },
         service: { type: "string", description: "מה הלקוח מחפש: אילוף אינטנסיבי בבית / שיעורים פרטיים / אילוף בתנאי פנסיון / לא ברור" },
-        summary: { type: "string", description: "סיכום של 1–3 משפטים של כל מה שידוע עד עכשיו, לצוות (כולל שכונה, כמה זמן הכלב אצלם ומתי נוח לחזור, אם נאמר)" },
+        summary: { type: "string", description: "סיכום של 1–3 משפטים של כל מה שידוע עד עכשיו, לצוות (כולל שכונה, כמה זמן הכלב אצלם, ושעה שהלקוח ביקש אם ביקש)" },
       },
     },
   },
   {
     name: "schedule_callback",
     description:
-      "קביעת מועד לשיחה טלפונית של נציגת AllDog עם הלקוח (נרשם כמשימת מעקב). רק בשעות פעילות: א׳–ה׳ 09:00–17:00, ו׳ 09:00–14:00, ובעתיד.",
+      "סיום איסוף הפרטים: מסמן בליד \"לחזור טלפונית\" ופותח משימה לנציגה. לא קובע שעה ולא יום. מחזיר את הודעת הסגירה לכתוב ללקוח.",
     input_schema: {
       type: "object",
       additionalProperties: false,
-      required: ["date", "time"],
       properties: {
-        date: { type: "string", description: "YYYY-MM-DD" },
-        time: { type: "string", description: "HH:MM שעון ישראל" },
+        note: { type: "string", description: "משפט לנציגה, אופציונלי (למשל מה הלקוח מחפש)" },
       },
     },
   },
@@ -99,10 +97,12 @@ export const saveLeadInput = z.object({
   service: trimmed(200),
   summary: trimmed(1000),
 });
-export const scheduleCallbackInput = z.object({
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
-});
+// strict: a date / time sent by the model is an error — the bot never sets a time (Or, 24/10).
+export const scheduleCallbackInput = z
+  .object({
+    note: trimmed(500),
+  })
+  .strict();
 export const lookupGuideInput = z.object({
   topic: z.string().transform((s) => s.replace(/\s+/g, " ").trim().slice(0, 200)).pipe(z.string().min(2)),
 });
@@ -154,7 +154,7 @@ async function runTool(executor: BotToolExecutor, block: Anthropic.ToolUseBlock)
       }
       case "schedule_callback": {
         const p = scheduleCallbackInput.safeParse(block.input);
-        if (!p.success) return { content: "date חייב להיות YYYY-MM-DD ו-time חייב להיות HH:MM", isError: true };
+        if (!p.success) return { content: "קלט לא תקין", isError: true };
         return { content: await executor.scheduleCallback(p.data), isError: false };
       }
       case "handoff_to_human": {

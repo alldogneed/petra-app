@@ -3,34 +3,61 @@
  * scripts/alldog-bot-sim.ts (interactive) and scripts/alldog-bot-compare.ts (before/after).
  * Uses the real prompt, tools, reply shaping and silence rules; save_lead / schedule_callback /
  * handoff are stubs that only record what they would do. lookup_guide is the real one.
+ *
+ * Checks printed as ⚙ lines (Or, 24/10 — items 15 + 22):
+ *   - the collection order: name + dog → area → breed/age (`orderCheck`);
+ *   - which basics were collected when the conversation closed (`basicsAtHandoff`);
+ *   - warnings: a time / slot offer or "מתי נוח", an identity line nobody asked for,
+ *     a repeated closing message (`warnings`).
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
 import Anthropic from "@anthropic-ai/sdk";
-import { heDayLabel, isValidYmd, isWithinOfficeHours, israelInstant, israelParts, nextCallbackOptions } from "@/lib/alldog/time";
+import { heDayLabel, israelParts } from "@/lib/alldog/time";
 import { isStopRequest, parseAttributionLine, splitReply, toChatTurns } from "@/lib/alldog-bot/logic";
-import { buildBotContext, enforceIdentityAnswer, enforceOpening, HUMAN_BITE_NOTE, mentionsHumanBite } from "@/lib/alldog-bot/prompt";
-import { BOT_TOOLS, HANDOFF_MODE_TOOLS, LOOKUP_GUIDE_TOOL, runBotTurn, ToolError, type BotToolExecutor } from "@/lib/alldog-bot/agent";
 import {
+  buildBotContext,
+  enforceIdentityAnswer,
+  enforceOpening,
+  HUMAN_BITE_NOTE,
+  identityAnswerFor,
+  mentionsHumanBite,
+} from "@/lib/alldog-bot/prompt";
+import { BOT_TOOLS, HANDOFF_MODE_TOOLS, LOOKUP_GUIDE_TOOL, runBotTurn, type BotToolExecutor } from "@/lib/alldog-bot/agent";
+import {
+  CLOSED_NOTE,
+  CLOSING_MARKER,
   HANDOFF_MODE_NOTE,
   HUMAN_ON_THE_WAY,
   callbackClosingText,
+  closingAlreadySent,
+  closingWhen,
   handoffClosingText,
   isHumanRequest,
   withClosing,
 } from "@/lib/alldog-bot/handoff";
 
-/** The basics Or wants before any handoff (item 15a) — checked when the simulated handoff happens. */
-export const HANDOFF_BASICS: Array<[keyof SavedFields, string]> = [
+type Field = "full_name" | "dog_name" | "city" | "neighborhood" | "dog_breed" | "dog_age" | "dog_since" | "callback_time";
+
+/** The basics collected before the conversation closes (items 15a + 22a). dog_since / callback_time are optional. */
+export const HANDOFF_BASICS: Array<[Field, string]> = [
+  ["full_name", "שם מלא"],
+  ["dog_name", "שם הכלב"],
+  ["city", "עיר"],
+  ["neighborhood", "שכונה"],
   ["dog_breed", "גזע"],
   ["dog_age", "גיל"],
-  ["dog_since", "כמה זמן אצלם"],
-  ["city", "עיר"],
-  ["neighborhood", "שכונה/אזור"],
-  ["full_name", "שם הפונה"],
-  ["callback_time", "מתי נוח לחזור"],
 ];
-type SavedFields = Record<"dog_breed" | "dog_age" | "dog_since" | "city" | "neighborhood" | "full_name" | "callback_time", string>;
+
+/** Fixed order (22a): step of each field. */
+const STEP: Partial<Record<Field, number>> = { full_name: 1, dog_name: 1, city: 2, neighborhood: 2, dog_breed: 3, dog_age: 3 };
+
+/** A bot message that offers a time / slot or asks when is convenient (forbidden, 22b). */
+export function offersTime(text: string): boolean {
+  return /מתי נוח|באיזו שעה|איזה יום|(^|\s)\d{1,2}:\d{2}|ביום (ראשון|שני|שלישי|רביעי|חמישי|שישי)|מחר ב|היום ב|בבוקר או|אחר הצהריים|בערב\?/u.test(text);
+}
+
+const IDENTITY_LINE = /העוזר המנהלתי|אני בוט|אני לא בן אדם/u;
 
 export type Variant = "before" | "after";
 
@@ -55,10 +82,13 @@ export class SimConversation {
   status: Status = "active";
   attribution: { source: string | null; page: string | null } | null = null;
   knownName: string | null = null;
-  saved: Partial<SavedFields> = {};
+  /** Turn number at which each field was first saved. */
+  savedAt: Partial<Record<Field, number>> = {};
+  turn = 0;
   humanAckSent = false;
-  /** Filled at the moment of the simulated handoff: which basics were (not) collected. */
+  /** Filled when the conversation closed (schedule_callback / handoff): which basics were (not) collected. */
   basicsAtHandoff: { have: string[]; missing: string[] } | null = null;
+  warnings: string[] = [];
   readonly events: SimEvent[] = [];
 
   constructor(
@@ -74,31 +104,58 @@ export class SimConversation {
     this.onEvent(e);
   }
 
+  private warn(text: string) {
+    this.warnings.push(text);
+    this.emit("info", `⚠ ${text}`);
+  }
+
+  private recordBasics() {
+    if (this.basicsAtHandoff) return;
+    const have = HANDOFF_BASICS.filter(([k]) => this.savedAt[k] !== undefined).map(([, l]) => l);
+    const missing = HANDOFF_BASICS.filter(([k]) => this.savedAt[k] === undefined).map(([, l]) => l);
+    this.basicsAtHandoff = { have, missing };
+    this.emit("info", `פרטי בסיס בסגירה: ${have.length}/${HANDOFF_BASICS.length}${missing.length ? ` · חסר: ${missing.join(", ")}` : " ✓"}`);
+    this.emit("info", this.orderCheck());
+  }
+
+  /** "סדר איסוף: …" — fields by the turn they were first saved, and whether steps 1 → 2 → 3 held. */
+  orderCheck(): string {
+    const firsts = (Object.entries(this.savedAt) as Array<[Field, number]>)
+      .filter(([k]) => STEP[k])
+      .sort((a, b) => a[1] - b[1]);
+    let lastStep = 0;
+    let ok = true;
+    for (const [k] of firsts) {
+      const step = STEP[k]!;
+      if (step < lastStep) ok = false;
+      lastStep = Math.max(lastStep, step);
+    }
+    const label = firsts.map(([k, t]) => `${k}@${t}`).join(" → ") || "—";
+    return `סדר איסוף: ${label} ${ok ? "✓ (שם + כלב → אזור → השאר)" : "⚠ לא לפי הסדר"}`;
+  }
+
   private executor(): BotToolExecutor {
     const ex: BotToolExecutor = {
       closing: null,
       saveLead: async (input) => {
         if (input.full_name) this.knownName = input.full_name;
-        for (const [k] of HANDOFF_BASICS) if (input[k]) this.saved[k] = input[k] as string;
+        for (const k of Object.keys(STEP).concat("dog_since", "callback_time") as Field[]) {
+          if (input[k] && this.savedAt[k] === undefined) this.savedAt[k] = this.turn;
+        }
         this.emit("tool", `save_lead ${JSON.stringify(input)}`);
         return "נשמר";
       },
-      scheduleCallback: async ({ date, time }) => {
-        this.emit("tool", `schedule_callback ${date} ${time}`);
-        if (!isValidYmd(date)) throw new ToolError("תאריך לא תקין");
-        if (!isWithinOfficeHours(date, time)) throw new ToolError("מחוץ לשעות הפעילות (א׳–ה׳ 09:00–17:00, ו׳ 09:00–14:00). הצע זמן אחר מהרשימה");
-        if (israelInstant(date, time).getTime() < Date.now() + 15 * 60 * 1000) throw new ToolError("המועד כבר עבר או קרוב מדי. הצע זמן אחר מהרשימה");
-        ex.closing = callbackClosingText();
-        return `נקבע. כתוב ללקוח בדיוק: "${ex.closing}"`;
+      scheduleCallback: async ({ note }) => {
+        this.emit("tool", `schedule_callback${note ? ` ${note}` : ""} → "לחזור טלפונית" + משימה לנציגה (בלי שעה)`);
+        this.recordBasics();
+        ex.closing = callbackClosingText(closingWhen(new Date()));
+        return `סומן לחזרה טלפונית. כתוב ללקוח בדיוק: "${ex.closing}"`;
       },
       handoff: async (input) => {
         this.emit("tool", `handoff_to_human ${JSON.stringify(input)} → משימה דחופה + התראה (לא נשלחות בסימולציה)`);
         this.status = "handoff";
-        const have = HANDOFF_BASICS.filter(([k]) => this.saved[k]).map(([, l]) => l);
-        const missing = HANDOFF_BASICS.filter(([k]) => !this.saved[k]).map(([, l]) => l);
-        this.basicsAtHandoff = { have, missing };
-        this.emit("info", `פרטי בסיס לפני ההעברה: ${have.length}/${HANDOFF_BASICS.length}${missing.length ? ` · חסר: ${missing.join(", ")}` : " ✓"}`);
-        ex.closing = handoffClosingText();
+        this.recordBasics();
+        ex.closing = handoffClosingText(closingWhen(new Date()));
         return `הועבר. כתוב ללקוח בדיוק: "${ex.closing}" ואל תשאל עוד שאלות`;
       },
     };
@@ -110,12 +167,25 @@ export class SimConversation {
     this.status = "active";
     this.attribution = null;
     this.knownName = null;
-    this.saved = {};
+    this.savedAt = {};
+    this.turn = 0;
     this.humanAckSent = false;
     this.basicsAtHandoff = null;
+    this.warnings = [];
+  }
+
+  private pushBot(text: string, userText: string) {
+    if (this.variant === "after") {
+      if (offersTime(text)) this.warn(`הצעת שעה / "מתי נוח": "${text.slice(0, 80)}"`);
+      if (IDENTITY_LINE.test(text) && !identityAnswerFor(userText)) this.warn(`הודעת זהות בלי שנשאלו: "${text.slice(0, 80)}"`);
+      if (text.includes(CLOSING_MARKER) && closingAlreadySent(this.rows)) this.warn("הודעת הסגירה חזרה פעם שנייה");
+    }
+    this.emit("bot", text);
+    this.rows.push({ role: "assistant", text });
   }
 
   async send(raw: string): Promise<void> {
+    this.turn++;
     const parsed = parseAttributionLine(raw);
     if ((parsed.source || parsed.page) && !this.attribution) {
       this.attribution = { source: parsed.source, page: parsed.page };
@@ -140,8 +210,7 @@ export class SimConversation {
       if (this.variant === "after" && isHumanRequest(text)) {
         if (!this.humanAckSent) {
           this.humanAckSent = true;
-          this.emit("bot", HUMAN_ON_THE_WAY);
-          this.rows.push({ role: "assistant", text: HUMAN_ON_THE_WAY });
+          this.pushBot(HUMAN_ON_THE_WAY, text);
         }
         return;
       }
@@ -152,17 +221,18 @@ export class SimConversation {
     }
 
     const isFirstReply = !this.rows.some((r) => r.role === "assistant");
+    const closed = this.variant === "after" && closingAlreadySent(this.rows);
     const now = new Date();
     const p = israelParts(now);
     let context = buildBotContext({
       nowLabel: `${heDayLabel(p.ymd)} בשעה ${p.hhmm}`,
-      callbackOptions: nextCallbackOptions(now, 3).map((o) => `${o.label} (date=${o.ymd}, time=${o.hhmm})`),
       attribution: this.attribution,
       knownName: this.knownName,
       isFirstReply,
       note:
         [
           handoffMode ? HANDOFF_MODE_NOTE : null,
+          closed ? CLOSED_NOTE : null,
           !handoffMode && this.rows.some((r) => r.role === "user" && mentionsHumanBite(r.text)) ? HUMAN_BITE_NOTE : null,
         ]
           .filter(Boolean)
@@ -187,8 +257,8 @@ export class SimConversation {
     for (const name of result.toolsUsed.filter((n) => n === "lookup_guide")) this.emit("tool", name);
     let reply = enforceIdentityAnswer(text, result.reply);
     if (this.variant === "after") {
-      if (executor.closing) reply = withClosing(reply, executor.closing);
-      else if (!handoffMode) {
+      if (executor.closing && !closed) reply = withClosing(reply, executor.closing);
+      else if (!handoffMode && !executor.closing) {
         const firstUser = this.rows.filter((r) => r.role === "user").map((r) => r.text).join("\n");
         reply = enforceOpening(isFirstReply, firstUser, reply);
       }
@@ -197,9 +267,6 @@ export class SimConversation {
       this.emit("info", `אין תשובה (${result.stopReason ?? "?"}) — בפרודקשן: העברה לנציג`);
       return;
     }
-    for (const part of splitReply(reply, 2)) {
-      this.emit("bot", part);
-      this.rows.push({ role: "assistant", text: part });
-    }
+    for (const part of splitReply(reply, 2)) this.pushBot(part, text);
   }
 }

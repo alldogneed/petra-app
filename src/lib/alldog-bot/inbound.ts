@@ -17,7 +17,7 @@ import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { maskPhone } from "@/lib/whatsapp-failure";
 import { allDogBusinessId, botModel, isWaBotEnabled } from "@/lib/alldog/config";
-import { heDayLabel, israelParts, nextCallbackOptions } from "@/lib/alldog/time";
+import { heDayLabel, israelParts } from "@/lib/alldog/time";
 import { addLeadCallLog, createLeadTask, isPlaceholderLeadName } from "@/lib/alldog/leads";
 import {
   botMayReply,
@@ -36,8 +36,10 @@ import { buildBotContext, enforceIdentityAnswer, enforceOpening, HUMAN_BITE_NOTE
 import { HANDOFF_MODE_TOOLS, runBotTurn } from "@/lib/alldog-bot/agent";
 import { createDbExecutor, flagMediaForHuman, type BotConversationRef } from "@/lib/alldog-bot/actions";
 import {
+  CLOSED_NOTE,
   HANDOFF_MODE_NOTE,
   HUMAN_ON_THE_WAY,
+  closingAlreadySent,
   handoffAckDue,
   handoffClosingText,
   handoffNoteText,
@@ -311,16 +313,18 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
     const lead = await prisma.lead.findFirst({ where: { id: conv.leadId, businessId: conv.businessId }, select: { name: true } });
     if (lead && !isPlaceholderLeadName(lead.name)) knownName = lead.name;
   }
+  // The closing was already sent → answer questions only, never repeat it (Or, 24/10).
+  const closed = closingAlreadySent(rows);
   const now = new Date();
   const p = israelParts(now);
   const context = buildBotContext({
     nowLabel: `${heDayLabel(p.ymd)} בשעה ${p.hhmm}`,
-    callbackOptions: nextCallbackOptions(now, 3).map((o) => `${o.label} (date=${o.ymd}, time=${o.hhmm})`),
     attribution: conv.attributionSource || conv.attributionPage ? { source: conv.attributionSource, page: conv.attributionPage } : null,
     knownName,
     isFirstReply: lastAssistant < 0,
     note: [
       handoffMode ? HANDOFF_MODE_NOTE : null,
+      closed ? CLOSED_NOTE : null,
       conv.resumedAt && (!conv.lastBotReplyAt || conv.lastBotReplyAt < conv.resumedAt) ? RESUMED_NOTE : null,
       // Any bite reported in this conversation (not only in this batch) until the handoff happens.
       !handoffMode && rows.some((r) => r.role === "user" && r.kind === "text" && mentionsHumanBite(r.text)) ? HUMAN_BITE_NOTE : null,
@@ -340,7 +344,7 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
 
   const latestUserText = batch.filter((r) => r.kind === "text").map((r) => r.text).pop() ?? "";
   let text = enforceIdentityAnswer(latestUserText, result.reply);
-  if (executor.closing) {
+  if (executor.closing && !closed) {
     // After schedule_callback / handoff_to_human the last message is always the fixed closing.
     text = withClosing(text, executor.closing);
   } else if (!handoffMode) {

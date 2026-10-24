@@ -11,12 +11,11 @@ import {
   createLeadTask,
   isPlaceholderLeadName,
   localPhone,
-  setLeadFollowUp,
   upsertLeadFromContact,
 } from "@/lib/alldog/leads";
-import { addDaysYmd, isValidYmd, isWithinOfficeHours, israelInstant, israelYmd } from "@/lib/alldog/time";
-import { callbackClosingText, handoffClosingText } from "@/lib/alldog-bot/handoff";
-import { ToolError, type BotToolExecutor, type HandoffInput, type SaveLeadInput, type ScheduleCallbackInput } from "@/lib/alldog-bot/agent";
+import { israelYmd } from "@/lib/alldog/time";
+import { callbackClosingText, closingWhen, handoffClosingText } from "@/lib/alldog-bot/handoff";
+import { type BotToolExecutor, type HandoffInput, type SaveLeadInput, type ScheduleCallbackInput } from "@/lib/alldog-bot/agent";
 
 export const BOT_LEAD_SOURCE = "וואטסאפ · בוט";
 
@@ -35,8 +34,24 @@ function appUrl(): string {
   return (process.env.APP_URL || "https://petra-app.com").replace(/\/$/, "");
 }
 
+const CALLBACK_TASK_PREFIX = "לחזור טלפונית";
+
+/** Shabbat / a holiday block in the business calendar right now → the closing says so (no time). */
+async function closingWhenNow(businessId: string) {
+  const now = new Date();
+  const blocks = await prisma.availabilityBlock
+    .findMany({ where: { businessId, startAt: { lte: now }, endAt: { gt: now } }, select: { startAt: true, endAt: true, reason: true }, take: 5 })
+    .catch(() => []);
+  return closingWhen(now, blocks);
+}
+
 export function createDbExecutor(conv: BotConversationRef): BotToolExecutor {
   const phone = localPhone(conv.phone);
+
+  async function leadDisplayName(leadId: string): Promise<string> {
+    const lead = await prisma.lead.findFirst({ where: { id: leadId, businessId: conv.businessId }, select: { name: true } });
+    return lead && !isPlaceholderLeadName(lead.name) ? lead.name : conv.profileName || phone;
+  }
 
   async function ensureLead(fields: Partial<SaveLeadInput> = {}): Promise<string> {
     const attributionLine = conv.attributionSource || conv.attributionPage
@@ -78,6 +93,10 @@ export function createDbExecutor(conv: BotConversationRef): BotToolExecutor {
 
     async saveLead(input) {
       const leadId = await ensureLead(input);
+      if (input.callback_time) {
+        // The customer asked for a time himself — kept as a note for the rep, never a commitment.
+        await addLeadCallLog(leadId, `[וואטסאפ · בוט] הלקוח ביקש לגבי זמן השיחה: ${input.callback_time}`);
+      }
       if (input.summary) {
         const text = `[וואטסאפ · בוט] ${input.summary}`;
         const updated = conv.summaryCallLogId
@@ -92,18 +111,25 @@ export function createDbExecutor(conv: BotConversationRef): BotToolExecutor {
       return "נשמר";
     },
 
-    async scheduleCallback({ date, time }: ScheduleCallbackInput) {
-      if (!isValidYmd(date)) throw new ToolError("תאריך לא תקין");
-      if (!isWithinOfficeHours(date, time)) {
-        throw new ToolError("מחוץ לשעות הפעילות (א׳–ה׳ 09:00–17:00, ו׳ 09:00–14:00). הצע זמן אחר מהרשימה");
-      }
-      const at = israelInstant(date, time);
-      if (at.getTime() < Date.now() + 15 * 60 * 1000) throw new ToolError("המועד כבר עבר או קרוב מדי. הצע זמן אחר מהרשימה");
-      if (date > addDaysYmd(israelYmd(), 30)) throw new ToolError("רחוק מדי, עד 30 יום קדימה");
+    async scheduleCallback({ note }: ScheduleCallbackInput) {
+      // Or, 24/10: no time, no calendar — the lead is flagged "לחזור טלפונית" and a rep gets a task.
       const leadId = await ensureLead();
-      await setLeadFollowUp(conv.businessId, leadId, at);
-      executor.closing = callbackClosingText();
-      return `נקבע. כתוב ללקוח בדיוק: "${executor.closing}"`;
+      const name = await leadDisplayName(leadId);
+      await addLeadCallLog(leadId, `[וואטסאפ · בוט] לחזור טלפונית${note ? ` · ${note}` : ""}`);
+      const open = await prisma.task.findFirst({
+        where: { businessId: conv.businessId, relatedEntityType: "LEAD", relatedEntityId: leadId, status: { in: ["OPEN", "IN_PROGRESS"] }, title: { startsWith: CALLBACK_TASK_PREFIX } },
+        select: { id: true },
+      });
+      if (!open) {
+        await createLeadTask(conv.businessId, leadId, {
+          title: `${CALLBACK_TASK_PREFIX} ל${name} (וואטסאפ)`,
+          description: [note ? `מה הלקוח מחפש: ${note}` : null, `טלפון: ${phone}`, "השיחה בוואטסאפ: כרטיס הליד → וואטסאפ עם הבוט."].filter(Boolean).join("\n"),
+          priority: "HIGH",
+          dueDate: israelYmd(),
+        });
+      }
+      executor.closing = callbackClosingText(await closingWhenNow(conv.businessId));
+      return `סומן לחזרה טלפונית. כתוב ללקוח בדיוק: "${executor.closing}"`;
     },
 
     async handoff({ reason, urgency }: HandoffInput) {
@@ -142,7 +168,7 @@ export function createDbExecutor(conv: BotConversationRef): BotToolExecutor {
           url: `${appUrl()}/leads?lead=${leadId}`,
         });
       }
-      executor.closing = handoffClosingText();
+      executor.closing = handoffClosingText(await closingWhenNow(conv.businessId));
       return `הועבר. כתוב ללקוח בדיוק: "${executor.closing}" ואל תשאל עוד שאלות`;
     },
   };

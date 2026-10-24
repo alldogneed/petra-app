@@ -176,14 +176,15 @@ export async function setLeadFollowUp(businessId: string, leadId: string, at: Da
 export async function createLeadTask(
   businessId: string,
   leadId: string,
-  t: { title: string; description?: string; priority: "MEDIUM" | "HIGH" | "URGENT"; dueAt?: Date }
+  t: { title: string; description?: string; priority: "MEDIUM" | "HIGH" | "URGENT"; dueAt?: Date; dueDate?: string }
 ) {
   return createTask(businessId, prisma, {
     title: t.title,
     description: t.description,
     category: "LEADS",
     priority: t.priority,
-    dueAt: (t.dueAt ?? new Date()).toISOString(),
+    // dueDate (YYYY-MM-DD) = a day without an hour — the bot never promises a time.
+    ...(t.dueDate ? { dueDate: t.dueDate } : { dueAt: (t.dueAt ?? new Date()).toISOString() }),
     relatedEntityType: "LEAD",
     relatedEntityId: leadId,
   });
