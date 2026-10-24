@@ -10,15 +10,12 @@
  *   - a rep can reply from the lead card in Petra (sent through the bot number) or press "החזר לבוט".
  * Test command: "#reset" from Or's number only wipes his conversation (TEST_RESET_PHONE).
  */
-import { israelParts, officeHoursFor, weekdayOfYmd, addDaysYmd } from "@/lib/alldog/time";
 
 export const HANDOFF_ACK_COOLDOWN_MS = 6 * 60 * 60 * 1000;
 export const HANDOFF_AUTO_RESUME_MS = 24 * 60 * 60 * 1000;
 
 /** Or's number — the only one allowed to use "#reset". */
 export const TEST_RESET_PHONE = "0542560964";
-
-const HE_WEEKDAYS = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
 
 /** "9725…" / "+972-54…" / "054…" → "054…". */
 export function localIsraeliPhone(raw: string): string {
@@ -30,37 +27,26 @@ export function isResetCommand(text: string, phone: string): boolean {
   return text.trim().toLowerCase() === "#reset" && localIsraeliPhone(phone) === TEST_RESET_PHONE;
 }
 
-/** When a person will call back: "היום" inside office hours (≥ 30 min left), else the next office morning. */
-export function callbackWhen(now: Date = new Date()): string {
-  const p = israelParts(now);
-  const today = officeHoursFor(weekdayOfYmd(p.ymd));
-  if (today && p.hhmm >= today.open && p.hhmm < minus30(today.close)) return "היום";
-  for (let i = today && p.hhmm < today.open ? 0 : 1; i <= 7; i++) {
-    const ymd = addDaysYmd(p.ymd, i);
-    if (!officeHoursFor(weekdayOfYmd(ymd))) continue;
-    if (i === 0) return "היום בבוקר";
-    if (i === 1) return "מחר בבוקר";
-    return `ביום ${HE_WEEKDAYS[weekdayOfYmd(ymd)]} בבוקר`;
-  }
-  return "בהקדם";
+/**
+ * Closing message after handoff_to_human / schedule_callback — Or, 24/10/2026: the site's
+ * approved line, NO callback time (the "Messaging & Business Model" rule: no response-time promise).
+ * With a known trainer for the area: "<שם> מהצוות יחזור אליכם בהקדם".
+ */
+export const CLOSING_TEXT = "קיבלנו הכל 🙏 נציגת AllDog תחזור אליכם בהקדם. אם יש עוד משהו בינתיים, אפשר לכתוב פה";
+
+export function closingText(trainerName?: string | null): string {
+  const name = trainerName?.trim();
+  return name ? `קיבלנו הכל 🙏 ${name} מהצוות יחזור אליכם בהקדם. אם יש עוד משהו בינתיים, אפשר לכתוב פה` : CLOSING_TEXT;
 }
 
-/** Legacy "קיבלנו" line (kept for the tests / rep tooling). */
-export function handoffAckText(now: Date = new Date()): string {
-  return `קיבלנו 🙂 נציגה מהצוות חוזרת אליכם ${callbackWhen(now)}`;
+/** After handoff_to_human (urgent or not — same line, no time). */
+export function handoffClosingText(): string {
+  return closingText();
 }
 
-const CLOSING_TAIL = "אם יש עוד משהו בינתיים, אפשר לכתוב פה";
-
-/** Closing message after handoff_to_human (Or, 24/10): urgent → the trainer calls back. */
-export function handoffClosingText(urgency: "urgent" | "normal", now: Date = new Date()): string {
-  const who = urgency === "urgent" ? "המאלף שלנו יחזור" : "נציגה מהצוות תחזור";
-  return `מעולה, קיבלנו הכל 🙏 ${who} אליכם ${callbackWhen(now)}. ${CLOSING_TAIL}`;
-}
-
-/** Closing message after schedule_callback. `dayLabel` = heDayLabel(ymd), e.g. "יום רביעי 29/10". */
-export function callbackClosingText(dayLabel: string, hhmm: string): string {
-  return `מעולה, קיבלנו הכל 🙏 נציגת AllDog תחזור אליכם ב${dayLabel} ב-${hhmm}. ${CLOSING_TAIL}`;
+/** After schedule_callback — the agreed slot was already confirmed in the conversation; the closing has no time. */
+export function callbackClosingText(): string {
+  return closingText();
 }
 
 /**
@@ -96,11 +82,6 @@ export function repIsActive(lastHumanAt: Date | null, now: Date = new Date()): b
   return !!lastHumanAt && now.getTime() - lastHumanAt.getTime() < REP_ACTIVE_MS;
 }
 
-function minus30(hhmm: string): string {
-  const [h, m] = hhmm.split(":").map(Number);
-  const t = h * 60 + m - 30;
-  return `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
-}
 
 /** The "קיבלנו" reply is due when none was sent during this handoff, or the last one is ≥ 6h old. */
 export function handoffAckDue(c: { handoffAt: Date | null; handoffAckAt: Date | null }, now: Date = new Date()): boolean {

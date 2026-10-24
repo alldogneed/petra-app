@@ -14,7 +14,7 @@ import {
   setLeadFollowUp,
   upsertLeadFromContact,
 } from "@/lib/alldog/leads";
-import { addDaysYmd, heDayLabel, isValidYmd, isWithinOfficeHours, israelInstant, israelYmd } from "@/lib/alldog/time";
+import { addDaysYmd, isValidYmd, isWithinOfficeHours, israelInstant, israelYmd } from "@/lib/alldog/time";
 import { callbackClosingText, handoffClosingText } from "@/lib/alldog-bot/handoff";
 import { ToolError, type BotToolExecutor, type HandoffInput, type SaveLeadInput, type ScheduleCallbackInput } from "@/lib/alldog-bot/agent";
 
@@ -102,7 +102,7 @@ export function createDbExecutor(conv: BotConversationRef): BotToolExecutor {
       if (date > addDaysYmd(israelYmd(), 30)) throw new ToolError("רחוק מדי, עד 30 יום קדימה");
       const leadId = await ensureLead();
       await setLeadFollowUp(conv.businessId, leadId, at);
-      executor.closing = callbackClosingText(heDayLabel(date), time);
+      executor.closing = callbackClosingText();
       return `נקבע. כתוב ללקוח בדיוק: "${executor.closing}"`;
     },
 
@@ -142,7 +142,7 @@ export function createDbExecutor(conv: BotConversationRef): BotToolExecutor {
           url: `${appUrl()}/leads?lead=${leadId}`,
         });
       }
-      executor.closing = handoffClosingText(urgency);
+      executor.closing = handoffClosingText();
       return `הועבר. כתוב ללקוח בדיוק: "${executor.closing}" ואל תשאל עוד שאלות`;
     },
   };

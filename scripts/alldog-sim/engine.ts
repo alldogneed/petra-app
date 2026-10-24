@@ -88,7 +88,7 @@ export class SimConversation {
         if (!isValidYmd(date)) throw new ToolError("תאריך לא תקין");
         if (!isWithinOfficeHours(date, time)) throw new ToolError("מחוץ לשעות הפעילות (א׳–ה׳ 09:00–17:00, ו׳ 09:00–14:00). הצע זמן אחר מהרשימה");
         if (israelInstant(date, time).getTime() < Date.now() + 15 * 60 * 1000) throw new ToolError("המועד כבר עבר או קרוב מדי. הצע זמן אחר מהרשימה");
-        ex.closing = callbackClosingText(heDayLabel(date), time);
+        ex.closing = callbackClosingText();
         return `נקבע. כתוב ללקוח בדיוק: "${ex.closing}"`;
       },
       handoff: async (input) => {
@@ -98,7 +98,7 @@ export class SimConversation {
         const missing = HANDOFF_BASICS.filter(([k]) => !this.saved[k]).map(([, l]) => l);
         this.basicsAtHandoff = { have, missing };
         this.emit("info", `פרטי בסיס לפני ההעברה: ${have.length}/${HANDOFF_BASICS.length}${missing.length ? ` · חסר: ${missing.join(", ")}` : " ✓"}`);
-        ex.closing = handoffClosingText(input.urgency);
+        ex.closing = handoffClosingText();
         return `הועבר. כתוב ללקוח בדיוק: "${ex.closing}" ואל תשאל עוד שאלות`;
       },
     };

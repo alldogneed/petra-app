@@ -353,7 +353,7 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
     if (!result.handedOff) {
       // Refusal / empty answer: a person takes over rather than the customer being ignored.
       await createDbExecutor(ref).handoff({ reason: `הבוט לא הצליח לענות (${result.stopReason ?? "ללא תשובה"})`, urgency: "normal" });
-      text = handoffClosingText("normal");
+      text = handoffClosingText();
       afterHandoff = true;
     } else {
       return;
