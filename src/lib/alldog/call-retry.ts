@@ -128,6 +128,11 @@ export async function runAnsweredCall(
       })
       .catch(() => {});
     console.error(`[alldog-calls] attempt ${attemptNumber} for call ${input.callId} failed:`, message);
+    if (!next) {
+      // Item 31: the last attempt threw → the call stays without a summary.
+      const { alertAllDogFailure } = await import("@/lib/alldog/failure-alerts");
+      await alertAllDogFailure({ kind: "call_summary", error: err, detail: `שיחת PayCall ${input.callId} (ניסיון אחרון)`, phone: input.phone });
+    }
     return { status: "error", message };
   }
 }

@@ -62,6 +62,15 @@ export function closingWithTransition(closing: string, transitionAlreadySent = f
   return transitionAlreadySent ? closing : `${TRANSITION_LINE}\n\n${closing}`;
 }
 
+/**
+ * The customer's message when the bot itself failed (Claude / Anthropic error, timeout…) — Or,
+ * item 31: nobody is left without an answer; a rep gets an urgent task.
+ */
+export function botFallbackText(gender: Gender = "unknown"): string {
+  const toYou = towardYou(gender);
+  return `תודה! קיבלנו את ההודעה, נציגה תחזור ${toYou ? `${toYou} ` : "בטלפון "}בהקדם 🙏`;
+}
+
 /** Marker of the closing message in a conversation (the bot never repeats it). */
 export const CLOSING_MARKER = "רשמתי הכל";
 /** Closings sent before item 25 ("מעולה, קיבלנו הכל 🙏 …") still count. */

@@ -10,6 +10,7 @@
  */
 import { maskPhone } from "@/lib/whatsapp-failure";
 import { readEnv } from "@/lib/read-env";
+import { alertAllDogFailure } from "@/lib/alldog/failure-alerts";
 
 const LOG = "[alldog-bot/wa]";
 
@@ -56,6 +57,8 @@ export async function sendText(to: string, body: string): Promise<string | null>
   const r = await post({ recipient_type: "individual", to, type: "text", text: { preview_url: false, body } });
   if (!r.ok) {
     console.error(`${LOG} send to ${maskPhone(to)} failed: ${r.error}`);
+    // Item 31: Or hears about it at once (≤ 1 per 30 min).
+    await alertAllDogFailure({ kind: "wa_send", error: r.error ?? "send failed", phone: to });
     return null;
   }
   return r.data?.messages?.[0]?.id ?? null;

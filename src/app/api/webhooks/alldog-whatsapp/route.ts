@@ -16,6 +16,7 @@ import { createHmac, timingSafeEqual } from "crypto";
 import { runAfterResponse } from "@/lib/wait-until";
 import { isWaBotEnabled } from "@/lib/alldog/config";
 import { readEnv } from "@/lib/read-env";
+import { alertAllDogFailure } from "@/lib/alldog/failure-alerts";
 
 export const dynamic = "force-dynamic";
 // 6s quiet period + model + up to two messages with a typing pause.
@@ -56,9 +57,12 @@ export async function POST(request: NextRequest) {
   }
   if (!readEnv("ALLDOG_WA_APP_SECRET")) {
     console.error("[alldog-whatsapp] ALLDOG_WA_APP_SECRET not configured");
+    // Item 31: every customer message is rejected until this is fixed → Or hears about it (≤ 1 / 30 min).
+    await runAfterResponse(alertAllDogFailure({ kind: "webhook", error: "ALLDOG_WA_APP_SECRET חסר — כל ההודעות נדחות (503)" }));
     return NextResponse.json({ error: "Server not configured" }, { status: 503 });
   }
   if (!verifyAllDogSignature(rawBody, request.headers.get("x-hub-signature-256"))) {
+    await runAfterResponse(alertAllDogFailure({ kind: "webhook", error: "חתימה לא תקינה (X-Hub-Signature-256) — ההודעה נדחתה (401)" }));
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
@@ -78,6 +82,7 @@ export async function POST(request: NextRequest) {
     for (const item of pending) await runAfterResponse(processInbound(item));
   } catch (err) {
     console.error("[alldog-whatsapp] processing error:", err instanceof Error ? err.message : err);
+    await runAfterResponse(alertAllDogFailure({ kind: "webhook", error: err, detail: "שגיאה בקליטת הודעה נכנסת" }));
   }
   // Always 200 once authenticated — Meta retries aggressively on errors.
   return NextResponse.json({ received: true });

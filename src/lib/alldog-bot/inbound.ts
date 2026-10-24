@@ -62,6 +62,7 @@ import {
   CLOSED_NOTE,
   HANDOFF_MODE_NOTE,
   humanOnTheWay,
+  botFallbackText,
   closingAlreadySent,
   handoffAckDue,
   handoffClosingText,
@@ -76,6 +77,7 @@ import {
 } from "@/lib/alldog-bot/handoff";
 import { claimOnce } from "@/lib/rate-limit";
 import { downloadMedia, markReadWithTyping, sendText } from "@/lib/alldog-bot/wa";
+import { alertAllDogFailure, explainFailure } from "@/lib/alldog/failure-alerts";
 import { transcribeAudio } from "@/lib/stt";
 
 const LOG = "[alldog-bot]";
@@ -289,6 +291,56 @@ export async function processInbound(item: PendingInbound): Promise<void> {
     await reply(item);
   } catch (err) {
     console.error(`${LOG} processing failed:`, err instanceof Error ? err.message : err);
+    // Item 31: alert Or + a fallback answer to the customer + an urgent task — nobody is left unanswered.
+    await failSafeReply(item, err);
+  }
+}
+
+/**
+ * The bot failed (Claude / Anthropic error, bad key, no credit, timeout, a DB error…): Or gets an
+ * alert, the customer gets botFallbackText() (once per 30 min per conversation, only while the bot
+ * may still write to them) and a rep gets an URGENT task. Never throws.
+ */
+async function failSafeReply(item: PendingInbound, err: unknown): Promise<void> {
+  try {
+    const conv = await prisma.waBotConversation.findUnique({ where: { id: item.conversationId } }).catch(() => null);
+    await alertAllDogFailure({ kind: "bot_reply", error: err, phone: conv?.phone ?? null, leadId: conv?.leadId ?? null });
+    if (!conv || !(await claimOnce(`alldog-bot-fallback:${conv.id}`, 30 * 60))) return;
+    const ref: BotConversationRef = {
+      id: conv.id,
+      businessId: conv.businessId,
+      phone: conv.phone,
+      profileName: conv.profileName,
+      leadId: conv.leadId,
+      summaryCallLogId: conv.summaryCallLogId,
+      attributionSource: conv.attributionSource,
+      attributionPage: conv.attributionPage,
+    };
+    if (conv.status === "active" && botMayReply(conv)) {
+      const text = botFallbackText(await conversationGender(conv));
+      const wamid = await sendText(conv.phone, text);
+      if (wamid) {
+        await prisma.waBotMessage
+          .create({ data: { conversationId: conv.id, role: "assistant", text, waMessageId: wamid } })
+          .catch(() => {});
+      }
+    }
+    await createDbExecutor(ref).saveLead({}).catch(() => {});
+    if (ref.leadId) {
+      const lead = await prisma.lead.findFirst({ where: { id: ref.leadId, businessId: ref.businessId }, select: { name: true } });
+      const name = lead && !isPlaceholderLeadName(lead.name) ? lead.name : ref.profileName || maskPhone(ref.phone);
+      await createLeadTask(ref.businessId, ref.leadId, {
+        title: `דחוף: הבוט לא הצליח לענות – לחזור ל${name}`,
+        description: [
+          "הבוט בוואטסאפ נכשל בתשובה ללקוח, והלקוח קיבל הודעה שנציגה תחזור אליו.",
+          `סיבה: ${explainFailure(err)}`,
+          "השיחה בוואטסאפ: כרטיס הליד → וואטסאפ עם הבוט.",
+        ].join("\n"),
+        priority: "URGENT",
+      });
+    }
+  } catch (e) {
+    console.error(`${LOG} fail-safe failed:`, e instanceof Error ? e.message : e);
   }
 }
 
@@ -671,6 +723,7 @@ async function sendParts(item: PendingInbound, to: string, parts: string[], allo
  */
 async function transcribeVoiceNote(item: PendingInbound, voice: { mediaId: string; mimeType: string | null }): Promise<void> {
   let transcript: string | null = null;
+  let failure: unknown = null;
   try {
     const audio = await downloadMedia(voice.mediaId);
     if (audio) {
@@ -679,9 +732,17 @@ async function transcribeVoiceNote(item: PendingInbound, voice: { mediaId: strin
         { language: "he", diarize: false, timeoutMs: 30_000 }
       );
       transcript = cleanTranscript(t.text);
+    } else {
+      failure = "הורדת ההקלטה מ-WhatsApp נכשלה";
     }
   } catch (err) {
+    failure = err;
     console.error(`${LOG} voice transcription failed:`, err instanceof Error ? err.message.slice(0, 200) : "error");
+  }
+  if (failure) {
+    // Item 31 (an empty transcript = silence, not a failure).
+    const conv = await prisma.waBotConversation.findUnique({ where: { id: item.conversationId }, select: { phone: true, leadId: true } }).catch(() => null);
+    await alertAllDogFailure({ kind: "transcription", error: failure, detail: "הודעה קולית בבוט", phone: conv?.phone ?? null, leadId: conv?.leadId ?? null });
   }
   await prisma.waBotMessage.updateMany({
     where: { conversationId: item.conversationId, waMessageId: item.waMessageId, kind: "voice", text: VOICE_PENDING_TEXT },

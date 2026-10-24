@@ -22,6 +22,7 @@ import {
   PaycallRecordingDeniedError,
   type CallRecording,
 } from "@/lib/paycall";
+import { alertAllDogFailure } from "@/lib/alldog/failure-alerts";
 import { transcribeAudio, formatTranscript } from "@/lib/stt";
 import { allDogAnthropicKey, allDogBusinessId, isCallSummariesEnabled, summaryModel } from "@/lib/alldog/config";
 import { addDaysYmd, defaultFollowUp, israelDdMmYyyy, israelInstant, israelParts, israelYmd } from "@/lib/alldog/time";
@@ -226,6 +227,8 @@ export async function processAnsweredCall(
     }
     console.warn(`${LOG} recording not ready for call ${input.callId}:`, err instanceof Error ? err.message : err);
     if (!opts.finalAttempt) return retryLater("recording_unavailable");
+    // Item 31: the last attempt (2 h) and still no recording → the call stays without a summary.
+    await alertAllDogFailure({ kind: "call_summary", error: "ההקלטה לא זמינה גם בניסיון האחרון (שעתיים)", detail: `שיחת PayCall ${input.callId}`, phone: input.phone });
     return writeLine("שיחה שנענתה – ההקלטה לא זמינה");
   }
 
@@ -239,10 +242,18 @@ export async function processAnsweredCall(
     summary = await summarize(transcriptText.slice(0, 60_000), input.startedAt);
   } catch (err) {
     console.error(`${LOG} transcribe/summarize failed for call ${input.callId}:`, err instanceof Error ? err.message : err);
+    // Item 31: ElevenLabs / Claude failed → Or hears about it at once (≤ 1 / 30 min per kind).
+    await alertAllDogFailure({
+      kind: transcriptText ? "call_summary" : "transcription",
+      error: err,
+      detail: `שיחת PayCall ${input.callId}${opts.finalAttempt ? " (ניסיון אחרון)" : " (יש עוד ניסיונות)"}`,
+      phone: input.phone,
+    });
     if (!opts.finalAttempt) return retryLater("processing_failed");
   }
   if (!summary) {
     if (!opts.finalAttempt && !transcriptText) return retryLater("no_summary");
+    await alertAllDogFailure({ kind: "call_summary", error: "גם הניסיון האחרון (שעתיים) לא הפיק סיכום", detail: `שיחת PayCall ${input.callId}`, phone: input.phone });
     const excerpt = transcriptText ? `\nקטע מהתמלול:\n${transcriptText.slice(0, 1500)}` : "";
     return writeLine(`שיחה שנענתה – סיכום אוטומטי נכשל${excerpt}`);
   }
