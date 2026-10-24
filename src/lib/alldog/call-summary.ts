@@ -22,7 +22,7 @@ import {
   type CallRecording,
 } from "@/lib/paycall";
 import { transcribeAudio, formatTranscript } from "@/lib/stt";
-import { allDogBusinessId, isCallSummariesEnabled, summaryModel } from "@/lib/alldog/config";
+import { allDogAnthropicKey, allDogBusinessId, isCallSummariesEnabled, summaryModel } from "@/lib/alldog/config";
 import { addDaysYmd, defaultFollowUp, israelDdMmYyyy, israelInstant, israelParts, israelYmd } from "@/lib/alldog/time";
 import {
   CALL_SUMMARY_JSON_SCHEMA,
@@ -38,7 +38,6 @@ import {
   setLeadFollowUp,
   upsertLeadFromContact,
 } from "@/lib/alldog/leads";
-import { readEnv } from "@/lib/read-env";
 import { findCustomerForCall, findCustomerNoteForCall, logAnsweredCallOnCustomer, type CallCustomer } from "@/lib/paycall-customer";
 
 const LOG = "[alldog-calls]";
@@ -73,7 +72,7 @@ async function getRecording(input: AnsweredCallInput): Promise<CallRecording> {
 }
 
 async function summarize(transcript: string, startedAt: Date): Promise<CallSummary | null> {
-  const client = new Anthropic({ apiKey: readEnv("ANTHROPIC_API_KEY") });
+  const client = new Anthropic({ apiKey: allDogAnthropicKey() });
   const p = israelParts(startedAt);
   const response = await client.messages.create({
     model: summaryModel(),

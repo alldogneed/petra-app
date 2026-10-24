@@ -20,12 +20,21 @@ export function isAllDogBusiness(businessId: string | null | undefined): boolean
   return !!id && !!businessId && businessId === id;
 }
 
+/**
+ * Anthropic key for AllDog's Claude calls (bot + call summaries + AllDog scripts):
+ * ALLDOG_ANTHROPIC_API_KEY (a separate key for AllDog), else ANTHROPIC_API_KEY.
+ * The rest of Petra (Petra AI etc.) keeps using ANTHROPIC_API_KEY only.
+ */
+export function allDogAnthropicKey(): string | undefined {
+  return readEnv("ALLDOG_ANTHROPIC_API_KEY") || readEnv("ANTHROPIC_API_KEY") || undefined;
+}
+
 /** Part A — answered PayCall calls → transcript → Claude summary → lead journal. */
 export function isCallSummariesEnabled(): boolean {
   return (
     truthy(readEnv("ALLDOG_CALL_SUMMARIES_ENABLED")) &&
     !!allDogBusinessId() &&
-    !!readEnv("ANTHROPIC_API_KEY") &&
+    !!allDogAnthropicKey() &&
     !!readEnv("ELEVENLABS_API_KEY")
   );
 }
@@ -35,7 +44,7 @@ export function isWaBotEnabled(): boolean {
   return (
     truthy(readEnv("ALLDOG_WA_BOT_ENABLED")) &&
     !!allDogBusinessId() &&
-    !!readEnv("ANTHROPIC_API_KEY") &&
+    !!allDogAnthropicKey() &&
     !!readEnv("ALLDOG_WA_TOKEN") &&
     !!readEnv("ALLDOG_WA_PHONE_NUMBER_ID")
   );
