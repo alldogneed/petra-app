@@ -26,6 +26,8 @@ import {
   cleanTranscript,
   customerWords,
   cityAlreadyGiven,
+  currentSession,
+  startsNewSession,
   dropCheerfulOpeners,
   isSeriousIncident,
   namePlaceNote,
@@ -161,6 +163,14 @@ async function ingestMessage(
         ...(profileName ? { profileName } : {}),
       },
     });
+  // The customer is back after a long silence → a new conversation gets its own journal line (item 30c).
+  const before = await prisma.waBotConversation.findUnique({
+    where: { businessId_phone: { businessId, phone } },
+    select: { id: true, lastInboundAt: true, summaryCallLogId: true },
+  });
+  if (before?.summaryCallLogId && startsNewSession(before.lastInboundAt, at)) {
+    await prisma.waBotConversation.update({ where: { id: before.id }, data: { summaryCallLogId: null } });
+  }
   let conv: Awaited<ReturnType<typeof upsertConversation>>;
   try {
     conv = await upsertConversation();
@@ -304,14 +314,19 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
   await dropDeletedLeadLink(ref);
   await waitForVoiceTranscripts(conv.id);
 
-  const rows = (
-    await prisma.waBotMessage.findMany({
-      where: { conversationId: conv.id },
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      take: 40,
-      select: { role: true, kind: true, text: true },
-    })
-  ).reverse();
+  // The current conversation only: after a long silence the customer starts over (item 30c).
+  const rows = currentSession(
+    (
+      await prisma.waBotMessage.findMany({
+        where: { conversationId: conv.id },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        take: 40,
+        select: { role: true, kind: true, text: true, createdAt: true },
+      })
+    ).reverse()
+  );
+  // What the customer typed — a name from a voice note alone is not saved as the lead's name (item 30d).
+  ref.typedTexts = rows.filter((r) => r.role === "user" && r.kind === "text").map((r) => r.text);
   /** What the customer said (texts + voice transcripts), oldest first. */
   const userWords = rows.filter((r) => r.role === "user").map(customerWords).filter((t): t is string => !!t);
   const lastAssistant = rows.map((r) => r.role).lastIndexOf("assistant");

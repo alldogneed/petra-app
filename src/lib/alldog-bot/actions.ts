@@ -5,7 +5,6 @@
 import prisma from "@/lib/prisma";
 import { claimOnce } from "@/lib/rate-limit";
 import { maskPhone } from "@/lib/whatsapp-failure";
-import { normalizeAttributionInput } from "@/lib/lead-attribution";
 import {
   addLeadCallLog,
   createLeadTask,
@@ -15,9 +14,22 @@ import {
 } from "@/lib/alldog/leads";
 import { israelYmd } from "@/lib/alldog/time";
 import { URGENT_NOTE_PREFIX } from "@/lib/alldog-bot/logic";
+import { botLeadAttribution } from "@/lib/alldog-bot/attribution";
+import {
+  areaFact,
+  BOT_LOG_PREFIX,
+  callbackFact,
+  callbackTimeFact,
+  otherIssueFact,
+  URGENT_FACT,
+  urgentFact,
+  urgentFactOf,
+  withBody,
+  withFact,
+} from "@/lib/alldog-bot/journal";
 import type { Gender } from "@/lib/alldog-bot/address";
 import { callbackClosingText, closingWhen, closingWithTransition, handoffClosingText } from "@/lib/alldog-bot/handoff";
-import { areaToCheckNote, isKnownServiceCity, unknownAreaToolNote } from "@/lib/alldog-bot/areas";
+import { isKnownServiceCity, unknownAreaToolNote } from "@/lib/alldog-bot/areas";
 import { type BotToolExecutor, type HandoffInput, type SaveLeadInput, type ScheduleCallbackInput } from "@/lib/alldog-bot/agent";
 
 export const BOT_LEAD_SOURCE = "וואטסאפ · בוט";
@@ -37,6 +49,42 @@ export interface BotConversationRef {
   transitionSent?: boolean;
   /** The customer described an attack / bite → no "מעולה" in the closing (item 29c). */
   serious?: boolean;
+  /**
+   * What the customer TYPED in this conversation (item 30d): a full_name the model took from a
+   * voice-note transcript only is not saved as the lead's name. Unset (simulator / cron) = no check.
+   */
+  typedTexts?: string[];
+}
+
+/** The name (its first word) appears in what the customer typed (item 30d). */
+export function nameWasTyped(name: string, typedTexts: string[]): boolean {
+  const first = name.trim().split(/\s+/)[0];
+  if (!first) return false;
+  const esc = first.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const re = new RegExp(`(?:^|[^\\p{L}])${esc}(?![\\p{L}])`, "u");
+  return typedTexts.some((t) => re.test(t));
+}
+
+/**
+ * The conversation's ONE journal line (item 30b): read it, change it, write it back (created on
+ * first use). Everything the bot records about a conversation goes through here.
+ */
+export async function updateConversationLog(
+  conv: BotConversationRef,
+  leadId: string,
+  change: (current: string | null) => string
+): Promise<void> {
+  const current = conv.summaryCallLogId
+    ? await prisma.callLog.findFirst({ where: { id: conv.summaryCallLogId, leadId }, select: { summary: true } })
+    : null;
+  const text = change(current?.summary ?? null);
+  if (current) {
+    if (text !== current.summary) await prisma.callLog.updateMany({ where: { id: conv.summaryCallLogId!, leadId }, data: { summary: text.slice(0, 10000) } });
+    return;
+  }
+  const log = await addLeadCallLog(leadId, text);
+  conv.summaryCallLogId = log.id;
+  await prisma.waBotConversation.update({ where: { id: conv.id }, data: { summaryCallLogId: log.id } });
 }
 
 function appUrl(): string {
@@ -63,24 +111,29 @@ export function createDbExecutor(conv: BotConversationRef): BotToolExecutor {
     return lead && !isPlaceholderLeadName(lead.name) ? lead.name : conv.profileName || phone;
   }
 
-  /** The lead's urgent note ("[וואטסאפ · בוט] ⚠ דחוף: …"), if one was written. */
+  /** The lead's urgent line ("⚠ דחוף: …"): a fact in a conversation log, or an older separate note. */
   async function urgentNote(leadId: string): Promise<string | null> {
     const log = await prisma.callLog.findFirst({
-      where: { leadId, summary: { startsWith: URGENT_NOTE_PREFIX } },
+      where: { leadId, OR: [{ summary: { startsWith: URGENT_NOTE_PREFIX } }, { summary: { contains: `\n• ${URGENT_FACT}:` } }] },
       select: { summary: true },
     });
-    return log?.summary ?? null;
+    if (!log) return null;
+    return log.summary.startsWith(URGENT_NOTE_PREFIX) ? log.summary.replace(`${BOT_LOG_PREFIX} `, "") : urgentFactOf(log.summary);
   }
 
   async function ensureLead(fields: Partial<SaveLeadInput> = {}): Promise<string> {
     const attributionLine = conv.attributionSource || conv.attributionPage
       ? `הגעתי דרך: ${[conv.attributionSource, conv.attributionPage].filter(Boolean).join(" · ")}`
       : null;
+    // Item 30d: a name heard only in a voice note is not saved; the WhatsApp profile name until one is typed.
+    const typedName = fields.full_name && (!conv.typedTexts || nameWasTyped(fields.full_name, conv.typedTexts)) ? fields.full_name : null;
     const { leadId } = await upsertLeadFromContact({
       businessId: conv.businessId,
       phone,
-      name: fields.full_name ?? null,
-      placeholderName: `וואטסאפ ${phone}`,
+      name: typedName,
+      placeholderName: conv.profileName?.trim().slice(0, 100) || `וואטסאפ ${phone}`,
+      // Item 30c: the latest conversation's name / city / dog replace the lead's (the journal keeps the older ones).
+      refresh: true,
       source: BOT_LEAD_SOURCE,
       city: fields.city ? (fields.neighborhood ? `${fields.city} (${fields.neighborhood})` : fields.city) : null,
       requestedService: fields.service,
@@ -95,9 +148,8 @@ export function createDbExecutor(conv: BotConversationRef): BotToolExecutor {
       creationNote: ["נוצר אוטומטית מהבוט בוואטסאפ.", conv.profileName ? `שם בוואטסאפ: ${conv.profileName}` : null, attributionLine]
         .filter(Boolean)
         .join("\n"),
-      attribution: conv.attributionPage || conv.attributionSource
-        ? normalizeAttributionInput({ landing_page: conv.attributionPage ?? undefined, utm_source: conv.attributionSource ?? undefined })
-        : null,
+      // Item 30a: "כניסה ישירה" → direct, "חיפוש אורגני" → organic, … (not utm_source → "referral").
+      attribution: botLeadAttribution(conv.attributionSource, conv.attributionPage),
       contactedAt: new Date(),
     });
     if (conv.leadId !== leadId) {
@@ -114,33 +166,21 @@ export function createDbExecutor(conv: BotConversationRef): BotToolExecutor {
       const leadId = await ensureLead(input);
       if (input.urgent_reason) await executor.markUrgent?.(input.urgent_reason);
       const notes: string[] = [];
+      // Item 30b: all of these go into the conversation's one journal line, not separate lines.
+      const facts: string[] = [];
       if (input.city && !isKnownServiceCity(input.city)) {
-        // Or, item 28b: a city outside the list → "אזור לבדיקה" for the rep (once per lead + city).
-        const note = areaToCheckNote(input.city);
-        const exists = await prisma.callLog.findFirst({ where: { leadId, summary: note }, select: { id: true } });
-        if (!exists) await addLeadCallLog(leadId, note);
+        // Item 28b: a city outside the list → "אזור לבדיקה" for the rep.
+        facts.push(areaFact(input.city));
         notes.push(unknownAreaToolNote(input.city, conv.gender ?? "unknown"));
       }
-      if (input.other_issues) {
-        // Item 28c: another problem mentioned on the way → noted in the lead (once per text).
-        const note = `[וואטסאפ · בוט] בעיה נוספת: ${input.other_issues}`;
-        const exists = await prisma.callLog.findFirst({ where: { leadId, summary: note }, select: { id: true } });
-        if (!exists) await addLeadCallLog(leadId, note);
-      }
-      if (input.callback_time) {
-        // The customer asked for a time himself — kept as a note for the rep, never a commitment.
-        await addLeadCallLog(leadId, `[וואטסאפ · בוט] הלקוח ביקש לגבי זמן השיחה: ${input.callback_time}`);
-      }
-      if (input.summary) {
-        const text = `[וואטסאפ · בוט] ${input.summary}`;
-        const updated = conv.summaryCallLogId
-          ? await prisma.callLog.updateMany({ where: { id: conv.summaryCallLogId, leadId }, data: { summary: text } })
-          : { count: 0 };
-        if (updated.count === 0) {
-          const log = await addLeadCallLog(leadId, text);
-          conv.summaryCallLogId = log.id;
-          await prisma.waBotConversation.update({ where: { id: conv.id }, data: { summaryCallLogId: log.id } });
-        }
+      if (input.other_issues) facts.push(otherIssueFact(input.other_issues)); // item 28c
+      if (input.callback_time) facts.push(callbackTimeFact(input.callback_time)); // a time the customer asked for, no commitment
+      if (input.summary || facts.length) {
+        await updateConversationLog(conv, leadId, (current) => {
+          let text = input.summary ? withBody(current, `${BOT_LOG_PREFIX} ${input.summary}`) : current ?? withBody(null, "");
+          for (const f of facts) text = withFact(text, f);
+          return text;
+        });
       }
       return ["נשמר", ...notes].join(". ");
     },
@@ -149,7 +189,7 @@ export function createDbExecutor(conv: BotConversationRef): BotToolExecutor {
       // Or, 24/10: no time, no calendar — the lead is flagged "לחזור טלפונית" and a rep gets a task.
       const leadId = await ensureLead();
       const name = await leadDisplayName(leadId);
-      await addLeadCallLog(leadId, `[וואטסאפ · בוט] לחזור טלפונית${note ? ` · ${note}` : ""}`);
+      await updateConversationLog(conv, leadId, (current) => withFact(current, callbackFact(note)));
       const open = await prisma.task.findFirst({
         where: { businessId: conv.businessId, relatedEntityType: "LEAD", relatedEntityId: leadId, status: { in: ["OPEN", "IN_PROGRESS"] }, title: { contains: CALLBACK_TASK_PREFIX } },
         select: { id: true },
@@ -159,7 +199,7 @@ export function createDbExecutor(conv: BotConversationRef): BotToolExecutor {
         await createLeadTask(conv.businessId, leadId, {
           title: `${urgent ? URGENT_TITLE_PREFIX : ""}${CALLBACK_TASK_PREFIX} ל${name} (וואטסאפ)`,
           description: [
-            urgent ? urgent.replace(URGENT_NOTE_PREFIX, "דחוף") : null,
+            urgent ? urgent.replace(URGENT_FACT, "דחוף") : null,
             note ? `מה הלקוח מחפש: ${note}` : null,
             `טלפון: ${phone}`,
             "השיחה בוואטסאפ: כרטיס הליד → וואטסאפ עם הבוט.",
@@ -178,10 +218,8 @@ export function createDbExecutor(conv: BotConversationRef): BotToolExecutor {
     // Or, 24/10 12:58: "דחוף" / "בהקדם" / "השכנים מתלוננים" → the lead is marked urgent, with why.
     async markUrgent(reason: string, quote?: string) {
       const leadId = await ensureLead();
-      if (!(await urgentNote(leadId))) {
-        const q = quote ? ` · "${quote.replace(/\s+/g, " ").trim().slice(0, 200)}"` : "";
-        await addLeadCallLog(leadId, `${URGENT_NOTE_PREFIX}: ${reason}${q}`);
-      }
+      // Item 30b: a fact in the conversation's journal line, not a separate line.
+      if (!(await urgentNote(leadId))) await updateConversationLog(conv, leadId, (current) => withFact(current, urgentFact(reason, quote)));
       // An open callback / handoff task of the bot becomes URGENT too.
       const tasks = await prisma.task.findMany({
         where: {

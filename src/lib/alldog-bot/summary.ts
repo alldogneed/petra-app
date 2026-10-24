@@ -16,10 +16,10 @@ import prisma from "@/lib/prisma";
 import { claimOnce } from "@/lib/rate-limit";
 import { maskPhone } from "@/lib/whatsapp-failure";
 import { allDogAnthropicKey, botModel } from "@/lib/alldog/config";
-import { addLeadCallLog } from "@/lib/alldog/leads";
 import { israelParts } from "@/lib/alldog/time";
-import { createDbExecutor, type BotConversationRef } from "@/lib/alldog-bot/actions";
-import { customerWords } from "@/lib/alldog-bot/logic";
+import { createDbExecutor, updateConversationLog, type BotConversationRef } from "@/lib/alldog-bot/actions";
+import { currentSession, customerWords } from "@/lib/alldog-bot/logic";
+import { withBody } from "@/lib/alldog-bot/journal";
 
 const LOG = "[alldog-bot:summary]";
 
@@ -129,12 +129,17 @@ export async function summarizeBotConversation(conversationId: string, opts: { c
       select: { id: true, businessId: true, phone: true, profileName: true, leadId: true, summaryCallLogId: true, attributionSource: true, attributionPage: true },
     })) as ConvRow | null;
     if (!conv) return false;
-    const rows = await prisma.waBotMessage.findMany({
-      where: { conversationId },
-      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-      take: 80,
-      select: { id: true, role: true, kind: true, text: true, createdAt: true },
-    });
+    // The current conversation only (a customer back after a long silence = a new line, item 30c).
+    const rows = currentSession(
+      (
+        await prisma.waBotMessage.findMany({
+          where: { conversationId },
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          take: 80,
+          select: { id: true, role: true, kind: true, text: true, createdAt: true },
+        })
+      ).reverse()
+    );
     const userTexts = rows.filter((r) => r.role === "user" && customerWords(r));
     if (!userTexts.length) return false;
     const last = rows[rows.length - 1];
@@ -153,13 +158,8 @@ export async function summarizeBotConversation(conversationId: string, opts: { c
     await createDbExecutor(ref).saveLead({});
     const leadId = ref.leadId;
     if (!leadId) return false;
-    const updated = ref.summaryCallLogId
-      ? await prisma.callLog.updateMany({ where: { id: ref.summaryCallLogId, leadId }, data: { summary: text } })
-      : { count: 0 };
-    if (updated.count === 0) {
-      const log = await addLeadCallLog(leadId, text);
-      await prisma.waBotConversation.update({ where: { id: conv.id }, data: { summaryCallLogId: log.id } });
-    }
+    // The conversation's one journal line: the summary replaces the body, the facts underneath stay (item 30b).
+    await updateConversationLog(ref, leadId, (current) => withBody(current, text));
     console.log(`${LOG} conversation summarized (${maskPhone(conv.phone)})`);
     return true;
   } catch (err) {

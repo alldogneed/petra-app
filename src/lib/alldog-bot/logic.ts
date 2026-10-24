@@ -608,3 +608,25 @@ export function urgencyReason(text: string): string | null {
 }
 
 export const URGENT_NOTE_PREFIX = "[וואטסאפ · בוט] ⚠ דחוף";
+
+// ─── Conversation sessions (Or, item 30c) ─────────────────────────────────────
+
+/**
+ * A new conversation starts after this much silence: the customer comes back (maybe about another
+ * dog) → its own journal line, the bot collects again, and the lead gets the latest details.
+ */
+export const SESSION_GAP_MS = 12 * 60 * 60 * 1000;
+
+/** The messages of the current conversation (after the last gap of SESSION_GAP_MS). Pure — tested. */
+export function currentSession<T extends { createdAt: Date }>(rows: T[], gapMs = SESSION_GAP_MS): T[] {
+  let start = 0;
+  for (let i = 1; i < rows.length; i++) {
+    if (rows[i].createdAt.getTime() - rows[i - 1].createdAt.getTime() >= gapMs) start = i;
+  }
+  return rows.slice(start);
+}
+
+/** The customer is back after a long silence → a new conversation (new journal line). */
+export function startsNewSession(lastInboundAt: Date | null | undefined, now: Date, gapMs = SESSION_GAP_MS): boolean {
+  return !!lastInboundAt && now.getTime() - lastInboundAt.getTime() >= gapMs;
+}
