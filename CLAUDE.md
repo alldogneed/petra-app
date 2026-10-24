@@ -358,7 +358,7 @@ Runbook: `docs/operations.md`
 ### Rate limiting
 - Per-token: 100 req/min
 - Per-IP fail: 10 req/min (login protection)
-Both use `rateLimitAsync()` from `src/lib/rate-limit.ts` (Upstash Redis-backed).
+Both use `rateLimitAsync()` from `src/lib/rate-limit.ts` (Postgres `RateLimitBucket`, memory fallback — no Redis since 10/2026). `claimOnce()` (one-shot throttles/dedupe) uses the same table (`claim:<key>` rows, atomic insert-or-take-over-expired).
 
 ### Paywall
 Settings tab "עוזרי AI" gated to `basic+`. The MCP endpoint itself doesn't enforce tier — token possession implies the user already passed the paywall when creating the connection.

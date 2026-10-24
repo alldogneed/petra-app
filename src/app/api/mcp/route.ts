@@ -1519,11 +1519,11 @@ export async function handleMcpRequest(request: NextRequest, tokenFromPath?: str
 
   // Per-token throttle for authenticated requests.
   const limited = await rateLimitAsync("mcp:token", auth.connectionId, MCP_RATE_LIMIT_TOKEN);
-  // Defense in depth: the Redis limiter degrades to per-instance memory when
-  // Upstash is misconfigured/unavailable, which parallel requests across lambdas
+  // Defense in depth: the limiter degrades to per-instance memory when the DB
+  // round-trip fails or times out, which parallel requests across lambdas
   // evade (found by red-team 2026-08-21). Every tools/call writes an McpAuditLog
   // row, so counting this connection's rows in the window bounds bursts
-  // regardless of Redis state. tools/list & initialize are not counted (cheap).
+  // regardless of limiter state. tools/list & initialize are not counted (cheap).
   const dbWindowStart = new Date(Date.now() - MCP_RATE_LIMIT_TOKEN.windowMs);
   const recentCalls = await prisma.mcpAuditLog
     .count({

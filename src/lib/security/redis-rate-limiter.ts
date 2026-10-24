@@ -2,8 +2,8 @@
  * Rate limiter for the Cardcom payment routes.
  *
  * Thin wrapper over `rateLimitAsync()` (src/lib/rate-limit.ts) so payments get the
- * same chain as every other limiter: Upstash Redis → (on failure: 60s circuit breaker)
- * Postgres fixed-window counter (atomic across serverless instances) → in-memory.
+ * same chain as every other limiter: Postgres fixed-window counter (atomic across
+ * serverless instances) → in-memory. (The file name is historical — there is no Redis.)
  * It used to have its own Redis client with no breaker and only a per-instance memory
  * fallback — with Redis unreachable, every payment call paid a failed lookup and the
  * limit was not enforced across instances.
@@ -25,7 +25,7 @@ interface RateLimitResult {
   allowed: boolean;
 }
 
-/** Distributed rate limit check (Redis → Postgres → memory). */
+/** Distributed rate limit check (Postgres → memory). */
 export async function rateLimitRedis(
   namespace: string,
   key: string,
