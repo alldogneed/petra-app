@@ -129,13 +129,45 @@ export function parseCallCoaching(json: string, rep: string, customerNames: Arra
   }
 }
 
-/** The rep of a PayCall call: the destination name ("מכירות - תמר") or the number that answered. */
-export function repFromPaycall(call: { NAME?: string | null; CALLEE?: string | null } | null | undefined): string | null {
-  const name = (call?.NAME ?? "").replace(/\s+/g, " ").trim();
-  if (name) return name.slice(0, 80);
-  // The routed-to phone is often the rep's own mobile — never a full number in the report.
-  const callee = (call?.CALLEE ?? "").replace(/\D/g, "");
-  return callee.length >= 4 ? `נציג/ה …${callee.slice(-4)}` : null;
+/**
+ * PayCall (CheckCall) fields, per Or (24/10): "קבוצה" (Group, e.g. "גוגל") = source / campaign —
+ * NEVER the rep; "שם יעד" (Destination name, e.g. "מכירות - תמר") = the rep; "מספר טלפון ביעד"
+ * = the phone that answered (fallback, last 4 digits only). The API key names are matched loosely
+ * (case / spaces / underscores ignored) because getCalls / getAnalyticsCalls name them differently.
+ */
+const normKey = (k: string) => k.toUpperCase().replace(/[^A-Z0-9]/g, "");
+const DEST_NAME_KEYS = ["DESTNAME", "DESTINATIONNAME", "DSTNAME", "TARGETNAME", "DESTINATIONTITLE", "NAME"];
+const GROUP_KEYS = ["GROUP", "GROUPNAME", "CAMPAIGN", "CAMPAIGNNAME", "SOURCE"];
+const DEST_PHONE_KEYS = ["CALLEE", "DESTNUMBER", "DESTINATIONNUMBER", "DESTPHONE", "DESTINATIONPHONE", "DST", "DSTNUMBER", "TARGET"];
+
+function field(rec: Record<string, unknown>, keys: string[]): string {
+  const byNorm = new Map(Object.entries(rec).map(([k, v]) => [normKey(k), v]));
+  for (const k of keys) {
+    const v = byNorm.get(k);
+    if (typeof v === "string" || typeof v === "number") {
+      const t = String(v).replace(/\s+/g, " ").trim();
+      if (t) return t;
+    }
+  }
+  return "";
+}
+
+export type RepSource = "destination_name" | "destination_phone";
+
+/** The rep of a PayCall call record (getCalls / getAnalyticsCalls), or null. Pure — tested. */
+export function repFromPaycall(call: Record<string, unknown> | object | null | undefined): { rep: string; source: RepSource } | null {
+  if (!call || typeof call !== "object") return null;
+  const rec = call as Record<string, unknown>;
+  const group = field(rec, GROUP_KEYS);
+  for (const k of DEST_NAME_KEYS) {
+    const name = field(rec, [k]);
+    // Not the group ("גוגל"), not a phone number.
+    if (!name || name === group || /^[\d\s+\-]+$/.test(name)) continue;
+    return { rep: name.slice(0, 80), source: "destination_name" };
+  }
+  // The answering phone is often the rep's own mobile — never a full number in the report.
+  const phone = field(rec, DEST_PHONE_KEYS).replace(/\D/g, "");
+  return phone.length >= 4 ? { rep: `נציג/ה …${phone.slice(-4)}`, source: "destination_phone" } : null;
 }
 
 export const COACHING_SYSTEM_PROMPT = [

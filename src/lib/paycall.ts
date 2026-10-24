@@ -479,3 +479,53 @@ export async function probeAnalyticsCallsShape(params: { fromDate: Date; toDate:
     return null;
   }
 }
+
+/**
+ * Item 33: one getAnalyticsCalls record by call id (the day of the call), or null. Used only when
+ * getCalls did not carry the destination name ("שם יעד"). The id key is matched loosely
+ * (ID / CALL_ID / CallId …). Never throws.
+ */
+export async function getAnalyticsCallRecord(callId: string, startedAt: Date): Promise<Record<string, unknown> | null> {
+  const uId = readEnv("PAYCALL_USER_ID");
+  if (!uId) return null;
+  try {
+    const day = new Date(startedAt.getTime() - 24 * 60 * 60 * 1000);
+    const body = new URLSearchParams({
+      uId,
+      action: "getAnalyticsCalls",
+      fromDate: ddmmyyyy(day),
+      toDate: ddmmyyyy(new Date(startedAt.getTime() + 24 * 60 * 60 * 1000)),
+      out: "json",
+    });
+    const res = await fetch(PAYCALL_API_URL, {
+      method: "POST",
+      headers: { Authorization: authHeader(), "Content-Type": "application/x-www-form-urlencoded" },
+      body: body.toString(),
+      cache: "no-store",
+      signal: AbortSignal.timeout(20_000),
+    });
+    if (!res.ok) return null;
+    const data: unknown = JSON.parse(await res.text());
+    const rows = Array.isArray(data) ? data : data && typeof data === "object" ? Object.values(data).find(Array.isArray) ?? [] : [];
+    const isId = (k: string) => ["ID", "CALLID"].includes(k.toUpperCase().replace(/[^A-Z]/g, ""));
+    const hit = (rows as unknown[]).find(
+      (r) => r && typeof r === "object" && Object.entries(r as object).some(([k, v]) => isId(k) && String(v) === callId)
+    );
+    return (hit as Record<string, unknown>) ?? null;
+  } catch (err) {
+    console.warn("[paycall] getAnalyticsCallRecord failed (non-critical):", err instanceof Error ? err.message : err);
+    return null;
+  }
+}
+
+/** Logs the KEY NAMES of a PayCall call record once per 30 days per source (never values). */
+export async function logCallRecordKeysOnce(source: "getCalls" | "getAnalyticsCalls", record: object | null): Promise<void> {
+  if (!record) return;
+  try {
+    const { claimOnce } = await import("@/lib/rate-limit");
+    if (!(await claimOnce(`paycall-record-keys:${source}`, 30 * 24 * 60 * 60))) return;
+    console.log(`[paycall] ${source} record keys (one-time): ${describeAnalyticsShape([record])}`);
+  } catch {
+    /* non-critical */
+  }
+}

@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
                 phone: call.CALLERID,
                 startedAt,
                 billsec: billsecOf(call),
-                rep: repFromPaycall(call),
+                rep: repFromPaycall(call)?.rep ?? null,
               },
               // Missed by the webhook and already 2 h old → its recording should exist; last chance.
               { forceFinal: now.getTime() - startedAt.getTime() > 2 * 60 * 60 * 1000 }

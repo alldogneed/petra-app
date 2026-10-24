@@ -5,9 +5,11 @@ export const maxDuration = 300;
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import {
+  getAnalyticsCallRecord,
   getCallById,
   isMissedCall,
   isSummarizableAnswer,
+  logCallRecordKeysOnce,
   parseLiveLinkParams,
   processMissedCall,
   type LiveLinkParams,
@@ -114,9 +116,18 @@ async function summarizeAnsweredCall(callId: string, live: LiveLinkParams): Prom
     const details = await getCallById(callId).catch(() => null);
     if (details) {
       phone = phone ?? details.CALLERID;
-      rep = repFromPaycall(details);
+      rep = repFromPaycall(details)?.rep ?? null;
       startedAt = new Date(details.START.replace(" ", "T") + "+03:00");
       if (isNaN(startedAt.getTime())) startedAt = new Date(Date.now() - (live.billsec ?? 0) * 1000);
+    }
+    // Item 33: the rep = "שם יעד". Not in getCalls → look the call up in getAnalyticsCalls.
+    const fromCalls = repFromPaycall(details);
+    void logCallRecordKeysOnce("getCalls", details);
+    if (fromCalls?.source !== "destination_name") {
+      const analytics = await getAnalyticsCallRecord(callId, startedAt);
+      void logCallRecordKeysOnce("getAnalyticsCalls", analytics);
+      const fromAnalytics = repFromPaycall(analytics);
+      if (fromAnalytics?.source === "destination_name" || !rep) rep = fromAnalytics?.rep ?? rep;
     }
     if (!phone) {
       console.warn(`[paycall webhook] answered call ${callId}: no caller phone — left for the daily sync`);

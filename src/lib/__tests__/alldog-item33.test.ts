@@ -33,10 +33,20 @@ const base = {
 };
 
 describe("rep", () => {
-  it("PayCall destination name first, else the number that answered", () => {
-    expect(repFromPaycall({ NAME: " מכירות - תמר ", CALLEE: "0501234567" })).toBe("מכירות - תמר");
-    expect(repFromPaycall({ NAME: "", CALLEE: "050-123-4567" })).toBe("נציג/ה …4567"); // never a full number
+  it("destination name (שם יעד) first, else the number that answered (last 4 only)", () => {
+    expect(repFromPaycall({ NAME: " מכירות - תמר ", CALLEE: "0501234567" })).toEqual({ rep: "מכירות - תמר", source: "destination_name" });
+    expect(repFromPaycall({ NAME: "", CALLEE: "050-482-8080" })).toEqual({ rep: "נציג/ה …8080", source: "destination_phone" });
     expect(repFromPaycall(null)).toBeNull();
+    expect(repFromPaycall({})).toBeNull();
+  });
+  it("the group (קבוצה, e.g. גוגל) is never the rep", () => {
+    // Analytics-style record: group + destination name + destination phone, any key spelling.
+    expect(repFromPaycall({ Group: "גוגל", "Destination name": "מכירות - תמר", "Destination number": "0504828080" })?.rep).toBe("מכירות - תמר");
+    expect(repFromPaycall({ GROUP_NAME: "גוגל", DEST_NAME: "מכירות - נועה", NAME: "גוגל" })?.rep).toBe("מכירות - נועה");
+    // NAME equal to the group → not a rep → phone fallback.
+    expect(repFromPaycall({ GROUP: "גוגל", NAME: "גוגל", CALLEE: "0504828080" })).toEqual({ rep: "נציג/ה …8080", source: "destination_phone" });
+    // A phone number in a name field is not a rep name either.
+    expect(repFromPaycall({ NAME: "0504828080", CALLEE: "0504828080" })?.rep).toBe("נציג/ה …8080");
   });
   it("the rep survives the retry queue payload", () => {
     const p = toPayload({ callId: "1", phone: "0541234567", startedAt: new Date("2026-10-24T10:00:00Z"), billsec: 60, rep: "מכירות - תמר" });
