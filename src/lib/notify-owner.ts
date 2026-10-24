@@ -13,7 +13,24 @@ const OWNER_NAME = "אור";
 
 // ── WhatsApp ─────────────────────────────────────────────────────────────────
 
-async function sendOwnerWhatsApp(message: string, templateParams?: string[]): Promise<void> {
+/** One template attempt: the Meta template name + its body params in order. */
+interface OwnerTemplateStep {
+  name: string;
+  params: string[];
+}
+
+/** Meta rejects template params with newlines/tabs or empty values. */
+const templateSafe = (v: string) => v.replace(/[\r\n\t]+/g, " ").replace(/ {4,}/g, "   ").trim();
+
+/**
+ * The generic `petra_owner_alert` template. Its approved text is the NEW-USER message
+ * ("נרשם משתמש חדש לפטרה" · שם / אימייל / מסלול / תאריך), so it is right only for
+ * registrations. Other alerts list their own template first and keep this one last as a
+ * fallback until Meta approves theirs (same idea as the customer template chain).
+ */
+const LEGACY_OWNER_TEMPLATE = "petra_owner_alert";
+
+async function sendOwnerWhatsApp(message: string, templates?: string[] | OwnerTemplateStep[]): Promise<void> {
   const token = process.env.META_WHATSAPP_TOKEN?.trim();
   const phoneNumberId = process.env.META_PHONE_NUMBER_ID?.trim();
 
@@ -38,28 +55,33 @@ async function sendOwnerWhatsApp(message: string, templateParams?: string[]): Pr
     return res;
   };
 
-  try {
-    // Try template first (works outside the 24h window — business-initiated)
-    if (templateParams && templateParams.length > 0) {
+  // A bare string[] = params for the legacy template (registrations, payments, …).
+  const steps: OwnerTemplateStep[] = !templates?.length
+    ? []
+    : typeof templates[0] === "string"
+      ? [{ name: LEGACY_OWNER_TEMPLATE, params: templates as string[] }]
+      : (templates as OwnerTemplateStep[]);
+
+  // Templates first (they work outside the 24h window — business-initiated), in order.
+  // An unapproved template is rejected at send time → the next step is tried.
+  for (const step of steps) {
+    const params = step.params.map(templateSafe);
+    if (params.some((v) => !v)) continue; // Meta rejects empty params
+    try {
       await send({
         messaging_product: "whatsapp",
         to: OWNER_WHATSAPP,
         type: "template",
         template: {
-          name: "petra_owner_alert",
+          name: step.name,
           language: { code: "he" },
-          components: [
-            {
-              type: "body",
-              parameters: templateParams.map((p) => ({ type: "text", text: p })),
-            },
-          ],
+          components: [{ type: "body", parameters: params.map((p) => ({ type: "text", text: p })) }],
         },
       });
       return; // template succeeded
+    } catch (templateErr) {
+      console.warn(`[notify-owner] Template ${step.name} failed, trying the next step:`, templateErr);
     }
-  } catch (templateErr) {
-    console.warn("[notify-owner] Template send failed, falling back to free-form text:", templateErr);
   }
 
   // Fallback: free-form text (works within 24h window only)
@@ -191,11 +213,20 @@ export async function notifyOwnerSupportActivity(p: {
       ${snippet ? `<p style="background:#fff7ed;border:1px solid #fed7aa;padding:12px;border-radius:8px;white-space:pre-wrap;">${escapeHtml(p.body ?? "")}</p>` : ""}
       <p><a href="${p.adminUrl}" style="color:#f97316;font-weight:bold;">← לטיפול בפנייה</a></p>
     </div>`;
-  // petra_owner_alert body params: [who, contact, what, when]
-  // Meta rejects template params with newlines → strip them (else the send drops to free text).
-  const templateParams = [oneLine(p.businessName) || "-", oneLine(p.userEmail) || "-", `${label}: ${oneLine(p.title).slice(0, 80)}`, dateLabel];
+  // petra_support_ticket_alert: [kind, business, user, title, url]; legacy petra_owner_alert
+  // (new-user wording) stays last until Meta approves the dedicated one.
+  const templates: OwnerTemplateStep[] = [
+    {
+      name: "petra_support_ticket_alert",
+      params: [label, oneLine(p.businessName) || "-", oneLine(p.userEmail) || "-", oneLine(p.title).slice(0, 200) || "-", p.adminUrl],
+    },
+    {
+      name: LEGACY_OWNER_TEMPLATE,
+      params: [oneLine(p.businessName) || "-", oneLine(p.userEmail) || "-", `${label}: ${oneLine(p.title).slice(0, 80)}`, dateLabel],
+    },
+  ];
   await Promise.allSettled([
-    sendOwnerWhatsApp(waMessage, templateParams),
+    sendOwnerWhatsApp(waMessage, templates),
     // A new ticket already emails info@petra-app.com (sendSupportTicketEmail) — don't double it.
     p.kind === "new" ? Promise.resolve() : sendOwnerEmail(`🛟 Petra: ${label} — ${p.businessName}`, emailHtml),
   ]);
@@ -235,15 +266,31 @@ export async function notifyOwnerWhatsAppFailure(p: {
       <p><a href="${p.adminUrl}" style="color:#f97316;font-weight:bold;">← לעסק בפאנל הניהול</a></p>
       <p style="color:#64748b;font-size:13px;">כשלים נוספים מאותו עסק ואותו סוג הודעה בשעה הקרובה לא יישלחו שוב.</p>
     </div>`;
-  // petra_owner_alert body params: [who, contact, what, when]
-  const templateParams = [
-    oneLine(p.businessName) || "-",
-    oneLine(p.customer) || "-",
-    `וואטסאפ לא נמסר: ${oneLine(p.flowLabel)} — ${oneLine(p.reason)}`.slice(0, 120),
-    dateLabel,
+  // petra_whatsapp_failure_alert: [business, flow, customer, reason, fix, url]; legacy last.
+  const templates: OwnerTemplateStep[] = [
+    {
+      name: "petra_whatsapp_failure_alert",
+      params: [
+        oneLine(p.businessName) || "-",
+        oneLine(p.flowLabel) || "-",
+        oneLine(p.customer) || "-",
+        oneLine(p.reason).slice(0, 300) || "-",
+        oneLine(p.fix).slice(0, 300) || "-",
+        p.adminUrl,
+      ],
+    },
+    {
+      name: LEGACY_OWNER_TEMPLATE,
+      params: [
+        oneLine(p.businessName) || "-",
+        oneLine(p.customer) || "-",
+        `וואטסאפ לא נמסר: ${oneLine(p.flowLabel)} — ${oneLine(p.reason)}`.slice(0, 120),
+        dateLabel,
+      ],
+    },
   ];
   await Promise.allSettled([
-    sendOwnerWhatsApp(waMessage, templateParams),
+    sendOwnerWhatsApp(waMessage, templates),
     sendOwnerEmail(`🔴 Petra: וואטסאפ לא נמסר — ${p.businessName} (${p.flowLabel})`, emailHtml),
   ]);
 }
@@ -265,9 +312,24 @@ export async function notifyOwnerSupportOverdue(p: {
       <ul>${p.tickets.map((t) => `<li><b>${escapeHtml(t.businessName)}</b> — ${escapeHtml(t.title)} (ממתין ${hours(t.waitingSince)} שעות)</li>`).join("")}</ul>
       <p><a href="${p.adminUrl}" style="color:#f97316;font-weight:bold;">← לפניות התמיכה</a></p>
     </div>`;
-  const templateParams = ["פניות תמיכה", `${p.tickets.length} ממתינות`, `הוותיקה: ${oneLine(p.tickets[0]?.title ?? "").slice(0, 60)}`, formatDate()];
+  // Oldest waiting ticket = the one with the earliest waitingSince.
+  const oldest = [...p.tickets].sort((a, b) => a.waitingSince.getTime() - b.waitingSince.getTime())[0];
+  const templates: OwnerTemplateStep[] = [
+    {
+      name: "petra_support_overdue_alert",
+      params: [
+        p.tickets.length === 1 ? "פנייה אחת" : `${p.tickets.length} פניות`,
+        oldest ? `${oneLine(oldest.businessName)} · ${oneLine(oldest.title).slice(0, 120)} (${hours(oldest.waitingSince)} ש׳)` : "-",
+        p.adminUrl,
+      ],
+    },
+    {
+      name: LEGACY_OWNER_TEMPLATE,
+      params: ["פניות תמיכה", `${p.tickets.length} ממתינות`, `הוותיקה: ${oneLine(p.tickets[0]?.title ?? "").slice(0, 60)}`, formatDate()],
+    },
+  ];
   await Promise.allSettled([
-    sendOwnerWhatsApp(waMessage, templateParams),
+    sendOwnerWhatsApp(waMessage, templates),
     sendOwnerEmail(`⏰ Petra: ${p.tickets.length} פניות ממתינות לתשובה`, emailHtml),
   ]);
 }
@@ -356,10 +418,24 @@ export async function notifyOwnerPaymentReceived(p: PaymentReceivedParams): Prom
     </div>
   `;
 
-  const templateParams = [p.businessName, p.businessEmail ?? "-", `${tierLabel} — ${amountLabel}`, dateLabel];
+  // petra_payment_received_alert: [business, tier, amount, recurring status, url]; legacy last.
+  const recurringLine = [recurringLabel, tokenWarning].filter(Boolean).join(" · ");
+  const templates: OwnerTemplateStep[] = [
+    {
+      name: "petra_payment_received_alert",
+      params: [
+        p.businessName || "-",
+        `${tierLabel}${keptTier}`,
+        amountLabel,
+        recurringLine.slice(0, 400) || "-",
+        `${process.env.NEXT_PUBLIC_APP_URL?.trim() || "https://petra-app.com"}/owner/tenants`,
+      ],
+    },
+    { name: LEGACY_OWNER_TEMPLATE, params: [p.businessName, p.businessEmail ?? "-", `${tierLabel} — ${amountLabel}`, dateLabel] },
+  ];
 
   await Promise.allSettled([
-    sendOwnerWhatsApp(waMessage, templateParams),
+    sendOwnerWhatsApp(waMessage, templates),
     sendOwnerEmail(emailSubject, emailHtml),
   ]);
 }
@@ -482,10 +558,22 @@ export async function notifyOwnerAllDog(p: { title: string; lines: string[]; url
       <p style="color:#64748b;font-size:13px;">${dateLabel}</p>
       ${p.url ? `<p><a href="${escapeHtml(p.url)}" style="color:#f97316;font-weight:bold;">← לפתיחה בפטרה</a></p>` : ""}
     </div>`;
-  // petra_owner_alert body params: [who, contact, what, when]
-  const templateParams = ["AllDog", oneLine(p.lines[0] ?? "-").slice(0, 120) || "-", oneLine(p.title).slice(0, 120), dateLabel];
+  // petra_alldog_owner_alert: [title, who, details, url]; legacy petra_owner_alert last.
+  const details = p.lines.slice(1).map(oneLine).filter(Boolean).join(" · ");
+  const templates: OwnerTemplateStep[] = [
+    {
+      name: "petra_alldog_owner_alert",
+      params: [
+        oneLine(p.title).slice(0, 120) || "-",
+        oneLine(p.lines[0] ?? "").slice(0, 200) || "-",
+        details.slice(0, 600) || "-",
+        p.url || `${process.env.NEXT_PUBLIC_APP_URL?.trim() || "https://petra-app.com"}/leads`,
+      ],
+    },
+    { name: LEGACY_OWNER_TEMPLATE, params: ["AllDog", oneLine(p.lines[0] ?? "-").slice(0, 120) || "-", oneLine(p.title).slice(0, 120), dateLabel] },
+  ];
   await Promise.allSettled([
-    sendOwnerWhatsApp(waMessage, templateParams),
+    sendOwnerWhatsApp(waMessage, templates),
     sendOwnerEmail(`🐶 AllDog: ${oneLine(p.title)}`, emailHtml),
   ]);
 }
