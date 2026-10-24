@@ -238,11 +238,6 @@ export async function updateLeadCallLog(id: string, leadId: string, summary: str
   });
 }
 
-/** Item 33: the rep coaching JSON of an answered-call CallLog. */
-export async function setCallLogCoaching(id: string, leadId: string, coaching: object) {
-  await prisma.callLog.updateMany({ where: { id, leadId }, data: { coaching } });
-}
-
 /** True when a call log with this exact PayCall id already exists in the business (idempotency). */
 export async function callIdAlreadyLogged(businessId: string, callId: string): Promise<boolean> {
   const rows = await prisma.callLog.findMany({

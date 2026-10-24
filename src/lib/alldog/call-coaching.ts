@@ -72,7 +72,7 @@ const rawSchema = z.object({
 
 export interface CallCoaching {
   v: number;
-  /** The rep — PayCall destination ("מכירות - תמר") or the number that answered. */
+  /** The rep — PayCall destination ("מכירות - תמר") or "נציג/ה …1234" (last 4 of the number that answered). */
   rep: string;
   offered_diagnosis: boolean;
   explained_tracks: boolean;
@@ -94,7 +94,8 @@ export function stripCustomer(textIn: string | null, customerNames: Array<string
   let out = textIn.replace(/\+?\d[\d\-\s]{6,}\d/g, "…");
   for (const n of customerNames) {
     for (const part of (n ?? "").split(/\s+/).filter((p) => p.length >= 2)) {
-      out = out.replace(new RegExp(`(?<![\\p{L}])${part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}])`, "gu"), "…");
+      // Hebrew one-letter prefixes too ("לדנה", "ודנה", "שדנה").
+      out = out.replace(new RegExp(`(?<![\\p{L}])[והבלמשכ]{0,2}${part.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}])`, "gu"), "…");
     }
   }
   out = out.replace(/\s+/g, " ").trim();
@@ -132,8 +133,9 @@ export function parseCallCoaching(json: string, rep: string, customerNames: Arra
 export function repFromPaycall(call: { NAME?: string | null; CALLEE?: string | null } | null | undefined): string | null {
   const name = (call?.NAME ?? "").replace(/\s+/g, " ").trim();
   if (name) return name.slice(0, 80);
+  // The routed-to phone is often the rep's own mobile — never a full number in the report.
   const callee = (call?.CALLEE ?? "").replace(/\D/g, "");
-  return callee ? callee.slice(0, 20) : null;
+  return callee.length >= 4 ? `נציג/ה …${callee.slice(-4)}` : null;
 }
 
 export const COACHING_SYSTEM_PROMPT = [
@@ -272,7 +274,8 @@ export async function coachCall(
       import("@anthropic-ai/sdk"),
       import("@/lib/alldog/config"),
     ]);
-    const client = new Anthropic({ apiKey: allDogAnthropicKey() });
+    // Short timeout, no retries: coaching must never hold the call queue / the cron budget.
+    const client = new Anthropic({ apiKey: allDogAnthropicKey(), timeout: 45_000, maxRetries: 0 });
     const response = await client.messages.create({
       model: summaryModel(),
       max_tokens: 3000,

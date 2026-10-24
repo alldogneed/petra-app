@@ -37,7 +37,6 @@ import {
   findCallLogForCall,
   localPhone,
   updateLeadCallLog,
-  setCallLogCoaching,
   setLeadFollowUp,
   upsertLeadFromContact,
 } from "@/lib/alldog/leads";
@@ -305,13 +304,8 @@ export async function processAnsweredCall(
     contactedAt: input.startedAt,
   });
   const text = [log.summary, campaignLine].filter(Boolean).join("\n");
-  let callLogId: string;
-  if (leadLog) {
-    await updateLeadCallLog(leadLog.id, leadLog.leadId, text, log.treatment);
-    callLogId = leadLog.id;
-  } else {
-    callLogId = (await addLeadCallLog(leadId, text, log.treatment)).id;
-  }
+  if (leadLog) await updateLeadCallLog(leadLog.id, leadLog.leadId, text, log.treatment);
+  else await addLeadCallLog(leadId, text, log.treatment);
   await setLeadFollowUp(businessId, leadId, followUpFor(summary));
   if (created) {
     await alertNewLeadIfEnabled(businessId, {
@@ -324,14 +318,8 @@ export async function processAnsweredCall(
   }
 
   console.log(`${LOG} call ${input.callId} summarized → lead ${leadId}${created ? " (new)" : ""} (${maskPhone(input.phone)})`);
-  // Item 33: coaching JSON on the lead's CallLog (the queue row gets it too — call-retry.ts).
+  // Item 33: the coaching is stored on the call's queue row (call-retry.ts), not on the CallLog —
+  // lead APIs return every CallLog column to all members, the coaching is for Or only.
   const coaching = await coachingFor(transcriptText, input, [summary.customerName]);
-  if (coaching) {
-    try {
-      await setCallLogCoaching(callLogId, leadId, coaching);
-    } catch (err) {
-      console.warn(`${LOG} coaching not saved for call ${input.callId}:`, err instanceof Error ? err.message : err);
-    }
-  }
   return { status: "logged", leadId, created, summarized: true, coaching };
 }

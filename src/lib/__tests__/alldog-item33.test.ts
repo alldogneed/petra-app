@@ -35,7 +35,7 @@ const base = {
 describe("rep", () => {
   it("PayCall destination name first, else the number that answered", () => {
     expect(repFromPaycall({ NAME: " מכירות - תמר ", CALLEE: "0501234567" })).toBe("מכירות - תמר");
-    expect(repFromPaycall({ NAME: "", CALLEE: "050-123-4567" })).toBe("0501234567");
+    expect(repFromPaycall({ NAME: "", CALLEE: "050-123-4567" })).toBe("נציג/ה …4567"); // never a full number
     expect(repFromPaycall(null)).toBeNull();
   });
   it("the rep survives the retry queue payload", () => {
@@ -71,6 +71,7 @@ describe("assessment", () => {
       expect(t).not.toMatch(/\d{4}/);
     }
     expect(stripCustomer("האבחון עולה 350 ₪", [])).toBe("האבחון עולה 350 ₪"); // prices stay
+    expect(stripCustomer("אמרתי לדנה ושדנה תחזור", ["דנה"])).not.toContain("דנה"); // Hebrew prefixes
   });
   it("the schema asks for every field Or listed; the prompt carries the messaging rules", () => {
     for (const k of ["offered_diagnosis", "explained_tracks", "price_handling", "next_step_set", "outcome", "strengths", "improve", "quote_good"]) {

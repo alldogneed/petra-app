@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
     const rows = await prisma.paycallCallRetry.findMany({
       where: { businessId, coachedAt: { gte: from, lte: to } },
       select: { coaching: true },
+      orderBy: { coachedAt: "desc" },
       take: 2000,
     });
     const report = buildRepReport(
