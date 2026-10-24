@@ -10,6 +10,8 @@
  *   - warnings: a time / slot offer or "מתי נוח", an identity line nobody asked for,
  *     a repeated closing message, more than one echo + compliment, the surname asked twice,
  *     a doubled / merged word (`warnings`);
+ *   - item 26h, per conversation (`report()`): ≤ 5 questions until the closing, ≥ 1 professional
+ *     question, 0 identity lines nobody asked for, 0 repeated bot messages; "מכירים" warns;
  *   - "דחוף" when the customer says it is urgent (the lead would be marked urgent);
  *   - item 25: the address style each turn (gender f/m/unknown, plural) + warnings for "רשמנו /
  *     העברנו / אנחנו דואגים" and for "אתם / אליכם" the customer never used.
@@ -18,7 +20,9 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import Anthropic from "@anthropic-ai/sdk";
 import { heDayLabel, israelParts } from "@/lib/alldog/time";
+import { checkConversation, formatReport, type ConversationReport } from "@/lib/alldog-bot/conversation-checks";
 import {
+  INVENTED_FAMILIARITY_RE,
   applyConversationGuards,
   countMirrorPraise,
   findTextIssues,
@@ -186,6 +190,19 @@ export class SimConversation {
     return ex;
   }
 
+  /** Item 26h: questions until the closing, professional questions, identity lines, repeats. */
+  report(): ConversationReport {
+    return checkConversation(
+      this.events
+        .filter((e) => e.kind === "user" || e.kind === "bot")
+        .map((e) => ({ role: e.kind === "user" ? ("user" as const) : ("bot" as const), text: e.text }))
+    );
+  }
+
+  reportLine(): string {
+    return formatReport(this.report());
+  }
+
   reset() {
     this.rows = [];
     this.status = "active";
@@ -208,6 +225,7 @@ export class SimConversation {
       const prior = this.rows.filter((r) => r.role === "assistant").map((r) => r.text);
       if (countMirrorPraise(text) && prior.some((t) => countMirrorPraise(t))) this.warn(`שיקוף + מחמאה בפעם השנייה: "${text.slice(0, 80)}"`);
       if (SURNAME_QUESTION_RE.test(text) && prior.some((t) => SURNAME_QUESTION_RE.test(t))) this.warn("שם המשפחה נשאל פעם שנייה");
+      if (INVENTED_FAMILIARITY_RE.test(text)) this.warn(`היכרות מומצאת ("מכירים"): "${text.slice(0, 80)}"`);
       for (const issue of findAddressIssues(text, this.style)) {
         this.warn(`${issue.kind === "self_plural" ? "הבוט מדבר ברבים על עצמו" : "פנייה ברבים שהלקוח לא השתמש בה"}: "${issue.text}"`);
       }

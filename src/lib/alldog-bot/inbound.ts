@@ -371,6 +371,11 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
     text = enforceOpening(lastAssistant < 0, firstUserText, text);
   }
   let afterHandoff = result.handedOff || handoffMode;
+  if (!text && result.reply.trim() && !executor.closing) {
+    // Everything the model wrote was already sent earlier in this conversation (item 26a) → say nothing.
+    console.log(`${LOG} reply repeated an earlier bot message — not sent (${maskPhone(conv.phone)})`);
+    return;
+  }
   if (!text) {
     if (handoffMode) return;
     if (!result.handedOff) {
