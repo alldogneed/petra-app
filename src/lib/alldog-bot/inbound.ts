@@ -18,7 +18,7 @@ import prisma from "@/lib/prisma";
 import { maskPhone } from "@/lib/whatsapp-failure";
 import { allDogAnthropicKey, allDogBusinessId, botModel, isWaBotEnabled } from "@/lib/alldog/config";
 import { heDayLabel, israelParts } from "@/lib/alldog/time";
-import { addLeadCallLog, createLeadTask, isPlaceholderLeadName } from "@/lib/alldog/leads";
+import { addLeadCallLog, createLeadTask, findLeadByPhone, isPlaceholderLeadName } from "@/lib/alldog/leads";
 import {
   applyConversationGuards,
   botMayReply,
@@ -318,11 +318,11 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
   );
   if (!history.length || history[history.length - 1].role !== "user") return;
 
+  // The name of the lead this contact belongs to now: an old / closed lead does not count
+  // (a returning caller gets a new lead, named from this conversation — Or, item 24).
   let knownName: string | null = null;
-  if (conv.leadId) {
-    const lead = await prisma.lead.findFirst({ where: { id: conv.leadId, businessId: conv.businessId }, select: { name: true } });
-    if (lead && !isPlaceholderLeadName(lead.name)) knownName = lead.name;
-  }
+  const activeLead = await findLeadByPhone(conv.businessId, conv.phone).catch(() => null);
+  if (activeLead && !isPlaceholderLeadName(activeLead.name)) knownName = activeLead.name;
   // The closing was already sent → answer questions only, never repeat it (Or, 24/10).
   const closed = closingAlreadySent(rows);
   const now = new Date();

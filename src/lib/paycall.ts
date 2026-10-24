@@ -169,18 +169,17 @@ export async function processMissedCall(call: PaycallCall): Promise<{
     return { leadId: null, customerId: customer.id, created: false, skipped: false };
   }
 
-  // Find an active lead with this phone in the target business.
-  // Active = not in won/lost stage. We check stage's isWon/isLost via include.
-  const existing = await prisma.lead.findFirst({
-    where: { businessId, phone },
-    include: { callLogs: { where: { type: "call" }, orderBy: { createdAt: "desc" }, take: 50 } },
-    orderBy: { createdAt: "desc" },
+  // Dedup: skip if this exact call ID was already logged on any lead of the business.
+  const logged = await prisma.callLog.findFirst({
+    where: { summary: { contains: `call_id:${call.ID}` }, lead: { businessId } },
+    select: { leadId: true },
   });
+  if (logged) return { leadId: logged.leadId, created: false, skipped: true };
 
-  // Dedup: skip if we've already logged this exact call ID
-  if (existing && existing.callLogs.some((log) => log.summary.includes(`call_id:${call.ID}`))) {
-    return { leadId: existing.id, created: false, skipped: true };
-  }
+  // The ACTIVE lead of this phone (open stage, touched in the last 60 days). Every lead closed
+  // or stale → a new lead linked to the previous one (Or, item 24).
+  const { resolveLeadForContact, returningContactNote } = await import("@/lib/alldog/leads");
+  const { active: existing, previous } = await resolveLeadForContact(businessId, phone, startedAt);
 
   const summary = formatCallSummary(call);
   let leadId: string;
@@ -201,7 +200,10 @@ export async function processMissedCall(call: PaycallCall): Promise<{
         phone,
         source: "paycall_missed_call",
         stage: newStageId,
-        notes: `נוצר אוטומטית משיחה שלא נענתה דרך Paycall.\nמספר ניסיונות: 1`,
+        notes: [
+          `נוצר אוטומטית משיחה שלא נענתה דרך Paycall.\nמספר ניסיונות: 1`,
+          returningContactNote(previous?.id ?? null, previous?.customerId ?? null),
+        ].filter(Boolean).join("\n\n"),
         lastContactedAt: startedAt,
       },
     });
@@ -232,15 +234,27 @@ export async function processMissedCall(call: PaycallCall): Promise<{
     const callCount = await prisma.callLog.count({
       where: { leadId, type: "call", summary: { contains: "[paycall]" } },
     });
+    // Only the counter line changes: the rest of the notes (dog details from the bot, the
+    // "פונה חוזר" link…) stays.
     await prisma.lead.update({
       where: { id: leadId },
-      data: {
-        notes: `נוצר אוטומטית משיחות שלא נענו דרך Paycall.\nמספר ניסיונות: ${callCount}`,
-      },
+      data: { notes: missedCallNotes(existing?.notes ?? null, callCount) },
     });
   }
 
   return { leadId, created, skipped: false };
+}
+
+/** The lead notes with the missed-call counter set to `count` (the other lines are kept). */
+export function missedCallNotes(notes: string | null, count: number): string {
+  const counter = `מספר ניסיונות: ${count}`;
+  const current = notes?.trim() ?? "";
+  if (/מספר ניסיונות: \d+/.test(current)) {
+    return current
+      .replace(/נוצר אוטומטית משיחה שלא נענתה דרך Paycall\./, "נוצר אוטומטית משיחות שלא נענו דרך Paycall.")
+      .replace(/מספר ניסיונות: \d+/, counter);
+  }
+  return [current, `נוצר אוטומטית משיחות שלא נענו דרך Paycall.\n${counter}`].filter(Boolean).join("\n\n");
 }
 
 function formatCallSummary(call: PaycallCall): string {
