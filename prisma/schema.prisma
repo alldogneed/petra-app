@@ -747,6 +747,8 @@ model CallLog {
   type      String   @default("call") // "call" | "stage_change" | "deal_value"
   summary   String
   treatment String   @default("")
+  /// AllDog rep coaching of an answered PayCall call (src/lib/alldog/call-coaching.ts) — null elsewhere.
+  coaching  Json?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -2589,10 +2591,14 @@ model PaycallCallRetry {
   lockedUntil   DateTime?
   status        String    @default("pending") // pending | done | failed
   lastError     String?
+  /// Rep coaching of this call (item 33) — read by /api/cron/alldog-rep-report.
+  coaching      Json?
+  coachedAt     DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
   @@index([status, nextAttemptAt])
+  @@index([businessId, coachedAt])
 }
 
 /// AllDog WhatsApp bot (src/lib/alldog-bot) — one conversation per customer phone.

@@ -55,6 +55,7 @@ export function fromPayload(raw: unknown): AnsweredCallInput | null {
     gclid: p.gclid ?? null,
     campaign: p.campaign ?? null,
     campaignParams: p.campaignParams ?? undefined,
+    rep: typeof p.rep === "string" ? p.rep : null,
   };
 }
 
@@ -115,6 +116,8 @@ export async function runAnsweredCall(
           status: result.status === "retry_later" ? "failed" : "done",
           lockedUntil: null,
           lastError: result.status === "retry_later" ? result.reason : null,
+          // Item 33: the weekly rep report reads the coaching from here (leads + customers).
+          ...(result.status === "logged" && result.coaching ? { coaching: result.coaching as object, coachedAt: new Date() } : {}),
         },
       });
     }

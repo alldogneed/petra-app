@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyCronAuth } from "@/lib/cron-auth";
 import { probeAnalyticsCallsShape, getCalls, isMissedCall, processMissedCall, MIN_SUMMARY_BILLSEC, type PaycallCall } from "@/lib/paycall";
 import { isCallSummariesEnabled } from "@/lib/alldog/config";
+import { repFromPaycall } from "@/lib/alldog/call-coaching";
 
 /**
  * GET /api/cron/paycall-sync
@@ -91,6 +92,7 @@ export async function GET(request: NextRequest) {
                 phone: call.CALLERID,
                 startedAt,
                 billsec: billsecOf(call),
+                rep: repFromPaycall(call),
               },
               // Missed by the webhook and already 2 h old → its recording should exist; last chance.
               { forceFinal: now.getTime() - startedAt.getTime() > 2 * 60 * 60 * 1000 }

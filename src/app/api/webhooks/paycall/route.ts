@@ -12,6 +12,7 @@ import {
   processMissedCall,
   type LiveLinkParams,
 } from "@/lib/paycall";
+import { repFromPaycall } from "@/lib/alldog/call-coaching";
 import { runAfterResponse } from "@/lib/wait-until";
 import { isCallSummariesEnabled } from "@/lib/alldog/config";
 import { readEnv } from "@/lib/read-env";
@@ -109,9 +110,11 @@ async function summarizeAnsweredCall(callId: string, live: LiveLinkParams): Prom
   try {
     let phone = live.cli;
     let startedAt = new Date(Date.now() - (live.billsec ?? 0) * 1000);
+    let rep: string | null = null;
     const details = await getCallById(callId).catch(() => null);
     if (details) {
       phone = phone ?? details.CALLERID;
+      rep = repFromPaycall(details);
       startedAt = new Date(details.START.replace(" ", "T") + "+03:00");
       if (isNaN(startedAt.getTime())) startedAt = new Date(Date.now() - (live.billsec ?? 0) * 1000);
     }
@@ -132,6 +135,7 @@ async function summarizeAnsweredCall(callId: string, live: LiveLinkParams): Prom
         gclid: live.gclid,
         campaign: live.campaign,
         campaignParams: live.campaignParams,
+        rep,
       }
     );
     console.log(`[paycall webhook] answered call ${callId}: ${result.status}`);

@@ -120,7 +120,7 @@ describe("schedule", () => {
     expect(isFinalAttempt(5)).toBe(true);
   });
   it("payload round-trips (dates as ISO)", () => {
-    expect(fromPayload(JSON.parse(JSON.stringify(toPayload(input))))).toEqual({ ...input, gclid: null, campaign: null, campaignParams: undefined });
+    expect(fromPayload(JSON.parse(JSON.stringify(toPayload(input))))).toEqual({ ...input, gclid: null, campaign: null, campaignParams: undefined, rep: null });
     expect(fromPayload({ callId: "1" })).toBeNull();
   });
 });

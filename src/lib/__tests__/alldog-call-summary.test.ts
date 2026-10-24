@@ -264,7 +264,7 @@ describe("processAnsweredCall", () => {
     const { upsertLeadFromContact } = jest.requireMock("@/lib/alldog/leads");
     (upsertLeadFromContact as jest.Mock).mockClear();
     const r = await processAnsweredCall(input);
-    expect(r).toEqual({ status: "logged", leadId: null, customerId: "cust-1", created: false, summarized: true });
+    expect(r).toEqual({ status: "logged", leadId: null, customerId: "cust-1", created: false, summarized: true, coaching: null }); // the mocked model returns a summary, not a coaching
     expect(upsertLeadFromContact).not.toHaveBeenCalled();
     expect(mockLogs).toHaveLength(0);
     expect(mockCustomerNotes).toHaveLength(1);
