@@ -4,7 +4,7 @@
  * reply shaping and silence rules; save_lead / schedule_callback / handoff are stubs that
  * only print what they would do (scripts/alldog-sim/engine.ts). lookup_guide is the real one.
  *
- * Run (from the repo root, ANTHROPIC_API_KEY from your env):
+ * Run (from the repo root, ALLDOG_ANTHROPIC_API_KEY or ANTHROPIC_API_KEY from your env):
  *   npm run alldog:sim
  *   npm run alldog:sim -- --scenario cats     # replay a scripted customer (scripts/alldog-sim/scenarios.ts)
  *   npm run alldog:sim -- --before            # the first release's prompt, for comparison
@@ -15,8 +15,7 @@
  */
 import * as readline from "node:readline";
 import Anthropic from "@anthropic-ai/sdk";
-import { botModel } from "@/lib/alldog/config";
-import { readEnv } from "@/lib/read-env";
+import { allDogAnthropicKey, botModel } from "@/lib/alldog/config";
 import { typingDelayMs } from "@/lib/alldog-bot/logic";
 import { SimConversation, type SimEvent } from "./alldog-sim/engine";
 import { SCENARIOS } from "./alldog-sim/scenarios";
@@ -36,9 +35,9 @@ function print(e: SimEvent, echoUser: boolean) {
 }
 
 async function main() {
-  const key = readEnv("ANTHROPIC_API_KEY");
+  const key = allDogAnthropicKey();
   if (!key) {
-    console.error("ANTHROPIC_API_KEY חסר");
+    console.error("ALLDOG_ANTHROPIC_API_KEY / ANTHROPIC_API_KEY חסר");
     process.exit(1);
   }
   const client = new Anthropic({ apiKey: key });

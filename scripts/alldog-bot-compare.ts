@@ -7,12 +7,11 @@
  *   npm run alldog:compare -- --only cats,price  # some scenarios
  *   npm run alldog:compare -- --variant after    # only one side
  *
- * Needs ANTHROPIC_API_KEY (and optionally ALLDOG_BOT_MODEL).
+ * Needs ALLDOG_ANTHROPIC_API_KEY (or ANTHROPIC_API_KEY) (and optionally ALLDOG_BOT_MODEL).
  */
 import * as fs from "node:fs";
 import Anthropic from "@anthropic-ai/sdk";
-import { botModel } from "@/lib/alldog/config";
-import { readEnv } from "@/lib/read-env";
+import { allDogAnthropicKey, botModel } from "@/lib/alldog/config";
 import { SCENARIOS } from "./alldog-sim/scenarios";
 import { SimConversation, type SimEvent, type Variant } from "./alldog-sim/engine";
 
@@ -32,9 +31,9 @@ function render(events: SimEvent[]): string {
 }
 
 async function main() {
-  const key = readEnv("ANTHROPIC_API_KEY");
+  const key = allDogAnthropicKey();
   if (!key) {
-    console.error("ANTHROPIC_API_KEY חסר");
+    console.error("ALLDOG_ANTHROPIC_API_KEY / ANTHROPIC_API_KEY חסר");
     process.exit(1);
   }
   const client = new Anthropic({ apiKey: key });

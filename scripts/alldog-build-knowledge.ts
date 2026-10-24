@@ -6,7 +6,7 @@
  *
  * Re-run whenever articles are added or changed. Per article:
  *   - unchanged (same sourceHash) → the existing card is kept as is;
- *   - new / changed → insights are written by Claude (ANTHROPIC_API_KEY, model
+ *   - new / changed → insights are written by Claude (ALLDOG_ANTHROPIC_API_KEY or ANTHROPIC_API_KEY, model
  *     ALLDOG_KNOWLEDGE_MODEL, default the summary model) from the article text;
  *   - or, offline: --insights <dir> with <slug>.json files {topic, insights[], whenToRecommend, extraKeywords[]}.
  * Deleted articles are dropped. Every card is checked against the site's messaging rules
@@ -18,7 +18,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import Anthropic from "@anthropic-ai/sdk";
 import { readEnv } from "@/lib/read-env";
-import { summaryModel } from "@/lib/alldog/config";
+import { allDogAnthropicKey, summaryModel } from "@/lib/alldog/config";
 import type { KnowledgeEntry, KnowledgeFile } from "@/lib/alldog-bot/knowledge";
 import {
   INSIGHTS_INSTRUCTIONS,
@@ -93,7 +93,7 @@ async function main() {
   const prevBySlug = new Map((previous?.entries ?? []).map((e) => [`${e.kind}:${e.slug}`, e]));
   const insightsDir = arg("insights");
   const force = flag("force");
-  const key = readEnv("ANTHROPIC_API_KEY");
+  const key = allDogAnthropicKey();
   const client = key ? new Anthropic({ apiKey: key }) : null;
 
   const entries: KnowledgeEntry[] = [];
@@ -139,7 +139,7 @@ async function main() {
 
   if (missing.length) {
     console.error(
-      `${missing.length} new/changed articles need insights and there is no ANTHROPIC_API_KEY or --insights file:\n  ${missing.join("\n  ")}`
+      `${missing.length} new/changed articles need insights and there is no ALLDOG_ANTHROPIC_API_KEY / ANTHROPIC_API_KEY or --insights file:\n  ${missing.join("\n  ")}`
     );
     process.exit(1);
   }

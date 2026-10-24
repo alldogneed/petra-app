@@ -16,7 +16,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { maskPhone } from "@/lib/whatsapp-failure";
-import { allDogBusinessId, botModel, isWaBotEnabled } from "@/lib/alldog/config";
+import { allDogAnthropicKey, allDogBusinessId, botModel, isWaBotEnabled } from "@/lib/alldog/config";
 import { heDayLabel, israelParts } from "@/lib/alldog/time";
 import { addLeadCallLog, createLeadTask, isPlaceholderLeadName } from "@/lib/alldog/leads";
 import {
@@ -52,7 +52,6 @@ import {
 } from "@/lib/alldog-bot/handoff";
 import { claimOnce } from "@/lib/rate-limit";
 import { markReadWithTyping, sendText } from "@/lib/alldog-bot/wa";
-import { readEnv } from "@/lib/read-env";
 
 const LOG = "[alldog-bot]";
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -334,7 +333,7 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
 
   const executor = createDbExecutor(ref);
   const result = await runBotTurn({
-    client: new Anthropic({ apiKey: readEnv("ANTHROPIC_API_KEY") }),
+    client: new Anthropic({ apiKey: allDogAnthropicKey() }),
     model: botModel(),
     context,
     history,
