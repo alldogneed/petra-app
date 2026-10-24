@@ -55,7 +55,7 @@ async function main() {
     }
     console.log(gray(`תרחיש: ${scenario.title} (${variant === "before" ? "לפני" : "אחרי"})`));
     for (const line of scenario.lines) {
-      if (conv.status !== "active") break;
+      if (conv.status === "stopped") break;
       await conv.send(line);
     }
     return;

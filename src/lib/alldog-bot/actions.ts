@@ -15,6 +15,7 @@ import {
   upsertLeadFromContact,
 } from "@/lib/alldog/leads";
 import { addDaysYmd, heDayLabel, isValidYmd, isWithinOfficeHours, israelInstant, israelYmd } from "@/lib/alldog/time";
+import { callbackClosingText, handoffClosingText } from "@/lib/alldog-bot/handoff";
 import { ToolError, type BotToolExecutor, type HandoffInput, type SaveLeadInput, type ScheduleCallbackInput } from "@/lib/alldog-bot/agent";
 
 export const BOT_LEAD_SOURCE = "וואטסאפ · בוט";
@@ -47,10 +48,15 @@ export function createDbExecutor(conv: BotConversationRef): BotToolExecutor {
       name: fields.full_name ?? null,
       placeholderName: `וואטסאפ ${phone}`,
       source: BOT_LEAD_SOURCE,
-      city: fields.city,
+      city: fields.city ? (fields.neighborhood ? `${fields.city} (${fields.neighborhood})` : fields.city) : null,
       requestedService: fields.service,
-      pet: fields.dog_name || fields.dog_age || fields.dog_breed || fields.problem
-        ? { name: fields.dog_name, age: fields.dog_age, breed: fields.dog_breed, notes: fields.problem }
+      pet: fields.dog_name || fields.dog_age || fields.dog_breed || fields.problem || fields.dog_since
+        ? {
+            name: fields.dog_name,
+            age: fields.dog_age,
+            breed: fields.dog_breed,
+            notes: [fields.problem, fields.dog_since ? `אצלם: ${fields.dog_since}` : null].filter(Boolean).join(" · ") || null,
+          }
         : null,
       creationNote: ["נוצר אוטומטית מהבוט בוואטסאפ.", conv.profileName ? `שם בוואטסאפ: ${conv.profileName}` : null, attributionLine]
         .filter(Boolean)
@@ -67,7 +73,9 @@ export function createDbExecutor(conv: BotConversationRef): BotToolExecutor {
     return leadId;
   }
 
-  return {
+  const executor: BotToolExecutor = {
+    closing: null,
+
     async saveLead(input) {
       const leadId = await ensureLead(input);
       if (input.summary) {
@@ -94,7 +102,8 @@ export function createDbExecutor(conv: BotConversationRef): BotToolExecutor {
       if (date > addDaysYmd(israelYmd(), 30)) throw new ToolError("רחוק מדי, עד 30 יום קדימה");
       const leadId = await ensureLead();
       await setLeadFollowUp(conv.businessId, leadId, at);
-      return `נקבע: ${heDayLabel(date)} ב-${time}`;
+      executor.closing = callbackClosingText(heDayLabel(date), time);
+      return `נקבע. כתוב ללקוח בדיוק: "${executor.closing}"`;
     },
 
     async handoff({ reason, urgency }: HandoffInput) {
@@ -133,9 +142,11 @@ export function createDbExecutor(conv: BotConversationRef): BotToolExecutor {
           url: `${appUrl()}/leads?lead=${leadId}`,
         });
       }
-      return "הועבר לנציג. כתוב הודעה אחת קצרה שנציגה תחזור אליו בהקדם, ואל תשאל עוד שאלות";
+      executor.closing = handoffClosingText(urgency);
+      return `הועבר. כתוב ללקוח בדיוק: "${executor.closing}" ואל תשאל עוד שאלות`;
     },
   };
+  return executor;
 }
 
 /** A task so a person sees a voice note / photo the bot cannot read (once an hour per conversation). */

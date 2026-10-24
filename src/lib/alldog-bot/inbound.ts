@@ -22,6 +22,7 @@ import { addLeadCallLog, createLeadTask, isPlaceholderLeadName } from "@/lib/all
 import {
   botMayReply,
   classifyInbound,
+  isWithin24hWindow,
   isStopRequest,
   MEDIA_REPLY,
   parseAttributionLine,
@@ -32,16 +33,22 @@ import {
   type MetaInboundMessage,
 } from "@/lib/alldog-bot/logic";
 import { buildBotContext, enforceIdentityAnswer, enforceOpening, HUMAN_BITE_NOTE, mentionsHumanBite } from "@/lib/alldog-bot/prompt";
-import { runBotTurn } from "@/lib/alldog-bot/agent";
+import { HANDOFF_MODE_TOOLS, runBotTurn } from "@/lib/alldog-bot/agent";
 import { createDbExecutor, flagMediaForHuman, type BotConversationRef } from "@/lib/alldog-bot/actions";
 import {
+  HANDOFF_MODE_NOTE,
+  HUMAN_ON_THE_WAY,
   handoffAckDue,
-  handoffAckText,
+  handoffClosingText,
   handoffNoteText,
+  isHumanRequest,
   isResetCommand,
+  repIsActive,
   RESUMED_NOTE,
   shouldAutoResume,
+  withClosing,
 } from "@/lib/alldog-bot/handoff";
+import { claimOnce } from "@/lib/rate-limit";
 import { markReadWithTyping, sendText } from "@/lib/alldog-bot/wa";
 import { readEnv } from "@/lib/read-env";
 
@@ -219,7 +226,7 @@ export async function processInbound(item: PendingInbound): Promise<void> {
     }
     const state = await prisma.waBotConversation.findUnique({ where: { id: item.conversationId }, select: { status: true } });
     if (state?.status === "handoff") {
-      // No "typing…" — the bot is not going to write a real answer.
+      // Alerts first; "typing…" only if the bot answers (sendParts shows it).
       const isLatest = await waitForQuiet({
         myMessageId: item.waMessageId,
         latestInboundId: () => latestInboundId(item.conversationId),
@@ -241,9 +248,15 @@ export async function processInbound(item: PendingInbound): Promise<void> {
   }
 }
 
-async function reply(item: PendingInbound): Promise<void> {
+/**
+ * One bot turn. mode "handoff" (Or, 24/10): the conversation is with a person — the bot still
+ * answers general questions with lookup_guide + save_lead only, no opening, no new handoff.
+ */
+async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"): Promise<void> {
   const conv = await prisma.waBotConversation.findUnique({ where: { id: item.conversationId } });
-  if (!conv || !botMayReply(conv)) return;
+  if (!conv) return;
+  const handoffMode = mode === "handoff";
+  if (handoffMode ? conv.status !== "handoff" || !isWithin24hWindow(conv.lastInboundAt) : !botMayReply(conv)) return;
   const ref: BotConversationRef = {
     id: conv.id,
     businessId: conv.businessId,
@@ -264,11 +277,18 @@ async function reply(item: PendingInbound): Promise<void> {
     })
   ).reverse();
   const lastAssistant = rows.map((r) => r.role).lastIndexOf("assistant");
-  const batch = rows.slice(lastAssistant + 1).filter((r) => r.role === "user");
+  const lastReply = Math.max(lastAssistant, rows.map((r) => r.role).lastIndexOf("human"));
+  const batch = rows.slice(lastReply + 1).filter((r) => r.role === "user");
   if (!batch.length) return;
+
+  // Safety case: a person was bitten → the team hears about it NOW, while the bot collects the basics.
+  if (!handoffMode && batch.some((r) => r.kind === "text" && mentionsHumanBite(r.text))) {
+    await alertBiteReported(ref, batch.filter((r) => r.kind === "text").map((r) => r.text));
+  }
 
   // Only media since our last reply → fixed answer (once in a row) + a task for a person.
   const mediaOnly = batch.every((r) => r.kind === "media");
+  if (mediaOnly && handoffMode) return; // the rep already got the alert
   if (mediaOnly) {
     await flagMediaForHuman(ref, batch[batch.length - 1].text.replace(/[[\]]/g, ""));
     if (lastAssistant >= 0 && rows[lastAssistant].text === MEDIA_REPLY) return;
@@ -276,7 +296,7 @@ async function reply(item: PendingInbound): Promise<void> {
     return;
   }
   const hadMedia = batch.some((r) => r.kind === "media");
-  if (hadMedia) await flagMediaForHuman(ref, batch.find((r) => r.kind === "media")!.text.replace(/[[\]]/g, ""));
+  if (hadMedia && !handoffMode) await flagMediaForHuman(ref, batch.find((r) => r.kind === "media")!.text.replace(/[[\]]/g, ""));
 
   const history = toChatTurns(
     rows.map((r) => ({
@@ -300,33 +320,40 @@ async function reply(item: PendingInbound): Promise<void> {
     knownName,
     isFirstReply: lastAssistant < 0,
     note: [
+      handoffMode ? HANDOFF_MODE_NOTE : null,
       conv.resumedAt && (!conv.lastBotReplyAt || conv.lastBotReplyAt < conv.resumedAt) ? RESUMED_NOTE : null,
-      batch.some((r) => r.kind === "text" && mentionsHumanBite(r.text)) ? HUMAN_BITE_NOTE : null,
+      // Any bite reported in this conversation (not only in this batch) until the handoff happens.
+      !handoffMode && rows.some((r) => r.role === "user" && r.kind === "text" && mentionsHumanBite(r.text)) ? HUMAN_BITE_NOTE : null,
       hadMedia ? "הלקוח שלח גם מדיה שאתה לא יכול לפתוח. אמור בעדינות שנציגה תראה אותה." : null,
     ].filter(Boolean).join("\n") || null,
   });
 
+  const executor = createDbExecutor(ref);
   const result = await runBotTurn({
     client: new Anthropic({ apiKey: readEnv("ANTHROPIC_API_KEY") }),
     model: botModel(),
     context,
     history,
-    executor: createDbExecutor(ref),
+    executor,
+    ...(handoffMode ? { tools: HANDOFF_MODE_TOOLS } : {}),
   });
 
   const latestUserText = batch.filter((r) => r.kind === "text").map((r) => r.text).pop() ?? "";
   let text = enforceIdentityAnswer(latestUserText, result.reply);
-  // Or's opening on the first reply (not on an urgent handoff — "מה קורה?" after a bite report reads wrong).
-  if (!result.handedOff) {
+  if (executor.closing) {
+    // After schedule_callback / handoff_to_human the last message is always the fixed closing.
+    text = withClosing(text, executor.closing);
+  } else if (!handoffMode) {
     const firstUserText = batch.filter((r) => r.kind === "text").map((r) => r.text).join("\n");
     text = enforceOpening(lastAssistant < 0, firstUserText, text);
   }
-  let afterHandoff = result.handedOff;
+  let afterHandoff = result.handedOff || handoffMode;
   if (!text) {
+    if (handoffMode) return;
     if (!result.handedOff) {
       // Refusal / empty answer: a person takes over rather than the customer being ignored.
       await createDbExecutor(ref).handoff({ reason: `הבוט לא הצליח לענות (${result.stopReason ?? "ללא תשובה"})`, urgency: "normal" });
-      text = "נציגה מהמשרד תחזור אליכם בהקדם 🙂";
+      text = handoffClosingText("normal");
       afterHandoff = true;
     } else {
       return;
@@ -346,8 +373,9 @@ function appUrl(): string {
 
 /**
  * Customer wrote while the conversation is with a rep: everything since the last alert goes
- * to the rep (lead note + one open task + owner WhatsApp/email with the text), and the bot
- * says "קיבלנו" — once, then at most once per 6 hours.
+ * to the rep (lead note + one open task + owner WhatsApp/email with the text). Then the bot keeps
+ * helping (reply(…, "handoff")), except: rep active in Petra → quiet; explicit "I want a person" →
+ * HUMAN_ON_THE_WAY, at most once per 6 hours.
  */
 async function handleHandoffMessages(item: PendingInbound): Promise<void> {
   const conv = await prisma.waBotConversation.findUnique({ where: { id: item.conversationId } });
@@ -417,14 +445,40 @@ async function handleHandoffMessages(item: PendingInbound): Promise<void> {
     console.error(`${LOG} handoff alert failed:`, err instanceof Error ? err.message : err);
   }
 
-  // "קיבלנו 🙂 …" — claimed the same way, at most once per 6 hours.
-  if (!handoffAckDue(conv, now)) return;
-  const ack = await prisma.waBotConversation.updateMany({
-    where: { id: conv.id, status: "handoff", handoffAckAt: conv.handoffAckAt },
-    data: { handoffAckAt: now },
-  });
-  if (ack.count === 0) return;
-  await sendParts(item, conv.phone, [handoffAckText(now)], true);
+  // A rep answering from Petra right now → the bot does not talk over them.
+  if (repIsActive(conv.lastHumanAt, now)) return;
+  // "I want a person" → one fixed line, at most once per 6 hours; nothing more.
+  if (texts.some((t) => isHumanRequest(t))) {
+    if (!handoffAckDue(conv, now)) return;
+    const ack = await prisma.waBotConversation.updateMany({
+      where: { id: conv.id, status: "handoff", handoffAckAt: conv.handoffAckAt },
+      data: { handoffAckAt: now },
+    });
+    if (ack.count > 0) await sendParts(item, conv.phone, [HUMAN_ON_THE_WAY], true);
+    return;
+  }
+  // Anything else: the bot keeps helping (general questions, new details → the lead).
+  await reply(item, "handoff");
+}
+
+/** A person was bitten: URGENT alert to the team right away (once per conversation per day). */
+async function alertBiteReported(ref: BotConversationRef, texts: string[]): Promise<void> {
+  try {
+    if (!(await claimOnce(`alldog-bot-bite:${ref.id}`, 24 * 60 * 60))) return;
+    await createDbExecutor(ref).saveLead({});
+    const lead = ref.leadId
+      ? await prisma.lead.findFirst({ where: { id: ref.leadId, businessId: ref.businessId }, select: { name: true } })
+      : null;
+    const name = lead && !isPlaceholderLeadName(lead.name) ? lead.name : ref.profileName || ref.phone;
+    const { notifyOwnerAllDog } = await import("@/lib/notify-owner");
+    await notifyOwnerAllDog({
+      title: "דחוף: דיווח על נשיכה בוואטסאפ (הבוט אוסף פרטים ויעביר למאלף)",
+      lines: [`${name} · ${maskPhone(ref.phone)}`, ...texts.map((t) => `"${t.replace(/\s+/g, " ").slice(0, 300)}"`)],
+      url: ref.leadId ? `${appUrl()}/leads?lead=${ref.leadId}` : undefined,
+    });
+  } catch (err) {
+    console.error(`${LOG} bite alert failed:`, err instanceof Error ? err.message : err);
+  }
 }
 
 async function sendParts(item: PendingInbound, to: string, parts: string[], allowAfterHandoff = false): Promise<void> {

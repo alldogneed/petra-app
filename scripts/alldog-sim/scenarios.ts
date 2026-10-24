@@ -11,6 +11,39 @@ export interface Scenario {
 
 export const SCENARIOS: Scenario[] = [
   {
+    // Or's test of 24/10 (10:55), his message word for word. Expected (item 15): a serious, warm answer +
+    // "במקרים כאלה אנחנו מעבירים אתכם ישירות למאלף…", the basics one at a time, THEN an urgent handoff
+    // (the report checks the basics at handoff time), the fixed closing, and the bot keeps answering after it.
+    id: "bite",
+    title: "נשיכה של האחיין (הבדיקה של אור, 24/10)",
+    lines: [
+      "שלום ?",
+      "יש לי כלב ממש בעייתי והוא נושך את האחיין שלי אני מנסה כבר 3 פעמים להבין איך ניתן לפתור את זה . עבדתי עם עם 3 מאלפים ואף אחד לא הצליח . מה אתה חושב ?",
+      "כן בסדר",
+      "רועה גרמני מעורב",
+      "בן 4",
+      "הוא אצלנו שנתיים",
+      "רעננה , שכונת נווה זמר",
+      "רון כהן",
+      "אחרי 16:00 הכי נוח",
+      "אוקיי יש לי עוד כמה שאלות",
+      "כמה עולה אבחון ?",
+      "אפשר לדבר עם בן אדם ?",
+    ],
+  },
+  {
+    // The website's new short prepared message (item 15e) + the source line.
+    id: "site",
+    title: "הודעה מוכנה מהאתר",
+    lines: [
+      "היי AllDog, אשמח לעזרה עם הכלב שלי 🐶 (הגעתי דרך: חיפוש אורגני · עמוד הבית)",
+      "יש לנו כלבה בת שנתיים , מעורבת , שנובחת על כל מי שעובר ליד הבית",
+      "כפר סבא , ליד הירוקה",
+      "שירה",
+      "הראשון",
+    ],
+  },
+  {
     id: "cats",
     title: "רדיפה אחרי חתולים (בוני)",
     lines: [

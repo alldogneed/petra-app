@@ -52,7 +52,7 @@ async function main() {
         console.log(e.kind === "user" ? `לקוח: ${e.text}` : e.kind === "bot" ? `AllDog: ${e.text}` : `  ⚙ ${e.text}`)
       );
       for (const line of sc.lines) {
-        if (conv.status !== "active") break;
+        if (conv.status === "stopped") break;
         try {
           await conv.send(line);
         } catch (err) {
@@ -60,7 +60,10 @@ async function main() {
           break;
         }
       }
-      sections.push(`### ${v === "before" ? "לפני" : "אחרי"}\n\n${render(conv.events)}\n`);
+      const basics = conv.basicsAtHandoff
+        ? `\n\n> פרטי בסיס בזמן ההעברה: ${conv.basicsAtHandoff.have.length}/${conv.basicsAtHandoff.have.length + conv.basicsAtHandoff.missing.length}${conv.basicsAtHandoff.missing.length ? ` · חסר: ${conv.basicsAtHandoff.missing.join(", ")}` : " ✓"}`
+        : "";
+      sections.push(`### ${v === "before" ? "לפני" : "אחרי"}\n\n${render(conv.events)}${basics}\n`);
     }
   }
   fs.writeFileSync(out, sections.join("\n\n"));
