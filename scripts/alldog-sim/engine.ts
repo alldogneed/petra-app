@@ -30,6 +30,7 @@ import {
   parseAttributionLine,
   splitReply,
   SURNAME_QUESTION_RE,
+  TEL_AVIV_RE,
   toChatTurns,
   urgencyReason,
 } from "@/lib/alldog-bot/logic";
@@ -58,12 +59,11 @@ import {
 
 type Field = "full_name" | "dog_name" | "city" | "neighborhood" | "dog_breed" | "dog_age" | "dog_since" | "callback_time";
 
-/** The basics collected before the conversation closes (items 15a + 22a). dog_since / callback_time are optional. */
+/** The basics collected before the conversation closes (items 15a + 22a). Neighbourhood only in Tel Aviv (27a) → optional, like dog_since / callback_time. */
 export const HANDOFF_BASICS: Array<[Field, string]> = [
   ["full_name", "שם מלא"],
   ["dog_name", "שם הכלב"],
   ["city", "עיר"],
-  ["neighborhood", "שכונה"],
   ["dog_breed", "גזע"],
   ["dog_age", "גיל"],
 ];
@@ -224,7 +224,8 @@ export class SimConversation {
       if (text.includes(CLOSING_MARKER) && closingAlreadySent(this.rows)) this.warn("הודעת הסגירה חזרה פעם שנייה");
       const prior = this.rows.filter((r) => r.role === "assistant").map((r) => r.text);
       if (countMirrorPraise(text) && prior.some((t) => countMirrorPraise(t))) this.warn(`שיקוף + מחמאה בפעם השנייה: "${text.slice(0, 80)}"`);
-      if (SURNAME_QUESTION_RE.test(text) && prior.some((t) => SURNAME_QUESTION_RE.test(t))) this.warn("שם המשפחה נשאל פעם שנייה");
+      if (SURNAME_QUESTION_RE.test(text)) this.warn("נשאל שם משפחה (לא שואלים, 27b)");
+      if (/שכונה/u.test(text) && /\?/.test(text) && !this.rows.some((r) => r.role === "user" && TEL_AVIV_RE.test(r.text))) this.warn("נשאלה שכונה מחוץ לתל אביב (27a)");
       if (INVENTED_FAMILIARITY_RE.test(text)) this.warn(`היכרות מומצאת ("מכירים"): "${text.slice(0, 80)}"`);
       for (const issue of findAddressIssues(text, this.style)) {
         this.warn(`${issue.kind === "self_plural" ? "הבוט מדבר ברבים על עצמו" : "פנייה ברבים שהלקוח לא השתמש בה"}: "${issue.text}"`);
@@ -322,7 +323,9 @@ export class SimConversation {
     for (const name of result.toolsUsed.filter((n) => n === "lookup_guide")) this.emit("tool", name);
     let reply = enforceIdentityAnswer(text, result.reply);
     if (this.variant === "after") {
-      reply = applyAddressStyle(applyConversationGuards(reply, this.rows.filter((r) => r.role === "assistant").map((r) => r.text)), this.style);
+      reply = applyAddressStyle(applyConversationGuards(reply, this.rows.filter((r) => r.role === "assistant").map((r) => r.text), {
+        userTexts: this.rows.filter((r) => r.role === "user").map((r) => r.text),
+      }), this.style);
     }
     if (this.variant === "after") {
       if (executor.closing && !closed) reply = withClosing(reply, executor.closing);

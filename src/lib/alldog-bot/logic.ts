@@ -283,33 +283,89 @@ export function removeInventedFamiliarity(text: string): string {
   return out;
 }
 
+// ─── Item 27 (Or's tests 24/10 14:41–15:02) ─────────────────────────────────────────────
+
+/** The customer mentioned Tel Aviv — the only city where the neighbourhood is asked (27a). */
+export const TEL_AVIV_RE = /תל[\s-]?אביב|(?<![\p{L}])ת["״׳']?א(?![\p{L}])|יפו/u;
+
+/** The city question in any plural / combined form → the fixed singular one (27a + 27d). */
+export function fixCityQuestion(line: string, telAviv: boolean): string {
+  let out = line
+    // "באיזו עיר ובאיזו שכונה אתם גרים ?" / "איפה אתם גרים ?" / "באיזו עיר אתם ?"
+    .replace(/(?<![\p{L}])(?:ו)?(?:איפה|באיזו\s+עיר(?:\s+ו(?:באיזו\s+)?שכונה)?|באיזה\s+אזור)\s+(?:אתם|את|אתה)(?:\s+(?:גרים|גרה|גר|נמצאים|נמצאת|נמצא))?(?:\s+בדיוק)?\s*\?/gu, "באיזו עיר?")
+    // "באיזו שכונה אתם גרים בתל אביב ?" → the Tel Aviv question
+    .replace(/(?<![\p{L}])באיזו\s+שכונה(?:\s+(?:אתם|את|אתה))?(?:\s+(?:גרים|גרה|גר))?(?:\s+בתל\s+אביב)?\s*\?/gu, "באיזו שכונה בתל אביב?");
+  if (!telAviv) {
+    // Outside Tel Aviv the neighbourhood is never asked.
+    out = out
+      .replace(/(?<![\p{L}])עיר\s+ו(?:באיזו\s+|איזו\s+)?שכונה/gu, "עיר")
+      .replace(/(?<![\p{L}])עיר\s+\+\s+שכונה/gu, "עיר");
+  }
+  return out;
+}
+
+/** Prices / routes: only when the customer asked (27c). */
+export const PRICE_ASKED_RE = /כמה\s+(?:זה\s+)?(?:עולה|עולים|יעלה|כסף)|מחיר|עלות|תמחור|₪|שקל|כמה\s+זה(?![\p{L}])|מסלול|אינטנסיבי|שיעורים|פנסיון/u;
+const PRICE_LINE_RE = /₪|\d{3}\s*ש["״]?ח|(?<![\p{L}])מחיר/u;
+const GUIDE_LINK_RE = /https?:\/\/\S*all-dog\.co\.il\S*/u;
+
+/** "אחלה, פתח תקווה באזור שלנו 🙂" — a short acknowledgement on its own line (27f). */
+const FILLER_START_RE = /^(?:אחלה|מעולה|סבבה|מצוין|יופי|נהדר|טוב|אוקיי|אוקי|הבנתי|מושלם|בסדר גמור)(?![\p{L}])/u;
+export function isFillerLine(line: string): boolean {
+  const t = line.trim();
+  if (!t || /\?/.test(t)) return false;
+  const words = t.replace(/[^\p{L}\p{N}\s]/gu, " ").split(/\s+/).filter(Boolean).length;
+  return words <= 9 && (FILLER_START_RE.test(t) || /באזור\s+שלנו/u.test(t));
+}
+
+export interface GuardContext {
+  /** The customer's messages so far (for prices / Tel Aviv). */
+  userTexts?: string[];
+}
+
 /**
  * Applied to every bot reply with the bot's earlier messages:
  *   a. no line the bot already sent in this conversation (item 26);
  *   b. at most ONE echo + compliment ("יוקי , שם מקסים", "רועה גרמני , אחלה גזע") in the whole
  *      conversation, and no invented familiarity ("מכירים את זה" → "שומעים על זה הרבה");
- *   e. "ומה שם המשפחה …?" is asked once — never again, answered or not.
+ *   27b. never a surname question (the name the customer gives is enough);
+ *   27a/d. the city question is "באיזו עיר?" (neighbourhood only in Tel Aviv), never plural;
+ *   27c. no price line unless the customer asked; the guide link at most once and never in the
+ *        first reply;
+ *   27f. no stand-alone filler line ("אחלה, פתח תקווה באזור שלנו 🙂") next to a real line.
  */
-export function applyConversationGuards(reply: string, priorBotTexts: string[]): string {
+export function applyConversationGuards(reply: string, priorBotTexts: string[], ctx: GuardContext = {}): string {
+  const userTexts = ctx.userTexts ?? [];
   let praiseLeft = Math.max(0, 1 - priorBotTexts.reduce((n, t) => n + countMirrorPraise(t), 0));
-  const surnameAsked = priorBotTexts.some((t) => SURNAME_QUESTION_RE.test(t));
   const sent = sentLines(priorBotTexts);
+  const telAviv = userTexts.some((t) => TEL_AVIV_RE.test(t));
+  const priceAsked = userTexts.some((t) => PRICE_ASKED_RE.test(t));
+  const linkSent = priorBotTexts.some((t) => GUIDE_LINK_RE.test(t));
+  const firstReply = priorBotTexts.length === 0;
+
   const lines = removeInventedFamiliarity(reply).split("\n").map((raw) => {
-    const line = raw.trim();
+    let line = raw.trim();
     if (!line) return raw;
+    line = fixCityQuestion(line, telAviv);
     // a. a line the bot already sent in this conversation is not sent again.
     const n = normLine(line);
     if (n.length >= 6 && sent.has(n)) return null;
-    if (surnameAsked && SURNAME_QUESTION_RE.test(line) && /\?/.test(line)) return null;
+    if (SURNAME_QUESTION_RE.test(line) && /\?/.test(line)) return null;
+    if (!priceAsked && PRICE_LINE_RE.test(line)) return null;
+    if ((linkSent || firstReply) && GUIDE_LINK_RE.test(line)) return null;
     const m = praiseMatch(line);
-    if (!m) return raw;
+    if (!m) return line;
     if (praiseLeft > 0) {
       praiseLeft--;
-      return raw;
+      return line;
     }
     return line.slice(m[0].length).trim() || null;
   });
-  return lines.filter((l): l is string => l !== null).join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  const kept = lines.filter((l): l is string => l !== null);
+  // f. a filler line only goes out when it is all there is.
+  const real = kept.filter((l) => l.trim() && !isFillerLine(l));
+  const out = real.length ? kept.filter((l) => !l.trim() || !isFillerLine(l)) : kept;
+  return out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
 // ─── Urgency (Or's test 24/10 12:58: "דחוף" / "בהקדם" / "השכנים מתלוננים") ─────────────

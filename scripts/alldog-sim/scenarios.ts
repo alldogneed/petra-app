@@ -31,8 +31,8 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
-    // Or's test of 24/10 (12:58). Expected (item 23): "ומה שם המשפחה, רויטל ?" once (no repeat when she
-    // skips it), at most one echo + compliment, correct Hebrew ("נציגה שתיצור"), the lead marked urgent.
+    // Or's test of 24/10 (12:58). Expected (items 23 + 27): no surname question, at most one echo +
+    // compliment, correct Hebrew ("נציגה שתיצור"), the lead marked urgent.
     id: "revital",
     title: "רויטל ויוקי (הבדיקה של אור, 24/10 12:58)",
     lines: [
@@ -42,6 +42,34 @@ export const SCENARIOS: Scenario[] = [
       "גאולים , ליד בית הספר",
       "מעורב , בן 3",
       "זה די דחוף , השכנים כבר מתלוננים",
+    ],
+  },
+  {
+    // Or's test of 24/10 14:41 (item 27): city only (no neighbourhood outside Tel Aviv), no surname,
+    // a short first reply without routes / prices / link, no filler message, "לא יודע" → one
+    // reassuring sentence, singular address.
+    id: "yogev",
+    title: "יוגב וג׳וני (הבדיקה של אור, 24/10 14:41)",
+    lines: [
+      "היי",
+      "יש לי כלב בשם ג׳וני שמושך חזק ברצועה ונובח על כלבים בטיול",
+      "יוגב",
+      "פתח תקווה",
+      "מעורב , בן שנתיים",
+      "אני לא יודע מה ההבדל",
+    ],
+  },
+  {
+    // Item 27a: Tel Aviv → the neighbourhood question.
+    id: "racheli-tlv",
+    title: "רחלי ובלואי, תל אביב (27a: שכונה רק בת״א)",
+    lines: [
+      "שלום",
+      "הכלבה שלי בלואי נובחת על כל מי שעובר בבניין , השכנים מתלוננים",
+      "רחלי",
+      "תל אביב",
+      "פלורנטין",
+      "בורדר קולי , בת שנה",
     ],
   },
   {

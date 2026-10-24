@@ -221,6 +221,15 @@ describe("returning caller (item 24)", () => {
     expect(created.notes).toContain("פונה חוזר – ליד קודם: https://petra-app.com/leads?lead=lead-old");
   });
 
+  it("a won stage owned by another business still counts as closed (Or's lead 5a7f…, item 27g)", async () => {
+    mockStore.leads.push(old({ stage: "stage-won", lastContactedAt: new Date("2026-10-20T08:00:00Z") }));
+    const r = await processMissedCall(call("9204", "0501112233"));
+    expect(r.created).toBe(true);
+    const prismaMock = jest.requireMock("@/lib/prisma").default;
+    const where = prismaMock.leadStage.findMany.mock.calls.at(-1)[0].where;
+    expect(where.businessId).toBeUndefined(); // stages are looked up by id only
+  });
+
   it("the same call is never logged twice, whatever lead it went to", async () => {
     mockStore.leads.push(old({ stage: "stage-lost" }));
     await processMissedCall(call("9203", "0501112233"));

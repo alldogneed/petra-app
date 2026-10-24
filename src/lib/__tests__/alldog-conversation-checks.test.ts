@@ -12,14 +12,14 @@ import { renderPlaybook } from "@/lib/alldog-bot/playbook";
 describe("a. no repeated bot message", () => {
   it("a line already sent is dropped", () => {
     const prior = ["נעים מאוד 🙂 איך קוראים לך (שם מלא), ואיך קוראים לכלב?"];
-    expect(applyConversationGuards("נעים מאוד 🙂 איך קוראים לך (שם מלא) , ואיך קוראים לכלב ?\nבאיזו עיר ושכונה ?", prior)).toBe("באיזו עיר ושכונה ?");
+    expect(applyConversationGuards("נעים מאוד 🙂 איך קוראים לך (שם מלא) , ואיך קוראים לכלב ?\nבאיזו עיר?", prior)).toBe("באיזו עיר?");
     expect(isRepeatedMessage("נעים מאוד 🙂 איך קוראים לך (שם מלא), ואיך קוראים לכלב?", prior)).toBe(true);
   });
   it("a fully repeated reply becomes empty (inbound then sends nothing)", () => {
-    expect(applyConversationGuards("באיזו עיר ושכונה ?", ["סבבה\nבאיזו עיר ושכונה?"])).toBe("");
+    expect(applyConversationGuards("בן כמה הוא ?", ["סבבה\nבן כמה הוא?"])).toBe("");
   });
   it("short lines (\"סבבה\", \"🙂\") may repeat", () => {
-    expect(applyConversationGuards("סבבה\nבן כמה הוא ?", ["סבבה\nבאיזו עיר ?"])).toBe("סבבה\nבן כמה הוא ?");
+    expect(applyConversationGuards("סבבה , בן כמה הוא ?", ["סבבה\nבאיזו עיר ?"])).toBe("סבבה , בן כמה הוא ?");
   });
 });
 
