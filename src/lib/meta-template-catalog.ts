@@ -83,6 +83,26 @@ export const PETRA_TEMPLATE_CATALOG: readonly CatalogTemplate[] = [
     footer: FOOTER,
     params: ["pet name", "age sentence", "business name"],
   },
+  // ── Alerts to the platform owner (Or), sent by notify-owner.ts ─────────────
+  // Before these, every owner alert reused petra_owner_alert, whose fixed text is the
+  // NEW-USER message ("נרשם משתמש חדש לפטרה") — bot handoffs and support tickets showed
+  // up as fake registrations. petra_owner_alert stays as the fallback until these are approved.
+  {
+    name: "petra_alldog_owner_alert",
+    category: "UTILITY",
+    language: "he",
+    body: "התראה מ-AllDog: {{1}}\n\nפרטים: {{2}}\nהודעה: {{3}}\n\nלפתיחה בפטרה: {{4}}\nנשלח אוטומטית ממערכת פטרה",
+    examples: ["בוט וואטסאפ: העברה דחופה לנציג", "דנה כהן · 054-*-964", "סיבה: הלקוחה ביקשה לדבר עם נציג", "https://petra-app.com/leads?lead=abc123"],
+    params: ["alert title", "who (name · masked phone)", "details line(s), one line", "Petra URL"],
+  },
+  {
+    name: "petra_support_ticket_alert",
+    category: "UTILITY",
+    language: "he",
+    body: "התראת תמיכה בפטרה: {{1}}\n\nעסק: {{2}}\nמשתמש: {{3}}\nנושא: {{4}}\n\nלטיפול בפנייה: {{5}}\nנשלח אוטומטית ממערכת פטרה",
+    examples: ["פנייה חדשה", "נדב מאמן הכלבים", "nadav@example.com", "לא מצליח לשלוח תזכורת ללקוח", "https://petra-app.com/owner/support?ticket=abc123"],
+    params: ["kind label (פנייה חדשה / תגובה חדשה בפנייה / פנייה נפתחה מחדש)", "business name", "user email", "ticket title", "admin URL"],
+  },
 ];
 
 /** Meta create-template request body for one catalog entry. */
