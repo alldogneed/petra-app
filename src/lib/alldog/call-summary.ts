@@ -2,10 +2,14 @@
  * AllDog — answered PayCall calls → recording → ElevenLabs transcript → Claude summary
  * → the lead's journal in Petra (ALLDOG_CALL_SUMMARIES_ENABLED, ALLDOG_BUSINESS_ID only).
  *
- * Entry points: the PayCall liveLink webhook (after the response) and the daily
- * paycall-sync cron (safety net). Idempotent on the PayCall call id: a CallLog
- * carrying `call_id:<ID>` means "done"; claimOnce() keeps the webhook and the cron
- * from working on the same call at the same time.
+ * Entry points go through the retry queue (src/lib/alldog/call-retry.ts): the PayCall
+ * webhook (first attempt), /api/cron/alldog-call-retry (+3, +10, +30 min, +2 h = final) and
+ * the daily paycall-sync (safety net). The queue row is the processing lock.
+ *
+ * The recording is usually not ready the second the call ends. The first failed attempt
+ * already writes the lead (or customer note) with a "summary pending" line; the attempt that
+ * gets the summary REPLACES that line — never a second line for the same call.
+ * Idempotent on the PayCall call id (`call_id:<ID>` in the CallLog / customer note).
  */
 import Anthropic from "@anthropic-ai/sdk";
 import { claimOnce } from "@/lib/rate-limit";
@@ -28,13 +32,14 @@ import {
 } from "@/lib/alldog/call-summary-schema";
 import {
   addLeadCallLog,
-  callIdAlreadyLogged,
+  findCallLogForCall,
   localPhone,
+  updateLeadCallLog,
   setLeadFollowUp,
   upsertLeadFromContact,
 } from "@/lib/alldog/leads";
 import { readEnv } from "@/lib/read-env";
-import { callIdLoggedOnCustomer, findCustomerForCall, logAnsweredCallOnCustomer } from "@/lib/paycall-customer";
+import { findCustomerForCall, findCustomerNoteForCall, logAnsweredCallOnCustomer, type CallCustomer } from "@/lib/paycall-customer";
 
 const LOG = "[alldog-calls]";
 
@@ -52,10 +57,8 @@ export interface AnsweredCallInput {
 
 export type AnsweredCallResult =
   | { status: "disabled" | "in_progress" | "duplicate" }
-  | { status: "retry_later"; reason: string }
+  | { status: "retry_later"; reason: string; placeholder: "created" | "existing" }
   | { status: "logged"; leadId: string | null; customerId?: string; created: boolean; summarized: boolean; note?: string };
-
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** dlink/dlinkDirect first, then downloadRecord. "Service Denied" is rethrown as is. */
 async function getRecording(input: AnsweredCallInput): Promise<CallRecording> {
@@ -108,24 +111,45 @@ export function followUpFor(s: CallSummary | null, now: Date = new Date()): Date
   return defaultFollowUp(now);
 }
 
+/** The line written while the recording is not ready yet — replaced when the summary arrives. */
+export const SUMMARY_PENDING_LINE = "שיחה שנענתה – הסיכום יתווסף כשההקלטה תהיה מוכנה";
+
+export function isSummaryPending(text: string): boolean {
+  return text.includes(SUMMARY_PENDING_LINE);
+}
+
 /**
- * Process one answered call end to end.
- * `finalAttempt` (cron): when the recording / transcript / summary cannot be produced, still
- * write a CallLog so the call is not lost. Otherwise (webhook) such failures return
- * `retry_later` and the cron picks the call up.
+ * Process one answered call end to end. Callers hold the call's queue row (call-retry.ts),
+ * so two runs never work on the same call at once.
+ * - recording / transcript not ready and not `finalAttempt` → `retry_later` (after writing the
+ *   pending placeholder once).
+ * - `finalAttempt` → always ends with a line (summary, or why there is none).
  */
 export async function processAnsweredCall(
   input: AnsweredCallInput,
-  opts: { finalAttempt?: boolean; retryRecordingAfterMs?: number } = {}
+  opts: { finalAttempt?: boolean } = {}
 ): Promise<AnsweredCallResult> {
   const businessId = allDogBusinessId();
   if (!isCallSummariesEnabled() || !businessId) return { status: "disabled" };
-  if (await callIdAlreadyLogged(businessId, input.callId)) return { status: "duplicate" };
-  if (await callIdLoggedOnCustomer(businessId, input.callId)) return { status: "duplicate" };
-  if (!(await claimOnce(`alldog-call:${input.callId}`, 10 * 60))) return { status: "in_progress" };
+
+  // What was already written for this call: nothing, the pending placeholder, or a final line.
+  const [leadLog, customerNote] = await Promise.all([
+    findCallLogForCall(businessId, input.callId),
+    findCustomerNoteForCall(businessId, input.callId),
+  ]);
+  const existing = leadLog ?? customerNote;
+  const existingText = leadLog?.summary ?? customerNote?.description ?? "";
+  if (existing && !isSummaryPending(existingText)) return { status: "duplicate" };
 
   // A caller who is already a customer never becomes a new lead — the call goes on the customer.
-  const customer = await findCustomerForCall(businessId, input.phone);
+  // A pending placeholder decides where the call lives (it never moves between lead and customer).
+  let customer: CallCustomer | null = null;
+  if (customerNote?.customerId) {
+    const found = await findCustomerForCall(businessId, input.phone);
+    customer = found?.id === customerNote.customerId ? found : { id: customerNote.customerId, name: "הלקוח", matches: 1 };
+  } else if (!leadLog) {
+    customer = await findCustomerForCall(businessId, input.phone);
+  }
 
   const p = israelParts(input.startedAt);
   const dateLabel = `${p.ymd} ${p.hhmm}`;
@@ -138,15 +162,16 @@ export async function processAnsweredCall(
     ? `קמפיין: ${Object.entries(input.campaignParams).map(([k, v]) => `${k}=${v}`).join(" · ")}`
     : null;
 
-  /** Lead + one CallLog line without a summary (no recording / denied / failure on the final attempt). */
-  const logWithoutSummary = async (line: string): Promise<AnsweredCallResult> => {
+  /** Write (or replace the pending placeholder with) one line without a summary. */
+  const writeLine = async (line: string, summarized = false): Promise<AnsweredCallResult> => {
     if (customer) {
-      await logAnsweredCallOnCustomer(businessId, customer, {
-        callId: input.callId,
-        dateLabel,
-        summary: [line, campaignLine].filter(Boolean).join("\n"),
-      });
-      return { status: "logged", leadId: null, customerId: customer.id, created: false, summarized: false, note: line };
+      await logAnsweredCallOnCustomer(
+        businessId,
+        customer,
+        { callId: input.callId, dateLabel, summary: [line, campaignLine].filter(Boolean).join("\n") },
+        customerNote?.id
+      );
+      return { status: "logged", leadId: null, customerId: customer.id, created: false, summarized, note: line };
     }
     const { leadId, created } = await upsertLeadFromContact({
       businessId,
@@ -157,22 +182,24 @@ export async function processAnsweredCall(
       attribution,
       contactedAt: input.startedAt,
     });
-    await addLeadCallLog(leadId, [`${header}`, line, campaignLine].filter(Boolean).join("\n"));
+    const text = [header, line, campaignLine].filter(Boolean).join("\n");
+    if (leadLog) await updateLeadCallLog(leadLog.id, leadLog.leadId, text);
+    else await addLeadCallLog(leadId, text);
     if (created) await setLeadFollowUp(businessId, leadId, defaultFollowUp());
-    return { status: "logged", leadId, created, summarized: false, note: line };
+    return { status: "logged", leadId, created, summarized, note: line };
+  };
+
+  /** Not ready yet: make sure the lead / customer already shows the call, then retry later. */
+  const retryLater = async (reason: string): Promise<AnsweredCallResult> => {
+    if (existing) return { status: "retry_later", reason, placeholder: "existing" };
+    await writeLine(SUMMARY_PENDING_LINE);
+    return { status: "retry_later", reason, placeholder: "created" };
   };
 
   // 1. Recording
   let recording: CallRecording;
   try {
-    try {
-      recording = await getRecording(input);
-    } catch (err) {
-      if (err instanceof PaycallRecordingDeniedError || !opts.retryRecordingAfterMs) throw err;
-      // The recording is often not ready the second the call ends — one more try.
-      await sleep(opts.retryRecordingAfterMs);
-      recording = await getRecording(input);
-    }
+    recording = await getRecording(input);
   } catch (err) {
     if (err instanceof PaycallRecordingDeniedError) {
       if (await claimOnce("alldog-paycall-record-denied", 30 * 24 * 60 * 60)) {
@@ -186,11 +213,11 @@ export async function processAnsweredCall(
           ],
         });
       }
-      return logWithoutSummary("שיחה שנענתה – אין הרשאה להקלטה");
+      return writeLine("שיחה שנענתה – אין הרשאה להקלטה");
     }
-    console.warn(`${LOG} recording unavailable for call ${input.callId}:`, err instanceof Error ? err.message : err);
-    if (!opts.finalAttempt) return { status: "retry_later", reason: "recording_unavailable" };
-    return logWithoutSummary("שיחה שנענתה – ההקלטה לא זמינה");
+    console.warn(`${LOG} recording not ready for call ${input.callId}:`, err instanceof Error ? err.message : err);
+    if (!opts.finalAttempt) return retryLater("recording_unavailable");
+    return writeLine("שיחה שנענתה – ההקלטה לא זמינה");
   }
 
   // 2. Transcript + 3. summary
@@ -199,16 +226,16 @@ export async function processAnsweredCall(
   try {
     const transcript = await transcribeAudio(recording, { language: "he" });
     transcriptText = formatTranscript(transcript);
-    if (!transcriptText.trim()) return logWithoutSummary("שיחה שנענתה – לא זוהה דיבור בהקלטה");
+    if (!transcriptText.trim()) return writeLine("שיחה שנענתה – לא זוהה דיבור בהקלטה");
     summary = await summarize(transcriptText.slice(0, 60_000), input.startedAt);
   } catch (err) {
     console.error(`${LOG} transcribe/summarize failed for call ${input.callId}:`, err instanceof Error ? err.message : err);
-    if (!opts.finalAttempt) return { status: "retry_later", reason: "processing_failed" };
+    if (!opts.finalAttempt) return retryLater("processing_failed");
   }
   if (!summary) {
-    if (!opts.finalAttempt && !transcriptText) return { status: "retry_later", reason: "no_summary" };
+    if (!opts.finalAttempt && !transcriptText) return retryLater("no_summary");
     const excerpt = transcriptText ? `\nקטע מהתמלול:\n${transcriptText.slice(0, 1500)}` : "";
-    return logWithoutSummary(`שיחה שנענתה – סיכום אוטומטי נכשל${excerpt}`);
+    return writeLine(`שיחה שנענתה – סיכום אוטומטי נכשל${excerpt}`);
   }
 
   const log = formatAnsweredCallLog(summary, { callId: input.callId, startedAt: input.startedAt, billsec: input.billsec, dateLabel });
@@ -216,18 +243,23 @@ export async function processAnsweredCall(
   // 4a. Existing customer: note with the summary (+ a task for the agreed next step) — no lead.
   if (customer) {
     const body = log.summary.split("\n").slice(1); // the note writes its own header line
-    await logAnsweredCallOnCustomer(businessId, customer, {
-      callId: input.callId,
-      dateLabel,
-      summary: [...body, log.treatment, campaignLine].filter(Boolean).join("\n"),
-      nextStep: summary.nextStep,
-      followUpAt: followUpFor(summary),
-    });
+    await logAnsweredCallOnCustomer(
+      businessId,
+      customer,
+      {
+        callId: input.callId,
+        dateLabel,
+        summary: [...body, log.treatment, campaignLine].filter(Boolean).join("\n"),
+        nextStep: summary.nextStep,
+        followUpAt: followUpFor(summary),
+      },
+      customerNote?.id
+    );
     console.log(`${LOG} call ${input.callId} summarized → customer ${customer.id} (${maskPhone(input.phone)})`);
     return { status: "logged", leadId: null, customerId: customer.id, created: false, summarized: true };
   }
 
-  // 4b. Lead (fill empty fields only) + journal + follow-up
+  // 4b. Lead (fill empty fields only) + journal (replacing the pending line) + follow-up
   const { leadId, created } = await upsertLeadFromContact({
     businessId,
     phone: input.phone,
@@ -241,7 +273,9 @@ export async function processAnsweredCall(
     attribution,
     contactedAt: input.startedAt,
   });
-  await addLeadCallLog(leadId, [log.summary, campaignLine].filter(Boolean).join("\n"), log.treatment);
+  const text = [log.summary, campaignLine].filter(Boolean).join("\n");
+  if (leadLog) await updateLeadCallLog(leadLog.id, leadLog.leadId, text, log.treatment);
+  else await addLeadCallLog(leadId, text, log.treatment);
   await setLeadFollowUp(businessId, leadId, followUpFor(summary));
 
   console.log(`${LOG} call ${input.callId} summarized → lead ${leadId}${created ? " (new)" : ""} (${maskPhone(input.phone)})`);

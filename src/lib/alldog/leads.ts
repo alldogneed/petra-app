@@ -135,6 +135,28 @@ export async function addLeadCallLog(leadId: string, summary: string, treatment 
   });
 }
 
+/** The CallLog of this PayCall call in the business (exact call_id match), or null. */
+export async function findCallLogForCall(
+  businessId: string,
+  callId: string
+): Promise<{ id: string; leadId: string; summary: string } | null> {
+  const rows = await prisma.callLog.findMany({
+    where: { summary: { contains: `call_id:${callId}` }, lead: { businessId } },
+    select: { id: true, leadId: true, summary: true },
+    orderBy: { createdAt: "asc" },
+    take: 5,
+  });
+  return rows.find((r) => hasCallIdToken(r.summary, callId)) ?? null;
+}
+
+/** Replace the text of an existing journal line (pending summary → real summary). */
+export async function updateLeadCallLog(id: string, leadId: string, summary: string, treatment = "") {
+  await prisma.callLog.updateMany({
+    where: { id, leadId },
+    data: { summary: summary.slice(0, 10000), treatment: treatment.slice(0, 5000) },
+  });
+}
+
 /** True when a call log with this exact PayCall id already exists in the business (idempotency). */
 export async function callIdAlreadyLogged(businessId: string, callId: string): Promise<boolean> {
   const rows = await prisma.callLog.findMany({

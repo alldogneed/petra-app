@@ -4,26 +4,30 @@
 jest.mock("@/lib/prisma", () => ({ __esModule: true, default: {}, prisma: {} }));
 
 // ── In-memory stand-ins for the lead layer, the recording, STT and Claude ──
-const mockLogs: Array<{ leadId: string; summary: string; treatment: string }> = [];
+const mockLogs: Array<{ id: string; leadId: string; summary: string; treatment: string }> = [];
 const mockFollowUps: Array<{ leadId: string; at: Date }> = [];
-let mockClaimFree = true;
+let mockRecordingReady = true;
 
-jest.mock("@/lib/rate-limit", () => ({
-  claimOnce: jest.fn(async () => mockClaimFree),
-}));
+jest.mock("@/lib/rate-limit", () => ({ claimOnce: jest.fn(async () => true) }));
 jest.mock("@/lib/alldog/leads", () => {
-  const actual = jest.requireActual("@/lib/alldog/leads");
+  const { hasCallIdToken } = jest.requireActual("@/lib/paycall-customer");
   return {
-    hasCallIdToken: actual.hasCallIdToken,
+    hasCallIdToken,
     localPhone: (p: string) => {
       const d = p.replace(/\D/g, "");
       return d.startsWith("972") ? "0" + d.slice(3) : d;
     },
-    callIdAlreadyLogged: jest.fn(async (_b: string, callId: string) => mockLogs.some((l) => actual.hasCallIdToken(l.summary, callId))),
+    findCallLogForCall: jest.fn(async (_b: string, callId: string) => mockLogs.find((l) => hasCallIdToken(l.summary, callId)) ?? null),
+    updateLeadCallLog: jest.fn(async (id: string, _leadId: string, summary: string, treatment = "") => {
+      const l = mockLogs.find((x) => x.id === id)!;
+      l.summary = summary;
+      l.treatment = treatment;
+    }),
     upsertLeadFromContact: jest.fn(async () => ({ leadId: "lead-1", created: mockLogs.length === 0 })),
     addLeadCallLog: jest.fn(async (leadId: string, summary: string, treatment = "") => {
-      mockLogs.push({ leadId, summary, treatment });
-      return { id: `log-${mockLogs.length}` };
+      const row = { id: `log-${mockLogs.length + 1}`, leadId, summary, treatment };
+      mockLogs.push(row);
+      return row;
     }),
     setLeadFollowUp: jest.fn(async (_b: string, leadId: string, at: Date) => {
       mockFollowUps.push({ leadId, at });
@@ -32,27 +36,32 @@ jest.mock("@/lib/alldog/leads", () => {
 });
 // Existing-customer lookup (src/lib/paycall-customer.ts) — controllable per test.
 let mockCustomer: { id: string; name: string; matches: number } | null = null;
-const mockCustomerNotes: Array<{ customerId: string; callId: string; summary: string; nextStep?: string | null }> = [];
+const mockCustomerNotes: Array<{ id: string; customerId: string; callId: string; description: string; nextStep?: string | null }> = [];
 jest.mock("@/lib/paycall-customer", () => {
   const actual = jest.requireActual("@/lib/paycall-customer");
   return {
     hasCallIdToken: actual.hasCallIdToken,
     customerCallNote: actual.customerCallNote,
     findCustomerForCall: jest.fn(async () => mockCustomer),
-    callIdLoggedOnCustomer: jest.fn(async (_b: string, callId: string) => mockCustomerNotes.some((n) => n.callId === callId)),
-    logAnsweredCallOnCustomer: jest.fn(async (_b: string, c: { id: string }, call: { callId: string; summary: string; nextStep?: string | null }) => {
-      mockCustomerNotes.push({ customerId: c.id, callId: call.callId, summary: call.summary, nextStep: call.nextStep });
-      return { taskCreated: !!call.nextStep };
-    }),
+    findCustomerNoteForCall: jest.fn(async (_b: string, callId: string) => mockCustomerNotes.find((n) => n.callId === callId) ?? null),
+    logAnsweredCallOnCustomer: jest.fn(
+      async (_b: string, c: { id: string }, call: { callId: string; dateLabel: string; summary: string; nextStep?: string | null }, existingNoteId?: string | null) => {
+        const description = actual.customerCallNote({ kind: "answered", callId: call.callId, dateLabel: call.dateLabel, detail: call.summary });
+        const existing = existingNoteId ? mockCustomerNotes.find((n) => n.id === existingNoteId) : null;
+        if (existing) Object.assign(existing, { description, nextStep: call.nextStep });
+        else mockCustomerNotes.push({ id: `note-${mockCustomerNotes.length + 1}`, customerId: c.id, callId: call.callId, description, nextStep: call.nextStep });
+        return { taskCreated: !!call.nextStep };
+      }
+    ),
   };
 });
 jest.mock("@/lib/paycall", () => {
   const actual = jest.requireActual("@/lib/paycall");
-  return {
-    ...actual,
-    fetchRecordingFromLink: jest.fn(async () => ({ data: new ArrayBuffer(8), contentType: "audio/mpeg" })),
-    downloadRecord: jest.fn(async () => ({ data: new ArrayBuffer(8), contentType: "audio/mpeg" })),
+  const audio = async () => {
+    if (!mockRecordingReady) throw new Error("dlink: no such file");
+    return { data: new ArrayBuffer(8), contentType: "audio/mpeg" };
   };
+  return { ...actual, fetchRecordingFromLink: jest.fn(audio), downloadRecord: jest.fn(audio) };
 });
 jest.mock("@/lib/stt", () => ({
   transcribeAudio: jest.fn(async () => ({ text: "שלום", utterances: [{ speaker: "1", text: "שלום, הכלב שלי נובח" }], languageCode: "he" })),
@@ -90,7 +99,7 @@ jest.mock("@anthropic-ai/sdk", () => {
 import { parseLiveLinkParams, isSummarizableAnswer, isSafeRecordingUrl, describeAnalyticsShape } from "@/lib/paycall";
 import { parseCallSummary, formatAnsweredCallLog } from "@/lib/alldog/call-summary-schema";
 import { hasCallIdToken } from "@/lib/alldog/leads";
-import { processAnsweredCall, followUpFor } from "@/lib/alldog/call-summary";
+import { processAnsweredCall, followUpFor, SUMMARY_PENDING_LINE } from "@/lib/alldog/call-summary";
 import { israelParts } from "@/lib/alldog/time";
 
 describe("parseLiveLinkParams", () => {
@@ -194,7 +203,7 @@ describe("processAnsweredCall", () => {
   beforeEach(() => {
     mockLogs.length = 0;
     mockFollowUps.length = 0;
-    mockClaimFree = true;
+    mockRecordingReady = true;
     mockCustomer = null;
     mockCustomerNotes.length = 0;
     process.env = {
@@ -221,6 +230,35 @@ describe("processAnsweredCall", () => {
     expect(mockFollowUps).toHaveLength(1);
   });
 
+  it("recording not ready → the lead shows a pending line now; the summary later REPLACES it", async () => {
+    mockRecordingReady = false;
+    expect(await processAnsweredCall(input)).toEqual({ status: "retry_later", reason: "recording_unavailable", placeholder: "created" });
+    expect(mockLogs).toHaveLength(1);
+    expect(mockLogs[0].summary).toContain(SUMMARY_PENDING_LINE);
+    expect(mockLogs[0].summary).toContain("call_id:777");
+    // Still not ready → nothing new is written
+    expect(await processAnsweredCall(input)).toEqual({ status: "retry_later", reason: "recording_unavailable", placeholder: "existing" });
+    expect(mockLogs).toHaveLength(1);
+    // Ready → same line, now with the summary
+    mockRecordingReady = true;
+    expect(await processAnsweredCall(input)).toMatchObject({ status: "logged", summarized: true });
+    expect(mockLogs).toHaveLength(1);
+    expect(mockLogs[0].summary).not.toContain(SUMMARY_PENDING_LINE);
+    expect(mockLogs[0].summary).toContain("דנה התקשרה בגלל נביחות");
+    expect(mockLogs[0].treatment).toBe("הצעד הבא: אבחון בבית (2099-01-05 11:00)");
+    // …and then it is done
+    expect(await processAnsweredCall(input)).toEqual({ status: "duplicate" });
+  });
+
+  it("final attempt without a recording replaces the pending line with 'ההקלטה לא זמינה'", async () => {
+    mockRecordingReady = false;
+    await processAnsweredCall(input);
+    expect(await processAnsweredCall(input, { finalAttempt: true })).toMatchObject({ status: "logged", summarized: false });
+    expect(mockLogs).toHaveLength(1);
+    expect(mockLogs[0].summary).toContain("שיחה שנענתה – ההקלטה לא זמינה");
+    expect(mockLogs[0].summary).not.toContain(SUMMARY_PENDING_LINE);
+  });
+
   it("a caller who is an existing customer gets a note with the summary — no lead", async () => {
     mockCustomer = { id: "cust-1", name: "רונית לוי", matches: 2 };
     const { upsertLeadFromContact } = jest.requireMock("@/lib/alldog/leads");
@@ -230,19 +268,24 @@ describe("processAnsweredCall", () => {
     expect(upsertLeadFromContact).not.toHaveBeenCalled();
     expect(mockLogs).toHaveLength(0);
     expect(mockCustomerNotes).toHaveLength(1);
-    expect(mockCustomerNotes[0].summary).toContain("דנה התקשרה בגלל נביחות");
-    expect(mockCustomerNotes[0].summary).toContain("הצעד הבא: אבחון בבית");
-    expect(mockCustomerNotes[0].summary).not.toContain("[paycall-answered]"); // the note adds its own header
+    expect(mockCustomerNotes[0].description).toContain("דנה התקשרה בגלל נביחות");
+    expect(mockCustomerNotes[0].description).toContain("הצעד הבא: אבחון בבית");
     expect(mockCustomerNotes[0].nextStep).toBe("אבחון בבית");
-    // Same call again → duplicate (the customer note carries the call id)
     expect(await processAnsweredCall(input)).toEqual({ status: "duplicate" });
     expect(mockCustomerNotes).toHaveLength(1);
   });
 
-  it("skips while another run holds the call", async () => {
-    mockClaimFree = false;
-    expect(await processAnsweredCall(input)).toEqual({ status: "in_progress" });
-    expect(mockLogs).toHaveLength(0);
+  it("customer + recording not ready → pending note, then the same note gets the summary", async () => {
+    mockCustomer = { id: "cust-1", name: "רונית לוי", matches: 1 };
+    mockRecordingReady = false;
+    expect(await processAnsweredCall(input)).toMatchObject({ status: "retry_later", placeholder: "created" });
+    expect(mockCustomerNotes).toHaveLength(1);
+    expect(mockCustomerNotes[0].description).toContain(SUMMARY_PENDING_LINE);
+    mockRecordingReady = true;
+    expect(await processAnsweredCall(input)).toMatchObject({ status: "logged", customerId: "cust-1", summarized: true });
+    expect(mockCustomerNotes).toHaveLength(1);
+    expect(mockCustomerNotes[0].description).not.toContain(SUMMARY_PENDING_LINE);
+    expect(mockCustomerNotes[0].description).toContain("דנה התקשרה בגלל נביחות");
   });
 
   it("does nothing when the flag is off", async () => {

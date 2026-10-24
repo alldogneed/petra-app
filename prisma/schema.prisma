@@ -2577,6 +2577,24 @@ model WhatsAppMessageLog {
 /// (optionally "coexistence" — the business keeps using the WhatsApp Business app on
 /// the same number). While status = "active", outbound WhatsApp for the business is
 /// sent from ITS OWN number; otherwise the platform number (META_PHONE_NUMBER_ID) is used.
+/// Answered PayCall calls waiting for their recording (src/lib/alldog/call-retry.ts).
+/// One row per call id: the row is also the processing lock (no Redis). Prod DDL: prisma/paycall_call_retry.sql
+model PaycallCallRetry {
+  id            String    @id @default(uuid())
+  businessId    String
+  callId        String    @unique
+  payload       Json      // AnsweredCallInput (phone, start time, billsec, recording link, gclid/campaign)
+  attempts      Int       @default(0)
+  nextAttemptAt DateTime
+  lockedUntil   DateTime?
+  status        String    @default("pending") // pending | done | failed
+  lastError     String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([status, nextAttemptAt])
+}
+
 /// AllDog WhatsApp bot (src/lib/alldog-bot) — one conversation per customer phone.
 /// AllDog only (ALLDOG_BUSINESS_ID); no FK to Business/Lead on purpose. Prod DDL: prisma/alldog_wa_bot.sql
 model WaBotConversation {

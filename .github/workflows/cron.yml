@@ -62,6 +62,20 @@ jobs:
             --max-time 30 \
             -w "\nHTTP %{http_code}"
 
+  alldog-call-retry:
+    name: Retry AllDog Answered-Call Summaries
+    runs-on: ubuntu-latest
+    if: github.event.schedule != '0 6 * * *'
+    steps:
+      - name: Call alldog-call-retry endpoint
+        run: |
+          curl -s -X GET \
+            "https://petra-app.com/api/cron/alldog-call-retry" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            --max-time 60 \
+            -w "\nHTTP %{http_code}"
+
   process-gcal-jobs:
     name: Process Google Calendar Sync Jobs
     runs-on: ubuntu-latest
