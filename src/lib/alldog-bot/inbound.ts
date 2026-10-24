@@ -28,7 +28,7 @@ import {
   waitForQuiet,
   type MetaInboundMessage,
 } from "@/lib/alldog-bot/logic";
-import { buildBotContext, enforceIdentityAnswer, HUMAN_BITE_NOTE, mentionsHumanBite } from "@/lib/alldog-bot/prompt";
+import { buildBotContext, enforceIdentityAnswer, enforceOpening, HUMAN_BITE_NOTE, mentionsHumanBite } from "@/lib/alldog-bot/prompt";
 import { runBotTurn } from "@/lib/alldog-bot/agent";
 import { createDbExecutor, flagMediaForHuman, type BotConversationRef } from "@/lib/alldog-bot/actions";
 import { markReadWithTyping, sendText } from "@/lib/alldog-bot/wa";
@@ -244,12 +244,17 @@ async function reply(item: PendingInbound): Promise<void> {
 
   const latestUserText = batch.filter((r) => r.kind === "text").map((r) => r.text).pop() ?? "";
   let text = enforceIdentityAnswer(latestUserText, result.reply);
+  // Or's opening on the first reply (not on an urgent handoff — "מה קורה?" after a bite report reads wrong).
+  if (!result.handedOff) {
+    const firstUserText = batch.filter((r) => r.kind === "text").map((r) => r.text).join("\n");
+    text = enforceOpening(lastAssistant < 0, firstUserText, text);
+  }
   let afterHandoff = result.handedOff;
   if (!text) {
     if (!result.handedOff) {
       // Refusal / empty answer: a person takes over rather than the customer being ignored.
       await createDbExecutor(ref).handoff({ reason: `הבוט לא הצליח לענות (${result.stopReason ?? "ללא תשובה"})`, urgency: "normal" });
-      text = "נציגה מהמשרד תחזור אליך בהקדם 🙂";
+      text = "נציגה מהמשרד תחזור אליכם בהקדם 🙂";
       afterHandoff = true;
     } else {
       return;

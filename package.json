@@ -13,6 +13,8 @@
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
     "alldog:sim": "TS_NODE_BASEURL=. ts-node --transpile-only -r tsconfig-paths/register --compiler-options '{\"module\":\"CommonJS\",\"moduleResolution\":\"node\"}' scripts/alldog-bot-sim.ts",
+    "alldog:knowledge": "TS_NODE_BASEURL=. ts-node --transpile-only -r tsconfig-paths/register --compiler-options '{\"module\":\"CommonJS\",\"moduleResolution\":\"node\"}' scripts/alldog-build-knowledge.ts",
+    "alldog:compare": "TS_NODE_BASEURL=. ts-node --transpile-only -r tsconfig-paths/register --compiler-options '{\"module\":\"CommonJS\",\"moduleResolution\":\"node\"}' scripts/alldog-bot-compare.ts",
     "db:seed": "ts-node --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed.ts",
     "db:seed-admin": "ts-node --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed-admin.ts",
     "deploy:staging": "bash scripts/deploy.sh staging",
