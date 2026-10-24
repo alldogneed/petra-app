@@ -157,6 +157,8 @@ export function polishReply(text: string): string {
   return text
     .replace(/\*\*(.+?)\*\*/g, "$1")
     .replace(/\s*[—–]\s*/g, " , ")
+    // Or's playbook: never "אל דאגה" (the model still reaches for it).
+    .replace(/(^|[\s,])אל דאגה\s*[,!.]?\s*/gu, "$1")
     .split("\n")
     .map((l) => l.replace(/\.\s*$/u, "").trimEnd())
     .join("\n")

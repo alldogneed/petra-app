@@ -41,10 +41,13 @@ export const BOT_TOOLS: Anthropic.Tool[] = [
         dog_name: { type: "string" },
         dog_age: { type: "string", description: "טקסט חופשי, למשל 'שנה וחצי'" },
         dog_breed: { type: "string" },
+        dog_since: { type: "string", description: "כמה זמן הכלב אצלם, למשל 'שנתיים' או 'מגיל 8 שבועות'" },
         problem: { type: "string", description: "הבעיה במשפט קצר, כולל ממתי והאם היו נשיכות אם נאמר" },
         city: { type: "string" },
+        neighborhood: { type: "string", description: "שכונה או אזור בעיר, אם נאמר" },
+        callback_time: { type: "string", description: "מתי נוח ללקוח שיחזרו אליו, כפי שאמר (למשל 'אחרי 17:00')" },
         service: { type: "string", description: "מה הלקוח מחפש: אילוף אינטנסיבי בבית / שיעורים פרטיים / אילוף בתנאי פנסיון / לא ברור" },
-        summary: { type: "string", description: "סיכום של 1–3 משפטים של כל מה שידוע עד עכשיו, לצוות" },
+        summary: { type: "string", description: "סיכום של 1–3 משפטים של כל מה שידוע עד עכשיו, לצוות (כולל שכונה, כמה זמן הכלב אצלם ומתי נוח לחזור, אם נאמר)" },
       },
     },
   },
@@ -65,7 +68,7 @@ export const BOT_TOOLS: Anthropic.Tool[] = [
   {
     name: "handoff_to_human",
     description:
-      "העברה לנציג אנושי: נפתחת משימה דחופה והצוות מקבל התראה; אחרי זה הבוט שותק בשיחה הזו. להשתמש כשהלקוח מבקש בן אדם, בתוקפנות קשה / נשיכה של אדם (urgency=urgent), או כשאין לך תשובה.",
+      "העברה למאלף / לנציגה: נפתחת משימה דחופה והצוות מקבל התראה. לקרוא רק אחרי שנאספו פרטי הבסיס (או שהלקוח לא רצה לענות). להשתמש כשהלקוח מבקש בן אדם, במקרה בטיחות כמו נשיכה של אדם (urgency=urgent), או כשאין לך תשובה. מחזיר את הודעת הסגירה לכתוב ללקוח.",
     input_schema: {
       type: "object",
       additionalProperties: false,
@@ -78,6 +81,9 @@ export const BOT_TOOLS: Anthropic.Tool[] = [
   },
 ];
 
+/** While the conversation is with a person: answer questions and save details only. */
+export const HANDOFF_MODE_TOOLS: Anthropic.Tool[] = BOT_TOOLS.filter((t) => t.name === "lookup_guide" || t.name === "save_lead");
+
 const trimmed = (max: number) => z.string().transform((s) => s.replace(/\s+/g, " ").trim().slice(0, max)).optional();
 
 export const saveLeadInput = z.object({
@@ -85,8 +91,11 @@ export const saveLeadInput = z.object({
   dog_name: trimmed(100),
   dog_age: trimmed(50),
   dog_breed: trimmed(100),
+  dog_since: trimmed(100),
   problem: trimmed(500),
   city: trimmed(100),
+  neighborhood: trimmed(100),
+  callback_time: trimmed(200),
   service: trimmed(200),
   summary: trimmed(1000),
 });
@@ -111,6 +120,8 @@ export interface BotToolExecutor {
   saveLead(input: SaveLeadInput): Promise<string>;
   scheduleCallback(input: ScheduleCallbackInput): Promise<string>;
   handoff(input: HandoffInput): Promise<string>;
+  /** Set by scheduleCallback / handoff: the fixed closing message the customer must get. */
+  closing?: string | null;
 }
 
 /** A failure the model should see and recover from (e.g. "outside office hours"). */

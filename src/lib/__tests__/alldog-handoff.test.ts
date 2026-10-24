@@ -162,3 +162,89 @@ describe("rep.ts", () => {
     await expect(resumeBot("biz-alldog", "lead-1")).rejects.toMatchObject({ code: "CONFLICT" });
   });
 });
+
+// ─── Or's fixes from the 24/10 test (item 15) ─────────────────────────────────
+import {
+  HUMAN_ON_THE_WAY,
+  callbackClosingText,
+  callbackWhen,
+  handoffClosingText,
+  isHumanRequest,
+  repIsActive,
+  withClosing,
+} from "@/lib/alldog-bot/handoff";
+import {
+  OPENING_GREETING,
+  OPENING_LINE,
+  POLITE_OPENING,
+  SAFETY_GREETING,
+  enforceOpening,
+  isGenericFirstMessage,
+  stripTemplatePlaceholders,
+} from "@/lib/alldog-bot/prompt";
+import { HANDOFF_MODE_TOOLS } from "@/lib/alldog-bot/agent";
+
+describe("closing message (c)", () => {
+  it("handoff: urgent → the trainer, normal → a rep, with the office-hours day", () => {
+    expect(handoffClosingText("urgent", il("2026-10-20", "11:00"))).toBe(
+      "מעולה, קיבלנו הכל 🙏 המאלף שלנו יחזור אליכם היום. אם יש עוד משהו בינתיים, אפשר לכתוב פה"
+    );
+    expect(handoffClosingText("normal", il("2026-10-20", "20:00"))).toContain("נציגה מהצוות תחזור אליכם מחר בבוקר");
+    expect(callbackWhen(il("2026-10-23", "15:00"))).toBe("ביום ראשון בבוקר");
+  });
+  it("callback: the booked day and time", () => {
+    expect(callbackClosingText("יום רביעי 29/10", "10:00")).toBe(
+      "מעולה, קיבלנו הכל 🙏 נציגת AllDog תחזור אליכם ביום רביעי 29/10 ב-10:00. אם יש עוד משהו בינתיים, אפשר לכתוב פה"
+    );
+  });
+  it("withClosing drops the model's own callback promise / questions, keeps the rest", () => {
+    const closing = handoffClosingText("urgent", il("2026-10-20", "11:00"));
+    expect(withClosing("זה באמת לא פשוט , שמחים שפניתם\nנציגה תחזור אליכם בהקדם", closing)).toBe(`זה באמת לא פשוט , שמחים שפניתם\n\n${closing}`);
+    expect(withClosing("מתי נוח לכם ?", closing)).toBe(closing);
+    expect(withClosing(closing, closing)).toBe(closing);
+  });
+});
+
+describe("after handoff the bot keeps helping (d)", () => {
+  it("only lookup_guide + save_lead", () => {
+    expect(HANDOFF_MODE_TOOLS.map((t) => t.name).sort()).toEqual(["lookup_guide", "save_lead"]);
+  });
+  it.each(["אפשר לדבר עם בן אדם ?", "תעבירו אותי לנציגה", "נציג", "אני רוצה לדבר עם המאלף", "תחברי אותי למישהו מהצוות"])(
+    "explicit person request: %s",
+    (t) => expect(isHumanRequest(t)).toBe(true)
+  );
+  it.each(["אתה בן אדם ?", "למה עכשיו אתה לא עונה ?", "כמה עולה אבחון ?", "היי"])("not a person request: %s", (t) =>
+    expect(isHumanRequest(t)).toBe(false)
+  );
+  it("fixed line", () => expect(HUMAN_ON_THE_WAY).toBe("המאלף כבר בדרך אליכם 🙂"));
+  it("a rep who replied in the last 2 hours keeps the bot quiet", () => {
+    const now = new Date("2026-10-20T12:00:00Z");
+    expect(repIsActive(new Date("2026-10-20T11:00:00Z"), now)).toBe(true);
+    expect(repIsActive(new Date("2026-10-20T09:30:00Z"), now)).toBe(false);
+    expect(repIsActive(null, now)).toBe(false);
+  });
+});
+
+describe("first message from the website (e)", () => {
+  const site = "היי AllDog, אשמח לעזרה עם הכלב שלי 🐶";
+  it("polite generic request → POLITE_OPENING, not the 'מה קורה' line", () => {
+    expect(isGenericFirstMessage(site)).toBe(true);
+    expect(enforceOpening(true, site, "היי , כאן AllDog 🙂 איך קוראים לכלב ?")).toBe(POLITE_OPENING);
+    expect(POLITE_OPENING).toBe("היי! כאן צוות AllDog 🙂 ספרו לנו בקצרה על הכלב שלכם");
+  });
+  it("the old template sent without filling it is generic too", () => {
+    const tpl = "היי, יש לי [גזע/גיל] מ[עיר], והבעיה היא: ___ . אשמח לשיחה.";
+    expect(stripTemplatePlaceholders(tpl)).not.toMatch(/\[|_/);
+    expect(isGenericFirstMessage(tpl)).toBe(true);
+  });
+  it("a message with real details is not generic", () => {
+    expect(isGenericFirstMessage("היי, יש לי לברדור בן שנה מרעננה והוא מושך ברצועה")).toBe(false);
+    expect(enforceOpening(true, "הכלב שלי נובח על עוברים", "בן כמה הוא ?")).toBe(`${OPENING_GREETING}\n\nבן כמה הוא ?`);
+  });
+  it("bare greeting still gets Or's line", () => expect(enforceOpening(true, "שלום ?", "x")).toBe(OPENING_LINE));
+  it("a bite in the first message: no 'מה קורה?'", () => {
+    const out = enforceOpening(true, "הכלב נשך את הילד שלי", "אוי , זה רציני");
+    expect(out).toBe(`${SAFETY_GREETING}\n\nאוי , זה רציני`);
+    expect(out).not.toContain("מה קורה");
+  });
+});

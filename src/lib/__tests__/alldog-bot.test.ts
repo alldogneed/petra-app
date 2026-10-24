@@ -102,9 +102,19 @@ describe("human bite → immediate handoff", () => {
     ]) expect(mentionsHumanBite(t)).toBe(false);
   });
 
-  it("the prompt forbids questions before an urgent handoff", () => {
-    expect(ALLDOG_BOT_PROMPT).toContain("בלי לשאול אף שאלה נוספת");
-    expect(ALLDOG_BOT_PROMPT).not.toContain("אחרי שאספת את המינימום");
+  it("safety case (Or, 24/10): serious answer + the transfer line, the basics, THEN an urgent handoff", () => {
+    expect(ALLDOG_BOT_PROMPT).toContain("במקרים כאלה אנחנו מעבירים אתכם ישירות למאלף שיחזור אליכם, זה בסדר?");
+    expect(ALLDOG_BOT_PROMPT).toContain("להפריד בין הכלב לילדים עד השיחה");
+    expect(ALLDOG_BOT_PROMPT).not.toContain("בלי לשאול אף שאלה נוספת");
+    for (const detail of ["גזע", "גיל הכלב", "כמה זמן הוא אצלכם", "שכונה", "שם הפונה", "מתי נוח שיחזרו"]) {
+      expect(ALLDOG_BOT_PROMPT).toContain(detail);
+    }
+  });
+
+  it("Or's test sentence (nephew bitten) is a bite", () => {
+    expect(
+      mentionsHumanBite("יש לי כלב ממש בעייתי והוא נושך את האחיין שלי אני מנסה כבר 3 פעמים להבין איך ניתן לפתור את זה . עבדתי עם עם 3 מאלפים ואף אחד לא הצליח . מה אתה חושב ?")
+    ).toBe(true);
   });
 });
 

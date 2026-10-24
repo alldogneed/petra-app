@@ -203,3 +203,44 @@ relatedSlugs:
     expect(validateInsights({ ...ok, topic: "נביחות — תמיד" })).toContain("מקף ארוך");
   });
 });
+
+// ─── Or's playbook (item 19) ──────────────────────────────────────────────────
+import { BOUNDARIES, NEVER, OBJECTIONS, renderPlaybook } from "@/lib/alldog-bot/playbook";
+import { SCENARIOS } from "../../../scripts/alldog-sim/scenarios";
+import { polishReply } from "@/lib/alldog-bot/logic";
+
+describe("playbook", () => {
+  it("is in the system prompt (stable text)", () => {
+    expect(ALLDOG_BOT_PROMPT).toContain(renderPlaybook());
+    expect(renderPlaybook()).toBe(renderPlaybook());
+  });
+  it("fixed lines are word for word", () => {
+    const guard = BOUNDARIES.find((b) => b.id === "guard-training")!;
+    expect(guard.fixed).toBe(true);
+    expect(ALLDOG_BOT_PROMPT).toContain("אנחנו לא מתעסקים בכלבי שמירה ותקיפה. אנחנו מתעסקים רק בשיפור החיים עם כלבי בית");
+    expect(ALLDOG_BOT_PROMPT).toContain("שימוש בקולר אלקטרוני נעשה רק על ידי מאלף שהוכשר לזה, ורק במקרים ספציפיים");
+  });
+  it("zoom consultation 250 ₪ is an allowed price, next to diagnosis 350 ₪ and lessons", () => {
+    expect(ALLDOG_BOT_PROMPT).toContain("ייעוץ בזום: 250 ₪");
+    expect(ALLDOG_BOT_PROMPT).toContain("אבחון מקצועי בבית: 350 ₪");
+    expect(OBJECTIONS.find((o) => o.id === "zoom")!.answer).toContain("250 ₪");
+  });
+  it("'אל דאגה' is no longer suggested — only forbidden — and is stripped from replies", () => {
+    expect(ALLDOG_BOT_PROMPT).not.toContain('"אל דאגה", "דואגים לזה"');
+    expect(NEVER.join(" ")).toContain("אל דאגה");
+    expect(polishReply("אל דאגה , דואגים לזה 🙂")).toBe("דואגים לזה 🙂");
+    expect(polishReply("סבבה , אל דאגה")).toBe("סבבה ,");
+  });
+  it("no own pension / promises in the playbook answers", () => {
+    // Sentences that START with "אף פעם לא" are instructions to the bot, not things it says.
+    const said = [...OBJECTIONS, ...BOUNDARIES]
+      .flatMap((e) => e.answer.split(/(?<=\.)\s+/))
+      .filter((sentence) => !sentence.startsWith("אף פעם לא"))
+      .join("\n");
+    expect(said).not.toMatch(/הפנסיון שלנו|המתקן שלנו|אצלנו|100%|נפתור כל בעיה|אל דאגה/);
+  });
+  it("every professional boundary has a simulator scenario", () => {
+    const ids = new Set(SCENARIOS.map((s) => s.id));
+    for (const b of BOUNDARIES) expect(ids.has(b.id)).toBe(true);
+  });
+});
