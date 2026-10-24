@@ -2610,6 +2610,10 @@ model WaBotConversation {
   lastInboundAt     DateTime?
   lastBotReplyAt    DateTime?
   handoffAt         DateTime?
+  handoffNotifiedAt DateTime? // customer messages after this were already sent to the rep (alert + lead note)
+  handoffAckAt      DateTime? // last "קיבלנו 🙂" reply during a handoff (≤ 1 per 6h)
+  lastHumanAt       DateTime? // last reply a rep sent from Petra through the bot number
+  resumedAt         DateTime? // handoff → active (24h without a person, or "החזר לבוט")
   stoppedAt         DateTime?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
@@ -2618,12 +2622,13 @@ model WaBotConversation {
 
   @@unique([businessId, phone])
   @@index([businessId, lastInboundAt])
+  @@index([businessId, leadId])
 }
 
 model WaBotMessage {
   id             String   @id @default(uuid())
   conversationId String
-  role           String   // user | assistant | human (reserved) | system
+  role           String   // user | assistant | human (a rep, sent from Petra) | system
   kind           String   @default("text") // text | media
   text           String
   waMessageId    String?  @unique
