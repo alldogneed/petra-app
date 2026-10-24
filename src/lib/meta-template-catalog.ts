@@ -103,6 +103,30 @@ export const PETRA_TEMPLATE_CATALOG: readonly CatalogTemplate[] = [
     examples: ["פנייה חדשה", "נדב מאמן הכלבים", "nadav@example.com", "לא מצליח לשלוח תזכורת ללקוח", "https://petra-app.com/owner/support?ticket=abc123"],
     params: ["kind label (פנייה חדשה / תגובה חדשה בפנייה / פנייה נפתחה מחדש)", "business name", "user email", "ticket title", "admin URL"],
   },
+  {
+    name: "petra_support_overdue_alert",
+    category: "UTILITY",
+    language: "he",
+    body: "פניות תמיכה בפטרה ממתינות לתשובה: {{1}}\n\nהוותיקה: {{2}}\n\nלפניות: {{3}}\nנשלח אוטומטית ממערכת פטרה",
+    examples: ["3 פניות", "נדב מאמן הכלבים · לא מצליח לשלוח תזכורת (6 ש׳)", "https://petra-app.com/owner/support"],
+    params: ["count sentence", "oldest ticket: business · title (hours)", "admin URL"],
+  },
+  {
+    name: "petra_payment_received_alert",
+    category: "UTILITY",
+    language: "he",
+    body: "תשלום מנוי התקבל בפטרה: {{1}}\n\nמסלול: {{2}}\nסכום: {{3}}\nהוראת קבע: {{4}}\n\nלניהול העסקים: {{5}}\nנשלח אוטומטית ממערכת פטרה",
+    examples: ["נדב מאמן הכלבים", "Pro ₪199/חודש", "₪199", "הוראת קבע 20010 נוצרה", "https://petra-app.com/owner/tenants"],
+    params: ["business name", "tier label", "amount", "recurring-order status (warnings included)", "admin URL"],
+  },
+  {
+    name: "petra_whatsapp_failure_alert",
+    category: "UTILITY",
+    language: "he",
+    body: "הודעת וואטסאפ ללקוח לא נמסרה: {{1}}\n\nסוג הודעה: {{2}}\nלקוח: {{3}}\nסיבה: {{4}}\nמה לעשות: {{5}}\n\nלעסק בפאנל: {{6}}\nנשלח אוטומטית ממערכת פטרה",
+    examples: ["נדב מאמן הכלבים", "תזכורת לתור", "דנה · 054-*-964", "הלקוח מחוץ לחלון 24 השעות", "לשלוח בתבנית מאושרת", "https://petra-app.com/owner/tenants/abc123"],
+    params: ["business name", "flow label", "customer (name · masked phone)", "Hebrew reason", "Hebrew fix", "admin URL"],
+  },
 ];
 
 /** Meta create-template request body for one catalog entry. */

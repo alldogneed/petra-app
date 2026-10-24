@@ -266,15 +266,31 @@ export async function notifyOwnerWhatsAppFailure(p: {
       <p><a href="${p.adminUrl}" style="color:#f97316;font-weight:bold;">← לעסק בפאנל הניהול</a></p>
       <p style="color:#64748b;font-size:13px;">כשלים נוספים מאותו עסק ואותו סוג הודעה בשעה הקרובה לא יישלחו שוב.</p>
     </div>`;
-  // petra_owner_alert body params: [who, contact, what, when]
-  const templateParams = [
-    oneLine(p.businessName) || "-",
-    oneLine(p.customer) || "-",
-    `וואטסאפ לא נמסר: ${oneLine(p.flowLabel)} — ${oneLine(p.reason)}`.slice(0, 120),
-    dateLabel,
+  // petra_whatsapp_failure_alert: [business, flow, customer, reason, fix, url]; legacy last.
+  const templates: OwnerTemplateStep[] = [
+    {
+      name: "petra_whatsapp_failure_alert",
+      params: [
+        oneLine(p.businessName) || "-",
+        oneLine(p.flowLabel) || "-",
+        oneLine(p.customer) || "-",
+        oneLine(p.reason).slice(0, 300) || "-",
+        oneLine(p.fix).slice(0, 300) || "-",
+        p.adminUrl,
+      ],
+    },
+    {
+      name: LEGACY_OWNER_TEMPLATE,
+      params: [
+        oneLine(p.businessName) || "-",
+        oneLine(p.customer) || "-",
+        `וואטסאפ לא נמסר: ${oneLine(p.flowLabel)} — ${oneLine(p.reason)}`.slice(0, 120),
+        dateLabel,
+      ],
+    },
   ];
   await Promise.allSettled([
-    sendOwnerWhatsApp(waMessage, templateParams),
+    sendOwnerWhatsApp(waMessage, templates),
     sendOwnerEmail(`🔴 Petra: וואטסאפ לא נמסר — ${p.businessName} (${p.flowLabel})`, emailHtml),
   ]);
 }
@@ -296,9 +312,24 @@ export async function notifyOwnerSupportOverdue(p: {
       <ul>${p.tickets.map((t) => `<li><b>${escapeHtml(t.businessName)}</b> — ${escapeHtml(t.title)} (ממתין ${hours(t.waitingSince)} שעות)</li>`).join("")}</ul>
       <p><a href="${p.adminUrl}" style="color:#f97316;font-weight:bold;">← לפניות התמיכה</a></p>
     </div>`;
-  const templateParams = ["פניות תמיכה", `${p.tickets.length} ממתינות`, `הוותיקה: ${oneLine(p.tickets[0]?.title ?? "").slice(0, 60)}`, formatDate()];
+  // Oldest waiting ticket = the one with the earliest waitingSince.
+  const oldest = [...p.tickets].sort((a, b) => a.waitingSince.getTime() - b.waitingSince.getTime())[0];
+  const templates: OwnerTemplateStep[] = [
+    {
+      name: "petra_support_overdue_alert",
+      params: [
+        p.tickets.length === 1 ? "פנייה אחת" : `${p.tickets.length} פניות`,
+        oldest ? `${oneLine(oldest.businessName)} · ${oneLine(oldest.title).slice(0, 120)} (${hours(oldest.waitingSince)} ש׳)` : "-",
+        p.adminUrl,
+      ],
+    },
+    {
+      name: LEGACY_OWNER_TEMPLATE,
+      params: ["פניות תמיכה", `${p.tickets.length} ממתינות`, `הוותיקה: ${oneLine(p.tickets[0]?.title ?? "").slice(0, 60)}`, formatDate()],
+    },
+  ];
   await Promise.allSettled([
-    sendOwnerWhatsApp(waMessage, templateParams),
+    sendOwnerWhatsApp(waMessage, templates),
     sendOwnerEmail(`⏰ Petra: ${p.tickets.length} פניות ממתינות לתשובה`, emailHtml),
   ]);
 }
@@ -387,10 +418,24 @@ export async function notifyOwnerPaymentReceived(p: PaymentReceivedParams): Prom
     </div>
   `;
 
-  const templateParams = [p.businessName, p.businessEmail ?? "-", `${tierLabel} — ${amountLabel}`, dateLabel];
+  // petra_payment_received_alert: [business, tier, amount, recurring status, url]; legacy last.
+  const recurringLine = [recurringLabel, tokenWarning].filter(Boolean).join(" · ");
+  const templates: OwnerTemplateStep[] = [
+    {
+      name: "petra_payment_received_alert",
+      params: [
+        p.businessName || "-",
+        `${tierLabel}${keptTier}`,
+        amountLabel,
+        recurringLine.slice(0, 400) || "-",
+        `${process.env.NEXT_PUBLIC_APP_URL?.trim() || "https://petra-app.com"}/owner/tenants`,
+      ],
+    },
+    { name: LEGACY_OWNER_TEMPLATE, params: [p.businessName, p.businessEmail ?? "-", `${tierLabel} — ${amountLabel}`, dateLabel] },
+  ];
 
   await Promise.allSettled([
-    sendOwnerWhatsApp(waMessage, templateParams),
+    sendOwnerWhatsApp(waMessage, templates),
     sendOwnerEmail(emailSubject, emailHtml),
   ]);
 }

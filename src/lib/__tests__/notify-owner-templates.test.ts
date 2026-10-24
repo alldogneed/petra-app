@@ -4,7 +4,14 @@
  * support tickets must try their own template first and fall back to it only when
  * Meta rejects theirs (not approved yet).
  */
-import { notifyOwnerAllDog, notifyOwnerSupportActivity, notifyOwnerNewUser } from "@/lib/notify-owner";
+import {
+  notifyOwnerAllDog,
+  notifyOwnerSupportActivity,
+  notifyOwnerNewUser,
+  notifyOwnerSupportOverdue,
+  notifyOwnerPaymentReceived,
+  notifyOwnerWhatsAppFailure,
+} from "@/lib/notify-owner";
 
 type Sent = { type: string; template?: { name: string; components: { parameters: { text: string }[] }[] } };
 
@@ -80,6 +87,45 @@ describe("owner alert templates", () => {
     const sent = mockMeta();
     await notifyOwnerNewUser({ name: "דנה", email: "d@example.com", plan: "free" });
     expect(sent[0].template?.name).toBe("petra_owner_alert");
+  });
+
+  it("support SLA digest uses petra_support_overdue_alert with the oldest ticket", async () => {
+    const sent = mockMeta();
+    const now = Date.now();
+    await notifyOwnerSupportOverdue({
+      tickets: [
+        { title: "חדשה", businessName: "עסק א", waitingSince: new Date(now - 5 * 3_600_000) },
+        { title: "ישנה", businessName: "עסק ב", waitingSince: new Date(now - 9 * 3_600_000) },
+      ],
+      adminUrl: "https://petra-app.com/owner/support",
+    });
+    expect(sent[0].template?.name).toBe("petra_support_overdue_alert");
+    expect(params(sent[0])).toEqual(["2 פניות", "עסק ב · ישנה (9 ש׳)", "https://petra-app.com/owner/support"]);
+  });
+
+  it("payment received uses petra_payment_received_alert", async () => {
+    const sent = mockMeta();
+    await notifyOwnerPaymentReceived({ businessName: "נדב", paidTier: "pro", effectiveTier: "pro", amount: 199, recurringId: "20010", source: "indicator" });
+    expect(sent[0].template?.name).toBe("petra_payment_received_alert");
+    const [biz, tier, amount, recurring, url] = params(sent[0]);
+    expect([biz, tier, amount]).toEqual(["נדב", "Pro ₪199/חודש", "₪199"]);
+    expect(recurring).toContain("20010");
+    expect(url).toMatch(/\/owner\/tenants$/);
+  });
+
+  it("undelivered customer message uses petra_whatsapp_failure_alert", async () => {
+    const sent = mockMeta();
+    await notifyOwnerWhatsAppFailure({
+      businessName: "נדב",
+      flowLabel: "תזכורת לתור",
+      customer: "דנה · 054-*-964",
+      reason: "מחוץ לחלון 24 שעות",
+      fix: "לשלוח בתבנית",
+      templateName: null,
+      adminUrl: "https://petra-app.com/owner/tenants/1",
+    });
+    expect(sent[0].template?.name).toBe("petra_whatsapp_failure_alert");
+    expect(params(sent[0])).toHaveLength(6);
   });
 
   it("all templates rejected → free text", async () => {
