@@ -210,6 +210,17 @@ export async function processMissedCall(call: PaycallCall): Promise<{
     leadId = lead.id;
     created = true;
 
+    // "ליד חדש נכנס" alert (WhatsApp + email + bell) — POST /api/leads sends it for its
+    // leads; this raw creation path has to send it itself. Gated + never throws.
+    const { alertNewLeadIfEnabled } = await import("@/lib/lead-alert");
+    await alertNewLeadIfEnabled(businessId, {
+      name: lead.name,
+      phone,
+      requestedService: null,
+      city: null,
+      source: "שיחה שלא נענתה (PayCall)",
+    });
+
     // lead_followup automation (opt-in, gated inside; raw prisma creation path).
     await scheduleLeadFollowup({
       id: lead.id,

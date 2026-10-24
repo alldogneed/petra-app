@@ -141,3 +141,25 @@ export async function sendLeadAlert(input: LeadAlertInput): Promise<void> {
 
   await Promise.allSettled([...whatsappSends, ownersAndBell]);
 }
+
+/**
+ * The same "ליד חדש נכנס" alert for leads created outside POST /api/leads and the lead
+ * webhook (which call sendLeadAlert themselves), e.g. the AllDog WhatsApp bot.
+ * Same gate as the route: the business's `lead_notifications` feature (PRO+, overrides win).
+ * Never throws.
+ */
+export async function alertNewLeadIfEnabled(businessId: string, lead: LeadAlertInput["lead"]): Promise<void> {
+  try {
+    const { hasFeatureWithOverrides } = await import("@/lib/feature-flags");
+    const business = await prisma.business.findUnique({
+      where: { id: businessId },
+      select: { tier: true, phone: true, featureOverrides: true },
+    });
+    if (!business) return;
+    const overrides = (business.featureOverrides as Record<string, unknown> | null) ?? null;
+    if (!hasFeatureWithOverrides(business.tier ?? "free", "lead_notifications", overrides as Record<string, boolean> | null)) return;
+    await sendLeadAlert({ businessId, businessPhone: business.phone ?? null, featureOverrides: overrides, lead });
+  } catch (err) {
+    console.error("[lead-alert] alertNewLeadIfEnabled failed:", err);
+  }
+}

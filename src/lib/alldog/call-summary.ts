@@ -11,6 +11,7 @@
  * gets the summary REPLACES that line — never a second line for the same call.
  * Idempotent on the PayCall call id (`call_id:<ID>` in the CallLog / customer note).
  */
+import { alertNewLeadIfEnabled } from "@/lib/lead-alert";
 import Anthropic from "@anthropic-ai/sdk";
 import { claimOnce } from "@/lib/rate-limit";
 import { maskPhone } from "@/lib/whatsapp-failure";
@@ -184,7 +185,16 @@ export async function processAnsweredCall(
     const text = [header, line, campaignLine].filter(Boolean).join("\n");
     if (leadLog) await updateLeadCallLog(leadLog.id, leadLog.leadId, text);
     else await addLeadCallLog(leadId, text);
-    if (created) await setLeadFollowUp(businessId, leadId, defaultFollowUp());
+    if (created) {
+      await setLeadFollowUp(businessId, leadId, defaultFollowUp());
+      await alertNewLeadIfEnabled(businessId, {
+        name: `שיחה מ-${localPhone(input.phone)}`,
+        phone: localPhone(input.phone),
+        requestedService: null,
+        city: null,
+        source: "שיחה שנענתה (PayCall)",
+      });
+    }
     return { status: "logged", leadId, created, summarized, note: line };
   };
 
@@ -276,6 +286,15 @@ export async function processAnsweredCall(
   if (leadLog) await updateLeadCallLog(leadLog.id, leadLog.leadId, text, log.treatment);
   else await addLeadCallLog(leadId, text, log.treatment);
   await setLeadFollowUp(businessId, leadId, followUpFor(summary));
+  if (created) {
+    await alertNewLeadIfEnabled(businessId, {
+      name: summary.customerName?.trim() || `שיחה מ-${localPhone(input.phone)}`,
+      phone: localPhone(input.phone),
+      requestedService: summary.service?.trim() || null,
+      city: summary.city?.trim() || null,
+      source: "שיחה שנענתה (PayCall)",
+    });
+  }
 
   console.log(`${LOG} call ${input.callId} summarized → lead ${leadId}${created ? " (new)" : ""} (${maskPhone(input.phone)})`);
   return { status: "logged", leadId, created, summarized: true };

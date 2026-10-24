@@ -118,6 +118,7 @@ When a new lead is created (manual or via webhook), `POST /api/leads` fires-and-
 Uses approved template `petra_biz_lead_alert` (WABA `25882288788086856`) with fallback to free-form.
 Body params order: `[lead.name, lead.phone || "לא צוין", lead.requestedService || "לא צוין"]`.
 For non-PRO businesses the feature is silently skipped (no UI shown in leads page — handled by TierGate elsewhere).
+The alert itself is `sendLeadAlert()` (`src/lib/lead-alert.ts`: WhatsApp template chain + email + bell). Leads created **outside** `POST /api/leads` / `/api/webhooks/lead` must call `alertNewLeadIfEnabled(businessId, lead)` (same tier gate) — the AllDog WhatsApp bot does it in `ensureLead()` when `upsertLeadFromContact` returns `created` (before 24/10/2026 bot leads produced no alert). PayCall leads (missed: `paycall.ts`, answered: `alldog/call-summary.ts`) call it too when the lead is new.
 
 ### 20. Analytics page is named "דוחות"
 Sidebar entry and page title are "דוחות" (not "אנליטיקס"). Route remains `/analytics`.
