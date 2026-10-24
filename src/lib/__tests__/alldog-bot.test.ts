@@ -103,7 +103,7 @@ describe("human bite → immediate handoff", () => {
   });
 
   it("safety case (Or, 24/10): serious answer + the transfer line, the basics, THEN an urgent handoff", () => {
-    expect(ALLDOG_BOT_PROMPT).toContain("במקרים כאלה אנחנו מעבירים אתכם ישירות למאלף שיחזור אליכם, זה בסדר?");
+    expect(ALLDOG_BOT_PROMPT).toContain("במקרים כאלה אני מעביר את הפנייה ישירות למאלף שיחזור בטלפון, זה בסדר?");
     expect(ALLDOG_BOT_PROMPT).toContain("להפריד בין הכלב לילדים עד השיחה");
     expect(ALLDOG_BOT_PROMPT).not.toContain("בלי לשאול אף שאלה נוספת");
     expect(ALLDOG_BOT_PROMPT).toContain("באותו סדר קבוע (שם + כלב → אזור → גזע וגיל)");

@@ -145,6 +145,7 @@ describe("rep.ts", () => {
 // ─── Or's fixes from the 24/10 test (item 15) ─────────────────────────────────
 import {
   HUMAN_ON_THE_WAY,
+  humanOnTheWay,
   CLOSED_NOTE,
   WHO_CALLS_BACK,
   callbackClosingText,
@@ -173,7 +174,7 @@ import { parseAttributionLine } from "@/lib/alldog-bot/logic";
 
 describe("closing message (Or, 24/10 11:53: phone call, no time, no trainer, no price)", () => {
   const closing =
-    "מעולה, קיבלנו הכל 🙏 נציגת AllDog תחזור אליכם טלפונית בהקדם, תיתן את כל הפרטים, תתאים לכם את המסלול הנכון ותגיד איזה מאלף יגיע אליכם. אם יש עוד משהו בינתיים, אפשר לכתוב פה";
+    "מעולה, רשמתי הכל 🙏 אני דואג שנציגת AllDog תחזור בטלפון בהקדם, תיתן את כל הפרטים, תתאים את המסלול הנכון ותגיד איזה מאלף יגיע. אם יש עוד משהו בינתיים, אפשר לכתוב לי פה";
   const il = (ymd: string, hhmm: string) => new Date(`${ymd}T${hhmm}:00+03:00`);
   it("handoff and callback close with the same line, without a time", () => {
     expect(handoffClosingText()).toBe(closing);
@@ -181,8 +182,9 @@ describe("closing message (Or, 24/10 11:53: phone call, no time, no trainer, no 
     expect(closing).not.toMatch(/היום|מחר|בבוקר|\d{1,2}:\d{2}|₪/);
   });
   it("Shabbat / holiday → 'אחרי השבת' / 'אחרי החג'", () => {
-    expect(closingText("after_shabbat")).toContain("תחזור אליכם טלפונית אחרי השבת,");
-    expect(closingText("after_holiday")).toContain("תחזור אליכם טלפונית אחרי החג,");
+    expect(closingText("after_shabbat")).toContain("תחזור בטלפון אחרי השבת,");
+    expect(closingText("after_holiday")).toContain("תחזור בטלפון אחרי החג,");
+    expect(closingText("after_shabbat", "f")).toContain("תחזור אלייך טלפונית אחרי השבת,");
     expect(closingWhen(il("2026-10-23", "13:59"))).toBe("soon"); // Friday before 14:00
     expect(closingWhen(il("2026-10-23", "14:00"))).toBe("after_shabbat");
     expect(closingWhen(il("2026-10-24", "11:00"))).toBe("after_shabbat"); // Saturday
@@ -202,7 +204,7 @@ describe("closing message (Or, 24/10 11:53: phone call, no time, no trainer, no 
     expect(closingAlreadySent([{ role: "user", text: "קיבלנו הכל" }])).toBe(false);
     expect(CLOSED_NOTE).toContain("בלי לחזור על הודעת הסגירה");
     expect(CLOSED_NOTE).toContain(WHO_CALLS_BACK);
-    expect(WHO_CALLS_BACK).toBe("אחת הנציגות מהמשרד שלנו, והיא גם תתאם איתכם את המאלף שיגיע 🙂");
+    expect(WHO_CALLS_BACK).toBe("אחת הנציגות מהמשרד שלנו, והיא גם תתאם את המאלף שיגיע 🙂");
   });
 });
 
@@ -214,7 +216,7 @@ describe("no scheduling at all (Or, 24/10 11:53)", () => {
     expect(scheduleCallbackInput.safeParse({ date: "2026-10-26", time: "10:00" }).success).toBe(false);
   });
   it("the prompt forbids offering times and 'מתי נוח', and has no slot list", () => {
-    expect(ALLDOG_BOT_PROMPT).toContain('אסור להציע שעות, ימים או חלונות זמן, ואסור לשאול "מתי נוח לכם"');
+    expect(ALLDOG_BOT_PROMPT).toContain('אסור להציע שעות, ימים או חלונות זמן, ואסור לשאול "מתי נוח"');
     expect(ALLDOG_BOT_PROMPT).not.toContain("מציעים 2–3");
     expect(buildBotContext({ nowLabel: "x", isFirstReply: true })).not.toMatch(/זמנים פנויים/);
   });
@@ -240,7 +242,11 @@ describe("after handoff the bot keeps helping (d)", () => {
   it.each(["אתה בן אדם ?", "למה עכשיו אתה לא עונה ?", "כמה עולה אבחון ?", "היי"])("not a person request: %s", (t) =>
     expect(isHumanRequest(t)).toBe(false)
   );
-  it("fixed line", () => expect(HUMAN_ON_THE_WAY).toBe("המאלף כבר בדרך אליכם 🙂"));
+  it("fixed line, by gender", () => {
+    expect(HUMAN_ON_THE_WAY).toBe("המאלף כבר בדרך, הוא יחזור בטלפון 🙂");
+    expect(humanOnTheWay("f")).toBe("המאלף כבר בדרך אלייך 🙂");
+    expect(humanOnTheWay("m")).toBe("המאלף כבר בדרך אליך 🙂");
+  });
   it("a rep who replied in the last 2 hours keeps the bot quiet", () => {
     const now = new Date("2026-10-20T12:00:00Z");
     expect(repIsActive(new Date("2026-10-20T11:00:00Z"), now)).toBe(true);
@@ -254,7 +260,7 @@ describe("first message from the website (e)", () => {
   it("polite generic request → POLITE_OPENING, not the 'מה קורה' line", () => {
     expect(isGenericFirstMessage(site)).toBe(true);
     expect(enforceOpening(true, site, "היי , כאן AllDog 🙂 איך קוראים לכלב ?")).toBe(POLITE_OPENING);
-    expect(POLITE_OPENING).toBe("היי! כאן צוות AllDog 🙂 ספרו לנו בקצרה על הכלב שלכם");
+    expect(POLITE_OPENING).toBe("היי! כאן צוות AllDog 🙂 אשמח לשמוע בקצרה על הכלב");
   });
   it("the old template sent without filling it is generic too", () => {
     const tpl = "היי, יש לי [גזע/גיל] מ[עיר], והבעיה היא: ___ . אשמח לשיחה.";

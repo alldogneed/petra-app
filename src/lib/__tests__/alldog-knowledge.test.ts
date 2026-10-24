@@ -89,7 +89,7 @@ describe("searchKnowledge / lookup_guide", () => {
 
 describe("Or's opening", () => {
   it("is the exact line in the prompt", () => {
-    expect(OPENING_LINE).toBe("היי, מה קורה? כאן צוות AllDog 🙂 ספרו לנו בקצרה על הכלב שלכם");
+    expect(OPENING_LINE).toBe("היי, מה קורה? כאן צוות AllDog 🙂 אשמח לשמוע בקצרה על הכלב");
     expect(ALLDOG_BOT_PROMPT).toContain(OPENING_LINE);
     expect(ALLDOG_BOT_PROMPT).toContain("lookup_guide");
     expect(ALLDOG_BOT_PROMPT).toContain("לא נותנים תוכנית אילוף");
