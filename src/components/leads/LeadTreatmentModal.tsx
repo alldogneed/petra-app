@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import LostReasonModal from "@/components/leads/LostReasonModal";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { LeadMeetingsSection } from "@/components/leads/LeadMeetingsSection";
+import { AllDogBotChat } from "@/components/leads/AllDogBotChat";
 import { normalizeDealValue, formatIls } from "@/lib/lead-deal-value";
 import { validateIsraeliPhone, validateEmail, normalizeIsraeliPhone } from "@/lib/validation";
 import { loadLeadCallDraft, saveLeadCallDraft, clearLeadCallDraft } from "@/lib/lead-call-draft";
@@ -1026,6 +1027,9 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                   isCustomer={!!(view.customerId || view.wonAt)}
                   onConverted={onWon ? (c) => onWon(lead.name, c.id) : undefined}
                 />
+
+                {/* ── WhatsApp bot chat (AllDog only — hidden when there is none) ── */}
+                <AllDogBotChat leadId={lead.id} />
 
                 {/* ── Details ────────────────────────────────────────── */}
                 <div className="px-6 py-5 border-b border-[#F1F5F9]">

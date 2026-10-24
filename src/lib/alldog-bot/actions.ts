@@ -121,7 +121,8 @@ export function createDbExecutor(conv: BotConversationRef): BotToolExecutor {
       });
       await prisma.waBotConversation.update({
         where: { id: conv.id },
-        data: { status: "handoff", handoffAt: new Date() },
+        // Messages so far are in the task above; alerts start from the next customer message.
+        data: { status: "handoff", handoffAt: new Date(), handoffNotifiedAt: new Date(), handoffAckAt: null },
       });
 
       if (await claimOnce(`alldog-bot-handoff:${conv.id}`, 60 * 60)) {

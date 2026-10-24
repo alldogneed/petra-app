@@ -6,8 +6,11 @@
  *              read + "typing…" → 6s quiet period (only the latest message's run goes on)
  *              → Claude with tools → ≤2 messages with a typing pause → stored.
  *
- * Silence: handoff / stopped conversations, outside the 24h window, groups, statuses,
+ * Silence: stopped conversations, outside the 24h window, groups, statuses,
  * system messages. Media → a fixed gentle reply + a task for a person.
+ * Handoff (handoff.ts): every customer message → alert to the rep; the bot answers once
+ * ("קיבלנו 🙂 …", then ≤ 1 per 6h); 24h without a person → back to the bot.
+ * "#reset" from Or's number only → his conversation starts over.
  */
 import Anthropic from "@anthropic-ai/sdk";
 import { Prisma } from "@prisma/client";
@@ -15,7 +18,7 @@ import prisma from "@/lib/prisma";
 import { maskPhone } from "@/lib/whatsapp-failure";
 import { allDogBusinessId, botModel, isWaBotEnabled } from "@/lib/alldog/config";
 import { heDayLabel, israelParts, nextCallbackOptions } from "@/lib/alldog/time";
-import { addLeadCallLog, isPlaceholderLeadName } from "@/lib/alldog/leads";
+import { addLeadCallLog, createLeadTask, isPlaceholderLeadName } from "@/lib/alldog/leads";
 import {
   botMayReply,
   classifyInbound,
@@ -31,6 +34,14 @@ import {
 import { buildBotContext, enforceIdentityAnswer, enforceOpening, HUMAN_BITE_NOTE, mentionsHumanBite } from "@/lib/alldog-bot/prompt";
 import { runBotTurn } from "@/lib/alldog-bot/agent";
 import { createDbExecutor, flagMediaForHuman, type BotConversationRef } from "@/lib/alldog-bot/actions";
+import {
+  handoffAckDue,
+  handoffAckText,
+  handoffNoteText,
+  isResetCommand,
+  RESUMED_NOTE,
+  shouldAutoResume,
+} from "@/lib/alldog-bot/handoff";
 import { markReadWithTyping, sendText } from "@/lib/alldog-bot/wa";
 import { readEnv } from "@/lib/read-env";
 
@@ -46,7 +57,11 @@ interface MetaChangeValue {
 export interface PendingInbound {
   conversationId: string;
   waMessageId: string;
+  /** "reset" = Or's #reset (confirmation only); default = normal bot / handoff flow. */
+  mode?: "reset";
 }
+
+const RESET_CONFIRMATION = "🔄 השיחה אופסה. אפשר להתחיל מחדש";
 
 /** Store the inbound messages for the AllDog number. Returns the ones the bot should process. */
 export async function ingestWebhookPayload(body: unknown, phoneNumberId: string): Promise<PendingInbound[]> {
@@ -135,14 +150,54 @@ async function ingestMessage(
     throw err;
   }
 
+  if (cls.kind === "text" && isResetCommand(text, phone)) {
+    await resetConversation(conv.id);
+    console.log(`${LOG} ${maskPhone(phone)} #reset — conversation wiped`);
+    return { conversationId: conv.id, waMessageId: m.id!, mode: "reset" };
+  }
+
   if (cls.kind === "text" && isStopRequest(text) && conv.status !== "stopped") {
     await prisma.waBotConversation.update({ where: { id: conv.id }, data: { status: "stopped", stoppedAt: new Date() } });
     if (conv.leadId) await addLeadCallLog(conv.leadId, "[וואטסאפ · בוט] הלקוח ביקש להפסיק את השיחה עם הבוט").catch(() => {});
     console.log(`${LOG} ${maskPhone(phone)} asked to stop — conversation stopped`);
     return null;
   }
-  if (conv.status !== "active") return null; // handoff / stopped: stored, never answered
+  if (conv.status === "stopped") return null; // stored, never answered
+  if (conv.status === "handoff" && shouldAutoResume(conv)) {
+    // 24h without a person → the bot takes the conversation back.
+    await prisma.waBotConversation.updateMany({
+      where: { id: conv.id, status: "handoff" },
+      data: { status: "active", resumedAt: new Date() },
+    });
+    if (conv.leadId) {
+      await addLeadCallLog(conv.leadId, "[וואטסאפ · בוט] 24 שעות בלי מענה מנציגה, השיחה חזרה לבוט").catch(() => {});
+    }
+    console.log(`${LOG} ${maskPhone(phone)} handoff expired — back to the bot`);
+  }
+  // active → the bot answers; handoff → alert to the rep + one "קיבלנו" (processInbound decides).
   return { conversationId: conv.id, waMessageId: m.id! };
+}
+
+/** Or's "#reset": the conversation starts over (messages deleted, lead link + handoff state cleared; the lead itself stays). */
+async function resetConversation(conversationId: string): Promise<void> {
+  await prisma.waBotMessage.deleteMany({ where: { conversationId } });
+  await prisma.waBotConversation.update({
+    where: { id: conversationId },
+    data: {
+      status: "active",
+      leadId: null,
+      summaryCallLogId: null,
+      attributionSource: null,
+      attributionPage: null,
+      lastBotReplyAt: null,
+      handoffAt: null,
+      handoffNotifiedAt: null,
+      handoffAckAt: null,
+      lastHumanAt: null,
+      resumedAt: null,
+      stoppedAt: null,
+    },
+  });
 }
 
 async function latestInboundId(conversationId: string): Promise<string | null> {
@@ -157,6 +212,22 @@ async function latestInboundId(conversationId: string): Promise<string | null> {
 /** Run after the webhook response. Never throws. */
 export async function processInbound(item: PendingInbound): Promise<void> {
   try {
+    if (item.mode === "reset") {
+      const conv = await prisma.waBotConversation.findUnique({ where: { id: item.conversationId }, select: { phone: true } });
+      if (conv) await sendText(conv.phone, RESET_CONFIRMATION);
+      return;
+    }
+    const state = await prisma.waBotConversation.findUnique({ where: { id: item.conversationId }, select: { status: true } });
+    if (state?.status === "handoff") {
+      // No "typing…" — the bot is not going to write a real answer.
+      const isLatest = await waitForQuiet({
+        myMessageId: item.waMessageId,
+        latestInboundId: () => latestInboundId(item.conversationId),
+        sleep,
+      });
+      if (isLatest) await handleHandoffMessages(item);
+      return;
+    }
     await markReadWithTyping(item.waMessageId);
     const isLatest = await waitForQuiet({
       myMessageId: item.waMessageId,
@@ -229,6 +300,7 @@ async function reply(item: PendingInbound): Promise<void> {
     knownName,
     isFirstReply: lastAssistant < 0,
     note: [
+      conv.resumedAt && (!conv.lastBotReplyAt || conv.lastBotReplyAt < conv.resumedAt) ? RESUMED_NOTE : null,
       batch.some((r) => r.kind === "text" && mentionsHumanBite(r.text)) ? HUMAN_BITE_NOTE : null,
       hadMedia ? "הלקוח שלח גם מדיה שאתה לא יכול לפתוח. אמור בעדינות שנציגה תראה אותה." : null,
     ].filter(Boolean).join("\n") || null,
@@ -264,6 +336,95 @@ async function reply(item: PendingInbound): Promise<void> {
   // A newer message arrived while the model was thinking → its own run will answer.
   if ((await latestInboundId(conv.id)) !== item.waMessageId) return;
   await sendParts(item, conv.phone, splitReply(text, 2), afterHandoff);
+}
+
+const HANDOFF_TASK_PREFIX = "הודעה חדשה בוואטסאפ";
+
+function appUrl(): string {
+  return (process.env.APP_URL || "https://petra-app.com").replace(/\/$/, "");
+}
+
+/**
+ * Customer wrote while the conversation is with a rep: everything since the last alert goes
+ * to the rep (lead note + one open task + owner WhatsApp/email with the text), and the bot
+ * says "קיבלנו" — once, then at most once per 6 hours.
+ */
+async function handleHandoffMessages(item: PendingInbound): Promise<void> {
+  const conv = await prisma.waBotConversation.findUnique({ where: { id: item.conversationId } });
+  if (!conv || conv.status !== "handoff") return;
+  const since = conv.handoffNotifiedAt ?? conv.handoffAt ?? new Date(0);
+  const fresh = await prisma.waBotMessage.findMany({
+    where: { conversationId: conv.id, role: "user", createdAt: { gt: since } },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    select: { text: true, createdAt: true },
+    take: 30,
+  });
+  if (!fresh.length) return;
+
+  // Claim this batch (two runs never alert the same messages twice).
+  const now = new Date();
+  const claimed = await prisma.waBotConversation.updateMany({
+    where: { id: conv.id, status: "handoff", handoffNotifiedAt: conv.handoffNotifiedAt },
+    data: { handoffNotifiedAt: now },
+  });
+  if (claimed.count === 0) return;
+
+  const ref: BotConversationRef = {
+    id: conv.id,
+    businessId: conv.businessId,
+    phone: conv.phone,
+    profileName: conv.profileName,
+    leadId: conv.leadId,
+    summaryCallLogId: conv.summaryCallLogId,
+    attributionSource: conv.attributionSource,
+    attributionPage: conv.attributionPage,
+  };
+  const texts = fresh.map((r) => r.text.slice(0, 1000));
+  try {
+    await createDbExecutor(ref).saveLead({}); // makes sure there is a lead (ref.leadId)
+    const leadId = ref.leadId;
+    if (leadId) {
+      await addLeadCallLog(leadId, handoffNoteText(texts));
+      const lead = await prisma.lead.findFirst({ where: { id: leadId, businessId: conv.businessId }, select: { name: true } });
+      const name = lead && !isPlaceholderLeadName(lead.name) ? lead.name : conv.profileName || conv.phone;
+      const open = await prisma.task.findFirst({
+        where: {
+          businessId: conv.businessId,
+          relatedEntityType: "LEAD",
+          relatedEntityId: leadId,
+          status: { in: ["OPEN", "IN_PROGRESS"] },
+          title: { startsWith: HANDOFF_TASK_PREFIX },
+        },
+        select: { id: true },
+      });
+      if (!open) {
+        await createLeadTask(conv.businessId, leadId, {
+          title: `${HANDOFF_TASK_PREFIX} מ${name} (אחרי העברה לנציגה)`,
+          description: [`הלקוח כתב אחרי שהשיחה הועברה לנציגה:`, ...texts.map((t) => `• ${t}`), "", "אפשר לענות מכרטיס הליד → וואטסאפ."]
+            .join("\n")
+            .slice(0, 4900),
+          priority: "HIGH",
+        });
+      }
+      const { notifyOwnerAllDog } = await import("@/lib/notify-owner");
+      await notifyOwnerAllDog({
+        title: "וואטסאפ: הלקוח כתב אחרי העברה לנציגה",
+        lines: [`${name} · ${maskPhone(conv.phone)}`, ...texts.map((t) => `"${t.replace(/\s+/g, " ").slice(0, 300)}"`)],
+        url: `${appUrl()}/leads?lead=${leadId}`,
+      });
+    }
+  } catch (err) {
+    console.error(`${LOG} handoff alert failed:`, err instanceof Error ? err.message : err);
+  }
+
+  // "קיבלנו 🙂 …" — claimed the same way, at most once per 6 hours.
+  if (!handoffAckDue(conv, now)) return;
+  const ack = await prisma.waBotConversation.updateMany({
+    where: { id: conv.id, status: "handoff", handoffAckAt: conv.handoffAckAt },
+    data: { handoffAckAt: now },
+  });
+  if (ack.count === 0) return;
+  await sendParts(item, conv.phone, [handoffAckText(now)], true);
 }
 
 async function sendParts(item: PendingInbound, to: string, parts: string[], allowAfterHandoff = false): Promise<void> {
