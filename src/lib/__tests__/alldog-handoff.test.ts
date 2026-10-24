@@ -221,9 +221,9 @@ describe("no scheduling at all (Or, 24/10 11:53)", () => {
     expect(buildBotContext({ nowLabel: "x", isFirstReply: true })).not.toMatch(/זמנים פנויים/);
   });
   it("fixed order: name + dog → area → the rest", () => {
-    expect(NAME_AND_DOG_QUESTION).toBe("נעים מאוד 🙂 איך קוראים לך (שם מלא), ואיך קוראים לכלב?");
-    const i1 = ALLDOG_BOT_PROMPT.indexOf("1. שם מלא של הבעלים + שם הכלב");
-    const i2 = ALLDOG_BOT_PROMPT.indexOf("2. אזור: עיר + שכונה");
+    expect(NAME_AND_DOG_QUESTION).toBe("נעים מאוד 🙂 איך קוראים לך, ואיך קוראים לכלב?");
+    const i1 = ALLDOG_BOT_PROMPT.indexOf("1. השם של הבעלים + שם הכלב");
+    const i2 = ALLDOG_BOT_PROMPT.indexOf("2. עיר: ");
     const i3 = ALLDOG_BOT_PROMPT.indexOf("3. כל השאר: גזע וגיל");
     expect(i1).toBeGreaterThan(0);
     expect(i2).toBeGreaterThan(i1);

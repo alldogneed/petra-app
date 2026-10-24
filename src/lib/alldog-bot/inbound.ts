@@ -36,7 +36,8 @@ import {
 } from "@/lib/alldog-bot/logic";
 import { buildBotContext, enforceIdentityAnswer, enforceOpening, HUMAN_BITE_NOTE, mentionsHumanBite } from "@/lib/alldog-bot/prompt";
 import { HANDOFF_MODE_TOOLS, runBotTurn } from "@/lib/alldog-bot/agent";
-import { createDbExecutor, flagMediaForHuman, type BotConversationRef } from "@/lib/alldog-bot/actions";
+import { createDbExecutor, dropDeletedLeadLink, flagMediaForHuman, type BotConversationRef } from "@/lib/alldog-bot/actions";
+import { summarizeBotConversation } from "@/lib/alldog-bot/summary";
 import { addressNote, addressStyleFor, applyAddressStyle, detectGender, type Gender } from "@/lib/alldog-bot/address";
 import {
   CLOSED_NOTE,
@@ -271,6 +272,7 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
     attributionSource: conv.attributionSource,
     attributionPage: conv.attributionPage,
   };
+  await dropDeletedLeadLink(ref);
 
   const rows = (
     await prisma.waBotMessage.findMany({
@@ -362,7 +364,9 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
 
   const latestUserText = batch.filter((r) => r.kind === "text").map((r) => r.text).pop() ?? "";
   const priorBotTexts = rows.filter((r) => r.role === "assistant").map((r) => r.text);
-  let text = applyAddressStyle(applyConversationGuards(enforceIdentityAnswer(latestUserText, result.reply), priorBotTexts), style);
+  let text = applyAddressStyle(applyConversationGuards(enforceIdentityAnswer(latestUserText, result.reply), priorBotTexts, {
+    userTexts: rows.filter((r) => r.role === "user" && r.kind === "text").map((r) => r.text),
+  }), style);
   if (executor.closing && !closed) {
     // After schedule_callback / handoff_to_human the last message is always the fixed closing.
     text = withClosing(text, executor.closing);
@@ -391,6 +395,8 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
   // A newer message arrived while the model was thinking → its own run will answer.
   if ((await latestInboundId(conv.id)) !== item.waMessageId) return;
   await sendParts(item, conv.phone, splitReply(text, 2), afterHandoff);
+  // The conversation just ended (closing / handoff) → one summary in the lead journal (item 27i).
+  if ((executor.closing && !closed) || (afterHandoff && !handoffMode)) await summarizeBotConversation(conv.id);
 }
 
 const HANDOFF_TASK_PREFIX = "הודעה חדשה בוואטסאפ";
@@ -437,6 +443,7 @@ async function handleHandoffMessages(item: PendingInbound): Promise<void> {
   };
   const texts = fresh.map((r) => r.text.slice(0, 1000));
   try {
+    await dropDeletedLeadLink(ref);
     await createDbExecutor(ref).saveLead({}); // makes sure there is a lead (ref.leadId)
     const leadId = ref.leadId;
     if (leadId) {

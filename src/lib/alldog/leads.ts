@@ -89,8 +89,10 @@ export async function resolveLeadForContact(businessId: string, rawPhone: string
   if (!leads.length) return { active: null, previous: null };
   const stageIds = Array.from(new Set(leads.map((l) => l.stage)));
   const closedStages = new Set(
+    // By id only: old leads point at stages of another business (Or's lead 5a7f… sat in a "נסגר"
+    // stage owned by a different business, so it looked open and got a returning contact — item 27g).
     (await prisma.leadStage.findMany({
-      where: { businessId, id: { in: stageIds }, OR: [{ isWon: true }, { isLost: true }] },
+      where: { id: { in: stageIds }, OR: [{ isWon: true }, { isLost: true }] },
       select: { id: true },
     })).map((s) => s.id)
   );

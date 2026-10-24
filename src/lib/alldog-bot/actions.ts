@@ -235,3 +235,17 @@ export async function flagMediaForHuman(conv: BotConversationRef, label: string)
     priority: "HIGH",
   });
 }
+
+/**
+ * The conversation still points at a lead / summary log that no longer exists (deleted by hand in
+ * Petra — Or deleted "רחלי" at 15:04 on 24/10) → drop the link; the next write resolves the lead
+ * again by phone (resolveLeadForContact) and opens a new summary log.
+ */
+export async function dropDeletedLeadLink(ref: BotConversationRef): Promise<void> {
+  if (!ref.leadId) return;
+  const exists = await prisma.lead.findFirst({ where: { id: ref.leadId, businessId: ref.businessId }, select: { id: true } });
+  if (exists) return;
+  ref.leadId = null;
+  ref.summaryCallLogId = null;
+  await prisma.waBotConversation.update({ where: { id: ref.id }, data: { leadId: null, summaryCallLogId: null } });
+}

@@ -63,7 +63,7 @@ describe("Hebrew slips (23c)", () => {
 
 describe("conversation guards (23a + 23b)", () => {
   it("keeps the first echo + compliment, drops later ones", () => {
-    expect(applyConversationGuards("יוקי , שם מקסים 🙂\nואיפה אתם גרים ?", [])).toBe("יוקי , שם מקסים 🙂\nואיפה אתם גרים ?");
+    expect(applyConversationGuards("יוקי , שם מקסים 🙂\nבן כמה הוא ?", [])).toBe("יוקי , שם מקסים 🙂\nבן כמה הוא ?");
     expect(applyConversationGuards("גאולים , מעולה\nבאיזה גזע מדובר ?", ["יוקי , שם מקסים 🙂\nואיפה אתם גרים ?"])).toBe("באיזה גזע מדובר ?");
     expect(applyConversationGuards("גאולים , מעולה . באיזה גזע מדובר ?", ["יוקי , שם מקסים"])).toBe("באיזה גזע מדובר ?");
     // Two in one reply → the second goes.
@@ -73,16 +73,16 @@ describe("conversation guards (23a + 23b)", () => {
   it("does not touch normal openers", () => {
     expect(countMirrorPraise("סבבה , נמשיך")).toBe(0);
     expect(countMirrorPraise("מעולה, קיבלנו הכל 🙏")).toBe(0);
-    expect(applyConversationGuards("סבבה , ואיפה אתם גרים ?", ["יוקי , שם מקסים"])).toBe("סבבה , ואיפה אתם גרים ?");
+    expect(applyConversationGuards("סבבה , בן כמה הוא ?", ["יוקי , שם מקסים"])).toBe("סבבה , בן כמה הוא ?");
   });
 
-  it("asks the surname once, never again", () => {
-    expect(applyConversationGuards("ומה שם המשפחה, רויטל ?", [])).toBe("ומה שם המשפחה, רויטל ?");
-    expect(applyConversationGuards("ומה שם המשפחה, רויטל ?\nואיפה אתם גרים ?", ["נעים מאוד 🙂\nומה שם המשפחה, רויטל ?"])).toBe("ואיפה אתם גרים ?");
+  it("never asks the surname (27b: the name the customer gives is enough)", () => {
+    expect(applyConversationGuards("ומה שם המשפחה, רויטל ?", [])).toBe("");
+    expect(applyConversationGuards("ומה שם המשפחה, רויטל ?\nבאיזו עיר?", ["נעים מאוד 🙂"])).toBe("באיזו עיר?");
   });
 
   it("the prompt carries the three rules", () => {
-    expect(ALLDOG_BOT_PROMPT).toContain("ומה שם המשפחה");
+    expect(ALLDOG_BOT_PROMPT).toContain("לא שואלים שם משפחה");
     expect(ALLDOG_BOT_PROMPT).toContain("לכל היותר פעם אחת בכל השיחה");
     expect(ALLDOG_BOT_PROMPT).toContain("בודקים דקדוק ומגדר");
     expect(ALLDOG_BOT_PROMPT).toContain("urgent_reason");

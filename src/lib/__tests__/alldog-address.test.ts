@@ -99,7 +99,7 @@ describe("applyAddressStyle", () => {
   it("Yuval (unknown): neutral wording", () => {
     expect(applyAddressStyle("הנציגה תחזור אליכם טלפונית", U)).toBe("הנציגה תחזור בטלפון");
     expect(applyAddressStyle("ספרו לי בקצרה על הכלב שלכם", U)).toBe("אשמח לשמוע בקצרה על הכלב");
-    expect(applyAddressStyle("איפה אתם גרים ?", U)).toBe("באיזו עיר ושכונה מדובר ?");
+    expect(applyAddressStyle("איפה אתם גרים ?", U)).toBe("באיזו עיר?");
   });
   it("plural is fine when the customer speaks for a household", () => {
     const style = addressStyleFor({ texts: ["יש לנו כלבה שנובחת"], name: "רויטל" });
