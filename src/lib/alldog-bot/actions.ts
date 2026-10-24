@@ -14,6 +14,7 @@ import {
   upsertLeadFromContact,
 } from "@/lib/alldog/leads";
 import { israelYmd } from "@/lib/alldog/time";
+import { URGENT_NOTE_PREFIX } from "@/lib/alldog-bot/logic";
 import { callbackClosingText, closingWhen, handoffClosingText } from "@/lib/alldog-bot/handoff";
 import { type BotToolExecutor, type HandoffInput, type SaveLeadInput, type ScheduleCallbackInput } from "@/lib/alldog-bot/agent";
 
@@ -35,6 +36,7 @@ function appUrl(): string {
 }
 
 const CALLBACK_TASK_PREFIX = "לחזור טלפונית";
+const URGENT_TITLE_PREFIX = "דחוף: ";
 
 /** Shabbat / a holiday block in the business calendar right now → the closing says so (no time). */
 async function closingWhenNow(businessId: string) {
@@ -51,6 +53,15 @@ export function createDbExecutor(conv: BotConversationRef): BotToolExecutor {
   async function leadDisplayName(leadId: string): Promise<string> {
     const lead = await prisma.lead.findFirst({ where: { id: leadId, businessId: conv.businessId }, select: { name: true } });
     return lead && !isPlaceholderLeadName(lead.name) ? lead.name : conv.profileName || phone;
+  }
+
+  /** The lead's urgent note ("[וואטסאפ · בוט] ⚠ דחוף: …"), if one was written. */
+  async function urgentNote(leadId: string): Promise<string | null> {
+    const log = await prisma.callLog.findFirst({
+      where: { leadId, summary: { startsWith: URGENT_NOTE_PREFIX } },
+      select: { summary: true },
+    });
+    return log?.summary ?? null;
   }
 
   async function ensureLead(fields: Partial<SaveLeadInput> = {}): Promise<string> {
@@ -93,6 +104,7 @@ export function createDbExecutor(conv: BotConversationRef): BotToolExecutor {
 
     async saveLead(input) {
       const leadId = await ensureLead(input);
+      if (input.urgent_reason) await executor.markUrgent?.(input.urgent_reason);
       if (input.callback_time) {
         // The customer asked for a time himself — kept as a note for the rep, never a commitment.
         await addLeadCallLog(leadId, `[וואטסאפ · בוט] הלקוח ביקש לגבי זמן השיחה: ${input.callback_time}`);
@@ -117,19 +129,52 @@ export function createDbExecutor(conv: BotConversationRef): BotToolExecutor {
       const name = await leadDisplayName(leadId);
       await addLeadCallLog(leadId, `[וואטסאפ · בוט] לחזור טלפונית${note ? ` · ${note}` : ""}`);
       const open = await prisma.task.findFirst({
-        where: { businessId: conv.businessId, relatedEntityType: "LEAD", relatedEntityId: leadId, status: { in: ["OPEN", "IN_PROGRESS"] }, title: { startsWith: CALLBACK_TASK_PREFIX } },
+        where: { businessId: conv.businessId, relatedEntityType: "LEAD", relatedEntityId: leadId, status: { in: ["OPEN", "IN_PROGRESS"] }, title: { contains: CALLBACK_TASK_PREFIX } },
         select: { id: true },
       });
       if (!open) {
+        const urgent = await urgentNote(leadId);
         await createLeadTask(conv.businessId, leadId, {
-          title: `${CALLBACK_TASK_PREFIX} ל${name} (וואטסאפ)`,
-          description: [note ? `מה הלקוח מחפש: ${note}` : null, `טלפון: ${phone}`, "השיחה בוואטסאפ: כרטיס הליד → וואטסאפ עם הבוט."].filter(Boolean).join("\n"),
-          priority: "HIGH",
+          title: `${urgent ? URGENT_TITLE_PREFIX : ""}${CALLBACK_TASK_PREFIX} ל${name} (וואטסאפ)`,
+          description: [
+            urgent ? urgent.replace(URGENT_NOTE_PREFIX, "דחוף") : null,
+            note ? `מה הלקוח מחפש: ${note}` : null,
+            `טלפון: ${phone}`,
+            "השיחה בוואטסאפ: כרטיס הליד → וואטסאפ עם הבוט.",
+          ].filter(Boolean).join("\n"),
+          priority: urgent ? "URGENT" : "HIGH",
           dueDate: israelYmd(),
         });
       }
       executor.closing = callbackClosingText(await closingWhenNow(conv.businessId));
       return `סומן לחזרה טלפונית. כתוב ללקוח בדיוק: "${executor.closing}"`;
+    },
+
+    // Or, 24/10 12:58: "דחוף" / "בהקדם" / "השכנים מתלוננים" → the lead is marked urgent, with why.
+    async markUrgent(reason: string, quote?: string) {
+      const leadId = await ensureLead();
+      if (!(await urgentNote(leadId))) {
+        const q = quote ? ` · "${quote.replace(/\s+/g, " ").trim().slice(0, 200)}"` : "";
+        await addLeadCallLog(leadId, `${URGENT_NOTE_PREFIX}: ${reason}${q}`);
+      }
+      // An open callback / handoff task of the bot becomes URGENT too.
+      const tasks = await prisma.task.findMany({
+        where: {
+          businessId: conv.businessId,
+          relatedEntityType: "LEAD",
+          relatedEntityId: leadId,
+          status: { in: ["OPEN", "IN_PROGRESS"] },
+          title: { contains: CALLBACK_TASK_PREFIX },
+        },
+        select: { id: true, title: true, priority: true },
+      });
+      for (const t of tasks) {
+        if (t.priority === "URGENT" && t.title.startsWith(URGENT_TITLE_PREFIX)) continue;
+        await prisma.task.updateMany({
+          where: { id: t.id, businessId: conv.businessId },
+          data: { priority: "URGENT", title: t.title.startsWith(URGENT_TITLE_PREFIX) ? t.title : `${URGENT_TITLE_PREFIX}${t.title}` },
+        });
+      }
     },
 
     async handoff({ reason, urgency }: HandoffInput) {

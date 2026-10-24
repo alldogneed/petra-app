@@ -31,6 +31,20 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
+    // Or's test of 24/10 (12:58). Expected (item 23): "ומה שם המשפחה, רויטל ?" once (no repeat when she
+    // skips it), at most one echo + compliment, correct Hebrew ("נציגה שתיצור"), the lead marked urgent.
+    id: "revital",
+    title: "רויטל ויוקי (הבדיקה של אור, 24/10 12:58)",
+    lines: [
+      "היי",
+      "יש לי כלב שנובח כל הלילה על כל רעש , זה התחיל לפני חודשיים",
+      "רויטל , הכלב יוקי",
+      "גאולים , ליד בית הספר",
+      "מעורב , בן 3",
+      "זה די דחוף , השכנים כבר מתלוננים",
+    ],
+  },
+  {
     // The website's prepared message (alldog-landing-page PR #4) + the source line.
     id: "site",
     title: "הודעה מוכנה מהאתר",

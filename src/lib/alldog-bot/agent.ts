@@ -45,6 +45,7 @@ export const BOT_TOOLS: Anthropic.Tool[] = [
         problem: { type: "string", description: "הבעיה במשפט קצר, כולל ממתי והאם היו נשיכות אם נאמר" },
         city: { type: "string" },
         neighborhood: { type: "string", description: "שכונה או אזור בעיר, אם נאמר" },
+        urgent_reason: { type: "string", description: "רק אם הלקוח אמר שזה דחוף / בהקדם / שהשכנים מתלוננים / שהם שוקלים למסור את הכלב: למה, במשפט קצר. מסמן את הליד כדחוף" },
         callback_time: { type: "string", description: "רק אם הלקוח ביקש בעצמו שעה או יום (למשל 'רק אחרי 18:00'). נשמר כהערה, בלי התחייבות. אף פעם לא שואלים על זה" },
         service: { type: "string", description: "מה הלקוח מחפש: אילוף אינטנסיבי בבית / שיעורים פרטיים / אילוף בתנאי פנסיון / לא ברור" },
         summary: { type: "string", description: "סיכום של 1–3 משפטים של כל מה שידוע עד עכשיו, לצוות (כולל שכונה, כמה זמן הכלב אצלם, ושעה שהלקוח ביקש אם ביקש)" },
@@ -94,6 +95,7 @@ export const saveLeadInput = z.object({
   city: trimmed(100),
   neighborhood: trimmed(100),
   callback_time: trimmed(200),
+  urgent_reason: trimmed(200),
   service: trimmed(200),
   summary: trimmed(1000),
 });
@@ -120,6 +122,8 @@ export interface BotToolExecutor {
   saveLead(input: SaveLeadInput): Promise<string>;
   scheduleCallback(input: ScheduleCallbackInput): Promise<string>;
   handoff(input: HandoffInput): Promise<string>;
+  /** Marks the lead urgent (note with the reason + the bot's open callback task → URGENT). */
+  markUrgent?(reason: string, quote?: string): Promise<void>;
   /** Set by scheduleCallback / handoff: the fixed closing message the customer must get. */
   closing?: string | null;
 }
