@@ -78,7 +78,7 @@ import {
 import { claimOnce } from "@/lib/rate-limit";
 import { downloadMedia, markReadWithTyping, sendText } from "@/lib/alldog-bot/wa";
 import { alertAllDogFailure, explainFailure } from "@/lib/alldog/failure-alerts";
-import { MISSED_CALL_CONTEXT_NOTE, MISSED_CALL_DEDUP_MS, MISSED_CALL_KINDS, MISSED_CALL_MARKER } from "@/lib/alldog/missed-call-rules";
+import { displayMissedCallMessage, isMissedCallTemplateMessage, MISSED_CALL_CONTEXT_NOTE, MISSED_CALL_DEDUP_MS, MISSED_CALL_KINDS } from "@/lib/alldog/missed-call-rules";
 import { transcribeAudio } from "@/lib/stt";
 
 const LOG = "[alldog-bot]";
@@ -376,7 +376,9 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
         take: 40,
         select: { role: true, kind: true, text: true, createdAt: true },
       })
-    ).reverse()
+    )
+      .reverse()
+      .map(displayMissedCallMessage) // legacy technical copies → the template text the customer got
   );
   // Item 32: the customer answers our automatic missed-call message → no forced opening, context note.
   const missedCallSent = await prisma.waBotMessage.findFirst({
@@ -386,7 +388,7 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
   });
   const answeringMissedCall =
     !!missedCallSent &&
-    !rows.some((r) => r.role === "assistant" && r.createdAt > missedCallSent.createdAt && !r.text.includes(MISSED_CALL_MARKER));
+    !rows.some((r) => r.role === "assistant" && r.createdAt > missedCallSent.createdAt && !isMissedCallTemplateMessage(r));
   // What the customer typed — a name from a voice note alone is not saved as the lead's name (item 30d).
   ref.typedTexts = rows.filter((r) => r.role === "user" && r.kind === "text").map((r) => r.text);
   /** What the customer said (texts + voice transcripts), oldest first. */

@@ -2,6 +2,7 @@
  * AllDog — automatic WhatsApp after a missed call to 03-3818670 (Or, item 32). Pure rules, tested.
  * The DB / Meta side is src/lib/alldog/missed-call-wa.ts.
  */
+import { MISSED_CALL_MESSAGE_KIND } from "@/lib/alldog/missed-call-labels";
 import { readEnv } from "@/lib/read-env";
 import { addDaysYmd, israelInstant, israelParts, weekdayOfYmd } from "@/lib/alldog/time";
 
@@ -26,8 +27,28 @@ export const MISSED_CALL_KINDS = {
 } as const;
 
 /** The bot's own copy of the template message (role "assistant") — readable in the rep's chat. */
-export const MISSED_CALL_SENT_TEXT = "📩 הודעת וואטסאפ אוטומטית (missed_call_followup): הלקוח התקשר ל-03-3818670 ולא נענה";
+/**
+ * The APPROVED body of `missed_call_followup` in Meta (Utility, he, no variables / buttons) — what the
+ * customer actually receives. When the template is edited in Meta, update this text too.
+ */
+export const MISSED_CALL_TEMPLATE_TEXT =
+  "היי, כאן צוות AllDog 🙂 ראינו שניסית להשיג אותנו ולא הספקנו לענות. אפשר לכתוב לי פה בקצרה מה קורה עם הכלב, ונציגה תחזור אליך בהקדם.";
+/** The bot's copy of the sent template (role assistant) = exactly what the customer got. */
+export const MISSED_CALL_SENT_TEXT = MISSED_CALL_TEMPLATE_TEXT;
+/** WaBotMessage.kind of that copy (+ its chat label) — client-safe, in missed-call-labels.ts. */
+export { MISSED_CALL_MESSAGE_KIND, MISSED_CALL_MESSAGE_LABEL } from "@/lib/alldog/missed-call-labels";
+/** Copies stored before 25/10 carried this technical text instead of the template body. */
 export const MISSED_CALL_MARKER = "(missed_call_followup)";
+
+/** Is this conversation row our copy of the missed-call template (new kind, or a legacy marker text)? */
+export function isMissedCallTemplateMessage(m: { role: string; kind?: string | null; text: string }): boolean {
+  return m.role === "assistant" && (m.kind === MISSED_CALL_MESSAGE_KIND || m.text.includes(MISSED_CALL_MARKER));
+}
+
+/** For display / the model: legacy technical copies read as the real template text. */
+export function displayMissedCallMessage<T extends { role: string; kind: string; text: string }>(m: T): T {
+  return isMissedCallTemplateMessage(m) ? { ...m, kind: MISSED_CALL_MESSAGE_KIND, text: MISSED_CALL_TEMPLATE_TEXT } : m;
+}
 
 /** Context for the bot when the customer answers the automatic message. */
 export const MISSED_CALL_CONTEXT_NOTE =

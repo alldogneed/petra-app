@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { Bot, Send, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
+import { MISSED_CALL_MESSAGE_KIND, MISSED_CALL_MESSAGE_LABEL } from "@/lib/alldog/missed-call-labels";
 
 interface BotConversationView {
   id: string;
@@ -136,7 +137,7 @@ export function AllDogBotChat({ leadId }: { leadId: string }) {
                 {m.role !== "user" && (
                   <div className="mb-0.5 flex items-center gap-1 text-[11px] font-semibold text-slate-500">
                     {m.role === "human" ? <UserRound className="w-3 h-3" /> : <Bot className="w-3 h-3" />}
-                    {m.role === "human" ? "נציגה" : "בוט"}
+                    {m.role === "human" ? "נציגה" : m.kind === MISSED_CALL_MESSAGE_KIND ? MISSED_CALL_MESSAGE_LABEL : "בוט"}
                   </div>
                 )}
                 {m.kind === "voice" ? `🎤 ${m.text}` : m.text}
@@ -170,7 +171,9 @@ export function AllDogBotChat({ leadId }: { leadId: string }) {
           </form>
         ) : (
           <div className="mt-3 text-xs text-slate-500">
-            עברו 24 שעות מההודעה האחרונה של הלקוח, אז וואטסאפ לא מאפשר לשלוח טקסט. אפשר להתקשר.
+            {conv.lastInboundAt
+              ? "עברו 24 שעות מההודעה האחרונה של הלקוח, אז וואטסאפ לא מאפשר לשלוח טקסט. אפשר להתקשר."
+              : "הלקוח עוד לא ענה – אפשר להתקשר אליו"}
           </div>
         )
       )}
