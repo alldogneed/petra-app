@@ -1082,12 +1082,28 @@ function MobileBoard({
   leads,
   activeStages,
   onLeadClick,
+  selectionMode = false,
+  selectedIds,
+  onToggleSelect,
+  onShownChange,
+  onTabChange,
 }: {
   leads: Lead[];
   activeStages: LeadStage[];
   onLeadClick: (l: Lead) => void;
+  /** Phones: "בחר" turns a tap into select/unselect (bulk delete from the bottom bar). */
+  selectionMode?: boolean;
+  selectedIds?: Set<string>;
+  onToggleSelect?: (id: string) => void;
+  /** The ids this tab shows — "בחר הכל" on the phone selects only these. */
+  onShownChange?: (ids: string[]) => void;
+  onTabChange?: () => void;
 }) {
-  const [tab, setTab] = useState<string>("focus");
+  const [tab, setTabState] = useState<string>("focus");
+  const setTab = (t: string) => {
+    setTabState(t);
+    onTabChange?.();
+  };
   const stagesById = useMemo(() => new Map(activeStages.map((s) => [s.id, s])), [activeStages]);
   const focus = leads.filter((l) => {
     const b = getFollowUpInfo(l.nextFollowUpAt).bucket;
@@ -1098,6 +1114,11 @@ function MobileBoard({
     ...activeStages.map((s) => ({ id: s.id, label: s.name, count: leads.filter((l) => l.stage === s.id).length })),
   ];
   const shown = (tab === "focus" ? focus : leads.filter((l) => l.stage === tab)).slice().sort(byFollowUp);
+  const shownKey = shown.map((l) => l.id).join(",");
+  useEffect(() => {
+    onShownChange?.(shownKey ? shownKey.split(",") : []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shownKey]);
 
   return (
     <div>
@@ -1108,14 +1129,29 @@ function MobileBoard({
           </button>
         ))}
       </div>
-      <div className="flex flex-col gap-2 mt-3.5 pb-8">
+      <div className={cn("flex flex-col gap-2 mt-3.5", selectionMode ? "pb-40" : "pb-8")}>
         {shown.map((lead) => {
           const fu = getFollowUpInfo(lead.nextFollowUpAt);
           const { city, service } = leadMeta(lead);
           const stage = stagesById.get(lead.stage);
+          const isSelected = selectionMode && (selectedIds?.has(lead.id) ?? false);
           return (
-            <div key={lead.id} onClick={() => onLeadClick(lead)} className="bg-white border border-slate-200 rounded-[14px] p-3.5 active:bg-slate-50">
+            <div
+              key={lead.id}
+              onClick={() => (selectionMode ? onToggleSelect?.(lead.id) : onLeadClick(lead))}
+              role={selectionMode ? "checkbox" : undefined}
+              aria-checked={selectionMode ? isSelected : undefined}
+              className={cn(
+                "bg-white border border-slate-200 rounded-[14px] p-3.5 active:bg-slate-50",
+                isSelected && "!border-[#FB923C] ring-2 ring-orange-200 bg-[#FFF7ED]",
+              )}
+            >
               <div className="flex items-baseline gap-2">
+                {selectionMode && (
+                  <span className="self-center flex-shrink-0" aria-hidden>
+                    {isSelected ? <CheckSquare className="w-5 h-5 text-brand-500" /> : <Square className="w-5 h-5 text-slate-400" />}
+                  </span>
+                )}
                 <span className="text-[15px] font-semibold text-petra-text flex-1 min-w-0 truncate">{lead.name}</span>
                 {lead.dealValue != null && <span className="text-xs text-slate-500 tabular-nums">{formatIls(lead.dealValue)}</span>}
               </div>
@@ -1132,7 +1168,7 @@ function MobileBoard({
               </div>
               <div className="flex items-center gap-2 mt-3" onClick={(e) => e.stopPropagation()}>
                 <span className="flex-1 min-w-0 text-[13px] font-medium tabular-nums truncate" style={{ color: fu.color }}>{fu.label}</span>
-                {lead.phone && (
+                {lead.phone && !selectionMode && (
                   <>
                     <button type="button" onClick={() => openWhatsApp(lead.phone!)} aria-label="וואטסאפ" className={cn(WA_BTN, "w-11 h-11 rounded-xl")}>
                       <MessageCircle className="w-[18px] h-[18px]" />
@@ -1590,6 +1626,8 @@ function LeadsPageContent() {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  // Phones: the ids the current mobile tab shows ("בחר הכל" selects only what is on screen).
+  const [mobileShownIds, setMobileShownIds] = useState<string[]>([]);
 
   // Filters changing mid-selection would leave leads selected that are no longer
   // visible — "מחק נבחרים" would then delete leads the user can't see. Clear the
@@ -2031,7 +2069,21 @@ function LeadsPageContent() {
         <div className="min-w-0 flex-1 md:flex-none">
           <div className="flex items-center justify-between gap-3">
             <h1 className="text-xl md:text-2xl font-bold tracking-[-0.02em] text-petra-text">מערכת מכירות</h1>
-            {/* Mobile: compact new-lead button next to the title */}
+            {/* Mobile: "בחר" (bulk select / delete) + compact new-lead button next to the title */}
+            {activeTab === "board" && !editMode && (
+              <button
+                type="button"
+                onClick={() => (selectionMode ? exitSelectionMode() : setSelectionMode(true))}
+                aria-pressed={selectionMode}
+                className={cn(
+                  "md:hidden h-11 px-3.5 rounded-xl border text-[13px] font-semibold flex items-center gap-1.5 flex-shrink-0 ms-auto",
+                  selectionMode ? "bg-[#FFF7ED] border-[#FB923C] text-[#C2410C]" : "bg-white border-slate-200 text-slate-600 active:bg-slate-50",
+                )}
+              >
+                <CheckSquare className="w-4 h-4" />
+                {selectionMode ? "בטל" : "בחר"}
+              </button>
+            )}
             {atLeadLimit ? (
               <a href="/upgrade" aria-label="שדרג לבייסיק" className="md:hidden w-11 h-11 rounded-xl bg-amber-500 text-white flex items-center justify-center flex-shrink-0">
                 <Sparkles className="w-5 h-5" />
@@ -2264,7 +2316,7 @@ function LeadsPageContent() {
 
         {/* ─── Bulk Selection Bar ─── */}
         {activeTab === "board" && selectionMode && !editMode && (
-          <div className="p-3 mb-4 flex flex-wrap items-center gap-3 rounded-xl bg-[#FFF7ED] border border-[#FED7AA]">
+          <div className="p-3 mb-4 hidden md:flex flex-wrap items-center gap-3 rounded-xl bg-[#FFF7ED] border border-[#FED7AA]">
             <button onClick={toggleSelectAll} className="flex items-center gap-2 text-slate-500 hover:text-petra-text transition-colors">
               {allSelected ? (
                 <CheckSquare className="w-4 h-4 text-brand-500" />
@@ -2286,6 +2338,45 @@ function LeadsPageContent() {
                 מחק נבחרים
               </button>
             )}
+          </div>
+        )}
+
+        {/* ─── Phones: bulk actions bar, fixed above the bottom navigation ─── */}
+        {activeTab === "board" && selectionMode && !editMode && (
+          <div
+            className="md:hidden fixed inset-x-3 z-40 rounded-2xl bg-white border border-[#FED7AA] shadow-[0_12px_32px_-8px_rgba(0,0,0,0.25)] p-2.5 flex items-center gap-2"
+            style={{ bottom: "calc(5rem + env(safe-area-inset-bottom, 0px) + 0.5rem)" }}
+          >
+            {(() => {
+              const allShownSelected = mobileShownIds.length > 0 && mobileShownIds.every((id) => selectedIds.has(id));
+              return (
+                <button
+                  type="button"
+                  onClick={() => setSelectedIds(allShownSelected ? new Set() : new Set(mobileShownIds))}
+                  className="h-11 px-3 rounded-xl text-[13px] font-medium text-slate-600 bg-slate-100 active:bg-slate-200 flex items-center gap-1.5 flex-shrink-0"
+                >
+                  {allShownSelected ? <CheckSquare className="w-4 h-4 text-brand-500" /> : <Square className="w-4 h-4" />}
+                  בחר הכל
+                </button>
+              );
+            })()}
+            <span className="flex-1 min-w-0 text-center text-sm font-semibold text-petra-text tabular-nums">{selectedIds.size} נבחרו</span>
+            <button
+              type="button"
+              disabled={selectedIds.size === 0}
+              onClick={() => setShowBulkDeleteConfirm(true)}
+              className="h-11 px-3.5 rounded-xl text-[13px] font-semibold bg-red-600 text-white active:bg-red-700 disabled:opacity-40 flex items-center gap-1.5 flex-shrink-0"
+            >
+              <Trash2 className="w-4 h-4" />
+              מחק
+            </button>
+            <button
+              type="button"
+              onClick={exitSelectionMode}
+              className="h-11 px-3 rounded-xl text-[13px] font-medium text-slate-600 active:bg-slate-100 flex-shrink-0"
+            >
+              ביטול
+            </button>
           </div>
         )}
 
@@ -2370,7 +2461,17 @@ function LeadsPageContent() {
                   </div>
                 </div>
                 <div className="md:hidden">
-                  <MobileBoard leads={visibleKanbanLeads} activeStages={activeStages} onLeadClick={openLead} />
+                  <MobileBoard
+                    leads={visibleKanbanLeads}
+                    activeStages={activeStages}
+                    onLeadClick={openLead}
+                    selectionMode={selectionMode && !editMode}
+                    selectedIds={selectedIds}
+                    onToggleSelect={toggleSelect}
+                    onShownChange={setMobileShownIds}
+                    // Another tab = other leads: drop the selection so nothing hidden gets deleted.
+                    onTabChange={() => setSelectedIds(new Set())}
+                  />
                 </div>
               </>
             ) : (
