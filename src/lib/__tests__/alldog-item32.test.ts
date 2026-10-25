@@ -24,7 +24,14 @@ jest.mock("@/lib/prisma", () => ({
     waBotConversation: { findUnique: (...a: unknown[]) => convFindUnique(...a), upsert: (...a: unknown[]) => convUpsert(...a) },
   },
 }));
-jest.mock("@/lib/alldog-bot/wa", () => ({ sendTemplate: (...a: unknown[]) => sendTemplate(...a) }));
+// sendTemplateSteps sends the first step through the `sendTemplate` spy (the fallback itself is tested in item 34).
+jest.mock("@/lib/alldog-bot/wa", () => ({
+  sendTemplate: (...a: unknown[]) => sendTemplate(...a),
+  sendTemplateSteps: async (to: string, steps: Array<{ name: string; params: string[]; text: string }>, lang: string) => {
+    const w = await sendTemplate(to, steps[0].name, lang, steps[0].params);
+    return w ? { wamid: w, step: steps[0], fellBackFrom: [] } : null;
+  },
+}));
 jest.mock("@/lib/alldog/leads", () => ({ addLeadCallLog: (...a: unknown[]) => addLeadCallLog(...a) }));
 jest.mock("@/lib/paycall", () => ({ getCalls: (...a: unknown[]) => getCalls(...a) }));
 jest.mock("@/lib/alldog/failure-alerts", () => ({ alertAllDogFailure: jest.fn() }));
@@ -114,23 +121,20 @@ describe("when it goes out (Israel time)", () => {
     return `${p.ymd} ${p.hhmm}`;
   };
   // 2026-10-25 = Sunday, 2026-10-30 = Friday, 2026-10-31 = Saturday
-  it("quiet hours: 22:00–08:00, Friday 14:00 – Saturday 20:00", () => {
+  it("quiet hours: only 22:00–08:00 — the weekend has its own template now (25/10)", () => {
     expect(isQuietTime("2026-10-25", "12:00")).toBe(false);
     expect(isQuietTime("2026-10-25", "22:00")).toBe(true);
     expect(isQuietTime("2026-10-25", "07:59")).toBe(true);
-    expect(isQuietTime("2026-10-30", "13:59")).toBe(false);
-    expect(isQuietTime("2026-10-30", "14:00")).toBe(true);
-    expect(isQuietTime("2026-10-31", "19:59")).toBe(true);
-    expect(isQuietTime("2026-10-31", "20:00")).toBe(false);
+    expect(isQuietTime("2026-10-30", "14:00")).toBe(false); // Friday afternoon → missed_call_weekend
+    expect(isQuietTime("2026-10-31", "11:00")).toBe(false); // Shabbat → missed_call_weekend
   });
-  it("now, or the start of the next window", () => {
+  it("now, or 08:00 after a night call", () => {
     expect(label(nextSendTime(at("2026-10-25", "12:00")))).toBe("2026-10-25 12:00");
     expect(label(nextSendTime(at("2026-10-25", "23:30")))).toBe("2026-10-26 08:00");
     expect(label(nextSendTime(at("2026-10-26", "03:00")))).toBe("2026-10-26 08:00");
-    expect(label(nextSendTime(at("2026-10-30", "15:00")))).toBe("2026-10-31 20:00");
-    expect(label(nextSendTime(at("2026-10-31", "10:00")))).toBe("2026-10-31 20:00");
+    expect(label(nextSendTime(at("2026-10-30", "15:00")))).toBe("2026-10-30 15:00");
+    expect(label(nextSendTime(at("2026-10-31", "10:00")))).toBe("2026-10-31 10:00");
     expect(label(nextSendTime(at("2026-10-31", "22:30")))).toBe("2026-11-01 08:00");
-    expect(label(nextSendTime(at("2026-10-29", "23:00")))).toBe("2026-10-30 08:00");
   });
 });
 
@@ -161,7 +165,7 @@ describe("send flow", () => {
     const r = await scheduleMissedCallWhatsApp(call, { leadId: "L1" });
     expect(r.status).toBe("sent");
     expect(msgCreate).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ role: "system", kind: MISSED_CALL_KINDS.pending, waMessageId: "missed-call:777" }) }));
-    expect(sendTemplate).toHaveBeenCalledWith("972541234567", "missed_call_followup", "he");
+    expect(sendTemplate).toHaveBeenCalledWith("972541234567", "missed_call_followup", "he", []);
     expect(msgCreate).toHaveBeenCalledWith({ data: { conversationId: "conv1", role: "assistant", kind: "missed_call_template", text: MISSED_CALL_SENT_TEXT, waMessageId: "wamid.1" } });
     // The copy is exactly what the customer got (the approved template body), not a technical line.
     expect(MISSED_CALL_SENT_TEXT).toBe(MISSED_CALL_TEMPLATE_TEXT);

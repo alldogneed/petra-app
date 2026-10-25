@@ -30,7 +30,14 @@ jest.mock("@/lib/prisma", () => ({
     leadStage: { findUnique: (...a: unknown[]) => stageFindUnique(...a) },
   },
 }));
-jest.mock("@/lib/alldog-bot/wa", () => ({ sendTemplate: (...a: unknown[]) => sendTemplate(...a) }));
+// sendTemplateSteps → the first step through the `sendTemplate` spy; the real fallback is tested below.
+jest.mock("@/lib/alldog-bot/wa", () => ({
+  sendTemplate: (...a: unknown[]) => sendTemplate(...a),
+  sendTemplateSteps: async (to: string, steps: Array<{ name: string; params: string[]; text: string }>, lang: string) => {
+    const w = await sendTemplate(to, steps[0].name, lang, steps[0].params);
+    return w ? { wamid: w, step: steps[0], fellBackFrom: [] } : null;
+  },
+}));
 jest.mock("@/lib/alldog/leads", () => ({
   addLeadCallLog: (...a: unknown[]) => addLeadCallLog(...a),
   findLeadsByPhone: (...a: unknown[]) => findLeadsByPhone(...a),
@@ -39,13 +46,14 @@ jest.mock("@/services/clients", () => ({ findCustomersByPhone: (...a: unknown[])
 jest.mock("@/lib/paycall", () => ({ getCalls: (...a: unknown[]) => getCalls(...a) }));
 jest.mock("@/lib/alldog/failure-alerts", () => ({ alertAllDogFailure: jest.fn() }));
 
-import { isOfficeOpenAt, israelInstant, nextCallbackPhrase } from "@/lib/alldog/time";
+import { callbackPhraseFor, callbackSlot, isOfficeOpenAt, israelInstant, nextCallbackPhrase, shabbatEndsAt } from "@/lib/alldog/time";
+import { missedCallSteps } from "@/lib/alldog/missed-call-rules";
 import {
   conversationSkipReasonForForm,
   firstNameOf,
   FORM_LEAD_KINDS,
   formLeadContextNote,
-  formLeadMessage,
+  formLeadSteps,
   formLeadSendAt,
   isAnsweredCallLog,
   isWebsiteFormSource,
@@ -57,59 +65,103 @@ import { scheduleFormLeadWhatsApp, sendFormLeadMessage } from "@/lib/alldog/form
 
 const il = israelInstant;
 
-describe("nextCallbackPhrase (Israel time, at the moment of sending)", () => {
-  // 2026-10-25 = Sunday (also the day Israel moves back from summer time, 02:00).
-  it("office open → בהקדם", () => {
-    expect(nextCallbackPhrase(il("2026-10-25", "09:00"))).toBe("בהקדם");
-    expect(nextCallbackPhrase(il("2026-10-27", "16:59"))).toBe("בהקדם"); // Tue
-    expect(nextCallbackPhrase(il("2026-10-30", "13:59"))).toBe("בהקדם"); // Fri
+describe("callbackSlot (Israel time, at the moment of sending)", () => {
+  // 2026-10-25 = Sunday (Israel moves back from summer time that night, 02:00).
+  const at = (ymd: string, hhmm: string) => callbackSlot(il(ymd, hhmm));
+  it("open: Sun–Thu 09:00–17:00, Fri 09:00–14:00 (boundaries)", () => {
+    expect(at("2026-10-25", "08:59")).toEqual({ kind: "after_hours", phrase: "היום בבוקר" });
+    expect(at("2026-10-25", "09:00")).toEqual({ kind: "open" });
+    expect(at("2026-10-27", "16:59")).toEqual({ kind: "open" });
+    expect(at("2026-10-27", "17:00")).toEqual({ kind: "after_hours", phrase: "מחר בבוקר" });
+    expect(at("2026-10-29", "18:00")).toEqual({ kind: "after_hours", phrase: "מחר בבוקר" }); // Thu → Friday is a work day
+    expect(at("2026-10-30", "08:59")).toEqual({ kind: "after_hours", phrase: "היום בבוקר" }); // Fri morning
+    expect(at("2026-10-30", "13:59")).toEqual({ kind: "open" });
+    expect(at("2026-10-30", "14:00")).toEqual({ kind: "weekend" });
   });
-  it("work day before 09:00 → היום בבוקר (Friday too)", () => {
-    expect(nextCallbackPhrase(il("2026-10-25", "08:59"))).toBe("היום בבוקר");
-    expect(nextCallbackPhrase(il("2026-10-29", "06:30"))).toBe("היום בבוקר"); // Thu
-    expect(nextCallbackPhrase(il("2026-10-30", "07:00"))).toBe("היום בבוקר"); // Fri
+  it("weekend until Shabbat ends (tzeit 8.5°, Tel Aviv), then 'מחר בבוקר'", () => {
+    const end = shabbatEndsAt("2026-10-31"); // Saturday
+    expect(callbackSlot(il("2026-10-31", "08:00"))).toEqual({ kind: "weekend" });
+    expect(callbackSlot(new Date(end.getTime() - 60_000))).toEqual({ kind: "weekend" });
+    expect(callbackSlot(end)).toEqual({ kind: "after_hours", phrase: "מחר בבוקר" });
+    expect(callbackSlot(il("2026-10-31", "23:59"))).toEqual({ kind: "after_hours", phrase: "מחר בבוקר" });
   });
-  it("Sun–Thu after 17:00 → מחר בבוקר (Thursday too: Friday is a work day)", () => {
-    expect(nextCallbackPhrase(il("2026-10-25", "17:00"))).toBe("מחר בבוקר");
-    expect(nextCallbackPhrase(il("2026-10-28", "23:59"))).toBe("מחר בבוקר"); // Wed
-    expect(nextCallbackPhrase(il("2026-10-29", "18:00"))).toBe("מחר בבוקר"); // Thu
+  it("Shabbat end matches Hebcal tzeit(8.5) for Tel Aviv within a minute (summer + winter)", () => {
+    const hebcal: Record<string, string> = {
+      "2026-10-24": "2026-10-24T15:35:35Z", // last Shabbat of summer time
+      "2026-10-31": "2026-10-31T15:29:12Z",
+      "2026-03-28": "2026-03-28T16:34:13Z", // first Shabbat of summer time
+      "2026-06-27": "2026-06-27T17:33:32Z",
+      "2026-12-26": "2026-12-26T15:23:00Z",
+      "2027-03-27": "2027-03-27T16:33:20Z",
+    };
+    for (const [ymd, ref] of Object.entries(hebcal)) {
+      expect(Math.abs(shabbatEndsAt(ymd).getTime() - Date.parse(ref))).toBeLessThan(60_000);
+    }
   });
-  it("Friday from 14:00 and all of Saturday → ביום ראשון בבוקר", () => {
-    expect(nextCallbackPhrase(il("2026-10-30", "14:00"))).toBe("ביום ראשון בבוקר");
-    expect(nextCallbackPhrase(il("2026-10-31", "08:00"))).toBe("ביום ראשון בבוקר");
-    expect(nextCallbackPhrase(il("2026-10-31", "23:59"))).toBe("ביום ראשון בבוקר");
-  });
-  it("daylight-saving changes: Israel time, not UTC", () => {
-    // Winter (UTC+2): Sunday 25/10 07:30 UTC = 09:30 Israel → open; 06:30 UTC = 08:30 → before opening.
-    expect(nextCallbackPhrase(new Date("2026-10-25T07:30:00Z"))).toBe("בהקדם");
-    expect(nextCallbackPhrase(new Date("2026-10-25T06:30:00Z"))).toBe("היום בבוקר");
-    // Summer (UTC+3, from Fri 27/3/2026): Sunday 29/3 06:30 UTC = 09:30 Israel → open.
-    expect(nextCallbackPhrase(new Date("2026-03-29T06:30:00Z"))).toBe("בהקדם");
-    expect(nextCallbackPhrase(new Date("2026-03-29T05:30:00Z"))).toBe("היום בבוקר");
-    // Summer evening: 14:00 UTC = 17:00 Israel → closed.
-    expect(nextCallbackPhrase(new Date("2026-03-29T14:00:00Z"))).toBe("מחר בבוקר");
+  it("daylight-saving days: Israel time, not UTC", () => {
+    // Winter (UTC+2): Sunday 25/10 07:00 UTC = 09:00 Israel → open; 06:59 UTC = 08:59 → before opening.
+    expect(callbackSlot(new Date("2026-10-25T07:00:00Z"))).toEqual({ kind: "open" });
+    expect(callbackSlot(new Date("2026-10-25T06:59:00Z"))).toEqual({ kind: "after_hours", phrase: "היום בבוקר" });
+    // Summer (UTC+3, from Fri 27/3/2026 02:00): Friday 27/3 06:00 UTC = 09:00 Israel → open.
+    expect(callbackSlot(new Date("2026-03-27T06:00:00Z"))).toEqual({ kind: "open" });
+    expect(callbackSlot(new Date("2026-03-27T10:59:00Z"))).toEqual({ kind: "open" }); // 13:59
+    expect(callbackSlot(new Date("2026-03-27T11:00:00Z"))).toEqual({ kind: "weekend" }); // 14:00
+    // Summer Sunday 29/3: 13:59 / 14:00 UTC = 16:59 / 17:00 Israel.
+    expect(callbackSlot(new Date("2026-03-29T13:59:00Z"))).toEqual({ kind: "open" });
+    expect(callbackSlot(new Date("2026-03-29T14:00:00Z"))).toEqual({ kind: "after_hours", phrase: "מחר בבוקר" });
     expect(isOfficeOpenAt(new Date("2026-03-29T13:59:00Z"))).toBe(true);
+  });
+  it("the phrase per slot", () => {
+    expect(callbackPhraseFor({ kind: "open" })).toBe("בהקדם");
+    expect(callbackPhraseFor({ kind: "after_hours", phrase: "מחר בבוקר" })).toBe("מחר בבוקר");
+    expect(callbackPhraseFor({ kind: "weekend" })).toBe("ביום ראשון בבוקר");
+    expect(nextCallbackPhrase(il("2026-10-31", "11:00"))).toBe("ביום ראשון בבוקר");
   });
 });
 
-describe("the message", () => {
-  it("open template = the approved body with the first name", () => {
-    expect(formLeadMessage("דנה", "בהקדם")).toEqual({
-      template: "lead_followup_open",
-      params: ["דנה"],
-      text: "היי דנה, כאן צוות AllDog 🙂 קיבלנו את הפרטים שהשארתם באתר, ונציגה תחזור אליכם בהקדם. בינתיים, תוכלו לכתוב לי פה בקצרה מה קורה עם הכלב/ה שלכם, כדי שהיא תגיע לשיחה מוכנה?",
+describe("templates per slot (+ the open template as fallback)", () => {
+  it("form, open = the approved body with the first name", () => {
+    expect(formLeadSteps("דנה", { kind: "open" })).toEqual([
+      {
+        name: "lead_followup_open",
+        params: ["דנה"],
+        text: "היי דנה, כאן צוות AllDog 🙂 קיבלנו את הפרטים שהשארתם באתר, ונציגה תחזור אליכם בהקדם. בינתיים, תוכלו לכתוב לי פה בקצרה מה קורה עם הכלב/ה שלכם, כדי שהיא תגיע לשיחה מוכנה?",
+      },
+    ]);
+  });
+  it("form, after hours = lead_followup_closed with the phrase, then open", () => {
+    const [first, fallback] = formLeadSteps("יוסי", { kind: "after_hours", phrase: "מחר בבוקר" });
+    expect(first.name).toBe("lead_followup_closed");
+    expect(first.params).toEqual(["יוסי", "מחר בבוקר"]);
+    expect(first.text).toContain("נציגה תחזור אליכם מחר בבוקר.");
+    expect(fallback.name).toBe("lead_followup_open");
+  });
+  it("form, weekend = lead_followup_weekend, then open", () => {
+    const [first, fallback] = formLeadSteps("רון", { kind: "weekend" });
+    expect(first).toEqual({
+      name: "lead_followup_weekend",
+      params: ["רון"],
+      text: "היי רון, כאן צוות AllDog 🙂 קיבלנו את הפרטים שהשארתם באתר. אנחנו בחופשת סוף השבוע, ונציגה תחזור אליכם ביום ראשון בבוקר. בינתיים, תוכלו לכתוב לי פה בקצרה מה קורה עם הכלב/ה שלכם, כדי שהיא תגיע לשיחה מוכנה? שבת שלום 🙂",
     });
+    expect(fallback.name).toBe("lead_followup_open");
   });
-  it("closed template carries the callback phrase", () => {
-    const m = formLeadMessage("יוסי", "מחר בבוקר");
-    expect(m.template).toBe("lead_followup_closed");
-    expect(m.params).toEqual(["יוסי", "מחר בבוקר"]);
-    expect(m.text).toContain("נציגה תחזור אליכם מחר בבוקר.");
-    expect(m.text).not.toContain("{{");
+  it("missed call: open / after hours / weekend", () => {
+    expect(missedCallSteps({ kind: "open" }).map((s) => s.name)).toEqual(["missed_call_followup"]);
+    const [ah, ahFallback] = missedCallSteps({ kind: "after_hours", phrase: "היום בבוקר" });
+    expect(ah).toEqual({
+      name: "missed_call_after_hours",
+      params: ["היום בבוקר"],
+      text: "היי, כאן צוות AllDog 🙂 ראינו שניסית להשיג אותנו אחרי שעות הפעילות. נציגה תחזור אליך היום בבוקר. בינתיים, אפשר לכתוב לי פה בקצרה מה קורה עם הכלב, כדי שהיא תגיע לשיחה מוכנה?",
+    });
+    expect(ahFallback.name).toBe("missed_call_followup");
+    const [we] = missedCallSteps({ kind: "weekend" });
+    expect(we.name).toBe("missed_call_weekend");
+    expect(we.params).toEqual([]);
+    expect(we.text).toContain("ביום ראשון בבוקר");
+    expect(we.text).toContain("שבת שלום 🙂");
   });
-  it("a 16:58 lead sent at 17:02 gets the closed template", () => {
-    const sendAt = il("2026-10-27", "17:02");
-    expect(formLeadMessage("רון", nextCallbackPhrase(sendAt)).template).toBe("lead_followup_closed");
+  it("a 16:58 lead sent at 17:02 gets the after-hours template", () => {
+    expect(formLeadSteps("רון", callbackSlot(il("2026-10-27", "17:02")))[0].name).toBe("lead_followup_closed");
   });
   it("first name for {{1}}", () => {
     expect(firstNameOf("דנה כהן")).toBe("דנה");

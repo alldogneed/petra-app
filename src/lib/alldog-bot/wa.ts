@@ -82,6 +82,39 @@ export async function sendTemplate(to: string, name: string, language: string, b
   return r.data?.messages?.[0]?.id ?? null;
 }
 
+/**
+ * Send the first template step that Meta accepts (Or, 25/10): the slot's template, then the channel's
+ * `open` template as the fallback — a template not approved yet is rejected at send time and the next
+ * step is tried (logged, no alert). Only when the LAST step fails Or is alerted. Never retried later.
+ * Returns the wamid + the step that went out, or null.
+ */
+export async function sendTemplateSteps<T extends { name: string; params: string[] }>(
+  to: string,
+  steps: T[],
+  language: string
+): Promise<{ wamid: string; step: T; fellBackFrom: string[] } | null> {
+  const fellBackFrom: string[] = [];
+  for (let i = 0; i < steps.length; i++) {
+    const st = steps[i];
+    const template: Record<string, unknown> = { name: st.name, language: { code: language } };
+    if (st.params.length) template.components = [{ type: "body", parameters: st.params.map((text) => ({ type: "text", text })) }];
+    const r = await post({ recipient_type: "individual", to, type: "template", template });
+    const wamid = r.ok ? r.data?.messages?.[0]?.id ?? null : null;
+    if (wamid) {
+      if (fellBackFrom.length) console.warn(`${LOG} template fallback to ${st.name} (not usable yet: ${fellBackFrom.join(", ")})`);
+      return { wamid, step: st, fellBackFrom };
+    }
+    if (i < steps.length - 1) {
+      console.warn(`${LOG} template ${st.name} to ${maskPhone(to)} not sent (${r.error ?? "no id"}) — trying ${steps[i + 1].name}`);
+      fellBackFrom.push(st.name);
+      continue;
+    }
+    console.error(`${LOG} template ${st.name} to ${maskPhone(to)} failed: ${r.error ?? "no id"}`);
+    await alertAllDogFailure({ kind: "wa_send", error: r.error ?? "send failed", detail: `תבנית ${st.name}`, phone: to });
+  }
+  return null;
+}
+
 /** WhatsApp voice notes are ≤ 16 MB; anything bigger is refused. */
 const MAX_MEDIA_BYTES = 16 * 1024 * 1024;
 

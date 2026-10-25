@@ -119,20 +119,85 @@ export function isOfficeOpenAt(d: Date): boolean {
 /** "בהקדם" while the office is open. */
 export const CALLBACK_SOON = "בהקדם";
 
-/**
- * When a rep calls back, in words (Or, item 34). One rule for the website-form template and
- * every bot closing, computed at the moment the message is SENT:
- *   office open                      → "בהקדם"
- *   Sun–Fri before 09:00             → "היום בבוקר"
- *   Sun–Thu after closing            → "מחר בבוקר"   (Thursday too: Friday is a work day)
- *   Fri after 14:00 / all of Saturday → "ביום ראשון בבוקר"
- * Israel time via Intl, so daylight-saving changes are handled. Holidays: not in this phase.
- */
+/** When a rep calls back, in words — `callbackPhraseFor(callbackSlot(d))` (Or, 25/10). */
 export function nextCallbackPhrase(d: Date = new Date()): string {
-  if (isOfficeOpenAt(d)) return CALLBACK_SOON;
+  return callbackPhraseFor(callbackSlot(d));
+}
+
+// ─── Item 34 (Or, 25/10): one callback slot for both automatic messages + every bot closing ──
+
+/** Tel Aviv (Hebcal's coordinates). */
+const TLV = { lat: 32.08088, lng: 34.78057 };
+/** Shabbat ends at tzeit 8.5° (the common Israeli calendars / Hebcal `tzeit(8.5)`). */
+const SHABBAT_END_DEPRESSION = 8.5;
+
+/**
+ * When the sun is `depression`° below the horizon in the evening of `ymd` at Tel Aviv — NOAA solar
+ * algorithm, accurate to about a minute (checked against Hebcal in the tests). Pure, no dependency.
+ */
+export function eveningDepressionTime(ymd: string, depression: number = SHABBAT_END_DEPRESSION): Date {
+  const [y, m, d] = ymd.split("-").map(Number);
+  const rad = Math.PI / 180;
+  // Julian century at noon UTC of the day.
+  const jd = Date.UTC(y, m - 1, d, 12) / 86400000 + 2440587.5;
+  const t = (jd - 2451545) / 36525;
+  const l0 = (280.46646 + t * (36000.76983 + t * 0.0003032)) % 360;
+  const mAnom = 357.52911 + t * (35999.05029 - 0.0001537 * t);
+  const e = 0.016708634 - t * (0.000042037 + 0.0000001267 * t);
+  const c =
+    Math.sin(mAnom * rad) * (1.914602 - t * (0.004817 + 0.000014 * t)) +
+    Math.sin(2 * mAnom * rad) * (0.019993 - 0.000101 * t) +
+    Math.sin(3 * mAnom * rad) * 0.000289;
+  const trueLong = l0 + c;
+  const omega = 125.04 - 1934.136 * t;
+  const appLong = trueLong - 0.00569 - 0.00478 * Math.sin(omega * rad);
+  const obliq0 = 23 + (26 + (21.448 - t * (46.815 + t * (0.00059 - t * 0.001813))) / 60) / 60;
+  const obliq = obliq0 + 0.00256 * Math.cos(omega * rad);
+  const decl = Math.asin(Math.sin(obliq * rad) * Math.sin(appLong * rad)) / rad;
+  const yv = Math.tan((obliq / 2) * rad) ** 2;
+  const eqTime =
+    4 / rad *
+    (yv * Math.sin(2 * l0 * rad) -
+      2 * e * Math.sin(mAnom * rad) +
+      4 * e * yv * Math.sin(mAnom * rad) * Math.cos(2 * l0 * rad) -
+      0.5 * yv * yv * Math.sin(4 * l0 * rad) -
+      1.25 * e * e * Math.sin(2 * mAnom * rad));
+  const zenith = 90 + depression;
+  const cosHa =
+    Math.cos(zenith * rad) / (Math.cos(TLV.lat * rad) * Math.cos(decl * rad)) - Math.tan(TLV.lat * rad) * Math.tan(decl * rad);
+  const ha = Math.acos(Math.min(1, Math.max(-1, cosHa))) / rad;
+  const minutesUtc = 720 - 4 * (TLV.lng - ha) - eqTime; // evening = solar noon + hour angle
+  return new Date(Date.UTC(y, m - 1, d) + Math.round(minutesUtc * 60) * 1000);
+}
+
+/** Saturday's Shabbat end (Tel Aviv) for the Israel date `ymd`. */
+export function shabbatEndsAt(ymd: string): Date {
+  return eveningDepressionTime(ymd);
+}
+
+export type CallbackSlot =
+  | { kind: "open" }
+  | { kind: "after_hours"; phrase: "היום בבוקר" | "מחר בבוקר" }
+  | { kind: "weekend" };
+
+/**
+ * The callback slot at `d` (Asia/Jerusalem) — Or, 25/10 (items 32 + 34 + every bot closing):
+ *   open        Sun–Thu 09:00–17:00, Fri 09:00–14:00
+ *   after_hours a weekday before 09:00 → "היום בבוקר"; Sun–Thu after 17:00 → "מחר בבוקר";
+ *               Saturday night after Shabbat ends → "מחר בבוקר"
+ *   weekend     Friday from 14:00 until Shabbat ends (tzeit 8.5°, Tel Aviv)
+ */
+export function callbackSlot(d: Date = new Date()): CallbackSlot {
   const p = israelParts(d);
   const h = officeHoursFor(p.weekday);
-  if (!h) return "ביום ראשון בבוקר"; // Saturday
-  if (p.hhmm < h.open) return "היום בבוקר";
-  return p.weekday === 5 ? "ביום ראשון בבוקר" : "מחר בבוקר";
+  if (p.weekday === 6) return d.getTime() >= shabbatEndsAt(p.ymd).getTime() ? { kind: "after_hours", phrase: "מחר בבוקר" } : { kind: "weekend" };
+  if (!h) return { kind: "weekend" };
+  if (p.hhmm < h.open) return { kind: "after_hours", phrase: "היום בבוקר" };
+  if (p.hhmm < h.close) return { kind: "open" };
+  return p.weekday === 5 ? { kind: "weekend" } : { kind: "after_hours", phrase: "מחר בבוקר" };
+}
+
+/** The slot in words: "בהקדם" / "היום בבוקר" / "מחר בבוקר" / "ביום ראשון בבוקר". */
+export function callbackPhraseFor(slot: CallbackSlot): string {
+  return slot.kind === "open" ? CALLBACK_SOON : slot.kind === "after_hours" ? slot.phrase : "ביום ראשון בבוקר";
 }

@@ -15,6 +15,7 @@
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { maskPhone } from "@/lib/whatsapp-failure";
+import { callbackSlot } from "@/lib/alldog/time";
 import { allDogBusinessId } from "@/lib/alldog/config";
 import { readEnv } from "@/lib/read-env";
 import { addLeadCallLog } from "@/lib/alldog/leads";
@@ -29,7 +30,7 @@ import {
   MISSED_CALL_DEDUP_MS,
   MISSED_CALL_KINDS,
   MISSED_CALL_MESSAGE_KIND,
-  MISSED_CALL_SENT_TEXT,
+  missedCallSteps,
   MISSED_CALL_TEMPLATE,
   nextSendTime,
   paycallStart,
@@ -200,19 +201,23 @@ export async function sendMissedCallMessage(rowId: string): Promise<{ status: "s
       return { status: "skipped", reason };
     }
 
-    const { sendTemplate } = await import("@/lib/alldog-bot/wa");
-    const wamid = await sendTemplate(conv.phone, MISSED_CALL_TEMPLATE.name, MISSED_CALL_TEMPLATE.language);
-    if (!wamid) {
-      await finish(MISSED_CALL_KINDS.failed, "send_failed"); // alerted inside sendTemplate; no retry
+    // Template by the callback slot NOW (Or, 25/10): open / after hours ({{1}} = phrase) / weekend;
+    // a template Meta has not approved yet falls back to missed_call_followup (logged, not a failure).
+    const slot = callbackSlot(new Date());
+    const { sendTemplateSteps } = await import("@/lib/alldog-bot/wa");
+    const sent = await sendTemplateSteps(conv.phone, missedCallSteps(slot), MISSED_CALL_TEMPLATE.language);
+    if (!sent) {
+      await finish(MISSED_CALL_KINDS.failed, "send_failed"); // alerted inside; no retry
       return { status: "failed", reason: "send_failed" };
     }
-    await prisma.waBotMessage.create({ data: { conversationId: conv.id, role: "assistant", kind: MISSED_CALL_MESSAGE_KIND, text: MISSED_CALL_SENT_TEXT, waMessageId: wamid } });
-    await finish(MISSED_CALL_KINDS.sent);
+    const tpl = sent.step.name;
+    await prisma.waBotMessage.create({ data: { conversationId: conv.id, role: "assistant", kind: MISSED_CALL_MESSAGE_KIND, text: sent.step.text, waMessageId: sent.wamid } });
+    await finish(MISSED_CALL_KINDS.sent, sent.fellBackFrom.length ? `template ${tpl} (fallback from ${sent.fellBackFrom.join(",")})` : `template ${tpl}`);
     const leadId = payload.leadId ?? conv.leadId;
     if (leadId) {
       await addLeadCallLog(
         leadId,
-        `[וואטסאפ · אוטומטי] נשלחה הודעת וואטסאפ אוטומטית · מקור: שיחה שלא נענתה ל-03-3818670 (PayCall ${payload.callId}) · תבנית ${MISSED_CALL_TEMPLATE.name}`
+        `[וואטסאפ · אוטומטי] נשלחה הודעת וואטסאפ אוטומטית · מקור: שיחה שלא נענתה ל-03-3818670 (PayCall ${payload.callId}) · תבנית ${tpl}`
       ).catch(() => {});
     }
     console.log(`${LOG} call ${payload.callId} (${maskPhone(conv.phone)}): sent`);

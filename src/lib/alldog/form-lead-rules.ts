@@ -7,7 +7,8 @@
  * callback phrase are computed at the actual send time (`nextCallbackPhrase`).
  */
 import { readEnv } from "@/lib/read-env";
-import { CALLBACK_SOON } from "@/lib/alldog/time";
+import type { CallbackSlot } from "@/lib/alldog/time";
+import { renderTemplateBody, type TemplateStep } from "@/lib/alldog/missed-call-rules";
 
 export { FORM_LEAD_MESSAGE_KIND, FORM_LEAD_MESSAGE_LABEL } from "@/lib/alldog/missed-call-labels";
 
@@ -20,6 +21,10 @@ export const FORM_LEAD_TEMPLATES = {
   closed: {
     name: "lead_followup_closed",
     body: "היי {{1}}, כאן צוות AllDog 🙂 קיבלנו את הפרטים שהשארתם באתר, ונציגה תחזור אליכם {{2}}. בינתיים, תוכלו לכתוב לי פה בקצרה מה קורה עם הכלב/ה שלכם, כדי שהיא תגיע לשיחה מוכנה?",
+  },
+  weekend: {
+    name: "lead_followup_weekend",
+    body: "היי {{1}}, כאן צוות AllDog 🙂 קיבלנו את הפרטים שהשארתם באתר. אנחנו בחופשת סוף השבוע, ונציגה תחזור אליכם ביום ראשון בבוקר. בינתיים, תוכלו לכתוב לי פה בקצרה מה קורה עם הכלב/ה שלכם, כדי שהיא תגיע לשיחה מוכנה? שבת שלום 🙂",
   },
 } as const;
 export const FORM_LEAD_LANGUAGE = "he";
@@ -68,20 +73,19 @@ export function firstNameOf(name: string | null | undefined): string | null {
   return first.slice(0, 30);
 }
 
-export interface FormLeadMessage {
-  template: (typeof FORM_LEAD_TEMPLATES)[keyof typeof FORM_LEAD_TEMPLATES]["name"];
-  params: string[];
-  /** The body exactly as the customer receives it (rep chat + bot history). */
-  text: string;
+function step(t: { name: string; body: string }, params: string[]): TemplateStep {
+  return { name: t.name, params, text: renderTemplateBody(t.body, params) };
 }
 
-/** The message for this moment: office open → open template; otherwise closed + the callback phrase. */
-export function formLeadMessage(firstName: string, phrase: string): FormLeadMessage {
-  const open = phrase === CALLBACK_SOON;
-  const t = open ? FORM_LEAD_TEMPLATES.open : FORM_LEAD_TEMPLATES.closed;
-  const params = open ? [firstName] : [firstName, phrase];
-  const text = params.reduce((acc, v, i) => acc.replace(`{{${i + 1}}}`, v), t.body as string);
-  return { template: t.name, params, text };
+/**
+ * The form message for the callback slot at the ACTUAL send time (Or, 25/10), then the `open`
+ * template as the fallback while a newer template is not approved yet. Pure — tested.
+ */
+export function formLeadSteps(firstName: string, slot: CallbackSlot): TemplateStep[] {
+  const open = step(FORM_LEAD_TEMPLATES.open, [firstName]);
+  if (slot.kind === "after_hours") return [step(FORM_LEAD_TEMPLATES.closed, [firstName, slot.phrase]), open];
+  if (slot.kind === "weekend") return [step(FORM_LEAD_TEMPLATES.weekend, [firstName]), open];
+  return [open];
 }
 
 export type FormLeadSkipReason =

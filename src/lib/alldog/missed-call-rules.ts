@@ -4,7 +4,7 @@
  */
 import { MISSED_CALL_MESSAGE_KIND } from "@/lib/alldog/missed-call-labels";
 import { readEnv } from "@/lib/read-env";
-import { addDaysYmd, israelInstant, israelParts, weekdayOfYmd } from "@/lib/alldog/time";
+import { addDaysYmd, israelInstant, israelParts, type CallbackSlot } from "@/lib/alldog/time";
 
 /** Meta template (approved on the AllDog bot's WABA): no variables, Hebrew. */
 export const MISSED_CALL_TEMPLATE = { name: "missed_call_followup", language: "he" } as const;
@@ -35,6 +35,45 @@ export const MISSED_CALL_TEMPLATE_TEXT =
   "היי, כאן צוות AllDog 🙂 ראינו שניסית להשיג אותנו ולא הספקנו לענות. אפשר לכתוב לי פה בקצרה מה קורה עם הכלב, ונציגה תחזור אליך בהקדם.";
 /** The bot's copy of the sent template (role assistant) = exactly what the customer got. */
 export const MISSED_CALL_SENT_TEXT = MISSED_CALL_TEMPLATE_TEXT;
+
+/**
+ * Item 32 templates per callback slot (Or, 25/10; Utility, he). Bodies word for word — update them
+ * when a template changes in Meta. Not approved yet → the send falls back to `open` (logged).
+ */
+export const MISSED_CALL_TEMPLATES = {
+  open: { name: "missed_call_followup", body: MISSED_CALL_TEMPLATE_TEXT },
+  after_hours: {
+    name: "missed_call_after_hours",
+    body: "היי, כאן צוות AllDog 🙂 ראינו שניסית להשיג אותנו אחרי שעות הפעילות. נציגה תחזור אליך {{1}}. בינתיים, אפשר לכתוב לי פה בקצרה מה קורה עם הכלב, כדי שהיא תגיע לשיחה מוכנה?",
+  },
+  weekend: {
+    name: "missed_call_weekend",
+    body: "היי, כאן צוות AllDog 🙂 ראינו שניסית להשיג אותנו. אנחנו בחופשת סוף השבוע, ונציגה תחזור אליך ביום ראשון בבוקר. בינתיים, אפשר לכתוב לי פה בקצרה מה קורה עם הכלב, ואני אדאג שהכל יחכה לה מסודר. שבת שלום 🙂",
+  },
+} as const;
+
+/** One template step: name + body params + the rendered text the customer reads. */
+export interface TemplateStep {
+  name: string;
+  params: string[];
+  text: string;
+}
+
+export function renderTemplateBody(body: string, params: string[]): string {
+  return params.reduce((acc, v, i) => acc.replace(`{{${i + 1}}}`, v), body);
+}
+
+function step(t: { name: string; body: string }, params: string[]): TemplateStep {
+  return { name: t.name, params, text: renderTemplateBody(t.body, params) };
+}
+
+/** The missed-call message for this slot, then the `open` template as the fallback. Pure — tested. */
+export function missedCallSteps(slot: CallbackSlot): TemplateStep[] {
+  const open = step(MISSED_CALL_TEMPLATES.open, []);
+  if (slot.kind === "after_hours") return [step(MISSED_CALL_TEMPLATES.after_hours, [slot.phrase]), open];
+  if (slot.kind === "weekend") return [step(MISSED_CALL_TEMPLATES.weekend, []), open];
+  return [open];
+}
 /** WaBotMessage.kind of that copy (+ its chat label) — client-safe, in missed-call-labels.ts. */
 export { MISSED_CALL_MESSAGE_KIND, MISSED_CALL_MESSAGE_LABEL } from "@/lib/alldog/missed-call-labels";
 /** Copies stored before 25/10 carried this technical text instead of the template body. */
@@ -103,13 +142,12 @@ export function isOfficeLine(prNumber: string | null | undefined, line = missedC
   return d.length >= 8 && line.length >= 8 && d.slice(-8) === line.slice(-8);
 }
 
-/** Quiet hours: 22:00–08:00 every day, Friday 14:00 until Saturday 20:00 (after Shabbat). */
-export function isQuietTime(ymd: string, hhmm: string): boolean {
-  const wd = weekdayOfYmd(ymd);
-  if (hhmm < "08:00" || hhmm >= "22:00") return true;
-  if (wd === 5 && hhmm >= "14:00") return true;
-  if (wd === 6 && hhmm < "20:00") return true;
-  return false;
+/**
+ * Quiet hours: 22:00–08:00 every day. The weekend is no longer quiet (Or, 25/10): it has its own
+ * template (`missed_call_weekend`, chosen by `callbackSlot`).
+ */
+export function isQuietTime(_ymd: string, hhmm: string): boolean {
+  return hhmm < "08:00" || hhmm >= "22:00";
 }
 
 /** When to send: now, or the start of the next allowed window (Israel time). */
@@ -120,7 +158,6 @@ export function nextSendTime(now: Date): Date {
   for (let i = 0; i <= 3; i++) {
     const ymd = addDaysYmd(p.ymd, i);
     candidates.push(israelInstant(ymd, "08:00"));
-    if (weekdayOfYmd(ymd) === 6) candidates.push(israelInstant(ymd, "20:00"));
   }
   return (
     candidates

@@ -15,7 +15,7 @@ import { allDogBusinessId } from "@/lib/alldog/config";
 import { readEnv } from "@/lib/read-env";
 import { addLeadCallLog, findLeadsByPhone } from "@/lib/alldog/leads";
 import { israeliMobile, MISSED_CALL_KINDS, answeredSince, toWaId } from "@/lib/alldog/missed-call-rules";
-import { nextCallbackPhrase } from "@/lib/alldog/time";
+import { callbackPhraseFor, callbackSlot } from "@/lib/alldog/time";
 import {
   conversationSkipReasonForForm,
   firstNameOf,
@@ -24,7 +24,7 @@ import {
   FORM_LEAD_LANGUAGE,
   FORM_LEAD_MESSAGE_KIND,
   FORM_LEAD_SKIP_LABELS,
-  formLeadMessage,
+  formLeadSteps,
   formLeadSendAt,
   formWaActivatedAt,
   isAnsweredCallLog,
@@ -213,24 +213,26 @@ export async function sendFormLeadMessage(rowId: string, now: Date = new Date())
       console.warn(`${LOG} answered-call check failed (sending anyway):`, err instanceof Error ? err.message : err);
     }
 
-    // Template + phrase by the time of the ACTUAL send (a 16:58 lead sent at 17:02 = "closed").
-    const phrase = nextCallbackPhrase(now);
-    const msg = formLeadMessage(payload.firstName, phrase);
-    const { sendTemplate } = await import("@/lib/alldog-bot/wa");
-    const wamid = await sendTemplate(conv.phone, msg.template, FORM_LEAD_LANGUAGE, msg.params);
-    if (!wamid) {
-      await finish(FORM_LEAD_KINDS.failed, { reason: "send_failed", template: msg.template, phrase }); // alerted inside sendTemplate; no retry
+    // Template by the callback slot at the ACTUAL send time (a 16:58 lead sent at 17:02 = after hours);
+    // a template Meta has not approved yet falls back to the open one (logged, not a failure).
+    const slot = callbackSlot(now);
+    const phrase = callbackPhraseFor(slot);
+    const { sendTemplateSteps } = await import("@/lib/alldog-bot/wa");
+    const sent = await sendTemplateSteps(conv.phone, formLeadSteps(payload.firstName, slot), FORM_LEAD_LANGUAGE);
+    if (!sent) {
+      await finish(FORM_LEAD_KINDS.failed, { reason: "send_failed", phrase }); // alerted inside; no retry
       return { status: "failed", reason: "send_failed" };
     }
+    const tpl = sent.step.name;
     await prisma.waBotMessage.create({
-      data: { conversationId: conv.id, role: "assistant", kind: FORM_LEAD_MESSAGE_KIND, text: msg.text, waMessageId: wamid },
+      data: { conversationId: conv.id, role: "assistant", kind: FORM_LEAD_MESSAGE_KIND, text: sent.step.text, waMessageId: sent.wamid },
     });
-    await finish(FORM_LEAD_KINDS.sent, { template: msg.template, phrase });
+    await finish(FORM_LEAD_KINDS.sent, { template: tpl, phrase, ...(sent.fellBackFrom.length ? { reason: `fallback from ${sent.fellBackFrom.join(",")}` } : {}) });
     await addLeadCallLog(
       payload.leadId,
-      `[וואטסאפ · אוטומטי] נשלחה הודעת וואטסאפ אוטומטית · מקור: השאיר פרטים באתר · תבנית ${msg.template}`
+      `[וואטסאפ · אוטומטי] נשלחה הודעת וואטסאפ אוטומטית · מקור: השאיר פרטים באתר · תבנית ${tpl}`
     ).catch(() => {});
-    console.log(`${LOG} lead ${payload.leadId} (${maskPhone(conv.phone)}): sent ${msg.template}`);
+    console.log(`${LOG} lead ${payload.leadId} (${maskPhone(conv.phone)}): sent ${tpl} (slot ${slot.kind})`);
     return { status: "sent" };
   } catch (err) {
     await finish(FORM_LEAD_KINDS.failed, { reason: "error" }).catch(() => {});
