@@ -14,7 +14,7 @@ import { maskPhone } from "@/lib/whatsapp-failure";
 import { allDogBusinessId } from "@/lib/alldog/config";
 import { readEnv } from "@/lib/read-env";
 import { addLeadCallLog, findLeadsByPhone } from "@/lib/alldog/leads";
-import { israeliMobile, MISSED_CALL_KINDS, answeredSince, toWaId } from "@/lib/alldog/missed-call-rules";
+import { israeliMobile, MISSED_CALL_KINDS, answeredSince, quietDeferral, toWaId } from "@/lib/alldog/missed-call-rules";
 import { callbackPhraseFor, callbackSlot } from "@/lib/alldog/time";
 import {
   conversationSkipReasonForForm,
@@ -156,7 +156,7 @@ export async function scheduleFormLeadWhatsApp(
 }
 
 /** Send one due row (claimed first). Everything is checked again right before sending. */
-export async function sendFormLeadMessage(rowId: string, now: Date = new Date()): Promise<{ status: "sent" | "skipped" | "failed"; reason?: string }> {
+export async function sendFormLeadMessage(rowId: string, now: Date = new Date()): Promise<{ status: "sent" | "skipped" | "failed" | "deferred"; reason?: string }> {
   const claimed = await prisma.waBotMessage.updateMany({
     where: { id: rowId, kind: FORM_LEAD_KINDS.pending },
     data: { kind: FORM_LEAD_KINDS.sending },
@@ -213,6 +213,15 @@ export async function sendFormLeadMessage(rowId: string, now: Date = new Date())
       console.warn(`${LOG} answered-call check failed (sending anyway):`, err instanceof Error ? err.message : err);
     }
 
+    // Sent within 15 min of the form (3–5 min delay) → even at night. A later run (cron backlog) inside
+    // 22:00–08:00 → back to the queue for 08:00 (Or, 25/10).
+    const deferTo = quietDeferral(leadCreatedAt, now);
+    if (deferTo) {
+      await prisma.waBotMessage.update({ where: { id: row.id }, data: { kind: FORM_LEAD_KINDS.pending, text: JSON.stringify({ ...payload, sendAt: deferTo.toISOString() }) } });
+      console.log(`${LOG} lead ${payload.leadId} (${maskPhone(conv.phone)}): quiet hours, deferred to ${deferTo.toISOString()}`);
+      return { status: "deferred" };
+    }
+
     // Template by the callback slot at the ACTUAL send time (a 16:58 lead sent at 17:02 = after hours);
     // a template Meta has not approved yet falls back to the open one (logged, not a failure).
     const slot = callbackSlot(now);
@@ -243,7 +252,7 @@ export async function sendFormLeadMessage(rowId: string, now: Date = new Date())
 }
 
 /** Cron (every minute): send the rows whose time came. */
-export async function processDueFormLeadMessages(opts: { limit: number } = { limit: 20 }): Promise<{ due: number; sent: number; skipped: number; failed: number }> {
+export async function processDueFormLeadMessages(opts: { limit: number } = { limit: 20 }): Promise<{ due: number; sent: number; skipped: number; failed: number; deferred: number }> {
   const rows = await prisma.waBotMessage.findMany({
     where: { role: "system", kind: FORM_LEAD_KINDS.pending },
     orderBy: { createdAt: "asc" },
@@ -260,7 +269,7 @@ export async function processDueFormLeadMessages(opts: { limit: number } = { lim
       }
     })
     .slice(0, opts.limit);
-  const out = { due: due.length, sent: 0, skipped: 0, failed: 0 };
+  const out = { due: due.length, sent: 0, skipped: 0, failed: 0, deferred: 0 };
   for (const r of due) {
     const res = await sendFormLeadMessage(r.id);
     out[res.status]++;

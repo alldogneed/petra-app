@@ -50,6 +50,7 @@ import {
   displayMissedCallMessage,
   isMissedCallTemplateMessage,
   nextSendTime,
+  quietDeferral,
   toWaId,
 } from "@/lib/alldog/missed-call-rules";
 import { israelInstant, israelParts } from "@/lib/alldog/time";
@@ -175,11 +176,40 @@ describe("send flow", () => {
     expect(addLeadCallLog.mock.calls[0][1]).not.toContain("call_id:");
   });
 
-  it("night: only scheduled, nothing sent", async () => {
+  it("night call: sent at once (within 15 min) with missed_call_after_hours + 'מחר בבוקר' (Or, 25/10)", async () => {
     jest.setSystemTime(israelInstant("2026-10-25", "23:10"));
+    msgFindUnique.mockResolvedValue({
+      id: "row1",
+      text: JSON.stringify({ callId: "777", sendAt: new Date().toISOString(), leadId: "L1", mobile: "0541234567", startedAt: israelInstant("2026-10-25", "23:09").toISOString() }),
+      conversation: { id: "conv1", businessId: "biz", phone: "972541234567", status: "active", lastInboundAt: null, leadId: "L1" },
+    });
+    sendTemplate.mockResolvedValue("wamid.n");
     const r = await scheduleMissedCallWhatsApp({ ...call, START: "2026-10-25 23:09:00" }, { leadId: "L1" });
-    expect(r.status).toBe("scheduled");
+    expect(r.status).toBe("sent");
+    expect(sendTemplate).toHaveBeenCalledWith("972541234567", "missed_call_after_hours", "he", ["מחר בבוקר"]);
+  });
+
+  it("a late run (> 15 min after the call) inside 22:00–08:00 → back to the queue for 08:00", async () => {
+    jest.setSystemTime(israelInstant("2026-10-25", "23:40"));
+    msgFindUnique.mockResolvedValue({
+      id: "row1",
+      text: JSON.stringify({ callId: "777", sendAt: israelInstant("2026-10-25", "23:09").toISOString(), leadId: "L1", mobile: "0541234567", startedAt: israelInstant("2026-10-25", "23:09").toISOString() }),
+      conversation: { id: "conv1", businessId: "biz", phone: "972541234567", status: "active", lastInboundAt: null, leadId: "L1" },
+    });
+    const r = await sendMissedCallMessage("row1");
+    expect(r.status).toBe("deferred");
     expect(sendTemplate).not.toHaveBeenCalled();
+    const data = msgUpdate.mock.calls.at(-1)![0].data;
+    expect(data.kind).toBe(MISSED_CALL_KINDS.pending);
+    expect(JSON.parse(data.text).sendAt).toBe(israelInstant("2026-10-26", "08:00").toISOString());
+  });
+
+  it("quietDeferral: within 15 min → now; later at night → 08:00; daytime → now", () => {
+    const call23 = israelInstant("2026-10-25", "23:00");
+    expect(quietDeferral(call23, israelInstant("2026-10-25", "23:15"))).toBeNull();
+    expect(quietDeferral(call23, israelInstant("2026-10-25", "23:16"))?.toISOString()).toBe(israelInstant("2026-10-26", "08:00").toISOString());
+    expect(quietDeferral(israelInstant("2026-10-25", "10:00"), israelInstant("2026-10-25", "12:00"))).toBeNull();
+    expect(quietDeferral(null, israelInstant("2026-10-26", "03:00"))?.toISOString()).toBe(israelInstant("2026-10-26", "08:00").toISOString());
   });
 
   it("answered in another call meanwhile → skipped at send time", async () => {

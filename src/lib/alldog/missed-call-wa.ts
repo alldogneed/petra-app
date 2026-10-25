@@ -32,7 +32,7 @@ import {
   MISSED_CALL_MESSAGE_KIND,
   missedCallSteps,
   MISSED_CALL_TEMPLATE,
-  nextSendTime,
+  quietDeferral,
   paycallStart,
   SKIP_REASON_LABELS,
   toWaId,
@@ -98,7 +98,7 @@ async function formLeadMessageSince(conversationId: string, now: Date): Promise<
 export async function scheduleMissedCallWhatsApp(
   call: MissedCallInput,
   ref: { leadId: string | null }
-): Promise<{ status: "scheduled" | "sent" | "skipped" | "failed"; reason?: SkipReason | string }> {
+): Promise<{ status: "scheduled" | "sent" | "skipped" | "failed" | "deferred"; reason?: SkipReason | string }> {
   try {
     const businessId = configured();
     if (!businessId) return { status: "skipped", reason: "disabled" };
@@ -135,7 +135,7 @@ export async function scheduleMissedCallWhatsApp(
       update: ref.leadId ? { leadId: ref.leadId } : {},
       select: { id: true },
     });
-    const sendAt = nextSendTime(now);
+    const sendAt = quietDeferral(paycallStart(call.START), now) ?? now;
     const payload: PendingPayload = { callId: call.ID, sendAt: sendAt.toISOString(), leadId: ref.leadId, mobile, startedAt: paycallStart(call.START)?.toISOString() ?? null };
     let row: { id: string };
     try {
@@ -159,7 +159,7 @@ export async function scheduleMissedCallWhatsApp(
 }
 
 /** Send one due row (claimed first). Rules are checked again at send time. Never throws, never retries. */
-export async function sendMissedCallMessage(rowId: string): Promise<{ status: "sent" | "skipped" | "failed"; reason?: string }> {
+export async function sendMissedCallMessage(rowId: string): Promise<{ status: "sent" | "skipped" | "failed" | "deferred"; reason?: string }> {
   const claimed = await prisma.waBotMessage.updateMany({
     where: { id: rowId, kind: MISSED_CALL_KINDS.pending },
     data: { kind: MISSED_CALL_KINDS.sending },
@@ -201,6 +201,14 @@ export async function sendMissedCallMessage(rowId: string): Promise<{ status: "s
       return { status: "skipped", reason };
     }
 
+    // More than 15 min after the call and inside 22:00–08:00 (a late queue run) → back to the queue for 08:00.
+    const deferTo = quietDeferral(payload.startedAt ? new Date(payload.startedAt) : null, new Date());
+    if (deferTo) {
+      await prisma.waBotMessage.update({ where: { id: row.id }, data: { kind: MISSED_CALL_KINDS.pending, text: JSON.stringify({ ...payload, sendAt: deferTo.toISOString() }) } });
+      console.log(`${LOG} call ${payload.callId} (${maskPhone(conv.phone)}): quiet hours, deferred to ${deferTo.toISOString()}`);
+      return { status: "deferred" };
+    }
+
     // Template by the callback slot NOW (Or, 25/10): open / after hours ({{1}} = phrase) / weekend;
     // a template Meta has not approved yet falls back to missed_call_followup (logged, not a failure).
     const slot = callbackSlot(new Date());
@@ -231,7 +239,7 @@ export async function sendMissedCallMessage(rowId: string): Promise<{ status: "s
 }
 
 /** Cron: send the rows whose time came (8:00 / after Shabbat). */
-export async function processDueMissedCallMessages(opts: { limit: number }): Promise<{ due: number; sent: number; skipped: number; failed: number }> {
+export async function processDueMissedCallMessages(opts: { limit: number }): Promise<{ due: number; sent: number; skipped: number; failed: number; deferred: number }> {
   const rows = await prisma.waBotMessage.findMany({
     where: { role: "system", kind: MISSED_CALL_KINDS.pending },
     orderBy: { createdAt: "asc" },
@@ -248,7 +256,7 @@ export async function processDueMissedCallMessages(opts: { limit: number }): Pro
       }
     })
     .slice(0, opts.limit);
-  const out = { due: due.length, sent: 0, skipped: 0, failed: 0 };
+  const out = { due: due.length, sent: 0, skipped: 0, failed: 0, deferred: 0 };
   for (const r of due) {
     const res = await sendMissedCallMessage(r.id);
     out[res.status]++;

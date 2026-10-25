@@ -150,6 +150,20 @@ export function isQuietTime(_ymd: string, hhmm: string): boolean {
   return hhmm < "08:00" || hhmm >= "22:00";
 }
 
+/** A send within 15 min of the customer's own action (call / form + delay) ignores the quiet hours. */
+export const QUIET_GRACE_MS = 15 * 60 * 1000;
+
+/**
+ * Or, 25/10 (items 32 + 34): null = send now; a Date = wait until then. Within 15 min of the
+ * customer's action → always now (someone who called at 23:00 gets missed_call_after_hours with
+ * "מחר בבוקר" at once). Later (a retry / a delayed queue) → the quiet hours 22:00–08:00 apply.
+ */
+export function quietDeferral(actionAt: Date | null, now: Date): Date | null {
+  if (actionAt && now.getTime() - actionAt.getTime() <= QUIET_GRACE_MS) return null;
+  const at = nextSendTime(now);
+  return at.getTime() > now.getTime() ? at : null;
+}
+
 /** When to send: now, or the start of the next allowed window (Israel time). */
 export function nextSendTime(now: Date): Date {
   const p = israelParts(now);
