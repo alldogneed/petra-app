@@ -108,3 +108,31 @@ export function nextCallbackOptions(now: Date, count = 3): Array<{ ymd: string; 
 export function defaultFollowUp(now: Date = new Date()): Date {
   return israelInstant(addDaysYmd(israelYmd(now), 2), "10:00");
 }
+
+/** The office is open now (Israel time): Sun–Thu 09:00–17:00, Fri 09:00–14:00 (close time exclusive). */
+export function isOfficeOpenAt(d: Date): boolean {
+  const p = israelParts(d);
+  const h = officeHoursFor(p.weekday);
+  return !!h && p.hhmm >= h.open && p.hhmm < h.close;
+}
+
+/** "בהקדם" while the office is open. */
+export const CALLBACK_SOON = "בהקדם";
+
+/**
+ * When a rep calls back, in words (Or, item 34). One rule for the website-form template and
+ * every bot closing, computed at the moment the message is SENT:
+ *   office open                      → "בהקדם"
+ *   Sun–Fri before 09:00             → "היום בבוקר"
+ *   Sun–Thu after closing            → "מחר בבוקר"   (Thursday too: Friday is a work day)
+ *   Fri after 14:00 / all of Saturday → "ביום ראשון בבוקר"
+ * Israel time via Intl, so daylight-saving changes are handled. Holidays: not in this phase.
+ */
+export function nextCallbackPhrase(d: Date = new Date()): string {
+  if (isOfficeOpenAt(d)) return CALLBACK_SOON;
+  const p = israelParts(d);
+  const h = officeHoursFor(p.weekday);
+  if (!h) return "ביום ראשון בבוקר"; // Saturday
+  if (p.hhmm < h.open) return "היום בבוקר";
+  return p.weekday === 5 ? "ביום ראשון בבוקר" : "מחר בבוקר";
+}

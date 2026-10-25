@@ -19,7 +19,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import Anthropic from "@anthropic-ai/sdk";
-import { heDayLabel, israelParts } from "@/lib/alldog/time";
+import { heDayLabel, israelParts, nextCallbackPhrase } from "@/lib/alldog/time";
 import { checkConversation, formatReport, type ConversationReport } from "@/lib/alldog-bot/conversation-checks";
 import {
   INVENTED_FAMILIARITY_RE,
@@ -63,7 +63,6 @@ import {
   humanOnTheWay,
   callbackClosingText,
   closingAlreadySent,
-  closingWhen,
   handoffClosingText,
   closingWithTransition,
   TRANSITION_MARKER,
@@ -209,14 +208,14 @@ export class SimConversation {
       scheduleCallback: async ({ note }) => {
         this.emit("tool", `schedule_callback${note ? ` ${note}` : ""} → "לחזור טלפונית" + משימה לנציגה (בלי שעה${this.urgent ? ", URGENT" : ""})`);
         this.recordBasics();
-        ex.closing = closingWithTransition(callbackClosingText(closingWhen(new Date()), this.style.gender, { serious: this.serious }), this.transitionSent());
+        ex.closing = closingWithTransition(callbackClosingText(nextCallbackPhrase(new Date()), this.style.gender, { serious: this.serious }), this.transitionSent());
         return `סומן לחזרה טלפונית. כתוב ללקוח בדיוק: "${ex.closing}"`;
       },
       handoff: async (input) => {
         this.emit("tool", `handoff_to_human ${JSON.stringify(input)} → משימה דחופה + התראה (לא נשלחות בסימולציה)`);
         this.status = "handoff";
         this.recordBasics();
-        const closing = handoffClosingText(closingWhen(new Date()), this.style.gender, { serious: this.serious || input.urgency === "urgent" });
+        const closing = handoffClosingText(nextCallbackPhrase(new Date()), this.style.gender, { serious: this.serious || input.urgency === "urgent" });
         ex.closing = input.urgency === "urgent" ? closing : closingWithTransition(closing, this.transitionSent());
         return `הועבר. כתוב ללקוח בדיוק: "${ex.closing}" ואל תשאל עוד שאלות`;
       },

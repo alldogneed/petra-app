@@ -68,8 +68,12 @@ export async function sendText(to: string, body: string): Promise<string | null>
  * Send an approved template without variables (e.g. missed_call_followup — item 32). Works outside
  * the 24h window. Returns the wamid, or null on failure (Or is alerted, ≤ 1 / 30 min). Never retried here.
  */
-export async function sendTemplate(to: string, name: string, language: string): Promise<string | null> {
-  const r = await post({ recipient_type: "individual", to, type: "template", template: { name, language: { code: language } } });
+export async function sendTemplate(to: string, name: string, language: string, bodyParams: string[] = []): Promise<string | null> {
+  const template: Record<string, unknown> = { name, language: { code: language } };
+  if (bodyParams.length) {
+    template.components = [{ type: "body", parameters: bodyParams.map((text) => ({ type: "text", text })) }];
+  }
+  const r = await post({ recipient_type: "individual", to, type: "template", template });
   if (!r.ok) {
     console.error(`${LOG} template ${name} to ${maskPhone(to)} failed: ${r.error}`);
     await alertAllDogFailure({ kind: "wa_send", error: r.error ?? "send failed", detail: `תבנית ${name}`, phone: to });

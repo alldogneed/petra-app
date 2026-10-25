@@ -79,6 +79,20 @@ async function lastMissedCallMessageAt(conversationId: string, exceptId?: string
   return row?.createdAt ?? null;
 }
 
+/** Item 34: one automatic message per phone per 24 h — a website-form message counts too. */
+async function formLeadMessageSince(conversationId: string, now: Date): Promise<boolean> {
+  const row = await prisma.waBotMessage.findFirst({
+    where: {
+      conversationId,
+      role: "system",
+      kind: { in: ["form_lead_sent", "form_lead_sending"] },
+      createdAt: { gte: new Date(now.getTime() - 24 * 60 * 60 * 1000) },
+    },
+    select: { id: true },
+  });
+  return !!row;
+}
+
 /** Called after the missed call was logged (lead / customer). Never throws. */
 export async function scheduleMissedCallWhatsApp(
   call: MissedCallInput,
@@ -106,7 +120,9 @@ export async function scheduleMissedCallWhatsApp(
       where: { businessId_phone: { businessId, phone } },
       select: { id: true, status: true, lastInboundAt: true },
     });
-    const convSkip = conversationSkipReason(existing, existing ? await lastMissedCallMessageAt(existing.id) : null, now);
+    const convSkip =
+      conversationSkipReason(existing, existing ? await lastMissedCallMessageAt(existing.id) : null, now) ??
+      (existing && (await formLeadMessageSince(existing.id, now)) ? "sent_recently" : null);
     if (convSkip) {
       console.log(`${LOG} call ${call.ID} (${maskPhone(phone)}): skipped (${convSkip})`);
       return { status: "skipped", reason: convSkip };
@@ -163,7 +179,10 @@ export async function sendMissedCallMessage(rowId: string): Promise<{ status: "s
     // Re-check: the customer may have written / been answered / asked to stop since.
     // Activation time again (a row queued before the switch / the time was moved never goes out).
     const timeSkip = callTimeSkipReason(payload.startedAt ? new Date(payload.startedAt) : null, missedCallActivatedAt(), new Date(), null);
-    let reason: SkipReason | null = timeSkip ?? conversationSkipReason(conv, await lastMissedCallMessageAt(conv.id, row.id), new Date());
+    let reason: SkipReason | null =
+      timeSkip ??
+      conversationSkipReason(conv, await lastMissedCallMessageAt(conv.id, row.id), new Date()) ??
+      ((await formLeadMessageSince(conv.id, new Date())) ? "sent_recently" : null);
     if (!reason) {
       const since = new Date((payload.startedAt ? Date.parse(payload.startedAt) : Date.now()) - ANSWERED_RECENTLY_MS);
       try {

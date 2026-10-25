@@ -54,7 +54,7 @@ import {
 } from "@/lib/alldog-bot/logic";
 import { buildBotContext, enforceIdentityAnswer, enforceOpening, HUMAN_BITE_NOTE, mentionsHumanBite } from "@/lib/alldog-bot/prompt";
 import { HANDOFF_MODE_TOOLS, runBotTurn } from "@/lib/alldog-bot/agent";
-import { createDbExecutor, dropDeletedLeadLink, flagMediaForHuman, type BotConversationRef } from "@/lib/alldog-bot/actions";
+import { closingWhenNow, createDbExecutor, dropDeletedLeadLink, flagMediaForHuman, type BotConversationRef } from "@/lib/alldog-bot/actions";
 import { summarizeBotConversation } from "@/lib/alldog-bot/summary";
 import { fixOutOfAreaLines } from "@/lib/alldog-bot/areas";
 import { addressNote, addressStyleFor, applyAddressStyle, detectGender, type Gender } from "@/lib/alldog-bot/address";
@@ -79,6 +79,7 @@ import { claimOnce } from "@/lib/rate-limit";
 import { downloadMedia, markReadWithTyping, sendText } from "@/lib/alldog-bot/wa";
 import { alertAllDogFailure, explainFailure } from "@/lib/alldog/failure-alerts";
 import { displayMissedCallMessage, isMissedCallTemplateMessage, MISSED_CALL_CONTEXT_NOTE, MISSED_CALL_DEDUP_MS, MISSED_CALL_KINDS } from "@/lib/alldog/missed-call-rules";
+import { FORM_LEAD_MESSAGE_KIND, formLeadContextNote } from "@/lib/alldog/form-lead-rules";
 import { transcribeAudio } from "@/lib/stt";
 
 const LOG = "[alldog-bot]";
@@ -389,6 +390,11 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
   const answeringMissedCall =
     !!missedCallSent &&
     !rows.some((r) => r.role === "assistant" && r.createdAt > missedCallSent.createdAt && !isMissedCallTemplateMessage(r));
+  // Item 34: the customer answers our website-form message → no opening, the form's details are known.
+  const formLeadSent = rows.find((r) => r.role === "assistant" && r.kind === FORM_LEAD_MESSAGE_KIND);
+  const answeringFormLead =
+    !!formLeadSent && !rows.some((r) => r.role === "assistant" && r.createdAt > formLeadSent.createdAt && r.kind !== FORM_LEAD_MESSAGE_KIND);
+  const automaticOpening = answeringMissedCall || answeringFormLead;
   // What the customer typed — a name from a voice note alone is not saved as the lead's name (item 30d).
   ref.typedTexts = rows.filter((r) => r.role === "user" && r.kind === "text").map((r) => r.text);
   /** What the customer said (texts + voice transcripts), oldest first. */
@@ -475,7 +481,8 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
   // "באלו מקרני שומרון" = a name + the city; never asked again (item 29b).
   const namePlace = batchWords.map(namePlaceNote).find(Boolean) ?? null;
   const known = {
-    city: cityAlreadyGiven(rows.map((r) => ({ role: r.role, text: customerWords(r) ?? r.text }))),
+    // Item 34: the website form already gave the city → never asked again.
+    city: (!!formLeadSent && !!activeLead?.city) || cityAlreadyGiven(rows.map((r) => ({ role: r.role, text: customerWords(r) ?? r.text }))),
     dogName: batchWords.some((t) => !!parseNamePlace(t)) || userWords.some((t) => !!parseNamePlace(t)),
   };
   // The closing was already sent → answer questions only, never repeat it (Or, 24/10).
@@ -486,7 +493,7 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
     nowLabel: `${heDayLabel(p.ymd)} בשעה ${p.hhmm}`,
     attribution: conv.attributionSource || conv.attributionPage ? { source: conv.attributionSource, page: conv.attributionPage } : null,
     knownName,
-    isFirstReply: lastAssistant < 0 && !answeringMissedCall,
+    isFirstReply: lastAssistant < 0 && !automaticOpening,
     note: [
       handoffMode ? HANDOFF_MODE_NOTE : null,
       closed ? CLOSED_NOTE : null,
@@ -499,6 +506,9 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
         : null,
       namePlace,
       answeringMissedCall ? MISSED_CALL_CONTEXT_NOTE : null,
+      formLeadSent && activeLead
+        ? formLeadContextNote({ name: activeLead.name, city: activeLead.city, service: activeLead.requestedService })
+        : null,
       voiceName ? voiceNameNote(voiceName, priorBotTexts) : null,
       addressNote(style),
     ].filter(Boolean).join("\n") || null,
@@ -528,7 +538,7 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
     text = withClosing(text, executor.closing);
   } else if (!handoffMode) {
     const firstUserText = batchWords.join("\n");
-    text = enforceOpening(lastAssistant < 0 && !answeringMissedCall, firstUserText, text);
+    text = enforceOpening(lastAssistant < 0 && !automaticOpening, firstUserText, text);
   }
   let afterHandoff = result.handedOff || handoffMode;
   if (!text && result.reply.trim() && !executor.closing) {
@@ -541,7 +551,7 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
     if (!result.handedOff) {
       // Refusal / empty answer: a person takes over rather than the customer being ignored.
       await createDbExecutor(ref).handoff({ reason: `הבוט לא הצליח לענות (${result.stopReason ?? "ללא תשובה"})`, urgency: "normal" });
-      text = handoffClosingText("soon", style.gender, { serious: ref.serious });
+      text = handoffClosingText(await closingWhenNow(conv.businessId), style.gender, { serious: ref.serious });
       afterHandoff = true;
     } else {
       return;
