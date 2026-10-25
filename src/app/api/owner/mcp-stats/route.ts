@@ -1,4 +1,5 @@
 export const dynamic = "force-dynamic";
+import { mcpSystemErrorWhere } from "@/lib/mcp-error-kind";
 import { NextRequest, NextResponse } from "next/server";
 import { requirePlatformRole, isGuardError } from "@/lib/auth-guards";
 import { prisma } from "@/lib/prisma";
@@ -24,6 +25,7 @@ export async function GET(request: NextRequest) {
       calls24h,
       calls7d,
       errors24h,
+      allErrors24h,
       recentLogs,
       popularTools,
     ] = await Promise.all([
@@ -31,6 +33,7 @@ export async function GET(request: NextRequest) {
       prisma.mcpConnection.count({ where: { revokedAt: null } }),
       prisma.mcpAuditLog.count({ where: { createdAt: { gte: last24h } } }),
       prisma.mcpAuditLog.count({ where: { createdAt: { gte: last7d } } }),
+      prisma.mcpAuditLog.count({ where: { createdAt: { gte: last24h }, ...mcpSystemErrorWhere() } }),
       prisma.mcpAuditLog.count({ where: { createdAt: { gte: last24h }, status: "error" } }),
       prisma.mcpAuditLog.findMany({
         orderBy: { createdAt: "desc" },
@@ -60,6 +63,7 @@ export async function GET(request: NextRequest) {
       calls24h,
       calls7d,
       errors24h,
+      expectedErrors24h: allErrors24h - errors24h,
       errorRate24h: calls24h > 0 ? Math.round((errors24h / calls24h) * 100) : 0,
       popularTools: popularTools.map((t) => ({ tool: t.toolName, count: t._count.toolName })),
       recentLogs,

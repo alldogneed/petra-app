@@ -6,6 +6,7 @@ export const dynamic = 'force-dynamic';
  * Requires: platform_role in {super_admin, admin, support}
  */
 
+import { mcpSystemErrorWhere } from "@/lib/mcp-error-kind";
 import { NextRequest, NextResponse } from "next/server";
 import { requirePlatformRole } from "@/lib/auth-guards";
 import { isGuardError } from "@/lib/auth-guards";
@@ -166,7 +167,7 @@ export async function GET(request: NextRequest) {
   let mcpErrors24h = 0;
   try {
     mcpErrors24h = await prisma.mcpAuditLog.count({
-      where: { createdAt: { gte: last24h }, status: "error" },
+      where: { createdAt: { gte: last24h }, ...mcpSystemErrorWhere() },
     });
   } catch {
     mcpErrors24h = 0;
