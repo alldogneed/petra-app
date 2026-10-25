@@ -283,7 +283,8 @@ export function GlobalSearch() {
                     l.lostAt ? "אבוד" :
                     l.leadStage?.name ?? "חדש"
                   }`,
-                  onClick: () => navigate(`/leads`),
+                  // Opens this lead's card (also closed ones — they live in the archive tab).
+                  onClick: () => navigate(`/leads?lead=${encodeURIComponent(l.id)}`),
                 }))}
               />
             )}

@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { TierGate } from "@/components/paywall/TierGate";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Plus, X, Phone, MessageCircle, Archive, Pencil, Trash2, Lock, GripVertical, UserCheck, Search, FileText,
   Clock, RefreshCw, Sparkles, Download, RotateCcw, ChevronDown, CheckSquare, Square, MinusSquare,
@@ -1606,19 +1606,6 @@ function LeadsPageContent() {
     queryFn: () => fetchJSON<Lead[]>("/api/leads"),
   });
 
-  // Deep link: /leads?lead=<id> (e.g. "פתח את הליד" in the customer's sales history)
-  // opens that lead's card once the list is loaded, then drops the param from the URL.
-  const deepLinkHandled = useRef(false);
-  useEffect(() => {
-    if (deepLinkHandled.current || leadsInitialLoading) return;
-    const leadId = new URLSearchParams(window.location.search).get("lead");
-    if (!leadId) return;
-    deepLinkHandled.current = true;
-    const target = leads.find((l) => l.id === leadId);
-    if (target) setSelectedLead(target);
-    else toast.error("הליד לא נמצא");
-    router.replace("/leads", { scroll: false });
-  }, [leads, leadsInitialLoading, router]);
 
   // Auto-refresh every 30 seconds when enabled
   useEffect(() => {
@@ -1649,10 +1636,30 @@ function LeadsPageContent() {
     setShowExportMenu(false);
   }
 
-  const { data: stages = [] } = useQuery<LeadStage[]>({
+  const { data: stages = [], isLoading: stagesLoading } = useQuery<LeadStage[]>({
     queryKey: ["lead-stages"],
     queryFn: () => fetchJSON<LeadStage[]>("/api/leads/stages"),
   });
+
+  // Deep link: /leads?lead=<id> ("פתח את הליד" in the customer's sales history, the global
+  // search, dashboard alerts) opens that lead's card once the list is loaded, then drops the
+  // param. Read from useSearchParams so it also works when /leads is already open (the
+  // search pushes the same route with a new query). A closed (won / lost) lead switches
+  // the screen to the archive tab behind the card, where that lead lives.
+  const searchParams = useSearchParams();
+  const leadParam = searchParams.get("lead");
+  useEffect(() => {
+    if (!leadParam || leadsInitialLoading || stagesLoading) return;
+    const target = leads.find((l) => l.id === leadParam);
+    if (target) {
+      const stage = stages.find((st) => st.id === target.stage);
+      if (stage?.isWon || stage?.isLost) setActiveTab("archive");
+      setSelectedLead(target);
+    } else {
+      toast.error("הליד לא נמצא");
+    }
+    router.replace("/leads", { scroll: false });
+  }, [leadParam, leads, leadsInitialLoading, stages, stagesLoading, router]);
   const wonStageId = stages.find((s) => s.isWon)?.id;
   const lostStageId = stages.find((s) => s.isLost)?.id;
 
