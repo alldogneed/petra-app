@@ -6,6 +6,7 @@
  *   resumeBot()                  → "החזר לבוט": handoff → active
  * AllDog only (ALLDOG_BUSINESS_ID + ALLDOG_WA_BOT_ENABLED); every query is scoped by businessId.
  */
+import { displayMissedCallMessage } from "@/lib/alldog/missed-call-rules";
 import prisma from "@/lib/prisma";
 import { allDogBusinessId, isWaBotEnabled } from "@/lib/alldog/config";
 import { addLeadCallLog } from "@/lib/alldog/leads";
@@ -57,7 +58,8 @@ export async function getBotConversationForLead(businessId: string, leadId: stri
     canReply: isWithin24hWindow(conv.lastInboundAt),
     lastInboundAt: conv.lastInboundAt?.toISOString() ?? null,
     autoResumeAt: resume && resume.getTime() > 0 ? resume.toISOString() : null,
-    messages: rows.reverse().map((r) => ({ ...r, createdAt: r.createdAt.toISOString() })),
+    // Item 32: our missed-call template shows as the text the customer got (legacy copies included).
+    messages: rows.reverse().map((r) => ({ ...displayMissedCallMessage(r), createdAt: r.createdAt.toISOString() })),
   };
 }
 

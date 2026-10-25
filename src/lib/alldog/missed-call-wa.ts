@@ -28,6 +28,7 @@ import {
   israeliMobile,
   MISSED_CALL_DEDUP_MS,
   MISSED_CALL_KINDS,
+  MISSED_CALL_MESSAGE_KIND,
   MISSED_CALL_SENT_TEXT,
   MISSED_CALL_TEMPLATE,
   nextSendTime,
@@ -186,7 +187,7 @@ export async function sendMissedCallMessage(rowId: string): Promise<{ status: "s
       await finish(MISSED_CALL_KINDS.failed, "send_failed"); // alerted inside sendTemplate; no retry
       return { status: "failed", reason: "send_failed" };
     }
-    await prisma.waBotMessage.create({ data: { conversationId: conv.id, role: "assistant", text: MISSED_CALL_SENT_TEXT, waMessageId: wamid } });
+    await prisma.waBotMessage.create({ data: { conversationId: conv.id, role: "assistant", kind: MISSED_CALL_MESSAGE_KIND, text: MISSED_CALL_SENT_TEXT, waMessageId: wamid } });
     await finish(MISSED_CALL_KINDS.sent);
     const leadId = payload.leadId ?? conv.leadId;
     if (leadId) {

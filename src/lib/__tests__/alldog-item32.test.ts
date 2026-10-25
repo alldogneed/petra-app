@@ -39,6 +39,9 @@ import {
   israeliMobile,
   MISSED_CALL_KINDS,
   MISSED_CALL_SENT_TEXT,
+  MISSED_CALL_TEMPLATE_TEXT,
+  displayMissedCallMessage,
+  isMissedCallTemplateMessage,
   nextSendTime,
   toWaId,
 } from "@/lib/alldog/missed-call-rules";
@@ -159,7 +162,10 @@ describe("send flow", () => {
     expect(r.status).toBe("sent");
     expect(msgCreate).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ role: "system", kind: MISSED_CALL_KINDS.pending, waMessageId: "missed-call:777" }) }));
     expect(sendTemplate).toHaveBeenCalledWith("972541234567", "missed_call_followup", "he");
-    expect(msgCreate).toHaveBeenCalledWith({ data: { conversationId: "conv1", role: "assistant", text: MISSED_CALL_SENT_TEXT, waMessageId: "wamid.1" } });
+    expect(msgCreate).toHaveBeenCalledWith({ data: { conversationId: "conv1", role: "assistant", kind: "missed_call_template", text: MISSED_CALL_SENT_TEXT, waMessageId: "wamid.1" } });
+    // The copy is exactly what the customer got (the approved template body), not a technical line.
+    expect(MISSED_CALL_SENT_TEXT).toBe(MISSED_CALL_TEMPLATE_TEXT);
+    expect(MISSED_CALL_SENT_TEXT).not.toContain("missed_call_followup");
     expect(addLeadCallLog).toHaveBeenCalledWith("L1", expect.stringContaining("נשלחה הודעת וואטסאפ אוטומטית"));
     expect(addLeadCallLog.mock.calls[0][1]).not.toContain("[paycall]"); // the missed-call counter stays right
     expect(addLeadCallLog.mock.calls[0][1]).not.toContain("call_id:");
@@ -294,5 +300,22 @@ describe("send flow", () => {
       expect(callTimeSkipReason(new Date("2026-10-25T09:00:00Z"), act, now)).toBe("call_too_old");
       expect(callTimeSkipReason(new Date("2026-10-25T09:00:00Z"), act, now, null)).toBeNull();
     });
+  });
+});
+
+describe("what the rep sees (25/10)", () => {
+  it("the approved template text, word for word", () => {
+    expect(MISSED_CALL_TEMPLATE_TEXT).toBe(
+      "היי, כאן צוות AllDog 🙂 ראינו שניסית להשיג אותנו ולא הספקנו לענות. אפשר לכתוב לי פה בקצרה מה קורה עם הכלב, ונציגה תחזור אליך בהקדם."
+    );
+  });
+  it("legacy technical copies are shown (and given to the bot) as the template text", () => {
+    const legacy = { role: "assistant", kind: "text", text: "📩 הודעת וואטסאפ אוטומטית (missed_call_followup): הלקוח התקשר ל-03-3818670 ולא נענה" };
+    expect(isMissedCallTemplateMessage(legacy)).toBe(true);
+    expect(displayMissedCallMessage(legacy)).toEqual({ role: "assistant", kind: "missed_call_template", text: MISSED_CALL_TEMPLATE_TEXT });
+    const normal = { role: "assistant", kind: "text", text: "מה שם הכלב?" };
+    expect(isMissedCallTemplateMessage(normal)).toBe(false);
+    expect(displayMissedCallMessage(normal)).toBe(normal);
+    expect(isMissedCallTemplateMessage({ role: "user", kind: "text", text: "(missed_call_followup)" })).toBe(false);
   });
 });
