@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Bot, Activity, CheckCircle2, AlertCircle, TrendingUp, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { isExpectedMcpError } from "@/lib/mcp-error-kind";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 
 interface McpStats {
@@ -12,6 +13,7 @@ interface McpStats {
   calls7d: number;
   errors24h: number;
   errorRate24h: number;
+  expectedErrors24h?: number;
   popularTools: Array<{ tool: string; count: number }>;
   recentLogs: Array<{
     id: string;
@@ -62,7 +64,7 @@ export default function OwnerMcpPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard icon={Bot} label="חיבורים פעילים" value={data.activeConnections} sub={`${data.totalConnections} סה"כ`} color="indigo" />
         <StatCard icon={Activity} label="קריאות 24 שעות" value={data.calls24h} sub={`${data.calls7d} ב-7 ימים`} color="emerald" />
-        <StatCard icon={AlertCircle} label="שגיאות 24 שעות" value={data.errors24h} sub={`${data.errorRate24h}% error rate`} color={data.errors24h > 5 ? "red" : "slate"} />
+        <StatCard icon={AlertCircle} label="שגיאות 24 שעות" value={data.errors24h} sub={`${data.errorRate24h}% error rate${data.expectedErrors24h ? ` · ${data.expectedErrors24h} תשובות צפויות` : ""}`} color={data.errors24h > 5 ? "red" : "slate"} />
         <StatCard icon={TrendingUp} label="כלי פופולרי" value={TOOL_LABELS[data.popularTools[0]?.tool] ?? "—"} sub={`${data.popularTools[0]?.count ?? 0} פעמים / 30 ימים`} color="violet" />
       </div>
 
@@ -100,7 +102,7 @@ export default function OwnerMcpPage() {
                 <div className={cn(
                   "w-2 h-2 rounded-full mt-1.5 flex-shrink-0",
                   log.status === "success" ? "bg-emerald-400" :
-                  log.status === "error" ? "bg-red-400" : "bg-amber-400"
+                  log.status === "error" && !isExpectedMcpError(log.errorMessage) ? "bg-red-400" : "bg-amber-400"
                 )} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
@@ -112,7 +114,9 @@ export default function OwnerMcpPage() {
                   </div>
                   <p className="text-xs text-slate-500 mt-0.5">
                     {log.status === "error" ? (
-                      <span className="text-red-500">{log.errorMessage}</span>
+                      <span className={isExpectedMcpError(log.errorMessage) ? "text-amber-600" : "text-red-500"}>
+                        {isExpectedMcpError(log.errorMessage) && /not found/i.test(log.errorMessage ?? "") ? "הרשומה לא נמצאה (כנראה נמחקה)" : log.errorMessage}
+                      </span>
                     ) : (
                       log.resultSummary
                     )}
