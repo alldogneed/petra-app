@@ -37,12 +37,16 @@ export function isResetCommand(text: string, phone: string): boolean {
  * No callback time, no trainer name, no price — the rep does all that by phone.
  * Shabbat (Fri from 14:00, Sat) → "אחרי השבת"; a holiday block in the business calendar → "אחרי החג".
  */
+export type ClosingWhen = "soon" | "after_shabbat" | "after_holiday" | (string & {});
+
+/** `when` = a fixed key, or a callback phrase from `nextCallbackPhrase()` ("מחר בבוקר"…) — item 34. */
 export function closingText(
-  when: "soon" | "after_shabbat" | "after_holiday" = "soon",
+  when: ClosingWhen = "soon",
   gender: Gender = "unknown",
   opts: { serious?: boolean } = {}
 ): string {
-  const back = when === "after_shabbat" ? "אחרי השבת" : when === "after_holiday" ? "אחרי החג" : "בהקדם";
+  const back =
+    when === "after_shabbat" ? "אחרי השבת" : when === "after_holiday" ? "אחרי החג" : when === "soon" || !when.trim() ? "בהקדם" : when.trim();
   const toYou = towardYou(gender);
   const callBack = toYou ? `תחזור ${toYou} טלפונית ${back}` : `תחזור בטלפון ${back}`;
   // After an attack / bite the closing does not open with "מעולה" (Or, item 29c).

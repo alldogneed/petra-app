@@ -30,7 +30,8 @@ import {
   withFact,
 } from "@/lib/alldog-bot/journal";
 import type { Gender } from "@/lib/alldog-bot/address";
-import { callbackClosingText, closingWhen, closingWithTransition, handoffClosingText } from "@/lib/alldog-bot/handoff";
+import { callbackClosingText, closingWhen, closingWithTransition, handoffClosingText, type ClosingWhen } from "@/lib/alldog-bot/handoff";
+import { nextCallbackPhrase } from "@/lib/alldog/time";
 import { isKnownServiceCity, unknownAreaToolNote } from "@/lib/alldog-bot/areas";
 import { type BotToolExecutor, type HandoffInput, type SaveLeadInput, type ScheduleCallbackInput } from "@/lib/alldog-bot/agent";
 
@@ -96,13 +97,17 @@ function appUrl(): string {
 const CALLBACK_TASK_PREFIX = "לחזור טלפונית";
 const URGENT_TITLE_PREFIX = "דחוף: ";
 
-/** Shabbat / a holiday block in the business calendar right now → the closing says so (no time). */
-async function closingWhenNow(businessId: string) {
-  const now = new Date();
+/**
+ * When the rep calls back, for the closing — item 34: one rule for every bot conversation,
+ * computed now: office open → "בהקדם", otherwise "היום בבוקר" / "מחר בבוקר" / "ביום ראשון בבוקר"
+ * (`nextCallbackPhrase`). A holiday block in the business calendar still wins ("אחרי החג").
+ */
+export async function closingWhenNow(businessId: string, now: Date = new Date()): Promise<ClosingWhen> {
   const blocks = await prisma.availabilityBlock
     .findMany({ where: { businessId, startAt: { lte: now }, endAt: { gt: now } }, select: { startAt: true, endAt: true, reason: true }, take: 5 })
     .catch(() => []);
-  return closingWhen(now, blocks);
+  if (closingWhen(now, blocks) === "after_holiday") return "after_holiday";
+  return nextCallbackPhrase(now);
 }
 
 export function createDbExecutor(conv: BotConversationRef): BotToolExecutor {

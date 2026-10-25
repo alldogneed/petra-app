@@ -33,7 +33,12 @@ export async function GET(request: NextRequest) {
     const missedCallWa = isMissedCallWaEnabled()
       ? await (await import("@/lib/alldog/missed-call-wa")).processDueMissedCallMessages({ limit: 20 })
       : { skipped: "disabled" };
-    return NextResponse.json({ ok: true, ...calls, botSummaries: bot, missedCallWa, timestamp: new Date().toISOString() });
+    // Item 34 fallback: the website-form queue normally runs every minute (/api/cron/alldog-form-wa).
+    const { isFormWaEnabled } = await import("@/lib/alldog/form-lead-rules");
+    const formLeadWa = isFormWaEnabled()
+      ? await (await import("@/lib/alldog/form-lead-wa")).processDueFormLeadMessages({ limit: 20 })
+      : { skipped: "disabled" };
+    return NextResponse.json({ ok: true, ...calls, botSummaries: bot, missedCallWa, formLeadWa, timestamp: new Date().toISOString() });
   } catch (err) {
     console.error("CRON alldog-call-retry error:", err);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });

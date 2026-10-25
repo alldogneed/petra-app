@@ -206,6 +206,20 @@ export async function POST(request: NextRequest) {
     // Google Contacts sync (opt-in per business, gated inside; never throws)
     await runAfterResponse(syncLeadToGoogleContacts(businessId as string, lead.id));
 
+    // AllDog item 34: queue the bot's first WhatsApp (3–5 min later, per-minute cron). AllDog
+    // business + website-form source + flag only — gated inside; never throws.
+    const { scheduleFormLeadWhatsApp } = await import("@/lib/alldog/form-lead-wa");
+    await runAfterResponse(
+      scheduleFormLeadWhatsApp({
+        businessId: businessId as string,
+        leadId: lead.id,
+        name: lead.name,
+        phone: phone ?? null,
+        source,
+        createdAt: lead.createdAt,
+      }).then(() => undefined)
+    );
+
     return NextResponse.json(
       { success: true, leadId: lead.id, name: lead.name, stage: lead.stage },
       { status: 201 }

@@ -67,7 +67,7 @@ export function localPhone(raw: string): string {
 }
 
 /** Every lead of this business with this phone, newest first. */
-async function findLeadsByPhone(businessId: string, rawPhone: string) {
+export async function findLeadsByPhone(businessId: string, rawPhone: string) {
   const target = localPhone(rawPhone);
   if (target.length < 9) return [];
   // Narrow server-side on the last 4 digits (stored formats vary: "050-1234567",
