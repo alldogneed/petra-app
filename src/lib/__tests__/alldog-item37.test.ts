@@ -20,11 +20,14 @@ const summary = (over: Record<string, unknown>) => formatBotSummary(parseBotSumm
 
 describe("Or's decisions in the prompt (26/10)", () => {
   it("lesson package, deposit, boarding for a vacation, puppies, business name", () => {
-    expect(ALLDOG_BOT_PROMPT).toContain("חבילה של מינימום 6 מפגשים, 300 ₪ למפגש. מפגש בודד או ראשון 350 ₪");
-    expect(ALLDOG_BOT_PROMPT).toContain("הנציגה תשריין איתך מועד, השריון במקדמה של 150 ₪ שמתקזזת");
+    expect(ALLDOG_BOT_PROMPT).toContain("מפגש בודד, בלי התחייבות לתהליך מסודר: 350 ₪. בחבילה: 300 ₪ למפגש. זה לא קשור לאילוף אינטנסיבי (שם המחיר לפי אבחון)");
+    expect(ALLDOG_BOT_PROMPT).not.toContain("מינימום 6");
+    expect(ALLDOG_BOT_PROMPT).toContain("הנציגה תדבר איתך, ואחר כך תשלח קישור מסודר למקדמה של 150 ₪, שמתקזזת מה-350 ₪ של האבחון");
+    expect(ALLDOG_BOT_PROMPT).toContain("נשלחת רק אחרי שהנציגה דיברה עם הלקוח");
     expect(ALLDOG_BOT_PROMPT).toContain("הבוט לא שולח קישור לתשלום ולא גובה");
-    expect(ALLDOG_BOT_PROMPT).toContain("נציגה תחזור עם מקומות שמפעילים פנסיון");
-    expect(ALLDOG_BOT_PROMPT).toContain("מתחילים במפגש אבחון וקבלת כלים לחינוך גורים: כלוב, נשיכות, צרכים וסדר יום");
+    expect(ALLDOG_BOT_PROMPT).toContain("אנחנו עובדים עם כמה פנסיונים שאנחנו סומכים עליהם, והנציגה תחזור ותתאים לך את המקום");
+    expect(findPolicyIssues("אנחנו עובדים עם כמה פנסיונים שאנחנו סומכים עליהם, והנציגה תחזור ותתאים לך את המקום")).toEqual([]);
+    expect(ALLDOG_BOT_PROMPT).toContain("מתחילים במפגש אבחון וקבלת כלים לחינוך גורים: כלוב, נשיכות, צרכים וסדר יום, ומשם מחליטים איך ממשיכים");
     expect(ALLDOG_BOT_PROMPT).toContain('תמיד "AllDog"');
     expect(ALLDOG_BOT_PROMPT).not.toContain("שיעור: 300–350");
   });
@@ -99,7 +102,7 @@ describe("rep summary — the new fields, one line each, only what is known", ()
   });
   it.each([
     ["boarding-trip", { trigger: "טיסה בעוד חודש", travel_dates: "בעוד חודש, לשבועיים", dog_since: "שנה", recommended_step: "להסביר שהתהליך כחודש ולהציע אינטנסיבי בבית" }, ["טריגר: טיסה בעוד חודש", "נסיעה: בעוד חודש, לשבועיים", "אצלם: שנה", "צעד מומלץ לנציגה:"]],
-    ["boarding-vacation", { needs_boarding_referral: true, travel_dates: "10–17 באוגוסט" }, ["פנסיון לחופשה בלבד – להפנות למקומות שמפעילים פנסיון · תאריכים: 10–17 באוגוסט"]],
+    ["boarding-vacation", { needs_boarding_referral: true, travel_dates: "10–17 באוגוסט" }, ["פנסיון רגיל (בלי אילוף) – להפנות לאחד הפנסיונים שאנחנו עובדים איתם, לפי שיקול הנציגה · תאריכים: 10–17 באוגוסט"]],
     ["puppy-young", { dog_age: "חודשיים וחצי", heard_from: "המלצה של הווטרינרית", recommended_step: "גור 10 שבועות, וטרינרית המליצה: לסגור שיעור פתיחה" }, ["גור בן חודשיים וחצי – להציע מפגש אבחון וכלים לחינוך גורים", "שמע עלינו: המלצה של הווטרינרית"]],
     ["baby-coming", { urgency: "תינוק בדרך, ננשך ילד", urgency_level: "high", trigger: "תינוק בדרך" }, ["דחיפות: תינוק בדרך, ננשך ילד (גבוהה)", "טריגר: תינוק בדרך"]],
     ["expensive", { objections: ["יקר", "שאל על תשלומים"], preferred_track: "private" }, ["התנגדויות: יקר · שאל על תשלומים", "מסלול מועדף: שיעורים פרטיים (ללמוד ולתרגל בעצמו)"]],

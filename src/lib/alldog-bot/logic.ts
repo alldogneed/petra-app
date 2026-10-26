@@ -721,7 +721,7 @@ export function trimRepeats(reply: string, priorBotTexts: string[], userTexts: s
 
 // ─── Item 37: Or's sales rules from 33 real PayCall calls ───────────────────────────────
 
-export const PUPPY_START_LINE = "מתחילים במפגש אבחון וקבלת כלים לחינוך גורים: כלוב, נשיכות, צרכים וסדר יום";
+export const PUPPY_START_LINE = "מתחילים במפגש אבחון וקבלת כלים לחינוך גורים: כלוב, נשיכות, צרכים וסדר יום, ומשם מחליטים איך ממשיכים";
 export const OLD_DOG_LINE = "עובדים עם כלבים בכל הגילאים, הקצב פשוט שונה";
 
 export type PolicyIssueKind = "service_price" | "promise" | "puppy_too_early" | "too_late" | "own_boarding" | "payment" | "baby_promise";
