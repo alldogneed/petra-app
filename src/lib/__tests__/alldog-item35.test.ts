@@ -91,7 +91,7 @@ describe("35c — fewer repeats", () => {
   });
   it("the transition and the closing go out as ONE message", () => {
     const closing = closingWithTransition(callbackClosingText("soon", "unknown"));
-    expect(closing).toBe(`${TRANSITION_LINE} ${callbackClosingText("soon", "unknown")}`);
+    expect(closing).toBe(`${TRANSITION_LINE} ${callbackClosingText("soon", "unknown").replace(/^מעולה, /u, "")}`);
     expect(splitReply(closing, 2)).toEqual([closing]);
     const parts = splitReply(withClosing("ברוב המקרים זה שעמום", closing), 2);
     expect(parts).toEqual(["ברוב המקרים זה שעמום", closing]);

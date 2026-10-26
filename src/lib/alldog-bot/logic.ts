@@ -677,6 +677,24 @@ const REVENGE_RE = /נקמ|מתנקם|להתנקם|נוקם/u;
 const MONEY_RE = /₪|(?<![\p{L}])ש["״']?ח(?![\p{L}])|שקל/u;
 export const PRICE_REPEAT_LINE = "המחירים שכתבתי למעלה בתוקף, ואת המחיר הכולל קובעים באבחון";
 
+// ─── Item 38 (Or, 26/10): a price question always gets a number ───────────────────────
+
+const PRICE_QUESTION_RE = /כמה\s+(?:זה\s+|זה\s+הכל\s+|הכל\s+|בערך\s+)?(?:עולה|עולים|יעלה|תעלה|יעלו|עלה)|(?<![\p{L}])(?:ה|ו|ב|ל)?(?:מחיר|מחירים|מחירון|עלות|עלויות|תמחור)(?![\p{L}])|price|cost/iu;
+
+/** The customer asked what it costs ("כמה זה עולה", "פרטים ועלויות", "מה המחיר"). Pure. */
+export function asksPrice(text: string): boolean {
+  return PRICE_QUESTION_RE.test(text.replace(/\s+/g, " "));
+}
+
+/** The bot already wrote a price in this conversation. */
+export function pricesAlreadySent(priorBotTexts: string[]): boolean {
+  return priorBotTexts.some((t) => MONEY_RE.test(t));
+}
+
+/** Context note for a price question before any price was sent (Gil, 26/10: asked "פרטים ועלויות", got no number). */
+export const PRICE_QUESTION_NOTE =
+  "הלקוח שאל עכשיו על מחיר ועוד לא קיבל מחיר בשיחה. בתשובה הזו חייב להופיע מספר: שיחת ייעוץ בטלפון בחינם, ואבחון בבית 350 ₪ שמתקזז אם ממשיכים (גם לגור). מחיר כולל או מחיר לאינטנסיבי לא נותנים: את זה קובעים באבחון והנציגה תפרט בטלפון. אחר כך ממשיכים בשיחה כרגיל.";
+
 const sentencesOf = (line: string): string[] => line.split(/(?<=[.!?])\s+/u).filter((x) => x.trim());
 
 /**
