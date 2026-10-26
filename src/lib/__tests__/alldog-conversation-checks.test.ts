@@ -1,6 +1,6 @@
 /**
  * Item 26 (Or): no repeated bot message, one compliment at most (incl. "אחלה גזע"), no invented
- * familiarity, and the per-conversation check the simulator runs (≤ 5 questions until the closing,
+ * familiarity, and the per-conversation check the simulator runs (≤ 7 questions until the closing since item 37,
  * ≥ 1 professional question, no identity line, no repeat).
  */
 import { applyConversationGuards, countMirrorPraise, isRepeatedMessage, removeInventedFamiliarity, INVENTED_FAMILIARITY_RE } from "@/lib/alldog-bot/logic";
@@ -43,7 +43,7 @@ describe("b. compliments and invented familiarity", () => {
 describe("c + d. grouped questions, professional depth (prompt)", () => {
   it("rules are in the prompt", () => {
     expect(ALLDOG_BOT_PROMPT).toContain("עומק מקצועי לפני הסגירה");
-    expect(ALLDOG_BOT_PROMPT).toContain("לכל היותר 5 שאלות");
+    expect(ALLDOG_BOT_PROMPT).toContain("לכל היותר 7 שאלות");
     expect(ALLDOG_BOT_PROMPT).toContain("חרדת נטישה: מה קורה כשהוא לבד");
     expect(ALLDOG_BOT_PROMPT).toContain("תוקפנות: כלפי מי, ובאיזה מצב");
   });
@@ -81,6 +81,8 @@ describe("h. conversation check (simulator)", () => {
       { role: "user", text: "חולון" },
       { role: "bot", text: "באיזו עיר ?" },
       { role: "user", text: "חולון!" },
+      { role: "bot", text: "איזה גזע הוא ?\nבן כמה ?" },
+      { role: "user", text: "מעורב, 3" },
       { role: "bot", text: closingText() },
     ];
     const r = checkConversation(bad);
