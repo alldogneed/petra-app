@@ -53,6 +53,9 @@ import {
   type MetaInboundMessage,
   MINOR_NOTE,
   seemsMinor,
+  asksPrice,
+  pricesAlreadySent,
+  PRICE_QUESTION_NOTE,
 } from "@/lib/alldog-bot/logic";
 import { buildBotContext, enforceIdentityAnswer, enforceOpening, HUMAN_BITE_NOTE, mentionsHumanBite } from "@/lib/alldog-bot/prompt";
 import { HANDOFF_MODE_TOOLS, runBotTurn } from "@/lib/alldog-bot/agent";
@@ -511,6 +514,8 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
         : null,
       namePlace,
       minor ? MINOR_NOTE : null,
+      // Item 38: a price question in this batch, no price sent yet → this answer carries a number.
+      !handoffMode && batchWords.some((t) => asksPrice(t)) && !pricesAlreadySent(priorBotTexts) ? PRICE_QUESTION_NOTE : null,
       answeringMissedCall ? MISSED_CALL_CONTEXT_NOTE : null,
       formLeadSent && activeLead
         ? formLeadContextNote({ name: activeLead.name, city: activeLead.city, service: activeLead.requestedService })
