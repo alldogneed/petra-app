@@ -226,6 +226,25 @@ export const SCENARIOS: Scenario[] = [
   // Item 29 (Or's test 24/10 16:13): a German shepherd that attacks dogs. Expected: lookup_guide → reactive-dog /
   // dog-aggression (not leash pulling), "באלו מקרני שומרון" = dog name + city (not asked again), no compliment on
   // the name, a name heard only in a voice note is not used, no "מעולה" in the closing, transition + closing apart.
+  {
+    // The first real conversation (25/10 19:31, item 35), the customer's messages word for word, no phone.
+    // Expected: "300 עד 350" (never "300 , 350"), no space before "?", prices once, no repeated
+    // "ששומעים עליו הרבה" / "נשמע מוכר", no "ולא נקמה", a minor → no more personal details + the parent
+    // line, the transition and the closing in ONE message, the guide link on its own lines.
+    id: "dvir",
+    title: "דביר וצוצה – פונה שנראה קטין (השיחה האמיתית, 25/10 19:31)",
+    lines: [
+      "היי AllDog, אשמח לעזרה עם הכלב שלי 🐶 (הגעתי דרך: פרסום ממומן · צור קשר)\nהיי מה נשמע יש לי כלבה בצ שנה בערך שלא יודעת שום פקודה ומחרבת את החצר כל יום אדמח לדעת עם תוכלו לאלף אותה בבית שלי וכמה שיעורים וכמה זה יעלה?",
+      "צוצה",
+      "יישוב נעלה זה ליד העיר מודיעין",
+      "היא אסקית",
+      "היא לא יודעת בואי\nרק שבי וארצה וגם זה קצת",
+      "אני רוצה לדעת כמה דיעורים בערך זה יקח וכמה הכל יעלה כדי שאני ידבר עם האחים שלי",
+      "היא הורסת לנו את הצמחים ותולשת ענלים מהעצים ועושה צרכים בחצר וזה בדרך כלל קורה שאנחנו בבצפר וההורים בעבודה",
+      "סבבה תודה רבה",
+      "אה גם חשוב שתכניס שממלאים לה מים היא בדרך כלל משפריצה הכת ושוםכת את הקערה",
+    ],
+  },
   { id: "balu", title: "באלו, רועה גרמני שתוקף כלבים (הבדיקה של אור, 24/10 16:13)", lines: [
     "היי", "🎤 קוראים לי אור , יש לי רועה גרמני שתוקף כלבים בטיול , מושך קדימה ומתפרץ כשהוא רואה כלב", "באלו מקרני שומרון", "בן שלוש", "זה התחיל לפני חצי שנה , פעם אחת הוא תפס כלב קטן" ] },
 ];

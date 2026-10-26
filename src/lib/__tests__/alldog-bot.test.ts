@@ -56,7 +56,7 @@ describe("identity answer", () => {
   it('"אתה בן אדם ?" always gets the fixed answer', () => {
     expect(identityAnswerFor("אתה בן אדם ?")).toBe(HUMAN_QUESTION_ANSWER);
     expect(identityAnswerFor("אתה בנאדם?")).toBe(HUMAN_QUESTION_ANSWER);
-    expect(HUMAN_QUESTION_ANSWER).toBe("לא , אני העוזר המנהלתי של צוות המשרד של AllDog 🙂");
+    expect(HUMAN_QUESTION_ANSWER).toBe("לא, אני העוזר המנהלתי של צוות המשרד של AllDog 🙂");
   });
 
   it('"זה בוט ?" gets the bot answer, other text gets none', () => {
@@ -71,7 +71,7 @@ describe("identity answer", () => {
   });
 
   it("leaves a correct answer untouched", () => {
-    const ok = "לא , אני העוזר המנהלתי של צוות המשרד של AllDog 🙂\nאיך קוראים לכלב ?";
+    const ok = "לא, אני העוזר המנהלתי של צוות המשרד של AllDog 🙂\nאיך קוראים לכלב ?";
     expect(enforceIdentityAnswer("אתה בן אדם ?", ok)).toBe(ok);
   });
 
@@ -181,7 +181,7 @@ describe("reply shaping", () => {
   });
 
   it("removes em dashes, bold and trailing periods", () => {
-    expect(polishReply("**מעולה** — נמשיך.")).toBe("מעולה , נמשיך");
+    expect(polishReply("**מעולה** — נמשיך.")).toBe("מעולה, נמשיך");
   });
 
   it("history → alternating turns, starting with the customer", () => {

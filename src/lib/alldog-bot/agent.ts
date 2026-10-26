@@ -47,6 +47,7 @@ export const BOT_TOOLS: Anthropic.Tool[] = [
         city: { type: "string" },
         neighborhood: { type: "string", description: "שכונה, רק בתל אביב (בשאר הערים לא שואלים)" },
         urgent_reason: { type: "string", description: "רק אם הלקוח אמר שזה דחוף / בהקדם / שהשכנים מתלוננים / שהם שוקלים למסור את הכלב: למה, במשפט קצר. מסמן את הליד כדחוף" },
+        caller_seems_minor: { type: "boolean", description: "true אם נראה שהפונה קטין (בית ספר, ההורים בעבודה, 'לדבר עם ההורים', כתיבה של ילד). מסמן בפטרה לדבר עם הורה" },
         callback_time: { type: "string", description: "רק אם הלקוח ביקש בעצמו שעה או יום (למשל 'רק אחרי 18:00'). נשמר כהערה, בלי התחייבות. אף פעם לא שואלים על זה" },
         service: { type: "string", description: "מה הלקוח מחפש: אילוף אינטנסיבי בבית / שיעורים פרטיים / אילוף בתנאי פנסיון / לא ברור" },
         summary: { type: "string", description: "סיכום של 1–3 משפטים של כל מה שידוע עד עכשיו, לצוות (כולל שכונה בתל אביב, כמה זמן הכלב אצלם, ושעה שהלקוח ביקש אם ביקש)" },
@@ -98,6 +99,7 @@ export const saveLeadInput = z.object({
   neighborhood: trimmed(100),
   callback_time: trimmed(200),
   urgent_reason: trimmed(200),
+  caller_seems_minor: z.boolean().optional(),
   service: trimmed(200),
   summary: trimmed(1000),
 });

@@ -229,7 +229,7 @@ describe("playbook", () => {
     expect(ALLDOG_BOT_PROMPT).not.toContain('"אל דאגה", "דואגים לזה"');
     expect(NEVER.join(" ")).toContain("אל דאגה");
     expect(polishReply("אל דאגה , דואגים לזה 🙂")).toBe("דואגים לזה 🙂");
-    expect(polishReply("סבבה , אל דאגה")).toBe("סבבה ,");
+    expect(polishReply("סבבה , אל דאגה")).toBe("סבבה,");
   });
   it("no own pension / promises in the playbook answers", () => {
     // Sentences that START with "אף פעם לא" are instructions to the bot, not things it says.

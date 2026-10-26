@@ -36,6 +36,8 @@ import {
   dropCheerfulOpeners,
   isSeriousIncident,
   namePlaceNote,
+  MINOR_NOTE,
+  seemsMinor,
   parseNamePlace,
   stripVocativeName,
   voiceNameNote,
@@ -358,6 +360,7 @@ export class SimConversation {
           handoffMode ? HANDOFF_MODE_NOTE : null,
           closed ? CLOSED_NOTE : null,
           !handoffMode && this.rows.some((r) => r.role === "user" && mentionsHumanBite(r.text)) ? HUMAN_BITE_NOTE : null,
+          this.variant === "after" && seemsMinor(this.rows.filter((r) => r.role === "user").map((r) => r.text)) ? MINOR_NOTE : null,
           this.variant === "after" ? addressNote(this.style) : null,
         ]
           .filter(Boolean)
@@ -409,6 +412,6 @@ export class SimConversation {
       this.emit("info", `אין תשובה (${result.stopReason ?? "?"}) — בפרודקשן: העברה לנציג`);
       return;
     }
-    for (const part of splitReply(reply, executor.closing && !closed ? 3 : 2)) this.pushBot(part, text);
+    for (const part of splitReply(reply, 2)) this.pushBot(part, text);
   }
 }

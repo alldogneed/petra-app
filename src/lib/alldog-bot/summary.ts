@@ -18,8 +18,8 @@ import { maskPhone } from "@/lib/whatsapp-failure";
 import { allDogAnthropicKey, botModel } from "@/lib/alldog/config";
 import { israelParts } from "@/lib/alldog/time";
 import { createDbExecutor, updateConversationLog, type BotConversationRef } from "@/lib/alldog-bot/actions";
-import { currentSession, customerWords } from "@/lib/alldog-bot/logic";
-import { withBody } from "@/lib/alldog-bot/journal";
+import { currentSession, customerWords, seemsMinor } from "@/lib/alldog-bot/logic";
+import { MINOR_FACT, withBody, withFact } from "@/lib/alldog-bot/journal";
 
 const LOG = "[alldog-bot:summary]";
 
@@ -30,7 +30,7 @@ export const SUMMARY_HEADER = "[וואטסאפ · בוט] סיכום שיחה";
 export const BOT_SUMMARY_JSON_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["dog_name", "dog_breed", "dog_age", "problem", "city", "neighborhood", "urgency", "promised", "next_step"],
+  required: ["dog_name", "dog_breed", "dog_age", "problem", "city", "neighborhood", "urgency", "promised", "next_step", "caller_seems_minor"],
   properties: {
     dog_name: { type: ["string", "null"] },
     dog_breed: { type: ["string", "null"] },
@@ -41,6 +41,7 @@ export const BOT_SUMMARY_JSON_SCHEMA = {
     urgency: { type: ["string", "null"], description: "דחיפות או בטיחות אם עלו (נשיכה, 'דחוף', שכנים מתלוננים), משפט קצר; אחרת null" },
     promised: { type: ["string", "null"], description: "מה הבוט הבטיח ללקוח (למשל 'נציגה תחזור טלפונית')" },
     next_step: { type: ["string", "null"], description: "הצעד הבא לנציגה, משפט קצר" },
+    caller_seems_minor: { type: "boolean", description: "true אם נראה שהפונה קטין (בית ספר, ההורים בעבודה, 'לדבר עם ההורים', כתיבה של ילד)" },
   },
 } as const;
 
@@ -60,6 +61,7 @@ const botSummarySchema = z.object({
   urgency: s(150),
   promised: s(150),
   next_step: s(150),
+  caller_seems_minor: z.boolean().optional().default(false),
 });
 export type BotSummary = z.infer<typeof botSummarySchema>;
 
@@ -159,7 +161,9 @@ export async function summarizeBotConversation(conversationId: string, opts: { c
     const leadId = ref.leadId;
     if (!leadId) return false;
     // The conversation's one journal line: the summary replaces the body, the facts underneath stay (item 30b).
-    await updateConversationLog(ref, leadId, (current) => withBody(current, text));
+    // Item 35a: a caller who seems to be a child → a prominent line for the rep.
+    const minor = sum.caller_seems_minor || seemsMinor(userTexts.map((r) => customerWords(r) ?? r.text));
+    await updateConversationLog(ref, leadId, (current) => (minor ? withFact(withBody(current, text), MINOR_FACT) : withBody(current, text)));
     console.log(`${LOG} conversation summarized (${maskPhone(conv.phone)})`);
     return true;
   } catch (err) {

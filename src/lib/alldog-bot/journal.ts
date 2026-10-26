@@ -25,6 +25,8 @@ export const otherIssueFact = (issue: string) => `בעיה נוספת: ${issue}`
 export const areaFact = (city: string) => `אזור לבדיקה: ${city.replace(/\s+/g, " ").trim().slice(0, 100)}`;
 export const urgentFact = (reason: string, quote?: string | null) =>
   `${URGENT_FACT}: ${reason}${quote ? ` · "${quote.replace(/\s+/g, " ").trim().slice(0, 200)}"` : ""}`;
+/** Item 35: the customer seems to be a child — the rep talks to a parent. Always the first fact. */
+export const MINOR_FACT = "⚠️ נראה שהפונה קטין – לדבר עם הורה";
 export const callbackTimeFact = (when: string) => `זמן לשיחה שהלקוח ביקש: ${when}`;
 
 export function splitBotLog(text: string | null | undefined): { body: string; facts: string[] } {
@@ -35,7 +37,10 @@ export function splitBotLog(text: string | null | undefined): { body: string; fa
 }
 
 export function composeBotLog(body: string, facts: string[]): string {
-  return [body.trim() || DEFAULT_BODY, ...facts.map((f) => `${FACT_BULLET}${f}`)].join("\n");
+  // Warnings (minor, urgent) first so the rep sees them before anything else (item 35).
+  const rank = (f: string) => (f === MINOR_FACT ? 0 : f.startsWith("⚠") ? 1 : 2);
+  const ordered = facts.map((f, i) => ({ f, i })).sort((a, b) => rank(a.f) - rank(b.f) || a.i - b.i).map((x) => x.f);
+  return [body.trim() || DEFAULT_BODY, ...ordered.map((f) => `${FACT_BULLET}${f}`)].join("\n");
 }
 
 function factKey(fact: string): string | null {

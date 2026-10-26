@@ -4,6 +4,7 @@
  * way the rest of the code reads it.
  */
 import { z } from "zod";
+import { MINOR_FACT } from "@/lib/alldog-bot/journal";
 import { isValidHhmm, isValidYmd } from "@/lib/alldog/time";
 
 /** JSON schema sent to Claude (output_config.format). Every field required; null = not said. */
@@ -12,7 +13,7 @@ export const CALL_SUMMARY_JSON_SCHEMA = {
   additionalProperties: false,
   required: [
     "customer_name", "dog_name", "dog_breed", "dog_age", "city", "problem",
-    "service", "price_mentioned", "objections", "next_step", "next_step_date", "next_step_time", "summary",
+    "service", "price_mentioned", "objections", "next_step", "next_step_date", "next_step_time", "summary", "caller_seems_minor",
   ],
   properties: {
     customer_name: { type: ["string", "null"], description: "שם הלקוח כפי שנאמר בשיחה" },
@@ -28,6 +29,7 @@ export const CALL_SUMMARY_JSON_SCHEMA = {
     next_step_date: { type: ["string", "null"], description: "YYYY-MM-DD אם נאמר תאריך/יום לצעד הבא" },
     next_step_time: { type: ["string", "null"], description: "HH:MM (שעון ישראל) אם נאמרה שעה" },
     summary: { type: "string", description: "סיכום של 3–4 שורות בעברית" },
+    caller_seems_minor: { type: "boolean", description: "true אם נראה שהמתקשר קטין (ילד/נער: בית ספר, ההורים בעבודה, 'אשאל את ההורים', קול או דיבור של ילד)" },
   },
 } as const;
 
@@ -61,6 +63,7 @@ const rawSchema = z.object({
   next_step_date: optStr(10),
   next_step_time: optStr(5),
   summary: z.string().transform((s) => s.trim().slice(0, 1500)),
+  caller_seems_minor: z.boolean().optional().default(false),
 });
 
 export interface CallSummary {
@@ -79,6 +82,8 @@ export interface CallSummary {
   /** Valid HH:MM or null. */
   nextStepTime: string | null;
   summary: string;
+  /** Item 35a: the caller seems to be a child → the rep talks to a parent. */
+  callerSeemsMinor: boolean;
 }
 
 /** Validate Claude's JSON (object or string). Null when unusable (no summary text). */
@@ -108,6 +113,7 @@ export function parseCallSummary(raw: unknown): CallSummary | null {
     nextStepDate: isValidYmd(d.next_step_date) ? d.next_step_date : null,
     nextStepTime: isValidHhmm(d.next_step_time) ? d.next_step_time : null,
     summary: d.summary,
+    callerSeemsMinor: d.caller_seems_minor,
   };
 }
 
@@ -125,6 +131,7 @@ export function formatAnsweredCallLog(
   ].filter(Boolean);
   const summary = [
     `[paycall-answered] שיחה שנענתה${duration} ב-${call.dateLabel} • call_id:${call.callId}`,
+    ...(s.callerSeemsMinor ? [MINOR_FACT] : []),
     s.summary,
     ...facts,
   ].join("\n");
