@@ -40,7 +40,7 @@ describe("35b — text cleanup", () => {
     expect(polishReply("סבבה , נמשיך !")).toBe("סבבה, נמשיך!");
     expect(polishReply("חפירה בחצר — בעיקר כשהיא לבד , או גם כשיש מישהו בבית ?")).toBe("חפירה בחצר, בעיקר כשהיא לבד, או גם כשיש מישהו בבית?");
     expect(ALLDOG_BOT_PROMPT).not.toMatch(/[֐-׿] [?,]/u);
-    expect(ALLDOG_BOT_PROMPT).toContain('"300 עד 350 ₪"');
+    expect(ALLDOG_BOT_PROMPT).toContain('"4 עד 6 שבועות"');
   });
 });
 

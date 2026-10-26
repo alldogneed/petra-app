@@ -608,7 +608,7 @@ export function applyConversationGuards(reply: string, priorBotTexts: string[], 
   const linkSent = priorBotTexts.some((t) => GUIDE_LINK_RE.test(t));
   const firstReply = priorBotTexts.length === 0;
 
-  const lines = trimRepeats(removeInventedFamiliarity(reply), priorBotTexts, userTexts).split("\n").map((raw) => {
+  const lines = enforceSalesPolicy(trimRepeats(removeInventedFamiliarity(reply), priorBotTexts, userTexts)).split("\n").map((raw) => {
     let line = raw.trim();
     if (!line) return raw;
     // 29e. never a compliment on the dog's name ("באלו , שם חזק").
@@ -714,6 +714,57 @@ export function trimRepeats(reply: string, priorBotTexts: string[], userTexts: s
       kept.push(sentence);
     }
     line = kept.join(" ").replace(/\.$/u, "").trim();
+    return line || null;
+  });
+  return out.filter((l): l is string => l !== null).join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+// ─── Item 37: Or's sales rules from 33 real PayCall calls ───────────────────────────────
+
+export const PUPPY_START_LINE = "מתחילים במפגש אבחון וקבלת כלים לחינוך גורים: כלוב, נשיכות, צרכים וסדר יום, ומשם מחליטים איך ממשיכים";
+export const OLD_DOG_LINE = "עובדים עם כלבים בכל הגילאים, הקצב פשוט שונה";
+
+export type PolicyIssueKind = "service_price" | "promise" | "puppy_too_early" | "too_late" | "own_boarding" | "payment" | "baby_promise";
+
+const MONEY = "\\d[\\d,.]*\\s*(?:₪|ש[\"״]?ח|שקל)";
+const POLICY_RULES: Array<{ kind: PolicyIssueKind; re: RegExp }> = [
+  // a number in ₪ right next to intensive / boarding ("אינטנסיבי עולה 6,000 ₪", "יום פנסיון 150 ₪")
+  { kind: "service_price", re: new RegExp(`(?:אינטנסיב|פנסיון)[^.?!\\n₪]{0,25}?${MONEY}|${MONEY}\\s*(?:ל|על|ב)?(?:ה)?(?:אילוף\\s+)?(?:ה)?(?:אינטנסיב|פנסיון)`, "u") },
+  { kind: "promise", re: /תוצאות?\s+מובטח|מבטיח(?:ים)?\s+(?:לך\s+)?(?:תוצאה|הצלחה|שהכלב|שהיא|שהוא)|החזר\s+כספי|(?:הכסף|כסף)\s+בחזרה|מאולף\s+לכל|100\s*%|נפתור\s+כל|אחריות\s+מלאה/u },
+  { kind: "puppy_too_early", re: /עוד\s+מוקדם|מוקדם\s+מדי|(?:לחכות|תחכו|נחכה|שווה\s+לחכות|כדאי\s+לחכות)\s+(?:עד\s+|ל)?(?:גיל\s+)?(?:4|ארבעה)\s+חודשים/u },
+  { kind: "too_late", re: /מאוחר\s+מדי|כבר\s+מאוחר/u },
+  { kind: "own_boarding", re: /פנסיון\s+(?:ה)?שלנו|פנסיון[^.?!\n]{0,15}אצלנו|(?:יש\s+לנו|אצלנו\s+(?:ב)?(?:ה)?|אלינו\s+ל(?:ה)?)\s*פנסיון|המתקן\s+שלנו/u },
+  { kind: "payment", re: /(?:אשלח|שולח|שולחת|הנה)\s+(?:לך\s+)?(?:את\s+)?(?:ה)?קישור\s+(?:ל)?תשלום|https?:\/\/(?![^\s]*all-dog\.co\.il)\S+/u },
+  { kind: "baby_promise", re: /(?:יוכל|תוכל|יהיה\s+אפשר|אפשר\s+יהיה)[^.?!\n]{0,30}(?:ליד|עם)\s+(?:ה)?תינוק/u },
+];
+
+/** Which of Or's rules a bot text breaks (tests + simulator). Pure. */
+export function findPolicyIssues(text: string): PolicyIssueKind[] {
+  return POLICY_RULES.filter((r) => r.re.test(text)).map((r) => r.kind);
+}
+
+/**
+ * Applied to every reply (inside applyConversationGuards): a sentence that breaks a rule is
+ * dropped — except "עוד מוקדם" (→ PUPPY_START_LINE) and "מאוחר מדי" (→ OLD_DOG_LINE), each once.
+ */
+export function enforceSalesPolicy(reply: string): string {
+  const used = new Set<string>();
+  const out = reply.split("\n").map((raw) => {
+    if (!raw.trim()) return raw;
+    const kept: string[] = [];
+    for (const sentence of sentencesOf(raw)) {
+      const kinds = findPolicyIssues(sentence);
+      if (!kinds.length) {
+        kept.push(sentence);
+        continue;
+      }
+      const swap = kinds.includes("puppy_too_early") ? PUPPY_START_LINE : kinds.includes("too_late") ? OLD_DOG_LINE : null;
+      if (swap && !used.has(swap) && kinds.every((k) => k === "puppy_too_early" || k === "too_late")) {
+        used.add(swap);
+        kept.push(swap);
+      }
+    }
+    const line = kept.join(" ").trim();
     return line || null;
   });
   return out.filter((l): l is string => l !== null).join("\n").replace(/\n{3,}/g, "\n\n").trim();

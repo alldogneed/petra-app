@@ -217,7 +217,7 @@ describe("playbook", () => {
   it("fixed lines are word for word", () => {
     const guard = BOUNDARIES.find((b) => b.id === "guard-training")!;
     expect(guard.fixed).toBe(true);
-    expect(ALLDOG_BOT_PROMPT).toContain("אנחנו לא מתעסקים בכלבי שמירה ותקיפה. אנחנו מתעסקים רק בשיפור החיים עם כלבי בית");
+    expect(ALLDOG_BOT_PROMPT).toContain("אנחנו לא מתעסקים בכלבי שמירה ותקיפה. אנחנו מתמקדים בשיפור החיים עם כלבי בית");
     expect(ALLDOG_BOT_PROMPT).toContain("שימוש בקולר אלקטרוני נעשה רק על ידי מאלף שהוכשר לזה, ורק במקרים ספציפיים");
   });
   it("zoom consultation 250 ₪ is an allowed price, next to diagnosis 350 ₪ and lessons", () => {

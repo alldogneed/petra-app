@@ -5,13 +5,16 @@
  *   - at most MAX_QUESTIONS_BEFORE_CLOSE questions from the bot until the closing message;
  *   - at least one professional (trainer) question before the closing;
  *   - zero identity lines nobody asked for ("אני העוזר המנהלתי…");
- *   - zero bot messages identical to an earlier bot message.
+ *   - zero bot messages identical to an earlier bot message;
+ *   - zero breaches of Or's sales rules (item 37: price for intensive / boarding, promised
+ *     results, "עוד מוקדם", "מאוחר מדי", own boarding, payment link, baby promise).
  */
 import { identityAnswerFor } from "@/lib/alldog-bot/prompt";
 import { isClosingText } from "@/lib/alldog-bot/handoff";
-import { isRepeatedMessage } from "@/lib/alldog-bot/logic";
+import { findPolicyIssues, isRepeatedMessage } from "@/lib/alldog-bot/logic";
 
-export const MAX_QUESTIONS_BEFORE_CLOSE = 5;
+/** Item 37: basics (3) + professional (1–2) + what the rep needs to close, all only when missing. */
+export const MAX_QUESTIONS_BEFORE_CLOSE = 7;
 
 export interface Turn {
   role: "user" | "bot";
@@ -43,6 +46,7 @@ export interface ConversationReport {
   professionalQuestions: number;
   identityLines: number;
   repeatedMessages: number;
+  policyIssues: string[];
   problems: string[];
 }
 
@@ -52,6 +56,7 @@ export function checkConversation(turns: Turn[]): ConversationReport {
   let professionalQuestions = 0;
   let identityLines = 0;
   let repeatedMessages = 0;
+  const policyIssues: string[] = [];
   const priorBot: string[] = [];
   let lastUser = "";
   for (const t of turns) {
@@ -60,6 +65,7 @@ export function checkConversation(turns: Turn[]): ConversationReport {
       continue;
     }
     if (isRepeatedMessage(t.text, priorBot)) repeatedMessages++;
+    policyIssues.push(...findPolicyIssues(t.text));
     if (IDENTITY_LINE_RE.test(t.text) && !identityAnswerFor(lastUser)) identityLines++;
     if (!closed) {
       if (isClosingText(t.text)) closed = true;
@@ -76,7 +82,8 @@ export function checkConversation(turns: Turn[]): ConversationReport {
   if (closed && professionalQuestions === 0) problems.push("אין אף שאלה מקצועית לפני הסגירה");
   if (identityLines) problems.push(`${identityLines} הודעות זהות בלי שנשאלו`);
   if (repeatedMessages) problems.push(`${repeatedMessages} הודעות שחזרו על הודעה קודמת`);
-  return { closed, questionsBeforeClose, professionalQuestions, identityLines, repeatedMessages, problems };
+  if (policyIssues.length) problems.push(`הפרת כללים: ${[...new Set(policyIssues)].join(", ")}`);
+  return { closed, questionsBeforeClose, professionalQuestions, identityLines, repeatedMessages, policyIssues, problems };
 }
 
 /** One-line summary for the simulator / compare report. */
