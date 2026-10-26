@@ -61,9 +61,13 @@ export const TRANSITION_LINE =
   "אני מעביר את כל הפרטים לנציגה. היא תסביר לך על כל התוכניות והמסלולים, ומשם תחליטו יחד אם מתאים לעבוד עם מאלף מקצועי ואיזה.";
 export const TRANSITION_MARKER = "תסביר לך על כל התוכניות והמסלולים";
 
-/** Transition line + the closing = ONE message (Or, item 35; was two since 29c). Without the transition when it was already sent. */
+/**
+ * Transition line + the closing = ONE message (Or, item 35; was two since 29c). Without the transition when it was already sent.
+ * Item 38 (Or, 26/10): after the transition the closing does not open with "מעולה, " — "…ואיזה. מעולה, רשמתי הכל"
+ * read like two messages glued together. Same message, without the cheer.
+ */
 export function closingWithTransition(closing: string, transitionAlreadySent = false): string {
-  return transitionAlreadySent ? closing : `${TRANSITION_LINE} ${closing}`;
+  return transitionAlreadySent ? closing : `${TRANSITION_LINE} ${closing.replace(/^מעולה,\s*/u, "")}`;
 }
 
 /**

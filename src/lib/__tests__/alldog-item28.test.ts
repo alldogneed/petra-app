@@ -117,7 +117,7 @@ describe("28b — city outside the list", () => {
 describe("28c — transition line before the closing", () => {
   it("callback closing = transition + a shorter closing, no repeated content", () => {
     const closing = closingWithTransition(callbackClosingText("soon", "m"));
-    expect(closing).toBe(`${TRANSITION_LINE} מעולה, רשמתי הכל 🙏 אני דואג שנציגת AllDog תחזור אליך טלפונית בהקדם. אם יש עוד משהו בינתיים, אפשר לכתוב לי פה`);
+    expect(closing).toBe(`${TRANSITION_LINE} רשמתי הכל 🙏 אני דואג שנציגת AllDog תחזור אליך טלפונית בהקדם. אם יש עוד משהו בינתיים, אפשר לכתוב לי פה`);
     expect(TRANSITION_LINE).toBe(
       "אני מעביר את כל הפרטים לנציגה. היא תסביר לך על כל התוכניות והמסלולים, ומשם תחליטו יחד אם מתאים לעבוד עם מאלף מקצועי ואיזה."
     );
