@@ -2599,6 +2599,22 @@ model PaycallCallRetry {
   @@index([businessId, coachedAt])
 }
 
+/// AllDog item 36 — one-time transcription of past PayCall recordings for sales analysis.
+/// Never touches leads / CallLog / tasks. Prod DDL: prisma/alldog_transcript_backfill.sql
+model AllDogCallTranscriptBackfill {
+  callId      String   @id
+  callDate    DateTime @db.Date
+  status      String   @default("pending") // pending | done | error
+  transcript  String?
+  durationSec Int?
+  error       String?
+  /// Taken by a run (a run that died frees the row after 6 minutes).
+  claimedAt   DateTime?
+  updatedAt   DateTime @default(now()) @updatedAt
+
+  @@index([status])
+}
+
 /// AllDog WhatsApp bot (src/lib/alldog-bot) — one conversation per customer phone.
 /// AllDog only (ALLDOG_BUSINESS_ID); no FK to Business/Lead on purpose. Prod DDL: prisma/alldog_wa_bot.sql
 model WaBotConversation {
