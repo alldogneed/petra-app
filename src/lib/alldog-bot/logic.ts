@@ -693,7 +693,7 @@ export function pricesAlreadySent(priorBotTexts: string[]): boolean {
 
 /** Context note for a price question before any price was sent (Gil, 26/10: asked "פרטים ועלויות", got no number). */
 export const PRICE_QUESTION_NOTE =
-  "הלקוח שאל עכשיו על מחיר ועוד לא קיבל מחיר בשיחה. בתשובה הזו חייב להופיע מספר: שיחת ייעוץ בטלפון בחינם, ואבחון בבית 350 ₪ שמתקזז אם ממשיכים (גם לגור). מחיר כולל או מחיר לאינטנסיבי לא נותנים: את זה קובעים באבחון והנציגה תפרט בטלפון. אחר כך ממשיכים בשיחה כרגיל.";
+  "הלקוח שאל עכשיו על מחיר ועוד לא קיבל מחיר בשיחה. בתשובה הזו חייב להופיע מספר: שיחת ייעוץ בטלפון בחינם, ואבחון בבית 350 ₪ שמתקזז אם ממשיכים לאילוף אינטנסיבי, ואז האבחון בעצם בחינם לאילוף אינטנסיבי, ואז האבחון בעצם בחינם (גם לגור). מחיר כולל או מחיר לאינטנסיבי לא נותנים: את זה קובעים באבחון והנציגה תפרט בטלפון. אחר כך ממשיכים בשיחה כרגיל.";
 
 const sentencesOf = (line: string): string[] => line.split(/(?<=[.!?])\s+/u).filter((x) => x.trim());
 
@@ -744,7 +744,9 @@ export const OLD_DOG_LINE = "עובדים עם כלבים בכל הגילאים,
 
 export type PolicyIssueKind = "service_price" | "promise" | "puppy_too_early" | "too_late" | "own_boarding" | "payment" | "baby_promise";
 
-const MONEY = "\\d[\\d,.]*\\s*(?:₪|ש[\"״]?ח|שקל)";
+// 350 ₪ = the diagnosis, offset when they continue to intensive — never an intensive / boarding
+// price ("אם ממשיכים לאינטנסיבי, ה-350 ₪ מתקזזים" is fine, Or 26/10). Other amounts stay blocked.
+const MONEY = "(?<![\\d,.])(?!350(?![\\d,.]))\\d[\\d,.]*\\s*(?:₪|ש[\"״]?ח|שקל)";
 const POLICY_RULES: Array<{ kind: PolicyIssueKind; re: RegExp }> = [
   // a number in ₪ right next to intensive / boarding ("אינטנסיבי עולה 6,000 ₪", "יום פנסיון 150 ₪")
   { kind: "service_price", re: new RegExp(`(?:אינטנסיב|פנסיון)[^.?!\\n₪]{0,25}?${MONEY}|${MONEY}\\s*(?:ל|על|ב)?(?:ה)?(?:אילוף\\s+)?(?:ה)?(?:אינטנסיב|פנסיון)`, "u") },

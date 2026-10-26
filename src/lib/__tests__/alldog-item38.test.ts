@@ -5,7 +5,7 @@
  *   c. the safety line promises a rep, like the closing (not "a trainer will call");
  *   d. not a customer (volunteer, job, wrong number) → one polite answer and done.
  */
-import { asksPrice, pricesAlreadySent, PRICE_QUESTION_NOTE } from "@/lib/alldog-bot/logic";
+import { asksPrice, findPolicyIssues, pricesAlreadySent, PRICE_QUESTION_NOTE } from "@/lib/alldog-bot/logic";
 import { callbackClosingText, closingWithTransition, TRANSITION_LINE } from "@/lib/alldog-bot/handoff";
 import { ALLDOG_BOT_PROMPT, SAFETY_HANDOFF_LINE } from "@/lib/alldog-bot/prompt";
 
@@ -29,6 +29,19 @@ describe("38a — price questions", () => {
     expect(pricesAlreadySent(["עם גורים מתחילים באבחון בבית"])).toBe(false);
     expect(PRICE_QUESTION_NOTE).toContain("350 ₪");
     expect(ALLDOG_BOT_PROMPT).toContain("הסבר על התהליך בלי מספר הוא לא תשובה לשאלת מחיר");
+  });
+});
+
+describe("38e — the diagnosis is offset when they continue to intensive (Or, 26/10)", () => {
+  it("prompt + price note say it", () => {
+    expect(ALLDOG_BOT_PROMPT).toContain("350 ₪, מתקזז אם ממשיכים לאילוף אינטנסיבי, ואז האבחון בעצם בחינם");
+    expect(PRICE_QUESTION_NOTE).toContain("מתקזז אם ממשיכים לאילוף אינטנסיבי, ואז האבחון בעצם בחינם");
+  });
+  it("the guard keeps the offset sentence but still drops a real intensive price", () => {
+    expect(findPolicyIssues("אם ממשיכים לאינטנסיבי, ה-350 ₪ מתקזזים ואז האבחון בעצם בחינם")).toEqual([]);
+    expect(findPolicyIssues("אבחון בבית 350 ₪ שמתקזז אם ממשיכים לאילוף אינטנסיבי")).toEqual([]);
+    expect(findPolicyIssues("אילוף אינטנסיבי עולה 6,000 ₪")).toEqual(["service_price"]);
+    expect(findPolicyIssues("פנסיון ב-3500 ₪")).toEqual(["service_price"]);
   });
 });
 
