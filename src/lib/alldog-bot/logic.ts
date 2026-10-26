@@ -68,7 +68,7 @@ export function classifyInbound(m: MetaInboundMessage): InboundKind {
   }
 }
 
-export const MEDIA_REPLY = "היי , אני יודע לקרוא רק הודעות טקסט 🙂 נציגה תראה את ההודעה ותחזור בטלפון";
+export const MEDIA_REPLY = "היי, אני יודע לקרוא רק הודעות טקסט 🙂 נציגה תראה את ההודעה ותחזור בטלפון";
 
 // ─── Voice notes (Or, item 28a) ───────────────────────────────────────────────
 
@@ -193,6 +193,13 @@ export function splitReply(text: string, maxParts = 2): string[] {
   if (!clean) return [];
   let parts = clean.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
   if (parts.length === 1 && clean.includes("\n")) parts = clean.split("\n").map((p) => p.trim()).filter(Boolean);
+  // Item 35: the link block ("כתבנו על זה מדריך:" + URL) stays in the message it belongs to.
+  parts = parts.reduce<string[]>((acc, p) => {
+    const prev = acc[acc.length - 1];
+    if (prev !== undefined && (p.startsWith(GUIDE_LINK_INTRO) || /^https?:\/\//.test(p) || prev.endsWith(GUIDE_LINK_INTRO))) acc[acc.length - 1] = `${prev}\n${p}`;
+    else acc.push(p);
+    return acc;
+  }, []);
   if (parts.length === 1 && clean.length > 320) {
     const mid = Math.floor(clean.length / 2);
     const cuts = [...clean.matchAll(/[.?!🙂🐶🐾]\s+/gu)].map((m) => (m.index ?? 0) + m[0].length);
@@ -210,15 +217,60 @@ export function typingDelayMs(text: string): number {
 
 /** Last guard on what the model wrote: no em dashes, no markdown bold, no trailing period. */
 export function polishReply(text: string): string {
-  return fixHebrewSlips(text)
-    .replace(/\*\*(.+?)\*\*/g, "$1")
-    .replace(/\s*[—–]\s*/g, " , ")
-    // Or's playbook: never "אל דאגה" (the model still reaches for it).
-    .replace(/(^|[\s,])אל דאגה\s*[,!.]?\s*/gu, "$1")
-    .split("\n")
-    .map((l) => l.replace(/\.\s*$/u, "").trimEnd())
-    .join("\n")
-    .trim();
+  return arrangeGuideLink(
+    tidyPunctuation(
+      fixHebrewSlips(text)
+        .replace(/\*\*(.+?)\*\*/g, "$1")
+        // Or's playbook: never "אל דאגה" (the model still reaches for it).
+        .replace(/(^|[\s,])אל דאגה\s*[,!.]?\s*/gu, "$1")
+    )
+      .split("\n")
+      .map((l) => l.replace(/\.\s*$/u, "").trimEnd())
+      .join("\n")
+      .trim()
+  );
+}
+
+// ─── Item 35 (Dvir's conversation 25/10 19:31) ─────────────────────────────────────────
+
+/** "300–350" / "4-6" / "2 – 3" (a range, not a phone number) → "300 עד 350". */
+const NUMBER_RANGE_RE = /(?<![\d-])([1-9]\d{0,3})\s*[—–-]\s*(\d{1,4})(?![\d-])/gu;
+
+/**
+ * Item 35b: a dash between numbers is "עד" (never a comma); any other long dash is a comma; no
+ * space before ? ! . , (the old " ?" style is gone). Pure — tested.
+ */
+export function tidyPunctuation(text: string): string {
+  return text
+    .replace(NUMBER_RANGE_RE, "$1 עד $2")
+    .replace(/[ \t]*[—–][ \t]*/g, ", ")
+    .replace(/[ \t]+([?!.,])/g, "$1")
+    .replace(/,\s*,/g, ",")
+    .replace(/,(?=[^\s\d])/g, ", ");
+}
+
+export const GUIDE_LINK_INTRO = "כתבנו על זה מדריך:";
+const GUIDE_URL_RE = /https?:\/\/\S*all-dog\.co\.il[^\s)\]]*/u;
+/** "כתבנו על זה מדריך:" / "אפשר לקרוא על זה כאן:" right before the link. */
+const LINK_LEAD_RE = /(?:[,.]?\s*)(?:כתבנו\s+על\s+זה\s+(?:גם\s+)?מדריך|יש\s+לנו\s+(?:על\s+זה\s+)?מדריך(?:\s+על\s+זה)?|אפשר\s+לקרוא\s+(?:על\s+זה\s+)?(?:עוד\s+)?(?:כאן|פה|במדריך)|מדריך(?:\s+שלנו)?(?:\s+על\s+זה)?)\s*[:：]?\s*$/u;
+
+/**
+ * Or (26/10): a site link always looks tidy in the WhatsApp text — its own two lines at the end of
+ * the paragraph it was in: "כתבנו על זה מדריך:" + the bare URL. Pure — tested.
+ */
+export function arrangeGuideLink(text: string): string {
+  const m = text.match(GUIDE_URL_RE);
+  if (!m || m.index === undefined) return text;
+  const url = m[0].replace(/[.,!?:;]+$/u, "");
+  const before = text.slice(0, m.index).replace(LINK_LEAD_RE, "").replace(/[ \t]+$/u, "");
+  const after = text.slice(m.index + m[0].length).replace(/^[.,!?:;]*[ \t]*/u, "");
+  // The rest of the link's own line stays on that line; the link block goes right after it.
+  const nl = after.indexOf("\n");
+  const restOfLine = (nl < 0 ? after : after.slice(0, nl)).trim();
+  const lines = after.slice(nl < 0 ? after.length : nl).replace(/^\n/u, "");
+  const lineHead = `${before}${restOfLine ? `${before && !before.endsWith("\n") ? " " : ""}${restOfLine}` : ""}`.replace(/\n+$/u, "");
+  const block = `${GUIDE_LINK_INTRO}\n${url}`;
+  return [lineHead.trim() ? `${lineHead.trimEnd()}\n${block}` : block, lines].filter((x) => x.trim()).join("\n").trim();
 }
 
 /** Messages of a conversation → alternating user/assistant turns (consecutive same-role merged). */
@@ -447,7 +499,7 @@ export function dropKnownQuestion(line: string, known: KnownFacts): string {
   if (known.city && /\?/.test(out) && /(?:באיזו|איזו)\s+עיר|באיזה\s+אזור|איפה\s+(?:את|אתה|אתם)\s+(?:גר|גרה|גרים)|מאיפה\s+(?:את|אתה|אתם)/u.test(out)) return "";
   if (known.dogName) {
     // "…, ואיך קוראים לכלב ?" → keep the rest; a line asking only the dog's name → dropped.
-    out = out.replace(/\s*,?\s*ו?איך\s+קוראים\s+ל(?:ה)?כלב(?:ה)?\s*\?/u, " ?").replace(/\s+\?/g, " ?");
+    out = out.replace(/\s*,?\s*ו?איך\s+קוראים\s+ל(?:ה)?כלב(?:ה)?\s*\?/u, "?").replace(/\s+\?/g, "?");
     if (/^\s*(?:ו)?(?:איך\s+קוראים\s+ל(?:ה)?כלב(?:ה)?|מה\s+(?:ה)?שם\s+(?:של\s+)?(?:ה)?כלב(?:ה)?)\s*\?\s*$/u.test(out)) return "";
   }
   return out.trim() === "?" ? "" : out;
@@ -556,7 +608,7 @@ export function applyConversationGuards(reply: string, priorBotTexts: string[], 
   const linkSent = priorBotTexts.some((t) => GUIDE_LINK_RE.test(t));
   const firstReply = priorBotTexts.length === 0;
 
-  const lines = removeInventedFamiliarity(reply).split("\n").map((raw) => {
+  const lines = trimRepeats(removeInventedFamiliarity(reply), priorBotTexts, userTexts).split("\n").map((raw) => {
     let line = raw.trim();
     if (!line) return raw;
     // 29e. never a compliment on the dog's name ("באלו , שם חזק").
@@ -571,7 +623,7 @@ export function applyConversationGuards(reply: string, priorBotTexts: string[], 
     if (n.length >= 6 && sent.has(n)) return null;
     if (SURNAME_QUESTION_RE.test(line) && /\?/.test(line)) return null;
     if (!priceAsked && PRICE_LINE_RE.test(line)) return null;
-    if ((linkSent || firstReply) && GUIDE_LINK_RE.test(line)) return null;
+    if ((linkSent || firstReply) && (GUIDE_LINK_RE.test(line) || line === GUIDE_LINK_INTRO)) return null;
     const m = praiseMatch(line);
     if (!m) return line;
     if (praiseLeft > 0) {
@@ -585,6 +637,86 @@ export function applyConversationGuards(reply: string, priorBotTexts: string[], 
   const real = kept.filter((l) => l.trim() && !isFillerLine(l));
   const out = real.length ? kept.filter((l) => !l.trim() || !isFillerLine(l)) : kept;
   return out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+}
+
+// ─── Item 35a: a caller who seems to be a child ─────────────────────────────────────────
+
+const MINOR_SIGNS: RegExp[] = [
+  // In / back from / after school — not "ליד בית הספר" (an address).
+  /(?<![\p{L}])(?:(?:ו)?(?:ב|מ)(?:ה)?|אחרי\s+(?:ה)?|(?:ה)?)(?:בצפר|ביצפר|בי"ס|ביה"ס)(?![\p{L}])|(?<![\p{L}])(?:ו)?(?:ב|מ)(?:ה)?בית[\s-]?(?:ה)?ספר|אחרי\s+(?:ה)?בית[\s-]?(?:ה)?ספר|בית[\s-]?(?:ה)?ספר\s+שלי/u,
+  /(?<![\p{L}])(?:ה)?הורים\s+(?:שלי\s+)?(?:ב|נמצאים\s+ב)עבודה/u,
+  /(?<![\p{L}])(?:אמא|אבא)\s+(?:שלי\s+)?(?:ב|נמצא(?:ת)?\s+ב)עבודה/u,
+  /(?:לדבר|אדבר|ידבר|לשאול|אשאל|לבדוק)\s+(?:עם\s+|את\s+)?(?:ה)?(?:הורים|אמא|אבא|האחים|אחים|אח|אחות)(?:\s+שלי)?(?![\p{L}])/u,
+  /(?:ההורים|אמא|אבא)\s+(?:שלי\s+)?(?:לא\s+)?(?:מרשים|מרשה|מסכימים|מסכימה|מסכים|ירשו)/u,
+  /(?<![\p{L}])(?:בכיתה|בכיתת|בחטיבה|בתיכון|המורה\s+שלי|ההפסקה|אחרי\s+בית\s+ספר)(?![\p{L}])/u,
+  /(?<![\p{L}\d])אני\s+(?:בן|בת)\s+(?:[6-9]|1[0-7]|שש|שבע|שמונה|תשע|עשר|אחת\s+עשרה|אחד\s+עשרה|שתים\s+עשרה|שתיים\s+עשרה|שנים\s+עשר|שלוש\s+עשרה|ארבע\s+עשרה|חמש\s+עשרה|שש\s+עשרה|שבע\s+עשרה)(?![\p{L}\d])/u,
+];
+
+/** Customer messages that suggest a minor ("בבית ספר", "ההורים בעבודה", "לדבר עם האחים"). Pure — tested. */
+export function seemsMinor(userTexts: string[]): boolean {
+  return userTexts.some((t) => MINOR_SIGNS.some((re) => re.test(t)));
+}
+
+export const MINOR_NOTE =
+  "נראה שהפונה קטין (בית ספר / ההורים / האחים). ממשיכים בנימוס ועונים על שאלות, אבל לא אוספים עוד פרטים אישיים ולא שולחים לסגירה. אם עוד לא נאמר, אומרים פעם אחת (במילים האלה): \"כדי שנוכל להתקדם, הכי טוב שאחד ההורים ידבר עם הנציגה. אפשר להשאיר פה מספר של הורה, או שהנציגה תתקשר למספר הזה ותבקש לדבר עם הורה\". save_lead עם caller_seems_minor=true.";
+
+// ─── Item 35c: fewer repeats ────────────────────────────────────────────────────────────
+
+/** Characteristic phrases — at most once per conversation. */
+const STOCK_PHRASES: RegExp[] = [
+  /ש?שומעים\s+על(?:יו|יה|יהם|\s+זה)\s+הרבה/u,
+  /(?:זה\s+)?נשמע\s+(?:מאוד\s+)?מוכר/u,
+  /(?:זה\s+)?(?:קורה|נפוץ)\s+(?:מאוד\s+|ממש\s+)?הרבה(?:\s+בגיל\s+הזה)?/u,
+  /(?:זה\s+)?(?:מאוד\s+)?נפוץ\s+בגיל\s+הזה/u,
+  /(?:משהו|דבר)\s+ש(?:אנחנו\s+)?רואים\s+הרבה/u,
+];
+/** "ולא נקמה" — an explanation the customer did not raise. */
+const UNASKED_REVENGE_RE = /\s*,?\s*(?:ו)?(?:זה\s+)?לא\s+(?:מתוך\s+|בגלל\s+|של\s+)?(?:נקמה|נקמנות|להתנקם|כדי\s+להתנקם)(?![\p{L}])/gu;
+const REVENGE_RE = /נקמ|מתנקם|להתנקם|נוקם/u;
+/** Money in a line: "350 ₪", "300 ש״ח", "שקלים". */
+const MONEY_RE = /₪|(?<![\p{L}])ש["״']?ח(?![\p{L}])|שקל/u;
+export const PRICE_REPEAT_LINE = "המחירים שכתבתי למעלה בתוקף, ואת המחיר הכולל קובעים באבחון";
+
+const sentencesOf = (line: string): string[] => line.split(/(?<=[.!?])\s+/u).filter((x) => x.trim());
+
+/**
+ * Item 35c, per reply line: a stock phrase already used in this conversation is dropped (its
+ * sentence), "ולא נקמה" unless the customer raised it, and money sentences after prices were
+ * already sent (once replaced by PRICE_REPEAT_LINE). Pure — tested.
+ */
+export function trimRepeats(reply: string, priorBotTexts: string[], userTexts: string[] = []): string {
+  const prior = priorBotTexts.join("\n");
+  const usedStock = STOCK_PHRASES.filter((re) => re.test(prior));
+  const usedInReply = new Set<RegExp>();
+  const pricesSent = priorBotTexts.some((t) => MONEY_RE.test(t));
+  const revengeRaised = userTexts.some((t) => REVENGE_RE.test(t));
+  let priceLineAdded = false;
+  const out = reply.split("\n").map((raw) => {
+    if (!raw.trim() || /https?:\/\//.test(raw)) return raw;
+    let line = revengeRaised ? raw : raw.replace(UNASKED_REVENGE_RE, "");
+    const kept: string[] = [];
+    for (const sentence of sentencesOf(line)) {
+      const stock = STOCK_PHRASES.filter((re) => re.test(sentence));
+      if (stock.some((re) => usedStock.includes(re) || usedInReply.has(re))) {
+        // A short clause ("…, זה נשמע מוכר בגיל הזה 🐾") → only that clause goes; otherwise the sentence.
+        const trimmed = sentence.replace(new RegExp(`\\s*,?\\s*(?:ו)?(?:זה\\s+)?(?:משהו\\s+|דבר\\s+)?(?:${stock.map((r) => r.source).join("|")})[^,.!?]*`, "u"), "").trim();
+        if (trimmed.replace(/[^\p{L}\p{N}]/gu, "").length >= 8) kept.push(trimmed);
+        continue;
+      }
+      stock.forEach((re) => usedInReply.add(re));
+      if (pricesSent && MONEY_RE.test(sentence)) {
+        if (!priceLineAdded) {
+          kept.push(`${PRICE_REPEAT_LINE}.`);
+          priceLineAdded = true;
+        }
+        continue;
+      }
+      kept.push(sentence);
+    }
+    line = kept.join(" ").replace(/\.$/u, "").trim();
+    return line || null;
+  });
+  return out.filter((l): l is string => l !== null).join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
 // ─── Urgency (Or's test 24/10 12:58: "דחוף" / "בהקדם" / "השכנים מתלוננים") ─────────────

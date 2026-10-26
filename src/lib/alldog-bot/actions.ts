@@ -19,6 +19,7 @@ import { URGENT_NOTE_PREFIX } from "@/lib/alldog-bot/logic";
 import { botLeadAttribution } from "@/lib/alldog-bot/attribution";
 import {
   areaFact,
+  MINOR_FACT,
   BOT_LOG_PREFIX,
   callbackFact,
   callbackTimeFact,
@@ -194,6 +195,7 @@ export function createDbExecutor(conv: BotConversationRef): BotToolExecutor {
         notes.push(unknownAreaToolNote(input.city, conv.gender ?? "unknown"));
       }
       if (input.other_issues) facts.push(otherIssueFact(input.other_issues)); // item 28c
+      if (input.caller_seems_minor) facts.push(MINOR_FACT); // item 35a
       if (input.callback_time) facts.push(callbackTimeFact(input.callback_time)); // a time the customer asked for, no commitment
       if (input.summary || facts.length) {
         await updateConversationLog(conv, leadId, (current) => {

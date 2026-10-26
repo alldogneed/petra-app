@@ -54,7 +54,7 @@ export async function markReadWithTyping(messageId: string): Promise<void> {
 
 /** Send free text. Returns the wamid, or null on failure. */
 export async function sendText(to: string, body: string): Promise<string | null> {
-  const r = await post({ recipient_type: "individual", to, type: "text", text: { preview_url: false, body } });
+  const r = await post({ recipient_type: "individual", to, type: "text", text: { preview_url: /https?:\/\//.test(body), body } });
   if (!r.ok) {
     console.error(`${LOG} send to ${maskPhone(to)} failed: ${r.error}`);
     // Item 31: Or hears about it at once (≤ 1 per 30 min).

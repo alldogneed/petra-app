@@ -51,10 +51,13 @@ import {
   voiceNoteLogText,
   waitForQuiet,
   type MetaInboundMessage,
+  MINOR_NOTE,
+  seemsMinor,
 } from "@/lib/alldog-bot/logic";
 import { buildBotContext, enforceIdentityAnswer, enforceOpening, HUMAN_BITE_NOTE, mentionsHumanBite } from "@/lib/alldog-bot/prompt";
 import { HANDOFF_MODE_TOOLS, runBotTurn } from "@/lib/alldog-bot/agent";
-import { closingWhenNow, createDbExecutor, dropDeletedLeadLink, flagMediaForHuman, type BotConversationRef } from "@/lib/alldog-bot/actions";
+import { closingWhenNow, createDbExecutor, dropDeletedLeadLink, flagMediaForHuman, updateConversationLog, type BotConversationRef } from "@/lib/alldog-bot/actions";
+import { MINOR_FACT, withFact } from "@/lib/alldog-bot/journal";
 import { summarizeBotConversation } from "@/lib/alldog-bot/summary";
 import { fixOutOfAreaLines } from "@/lib/alldog-bot/areas";
 import { addressNote, addressStyleFor, applyAddressStyle, detectGender, type Gender } from "@/lib/alldog-bot/address";
@@ -487,6 +490,8 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
   };
   // The closing was already sent → answer questions only, never repeat it (Or, 24/10).
   const closed = closingAlreadySent(rows);
+  // Item 35a: a caller who seems to be a child → no more personal details, a parent talks to the rep.
+  const minor = seemsMinor(userWords);
   const now = new Date();
   const p = israelParts(now);
   const context = buildBotContext({
@@ -505,6 +510,7 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
         ? `הלקוח שלח גם הודעה קולית שלא הצלחת לשמוע. בקש בעדינות שיכתוב בקצרה מה אמר בה ("${VOICE_FAILED_REPLY}"), בלי להזכיר נציגה.`
         : null,
       namePlace,
+      minor ? MINOR_NOTE : null,
       answeringMissedCall ? MISSED_CALL_CONTEXT_NOTE : null,
       formLeadSent && activeLead
         ? formLeadContextNote({ name: activeLead.name, city: activeLead.city, service: activeLead.requestedService })
@@ -558,10 +564,11 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
     }
   }
 
+  if (minor && ref.leadId) await updateConversationLog(ref, ref.leadId, (current) => withFact(current, MINOR_FACT));
   // A newer message arrived while the model was thinking → its own run will answer.
   if ((await latestInboundId(conv.id)) !== item.waMessageId) return;
-  // Closing turn: the bot's answer (+ guide link), the transition and the closing = up to 3 short messages (29c).
-  await sendParts(item, conv.phone, splitReply(text, executor.closing && !closed ? 3 : 2), afterHandoff);
+  // Closing turn: the bot's answer (+ guide link) · transition + closing = 2 messages (item 35).
+  await sendParts(item, conv.phone, splitReply(text, 2), afterHandoff);
   // The conversation just ended (closing / handoff) → one summary in the lead journal (item 27i).
   if ((executor.closing && !closed) || (afterHandoff && !handoffMode)) await summarizeBotConversation(conv.id);
 }

@@ -38,7 +38,7 @@ describe("Hebrew slips (23c)", () => {
   });
 
   it("fixes them before sending (polishReply)", () => {
-    expect(polishReply("זה התחיל לפני חודחודשיים ?")).toBe("זה התחיל לפני חודשיים ?");
+    expect(polishReply("זה התחיל לפני חודחודשיים ?")).toBe("זה התחיל לפני חודשיים?");
     expect(polishReply("נובח על על כל רעש")).toBe("נובח על כל רעש");
   });
 

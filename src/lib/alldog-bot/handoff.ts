@@ -61,9 +61,9 @@ export const TRANSITION_LINE =
   "אני מעביר את כל הפרטים לנציגה. היא תסביר לך על כל התוכניות והמסלולים, ומשם תחליטו יחד אם מתאים לעבוד עם מאלף מקצועי ואיזה.";
 export const TRANSITION_MARKER = "תסביר לך על כל התוכניות והמסלולים";
 
-/** Transition line, then the closing — two separate short messages (Or, item 29c). Without the transition when it was already sent. */
+/** Transition line + the closing = ONE message (Or, item 35; was two since 29c). Without the transition when it was already sent. */
 export function closingWithTransition(closing: string, transitionAlreadySent = false): string {
-  return transitionAlreadySent ? closing : `${TRANSITION_LINE}\n\n${closing}`;
+  return transitionAlreadySent ? closing : `${TRANSITION_LINE} ${closing}`;
 }
 
 /**
@@ -126,7 +126,7 @@ export const CLOSED_NOTE =
  * that promise a callback (or ask something) are dropped, the fixed closing is appended.
  */
 export function withClosing(modelText: string, closing: string): string {
-  if (isClosingText(modelText)) return modelText.includes(TRANSITION_MARKER) || !closing.includes(TRANSITION_MARKER) ? modelText : `${TRANSITION_LINE}\n\n${modelText.trim()}`;
+  if (isClosingText(modelText)) return modelText.includes(TRANSITION_MARKER) || !closing.includes(TRANSITION_MARKER) ? modelText : `${TRANSITION_LINE} ${modelText.trim()}`;
   const keep = modelText
     .split(/\n+/)
     .map((l) => l.trim())

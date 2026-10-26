@@ -15,6 +15,7 @@ import {
   stripNamePraise,
   stripVocativeName,
   voiceOnlyName,
+  polishReply,
 } from "@/lib/alldog-bot/logic";
 import { callbackClosingText, closingText, closingWithTransition, TRANSITION_LINE, withClosing } from "@/lib/alldog-bot/handoff";
 
@@ -51,14 +52,14 @@ describe("29b — a short answer carries the name + the city", () => {
     expect(cityAlreadyGiven([{ role: "user", text: "היי" }])).toBe(false);
     expect(dropKnownQuestion("באיזו עיר?", { city: true })).toBe("");
     expect(dropKnownQuestion("באיזו עיר?", {})).toBe("באיזו עיר?");
-    expect(dropKnownQuestion("נעים מאוד 🙂 איך קוראים לך, ואיך קוראים לכלב?", { dogName: true })).toBe("נעים מאוד 🙂 איך קוראים לך ?");
+    expect(dropKnownQuestion("נעים מאוד 🙂 איך קוראים לך, ואיך קוראים לכלב?", { dogName: true })).toBe("נעים מאוד 🙂 איך קוראים לך?");
     expect(
       applyConversationGuards("זה נשמע מאתגר\nבאיזו עיר?", ["נעים מאוד 🙂 איך קוראים לך, ואיך קוראים לכלב?"], { known: { city: true, dogName: true } })
     ).toBe("זה נשמע מאתגר");
   });
 });
 
-describe("29c — closing after an attack: no 'מעולה', transition + closing apart", () => {
+describe("29c — closing after an attack: no 'מעולה' (transition + closing = one message since item 35)", () => {
   it("serious → the closing opens with 'רשמתי הכל'", () => {
     expect(isSeriousIncident(["הוא תוקף כלבים בטיול"])).toBe(true);
     expect(isSeriousIncident(["נשך את השכן"])).toBe(true);
@@ -67,14 +68,13 @@ describe("29c — closing after an attack: no 'מעולה', transition + closing
     expect(closingText("soon", "m").startsWith("מעולה, רשמתי הכל 🙏")).toBe(true);
     expect(dropCheerfulOpeners("מעולה , זה עוזר להבין\nאחלה, בן כמה הוא ?")).toBe("זה עוזר להבין\nבן כמה הוא ?");
   });
-  it("answer + guide link | transition | closing = three short messages", () => {
+  it("answer + guide link | transition + closing = two messages (item 35)", () => {
     const closing = closingWithTransition(callbackClosingText("soon", "m", { serious: true }));
-    const text = withClosing("מה שאתה מתאר זה תגובתיות לכלבים , ובודקים את זה באבחון\nכתבנו על זה מדריך: https://all-dog.co.il/guides/behavior/reactive-dog", closing);
-    const parts = splitReply(text, 3);
+    const model = polishReply("מה שאתה מתאר זה תגובתיות לכלבים , ובודקים את זה באבחון. כתבנו על זה מדריך: https://all-dog.co.il/guides/behavior/reactive-dog");
+    const parts = splitReply(withClosing(model, closing), 2);
     expect(parts).toEqual([
-      "מה שאתה מתאר זה תגובתיות לכלבים , ובודקים את זה באבחון\nכתבנו על זה מדריך: https://all-dog.co.il/guides/behavior/reactive-dog",
-      TRANSITION_LINE,
-      callbackClosingText("soon", "m", { serious: true }),
+      "מה שאתה מתאר זה תגובתיות לכלבים, ובודקים את זה באבחון\nכתבנו על זה מדריך:\nhttps://all-dog.co.il/guides/behavior/reactive-dog",
+      `${TRANSITION_LINE} ${callbackClosingText("soon", "m", { serious: true })}`,
     ]);
     expect(parts.join("\n")).not.toMatch(/מעולה/);
   });
