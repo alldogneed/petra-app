@@ -2599,7 +2599,7 @@ model PaycallCallRetry {
   @@index([businessId, coachedAt])
 }
 
-/// AllDog item 36 — one-time transcription of past PayCall recordings for sales analysis.
+/// AllDog item 36 — transcripts of past PayCall recordings (one-time run, done) for sales analysis.
 /// Never touches leads / CallLog / tasks. Prod DDL: prisma/alldog_transcript_backfill.sql
 model AllDogCallTranscriptBackfill {
   callId      String   @id
