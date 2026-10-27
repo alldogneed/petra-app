@@ -70,6 +70,8 @@ jest.mock("@/lib/prisma", () => {
   };
   return { __esModule: true, default: prisma, prisma };
 });
+// The handled-call marker (27/10) is covered in paycall-handled-call.test.ts.
+jest.mock("@/lib/rate-limit", () => ({ hasActiveClaim: async () => false, claimOnce: async () => true }));
 jest.mock("@/lib/reminder-service", () => ({ scheduleLeadFollowup: jest.fn(async () => {}) }));
 jest.mock("@/services/clients", () => ({
   findCustomersByPhone: jest.fn(async (_b: string, _db: unknown, phone: string) => {
