@@ -238,6 +238,17 @@ async function claimDb(key: string, ttlSeconds: number): Promise<boolean | null>
   }
 }
 
+/** A claim made by claimOnce(key) is still live (read only, never claims). False on DB error. */
+export async function hasActiveClaim(key: string): Promise<boolean> {
+  try {
+    const rows = await prisma.$queryRaw<Array<{ key: string }>>`
+      SELECT "key" FROM "RateLimitBucket" WHERE "key" = ${`claim:${key}`} AND "windowEnd" > NOW() LIMIT 1`;
+    return rows.length > 0;
+  } catch {
+    return _claimMemory.has(key) && (_claimMemory.get(key) ?? 0) > Date.now();
+  }
+}
+
 /** Periodic cleanup of expired entries (call from a cron or app init) */
 export function cleanupRateLimitStore(): number {
   const store = getStore();

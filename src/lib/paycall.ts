@@ -130,6 +130,9 @@ export function normalizeIsraeliPhone(phone: string): string {
   return digits;
 }
 
+/** How long a handled call id is remembered (the sync looks back 48 h). */
+export const HANDLED_CALL_TTL_SECONDS = 30 * 24 * 60 * 60;
+
 /**
  * Process a single missed call.
  * - The number belongs to an existing CUSTOMER → no lead: a note + a "לחזור ללקוח" task on
@@ -154,10 +157,19 @@ export async function processMissedCall(call: PaycallCall): Promise<{
   const phone = normalizeIsraeliPhone(call.CALLERID);
   const startedAt = new Date(call.START.replace(" ", "T") + "+03:00"); // Asia/Jerusalem
 
+  // 27/10: a call handled once is never handled again — even after its lead (and with it the
+  // call_id CallLog) was deleted by hand. Before this the 10-min sync re-created a deleted lead
+  // and sent a new "ליד חדש" alert every run.
+  const { hasActiveClaim, claimOnce } = await import("@/lib/rate-limit");
+  const handledKey = `paycall-call-handled:${call.ID}`;
+  const markHandled = () => claimOnce(handledKey, HANDLED_CALL_TTL_SECONDS).catch(() => false);
+  if (await hasActiveClaim(handledKey)) return { leadId: null, created: false, skipped: true };
+
   // A caller who is already a customer never becomes a new lead.
   const customer = await findCustomerForCall(businessId, phone);
   if (customer) {
     if (await callIdLoggedOnCustomer(businessId, call.ID)) {
+      await markHandled();
       return { leadId: null, customerId: customer.id, created: false, skipped: true };
     }
     await logMissedCallOnCustomer(businessId, customer, {
@@ -166,6 +178,7 @@ export async function processMissedCall(call: PaycallCall): Promise<{
       disposition: call.DISPOSITION,
       phone,
     });
+    await markHandled();
     return { leadId: null, customerId: customer.id, created: false, skipped: false };
   }
 
@@ -174,7 +187,10 @@ export async function processMissedCall(call: PaycallCall): Promise<{
     where: { summary: { contains: `call_id:${call.ID}` }, lead: { businessId } },
     select: { leadId: true },
   });
-  if (logged) return { leadId: logged.leadId, created: false, skipped: true };
+  if (logged) {
+    await markHandled();
+    return { leadId: logged.leadId, created: false, skipped: true };
+  }
 
   // The ACTIVE lead of this phone (open stage, touched in the last 60 days). Every lead closed
   // or stale → a new lead linked to the previous one (Or, item 24).
@@ -253,6 +269,7 @@ export async function processMissedCall(call: PaycallCall): Promise<{
     });
   }
 
+  await markHandled();
   return { leadId, created, skipped: false };
 }
 
