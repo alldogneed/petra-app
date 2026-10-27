@@ -22,7 +22,7 @@ export function isBotInboxBusiness(businessId: string): boolean {
   return isWaBotEnabled() && allDogBusinessId() === businessId;
 }
 
-async function findConversation(businessId: string, leadId: string) {
+export async function findConversation(businessId: string, leadId: string) {
   if (!isBotInboxBusiness(businessId)) return null;
   const lead = await prisma.lead.findFirst({ where: { id: leadId, businessId }, select: { id: true, phone: true } });
   if (!lead) return null;
@@ -40,7 +40,27 @@ export interface BotConversationView {
   canReply: boolean;
   lastInboundAt: string | null;
   autoResumeAt: string | null;
-  messages: Array<{ id: string; role: string; kind: string; text: string; createdAt: string }>;
+  messages: Array<{ id: string; role: string; kind: string; text: string; createdAt: string; mediaUrl?: string | null }>;
+}
+
+/**
+ * Item 39: a photo / video / file the customer sent, for the rep — downloaded from Meta on demand
+ * (no copy is stored; Meta keeps media ~30 days). Null = not this lead's / no media / expired.
+ */
+export async function getBotMediaForLead(
+  businessId: string,
+  leadId: string,
+  messageId: string
+): Promise<{ data: ArrayBuffer; contentType: string } | null> {
+  const conv = await findConversation(businessId, leadId);
+  if (!conv) return null;
+  const msg = await prisma.waBotMessage.findFirst({ where: { id: messageId, conversationId: conv.id, role: "user" }, select: { id: true } });
+  if (!msg) return null;
+  const { mediaRefsFor } = await import("@/lib/alldog-bot/images");
+  const ref = (await mediaRefsFor(conv.id, [msg.id])).get(msg.id);
+  if (!ref) return null;
+  const { downloadMedia } = await import("@/lib/alldog-bot/wa");
+  return downloadMedia(ref.mediaId);
 }
 
 export async function getBotConversationForLead(businessId: string, leadId: string): Promise<BotConversationView | null> {
@@ -52,6 +72,10 @@ export async function getBotConversationForLead(businessId: string, leadId: stri
     take: 60,
     select: { id: true, role: true, kind: true, text: true, createdAt: true },
   });
+  // Item 39: photos / files open through the authenticated media route.
+  const { mediaRefsFor } = await import("@/lib/alldog-bot/images");
+  const mediaIds = rows.filter((r) => r.role === "user" && (r.kind === "image" || r.kind === "media")).map((r) => r.id);
+  const refs = await mediaRefsFor(conv.id, mediaIds);
   const resume = autoResumeAt(conv);
   return {
     id: conv.id,
@@ -60,7 +84,11 @@ export async function getBotConversationForLead(businessId: string, leadId: stri
     lastInboundAt: conv.lastInboundAt?.toISOString() ?? null,
     autoResumeAt: resume && resume.getTime() > 0 ? resume.toISOString() : null,
     // Item 32: our missed-call template shows as the text the customer got (legacy copies included).
-    messages: rows.reverse().map((r) => ({ ...displayMissedCallMessage(r), createdAt: r.createdAt.toISOString() })),
+    messages: rows.reverse().map((r) => ({
+      ...displayMissedCallMessage(r),
+      createdAt: r.createdAt.toISOString(),
+      mediaUrl: refs.has(r.id) ? `/api/leads/${leadId}/whatsapp-bot/media/${r.id}` : null,
+    })),
   };
 }
 

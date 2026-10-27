@@ -46,6 +46,16 @@ import {
   VOICE_FAILED_TEXT,
   voiceHistoryText,
   urgencyReason,
+  IMAGE_NOTE,
+  IMAGE_PENDING_TEXT,
+  MEDIA_REPLY,
+  UNREADABLE_MEDIA_NOTE,
+  dropLimitationLines,
+  dropMidConversationGreeting,
+  imageHistoryText,
+  imageMessageText,
+  parseImageMessageText,
+  revealsLimitation,
 } from "@/lib/alldog-bot/logic";
 import {
   buildBotContext,
@@ -100,6 +110,20 @@ export function parseSimVoice(raw: string): { isVoice: boolean; failed: boolean;
   return { isVoice: true, failed: !!m[1] || !m[2].trim(), text: m[2].trim() };
 }
 
+/**
+ * Item 39 simulator input: "📷 <what is in the photo>" = a photo (the description stands in for the
+ * image the model gets in production), "📷 <description> || <caption>" = with a caption, "📷!" = a photo
+ * that failed to download, "🎬" = a video.
+ */
+export function parseSimMedia(raw: string): { kind: "image" | "unreadable" | null; text: string } {
+  const m = raw.match(/^(📷|🎬)\s*(!)?\s*([\s\S]*)$/u);
+  if (!m) return { kind: null, text: raw };
+  if (m[1] === "🎬" || m[2]) return { kind: "unreadable", text: m[1] === "🎬" ? "[סרטון]" : IMAGE_PENDING_TEXT };
+  // "📷 <description> || <caption>" = a photo sent with a caption.
+  const [desc, caption] = m[3].split("||").map((x) => x.trim());
+  return { kind: "image", text: imageMessageText(desc || null, caption || null) };
+}
+
 export type Variant = "before" | "after";
 
 /** "before" = the prompt + tools of the first release (no guides, old opening); "after" = current code. */
@@ -119,7 +143,7 @@ export interface SimEvent {
 type Status = "active" | "handoff" | "stopped";
 
 export class SimConversation {
-  rows: Array<{ role: string; text: string; voice?: boolean }> = [];
+  rows: Array<{ role: string; text: string; voice?: boolean; media?: "image" | "unreadable" }> = [];
   status: Status = "active";
   attribution: { source: string | null; page: string | null } | null = null;
   knownName: string | null = null;
@@ -288,10 +312,17 @@ export class SimConversation {
       if (last?.text !== VOICE_FAILED_REPLY) this.pushBot(VOICE_FAILED_REPLY, "");
       return;
     }
-    const text = voice.text;
-    this.emit("user", voice.isVoice ? `🎤 ${text}` : text);
-    if (voice.isVoice) this.emit("info", "הודעה קולית: תומללה (ElevenLabs בפרודקשן) → הבוט עונה לתמלול");
-    this.rows.push({ role: "user", text, ...(voice.isVoice ? { voice: true } : {}) });
+    // Item 39: "📷 <description>" / "📷!" / "🎬".
+    const media = parseSimMedia(voice.text);
+    const text = media.kind === "image" ? (parseImageMessageText(media.text).caption ?? "") : media.kind ? "" : voice.text;
+    if (media.kind) {
+      this.emit("user", media.kind === "image" ? `📷 ${imageHistoryText(media.text)}` : media.text === IMAGE_PENDING_TEXT ? "📷 (ההורדה נכשלה)" : "🎬 סרטון");
+      this.rows.push({ role: "user", text: media.text, media: media.kind });
+    } else {
+      this.emit("user", voice.isVoice ? `🎤 ${text}` : text);
+      if (voice.isVoice) this.emit("info", "הודעה קולית: תומללה (ElevenLabs בפרודקשן) → הבוט עונה לתמלול");
+      this.rows.push({ role: "user", text, ...(voice.isVoice ? { voice: true } : {}) });
+    }
 
     if (isStopRequest(text)) {
       this.status = "stopped";
@@ -308,7 +339,10 @@ export class SimConversation {
       this.emit("info", `דחוף: ${why} → הליד מסומן דחוף + המשימה לנציגה URGENT`);
     }
     const prevGender = this.style.gender;
-    const userTexts = this.rows.filter((r) => r.role === "user" && r.text !== VOICE_FAILED_TEXT).map((r) => r.text);
+    const userTexts = this.rows
+      .filter((r) => r.role === "user" && r.text !== VOICE_FAILED_TEXT)
+      .map((r) => (r.media === "image" ? parseImageMessageText(r.text).caption ?? "" : r.media ? "" : r.text))
+      .filter(Boolean);
     const priorBot = this.rows.filter((r) => r.role === "assistant").map((r) => r.text);
     // Item 29d: a name heard only in a voice note is not used until confirmed.
     const voiceName = this.variant === "after"
@@ -362,6 +396,8 @@ export class SimConversation {
           !handoffMode && this.rows.some((r) => r.role === "user" && mentionsHumanBite(r.text)) ? HUMAN_BITE_NOTE : null,
           this.variant === "after" && seemsMinor(this.rows.filter((r) => r.role === "user").map((r) => r.text)) ? MINOR_NOTE : null,
           this.variant === "after" ? addressNote(this.style) : null,
+          this.variant === "after" && media.kind === "image" ? IMAGE_NOTE : null,
+          this.variant === "after" && media.kind === "unreadable" ? UNREADABLE_MEDIA_NOTE : null,
         ]
           .filter(Boolean)
           .join("\n") || null,
@@ -379,7 +415,13 @@ export class SimConversation {
       context,
       history: toChatTurns(
         this.rows.map((r) =>
-          r.voice ? { role: r.role, text: r.text === VOICE_FAILED_TEXT ? "[הודעה קולית שלא הצלחת לשמוע]" : voiceHistoryText(r.text) } : r
+          r.voice
+            ? { role: r.role, text: r.text === VOICE_FAILED_TEXT ? "[הודעה קולית שלא הצלחת לשמוע]" : voiceHistoryText(r.text) }
+            : r.media === "image"
+              ? { role: r.role, text: imageHistoryText(r.text) }
+              : r.media === "unreadable"
+                ? { role: r.role, text: `(הלקוח שלח ${r.text === IMAGE_PENDING_TEXT ? "תמונה" : "סרטון"})` }
+                : r
         )
       ),
       executor,
@@ -387,7 +429,10 @@ export class SimConversation {
       ...(handoffMode ? { tools: HANDOFF_MODE_TOOLS } : {}),
     });
     for (const name of result.toolsUsed.filter((n) => n === "lookup_guide")) this.emit("tool", name);
-    let reply = enforceIdentityAnswer(text, result.reply);
+    if (this.variant === "after" && result.reply.split("\n").some(revealsLimitation)) {
+      this.warn(`המודל חשף מגבלה (הוסר, 39): "${result.reply.slice(0, 80)}"`);
+    }
+    let reply = enforceIdentityAnswer(text, this.variant === "after" ? dropLimitationLines(result.reply) : result.reply);
     if (this.variant === "after") {
       const prior = this.rows.filter((r) => r.role === "assistant").map((r) => r.text);
       if (/מחוץ\s+ל(?:ה)?אזור|לא\s+ברשימה/u.test(reply)) this.warn(`המודל כתב "מחוץ לאזור" / "לא ברשימה" (הוחלף, 28b): "${reply.slice(0, 80)}"`);
@@ -407,6 +452,10 @@ export class SimConversation {
         const firstUser = this.rows.filter((r) => r.role === "user").map((r) => r.text).join("\n");
         reply = enforceOpening(isFirstReply, firstUser, reply);
       }
+    }
+    if (this.variant === "after") {
+      reply = dropMidConversationGreeting(reply, isFirstReply);
+      if (media.kind === "unreadable" && reply && !reply.includes("תודה ששלחת")) reply = `${MEDIA_REPLY}\n${reply}`;
     }
     if (!reply) {
       this.emit("info", `אין תשובה (${result.stopReason ?? "?"}) — בפרודקשן: העברה לנציג`);

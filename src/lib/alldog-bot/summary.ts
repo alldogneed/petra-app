@@ -18,7 +18,7 @@ import { maskPhone } from "@/lib/whatsapp-failure";
 import { allDogAnthropicKey, botModel } from "@/lib/alldog/config";
 import { israelParts } from "@/lib/alldog/time";
 import { createDbExecutor, updateConversationLog, type BotConversationRef } from "@/lib/alldog-bot/actions";
-import { currentSession, customerWords, seemsMinor } from "@/lib/alldog-bot/logic";
+import { currentSession, customerWords, parseImageMessageText, seemsMinor } from "@/lib/alldog-bot/logic";
 import { MINOR_FACT, withBody, withFact } from "@/lib/alldog-bot/journal";
 
 const LOG = "[alldog-bot:summary]";
@@ -156,6 +156,19 @@ export function formatBotSummary(sum: BotSummary, dateLabel: string): string {
   return [`${SUMMARY_HEADER} (${dateLabel})`, ...lines].join("\n");
 }
 
+/**
+ * Item 39: one line per photo the customer sent ("תמונה מהלקוח: כלבה בינונית, נראית מעורבת"),
+ * max 3, under the summary. Pure — tested.
+ */
+export function imageSummaryLines(rows: Array<{ role: string; kind: string; text: string }>): string[] {
+  return rows
+    .filter((r) => r.role === "user" && r.kind === "image")
+    .map((r) => parseImageMessageText(r.text).description)
+    .filter((d): d is string => !!d)
+    .slice(-3)
+    .map((d) => `תמונה מהלקוח: ${d}`);
+}
+
 function dateLabel(d: Date): string {
   const p = israelParts(d);
   return `${p.ymd.slice(8, 10)}/${p.ymd.slice(5, 7)} ${p.hhmm}`;
@@ -222,7 +235,7 @@ export async function summarizeBotConversationDetailed(
         })
       ).reverse()
     );
-    const userTexts = rows.filter((r) => r.role === "user" && customerWords(r));
+    const userTexts = rows.filter((r) => r.role === "user" && (customerWords(r) || r.kind === "image"));
     if (!userTexts.length) return null;
     const last = rows[rows.length - 1];
     if (opts.claim !== false && !(await claimOnce(`alldog-bot-summary:${conv.id}:${last.id}`, 14 * 24 * 60 * 60))) return null;
@@ -233,7 +246,7 @@ export async function summarizeBotConversationDetailed(
       .slice(-12000);
     const sum = await summarize(transcript);
     if (!sum) return null;
-    const text = formatBotSummary(sum, dateLabel(last.createdAt));
+    const text = [formatBotSummary(sum, dateLabel(last.createdAt)), ...imageSummaryLines(rows)].join("\n");
 
     // The lead (the same one the bot writes to — created if missing, e.g. after a manual delete).
     const ref: BotConversationRef = { ...conv };
