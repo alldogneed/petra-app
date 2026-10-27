@@ -338,6 +338,15 @@ export function parseLiveLinkParams(sp: URLSearchParams): LiveLinkParams {
   };
 }
 
+/** Talk time of a call from the API (END − ANS_TIME, else DURATION); null when unknown. */
+export function paycallBillsec(call: Pick<PaycallCall, "END" | "ANS_TIME" | "DURATION">): number | null {
+  const end = Date.parse((call.END ?? "").replace(" ", "T") + "+03:00");
+  const ans = call.ANS_TIME ? Date.parse(call.ANS_TIME.replace(" ", "T") + "+03:00") : NaN;
+  if (!isNaN(end) && !isNaN(ans) && end >= ans) return Math.round((end - ans) / 1000);
+  const d = Number(call.DURATION);
+  return Number.isFinite(d) && call.DURATION !== "" ? d : null;
+}
+
 /** ANSWER with at least MIN_SUMMARY_BILLSEC seconds of talk time. */
 export function isSummarizableAnswer(p: { disposition: string | null; billsec: number | null }): boolean {
   return p.disposition === "ANSWER" && p.billsec !== null && p.billsec >= MIN_SUMMARY_BILLSEC;
