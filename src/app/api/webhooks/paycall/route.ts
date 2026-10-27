@@ -10,7 +10,9 @@ import {
   isMissedCall,
   isSummarizableAnswer,
   logCallRecordKeysOnce,
+  MIN_SUMMARY_BILLSEC,
   parseLiveLinkParams,
+  paycallBillsec,
   processMissedCall,
   type LiveLinkParams,
 } from "@/lib/paycall";
@@ -63,16 +65,29 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ ok: true, ignored: status });
   }
   if (!callId) {
+    console.warn("[paycall webhook] END without Id — ignored");
     return NextResponse.json({ error: "Missing Id" }, { status: 400 });
   }
+  // One line per call (no phone number, last 4 digits only) — so a call that never reached Petra can be traced.
+  console.log(
+    `[paycall webhook] END call ${callId}: disposition=${disposition ?? "?"} billsec=${live.billsec ?? "none"} cli=…${(live.cli ?? "").replace(/\D/g, "").slice(-4) || "?"}`
+  );
 
   // Answered call: summarized in the background for AllDog, otherwise ignored as before.
   if (disposition && disposition === "ANSWER") {
-    if (isCallSummariesEnabled() && isSummarizableAnswer(live)) {
-      await runAfterResponse(summarizeAnsweredCall(callId, live));
-      return NextResponse.json({ ok: true, queued: "answered_summary", callId });
+    if (!isCallSummariesEnabled()) {
+      console.log(`[paycall webhook] answered call ${callId}: summaries disabled — ignored`);
+      return NextResponse.json({ ok: true, ignored: "answered" });
     }
-    return NextResponse.json({ ok: true, ignored: "answered" });
+    // The liveLink often has no billsec → it is taken from the PayCall API (END − ANS_TIME) in the
+    // background; only a call known to be shorter than 20 s is skipped here (27/10: before this every
+    // answered call without billsec was dropped silently).
+    if (live.billsec !== null && !isSummarizableAnswer(live)) {
+      console.log(`[paycall webhook] answered call ${callId}: ${live.billsec}s < ${MIN_SUMMARY_BILLSEC}s — not summarized`);
+      return NextResponse.json({ ok: true, ignored: "answered_short", callId });
+    }
+    await runAfterResponse(summarizeAnsweredCall(callId, live));
+    return NextResponse.json({ ok: true, queued: "answered_summary", callId });
   }
 
   // Fetch full call detail (we need CALLERID + START which the webhook doesn't include)
@@ -84,14 +99,17 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "lookup_failed" }, { status: 502 });
   }
   if (!call) {
+    console.warn(`[paycall webhook] missed call ${callId}: not found in PayCall getCalls yet — left for the sync`);
     return NextResponse.json({ ok: true, ignored: "call_not_found", callId });
   }
   if (!isMissedCall(call)) {
+    console.log(`[paycall webhook] call ${callId}: disposition ${call.DISPOSITION} after lookup — not a missed call`);
     return NextResponse.json({ ok: true, ignored: "answered_after_lookup", callId });
   }
 
   try {
     const result = await processMissedCall(call);
+    console.log(`[paycall webhook] missed call ${callId}: ${result.skipped ? "skipped" : result.customerId ? "existing customer" : result.created ? "new lead" : "lead updated"}`);
     // Item 32 (AllDog, flag ALLDOG_MISSED_CALL_WA_ENABLED): automatic WhatsApp to the caller, after the response.
     if (!result.skipped) {
       const { isMissedCallWaEnabled } = await import("@/lib/alldog/missed-call-rules");
@@ -111,14 +129,30 @@ export async function GET(request: NextRequest) {
 async function summarizeAnsweredCall(callId: string, live: LiveLinkParams): Promise<void> {
   try {
     let phone = live.cli;
-    let startedAt = new Date(Date.now() - (live.billsec ?? 0) * 1000);
+    let billsec = live.billsec;
+    let startedAt = new Date(Date.now() - (billsec ?? 0) * 1000);
     let rep: string | null = null;
-    const details = await getCallById(callId).catch(() => null);
+    // PayCall may list the call a few seconds after the END alert → a few short retries.
+    let details = await getCallById(callId).catch(() => null);
+    for (const waitMs of [5_000, 15_000, 30_000]) {
+      if (details) break;
+      await new Promise((r) => setTimeout(r, waitMs));
+      details = await getCallById(callId).catch(() => null);
+    }
     if (details) {
       phone = phone ?? details.CALLERID;
       rep = repFromPaycall(details)?.rep ?? null;
       startedAt = new Date(details.START.replace(" ", "T") + "+03:00");
-      if (isNaN(startedAt.getTime())) startedAt = new Date(Date.now() - (live.billsec ?? 0) * 1000);
+      if (isNaN(startedAt.getTime())) startedAt = new Date(Date.now() - (billsec ?? 0) * 1000);
+      billsec = billsec ?? paycallBillsec(details);
+    }
+    if (billsec === null) {
+      console.warn(`[paycall webhook] answered call ${callId}: no billsec (not in the liveLink, call not found) — left for the sync`);
+      return;
+    }
+    if (billsec < MIN_SUMMARY_BILLSEC) {
+      console.log(`[paycall webhook] answered call ${callId}: ${billsec}s < ${MIN_SUMMARY_BILLSEC}s — not summarized`);
+      return;
     }
     // Item 33: the rep = "שם יעד". Not in getCalls → look the call up in getAnalyticsCalls.
     const fromCalls = repFromPaycall(details);
@@ -141,7 +175,7 @@ async function summarizeAnsweredCall(callId: string, live: LiveLinkParams): Prom
         callId,
         phone,
         startedAt,
-        billsec: live.billsec,
+        billsec,
         recordingUrl: live.recordingUrl,
         gclid: live.gclid,
         campaign: live.campaign,
