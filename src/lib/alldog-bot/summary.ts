@@ -194,12 +194,23 @@ type ConvRow = {
  * closing path and the idle cron share the key). Never throws.
  */
 export async function summarizeBotConversation(conversationId: string, opts: { claim?: boolean } = { claim: true }): Promise<boolean> {
+  return !!(await summarizeBotConversationDetailed(conversationId, opts));
+}
+
+/**
+ * Same as summarizeBotConversation, returning the summary + the lead. `extraFact(sum)` adds one more
+ * "• " line under the summary (the partial closing's "לא השלים: …", 27/10). Never throws.
+ */
+export async function summarizeBotConversationDetailed(
+  conversationId: string,
+  opts: { claim?: boolean; extraFact?: (sum: BotSummary, leadName: string | null) => string | null } = { claim: true }
+): Promise<{ summary: BotSummary; leadId: string } | null> {
   try {
     const conv = (await prisma.waBotConversation.findUnique({
       where: { id: conversationId },
       select: { id: true, businessId: true, phone: true, profileName: true, leadId: true, summaryCallLogId: true, attributionSource: true, attributionPage: true },
     })) as ConvRow | null;
-    if (!conv) return false;
+    if (!conv) return null;
     // The current conversation only (a customer back after a long silence = a new line, item 30c).
     const rows = currentSession(
       (
@@ -212,32 +223,42 @@ export async function summarizeBotConversation(conversationId: string, opts: { c
       ).reverse()
     );
     const userTexts = rows.filter((r) => r.role === "user" && customerWords(r));
-    if (!userTexts.length) return false;
+    if (!userTexts.length) return null;
     const last = rows[rows.length - 1];
-    if (opts.claim !== false && !(await claimOnce(`alldog-bot-summary:${conv.id}:${last.id}`, 14 * 24 * 60 * 60))) return false;
+    if (opts.claim !== false && !(await claimOnce(`alldog-bot-summary:${conv.id}:${last.id}`, 14 * 24 * 60 * 60))) return null;
 
     const transcript = rows
       .map((r) => `${r.role === "user" ? (r.kind === "voice" ? "לקוח (הודעה קולית)" : "לקוח") : r.role === "human" ? "נציגה" : "בוט"}: ${r.text.replace(/\s+/g, " ").slice(0, 500)}`)
       .join("\n")
       .slice(-12000);
     const sum = await summarize(transcript);
-    if (!sum) return false;
+    if (!sum) return null;
     const text = formatBotSummary(sum, dateLabel(last.createdAt));
 
     // The lead (the same one the bot writes to — created if missing, e.g. after a manual delete).
     const ref: BotConversationRef = { ...conv };
     await createDbExecutor(ref).saveLead({});
     const leadId = ref.leadId;
-    if (!leadId) return false;
+    if (!leadId) return null;
     // The conversation's one journal line: the summary replaces the body, the facts underneath stay (item 30b).
     // Item 35a: a caller who seems to be a child → a prominent line for the rep.
     const minor = sum.caller_seems_minor || seemsMinor(userTexts.map((r) => customerWords(r) ?? r.text));
-    await updateConversationLog(ref, leadId, (current) => (minor ? withFact(withBody(current, text), MINOR_FACT) : withBody(current, text)));
+    let extra: string | null = null;
+    if (opts.extraFact) {
+      const lead = await prisma.lead.findFirst({ where: { id: leadId, businessId: conv.businessId }, select: { name: true } });
+      extra = opts.extraFact(sum, lead?.name ?? null);
+    }
+    await updateConversationLog(ref, leadId, (current) => {
+      let next = withBody(current, text);
+      if (minor) next = withFact(next, MINOR_FACT);
+      if (extra) next = withFact(next, extra);
+      return next;
+    });
     console.log(`${LOG} conversation summarized (${maskPhone(conv.phone)})`);
-    return true;
+    return { summary: sum, leadId };
   } catch (err) {
     console.error(`${LOG} failed:`, err instanceof Error ? err.message : err);
-    return false;
+    return null;
   }
 }
 

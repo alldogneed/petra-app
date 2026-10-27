@@ -92,7 +92,9 @@ export function AllDogBotChat({ leadId }: { leadId: string }) {
       ? `אצל נציגה${conv.autoResumeAt ? ` · חוזר לבוט אוטומטית ${timeFmt.format(new Date(conv.autoResumeAt))}` : ""}`
       : conv.status === "stopped"
         ? "הלקוח ביקש להפסיק"
-        : "הבוט עונה";
+        : conv.status === "closed_partial"
+          ? "נסגרה באמצע · הלקוח הפסיק לענות"
+          : "הבוט עונה";
 
   return (
     <div className="px-6 py-5 border-b border-[#F1F5F9]">

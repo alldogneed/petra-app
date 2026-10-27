@@ -17,7 +17,7 @@ export const FACT_BULLET = "• ";
 const DEFAULT_BODY = `${BOT_LOG_PREFIX} שיחה בוואטסאפ`;
 
 /** Facts of these kinds are replaced (one per conversation); others are added once each. */
-const SINGLE_FACTS = ["לחזור טלפונית", "אזור לבדיקה", "⚠ דחוף", "זמן לשיחה"];
+const SINGLE_FACTS = ["לחזור טלפונית", "אזור לבדיקה", "⚠ דחוף", "זמן לשיחה", "לא השלים"];
 
 export const URGENT_FACT = "⚠ דחוף";
 export const callbackFact = (note?: string | null) => `לחזור טלפונית${note ? ` · ${note}` : ""}`;
@@ -65,4 +65,10 @@ export function withBody(text: string | null | undefined, body: string): string 
 /** The urgent fact line of a log ("⚠ דחוף: …"), if any. */
 export function urgentFactOf(text: string | null | undefined): string | null {
   return splitBotLog(text).facts.find((f) => f.startsWith(URGENT_FACT)) ?? null;
+}
+
+/** The log without the facts that start with `prefix` (e.g. "לא השלים" once the customer came back). */
+export function withoutFact(text: string | null | undefined, prefix: string): string {
+  const { body, facts } = splitBotLog(text);
+  return composeBotLog(body, facts.filter((f) => !f.startsWith(prefix)));
 }

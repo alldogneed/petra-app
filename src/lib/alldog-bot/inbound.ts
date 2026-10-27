@@ -18,6 +18,8 @@ import prisma from "@/lib/prisma";
 import { maskPhone } from "@/lib/whatsapp-failure";
 import { allDogAnthropicKey, allDogBusinessId, botModel, isWaBotEnabled } from "@/lib/alldog/config";
 import { heDayLabel, israelParts } from "@/lib/alldog/time";
+import { CLOSED_PARTIAL_STATUS, partialResumeNote } from "@/lib/alldog-bot/nudge-rules";
+import { onPartialResume, partialClosedMissing } from "@/lib/alldog-bot/nudge";
 import { addLeadCallLog, createLeadTask, findLeadByPhone, isPlaceholderLeadName } from "@/lib/alldog/leads";
 import {
   applyConversationGuards,
@@ -104,6 +106,8 @@ export interface PendingInbound {
   mode?: "reset";
   /** A voice note to transcribe before the bot answers (item 28a). */
   voice?: { mediaId: string; mimeType: string | null };
+  /** The customer wrote after the partial closing (27/10) → the rep is told, then the bot answers. */
+  resumedFromPartial?: boolean;
 }
 
 const RESET_CONFIRMATION = "🔄 השיחה אופסה. אפשר להתחיל מחדש";
@@ -230,8 +234,18 @@ async function ingestMessage(
     }
     console.log(`${LOG} ${maskPhone(phone)} handoff expired — back to the bot`);
   }
+  // Or, 27/10: the customer is back after the partial closing → active again (the rep is told in processInbound).
+  let resumedFromPartial = false;
+  if (conv.status === CLOSED_PARTIAL_STATUS) {
+    const flipped = await prisma.waBotConversation.updateMany({
+      where: { id: conv.id, status: CLOSED_PARTIAL_STATUS },
+      data: { status: "active" },
+    });
+    resumedFromPartial = flipped.count > 0;
+    if (resumedFromPartial) console.log(`${LOG} ${maskPhone(phone)} back after the partial closing — active again`);
+  }
   // active → the bot answers; handoff → alert to the rep + one "קיבלנו" (processInbound decides).
-  return { conversationId: conv.id, waMessageId: m.id!, ...(voice ? { voice } : {}) };
+  return { conversationId: conv.id, waMessageId: m.id!, ...(voice ? { voice } : {}), ...(resumedFromPartial ? { resumedFromPartial } : {}) };
 }
 
 /** Or's "#reset": the conversation starts over (messages deleted, lead link + handoff state cleared; the lead itself stays). */
@@ -274,6 +288,7 @@ export async function processInbound(item: PendingInbound): Promise<void> {
       return;
     }
     const state = await prisma.waBotConversation.findUnique({ where: { id: item.conversationId }, select: { status: true } });
+    if (item.resumedFromPartial) await onPartialResume(item.conversationId);
     if (item.voice) {
       // Transcribe first (each voice note in its own run); the reply waits for it (waitForVoiceTranscripts).
       if (state?.status !== "handoff") await markReadWithTyping(item.waMessageId);
@@ -495,6 +510,8 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
   const closed = closingAlreadySent(rows);
   // Item 35a: a caller who seems to be a child → no more personal details, a parent talks to the rep.
   const minor = seemsMinor(userWords);
+  // Or, 27/10: back after the partial closing (in this session) → collect only what is missing.
+  const partialMissing = rows.length ? await partialClosedMissing(conv.id, rows[0].createdAt) : null;
   const now = new Date();
   const p = israelParts(now);
   const context = buildBotContext({
@@ -514,6 +531,7 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
         : null,
       namePlace,
       minor ? MINOR_NOTE : null,
+      partialMissing && !handoffMode ? partialResumeNote(partialMissing) : null,
       // Item 38: a price question in this batch, no price sent yet → this answer carries a number.
       !handoffMode && batchWords.some((t) => asksPrice(t)) && !pricesAlreadySent(priorBotTexts) ? PRICE_QUESTION_NOTE : null,
       answeringMissedCall ? MISSED_CALL_CONTEXT_NOTE : null,

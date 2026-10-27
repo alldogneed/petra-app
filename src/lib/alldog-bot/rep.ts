@@ -6,6 +6,7 @@
  *   resumeBot()                  → "החזר לבוט": handoff → active
  * AllDog only (ALLDOG_BUSINESS_ID + ALLDOG_WA_BOT_ENABLED); every query is scoped by businessId.
  */
+import { CLOSED_PARTIAL_STATUS } from "@/lib/alldog-bot/nudge-rules";
 import { displayMissedCallMessage } from "@/lib/alldog/missed-call-rules";
 import prisma from "@/lib/prisma";
 import { allDogBusinessId, isWaBotEnabled } from "@/lib/alldog/config";
@@ -82,7 +83,7 @@ export async function sendRepMessage(businessId: string, leadId: string, rawText
     where: { id: conv.id },
     data: {
       lastHumanAt: now,
-      ...(conv.status === "active" ? { status: "handoff", handoffAt: now, handoffNotifiedAt: now, handoffAckAt: null } : {}),
+      ...(conv.status === "active" || conv.status === CLOSED_PARTIAL_STATUS ? { status: "handoff", handoffAt: now, handoffNotifiedAt: now, handoffAckAt: null } : {}),
     },
   });
   if (conv.leadId) await addLeadCallLog(conv.leadId, `[וואטסאפ · נציגה] ${text}`).catch(() => {});
