@@ -118,16 +118,82 @@ export function parseImageMessageText(text: string): { description: string | nul
 
 /** How a photo reads in the history the model sees in later turns. */
 export function imageHistoryText(text: string): string {
-  const { description, caption } = parseImageMessageText(text);
+  const parsed = parseImageMessageText(text);
+  const caption = parsed.caption;
+  // Item 39 update: the rep's "נראית מעורבת …" is not shown to the model (it would echo a breed guess).
+  const description = parsed.description
+    ? parsed.description.replace(/,?\s*(?:נרא(?:ה|ית|ים|ות)\s+)?(?:כמו\s|(?:ו)?מעורב(?:ת|ים|ות)?|תערובת)[^,·]*/gu, "").replace(/^[\s,]+|[\s,]+$/g, "") || null
+    : null;
   return [`(הלקוח שלח תמונה${description ? `: ${description}` : ""})`, caption].filter(Boolean).join("\n");
 }
 
 /** Context note for a turn whose new messages include photos the model receives as images. */
 export const IMAGE_NOTE =
-  "הלקוח שלח תמונה (מצורפת להודעה שלו). תגיב כמו אדם: משפט אחד קצר, חם וספציפי למה שרואים, עם שם הכלב אם כבר ידוע (\"לולה נראית מתוקה 🙂\", \"איזו פרווה\"), ואז ממשיכים: השאלה הבאה שחסרה, או אישור קצר אם הכול כבר נאסף. " +
-  "אסור לאבחן מהתמונה התנהגות, בריאות, משקל או מצב, אסור לקבוע גזע בוודאות (מותר \"נראית כמו מעורבת רועים\"), ואסור להבטיח משהו על סמך התמונה. " +
+  "הלקוח שלח תמונה (מצורפת להודעה שלו). תגיב כמו אדם: מחמאה אחת קצרה וחמה על המראה, עם שם הכלב אם כבר ידוע, ואז ממשיכים: השאלה הבאה שחסרה, או אישור קצר אם הכול כבר נאסף. " +
+  "גזע: רק אם הוא ברור וחד-משמעי (פודל, גולדן, לברדור, האסקי, בורדר קולי…) מותר לציין אותו במחמאה (\"איזה פודל מהמם 😍 גזע מדהים\"). מעורב או לא ברור לגמרי: לא מזכירים גזע ולא את המילה \"מעורב\", בלי \"נראה כמו\" — רק מחמאה (\"איזה כלב מדהים, יפה ממש 🙂\", \"לולה נראית מתוקה ממש\"). " +
+  "המחמאה רק על המראה: בלי משקל, פרווה מוזנחת, בריאות או התנהגות מהתמונה, ובלי להבטיח משהו על סמך התמונה. " +
   "צילום מסך עם טקסט (הודעה ממאלף קודם, מסמך): קורא ומגיב לתוכן. נזק בבית (כורסה הרוסה וכו'): מגיב בטבעיות (\"אוי, הכורסה 🙈\") ושואל שאלה רלוונטית. " +
   "אף פעם לא אומרים שאתה בוט, שאתה קורא רק טקסט או שאתה לא רואה תמונות.";
+
+/** Item 39 update (Or, 27/10): the owner already said the breed → that is the breed, never corrected. */
+export function ownerBreedNote(breed: string): string {
+  return `הבעלים אמרו שהגזע הוא "${breed.replace(/["\n]/g, " ").trim().slice(0, 60)}". הולכים לפי מה שהם אמרו, גם אם בתמונה זה נראה אחרת: לא מתקנים ולא מטילים ספק.`;
+}
+
+/** Item 39 update: a compliment was already given on an earlier photo → a very short reaction only. */
+export const MORE_PHOTOS_NOTE =
+  "כבר החמאת על תמונה קודמת בשיחה הזו. עכשיו תגובה קצרה מאוד (\"חמודה 🙂\", \"איזה חמוד\"), בלי לחזור על אותו נוסח, וממשיכים בשיחה.";
+
+/** Item 39 update: "איזה גזע הוא לדעתך?" → no guessing. */
+export const BREED_GUESS_ANSWER = "את זה המאלפים שלנו ידעו להגיד הכי טוב, הם יראו אותו באבחון 🙂";
+
+/** The customer asks the bot to guess the breed. Pure — tested. */
+export function asksBreedGuess(text: string): boolean {
+  return /(?:איזה|מה(?:\s+ה)?)\s*גזע\s+(?:הוא|היא|זה|זו|זאת|לדעתך|לדעתכם|לדעתכן|יש\s+לו|יש\s+לה)|(?:לדעתך|לדעתכם)\s+(?:\S+\s+){0,2}ה?גזע|מה\s+(?:התערובת|הגזע)\s+(?:שלו|שלה)/u.test(text);
+}
+
+/** The breed-guess question gets the fixed answer first (the rest of the reply is kept). Pure — tested. */
+export function enforceBreedAnswer(latestUserText: string, reply: string): string {
+  if (!asksBreedGuess(latestUserText)) return reply;
+  const core = BREED_GUESS_ANSWER.replace(/\s*🙂$/u, "");
+  const rest = reply
+    .split("\n")
+    .filter((l) => !/גזע|מעורב|נראה\s+כמו|נראית\s+כמו/u.test(l))
+    .join("\n")
+    .trim();
+  if (reply.includes(core)) return reply;
+  return rest ? `${BREED_GUESS_ANSWER}\n${rest}` : BREED_GUESS_ANSWER;
+}
+
+const BREED_GUESS_RE = /(?:^|[\s,])(?:ו)?(?:מעורב(?:ת|ים|ות)?|תערובת)(?![\p{L}])|נרא(?:ה|ית|ים|ות)\s+כמו/u;
+
+/**
+ * Item 39 update: in a reply to a photo no "מעורב" / "תערובת" / "נראה כמו" — the sentence goes
+ * (a clear breed in a compliment stays). Pure — tested.
+ */
+export const PLAIN_COMPLIMENT = "איזה כלב מדהים, יפה ממש 🙂";
+
+export function dropBreedGuesses(text: string): string {
+  let replaced = false;
+  return text
+    .split("\n")
+    .map((line) =>
+      line
+        .split(/(?<=[.!?])\s+/u)
+        .map((sentence) => {
+          if (!BREED_GUESS_RE.test(sentence)) return sentence;
+          // "לולה נראית מתוקה ממש" is fine: only "נראה כמו" / "מעורב" sentences go; the first one becomes a plain compliment.
+          if (replaced) return "";
+          replaced = true;
+          return PLAIN_COMPLIMENT;
+        })
+        .filter(Boolean)
+        .join(" ")
+    )
+    .filter((l, i, arr) => l.trim() || (i > 0 && arr[i - 1].trim()))
+    .join("\n")
+    .trim();
+}
 
 /** Context note when a photo / video / file could not be opened. */
 export const UNREADABLE_MEDIA_NOTE =

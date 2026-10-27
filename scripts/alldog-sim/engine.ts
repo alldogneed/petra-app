@@ -48,6 +48,12 @@ import {
   urgencyReason,
   IMAGE_NOTE,
   IMAGE_PENDING_TEXT,
+  MORE_PHOTOS_NOTE,
+  BREED_GUESS_ANSWER,
+  asksBreedGuess,
+  dropBreedGuesses,
+  enforceBreedAnswer,
+  ownerBreedNote,
   MEDIA_REPLY,
   UNREADABLE_MEDIA_NOTE,
   dropLimitationLines,
@@ -160,6 +166,8 @@ export class SimConversation {
   knownName: string | null = null;
   /** Item 39 addition: the guide offer of this conversation. */
   guideSlug: string | null = null;
+  /** Item 39 update: the breed the owner gave (save_lead dog_breed). */
+  ownerBreed: string | null = null;
   guideOffer: { slug: string; status: "pending" | "accepted" | "declined" | "sent" } | null = null;
   /** An attack / bite was described (item 29c). */
   serious = false;
@@ -233,6 +241,7 @@ export class SimConversation {
       saveLead: async (input) => {
         if (input.urgent_reason) await ex.markUrgent?.(input.urgent_reason);
         if (input.full_name) this.knownName = input.full_name;
+        if (input.dog_breed) this.ownerBreed = input.dog_breed;
         for (const k of Object.keys(STEP).concat("dog_since", "callback_time") as Field[]) {
           if (input[k] && this.savedAt[k] === undefined) this.savedAt[k] = this.turn;
         }
@@ -411,6 +420,9 @@ export class SimConversation {
           this.variant === "after" && seemsMinor(this.rows.filter((r) => r.role === "user").map((r) => r.text)) ? MINOR_NOTE : null,
           this.variant === "after" ? addressNote(this.style) : null,
           this.variant === "after" && media.kind === "image" ? IMAGE_NOTE : null,
+          this.variant === "after" && media.kind === "image" && this.ownerBreed ? ownerBreedNote(this.ownerBreed) : null,
+          this.variant === "after" && media.kind === "image" && this.rows.filter((r) => r.media === "image").length > 1 ? MORE_PHOTOS_NOTE : null,
+          this.variant === "after" && asksBreedGuess(text) ? `הלקוח מבקש שתנחש את הגזע. לא מנחשים: "${BREED_GUESS_ANSWER}"` : null,
           this.variant === "after" && media.kind === "unreadable" ? UNREADABLE_MEDIA_NOTE : null,
         ]
           .filter(Boolean)
@@ -491,6 +503,11 @@ export class SimConversation {
       }
     }
     if (this.variant === "after") {
+      if (media.kind === "image" || asksBreedGuess(text)) {
+        if (/מעורב|נרא(?:ה|ית)\s+כמו/u.test(reply)) this.warn(`המודל ניחש גזע / כתב "מעורב" בתגובה לתמונה (הוסר): "${reply.slice(0, 80)}"`);
+        reply = dropBreedGuesses(reply);
+      }
+      reply = enforceBreedAnswer(text, reply);
       reply = dropMidConversationGreeting(reply, isFirstReply);
       if (media.kind === "unreadable" && reply && !reply.includes("תודה ששלחת")) reply = `${MEDIA_REPLY}\n${reply}`;
     }

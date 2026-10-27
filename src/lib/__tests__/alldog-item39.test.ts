@@ -87,8 +87,8 @@ describe("never expose a limitation", () => {
     expect(dropLimitationLines(input)).toBe(expected);
   });
   it("the notes forbid diagnosis / certain breed / promises and limitation lines", () => {
-    expect(IMAGE_NOTE).toMatch(/אסור לאבחן/);
-    expect(IMAGE_NOTE).toMatch(/גזע בוודאות/);
+    expect(IMAGE_NOTE).toMatch(/בלי משקל, פרווה מוזנחת, בריאות או התנהגות/);
+    expect(IMAGE_NOTE).toMatch(/ברור וחד-משמעי/);
     expect(IMAGE_NOTE).toMatch(/להבטיח/);
     expect(IMAGE_NOTE).toMatch(/אף פעם לא אומרים שאתה בוט/);
     expect(UNREADABLE_MEDIA_NOTE).toContain(MEDIA_REPLY);
@@ -267,5 +267,54 @@ describe("professional terms, with taste (39 addition)", () => {
     for (const id of ["term-crying", "term-spite", "term-jealous", "term-dogs", "guide-yes", "guide-no", "guide-ignore", "guide-ask", "guide-none"]) {
       expect(ids).toContain(id);
     }
+  });
+});
+
+// ─── Item 39 update: compliments on the dog's photo ─────────────────────────────────────
+import {
+  asksBreedGuess,
+  BREED_GUESS_ANSWER,
+  dropBreedGuesses,
+  enforceBreedAnswer,
+  MORE_PHOTOS_NOTE,
+  ownerBreedNote,
+  PLAIN_COMPLIMENT,
+} from "@/lib/alldog-bot/logic";
+
+describe("photo compliments (39 update)", () => {
+  it("a clear breed in a compliment stays", () => {
+    expect(dropBreedGuesses("איזה פודל מהמם 😍 גזע מדהים\nובאיזו עיר אתם?")).toBe("איזה פודל מהמם 😍 גזע מדהים\nובאיזו עיר אתם?");
+    expect(dropBreedGuesses("גולדן מקסים, איזה פרווה")).toBe("גולדן מקסים, איזה פרווה");
+  });
+  it("'מעורב' / 'נראה כמו' never reach the customer — the sentence becomes a plain compliment", () => {
+    const out = dropBreedGuesses("איזו מעורבת מתוקה! נראית כמו רועה בלגי. באיזו עיר?");
+    expect(out).not.toMatch(/מעורב|נרא(?:ה|ית) כמו/);
+    expect(out).toContain(PLAIN_COMPLIMENT);
+    expect(out).toContain("באיזו עיר?");
+    expect(dropBreedGuesses("לולה נראית מתוקה ממש")).toBe("לולה נראית מתוקה ממש");
+  });
+  it("the history the model sees has no 'נראית מעורבת'", () => {
+    expect(imageHistoryText(imageMessageText("כלבה בינונית ג׳ינג׳ית, נראית מעורבת רועים", null))).toBe("(הלקוח שלח תמונה: כלבה בינונית ג׳ינג׳ית)");
+  });
+  it("the owner's breed wins, never corrected", () => {
+    expect(ownerBreedNote("רועה גרמני")).toMatch(/רועה גרמני.*לא מתקנים/);
+  });
+  it.each(["איזה גזע הוא לדעתך?", "מה הגזע שלו?", "לדעתך מה הגזע?", "איזה גזע זה"])("breed-guess question: %s", (t) => {
+    expect(asksBreedGuess(t)).toBe(true);
+  });
+  it("not a breed-guess question", () => {
+    expect(asksBreedGuess("הוא רועה גרמני")).toBe(false);
+  });
+  it("the breed-guess answer: fixed, no guess kept", () => {
+    expect(enforceBreedAnswer("איזה גזע הוא לדעתך?", "נראה כמו מעורב לברדור\nבאיזו עיר?")).toBe(`${BREED_GUESS_ANSWER}\nבאיזו עיר?`);
+    expect(enforceBreedAnswer("באיזו עיר אתם?", "תל אביב 🙂")).toBe("תל אביב 🙂");
+  });
+  it("more photos → a very short reaction, not the same wording", () => {
+    expect(MORE_PHOTOS_NOTE).toMatch(/קצרה מאוד/);
+    expect(MORE_PHOTOS_NOTE).toMatch(/בלי לחזור/);
+  });
+  it("scenarios: poodle, mixed, owner said GSD, breed question, three photos", () => {
+    const ids = SCENARIOS.map((x) => x.id);
+    for (const id of ["photo-poodle", "photo-mixed", "photo-owner-breed", "photo-breed-question", "photo-three"]) expect(ids).toContain(id);
   });
 });
