@@ -61,6 +61,12 @@ import {
   isStopRequest,
   MEDIA_REPLY,
   IMAGE_NOTE,
+  MORE_PHOTOS_NOTE,
+  BREED_GUESS_ANSWER,
+  asksBreedGuess,
+  dropBreedGuesses,
+  enforceBreedAnswer,
+  ownerBreedNote,
   UNREADABLE_MEDIA_NOTE,
   imageMessageText,
   imageHistoryText,
@@ -590,6 +596,10 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
   ref.transitionSent = rows.some((r) => r.role === "assistant" && r.text.includes(TRANSITION_MARKER));
   // An attack / bite was described → no "מעולה" in the closing (item 29c).
   ref.serious = isSeriousIncident(userWords);
+  // Item 39 update: the breed the owner gave (lead pet notes "גזע: …"), an earlier photo in this conversation, a breed-guess question.
+  const ownerBreed = /(?:^|\n)גזע:\s*([^\n]+)/u.exec(activeLead?.notes ?? "")?.[1]?.trim() || null;
+  const earlierPhoto = rows.slice(0, rows.length - batch.length).some((r) => r.role === "user" && r.kind === "image");
+  const breedGuessAsked = asksBreedGuess(batchWords.join("\n"));
   // "באלו מקרני שומרון" = a name + the city; never asked again (item 29b).
   const namePlace = batchWords.map(namePlaceNote).find(Boolean) ?? null;
   const known = {
@@ -617,6 +627,10 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
       // Any bite reported in this conversation (not only in this batch) until the handoff happens.
       !handoffMode && userWords.some((t) => mentionsHumanBite(t)) ? HUMAN_BITE_NOTE : null,
       imageBlocks.length ? IMAGE_NOTE : null,
+      // Item 39 update: the owner's breed wins; one compliment per conversation; never guess a breed.
+      imageBlocks.length && ownerBreed ? ownerBreedNote(ownerBreed) : null,
+      imageBlocks.length && earlierPhoto ? MORE_PHOTOS_NOTE : null,
+      breedGuessAsked ? `הלקוח מבקש שתנחש את הגזע. לא מנחשים: "${BREED_GUESS_ANSWER}"` : null,
       unreadable ? UNREADABLE_MEDIA_NOTE : null,
       hadFailedVoice
         ? `הלקוח שלח גם הודעה קולית שלא הצלחת לשמוע. בקש בעדינות שיכתוב בקצרה מה אמר בה ("${VOICE_FAILED_REPLY}"), בלי להזכיר נציגה.`
@@ -662,6 +676,9 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
     const firstUserText = batchWords.join("\n");
     text = enforceOpening(lastAssistant < 0 && !automaticOpening, firstUserText, text);
   }
+  // Item 39 update: no "מעורב" / "נראה כמו" in a reply to a photo, and the breed-guess question gets the fixed answer.
+  if (imageBlocks.length || breedGuessAsked) text = dropBreedGuesses(text);
+  text = enforceBreedAnswer(batchWords.join("\n"), text);
   // Item 39.6: "היי" / "שלום" only in the very first reply.
   text = dropMidConversationGreeting(text, lastAssistant < 0 && !automaticOpening);
   // Item 39.4: a file the bot could not open → the reply opens with the thank-you line.
