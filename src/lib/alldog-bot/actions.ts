@@ -307,15 +307,25 @@ export function createDbExecutor(conv: BotConversationRef): BotToolExecutor {
   return executor;
 }
 
-/** A task so a person sees a voice note / photo the bot cannot read (once an hour per conversation). */
-export async function flagMediaForHuman(conv: BotConversationRef, label: string): Promise<void> {
-  if (!(await claimOnce(`alldog-bot-media:${conv.id}`, 60 * 60))) return;
+/**
+ * A video / file the bot cannot open (item 39): a journal line with a link the rep opens in Petra +
+ * one task (once an hour per conversation). The customer was told it was attached for the rep.
+ */
+export async function flagMediaForHuman(conv: BotConversationRef, label: string, messageId?: string, caption?: string | null): Promise<void> {
   const executor = createDbExecutor(conv);
   await executor.saveLead({});
   if (!conv.leadId) return;
+  if (messageId) {
+    const { mediaLogText } = await import("@/lib/alldog-bot/images");
+    await addLeadCallLog(
+      conv.leadId,
+      mediaLogText({ label, description: null, caption: caption ?? null, url: `${appUrl()}/api/leads/${conv.leadId}/whatsapp-bot/media/${messageId}` })
+    ).catch(() => {});
+  }
+  if (!(await claimOnce(`alldog-bot-media:${conv.id}`, 60 * 60))) return;
   await createLeadTask(conv.businessId, conv.leadId, {
     title: `${label} מלקוח בוואטסאפ (${localPhone(conv.phone)})`,
-    description: `הלקוח שלח ${label} למספר הבוט. הבוט קורא רק טקסט — כדאי להתקשר אליו.`,
+    description: `הלקוח שלח ${label} למספר הבוט, והבוט אמר לו שצירף אותו לפרטים בשביל הנציגה. אפשר לפתוח אותו מיומן הליד.`,
     priority: "HIGH",
   });
 }

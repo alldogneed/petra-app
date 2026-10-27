@@ -11,7 +11,7 @@
  */
 import { identityAnswerFor } from "@/lib/alldog-bot/prompt";
 import { isClosingText } from "@/lib/alldog-bot/handoff";
-import { findPolicyIssues, isRepeatedMessage } from "@/lib/alldog-bot/logic";
+import { findPolicyIssues, findTerminologyIssues, isRepeatedMessage, proTermCount, revealsLimitation } from "@/lib/alldog-bot/logic";
 
 /** Item 37: basics (3) + professional (1–2) + what the rep needs to close, all only when missing. */
 export const MAX_QUESTIONS_BEFORE_CLOSE = 7;
@@ -47,6 +47,10 @@ export interface ConversationReport {
   identityLines: number;
   repeatedMessages: number;
   policyIssues: string[];
+  /** Item 39 addition: professional terms used by the bot (≤ 2), corrections / labels (0), exposed limitations (0). */
+  proTerms: number;
+  terminologyIssues: string[];
+  limitationLines: number;
   problems: string[];
 }
 
@@ -57,6 +61,9 @@ export function checkConversation(turns: Turn[]): ConversationReport {
   let identityLines = 0;
   let repeatedMessages = 0;
   const policyIssues: string[] = [];
+  const terminologyIssues: string[] = [];
+  let proTerms = 0;
+  let limitationLines = 0;
   const priorBot: string[] = [];
   let lastUser = "";
   for (const t of turns) {
@@ -66,6 +73,9 @@ export function checkConversation(turns: Turn[]): ConversationReport {
     }
     if (isRepeatedMessage(t.text, priorBot)) repeatedMessages++;
     policyIssues.push(...findPolicyIssues(t.text));
+    terminologyIssues.push(...findTerminologyIssues(t.text));
+    proTerms += proTermCount(t.text);
+    limitationLines += t.text.split("\n").filter(revealsLimitation).length;
     if (IDENTITY_LINE_RE.test(t.text) && !identityAnswerFor(lastUser)) identityLines++;
     if (!closed) {
       if (isClosingText(t.text)) closed = true;
@@ -83,7 +93,10 @@ export function checkConversation(turns: Turn[]): ConversationReport {
   if (identityLines) problems.push(`${identityLines} הודעות זהות בלי שנשאלו`);
   if (repeatedMessages) problems.push(`${repeatedMessages} הודעות שחזרו על הודעה קודמת`);
   if (policyIssues.length) problems.push(`הפרת כללים: ${[...new Set(policyIssues)].join(", ")}`);
-  return { closed, questionsBeforeClose, professionalQuestions, identityLines, repeatedMessages, policyIssues, problems };
+  if (proTerms > 2) problems.push(`${proTerms} מונחים מקצועיים (מקסימום 2 בשיחה)`);
+  if (terminologyIssues.length) problems.push(`מינוח: ${terminologyIssues.join(", ")}`);
+  if (limitationLines) problems.push(`${limitationLines} משפטים שחושפים מגבלה`);
+  return { closed, questionsBeforeClose, professionalQuestions, identityLines, repeatedMessages, policyIssues, proTerms, terminologyIssues, limitationLines, problems };
 }
 
 /** One-line summary for the simulator / compare report. */

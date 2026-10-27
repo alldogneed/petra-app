@@ -20,6 +20,25 @@ import { allDogAnthropicKey, allDogBusinessId, botModel, isWaBotEnabled } from "
 import { heDayLabel, israelParts } from "@/lib/alldog/time";
 import { CLOSED_PARTIAL_STATUS, partialResumeNote } from "@/lib/alldog-bot/nudge-rules";
 import { onPartialResume, partialClosedMissing } from "@/lib/alldog-bot/nudge";
+import { describeImage, descriptionLine, imageBlockFor, mediaLogText, mediaRefsFor, saveMediaRef } from "@/lib/alldog-bot/images";
+import {
+  asksForReading,
+  claimOffer,
+  GUIDE_LINK_MESSAGE_KIND,
+  GUIDE_OFFER_MESSAGE_KIND,
+  guideBySlug,
+  guideLinkMessage,
+  guideOfferText,
+  isOnlyYes,
+  isYesToOffer,
+  preciseGuideFor,
+  readOffer,
+  rememberedGuide,
+  rememberGuide,
+  setOfferStatus,
+  stripGuideLinks,
+} from "@/lib/alldog-bot/guide-offer";
+import type { KnowledgeEntry } from "@/lib/alldog-bot/knowledge";
 import { addLeadCallLog, createLeadTask, findLeadByPhone, isPlaceholderLeadName } from "@/lib/alldog/leads";
 import {
   applyConversationGuards,
@@ -41,6 +60,15 @@ import {
   isWithin24hWindow,
   isStopRequest,
   MEDIA_REPLY,
+  IMAGE_NOTE,
+  UNREADABLE_MEDIA_NOTE,
+  imageMessageText,
+  imageHistoryText,
+  parseImageMessageText,
+  dropLimitationLines,
+  dropMidConversationGreeting,
+  mediaLabelOf,
+  captionOf,
   parseAttributionLine,
   splitReply,
   toChatTurns,
@@ -106,6 +134,8 @@ export interface PendingInbound {
   mode?: "reset";
   /** A voice note to transcribe before the bot answers (item 28a). */
   voice?: { mediaId: string; mimeType: string | null };
+  /** A photo to describe before the bot answers (item 39). */
+  image?: { mediaId: string; mimeType: string | null; caption: string | null };
   /** The customer wrote after the partial closing (27/10) → the rep is told, then the bot answers. */
   resumedFromPartial?: boolean;
 }
@@ -156,10 +186,13 @@ async function ingestMessage(
     text = parsed.text || cls.text;
   } else if (cls.kind === "voice") {
     text = VOICE_PENDING_TEXT; // replaced by the transcript (or VOICE_FAILED_TEXT) in processInbound
+  } else if (cls.kind === "image") {
+    text = imageMessageText(null, cls.caption); // the description is added in processInbound (item 39)
   } else {
-    text = `[${cls.label}]`;
+    text = cls.caption ? `[${cls.label}]\nכיתוב: ${cls.caption}` : `[${cls.label}]`;
   }
   const voice = cls.kind === "voice" ? { mediaId: cls.mediaId, mimeType: cls.mimeType } : undefined;
+  const image = cls.kind === "image" ? { mediaId: cls.mediaId, mimeType: cls.mimeType, caption: cls.caption } : undefined;
 
   const upsertConversation = () =>
     prisma.waBotConversation.upsert({
@@ -200,14 +233,20 @@ async function ingestMessage(
     });
   }
 
+  let stored: { id: string };
   try {
-    await prisma.waBotMessage.create({
+    stored = await prisma.waBotMessage.create({
       // createdAt = arrival time (ms), not Meta's second-precision timestamp: "latest message" must be unambiguous.
       data: { conversationId: conv.id, role: "user", kind: cls.kind, text: text.slice(0, 4000), waMessageId: m.id! },
+      select: { id: true },
     });
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") return null; // Meta retry
     throw err;
+  }
+  // Item 39: the WhatsApp media id of a photo / video / file, so the bot and the rep can open it.
+  if ((cls.kind === "image" || cls.kind === "media") && cls.mediaId) {
+    await saveMediaRef(conv.id, { messageId: stored.id, mediaId: cls.mediaId, mimeType: cls.mimeType ?? null, label: cls.kind === "image" ? "תמונה" : cls.label }, m.id!);
   }
 
   if (cls.kind === "text" && isResetCommand(text, phone)) {
@@ -245,7 +284,13 @@ async function ingestMessage(
     if (resumedFromPartial) console.log(`${LOG} ${maskPhone(phone)} back after the partial closing — active again`);
   }
   // active → the bot answers; handoff → alert to the rep + one "קיבלנו" (processInbound decides).
-  return { conversationId: conv.id, waMessageId: m.id!, ...(voice ? { voice } : {}), ...(resumedFromPartial ? { resumedFromPartial } : {}) };
+  return {
+    conversationId: conv.id,
+    waMessageId: m.id!,
+    ...(voice ? { voice } : {}),
+    ...(image ? { image } : {}),
+    ...(resumedFromPartial ? { resumedFromPartial } : {}),
+  };
 }
 
 /** Or's "#reset": the conversation starts over (messages deleted, lead link + handoff state cleared; the lead itself stays). */
@@ -293,6 +338,10 @@ export async function processInbound(item: PendingInbound): Promise<void> {
       // Transcribe first (each voice note in its own run); the reply waits for it (waitForVoiceTranscripts).
       if (state?.status !== "handoff") await markReadWithTyping(item.waMessageId);
       await transcribeVoiceNote(item, item.voice);
+    }
+    if (item.image) {
+      if (state?.status !== "handoff") await markReadWithTyping(item.waMessageId);
+      await describeImageMessage(item, item.image);
     }
     if (state?.status === "handoff") {
       // Alerts first; "typing…" only if the bot answers (sendParts shows it).
@@ -396,7 +445,7 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
         where: { conversationId: conv.id, role: { not: "system" } }, // system = automation markers (item 32)
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         take: 40,
-        select: { role: true, kind: true, text: true, createdAt: true },
+        select: { id: true, role: true, kind: true, text: true, createdAt: true },
       })
     )
       .reverse()
@@ -448,32 +497,74 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
   }
   const hadFailedVoice = batch.some((r) => isVoiceFailed(r));
 
-  // Only media since our last reply → fixed answer (once in a row) + a task for a person.
-  const mediaOnly = batch.every((r) => r.kind === "media");
-  if (mediaOnly && handoffMode) return; // the rep already got the alert
-  if (mediaOnly) {
-    await flagMediaForHuman(ref, batch[batch.length - 1].text.replace(/[[\]]/g, ""));
-    if (lastAssistant >= 0 && rows[lastAssistant].text === MEDIA_REPLY) return;
-    await sendParts(item, conv.phone, [MEDIA_REPLY]);
-    return;
+  // Item 39: a video / file the bot cannot open → "תודה ששלחת 🙂 צירפתי לפרטים בשביל הנציגה" + the
+  // next question (never "I only read text"); the rep gets a task to look at it.
+  const batchMedia = batch.filter((r) => r.kind === "media");
+  if (batchMedia.length === batch.length && handoffMode) return; // the rep already got the alert
+  if (!handoffMode && batchMedia.length) {
+    const mediaRefs = await mediaRefsFor(conv.id, batchMedia.map((r) => r.id));
+    for (const r of batchMedia.slice(-3)) await flagMediaForHuman(ref, mediaLabelOf(r.text), mediaRefs.has(r.id) ? r.id : undefined, captionOf(r.text));
   }
-  const hadMedia = batch.some((r) => r.kind === "media");
-  if (hadMedia && !handoffMode) await flagMediaForHuman(ref, batch.find((r) => r.kind === "media")!.text.replace(/[[\]]/g, ""));
 
-  const history = toChatTurns(
+  // Item 39: the photos of this batch go to the model as images (max 3); a failed download → as if a file.
+  const batchImages = batch.filter((r) => r.kind === "image").slice(-3);
+  const imageBlocks: Anthropic.ImageBlockParam[] = [];
+  let unreadableImage = false;
+  if (batchImages.length) {
+    const refs = await mediaRefsFor(conv.id, batchImages.map((r) => r.id));
+    for (const r of batchImages) {
+      const mref = refs.get(r.id);
+      const file = mref ? await downloadMedia(mref.mediaId).catch(() => null) : null;
+      const block = file ? imageBlockFor(file, mref?.mimeType) : null;
+      if (block) imageBlocks.push(block);
+      else unreadableImage = true;
+    }
+  }
+  const unreadable = batchMedia.length > 0 || unreadableImage;
+
+  const history: Anthropic.MessageParam[] = toChatTurns(
     rows.map((r) => ({
       role: r.role,
       text:
         r.kind === "media"
-          ? `${r.text} (הלקוח שלח מדיה — אין לך אפשרות לראות או לשמוע אותה)`
-          : r.kind === "voice"
-            ? isVoiceFailed(r)
-              ? "[הודעה קולית שלא הצלחת לשמוע]"
-              : voiceHistoryText(r.text)
-            : r.text,
+          ? `(הלקוח שלח ${mediaLabelOf(r.text)}${captionOf(r.text) ? ` עם הכיתוב: ${captionOf(r.text)}` : ""})`
+          : r.kind === "image"
+            ? imageHistoryText(r.text)
+            : r.kind === "voice"
+              ? isVoiceFailed(r)
+                ? "[הודעה קולית שלא הצלחת לשמוע]"
+                : voiceHistoryText(r.text)
+              : r.text,
     }))
   );
   if (!history.length || history[history.length - 1].role !== "user") return;
+
+  // Item 39 addition: the guide is offered, not sent. A pending offer + "כן" → the link; anything else → never again.
+  const batchText = batchWords.join("\n");
+  const offer = await readOffer(conv.id);
+  let guideToSend: KnowledgeEntry | null = null;
+  if (offer?.state.status === "pending") {
+    const entry = guideBySlug(offer.state.slug);
+    if (entry && isYesToOffer(batchText)) {
+      await setOfferStatus(offer.id, { slug: entry.slug, status: "accepted" });
+      if (isOnlyYes(batchText) && !imageBlocks.length && !unreadable) {
+        // Just "כן" → the link + one line, no model turn, no more questions about the guide.
+        await sendParts(item, conv.phone, [guideLinkMessage(entry)], handoffMode, [GUIDE_LINK_MESSAGE_KIND]);
+        return;
+      }
+      guideToSend = entry;
+    } else {
+      await setOfferStatus(offer.id, { slug: offer.state.slug, status: "declined" });
+    }
+  } else if (!offer && !handoffMode && asksForReading(batchText)) {
+    // The customer asked for something to read → straight away, no offer.
+    const entry = (await rememberedGuide(conv.id)) ?? preciseGuideFor(userWords.join(" "));
+    if (entry && (await claimOffer(conv.id, { slug: entry.slug, status: "sent" }))) guideToSend = entry;
+  }
+  if (imageBlocks.length) {
+    const last = history[history.length - 1];
+    last.content = [...imageBlocks, { type: "text", text: typeof last.content === "string" ? last.content : "" }];
+  }
 
   // The name of the lead this contact belongs to now: an old / closed lead does not count
   // (a returning caller gets a new lead, named from this conversation — Or, item 24).
@@ -525,7 +616,8 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
       conv.resumedAt && (!conv.lastBotReplyAt || conv.lastBotReplyAt < conv.resumedAt) ? RESUMED_NOTE : null,
       // Any bite reported in this conversation (not only in this batch) until the handoff happens.
       !handoffMode && userWords.some((t) => mentionsHumanBite(t)) ? HUMAN_BITE_NOTE : null,
-      hadMedia ? "הלקוח שלח גם מדיה שאתה לא יכול לפתוח. אמור בעדינות שנציגה תראה אותה." : null,
+      imageBlocks.length ? IMAGE_NOTE : null,
+      unreadable ? UNREADABLE_MEDIA_NOTE : null,
       hadFailedVoice
         ? `הלקוח שלח גם הודעה קולית שלא הצלחת לשמוע. בקש בעדינות שיכתוב בקצרה מה אמר בה ("${VOICE_FAILED_REPLY}"), בלי להזכיר נציגה.`
         : null,
@@ -554,7 +646,8 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
   });
 
   const latestUserText = batchWords[batchWords.length - 1] ?? "";
-  let text = applyAddressStyle(applyConversationGuards(enforceIdentityAnswer(latestUserText, result.reply), priorBotTexts, {
+  // Item 39: never "I only read text" / "I can't see pictures" / "I'm a bot" (the identity answer to a direct question is re-added below).
+  let text = applyAddressStyle(applyConversationGuards(enforceIdentityAnswer(latestUserText, dropLimitationLines(result.reply)), priorBotTexts, {
     userTexts: userWords,
     known,
   }), style);
@@ -569,6 +662,10 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
     const firstUserText = batchWords.join("\n");
     text = enforceOpening(lastAssistant < 0 && !automaticOpening, firstUserText, text);
   }
+  // Item 39.6: "היי" / "שלום" only in the very first reply.
+  text = dropMidConversationGreeting(text, lastAssistant < 0 && !automaticOpening);
+  // Item 39.4: a file the bot could not open → the reply opens with the thank-you line.
+  if (unreadable && text && !text.includes("תודה ששלחת") && !imageBlocks.length) text = `${MEDIA_REPLY}\n${text}`;
   let afterHandoff = result.handedOff || handoffMode;
   if (!text && result.reply.trim() && !executor.closing) {
     // Everything the model wrote was already sent earlier in this conversation (item 26a) → say nothing.
@@ -588,10 +685,29 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
   }
 
   if (minor && ref.leadId) await updateConversationLog(ref, ref.leadId, (current) => withFact(current, MINOR_FACT));
+
+  // Item 39 addition: guide links never come from the model; a precise guide is offered once the basics are in.
+  text = stripGuideLinks(text);
+  if (executor.guideSlug) await rememberGuide(conv.id, executor.guideSlug);
+  const extraParts: string[] = [];
+  const extraKinds: string[] = [];
+  if (guideToSend) {
+    extraParts.push(guideLinkMessage(guideToSend));
+    extraKinds.push(GUIDE_LINK_MESSAGE_KIND);
+  } else if (!offer && !handoffMode && !minor && !ref.serious && !userWords.some((t) => mentionsHumanBite(t))) {
+    const entry = executor.guideSlug ? guideBySlug(executor.guideSlug) : await rememberedGuide(conv.id);
+    const basics = !!executor.closing || closed || (await leadHasBasics(ref));
+    if (entry && basics && (await claimOffer(conv.id, { slug: entry.slug, status: "pending" }))) {
+      extraParts.push(guideOfferText(style.gender, conv.id));
+      extraKinds.push(GUIDE_OFFER_MESSAGE_KIND);
+    }
+  }
+
   // A newer message arrived while the model was thinking → its own run will answer.
   if ((await latestInboundId(conv.id)) !== item.waMessageId) return;
-  // Closing turn: the bot's answer (+ guide link) · transition + closing = 2 messages (item 35).
-  await sendParts(item, conv.phone, splitReply(text, 2), afterHandoff);
+  // Closing turn: the bot's answer · transition + closing = 2 messages (item 35); the guide offer / link on its own after them.
+  const mainParts = text ? splitReply(text, 2) : [];
+  await sendParts(item, conv.phone, [...mainParts, ...extraParts], afterHandoff, [...mainParts.map(() => "text"), ...extraKinds]);
   // The conversation just ended (closing / handoff) → one summary in the lead journal (item 27i).
   if ((executor.closing && !closed) || (afterHandoff && !handoffMode)) await summarizeBotConversation(conv.id);
 }
@@ -743,8 +859,8 @@ async function alertBiteReported(ref: BotConversationRef, texts: string[]): Prom
   }
 }
 
-async function sendParts(item: PendingInbound, to: string, parts: string[], allowAfterHandoff = false): Promise<void> {
-  for (const part of parts) {
+async function sendParts(item: PendingInbound, to: string, parts: string[], allowAfterHandoff = false, kinds: string[] = []): Promise<void> {
+  for (const [i, part] of parts.entries()) {
     const conv = await prisma.waBotConversation.findUnique({
       where: { id: item.conversationId },
       select: { status: true, lastInboundAt: true },
@@ -761,9 +877,74 @@ async function sendParts(item: PendingInbound, to: string, parts: string[], allo
     const wamid = await sendText(to, part);
     if (!wamid) return;
     await prisma.waBotMessage.create({
-      data: { conversationId: item.conversationId, role: "assistant", text: part, waMessageId: wamid },
+      data: { conversationId: item.conversationId, role: "assistant", kind: kinds[i] ?? "text", text: part, waMessageId: wamid },
     });
     await prisma.waBotConversation.update({ where: { id: item.conversationId }, data: { lastBotReplyAt: new Date() } });
+  }
+}
+
+/** Item 39 addition: the basics are in (city + the dog's name on the lead) → the guide may be offered. */
+async function leadHasBasics(ref: BotConversationRef): Promise<boolean> {
+  if (!ref.leadId) return false;
+  const lead = await prisma.lead.findFirst({ where: { id: ref.leadId, businessId: ref.businessId }, select: { city: true, notes: true } });
+  return !!lead?.city?.trim() && /(?:^|\n)שם:\s*\S/u.test(lead.notes ?? "");
+}
+
+// ─── Photos (Or, item 39) ─────────────────────────────────────────────────────
+
+function appBase(): string {
+  return (process.env.APP_URL || "https://petra-app.com").replace(/\/$/, "");
+}
+
+/**
+ * Download + describe one photo; the description replaces "[תמונה]" in its WaBotMessage and the
+ * lead journal gets "[וואטסאפ · בוט] 📷 תמונה · <what is in it>" + a link the rep opens in Petra.
+ * A failure leaves "[תמונה]" (the reply then thanks + goes on, never exposing a limitation). Never throws.
+ */
+async function describeImageMessage(item: PendingInbound, image: { mediaId: string; mimeType: string | null; caption: string | null }): Promise<void> {
+  let description: string | null = null;
+  try {
+    const file = await downloadMedia(image.mediaId);
+    const block = file ? imageBlockFor(file, image.mimeType) : null;
+    if (block) {
+      const d = await describeImage(block, image.caption);
+      description = d ? descriptionLine(d) : null;
+    }
+  } catch (err) {
+    console.error(`${LOG} image description failed:`, err instanceof Error ? err.message.slice(0, 200) : "error");
+  }
+  const row = await prisma.waBotMessage.findFirst({
+    where: { conversationId: item.conversationId, waMessageId: item.waMessageId, kind: "image" },
+    select: { id: true, text: true },
+  });
+  if (!row) return;
+  if (description) {
+    await prisma.waBotMessage.update({ where: { id: row.id }, data: { text: imageMessageText(description, parseImageMessageText(row.text).caption) } });
+  }
+  try {
+    const conv = await prisma.waBotConversation.findUnique({ where: { id: item.conversationId } });
+    if (!conv) return;
+    const ref: BotConversationRef = {
+      id: conv.id,
+      businessId: conv.businessId,
+      phone: conv.phone,
+      profileName: conv.profileName,
+      leadId: conv.leadId,
+      summaryCallLogId: conv.summaryCallLogId,
+      attributionSource: conv.attributionSource,
+      attributionPage: conv.attributionPage,
+    };
+    await dropDeletedLeadLink(ref);
+    await createDbExecutor(ref).saveLead({});
+    if (ref.leadId) {
+      await addLeadCallLog(
+        ref.leadId,
+        mediaLogText({ label: "תמונה", description, caption: image.caption, url: `${appBase()}/api/leads/${ref.leadId}/whatsapp-bot/media/${row.id}` })
+      );
+    }
+    console.log(`${LOG} photo ${description ? "described" : "not described"} (${maskPhone(conv.phone)})`);
+  } catch (err) {
+    console.error(`${LOG} photo log failed:`, err instanceof Error ? err.message : err);
   }
 }
 

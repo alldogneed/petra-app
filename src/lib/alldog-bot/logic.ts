@@ -16,6 +16,10 @@ export interface MetaInboundMessage {
   interactive?: { button_reply?: { title?: string }; list_reply?: { title?: string } };
   audio?: { id?: string; mime_type?: string; voice?: boolean };
   voice?: { id?: string; mime_type?: string };
+  image?: { id?: string; mime_type?: string; caption?: string };
+  sticker?: { id?: string; mime_type?: string; animated?: boolean };
+  video?: { id?: string; mime_type?: string; caption?: string };
+  document?: { id?: string; mime_type?: string; caption?: string; filename?: string };
   group_id?: string;
   context?: { group_id?: string };
 }
@@ -23,7 +27,10 @@ export interface MetaInboundMessage {
 export type InboundKind =
   | { kind: "text"; text: string }
   | { kind: "voice"; mediaId: string; mimeType: string | null }
-  | { kind: "media"; label: string }
+  /** Item 39: a photo (or a still sticker) the bot looks at; caption = the text sent with it. */
+  | { kind: "image"; mediaId: string; mimeType: string | null; caption: string | null }
+  /** Video / document / location…: the rep sees it (mediaId when there is a file). */
+  | { kind: "media"; label: string; mediaId?: string; mimeType?: string | null; caption?: string | null }
   | { kind: "ignore"; reason: string };
 
 const MEDIA_LABELS: Record<string, string> = {
@@ -62,13 +69,116 @@ export function classifyInbound(m: MetaInboundMessage): InboundKind {
       if (media?.id) return { kind: "voice", mediaId: media.id, mimeType: media.mime_type ?? null };
       return { kind: "media", label: MEDIA_LABELS[m.type] };
     }
+    case "image": {
+      if (m.image?.id) return { kind: "image", mediaId: m.image.id, mimeType: m.image.mime_type ?? null, caption: m.image.caption?.trim().slice(0, 1000) || null };
+      return { kind: "media", label: MEDIA_LABELS.image };
+    }
+    case "sticker": {
+      // An animated sticker cannot be read as one picture → "thanks, attached" like a video.
+      if (m.sticker?.id && !m.sticker.animated) return { kind: "image", mediaId: m.sticker.id, mimeType: m.sticker.mime_type ?? null, caption: null };
+      return { kind: "media", label: MEDIA_LABELS.sticker, mediaId: m.sticker?.id, mimeType: m.sticker?.mime_type ?? null };
+    }
+    case "video":
+    case "document": {
+      const f = m.type === "video" ? m.video : m.document;
+      return { kind: "media", label: MEDIA_LABELS[m.type], mediaId: f?.id, mimeType: f?.mime_type ?? null, caption: f?.caption?.trim().slice(0, 1000) || null };
+    }
     default:
       if (m.type && MEDIA_LABELS[m.type]) return { kind: "media", label: MEDIA_LABELS[m.type] };
       return { kind: "ignore", reason: m.type ?? "unknown" }; // system, reaction, unsupported, …
   }
 }
 
-export const MEDIA_REPLY = "היי, אני יודע לקרוא רק הודעות טקסט 🙂 נציגה תראה את ההודעה ותחזור בטלפון";
+/**
+ * Item 39 (Or, 27/10): a video / file the bot cannot open, or a photo that failed to download —
+ * never "I only read text" / "I can't see pictures" (it exposed the bot and ignored Lola the dog).
+ * The reply opens with this line and goes straight on with the next question.
+ */
+export const MEDIA_REPLY = "תודה ששלחת 🙂 צירפתי לפרטים בשביל הנציגה";
+
+// ─── Images (Or, item 39) ─────────────────────────────────────────────────────
+
+/** WaBotMessage.text of a photo until it is described ("[תמונה]" + the caption on its own line). */
+export const IMAGE_PENDING_TEXT = "[תמונה]";
+const IMAGE_TEXT_RE = /^\[תמונה(?::\s*([^\]\n]*))?\]/u;
+const CAPTION_PREFIX = "כיתוב: ";
+
+/** The stored text of a photo: "[תמונה: <what is in it>]" (+ "\nכיתוב: <caption>"). */
+export function imageMessageText(description: string | null, caption: string | null): string {
+  const head = description ? `[תמונה: ${description.replace(/[\[\]\n]+/g, " ").trim().slice(0, 300)}]` : IMAGE_PENDING_TEXT;
+  return caption ? `${head}\n${CAPTION_PREFIX}${caption}` : head;
+}
+
+/** Parse a stored photo text back. */
+export function parseImageMessageText(text: string): { description: string | null; caption: string | null } {
+  const m = text.match(IMAGE_TEXT_RE);
+  const captionLine = text.split("\n").find((l) => l.startsWith(CAPTION_PREFIX));
+  return { description: m?.[1]?.trim() || null, caption: captionLine ? captionLine.slice(CAPTION_PREFIX.length).trim() || null : null };
+}
+
+/** How a photo reads in the history the model sees in later turns. */
+export function imageHistoryText(text: string): string {
+  const { description, caption } = parseImageMessageText(text);
+  return [`(הלקוח שלח תמונה${description ? `: ${description}` : ""})`, caption].filter(Boolean).join("\n");
+}
+
+/** Context note for a turn whose new messages include photos the model receives as images. */
+export const IMAGE_NOTE =
+  "הלקוח שלח תמונה (מצורפת להודעה שלו). תגיב כמו אדם: משפט אחד קצר, חם וספציפי למה שרואים, עם שם הכלב אם כבר ידוע (\"לולה נראית מתוקה 🙂\", \"איזו פרווה\"), ואז ממשיכים: השאלה הבאה שחסרה, או אישור קצר אם הכול כבר נאסף. " +
+  "אסור לאבחן מהתמונה התנהגות, בריאות, משקל או מצב, אסור לקבוע גזע בוודאות (מותר \"נראית כמו מעורבת רועים\"), ואסור להבטיח משהו על סמך התמונה. " +
+  "צילום מסך עם טקסט (הודעה ממאלף קודם, מסמך): קורא ומגיב לתוכן. נזק בבית (כורסה הרוסה וכו'): מגיב בטבעיות (\"אוי, הכורסה 🙈\") ושואל שאלה רלוונטית. " +
+  "אף פעם לא אומרים שאתה בוט, שאתה קורא רק טקסט או שאתה לא רואה תמונות.";
+
+/** Context note when a photo / video / file could not be opened. */
+export const UNREADABLE_MEDIA_NOTE =
+  `הלקוח שלח קובץ (סרטון / מסמך / תמונה) שאין לך גישה לתוכן שלו. אל תאמר את זה. פתח בדיוק ב"${MEDIA_REPLY}" ומיד המשך בשיחה: השאלה הבאה שחסרה, או אישור קצר אם הכול כבר נאסף. בלי "היי" ובלי לחשוף מגבלה.`;
+
+const LIMITATION_RE =
+  /(יודע|יודעת|יכול|יכולה)\s+(?:לקרוא|לראות|לפתוח|לשמוע)\s+רק|רק\s+הודעות\s+טקסט|(?:לא|אינני|איני)\s+(?:יכול|יכולה|מסוגל|מסוגלת|יודע|יודעת)\s+(?:לראות|לפתוח|לצפות|לשמוע)|(?:לא|אינני)\s+רואה\s+(?:תמונות|את\s+התמונה|סרטונים)|אני\s+(?:רק\s+)?בוט/u;
+
+/** A line that exposes a limitation ("אני יודע לקרוא רק טקסט", "אני לא יכול לראות תמונות", "אני בוט"). */
+export function revealsLimitation(line: string): boolean {
+  return LIMITATION_RE.test(line);
+}
+
+/**
+ * Item 39: drop every sentence that exposes a limitation (the identity answer to a direct
+ * "את/ה בוט?" is added by enforceIdentityAnswer after this and is kept).
+ */
+export function dropLimitationLines(text: string): string {
+  return text
+    .split("\n")
+    .map((line) =>
+      line
+        .split(/(?<=[.!?])\s+/u)
+        .filter((sentence) => !revealsLimitation(sentence))
+        .join(" ")
+    )
+    .filter((l, i, arr) => l.trim() || (i > 0 && arr[i - 1].trim()))
+    .join("\n")
+    .trim();
+}
+
+/** "[סרטון]\nכיתוב: …" → "סרטון". */
+export function mediaLabelOf(text: string): string {
+  return (text.split("\n")[0] ?? "").replace(/^\[|\]$/g, "").trim() || "קובץ";
+}
+
+/** The caption line of a stored media message, if any. */
+export function captionOf(text: string): string | null {
+  const line = text.split("\n").find((l) => l.startsWith(CAPTION_PREFIX));
+  return line ? line.slice(CAPTION_PREFIX.length).trim() || null : null;
+}
+
+/** Item 39.6: "היי" / "שלום" only in the first reply — mid-conversation the greeting word is dropped. */
+export function dropMidConversationGreeting(text: string, isFirstReply: boolean): string {
+  if (isFirstReply) return text;
+  const out = text.replace(
+    /^\s*(?:היי+|הי|שלום(?:\s+(?:שוב|לך|לכם))?|אהלן|הלו)(?:\s+([\p{L}]{2,12}))?\s*([,!.])\s*/u,
+    (_m, name: string | undefined) => (name && !/^(שוב|לך|לכם)$/u.test(name) ? `${name}, ` : "")
+  );
+  return out.trim() ? out.trimStart() : text;
+}
 
 // ─── Voice notes (Or, item 28a) ───────────────────────────────────────────────
 
@@ -93,6 +203,8 @@ export function isVoiceFailed(row: { kind: string; text: string }): boolean {
 export function customerWords(row: { kind: string; text: string }): string | null {
   if (row.kind === "text") return row.text;
   if (row.kind === "voice" && !isVoiceFailed(row)) return row.text;
+  // Item 39: the caption of a photo is the customer's own words (the description is ours).
+  if (row.kind === "image") return parseImageMessageText(row.text).caption;
   return null;
 }
 
@@ -216,10 +328,70 @@ export function typingDelayMs(text: string): number {
 }
 
 /** Last guard on what the model wrote: no em dashes, no markdown bold, no trailing period. */
+// ─── Item 39 addition (Or, 27/10): professional terms, with taste ────────────────────────
+
+/** The bot's terms (never to correct the owner): owner's word → the term. */
+export const TERM_GLOSSARY: Array<{ owner: string; term: string }> = [
+  { owner: "בוכה", term: "מיילל / יללות" },
+  { owner: "משתגע על כלבים", term: "תגובתי לכלבים" },
+  { owner: "מושך", term: "משיכה ברצועה" },
+  { owner: "פיפי בבית", term: "צרכים בבית / גמילה" },
+  { owner: "נושך (גור)", term: "נשיכות משחק" },
+  { owner: "מקנא על אוכל או צעצוע", term: "שמירה על משאבים" },
+  { owner: "לא מקשיב", term: "לא מגיב לפקודות" },
+  { owner: "קופץ על כולם", term: "קפיצות על אנשים" },
+];
+/** The professional terms of the glossary as they appear in a reply. */
+export const PRO_TERM_RE = /יללות|מייל(?:ל|לת)|תגובתי(?:ות|ת)?|משיכה ברצועה|צרכים בבית|גמילה|נשיכות משחק|שמירה על משאבים|לא מגיב(?:ה)? לפקודות|קפיצות על אנשים/gu;
+
+/** A sentence that corrects / relabels the owner's words ("זה נקרא יללות, לא בכי", "בעצם מה שאתה מתאר זה…"). */
+const CORRECTION_RE =
+  /(?:^|[\s,])זה\s+נקרא|נקרא(?:ת)?\s+(?:בשפה|במונחים)\s+מקצועי|המונח\s+(?:הנכון|המקצועי)|(?:בעצם|למעשה)\s+מה\s+ש(?:את|אתה|אתם|אתן)\s+מתאר(?:ת|ים|ות)?\s+(?:זה|הוא|היא|נקרא)|(?:,|\.)?\s*(?:ו)?לא\s+(?:בכי|פיפי|קנאה|דווקא|נקמה)[.!]?\s*$/u;
+/** A diagnosis stuck on the customer's dog ("יש לו חרדת נטישה", "זו תוקפנות"). */
+const DIAGNOSIS_LABEL_RE =
+  /(?:יש\s+(?:לו|לה)|(?:הוא|היא)\s+(?:סובל|סובלת)\s+מ|(?:זו|זאת|זה)(?:\s+(?:כנראה|בעצם|פשוט))?|נשמע\s+(?:כמו|ש(?:זו|זה|יש\s+(?:לו|לה)))|מדובר\s+ב)\s*(?:ב)?(?:חרדת\s+נטישה|תוקפנות|חרדה\s+חברתית)/u;
+
+export function correctsOwner(sentence: string): boolean {
+  return CORRECTION_RE.test(sentence);
+}
+export function labelsDiagnosis(sentence: string): boolean {
+  return DIAGNOSIS_LABEL_RE.test(sentence);
+}
+
+/** Drops sentences that correct the owner's word or label a diagnosis (item 39 addition). Pure — tested. */
+export function dropCorrectionsAndLabels(text: string): string {
+  return text
+    .split("\n")
+    .map((line) =>
+      line
+        .split(/(?<=[.!?])\s+/u)
+        .filter((sentence) => !correctsOwner(sentence) && !labelsDiagnosis(sentence))
+        .join(" ")
+    )
+    .filter((l, i, arr) => l.trim() || (i > 0 && arr[i - 1].trim()))
+    .join("\n")
+    .trim();
+}
+
+/** For the simulator / tests: terminology problems in a reply. */
+export function findTerminologyIssues(text: string): string[] {
+  const issues: string[] = [];
+  for (const s of text.split(/(?<=[.!?])\s+|\n/u)) {
+    if (correctsOwner(s)) issues.push(`תיקון של המילה של הבעלים: "${s.trim()}"`);
+    if (labelsDiagnosis(s)) issues.push(`אבחנה מודבקת: "${s.trim()}"`);
+  }
+  return issues;
+}
+
+/** How many professional terms a text uses. */
+export function proTermCount(text: string): number {
+  return (text.match(PRO_TERM_RE) ?? []).length;
+}
+
 export function polishReply(text: string): string {
   return arrangeGuideLink(
     tidyPunctuation(
-      fixHebrewSlips(text)
+      fixHebrewSlips(dropCorrectionsAndLabels(text))
         .replace(/\*\*(.+?)\*\*/g, "$1")
         // Or's playbook: never "אל דאגה" (the model still reaches for it).
         .replace(/(^|[\s,])אל דאגה\s*[,!.]?\s*/gu, "$1")
