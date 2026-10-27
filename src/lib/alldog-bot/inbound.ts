@@ -21,6 +21,24 @@ import { heDayLabel, israelParts } from "@/lib/alldog/time";
 import { CLOSED_PARTIAL_STATUS, partialResumeNote } from "@/lib/alldog-bot/nudge-rules";
 import { onPartialResume, partialClosedMissing } from "@/lib/alldog-bot/nudge";
 import { describeImage, descriptionLine, imageBlockFor, mediaLogText, mediaRefsFor, saveMediaRef } from "@/lib/alldog-bot/images";
+import {
+  asksForReading,
+  claimOffer,
+  GUIDE_LINK_MESSAGE_KIND,
+  GUIDE_OFFER_MESSAGE_KIND,
+  guideBySlug,
+  guideLinkMessage,
+  guideOfferText,
+  isOnlyYes,
+  isYesToOffer,
+  preciseGuideFor,
+  readOffer,
+  rememberedGuide,
+  rememberGuide,
+  setOfferStatus,
+  stripGuideLinks,
+} from "@/lib/alldog-bot/guide-offer";
+import type { KnowledgeEntry } from "@/lib/alldog-bot/knowledge";
 import { addLeadCallLog, createLeadTask, findLeadByPhone, isPlaceholderLeadName } from "@/lib/alldog/leads";
 import {
   applyConversationGuards,
@@ -520,6 +538,29 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
     }))
   );
   if (!history.length || history[history.length - 1].role !== "user") return;
+
+  // Item 39 addition: the guide is offered, not sent. A pending offer + "כן" → the link; anything else → never again.
+  const batchText = batchWords.join("\n");
+  const offer = await readOffer(conv.id);
+  let guideToSend: KnowledgeEntry | null = null;
+  if (offer?.state.status === "pending") {
+    const entry = guideBySlug(offer.state.slug);
+    if (entry && isYesToOffer(batchText)) {
+      await setOfferStatus(offer.id, { slug: entry.slug, status: "accepted" });
+      if (isOnlyYes(batchText) && !imageBlocks.length && !unreadable) {
+        // Just "כן" → the link + one line, no model turn, no more questions about the guide.
+        await sendParts(item, conv.phone, [guideLinkMessage(entry)], handoffMode, [GUIDE_LINK_MESSAGE_KIND]);
+        return;
+      }
+      guideToSend = entry;
+    } else {
+      await setOfferStatus(offer.id, { slug: offer.state.slug, status: "declined" });
+    }
+  } else if (!offer && !handoffMode && asksForReading(batchText)) {
+    // The customer asked for something to read → straight away, no offer.
+    const entry = (await rememberedGuide(conv.id)) ?? preciseGuideFor(userWords.join(" "));
+    if (entry && (await claimOffer(conv.id, { slug: entry.slug, status: "sent" }))) guideToSend = entry;
+  }
   if (imageBlocks.length) {
     const last = history[history.length - 1];
     last.content = [...imageBlocks, { type: "text", text: typeof last.content === "string" ? last.content : "" }];
@@ -644,10 +685,29 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
   }
 
   if (minor && ref.leadId) await updateConversationLog(ref, ref.leadId, (current) => withFact(current, MINOR_FACT));
+
+  // Item 39 addition: guide links never come from the model; a precise guide is offered once the basics are in.
+  text = stripGuideLinks(text);
+  if (executor.guideSlug) await rememberGuide(conv.id, executor.guideSlug);
+  const extraParts: string[] = [];
+  const extraKinds: string[] = [];
+  if (guideToSend) {
+    extraParts.push(guideLinkMessage(guideToSend));
+    extraKinds.push(GUIDE_LINK_MESSAGE_KIND);
+  } else if (!offer && !handoffMode && !minor && !ref.serious && !userWords.some((t) => mentionsHumanBite(t))) {
+    const entry = executor.guideSlug ? guideBySlug(executor.guideSlug) : await rememberedGuide(conv.id);
+    const basics = !!executor.closing || closed || (await leadHasBasics(ref));
+    if (entry && basics && (await claimOffer(conv.id, { slug: entry.slug, status: "pending" }))) {
+      extraParts.push(guideOfferText(style.gender, conv.id));
+      extraKinds.push(GUIDE_OFFER_MESSAGE_KIND);
+    }
+  }
+
   // A newer message arrived while the model was thinking → its own run will answer.
   if ((await latestInboundId(conv.id)) !== item.waMessageId) return;
-  // Closing turn: the bot's answer (+ guide link) · transition + closing = 2 messages (item 35).
-  await sendParts(item, conv.phone, splitReply(text, 2), afterHandoff);
+  // Closing turn: the bot's answer · transition + closing = 2 messages (item 35); the guide offer / link on its own after them.
+  const mainParts = text ? splitReply(text, 2) : [];
+  await sendParts(item, conv.phone, [...mainParts, ...extraParts], afterHandoff, [...mainParts.map(() => "text"), ...extraKinds]);
   // The conversation just ended (closing / handoff) → one summary in the lead journal (item 27i).
   if ((executor.closing && !closed) || (afterHandoff && !handoffMode)) await summarizeBotConversation(conv.id);
 }
@@ -799,8 +859,8 @@ async function alertBiteReported(ref: BotConversationRef, texts: string[]): Prom
   }
 }
 
-async function sendParts(item: PendingInbound, to: string, parts: string[], allowAfterHandoff = false): Promise<void> {
-  for (const part of parts) {
+async function sendParts(item: PendingInbound, to: string, parts: string[], allowAfterHandoff = false, kinds: string[] = []): Promise<void> {
+  for (const [i, part] of parts.entries()) {
     const conv = await prisma.waBotConversation.findUnique({
       where: { id: item.conversationId },
       select: { status: true, lastInboundAt: true },
@@ -817,10 +877,17 @@ async function sendParts(item: PendingInbound, to: string, parts: string[], allo
     const wamid = await sendText(to, part);
     if (!wamid) return;
     await prisma.waBotMessage.create({
-      data: { conversationId: item.conversationId, role: "assistant", text: part, waMessageId: wamid },
+      data: { conversationId: item.conversationId, role: "assistant", kind: kinds[i] ?? "text", text: part, waMessageId: wamid },
     });
     await prisma.waBotConversation.update({ where: { id: item.conversationId }, data: { lastBotReplyAt: new Date() } });
   }
+}
+
+/** Item 39 addition: the basics are in (city + the dog's name on the lead) → the guide may be offered. */
+async function leadHasBasics(ref: BotConversationRef): Promise<boolean> {
+  if (!ref.leadId) return false;
+  const lead = await prisma.lead.findFirst({ where: { id: ref.leadId, businessId: ref.businessId }, select: { city: true, notes: true } });
+  return !!lead?.city?.trim() && /(?:^|\n)שם:\s*\S/u.test(lead.notes ?? "");
 }
 
 // ─── Photos (Or, item 39) ─────────────────────────────────────────────────────

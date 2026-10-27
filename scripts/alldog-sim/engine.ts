@@ -54,6 +54,7 @@ import {
   dropMidConversationGreeting,
   imageHistoryText,
   imageMessageText,
+  findTerminologyIssues,
   parseImageMessageText,
   revealsLimitation,
 } from "@/lib/alldog-bot/logic";
@@ -66,6 +67,16 @@ import {
   mentionsHumanBite,
 } from "@/lib/alldog-bot/prompt";
 import { BOT_TOOLS, HANDOFF_MODE_TOOLS, LOOKUP_GUIDE_TOOL, runBotTurn, type BotToolExecutor } from "@/lib/alldog-bot/agent";
+import {
+  asksForReading,
+  guideBySlug,
+  guideLinkMessage,
+  guideOfferText,
+  isOnlyYes,
+  isYesToOffer,
+  preciseGuideFor,
+  stripGuideLinks,
+} from "@/lib/alldog-bot/guide-offer";
 import { addressNote, addressStyleFor, applyAddressStyle, findAddressIssues, type AddressStyle } from "@/lib/alldog-bot/address";
 import { areaToCheckNote, fixOutOfAreaLines, isKnownServiceCity, unknownAreaToolNote } from "@/lib/alldog-bot/areas";
 import {
@@ -147,6 +158,9 @@ export class SimConversation {
   status: Status = "active";
   attribution: { source: string | null; page: string | null } | null = null;
   knownName: string | null = null;
+  /** Item 39 addition: the guide offer of this conversation. */
+  guideSlug: string | null = null;
+  guideOffer: { slug: string; status: "pending" | "accepted" | "declined" | "sent" } | null = null;
   /** An attack / bite was described (item 29c). */
   serious = false;
   /** Turn number at which each field was first saved. */
@@ -408,6 +422,29 @@ export class SimConversation {
         .replace(/^השיחה כבר התחילה.*$/m, "השיחה כבר התחילה — אל תפתח שוב ב'היי , כאן AllDog'.");
     }
 
+    // Item 39 addition: a pending offer + "כן" → the link; anything else → never again; "יש משהו לקרוא?" → straight away.
+    let guideToSend: ReturnType<typeof guideBySlug> = null;
+    if (this.variant === "after" && this.guideOffer?.status === "pending") {
+      const entry = guideBySlug(this.guideOffer.slug);
+      if (entry && isYesToOffer(text)) {
+        this.guideOffer.status = "accepted";
+        if (isOnlyYes(text)) {
+          this.pushBot(guideLinkMessage(entry), text);
+          return;
+        }
+        guideToSend = entry;
+      } else {
+        this.guideOffer.status = "declined";
+        this.emit("info", "הצעת המדריך נדחתה / נענתה בנושא אחר → לא מציעים שוב");
+      }
+    } else if (this.variant === "after" && !this.guideOffer && asksForReading(text)) {
+      const entry = (this.guideSlug ? guideBySlug(this.guideSlug) : null) ?? preciseGuideFor(userTexts.join(" "));
+      if (entry) {
+        this.guideOffer = { slug: entry.slug, status: "sent" };
+        guideToSend = entry;
+      }
+    }
+
     const executor = this.executor();
     const result = await runBotTurn({
       client: this.client,
@@ -461,6 +498,24 @@ export class SimConversation {
       this.emit("info", `אין תשובה (${result.stopReason ?? "?"}) — בפרודקשן: העברה לנציג`);
       return;
     }
-    for (const part of splitReply(reply, 2)) this.pushBot(part, text);
+    if (this.variant === "after") {
+      reply = stripGuideLinks(reply);
+      if (executor.guideSlug) this.guideSlug = executor.guideSlug;
+    }
+    for (const part of reply ? splitReply(reply, 2) : []) this.pushBot(part, text);
+    if (this.variant !== "after") return;
+    for (const issue of findTerminologyIssues(reply)) this.warn(`מינוח (39): ${issue}`);
+    if (guideToSend) {
+      this.pushBot(guideLinkMessage(guideToSend), text);
+    } else if (!this.guideOffer && this.guideSlug && !this.serious && (executor.closing || closingAlreadySent(this.rows) || this.basicsKnown())) {
+      this.guideOffer = { slug: this.guideSlug, status: "pending" };
+      this.emit("info", `הצעת מדריך (${this.guideSlug}), פעם אחת`);
+      this.pushBot(guideOfferText(this.style.gender, "sim"), text);
+    }
+  }
+
+  /** The basics are in (dog's name + city saved). */
+  private basicsKnown(): boolean {
+    return this.savedAt.dog_name !== undefined && this.savedAt.city !== undefined;
   }
 }

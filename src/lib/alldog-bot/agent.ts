@@ -10,6 +10,7 @@ import { z } from "zod";
 import { ALLDOG_BOT_PROMPT } from "@/lib/alldog-bot/prompt";
 import { polishReply } from "@/lib/alldog-bot/logic";
 import { lookupGuide } from "@/lib/alldog-bot/knowledge";
+import { preciseGuideFor } from "@/lib/alldog-bot/guide-offer";
 
 // ─── Tools ───────────────────────────────────────────────────────────────────
 
@@ -130,6 +131,8 @@ export interface BotToolExecutor {
   markUrgent?(reason: string, quote?: string): Promise<void>;
   /** Set by scheduleCallback / handoff: the fixed closing message the customer must get. */
   closing?: string | null;
+  /** Item 39: a guide that fits the problem precisely (offered to the customer by the system). */
+  guideSlug?: string | null;
 }
 
 /** A failure the model should see and recover from (e.g. "outside office hours"). */
@@ -153,6 +156,9 @@ async function runTool(executor: BotToolExecutor, block: Anthropic.ToolUseBlock)
         // Read-only and local (knowledge-data.json) — no executor needed, same in production and the simulator.
         const p = lookupGuideInput.safeParse(block.input);
         if (!p.success) return { content: "topic חסר", isError: true };
+        // Item 39: the guide that fits precisely is remembered — the system offers it to the customer itself.
+        const precise = preciseGuideFor(p.data.topic);
+        if (precise) executor.guideSlug = precise.slug;
         return { content: lookupGuide(p.data.topic), isError: false };
       }
       case "save_lead": {

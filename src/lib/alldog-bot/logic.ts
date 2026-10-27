@@ -328,10 +328,70 @@ export function typingDelayMs(text: string): number {
 }
 
 /** Last guard on what the model wrote: no em dashes, no markdown bold, no trailing period. */
+// ─── Item 39 addition (Or, 27/10): professional terms, with taste ────────────────────────
+
+/** The bot's terms (never to correct the owner): owner's word → the term. */
+export const TERM_GLOSSARY: Array<{ owner: string; term: string }> = [
+  { owner: "בוכה", term: "מיילל / יללות" },
+  { owner: "משתגע על כלבים", term: "תגובתי לכלבים" },
+  { owner: "מושך", term: "משיכה ברצועה" },
+  { owner: "פיפי בבית", term: "צרכים בבית / גמילה" },
+  { owner: "נושך (גור)", term: "נשיכות משחק" },
+  { owner: "מקנא על אוכל או צעצוע", term: "שמירה על משאבים" },
+  { owner: "לא מקשיב", term: "לא מגיב לפקודות" },
+  { owner: "קופץ על כולם", term: "קפיצות על אנשים" },
+];
+/** The professional terms of the glossary as they appear in a reply. */
+export const PRO_TERM_RE = /יללות|מייל(?:ל|לת)|תגובתי(?:ות|ת)?|משיכה ברצועה|צרכים בבית|גמילה|נשיכות משחק|שמירה על משאבים|לא מגיב(?:ה)? לפקודות|קפיצות על אנשים/gu;
+
+/** A sentence that corrects / relabels the owner's words ("זה נקרא יללות, לא בכי", "בעצם מה שאתה מתאר זה…"). */
+const CORRECTION_RE =
+  /(?:^|[\s,])זה\s+נקרא|נקרא(?:ת)?\s+(?:בשפה|במונחים)\s+מקצועי|המונח\s+(?:הנכון|המקצועי)|(?:בעצם|למעשה)\s+מה\s+ש(?:את|אתה|אתם|אתן)\s+מתאר(?:ת|ים|ות)?\s+(?:זה|הוא|היא|נקרא)|(?:,|\.)?\s*(?:ו)?לא\s+(?:בכי|פיפי|קנאה|דווקא|נקמה)[.!]?\s*$/u;
+/** A diagnosis stuck on the customer's dog ("יש לו חרדת נטישה", "זו תוקפנות"). */
+const DIAGNOSIS_LABEL_RE =
+  /(?:יש\s+(?:לו|לה)|(?:הוא|היא)\s+(?:סובל|סובלת)\s+מ|(?:זו|זאת|זה)(?:\s+(?:כנראה|בעצם|פשוט))?|נשמע\s+(?:כמו|ש(?:זו|זה|יש\s+(?:לו|לה)))|מדובר\s+ב)\s*(?:ב)?(?:חרדת\s+נטישה|תוקפנות|חרדה\s+חברתית)/u;
+
+export function correctsOwner(sentence: string): boolean {
+  return CORRECTION_RE.test(sentence);
+}
+export function labelsDiagnosis(sentence: string): boolean {
+  return DIAGNOSIS_LABEL_RE.test(sentence);
+}
+
+/** Drops sentences that correct the owner's word or label a diagnosis (item 39 addition). Pure — tested. */
+export function dropCorrectionsAndLabels(text: string): string {
+  return text
+    .split("\n")
+    .map((line) =>
+      line
+        .split(/(?<=[.!?])\s+/u)
+        .filter((sentence) => !correctsOwner(sentence) && !labelsDiagnosis(sentence))
+        .join(" ")
+    )
+    .filter((l, i, arr) => l.trim() || (i > 0 && arr[i - 1].trim()))
+    .join("\n")
+    .trim();
+}
+
+/** For the simulator / tests: terminology problems in a reply. */
+export function findTerminologyIssues(text: string): string[] {
+  const issues: string[] = [];
+  for (const s of text.split(/(?<=[.!?])\s+|\n/u)) {
+    if (correctsOwner(s)) issues.push(`תיקון של המילה של הבעלים: "${s.trim()}"`);
+    if (labelsDiagnosis(s)) issues.push(`אבחנה מודבקת: "${s.trim()}"`);
+  }
+  return issues;
+}
+
+/** How many professional terms a text uses. */
+export function proTermCount(text: string): number {
+  return (text.match(PRO_TERM_RE) ?? []).length;
+}
+
 export function polishReply(text: string): string {
   return arrangeGuideLink(
     tidyPunctuation(
-      fixHebrewSlips(text)
+      fixHebrewSlips(dropCorrectionsAndLabels(text))
         .replace(/\*\*(.+?)\*\*/g, "$1")
         // Or's playbook: never "אל דאגה" (the model still reaches for it).
         .replace(/(^|[\s,])אל דאגה\s*[,!.]?\s*/gu, "$1")
