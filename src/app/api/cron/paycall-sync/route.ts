@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
 import { NextRequest, NextResponse } from "next/server";
-import { verifyCronAuth } from "@/lib/cron-auth";
+import { verifyCronAuth, verifyCronAuthWithVault } from "@/lib/cron-auth";
 import { probeAnalyticsCallsShape, getCalls, isMissedCall, processMissedCall, MIN_SUMMARY_BILLSEC, type PaycallCall } from "@/lib/paycall";
 import { isCallSummariesEnabled } from "@/lib/alldog/config";
 import { repFromPaycall } from "@/lib/alldog/call-coaching";
@@ -35,7 +35,8 @@ function billsecOf(call: PaycallCall): number {
 }
 
 export async function GET(request: NextRequest) {
-  if (!verifyCronAuth(request)) {
+  // Vercel daily cron + Supabase pg_cron every 10 min (prisma/cron_paycall_sync.sql, Vault secret).
+  if (!verifyCronAuth(request) && !(await verifyCronAuthWithVault(request))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

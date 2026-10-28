@@ -72,7 +72,7 @@ describe("searchKnowledge / lookup_guide", () => {
     const out = lookupGuide("רודף אחרי חתולים");
     expect(out).toContain("https://all-dog.co.il/guides/behavior/prey-drive");
     expect(out).toContain("תובנות:");
-    expect(out).toContain("כתבנו על זה מדריך");
+    expect(out).toContain("המערכת מציעה אותו ללקוח"); // item 39: the guide is offered by the system, never sent by the model
     expect(searchKnowledge("נובח על עוברים").length).toBeLessThanOrEqual(2);
   });
 

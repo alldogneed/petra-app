@@ -18,7 +18,7 @@ import { maskPhone } from "@/lib/whatsapp-failure";
 import { allDogAnthropicKey, botModel } from "@/lib/alldog/config";
 import { israelParts } from "@/lib/alldog/time";
 import { createDbExecutor, updateConversationLog, type BotConversationRef } from "@/lib/alldog-bot/actions";
-import { currentSession, customerWords, seemsMinor } from "@/lib/alldog-bot/logic";
+import { currentSession, customerWords, parseImageMessageText, seemsMinor } from "@/lib/alldog-bot/logic";
 import { MINOR_FACT, withBody, withFact } from "@/lib/alldog-bot/journal";
 import { alertAllDogFailure } from "@/lib/alldog/failure-alerts";
 
@@ -162,6 +162,19 @@ export function formatBotSummary(sum: BotSummary, dateLabel: string): string {
   return [`${SUMMARY_HEADER} (${dateLabel})`, ...lines].join("\n");
 }
 
+/**
+ * Item 39: one line per photo the customer sent ("תמונה מהלקוח: כלבה בינונית, נראית מעורבת"),
+ * max 3, under the summary. Pure — tested.
+ */
+export function imageSummaryLines(rows: Array<{ role: string; kind: string; text: string }>): string[] {
+  return rows
+    .filter((r) => r.role === "user" && r.kind === "image")
+    .map((r) => parseImageMessageText(r.text).description)
+    .filter((d): d is string => !!d)
+    .slice(-3)
+    .map((d) => `תמונה מהלקוח: ${d}`);
+}
+
 function dateLabel(d: Date): string {
   const p = israelParts(d);
   return `${p.ymd.slice(8, 10)}/${p.ymd.slice(5, 7)} ${p.hhmm}`;
@@ -200,20 +213,31 @@ type ConvRow = {
  * closing path and the idle cron share the key). Never throws.
  */
 export async function summarizeBotConversation(conversationId: string, opts: { claim?: boolean } = { claim: true }): Promise<boolean> {
-  // Item 39: a failed summary gives its claim back, so the idle cron tries again (it used to stay unsummarized forever).
+  return !!(await summarizeBotConversationDetailed(conversationId, opts));
+}
+
+/**
+ * Same as summarizeBotConversation, returning the summary + the lead. `extraFact(sum)` adds one more
+ * "• " line under the summary (the partial closing's "לא השלים: …", 27/10). Never throws.
+ */
+export async function summarizeBotConversationDetailed(
+  conversationId: string,
+  opts: { claim?: boolean; extraFact?: (sum: BotSummary, leadName: string | null) => string | null } = { claim: true }
+): Promise<{ summary: BotSummary; leadId: string } | null> {
+  // Item 39 (summary fix): a failed summary gives its claim back, so the idle cron tries again (it used to stay unsummarized forever).
   let claimKey: string | null = null;
   let phone: string | undefined;
-  const fail = async (error: unknown = "הסיכום לא נוצר"): Promise<false> => {
+  const fail = async (error: unknown = "הסיכום לא נוצר"): Promise<null> => {
     if (claimKey) await releaseClaim(claimKey);
     await alertAllDogFailure({ kind: "bot_summary", error, detail: "השיחה תסוכם שוב בהרצה הבאה", phone });
-    return false;
+    return null;
   };
   try {
     const conv = (await prisma.waBotConversation.findUnique({
       where: { id: conversationId },
       select: { id: true, businessId: true, phone: true, profileName: true, leadId: true, summaryCallLogId: true, attributionSource: true, attributionPage: true },
     })) as ConvRow | null;
-    if (!conv) return false;
+    if (!conv) return null;
     phone = conv.phone;
     // The current conversation only (a customer back after a long silence = a new line, item 30c).
     const rows = currentSession(
@@ -226,12 +250,12 @@ export async function summarizeBotConversation(conversationId: string, opts: { c
         })
       ).reverse()
     );
-    const userTexts = rows.filter((r) => r.role === "user" && customerWords(r));
-    if (!userTexts.length) return false;
+    const userTexts = rows.filter((r) => r.role === "user" && (customerWords(r) || r.kind === "image"));
+    if (!userTexts.length) return null;
     const last = rows[rows.length - 1];
     if (opts.claim !== false) {
       const key = `alldog-bot-summary:${conv.id}:${last.id}`;
-      if (!(await claimOnce(key, 14 * 24 * 60 * 60))) return false;
+      if (!(await claimOnce(key, 14 * 24 * 60 * 60))) return null;
       claimKey = key;
     }
 
@@ -241,7 +265,7 @@ export async function summarizeBotConversation(conversationId: string, opts: { c
       .slice(-12000);
     const sum = await summarize(transcript);
     if (!sum) return fail("Claude לא החזיר סיכום תקין");
-    const text = formatBotSummary(sum, dateLabel(last.createdAt));
+    const text = [formatBotSummary(sum, dateLabel(last.createdAt)), ...imageSummaryLines(rows)].join("\n");
 
     // The lead (the same one the bot writes to — created if missing, e.g. after a manual delete).
     const ref: BotConversationRef = { ...conv };
@@ -251,9 +275,19 @@ export async function summarizeBotConversation(conversationId: string, opts: { c
     // The conversation's one journal line: the summary replaces the body, the facts underneath stay (item 30b).
     // Item 35a: a caller who seems to be a child → a prominent line for the rep.
     const minor = sum.caller_seems_minor || seemsMinor(userTexts.map((r) => customerWords(r) ?? r.text));
-    await updateConversationLog(ref, leadId, (current) => (minor ? withFact(withBody(current, text), MINOR_FACT) : withBody(current, text)));
+    let extra: string | null = null;
+    if (opts.extraFact) {
+      const lead = await prisma.lead.findFirst({ where: { id: leadId, businessId: conv.businessId }, select: { name: true } });
+      extra = opts.extraFact(sum, lead?.name ?? null);
+    }
+    await updateConversationLog(ref, leadId, (current) => {
+      let next = withBody(current, text);
+      if (minor) next = withFact(next, MINOR_FACT);
+      if (extra) next = withFact(next, extra);
+      return next;
+    });
     console.log(`${LOG} conversation summarized (${maskPhone(conv.phone)})`);
-    return true;
+    return { summary: sum, leadId };
   } catch (err) {
     console.error(`${LOG} failed:`, err instanceof Error ? err.message : err);
     return fail(err);

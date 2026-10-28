@@ -20,7 +20,7 @@ interface BotConversationView {
   canReply: boolean;
   lastInboundAt: string | null;
   autoResumeAt: string | null;
-  messages: Array<{ id: string; role: string; kind: string; text: string; createdAt: string }>;
+  messages: Array<{ id: string; role: string; kind: string; text: string; createdAt: string; mediaUrl?: string | null }>;
 }
 
 const timeFmt = new Intl.DateTimeFormat("he-IL", {
@@ -92,7 +92,9 @@ export function AllDogBotChat({ leadId }: { leadId: string }) {
       ? `אצל נציגה${conv.autoResumeAt ? ` · חוזר לבוט אוטומטית ${timeFmt.format(new Date(conv.autoResumeAt))}` : ""}`
       : conv.status === "stopped"
         ? "הלקוח ביקש להפסיק"
-        : "הבוט עונה";
+        : conv.status === "closed_partial"
+          ? "נסגרה באמצע · הלקוח הפסיק לענות"
+          : "הבוט עונה";
 
   return (
     <div className="px-6 py-5 border-b border-[#F1F5F9]">
@@ -140,7 +142,19 @@ export function AllDogBotChat({ leadId }: { leadId: string }) {
                     {m.role === "human" ? "נציגה" : autoMessageLabel(m.kind) ?? "בוט"}
                   </div>
                 )}
-                {m.kind === "voice" ? `🎤 ${m.text}` : m.text}
+                {m.kind === "image" && m.mediaUrl && (
+                  // Item 39: the photo the customer sent (proxied from WhatsApp, Meta keeps it ~30 days).
+                  <a href={m.mediaUrl} target="_blank" rel="noopener noreferrer" className="mb-1 block">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={m.mediaUrl} alt="תמונה מהלקוח" loading="lazy" className="max-h-48 rounded-lg object-cover" />
+                  </a>
+                )}
+                {m.kind === "voice" ? `🎤 ${m.text}` : m.kind === "image" ? `📷 ${m.text.replace(/^\[תמונה:?\s*/u, "").replace(/\]/u, "") || "תמונה"}` : m.text}
+                {m.kind === "media" && m.mediaUrl && (
+                  <a href={m.mediaUrl} target="_blank" rel="noopener noreferrer" className="mt-1 block text-xs font-semibold text-blue-600 underline">
+                    פתיחת הקובץ
+                  </a>
+                )}
                 <div className="mt-0.5 text-[10px] text-slate-400 tabular-nums">{timeFmt.format(new Date(m.createdAt))}</div>
               </div>
             </div>

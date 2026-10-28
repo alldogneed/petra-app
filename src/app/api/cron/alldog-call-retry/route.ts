@@ -38,7 +38,9 @@ export async function GET(request: NextRequest) {
     const formLeadWa = isFormWaEnabled()
       ? await (await import("@/lib/alldog/form-lead-wa")).processDueFormLeadMessages({ limit: 20 })
       : { skipped: "disabled" };
-    return NextResponse.json({ ok: true, ...calls, botSummaries: bot, missedCallWa, formLeadWa, timestamp: new Date().toISOString() });
+    // Fallback for the bot's reminder / partial closing (normally every minute via /api/cron/alldog-form-wa).
+    const nudges = await (await import("@/lib/alldog-bot/nudge")).processDueNudges({ budgetMs: 20_000, limit: 30 });
+    return NextResponse.json({ ok: true, ...calls, botSummaries: bot, missedCallWa, formLeadWa, nudges, timestamp: new Date().toISOString() });
   } catch (err) {
     console.error("CRON alldog-call-retry error:", err);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
