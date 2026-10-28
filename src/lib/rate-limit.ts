@@ -208,6 +208,19 @@ export async function claimOnce(key: string, ttlSeconds: number): Promise<boolea
 }
 
 /**
+ * Give a claim back (the work it guarded failed and should be retried by the next caller).
+ * Never throws.
+ */
+export async function releaseClaim(key: string): Promise<void> {
+  _claimMemory.delete(key);
+  try {
+    await prisma.$executeRaw`DELETE FROM "RateLimitBucket" WHERE "key" = ${`claim:${key}`}`;
+  } catch (err) {
+    console.error("releaseClaim DB error:", err);
+  }
+}
+
+/**
  * One round-trip, atomic: insert the claim row, or take over an EXPIRED one; a live
  * row makes the conditional update a no-op → no row returned → not claimed.
  * Expired claim rows are removed by the limiter's prune (windowEnd in the past).

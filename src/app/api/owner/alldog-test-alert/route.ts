@@ -19,6 +19,7 @@ const SAMPLE_ERRORS: Record<AllDogFailureKind, string> = {
   transcription: "ElevenLabs STT failed: HTTP 401 quota_exceeded",
   webhook: "חתימה לא תקינה (X-Hub-Signature-256) — ההודעה נדחתה (401)",
   call_summary: "גם הניסיון האחרון (שעתיים) לא הפיק סיכום",
+  bot_summary: '400 {"type":"error","error":{"type":"invalid_request_error","message":"Schema is too complex for compilation."}}',
 };
 const KINDS = Object.keys(FAILURE_KIND_TITLES) as AllDogFailureKind[];
 
