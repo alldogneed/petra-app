@@ -257,6 +257,12 @@ export default function DashboardPage() {
       items: data.todayDepartures ?? [],
       message: (s: DashboardStats["todayArrivals"][0]) => `שלום ${s.customer?.name ?? ""}! כלב שלך ${s.pet?.name ?? ""} מחכה לפיקאפ היום מהפנסיון 🐾`,
     },
+    {
+      title: "יציאה באיחור",
+      titleClass: "text-red-700",
+      items: data.overdueDepartures ?? [],
+      message: (s: DashboardStats["todayArrivals"][0]) => `שלום ${s.customer?.name ?? ""}! כלב שלך ${s.pet?.name ?? ""} מחכה לאיסוף מהפנסיון 🐾`,
+    },
   ].filter((g) => g.items.length > 0);
 
   const renderBlock = (id: DashboardBlockId): React.ReactNode => {
@@ -309,7 +315,7 @@ export default function DashboardPage() {
             <div className="grid [grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr))] gap-x-8">
               {boardingGroups.map((g) => (
                 <div key={g.title}>
-                  <span className="block text-xs font-semibold text-slate-500 pb-1">{g.title}</span>
+                  <span className={cn("block text-xs font-semibold pb-1", "titleClass" in g && g.titleClass ? g.titleClass : "text-slate-500")}>{g.title}</span>
                   {g.items.map((s) => (
                     <DashRow key={s.id}>
                       <Link

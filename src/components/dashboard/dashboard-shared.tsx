@@ -129,6 +129,8 @@ export interface DashboardStats {
     customer: { id: string; name: string; phone: string } | null;
     room: { name: string } | null;
   }[];
+  /** Checked-in stays whose check-out date already passed (optional: older API responses). */
+  overdueDepartures?: DashboardStats["todayDepartures"];
   upcomingBirthdays: {
     id: string;
     name: string;

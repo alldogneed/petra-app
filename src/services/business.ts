@@ -29,7 +29,15 @@ import {
   splitNewVsReturning,
 } from "@/lib/analytics-metrics";
 import { computeOutstandingBalances } from "@/lib/outstanding-balances";
-import { israelDayStart, lastMonthKeys, pct, pctChange, prevYearMonthKey } from "@/lib/report-dates";
+import {
+  israelDayEnd,
+  israelDayStart,
+  israelMonthKey,
+  lastMonthKeys,
+  pct,
+  pctChange,
+  prevYearMonthKey,
+} from "@/lib/report-dates";
 import { buildLeadSourceRows } from "@/lib/sales-report";
 import type { DbClient } from "./supabase";
 import type { Prisma } from "@prisma/client";
@@ -315,14 +323,18 @@ export async function getDashboardMetrics(
   const [ilYear, ilMonth, ilDay] = (anchorValid ? anchorDate! : ilFormatter.format(now))
     .split("-")
     .map(Number);
-  const todayStart = new Date(
-    new Date(`${ilYear}-${String(ilMonth).padStart(2, "0")}-${String(ilDay).padStart(2, "0")}T00:00:00+03:00`).getTime()
-  );
-  const todayEnd = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000 - 1);
-  const monthStart = new Date(`${ilYear}-${String(ilMonth).padStart(2, "0")}-01T00:00:00+03:00`);
-  const tomorrowStart = new Date(todayStart.getTime() + 24 * 60 * 60 * 1000);
-  const tomorrowEnd = new Date(tomorrowStart.getTime() + 24 * 60 * 60 * 1000 - 1);
-  const sixMonthsStart = new Date(ilYear, ilMonth - 1 - 5, 1);
+  // Israel-day bounds via report-dates (DST-safe: +02:00 in winter, +03:00 in summer).
+  const pad2 = (n: number) => String(n).padStart(2, "0");
+  const todayYmd = `${ilYear}-${pad2(ilMonth)}-${pad2(ilDay)}`;
+  const tomorrowYmd = new Date(Date.UTC(ilYear, ilMonth - 1, ilDay + 1)).toISOString().slice(0, 10);
+  const todayStart = israelDayStart(todayYmd);
+  const todayEnd = israelDayEnd(todayYmd);
+  const monthStart = israelDayStart(`${ilYear}-${pad2(ilMonth)}-01`);
+  const tomorrowStart = israelDayStart(tomorrowYmd);
+  const tomorrowEnd = israelDayEnd(tomorrowYmd);
+  // Revenue chart: the last 6 Israel months ending with the current month (not the anchor).
+  const revenueMonthKeys = lastMonthKeys(6, now);
+  const sixMonthsStart = israelDayStart(`${revenueMonthKeys[0]}-01`);
   const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
 
   const openStages = await db.leadStage.findMany({
@@ -352,6 +364,7 @@ export async function getDashboardMetrics(
     pendingBookings,
     todayArrivals,
     todayDepartures,
+    overdueDepartures,
     tomorrowAppointments,
     atRiskRaw,
     allPetsWithBirthdays,
@@ -463,7 +476,20 @@ export async function getDashboardMetrics(
       take: 10,
     }),
     db.boardingStay.findMany({
-      where: { businessId, status: "checked_in", checkOut: { gte: todayStart, lte: todayEnd } },
+      // Departures include stays still `reserved`: many boarding businesses never press
+      // "check-in", so a stay leaving today is often still reserved.
+      where: { businessId, status: { in: ["reserved", "checked_in"] }, checkOut: { gte: todayStart, lte: todayEnd } },
+      include: {
+        pet: { select: { id: true, name: true, species: true } },
+        customer: { select: { id: true, name: true, phone: true } },
+        room: { select: { name: true } },
+      },
+      orderBy: { checkOut: "asc" },
+      take: 10,
+    }),
+    // Overdue check-outs: checked in, check-out date already passed.
+    db.boardingStay.findMany({
+      where: { businessId, status: "checked_in", checkOut: { lt: todayStart } },
       include: {
         pet: { select: { id: true, name: true, species: true } },
         customer: { select: { id: true, name: true, phone: true } },
@@ -596,13 +622,14 @@ export async function getDashboardMetrics(
 
   // Revenue by month (last 6 months)
   const revenueByMonth: { month: string; amount: number }[] = [];
-  for (let i = 5; i >= 0; i--) {
-    const mStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const mEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
-    const amount = sixMonthPayments
-      .filter((p) => p.paidAt && p.paidAt >= mStart && p.paidAt < mEnd)
-      .reduce((sum, p) => sum + p.amount, 0);
-    revenueByMonth.push({ month: HEBREW_MONTHS[mStart.getMonth()], amount });
+  const revenueByMonthKey = new Map<string, number>();
+  for (const p of sixMonthPayments) {
+    if (!p.paidAt) continue;
+    const key = israelMonthKey(p.paidAt);
+    revenueByMonthKey.set(key, (revenueByMonthKey.get(key) ?? 0) + p.amount);
+  }
+  for (const key of revenueMonthKeys) {
+    revenueByMonth.push({ month: HEBREW_MONTHS[Number(key.slice(5, 7)) - 1], amount: revenueByMonthKey.get(key) ?? 0 });
   }
 
   return {
@@ -661,6 +688,15 @@ export async function getDashboardMetrics(
       room: s.room,
     })),
     todayDepartures: todayDepartures.map((s) => ({
+      id: s.id,
+      checkIn: s.checkIn.toISOString(),
+      checkOut: s.checkOut?.toISOString() ?? null,
+      status: s.status,
+      pet: s.pet,
+      customer: s.customer,
+      room: s.room,
+    })),
+    overdueDepartures: overdueDepartures.map((s) => ({
       id: s.id,
       checkIn: s.checkIn.toISOString(),
       checkOut: s.checkOut?.toISOString() ?? null,

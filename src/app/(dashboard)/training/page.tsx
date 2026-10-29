@@ -160,6 +160,7 @@ interface BoardingStay {
   pet: { id: string; name: string; species: string; breed: string | null };
   customer: { id: string; name: string };
   room: { id: string; name: string } | null;
+  dailyTrainingMinutes?: number | null;
 }
 
 interface Customer {
@@ -843,15 +844,32 @@ function TrainingPageContent() {
 
   const regularGroups = useMemo(() => groups.filter((g) => g.groupType !== "WORKSHOP"), [groups]);
   const workshops = useMemo(() => groups.filter((g) => g.groupType === "WORKSHOP"), [groups]);
-  const activeStays = useMemo(() => {
+  // Stays the dog is in right now: reserved/checked-in (many boarding businesses never
+  // press "check-in"), already started, not past their check-out day. Canceled,
+  // checked-out and overdue stays are excluded.
+  const currentStays = useMemo(() => {
     const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     return stays.filter((s) => {
-      if (s.status === "checked_in") return true;
-      const checkInDate = new Date(s.checkIn);
-      const checkOutDate = s.checkOut ? new Date(s.checkOut) : null;
-      return checkInDate <= now && (!checkOutDate || checkOutDate >= now);
+      if (s.status !== "reserved" && s.status !== "checked_in") return false;
+      if (new Date(s.checkIn) > now) return false;
+      return !s.checkOut || new Date(s.checkOut) >= todayStart;
     });
   }, [stays]);
+
+  // Only stays that actually have training: a linked BOARDING program, or daily
+  // training minutes set on the stay. A boarded dog without training is NOT shown as
+  // "in training" (customer report: "the system assigned dogs to training without me").
+  const activeStays = useMemo(() => {
+    const linked = new Set(boardingPrograms.map((p) => p.boardingStayId).filter(Boolean));
+    return currentStays.filter((s) => linked.has(s.id) || (s.dailyTrainingMinutes ?? 0) > 0);
+  }, [currentStays, boardingPrograms]);
+
+  // Current stays without training — offered only through the explicit "add training" picker.
+  const staysWithoutTraining = useMemo(() => {
+    const withTraining = new Set(activeStays.map((s) => s.id));
+    return currentStays.filter((s) => !withTraining.has(s.id));
+  }, [currentStays, activeStays]);
 
   const allDogs = useMemo<UnifiedDog[]>(() => {
     const dogs: UnifiedDog[] = [];
@@ -1827,6 +1845,7 @@ function TrainingPageContent() {
           {activeTab === "boarding" && (
             <BoardingTrainingTab
               stays={activeStays}
+              availableStays={staysWithoutTraining}
               boardingPrograms={boardingPrograms}
               homePrograms={programs.filter((p) => p.trainingType === "HOME")}
               searchQuery={searchQuery}
@@ -3963,6 +3982,7 @@ function IndividualTab({
 
 function BoardingTrainingTab({
   stays,
+  availableStays,
   boardingPrograms,
   homePrograms,
   searchQuery,
@@ -3971,6 +3991,8 @@ function BoardingTrainingTab({
   onLogHomeSession,
 }: {
   stays: BoardingStay[];
+  /** Current stays with no training — listed only in the explicit "add training" picker. */
+  availableStays: BoardingStay[];
   boardingPrograms: TrainingProgram[];
   homePrograms: TrainingProgram[];
   searchQuery: string;
@@ -3988,18 +4010,71 @@ function BoardingTrainingTab({
     );
   }, [stays, searchQuery]);
 
+  const [showPicker, setShowPicker] = useState(false);
+  const pickerStays = useMemo(() => {
+    if (!searchQuery.trim()) return availableStays;
+    const q = searchQuery.toLowerCase();
+    return availableStays.filter(
+      (s) => s.pet.name.toLowerCase().includes(q) || s.customer.name.toLowerCase().includes(q)
+    );
+  }, [availableStays, searchQuery]);
+
+  const picker = availableStays.length > 0 && (
+    <div className="card p-0 overflow-hidden">
+      <button
+        type="button"
+        className="w-full flex items-center justify-between gap-2 px-4 py-3 text-sm font-medium text-petra-text hover:bg-slate-50"
+        onClick={() => setShowPicker((v) => !v)}
+        aria-expanded={showPicker}
+      >
+        <span className="text-xs text-petra-muted">{availableStays.length} כלבים בפנסיון ללא אילוף</span>
+        <span className="flex items-center gap-1.5">
+          הוסף אילוף ללינה
+          <Plus className="w-4 h-4" />
+        </span>
+      </button>
+      {showPicker && (
+        <div className="border-t divide-y">
+          {pickerStays.length === 0 ? (
+            <p className="px-4 py-3 text-xs text-petra-muted text-right">לא נמצאו לינות</p>
+          ) : (
+            pickerStays.map((stay) => (
+              <div key={stay.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
+                <button type="button" className="btn-secondary text-xs" onClick={() => onAddTraining(stay)}>
+                  <Plus className="w-3.5 h-3.5" />
+                  צור תוכנית אילוף
+                </button>
+                <div className="min-w-0 text-right">
+                  <p className="text-sm font-medium text-petra-text truncate">{stay.pet.name}</p>
+                  <p className="text-xs text-petra-muted truncate">
+                    {stay.customer.name}
+                    {stay.checkOut ? ` · יציאה ${formatDate(stay.checkOut)}` : ""}
+                  </p>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+
   if (filtered.length === 0) {
     return (
-      <div className="empty-state">
-        <div className="empty-state-icon"><Hotel className="w-6 h-6 text-slate-400" /></div>
-        <h3 className="text-base font-semibold text-petra-text mb-1">אין לינות פעילות</h3>
-        <p className="text-sm text-petra-muted">לינות פעילות עם תוכניות אילוף יופיעו כאן</p>
+      <div className="space-y-3">
+        <div className="empty-state">
+          <div className="empty-state-icon"><Hotel className="w-6 h-6 text-slate-400" /></div>
+          <h3 className="text-base font-semibold text-petra-text mb-1">אין כלבים באילוף בפנסיון</h3>
+          <p className="text-sm text-petra-muted">לינות עם תוכנית אילוף יופיעו כאן</p>
+        </div>
+        {picker}
       </div>
     );
   }
 
   return (
     <div className="space-y-3">
+      {picker}
       {filtered.map((stay) => {
         const linkedProgram = boardingPrograms.find((p) => p.boardingStayId === stay.id);
         const homeProgram = linkedProgram
