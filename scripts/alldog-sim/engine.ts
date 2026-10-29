@@ -63,6 +63,8 @@ import {
   findTerminologyIssues,
   parseImageMessageText,
   revealsLimitation,
+  asksPrice,
+  pricesAlreadySent,
 } from "@/lib/alldog-bot/logic";
 import {
   buildBotContext,
@@ -85,6 +87,28 @@ import {
 } from "@/lib/alldog-bot/guide-offer";
 import { addressNote, addressStyleFor, applyAddressStyle, findAddressIssues, type AddressStyle } from "@/lib/alldog-bot/address";
 import { areaToCheckNote, fixOutOfAreaLines, isKnownServiceCity, unknownAreaToolNote } from "@/lib/alldog-bot/areas";
+import {
+  alreadyWithRep,
+  enforcePriceAnswer,
+  fixWhoCallsBack,
+  GENERAL_FOLLOWUP_ACK,
+  GENERAL_KIND_LABELS,
+  generalClosingFor,
+  generalInquiryKind,
+  generalQuestion,
+  generalTaskTitle,
+  generalTopicMissing,
+  isQuestion,
+  looksLikeName,
+  mentionsDogNeed,
+  repCallbackMissed,
+  repMissedLine,
+  typedNameOf,
+  WITH_REP_DETAILS_ACK,
+  WITH_REP_LINE,
+  WITH_REP_MET_LINE,
+  type GeneralKind,
+} from "@/lib/alldog-bot/general-rules";
 import {
   CLOSED_NOTE,
   CLOSING_MARKER,
@@ -169,6 +193,10 @@ export class SimConversation {
   /** Item 39 update: the breed the owner gave (save_lead dog_breed). */
   ownerBreed: string | null = null;
   guideOffer: { slug: string; status: "pending" | "accepted" | "declined" | "sent" } | null = null;
+  /** Item 40.1: a general (non-dog) request in progress / closed. */
+  general: { kind: GeneralKind; stage: "asked" | "closed"; name: string | null; topic: string | null; asked: { topic: boolean; name: boolean }; acked: boolean } | null = null;
+  /** Item 40.2: the customer told us they are with a rep. */
+  withRep = false;
   /** An attack / bite was described (item 29c). */
   serious = false;
   /** Turn number at which each field was first saved. */
@@ -385,6 +413,7 @@ export class SimConversation {
     if (this.style.gender !== prevGender || this.turn === 1) {
       this.emit("info", `פנייה: ${{ f: "נקבה", m: "זכר", unknown: "לא ידוע (ניטרלי)" }[this.style.gender]}${this.style.plural ? " · הלקוח מדבר ברבים" : ""}`);
     }
+    if (this.variant === "after" && this.handleItem40(text, userTexts)) return;
     const handoffMode = this.status === "handoff";
     if (handoffMode) {
       this.emit("info", "אחרי העברה: התראה לנציגה עם הטקסט (בסימולציה לא נשלחת)");
@@ -494,6 +523,15 @@ export class SimConversation {
       }), this.style), this.style.gender, prior);
       reply = stripVocativeName(reply, voiceName);
       if (this.serious) reply = dropCheerfulOpeners(reply);
+      // Item 40.5 + 40.6
+      const fixed = fixWhoCallsBack(reply);
+      if (fixed !== reply) this.warn(`המודל הבטיח שמאלף יחזור (הוחלף ל"נציגת AllDog", 40.5): "${reply.slice(0, 80)}"`);
+      reply = fixed;
+      if (asksPrice(text) && !pricesAlreadySent(prior)) {
+        const priced = enforcePriceAnswer(reply);
+        if (priced !== reply) this.warn(`שאלת מחיר בלי מספר בתשובה (נוספה שורת מחיר, 40.6): "${reply.slice(0, 80)}"`);
+        reply = priced;
+      }
     }
     if (this.variant === "after") {
       if (executor.closing && !closed) reply = withClosing(reply, executor.closing);
@@ -529,6 +567,85 @@ export class SimConversation {
       this.emit("info", `הצעת מדריך (${this.guideSlug}), פעם אחת`);
       this.pushBot(guideOfferText(this.style.gender, "sim"), text);
     }
+  }
+
+  /**
+   * Item 40 (Or, 28/10) — the deterministic paths that run before the model, as in inbound.ts:
+   * already with a rep, the rep could not be reached, a general (non-dog) request. true = handled.
+   */
+  private handleItem40(text: string, userTexts: string[]): boolean {
+    const bite = this.rows.some((r) => r.role === "user" && mentionsHumanBite(r.text));
+    const gender = addressStyleFor({ texts: userTexts, name: this.knownName }).gender;
+    const lastBot = [...this.rows].reverse().find((r) => r.role === "assistant")?.text ?? null;
+    if (this.general) {
+      if (mentionsDogNeed(text)) {
+        this.emit("info", "פנייה כללית → מתברר שיש כלב שצריך עזרה: חוזרים לזרימה הרגילה");
+        this.general = null;
+        return false;
+      }
+      if (this.general.stage === "asked") {
+        const shortReply = text.split(/\s+/).length <= 3 && !/\d/.test(text);
+        const name = this.general.name ?? typedNameOf(text) ?? (this.general.asked.name && !this.general.asked.topic && shortReply ? text.trim() : null);
+        const topic = this.general.topic ?? text;
+        this.closeGeneral({ ...this.general, name, topic }, gender, userTexts);
+      } else if (!this.general.acked) {
+        this.general.acked = true;
+        this.emit("info", "הודעה נוספת בפנייה הכללית → נוספה למשימה");
+        this.pushBot(GENERAL_FOLLOWUP_ACK, text);
+      } else {
+        this.emit("info", "הודעה נוספת בפנייה הכללית → נוספה למשימה (בלי תשובה)");
+      }
+      return true;
+    }
+    if (bite) return false;
+    if (repCallbackMissed(text)) {
+      this.status = "handoff";
+      this.withRep = true;
+      this.emit("info", "הלקוח ניסה לחזור לנציגה ולא נענה → משימה דחופה (URGENT) לנציגה + התראה לאור; השיחה אצל הנציגה");
+      if (lastBot !== repMissedLine(gender)) this.pushBot(repMissedLine(gender), text);
+      return true;
+    }
+    const withRep = alreadyWithRep(text);
+    if (withRep) {
+      this.status = "handoff";
+      this.withRep = true;
+      this.emit("info", 'מצב "אצל נציגה" + שורה ביומן: "הלקוח מדווח שהוא כבר בקשר עם נציגה"');
+      const line = withRep === "met" ? WITH_REP_MET_LINE : WITH_REP_LINE;
+      if (lastBot !== line) this.pushBot(line, text);
+      return true;
+    }
+    if (this.status === "handoff") {
+      if (this.withRep && !isQuestion(text)) {
+        this.emit("info", "פרטים בזמן שהלקוח כבר עם נציגה → נכנסו ליומן, בלי סיכום חוזר");
+        if (lastBot !== WITH_REP_DETAILS_ACK) this.pushBot(WITH_REP_DETAILS_ACK, text);
+        return true;
+      }
+      return false;
+    }
+    const kind = generalInquiryKind(text);
+    if (!kind) return false;
+    const earlier = userTexts.slice(0, -1);
+    const existing = kind === "own_trainer" || kind === "billing" || kind === "complaint";
+    const firstReply = !this.rows.some((r) => r.role === "assistant");
+    if (earlier.some(mentionsDogNeed) && !(existing && firstReply)) return false;
+    const name = typedNameOf(text) ?? (looksLikeName(this.knownName) ? this.knownName : null);
+    const missing = { topic: generalTopicMissing(kind, text), name: !name };
+    this.emit("info", `פנייה כללית (${GENERAL_KIND_LABELS[kind]}) → בלי שאלות על כלב, לא נפתח ליד`);
+    const state = { kind, stage: "asked" as const, name, topic: missing.topic ? null : text, asked: missing, acked: false };
+    const question = generalQuestion(missing);
+    if (question) {
+      this.general = state;
+      this.pushBot(question, text);
+      return true;
+    }
+    this.closeGeneral(state, gender, userTexts);
+    return true;
+  }
+
+  private closeGeneral(state: NonNullable<SimConversation["general"]>, gender: AddressStyle["gender"], userTexts: string[]) {
+    this.general = { ...state, stage: "closed" };
+    this.pushBot(generalClosingFor(state.kind, gender, "sim", userTexts), userTexts[userTexts.length - 1] ?? "");
+    this.emit("info", `משימה לאור: "${generalTaskTitle(state.name ?? "לא ידוע", state.kind, state.topic ?? "")}" · השיחה ביומן · לא נפתח ליד · בלי מספר נייד`);
   }
 
   /** The basics are in (dog's name + city saved). */

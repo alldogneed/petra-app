@@ -14,8 +14,9 @@ import { maskPhone } from "@/lib/whatsapp-failure";
 import { allDogBusinessId } from "@/lib/alldog/config";
 import { readEnv } from "@/lib/read-env";
 import { addLeadCallLog, findLeadsByPhone } from "@/lib/alldog/leads";
-import { israeliMobile, MISSED_CALL_KINDS, answeredSince, quietDeferral, toWaId } from "@/lib/alldog/missed-call-rules";
-import { callbackPhraseFor, callbackSlot } from "@/lib/alldog/time";
+import { israeliMobile, MISSED_CALL_KINDS, answeredSince, quietDeferral, templateSlotFor, toWaId } from "@/lib/alldog/missed-call-rules";
+import { holidayBlocks } from "@/lib/alldog/holidays";
+import { callbackPhraseFor } from "@/lib/alldog/time";
 import {
   conversationSkipReasonForForm,
   firstNameOf,
@@ -131,7 +132,9 @@ export async function scheduleFormLeadWhatsApp(
       update: { leadId: input.leadId },
       select: { id: true },
     });
-    const sendAt = formLeadSendAt(input.createdAt);
+    // Item 40.3: the random 3–5 min delay never lands inside 21:30–08:00 / Shabbat / a holiday.
+    const delayed = formLeadSendAt(input.createdAt);
+    const sendAt = quietDeferral(input.createdAt, delayed, await holidayBlocks(businessId, delayed)) ?? delayed;
     const payload: FormPayload = {
       leadId: input.leadId,
       sendAt: sendAt.toISOString(),
@@ -213,9 +216,8 @@ export async function sendFormLeadMessage(rowId: string, now: Date = new Date())
       console.warn(`${LOG} answered-call check failed (sending anyway):`, err instanceof Error ? err.message : err);
     }
 
-    // Sent within 15 min of the form (3–5 min delay) → even at night. A later run (cron backlog) inside
-    // 22:00–08:00 → back to the queue for 08:00 (Or, 25/10).
-    const deferTo = quietDeferral(leadCreatedAt, now);
+    // Item 40.3 (Or, 28/10): 21:30–08:00 / Shabbat / a holiday → back to the queue for the next allowed time.
+    const deferTo = quietDeferral(leadCreatedAt, now, await holidayBlocks(conv.businessId, now));
     if (deferTo) {
       await prisma.waBotMessage.update({ where: { id: row.id }, data: { kind: FORM_LEAD_KINDS.pending, text: JSON.stringify({ ...payload, sendAt: deferTo.toISOString() }) } });
       console.log(`${LOG} lead ${payload.leadId} (${maskPhone(conv.phone)}): quiet hours, deferred to ${deferTo.toISOString()}`);
@@ -224,7 +226,7 @@ export async function sendFormLeadMessage(rowId: string, now: Date = new Date())
 
     // Template by the callback slot at the ACTUAL send time (a 16:58 lead sent at 17:02 = after hours);
     // a template Meta has not approved yet falls back to the open one (logged, not a failure).
-    const slot = callbackSlot(now);
+    const slot = templateSlotFor(leadCreatedAt, now);
     const phrase = callbackPhraseFor(slot);
     const { sendTemplateSteps } = await import("@/lib/alldog-bot/wa");
     const sent = await sendTemplateSteps(conv.phone, formLeadSteps(payload.firstName, slot), FORM_LEAD_LANGUAGE);

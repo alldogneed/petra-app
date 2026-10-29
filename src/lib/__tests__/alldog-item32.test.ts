@@ -51,9 +51,12 @@ import {
   isMissedCallTemplateMessage,
   nextSendTime,
   quietDeferral,
+  autoMessageSendTime,
+  shabbatStartsAt,
+  templateSlotFor,
   toWaId,
 } from "@/lib/alldog/missed-call-rules";
-import { israelInstant, israelParts } from "@/lib/alldog/time";
+import { israelInstant, israelParts, shabbatEndsAt } from "@/lib/alldog/time";
 import { scheduleMissedCallWhatsApp, sendMissedCallMessage } from "@/lib/alldog/missed-call-wa";
 
 const OLD = process.env;
@@ -176,20 +179,48 @@ describe("send flow", () => {
     expect(addLeadCallLog.mock.calls[0][1]).not.toContain("call_id:");
   });
 
-  it("night call: sent at once (within 15 min) with missed_call_after_hours + 'מחר בבוקר' (Or, 25/10)", async () => {
+  it("night call (23:09): not sent at night — queued for 08:00 (item 40.3, Or 28/10)", async () => {
     jest.setSystemTime(israelInstant("2026-10-25", "23:10"));
+    const r = await scheduleMissedCallWhatsApp({ ...call, START: "2026-10-25 23:09:00" }, { leadId: "L1" });
+    expect(r.status).toBe("scheduled");
+    expect(sendTemplate).not.toHaveBeenCalled();
+    expect(JSON.parse(msgCreate.mock.calls[0][0].data.text).sendAt).toBe(israelInstant("2026-10-26", "08:00").toISOString());
+  });
+
+  it("the 04:36 bug (28/10): a 04:36 call is queued for 08:00, then sent with missed_call_after_hours + 'היום בבוקר'", async () => {
+    jest.setSystemTime(israelInstant("2026-10-28", "04:37"));
+    const r = await scheduleMissedCallWhatsApp({ ...call, START: "2026-10-28 04:36:00" }, { leadId: "L1" });
+    expect(r.status).toBe("scheduled");
+    expect(JSON.parse(msgCreate.mock.calls[0][0].data.text).sendAt).toBe(israelInstant("2026-10-28", "08:00").toISOString());
+    jest.setSystemTime(israelInstant("2026-10-28", "08:00"));
     msgFindUnique.mockResolvedValue({
       id: "row1",
-      text: JSON.stringify({ callId: "777", sendAt: new Date().toISOString(), leadId: "L1", mobile: "0541234567", startedAt: israelInstant("2026-10-25", "23:09").toISOString() }),
+      text: JSON.stringify({ callId: "777", sendAt: israelInstant("2026-10-28", "08:00").toISOString(), leadId: "L1", mobile: "0541234567", startedAt: israelInstant("2026-10-28", "04:36").toISOString() }),
       conversation: { id: "conv1", businessId: "biz", phone: "972541234567", status: "active", lastInboundAt: null, leadId: "L1" },
     });
     sendTemplate.mockResolvedValue("wamid.n");
-    const r = await scheduleMissedCallWhatsApp({ ...call, START: "2026-10-25 23:09:00" }, { leadId: "L1" });
-    expect(r.status).toBe("sent");
-    expect(sendTemplate).toHaveBeenCalledWith("972541234567", "missed_call_after_hours", "he", ["מחר בבוקר"]);
+    expect((await sendMissedCallMessage("row1")).status).toBe("sent");
+    expect(sendTemplate).toHaveBeenCalledWith("972541234567", "missed_call_after_hours", "he", ["היום בבוקר"]);
   });
 
-  it("a late run (> 15 min after the call) inside 22:00–08:00 → back to the queue for 08:00", async () => {
+  it("Saturday 14:00 call: waits for Shabbat to end, then missed_call_weekend (template by the call time)", async () => {
+    jest.setSystemTime(israelInstant("2026-10-31", "14:01"));
+    const r = await scheduleMissedCallWhatsApp({ ...call, START: "2026-10-31 14:00:00" }, { leadId: "L1" });
+    expect(r.status).toBe("scheduled");
+    const sendAt = new Date(JSON.parse(msgCreate.mock.calls[0][0].data.text).sendAt);
+    expect(sendAt.toISOString()).toBe(shabbatEndsAt("2026-10-31").toISOString());
+    jest.setSystemTime(sendAt);
+    msgFindUnique.mockResolvedValue({
+      id: "row1",
+      text: JSON.stringify({ callId: "777", sendAt: sendAt.toISOString(), leadId: "L1", mobile: "0541234567", startedAt: israelInstant("2026-10-31", "14:00").toISOString() }),
+      conversation: { id: "conv1", businessId: "biz", phone: "972541234567", status: "active", lastInboundAt: null, leadId: "L1" },
+    });
+    sendTemplate.mockResolvedValue("wamid.s");
+    expect((await sendMissedCallMessage("row1")).status).toBe("sent");
+    expect(sendTemplate).toHaveBeenCalledWith("972541234567", "missed_call_weekend", "he", []);
+  });
+
+  it("a queue run inside 21:30–08:00 → back to the queue for 08:00", async () => {
     jest.setSystemTime(israelInstant("2026-10-25", "23:40"));
     msgFindUnique.mockResolvedValue({
       id: "row1",
@@ -204,12 +235,40 @@ describe("send flow", () => {
     expect(JSON.parse(data.text).sendAt).toBe(israelInstant("2026-10-26", "08:00").toISOString());
   });
 
-  it("quietDeferral: within 15 min → now; later at night → 08:00; daytime → now", () => {
-    const call23 = israelInstant("2026-10-25", "23:00");
-    expect(quietDeferral(call23, israelInstant("2026-10-25", "23:15"))).toBeNull();
-    expect(quietDeferral(call23, israelInstant("2026-10-25", "23:16"))?.toISOString()).toBe(israelInstant("2026-10-26", "08:00").toISOString());
-    expect(quietDeferral(israelInstant("2026-10-25", "10:00"), israelInstant("2026-10-25", "12:00"))).toBeNull();
-    expect(quietDeferral(null, israelInstant("2026-10-26", "03:00"))?.toISOString()).toBe(israelInstant("2026-10-26", "08:00").toISOString());
+  it("quietDeferral (item 40.3): 21:30–08:00, Shabbat and holidays wait — no grace any more", () => {
+    const at = (ymd: string, hhmm: string) => israelInstant(ymd, hhmm);
+    expect(quietDeferral(at("2026-10-25", "23:00"), at("2026-10-25", "23:00"))?.toISOString()).toBe(at("2026-10-26", "08:00").toISOString());
+    expect(quietDeferral(null, at("2026-10-25", "21:29"))).toBeNull();
+    expect(quietDeferral(null, at("2026-10-25", "21:30"))?.toISOString()).toBe(at("2026-10-26", "08:00").toISOString());
+    expect(quietDeferral(null, at("2026-10-26", "03:00"))?.toISOString()).toBe(at("2026-10-26", "08:00").toISOString());
+    expect(quietDeferral(null, at("2026-10-26", "08:00"))).toBeNull();
+    expect(quietDeferral(null, at("2026-10-25", "12:00"))).toBeNull();
+    // Friday: before candle lighting → now; after → Shabbat end
+    expect(quietDeferral(null, at("2026-10-30", "15:00"))).toBeNull();
+    expect(quietDeferral(null, at("2026-10-30", "19:00"))?.toISOString()).toBe(shabbatEndsAt("2026-10-31").toISOString());
+    expect(quietDeferral(null, at("2026-10-31", "10:00"))?.toISOString()).toBe(shabbatEndsAt("2026-10-31").toISOString());
+    // a holiday block → its end
+    const holiday = [{ startAt: at("2026-10-27", "00:00"), endAt: at("2026-10-27", "19:00"), reason: "חג סוכות" }];
+    expect(quietDeferral(null, at("2026-10-27", "12:00"), holiday)?.toISOString()).toBe(at("2026-10-27", "19:00").toISOString());
+    expect(quietDeferral(null, at("2026-10-27", "12:00"), [{ ...holiday[0], reason: "חופשה" }])).toBeNull();
+  });
+
+  it("autoMessageSendTime: Shabbat ending late in summer → Sunday 08:00", () => {
+    // 2026-07-04 = Saturday; Shabbat ends ~20:30 → before 21:30 → sent then
+    const end = shabbatEndsAt("2026-07-04");
+    expect(autoMessageSendTime(israelInstant("2026-07-04", "12:00")).toISOString()).toBe(end.toISOString());
+    const p = israelParts(shabbatStartsAt("2026-10-30"));
+    expect(p.weekday).toBe(5);
+    expect(p.hhmm >= "16:30" && p.hhmm <= "17:15").toBe(true);
+  });
+
+  it("templateSlotFor: by the action time, with the phrase of the send time", () => {
+    const at = (ymd: string, hhmm: string) => israelInstant(ymd, hhmm);
+    expect(templateSlotFor(at("2026-10-25", "23:00"), at("2026-10-26", "08:00"))).toEqual({ kind: "after_hours", phrase: "היום בבוקר" });
+    expect(templateSlotFor(at("2026-10-28", "04:30"), at("2026-10-28", "08:00"))).toEqual({ kind: "after_hours", phrase: "היום בבוקר" });
+    expect(templateSlotFor(at("2026-10-31", "14:00"), shabbatEndsAt("2026-10-31"))).toEqual({ kind: "weekend" });
+    expect(templateSlotFor(at("2026-10-26", "18:00"), at("2026-10-26", "18:00"))).toEqual({ kind: "after_hours", phrase: "מחר בבוקר" });
+    expect(templateSlotFor(at("2026-10-26", "12:00"), at("2026-10-26", "12:04"))).toEqual({ kind: "open" });
   });
 
   it("answered in another call meanwhile → skipped at send time", async () => {

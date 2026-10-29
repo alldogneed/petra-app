@@ -245,9 +245,9 @@ describe("after handoff the bot keeps helping (d)", () => {
     expect(isHumanRequest(t)).toBe(false)
   );
   it("fixed line, by gender", () => {
-    expect(HUMAN_ON_THE_WAY).toBe("המאלף כבר בדרך, הוא יחזור בטלפון 🙂");
-    expect(humanOnTheWay("f")).toBe("המאלף כבר בדרך אלייך 🙂");
-    expect(humanOnTheWay("m")).toBe("המאלף כבר בדרך אליך 🙂");
+    expect(HUMAN_ON_THE_WAY).toBe("נציגת AllDog כבר בדרך, היא תחזור בטלפון 🙂");
+    expect(humanOnTheWay("f")).toBe("נציגת AllDog כבר בדרך אלייך 🙂");
+    expect(humanOnTheWay("m")).toBe("נציגת AllDog כבר בדרך אליך 🙂");
   });
   it("a rep who replied in the last 2 hours keeps the bot quiet", () => {
     const now = new Date("2026-10-20T12:00:00Z");

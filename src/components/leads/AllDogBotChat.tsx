@@ -94,7 +94,9 @@ export function AllDogBotChat({ leadId }: { leadId: string }) {
         ? "הלקוח ביקש להפסיק"
         : conv.status === "closed_partial"
           ? "נסגרה באמצע · הלקוח הפסיק לענות"
-          : "הבוט עונה";
+          : conv.status === "general"
+            ? "פנייה כללית לאור · לא קשורה לכלב"
+            : "הבוט עונה";
 
   return (
     <div className="px-6 py-5 border-b border-[#F1F5F9]">

@@ -45,9 +45,26 @@ describe("scheduleLeadMeetingReminder", () => {
     expect(Math.round(hoursBefore)).toBeLessThanOrEqual(27); // TZ of the test runner vs Israel
   });
 
-  test("no service → 'פגישת היכרות' fills the template's service slot", async () => {
+  test("no service → 'הפגישה שלנו' fills the template's service slot (item 40.4, was 'פגישת היכרות')", async () => {
     const msg = (await scheduleLeadMeetingReminder(meeting({ service: null }))) as Record<string, unknown>;
-    expect(JSON.parse(msg.payloadJson as string).templateChain[0].params[3]).toBe("פגישת היכרות");
+    const payload = JSON.parse(msg.payloadJson as string);
+    expect(payload.templateChain[0].params[3]).toBe("הפגישה שלנו");
+    expect(payload.body).not.toContain("פגישת היכרות");
+  });
+
+  test("item 40.4: the business's customer contact phone (03-3818670) goes out, not the owner's mobile", async () => {
+    biz.findUnique.mockResolvedValueOnce({ whatsappRemindersEnabled: true, phone: "054-2560964", customerContactPhone: "03-3818670", tier: "pro", featureOverrides: null });
+    const msg = (await scheduleLeadMeetingReminder(meeting({ service: { name: "אבחון בבית" } }))) as Record<string, unknown>;
+    const payload = JSON.parse(msg.payloadJson as string);
+    expect(payload.templateChain[0].params[3]).toBe("אבחון בבית");
+    expect(payload.templateChain[0].params[4]).toBe("03-3818670");
+    expect(payload.body).toContain("03-3818670");
+    expect(payload.body).not.toContain("2560964");
+  });
+
+  test("item 40.4: no contact phone set → the business phone, as before (other businesses unchanged)", async () => {
+    const msg = (await scheduleLeadMeetingReminder(meeting())) as Record<string, unknown>;
+    expect(JSON.parse(msg.payloadJson as string).templateChain[0].params[4]).toBe("03-5555555");
   });
 
   test("skipped: lead already a customer, no phone, reminders off, tier without reminders, duplicate", async () => {

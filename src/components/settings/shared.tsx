@@ -49,6 +49,7 @@ export interface Business {
   id: string;
   name: string;
   phone: string | null;
+  customerContactPhone?: string | null;
   email: string | null;
   address: string | null;
   tier: string;
@@ -73,6 +74,7 @@ export interface Business {
 export interface ValidationErrors {
   name?: string;
   phone?: string;
+  customerContactPhone?: string;
   vatNumber?: string;
 }
 

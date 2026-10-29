@@ -59,9 +59,9 @@ describe("fixed texts (item 25)", () => {
     expect(closingAlreadySent([{ role: "assistant", text: closingText("soon", "m") }])).toBe(true);
   });
   it("after handoff", () => {
-    expect(humanOnTheWay("f")).toBe("המאלף כבר בדרך אלייך 🙂");
-    expect(humanOnTheWay("m")).toBe("המאלף כבר בדרך אליך 🙂");
-    expect(HUMAN_ON_THE_WAY).toBe("המאלף כבר בדרך, הוא יחזור בטלפון 🙂");
+    expect(humanOnTheWay("f")).toBe("נציגת AllDog כבר בדרך אלייך 🙂");
+    expect(humanOnTheWay("m")).toBe("נציגת AllDog כבר בדרך אליך 🙂");
+    expect(HUMAN_ON_THE_WAY).toBe("נציגת AllDog כבר בדרך, היא תחזור בטלפון 🙂");
   });
   it("no fixed customer text says 'we did' or addresses the customer in the plural", () => {
     const texts = [

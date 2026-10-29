@@ -3,6 +3,7 @@ import { interpolateTemplate } from "@/lib/whatsapp";
 import { REMINDER_TEMPLATES } from "@/lib/training-groups";
 import { hasFeatureWithOverrides } from "@/lib/feature-flags";
 import { toWhatsAppPhone } from "@/lib/utils";
+import { customerContactPhoneOf, DEFAULT_MEETING_LABEL } from "@/lib/business-contact";
 import { buildTemplateChain, type TemplateStep } from "@/lib/whatsapp-template-chain";
 import { LEAD_MEETING_ENTITY, LEAD_MEETING_REMINDER_HOURS } from "@/lib/lead-meetings";
 
@@ -180,7 +181,7 @@ export async function scheduleAppointmentReminder(appt: AppointmentForReminder) 
   // Check business WhatsApp reminder settings
   const bizSettings = await prisma.business.findUnique({
     where: { id: appt.businessId },
-    select: { whatsappRemindersEnabled: true, whatsappReminderLeadHours: true, phone: true, tier: true, featureOverrides: true },
+    select: { whatsappRemindersEnabled: true, whatsappReminderLeadHours: true, phone: true, customerContactPhone: true, tier: true, featureOverrides: true },
   });
   if (!bizSettings?.whatsappRemindersEnabled) return null;
   // Enforce tier gate: WhatsApp reminders require BASIC+ (basic, groomer, pro, service_dog)
@@ -194,7 +195,7 @@ export async function scheduleAppointmentReminder(appt: AppointmentForReminder) 
     where: { businessId: appt.businessId, trigger: "appointment_reminder", isActive: true },
     include: {
       template: { select: { body: true } },
-      business: { select: { phone: true } },
+      business: { select: { phone: true, customerContactPhone: true } },
     },
   });
 
@@ -227,24 +228,24 @@ export async function scheduleAppointmentReminder(appt: AppointmentForReminder) 
       petName: appt.pet?.name ?? "",
       date: formattedDate,
       time: appt.startTime,
-      serviceName: appt.service?.name ?? "",
-      businessPhone: rule.business?.phone ?? "",
+      serviceName: appt.service?.name?.trim() || DEFAULT_MEETING_LABEL,
+      businessPhone: customerContactPhoneOf(rule.business) ?? "",
     });
   } else {
     const petPart = appt.pet ? ` עם ${appt.pet.name}` : "";
-    const bizPhone = rule?.business?.phone ?? bizSettings.phone ?? "";
+    const bizPhone = customerContactPhoneOf(rule?.business) ?? customerContactPhoneOf(bizSettings) ?? "";
     const footer = `\n\n_הודעה אוטומטית – אין להשיב להודעה זו.\nלפניות ויצירת קשר ישיר עם בית העסק: ${bizPhone}_`;
-    body = `שלום ${appt.customer.name}! 🐾\n\nתזכורת לתור שלך ב-${formattedDate} בשעה ${appt.startTime}.\nשירות: ${appt.service?.name ?? ""}${petPart}.\n\nנתראה! 😊${footer}`;
+    body = `שלום ${appt.customer.name}! 🐾\n\nתזכורת לתור שלך ב-${formattedDate} בשעה ${appt.startTime}.${appt.service?.name ? `\nשירות: ${appt.service.name}${petPart}.` : petPart ? `\n${DEFAULT_MEETING_LABEL}${petPart}.` : ""}\n\nנתראה! 😊${footer}`;
   }
 
   // Ordered template chain: _v2 (footer phone param) first, original 4-param template
   // second. A step with an empty param (no business phone) is dropped by the builder.
-  const contactPhone = (rule?.business?.phone ?? bizSettings.phone ?? "").trim();
+  const contactPhone = (customerContactPhoneOf(rule?.business) ?? customerContactPhoneOf(bizSettings) ?? "").trim();
   const templateChain = appointmentReminderChain({
     customerName: appt.customer.name,
     date: formattedDate,
     time: appt.startTime,
-    serviceName: appt.service?.name ?? "",
+    serviceName: appt.service?.name?.trim() || DEFAULT_MEETING_LABEL,
     businessPhone: contactPhone,
   });
 
@@ -299,7 +300,7 @@ export async function scheduleAppointmentFollowup(
 ) {
   const bizSettings = await prisma.business.findUnique({
     where: { id: appt.businessId },
-    select: { whatsappRemindersEnabled: true, phone: true, tier: true, featureOverrides: true },
+    select: { whatsappRemindersEnabled: true, phone: true, customerContactPhone: true, tier: true, featureOverrides: true },
   });
   if (!bizSettings?.whatsappRemindersEnabled) return null;
   const overrides = (bizSettings.featureOverrides as Record<string, boolean> | null) ?? null;
@@ -310,7 +311,7 @@ export async function scheduleAppointmentFollowup(
     where: { businessId: appt.businessId, trigger: "appointment_followup", isActive: true },
     include: {
       template: { select: { body: true } },
-      business: { select: { phone: true } },
+      business: { select: { phone: true, customerContactPhone: true } },
     },
   });
   if (!rule) return null;
@@ -335,7 +336,7 @@ export async function scheduleAppointmentFollowup(
   const formattedDate = new Intl.DateTimeFormat("he-IL", {
     weekday: "long", day: "numeric", month: "long", timeZone: "Asia/Jerusalem",
   }).format(apptDatetime);
-  const bizPhone = rule.business?.phone ?? bizSettings.phone ?? "";
+  const bizPhone = customerContactPhoneOf(rule.business) ?? customerContactPhoneOf(bizSettings) ?? "";
 
   let body: string;
   if (rule.template?.body) {
@@ -344,7 +345,7 @@ export async function scheduleAppointmentFollowup(
       petName: appt.pet?.name ?? "",
       date: formattedDate,
       time: appt.startTime,
-      serviceName: appt.service?.name ?? "",
+      serviceName: appt.service?.name?.trim() || DEFAULT_MEETING_LABEL,
       businessPhone: bizPhone,
     });
   } else {
@@ -440,7 +441,7 @@ export async function scheduleLeadFollowup(lead: LeadForFollowup) {
 
   const bizSettings = await prisma.business.findUnique({
     where: { id: lead.businessId },
-    select: { whatsappRemindersEnabled: true, phone: true, tier: true, featureOverrides: true },
+    select: { whatsappRemindersEnabled: true, phone: true, customerContactPhone: true, tier: true, featureOverrides: true },
   });
   if (!bizSettings?.whatsappRemindersEnabled) return null;
   const overrides = (bizSettings.featureOverrides as Record<string, boolean> | null) ?? null;
@@ -451,7 +452,7 @@ export async function scheduleLeadFollowup(lead: LeadForFollowup) {
     where: { businessId: lead.businessId, trigger: "lead_followup", isActive: true },
     include: {
       template: { select: { body: true } },
-      business: { select: { phone: true } },
+      business: { select: { phone: true, customerContactPhone: true } },
     },
   });
   if (!rule) return null;
@@ -497,7 +498,7 @@ export async function scheduleLeadFollowup(lead: LeadForFollowup) {
     return null;
   }
 
-  const contactPhone = (rule.business?.phone ?? bizSettings.phone ?? "").trim();
+  const contactPhone = (customerContactPhoneOf(rule.business) ?? customerContactPhoneOf(bizSettings) ?? "").trim();
 
   let body: string;
   if (rule.template?.body) {
@@ -567,7 +568,7 @@ interface LeadMeetingForReminder {
  * appointment reminder (whatsappRemindersEnabled + whatsapp_reminders tier), on by
  * default; an active `lead_meeting_reminder` rule overrides the offset and the text.
  * Sent to the lead's phone (payload `to`, no customer). Reuses the approved
- * appointment-reminder templates — {{4}} carries the service / "פגישת היכרות".
+ * appointment-reminder templates — {{4}} carries the service / "הפגישה שלנו" (item 40.4).
  * Idempotent: one PENDING reminder per meeting.
  */
 export async function scheduleLeadMeetingReminder(meeting: LeadMeetingForReminder) {
@@ -577,7 +578,7 @@ export async function scheduleLeadMeetingReminder(meeting: LeadMeetingForReminde
 
   const bizSettings = await prisma.business.findUnique({
     where: { id: meeting.businessId },
-    select: { whatsappRemindersEnabled: true, phone: true, tier: true, featureOverrides: true },
+    select: { whatsappRemindersEnabled: true, phone: true, customerContactPhone: true, tier: true, featureOverrides: true },
   });
   if (!bizSettings?.whatsappRemindersEnabled) return null;
   const overrides = (bizSettings.featureOverrides as Record<string, boolean> | null) ?? null;
@@ -585,7 +586,7 @@ export async function scheduleLeadMeetingReminder(meeting: LeadMeetingForReminde
 
   const rule = await prisma.automationRule.findFirst({
     where: { businessId: meeting.businessId, trigger: "lead_meeting_reminder", isActive: true },
-    include: { template: { select: { body: true } }, business: { select: { phone: true } } },
+    include: { template: { select: { body: true } }, business: { select: { phone: true, customerContactPhone: true } } },
   });
 
   const meetingAt = israelDateTime(meeting.date, meeting.startTime);
@@ -604,8 +605,8 @@ export async function scheduleLeadMeetingReminder(meeting: LeadMeetingForReminde
     month: "long",
     timeZone: "Asia/Jerusalem",
   }).format(meetingAt);
-  const serviceName = meeting.service?.name?.trim() || "פגישת היכרות";
-  const contactPhone = (rule?.business?.phone ?? bizSettings.phone ?? "").trim();
+  const serviceName = meeting.service?.name?.trim() || DEFAULT_MEETING_LABEL;
+  const contactPhone = (customerContactPhoneOf(rule?.business) ?? customerContactPhoneOf(bizSettings) ?? "").trim();
 
   let body: string;
   if (rule?.template?.body) {
@@ -622,7 +623,8 @@ export async function scheduleLeadMeetingReminder(meeting: LeadMeetingForReminde
     const footer = contactPhone
       ? `\n\n_הודעה אוטומטית – אין להשיב להודעה זו.\nלפניות ויצירת קשר ישיר עם בית העסק: ${contactPhone}_`
       : "";
-    body = `שלום ${meeting.lead.name}! 🐾\n\nתזכורת לפגישה שלנו ב-${formattedDate} בשעה ${meeting.startTime}.\n${serviceName}${placePart}\n\nנתראה! 😊${footer}`;
+    const typePart = meeting.service?.name?.trim() ? `\n${serviceName}` : "";
+    body = `שלום ${meeting.lead.name}! 🐾\n\nתזכורת לפגישה שלנו ב-${formattedDate} בשעה ${meeting.startTime}.${typePart}${placePart}\n\nנתראה! 😊${footer}`;
   }
 
   // The lead has usually not messaged in 24h — a template is required. The approved
@@ -680,7 +682,7 @@ export async function scheduleBoardingCheckoutReminder(stay: BoardingStayForRemi
   // Check business WhatsApp settings + tier
   const bizSettings = await prisma.business.findUnique({
     where: { id: stay.businessId },
-    select: { whatsappRemindersEnabled: true, phone: true, tier: true, featureOverrides: true },
+    select: { whatsappRemindersEnabled: true, phone: true, customerContactPhone: true, tier: true, featureOverrides: true },
   });
   if (!bizSettings?.whatsappRemindersEnabled) return null;
   const overrides = (bizSettings.featureOverrides as Record<string, boolean> | null) ?? null;
@@ -693,7 +695,7 @@ export async function scheduleBoardingCheckoutReminder(stay: BoardingStayForRemi
     where: { businessId: stay.businessId, trigger: "boarding_pickup", isActive: true },
     include: {
       template: { select: { body: true } },
-      business: { select: { phone: true } },
+      business: { select: { phone: true, customerContactPhone: true } },
     },
   });
   if (!rule) return null;
@@ -715,16 +717,16 @@ export async function scheduleBoardingCheckoutReminder(stay: BoardingStayForRemi
       customerName: stay.customer.name,
       petName: stay.pet.name,
       date: formattedDate,
-      businessPhone: rule.business?.phone ?? "",
+      businessPhone: customerContactPhoneOf(rule.business) ?? "",
     });
   } else {
-    const bizPhone = bizSettings.phone ?? "";
+    const bizPhone = customerContactPhoneOf(bizSettings) ?? "";
     const footer = `\n\n_הודעה אוטומטית – אין להשיב להודעה זו.\nלפניות ויצירת קשר ישיר עם בית העסק: ${bizPhone}_`;
     body = `שלום ${stay.customer.name}! 🏨\n\nתזכורת – מחר (${formattedDate}) הוא יום האיסוף של ${stay.pet.name} מהפנסיון.\n\n${stay.pet.name} נהנה/נהנתה מאוד ומחכה לכם! 🐕${footer}`;
   }
 
   // Ordered chain: _v2 (footer phone param) first, original 2-param template second.
-  const contactPhone = (rule?.business?.phone ?? bizSettings.phone ?? "").trim();
+  const contactPhone = (customerContactPhoneOf(rule?.business) ?? customerContactPhoneOf(bizSettings) ?? "").trim();
   const templateChain = boardingCheckoutChain({
     customerName: stay.customer.name,
     petName: stay.pet.name,
@@ -779,7 +781,7 @@ export async function scheduleBoardingThankYou(stay: BoardingStayForReminder) {
   // Enforce tier gate: thank-you messages require BASIC+ (same as reminders)
   const bizSettings = await prisma.business.findUnique({
     where: { id: stay.businessId },
-    select: { tier: true, featureOverrides: true, whatsappRemindersEnabled: true, phone: true },
+    select: { tier: true, featureOverrides: true, whatsappRemindersEnabled: true, phone: true, customerContactPhone: true },
   });
   if (!bizSettings?.whatsappRemindersEnabled) return null;
   const overrides = (bizSettings?.featureOverrides as Record<string, boolean> | null) ?? null;
@@ -808,7 +810,7 @@ export async function scheduleBoardingThankYou(stay: BoardingStayForReminder) {
   const body = `שלום ${stay.customer.name}! 🐾 תודה ש-${stay.pet.name} שהה/שהתה אצלנו. היה לנו כיף ואנחנו מקווים שגם ${stay.pet.name} נהנה/נהנתה! נשמח לארח אתכם שוב 💛`;
 
   // Ordered chain: UTILITY stay_summary first, then the MARKETING _v2 and original.
-  const contactPhone = (bizSettings.phone ?? "").trim();
+  const contactPhone = (customerContactPhoneOf(bizSettings) ?? "").trim();
   const templateChain = boardingThankYouChain({
     customerName: stay.customer.name,
     petName: stay.pet.name,
@@ -1134,7 +1136,7 @@ export async function scheduleServiceDogMeetingReminder(meeting: ServiceDogMeeti
     where: { businessId: meeting.businessId, trigger: "service_dog_meeting_reminder", isActive: true },
     include: {
       template: { select: { body: true } },
-      business: { select: { phone: true } },
+      business: { select: { phone: true, customerContactPhone: true } },
     },
   });
 
@@ -1158,7 +1160,7 @@ export async function scheduleServiceDogMeetingReminder(meeting: ServiceDogMeeti
       date: formattedDate,
       time: formattedTime,
       serviceName: typeLabel,
-      businessPhone: rule.business?.phone ?? "",
+      businessPhone: customerContactPhoneOf(rule.business) ?? "",
     });
   } else {
     body = `שלום ${meeting.recipientName}! 🐾 תזכורת: מחר (${formattedDate}) בשעה ${formattedTime} יש לנו ${typeLabel} עם כלב השירות. מאמן: ${meeting.trainerName}. נתראה!`;
@@ -1209,7 +1211,7 @@ export async function scheduleTrainingSessionReminder(data: TrainingSessionForRe
 
   const bizSettings = await prisma.business.findUnique({
     where: { id: data.businessId },
-    select: { whatsappRemindersEnabled: true, whatsappReminderLeadHours: true, phone: true, tier: true, featureOverrides: true },
+    select: { whatsappRemindersEnabled: true, whatsappReminderLeadHours: true, phone: true, customerContactPhone: true, tier: true, featureOverrides: true },
   });
   if (!bizSettings?.whatsappRemindersEnabled) return null;
   const overrides = (bizSettings.featureOverrides as Record<string, boolean> | null) ?? null;
@@ -1237,7 +1239,7 @@ export async function scheduleTrainingSessionReminder(data: TrainingSessionForRe
     ? new Intl.DateTimeFormat("he-IL", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "Asia/Jerusalem" }).format(data.sessionDate)
     : null;
 
-  const bizPhone = (bizSettings.phone ?? "").trim();
+  const bizPhone = (customerContactPhoneOf(bizSettings) ?? "").trim();
   const footer = `\n\n_הודעה אוטומטית – אין להשיב להודעה זו.\nלפניות ויצירת קשר ישיר עם בית העסק: ${bizPhone}_`;
   const timeStr = formattedTime ? ` בשעה ${formattedTime}` : "";
   const body = `שלום ${data.customerName}! 🐾\n\nתזכורת למפגש אילוף עם ${data.dogName} ב-${formattedDate}${timeStr}.\n\nנתראה! 😊${footer}`;

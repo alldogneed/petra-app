@@ -123,6 +123,41 @@ import { alertAllDogFailure, explainFailure } from "@/lib/alldog/failure-alerts"
 import { displayMissedCallMessage, isMissedCallTemplateMessage, MISSED_CALL_CONTEXT_NOTE, MISSED_CALL_DEDUP_MS, MISSED_CALL_KINDS } from "@/lib/alldog/missed-call-rules";
 import { FORM_LEAD_MESSAGE_KIND, formLeadContextNote } from "@/lib/alldog/form-lead-rules";
 import { transcribeAudio } from "@/lib/stt";
+import {
+  alreadyWithRep,
+  enforcePriceAnswer,
+  fixWhoCallsBack,
+  GENERAL_FOLLOWUP_ACK,
+  GENERAL_KIND_LABELS,
+  generalClosingFor,
+  generalInquiryKind,
+  generalQuestion,
+  generalTopicMissing,
+  isQuestion,
+  mentionsDogNeed,
+  repCallbackMissed,
+  repMissedLine,
+  typedNameOf,
+  WITH_REP_DETAILS_ACK,
+  WITH_REP_LINE,
+  WITH_REP_LOG,
+  WITH_REP_MET_LINE,
+  type GeneralKind,
+} from "@/lib/alldog-bot/general-rules";
+import {
+  appendToGeneralTask,
+  clearGeneralState,
+  finishGeneralInquiry,
+  GENERAL_STATUS,
+  generalContact,
+  handToRep,
+  isWithRep,
+  markWithRep,
+  readGeneralState,
+  repMissedTask,
+  saveGeneralState,
+  type GeneralState,
+} from "@/lib/alldog-bot/general";
 
 const LOG = "[alldog-bot]";
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -219,10 +254,15 @@ async function ingestMessage(
   // The customer is back after a long silence → a new conversation gets its own journal line (item 30c).
   const before = await prisma.waBotConversation.findUnique({
     where: { businessId_phone: { businessId, phone } },
-    select: { id: true, lastInboundAt: true, summaryCallLogId: true },
+    select: { id: true, lastInboundAt: true, summaryCallLogId: true, status: true },
   });
   if (before?.summaryCallLogId && startsNewSession(before.lastInboundAt, at)) {
     await prisma.waBotConversation.update({ where: { id: before.id }, data: { summaryCallLogId: null } });
+  }
+  // Item 40.1: a general (non-dog) request from an earlier conversation is over → the bot starts fresh.
+  if (before?.status === GENERAL_STATUS && startsNewSession(before.lastInboundAt, at)) {
+    await prisma.waBotConversation.updateMany({ where: { id: before.id, status: GENERAL_STATUS }, data: { status: "active" } });
+    await clearGeneralState(before.id);
   }
   let conv: Awaited<ReturnType<typeof upsertConversation>>;
   try {
@@ -348,6 +388,17 @@ export async function processInbound(item: PendingInbound): Promise<void> {
     if (item.image) {
       if (state?.status !== "handoff") await markReadWithTyping(item.waMessageId);
       await describeImageMessage(item, item.image);
+    }
+    if (state?.status === GENERAL_STATUS) {
+      // Item 40.1: a general request (not about the caller's dog) — its own short flow.
+      await markReadWithTyping(item.waMessageId);
+      const isLatest = await waitForQuiet({
+        myMessageId: item.waMessageId,
+        latestInboundId: () => latestInboundId(item.conversationId),
+        sleep,
+      });
+      if (isLatest) await handleGeneralFollowup(item);
+      return;
     }
     if (state?.status === "handoff") {
       // Alerts first; "typing…" only if the bot answers (sendParts shows it).
@@ -502,6 +553,36 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
     return;
   }
   const hadFailedVoice = batch.some((r) => isVoiceFailed(r));
+
+  // Item 40 (Or, 28/10): the customer is already in touch with a rep, or writes about something that
+  // is not their dog (owner, supplier, job, collaboration, invoice / complaint, their own trainer)
+  // → no dog questions; a bite always goes the normal (safety) way.
+  if (!handoffMode && batchWords.length && !userWords.some((t) => mentionsHumanBite(t))) {
+    const joined = batchWords.join("\n");
+    const gender0 = detectGender({ texts: userWords, name: conv.profileName });
+    if (repCallbackMissed(joined)) {
+      await onRepCallbackMissed(item, ref, joined, gender0);
+      return;
+    }
+    const withRep = alreadyWithRep(joined);
+    if (withRep) {
+      await onAlreadyWithRep(item, ref, withRep, joined);
+      return;
+    }
+    const kind = generalInquiryKind(joined);
+    if (kind) {
+      const earlier = rows
+        .slice(0, lastReply + 1)
+        .filter((r) => r.role === "user")
+        .map(customerWords)
+        .filter((t): t is string => !!t);
+      const existingCustomerMatter = kind === "own_trainer" || kind === "billing" || kind === "complaint";
+      if (!earlier.some(mentionsDogNeed) || (existingCustomerMatter && lastAssistant < 0)) {
+        await startGeneralInquiry(item, conv, kind, batchWords, gender0);
+        return;
+      }
+    }
+  }
 
   // Item 39: a video / file the bot cannot open → "תודה ששלחת 🙂 צירפתי לפרטים בשביל הנציגה" + the
   // next question (never "I only read text"); the rep gets a task to look at it.
@@ -669,6 +750,10 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
   if (ref.serious) text = dropCheerfulOpeners(text);
   // Never "מחוץ לאזור" / "לא ברשימה" — Or's optimistic line instead (item 28b).
   text = fixOutOfAreaLines(text, style.gender, priorBotTexts);
+  // Item 40.5: always "נציגת AllDog" calls back — never a promise that a trainer will.
+  text = fixWhoCallsBack(text);
+  // Item 40.6: a price question (no price sent yet) → the answer carries the numbers.
+  if (batchWords.some((t) => asksPrice(t)) && !pricesAlreadySent(priorBotTexts)) text = enforcePriceAnswer(text);
   if (executor.closing && !closed) {
     // After schedule_callback / handoff_to_human the last message is always the fixed closing.
     text = withClosing(text, executor.closing);
@@ -813,6 +898,28 @@ async function handleHandoffMessages(item: PendingInbound): Promise<void> {
 
   // A rep answering from Petra right now → the bot does not talk over them.
   if (repIsActive(conv.lastHumanAt, now)) return;
+
+  // Item 40.2: "התקשרתי חזרה ולא ענו" → an URGENT task + one question; "אני איתה בטלפון" → one line;
+  // details while already with a rep → "רשמתי, היא תראה את זה 🙏" (no summary back to them).
+  const joined = texts.join("\n");
+  const lastBot = await lastBotText(conv.id);
+  if (repCallbackMissed(joined)) {
+    const gender = await conversationGender(conv);
+    if (await claimOnce(`alldog-rep-missed:${conv.id}`, 60 * 60)) {
+      await repMissedTask({ businessId: conv.businessId, leadId: ref.leadId, name: await displayName(ref), phone: conv.phone, text: joined });
+    }
+    await markWithRep(conv.id, "missed");
+    if (lastBot !== repMissedLine(gender)) await sendParts(item, conv.phone, [repMissedLine(gender)], true);
+    return;
+  }
+  const withRepNow = alreadyWithRep(joined);
+  if (withRepNow) {
+    if (ref.leadId) await addLeadCallLog(ref.leadId, `${WITH_REP_LOG}: "${joined.replace(/\s+/g, " ").slice(0, 300)}"`).catch(() => {});
+    await markWithRep(conv.id, withRepNow);
+    const line = withRepNow === "met" ? WITH_REP_MET_LINE : WITH_REP_LINE;
+    if (lastBot !== line) await sendParts(item, conv.phone, [line], true);
+    return;
+  }
   // "I want a person" → one fixed line, at most once per 6 hours; nothing more.
   if (texts.some((t) => isHumanRequest(t))) {
     if (!handoffAckDue(conv, now)) return;
@@ -821,6 +928,11 @@ async function handleHandoffMessages(item: PendingInbound): Promise<void> {
       data: { handoffAckAt: now },
     });
     if (ack.count > 0) await sendParts(item, conv.phone, [humanOnTheWay(await conversationGender(conv))], true);
+    return;
+  }
+  // The customer told us they are with a rep → details get one short ack (they are in the lead journal already).
+  if ((await isWithRep(conv.id, conv.handoffAt)) && !texts.some((t) => isQuestion(t))) {
+    if (lastBot !== WITH_REP_DETAILS_ACK) await sendParts(item, conv.phone, [WITH_REP_DETAILS_ACK], true);
     return;
   }
   // Anything else: the bot keeps helping (general questions, new details → the lead).
@@ -876,7 +988,7 @@ async function alertBiteReported(ref: BotConversationRef, texts: string[]): Prom
   }
 }
 
-async function sendParts(item: PendingInbound, to: string, parts: string[], allowAfterHandoff = false, kinds: string[] = []): Promise<void> {
+async function sendParts(item: PendingInbound, to: string, parts: string[], allowAfterHandoff = false, kinds: string[] = [], allowGeneral = false): Promise<void> {
   for (const [i, part] of parts.entries()) {
     const conv = await prisma.waBotConversation.findUnique({
       where: { id: item.conversationId },
@@ -884,7 +996,8 @@ async function sendParts(item: PendingInbound, to: string, parts: string[], allo
     });
     if (!conv) return;
     // Re-checked before every message: stop/handoff in the meantime, and never outside 24h.
-    const statusOk = conv.status === "active" || (allowAfterHandoff && conv.status === "handoff");
+    const statusOk =
+      conv.status === "active" || (allowAfterHandoff && conv.status === "handoff") || (allowGeneral && conv.status === GENERAL_STATUS);
     if (!statusOk || !botMayReply({ status: "active", lastInboundAt: conv.lastInboundAt })) return;
 
     await markReadWithTyping(item.waMessageId);
@@ -952,6 +1065,7 @@ async function describeImageMessage(item: PendingInbound, image: { mediaId: stri
       attributionPage: conv.attributionPage,
     };
     await dropDeletedLeadLink(ref);
+    if (conv.status === GENERAL_STATUS) return; // item 40.1: never a lead for a general request
     await createDbExecutor(ref).saveLead({});
     if (ref.leadId) {
       await addLeadCallLog(
@@ -1013,6 +1127,7 @@ async function transcribeVoiceNote(item: PendingInbound, voice: { mediaId: strin
       attributionPage: conv.attributionPage,
     };
     await dropDeletedLeadLink(ref);
+    if (conv.status === GENERAL_STATUS) return; // item 40.1: never a lead for a general request
     await createDbExecutor(ref).saveLead({});
     if (ref.leadId) await addLeadCallLog(ref.leadId, voiceNoteLogText(voice.mediaId, transcript));
     console.log(`${LOG} voice note ${transcript ? "transcribed" : "not transcribed"} (${maskPhone(conv.phone)})`);
@@ -1031,5 +1146,145 @@ async function waitForVoiceTranscripts(conversationId: string): Promise<void> {
     });
     if (!pending) return;
     await sleep(1500);
+  }
+}
+
+// ─── Item 40 (Or, 28/10): general requests + a customer already with a rep ────
+
+async function lastBotText(conversationId: string): Promise<string | null> {
+  const row = await prisma.waBotMessage.findFirst({
+    where: { conversationId, role: "assistant" },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    select: { text: true },
+  });
+  return row?.text ?? null;
+}
+
+async function displayName(ref: BotConversationRef): Promise<string> {
+  const lead = ref.leadId ? await prisma.lead.findFirst({ where: { id: ref.leadId, businessId: ref.businessId }, select: { name: true } }) : null;
+  return lead && !isPlaceholderLeadName(lead.name) ? lead.name : ref.profileName || maskPhone(ref.phone);
+}
+
+/** "אני איתה בטלפון" / "רחלי חזרה אליי וקבענו": one line, a journal line, the conversation goes to the rep. */
+async function onAlreadyWithRep(item: PendingInbound, ref: BotConversationRef, kind: "talking" | "met", text: string): Promise<void> {
+  await createDbExecutor(ref).saveLead({}).catch(() => {});
+  if (ref.leadId) await addLeadCallLog(ref.leadId, `${WITH_REP_LOG}: "${text.replace(/\s+/g, " ").slice(0, 300)}"`).catch(() => {});
+  await markWithRep(ref.id, kind);
+  await handToRep(ref.id);
+  console.log(`${LOG} ${maskPhone(ref.phone)} already with a rep (${kind}) — handed over`);
+  await sendParts(item, ref.phone, [kind === "met" ? WITH_REP_MET_LINE : WITH_REP_LINE], true);
+}
+
+/** "התקשרתי חזרה ולא ענו": URGENT task for the rep + one question about a good time; the answer goes to the rep. */
+async function onRepCallbackMissed(item: PendingInbound, ref: BotConversationRef, text: string, gender: Gender): Promise<void> {
+  await createDbExecutor(ref).saveLead({}).catch(() => {});
+  if (await claimOnce(`alldog-rep-missed:${ref.id}`, 60 * 60)) {
+    await repMissedTask({ businessId: ref.businessId, leadId: ref.leadId, name: await displayName(ref), phone: ref.phone, text });
+  }
+  await markWithRep(ref.id, "missed");
+  await handToRep(ref.id);
+  console.log(`${LOG} ${maskPhone(ref.phone)} could not reach the rep — urgent task`);
+  await sendParts(item, ref.phone, [repMissedLine(gender)], true);
+}
+
+async function sessionTranscript(conversationId: string): Promise<Array<{ role: string; text: string }>> {
+  return currentSession(
+    (
+      await prisma.waBotMessage.findMany({
+        where: { conversationId, role: { not: "system" } },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        take: 30,
+        select: { id: true, role: true, kind: true, text: true, createdAt: true },
+      })
+    ).reverse()
+  ).map((r) => ({ role: r.role, text: customerWords(r) ?? r.text }));
+}
+
+/** Start a general request: status "general" (no lead, no nudge, no summary), then ONE question or the closing. */
+async function startGeneralInquiry(
+  item: PendingInbound,
+  conv: { id: string; businessId: string; phone: string; profileName: string | null },
+  kind: GeneralKind,
+  batchWords: string[],
+  gender: Gender
+): Promise<void> {
+  const contact = await generalContact(conv, batchWords);
+  const joined = batchWords.join(" ");
+  const missing = { topic: generalTopicMissing(kind, joined), name: !contact.name };
+  await prisma.waBotConversation.update({ where: { id: conv.id }, data: { status: GENERAL_STATUS } });
+  const state: GeneralState = {
+    kind,
+    stage: "asked",
+    name: contact.name,
+    topic: missing.topic ? null : joined,
+    asked: missing,
+    taskId: null,
+    ackSent: false,
+    at: new Date().toISOString(),
+  };
+  console.log(`${LOG} ${maskPhone(conv.phone)} general request (${kind})`);
+  const question = generalQuestion(missing);
+  if (question) {
+    await saveGeneralState(conv.id, state);
+    await sendParts(item, conv.phone, [question], false, [], true);
+    return;
+  }
+  await closeGeneralInquiry(item, conv, state, gender, batchWords);
+}
+
+async function closeGeneralInquiry(
+  item: PendingInbound,
+  conv: { id: string; businessId: string; phone: string; profileName: string | null },
+  state: GeneralState,
+  gender: Gender,
+  texts: string[]
+): Promise<void> {
+  await saveGeneralState(conv.id, { ...state, stage: "closed" });
+  await sendParts(item, conv.phone, [generalClosingFor(state.kind, gender, conv.id, texts)], false, [], true);
+  const taskId = await finishGeneralInquiry({
+    conv,
+    kind: state.kind,
+    name: state.name,
+    topic: state.topic ?? GENERAL_KIND_LABELS[state.kind],
+    transcript: await sessionTranscript(conv.id),
+  });
+  await saveGeneralState(conv.id, { ...state, stage: "closed", taskId });
+}
+
+/** A message in a conversation that is a general request (status "general"). */
+async function handleGeneralFollowup(item: PendingInbound): Promise<void> {
+  const conv = await prisma.waBotConversation.findUnique({ where: { id: item.conversationId } });
+  if (!conv || conv.status !== GENERAL_STATUS) return;
+  if (!isWithin24hWindow(conv.lastInboundAt)) return;
+  await waitForVoiceTranscripts(conv.id);
+  const transcript = await sessionTranscript(conv.id);
+  const lastBot = transcript.map((m) => m.role).lastIndexOf("assistant");
+  const batch = transcript.slice(lastBot + 1).filter((m) => m.role === "user").map((m) => m.text).filter(Boolean);
+  if (!batch.length) return;
+  const state = await readGeneralState(conv.id);
+  const userTexts = transcript.filter((m) => m.role === "user").map((m) => m.text);
+  const gender = detectGender({ texts: userTexts, name: conv.profileName });
+  // It turns out a dog needs help after all → back to the normal flow (Or).
+  if (!state || batch.some(mentionsDogNeed)) {
+    await prisma.waBotConversation.updateMany({ where: { id: conv.id, status: GENERAL_STATUS }, data: { status: "active" } });
+    if (state?.taskId) await appendToGeneralTask(conv.businessId, state.taskId, batch);
+    console.log(`${LOG} ${maskPhone(conv.phone)} general request → a dog after all, back to the normal flow`);
+    await reply(item);
+    return;
+  }
+  if (state.stage === "asked") {
+    // The one question was asked → close now, whatever came back (no second question).
+    const joined = batch.join(" ");
+    const shortReply = joined.split(/\s+/).length <= 3 && !/\d/.test(joined);
+    const name = state.name ?? typedNameOf(joined) ?? (state.asked.name && !state.asked.topic && shortReply ? joined.replace(/[.!?,🙂🙏]/gu, "").trim() : null);
+    const topic = state.topic ?? joined;
+    await closeGeneralInquiry(item, conv, { ...state, name, topic }, gender, userTexts);
+    return;
+  }
+  // Closed: more words go to the task; one short "רשמתי" (no questions, no follow-up).
+  await appendToGeneralTask(conv.businessId, state.taskId, batch);
+  if (!state.ackSent) {
+    await saveGeneralState(conv.id, { ...state, ackSent: true });
+    await sendParts(item, conv.phone, [GENERAL_FOLLOWUP_ACK], false, [], true);
   }
 }

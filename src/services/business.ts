@@ -82,6 +82,8 @@ export async function getBusinessSettings(businessId: string, db: DbClient) {
 export interface UpdateBusinessSettingsInput {
   name?: string;
   phone?: string | null;
+  /** Item 40.4: the phone customers see in automatic messages (empty → phone). */
+  customerContactPhone?: string | null;
   email?: string | null;
   address?: string;
   logo?: string;
@@ -115,7 +117,7 @@ export async function updateBusinessSettings(
 
   const wasPhoneEmpty = !existing.phone;
   const {
-    name, phone, email, address, logo, vatNumber, businessRegNumber,
+    name, phone, customerContactPhone, email, address, logo, vatNumber, businessRegNumber,
     legalEntityType, vatEnabled, vatRate, boardingCalcMode, boardingMinNights,
     boardingCheckInTime, boardingCheckOutTime, boardingPricePerNight,
     customerTags, cancellationPolicy, bookingWelcomeText, bookingRequiresApproval, depositInstructions,
@@ -165,6 +167,11 @@ export async function updateBusinessSettings(
   if (phone !== undefined && phone !== null && phone !== "") {
     if (typeof phone !== "string" || validateIsraeliPhone(String(phone)) !== null) {
       throw new ServiceError("מספר טלפון לא תקין", "VALIDATION");
+    }
+  }
+  if (customerContactPhone !== undefined && customerContactPhone !== null && customerContactPhone !== "") {
+    if (typeof customerContactPhone !== "string" || validateIsraeliPhone(String(customerContactPhone)) !== null) {
+      throw new ServiceError("טלפון ליצירת קשר לא תקין", "VALIDATION");
     }
   }
   if (email !== undefined && email !== null) {
@@ -240,6 +247,7 @@ export async function updateBusinessSettings(
   const data: Record<string, unknown> = {};
   if (name !== undefined) data.name = name;
   if (phone !== undefined) data.phone = phone;
+  if (customerContactPhone !== undefined) data.customerContactPhone = customerContactPhone?.trim() || null;
   if (email !== undefined) data.email = email;
   if (address !== undefined) data.address = address;
   if (logo !== undefined) data.logo = logo;
