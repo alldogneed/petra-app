@@ -15,7 +15,7 @@
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { maskPhone } from "@/lib/whatsapp-failure";
-import { callbackSlot } from "@/lib/alldog/time";
+import { holidayBlocks } from "@/lib/alldog/holidays";
 import { allDogBusinessId } from "@/lib/alldog/config";
 import { readEnv } from "@/lib/read-env";
 import { addLeadCallLog } from "@/lib/alldog/leads";
@@ -33,6 +33,7 @@ import {
   missedCallSteps,
   MISSED_CALL_TEMPLATE,
   quietDeferral,
+  templateSlotFor,
   paycallStart,
   SKIP_REASON_LABELS,
   toWaId,
@@ -135,7 +136,8 @@ export async function scheduleMissedCallWhatsApp(
       update: ref.leadId ? { leadId: ref.leadId } : {},
       select: { id: true },
     });
-    const sendAt = quietDeferral(paycallStart(call.START), now) ?? now;
+    // Item 40.3: never 21:30–08:00 / Shabbat / a holiday — the message waits (template by the call time).
+    const sendAt = quietDeferral(paycallStart(call.START), now, await holidayBlocks(businessId, now)) ?? now;
     const payload: PendingPayload = { callId: call.ID, sendAt: sendAt.toISOString(), leadId: ref.leadId, mobile, startedAt: paycallStart(call.START)?.toISOString() ?? null };
     let row: { id: string };
     try {
@@ -201,8 +203,8 @@ export async function sendMissedCallMessage(rowId: string): Promise<{ status: "s
       return { status: "skipped", reason };
     }
 
-    // More than 15 min after the call and inside 22:00–08:00 (a late queue run) → back to the queue for 08:00.
-    const deferTo = quietDeferral(payload.startedAt ? new Date(payload.startedAt) : null, new Date());
+    // Item 40.3: 21:30–08:00 / Shabbat / a holiday → back to the queue for the next allowed time.
+    const deferTo = quietDeferral(payload.startedAt ? new Date(payload.startedAt) : null, new Date(), await holidayBlocks(conv.businessId, new Date()));
     if (deferTo) {
       await prisma.waBotMessage.update({ where: { id: row.id }, data: { kind: MISSED_CALL_KINDS.pending, text: JSON.stringify({ ...payload, sendAt: deferTo.toISOString() }) } });
       console.log(`${LOG} call ${payload.callId} (${maskPhone(conv.phone)}): quiet hours, deferred to ${deferTo.toISOString()}`);
@@ -211,7 +213,8 @@ export async function sendMissedCallMessage(rowId: string): Promise<{ status: "s
 
     // Template by the callback slot NOW (Or, 25/10): open / after hours ({{1}} = phrase) / weekend;
     // a template Meta has not approved yet falls back to missed_call_followup (logged, not a failure).
-    const slot = callbackSlot(new Date());
+    // Item 40.3: the template follows the call time (a Shabbat call → weekend, sent after Shabbat).
+    const slot = templateSlotFor(payload.startedAt ? new Date(payload.startedAt) : null, new Date());
     const { sendTemplateSteps } = await import("@/lib/alldog-bot/wa");
     const sent = await sendTemplateSteps(conv.phone, missedCallSteps(slot), MISSED_CALL_TEMPLATE.language);
     if (!sent) {
@@ -268,3 +271,4 @@ export async function processDueMissedCallMessages(opts: { limit: number }): Pro
 export function skipReasonLabel(reason: string): string {
   return SKIP_REASON_LABELS[reason as SkipReason] ?? reason;
 }
+

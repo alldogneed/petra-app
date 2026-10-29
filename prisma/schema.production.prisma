@@ -278,6 +278,7 @@ model Business {
   slug        String?  @unique // e.g. "happy-paws" -> /book/happy-paws
   name        String
   phone       String?
+  customerContactPhone String? // item 40.4: phone shown to customers in automatic messages (empty → phone)
   email       String?
   address     String?
   logo        String?

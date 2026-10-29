@@ -142,7 +142,8 @@ export function withClosing(modelText: string, closing: string): string {
 /** The one reply to an explicit "I want a person" during a handoff — by gender (item 25). */
 export function humanOnTheWay(gender: Gender = "unknown"): string {
   const toYou = towardYou(gender);
-  return toYou ? `המאלף כבר בדרך ${toYou} 🙂` : "המאלף כבר בדרך, הוא יחזור בטלפון 🙂";
+  // Item 40.5: always "נציגת AllDog" calls back — never a promise that a trainer will.
+  return toYou ? `נציגת AllDog כבר בדרך ${toYou} 🙂` : "נציגת AllDog כבר בדרך, היא תחזור בטלפון 🙂";
 }
 /** Gender-neutral form (also the default). */
 export const HUMAN_ON_THE_WAY = humanOnTheWay("unknown");

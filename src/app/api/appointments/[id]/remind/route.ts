@@ -7,6 +7,7 @@ import { sessionHasTenantPermission, TENANT_PERMS } from "@/lib/permissions";
 import { sendWithTemplateChain } from "@/lib/whatsapp-template-chain";
 import { appointmentReminderChain } from "@/lib/reminder-service";
 import { hasFeatureWithOverrides } from "@/lib/feature-flags";
+import { customerContactPhoneOf, DEFAULT_MEETING_LABEL } from "@/lib/business-contact";
 
 function toWhatsAppNum(phone: string): string {
   const digits = phone.replace(/\D/g, "");
@@ -37,7 +38,7 @@ export async function POST(
     }),
     prisma.business.findUnique({
       where: { id: authResult.businessId },
-      select: { phone: true, tier: true, featureOverrides: true },
+      select: { phone: true, customerContactPhone: true, tier: true, featureOverrides: true },
     }),
   ]);
 
@@ -72,8 +73,8 @@ export async function POST(
   });
   const template = automationRule?.template ?? null;
 
-  const serviceName = appt.service?.name ?? "התור";
-  const bizPhone = biz?.phone ?? "";
+  const serviceName = appt.service?.name?.trim() || DEFAULT_MEETING_LABEL;
+  const bizPhone = customerContactPhoneOf(biz) ?? "";
   const footer = `\n\n_הודעה אוטומטית – אין להשיב להודעה זו.\nלפניות ויצירת קשר ישיר עם בית העסק: ${bizPhone}_`;
 
   let body: string;

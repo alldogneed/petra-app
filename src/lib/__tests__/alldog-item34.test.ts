@@ -354,7 +354,7 @@ describe("flow", () => {
     expect((await sendFormLeadMessage("row1")).reason).toBe("already_handled");
     expect(sendTemplate).not.toHaveBeenCalled();
   });
-  it("send: a 23:00 lead sent at 23:04 → right away, lead_followup_closed + 'מחר בבוקר' (no quiet hours within 15 min)", async () => {
+  it("send (item 40.3): a 23:00 lead is not sent at 23:04 — back to the queue for 08:00, then 'היום בבוקר'", async () => {
     const late = il("2026-10-27", "23:00");
     msgFindUnique.mockResolvedValue({
       id: "row1",
@@ -363,8 +363,20 @@ describe("flow", () => {
     });
     leadFindFirst.mockResolvedValue({ id: "L1", stage: "s1", callLogs: [] });
     sendTemplate.mockResolvedValue("wamid.3");
-    expect((await sendFormLeadMessage("row1", il("2026-10-27", "23:04"))).status).toBe("sent");
-    expect(sendTemplate).toHaveBeenCalledWith("972541234567", "lead_followup_closed", "he", ["דנה", "מחר בבוקר"]);
+    expect((await sendFormLeadMessage("row1", il("2026-10-27", "23:04"))).status).toBe("deferred");
+    expect(sendTemplate).not.toHaveBeenCalled();
+    expect((await sendFormLeadMessage("row1", il("2026-10-28", "08:00"))).status).toBe("sent");
+    expect(sendTemplate).toHaveBeenCalledWith("972541234567", "lead_followup_closed", "he", ["דנה", "היום בבוקר"]);
+  });
+  it("send: a 21:28 lead whose 3–5 min delay lands after 21:30 → deferred to 08:00", async () => {
+    msgFindUnique.mockResolvedValue({
+      id: "row1",
+      text: JSON.stringify({ leadId: "L1", sendAt: il("2026-10-27", "21:32").toISOString(), leadCreatedAt: il("2026-10-27", "21:28").toISOString(), mobile: "0541234567", firstName: "דנה" }),
+      conversation: conv,
+    });
+    leadFindFirst.mockResolvedValue({ id: "L1", stage: "s1", callLogs: [] });
+    expect((await sendFormLeadMessage("row1", il("2026-10-27", "21:32"))).status).toBe("deferred");
+    expect(JSON.parse(msgUpdate.mock.calls.at(-1)![0].data.text).sendAt).toBe(il("2026-10-28", "08:00").toISOString());
   });
   it("send: a late run (> 15 min after the lead) at night → back to the queue for 08:00", async () => {
     const late = il("2026-10-27", "23:00");
@@ -380,15 +392,18 @@ describe("flow", () => {
     expect(data.kind).toBe(FORM_LEAD_KINDS.pending);
     expect(JSON.parse(data.text).sendAt).toBe(il("2026-10-28", "08:00").toISOString());
   });
-  it("send: Saturday lead → lead_followup_weekend", async () => {
+  it("send: Saturday lead → waits for Shabbat to end, then lead_followup_weekend", async () => {
     const sat = il("2026-10-31", "11:00");
     msgFindUnique.mockResolvedValue({
       id: "row1",
       text: JSON.stringify({ leadId: "L1", sendAt: il("2026-10-31", "11:04").toISOString(), leadCreatedAt: sat.toISOString(), mobile: "0541234567", firstName: "דנה" }),
       conversation: conv,
     });
+    leadFindFirst.mockResolvedValue({ id: "L1", stage: "s1", callLogs: [] });
     sendTemplate.mockResolvedValue("wamid.4");
-    await sendFormLeadMessage("row1", il("2026-10-31", "11:04"));
+    expect((await sendFormLeadMessage("row1", il("2026-10-31", "11:04"))).status).toBe("deferred");
+    expect(sendTemplate).not.toHaveBeenCalled();
+    await sendFormLeadMessage("row1", new Date(shabbatEndsAt("2026-10-31").getTime() + 60_000));
     expect(sendTemplate).toHaveBeenCalledWith("972541234567", "lead_followup_weekend", "he", ["דנה"]);
   });
   it("send failure → failed, not retried", async () => {

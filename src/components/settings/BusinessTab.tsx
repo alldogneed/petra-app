@@ -27,6 +27,10 @@ export function BusinessTab() {
     if (!values.name?.trim()) newErrors.name = "שם העסק הוא שדה חובה";
     const phoneErr = validatePhone(values.phone || "");
     if (phoneErr) newErrors.phone = phoneErr;
+    if (values.customerContactPhone?.trim()) {
+      const contactErr = validatePhone(values.customerContactPhone);
+      if (contactErr) newErrors.customerContactPhone = contactErr;
+    }
     if (values.legalEntityType !== "עוסק פטור") {
       const vatErr = validateVatNumber(values.vatNumber || "");
       if (vatErr) newErrors.vatNumber = vatErr;
@@ -100,6 +104,23 @@ export function BusinessTab() {
                 onChange={(e) => set("email", e.target.value)}
               />
             </div>
+          </div>
+          <div>
+            <label className="label" htmlFor="biz-contact-phone">טלפון ליצירת קשר בהודעות ללקוחות</label>
+            <input
+              id="biz-contact-phone"
+              type="tel"
+              dir="ltr"
+              className={cn("input text-right", errors.customerContactPhone && "border-red-300 focus:ring-red-200")}
+              value={values.customerContactPhone ?? ""}
+              placeholder={values.phone ?? ""}
+              aria-invalid={!!errors.customerContactPhone}
+              aria-describedby={errors.customerContactPhone ? "biz-contact-phone-error" : "biz-contact-phone-hint"}
+              onChange={(e) => { set("customerContactPhone", e.target.value); clearError("customerContactPhone"); }}
+            />
+            {errors.customerContactPhone
+              ? <p id="biz-contact-phone-error" className="text-xs text-red-500 mt-1">{errors.customerContactPhone}</p>
+              : <p id="biz-contact-phone-hint" className="text-xs text-petra-muted mt-1">מופיע בתזכורות ובהודעות האוטומטיות ללקוחות. ריק = הטלפון של העסק</p>}
           </div>
           <div>
             <label className="label" htmlFor="biz-address">כתובת</label>

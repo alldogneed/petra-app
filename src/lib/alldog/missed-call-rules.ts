@@ -4,7 +4,7 @@
  */
 import { MISSED_CALL_MESSAGE_KIND } from "@/lib/alldog/missed-call-labels";
 import { readEnv } from "@/lib/read-env";
-import { addDaysYmd, israelInstant, israelParts, type CallbackSlot } from "@/lib/alldog/time";
+import { addDaysYmd, callbackSlot, eveningDepressionTime, israelInstant, israelParts, shabbatEndsAt, type CallbackSlot } from "@/lib/alldog/time";
 
 /** Meta template (approved on the AllDog bot's WABA): no variables, Hebrew. */
 export const MISSED_CALL_TEMPLATE = { name: "missed_call_followup", language: "he" } as const;
@@ -150,18 +150,87 @@ export function isQuietTime(_ymd: string, hhmm: string): boolean {
   return hhmm < "08:00" || hhmm >= "22:00";
 }
 
-/** A send within 15 min of the customer's own action (call / form + delay) ignores the quiet hours. */
-export const QUIET_GRACE_MS = 15 * 60 * 1000;
+// ─── Item 40.3 (Or, 28/10): quiet hours for the AUTOMATIC messages (missed_call_* / lead_followup_*) ──
+// A missed call at 04:36 got its WhatsApp at 04:37. Now: nothing automatic goes out 21:30–08:00, on
+// Shabbat (Friday candle lighting → Shabbat end) or on a holiday (an AvailabilityBlock whose reason
+// has "חג", until its end). No grace period any more; the 3–5 min form delay is checked too.
+
+export const AUTO_QUIET_FROM = "21:30";
+export const AUTO_QUIET_UNTIL = "08:00";
+
+/** 21:30–08:00 (Israel time). */
+export function isAutoQuietTime(hhmm: string): boolean {
+  return hhmm < AUTO_QUIET_UNTIL || hhmm >= AUTO_QUIET_FROM;
+}
+
+/** Friday's candle lighting (Tel Aviv): 18 minutes before sunset. */
+export function shabbatStartsAt(fridayYmd: string): Date {
+  return new Date(eveningDepressionTime(fridayYmd, 0.833).getTime() - 18 * 60 * 1000);
+}
+
+/** A holiday block (AvailabilityBlock with "חג" in its reason). */
+export interface QuietBlock {
+  startAt: Date;
+  endAt: Date;
+  reason?: string | null;
+}
+
+export function isHolidayBlock(b: QuietBlock): boolean {
+  return /חג/.test(b.reason ?? "");
+}
 
 /**
- * Or, 25/10 (items 32 + 34): null = send now; a Date = wait until then. Within 15 min of the
- * customer's action → always now (someone who called at 23:00 gets missed_call_after_hours with
- * "מחר בבוקר" at once). Later (a retry / a delayed queue) → the quiet hours 22:00–08:00 apply.
+ * The first moment at or after `at` when an automatic message may go out. Pure — tested.
+ * Shabbat → its end; a holiday block → its end; 21:30–08:00 → 08:00. Repeated until all pass
+ * (Shabbat ending at 21:40 → Sunday 08:00).
  */
-export function quietDeferral(actionAt: Date | null, now: Date): Date | null {
-  if (actionAt && now.getTime() - actionAt.getTime() <= QUIET_GRACE_MS) return null;
-  const at = nextSendTime(now);
+export function autoMessageSendTime(at: Date, holidays: QuietBlock[] = []): Date {
+  let t = at;
+  for (let i = 0; i < 10; i++) {
+    const p = israelParts(t);
+    if (p.weekday === 5 && t.getTime() >= shabbatStartsAt(p.ymd).getTime()) {
+      t = shabbatEndsAt(addDaysYmd(p.ymd, 1));
+      continue;
+    }
+    if (p.weekday === 6 && t.getTime() < shabbatEndsAt(p.ymd).getTime()) {
+      t = shabbatEndsAt(p.ymd);
+      continue;
+    }
+    const holiday = holidays.find((b) => isHolidayBlock(b) && b.startAt.getTime() <= t.getTime() && b.endAt.getTime() > t.getTime());
+    if (holiday) {
+      t = holiday.endAt;
+      continue;
+    }
+    if (isAutoQuietTime(p.hhmm)) {
+      t = israelInstant(p.hhmm < AUTO_QUIET_UNTIL ? p.ymd : addDaysYmd(p.ymd, 1), AUTO_QUIET_UNTIL);
+      continue;
+    }
+    return t;
+  }
+  return t;
+}
+
+/**
+ * null = send now; a Date = wait until then (Shabbat / holiday / 21:30–08:00). `_actionAt` is kept
+ * for the callers' signature — since 28/10 there is no 15-minute grace any more.
+ */
+export function quietDeferral(_actionAt: Date | null, now: Date, holidays: QuietBlock[] = []): Date | null {
+  const at = autoMessageSendTime(now, holidays);
   return at.getTime() > now.getTime() ? at : null;
+}
+
+/**
+ * The template is chosen by the time of the customer's action (call / form), Or 28/10:
+ *   the office is open when the message goes out → open;
+ *   the action was in the weekend → weekend (sent after Shabbat ends);
+ *   otherwise the slot at the send time (after hours, with "היום בבוקר" / "מחר בבוקר" for THAT moment —
+ *   a 23:00 call sent at 08:00 says "היום בבוקר").
+ */
+export function templateSlotFor(actionAt: Date | null, sendAt: Date): CallbackSlot {
+  const atSend = callbackSlot(sendAt);
+  if (atSend.kind === "open") return atSend;
+  if (actionAt && callbackSlot(actionAt).kind === "weekend") return { kind: "weekend" };
+  return atSend;
 }
 
 /** When to send: now, or the start of the next allowed window (Israel time). */
