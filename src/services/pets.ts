@@ -5,6 +5,7 @@
  * No Request/Response. Throws ServiceError on failure.
  */
 
+import { searchVariants } from "@/lib/text-variants";
 import type { PrismaClient } from "@prisma/client";
 import { ServiceError } from "./types";
 
@@ -107,9 +108,11 @@ export async function listPets(businessId: string, db: DbClient, opts: PetListOp
   if (search) {
     where.AND = [{
       OR: [
-        { name: { contains: search } },
-        { breed: { contains: search } },
-        { customer: { name: { contains: search } } },
+        ...searchVariants(search).flatMap((v) => [
+          { name: { contains: v, mode: "insensitive" } },
+          { customer: { name: { contains: v, mode: "insensitive" } } },
+        ]),
+        { breed: { contains: search, mode: "insensitive" } },
       ],
     }];
   }

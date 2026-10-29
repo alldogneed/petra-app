@@ -10,6 +10,7 @@
  * services/pets.ts petOwnership() — `OR: [{ customer: { businessId } }, { businessId }]`;
  * customers/services by businessId. businessId always comes from ctx, never from args.
  */
+import { normalizeHebrewPunct } from "@/lib/text-variants";
 import { TENANT_PERMS } from "@/lib/permissions";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
@@ -128,6 +129,7 @@ export function registerPetsTools(server: McpServer, ctx: ToolCtx): void {
     "Create a pet (dog/cat/…) for an existing client of this business. Use list_clients / find_duplicate to get the client id. Returns the new pet id (use it with get_pet / update_pet / record_vaccination / add_weight_entry / create_appointment). Supports idempotency_key (safe retries) and dry_run (preview only).",
     {
       client_id: z.string().describe("Owner client id (from list_clients / find_duplicate / create_client)"),
+      allow_duplicate: z.boolean().optional().describe("Create even when this client already has a pet with the same name (ignoring case and ' / ׳ spelling). Default false — use the existing pet id instead"),
       name: z.string().min(1).max(100).describe("Pet name (max 100 chars)"),
       species: z.string().max(30).optional().describe("Species, e.g. dog / cat (default dog)"),
       breed: z.string().max(100).optional().describe("Breed"),
@@ -161,6 +163,18 @@ export function registerPetsTools(server: McpServer, ctx: ToolCtx): void {
 
         const name = args.name.trim();
         if (!name) throw new ServiceError("שם חיית מחמד חובה", "VALIDATION");
+        // Same pet entered twice under another spelling (פאץ' / פאץ׳) created duplicate dogs + duplicate stays.
+        if (!args.allow_duplicate) {
+          const key = normalizeHebrewPunct(name).toLowerCase();
+          const same = (await prisma.pet.findMany({ where: { customerId: customer.id }, select: { id: true, name: true } }))
+            .find((p) => normalizeHebrewPunct(p.name).toLowerCase() === key);
+          if (same) {
+            throw new ServiceError(
+              `ללקוח כבר יש חיית מחמד בשם "${safeField(same.name, 40)}" (pet id: ${same.id}). לא נוצרה חיה חדשה — השתמש ב-id הקיים. אם זו באמת חיה אחרת, שלח שוב עם allow_duplicate: true`,
+              "CONFLICT",
+            );
+          }
+        }
         const birthYmd = ymdOrThrow("birth_date", args.birth_date);
         if (birthYmd && birthYmd > new Date().toISOString().slice(0, 10)) {
           throw new ServiceError("birth_date: תאריך לידה לא יכול להיות בעתיד", "VALIDATION");
