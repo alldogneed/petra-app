@@ -61,6 +61,8 @@ import { toast } from "sonner";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { CustomerPicker, type PickerCustomer } from "@/components/customers/CustomerPicker";
 import { usePermissions } from "@/hooks/usePermissions";
+import { staysOverlap, israelDayKey } from "@/lib/boarding-overlap";
+import { normalizeHebrewPunct } from "@/lib/text-variants";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -212,6 +214,24 @@ function diffDays(a: Date, b: Date): number {
   return Math.round((a.getTime() - b.getTime()) / (1000 * 60 * 60 * 24));
 }
 
+/** Normalised search text: geresh/gershayim variants unified, lowercase. */
+function normSearch(s: string): string {
+  return normalizeHebrewPunct(s).toLowerCase();
+}
+
+/** Does the stay match a (normalised) search query — dog, customer or room name. */
+function stayMatchesSearch(
+  s: { pet: { name: string }; customer: { name: string } | null; room?: { name: string } | null },
+  nq: string,
+): boolean {
+  if (!nq) return true;
+  return (
+    normSearch(s.pet.name).includes(nq) ||
+    normSearch(s.customer?.name ?? "").includes(nq) ||
+    normSearch(s.room?.name ?? "").includes(nq)
+  );
+}
+
 function getRoomDisplayStatus(room: Room): string {
   const checkedIn = room.boardingStays.filter((s) => s.status === "checked_in");
   if (checkedIn.length > 0) return "occupied";
@@ -257,6 +277,7 @@ const RoomStatusCard = memo(function RoomStatusCard({
   onOpenStay,
   occPeriodStays,
   sortedStayIds,
+  highlight = false,
 }: {
   room: Room;
   onCheckin: (id: string) => void;
@@ -265,6 +286,8 @@ const RoomStatusCard = memo(function RoomStatusCard({
   onOpenStay: (stay: BoardingStay) => void;
   occPeriodStays: BoardingStay[]; // always provided (date-filtered stays for this room)
   sortedStayIds: string[];
+  /** A search is active and this room has a matching stay */
+  highlight?: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: room.id });
   const displayStatus = getRoomDisplayStatus(room);
@@ -292,7 +315,7 @@ const RoomStatusCard = memo(function RoomStatusCard({
       ref={setNodeRef}
       className={cn(
         "card overflow-hidden transition-all",
-        isOver ? "ring-2 ring-brand-400 shadow-lg scale-[1.02]" : "hover:shadow-md"
+        isOver ? "ring-2 ring-brand-400 shadow-lg scale-[1.02]" : highlight ? "ring-2 ring-amber-300 hover:shadow-md" : "hover:shadow-md"
       )}
     >
       {/* Color bar */}
@@ -490,7 +513,7 @@ function OccupancyCalendar({
         (s) => ACTIVE_STATUSES.includes(s.status) && toDateStr(s.checkIn) === dateStr
       ).length;
       const departures = stays.filter(
-        (s) => s.checkOut && toDateStr(s.checkOut) === dateStr
+        (s) => ACTIVE_STATUSES.includes(s.status) && s.checkOut && toDateStr(s.checkOut) === dateStr
       ).length;
       result[dateStr] = { occupied: activeOnDay.length, arrivals, departures };
     }
@@ -606,23 +629,58 @@ function OccupancyCalendar({
 
 // ─── Timeline / Gantt View ──────────────────────────────────────────────────
 
+const TL_DAY_W = 44; // px per day column
+const TL_ROOM_W = 140; // px for the sticky room-name column
+const TL_ROW_H = 26; // px per stacked bar
+
+/** "YYYY-MM-DD" of a local Date (the timeline's own day columns). */
+function localDayKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** Whole days from key a to key b (b - a). */
+function dayKeyDiff(a: string, b: string): number {
+  const [ay, am, ad] = a.split("-").map(Number);
+  const [by, bm, bd] = b.split("-").map(Number);
+  return Math.round((Date.UTC(by, bm - 1, bd) - Date.UTC(ay, am - 1, ad)) / 86400000);
+}
+
 function TimelineView({
   rooms,
   stays,
   numDays = TIMELINE_DAYS,
   startDate,
+  search = "",
+  onOpenStay,
 }: {
   rooms: Room[];
   stays: BoardingStay[];
   numDays?: number;
   /** First visible day (defaults to today). Can be in the past — historical stays are shown too. */
   startDate?: Date;
+  /** Normalised search query (normSearch) — only rows with a matching stay are shown. */
+  search?: string;
+  onOpenStay?: (stay: BoardingStay) => void;
 }) {
   const realToday = startOfDay(new Date());
   // `today` is the timeline origin (kept as the variable name to minimise churn below).
   const today = startDate ? startOfDay(startDate) : realToday;
   const days = Array.from({ length: numDays }, (_, i) => addDays(today, i));
-  const timelineEnd = addDays(today, numDays);
+  const originKey = localDayKey(today);
+  const trackWidth = numDays * TL_DAY_W;
+
+  /**
+   * Bar span in day columns. The check-in day is fully covered and the check-out
+   * day half-covered, so the real departure date is visible (a 27/10–1/11 stay
+   * reaches into 1/11) and a same-day turnover still reads clearly.
+   * A same-day stay covers its whole day; an open-ended stay runs to the edge.
+   */
+  const spanOf = useCallback((stay: BoardingStay): { start: number; end: number } => {
+    const start = dayKeyDiff(originKey, israelDayKey(stay.checkIn));
+    if (!stay.checkOut) return { start, end: numDays + 1 };
+    const out = dayKeyDiff(originKey, israelDayKey(stay.checkOut));
+    return { start, end: out <= start ? start + 1 : out + 0.5 };
+  }, [originKey, numDays]);
 
   // Group stays by room
   const roomStaysMap = useMemo(() => {
@@ -633,10 +691,10 @@ function TimelineView({
     stays
       .filter((s) => ["reserved", "checked_in", "checked_out"].includes(s.status))
       .filter((s) => {
-        const checkIn = new Date(s.checkIn);
-        const checkOut = s.checkOut ? new Date(s.checkOut) : addDays(today, numDays + 30);
-        return checkIn < timelineEnd && checkOut > today;
+        const { start, end } = spanOf(s);
+        return start < numDays && end > 0;
       })
+      .filter((s) => !search || stayMatchesSearch(s, search))
       .forEach((s) => {
         const key = s.room?.id || "unassigned";
         if (map[key]) map[key].push(s);
@@ -644,39 +702,94 @@ function TimelineView({
       });
 
     return map;
-  }, [rooms, stays, today, timelineEnd]);
+  }, [rooms, stays, spanOf, numDays, search]);
+
+  const visibleRooms = search
+    ? rooms.filter((r) => (roomStaysMap[r.id] || []).length > 0 || normSearch(r.name).includes(search))
+    : rooms;
 
   function getBarPosition(stay: BoardingStay) {
-    const checkIn = startOfDay(new Date(stay.checkIn));
-    const checkOut = stay.checkOut ? startOfDay(new Date(stay.checkOut)) : addDays(today, numDays);
-
-    const visibleStart = checkIn < today ? today : checkIn;
-    const visibleEnd = checkOut > timelineEnd ? timelineEnd : checkOut;
-
-    const startOffset = diffDays(visibleStart, today);
-    const endOffset = diffDays(visibleEnd, today);
-
-    const left = (startOffset / numDays) * 100;
-    const width = ((endOffset - startOffset) / numDays) * 100;
-
+    const { start, end } = spanOf(stay);
+    const visibleStart = Math.max(0, start);
+    const visibleEnd = Math.min(numDays, end);
     return {
-      left: `${Math.max(0, left)}%`,
-      width: `${Math.max(2, Math.min(width, 100 - Math.max(0, left)))}%`,
+      left: `${visibleStart * TL_DAY_W}px`,
+      width: `${Math.max(TL_DAY_W / 2, (visibleEnd - visibleStart) * TL_DAY_W)}px`,
+      days: visibleEnd - visibleStart,
     };
   }
 
   const todayIndex = diffDays(realToday, today); // may be out of range when browsing past/future
 
+  function renderBars(list: BoardingStay[]) {
+    return list.map((stay, rowIdx) => {
+      const pos = getBarPosition(stay);
+      const barColor = stay.status === "checked_in" ? "#22C55E"
+        : stay.status === "checked_out" ? "#3B82F6"
+        : "#94A3B8";
+      const range = `${formatDate(stay.checkIn)}${stay.checkOut ? ` → ${formatDate(stay.checkOut)}` : ""}`;
+      return (
+        <button
+          type="button"
+          key={stay.id}
+          onClick={() => onOpenStay?.(stay)}
+          dir="rtl"
+          className="absolute rounded-md flex items-center gap-1 px-2 text-[10px] font-semibold text-white overflow-hidden whitespace-nowrap shadow-sm cursor-pointer hover:brightness-110 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 transition-[filter,box-shadow]"
+          style={{
+            left: pos.left,
+            width: pos.width,
+            top: `${4 + rowIdx * TL_ROW_H}px`,
+            height: "22px",
+            backgroundColor: barColor,
+          }}
+          title={`${stay.pet.name} — ${stay.customer?.name ?? "כלב שירות"}\n${range}\nלחצו לפתיחת ההזמנה`}
+          aria-label={`${stay.pet.name}, ${range} — פתח את ההזמנה`}
+        >
+          <PawPrint className="w-3 h-3 flex-shrink-0" />
+          <span className="truncate">{stay.pet.name}</span>
+          {pos.days >= 3 && stay.checkOut && (
+            <span className="ms-auto ps-1 font-normal opacity-90 flex-shrink-0">עד {formatDate(stay.checkOut)}</span>
+          )}
+        </button>
+      );
+    });
+  }
+
+  function renderGridLines(withTint: boolean) {
+    return (
+      <div className="absolute inset-0 flex">
+        {days.map((day, i) => {
+          const isToday = i === todayIndex;
+          const dayOfWeek = day.getDay();
+          return (
+            <div
+              key={i}
+              className={cn(
+                "border-l border-slate-100 h-full flex-shrink-0",
+                withTint && isToday && "bg-orange-50/30",
+                withTint && dayOfWeek === 6 && "bg-slate-50/30"
+              )}
+              style={{ width: TL_DAY_W }}
+            />
+          );
+        })}
+      </div>
+    );
+  }
+
+  const unassigned = roomStaysMap["unassigned"] || [];
+
   return (
     <div className="card overflow-hidden">
-      <div className="overflow-x-auto" dir="ltr">
-        <div style={{ minWidth: "900px" }}>
-          {/* Header row */}
-          <div
-            className="grid border-b border-petra-border"
-            style={{ gridTemplateColumns: `140px repeat(${numDays}, 1fr)` }}
-          >
-            <div className="p-2 text-sm font-semibold text-petra-text bg-slate-50 border-l border-petra-border text-right" dir="rtl">
+      <div className="overflow-auto max-h-[75vh] overscroll-contain" dir="ltr" data-no-pull-refresh>
+        <div style={{ width: TL_ROOM_W + trackWidth }}>
+          {/* Header row — sticky on top while scrolling down through the rooms */}
+          <div className="flex sticky top-0 z-20 bg-white border-b border-petra-border">
+            <div
+              className="sticky left-0 z-30 flex-shrink-0 p-2 text-sm font-semibold text-petra-text bg-slate-50 border-r border-petra-border text-right"
+              style={{ width: TL_ROOM_W }}
+              dir="rtl"
+            >
               חדר
             </div>
             {days.map((day, i) => {
@@ -686,14 +799,15 @@ function TimelineView({
                 <div
                   key={i}
                   className={cn(
-                    "p-1.5 text-center border-l border-petra-border",
-                    isToday ? "bg-orange-50" : dayOfWeek === 6 ? "bg-slate-50/50" : ""
+                    "flex-shrink-0 py-1.5 text-center border-l border-petra-border",
+                    isToday ? "bg-orange-50" : dayOfWeek === 6 ? "bg-slate-50" : "bg-white"
                   )}
+                  style={{ width: TL_DAY_W }}
                 >
                   <div className={cn("text-[10px]", isToday ? "text-orange-600 font-bold" : "text-petra-muted")}>
                     {HE_DAYS[dayOfWeek]}
                   </div>
-                  <div className={cn("text-xs font-semibold", isToday ? "text-orange-600" : "text-petra-text")}>
+                  <div className={cn("text-[11px] font-semibold", isToday ? "text-orange-600" : "text-petra-text")}>
                     {day.getDate()}/{day.getMonth() + 1}
                   </div>
                 </div>
@@ -702,19 +816,20 @@ function TimelineView({
           </div>
 
           {/* Room rows */}
-          {rooms.map((room) => {
+          {visibleRooms.map((room) => {
             const roomStays = roomStaysMap[room.id] || [];
             const displayStatus = getRoomDisplayStatus(room);
             const statusColor = ROOM_STATUS_MAP[displayStatus]?.color || "#94A3B8";
+            const rowHeight = Math.max(48, roomStays.length * TL_ROW_H + 8);
 
             return (
-              <div
-                key={room.id}
-                className="grid border-b border-slate-100"
-                style={{ gridTemplateColumns: `140px repeat(${numDays}, 1fr)` }}
-              >
-                {/* Room label */}
-                <div className="p-2 flex items-center gap-2 bg-slate-50/50 border-l border-petra-border" dir="rtl">
+              <div key={room.id} className="flex border-b border-slate-100">
+                {/* Room label — sticky on the side while scrolling sideways */}
+                <div
+                  className="sticky left-0 z-10 flex-shrink-0 p-2 flex items-center gap-2 bg-slate-50 border-r border-petra-border"
+                  style={{ width: TL_ROOM_W, minHeight: rowHeight }}
+                  dir="rtl"
+                >
                   <div
                     className="w-2 h-2 rounded-full flex-shrink-0"
                     style={{ backgroundColor: statusColor }}
@@ -724,58 +839,9 @@ function TimelineView({
                 </div>
 
                 {/* Timeline cells with bars */}
-                <div
-                  className="relative col-span-14"
-                  style={{ gridColumn: `2 / -1`, minHeight: `${Math.max(48, roomStays.length * 26 + 8)}px` }}
-                >
-                  {/* Day grid lines */}
-                  <div
-                    className="absolute inset-0 grid"
-                    style={{ gridTemplateColumns: `repeat(${numDays}, 1fr)` }}
-                  >
-                    {days.map((day, i) => {
-                      const isToday = i === todayIndex;
-                      const dayOfWeek = day.getDay();
-                      return (
-                        <div
-                          key={i}
-                          className={cn(
-                            "border-l border-slate-100 h-full",
-                            isToday && "bg-orange-50/30",
-                            dayOfWeek === 6 && "bg-slate-50/30"
-                          )}
-                        />
-                      );
-                    })}
-                  </div>
-
-                  {/* Stay bars — stacked vertically */}
-                  {roomStays.map((stay, rowIdx) => {
-                    const pos = getBarPosition(stay);
-                    const barColor = stay.status === "checked_in" ? "#22C55E"
-                      : stay.status === "checked_out" ? "#3B82F6"
-                      : "#94A3B8";
-
-                    return (
-                      <div
-                        key={stay.id}
-                        className="absolute rounded-md flex items-center gap-1 px-2 text-[10px] font-semibold text-white truncate shadow-sm cursor-default"
-                        style={{
-                          left: pos.left,
-                          width: pos.width,
-                          top: `${4 + rowIdx * 26}px`,
-                          height: "22px",
-                          backgroundColor: barColor,
-                        }}
-                        title={`${stay.pet.name} — ${stay.customer?.name ?? "כלב שירות"}\n${formatDate(stay.checkIn)}${stay.checkOut ? ` → ${formatDate(stay.checkOut)}` : ""}`}
-                      >
-                        <PawPrint className="w-3 h-3 flex-shrink-0" />
-                        {stay.pet.name}
-                      </div>
-                    );
-                  })}
-
-                  {/* Empty state */}
+                <div className="relative flex-shrink-0" style={{ width: trackWidth, minHeight: rowHeight }}>
+                  {renderGridLines(true)}
+                  {renderBars(roomStays)}
                   {roomStays.length === 0 && (
                     <div className="absolute inset-0 flex items-center justify-center">
                       <span className="text-[10px] text-slate-300">—</span>
@@ -787,51 +853,28 @@ function TimelineView({
           })}
 
           {/* Unassigned row */}
-          {(roomStaysMap["unassigned"] || []).length > 0 && (
-            <div
-              className="grid border-b border-slate-100"
-              style={{ gridTemplateColumns: `140px repeat(${numDays}, 1fr)` }}
-            >
-              <div className="p-2 flex items-center gap-2 bg-slate-100/50 border-l border-petra-border" dir="rtl">
+          {unassigned.length > 0 && (
+            <div className="flex border-b border-slate-100">
+              <div
+                className="sticky left-0 z-10 flex-shrink-0 p-2 flex items-center gap-2 bg-slate-100 border-r border-petra-border"
+                style={{ width: TL_ROOM_W, minHeight: Math.max(48, unassigned.length * TL_ROW_H + 8) }}
+                dir="rtl"
+              >
                 <Hotel className="w-3.5 h-3.5 text-slate-400" />
                 <span className="text-xs font-medium text-slate-500">ללא חדר</span>
               </div>
               <div
-                className="relative col-span-14"
-                style={{ gridColumn: `2 / -1`, minHeight: `${Math.max(48, (roomStaysMap["unassigned"] || []).length * 26 + 8)}px` }}
+                className="relative flex-shrink-0"
+                style={{ width: trackWidth, minHeight: Math.max(48, unassigned.length * TL_ROW_H + 8) }}
               >
-                <div
-                  className="absolute inset-0 grid"
-                  style={{ gridTemplateColumns: `repeat(${numDays}, 1fr)` }}
-                >
-                  {days.map((_, i) => (
-                    <div key={i} className="border-l border-slate-100 h-full" />
-                  ))}
-                </div>
-                {(roomStaysMap["unassigned"] || []).map((stay, rowIdx) => {
-                  const pos = getBarPosition(stay);
-                  const barColor = stay.status === "checked_in" ? "#22C55E"
-                    : stay.status === "checked_out" ? "#3B82F6"
-                    : "#94A3B8";
-                  return (
-                    <div
-                      key={stay.id}
-                      className="absolute rounded-md flex items-center gap-1 px-2 text-[10px] font-semibold text-white truncate shadow-sm"
-                      style={{
-                        left: pos.left,
-                        width: pos.width,
-                        top: `${4 + rowIdx * 26}px`,
-                        height: "22px",
-                        backgroundColor: barColor,
-                      }}
-                    >
-                      <PawPrint className="w-3 h-3 flex-shrink-0" />
-                      {stay.pet.name}
-                    </div>
-                  );
-                })}
+                {renderGridLines(false)}
+                {renderBars(unassigned)}
               </div>
             </div>
+          )}
+
+          {search && visibleRooms.length === 0 && unassigned.length === 0 && (
+            <div className="p-6 text-center text-sm text-petra-muted" dir="rtl">לא נמצאו הזמנות תואמות בטווח המוצג</div>
           )}
         </div>
       </div>
@@ -1252,7 +1295,7 @@ function CheckinDialog({
   return (
     <div className="modal-overlay">
       <div className="modal-backdrop" onClick={onCancel} />
-      <div className="modal-content max-w-md mx-4 p-6">
+      <div className="modal-content max-w-md mx-4 p-6 max-h-[85dvh] overflow-y-auto overscroll-contain">
         <div className="flex items-center justify-between mb-5">
           <div>
             <h2 className="text-lg font-bold text-petra-text">צ׳ק-אין</h2>
@@ -1428,7 +1471,7 @@ function CheckoutDialog({
   return (
     <div className="modal-overlay">
       <div className="modal-backdrop" onClick={onCancel} />
-      <div className="modal-content max-w-md mx-4 p-6">
+      <div className="modal-content max-w-md mx-4 p-6 max-h-[85dvh] overflow-y-auto overscroll-contain">
         <div className="flex items-center justify-between mb-5">
           <div>
             <h2 className="text-lg font-bold text-petra-text">צ׳ק-אאוט</h2>
@@ -1611,7 +1654,7 @@ function EditStayDialog({
   return (
     <div className="modal-overlay">
       <div className="modal-backdrop" onClick={onCancel} />
-      <div className="modal-content max-w-md mx-4 p-6">
+      <div className="modal-content max-w-md mx-4 p-6 max-h-[85dvh] overflow-y-auto overscroll-contain">
         <div className="flex items-center justify-between mb-5">
           <div>
             <h2 className="text-lg font-bold text-petra-text">עריכת הזמנה</h2>
@@ -1621,6 +1664,16 @@ function EditStayDialog({
             <X className="w-4 h-4" />
           </button>
         </div>
+
+        {stay.customer && (
+          <Link
+            href={`/customers/${stay.customer.id}`}
+            className="mb-4 flex items-center justify-center gap-1.5 w-full py-2 rounded-lg border border-brand-200 bg-brand-50 text-sm font-medium text-brand-700 hover:bg-brand-100 transition-colors"
+          >
+            <Users className="w-4 h-4" />
+            פתח כרטיס לקוח
+          </Link>
+        )}
 
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
@@ -2016,7 +2069,7 @@ function CareLogModal({ stayId, petName, onClose }: { stayId: string; petName: s
   return (
     <div className="modal-overlay">
       <div className="modal-backdrop" onClick={onClose} />
-      <div className="modal-content max-w-md mx-4 p-6 max-h-[85vh] overflow-y-auto">
+      <div className="modal-content max-w-md mx-4 p-6 max-h-[85dvh] overflow-y-auto overscroll-contain">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold text-petra-text flex items-center gap-2">
             <ClipboardList className="w-5 h-5 text-brand-500" />
@@ -2707,6 +2760,21 @@ function BoardingPageContent() {
   const checkinTodayCount = tabStays.checkin_today.length;
   const checkoutTodayCount = tabStays.checkout_today.length;
 
+  const searchNorm = normSearch(staySearch);
+
+  // Room map follows the same search: only rooms with a matching stay (or a matching room name).
+  const occStaysShown = useMemo(
+    () => (searchNorm ? occStays.filter((s) => stayMatchesSearch(s, searchNorm)) : occStays),
+    [occStays, searchNorm],
+  );
+  const gridRooms = useMemo(
+    () =>
+      searchNorm
+        ? rooms.filter((r) => normSearch(r.name).includes(searchNorm) || occStaysShown.some((s) => s.room?.id === r.id))
+        : rooms,
+    [rooms, searchNorm, occStaysShown],
+  );
+
   const displayedStays = useMemo(() => {
     let base = tabStays[activeTab];
     // Filter by selected calendar date
@@ -2717,32 +2785,38 @@ function BoardingPageContent() {
           (!s.checkOut || toDateStr(s.checkOut) >= selectedCalendarDate)
       );
     }
-    if (!staySearch.trim()) return base;
-    const q = staySearch.toLowerCase();
-    return base.filter(
-      (s) =>
-        s.pet.name.toLowerCase().includes(q) ||
-        (s.customer?.name ?? "").toLowerCase().includes(q) ||
-        (s.room?.name.toLowerCase().includes(q) ?? false)
-    );
-  }, [tabStays, activeTab, staySearch, selectedCalendarDate]);
+    if (!searchNorm) return base;
+    return base.filter((s) => stayMatchesSearch(s, searchNorm));
+  }, [tabStays, activeTab, searchNorm, selectedCalendarDate]);
 
   // Room availability for selected dates in new stay modal
   const roomAvailability = useMemo(() => {
     if (!form.checkIn || !form.checkOut) return {} as Record<string, boolean>;
     return Object.fromEntries(
       rooms.map((room) => {
+        // Stays share a room only if they share a NIGHT (check-out day = turnover day).
         const overlapping = stays.filter(
           (s) =>
             s.room?.id === room.id &&
             ACTIVE_STATUSES.includes(s.status) &&
-            toDateStr(s.checkIn) < form.checkOut! &&
-            (!s.checkOut || toDateStr(s.checkOut) > form.checkIn)
+            staysOverlap(s, { checkIn: form.checkIn, checkOut: form.checkOut })
         ).length;
         return [room.id, overlapping < room.capacity];
       })
     );
   }, [form.checkIn, form.checkOut, rooms, stays]);
+
+  // Dogs occupying each room today (Israel day) — for the room dropdown before dates are chosen.
+  const roomTodayCount = useMemo(() => {
+    const todayKey = israelDayKey(new Date());
+    const counts: Record<string, number> = {};
+    for (const s of stays) {
+      if (!s.room || !ACTIVE_STATUSES.includes(s.status)) continue;
+      if (!staysOverlap(s, { checkIn: todayKey, checkOut: todayKey })) continue;
+      counts[s.room.id] = (counts[s.room.id] ?? 0) + 1;
+    }
+    return counts;
+  }, [stays]);
 
   const draggedStay = activeStayId ? stays.find((s) => s.id === activeStayId) : null;
 
@@ -2756,25 +2830,18 @@ function BoardingPageContent() {
   // ── Occupancy checker computation ──
   const occByRoom = useMemo(() => {
     if (!occFrom || !occTo || occStays.length === 0) return {} as Record<string, number>;
-    const fromDate = new Date(occFrom);
-    const toDate = new Date(occTo);
-    toDate.setHours(23, 59, 59);
-    // Build day list
-    const days: Date[] = [];
-    const cursor = new Date(fromDate);
-    while (cursor <= toDate) { days.push(new Date(cursor)); cursor.setDate(cursor.getDate() + 1); }
-    // Per room: max concurrent stays across all days
+    // Build day list ("YYYY-MM-DD" keys)
+    const days: string[] = [];
+    const cursor = new Date(occFrom + "T00:00:00Z");
+    const last = new Date(occTo + "T00:00:00Z");
+    while (cursor <= last && days.length < 400) { days.push(cursor.toISOString().slice(0, 10)); cursor.setUTCDate(cursor.getUTCDate() + 1); }
+    // Per room: max concurrent stays across all days (a stay occupies [check-in day, check-out day))
     const result: Record<string, number> = {};
     for (const room of rooms) {
       const roomStays = occStays.filter(s => s.room?.id === room.id);
       let maxConcurrent = 0;
       for (const day of days) {
-        const dayEnd = new Date(day); dayEnd.setHours(23, 59, 59);
-        const concurrent = roomStays.filter(s => {
-          const ci = new Date(s.checkIn);
-          const co = s.checkOut ? new Date(s.checkOut) : null;
-          return ci <= dayEnd && (!co || co >= day);
-        }).length;
+        const concurrent = roomStays.filter(s => staysOverlap(s, { checkIn: day, checkOut: day })).length;
         maxConcurrent = Math.max(maxConcurrent, concurrent);
       }
       result[room.id] = maxConcurrent;
@@ -3204,11 +3271,11 @@ function BoardingPageContent() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" data-print-rooms>
                 {/* Unassigned stays drop zone — first = rightmost in RTL */}
                 <UnassignedGridCard
-                  stays={occStays.filter((s) => !s.room)}
+                  stays={occStaysShown.filter((s) => !s.room)}
                   onCheckin={handleCheckin}
                   onCheckout={handleCheckout}
                 />
-                {rooms.map((room) => (
+                {gridRooms.map((room) => (
                   <RoomStatusCard
                     key={room.id}
                     room={room}
@@ -3216,11 +3283,15 @@ function BoardingPageContent() {
                     onCheckout={handleCheckout}
                     onMarkClean={handleMarkClean}
                     onOpenStay={setEditStay}
-                    occPeriodStays={occStays.filter(s => s.room?.id === room.id)}
-                    sortedStayIds={roomSlotOrders[room.id] ?? occStays.filter(s => s.room?.id === room.id).map(s => s.id)}
+                    occPeriodStays={occStaysShown.filter(s => s.room?.id === room.id)}
+                    sortedStayIds={roomSlotOrders[room.id] ?? occStaysShown.filter(s => s.room?.id === room.id).map(s => s.id)}
+                    highlight={!!searchNorm}
                   />
                 ))}
               </div>
+              {searchNorm && gridRooms.length === 0 && (
+                <p className="text-sm text-petra-muted text-center py-4">לא נמצאו חדרים עם &quot;{staySearch.trim()}&quot; בתאריכים שנבחרו</p>
+              )}
               </>
             )}
           </div>
@@ -3250,7 +3321,7 @@ function BoardingPageContent() {
               <p className="text-sm text-petra-muted">אין חדרים מוגדרים</p>
             </div>
           ) : (
-            <TimelineView rooms={rooms} stays={stays} numDays={timelineDays} startDate={timelineStart ? new Date(timelineStart + "T00:00:00") : undefined} />
+            <TimelineView rooms={rooms} stays={stays} search={searchNorm} onOpenStay={setEditStay} numDays={timelineDays} startDate={timelineStart ? new Date(timelineStart + "T00:00:00") : undefined} />
           )}
         </div>
       )}
@@ -3420,8 +3491,8 @@ function BoardingPageContent() {
       {showRoomsManager && (
         <div className="modal-overlay">
           <div className="modal-backdrop" onClick={() => { setShowRoomsManager(false); setEditingRoomId(null); }} />
-          <div className="modal-content max-w-lg mx-4 p-6">
-            <div className="flex items-center justify-between mb-6">
+          <div className="modal-content max-w-lg mx-4 flex flex-col max-h-[85dvh] overflow-hidden">
+            <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100 flex-shrink-0">
               <div>
                 <h2 className="text-xl font-bold text-petra-text">ניהול חדרים</h2>
                 <p className="text-sm text-petra-muted mt-0.5">הוסף, ערוך או מחק חדרים</p>
@@ -3434,6 +3505,7 @@ function BoardingPageContent() {
               </button>
             </div>
 
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 pt-4 pb-6">
             <div className="space-y-2 mb-6">
               {rooms.length === 0 ? (
                 <p className="text-sm text-petra-muted text-center py-4">אין חדרים עדיין</p>
@@ -3593,6 +3665,7 @@ function BoardingPageContent() {
                 </button>
               </div>
             </div>
+            </div>
           </div>
         </div>
       )}
@@ -3601,8 +3674,8 @@ function BoardingPageContent() {
       {showNewStay && (
         <div className="modal-overlay">
           <div className="modal-backdrop" onClick={() => setShowNewStay(false)} />
-          <div className="modal-content max-w-lg mx-4 p-6">
-            <div className="flex items-center justify-between mb-6">
+          <div className="modal-content max-w-lg mx-4 flex flex-col max-h-[90dvh] overflow-hidden">
+            <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100 flex-shrink-0">
               <div>
                 <h2 className="text-xl font-bold text-petra-text">שהייה חדשה</h2>
                 <p className="text-sm text-petra-muted mt-0.5">הוסף שהייה לפנסיון</p>
@@ -3614,6 +3687,7 @@ function BoardingPageContent() {
                 <X className="w-4 h-4" />
               </button>
             </div>
+            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 pt-4 pb-2">
 
             <div className="space-y-4">
               {/* Mode toggle: לקוח רגיל / כלב שירות */}
@@ -3863,11 +3937,13 @@ function BoardingPageContent() {
                   >
                     <option value="">ללא חדר</option>
                     {rooms.map((r) => {
+                      // No dates yet → show only who occupies the room TODAY (not every future booking);
+                      // real availability is checked once dates are picked.
                       const roomStatus = getRoomDisplayStatus(r);
-                      const isFull = r._count.boardingStays >= r.capacity;
+                      const todayCount = roomTodayCount[r.id] ?? 0;
                       return (
-                        <option key={r.id} value={r.id} disabled={isFull}>
-                          {r.name} ({r._count.boardingStays}/{r.capacity}){isFull ? " — תפוס" : roomStatus === "needs_cleaning" ? " — דרוש ניקיון" : ""}
+                        <option key={r.id} value={r.id}>
+                          {r.name} (היום {todayCount}/{r.capacity}){roomStatus === "needs_cleaning" ? " — דרוש ניקיון" : ""}
                         </option>
                       );
                     })}
@@ -4008,8 +4084,9 @@ function BoardingPageContent() {
                 </div>
               );
             })()}
+            </div>
 
-            <div className="flex gap-3 mt-6">
+            <div className="flex gap-3 px-6 py-4 border-t border-slate-100 flex-shrink-0">
               <button
                 className="btn-primary flex-1"
                 disabled={(serviceDogMode ? false : !form.customerId) || form.petIds.length === 0 || !form.checkIn || createMutation.isPending}

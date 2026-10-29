@@ -7,6 +7,7 @@
  *
  * Tenant isolation: every query is scoped by ctx.businessId (never from args).
  */
+import { searchVariants, normalizeHebrewPunct } from "@/lib/text-variants";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { TENANT_PERMS } from "@/lib/permissions";
 import { z } from "zod";
@@ -164,7 +165,7 @@ export function registerIntakeTools(server: McpServer, ctx: ToolCtx): void {
         if (norm) custOr.push({ phoneNorm: norm });
         if (last7) custOr.push({ phone: { contains: last7 } });
         if (emailTrim) custOr.push({ email: { equals: emailTrim, mode: "insensitive" } });
-        if (nameTrim) custOr.push({ name: { contains: nameTrim, mode: "insensitive" } });
+        if (nameTrim) for (const v of searchVariants(nameTrim)) custOr.push({ name: { contains: v, mode: "insensitive" } });
         const customers = custOr.length
           ? await prisma.customer.findMany({
               where: { businessId, OR: custOr },
@@ -180,7 +181,7 @@ export function registerIntakeTools(server: McpServer, ctx: ToolCtx): void {
         const canViewLeads = ctx.hasPermission(TENANT_PERMS.VIEW_LEADS);
         if (canViewLeads && last7) leadOr.push({ phone: { contains: last7 } });
         if (canViewLeads && emailTrim) leadOr.push({ email: { equals: emailTrim, mode: "insensitive" } });
-        if (canViewLeads && nameTrim) leadOr.push({ name: { contains: nameTrim, mode: "insensitive" } });
+        if (canViewLeads && nameTrim) for (const v of searchVariants(nameTrim)) leadOr.push({ name: { contains: v, mode: "insensitive" } });
         const leadsRaw = leadOr.length
           ? await prisma.lead.findMany({
               where: { businessId, OR: leadOr },
@@ -193,13 +194,13 @@ export function registerIntakeTools(server: McpServer, ctx: ToolCtx): void {
         const leads = leadsRaw.filter((l) => {
           const byPhone = !!norm && !!l.phone && mcpPhoneToNorm(l.phone) === norm;
           const byEmail = !!emailTrim && !!l.email && l.email.toLowerCase() === emailTrim.toLowerCase();
-          const byName = !!nameTrim && l.name.toLowerCase().includes(nameTrim.toLowerCase());
+          const byName = !!nameTrim && nameMatches(l.name, nameTrim);
           return byPhone || byEmail || byName;
         });
         const custFiltered = customers.filter((c) => {
           const byPhone = !!norm && (c.phoneNorm === norm || mcpPhoneToNorm(c.phone) === norm);
           const byEmail = !!emailTrim && !!c.email && c.email.toLowerCase() === emailTrim.toLowerCase();
-          const byName = !!nameTrim && c.name.toLowerCase().includes(nameTrim.toLowerCase());
+          const byName = !!nameTrim && nameMatches(c.name, nameTrim);
           return byPhone || byEmail || byName;
         });
 
@@ -207,7 +208,7 @@ export function registerIntakeTools(server: McpServer, ctx: ToolCtx): void {
           const why: string[] = [];
           if (norm && (row.phoneNorm === norm || (row.phone && mcpPhoneToNorm(row.phone) === norm))) why.push("טלפון");
           if (emailTrim && row.email && row.email.toLowerCase() === emailTrim.toLowerCase()) why.push("אימייל");
-          if (nameTrim && row.name.toLowerCase().includes(nameTrim.toLowerCase())) why.push("שם");
+          if (nameTrim && nameMatches(row.name, nameTrim)) why.push("שם");
           return why.join("+");
         };
 
@@ -507,4 +508,9 @@ export function registerIntakeTools(server: McpServer, ctx: ToolCtx): void {
       }
     }
   );
+}
+
+/** Name contains, ignoring case and geresh spelling (פאץ' = פאץ׳). */
+function nameMatches(name: string, q: string): boolean {
+  return normalizeHebrewPunct(name).toLowerCase().includes(normalizeHebrewPunct(q).toLowerCase());
 }

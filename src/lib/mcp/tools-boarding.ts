@@ -16,6 +16,8 @@
  * Scopes: update_boarding_stay with status=canceled on a stay that is already checked_in
  * (dog physically in the pension) needs admin:destructive (owner-only) on top of write:boarding.
  */
+import { normalizeHebrewPunct } from "@/lib/text-variants";
+import { staysOverlap } from "@/lib/boarding-overlap";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
@@ -38,6 +40,7 @@ import {
   listRooms,
   listYards,
   checkRoomAvailability,
+  findOverlappingPetStay,
   createBoardingStay,
   getBoardingStay,
   updateBoardingStay,
@@ -217,16 +220,19 @@ function parseTimes(times: string | null | undefined): string {
 
 /** Stays (reserved/checked_in) overlapping [from, to] for a yard — same predicate as checkRoomAvailability. */
 async function yardConflicts(businessId: string, yardId: string, from: string, to: string) {
-  return prisma.boardingStay.findMany({
+  const DAY = 86_400_000;
+  const rows = await prisma.boardingStay.findMany({
     where: {
       businessId,
       yardId,
       status: { in: ["reserved", "checked_in"] },
-      checkIn: { lt: new Date(to + "T23:59:59") },
-      OR: [{ checkOut: { gt: new Date(from) } }, { checkOut: null }],
+      checkIn: { lt: new Date(new Date(to + "T23:59:59Z").getTime() + DAY) },
+      OR: [{ checkOut: { gt: new Date(new Date(from + "T00:00:00Z").getTime() - DAY) } }, { checkOut: null }],
     },
     select: { id: true, checkIn: true, checkOut: true, pet: { select: { id: true, name: true } } },
   });
+  // Check-out day is free (same day rule as rooms, `staysOverlap`).
+  return rows.filter((r) => staysOverlap(r, { checkIn: from, checkOut: to }));
 }
 
 function conflictLine(c: { id: string; checkIn: Date; checkOut: Date | null; pet: { name: string } | null }): string {
@@ -417,6 +423,7 @@ export function registerBoardingTools(server: McpServer, ctx: ToolCtx): void {
       status: z.enum(STAY_STATUSES).optional().describe("Initial status (default reserved)"),
       idempotency_key: z.string().max(100).optional().describe("Client-generated key; a repeated call with the same key replays the first result instead of creating a duplicate"),
       dry_run: z.boolean().optional().describe("Preview only — nothing is created"),
+      allow_duplicate: z.boolean().optional().describe("Create even when another pet of the same client with the same name (e.g. פאץ' / פאץ׳) already has a stay on these dates. Default false — check first, it is usually the same dog entered twice"),
     },
     async (args) => {
       if (!ctx.hasScope("write:boarding")) return ctx.denyScope("create_boarding_stay", "write:boarding");
@@ -450,6 +457,24 @@ export function registerBoardingTools(server: McpServer, ctx: ToolCtx): void {
 
         const checkInDT = composeDateTime(from, args.check_in_time ?? settings.boardingCheckInTime);
         const checkOutDT = to ? composeDateTime(to, args.check_out_time ?? settings.boardingCheckOutTime) : null;
+
+        // Same dog entered twice under another spelling (פאץ' vs פאץ׳) → the stay would be a duplicate.
+        if (pet.customerId && !args.allow_duplicate) {
+          const key = normalizeHebrewPunct(pet.name).toLowerCase();
+          const siblings = (await prisma.pet.findMany({
+            where: { customerId: pet.customerId, id: { not: pet.id } },
+            select: { id: true, name: true },
+          })).filter((p) => normalizeHebrewPunct(p.name).toLowerCase() === key);
+          for (const sib of siblings) {
+            const dup = await findOverlappingPetStay(prisma, businessId, sib.id, new Date(checkInDT), checkOutDT ? new Date(checkOutDT) : null);
+            if (dup) {
+              throw new ServiceError(
+                `כבר קיימת הזמנה חופפת לכלב "${safeField(sib.name, 40)}" של אותו לקוח (pet id: ${sib.id}, stay id: ${dup.id}) — כנראה אותו כלב שנרשם פעמיים. לא נוצרה הזמנה. אם זה באמת כלב אחר, שלח שוב עם allow_duplicate: true`,
+                "CONFLICT",
+              );
+            }
+          }
+        }
         const nights = to ? nightsBetweenYmd(from, to) : 0;
 
         // Availability + quote preview (room only — yards have no service-side capacity check).

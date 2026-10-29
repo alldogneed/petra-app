@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import { createPortal } from "react-dom";
 import { Search, Users, PawPrint, Calendar, Hotel, X, Loader2, UserPlus, CheckSquare } from "lucide-react";
 interface SearchResults {
   customers: {
@@ -29,7 +30,7 @@ interface SearchResults {
     id: string;
     checkIn: string;
     pet: { name: string };
-    customer: { name: string };
+    customer: { id: string; name: string };
     room: { name: string } | null;
   }[];
   leads: {
@@ -153,7 +154,11 @@ export function GlobalSearch() {
     setResults(null);
   };
 
-  return (
+  // Portaled to <body>: the topbar <header> has backdrop-filter, which makes it the
+  // containing block of position:fixed children — the full-screen layer was squeezed
+  // into the 64px header and taps on results were lost on phones.
+  if (typeof document === "undefined") return null;
+  return createPortal(
     <>
       {/* Combined backdrop + dialog wrapper — single layer so taps anywhere
           outside the modal close it (was broken on mobile because the dialog
@@ -266,7 +271,7 @@ export function GlobalSearch() {
                   id: b.id,
                   title: `${b.customer!.name} – ${b.pet!.name}`,
                   subtitle: `${new Date(b.checkIn).toLocaleDateString("he-IL")}${b.room ? ` · ${b.room.name}` : ""}`,
-                  onClick: () => navigate(`/boarding`),
+                  onClick: () => navigate(`/customers/${b.customer!.id}`),
                 }))}
               />
             )}
@@ -314,7 +319,8 @@ export function GlobalSearch() {
           </div>
         </div>
       </div>
-    </>
+    </>,
+    document.body,
   );
 }
 

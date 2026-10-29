@@ -8,6 +8,7 @@
  * stay in routes. Room status auto-update on check-in/out is domain logic.
  */
 
+import { staysOverlap, israelDayKey } from "@/lib/boarding-overlap";
 import type { PrismaClient } from "@prisma/client";
 import { ServiceError } from "./types";
 
@@ -123,18 +124,36 @@ export async function listBoardingStays(businessId: string, db: DbClient, opts: 
     where.status = { in: ["reserved", "checked_in"] };
   }
 
-  return db.boardingStay.findMany({
-    where,
-    include: {
-      room: true,
-      yard: { select: { id: true, name: true } },
-      pet: { select: PET_SELECT_FULL },
-      customer: { select: { id: true, name: true, phone: true } },
-      assignedTo: { select: { id: true, name: true } },
-    },
-    orderBy: { checkIn: "desc" },
-    take: 200,
-  });
+  const include = {
+    room: true,
+    yard: { select: { id: true, name: true } },
+    pet: { select: PET_SELECT_FULL },
+    customer: { select: { id: true, name: true, phone: true } },
+    assignedTo: { select: { id: true, name: true } },
+  };
+
+  if (opts.from && opts.to) {
+    return db.boardingStay.findMany({ where, include, orderBy: { checkIn: "desc" }, take: 500 });
+  }
+
+  // No range (the boarding screen): EVERY active stay + the latest history rows.
+  // One "latest 200 of anything" query hid current dogs once a business had many
+  // canceled stays (גבעת הכלבים: 546 canceled → the 7 checked-in dogs fell off).
+  const [active, history] = await Promise.all([
+    db.boardingStay.findMany({
+      where: { ...where, status: { in: ["reserved", "checked_in"] } },
+      include,
+      orderBy: { checkIn: "desc" },
+      take: 1000,
+    }),
+    db.boardingStay.findMany({
+      where: { ...where, status: { notIn: ["reserved", "checked_in"] } },
+      include,
+      orderBy: { checkIn: "desc" },
+      take: 150,
+    }),
+  ]);
+  return [...active, ...history].sort((a, b) => b.checkIn.getTime() - a.checkIn.getTime());
 }
 
 export async function getBoardingStay(businessId: string, db: DbClient, id: string) {
@@ -156,8 +175,9 @@ function roomFullMessage(capacity: number) {
 }
 
 /**
- * Count active (reserved/checked_in) stays in a room that overlap the given
- * date range. A null checkOut — on either side — is treated as open-ended.
+ * Count active (reserved/checked_in) stays in a room that share a night with the
+ * given stay — by Israel calendar day, check-out day free (`staysOverlap`), so a
+ * same-day turnover (out 1/10, in 1/10) fits. A null checkOut is open-ended.
  */
 async function countOverlappingRoomStays(
   db: DbClient,
@@ -167,18 +187,49 @@ async function countOverlappingRoomStays(
   checkOut: Date | null,
   excludeStayId?: string
 ) {
-  return db.boardingStay.count({
+  // Loose window (±1 day) in SQL, exact day rule in JS.
+  const DAY = 86_400_000;
+  const candidates = await db.boardingStay.findMany({
     where: {
       roomId,
       businessId,
       ...(excludeStayId ? { id: { not: excludeStayId } } : {}),
       status: { in: ["reserved", "checked_in"] },
-      // Existing stay starts before the new stay ends (open-ended new stay → far-future sentinel)
-      checkIn: { lt: checkOut ?? new Date("2099-12-31") },
-      // Existing stay ends after the new stay starts, or is itself open-ended
-      OR: [{ checkOut: { gt: checkIn } }, { checkOut: null }],
+      checkIn: { lt: checkOut ? new Date(checkOut.getTime() + DAY) : new Date("2099-12-31") },
+      OR: [{ checkOut: { gt: new Date(checkIn.getTime() - DAY) } }, { checkOut: null }],
     },
+    select: { checkIn: true, checkOut: true },
   });
+  return candidates.filter((s) => staysOverlap(s, { checkIn, checkOut })).length;
+}
+
+/** An active (reserved / checked_in) stay of this pet that shares a night with the range. */
+export async function findOverlappingPetStay(
+  db: DbClient,
+  businessId: string,
+  petId: string,
+  checkIn: Date,
+  checkOut: Date | null,
+  excludeStayId?: string,
+) {
+  const DAY = 86_400_000;
+  const rows = await db.boardingStay.findMany({
+    where: {
+      businessId,
+      petId,
+      ...(excludeStayId ? { id: { not: excludeStayId } } : {}),
+      status: { in: ["reserved", "checked_in"] },
+      checkIn: { lt: checkOut ? new Date(checkOut.getTime() + DAY) : new Date("2099-12-31") },
+      OR: [{ checkOut: { gt: new Date(checkIn.getTime() - DAY) } }, { checkOut: null }],
+    },
+    select: { id: true, checkIn: true, checkOut: true },
+  });
+  return rows.find((r) => staysOverlap(r, { checkIn, checkOut })) ?? null;
+}
+
+function formatStayRange(checkIn: Date, checkOut: Date | null): string {
+  const f = (d: Date) => d.toLocaleDateString("he-IL", { timeZone: "Asia/Jerusalem", day: "numeric", month: "numeric" });
+  return checkOut ? `${f(checkIn)}–${f(checkOut)}` : `מ-${f(checkIn)}`;
 }
 
 /**
@@ -231,6 +282,15 @@ export async function createBoardingStay(
     select: { id: true },
   });
   if (!petCheck) throw new ServiceError("חיית מחמד לא נמצאה", "NOT_FOUND");
+
+  // The same dog can't have two active stays on the same night (duplicate booking).
+  const dup = await findOverlappingPetStay(db, businessId, petId, new Date(checkIn), checkOut ? new Date(checkOut) : null);
+  if (dup) {
+    throw new ServiceError(
+      `לכלב הזה כבר יש הזמנת פנסיון חופפת (${formatStayRange(dup.checkIn, dup.checkOut)}). אפשר לערוך אותה במקום ליצור חדשה`,
+      "CONFLICT",
+    );
+  }
 
   if (resolvedCustomerId) {
     const customerCheck = await db.customer.findFirst({ where: { id: resolvedCustomerId, businessId }, select: { id: true } });
@@ -697,18 +757,25 @@ export async function checkRoomAvailability(
   const room = await db.room.findFirst({ where: { id: roomId, businessId } });
   if (!room) throw new ServiceError("חדר לא נמצא", "NOT_FOUND");
 
-  const conflicts = await db.boardingStay.findMany({
+  // `from` / `to` are check-in / check-out days ("YYYY-MM-DD" or ISO); the
+  // check-out day is free (same rule as createBoardingStay, `staysOverlap`).
+  const DAY = 86_400_000;
+  const fromDate = new Date(from.length === 10 ? from + "T00:00:00Z" : from);
+  const toDate = new Date(to.length === 10 ? to + "T23:59:59Z" : to);
+  const candidates = await db.boardingStay.findMany({
     where: {
       roomId,
+      businessId,
       status: { in: ["reserved", "checked_in"] },
-      checkIn: { lt: new Date(to + "T23:59:59") },
-      OR: [{ checkOut: { gt: new Date(from) } }, { checkOut: null }],
+      checkIn: { lt: new Date(toDate.getTime() + DAY) },
+      OR: [{ checkOut: { gt: new Date(fromDate.getTime() - DAY) } }, { checkOut: null }],
     },
     include: {
       pet: { select: { id: true, name: true } },
       customer: { select: { id: true, name: true } },
     },
   });
+  const conflicts = candidates.filter((s) => staysOverlap(s, { checkIn: israelDayKey(from), checkOut: israelDayKey(to) }));
 
   return {
     available: conflicts.length < room.capacity,

@@ -1,3 +1,4 @@
+import { searchVariants } from "@/lib/text-variants";
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
@@ -27,14 +28,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const vs = searchVariants(q);
     const [customers, pets, appointments, boarding, leads, tasks] = await Promise.all([
       prisma.customer.findMany({
         where: {
           businessId: authResult.businessId,
           OR: [
-            { name: { contains: q } },
+            ...vs.map((v) => ({ name: { contains: v, mode: "insensitive" as const } })),
             { phone: { contains: q } },
-            { email: { contains: q } },
+            { email: { contains: q, mode: "insensitive" } },
           ],
         },
         take: 5,
@@ -45,8 +47,8 @@ export async function GET(request: NextRequest) {
         where: {
           customer: { businessId: authResult.businessId },
           OR: [
-            { name: { contains: q } },
-            { breed: { contains: q } },
+            ...vs.map((v) => ({ name: { contains: v, mode: "insensitive" as const } })),
+            { breed: { contains: q, mode: "insensitive" } },
           ],
         },
         include: {
@@ -63,7 +65,7 @@ export async function GET(request: NextRequest) {
           businessId: authResult.businessId,
           OR: [
             { notes: { contains: q } },
-            { customer: { name: { contains: q } } },
+            ...vs.map((v) => ({ customer: { name: { contains: v, mode: "insensitive" as const } } })),
             { service: { name: { contains: q } } },
             { priceListItem: { name: { contains: q } } },
           ],
@@ -86,10 +88,11 @@ export async function GET(request: NextRequest) {
       prisma.boardingStay.findMany({
         where: {
           businessId: authResult.businessId,
+          status: { not: "canceled" },
           OR: [
             { notes: { contains: q } },
-            { pet: { name: { contains: q } } },
-            { customer: { name: { contains: q } } },
+            ...vs.map((v) => ({ pet: { name: { contains: v, mode: "insensitive" as const } } })),
+            ...vs.map((v) => ({ customer: { name: { contains: v, mode: "insensitive" as const } } })),
           ],
         },
         include: {
@@ -97,7 +100,7 @@ export async function GET(request: NextRequest) {
             select: { name: true },
           },
           customer: {
-            select: { name: true },
+            select: { id: true, name: true },
           },
           room: {
             select: { name: true },
@@ -111,9 +114,9 @@ export async function GET(request: NextRequest) {
         where: {
           businessId: authResult.businessId,
           OR: [
-            { name: { contains: q } },
+            ...vs.map((v) => ({ name: { contains: v, mode: "insensitive" as const } })),
             { phone: { contains: q } },
-            { email: { contains: q } },
+            { email: { contains: q, mode: "insensitive" } },
             { notes: { contains: q } },
           ],
         },

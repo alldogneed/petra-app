@@ -11,6 +11,7 @@
  *  - newest/oldest without derived filters page with a keyset cursor (customer id) in SQL.
  * Status / tag / phone rules live in src/lib/customer-filters.ts (pure, unit-tested).
  */
+import { normalizeHebrewPunct } from "@/lib/text-variants";
 import { Prisma } from "@prisma/client";
 import type { PrismaClient } from "@prisma/client";
 import { computeCustomerBalances, type CustomerBalance } from "@/lib/customer-balance";
@@ -134,14 +135,18 @@ function israelTodayStart(now: Date): Date {
   return new Date(`${israelYmdOf(now)}T00:00:00.000Z`);
 }
 
+// Geresh / gershayim spellings folded to ' and " on both sides (פאץ' = פאץ׳ = פאץ’).
+const GERESH_FROM = "\u05F3\u2019\u2018`\u00B4\u05F4\u201C\u201D";
+const GERESH_TO = "\u0027\u0027\u0027\u0027\u0027\u0022\u0022\u0022";
+
 function searchSql(search: string): Prisma.Sql {
-  const pat = `%${escapeLike(search)}%`;
+  const pat = `%${escapeLike(normalizeHebrewPunct(search))}%`;
   const digits = normalizePhoneSearch(search);
   const phoneFrag = digits
     ? Prisma.sql` OR regexp_replace(regexp_replace(coalesce(c.phone, ''), '[^0-9]', '', 'g'), '^972', '0') LIKE ${`%${digits}%`}`
     : Prisma.empty;
-  return Prisma.sql`(c.name ILIKE ${pat} OR c.email ILIKE ${pat} OR c.phone ILIKE ${pat}
-    OR EXISTS (SELECT 1 FROM "Pet" p WHERE p."customerId" = c.id AND p.name ILIKE ${pat})${phoneFrag})`;
+  return Prisma.sql`(translate(c.name, ${GERESH_FROM}, ${GERESH_TO}) ILIKE ${pat} OR c.email ILIKE ${pat} OR c.phone ILIKE ${pat}
+    OR EXISTS (SELECT 1 FROM "Pet" p WHERE p."customerId" = c.id AND translate(p.name, ${GERESH_FROM}, ${GERESH_TO}) ILIKE ${pat})${phoneFrag})`;
 }
 
 /**
