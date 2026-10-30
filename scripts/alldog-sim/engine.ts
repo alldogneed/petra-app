@@ -88,9 +88,21 @@ import {
 import { addressNote, addressStyleFor, applyAddressStyle, findAddressIssues, type AddressStyle } from "@/lib/alldog-bot/address";
 import { areaToCheckNote, fixOutOfAreaLines, isKnownServiceCity, unknownAreaToolNote } from "@/lib/alldog-bot/areas";
 import {
+  asksTrackPrices,
+  customerLines,
+  dropBackReferences,
+  findSelfGenderIssues,
+  fixBotSelfGender,
+  isNoToOffer,
+  OFFER_OPEN_TURNS,
+  oneQuestionPerReply,
+  priceAnswer,
+  questionCount,
+} from "@/lib/alldog-bot/reply-rules";
+import {
   alreadyWithRep,
-  enforcePriceAnswer,
   fixWhoCallsBack,
+  PRICE_ANSWER_LINE,
   GENERAL_FOLLOWUP_ACK,
   GENERAL_KIND_LABELS,
   generalClosingFor,
@@ -192,7 +204,7 @@ export class SimConversation {
   guideSlug: string | null = null;
   /** Item 39 update: the breed the owner gave (save_lead dog_breed). */
   ownerBreed: string | null = null;
-  guideOffer: { slug: string; status: "pending" | "accepted" | "declined" | "sent" } | null = null;
+  guideOffer: { slug: string; status: "pending" | "accepted" | "declined" | "sent"; turns?: number } | null = null;
   /** Item 40.1: a general (non-dog) request in progress / closed. */
   general: { kind: GeneralKind; stage: "asked" | "closed"; name: string | null; topic: string | null; asked: { topic: boolean; name: boolean }; acked: boolean } | null = null;
   /** Item 40.2: the customer told us they are with a rep. */
@@ -467,16 +479,20 @@ export class SimConversation {
     let guideToSend: ReturnType<typeof guideBySlug> = null;
     if (this.variant === "after" && this.guideOffer?.status === "pending") {
       const entry = guideBySlug(this.guideOffer.slug);
-      if (entry && isYesToOffer(text)) {
+      const lines = customerLines([text]);
+      if (entry && lines.some((l) => isYesToOffer(l))) {
         this.guideOffer.status = "accepted";
-        if (isOnlyYes(text)) {
+        if (lines.every((l) => isOnlyYes(l))) {
           this.pushBot(guideLinkMessage(entry), text);
           return;
         }
         guideToSend = entry;
-      } else {
+      } else if (lines.some((l) => isNoToOffer(l)) || (this.guideOffer.turns ?? 0) + 1 >= OFFER_OPEN_TURNS) {
         this.guideOffer.status = "declined";
-        this.emit("info", "הצעת המדריך נדחתה / נענתה בנושא אחר → לא מציעים שוב");
+        this.emit("info", "הצעת המדריך נדחתה / לא נענתה כמה הודעות → לא מציעים שוב");
+      } else {
+        this.guideOffer.turns = (this.guideOffer.turns ?? 0) + 1;
+        this.emit("info", "הצעת המדריך עדיין פתוחה (אישור בהמשך ישלח את הקישור, 41)");
       }
     } else if (this.variant === "after" && !this.guideOffer && asksForReading(text)) {
       const entry = (this.guideSlug ? guideBySlug(this.guideSlug) : null) ?? preciseGuideFor(userTexts.join(" "));
@@ -527,10 +543,19 @@ export class SimConversation {
       const fixed = fixWhoCallsBack(reply);
       if (fixed !== reply) this.warn(`המודל הבטיח שמאלף יחזור (הוחלף ל"נציגת AllDog", 40.5): "${reply.slice(0, 80)}"`);
       reply = fixed;
-      if (asksPrice(text) && !pricesAlreadySent(prior)) {
-        const priced = enforcePriceAnswer(reply);
-        if (priced !== reply) this.warn(`שאלת מחיר בלי מספר בתשובה (נוספה שורת מחיר, 40.6): "${reply.slice(0, 80)}"`);
+      // Item 41
+      for (const issue of findSelfGenderIssues(reply)) this.warn(`${issue} (תוקן, 41)`);
+      reply = fixBotSelfGender(reply);
+      if (questionCount(reply) > 1) this.warn(`יותר משאלה אחת בהודעה (נשארה אחת, 41): "${reply.slice(0, 80)}"`);
+      reply = oneQuestionPerReply(reply, prior);
+      if (/כתבתי\s+למעלה|שכתבתי/u.test(reply)) this.warn(`הפניה ל"כתבתי למעלה" (הוסרה, 41): "${reply.slice(0, 80)}"`);
+      if (asksPrice(text)) {
+        const askedBefore = userTexts.slice(0, -1).some((t) => asksPrice(t));
+        const priced = priceAnswer(reply, { full: askedBefore || asksTrackPrices(text), shortLine: PRICE_ANSWER_LINE });
+        if (priced !== reply) this.warn(`שאלת מחיר: התשובה הושלמה עם המספרים (${askedBefore ? "שאלה חוזרת" : "40.6/41"}): "${reply.slice(0, 80)}"`);
         reply = priced;
+      } else if (!pricesAlreadySent(prior)) {
+        reply = dropBackReferences(reply);
       }
     }
     if (this.variant === "after") {
@@ -562,7 +587,7 @@ export class SimConversation {
     for (const issue of findTerminologyIssues(reply)) this.warn(`מינוח (39): ${issue}`);
     if (guideToSend) {
       this.pushBot(guideLinkMessage(guideToSend), text);
-    } else if (!this.guideOffer && this.guideSlug && !this.serious && (executor.closing || closingAlreadySent(this.rows) || this.basicsKnown())) {
+    } else if (!this.guideOffer && this.guideSlug && !this.serious && !reply.includes("?") && (executor.closing || closingAlreadySent(this.rows) || this.basicsKnown())) {
       this.guideOffer = { slug: this.guideSlug, status: "pending" };
       this.emit("info", `הצעת מדריך (${this.guideSlug}), פעם אחת`);
       this.pushBot(guideOfferText(this.style.gender, "sim"), text);

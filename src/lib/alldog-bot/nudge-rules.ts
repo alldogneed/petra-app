@@ -50,7 +50,8 @@ function stableIndex(seed: string, n: number): number {
 export function isBotQuestion(text: string): boolean {
   const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
   const last = (lines[lines.length - 1] ?? "").replace(/[\s\p{Extended_Pictographic}‍️]+$/u, "");
-  return last.endsWith("?");
+  // Item 41 ("שפירא דב", 29/10): the opening "…אשמח לשמוע בקצרה על הכלב" asks without a "?".
+  return last.endsWith("?") || /(?:אשמח|נשמח)\s+לשמוע|ספר(?:י|ו)?\s+לי\s+(?:בקצרה|על|מה)/u.test(last);
 }
 
 /** "תודה" / "ביי" / "להתראות" / "יום טוב" — the customer ended the exchange; no reminder. */

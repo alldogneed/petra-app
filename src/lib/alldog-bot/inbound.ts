@@ -124,9 +124,19 @@ import { displayMissedCallMessage, isMissedCallTemplateMessage, MISSED_CALL_CONT
 import { FORM_LEAD_MESSAGE_KIND, formLeadContextNote } from "@/lib/alldog/form-lead-rules";
 import { transcribeAudio } from "@/lib/stt";
 import {
+  asksTrackPrices,
+  customerLines,
+  dropBackReferences,
+  fixBotSelfGender,
+  isNoToOffer,
+  OFFER_OPEN_TURNS,
+  oneQuestionPerReply,
+  priceAnswer,
+} from "@/lib/alldog-bot/reply-rules";
+import {
   alreadyWithRep,
-  enforcePriceAnswer,
   fixWhoCallsBack,
+  PRICE_ANSWER_LINE,
   GENERAL_FOLLOWUP_ACK,
   GENERAL_KIND_LABELS,
   generalClosingFor,
@@ -632,16 +642,21 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
   let guideToSend: KnowledgeEntry | null = null;
   if (offer?.state.status === "pending") {
     const entry = guideBySlug(offer.state.slug);
-    if (entry && isYesToOffer(batchText)) {
+    // Item 41 (Yafit, 29/10): a yes on any line of the next messages counts — "אוקיי" on its own, or
+    // inside a message that answers something else; the offer stays open a few turns, a "לא" closes it.
+    const lines = customerLines(batchWords);
+    if (entry && lines.some((l) => isYesToOffer(l))) {
       await setOfferStatus(offer.id, { slug: entry.slug, status: "accepted" });
-      if (isOnlyYes(batchText) && !imageBlocks.length && !unreadable) {
+      if (lines.every((l) => isOnlyYes(l)) && !imageBlocks.length && !unreadable) {
         // Just "כן" → the link + one line, no model turn, no more questions about the guide.
         await sendParts(item, conv.phone, [guideLinkMessage(entry)], handoffMode, [GUIDE_LINK_MESSAGE_KIND]);
         return;
       }
       guideToSend = entry;
-    } else {
+    } else if (lines.some((l) => isNoToOffer(l)) || (offer.state.turns ?? 0) + 1 >= OFFER_OPEN_TURNS) {
       await setOfferStatus(offer.id, { slug: offer.state.slug, status: "declined" });
+    } else {
+      await setOfferStatus(offer.id, { ...offer.state, turns: (offer.state.turns ?? 0) + 1 });
     }
   } else if (!offer && !handoffMode && asksForReading(batchText)) {
     // The customer asked for something to read → straight away, no offer.
@@ -745,6 +760,7 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
   let text = applyAddressStyle(applyConversationGuards(enforceIdentityAnswer(latestUserText, dropLimitationLines(result.reply)), priorBotTexts, {
     userTexts: userWords,
     known,
+    priceAskedNow: batchWords.some((t) => asksPrice(t)),
   }), style);
   text = stripVocativeName(text, voiceName);
   if (ref.serious) text = dropCheerfulOpeners(text);
@@ -752,8 +768,17 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
   text = fixOutOfAreaLines(text, style.gender, priorBotTexts);
   // Item 40.5: always "נציגת AllDog" calls back — never a promise that a trainer will.
   text = fixWhoCallsBack(text);
-  // Item 40.6: a price question (no price sent yet) → the answer carries the numbers.
-  if (batchWords.some((t) => asksPrice(t)) && !pricesAlreadySent(priorBotTexts)) text = enforcePriceAnswer(text);
+  // Item 41: the bot is masculine about itself; one question per message, never one it already asked.
+  text = fixBotSelfGender(text);
+  text = oneQuestionPerReply(text, priorBotTexts);
+  // Item 40.6 + 41: a price question → the numbers, always (never "כתבתי למעלה"); "כל מסלול" or the
+  // same question again → the full short price list.
+  if (batchWords.some((t) => asksPrice(t))) {
+    const earlierUser = userWords.slice(0, Math.max(0, userWords.length - batchWords.length));
+    text = priceAnswer(text, { full: earlierUser.some((t) => asksPrice(t)) || batchWords.some((t) => asksTrackPrices(t)), shortLine: PRICE_ANSWER_LINE });
+  } else if (!pricesAlreadySent(priorBotTexts)) {
+    text = dropBackReferences(text);
+  }
   if (executor.closing && !closed) {
     // After schedule_callback / handoff_to_human the last message is always the fixed closing.
     text = withClosing(text, executor.closing);
@@ -799,7 +824,8 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
   } else if (!offer && !handoffMode && !minor && !ref.serious && !userWords.some((t) => mentionsHumanBite(t))) {
     const entry = executor.guideSlug ? guideBySlug(executor.guideSlug) : await rememberedGuide(conv.id);
     const basics = !!executor.closing || closed || (await leadHasBasics(ref));
-    if (entry && basics && (await claimOffer(conv.id, { slug: entry.slug, status: "pending" }))) {
+    // Item 41: the offer goes in its own message, never next to an open question of the bot.
+    if (entry && basics && !text.includes("?") && (await claimOffer(conv.id, { slug: entry.slug, status: "pending", turns: 0 }))) {
       extraParts.push(guideOfferText(style.gender, conv.id));
       extraKinds.push(GUIDE_OFFER_MESSAGE_KIND);
     }

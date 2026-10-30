@@ -110,7 +110,7 @@ export function asksForReading(text: string): boolean {
   return /(?:משהו|חומר|מאמר|מדריך|כתבה)\s*(?:ל|כדי ל)?קרוא|חומר\s+קריאה|(?:תשלח|תשלחי|תשלחו|שלח|שלחי|יש|יש לכם|אפשר|אפשרי)\s+(?:לי\s+)?(?:\S+\s+){0,2}?(?:מאמר|מדריך|חומר|משהו לקרוא)/u.test(text);
 }
 
-export type OfferState = { slug: string; status: "pending" | "accepted" | "declined" | "sent" };
+export type OfferState = { slug: string; status: "pending" | "accepted" | "declined" | "sent"; /** item 41: customer turns since the offer */ turns?: number };
 
 export async function readOffer(conversationId: string): Promise<{ id: string; state: OfferState } | null> {
   const row = await prisma.waBotMessage.findFirst({ where: { conversationId, role: "system", kind: GUIDE_OFFER_KIND }, select: { id: true, text: true } });

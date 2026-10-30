@@ -693,6 +693,8 @@ export interface GuardContext {
   userTexts?: string[];
   /** What the customer already gave — those questions are not asked again (29b). */
   known?: KnownFacts;
+  /** Item 41: the customer asked about prices in THIS batch → money sentences are never trimmed. */
+  priceAskedNow?: boolean;
 }
 
 /**
@@ -846,7 +848,7 @@ export function applyConversationGuards(reply: string, priorBotTexts: string[], 
   const linkSent = priorBotTexts.some((t) => GUIDE_LINK_RE.test(t));
   const firstReply = priorBotTexts.length === 0;
 
-  const lines = enforceSalesPolicy(trimRepeats(removeInventedFamiliarity(reply), priorBotTexts, userTexts)).split("\n").map((raw) => {
+  const lines = enforceSalesPolicy(trimRepeats(removeInventedFamiliarity(reply), priorBotTexts, userTexts, { priceAskedNow: ctx.priceAskedNow })).split("\n").map((raw) => {
     let line = raw.trim();
     if (!line) return raw;
     // 29e. never a compliment on the dog's name ("באלו , שם חזק").
@@ -913,6 +915,10 @@ const UNASKED_REVENGE_RE = /\s*,?\s*(?:ו)?(?:זה\s+)?לא\s+(?:מתוך\s+|ב�
 const REVENGE_RE = /נקמ|מתנקם|להתנקם|נוקם/u;
 /** Money in a line: "350 ₪", "300 ש״ח", "שקלים". */
 const MONEY_RE = /₪|(?<![\p{L}])ש["״']?ח(?![\p{L}])|שקל/u;
+/**
+ * Item 41 (Yafit, 29/10): this line pointed at prices that were never written ("אבל איפה כתבת?").
+ * Kept only so old tests / transcripts read; it is never added to a reply any more.
+ */
 export const PRICE_REPEAT_LINE = "המחירים שכתבתי למעלה בתוקף, ואת המחיר הכולל קובעים באבחון";
 
 // ─── Item 38 (Or, 26/10): a price question always gets a number ───────────────────────
@@ -938,15 +944,14 @@ const sentencesOf = (line: string): string[] => line.split(/(?<=[.!?])\s+/u).fil
 /**
  * Item 35c, per reply line: a stock phrase already used in this conversation is dropped (its
  * sentence), "ולא נקמה" unless the customer raised it, and money sentences after prices were
- * already sent (once replaced by PRICE_REPEAT_LINE). Pure — tested.
+ * already sent and not asked again (dropped — item 41: never "כתבתי למעלה"). Pure — tested.
  */
-export function trimRepeats(reply: string, priorBotTexts: string[], userTexts: string[] = []): string {
+export function trimRepeats(reply: string, priorBotTexts: string[], userTexts: string[] = [], opts: { priceAskedNow?: boolean } = {}): string {
   const prior = priorBotTexts.join("\n");
   const usedStock = STOCK_PHRASES.filter((re) => re.test(prior));
   const usedInReply = new Set<RegExp>();
   const pricesSent = priorBotTexts.some((t) => MONEY_RE.test(t));
   const revengeRaised = userTexts.some((t) => REVENGE_RE.test(t));
-  let priceLineAdded = false;
   const out = reply.split("\n").map((raw) => {
     if (!raw.trim() || /https?:\/\//.test(raw)) return raw;
     let line = revengeRaised ? raw : raw.replace(UNASKED_REVENGE_RE, "");
@@ -960,13 +965,9 @@ export function trimRepeats(reply: string, priorBotTexts: string[], userTexts: s
         continue;
       }
       stock.forEach((re) => usedInReply.add(re));
-      if (pricesSent && MONEY_RE.test(sentence)) {
-        if (!priceLineAdded) {
-          kept.push(`${PRICE_REPEAT_LINE}.`);
-          priceLineAdded = true;
-        }
-        continue;
-      }
+      // Item 41: prices the customer did not ask for again → the repeated money sentence goes, silently
+      // (never "כתבתי למעלה"). Asked now → the numbers always stay.
+      if (pricesSent && !opts.priceAskedNow && MONEY_RE.test(sentence)) continue;
       kept.push(sentence);
     }
     line = kept.join(" ").replace(/\.$/u, "").trim();

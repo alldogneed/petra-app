@@ -47,11 +47,53 @@ function factKey(fact: string): string | null {
   return SINGLE_FACTS.find((k) => fact.startsWith(k)) ?? null;
 }
 
+const OTHER_ISSUE_PREFIX = "בעיה נוספת:";
+const STOP_WORDS = new Set(["על", "את", "עם", "של", "לא", "גם", "מאוד", "ממש", "בעיקר", "כמו", "מול", "בפני", "יותר", "הוא", "היא"]);
+
+/** Word stems of an issue ("מושך ברצועה" → מושך, רצוע) — to see that two issues are the same thing. */
+function issueStems(issue: string): string[] {
+  return issue
+    .split(/[\s,.;·/]+/u)
+    .map((w) => w.replace(/^[והבלמש](?=\p{L}{3,})/u, "").replace(/[^\p{L}]/gu, ""))
+    .filter((w) => w.length >= 3 && !STOP_WORDS.has(w))
+    .map((w) => w.slice(0, 4));
+}
+
+/**
+ * Item 41 (Yafit, 29/10: "בעיה נוספת" 11 times, nearly the same words): one "בעיה נוספת" line per lead —
+ * a new one is merged into it (an item that shares a word stem with one already there is the same
+ * issue and is skipped). Pure — tested.
+ */
+export function mergeOtherIssues(existing: string | null, incoming: string): string {
+  const items = (t: string) =>
+    t
+      .replace(OTHER_ISSUE_PREFIX, "")
+      .split(/\s*[,;·]\s*|\s+ו(?=(?:גם\s+)?\p{L}{3,}\s)/u)
+      .map((x) => x.replace(/\s+/g, " ").trim())
+      .filter(Boolean);
+  const out: string[] = [];
+  const seen: string[][] = [];
+  for (const item of [...(existing ? items(existing) : []), ...items(incoming)]) {
+    const stems = issueStems(item);
+    if (!stems.length || seen.some((s) => s.some((x) => stems.includes(x)))) continue;
+    seen.push(stems);
+    out.push(item);
+  }
+  return `${OTHER_ISSUE_PREFIX} ${out.join(", ")}`.slice(0, 300);
+}
+
 /** The log with this fact added (a single-kind fact replaces the older one of its kind). */
 export function withFact(text: string | null | undefined, fact: string): string {
   const { body, facts } = splitBotLog(text);
   const clean = fact.replace(/\s+/g, " ").trim();
   if (!clean || facts.includes(clean)) return composeBotLog(body, facts);
+  if (clean.startsWith(OTHER_ISSUE_PREFIX)) {
+    // All "בעיה נוספת" lines (also old duplicated ones) become one merged line.
+    const others = facts.filter((f) => f.startsWith(OTHER_ISSUE_PREFIX));
+    const merged = [...others, clean].reduce<string | null>((acc, f) => mergeOtherIssues(acc, f), null)!;
+    const kept = facts.filter((f) => !f.startsWith(OTHER_ISSUE_PREFIX));
+    return composeBotLog(body, [...kept, merged]);
+  }
   const key = factKey(clean);
   const kept = facts.filter((f) => f !== clean && (!key || factKey(f) !== key));
   return composeBotLog(body, [...kept, clean]);

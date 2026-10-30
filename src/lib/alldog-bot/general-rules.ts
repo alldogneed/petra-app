@@ -260,7 +260,7 @@ export function fixWhoCallsBack(text: string): string {
 
 /** The short price answer (item 37 §5 + Or 26/10 on the offset). */
 export const PRICE_ANSWER_LINE =
-  "שיחת הייעוץ בטלפון בחינם, ואבחון בבית עולה 350 ₪ ומתקזז אם ממשיכים לאילוף אינטנסיבי. אילוף אינטנסיבי ופנסיון: לפי אבחון.";
+  "שיחת הייעוץ בטלפון בחינם, ואבחון בבית עולה 350 ₪ ומתקזז אם ממשיכים לאילוף אינטנסיבי. אילוף אינטנסיבי ופנסיון: לפי אבחון, ואפשר לפרוס לתשלומים.";
 
 /** The reply to a price question must carry the diagnosis price — else the short answer opens it. Pure — tested. */
 export function enforcePriceAnswer(reply: string): string {
