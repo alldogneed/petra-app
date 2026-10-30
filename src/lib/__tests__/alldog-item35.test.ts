@@ -77,15 +77,17 @@ describe("35c — fewer repeats", () => {
     expect(trimRepeats("זה עניין של שעמום, ולא נקמה", [])).toBe("זה עניין של שעמום");
     expect(trimRepeats("זה שעמום ולא נקמה", [], ["נראה לי שהיא מתנקמת בנו"])).toBe("זה שעמום ולא נקמה");
   });
-  it("prices once — asked again: a short line, not the whole list", () => {
+  it("prices once — repeated unasked: dropped silently, never 'כתבתי למעלה' (item 41); asked now: kept", () => {
     const prior = [polishReply(DVIR_PRICES)];
     const again = polishReply(
       "אי אפשר להגיד מראש כמה שיעורים צריך, כי זה תלוי בכלבה ובמטרות. את זה קובעים באבחון בבית (350 ₪, שמתקזז אם ממשיכים). שיעור פרטי עולה 300 עד 350 ₪, ואילוף אינטנסיבי הוא בדרך כלל 2 עד 3 מפגשים בשבוע. הנציגה תפרט הכל בטלפון"
     );
     const out = trimRepeats(again, prior);
     expect(out).not.toMatch(/₪/);
-    expect(out.match(new RegExp(PRICE_REPEAT_LINE, "g"))).toHaveLength(1);
+    expect(out).not.toContain(PRICE_REPEAT_LINE);
     expect(out).toContain("הנציגה תפרט הכל בטלפון");
+    // The customer asked about prices in this batch → the numbers stay.
+    expect(trimRepeats(again, prior, [], { priceAskedNow: true })).toMatch(/350 ₪/);
     // First time: untouched.
     expect(trimRepeats("שיעור פרטי עולה 300 עד 350 ₪", [])).toBe("שיעור פרטי עולה 300 עד 350 ₪");
   });

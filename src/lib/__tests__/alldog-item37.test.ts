@@ -20,8 +20,8 @@ const summary = (over: Record<string, unknown>) => formatBotSummary(parseBotSumm
 
 describe("Or's decisions in the prompt (26/10)", () => {
   it("lesson package, deposit, boarding for a vacation, puppies, business name", () => {
-    expect(ALLDOG_BOT_PROMPT).toContain("מפגש בודד, בלי התחייבות לתהליך מסודר: 350 ₪. בחבילה: 300 ₪ למפגש. זה לא קשור לאילוף אינטנסיבי (שם המחיר לפי אבחון)");
-    expect(ALLDOG_BOT_PROMPT).not.toContain("מינימום 6");
+    expect(ALLDOG_BOT_PROMPT).toContain("מפגש בודד, בלי התחייבות לתהליך מסודר: 350 ₪. בחבילה של מינימום 6 מפגשים: 300 ₪ למפגש. זה לא קשור לאילוף אינטנסיבי (שם המחיר לפי אבחון)");
+    // Item 41 (Or, 29/10): the package is a minimum of 6 meetings.
     expect(ALLDOG_BOT_PROMPT).toContain("הנציגה תדבר איתך, ואחר כך תשלח קישור מסודר למקדמה של 150 ₪, שמתקזזת מה-350 ₪ של האבחון");
     expect(ALLDOG_BOT_PROMPT).toContain("נשלחת רק אחרי שהנציגה דיברה עם הלקוח");
     expect(ALLDOG_BOT_PROMPT).toContain("הבוט לא שולח קישור לתשלום ולא גובה");
@@ -32,8 +32,8 @@ describe("Or's decisions in the prompt (26/10)", () => {
     expect(ALLDOG_BOT_PROMPT).not.toContain("שיעור: 300–350");
   });
   it("the sales questions (only when missing) and at most 7 questions", () => {
-    expect(ALLDOG_BOT_PROMPT).toContain("כבר עבדת עם מאלף או מעון? מה לא עבד?");
-    expect(ALLDOG_BOT_PROMPT).toContain("ולמה דווקא עכשיו?");
+    expect(ALLDOG_BOT_PROMPT).toContain("כבר עבדת עם מאלף או מעון?");
+    expect(ALLDOG_BOT_PROMPT).toContain("למה דווקא עכשיו?");
     expect(ALLDOG_BOT_PROMPT).toContain("חשוב לך שמישהו יעשה את רוב העבודה, או שאתה מעדיף ללמוד ולתרגל בעצמך?");
     expect(ALLDOG_BOT_PROMPT).toContain("מי עוד גר עם הכלב ומי מחליט");
     expect(ALLDOG_BOT_PROMPT).toContain("לכל היותר 7 שאלות");
