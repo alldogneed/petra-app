@@ -52,6 +52,10 @@ const CASES: { key: VocabKey; params?: Record<string, string>; before: string }[
   { key: "booking.customer_step_title", before: "פרטי בעל הכלב" },
   { key: "booking.customer_label", before: "בעל הכלב" },
   { key: "booking.meta_description", params: { name: "נדב" }, before: "קבע/י תור אצל נדב בקלות ובמהירות. שירותים לכלבים" },
+  { key: "onboarding.business_name_placeholder", before: "לדוגמה: אילוף כלבים ישראלי" },
+  { key: "onboarding.first_service_placeholder", before: "לדוגמה: שיעור אילוף בסיסי" },
+  { key: "onboarding.next_service_placeholder", before: "לדוגמה: שיעור אילוף מתקדם" },
+  { key: "onboarding.done_title", before: "הכל מוכן! 🐾" },
 ];
 
 describe("dogs values are the pre-verticals text", () => {

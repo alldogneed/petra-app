@@ -159,6 +159,22 @@
     "booking.meta_description": {
       "dogs": "קבע/י תור אצל {name} בקלות ובמהירות. שירותים לכלבים",
       "generic": "קבע/י תור אצל {name} בקלות ובמהירות."
+    },
+    "onboarding.business_name_placeholder": {
+      "dogs": "לדוגמה: אילוף כלבים ישראלי",
+      "generic": "לדוגמה: סטודיו נועה"
+    },
+    "onboarding.first_service_placeholder": {
+      "dogs": "לדוגמה: שיעור אילוף בסיסי",
+      "generic": "לדוגמה: פגישת ייעוץ"
+    },
+    "onboarding.next_service_placeholder": {
+      "dogs": "לדוגמה: שיעור אילוף מתקדם",
+      "generic": "לדוגמה: חבילת 5 מפגשים"
+    },
+    "onboarding.done_title": {
+      "dogs": "הכל מוכן! 🐾",
+      "generic": "הכל מוכן! 🎉"
     }
   }
 }

@@ -30,6 +30,7 @@ import { LEGAL_ENTITY_TYPES } from "@/lib/legal-entity";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { VERTICALS, normalizeVertical, type Vertical } from "@/lib/verticals";
 import { vocab } from "@/lib/verticals/vocab";
+import { offeredPriceCategories, priceCategoryLabel } from "@/lib/verticals/catalog";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -163,6 +164,7 @@ function OnboardingInner() {
       <div className="card p-8 shadow-lg animate-fade-in">
         {step === 4 ? (
           <StepDone
+            vertical={business?.vertical ?? "dogs"}
             onGoToDashboard={async () => {
               await fetch("/api/onboarding/progress", {
                 method: "PATCH",
@@ -195,9 +197,9 @@ function OnboardingInner() {
             }}
           />
         ) : step === 2 ? (
-          <StepPricing onNext={() => setStep(3)} onBack={() => setStep(1)} />
+          <StepPricing vertical={business?.vertical ?? "dogs"} onNext={() => setStep(3)} onBack={() => setStep(1)} />
         ) : (
-          <StepClient onNext={() => setStep(4)} onBack={() => setStep(2)} onSkip={handleSkip} />
+          <StepClient vertical={business?.vertical ?? "dogs"} onNext={() => setStep(4)} onBack={() => setStep(2)} onSkip={handleSkip} />
         )}
       </div>
     </div>
@@ -387,7 +389,7 @@ function StepBusiness({
         <label className="label">שם העסק *</label>
         <input
           className="input w-full mt-1"
-          placeholder="לדוגמה: אילוף כלבים ישראלי"
+          placeholder={vocab("onboarding.business_name_placeholder", { vertical })}
           value={name}
           onChange={(e) => setName(e.target.value)}
           autoFocus
@@ -465,7 +467,9 @@ function StepBusiness({
 
 const SERVICE_TYPES = ["אילוף", "פנסיון", "טיפוח", "מוצרים"];
 
-function StepPricing({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
+function StepPricing({ vertical, onNext, onBack }: { vertical: Vertical; onNext: () => void; onBack: () => void }) {
+  // Verticals: "generic" offers no boarding / grooming category; "אילוף" (the key) reads "מפגשים וחבילות".
+  const serviceTypes = offeredPriceCategories(vertical, SERVICE_TYPES);
   const [name, setName] = useState("");
   const [type, setType] = useState("אילוף");
   const [duration, setDuration] = useState("60");
@@ -542,7 +546,9 @@ function StepPricing({ onNext, onBack }: { onNext: () => void; onBack: () => voi
         <label className="label">{servicesAdded === 0 ? "שם השירות הראשון *" : "שם השירות הנוסף *"}</label>
         <input
           className="input w-full mt-1"
-          placeholder={servicesAdded === 0 ? "לדוגמה: שיעור אילוף בסיסי" : "לדוגמה: שיעור אילוף מתקדם"}
+          placeholder={servicesAdded === 0
+            ? vocab("onboarding.first_service_placeholder", { vertical })
+            : vocab("onboarding.next_service_placeholder", { vertical })}
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
@@ -551,7 +557,7 @@ function StepPricing({ onNext, onBack }: { onNext: () => void; onBack: () => voi
       <div>
         <label className="label mb-2">קטגוריה</label>
         <div className="flex flex-wrap gap-2 mt-1">
-          {SERVICE_TYPES.map((t) => (
+          {serviceTypes.map((t) => (
             <button key={t} onClick={() => setType(t)}
               className={cn(
                 "px-3 py-1.5 rounded-lg border text-sm transition-all",
@@ -559,7 +565,7 @@ function StepPricing({ onNext, onBack }: { onNext: () => void; onBack: () => voi
                   ? "border-brand-500 bg-brand-50 text-brand-700 font-medium"
                   : "border-slate-200 text-petra-muted hover:border-brand-300"
               )}>
-              {t}
+              {priceCategoryLabel(vertical, t)}
             </button>
           ))}
         </div>
@@ -623,10 +629,12 @@ function StepPricing({ onNext, onBack }: { onNext: () => void; onBack: () => voi
 // ─── Step 3: First Client (skippable) ────────────────────────────────────────
 
 function StepClient({
+  vertical,
   onNext,
   onBack,
   onSkip,
 }: {
+  vertical: Vertical;
   onNext: () => void;
   onBack: () => void;
   onSkip: () => void;
@@ -682,6 +690,8 @@ function StepClient({
         </div>
       </div>
 
+      {/* Verticals: no pets in "generic" */}
+      {vertical !== "generic" && (
       <div className="border-t pt-4">
         <p className="text-sm font-medium text-petra-text mb-3">פרטי כלב (אופציונלי)</p>
         <div className="grid grid-cols-2 gap-4">
@@ -697,6 +707,7 @@ function StepClient({
           </div>
         </div>
       </div>
+      )}
 
       {error && <p className="text-sm text-red-500">{error}</p>}
 
@@ -719,14 +730,14 @@ function StepClient({
 
 // ─── Step 4: Done ─────────────────────────────────────────────────────────────
 
-function StepDone({ onGoToDashboard }: { onGoToDashboard: () => void }) {
+function StepDone({ vertical, onGoToDashboard }: { vertical: Vertical; onGoToDashboard: () => void }) {
   return (
     <div className="text-center space-y-6 py-4">
       <div className="w-20 h-20 rounded-full bg-emerald-50 flex items-center justify-center mx-auto">
         <CheckCircle2 className="w-10 h-10 text-emerald-500" />
       </div>
       <div>
-        <h2 className="text-2xl font-bold text-petra-text mb-2">הכל מוכן! 🐾</h2>
+        <h2 className="text-2xl font-bold text-petra-text mb-2">{vocab("onboarding.done_title", { vertical })}</h2>
         <p className="text-petra-muted leading-relaxed text-sm">
           Petra מוכנה לשרת את העסק שלך.
           תוכל לחבר יומן Google ולהגדיר תזכורות WhatsApp תחת{" "}
