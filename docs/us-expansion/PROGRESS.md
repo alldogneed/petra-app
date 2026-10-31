@@ -11,8 +11,8 @@ Branch: `claude/gracious-dijkstra-p3eq67` (ראו DECISIONS D-001). סשן חי�
 | 0.5 כלים | ✅ | check-no-hebrew.ts, codemod-logical-css.mjs, extract-hebrew.mjs, i18n-verify-he.mjs, i18n-merge-fragments.mjs, i18n-check-keys.mjs | — | — | — | foundation |
 | 0.6 פיילוט tasks | ✅ | tasks/page.tsx, PetraLoader.tsx | 207 מפתחות (268 מקטעים) | 13 | [phase0](qa/phase0/) | 8d7735f |
 | 0.7 שער יציאה | ✅ | tsc + build ירוקים, he 0.000% (tasks), en נבדק, סקירת אבטחה ללא HIGH/MEDIUM | — | — | [phase0](qa/phase0/) · [דוח](PHASE-0-report.md) | phase0-close |
-| גל א — nav/layout/common/topbar/search/help | 🔄 | | | | | |
-| גל ב — customers, pets, leads, calendar, scheduler, orders, dashboard | ⬜ | | | | | |
+| גל א — nav/layout/common/topbar/search/help | ✅ | 31 | 1,766 (he+en) | ~60 | [wave-a](qa/wave-a/) — he ≤0.08% (16/16), en ✅ | 5543163 |
+| גל ב — customers, pets, leads, calendar, scheduler, orders, dashboard | 🔄 | | | | | |
 | גל ג — settings, business-admin, messages, onboarding | ⬜ | | | | | |
 | גל ד — boarding | ⬜ | | | | | |
 | גל ה — training, online-classes, portal | ⬜ | | | | | |
