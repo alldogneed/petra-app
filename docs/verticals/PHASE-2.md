@@ -1,7 +1,7 @@
 # שלב 2 — מילון והסתרת "נושא" לפי קטגוריות
 
 ## 2.1 סריקה
-- [ ] להריץ `bash docs/verticals/scan-vocab.sh > docs/verticals/scan-vocab.out.txt` ולשמור את הפלט (commit).
+- [x] להריץ `bash docs/verticals/scan-vocab.sh > docs/verticals/scan-vocab.out.txt` ולשמור את הפלט (commit).
       הסקריפט מסווג כל מופע של כלב / חיות מחמד לפי קטגוריה ומסנן את מה שמחוץ לתכולה
       (כלבי שירות, AllDog, landing, owner, MCP, knowledge מחולל, tests).
 
