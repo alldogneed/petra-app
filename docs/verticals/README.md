@@ -53,7 +53,7 @@ Business.vertical ("dogs" | "generic")
 |---|---|---|
 | `boarding` | `/boarding`, `/feeding`, `/medications` | `/api/boarding`, `/api/feeding`, `/api/medications` |
 | `service_dogs` | `/service-dogs` | `/api/service-dogs`, `/api/service-recipients`, `/api/service-recipient-stages`, `/api/service-placements`, `/api/service-compliance` |
-| `pets` | `/pets`, `/vaccinations` | `/api/pets`, `/api/customers/[id]/pets` |
+| `pets` | `/pets`, `/vaccinations`, `/intake`, `/intake-forms` | `/api/pets`, `/api/customers/[id]/pets`, `/api/intake/*` (המסלולים עם session; טופס הקליטה הוא טופס לכלב) |
 | `groomer_portfolio` | — | — |
 
 - ה-404 של ה-API נעשה **במקום אחד**: `requireBusinessAuth()` בודק את ה-pathname מול

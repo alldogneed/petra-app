@@ -46,7 +46,7 @@ describe("generic hides the dog modules", () => {
     expect(isModuleHidden("generic", m)).toBe(true);
   });
   it.each([
-    "/boarding", "/boarding/daily", "/feeding", "/medications", "/service-dogs/123", "/pets", "/pets/abc", "/vaccinations",
+    "/boarding", "/boarding/daily", "/feeding", "/medications", "/service-dogs/123", "/pets", "/pets/abc", "/vaccinations", "/intake", "/intake-forms",
   ])("hides screen %s", (path) => {
     expect(isScreenHiddenForVertical("generic", path)).toBe(true);
   });
@@ -54,6 +54,7 @@ describe("generic hides the dog modules", () => {
     "/api/boarding", "/api/boarding/rooms", "/api/feeding", "/api/medications/1", "/api/service-dogs/x",
     "/api/service-recipients", "/api/service-recipient-stages", "/api/service-placements/1", "/api/service-compliance",
     "/api/pets", "/api/pets/abc/weight", "/api/customers/abc/pets", "/api/customers/abc/pets/def",
+    "/api/intake", "/api/intake/list", "/api/intake/send", "/api/intake/create",
   ])("hides API %s", (path) => {
     expect(isApiHiddenForVertical("generic", path)).toBe(true);
   });

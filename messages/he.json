@@ -23,6 +23,54 @@
     "search.placeholder": {
       "dogs": "חפש לקוח, חיית מחמד, תור, ליד, משימה...",
       "generic": "חפש לקוח, תור, ליד, משימה..."
+    },
+    "customer.followup_message": {
+      "dogs": "שלום {name} 😊\n\nרציתי לבדוק איך {pet} מרגיש/ת אחרי {service}{petPart}.\n\nאם יש שאלות אנחנו כאן תמיד 🐾",
+      "generic": "שלום {name} 😊\n\nרציתי לבדוק איך היה {service}.\n\nאם יש שאלות אנחנו כאן תמיד 🙂"
+    },
+    "customer.welcome_message": {
+      "dogs": "שלום {name} 😊\n\nברוכים הבאים! שמחים שהצטרפתם אלינו 🐾\nאנחנו כאן לכל שאלה ובקשה.\n\nנשמח לראותכם בקרוב!",
+      "generic": "שלום {name} 😊\n\nברוכים הבאים! שמחים שהצטרפתם אלינו\nאנחנו כאן לכל שאלה ובקשה.\n\nנשמח לראותכם בקרוב!"
+    },
+    "customer.bulk_placeholder": {
+      "dogs": "שלום {שם}! רצינו להזמין אותך לתור הבא שלך... 🐾",
+      "generic": "שלום {שם}! רצינו להזמין אותך לתור הבא שלך..."
+    },
+    "service_type.training": {
+      "dogs": "אילוף",
+      "generic": "מפגשים ותוכניות"
+    },
+    "pricing.category_program": {
+      "dogs": "אילוף",
+      "generic": "מפגשים וחבילות"
+    },
+    "order.training_kind": {
+      "dogs": "סוג האילוף",
+      "generic": "סוג ההזמנה"
+    },
+    "order.package_label": {
+      "dogs": "חבילת אילוף",
+      "generic": "חבילת מפגשים"
+    },
+    "order.no_packages": {
+      "dogs": "אין חבילות פעילות. הגדר פריט אילוף עם כמות מפגשים במחירון.",
+      "generic": "אין חבילות פעילות. הגדר פריט עם כמות מפגשים במחירון."
+    },
+    "order.payment_request_greeting": {
+      "dogs": "שלום {name}! 🐾",
+      "generic": "שלום {name}!"
+    },
+    "order.open_program": {
+      "dogs": "פתח תוכנית אילוף →",
+      "generic": "פתח את התוכנית →"
+    },
+    "picker.customer_placeholder": {
+      "dogs": "חיפוש לפי שם לקוח, טלפון או שם הכלב",
+      "generic": "חיפוש לפי שם לקוח או טלפון"
+    },
+    "customer.bulk_delete_warning": {
+      "dogs": "פעולה זו תמחק גם את חיות המחמד, התורים ונתוני הלקוח לצמיתות.",
+      "generic": "פעולה זו תמחק גם את התורים ונתוני הלקוח לצמיתות."
     }
   }
 }

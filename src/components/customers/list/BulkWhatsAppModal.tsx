@@ -9,6 +9,7 @@ import { Check, MessageCircle, SkipForward, X } from "lucide-react";
 import { toWhatsAppPhone } from "@/lib/utils";
 import { personalizeMessage } from "@/lib/customer-filters";
 import type { EnhancedCustomer } from "./types";
+import { useVertical } from "@/hooks/useVertical";
 
 type RowState = "pending" | "sent" | "skipped";
 
@@ -19,6 +20,7 @@ export function BulkWhatsAppModal({
   customers: EnhancedCustomer[];
   onClose: () => void;
 }) {
+  const { v } = useVertical();
   const recipients = useMemo(
     () => customers.filter((c) => c.phone && c.phone.replace(/\D/g, "").length >= 9),
     [customers]
@@ -63,7 +65,7 @@ export function BulkWhatsAppModal({
               maxLength={2000}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="שלום {שם}! רצינו להזמין אותך לתור הבא שלך... 🐾"
+              placeholder={v("customer.bulk_placeholder")}
             />
             <p className="text-xs text-petra-muted mt-1">
               <span className="font-mono bg-slate-100 px-1 rounded">{"{שם}"}</span> יוחלף בשם הפרטי של כל לקוח.

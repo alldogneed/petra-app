@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { cn, fetchJSON, getStatusColor, getStatusLabel } from "@/lib/utils";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { waLink } from "./customer-actions";
+import { useVertical } from "@/hooks/useVertical";
 import { appointmentServiceName, formatDayDate, type CustomerAppointment, type CustomerDetail, type PagedAppointments } from "./types";
 
 type Scope = "upcoming" | "past";
@@ -25,6 +26,7 @@ export function AppointmentsSection({
   canRemind: boolean;
   onNewAppointment: () => void;
 }) {
+  const { v } = useVertical();
   const customerId = customer.id;
   const queryClient = useQueryClient();
   const counts = customer.summary?.counts;
@@ -75,7 +77,12 @@ export function AppointmentsSection({
   const followUpLink = (apt: CustomerAppointment) => {
     const serviceName = appointmentServiceName(apt, "הטיפול");
     const petPart = apt.pet ? ` של ${apt.pet.name}` : "";
-    const msg = `שלום ${customer.name} 😊\n\nרציתי לבדוק איך ${apt.pet ? apt.pet.name : "הכלב"} מרגיש/ת אחרי ${serviceName}${petPart}.\n\nאם יש שאלות אנחנו כאן תמיד 🐾`;
+    const msg = v("customer.followup_message", {
+      name: customer.name,
+      pet: apt.pet ? apt.pet.name : "הכלב",
+      service: serviceName,
+      petPart,
+    });
     return waLink(customer.phone, msg);
   };
 

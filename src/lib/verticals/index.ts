@@ -44,6 +44,9 @@ export const VERTICAL_SCREENS: readonly { prefix: string; module: VerticalModule
   { prefix: "/service-dogs", module: "service_dogs" },
   { prefix: "/pets", module: "pets" },
   { prefix: "/vaccinations", module: "pets" },
+  // The intake form ("טופס קבלה") is a pet intake form (dog name, breed, health).
+  { prefix: "/intake", module: "pets" },
+  { prefix: "/intake-forms", module: "pets" },
 ];
 
 /** API route prefixes that belong to a hideable module (answer 404 when hidden). */
@@ -57,6 +60,9 @@ export const VERTICAL_API_PREFIXES: readonly { prefix: string; module: VerticalM
   { prefix: "/api/service-placements", module: "service_dogs" },
   { prefix: "/api/service-compliance", module: "service_dogs" },
   { prefix: "/api/pets", module: "pets" },
+  // Session-guarded intake routes only — the public /api/intake/<token> routes don't use
+  // requireBusinessAuth, and a generic business never creates a form to begin with.
+  { prefix: "/api/intake", module: "pets" },
 ];
 
 /** /api/customers/<id>/pets[/...] — pets of one customer. */
@@ -87,4 +93,14 @@ export function isScreenHiddenForVertical(vertical: unknown, path: string): bool
 export function isApiHiddenForVertical(vertical: unknown, path: string): boolean {
   const mod = apiModule(path);
   return mod !== null && isModuleHidden(vertical, mod);
+}
+
+/**
+ * Service.type ids (SERVICE_TYPES in constants.ts) that only exist in the dog domain.
+ * "generic" doesn't offer them in pickers / filters; stored rows are never rewritten.
+ */
+export const DOG_ONLY_SERVICE_TYPES: readonly string[] = ["grooming", "boarding", "daycare"];
+
+export function isServiceTypeOffered(vertical: unknown, serviceTypeId: string): boolean {
+  return normalizeVertical(vertical) === "dogs" || !DOG_ONLY_SERVICE_TYPES.includes(serviceTypeId);
 }

@@ -17,9 +17,11 @@ describe("messages/he.json vocab", () => {
   it.each(Object.keys(he.vocab))("%s — the generic value has no dog/pet word", (key) => {
     expect(table[key].generic).not.toMatch(DOG_WORDS);
   });
-  it.each(Object.keys(he.vocab))("%s — both values use the same {params}", (key) => {
-    const params = (s: string) => (s.match(/\{\w+\}/g) ?? []).sort();
-    expect(params(table[key].generic)).toEqual(params(table[key].dogs));
+  it.each(Object.keys(he.vocab))("%s — generic uses only {params} the dogs text has", (key) => {
+    // generic may drop a param (e.g. the pet name) but never needs one callers don't pass.
+    const params = (s: string) => new Set(s.match(/\{\w+\}/g) ?? []);
+    const dogs = params(table[key].dogs);
+    for (const p of Array.from(params(table[key].generic))) expect(dogs.has(p)).toBe(true);
   });
 });
 

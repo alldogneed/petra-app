@@ -13,6 +13,8 @@ import { triggerLimitModal } from "@/lib/limit-reached";
 import { toast } from "sonner";
 import { calcOrder, CalcLineInput } from "@/lib/order-calc";
 import { VAT_RATE } from "@/lib/constants";
+import { useVertical } from "@/hooks/useVertical";
+import { isPriceCategoryOffered, offeredPriceCategories, priceCategoryLabel } from "@/lib/verticals/catalog";
 import { usePlan } from "@/hooks/usePlan";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 
@@ -195,6 +197,10 @@ export function CreateOrderModal({
   const qc = useQueryClient();
   const router = useRouter();
   const { isGroomer } = usePlan();
+  // Verticals (docs/verticals): "generic" has no pets, no boarding, no grooming — orders
+  // never require a pet and a program / package opens without a subject.
+  const { vertical, hides, v } = useVertical();
+  const noPets = hides("pets");
 
   // Step state: "category" → "customer" → "items" → "review" → "payment"
   const [step, setStep] = useState<"category" | "customer" | "items" | "review" | "payment">("category");
@@ -528,7 +534,7 @@ export function CreateOrderModal({
           suppressPaymentRequest: opts.payNow ? true : undefined,
           // Training: pass sub-type, package id, and program type for auto-program creation
           trainingSubType: orderType === "training" ? trainingSubType : undefined,
-          programType: orderType === "training" ? trainingProgramType : undefined,
+          programType: orderType === "training" ? (noPets ? "CUSTOM" : trainingProgramType) : undefined,
           trainingPackageId: orderType === "training" && trainingSubType === "package" && selectedPackageId ? selectedPackageId : undefined,
           trainingBoardingStart: orderType === "training" && trainingSubType === "boarding" ? trainingBoardingStart : undefined,
           trainingBoardingEnd: orderType === "training" && trainingSubType === "boarding" ? trainingBoardingEnd : undefined,
@@ -673,7 +679,9 @@ export function CreateOrderModal({
     <div>
       <p className="text-sm text-petra-muted mb-4">בחר את סוג ההזמנה:</p>
       <div className="grid grid-cols-2 gap-3">
-        {CATEGORY_DEFS.filter((cat) => !(isGroomer && (cat.id === "training" || cat.id === "boarding"))).map((cat) => {
+        {CATEGORY_DEFS.filter((cat) => !(isGroomer && (cat.id === "training" || cat.id === "boarding")))
+          .filter((cat) => isPriceCategoryOffered(vertical, CATEGORY_LABELS[cat.id] ?? cat.label))
+          .map((cat) => {
           const Icon = cat.icon;
           return (
             <button
@@ -687,7 +695,7 @@ export function CreateOrderModal({
               )}>
                 <Icon className="w-7 h-7 text-white" />
               </div>
-              <span className="text-sm font-semibold text-petra-text">{cat.label}</span>
+              <span className="text-sm font-semibold text-petra-text">{priceCategoryLabel(vertical, cat.label)}</span>
             </button>
           );
         })}
@@ -923,7 +931,7 @@ export function CreateOrderModal({
               </label>
               {petsLoading ? (
                 <PetraLoader variant="inline" className="py-4" />
-              ) : customerPets.length === 0 ? (
+              ) : customerPets.length === 0 && !noPets ? (
                 <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-xl">
                   <span className="text-xl leading-none mt-0.5">🐾</span>
                   <div>
@@ -976,7 +984,7 @@ export function CreateOrderModal({
           {!isBoardingOrder && petsLoading && (
             <PetraLoader variant="inline" className="py-4" />
           )}
-          {!isBoardingOrder && !petsLoading && customerPets.length === 0 && (
+          {!isBoardingOrder && !petsLoading && customerPets.length === 0 && !noPets && (
             <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-xl">
               <span className="text-xl leading-none mt-0.5">🐾</span>
               <div>
@@ -1045,7 +1053,7 @@ export function CreateOrderModal({
         className="btn-primary w-full"
         disabled={
           !customerId ||
-          (!petsLoading && customerPets.length === 0) ||
+          (!petsLoading && customerPets.length === 0 && !noPets) ||
           (orderType === "training" && !petsLoading && customerPets.length > 0 && !selectedPetId)
         }
         onClick={handleAdvanceToItems}
@@ -1057,7 +1065,7 @@ export function CreateOrderModal({
 
   // ── Step 2: Items ─────────────────────────────────────────────────────────
   const renderItemsStep = () => {
-    const CHIP_CATS = ["פנסיון", "אילוף", "טיפוח", "מוצרים"];
+    const CHIP_CATS = offeredPriceCategories(vertical, ["פנסיון", "אילוף", "טיפוח", "מוצרים"]);
     const catItems = allItems.filter(i => (i.category ?? "").toLowerCase() === addCat.toLowerCase());
     const selectedAddItem = catItems.find(i => i.id === addItemId);
 
@@ -1091,15 +1099,15 @@ export function CreateOrderModal({
           <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-3 space-y-3">
             <p className="text-xs font-semibold text-blue-700 flex items-center gap-1.5">
               <GraduationCap className="w-3.5 h-3.5" />
-              סוג האילוף
+              {v("order.training_kind")}
             </p>
             <div className="grid grid-cols-2 gap-2">
               {([
                 { id: "private" as const, label: "מפגש בודד", sub: "ללא חבילה" },
-                { id: "package" as const, label: "חבילת אילוף", sub: "עם כמות מוגדרת" },
+                { id: "package" as const, label: v("order.package_label"), sub: "עם כמות מוגדרת" },
                 { id: "boarding" as const, label: "אילוף פנסיון", sub: "שהייה בכלבייה" },
                 { id: "group" as const, label: "אילוף קבוצתי", sub: "בחר קבוצה" },
-              ] as const).map((opt) => (
+              ] as const).filter((opt) => !(noPets && (opt.id === "boarding" || opt.id === "group"))).map((opt) => (
                 <button
                   key={opt.id}
                   type="button"
@@ -1122,7 +1130,7 @@ export function CreateOrderModal({
               <div className="space-y-2 pt-1">
                 <p className="text-xs font-semibold text-petra-muted">בחר חבילה</p>
                 {trainingPackages.length === 0 ? (
-                  <p className="text-xs text-petra-muted">אין חבילות פעילות. הגדר פריט אילוף עם כמות מפגשים במחירון.</p>
+                  <p className="text-xs text-petra-muted">{v("order.no_packages")}</p>
                 ) : (
                   <div className="space-y-1.5">
                     {trainingPackages.map((pkg) => {
@@ -1275,7 +1283,7 @@ export function CreateOrderModal({
                     : "bg-white text-petra-text border-petra-border hover:border-[#1a3a5c]/40"
                 )}
               >
-                {cat}
+                {priceCategoryLabel(vertical, cat)}
               </button>
             ))}
             <button
@@ -1530,7 +1538,7 @@ export function CreateOrderModal({
       : "";
     const footer = business?.phone ? `\n\n_לפניות ושאלות: ${business.phone}_` : "";
 
-    return `שלום ${name}! 🐾\n\n*דרישת תשלום*\nעבור: ${serviceNames}\n\n${itemLines}${discountLine}${taxLine}\n\n💰 סה"כ לתשלום: *${fmt(calc.total)}*${linkBlock}\n\nתודה שבחרתם בנו! 😊${footer}`;
+    return `${v("order.payment_request_greeting", { name })}\n\n*דרישת תשלום*\nעבור: ${serviceNames}\n\n${itemLines}${discountLine}${taxLine}\n\n💰 סה"כ לתשלום: *${fmt(calc.total)}*${linkBlock}\n\nתודה שבחרתם בנו! 😊${footer}`;
   };
 
   // Fallback: generate a one-off Stripe checkout link when no product URL is configured.
@@ -1657,7 +1665,7 @@ export function CreateOrderModal({
             handleClose();
           }}
         >
-          פתח תוכנית אילוף →
+          {v("order.open_program")}
         </button>
       )}
 
