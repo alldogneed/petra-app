@@ -6,6 +6,7 @@
 // in-app link clicks (sidebar etc.) — otherwise edits vanish silently.
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
 interface DirtyContextValue {
@@ -19,6 +20,7 @@ const SettingsDirtyContext = createContext<DirtyContextValue | null>(null);
 
 export function SettingsDirtyProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const t = useTranslations("settings.settingsDirtyContext");
   const [dirtyKeys, setDirtyKeys] = useState<Set<string>>(() => new Set());
   const [pending, setPending] = useState<(() => void) | null>(null);
   const isDirty = dirtyKeys.size > 0;
@@ -78,10 +80,10 @@ export function SettingsDirtyProvider({ children }: { children: React.ReactNode 
       {children}
       <ConfirmDialog
         open={pending !== null}
-        title="יש שינויים שלא נשמרו"
-        description="אם תמשיך, השינויים שעשית בעמוד הזה יאבדו."
-        confirmLabel="המשך בלי לשמור"
-        cancelLabel="הישאר בעמוד"
+        title={t("title")}
+        description={t("description")}
+        confirmLabel={t("confirm")}
+        cancelLabel={t("cancel")}
         danger
         onCancel={() => setPending(null)}
         onConfirm={() => {

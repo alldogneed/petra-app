@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import type { FullSession } from "@/lib/session";
 import type { SessionMembership } from "@/lib/permissions";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 
 interface Business {
   id: string;
@@ -17,9 +18,9 @@ interface Business {
 
 function buildNav(businessId: string) {
   return [
-    { name: "אנליטיקס", href: `/app/admin/${businessId}`, icon: BarChart2, exact: true },
-    { name: "חברי צוות", href: `/app/admin/${businessId}/members`, icon: Users },
-    { name: "יומן פעולות", href: `/app/admin/${businessId}/audit-logs`, icon: FileText },
+    { key: "analytics" as const, href: `/app/admin/${businessId}`, icon: BarChart2, exact: true },
+    { key: "members" as const, href: `/app/admin/${businessId}/members`, icon: Users },
+    { key: "auditLogs" as const, href: `/app/admin/${businessId}/audit-logs`, icon: FileText },
   ];
 }
 
@@ -34,6 +35,7 @@ export function TenantAdminShell({
   business: Business;
   membership: SessionMembership | null;
 }) {
+  const t = useTranslations("tenantAdmin.tenantAdminShell");
   const pathname = usePathname();
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
@@ -63,7 +65,7 @@ export function TenantAdminShell({
           <div className="min-w-0">
             <div className="text-white font-bold text-sm leading-none truncate">{business.name}</div>
             <div className="text-[10px] text-orange-400 font-semibold leading-none mt-0.5 tracking-wider">
-              פאנל ניהול
+              {t("panelLabel")}
             </div>
           </div>
         </div>
@@ -84,7 +86,7 @@ export function TenantAdminShell({
                 )}
               >
                 <Icon className="w-4 h-4 flex-shrink-0" />
-                {item.name}
+                {t(`nav.${item.key}`)}
               </Link>
             );
           })}
@@ -108,8 +110,8 @@ export function TenantAdminShell({
             href="/dashboard"
             className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/[0.06] text-sm transition-all mb-1"
           >
-            <ChevronLeft className="w-4 h-4" />
-            חזרה לאפליקציה
+            <ChevronLeft className="w-4 h-4 ltr:-scale-x-100" />
+            {t("backToApp")}
           </Link>
           <button
             onClick={handleLogout}
@@ -117,7 +119,7 @@ export function TenantAdminShell({
             className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/[0.06] text-sm transition-all"
           >
             <LogOut className="w-4 h-4" />
-            התנתק
+            {t("logout")}
           </button>
         </div>
       </aside>
@@ -125,11 +127,11 @@ export function TenantAdminShell({
       <div className="flex-1 min-w-0">
         <header className="sticky top-0 z-20 h-14 flex items-center px-6 bg-white/80 backdrop-blur border-b border-slate-100">
           <span className="text-xs font-medium text-slate-500">
-            {business.name} — פאנל ניהול
+            {t("headerTitle", { name: business.name })}
           </span>
           {business.status === "suspended" && (
-            <span className="mr-3 text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded font-medium">
-              מושהה
+            <span className="ms-3 text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded font-medium">
+              {t("suspended")}
             </span>
           )}
         </header>

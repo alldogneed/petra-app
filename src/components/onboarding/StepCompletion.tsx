@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { CheckCircle2, Calendar, Users, BarChart2 } from "lucide-react";
 
 interface StepCompletionProps {
@@ -8,32 +9,30 @@ interface StepCompletionProps {
 
 const NEXT_STEPS = [
   {
+    id: "customers",
     icon: Users,
     color: "#3B82F6",
     bg: "#EFF6FF",
-    title: "הוסף לקוחות",
-    desc: "ייבא את רשימת הלקוחות שלך",
     href: "/customers",
   },
   {
+    id: "calendar",
     icon: Calendar,
     color: "#8B5CF6",
     bg: "#F5F3FF",
-    title: "קבע תורים",
-    desc: "פתח את היומן ותתחיל לתזמן",
     href: "/calendar",
   },
   {
+    id: "dashboard",
     icon: BarChart2,
     color: "#10B981",
     bg: "#ECFDF5",
-    title: "צפה בדשבורד",
-    desc: "ראה את כל הנתונים במקום אחד",
     href: "/dashboard",
   },
 ];
 
 export default function StepCompletion({ onComplete }: StepCompletionProps) {
+  const t = useTranslations("onboarding.stepCompletion");
   return (
     <div className="space-y-8 text-center animate-fade-in">
       {/* Success icon */}
@@ -49,15 +48,15 @@ export default function StepCompletion({ onComplete }: StepCompletionProps) {
       {/* Message */}
       <div className="space-y-2">
         <h1 className="text-2xl font-bold text-petra-text">
-          ¡ הכל מוכן! 🎉
+          {t("title")}
         </h1>
         <p className="text-petra-muted max-w-sm mx-auto">
-          הגדרנו את הבסיס. עכשיו אפשר להתחיל לנהל את העסק בצורה חכמה יותר.
+          {t("subtitle")}
         </p>
       </div>
 
       {/* Next steps */}
-      <div className="grid grid-cols-3 gap-3 text-right">
+      <div className="grid grid-cols-3 gap-3 text-start">
         {NEXT_STEPS.map((step) => {
           const Icon = step.icon;
           return (
@@ -72,8 +71,8 @@ export default function StepCompletion({ onComplete }: StepCompletionProps) {
               >
                 <Icon className="w-4 h-4" style={{ color: step.color }} />
               </div>
-              <p className="text-sm font-semibold text-petra-text">{step.title}</p>
-              <p className="text-xs text-petra-muted leading-snug">{step.desc}</p>
+              <p className="text-sm font-semibold text-petra-text">{t(`nextSteps.${step.id}.title`)}</p>
+              <p className="text-xs text-petra-muted leading-snug">{t(`nextSteps.${step.id}.desc`)}</p>
             </div>
           );
         })}
@@ -86,7 +85,7 @@ export default function StepCompletion({ onComplete }: StepCompletionProps) {
           background: "linear-gradient(135deg, #F97316, #FB923C)",
         }}
       >
-        בואו נתחיל! 🚀
+        {t("start")}
       </button>
     </div>
   );

@@ -13,39 +13,35 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 const BASE_ACTIONS = [
   {
     id: "import",
-    label: "לייבא לקוחות קיימים",
     icon: Upload,
     href: "/customers",
     color: "#6366F1",
   },
   {
     id: "services",
-    label: "להגדיר שירותים ומחירון",
     icon: Tag,
     href: "/price-lists",
     color: "#F97316",
   },
   {
     id: "payments",
-    label: "לחבר סליקה",
     icon: CreditCard,
     href: "/settings",
     color: "#10B981",
   },
   {
     id: "staff",
-    label: "להוסיף עובדים",
     icon: UserPlus,
     href: "/settings",
     color: "#8B5CF6",
   },
   {
     id: "automations",
-    label: "להגדיר אוטומציות מתקדמות",
     icon: Zap,
     href: "/messages",
     color: "#EC4899",
@@ -54,25 +50,22 @@ const BASE_ACTIONS = [
 
 const BUSINESS_TYPE_EXTRAS: Record<
   string,
-  { id: string; label: string; icon: typeof Hotel; href: string; color: string }
+  { id: string; icon: typeof Hotel; href: string; color: string }
 > = {
-  פנסיון: {
+  פנסיון: { // i18n-ok — key = stored OnboardingProfile.businessType
     id: "boarding",
-    label: "ניהול חדרים ויזואלי",
     icon: Hotel,
     href: "/boarding",
     color: "#0EA5E9",
   },
-  מספרה: {
+  מספרה: { // i18n-ok — key = stored OnboardingProfile.businessType
     id: "grooming",
-    label: "ניהול תורים + שירותי טיפוח",
     icon: Scissors,
     href: "/calendar",
     color: "#0EA5E9",
   },
-  "מאלף כלבים": {
+  "מאלף כלבים": { // i18n-ok — key = stored OnboardingProfile.businessType
     id: "training",
-    label: "ניהול תהליכי אילוף",
     icon: GraduationCap,
     href: "/customers",
     color: "#0EA5E9",
@@ -85,6 +78,7 @@ interface WhatNextScreenProps {
 
 export function WhatNextScreen({ businessType }: WhatNextScreenProps) {
   const router = useRouter();
+  const t = useTranslations("onboarding.whatNextScreen");
 
   // Build action list with business-type-specific promotion
   const actions = [...BASE_ACTIONS];
@@ -102,10 +96,10 @@ export function WhatNextScreen({ businessType }: WhatNextScreenProps) {
             <Image src="/logo.svg" alt="Petra" width={56} height={56} className="w-full h-full object-cover" />
           </div>
           <h1 className="text-xl font-bold text-petra-text mb-2">
-            מה בא לך לעשות עכשיו?
+            {t("title")}
           </h1>
           <p className="text-sm text-petra-muted">
-            בחר את הצעד הבא שלך — אפשר תמיד לחזור לכאן.
+            {t("subtitle")}
           </p>
         </div>
 
@@ -121,7 +115,7 @@ export function WhatNextScreen({ businessType }: WhatNextScreenProps) {
               <button
                 key={action.id}
                 onClick={() => router.push(action.href)}
-                className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl border transition-all duration-200 text-right group"
+                className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl border transition-all duration-200 text-start group"
                 style={{
                   background: isPromoted ? "#FFF7ED" : "#FFFFFF",
                   borderColor: isPromoted ? "#FDBA74" : "#E2E8F0",
@@ -137,14 +131,14 @@ export function WhatNextScreen({ businessType }: WhatNextScreenProps) {
                   />
                 </div>
                 <span className="flex-1 text-sm font-medium text-petra-text group-hover:text-brand-600 transition-colors">
-                  {action.label}
+                  {t(`actions.${action.id}`)}
                   {isPromoted && (
-                    <span className="mr-2 text-xs text-brand-500 font-semibold">
-                      מומלץ
+                    <span className="ms-2 text-xs text-brand-500 font-semibold">
+                      {t("recommended")}
                     </span>
                   )}
                 </span>
-                <ArrowLeft className="w-4 h-4 text-slate-300 group-hover:text-brand-500 transition-colors" />
+                <ArrowLeft className="w-4 h-4 text-slate-300 group-hover:text-brand-500 transition-colors ltr:-scale-x-100" />
               </button>
             );
           })}
@@ -156,7 +150,7 @@ export function WhatNextScreen({ businessType }: WhatNextScreenProps) {
             onClick={() => router.push("/dashboard")}
             className="text-sm text-petra-muted hover:text-petra-text transition-colors"
           >
-            קח אותי לדשבורד
+            {t("toDashboard")}
           </button>
         </div>
       </div>

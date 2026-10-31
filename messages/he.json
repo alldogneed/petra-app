@@ -312,6 +312,386 @@
       "scheduledMessages": "הודעות מתוזמנות"
     }
   },
+  "businessAdmin": {
+    "businessAdminPage": {
+      "tabs": {
+        "overview": "סקירה",
+        "activity": "פעילות",
+        "ai": "פעילות AI",
+        "team": "צוות",
+        "sessions": "סשנים",
+        "security": "התראות אבטחה",
+        "health": "בריאות נתונים",
+        "messages": "הודעות מערכת",
+        "billing": "מנוי וחיוב"
+      },
+      "restricted": {
+        "title": "גישה מוגבלת",
+        "body": "דף זה זמין לבעלי העסק בלבד."
+      },
+      "header": {
+        "title": "ניהול ובקרה",
+        "subtitle": "פיקוח על פעילות המשתמשים וניהול הצוות",
+        "monitoringActive": "ניטור פעיל"
+      },
+      "tierGate": {
+        "title": "ניהול צוות ומשתמשים",
+        "description": "הוסף עובדים נוספים, נהל הרשאות, ועקוב אחר פעילות הצוות. זמין במסלול Pro ומעלה."
+      }
+    },
+    "activityTab": {
+      "errors": {
+        "loadData": "שגיאה בטעינת הנתונים",
+        "dateRange": "תאריך ההתחלה אחרי תאריך הסיום",
+        "export": "שגיאה בייצוא",
+        "loadLog": "שגיאה בטעינת יומן הפעילות"
+      },
+      "toasts": {
+        "exported": "יומן הפעילות יוצא לאקסל"
+      },
+      "filters": {
+        "member": "חבר צוות",
+        "allMembers": "כל חברי הצוות",
+        "action": "פעולה",
+        "from": "מתאריך",
+        "to": "עד תאריך",
+        "search": "חיפוש",
+        "searchPlaceholder": "שם משתמש או פריט…"
+      },
+      "actions": {
+        "exportExcel": "ייצוא לאקסל",
+        "refresh": "רענן",
+        "clearFilters": "נקה סינון",
+        "loadMore": "טען עוד"
+      },
+      "empty": {
+        "noMatch": "לא נמצאה פעילות שתואמת את הסינון",
+        "none": "אין פעילות להצגה"
+      },
+      "table": {
+        "user": "משתמש",
+        "action": "פעולה",
+        "item": "פריט",
+        "time": "זמן"
+      }
+    },
+    "aiActivityTab": {
+      "status": {
+        "success": "הצליח",
+        "error": "שגיאה",
+        "denied": "נחסם"
+      },
+      "errors": {
+        "loadData": "שגיאה בטעינת הנתונים",
+        "loadAi": "שגיאה בטעינת פעילות ה-AI"
+      },
+      "empty": {
+        "noConnectionsTitle": "עוד לא חוברו עוזרי AI לעסק",
+        "noConnectionsBody": "כשתחברו את Claude, ChatGPT או עוזר אחר — כל פעולה שהוא מבצע תופיע כאן.",
+        "connectCta": "לחיבור עוזר AI",
+        "noMatch": "לא נמצאו פעולות AI שתואמות את הסינון",
+        "none": "עדיין אין פעולות AI ב-90 הימים האחרונים"
+      },
+      "filters": {
+        "connection": "חיבור",
+        "allConnections": "כל החיבורים",
+        "revokedSuffix": " (בוטל)",
+        "status": "סטטוס",
+        "allStatuses": "כל הסטטוסים"
+      },
+      "actions": {
+        "refresh": "רענן",
+        "loadMore": "טען עוד"
+      },
+      "rangeNote": "מוצגות פעולות מ-90 הימים האחרונים.",
+      "createdBy": "נוצר ע״י {name}"
+    },
+    "billingTab": {
+      "eventTypes": {
+        "activate": "הפעלת מנוי",
+        "renew": "חידוש מנוי",
+        "cancel": "ביטול",
+        "expired": "פקיעה",
+        "error": "שגיאה"
+      },
+      "tiers": {
+        "free": "חינמי",
+        "basic": "בייסיק",
+        "pro": "פרו",
+        "groomer": "גרומר+",
+        "service_dog": "Service Dog"
+      },
+      "current": {
+        "title": "מצב המנוי הנוכחי",
+        "plan": "מסלול",
+        "status": "סטטוס",
+        "expired": "פג תוקף",
+        "active": "פעיל",
+        "inactive": "לא פעיל",
+        "validUntil": "תוקף עד",
+        "daysLeft": "ימים נותרים"
+      },
+      "actions": {
+        "changePlan": "שנה מסלול",
+        "subscribe": "רכוש מנוי",
+        "cancelOrDowngrade": "בטל מנוי / שנמך"
+      },
+      "history": {
+        "title": "היסטוריית עסקאות",
+        "empty": "אין עסקאות עדיין",
+        "deal": "עסקה #{id}"
+      }
+    },
+    "dataHealthTab": {
+      "severity": {
+        "high": "חמור",
+        "medium": "בינוני",
+        "low": "נמוך"
+      },
+      "errors": {
+        "load": "שגיאה בטעינת בריאות הנתונים",
+        "loadChecks": "לא הצלחנו לטעון את בדיקות הנתונים."
+      },
+      "score": {
+        "outOf100": "מתוך 100",
+        "label": "ציון בריאות הנתונים"
+      },
+      "check": {
+        "ok": "תקין ✓",
+        "showing": "מוצגים {shown} מתוך {total}"
+      },
+      "actions": {
+        "retry": "נסו שוב",
+        "recheck": "בדוק שוב"
+      },
+      "summary": {
+        "failing": "{count} בדיקות דורשות טיפול",
+        "allPassed": "כל הבדיקות עברו",
+        "updated": " · עודכן {time}"
+      }
+    },
+    "overviewTab": {
+      "stats": {
+        "activeMembers": "חברי צוות פעילים",
+        "customers": "לקוחות",
+        "todayAppointments": "תורים היום",
+        "monthRevenue": "הכנסות החודש"
+      },
+      "recent": {
+        "title": "פעילות אחרונה",
+        "empty": "אין פעילות עדיין"
+      },
+      "actions": {
+        "refresh": "רענן"
+      }
+    },
+    "shared": {
+      "roles": {
+        "owner": "בעלים",
+        "admin": "מנהל",
+        "manager": "מנג׳ר",
+        "user": "עובד"
+      },
+      "relativeTime": {
+        "now": "עכשיו",
+        "minutesAgo": "לפני {count} דק׳",
+        "hoursAgo": "לפני {count} שע׳",
+        "daysAgo": "לפני {count} ימים"
+      },
+      "device": {
+        "unknown": "לא ידוע",
+        "browser": "דפדפן"
+      }
+    },
+    "permissionsMatrix": {
+      "errors": {
+        "save": "שגיאה בשמירת ההרשאות",
+        "saveRetry": "שגיאה בשמירת ההרשאות. נסה שוב."
+      },
+      "toasts": {
+        "reset": "ההרשאות אופסו לברירת המחדל",
+        "saved": "ההרשאות נשמרו"
+      },
+      "empty": "אין עובדים מלבד הבעלים — הוסף עובדים בהגדרות → צוות.",
+      "legend": {
+        "effective": "הערך המוצג הוא ההרשאה בפועל. בעלים תמיד בעלי גישה מלאה.",
+        "override": "שונה ידנית (גובר על ברירת המחדל של התפקיד)"
+      },
+      "memberColumn": "עובד",
+      "inactive": "מושבת",
+      "cell": {
+        "allowed": "מותר",
+        "blocked": "חסום",
+        "overrideSuffix": " (שונה ידנית — ברירת המחדל לתפקיד: {roleDefault})",
+        "defaultSuffix": " (ברירת מחדל של התפקיד)"
+      },
+      "resetTitle": "מחיקת כל השינויים הידניים — חזרה להרשאות התפקיד",
+      "reset": "איפוס לברירת מחדל",
+      "footer": "כל שינוי נשמר מיד ונרשם ביומן הביקורת."
+    },
+    "securityAlertsTab": {
+      "errors": {
+        "load": "שגיאה בטעינת ההתראות",
+        "save": "שגיאה בשמירה"
+      },
+      "toasts": {
+        "saved": "הגדרות ההתראות נשמרו"
+      },
+      "loadFailed": "לא ניתן לטעון את הגדרות ההתראות",
+      "tierNotice": "התראות אבטחה נשלחות רק במסלול הכולל ניהול צוות. ההגדרות נשמרות ויופעלו לאחר שדרוג.",
+      "title": "התראות אבטחה",
+      "subtitle": "קבל/י הודעה כשמישהו בצוות מבצע פעולה רגישה. עד 20 התראות לשעה לעסק.",
+      "enabled": {
+        "title": "הפעלת התראות",
+        "description": "כיבוי עוצר את כל ההתראות (היומן ממשיך להירשם)."
+      },
+      "email": {
+        "title": "אימייל",
+        "description": "נשלח לכתובת האימייל של כל בעלי העסק."
+      },
+      "whatsapp": {
+        "description": "הודעה לטלפון של העסק (מוגדר בהגדרות → פרטי העסק). נשלח כמיטב היכולת."
+      },
+      "ownActions": {
+        "title": "גם על פעולות של בעלי העסק",
+        "description": "כברירת מחדל לא נשלחת התראה על פעולות שביצעת בעצמך (חוץ מכניסה ממכשיר חדש)."
+      },
+      "rulesHeading": "על מה להתריע",
+      "discardChanges": "ביטול שינויים",
+      "recent": {
+        "title": "פעולות רגישות אחרונות",
+        "subtitle": "14 הימים האחרונים · כל המשתמשים (כולל בעלים)",
+        "empty": "לא בוצעו פעולות רגישות בתקופה זו"
+      }
+    },
+    "sessionsTab": {
+      "errors": {
+        "load": "שגיאה בטעינת הסשנים",
+        "revokeOne": "שגיאה בניתוק הסשן",
+        "revokeAll": "שגיאה בניתוק הסשנים"
+      },
+      "toasts": {
+        "revokedOne": "הסשן נותק",
+        "revokedAll": "נותקו {count} סשנים",
+        "noneToRevoke": "אין סשנים לניתוק"
+      },
+      "header": "סשנים פעילים · מתרענן כל 30 שניות",
+      "refresh": "רענן",
+      "empty": "אין סשנים פעילים כרגע",
+      "you": " (את/ה)",
+      "confirm": {
+        "revokeAll": "לנתק את כל הסשנים של {name}? המשתמש/ת יידרש/תידרש להתחבר מחדש בכל המכשירים.",
+        "revokeOne": "לנתק את הסשן של {name} ({device})?"
+      },
+      "revokeAll": "נתק את כל הסשנים",
+      "badges": {
+        "thisDevice": "המכשיר הזה",
+        "newDeviceTitle": "מכשיר שלא נראה אצל המשתמש ב-90 הימים האחרונים",
+        "newDevice": "מכשיר חדש"
+      },
+      "status": {
+        "online": "מחובר",
+        "inactive": "לא פעיל"
+      },
+      "lastSeen": "נראה {when}",
+      "connected": "· התחבר {when}",
+      "revokeOne": "נתק"
+    },
+    "systemMessagesTab": {
+      "types": {
+        "info": "מידע",
+        "warning": "אזהרה",
+        "success": "הצלחה",
+        "error": "שגיאה"
+      },
+      "toasts": {
+        "updated": "הודעה עודכנה",
+        "created": "הודעה נוצרה",
+        "deleted": "הודעה נמחקה"
+      },
+      "errors": {
+        "save": "שגיאה בשמירה",
+        "delete": "שגיאה במחיקה"
+      },
+      "count": "{count} הודעות במערכת",
+      "newMessage": "הודעה חדשה",
+      "form": {
+        "editTitle": "עריכת הודעה",
+        "titlePlaceholder": "כותרת *",
+        "contentPlaceholder": "תוכן ההודעה *",
+        "expiresPlaceholder": "תפוגה (אופציונלי)",
+        "actionUrlPlaceholder": "כתובת קישור (אופציונלי)",
+        "actionLabelPlaceholder": "טקסט לכפתור (אופציונלי)",
+        "saveChanges": "שמור שינויים",
+        "create": "צור הודעה"
+      },
+      "empty": "אין הודעות מערכת",
+      "table": {
+        "type": "סוג",
+        "titleContent": "כותרת / תוכן",
+        "date": "תאריך",
+        "status": "סטטוס"
+      },
+      "expired": "פג תוקף",
+      "read": "נקרא",
+      "unread": "לא נקרא",
+      "editTitle": "ערוך"
+    },
+    "teamTab": {
+      "periods": {
+        "7": "7 ימים",
+        "30": "30 יום",
+        "90": "90 יום"
+      },
+      "errors": {
+        "loadTeam": "שגיאה בטעינת הצוות",
+        "loadStats": "שגיאה בטעינת הסיכום",
+        "update": "שגיאה בעדכון"
+      },
+      "toasts": {
+        "updated": "עודכן בהצלחה"
+      },
+      "summary": {
+        "title": "סיכום לפי עובד",
+        "periodAria": "תקופה",
+        "loadFailed": "לא ניתן לטעון את סיכום הפעילות",
+        "empty": "אין עובדים להצגה"
+      },
+      "table": {
+        "title": "ניהול צוות",
+        "user": "משתמש",
+        "role": "תפקיד",
+        "lastActivity": "פעילות אחרונה",
+        "status": "סטטוס"
+      },
+      "you": " (אתה)",
+      "actions": {
+        "save": "שמור",
+        "cancel": "בטל",
+        "changeRole": "שנה תפקיד",
+        "deactivate": "השבת משתמש",
+        "activate": "הפעל משתמש"
+      },
+      "never": "מעולם לא",
+      "status": {
+        "active": "פעיל",
+        "inactive": "מושבת"
+      },
+      "permissionsTitle": "הרשאות לפי עובד",
+      "card": {
+        "appointmentsCompleted": "תורים שהושלמו",
+        "appointmentsCreated": "{count} נוצרו",
+        "customersCreated": "לקוחות חדשים",
+        "leadsWon": "לידים שנסגרו",
+        "leadsLost": "{count} אבדו",
+        "tasksCompleted": "משימות שהושלמו",
+        "paymentsRecorded": "תשלומים שנרשמו",
+        "deletes": "מחיקות",
+        "lastActive": "פעיל לאחרונה:",
+        "openTasks": "משימות פתוחות: <o>{open}</o> / באיחור: <d>{overdue}</d>"
+      }
+    }
+  },
   "calendar": {
     "calendarPage": {
       "days": {
@@ -2997,6 +3377,190 @@
       }
     }
   },
+  "import": {
+    "importModal": {
+      "errors": {
+        "fileTypeRequired": "נדרש קובץ Excel (.xlsx) או CSV",
+        "parseFailed": "שגיאה בניתוח הקובץ",
+        "importFailed": "שגיאה בייבוא"
+      },
+      "idle": {
+        "downloadTemplate": "הורד קובץ לדוגמא (Excel)",
+        "dropHint": "גרור קובץ לכאן או לחץ לבחירה",
+        "fileTypes": "Excel (.xlsx) או CSV"
+      },
+      "uploading": {
+        "analyzing": "...מנתח קובץ"
+      },
+      "preview": {
+        "fileName": "קובץ: <b>{name}</b>",
+        "totalRows": "סה״כ שורות",
+        "valid": "תקינות",
+        "errors": "שגיאות",
+        "errorsCount": "שגיאות ({count})",
+        "row": "שורה {row}:",
+        "importRecords": "ייבא {count} רשומות"
+      },
+      "executing": {
+        "importing": "...מייבא"
+      },
+      "done": {
+        "title": "הייבוא הושלם!",
+        "created": "נוצרו {created} רשומות מתוך {total}",
+        "errorsCount": "{count} שגיאות"
+      }
+    }
+  },
+  "intake": {
+    "intakeFormsPage": {
+      "close": "סגור",
+      "cancel": "ביטול",
+      "copyLink": "העתק קישור",
+      "statuses": {
+        "DRAFT": "טיוטה",
+        "SENT": "נשלח",
+        "OPENED": "נפתח",
+        "SUBMITTED": "הוגש",
+        "EXPIRED": "פג תוקף"
+      },
+      "viewResponses": {
+        "title": "תשובות הטופס",
+        "submittedOn": " · הוגש {date}",
+        "loadError": "שגיאה בטעינת התשובות",
+        "empty": "לא נמצאו תשובות לטופס זה",
+        "medications": "תרופות",
+        "yes": "כן",
+        "no": "לא",
+        "sections": {
+          "dog": "פרטי הכלב",
+          "health": "בריאות",
+          "behavior": "התנהגות"
+        },
+        "fields": {
+          "customerName": "שם הלקוח",
+          "customerPhone": "טלפון הלקוח",
+          "name": "שם הכלב",
+          "breed": "גזע",
+          "gender": "מין",
+          "weight": "משקל",
+          "birthDate": "תאריך לידה",
+          "allergies": "אלרגיות",
+          "medicalConditions": "מצבים רפואיים",
+          "surgeriesHistory": "היסטוריית ניתוחים",
+          "activityLimitations": "מגבלות פעילות",
+          "vetName": "וטרינר מטפל",
+          "vetPhone": "טלפון וטרינר",
+          "neuteredSpayed": "מעוקר/מסורס",
+          "originInfo": "מקור הכלב",
+          "timeWithOwner": "זמן אצל הבעלים",
+          "foodNotes": "הערות האכלה",
+          "dogAggression": "תוקפנות כלפי כלבים",
+          "humanAggression": "תוקפנות כלפי אנשים",
+          "leashReactivity": "ריאקטיביות ברצועה",
+          "leashPulling": "משיכה ברצועה",
+          "jumping": "קפיצות",
+          "separationAnxiety": "חרדת נטישה",
+          "excessiveBarking": "נביחות יתר",
+          "destruction": "הרס חפצים",
+          "resourceGuarding": "שמירת משאבים",
+          "fears": "פחדים",
+          "badWithKids": "קושי עם ילדים",
+          "houseSoiling": "עשיית צרכים בבית",
+          "biteHistory": "היסטוריית נשיכות",
+          "biteDetails": "פרטי נשיכות",
+          "triggers": "טריגרים",
+          "customIssues": "בעיות נוספות",
+          "priorTraining": "אילוף קודם",
+          "priorTrainingDetails": "פרטי אילוף קודם"
+        }
+      },
+      "newModal": {
+        "createError": "שגיאה ביצירת טופס הרישום. נסה שוב.",
+        "createdTitle": "טופס נוצר בהצלחה",
+        "sendWhatsApp": "שלח בוואטסאפ",
+        "title": "יצירת טופס קבלה",
+        "searchLabel": "חיפוש לקוח קיים",
+        "searchPlaceholder": "שם או טלפון...",
+        "phoneLabel": "או מספר טלפון ישיר",
+        "creating": "יוצר...",
+        "create": "צור טופס"
+      },
+      "gate": {
+        "title": "טפסי קליטה",
+        "description": "שלח טפסי קליטה ללקוחות לפני ביקור ראשון — מידע רפואי, התנהגותי ועוד. שדרג כדי להפעיל."
+      },
+      "toasts": {
+        "deleted": "הטופס נמחק",
+        "deleteError": "שגיאה במחיקת הטופס",
+        "resendError": "שגיאה בשליחת הטופס מחדש"
+      },
+      "filters": {
+        "ALL": "הכל",
+        "SENT": "נשלחו",
+        "OPENED": "נפתחו",
+        "SUBMITTED": "הוגשו",
+        "EXPIRED": "פגי תוקף"
+      },
+      "header": {
+        "title": "טפסי קליטה",
+        "subtitle": "ניהול טפסי קליטה שנשלחו ללקוחות",
+        "newForm": "טופס חדש"
+      },
+      "empty": {
+        "none": "אין טפסי קליטה עדיין",
+        "noneInStatus": "אין טפסים בסטטוס זה",
+        "sendFirst": "שלח טופס ראשון"
+      },
+      "table": {
+        "client": "לקוח",
+        "status": "סטטוס",
+        "sent": "נשלח",
+        "opened": "נפתח",
+        "submitted": "הוגש",
+        "expires": "פג תוקף"
+      },
+      "row": {
+        "viewResponses": "צפה בתשובות",
+        "resend": "שלח שוב",
+        "delete": "מחק טופס"
+      },
+      "deleteModal": {
+        "title": "מחיקת טופס",
+        "noRecipient": "ללא נמען",
+        "body": "האם למחוק את טופס הקליטה? פעולה זו בלתי הפיכה",
+        "includingAnswers": " — כולל התשובות שהוגשו",
+        "deleting": "מוחק...",
+        "delete": "מחק"
+      }
+    },
+    "intakeBanner": {
+      "title": "חסרים פרטים על הכלב — שלח ללקוח טופס מילוי מהיר.",
+      "noDogs": "לא נרשם כלב. ",
+      "missingHealth": "חסרים פרטי בריאות. ",
+      "missingBehavior": "חסר שאלון התנהגות. ",
+      "alreadySent": " (טופס כבר נשלח — ניתן לשלוח שוב)",
+      "sendWhatsApp": "שלח בוואטסאפ"
+    },
+    "intakeWhatsAppModal": {
+      "toasts": {
+        "whatsappOpened": "נפתח וואטסאפ לשליחה",
+        "linkCopied": "הקישור הועתק"
+      },
+      "title": "שליחת טופס בוואטסאפ",
+      "subtitle": "שלח טופס קליטה ללקוח",
+      "clientName": "שם לקוח",
+      "phoneLabel": "מספר טלפון *",
+      "phoneHint": "פורמט ישראלי, ניתן גם +972",
+      "previewLabel": "תצוגה מקדימה של ההודעה",
+      "linkAutoInserted": "הקישור יוכנס אוטומטית",
+      "linkCreated": "קישור נוצר:",
+      "validUntil": "בתוקף עד: {date}",
+      "noPermission": "אין לך הרשאה",
+      "sendWhatsApp": "שלח בוואטסאפ",
+      "copyLink": "העתק קישור",
+      "cancel": "ביטול"
+    }
+  },
   "layout": {
     "rootLayout": {
       "title": "Petra — מערכת ניהול לעסקי חיות מחמד",
@@ -3982,6 +4546,772 @@
         "d31to60": "31–60 ימים",
         "gt60": "מעל 60 ימים"
       }
+    }
+  },
+  "messages": {
+    "messagesPage": {
+      "title": "הודעות",
+      "tierGate": {
+        "title": "תבניות הודעות מותאמות",
+        "description": "צור ועורך תבניות WhatsApp מותאמות אישית. שלח הודעות בזמן הנכון לכל לקוח."
+      }
+    },
+    "scheduledMessagesPage": {
+      "title": "הודעות אוטומטיות",
+      "subtitle": "הודעות שנוצרו אוטומטית על ידי המערכת ומתוזמנות לשליחה. מתחת ל\"נשלח\" מופיע הדיווח של וואטסאפ עצמו: ✓ בדרך ללקוח, ✓✓ נמסר או ✓✓ נקרא — ואם ההודעה לא הגיעה ללקוח תראו כאן \"לא נמסר\" ואת הסיבה.",
+      "refresh": "רענן",
+      "resultsCount": "{count} תוצאות",
+      "delivery": {
+        "noReceipt": "אין אישור מסירה",
+        "noReceiptTitle": "הודעה שנשלחה לפני שהמערכת התחילה לעקוב אחרי מסירה",
+        "read": "✓✓ נקרא",
+        "delivered": "✓✓ נמסר",
+        "failed": "לא נמסר",
+        "onTheWay": "✓ בדרך ללקוח"
+      },
+      "status": {
+        "PENDING": "ממתין",
+        "SENT": "נשלח",
+        "FAILED": "נכשל",
+        "CANCELED": "בוטל"
+      },
+      "statCards": {
+        "PENDING": "ממתינות",
+        "SENT": "נשלחו",
+        "FAILED": "נכשלו",
+        "CANCELED": "בוטלו"
+      },
+      "statusFilters": {
+        "ALL": "הכל",
+        "PENDING": "ממתינות",
+        "SENT": "נשלחו",
+        "FAILED": "נכשלו",
+        "CANCELED": "בוטלו"
+      },
+      "channelFilters": {
+        "ALL": "כל הערוצים",
+        "whatsapp": "WhatsApp"
+      },
+      "recipient": {
+        "lead": "ליד",
+        "serviceDogRecipient": "מקבל כלב שירות",
+        "noClientCard": "נמען ללא כרטיס לקוח"
+      },
+      "preview": {
+        "approvedTemplate": "תבנית מאושרת של Meta",
+        "freeText": "טקסט חופשי",
+        "loadError": "לא הצלחנו לטעון את תוכן ההודעה",
+        "unavailable": "ההודעה נשלחה בתבנית מאושרת, אבל לא ניתן להציג כרגע את הנוסח שלה.",
+        "noContent": "אין תוכן שמור להודעה הזו.",
+        "failedNote": "ההודעה לא נשלחה ללקוח. זה הנוסח שתוכנן.",
+        "reconstructed": "הנוסח שוחזר מפרטי התור."
+      },
+      "toasts": {
+        "cancelErrorShort": "שגיאה בביטול",
+        "canceled": "הודעה בוטלה בהצלחה",
+        "cancelError": "שגיאה בביטול הודעה",
+        "sendErrorShort": "שגיאה בשליחה",
+        "stub": "הודעה נרשמה (Stub — אין Twilio)",
+        "sent": "הודעה נשלחה בהצלחה!",
+        "sendError": "שגיאה בשליחת הודעה"
+      },
+      "empty": {
+        "title": "אין הודעות מתוזמנות",
+        "noMatches": "לא נמצאו הודעות עם הפילטרים הנוכחיים",
+        "description": "הודעות יופיעו כאן כשאוטומציות יפעלו",
+        "setupAutomation": "הגדר אוטומציה"
+      },
+      "table": {
+        "client": "לקוח",
+        "channel": "ערוץ",
+        "content": "תוכן ההודעה",
+        "sendAt": "מועד שליחה",
+        "status": "סטטוס",
+        "actions": "פעולות",
+        "previewHint": "לחצו לצפייה בהודעה המלאה",
+        "late": "• באיחור"
+      },
+      "actions": {
+        "sendNow": "שלח עכשיו",
+        "cancel": "בטל"
+      },
+      "pagination": {
+        "previous": "עמוד קודם",
+        "next": "עמוד הבא",
+        "pageOf": "עמוד {page} מתוך {totalPages}"
+      },
+      "cancelModal": {
+        "title": "ביטול הודעה",
+        "body": "ההודעה לא תישלח. לא ניתן לבטל פעולה זו.",
+        "back": "חזור",
+        "canceling": "מבטל...",
+        "confirm": "בטל הודעה"
+      }
+    },
+    "messagesPanel": {
+      "tabs": {
+        "templates": "תבניות",
+        "bulk": "שליחה קבוצתית"
+      },
+      "triggers": {
+        "appointment_confirmation": {
+          "label": "אישור קביעת פגישה",
+          "description": "שלח מיד כשנקבעת פגישה חדשה"
+        },
+        "appointment_reminder": {
+          "label": "תזכורת לפני פגישה",
+          "description": "שלח הודעה X שעות לפני הפגישה"
+        },
+        "appointment_followup": {
+          "label": "מעקב אחרי פגישה",
+          "description": "שלח הודעה X שעות אחרי הפגישה"
+        },
+        "payment_request": {
+          "label": "דרישת תשלום",
+          "description": "שלח מיד כשנוצרת הזמנה חדשה"
+        },
+        "lead_followup": {
+          "label": "ליד חדש",
+          "description": "שלח הודעה X שעות אחרי יצירת ליד"
+        },
+        "birthday_reminder": {
+          "label": "יום הולדת לכלב",
+          "description": "שלח ביום ההולדת בשעה 08:00"
+        },
+        "boarding_confirmation": {
+          "label": "אישור קביעת פנסיון",
+          "description": "שלח מיד כשנקבעת שהייה בפנסיון"
+        },
+        "boarding_pickup": {
+          "label": "תזכורת איסוף מפנסיון",
+          "description": "שלח הודעה X שעות לפני יום האיסוף"
+        },
+        "boarding_thank_you": {
+          "label": "תודה אחרי פנסיון",
+          "description": "שלח שעה אחרי סיום השהייה"
+        }
+      },
+      "offset": {
+        "appointmentConfirmation": "מיידי בקביעת פגישה",
+        "paymentRequest": "מיידי ביצירת הזמנה",
+        "newCustomer": "מיידי בהוספת לקוח",
+        "birthday": "ביום ההולדת ב-08:00",
+        "hoursBefore": "{offset} שעות לפני",
+        "hoursAfter": "{offset} שעות אחרי",
+        "hoursAfterCreation": "{offset} שעות אחרי יצירה",
+        "hoursBeforePickup": "{offset} שעות לפני האיסוף",
+        "hours": "{offset} שעות"
+      },
+      "sample": {
+        "customerName": "ישראל ישראלי",
+        "petName": "רקס",
+        "petAge": "3 שנים",
+        "date": "יום שני, 10 במרץ",
+        "time": "14:00",
+        "serviceName": "אילוף פרטני"
+      },
+      "locations": {
+        "appointment_reminder": "לוח שנה ← תור ← כפתור WhatsApp",
+        "appointment_confirmation": "נשלח אוטומטית בעת קביעת תור",
+        "payment_request": "הזמנה ← סעיף תשלומים ← כפתור דרישת תשלום",
+        "lead_followup": "נשלח אוטומטית מספר שעות אחרי יצירת ליד",
+        "appointment_followup": "פרופיל לקוח ← תורים שהושלמו ← מעקב",
+        "birthday_reminder": "פרופיל לקוח ← כרטיס חיית המחמד ← יום הולדת",
+        "new_customer": "פרופיל לקוח ← כפתור ברוכים הבאים",
+        "boarding_confirmation": "נשלח אוטומטית בעת קביעת שהייה בפנסיון",
+        "boarding_pickup": "ניהול פנסיון ← רשימת שהיות",
+        "boarding_thank_you": "נשלח אוטומטית שעה אחרי סיום שהייה"
+      },
+      "sendModal": {
+        "title": "שליחת הודעה",
+        "pickCustomer": "בחר לקוח",
+        "searchPlaceholder": "חפש לפי שם או טלפון...",
+        "noCustomers": "לא נמצאו לקוחות",
+        "preview": "תצוגה מקדימה",
+        "openWhatsApp": "פתח בוואטסאפ"
+      },
+      "bulkModal": {
+        "title": "שליחה לקבוצה",
+        "deselectAll": "בטל הכל",
+        "selectAll": "בחר הכל",
+        "sending": "שולחים ל-{count} לקוחות...",
+        "selectedCount": "{count} לקוחות נבחרו",
+        "noneSelected": "לא נבחרו לקוחות",
+        "sendTo": "שלח ל-{count} לקוחות"
+      },
+      "toasts": {
+        "ownerOnly": "רק בעל העסק יכול לשנות את הגדרות ההודעות האוטומטיות",
+        "saveFailed": "שמירה נכשלה",
+        "reminderTimeUpdated": "זמן התזכורת עודכן",
+        "remindersOn": "תזכורות וואטסאפ הופעלו",
+        "remindersOff": "תזכורות וואטסאפ כובו",
+        "templateUpdated": "התבנית עודכנה",
+        "templateCreated": "התבנית נוצרה בהצלחה",
+        "templateSaveError": "שגיאה בשמירת התבנית. נסה שוב.",
+        "templateDeleted": "התבנית נמחקה",
+        "templateDeleteError": "שגיאה במחיקת התבנית. נסה שוב.",
+        "automationUpdateError": "שגיאה בעדכון אוטומציה",
+        "automationActivated": "האוטומציה הופעלה בהצלחה",
+        "automationActivateError": "שגיאה בהפעלת האוטומציה"
+      },
+      "auto": {
+        "intro": "הודעות שנשלחות אוטומטית על ידי המערכת בהתאם לאירועים — למשל אישור תור, תזכורת לפני פגישה, או יום הולדת. הפעל כל הודעה בלחיצה על המתג.",
+        "viewSent": "צפה בהודעות שנשלחו ←",
+        "waTitle": "שליחת הודעות אוטומטיות בוואטסאפ",
+        "waOn": "המערכת שולחת תזכורות והודעות אוטומטיות ללקוחות.",
+        "waOff": "כבוי — שום תזכורת או הודעה אוטומטית לא נשלחת ללקוחות, גם אם האוטומציות למטה פעילות.",
+        "ownerOnlyNote": "רק בעל העסק (או מי שקיבל ממנו הרשאה) יכול לשנות הגדרה זו.",
+        "reminderBefore": "תזכורת לפני תור:",
+        "leadHours": {
+          "h24": "24 שעות",
+          "h48": "48 שעות",
+          "h72": "72 שעות",
+          "h96": "96 שעות"
+        },
+        "switchOff": "כבה הודעות אוטומטיות",
+        "switchOn": "הפעל הודעות אוטומטיות",
+        "howTitle": "איך נשלחות ההודעות בפועל:",
+        "howBody": "תזכורות והודעות יזומות נשלחות דרך תבניות וואטסאפ מאושרות של Meta, בנוסח אחיד וקבוע — כך מתירה Meta לשלוח הודעה יזומה מחוץ לחלון של 24 שעות מפניית הלקוח. עריכת הטקסט כאן חלה על הודעות שנשלחות בתוך 24 שעות מפניית הלקוח; מחוץ לחלון הזה הלקוח מקבל את הנוסח המאושר. לכן ייתכן שהטקסט שמוצג כאן לא זהה מילה-במילה למה שהלקוח מקבל.",
+        "active": "פעיל",
+        "inactive": "מושבת"
+      },
+      "previewModal": {
+        "custom": "תבנית מותאמת אישית",
+        "default": "תבנית ברירת מחדל",
+        "contentLabel": "תוכן ההודעה שהלקוח יקבל",
+        "varsNote": "המשתנים בסוגריים מוחלפים אוטומטית בנתוני הלקוח בעת השליחה."
+      },
+      "manual": {
+        "title": "הודעות ידניות",
+        "description": "תבניות שניתן לשלוח ידנית — חץ ירוק לשליחה ללקוח בודד, אנשים לשליחה קבוצתית, עיפרון לעריכה.",
+        "customized": "מותאם",
+        "default": "ברירת מחדל",
+        "sendSingle": "שלח ללקוח בודד",
+        "sendGroup": "שלח לקבוצת לקוחות",
+        "editTemplate": "ערוך תבנית"
+      },
+      "editor": {
+        "editTitle": "ערוך תבנית",
+        "newTitle": "תבנית חדשה",
+        "nameLabel": "שם התבנית *",
+        "bodyLabel": "תוכן ההודעה *",
+        "loadExample": "טען דוגמה",
+        "chars": "{count} תווים",
+        "bodyPlaceholder": "שלום {customerName}, פגישתך עם {petName} נקבעה ל-{date} בשעה {time}.",
+        "insertVarTitle": "לחץ להוספת {v} בנקודת הסמן",
+        "livePreview": "תצוגה מקדימה (נתונים לדוגמה)",
+        "autoTitle": "שליחה אוטומטית",
+        "autoHint": "הפעל כדי לשלוח הודעה זו אוטומטית",
+        "whenToSend": "מתי לשלוח?",
+        "hoursLabel": "שעות",
+        "saveChanges": "שמור שינויים",
+        "create": "צור תבנית"
+      },
+      "bulkTab": {
+        "templateLabel": "תבנית הודעה",
+        "noTemplates": "אין תבניות WhatsApp — צור תבנית קודם",
+        "chooseTemplate": "בחר תבנית...",
+        "audienceLabel": "קהל יעד",
+        "audience": {
+          "all": "כל הלקוחות",
+          "with_pets": "לקוחות עם כלבים"
+        },
+        "searchLabel": "חיפוש לקוח",
+        "searchPlaceholder": "שם או טלפון...",
+        "previewTitle": "תצוגה מקדימה של ההודעה",
+        "whatsappBadge": "וואטסאפ",
+        "previewFor": "* תצוגה עבור הלקוח הראשון: {name}",
+        "emptyTitle": "בחר תבנית להתחלה",
+        "emptyBody": "בחר תבנית הודעה כדי לראות את הלקוחות ולשלוח הודעות",
+        "noCustomersTitle": "אין לקוחות",
+        "noCustomersBody": "לא נמצאו לקוחות עם הסינון הנוכחי",
+        "count": "{count} לקוחות",
+        "openWhatsApp": "פתח WhatsApp",
+        "copyMessage": "העתק הודעה"
+      }
+    }
+  },
+  "onboarding": {
+    "onboardingLayout": {
+      "metaTitle": "הגדרת חשבון - Petra",
+      "metaDescription": "הגדרת החשבון והעסק שלך במערכת פטרה",
+      "headerLabel": "הגדרת חשבון"
+    },
+    "onboardingPage": {
+      "steps": {
+        "welcome": "ברוך הבא",
+        "business": "פרטי עסק",
+        "pricing": "מחירון",
+        "client": "לקוח ראשון",
+        "done": "סיום"
+      },
+      "toasts": {
+        "gcalConnected": "יומן Google חובר בהצלחה!"
+      },
+      "continueToDashboard": "המשך לדשבורד",
+      "back": "חזור",
+      "continue": "המשך",
+      "welcome": {
+        "greetingNamed": "ברוך הבא, {name}! 🎉",
+        "greeting": "ברוך הבא ל-Petra! 🎉",
+        "intro": "Petra היא מערכת ניהול לעסקי חיות מחמד בישראל — מאלפים, פנסיון, גרומרים ומרכזי הכשרת כלבי שירות. כל הכלים שצריך במקום אחד: לקוחות, תורים, תשלומים ותקשורת.",
+        "whatAwaits": "מה מחכה לך",
+        "setupTime": "⏱ ההגדרה לוקחת כ-3 דקות — בואו נתחיל",
+        "cta": "בואו נגדיר את העסק",
+        "features": {
+          "customers": {
+            "title": "ניהול לקוחות",
+            "desc": "כרטיסי לקוח, כלבים, היסטוריה"
+          },
+          "calendar": {
+            "title": "יומן תורים",
+            "desc": "תזמון פגישות בקליק"
+          },
+          "basicPayments": {
+            "title": "תשלומים בסיסיים",
+            "desc": "מעקב הכנסות ותשלומים"
+          },
+          "tasks": {
+            "title": "משימות",
+            "desc": "ניהול רשימת מטלות"
+          },
+          "unlimitedCustomers": {
+            "title": "לקוחות ללא הגבלה",
+            "desc": "כרטיסי לקוח, כלבים, היסטוריה"
+          },
+          "calendarGoogle": {
+            "title": "יומן + Google",
+            "desc": "סנכרון אוטומטי עם Google Calendar"
+          },
+          "whatsappReminders": {
+            "title": "תזכורות WhatsApp",
+            "desc": "אוטומטיות 48 שעות לפני כל תור"
+          },
+          "payments": {
+            "title": "תשלומים",
+            "desc": "מעקב מלא + קישורי תשלום"
+          },
+          "customersLeads": {
+            "title": "לקוחות ולידים",
+            "desc": "CRM מלא כולל משפך מכירות"
+          },
+          "reports": {
+            "title": "דוחות",
+            "desc": "גרפי הכנסות וביצועים"
+          },
+          "whatsappAutomations": {
+            "title": "אוטומציות WhatsApp",
+            "desc": "תזכורות, מעקבים, ימי הולדת"
+          }
+        }
+      },
+      "business": {
+        "errors": {
+          "nameRequired": "שם העסק הוא שדה חובה",
+          "phoneRequired": "טלפון עסק הוא שדה חובה",
+          "saveFailed": "שגיאה בשמירה"
+        },
+        "toasts": {
+          "saved": "פרטי העסק נשמרו!"
+        },
+        "title": "פרטי העסק",
+        "subtitle": "שם ומספר טלפון — נדרשים לתזכורות WhatsApp ולדף ההזמנות האונליין שלך",
+        "fields": {
+          "name": "שם העסק *",
+          "phone": "טלפון עסק *",
+          "legalEntityType": "סוג עוסק"
+        },
+        "placeholders": {
+          "name": "לדוגמה: אילוף כלבים ישראלי"
+        },
+        "hints": {
+          "phone": "ישמש לשליחת תזכורות WhatsApp אוטומטיות ולדף ההזמנות שלך",
+          "legalEntityType": "לא בטוח? אפשר לעדכן בהגדרות מאוחר יותר",
+          "vatNumber": "יופיע בחשבוניות ובמסמכים ללקוחות"
+        },
+        "submit": "המשך — הגדרת מחירון",
+        "cannotSkip": "לא ניתן לדלג — פרטים אלה נדרשים לתפקוד מלא של המערכת"
+      },
+      "pricing": {
+        "serviceTypes": {
+          "training": "אילוף",
+          "boarding": "פנסיון",
+          "grooming": "טיפוח",
+          "products": "מוצרים"
+        },
+        "errors": {
+          "nameRequired": "שם השירות הוא שדה חובה",
+          "priceInvalid": "מחיר לא תקין",
+          "generic": "שגיאה"
+        },
+        "toasts": {
+          "added": "שירות {n} נוסף בהצלחה!"
+        },
+        "title": "הגדרת מחירון",
+        "subtitle": {
+          "none": "הוסף לפחות 2 שירותים — זה הלב של המערכת",
+          "one": "מצוין! הוסף עוד שירות אחד — מומלץ לפחות 2",
+          "many": "{count} שירותים נוספו ✓ — תוכל להוסיף עוד מהגדרות"
+        },
+        "serviceChip": "שירות {n} נוסף",
+        "fields": {
+          "firstName": "שם השירות הראשון *",
+          "nextName": "שם השירות הנוסף *",
+          "category": "קטגוריה",
+          "duration": "משך (דקות)",
+          "price": "מחיר ({currency}) *"
+        },
+        "placeholders": {
+          "firstName": "לדוגמה: שיעור אילוף בסיסי",
+          "nextName": "לדוגמה: שיעור אילוף מתקדם"
+        },
+        "addService": "הוסף שירות",
+        "addAnother": "הוסף עוד שירות",
+        "recommendTwo": "מומלץ להוסיף לפחות 2 שירותים לפני שממשיכים"
+      },
+      "client": {
+        "errors": {
+          "nameRequired": "שם הלקוח הוא שדה חובה",
+          "phoneRequired": "טלפון הוא שדה חובה",
+          "generic": "שגיאה"
+        },
+        "toasts": {
+          "added": "לקוח ראשון נוסף בהצלחה!"
+        },
+        "title": "הוסף את הלקוח הראשון שלך",
+        "subtitle": "תוכל לייבא לקוחות נוספים מאוחר יותר",
+        "fields": {
+          "name": "שם הלקוח *",
+          "phone": "טלפון *",
+          "dogName": "שם הכלב",
+          "breed": "גזע"
+        },
+        "placeholders": {
+          "name": "ישראל ישראלי",
+          "dogName": "רקס",
+          "breed": "גרמני"
+        },
+        "dogSection": "פרטי כלב (אופציונלי)",
+        "skip": "דלג לעת עתה — אוסיף לקוחות אחר כך"
+      },
+      "done": {
+        "title": "הכל מוכן! 🐾",
+        "body": "Petra מוכנה לשרת את העסק שלך. תוכל לחבר יומן Google ולהגדיר תזכורות WhatsApp תחת <link>הגדרות</link>.",
+        "links": {
+          "customers": "לקוחות",
+          "calendar": "יומן",
+          "leads": "לידים"
+        },
+        "goToDashboard": "עבור לדשבורד"
+      }
+    },
+    "addCustomerForm": {
+      "errors": {
+        "fillAll": "יש למלא את כל השדות",
+        "saveFailed": "שגיאה בשמירה. נסה שוב."
+      },
+      "title": "הוסף לקוח ראשון",
+      "subtitle": "רק הפרטים הבסיסיים — תמיד אפשר להוסיף עוד אחר כך.",
+      "fields": {
+        "name": "שם לקוח",
+        "phone": "טלפון",
+        "petName": "שם הכלב"
+      },
+      "placeholders": {
+        "name": "ישראל ישראלי",
+        "petName": "רקסי"
+      },
+      "saveAndContinue": "שמור והמשך"
+    },
+    "completionScreen": {
+      "checklist": {
+        "customerAdded": "לקוח נוסף",
+        "serviceSet": "שירות נקבע",
+        "reminderEnabled": "תזכורת אוטומטית הופעלה"
+      },
+      "title": "העסק שלך כבר נראה אחרת.",
+      "humanLine1": "בעלי עסקים בתחום הכלבים עובדים קשה.",
+      "humanLine2": "פטרה כאן כדי להוריד ממך עומס.",
+      "continueToSettings": "המשך להגדרות"
+    },
+    "enableRemindersStep": {
+      "title": "תזכורות אוטומטיות",
+      "bodyLine1": "פטרה יכולה לשלוח תזכורת אוטומטית 48 שעות לפני השירות.",
+      "bodyLine2": "רוצה להפעיל?",
+      "leadTime": "48 שעות לפני הפגישה",
+      "enabling": "מפעיל...",
+      "enable": "הפעל תזכורות"
+    },
+    "onboardingOverlay": {
+      "progressBar": {
+        "stepOf": "שלב {step} מתוך {total}",
+        "exit": "יציאה מהדרכה"
+      },
+      "skipModal": {
+        "title": "בטוח שתרצה לדלג?",
+        "body": "אפשר לחזור לזה אחר כך מתפריט ההגדרות.",
+        "back": "חזרה",
+        "skip": "דלג"
+      },
+      "remindersModal": {
+        "title": "תזכורות אוטומטיות",
+        "bodyLine1": "פטרה יכולה לשלוח תזכורת אוטומטית 48 שעות לפני השירות.",
+        "bodyLine2": "רוצה להפעיל?",
+        "enabling": "מפעיל...",
+        "enable": "הפעל תזכורות",
+        "skipForNow": "דלג לעכשיו"
+      },
+      "completionModal": {
+        "checks": {
+          "customerAdded": "לקוח נוסף",
+          "petAdded": "כלב נוסף",
+          "appointmentSet": "תור נקבע",
+          "reminderEnabled": "תזכורת הופעלה"
+        },
+        "title": "העסק שלך כבר נראה אחרת.",
+        "humanLine1": "בעלי עסקים בתחום הכלבים עובדים קשה.",
+        "humanLine2": "פטרה כאן כדי להוריד ממך עומס.",
+        "continueToDashboard": "המשך לדשבורד"
+      }
+    },
+    "onboardingProgressBar": {
+      "stepOf": "שלב {current} מתוך {total}",
+      "exitTitle": "יציאה מההדרכה",
+      "exit": "יציאה"
+    },
+    "onboardingWizard": {
+      "steps": {
+        "intro": "היכרות",
+        "businessDetails": "פרטי עסק",
+        "service": "שירות",
+        "client": "לקוח",
+        "finish": "סיום"
+      },
+      "stepOf": "שלב {step} מתוך {total}:",
+      "footerHint": "ניתן לשנות את כל ההגדרות בהמשך מדף ההגדרות"
+    },
+    "onboardingWizardModal": {
+      "steps": {
+        "intro": "היכרות",
+        "businessDetails": "פרטי עסק",
+        "service": "שירות",
+        "client": "לקוח",
+        "finish": "סיום"
+      },
+      "stepOf": "שלב {step} מתוך {total}:",
+      "title": "הגדרת חשבון ראשונית",
+      "subtitle": "ניתן לשנות הכל בהמשך מדף ההגדרות"
+    },
+    "personalizationScreen": {
+      "questions": {
+        "businessType": {
+          "title": "מה סוג העסק שלך?",
+          "options": {
+            "trainer": "מאלף כלבים",
+            "boarding": "פנסיון",
+            "grooming": "מספרה",
+            "combined": "משולב"
+          }
+        },
+        "activeClientsRange": {
+          "title": "כמה לקוחות פעילים יש לך כרגע?",
+          "options": {
+            "upTo20": "עד 20",
+            "from20To50": "20–50",
+            "over50": "50+"
+          }
+        },
+        "primaryGoal": {
+          "title": "מה הכי חשוב לך כרגע?",
+          "options": {
+            "calendar": "סדר ביומן",
+            "clients": "ניהול לקוחות",
+            "leads": "לידים ומכירות",
+            "reminders": "תזכורות אוטומטיות"
+          }
+        }
+      },
+      "questionOf": "שאלה {current} מתוך {total}",
+      "back": "חזרה"
+    },
+    "scheduleServiceForm": {
+      "errors": {
+        "noClient": "לא נמצא לקוח. חזרו לשלב הקודם.",
+        "fillAll": "יש למלא את כל השדות",
+        "saveFailed": "שגיאה בקביעת השירות. נסה שוב."
+      },
+      "title": "קביעת שירות ראשון",
+      "subtitle": "קבע שירות עבור {name}",
+      "serviceLabel": "שירות",
+      "noServices": "אין שירותים במערכת. ייווצר שירות ברירת מחדל.",
+      "serviceOption": "{name} ({duration} דק׳)",
+      "dateLabel": "תאריך",
+      "timeLabel": "שעה",
+      "saveAndContinue": "שמור והמשך"
+    },
+    "setupChecklist": {
+      "missingDetailsBanner": "חסרים פרטי עסק — תזכורות WhatsApp והזמנות אונליין לא יעבדו כראוי.",
+      "completeNow": "השלם עכשיו",
+      "title": "הגדרת העסק",
+      "stepsCompleted": "{completed} מתוך {total} שלבים הושלמו",
+      "percentCompleted": "{pct}% הושלם",
+      "badges": {
+        "required": "חובה",
+        "important": "חשוב"
+      },
+      "allDone": "העסק שלך מוכן לחלוטין — כל הכבוד! 🎉"
+    },
+    "skipConfirmModal": {
+      "title": "בטוח שתרצה לדלג?",
+      "body": "אפשר לחזור לזה אחר כך.",
+      "back": "חזרה",
+      "skip": "דלג"
+    },
+    "stepBusinessDetails": {
+      "errors": {
+        "saveFailed": "שגיאה בשמירת פרטי העסק. אנא נסה שוב."
+      },
+      "title": "פרטי העסק שלך",
+      "subtitle": "הפרטים האלה יופיעו בהסכמים, בחשבוניות ובדפי ההזמנה ללקוחות",
+      "nameLabel": "שם העסק",
+      "namePlaceholder": "למשל: \"הכלבים של דני\" או \"Doggy Style\"",
+      "phoneLabel": "טלפון העסק",
+      "entityTypeLabel": "סוג עוסק",
+      "entityTypeHint": "לא בטוח? אפשר לעדכן בהגדרות מאוחר יותר",
+      "regNumberLabel": "מספר עוסק / ח.פ",
+      "regNumberPlaceholder": "מספר תאגיד / ת.ז (אופציונלי)",
+      "addressLabel": "כתובת",
+      "addressPlaceholder": "רחוב, עיר (לפגישות / פנסיון)",
+      "continue": "המשך לשלב הבא ←"
+    },
+    "stepCompletion": {
+      "title": "¡ הכל מוכן! 🎉",
+      "subtitle": "הגדרנו את הבסיס. עכשיו אפשר להתחיל לנהל את העסק בצורה חכמה יותר.",
+      "nextSteps": {
+        "customers": {
+          "title": "הוסף לקוחות",
+          "desc": "ייבא את רשימת הלקוחות שלך"
+        },
+        "calendar": {
+          "title": "קבע תורים",
+          "desc": "פתח את היומן ותתחיל לתזמן"
+        },
+        "dashboard": {
+          "title": "צפה בדשבורד",
+          "desc": "ראה את כל הנתונים במקום אחד"
+        }
+      },
+      "start": "בואו נתחיל! 🚀"
+    },
+    "stepFirstClient": {
+      "saveError": "שגיאה בשמירת הלקוח. אנא נסה שוב.",
+      "title": "לקוח (וכלב) ראשון",
+      "subtitle": "כמעט סיימנו! נוסיף לקוח ראשון למערכת — אפשר לייבא רשימה מלאה בהמשך",
+      "clientSection": "פרטי לקוח",
+      "clientName": "שם הלקוח",
+      "clientNamePlaceholder": "ישראל ישראלי",
+      "phone": "טלפון",
+      "dogSection": "פרטי הכלב",
+      "optional": "(אופציונלי)",
+      "dogName": "שם הכלב",
+      "dogNamePlaceholder": "רקס",
+      "breed": "גזע",
+      "breedPlaceholder": "רועה גרמני",
+      "saveAndContinue": "שמור והמשך ←",
+      "skip": "נדלג, אצור לקוחות בהמשך"
+    },
+    "stepFirstService": {
+      "durations": {
+        "30": "30 דק׳",
+        "45": "45 דק׳",
+        "60": "שעה",
+        "90": "שעה וחצי",
+        "120": "שעתיים"
+      },
+      "saveError": "שגיאה בשמירת השירות. אנא נסה שוב.",
+      "title": "השירות הראשון שלך",
+      "subtitle": "הוסף שירות אחד עכשיו — אפשר לשנות ולהוסיף עוד בהמשך מדף ההגדרות",
+      "name": "שם השירות",
+      "namePlaceholder": "למשל: \"שיעור אילוף פרטי\" או \"גיזום מלא\"",
+      "price": "מחיר ({currency})",
+      "duration": "משך השירות",
+      "saveAndContinue": "שמור והמשך ←",
+      "skip": "דלג לעת עתה"
+    },
+    "stepWelcomeProfile": {
+      "businessTypes": {
+        "trainer": "מאלף / מאלפת כלבים",
+        "boarding": "פנסיון לכלבים",
+        "grooming": "מספרה לחיות מחמד",
+        "combined": "משולב (אילוף, פנסיון, מספרה)"
+      },
+      "clientRanges": {
+        "upTo20": "עד 20"
+      },
+      "goals": {
+        "calendar": "לעשות סדר ביומן הפגישות",
+        "clients": "לנהל טוב יותר לקוחות וכלבים",
+        "leads": "מעקב אחרי לידים ומכירות",
+        "reminders": "שליחת תזכורות אוטומטיות (וואטסאפ)",
+        "other": "אחר"
+      },
+      "title": "ברוכים הבאים לפטרה!",
+      "subtitle": "כדי שנוכל להתאים את המערכת לצרכים שלך, ספר לנו קצת על העסק",
+      "businessTypeLabel": "מה סוג העסק שלך?",
+      "clientRangeLabel": "כמה לקוחות פעילים יש לך בערך?",
+      "goalLabel": "מה המטרה העיקרית שלך במערכת?",
+      "continue": "המשך לשלב הבא ←"
+    },
+    "teamWelcomeModal": {
+      "roles": {
+        "manager": "מנהל",
+        "user": "עובד"
+      },
+      "roleFallback": "צוות",
+      "quickLinks": {
+        "customers": {
+          "label": "לקוחות",
+          "desc": "צפה ועדכן פרטי לקוחות"
+        },
+        "calendar": {
+          "label": "יומן",
+          "desc": "ניהול תורים ופגישות"
+        },
+        "tasks": {
+          "label": "משימות",
+          "desc": "המשימות שלך היום"
+        }
+      },
+      "welcome": "ברוך הבא ל-Petra",
+      "memberFallback": "חבר צוות",
+      "roleLine": "תפקיד: {role} ב-{business}",
+      "businessFallback": "העסק",
+      "intro": "Petra היא מערכת ניהול העסק שלכם. כאן תוכל לנהל לקוחות, תורים, משימות ועוד — הכל במקום אחד.",
+      "quickAccess": "כניסה מהירה",
+      "start": "בואו נתחיל"
+    },
+    "welcomeScreen": {
+      "title": "ברוך הבא לפטרה 👋",
+      "subtitleLine1": "בוא נסדר לך את העסק תוך כמה דקות.",
+      "subtitleLine2": "בלי בלגן, בלי אקסלים, בלי תזכורות ידניות.",
+      "start": "בוא נתחיל",
+      "skip": "דלג"
+    },
+    "whatNextScreen": {
+      "actions": {
+        "import": "לייבא לקוחות קיימים",
+        "services": "להגדיר שירותים ומחירון",
+        "payments": "לחבר סליקה",
+        "staff": "להוסיף עובדים",
+        "automations": "להגדיר אוטומציות מתקדמות",
+        "boarding": "ניהול חדרים ויזואלי",
+        "grooming": "ניהול תורים + שירותי טיפוח",
+        "training": "ניהול תהליכי אילוף"
+      },
+      "title": "מה בא לך לעשות עכשיו?",
+      "subtitle": "בחר את הצעד הבא שלך — אפשר תמיד לחזור לכאן.",
+      "recommended": "מומלץ",
+      "toDashboard": "קח אותי לדשבורד"
     }
   },
   "orders": {
@@ -5530,6 +6860,1363 @@
       "minChars": "הקלד לפחות 2 תווים לחיפוש"
     }
   },
+  "settings": {
+    "googleContactsSyncRow": {
+      "title": "סנכרון לידים ל-Google Contacts",
+      "turnOff": "כבה סנכרון",
+      "turnOn": "הפעל סנכרון",
+      "description": "כל ליד שנוצר או מתעדכן בפטרה יישמר כאיש קשר ב-Google Contacts שלך. פטרה רק יוצרת ומעדכנת את אנשי הקשר של הלידים — היא לא קוראת את אנשי הקשר הקיימים שלך.",
+      "consentHint": " בהפעלה הראשונה תתבקש לאשר את הגישה במסך ההרשאות של Google.",
+      "ownerOnlyHint": " רק בעל העסק יכול להפעיל או לכבות.",
+      "toast": {
+        "enabled": "הסנכרון ל-Google Contacts הופעל",
+        "disabled": "הסנכרון ל-Google Contacts כובה",
+        "toggleError": "שגיאה בעדכון הסנכרון",
+        "bulkPartial": "{done} לידים סונכרנו, {failed} נכשלו",
+        "bulkDone": "{done} לידים סונכרנו ל-Google Contacts",
+        "bulkError": "שגיאה בסנכרון הלידים"
+      },
+      "bulk": {
+        "progress": "מסנכרן… {done} מתוך {total}",
+        "pending": "{count} לידים קיימים עדיין לא נמצאים ב-Google Contacts",
+        "button": "סנכרן לידים קיימים"
+      },
+      "confirm": {
+        "title": "לסנכרן את כל הלידים הקיימים?",
+        "description": "{count} אנשי קשר חדשים ייווצרו ב-Google Contacts שלך — אחד לכל ליד שעדיין לא סונכרן. לידים שכבר סונכרנו לא ישוכפלו.",
+        "confirmLabel": "סנכרן"
+      }
+    },
+    "invoicingTab": {
+      "morningName": "Morning (חשבונית ירוקה)",
+      "disconnect": "נתק",
+      "saveFailed": "שמירה נכשלה",
+      "toast": {
+        "disconnected": "מערכת החשבוניות נותקה",
+        "disconnectError": "שגיאה בניתוק. נסה שוב."
+      },
+      "docTypes": {
+        "taxInvoice": "חשבונית מס",
+        "taxInvoiceReceipt": "חשבונית מס / קבלה",
+        "receipt": "קבלה",
+        "creditNote": "זיכוי",
+        "none": "ללא מסמך"
+      },
+      "paymentMethods": {
+        "cash": "מזומן",
+        "credit_card": "כרטיס אשראי",
+        "bank_transfer": "העברה בנקאית",
+        "bit": "ביט",
+        "paybox": "פייבוקס",
+        "check": "צ׳ק"
+      },
+      "status": {
+        "title": "חיבור ספק חשבוניות",
+        "connected": "מחובר",
+        "notConnected": "לא מחובר",
+        "connectedTo": "מחובר ל-{provider}",
+        "connectedAgo": " · חובר {time}",
+        "connectPrompt": "חבר את חשבון Morning (חשבונית ירוקה) להפקת חשבוניות וקבלות אוטומטית",
+        "lastTest": "בדיקה אחרונה: {result} · {time}",
+        "testOk": "תקין",
+        "testFailed": "נכשל",
+        "connect": "חבר"
+      },
+      "mapping": {
+        "title": "מיפוי מסמכים",
+        "subtitle": "איזה סוג מסמך יופק לכל אמצעי תשלום",
+        "edit": "ערוך",
+        "defaultInUse": "מיפוי ברירת מחדל בשימוש"
+      },
+      "recent": {
+        "title": "מסמכים אחרונים",
+        "statusIssued": "הופק",
+        "statusDraft": "טיוטה"
+      },
+      "empty": {
+        "title": "עדיין לא מחובר ספק חשבוניות",
+        "body": "חבר את חשבון Morning שלך כדי להפיק חשבוניות וקבלות אוטומטית כשנרשמת תשלום",
+        "connectNow": "חבר עכשיו"
+      },
+      "confirmDisconnect": {
+        "title": "לנתק את מערכת החשבוניות?",
+        "description": "הפקת חשבוניות וקבלות אוטומטית תיפסק עד לחיבור מחדש. מסמכים שכבר הופקו לא יימחקו."
+      },
+      "connectModal": {
+        "title": "חיבור חשבוניות",
+        "subtitle": "הפקת חשבוניות וקבלות אוטומטית",
+        "provider": "ספק",
+        "apiKeyPlaceholder": "API Key מ-Morning",
+        "apiSecretPlaceholder": "API Secret מ-Morning",
+        "success": "החיבור תקין!",
+        "testFailed": "בדיקה נכשלה",
+        "testing": "בודק...",
+        "test": "בדוק חיבור",
+        "saveAndConnect": "שמור וחבר"
+      },
+      "mappingModal": {
+        "subtitle": "בחר איזה מסמך יופק לכל אמצעי תשלום"
+      }
+    },
+    "integrationsTab": {
+      "disconnect": {
+        "gcal": {
+          "title": "לנתק את Google Calendar?",
+          "description": "פגישות חדשות לא יסונכרנו יותר ליומן Google שלך. אירועים שכבר סונכרנו יישארו ביומן Google. אפשר לחבר מחדש בכל עת."
+        },
+        "stripe": {
+          "title": "לנתק את Stripe?",
+          "description": "מפתחות Stripe יימחקו מהעסק וקישורי תשלום בכרטיס אשראי יפסיקו לעבוד עד לחיבור מחדש."
+        },
+        "invoicing": {
+          "title": "לנתק את מערכת החשבוניות?",
+          "description": "הפקת חשבוניות וקבלות אוטומטית תיפסק עד לחיבור מחדש. מסמכים שכבר הופקו לא יימחקו."
+        }
+      },
+      "reminders": {
+        "noPermission": "אין לך הרשאה לשנות הגדרות עסק",
+        "saveFailed": "שמירה נכשלה",
+        "updated": "הגדרות תזכורת עודכנו",
+        "saveError": "שגיאה בשמירה",
+        "autoReminders": "תזכורות אוטומטיות לתורים",
+        "turnOff": "כבה תזכורות",
+        "turnOn": "הפעל תזכורות",
+        "hoursBefore": "שלח שעות לפני התור",
+        "hours24": "24 שעות",
+        "hours48": "48 שעות",
+        "hours72": "72 שעות",
+        "hours96": "96 שעות"
+      },
+      "gcal": {
+        "disconnected": "Google Calendar נותק בהצלחה",
+        "disconnectError": "שגיאה בניתוק Google Calendar. נסה שוב.",
+        "ownerNotApproved": "הבעלים לא אישר לך לקבל את פגישות העסק ביומן Google",
+        "syncError": "שגיאה בסנכרון",
+        "syncDone": "הסנכרון הושלם בהצלחה",
+        "syncErrorRetry": "שגיאה בסנכרון Google Calendar. נסה שוב.",
+        "calendarsSaved": "יומנים לתצוגה עודכנו",
+        "calendarsSaveError": "שגיאה בשמירת הגדרות יומן",
+        "overlayTitle": "יומנים לתצוגה ביומן פטרה",
+        "refreshTitle": "רענן רשימת יומנים",
+        "refresh": "רענן",
+        "overlayHint": "בחר יומנים מ-Google שיופיעו בצבע שקוף ביומן פטרה (read-only)",
+        "primary": "(ראשי)",
+        "syncNowTitle": "סנכרן פגישות קיימות ל-Google Calendar",
+        "syncNow": "סנכרן עכשיו"
+      },
+      "invoicing": {
+        "disconnected": "מערכת החשבוניות נותקה",
+        "disconnectError": "שגיאה בניתוק מערכת החשבוניות. נסה שוב."
+      },
+      "stripe": {
+        "disconnected": "Stripe נותק",
+        "disconnectError": "שגיאה בניתוק Stripe. נסה שוב."
+      },
+      "banners": {
+        "gcalConnected": "יומן גוגל חובר בהצלחה!",
+        "gcalDenied": "החיבור בוטל. ניתן לנסות שוב בכל עת.",
+        "gcontactsConnected": "הסנכרון ל-Google Contacts הופעל. לידים חדשים יישמרו באנשי הקשר שלך.",
+        "gcontactsDenied": "הגישה ל-Google Contacts לא אושרה, והסנכרון נשאר כבוי.",
+        "gcalError": "אירעה שגיאה בחיבור. נסה שוב."
+      },
+      "card": {
+        "connected": "מחובר",
+        "notConnected": "לא מחובר",
+        "ownerOnly": "בעלים בלבד",
+        "ownersManagersOnly": "בעלים ומנהלים בלבד",
+        "update": "עדכן",
+        "disconnect": "נתק",
+        "connect": "חבר",
+        "settings": "הגדרות",
+        "testConnection": "בדיקת חיבור",
+        "testStub": "בדיקת Stub",
+        "comingSoon": "בקרוב"
+      },
+      "webhookLocked": {
+        "title": "חיבור לידים מהאתר",
+        "body": "ניהול כתובת ה-Webhook ומפתח ה-API זמין רק לבעלי העסק, או למי שקיבל ממנו את ההרשאה \"לשנות הגדרות עסק\"."
+      },
+      "paywall": {
+        "title": "אינטגרציית Webhook ללידים",
+        "description": "קבל לידים אוטומטית מטפסי Make.com ואתר האינטרנט שלך — זמין במנוי פרו וכלבי שירות."
+      },
+      "stripeModal": {
+        "keysRequired": "נדרשים Publishable Key ו-Secret Key",
+        "connectError": "שגיאה בחיבור",
+        "connected": "Stripe חובר בהצלחה!",
+        "networkError": "שגיאת רשת — בדוק את החיבור ונסה שוב",
+        "title": "חיבור Stripe",
+        "subtitle": "קבל תשלומים בכרטיס אשראי מלקוחות",
+        "howTitle": "איך מוצאים את המפתחות?",
+        "step1": "היכנס ל-<b>dashboard.stripe.com</b>",
+        "step2": "עבור אל <b>Developers → API keys</b>",
+        "step3": "העתק את ה-Publishable key ואת ה-Secret key",
+        "step4": "לוובהוק: עבור אל <b>Webhooks → Add endpoint</b>, הוסף את ה-URL של Petra",
+        "publishablePlaceholder": "pk_live_... או pk_test_...",
+        "secretPlaceholder": "sk_live_... או sk_test_...",
+        "webhookLabel": "Webhook Secret (whsec_...) — אופציונלי",
+        "webhookPlaceholder": "whsec_... (לאימות אירועי Stripe)",
+        "webhookUrlHint": "Webhook URL לרשום ב-Stripe:",
+        "currency": "מטבע",
+        "currencies": {
+          "ILS": "ILS — שקל ישראלי (₪)",
+          "USD": "USD — דולר ($)",
+          "EUR": "EUR — יורו (€)"
+        },
+        "saving": "מוודא ושומר...",
+        "submit": "חבר Stripe"
+      },
+      "whatsappTest": {
+        "sendError": "שגיאה בשליחה",
+        "networkError": "שגיאת רשת",
+        "title": "בדיקת WhatsApp",
+        "subtitle": "שלח הודעת בדיקה למספר טלפון",
+        "phoneLabel": "מספר טלפון לבדיקה",
+        "phoneHint": "הזן מספר ישראלי (יתוקנן אוטומטית)",
+        "success": "ההודעה נשלחה בהצלחה!",
+        "sending": "שולח...",
+        "submit": "שלח הודעת בדיקה"
+      },
+      "webhook": {
+        "keyCreated": "מפתח API חדש נוצר בהצלחה",
+        "keyError": "שגיאה ביצירת מפתח. נסה שוב.",
+        "title": "חיבור לידים מהאתר",
+        "notConfigured": "לא מוגדר",
+        "description": "כל פנייה בטופס האתר תיצור ליד חדש אוטומטית בפטרה.",
+        "apiKey": "מפתח API",
+        "newKey": "צור מפתח חדש",
+        "createKey": "צור מפתח",
+        "regenTitle": "ליצור מפתח API חדש?",
+        "regenDescription": "המפתח הנוכחי יפסיק לעבוד מיד. טפסים באתר, ב-Make או בכל חיבור אחר שמשתמשים בו יפסיקו ליצור לידים עד שתעדכנו בהם את המפתח החדש.",
+        "hide": "הסתר",
+        "show": "הצג",
+        "copied": "הועתק!",
+        "copy": "העתק",
+        "noKey": "טרם נוצר מפתח. לחץ על \"צור מפתח\" מעל.",
+        "codeLabel": "קוד להדבקה באתר (Next.js / JavaScript)",
+        "copyCode": "העתק קוד",
+        "fieldsTitle": "שדות נתמכים",
+        "fields": {
+          "firstName": "שם פרטי",
+          "lastName": "שם משפחה",
+          "fullName": "שם מלא (חלופה)",
+          "phone": "טלפון",
+          "email": "אימייל",
+          "city": "עיר",
+          "breed": "גזע הכלב",
+          "service": "שירות מבוקש",
+          "petName": "שם הכלב",
+          "notes": "הערות חופשיות",
+          "source": "מקור (ברירת מחדל: website)"
+        }
+      }
+    },
+    "mcpConnectionsTab": {
+      "profiles": {
+        "labels": {
+          "read": "קריאה בלבד",
+          "intake": "קבלה — לידים, משימות, לקוחות",
+          "calendar": "יומן — תורים וזמינות",
+          "boarding": "פנסיון",
+          "full": "מלא"
+        },
+        "descriptions": {
+          "read": "הסוכן רק קורא נתונים",
+          "intake": "לידים, משימות, לקוחות (כולל יצירה/עדכון)",
+          "calendar": "תורים, זמינות, חסימות",
+          "boarding": "פנסיון — שהיות, זמינות, לוח יומי",
+          "full": "כל היכולות שהתפקיד שלך מאפשר"
+        }
+      },
+      "badges": {
+        "legacyFull": "מלא (ישן)",
+        "oauth": "התחברות אוטומטית"
+      },
+      "meta": {
+        "createdBy": "נוצר ע״י {name}",
+        "expired": "פג תוקף",
+        "autoRenewTitle": "אם לא ייעשה שימוש — יפוג ב-{date}",
+        "autoRenew": "מתחדש אוטומטית בזמן שימוש",
+        "validUntil": "תוקף עד {date}"
+      },
+      "toasts": {
+        "createError": "שגיאה ביצירת חיבור",
+        "scopesCapped": "חלק מההרשאות הוסרו לפי התפקיד שלך",
+        "revokeError": "שגיאה בביטול חיבור",
+        "revoked": "החיבור בוטל בהצלחה",
+        "urlCopied": "הכתובת הועתקה",
+        "tokenCopied": "הטוקן הועתק"
+      },
+      "intro": {
+        "title": "חבר עוזר AI לעסק שלך",
+        "body": "חבר את העסק שלך לעוזר AI כמו Claude או ChatGPT. תוכל לשאול \"מי הלקוחות שלי השבוע?\" או \"קבע פגישה לדני ביום שלישי\" והוא יבצע את זה בשבילך.",
+        "guideLink": "מדריך חיבור מפורט ←"
+      },
+      "easy": {
+        "title": "הדרך הקלה (מומלץ): רק כתובת, בלי טוקן",
+        "body": "הדבק את הכתובת הזו כ-connector ב-Claude או ב-Codex, התחבר עם המייל והסיסמה של פטרה ואשר — החיבור יופיע כאן אוטומטית.",
+        "copyUrlTitle": "העתק כתובת",
+        "instructionsLink": "הוראות ל-Claude, Claude Code ו-Codex ←",
+        "manualNote": "הכפתור \"חבר עוזר חדש\" למטה (טוקן ידני) מיועד לחיבור מתקדם בלבד."
+      },
+      "token": {
+        "title": "הטוקן שלך — שמור אותו עכשיו!",
+        "onceNotice": "הטוקן הזה יוצג <strong>פעם אחת בלבד</strong>. לאחר שתסגור את ההודעה הזו, לא תוכל לראות אותו שוב.",
+        "copyTitle": "העתק",
+        "easyTitle": "✅ הדרך הקלה (מומלץ) — חיבור ב-Claude Desktop בלי קוד:",
+        "easyStep1": "ב-Claude Desktop: <strong>Settings → Connectors → Add custom connector</strong>",
+        "easyStep2": "ב-<strong>Name</strong> כתוב: <code>Petra</code>",
+        "easyStep3": "ב-<strong>Remote MCP server URL</strong> הדבק את הכתובת הבאה (כוללת את הטוקן שלך):",
+        "easyDone": "לחץ <strong>Add</strong> וזהו — Claude מחובר לעסק שלך. 🎉",
+        "advancedSummary": "דרך מתקדמת — דרך קובץ הגדרות (Developer → Edit Config)",
+        "advancedStep1": "ב-Claude Desktop: <strong>Settings → Developer → Edit Config</strong>",
+        "advancedStep2": "הוסף את הבלוק הבא תחת <code>mcpServers</code>:",
+        "restartNote": "סגור ופתח מחדש את Claude Desktop (Cmd+Q) כדי שהשינוי ייכנס לתוקף.",
+        "dismiss": "הבנתי, שמרתי את הטוקן"
+      },
+      "list": {
+        "activeTitle": "חיבורים פעילים ({count})",
+        "newButton": "חבר עוזר חדש",
+        "empty": "אין עוזרי AI מחוברים עדיין.",
+        "active": "פעיל",
+        "lastUsed": "שימוש אחרון: {time}",
+        "neverUsed": "טרם נעשה שימוש",
+        "actionsCount": "{count} פעולות",
+        "confirmRevoke": "לבטל?",
+        "confirmYes": "כן, בטל",
+        "confirmNo": "לא",
+        "disconnectTitle": "נתק"
+      },
+      "create": {
+        "title": "שם החיבור החדש",
+        "hint": "תן שם שיזהה לך איפה הטוקן הזה משמש, למשל: \"Claude Desktop של אור\"",
+        "placeholder": "למשל: Claude Desktop",
+        "profileLabel": "פרופיל גישה",
+        "recommended": "(מומלץ)",
+        "writeWarning": "הסוכן יוכל ליצור ולעדכן רשומות בפטרה בתחומים של הפרופיל שנבחר. כל פעולה נרשמת ביומן.",
+        "managerWarning": "כמנהל, חיבורים שתיצור לא יכללו: אנליטיקה/הכנסות, רישום תשלומים ומחיקות (נדרש בעלים)",
+        "expiryNote": "תוקף הטוקן: 180 יום מיום היצירה. ניתן לבטל בכל רגע.",
+        "submit": "צור חיבור"
+      },
+      "revoked": {
+        "title": "חיבורים שבוטלו ({count})",
+        "revokedAt": "בוטל {time}",
+        "createdBy": " · נוצר ע״י {name}"
+      }
+    },
+    "pendingApprovalsPanel": {
+      "actions": {
+        "DELETE_CUSTOMER": "מחיקת לקוח",
+        "DELETE_PET": "מחיקת חיית מחמד",
+        "DELETE_TRAINING": "מחיקת תוכנית אימון",
+        "DELETE_APPOINTMENT": "מחיקת פגישה",
+        "DELETE_LEAD": "מחיקת ליד",
+        "DELETE_SERVICE_DOG": "מחיקת כלב שירות",
+        "DELETE_RECIPIENT": "מחיקת זכאי",
+        "EDIT_PRICING": "שינוי מחירון",
+        "EDIT_SETTINGS": "שינוי הגדרות עסק"
+      },
+      "statuses": {
+        "PENDING": "ממתין לאישור",
+        "APPROVED": "אושר",
+        "REJECTED": "נדחה",
+        "EXPIRED": "פג תוקף",
+        "CANCELLED": "בוטל"
+      },
+      "toasts": {
+        "approved": "הפעולה אושרה ובוצעה",
+        "rejected": "הבקשה נדחתה",
+        "resolveError": "שגיאה בטיפול בבקשה",
+        "cancelled": "הבקשה בוטלה",
+        "cancelError": "שגיאה בביטול הבקשה"
+      },
+      "title": "בקשות ממתינות לאישור",
+      "emptyPending": "אין בקשות ממתינות",
+      "empty": "אין פריטים",
+      "requestedBy": "בוקש על-ידי: {name}",
+      "expiresAt": "פג תוקף: {date}",
+      "rejectionReason": "סיבת דחייה: {reason}",
+      "rejectPlaceholder": "סיבת הדחייה (אופציונלי)...",
+      "confirmReject": "אשר דחייה",
+      "approve": "אשר ובצע",
+      "reject": "דחה",
+      "cancelRequest": "בטל בקשה"
+    },
+    "securityTab": {
+      "relative": {
+        "now": "כעת",
+        "minutes": "לפני {count} דק׳",
+        "hours": "לפני {count} שעות",
+        "days": "לפני {count} ימים",
+        "weeks": "לפני {count} שבועות",
+        "months": "לפני {count} חודשים"
+      },
+      "toasts": {
+        "revoked": "הסשן נותק",
+        "revokeError": "שגיאה בניתוק",
+        "revokedOthers": "נותקו {count} סשנים",
+        "revokeOthersError": "שגיאה בניתוק כללי"
+      },
+      "title": "אבטחה וסשנים פעילים",
+      "intro": "רשימת המכשירים והדפדפנים שבהם אתה מחובר כעת. אם אתה רואה סשן שלא זיהית — נתק אותו מיד ושנה סיסמה.",
+      "revokeOthers": {
+        "button": "התנתק מכל שאר המכשירים ({count})",
+        "confirmText": "הפעולה תנתק {count} סשנים אחרים. המכשיר הנוכחי יישאר מחובר.",
+        "confirm": "אישור ניתוק"
+      },
+      "list": {
+        "title": "סשנים פעילים",
+        "empty": "לא נמצאו סשנים פעילים",
+        "thisDevice": "המכשיר הזה",
+        "rememberMe": "30 יום",
+        "lastActivity": "פעילות אחרונה: {time}",
+        "revokeTitle": "נתק סשן זה",
+        "revoke": "נתק"
+      },
+      "help": {
+        "sessions": "כל התחברות למערכת יוצרת סשן חדש. עם סימון \"זכור אותי\" הסשן שומר על החיבור למשך 30 יום מכל פעילות אחרונה.",
+        "alerts": "Petra שולחת התראה במייל בכל פעם שמתחברים ממכשיר או מערכת הפעלה חדשים, כדי שתוכל לזהות גישה לא מורשית מיד."
+      }
+    },
+    "serviceDogsSettingsTab": {
+      "saved": "הגדרות כלבי שירות נשמרו",
+      "saveSettingsError": "שגיאה בשמירת ההגדרות",
+      "trackHours": {
+        "title": "מעקב שעות הכשרה",
+        "description": "האם לעקוב אחרי שעות ולהציג התקדמות לכל כלב",
+        "defaultTargetLabel": "יעד שעות ברירת מחדל לכלב חדש",
+        "hours": "שעות",
+        "defaultTargetHint": "ניתן לשנות ליעד שונה לכל כלב בפרופיל הכלב"
+      },
+      "manualCert": {
+        "title": "אפשר הסמכה ידנית",
+        "descriptionWithHours": "אפשר לבעל העסק להסמיך כלב גם אם לא הגיע ליעד שעות ההכשרה",
+        "descriptionNoHours": "הסמכה על פי שיקול דעת בעל העסק — ללא מעקב שעות",
+        "warning": "כשמעקב שעות כבוי, מומלץ לאפשר הסמכה ידנית כדי שניתן יהיה להסמיך כלבים"
+      },
+      "vaccines": {
+        "title": "לוח חיסונים שנתי ברירת מחדל",
+        "description": "הגדר בכל חודש מתבצע כל טיפול — התוכנית תיושם אוטומטית ותתחדש בתחילת כל שנה",
+        "adultsTitle": "🐕 בוגרים — שנה ומעלה",
+        "adultsHint": "(לפי חודש בשנה)",
+        "puppiesTitle": "🐾 גורים — עד 12 חודשים",
+        "puppiesHint": "(שבועות מגיל לידה)",
+        "dosesPerYear": "{count} מנות בשנה",
+        "doses": "{count} מנות",
+        "dose": "מנה {n}:",
+        "notSet": "לא מוגדר",
+        "week": "שבוע {week}",
+        "classificationNote": "סיווג גורים/בוגרים מחושב לפי תאריך לידה בתיק הכלב. ניתן לשנות לכל כלב בנפרד.",
+        "disabledHint": "הפעל כדי להגדיר לוח חיסונים ברירת מחדל לכלל הכלבים"
+      },
+      "apply": {
+        "error": "שגיאה בהחלת לוח החיסונים",
+        "success": "לוח החיסונים הוחל על {count} כלבים",
+        "title": "החל על כלל הכלבים עכשיו",
+        "description": "יעדכן את תוכניות החיסונים של כלל הכלבים לפי הלוח שהוגדר כאן",
+        "applying": "מחיל...",
+        "button": "החל על כלל הכלבים"
+      },
+      "summary": {
+        "title": "סיכום הגדרות:",
+        "trackHours": "• מעקב שעות: ",
+        "on": "פעיל",
+        "off": "כבוי",
+        "targetHours": "• יעד שעות לכלב חדש: ",
+        "hoursValue": "{hours} שעות",
+        "manualCert": "• הסמכה ידנית: ",
+        "allowed": "מאושרת",
+        "notAllowed": "לא מאושרת"
+      },
+      "confirmDialog": {
+        "title": "להחיל את לוח החיסונים על כל הכלבים?",
+        "description": "תוכניות החיסונים של <b>כל כלבי השירות</b> יעודכנו לפי הלוח שהוגדר כאן: תאריכים מתוכננים יוחלפו (תאריכי ביצוע שכבר נרשמו יישמרו), וכלבים ללא תוכנית יקבלו תוכנית חדשה.",
+        "unsavedNote": "השינויים שלא נשמרו בעמוד זה יישמרו קודם.",
+        "confirm": "החל על כל הכלבים"
+      }
+    },
+    "settingsDirtyContext": {
+      "title": "יש שינויים שלא נשמרו",
+      "description": "אם תמשיך, השינויים שעשית בעמוד הזה יאבדו.",
+      "confirm": "המשך בלי לשמור",
+      "cancel": "הישאר בעמוד"
+    },
+    "subscriptionTab": {
+      "title": "מנוי וחיוב",
+      "description": "המסלול הנוכחי, סטטוס החיוב ושדרוג"
+    },
+    "subscriptionCard": {
+      "toasts": {
+        "cardUpdated": "הכרטיס עודכן. החיוב הבא יתבצע במועד הרגיל — לא חויבת עכשיו.",
+        "cardUpdateFailed": "עדכון הכרטיס לא הושלם. אפשר לנסות שוב.",
+        "openCardUpdateError": "שגיאה בפתיחת עדכון הכרטיס",
+        "networkError": "שגיאת רשת. נסה שוב.",
+        "cancelError": "שגיאה בביטול המנוי",
+        "cancelledUntil": "הביטול נקלט. תמשיך ליהנות מהמנוי עד {date}.",
+        "cancelled": "המנוי בוטל."
+      },
+      "status": {
+        "free": "חינמי",
+        "cancelPending": "בתהליך ביטול — גישה מלאה עד {date}",
+        "expired": "פג תוקף",
+        "awaitingCharge": "פעיל — החיוב החודשי בעיבוד",
+        "activeRecurring": "פעיל — מתחדש אוטומטית ב-{date}",
+        "activeUntil": "פעיל עד {date}",
+        "inactive": "לא פעיל"
+      },
+      "header": {
+        "plan": "מנוי: {name}",
+        "counts": "{customers} לקוחות · {appointments} פגישות",
+        "changePlan": "שנה מסלול"
+      },
+      "banners": {
+        "cancelPending": "הביטול נקלט — גישה מלאה עד <b>{date}</b>. לאחר מכן תעבור למסלול חינמי.",
+        "expiresIn": "המנוי שלך יפוג בעוד {days} ימים",
+        "renewNow": "חדש עכשיו",
+        "expired": "המנוי שלך פג — חזרת למסלול חינמי",
+        "chargeFailed": "החיוב החודשי לא עבר. עדכנו אמצעי תשלום כדי שהמנוי ימשיך — לא תחויבו עכשיו."
+      },
+      "actions": {
+        "updateCard": "עדכון אמצעי תשלום",
+        "cancelSubscription": "ביטול מנוי"
+      },
+      "confirm": {
+        "atPeriodEnd": "המנוי יבוטל בסוף תקופת החיוב ({date}). עד אז תמשיך ליהנות מכל התכונות — ללא חיוב נוסף.",
+        "immediate": "המנוי יבוטל מיד והעסק יעבור למסלול החינמי.",
+        "cancelling": "מבטל...",
+        "yes": "כן, בטל מנוי",
+        "back": "חזרה"
+      }
+    },
+    "teamInvitations": {
+      "roles": {
+        "owner": "בעלים",
+        "manager": "מנהל",
+        "user": "עובד",
+        "volunteer": "מתנדב"
+      },
+      "errors": {
+        "generic": "שגיאה. נסה/י שוב."
+      },
+      "whatsappShareText": "היי {name}, הוספתי אותך לצוות של {businessName} בפטרה. לאישור ההצטרפות ובחירת סיסמה: {url}",
+      "copy": {
+        "copied": "הקישור הועתק",
+        "failed": "לא הצלחנו להעתיק — לחץ/י על הקישור, סמן/י והעתק/י ידנית"
+      },
+      "linkCard": {
+        "emailSent": "ההזמנה נשלחה ל-<ltr>{email}</ltr>. {name} יצטרף/תצטרף לצוות אחרי שיאשר/תאשר ויבחר/תבחר סיסמה.",
+        "emailFailed": "המייל לא נשלח. שלח/י את הקישור בוואטסאפ או העתק/י אותו.",
+        "linkAriaLabel": "קישור ההזמנה",
+        "copy": "העתק",
+        "sendWhatsApp": "שליחה בוואטסאפ",
+        "validity": "הקישור אישי ותקף ל-7 ימים."
+      },
+      "modal": {
+        "missingBusinessId": "לא ניתן להזמין — מזהה העסק חסר. נסה לרענן את הדף.",
+        "titleReady": "ההזמנה מוכנה",
+        "title": "הזמנת עובד",
+        "subtitleReady": "העובד מאשר מהקישור ובוחר סיסמה בעצמו",
+        "subtitle": "העובד יקבל מייל, יאשר את ההצטרפות ויבחר סיסמה בעצמו",
+        "close": "סגור",
+        "done": "סיום",
+        "nameLabel": "שם מלא *",
+        "namePlaceholder": "ישראל ישראלי",
+        "emailLabel": "אימייל *",
+        "roleLabel": "תפקיד",
+        "sending": "שולח...",
+        "send": "שלח הזמנה",
+        "cancel": "ביטול"
+      },
+      "pending": {
+        "resent": "ההזמנה נשלחה שוב",
+        "resendEmailFailed": "המייל לא נשלח — שלח/י את הקישור בוואטסאפ",
+        "cancelled": "ההזמנה בוטלה",
+        "title": "ממתינים לאישור ({count})",
+        "expired": "פג תוקף",
+        "emailNotSent": "המייל לא נשלח",
+        "awaiting": "ממתין לאישור",
+        "sentAgo": "נשלח {time}",
+        "resendTitle": "קישור חדש — הקודם מפסיק לעבוד",
+        "resend": "שלח שוב",
+        "cancel": "בטל"
+      },
+      "cancelDialog": {
+        "title": "לבטל את ההזמנה של {name}?",
+        "description": "הקישור שנשלח יפסיק לעבוד. אפשר להזמין שוב בכל עת.",
+        "confirm": "בטל הזמנה"
+      }
+    },
+    "teamTab": {
+      "roles": {
+        "owner": "בעלים",
+        "manager": "מנהל",
+        "user": "עובד",
+        "volunteer": "מתנדב"
+      },
+      "errors": {
+        "missingBusiness": "מזהה העסק חסר. נסה לרענן את הדף."
+      },
+      "toasts": {
+        "roleUpdated": "התפקיד עודכן בהצלחה",
+        "roleUpdateError": "שגיאה בעדכון התפקיד. נסה שוב.",
+        "permsSaved": "ההרשאות נשמרו",
+        "permsSaveError": "שגיאה בשמירת ההרשאות. נסה שוב.",
+        "userActivated": "המשתמש הופעל",
+        "userDeactivated": "המשתמש הושבת",
+        "statusUpdateError": "שגיאה בעדכון הסטטוס. נסה שוב.",
+        "memberDeleted": "העובד נמחק מהצוות",
+        "deleteError": "שגיאה במחיקת העובד. נסה שוב."
+      },
+      "confirm": {
+        "defaultLabel": "אישור",
+        "deactivate": {
+          "title": "להשבית את {name}?",
+          "description": "המשתמש ינותק מהמערכת מיד והגישה שלו לעסק תיחסם. אפשר להפעיל אותו מחדש בכל עת.",
+          "label": "השבת"
+        },
+        "delete": {
+          "title": "למחוק את {name} מהצוות?",
+          "description": "העובד יוסר מהעסק לצמיתות. הנתונים שיצר (משימות, הערות, פעילות) נשארים. כדי להחזיר אותו בעתיד — שולחים הזמנה חדשה.",
+          "label": "מחק לצמיתות"
+        },
+        "makeOwner": {
+          "title": "להפוך את {name} לבעלים?",
+          "description": "לבעלים יש גישה מלאה לעסק — כולל הכנסות, מחיקות, הגדרות קריטיות וניהול הצוות (כולל אותך). לא תוכל/י לשנות את התפקיד שלו בחזרה.",
+          "label": "הפוך לבעלים"
+        },
+        "downgrade": {
+          "title": "להוריד את {name} מ{from} ל{to}?",
+          "description": "המשתמש יאבד מיד את ההרשאות של התפקיד הקודם. הרשאות שסומנו לו אישית נשמרות.",
+          "label": "שנה תפקיד"
+        }
+      },
+      "header": {
+        "title": "ניהול צוות",
+        "invite": "הזמן עובד"
+      },
+      "member": {
+        "inactive": "מושבת",
+        "self": "(את/ה)",
+        "neverLoggedIn": "לא התחבר",
+        "roleAria": "תפקיד של {name}",
+        "activate": "הפעל",
+        "deactivate": "השבת",
+        "permissions": "הרשאות"
+      },
+      "capabilities": {
+        "intro": "מה מותר ל{name}? ברירת המחדל נגזרת מהתפקיד ({role}) — כל שינוי כאן גובר עליה.",
+        "grantedCount": "{granted} מתוך {total} מותרות.",
+        "reset": "אפס לברירת המחדל של התפקיד ({count} שינויים)",
+        "customTitle": "שונה ידנית — שונה מברירת המחדל של התפקיד",
+        "customAria": "שונה ידנית"
+      }
+    },
+    "whatsAppConnectCard": {
+      "templateStatus": {
+        "APPROVED": "מאושר",
+        "PENDING": "ממתין",
+        "REJECTED": "נדחה"
+      },
+      "quality": {
+        "GREEN": "איכות: ירוק",
+        "YELLOW": "איכות: צהוב",
+        "RED": "איכות: אדום",
+        "raw": "איכות: {rating}"
+      },
+      "toasts": {
+        "connected": "הוואטסאפ של העסק חובר בהצלחה",
+        "connectFailed": "החיבור נכשל",
+        "templatesSynced": "התבניות סונכרנו",
+        "syncFailed": "סנכרון התבניות נכשל",
+        "disconnected": "המספר נותק. הודעות יישלחו שוב מהמספר של Petra",
+        "disconnectFailed": "הניתוק נכשל",
+        "testSent": "הודעת בדיקה נשלחה",
+        "testFailed": "שליחת הבדיקה נכשלה"
+      },
+      "flow": {
+        "noPhone": "התהליך הסתיים בלי מספר טלפון. יש להוסיף מספר WhatsApp Business בתהליך של Meta ולנסות שוב",
+        "canceled": "התהליך בוטל",
+        "canceledAtStep": "התהליך בוטל (שלב: {step})",
+        "metaError": "שגיאה בתהליך של Meta",
+        "notConfigured": "חיבור מספר עצמאי אינו מוגדר בסביבה זו",
+        "sdkReady": "מוכן — לחצו שוב על הכפתור כדי להיכנס ל-Facebook",
+        "sdkLoadFailed": "לא ניתן לטעון את Facebook SDK. בדקו חוסם פרסומות ונסו שוב",
+        "loginIncomplete": "ההתחברות ל-Facebook לא הושלמה"
+      },
+      "debug": {
+        "fromMeta": "מ-Meta: {raw}",
+        "windowOpened": "נפתח חלון Meta (config {config}, coexistence={coexistence})",
+        "yes": "כן",
+        "no": "לא",
+        "loginResponse": "תשובת FB.login: {json}",
+        "loginResponseUnreadable": "תשובת FB.login: (לא ניתן לקריאה)",
+        "title": "יומן אבחון — מה Meta החזירה",
+        "copied": "היומן הועתק",
+        "copy": "העתק",
+        "hint": "אם החלון נסגר בלי כלום — צלמו את היומן הזה."
+      },
+      "disconnectDialog": {
+        "title": "לנתק את מספר העסק?",
+        "description": "ההודעות האוטומטיות יחזרו לצאת מהמספר של Petra. אפשר לחבר את המספר מחדש בכל עת."
+      },
+      "actions": {
+        "disconnect": "נתק"
+      },
+      "readOnlyNote": "חיבור, ניתוק וניהול המספר זמינים לבעלים ולמנהלים בלבד.",
+      "header": {
+        "title": "המספר של העסק ב-WhatsApp",
+        "subtitle": "שליחת תזכורות והודעות ללקוחות מהמספר שלכם, במקום מהמספר של Petra"
+      },
+      "comingSoon": {
+        "title": "חיבור מספר עצמאי — בקרוב",
+        "body": "בינתיים כל ההודעות האוטומטיות יוצאות מהמספר של Petra."
+      },
+      "coexistence": {
+        "label": "להשאיר את אפליקציית WhatsApp Business פעילה על אותו מספר (Coexistence)",
+        "hint": "תמשיכו לשוחח עם לקוחות מהאפליקציה בטלפון, ו-Petra תשלח את ההודעות האוטומטיות מאותו מספר."
+      },
+      "connect": {
+        "connecting": "מחבר…",
+        "awaitingMeta": "ממתין לסיום התהליך ב-Meta…",
+        "cancel": "בטל",
+        "reconnect": "חבר מחדש",
+        "connectCta": "חבר את הוואטסאפ של העסק"
+      },
+      "error": {
+        "title": "החיבור למספר {phone} נתקל בבעיה",
+        "titleNoPhone": "החיבור למספר העסק נתקל בבעיה",
+        "fallbackNote": "עד לתיקון, ההודעות יוצאות מהמספר של Petra."
+      },
+      "tierGate": {
+        "title": "WhatsApp מהמספר של העסק",
+        "description": "חיבור מספר WhatsApp עצמאי זמין במנוי PRO ומעלה."
+      },
+      "active": {
+        "banner": "מחובר — ההודעות יוצאות מהמספר של העסק",
+        "connectedSince": "מחובר מאז {date}",
+        "coexistenceOn": "Coexistence: האפליקציה פעילה במקביל",
+        "coexistenceOff": "ללא Coexistence"
+      },
+      "templates": {
+        "title": "תבניות הודעה",
+        "syncedAt": "סונכרן {date}",
+        "sync": "סנכרן תבניות",
+        "empty": "עדיין לא סונכרנו תבניות.",
+        "emptyHint": "לחצו \"סנכרן תבניות\".",
+        "missing": "חסרה",
+        "missingNote": "תבניות שטרם אושרו אצלכם נשלחות בינתיים מהמספר של Petra."
+      },
+      "test": {
+        "send": "שלח הודעת בדיקה"
+      },
+      "none": {
+        "disconnectedNote": "המספר נותק. עד לחיבור מחדש ההודעות יוצאות מהמספר של Petra.",
+        "requirements": {
+          "facebook": "חשבון Facebook של העסק (Business Manager)",
+          "number": "מספר WhatsApp Business (אפשר את המספר שכבר בשימוש)",
+          "verify": "אימות בעלות על המספר ב-SMS או בשיחה"
+        }
+      }
+    },
+    "settingsTabs": {
+      "groups": {
+        "business": "העסק",
+        "operations": "תפעול",
+        "communication": "תקשורת וצוות",
+        "connections": "חיבורים ונתונים",
+        "account": "החשבון שלי"
+      },
+      "tabs": {
+        "business": {
+          "label": "פרטי העסק",
+          "description": "שם, פרטי קשר, לוגו וישות משפטית"
+        },
+        "subscription": {
+          "label": "מנוי וחיוב",
+          "description": "המסלול שלך, שימוש ושדרוג"
+        },
+        "booking": {
+          "label": "זמינות והזמנות",
+          "description": "שעות פעילות, חסימות והזמנות אונליין",
+          "paywallTitle": "זמינות והזמנות אונליין",
+          "paywallDescription": "הגדר זמינות, שעות פעילות והזמנות אונליין — זמין במנוי בייסיק ומעלה."
+        },
+        "boarding": {
+          "label": "פנסיון",
+          "description": "צ׳ק-אין, צ׳ק-אאוט ומינימום לילות",
+          "paywallTitle": "הגדרות פנסיון",
+          "paywallDescription": "הגדר שעות צ׳ק-אין/אאוט ומינימום לילות — זמין במנוי פרו ומעלה."
+        },
+        "serviceDogs": {
+          "label": "כלבי שירות",
+          "description": "שעות אימון, הסמכה ולוח חיסונים",
+          "paywallTitle": "הגדרות כלבי שירות",
+          "paywallDescription": "הגדרות תוכנית כלבי שירות — זמין במנוי Service Dog בלבד."
+        },
+        "payments": {
+          "label": "חוזים",
+          "description": "תבניות חוזים דיגיטליים לחתימה",
+          "paywallTitle": "חוזים דיגיטליים",
+          "paywallDescription": "תבניות חוזים וחתימה דיגיטלית — זמין במנוי בייסיק ומעלה."
+        },
+        "messages": {
+          "label": "הודעות ואוטומציות",
+          "description": "תבניות WhatsApp ותזכורות אוטומטיות",
+          "paywallTitle": "הודעות ואוטומציות",
+          "paywallDescription": "תבניות WhatsApp, תזכורות אוטומטיות ואוטומציות — זמין במנוי בייסיק ומעלה."
+        },
+        "team": {
+          "label": "צוות והרשאות",
+          "description": "חברי צוות, תפקידים והרשאות",
+          "paywallTitle": "ניהול צוות",
+          "paywallDescription": "הוסף חברי צוות ונהל הרשאות — זמין במנוי פרו ומעלה."
+        },
+        "integrations": {
+          "label": "אינטגרציות",
+          "description": "Google Calendar, WhatsApp, Make ועוד",
+          "paywallTitle": "אינטגרציות",
+          "paywallDescription": "חבר יומן Google, WhatsApp ועוד — זמין במנוי בייסיק ומעלה."
+        },
+        "aiAgents": {
+          "label": "עוזרי AI",
+          "description": "חיבור Claude, ChatGPT ועוד",
+          "paywallTitle": "עוזרי AI",
+          "paywallDescription": "חבר את העסק שלך ל-Claude, ChatGPT ועוד — זמין במנוי פרו ומעלה."
+        },
+        "data": {
+          "label": "ייבוא וייצוא",
+          "description": "ייבוא לקוחות מאקסל וייצוא נתונים",
+          "paywallTitle": "ייבוא וייצוא נתונים",
+          "paywallDescription": "ייבוא וייצוא לקוחות ובעלי חיים ל-Excel/CSV — זמין במנוי בייסיק ומעלה."
+        },
+        "security": {
+          "label": "פרופיל ואבטחה",
+          "description": "השם שלך, סיסמה, אימות דו-שלבי וסשנים"
+        }
+      }
+    },
+    "settingsUi": {
+      "saveBar": {
+        "ariaLabel": "שמירת שינויים",
+        "unsaved": "יש שינויים שלא נשמרו",
+        "discard": "בטל שינויים",
+        "save": "שמור שינויים"
+      },
+      "readOnlyNotice": "תצוגה בלבד — רק בעלי העסק, או מי שקיבל ממנו את ההרשאה \"לשנות הגדרות עסק\", יכולים לשנות הגדרות אלה."
+    },
+    "useBusinessSettings": {
+      "saveError": "שגיאה בשמירת ההגדרות",
+      "saved": "ההגדרות נשמרו",
+      "saveErrorRetry": "שגיאה בשמירת ההגדרות. נסה שוב."
+    },
+    "shared": {
+      "treatments": {
+        "rabies": "כלבת",
+        "dhpp": "משושה",
+        "deworming": "תילוע",
+        "parkWorm": "תולעת הפארק",
+        "fleaTick": "קרציות ופרעושים",
+        "dhppPuppy": "משושה גורים"
+      },
+      "months": {
+        "jan": "ינואר",
+        "feb": "פברואר",
+        "mar": "מרץ",
+        "apr": "אפריל",
+        "may": "מאי",
+        "jun": "יוני",
+        "jul": "יולי",
+        "aug": "אוגוסט",
+        "sep": "ספטמבר",
+        "oct": "אוקטובר",
+        "nov": "נובמבר",
+        "dec": "דצמבר"
+      },
+      "errors": {
+        "phoneInvalid": "מספר טלפון לא תקין (פורמט ישראלי)",
+        "vatInvalid": "מספר עוסק מורשה חייב להכיל 9 ספרות"
+      }
+    },
+    "availabilityPage": {
+      "everyDay": "כל יום",
+      "days": {
+        "0": "ראשון",
+        "1": "שני",
+        "2": "שלישי",
+        "3": "רביעי",
+        "4": "חמישי",
+        "5": "שישי",
+        "6": "שבת"
+      },
+      "errors": {
+        "saveRules": "שגיאה בשמירת שעות הפעילות",
+        "saveSettings": "שגיאה בשמירת ההגדרות",
+        "addBlock": "שגיאה בהוספת חסימה",
+        "deleteBlock": "שגיאה במחיקת החסימה",
+        "addBreak": "שגיאה בהוספת הפסקה",
+        "deleteBreak": "שגיאה במחיקת ההפסקה",
+        "importHolidays": "שגיאה בייבוא חגים"
+      },
+      "toasts": {
+        "rulesSaved": "שעות הפעילות נשמרו",
+        "settingsSaved": "הגדרות תיאום נשמרו",
+        "breakAdded": "הפסקה נוספה",
+        "holidaysCreated": "נוצרו {count} חסימות חגים"
+      },
+      "title": "זמינות ושעות פעילות",
+      "subtitle": "הגדר מתי לקוחות יכולים להזמין תורים",
+      "bookingPage": "דף ההזמנה",
+      "readOnlyNotice": "תצוגה בלבד — רק בעלי העסק, או מי שקיבל ממנו את ההרשאה \"לשנות שעות פעילות וזמינות\", יכולים לשנות שעות, הפסקות וחסימות.",
+      "bookingSettings": {
+        "title": "הגדרות תיאום",
+        "buffer": "מרווח בין פגישות",
+        "minutes": "דקות",
+        "minNotice": "מינימום הודעה מראש",
+        "hours": "שעות",
+        "maxAdvance": "כמה ימים קדימה ניתן לקבוע",
+        "days": "ימים",
+        "gcalBlockExternal": "חסום פגישות גוגל קלנדר (כולל אישיות)",
+        "save": "שמור הגדרות"
+      },
+      "breaks": {
+        "title": "הפסקות יומיות",
+        "addHint": "הוסף הפסקה חוזרת (צהריים, תפילה וכד׳)",
+        "dayOfWeek": "יום בשבוע",
+        "fromTime": "משעה",
+        "toTime": "עד שעה",
+        "labelOptional": "תווית (אופציונלי)",
+        "labelPlaceholder": "הפסקת צהריים",
+        "add": "הוסף הפסקה",
+        "empty": "אין הפסקות מוגדרות",
+        "row": "{day} — {start} עד {end}",
+        "deleteAriaLabel": "מחק הפסקה"
+      },
+      "weeklyHours": {
+        "title": "שעות פעילות שבועיות",
+        "saved": "נשמר!",
+        "until": "עד",
+        "closed": "סגור"
+      },
+      "blocks": {
+        "title": "חסימות וחופשות",
+        "importing": "מייבא...",
+        "importHolidays": "ייבא חגי ישראל 5786-5787",
+        "addHint": "הוסף תקופת חסימה (חגים, חופשות, סגירה חד-פעמית)",
+        "from": "מתאריך ושעה",
+        "to": "עד תאריך ושעה",
+        "reasonOptional": "סיבה (אופציונלי)",
+        "reasonPlaceholder": "חופשה, יום סגור...",
+        "add": "הוסף חסימה",
+        "empty": "אין חסימות פעילות",
+        "range": "{start} ← {end}",
+        "deleteAriaLabel": "מחק חסימה"
+      },
+      "tip": {
+        "title": "טיפ: הפעלת הזמנה אונליין לשירותים",
+        "body": "כדי ששירות יופיע בדף ההזמנה הציבורי, עבור ל<link>מחירון</link>והפעל \"זמין לתיאום תור אונליין\" עבור כל שירות רצוי."
+      }
+    },
+    "settingsPage": {
+      "title": "הגדרות",
+      "selectArea": "בחר אזור הגדרות",
+      "areasNavAriaLabel": "אזורי הגדרות",
+      "lockedAriaLabel": "נעול במסלול הנוכחי"
+    },
+    "ownerSettingsPage": {
+      "title": "הגדרות פלטפורמה",
+      "flagsDescription": "הגדרות בוליאניות או JSON גלובליות לפיצ׳רים של הפלטפורמה",
+      "empty": "אין flags מוגדרים עדיין",
+      "addOrUpdate": "הוספה / עדכון flag",
+      "valuePlaceholder": "ערך (JSON)",
+      "descriptionPlaceholder": "תיאור (אופציונלי)"
+    },
+    "accountSection": {
+      "genericError": "שגיאה",
+      "passwordChanged": "הסיסמה שונתה בהצלחה",
+      "passwordSet": "הסיסמה הוגדרה בהצלחה — כעת ניתן להתחבר גם עם אימייל וסיסמה",
+      "fillAllFields": "יש למלא את כל השדות",
+      "minLength": "הסיסמה החדשה חייבת להכיל לפחות 12 תווים",
+      "mismatch": "הסיסמאות אינן תואמות",
+      "setPasswordTitle": "הגדרת סיסמה",
+      "changePasswordTitle": "שינוי סיסמה",
+      "googleOnlyNotice": "חשבונך מחובר דרך Google. באפשרותך להגדיר סיסמה כדי להתחבר גם עם אימייל וסיסמה בנוסף לכניסה עם Google.",
+      "currentPassword": "סיסמה נוכחית",
+      "newPassword": "סיסמה חדשה",
+      "newPasswordPlaceholder": "לפחות 8 תווים",
+      "confirmPassword": "אימות סיסמה",
+      "confirmPlaceholder": "הזן שוב את הסיסמה",
+      "setting": "מגדיר...",
+      "changing": "מחליף...",
+      "setPassword": "הגדר סיסמה",
+      "changePassword": "החלף סיסמה"
+    },
+    "accountTab": {
+      "roles": {
+        "owner": "בעלים",
+        "manager": "מנהל/ת",
+        "user": "עובד/ת",
+        "volunteer": "מתנדב/ת"
+      },
+      "nameUpdateError": "שגיאה בעדכון השם",
+      "nameUpdated": "השם עודכן",
+      "title": "הפרופיל שלי",
+      "nameLabel": "השם שלך (מוצג בתוך המערכת וביומן הפעילות)",
+      "namePlaceholder": "שם מלא",
+      "update": "עדכן",
+      "loginEmail": "אימייל להתחברות",
+      "yourRole": "התפקיד שלך בעסק"
+    },
+    "boardingSettingsTab": {
+      "saved": "הגדרות הפנסיון נשמרו",
+      "units": {
+        "days": "ימים",
+        "nights": "לילות"
+      },
+      "errors": {
+        "minNightsRange": "מינימום לילות חייב להיות מספר שלם בין 0 ל-365"
+      },
+      "header": {
+        "title": "הגדרות פנסיון",
+        "description": "ברירות מחדל לשהיות חדשות ולחישוב המחיר"
+      },
+      "fields": {
+        "checkIn": "שעת צ׳ק-אין",
+        "checkOut": "שעת צ׳ק-אאוט",
+        "calcMode": "חישוב לפי",
+        "minimum": "מינימום {unit}"
+      }
+    },
+    "bookingTab": {
+      "linkBox": {
+        "clickToCopy": "לחץ להעתקה",
+        "copyLink": "העתק לינק",
+        "copied": "הועתק",
+        "copy": "העתק",
+        "shareWhatsApp": "שתף בוואטסאפ",
+        "openBookingPage": "פתח עמוד הזמנה"
+      },
+      "saved": "הגדרות ההזמנות נשמרו",
+      "title": "הגדרות הזמנה אונליין",
+      "upgradeNotice": "<link>שדרג לפרו</link> כדי להפעיל הזמנות אונליין, להגדיר קישור הזמנה ומדיניות ביטול.",
+      "bookingLink": "קישור להזמנה אונליין",
+      "setSlugHint": "הגדר כתובת הזמנה (slug) כדי לשתף את הקישור:",
+      "requiresApproval": {
+        "label": "תורים אונליין דורשים אישור שלי",
+        "description": "כשהאפשרות דולקת — כל תור שנקבע באתר נכנס כ״ממתין לאישור״, מגיע אליך בוואטסאפ ובפעמון, ונכנס ליומן רק אחרי שתאשר אותו במודול תורים אונליין. כשהיא כבויה — התור מאושר אוטומטית."
+      },
+      "welcomeText": {
+        "label": "טקסט פתיחה לדף ההזמנה",
+        "placeholder": "ברוכים הבאים! אנו שמחים לקבל הזמנות אונליין...",
+        "hint": "יוצג ללקוחות בראש דף ההזמנה"
+      },
+      "cancellationPolicy": {
+        "label": "מדיניות ביטול",
+        "placeholder": "ביטול עד 24 שעות לפני התור – ללא עלות. ביטול מאוחר יותר – יגבה דמי ביטול...",
+        "hint": "יוצג ללקוחות לפני אישור ההזמנה"
+      },
+      "deposit": {
+        "label": "הוראות תשלום מקדמה",
+        "placeholder": "יש לשלם את המקדמה דרך Bit / Paybox למספר 050-0000000...",
+        "hint": "מוצג כשלשירות יש מקדמה אך אין קישור תשלום"
+      }
+    },
+    "businessTab": {
+      "saved": "פרטי העסק נשמרו",
+      "errors": {
+        "nameRequired": "שם העסק הוא שדה חובה",
+        "fixFields": "יש לתקן את השדות המסומנים"
+      },
+      "header": {
+        "title": "פרטי העסק",
+        "description": "הפרטים מופיעים בדף ההזמנות, בחוזים ובהודעות ללקוחות"
+      },
+      "fields": {
+        "nameRequired": "שם העסק *",
+        "phone": "טלפון",
+        "phoneHint": "מקבל התראות WhatsApp על לידים ואבטחה",
+        "email": "אימייל",
+        "contactPhone": "טלפון ליצירת קשר בהודעות ללקוחות",
+        "contactPhoneHint": "מופיע בתזכורות ובהודעות האוטומטיות ללקוחות. ריק = הטלפון של העסק",
+        "address": "כתובת",
+        "legalEntityType": "סוג ישות משפטית",
+        "companyNumber": "מספר ח.פ",
+        "licensedNumber": "מספר עוסק מורשה"
+      },
+      "entityTypes": {
+        "none": "לא מוגדר",
+        "licensed": "עוסק מורשה (ע.מ)",
+        "exempt": "עוסק פטור",
+        "company": "חברה (ח.פ)"
+      },
+      "exemptNotice": "עוסק פטור פטור ממע״מ — לא יחושב מע״מ בהזמנות ובמחירון.",
+      "logo": {
+        "label": "לוגו העסק",
+        "uploadError": "שגיאה בהעלאת הלוגו",
+        "updated": "הלוגו עודכן",
+        "removed": "הלוגו הוסר",
+        "removeError": "שגיאה בהסרת הלוגו",
+        "uploading": "מעלה...",
+        "noLogo": "אין לוגו",
+        "clickToUpload": "לחץ להעלאה",
+        "replace": "החלף לוגו",
+        "upload": "העלה לוגו",
+        "remove": "הסר",
+        "formats": "PNG, JPG, WebP, GIF · עד 5MB · נשמר מיד",
+        "confirm": {
+          "title": "להסיר את הלוגו?",
+          "description": "הלוגו יוסר מדף ההזמנות, מהחוזים ומהמסמכים של העסק.",
+          "confirmLabel": "הסר לוגו"
+        }
+      }
+    },
+    "availabilityTab": {
+      "readOnlyNote": "תצוגה בלבד — רק בעלי העסק, או מי שקיבל ממנו את ההרשאה \"לשנות שעות פעילות וזמינות\", יכולים לשנות שעות, הפסקות וחסימות.",
+      "days": {
+        "everyDay": "כל יום",
+        "sun": "ראשון",
+        "mon": "שני",
+        "tue": "שלישי",
+        "wed": "רביעי",
+        "thu": "חמישי",
+        "fri": "שישי",
+        "sat": "שבת"
+      },
+      "errors": {
+        "saveSchedule": "שגיאה בשמירת לוח הזמנים",
+        "addBlock": "שגיאה בהוספת החסימה",
+        "deleteBlock": "שגיאה במחיקת החסימה",
+        "saveSettings": "שגיאה בשמירת ההגדרות",
+        "addBreak": "שגיאה בהוספת הפסקה",
+        "deleteBreak": "שגיאה במחיקת ההפסקה",
+        "importHolidays": "שגיאה בייבוא חגים",
+        "generic": "שגיאה"
+      },
+      "toasts": {
+        "scheduleSaved": "לוח הזמנים נשמר",
+        "blockDeleted": "החסימה נמחקה",
+        "settingsSaved": "הגדרות תיאום נשמרו",
+        "breakAdded": "הפסקה נוספה",
+        "breakDeleted": "ההפסקה נמחקה",
+        "holidaysImported": "נוצרו {count} חסימות חגים"
+      },
+      "units": {
+        "minutes": "דקות",
+        "hours": "שעות",
+        "days": "ימים"
+      },
+      "bookingSettings": {
+        "title": "הגדרות תיאום",
+        "buffer": "מרווח בין פגישות",
+        "minNotice": "הודעה מראש (מינ׳)",
+        "maxAdvance": "קביעה עד כמה ימים קדימה",
+        "gcalBlockExternal": "חסום פגישות גוגל קלנדר (כולל אישיות)",
+        "saveHint": "השינויים נשמרים יחד עם לוח הזמנים השבועי — בסרגל השמירה שמופיע בתחתית."
+      },
+      "breaks": {
+        "title": "הפסקות יומיות",
+        "subtitle": "צהריים, תפילה וכד׳",
+        "day": "יום",
+        "from": "משעה",
+        "to": "עד שעה",
+        "labelOptional": "תווית (אופציונלי)",
+        "labelPlaceholder": "הפסקת צהריים",
+        "add": "הוסף הפסקה",
+        "empty": "אין הפסקות מוגדרות",
+        "range": "{start} עד {end}",
+        "deleteAria": "מחק הפסקה"
+      },
+      "schedule": {
+        "title": "לוח זמנים שבועי",
+        "dayOpenAria": "{day} פתוח",
+        "until": "עד",
+        "closed": "סגור"
+      },
+      "blocks": {
+        "title": "חסימות זמינות",
+        "subtitle": "חופשות, ימי סגירה מיוחדים",
+        "importHolidays": "ייבא חגי ישראל 5786-5787",
+        "start": "תאריך ושעת התחלה *",
+        "end": "תאריך ושעת סיום *",
+        "reasonOptional": "סיבה (אופציונלי)",
+        "reasonPlaceholder": "חופשה, יום כיף צוות...",
+        "add": "הוסף חסימה",
+        "empty": "אין חסימות פעילות",
+        "deleteAria": "מחק חסימה"
+      },
+      "confirmDelete": {
+        "breakTitle": "למחוק את ההפסקה?",
+        "blockTitle": "למחוק את החסימה?",
+        "breakDescription": "הזמן הזה ייפתח שוב לקביעת תורים.",
+        "blockDescription": "הזמנים האלה ייפתחו שוב לקביעת תורים אונליין."
+      }
+    },
+    "contractsTab": {
+      "header": {
+        "title": "חוזים",
+        "subtitle": "תבניות PDF להחתמת לקוחות",
+        "newTemplate": "תבנית חדשה"
+      },
+      "noPermission": "הוספה, עריכה ומחיקה של תבניות חוזים דורשות את ההרשאה \"לנהל תבניות חוזים\" — בקש מבעל העסק.",
+      "list": {
+        "loadError": "שגיאה בטעינת תבניות החוזים",
+        "empty": "אין תבניות חוזים עדיין",
+        "uploadFirst": "העלה תבנית ראשונה",
+        "fieldsCount": " · {count} שדות",
+        "noFields": " · ללא שדות",
+        "created": "נוצר: {date}",
+        "edit": "ערוך",
+        "deleteAria": "מחק את {name}",
+        "deleteTitle": "מחק תבנית"
+      },
+      "toasts": {
+        "deleteError": "שגיאה במחיקת התבנית",
+        "deleted": "תבנית נמחקה",
+        "noSignature": "לא הוצב שדה חתימה – הלקוח לא יוכל לחתום. לחץ שוב לשמור בכל זאת.",
+        "saveError": "שגיאה בשמירה",
+        "saved": "תבנית נשמרה!",
+        "updated": "תבנית עודכנה!",
+        "networkError": "שגיאת רשת"
+      },
+      "deleteDialog": {
+        "title": "למחוק את תבנית החוזה?",
+        "description": "התבנית \"{name}\" תימחק לצמיתות — <strong>יחד עם כל בקשות ההחתמה שנשלחו ממנה, כולל חוזים חתומים וקבצי ה-PDF שלהם</strong>. לא ניתן לבטל פעולה זו. מחיקת תבנית שיש לה חוזים חתומים מותרת רק למי שמורשה למחוק לקוחות וכלבים."
+      },
+      "fieldTypes": {
+        "customer_name": "👤 שם לקוח",
+        "id_number": "🆔 ת.ז.",
+        "address": "🏠 כתובת",
+        "phone": "📞 טלפון",
+        "pet_name": "🐕 שם הכלב",
+        "pet_breed": "🐾 גזע",
+        "pet_microchip": "📟 מס׳ שבב",
+        "pet_birthdate": "📅 תאריך לידה",
+        "pet_gender": "⚥ מין הכלב",
+        "pet_color": "🎨 צבע/סימנים",
+        "signature": "✍️ חתימה"
+      },
+      "fieldShort": {
+        "customer_name": "שם לקוח",
+        "id_number": "ת.ז.",
+        "address": "כתובת",
+        "phone": "טלפון",
+        "pet_name": "שם הכלב",
+        "pet_breed": "גזע",
+        "pet_microchip": "מס׳ שבב",
+        "pet_birthdate": "תאריך לידה",
+        "pet_gender": "מין",
+        "pet_color": "צבע/סימנים",
+        "signature": "חתימה"
+      },
+      "summary": {
+        "page": "עמוד {page}: ",
+        "totalOne": "{count} שדה בסך הכל ·",
+        "totalOther": "{count} שדות בסך הכל ·",
+        "clearAll": "נקה הכל",
+        "noSignature": "לא הוצב שדה חתימה – הלקוח לא יוכל לחתום על המסמך"
+      },
+      "modal": {
+        "newTitle": "תבנית חוזה חדשה",
+        "editTitle": "עריכת תבנית: {name}",
+        "nameRequired": "שם התבנית *",
+        "name": "שם התבנית",
+        "namePlaceholder": "לדוג׳: חוזה פנסיון, הסכם אילוף...",
+        "pdfFile": "קובץ PDF *",
+        "page": "עמוד:",
+        "pickFieldType": "בחר סוג שדה ולחץ על המסמך למיקומו:",
+        "cannotDisplay": "לא ניתן להציג את המסמך",
+        "loadDocError": "שגיאה בטעינת המסמך",
+        "retry": "נסה שוב",
+        "saveTemplate": "שמור תבנית",
+        "saveChanges": "שמור שינויים"
+      }
+    },
+    "dataTab": {
+      "exportTypes": {
+        "customers": {
+          "label": "לקוחות בלבד",
+          "description": "שם, טלפון, מייל, כתובת, תגיות"
+        },
+        "dogs": {
+          "label": "כלבים בלבד",
+          "description": "שם, גזע, מין, משקל, בעלים"
+        },
+        "customers_dogs": {
+          "label": "לקוחות + כלבים",
+          "description": "נתוני לקוחות וכלבים משולבים"
+        }
+      },
+      "exportStatus": {
+        "pending": "ממתין",
+        "processing": "מעבד",
+        "completed": "מוכן",
+        "failed": "נכשל",
+        "expired": "פג תוקף"
+      },
+      "exportTypeLabels": {
+        "customers": "לקוחות בלבד",
+        "dogs": "כלבים בלבד",
+        "customers_dogs": "לקוחות + כלבים",
+        "pets": "חיות מחמד",
+        "both": "לקוחות + חיות"
+      },
+      "errors": {
+        "createExport": "שגיאה ביצירת הייצוא",
+        "templateDownload": "שגיאה בהורדת התבנית. נסה שוב.",
+        "parse": "שגיאה בניתוח הקובץ",
+        "execute": "שגיאה בביצוע הייבוא",
+        "generic": "אירעה שגיאה"
+      },
+      "export": {
+        "title": "ייצוא נתונים",
+        "newExport": "ייצוא חדש",
+        "type": "סוג ייצוא",
+        "format": "פורמט קובץ",
+        "outputMode": "אופן פלט",
+        "outputFlat": "שטוח (גיליון אחד)",
+        "outputSeparate": "מופרד (גיליון לכל סוג)",
+        "dateFilter": "פילטר תאריכים (אופציונלי)",
+        "fromDate": "מתאריך",
+        "toDate": "עד תאריך",
+        "exportNow": "ייצא עכשיו",
+        "requested": "בקשת הייצוא נשלחה. הקובץ יופיע בהיסטוריה.",
+        "historyTitle": "היסטוריית ייצואים",
+        "historyEmpty": "אין ייצואים עדיין",
+        "download": "הורד",
+        "columns": {
+          "type": "סוג",
+          "format": "פורמט",
+          "status": "מצב",
+          "records": "רשומות",
+          "size": "גודל",
+          "date": "תאריך"
+        }
+      },
+      "import": {
+        "title": "ייבוא נתונים",
+        "noPermission": "ייבוא לקוחות דורש את ההרשאה 'לייבא לקוחות מאקסל' — בקש מבעל העסק",
+        "downloadTemplate": "הורד תבנית לדוגמה",
+        "clickToUpload": "לחץ להעלאת קובץ",
+        "fileTypes": "Excel (.xlsx) או CSV",
+        "summaryTitle": "סיכום ניתוח הקובץ",
+        "newCustomers": "לקוחות חדשים",
+        "pets": "חיות מחמד",
+        "skippedRows": "שורות דולגו",
+        "dbDuplicates": "{count} לקוחות כבר קיימים במערכת (ימוזגו)",
+        "issuesTitle": "בעיות שזוהו:",
+        "issueRow": "שורה {row}: {message}",
+        "confirm": "אשר ייבוא",
+        "parsing": "מנתח קובץ...",
+        "importing": "מייבא נתונים... עשוי לקחת עד דקה",
+        "stayOnPage": "המערכת טוענת נתונים — נא לא לצאת מדף ההגדרות עד שהייבוא יסתיים",
+        "done": "הייבוא הושלם בהצלחה!",
+        "createdCustomers": "לקוחות נוצרו",
+        "mergedCustomers": "לקוחות מוזגו",
+        "createdPets": "חיות נוצרו",
+        "importMore": "ייבוא נוסף",
+        "retry": "נסה שוב"
+      }
+    }
+  },
   "tasks": {
     "title": "משימות",
     "categories": {
@@ -5788,6 +8475,20 @@
         "completedAt": "תאריך השלמה",
         "relatedEntityName": "שיוך (לקוח/חיה)"
       }
+    }
+  },
+  "tenantAdmin": {
+    "tenantAdminShell": {
+      "nav": {
+        "analytics": "אנליטיקס",
+        "members": "חברי צוות",
+        "auditLogs": "יומן פעולות"
+      },
+      "panelLabel": "פאנל ניהול",
+      "headerTitle": "{name} — פאנל ניהול",
+      "backToApp": "חזרה לאפליקציה",
+      "logout": "התנתק",
+      "suspended": "מושהה"
     }
   },
   "ui": {

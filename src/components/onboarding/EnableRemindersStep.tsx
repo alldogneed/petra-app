@@ -1,6 +1,7 @@
 "use client";
 
 import { Bell, Clock } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface EnableRemindersStepProps {
   open: boolean;
@@ -13,6 +14,7 @@ export function EnableRemindersStep({
   onEnabled,
   loading,
 }: EnableRemindersStepProps) {
+  const t = useTranslations("onboarding.enableRemindersStep");
   if (!open) return null;
 
   return (
@@ -31,19 +33,19 @@ export function EnableRemindersStep({
         </div>
 
         <h3 className="text-lg font-bold text-petra-text mb-2">
-          תזכורות אוטומטיות
+          {t("title")}
         </h3>
 
         <p className="text-sm text-petra-muted mb-6 leading-relaxed">
-          פטרה יכולה לשלוח תזכורת אוטומטית 48 שעות לפני השירות.
+          {t("bodyLine1")}
           <br />
-          רוצה להפעיל?
+          {t("bodyLine2")}
         </p>
 
         {/* Lead time info */}
         <div className="flex items-center justify-center gap-2 mb-6 text-xs text-petra-muted">
           <Clock className="w-3.5 h-3.5" />
-          <span>48 שעות לפני הפגישה</span>
+          <span>{t("leadTime")}</span>
         </div>
 
         <button
@@ -51,7 +53,7 @@ export function EnableRemindersStep({
           disabled={loading}
           className="btn-primary w-full justify-center py-3 text-base"
         >
-          {loading ? "מפעיל..." : "הפעל תזכורות"}
+          {loading ? t("enabling") : t("enable")}
         </button>
       </div>
     </div>

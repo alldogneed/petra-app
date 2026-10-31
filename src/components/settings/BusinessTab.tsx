@@ -7,14 +7,17 @@ import { PetraLoader } from "@/components/ui/PetraLoader";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { useBusinessSettings, patchBusinessSettings, BUSINESS_SETTINGS_QUERY_KEY } from "@/hooks/useBusinessSettings";
 import { ValidationErrors, validatePhone, validateVatNumber } from "./shared";
 import { ReadOnlyNotice, SettingsFieldset, SettingsSaveBar, SettingsSectionHeader } from "./settings-ui";
 
 export function BusinessTab() {
+  const t = useTranslations("settings.businessTab");
+  const ts = useTranslations("settings.shared");
   const { values, isLoading, set, reset, save, dirty, isSaving, canEdit } = useBusinessSettings({
     dirtyKey: "business",
-    successMessage: "פרטי העסק נשמרו",
+    successMessage: t("saved"),
   });
   const [errors, setErrors] = useState<ValidationErrors>({});
 
@@ -24,20 +27,20 @@ export function BusinessTab() {
   function handleSave() {
     if (!values) return;
     const newErrors: ValidationErrors = {};
-    if (!values.name?.trim()) newErrors.name = "שם העסק הוא שדה חובה";
-    const phoneErr = validatePhone(values.phone || "");
+    if (!values.name?.trim()) newErrors.name = t("errors.nameRequired");
+    const phoneErr = validatePhone(values.phone || "", ts);
     if (phoneErr) newErrors.phone = phoneErr;
     if (values.customerContactPhone?.trim()) {
-      const contactErr = validatePhone(values.customerContactPhone);
+      const contactErr = validatePhone(values.customerContactPhone, ts);
       if (contactErr) newErrors.customerContactPhone = contactErr;
     }
-    if (values.legalEntityType !== "עוסק פטור") {
-      const vatErr = validateVatNumber(values.vatNumber || "");
+    if (values.legalEntityType !== "עוסק פטור") { // i18n-ok — DB value
+      const vatErr = validateVatNumber(values.vatNumber || "", ts);
       if (vatErr) newErrors.vatNumber = vatErr;
     }
     setErrors(newErrors);
     if (Object.keys(newErrors).length > 0) {
-      toast.error("יש לתקן את השדות המסומנים");
+      toast.error(t("errors.fixFields"));
       return;
     }
     save();
@@ -54,18 +57,18 @@ export function BusinessTab() {
 
   return (
     <div className="max-w-xl">
-      <SettingsSectionHeader icon={Building2} title="פרטי העסק" description="הפרטים מופיעים בדף ההזמנות, בחוזים ובהודעות ללקוחות" />
+      <SettingsSectionHeader icon={Building2} title={t("header.title")} description={t("header.description")} />
       {!canEdit && <ReadOnlyNotice className="mb-5" />}
 
       <div className="mb-6">
-        <span className="label" id="logo-label">לוגו העסק</span>
+        <span className="label" id="logo-label">{t("logo.label")}</span>
         <LogoUpload currentLogo={values.logo ?? null} readOnly={!canEdit} />
       </div>
 
       <SettingsFieldset readOnly={!canEdit}>
         <div className="space-y-4">
           <div>
-            <label className="label" htmlFor="biz-name">שם העסק *</label>
+            <label className="label" htmlFor="biz-name">{t("fields.nameRequired")}</label>
             <input
               id="biz-name"
               className={cn("input", errors.name && "border-red-300 focus:ring-red-200")}
@@ -78,7 +81,7 @@ export function BusinessTab() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="label" htmlFor="biz-phone">טלפון</label>
+              <label className="label" htmlFor="biz-phone">{t("fields.phone")}</label>
               <input
                 id="biz-phone"
                 type="tel"
@@ -91,10 +94,10 @@ export function BusinessTab() {
               />
               {errors.phone
                 ? <p id="biz-phone-error" className="text-xs text-red-500 mt-1">{errors.phone}</p>
-                : <p id="biz-phone-hint" className="text-xs text-petra-muted mt-1">מקבל התראות WhatsApp על לידים ואבטחה</p>}
+                : <p id="biz-phone-hint" className="text-xs text-petra-muted mt-1">{t("fields.phoneHint")}</p>}
             </div>
             <div>
-              <label className="label" htmlFor="biz-email">אימייל</label>
+              <label className="label" htmlFor="biz-email">{t("fields.email")}</label>
               <input
                 id="biz-email"
                 className="input text-right"
@@ -106,7 +109,7 @@ export function BusinessTab() {
             </div>
           </div>
           <div>
-            <label className="label" htmlFor="biz-contact-phone">טלפון ליצירת קשר בהודעות ללקוחות</label>
+            <label className="label" htmlFor="biz-contact-phone">{t("fields.contactPhone")}</label>
             <input
               id="biz-contact-phone"
               type="tel"
@@ -120,34 +123,34 @@ export function BusinessTab() {
             />
             {errors.customerContactPhone
               ? <p id="biz-contact-phone-error" className="text-xs text-red-500 mt-1">{errors.customerContactPhone}</p>
-              : <p id="biz-contact-phone-hint" className="text-xs text-petra-muted mt-1">מופיע בתזכורות ובהודעות האוטומטיות ללקוחות. ריק = הטלפון של העסק</p>}
+              : <p id="biz-contact-phone-hint" className="text-xs text-petra-muted mt-1">{t("fields.contactPhoneHint")}</p>}
           </div>
           <div>
-            <label className="label" htmlFor="biz-address">כתובת</label>
+            <label className="label" htmlFor="biz-address">{t("fields.address")}</label>
             <input id="biz-address" className="input" value={values.address ?? ""} onChange={(e) => set("address", e.target.value)} />
           </div>
           <div>
-            <label className="label" htmlFor="biz-entity">סוג ישות משפטית</label>
+            <label className="label" htmlFor="biz-entity">{t("fields.legalEntityType")}</label>
             <select
               id="biz-entity"
               className="input"
               value={values.legalEntityType ?? ""}
               onChange={(e) => { set("legalEntityType", e.target.value || null); clearError("vatNumber"); }}
             >
-              <option value="">לא מוגדר</option>
-              <option value="עוסק מורשה">עוסק מורשה (ע.מ)</option>
-              <option value="עוסק פטור">עוסק פטור</option>
-              <option value="חברה">חברה (ח.פ)</option>
+              <option value="">{t("entityTypes.none")}</option>
+              <option value="עוסק מורשה">{t("entityTypes.licensed")}</option>{/* i18n-ok — value is a DB enum */}
+              <option value="עוסק פטור">{t("entityTypes.exempt")}</option>{/* i18n-ok — value is a DB enum */}
+              <option value="חברה">{t("entityTypes.company")}</option>{/* i18n-ok — value is a DB enum */}
             </select>
-            {values.legalEntityType === "עוסק פטור" && (
+            {values.legalEntityType === "עוסק פטור" && ( // i18n-ok — DB value
               <p className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 mt-2">
-                עוסק פטור פטור ממע״מ — לא יחושב מע״מ בהזמנות ובמחירון.
+                {t("exemptNotice")}
               </p>
             )}
           </div>
-          {values.legalEntityType !== "עוסק פטור" && (
+          {values.legalEntityType !== "עוסק פטור" && ( // i18n-ok — DB value
             <div>
-              <label className="label" htmlFor="biz-vat">{values.legalEntityType === "חברה" ? "מספר ח.פ" : "מספר עוסק מורשה"}</label>
+              <label className="label" htmlFor="biz-vat">{values.legalEntityType === "חברה" /* i18n-ok — DB value */ ? t("fields.companyNumber") : t("fields.licensedNumber")}</label>
               <input
                 id="biz-vat"
                 inputMode="numeric"
@@ -175,6 +178,8 @@ export function BusinessTab() {
 // server stores the uploaded logo right away, so removal must behave the same.
 
 function LogoUpload({ currentLogo, readOnly }: { currentLogo: string | null; readOnly: boolean }) {
+  const t = useTranslations("settings.businessTab");
+  const tu = useTranslations("settings.useBusinessSettings");
   const queryClient = useQueryClient();
   const [uploading, setUploading] = useState(false);
   const [removing, setRemoving] = useState(false);
@@ -191,11 +196,11 @@ function LogoUpload({ currentLogo, readOnly }: { currentLogo: string | null; rea
     try {
       const res = await fetch("/api/settings/logo", { method: "POST", body: fd });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || "שגיאה בהעלאת הלוגו");
+      if (!res.ok) throw new Error(data.error || t("logo.uploadError"));
       await refresh();
-      toast.success("הלוגו עודכן");
+      toast.success(t("logo.updated"));
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "שגיאה בהעלאת הלוגו");
+      toast.error(err instanceof Error ? err.message : t("logo.uploadError"));
     } finally {
       setUploading(false);
     }
@@ -204,12 +209,12 @@ function LogoUpload({ currentLogo, readOnly }: { currentLogo: string | null; rea
   const handleRemove = async () => {
     setRemoving(true);
     try {
-      await patchBusinessSettings({ logo: null });
+      await patchBusinessSettings({ logo: null }, tu("saveError"));
       await refresh();
-      toast.success("הלוגו הוסר");
+      toast.success(t("logo.removed"));
       setConfirmRemove(false);
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "שגיאה בהסרת הלוגו");
+      toast.error(err instanceof Error ? err.message : t("logo.removeError"));
     } finally {
       setRemoving(false);
     }
@@ -229,7 +234,7 @@ function LogoUpload({ currentLogo, readOnly }: { currentLogo: string | null; rea
       >
         {currentLogo ? (
           <>
-            <NextImage src={currentLogo} alt="לוגו העסק" width={112} height={112} className="w-full h-full object-contain p-2" />
+            <NextImage src={currentLogo} alt={t("logo.label")} width={112} height={112} className="w-full h-full object-contain p-2" />
             {!readOnly && (
               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                 {uploading ? <Loader2 className="w-5 h-5 text-white animate-spin" /> : <Upload className="w-5 h-5 text-white" />}
@@ -244,7 +249,7 @@ function LogoUpload({ currentLogo, readOnly }: { currentLogo: string | null; rea
               <ImagePlus className="w-7 h-7 text-slate-300 group-hover:text-brand-400 transition-colors" />
             )}
             <span className="text-[10px] text-slate-400 group-hover:text-brand-500 transition-colors">
-              {uploading ? "מעלה..." : readOnly ? "אין לוגו" : "לחץ להעלאה"}
+              {uploading ? t("logo.uploading") : readOnly ? t("logo.noLogo") : t("logo.clickToUpload")}
             </span>
           </div>
         )}
@@ -259,7 +264,7 @@ function LogoUpload({ currentLogo, readOnly }: { currentLogo: string | null; rea
             className="btn-secondary flex items-center gap-2 text-sm px-3 py-1.5"
           >
             {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-            {uploading ? "מעלה..." : currentLogo ? "החלף לוגו" : "העלה לוגו"}
+            {uploading ? t("logo.uploading") : currentLogo ? t("logo.replace") : t("logo.upload")}
           </button>
           {currentLogo && (
             <button
@@ -269,10 +274,10 @@ function LogoUpload({ currentLogo, readOnly }: { currentLogo: string | null; rea
               className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1"
             >
               <Trash2 className="w-3.5 h-3.5" />
-              הסר
+              {t("logo.remove")}
             </button>
           )}
-          <span className="text-xs text-petra-muted">PNG, JPG, WebP, GIF · עד 5MB · נשמר מיד</span>
+          <span className="text-xs text-petra-muted">{t("logo.formats")}</span>
         </div>
       )}
 
@@ -290,9 +295,9 @@ function LogoUpload({ currentLogo, readOnly }: { currentLogo: string | null; rea
 
       <ConfirmDialog
         open={confirmRemove}
-        title="להסיר את הלוגו?"
-        description="הלוגו יוסר מדף ההזמנות, מהחוזים ומהמסמכים של העסק."
-        confirmLabel="הסר לוגו"
+        title={t("logo.confirm.title")}
+        description={t("logo.confirm.description")}
+        confirmLabel={t("logo.confirm.confirmLabel")}
         danger
         loading={removing}
         onConfirm={handleRemove}

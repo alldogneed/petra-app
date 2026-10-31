@@ -312,6 +312,386 @@
       "scheduledMessages": "Scheduled messages"
     }
   },
+  "businessAdmin": {
+    "businessAdminPage": {
+      "tabs": {
+        "overview": "Overview",
+        "activity": "Activity",
+        "ai": "AI activity",
+        "team": "Team",
+        "sessions": "Sessions",
+        "security": "Security alerts",
+        "health": "Data health",
+        "messages": "System messages",
+        "billing": "Subscription & billing"
+      },
+      "restricted": {
+        "title": "Restricted access",
+        "body": "This page is available to business owners only."
+      },
+      "header": {
+        "title": "Admin & oversight",
+        "subtitle": "Monitor user activity and manage your team",
+        "monitoringActive": "Monitoring on"
+      },
+      "tierGate": {
+        "title": "Team & user management",
+        "description": "Add staff, manage permissions and track team activity. Available on Pro and up."
+      }
+    },
+    "activityTab": {
+      "errors": {
+        "loadData": "Couldn't load data",
+        "dateRange": "Start date is after end date",
+        "export": "Export failed",
+        "loadLog": "Couldn't load the activity log"
+      },
+      "toasts": {
+        "exported": "Activity log exported to Excel"
+      },
+      "filters": {
+        "member": "Team member",
+        "allMembers": "All team members",
+        "action": "Action",
+        "from": "From",
+        "to": "To",
+        "search": "Search",
+        "searchPlaceholder": "User name or item…"
+      },
+      "actions": {
+        "exportExcel": "Export to Excel",
+        "refresh": "Refresh",
+        "clearFilters": "Clear filters",
+        "loadMore": "Load more"
+      },
+      "empty": {
+        "noMatch": "No activity matches the filters",
+        "none": "No activity to show"
+      },
+      "table": {
+        "user": "User",
+        "action": "Action",
+        "item": "Item",
+        "time": "Time"
+      }
+    },
+    "aiActivityTab": {
+      "status": {
+        "success": "Succeeded",
+        "error": "Error",
+        "denied": "Blocked"
+      },
+      "errors": {
+        "loadData": "Couldn't load data",
+        "loadAi": "Couldn't load AI activity"
+      },
+      "empty": {
+        "noConnectionsTitle": "No AI assistants connected yet",
+        "noConnectionsBody": "Once you connect Claude, ChatGPT or another assistant, every action it takes will show up here.",
+        "connectCta": "Connect an AI assistant",
+        "noMatch": "No AI actions match the filters",
+        "none": "No AI actions in the last 90 days"
+      },
+      "filters": {
+        "connection": "Connection",
+        "allConnections": "All connections",
+        "revokedSuffix": " (revoked)",
+        "status": "Status",
+        "allStatuses": "All statuses"
+      },
+      "actions": {
+        "refresh": "Refresh",
+        "loadMore": "Load more"
+      },
+      "rangeNote": "Showing actions from the last 90 days.",
+      "createdBy": "Created by {name}"
+    },
+    "billingTab": {
+      "eventTypes": {
+        "activate": "Subscription activated",
+        "renew": "Subscription renewed",
+        "cancel": "Canceled",
+        "expired": "Expired",
+        "error": "Error"
+      },
+      "tiers": {
+        "free": "Free",
+        "basic": "Basic",
+        "pro": "Pro",
+        "groomer": "Groomer+",
+        "service_dog": "Service Dog"
+      },
+      "current": {
+        "title": "Current subscription",
+        "plan": "Plan",
+        "status": "Status",
+        "expired": "Expired",
+        "active": "Active",
+        "inactive": "Inactive",
+        "validUntil": "Valid until",
+        "daysLeft": "Days left"
+      },
+      "actions": {
+        "changePlan": "Change plan",
+        "subscribe": "Subscribe",
+        "cancelOrDowngrade": "Cancel / downgrade"
+      },
+      "history": {
+        "title": "Transaction history",
+        "empty": "No transactions yet",
+        "deal": "Transaction #{id}"
+      }
+    },
+    "dataHealthTab": {
+      "severity": {
+        "high": "High",
+        "medium": "Medium",
+        "low": "Low"
+      },
+      "errors": {
+        "load": "Couldn't load data health",
+        "loadChecks": "We couldn't load the data checks."
+      },
+      "score": {
+        "outOf100": "out of 100",
+        "label": "Data health score"
+      },
+      "check": {
+        "ok": "OK ✓",
+        "showing": "Showing {shown} of {total}"
+      },
+      "actions": {
+        "retry": "Try again",
+        "recheck": "Check again"
+      },
+      "summary": {
+        "failing": "{count, plural, one {# check needs attention} other {# checks need attention}}",
+        "allPassed": "All checks passed",
+        "updated": " · Updated {time}"
+      }
+    },
+    "overviewTab": {
+      "stats": {
+        "activeMembers": "Active team members",
+        "customers": "Clients",
+        "todayAppointments": "Today's appointments",
+        "monthRevenue": "Revenue this month"
+      },
+      "recent": {
+        "title": "Recent activity",
+        "empty": "No activity yet"
+      },
+      "actions": {
+        "refresh": "Refresh"
+      }
+    },
+    "shared": {
+      "roles": {
+        "owner": "Owner",
+        "admin": "Admin",
+        "manager": "Manager",
+        "user": "Employee"
+      },
+      "relativeTime": {
+        "now": "Just now",
+        "minutesAgo": "{count} min ago",
+        "hoursAgo": "{count} hr ago",
+        "daysAgo": "{count, plural, one {# day ago} other {# days ago}}"
+      },
+      "device": {
+        "unknown": "Unknown",
+        "browser": "Browser"
+      }
+    },
+    "permissionsMatrix": {
+      "errors": {
+        "save": "Error saving permissions",
+        "saveRetry": "Error saving permissions. Try again."
+      },
+      "toasts": {
+        "reset": "Permissions reset to default",
+        "saved": "Permissions saved"
+      },
+      "empty": "No employees besides the owner — add employees in Settings → Team.",
+      "legend": {
+        "effective": "The value shown is the effective permission. Owners always have full access.",
+        "override": "Changed manually (overrides the role default)"
+      },
+      "memberColumn": "Employee",
+      "inactive": "Inactive",
+      "cell": {
+        "allowed": "Allowed",
+        "blocked": "Blocked",
+        "overrideSuffix": " (changed manually — role default: {roleDefault})",
+        "defaultSuffix": " (role default)"
+      },
+      "resetTitle": "Remove all manual changes — back to the role permissions",
+      "reset": "Reset to default",
+      "footer": "Every change is saved immediately and recorded in the audit log."
+    },
+    "securityAlertsTab": {
+      "errors": {
+        "load": "Error loading alerts",
+        "save": "Error saving"
+      },
+      "toasts": {
+        "saved": "Alert settings saved"
+      },
+      "loadFailed": "Couldn't load the alert settings",
+      "tierNotice": "Security alerts are sent only on a plan that includes team management. Your settings are saved and will apply after upgrading.",
+      "title": "Security alerts",
+      "subtitle": "Get notified when a team member performs a sensitive action. Up to 20 alerts per hour per business.",
+      "enabled": {
+        "title": "Enable alerts",
+        "description": "Turning this off stops all alerts (the log keeps recording)."
+      },
+      "email": {
+        "title": "Email",
+        "description": "Sent to the email address of every business owner."
+      },
+      "whatsapp": {
+        "description": "A message to the business phone (set in Settings → Business details). Sent on a best-effort basis."
+      },
+      "ownActions": {
+        "title": "Also for actions by business owners",
+        "description": "By default, no alert is sent for actions you performed yourself (except a sign-in from a new device)."
+      },
+      "rulesHeading": "What to alert on",
+      "discardChanges": "Discard changes",
+      "recent": {
+        "title": "Recent sensitive actions",
+        "subtitle": "Last 14 days · all users (including owners)",
+        "empty": "No sensitive actions in this period"
+      }
+    },
+    "sessionsTab": {
+      "errors": {
+        "load": "Error loading sessions",
+        "revokeOne": "Error signing out the session",
+        "revokeAll": "Error signing out the sessions"
+      },
+      "toasts": {
+        "revokedOne": "Session signed out",
+        "revokedAll": "{count, plural, one {# session signed out} other {# sessions signed out}}",
+        "noneToRevoke": "No sessions to sign out"
+      },
+      "header": "Active sessions · refreshes every 30 seconds",
+      "refresh": "Refresh",
+      "empty": "No active sessions right now",
+      "you": " (you)",
+      "confirm": {
+        "revokeAll": "Sign out all of {name}'s sessions? They will need to sign in again on every device.",
+        "revokeOne": "Sign out {name}'s session ({device})?"
+      },
+      "revokeAll": "Sign out all sessions",
+      "badges": {
+        "thisDevice": "This device",
+        "newDeviceTitle": "A device not seen for this user in the last 90 days",
+        "newDevice": "New device"
+      },
+      "status": {
+        "online": "Online",
+        "inactive": "Inactive"
+      },
+      "lastSeen": "Seen {when}",
+      "connected": "· signed in {when}",
+      "revokeOne": "Sign out"
+    },
+    "systemMessagesTab": {
+      "types": {
+        "info": "Info",
+        "warning": "Warning",
+        "success": "Success",
+        "error": "Error"
+      },
+      "toasts": {
+        "updated": "Message updated",
+        "created": "Message created",
+        "deleted": "Message deleted"
+      },
+      "errors": {
+        "save": "Error saving",
+        "delete": "Error deleting"
+      },
+      "count": "{count, plural, one {# message in the system} other {# messages in the system}}",
+      "newMessage": "New message",
+      "form": {
+        "editTitle": "Edit message",
+        "titlePlaceholder": "Title *",
+        "contentPlaceholder": "Message content *",
+        "expiresPlaceholder": "Expires (optional)",
+        "actionUrlPlaceholder": "Link URL (optional)",
+        "actionLabelPlaceholder": "Button text (optional)",
+        "saveChanges": "Save changes",
+        "create": "Create message"
+      },
+      "empty": "No system messages",
+      "table": {
+        "type": "Type",
+        "titleContent": "Title / content",
+        "date": "Date",
+        "status": "Status"
+      },
+      "expired": "Expired",
+      "read": "Read",
+      "unread": "Unread",
+      "editTitle": "Edit"
+    },
+    "teamTab": {
+      "periods": {
+        "7": "7 days",
+        "30": "30 days",
+        "90": "90 days"
+      },
+      "errors": {
+        "loadTeam": "Error loading the team",
+        "loadStats": "Error loading the summary",
+        "update": "Error updating"
+      },
+      "toasts": {
+        "updated": "Updated successfully"
+      },
+      "summary": {
+        "title": "Summary by employee",
+        "periodAria": "Period",
+        "loadFailed": "Couldn't load the activity summary",
+        "empty": "No employees to show"
+      },
+      "table": {
+        "title": "Team management",
+        "user": "User",
+        "role": "Role",
+        "lastActivity": "Last activity",
+        "status": "Status"
+      },
+      "you": " (you)",
+      "actions": {
+        "save": "Save",
+        "cancel": "Cancel",
+        "changeRole": "Change role",
+        "deactivate": "Deactivate user",
+        "activate": "Activate user"
+      },
+      "never": "Never",
+      "status": {
+        "active": "Active",
+        "inactive": "Inactive"
+      },
+      "permissionsTitle": "Permissions by employee",
+      "card": {
+        "appointmentsCompleted": "Appointments completed",
+        "appointmentsCreated": "{count} created",
+        "customersCreated": "New clients",
+        "leadsWon": "Leads won",
+        "leadsLost": "{count} lost",
+        "tasksCompleted": "Tasks completed",
+        "paymentsRecorded": "Payments recorded",
+        "deletes": "Deletions",
+        "lastActive": "Last active:",
+        "openTasks": "Open tasks: <o>{open}</o> / overdue: <d>{overdue}</d>"
+      }
+    }
+  },
   "calendar": {
     "calendarPage": {
       "days": {
@@ -2997,6 +3377,190 @@
       }
     }
   },
+  "import": {
+    "importModal": {
+      "errors": {
+        "fileTypeRequired": "An Excel (.xlsx) or CSV file is required",
+        "parseFailed": "Couldn't read the file",
+        "importFailed": "Import failed"
+      },
+      "idle": {
+        "downloadTemplate": "Download sample file (Excel)",
+        "dropHint": "Drag a file here or click to choose",
+        "fileTypes": "Excel (.xlsx) or CSV"
+      },
+      "uploading": {
+        "analyzing": "Analyzing file..."
+      },
+      "preview": {
+        "fileName": "File: <b>{name}</b>",
+        "totalRows": "Total rows",
+        "valid": "Valid",
+        "errors": "Errors",
+        "errorsCount": "Errors ({count})",
+        "row": "Row {row}:",
+        "importRecords": "Import {count, plural, one {# record} other {# records}}"
+      },
+      "executing": {
+        "importing": "Importing..."
+      },
+      "done": {
+        "title": "Import complete!",
+        "created": "Created {created} of {total} records",
+        "errorsCount": "{count, plural, one {# error} other {# errors}}"
+      }
+    }
+  },
+  "intake": {
+    "intakeFormsPage": {
+      "close": "Close",
+      "cancel": "Cancel",
+      "copyLink": "Copy link",
+      "statuses": {
+        "DRAFT": "Draft",
+        "SENT": "Sent",
+        "OPENED": "Opened",
+        "SUBMITTED": "Submitted",
+        "EXPIRED": "Expired"
+      },
+      "viewResponses": {
+        "title": "Form responses",
+        "submittedOn": " · Submitted {date}",
+        "loadError": "Error loading responses",
+        "empty": "No responses found for this form",
+        "medications": "Medications",
+        "yes": "Yes",
+        "no": "No",
+        "sections": {
+          "dog": "Dog details",
+          "health": "Health",
+          "behavior": "Behavior"
+        },
+        "fields": {
+          "customerName": "Client name",
+          "customerPhone": "Client phone",
+          "name": "Dog name",
+          "breed": "Breed",
+          "gender": "Sex",
+          "weight": "Weight",
+          "birthDate": "Date of birth",
+          "allergies": "Allergies",
+          "medicalConditions": "Medical conditions",
+          "surgeriesHistory": "Surgery history",
+          "activityLimitations": "Activity limitations",
+          "vetName": "Veterinarian",
+          "vetPhone": "Vet phone",
+          "neuteredSpayed": "Neutered/spayed",
+          "originInfo": "Where the dog came from",
+          "timeWithOwner": "Time with owner",
+          "foodNotes": "Feeding notes",
+          "dogAggression": "Aggression toward dogs",
+          "humanAggression": "Aggression toward people",
+          "leashReactivity": "Leash reactivity",
+          "leashPulling": "Leash pulling",
+          "jumping": "Jumping",
+          "separationAnxiety": "Separation anxiety",
+          "excessiveBarking": "Excessive barking",
+          "destruction": "Destructive behavior",
+          "resourceGuarding": "Resource guarding",
+          "fears": "Fears",
+          "badWithKids": "Trouble with kids",
+          "houseSoiling": "House soiling",
+          "biteHistory": "Bite history",
+          "biteDetails": "Bite details",
+          "triggers": "Triggers",
+          "customIssues": "Other issues",
+          "priorTraining": "Prior training",
+          "priorTrainingDetails": "Prior training details"
+        }
+      },
+      "newModal": {
+        "createError": "Error creating the intake form. Please try again.",
+        "createdTitle": "Form created",
+        "sendWhatsApp": "Send on WhatsApp",
+        "title": "Create intake form",
+        "searchLabel": "Search existing client",
+        "searchPlaceholder": "Name or phone...",
+        "phoneLabel": "Or a phone number",
+        "creating": "Creating...",
+        "create": "Create form"
+      },
+      "gate": {
+        "title": "Intake forms",
+        "description": "Send intake forms to clients before their first visit — medical, behavioral info and more. Upgrade to enable."
+      },
+      "toasts": {
+        "deleted": "Form deleted",
+        "deleteError": "Error deleting the form",
+        "resendError": "Error resending the form"
+      },
+      "filters": {
+        "ALL": "All",
+        "SENT": "Sent",
+        "OPENED": "Opened",
+        "SUBMITTED": "Submitted",
+        "EXPIRED": "Expired"
+      },
+      "header": {
+        "title": "Intake forms",
+        "subtitle": "Manage intake forms sent to clients",
+        "newForm": "New form"
+      },
+      "empty": {
+        "none": "No intake forms yet",
+        "noneInStatus": "No forms with this status",
+        "sendFirst": "Send your first form"
+      },
+      "table": {
+        "client": "Client",
+        "status": "Status",
+        "sent": "Sent",
+        "opened": "Opened",
+        "submitted": "Submitted",
+        "expires": "Expires"
+      },
+      "row": {
+        "viewResponses": "View responses",
+        "resend": "Resend",
+        "delete": "Delete form"
+      },
+      "deleteModal": {
+        "title": "Delete form",
+        "noRecipient": "No recipient",
+        "body": "Delete this intake form? This can't be undone",
+        "includingAnswers": " — including the submitted responses",
+        "deleting": "Deleting...",
+        "delete": "Delete"
+      }
+    },
+    "intakeBanner": {
+      "title": "Dog details are missing — send the client a quick form.",
+      "noDogs": "No dog registered. ",
+      "missingHealth": "Health details missing. ",
+      "missingBehavior": "Behavior questionnaire missing. ",
+      "alreadySent": " (form already sent — you can send it again)",
+      "sendWhatsApp": "Send on WhatsApp"
+    },
+    "intakeWhatsAppModal": {
+      "toasts": {
+        "whatsappOpened": "WhatsApp opened to send",
+        "linkCopied": "Link copied"
+      },
+      "title": "Send form on WhatsApp",
+      "subtitle": "Send an intake form to the client",
+      "clientName": "Client name",
+      "phoneLabel": "Phone number *",
+      "phoneHint": "Local format, or international with +",
+      "previewLabel": "Message preview",
+      "linkAutoInserted": "The link is inserted automatically",
+      "linkCreated": "Link created:",
+      "validUntil": "Valid until: {date}",
+      "noPermission": "You don't have permission",
+      "sendWhatsApp": "Send on WhatsApp",
+      "copyLink": "Copy link",
+      "cancel": "Cancel"
+    }
+  },
   "layout": {
     "rootLayout": {
       "title": "Petra — Management software for pet businesses",
@@ -3982,6 +4546,772 @@
         "d31to60": "31–60 days",
         "gt60": "Over 60 days"
       }
+    }
+  },
+  "messages": {
+    "messagesPage": {
+      "title": "Messages",
+      "tierGate": {
+        "title": "Custom message templates",
+        "description": "Create and edit custom WhatsApp templates. Send every client the right message at the right time."
+      }
+    },
+    "scheduledMessagesPage": {
+      "title": "Automated messages",
+      "subtitle": "Messages the system created automatically and scheduled to send. Under \"Sent\" you'll see WhatsApp's own report: ✓ On its way, ✓✓ Delivered or ✓✓ Read — and if a message didn't reach the client, you'll see \"Not delivered\" and the reason here.",
+      "refresh": "Refresh",
+      "resultsCount": "{count, plural, one {# result} other {# results}}",
+      "delivery": {
+        "noReceipt": "No delivery receipt",
+        "noReceiptTitle": "Sent before the system started tracking delivery",
+        "read": "✓✓ Read",
+        "delivered": "✓✓ Delivered",
+        "failed": "Not delivered",
+        "onTheWay": "✓ On its way"
+      },
+      "status": {
+        "PENDING": "Pending",
+        "SENT": "Sent",
+        "FAILED": "Failed",
+        "CANCELED": "Canceled"
+      },
+      "statCards": {
+        "PENDING": "Pending",
+        "SENT": "Sent",
+        "FAILED": "Failed",
+        "CANCELED": "Canceled"
+      },
+      "statusFilters": {
+        "ALL": "All",
+        "PENDING": "Pending",
+        "SENT": "Sent",
+        "FAILED": "Failed",
+        "CANCELED": "Canceled"
+      },
+      "channelFilters": {
+        "ALL": "All channels",
+        "whatsapp": "WhatsApp"
+      },
+      "recipient": {
+        "lead": "Lead",
+        "serviceDogRecipient": "Service dog recipient",
+        "noClientCard": "Recipient without a client profile"
+      },
+      "preview": {
+        "approvedTemplate": "Meta-approved template",
+        "freeText": "Free text",
+        "loadError": "We couldn't load the message content",
+        "unavailable": "The message was sent with an approved template, but its text can't be shown right now.",
+        "noContent": "No saved content for this message.",
+        "failedNote": "The message wasn't sent to the client. This is the planned text.",
+        "reconstructed": "The text was rebuilt from the appointment details."
+      },
+      "toasts": {
+        "cancelErrorShort": "Error canceling",
+        "canceled": "Message canceled",
+        "cancelError": "Error canceling message",
+        "sendErrorShort": "Error sending",
+        "stub": "Message logged (Stub — no Twilio)",
+        "sent": "Message sent!",
+        "sendError": "Error sending message"
+      },
+      "empty": {
+        "title": "No scheduled messages",
+        "noMatches": "No messages match the current filters",
+        "description": "Messages will appear here when automations run",
+        "setupAutomation": "Set up automation"
+      },
+      "table": {
+        "client": "Client",
+        "channel": "Channel",
+        "content": "Message content",
+        "sendAt": "Send time",
+        "status": "Status",
+        "actions": "Actions",
+        "previewHint": "Click to view the full message",
+        "late": "• Overdue"
+      },
+      "actions": {
+        "sendNow": "Send now",
+        "cancel": "Cancel"
+      },
+      "pagination": {
+        "previous": "Previous page",
+        "next": "Next page",
+        "pageOf": "Page {page} of {totalPages}"
+      },
+      "cancelModal": {
+        "title": "Cancel message",
+        "body": "The message won't be sent. This can't be undone.",
+        "back": "Back",
+        "canceling": "Canceling...",
+        "confirm": "Cancel message"
+      }
+    },
+    "messagesPanel": {
+      "tabs": {
+        "templates": "Templates",
+        "bulk": "Bulk send"
+      },
+      "triggers": {
+        "appointment_confirmation": {
+          "label": "Appointment confirmation",
+          "description": "Send as soon as a new appointment is booked"
+        },
+        "appointment_reminder": {
+          "label": "Appointment reminder",
+          "description": "Send X hours before the appointment"
+        },
+        "appointment_followup": {
+          "label": "Appointment follow-up",
+          "description": "Send X hours after the appointment"
+        },
+        "payment_request": {
+          "label": "Payment request",
+          "description": "Send as soon as a new order is created"
+        },
+        "lead_followup": {
+          "label": "New lead",
+          "description": "Send X hours after a lead is created"
+        },
+        "birthday_reminder": {
+          "label": "Dog's birthday",
+          "description": "Send on the birthday at 8:00 AM"
+        },
+        "boarding_confirmation": {
+          "label": "Boarding confirmation",
+          "description": "Send as soon as a boarding stay is booked"
+        },
+        "boarding_pickup": {
+          "label": "Boarding pickup reminder",
+          "description": "Send X hours before pickup day"
+        },
+        "boarding_thank_you": {
+          "label": "Thank you after boarding",
+          "description": "Send one hour after the stay ends"
+        }
+      },
+      "offset": {
+        "appointmentConfirmation": "Immediately when an appointment is booked",
+        "paymentRequest": "Immediately when an order is created",
+        "newCustomer": "Immediately when a client is added",
+        "birthday": "On the birthday at 8:00 AM",
+        "hoursBefore": "{offset} hours before",
+        "hoursAfter": "{offset} hours after",
+        "hoursAfterCreation": "{offset} hours after creation",
+        "hoursBeforePickup": "{offset} hours before pickup",
+        "hours": "{offset} hours"
+      },
+      "sample": {
+        "customerName": "John Smith",
+        "petName": "Rex",
+        "petAge": "3 years",
+        "date": "Monday, March 10",
+        "time": "2:00 PM",
+        "serviceName": "Private training"
+      },
+      "locations": {
+        "appointment_reminder": "Calendar → Appointment → WhatsApp button",
+        "appointment_confirmation": "Sent automatically when an appointment is booked",
+        "payment_request": "Order → Payments section → Payment request button",
+        "lead_followup": "Sent automatically a few hours after a lead is created",
+        "appointment_followup": "Client profile → Completed appointments → Follow-up",
+        "birthday_reminder": "Client profile → Pet card → Birthday",
+        "new_customer": "Client profile → Welcome button",
+        "boarding_confirmation": "Sent automatically when a boarding stay is booked",
+        "boarding_pickup": "Boarding → Stays list",
+        "boarding_thank_you": "Sent automatically one hour after a stay ends"
+      },
+      "sendModal": {
+        "title": "Send message",
+        "pickCustomer": "Choose client",
+        "searchPlaceholder": "Search by name or phone...",
+        "noCustomers": "No clients found",
+        "preview": "Preview",
+        "openWhatsApp": "Open in WhatsApp"
+      },
+      "bulkModal": {
+        "title": "Send to a group",
+        "deselectAll": "Deselect all",
+        "selectAll": "Select all",
+        "sending": "Sending to {count} clients...",
+        "selectedCount": "{count} clients selected",
+        "noneSelected": "No clients selected",
+        "sendTo": "Send to {count} clients"
+      },
+      "toasts": {
+        "ownerOnly": "Only the business owner can change automated message settings",
+        "saveFailed": "Save failed",
+        "reminderTimeUpdated": "Reminder time updated",
+        "remindersOn": "WhatsApp reminders turned on",
+        "remindersOff": "WhatsApp reminders turned off",
+        "templateUpdated": "Template updated",
+        "templateCreated": "Template created",
+        "templateSaveError": "Couldn't save the template. Try again.",
+        "templateDeleted": "Template deleted",
+        "templateDeleteError": "Couldn't delete the template. Try again.",
+        "automationUpdateError": "Couldn't update the automation",
+        "automationActivated": "Automation turned on",
+        "automationActivateError": "Couldn't turn on the automation"
+      },
+      "auto": {
+        "intro": "Messages the system sends automatically based on events — for example an appointment confirmation, a reminder before an appointment, or a birthday. Turn each message on with its switch.",
+        "viewSent": "View sent messages →",
+        "waTitle": "Automated WhatsApp messages",
+        "waOn": "The system sends reminders and automated messages to clients.",
+        "waOff": "Off — no reminder or automated message is sent to clients, even if the automations below are active.",
+        "ownerOnlyNote": "Only the business owner (or someone they authorized) can change this setting.",
+        "reminderBefore": "Reminder before appointment:",
+        "leadHours": {
+          "h24": "24 hours",
+          "h48": "48 hours",
+          "h72": "72 hours",
+          "h96": "96 hours"
+        },
+        "switchOff": "Turn off automated messages",
+        "switchOn": "Turn on automated messages",
+        "howTitle": "How messages are actually sent:",
+        "howBody": "Reminders and outbound messages are sent through Meta-approved WhatsApp templates with fixed wording — that is how Meta allows an outbound message outside the 24-hour window after the client last wrote. Text you edit here applies to messages sent within 24 hours of the client's last message; outside that window the client gets the approved wording. So the text shown here may not match word for word what the client receives.",
+        "active": "Active",
+        "inactive": "Off"
+      },
+      "previewModal": {
+        "custom": "Custom template",
+        "default": "Default template",
+        "contentLabel": "Message the client will receive",
+        "varsNote": "Variables in braces are replaced automatically with the client's details when sending."
+      },
+      "manual": {
+        "title": "Manual messages",
+        "description": "Templates you can send manually — green arrow to send to one client, people icon for a group, pencil to edit.",
+        "customized": "Customized",
+        "default": "Default",
+        "sendSingle": "Send to one client",
+        "sendGroup": "Send to a group of clients",
+        "editTemplate": "Edit template"
+      },
+      "editor": {
+        "editTitle": "Edit template",
+        "newTitle": "New template",
+        "nameLabel": "Template name *",
+        "bodyLabel": "Message content *",
+        "loadExample": "Load example",
+        "chars": "{count, plural, one {# character} other {# characters}}",
+        "bodyPlaceholder": "Hi {customerName}, your appointment with {petName} is set for {date} at {time}.",
+        "insertVarTitle": "Click to insert {v} at the cursor",
+        "livePreview": "Preview (sample data)",
+        "autoTitle": "Automatic sending",
+        "autoHint": "Turn on to send this message automatically",
+        "whenToSend": "When to send?",
+        "hoursLabel": "Hours",
+        "saveChanges": "Save changes",
+        "create": "Create template"
+      },
+      "bulkTab": {
+        "templateLabel": "Message template",
+        "noTemplates": "No WhatsApp templates — create a template first",
+        "chooseTemplate": "Choose template...",
+        "audienceLabel": "Audience",
+        "audience": {
+          "all": "All clients",
+          "with_pets": "Clients with dogs"
+        },
+        "searchLabel": "Search client",
+        "searchPlaceholder": "Name or phone...",
+        "previewTitle": "Message preview",
+        "whatsappBadge": "WhatsApp",
+        "previewFor": "* Preview for the first client: {name}",
+        "emptyTitle": "Choose a template to start",
+        "emptyBody": "Choose a message template to see clients and send messages",
+        "noCustomersTitle": "No clients",
+        "noCustomersBody": "No clients match the current filters",
+        "count": "{count, plural, one {# client} other {# clients}}",
+        "openWhatsApp": "Open WhatsApp",
+        "copyMessage": "Copy message"
+      }
+    }
+  },
+  "onboarding": {
+    "onboardingLayout": {
+      "metaTitle": "Account setup - Petra",
+      "metaDescription": "Set up your account and business in Petra",
+      "headerLabel": "Account setup"
+    },
+    "onboardingPage": {
+      "steps": {
+        "welcome": "Welcome",
+        "business": "Business details",
+        "pricing": "Price list",
+        "client": "First client",
+        "done": "Done"
+      },
+      "toasts": {
+        "gcalConnected": "Google Calendar connected!"
+      },
+      "continueToDashboard": "Continue to dashboard",
+      "back": "Back",
+      "continue": "Continue",
+      "welcome": {
+        "greetingNamed": "Welcome, {name}! 🎉",
+        "greeting": "Welcome to Petra! 🎉",
+        "intro": "Petra is a management system for pet businesses — trainers, boarding, groomers and service dog training centers. Every tool you need in one place: clients, appointments, payments and communication.",
+        "whatAwaits": "What's waiting for you",
+        "setupTime": "⏱ Setup takes about 3 minutes — let's get started",
+        "cta": "Let's set up your business",
+        "features": {
+          "customers": {
+            "title": "Client management",
+            "desc": "Client profiles, dogs, history"
+          },
+          "calendar": {
+            "title": "Appointment calendar",
+            "desc": "Schedule meetings in one click"
+          },
+          "basicPayments": {
+            "title": "Basic payments",
+            "desc": "Track revenue and payments"
+          },
+          "tasks": {
+            "title": "Tasks",
+            "desc": "Manage your to-do list"
+          },
+          "unlimitedCustomers": {
+            "title": "Unlimited clients",
+            "desc": "Client profiles, dogs, history"
+          },
+          "calendarGoogle": {
+            "title": "Calendar + Google",
+            "desc": "Automatic sync with Google Calendar"
+          },
+          "whatsappReminders": {
+            "title": "WhatsApp reminders",
+            "desc": "Automatic, 48 hours before every appointment"
+          },
+          "payments": {
+            "title": "Payments",
+            "desc": "Full tracking + payment links"
+          },
+          "customersLeads": {
+            "title": "Clients and leads",
+            "desc": "Full CRM with a sales funnel"
+          },
+          "reports": {
+            "title": "Reports",
+            "desc": "Revenue and performance charts"
+          },
+          "whatsappAutomations": {
+            "title": "WhatsApp automations",
+            "desc": "Reminders, follow-ups, birthdays"
+          }
+        }
+      },
+      "business": {
+        "errors": {
+          "nameRequired": "Business name is required",
+          "phoneRequired": "Business phone is required",
+          "saveFailed": "Error saving"
+        },
+        "toasts": {
+          "saved": "Business details saved!"
+        },
+        "title": "Business details",
+        "subtitle": "Name and phone number — needed for WhatsApp reminders and your online booking page",
+        "fields": {
+          "name": "Business name *",
+          "phone": "Business phone *",
+          "legalEntityType": "Business type"
+        },
+        "placeholders": {
+          "name": "e.g. Happy Paws Dog Training"
+        },
+        "hints": {
+          "phone": "Used for automatic WhatsApp reminders and your booking page",
+          "legalEntityType": "Not sure? You can update this later in settings",
+          "vatNumber": "Will appear on invoices and client documents"
+        },
+        "submit": "Continue — set up price list",
+        "cannotSkip": "This step can't be skipped — these details are required for the system to work fully"
+      },
+      "pricing": {
+        "serviceTypes": {
+          "training": "Training",
+          "boarding": "Boarding",
+          "grooming": "Grooming",
+          "products": "Products"
+        },
+        "errors": {
+          "nameRequired": "Service name is required",
+          "priceInvalid": "Invalid price",
+          "generic": "Error"
+        },
+        "toasts": {
+          "added": "Service {n} added!"
+        },
+        "title": "Set up your price list",
+        "subtitle": {
+          "none": "Add at least 2 services — it's the heart of the system",
+          "one": "Great! Add one more service — at least 2 recommended",
+          "many": "{count} services added ✓ — you can add more from settings"
+        },
+        "serviceChip": "Service {n} added",
+        "fields": {
+          "firstName": "First service name *",
+          "nextName": "Next service name *",
+          "category": "Category",
+          "duration": "Duration (minutes)",
+          "price": "Price ({currency}) *"
+        },
+        "placeholders": {
+          "firstName": "e.g. Basic training session",
+          "nextName": "e.g. Advanced training session"
+        },
+        "addService": "Add service",
+        "addAnother": "Add another service",
+        "recommendTwo": "We recommend adding at least 2 services before continuing"
+      },
+      "client": {
+        "errors": {
+          "nameRequired": "Client name is required",
+          "phoneRequired": "Phone is required",
+          "generic": "Error"
+        },
+        "toasts": {
+          "added": "First client added!"
+        },
+        "title": "Add your first client",
+        "subtitle": "You can import more clients later",
+        "fields": {
+          "name": "Client name *",
+          "phone": "Phone *",
+          "dogName": "Dog's name",
+          "breed": "Breed"
+        },
+        "placeholders": {
+          "name": "Jane Smith",
+          "dogName": "Rex",
+          "breed": "German Shepherd"
+        },
+        "dogSection": "Dog details (optional)",
+        "skip": "Skip for now — I'll add clients later"
+      },
+      "done": {
+        "title": "All set! 🐾",
+        "body": "Petra is ready to serve your business. You can connect Google Calendar and set up WhatsApp reminders under <link>Settings</link>.",
+        "links": {
+          "customers": "Clients",
+          "calendar": "Calendar",
+          "leads": "Leads"
+        },
+        "goToDashboard": "Go to dashboard"
+      }
+    },
+    "addCustomerForm": {
+      "errors": {
+        "fillAll": "Please fill in all fields",
+        "saveFailed": "Error saving. Please try again."
+      },
+      "title": "Add your first client",
+      "subtitle": "Just the basics — you can always add more later.",
+      "fields": {
+        "name": "Client name",
+        "phone": "Phone",
+        "petName": "Dog's name"
+      },
+      "placeholders": {
+        "name": "Jane Smith",
+        "petName": "Max"
+      },
+      "saveAndContinue": "Save and continue"
+    },
+    "completionScreen": {
+      "checklist": {
+        "customerAdded": "Client added",
+        "serviceSet": "Service scheduled",
+        "reminderEnabled": "Automatic reminder turned on"
+      },
+      "title": "Your business already looks different.",
+      "humanLine1": "Dog business owners work hard.",
+      "humanLine2": "Petra is here to take some of the load off.",
+      "continueToSettings": "Continue to settings"
+    },
+    "enableRemindersStep": {
+      "title": "Automatic reminders",
+      "bodyLine1": "Petra can send an automatic reminder 48 hours before the service.",
+      "bodyLine2": "Want to turn it on?",
+      "leadTime": "48 hours before the appointment",
+      "enabling": "Turning on...",
+      "enable": "Turn on reminders"
+    },
+    "onboardingOverlay": {
+      "progressBar": {
+        "stepOf": "Step {step} of {total}",
+        "exit": "Exit tutorial"
+      },
+      "skipModal": {
+        "title": "Sure you want to skip?",
+        "body": "You can come back to this later from the settings menu.",
+        "back": "Go back",
+        "skip": "Skip"
+      },
+      "remindersModal": {
+        "title": "Automatic reminders",
+        "bodyLine1": "Petra can send an automatic reminder 48 hours before the service.",
+        "bodyLine2": "Want to turn it on?",
+        "enabling": "Turning on...",
+        "enable": "Turn on reminders",
+        "skipForNow": "Skip for now"
+      },
+      "completionModal": {
+        "checks": {
+          "customerAdded": "Client added",
+          "petAdded": "Dog added",
+          "appointmentSet": "Appointment booked",
+          "reminderEnabled": "Reminder turned on"
+        },
+        "title": "Your business already looks different.",
+        "humanLine1": "Dog business owners work hard.",
+        "humanLine2": "Petra is here to take some of the load off.",
+        "continueToDashboard": "Continue to dashboard"
+      }
+    },
+    "onboardingProgressBar": {
+      "stepOf": "Step {current} of {total}",
+      "exitTitle": "Exit the tutorial",
+      "exit": "Exit"
+    },
+    "onboardingWizard": {
+      "steps": {
+        "intro": "Intro",
+        "businessDetails": "Business",
+        "service": "Service",
+        "client": "Client",
+        "finish": "Finish"
+      },
+      "stepOf": "Step {step} of {total}:",
+      "footerHint": "You can change all settings later on the Settings page"
+    },
+    "onboardingWizardModal": {
+      "steps": {
+        "intro": "Intro",
+        "businessDetails": "Business",
+        "service": "Service",
+        "client": "Client",
+        "finish": "Finish"
+      },
+      "stepOf": "Step {step} of {total}:",
+      "title": "Initial account setup",
+      "subtitle": "You can change everything later on the Settings page"
+    },
+    "personalizationScreen": {
+      "questions": {
+        "businessType": {
+          "title": "What type of business do you run?",
+          "options": {
+            "trainer": "Dog trainer",
+            "boarding": "Boarding",
+            "grooming": "Grooming salon",
+            "combined": "Combined"
+          }
+        },
+        "activeClientsRange": {
+          "title": "How many active clients do you have right now?",
+          "options": {
+            "upTo20": "Up to 20",
+            "from20To50": "20–50",
+            "over50": "50+"
+          }
+        },
+        "primaryGoal": {
+          "title": "What matters most to you right now?",
+          "options": {
+            "calendar": "An organized calendar",
+            "clients": "Client management",
+            "leads": "Leads and sales",
+            "reminders": "Automatic reminders"
+          }
+        }
+      },
+      "questionOf": "Question {current} of {total}",
+      "back": "Back"
+    },
+    "scheduleServiceForm": {
+      "errors": {
+        "noClient": "Client not found. Go back to the previous step.",
+        "fillAll": "Please fill in all fields",
+        "saveFailed": "Couldn't schedule the service. Try again."
+      },
+      "title": "Schedule a first service",
+      "subtitle": "Schedule a service for {name}",
+      "serviceLabel": "Service",
+      "noServices": "No services yet. A default service will be created.",
+      "serviceOption": "{name} ({duration} min)",
+      "dateLabel": "Date",
+      "timeLabel": "Time",
+      "saveAndContinue": "Save and continue"
+    },
+    "setupChecklist": {
+      "missingDetailsBanner": "Business details are missing — WhatsApp reminders and online booking won't work properly.",
+      "completeNow": "Complete now",
+      "title": "Business setup",
+      "stepsCompleted": "{completed} of {total} steps completed",
+      "percentCompleted": "{pct}% complete",
+      "badges": {
+        "required": "Required",
+        "important": "Important"
+      },
+      "allDone": "Your business is fully set up — well done! 🎉"
+    },
+    "skipConfirmModal": {
+      "title": "Are you sure you want to skip?",
+      "body": "You can come back to this later.",
+      "back": "Back",
+      "skip": "Skip"
+    },
+    "stepBusinessDetails": {
+      "errors": {
+        "saveFailed": "Couldn't save business details. Please try again."
+      },
+      "title": "Your business details",
+      "subtitle": "These details appear on agreements, invoices and client booking pages",
+      "nameLabel": "Business name",
+      "namePlaceholder": "e.g. \"Danny's Dogs\" or \"Doggy Style\"",
+      "phoneLabel": "Business phone",
+      "entityTypeLabel": "Business entity type",
+      "entityTypeHint": "Not sure? You can update this later in Settings",
+      "regNumberLabel": "Tax ID / EIN",
+      "regNumberPlaceholder": "Business ID / EIN (optional)",
+      "addressLabel": "Address",
+      "addressPlaceholder": "Street, city (for meetings / boarding)",
+      "continue": "Continue to next step →"
+    },
+    "stepCompletion": {
+      "title": "All set! 🎉",
+      "subtitle": "The basics are in place. Now you can start running your business smarter.",
+      "nextSteps": {
+        "customers": {
+          "title": "Add clients",
+          "desc": "Import your client list"
+        },
+        "calendar": {
+          "title": "Book appointments",
+          "desc": "Open the calendar and start scheduling"
+        },
+        "dashboard": {
+          "title": "View the dashboard",
+          "desc": "See all your data in one place"
+        }
+      },
+      "start": "Let's get started! 🚀"
+    },
+    "stepFirstClient": {
+      "saveError": "Couldn't save the client. Please try again.",
+      "title": "First client (and dog)",
+      "subtitle": "Almost done! Let's add your first client — you can import a full list later",
+      "clientSection": "Client details",
+      "clientName": "Client name",
+      "clientNamePlaceholder": "John Smith",
+      "phone": "Phone",
+      "dogSection": "Dog details",
+      "optional": "(optional)",
+      "dogName": "Dog name",
+      "dogNamePlaceholder": "Rex",
+      "breed": "Breed",
+      "breedPlaceholder": "German Shepherd",
+      "saveAndContinue": "Save and continue →",
+      "skip": "Skip, I'll add clients later"
+    },
+    "stepFirstService": {
+      "durations": {
+        "30": "30 min",
+        "45": "45 min",
+        "60": "1 hour",
+        "90": "1.5 hours",
+        "120": "2 hours"
+      },
+      "saveError": "Couldn't save the service. Please try again.",
+      "title": "Your first service",
+      "subtitle": "Add one service now — you can change it and add more later in Settings",
+      "name": "Service name",
+      "namePlaceholder": "e.g. \"Private training session\" or \"Full groom\"",
+      "price": "Price ({currency})",
+      "duration": "Service duration",
+      "saveAndContinue": "Save and continue →",
+      "skip": "Skip for now"
+    },
+    "stepWelcomeProfile": {
+      "businessTypes": {
+        "trainer": "Dog trainer",
+        "boarding": "Dog boarding",
+        "grooming": "Pet grooming",
+        "combined": "Combined (training, boarding, grooming)"
+      },
+      "clientRanges": {
+        "upTo20": "Up to 20"
+      },
+      "goals": {
+        "calendar": "Get my appointment calendar in order",
+        "clients": "Better manage clients and dogs",
+        "leads": "Track leads and sales",
+        "reminders": "Send automatic reminders (WhatsApp)",
+        "other": "Other"
+      },
+      "title": "Welcome to Petra!",
+      "subtitle": "Tell us a bit about your business so we can tailor Petra to your needs",
+      "businessTypeLabel": "What type of business do you run?",
+      "clientRangeLabel": "About how many active clients do you have?",
+      "goalLabel": "What's your main goal with Petra?",
+      "continue": "Continue to next step →"
+    },
+    "teamWelcomeModal": {
+      "roles": {
+        "manager": "Manager",
+        "user": "Employee"
+      },
+      "roleFallback": "Team",
+      "quickLinks": {
+        "customers": {
+          "label": "Clients",
+          "desc": "View and update client details"
+        },
+        "calendar": {
+          "label": "Calendar",
+          "desc": "Manage appointments and meetings"
+        },
+        "tasks": {
+          "label": "Tasks",
+          "desc": "Your tasks for today"
+        }
+      },
+      "welcome": "Welcome to Petra",
+      "memberFallback": "Team member",
+      "roleLine": "Role: {role} at {business}",
+      "businessFallback": "the business",
+      "intro": "Petra is your business management system. Manage clients, appointments, tasks and more — all in one place.",
+      "quickAccess": "Quick access",
+      "start": "Let's get started"
+    },
+    "welcomeScreen": {
+      "title": "Welcome to Petra 👋",
+      "subtitleLine1": "Let's get your business organized in a few minutes.",
+      "subtitleLine2": "No mess, no spreadsheets, no manual reminders.",
+      "start": "Let's get started",
+      "skip": "Skip"
+    },
+    "whatNextScreen": {
+      "actions": {
+        "import": "Import existing clients",
+        "services": "Set up services and price list",
+        "payments": "Connect payments",
+        "staff": "Add employees",
+        "automations": "Set up advanced automations",
+        "boarding": "Visual room management",
+        "grooming": "Appointments + grooming services",
+        "training": "Manage training programs"
+      },
+      "title": "What would you like to do now?",
+      "subtitle": "Choose your next step — you can always come back here.",
+      "recommended": "Recommended",
+      "toDashboard": "Take me to the dashboard"
     }
   },
   "orders": {
@@ -5530,6 +6860,1363 @@
       "minChars": "Type at least 2 characters to search"
     }
   },
+  "settings": {
+    "googleContactsSyncRow": {
+      "title": "Sync leads to Google Contacts",
+      "turnOff": "Turn off sync",
+      "turnOn": "Turn on sync",
+      "description": "Every lead created or updated in Petra is saved as a contact in your Google Contacts. Petra only creates and updates your leads' contacts — it never reads your existing contacts.",
+      "consentHint": " The first time you turn it on, you'll be asked to approve access on Google's permissions screen.",
+      "ownerOnlyHint": " Only the business owner can turn this on or off.",
+      "toast": {
+        "enabled": "Google Contacts sync turned on",
+        "disabled": "Google Contacts sync turned off",
+        "toggleError": "Couldn't update sync",
+        "bulkPartial": "{done, plural, one {# lead synced} other {# leads synced}}, {failed} failed",
+        "bulkDone": "{done, plural, one {# lead synced} other {# leads synced}} to Google Contacts",
+        "bulkError": "Couldn't sync leads"
+      },
+      "bulk": {
+        "progress": "Syncing… {done} of {total}",
+        "pending": "{count, plural, one {# existing lead isn't} other {# existing leads aren't}} in Google Contacts yet",
+        "button": "Sync existing leads"
+      },
+      "confirm": {
+        "title": "Sync all existing leads?",
+        "description": "{count, plural, one {# new contact} other {# new contacts}} will be created in your Google Contacts — one for each lead that hasn't been synced yet. Leads already synced won't be duplicated.",
+        "confirmLabel": "Sync"
+      }
+    },
+    "invoicingTab": {
+      "morningName": "Morning (Green Invoice)",
+      "disconnect": "Disconnect",
+      "saveFailed": "Save failed",
+      "toast": {
+        "disconnected": "Invoicing system disconnected",
+        "disconnectError": "Couldn't disconnect. Try again."
+      },
+      "docTypes": {
+        "taxInvoice": "Tax invoice",
+        "taxInvoiceReceipt": "Invoice / Receipt",
+        "receipt": "Receipt",
+        "creditNote": "Credit note",
+        "none": "No document"
+      },
+      "paymentMethods": {
+        "cash": "Cash",
+        "credit_card": "Credit card",
+        "bank_transfer": "Bank transfer",
+        "bit": "Bit",
+        "paybox": "PayBox",
+        "check": "Check"
+      },
+      "status": {
+        "title": "Invoicing provider",
+        "connected": "Connected",
+        "notConnected": "Not connected",
+        "connectedTo": "Connected to {provider}",
+        "connectedAgo": " · connected {time}",
+        "connectPrompt": "Connect your Morning (Green Invoice) account to issue invoices and receipts automatically",
+        "lastTest": "Last test: {result} · {time}",
+        "testOk": "OK",
+        "testFailed": "Failed",
+        "connect": "Connect"
+      },
+      "mapping": {
+        "title": "Document mapping",
+        "subtitle": "Which document is issued for each payment method",
+        "edit": "Edit",
+        "defaultInUse": "Using the default mapping"
+      },
+      "recent": {
+        "title": "Recent documents",
+        "statusIssued": "Issued",
+        "statusDraft": "Draft"
+      },
+      "empty": {
+        "title": "No invoicing provider connected yet",
+        "body": "Connect your Morning account to issue invoices and receipts automatically when a payment is recorded",
+        "connectNow": "Connect now"
+      },
+      "confirmDisconnect": {
+        "title": "Disconnect the invoicing system?",
+        "description": "Automatic invoices and receipts will stop until you reconnect. Documents already issued won't be deleted."
+      },
+      "connectModal": {
+        "title": "Connect invoicing",
+        "subtitle": "Automatic invoices and receipts",
+        "provider": "Provider",
+        "apiKeyPlaceholder": "API Key from Morning",
+        "apiSecretPlaceholder": "API Secret from Morning",
+        "success": "Connection works!",
+        "testFailed": "Test failed",
+        "testing": "Testing...",
+        "test": "Test connection",
+        "saveAndConnect": "Save and connect"
+      },
+      "mappingModal": {
+        "subtitle": "Choose which document is issued for each payment method"
+      }
+    },
+    "integrationsTab": {
+      "disconnect": {
+        "gcal": {
+          "title": "Disconnect Google Calendar?",
+          "description": "New appointments will no longer sync to your Google Calendar. Events already synced will stay in Google Calendar. You can reconnect anytime."
+        },
+        "stripe": {
+          "title": "Disconnect Stripe?",
+          "description": "Your Stripe keys will be removed from the business and credit card payment links will stop working until you reconnect."
+        },
+        "invoicing": {
+          "title": "Disconnect the invoicing system?",
+          "description": "Automatic invoices and receipts will stop until you reconnect. Documents already issued will not be deleted."
+        }
+      },
+      "reminders": {
+        "noPermission": "You don't have permission to change business settings",
+        "saveFailed": "Save failed",
+        "updated": "Reminder settings updated",
+        "saveError": "Error saving",
+        "autoReminders": "Automatic appointment reminders",
+        "turnOff": "Turn off reminders",
+        "turnOn": "Turn on reminders",
+        "hoursBefore": "Send hours before the appointment",
+        "hours24": "24 hours",
+        "hours48": "48 hours",
+        "hours72": "72 hours",
+        "hours96": "96 hours"
+      },
+      "gcal": {
+        "disconnected": "Google Calendar disconnected",
+        "disconnectError": "Error disconnecting Google Calendar. Try again.",
+        "ownerNotApproved": "The owner hasn't allowed you to receive business appointments in Google Calendar",
+        "syncError": "Sync error",
+        "syncDone": "Sync completed",
+        "syncErrorRetry": "Error syncing Google Calendar. Try again.",
+        "calendarsSaved": "Displayed calendars updated",
+        "calendarsSaveError": "Error saving calendar settings",
+        "overlayTitle": "Calendars shown in the Petra calendar",
+        "refreshTitle": "Refresh calendar list",
+        "refresh": "Refresh",
+        "overlayHint": "Choose Google calendars to show as a transparent overlay in the Petra calendar (read-only)",
+        "primary": "(primary)",
+        "syncNowTitle": "Sync existing appointments to Google Calendar",
+        "syncNow": "Sync now"
+      },
+      "invoicing": {
+        "disconnected": "Invoicing system disconnected",
+        "disconnectError": "Error disconnecting the invoicing system. Try again."
+      },
+      "stripe": {
+        "disconnected": "Stripe disconnected",
+        "disconnectError": "Error disconnecting Stripe. Try again."
+      },
+      "banners": {
+        "gcalConnected": "Google Calendar connected!",
+        "gcalDenied": "Connection canceled. You can try again anytime.",
+        "gcontactsConnected": "Google Contacts sync is on. New leads will be saved to your contacts.",
+        "gcontactsDenied": "Access to Google Contacts was not granted, so sync stays off.",
+        "gcalError": "Something went wrong while connecting. Try again."
+      },
+      "card": {
+        "connected": "Connected",
+        "notConnected": "Not connected",
+        "ownerOnly": "Owner only",
+        "ownersManagersOnly": "Owners and managers only",
+        "update": "Update",
+        "disconnect": "Disconnect",
+        "connect": "Connect",
+        "settings": "Settings",
+        "testConnection": "Test connection",
+        "testStub": "Stub test",
+        "comingSoon": "Coming soon"
+      },
+      "webhookLocked": {
+        "title": "Website lead connection",
+        "body": "Managing the webhook URL and API key is available only to the business owner, or to someone they granted the \"Change business settings\" permission."
+      },
+      "paywall": {
+        "title": "Lead webhook integration",
+        "description": "Get leads automatically from Make.com forms and your website — available on the Pro and Service dog plans."
+      },
+      "stripeModal": {
+        "keysRequired": "Publishable Key and Secret Key are required",
+        "connectError": "Connection error",
+        "connected": "Stripe connected!",
+        "networkError": "Network error — check your connection and try again",
+        "title": "Connect Stripe",
+        "subtitle": "Accept credit card payments from clients",
+        "howTitle": "Where do I find the keys?",
+        "step1": "Sign in to <b>dashboard.stripe.com</b>",
+        "step2": "Go to <b>Developers → API keys</b>",
+        "step3": "Copy the Publishable key and the Secret key",
+        "step4": "For the webhook: go to <b>Webhooks → Add endpoint</b> and add Petra's URL",
+        "publishablePlaceholder": "pk_live_... or pk_test_...",
+        "secretPlaceholder": "sk_live_... or sk_test_...",
+        "webhookLabel": "Webhook Secret (whsec_...) — optional",
+        "webhookPlaceholder": "whsec_... (to verify Stripe events)",
+        "webhookUrlHint": "Webhook URL to register in Stripe:",
+        "currency": "Currency",
+        "currencies": {
+          "ILS": "ILS — Israeli shekel (₪)",
+          "USD": "USD — US dollar ($)",
+          "EUR": "EUR — Euro (€)"
+        },
+        "saving": "Verifying and saving...",
+        "submit": "Connect Stripe"
+      },
+      "whatsappTest": {
+        "sendError": "Error sending",
+        "networkError": "Network error",
+        "title": "WhatsApp test",
+        "subtitle": "Send a test message to a phone number",
+        "phoneLabel": "Phone number for the test",
+        "phoneHint": "Enter a phone number (it will be normalized automatically)",
+        "success": "Message sent!",
+        "sending": "Sending...",
+        "submit": "Send test message"
+      },
+      "webhook": {
+        "keyCreated": "New API key created",
+        "keyError": "Error creating the key. Try again.",
+        "title": "Website lead connection",
+        "notConfigured": "Not set up",
+        "description": "Every website form submission will automatically create a new lead in Petra.",
+        "apiKey": "API key",
+        "newKey": "Create new key",
+        "createKey": "Create key",
+        "regenTitle": "Create a new API key?",
+        "regenDescription": "The current key will stop working immediately. Website forms, Make, or any other connection using it will stop creating leads until you update them with the new key.",
+        "hide": "Hide",
+        "show": "Show",
+        "copied": "Copied!",
+        "copy": "Copy",
+        "noKey": "No key yet. Click \"Create key\" above.",
+        "codeLabel": "Code to paste on your website (Next.js / JavaScript)",
+        "copyCode": "Copy code",
+        "fieldsTitle": "Supported fields",
+        "fields": {
+          "firstName": "First name",
+          "lastName": "Last name",
+          "fullName": "Full name (alternative)",
+          "phone": "Phone",
+          "email": "Email",
+          "city": "City",
+          "breed": "Dog breed",
+          "service": "Requested service",
+          "petName": "Dog name",
+          "notes": "Free-text notes",
+          "source": "Source (default: website)"
+        }
+      }
+    },
+    "mcpConnectionsTab": {
+      "profiles": {
+        "labels": {
+          "read": "Read only",
+          "intake": "Intake — leads, tasks, clients",
+          "calendar": "Calendar — appointments and availability",
+          "boarding": "Boarding",
+          "full": "Full"
+        },
+        "descriptions": {
+          "read": "The agent only reads data",
+          "intake": "Leads, tasks, clients (including create/update)",
+          "calendar": "Appointments, availability, blocks",
+          "boarding": "Boarding — stays, availability, daily board",
+          "full": "Everything your role allows"
+        }
+      },
+      "badges": {
+        "legacyFull": "Full (legacy)",
+        "oauth": "Auto sign-in"
+      },
+      "meta": {
+        "createdBy": "Created by {name}",
+        "expired": "Expired",
+        "autoRenewTitle": "If unused — expires on {date}",
+        "autoRenew": "Renews automatically while in use",
+        "validUntil": "Valid until {date}"
+      },
+      "toasts": {
+        "createError": "Error creating connection",
+        "scopesCapped": "Some permissions were removed based on your role",
+        "revokeError": "Error revoking connection",
+        "revoked": "Connection revoked",
+        "urlCopied": "URL copied",
+        "tokenCopied": "Token copied"
+      },
+      "intro": {
+        "title": "Connect an AI assistant to your business",
+        "body": "Connect your business to an AI assistant like Claude or ChatGPT. You can ask \"Who are my clients this week?\" or \"Book an appointment for Danny on Tuesday\" and it will do it for you.",
+        "guideLink": "Detailed setup guide →"
+      },
+      "easy": {
+        "title": "The easy way (recommended): just a URL, no token",
+        "body": "Paste this URL as a connector in Claude or Codex, sign in with your Petra email and password and approve — the connection will appear here automatically.",
+        "copyUrlTitle": "Copy URL",
+        "instructionsLink": "Instructions for Claude, Claude Code and Codex →",
+        "manualNote": "The \"Connect new assistant\" button below (manual token) is for advanced setups only."
+      },
+      "token": {
+        "title": "Your token — save it now!",
+        "onceNotice": "This token will be shown <strong>only once</strong>. After you close this message, you won't be able to see it again.",
+        "copyTitle": "Copy",
+        "easyTitle": "✅ The easy way (recommended) — connect in Claude Desktop without code:",
+        "easyStep1": "In Claude Desktop: <strong>Settings → Connectors → Add custom connector</strong>",
+        "easyStep2": "In <strong>Name</strong> enter: <code>Petra</code>",
+        "easyStep3": "In <strong>Remote MCP server URL</strong> paste the following URL (it includes your token):",
+        "easyDone": "Click <strong>Add</strong> and that's it — Claude is connected to your business. 🎉",
+        "advancedSummary": "Advanced — via the config file (Developer → Edit Config)",
+        "advancedStep1": "In Claude Desktop: <strong>Settings → Developer → Edit Config</strong>",
+        "advancedStep2": "Add the following block under <code>mcpServers</code>:",
+        "restartNote": "Quit and reopen Claude Desktop (Cmd+Q) for the change to take effect.",
+        "dismiss": "Got it, I saved the token"
+      },
+      "list": {
+        "activeTitle": "Active connections ({count})",
+        "newButton": "Connect new assistant",
+        "empty": "No AI assistants connected yet.",
+        "active": "Active",
+        "lastUsed": "Last used: {time}",
+        "neverUsed": "Not used yet",
+        "actionsCount": "{count, plural, one {# action} other {# actions}}",
+        "confirmRevoke": "Revoke?",
+        "confirmYes": "Yes, revoke",
+        "confirmNo": "No",
+        "disconnectTitle": "Disconnect"
+      },
+      "create": {
+        "title": "New connection name",
+        "hint": "Pick a name that tells you where this token is used, e.g. \"Or's Claude Desktop\"",
+        "placeholder": "e.g. Claude Desktop",
+        "profileLabel": "Access profile",
+        "recommended": "(recommended)",
+        "writeWarning": "The agent will be able to create and update records in Petra within the selected profile. Every action is logged.",
+        "managerWarning": "As a manager, connections you create won't include: reports/revenue, recording payments and deletions (owner required)",
+        "expiryNote": "Token validity: 180 days from creation. You can revoke it at any time.",
+        "submit": "Create connection"
+      },
+      "revoked": {
+        "title": "Revoked connections ({count})",
+        "revokedAt": "Revoked {time}",
+        "createdBy": " · created by {name}"
+      }
+    },
+    "pendingApprovalsPanel": {
+      "actions": {
+        "DELETE_CUSTOMER": "Delete client",
+        "DELETE_PET": "Delete pet",
+        "DELETE_TRAINING": "Delete training program",
+        "DELETE_APPOINTMENT": "Delete appointment",
+        "DELETE_LEAD": "Delete lead",
+        "DELETE_SERVICE_DOG": "Delete service dog",
+        "DELETE_RECIPIENT": "Delete recipient",
+        "EDIT_PRICING": "Change price list",
+        "EDIT_SETTINGS": "Change business settings"
+      },
+      "statuses": {
+        "PENDING": "Pending approval",
+        "APPROVED": "Approved",
+        "REJECTED": "Rejected",
+        "EXPIRED": "Expired",
+        "CANCELLED": "Canceled"
+      },
+      "toasts": {
+        "approved": "Action approved and executed",
+        "rejected": "Request rejected",
+        "resolveError": "Error handling the request",
+        "cancelled": "Request canceled",
+        "cancelError": "Error canceling the request"
+      },
+      "title": "Requests pending approval",
+      "emptyPending": "No pending requests",
+      "empty": "No items",
+      "requestedBy": "Requested by: {name}",
+      "expiresAt": "Expires: {date}",
+      "rejectionReason": "Rejection reason: {reason}",
+      "rejectPlaceholder": "Rejection reason (optional)...",
+      "confirmReject": "Confirm rejection",
+      "approve": "Approve and run",
+      "reject": "Reject",
+      "cancelRequest": "Cancel request"
+    },
+    "securityTab": {
+      "relative": {
+        "now": "Just now",
+        "minutes": "{count} min ago",
+        "hours": "{count, plural, one {# hour} other {# hours}} ago",
+        "days": "{count, plural, one {# day} other {# days}} ago",
+        "weeks": "{count, plural, one {# week} other {# weeks}} ago",
+        "months": "{count, plural, one {# month} other {# months}} ago"
+      },
+      "toasts": {
+        "revoked": "Session signed out",
+        "revokeError": "Error signing out session",
+        "revokedOthers": "{count, plural, one {# session} other {# sessions}} signed out",
+        "revokeOthersError": "Error signing out sessions"
+      },
+      "title": "Security and active sessions",
+      "intro": "The devices and browsers where you're currently signed in. If you see a session you don't recognize — sign it out right away and change your password.",
+      "revokeOthers": {
+        "button": "Sign out of all other devices ({count})",
+        "confirmText": "This will sign out {count, plural, one {# other session} other {# other sessions}}. This device will stay signed in.",
+        "confirm": "Confirm sign-out"
+      },
+      "list": {
+        "title": "Active sessions",
+        "empty": "No active sessions found",
+        "thisDevice": "This device",
+        "rememberMe": "30 days",
+        "lastActivity": "Last activity: {time}",
+        "revokeTitle": "Sign out this session",
+        "revoke": "Sign out"
+      },
+      "help": {
+        "sessions": "Every sign-in creates a new session. With \"Remember me\" checked, the session stays signed in for 30 days from the last activity.",
+        "alerts": "Petra sends an email alert every time someone signs in from a new device or operating system, so you can spot unauthorized access right away."
+      }
+    },
+    "serviceDogsSettingsTab": {
+      "saved": "Service dog settings saved",
+      "saveSettingsError": "Error saving settings",
+      "trackHours": {
+        "title": "Track training hours",
+        "description": "Track hours and show progress for each dog",
+        "defaultTargetLabel": "Default target hours for a new dog",
+        "hours": "hours",
+        "defaultTargetHint": "You can set a different target per dog in the dog's profile"
+      },
+      "manualCert": {
+        "title": "Allow manual certification",
+        "descriptionWithHours": "Let the business owner certify a dog even if it hasn't reached the training-hours target",
+        "descriptionNoHours": "Certification at the business owner's discretion — no hour tracking",
+        "warning": "When hour tracking is off, we recommend allowing manual certification so dogs can be certified"
+      },
+      "vaccines": {
+        "title": "Default annual vaccination schedule",
+        "description": "Set the month each treatment is given — the plan is applied automatically and renews at the start of each year",
+        "adultsTitle": "🐕 Adults — 1 year and up",
+        "adultsHint": "(by month of the year)",
+        "puppiesTitle": "🐾 Puppies — up to 12 months",
+        "puppiesHint": "(weeks from birth)",
+        "dosesPerYear": "{count, plural, one {# dose a year} other {# doses a year}}",
+        "doses": "{count, plural, one {# dose} other {# doses}}",
+        "dose": "Dose {n}:",
+        "notSet": "Not set",
+        "week": "Week {week}",
+        "classificationNote": "Puppy/adult is determined by the date of birth in the dog's file. Can be changed per dog.",
+        "disabledHint": "Turn on to set a default vaccination schedule for all dogs"
+      },
+      "apply": {
+        "error": "Error applying the vaccination schedule",
+        "success": "{count, plural, one {Vaccination schedule applied to # dog} other {Vaccination schedule applied to # dogs}}",
+        "title": "Apply to all dogs now",
+        "description": "Updates the vaccination plans of all dogs to the schedule set here",
+        "applying": "Applying...",
+        "button": "Apply to all dogs"
+      },
+      "summary": {
+        "title": "Settings summary:",
+        "trackHours": "• Hour tracking: ",
+        "on": "On",
+        "off": "Off",
+        "targetHours": "• Target hours for a new dog: ",
+        "hoursValue": "{hours} hours",
+        "manualCert": "• Manual certification: ",
+        "allowed": "Allowed",
+        "notAllowed": "Not allowed"
+      },
+      "confirmDialog": {
+        "title": "Apply the vaccination schedule to all dogs?",
+        "description": "The vaccination plans of <b>all service dogs</b> will be updated to the schedule set here: planned dates will be replaced (recorded completion dates are kept), and dogs without a plan will get a new one.",
+        "unsavedNote": "Unsaved changes on this page will be saved first.",
+        "confirm": "Apply to all dogs"
+      }
+    },
+    "settingsDirtyContext": {
+      "title": "You have unsaved changes",
+      "description": "If you continue, the changes you made on this page will be lost.",
+      "confirm": "Continue without saving",
+      "cancel": "Stay on page"
+    },
+    "subscriptionTab": {
+      "title": "Subscription & billing",
+      "description": "Your current plan, billing status and upgrades"
+    },
+    "subscriptionCard": {
+      "toasts": {
+        "cardUpdated": "Card updated. The next charge will run on the usual date — you were not charged now.",
+        "cardUpdateFailed": "Card update wasn't completed. You can try again.",
+        "openCardUpdateError": "Error opening the card update",
+        "networkError": "Network error. Please try again.",
+        "cancelError": "Error canceling the subscription",
+        "cancelledUntil": "Cancellation received. You'll keep your subscription until {date}.",
+        "cancelled": "Subscription canceled."
+      },
+      "status": {
+        "free": "Free",
+        "cancelPending": "Canceling — full access until {date}",
+        "expired": "Expired",
+        "awaitingCharge": "Active — monthly charge processing",
+        "activeRecurring": "Active — renews automatically on {date}",
+        "activeUntil": "Active until {date}",
+        "inactive": "Inactive"
+      },
+      "header": {
+        "plan": "Plan: {name}",
+        "counts": "{customers, plural, one {# client} other {# clients}} · {appointments, plural, one {# appointment} other {# appointments}}",
+        "changePlan": "Change plan"
+      },
+      "banners": {
+        "cancelPending": "Cancellation received — full access until <b>{date}</b>. After that you'll move to the free plan.",
+        "expiresIn": "{days, plural, one {Your subscription expires in # day} other {Your subscription expires in # days}}",
+        "renewNow": "Renew now",
+        "expired": "Your subscription expired — you're back on the free plan",
+        "chargeFailed": "The monthly charge didn't go through. Update your payment method to keep your subscription — you won't be charged now."
+      },
+      "actions": {
+        "updateCard": "Update payment method",
+        "cancelSubscription": "Cancel subscription"
+      },
+      "confirm": {
+        "atPeriodEnd": "Your subscription will be canceled at the end of the billing period ({date}). Until then you keep every feature — no extra charge.",
+        "immediate": "Your subscription will be canceled now and the business will move to the free plan.",
+        "cancelling": "Canceling...",
+        "yes": "Yes, cancel subscription",
+        "back": "Back"
+      }
+    },
+    "teamInvitations": {
+      "roles": {
+        "owner": "Owner",
+        "manager": "Manager",
+        "user": "Staff",
+        "volunteer": "Volunteer"
+      },
+      "errors": {
+        "generic": "Error. Please try again."
+      },
+      "whatsappShareText": "Hi {name}, I added you to the {businessName} team on Petra. To accept and choose a password: {url}",
+      "copy": {
+        "copied": "Link copied",
+        "failed": "Couldn't copy — tap the link, select it and copy it manually"
+      },
+      "linkCard": {
+        "emailSent": "The invitation was sent to <ltr>{email}</ltr>. {name} will join the team after accepting and choosing a password.",
+        "emailFailed": "The email wasn't sent. Send the link on WhatsApp or copy it.",
+        "linkAriaLabel": "Invitation link",
+        "copy": "Copy",
+        "sendWhatsApp": "Send on WhatsApp",
+        "validity": "The link is personal and valid for 7 days."
+      },
+      "modal": {
+        "missingBusinessId": "Can't invite — the business ID is missing. Try refreshing the page.",
+        "titleReady": "Invitation ready",
+        "title": "Invite a team member",
+        "subtitleReady": "The team member accepts from the link and chooses their own password",
+        "subtitle": "The team member gets an email, accepts and chooses their own password",
+        "close": "Close",
+        "done": "Done",
+        "nameLabel": "Full name *",
+        "namePlaceholder": "Jane Smith",
+        "emailLabel": "Email *",
+        "roleLabel": "Role",
+        "sending": "Sending...",
+        "send": "Send invitation",
+        "cancel": "Cancel"
+      },
+      "pending": {
+        "resent": "Invitation sent again",
+        "resendEmailFailed": "The email wasn't sent — send the link on WhatsApp",
+        "cancelled": "Invitation canceled",
+        "title": "Awaiting acceptance ({count})",
+        "expired": "Expired",
+        "emailNotSent": "Email not sent",
+        "awaiting": "Awaiting acceptance",
+        "sentAgo": "Sent {time}",
+        "resendTitle": "New link — the previous one stops working",
+        "resend": "Resend",
+        "cancel": "Cancel"
+      },
+      "cancelDialog": {
+        "title": "Cancel the invitation for {name}?",
+        "description": "The link that was sent will stop working. You can invite again at any time.",
+        "confirm": "Cancel invitation"
+      }
+    },
+    "teamTab": {
+      "roles": {
+        "owner": "Owner",
+        "manager": "Manager",
+        "user": "Staff",
+        "volunteer": "Volunteer"
+      },
+      "errors": {
+        "missingBusiness": "Business ID is missing. Try refreshing the page."
+      },
+      "toasts": {
+        "roleUpdated": "Role updated",
+        "roleUpdateError": "Couldn't update the role. Try again.",
+        "permsSaved": "Permissions saved",
+        "permsSaveError": "Couldn't save permissions. Try again.",
+        "userActivated": "User activated",
+        "userDeactivated": "User deactivated",
+        "statusUpdateError": "Couldn't update the status. Try again.",
+        "memberDeleted": "Team member removed",
+        "deleteError": "Couldn't remove the team member. Try again."
+      },
+      "confirm": {
+        "defaultLabel": "Confirm",
+        "deactivate": {
+          "title": "Deactivate {name}?",
+          "description": "The user will be signed out right away and lose access to the business. You can reactivate them at any time.",
+          "label": "Deactivate"
+        },
+        "delete": {
+          "title": "Remove {name} from the team?",
+          "description": "The team member will be permanently removed from the business. Data they created (tasks, notes, activity) stays. To bring them back later, send a new invitation.",
+          "label": "Remove permanently"
+        },
+        "makeOwner": {
+          "title": "Make {name} an owner?",
+          "description": "Owners have full access to the business — including revenue, deletions, critical settings and team management (including you). You won't be able to change their role back.",
+          "label": "Make owner"
+        },
+        "downgrade": {
+          "title": "Change {name} from {from} to {to}?",
+          "description": "The user will immediately lose the permissions of their previous role. Permissions granted to them individually are kept.",
+          "label": "Change role"
+        }
+      },
+      "header": {
+        "title": "Team management",
+        "invite": "Invite team member"
+      },
+      "member": {
+        "inactive": "Inactive",
+        "self": "(you)",
+        "neverLoggedIn": "Never signed in",
+        "roleAria": "Role of {name}",
+        "activate": "Activate",
+        "deactivate": "Deactivate",
+        "permissions": "Permissions"
+      },
+      "capabilities": {
+        "intro": "What can {name} do? Defaults come from the role ({role}) — any change here overrides them.",
+        "grantedCount": "{granted} of {total} allowed.",
+        "reset": "Reset to role defaults ({count, plural, one {# change} other {# changes}})",
+        "customTitle": "Changed manually — differs from the role default",
+        "customAria": "Changed manually"
+      }
+    },
+    "whatsAppConnectCard": {
+      "templateStatus": {
+        "APPROVED": "Approved",
+        "PENDING": "Pending",
+        "REJECTED": "Rejected"
+      },
+      "quality": {
+        "GREEN": "Quality: green",
+        "YELLOW": "Quality: yellow",
+        "RED": "Quality: red",
+        "raw": "Quality: {rating}"
+      },
+      "toasts": {
+        "connected": "Your business WhatsApp is connected",
+        "connectFailed": "Connection failed",
+        "templatesSynced": "Templates synced",
+        "syncFailed": "Couldn't sync templates",
+        "disconnected": "Number disconnected. Messages will be sent from Petra's number again",
+        "disconnectFailed": "Couldn't disconnect",
+        "testSent": "Test message sent",
+        "testFailed": "Couldn't send the test message"
+      },
+      "flow": {
+        "noPhone": "The flow ended without a phone number. Add a WhatsApp Business number in Meta's flow and try again",
+        "canceled": "The flow was canceled",
+        "canceledAtStep": "The flow was canceled (step: {step})",
+        "metaError": "Error in Meta's flow",
+        "notConfigured": "Connecting your own number isn't set up in this environment",
+        "sdkReady": "Ready — click the button again to sign in to Facebook",
+        "sdkLoadFailed": "Couldn't load the Facebook SDK. Check your ad blocker and try again",
+        "loginIncomplete": "Facebook sign-in wasn't completed"
+      },
+      "debug": {
+        "fromMeta": "From Meta: {raw}",
+        "windowOpened": "Meta window opened (config {config}, coexistence={coexistence})",
+        "yes": "yes",
+        "no": "no",
+        "loginResponse": "FB.login response: {json}",
+        "loginResponseUnreadable": "FB.login response: (unreadable)",
+        "title": "Diagnostic log — what Meta returned",
+        "copied": "Log copied",
+        "copy": "Copy",
+        "hint": "If the window closed with nothing happening, take a screenshot of this log."
+      },
+      "disconnectDialog": {
+        "title": "Disconnect the business number?",
+        "description": "Automated messages will go out from Petra's number again. You can reconnect the number at any time."
+      },
+      "actions": {
+        "disconnect": "Disconnect"
+      },
+      "readOnlyNote": "Only owners and managers can connect, disconnect and manage the number.",
+      "header": {
+        "title": "Your business WhatsApp number",
+        "subtitle": "Send reminders and messages to clients from your own number instead of Petra's"
+      },
+      "comingSoon": {
+        "title": "Connect your own number — coming soon",
+        "body": "Meanwhile all automated messages go out from Petra's number."
+      },
+      "coexistence": {
+        "label": "Keep the WhatsApp Business app active on the same number (Coexistence)",
+        "hint": "Keep chatting with clients in the app on your phone, and Petra will send automated messages from the same number."
+      },
+      "connect": {
+        "connecting": "Connecting…",
+        "awaitingMeta": "Waiting for the Meta flow to finish…",
+        "cancel": "Cancel",
+        "reconnect": "Reconnect",
+        "connectCta": "Connect your business WhatsApp"
+      },
+      "error": {
+        "title": "The connection to {phone} ran into a problem",
+        "titleNoPhone": "The connection to the business number ran into a problem",
+        "fallbackNote": "Until it's fixed, messages go out from Petra's number."
+      },
+      "tierGate": {
+        "title": "WhatsApp from your business number",
+        "description": "Connecting your own WhatsApp number is available on PRO and up."
+      },
+      "active": {
+        "banner": "Connected — messages go out from your business number",
+        "connectedSince": "Connected since {date}",
+        "coexistenceOn": "Coexistence: the app stays active in parallel",
+        "coexistenceOff": "No Coexistence"
+      },
+      "templates": {
+        "title": "Message templates",
+        "syncedAt": "Synced {date}",
+        "sync": "Sync templates",
+        "empty": "No templates synced yet.",
+        "emptyHint": "Click \"Sync templates\".",
+        "missing": "Missing",
+        "missingNote": "Templates not yet approved on your account are sent from Petra's number in the meantime."
+      },
+      "test": {
+        "send": "Send test message"
+      },
+      "none": {
+        "disconnectedNote": "The number was disconnected. Until you reconnect, messages go out from Petra's number.",
+        "requirements": {
+          "facebook": "Your business Facebook account (Business Manager)",
+          "number": "A WhatsApp Business number (your existing number works)",
+          "verify": "Verify you own the number by SMS or call"
+        }
+      }
+    },
+    "settingsTabs": {
+      "groups": {
+        "business": "Business",
+        "operations": "Operations",
+        "communication": "Communication & team",
+        "connections": "Connections & data",
+        "account": "My account"
+      },
+      "tabs": {
+        "business": {
+          "label": "Business details",
+          "description": "Name, contact details, logo and legal entity"
+        },
+        "subscription": {
+          "label": "Plan & billing",
+          "description": "Your plan, usage and upgrades"
+        },
+        "booking": {
+          "label": "Availability & booking",
+          "description": "Business hours, blocks and online booking",
+          "paywallTitle": "Availability & online booking",
+          "paywallDescription": "Set availability, business hours and online booking — available on Basic and up."
+        },
+        "boarding": {
+          "label": "Boarding",
+          "description": "Check-in, check-out and minimum nights",
+          "paywallTitle": "Boarding settings",
+          "paywallDescription": "Set check-in/out times and minimum nights — available on Pro and up."
+        },
+        "serviceDogs": {
+          "label": "Service dogs",
+          "description": "Training hours, certification and vaccination schedule",
+          "paywallTitle": "Service dog settings",
+          "paywallDescription": "Service dog program settings — available on the Service Dog plan only."
+        },
+        "payments": {
+          "label": "Contracts",
+          "description": "Digital contract templates for signing",
+          "paywallTitle": "Digital contracts",
+          "paywallDescription": "Contract templates and e-signatures — available on Basic and up."
+        },
+        "messages": {
+          "label": "Messages & automations",
+          "description": "WhatsApp templates and automatic reminders",
+          "paywallTitle": "Messages & automations",
+          "paywallDescription": "WhatsApp templates, automatic reminders and automations — available on Basic and up."
+        },
+        "team": {
+          "label": "Team & permissions",
+          "description": "Team members, roles and permissions",
+          "paywallTitle": "Team management",
+          "paywallDescription": "Add team members and manage permissions — available on Pro and up."
+        },
+        "integrations": {
+          "label": "Integrations",
+          "description": "Google Calendar, WhatsApp, Make and more",
+          "paywallTitle": "Integrations",
+          "paywallDescription": "Connect Google Calendar, WhatsApp and more — available on Basic and up."
+        },
+        "aiAgents": {
+          "label": "AI assistants",
+          "description": "Connect Claude, ChatGPT and more",
+          "paywallTitle": "AI assistants",
+          "paywallDescription": "Connect your business to Claude, ChatGPT and more — available on Pro and up."
+        },
+        "data": {
+          "label": "Import & export",
+          "description": "Import clients from Excel and export data",
+          "paywallTitle": "Data import & export",
+          "paywallDescription": "Import and export clients and pets to Excel/CSV — available on Basic and up."
+        },
+        "security": {
+          "label": "Profile & security",
+          "description": "Your name, password, two-factor authentication and sessions"
+        }
+      }
+    },
+    "settingsUi": {
+      "saveBar": {
+        "ariaLabel": "Save changes",
+        "unsaved": "You have unsaved changes",
+        "discard": "Discard changes",
+        "save": "Save changes"
+      },
+      "readOnlyNotice": "View only — only the business owner, or someone they granted the \"Change business settings\" permission, can change these settings."
+    },
+    "useBusinessSettings": {
+      "saveError": "Error saving settings",
+      "saved": "Settings saved",
+      "saveErrorRetry": "Error saving settings. Please try again."
+    },
+    "shared": {
+      "treatments": {
+        "rabies": "Rabies",
+        "dhpp": "DHPP",
+        "deworming": "Deworming",
+        "parkWorm": "Lungworm",
+        "fleaTick": "Ticks & fleas",
+        "dhppPuppy": "DHPP (puppy)"
+      },
+      "months": {
+        "jan": "January",
+        "feb": "February",
+        "mar": "March",
+        "apr": "April",
+        "may": "May",
+        "jun": "June",
+        "jul": "July",
+        "aug": "August",
+        "sep": "September",
+        "oct": "October",
+        "nov": "November",
+        "dec": "December"
+      },
+      "errors": {
+        "phoneInvalid": "Invalid phone number (Israeli format)",
+        "vatInvalid": "Business tax ID must have 9 digits"
+      }
+    },
+    "availabilityPage": {
+      "everyDay": "Every day",
+      "days": {
+        "0": "Sunday",
+        "1": "Monday",
+        "2": "Tuesday",
+        "3": "Wednesday",
+        "4": "Thursday",
+        "5": "Friday",
+        "6": "Saturday"
+      },
+      "errors": {
+        "saveRules": "Couldn't save business hours",
+        "saveSettings": "Couldn't save settings",
+        "addBlock": "Couldn't add block",
+        "deleteBlock": "Couldn't delete block",
+        "addBreak": "Couldn't add break",
+        "deleteBreak": "Couldn't delete break",
+        "importHolidays": "Couldn't import holidays"
+      },
+      "toasts": {
+        "rulesSaved": "Business hours saved",
+        "settingsSaved": "Scheduling settings saved",
+        "breakAdded": "Break added",
+        "holidaysCreated": "{count, plural, one {# holiday block created} other {# holiday blocks created}}"
+      },
+      "title": "Availability and business hours",
+      "subtitle": "Set when clients can book appointments",
+      "bookingPage": "Booking page",
+      "readOnlyNotice": "View only — only the business owner, or someone they granted the \"Change business hours and availability\" permission, can change hours, breaks and blocks.",
+      "bookingSettings": {
+        "title": "Scheduling settings",
+        "buffer": "Buffer between appointments",
+        "minutes": "minutes",
+        "minNotice": "Minimum notice",
+        "hours": "hours",
+        "maxAdvance": "How many days ahead clients can book",
+        "days": "days",
+        "gcalBlockExternal": "Block Google Calendar events (including personal)",
+        "save": "Save settings"
+      },
+      "breaks": {
+        "title": "Daily breaks",
+        "addHint": "Add a recurring break (lunch, prayer, etc.)",
+        "dayOfWeek": "Day of week",
+        "fromTime": "From",
+        "toTime": "To",
+        "labelOptional": "Label (optional)",
+        "labelPlaceholder": "Lunch break",
+        "add": "Add break",
+        "empty": "No breaks set",
+        "row": "{day} — {start} to {end}",
+        "deleteAriaLabel": "Delete break"
+      },
+      "weeklyHours": {
+        "title": "Weekly business hours",
+        "saved": "Saved!",
+        "until": "to",
+        "closed": "Closed"
+      },
+      "blocks": {
+        "title": "Blocks and time off",
+        "importing": "Importing...",
+        "importHolidays": "Import Israeli holidays 5786-5787",
+        "addHint": "Add a blocked period (holidays, vacations, one-time closure)",
+        "from": "From date and time",
+        "to": "To date and time",
+        "reasonOptional": "Reason (optional)",
+        "reasonPlaceholder": "Vacation, closed day...",
+        "add": "Add block",
+        "empty": "No active blocks",
+        "range": "{start} → {end}",
+        "deleteAriaLabel": "Delete block"
+      },
+      "tip": {
+        "title": "Tip: enable online booking for services",
+        "body": "To show a service on the public booking page, go to<link>Pricing</link>and turn on \"Available for online booking\" for each service you want."
+      }
+    },
+    "settingsPage": {
+      "title": "Settings",
+      "selectArea": "Choose a settings area",
+      "areasNavAriaLabel": "Settings areas",
+      "lockedAriaLabel": "Locked on your current plan"
+    },
+    "ownerSettingsPage": {
+      "title": "Platform settings",
+      "flagsDescription": "Global boolean or JSON settings for platform features",
+      "empty": "No flags set yet",
+      "addOrUpdate": "Add / update flag",
+      "valuePlaceholder": "Value (JSON)",
+      "descriptionPlaceholder": "Description (optional)"
+    },
+    "accountSection": {
+      "genericError": "Error",
+      "passwordChanged": "Password changed",
+      "passwordSet": "Password set — you can now also sign in with email and password",
+      "fillAllFields": "Please fill in all fields",
+      "minLength": "The new password must be at least 12 characters",
+      "mismatch": "Passwords don't match",
+      "setPasswordTitle": "Set password",
+      "changePasswordTitle": "Change password",
+      "googleOnlyNotice": "Your account is connected through Google. You can set a password to also sign in with email and password, in addition to Google sign-in.",
+      "currentPassword": "Current password",
+      "newPassword": "New password",
+      "newPasswordPlaceholder": "At least 8 characters",
+      "confirmPassword": "Confirm password",
+      "confirmPlaceholder": "Enter the password again",
+      "setting": "Setting...",
+      "changing": "Changing...",
+      "setPassword": "Set password",
+      "changePassword": "Change password"
+    },
+    "accountTab": {
+      "roles": {
+        "owner": "Owner",
+        "manager": "Manager",
+        "user": "Staff",
+        "volunteer": "Volunteer"
+      },
+      "nameUpdateError": "Couldn't update name",
+      "nameUpdated": "Name updated",
+      "title": "My profile",
+      "nameLabel": "Your name (shown in the app and in the activity log)",
+      "namePlaceholder": "Full name",
+      "update": "Update",
+      "loginEmail": "Sign-in email",
+      "yourRole": "Your role in the business"
+    },
+    "boardingSettingsTab": {
+      "saved": "Boarding settings saved",
+      "units": {
+        "days": "days",
+        "nights": "nights"
+      },
+      "errors": {
+        "minNightsRange": "Minimum nights must be a whole number between 0 and 365"
+      },
+      "header": {
+        "title": "Boarding settings",
+        "description": "Defaults for new stays and price calculation"
+      },
+      "fields": {
+        "checkIn": "Check-in time",
+        "checkOut": "Check-out time",
+        "calcMode": "Charge by",
+        "minimum": "Minimum {unit}"
+      }
+    },
+    "bookingTab": {
+      "linkBox": {
+        "clickToCopy": "Click to copy",
+        "copyLink": "Copy link",
+        "copied": "Copied",
+        "copy": "Copy",
+        "shareWhatsApp": "Share on WhatsApp",
+        "openBookingPage": "Open booking page"
+      },
+      "saved": "Booking settings saved",
+      "title": "Online booking settings",
+      "upgradeNotice": "<link>Upgrade to Pro</link> to turn on online booking and set a booking link and cancellation policy.",
+      "bookingLink": "Online booking link",
+      "setSlugHint": "Set a booking address (slug) to share the link:",
+      "requiresApproval": {
+        "label": "Online appointments need my approval",
+        "description": "When on, every appointment booked online comes in as \"Pending approval\", notifies you on WhatsApp and in the bell, and reaches the calendar only after you approve it in Online bookings. When off, the appointment is confirmed automatically."
+      },
+      "welcomeText": {
+        "label": "Booking page welcome text",
+        "placeholder": "Welcome! We're happy to take bookings online...",
+        "hint": "Shown to clients at the top of the booking page"
+      },
+      "cancellationPolicy": {
+        "label": "Cancellation policy",
+        "placeholder": "Free cancellation up to 24 hours before the appointment. Later cancellations incur a fee...",
+        "hint": "Shown to clients before they confirm the booking"
+      },
+      "deposit": {
+        "label": "Deposit payment instructions",
+        "placeholder": "Please pay the deposit via Venmo / Zelle to 555-000-0000...",
+        "hint": "Shown when a service has a deposit but no payment link"
+      }
+    },
+    "businessTab": {
+      "saved": "Business details saved",
+      "errors": {
+        "nameRequired": "Business name is required",
+        "fixFields": "Please fix the highlighted fields"
+      },
+      "header": {
+        "title": "Business details",
+        "description": "Shown on the booking page, in contracts and in messages to clients"
+      },
+      "fields": {
+        "nameRequired": "Business name *",
+        "phone": "Phone",
+        "phoneHint": "Receives WhatsApp alerts about leads and security",
+        "email": "Email",
+        "contactPhone": "Contact phone in client messages",
+        "contactPhoneHint": "Shown in reminders and automated client messages. Empty = the business phone",
+        "address": "Address",
+        "legalEntityType": "Legal entity type",
+        "companyNumber": "Company number",
+        "licensedNumber": "Business tax ID"
+      },
+      "entityTypes": {
+        "none": "Not set",
+        "licensed": "Licensed dealer (VAT registered)",
+        "exempt": "Exempt dealer",
+        "company": "Company"
+      },
+      "exemptNotice": "Exempt dealers don't charge sales tax — no tax is added to orders or the price list.",
+      "logo": {
+        "label": "Business logo",
+        "uploadError": "Error uploading the logo",
+        "updated": "Logo updated",
+        "removed": "Logo removed",
+        "removeError": "Error removing the logo",
+        "uploading": "Uploading...",
+        "noLogo": "No logo",
+        "clickToUpload": "Click to upload",
+        "replace": "Replace logo",
+        "upload": "Upload logo",
+        "remove": "Remove",
+        "formats": "PNG, JPG, WebP, GIF · up to 5MB · saved instantly",
+        "confirm": {
+          "title": "Remove the logo?",
+          "description": "The logo will be removed from the booking page, contracts and business documents.",
+          "confirmLabel": "Remove logo"
+        }
+      }
+    },
+    "availabilityTab": {
+      "readOnlyNote": "View only — only the business owner, or someone they granted \"Change business hours and availability\", can change hours, breaks and blocks.",
+      "days": {
+        "everyDay": "Every day",
+        "sun": "Sunday",
+        "mon": "Monday",
+        "tue": "Tuesday",
+        "wed": "Wednesday",
+        "thu": "Thursday",
+        "fri": "Friday",
+        "sat": "Saturday"
+      },
+      "errors": {
+        "saveSchedule": "Error saving the schedule",
+        "addBlock": "Error adding the block",
+        "deleteBlock": "Error deleting the block",
+        "saveSettings": "Error saving the settings",
+        "addBreak": "Error adding the break",
+        "deleteBreak": "Error deleting the break",
+        "importHolidays": "Error importing holidays",
+        "generic": "Error"
+      },
+      "toasts": {
+        "scheduleSaved": "Schedule saved",
+        "blockDeleted": "Block deleted",
+        "settingsSaved": "Scheduling settings saved",
+        "breakAdded": "Break added",
+        "breakDeleted": "Break deleted",
+        "holidaysImported": "{count, plural, one {# holiday block created} other {# holiday blocks created}}"
+      },
+      "units": {
+        "minutes": "minutes",
+        "hours": "hours",
+        "days": "days"
+      },
+      "bookingSettings": {
+        "title": "Scheduling settings",
+        "buffer": "Buffer between appointments",
+        "minNotice": "Minimum notice",
+        "maxAdvance": "Book up to how many days ahead",
+        "gcalBlockExternal": "Block Google Calendar events (including personal)",
+        "saveHint": "Changes are saved together with the weekly schedule — in the save bar at the bottom."
+      },
+      "breaks": {
+        "title": "Daily breaks",
+        "subtitle": "Lunch, prayer, etc.",
+        "day": "Day",
+        "from": "From",
+        "to": "To",
+        "labelOptional": "Label (optional)",
+        "labelPlaceholder": "Lunch break",
+        "add": "Add break",
+        "empty": "No breaks set",
+        "range": "{start} to {end}",
+        "deleteAria": "Delete break"
+      },
+      "schedule": {
+        "title": "Weekly schedule",
+        "dayOpenAria": "{day} open",
+        "until": "to",
+        "closed": "Closed"
+      },
+      "blocks": {
+        "title": "Availability blocks",
+        "subtitle": "Vacations, special closing days",
+        "importHolidays": "Import Israeli holidays 5786-5787",
+        "start": "Start date and time *",
+        "end": "End date and time *",
+        "reasonOptional": "Reason (optional)",
+        "reasonPlaceholder": "Vacation, team day...",
+        "add": "Add block",
+        "empty": "No active blocks",
+        "deleteAria": "Delete block"
+      },
+      "confirmDelete": {
+        "breakTitle": "Delete this break?",
+        "blockTitle": "Delete this block?",
+        "breakDescription": "This time will open up again for appointments.",
+        "blockDescription": "These times will open up again for online booking."
+      }
+    },
+    "contractsTab": {
+      "header": {
+        "title": "Contracts",
+        "subtitle": "PDF templates for clients to sign",
+        "newTemplate": "New template"
+      },
+      "noPermission": "Adding, editing and deleting contract templates requires the \"Manage contract templates\" permission — ask the business owner.",
+      "list": {
+        "loadError": "Couldn't load contract templates",
+        "empty": "No contract templates yet",
+        "uploadFirst": "Upload your first template",
+        "fieldsCount": " · {count, plural, one {# field} other {# fields}}",
+        "noFields": " · No fields",
+        "created": "Created: {date}",
+        "edit": "Edit",
+        "deleteAria": "Delete {name}",
+        "deleteTitle": "Delete template"
+      },
+      "toasts": {
+        "deleteError": "Couldn't delete the template",
+        "deleted": "Template deleted",
+        "noSignature": "No signature field placed – the client won't be able to sign. Click again to save anyway.",
+        "saveError": "Couldn't save",
+        "saved": "Template saved!",
+        "updated": "Template updated!",
+        "networkError": "Network error"
+      },
+      "deleteDialog": {
+        "title": "Delete this contract template?",
+        "description": "The template \"{name}\" will be permanently deleted — <strong>together with every signing request sent from it, including signed contracts and their PDF files</strong>. This can't be undone. Deleting a template that has signed contracts is allowed only for people permitted to delete clients and dogs."
+      },
+      "fieldTypes": {
+        "customer_name": "👤 Client name",
+        "id_number": "🆔 ID no.",
+        "address": "🏠 Address",
+        "phone": "📞 Phone",
+        "pet_name": "🐕 Dog's name",
+        "pet_breed": "🐾 Breed",
+        "pet_microchip": "📟 Microchip no.",
+        "pet_birthdate": "📅 Date of birth",
+        "pet_gender": "⚥ Dog's sex",
+        "pet_color": "🎨 Color/markings",
+        "signature": "✍️ Signature"
+      },
+      "fieldShort": {
+        "customer_name": "Client name",
+        "id_number": "ID no.",
+        "address": "Address",
+        "phone": "Phone",
+        "pet_name": "Dog's name",
+        "pet_breed": "Breed",
+        "pet_microchip": "Microchip no.",
+        "pet_birthdate": "Date of birth",
+        "pet_gender": "Sex",
+        "pet_color": "Color/markings",
+        "signature": "Signature"
+      },
+      "summary": {
+        "page": "Page {page}: ",
+        "totalOne": "{count} field total ·",
+        "totalOther": "{count} fields total ·",
+        "clearAll": "Clear all",
+        "noSignature": "No signature field placed – the client won't be able to sign the document"
+      },
+      "modal": {
+        "newTitle": "New contract template",
+        "editTitle": "Edit template: {name}",
+        "nameRequired": "Template name *",
+        "name": "Template name",
+        "namePlaceholder": "e.g. Boarding contract, Training agreement...",
+        "pdfFile": "PDF file *",
+        "page": "Page:",
+        "pickFieldType": "Pick a field type and click the document to place it:",
+        "cannotDisplay": "Can't display the document",
+        "loadDocError": "Couldn't load the document",
+        "retry": "Try again",
+        "saveTemplate": "Save template",
+        "saveChanges": "Save changes"
+      }
+    },
+    "dataTab": {
+      "exportTypes": {
+        "customers": {
+          "label": "Clients only",
+          "description": "Name, phone, email, address, tags"
+        },
+        "dogs": {
+          "label": "Dogs only",
+          "description": "Name, breed, sex, weight, owner"
+        },
+        "customers_dogs": {
+          "label": "Clients + dogs",
+          "description": "Client and dog data combined"
+        }
+      },
+      "exportStatus": {
+        "pending": "Pending",
+        "processing": "Processing",
+        "completed": "Ready",
+        "failed": "Failed",
+        "expired": "Expired"
+      },
+      "exportTypeLabels": {
+        "customers": "Clients only",
+        "dogs": "Dogs only",
+        "customers_dogs": "Clients + dogs",
+        "pets": "Pets",
+        "both": "Clients + pets"
+      },
+      "errors": {
+        "createExport": "Couldn't create the export",
+        "templateDownload": "Couldn't download the template. Try again.",
+        "parse": "Couldn't analyze the file",
+        "execute": "Couldn't complete the import",
+        "generic": "Something went wrong"
+      },
+      "export": {
+        "title": "Export data",
+        "newExport": "New export",
+        "type": "Export type",
+        "format": "File format",
+        "outputMode": "Output layout",
+        "outputFlat": "Flat (one sheet)",
+        "outputSeparate": "Separate (sheet per type)",
+        "dateFilter": "Date filter (optional)",
+        "fromDate": "From",
+        "toDate": "To",
+        "exportNow": "Export now",
+        "requested": "Export requested. The file will appear in the history.",
+        "historyTitle": "Export history",
+        "historyEmpty": "No exports yet",
+        "download": "Download",
+        "columns": {
+          "type": "Type",
+          "format": "Format",
+          "status": "Status",
+          "records": "Records",
+          "size": "Size",
+          "date": "Date"
+        }
+      },
+      "import": {
+        "title": "Import data",
+        "noPermission": "Importing clients requires the 'Import clients from Excel' permission — ask the business owner",
+        "downloadTemplate": "Download sample template",
+        "clickToUpload": "Click to upload a file",
+        "fileTypes": "Excel (.xlsx) or CSV",
+        "summaryTitle": "File analysis summary",
+        "newCustomers": "New clients",
+        "pets": "Pets",
+        "skippedRows": "Rows skipped",
+        "dbDuplicates": "{count, plural, one {# client already exists (will be merged)} other {# clients already exist (will be merged)}}",
+        "issuesTitle": "Issues found:",
+        "issueRow": "Row {row}: {message}",
+        "confirm": "Confirm import",
+        "parsing": "Analyzing file...",
+        "importing": "Importing data... this may take up to a minute",
+        "stayOnPage": "Loading data — please don't leave the settings page until the import finishes",
+        "done": "Import completed successfully!",
+        "createdCustomers": "Clients created",
+        "mergedCustomers": "Clients merged",
+        "createdPets": "Pets created",
+        "importMore": "Import more",
+        "retry": "Try again"
+      }
+    }
+  },
   "tasks": {
     "title": "Tasks",
     "categories": {
@@ -5788,6 +8475,20 @@
         "completedAt": "Completed",
         "relatedEntityName": "Linked to (client/pet)"
       }
+    }
+  },
+  "tenantAdmin": {
+    "tenantAdminShell": {
+      "nav": {
+        "analytics": "Analytics",
+        "members": "Team members",
+        "auditLogs": "Activity log"
+      },
+      "panelLabel": "Admin panel",
+      "headerTitle": "{name} — Admin panel",
+      "backToApp": "Back to app",
+      "logout": "Log out",
+      "suspended": "Suspended"
     }
   },
   "ui": {

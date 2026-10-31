@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { X, Link2, Check, Loader2, Phone, ExternalLink } from "lucide-react";
 
 interface IntakeWhatsAppModalProps {
@@ -31,6 +33,8 @@ export function IntakeWhatsAppModal({
   customerPhone,
   dogId,
 }: IntakeWhatsAppModalProps) {
+  const t = useTranslations("intake");
+  const { locale, cfg } = useBusinessLocale();
   const queryClient = useQueryClient();
   const { canSendMessages } = usePermissions();
   const [phone, setPhone] = useState(customerPhone);
@@ -90,7 +94,7 @@ export function IntakeWhatsAppModal({
 
     // Mark as sent
     markSentMutation.mutate(data.id);
-    showToast("נפתח וואטסאפ לשליחה");
+    showToast(t("intakeWhatsAppModal.toasts.whatsappOpened"));
   };
 
   const handleCopyLink = async () => {
@@ -102,7 +106,7 @@ export function IntakeWhatsAppModal({
 
     try {
       await navigator.clipboard.writeText(data.intakeLink);
-      showToast("הקישור הועתק");
+      showToast(t("intakeWhatsAppModal.toasts.linkCopied"));
     } catch {
       // Fallback for older browsers
       const textArea = document.createElement("textarea");
@@ -111,7 +115,7 @@ export function IntakeWhatsAppModal({
       textArea.select();
       document.execCommand("copy");
       document.body.removeChild(textArea);
-      showToast("הקישור הועתק");
+      showToast(t("intakeWhatsAppModal.toasts.linkCopied"));
     }
   };
 
@@ -131,8 +135,8 @@ export function IntakeWhatsAppModal({
         {/* Header */}
         <div className="flex items-center justify-between mb-5">
           <div>
-            <h2 className="text-lg font-bold text-petra-text">שליחת טופס בוואטסאפ</h2>
-            <p className="text-sm text-petra-muted mt-0.5">שלח טופס קליטה ללקוח</p>
+            <h2 className="text-lg font-bold text-petra-text">{t("intakeWhatsAppModal.title")}</h2>
+            <p className="text-sm text-petra-muted mt-0.5">{t("intakeWhatsAppModal.subtitle")}</p>
           </div>
           <button onClick={handleClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
             <X className="w-4 h-4" />
@@ -142,7 +146,7 @@ export function IntakeWhatsAppModal({
         <div className="space-y-4">
           {/* Customer name (readonly) */}
           <div>
-            <label className="label">שם לקוח</label>
+            <label className="label">{t("intakeWhatsAppModal.clientName")}</label>
             <div className="input bg-slate-50 text-slate-600 cursor-not-allowed">
               {customerName}
             </div>
@@ -150,9 +154,9 @@ export function IntakeWhatsAppModal({
 
           {/* Phone (editable) */}
           <div>
-            <label className="label">מספר טלפון *</label>
+            <label className="label">{t("intakeWhatsAppModal.phoneLabel")}</label>
             <div className="relative">
-              <Phone className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Phone className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" /* rtl-ok — paired with the ltr input's physical pr-10 */ />
               <input
                 className="input pr-10"
                 type="tel"
@@ -162,28 +166,28 @@ export function IntakeWhatsAppModal({
                 placeholder="050-1234567"
               />
             </div>
-            <p className="text-xs text-petra-muted mt-1">פורמט ישראלי, ניתן גם +972</p>
+            <p className="text-xs text-petra-muted mt-1">{t("intakeWhatsAppModal.phoneHint")}</p>
           </div>
 
           {/* Message preview (editable) */}
           <div>
-            <label className="label">תצוגה מקדימה של ההודעה</label>
+            <label className="label">{t("intakeWhatsAppModal.previewLabel")}</label>
             <textarea
               className="input min-h-[120px] resize-none text-sm leading-relaxed"
-              value={messageOverride || `היי ${customerName}, כאן [שם העסק] 👋\nכדי שנתכונן בצורה הכי טובה, אשמח שתמלא/י בקישור את פרטי הכלב והבריאות שלו (דקה-שתיים):\n[קישור הטופס]\nתודה!`}
+              value={messageOverride || `היי ${customerName}, כאן [שם העסק] 👋\nכדי שנתכונן בצורה הכי טובה, אשמח שתמלא/י בקישור את פרטי הכלב והבריאות שלו (דקה-שתיים):\n[קישור הטופס]\nתודה!`} /* i18n-ok — WhatsApp text sent to the client (Phase 3) */
               onChange={(e) => setMessageOverride(e.target.value)}
-              dir="rtl"
+              dir={cfg.dir}
             />
-            <p className="text-xs text-petra-muted mt-1">הקישור יוכנס אוטומטית</p>
+            <p className="text-xs text-petra-muted mt-1">{t("intakeWhatsAppModal.linkAutoInserted")}</p>
           </div>
 
           {/* Link preview (if created) */}
           {created && (
             <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl">
-              <p className="text-xs font-medium text-emerald-700 mb-1">קישור נוצר:</p>
+              <p className="text-xs font-medium text-emerald-700 mb-1">{t("intakeWhatsAppModal.linkCreated")}</p>
               <p className="text-xs text-emerald-600 break-all" dir="ltr">{created.intakeLink}</p>
               <p className="text-xs text-emerald-500 mt-1">
-                בתוקף עד: {new Date(created.expiresAt).toLocaleDateString("he-IL")}
+                {t("intakeWhatsAppModal.validUntil", { date: new Date(created.expiresAt).toLocaleDateString(locale) })}
               </p>
             </div>
           )}
@@ -194,7 +198,7 @@ export function IntakeWhatsAppModal({
           <button
             onClick={handleSendWhatsApp}
             disabled={!canSendMessages || !phone.trim() || createMutation.isPending}
-            title={!canSendMessages ? "אין לך הרשאה" : undefined}
+            title={!canSendMessages ? t("intakeWhatsAppModal.noPermission") : undefined}
             className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-xl font-semibold text-sm hover:bg-emerald-700 transition-colors shadow-sm disabled:opacity-50"
           >
             {createMutation.isPending ? (
@@ -202,7 +206,7 @@ export function IntakeWhatsAppModal({
             ) : (
               <ExternalLink className="w-4 h-4" />
             )}
-            שלח בוואטסאפ
+            {t("intakeWhatsAppModal.sendWhatsApp")}
           </button>
           <button
             onClick={handleCopyLink}
@@ -210,16 +214,16 @@ export function IntakeWhatsAppModal({
             className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-white text-petra-text border border-petra-border rounded-xl font-medium text-sm hover:bg-gray-50 transition-colors disabled:opacity-50"
           >
             <Link2 className="w-4 h-4" />
-            העתק קישור
+            {t("intakeWhatsAppModal.copyLink")}
           </button>
           <button onClick={handleClose} className="btn-ghost text-sm">
-            ביטול
+            {t("intakeWhatsAppModal.cancel")}
           </button>
         </div>
 
         {/* Toast */}
         {toast && (
-          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] bg-slate-900 text-white px-4 py-2.5 rounded-xl text-sm font-medium shadow-lg flex items-center gap-2 animate-slide-up">
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] bg-slate-900 text-white px-4 py-2.5 rounded-xl text-sm font-medium shadow-lg flex items-center gap-2 animate-slide-up" /* rtl-ok — centered toast */>
             <Check className="w-4 h-4 text-emerald-400" />
             {toast}
           </div>

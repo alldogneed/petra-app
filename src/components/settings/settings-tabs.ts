@@ -1,5 +1,5 @@
 // Single source of truth for the settings screen: tab ids (= ?tab= values, stable —
-// linked from all over the app), labels, groups, who sees each tab and which plan
+// linked from all over the app), label message keys, groups, who sees each tab and which plan
 // feature unlocks it. The lock icon in the nav and the PaywallCard both read
 // `isTabLocked()`, so they can never disagree.
 import type { FeatureKey } from "@/lib/feature-flags";
@@ -20,90 +20,92 @@ export type SettingsTabId =
 
 export type SettingsGroupId = "business" | "operations" | "communication" | "connections" | "account";
 
-export const SETTINGS_GROUPS: { id: SettingsGroupId; label: string }[] = [
-  { id: "business", label: "העסק" },
-  { id: "operations", label: "תפעול" },
-  { id: "communication", label: "תקשורת וצוות" },
-  { id: "connections", label: "חיבורים ונתונים" },
-  { id: "account", label: "החשבון שלי" },
+export const SETTINGS_GROUPS: { id: SettingsGroupId; labelKey: string }[] = [
+  { id: "business", labelKey: "settings.settingsTabs.groups.business" },
+  { id: "operations", labelKey: "settings.settingsTabs.groups.operations" },
+  { id: "communication", labelKey: "settings.settingsTabs.groups.communication" },
+  { id: "connections", labelKey: "settings.settingsTabs.groups.connections" },
+  { id: "account", labelKey: "settings.settingsTabs.groups.account" },
 ];
 
 export interface SettingsTabDef {
   id: SettingsTabId;
-  label: string;
+  /** Full message key (messages/*.json) of the tab title. */
+  labelKey: string;
   group: SettingsGroupId;
-  /** Short line under the tab title. */
-  description: string;
+  /** Full message key of the short line under the tab title. */
+  descriptionKey: string;
   /** Plan feature that unlocks the tab (feature-flags.ts). */
   feature?: FeatureKey;
   /** Locked on the free plan only (no dedicated feature flag). */
   paidOnly?: boolean;
   /** Tier named on the PaywallCard. */
   requiredTier?: "basic" | "pro" | "service_dog";
-  paywallTitle?: string;
-  paywallDescription?: string;
+  /** Full message keys of the PaywallCard title / description. */
+  paywallTitleKey?: string;
+  paywallDescriptionKey?: string;
   /** Who can see the tab at all. */
   visibility?: "owner" | "ownerOrManager" | "mcpAllowed" | "notGroomer";
 }
 
 export const SETTINGS_TABS: SettingsTabDef[] = [
-  { id: "business", label: "פרטי העסק", group: "business", description: "שם, פרטי קשר, לוגו וישות משפטית" },
-  { id: "subscription", label: "מנוי וחיוב", group: "business", description: "המסלול שלך, שימוש ושדרוג" },
+  { id: "business", labelKey: "settings.settingsTabs.tabs.business.label", group: "business", descriptionKey: "settings.settingsTabs.tabs.business.description" },
+  { id: "subscription", labelKey: "settings.settingsTabs.tabs.subscription.label", group: "business", descriptionKey: "settings.settingsTabs.tabs.subscription.description" },
   {
-    id: "booking", label: "זמינות והזמנות", group: "operations", description: "שעות פעילות, חסימות והזמנות אונליין",
+    id: "booking", labelKey: "settings.settingsTabs.tabs.booking.label", group: "operations", descriptionKey: "settings.settingsTabs.tabs.booking.description",
     feature: "online_bookings", requiredTier: "basic",
-    paywallTitle: "זמינות והזמנות אונליין",
-    paywallDescription: "הגדר זמינות, שעות פעילות והזמנות אונליין — זמין במנוי בייסיק ומעלה.",
+    paywallTitleKey: "settings.settingsTabs.tabs.booking.paywallTitle",
+    paywallDescriptionKey: "settings.settingsTabs.tabs.booking.paywallDescription",
   },
   {
-    id: "boarding", label: "פנסיון", group: "operations", description: "צ׳ק-אין, צ׳ק-אאוט ומינימום לילות",
+    id: "boarding", labelKey: "settings.settingsTabs.tabs.boarding.label", group: "operations", descriptionKey: "settings.settingsTabs.tabs.boarding.description",
     feature: "boarding", requiredTier: "pro", visibility: "notGroomer",
-    paywallTitle: "הגדרות פנסיון",
-    paywallDescription: "הגדר שעות צ׳ק-אין/אאוט ומינימום לילות — זמין במנוי פרו ומעלה.",
+    paywallTitleKey: "settings.settingsTabs.tabs.boarding.paywallTitle",
+    paywallDescriptionKey: "settings.settingsTabs.tabs.boarding.paywallDescription",
   },
   {
-    id: "service-dogs", label: "כלבי שירות", group: "operations", description: "שעות אימון, הסמכה ולוח חיסונים",
+    id: "service-dogs", labelKey: "settings.settingsTabs.tabs.serviceDogs.label", group: "operations", descriptionKey: "settings.settingsTabs.tabs.serviceDogs.description",
     feature: "service_dogs", requiredTier: "service_dog", visibility: "notGroomer",
-    paywallTitle: "הגדרות כלבי שירות",
-    paywallDescription: "הגדרות תוכנית כלבי שירות — זמין במנוי Service Dog בלבד.",
+    paywallTitleKey: "settings.settingsTabs.tabs.serviceDogs.paywallTitle",
+    paywallDescriptionKey: "settings.settingsTabs.tabs.serviceDogs.paywallDescription",
   },
   {
-    id: "payments", label: "חוזים", group: "operations", description: "תבניות חוזים דיגיטליים לחתימה",
+    id: "payments", labelKey: "settings.settingsTabs.tabs.payments.label", group: "operations", descriptionKey: "settings.settingsTabs.tabs.payments.description",
     feature: "contracts", requiredTier: "basic", visibility: "ownerOrManager",
-    paywallTitle: "חוזים דיגיטליים",
-    paywallDescription: "תבניות חוזים וחתימה דיגיטלית — זמין במנוי בייסיק ומעלה.",
+    paywallTitleKey: "settings.settingsTabs.tabs.payments.paywallTitle",
+    paywallDescriptionKey: "settings.settingsTabs.tabs.payments.paywallDescription",
   },
   {
-    id: "messages", label: "הודעות ואוטומציות", group: "communication", description: "תבניות WhatsApp ותזכורות אוטומטיות",
+    id: "messages", labelKey: "settings.settingsTabs.tabs.messages.label", group: "communication", descriptionKey: "settings.settingsTabs.tabs.messages.description",
     feature: "scheduled_messages", requiredTier: "basic",
-    paywallTitle: "הודעות ואוטומציות",
-    paywallDescription: "תבניות WhatsApp, תזכורות אוטומטיות ואוטומציות — זמין במנוי בייסיק ומעלה.",
+    paywallTitleKey: "settings.settingsTabs.tabs.messages.paywallTitle",
+    paywallDescriptionKey: "settings.settingsTabs.tabs.messages.paywallDescription",
   },
   {
-    id: "team", label: "צוות והרשאות", group: "communication", description: "חברי צוות, תפקידים והרשאות",
+    id: "team", labelKey: "settings.settingsTabs.tabs.team.label", group: "communication", descriptionKey: "settings.settingsTabs.tabs.team.description",
     feature: "staff_management", requiredTier: "pro", visibility: "owner",
-    paywallTitle: "ניהול צוות",
-    paywallDescription: "הוסף חברי צוות ונהל הרשאות — זמין במנוי פרו ומעלה.",
+    paywallTitleKey: "settings.settingsTabs.tabs.team.paywallTitle",
+    paywallDescriptionKey: "settings.settingsTabs.tabs.team.paywallDescription",
   },
   {
-    id: "integrations", label: "אינטגרציות", group: "connections", description: "Google Calendar, WhatsApp, Make ועוד",
+    id: "integrations", labelKey: "settings.settingsTabs.tabs.integrations.label", group: "connections", descriptionKey: "settings.settingsTabs.tabs.integrations.description",
     feature: "gcal_sync", requiredTier: "basic",
-    paywallTitle: "אינטגרציות",
-    paywallDescription: "חבר יומן Google, WhatsApp ועוד — זמין במנוי בייסיק ומעלה.",
+    paywallTitleKey: "settings.settingsTabs.tabs.integrations.paywallTitle",
+    paywallDescriptionKey: "settings.settingsTabs.tabs.integrations.paywallDescription",
   },
   {
-    id: "ai-agents", label: "עוזרי AI", group: "connections", description: "חיבור Claude, ChatGPT ועוד",
+    id: "ai-agents", labelKey: "settings.settingsTabs.tabs.aiAgents.label", group: "connections", descriptionKey: "settings.settingsTabs.tabs.aiAgents.description",
     feature: "ai_assistant", requiredTier: "pro", visibility: "mcpAllowed",
-    paywallTitle: "עוזרי AI",
-    paywallDescription: "חבר את העסק שלך ל-Claude, ChatGPT ועוד — זמין במנוי פרו ומעלה.",
+    paywallTitleKey: "settings.settingsTabs.tabs.aiAgents.paywallTitle",
+    paywallDescriptionKey: "settings.settingsTabs.tabs.aiAgents.paywallDescription",
   },
   {
-    id: "data", label: "ייבוא וייצוא", group: "connections", description: "ייבוא לקוחות מאקסל וייצוא נתונים",
+    id: "data", labelKey: "settings.settingsTabs.tabs.data.label", group: "connections", descriptionKey: "settings.settingsTabs.tabs.data.description",
     paidOnly: true, requiredTier: "basic",
-    paywallTitle: "ייבוא וייצוא נתונים",
-    paywallDescription: "ייבוא וייצוא לקוחות ובעלי חיים ל-Excel/CSV — זמין במנוי בייסיק ומעלה.",
+    paywallTitleKey: "settings.settingsTabs.tabs.data.paywallTitle",
+    paywallDescriptionKey: "settings.settingsTabs.tabs.data.paywallDescription",
   },
-  { id: "security", label: "פרופיל ואבטחה", group: "account", description: "השם שלך, סיסמה, אימות דו-שלבי וסשנים" },
+  { id: "security", labelKey: "settings.settingsTabs.tabs.security.label", group: "account", descriptionKey: "settings.settingsTabs.tabs.security.description" },
 ];
 
 /** Legacy / shorthand ?tab= values that must keep working. */

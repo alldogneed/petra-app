@@ -2,26 +2,34 @@
 
 import { useState } from "react";
 import { ChevronLeft } from "lucide-react";
+import { useTranslations } from "next-intl";
 
+// Option values are stored data (OnboardingProfile) — only the labels are translated.
 const QUESTIONS = [
   {
     id: "businessType",
-    question: "מה סוג העסק שלך?",
-    options: ["מאלף כלבים", "פנסיון", "מספרה", "משולב"],
+    options: [
+      { value: "מאלף כלבים", key: "trainer" }, // i18n-ok
+      { value: "פנסיון", key: "boarding" }, // i18n-ok
+      { value: "מספרה", key: "grooming" }, // i18n-ok
+      { value: "משולב", key: "combined" }, // i18n-ok
+    ],
   },
   {
     id: "activeClientsRange",
-    question: "כמה לקוחות פעילים יש לך כרגע?",
-    options: ["עד 20", "20–50", "50+"],
+    options: [
+      { value: "עד 20", key: "upTo20" }, // i18n-ok
+      { value: "20–50", key: "from20To50" },
+      { value: "50+", key: "over50" },
+    ],
   },
   {
     id: "primaryGoal",
-    question: "מה הכי חשוב לך כרגע?",
     options: [
-      "סדר ביומן",
-      "ניהול לקוחות",
-      "לידים ומכירות",
-      "תזכורות אוטומטיות",
+      { value: "סדר ביומן", key: "calendar" }, // i18n-ok
+      { value: "ניהול לקוחות", key: "clients" }, // i18n-ok
+      { value: "לידים ומכירות", key: "leads" }, // i18n-ok
+      { value: "תזכורות אוטומטיות", key: "reminders" }, // i18n-ok
     ],
   },
 ] as const;
@@ -43,6 +51,7 @@ export function PersonalizationScreen({
   onBack,
   loading,
 }: PersonalizationScreenProps) {
+  const t = useTranslations("onboarding.personalizationScreen");
   const [currentQ, setCurrentQ] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
 
@@ -93,23 +102,23 @@ export function PersonalizationScreen({
         {/* Question */}
         <div className="text-center mb-8" key={currentQ}>
           <p className="text-xs font-medium text-brand-500 mb-2">
-            שאלה {currentQ + 1} מתוך {QUESTIONS.length}
+            {t("questionOf", { current: currentQ + 1, total: QUESTIONS.length })}
           </p>
           <h2 className="text-xl font-bold text-petra-text">
-            {question.question}
+            {t(`questions.${question.id}.title`)}
           </h2>
         </div>
 
         {/* Options */}
         <div className="space-y-3 mb-8" key={`opts-${currentQ}`}>
           {question.options.map((option) => {
-            const isSelected = selectedValue === option;
+            const isSelected = selectedValue === option.value;
             return (
               <button
-                key={option}
-                onClick={() => handleSelect(option)}
+                key={option.value}
+                onClick={() => handleSelect(option.value)}
                 disabled={loading}
-                className="w-full text-right px-5 py-4 rounded-2xl border-2 transition-all duration-200 text-sm font-medium disabled:opacity-50"
+                className="w-full text-start px-5 py-4 rounded-2xl border-2 transition-all duration-200 text-sm font-medium disabled:opacity-50"
                 style={{
                   borderColor: isSelected ? "#F97316" : "#E2E8F0",
                   background: isSelected ? "#FFF7ED" : "#FFFFFF",
@@ -119,7 +128,7 @@ export function PersonalizationScreen({
                     : undefined,
                 }}
               >
-                {option}
+                {t(`questions.${question.id}.options.${option.key}`)}
               </button>
             );
           })}
@@ -131,8 +140,8 @@ export function PersonalizationScreen({
             onClick={handleBack}
             className="inline-flex items-center gap-1 text-sm text-petra-muted hover:text-petra-text transition-colors"
           >
-            <ChevronLeft className="w-4 h-4 rotate-180" />
-            חזרה
+            <ChevronLeft className="w-4 h-4 rotate-180 ltr:-scale-x-100" />
+            {t("back")}
           </button>
         </div>
       </div>
