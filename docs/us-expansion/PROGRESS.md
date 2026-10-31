@@ -13,7 +13,7 @@ Branch: `claude/gracious-dijkstra-p3eq67` (ראו DECISIONS D-001). סשן חי�
 | 0.7 שער יציאה | ✅ | tsc + build ירוקים, he 0.000% (tasks), en נבדק, סקירת אבטחה ללא HIGH/MEDIUM | — | — | [phase0](qa/phase0/) · [דוח](PHASE-0-report.md) | phase0-close |
 | גל א — nav/layout/common/topbar/search/help | ✅ | 31 | 1,766 (he+en) | ~60 | [wave-a](qa/wave-a/) — he ≤0.08% (16/16), en ✅ | 5543163 |
 | גל ב — customers, pets, leads, calendar, scheduler, orders, dashboard | ✅ | 90 | 6,064 (he+en) | ~230 | [wave-b](qa/wave-b/) — he ≤0.009% (32/32), en ✅ | 4c03f6b |
-| גל ג — settings, business-admin, messages, onboarding | 🔄 | | | | | |
+| גל ג — settings, business-admin, messages, onboarding | ✅ | 69 | 3,670 (he+en) | ~120 | [wave-c](qa/wave-c/) — he 32/34 ≤0.5%; 2 = רשימת סשנים גדלה בכל התחברות QA (דאטה), en ✅ | 4d49890 |
 | גל ד — boarding | 🔄 | | | | | |
 | גל ה — training, online-classes, portal | ⬜ | | | | | |
 | גל ו — service-dogs | ⬜ | | | | | |
