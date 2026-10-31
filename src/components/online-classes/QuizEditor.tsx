@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Plus, Trash2, AlertTriangle, HelpCircle } from "lucide-react";
@@ -63,41 +64,42 @@ function emptyQuestion(): QuizQuestionDraft {
 
 /** Client-side mirror of the service validation — fast Hebrew feedback before PUT. */
 function validateDraft(
+  t: ReturnType<typeof useTranslations<"onlineClasses">>,
   title: string,
   passScore: string,
   questions: QuizQuestionDraft[]
 ): string | null {
   const trimmedTitle = title.trim();
-  if (!trimmedTitle) return "נדרשת כותרת לבוחן";
+  if (!trimmedTitle) return t("quizEditor.validation.titleRequired");
   if (trimmedTitle.length > TITLE_MAX)
-    return `כותרת הבוחן ארוכה מדי (מקסימום ${TITLE_MAX} תווים)`;
+    return t("quizEditor.validation.titleTooLong", { max: TITLE_MAX });
 
   const score = parseInt(passScore, 10);
   if (!Number.isInteger(score) || score < 0 || score > 100)
-    return "ציון עובר חייב להיות מספר שלם בין 0 ל-100";
+    return t("quizEditor.validation.passScoreRange");
 
-  if (questions.length < 1) return "יש להוסיף לפחות שאלה אחת לבוחן";
+  if (questions.length < 1) return t("quizEditor.validation.atLeastOneQuestion");
   if (questions.length > MAX_QUESTIONS)
-    return `מקסימום ${MAX_QUESTIONS} שאלות בבוחן`;
+    return t("quizEditor.validation.maxQuestions", { max: MAX_QUESTIONS });
 
   for (let i = 0; i < questions.length; i++) {
     const n = i + 1;
     const q = questions[i];
     const text = q.text.trim();
-    if (!text) return `שאלה ${n}: נדרש טקסט לשאלה`;
+    if (!text) return t("quizEditor.validation.questionTextRequired", { n });
     if (text.length > QUESTION_TEXT_MAX)
-      return `שאלה ${n}: טקסט השאלה ארוך מדי (מקסימום ${QUESTION_TEXT_MAX} תווים)`;
+      return t("quizEditor.validation.questionTextTooLong", { n, max: QUESTION_TEXT_MAX });
     if (q.options.length < MIN_OPTIONS || q.options.length > MAX_OPTIONS)
-      return `שאלה ${n}: נדרשות בין ${MIN_OPTIONS} ל-${MAX_OPTIONS} תשובות`;
+      return t("quizEditor.validation.optionsCount", { n, min: MIN_OPTIONS, max: MAX_OPTIONS });
     let correct = 0;
     for (const o of q.options) {
       const optText = o.text.trim();
-      if (!optText) return `שאלה ${n}: נדרש טקסט לכל תשובה`;
+      if (!optText) return t("quizEditor.validation.optionTextRequired", { n });
       if (optText.length > OPTION_TEXT_MAX)
-        return `שאלה ${n}: טקסט התשובה ארוך מדי (מקסימום ${OPTION_TEXT_MAX} תווים)`;
+        return t("quizEditor.validation.optionTextTooLong", { n, max: OPTION_TEXT_MAX });
       if (o.isCorrect) correct++;
     }
-    if (correct !== 1) return `שאלה ${n}: יש לסמן תשובה נכונה אחת בדיוק`;
+    if (correct !== 1) return t("quizEditor.validation.exactlyOneCorrect", { n });
   }
 
   return null;
@@ -114,6 +116,8 @@ export function QuizEditor({
   moduleTitle: string;
   onClose: () => void;
 }) {
+  const t = useTranslations("onlineClasses");
+  const tc = useTranslations("common");
   const queryClient = useQueryClient();
   const [title, setTitle] = useState("");
   const [passScore, setPassScore] = useState("70");
@@ -136,7 +140,7 @@ export function QuizEditor({
     const quiz = data.quiz;
     if (!quiz) {
       setLoadedQuizId(null);
-      setTitle(`בוחן — ${moduleTitle}`);
+      setTitle(t("quizEditor.title", { moduleTitle }));
       setPassScore("70");
       setQuestions([emptyQuestion()]);
       return;
@@ -153,7 +157,7 @@ export function QuizEditor({
         })),
       }))
     );
-  }, [data, moduleTitle]);
+  }, [data, moduleTitle]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const saveMutation = useMutation({
     mutationFn: () =>
@@ -173,13 +177,13 @@ export function QuizEditor({
         }),
       }),
     onSuccess: () => {
-      toast.success("הבוחן נשמר");
+      toast.success(t("quizEditor.toasts.saved"));
       queryClient.invalidateQueries({ queryKey: ["oc-quiz", moduleId] });
       queryClient.invalidateQueries({ queryKey: ["oc-courses"] });
       onClose();
     },
     onError: (e: Error) => {
-      const message = e.message || "שגיאה בשמירת הבוחן";
+      const message = e.message || t("quizEditor.toasts.saveError");
       setError(message);
       toast.error(message);
     },
@@ -191,12 +195,12 @@ export function QuizEditor({
         method: "DELETE",
       }),
     onSuccess: () => {
-      toast.success("הבוחן נמחק");
+      toast.success(t("quizEditor.toasts.deleted"));
       queryClient.invalidateQueries({ queryKey: ["oc-quiz", moduleId] });
       queryClient.invalidateQueries({ queryKey: ["oc-courses"] });
       onClose();
     },
-    onError: (e: Error) => toast.error(e.message || "שגיאה במחיקת הבוחן"),
+    onError: (e: Error) => toast.error(e.message || t("quizEditor.toasts.deleteError")),
   });
 
   // ─── Draft mutators ───────────────────────────────────────────
@@ -275,7 +279,7 @@ export function QuizEditor({
   }
 
   function handleSave() {
-    const validationError = validateDraft(title, passScore, questions);
+    const validationError = validateDraft(t, title, passScore, questions);
     if (validationError) {
       setError(validationError);
       toast.error(validationError);
@@ -288,7 +292,7 @@ export function QuizEditor({
   function handleDelete() {
     if (
       !window.confirm(
-        "למחוק את הבוחן? כל השאלות והניסיונות של התלמידים יימחקו לצמיתות."
+        t("quizEditor.confirmDelete")
       )
     ) {
       return;
@@ -299,43 +303,43 @@ export function QuizEditor({
   const busy = saveMutation.isPending || deleteMutation.isPending;
 
   return (
-    <Modal title={`בוחן — ${moduleTitle}`} onClose={onClose} maxWidth="max-w-2xl">
+    <Modal title={t("quizEditor.title", { moduleTitle })} onClose={onClose} maxWidth="max-w-2xl">
       {isLoading ? (
         <PetraLoader variant="inline" />
       ) : isError ? (
         <div className="text-center py-8">
           <AlertTriangle className="w-8 h-8 mx-auto mb-3 text-red-400" />
-          <p className="text-red-600 font-medium mb-3">שגיאה בטעינת הבוחן</p>
+          <p className="text-red-600 font-medium mb-3">{t("quizEditor.loadError")}</p>
           <button className="btn-secondary text-sm" onClick={() => refetch()}>
-            נסה שוב
+            {t("quizEditor.retry")}
           </button>
         </div>
       ) : (
-        <div className="space-y-5 max-h-[65vh] overflow-y-auto pl-1">
+        <div className="space-y-5 max-h-[65vh] overflow-y-auto pe-1">
           {/* Meta */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="sm:col-span-2">
-              <label className="label">כותרת הבוחן</label>
+              <label className="label">{t("quizEditor.titleLabel")}</label>
               <input
                 className="input"
                 value={title}
                 maxLength={TITLE_MAX}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="בוחן סיום פרק"
+                placeholder={t("quizEditor.titlePlaceholder")}
               />
             </div>
             <div>
-              <label className="label">ציון עובר</label>
+              <label className="label">{t("quizEditor.passScoreLabel")}</label>
               <div className="relative">
                 <input
-                  className="input pl-8"
+                  className="input pe-8"
                   type="number"
                   min={0}
                   max={100}
                   value={passScore}
                   onChange={(e) => setPassScore(e.target.value)}
                 />
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-petra-muted text-sm pointer-events-none">
+                <span className="absolute end-3 top-1/2 -translate-y-1/2 text-petra-muted text-sm pointer-events-none">
                   %
                 </span>
               </div>
@@ -352,7 +356,7 @@ export function QuizEditor({
                 <div className="flex items-center justify-between gap-2 mb-2">
                   <span className="text-sm font-bold text-petra-text flex items-center gap-1.5">
                     <HelpCircle className="w-4 h-4 text-petra-muted" />
-                    שאלה {qIndex + 1}
+                    {t("quizEditor.questionNumber", { n: qIndex + 1 })}
                   </span>
                   {questions.length > 1 && (
                     <button
@@ -361,7 +365,7 @@ export function QuizEditor({
                       className="text-xs text-red-600 hover:text-red-700 inline-flex items-center gap-1"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
-                      הסר שאלה
+                      {t("quizEditor.removeQuestion")}
                     </button>
                   )}
                 </div>
@@ -371,7 +375,7 @@ export function QuizEditor({
                   value={q.text}
                   maxLength={QUESTION_TEXT_MAX}
                   onChange={(e) => updateQuestion(qIndex, { text: e.target.value })}
-                  placeholder="נוסח השאלה"
+                  placeholder={t("quizEditor.questionPlaceholder")}
                 />
 
                 <div className="space-y-2">
@@ -383,7 +387,7 @@ export function QuizEditor({
                         checked={o.isCorrect}
                         onChange={() => markCorrect(qIndex, oIndex)}
                         className="w-4 h-4 accent-petra-sidebar-active shrink-0"
-                        aria-label={`תשובה נכונה ${oIndex + 1}`}
+                        aria-label={t("quizEditor.correctAnswerAria", { n: oIndex + 1 })}
                       />
                       <input
                         className="input flex-1"
@@ -392,14 +396,14 @@ export function QuizEditor({
                         onChange={(e) =>
                           updateOption(qIndex, oIndex, { text: e.target.value })
                         }
-                        placeholder={`תשובה ${oIndex + 1}`}
+                        placeholder={t("quizEditor.optionPlaceholder", { n: oIndex + 1 })}
                       />
                       {q.options.length > MIN_OPTIONS && (
                         <button
                           type="button"
                           onClick={() => removeOption(qIndex, oIndex)}
                           className="w-8 h-8 flex items-center justify-center rounded-lg text-petra-muted hover:bg-red-50 hover:text-red-600 shrink-0"
-                          aria-label="הסר תשובה"
+                          aria-label={t("quizEditor.removeOption")}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -415,7 +419,7 @@ export function QuizEditor({
                     className="mt-2 text-xs text-petra-muted hover:text-petra-text inline-flex items-center gap-1"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    הוסף תשובה
+                    {t("quizEditor.addOption")}
                   </button>
                 )}
               </div>
@@ -425,7 +429,7 @@ export function QuizEditor({
           {questions.length < MAX_QUESTIONS && (
             <button type="button" className="btn-secondary text-sm" onClick={addQuestion}>
               <Plus className="w-4 h-4" />
-              הוסף שאלה
+              {t("quizEditor.addQuestion")}
             </button>
           )}
 
@@ -446,7 +450,7 @@ export function QuizEditor({
                   disabled={busy}
                 >
                   <Trash2 className="w-4 h-4" />
-                  מחק בוחן
+                  {t("quizEditor.deleteQuiz")}
                 </button>
               )}
             </div>
@@ -457,7 +461,7 @@ export function QuizEditor({
                 onClick={onClose}
                 disabled={busy}
               >
-                ביטול
+                {tc("actions.cancel")}
               </button>
               <button
                 type="button"
@@ -465,7 +469,7 @@ export function QuizEditor({
                 onClick={handleSave}
                 disabled={busy}
               >
-                {saveMutation.isPending ? "שומר..." : "שמור בוחן"}
+                {saveMutation.isPending ? tc("progress.saving") : t("quizEditor.saveQuiz")}
               </button>
             </div>
           </div>

@@ -17,6 +17,8 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { BoardingTabs } from "@/components/boarding/BoardingTabs";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 
@@ -69,9 +71,9 @@ function isActive(med: MedicationItem): boolean {
   return new Date(med.endDate) >= new Date();
 }
 
-function formatDate(d: string | null): string {
+function formatDate(d: string | null, locale: string): string {
   if (!d) return "—";
-  return new Date(d).toLocaleDateString("he-IL");
+  return new Date(d).toLocaleDateString(locale);
 }
 
 // ─── Edit Modal ───────────────────────────────────────────────────────────────
@@ -83,6 +85,9 @@ function EditModal({
   med: MedicationItem;
   onClose: () => void;
 }) {
+  const t = useTranslations("boarding.medicationsPage");
+  const tc = useTranslations("common");
+  const { cfg } = useBusinessLocale();
   const queryClient = useQueryClient();
   const [form, setForm] = useState({
     medName: med.medName,
@@ -101,7 +106,7 @@ function EditModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       }).then((r) => {
-        if (!r.ok) throw new Error("שגיאה בעדכון");
+        if (!r.ok) throw new Error(t("errors.update"));
         return r.json();
       }),
     onSuccess: () => {
@@ -132,7 +137,7 @@ function EditModal({
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold text-petra-text flex items-center gap-2">
             <Pencil className="w-5 h-5 text-brand-500" />
-            עריכת תרופה
+            {t("editModal.title")}
           </h2>
           <button onClick={onClose} className="btn-ghost p-1">
             <X className="w-5 h-5" />
@@ -141,7 +146,7 @@ function EditModal({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="label">שם התרופה *</label>
+            <label className="label">{t("form.medName")}</label>
             <input
               className="input w-full"
               required
@@ -151,35 +156,35 @@ function EditModal({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">מינון</label>
+              <label className="label">{t("form.dosage")}</label>
               <input
                 className="input w-full"
-                placeholder="לדוגמה: 10mg"
+                placeholder={t("form.dosagePlaceholder")}
                 value={form.dosage}
                 onChange={(e) => setForm((f) => ({ ...f, dosage: e.target.value }))}
               />
             </div>
             <div>
-              <label className="label">תדירות</label>
+              <label className="label">{t("form.frequency")}</label>
               <input
                 className="input w-full"
-                placeholder="לדוגמה: פעם ביום"
+                placeholder={t("editModal.frequencyPlaceholder")}
                 value={form.frequency}
                 onChange={(e) => setForm((f) => ({ ...f, frequency: e.target.value }))}
               />
             </div>
           </div>
           <div>
-            <label className="label">שעות מתן (מופרדות בפסיק)</label>
+            <label className="label">{t("form.times")}</label>
             <input
               className="input w-full"
-              placeholder='לדוגמה: 08:00, 20:00'
+              placeholder={t("form.timesPlaceholder")}
               value={form.times}
               onChange={(e) => setForm((f) => ({ ...f, times: e.target.value }))}
             />
           </div>
           <div>
-            <label className="label">הוראות</label>
+            <label className="label">{t("form.instructions")}</label>
             <textarea
               className="input w-full min-h-[60px]"
               value={form.instructions}
@@ -188,18 +193,18 @@ function EditModal({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">תאריך התחלה</label>
+              <label className="label">{t("form.startDate")}</label>
               <input
-                type="date" lang="he"
+                type="date" lang={cfg.lang}
                 className="input w-full"
                 value={form.startDate}
                 onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))}
               />
             </div>
             <div>
-              <label className="label">תאריך סיום</label>
+              <label className="label">{t("form.endDate")}</label>
               <input
-                type="date" lang="he"
+                type="date" lang={cfg.lang}
                 className="input w-full"
                 value={form.endDate}
                 onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))}
@@ -217,10 +222,10 @@ function EditModal({
               disabled={mutation.isPending}
               className="btn-primary flex-1"
             >
-              {mutation.isPending ? "שומר..." : "שמור שינויים"}
+              {mutation.isPending ? tc("progress.saving") : t("editModal.submit")}
             </button>
             <button type="button" onClick={onClose} className="btn-secondary">
-              ביטול
+              {tc("actions.cancel")}
             </button>
           </div>
         </form>
@@ -232,6 +237,8 @@ function EditModal({
 // ─── Add Medication Modal ─────────────────────────────────────────────────────
 
 function AddModal({ onClose }: { onClose: () => void }) {
+  const t = useTranslations("boarding.medicationsPage");
+  const { cfg } = useBusinessLocale();
   const queryClient = useQueryClient();
 
   const { data: petsData } = useQuery<PetOption[]>({
@@ -277,7 +284,7 @@ function AddModal({ onClose }: { onClose: () => void }) {
           endDate: data.endDate || null,
         }),
       }).then((r) => {
-        if (!r.ok) throw new Error("שגיאה בהוספה");
+        if (!r.ok) throw new Error(t("errors.add"));
         return r.json();
       }),
     onSuccess: () => {
@@ -301,7 +308,7 @@ function AddModal({ onClose }: { onClose: () => void }) {
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold text-petra-text flex items-center gap-2">
             <Plus className="w-5 h-5 text-brand-500" />
-            הוספת תרופה
+            {t("addModal.title")}
           </h2>
           <button onClick={onClose} className="btn-ghost p-1">
             <X className="w-5 h-5" />
@@ -310,7 +317,7 @@ function AddModal({ onClose }: { onClose: () => void }) {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="label">בחר כלב *</label>
+            <label className="label">{t("addModal.pickDog")}</label>
             <div className="relative">
               <select
                 required
@@ -318,7 +325,7 @@ function AddModal({ onClose }: { onClose: () => void }) {
                 value={form.petId}
                 onChange={(e) => setForm((f) => ({ ...f, petId: e.target.value }))}
               >
-                <option value="">-- בחר כלב --</option>
+                <option value="">{t("addModal.pickDogOption")}</option>
                 {(petsData ?? []).map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
@@ -326,16 +333,16 @@ function AddModal({ onClose }: { onClose: () => void }) {
                   </option>
                 ))}
               </select>
-              <ChevronDown className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted pointer-events-none" />
+              <ChevronDown className="absolute end-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted pointer-events-none" />
             </div>
           </div>
 
           <div>
-            <label className="label">שם התרופה *</label>
+            <label className="label">{t("form.medName")}</label>
             <input
               className="input w-full"
               required
-              placeholder="לדוגמה: אמוקסיצילין"
+              placeholder={t("addModal.medNamePlaceholder")}
               value={form.medName}
               onChange={(e) => setForm((f) => ({ ...f, medName: e.target.value }))}
             />
@@ -343,19 +350,19 @@ function AddModal({ onClose }: { onClose: () => void }) {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">מינון</label>
+              <label className="label">{t("form.dosage")}</label>
               <input
                 className="input w-full"
-                placeholder="לדוגמה: 10mg"
+                placeholder={t("form.dosagePlaceholder")}
                 value={form.dosage}
                 onChange={(e) => setForm((f) => ({ ...f, dosage: e.target.value }))}
               />
             </div>
             <div>
-              <label className="label">תדירות</label>
+              <label className="label">{t("form.frequency")}</label>
               <input
                 className="input w-full"
-                placeholder="לדוגמה: פעמיים ביום"
+                placeholder={t("addModal.frequencyPlaceholder")}
                 value={form.frequency}
                 onChange={(e) => setForm((f) => ({ ...f, frequency: e.target.value }))}
               />
@@ -363,20 +370,20 @@ function AddModal({ onClose }: { onClose: () => void }) {
           </div>
 
           <div>
-            <label className="label">שעות מתן (מופרדות בפסיק)</label>
+            <label className="label">{t("form.times")}</label>
             <input
               className="input w-full"
-              placeholder='לדוגמה: 08:00, 20:00'
+              placeholder={t("form.timesPlaceholder")}
               value={form.times}
               onChange={(e) => setForm((f) => ({ ...f, times: e.target.value }))}
             />
           </div>
 
           <div>
-            <label className="label">הוראות</label>
+            <label className="label">{t("form.instructions")}</label>
             <textarea
               className="input w-full min-h-[60px]"
-              placeholder="הוראות נוספות..."
+              placeholder={t("addModal.instructionsPlaceholder")}
               value={form.instructions}
               onChange={(e) => setForm((f) => ({ ...f, instructions: e.target.value }))}
             />
@@ -384,18 +391,18 @@ function AddModal({ onClose }: { onClose: () => void }) {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">תאריך התחלה</label>
+              <label className="label">{t("form.startDate")}</label>
               <input
-                type="date" lang="he"
+                type="date" lang={cfg.lang}
                 className="input w-full"
                 value={form.startDate}
                 onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))}
               />
             </div>
             <div>
-              <label className="label">תאריך סיום</label>
+              <label className="label">{t("form.endDate")}</label>
               <input
-                type="date" lang="he"
+                type="date" lang={cfg.lang}
                 className="input w-full"
                 value={form.endDate}
                 onChange={(e) => setForm((f) => ({ ...f, endDate: e.target.value }))}
@@ -413,10 +420,10 @@ function AddModal({ onClose }: { onClose: () => void }) {
               disabled={mutation.isPending || !form.petId}
               className="btn-primary flex-1"
             >
-              {mutation.isPending ? "מוסיף..." : "הוסף תרופה"}
+              {mutation.isPending ? t("addModal.adding") : t("addMed")}
             </button>
             <button type="button" onClick={onClose} className="btn-secondary">
-              ביטול
+              {tc("actions.cancel")}
             </button>
           </div>
         </form>
@@ -428,6 +435,9 @@ function AddModal({ onClose }: { onClose: () => void }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function MedicationsPage() {
+  const t = useTranslations("boarding.medicationsPage");
+  const tc = useTranslations("common");
+  const { locale } = useBusinessLocale();
   const queryClient = useQueryClient();
   const [activeFilter, setActiveFilter] = useState<"all" | "true" | "false">("all");
   const [search, setSearch] = useState("");
@@ -453,14 +463,14 @@ export default function MedicationsPage() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
       fetch(`/api/medications/${id}`, { method: "DELETE" }).then((r) => {
-        if (!r.ok) throw new Error("שגיאה במחיקה");
+        if (!r.ok) throw new Error(t("errors.delete"));
         return r.json();
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["medications"] });
-      toast.success("התרופה נמחקה");
+      toast.success(t("toasts.deleted"));
     },
-    onError: () => toast.error("שגיאה במחיקת התרופה. נסה שוב."),
+    onError: () => toast.error(t("toasts.deleteError")),
   });
 
   const allMeds = data?.medications ?? [];
@@ -476,7 +486,7 @@ export default function MedicationsPage() {
   });
 
   function handleDelete(id: string, medName: string) {
-    if (window.confirm(`למחוק את התרופה "${medName}"?`)) {
+    if (window.confirm(t("confirmDelete", { medName }))) {
       deleteMutation.mutate(id);
     }
   }
@@ -487,9 +497,9 @@ export default function MedicationsPage() {
       {/* Header */}
       <div className="page-header">
         <div>
-          <h1 className="page-title">ניהול תרופות</h1>
+          <h1 className="page-title">{t("title")}</h1>
           <p className="text-sm text-petra-muted mt-1">
-            מעקב תרופות לכלבים – כל העסק
+            {t("subtitle")}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -499,14 +509,14 @@ export default function MedicationsPage() {
             className="btn-secondary gap-2 inline-flex items-center"
           >
             <RefreshCw className={cn("w-4 h-4", isFetching && "animate-spin")} />
-            רענן
+            {t("refresh")}
           </button>
           <button
             onClick={() => setShowAdd(true)}
             className="btn-primary gap-2 inline-flex items-center"
           >
             <Plus className="w-4 h-4" />
-            הוסף תרופה
+            {t("addMed")}
           </button>
         </div>
       </div>
@@ -517,21 +527,21 @@ export default function MedicationsPage() {
         <div className="relative flex-1 min-w-[200px]">
           <input
             type="text"
-            placeholder="חיפוש לפי כלב, לקוח או תרופה..."
+            placeholder={t("searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="input w-full pr-9"
+            className="input w-full ps-9"
           />
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted pointer-events-none" />
+          <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted pointer-events-none" />
         </div>
 
         {/* Active filter */}
         <div className="flex items-center gap-2">
           {(
             [
-              { value: "all", label: "הכל" },
-              { value: "true", label: "פעילות" },
-              { value: "false", label: "לא פעילות" },
+              { value: "all", labelKey: "filters.all" },
+              { value: "true", labelKey: "filters.active" },
+              { value: "false", labelKey: "filters.inactive" },
             ] as const
           ).map((opt) => (
             <button
@@ -544,14 +554,14 @@ export default function MedicationsPage() {
                   : "bg-white text-petra-muted border-slate-200 hover:border-brand-300"
               )}
             >
-              {opt.label}
+              {t(opt.labelKey)}
             </button>
           ))}
         </div>
 
         {data && (
           <span className="ms-auto text-sm text-petra-muted">
-            {meds.length} תרופות
+            {t("count", { count: meds.length })}
           </span>
         )}
       </div>
@@ -562,7 +572,7 @@ export default function MedicationsPage() {
       {/* Error */}
       {isError && (
         <div className="card p-8 text-center text-red-500 text-sm">
-          שגיאה בטעינת נתונים
+          {t("loadError")}
         </div>
       )}
 
@@ -570,12 +580,12 @@ export default function MedicationsPage() {
       {!isLoading && !isError && meds.length === 0 && (
         <div className="card p-12 text-center space-y-3">
           <Pill className="w-10 h-10 mx-auto text-slate-300" />
-          <p className="text-petra-muted text-sm">לא נמצאו תרופות</p>
+          <p className="text-petra-muted text-sm">{t("empty")}</p>
           <button
             onClick={() => setShowAdd(true)}
             className="text-sm text-brand-500 hover:underline"
           >
-            הוסף תרופה ראשונה
+            {t("addFirst")}
           </button>
         </div>
       )}
@@ -587,15 +597,15 @@ export default function MedicationsPage() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-100">
                 <tr>
-                  <th className="table-header-cell">שם הכלב</th>
-                  <th className="table-header-cell">בעל הכלב</th>
-                  <th className="table-header-cell">תרופה</th>
-                  <th className="table-header-cell">מינון</th>
-                  <th className="table-header-cell">תדירות</th>
-                  <th className="table-header-cell">התחלה</th>
-                  <th className="table-header-cell">סיום</th>
-                  <th className="table-header-cell">סטטוס</th>
-                  <th className="table-header-cell">פעולות</th>
+                  <th className="table-header-cell">{t("table.dogName")}</th>
+                  <th className="table-header-cell">{t("table.owner")}</th>
+                  <th className="table-header-cell">{t("table.medication")}</th>
+                  <th className="table-header-cell">{t("table.dosage")}</th>
+                  <th className="table-header-cell">{t("table.frequency")}</th>
+                  <th className="table-header-cell">{t("table.start")}</th>
+                  <th className="table-header-cell">{t("table.end")}</th>
+                  <th className="table-header-cell">{t("table.status")}</th>
+                  <th className="table-header-cell">{t("table.actions")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -665,12 +675,12 @@ export default function MedicationsPage() {
 
                       {/* Start date */}
                       <td className="table-cell text-petra-muted">
-                        {formatDate(med.startDate)}
+                        {formatDate(med.startDate, locale)}
                       </td>
 
                       {/* End date */}
                       <td className="table-cell text-petra-muted">
-                        {formatDate(med.endDate)}
+                        {formatDate(med.endDate, locale)}
                       </td>
 
                       {/* Status */}
@@ -678,12 +688,12 @@ export default function MedicationsPage() {
                         {active ? (
                           <span className="flex items-center gap-1 text-emerald-700 font-medium text-xs">
                             <Check className="w-3.5 h-3.5" />
-                            פעיל
+                            {t("status.active")}
                           </span>
                         ) : (
                           <span className="flex items-center gap-1 text-slate-400 text-xs">
                             <X className="w-3.5 h-3.5" />
-                            לא פעיל
+                            {t("status.inactive")}
                           </span>
                         )}
                       </td>
@@ -694,7 +704,7 @@ export default function MedicationsPage() {
                           <button
                             onClick={() => setEditMed(med)}
                             className="p-1.5 rounded-lg text-petra-muted hover:text-brand-600 hover:bg-brand-50 transition-colors"
-                            title="ערוך"
+                            title={t("edit")}
                           >
                             <Pencil className="w-4 h-4" />
                           </button>
@@ -702,7 +712,7 @@ export default function MedicationsPage() {
                             onClick={() => handleDelete(med.id, med.medName)}
                             disabled={deleteMutation.isPending}
                             className="p-1.5 rounded-lg text-petra-muted hover:text-red-600 hover:bg-red-50 transition-colors"
-                            title="מחק"
+                            title={tc("actions.delete")}
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>

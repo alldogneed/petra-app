@@ -1,5 +1,8 @@
 "use client";
 import { PageTitle } from "@/components/ui/PageTitle";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
+import { formatCurrency as fmtCurrency, formatDate as fmtDate } from "@/lib/format";
 
 import { TierGate } from "@/components/paywall/TierGate";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -42,7 +45,7 @@ import {
   Pencil,
   Repeat,
 } from "lucide-react";
-import { cn, formatDate, formatCurrency, toWhatsAppPhone, fetchJSON, escapeHtml } from "@/lib/utils";
+import { cn, toWhatsAppPhone, fetchJSON, escapeHtml } from "@/lib/utils";
 import { triggerLimitModal } from "@/lib/limit-reached";
 import { toast } from "sonner";
 import {
@@ -191,65 +194,78 @@ interface UnifiedDog {
 
 // ─── Constants ───────────────────────────────────────
 
-const DAY_NAMES = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
+const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
+
+type TT = ReturnType<typeof useTranslations<"training.trainingPage">>;
+
+const dayName = (t: TT, i: number) => (DAY_KEYS[i] ? t(`days.${DAY_KEYS[i]}`) : "");
+
+/** Business-locale date/currency formatting (identical output to the old utils helpers for he-IL/ILS). */
+function useFmt() {
+  const { locale, currency } = useBusinessLocale();
+  return useMemo(
+    () => ({
+      formatDate: (d: Date | string) => fmtDate(d, { locale, style: "long" }),
+      formatCurrency: (n: number) => fmtCurrency(n, { locale, currency }),
+    }),
+    [locale, currency]
+  );
+}
 
 type TabId = "overview" | "individual" | "boarding" | "groups" | "archive";
 
-const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
-  { id: "overview", label: "סקירה", icon: <GraduationCap className="w-4 h-4" /> },
-  { id: "individual", label: "אילוף בבית הלקוח", icon: <Dog className="w-4 h-4" /> },
-  { id: "boarding", label: "אילוף בתנאי פנסיון", icon: <Hotel className="w-4 h-4" /> },
-  { id: "groups", label: "אילוף קבוצתי", icon: <Users className="w-4 h-4" /> },
-  { id: "archive", label: "ארכיון", icon: <Archive className="w-4 h-4" /> },
+const TABS: { id: TabId; icon: React.ReactNode }[] = [
+  { id: "overview", icon: <GraduationCap className="w-4 h-4" /> },
+  { id: "individual", icon: <Dog className="w-4 h-4" /> },
+  { id: "boarding", icon: <Hotel className="w-4 h-4" /> },
+  { id: "groups", icon: <Users className="w-4 h-4" /> },
+  { id: "archive", icon: <Archive className="w-4 h-4" /> },
 ];
 
 // Preset session durations (minutes) — used for all duration selects so the
 // user can pick 30 etc. without fighting a number input's min-clamp on keystroke.
 const DURATION_OPTIONS = [15, 30, 45, 60, 75, 90, 105, 120, 150, 180, 240, 300, 360, 420, 480];
 
-const TYPE_BADGE: Record<TrainingType, { label: string; bg: string; text: string }> = {
-  individual: { label: "אילוף בבית הלקוח", bg: "bg-blue-100", text: "text-blue-700" },
-  boarding: { label: "פנסיון", bg: "bg-green-100", text: "text-green-700" },
-  group: { label: "קבוצה", bg: "bg-purple-100", text: "text-purple-700" },
-  workshop: { label: "סדנה", bg: "bg-pink-100", text: "text-pink-700" },
+const TYPE_BADGE: Record<TrainingType, { bg: string; text: string }> = {
+  individual: { bg: "bg-blue-100", text: "text-blue-700" },
+  boarding: { bg: "bg-green-100", text: "text-green-700" },
+  group: { bg: "bg-purple-100", text: "text-purple-700" },
+  workshop: { bg: "bg-pink-100", text: "text-pink-700" },
 };
 
-const PROGRAM_TYPES_MAP: Record<string, string> = {
-  BASIC_OBEDIENCE: "משמעת בסיסית",
-  REACTIVITY: "תגובתיות",
-  PUPPY: "גורים",
-  BEHAVIOR: "בעיות התנהגות",
-  ADVANCED: "משמעת מתקדמת",
-  CUSTOM: "מותאם אישית",
+const PROGRAM_TYPE_KEYS = [
+  "BASIC_OBEDIENCE",
+  "REACTIVITY",
+  "PUPPY",
+  "BEHAVIOR",
+  "ADVANCED",
+  "CUSTOM",
   // Service dog phases
-  SD_FOUNDATION: "שלב הסתגלות",
-  SD_BASIC: "שלב בסיסי",
-  SD_ADVANCED: "שלב מתקדם",
-  SD_FIELD: "שלב שטח",
-  SD_PLACEMENT: "שלב שיבוץ",
-};
-
-const SERVICE_DOG_PHASES = [
-  { value: "SD_FOUNDATION", label: "הסתגלות" },
-  { value: "SD_BASIC", label: "בסיסי" },
-  { value: "SD_ADVANCED", label: "מתקדם" },
-  { value: "SD_FIELD", label: "שטח" },
-  { value: "SD_PLACEMENT", label: "שיבוץ" },
+  "SD_FOUNDATION",
+  "SD_BASIC",
+  "SD_ADVANCED",
+  "SD_FIELD",
+  "SD_PLACEMENT",
 ] as const;
 
-const GROUP_TYPES_MAP: Record<string, string> = {
-  PUPPY_CLASS: "כיתת גורים",
-  REACTIVITY: "תגובתיות",
-  OBEDIENCE: "משמעת",
-  CUSTOM: "מותאם אישית",
-  WORKSHOP: "סדנה",
-};
+/** Label of a program type (unknown / custom names are shown as stored). */
+const programTypeLabel = (t: TT, type: string) => (t.has(`programTypes.${type}`) ? t(`programTypes.${type}`) : type);
 
-const PROGRAM_STATUS_MAP: Record<string, { label: string; color: string }> = {
-  ACTIVE: { label: "פעיל", color: "bg-blue-100 text-blue-700" },
-  COMPLETED: { label: "הושלם", color: "bg-green-100 text-green-700" },
-  PAUSED: { label: "מושהה", color: "bg-yellow-100 text-yellow-700" },
-  CANCELED: { label: "בוטל", color: "bg-red-100 text-red-700" },
+const SERVICE_DOG_PHASES = [
+  { value: "SD_FOUNDATION" },
+  { value: "SD_BASIC" },
+  { value: "SD_ADVANCED" },
+  { value: "SD_FIELD" },
+  { value: "SD_PLACEMENT" },
+] as const;
+
+const GROUP_TYPE_KEYS = ["PUPPY_CLASS", "REACTIVITY", "OBEDIENCE", "CUSTOM", "WORKSHOP"] as const;
+
+const PROGRAM_STATUS_MAP: Record<string, { color: string }> = {
+  ACTIVE: { color: "bg-blue-100 text-blue-700" },
+  COMPLETED: { color: "bg-green-100 text-green-700" },
+  PAUSED: { color: "bg-yellow-100 text-yellow-700" },
+  CANCELED: { color: "bg-red-100 text-red-700" },
 };
 
 // ═══════════════════════════════════════════════════════
@@ -283,6 +299,9 @@ function SessionLogModal({
   processKind?: "INDIVIDUAL" | "PACKAGE";
   onSelectProcessType?: (target: "INDIVIDUAL" | "PACKAGE" | "GROUP") => void;
 }) {
+  const t = useTranslations("training.trainingPage");
+  const tc = useTranslations("common");
+  const { cfg } = useBusinessLocale();
   const isEdit = !!initialData;
   const today = new Date().toISOString().slice(0, 10);
   const [summary, setSummary] = useState(initialData?.summary ?? "");
@@ -308,50 +327,50 @@ function SessionLogModal({
     return d >= startOfWeek && d < endOfWeek;
   };
 
-  const STAR_LABELS = ["חלש", "סביר", "טוב", "מצוין", "מושלם"];
+  const STAR_LABELS = [t("stars.1"), t("stars.2"), t("stars.3"), t("stars.4"), t("stars.5")];
 
   const L = isWeekly ? {
-    title: isEdit ? "עריכת עדכון שבועי" : "עדכון שבועי",
-    badge: `שבוע ${sessionNumber}`,
-    dateLabel: "תאריך עדכון שבועי",
-    ratingLabel: "דירוג התקדמות השבוע (אופציונלי)",
-    practiceLabel: "יעדים שהושגו השבוע",
-    practicePlaceholder: "אילו יעדים הושגו השבוע...",
-    goalsLabel: "יעדים לשבוע הבא",
-    goalsPlaceholder: "מה תעבדו בשבוע הבא...",
-    homeworkLabel: "הנחיות לבעלים לשבוע הבא",
-    homeworkPlaceholder: "תרגול לבית לשבוע הבא...",
-    summaryLabel: "סיכום שבועי (אופציונלי)",
-    summaryPlaceholder: "תאר את ההתקדמות השבועית, נקודות לשיפור, הצלחות...",
-    saveBtn: isEdit ? "שמור שינויים" : "שמור עדכון שבועי",
+    title: isEdit ? t("sessionLog.weekly.titleEdit") : t("sessionLog.weekly.title"),
+    badge: t("sessionLog.weekly.badge", { n: sessionNumber }),
+    dateLabel: t("sessionLog.weekly.dateLabel"),
+    ratingLabel: t("sessionLog.weekly.ratingLabel"),
+    practiceLabel: t("sessionLog.weekly.practiceLabel"),
+    practicePlaceholder: t("sessionLog.weekly.practicePlaceholder"),
+    goalsLabel: t("sessionLog.weekly.goalsLabel"),
+    goalsPlaceholder: t("sessionLog.weekly.goalsPlaceholder"),
+    homeworkLabel: t("sessionLog.weekly.homeworkLabel"),
+    homeworkPlaceholder: t("sessionLog.weekly.homeworkPlaceholder"),
+    summaryLabel: t("sessionLog.weekly.summaryLabel"),
+    summaryPlaceholder: t("sessionLog.weekly.summaryPlaceholder"),
+    saveBtn: isEdit ? t("sessionLog.saveChanges") : t("sessionLog.weekly.save"),
   } : isServiceDog ? {
-    title: isEdit ? "עריכת אימון" : "רישום אימון",
-    badge: `אימון מספר ${sessionNumber}`,
-    dateLabel: "תאריך האימון",
-    ratingLabel: "דירוג הכלב באימון (אופציונלי)",
-    practiceLabel: "תרגילים שבוצעו",
-    practicePlaceholder: "אילו תרגילים עשיתם היום...",
-    goalsLabel: "יעדים לאימון הבא",
-    goalsPlaceholder: "מה תעבדו באימון הבא...",
-    homeworkLabel: "הערות לצוות",
-    homeworkPlaceholder: "הערות רלוונטיות לשאר הצוות...",
-    summaryLabel: "סיכום האימון (אופציונלי)",
-    summaryPlaceholder: "תאר מה עבדתם היום, התקדמות, הצלחות, נקודות לשיפור...",
-    saveBtn: isEdit ? "שמור שינויים" : "שמור אימון",
+    title: isEdit ? t("sessionLog.serviceDog.titleEdit") : t("sessionLog.serviceDog.title"),
+    badge: t("sessionLog.serviceDog.badge", { n: sessionNumber }),
+    dateLabel: t("sessionLog.serviceDog.dateLabel"),
+    ratingLabel: t("sessionLog.serviceDog.ratingLabel"),
+    practiceLabel: t("sessionLog.practiceLabel"),
+    practicePlaceholder: t("sessionLog.practicePlaceholder"),
+    goalsLabel: t("sessionLog.serviceDog.goalsLabel"),
+    goalsPlaceholder: t("sessionLog.serviceDog.goalsPlaceholder"),
+    homeworkLabel: t("sessionLog.serviceDog.homeworkLabel"),
+    homeworkPlaceholder: t("sessionLog.serviceDog.homeworkPlaceholder"),
+    summaryLabel: t("sessionLog.serviceDog.summaryLabel"),
+    summaryPlaceholder: t("sessionLog.serviceDog.summaryPlaceholder"),
+    saveBtn: isEdit ? t("sessionLog.saveChanges") : t("sessionLog.serviceDog.save"),
   } : {
-    title: isEdit ? "עריכת מפגש" : "רישום מפגש",
-    badge: `מפגש מספר ${sessionNumber}`,
-    dateLabel: "תאריך המפגש",
-    ratingLabel: "דירוג הכלב במפגש (אופציונלי)",
-    practiceLabel: "תרגילים שבוצעו",
-    practicePlaceholder: "אילו תרגילים עשיתם היום...",
-    goalsLabel: "יעדים לפגישה הבאה",
-    goalsPlaceholder: "מה תעבדו בפגישה הבאה...",
-    homeworkLabel: "שיעורי בית ללקוח",
-    homeworkPlaceholder: "תרגול לבית...",
-    summaryLabel: "סיכום המפגש (אופציונלי)",
-    summaryPlaceholder: "תאר מה עבדתם היום, התקדמות, הוראות לתרגול בבית...",
-    saveBtn: isEdit ? "שמור שינויים" : "שמור מפגש",
+    title: isEdit ? t("sessionLog.session.titleEdit") : t("sessionLog.session.title"),
+    badge: t("sessionLog.session.badge", { n: sessionNumber }),
+    dateLabel: t("sessionLog.session.dateLabel"),
+    ratingLabel: t("sessionLog.session.ratingLabel"),
+    practiceLabel: t("sessionLog.practiceLabel"),
+    practicePlaceholder: t("sessionLog.practicePlaceholder"),
+    goalsLabel: t("sessionLog.session.goalsLabel"),
+    goalsPlaceholder: t("sessionLog.session.goalsPlaceholder"),
+    homeworkLabel: t("sessionLog.session.homeworkLabel"),
+    homeworkPlaceholder: t("sessionLog.session.homeworkPlaceholder"),
+    summaryLabel: t("sessionLog.session.summaryLabel"),
+    summaryPlaceholder: t("sessionLog.session.summaryPlaceholder"),
+    saveBtn: isEdit ? t("sessionLog.saveChanges") : t("sessionLog.session.save"),
   };
 
   return (
@@ -372,7 +391,7 @@ function SessionLogModal({
           </div>
           {processKind && onSelectProcessType && (
             <div>
-              <label className="label">סוג תהליך</label>
+              <label className="label">{t("sessionLog.processType")}</label>
               <select
                 className="input"
                 value={processKind}
@@ -381,25 +400,25 @@ function SessionLogModal({
                   if (target !== processKind) onSelectProcessType(target);
                 }}
               >
-                <option value="INDIVIDUAL">אילוף פרטני</option>
-                <option value="PACKAGE">חבילת אילוף</option>
-                <option value="GROUP">אילוף קבוצתי (העברה לקבוצה)</option>
+                <option value="INDIVIDUAL">{t("sessionLog.processIndividual")}</option>
+                <option value="PACKAGE">{t("sessionLog.processPackage")}</option>
+                <option value="GROUP">{t("sessionLog.processGroup")}</option>
               </select>
-              <p className="text-[11px] text-petra-muted mt-1">מעבר בין פרטני לחבילה הוא מיידי. בחירת &ldquo;קבוצתי&rdquo; תעביר את הכלב לקבוצה — התוכנית הנוכחית תוחלף.</p>
+              <p className="text-[11px] text-petra-muted mt-1">{t("sessionLog.processHint")}</p>
             </div>
           )}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">{L.dateLabel}</label>
               <input
-                type="date" lang="he"
+                type="date" lang={cfg.lang}
                 className="input"
                 value={sessionDate}
                 onChange={(e) => setSessionDate(e.target.value)}
               />
             </div>
             <div>
-              <label className="label">שעה</label>
+              <label className="label">{t("time")}</label>
               <input
                 type="time"
                 className="input"
@@ -409,14 +428,14 @@ function SessionLogModal({
             </div>
           </div>
           <div>
-            <label className="label">משך (דקות)</label>
+            <label className="label">{t("durationMinutes")}</label>
             <select
               className="input"
               value={durationMinutes}
               onChange={(e) => setDurationMinutes(parseInt(e.target.value))}
             >
               {(DURATION_OPTIONS.includes(durationMinutes) ? DURATION_OPTIONS : [durationMinutes, ...DURATION_OPTIONS].sort((a, b) => a - b)).map((d) => (
-                <option key={d} value={d}>{d} דקות</option>
+                <option key={d} value={d}>{t("minutesOption", { n: d })}</option>
               ))}
             </select>
           </div>
@@ -464,8 +483,8 @@ function SessionLogModal({
           </div>
           {isServiceDog && (
             <div>
-              <label className="label">שם המאמן/ת</label>
-              <input className="input" placeholder="שם המאמן שביצע את האימון..." value={trainerName} onChange={(e) => setTrainerName(e.target.value)} />
+              <label className="label">{t("sessionLog.trainerName")}</label>
+              <input className="input" placeholder={t("sessionLog.trainerNamePlaceholder")} value={trainerName} onChange={(e) => setTrainerName(e.target.value)} />
             </div>
           )}
           <div>
@@ -487,7 +506,7 @@ function SessionLogModal({
               >
                 <ChevronDown className={cn("w-4 h-4 text-green-600 transition-transform flex-shrink-0", homeSession && "rotate-180")} />
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-green-800">מפגשים בבית השבוע</span>
+                  <span className="text-sm font-semibold text-green-800">{t("sessionLog.homeSessions")}</span>
                   <Home className="w-4 h-4 text-green-600" />
                 </div>
               </button>
@@ -495,18 +514,18 @@ function SessionLogModal({
                 <div className="px-4 py-3 space-y-2 bg-white">
                   {!isSameWeek(sessionDate) && (
                     <p className="text-xs text-amber-700 bg-amber-50 px-3 py-2 rounded-lg">
-                      שים לב — התאריך שבחרת אינו בשבוע הנוכחי
+                      {t("sessionLog.notThisWeek")}
                     </p>
                   )}
                   {goals && goals.length > 0 ? (
                     <>
-                      <p className="text-[11px] text-petra-muted pb-1">עדכן התקדמות יעדים שהושגו גם בבית</p>
+                      <p className="text-[11px] text-petra-muted pb-1">{t("sessionLog.updateHomeGoals")}</p>
                       {goals.map((goal) => (
                         <GoalProgressRow key={goal.id} goal={goal} programId={programId} />
                       ))}
                     </>
                   ) : (
-                    <p className="text-xs text-petra-muted text-center py-4">אין יעדים מוגדרים לתוכנית זו — הגדר יעדים כדי לעדכן כאן</p>
+                    <p className="text-xs text-petra-muted text-center py-4">{t("sessionLog.noGoals")}</p>
                   )}
                 </div>
               )}
@@ -520,9 +539,9 @@ function SessionLogModal({
             onClick={() => onSubmit(summary, `${sessionDate}T${sessionTime || "10:00"}:00`, rating, practiceItems, nextSessionGoals, homeworkForCustomer, trainerName || undefined, durationMinutes)}
           >
             <CheckCircle2 className="w-4 h-4" />
-            {isPending ? "שומר..." : L.saveBtn}
+            {isPending ? tc("progress.saving") : L.saveBtn}
           </button>
-          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+          <button className="btn-secondary" onClick={onClose}>{tc("actions.cancel")}</button>
         </div>
       </div>
     </div>
@@ -546,6 +565,9 @@ function ScheduleSessionModal({
   onClose: () => void;
   onSubmit: (data: { sessionDate: string; durationMinutes: number; sessionNumber: number; repeat: boolean; occurrences: number; intervalDays: number }) => void;
 }) {
+  const t = useTranslations("training.trainingPage");
+  const tc = useTranslations("common");
+  const { cfg } = useBusinessLocale();
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   const defaultDate = tomorrow.toISOString().slice(0, 10);
@@ -565,30 +587,30 @@ function ScheduleSessionModal({
       <div className="modal-backdrop" onClick={onClose} />
       <div className="modal-content max-w-sm mx-4 p-6">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-bold text-petra-text">קבע מפגש — {dogName}</h2>
+          <h2 className="text-lg font-bold text-petra-text">{t("schedule.title", { dog: dogName })}</h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         <div className="p-3 rounded-xl bg-blue-50 border border-blue-100 text-sm text-blue-700 font-medium mb-5">
-          מפגש מספר {sessionNumber}
+          {t("sessionLog.session.badge", { n: sessionNumber })}
         </div>
 
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">תאריך המפגש</label>
+              <label className="label">{t("sessionLog.session.dateLabel")}</label>
               <input
                 type="date"
-                lang="he"
+                lang={cfg.lang}
                 className="input"
                 value={sessionDate}
                 onChange={(e) => setSessionDate(e.target.value)}
               />
             </div>
             <div>
-              <label className="label">שעה</label>
+              <label className="label">{t("time")}</label>
               <input
                 type="time"
                 className="input"
@@ -599,14 +621,14 @@ function ScheduleSessionModal({
           </div>
 
           <div>
-            <label className="label">משך (דקות)</label>
+            <label className="label">{t("durationMinutes")}</label>
             <select
               className="input"
               value={durationMinutes}
               onChange={(e) => setDurationMinutes(parseInt(e.target.value))}
             >
               {DURATION_OPTIONS.map((d) => (
-                <option key={d} value={d}>{d} דקות</option>
+                <option key={d} value={d}>{t("minutesOption", { n: d })}</option>
               ))}
             </select>
           </div>
@@ -620,27 +642,27 @@ function ScheduleSessionModal({
                 checked={repeat}
                 onChange={(e) => setRepeat(e.target.checked)}
               />
-              <span className="text-sm font-medium text-petra-text">מפגש חוזר (קביעה מראש לכמה שבועות)</span>
+              <span className="text-sm font-medium text-petra-text">{t("schedule.recurring")}</span>
             </label>
 
             {repeat && (
               <div className="space-y-3 pt-1">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="label">תדירות</label>
+                    <label className="label">{t("schedule.frequency")}</label>
                     <select
                       className="input"
                       value={intervalDays}
                       onChange={(e) => setIntervalDays(parseInt(e.target.value))}
                     >
-                      <option value={7}>כל שבוע</option>
-                      <option value={14}>כל שבועיים</option>
-                      <option value={21}>כל 3 שבועות</option>
-                      <option value={28}>כל 4 שבועות</option>
+                      <option value={7}>{t("schedule.everyWeek")}</option>
+                      <option value={14}>{t("schedule.every2Weeks")}</option>
+                      <option value={21}>{t("schedule.every3Weeks")}</option>
+                      <option value={28}>{t("schedule.every4Weeks")}</option>
                     </select>
                   </div>
                   <div>
-                    <label className="label">מספר מפגשים</label>
+                    <label className="label">{t("schedule.occurrences")}</label>
                     <select
                       className="input"
                       value={occurrences}
@@ -653,8 +675,8 @@ function ScheduleSessionModal({
                   </div>
                 </div>
                 <p className="text-xs text-brand-600 bg-brand-50 rounded-lg p-2">
-                  ייקבעו {occurrences} מפגשים — כל יום {DAY_NAMES[dayOfWeek]} בשעה {sessionTime}
-                  {intervalDays > 7 ? ` (אחת ל-${intervalDays / 7} שבועות)` : ""}.
+                  {t("schedule.preview", { count: occurrences, day: dayName(t, dayOfWeek), time: sessionTime })}
+                  {intervalDays > 7 ? t("schedule.previewInterval", { weeks: intervalDays / 7 }) : ""}.
                 </p>
               </div>
             )}
@@ -662,7 +684,7 @@ function ScheduleSessionModal({
 
           <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 flex items-start gap-2">
             <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-emerald-600" />
-            <span>תזכורת ווצאפ תישלח ללקוח אוטומטית לפני המפגש (אם תזכורות ווצאפ מופעלות)</span>
+            <span>{t("schedule.reminderNote")}</span>
           </div>
         </div>
 
@@ -673,9 +695,9 @@ function ScheduleSessionModal({
             onClick={() => onSubmit({ sessionDate: `${sessionDate}T${sessionTime}:00`, durationMinutes, sessionNumber, repeat, occurrences, intervalDays })}
           >
             <Calendar className="w-4 h-4" />
-            {isPending ? "קובע..." : repeat ? `קבע ${occurrences} מפגשים` : "קבע מפגש"}
+            {isPending ? t("schedule.scheduling") : repeat ? t("schedule.submitMany", { count: occurrences }) : t("schedule.submit")}
           </button>
-          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+          <button className="btn-secondary" onClick={onClose}>{tc("actions.cancel")}</button>
         </div>
       </div>
     </div>
@@ -699,6 +721,8 @@ function ConvertToGroupModal({
   onClose: () => void;
   onSubmit: (trainingGroupId: string) => void;
 }) {
+  const t = useTranslations("training.trainingPage");
+  const tc = useTranslations("common");
   const [groupId, setGroupId] = useState("");
 
   return (
@@ -708,26 +732,25 @@ function ConvertToGroupModal({
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-base font-bold text-petra-text flex items-center gap-2">
             <Repeat className="w-5 h-5 text-brand-500" />
-            המרה לאילוף קבוצתי — {program.dog.name}
+            {t("convert.title", { dog: program.dog.name })}
           </h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
             <X className="w-4 h-4" />
           </button>
         </div>
         <p className="text-sm text-petra-muted mb-4">
-          הכלב יתווסף כמשתתף בקבוצה הנבחרת, ותוכנית האילוף הפרטנית הקיימת (כולל המפגשים והיעדים שלה) תימחק.
-          ההזמנה תישאר מקושרת — המחיר לא ישתנה אוטומטית וניתן לעדכן אותו ידנית.
+          {t("convert.body")}
         </p>
         <div>
-          <label className="label">בחר קבוצת יעד</label>
+          <label className="label">{t("convert.selectGroup")}</label>
           <select className="input" value={groupId} onChange={(e) => setGroupId(e.target.value)}>
-            <option value="">— בחר קבוצה —</option>
+            <option value="">{t("convert.selectPlaceholder")}</option>
             {groups.map((g) => (
               <option key={g.id} value={g.id}>{g.name}</option>
             ))}
           </select>
           {groups.length === 0 && (
-            <p className="text-xs text-amber-600 mt-2">אין קבוצות פעילות. צור קבוצה תחילה בלשונית &ldquo;אילוף קבוצתי&rdquo;.</p>
+            <p className="text-xs text-amber-600 mt-2">{t("convert.noGroups")}</p>
           )}
         </div>
         <div className="flex gap-3 mt-5">
@@ -737,9 +760,9 @@ function ConvertToGroupModal({
             onClick={() => groupId && onSubmit(groupId)}
           >
             <Repeat className="w-4 h-4" />
-            {isPending ? "ממיר..." : "המר לקבוצתי"}
+            {isPending ? t("convert.converting") : t("convert.submit")}
           </button>
-          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+          <button className="btn-secondary" onClick={onClose}>{tc("actions.cancel")}</button>
         </div>
       </div>
     </div>
@@ -751,6 +774,7 @@ function ConvertToGroupModal({
 // ═══════════════════════════════════════════════════════
 
 function TrainingPageContent() {
+  const t = useTranslations("training.trainingPage");
   const { isFree, tier } = usePlan();
   const maxTrainingPrograms = getMaxTrainingPrograms(tier);
   const [activeTab, setActiveTab] = useState<TabId>("overview");
@@ -890,7 +914,7 @@ function TrainingPageContent() {
         customerPhone: p.customer?.phone ?? "",
         type: "individual",
         status: p.status,
-        detail: PROGRAM_TYPES_MAP[p.programType] || p.programType,
+        detail: programTypeLabel(t, p.programType),
         progress: p.totalSessions ? { used: usedSessions, total: p.totalSessions } : undefined,
         entityId: p.id,
         lastSessionDate: lastSession?.sessionDate,
@@ -911,7 +935,7 @@ function TrainingPageContent() {
         customerPhone: "",
         type: "boarding",
         status: "checked_in",
-        detail: daysLeft !== null ? `${Math.max(0, daysLeft)} ימים נותרו` : "ללא תאריך יציאה",
+        detail: daysLeft !== null ? t("overview.daysLeft", { count: Math.max(0, daysLeft) }) : t("overview.noCheckout"),
         entityId: s.id,
       });
     });
@@ -949,7 +973,7 @@ function TrainingPageContent() {
     });
 
     return dogs;
-  }, [programs, activeStays, regularGroups, workshops]);
+  }, [programs, activeStays, regularGroups, workshops, t]);
 
   const filteredDogs = useMemo(() => {
     if (!searchQuery.trim()) return allDogs;
@@ -983,7 +1007,7 @@ function TrainingPageContent() {
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || "שגיאה בשמירת המפגש. נסה שוב.");
+        throw new Error(body.error || t("toasts.sessionSaveError"));
       }
       return res.json();
     },
@@ -1005,12 +1029,12 @@ function TrainingPageContent() {
           rating: variables.rating,
         });
       } else {
-        toast.success("מפגש נרשם בהצלחה");
+        toast.success(t("toasts.sessionLogged"));
       }
       setSessionLogTarget(null);
     },
     // Keep the modal open on failure — closing it would discard everything typed.
-    onError: (err: Error) => { toast.error(err.message || "שגיאה בשמירת המפגש. נסה שוב."); },
+    onError: (err: Error) => { toast.error(err.message || t("toasts.sessionSaveError")); },
   });
 
   const editSessionMutation = useMutation({
@@ -1030,9 +1054,9 @@ function TrainingPageContent() {
       queryClient.invalidateQueries({ queryKey: ["service-dogs"] });
       queryClient.invalidateQueries({ queryKey: ["training-program-sessions-cal"] });
       setEditSessionTarget(null);
-      toast.success("המפגש עודכן");
+      toast.success(t("toasts.sessionUpdated"));
     },
-    onError: () => toast.error("שגיאה בעדכון המפגש"),
+    onError: () => toast.error(t("toasts.sessionUpdateError")),
   });
 
   const createGroupMutation = useMutation({
@@ -1054,13 +1078,13 @@ function TrainingPageContent() {
       queryClient.invalidateQueries({ queryKey: ["training-groups"] });
       setShowNewGroup(false);
       setShowNewWorkshop(false);
-      toast.success("הקבוצה נוצרה בהצלחה");
+      toast.success(t("toasts.groupCreated"));
     },
     onError: (err: Error) => {
       if ((err as unknown as Record<string, unknown>).code === "LIMIT_REACHED") {
         triggerLimitModal(err.message);
       } else {
-        toast.error(err.message || "שגיאה ביצירת הקבוצה. נסה שוב.");
+        toast.error(err.message || t("toasts.groupCreateError"));
       }
     },
   });
@@ -1075,9 +1099,9 @@ function TrainingPageContent() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["training-groups"] });
       setEditingGroup(null);
-      toast.success("השינויים נשמרו בהצלחה");
+      toast.success(t("toasts.changesSaved"));
     },
-    onError: (err: Error) => toast.error(err.message || "שגיאה בעדכון הקבוצה. נסה שוב."),
+    onError: (err: Error) => toast.error(err.message || t("toasts.groupUpdateError")),
   });
 
   const addParticipantMutation = useMutation({
@@ -1098,12 +1122,12 @@ function TrainingPageContent() {
       setShowAssignDog(null);
       const status = data?.status ?? data?.participant?.status;
       if (status === "WAITLIST") {
-        toast.success("נוסף לרשימת ההמתנה");
+        toast.success(t("toasts.addedToWaitlist"));
       } else {
-        toast.success("הכלב נוסף לקבוצה");
+        toast.success(t("toasts.dogAddedToGroup"));
       }
     },
-    onError: (err: Error) => toast.error(err.message || "שגיאה בהוספת כלב לקבוצה"),
+    onError: (err: Error) => toast.error(err.message || t("toasts.dogAddToGroupError")),
   });
 
   const removeParticipantMutation = useMutation({
@@ -1118,9 +1142,9 @@ function TrainingPageContent() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["training-groups"] });
-      toast.success("הכלב הוסר מהקבוצה");
+      toast.success(t("toasts.dogRemovedFromGroup"));
     },
-    onError: () => toast.error("שגיאה בהסרת הכלב מהקבוצה"),
+    onError: () => toast.error(t("toasts.dogRemoveFromGroupError")),
   });
 
   // Invalidate every training-related query (programs across sub-tabs + groups + calendars)
@@ -1146,10 +1170,10 @@ function TrainingPageContent() {
     onSuccess: (data) => {
       invalidateAllTraining();
       setConvertToGroupTarget(null);
-      toast.success("התהליך הומר לאילוף קבוצתי");
-      if (data?.orderDowngraded) toast.warning("ההזמנה בוטלה במקום להימחק (הזמנה ששולמה/הופקה לא ניתנת למחיקה)");
+      toast.success(t("toasts.convertedToGroup"));
+      if (data?.orderDowngraded) toast.warning(t("toasts.orderDowngraded"));
     },
-    onError: (e: Error) => toast.error(e.message || "שגיאה בהמרה לקבוצה"),
+    onError: (e: Error) => toast.error(e.message || t("toasts.convertToGroupError")),
   });
 
   // Delete individual program (+ chosen order action). Handles owner-confirm + manager approval.
@@ -1166,11 +1190,11 @@ function TrainingPageContent() {
     onSuccess: (data) => {
       invalidateAllTraining();
       setDeleteProgramTarget(null);
-      if (data?.pendingApproval) { toast.success("בקשת המחיקה נשלחה לאישור הבעלים"); return; }
-      toast.success("תהליך האילוף נמחק");
-      if (data?.orderDowngraded) toast.warning("ההזמנה בוטלה במקום להימחק (הזמנה ששולמה/הופקה לא ניתנת למחיקה)");
+      if (data?.pendingApproval) { toast.success(t("toasts.deleteRequestSent")); return; }
+      toast.success(t("toasts.programDeleted"));
+      if (data?.orderDowngraded) toast.warning(t("toasts.orderDowngraded"));
     },
-    onError: (e: Error) => toast.error(e.message || "שגיאה במחיקת התהליך"),
+    onError: (e: Error) => toast.error(e.message || t("toasts.programDeleteError")),
   });
 
   // Toggle individual ↔ package (same TrainingProgram, just the isPackage flag)
@@ -1188,9 +1212,9 @@ function TrainingPageContent() {
       invalidateAllTraining();
       setEditSessionTarget(null);
       setEditingProgram(null);
-      toast.success(vars.isPackage ? "התהליך הומר לחבילת אילוף" : "התהליך הומר לאילוף פרטני");
+      toast.success(vars.isPackage ? t("toasts.convertedToPackage") : t("toasts.convertedToPrivate"));
     },
-    onError: (e: Error) => toast.error(e.message || "שגיאה בשינוי סוג התהליך"),
+    onError: (e: Error) => toast.error(e.message || t("toasts.processTypeError")),
   });
 
   // Convert group participant → individual program
@@ -1207,9 +1231,9 @@ function TrainingPageContent() {
     onSuccess: () => {
       invalidateAllTraining();
       setConvertParticipantTarget(null);
-      toast.success("הכלב הומר לאילוף פרטני");
+      toast.success(t("toasts.dogConvertedToPrivate"));
     },
-    onError: (e: Error) => toast.error(e.message || "שגיאה בהמרה לפרטני"),
+    onError: (e: Error) => toast.error(e.message || t("toasts.convertToPrivateError")),
   });
 
   // Delete a whole group / workshop
@@ -1222,9 +1246,9 @@ function TrainingPageContent() {
     onSuccess: () => {
       invalidateAllTraining();
       setDeleteGroupTarget(null);
-      toast.success("הקבוצה נמחקה");
+      toast.success(t("toasts.groupDeleted"));
     },
-    onError: (e: Error) => toast.error(e.message || "שגיאה במחיקת הקבוצה"),
+    onError: (e: Error) => toast.error(e.message || t("toasts.groupDeleteError")),
   });
 
   const createProgramMutation = useMutation({
@@ -1246,13 +1270,13 @@ function TrainingPageContent() {
       queryClient.invalidateQueries({ queryKey: ["training-programs"] });
       setShowSellPackage(false);
       setShowManualAdd(false);
-      toast.success("תוכנית אילוף נוצרה בהצלחה");
+      toast.success(t("toasts.programCreated"));
     },
     onError: (err: Error) => {
       if ((err as unknown as Record<string, unknown>).code === "LIMIT_REACHED") {
         triggerLimitModal(err.message);
       } else {
-        toast.error(err.message || "שגיאה ביצירת תוכנית אימון. נסה שוב.");
+        toast.error(err.message || t("toasts.programCreateErrorRetry"));
       }
     },
   });
@@ -1270,9 +1294,9 @@ function TrainingPageContent() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["training-packages"] });
       setShowCreatePackage(false);
-      toast.success("חבילה נוצרה בהצלחה");
+      toast.success(t("toasts.packageCreated"));
     },
-    onError: () => toast.error("שגיאה ביצירת חבילה"),
+    onError: () => toast.error(t("toasts.packageCreateError")),
   });
 
   const updatePackageMutation = useMutation({
@@ -1288,9 +1312,9 @@ function TrainingPageContent() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["training-packages"] });
       setEditingPackage(null);
-      toast.success("חבילה עודכנה");
+      toast.success(t("toasts.packageUpdated"));
     },
-    onError: () => toast.error("שגיאה בעדכון חבילה"),
+    onError: () => toast.error(t("toasts.packageUpdateError")),
   });
 
   const deletePackageMutation = useMutation({
@@ -1302,9 +1326,9 @@ function TrainingPageContent() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["training-packages"] });
-      toast.success("חבילה נמחקה");
+      toast.success(t("toasts.packageDeleted"));
     },
-    onError: (err: Error) => toast.error(err.message || "שגיאה במחיקת חבילה"),
+    onError: (err: Error) => toast.error(err.message || t("toasts.packageDeleteError")),
   });
 
   const createBoardingTrainingMutation = useMutation({
@@ -1326,11 +1350,11 @@ function TrainingPageContent() {
             dogId: boardingData.dogId,
             customerId: boardingData.customerId,
             trainingType: "HOME",
-            name: `מפגשי המשך — ${boardingProgram.dog?.name || ""}`,
+            name: t("boardingFollowup.name", { dog: boardingProgram.dog?.name || "" }),
             programType: "CUSTOM",
             startDate: boardingData.endDate || new Date().toISOString(),
             totalSessions: homeFollowupSessions,
-            notes: "מפגשי המשך לאחר אילוף פנסיון",
+            notes: t("boardingFollowup.notes"),
           }),
         }).catch(console.error);
       }
@@ -1340,9 +1364,9 @@ function TrainingPageContent() {
       queryClient.invalidateQueries({ queryKey: ["training-programs"] });
       queryClient.invalidateQueries({ queryKey: ["training-programs-boarding"] });
       setShowBoardingTraining(null);
-      toast.success("תוכנית אילוף נוצרה בהצלחה");
+      toast.success(t("toasts.programCreated"));
     },
-    onError: () => toast.error("שגיאה ביצירת תוכנית אילוף"),
+    onError: () => toast.error(t("toasts.programCreateError")),
   });
 
   const updateStatusMutation = useMutation({
@@ -1366,9 +1390,9 @@ function TrainingPageContent() {
       queryClient.invalidateQueries({ queryKey: ["training-programs-archive"] });
       setDropoutTarget(null);
       setFinishTarget(null);
-      toast.success(variables.status === "COMPLETED" ? "אילוף הסתיים ✓" : "כלב עבר לארכיון");
+      toast.success(variables.status === "COMPLETED" ? t("toasts.trainingFinished") : t("toasts.dogArchived"));
     },
-    onError: () => toast.error("שגיאה בעדכון סטטוס"),
+    onError: () => toast.error(t("toasts.statusUpdateError")),
   });
 
   const updateProgramSettingsMutation = useMutation({
@@ -1400,9 +1424,9 @@ function TrainingPageContent() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["training-programs"] });
       setEditingProgram(null);
-      toast.success("הגדרות התוכנית עודכנו");
+      toast.success(t("toasts.programSettingsUpdated"));
     },
-    onError: () => { setEditingProgram(null); toast.error("שגיאה בעדכון הגדרות התוכנית. נסה שוב."); },
+    onError: () => { setEditingProgram(null); toast.error(t("toasts.programSettingsError")); },
   });
 
   const scheduleSessionMutation = useMutation({
@@ -1448,10 +1472,10 @@ function TrainingPageContent() {
       setScheduleSessionTarget(null);
       const created = (data as { created?: number })?.created;
       toast.success(created && created > 1
-        ? `${created} מפגשים נקבעו ליומן ✓ — תזכורות ווצאפ יישלחו אוטומטית`
-        : "מפגש נוסף ליומן ✓ — תזכורת ווצאפ תישלח ללקוח אוטומטית");
+        ? t("toasts.sessionsScheduled", { count: created })
+        : t("toasts.sessionScheduled"));
     },
-    onError: () => toast.error("שגיאה בקביעת מפגש"),
+    onError: () => toast.error(t("toasts.scheduleError")),
   });
 
   const cancelScheduledSessionMutation = useMutation({
@@ -1467,9 +1491,9 @@ function TrainingPageContent() {
       queryClient.invalidateQueries({ queryKey: ["training-programs-boarding"] });
       queryClient.invalidateQueries({ queryKey: ["training-program-sessions-cal"] });
       queryClient.invalidateQueries({ queryKey: ["training-group-sessions-cal"] });
-      toast.success("מפגש מתוזמן בוטל");
+      toast.success(t("toasts.scheduledSessionCanceled"));
     },
-    onError: () => toast.error("שגיאה בביטול מפגש"),
+    onError: () => toast.error(t("toasts.cancelSessionError")),
   });
 
   // ─── Helpers ───
@@ -1567,9 +1591,9 @@ function TrainingPageContent() {
           setActiveTab("overview");
           if (findProgram(serviceDogPrograms)) {
             // SERVICE_DOG programs have no card on this page — point to the profile instead.
-            toast.info("תוכנית האימון של כלב שירות מנוהלת בעמוד כלבי שירות");
+            toast.info(t("toasts.serviceDogProgramElsewhere"));
           } else {
-            toast.info("לכלב זה אין תוכנית פעילה");
+            toast.info(t("toasts.noActiveProgram"));
           }
         }
       }
@@ -1581,10 +1605,10 @@ function TrainingPageContent() {
   // ─── Stats ───
 
   const stats = [
-    { label: "כלבים באימון", value: allDogs.length, color: "bg-orange-50 text-orange-600", iconBg: "bg-orange-100" },
-    { label: "אימון אישי", value: activePrograms.length, color: "bg-blue-50 text-blue-600", iconBg: "bg-blue-100" },
-    { label: "אימון בפנסיון", value: activeStays.length, color: "bg-green-50 text-green-600", iconBg: "bg-green-100" },
-    { label: "קבוצות וסדנאות", value: regularGroups.length + workshops.length, color: "bg-purple-50 text-purple-600", iconBg: "bg-purple-100" },
+    { label: t("stats.dogsInTraining"), value: allDogs.length, color: "bg-orange-50 text-orange-600", iconBg: "bg-orange-100" },
+    { label: t("stats.personal"), value: activePrograms.length, color: "bg-blue-50 text-blue-600", iconBg: "bg-blue-100" },
+    { label: t("stats.boarding"), value: activeStays.length, color: "bg-green-50 text-green-600", iconBg: "bg-green-100" },
+    { label: t("stats.groups"), value: regularGroups.length + workshops.length, color: "bg-purple-50 text-purple-600", iconBg: "bg-purple-100" },
   ];
 
   const statIcons = [
@@ -1605,29 +1629,29 @@ function TrainingPageContent() {
         <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center">
           <GraduationCap className="w-5 h-5 text-brand-500" />
         </div>
-        <h1 className="page-title">אימונים וניהול כלבים</h1>
+        <h1 className="page-title">{t("header.title")}</h1>
 
         {/* Refresh controls */}
         <div className="flex items-center gap-2 ms-auto">
           <button
             onClick={() => setShowManualAdd(true)}
             className="btn-primary text-sm"
-            title="הוסף תהליך אילוף ידני ללא הזמנה"
+            title={t("header.manualAddTitle")}
           >
             <Plus className="w-4 h-4" />
-            הוסף תהליך ידני
+            {t("header.manualAdd")}
           </button>
           <button
             onClick={() => refetchPrograms()}
             disabled={programsFetching}
-            title="רענן עכשיו"
+            title={t("header.refreshNow")}
             className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-petra-muted hover:text-petra-text transition-colors disabled:opacity-50"
           >
             <RefreshCw className={cn("w-4 h-4", programsFetching && "animate-spin")} />
           </button>
           <button
             onClick={() => setAutoRefresh(!autoRefresh)}
-            title={autoRefresh ? "כבה אוטו-רענון" : "הפעל אוטו-רענון (30 שנ׳)"}
+            title={autoRefresh ? t("header.autoRefreshOff") : t("header.autoRefreshOn")}
             className={cn(
               "flex items-center gap-1.5 px-3 h-8 rounded-lg border text-xs font-medium transition-all",
               autoRefresh
@@ -1636,7 +1660,7 @@ function TrainingPageContent() {
             )}
           >
             <span className={cn("w-1.5 h-1.5 rounded-full", autoRefresh ? "bg-emerald-500 animate-pulse" : "bg-slate-300")} />
-            {autoRefresh ? "רענון אוטו פעיל" : "אוטו-רענון"}
+            {autoRefresh ? t("header.autoRefreshActive") : t("header.autoRefresh")}
           </button>
         </div>
       </div>
@@ -1666,12 +1690,12 @@ function TrainingPageContent() {
           <div className="flex items-center gap-2 text-sm">
             <Sparkles className={`w-4 h-4 flex-shrink-0 ${programs.length >= maxTrainingPrograms ? "text-amber-500" : "text-slate-400"}`} />
             <span className={programs.length >= maxTrainingPrograms ? "text-amber-800" : "text-slate-600"}>
-              {programs.length}/{maxTrainingPrograms} תהליכי אילוף — מגבלת המנוי החינמי
+              {t("freeLimit.count", { used: programs.length, max: maxTrainingPrograms })}
             </span>
           </div>
           {programs.length >= maxTrainingPrograms && (
             <a href="/upgrade" className="text-xs font-semibold text-amber-700 hover:text-amber-900 whitespace-nowrap">
-              שדרג לבייסיק ←
+              {t("freeLimit.upgrade")}
             </a>
           )}
         </div>
@@ -1682,7 +1706,7 @@ function TrainingPageContent() {
         <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted" />
         <input
           className="input pr-10 w-full"
-          placeholder="חיפוש לפי שם כלב או בעלים..."
+          placeholder={t("searchPlaceholder")}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
@@ -1702,7 +1726,7 @@ function TrainingPageContent() {
             )}
           >
             {tab.icon}
-            {tab.label}
+            {t(`tabs.${tab.id}`)}
           </button>
         ))}
       </div>
@@ -1711,8 +1735,8 @@ function TrainingPageContent() {
       {isError ? (
         <div className="card p-8 text-center">
           <AlertTriangle className="w-8 h-8 mx-auto mb-3 text-red-400" />
-          <p className="text-red-600 font-medium mb-2">שגיאה בטעינת נתוני אילוף</p>
-          <button className="btn-secondary text-sm" onClick={() => refetchPrograms()}>נסה שוב</button>
+          <p className="text-red-600 font-medium mb-2">{t("loadError")}</p>
+          <button className="btn-secondary text-sm" onClick={() => refetchPrograms()}>{t("tryAgain")}</button>
         </div>
       ) : isLoading ? (
         <PetraLoader />
@@ -1732,8 +1756,8 @@ function TrainingPageContent() {
               {/* Sub-tabs */}
               <div className="flex gap-1 p-1 bg-slate-100 rounded-xl mb-5 overflow-x-auto scrollbar-hide">
                 {[
-                  { id: "private" as const, label: "אילוף פרטני" },
-                  { id: "package" as const, label: "חבילת אילוף" },
+                  { id: "private" as const, label: t("subTabs.private") },
+                  { id: "package" as const, label: t("subTabs.package") },
                   // { id: "boarding-alt" as const, label: "חלופות פנסיון בבית הלקוח" }, // hidden — future feature
                 ].map((sub) => (
                   <button
@@ -1865,8 +1889,8 @@ function TrainingPageContent() {
               {/* Sub-tabs */}
               <div className="flex gap-1 p-1 bg-slate-100 rounded-xl mb-5 overflow-x-auto scrollbar-hide">
                 {[
-                  { id: "groups" as const, label: "קבוצות אימון" },
-                  { id: "workshops" as const, label: "סדנאות מיוחדות" },
+                  { id: "groups" as const, label: t("subTabs.groups") },
+                  { id: "workshops" as const, label: t("subTabs.workshops") },
                 ].map((sub) => (
                   <button
                     key={sub.id}
@@ -2035,25 +2059,25 @@ function TrainingPageContent() {
                 <CheckCircle2 className="w-5 h-5 text-green-600" />
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-petra-text text-sm">מפגש נרשם בהצלחה! ✓</h3>
-                <p className="text-xs text-petra-muted">{sessionSummarySend.dogName} — מפגש {sessionSummarySend.sessionNumber}</p>
+                <h3 className="font-semibold text-petra-text text-sm">{t("summarySend.title")}</h3>
+                <p className="text-xs text-petra-muted">{t("summarySend.subtitle", { dog: sessionSummarySend.dogName, n: sessionSummarySend.sessionNumber })}</p>
               </div>
               <button className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted flex-shrink-0" onClick={() => setSessionSummarySend(null)}>
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>
-            <p className="text-xs text-petra-muted mb-4">שלח סיכום מפגש ישירות ללקוח בוואטסאפ</p>
+            <p className="text-xs text-petra-muted mb-4">{t("summarySend.hint")}</p>
             {(() => {
               const lines: string[] = [
-                `שלום ${sessionSummarySend.customerName}! 🐾`,
-                `סיכום מפגש ${sessionSummarySend.sessionNumber} — ${sessionSummarySend.dogName}`,
+                `שלום ${sessionSummarySend.customerName}! 🐾`, // i18n-ok — WhatsApp text the trainer sends to the client
+                `סיכום מפגש ${sessionSummarySend.sessionNumber} — ${sessionSummarySend.dogName}`, // i18n-ok
                 "",
               ];
-              if (sessionSummarySend.practiceItems) lines.push(`📝 תרגילים שעשינו:\n${sessionSummarySend.practiceItems}`, "");
-              if (sessionSummarySend.homeworkForCustomer) lines.push(`🏠 שיעורי בית לתרגול:\n${sessionSummarySend.homeworkForCustomer}`, "");
-              if (sessionSummarySend.nextSessionGoals) lines.push(`🎯 יעדים לפגישה הבאה:\n${sessionSummarySend.nextSessionGoals}`, "");
-              if (sessionSummarySend.rating) lines.push(`⭐ דירוג המפגש: ${"★".repeat(sessionSummarySend.rating)}`);
-              lines.push("", "נתראה בפגישה הבאה! 🐾");
+              if (sessionSummarySend.practiceItems) lines.push(`📝 תרגילים שעשינו:\n${sessionSummarySend.practiceItems}`, ""); // i18n-ok
+              if (sessionSummarySend.homeworkForCustomer) lines.push(`🏠 שיעורי בית לתרגול:\n${sessionSummarySend.homeworkForCustomer}`, ""); // i18n-ok
+              if (sessionSummarySend.nextSessionGoals) lines.push(`🎯 יעדים לפגישה הבאה:\n${sessionSummarySend.nextSessionGoals}`, ""); // i18n-ok
+              if (sessionSummarySend.rating) lines.push(`⭐ דירוג המפגש: ${"★".repeat(sessionSummarySend.rating)}`); // i18n-ok
+              lines.push("", "נתראה בפגישה הבאה! 🐾"); // i18n-ok
               const msg = lines.join("\n");
               const url = `https://api.whatsapp.com/send?phone=${toWhatsAppPhone(sessionSummarySend.customerPhone)}&text=${encodeURIComponent(msg)}`;
               return (
@@ -2066,13 +2090,13 @@ function TrainingPageContent() {
                     onClick={() => setTimeout(() => setSessionSummarySend(null), 800)}
                   >
                     <Send className="w-4 h-4" />
-                    שלח סיכום בוואטסאפ
+                    {t("summarySend.send")}
                   </a>
                   <button
                     className="w-full py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-petra-muted text-xs font-medium transition-colors"
                     onClick={() => setSessionSummarySend(null)}
                   >
-                    דלג — לא עכשיו
+                    {t("summarySend.skip")}
                   </button>
                 </div>
               );
@@ -2274,9 +2298,9 @@ function TrainingPageContent() {
 
       {convertParticipantTarget && (
         <ConfirmActionModal
-          title="המרה לאילוף פרטני"
-          message={`להמיר את ${convertParticipantTarget.dogName} מהקבוצה לאילוף פרטני? תיווצר תוכנית אילוף פרטנית והכלב יוסר מהקבוצה.`}
-          confirmLabel="המר לפרטני"
+          title={t("convertToPrivate.title")}
+          message={t("convertToPrivate.message", { dog: convertParticipantTarget.dogName })}
+          confirmLabel={t("convertToPrivate.confirm")}
           isPending={convertParticipantMutation.isPending}
           onClose={() => setConvertParticipantTarget(null)}
           onConfirm={() =>
@@ -2290,9 +2314,9 @@ function TrainingPageContent() {
 
       {deleteGroupTarget && (
         <ConfirmActionModal
-          title={deleteGroupTarget.isWorkshop ? "מחיקת סדנה" : "מחיקת קבוצה"}
-          message={`למחוק את "${deleteGroupTarget.groupName}"? פעולה זו תמחק את כל המפגשים והמשתתפים בקבוצה. ההזמנות של הלקוחות לא יימחקו.`}
-          confirmLabel="מחק לצמיתות"
+          title={deleteGroupTarget.isWorkshop ? t("deleteGroup.titleWorkshop") : t("deleteGroup.title")}
+          message={t("deleteGroup.message", { name: deleteGroupTarget.groupName })}
+          confirmLabel={t("deleteGroup.confirm")}
           danger
           isPending={deleteGroupMutation.isPending}
           onClose={() => setDeleteGroupTarget(null)}
@@ -2317,13 +2341,15 @@ function DogStatusDot({ dog }: { dog: UnifiedDog }) {
 }
 
 function OverviewDogCard({ dog, onFocus }: { dog: UnifiedDog; onFocus?: (dog: UnifiedDog) => void }) {
+  const t = useTranslations("training.trainingPage");
+  const { formatDate } = useFmt();
   const badge = TYPE_BADGE[dog.type];
   const isLowSessions = dog.sessionsRemaining !== undefined && dog.sessionsRemaining <= 2 && dog.status === "ACTIVE";
   const isOverdue = dog.daysSinceLastSession !== undefined && dog.daysSinceLastSession >= 14 && dog.status === "ACTIVE";
   const isCompleted = dog.status === "COMPLETED";
 
   const whatsappUrl = dog.customerPhone
-    ? `https://api.whatsapp.com/send?phone=${toWhatsAppPhone(dog.customerPhone)}&text=${encodeURIComponent(`שלום! עדכון אימון עבור ${dog.dogName} 🐾`)}`
+    ? `https://api.whatsapp.com/send?phone=${toWhatsAppPhone(dog.customerPhone)}&text=${encodeURIComponent(`שלום! עדכון אימון עבור ${dog.dogName} 🐾`)}` // i18n-ok — WhatsApp text sent to the client
     : null;
 
   return (
@@ -2350,7 +2376,7 @@ function OverviewDogCard({ dog, onFocus }: { dog: UnifiedDog; onFocus?: (dog: Un
           <p className="text-xs text-petra-muted truncate">{dog.customerName}</p>
         </div>
         <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium flex-shrink-0", badge.bg, badge.text)}>
-          {badge.label}
+          {t(`typeBadge.${dog.type}`)}
         </span>
       </div>
 
@@ -2361,7 +2387,7 @@ function OverviewDogCard({ dog, onFocus }: { dog: UnifiedDog; onFocus?: (dog: Un
       {dog.progress && (
         <div className="mb-3">
           <div className="flex justify-between text-[10px] text-petra-muted mb-1">
-            <span>מפגשים</span>
+            <span>{t("overview.sessions")}</span>
             <span className="font-semibold">{dog.progress.used}/{dog.progress.total}</span>
           </div>
           <div className="w-full h-2 rounded-full bg-slate-100">
@@ -2378,22 +2404,22 @@ function OverviewDogCard({ dog, onFocus }: { dog: UnifiedDog; onFocus?: (dog: Un
         {isLowSessions && (
           <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium flex items-center gap-1">
             <AlertTriangle className="w-3 h-3" />
-            {dog.sessionsRemaining} מפגשים נותרו
+            {t("overview.sessionsLeft", { count: dog.sessionsRemaining })}
           </span>
         )}
         {isOverdue && (
           <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">
-            {dog.daysSinceLastSession} ימים ללא מפגש
+            {t("overview.daysWithoutSession", { count: dog.daysSinceLastSession })}
           </span>
         )}
         {isCompleted && (
           <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-medium flex items-center gap-1">
-            <CheckCircle2 className="w-3 h-3" /> הושלם
+            <CheckCircle2 className="w-3 h-3" /> {t("overview.completed")}
           </span>
         )}
         {dog.lastSessionDate && !isCompleted && !isOverdue && (
           <span className="text-[10px] text-petra-muted">
-            מפגש אחרון: {formatDate(dog.lastSessionDate)}
+            {t("overview.lastSessionAt", { date: formatDate(dog.lastSessionDate) })}
           </span>
         )}
       </div>
@@ -2408,7 +2434,7 @@ function OverviewDogCard({ dog, onFocus }: { dog: UnifiedDog; onFocus?: (dog: Un
           onClick={(e) => e.stopPropagation()}
         >
           <Send className="w-3 h-3" />
-          שלח עדכון לבעלים
+          {t("overview.sendOwnerUpdate")}
         </a>
       )}
     </div>
@@ -2416,13 +2442,15 @@ function OverviewDogCard({ dog, onFocus }: { dog: UnifiedDog; onFocus?: (dog: Un
 }
 
 function OverviewDogRow({ dog, onFocus }: { dog: UnifiedDog; onFocus: (dog: UnifiedDog) => void }) {
+  const t = useTranslations("training.trainingPage");
+  const { formatDate } = useFmt();
   const badge = TYPE_BADGE[dog.type];
   const isLowSessions = dog.sessionsRemaining !== undefined && dog.sessionsRemaining <= 2 && dog.status === "ACTIVE";
   const isOverdue = dog.daysSinceLastSession !== undefined && dog.daysSinceLastSession >= 14 && dog.status === "ACTIVE";
   const isCompleted = dog.status === "COMPLETED";
 
   const whatsappUrl = dog.customerPhone
-    ? `https://api.whatsapp.com/send?phone=${toWhatsAppPhone(dog.customerPhone)}&text=${encodeURIComponent(`שלום! עדכון אימון עבור ${dog.dogName} 🐾`)}`
+    ? `https://api.whatsapp.com/send?phone=${toWhatsAppPhone(dog.customerPhone)}&text=${encodeURIComponent(`שלום! עדכון אימון עבור ${dog.dogName} 🐾`)}` // i18n-ok — WhatsApp text sent to the client
     : null;
 
   return (
@@ -2440,7 +2468,7 @@ function OverviewDogRow({ dog, onFocus }: { dog: UnifiedDog; onFocus: (dog: Unif
       <td className="p-3 text-sm text-petra-muted">{dog.customerName}</td>
       <td className="p-3">
         <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium", badge.bg, badge.text)}>
-          {badge.label}
+          {t(`typeBadge.${dog.type}`)}
         </span>
       </td>
       <td className="p-3">
@@ -2460,7 +2488,7 @@ function OverviewDogRow({ dog, onFocus }: { dog: UnifiedDog; onFocus: (dog: Unif
       </td>
       <td className="p-3 text-xs text-petra-muted">
         {isOverdue ? (
-          <span className="text-amber-600 font-medium">{dog.daysSinceLastSession} ימים</span>
+          <span className="text-amber-600 font-medium">{t("overview.days", { count: dog.daysSinceLastSession })}</span>
         ) : dog.lastSessionDate ? (
           formatDate(dog.lastSessionDate)
         ) : "—"}
@@ -2475,7 +2503,7 @@ function OverviewDogRow({ dog, onFocus }: { dog: UnifiedDog; onFocus: (dog: Unif
             className="flex items-center gap-1 text-[11px] text-green-700 hover:text-green-800 font-medium bg-green-50 hover:bg-green-100 px-2 py-1 rounded-lg transition-colors border border-green-200"
           >
             <Send className="w-3 h-3" />
-            שלח
+            {t("overview.send")}
           </a>
         )}
       </td>
@@ -2484,14 +2512,15 @@ function OverviewDogRow({ dog, onFocus }: { dog: UnifiedDog; onFocus: (dog: Unif
 }
 
 function OverviewTab({ dogs, onFocus }: { dogs: UnifiedDog[]; onFocus: (dog: UnifiedDog) => void }) {
+  const t = useTranslations("training.trainingPage");
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
 
   if (dogs.length === 0) {
     return (
       <div className="empty-state">
         <div className="empty-state-icon"><Dog className="w-6 h-6 text-slate-400" /></div>
-        <h3 className="text-base font-semibold text-petra-text mb-1">אין כלבים באימון</h3>
-        <p className="text-sm text-petra-muted">הוסף כלבים לאימון דרך הטאבים השונים</p>
+        <h3 className="text-base font-semibold text-petra-text mb-1">{t("overview.emptyTitle")}</h3>
+        <p className="text-sm text-petra-muted">{t("overview.emptyHint")}</p>
       </div>
     );
   }
@@ -2504,9 +2533,9 @@ function OverviewTab({ dogs, onFocus }: { dogs: UnifiedDog[]; onFocus: (dog: Uni
   const completed = dogs.filter((d) => d.status === "COMPLETED");
 
   const sections: { label: string; icon: React.ReactNode; labelClass: string; dogs: UnifiedDog[] }[] = [
-    { label: `דורשים תשומת לב (${attention.length})`, icon: <AlertTriangle className="w-4 h-4" />, labelClass: "text-red-600", dogs: attention },
-    { label: `באימון פעיל (${active.length})`, icon: <CheckCircle2 className="w-4 h-4" />, labelClass: "text-emerald-700", dogs: active },
-    { label: `הושלמו (${completed.length})`, icon: <Clock className="w-4 h-4" />, labelClass: "text-slate-500", dogs: completed },
+    { label: t("overview.sectionAttention", { count: attention.length }), icon: <AlertTriangle className="w-4 h-4" />, labelClass: "text-red-600", dogs: attention },
+    { label: t("overview.sectionActive", { count: active.length }), icon: <CheckCircle2 className="w-4 h-4" />, labelClass: "text-emerald-700", dogs: active },
+    { label: t("overview.sectionCompleted", { count: completed.length }), icon: <Clock className="w-4 h-4" />, labelClass: "text-slate-500", dogs: completed },
   ].filter((s) => s.dogs.length > 0);
 
   return (
@@ -2516,14 +2545,14 @@ function OverviewTab({ dogs, onFocus }: { dogs: UnifiedDog[]; onFocus: (dog: Uni
           <button
             onClick={() => setViewMode("list")}
             className={cn("p-1.5 rounded transition-colors", viewMode === "list" ? "bg-white shadow-sm text-brand-600" : "text-petra-muted")}
-            title="תצוגת שורות"
+            title={t("overview.listView")}
           >
             <LayoutList className="w-4 h-4" />
           </button>
           <button
             onClick={() => setViewMode("grid")}
             className={cn("p-1.5 rounded transition-colors", viewMode === "grid" ? "bg-white shadow-sm text-brand-600" : "text-petra-muted")}
-            title="תצוגת כרטיסים"
+            title={t("overview.gridView")}
           >
             <LayoutGrid className="w-4 h-4" />
           </button>
@@ -2547,11 +2576,11 @@ function OverviewTab({ dogs, onFocus }: { dogs: UnifiedDog[]; onFocus: (dog: Uni
           <table className="w-full text-right text-sm">
             <thead>
               <tr className="border-b bg-slate-50">
-                <th className="p-3 font-medium text-petra-muted">כלב</th>
-                <th className="p-3 font-medium text-petra-muted">בעלים</th>
-                <th className="p-3 font-medium text-petra-muted">סוג אימון</th>
-                <th className="p-3 font-medium text-petra-muted">מפגשים</th>
-                <th className="p-3 font-medium text-petra-muted">מפגש אחרון</th>
+                <th className="p-3 font-medium text-petra-muted">{t("overview.colDog")}</th>
+                <th className="p-3 font-medium text-petra-muted">{t("overview.colOwner")}</th>
+                <th className="p-3 font-medium text-petra-muted">{t("overview.colType")}</th>
+                <th className="p-3 font-medium text-petra-muted">{t("overview.colSessions")}</th>
+                <th className="p-3 font-medium text-petra-muted">{t("overview.colLastSession")}</th>
                 <th className="p-3"></th>
               </tr>
             </thead>
@@ -2584,6 +2613,7 @@ function OverviewTab({ dogs, onFocus }: { dogs: UnifiedDog[]; onFocus: (dog: Uni
 // ═══════════════════════════════════════════════════════
 
 function GoalProgressRow({ goal, programId }: { goal: { id: string; title: string; status: string; progressPercent: number }; programId: string }) {
+  const t = useTranslations("training.trainingPage");
   const queryClient = useQueryClient();
   const [localProgress, setLocalProgress] = useState(goal.progressPercent);
 
@@ -2600,14 +2630,14 @@ function GoalProgressRow({ goal, programId }: { goal: { id: string; title: strin
         body: JSON.stringify({ goalId: goal.id, progressPercent: progress, status }),
       }),
     onSuccess: invalidate,
-    onError: () => toast.error("שגיאה בעדכון יעד"),
+    onError: () => toast.error(t("goals.updateError")),
   });
 
   const deleteMutation = useMutation({
     mutationFn: () =>
       fetchJSON(`/api/training-programs/${programId}/goals?goalId=${goal.id}`, { method: "DELETE" }),
-    onSuccess: () => { invalidate(); toast.success("יעד הוסר"); },
-    onError: () => toast.error("שגיאה במחיקת יעד"),
+    onSuccess: () => { invalidate(); toast.success(t("goals.removed")); },
+    onError: () => toast.error(t("goals.deleteError")),
   });
 
   const cycleStatus = () => {
@@ -2626,7 +2656,7 @@ function GoalProgressRow({ goal, programId }: { goal: { id: string; title: strin
     <div className="p-2 rounded-lg bg-slate-50 space-y-1.5">
       <div className="flex items-center gap-2">
         <button
-          title="שנה סטטוס"
+          title={t("goals.changeStatus")}
           onClick={cycleStatus}
           disabled={updateMutation.isPending}
           className={cn("text-[11px] font-bold flex-shrink-0 w-5 h-5 flex items-center justify-center rounded-full border transition-all hover:scale-110", statusColor,
@@ -2640,7 +2670,7 @@ function GoalProgressRow({ goal, programId }: { goal: { id: string; title: strin
           onClick={() => deleteMutation.mutate()}
           disabled={deleteMutation.isPending}
           className="w-5 h-5 flex items-center justify-center rounded hover:bg-red-50 text-petra-muted hover:text-red-500 transition-colors flex-shrink-0"
-          title="מחק יעד"
+          title={t("goals.delete")}
         >
           <Trash2 className="w-3 h-3" />
         </button>
@@ -2677,6 +2707,7 @@ function GoalProgressRow({ goal, programId }: { goal: { id: string; title: strin
 // ─── Homework Section ────────────────────────────────────────────────────────
 
 function HomeworkSection({ program }: { program: TrainingProgram }) {
+  const t = useTranslations("training.trainingPage");
   const queryClient = useQueryClient();
   const [newTitle, setNewTitle] = useState("");
   const [showAdd, setShowAdd] = useState(false);
@@ -2689,7 +2720,7 @@ function HomeworkSection({ program }: { program: TrainingProgram }) {
         body: JSON.stringify({ homeworkId, isCompleted }),
       }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["training-programs"] }),
-    onError: () => toast.error("שגיאה בעדכון שיעורי בית"),
+    onError: () => toast.error(t("homework.updateError")),
   });
 
   const addMutation = useMutation({
@@ -2703,16 +2734,16 @@ function HomeworkSection({ program }: { program: TrainingProgram }) {
       queryClient.invalidateQueries({ queryKey: ["training-programs"] });
       setNewTitle("");
       setShowAdd(false);
-      toast.success("שיעור בית נוסף ✓");
+      toast.success(t("homework.added"));
     },
-    onError: () => toast.error("שגיאה בהוספת שיעור בית"),
+    onError: () => toast.error(t("homework.addError")),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (homeworkId: string) =>
       fetchJSON(`/api/training-programs/${program.id}/homework?homeworkId=${homeworkId}`, { method: "DELETE" }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["training-programs"] }),
-    onError: () => toast.error("שגיאה במחיקת שיעור בית"),
+    onError: () => toast.error(t("homework.deleteError")),
   });
 
   const completed = program.homework.filter((h) => h.isCompleted).length;
@@ -2722,16 +2753,16 @@ function HomeworkSection({ program }: { program: TrainingProgram }) {
       <div className="flex items-center gap-2 mb-2">
         <BookOpen className="w-3.5 h-3.5 text-petra-muted" />
         <h4 className="text-xs font-semibold text-petra-muted flex-1">
-          שיעורי בית ({completed}/{program.homework.length})
+          {t("homework.title", { done: completed, total: program.homework.length })}
         </h4>
         {program.customer?.phone && program.homework.filter((h) => !h.isCompleted).length > 0 && (() => {
           const pending = program.homework.filter((h) => !h.isCompleted);
           const lines = [
-            `📝 שיעורי בית לאימון — ${program.dog.name}`,
+            `📝 שיעורי בית לאימון — ${program.dog.name}`, // i18n-ok — WhatsApp text sent to the client
             "",
             ...pending.map((h, i) => `${i + 1}. ${h.title}`),
             "",
-            "יש להתאמן על הנקודות הנ״ל עד המפגש הבא 🐾",
+            "יש להתאמן על הנקודות הנ״ל עד המפגש הבא 🐾", // i18n-ok
           ];
           return (
             <a
@@ -2739,11 +2770,11 @@ function HomeworkSection({ program }: { program: TrainingProgram }) {
               target="_blank"
               rel="noopener noreferrer"
               className="text-[10px] text-green-700 hover:text-green-800 font-medium flex items-center gap-0.5 bg-green-50 px-1.5 py-0.5 rounded"
-              title="שלח שיעורי בית"
+              title={t("homework.send")}
               onClick={(e) => e.stopPropagation()}
             >
               <Send className="w-2.5 h-2.5" />
-              שלח
+              {t("overview.send")}
             </a>
           );
         })()}
@@ -2752,12 +2783,12 @@ function HomeworkSection({ program }: { program: TrainingProgram }) {
           onClick={() => setShowAdd((v) => !v)}
         >
           <Plus className="w-3.5 h-3.5" />
-          הוסף
+          {tc("actions.add")}
         </button>
       </div>
 
       {program.homework.length === 0 && !showAdd && (
-        <p className="text-xs text-petra-muted">אין שיעורי בית עדיין</p>
+        <p className="text-xs text-petra-muted">{t("homework.empty")}</p>
       )}
 
       <div className="space-y-1.5">
@@ -2800,7 +2831,7 @@ function HomeworkSection({ program }: { program: TrainingProgram }) {
             autoFocus
             type="text"
             className="input text-xs flex-1 py-1"
-            placeholder="תיאור שיעור הבית..."
+            placeholder={t("homework.placeholder")}
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}
             onKeyDown={(e) => {
@@ -2813,7 +2844,7 @@ function HomeworkSection({ program }: { program: TrainingProgram }) {
             disabled={!newTitle.trim() || addMutation.isPending}
             onClick={() => { if (newTitle.trim()) addMutation.mutate(newTitle.trim()); }}
           >
-            {addMutation.isPending ? "..." : "הוסף"}
+            {addMutation.isPending ? "..." : tc("actions.add")}
           </button>
           <button className="btn-secondary text-xs px-2 py-1" onClick={() => { setShowAdd(false); setNewTitle(""); }}>
             <X className="w-3 h-3" />
@@ -2828,7 +2859,9 @@ function HomeworkSection({ program }: { program: TrainingProgram }) {
 // GOAL SECTION (inline add-goal)
 // ═══════════════════════════════════════════════════════
 
-function GoalSection({ program, label = "יעדי אילוף" }: { program: TrainingProgram; label?: string }) {
+function GoalSection({ program, label: labelProp }: { program: TrainingProgram; label?: string }) {
+  const t = useTranslations("training.trainingPage");
+  const label = labelProp ?? t("goals.defaultLabel");
   const queryClient = useQueryClient();
   const [newTitle, setNewTitle] = useState("");
   const [showAdd, setShowAdd] = useState(false);
@@ -2846,9 +2879,9 @@ function GoalSection({ program, label = "יעדי אילוף" }: { program: Trai
       queryClient.invalidateQueries({ queryKey: ["training-programs-service"] });
       setNewTitle("");
       setShowAdd(false);
-      toast.success("יעד נוסף ✓");
+      toast.success(t("goals.added"));
     },
-    onError: () => toast.error("שגיאה בהוספת יעד"),
+    onError: () => toast.error(t("goals.addError")),
   });
 
   return (
@@ -2863,12 +2896,12 @@ function GoalSection({ program, label = "יעדי אילוף" }: { program: Trai
           onClick={() => setShowAdd((v) => !v)}
         >
           <Plus className="w-3.5 h-3.5" />
-          הוסף יעד
+          {t("goals.add")}
         </button>
       </div>
 
       {program.goals.length === 0 && !showAdd && (
-        <p className="text-xs text-petra-muted">אין יעדים עדיין — לחץ &ldquo;הוסף יעד&rdquo; כדי לעקוב אחר ההתקדמות</p>
+        <p className="text-xs text-petra-muted">{t("goals.empty")}</p>
       )}
 
       <div className="space-y-2">
@@ -2883,7 +2916,7 @@ function GoalSection({ program, label = "יעדי אילוף" }: { program: Trai
             autoFocus
             type="text"
             className="input text-xs flex-1 py-1"
-            placeholder="תאר את היעד..."
+            placeholder={t("goals.placeholder")}
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}
             onKeyDown={(e) => {
@@ -2896,7 +2929,7 @@ function GoalSection({ program, label = "יעדי אילוף" }: { program: Trai
             disabled={!newTitle.trim() || addMutation.isPending}
             onClick={() => { if (newTitle.trim()) addMutation.mutate(newTitle.trim()); }}
           >
-            {addMutation.isPending ? "..." : "הוסף"}
+            {addMutation.isPending ? "..." : tc("actions.add")}
           </button>
           <button className="btn-secondary text-xs px-2 py-1" onClick={() => { setShowAdd(false); setNewTitle(""); }}>
             <X className="w-3 h-3" />
@@ -2937,6 +2970,10 @@ function SessionChecklist({
   onCancelSession?: (sessionId: string) => void;
   onEditSession?: (session: ProgramSession) => void;
 }) {
+  const t = useTranslations("training.trainingPage");
+  const tc = useTranslations("common");
+  const { formatDate } = useFmt();
+  const { cfg, locale } = useBusinessLocale();
   const queryClient = useQueryClient();
   const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
   const [editingSession, setEditingSession] = useState<{ id: string; date: string; time: string; duration: number } | null>(null);
@@ -2960,9 +2997,9 @@ function SessionChecklist({
       queryClient.invalidateQueries({ queryKey: ["training-program-sessions-cal"] });
       queryClient.invalidateQueries({ queryKey: ["training-group-sessions-cal"] });
       setEditingSession(null);
-      toast.success("מועד המפגש עודכן");
+      toast.success(t("checklist.rescheduled"));
     },
-    onError: () => toast.error("שגיאה בעדכון מועד המפגש"),
+    onError: () => toast.error(t("checklist.rescheduleError")),
   });
 
   const deleteSessionMutation = useMutation({
@@ -2974,9 +3011,9 @@ function SessionChecklist({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["training-programs"] });
       queryClient.invalidateQueries({ queryKey: ["training-programs-boarding"] });
-      toast.success("המפגש נמחק");
+      toast.success(t("checklist.deleted"));
     },
-    onError: () => toast.error("שגיאה במחיקת המפגש"),
+    onError: () => toast.error(t("checklist.deleteError")),
   });
   const total = program.totalSessions;
   // Prefer the COMPLETED row when duplicate rows share a sessionNumber —
@@ -2992,9 +3029,9 @@ function SessionChecklist({
 
   const formatSessionDateTime = (dateStr: string) => {
     const d = new Date(dateStr);
-    const date = new Intl.DateTimeFormat("he-IL", { day: "numeric", month: "long" }).format(d);
-    const time = new Intl.DateTimeFormat("he-IL", { hour: "2-digit", minute: "2-digit", hour12: false }).format(d);
-    return `${date} בשעה ${time}`;
+    const date = new Intl.DateTimeFormat(locale, { day: "numeric", month: "long" }).format(d);
+    const time = new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit", hourCycle: cfg.hourCycle }).format(d);
+    return t("checklist.dateAtTime", { date, time });
   };
 
   return (
@@ -3003,11 +3040,11 @@ function SessionChecklist({
       <div className="flex items-center justify-between mb-2">
         <h4 className="text-xs font-semibold text-petra-muted flex items-center gap-1.5">
           <Calendar className="w-3.5 h-3.5" />
-          {total ? `מפגשים (${usedSessions}/${total})` : `מפגשים (${usedSessions})`}
+          {total ? t("checklist.headerOf", { used: usedSessions, total }) : t("checklist.header", { used: usedSessions })}
         </h4>
         {total && (
           <span className="text-[11px] text-petra-muted">
-            {total - usedSessions > 0 ? `נותרו ${total - usedSessions}` : "הכל הושלם ✓"}
+            {total - usedSessions > 0 ? t("checklist.remaining", { count: total - usedSessions }) : t("checklist.allDone")}
           </span>
         )}
       </div>
@@ -3029,7 +3066,7 @@ function SessionChecklist({
             const num = i + 1;
             const session = sessionsByNumber.get(num);
             if (!session || session.status !== "COMPLETED") {
-              return <span key={num} className="w-2.5 h-2.5 rounded-full bg-slate-100 border border-slate-200" title={`מפגש ${num}`} />;
+              return <span key={num} className="w-2.5 h-2.5 rounded-full bg-slate-100 border border-slate-200" title={t("checklist.sessionN", { num })} />;
             }
             const r = session.rating;
             const color = !r ? "bg-slate-300" : r >= 4 ? "bg-emerald-500" : r === 3 ? "bg-amber-400" : "bg-red-400";
@@ -3037,11 +3074,11 @@ function SessionChecklist({
               <span
                 key={num}
                 className={cn("w-2.5 h-2.5 rounded-full", color)}
-                title={`מפגש ${num}${r ? ` — ${r}★` : " — בוצע"}`}
+                title={r ? t("checklist.dotRated", { num, r }) : t("checklist.dotDone", { num })}
               />
             );
           })}
-          <span className="text-[10px] text-petra-muted mr-0.5">דירוגי מפגשים</span>
+          <span className="text-[10px] text-petra-muted mr-0.5">{t("checklist.ratings")}</span>
         </div>
       )}
 
@@ -3082,7 +3119,7 @@ function SessionChecklist({
                   {isCompleted ? <CheckCircle2 className="w-3.5 h-3.5" /> : isScheduled ? <Calendar className="w-3 h-3" /> : num}
                 </div>
 
-                <span className="text-xs font-medium text-petra-text flex-1">מפגש {num}</span>
+                <span className="text-xs font-medium text-petra-text flex-1">{t("checklist.sessionN", { num })}</span>
 
                 {isCompleted && session && (
                   <>
@@ -3095,17 +3132,17 @@ function SessionChecklist({
                         type="button"
                         onClick={(e) => { e.stopPropagation(); onEditSession(session); }}
                         className="w-5 h-5 flex items-center justify-center rounded hover:bg-emerald-100 text-slate-300 hover:text-emerald-600 transition-colors"
-                        title="ערוך מפגש"
+                        title={t("checklist.editSession")}
                       >
                         <Pencil className="w-3 h-3" />
                       </button>
                     )}
                     <button
                       type="button"
-                      onClick={(e) => { e.stopPropagation(); if (confirm("למחוק את רישום המפגש?")) deleteSessionMutation.mutate(session.id); }}
+                      onClick={(e) => { e.stopPropagation(); if (confirm(t("checklist.confirmDelete"))) deleteSessionMutation.mutate(session.id); }}
                       disabled={deleteSessionMutation.isPending}
                       className="w-5 h-5 flex items-center justify-center rounded hover:bg-red-100 text-slate-300 hover:text-red-500 transition-colors"
-                      title="מחק מפגש"
+                      title={t("checklist.deleteSession")}
                     >
                       <Trash2 className="w-3 h-3" />
                     </button>
@@ -3130,7 +3167,7 @@ function SessionChecklist({
                         });
                       }}
                       className="w-5 h-5 flex items-center justify-center rounded hover:bg-blue-100 text-blue-400 hover:text-blue-600 transition-colors"
-                      title="ערוך מועד"
+                      title={t("checklist.editTime")}
                     >
                       <Pencil className="w-3 h-3" />
                     </button>
@@ -3140,7 +3177,7 @@ function SessionChecklist({
                         onClick={(e) => { e.stopPropagation(); onCancelSession(session.id); }}
                         className="text-[10px] text-red-500 hover:text-red-700 px-1.5 py-0.5 rounded hover:bg-red-50 transition-colors"
                       >
-                        ביטול
+                        {tc("actions.cancel")}
                       </button>
                     )}
                   </>
@@ -3155,7 +3192,7 @@ function SessionChecklist({
                       className="text-xs font-semibold text-brand-600 hover:text-brand-700 flex items-center gap-1 transition-colors"
                     >
                       <Plus className="w-3 h-3" />
-                      הוסף
+                      {tc("actions.add")}
                     </button>
                     {onScheduleSession && (
                       <button
@@ -3164,7 +3201,7 @@ function SessionChecklist({
                         className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1 transition-colors"
                       >
                         <Calendar className="w-3 h-3" />
-                        קבע מועד
+                        {t("checklist.setTime")}
                       </button>
                     )}
                   </div>
@@ -3176,28 +3213,28 @@ function SessionChecklist({
                 const es = editingSession;
                 return (
                   <div className="mx-3 mt-0.5 mb-1 p-3 bg-blue-50 border border-blue-200 rounded-xl" onClick={(e) => e.stopPropagation()}>
-                    <p className="text-[10px] font-semibold text-blue-700 mb-2">עריכת מועד מפגש</p>
+                    <p className="text-[10px] font-semibold text-blue-700 mb-2">{t("checklist.editTimeTitle")}</p>
                     <div className="flex gap-2 items-end">
                       <div className="flex-1">
-                        <label className="label text-[10px]">תאריך</label>
-                        <input type="date" lang="he" className="input text-xs py-1.5" value={es.date} onChange={(e) => setEditingSession({ id: es.id, date: e.target.value, time: es.time, duration: es.duration })} />
+                        <label className="label text-[10px]">{t("date")}</label>
+                        <input type="date" lang={cfg.lang} className="input text-xs py-1.5" value={es.date} onChange={(e) => setEditingSession({ id: es.id, date: e.target.value, time: es.time, duration: es.duration })} />
                       </div>
                       <div className="flex-1">
-                        <label className="label text-[10px]">שעה</label>
+                        <label className="label text-[10px]">{t("time")}</label>
                         <input type="time" className="input text-xs py-1.5" value={es.time} onChange={(e) => setEditingSession({ id: es.id, date: es.date, time: e.target.value, duration: es.duration })} />
                       </div>
                       <div className="w-20">
-                        <label className="label text-[10px]">משך (דקות)</label>
+                        <label className="label text-[10px]">{t("durationMinutes")}</label>
                         <select className="input text-xs py-1.5" value={es.duration} onChange={(e) => setEditingSession({ id: es.id, date: es.date, time: es.time, duration: parseInt(e.target.value) })}>
                           {(DURATION_OPTIONS.includes(es.duration) ? DURATION_OPTIONS : [es.duration, ...DURATION_OPTIONS].sort((a, b) => a - b)).map((d) => (
-                            <option key={d} value={d}>{d} דק׳</option>
+                            <option key={d} value={d}>{t("minutesShort", { n: d })}</option>
                           ))}
                         </select>
                       </div>
                       <button className="btn-primary text-xs py-1.5" disabled={rescheduleSessionMutation.isPending || !es.date || !es.time} onClick={() => rescheduleSessionMutation.mutate({ sessionId: es.id, date: es.date, time: es.time, duration: es.duration })}>
-                        {rescheduleSessionMutation.isPending ? "שומר..." : "שמור"}
+                        {rescheduleSessionMutation.isPending ? tc("progress.saving") : tc("actions.save")}
                       </button>
-                      <button className="btn-secondary text-xs py-1.5" onClick={() => setEditingSession(null)}>ביטול</button>
+                      <button className="btn-secondary text-xs py-1.5" onClick={() => setEditingSession(null)}>{tc("actions.cancel")}</button>
                     </div>
                   </div>
                 );
@@ -3207,16 +3244,16 @@ function SessionChecklist({
               {expanded && session && (
                 <div className="mx-3 mt-0.5 mb-1 p-3 bg-white border border-emerald-100 rounded-xl text-xs space-y-1.5">
                   {session.practiceItems && (
-                    <div><span className="font-semibold text-petra-muted">תרגילים: </span>{session.practiceItems}</div>
+                    <div><span className="font-semibold text-petra-muted">{t("checklist.practice")} </span>{session.practiceItems}</div>
                   )}
                   {session.nextSessionGoals && (
-                    <div><span className="font-semibold text-petra-muted">יעדים הבאים: </span>{session.nextSessionGoals}</div>
+                    <div><span className="font-semibold text-petra-muted">{t("checklist.nextGoals")} </span>{session.nextSessionGoals}</div>
                   )}
                   {session.homeworkForCustomer && (
-                    <div><span className="font-semibold text-petra-muted">שיעורי בית: </span>{session.homeworkForCustomer}</div>
+                    <div><span className="font-semibold text-petra-muted">{t("checklist.homework")} </span>{session.homeworkForCustomer}</div>
                   )}
                   {session.summary && (
-                    <div><span className="font-semibold text-petra-muted">סיכום: </span>{session.summary}</div>
+                    <div><span className="font-semibold text-petra-muted">{t("checklist.summary")} </span>{session.summary}</div>
                   )}
                 </div>
               )}
@@ -3254,7 +3291,7 @@ function SessionChecklist({
                         {isCompleted ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Calendar className="w-3 h-3" />}
                       </div>
                       <span className="text-xs font-medium text-petra-text flex-1">
-                        {isScheduled ? "מפגש מתוזמן" : `מפגש ${session.sessionNumber || ""}`}
+                        {isScheduled ? t("checklist.scheduledSession") : t("checklist.sessionN", { num: session.sessionNumber || "" })}
                       </span>
                       {isCompleted && (
                         <>
@@ -3265,17 +3302,17 @@ function SessionChecklist({
                               type="button"
                               onClick={(e) => { e.stopPropagation(); onEditSession(session); }}
                               className="w-5 h-5 flex items-center justify-center rounded hover:bg-emerald-100 text-slate-300 hover:text-emerald-600 transition-colors"
-                              title="ערוך מפגש"
+                              title={t("checklist.editSession")}
                             >
                               <Pencil className="w-3 h-3" />
                             </button>
                           )}
                           <button
                             type="button"
-                            onClick={(e) => { e.stopPropagation(); if (confirm("למחוק את רישום המפגש?")) deleteSessionMutation.mutate(session.id); }}
+                            onClick={(e) => { e.stopPropagation(); if (confirm(t("checklist.confirmDelete"))) deleteSessionMutation.mutate(session.id); }}
                             disabled={deleteSessionMutation.isPending}
                             className="w-5 h-5 flex items-center justify-center rounded hover:bg-red-100 text-slate-300 hover:text-red-500 transition-colors"
-                            title="מחק מפגש"
+                            title={t("checklist.deleteSession")}
                           >
                             <Trash2 className="w-3 h-3" />
                           </button>
@@ -3299,7 +3336,7 @@ function SessionChecklist({
                               });
                             }}
                             className="w-5 h-5 flex items-center justify-center rounded hover:bg-blue-100 text-blue-400 hover:text-blue-600 transition-colors"
-                            title="ערוך מועד"
+                            title={t("checklist.editTime")}
                           >
                             <Pencil className="w-3 h-3" />
                           </button>
@@ -3309,7 +3346,7 @@ function SessionChecklist({
                               onClick={(e) => { e.stopPropagation(); onCancelSession(session.id); }}
                               className="text-[10px] text-red-500 hover:text-red-700 px-1.5 py-0.5 rounded hover:bg-red-50 transition-colors"
                             >
-                              ביטול
+                              {tc("actions.cancel")}
                             </button>
                           )}
                         </>
@@ -3319,38 +3356,38 @@ function SessionChecklist({
                       const es = editingSession;
                       return (
                         <div className="mx-3 mt-0.5 mb-1 p-3 bg-blue-50 border border-blue-200 rounded-xl" onClick={(e) => e.stopPropagation()}>
-                          <p className="text-[10px] font-semibold text-blue-700 mb-2">עריכת מועד מפגש</p>
+                          <p className="text-[10px] font-semibold text-blue-700 mb-2">{t("checklist.editTimeTitle")}</p>
                           <div className="flex gap-2 items-end">
                             <div className="flex-1">
-                              <label className="label text-[10px]">תאריך</label>
-                              <input type="date" lang="he" className="input text-xs py-1.5" value={es.date} onChange={(e) => setEditingSession({ id: es.id, date: e.target.value, time: es.time, duration: es.duration })} />
+                              <label className="label text-[10px]">{t("date")}</label>
+                              <input type="date" lang={cfg.lang} className="input text-xs py-1.5" value={es.date} onChange={(e) => setEditingSession({ id: es.id, date: e.target.value, time: es.time, duration: es.duration })} />
                             </div>
                             <div className="flex-1">
-                              <label className="label text-[10px]">שעה</label>
+                              <label className="label text-[10px]">{t("time")}</label>
                               <input type="time" className="input text-xs py-1.5" value={es.time} onChange={(e) => setEditingSession({ id: es.id, date: es.date, time: e.target.value, duration: es.duration })} />
                             </div>
                             <div className="w-20">
-                              <label className="label text-[10px]">משך (דקות)</label>
+                              <label className="label text-[10px]">{t("durationMinutes")}</label>
                               <select className="input text-xs py-1.5" value={es.duration} onChange={(e) => setEditingSession({ id: es.id, date: es.date, time: es.time, duration: parseInt(e.target.value) })}>
                           {(DURATION_OPTIONS.includes(es.duration) ? DURATION_OPTIONS : [es.duration, ...DURATION_OPTIONS].sort((a, b) => a - b)).map((d) => (
-                            <option key={d} value={d}>{d} דק׳</option>
+                            <option key={d} value={d}>{t("minutesShort", { n: d })}</option>
                           ))}
                         </select>
                             </div>
                             <button className="btn-primary text-xs py-1.5" disabled={rescheduleSessionMutation.isPending || !es.date || !es.time} onClick={() => rescheduleSessionMutation.mutate({ sessionId: es.id, date: es.date, time: es.time, duration: es.duration })}>
-                              {rescheduleSessionMutation.isPending ? "שומר..." : "שמור"}
+                              {rescheduleSessionMutation.isPending ? tc("progress.saving") : tc("actions.save")}
                             </button>
-                            <button className="btn-secondary text-xs py-1.5" onClick={() => setEditingSession(null)}>ביטול</button>
+                            <button className="btn-secondary text-xs py-1.5" onClick={() => setEditingSession(null)}>{tc("actions.cancel")}</button>
                           </div>
                         </div>
                       );
                     })()}
                     {expanded && (
                       <div className="mx-3 mt-0.5 mb-1 p-3 bg-white border border-emerald-100 rounded-xl text-xs space-y-1.5">
-                        {session.practiceItems && <div><span className="font-semibold text-petra-muted">תרגילים: </span>{session.practiceItems}</div>}
-                        {session.nextSessionGoals && <div><span className="font-semibold text-petra-muted">יעדים הבאים: </span>{session.nextSessionGoals}</div>}
-                        {session.homeworkForCustomer && <div><span className="font-semibold text-petra-muted">שיעורי בית: </span>{session.homeworkForCustomer}</div>}
-                        {session.summary && <div><span className="font-semibold text-petra-muted">סיכום: </span>{session.summary}</div>}
+                        {session.practiceItems && <div><span className="font-semibold text-petra-muted">{t("checklist.practice")} </span>{session.practiceItems}</div>}
+                        {session.nextSessionGoals && <div><span className="font-semibold text-petra-muted">{t("checklist.nextGoals")} </span>{session.nextSessionGoals}</div>}
+                        {session.homeworkForCustomer && <div><span className="font-semibold text-petra-muted">{t("checklist.homework")} </span>{session.homeworkForCustomer}</div>}
+                        {session.summary && <div><span className="font-semibold text-petra-muted">{t("checklist.summary")} </span>{session.summary}</div>}
                       </div>
                     )}
                   </div>
@@ -3370,7 +3407,7 @@ function SessionChecklist({
             className="flex-1 py-2 rounded-xl border-2 border-dashed border-brand-200 text-xs font-semibold text-brand-500 hover:bg-brand-50 hover:border-brand-400 transition-all flex items-center justify-center gap-1.5"
           >
             <Plus className="w-3.5 h-3.5" />
-            רשום מפגש
+            {t("checklist.logSession")}
           </button>
           {onScheduleSession && (
             <button
@@ -3379,7 +3416,7 @@ function SessionChecklist({
               className="flex-1 py-2 rounded-xl border-2 border-dashed border-blue-200 text-xs font-semibold text-blue-500 hover:bg-blue-50 hover:border-blue-400 transition-all flex items-center justify-center gap-1.5"
             >
               <Calendar className="w-3.5 h-3.5" />
-              קבע מפגש קדימה
+              {t("checklist.scheduleAhead")}
             </button>
           )}
         </div>
@@ -3393,6 +3430,7 @@ function SessionChecklist({
 // ═══════════════════════════════════════════════════════
 
 function ServiceDogPhaseRow({ program }: { program: TrainingProgram }) {
+  const t = useTranslations("training.trainingPage");
   const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: (programType: string) =>
@@ -3403,9 +3441,9 @@ function ServiceDogPhaseRow({ program }: { program: TrainingProgram }) {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["training-programs-service"] });
-      toast.success("שלב עודכן ✓");
+      toast.success(t("sdPhase.updated"));
     },
-    onError: () => toast.error("שגיאה בעדכון שלב"),
+    onError: () => toast.error(t("sdPhase.updateError")),
   });
 
   const currentIdx = SERVICE_DOG_PHASES.findIndex((p) => p.value === program.programType);
@@ -3415,10 +3453,10 @@ function ServiceDogPhaseRow({ program }: { program: TrainingProgram }) {
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Shield className="w-3.5 h-3.5 text-brand-500 flex-shrink-0" />
-          <span className="text-xs font-semibold text-brand-700">שלב הכשרה</span>
+          <span className="text-xs font-semibold text-brand-700">{t("sdPhase.title")}</span>
         </div>
         <a href="/service-dogs/dogs" className="text-[10px] text-brand-600 hover:text-brand-700 font-medium flex items-center gap-0.5">
-          פרופיל מלא ←
+          {t("sdPhase.fullProfile")}
         </a>
       </div>
       {/* Phase dots */}
@@ -3429,7 +3467,7 @@ function ServiceDogPhaseRow({ program }: { program: TrainingProgram }) {
             disabled={mutation.isPending}
             onClick={() => mutation.mutate(phase.value)}
             className="flex flex-col items-center gap-1 group"
-            title={phase.label}
+            title={t(`sdPhases.${phase.value}`)}
           >
             <span className={cn(
               "w-4 h-4 rounded-full border-2 transition-all",
@@ -3441,7 +3479,7 @@ function ServiceDogPhaseRow({ program }: { program: TrainingProgram }) {
               "text-[9px] font-medium whitespace-nowrap",
               idx === currentIdx ? "text-brand-600" : "text-petra-muted"
             )}>
-              {phase.label}
+              {t(`sdPhases.${phase.value}`)}
             </span>
           </button>
         ))}
@@ -3473,6 +3511,9 @@ function ServiceDogSessionLog({
   onDropoutProgram?: (programId: string, dogName: string) => void;
   isUpdatingStatus?: boolean;
 }) {
+  const t = useTranslations("training.trainingPage");
+  const { formatDate } = useFmt();
+  const { cfg, locale } = useBusinessLocale();
   const filtered = useMemo(() => {
     if (!searchQuery.trim()) return programs;
     const q = searchQuery.toLowerCase();
@@ -3483,9 +3524,9 @@ function ServiceDogSessionLog({
     return (
       <div className="empty-state">
         <div className="empty-state-icon"><Shield className="w-6 h-6 text-slate-400" /></div>
-        <h3 className="text-base font-semibold text-petra-text mb-1">אין תוכניות אילוף לכלבי שירות</h3>
+        <h3 className="text-base font-semibold text-petra-text mb-1">{t("sdLog.emptyTitle")}</h3>
         <p className="text-sm text-petra-muted">
-          <a href="/service-dogs" className="text-brand-600 hover:underline">עבור לניהול כלבי שירות</a>
+          <a href="/service-dogs" className="text-brand-600 hover:underline">{t("sdLog.goToServiceDogs")}</a>
         </p>
       </div>
     );
@@ -3511,29 +3552,29 @@ function ServiceDogSessionLog({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="text-sm font-semibold text-petra-text">{program.dog.name}</h3>
-                    <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium", statusInfo.color)}>{statusInfo.label}</span>
+                    <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium", statusInfo.color)}>{t(`programStatus.${PROGRAM_STATUS_MAP[program.status] ? program.status : "ACTIVE"}`)}</span>
                     {program.programType && (
                       <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-brand-100 text-brand-700">
-                        {SERVICE_DOG_PHASES.find((p) => p.value === program.programType)?.label ?? program.programType}
+                        {SERVICE_DOG_PHASES.some((p) => p.value === program.programType) ? t(`sdPhases.${program.programType}`) : program.programType}
                       </span>
                     )}
                   </div>
                   <div className="flex items-center gap-2 mt-0.5 text-xs text-petra-muted">
-                    <span>{usedSessions} אימונים בוצעו</span>
-                    {program.startDate && <span>• התחיל {formatDate(program.startDate)}</span>}
+                    <span>{t("sdLog.sessionsDone", { count: usedSessions })}</span>
+                    {program.startDate && <span>{t("sdLog.started", { date: formatDate(program.startDate) })}</span>}
                   </div>
                 </div>
                 <a href={`/service-dogs/${program.dog.id}`} className="text-xs text-brand-600 hover:underline flex items-center gap-0.5 flex-shrink-0">
-                  פרופיל ←
+                  {t("sdLog.profile")}
                 </a>
               </div>
               {/* Actions — no finish/dropout for service dogs; managed via service dogs system */}
               <div className="flex gap-2 mt-3 flex-wrap">
                 <button className="btn-secondary text-xs" onClick={() => onEditSettings(program)}>
-                  <Settings className="w-3.5 h-3.5" /> הגדרות
+                  <Settings className="w-3.5 h-3.5" /> {t("sdLog.settings")}
                 </button>
                 <a href={`/service-dogs/${program.dog.id}`} className="btn-secondary text-xs flex items-center gap-1">
-                  <Shield className="w-3.5 h-3.5" /> ניהול כלב שירות ←
+                  <Shield className="w-3.5 h-3.5" /> {t("sdLog.manage")}
                 </a>
               </div>
             </div>
@@ -3542,17 +3583,17 @@ function ServiceDogSessionLog({
             <div className="p-4">
               <h4 className="text-xs font-semibold text-petra-muted mb-3 flex items-center gap-1.5">
                 <Calendar className="w-3.5 h-3.5" />
-                יומן אימונים
+                {t("sdLog.title")}
               </h4>
 
               {completedSessions.length === 0 ? (
-                <p className="text-xs text-petra-muted text-center py-4">טרם בוצעו אימונים</p>
+                <p className="text-xs text-petra-muted text-center py-4">{t("sdLog.empty")}</p>
               ) : (
                 <div className="space-y-2">
                   {completedSessions.map((session) => (
                     <div key={session.id} className="p-3 rounded-xl bg-slate-50 border border-petra-border text-xs">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="font-semibold text-petra-text">אימון {session.sessionNumber}</span>
+                        <span className="font-semibold text-petra-text">{t("sdLog.sessionN", { n: session.sessionNumber })}</span>
                         <div className="flex items-center gap-2">
                           {session.rating && <span className="text-amber-500">{"★".repeat(session.rating)}</span>}
                           <span className="text-petra-muted">{formatDate(session.sessionDate)}</span>
@@ -3560,31 +3601,31 @@ function ServiceDogSessionLog({
                       </div>
                       {session.practiceItems && (
                         <div className="mb-1.5">
-                          <span className="font-medium text-petra-muted">📝 תרגילים: </span>
+                          <span className="font-medium text-petra-muted">{t("sdLog.practice")} </span>
                           <span className="text-petra-text whitespace-pre-line">{session.practiceItems}</span>
                         </div>
                       )}
                       {session.summary && (
                         <div className="mb-1.5">
-                          <span className="font-medium text-petra-muted">💬 סיכום: </span>
+                          <span className="font-medium text-petra-muted">{t("sdLog.summary")} </span>
                           <span className="text-petra-text whitespace-pre-line">{session.summary}</span>
                         </div>
                       )}
                       {session.nextSessionGoals && (
                         <div className="mb-1.5">
-                          <span className="font-medium text-petra-muted">🎯 יעדים לאימון הבא: </span>
+                          <span className="font-medium text-petra-muted">{t("sdLog.nextGoals")} </span>
                           <span className="text-petra-text whitespace-pre-line">{session.nextSessionGoals}</span>
                         </div>
                       )}
                       {session.homeworkForCustomer && (
                         <div className="mb-1.5">
-                          <span className="font-medium text-petra-muted">📋 הערות לצוות: </span>
+                          <span className="font-medium text-petra-muted">{t("sdLog.teamNotes")} </span>
                           <span className="text-petra-text whitespace-pre-line">{session.homeworkForCustomer}</span>
                         </div>
                       )}
                       {(session as { trainerName?: string | null }).trainerName && (
                         <div className="mt-1 text-[11px] text-petra-muted">
-                          👤 מאמן: {(session as { trainerName?: string | null }).trainerName}
+                          {t("sdLog.trainer", { name: (session as { trainerName?: string | null }).trainerName ?? "" })}
                         </div>
                       )}
                     </div>
@@ -3600,12 +3641,12 @@ function ServiceDogSessionLog({
                   onClick={() => {
                     const win = window.open("", "_blank");
                     if (!win) return;
-                    win.document.write(`<html dir="rtl"><head><title>יומן אימונים — ${escapeHtml(program.dog.name)}</title><style>body{font-family:sans-serif;padding:24px;direction:rtl}h1{font-size:20px;margin-bottom:4px}h2{font-size:13px;color:#666;margin-bottom:20px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{border:1px solid #ddd;padding:8px;text-align:right}th{background:#f3f4f6}@media print{button{display:none}}</style></head><body>`);
-                    win.document.write(`<h1>יומן אימונים — ${escapeHtml(program.dog.name)}</h1><h2>סה"כ ${completedSessions.length} אימונים · הודפס ${new Date().toLocaleDateString("he-IL")}</h2>`);
-                    win.document.write(`<table><thead><tr><th>#</th><th>תאריך</th><th>מאמן</th><th>דירוג</th><th>תרגילים</th><th>יעדים הבאים</th><th>הערות לצוות</th><th>סיכום</th></tr></thead><tbody>`);
+                    win.document.write(`<html dir="${cfg.dir}" lang="${cfg.lang}"><head><title>${t("printLog.title", { dog: escapeHtml(program.dog.name) })}</title><style>body{font-family:sans-serif;padding:24px;direction:${cfg.dir}}h1{font-size:20px;margin-bottom:4px}h2{font-size:13px;color:#666;margin-bottom:20px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{border:1px solid #ddd;padding:8px;text-align:start}th{background:#f3f4f6}@media print{button{display:none}}</style></head><body>`);
+                    win.document.write(`<h1>${t("printLog.title", { dog: escapeHtml(program.dog.name) })}</h1><h2>${t("printLog.subtitle", { count: completedSessions.length, date: new Date().toLocaleDateString(locale) })}</h2>`);
+                    win.document.write(`<table><thead><tr><th>#</th><th>${t("date")}</th><th>${t("printLog.colTrainer")}</th><th>${t("printLog.colRating")}</th><th>${t("printLog.colPractice")}</th><th>${t("printLog.colNextGoals")}</th><th>${t("printLog.colTeamNotes")}</th><th>${t("printLog.colSummary")}</th></tr></thead><tbody>`);
                     completedSessions.forEach((s) => {
                       const sTyped = s as { sessionNumber?: number | null; sessionDate: string; trainerName?: string | null; rating?: number | null; practiceItems?: string | null; nextSessionGoals?: string | null; homeworkForCustomer?: string | null; summary?: string | null };
-                      win.document.write(`<tr><td>${sTyped.sessionNumber ?? ""}</td><td>${new Date(sTyped.sessionDate).toLocaleDateString("he-IL")}</td><td>${escapeHtml(sTyped.trainerName)}</td><td>${sTyped.rating ? "★".repeat(sTyped.rating) : ""}</td><td>${escapeHtml(sTyped.practiceItems)?.replace(/\n/g, "<br>")}</td><td>${escapeHtml(sTyped.nextSessionGoals)?.replace(/\n/g, "<br>")}</td><td>${escapeHtml(sTyped.homeworkForCustomer)?.replace(/\n/g, "<br>")}</td><td>${escapeHtml(sTyped.summary)?.replace(/\n/g, "<br>")}</td></tr>`);
+                      win.document.write(`<tr><td>${sTyped.sessionNumber ?? ""}</td><td>${new Date(sTyped.sessionDate).toLocaleDateString(locale)}</td><td>${escapeHtml(sTyped.trainerName)}</td><td>${sTyped.rating ? "★".repeat(sTyped.rating) : ""}</td><td>${escapeHtml(sTyped.practiceItems)?.replace(/\n/g, "<br>")}</td><td>${escapeHtml(sTyped.nextSessionGoals)?.replace(/\n/g, "<br>")}</td><td>${escapeHtml(sTyped.homeworkForCustomer)?.replace(/\n/g, "<br>")}</td><td>${escapeHtml(sTyped.summary)?.replace(/\n/g, "<br>")}</td></tr>`);
                     });
                     win.document.write("</tbody></table></body></html>");
                     win.document.close();
@@ -3613,7 +3654,7 @@ function ServiceDogSessionLog({
                   }}
                 >
                   <Printer className="w-3.5 h-3.5" />
-                  הדפס יומן אימונים
+                  {t("printLog.print")}
                 </button>
               )}
 
@@ -3626,7 +3667,7 @@ function ServiceDogSessionLog({
                   className="mt-3 w-full py-2.5 rounded-xl border-2 border-dashed border-brand-200 text-xs font-semibold text-brand-500 hover:bg-brand-50 hover:border-brand-400 transition-all flex items-center justify-center gap-1.5"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  הוסף אימון +
+                  {t("sdLog.addSession")}
                 </button>
               )}
             </div>

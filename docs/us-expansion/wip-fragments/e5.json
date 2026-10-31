@@ -1,0 +1,254 @@
+{
+  "he": {
+    "portal": {
+      "portalUi": {
+        "membership": {
+          "active": "מנוי פעיל",
+          "validUntil": "עד {date}",
+          "pending": "ממתין לאישור העסק",
+          "suspended": "המנוי מושהה",
+          "expired": "המנוי הסתיים"
+        }
+      },
+      "detailClassesPage": {
+        "backToPortal": "חזרה לפורטל",
+        "title": "שיעורים חיים",
+        "membersOnly": "הרשמה לשיעורים פתוחה למנויים פעילים בלבד.",
+        "requestToJoin": "לבקשת הצטרפות",
+        "empty": "אין שיעורים קרובים כרגע — שווה לחזור לבדוק",
+        "status": {
+          "registered": "רשום/ה",
+          "waitlist": "ברשימת המתנה"
+        },
+        "durationMinutes": "{count} דקות",
+        "fullWaitlist": "מלא — רשימת המתנה",
+        "spotsLeft": "נותרו {count} מקומות",
+        "joinZoom": "הצטרף לזום",
+        "actions": {
+          "joinWaitlist": "הרשמה לרשימת ההמתנה",
+          "register": "הרשמה",
+          "cancelRegistration": "ביטול הרשמה"
+        },
+        "confirmCancel": "לבטל את ההרשמה לשיעור \"{title}\"?",
+        "toasts": {
+          "registerError": "שגיאה בהרשמה לשיעור",
+          "waitlisted": "השיעור מלא — נרשמת לרשימת ההמתנה",
+          "registered": "נרשמת לשיעור!",
+          "cancelError": "שגיאה בביטול ההרשמה",
+          "canceled": "ההרשמה בוטלה"
+        }
+      },
+      "coursesDetailPage": {
+        "completed": "הושלם ✓",
+        "watchedPercent": "נצפו {percent}%",
+        "errors": {
+          "notFound": "הקורס לא נמצא",
+          "loadFailed": "שגיאה בטעינת הקורס",
+          "markFailed": "שגיאה בסימון השיעור"
+        },
+        "backToCourseList": "חזרה לרשימת הקורסים",
+        "allCourses": "לכל הקורסים",
+        "certificate": {
+          "ready": "סיימת את הקורס! התעודה שלך מוכנה",
+          "view": "לצפייה בתעודה"
+        },
+        "courseProgress": "הושלמו {done} מתוך {total} שיעורים",
+        "minutesShort": "{count} דק׳",
+        "quizPassScore": "בוחן · ציון עובר {score}%",
+        "noLessons": "אין שיעורים בקורס הזה עדיין",
+        "locked": {
+          "title": "נדרש מנוי פעיל לצפייה",
+          "body": "השיעור הזה פתוח למנויים פעילים בלבד",
+          "requestToJoin": "לבקשת הצטרפות"
+        },
+        "pdf": {
+          "body": "שיעור זה כולל קובץ PDF לצפייה",
+          "open": "פתח PDF"
+        },
+        "textLesson": "שיעור טקסט",
+        "contentUnavailable": "התוכן של השיעור הזה עדיין לא זמין",
+        "minutes": "{count} דקות",
+        "markComplete": "סמן כהושלם"
+      },
+      "detailCoursesPage": {
+        "backToPortal": "חזרה לפורטל",
+        "title": "קורסים מוקלטים",
+        "empty": "אין קורסים זמינים כרגע — שווה לחזור לבדוק",
+        "freeLesson": "שיעור חינם",
+        "lessonCount": "{count} שיעורים"
+      },
+      "cDetailLayout": {
+        "metaTitle": "פורטל חברים",
+        "metaTitleWithBusiness": "{business} — פורטל חברים",
+        "metaDescription": "פורטל החברים של {business} — שיעורים חיים, קורסים מוקלטים ומנוי"
+      },
+      "detailLoginPage": {
+        "backToPortal": "חזרה לפורטל",
+        "errors": {
+          "invalidEmail": "כתובת אימייל לא תקינה",
+          "tooManyRequests": "יותר מדי ניסיונות — נסו שוב בעוד כמה דקות",
+          "sendFailed": "שגיאה בשליחת הקוד",
+          "sendNetwork": "שגיאה בשליחת הקוד — בדקו את החיבור לרשת",
+          "codeLength": "יש להזין קוד בן 6 ספרות",
+          "nameRequired": "יש להזין שם מלא",
+          "phoneInvalid": "מספר טלפון לא תקין (05X-XXXXXXX)",
+          "tooManyAttempts": "יותר מדי ניסיונות — בקשו קוד חדש",
+          "invalidCode": "קוד שגוי או שפג תוקפו — נסו שוב",
+          "verifyNetwork": "שגיאה באימות — בדקו את החיבור לרשת"
+        },
+        "deviceNotice": {
+          "one": "נותקת ממכשיר אחר — חשבון זה מוגבל למספר מכשירים",
+          "many": "נותקת מ-{count} מכשירים אחרים — חשבון זה מוגבל למספר מכשירים"
+        },
+        "email": {
+          "title": "התחברות לפורטל",
+          "subtitle": "נשלח לך קוד חד-פעמי למייל — בלי סיסמאות",
+          "label": "כתובת אימייל",
+          "submit": "שלח קוד"
+        },
+        "code": {
+          "title": "הזינו את הקוד",
+          "sentTo": "שלחנו קוד בן 6 ספרות אל <ltr>{email}</ltr>",
+          "submit": "אימות",
+          "resendIn": "אפשר לבקש קוד חדש בעוד {count} שניות",
+          "resend": "לא קיבלתי — שלחו קוד חדש",
+          "changeEmail": "שינוי כתובת אימייל"
+        },
+        "profile": {
+          "title": "נעים להכיר!",
+          "subtitle": "עוד רגע מסיימים — נשארו רק שם וטלפון",
+          "nameLabel": "שם מלא",
+          "namePlaceholder": "השם שלך",
+          "phoneLabel": "טלפון נייד",
+          "submit": "סיום והתחברות"
+        }
+      }
+    }
+  },
+  "en": {
+    "portal": {
+      "portalUi": {
+        "membership": {
+          "active": "Active membership",
+          "validUntil": "until {date}",
+          "pending": "Awaiting business approval",
+          "suspended": "Membership paused",
+          "expired": "Membership ended"
+        }
+      },
+      "detailClassesPage": {
+        "backToPortal": "Back to portal",
+        "title": "Live classes",
+        "membersOnly": "Class registration is open to active members only.",
+        "requestToJoin": "Request to join",
+        "empty": "No upcoming classes right now — check back soon",
+        "status": {
+          "registered": "Registered",
+          "waitlist": "On the waitlist"
+        },
+        "durationMinutes": "{count} min",
+        "fullWaitlist": "Full — waitlist",
+        "spotsLeft": "{count, plural, one {# spot left} other {# spots left}}",
+        "joinZoom": "Join Zoom",
+        "actions": {
+          "joinWaitlist": "Join the waitlist",
+          "register": "Register",
+          "cancelRegistration": "Cancel registration"
+        },
+        "confirmCancel": "Cancel your registration for \"{title}\"?",
+        "toasts": {
+          "registerError": "Couldn't register for the class",
+          "waitlisted": "The class is full — you're on the waitlist",
+          "registered": "You're registered!",
+          "cancelError": "Couldn't cancel the registration",
+          "canceled": "Registration canceled"
+        }
+      },
+      "coursesDetailPage": {
+        "completed": "Completed ✓",
+        "watchedPercent": "Watched {percent}%",
+        "errors": {
+          "notFound": "Course not found",
+          "loadFailed": "Couldn't load the course",
+          "markFailed": "Couldn't mark the lesson"
+        },
+        "backToCourseList": "Back to the course list",
+        "allCourses": "All courses",
+        "certificate": {
+          "ready": "You finished the course! Your certificate is ready",
+          "view": "View certificate"
+        },
+        "courseProgress": "{done} of {total} lessons completed",
+        "minutesShort": "{count} min",
+        "quizPassScore": "Quiz · passing score {score}%",
+        "noLessons": "This course has no lessons yet",
+        "locked": {
+          "title": "Active membership required",
+          "body": "This lesson is open to active members only",
+          "requestToJoin": "Request to join"
+        },
+        "pdf": {
+          "body": "This lesson includes a PDF file",
+          "open": "Open PDF"
+        },
+        "textLesson": "Text lesson",
+        "contentUnavailable": "This lesson's content isn't available yet",
+        "minutes": "{count} minutes",
+        "markComplete": "Mark as completed"
+      },
+      "detailCoursesPage": {
+        "backToPortal": "Back to portal",
+        "title": "Recorded courses",
+        "empty": "No courses available right now — check back soon",
+        "freeLesson": "Free lesson",
+        "lessonCount": "{count, plural, one {# lesson} other {# lessons}}"
+      },
+      "cDetailLayout": {
+        "metaTitle": "Members portal",
+        "metaTitleWithBusiness": "{business} — Members portal",
+        "metaDescription": "{business}'s members portal — live classes, recorded courses and membership"
+      },
+      "detailLoginPage": {
+        "backToPortal": "Back to portal",
+        "errors": {
+          "invalidEmail": "Invalid email address",
+          "tooManyRequests": "Too many attempts — try again in a few minutes",
+          "sendFailed": "Couldn't send the code",
+          "sendNetwork": "Couldn't send the code — check your connection",
+          "codeLength": "Enter the 6-digit code",
+          "nameRequired": "Enter your full name",
+          "phoneInvalid": "Invalid phone number (05X-XXXXXXX)",
+          "tooManyAttempts": "Too many attempts — request a new code",
+          "invalidCode": "Wrong or expired code — try again",
+          "verifyNetwork": "Verification failed — check your connection"
+        },
+        "deviceNotice": {
+          "one": "You were signed out of another device — this account is limited to a few devices",
+          "many": "You were signed out of {count} other devices — this account is limited to a few devices"
+        },
+        "email": {
+          "title": "Sign in to the portal",
+          "subtitle": "We'll email you a one-time code — no passwords",
+          "label": "Email address",
+          "submit": "Send code"
+        },
+        "code": {
+          "title": "Enter the code",
+          "sentTo": "We sent a 6-digit code to <ltr>{email}</ltr>",
+          "submit": "Verify",
+          "resendIn": "You can request a new code in {count} seconds",
+          "resend": "Didn't get it? Send a new code",
+          "changeEmail": "Change email address"
+        },
+        "profile": {
+          "title": "Nice to meet you!",
+          "subtitle": "Almost done — just your name and phone",
+          "nameLabel": "Full name",
+          "namePlaceholder": "Your name",
+          "phoneLabel": "Mobile phone",
+          "submit": "Finish and sign in"
+        }
+      }
+    }
+  }
+}

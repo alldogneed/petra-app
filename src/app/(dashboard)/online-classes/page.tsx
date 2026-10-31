@@ -15,6 +15,7 @@ import {
   ExternalLink,
   Settings,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { cn, fetchJSON } from "@/lib/utils";
 import { PageTitle } from "@/components/ui/PageTitle";
 import { TierGate } from "@/components/paywall/TierGate";
@@ -35,24 +36,25 @@ import {
 
 type TabId = "classes" | "courses" | "memberships" | "reports" | "certificates" | "questions" | "branding";
 
-const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
-  { id: "classes", label: "שיעורים חיים", icon: <Video className="w-4 h-4" /> },
-  { id: "courses", label: "קורסים", icon: <BookOpen className="w-4 h-4" /> },
-  { id: "memberships", label: "מנויים", icon: <UserCheck className="w-4 h-4" /> },
-  { id: "reports", label: "התקדמות", icon: <BarChart3 className="w-4 h-4" /> },
-  { id: "certificates", label: "תעודות", icon: <Award className="w-4 h-4" /> },
-  { id: "questions", label: "שאלות", icon: <MessageCircleQuestion className="w-4 h-4" /> },
-  { id: "branding", label: "מיתוג", icon: <Palette className="w-4 h-4" /> },
+const TABS: { id: TabId; icon: React.ReactNode }[] = [
+  { id: "classes", icon: <Video className="w-4 h-4" /> },
+  { id: "courses", icon: <BookOpen className="w-4 h-4" /> },
+  { id: "memberships", icon: <UserCheck className="w-4 h-4" /> },
+  { id: "reports", icon: <BarChart3 className="w-4 h-4" /> },
+  { id: "certificates", icon: <Award className="w-4 h-4" /> },
+  { id: "questions", icon: <MessageCircleQuestion className="w-4 h-4" /> },
+  { id: "branding", icon: <Palette className="w-4 h-4" /> },
 ];
 
 export default function OnlineClassesPage() {
+  const t = useTranslations("onlineClasses.onlineClassesPage");
   return (
     <>
-      <PageTitle title="שיעורים אונליין" />
+      <PageTitle title={t("title")} />
       <TierGate
         feature="online_classes"
-        title="שיעורים אונליין"
-        description="פורטל חברים ממותג עם שיעורים חיים בזום וקורסים מוקלטים"
+        title={t("title")}
+        description={t("tierGateDescription")}
       >
         <OnlineClassesContent />
       </TierGate>
@@ -61,6 +63,7 @@ export default function OnlineClassesPage() {
 }
 
 function OnlineClassesContent() {
+  const t = useTranslations("onlineClasses.onlineClassesPage");
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<TabId>("classes");
   const slug = user?.businessSlug || null;
@@ -100,28 +103,32 @@ function OnlineClassesContent() {
 
   const stats = [
     {
-      label: "שיעורים קרובים",
+      key: "upcomingClasses",
+      label: t("stats.upcomingClasses"),
       value: upcomingClasses,
       color: "bg-orange-50 text-orange-600",
       iconBg: "bg-orange-100",
       icon: <Video className="w-5 h-5" />,
     },
     {
-      label: "קורסים שפורסמו",
+      key: "publishedCourses",
+      label: t("stats.publishedCourses"),
       value: publishedCourses,
       color: "bg-blue-50 text-blue-600",
       iconBg: "bg-blue-100",
       icon: <BookOpen className="w-5 h-5" />,
     },
     {
-      label: "מנויים פעילים",
+      key: "activeMembers",
+      label: t("stats.activeMembers"),
       value: activeMembers,
       color: "bg-green-50 text-green-600",
       iconBg: "bg-green-100",
       icon: <UserCheck className="w-5 h-5" />,
     },
     {
-      label: "ממתינים לאישור",
+      key: "pendingMembers",
+      label: t("stats.pendingMembers"),
       value: pendingMembers,
       color: "bg-amber-50 text-amber-600",
       iconBg: "bg-amber-100",
@@ -136,7 +143,7 @@ function OnlineClassesContent() {
         <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center">
           <MonitorPlay className="w-5 h-5 text-brand-500" />
         </div>
-        <h1 className="page-title">שיעורים אונליין</h1>
+        <h1 className="page-title">{t("title")}</h1>
         <div className="flex items-center gap-2 ms-auto">
           {slug ? (
             <a
@@ -146,12 +153,12 @@ function OnlineClassesContent() {
               className="btn-secondary text-sm"
             >
               <ExternalLink className="w-4 h-4" />
-              צפה בפורטל
+              {t("viewPortal")}
             </a>
           ) : (
-            <Link href="/settings" className="btn-secondary text-sm" title="הגדר כתובת (slug) לעסק בהגדרות כדי לפתוח את הפורטל">
+            <Link href="/settings" className="btn-secondary text-sm" title={t("setPortalAddressHint")}>
               <Settings className="w-4 h-4" />
-              הגדר כתובת לפורטל
+              {t("setPortalAddress")}
             </Link>
           )}
         </div>
@@ -160,7 +167,7 @@ function OnlineClassesContent() {
       {/* Stats bar */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         {stats.map((stat) => (
-          <div key={stat.label} className={cn("card p-4 flex items-center gap-3", stat.color)}>
+          <div key={stat.key} className={cn("card p-4 flex items-center gap-3", stat.color)}>
             <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center", stat.iconBg)}>
               {stat.icon}
             </div>
@@ -186,7 +193,7 @@ function OnlineClassesContent() {
             )}
           >
             {tab.icon}
-            {tab.label}
+            {t(`tabs.${tab.id}`)}
             {tab.id === "memberships" && pendingMembers > 0 && (
               <span
                 className={cn(

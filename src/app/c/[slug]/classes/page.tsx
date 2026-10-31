@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { toast } from "sonner"
+import { useLocale, useTranslations } from "next-intl"
+import { localeFromBusiness } from "@/lib/locale"
 import { ArrowRight, Calendar, Clock, Users, Video, UserRound } from "lucide-react"
 import {
   PortalButton,
@@ -25,22 +27,24 @@ type PortalClass = {
   zoomLink: string | null
 }
 
-function formatDateParts(iso: string) {
+function formatDateParts(iso: string, locale: string) {
   const d = new Date(iso)
   return {
-    date: d.toLocaleDateString("he-IL", {
+    date: d.toLocaleDateString(locale, {
       weekday: "long",
       day: "numeric",
       month: "long",
       year: "numeric",
     }),
-    time: d.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" }),
+    time: d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }),
   }
 }
 
 export default function PortalClassesPage({ params }: { params: { slug: string } }) {
   const { slug } = params
   const router = useRouter()
+  const t = useTranslations("portal.detailClassesPage")
+  const locale = localeFromBusiness({ locale: useLocale() })
 
   const [classes, setClasses] = useState<PortalClass[] | null>(null)
   const [membership, setMembership] = useState<PortalMembership>(null)
@@ -83,27 +87,27 @@ export default function PortalClassesPage({ params }: { params: { slug: string }
         })
         const d = await res.json().catch(() => ({}))
         if (!res.ok) {
-          toast.error(d.error ?? "שגיאה בהרשמה לשיעור")
+          toast.error(d.error ?? t("toasts.registerError"))
           return
         }
         if (d.status === "waitlist") {
-          toast("השיעור מלא — נרשמת לרשימת ההמתנה")
+          toast(t("toasts.waitlisted"))
         } else {
-          toast.success("נרשמת לשיעור!")
+          toast.success(t("toasts.registered"))
         }
         await loadClasses()
       } catch {
-        toast.error("שגיאה בהרשמה לשיעור")
+        toast.error(t("toasts.registerError"))
       } finally {
         setBusyId(null)
       }
     },
-    [slug, loadClasses]
+    [slug, loadClasses, t]
   )
 
   const cancel = useCallback(
     async (cls: PortalClass) => {
-      if (!window.confirm(`לבטל את ההרשמה לשיעור "${cls.title}"?`)) return
+      if (!window.confirm(t("confirmCancel", { title: cls.title }))) return
       setBusyId(cls.id)
       try {
         const res = await fetch(`/api/portal/${slug}/classes/${cls.id}/cancel`, {
@@ -111,18 +115,18 @@ export default function PortalClassesPage({ params }: { params: { slug: string }
         })
         const d = await res.json().catch(() => ({}))
         if (!res.ok) {
-          toast.error(d.error ?? "שגיאה בביטול ההרשמה")
+          toast.error(d.error ?? t("toasts.cancelError"))
           return
         }
-        toast.success("ההרשמה בוטלה")
+        toast.success(t("toasts.canceled"))
         await loadClasses()
       } catch {
-        toast.error("שגיאה בביטול ההרשמה")
+        toast.error(t("toasts.cancelError"))
       } finally {
         setBusyId(null)
       }
     },
-    [slug, loadClasses]
+    [slug, loadClasses, t]
   )
 
   if (classes === null || !meLoaded) return <PortalSpinner />
@@ -133,17 +137,17 @@ export default function PortalClassesPage({ params }: { params: { slug: string }
         href={`/c/${slug}`}
         className="inline-flex items-center gap-1 text-sm text-petra-muted hover:text-petra-text transition-colors mb-3"
       >
-        <ArrowRight className="w-4 h-4" />
-        חזרה לפורטל
+        <ArrowRight className="w-4 h-4 ltr:-scale-x-100" />
+        {t("backToPortal")}
       </Link>
 
-      <h1 className="text-xl font-bold text-petra-text mb-4">שיעורים חיים</h1>
+      <h1 className="text-xl font-bold text-petra-text mb-4">{t("title")}</h1>
 
       {!membershipActive && (
         <div className="mb-4 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-sm text-amber-800">
-          הרשמה לשיעורים פתוחה למנויים פעילים בלבד.{" "}
+          {t("membersOnly")}{" "}
           <Link href={`/c/${slug}`} className="font-semibold underline underline-offset-2">
-            לבקשת הצטרפות
+            {t("requestToJoin")}
           </Link>
         </div>
       )}
@@ -151,12 +155,12 @@ export default function PortalClassesPage({ params }: { params: { slug: string }
       {classes.length === 0 ? (
         <div className="bg-white rounded-2xl shadow-card border border-petra-border p-8 text-center">
           <Video className="w-8 h-8 text-slate-300 mx-auto mb-3" />
-          <p className="text-sm text-petra-muted">אין שיעורים קרובים כרגע — שווה לחזור לבדוק</p>
+          <p className="text-sm text-petra-muted">{t("empty")}</p>
         </div>
       ) : (
         <div className="space-y-4">
           {classes.map((cls) => {
-            const { date, time } = formatDateParts(cls.startsAt)
+            const { date, time } = formatDateParts(cls.startsAt, locale)
             const spotsLeft = Math.max(0, cls.capacity - cls.spotsTaken)
             const isFull = spotsLeft === 0
             const busy = busyId === cls.id
@@ -169,12 +173,12 @@ export default function PortalClassesPage({ params }: { params: { slug: string }
                   <h2 className="font-bold text-petra-text">{cls.title}</h2>
                   {cls.myStatus === "registered" && (
                     <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex-shrink-0 font-medium">
-                      רשום/ה
+                      {t("status.registered")}
                     </span>
                   )}
                   {cls.myStatus === "waitlist" && (
                     <span className="text-xs px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 flex-shrink-0 font-medium">
-                      ברשימת המתנה
+                      {t("status.waitlist")}
                     </span>
                   )}
                 </div>
@@ -193,7 +197,7 @@ export default function PortalClassesPage({ params }: { params: { slug: string }
                   {cls.durationMin != null && (
                     <p className="flex items-center gap-2">
                       <Clock className="w-4 h-4 text-petra-muted flex-shrink-0" />
-                      {cls.durationMin} דקות
+                      {t("durationMinutes", { count: cls.durationMin })}
                     </p>
                   )}
                   {cls.instructorName && (
@@ -205,9 +209,9 @@ export default function PortalClassesPage({ params }: { params: { slug: string }
                   <p className="flex items-center gap-2">
                     <Users className="w-4 h-4 text-petra-muted flex-shrink-0" />
                     {isFull ? (
-                      <span className="text-amber-700 font-medium">מלא — רשימת המתנה</span>
+                      <span className="text-amber-700 font-medium">{t("fullWaitlist")}</span>
                     ) : (
-                      `נותרו ${spotsLeft} מקומות`
+                      t("spotsLeft", { count: spotsLeft })
                     )}
                   </p>
                 </div>
@@ -222,13 +226,13 @@ export default function PortalClassesPage({ params }: { params: { slug: string }
                       className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-white text-sm font-semibold hover:brightness-95 transition-all"
                     >
                       <Video className="w-4 h-4" />
-                      הצטרף לזום
+                      {t("joinZoom")}
                     </a>
                   )}
 
                   {cls.myStatus === null && membershipActive && (
                     <PortalButton className="w-full" loading={busy} onClick={() => register(cls)}>
-                      {isFull ? "הרשמה לרשימת ההמתנה" : "הרשמה"}
+                      {isFull ? t("actions.joinWaitlist") : t("actions.register")}
                     </PortalButton>
                   )}
 
@@ -242,7 +246,7 @@ export default function PortalClassesPage({ params }: { params: { slug: string }
                       {busy && (
                         <span className="w-4 h-4 border-2 border-slate-300 border-t-slate-500 rounded-full animate-spin" />
                       )}
-                      ביטול הרשמה
+                      {t("actions.cancelRegistration")}
                     </button>
                   )}
                 </div>

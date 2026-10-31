@@ -611,7 +611,7 @@ function ServiceDogProfilePageContent() {
                 <div className="text-right">
                   <span className="text-xs text-petra-muted">סוג שירות</span>
                   <p className="text-sm font-semibold mt-0.5">
-                    {SERVICE_DOG_TYPES.find((t) => t.id.toLowerCase() === (dog.serviceType || "").toLowerCase())?.label || dog.serviceType}
+                    {SERVICE_DOG_TYPES.find((tx) => tx.id.toLowerCase() === (dog.serviceType || "").toLowerCase())?.label || dog.serviceType}
                   </p>
                 </div>
               )}
@@ -2051,7 +2051,7 @@ const LEGACY_TEST_TYPE_LABELS: Record<string, string> = {
 };
 const TEST_TYPE_MAP: Record<string, string> = {
   ...LEGACY_TEST_TYPE_LABELS,
-  ...Object.fromEntries(TEST_TYPES.map((t) => [t.id, t.label])),
+  ...Object.fromEntries(TEST_TYPES.map((tx) => [tx.id, tx.label])),
 };
 
 // ─── Simba Public Space Fitness Test tasks ────────────────────────────────────
@@ -2111,9 +2111,9 @@ const SIMBA_FUNCTIONAL_TASKS = [
 const SIMBA_FUNCTIONAL_PASS_THRESHOLD = 3;
 
 const SIMBA_TASK_MAP_PUBLIC = Object.fromEntries(
-  [...SIMBA_PUBLIC_SPACE_TASKS, ...SIMBA_PUBLIC_SPACE_REQUIREMENTS].map((t) => [t.id, t.label])
+  [...SIMBA_PUBLIC_SPACE_TASKS, ...SIMBA_PUBLIC_SPACE_REQUIREMENTS].map((tx) => [tx.id, tx.label])
 );
-const SIMBA_TASK_MAP_FUNCTIONAL = Object.fromEntries(SIMBA_FUNCTIONAL_TASKS.map((t) => [t.id, t.label]));
+const SIMBA_TASK_MAP_FUNCTIONAL = Object.fromEntries(SIMBA_FUNCTIONAL_TASKS.map((tx) => [tx.id, tx.label]));
 const SIMBA_TASK_MAP_COMBINED = { ...SIMBA_TASK_MAP_PUBLIC, ...SIMBA_TASK_MAP_FUNCTIONAL };
 
 const OVERALL_RESULT_MAP: Record<string, { label: string; color: string }> = {
@@ -2158,20 +2158,20 @@ function TrainingTestsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string
 
   const deleteTest = (testId: string) => {
     if (!confirm("למחוק את המבחן?")) return;
-    saveMutation.mutate({ targetDogId: dogId, newTests: tests.filter((t) => t.id !== testId) });
+    saveMutation.mutate({ targetDogId: dogId, newTests: tests.filter((tx) => tx.id !== testId) });
   };
 
-  const passCount = tests.filter((t) => t.overallResult === "PASS" || t.overallResult === "CONDITIONAL_PASS").length;
-  const failCount = tests.filter((t) => t.overallResult === "FAIL").length;
+  const passCount = tests.filter((tx) => tx.overallResult === "PASS" || tx.overallResult === "CONDITIONAL_PASS").length;
+  const failCount = tests.filter((tx) => tx.overallResult === "FAIL").length;
 
   const today = new Date();
   const overdueRenewals = tests.filter(
-    (t) => t.testType === "ANNUAL_RETEST" && t.nextRenewalDate && new Date(t.nextRenewalDate) < today
+    (tx) => tx.testType === "ANNUAL_RETEST" && tx.nextRenewalDate && new Date(tx.nextRenewalDate) < today
   );
   const upcomingRenewals = tests.filter(
-    (t) => t.testType === "ANNUAL_RETEST" && t.nextRenewalDate &&
-      new Date(t.nextRenewalDate) >= today &&
-      new Date(t.nextRenewalDate) < new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000)
+    (tx) => tx.testType === "ANNUAL_RETEST" && tx.nextRenewalDate &&
+      new Date(tx.nextRenewalDate) >= today &&
+      new Date(tx.nextRenewalDate) < new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000)
   );
 
   return (
@@ -2182,7 +2182,7 @@ function TrainingTestsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string
           <div>
             <p className="text-sm font-semibold text-red-700">בחינה שנתית מחזורית פג תוקפה</p>
             <p className="text-xs text-red-600">
-              {overdueRenewals.map((t) => `${formatDate(t.nextRenewalDate!)} (${formatDate(t.date)})`).join(" · ")}
+              {overdueRenewals.map((tx) => `${formatDate(tx.nextRenewalDate!)} (${formatDate(tx.date)})`).join(" · ")}
             </p>
           </div>
         </div>
@@ -2193,7 +2193,7 @@ function TrainingTestsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string
           <div>
             <p className="text-sm font-semibold text-amber-700">חידוש בחינה שנתית מתקרב</p>
             <p className="text-xs text-amber-600">
-              {upcomingRenewals.map((t) => `חידוש ב-${formatDate(t.nextRenewalDate!)}`).join(" · ")}
+              {upcomingRenewals.map((tx) => `חידוש ב-${formatDate(tx.nextRenewalDate!)}`).join(" · ")}
             </p>
           </div>
         </div>
@@ -2430,7 +2430,7 @@ function TrainingTestsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string
           onSave={(updated) => {
             saveMutation.mutate({
               targetDogId: dogId,
-              newTests: tests.map((t) => (t.id === updated.id ? updated : t)),
+              newTests: tests.map((tx) => (tx.id === updated.id ? updated : tx)),
             });
             setEditingTest(null);
           }}
@@ -2456,7 +2456,7 @@ function EditTrainingTestModal({
   const [testType, setTestType] = useState(test.testType);
 
   // Offer the current type even if it's a legacy one no longer creatable
-  const typeOptions = TEST_TYPES.some((t) => t.id === test.testType)
+  const typeOptions = TEST_TYPES.some((tx) => tx.id === test.testType)
     ? TEST_TYPES
     : [{ id: test.testType, label: TEST_TYPE_MAP[test.testType] || test.testType }, ...TEST_TYPES];
 
@@ -2483,7 +2483,7 @@ function EditTrainingTestModal({
           <div>
             <label className="label">סוג מבחן</label>
             <select value={testType} onChange={(e) => setTestType(e.target.value)} className="input w-full">
-              {typeOptions.map((t) => (<option key={t.id} value={t.id}>{t.label}</option>))}
+              {typeOptions.map((tx) => (<option key={tx.id} value={tx.id}>{tx.label}</option>))}
             </select>
           </div>
           <div>
@@ -2540,16 +2540,16 @@ function AddTrainingTestModal({
   const initSimbaItems = (type: string) => {
     if (type === "SIMBA_PUBLIC_SPACE") {
       setTestItems([
-        ...SIMBA_PUBLIC_SPACE_TASKS.map((t) => ({ taskId: t.id, passed: false, notes: "" })),
-        ...SIMBA_PUBLIC_SPACE_REQUIREMENTS.map((t) => ({ taskId: t.id, passed: false, notes: "" })),
+        ...SIMBA_PUBLIC_SPACE_TASKS.map((tx) => ({ taskId: tx.id, passed: false, notes: "" })),
+        ...SIMBA_PUBLIC_SPACE_REQUIREMENTS.map((tx) => ({ taskId: tx.id, passed: false, notes: "" })),
       ]);
     } else if (type === "SIMBA_FUNCTIONAL_TASKS") {
-      setTestItems(SIMBA_FUNCTIONAL_TASKS.map((t) => ({ taskId: t.id, passed: false, notes: "" })));
+      setTestItems(SIMBA_FUNCTIONAL_TASKS.map((tx) => ({ taskId: tx.id, passed: false, notes: "" })));
     } else if (type === "SIMBA_COMBINED") {
       setTestItems([
-        ...SIMBA_PUBLIC_SPACE_TASKS.map((t) => ({ taskId: t.id, passed: false, notes: "" })),
-        ...SIMBA_PUBLIC_SPACE_REQUIREMENTS.map((t) => ({ taskId: t.id, passed: false, notes: "" })),
-        ...SIMBA_FUNCTIONAL_TASKS.map((t) => ({ taskId: t.id, passed: false, notes: "" })),
+        ...SIMBA_PUBLIC_SPACE_TASKS.map((tx) => ({ taskId: tx.id, passed: false, notes: "" })),
+        ...SIMBA_PUBLIC_SPACE_REQUIREMENTS.map((tx) => ({ taskId: tx.id, passed: false, notes: "" })),
+        ...SIMBA_FUNCTIONAL_TASKS.map((tx) => ({ taskId: tx.id, passed: false, notes: "" })),
       ]);
     }
   };
@@ -2657,7 +2657,7 @@ function AddTrainingTestModal({
             <div>
               <label className="label">סוג מבחן</label>
               <select value={testType} onChange={(e) => handleTestTypeChange(e.target.value)} className="input w-full">
-                {TEST_TYPES.map((t) => (<option key={t.id} value={t.id}>{t.label}</option>))}
+                {TEST_TYPES.map((tx) => (<option key={tx.id} value={tx.id}>{tx.label}</option>))}
               </select>
             </div>
             <div>
@@ -5709,7 +5709,7 @@ function EquipmentTab({ dogId }: { dogId: string }) {
           <div className="divide-y">
             {activeVests.map((vest) => {
               const cond = VEST_CONDITIONS.find((c) => c.id === vest.condition);
-              const type = VEST_TYPES.find((t) => t.id === vest.vestType);
+              const type = VEST_TYPES.find((tx) => tx.id === vest.vestType);
               return (
                 <div key={vest.id} className="p-4 flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
@@ -5752,7 +5752,7 @@ function EquipmentTab({ dogId }: { dogId: string }) {
           <div className="space-y-2 mt-3">
             {retiredVests.map((vest) => {
               const cond = VEST_CONDITIONS.find((c) => c.id === vest.condition);
-              const type = VEST_TYPES.find((t) => t.id === vest.vestType);
+              const type = VEST_TYPES.find((tx) => tx.id === vest.vestType);
               return (
                 <div key={vest.id} className="flex items-center gap-3 text-sm opacity-60">
                   <Tag className="w-4 h-4 text-petra-muted" />
@@ -5778,7 +5778,7 @@ function AddVestForm({ onSave, onCancel, isSaving }: { onSave: (d: Record<string
         <div><label className="label text-xs">סוג</label>
           <select className="input w-full text-sm" value={form.vestType} onChange={f("vestType")}>
             <option value="">בחר...</option>
-            {VEST_TYPES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+            {VEST_TYPES.map((tx) => <option key={tx.id} value={tx.id}>{tx.label}</option>)}
           </select>
         </div>
         <div><label className="label text-xs">מידה</label>
@@ -6568,9 +6568,9 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
   // Enter edit mode: initialize drafts from current planned dates
   const enterEditMode = (currentSection: Record<string, Array<{ planned: string | null; done: string | null }>>) => {
     const drafts: Record<string, string[]> = {};
-    effectiveTreatments.forEach(t => {
-      drafts[t.key] = Array.from({ length: t.doses }, (_, i) => {
-        const planned = currentSection[t.key]?.[i]?.planned ?? "";
+    effectiveTreatments.forEach(tx => {
+      drafts[tx.key] = Array.from({ length: tx.doses }, (_, i) => {
+        const planned = currentSection[tx.key]?.[i]?.planned ?? "";
         // Adults: "YYYY-MM" → input[type=month] value is "YYYY-MM" ✓
         // Puppies: ISO date → input[type=date] value is "YYYY-MM-DD" ✓
         return planned;
@@ -6583,10 +6583,10 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
   // Build updated plan from drafts, preserving existing done dates
   const buildPlanFromDrafts = (currentSection: Record<string, Array<{ planned: string | null; done: string | null }>>): VaccinePlan => {
     const updatedSection: Record<string, Array<{ planned: string | null; done: string | null }>> = {};
-    effectiveTreatments.forEach(t => {
-      updatedSection[t.key] = Array.from({ length: t.doses }, (_, i) => ({
-        planned: editDrafts[t.key]?.[i] || null,
-        done: currentSection[t.key]?.[i]?.done ?? null,
+    effectiveTreatments.forEach(tx => {
+      updatedSection[tx.key] = Array.from({ length: tx.doses }, (_, i) => ({
+        planned: editDrafts[tx.key]?.[i] || null,
+        done: currentSection[tx.key]?.[i]?.done ?? null,
       }));
     });
     if (effectiveIsPuppy) {
@@ -6643,7 +6643,7 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
             // Enter edit mode immediately after creating
             const emptyEntries = emptySection as Record<string, Array<{ planned: string | null; done: string | null }>>;
             const drafts: Record<string, string[]> = {};
-            treatments.forEach(t => { drafts[t.key] = Array(t.doses).fill(""); });
+            treatments.forEach(tx => { drafts[tx.key] = Array(tx.doses).fill(""); });
             setEditDrafts(drafts);
             savePlanMutation.mutate(newPlan, {
               onSuccess: () => {
@@ -6666,8 +6666,8 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
 
   // Count status
   let overdueCount = 0, soonCount = 0;
-  effectiveTreatments.forEach(t => {
-    entries[t.key]?.forEach(e => {
+  effectiveTreatments.forEach(tx => {
+    entries[tx.key]?.forEach(e => {
       const s = getCellStatus(e);
       if (s === "overdue") overdueCount++;
       if (s === "soon") soonCount++;
@@ -6751,10 +6751,10 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
           <thead>
             <tr className="border-b border-slate-100 bg-slate-50/50">
               <th className="text-right p-3 font-semibold text-petra-text w-32">טיפול</th>
-              {effectiveTreatments.map(t =>
-                Array.from({ length: t.doses }, (_, i) => (
-                  <th key={`${t.key}-${i}`} className="text-center p-3 font-semibold text-petra-text min-w-[120px]">
-                    {t.doses === 1 ? t.label : `${t.label} ${i + 1}`}
+              {effectiveTreatments.map(tx =>
+                Array.from({ length: tx.doses }, (_, i) => (
+                  <th key={`${tx.key}-${i}`} className="text-center p-3 font-semibold text-petra-text min-w-[120px]">
+                    {tx.doses === 1 ? tx.label : `${tx.label} ${i + 1}`}
                   </th>
                 ))
               )}
@@ -6766,22 +6766,22 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
               <td className="p-3 text-xs font-medium text-petra-muted">
                 {isEditing ? "תאריך מתוכנן ✏️" : "תאריך מתוכנן"}
               </td>
-              {effectiveTreatments.map(t =>
-                Array.from({ length: t.doses }, (_, i) => {
-                  const entry = entries[t.key]?.[i] ?? null;
+              {effectiveTreatments.map(tx =>
+                Array.from({ length: tx.doses }, (_, i) => {
+                  const entry = entries[tx.key]?.[i] ?? null;
                   if (isEditing) {
-                    const draftVal = editDrafts[t.key]?.[i] ?? "";
+                    const draftVal = editDrafts[tx.key]?.[i] ?? "";
                     const setDraft = (v: string) => {
                       setEditDrafts(prev => {
                         const next = { ...prev };
-                        if (!next[t.key]) next[t.key] = Array(t.doses).fill("");
-                        next[t.key] = [...next[t.key]];
-                        next[t.key][i] = v;
+                        if (!next[tx.key]) next[tx.key] = Array(tx.doses).fill("");
+                        next[tx.key] = [...next[tx.key]];
+                        next[tx.key][i] = v;
                         return next;
                       });
                     };
                     return (
-                      <td key={`${t.key}-${i}-edit`} className="p-2 text-center">
+                      <td key={`${tx.key}-${i}-edit`} className="p-2 text-center">
                         {effectiveIsPuppy
                           ? <HebrewDatePicker value={draftVal} onChange={setDraft} />
                           : <HebrewMonthPicker value={draftVal} onChange={setDraft} />
@@ -6790,7 +6790,7 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
                     );
                   }
                   return (
-                    <td key={`${t.key}-${i}-planned`} className="p-2 text-center text-xs text-petra-muted">
+                    <td key={`${tx.key}-${i}-planned`} className="p-2 text-center text-xs text-petra-muted">
                       {entry?.planned ? formatPlannedDisplay(entry.planned) : <span className="text-slate-300">—</span>}
                     </td>
                   );
@@ -6802,15 +6802,15 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
             {!isEditing && (
               <tr className="border-b border-slate-50">
                 <td className="p-3 font-medium text-petra-text text-xs">סטטוס</td>
-                {effectiveTreatments.map(t =>
-                  Array.from({ length: t.doses }, (_, i) => {
-                    const entry = entries[t.key]?.[i] ?? null;
+                {effectiveTreatments.map(tx =>
+                  Array.from({ length: tx.doses }, (_, i) => {
+                    const entry = entries[tx.key]?.[i] ?? null;
                     const status = getCellStatus(entry);
-                    const markKey = `${t.key}-${i}`;
+                    const markKey = `${tx.key}-${i}`;
                     const isMarking = markingOpen === markKey;
 
                     return (
-                      <td key={`${t.key}-${i}`} className="p-2 text-center relative">
+                      <td key={`${tx.key}-${i}`} className="p-2 text-center relative">
                         {isMarking && <div className="h-8" />}
                         {isMarking && (
                           <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 bg-white border border-slate-200 rounded-xl shadow-lg p-3 flex flex-col gap-2 min-w-[180px]">
@@ -6825,7 +6825,7 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
                               <button
                                 onClick={() => {
                                   if (!markDate) return;
-                                  markDoneMutation.mutate({ treatmentKey: t.key, index: i, doneDate: markDate });
+                                  markDoneMutation.mutate({ treatmentKey: tx.key, index: i, doneDate: markDate });
                                 }}
                                 className="flex-1 flex items-center justify-center gap-1 py-1 rounded bg-green-500 text-white text-xs hover:bg-green-600"
                               >
@@ -6864,7 +6864,7 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
                                 </button>
                                 <span className="text-slate-300 text-[10px]">|</span>
                                 <button
-                                  onClick={() => notVaccinatedMutation.mutate({ treatmentKey: t.key, index: i, notVaccinated: true })}
+                                  onClick={() => notVaccinatedMutation.mutate({ treatmentKey: tx.key, index: i, notVaccinated: true })}
                                   className="text-[11px] text-slate-400 hover:text-orange-600 font-medium"
                                 >
                                   לא חוסן
@@ -6874,7 +6874,7 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
                             {status === "not_vaccinated" && (
                               <div>
                                 <button
-                                  onClick={() => notVaccinatedMutation.mutate({ treatmentKey: t.key, index: i, notVaccinated: false })}
+                                  onClick={() => notVaccinatedMutation.mutate({ treatmentKey: tx.key, index: i, notVaccinated: false })}
                                   className="text-[11px] text-slate-400 hover:text-red-500 font-medium"
                                 >
                                   בטל
@@ -6884,7 +6884,7 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
                             {status === "done" && entry?.done && (
                               <div>
                                 <button
-                                  onClick={() => markDoneMutation.mutate({ treatmentKey: t.key, index: i, doneDate: null })}
+                                  onClick={() => markDoneMutation.mutate({ treatmentKey: tx.key, index: i, doneDate: null })}
                                   className="text-[11px] text-slate-400 hover:text-red-500 font-medium"
                                 >
                                   בטל
@@ -6918,10 +6918,10 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/50">
                   <th className="text-right p-3 font-semibold text-petra-muted w-32 text-xs">טיפול</th>
-                  {PUPPY_TREATMENTS.map(t =>
-                    Array.from({ length: t.doses }, (_, i) => (
-                      <th key={`puppy-${t.key}-${i}`} className="text-center p-3 font-semibold text-petra-muted min-w-[100px] text-xs">
-                        {t.doses === 1 ? t.label : `${t.label} ${i + 1}`}
+                  {PUPPY_TREATMENTS.map(tx =>
+                    Array.from({ length: tx.doses }, (_, i) => (
+                      <th key={`puppy-${tx.key}-${i}`} className="text-center p-3 font-semibold text-petra-muted min-w-[100px] text-xs">
+                        {tx.doses === 1 ? tx.label : `${tx.label} ${i + 1}`}
                       </th>
                     ))
                   )}
@@ -6930,12 +6930,12 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
               <tbody>
                 <tr className="border-b border-slate-50 bg-slate-50/30">
                   <td className="p-3 text-xs font-medium text-petra-muted">תאריך מתוכנן</td>
-                  {PUPPY_TREATMENTS.map(t =>
-                    Array.from({ length: t.doses }, (_, i) => {
+                  {PUPPY_TREATMENTS.map(tx =>
+                    Array.from({ length: tx.doses }, (_, i) => {
                       const puppySec = vaccinePlan.puppies as Record<string, Array<{ planned: string | null; done: string | null }>>;
-                      const entry = puppySec[t.key]?.[i] ?? null;
+                      const entry = puppySec[tx.key]?.[i] ?? null;
                       return (
-                        <td key={`puppy-${t.key}-${i}-p`} className="p-2 text-center text-xs text-petra-muted">
+                        <td key={`puppy-${tx.key}-${i}-p`} className="p-2 text-center text-xs text-petra-muted">
                           {entry?.planned ? formatPlannedDisplay(entry.planned) : <span className="text-slate-300">—</span>}
                         </td>
                       );
@@ -6944,13 +6944,13 @@ function VaccinationsTab({ dog, dogId }: { dog: ServiceDogDetail; dogId: string 
                 </tr>
                 <tr className="border-b border-slate-50">
                   <td className="p-3 font-medium text-petra-text text-xs">סטטוס</td>
-                  {PUPPY_TREATMENTS.map(t =>
-                    Array.from({ length: t.doses }, (_, i) => {
+                  {PUPPY_TREATMENTS.map(tx =>
+                    Array.from({ length: tx.doses }, (_, i) => {
                       const puppySec = vaccinePlan.puppies as Record<string, Array<{ planned: string | null; done: string | null }>>;
-                      const entry = puppySec[t.key]?.[i] ?? null;
+                      const entry = puppySec[tx.key]?.[i] ?? null;
                       const status = getCellStatus(entry);
                       return (
-                        <td key={`puppy-${t.key}-${i}-s`} className="p-2 text-center">
+                        <td key={`puppy-${tx.key}-${i}-s`} className="p-2 text-center">
                           {entry?.done ? (
                             <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-lg border bg-green-50 text-green-700 border-green-200">
                               ✓ {formatDate(entry.done)}

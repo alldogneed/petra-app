@@ -1,0 +1,316 @@
+{
+  "he": {
+    "onlineClasses": {
+      "studentDossier": {
+        "statuses": {
+          "pending": "ממתין לאישור",
+          "active": "פעיל",
+          "expired": "פג תוקף",
+          "suspended": "מושהה"
+        },
+        "regStatuses": {
+          "registered": "רשום",
+          "waitlist": "רשימת המתנה",
+          "cancelled": "בוטל"
+        },
+        "courseStatus": {
+          "published": "מפורסם",
+          "draft": "טיוטה"
+        },
+        "minutes": "{min} דק'",
+        "lessThanMinute": "פחות מדקה",
+        "notStarted": "טרם התחיל",
+        "inactiveDays": "לא פעיל {days} ימים",
+        "title": "תיק סטודנט",
+        "titleWithName": "תיק סטודנט — {name}",
+        "loadError": "שגיאה בטעינת תיק הסטודנט",
+        "retry": "נסה שוב",
+        "course": {
+          "lessonsProgress": "{completed}/{total} שיעורים",
+          "lastActivity": "פעילות אחרונה: {date}",
+          "hideLessons": "הסתר שיעורים",
+          "showLessons": "הצג {count} שיעורים"
+        },
+        "certificate": {
+          "revoked": "התעודה בוטלה",
+          "issued": "תעודה הונפקה {date}",
+          "manual": "ידני",
+          "verify": "אימות תעודה",
+          "none": "אין תעודה עדיין"
+        },
+        "lesson": {
+          "completed": "הושלם",
+          "watchedOf": "{watched} מתוך {duration}"
+        },
+        "header": {
+          "email": "אימייל:",
+          "phone": "טלפון:",
+          "joined": "הצטרף:",
+          "validUntil": "בתוקף עד:",
+          "standingOrder": "הו\"ק",
+          "paymentNote": "הערת תשלום:"
+        },
+        "stats": {
+          "coursesStarted": "קורסים שהתחיל",
+          "coursesCompleted": "קורסים שהשלים",
+          "certificates": "תעודות",
+          "lastActivity": "פעילות אחרונה",
+          "questionsAsked": "שאלות ששאל"
+        },
+        "sections": {
+          "courses": "קורסים",
+          "noCourses": "אין קורסים להצגה",
+          "questions": "שאלות ששאל",
+          "pendingCount": "{count} ממתינות",
+          "noQuestions": "לא נשאלו שאלות",
+          "liveClasses": "שיעורים חיים"
+        },
+        "question": {
+          "answered": "נענתה · {date}",
+          "awaitingAnswer": "ממתינה לתשובה"
+        }
+      }
+    },
+    "portal": {
+      "cDetailPage": {
+        "loadError": "שגיאה בטעינת העמוד",
+        "requestError": "שגיאה בשליחת הבקשה",
+        "requestSent": "הבקשה נשלחה! העסק יאשר אותה בהקדם",
+        "notFound": {
+          "title": "הפורטל לא נמצא",
+          "body": "ייתכן שהקישור שגוי או שהפורטל אינו פעיל"
+        },
+        "membersPortal": "פורטל חברים",
+        "membership": {
+          "title": "המנוי שלי",
+          "loginHint": "התחברות מהירה עם קוד למייל — בלי סיסמאות",
+          "login": "התחבר",
+          "noMembership": "שלום {name}! עדיין אין לך מנוי אצל {business}",
+          "requestJoin": "בקש הצטרפות",
+          "pay": "לתשלום",
+          "pendingNote": "קיבלנו את הבקשה שלך — נעדכן אותך ברגע שהעסק יאשר אותה"
+        },
+        "classes": {
+          "title": "שיעורים קרובים",
+          "viewAll": "לכל השיעורים",
+          "empty": "אין שיעורים קרובים כרגע",
+          "registered": "רשום/ה",
+          "waitlist": "בהמתנה",
+          "spotsLeft": "נותרו {count}",
+          "full": "מלא"
+        },
+        "courses": {
+          "title": "קורסים מוקלטים",
+          "viewAll": "לכל הקורסים",
+          "empty": "אין קורסים זמינים כרגע",
+          "lessonCount": "{count} שיעורים"
+        },
+        "teaser": {
+          "liveTitle": "שיעורים חיים בזום",
+          "liveBody": "הרשמה לשיעורים חיים עם קישור זום — למנויים בלבד",
+          "coursesTitle": "קורסים מוקלטים",
+          "coursesBody": "ספריית וידאו מלאה עם מעקב התקדמות — למנויים בלבד",
+          "loggedOutHint": "התחברו ובקשו הצטרפות כדי לפתוח את כל התכנים",
+          "pendingHint": "לאחר אישור המנוי כל התכנים ייפתחו אוטומטית"
+        }
+      },
+      "lessonQA": {
+        "loadError": "שגיאה בטעינת השאלות",
+        "tooShort": "השאלה קצרה מדי — לפחות 3 תווים",
+        "tooLong": "השאלה ארוכה מדי — עד 1000 תווים",
+        "sendError": "שגיאה בשליחת השאלה",
+        "title": "שאלות ותשובות",
+        "retry": "נסה שוב",
+        "empty": "אין עדיין שאלות — היו הראשונים לשאול",
+        "me": "אני",
+        "private": "פרטי",
+        "instructorAnswer": "תשובת המדריך",
+        "awaitingAnswer": "ממתין לתשובה",
+        "askLabel": "שאל שאלה",
+        "placeholder": "מה לא ברור בשיעור? כתבו כאן ונחזור אליכם",
+        "privateCheckbox": "רק אני אראה את השאלה",
+        "submit": "שליחת שאלה"
+      },
+      "quizRunner": {
+        "loadError": "שגיאה בטעינת הבוחן",
+        "submitError": "שגיאה בשליחת הבוחן",
+        "notFound": "הבוחן לא נמצא",
+        "retry": "נסה שוב",
+        "result": {
+          "passed": "✓ עברת את הבוחן",
+          "failed": "✗ לא עברת את הבוחן",
+          "summary": "{correct} מתוך {total} תשובות נכונות · ציון עובר: {passScore}%",
+          "previousBest": "ניסיון קודם הטוב ביותר: {score}%",
+          "correctAnswer": "התשובה הנכונה",
+          "yourAnswer": "התשובה שלך"
+        },
+        "form": {
+          "moduleAndPassScore": "{module} · ציון עובר: {passScore}%",
+          "yourBest": "הציון הטוב ביותר שלך: {score}%",
+          "passedSuffix": " — עברת",
+          "canSubmit": "אפשר לשלוח",
+          "answerAll": "יש לענות על כל השאלות כדי לשלוח",
+          "submitting": "שולח...",
+          "submit": "שלח תשובות"
+        }
+      }
+    }
+  },
+  "en": {
+    "onlineClasses": {
+      "studentDossier": {
+        "statuses": {
+          "pending": "Pending approval",
+          "active": "Active",
+          "expired": "Expired",
+          "suspended": "Suspended"
+        },
+        "regStatuses": {
+          "registered": "Registered",
+          "waitlist": "Waitlist",
+          "cancelled": "Canceled"
+        },
+        "courseStatus": {
+          "published": "Published",
+          "draft": "Draft"
+        },
+        "minutes": "{min} min",
+        "lessThanMinute": "Under a minute",
+        "notStarted": "Not started",
+        "inactiveDays": "Inactive for {days} days",
+        "title": "Student file",
+        "titleWithName": "Student file — {name}",
+        "loadError": "Couldn't load the student file",
+        "retry": "Try again",
+        "course": {
+          "lessonsProgress": "{completed}/{total} lessons",
+          "lastActivity": "Last activity: {date}",
+          "hideLessons": "Hide lessons",
+          "showLessons": "{count, plural, one {Show # lesson} other {Show # lessons}}"
+        },
+        "certificate": {
+          "revoked": "Certificate revoked",
+          "issued": "Certificate issued {date}",
+          "manual": "Manual",
+          "verify": "Verify certificate",
+          "none": "No certificate yet"
+        },
+        "lesson": {
+          "completed": "Completed",
+          "watchedOf": "{watched} of {duration}"
+        },
+        "header": {
+          "email": "Email:",
+          "phone": "Phone:",
+          "joined": "Joined:",
+          "validUntil": "Valid until:",
+          "standingOrder": "Recurring",
+          "paymentNote": "Payment note:"
+        },
+        "stats": {
+          "coursesStarted": "Courses started",
+          "coursesCompleted": "Courses completed",
+          "certificates": "Certificates",
+          "lastActivity": "Last activity",
+          "questionsAsked": "Questions asked"
+        },
+        "sections": {
+          "courses": "Courses",
+          "noCourses": "No courses to show",
+          "questions": "Questions asked",
+          "pendingCount": "{count} pending",
+          "noQuestions": "No questions asked",
+          "liveClasses": "Live classes"
+        },
+        "question": {
+          "answered": "Answered · {date}",
+          "awaitingAnswer": "Awaiting answer"
+        }
+      }
+    },
+    "portal": {
+      "cDetailPage": {
+        "loadError": "Couldn't load the page",
+        "requestError": "Couldn't send the request",
+        "requestSent": "Request sent! The business will approve it soon",
+        "notFound": {
+          "title": "Portal not found",
+          "body": "The link may be wrong or the portal may be inactive"
+        },
+        "membersPortal": "Members portal",
+        "membership": {
+          "title": "My membership",
+          "loginHint": "Quick sign-in with an email code — no passwords",
+          "login": "Sign in",
+          "noMembership": "Hi {name}! You don't have a membership with {business} yet",
+          "requestJoin": "Request to join",
+          "pay": "Pay now",
+          "pendingNote": "We got your request — we'll let you know as soon as the business approves it"
+        },
+        "classes": {
+          "title": "Upcoming classes",
+          "viewAll": "All classes",
+          "empty": "No upcoming classes right now",
+          "registered": "Registered",
+          "waitlist": "Waitlisted",
+          "spotsLeft": "{count} left",
+          "full": "Full"
+        },
+        "courses": {
+          "title": "Recorded courses",
+          "viewAll": "All courses",
+          "empty": "No courses available right now",
+          "lessonCount": "{count, plural, one {# lesson} other {# lessons}}"
+        },
+        "teaser": {
+          "liveTitle": "Live Zoom classes",
+          "liveBody": "Sign up for live classes with a Zoom link — members only",
+          "coursesTitle": "Recorded courses",
+          "coursesBody": "Full video library with progress tracking — members only",
+          "loggedOutHint": "Sign in and request to join to unlock all content",
+          "pendingHint": "Once your membership is approved, all content unlocks automatically"
+        }
+      },
+      "lessonQA": {
+        "loadError": "Couldn't load questions",
+        "tooShort": "Question is too short — at least 3 characters",
+        "tooLong": "Question is too long — up to 1000 characters",
+        "sendError": "Couldn't send the question",
+        "title": "Q&A",
+        "retry": "Try again",
+        "empty": "No questions yet — be the first to ask",
+        "me": "Me",
+        "private": "Private",
+        "instructorAnswer": "Instructor's answer",
+        "awaitingAnswer": "Awaiting answer",
+        "askLabel": "Ask a question",
+        "placeholder": "Anything unclear in the lesson? Write here and we'll get back to you",
+        "privateCheckbox": "Only I can see this question",
+        "submit": "Send question"
+      },
+      "quizRunner": {
+        "loadError": "Couldn't load the quiz",
+        "submitError": "Couldn't submit the quiz",
+        "notFound": "Quiz not found",
+        "retry": "Try again",
+        "result": {
+          "passed": "✓ You passed the quiz",
+          "failed": "✗ You didn't pass the quiz",
+          "summary": "{correct} of {total} correct · Passing score: {passScore}%",
+          "previousBest": "Previous best attempt: {score}%",
+          "correctAnswer": "Correct answer",
+          "yourAnswer": "Your answer"
+        },
+        "form": {
+          "moduleAndPassScore": "{module} · Passing score: {passScore}%",
+          "yourBest": "Your best score: {score}%",
+          "passedSuffix": " — passed",
+          "canSubmit": "Ready to submit",
+          "answerAll": "Answer all questions to submit",
+          "submitting": "Submitting...",
+          "submit": "Submit answers"
+        }
+      }
+    }
+  }
+}

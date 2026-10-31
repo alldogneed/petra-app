@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { toast } from "sonner"
+import { useTranslations } from "next-intl"
 import {
   ArrowRight,
   CheckCircle2,
@@ -205,6 +206,7 @@ function VideoLessonPlayer({
   onCompleted: (lessonId: string) => void
   onFallbackChange: (fallback: boolean) => void
 }) {
+  const t = useTranslations("portal.coursesDetailPage")
   const hostRef = useRef<HTMLDivElement | null>(null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const playerRef = useRef<any>(null)
@@ -512,12 +514,12 @@ function VideoLessonPlayer({
           {alreadyCompleted ? (
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold">
               <CheckCircle2 className="w-3.5 h-3.5" />
-              הושלם ✓
+              {t("completed")}
             </span>
           ) : (
             <>
               <div className="flex items-center justify-between text-xs text-petra-muted mb-1.5">
-                <span>נצפו {watchPercent}%</span>
+                <span>{t("watchedPercent", { percent: watchPercent })}</span>
               </div>
               <div className="h-1.5 rounded-full bg-slate-200 overflow-hidden">
                 <div
@@ -547,6 +549,7 @@ export default function PortalCoursePlayerPage({
 }) {
   const { slug, courseId } = params
   const router = useRouter()
+  const t = useTranslations("portal.coursesDetailPage")
 
   const [course, setCourse] = useState<PortalCourseTree | null>(null)
   const [loadError, setLoadError] = useState("")
@@ -578,13 +581,13 @@ export default function PortalCoursePlayerPage({
         return
       }
       if (!r.ok) {
-        setLoadError("הקורס לא נמצא")
+        setLoadError(t("errors.notFound"))
         return
       }
       const d = await r.json().catch(() => null)
       const tree: PortalCourseTree | null = d?.course ?? (d?.modules ? d : null)
       if (!tree) {
-        setLoadError("הקורס לא נמצא")
+        setLoadError(t("errors.notFound"))
         return
       }
       setCourse(tree)
@@ -616,9 +619,9 @@ export default function PortalCoursePlayerPage({
         if (first) setSelectedId(first.id)
       }
     } catch {
-      setLoadError("שגיאה בטעינת הקורס")
+      setLoadError(t("errors.loadFailed"))
     }
-  }, [slug, courseId, router])
+  }, [slug, courseId, router, t])
 
   useEffect(() => {
     void loadCourse()
@@ -709,7 +712,7 @@ export default function PortalCoursePlayerPage({
           return next
         })
         const d = await res.json().catch(() => ({}))
-        toast.error(d.error ?? "שגיאה בסימון השיעור")
+        toast.error(d.error ?? t("errors.markFailed"))
       }
     } catch {
       setCompleted((prev) => {
@@ -717,11 +720,11 @@ export default function PortalCoursePlayerPage({
         next.delete(selected.id)
         return next
       })
-      toast.error("שגיאה בסימון השיעור")
+      toast.error(t("errors.markFailed"))
     } finally {
       setMarking(false)
     }
-  }, [selected, completed, slug])
+  }, [selected, completed, slug, t])
 
   if (loadError) {
     return (
@@ -732,7 +735,7 @@ export default function PortalCoursePlayerPage({
           className="text-sm font-medium underline underline-offset-2"
           style={{ color: "var(--portal-primary)" }}
         >
-          חזרה לרשימת הקורסים
+          {t("backToCourseList")}
         </Link>
       </main>
     )
@@ -754,8 +757,8 @@ export default function PortalCoursePlayerPage({
         href={`/c/${slug}/courses`}
         className="inline-flex items-center gap-1 text-sm text-petra-muted hover:text-petra-text transition-colors mb-3"
       >
-        <ArrowRight className="w-4 h-4" />
-        לכל הקורסים
+        <ArrowRight className="w-4 h-4 ltr:-scale-x-100" />
+        {t("allCourses")}
       </Link>
 
       <h1 className="text-xl font-bold text-petra-text mb-3">{course.title}</h1>
@@ -770,7 +773,7 @@ export default function PortalCoursePlayerPage({
             <GraduationCap className="w-6 h-6 text-white" />
           </div>
           <p className="flex-1 min-w-0 text-sm font-bold text-petra-text">
-            סיימת את הקורס! התעודה שלך מוכנה
+            {t("certificate.ready")}
           </p>
           <a
             href={certificate.verifyUrl}
@@ -779,7 +782,7 @@ export default function PortalCoursePlayerPage({
             style={{ backgroundColor: "var(--portal-primary)" }}
             className="flex-shrink-0 inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-semibold hover:brightness-95 transition-all"
           >
-            לצפייה בתעודה
+            {t("certificate.view")}
           </a>
         </div>
       )}
@@ -788,7 +791,7 @@ export default function PortalCoursePlayerPage({
       <div className="mb-5">
         <div className="flex items-center justify-between text-xs text-petra-muted mb-1.5">
           <span>
-            הושלמו {done} מתוך {total} שיעורים
+            {t("courseProgress", { done, total })}
           </span>
           <span className="font-semibold" style={{ color: "var(--portal-primary)" }}>
             {percent}%
@@ -825,7 +828,7 @@ export default function PortalCoursePlayerPage({
                       <button
                         type="button"
                         onClick={() => selectLesson(lesson.id)}
-                        className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-right text-sm transition-colors border-b border-petra-border/60 last:border-b-0 ${
+                        className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-start text-sm transition-colors border-b border-petra-border/60 last:border-b-0 ${
                           isSelected ? "bg-slate-50 font-semibold" : "hover:bg-slate-50/60"
                         } ${locked ? "text-petra-muted" : "text-petra-text"}`}
                       >
@@ -847,7 +850,7 @@ export default function PortalCoursePlayerPage({
                         )}
                         {lesson.durationMin != null && (
                           <span className="text-[11px] text-petra-muted flex-shrink-0">
-                            {lesson.durationMin} דק׳
+                            {t("minutesShort", { count: lesson.durationMin })}
                           </span>
                         )}
                       </button>
@@ -860,7 +863,7 @@ export default function PortalCoursePlayerPage({
                     <button
                       type="button"
                       onClick={() => selectQuiz(mod.quiz!.id)}
-                      className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-right text-sm transition-colors border-t border-petra-border/60 ${
+                      className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-start text-sm transition-colors border-t border-petra-border/60 ${
                         selectedQuizId === mod.quiz.id
                           ? "bg-slate-50 font-semibold"
                           : "hover:bg-slate-50/60"
@@ -873,7 +876,7 @@ export default function PortalCoursePlayerPage({
                       <span className="flex-1 min-w-0">
                         <span className="block truncate">{mod.quiz.title}</span>
                         <span className="block text-[11px] text-petra-muted font-normal">
-                          בוחן · ציון עובר {mod.quiz.passScore}%
+                          {t("quizPassScore", { score: mod.quiz.passScore })}
                         </span>
                       </span>
                     </button>
@@ -897,23 +900,23 @@ export default function PortalCoursePlayerPage({
             />
           ) : !selected ? (
             <div className="bg-white rounded-2xl shadow-card border border-petra-border p-8 text-center">
-              <p className="text-sm text-petra-muted">אין שיעורים בקורס הזה עדיין</p>
+              <p className="text-sm text-petra-muted">{t("noLessons")}</p>
             </div>
           ) : selectedLocked ? (
             <div className="bg-white rounded-2xl shadow-card border border-petra-border p-8 text-center">
               <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
                 <Lock className="w-6 h-6 text-slate-400" />
               </div>
-              <h2 className="font-bold text-petra-text mb-1">נדרש מנוי פעיל לצפייה</h2>
+              <h2 className="font-bold text-petra-text mb-1">{t("locked.title")}</h2>
               <p className="text-sm text-petra-muted mb-4">
-                השיעור הזה פתוח למנויים פעילים בלבד
+                {t("locked.body")}
               </p>
               <Link
                 href={`/c/${slug}`}
                 style={{ backgroundColor: "var(--portal-primary)" }}
                 className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-semibold hover:brightness-95 transition-all"
               >
-                לבקשת הצטרפות
+                {t("locked.requestToJoin")}
               </Link>
             </div>
           ) : (
@@ -938,7 +941,7 @@ export default function PortalCoursePlayerPage({
                   <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
                     <FileText className="w-6 h-6 text-slate-500" />
                   </div>
-                  <p className="text-sm text-petra-muted mb-4">שיעור זה כולל קובץ PDF לצפייה</p>
+                  <p className="text-sm text-petra-muted mb-4">{t("pdf.body")}</p>
                   <a
                     href={selected.fileUrl}
                     target="_blank"
@@ -947,7 +950,7 @@ export default function PortalCoursePlayerPage({
                     className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-semibold hover:brightness-95 transition-all"
                   >
                     <FileText className="w-4 h-4" />
-                    פתח PDF
+                    {t("pdf.open")}
                   </a>
                 </div>
               )}
@@ -955,8 +958,8 @@ export default function PortalCoursePlayerPage({
               {selectedKind === "text" && selected.textContent && (
                 <div className="bg-white rounded-2xl shadow-card border border-petra-border p-6">
                   <div className="flex items-center gap-2 text-petra-muted mb-3">
-                    <AlignRight className="w-4 h-4" />
-                    <span className="text-xs font-medium">שיעור טקסט</span>
+                    <AlignRight className="w-4 h-4 ltr:-scale-x-100" />
+                    <span className="text-xs font-medium">{t("textLesson")}</span>
                   </div>
                   <div className="text-sm text-petra-text leading-relaxed whitespace-pre-wrap">
                     {selected.textContent}
@@ -970,7 +973,7 @@ export default function PortalCoursePlayerPage({
                 (selectedKind === "text" && !selected.textContent)) && (
                 <div className="bg-white rounded-2xl shadow-card border border-petra-border p-8 text-center">
                   <PlayCircle className="w-8 h-8 text-slate-300 mx-auto mb-3" />
-                  <p className="text-sm text-petra-muted">התוכן של השיעור הזה עדיין לא זמין</p>
+                  <p className="text-sm text-petra-muted">{t("contentUnavailable")}</p>
                 </div>
               )}
 
@@ -981,7 +984,7 @@ export default function PortalCoursePlayerPage({
                     <h2 className="font-bold text-petra-text truncate">{selected.title}</h2>
                     {selected.durationMin != null && (
                       <p className="text-xs text-petra-muted mt-0.5">
-                        {selected.durationMin} דקות
+                        {t("minutes", { count: selected.durationMin })}
                       </p>
                     )}
                   </div>
@@ -1001,10 +1004,10 @@ export default function PortalCoursePlayerPage({
                       {isDone ? (
                         <>
                           <CheckCircle2 className="w-4 h-4" />
-                          הושלם ✓
+                          {t("completed")}
                         </>
                       ) : (
-                        "סמן כהושלם"
+                        t("markComplete")
                       )}
                     </button>
                   ) : isDone && !selected.videoRef ? (
@@ -1012,7 +1015,7 @@ export default function PortalCoursePlayerPage({
                        normally lives in the watch bar under the player */
                     <span className="flex-shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-sm font-semibold">
                       <CheckCircle2 className="w-4 h-4" />
-                      הושלם ✓
+                      {t("completed")}
                     </span>
                   ) : null}
                 </div>

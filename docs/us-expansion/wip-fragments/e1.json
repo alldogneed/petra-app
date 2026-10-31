@@ -1,0 +1,372 @@
+{
+  "he": {
+    "onlineClasses": {
+      "onlineClassesPage": {
+        "title": "שיעורים אונליין",
+        "tierGateDescription": "פורטל חברים ממותג עם שיעורים חיים בזום וקורסים מוקלטים",
+        "viewPortal": "צפה בפורטל",
+        "setPortalAddressHint": "הגדר כתובת (slug) לעסק בהגדרות כדי לפתוח את הפורטל",
+        "setPortalAddress": "הגדר כתובת לפורטל",
+        "tabs": {
+          "classes": "שיעורים חיים",
+          "courses": "קורסים",
+          "memberships": "מנויים",
+          "reports": "התקדמות",
+          "certificates": "תעודות",
+          "questions": "שאלות",
+          "branding": "מיתוג"
+        },
+        "stats": {
+          "upcomingClasses": "שיעורים קרובים",
+          "publishedCourses": "קורסים שפורסמו",
+          "activeMembers": "מנויים פעילים",
+          "pendingMembers": "ממתינים לאישור"
+        }
+      },
+      "brandingTab": {
+        "noDataToSave": "אין נתונים לשמירה",
+        "saved": "המיתוג נשמר",
+        "saveError": "שגיאה בשמירת המיתוג",
+        "loadError": "שגיאה בטעינת הגדרות המיתוג",
+        "retry": "נסה שוב",
+        "title": "מיתוג הפורטל",
+        "primaryColor": "צבע ראשי",
+        "secondaryColor": "צבע משני",
+        "senderName": "שם שולח (בהודעות ללקוחות)",
+        "businessNamePlaceholder": "שם העסק",
+        "paymentLink": "קישור לתשלום מנוי",
+        "paymentLinkPlaceholder": "https://... (ביט / פייבוקס / דף סליקה)",
+        "paymentLinkHint": "הקישור מוצג ללקוחות בבקשת הצטרפות ובתזכורות חידוש מנוי",
+        "aboutText": "טקסט אודות",
+        "aboutTextPlaceholder": "כמה מילים על העסק שיוצגו בעמוד הבית של הפורטל...",
+        "logoUrl": "קישור ללוגו",
+        "logoUrlHint": "אם ריק — ישתמש בלוגו העסק",
+        "save": "שמור מיתוג",
+        "certificate": {
+          "title": "עיצוב התעודה",
+          "subtitle": "חתימה וטקסט שיופיעו על כל תעודת סיום קורס",
+          "signatureUrl": "קישור לתמונת חתימה",
+          "signatureUrlPlaceholder": "https://... (תמונת חתימה שקופה, PNG)",
+          "signerName": "שם החותם",
+          "signerNamePlaceholder": "אור רבינוביץ׳",
+          "footerText": "שורת תחתית",
+          "footerTextPlaceholder": "לדוגמה: הסמכה בהכרת ארגון מאלפי הכלבים בישראל",
+          "signaturePreview": "תצוגה מקדימה של החתימה",
+          "signatureAlt": "חתימה"
+        },
+        "security": {
+          "title": "אבטחת הקורסים",
+          "subtitle": "הגבלות שמונעות שיתוף חשבונות ותכנים בין תלמידים",
+          "maxDevices": "מספר מכשירים מותר לכל תלמיד",
+          "maxDevicesHint": "0 = ללא הגבלה. בכניסה ממכשיר נוסף מעבר למכסה, המכשיר הישן ביותר יתנתק אוטומטית.",
+          "ipRestriction": "הגבלת גישה לפי כתובת IP",
+          "allowedIps": "כתובות מורשות",
+          "allowedIpsHint": "כתובות IP או טווחי CIDR, שורה לכל כתובת. רשימה ריקה = לא חוסם אף אחד."
+        },
+        "preview": {
+          "title": "תצוגה מקדימה של הפורטל",
+          "logoAlt": "לוגו",
+          "membersPortal": "פורטל חברים",
+          "join": "הצטרפות למנוי",
+          "nextLiveClass": "שיעור חי הקרוב",
+          "sampleClassTime": "יום ראשון · 20:00 · בזום"
+        }
+      },
+      "certificateView": {
+        "title": "תעודת סיום",
+        "awardedTo": "מוענקת ל־",
+        "forCompleting": "על השלמת הקורס",
+        "signatureAlt": "חתימה",
+        "issuedOn": "תאריך הנפקה: {date}",
+        "print": "הדפס / שמור כ-PDF"
+      },
+      "certificatesTab": {
+        "filters": {
+          "all": "הכל",
+          "valid": "תקפות",
+          "revoked": "בוטלו"
+        },
+        "toast": {
+          "revoked": "התעודה בוטלה",
+          "restored": "התעודה שוחזרה",
+          "updateError": "שגיאה בעדכון התעודה"
+        },
+        "revokeConfirm": "לבטל את התעודה של {name} בקורס \"{course}\"?\nהתעודה תסומן כבוטלה בעמוד האימות.",
+        "revokeReasonPrompt": "סיבת ביטול (אופציונלי):",
+        "loadError": "שגיאה בטעינת התעודות",
+        "retry": "נסה שוב",
+        "allCourses": "כל הקורסים",
+        "issueManually": "הנפק תעודה ידנית",
+        "empty": {
+          "title": "אין תעודות להצגה",
+          "body": "תעודות מונפקות אוטומטית כשתלמיד משלים קורס, או ידנית מכאן עבור מי שסיים מחוץ למערכת"
+        },
+        "table": {
+          "student": "תלמיד",
+          "course": "קורס",
+          "serial": "מספר תעודה",
+          "issuedAt": "תאריך הנפקה",
+          "status": "סטטוס",
+          "actions": "פעולות"
+        },
+        "manualBadge": "ידני",
+        "status": {
+          "revoked": "בוטלה",
+          "valid": "תקפה"
+        },
+        "viewHint": "פתח את עמוד התעודה (ניתן להדפיס / לשמור כ-PDF)",
+        "view": "צפה",
+        "restore": "שחזר",
+        "revoke": "בטל",
+        "viewFootnote": "הכפתור \"צפה\" פותח את עמוד התעודה, שממנו ניתן להדפיס או לשמור כ-PDF.",
+        "issueModal": {
+          "issued": "התעודה הונפקה — נשלחה הודעה לתלמיד",
+          "issueError": "שגיאה בהנפקת התעודה",
+          "title": "הנפקת תעודה ידנית",
+          "intro": "מתאים לתלמיד שסיים את הקורס מחוץ למערכת. התעודה תסומן כהנפקה ידנית ותישלח לתלמיד הודעה עם קישור.",
+          "student": "תלמיד *",
+          "selectStudent": "בחר תלמיד",
+          "course": "קורס *",
+          "selectCourse": "בחר קורס",
+          "noPublishedCourses": "אין קורסים מפורסמים — ניתן להנפיק תעודה רק עבור קורס מפורסם",
+          "issuing": "מנפיק...",
+          "issue": "הנפק תעודה"
+        }
+      },
+      "liveClassesTab": {
+        "registrationStatus": {
+          "registered": "רשום",
+          "waitlist": "המתנה",
+          "cancelled": "בוטל"
+        },
+        "toast": {
+          "updated": "השיעור עודכן",
+          "created": "השיעור נוצר",
+          "saveError": "שגיאה בשמירת השיעור",
+          "deleted": "השיעור נמחק",
+          "deleteError": "שגיאה במחיקת השיעור"
+        },
+        "deleteConfirm": "למחוק את השיעור \"{title}\"? כל הרישומים אליו יימחקו.",
+        "loadError": "שגיאה בטעינת השיעורים",
+        "retry": "נסה שוב",
+        "title": "שיעורים חיים בזום",
+        "newClass": "שיעור חדש",
+        "empty": {
+          "title": "אין שיעורים חיים עדיין",
+          "body": "צור שיעור זום ראשון והחברים בפורטל יוכלו להירשם"
+        },
+        "ended": "הסתיים",
+        "durationSuffix": " ({min} דק׳)",
+        "instructor": "מדריך: {name}",
+        "waitlistCount": "{count} בהמתנה",
+        "zoomLinkSet": "קישור זום מוגדר",
+        "zoomLinkMissing": "חסר קישור זום",
+        "registrations": "נרשמים",
+        "deleteTitle": "מחיקה",
+        "form": {
+          "editTitle": "עריכת שיעור",
+          "title": "שם השיעור *",
+          "titlePlaceholder": "למשל: שיעור חיברות לגורים",
+          "description": "תיאור",
+          "instructorName": "שם המדריך",
+          "startsAt": "תאריך ושעה *",
+          "duration": "משך (דקות)",
+          "capacity": "קיבולת *",
+          "zoomLink": "קישור זום",
+          "zoomLinkHint": "קישור הזום נשלח אוטומטית לנרשמים כשעה לפני תחילת השיעור.",
+          "saveChanges": "שמור שינויים",
+          "create": "צור שיעור"
+        },
+        "registrationsModal": {
+          "title": "נרשמים — {title}",
+          "empty": "אין נרשמים לשיעור זה עדיין"
+        }
+      }
+    }
+  },
+  "en": {
+    "onlineClasses": {
+      "onlineClassesPage": {
+        "title": "Online classes",
+        "tierGateDescription": "A branded members portal with live Zoom classes and recorded courses",
+        "viewPortal": "View portal",
+        "setPortalAddressHint": "Set a business address (slug) in Settings to open the portal",
+        "setPortalAddress": "Set portal address",
+        "tabs": {
+          "classes": "Live classes",
+          "courses": "Courses",
+          "memberships": "Memberships",
+          "reports": "Progress",
+          "certificates": "Certificates",
+          "questions": "Questions",
+          "branding": "Branding"
+        },
+        "stats": {
+          "upcomingClasses": "Upcoming classes",
+          "publishedCourses": "Published courses",
+          "activeMembers": "Active members",
+          "pendingMembers": "Pending approval"
+        }
+      },
+      "brandingTab": {
+        "noDataToSave": "No data to save",
+        "saved": "Branding saved",
+        "saveError": "Couldn't save branding",
+        "loadError": "Couldn't load branding settings",
+        "retry": "Try again",
+        "title": "Portal branding",
+        "primaryColor": "Primary color",
+        "secondaryColor": "Secondary color",
+        "senderName": "Sender name (in messages to clients)",
+        "businessNamePlaceholder": "Business name",
+        "paymentLink": "Membership payment link",
+        "paymentLinkPlaceholder": "https://... (Venmo / PayPal / checkout page)",
+        "paymentLinkHint": "Clients see this link in join requests and membership renewal reminders",
+        "aboutText": "About text",
+        "aboutTextPlaceholder": "A few words about your business for the portal home page...",
+        "logoUrl": "Logo link",
+        "logoUrlHint": "If empty, the business logo is used",
+        "save": "Save branding",
+        "certificate": {
+          "title": "Certificate design",
+          "subtitle": "Signature and text shown on every course completion certificate",
+          "signatureUrl": "Signature image link",
+          "signatureUrlPlaceholder": "https://... (transparent signature image, PNG)",
+          "signerName": "Signer name",
+          "signerNamePlaceholder": "Jane Smith",
+          "footerText": "Footer line",
+          "footerTextPlaceholder": "e.g. Accredited by the National Dog Trainers Association",
+          "signaturePreview": "Signature preview",
+          "signatureAlt": "Signature"
+        },
+        "security": {
+          "title": "Course security",
+          "subtitle": "Restrictions that prevent students from sharing accounts and content",
+          "maxDevices": "Devices allowed per student",
+          "maxDevicesHint": "0 = unlimited. Signing in on a device beyond the limit automatically signs out the oldest one.",
+          "ipRestriction": "Restrict access by IP address",
+          "allowedIps": "Allowed addresses",
+          "allowedIpsHint": "IP addresses or CIDR ranges, one per line. An empty list blocks no one."
+        },
+        "preview": {
+          "title": "Portal preview",
+          "logoAlt": "Logo",
+          "membersPortal": "Members portal",
+          "join": "Join membership",
+          "nextLiveClass": "Next live class",
+          "sampleClassTime": "Sunday · 8:00 PM · on Zoom"
+        }
+      },
+      "certificateView": {
+        "title": "Certificate of completion",
+        "awardedTo": "Presented to",
+        "forCompleting": "for completing the course",
+        "signatureAlt": "Signature",
+        "issuedOn": "Issued on: {date}",
+        "print": "Print / save as PDF"
+      },
+      "certificatesTab": {
+        "filters": {
+          "all": "All",
+          "valid": "Valid",
+          "revoked": "Revoked"
+        },
+        "toast": {
+          "revoked": "Certificate revoked",
+          "restored": "Certificate restored",
+          "updateError": "Couldn't update the certificate"
+        },
+        "revokeConfirm": "Revoke {name}'s certificate for the course \"{course}\"?\nThe certificate will be marked as revoked on the verification page.",
+        "revokeReasonPrompt": "Reason for revoking (optional):",
+        "loadError": "Couldn't load certificates",
+        "retry": "Try again",
+        "allCourses": "All courses",
+        "issueManually": "Issue certificate manually",
+        "empty": {
+          "title": "No certificates to show",
+          "body": "Certificates are issued automatically when a student completes a course, or manually here for someone who finished outside the system"
+        },
+        "table": {
+          "student": "Student",
+          "course": "Course",
+          "serial": "Certificate no.",
+          "issuedAt": "Issue date",
+          "status": "Status",
+          "actions": "Actions"
+        },
+        "manualBadge": "Manual",
+        "status": {
+          "revoked": "Revoked",
+          "valid": "Valid"
+        },
+        "viewHint": "Open the certificate page (print or save as PDF)",
+        "view": "View",
+        "restore": "Restore",
+        "revoke": "Revoke",
+        "viewFootnote": "The \"View\" button opens the certificate page, where you can print it or save it as a PDF.",
+        "issueModal": {
+          "issued": "Certificate issued. The student was notified",
+          "issueError": "Couldn't issue the certificate",
+          "title": "Issue certificate manually",
+          "intro": "For a student who finished the course outside the system. The certificate will be marked as manually issued and the student will get a message with a link.",
+          "student": "Student *",
+          "selectStudent": "Select student",
+          "course": "Course *",
+          "selectCourse": "Select course",
+          "noPublishedCourses": "No published courses. Certificates can only be issued for a published course",
+          "issuing": "Issuing...",
+          "issue": "Issue certificate"
+        }
+      },
+      "liveClassesTab": {
+        "registrationStatus": {
+          "registered": "Registered",
+          "waitlist": "Waitlist",
+          "cancelled": "Canceled"
+        },
+        "toast": {
+          "updated": "Class updated",
+          "created": "Class created",
+          "saveError": "Couldn't save the class",
+          "deleted": "Class deleted",
+          "deleteError": "Couldn't delete the class"
+        },
+        "deleteConfirm": "Delete the class \"{title}\"? All its registrations will be deleted.",
+        "loadError": "Couldn't load classes",
+        "retry": "Try again",
+        "title": "Live Zoom classes",
+        "newClass": "New class",
+        "empty": {
+          "title": "No live classes yet",
+          "body": "Create your first Zoom class and portal members will be able to sign up"
+        },
+        "ended": "Ended",
+        "durationSuffix": " ({min} min)",
+        "instructor": "Instructor: {name}",
+        "waitlistCount": "{count} waitlisted",
+        "zoomLinkSet": "Zoom link set",
+        "zoomLinkMissing": "Zoom link missing",
+        "registrations": "Registrations",
+        "deleteTitle": "Delete",
+        "form": {
+          "editTitle": "Edit class",
+          "title": "Class name *",
+          "titlePlaceholder": "e.g. Puppy socialization class",
+          "description": "Description",
+          "instructorName": "Instructor name",
+          "startsAt": "Date and time *",
+          "duration": "Duration (minutes)",
+          "capacity": "Capacity *",
+          "zoomLink": "Zoom link",
+          "zoomLinkHint": "The Zoom link is sent automatically to registrants about an hour before the class starts.",
+          "saveChanges": "Save changes",
+          "create": "Create class"
+        },
+        "registrationsModal": {
+          "title": "Registrations — {title}",
+          "empty": "No one has registered for this class yet"
+        }
+      }
+    }
+  }
+}

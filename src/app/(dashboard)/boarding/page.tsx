@@ -63,6 +63,9 @@ import { CustomerPicker, type PickerCustomer } from "@/components/customers/Cust
 import { usePermissions } from "@/hooks/usePermissions";
 import { staysOverlap, israelDayKey } from "@/lib/boarding-overlap";
 import { normalizeHebrewPunct } from "@/lib/text-variants";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
+import { currencySymbol } from "@/lib/format";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -127,31 +130,35 @@ interface TeamMember { id: string; name: string }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const STATUS_MAP: Record<string, { label: string; color: string; bg: string }> = {
-  reserved:    { label: "הזמנה",  color: "#8B5CF6", bg: "#F5F3FF" },
-  checked_in:  { label: "נמצא",   color: "#10B981", bg: "#ECFDF5" },
-  checked_out: { label: "יצא",    color: "#64748B", bg: "#F1F5F9" },
-  canceled:    { label: "בוטל",   color: "#EF4444", bg: "#FEF2F2" },
+// Labels: boarding.boardingPage.stayStatus.<key> (rendered with t)
+const STATUS_MAP: Record<string, { color: string; bg: string }> = {
+  reserved:    { color: "#8B5CF6", bg: "#F5F3FF" },
+  checked_in:  { color: "#10B981", bg: "#ECFDF5" },
+  checked_out: { color: "#64748B", bg: "#F1F5F9" },
+  canceled:    { color: "#EF4444", bg: "#FEF2F2" },
 };
 
-const ROOM_STATUS_MAP: Record<string, { label: string; color: string; bg: string; border: string }> = {
-  available:       { label: "פנוי",         color: "#22C55E", bg: "#F0FDF4", border: "#BBF7D0" },
-  occupied:        { label: "תפוס",         color: "#F97316", bg: "#FFF7ED", border: "#FDBA74" },
-  needs_cleaning:  { label: "דרוש ניקיון",  color: "#EAB308", bg: "#FEFCE8", border: "#FDE047" },
+// Labels: boarding.boardingPage.roomStatus.<key>
+const ROOM_STATUS_MAP: Record<string, { color: string; bg: string; border: string }> = {
+  available:       { color: "#22C55E", bg: "#F0FDF4", border: "#BBF7D0" },
+  occupied:        { color: "#F97316", bg: "#FFF7ED", border: "#FDBA74" },
+  needs_cleaning:  { color: "#EAB308", bg: "#FEFCE8", border: "#FDE047" },
 };
 
-const ROOM_TYPE_LABELS: Record<string, string> = {
-  standard: "רגיל",
-  premium: "פרמיום",
-  suite: "סוויט",
-};
+type BoardingT = ReturnType<typeof useTranslations<"boarding.boardingPage">>;
+
+/** Room type label (boarding.boardingPage.roomTypes.<type>); unknown types render as-is. */
+function roomTypeLabel(t: BoardingT, type: string): string {
+  return t.has(`roomTypes.${type}`) ? t(`roomTypes.${type}`) : type;
+}
 
 
 const ACTIVE_STATUSES = ["reserved", "checked_in"];
 type TabKey = "active" | "checkin_today" | "checkout_today" | "history";
 type ViewMode = "grid" | "timeline" | "calendar";
 
-const HE_DAYS = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"];
+// Short weekday labels: boarding.boardingPage.weekdaysShort.<key> (index = Date.getDay())
+const WEEKDAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
 const TIMELINE_DAYS = 14;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -161,12 +168,12 @@ function toDateStr(d: string | Date) {
   return date.toISOString().slice(0, 10);
 }
 
-function formatDate(d: string) {
-  return new Date(d).toLocaleDateString("he-IL", { day: "numeric", month: "numeric" });
+function formatDate(d: string, locale: string) {
+  return new Date(d).toLocaleDateString(locale, { day: "numeric", month: "numeric" });
 }
 
-function formatDateFull(d: string) {
-  return new Date(d).toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" });
+function formatDateFull(d: string, locale: string) {
+  return new Date(d).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" });
 }
 
 function calcNights(checkIn: string, checkOut: string): number {
@@ -242,6 +249,8 @@ function getRoomDisplayStatus(room: Room): string {
 // ─── Stay Progress Bar ──────────────────────────────────────────────────────
 
 function StayProgress({ checkIn, checkOut, status }: { checkIn: string; checkOut: string | null; status: string }) {
+  const t = useTranslations("boarding.boardingPage");
+  const { locale } = useBusinessLocale();
   if (!checkOut) return null;
   const progress = calcStayProgress(checkIn, checkOut);
   const clamped = Math.min(progress, 100);
@@ -257,11 +266,11 @@ function StayProgress({ checkIn, checkOut, status }: { checkIn: string; checkOut
         />
       </div>
       <div className="flex justify-between mt-0.5">
-        <span className="text-[9px] text-petra-muted">{formatDate(checkIn)}</span>
+        <span className="text-[9px] text-petra-muted">{formatDate(checkIn, locale)}</span>
         <span className={cn("text-[9px]", isOverdue ? "text-red-500 font-semibold" : "text-petra-muted")}>
-          {isOverdue ? `חריגה! ${progress - 100}%` : `${Math.min(progress, 100)}%`}
+          {isOverdue ? t("progress.overdue", { pct: progress - 100 }) : `${Math.min(progress, 100)}%`}
         </span>
-        <span className="text-[9px] text-petra-muted">{formatDate(checkOut)}</span>
+        <span className="text-[9px] text-petra-muted">{formatDate(checkOut, locale)}</span>
       </div>
     </div>
   );
@@ -289,6 +298,9 @@ const RoomStatusCard = memo(function RoomStatusCard({
   /** A search is active and this room has a matching stay */
   highlight?: boolean;
 }) {
+  const t = useTranslations("boarding.boardingPage");
+  const { locale, currency } = useBusinessLocale();
+  const sym = currencySymbol({ locale, currency });
   const { setNodeRef, isOver } = useDroppable({ id: room.id });
   const displayStatus = getRoomDisplayStatus(room);
   const statusConfig = ROOM_STATUS_MAP[displayStatus];
@@ -336,7 +348,7 @@ const RoomStatusCard = memo(function RoomStatusCard({
               borderColor: statusConfig.border,
             }}
           >
-            {statusConfig.label}
+            {t(`roomStatus.${displayStatus}`)}
           </span>
         </div>
 
@@ -344,9 +356,9 @@ const RoomStatusCard = memo(function RoomStatusCard({
         <div className="flex items-center gap-2 text-xs text-petra-muted mb-3">
           <Users className="w-3.5 h-3.5" />
           <span>{occPeriodStays.length}/{room.capacity}</span>
-          <span className="badge-neutral text-[10px]">{ROOM_TYPE_LABELS[room.type] || room.type}</span>
+          <span className="badge-neutral text-[10px]">{roomTypeLabel(t, room.type)}</span>
           {room.pricePerNight != null && (
-            <span className="ms-auto text-[10px] font-semibold text-brand-600">₪{room.pricePerNight}/לילה</span>
+            <span className="ms-auto text-[10px] font-semibold text-brand-600">{t("room.pricePerNight", { currency: sym, price: room.pricePerNight })}</span>
           )}
         </div>
 
@@ -366,16 +378,16 @@ const RoomStatusCard = memo(function RoomStatusCard({
                         className="flex-1 min-w-0 text-right"
                         onPointerDown={(e) => e.stopPropagation()}
                         onClick={() => onOpenStay(stay)}
-                        title="פתח את ההזמנה"
+                        title={t("openStay")}
                       >
                         <div className="text-xs font-semibold text-petra-text truncate hover:text-brand-600 hover:underline">{stay.pet.name}</div>
-                        <div className="text-[10px] text-petra-muted truncate">{stay.customer?.name ?? "כלב שירות"}</div>
+                        <div className="text-[10px] text-petra-muted truncate">{stay.customer?.name ?? t("serviceDog")}</div>
                       </button>
                     </div>
                     {stay.checkOut && (
                       <div className="text-[10px] text-orange-600 font-medium flex items-center gap-0.5 mb-1">
                         <Calendar className="w-2.5 h-2.5" />
-                        יציאה: {formatDate(stay.checkOut)}
+                        {t("room.checkOutOn", { date: formatDate(stay.checkOut, locale) })}
                       </div>
                     )}
                     {actionStay && (
@@ -384,7 +396,7 @@ const RoomStatusCard = memo(function RoomStatusCard({
                         onPointerDown={(e) => e.stopPropagation()}
                         onClick={() => onCheckout(actionStay.id)}
                       >
-                        <LogOut className="w-2.5 h-2.5" />צ׳ק-אאוט
+                        <LogOut className="w-2.5 h-2.5" />{t("checkOut")}
                       </button>
                     )}
                   </div>
@@ -403,15 +415,15 @@ const RoomStatusCard = memo(function RoomStatusCard({
                         className="flex-1 min-w-0 text-right"
                         onPointerDown={(e) => e.stopPropagation()}
                         onClick={() => onOpenStay(stay)}
-                        title="פתח את ההזמנה"
+                        title={t("openStay")}
                       >
                         <div className="text-xs font-semibold text-petra-text truncate hover:text-brand-600 hover:underline">{stay.pet.name}</div>
-                        <div className="text-[10px] text-petra-muted truncate">{stay.customer?.name ?? "כלב שירות"}</div>
+                        <div className="text-[10px] text-petra-muted truncate">{stay.customer?.name ?? t("serviceDog")}</div>
                       </button>
                     </div>
                     <div className="text-[10px] text-purple-600 font-medium flex items-center gap-0.5 mb-1">
                       <Calendar className="w-2.5 h-2.5" />
-                      כניסה: {formatDate(stay.checkIn)}
+                      {t("room.checkInOn", { date: formatDate(stay.checkIn, locale) })}
                     </div>
                     {actionStay && (
                       <button
@@ -419,7 +431,7 @@ const RoomStatusCard = memo(function RoomStatusCard({
                         onPointerDown={(e) => e.stopPropagation()}
                         onClick={() => onCheckin(actionStay.id)}
                       >
-                        <CheckCircle2 className="w-2.5 h-2.5" />צ׳ק-אין
+                        <CheckCircle2 className="w-2.5 h-2.5" />{t("checkIn")}
                       </button>
                     )}
                   </div>
@@ -433,7 +445,7 @@ const RoomStatusCard = memo(function RoomStatusCard({
         {/* Drop hint when hovering empty room */}
         {isOver && !hasPeriodStays && (
           <div className="text-center py-4 border-2 border-dashed border-brand-300 rounded-lg bg-brand-50/30">
-            <p className="text-xs text-brand-500 font-medium">שחרר כאן</p>
+            <p className="text-xs text-brand-500 font-medium">{t("room.dropHere")}</p>
           </div>
         )}
 
@@ -443,7 +455,7 @@ const RoomStatusCard = memo(function RoomStatusCard({
             <div className="w-10 h-10 rounded-full bg-green-50 mx-auto mb-2 flex items-center justify-center">
               <Check className="w-5 h-5 text-green-500" />
             </div>
-            <p className="text-sm text-green-600 font-medium">פנוי לאורחים</p>
+            <p className="text-sm text-green-600 font-medium">{t("room.availableForGuests")}</p>
           </div>
         )}
 
@@ -452,9 +464,9 @@ const RoomStatusCard = memo(function RoomStatusCard({
             <div className="w-10 h-10 rounded-full bg-yellow-50 mx-auto mb-2 flex items-center justify-center">
               <Sparkles className="w-5 h-5 text-yellow-500" />
             </div>
-            <p className="text-sm text-yellow-600 font-medium mb-2">דרוש ניקיון</p>
+            <p className="text-sm text-yellow-600 font-medium mb-2">{t("roomStatus.needs_cleaning")}</p>
             <button onClick={() => onMarkClean(room.id)} className="btn-ghost text-xs text-yellow-700 hover:bg-yellow-50">
-              <Check className="w-3.5 h-3.5" />סמן כנקי
+              <Check className="w-3.5 h-3.5" />{t("room.markClean")}
             </button>
           </div>
         )}
@@ -466,7 +478,7 @@ const RoomStatusCard = memo(function RoomStatusCard({
               className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium text-yellow-700 hover:bg-yellow-50 transition-colors"
               onClick={() => onMarkClean(room.id)}
             >
-              <Sparkles className="w-3.5 h-3.5" />סמן כנקי
+              <Sparkles className="w-3.5 h-3.5" />{t("room.markClean")}
             </button>
           </div>
         )}
@@ -492,6 +504,8 @@ function OccupancyCalendar({
   calendarMonth: Date;
   onChangeMonth: (d: Date) => void;
 }) {
+  const t = useTranslations("boarding.boardingPage");
+  const { locale } = useBusinessLocale();
   const totalCapacity = rooms.reduce((sum, r) => sum + r.capacity, 0);
   const todayStr = toDateStr(new Date());
   const year = calendarMonth.getFullYear();
@@ -520,7 +534,7 @@ function OccupancyCalendar({
     return result;
   }, [stays, year, month, daysInMonth]);
 
-  const monthLabel = calendarMonth.toLocaleDateString("he-IL", { month: "long", year: "numeric" });
+  const monthLabel = calendarMonth.toLocaleDateString(locale, { month: "long", year: "numeric" });
 
   return (
     <div className="card p-4 mb-8">
@@ -529,9 +543,9 @@ function OccupancyCalendar({
         <button
           onClick={() => onChangeMonth(new Date(year, month + 1, 1))}
           className="w-8 h-8 rounded-lg flex items-center justify-center text-petra-muted hover:bg-slate-100 hover:text-petra-text transition-colors"
-          aria-label="חודש הבא"
+          aria-label={t("calendar.nextMonth")}
         >
-          <ChevronLeft className="w-4 h-4" />
+          <ChevronLeft className="w-4 h-4 ltr:-scale-x-100" />
         </button>
         <div className="flex items-center gap-2">
           <h3 className="text-sm font-semibold text-petra-text">{monthLabel}</h3>
@@ -540,24 +554,24 @@ function OccupancyCalendar({
               onClick={() => onChangeMonth(new Date())}
               className="text-[10px] px-2 py-0.5 rounded-full bg-brand-50 text-brand-600 hover:bg-brand-100 transition-colors"
             >
-              היום
+              {t("today")}
             </button>
           ) : null}
         </div>
         <button
           onClick={() => onChangeMonth(new Date(year, month - 1, 1))}
           className="w-8 h-8 rounded-lg flex items-center justify-center text-petra-muted hover:bg-slate-100 hover:text-petra-text transition-colors"
-          aria-label="חודש קודם"
+          aria-label={t("calendar.prevMonth")}
         >
-          <ChevronRight className="w-4 h-4" />
+          <ChevronRight className="w-4 h-4 ltr:-scale-x-100" />
         </button>
       </div>
 
       {/* Day headers */}
       <div className="grid grid-cols-7 gap-1 mb-1">
-        {["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"].map((d) => (
+        {WEEKDAY_KEYS.map((d) => (
           <div key={d} className="text-center text-[10px] font-medium text-petra-muted py-1">
-            {d}
+            {t(`weekdaysShort.${d}`)}
           </div>
         ))}
       </div>
@@ -617,11 +631,11 @@ function OccupancyCalendar({
 
       {/* Legend */}
       <div className="flex gap-3 mt-3 pt-3 border-t border-slate-100 flex-wrap text-[10px] text-petra-muted">
-        <div className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-amber-50 border border-amber-200" /> מעט תפוס</div>
-        <div className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-orange-100 border border-orange-300" /> כמעט מלא</div>
-        <div className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-red-100 border border-red-300" /> מלא</div>
-        <div className="flex items-center gap-1"><span className="bg-green-100 text-green-700 rounded px-0.5">+N</span> הגעות</div>
-        <div className="flex items-center gap-1"><span className="bg-slate-200 text-slate-600 rounded px-0.5">-N</span> עזיבות</div>
+        <div className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-amber-50 border border-amber-200" /> {t("calendar.legend.partlyBooked")}</div>
+        <div className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-orange-100 border border-orange-300" /> {t("calendar.legend.almostFull")}</div>
+        <div className="flex items-center gap-1"><div className="w-3 h-3 rounded bg-red-100 border border-red-300" /> {t("calendar.legend.full")}</div>
+        <div className="flex items-center gap-1"><span className="bg-green-100 text-green-700 rounded px-0.5">+N</span> {t("calendar.legend.arrivals")}</div>
+        <div className="flex items-center gap-1"><span className="bg-slate-200 text-slate-600 rounded px-0.5">-N</span> {t("calendar.legend.departures")}</div>
       </div>
     </div>
   );
@@ -662,6 +676,8 @@ function TimelineView({
   search?: string;
   onOpenStay?: (stay: BoardingStay) => void;
 }) {
+  const t = useTranslations("boarding.boardingPage");
+  const { locale, cfg } = useBusinessLocale();
   const realToday = startOfDay(new Date());
   // `today` is the timeline origin (kept as the variable name to minimise churn below).
   const today = startDate ? startOfDay(startDate) : realToday;
@@ -727,28 +743,28 @@ function TimelineView({
       const barColor = stay.status === "checked_in" ? "#22C55E"
         : stay.status === "checked_out" ? "#3B82F6"
         : "#94A3B8";
-      const range = `${formatDate(stay.checkIn)}${stay.checkOut ? ` → ${formatDate(stay.checkOut)}` : ""}`;
+      const range = `${formatDate(stay.checkIn, locale)}${stay.checkOut ? ` → ${formatDate(stay.checkOut, locale)}` : ""}`;
       return (
         <button
           type="button"
           key={stay.id}
           onClick={() => onOpenStay?.(stay)}
-          dir="rtl"
+          dir={cfg.dir}
           className="absolute rounded-md flex items-center gap-1 px-2 text-[10px] font-semibold text-white overflow-hidden whitespace-nowrap shadow-sm cursor-pointer hover:brightness-110 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 transition-[filter,box-shadow]"
           style={{
-            left: pos.left,
+            left: pos.left, // rtl-ok — the timeline track is always LTR (dir="ltr" container)
             width: pos.width,
             top: `${4 + rowIdx * TL_ROW_H}px`,
             height: "22px",
             backgroundColor: barColor,
           }}
-          title={`${stay.pet.name} — ${stay.customer?.name ?? "כלב שירות"}\n${range}\nלחצו לפתיחת ההזמנה`}
-          aria-label={`${stay.pet.name}, ${range} — פתח את ההזמנה`}
+          title={t("timeline.barTitle", { pet: stay.pet.name, customer: stay.customer?.name ?? t("serviceDog"), range })}
+          aria-label={t("timeline.barAria", { pet: stay.pet.name, range })}
         >
           <PawPrint className="w-3 h-3 flex-shrink-0" />
           <span className="truncate">{stay.pet.name}</span>
           {pos.days >= 3 && stay.checkOut && (
-            <span className="ms-auto ps-1 font-normal opacity-90 flex-shrink-0">עד {formatDate(stay.checkOut)}</span>
+            <span className="ms-auto ps-1 font-normal opacity-90 flex-shrink-0">{t("timeline.until", { date: formatDate(stay.checkOut, locale) })}</span>
           )}
         </button>
       );
@@ -765,7 +781,7 @@ function TimelineView({
             <div
               key={i}
               className={cn(
-                "border-l border-slate-100 h-full flex-shrink-0",
+                "border-l border-slate-100 h-full flex-shrink-0", // rtl-ok — inside the always-LTR timeline track
                 withTint && isToday && "bg-orange-50/30",
                 withTint && dayOfWeek === 6 && "bg-slate-50/30"
               )}
@@ -786,11 +802,11 @@ function TimelineView({
           {/* Header row — sticky on top while scrolling down through the rooms */}
           <div className="flex sticky top-0 z-20 bg-white border-b border-petra-border">
             <div
-              className="sticky left-0 z-30 flex-shrink-0 p-2 text-sm font-semibold text-petra-text bg-slate-50 border-r border-petra-border text-right"
+              className="sticky left-0 z-30 flex-shrink-0 p-2 text-sm font-semibold text-petra-text bg-slate-50 border-r border-petra-border text-start" /* rtl-ok — always-LTR timeline: room column stays on the left */
               style={{ width: TL_ROOM_W }}
-              dir="rtl"
+              dir={cfg.dir}
             >
-              חדר
+              {t("room.label")}
             </div>
             {days.map((day, i) => {
               const isToday = i === todayIndex;
@@ -799,13 +815,13 @@ function TimelineView({
                 <div
                   key={i}
                   className={cn(
-                    "flex-shrink-0 py-1.5 text-center border-l border-petra-border",
+                    "flex-shrink-0 py-1.5 text-center border-l border-petra-border", // rtl-ok — always-LTR timeline
                     isToday ? "bg-orange-50" : dayOfWeek === 6 ? "bg-slate-50" : "bg-white"
                   )}
                   style={{ width: TL_DAY_W }}
                 >
                   <div className={cn("text-[10px]", isToday ? "text-orange-600 font-bold" : "text-petra-muted")}>
-                    {HE_DAYS[dayOfWeek]}
+                    {t(`weekdaysShort.${WEEKDAY_KEYS[dayOfWeek]}`)}
                   </div>
                   <div className={cn("text-[11px] font-semibold", isToday ? "text-orange-600" : "text-petra-text")}>
                     {day.getDate()}/{day.getMonth() + 1}
@@ -826,9 +842,9 @@ function TimelineView({
               <div key={room.id} className="flex border-b border-slate-100">
                 {/* Room label — sticky on the side while scrolling sideways */}
                 <div
-                  className="sticky left-0 z-10 flex-shrink-0 p-2 flex items-center gap-2 bg-slate-50 border-r border-petra-border"
+                  className="sticky left-0 z-10 flex-shrink-0 p-2 flex items-center gap-2 bg-slate-50 border-r border-petra-border" /* rtl-ok — always-LTR timeline */
                   style={{ width: TL_ROOM_W, minHeight: rowHeight }}
-                  dir="rtl"
+                  dir={cfg.dir}
                 >
                   <div
                     className="w-2 h-2 rounded-full flex-shrink-0"
@@ -856,12 +872,12 @@ function TimelineView({
           {unassigned.length > 0 && (
             <div className="flex border-b border-slate-100">
               <div
-                className="sticky left-0 z-10 flex-shrink-0 p-2 flex items-center gap-2 bg-slate-100 border-r border-petra-border"
+                className="sticky left-0 z-10 flex-shrink-0 p-2 flex items-center gap-2 bg-slate-100 border-r border-petra-border" /* rtl-ok — always-LTR timeline */
                 style={{ width: TL_ROOM_W, minHeight: Math.max(48, unassigned.length * TL_ROW_H + 8) }}
-                dir="rtl"
+                dir={cfg.dir}
               >
                 <Hotel className="w-3.5 h-3.5 text-slate-400" />
-                <span className="text-xs font-medium text-slate-500">ללא חדר</span>
+                <span className="text-xs font-medium text-slate-500">{t("noRoom")}</span>
               </div>
               <div
                 className="relative flex-shrink-0"
@@ -874,7 +890,7 @@ function TimelineView({
           )}
 
           {search && visibleRooms.length === 0 && unassigned.length === 0 && (
-            <div className="p-6 text-center text-sm text-petra-muted" dir="rtl">לא נמצאו הזמנות תואמות בטווח המוצג</div>
+            <div className="p-6 text-center text-sm text-petra-muted" dir={cfg.dir}>{t("timeline.noMatches")}</div>
           )}
         </div>
       </div>
@@ -929,6 +945,8 @@ const UnassignedGridCard = memo(function UnassignedGridCard({
   onCheckin: (id: string) => void;
   onCheckout: (id: string) => void;
 }) {
+  const t = useTranslations("boarding.boardingPage");
+  const { locale } = useBusinessLocale();
   const { setNodeRef, isOver } = useDroppable({ id: "unassigned" });
 
   if (stays.length === 0 && !isOver) return null;
@@ -944,7 +962,7 @@ const UnassignedGridCard = memo(function UnassignedGridCard({
       <div className="p-4">
         <div className="flex items-center gap-2 mb-3">
           <PawPrint className="w-5 h-5 text-slate-400" />
-          <span className="font-bold text-petra-text">ללא חדר</span>
+          <span className="font-bold text-petra-text">{t("noRoom")}</span>
           <span className="ms-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">
             {stays.length}
           </span>
@@ -952,7 +970,7 @@ const UnassignedGridCard = memo(function UnassignedGridCard({
 
         {stays.length === 0 && isOver && (
           <div className="text-center py-4 border-2 border-dashed border-brand-300 rounded-lg bg-brand-50/30">
-            <p className="text-xs text-brand-500 font-medium">שחרר כאן להסרה מחדר</p>
+            <p className="text-xs text-brand-500 font-medium">{t("unassigned.dropToUnassign")}</p>
           </div>
         )}
 
@@ -963,11 +981,11 @@ const UnassignedGridCard = memo(function UnassignedGridCard({
                 <PawPrint className="w-4 h-4 text-slate-400 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-semibold text-petra-text truncate">{stay.pet.name}</div>
-                  <div className="text-[10px] text-petra-muted">{stay.customer?.name ?? "כלב שירות"}</div>
+                  <div className="text-[10px] text-petra-muted">{stay.customer?.name ?? t("serviceDog")}</div>
                 </div>
               </div>
               <div className="text-[10px] text-petra-muted mt-1">
-                {formatDate(stay.checkIn)}{stay.checkOut ? ` → ${formatDate(stay.checkOut)}` : ""}
+                {formatDate(stay.checkIn, locale)}{stay.checkOut ? ` → ${formatDate(stay.checkOut, locale)}` : ""}
               </div>
             </div>
           </DraggableStayInRoom>
@@ -982,7 +1000,7 @@ const UnassignedGridCard = memo(function UnassignedGridCard({
                 className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium text-emerald-600 hover:bg-emerald-50 transition-colors"
                 onClick={() => onCheckin(stay.id)}
               >
-                <CheckCircle2 className="w-3.5 h-3.5" />צ׳ק-אין {stay.pet.name}
+                <CheckCircle2 className="w-3.5 h-3.5" />{t("unassigned.checkInPet", { name: stay.pet.name })}
               </button>
             ))}
             {stays.filter((s) => s.status === "checked_in").map((stay) => (
@@ -991,7 +1009,7 @@ const UnassignedGridCard = memo(function UnassignedGridCard({
                 className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100 transition-colors"
                 onClick={() => onCheckout(stay.id)}
               >
-                <LogOut className="w-3.5 h-3.5" />צ׳ק-אאוט {stay.pet.name}
+                <LogOut className="w-3.5 h-3.5" />{t("unassigned.checkOutPet", { name: stay.pet.name })}
               </button>
             ))}
           </div>
@@ -1019,7 +1037,10 @@ function StayRow({
   onDelete: (stay: BoardingStay) => void;
   settings: BusinessSettings;
 }) {
-  const st = STATUS_MAP[stay.status] || STATUS_MAP.reserved;
+  const t = useTranslations("boarding.boardingPage");
+  const { locale } = useBusinessLocale();
+  const stKey = STATUS_MAP[stay.status] ? stay.status : "reserved";
+  const st = STATUS_MAP[stKey];
   const today = toDateStr(new Date());
   const isCheckinToday = toDateStr(stay.checkIn) === today && stay.status === "reserved";
   const isCheckoutToday = stay.checkOut && toDateStr(stay.checkOut) === today && stay.status === "checked_in";
@@ -1040,9 +1061,9 @@ function StayRow({
               href={`/service-dogs/${stay.pet.serviceDogProfile.id}`}
               onClick={(e) => e.stopPropagation()}
               className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors"
-              title="עבור לפרופיל כלב שירות"
+              title={t("row.serviceDogProfile")}
             >
-              <Sparkles className="w-2.5 h-2.5" />כלב שירות
+              <Sparkles className="w-2.5 h-2.5" />{t("serviceDog")}
             </Link>
           )}
           <span className="text-sm text-petra-muted">—</span>
@@ -1055,29 +1076,29 @@ function StayRow({
               {stay.customer.name}
             </Link>
           ) : (
-            <span className="text-sm text-blue-600 font-medium">כלב שירות</span>
+            <span className="text-sm text-blue-600 font-medium">{t("serviceDog")}</span>
           )}
           {isCheckinToday && (
             <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-brand-50 text-brand-600 border border-brand-100">
-              <LogIn className="w-2.5 h-2.5" />צ׳ק-אין היום
+              <LogIn className="w-2.5 h-2.5" />{t("checkInToday")}
             </span>
           )}
           {isCheckoutToday && !overdue && (
             <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-50 text-red-600 border border-red-100">
-              <LogOut className="w-2.5 h-2.5" />צ׳ק-אאוט היום
+              <LogOut className="w-2.5 h-2.5" />{t("checkOutToday")}
             </span>
           )}
           {overdue && (
             <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 text-red-700 border border-red-200 animate-pulse">
-              <AlertTriangle className="w-2.5 h-2.5" />איחור צ׳ק-אאוט!
+              <AlertTriangle className="w-2.5 h-2.5" />{t("row.lateCheckOut")}
             </span>
           )}
         </div>
         <div className="text-xs text-petra-muted flex items-center gap-2 mt-0.5 flex-wrap">
           <span className="flex items-center gap-1">
             <Calendar className="w-3 h-3" />
-            {new Date(stay.checkIn).toLocaleDateString("he-IL")}
-            {stay.checkOut ? ` → ${new Date(stay.checkOut).toLocaleDateString("he-IL")}` : " (פתוח)"}
+            {new Date(stay.checkIn).toLocaleDateString(locale)}
+            {stay.checkOut ? ` → ${new Date(stay.checkOut).toLocaleDateString(locale)}` : ` ${t("row.openEnded")}`}
           </span>
           {stay.room && (
             <span className="flex items-center gap-1">
@@ -1087,7 +1108,9 @@ function StayRow({
           )}
           {stay.checkOut && stay.status === "checked_in" && (
             <span className="flex items-center gap-1 text-[10px]">
-              {calcNights(stay.checkIn, stay.checkOut)} {(settings.boardingCalcMode || "nights") === "nights" ? "לילות" : "ימים"}
+              {(settings.boardingCalcMode || "nights") === "nights"
+                ? t("count.nights", { count: calcNights(stay.checkIn, stay.checkOut) })
+                : t("count.days", { count: calcNights(stay.checkIn, stay.checkOut) })}
             </span>
           )}
         </div>
@@ -1097,14 +1120,14 @@ function StayRow({
       </div>
 
       <span className="badge text-[10px] flex-shrink-0" style={{ background: st.bg, color: st.color }}>
-        {st.label}
+        {t(`stayStatus.${stKey}`)}
       </span>
 
       {(stay.status === "reserved" || stay.status === "checked_in") && (
         <button
           className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors flex-shrink-0"
           onClick={() => onDelete(stay)}
-          title="מחק שהות"
+          title={t("row.deleteStay")}
         >
           <Trash2 className="w-3.5 h-3.5" />
         </button>
@@ -1115,13 +1138,13 @@ function StayRow({
           {isCheckinToday && stay.customer?.phone && (() => {
             const checkInTime = settings.boardingCheckInTime || "10:00";
             const lines = [
-              `שלום ${stay.customer!.name} 👋`,
-              `תזכורת — היום ${stay.pet.name} מגיע/ה אלינו לפנסיון!`,
-              `שעת צ׳ק-אין: ${checkInTime}`,
-              stay.room ? `חדר: ${stay.room.name}` : "",
-              stay.checkOut ? `יציאה מתוכננת: ${new Date(stay.checkOut).toLocaleDateString("he-IL")}` : "",
+              `שלום ${stay.customer!.name} 👋`, // i18n-ok — WhatsApp text to the customer (Phase 3)
+              `תזכורת — היום ${stay.pet.name} מגיע/ה אלינו לפנסיון!`, // i18n-ok — WhatsApp text to the customer (Phase 3)
+              `שעת צ׳ק-אין: ${checkInTime}`, // i18n-ok — WhatsApp text to the customer (Phase 3)
+              stay.room ? `חדר: ${stay.room.name}` : "", // i18n-ok — WhatsApp text to the customer (Phase 3)
+              stay.checkOut ? `יציאה מתוכננת: ${new Date(stay.checkOut).toLocaleDateString(locale)}` : "", // i18n-ok — WhatsApp text to the customer (Phase 3)
               "",
-              `מחכים לכם! 🐾`,
+              `מחכים לכם! 🐾`, // i18n-ok — WhatsApp text to the customer (Phase 3)
             ].filter(Boolean).join("\n");
             return (
               <a
@@ -1129,17 +1152,17 @@ function StayRow({
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 transition-colors"
-                title="שלח תזכורת צ׳ק-אין"
+                title={t("row.sendCheckInReminder")}
                 onClick={(e) => e.stopPropagation()}
               >
                 <MessageCircle className="w-3 h-3" />
-                <span className="hidden sm:inline">תזכורת</span>
+                <span className="hidden sm:inline">{t("reminder")}</span>
               </a>
             );
           })()}
           <button className="btn-ghost text-xs" onClick={() => onCheckin(stay.id)}>
             <CheckCircle2 className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">צ׳ק-אין</span>
+            <span className="hidden sm:inline">{t("checkIn")}</span>
           </button>
         </div>
       )}
@@ -1148,11 +1171,11 @@ function StayRow({
           {isCheckoutToday && stay.customer?.phone && (() => {
             const checkOutTime = settings.boardingCheckOutTime || "11:00";
             const lines = [
-              `שלום ${stay.customer!.name} 👋`,
-              `${stay.pet.name} מסיים/ת היום את השהות בפנסיון.`,
-              `שעת צ׳ק-אאוט: ${checkOutTime}`,
+              `שלום ${stay.customer!.name} 👋`, // i18n-ok — WhatsApp text to the customer (Phase 3)
+              `${stay.pet.name} מסיים/ת היום את השהות בפנסיון.`, // i18n-ok — WhatsApp text to the customer (Phase 3)
+              `שעת צ׳ק-אאוט: ${checkOutTime}`, // i18n-ok — WhatsApp text to the customer (Phase 3)
               "",
-              `תודה ולהתראות! 🐾`,
+              `תודה ולהתראות! 🐾`, // i18n-ok — WhatsApp text to the customer (Phase 3)
             ].join("\n");
             return (
               <a
@@ -1160,27 +1183,27 @@ function StayRow({
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors"
-                title="שלח תזכורת צ׳ק-אאוט"
+                title={t("row.sendCheckOutReminder")}
                 onClick={(e) => e.stopPropagation()}
               >
                 <MessageCircle className="w-3 h-3" />
-                <span className="hidden sm:inline">תזכורת</span>
+                <span className="hidden sm:inline">{t("reminder")}</span>
               </a>
             );
           })()}
           {stay.customer?.phone && (stay.pet.foodNotes || stay.pet.medicalNotes || (stay.pet.medications && stay.pet.medications.length > 0)) && (() => {
             const lines = [
-              `🐾 הוראות טיפול — ${stay.pet.name}`,
-              stay.room ? `חדר: ${stay.room.name}` : "",
+              `🐾 הוראות טיפול — ${stay.pet.name}`, // i18n-ok — WhatsApp text to the customer (Phase 3)
+              stay.room ? `חדר: ${stay.room.name}` : "", // i18n-ok — WhatsApp text to the customer (Phase 3)
               "",
             ];
             if (stay.pet.foodNotes) {
-              lines.push(`🍽️ *הוראות האכלה:*`);
+              lines.push(`🍽️ *הוראות האכלה:*`); // i18n-ok — WhatsApp text to the customer (Phase 3)
               lines.push(stay.pet.foodNotes);
               lines.push("");
             }
             if (stay.pet.medications && stay.pet.medications.length > 0) {
-              lines.push(`💊 *תרופות:*`);
+              lines.push(`💊 *תרופות:*`); // i18n-ok — WhatsApp text to the customer (Phase 3)
               stay.pet.medications.forEach((m) => {
                 const parts = [m.medName];
                 if (m.dosage) parts.push(m.dosage);
@@ -1191,7 +1214,7 @@ function StayRow({
               lines.push("");
             }
             if (stay.pet.medicalNotes) {
-              lines.push(`🏥 *הערות רפואיות:*`);
+              lines.push(`🏥 *הערות רפואיות:*`); // i18n-ok — WhatsApp text to the customer (Phase 3)
               lines.push(stay.pet.medicalNotes);
             }
             const waText = lines.filter((l, i) => !(l === "" && lines[i - 1] === "")).join("\n").trim();
@@ -1201,21 +1224,21 @@ function StayRow({
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 transition-colors"
-                title="שלח הוראות טיפול"
+                title={t("row.sendCareInstructions")}
                 onClick={(e) => e.stopPropagation()}
               >
                 <MessageCircle className="w-3 h-3" />
-                <span className="hidden sm:inline">הוראות</span>
+                <span className="hidden sm:inline">{t("row.instructions")}</span>
               </a>
             );
           })()}
-          <button className="btn-ghost text-xs" onClick={() => onExtend(stay.id)} title="הארך שהות">
+          <button className="btn-ghost text-xs" onClick={() => onExtend(stay.id)} title={t("row.extendStay")}>
             <Calendar className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">הארך</span>
+            <span className="hidden sm:inline">{t("row.extend")}</span>
           </button>
           <button className="btn-ghost text-xs" onClick={() => onCheckout(stay.id)}>
             <Clock className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">צ׳ק-אאוט</span>
+            <span className="hidden sm:inline">{t("checkOut")}</span>
           </button>
         </div>
       )}
@@ -1226,20 +1249,21 @@ function StayRow({
 // ─── Pet Health Alert Panel ──────────────────────────────────────────────────
 
 function PetHealthAlert({ pet }: { pet: BoardingStay["pet"] }) {
+  const t = useTranslations("boarding.boardingPage");
   const warnings: { icon: string; text: string; urgent: boolean }[] = [];
 
-  if (pet.behavior?.dogAggression) warnings.push({ icon: "🐕", text: "תוקפנות כלפי כלבים", urgent: true });
-  if (pet.behavior?.humanAggression) warnings.push({ icon: "👤", text: "תוקפנות כלפי אנשים", urgent: true });
-  if (pet.behavior?.biteHistory) warnings.push({ icon: "⚠️", text: pet.behavior.biteDetails ? `היסטוריית נשיכה: ${pet.behavior.biteDetails}` : "היסטוריית נשיכה", urgent: true });
-  if (pet.behavior?.resourceGuarding) warnings.push({ icon: "🛡️", text: "שמירת משאבים", urgent: true });
-  if (pet.behavior?.leashReactivity) warnings.push({ icon: "🔗", text: "ריאקטיביות בשרשרת", urgent: false });
-  if (pet.behavior?.separationAnxiety) warnings.push({ icon: "😰", text: "חרדת נטישה", urgent: false });
-  if (pet.health?.allergies) warnings.push({ icon: "🌿", text: `אלרגיות: ${pet.health.allergies}`, urgent: false });
-  if (pet.health?.medicalConditions) warnings.push({ icon: "🏥", text: `מצב רפואי: ${pet.health.medicalConditions}`, urgent: false });
-  if (pet.health?.activityLimitations) warnings.push({ icon: "🦮", text: `הגבלות תנועה: ${pet.health.activityLimitations}`, urgent: false });
+  if (pet.behavior?.dogAggression) warnings.push({ icon: "🐕", text: t("health.dogAggression"), urgent: true });
+  if (pet.behavior?.humanAggression) warnings.push({ icon: "👤", text: t("health.humanAggression"), urgent: true });
+  if (pet.behavior?.biteHistory) warnings.push({ icon: "⚠️", text: pet.behavior.biteDetails ? t("health.biteHistoryDetails", { details: pet.behavior.biteDetails }) : t("health.biteHistory"), urgent: true });
+  if (pet.behavior?.resourceGuarding) warnings.push({ icon: "🛡️", text: t("health.resourceGuarding"), urgent: true });
+  if (pet.behavior?.leashReactivity) warnings.push({ icon: "🔗", text: t("health.leashReactivity"), urgent: false });
+  if (pet.behavior?.separationAnxiety) warnings.push({ icon: "😰", text: t("health.separationAnxiety"), urgent: false });
+  if (pet.health?.allergies) warnings.push({ icon: "🌿", text: t("health.allergies", { value: pet.health.allergies }), urgent: false });
+  if (pet.health?.medicalConditions) warnings.push({ icon: "🏥", text: t("health.medicalConditions", { value: pet.health.medicalConditions }), urgent: false });
+  if (pet.health?.activityLimitations) warnings.push({ icon: "🦮", text: t("health.activityLimitations", { value: pet.health.activityLimitations }), urgent: false });
   if (pet.medications && pet.medications.length > 0) {
     pet.medications.forEach((m) => {
-      warnings.push({ icon: "💊", text: `תרופה: ${m.medName}${m.dosage ? ` · ${m.dosage}` : ""}${m.frequency ? ` · ${m.frequency}` : ""}`, urgent: false });
+      warnings.push({ icon: "💊", text: t("health.medication", { details: `${m.medName}${m.dosage ? ` · ${m.dosage}` : ""}${m.frequency ? ` · ${m.frequency}` : ""}` }), urgent: false });
     });
   }
 
@@ -1252,7 +1276,7 @@ function PetHealthAlert({ pet }: { pet: BoardingStay["pet"] }) {
       <div className="flex items-center gap-1.5 mb-2">
         <ShieldAlert className={cn("w-4 h-4", hasUrgent ? "text-red-600" : "text-amber-600")} />
         <span className={cn("font-semibold text-xs", hasUrgent ? "text-red-700" : "text-amber-700")}>
-          {hasUrgent ? "⚠️ שים לב — מידע חשוב על הכלב" : "מידע על הכלב"}
+          {hasUrgent ? t("health.urgentTitle") : t("health.title")}
         </span>
       </div>
       <ul className="space-y-1">
@@ -1282,6 +1306,9 @@ function CheckinDialog({
   onCancel: () => void;
   isPending: boolean;
 }) {
+  const t = useTranslations("boarding.boardingPage");
+  const tCommon = useTranslations("common");
+  const { locale } = useBusinessLocale();
   const now = new Date();
   const currentTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
   const [actualTime, setActualTime] = useState(currentTime);
@@ -1298,8 +1325,8 @@ function CheckinDialog({
       <div className="modal-content max-w-md mx-4 p-6 max-h-[85dvh] overflow-y-auto overscroll-contain">
         <div className="flex items-center justify-between mb-5">
           <div>
-            <h2 className="text-lg font-bold text-petra-text">צ׳ק-אין</h2>
-            <p className="text-sm text-petra-muted mt-0.5">{stay.pet.name} — {stay.customer?.name ?? "כלב שירות"}</p>
+            <h2 className="text-lg font-bold text-petra-text">{t("checkIn")}</h2>
+            <p className="text-sm text-petra-muted mt-0.5">{stay.pet.name} — {stay.customer?.name ?? t("serviceDog")}</p>
           </div>
           <button onClick={onCancel} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
             <X className="w-4 h-4" />
@@ -1309,23 +1336,23 @@ function CheckinDialog({
         <div className="space-y-4">
           <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-1 text-sm">
             <div className="flex justify-between">
-              <span className="text-petra-muted">חדר:</span>
-              <span className="font-medium">{stay.room?.name || "לא שובץ"}</span>
+              <span className="text-petra-muted">{t("dialog.roomLabel")}</span>
+              <span className="font-medium">{stay.room?.name || t("dialog.notAssigned")}</span>
             </div>
             {stay.yard && (
               <div className="flex justify-between">
-                <span className="text-petra-muted">חצר:</span>
+                <span className="text-petra-muted">{t("dialog.yardLabel")}</span>
                 <span className="font-medium text-teal-700">{stay.yard.name}</span>
               </div>
             )}
             <div className="flex justify-between">
-              <span className="text-petra-muted">תאריך כניסה:</span>
-              <span className="font-medium">{formatDateFull(stay.checkIn)}</span>
+              <span className="text-petra-muted">{t("checkin.checkInDate")}</span>
+              <span className="font-medium">{formatDateFull(stay.checkIn, locale)}</span>
             </div>
             {stay.checkOut && (
               <div className="flex justify-between">
-                <span className="text-petra-muted">תאריך יציאה מתוכנן:</span>
-                <span className="font-medium">{formatDateFull(stay.checkOut)}</span>
+                <span className="text-petra-muted">{t("checkin.plannedCheckOutDate")}</span>
+                <span className="font-medium">{formatDateFull(stay.checkOut, locale)}</span>
               </div>
             )}
           </div>
@@ -1333,20 +1360,20 @@ function CheckinDialog({
           <PetHealthAlert pet={stay.pet} />
 
           <div>
-            <label className="label">שעת כניסה בפועל</label>
+            <label className="label">{t("checkin.actualTime")}</label>
             <input type="time" className="input" value={actualTime} onChange={(e) => setActualTime(e.target.value)} />
           </div>
 
           {isEarly && (
             <div className="flex items-center gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-sm">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              כניסה מוקדמת — שעת הצ׳ק-אין המוגדרת היא {configuredTime}
+              {t("checkin.early", { time: configuredTime })}
             </div>
           )}
 
           <div>
-            <label className="label">הערות צ׳ק-אין</label>
-            <textarea className="input" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="הערות לכניסה..." />
+            <label className="label">{t("checkin.notes")}</label>
+            <textarea className="input" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("checkin.notesPlaceholder")} />
           </div>
 
           {hasMeds && (
@@ -1358,7 +1385,7 @@ function CheckinDialog({
                 className="w-4 h-4 rounded accent-blue-600"
               />
               <span className="text-sm text-blue-700 font-medium">
-                💊 צור משימות תרופות אוטומטיות ({stay.pet.medications!.length})
+                {t("checkin.createMedTasks", { count: stay.pet.medications!.length })}
               </span>
             </label>
           )}
@@ -1371,9 +1398,9 @@ function CheckinDialog({
             onClick={() => onConfirm({ actualTime, notes, createMedTasks })}
           >
             <CheckCircle2 className="w-4 h-4" />
-            {isPending ? "מבצע..." : "אשר צ׳ק-אין"}
+            {isPending ? t("dialog.processing") : t("checkin.confirm")}
           </button>
-          <button className="btn-secondary" onClick={onCancel}>ביטול</button>
+          <button className="btn-secondary" onClick={onCancel}>{tCommon("actions.cancel")}</button>
         </div>
       </div>
     </div>
@@ -1395,6 +1422,10 @@ function CheckoutDialog({
   onCancel: () => void;
   isPending: boolean;
 }) {
+  const t = useTranslations("boarding.boardingPage");
+  const tCommon = useTranslations("common");
+  const { locale, currency } = useBusinessLocale();
+  const sym = currencySymbol({ locale, currency });
   const [notes, setNotes] = useState("");
   const [sendingPaymentRequest, setSendingPaymentRequest] = useState(false);
 
@@ -1434,7 +1465,7 @@ function CheckoutDialog({
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               amount: total,
-              description: `פנסיון — ${stay.pet.name} (${nights} ${calcMode === "nights" ? "לילות" : "ימים"})`,
+              description: `פנסיון — ${stay.pet.name} (${nights} ${calcMode === "nights" ? "לילות" : "ימים"})`, // i18n-ok — payment-link description shown to the customer (Phase 3)
               customerId: stay.customer.id,
             }),
           });
@@ -1446,12 +1477,12 @@ function CheckoutDialog({
           // Stripe not configured — fall through to link-less message.
         }
       }
-      const linkBlock = link ? `\n\n💳 לתשלום מאובטח לחצו כאן:\n${link}` : "";
+      const linkBlock = link ? `\n\n💳 לתשלום מאובטח לחצו כאן:\n${link}` : ""; // i18n-ok — WhatsApp text to the customer (Phase 3)
       if (!link) {
-        toast.warning("לא הוגדר קישור תשלום — ההודעה נשלחת ללא לינק (להגדרת Stripe: הגדרות ← אינטגרציות)");
+        toast.warning(t("checkout.noPaymentLinkWarning"));
       }
-      const discountLine = discountAmount > 0 ? `\nהנחה: −₪${discountAmount.toFixed(0)}` : "";
-      const msg = `שלום ${stay.customer.name}! 😊\nתודה שהיה לנו את ${stay.pet.name} בפנסיון.\nסיכום השהייה: ${nights} ${calcMode === "nights" ? "לילות" : "ימים"} × ₪${pricePerNight} = ₪${subtotal.toFixed(0)}.${discountLine}\nלתשלום: ₪${total.toFixed(0)}\n\nנשמח לקבל תשלום 🙏${linkBlock}`;
+      const discountLine = discountAmount > 0 ? `\nהנחה: −${sym}${discountAmount.toFixed(0)}` : ""; // i18n-ok — WhatsApp text to the customer (Phase 3)
+      const msg = `שלום ${stay.customer.name}! 😊\nתודה שהיה לנו את ${stay.pet.name} בפנסיון.\nסיכום השהייה: ${nights} ${calcMode === "nights" ? "לילות" : "ימים"} × ${sym}${pricePerNight} = ${sym}${subtotal.toFixed(0)}.${discountLine}\nלתשלום: ${sym}${total.toFixed(0)}\n\nנשמח לקבל תשלום 🙏${linkBlock}`; // i18n-ok — WhatsApp text to the customer (Phase 3)
       const waUrl = `https://api.whatsapp.com/send?phone=${toWhatsAppPhone(stay.customer.phone)}&text=${encodeURIComponent(msg)}`;
       if (win) win.location.href = waUrl;
       else window.open(waUrl, "_blank");
@@ -1474,8 +1505,8 @@ function CheckoutDialog({
       <div className="modal-content max-w-md mx-4 p-6 max-h-[85dvh] overflow-y-auto overscroll-contain">
         <div className="flex items-center justify-between mb-5">
           <div>
-            <h2 className="text-lg font-bold text-petra-text">צ׳ק-אאוט</h2>
-            <p className="text-sm text-petra-muted mt-0.5">{stay.pet.name} — {stay.customer?.name ?? "כלב שירות"}</p>
+            <h2 className="text-lg font-bold text-petra-text">{t("checkOut")}</h2>
+            <p className="text-sm text-petra-muted mt-0.5">{stay.pet.name} — {stay.customer?.name ?? t("serviceDog")}</p>
           </div>
           <button onClick={onCancel} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
             <X className="w-4 h-4" />
@@ -1485,37 +1516,37 @@ function CheckoutDialog({
         <div className="space-y-4">
           <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 space-y-2 text-sm">
             <div className="flex justify-between">
-              <span className="text-petra-muted">חיה:</span>
+              <span className="text-petra-muted">{t("checkout.pet")}</span>
               <span className="font-medium">{stay.pet.name}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-petra-muted">לקוח:</span>
-              <span className="font-medium">{stay.customer?.name ?? "כלב שירות"}</span>
+              <span className="text-petra-muted">{t("checkout.client")}</span>
+              <span className="font-medium">{stay.customer?.name ?? t("serviceDog")}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-petra-muted">חדר:</span>
+              <span className="text-petra-muted">{t("dialog.roomLabel")}</span>
               <span className="font-medium">{stay.room?.name || "—"}</span>
             </div>
             {stay.yard && (
               <div className="flex justify-between">
-                <span className="text-petra-muted">חצר:</span>
+                <span className="text-petra-muted">{t("dialog.yardLabel")}</span>
                 <span className="font-medium text-teal-700">{stay.yard.name}</span>
               </div>
             )}
             <div className="divider" />
             <div className="flex justify-between">
-              <span className="text-petra-muted">כניסה:</span>
-              <span className="font-medium">{formatDateFull(stay.checkIn)}</span>
+              <span className="text-petra-muted">{t("dialog.checkInLabel")}</span>
+              <span className="font-medium">{formatDateFull(stay.checkIn, locale)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-petra-muted">יציאה:</span>
-              <span className="font-medium">{stay.checkOut ? formatDateFull(stay.checkOut) : "היום"}</span>
+              <span className="text-petra-muted">{t("dialog.checkOutLabel")}</span>
+              <span className="font-medium">{stay.checkOut ? formatDateFull(stay.checkOut, locale) : t("today")}</span>
             </div>
             <div className="divider" />
             <div className="flex justify-between items-center">
-              <span className="text-petra-muted">משך שהייה:</span>
+              <span className="text-petra-muted">{t("checkout.duration")}</span>
               <span className="text-base font-bold text-brand-600">
-                {nights} {calcMode === "nights" ? "לילות" : "ימים"}
+                {calcMode === "nights" ? t("count.nights", { count: nights }) : t("count.days", { count: nights })}
               </span>
             </div>
           </div>
@@ -1523,7 +1554,7 @@ function CheckoutDialog({
           {isLate && (
             <div className="flex items-center gap-2 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
               <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-              יציאה מאוחרת — שעת הצ׳ק-אאוט המוגדרת היא {configuredCheckoutTime}
+              {t("checkout.late", { time: configuredCheckoutTime })}
             </div>
           )}
 
@@ -1532,7 +1563,7 @@ function CheckoutDialog({
             <div className="p-4 rounded-xl border border-slate-200 space-y-3">
               <div className="flex items-end gap-3">
                 <div className="flex-1">
-                  <label className="label text-xs">מחיר ל{calcMode === "nights" ? "לילה" : "יום"} (₪)</label>
+                  <label className="label text-xs">{calcMode === "nights" ? t("checkout.pricePerNight", { currency: sym }) : t("checkout.pricePerDay", { currency: sym })}</label>
                   <input
                     type="number"
                     min={0}
@@ -1542,20 +1573,20 @@ function CheckoutDialog({
                   />
                 </div>
                 <div className="flex-1">
-                  <label className="label text-xs">הנחה</label>
+                  <label className="label text-xs">{t("checkout.discount")}</label>
                   <select
                     className="input w-full text-sm"
                     value={discountType}
                     onChange={(e) => setDiscountType(e.target.value as "none" | "percent" | "fixed")}
                   >
-                    <option value="none">ללא הנחה</option>
-                    <option value="percent">הנחה %</option>
-                    <option value="fixed">הנחה ₪</option>
+                    <option value="none">{t("checkout.noDiscount")}</option>
+                    <option value="percent">{t("checkout.discountPercent")}</option>
+                    <option value="fixed">{t("checkout.discountFixed", { currency: sym })}</option>
                   </select>
                 </div>
                 {discountType !== "none" && (
                   <div className="w-24">
-                    <label className="label text-xs">{discountType === "percent" ? "%" : "₪"}</label>
+                    <label className="label text-xs">{discountType === "percent" ? "%" : sym}</label>
                     <input
                       type="number"
                       min={0}
@@ -1569,26 +1600,26 @@ function CheckoutDialog({
               </div>
               <div className="space-y-1 text-sm">
                 <div className="flex justify-between text-petra-muted">
-                  <span>סכום ביניים</span>
-                  <span>₪{subtotal.toLocaleString()}</span>
+                  <span>{t("checkout.subtotal")}</span>
+                  <span>{sym}{subtotal.toLocaleString()}</span>
                 </div>
                 {discountAmount > 0 && (
                   <div className="flex justify-between text-emerald-600">
-                    <span>הנחה{discountType === "percent" ? ` (${discountValue}%)` : ""}</span>
-                    <span>−₪{discountAmount.toLocaleString()}</span>
+                    <span>{t("checkout.discount")}{discountType === "percent" ? ` (${discountValue}%)` : ""}</span>
+                    <span>−{sym}{discountAmount.toLocaleString()}</span>
                   </div>
                 )}
                 <div className="flex justify-between font-bold text-petra-text border-t pt-1">
-                  <span>לתשלום</span>
-                  <span>₪{total.toLocaleString()}</span>
+                  <span>{t("checkout.toPay")}</span>
+                  <span>{sym}{total.toLocaleString()}</span>
                 </div>
               </div>
             </div>
           )}
 
           <div>
-            <label className="label">הערות צ׳ק-אאוט</label>
-            <textarea className="input" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="הערות ליציאה..." />
+            <label className="label">{t("checkout.notes")}</label>
+            <textarea className="input" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t("checkout.notesPlaceholder")} />
           </div>
         </div>
 
@@ -1601,7 +1632,7 @@ function CheckoutDialog({
             className="flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 transition-colors disabled:opacity-60"
           >
             <MessageCircle className="w-4 h-4" />
-            {sendingPaymentRequest ? "מכין קישור..." : "שלח בקשת תשלום בוואטסאפ"}
+            {sendingPaymentRequest ? t("checkout.preparingLink") : t("checkout.sendPaymentRequest")}
           </button>
         )}
 
@@ -1612,9 +1643,9 @@ function CheckoutDialog({
             onClick={() => onConfirm({ notes })}
           >
             <LogOut className="w-4 h-4" />
-            {isPending ? "מבצע..." : "אשר צ׳ק-אאוט"}
+            {isPending ? t("dialog.processing") : t("checkout.confirm")}
           </button>
-          <button className="btn-secondary" onClick={onCancel}>ביטול</button>
+          <button className="btn-secondary" onClick={onCancel}>{tCommon("actions.cancel")}</button>
         </div>
       </div>
     </div>
@@ -1637,6 +1668,9 @@ function EditStayDialog({
   onCancel: () => void;
   isPending: boolean;
 }) {
+  const t = useTranslations("boarding.boardingPage");
+  const tCommon = useTranslations("common");
+  const { cfg } = useBusinessLocale();
   const toLocalInput = (iso: string) => {
     const d = new Date(iso);
     const pad = (n: number) => String(n).padStart(2, "0");
@@ -1657,8 +1691,8 @@ function EditStayDialog({
       <div className="modal-content max-w-md mx-4 p-6 max-h-[85dvh] overflow-y-auto overscroll-contain">
         <div className="flex items-center justify-between mb-5">
           <div>
-            <h2 className="text-lg font-bold text-petra-text">עריכת הזמנה</h2>
-            <p className="text-sm text-petra-muted mt-0.5">{stay.pet.name} — {stay.customer?.name ?? "כלב שירות"}</p>
+            <h2 className="text-lg font-bold text-petra-text">{t("edit.title")}</h2>
+            <p className="text-sm text-petra-muted mt-0.5">{stay.pet.name} — {stay.customer?.name ?? t("serviceDog")}</p>
           </div>
           <button onClick={onCancel} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
             <X className="w-4 h-4" />
@@ -1671,33 +1705,33 @@ function EditStayDialog({
             className="mb-4 flex items-center justify-center gap-1.5 w-full py-2 rounded-lg border border-brand-200 bg-brand-50 text-sm font-medium text-brand-700 hover:bg-brand-100 transition-colors"
           >
             <Users className="w-4 h-4" />
-            פתח כרטיס לקוח
+            {t("edit.openClientCard")}
           </Link>
         )}
 
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label text-xs">כניסה</label>
-              <input type="datetime-local" lang="he" className="input w-full text-sm" value={checkIn} onChange={(e) => setCheckIn(e.target.value)} />
+              <label className="label text-xs">{t("edit.checkIn")}</label>
+              <input type="datetime-local" lang={cfg.lang} className="input w-full text-sm" value={checkIn} onChange={(e) => setCheckIn(e.target.value)} />
             </div>
             <div>
-              <label className="label text-xs">יציאה</label>
-              <input type="datetime-local" lang="he" className="input w-full text-sm" value={checkOut} onChange={(e) => setCheckOut(e.target.value)} />
+              <label className="label text-xs">{t("edit.checkOut")}</label>
+              <input type="datetime-local" lang={cfg.lang} className="input w-full text-sm" value={checkOut} onChange={(e) => setCheckOut(e.target.value)} />
             </div>
           </div>
 
           {invalidRange && (
-            <p className="text-xs text-red-600">תאריך היציאה חייב להיות אחרי תאריך הכניסה</p>
+            <p className="text-xs text-red-600">{t("edit.invalidRange")}</p>
           )}
           {nights > 0 && (
-            <p className="text-xs text-petra-muted">{nights} לילות</p>
+            <p className="text-xs text-petra-muted">{t("count.nights", { count: nights })}</p>
           )}
 
           <div>
-            <label className="label text-xs">חדר</label>
+            <label className="label text-xs">{t("room.label")}</label>
             <select className="input w-full text-sm" value={roomId} onChange={(e) => setRoomId(e.target.value)}>
-              <option value="">ללא חדר</option>
+              <option value="">{t("noRoom")}</option>
               {rooms.filter((r) => r.isActive).map((r) => (
                 <option key={r.id} value={r.id}>{r.name}</option>
               ))}
@@ -1705,12 +1739,12 @@ function EditStayDialog({
           </div>
 
           <div>
-            <label className="label text-xs">הערות</label>
+            <label className="label text-xs">{t("notes")}</label>
             <textarea className="input w-full text-sm" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
 
           <p className="text-xs text-petra-muted">
-            המחיר וההנחה נקבעים במסך הצ׳ק-אאוט, לפני שליחת דרישת התשלום.
+            {t("edit.priceHint")}
           </p>
         </div>
 
@@ -1727,9 +1761,9 @@ function EditStayDialog({
               })
             }
           >
-            {isPending ? "שומר..." : "שמור שינויים"}
+            {isPending ? tCommon("progress.saving") : t("edit.saveChanges")}
           </button>
-          <button className="btn-secondary" onClick={onCancel}>ביטול</button>
+          <button className="btn-secondary" onClick={onCancel}>{tCommon("actions.cancel")}</button>
         </div>
       </div>
     </div>
@@ -1749,6 +1783,9 @@ function ExtendStayDialog({
   onCancel: () => void;
   isPending: boolean;
 }) {
+  const t = useTranslations("boarding.boardingPage");
+  const tCommon = useTranslations("common");
+  const { locale, cfg } = useBusinessLocale();
   const hasCheckout = !!stay.checkOut;
   const currentCheckout = stay.checkOut
     ? new Date(stay.checkOut).toISOString().slice(0, 10)
@@ -1764,8 +1801,8 @@ function ExtendStayDialog({
       <div className="modal-content max-w-sm mx-4 p-6">
         <div className="flex items-center justify-between mb-5">
           <div>
-            <h2 className="text-lg font-bold text-petra-text">{hasCheckout ? "הארכת שהות" : "הגדרת תאריך יציאה"}</h2>
-            <p className="text-sm text-petra-muted mt-0.5">{stay.pet.name} — {stay.customer?.name ?? "כלב שירות"}</p>
+            <h2 className="text-lg font-bold text-petra-text">{hasCheckout ? t("extend.titleExtend") : t("extend.titleSet")}</h2>
+            <p className="text-sm text-petra-muted mt-0.5">{stay.pet.name} — {stay.customer?.name ?? t("serviceDog")}</p>
           </div>
           <button onClick={onCancel} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
             <X className="w-4 h-4" />
@@ -1775,18 +1812,18 @@ function ExtendStayDialog({
         <div className="space-y-4">
           <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-sm space-y-1.5">
             <div className="flex justify-between">
-              <span className="text-petra-muted">כניסה:</span>
-              <span className="font-medium">{new Date(stay.checkIn).toLocaleDateString("he-IL")}</span>
+              <span className="text-petra-muted">{t("dialog.checkInLabel")}</span>
+              <span className="font-medium">{new Date(stay.checkIn).toLocaleDateString(locale)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-petra-muted">יציאה נוכחית:</span>
-              <span className="font-medium">{hasCheckout ? new Date(stay.checkOut!).toLocaleDateString("he-IL") : "שהות פתוחה — לא הוגדר תאריך"}</span>
+              <span className="text-petra-muted">{t("extend.currentCheckOut")}</span>
+              <span className="font-medium">{hasCheckout ? new Date(stay.checkOut!).toLocaleDateString(locale) : t("extend.openStay")}</span>
             </div>
           </div>
           <div>
-            <label className="label">{hasCheckout ? "תאריך יציאה חדש *" : "תאריך יציאה *"}</label>
+            <label className="label">{hasCheckout ? t("extend.newDateLabel") : t("extend.dateLabel")}</label>
             <input
-              type="date" lang="he"
+              type="date" lang={cfg.lang}
               className="input"
               value={newCheckout}
               min={minDate}
@@ -1802,9 +1839,9 @@ function ExtendStayDialog({
             onClick={() => onConfirm(newCheckout + "T12:00:00")}
           >
             <Calendar className="w-4 h-4" />
-            {isPending ? "שומר..." : hasCheckout ? "עדכן תאריך יציאה" : "הגדר תאריך יציאה"}
+            {isPending ? tCommon("progress.saving") : hasCheckout ? t("extend.update") : t("extend.set")}
           </button>
-          <button className="btn-secondary" onClick={onCancel}>ביטול</button>
+          <button className="btn-secondary" onClick={onCancel}>{tCommon("actions.cancel")}</button>
         </div>
       </div>
     </div>
@@ -1831,6 +1868,8 @@ interface HealthAlertsData {
 }
 
 function VaccinationAlertBanner() {
+  const t = useTranslations("boarding.boardingPage");
+  const { locale } = useBusinessLocale();
   const [expanded, setExpanded] = useState(false);
 
   const { data } = useQuery<HealthAlertsData>({
@@ -1846,9 +1885,9 @@ function VaccinationAlertBanner() {
   const allShown = expanded ? data.alerts : data.alerts.slice(0, 3);
 
   const summaryParts: string[] = [];
-  if (data.expired > 0) summaryParts.push(`${data.expired} פג תוקף`);
-  if ((data.notVaccinated ?? 0) > 0) summaryParts.push(`${data.notVaccinated} לא חוסן`);
-  if (data.expiringSoon > 0) summaryParts.push(`${data.expiringSoon} פוגים בקרוב`);
+  if (data.expired > 0) summaryParts.push(t("vaccination.expiredCount", { count: data.expired }));
+  if ((data.notVaccinated ?? 0) > 0) summaryParts.push(t("vaccination.notVaccinatedCount", { count: data.notVaccinated }));
+  if (data.expiringSoon > 0) summaryParts.push(t("vaccination.expiringSoonCount", { count: data.expiringSoon }));
 
   return (
     <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 overflow-hidden">
@@ -1859,7 +1898,7 @@ function VaccinationAlertBanner() {
         <ShieldAlert className="w-5 h-5 text-amber-600 shrink-0" />
         <div className="flex-1 min-w-0">
           <span className="text-sm font-semibold text-amber-900">
-            {summaryParts.length > 0 ? `כלבים: ${summaryParts.join(" · ")}` : `${data.expiringSoon} כלבים עם חיסון פג בקרוב`}
+            {summaryParts.length > 0 ? t("vaccination.summary", { parts: summaryParts.join(" · ") }) : t("vaccination.expiringSoonDogs", { count: data.expiringSoon })}
           </span>
         </div>
         <ChevronDown
@@ -1877,8 +1916,8 @@ function VaccinationAlertBanner() {
             const isNotVaccinated = alert.status === "not_vaccinated";
             const msg = encodeURIComponent(
               isNotVaccinated
-                ? `שלום ${alert.customerName}, הכלב ${alert.petName} אינו מחוסן. נא לחסן לפני הכניסה לפנסיון.`
-                : `שלום ${alert.customerName}, חיסון הכלב של ${alert.petName} פג תוקף${alert.rabiesValidUntil ? ` בתאריך ${formatDate(alert.rabiesValidUntil)}` : ""}. נא לחדש לפני הכניסה לפנסיון.`
+                ? `שלום ${alert.customerName}, הכלב ${alert.petName} אינו מחוסן. נא לחסן לפני הכניסה לפנסיון.` // i18n-ok — WhatsApp text to the customer (Phase 3)
+                : `שלום ${alert.customerName}, חיסון הכלב של ${alert.petName} פג תוקף${alert.rabiesValidUntil ? ` בתאריך ${formatDate(alert.rabiesValidUntil, locale)}` : ""}. נא לחדש לפני הכניסה לפנסיון.` // i18n-ok — WhatsApp text to the customer (Phase 3)
             );
             return (
               <div
@@ -1901,7 +1940,7 @@ function VaccinationAlertBanner() {
                     ({alert.customerName})
                   </span>
                   {isNotVaccinated ? (
-                    <span className="text-xs font-medium text-orange-600">לא חוסן</span>
+                    <span className="text-xs font-medium text-orange-600">{t("vaccination.notVaccinated")}</span>
                   ) : alert.rabiesValidUntil ? (
                     <span
                       className={cn(
@@ -1909,7 +1948,7 @@ function VaccinationAlertBanner() {
                         alert.status === "expired" ? "text-red-600" : "text-amber-700"
                       )}
                     >
-                      כלב: {formatDate(alert.rabiesValidUntil)}
+                      {t("vaccination.validUntil", { date: formatDate(alert.rabiesValidUntil, locale) })}
                     </span>
                   ) : null}
                 </div>
@@ -1921,7 +1960,7 @@ function VaccinationAlertBanner() {
                     className="btn-secondary text-xs py-1 px-2.5 flex items-center gap-1 shrink-0"
                   >
                     <MessageCircle className="w-3 h-3" />
-                    תזכורת
+                    {t("reminder")}
                   </a>
                 )}
               </div>
@@ -1932,7 +1971,7 @@ function VaccinationAlertBanner() {
               onClick={() => setExpanded(true)}
               className="w-full text-xs text-amber-700 py-2 hover:bg-amber-100"
             >
-              הצג עוד {data.alerts.length - 3}...
+              {t("vaccination.showMore", { count: data.alerts.length - 3 })}
             </button>
           )}
         </div>
@@ -1944,6 +1983,7 @@ function VaccinationAlertBanner() {
 // ─── Training Minutes Field ───────────────────────────────────────────────────
 
 function TrainingMinutesField({ stay }: { stay: BoardingStay }) {
+  const t = useTranslations("boarding.boardingPage");
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(String(stay.dailyTrainingMinutes ?? ""));
@@ -1960,7 +2000,7 @@ function TrainingMinutesField({ stay }: { stay: BoardingStay }) {
       queryClient.invalidateQueries({ queryKey: ["rooms"] });
       setEditing(false);
     },
-    onError: () => toast.error("שגיאה בשמירת דקות אימון"),
+    onError: () => toast.error(t("training.saveError")),
   });
 
   if (editing) {
@@ -1983,7 +2023,7 @@ function TrainingMinutesField({ stay }: { stay: BoardingStay }) {
           className="w-16 text-xs border border-slate-200 rounded px-1.5 py-0.5 focus:outline-none focus:ring-1 focus:ring-brand-400"
           autoFocus
         />
-        <span className="text-xs text-petra-muted">דק׳ אימון</span>
+        <span className="text-xs text-petra-muted">{t("training.minutesUnit")}</span>
         <button type="submit" className="text-brand-600 hover:text-brand-800 transition-colors">
           <Check className="w-3.5 h-3.5" />
         </button>
@@ -1998,10 +2038,10 @@ function TrainingMinutesField({ stay }: { stay: BoardingStay }) {
     <button
       onClick={() => { setValue(String(stay.dailyTrainingMinutes ?? "")); setEditing(true); }}
       className="flex items-center gap-1 text-xs text-petra-muted hover:text-blue-600 transition-colors"
-      title="ערוך דקות אימון יומי"
+      title={t("training.editTitle")}
     >
       <Sparkles className="w-3 h-3" />
-      {stay.dailyTrainingMinutes ? `${stay.dailyTrainingMinutes} דק׳ אימון` : "הוסף דקות אימון"}
+      {stay.dailyTrainingMinutes ? t("training.minutes", { count: stay.dailyTrainingMinutes }) : t("training.add")}
     </button>
   );
 }
@@ -2016,14 +2056,18 @@ interface CareLogEntry {
   doneAt: string;
 }
 
+// Labels: boarding.boardingPage.careLog.types.<value>
 const CARE_LOG_TYPES = [
-  { value: "FEEDING", label: "האכלה", emoji: "🍽️" },
-  { value: "MEDICATION", label: "תרופה", emoji: "💊" },
-  { value: "WALK", label: "טיול", emoji: "🦮" },
-  { value: "NOTE", label: "הערה", emoji: "📝" },
+  { value: "FEEDING", emoji: "🍽️" },
+  { value: "MEDICATION", emoji: "💊" },
+  { value: "WALK", emoji: "🦮" },
+  { value: "NOTE", emoji: "📝" },
 ];
 
 function CareLogModal({ stayId, petName, onClose }: { stayId: string; petName: string; onClose: () => void }) {
+  const t = useTranslations("boarding.boardingPage");
+  const tCommon = useTranslations("common");
+  const { locale } = useBusinessLocale();
   const queryClient = useQueryClient();
   const [logType, setLogType] = useState("FEEDING");
   const [title, setTitle] = useState("");
@@ -2043,16 +2087,16 @@ function CareLogModal({ stayId, petName, onClose }: { stayId: string; petName: s
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ type: logType, title, notes }),
       }).then(async (r) => {
-        if (!r.ok) throw new Error("שגיאה");
+        if (!r.ok) throw new Error(t("careLog.genericError"));
         return r.json();
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["care-logs", stayId] });
       setTitle("");
       setNotes("");
-      toast.success("רישום נוסף");
+      toast.success(t("careLog.added"));
     },
-    onError: () => toast.error("שגיאה בהוספת רישום"),
+    onError: () => toast.error(t("careLog.addError")),
   });
 
   const deleteMutation = useMutation({
@@ -2061,10 +2105,11 @@ function CareLogModal({ stayId, petName, onClose }: { stayId: string; petName: s
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["care-logs", stayId] });
     },
-    onError: () => toast.error("שגיאה במחיקת הרישום"),
+    onError: () => toast.error(t("careLog.deleteError")),
   });
 
-  const typeConfig = Object.fromEntries(CARE_LOG_TYPES.map((t) => [t.value, t]));
+  const typeConfig = Object.fromEntries(CARE_LOG_TYPES.map((lt) => [lt.value, lt]));
+  const careTypeLabel = (type: string) => (t.has(`careLog.types.${type}`) ? t(`careLog.types.${type}`) : type);
 
   return (
     <div className="modal-overlay">
@@ -2073,7 +2118,7 @@ function CareLogModal({ stayId, petName, onClose }: { stayId: string; petName: s
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold text-petra-text flex items-center gap-2">
             <ClipboardList className="w-5 h-5 text-brand-500" />
-            יומן טיפול — {petName}
+            {t("careLog.title", { name: petName })}
           </h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
             <X className="w-4 h-4" />
@@ -2083,18 +2128,18 @@ function CareLogModal({ stayId, petName, onClose }: { stayId: string; petName: s
         {/* Add form */}
         <div className="p-3 bg-slate-50 rounded-xl mb-4 space-y-2">
           <div className="flex gap-1 flex-wrap">
-            {CARE_LOG_TYPES.map((t) => (
+            {CARE_LOG_TYPES.map((lt) => (
               <button
-                key={t.value}
-                onClick={() => setLogType(t.value)}
+                key={lt.value}
+                onClick={() => setLogType(lt.value)}
                 className={cn(
                   "px-2 py-1 rounded-lg text-xs font-medium border transition-all",
-                  logType === t.value
+                  logType === lt.value
                     ? "bg-brand-500 text-white border-brand-500"
                     : "bg-white text-petra-muted border-slate-200"
                 )}
               >
-                {t.emoji} {t.label}
+                {lt.emoji} {careTypeLabel(lt.value)}
               </button>
             ))}
           </div>
@@ -2102,30 +2147,30 @@ function CareLogModal({ stayId, petName, onClose }: { stayId: string; petName: s
             className="input text-sm"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="כותרת הרישום *"
+            placeholder={t("careLog.titlePlaceholder")}
           />
           <input
             className="input text-sm"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="הערות (אופציונלי)"
+            placeholder={t("careLog.notesPlaceholder")}
           />
           <button
             className="btn-primary w-full text-sm py-1.5"
             disabled={!title.trim() || addMutation.isPending}
             onClick={() => addMutation.mutate()}
           >
-            {addMutation.isPending ? "שומר..." : "הוסף רישום"}
+            {addMutation.isPending ? tCommon("progress.saving") : t("careLog.add")}
           </button>
         </div>
 
         {/* Log timeline */}
         {isLoading && <PetraLoader variant="inline" />}
         {!isLoading && logs.length === 0 && (
-          <p className="text-center text-sm text-petra-muted py-4">אין רישומים עדיין</p>
+          <p className="text-center text-sm text-petra-muted py-4">{t("careLog.empty")}</p>
         )}
         {logs.map((log) => {
-          const tc = typeConfig[log.type] ?? { emoji: "📋", label: log.type };
+          const tc = { emoji: typeConfig[log.type]?.emoji ?? "📋", label: careTypeLabel(log.type) };
           return (
             <div key={log.id} className="flex items-start gap-3 py-3 border-b border-slate-50 last:border-0">
               <span className="text-xl flex-shrink-0 mt-0.5">{tc.emoji}</span>
@@ -2138,7 +2183,7 @@ function CareLogModal({ stayId, petName, onClose }: { stayId: string; petName: s
                 </div>
                 {log.notes && <p className="text-xs text-petra-muted mt-0.5">{log.notes}</p>}
                 <p className="text-[10px] text-petra-muted mt-0.5">
-                  {new Date(log.doneAt).toLocaleDateString("he-IL")} · {new Date(log.doneAt).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}
+                  {new Date(log.doneAt).toLocaleDateString(locale)} · {new Date(log.doneAt).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}
                 </p>
               </div>
               <button

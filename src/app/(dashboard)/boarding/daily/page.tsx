@@ -2,6 +2,8 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import Link from "next/link";
 import {
   ChevronLeft,
@@ -84,13 +86,13 @@ const FREQ_TIMES: Record<string, string[]> = {
   four:  ["08:00", "11:00", "15:00", "18:00"],
 };
 
-const HE_DAYS = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
+type DailyT = ReturnType<typeof useTranslations<"boarding">>;
 
-const TYPE_CONFIG: Record<string, { label: string; color: string; bg: string; Icon: React.FC<{ className?: string; style?: React.CSSProperties }> }> = {
-  FEEDING:    { label: "האכלה",  color: "#F97316", bg: "#FFF7ED", Icon: UtensilsCrossed },
-  MEDICATION: { label: "תרופה",  color: "#8B5CF6", bg: "#F5F3FF", Icon: Pill            },
-  WALK:       { label: "טיול",   color: "#10B981", bg: "#ECFDF5", Icon: Footprints      },
-  NOTE:       { label: "הערה",   color: "#64748B", bg: "#F8FAFC", Icon: StickyNote      },
+const TYPE_CONFIG: Record<string, { color: string; bg: string; Icon: React.FC<{ className?: string; style?: React.CSSProperties }> }> = {
+  FEEDING:    { color: "#F97316", bg: "#FFF7ED", Icon: UtensilsCrossed },
+  MEDICATION: { color: "#8B5CF6", bg: "#F5F3FF", Icon: Pill            },
+  WALK:       { color: "#10B981", bg: "#ECFDF5", Icon: Footprints      },
+  NOTE:       { color: "#64748B", bg: "#F8FAFC", Icon: StickyNote      },
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -99,10 +101,10 @@ function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function formatDateHe(dateStr: string) {
+function formatDateHe(dateStr: string, t: DailyT, locale: string) {
   const d = new Date(dateStr);
-  const day = HE_DAYS[d.getDay()];
-  return `${day}, ${d.toLocaleDateString("he-IL", { day: "numeric", month: "long" })}`;
+  const day = t(`boardingDailyPage.weekdays.${d.getDay()}`);
+  return t("boardingDailyPage.dateLabel", { day, date: d.toLocaleDateString(locale, { day: "numeric", month: "long" }) });
 }
 
 function addDays(dateStr: string, delta: number) {
@@ -111,8 +113,8 @@ function addDays(dateStr: string, delta: number) {
   return d.toISOString().slice(0, 10);
 }
 
-function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" });
+function formatTime(iso: string, locale: string) {
+  return new Date(iso).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
 }
 
 function parseFeedingTimes(feedingPlan: string | null, foodFrequency: string | null): string[] {
@@ -141,56 +143,58 @@ function NoteModal({
   onClose: () => void;
   onSave: (type: string, title: string, notes: string) => void;
 }) {
+  const t = useTranslations("boarding");
+  const tc = useTranslations("common");
   const [type, setType] = useState<"WALK" | "NOTE">("NOTE");
   const [notes, setNotes] = useState("");
 
   const typeLabels: Array<{ value: "WALK" | "NOTE"; label: string }> = [
-    { value: "NOTE", label: "הערה" },
-    { value: "WALK", label: "טיול" },
+    { value: "NOTE", label: t("boardingDailyPage.noteModal.note") },
+    { value: "WALK", label: t("boardingDailyPage.noteModal.walk") },
   ];
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-5 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-bold text-petra-text">הוסף רשומה</h3>
+          <h3 className="font-bold text-petra-text">{t("boardingDailyPage.noteModal.title")}</h3>
           <button onClick={onClose} className="text-petra-muted hover:text-petra-text">
             <X className="w-5 h-5" />
           </button>
         </div>
         <div className="flex gap-2 mb-3">
-          {typeLabels.map((t) => (
+          {typeLabels.map((tl) => (
             <button
-              key={t.value}
-              onClick={() => setType(t.value)}
+              key={tl.value}
+              onClick={() => setType(tl.value)}
               className={cn(
                 "flex-1 py-2 rounded-lg text-sm font-medium transition-all",
-                type === t.value ? "bg-brand-500 text-white" : "bg-slate-100 text-petra-muted"
+                type === tl.value ? "bg-brand-500 text-white" : "bg-slate-100 text-petra-muted"
               )}
             >
-              {t.label}
+              {tl.label}
             </button>
           ))}
         </div>
         <textarea
           className="input h-24 resize-none"
-          placeholder={type === "WALK" ? "פרטי הטיול (אורך, התנהגות...)" : "הערה לצוות..."}
+          placeholder={type === "WALK" ? t("boardingDailyPage.noteModal.walkPlaceholder") : t("boardingDailyPage.noteModal.notePlaceholder")}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           autoFocus
         />
         <div className="flex gap-2 mt-3">
-          <button onClick={onClose} className="btn-ghost flex-1">ביטול</button>
+          <button onClick={onClose} className="btn-ghost flex-1">{tc("actions.cancel")}</button>
           <button
             className="btn-primary flex-1"
             disabled={!notes.trim()}
             onClick={() => {
-              const title = type === "WALK" ? "טיול" : "הערה";
+              const title = type === "WALK" ? t("boardingDailyPage.noteModal.walk") : t("boardingDailyPage.noteModal.note");
               onSave(type, title, notes);
               onClose();
             }}
           >
-            שמור
+            {tc("actions.save")}
           </button>
         </div>
       </div>
@@ -206,6 +210,8 @@ function PetCareCard({ stay, date, onLog, onDelete }: {
   onLog: (boardingStayId: string, petId: string, type: string, title: string, notes?: string) => void;
   onDelete: (logId: string) => void;
 }) {
+  const t = useTranslations("boarding");
+  const { locale } = useBusinessLocale();
   const [showNoteModal, setShowNoteModal] = useState(false);
 
   const feedingTimes = parseFeedingTimes(stay.feedingPlan, stay.pet.foodFrequency);
@@ -226,7 +232,7 @@ function PetCareCard({ stay, date, onLog, onDelete }: {
     } else {
       const foodDesc = [
         stay.pet.foodBrand,
-        stay.pet.foodGramsPerDay ? `${stay.pet.foodGramsPerDay}ג׳` : null,
+        stay.pet.foodGramsPerDay ? t("boardingDailyPage.card.grams", { grams: stay.pet.foodGramsPerDay }) : null,
         stay.pet.foodNotes,
       ].filter(Boolean).join(" • ");
       onLog(stay.id, stay.pet.id, "FEEDING", title, foodDesc || undefined);
@@ -266,7 +272,7 @@ function PetCareCard({ stay, date, onLog, onDelete }: {
                 {stay.customer.name}
               </Link>
             ) : (
-              <div className="text-sm text-petra-muted">כלב שירות</div>
+              <div className="text-sm text-petra-muted">{t("boardingDailyPage.card.serviceDog")}</div>
             )}
             <div className="flex items-center gap-2 mt-1 flex-wrap">
               {stay.room && (
@@ -278,7 +284,7 @@ function PetCareCard({ stay, date, onLog, onDelete }: {
                 "text-[11px] px-2 py-0.5 rounded-full font-medium",
                 stay.status === "checked_in" ? "bg-green-100 text-green-700" : "bg-purple-100 text-purple-700"
               )}>
-                {stay.status === "checked_in" ? "נמצא" : "הזמנה"}
+                {stay.status === "checked_in" ? t("boardingDailyPage.card.checkedIn") : t("boardingDailyPage.card.reserved")}
               </span>
             </div>
           </div>
@@ -289,12 +295,12 @@ function PetCareCard({ stay, date, onLog, onDelete }: {
       <div className="p-4 border-b border-slate-100">
         <div className="flex items-center gap-2 mb-3">
           <UtensilsCrossed className="w-4 h-4 text-orange-500" />
-          <span className="text-sm font-semibold text-petra-text">האכלות</span>
+          <span className="text-sm font-semibold text-petra-text">{t("boardingDailyPage.card.feedings")}</span>
           {stay.pet.foodBrand && (
             <span className="text-xs text-petra-muted">• {stay.pet.foodBrand}</span>
           )}
           {stay.pet.foodGramsPerDay && (
-            <span className="text-xs text-petra-muted">• {stay.pet.foodGramsPerDay}ג׳</span>
+            <span className="text-xs text-petra-muted">• {t("boardingDailyPage.card.grams", { grams: stay.pet.foodGramsPerDay })}</span>
           )}
         </div>
         <div className="grid grid-cols-2 gap-2">
@@ -331,7 +337,7 @@ function PetCareCard({ stay, date, onLog, onDelete }: {
         <div className="p-4 border-b border-slate-100">
           <div className="flex items-center gap-2 mb-3">
             <Pill className="w-4 h-4 text-purple-500" />
-            <span className="text-sm font-semibold text-petra-text">תרופות</span>
+            <span className="text-sm font-semibold text-petra-text">{t("boardingDailyPage.card.medications")}</span>
           </div>
           <div className="space-y-2">
             {medications.map((med) => {
@@ -359,7 +365,7 @@ function PetCareCard({ stay, date, onLog, onDelete }: {
                               : "bg-white border-slate-200 text-petra-text hover:bg-purple-50 hover:border-purple-200"
                           )}
                         >
-                          <span className="font-medium">{time || "ניתן"}</span>
+                          <span className="font-medium">{time || t("boardingDailyPage.card.given")}</span>
                           {done ? (
                             <Check className="w-4 h-4 text-purple-600" />
                           ) : (
@@ -383,14 +389,14 @@ function PetCareCard({ stay, date, onLog, onDelete }: {
           className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border border-dashed border-slate-300 text-sm text-petra-muted hover:border-brand-400 hover:text-brand-600 hover:bg-brand-50/30 transition-all"
         >
           <Footprints className="w-4 h-4" />
-          הוסף טיול / הערה
+          {t("boardingDailyPage.card.addWalkOrNote")}
         </button>
       </div>
 
       {/* Today's log timeline */}
       {logs.length > 0 && (
         <div className="p-4">
-          <p className="text-xs font-semibold text-petra-muted mb-3">לוג היום</p>
+          <p className="text-xs font-semibold text-petra-muted mb-3">{t("boardingDailyPage.card.todayLog")}</p>
           <div className="space-y-2">
             {logs.map((log) => {
               const cfg = TYPE_CONFIG[log.type] || TYPE_CONFIG.NOTE;
@@ -406,14 +412,14 @@ function PetCareCard({ stay, date, onLog, onDelete }: {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-petra-text">{log.title}</span>
-                      <span className="text-[10px] text-petra-muted">{formatTime(log.doneAt)}</span>
+                      <span className="text-[10px] text-petra-muted">{formatTime(log.doneAt, locale)}</span>
                     </div>
                     {log.notes && <p className="text-xs text-petra-muted truncate">{log.notes}</p>}
                   </div>
                   <button
                     onClick={() => onDelete(log.id)}
                     className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 text-slate-400 hover:text-red-500 transition-all flex-shrink-0"
-                    title="בטל"
+                    title={t("boardingDailyPage.card.undo")}
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -439,6 +445,8 @@ function PetCareCard({ stay, date, onLog, onDelete }: {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function DailyCarePage() {
+  const t = useTranslations("boarding");
+  const { locale } = useBusinessLocale();
   const [date, setDate] = useState(todayStr());
   const queryClient = useQueryClient();
 
@@ -472,7 +480,7 @@ export default function DailyCarePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["care-log", date] });
     },
-    onError: () => toast.error("שגיאה בשמירה. נסה שוב."),
+    onError: () => toast.error(t("boardingDailyPage.toasts.saveError")),
   });
 
   const deleteMutation = useMutation({
@@ -484,7 +492,7 @@ export default function DailyCarePage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["care-log", date] });
     },
-    onError: () => toast.error("שגיאה בביטול. נסה שוב."),
+    onError: () => toast.error(t("boardingDailyPage.toasts.undoError")),
   });
 
   // Summary stats
@@ -510,8 +518,8 @@ export default function DailyCarePage() {
       <div className="print-header">
         <img src="/petra-logo.png" alt="Petra" style={{ width: 38, height: 38, objectFit: "contain", borderRadius: 6 }} />
         <div>
-          <div style={{ fontWeight: 700, fontSize: 16, color: "#1e293b" }}>לוח טיפול יומי — פנסיון</div>
-          <div style={{ fontSize: 11, color: "#64748b" }}>{date} · הופק {new Date().toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}</div>
+          <div style={{ fontWeight: 700, fontSize: 16, color: "#1e293b" }}>{t("boardingDailyPage.print.title")}</div>
+          <div style={{ fontSize: 11, color: "#64748b" }}>{t("boardingDailyPage.print.generated", { date, time: new Date().toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }) })}</div>
         </div>
       </div>
       <BoardingTabs />
@@ -521,29 +529,29 @@ export default function DailyCarePage() {
         <button
           onClick={() => setDate((d) => addDays(d, -1))}
           className="w-9 h-9 rounded-xl border border-slate-200 flex items-center justify-center text-petra-muted hover:bg-slate-100 transition-colors"
-          title="יום קודם"
-          aria-label="יום קודם"
+          title={t("boardingDailyPage.nav.prevDay")}
+          aria-label={t("boardingDailyPage.nav.prevDay")}
         >
-          <ChevronRight className="w-4 h-4" />
+          <ChevronRight className="w-4 h-4 ltr:-scale-x-100" />
         </button>
         <div className="flex-1 text-center">
-          <div className="font-bold text-petra-text">{formatDateHe(date)}</div>
-          {isToday && <div className="text-xs text-brand-600 font-medium">היום</div>}
+          <div className="font-bold text-petra-text">{formatDateHe(date, t, locale)}</div>
+          {isToday && <div className="text-xs text-brand-600 font-medium">{t("boardingDailyPage.nav.today")}</div>}
         </div>
         <button
           onClick={() => setDate((d) => addDays(d, 1))}
           className="w-9 h-9 rounded-xl border border-slate-200 flex items-center justify-center text-petra-muted hover:bg-slate-100 transition-colors"
-          title="יום הבא"
-          aria-label="יום הבא"
+          title={t("boardingDailyPage.nav.nextDay")}
+          aria-label={t("boardingDailyPage.nav.nextDay")}
         >
-          <ChevronLeft className="w-4 h-4" />
+          <ChevronLeft className="w-4 h-4 ltr:-scale-x-100" />
         </button>
         {!isToday && (
           <button
             onClick={() => setDate(todayStr())}
             className="text-xs px-3 py-1.5 rounded-lg bg-brand-50 text-brand-600 hover:bg-brand-100 transition-colors"
           >
-            היום
+            {t("boardingDailyPage.nav.today")}
           </button>
         )}
         <button
@@ -556,7 +564,7 @@ export default function DailyCarePage() {
           onClick={() => window.print()}
           className="no-print btn-primary flex items-center gap-1.5"
         >
-          <Printer className="w-4 h-4" />הדפסה
+          <Printer className="w-4 h-4" />{t("boardingDailyPage.nav.print")}
         </button>
       </div>
 
@@ -564,10 +572,10 @@ export default function DailyCarePage() {
       {summary.total > 0 && (
         <div className="grid grid-cols-4 gap-2">
           {[
-            { label: "כלבים", value: summary.total, color: "bg-slate-50 text-slate-600" },
-            { label: "האכלות", value: summary.feedingsDone, color: "bg-orange-50 text-orange-600" },
-            { label: "תרופות", value: summary.medicationsDone, color: "bg-purple-50 text-purple-600" },
-            { label: "טיולים", value: summary.walksDone, color: "bg-green-50 text-green-600" },
+            { label: t("boardingDailyPage.summary.dogs"), value: summary.total, color: "bg-slate-50 text-slate-600" },
+            { label: t("boardingDailyPage.summary.feedings"), value: summary.feedingsDone, color: "bg-orange-50 text-orange-600" },
+            { label: t("boardingDailyPage.summary.medications"), value: summary.medicationsDone, color: "bg-purple-50 text-purple-600" },
+            { label: t("boardingDailyPage.summary.walks"), value: summary.walksDone, color: "bg-green-50 text-green-600" },
           ].map((item) => (
             <div key={item.label} className={cn("rounded-xl p-3 text-center", item.color)}>
               <div className="text-2xl font-bold">{item.value}</div>
@@ -586,13 +594,13 @@ export default function DailyCarePage() {
           <div className="w-16 h-16 rounded-2xl bg-slate-100 mx-auto mb-4 flex items-center justify-center">
             <ClipboardCheck className="w-8 h-8 text-slate-400" />
           </div>
-          <p className="font-semibold text-petra-text mb-1">אין כלבים בפנסיון</p>
-          <p className="text-sm">לא נמצאו שהיות פעילות לתאריך זה</p>
+          <p className="font-semibold text-petra-text mb-1">{t("boardingDailyPage.empty.title")}</p>
+          <p className="text-sm">{t("boardingDailyPage.empty.subtitle")}</p>
           <Link
             href="/boarding"
             className="inline-block mt-4 text-sm text-brand-500 hover:underline"
           >
-            עבור ללוח הפנסיון
+            {t("boardingDailyPage.empty.goToBoard")}
           </Link>
         </div>
       )}
