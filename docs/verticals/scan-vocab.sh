@@ -10,7 +10,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
-WORDS='כלב|כלבים|כלבה|הכלב|לכלב|חיות מחמד|חיית מחמד|חיית המחמד|🐕|🐶|🐾'
+WORDS='כלב|כלבים|כלבה|הכלב|לכלב|חיות מחמד|חיית מחמד|חיית המחמד|"חיות"|>חיות<|אין חיות|חיות נוצרו|🐕|🐶|🐾'
 EXCLUDE='service-dog|serviceDog|service_dog|ServiceDog|service-recipient|alldog|AllDog|/landing/|/owner/|/admin/|src/lib/mcp/|api/mcp/|assistant/knowledge|assistant/catalog|__tests__|messages/|verticals/'
 
 matches() {

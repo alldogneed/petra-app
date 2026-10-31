@@ -404,10 +404,12 @@ export function DataTab() {
                 <p className="text-lg font-bold text-emerald-700">{importStats.totalCustomers}</p>
                 <p className="text-xs text-emerald-600">לקוחות חדשים</p>
               </div>
+{!noPets && (
               <div className="p-3 rounded-xl bg-blue-50 border border-blue-100 text-center">
                 <p className="text-lg font-bold text-blue-700">{importStats.totalPets}</p>
                 <p className="text-xs text-blue-600">חיות מחמד</p>
               </div>
+              )}
               <div className="p-3 rounded-xl bg-amber-50 border border-amber-100 text-center">
                 <p className="text-lg font-bold text-amber-700">{importStats.skippedRows}</p>
                 <p className="text-xs text-amber-600">שורות דולגו</p>
@@ -472,10 +474,12 @@ export function DataTab() {
                 <p className="text-lg font-bold text-blue-700">{importResult.mergedCustomers}</p>
                 <p className="text-xs text-blue-600">לקוחות מוזגו</p>
               </div>
+{!noPets && (
               <div className="p-3 rounded-xl bg-violet-50 border border-violet-100 text-center">
                 <p className="text-lg font-bold text-violet-700">{importResult.createdPets}</p>
                 <p className="text-xs text-violet-600">חיות נוצרו</p>
               </div>
+              )}
             </div>
             <button className="btn-secondary" onClick={resetImport}>ייבוא נוסף</button>
           </div>
