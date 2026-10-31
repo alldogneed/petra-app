@@ -45,3 +45,11 @@
 - כרטיס לקוח `PackageTracking`: תוכנית בלי נושא מציגה את שמה (לא "מותאם אישית").
 - בדיקה חיה: יצירה ב-generic → 201 (`dogId` null, CUSTOM); תיעוד מפגש → 201; dogs בלי כלב → 400; הזמנת חבילה ב-generic → תוכנית 10 מפגשים מקושרת להזמנה; dogs בלי כלב → אין תוכנית.
 - לא בתכולה: הודעות שגיאה בשרת שמזכירות "תוכנית אילוף" (לא "כלב"), קבוצות אילוף (לא נגישות ב-generic), MCP.
+
+## 5. הודעות (ממשק)
+- `messages-panel.tsx`: גופי תבניות הפתיחה (`STARTER_TEMPLATES`) עברו למילון (`starter.*`, ענף dogs = הטקסט הקודם — בדיקת שוויון).
+  ב-generic: אין תבניות / טריגרים של יום הולדת לחיה ופנסיון (`DOG_ONLY_TRIGGERS`), והשאר בלי 🐾 ו-`{petName}`.
+  עסק dogs מקבל את אותו מערך (`STARTER_TEMPLATES = buildStarterTemplates("dogs")`).
+- `PaymentRequestDialog`: פתיח ההודעה מהמילון.
+- הודעות שהשרת שולח (`reminder-service.ts`, `payment-request.ts`, `/api/appointments/[id]/remind`, תבניות Meta) — שלב 5.
+- `training/page.tsx` (הודעות "עדכון אימון עבור <כלב> 🐾") — מסך dogs בלבד, generic לא מגיע אליו.
