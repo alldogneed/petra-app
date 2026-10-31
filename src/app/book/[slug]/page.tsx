@@ -7,7 +7,7 @@ import { useLocale, useTranslations } from "next-intl"
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { toWhatsAppPhone } from "@/lib/utils";
 import { formatCurrency } from "@/lib/format";
-import { LOCALE_CONFIG, localeFromBusiness } from "@/lib/locale";
+import { DEFAULT_LOCALE, LOCALE_CONFIG, localeFromBusiness } from "@/lib/locale";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -458,7 +458,9 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
     return dow <= 4
   }
 
-  const currency = business.currency || cfg.currency
+  // The BUSINESS's currency, never the visitor's locale default (review finding): until
+  // /api/book/[slug] returns it, fall back to the platform default (he-IL → ILS) as before.
+  const currency = business.currency || LOCALE_CONFIG[DEFAULT_LOCALE].currency
   const formatPrice = (price: number) => formatCurrency(price, { locale, currency })
 
   const today = toDateStr(new Date())

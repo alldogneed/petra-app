@@ -57,6 +57,17 @@ const UNITS: { id: string; key: string }[] = [
 
 // Category suggestions (datalist) — labels from messages (pricing.priceListsPage.categories.*)
 const CATEGORY_KEYS = ["training", "grooming", "boarding", "consulting", "products", "addon", "other"] as const;
+// Stored PriceListItem.category values are Hebrew DATA compared elsewhere (calendar, orders, scheduler) —
+// the suggestion inserts the stored value; only the visible label is translated (Phase 3: locale-aware categories).
+const CATEGORY_VALUES: Record<(typeof CATEGORY_KEYS)[number], string> = {
+  training: "אילוף", // i18n-ok
+  grooming: "טיפוח", // i18n-ok
+  boarding: "פנסיון", // i18n-ok
+  consulting: "ייעוץ", // i18n-ok
+  products: "מוצרים", // i18n-ok
+  addon: "תוסף", // i18n-ok
+  other: "אחר", // i18n-ok
+};
 
 const UNIT_KEY: Record<string, string> = Object.fromEntries(UNITS.map((u) => [u.id, u.key]));
 
@@ -195,7 +206,7 @@ function ItemFormModal({
                 placeholder={t("form.categoryPlaceholder")}
               />
               <datalist id="categories">
-                {CATEGORY_KEYS.map((c) => <option key={c} value={t(`categories.${c}`)} />)}
+                {CATEGORY_KEYS.map((c) => <option key={c} value={CATEGORY_VALUES[c]} label={t(`categories.${c}`)} />)}
               </datalist>
             </div>
             <div>

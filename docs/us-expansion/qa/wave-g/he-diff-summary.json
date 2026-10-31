@@ -1,0 +1,229 @@
+{
+  "threshold_pct": 0.5,
+  "results": {
+    "accessibility-desktop.png": {
+      "pct": 0.001,
+      "ok": true
+    },
+    "accessibility-mobile.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "book_demo-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "book_demo-mobile.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "c_demo-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "c_demo-mobile.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "checkout-desktop.png": {
+      "pct": 0.068,
+      "ok": true
+    },
+    "checkout-mobile.png": {
+      "pct": 0.334,
+      "ok": true
+    },
+    "forgot-password-desktop.png": {
+      "pct": 0.068,
+      "ok": true
+    },
+    "forgot-password-mobile.png": {
+      "pct": 0.334,
+      "ok": true
+    },
+    "intake_x-desktop.png": {
+      "pct": 0.082,
+      "ok": true
+    },
+    "intake_x-mobile.png": {
+      "pct": 0.387,
+      "ok": true
+    },
+    "invite-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "invite-mobile.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "landing-desktop.png": {
+      "pct": 0.004,
+      "ok": true
+    },
+    "landing-mobile.png": {
+      "pct": 0.002,
+      "ok": true
+    },
+    "login-desktop.png": {
+      "pct": 0.082,
+      "ok": true
+    },
+    "login-mobile.png": {
+      "pct": 0.387,
+      "ok": true
+    },
+    "my-booking_x-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "my-booking_x-mobile.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "owner-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "owner-mobile.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "owner_audit-logs-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "owner_audit-logs-mobile.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "owner_broadcast-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "owner_broadcast-mobile.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "owner_consents-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "owner_consents-mobile.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "owner_customer-success-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "owner_customer-success-mobile.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "owner_mcp-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "owner_mcp-mobile.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "owner_migration-desktop.png": {
+      "pct": 0.07,
+      "ok": true
+    },
+    "owner_migration-mobile.png": {
+      "pct": 0.276,
+      "ok": true
+    },
+    "owner_support-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "owner_support-mobile.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "owner_tenants-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "owner_tenants-mobile.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "owner_users-desktop.png": {
+      "pct": 0.004,
+      "ok": true
+    },
+    "owner_users-mobile.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "payment-cancelled-desktop.png": {
+      "pct": 0.082,
+      "ok": true
+    },
+    "payment-cancelled-mobile.png": {
+      "pct": 0.387,
+      "ok": true
+    },
+    "payment-success-desktop.png": {
+      "pct": 0.082,
+      "ok": true
+    },
+    "payment-success-mobile.png": {
+      "pct": 0.387,
+      "ok": true
+    },
+    "privacy-desktop.png": {
+      "pct": 0.004,
+      "ok": true
+    },
+    "privacy-mobile.png": {
+      "pct": 0.01,
+      "ok": true
+    },
+    "register-desktop.png": {
+      "pct": 0.002,
+      "ok": true
+    },
+    "register-mobile.png": {
+      "pct": 0.008,
+      "ok": true
+    },
+    "reset-password-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "reset-password-mobile.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "sign_x-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "sign_x-mobile.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "terms-desktop.png": {
+      "pct": 0.005,
+      "ok": true
+    },
+    "terms-mobile.png": {
+      "pct": 0.014,
+      "ok": true
+    },
+    "verify_x-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "verify_x-mobile.png": {
+      "pct": 0.0,
+      "ok": true
+    }
+  }
+}

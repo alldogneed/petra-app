@@ -287,3 +287,6 @@ src/components/owner/owner-search.tsx
 src/components/owner/owner-shell.tsx
 src/app/intake/[token]/page.tsx
 src/app/sign/[token]/page.tsx
+# comment-only Hebrew
+src/app/(dashboard)/layout.tsx
+src/components/ChunkErrorReload.tsx

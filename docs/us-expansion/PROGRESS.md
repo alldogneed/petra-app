@@ -17,7 +17,7 @@ Branch: `claude/gracious-dijkstra-p3eq67` (ראו DECISIONS D-001). סשן חי�
 | גל ד — boarding | ✅ | 6 | ~1,370 (he+en) | ~30 | [wave-def](qa/wave-def/) — he 22/22 ≤0.5% (D+E+F), en ✅ | 7761ea6 |
 | גל ה — training, online-classes, portal | ✅ | 21 | ~2,700 (he+en) | ~40 | [wave-def](qa/wave-def/) | 7761ea6 |
 | גל ו — service-dogs | ✅ | 12 | ~2,100 (he+en) | ~60 | [wave-def](qa/wave-def/) — אין דאטה של כלב שירות ב‑seed: הפרופיל (977 מחרוזות) נבדק ב‑verify-he + tsc, לא בצילום | 7761ea6 |
-| גל ז — landing, auth, legal, public pages, owner | 🔄 | | | | | |
+| גל ז — landing, auth, legal, public pages, owner | ✅ | 45 | 3,928 (he+en) | ~90 | [wave-g](qa/wave-g/) — he 56/56 ≤0.5% (owner + ציבוריים), en ✅ (owner + ציבוריים עם cookie) | 71fc8f1 |
 
 ## רשימות קבצים לפי גל (נכתבו לפני תחילת כל גל)
 
@@ -310,6 +310,13 @@ Branch: `claude/gracious-dijkstra-p3eq67` (ראו DECISIONS D-001). סשן חי�
 - `src/app/sign/[token]/page.tsx` → `sign.signDetailPage` (54)
 
 ## ממצאים לשלבים הבאים
+- (שלב 2/3, סקירת אבטחה) דפים ציבוריים של עסק (`/book/[slug]`, `/c/[slug]`) לוקחים locale מהמבקר (cookie/סשן שלו) — צריך locale + currency של העסק מה‑API (`/api/book/[slug]` לא מחזיר `currency`). תוקן חלקית: המטבע בדף ההזמנה נופל ל‑ILS ולא למטבע של המבקר.
+- (שלב 3, סקירת אבטחה) קטגוריות מחירון: ההצעות ב‑`price-lists` שומרות את הערך העברי (דאטה) עם label מתורגם — עד שיהיו קטגוריות לפי locale.
+- (שלב 8, ביצועים) כל ה‑messages (~750KB he) נשלחים בכל עמוד, כולל ציבוריים — לפצל provider לפי אזור (D-005).
+- (שלב 2) מחירי הפלטפורמה ב‑/owner מוצגים עם סמל המטבע של העסק של האדמין (ILS → ₪ זהה); עסק אדמין USD יראה "$99" — לקבע ILS.
+- (שלב 7) `/privacy`: בגרסה האנגלית הסעיפים 4/4a מופיעים פעמיים (התרגום + הבלוק האנגלי המקורי של Google Limited Use).
+- (שלב 1, QA) פרופיל כלב שירות (977 מחרוזות) ופרופיל אילוף לא צולמו עם דאטה (אין seed) — נבדקו ב‑verify-he + tsc + build.
+- (קיים ב‑main) 2 סוויטות jest נכשלות גם ב‑main: `booking-engine`, `order-calc` (22 בדיקות).
 - (באג קיים, לא תוקן) `LeadDetailsModal` קורא `utils.formatTime(log.createdAt)` על ISO מלא → מציג "2026-" במקום שעה. תיקון: `formatTime(log.createdAt, { locale })` מ‑`@/lib/format` (שלב 4).
 - (באג קיים, לא תוקן) הדפסת הזמנות (`orders/page.tsx`): `<caption className="sr-only">` ב‑HTML גולמי — `className` לא תקף, הכיתוב מודפס.
 - (שלב 3) הודעות WhatsApp שנבנות בקליינט ללקוחות (ברכת יום הולדת, follow-up, ברוכים הבאים, תזכורת/קישור תור, בקשת תשלום, טופס קליטה) נשארו בעברית עם `i18n-ok`.
@@ -324,5 +331,11 @@ Branch: `claude/gracious-dijkstra-p3eq67` (ראו DECISIONS D-001). סשן חי�
 - (שלב 7) placeholder טלפון `050-0000000` ישראלי; תכונת "משרד החקלאות" בתוכנית כלבי שירות ספציפית לישראל.
 
 ## חריגי rtl-ok
+עשרות סומנו בקבצים עצמם (`grep -rn "rtl-ok" src`). הקטגוריות: inputs עם `dir="ltr"` (טלפון/מייל/URL) שנשארים עם קלאסים פיזיים או בוחרים לפי `cfg.dir`; ציר הזמן של הפנסיון (`dir="ltr"` בכוונה בשתי השפות); טוסטים/נקודות ממורכזים (`left-1/2 -translate-x-1/2`); קואורדינטות PDF בחוזים; אייקון Play; גלגלת הצעצועים בלוגו PetraLoader.
 
 ## שאלות לאור (לא חוסמות)
+1. **מחירון USD** — דפי upgrade/pricing/checkout/landing מציגים מחירי ILS (גם באנגלית "₪99"). מחכה לשלב 6.
+2. **מונחים**: "Client" (לא Customer), "Recipient" לזכאי, "Board & train" לאילוף בפנסיון, "Sales" למערכת מכירות, "Admin & oversight" לניהול ובקרה — לאשר.
+3. **תכונות ישראליות** באנגלית (משרד החקלאות, ביטוח לאומי, Simba, ת"ז, Bit/PayBox, Morning/חשבונית ירוקה, ייבוא חגים) — להסתיר לעסק US או לנסח מחדש?
+4. **תוכן משפטי** (terms/privacy/accessibility/tos-accept) — כרגע תרגום מילולי; גרסה אמריקאית בשלב 7 עם עו"ד.
+5. **הודעות WhatsApp ללקוח** שנבנות בקליינט נשארו בעברית גם לעסק אנגלי (D-015) — שלב 3/5 (SMS).
