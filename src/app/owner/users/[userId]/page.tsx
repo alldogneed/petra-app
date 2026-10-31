@@ -9,39 +9,45 @@ import { fetchJSON, cn } from "@/lib/utils";
 import { type FeatureKey, type TierKey, hasFeature } from "@/lib/feature-flags";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
+import { currencySymbol } from "@/lib/format";
 import { TIER_LABELS, PLATFORM_ROLE_LABELS } from "@/lib/platform-labels";
 
 // ─── Feature panel definitions ────────────────────────────────────────────────
 
-const TIERS: { key: TierKey; price: string; note?: string }[] = [
+type DetailT = ReturnType<typeof useTranslations<"owner">>;
+
+// Monthly price (number, shown next to the currency symbol); `note` = has a tier note in messages.
+const TIERS: { key: TierKey; price: number; note?: boolean }[] = [
   // Public tiers
-  { key: "free",        price: "₪0"   },
-  { key: "basic",       price: "₪99"  },
-  { key: "pro",         price: "₪199" },
+  { key: "free",        price: 0   },
+  { key: "basic",       price: 99  },
+  { key: "pro",         price: 199 },
   // Enterprise / legacy
-  { key: "service_dog", price: "₪229", note: "ארגוני" },
-  { key: "groomer",     price: "₪169", note: "ישן" },
+  { key: "service_dog", price: 229, note: true },
+  { key: "groomer",     price: 169, note: true },
 ];
 
-function tierLabel(tier: string): string {
-  return TIER_LABELS[tier] ?? "מסלול אחר";
+function tierLabel(tier: string, t: DetailT): string {
+  return TIER_LABELS[tier] ?? t("usersDetailPage.otherTier");
 }
 
-const FEATURE_ROWS: { key: FeatureKey; label: string }[] = [
-  { key: "gcal_sync",          label: "סנכרון גוגל"       },
-  { key: "payments",           label: "תשלומים"           },
-  { key: "invoicing",          label: "חשבוניות"          },
-  { key: "scheduled_messages", label: "תזכורות WhatsApp"  },
-  { key: "automations",        label: "אוטומציות"         },
-  { key: "custom_messages",    label: "הודעות מותאמות"    },
-  { key: "training",           label: "אילוף 1-על-1"      },
-  { key: "training_groups",    label: "קבוצות וסדנאות"    },
-  { key: "boarding",           label: "פנסיון"            },
-  { key: "leads",              label: "CRM / לידים"       },
-  { key: "staff_management",   label: "ניהול עובדים"      },
-  { key: "excel_export",       label: "ייצוא Excel"       },
-  { key: "groomer_portfolio",  label: "תיק עבודות לפני/אחרי" },
-  { key: "service_dogs",       label: "כלבי שירות"        },
+const FEATURE_ROWS: { key: FeatureKey }[] = [
+  { key: "gcal_sync" },
+  { key: "payments" },
+  { key: "invoicing" },
+  { key: "scheduled_messages" },
+  { key: "automations" },
+  { key: "custom_messages" },
+  { key: "training" },
+  { key: "training_groups" },
+  { key: "boarding" },
+  { key: "leads" },
+  { key: "staff_management" },
+  { key: "excel_export" },
+  { key: "groomer_portfolio" },
+  { key: "service_dogs" },
 ];
 
 type OverrideValue = true | false | null;
@@ -73,23 +79,17 @@ interface UserDetail {
   businessMemberships: BusinessMembership[];
 }
 
-const MEMBER_ROLE_LABEL: Record<string, string> = {
-  owner: "בעלים",
-  manager: "מנהל",
-  user: "משתמש",
-  staff: "איש צוות",
-  volunteer: "מתנדב",
-};
-
-const BIZ_STATUS_LABEL: Record<string, string> = {
-  active: "פעיל",
-  suspended: "מושהה",
-  closed: "סגור",
-};
+// Labels: owner.usersDetailPage.memberRoles.* / owner.usersDetailPage.bizStatus.*
+const MEMBER_ROLES = ["owner", "manager", "user", "staff", "volunteer"];
+const BIZ_STATUSES = ["active", "suspended", "closed"];
 
 // ─── FeaturePanel ─────────────────────────────────────────────────────────────
 
 function FeaturePanel({ business, onRefresh }: { business: BusinessInfo; onRefresh: () => void }) {
+  const t = useTranslations("owner");
+  const tc = useTranslations("common");
+  const { locale, currency } = useBusinessLocale();
+  const symbol = currencySymbol({ locale, currency });
   const overrides = (business.featureOverrides as Record<string, boolean> | null) ?? {};
   const overrideCount = Object.keys(overrides).length;
 
@@ -131,7 +131,7 @@ function FeaturePanel({ business, onRefresh }: { business: BusinessInfo; onRefre
     <div className="space-y-4">
       {/* Tier selector */}
       <div>
-        <label className="label mb-1">מנוי</label>
+        <label className="label mb-1">{t("usersDetailPage.features.subscription")}</label>
         <div className="flex items-center gap-3">
           <select
             value={business.tier}
@@ -139,12 +139,14 @@ function FeaturePanel({ business, onRefresh }: { business: BusinessInfo; onRefre
             disabled={tierMutation.isPending}
             className="input flex-1"
           >
-            {!TIERS.some((t) => t.key === business.tier) && (
-              <option value={business.tier}>{tierLabel(business.tier)}</option>
+            {!TIERS.some((tier) => tier.key === business.tier) && (
+              <option value={business.tier}>{tierLabel(business.tier, t)}</option>
             )}
-            {TIERS.map((t) => (
-              <option key={t.key} value={t.key}>
-                {tierLabel(t.key)}{t.note ? ` (${t.note})` : ""} — {t.price}/חודש
+            {TIERS.map((tier) => (
+              <option key={tier.key} value={tier.key}>
+                {tier.note
+                  ? t("usersDetailPage.features.tierOptionWithNote", { tier: tierLabel(tier.key, t), note: t(`usersDetailPage.tierNotes.${tier.key}`), price: `${symbol}${tier.price}` })
+                  : t("usersDetailPage.features.tierOption", { tier: tierLabel(tier.key, t), price: `${symbol}${tier.price}` })}
               </option>
             ))}
           </select>
@@ -156,14 +158,14 @@ function FeaturePanel({ business, onRefresh }: { business: BusinessInfo; onRefre
       {/* Feature overrides */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <label className="label">פיצ׳רים</label>
+          <label className="label">{t("usersDetailPage.features.featuresLabel")}</label>
           {overrideCount > 0 && (
             <button
               onClick={resetAll}
               disabled={overrideMutation.isPending}
               className="text-xs text-orange-600 hover:text-orange-700 underline"
             >
-              אפס הכל ({overrideCount})
+              {t("usersDetailPage.features.resetAll", { count: overrideCount })}
             </button>
           )}
         </div>
@@ -171,13 +173,13 @@ function FeaturePanel({ business, onRefresh }: { business: BusinessInfo; onRefre
         <div className="border border-slate-200 rounded-xl overflow-x-auto">
           <div className="min-w-[440px]">
           <div className="grid grid-cols-4 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-500 border-b border-slate-200">
-            <div>פיצ׳ר</div>
-            <div className="text-center">ברירת מנוי</div>
-            <div className="text-center">עקיפה</div>
-            <div className="text-center">בפועל</div>
+            <div>{t("usersDetailPage.features.colFeature")}</div>
+            <div className="text-center">{t("usersDetailPage.features.colTierDefault")}</div>
+            <div className="text-center">{t("usersDetailPage.features.colOverride")}</div>
+            <div className="text-center">{t("usersDetailPage.features.colEffective")}</div>
           </div>
 
-          {FEATURE_ROWS.map(({ key, label }) => {
+          {FEATURE_ROWS.map(({ key }) => {
             const tierDefault = hasFeature(business.tier, key);
             const override = key in overrides ? overrides[key] : null;
             const effective = override !== null ? override : tierDefault;
@@ -193,7 +195,7 @@ function FeaturePanel({ business, onRefresh }: { business: BusinessInfo; onRefre
               >
                 {/* Label */}
                 <div className="flex items-center gap-2 text-sm text-slate-700">
-                  {label}
+                  {t(`usersDetailPage.featureLabels.${key}`)}
                   {hasOverride && (
                     <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-orange-200 text-orange-700">
                       OR
@@ -223,7 +225,7 @@ function FeaturePanel({ business, onRefresh }: { business: BusinessInfo; onRefre
                           : "bg-white text-slate-500 hover:bg-slate-50"
                       )}
                     >
-                      ברירה
+                      {t("usersDetailPage.features.default")}
                     </button>
                     <button
                       onClick={() => setOverride(key, true)}
@@ -258,7 +260,7 @@ function FeaturePanel({ business, onRefresh }: { business: BusinessInfo; onRefre
                     "text-xs font-semibold px-2 py-0.5 rounded",
                     effective ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"
                   )}>
-                    {effective ? "פעיל" : "חסום"}
+                    {effective ? t("usersDetailPage.features.effectiveOn") : t("usersDetailPage.features.effectiveOff")}
                   </span>
                 </div>
               </div>
@@ -269,7 +271,7 @@ function FeaturePanel({ business, onRefresh }: { business: BusinessInfo; onRefre
 
         {overrideMutation.isPending && (
           <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
-            <Loader2 className="w-3 h-3 animate-spin" /> שומר...
+            <Loader2 className="w-3 h-3 animate-spin" /> {tc("progress.saving")}
           </p>
         )}
       </div>
@@ -280,6 +282,9 @@ function FeaturePanel({ business, onRefresh }: { business: BusinessInfo; onRefre
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function UserDetailPage() {
+  const t = useTranslations("owner");
+  const tc = useTranslations("common");
+  const { locale, cfg } = useBusinessLocale();
   const { userId } = useParams<{ userId: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -300,22 +305,22 @@ export default function UserDetailPage() {
         body: JSON.stringify({ isActive }),
       }),
     onSuccess: (_res, isActive) => {
-      toast.success(isActive ? "החסימה בוטלה" : "המשתמש נחסם והסשנים שלו נותקו");
+      toast.success(isActive ? t("usersDetailPage.toasts.unblocked") : t("usersDetailPage.toasts.blocked"));
       setShowBlock(false);
       queryClient.invalidateQueries({ queryKey: ["owner", "users"] });
     },
-    onError: (err: Error) => toast.error(err.message || "הפעולה נכשלה"),
+    onError: (err: Error) => toast.error(err.message || t("usersDetailPage.toasts.actionFailed")),
   });
 
   const deleteMutation = useMutation({
     mutationFn: () => fetchJSON(`/api/admin/users/${userId}`, { method: "DELETE" }),
     onSuccess: () => {
-      toast.success("המשתמש נמחק לצמיתות");
+      toast.success(t("usersDetailPage.toasts.deleted"));
       queryClient.removeQueries({ queryKey: ["owner", "users", userId] });
       queryClient.invalidateQueries({ queryKey: ["owner", "users"] });
       router.push("/owner/users");
     },
-    onError: (err: Error) => toast.error(err.message || "מחיקת המשתמש נכשלה"),
+    onError: (err: Error) => toast.error(err.message || t("usersDetailPage.toasts.deleteFailed")),
   });
 
   const roleMutation = useMutation({
@@ -342,9 +347,9 @@ export default function UserDetailPage() {
   if (error || !user) {
     return (
       <div className="text-center py-20">
-        <p className="text-slate-500 mb-4">שגיאה בטעינת פרטי המשתמש</p>
+        <p className="text-slate-500 mb-4">{t("usersDetailPage.loadError")}</p>
         <button onClick={() => router.push("/owner/users")} className="btn-secondary">
-          חזרה לרשימת המשתמשים
+          {t("usersDetailPage.backToList")}
         </button>
       </div>
     );
@@ -354,14 +359,14 @@ export default function UserDetailPage() {
     <div>
       {/* Header */}
       <div className="flex flex-wrap items-center gap-3 mb-6">
-        <Link href="/owner/users" className="btn-ghost p-2 rounded-lg" aria-label="חזרה לרשימת המשתמשים" title="חזרה לרשימת המשתמשים">
-          <ArrowRight className="w-5 h-5" />
+        <Link href="/owner/users" className="btn-ghost p-2 rounded-lg" aria-label={t("usersDetailPage.backToList")} title={t("usersDetailPage.backToList")}>
+          <ArrowRight className="w-5 h-5 ltr:-scale-x-100" />
         </Link>
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="page-title">{user.name}</h1>
             <span className={cn("badge", user.isActive ? "badge-success" : "badge-danger")}>
-              {user.isActive ? "פעיל" : "חסום"}
+              {user.isActive ? t("usersDetailPage.status.active") : t("usersDetailPage.status.blocked")}
             </span>
           </div>
           <p className="text-sm text-slate-500 mt-1 break-all">{user.email}</p>
@@ -375,9 +380,9 @@ export default function UserDetailPage() {
           )}
         >
           {user.isActive ? (
-            <><UserX className="w-4 h-4" /> {toggleMutation.isPending ? "חוסם..." : "חסום משתמש"}</>
+            <><UserX className="w-4 h-4" /> {toggleMutation.isPending ? t("usersDetailPage.block.blocking") : t("usersDetailPage.block.blockUser")}</>
           ) : (
-            <><UserCheck className="w-4 h-4" /> {toggleMutation.isPending ? "מבטל חסימה..." : "בטל חסימה"}</>
+            <><UserCheck className="w-4 h-4" /> {toggleMutation.isPending ? t("usersDetailPage.block.unblocking") : t("usersDetailPage.block.unblock")}</>
           )}
         </button>
       </div>
@@ -385,14 +390,14 @@ export default function UserDetailPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
         {/* Details */}
         <div className="card p-5">
-          <h2 className="font-semibold text-slate-900 mb-4">פרטי משתמש</h2>
+          <h2 className="font-semibold text-slate-900 mb-4">{t("usersDetailPage.details.title")}</h2>
           <div className="space-y-3">
             <div>
-              <div className="label">שם</div>
+              <div className="label">{t("usersDetailPage.details.name")}</div>
               <div className="text-sm text-slate-900">{user.name}</div>
             </div>
             <div>
-              <div className="label">מייל</div>
+              <div className="label">{t("usersDetailPage.details.email")}</div>
               <div className="text-sm text-slate-900" dir="ltr">{user.email}</div>
             </div>
             <div>
@@ -400,29 +405,29 @@ export default function UserDetailPage() {
               <div className="text-sm">
                 {user.twoFaEnabled ? (
                   <span className="flex items-center gap-1 text-green-600">
-                    <Shield className="w-3.5 h-3.5" /> מופעל
+                    <Shield className="w-3.5 h-3.5" /> {t("usersDetailPage.details.twoFaOn")}
                   </span>
                 ) : (
-                  <span className="text-slate-500">לא מופעל</span>
+                  <span className="text-slate-500">{t("usersDetailPage.details.twoFaOff")}</span>
                 )}
               </div>
             </div>
             <div>
-              <div className="label">נוצר</div>
-              <div className="text-sm text-slate-900">{new Date(user.createdAt).toLocaleDateString("he-IL")}</div>
+              <div className="label">{t("usersDetailPage.details.created")}</div>
+              <div className="text-sm text-slate-900">{new Date(user.createdAt).toLocaleDateString(locale)}</div>
             </div>
             <div>
-              <div className="label">עודכן לאחרונה</div>
-              <div className="text-sm text-slate-900">{new Date(user.updatedAt).toLocaleDateString("he-IL")}</div>
+              <div className="label">{t("usersDetailPage.details.updated")}</div>
+              <div className="text-sm text-slate-900">{new Date(user.updatedAt).toLocaleDateString(locale)}</div>
             </div>
           </div>
         </div>
 
         {/* Role management */}
         <div className="card p-5">
-          <h2 className="font-semibold text-slate-900 mb-4">תפקיד פלטפורמה</h2>
+          <h2 className="font-semibold text-slate-900 mb-4">{t("usersDetailPage.role.title")}</h2>
           <div className="mb-3">
-            <div className="label">תפקיד נוכחי</div>
+            <div className="label">{t("usersDetailPage.role.current")}</div>
             {user.platformRole ? (
               <span className={cn(
                 "text-xs font-medium px-2.5 py-1 rounded",
@@ -430,26 +435,26 @@ export default function UserDetailPage() {
                 user.platformRole === "admin" ? "bg-orange-100 text-orange-700" :
                 "bg-blue-100 text-blue-700"
               )}>
-                {PLATFORM_ROLE_LABELS[user.platformRole] ?? "תפקיד אחר"}
+                {PLATFORM_ROLE_LABELS[user.platformRole] ?? t("usersDetailPage.role.otherRole")}
               </span>
             ) : (
-              <span className="text-sm text-slate-500">ללא תפקיד פלטפורמה</span>
+              <span className="text-sm text-slate-500">{t("usersDetailPage.role.noPlatformRole")}</span>
             )}
           </div>
           <div>
-            <div className="label mb-1">שנה תפקיד</div>
+            <div className="label mb-1">{t("usersDetailPage.role.change")}</div>
             <select
               defaultValue={user.platformRole ?? ""}
               onChange={(e) => roleMutation.mutate(e.target.value || null)}
               disabled={roleMutation.isPending}
               className="input w-full"
             >
-              <option value="">ללא תפקיד</option>
+              <option value="">{t("usersDetailPage.role.noRole")}</option>
               {Object.entries(PLATFORM_ROLE_LABELS).map(([key, label]) => (
                 <option key={key} value={key}>{label}</option>
               ))}
             </select>
-            {roleMutation.isPending && <p className="text-xs text-slate-500 mt-1">מעדכן תפקיד...</p>}
+            {roleMutation.isPending && <p className="text-xs text-slate-500 mt-1">{t("usersDetailPage.role.updating")}</p>}
             {roleMutation.error && <p className="text-xs text-red-600 mt-1">{(roleMutation.error as Error).message}</p>}
           </div>
         </div>
@@ -458,7 +463,7 @@ export default function UserDetailPage() {
       {/* Subscription & Features per business */}
       {user.businessMemberships.length > 0 && (
         <div className="mb-6 space-y-4">
-          <h2 className="font-semibold text-slate-900">מנוי ופיצ׳רים לפי עסק</h2>
+          <h2 className="font-semibold text-slate-900">{t("usersDetailPage.memberships.title")}</h2>
           {user.businessMemberships.map((membership) => (
             <div key={membership.id} className="card p-5">
               <div className="flex items-center gap-3 mb-4">
@@ -473,10 +478,16 @@ export default function UserDetailPage() {
                     {membership.business.name}
                   </Link>
                   <div className="text-xs text-slate-500">
-                    {MEMBER_ROLE_LABEL[membership.role] ?? "חבר צוות"} ·{" "}
-                    {BIZ_STATUS_LABEL[membership.business.status] ?? "מצב לא ידוע"} ·{" "}
-                    מסלול {tierLabel(membership.business.tier)}
-                    {!membership.isActive && " · חברות לא פעילה"}
+                    {t("usersDetailPage.memberships.line", {
+                      role: MEMBER_ROLES.includes(membership.role)
+                        ? t(`usersDetailPage.memberRoles.${membership.role}`)
+                        : t("usersDetailPage.memberships.otherRole"),
+                      status: BIZ_STATUSES.includes(membership.business.status)
+                        ? t(`usersDetailPage.bizStatus.${membership.business.status}`)
+                        : t("usersDetailPage.memberships.unknownStatus"),
+                      tier: tierLabel(membership.business.tier, t),
+                    })}
+                    {!membership.isActive && t("usersDetailPage.memberships.inactive")}
                   </div>
                 </div>
               </div>
@@ -489,24 +500,24 @@ export default function UserDetailPage() {
       {/* Business memberships summary (when no subscription features — free/no business) */}
       {user.businessMemberships.length === 0 && (
         <div className="card p-5 mb-6 text-center text-slate-500 text-sm">
-          המשתמש לא משויך לאף עסק, ולכן אין מנוי או פיצ׳רים לניהול.
+          {t("usersDetailPage.memberships.none")}
         </div>
       )}
 
       {/* Danger zone */}
       <div className="card p-5 border border-red-200">
         <h2 className="font-semibold text-red-700 mb-1 flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4" /> אזור מסוכן
+          <AlertTriangle className="w-4 h-4" /> {t("usersDetailPage.danger.title")}
         </h2>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-slate-700">
-            מחיקת המשתמש היא פעולה בלתי הפיכה. החשבון והגישה שלו לכל העסקים יימחקו לצמיתות.
+            {t("usersDetailPage.danger.body")}
           </p>
           <button
             onClick={() => { setConfirmEmail(""); setShowDelete(true); }}
             className="btn-danger flex items-center gap-2"
           >
-            <Trash2 className="w-4 h-4" /> מחק משתמש לצמיתות
+            <Trash2 className="w-4 h-4" /> {t("usersDetailPage.danger.deleteButton")}
           </button>
         </div>
       </div>
@@ -519,7 +530,7 @@ export default function UserDetailPage() {
             className="modal-content max-w-md p-5"
             role="dialog"
             aria-modal="true"
-            aria-label="אישור חסימת משתמש"
+            aria-label={t("usersDetailPage.block.dialogAria")}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start gap-3 mb-4">
@@ -527,14 +538,14 @@ export default function UserDetailPage() {
                 <AlertTriangle className="w-5 h-5 text-red-600" />
               </div>
               <div className="min-w-0">
-                <h2 className="text-lg font-bold text-slate-900">לחסום את {user.name || user.email}?</h2>
-                <p className="text-xs text-slate-500 mt-0.5 break-all" dir="ltr" style={{ textAlign: "right" }}>
+                <h2 className="text-lg font-bold text-slate-900">{t("usersDetailPage.block.title", { name: user.name || user.email })}</h2>
+                <p className="text-xs text-slate-500 mt-0.5 break-all" dir="ltr" style={{ textAlign: cfg.dir === "rtl" ? "right" : "left" }}>
                   {user.email}
                 </p>
               </div>
             </div>
             <p className="text-sm text-slate-700">
-              המשתמש לא יוכל להתחבר למערכת, וכל הסשנים הפעילים שלו ינותקו מיד. אפשר לבטל את החסימה בכל עת.
+              {t("usersDetailPage.block.body")}
             </p>
             <div className="flex gap-2 mt-5">
               <button
@@ -542,14 +553,14 @@ export default function UserDetailPage() {
                 disabled={toggleMutation.isPending}
                 className="btn-secondary flex-1 disabled:opacity-40"
               >
-                ביטול
+                {tc("actions.cancel")}
               </button>
               <button
                 onClick={() => toggleMutation.mutate(false)}
                 disabled={toggleMutation.isPending}
                 className="btn-danger flex-1 justify-center disabled:opacity-40"
               >
-                {toggleMutation.isPending ? "חוסם..." : "חסום משתמש"}
+                {toggleMutation.isPending ? t("usersDetailPage.block.blocking") : t("usersDetailPage.block.blockUser")}
               </button>
             </div>
           </div>
@@ -564,26 +575,25 @@ export default function UserDetailPage() {
             className="modal-content max-w-md p-5"
             role="dialog"
             aria-modal="true"
-            aria-label="אישור מחיקת משתמש"
+            aria-label={t("usersDetailPage.delete.dialogAria")}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-lg font-bold text-slate-900">מחיקת {user.name || user.email} לצמיתות</h2>
+              <h2 className="text-lg font-bold text-slate-900">{t("usersDetailPage.delete.title", { name: user.name || user.email })}</h2>
               <button
                 onClick={() => setShowDelete(false)}
                 disabled={deleteMutation.isPending}
                 className="btn-ghost p-1 rounded-lg"
-                aria-label="סגור"
-                title="סגור"
+                aria-label={tc("actions.close")}
+                title={tc("actions.close")}
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
             <p className="text-sm text-slate-700 mb-3">
-              הפעולה אינה ניתנת לביטול. החשבון, הסשנים והחברות של המשתמש בכל העסקים יימחקו.
-              כדי לאשר, הקלידו את כתובת המייל של המשתמש:
+              {t("usersDetailPage.delete.body")}
             </p>
-            <p className="text-sm font-medium text-slate-900 mb-2 break-all" dir="ltr" style={{ textAlign: "right" }}>
+            <p className="text-sm font-medium text-slate-900 mb-2 break-all" dir="ltr" style={{ textAlign: cfg.dir === "rtl" ? "right" : "left" }}>
               {user.email}
             </p>
             <input
@@ -593,7 +603,7 @@ export default function UserDetailPage() {
               className="input w-full"
               dir="ltr"
               autoComplete="off"
-              aria-label="הקלדת כתובת המייל לאישור המחיקה"
+              aria-label={t("usersDetailPage.delete.inputAria")}
               placeholder={user.email}
             />
             <div className="flex gap-2 mt-5">
@@ -602,7 +612,7 @@ export default function UserDetailPage() {
                 disabled={deleteMutation.isPending}
                 className="btn-secondary flex-1 disabled:opacity-40"
               >
-                ביטול
+                {tc("actions.cancel")}
               </button>
               <button
                 onClick={() => deleteMutation.mutate()}
@@ -612,7 +622,7 @@ export default function UserDetailPage() {
                 }
                 className="btn-danger flex-1 justify-center disabled:opacity-40"
               >
-                {deleteMutation.isPending ? "מוחק..." : "מחק לצמיתות"}
+                {deleteMutation.isPending ? tc("progress.deleting") : t("usersDetailPage.delete.confirm")}
               </button>
             </div>
           </div>

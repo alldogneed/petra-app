@@ -1,6 +1,7 @@
 import { cache } from "react"
 import prisma from "@/lib/prisma"
 import type { Metadata } from "next"
+import { getLocale, getTranslations } from "next-intl/server"
 
 type Props = { params: { slug: string }; children: React.ReactNode }
 
@@ -17,10 +18,13 @@ const getBusiness = cache(async (slug: string) => {
 
 export async function generateMetadata({ params }: Omit<Props, "children">): Promise<Metadata> {
   const business = await getBusiness(params.slug)
-  if (!business) return { title: "קביעת תור אונליין" }
+  const t = await getTranslations("booking.bookDetailLayout")
+  if (!business) return { title: t("defaultTitle") }
 
-  const title = `${business.name} — קביעת תור אונליין`
-  const description = `קבע/י תור אצל ${business.name} בקלות ובמהירות. שירותים לכלבים`
+  const title = t("title", { name: business.name })
+  const description = t("description", { name: business.name })
+  // Open Graph wants "he_IL" / "en_US"
+  const ogLocale = (await getLocale()).replace("-", "_")
 
   return {
     title,
@@ -31,7 +35,7 @@ export async function generateMetadata({ params }: Omit<Props, "children">): Pro
       url: `https://petra-app.com/book/${params.slug}`,
       type: "website",
       images: business.logo ? [{ url: business.logo }] : [],
-      locale: "he_IL",
+      locale: ogLocale,
     },
     alternates: { canonical: `https://petra-app.com/book/${params.slug}` },
     twitter: { card: "summary", title },

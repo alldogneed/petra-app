@@ -1,157 +1,48 @@
 import Image from "next/image";
 import { ScrollText } from "lucide-react";
+import { getLocale, getTranslations } from "next-intl/server";
+import { LOCALE_CONFIG, localeFromBusiness } from "@/lib/locale";
 
-export const metadata = {
-  title: "תנאי שימוש – Petra",
-  description: "תנאי השימוש של מערכת Petra לניהול עסקי חיות מחמד",
-};
+export async function generateMetadata() {
+  const t = await getTranslations("legal.termsPage");
+  return {
+    title: t("meta.title"),
+    description: t("meta.description"),
+  };
+}
 
+// Section / item ids → messages legal.termsPage.sections.<id>.{title,items.<item>}
 const SECTIONS = [
-  {
-    title: "1. מבוא",
-    items: [
-      "תנאי שימוש אלו מהווים הסכם משפטי מחייב בין המשתמש לבין החברה המפעילה את המערכת.",
-      "השימוש במערכת מהווה הסכמה מלאה מצד המשתמש לתנאים אלה. אם אינך מסכים – נא אל תעשה שימוש במערכת.",
-      "תנאים נוספים, לרבות מדיניות פרטיות, מדיניות שימוש מקובל (AUP) ותנאים נוספים, מהווים חלק בלתי נפרד מהסכם זה.",
-      "המשתמש מודע לכך שהמערכת נמצאת בשלבי פיתוח ושיפור מתמידים, ולכן ייתכנו שינויים, תקלות זמניות או פונקציות שאינן זמינות באופן מלא בכל עת.",
-    ],
-  },
-  {
-    title: "2. הגדרות",
-    items: [
-      '"המערכת" – מערכת Petra וכל שירותיה הדיגיטליים.',
-      '"החברה" – כל כלב - alldog, ע.מ 304996408, הבעלים והמפעילים של Petra.',
-      '"משתמש" – כל אדם פרטי או גוף עסקי המשתמש במערכת, לרבות במסגרת תקופת ניסיון.',
-      '"שירות" – כלל הפונקציות והתכנים הניתנים באמצעות Petra.',
-      '"תוכן" – כל נתון, קובץ, טקסט, מידע או חומר אחר שהוזן או נוצר באמצעות המערכת.',
-      '"סוד מסחרי" – עיצוב המערכת, ממשקי המשתמש, זרימות העבודה, לוגיקת העסק, מבני הנתונים ופתרונות הטכנולוגיים הכלולים במערכת, המהווים מידע עסקי סודי בבעלות החברה.',
-    ],
-  },
-  {
-    title: "3. רישום ושימוש",
-    items: [
-      "השימוש במערכת מותנה בהרשמה ובמסירת פרטים נכונים.",
-      "המשתמש אחראי לשמירה על סודיות הסיסמה ולשימוש הנעשה תחת חשבונו.",
-      "החברה שומרת לעצמה את הזכות לסרב להעניק שירות או להשעות חשבון לפי שיקול דעתה.",
-      "חשבון יכול לכלול משתמש ראשי ומשתמשים מורשים בהתאם למבנה העסק.",
-    ],
-  },
-  {
-    title: "4. מדיניות שימוש מקובל (Acceptable Use)",
-    items: [
-      "אסור להשתמש במערכת לצרכים הבאים:",
-      "4.1 העלאת תוכן בלתי חוקי, פוגעני, מזיק או מטעה.",
-      "4.2 גישה לא מורשית, הנדסה לאחור או הפרעה לפעולת המערכת.",
-      "4.3 שליחת ספאם או תכנים המוניים.",
-      "4.4 פגיעה בזכויות קניין רוחני או התחזות.",
-      "4.5 שימוש במערכת לצורך ניתוח תחרותי, בניית מוצר מתחרה, או כל פעילות שנועדה ללמוד מהמערכת לטובת יצירת שירות חלופי.",
-      "4.6 תיעוד שיטתי של ממשקי המשתמש, זרימות העבודה או יכולות המערכת לצורכי שכפול, הדגמה לגורמים מתחרים, או הפצה לצד שלישי.",
-      "4.7 שימוש בכלים אוטומטיים, סורקים, בוטים או כל אמצעי טכני אחר לאיסוף, גריפה (scraping) או מיצוי נתונים מן המערכת שלא לצורך השימוש התקין בה.",
-    ],
-  },
-  {
-    title: "5. רישוי וקניין רוחני",
-    items: [
-      "כל זכויות הקניין הרוחני במערכת, לרבות העיצוב, הקוד, המותג והתוכן – שייכות לחברה.",
-      "החברה מעניקה רישיון אישי, מוגבל, לא-בלעדי, בלתי ניתן להעברה, לשימוש במערכת לפי תנאים אלו.",
-      "אין להעתיק, לשכפל, להפיץ או לשנות את המערכת ללא אישור מפורש מהחברה.",
-      "החברה רשאית להשתמש במידע אנונימי לצורכי שיפור השירות.",
-    ],
-  },
-  {
-    title: "6. סוד מסחרי והגנה על קניין רוחני",
-    items: [
-      "עיצוב המערכת, ממשקי המשתמש, זרימות העבודה, לוגיקת העסק, מבני הנתונים, האלגוריתמים והפתרונות הטכנולוגיים הכלולים במערכת מהווים סודות מסחריים וקניין רוחני של החברה.",
-      "המשתמש מתחייב לא לגלות, להעביר, לשתף או לפרסם מידע כאמור לצד שלישי כלשהו, לרבות גורמים מתחרים, ללא קבלת אישור מפורש ובכתב מהחברה.",
-      "המשתמש מתחייב שלא לעשות שימוש בסודות המסחריים מחוץ לשימוש התקין הרגיל במערכת לצורך הפעלת עסקו.",
-      "הפרת סעיף זה תקנה לחברה את כל הסעדים הקבועים בדין, לרבות צווי מניעה, פיצויים בגין נזקים בפועל ועוגמת נפש.",
-      "חובת הסודיות המפורטת בסעיף זה תחול גם לאחר סיום השימוש במערכת, ללא הגבלת זמן.",
-    ],
-  },
-  {
-    title: "7. תשלומים ומנויים",
-    items: [
-      "השירות ניתן בתשלום חודשי או שנתי, בהתאם למסלול שנבחר.",
-      "דמי שימוש נגבים מראש.",
-      "ביטול השירות יתבצע דרך המערכת או בפנייה בכתב וייכנס לתוקף בתום תקופת החיוב.",
-      "החברה רשאית לעדכן מחירים בהודעה מוקדמת של 30 יום.",
-      "לא יינתן החזר אלא אם צוין אחרת.",
-      "תום מנוי: עם פקיעת תוקף המנוי תרד הגישה באופן אוטומטי לתכנית החינמית (Free). הנתונים שהוזנו נשמרים ואינם נמחקים אוטומטית, אך הגישה לתכונות המתקדמות תיחסם עד לחידוש המנוי.",
-      "תקופת ניסיון: בתום תקופת הניסיון החינמית, הגישה עוברת אוטומטית לתכנית החינמית. לא ניתן לאפס תקופת ניסיון לאחר שהסתיימה.",
-    ],
-  },
-  {
-    title: "8. שמירת מידע והעברת נתונים",
-    items: [
-      "מידע יישמר עד 90 ימים לאחר סיום השירות.",
-      "ניתן לבקש מחיקה או העברה של מידע.",
-      "כל עיבוד כפוף למדיניות פרטיות ולנספח DPA.",
-    ],
-  },
-  {
-    title: "9. פרטיות ואבטחת מידע",
-    items: [
-      "החברה מתחייבת לשמור על סודיות מידע אישי ועסקי.",
-      "שימוש באמצעים סבירים ומקובלים להגנה על המידע.",
-      "פרטי אשראי אינם נשמרים בשרתי החברה.",
-    ],
-  },
-  {
-    title: "10. אחריות ומגבלות",
-    items: [
-      "המערכת ניתנת As-Is, ללא אחריות לפעולה רציפה.",
-      "החברה לא תשא באחריות לנזקים עקיפים.",
-      "אחריות החברה מוגבלת לסכום ששולם ב-6 חודשים שקדמו.",
-    ],
-  },
-  {
-    title: "11. שיפוי",
-    items: [
-      "המשתמש מתחייב לשפות את החברה בגין כל תביעה או נזק הנובע מהפרת תנאים אלה.",
-    ],
-  },
-  {
-    title: "12. סיום שירות",
-    items: [
-      "החברה רשאית להשעות או לבטל שירות במקרה של הפרה.",
-      "עם סיום השירות, תיתכן מחיקה של המידע לאחר תקופה מוגדרת.",
-      "לא יינתן החזר חלקי לתקופה שלא נוצלה.",
-    ],
-  },
-  {
-    title: "13. שינויים בתנאים",
-    items: [
-      "החברה רשאית לעדכן את התנאים בהודעה של 30 יום מראש.",
-      "שימוש מתמשך מהווה הסכמה לתנאים המעודכנים.",
-    ],
-  },
-  {
-    title: "14. סמכות שיפוט",
-    items: [
-      "הדין החל הוא הדין הישראלי.",
-      "סמכות השיפוט לבתי המשפט במחוז תל אביב.",
-      "ייתכן שימוש בהליך בוררות בהסכמה הדדית.",
-    ],
-  },
-  {
-    title: "15. כוח עליון",
-    items: [
-      "החברה לא תישא באחריות לאירועים שאינם בשליטתה (כגון תקלות תקשורת, מגפות, שביתות וכו').",
-    ],
-  },
+  { id: "intro", items: ["bindingAgreement", "acceptance", "additionalTerms", "ongoingDevelopment"] },
+  { id: "definitions", items: ["system", "company", "user", "service", "content", "tradeSecret"] },
+  { id: "registration", items: ["accurateDetails", "passwordSecrecy", "refuseOrSuspend", "authorizedUsers"] },
+  { id: "acceptableUse", items: ["prohibitedIntro", "illegalContent", "unauthorizedAccess", "spam", "ipInfringement", "competitiveAnalysis", "systematicDocumentation", "scraping"] },
+  { id: "license", items: ["ownership", "grant", "noCopying", "anonymousData"] },
+  { id: "tradeSecrets", items: ["definition", "noDisclosure", "permittedUseOnly", "remedies", "survival"] },
+  { id: "payments", items: ["billingCycle", "prepaid", "cancellation", "priceChanges", "noRefund", "subscriptionEnd", "trial"] },
+  { id: "dataRetention", items: ["retentionPeriod", "deletionOrTransfer", "dpa"] },
+  { id: "privacy", items: ["confidentiality", "reasonableMeasures", "noCardStorage"] },
+  { id: "liability", items: ["asIs", "indirectDamages", "cap"] },
+  { id: "indemnification", items: ["indemnify"] },
+  { id: "termination", items: ["suspendOnBreach", "dataDeletion", "noPartialRefund"] },
+  { id: "changes", items: ["notice", "continuedUse"] },
+  { id: "jurisdiction", items: ["governingLaw", "venue", "arbitration"] },
+  { id: "forceMajeure", items: ["noLiability"] },
 ];
 
-export default function TermsPage() {
+export default async function TermsPage() {
+  const t = await getTranslations("legal.termsPage");
+  const cfg = LOCALE_CONFIG[localeFromBusiness({ locale: await getLocale() })];
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center py-10 px-4" dir="rtl">
+    <div className="min-h-screen bg-slate-50 flex flex-col items-center py-10 px-4" dir={cfg.dir}>
       <div className="w-full max-w-2xl">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="w-16 h-16 rounded-2xl mx-auto mb-4 overflow-hidden">
             <Image src="/logo.svg" alt="Petra" width={64} height={64} className="w-full h-full object-cover" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-800">תנאי שימוש – Petra</h1>
-          <p className="text-sm text-slate-500 mt-1">גרסה 1.1 | עדכון אחרון: אפריל 2026</p>
+          <h1 className="text-2xl font-bold text-slate-800">{t("title")}</h1>
+          <p className="text-sm text-slate-500 mt-1">{t("version")}</p>
         </div>
 
         {/* Content */}
@@ -159,17 +50,17 @@ export default function TermsPage() {
           <div className="flex items-center gap-2 pb-4 border-b border-slate-100">
             <ScrollText className="w-5 h-5 text-brand-500 flex-shrink-0" />
             <p className="text-sm text-slate-600">
-              ברוכים הבאים ל-Petra – מערכת ניהול מתקדמת למאלפי כלבים, בעלי פנסיונים ונותני שירותים פרטיים בתחום חיות המחמד, המופעלת על-ידי <strong>כל כלב - alldog</strong>, ע.מ 304996408. השימוש במערכת כפוף לתנאים המפורטים להלן.
+              {t.rich("intro", { b: (c) => <strong>{c}</strong> })}
             </p>
           </div>
 
           {SECTIONS.map((section) => (
-            <div key={section.title}>
-              <h3 className="font-bold text-slate-800 mb-2">{section.title}</h3>
+            <div key={section.id}>
+              <h3 className="font-bold text-slate-800 mb-2">{t(`sections.${section.id}.title`)}</h3>
               <ul className="space-y-1.5">
-                {section.items.map((item, i) => (
-                  <li key={i} className="text-sm text-slate-600 leading-relaxed">
-                    {item}
+                {section.items.map((item) => (
+                  <li key={item} className="text-sm text-slate-600 leading-relaxed">
+                    {t(`sections.${section.id}.items.${item}`)}
                   </li>
                 ))}
               </ul>
@@ -179,9 +70,9 @@ export default function TermsPage() {
 
         {/* Footer */}
         <p className="text-xs text-slate-400 text-center">
-          © {new Date().getFullYear()} Petra. כל הזכויות שמורות.{" "}
+          © {new Date().getFullYear()} {t("footer.rights")}{" "}
           <a href="/privacy" className="underline hover:text-slate-600">
-            מדיניות פרטיות
+            {t("footer.privacyLink")}
           </a>
         </p>
       </div>

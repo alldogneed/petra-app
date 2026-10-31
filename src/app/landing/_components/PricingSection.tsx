@@ -3,160 +3,141 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Check, X, ChevronDown, ChevronUp, MessageCircle, CreditCard, Sparkles, Shield } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/providers/auth-provider";
 
 const CARDCOM_TIERS = new Set(["basic", "pro"]);
 
-type FeatureEntry = string | { text: string; star: true };
+// Labels live in messages: landing.pricingSection.plans.<key>.{name,badge,description,features.<id>,notIncluded.<id>}
+type FeatureEntry = string | { id: string; star: true };
 
 const PLANS: {
-  key: string;
-  name: string;
+  key: "free" | "basic" | "pro";
   subtitle?: string;
   price: number;
-  badge: string | null;
+  hasBadge: boolean;
   highlight: boolean;
-  description: string;
   features: FeatureEntry[];
   notIncluded: string[];
 }[] = [
   {
     key: "free",
-    name: "חינמי",
     price: 0,
-    badge: null,
+    hasBadge: false,
     highlight: false,
-    description: "מתחילים לעשות סדר בלקוחות וביומן, בלי להוסיף הוצאה לעסק.",
-    features: [
-      "עד 30 לקוחות",
-      "עד 20 תורים (סה\"כ)",
-      "עד 15 הזמנות (סה\"כ)",
-      "CRM / לידים (עד 15)",
-      "ניהול תהליכי אילוף (עד 10 תוכניות)",
-      "מחירון שירותים (עד 8 פריטים)",
-      "ניהול משימות (עד 20)",
-    ],
-    notIncluded: [
-      "תזכורות WhatsApp אוטומטיות",
-      "סנכרון Google Calendar",
-      "דוחות ואנליטיקס",
-      "שליחת בקשת תשלום",
-    ],
+    features: ["clients30", "appointments20", "orders15", "leads15", "training10", "priceList8", "tasks20"],
+    notIncluded: ["whatsappReminders", "googleCalendar", "reports", "paymentRequest"],
   },
   {
     key: "basic",
-    name: "Basic",
     price: 99,
-    badge: null,
+    hasBadge: false,
     highlight: false,
-    description: "לעסקים שרוצים לחסוך זמן על תורים, הודעות וניהול לקוחות, ולהתרכז בעבודה עצמה.",
     features: [
-      "לקוחות ותורים ללא הגבלה",
-      "יומן תורים ופגישות + Google Calendar",
-      { text: "תזכורות WhatsApp אוטומטיות", star: true },
-      { text: "הזמנות אונליין — לקוחות קובעים לבד 24/7", star: true },
-      "שליחת בקשת תשלום + טפסי קליטה דיגיטליים",
-      "תיק עבודות לפני/אחרי",
-      "חתימת חוזים דיגיטלית",
-      "דוחות ואנליטיקס",
-      "משתמש יחיד (ללא ניהול צוות)",
-      "תמיכה אישית בוואטסאפ",
+      "unlimitedClients",
+      "calendarGcal",
+      { id: "whatsappReminders", star: true },
+      { id: "onlineBooking", star: true },
+      "paymentRequestIntake",
+      "portfolio",
+      "contracts",
+      "reports",
+      "singleUser",
+      "whatsappSupport",
     ],
-    notIncluded: [
-      "אוטומציות WhatsApp מתקדמות",
-      "ניהול פנסיון וצוות",
-    ],
+    notIncluded: ["whatsappAutomations", "boardingTeam"],
   },
   {
     key: "pro",
-    name: "Pro",
     price: 199,
-    badge: "מומלץ · הכי משתלם",
+    hasBadge: true,
     highlight: true,
-    description: "לעסקים עם יותר לקוחות, תהליכים וצוות, שרוצים לנהל את הכול בצורה מסודרת, כולל עוזר AI.",
     features: [
-      "הכל ב-Basic",
-      { text: "עוזר AI — מחברים את Claude או ChatGPT לעסק", star: true },
-      { text: "התראת WhatsApp על כל ליד חדש", star: true },
-      { text: "קליטת לידים אוטומטית מהאתר (Webhook)", star: true },
-      { text: "סדנאות וקבוצות עם רשימת המתנה ונוכחות", star: true },
-      "ניהול צוות והרשאות מתקדמות",
-      "ניהול פנסיון וחדרים",
-      "מודול אילוף מתקדם",
-      "אוטומציות WhatsApp מתקדמות",
-      "דוחות כספיים + ייצוא Excel",
-      "תמיכה אישית מועדפת בוואטסאפ",
+      "allBasic",
+      { id: "aiAssistant", star: true },
+      { id: "leadAlert", star: true },
+      { id: "leadWebhook", star: true },
+      { id: "groupClasses", star: true },
+      "teamPermissions",
+      "boardingRooms",
+      "advancedTraining",
+      "whatsappAutomations",
+      "financeReports",
+      "prioritySupport",
     ],
     notIncluded: [],
   },
 ];
 
 // ─── Comparison table (3 tiers only) ──────────────────────────────────────────
-type FVal = boolean | string;
-interface FRow { name: string; free: FVal; basic: FVal; pro: FVal }
+// A string value is a key under landing.pricingSection.compare.values
+type FValKey = "upTo30" | "upTo15" | "upTo20" | "upTo10" | "upTo20Appointments" | "unlimited";
+type FVal = boolean | FValKey;
+interface FRow { id: string; free: FVal; basic: FVal; pro: FVal }
 
-const FEATURE_GROUPS: { category: string; features: FRow[] }[] = [
+// Labels: landing.pricingSection.compare.groups.<id>.{title,rows.<rowId>}
+const FEATURE_GROUPS: { id: string; features: FRow[] }[] = [
   {
-    category: "לקוחות וחיות מחמד",
+    id: "clients",
     features: [
-      { name: "לקוחות", free: "עד 30", basic: "ללא הגבלה", pro: "ללא הגבלה" },
-      { name: "CRM / לידים", free: "עד 15", basic: "ללא הגבלה", pro: "ללא הגבלה" },
-      { name: "כרטיס בריאות לחיית מחמד", free: true, basic: true, pro: true },
-      { name: "טפסי קליטה דיגיטליים", free: false, basic: true, pro: true },
-      { name: "ניהול משימות", free: "עד 20", basic: "ללא הגבלה", pro: "ללא הגבלה" },
-      { name: "מחירון שירותים", free: true, basic: true, pro: true },
+      { id: "clients", free: "upTo30", basic: "unlimited", pro: "unlimited" },
+      { id: "leads", free: "upTo15", basic: "unlimited", pro: "unlimited" },
+      { id: "petHealth", free: true, basic: true, pro: true },
+      { id: "intakeForms", free: false, basic: true, pro: true },
+      { id: "tasks", free: "upTo20", basic: "unlimited", pro: "unlimited" },
+      { id: "priceList", free: true, basic: true, pro: true },
     ],
   },
   {
-    category: "יומן ותורים",
+    id: "calendar",
     features: [
-      { name: "יומן תורים ופגישות", free: "עד 20 תורים", basic: true, pro: true },
-      { name: "הזמנות אונליין (לקוח קובע לבד)", free: false, basic: true, pro: true },
-      { name: "סנכרון Google Calendar", free: false, basic: true, pro: true },
+      { id: "calendar", free: "upTo20Appointments", basic: true, pro: true },
+      { id: "onlineBooking", free: false, basic: true, pro: true },
+      { id: "googleCalendar", free: false, basic: true, pro: true },
     ],
   },
   {
-    category: "WhatsApp ותקשורת",
+    id: "whatsapp",
     features: [
-      { name: "תזכורות WhatsApp אוטומטיות", free: false, basic: true, pro: true },
-      { name: "בקשת תשלום WhatsApp", free: false, basic: true, pro: true },
-      { name: "אוטומציות WhatsApp מתקדמות", free: false, basic: false, pro: true },
-      { name: "הודעות מותאמות אישית", free: false, basic: false, pro: true },
-      { name: "התראת WhatsApp על ליד חדש", free: false, basic: false, pro: true },
+      { id: "reminders", free: false, basic: true, pro: true },
+      { id: "paymentRequest", free: false, basic: true, pro: true },
+      { id: "automations", free: false, basic: false, pro: true },
+      { id: "customMessages", free: false, basic: false, pro: true },
+      { id: "leadAlert", free: false, basic: false, pro: true },
     ],
   },
   {
-    category: "עוזר AI ואוטומציה",
+    id: "ai",
     features: [
-      { name: "חיבור Claude / ChatGPT לנתוני העסק", free: false, basic: false, pro: true },
-      { name: "קליטת לידים מהאתר / Make (Webhook)", free: false, basic: false, pro: true },
+      { id: "aiConnect", free: false, basic: false, pro: true },
+      { id: "leadWebhook", free: false, basic: false, pro: true },
     ],
   },
   {
-    category: "מקצוע ותוכן",
+    id: "professional",
     features: [
-      { name: "ניהול תהליכי אילוף", free: "עד 10", basic: "ללא הגבלה", pro: "ללא הגבלה" },
-      { name: "מודול אילוף מתקדם", free: false, basic: false, pro: true },
-      { name: "סדנאות וקבוצות (רשימת המתנה, נוכחות)", free: false, basic: false, pro: true },
-      { name: "ניהול פנסיון + חדרים", free: false, basic: false, pro: true },
-      { name: "תיק עבודות גרומר לפני/אחרי", free: false, basic: true, pro: true },
+      { id: "training", free: "upTo10", basic: "unlimited", pro: "unlimited" },
+      { id: "advancedTraining", free: false, basic: false, pro: true },
+      { id: "groupClasses", free: false, basic: false, pro: true },
+      { id: "boarding", free: false, basic: false, pro: true },
+      { id: "portfolio", free: false, basic: true, pro: true },
     ],
   },
   {
-    category: "פיננסים ודוחות",
+    id: "finance",
     features: [
-      { name: "שליחת בקשת תשלום", free: false, basic: true, pro: true },
-      { name: "חתימת חוזים דיגיטלית", free: false, basic: true, pro: true },
-      { name: "ניהול הזמנות", free: "עד 15", basic: true, pro: true },
-      { name: "דוחות ואנליטיקס", free: false, basic: true, pro: true },
-      { name: "דוחות כספיים + ייצוא Excel", free: false, basic: false, pro: true },
+      { id: "paymentRequest", free: false, basic: true, pro: true },
+      { id: "contracts", free: false, basic: true, pro: true },
+      { id: "orders", free: "upTo15", basic: true, pro: true },
+      { id: "reports", free: false, basic: true, pro: true },
+      { id: "financeReports", free: false, basic: false, pro: true },
     ],
   },
   {
-    category: "ניהול צוות",
+    id: "team",
     features: [
-      { name: "ניהול צוות ומשתמשים", free: false, basic: false, pro: true },
-      { name: "הרשאות לפי תפקיד", free: false, basic: false, pro: true },
+      { id: "team", free: false, basic: false, pro: true },
+      { id: "roles", free: false, basic: false, pro: true },
     ],
   },
 ];
@@ -164,86 +145,52 @@ const FEATURE_GROUPS: { category: string; features: FRow[] }[] = [
 const PLAN_KEYS = ["free", "basic", "pro"] as const;
 
 function FeatureCell({ value }: { value: FVal }) {
+  const t = useTranslations("landing.pricingSection");
   if (typeof value === "string") {
-    return <span className="text-[13px] text-slate-600 font-medium">{value}</span>;
+    return <span className="text-[13px] text-slate-600 font-medium">{t(`compare.values.${value}`)}</span>;
   }
   return value
-    ? <Check className="w-4 h-4 text-emerald-500 mx-auto" aria-label="כלול" />
-    : <X className="w-4 h-4 text-red-300 mx-auto" aria-label="לא כלול" />;
+    ? <Check className="w-4 h-4 text-emerald-500 mx-auto" aria-label={t("compare.included")} />
+    : <X className="w-4 h-4 text-red-300 mx-auto" aria-label={t("compare.notIncluded")} />;
 }
 
-const FAQ = [
-  {
-    q: "מה ניתן לנהל עם פטרה?",
-    a: "פטרה בנויה במיוחד לעסקי חיות מחמד ומכסה: לקוחות וחיות מחמד, יומן תורים, תזכורות WhatsApp אוטומטיות, קביעת תורים אונליין, ניהול פנסיון וחדרים, תהליכי אילוף, סדנאות וקבוצות עם רשימת המתנה ונוכחות, בקשות תשלום, CRM ולידים, ניהול משימות, אנליטיקס ועוזר AI — הכל במקום אחד.",
-  },
-  {
-    q: "מה ההבדל בין Basic ל-Pro?",
-    a: "Basic מיועד לגרומרים ומאלפים עצמאיים — משתמש יחיד עם יומן, תזכורות WhatsApp אוטומטיות, הזמנות אונליין, בקשות תשלום, טפסי קליטה ותיק עבודות לפני/אחרי. Pro מיועד לפנסיונים ומרכזי אילוף — מוסיף עוזר AI, ניהול פנסיון וחדרים, ניהול צוות עם הרשאות, סדנאות וקבוצות עם רשימת המתנה ונוכחות, אוטומציות WhatsApp מתקדמות והתראה על כל ליד חדש.",
-  },
-  {
-    q: "מה זה עוזר ה-AI של פטרה?",
-    a: "במסלול Pro מחברים את Claude או ChatGPT ישירות לנתוני העסק. שואלים \"מה יש לי מחר?\", \"מי עוד לא שילם?\", \"תקבע תור לדנה ביום שלישי\" — והעוזר עונה ופועל מתוך המערכת, לפי ההרשאות שהגדרתם. החיבור מאובטח עם טוקן אישי שאפשר לבטל בכל רגע.",
-  },
-  {
-    q: "האם פטרה עובדת בנייד?",
-    a: "כן — פטרה מותאמת במלואה לנייד ועובדת בדפדפן מכל מכשיר. ניתן גם להוסיף אותה למסך הבית כ-PWA לגישה מהירה בדיוק כמו אפליקציה רגילה, ללא הורדה מהחנות.",
-  },
-  {
-    q: "איך עובדות תזכורות WhatsApp אוטומטיות?",
-    a: "פטרה שולחת תזכורות WhatsApp ללקוחות אוטומטית לפני תורים, אישורי כניסה/יציאה מפנסיון ועוד — דרך ה-API הרשמי של Meta. ניתן לקבוע כמה שעות מראש לשלוח (24/48/72/96 שעות) ולהתאים את נוסח ההודעה. זמין ממסלול Basic ומעלה.",
-  },
-  {
-    q: "האם לקוחות יכולים לקבוע תורים לבד?",
-    a: "כן — ממסלול Basic ומעלה תקבל לינק אישי לדף הזמנות אונליין. הלקוח בוחר שירות, תאריך ושעה פנויה ומאשר — הכל נכנס אוטומטית ליומן שלך. 24/7, ללא שיחות טלפון.",
-  },
-  {
-    q: "האם יש סנכרון עם Google Calendar?",
-    a: "כן — מסלול Basic ומעלה כולל סנכרון דו-כיווני עם Google Calendar. כל תור שנוצר בפטרה מופיע ביומן גוגל שלך אוטומטית.",
-  },
-  {
-    q: "איך עובדים התשלומים?",
-    a: "מסלול Basic ומעלה כולל שליחת בקשת תשלום בוואטסאפ עם לינק ישיר ללקוח. במסלול Pro ניתן ליצור הזמנות מלאות עם פירוט שירותים ולייצא את כל הנתונים הפיננסיים לאקסל. פטרה אינה מפיקה חשבוניות מס — לצורך זה ניתן להשתמש בתוכנת הנהלת חשבונות נפרדת.",
-  },
-  {
-    q: "האם יש ניהול פנסיון?",
-    a: "כן — מסלול Pro כולל ניהול פנסיון מלא: חדרים, check-in/out, מניעת כפל הזמנות, ועדכוני WhatsApp אוטומטיים לבעלים. מסלול Free ו-Basic אינם כוללים מודול פנסיון.",
-  },
-  {
-    q: "האם יש ניהול צוות?",
-    a: "כן — מסלול Pro כולל ניהול צוות עם הרשאות לפי תפקיד: בעלים, מנהל וצוות. כל עובד נכנס עם אישורי הגישה שלו ורואה רק את מה שרלוונטי לתפקידו. מסלול Basic מיועד למשתמש יחיד בלבד.",
-  },
-  {
-    q: "מה קורה אם יש לי כבר נתונים בטלפון או במערכת אחרת?",
-    a: "מעבר קל ובטוח — הצוות שלנו מלווה אותך בייבוא הנתונים. לא תאבד שום מידע.",
-  },
-  {
-    q: "האם ניתן לבטל? מה קורה לנתונים?",
-    a: "ניתן לבטל בכל עת ללא קנסות ממסך ההגדרות. הנתונים שלך נשמרים 30 יום לאחר הביטול ואפשר לייצא הכל לאקסל לפני עזיבה.",
-  },
-  {
-    q: "איך משדרגים מסלול?",
-    a: "מתוך לוח הבקרה → הגדרות → שדרוג מסלול. בוחרים מסלול, מזינים כרטיס אשראי, ותוך שניות כל הפיצ'רים נפתחים.",
-  },
-];
+// Q/A text: landing.pricingSection.faq.items.<id>.{q,a}
+const FAQ_IDS = [
+  "whatCanManage",
+  "basicVsPro",
+  "aiAssistant",
+  "mobile",
+  "whatsappReminders",
+  "onlineBooking",
+  "googleCalendar",
+  "payments",
+  "boarding",
+  "team",
+  "importData",
+  "cancel",
+  "upgrade",
+] as const;
 
 function FaqAccordion() {
+  const t = useTranslations("landing.pricingSection");
   const [open, setOpen] = useState<string | null>(null);
   return (
     <div className="mt-12 bg-slate-50 rounded-2xl p-6">
       <h2 id="faq" className="font-extrabold text-slate-900 mb-5 text-2xl" style={{ letterSpacing: "-0.02em" }}>
-        שאלות נפוצות
+        {t("faq.title")}
       </h2>
       <div className="space-y-2">
-        {FAQ.map(({ q, a }, i) => {
-          const isOpen = open === q;
+        {FAQ_IDS.map((id, i) => {
+          const q = t(`faq.items.${id}.q`);
+          const a = t(`faq.items.${id}.a`);
+          const isOpen = open === id;
           return (
-            <div key={q} className="bg-white rounded-xl border border-slate-100 overflow-hidden">
+            <div key={id} className="bg-white rounded-xl border border-slate-100 overflow-hidden">
               <button
-                onClick={() => setOpen(isOpen ? null : q)}
+                onClick={() => setOpen(isOpen ? null : id)}
                 aria-expanded={isOpen}
                 aria-controls={`faq-a-${i}`}
-                className="w-full flex items-center justify-between gap-3 px-4 py-3.5 text-right hover:bg-slate-50 transition-colors"
+                className="w-full flex items-center justify-between gap-3 px-4 py-3.5 text-start hover:bg-slate-50 transition-colors"
               >
                 <span className="font-medium text-slate-800 text-sm">{q}</span>
                 <ChevronDown
@@ -268,6 +215,7 @@ function FaqAccordion() {
 export function PricingSection() {
   const [showComparison, setShowComparison] = useState(false);
   const { user } = useAuth();
+  const t = useTranslations("landing.pricingSection");
 
   return (
     <section aria-labelledby="pricing-heading" className="py-20 bg-white" id="pricing">
@@ -276,17 +224,20 @@ export function PricingSection() {
         {/* Header */}
         <div className="text-center mb-12">
           <h2 id="pricing-heading" className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">
-            מתחילים בחינם. גדלים בקצב שלכם.
+            {t("header.title")}
           </h2>
-          <p className="text-slate-500 text-lg">בוחרים את המסלול שמתאים לעסק שלכם. אפשר לשנות מסלול או לבטל את התשלום בהמשך, בלי התחייבות ארוכה.</p>
+          <p className="text-slate-500 text-lg">{t("header.subtitle")}</p>
         </div>
 
         {/* 3 Plan cards */}
         <ul
           className="grid grid-cols-1 sm:grid-cols-3 gap-4 list-none p-0 m-0 pt-6"
-          aria-label="מסלולי מנוי"
+          aria-label={t("plansAria")}
         >
-          {PLANS.map((plan) => (
+          {PLANS.map((plan) => {
+            const planName = t(`plans.${plan.key}.name`);
+            const planBadge = plan.hasBadge ? t(`plans.${plan.key}.badge`) : null;
+            return (
             <li key={plan.key} className="flex flex-col">
               <div
                 className={`relative rounded-2xl border-2 flex flex-col h-full transition-colors ${
@@ -296,22 +247,22 @@ export function PricingSection() {
                 }`}
               >
                 {/* Badge */}
-                {plan.badge && (
+                {planBadge && (
                   plan.highlight ? (
                     <div
                       aria-hidden="true"
-                      className="absolute -top-5 right-1/2 translate-x-1/2 flex items-center gap-2 text-sm font-bold px-5 py-2 rounded-full bg-brand-600 text-white whitespace-nowrap"
+                      className="absolute -top-5 start-1/2 translate-x-1/2 ltr:-translate-x-1/2 flex items-center gap-2 text-sm font-bold px-5 py-2 rounded-full bg-brand-600 text-white whitespace-nowrap"
                     >
                       <Sparkles className="w-3.5 h-3.5" />
-                      {plan.badge}
+                      {planBadge}
                       <Sparkles className="w-3.5 h-3.5" />
                     </div>
                   ) : (
                     <div
                       aria-hidden="true"
-                      className="absolute -top-3 right-4 text-xs font-bold px-3 py-1 rounded-full bg-amber-500 text-white"
+                      className="absolute -top-3 start-4 text-xs font-bold px-3 py-1 rounded-full bg-amber-500 text-white"
                     >
-                      {plan.badge}
+                      {planBadge}
                     </div>
                   )
                 )}
@@ -319,19 +270,19 @@ export function PricingSection() {
                 {/* Plan header */}
                 <div className="mb-4">
                   <h3 className="text-base font-bold text-slate-900 mb-0.5">
-                    {plan.name}
-                    {plan.badge && <span className="sr-only"> — {plan.badge}</span>}
+                    {planName}
+                    {planBadge && <span className="sr-only"> — {planBadge}</span>}
                   </h3>
                   {plan.subtitle && (
                     <p className="text-[13px] font-medium text-brand-700 mb-1 leading-snug">{plan.subtitle}</p>
                   )}
-                  <p className="text-[13px] text-slate-500 leading-snug mb-3">{plan.description}</p>
+                  <p className="text-[13px] text-slate-500 leading-snug mb-3">{t(`plans.${plan.key}.description`)}</p>
                   <div className="flex items-baseline gap-1">
                     <span className="text-2xl font-extrabold text-slate-900">
-                      {`₪${plan.price}`}
+                      {t("priceAmount", { price: plan.price })}
                     </span>
                     {plan.price > 0 && (
-                      <span className="text-slate-400 text-xs" aria-label="לחודש">/חודש</span>
+                      <span className="text-slate-400 text-xs" aria-label={t("perMonthAria")}>{t("perMonth")}</span>
                     )}
                   </div>
                 </div>
@@ -340,10 +291,11 @@ export function PricingSection() {
                 <ul className="space-y-1.5 mb-3 flex-1 list-none p-0 m-0">
                   {plan.features.map((f) => {
                     const isHighlighted = typeof f === "object" && f.star;
-                    const label = typeof f === "object" ? f.text : f;
+                    const featureId = typeof f === "object" ? f.id : f;
+                    const label = t(`plans.${plan.key}.features.${featureId}`);
                     return (
                       <li
-                        key={label}
+                        key={featureId}
                         className={`flex items-start gap-1.5 text-[13px] ${isHighlighted ? "text-brand-700 font-semibold" : "text-slate-700"}`}
                       >
                         <Check
@@ -353,8 +305,8 @@ export function PricingSection() {
                         {isHighlighted ? (
                           <span>
                             {label}
-                            <span className="mr-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[11px] font-bold bg-brand-100 text-brand-600 align-middle">
-                              חדש
+                            <span className="ms-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-[11px] font-bold bg-brand-100 text-brand-600 align-middle">
+                              {t("newBadge")}
                             </span>
                           </span>
                         ) : (
@@ -371,7 +323,7 @@ export function PricingSection() {
                     {plan.notIncluded.map((f) => (
                       <li key={f} className="flex items-start gap-1.5 text-[13px] text-slate-500">
                         <X aria-hidden="true" className="w-3.5 h-3.5 text-red-300 mt-0.5 shrink-0" />
-                        {f}
+                        {t(`plans.${plan.key}.notIncluded.${f}`)}
                       </li>
                     ))}
                   </ul>
@@ -382,7 +334,7 @@ export function PricingSection() {
                   <div className="flex flex-col gap-1.5">
                     <Link
                       href={user ? `/checkout?tier=${plan.key}` : `/checkout?tier=${plan.key}`}
-                      aria-label={`רכוש עכשיו — מסלול ${plan.name}`}
+                      aria-label={t("cta.buyAria", { name: planName })}
                       className={`text-sm py-2.5 rounded-xl text-center font-semibold transition-colors flex items-center justify-center gap-1.5 ${
                         plan.highlight
                           ? "bg-brand-700 hover:bg-brand-800 text-white"
@@ -390,31 +342,32 @@ export function PricingSection() {
                       }`}
                     >
                       <CreditCard className="w-3.5 h-3.5" aria-hidden="true" />
-                      {user ? "שדרג עכשיו" : "רכוש עכשיו"}
+                      {user ? t("cta.upgradeNow") : t("cta.buyNow")}
                     </Link>
                     <p className="text-xs text-center text-slate-500 leading-snug px-1">
-                      חיוב מיידי · ביטול בכל עת · קבלה במייל
+                      {t("cta.billingNote")}
                     </p>
                   </div>
                 ) : (
                   <div className="flex flex-col gap-1.5">
                     <Link
                       href="/register"
-                      aria-label={`התחילו בחינם — מסלול ${plan.name}`}
+                      aria-label={t("cta.startFreeAria", { name: planName })}
                       className="text-sm py-2.5 rounded-xl text-center font-semibold transition-colors bg-slate-900 hover:bg-slate-800 text-white"
                     >
-                      התחילו בחינם
+                      {t("cta.startFree")}
                     </Link>
                     {!user && (
                       <p className="text-xs text-center text-emerald-700 font-medium leading-snug px-1">
-                        ללא הגבלת זמן, ללא צורך בכרטיס אשראי
+                        {t("cta.freeNote")}
                       </p>
                     )}
                   </div>
                 )}
               </div>
             </li>
-          ))}
+            );
+          })}
         </ul>
 
         {/* ── Service Dog Enterprise Banner ─────────────────────────────────────── */}
@@ -426,12 +379,12 @@ export function PricingSection() {
 
           {/* Text */}
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-emerald-700 mb-1">ייחודי בישראל</p>
+            <p className="text-sm font-bold text-emerald-700 mb-1">{t("serviceDogs.eyebrow")}</p>
             <h3 className="text-lg font-bold text-slate-900 mb-1 leading-snug">
-              מרכז הכשרת כלבי שירות? יש לנו פתרון ייעודי עבורך
+              {t("serviceDogs.title")}
             </h3>
             <p className="text-slate-500 text-sm leading-relaxed">
-              פלטפורמה מלאה לניהול זכאים, הכשרות ועמידה בדרישות משרד החקלאות.
+              {t("serviceDogs.body")}
             </p>
           </div>
 
@@ -443,7 +396,7 @@ export function PricingSection() {
             className="shrink-0 inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold transition-colors whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
           >
             <MessageCircle className="w-4 h-4" aria-hidden="true" />
-            דבר איתנו להתאמת מסלול
+            {t("serviceDogs.cta")}
           </a>
         </div>
 
@@ -456,8 +409,8 @@ export function PricingSection() {
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-400 focus:ring-offset-2"
           >
             {showComparison
-              ? <><ChevronUp className="w-4 h-4" aria-hidden="true" />הסתר השוואה מלאה</>
-              : <><ChevronDown className="w-4 h-4" aria-hidden="true" />השוואה מלאה של כל הפיצ'רים</>
+              ? <><ChevronUp className="w-4 h-4" aria-hidden="true" />{t("compare.hide")}</>
+              : <><ChevronDown className="w-4 h-4" aria-hidden="true" />{t("compare.show")}</>
             }
           </button>
         </div>
@@ -469,12 +422,12 @@ export function PricingSection() {
             id="comparison-table"
             className="mt-8 overflow-x-auto rounded-2xl border border-slate-200"
             role="region"
-            aria-label="טבלת השוואת מסלולים"
+            aria-label={t("compare.tableAria")}
           >
             <table className="w-full min-w-[480px] text-sm border-collapse">
               <thead className="sticky top-0 z-10">
                 <tr className="bg-slate-50 border-b border-slate-200">
-                  <th scope="col" className="text-right px-4 py-3 font-semibold text-slate-700 w-52">פיצ'ר</th>
+                  <th scope="col" className="text-start px-4 py-3 font-semibold text-slate-700 w-52">{t("compare.featureColumn")}</th>
                   {PLANS.map((p) => (
                     <th
                       key={p.key}
@@ -483,14 +436,14 @@ export function PricingSection() {
                         p.highlight ? "text-brand-600 bg-brand-50/50" : "text-slate-700"
                       }`}
                     >
-                      {p.name}
-                      {p.badge && (
+                      {t(`plans.${p.key}.name`)}
+                      {p.hasBadge && (
                         <span className={`block text-xs font-bold mt-0.5 ${p.highlight ? "text-brand-500" : "text-amber-500"}`}>
-                          {p.badge}
+                          {t(`plans.${p.key}.badge`)}
                         </span>
                       )}
                       <span className="block font-normal text-slate-500 mt-0.5 text-xs">
-                        {p.price === 0 ? "חינמי" : `₪${p.price}`}
+                        {p.price === 0 ? t("compare.freePrice") : t("priceAmount", { price: p.price })}
                       </span>
                     </th>
                   ))}
@@ -499,17 +452,17 @@ export function PricingSection() {
               <tbody>
                 {FEATURE_GROUPS.map((group) => (
                   <>
-                    <tr key={`cat-${group.category}`} className="bg-slate-50/80">
+                    <tr key={`cat-${group.id}`} className="bg-slate-50/80">
                       <td colSpan={4} className="px-4 py-2 text-sm font-bold text-slate-600">
-                        {group.category}
+                        {t(`compare.groups.${group.id}.title`)}
                       </td>
                     </tr>
                     {group.features.map((feat, i) => (
                       <tr
-                        key={feat.name}
+                        key={feat.id}
                         className={`border-b border-slate-100 ${i % 2 === 0 ? "bg-white" : "bg-slate-50/30"}`}
                       >
-                        <td className="px-4 py-2.5 text-slate-700 text-[13px]">{feat.name}</td>
+                        <td className="px-4 py-2.5 text-slate-700 text-[13px]">{t(`compare.groups.${group.id}.rows.${feat.id}`)}</td>
                         {PLAN_KEYS.map((pk) => (
                           <td key={pk} className={`text-center px-3 py-2.5 ${PLANS.find(p => p.key === pk)?.highlight ? "bg-brand-50/20" : ""}`}>
                             <FeatureCell value={feat[pk as keyof typeof feat] as FVal} />
@@ -530,21 +483,21 @@ export function PricingSection() {
 
         {/* WhatsApp contact */}
         <div className="mt-6 text-center">
-          <p className="text-sm text-slate-400 mb-3">שאלות? נשמח לעזור בבחירת המסלול המתאים</p>
+          <p className="text-sm text-slate-400 mb-3">{t("contact.question")}</p>
           <a
             href="https://wa.me/972542560964"
             target="_blank"
             rel="noopener noreferrer"
-            aria-label="צור קשר בוואטסאפ — נפתח בחלון חדש"
+            aria-label={t("contact.aria")}
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#25D366] hover:bg-[#1ebe5d] text-white text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-[#25D366] focus:ring-offset-2"
           >
             <MessageCircle className="w-4 h-4" aria-hidden="true" />
-            צור קשר עכשיו
+            {t("contact.cta")}
           </a>
         </div>
 
         <p className="text-center text-[13px] text-slate-500 mt-6">
-          כל המסלולים כוללים תמיכה בעברית, RTL מלא ואבטחת מידע · ניתן לשדרג, להוריד מסלול, או לבטל בכל עת
+          {t("footnote")}
         </p>
       </div>
     </section>

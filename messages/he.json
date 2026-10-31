@@ -217,6 +217,404 @@
       "new": "חדש"
     }
   },
+  "auth": {
+    "forgotPasswordPage": {
+      "tagline": "ניהול עסקי חיות מחמד",
+      "errors": {
+        "sendFailed": "שגיאה בשליחת המייל",
+        "network": "שגיאת רשת. אנא נסה שוב."
+      },
+      "sent": {
+        "title": "המייל נשלח!",
+        "body": "אם הכתובת <addr>{email}</addr> רשומה במערכת, נשלח אליה לינק לאיפוס סיסמה.",
+        "validity": "הלינק תקף ל-60 דקות. בדוק גם את תיקיית הספאם."
+      },
+      "backToLogin": "חזרה להתחברות",
+      "form": {
+        "title": "שכחתי סיסמה",
+        "subtitle": "הכנס את האימייל שלך ונשלח לינק לאיפוס הסיסמה",
+        "emailLabel": "אימייל",
+        "sending": "שולח...",
+        "submit": "שלח לינק לאיפוס"
+      }
+    },
+    "invitePage": {
+      "tagline": "ניהול עסקי חיות מחמד",
+      "roles": {
+        "owner": "בעלים",
+        "manager": "מנהל",
+        "user": "עובד",
+        "volunteer": "מתנדב"
+      },
+      "passwordChecks": {
+        "length": "12+ תווים",
+        "upper": "אות גדולה",
+        "lower": "אות קטנה",
+        "digit": "ספרה"
+      },
+      "errors": {
+        "invalidLink": "הקישור לא תקין. בקש/י מבעל העסק לשלוח הזמנה חדשה.",
+        "loadFailed": "לא הצלחנו לטעון את ההזמנה",
+        "acceptFailed": "שגיאה באישור ההזמנה",
+        "network": "שגיאת רשת. נסה/י שוב."
+      },
+      "toLogin": "לדף ההתחברות",
+      "done": {
+        "title": "ברוך/ה הבא/ה לצוות של {business}!",
+        "subtitle": "ההצטרפות אושרה. מעבירים אותך למערכת..."
+      },
+      "form": {
+        "title": "הזמנה להצטרף לצוות",
+        "introByInviter": "{inviter} הזמין/ה אותך ל<b>{business}</b> בתפקיד <b>{role}</b>.",
+        "intro": "הוזמנת ל<b>{business}</b> בתפקיד <b>{role}</b>.",
+        "usernameLabel": "שם משתמש: ",
+        "signedInAsInvitee": "את/ה מחובר/ת לחשבון הזה — נשאר רק לאשר.",
+        "hasAccount": "כבר יש לך חשבון בפטרה עם האימייל הזה. התחבר/י אליו כדי לאשר את ההצטרפות — הסיסמה שלך לא משתנה.",
+        "fullName": "שם מלא",
+        "choosePassword": "בחר/י סיסמה",
+        "passwordPlaceholder": "לפחות 12 תווים",
+        "hidePassword": "הסתר סיסמה",
+        "showPassword": "הצג סיסמה",
+        "confirmPassword": "אימות סיסמה",
+        "passwordMismatch": "הסיסמאות אינן תואמות",
+        "loginAndAccept": "התחברות ואישור",
+        "accepting": "מאשר...",
+        "accept": "אישור הצטרפות",
+        "notYours": "לא מכיר/ה את העסק? אפשר פשוט לסגור את הדף."
+      }
+    },
+    "loginPage": {
+      "googleErrors": {
+        "google_config": "חיבור Google לא מוגדר. פנה למנהל המערכת.",
+        "google_denied": "ההתחברות עם Google בוטלה.",
+        "missing_params": "שגיאה בתשובה מ-Google. נסה שוב.",
+        "invalid_state": "שגיאת אימות. נסה שוב.",
+        "email_not_verified": "כתובת האימייל ב-Google לא מאומתת.",
+        "account_disabled": "החשבון מושבת. פנה למנהל המערכת.",
+        "server_error": "שגיאת שרת. נסה שוב.",
+        "generic": "שגיאה בהתחברות עם Google"
+      },
+      "errors": {
+        "accessEnded": "הגישה שלך לעסק הסתיימה — בעל העסק השבית את המשתמש. לשאלות פנה/י אליו.",
+        "loginFailed": "שגיאה בהתחברות",
+        "loginFailedRetry": "שגיאה בהתחברות. נסה שוב."
+      },
+      "title": "ברוכים השבים",
+      "subtitle": "התחבר לחשבון הניהול של העסק שלך — לקוחות, תורים ופנסיון במקום אחד.",
+      "emailLabel": "אימייל",
+      "passwordLabel": "סיסמה",
+      "passwordPlaceholder": "הכנס סיסמה",
+      "rememberMe": "זכור אותי במכשיר זה",
+      "forgotPassword": "שכחתי סיסמה",
+      "rememberMeOn": "ההתחברות תישמר למשך 30 יום כל עוד אתה פעיל. אל תסמן בשימוש במחשב משותף.",
+      "rememberMeOff": "ניתוק אוטומטי לאחר 8 שעות. מומלץ במחשב משותף או ציבורי.",
+      "loggingIn": "מתחבר...",
+      "submit": "התחבר",
+      "or": "או",
+      "continueWithGoogle": "המשך עם Google",
+      "googleNewUser": "משתמש חדש? חשבון ייווצר אוטומטית",
+      "noAccount": "אין לך חשבון עדיין?",
+      "createAccount": "צור חשבון חינם",
+      "copyright": "כל הזכויות שמורות all-dog - המרכז הישראלי להתנהגות הכלב",
+      "privacy": "מדיניות פרטיות",
+      "terms": "תנאי שימוש",
+      "hero": {
+        "badge": "130 עסקים פעילים בישראל",
+        "quote": "פטרה שינתה לי את החיים. כל הלקוחות, התוכניות, התזכורות — הכל במקום אחד. חסכתי 2 שעות ביום לפחות",
+        "initials": "יע",
+        "name": "יעל כהן",
+        "role": "מאלפת כלבים בכירה · סטודיו קנין, תל אביב",
+        "stats": {
+          "businesses": "עסקים פעילים",
+          "appointments": "תורים שנקבעו",
+          "satisfaction": "שביעות רצון"
+        }
+      }
+    },
+    "consentForm": {
+      "roles": {
+        "owner": "בעלים",
+        "manager": "מנהל",
+        "user": "משתמש",
+        "volunteer": "מתנדב"
+      },
+      "profileHints": {
+        "full": "כל מה שההרשאה שלך בעסק מאפשרת",
+        "read": "צפייה בלבד — בלי שינויים"
+      },
+      "errors": {
+        "approveFailed": "שגיאה באישור החיבור. נסו שוב.",
+        "network": "שגיאת רשת. בדקו את החיבור ונסו שוב."
+      },
+      "eyebrow": "בקשת גישה לחשבון",
+      "title": "חיבור <client></client> לפטרה",
+      "subtitle": "האפליקציה תוכל לקרוא ולעדכן נתונים בעסק שלך לפי רמת הגישה שתבחר/י כאן.",
+      "redirectNotice": "לאחר האישור תועבר/י אל: <target></target>",
+      "redirectWarning": "אשר/י רק אם ביקשת עכשיו לחבר עוזר AI לפטרה.",
+      "unverified": "אפליקציה לא מאומתת — ודא/י שאת/ה סומך/ת על היעד לפני האישור",
+      "signedInAs": "מחובר/ת בתור <email></email>",
+      "notYou": "לא את/ה? התנתק/י",
+      "businessLabel": "עסק",
+      "noEligibleOption": "— אין עסק זמין לחיבור —",
+      "unnamedBusiness": "עסק ללא שם",
+      "businessPrefix": "עסק: ",
+      "ineligible": {
+        "none": "לא נמצא עסק שאפשר לחבר אליו עוזר AI מהחשבון הזה.",
+        "single": "לא ניתן לחבר עוזר AI לעסק הזה.",
+        "all": "אף אחד מהעסקים שלך אינו זמין לחיבור כרגע."
+      },
+      "profileLegend": "רמת גישה",
+      "scopeNote": {
+        "manager": "כמנהל/ת, החיבור לא יכלול תשלומים, דוחות ופעולות בלתי הפיכות — גם בגישה מלאה.",
+        "other": "ההרשאות מוגבלות תמיד לתפקיד שלך בעסק (מנהל: ללא תשלומים, דוחות ופעולות בלתי הפיכות).",
+        "disconnect": "אפשר לנתק את החיבור בכל עת בהגדרות ← עוזרי AI."
+      },
+      "approve": "אשר חיבור"
+    },
+    "oauthAuthorizePage": {
+      "metaTitle": "חיבור עוזר AI | Petra",
+      "errors": {
+        "hint": "אפשר לסגור את החלון ולנסות להתחבר מחדש מתוך עוזר ה-AI. אם הבעיה חוזרת — פנו לתמיכה של פטרה.",
+        "invalidTitle": "בקשת חיבור לא תקינה",
+        "unknownClientTitle": "האפליקציה לא מוכרת",
+        "badRedirectTitle": "כתובת חזרה לא תקינה",
+        "unsupportedTitle": "בקשת חיבור לא נתמכת",
+        "insecureTitle": "בקשת חיבור לא מאובטחת",
+        "missingClientId": "חסר מזהה אפליקציה (client_id) או שהוא לא תקין.",
+        "unknownClient": "האפליקציה שמנסה להתחבר לפטרה אינה רשומה (ייתכן שהרישום פג). נסו להסיר את החיבור מעוזר ה-AI ולהוסיף אותו מחדש.",
+        "badRedirect": "כתובת החזרה (redirect_uri) של הבקשה אינה תואמת לכתובת הרשומה של האפליקציה, ולכן לא נמשיך.",
+        "badState": "הפרמטר state בבקשה אינו תקין (כפול או ארוך מדי).",
+        "badResponseType": "סוג התגובה המבוקש (response_type) אינו נתמך — נתמך רק code.",
+        "missingPkce": "חסר אימות PKCE (code_challenge) בבקשה, ולכן לא נמשיך.",
+        "badPkceMethod": "שיטת אימות PKCE חייבת להיות S256.",
+        "badResource": "הבקשה מיועדת לשרת אחר (resource) ולא לפטרה."
+      }
+    },
+    "registerPage": {
+      "passwordStrength": {
+        "checks": {
+          "length": "12+ תווים",
+          "upper": "אות גדולה",
+          "lower": "אות קטנה",
+          "digit": "ספרה"
+        },
+        "weak": "חלשה",
+        "medium": "בינונית",
+        "strong": "חזקה"
+      },
+      "errors": {
+        "passwordRules": "הסיסמה חייבת להכיל לפחות 12 תווים, אות גדולה (A-Z), אות קטנה (a-z) וספרה (0-9)",
+        "tosRequired": "יש לאשר את תנאי השימוש כדי להמשיך",
+        "createFailed": "שגיאה ביצירת החשבון",
+        "network": "שגיאת רשת. אנא נסה שוב."
+      },
+      "tagline": "ניהול עסקי חיות מחמד",
+      "google": {
+        "continue": "המשך עם Google",
+        "hint": "הדרך המהירה ביותר — ללא צורך בסיסמה"
+      },
+      "divider": "או הירשם עם אימייל",
+      "form": {
+        "title": "יצירת חשבון",
+        "subtitle": "הצטרף לפטרה וניהל את העסק בקלות",
+        "fullName": "שם מלא",
+        "fullNamePlaceholder": "ישראל ישראלי",
+        "businessName": "שם העסק *",
+        "businessNamePlaceholder": "לדוגמה: פנסיון הכלבים של דניאל",
+        "email": "אימייל",
+        "password": "סיסמה",
+        "passwordPlaceholder": "לפחות 12 תווים",
+        "tos": "קראתי ואני מסכים/ה <terms>לתנאי השימוש</terms> ול<privacy>מדיניות הפרטיות</privacy> של Petra",
+        "creating": "יוצר חשבון...",
+        "submit": "צור חשבון חינם"
+      },
+      "haveAccount": "כבר יש לך חשבון? <link>התחבר</link>",
+      "copyright": "כל הזכויות שמורות all-dog - המרכז הישראלי להתנהגות הכלב"
+    },
+    "resetPasswordPage": {
+      "passwordStrength": {
+        "checks": {
+          "length": "12+ תווים",
+          "upper": "אות גדולה",
+          "lower": "אות קטנה",
+          "digit": "ספרה"
+        },
+        "weak": "חלשה",
+        "medium": "בינונית",
+        "strong": "חזקה"
+      },
+      "errors": {
+        "invalidLink": "לינק לא תקין — חזור לדף 'שכחתי סיסמה' ובקש לינק חדש.",
+        "resetFailed": "שגיאה באיפוס הסיסמה",
+        "network": "שגיאת רשת. אנא נסה שוב."
+      },
+      "tagline": "ניהול עסקי חיות מחמד",
+      "success": {
+        "title": "הסיסמה שונתה!",
+        "body": "הסיסמה עודכנה בהצלחה. מעביר אותך לדשבורד..."
+      },
+      "form": {
+        "title": "איפוס סיסמה",
+        "subtitle": "בחר סיסמה חדשה לחשבון שלך",
+        "newPassword": "סיסמה חדשה",
+        "newPasswordPlaceholder": "לפחות 12 תווים",
+        "confirmPassword": "אימות סיסמה",
+        "confirmPlaceholder": "הכנס שוב",
+        "mismatch": "הסיסמאות אינן תואמות",
+        "match": "✓ הסיסמאות תואמות",
+        "updating": "מעדכן סיסמה...",
+        "submit": "עדכן סיסמה",
+        "expiredLink": "לינק פג תוקף? בקש לינק חדש"
+      }
+    },
+    "tosAcceptPage": {
+      "errors": {
+        "saveFailed": "שגיאה בשמירת ההסכמה",
+        "network": "שגיאת רשת. נסה שוב."
+      },
+      "title": "תנאי שימוש – Petra",
+      "subtitle": "גרסה 1.0 | נא לקרוא בעיון לפני השימוש במערכת",
+      "welcome": "ברוכים הבאים ל-Petra – מערכת ניהול מתקדמת למאלפי כלבים, בעלי פנסיונים ונותני שירותים פרטיים בתחום חיות המחמד. השימוש במערכת כפוף לתנאים המפורטים להלן.",
+      "sections": {
+        "intro": {
+          "title": "1. מבוא",
+          "items": {
+            "p1": "תנאי שימוש אלו מהווים הסכם משפטי מחייב בין המשתמש לבין החברה המפעילה את המערכת.",
+            "p2": "השימוש במערכת מהווה הסכמה מלאה מצד המשתמש לתנאים אלה. אם אינך מסכים – נא אל תעשה שימוש במערכת.",
+            "p3": "תנאים נוספים, לרבות מדיניות פרטיות, מדיניות שימוש מקובל (AUP) ותנאים נוספים, מהווים חלק בלתי נפרד מהסכם זה.",
+            "p4": "המשתמש מודע לכך שהמערכת נמצאת בשלבי פיתוח ושיפור מתמידים, ולכן ייתכנו שינויים, תקלות זמניות או פונקציות שאינן זמינות באופן מלא בכל עת."
+          }
+        },
+        "definitions": {
+          "title": "2. הגדרות",
+          "items": {
+            "p1": "\"המערכת\" – מערכת Petra וכל שירותיה הדיגיטליים.",
+            "p2": "\"החברה\" – הבעלים והמפעילים של Petra.",
+            "p3": "\"משתמש\" – כל אדם פרטי או גוף עסקי המשתמש במערכת, לרבות במסגרת תקופת ניסיון.",
+            "p4": "\"שירות\" – כלל הפונקציות והתכנים הניתנים באמצעות Petra.",
+            "p5": "\"תוכן\" – כל נתון, קובץ, טקסט, מידע או חומר אחר שהוזן או נוצר באמצעות המערכת."
+          }
+        },
+        "registration": {
+          "title": "3. רישום ושימוש",
+          "items": {
+            "p1": "השימוש במערכת מותנה בהרשמה ובמסירת פרטים נכונים.",
+            "p2": "המשתמש אחראי לשמירה על סודיות הסיסמה ולשימוש הנעשה תחת חשבונו.",
+            "p3": "החברה שומרת לעצמה את הזכות לסרב להעניק שירות או להשעות חשבון לפי שיקול דעתה.",
+            "p4": "חשבון יכול לכלול משתמש ראשי ומשתמשים מורשים בהתאם למבנה העסק."
+          }
+        },
+        "acceptableUse": {
+          "title": "4. מדיניות שימוש מקובל (Acceptable Use)",
+          "items": {
+            "p1": "אסור להשתמש במערכת לצרכים הבאים:",
+            "p2": "4.1 העלאת תוכן בלתי חוקי, פוגעני, מזיק או מטעה.",
+            "p3": "4.2 גישה לא מורשית, הנדסה לאחור או הפרעה לפעולת המערכת.",
+            "p4": "4.3 שליחת ספאם או תכנים המוניים.",
+            "p5": "4.4 פגיעה בזכויות קניין רוחני או התחזות."
+          }
+        },
+        "license": {
+          "title": "5. רישוי וקניין רוחני",
+          "items": {
+            "p1": "כל זכויות הקניין הרוחני במערכת, לרבות העיצוב, הקוד, המותג והתוכן – שייכות לחברה.",
+            "p2": "החברה מעניקה רישיון אישי, מוגבל, לא-בלעדי, בלתי ניתן להעברה, לשימוש במערכת לפי תנאים אלו.",
+            "p3": "אין להעתיק, לשכפל, להפיץ או לשנות את המערכת ללא אישור מפורש מהחברה.",
+            "p4": "החברה רשאית להשתמש במידע אנונימי לצורכי שיפור השירות."
+          }
+        },
+        "payments": {
+          "title": "6. תשלומים ומנויים",
+          "items": {
+            "p1": "השירות ניתן בתשלום חודשי או שנתי, בהתאם למסלול שנבחר.",
+            "p2": "דמי שימוש נגבים מראש.",
+            "p3": "ביטול השירות יתבצע דרך המערכת או בפנייה בכתב וייכנס לתוקף בתום תקופת החיוב.",
+            "p4": "החברה רשאית לעדכן מחירים בהודעה מוקדמת של 30 יום.",
+            "p5": "לא יינתן החזר אלא אם צוין אחרת.",
+            "p6": "תום מנוי: עם פקיעת תוקף המנוי תרד הגישה באופן אוטומטי לתכנית החינמית (Free). הנתונים שהוזנו נשמרים ואינם נמחקים אוטומטית, אך הגישה לתכונות המתקדמות תיחסם עד לחידוש המנוי.",
+            "p7": "תקופת ניסיון: בתום תקופת הניסיון החינמית, הגישה עוברת אוטומטית לתכנית החינמית. לא ניתן לאפס תקופת ניסיון לאחר שהסתיימה."
+          }
+        },
+        "dataRetention": {
+          "title": "7. שמירת מידע והעברת נתונים",
+          "items": {
+            "p1": "מידע יישמר עד 90 ימים לאחר סיום השירות.",
+            "p2": "ניתן לבקש מחיקה או העברה של מידע.",
+            "p3": "כל עיבוד כפוף למדיניות פרטיות ולנספח DPA."
+          }
+        },
+        "privacy": {
+          "title": "8. פרטיות ואבטחת מידע",
+          "items": {
+            "p1": "החברה מתחייבת לשמור על סודיות מידע אישי ועסקי.",
+            "p2": "שימוש באמצעים סבירים ומקובלים להגנה על המידע.",
+            "p3": "פרטי אשראי אינם נשמרים בשרתי החברה."
+          }
+        },
+        "liability": {
+          "title": "9. אחריות ומגבלות",
+          "items": {
+            "p1": "המערכת ניתנת As-Is, ללא אחריות לפעולה רציפה.",
+            "p2": "החברה לא תשא באחריות לנזקים עקיפים.",
+            "p3": "אחריות החברה מוגבלת לסכום ששולם ב-6 חודשים שקדמו."
+          }
+        },
+        "indemnity": {
+          "title": "10. שיפוי",
+          "items": {
+            "p1": "המשתמש מתחייב לשפות את החברה בגין כל תביעה או נזק הנובע מהפרת תנאים אלה."
+          }
+        },
+        "termination": {
+          "title": "11. סיום שירות",
+          "items": {
+            "p1": "החברה רשאית להשעות או לבטל שירות במקרה של הפרה.",
+            "p2": "עם סיום השירות, תיתכן מחיקה של המידע לאחר תקופה מוגדרת.",
+            "p3": "לא יינתן החזר חלקי לתקופה שלא נוצלה."
+          }
+        },
+        "changes": {
+          "title": "12. שינויים בתנאים",
+          "items": {
+            "p1": "החברה רשאית לעדכן את התנאים בהודעה של 30 יום מראש.",
+            "p2": "שימוש מתמשך מהווה הסכמה לתנאים המעודכנים."
+          }
+        },
+        "jurisdiction": {
+          "title": "13. סמכות שיפוט",
+          "items": {
+            "p1": "הדין החל הוא הדין הישראלי.",
+            "p2": "סמכות השיפוט לבתי המשפט במחוז תל אביב.",
+            "p3": "ייתכן שימוש בהליך בוררות בהסכמה הדדית."
+          }
+        },
+        "forceMajeure": {
+          "title": "14. כוח עליון",
+          "items": {
+            "p1": "החברה לא תישא באחריות לאירועים שאינם בשליטתה (כגון תקלות תקשורת, מגפות, שביתות וכו')."
+          }
+        }
+      },
+      "consent": "קראתי והבנתי את <b>תנאי השימוש של Petra</b> (גרסה 1.0) ואני מסכים/ה לכל האמור בהם. אני מבין/ה כי הסכמתי זו תירשם לצרכים משפטיים.",
+      "saving": "שומר הסכמה...",
+      "accept": "אני מסכים/ה – המשך למערכת",
+      "evidenceNote": "הסכמתך תירשם יחד עם כתובת ה-IP, התאריך והשעה כהוכחה משפטית."
+    },
+    "verifyDetailPage": {
+      "meta": {
+        "notFoundTitle": "תעודה לא נמצאה",
+        "title": "תעודת סיום — {studentName}",
+        "description": "אימות תעודת סיום הקורס \"{courseTitle}\" מטעם {businessName}"
+      },
+      "revokedBanner": {
+        "title": "תעודה זו בוטלה",
+        "body": "התעודה אינה תקפה עוד ואין להסתמך עליה."
+      },
+      "revokedStamp": "בוטלה",
+      "revokedFooter": "תעודה זו בוטלה ואינה תקפה.",
+      "verifiedFooter": "✓ תעודה זו אומתה — הונפקה בתאריך {date}"
+    }
+  },
   "boarding": {
     "boardingDailyPage": {
       "weekdays": {
@@ -887,6 +1285,233 @@
         "inactive": "לא פעיל"
       },
       "edit": "ערוך"
+    }
+  },
+  "booking": {
+    "bookDetailLayout": {
+      "defaultTitle": "קביעת תור אונליין",
+      "title": "{name} — קביעת תור אונליין",
+      "description": "קבע/י תור אצל {name} בקלות ובמהירות. שירותים לכלבים"
+    },
+    "myBookingDetailPage": {
+      "status": {
+        "pending": "ממתין לאישור",
+        "confirmed": "מאושר",
+        "declined": "נדחה",
+        "cancelled": "בוטל"
+      },
+      "errors": {
+        "load": "שגיאה בטעינת ההזמנה",
+        "cancel": "שגיאה בביטול ההזמנה"
+      },
+      "notFound": {
+        "title": "הזמנה לא נמצאה",
+        "body": "הקישור אינו תקין או שפג תוקפו."
+      },
+      "serviceFallback": "שירות",
+      "whatsapp": {
+        "message": "שלום, אני {name}. רציתי לדבר על ההזמנה שלי (#{ref}).",
+        "customerFallback": "לקוח"
+      },
+      "header": {
+        "yourBookingAt": "ההזמנה שלך אצל"
+      },
+      "statusLabel": "סטטוס הזמנה",
+      "fields": {
+        "service": "שירות",
+        "when": "מועד",
+        "atTime": "בשעה {time}",
+        "name": "שם",
+        "dogs": "כלבים",
+        "notes": "הערות"
+      },
+      "contact": "צור קשר עם {name}",
+      "cancel": {
+        "button": "ביטול הזמנה",
+        "confirmTitle": "האם לבטל את ההזמנה?",
+        "irreversible": "פעולה זו אינה הפיכה",
+        "confirm": "כן, בטל הזמנה",
+        "back": "חזור"
+      },
+      "poweredBy": "מופעל על ידי <brand>Petra</brand>"
+    },
+    "bookDetailPage": {
+      "weekdaysShort": {
+        "sun": "א׳",
+        "mon": "ב׳",
+        "tue": "ג׳",
+        "wed": "ד׳",
+        "thu": "ה׳",
+        "fri": "ו׳",
+        "sat": "ש׳"
+      },
+      "calendarLink": {
+        "details": "הזמנה: {service} · {price}"
+      },
+      "reminder": {
+        "title": "📅 תזכורת לתור",
+        "service": "שירות: {name}",
+        "date": "תאריך: {date}",
+        "time": "שעה: {time}",
+        "dogs": "כלב/ים: {names}",
+        "price": "מחיר: {price}"
+      },
+      "steps": {
+        "service": "שירות",
+        "date": "תאריך",
+        "time": "שעה",
+        "dates": "תאריכים",
+        "details": "פרטים",
+        "dogs": "כלבים",
+        "confirm": "אישור",
+        "mobileProgress": "שלב {current} מתוך {total}: <hl>{label}</hl>",
+        "ariaLabel": "שלבי הזמנה",
+        "currentSr": "שלב נוכחי: {label}"
+      },
+      "pageTitle": {
+        "service": "{business} — בחר שירות",
+        "date": "{business} — בחר תאריך",
+        "time": "{business} — בחר שעה",
+        "boardingDates": "{business} — תאריכי פנסיון",
+        "customer": "{business} — פרטי לקוח",
+        "dogs": "{business} — בחירת כלב",
+        "confirm": "{business} — אישור הזמנה",
+        "done": "{business} — הזמנה אושרה",
+        "default": "{business} — קביעת תור אונליין"
+      },
+      "errors": {
+        "loadPage": "שגיאה בטעינת העמוד",
+        "createBooking": "שגיאה ביצירת ההזמנה",
+        "phoneInvalid": "מספר טלפון לא תקין (לדוגמה: 050-1234567)",
+        "emailInvalid": "כתובת אימייל לא תקינה",
+        "nameMin": "שם חייב להכיל לפחות 2 תווים"
+      },
+      "notFound": {
+        "title": "העסק לא נמצא",
+        "body": "ייתכן שהקישור שגוי או שהעסק כבר לא פעיל",
+        "backHome": "חזרה לדף הבית"
+      },
+      "header": {
+        "subtitle": "קביעת תור אונליין"
+      },
+      "back": "חזור",
+      "continue": "המשך",
+      "service": {
+        "title": "בחר שירות",
+        "subtitle": "מה תרצה לקבוע?",
+        "empty": "אין שירותים זמינים כרגע",
+        "deposit": "מקדמה",
+        "minutes": "{count} דקות"
+      },
+      "date": {
+        "title": "בחר תאריך",
+        "today": "היום",
+        "closed": "סגור"
+      },
+      "time": {
+        "title": "בחר שעה",
+        "change": "שנה",
+        "fullTitle": "היום מלא",
+        "fullBody": "הגענו לקיבולת המקסימלית ביום זה. נסה לבחור תאריך אחר",
+        "noAvailabilityTitle": "אין זמינות ביום זה",
+        "noAvailabilityBody": "נסה לבחור תאריך אחר",
+        "pickOtherDate": "בחר תאריך אחר",
+        "available": "{count} שעות זמינות"
+      },
+      "boarding": {
+        "title": "תאריכי פנסיון",
+        "perNight": "{price} / לילה",
+        "checkIn": "צ׳ק-אין",
+        "checkOut": "צ׳ק-אאוט",
+        "dateLabel": "תאריך *",
+        "timeLabel": "שעה",
+        "nightsRange": "<b>{count}</b> לילות · {from} — {to}",
+        "invalidRange": "תאריך יציאה חייב להיות לאחר תאריך הכניסה"
+      },
+      "customer": {
+        "title": "פרטי בעל הכלב",
+        "phoneLabel": "מספר טלפון *",
+        "phonePlaceholder": "050-0000000",
+        "existing": "לקוח קיים",
+        "new": "לקוח חדש",
+        "nameLabel": "שם מלא *",
+        "namePlaceholder": "ישראל ישראלי",
+        "emailLabel": "אימייל",
+        "addressLabel": "כתובת",
+        "addressPlaceholder": "עיר, רחוב...",
+        "notesLabel": "הערות",
+        "notesPlaceholder": "מידע נוסף שחשוב לנו לדעת...",
+        "found": "שלום {name}! מצאנו אותך 👋",
+        "yourDogs": "הכלבים שלך: <b>{names}</b>"
+      },
+      "dogs": {
+        "title": "בחירת כלב לשירות",
+        "forService": "בחר כלב עבור: {service}",
+        "saved": "שמור במערכת",
+        "nameLabel": "שם הכלב *",
+        "namePlaceholder": "בוקסר, רקסי...",
+        "breedLabel": "גזע",
+        "breedPlaceholder": "לברדור...",
+        "sexLabel": "מין",
+        "sexUnknown": "לא ידוע",
+        "male": "זכר",
+        "female": "נקבה",
+        "notesLabel": "הערות רפואיות / אחר",
+        "notesPlaceholder": "אלרגיות, מידע רפואי...",
+        "breedValue": "גזע: {breed}",
+        "addDog": "הוסף כלב נוסף",
+        "needOne": "יש להזין שם כלב אחד לפחות",
+        "continue": "המשך לאישור"
+      },
+      "confirm": {
+        "title": "אישור הזמנה",
+        "service": "שירות",
+        "durationPrice": "{count} דקות · {price}",
+        "boardingDates": "תאריכי פנסיון",
+        "checkInAt": "כניסה: {date} בשעה {time}",
+        "checkOutAt": "יציאה: {date} בשעה {time}",
+        "nights": "{count} לילות",
+        "when": "מועד",
+        "timeAt": "שעה {time}",
+        "owner": "בעל הכלב",
+        "dogs": "כלבים",
+        "requiresApproval": "⏳ שירות זה דורש אישור מבעל העסק. תקבל הודעה לאחר האישור.",
+        "depositNotice": "💳 נדרשת מקדמה של {amount} לאישור ההזמנה.",
+        "cancellationPolicy": "📋 מדיניות ביטול",
+        "submit": "אשר הזמנה"
+      },
+      "deposit": {
+        "title": "נדרש תשלום מקדמה",
+        "body": "כדי לשריין את התור, יש לשלם מקדמה",
+        "amountLabel": "סכום מקדמה",
+        "service": "שירות: {name}",
+        "fullPrice": "מחיר מלא: {price}",
+        "bookingNumber": "מספר הזמנה: <b>{id}</b>",
+        "payButton": "לתשלום מקדמה",
+        "payHint": "לחץ על הכפתור לדף התשלום, ואחר כך לחץ ״סיימתי לשלם״",
+        "instructionsTitle": "הוראות תשלום מקדמה:",
+        "contactTitle": "ליצירת קשר לתשלום:",
+        "whatsappText": "שלום, קבעתי תור ל{service} (מס' {id}). אשמח לשלם מקדמה.",
+        "whatsappButton": "שלח WhatsApp לתשלום",
+        "done": "סיימתי לשלם ✓"
+      },
+      "done": {
+        "confirmedTitle": "ההזמנה אושרה! 🎉",
+        "requestTitle": "הבקשה התקבלה",
+        "bookingNumber": "מספר הזמנה:",
+        "service": "שירות:",
+        "checkIn": "כניסה:",
+        "checkOut": "יציאה:",
+        "date": "תאריך:",
+        "time": "שעה:",
+        "dog": "כלב:",
+        "addToGoogle": "הוסף ליומן Google",
+        "whatsappReminder": "שלח לעצמי תזכורת ב-WhatsApp",
+        "bookAnother": "הזמן תור נוסף"
+      },
+      "footer": {
+        "poweredBy": "מופעל על ידי <link>Petra</link>"
+      }
     }
   },
   "bookings": {
@@ -1594,6 +2219,136 @@
         "sendNextLinkTitle": "שלח לינק לתור הבא",
         "deleteAppointment": "מחק תור"
       }
+    }
+  },
+  "checkout": {
+    "checkoutPage": {
+      "plans": {
+        "basic": {
+          "tagline": "מושלם לגרומרים ומאלפים עצמאיים — יחיד, מקצועי, חסכוני",
+          "features": {
+            "unlimitedClients": "לקוחות ותורים ללא הגבלה",
+            "calendar": "יומן תורים ופגישות + Google Calendar",
+            "paymentRequests": "שליחת בקשת תשלום + טפסי קליטה דיגיטליים",
+            "portfolio": "תיק עבודות לפני/אחרי",
+            "reports": "דוחות ואנליטיקס"
+          }
+        },
+        "pro": {
+          "tagline": "מושלם לפנסיונים ומרכזי אילוף — צוות, גדילה, שליטה מלאה",
+          "features": {
+            "everythingInBasic": "הכל ב-Basic",
+            "whatsappReminders": "תזכורות WhatsApp אוטומטיות",
+            "contracts": "חתימת חוזים דיגיטלית",
+            "teamBoarding": "ניהול צוות, פנסיון וחדרים",
+            "onlineBookings": "הזמנות אונליין 24/7"
+          }
+        }
+      },
+      "errors": {
+        "businessTypeRequired": "נא לבחור סוג עוסק",
+        "createPaymentForm": "שגיאה ביצירת טופס תשלום",
+        "createPaymentFormRetry": "שגיאה ביצירת טופס תשלום. נסה שוב.",
+        "serverConnection": "שגיאה בחיבור לשרת. נסה שוב."
+      },
+      "topBar": {
+        "logoAlt": "לוגו פטרה",
+        "purchase": "רכישת מנוי",
+        "upgrade": "שדרוג מנוי",
+        "back": "חזרה"
+      },
+      "summary": {
+        "yourPackage": "החבילה שלך",
+        "planName": "מסלול {name}",
+        "perMonth": "/חודש",
+        "totalDue": "סה״כ לתשלום",
+        "perMonthSpaced": "/ חודש",
+        "testMode": "🧪 מצב בדיקה — חיוב {currencySymbol}{testAmount} בלבד (במקום {currencySymbol}{price})",
+        "securePayment": "תשלום מאובטח בתקן PCI DSS.",
+        "taxInvoiceByEmail": "חשבונית מס תישלח אוטומטית למייל.",
+        "securedByCardcom": "מאובטח על ידי Cardcom",
+        "cancelAnytime": "ביטול בכל עת",
+        "noPenalties": "ללא קנסות"
+      },
+      "panel": {
+        "title": "פרטי תשלום",
+        "stepInvoiceDetails": "פרטים להפקת חשבונית",
+        "stepCardCharge": "חיוב באשראי"
+      },
+      "form": {
+        "introAuthenticated": "אנא אמת/י את פרטי החשבונית לפני המשך לתשלום.",
+        "introNewUser": "הזן את הפרטים שלך — נשלח לך כניסה למערכת באימייל לאחר השלמת התשלום.",
+        "fullName": "שם מלא",
+        "fullNamePlaceholder": "ישראל ישראלי",
+        "email": "אימייל",
+        "mobilePhone": "טלפון נייד",
+        "businessName": "שם העסק",
+        "businessNamePlaceholder": "למשל: \"טיפוח פאו\"",
+        "billingEmail": "אימייל לחשבונית",
+        "billingPhone": "טלפון לחיוב",
+        "businessType": "סוג עוסק",
+        "businessTypes": {
+          "company": "חברה (ח.פ)",
+          "licensedDealer": "עוסק מורשה (ע.מ)",
+          "exemptDealer": "עוסק פטור"
+        },
+        "vatNumber": "מספר ח.פ / ע.מ / עוסק פטור",
+        "vatNumberPlaceholder": "למשל: 012345678",
+        "address": "כתובת העסק",
+        "addressHint": "(לצורך חשבונית)",
+        "addressPlaceholder": "למשל: רחוב הרצל 12, תל אביב",
+        "tos": "קראתי ואני מסכים/ה ל<tos>תנאי השימוש</tos>ול<privacy>מדיניות הפרטיות</privacy>של פטרה",
+        "emailExistsLogin": "כבר יש לך חשבון? התחבר ←",
+        "continueToPayment": "המשך לתשלום",
+        "haveAccount": "כבר יש לך חשבון?",
+        "login": "התחבר"
+      },
+      "iframe": {
+        "loading": "טוען דף תשלום מאובטח...",
+        "retry": "נסה שוב",
+        "title": "טופס תשלום מאובטח"
+      }
+    },
+    "paymentCancelledPage": {
+      "title": "התשלום בוטל",
+      "body": "לא בוצע חיוב. ניתן לנסות שוב בכל עת.",
+      "retry": "נסה שוב",
+      "backToSite": "חזרה לאתר"
+    },
+    "paymentSuccessPage": {
+      "verifying": "מאמת תשלום...",
+      "successTitle": "התשלום התקבל!",
+      "successBody": "תודה על התשלום. הסכום עובד בהצלחה ואנו נשלח לך אישור בקרוב.",
+      "transactionId": "מס' עסקה: {sessionId}",
+      "closeWindow": "סגור חלון",
+      "backToSite": "חזרה לאתר",
+      "errorTitle": "לא ניתן לאמת תשלום",
+      "errorBody": "אם ביצעת תשלום, הוא ייתכן שעובד — בדוק עם בית העסק לאישור."
+    },
+    "paymentErrorPage": {
+      "title": "התשלום נכשל",
+      "body": "לא הצלחנו לעבד את התשלום. אפשר לנסות שוב או לפנות לתמיכה.",
+      "retry": "נסה שוב",
+      "whatsappMessage": "שלום, נכשל לי תשלום ב-Petra. אשמח לעזרה.",
+      "contactSupport": "פנה לתמיכה"
+    },
+    "paymentResultSuccessPage": {
+      "tiers": {
+        "basic": "בייסיק",
+        "pro": "פרו",
+        "groomer": "גרומר+",
+        "service_dog": "Service Dog"
+      },
+      "title": "התשלום הצליח!",
+      "subscriptionStatus": "המנוי שלך למסלול <tier>{tierLabel}</tier> {status}",
+      "statusActive": "פעיל עכשיו",
+      "statusActivating": "מופעל...",
+      "activating": "מפעיל את המנוי...",
+      "loginEmailSent": "שלחנו לך אימייל עם פרטי ההתחברות למערכת.",
+      "redirectingToLogin": "מועבר לדף ההתחברות בעוד מספר שניות...",
+      "loginNow": "התחבר עכשיו",
+      "redirectingToDashboard": "מועבר לדאשבורד בעוד מספר שניות...",
+      "goToDashboardNow": "עבור לדאשבורד עכשיו"
     }
   },
   "customers": {
@@ -4233,6 +4988,582 @@
       "cancel": "ביטול"
     }
   },
+  "landing": {
+    "accessibilityButton": {
+      "dialogLabel": "הגדרות נגישות",
+      "title": "הגדרות נגישות",
+      "profilesTitle": "פרופילי נגישות",
+      "profiles": {
+        "cognitive": "קוגניטיבי",
+        "visual": "לקויי ראייה",
+        "epilepsy": "אפילפסיה",
+        "motor": "מוגבלות מוטורית"
+      },
+      "fontSize": {
+        "label": "גודל טקסט",
+        "normal": "רגיל",
+        "large": "גדול",
+        "xlarge": "גדול מאוד"
+      },
+      "contrast": {
+        "label": "ניגודיות",
+        "normal": "רגיל",
+        "high": "גבוהה",
+        "inverted": "הפוכה"
+      },
+      "saturation": {
+        "label": "רוויית צבע",
+        "normal": "רגיל",
+        "high": "גבוהה",
+        "low": "נמוכה",
+        "bw": "ש/ל"
+      },
+      "align": {
+        "label": "יישור טקסט",
+        "default": "ברירת מחדל",
+        "right": "ימין",
+        "center": "מרכז",
+        "left": "שמאל"
+      },
+      "displayTitle": "תצוגה וקריאות",
+      "highlightLinks": "הדגשת קישורים",
+      "reset": "איפוס הגדרות",
+      "closeMenu": "סגור תפריט נגישות",
+      "openMenu": "פתח תפריט נגישות"
+    },
+    "clientsMarquee": {
+      "sectionLabel": "לקוחות פטרה",
+      "clients": {
+        "shalomLekelev": "שלום לכלב",
+        "ilufBachan": "אילוף בחן",
+        "nadavMeamen": "נדב מאמן הכלבים",
+        "liadYosef": "ליעד יוסף אילוף כלבים",
+        "beikevotHartzua": "בעקבות הרצועה",
+        "itiel": "איתיאל כלבנות",
+        "simbaService": "סימבה כלבי שירות"
+      },
+      "title": "עסקים כמוכם כבר בפטרה.",
+      "subtitle": "מאלפים, גרומרים ומנהלי פנסיונים משתמשים בפטרה כדי לעשות סדר ביום העבודה ולהתעסק פחות בניהול.",
+      "stats": {
+        "businesses": "עסקים פעילים בישראל",
+        "appointments": "תורים שנקבעו במערכת",
+        "satisfaction": "שביעות רצון"
+      },
+      "cta": "התחילו בחינם"
+    },
+    "landingNav": {
+      "links": {
+        "video": "איך זה עובד",
+        "features": "מאפיינים",
+        "clients": "לקוחות",
+        "pricing": "מחירים"
+      },
+      "homeLabel": "פטרה — חזרה לדף הבית",
+      "mainNavLabel": "ניווט ראשי",
+      "login": "כניסה",
+      "startFree": "התחילו בחינם",
+      "closeMenu": "סגור תפריט",
+      "openMenu": "פתח תפריט",
+      "loginToAccount": "כניסה לחשבון"
+    },
+    "productDemo": {
+      "tabs": {
+        "calendar": {
+          "label": "יומן תורים",
+          "text": "רואים מה מחכה לכם היום, מה כבר תפוס ואיפה יש מקום.",
+          "desktopAlt": "יומן התורים של פטרה בתצוגה שבועית, עם טיפולים ושהיות פנסיון",
+          "phoneAlt": "מסך הבית בנייד: פעולות מהירות ומשימות להיום"
+        },
+        "customer": {
+          "label": "כרטיס לקוח",
+          "text": "פרטי הלקוח, החיה, התורים והתשלומים במקום אחד.",
+          "desktopAlt": "כרטיס לקוח: פרטי קשר, חיית מחמד, תורים, תשלומים והזמנות",
+          "phoneAlt": "כרטיס לקוח בנייד: פרטי קשר, תשלומים, מעקב חבילות וחיות מחמד"
+        },
+        "leads": {
+          "label": "לידים",
+          "text": "רואים מי פנה, עם מי כבר דיברתם ולמי צריך לחזור.",
+          "desktopAlt": "לוח הלידים של פטרה לפי שלבים",
+          "phoneAlt": "מסך הלידים בנייד עם סיכום לידים ושיעור המרה"
+        },
+        "boarding": {
+          "label": "פנסיון",
+          "text": "רואים את תפוסת החדרים, מי בצ׳ק-אין ומי מאחר לצ׳ק-אאוט.",
+          "desktopAlt": "מפת חדרי הפנסיון: חדרים תפוסים ופנויים והתראות צ׳ק-אאוט",
+          "phoneAlt": "מסך הפנסיון בנייד"
+        }
+      },
+      "tablistLabel": "מסכים מתוך המערכת"
+    },
+    "teaserVideo": {
+      "videoLabel": "סרטון תדמית — פטרה, ניהול עסקים של חיות מחמד",
+      "watchDemo": "צפו בדמו"
+    },
+    "whatsAppFAB": {
+      "ariaLabel": "פתיחת שיחה ב-WhatsApp לתמיכה — נפתח בחלון חדש",
+      "label": "דברו איתנו"
+    },
+    "pricingSection": {
+      "header": {
+        "title": "מתחילים בחינם. גדלים בקצב שלכם.",
+        "subtitle": "בוחרים את המסלול שמתאים לעסק שלכם. אפשר לשנות מסלול או לבטל את התשלום בהמשך, בלי התחייבות ארוכה."
+      },
+      "plansAria": "מסלולי מנוי",
+      "priceAmount": "₪{price}",
+      "perMonth": "/חודש",
+      "perMonthAria": "לחודש",
+      "newBadge": "חדש",
+      "plans": {
+        "free": {
+          "name": "חינמי",
+          "description": "מתחילים לעשות סדר בלקוחות וביומן, בלי להוסיף הוצאה לעסק.",
+          "features": {
+            "clients30": "עד 30 לקוחות",
+            "appointments20": "עד 20 תורים (סה\"כ)",
+            "orders15": "עד 15 הזמנות (סה\"כ)",
+            "leads15": "CRM / לידים (עד 15)",
+            "training10": "ניהול תהליכי אילוף (עד 10 תוכניות)",
+            "priceList8": "מחירון שירותים (עד 8 פריטים)",
+            "tasks20": "ניהול משימות (עד 20)"
+          },
+          "notIncluded": {
+            "whatsappReminders": "תזכורות WhatsApp אוטומטיות",
+            "googleCalendar": "סנכרון Google Calendar",
+            "reports": "דוחות ואנליטיקס",
+            "paymentRequest": "שליחת בקשת תשלום"
+          }
+        },
+        "basic": {
+          "name": "Basic",
+          "description": "לעסקים שרוצים לחסוך זמן על תורים, הודעות וניהול לקוחות, ולהתרכז בעבודה עצמה.",
+          "features": {
+            "unlimitedClients": "לקוחות ותורים ללא הגבלה",
+            "calendarGcal": "יומן תורים ופגישות + Google Calendar",
+            "whatsappReminders": "תזכורות WhatsApp אוטומטיות",
+            "onlineBooking": "הזמנות אונליין — לקוחות קובעים לבד 24/7",
+            "paymentRequestIntake": "שליחת בקשת תשלום + טפסי קליטה דיגיטליים",
+            "portfolio": "תיק עבודות לפני/אחרי",
+            "contracts": "חתימת חוזים דיגיטלית",
+            "reports": "דוחות ואנליטיקס",
+            "singleUser": "משתמש יחיד (ללא ניהול צוות)",
+            "whatsappSupport": "תמיכה אישית בוואטסאפ"
+          },
+          "notIncluded": {
+            "whatsappAutomations": "אוטומציות WhatsApp מתקדמות",
+            "boardingTeam": "ניהול פנסיון וצוות"
+          }
+        },
+        "pro": {
+          "name": "Pro",
+          "badge": "מומלץ · הכי משתלם",
+          "description": "לעסקים עם יותר לקוחות, תהליכים וצוות, שרוצים לנהל את הכול בצורה מסודרת, כולל עוזר AI.",
+          "features": {
+            "allBasic": "הכל ב-Basic",
+            "aiAssistant": "עוזר AI — מחברים את Claude או ChatGPT לעסק",
+            "leadAlert": "התראת WhatsApp על כל ליד חדש",
+            "leadWebhook": "קליטת לידים אוטומטית מהאתר (Webhook)",
+            "groupClasses": "סדנאות וקבוצות עם רשימת המתנה ונוכחות",
+            "teamPermissions": "ניהול צוות והרשאות מתקדמות",
+            "boardingRooms": "ניהול פנסיון וחדרים",
+            "advancedTraining": "מודול אילוף מתקדם",
+            "whatsappAutomations": "אוטומציות WhatsApp מתקדמות",
+            "financeReports": "דוחות כספיים + ייצוא Excel",
+            "prioritySupport": "תמיכה אישית מועדפת בוואטסאפ"
+          }
+        }
+      },
+      "cta": {
+        "buyAria": "רכוש עכשיו — מסלול {name}",
+        "upgradeNow": "שדרג עכשיו",
+        "buyNow": "רכוש עכשיו",
+        "billingNote": "חיוב מיידי · ביטול בכל עת · קבלה במייל",
+        "startFreeAria": "התחילו בחינם — מסלול {name}",
+        "startFree": "התחילו בחינם",
+        "freeNote": "ללא הגבלת זמן, ללא צורך בכרטיס אשראי"
+      },
+      "serviceDogs": {
+        "eyebrow": "ייחודי בישראל",
+        "title": "מרכז הכשרת כלבי שירות? יש לנו פתרון ייעודי עבורך",
+        "body": "פלטפורמה מלאה לניהול זכאים, הכשרות ועמידה בדרישות משרד החקלאות.",
+        "cta": "דבר איתנו להתאמת מסלול"
+      },
+      "compare": {
+        "hide": "הסתר השוואה מלאה",
+        "show": "השוואה מלאה של כל הפיצ'רים",
+        "tableAria": "טבלת השוואת מסלולים",
+        "featureColumn": "פיצ'ר",
+        "freePrice": "חינמי",
+        "included": "כלול",
+        "notIncluded": "לא כלול",
+        "values": {
+          "upTo30": "עד 30",
+          "upTo15": "עד 15",
+          "upTo20": "עד 20",
+          "upTo10": "עד 10",
+          "upTo20Appointments": "עד 20 תורים",
+          "unlimited": "ללא הגבלה"
+        },
+        "groups": {
+          "clients": {
+            "title": "לקוחות וחיות מחמד",
+            "rows": {
+              "clients": "לקוחות",
+              "leads": "CRM / לידים",
+              "petHealth": "כרטיס בריאות לחיית מחמד",
+              "intakeForms": "טפסי קליטה דיגיטליים",
+              "tasks": "ניהול משימות",
+              "priceList": "מחירון שירותים"
+            }
+          },
+          "calendar": {
+            "title": "יומן ותורים",
+            "rows": {
+              "calendar": "יומן תורים ופגישות",
+              "onlineBooking": "הזמנות אונליין (לקוח קובע לבד)",
+              "googleCalendar": "סנכרון Google Calendar"
+            }
+          },
+          "whatsapp": {
+            "title": "WhatsApp ותקשורת",
+            "rows": {
+              "reminders": "תזכורות WhatsApp אוטומטיות",
+              "paymentRequest": "בקשת תשלום WhatsApp",
+              "automations": "אוטומציות WhatsApp מתקדמות",
+              "customMessages": "הודעות מותאמות אישית",
+              "leadAlert": "התראת WhatsApp על ליד חדש"
+            }
+          },
+          "ai": {
+            "title": "עוזר AI ואוטומציה",
+            "rows": {
+              "aiConnect": "חיבור Claude / ChatGPT לנתוני העסק",
+              "leadWebhook": "קליטת לידים מהאתר / Make (Webhook)"
+            }
+          },
+          "professional": {
+            "title": "מקצוע ותוכן",
+            "rows": {
+              "training": "ניהול תהליכי אילוף",
+              "advancedTraining": "מודול אילוף מתקדם",
+              "groupClasses": "סדנאות וקבוצות (רשימת המתנה, נוכחות)",
+              "boarding": "ניהול פנסיון + חדרים",
+              "portfolio": "תיק עבודות גרומר לפני/אחרי"
+            }
+          },
+          "finance": {
+            "title": "פיננסים ודוחות",
+            "rows": {
+              "paymentRequest": "שליחת בקשת תשלום",
+              "contracts": "חתימת חוזים דיגיטלית",
+              "orders": "ניהול הזמנות",
+              "reports": "דוחות ואנליטיקס",
+              "financeReports": "דוחות כספיים + ייצוא Excel"
+            }
+          },
+          "team": {
+            "title": "ניהול צוות",
+            "rows": {
+              "team": "ניהול צוות ומשתמשים",
+              "roles": "הרשאות לפי תפקיד"
+            }
+          }
+        }
+      },
+      "faq": {
+        "title": "שאלות נפוצות",
+        "items": {
+          "whatCanManage": {
+            "q": "מה ניתן לנהל עם פטרה?",
+            "a": "פטרה בנויה במיוחד לעסקי חיות מחמד ומכסה: לקוחות וחיות מחמד, יומן תורים, תזכורות WhatsApp אוטומטיות, קביעת תורים אונליין, ניהול פנסיון וחדרים, תהליכי אילוף, סדנאות וקבוצות עם רשימת המתנה ונוכחות, בקשות תשלום, CRM ולידים, ניהול משימות, אנליטיקס ועוזר AI — הכל במקום אחד."
+          },
+          "basicVsPro": {
+            "q": "מה ההבדל בין Basic ל-Pro?",
+            "a": "Basic מיועד לגרומרים ומאלפים עצמאיים — משתמש יחיד עם יומן, תזכורות WhatsApp אוטומטיות, הזמנות אונליין, בקשות תשלום, טפסי קליטה ותיק עבודות לפני/אחרי. Pro מיועד לפנסיונים ומרכזי אילוף — מוסיף עוזר AI, ניהול פנסיון וחדרים, ניהול צוות עם הרשאות, סדנאות וקבוצות עם רשימת המתנה ונוכחות, אוטומציות WhatsApp מתקדמות והתראה על כל ליד חדש."
+          },
+          "aiAssistant": {
+            "q": "מה זה עוזר ה-AI של פטרה?",
+            "a": "במסלול Pro מחברים את Claude או ChatGPT ישירות לנתוני העסק. שואלים \"מה יש לי מחר?\", \"מי עוד לא שילם?\", \"תקבע תור לדנה ביום שלישי\" — והעוזר עונה ופועל מתוך המערכת, לפי ההרשאות שהגדרתם. החיבור מאובטח עם טוקן אישי שאפשר לבטל בכל רגע."
+          },
+          "mobile": {
+            "q": "האם פטרה עובדת בנייד?",
+            "a": "כן — פטרה מותאמת במלואה לנייד ועובדת בדפדפן מכל מכשיר. ניתן גם להוסיף אותה למסך הבית כ-PWA לגישה מהירה בדיוק כמו אפליקציה רגילה, ללא הורדה מהחנות."
+          },
+          "whatsappReminders": {
+            "q": "איך עובדות תזכורות WhatsApp אוטומטיות?",
+            "a": "פטרה שולחת תזכורות WhatsApp ללקוחות אוטומטית לפני תורים, אישורי כניסה/יציאה מפנסיון ועוד — דרך ה-API הרשמי של Meta. ניתן לקבוע כמה שעות מראש לשלוח (24/48/72/96 שעות) ולהתאים את נוסח ההודעה. זמין ממסלול Basic ומעלה."
+          },
+          "onlineBooking": {
+            "q": "האם לקוחות יכולים לקבוע תורים לבד?",
+            "a": "כן — ממסלול Basic ומעלה תקבל לינק אישי לדף הזמנות אונליין. הלקוח בוחר שירות, תאריך ושעה פנויה ומאשר — הכל נכנס אוטומטית ליומן שלך. 24/7, ללא שיחות טלפון."
+          },
+          "googleCalendar": {
+            "q": "האם יש סנכרון עם Google Calendar?",
+            "a": "כן — מסלול Basic ומעלה כולל סנכרון דו-כיווני עם Google Calendar. כל תור שנוצר בפטרה מופיע ביומן גוגל שלך אוטומטית."
+          },
+          "payments": {
+            "q": "איך עובדים התשלומים?",
+            "a": "מסלול Basic ומעלה כולל שליחת בקשת תשלום בוואטסאפ עם לינק ישיר ללקוח. במסלול Pro ניתן ליצור הזמנות מלאות עם פירוט שירותים ולייצא את כל הנתונים הפיננסיים לאקסל. פטרה אינה מפיקה חשבוניות מס — לצורך זה ניתן להשתמש בתוכנת הנהלת חשבונות נפרדת."
+          },
+          "boarding": {
+            "q": "האם יש ניהול פנסיון?",
+            "a": "כן — מסלול Pro כולל ניהול פנסיון מלא: חדרים, check-in/out, מניעת כפל הזמנות, ועדכוני WhatsApp אוטומטיים לבעלים. מסלול Free ו-Basic אינם כוללים מודול פנסיון."
+          },
+          "team": {
+            "q": "האם יש ניהול צוות?",
+            "a": "כן — מסלול Pro כולל ניהול צוות עם הרשאות לפי תפקיד: בעלים, מנהל וצוות. כל עובד נכנס עם אישורי הגישה שלו ורואה רק את מה שרלוונטי לתפקידו. מסלול Basic מיועד למשתמש יחיד בלבד."
+          },
+          "importData": {
+            "q": "מה קורה אם יש לי כבר נתונים בטלפון או במערכת אחרת?",
+            "a": "מעבר קל ובטוח — הצוות שלנו מלווה אותך בייבוא הנתונים. לא תאבד שום מידע."
+          },
+          "cancel": {
+            "q": "האם ניתן לבטל? מה קורה לנתונים?",
+            "a": "ניתן לבטל בכל עת ללא קנסות ממסך ההגדרות. הנתונים שלך נשמרים 30 יום לאחר הביטול ואפשר לייצא הכל לאקסל לפני עזיבה."
+          },
+          "upgrade": {
+            "q": "איך משדרגים מסלול?",
+            "a": "מתוך לוח הבקרה → הגדרות → שדרוג מסלול. בוחרים מסלול, מזינים כרטיס אשראי, ותוך שניות כל הפיצ'רים נפתחים."
+          }
+        }
+      },
+      "contact": {
+        "question": "שאלות? נשמח לעזור בבחירת המסלול המתאים",
+        "aria": "צור קשר בוואטסאפ — נפתח בחלון חדש",
+        "cta": "צור קשר עכשיו"
+      },
+      "footnote": "כל המסלולים כוללים תמיכה בעברית, RTL מלא ואבטחת מידע · ניתן לשדרג, להוריד מסלול, או לבטל בכל עת"
+    },
+    "landingPage": {
+      "meta": {
+        "title": "Petra — מערכת ניהול לעסקי חיות מחמד | אילוף, פנסיון, גרומינג",
+        "description": "מערכת ניהול חכמה לאלפי כלבים, גרומרים ופנסיונים בישראל. ניהול לקוחות, תורים, תזכורות WhatsApp אוטומטיות, עוזר AI, יומן דיגיטלי ועוד — במקום אחד. מסלול חינמי ללא כרטיס אשראי.",
+        "keywords": "מערכת ניהול אלוף כלבים,תוכנה לאילוף כלבים,ניהול פנסיון כלבים,תוכנה לגרומרים,CRM לאלפים,ניהול תורים לאלפים,תזכורות WhatsApp אוטומטיות,אילוף כלבים תוכנה ישראל,ניהול לקוחות לעסקי כלבים,עוזר AI לעסק,פטרה",
+        "ogTitle": "Petra — מערכת ניהול לעסקי חיות מחמד",
+        "ogDescription": "ניהול לקוחות, תורים, WhatsApp ופנסיון — כל הכלים לעסק שלך במקום אחד. התחל בחינם.",
+        "ogImageAlt": "Petra — מערכת ניהול לעסקי חיות מחמד"
+      },
+      "skipToContent": "דלג לתוכן הראשי",
+      "startFree": "התחילו בחינם",
+      "bullets": {
+        "free": "חינם, בלי כרטיס אשראי",
+        "easyMigration": "עוברים בקלות ממערכות אחרות",
+        "aiAssistant": "עוזר AI במסלול Pro",
+        "upgradeAnytime": "אפשר להתקדם למסלול בתשלום כשתרצו"
+      },
+      "hero": {
+        "titleLine1": "תפסיקו לרדוף",
+        "titleLine2": "אחרי זנבות.",
+        "subtitle": "תנו לפטרה לטפל בתורים, בלקוחות ובתזכורות. אתם תתפנו למה שאתם באמת אוהבים, לעבוד עם בעלי חיים.",
+        "watchDemo": "צפו בדמו",
+        "shotAlt": "מערכת המכירות של פטרה: לוח לידים לפי שלבים עם סה״כ לידים, לידים בתהליך ושיעור המרה",
+        "phoneAlt": "כרטיס לקוח בנייד: פרטי קשר, תשלומים, מעקב חבילות וחיות מחמד",
+        "toastTitle": "תזכורת נשלחה",
+        "toastBody": "דורית קיבלה תזכורת לתור בוואטסאפ"
+      },
+      "trust": {
+        "ariaLabel": "נתוני אמינות",
+        "stats": {
+          "activeBusinesses": "עסקים פעילים",
+          "appointmentsBooked": "תורים שנקבעו",
+          "satisfaction": "שביעות רצון",
+          "yearsInField": "שנות ניסיון בשטח"
+        }
+      },
+      "demo": {
+        "title": "ככה פטרה עובדת.",
+        "subtitle": "הציצו ליומן, לניהול הלקוחות ולמעקב אחרי העבודה השוטפת. תראו איך הכול מתחבר בלי לקפוץ בין מערכות."
+      },
+      "day": {
+        "title": "ככה נראה יום עם פטרה",
+        "steps": {
+          "morning": {
+            "when": "בבוקר",
+            "text": "פותחים את היומן ורואים מי מגיע היום, מה סוג הטיפול ומה צריך להכין."
+          },
+          "midday": {
+            "when": "באמצע העבודה",
+            "text": "לקוח חדש פונה אליכם. רושמים אותו כליד בכמה שניות, ואתם יודעים למי צריך לחזור."
+          },
+          "beforeAppointment": {
+            "when": "לפני התור",
+            "text": "תזכורת נשלחת ללקוח בוואטסאפ, בלי שתצטרכו לעצור את מה שאתם עושים.",
+            "note": "תזכורות אוטומטיות במסלולי Basic ו-Pro."
+          },
+          "endOfDay": {
+            "when": "בסוף היום",
+            "text": "רואים את הפגישות שבוצעו, התשלומים ומה מחכה לכם מחר."
+          }
+        }
+      },
+      "audiences": {
+        "title": "פטרה מכירה את העבודה שלכם.",
+        "subtitle": "לכל עסק יש את היום שלו. פטרה מתאימה את עצמה לאיך שאתם עובדים, ולא להפך.",
+        "items": {
+          "trainers": {
+            "title": "מאלפי כלבים",
+            "desc": "כל תהליך האילוף מסודר, גם כשאתם באמצע שיעור.",
+            "features": {
+              "progress": "רואים מה כבר עבדתם על כל כלב ומה השלב הבא.",
+              "records": "שומרים את סיכומי המפגשים, המשימות וההתקדמות במקום אחד.",
+              "reminders": "הלקוחות מקבלים תזכורות בלי שתצטרכו לעצור ולשלוח הודעות."
+            },
+            "shotAlt": "מסך תהליכי האילוף: כלבים באימון, מפגשים שבוצעו וכלבים שדורשים תשומת לב"
+          },
+          "groomers": {
+            "title": "גרומרים",
+            "desc": "פחות התעסקות עם היומן. יותר זמן לטיפולים.",
+            "features": {
+              "selfBooking": "הלקוחות קובעים תור בלי שתצטרכו לענות לכל הודעה.",
+              "reminders": "תזכורות נשלחות אוטומטית ועוזרות לצמצם תורים שנשכחים.",
+              "records": "שומרים תמונות ופרטי טיפול, כך שבביקור הבא הכול כבר מחכה לכם."
+            },
+            "shotAlt": "כרטיס לקוח: פרטי קשר, חיות מחמד, תורים, תשלומים והזמנות"
+          },
+          "boarding": {
+            "title": "פנסיונים",
+            "desc": "יודעים מי מגיע, מי עוזב ואיפה כל כלב נמצא.",
+            "features": {
+              "occupancy": "רואים את תפוסת החדרים ומזהים התנגשויות בהזמנות.",
+              "checkIn": "מגיעים לקבלת הכלב כשפרטי הטיפול וההנחיות שלו כבר מסודרים.",
+              "stayRecords": "שומרים את פרטי השהייה והעדכונים במקום אחד, בלי לחפש בין שיחות."
+            },
+            "shotAlt": "מפת חדרי הפנסיון: חדרים תפוסים ופנויים ושהייה עם צ׳ק-אין"
+          },
+          "serviceDogs": {
+            "title": "מרכזי הכשרת כלבי שירות",
+            "desc": "כל כלב, זכאי ותהליך הכשרה במקום אחד.",
+            "features": {
+              "stages": "עוקבים אחרי שלבי ההכשרה ויודעים מה עוד נשאר לבצע.",
+              "records": "מנהלים את פרטי הזכאים, הכלבים והשיבוצים בלי לפזר מידע.",
+              "reports": "מפיקים דוחות ומרכזים את המידע הנדרש לתיעוד ולמעקב."
+            },
+            "shotAlt": "ניהול כלבי שירות: רשימת כלבים לפי שלב הכשרה, גזע וזכאי"
+          }
+        }
+      },
+      "features": {
+        "title": "פחות עבודה מסביב לעבודה.",
+        "subtitle": "היומן, הלקוחות, ההודעות והתשלומים עובדים יחד. אתם לא צריכים לחבר הכול בעצמכם.",
+        "tierBasicPro": "במסלולי Basic ו-Pro",
+        "examplesAriaLabel": "שאלות לדוגמה",
+        "items": {
+          "whatsapp": {
+            "name": "תזכורות בוואטסאפ",
+            "title": "פחות הודעות. פחות שכחות.",
+            "desc": "תזכורות לתורים נשלחות אוטומטית בוואטסאפ, גם כשאתם באמצע טיפול או שיעור."
+          },
+          "calendar": {
+            "name": "יומן תורים",
+            "title": "היומן שלכם תמיד מסודר.",
+            "desc": "רואים מה מחכה לכם היום, מנהלים זמינות ומסנכרנים עם יומן Google. בלי לקבוע בטעות על זמן שכבר תפוס."
+          },
+          "contracts": {
+            "name": "חוזים דיגיטליים",
+            "title": "בלי לרדוף אחרי חתימות.",
+            "desc": "שולחים חוזה ללקוח לחתימה מרחוק ושומרים את המסמך החתום בתיק שלו. בלי הדפסות ובלי ניירת שהולכת לאיבוד."
+          },
+          "business": {
+            "name": "ניהול העסק",
+            "title": "יודעים מה קורה עם הכסף.",
+            "desc": "עוקבים אחרי הכנסות, תשלומים ופעילות העסק. רואים את התמונה בלי להתחיל לאסוף נתונים מכל מיני מקומות."
+          },
+          "onlineBooking": {
+            "name": "הזמנת תורים אונליין",
+            "title": "שיקבעו תור גם כשאתם עסוקים.",
+            "desc": "שולחים ללקוחות קישור להזמנת תור והם בוחרים זמן פנוי בעצמם. אתם יכולים להמשיך לעבוד בלי לעצור כדי לפתוח יומן."
+          },
+          "leads": {
+            "name": "ניהול לידים",
+            "title": "אף פנייה לא הולכת לאיבוד.",
+            "desc": "רואים מי פנה, עם מי כבר דיברתם ולמי צריך לחזור. פחות לקוחות פוטנציאליים שנשכחים בתוך הוואטסאפ."
+          },
+          "ai": {
+            "name": "עוזר AI במסלול Pro",
+            "title": "תשאלו את פטרה. היא מכירה.",
+            "desc": "צריכים למצוא פרט על לקוח או להבין מה קורה בעסק? שואלים את העוזר ומקבלים תשובה מתוך המידע שלכם, בהתאם לנתונים הזמינים במערכת.",
+            "examples": {
+              "callBack": "למי צריך לחזור היום?",
+              "lastMeeting": "מה סיכמנו עם הלקוח בפגישה האחרונה?",
+              "openPayments": "אילו תשלומים עדיין פתוחים?"
+            }
+          }
+        }
+      },
+      "googleContacts": {
+        "badge": "סנכרון Google Contacts",
+        "title": "ליד חדש בפטרה — <accent>איש קשר בגוגל.</accent>",
+        "body": "כשמפעילים את הסנכרון, כל ליד (לקוח פוטנציאלי) שנוצר בפטרה נשמר אוטומטית כאיש קשר ב-Google Contacts שלכם, ומתעדכן כשמשנים את הפרטים שלו בפטרה. כך השם מופיע בטלפון וב-WhatsApp כבר בשיחה הראשונה.",
+        "points": {
+          "consent": "הסנכרון פועל רק לאחר שאישרתם את הגישה במסך ההרשאות של Google (OAuth).",
+          "createUpdateOnly": "פטרה רק יוצרת ומעדכנת את אנשי הקשר של הלידים שלכם — היא לא קוראת את אנשי הקשר הקיימים שלכם, לא משתפת אותם ולא מוחקת אותם.",
+          "offByDefault": "הסנכרון כבוי כברירת מחדל, ואפשר לכבות אותו בכל רגע בהגדרות ← אינטגרציות, או לבטל את הגישה מחשבון Google."
+        }
+      },
+      "about": {
+        "title": "לא נולדנו במשרד ממוזג.",
+        "intro": "באנו מהשטח. פטרה היא החטיבה הדיגיטלית של All-Dog, מרכז אילוף עם 15 שנות ניסיון. בנינו מערכת שמבינה איך באמת נראה יום עבודה עם בעלי חיים.",
+        "points": {
+          "knowYourDay": {
+            "title": "אנחנו מכירים את היום שלכם.",
+            "text": "רצועה ביד אחת, טלפון בשנייה, לקוח שמתקשר באמצע שיעור והודעה שצריך לזכור לחזור אליה. אנחנו מכירים את זה, כי גם אנחנו עובדים ככה."
+          },
+          "builtTogether": {
+            "title": "פטרה נבנית יחד איתכם.",
+            "text": "אנחנו מקשיבים למאלפים, לגרומרים ולמנהלי פנסיונים שעובדים במערכת. מה שמסבך את היום שלהם עוזר לנו להבין מה צריך לשפר."
+          },
+          "builtWhatWasMissing": {
+            "title": "בנינו את מה שהיה חסר לנו.",
+            "text": "רצינו מקום אחד שבו אפשר לנהל לקוחות, תורים ותהליכי עבודה בלי לבזבז את היום על הודעות, טבלאות וניירת. משם פטרה התחילה."
+          }
+        },
+        "imageAlt": "מאלפת עובדת עם כלב באימון בשטח — Petra ו-All-Dog",
+        "statTitle": "15 שנות ניסיון",
+        "statSubtitle": "עם כלבים. בשטח."
+      },
+      "how": {
+        "title": "מתחילים בלי להסתבך.",
+        "subtitle": "פותחים חשבון, מכניסים את הלקוחות ומתחילים לעבוד. בלי ללמוד מערכת מסובכת.",
+        "steps": {
+          "openAccount": {
+            "title": "פותחים חשבון",
+            "desc": "נרשמים לפטרה ונכנסים למערכת. בלי התקנות ובלי תהליך הרשמה ארוך."
+          },
+          "addClients": {
+            "title": "מכניסים את הלקוחות",
+            "desc": "מעבירים את רשימת הלקוחות הקיימת ומרכזים את כל הפרטים במקום אחד. לא צריך להתחיל מאפס."
+          },
+          "backToWork": {
+            "title": "חוזרים לעבוד",
+            "desc": "היומן מסודר, התזכורות נשלחות אוטומטית ואתם יכולים להתרכז בעבודה עם בעלי החיים."
+          }
+        }
+      },
+      "finalCta": {
+        "title": "תנו לפטרה לעשות קצת סדר.",
+        "subtitle": "הלקוחות, התורים והתזכורות במקום אחד. פחות דברים לזכור, פחות הודעות לחפש ויותר זמן לעבודה שאתם אוהבים."
+      },
+      "footer": {
+        "logoAlt": "לוגו פטרה",
+        "brandName": "פטרה",
+        "tagline": "ניהול עסקי חיות מחמד",
+        "navAriaLabel": "ניווט תחתון",
+        "links": {
+          "features": "מאפיינים",
+          "pricing": "מחירים",
+          "support": "תמיכה",
+          "privacy": "פרטיות",
+          "terms": "תנאי שימוש",
+          "accessibility": "נגישות"
+        },
+        "credit": "© 2026 Petra · הוקמה על ידי החטיבה הדיגיטלית של <link>All-Dog</link>"
+      },
+      "jsonLd": {
+        "description": "מערכת ניהול חכמה לאלפי כלבים, גרומרים ופנסיונים בישראל. ניהול לקוחות, תורים, תזכורות WhatsApp אוטומטיות, עוזר AI ויומן דיגיטלי.",
+        "freeOfferName": "חינמי",
+        "freeOfferDescription": "עד 30 לקוחות, ללא כרטיס אשראי"
+      }
+    }
+  },
   "layout": {
     "rootLayout": {
       "title": "Petra — מערכת ניהול לעסקי חיות מחמד",
@@ -5220,6 +6551,378 @@
       }
     }
   },
+  "legal": {
+    "termsPage": {
+      "meta": {
+        "title": "תנאי שימוש – Petra",
+        "description": "תנאי השימוש של מערכת Petra לניהול עסקי חיות מחמד"
+      },
+      "title": "תנאי שימוש – Petra",
+      "version": "גרסה 1.1 | עדכון אחרון: אפריל 2026",
+      "intro": "ברוכים הבאים ל-Petra – מערכת ניהול מתקדמת למאלפי כלבים, בעלי פנסיונים ונותני שירותים פרטיים בתחום חיות המחמד, המופעלת על-ידי <b>כל כלב - alldog</b>, ע.מ 304996408. השימוש במערכת כפוף לתנאים המפורטים להלן.",
+      "sections": {
+        "intro": {
+          "title": "1. מבוא",
+          "items": {
+            "bindingAgreement": "תנאי שימוש אלו מהווים הסכם משפטי מחייב בין המשתמש לבין החברה המפעילה את המערכת.",
+            "acceptance": "השימוש במערכת מהווה הסכמה מלאה מצד המשתמש לתנאים אלה. אם אינך מסכים – נא אל תעשה שימוש במערכת.",
+            "additionalTerms": "תנאים נוספים, לרבות מדיניות פרטיות, מדיניות שימוש מקובל (AUP) ותנאים נוספים, מהווים חלק בלתי נפרד מהסכם זה.",
+            "ongoingDevelopment": "המשתמש מודע לכך שהמערכת נמצאת בשלבי פיתוח ושיפור מתמידים, ולכן ייתכנו שינויים, תקלות זמניות או פונקציות שאינן זמינות באופן מלא בכל עת."
+          }
+        },
+        "definitions": {
+          "title": "2. הגדרות",
+          "items": {
+            "system": "\"המערכת\" – מערכת Petra וכל שירותיה הדיגיטליים.",
+            "company": "\"החברה\" – כל כלב - alldog, ע.מ 304996408, הבעלים והמפעילים של Petra.",
+            "user": "\"משתמש\" – כל אדם פרטי או גוף עסקי המשתמש במערכת, לרבות במסגרת תקופת ניסיון.",
+            "service": "\"שירות\" – כלל הפונקציות והתכנים הניתנים באמצעות Petra.",
+            "content": "\"תוכן\" – כל נתון, קובץ, טקסט, מידע או חומר אחר שהוזן או נוצר באמצעות המערכת.",
+            "tradeSecret": "\"סוד מסחרי\" – עיצוב המערכת, ממשקי המשתמש, זרימות העבודה, לוגיקת העסק, מבני הנתונים ופתרונות הטכנולוגיים הכלולים במערכת, המהווים מידע עסקי סודי בבעלות החברה."
+          }
+        },
+        "registration": {
+          "title": "3. רישום ושימוש",
+          "items": {
+            "accurateDetails": "השימוש במערכת מותנה בהרשמה ובמסירת פרטים נכונים.",
+            "passwordSecrecy": "המשתמש אחראי לשמירה על סודיות הסיסמה ולשימוש הנעשה תחת חשבונו.",
+            "refuseOrSuspend": "החברה שומרת לעצמה את הזכות לסרב להעניק שירות או להשעות חשבון לפי שיקול דעתה.",
+            "authorizedUsers": "חשבון יכול לכלול משתמש ראשי ומשתמשים מורשים בהתאם למבנה העסק."
+          }
+        },
+        "acceptableUse": {
+          "title": "4. מדיניות שימוש מקובל (Acceptable Use)",
+          "items": {
+            "prohibitedIntro": "אסור להשתמש במערכת לצרכים הבאים:",
+            "illegalContent": "4.1 העלאת תוכן בלתי חוקי, פוגעני, מזיק או מטעה.",
+            "unauthorizedAccess": "4.2 גישה לא מורשית, הנדסה לאחור או הפרעה לפעולת המערכת.",
+            "spam": "4.3 שליחת ספאם או תכנים המוניים.",
+            "ipInfringement": "4.4 פגיעה בזכויות קניין רוחני או התחזות.",
+            "competitiveAnalysis": "4.5 שימוש במערכת לצורך ניתוח תחרותי, בניית מוצר מתחרה, או כל פעילות שנועדה ללמוד מהמערכת לטובת יצירת שירות חלופי.",
+            "systematicDocumentation": "4.6 תיעוד שיטתי של ממשקי המשתמש, זרימות העבודה או יכולות המערכת לצורכי שכפול, הדגמה לגורמים מתחרים, או הפצה לצד שלישי.",
+            "scraping": "4.7 שימוש בכלים אוטומטיים, סורקים, בוטים או כל אמצעי טכני אחר לאיסוף, גריפה (scraping) או מיצוי נתונים מן המערכת שלא לצורך השימוש התקין בה."
+          }
+        },
+        "license": {
+          "title": "5. רישוי וקניין רוחני",
+          "items": {
+            "ownership": "כל זכויות הקניין הרוחני במערכת, לרבות העיצוב, הקוד, המותג והתוכן – שייכות לחברה.",
+            "grant": "החברה מעניקה רישיון אישי, מוגבל, לא-בלעדי, בלתי ניתן להעברה, לשימוש במערכת לפי תנאים אלו.",
+            "noCopying": "אין להעתיק, לשכפל, להפיץ או לשנות את המערכת ללא אישור מפורש מהחברה.",
+            "anonymousData": "החברה רשאית להשתמש במידע אנונימי לצורכי שיפור השירות."
+          }
+        },
+        "tradeSecrets": {
+          "title": "6. סוד מסחרי והגנה על קניין רוחני",
+          "items": {
+            "definition": "עיצוב המערכת, ממשקי המשתמש, זרימות העבודה, לוגיקת העסק, מבני הנתונים, האלגוריתמים והפתרונות הטכנולוגיים הכלולים במערכת מהווים סודות מסחריים וקניין רוחני של החברה.",
+            "noDisclosure": "המשתמש מתחייב לא לגלות, להעביר, לשתף או לפרסם מידע כאמור לצד שלישי כלשהו, לרבות גורמים מתחרים, ללא קבלת אישור מפורש ובכתב מהחברה.",
+            "permittedUseOnly": "המשתמש מתחייב שלא לעשות שימוש בסודות המסחריים מחוץ לשימוש התקין הרגיל במערכת לצורך הפעלת עסקו.",
+            "remedies": "הפרת סעיף זה תקנה לחברה את כל הסעדים הקבועים בדין, לרבות צווי מניעה, פיצויים בגין נזקים בפועל ועוגמת נפש.",
+            "survival": "חובת הסודיות המפורטת בסעיף זה תחול גם לאחר סיום השימוש במערכת, ללא הגבלת זמן."
+          }
+        },
+        "payments": {
+          "title": "7. תשלומים ומנויים",
+          "items": {
+            "billingCycle": "השירות ניתן בתשלום חודשי או שנתי, בהתאם למסלול שנבחר.",
+            "prepaid": "דמי שימוש נגבים מראש.",
+            "cancellation": "ביטול השירות יתבצע דרך המערכת או בפנייה בכתב וייכנס לתוקף בתום תקופת החיוב.",
+            "priceChanges": "החברה רשאית לעדכן מחירים בהודעה מוקדמת של 30 יום.",
+            "noRefund": "לא יינתן החזר אלא אם צוין אחרת.",
+            "subscriptionEnd": "תום מנוי: עם פקיעת תוקף המנוי תרד הגישה באופן אוטומטי לתכנית החינמית (Free). הנתונים שהוזנו נשמרים ואינם נמחקים אוטומטית, אך הגישה לתכונות המתקדמות תיחסם עד לחידוש המנוי.",
+            "trial": "תקופת ניסיון: בתום תקופת הניסיון החינמית, הגישה עוברת אוטומטית לתכנית החינמית. לא ניתן לאפס תקופת ניסיון לאחר שהסתיימה."
+          }
+        },
+        "dataRetention": {
+          "title": "8. שמירת מידע והעברת נתונים",
+          "items": {
+            "retentionPeriod": "מידע יישמר עד 90 ימים לאחר סיום השירות.",
+            "deletionOrTransfer": "ניתן לבקש מחיקה או העברה של מידע.",
+            "dpa": "כל עיבוד כפוף למדיניות פרטיות ולנספח DPA."
+          }
+        },
+        "privacy": {
+          "title": "9. פרטיות ואבטחת מידע",
+          "items": {
+            "confidentiality": "החברה מתחייבת לשמור על סודיות מידע אישי ועסקי.",
+            "reasonableMeasures": "שימוש באמצעים סבירים ומקובלים להגנה על המידע.",
+            "noCardStorage": "פרטי אשראי אינם נשמרים בשרתי החברה."
+          }
+        },
+        "liability": {
+          "title": "10. אחריות ומגבלות",
+          "items": {
+            "asIs": "המערכת ניתנת As-Is, ללא אחריות לפעולה רציפה.",
+            "indirectDamages": "החברה לא תשא באחריות לנזקים עקיפים.",
+            "cap": "אחריות החברה מוגבלת לסכום ששולם ב-6 חודשים שקדמו."
+          }
+        },
+        "indemnification": {
+          "title": "11. שיפוי",
+          "items": {
+            "indemnify": "המשתמש מתחייב לשפות את החברה בגין כל תביעה או נזק הנובע מהפרת תנאים אלה."
+          }
+        },
+        "termination": {
+          "title": "12. סיום שירות",
+          "items": {
+            "suspendOnBreach": "החברה רשאית להשעות או לבטל שירות במקרה של הפרה.",
+            "dataDeletion": "עם סיום השירות, תיתכן מחיקה של המידע לאחר תקופה מוגדרת.",
+            "noPartialRefund": "לא יינתן החזר חלקי לתקופה שלא נוצלה."
+          }
+        },
+        "changes": {
+          "title": "13. שינויים בתנאים",
+          "items": {
+            "notice": "החברה רשאית לעדכן את התנאים בהודעה של 30 יום מראש.",
+            "continuedUse": "שימוש מתמשך מהווה הסכמה לתנאים המעודכנים."
+          }
+        },
+        "jurisdiction": {
+          "title": "14. סמכות שיפוט",
+          "items": {
+            "governingLaw": "הדין החל הוא הדין הישראלי.",
+            "venue": "סמכות השיפוט לבתי המשפט במחוז תל אביב.",
+            "arbitration": "ייתכן שימוש בהליך בוררות בהסכמה הדדית."
+          }
+        },
+        "forceMajeure": {
+          "title": "15. כוח עליון",
+          "items": {
+            "noLiability": "החברה לא תישא באחריות לאירועים שאינם בשליטתה (כגון תקלות תקשורת, מגפות, שביתות וכו')."
+          }
+        }
+      },
+      "footer": {
+        "rights": "Petra. כל הזכויות שמורות.",
+        "privacyLink": "מדיניות פרטיות"
+      }
+    },
+    "accessibilityPage": {
+      "meta": {
+        "title": "הצהרת נגישות — Petra",
+        "description": "הצהרת הנגישות של פטרה — מחויבות לנגישות דיגיטלית לפי תקן WCAG 2.1 AA וחוק שוויון זכויות לאנשים עם מוגבלות."
+      },
+      "lastUpdatedValue": "מרץ 2026",
+      "hero": {
+        "eyebrow": "הצהרת נגישות",
+        "title": "נגישות דיגיטלית — Petra",
+        "intro": "פטרה מחויבת לנגישות דיגיטלית מלאה לכלל המשתמשים, לרבות אנשים עם מוגבלויות, בהתאם לחוק שוויון זכויות לאנשים עם מוגבלות (תשנ\"ח–1998) ותקנותיו.",
+        "lastUpdated": "עודכן לאחרונה: {date}"
+      },
+      "badges": {
+        "levelLabel": "רמה AA",
+        "levelSub": "רמת ציות מלאה",
+        "israeliSub": "תקן ישראלי IS 5568"
+      },
+      "about": {
+        "title": "1. אודות פטרה",
+        "body": "פטרה היא מערכת ניהול עסקי B2B לעסקי חיות מחמד בישראל — מאלפי כלבים, גרומרים, פנסיונים וארגוני כלבי שירות. המערכת מפותחת ומתוחזקת על ידי החטיבה הדיגיטלית של <link>All-Dog</link>.",
+        "siteAddress": "כתובת האתר: <code>petra-app.com</code>"
+      },
+      "commitment": {
+        "title": "2. מחויבותנו לנגישות",
+        "body1": "אנו מאמינים שלכל אדם מגיע גישה שווה למידע ולשירותים דיגיטליים. אנו שואפים לעמוד ברמת ציות <strong>AA</strong> של תקן WCAG 2.1 ובתקן הישראלי IS 5568, ופועלים לשיפור מתמיד.",
+        "body2": "הנגישות אינה רק חובה חוקית עבורנו — היא ערך מרכזי. ציבור לקוחותינו כולל בעלי עסקים ומאלפים המטפלים גם בכלבי שירות ואנשים עם מוגבלויות, ולכן נגישות המערכת חשובה לנו במיוחד."
+      },
+      "measures": {
+        "title": "3. אמצעים שננקטו",
+        "rtl": "ממשק RTL מלא בעברית — כל הרכיבים מיושרים ומסודרים לכיוון ימין-לשמאל",
+        "contrast": "ניגודיות צבעים עומדת בדרישות WCAG 2.1 AA (יחס מינימלי 4.5:1 לטקסט רגיל)",
+        "keyboard": "כל הכפתורים והאלמנטים האינטראקטיביים נגישים למקלדת בלבד (Tab, Enter, Escape)",
+        "aria": "תוויות ARIA מלאות על כל הרכיבים האינטראקטיביים",
+        "textSize": "גודל טקסט מינימלי 14px, עם תמיכה בהגדלה עד 200% ללא אובדן תוכן",
+        "skipLink": "קישור \"דלג לתוכן הראשי\" בתחילת כל דף",
+        "altText": "כל התמונות מכילות טקסט חלופי (alt) מתאים, ותמונות דקורטיביות מסומנות <code>alt=\"\"</code>",
+        "toolProfiles": "כלי נגישות מובנה עם פרופילים: קוגניטיבי, לקויי ראייה, אפילפסיה, מוגבלות מוטורית",
+        "toolControls": "שינוי גודל טקסט, ניגודיות, רוויית צבע ויישור ישירות מתפריט הנגישות",
+        "headings": "עמודים ממובנים נכון עם כותרות היררכיות (h1–h4)",
+        "forms": "טפסים עם תוויות ברורות ומסרי שגיאה מובנים",
+        "responsive": "ממשק מגיב מלא — תואם מובייל, טאבלט ודסקטופ"
+      },
+      "limitations": {
+        "title": "4. מגבלות נגישות ידועות",
+        "intro": "להלן מגבלות שזוהו. אנו עובדים על תיקונן ברציפות:",
+        "documents": "<strong>מסמכים מצורפים</strong> — מסמכי PDF שמועלים על ידי לקוחות עשויים שלא לכלול תגיות נגישות. נעבוד עם הלקוחות להגדלת נגישות המסמכים.",
+        "charts": "<strong>תרשימים וגרפים</strong> — גרפי הכנסות ודוחות ויזואליים מכילים כותרות תיאוריות אך עשויים שלא לספק שולחן נתונים מלא חלופי.",
+        "userContent": "<strong>תוכן שנוצר על ידי משתמשים</strong> — הערות ותוכן שמשתמשים מזינים במערכת עשויים שלא לעמוד בתקני נגישות."
+      },
+      "tech": {
+        "title": "5. טכנולוגיות בהן אנו תומכים",
+        "intro": "האתר נבנה תוך שימוש בטכנולוגיות הבאות ונבדק עם הכלים הבאים:",
+        "browsers": "דפדפנים נתמכים",
+        "screenReaders": "קוראי מסך",
+        "testingTools": "כלי בדיקה",
+        "references": "מסמכי ייחוס",
+        "israeliStandard": "תקן IS 5568 (ישראל)",
+        "equalRightsLaw": "חוק שוויון זכויות תשנ\"ח–1998"
+      },
+      "feedback": {
+        "title": "6. פניות נגישות",
+        "body": "נתקלתם בבעיית נגישות? נשמח לשמוע ולטפל בה במהירות האפשרית. אנו מחויבים להגיב לפניות נגישות תוך <strong>5 ימי עסקים</strong>.",
+        "email": "אימייל",
+        "phone": "טלפון",
+        "sendMessage": "שלחו הודעה",
+        "commission": "אם לא קיבלתם מענה מספק, ניתן לפנות לנציבות שוויון זכויות לאנשים עם מוגבלות במשרד המשפטים: <link>אתר הנציבות</link>."
+      },
+      "date": {
+        "title": "7. תאריך הצהרה ועדכון",
+        "body": "הצהרת נגישות זו עודכנה לאחרונה בחודש <strong>{date}</strong> ותעודכן מחדש לכל הפחות אחת לשנה, או בעת שינויים מהותיים באתר.",
+        "auditBy": "הבדיקה בוצעה על ידי צוות הפיתוח הפנימי של פטרה — החטיבה הדיגיטלית של All-Dog."
+      },
+      "backLink": "← חזרה לאתר פטרה",
+      "footer": "© 2026 Petra — החטיבה הדיגיטלית של All-Dog"
+    },
+    "privacyPage": {
+      "meta": {
+        "title": "מדיניות פרטיות – Petra",
+        "description": "מדיניות הפרטיות של מערכת Petra לניהול עסקי חיות מחמד"
+      },
+      "header": {
+        "title": "מדיניות פרטיות – Petra",
+        "lastUpdated": "עדכון אחרון: אוקטובר 2026"
+      },
+      "intro": "אנחנו מחויבים להגן על פרטיות המשתמשים שלנו. מסמך זה מסביר בשקיפות מלאה כיצד אנו אוספים, משתמשים ומגנים על המידע שלך.",
+      "footer": "© {year} Petra. כל הזכויות שמורות. <link>תנאי שימוש</link>",
+      "sections": {
+        "intro": {
+          "title": "1. מבוא",
+          "items": {
+            "about": "Petra (\"המערכת\", \"אנחנו\") היא פלטפורמה לניהול עסקים בתחום חיות המחמד – מאלפי כלבים, פנסיונים, וספקי שירותים.",
+            "purpose": "מדיניות פרטיות זו מסבירה אילו מידע אנו אוספים, כיצד אנו משתמשים בו ואיך אנו מגנים עליו.",
+            "consent": "השימוש במערכת מהווה הסכמה למדיניות זו. אם אינך מסכים/ה, אנא הפסק/י את השימוש.",
+            "lastUpdated": "תאריך עדכון אחרון: אוקטובר 2026."
+          }
+        },
+        "collected": {
+          "title": "2. המידע שאנו אוספים",
+          "items": {
+            "account": "2.1 פרטי חשבון: שם, כתובת מייל, מספר טלפון, ופרטי העסק שלך.",
+            "clients": "2.2 נתוני לקוחות: שמות, טלפונים, מיילים וכתובות של הלקוחות שתזין למערכת.",
+            "pets": "2.3 נתוני חיות מחמד: שם, מין, גזע, תאריך לידה, פרטים רפואיים ומידע התנהגותי.",
+            "appointments": "2.4 פגישות ותורים: תאריכים, שעות, שירותים וסטטוסי טיפולים.",
+            "payment": "2.5 נתוני תשלום ומנוי: סוג המנוי, תאריך סיום, היסטוריית תשלומים. פרטי כרטיס אשראי אינם נשמרים בשרתינו ומטופלים ישירות על ידי Stripe.",
+            "googleCalendar": "2.6 Google Calendar: כאשר אתה מחבר את Google Calendar, אנחנו קוראים וכותבים אירועים ביומן שלך בלבד לצורך סנכרון פגישות.",
+            "googleContacts": "2.7 Google Contacts: כאשר אתה מחבר את Google Contacts, אנחנו יוצרים ומעדכנים בחשבונך אנשי קשר של הלידים שנרשמו ב-Petra. אנחנו לא קוראים את אנשי הקשר הקיימים שלך.",
+            "usage": "2.8 נתוני שימוש: לוגים טכניים, כתובת IP, סוג דפדפן – לצורך אבטחה ושיפור המערכת."
+          }
+        },
+        "calendarApi": {
+          "title": "3. שימוש ב-Google Calendar API ומדיניות שימוש מוגבל (Limited Use)",
+          "items": {
+            "purpose": "אנחנו משתמשים ב-Google Calendar API אך ורק לסנכרון הפגישות שלך בין Petra ליומן Google שלך.",
+            "consentOnly": "אנחנו ניגשים ליומן Google שלך רק לאחר אישור מפורש שלך דרך תהליך OAuth של Google.",
+            "visibleFunction": "אנחנו ניגשים, קוראים וכותבים אירועי לוח שנה אך ורק לצורך הפונקציה הגלויה למשתמש — סנכרון פגישות ב-Petra.",
+            "noUnrelated": "אנחנו לא קוראים, לא אוגרים ולא משתפים אירועים מיומן Google שאינם קשורים לפגישות שנוצרו ב-Petra.",
+            "noSharing": "אנחנו לא מוכרים, לא מעבירים ולא משתפים מידע שהתקבל מ-Google APIs עם כל צד שלישי.",
+            "noAds": "אנחנו לא משתמשים בנתוני Google לצרכי פרסום, מיקוד, מעקב, או כל שימוש שאינו ישירות קשור לתפקוד המערכת.",
+            "staffAccess": "גישת צוות לנתוני Google מוגבלת לחלוטין — גישה אפשרית רק לצורכי אבטחה, תמיכה טכנית מבוקשת, עמידה בדרישות חוק, או ניתוח אנונימי מצטבר של ביצועי המערכת.",
+            "revoke": "תוכל לבטל את הגישה בכל עת דרך הגדרות חשבון Google שלך (myaccount.google.com/permissions) או דרך הגדרות המערכת.",
+            "compliance": "השימוש שלנו ב-Google APIs עומד במלואו ב-Google API Services User Data Policy, כולל דרישות Limited Use (שימוש מוגבל)."
+          }
+        },
+        "contactsApi": {
+          "title": "4. שימוש ב-Google Contacts (People API) ומדיניות שימוש מוגבל (Limited Use)",
+          "items": {
+            "optional": "הסנכרון ל-Google Contacts הוא אופציונלי, כבוי כברירת מחדל, ומופעל רק לאחר אישור מפורש שלך דרך תהליך OAuth של Google.",
+            "scope": "אנחנו משתמשים בהרשאת contacts (https://www.googleapis.com/auth/contacts) אך ורק כדי ליצור ולעדכן אנשי קשר של לידים שנרשמו ב-Petra בחשבון Google Contacts שלך.",
+            "dataWritten": "המידע שנכתב לאיש הקשר: שם הליד, מספר טלפון, כתובת מייל (אם קיימת), עיר והערה קצרה מתוך Petra. אנחנו שומרים אצלנו רק את מזהה איש הקשר שיצרנו, כדי שנוכל לעדכן אותו בהמשך.",
+            "noReading": "אנחנו לא קוראים, לא מורידים, לא מאחסנים ולא מנתחים את אנשי הקשר הקיימים בחשבון Google שלך. הגישה היחידה היא לאנשי הקשר ש-Petra עצמה יצרה, לצורך עדכונם.",
+            "noSharing": "אנחנו לא מוכרים, לא מעבירים ולא משתפים מידע שהתקבל מ-Google APIs עם כל צד שלישי, ולא משתמשים בו לפרסום, מיקוד, מעקב או אימון מודלים של בינה מלאכותית.",
+            "revoke": "ניתן לכבות את הסנכרון בכל עת בהגדרות ← אינטגרציות ב-Petra, או לבטל את הגישה דרך myaccount.google.com/permissions. לאחר הביטול לא ניצור ולא נעדכן אנשי קשר נוספים; אנשי קשר שכבר נוצרו נשארים בחשבונך ובשליטתך.",
+            "limitedUse": "הצהרת Limited Use: השימוש של Petra במידע המתקבל מ-Google APIs, והעברתו לכל אפליקציה אחרת, עומדים ב-Google API Services User Data Policy, כולל דרישות Limited Use (שימוש מוגבל)."
+          }
+        },
+        "aiGoogleData": {
+          "title": "4א. בינה מלאכותית (AI) ומידע מ-Google",
+          "items": {
+            "petraAi": "Petra AI, עוזר התמיכה בתוך המערכת, פועל באמצעות Claude API של Anthropic (שירות API מסחרי). הוא מקבל רק את השאלה שלך ונתונים כלליים על העסק במערכת (כמו מסלול המנוי ומספר הלקוחות), ולא מקבל שום מידע מ-Google APIs.",
+            "mcp": "עוזרי AI (חיבור MCP, בגרסת בטא סגורה): בעל העסק יכול לחבר את חשבון Claude או ChatGPT שלו לנתוני העסק ב-Petra. החיבור לא חושף שום מידע מ-Google APIs — לא אנשי קשר, ולא אירועים או זמנים תפוסים מיומן Google.",
+            "noTransfer": "אנחנו לא מעבירים מידע שהתקבל מ-Google APIs, גולמי, מצטבר, אנונימי או נגזר, לשום שירות AI של צד שלישי, ולא משתמשים בו כדי ליצור, לאמן או לשפר מודלים של בינה מלאכותית או למידת מכונה.",
+            "noAggregators": "אנחנו לא משתמשים באגרגטורים או ב-gateways של מודלים, ולא מפעילים מודלים בהתקנה עצמית (self-hosted).",
+            "statement": "הצהרה: השימוש בנתונים גולמיים או נגזרים שהתקבלו מ-Google APIs יעמוד ב-Google API Services User Data Policy, כולל דרישות Limited Use (שימוש מוגבל)."
+          }
+        },
+        "usage": {
+          "title": "5. כיצד אנו משתמשים במידע",
+          "items": {
+            "operate": "הפעלת המערכת ומתן השירותים: ניהול לקוחות, פגישות, משימות ותשלומים.",
+            "reminders": "שליחת תזכורות ועדכונים: SMS, WhatsApp ומייל ללקוחות העסק (בהסכמתם).",
+            "improve": "שיפור המערכת: ניתוח אנונימי של דפוסי שימוש לשיפור הממשק.",
+            "security": "אבטחה: זיהוי גישה לא מורשית ומניעת שימוש לרעה.",
+            "support": "תמיכה טכנית: מענה לפניות ופתרון תקלות."
+          }
+        },
+        "sharing": {
+          "title": "6. שיתוף מידע עם צדדים שלישיים",
+          "items": {
+            "noSale": "אנחנו לא מוכרים, לא משכירים ולא סוחרים במידע אישי של משתמשים.",
+            "email": "6.1 שירותי דוא\"ל: Resend – שליחת מיילים טרנזקציוניים (איפוס סיסמה, תזכורות).",
+            "whatsapp": "6.2 WhatsApp / SMS: Twilio – שליחת הודעות WhatsApp ו-SMS ללקוחות העסק לפי בקשתך.",
+            "payments": "6.3 עיבוד תשלומים: Stripe – עיבוד תשלומים מקוונים. פרטי אשראי מועברים ישירות ל-Stripe ואינם נשמרים אצלנו.",
+            "storage": "6.4 אחסון קבצים: Vercel Blob – אחסון קבצים שהועלו למערכת (תמונות, מסמכים).",
+            "google": "6.5 Google: ניגשים ל-Google APIs לפי הרשאה שנתת. Google כפופה למדיניות הפרטיות שלה.",
+            "legal": "6.6 דרישה חוקית: נחשוף מידע אם נדרש על פי חוק ישראלי.",
+            "transfer": "6.7 העברת עסק: במקרה של מכירה או מיזוג, המידע עשוי לעבור לחברה הרוכשת תחת אותם תנאים."
+          }
+        },
+        "storage": {
+          "title": "7. אחסון ואבטחת מידע",
+          "items": {
+            "cloud": "המידע מאוחסן בשרתי ענן מאובטחים (Supabase / PostgreSQL) עם הצפנה בסטנדרטים מקובלים.",
+            "oauthTokens": "תוקני OAuth של Google מוצפנים באמצעות AES-256 לפני שמירה.",
+            "login": "כניסה למערכת מוגנת בסיסמה מוצפנת (bcrypt) ועוגיית session מאובטחת.",
+            "staffAccess": "גישה לנתונים מוגבלת לעובדים המורשים לצורך תמיכה ותפעול.",
+            "rateLimiting": "אנחנו מיישמים rate limiting ומוניטורינג לזיהוי פעילות חשודה."
+          }
+        },
+        "retention": {
+          "title": "8. שמירת מידע",
+          "items": {
+            "active": "מידע חשבון נשמר כל עוד החשבון פעיל.",
+            "afterEnd": "לאחר סיום המנוי, המידע נשמר עד 90 ימים ולאחר מכן נמחק לצמיתות.",
+            "earlyDeletion": "ניתן לבקש מחיקה מוקדמת דרך יצירת קשר."
+          }
+        },
+        "rights": {
+          "title": "9. זכויות המשתמש",
+          "items": {
+            "access": "עיון: תוכל לצפות בכל המידע השמור על חשבונך.",
+            "correction": "תיקון: תוכל לעדכן פרטים אישיים ישירות במערכת.",
+            "deletion": "מחיקה: תוכל לבקש מחיקת חשבונך וכל הנתונים הקשורים אליו.",
+            "portability": "ניידות: תוכל לייצא את הנתונים שלך בפורמט CSV/XLSX דרך הגדרות המערכת.",
+            "googleRevoke": "ביטול גישה ל-Google: תוכל לבטל גישה בכל עת דרך myaccount.google.com/permissions.",
+            "exercise": "לממש את זכויותיך – פנה אלינו בכתובת המייל המופיעה בסעיף 11."
+          }
+        },
+        "cookies": {
+          "title": "10. עוגיות (Cookies)",
+          "items": {
+            "session": "אנחנו משתמשים בעוגיית session בודדת (petra_session) לצורך זיהוי משתמש מחובר.",
+            "noTracking": "אנחנו לא משתמשים בעוגיות פרסומיות או מעקב.",
+            "blocking": "ניתן לחסום עוגיות בהגדרות הדפדפן, אך הדבר יפגע בפונקציונליות הכניסה למערכת."
+          }
+        },
+        "contact": {
+          "title": "11. יצירת קשר",
+          "items": {
+            "intro": "לשאלות, בקשות מחיקה, או כל עניין הנוגע לפרטיות:",
+            "email": "מייל: info@petra-app.com",
+            "response": "אנחנו נשיב בתוך 14 ימי עסקים."
+          }
+        },
+        "changes": {
+          "title": "12. שינויים במדיניות",
+          "items": {
+            "updates": "אנחנו עשויים לעדכן מדיניות זו מעת לעת.",
+            "notice": "במקרה של שינוי מהותי, נודיע לך בדוא\"ל או בהתראה במערכת 30 יום מראש.",
+            "continued": "המשך השימוש לאחר השינוי מהווה הסכמה למדיניות המעודכנת."
+          }
+        }
+      }
+    }
+  },
   "messages": {
     "messagesPage": {
       "title": "הודעות",
@@ -5501,6 +7204,12 @@
         "openWhatsApp": "פתח WhatsApp",
         "copyMessage": "העתק הודעה"
       }
+    }
+  },
+  "meta": {
+    "manifest": {
+      "name": "Petra - ניהול עסקי חיות מחמד",
+      "description": "מערכת ניהול מתקדמת לעסקי חיות מחמד"
     }
   },
   "onboarding": {
@@ -7079,6 +8788,1059 @@
       }
     }
   },
+  "owner": {
+    "ownerAuditLogsPage": {
+      "tabs": {
+        "admin": "פעולות אדמין",
+        "activity": "פעילות משתמשים"
+      },
+      "target": {
+        "otherType": "יעד אחר",
+        "deleted": " (נמחק)"
+      },
+      "admin": {
+        "filterLabel": "סינון לפי פעולה",
+        "allActions": "כל הפעולות",
+        "eventsCount": "{count} אירועים",
+        "loadError": "שגיאה בטעינת יומן הפעולות: {message}",
+        "emptyFiltered": "לא נמצאו אירועים מסוג זה. נסו לבחור פעולה אחרת.",
+        "empty": "עדיין לא נרשמו פעולות אדמין.",
+        "columns": {
+          "time": "זמן",
+          "action": "פעולה",
+          "actor": "מבצע",
+          "target": "יעד"
+        },
+        "system": "מערכת"
+      },
+      "pagination": {
+        "pageOf": "עמוד {page} מתוך {totalPages}",
+        "prev": "הקודם",
+        "next": "הבא"
+      },
+      "relative": {
+        "now": "עכשיו",
+        "minutesAgo": "לפני {count} דק׳",
+        "hoursAgo": "לפני {count} שע׳",
+        "daysAgo": "לפני {count} ימים"
+      },
+      "activity": {
+        "categories": {
+          "all": "הכל",
+          "logins": "כניסות",
+          "customers": "לקוחות",
+          "pets": "חיות מחמד",
+          "appointments": "תורים",
+          "payments": "תשלומים",
+          "leads": "לידים",
+          "orders": "הזמנות",
+          "tasks": "משימות",
+          "boarding": "פנסיון",
+          "team": "צוות ואבטחה"
+        },
+        "updatedAt": "עודכן {time}",
+        "autoRefresh": "מתעדכן כל 30 שניות",
+        "refresh": "רענן",
+        "loadError": "שגיאה בטעינת הפעילות: {message}",
+        "empty": "עדיין לא נרשמה פעילות של משתמשים.",
+        "emptyFiltered": "אין פעילות בקטגוריה הזו. נסו קטגוריה אחרת.",
+        "deleteBadge": "מחיקה",
+        "deletedBusiness": "עסק (נמחק)",
+        "noBusiness": "ללא עסק",
+        "lastHundred": "מוצגות 100 הפעולות האחרונות."
+      },
+      "page": {
+        "title": "יומן פעולות",
+        "subtitleAdmin": "פעולות ניהול ואבטחה שבוצעו בפלטפורמה",
+        "subtitleActivity": "מה משתמשי העסקים עושים במערכת, מתעדכן אוטומטית"
+      }
+    },
+    "ownerBroadcastPage": {
+      "types": {
+        "info": "מידע",
+        "success": "הצלחה",
+        "warning": "אזהרה",
+        "error": "שגיאה/חירום"
+      },
+      "expiry": {
+        "presets": {
+          "tomorrow": "מחר",
+          "threeDays": "3 ימים",
+          "week": "שבוע",
+          "twoWeeks": "שבועיים",
+          "month": "חודש"
+        },
+        "remove": "הסר תפוגה",
+        "disappearsAt": "ההודעה תיעלם מהתיבות ב-{date}",
+        "noneHint": "ללא תפוגה — ההודעה תישאר עד שהמשתמש יסגור אותה"
+      },
+      "relative": {
+        "now": "עכשיו",
+        "minutesAgo": "לפני {count} דק׳",
+        "hoursAgo": "לפני {count} שעות",
+        "daysAgo": "לפני {count} ימים"
+      },
+      "preview": {
+        "titlePlaceholder": "כותרת ההודעה",
+        "contentPlaceholder": "תוכן ההודעה יופיע כאן...",
+        "title": "תצוגה מקדימה",
+        "subtitle": "כך ההודעה תיראה למשתמשים · סוג: {type}"
+      },
+      "toasts": {
+        "updated": "השידור עודכן ב-{count} תיבות",
+        "sent": "ההודעה נשלחה ל-{count} עסקים",
+        "sendError": "שגיאה בשליחה",
+        "deleted": "השידור הוסר מ-{count} תיבות",
+        "deleteError": "שגיאה במחיקה"
+      },
+      "page": {
+        "title": "הודעות שידור",
+        "subtitle": "שליחת הודעת מערכת לכל המשתמשים בפטרה, עריכה והסרה של שידורים קודמים",
+        "refresh": "רענן"
+      },
+      "composer": {
+        "titleEdit": "עריכת שידור קיים",
+        "titleNew": "הרכבת הודעה",
+        "subtitleEdit": "העדכון יחול על כל העותקים שעדיין בתיבות — עותקים שנמחקו על ידי משתמשים לא יחזרו",
+        "subtitleNew": "ההודעה תופיע בממשק של כל משתמש רשום בפלטפורמה",
+        "cancelEdit": "בטל עריכה",
+        "typeLabel": "סוג הודעה",
+        "titleField": "כותרת *",
+        "titlePlaceholder": "לדוגמה: עדכון מערכת חשוב",
+        "contentField": "תוכן ההודעה *",
+        "contentPlaceholder": "פרט את תוכן העדכון או השינוי...",
+        "urlField": "כתובת קישור (אופציונלי)",
+        "urlPlaceholder": "/calendar או https://...",
+        "buttonField": "טקסט כפתור (אופציונלי)",
+        "buttonPlaceholder": "לפרטים נוספים",
+        "buttonHint": "הכפתור יוצג למשתמשים רק כשגם הכתובת וגם טקסט הכפתור מלאים.",
+        "expiryField": "תאריך תפוגה (אופציונלי)",
+        "submitEdit": "עדכן את השידור",
+        "submitNew": "שלח לכל המשתמשים"
+      },
+      "history": {
+        "title": "היסטוריית שידורים",
+        "loadError": "טעינת ההיסטוריה נכשלה.",
+        "retry": "נסה שוב",
+        "empty": "לא נשלחו הודעות עדיין — שידור שתשלח יופיע כאן עם מספר העסקים שקיבלו וקראו אותו.",
+        "editingBadge": "בעריכה",
+        "businesses": "{count} עסקים",
+        "readTooltip": "כמה תיבות סימנו את ההודעה כנקראה (לא כולל עסקים שמחקו אותה)",
+        "readCount": "{count} קראו",
+        "sentAt": "נשלח {date}",
+        "expiresAt": " · תפוגה {date}",
+        "edit": "ערוך שידור",
+        "remove": "הסר שידור מכל התיבות"
+      },
+      "confirmSend": {
+        "titleEdit": "אישור עדכון שידור",
+        "titleNew": "אישור שליחה לכל המשתמשים",
+        "warningEdit": "העדכון יחליף את תוכן ההודעה אצל כל העסקים שעדיין לא מחקו אותה.",
+        "warningNew": "ההודעה תוצג לכל משתמש רשום בכל העסקים הפעילים בפטרה. אחרי השליחה ניתן לערוך או להסיר אותה, אבל משתמשים שכבר ראו אותה — ראו.",
+        "type": "סוג",
+        "link": "קישור",
+        "buttonLabel": " · כפתור: \"{label}\"",
+        "noButtonText": " · ללא טקסט כפתור (הכפתור לא יוצג)",
+        "noLink": "ללא קישור",
+        "expiry": "תפוגה",
+        "noExpiry": "ללא תפוגה",
+        "sending": "שולח...",
+        "confirmEdit": "כן, עדכן את השידור",
+        "confirmNew": "כן, שלח לכל המשתמשים"
+      },
+      "confirmDelete": {
+        "title": "הסרת שידור מכל התיבות",
+        "warning": "ההודעה תימחק מהתיבות של כל {count} העסקים שעדיין לא מחקו אותה. הפעולה אינה ניתנת לביטול.",
+        "removing": "מסיר...",
+        "confirm": "כן, הסר לכולם"
+      }
+    },
+    "ownerConsentsPage": {
+      "title": "הסכמות תנאי שימוש",
+      "subtitle": "רשימת כל המשתמשים שחתמו על תנאי השימוש ומדיניות הפרטיות",
+      "refresh": "רענון",
+      "exportCsv": "ייצוא CSV",
+      "stats": {
+        "totalConsents": "סה״כ הסכמות",
+        "uniqueUsers": "משתמשים ייחודיים"
+      },
+      "filters": {
+        "searchPlaceholder": "חיפוש לפי שם, מייל, או שם עסק...",
+        "searchAriaLabel": "חיפוש הסכמות",
+        "versionAriaLabel": "סינון לפי גרסה",
+        "allVersions": "כל הגרסאות",
+        "versionOption": "גרסה {version}",
+        "showing": "מציג {shown} מתוך {total}"
+      },
+      "loadError": "שגיאה בטעינת נתונים",
+      "empty": {
+        "noMatches": "לא נמצאו הסכמות התואמות את החיפוש או הסינון.",
+        "none": "עדיין לא נרשמו הסכמות לתנאי השימוש."
+      },
+      "table": {
+        "userName": "שם משתמש",
+        "email": "כתובת מייל",
+        "businessName": "שם עסק",
+        "version": "גרסה",
+        "dateTime": "תאריך ושעה",
+        "ipAddress": "כתובת IP",
+        "browser": "דפדפן",
+        "pdf": "PDF",
+        "downloadPdfAriaLabel": "הורדת PDF של ההסכמה — {name}",
+        "downloadPdf": "הורדת PDF"
+      },
+      "footer": {
+        "records": "{count} רשומות",
+        "downloadCsv": "הורד CSV"
+      },
+      "legalNote": "מסמך זה מהווה ראיה משפטית לקבלת תנאי השימוש. כתובת ה-IP, סוכן הדפדפן ותאריך ההסכמה נרשמו בזמן אמת בעת הרשמת המשתמש. ייצוא ה-CSV כולל את כל השדות. לייצוא PDF של משתמש ספציפי — לחצו על סמל ה-PDF בשורה שלו."
+    },
+    "ownerCustomerSuccessPage": {
+      "segments": {
+        "churn_risk": {
+          "label": "סיכון נטישה",
+          "meaning": "היו פעילים ואין מהם פעילות 14+ ימים"
+        },
+        "never_activated": {
+          "label": "לא הופעלו",
+          "meaning": "נרשמו ולא הוסיפו לקוח או תור"
+        },
+        "watch": {
+          "label": "במעקב",
+          "meaning": "שימוש דל או 7+ ימים בלי פעילות"
+        },
+        "new": {
+          "label": "חדשים",
+          "meaning": "3 ימים ראשונים"
+        },
+        "healthy": {
+          "label": "בריאים",
+          "meaning": "פעילים באופן קבוע"
+        }
+      },
+      "lastLogin": {
+        "never": "מעולם לא",
+        "today": "היום",
+        "oneDayAgo": "לפני יום",
+        "daysAgo": "לפני {count} ימים"
+      },
+      "days": {
+        "one": "יום אחד",
+        "other": "{count} ימים"
+      },
+      "plan": {
+        "trialLeft": "ניסיון · נותרו {days}",
+        "expiredAgo": "מנוי פג לפני {days}",
+        "subscriptionLeft": "מנוי · נותרו {days}",
+        "active": "מנוי פעיל"
+      },
+      "empty": {
+        "none": "אין עסקים להצגה.",
+        "payingInSegment": "אין עסקים משלמים במצב \"{segment}\".",
+        "inSegment": "אין עסקים במצב \"{segment}\" כרגע.",
+        "paying": "אין עסקים משלמים להצגה."
+      },
+      "title": "בריאות לקוחות",
+      "subtitle": "מי צריך יחס עכשיו — נטישה מול הרשמה שלא הופעלה",
+      "showTestAccounts": "הצג חשבונות בדיקה",
+      "refresh": "רענון",
+      "loadError": "טעינת הנתונים נכשלה. נסו שוב.",
+      "retry": "נסה שוב",
+      "payingAtRisk": "מתוכם {count} משלמים",
+      "filters": {
+        "payingOnly": "משלמים בלבד",
+        "clear": "נקה סינון",
+        "showing": "מוצגים {shown} מתוך {total} עסקים"
+      },
+      "table": {
+        "business": "עסק",
+        "owner": "בעלים",
+        "tenure": "ותק",
+        "lastActivity": "פעילות אחרונה",
+        "clients": "לקוחות",
+        "appointments": "תורים",
+        "plan": "מנוי/ניסיון",
+        "status": "מצב",
+        "contact": "יצירת קשר",
+        "daysActive": "{count} ימים"
+      },
+      "badges": {
+        "paying": "משלם",
+        "test": "בדיקה"
+      },
+      "unknownSegment": "לא ידוע",
+      "contact": {
+        "whatsappTitle": "וואטסאפ אל {name} ({phone})",
+        "whatsappAriaLabel": "שליחת וואטסאפ אל {name}",
+        "whatsapp": "וואטסאפ",
+        "emailTitle": "מייל אל {email}",
+        "emailAriaLabel": "שליחת מייל אל {name}",
+        "email": "מייל",
+        "none": "אין פרטי קשר"
+      }
+    },
+    "ownerMcpPage": {
+      "tools": {
+        "list_clients": "רשימת לקוחות",
+        "list_upcoming_appointments": "תורים קרובים",
+        "get_business_stats": "סטטיסטיקות",
+        "create_appointment": "יצירת תור",
+        "add_client_note": "הוספת הערה",
+        "send_reminder": "שליחת תזכורת"
+      },
+      "title": "MCP — עוזרי AI",
+      "subtitle": "מעקב קריאות, שגיאות וחיבורים פעילים",
+      "stats": {
+        "activeConnections": "חיבורים פעילים",
+        "totalConnections": "{count} סה\"כ",
+        "calls24h": "קריאות 24 שעות",
+        "calls7d": "{count} ב-7 ימים",
+        "errors24h": "שגיאות 24 שעות",
+        "errorRate": "{rate}% error rate",
+        "expectedErrors": " · {count} תשובות צפויות",
+        "popularTool": "כלי פופולרי",
+        "popularToolCount": "{count} פעמים / 30 ימים"
+      },
+      "popularTools": "כלים פופולריים (30 ימים)",
+      "recentCalls": "קריאות אחרונות",
+      "noCalls": "אין קריאות עדיין",
+      "recordNotFound": "הרשומה לא נמצאה (כנראה נמחקה)"
+    },
+    "ownerMigrationPage": {
+      "steps": {
+        "business": "בחירת עסק",
+        "upload": "העלאת קובץ",
+        "preview": "תצוגה מקדימה",
+        "import": "ייבוא"
+      },
+      "issueTypes": {
+        "customer": "לקוח",
+        "pet": "חיה",
+        "other": "אחר"
+      },
+      "errors": {
+        "chooseFile": "בחר קובץ",
+        "chooseBusiness": "בחר עסק",
+        "parseFailed": "שגיאה בניתוח",
+        "noBatch": "אין מנה לביצוע",
+        "importFailed": "שגיאה בייבוא",
+        "loadBusinesses": "שגיאה בטעינת רשימת העסקים"
+      },
+      "toasts": {
+        "importDone": "הייבוא הושלם"
+      },
+      "header": {
+        "title": "ייבוא נתונים",
+        "subtitle": "ייבוא לקוחות וחיות מקובץ CSV/XLSX לעסק ספציפי",
+        "downloadTemplate": "הורד תבנית"
+      },
+      "result": {
+        "title": "הייבוא הושלם בהצלחה",
+        "businessLine": "הנתונים נוספו לעסק {name}",
+        "newCustomers": "לקוחות חדשים",
+        "mergedCustomers": "לקוחות מוזגו",
+        "petsAdded": "חיות נוספו",
+        "importAnother": "ייבוא נוסף"
+      },
+      "business": {
+        "title": "1. בחירת עסק יעד",
+        "searchPlaceholder": "חיפוש עסק לפי שם, אימייל או טלפון...",
+        "searchAria": "חיפוש עסק",
+        "noMatch": "לא נמצאו עסקים התואמים לחיפוש",
+        "empty": "אין עסקים להצגה",
+        "capped": "מוצגים 100 העסקים הראשונים — צמצם באמצעות החיפוש.",
+        "target": "עסק יעד: <b>{name}</b>"
+      },
+      "file": {
+        "title": "2. העלאת קובץ (CSV / XLSX)",
+        "dropHint": "גרור קובץ לכאן או לחץ לבחירה",
+        "columns": "CSV, XLSX — עמודות: full_name, phone (חובה), email, city, notes",
+        "parsing": "מנתח...",
+        "parse": "נתח קובץ"
+      },
+      "preview": {
+        "title": "3. תצוגה מקדימה",
+        "notWritten": "עדיין לא נכתב דבר. הנתונים ייכתבו לעסק {name} רק לאחר אישור.",
+        "customersToImport": "לקוחות לייבוא",
+        "petsToImport": "חיות לייבוא",
+        "inFileDuplicates": "כפילויות בקובץ",
+        "alreadyExist": "כבר קיימים בעסק",
+        "skippedRows": "שורות שידולגו: {count}",
+        "orphanPets": " · חיות ללא לקוח תואם: {count}",
+        "issuesTitle": "שורות עם בעיות (מוצגות עד 10)",
+        "colRow": "שורה",
+        "colType": "סוג",
+        "colIssue": "בעיה",
+        "noIssues": "לא נמצאו שורות בעייתיות בקובץ.",
+        "execute": "בצע ייבוא ({count} לקוחות)",
+        "restart": "התחל מחדש",
+        "noNewCustomers": "אין לקוחות חדשים לייבוא בקובץ הזה."
+      },
+      "confirm": {
+        "title": "אישור ייבוא",
+        "body": "עומדים לייבא <b>{rows} שורות</b> ({customers} לקוחות ו-{pets} חיות) לעסק <b>{name}</b>.",
+        "warning": "הנתונים ייכתבו ישירות לחשבון של לקוח אמיתי. ודא שזה העסק הנכון לפני האישור.",
+        "importing": "מייבא...",
+        "submit": "אשר ובצע ייבוא"
+      }
+    },
+    "ownerPage": {
+      "header": {
+        "title": "דשבורד פלטפורמה",
+        "subtitle": "מה דורש טיפול, הכנסות ושימוש בפלטפורמה",
+        "excludedTest": "{count} עסקי בדיקה מוחרגים מהמדדים",
+        "showTest": "הצג חשבונות בדיקה"
+      },
+      "loadError": "לא הצלחנו לטעון את נתוני הדשבורד. נסו לרענן את העמוד.",
+      "attention": {
+        "title": "דורש טיפול",
+        "none": "אין פריטים שדורשים טיפול",
+        "openTickets": "פניות תמיכה פתוחות",
+        "openTicketsCta": "לטיפול בפניות",
+        "expiringIn7": "מנויים יפוגו תוך 7 ימים",
+        "suspended": "עסקים מושהים",
+        "suspendedCta": "לרשימת המושהים",
+        "mcpErrors": "שגיאות עוזר AI ב-24 שעות",
+        "mcpErrorsCta": "לבדיקת השגיאות",
+        "ctaArrow": "{cta} ←",
+        "expiresToday": "פג היום",
+        "oneDayLeft": "נותר יום אחד",
+        "daysLeft": "נותרו {days} ימים"
+      },
+      "revenue": {
+        "title": "הכנסות",
+        "mrrSub": "הכנסה חוזרת חודשית",
+        "activeTenants": "עסקים פעילים",
+        "ofTotal": "מתוך {total} סה״כ",
+        "paying": "מנויים משלמים",
+        "payingSub": "מנוי פעיל בתשלום",
+        "trial": "בתקופת ניסיון",
+        "trialSub": "ניסיון פעיל",
+        "byTier": "פירוט לפי מנוי",
+        "noActive": "אין עסקים פעילים להצגה.",
+        "colTier": "מנוי",
+        "colBusinesses": "עסקים",
+        "colPrice": "מחיר/חודש",
+        "colContribution": "תרומה ל-MRR",
+        "otherTier": "מנוי אחר",
+        "total": "סה״כ",
+        "recentActivations": "הפעלות אחרונות",
+        "noActivations": "עדיין לא הופעלו מנויים.",
+        "deletedBusiness": "עסק שנמחק"
+      },
+      "usage": {
+        "title": "שימוש",
+        "hint": "30 הימים האחרונים",
+        "mau": "משתמשים פעילים בחודש",
+        "activeToday": "פעילים היום",
+        "signups7d": "נרשמו ב-7 ימים",
+        "totalUsers": "סה״כ משתמשים",
+        "blocked": "{count} חסומים",
+        "connectedUsers": "משתמשים מחוברים",
+        "dailyTitle": "פעילות יומית — 14 ימים",
+        "actions": "{count} פעולות",
+        "noDaily": "לא נרשמה פעילות ב-14 הימים האחרונים.",
+        "dayTitle": "{date} — {count} פעולות",
+        "shortDate": "{day}.{month}",
+        "topUsers": "משתמשים פעילים ביותר",
+        "noTopUsers": "אין פעילות משתמשים ב-30 הימים האחרונים.",
+        "unnamedUser": "משתמש ללא שם",
+        "byAction": "התפלגות פעולות",
+        "noByAction": "אין פעולות להצגה ב-30 הימים האחרונים."
+      },
+      "audit": {
+        "title": "פעולות אדמין אחרונות",
+        "viewAll": "הצג הכל ←",
+        "empty": "עדיין לא נרשמו פעולות אדמין.",
+        "system": "מערכת"
+      }
+    },
+    "ownerSupportPage": {
+      "tabs": {
+        "all": "הכל",
+        "open": "פתוח",
+        "inProgress": "בטיפול",
+        "resolved": "נסגר"
+      },
+      "errors": {
+        "generic": "שגיאה",
+        "updateFailed": "שגיאה בעדכון"
+      },
+      "header": {
+        "title": "פניות תמיכה",
+        "counts": "{open} פתוח · {inProgress} בטיפול · {resolved} נסגר"
+      },
+      "awaiting": {
+        "total": "{count} פניות ממתינות לתשובה שלנו",
+        "overdue": " · {count} מעל {hours} שעות"
+      },
+      "list": {
+        "empty": "אין פניות",
+        "waiting": "ממתין לתשובה {waiting}",
+        "answered": "ענינו · ממתין ללקוח",
+        "selectPrompt": "בחרו פנייה כדי לענות ולראות את היסטוריית הטיפול"
+      },
+      "toasts": {
+        "noteSaved": "ההערה נשמרה (רק הצוות רואה אותה)",
+        "emailNotSent": "התשובה נשמרה ומופיעה ללקוח במערכת, אבל המייל לא נשלח",
+        "replySent": "התשובה נשלחה ללקוח — במייל ובהודעות מפטרה",
+        "statusUpdated": "הסטטוס עודכן"
+      },
+      "detail": {
+        "notFound": "הפנייה לא נמצאה",
+        "back": "כל הפניות",
+        "firstResponse": "תגובה ראשונה: {date}",
+        "customerUnread": "הלקוח עוד לא קרא את התשובה האחרונה",
+        "waitingOnUs": "ממתין לתשובה שלנו {waiting}"
+      },
+      "composer": {
+        "replyTab": "תשובה ללקוח",
+        "internalTab": "הערה פנימית",
+        "internalPlaceholder": "הערה לצוות — הלקוח לא יראה אותה",
+        "replyPlaceholder": "התשובה תישלח ללקוח במייל ותופיע לו במערכת תחת \"הפניות שלי\"",
+        "saving": "שומר…",
+        "saveNote": "שמירת הערה",
+        "sendAndClose": "שליחה וסגירה",
+        "sending": "שולח…",
+        "send": "שליחת תשובה"
+      },
+      "status": {
+        "changeLabel": "שינוי סטטוס בלי הודעה:",
+        "markOpen": "סמן כפתוח",
+        "markInProgress": "סמן בטיפול",
+        "markResolved": "סמן כנסגר"
+      }
+    },
+    "tenantsDetailPage": {
+      "tiers": {
+        "free": "Free (חינמי)",
+        "basic": "Basic",
+        "pro": "Pro",
+        "service_dog": "Service Dog (ארגוני)",
+        "groomer": "Groomer+ (legacy)"
+      },
+      "features": {
+        "gcal_sync": {
+          "label": "סנכרון יומן גוגל",
+          "description": "חיבור Google Calendar לאימות ועדכון תורים"
+        },
+        "payments": {
+          "label": "תשלומים",
+          "description": "קישורי תשלום, סליקה"
+        },
+        "invoicing": {
+          "label": "חשבוניות",
+          "description": "הפקת חשבוניות וקבלות (Green Invoice / Morning)"
+        },
+        "scheduled_messages": {
+          "label": "תזכורות בוואטסאפ",
+          "description": "תזכורות אוטומטיות לתורים"
+        },
+        "automations": {
+          "label": "אוטומציות הודעות",
+          "description": "כללי שליחה אוטומטית לפי אירועים"
+        },
+        "custom_messages": {
+          "label": "הודעות מותאמות",
+          "description": "תבניות הודעה מותאמות אישית"
+        },
+        "training": {
+          "label": "מערכת ניהול תהליכי אילוף",
+          "description": "תכניות אילוף, מטרות ומעקב מפגשים"
+        },
+        "training_groups": {
+          "label": "ניהול קבוצות וסדנאות אילוף",
+          "description": "ניהול קבוצות אילוף וסדנאות"
+        },
+        "boarding": {
+          "label": "פנסיון",
+          "description": "חדרים, לינות ויומן תפוסה (drag & drop)"
+        },
+        "leads": {
+          "label": "CRM / לידים",
+          "description": "קנבן לידים ומעקב מכירות"
+        },
+        "staff_management": {
+          "label": "ניהול עובדים",
+          "description": "הוספת משתמשים, תפקידים וניהול גישה"
+        },
+        "excel_export": {
+          "label": "ייצוא לאקסל",
+          "description": "ייצוא לקוחות וחיות ל-Excel"
+        },
+        "groomer_portfolio": {
+          "label": "תיק עבודות לפני/אחרי",
+          "description": "גלריית לפני/אחרי (Basic+)"
+        },
+        "service_dogs": {
+          "label": "מודול כלבי שירות",
+          "description": "ניהול כלבי שירות, זכאים, שיבוצים ו-ADI"
+        },
+        "online_bookings": {
+          "label": "הזמנות אונליין",
+          "description": "ניהול תורים אונליין ואישור הזמנות"
+        },
+        "analytics": {
+          "label": "דוחות ואנליטיקס",
+          "description": "גרפים, סטטיסטיקות ומעקב ביצועים"
+        },
+        "intake_forms": {
+          "label": "טפסי קליטה",
+          "description": "טפסי קליטה דיגיטליים ללקוחות"
+        },
+        "payment_links": {
+          "label": "קישורי תשלום",
+          "description": "בקשות תשלום בוואטסאפ עם לינק"
+        },
+        "orders": {
+          "label": "הזמנות",
+          "description": "ניהול הזמנות ופרטי עסקה"
+        },
+        "pricing": {
+          "label": "מחירון",
+          "description": "שירותים ופריטי חיוב"
+        },
+        "pets_advanced": {
+          "label": "חיות מחמד מתקדם",
+          "description": "ניהול חיות מחמד ותיקים מורחבים"
+        }
+      },
+      "status": {
+        "active": "פעיל",
+        "suspended": "מושהה",
+        "closed": "סגור"
+      },
+      "roles": {
+        "user": "עובד",
+        "manager": "מנהל",
+        "owner": "בעלים"
+      },
+      "errors": {
+        "loadFailed": "שגיאה בטעינת פרטי העסק",
+        "generic": "שגיאה",
+        "actionFailed": "הפעולה נכשלה",
+        "removeFailed": "ההסרה נכשלה",
+        "saveOverridesFailed": "שגיאה בשמירת השינויים. נסה שוב."
+      },
+      "backToList": "חזרה לרשימת העסקים",
+      "header": {
+        "createdOn": "נוצר {date}",
+        "tosConsent": "חתימת תנאי שימוש",
+        "impersonateTitle": "כנס כעסק (impersonation)",
+        "impersonate": "כנס כעסק",
+        "suspend": "השהה עסק",
+        "activate": "הפעל עסק"
+      },
+      "details": {
+        "title": "פרטי עסק",
+        "name": "שם",
+        "email": "מייל",
+        "phone": "טלפון",
+        "currentTier": "מנוי נוכחי",
+        "tierUpdated": "✓ המנוי עודכן"
+      },
+      "stats": {
+        "customers": "לקוחות",
+        "monthlyAppointments": "תורים החודש",
+        "monthlyRevenue": "הכנסה החודש",
+        "lastSeen": "כניסה אחרונה"
+      },
+      "trial": {
+        "title": "ניסיון חינמי",
+        "noTrial": "ללא ניסיון",
+        "set14": "הגדר ניסיון 14 יום",
+        "set30": "הגדר ניסיון 30 יום",
+        "remove": "הסר ניסיון"
+      },
+      "subscription": {
+        "title": "מנוי שנתי",
+        "lessThan14": "⚠️ פחות מ-14 יום!",
+        "noSubscription": "ללא מנוי פעיל",
+        "daysLeftParen": "({days} ימים נותרו)",
+        "add1Month": "+1 חודש",
+        "add6Months": "+6 חודשים",
+        "addYear": "+שנה",
+        "remove": "הסר מנוי"
+      },
+      "period": {
+        "activeDaysLeft": "פעיל — {days} ימים נותרו",
+        "expired": "פג תוקף",
+        "endDate": "תאריך סיום: {date}",
+        "endNow": "סיים מיידית",
+        "updated": "✓ עודכן"
+      },
+      "featuresPanel": {
+        "title": "ניהול פיצ׳רים",
+        "activeOverrides": "{count} חריגות פעילות",
+        "resetAll": "אפס הכל",
+        "saveChanges": "שמור שינויים",
+        "legendDefault": "<strong>ברירת מחדל</strong> = לפי המנוי",
+        "legendOpen": "פתוח = Override פתיחה כפויה",
+        "legendBlocked": "חסום = Override חסימה כפויה",
+        "colFeature": "פיצ׳ר",
+        "colDefault": "ברירת מחדל",
+        "colDefaultByTier": "(לפי {tier})",
+        "colEffective": "בפועל",
+        "included": "כלול",
+        "notIncluded": "לא כלול",
+        "default": "ברירת מחדל",
+        "open": "פתוח",
+        "blocked": "חסום",
+        "saved": "✓ השינויים נשמרו בהצלחה"
+      },
+      "members": {
+        "title": "חברי צוות ({count})",
+        "addMember": "הוסף עובד",
+        "addFormTitle": "הוספת עובד חדש",
+        "fullNamePlaceholder": "שם מלא",
+        "emailPlaceholder": "אימייל",
+        "tempPasswordPlaceholder": "סיסמה זמנית (8+ תווים)",
+        "adding": "מוסיף...",
+        "empty": "אין חברי צוות",
+        "colUser": "משתמש",
+        "colRole": "תפקיד",
+        "colPlatformRole": "תפקיד פלטפורמה",
+        "colState": "מצב",
+        "colActions": "פעולות",
+        "suspendAccess": "השהה גישה",
+        "activateAccess": "הפעל גישה",
+        "removeFromBusiness": "הסר מהעסק"
+      },
+      "suspendDialog": {
+        "title": "להשהות את העסק \"{name}\"?",
+        "body": "כל המשתמשים של העסק ({count}) יאבדו גישה למערכת עד שהעסק יופעל מחדש. הנתונים נשמרים, וניתן להפעיל את העסק שוב בכל עת.",
+        "suspending": "משהה..."
+      },
+      "removeDialog": {
+        "title": "להסיר את {name} מהעסק?",
+        "body": "{name} ({email}) יוסר/תוסר מהצוות של \"{business}\" ויאבד/תאבד גישה לעסק. כדי להחזיר את הגישה יהיה צורך להוסיף אותו/ה מחדש.",
+        "removing": "מסיר..."
+      }
+    },
+    "ownerTenantsPage": {
+      "title": "עסקים",
+      "total": "{total} סה״כ",
+      "hiddenTest": " · {count} עסקי בדיקה מוסתרים",
+      "newTenant": "עסק חדש",
+      "filters": {
+        "searchPlaceholder": "חיפוש לפי שם עסק, בעלים, אימייל או טלפון...",
+        "allStatuses": "כל הסטטוסים",
+        "allTiers": "כל המנויים",
+        "showTest": "הצג חשבונות בדיקה"
+      },
+      "statuses": {
+        "active": "פעיל",
+        "suspended": "מושהה",
+        "closed": "סגור"
+      },
+      "tiers": {
+        "free": "חינמי",
+        "basic": "Basic",
+        "pro": "Pro",
+        "service_dog": "Service Dog (ארגוני)",
+        "groomer": "Groomer+ (legacy)"
+      },
+      "loadError": "שגיאה בטעינת נתונים: {message}",
+      "columns": {
+        "business": "עסק",
+        "owner": "בעלים",
+        "lastLogin": "כניסה אחרונה",
+        "subscription": "מנוי",
+        "members": "חברי צוות",
+        "status": "סטטוס",
+        "created": "נוצר",
+        "actions": "פעולות"
+      },
+      "testBadge": "בדיקה",
+      "noOwner": "ללא בעלים",
+      "rowActions": {
+        "suspend": "השהה",
+        "activate": "הפעל"
+      },
+      "empty": "לא נמצאו עסקים התואמים לחיפוש ולסינון",
+      "pagination": {
+        "pageOf": "עמוד {page} מתוך {totalPages}",
+        "prev": "הקודם",
+        "next": "הבא"
+      },
+      "subscriptionUntil": "מנוי עד {date}",
+      "trialUntil": "ניסיון עד {date}",
+      "relative": {
+        "never": "מעולם לא",
+        "justNow": "הרגע",
+        "minute": "לפני דקה",
+        "minutes": "לפני {count} דקות",
+        "hour": "לפני שעה",
+        "twoHours": "לפני שעתיים",
+        "hours": "לפני {count} שעות",
+        "yesterday": "אתמול",
+        "twoDays": "לפני יומיים",
+        "days": "לפני {count} ימים",
+        "month": "לפני חודש",
+        "twoMonths": "לפני חודשיים",
+        "months": "לפני {count} חודשים",
+        "year": "לפני שנה",
+        "twoYears": "לפני שנתיים",
+        "years": "לפני {count} שנים"
+      },
+      "toasts": {
+        "suspended": "העסק \"{name}\" הושהה",
+        "activated": "העסק \"{name}\" הופעל",
+        "actionFailed": "הפעולה נכשלה"
+      },
+      "suspendModal": {
+        "title": "להשהות את העסק \"{name}\"?",
+        "body": "כל המשתמשים של העסק ({count}) יאבדו גישה למערכת עד שהעסק יופעל מחדש. הנתונים נשמרים, וניתן להפעיל את העסק שוב בכל עת.",
+        "suspending": "משהה...",
+        "confirm": "השהה עסק"
+      },
+      "createdAlert": "העסק נוצר בהצלחה!\nמנהל עסק נוצר: {email}",
+      "createModal": {
+        "title": "עסק חדש",
+        "nameLabel": "שם העסק *",
+        "namePlaceholder": "לדוגמה: אילוף כלבים ישראל",
+        "emailLabel": "מייל",
+        "phoneLabel": "טלפון",
+        "tierLabel": "מנוי",
+        "tierOption": "{label} — {price}/חודש",
+        "addOwner": "הוספת מנהל עסק",
+        "ownerHint": "אם לא תמלא, תוכל להוסיף מנהל מאוחר יותר",
+        "ownerNameLabel": "שם מלא",
+        "ownerNamePlaceholder": "ישראל ישראלי",
+        "ownerEmailLabel": "אימייל",
+        "passwordLabel": "סיסמה (לפחות 8 תווים)",
+        "creating": "יוצר...",
+        "create": "צור עסק"
+      }
+    },
+    "ownerSearch": {
+      "placeholder": "חיפוש עסק, משתמש, אימייל או טלפון...",
+      "ariaLabel": "חיפוש בפאנל הניהול",
+      "searching": "מחפש...",
+      "noResults": "לא נמצאו תוצאות",
+      "businesses": "עסקים",
+      "suspended": "מושהה",
+      "users": "משתמשים",
+      "blocked": "חסום"
+    },
+    "ownerShell": {
+      "groups": {
+        "overview": "סקירה",
+        "clients": "לקוחות",
+        "communication": "תקשורת",
+        "compliance": "תאימות ויומנים",
+        "system": "מערכת"
+      },
+      "nav": {
+        "dashboard": "דשבורד",
+        "tenants": "עסקים",
+        "users": "משתמשים",
+        "customerSuccess": "בריאות לקוחות",
+        "support": "תמיכה",
+        "broadcast": "הודעות שידור",
+        "consents": "הסכמות תנאים",
+        "auditLogs": "יומן פעולות",
+        "mcp": "עוזרי AI (MCP)",
+        "migration": "ייבוא נתונים",
+        "settings": "הגדרות"
+      },
+      "platformAdmin": "ניהול פלטפורמה",
+      "closeMenu": "סגירת תפריט",
+      "openMenu": "פתיחת תפריט",
+      "supportBadgeTitle": "פניות שממתינות לתשובה",
+      "loggingOut": "מתנתק...",
+      "logout": "התנתק",
+      "backToApp": "חזרה לאפליקציה ←"
+    },
+    "usersDetailPage": {
+      "otherTier": "מסלול אחר",
+      "tierNotes": {
+        "service_dog": "ארגוני",
+        "groomer": "ישן"
+      },
+      "featureLabels": {
+        "gcal_sync": "סנכרון גוגל",
+        "payments": "תשלומים",
+        "invoicing": "חשבוניות",
+        "scheduled_messages": "תזכורות WhatsApp",
+        "automations": "אוטומציות",
+        "custom_messages": "הודעות מותאמות",
+        "training": "אילוף 1-על-1",
+        "training_groups": "קבוצות וסדנאות",
+        "boarding": "פנסיון",
+        "leads": "CRM / לידים",
+        "staff_management": "ניהול עובדים",
+        "excel_export": "ייצוא Excel",
+        "groomer_portfolio": "תיק עבודות לפני/אחרי",
+        "service_dogs": "כלבי שירות"
+      },
+      "memberRoles": {
+        "owner": "בעלים",
+        "manager": "מנהל",
+        "user": "משתמש",
+        "staff": "איש צוות",
+        "volunteer": "מתנדב"
+      },
+      "bizStatus": {
+        "active": "פעיל",
+        "suspended": "מושהה",
+        "closed": "סגור"
+      },
+      "features": {
+        "subscription": "מנוי",
+        "tierOption": "{tier} — {price}/חודש",
+        "tierOptionWithNote": "{tier} ({note}) — {price}/חודש",
+        "featuresLabel": "פיצ׳רים",
+        "resetAll": "אפס הכל ({count})",
+        "colFeature": "פיצ׳ר",
+        "colTierDefault": "ברירת מנוי",
+        "colOverride": "עקיפה",
+        "colEffective": "בפועל",
+        "default": "ברירה",
+        "effectiveOn": "פעיל",
+        "effectiveOff": "חסום"
+      },
+      "toasts": {
+        "unblocked": "החסימה בוטלה",
+        "blocked": "המשתמש נחסם והסשנים שלו נותקו",
+        "actionFailed": "הפעולה נכשלה",
+        "deleted": "המשתמש נמחק לצמיתות",
+        "deleteFailed": "מחיקת המשתמש נכשלה"
+      },
+      "loadError": "שגיאה בטעינת פרטי המשתמש",
+      "backToList": "חזרה לרשימת המשתמשים",
+      "status": {
+        "active": "פעיל",
+        "blocked": "חסום"
+      },
+      "block": {
+        "blocking": "חוסם...",
+        "blockUser": "חסום משתמש",
+        "unblocking": "מבטל חסימה...",
+        "unblock": "בטל חסימה",
+        "dialogAria": "אישור חסימת משתמש",
+        "title": "לחסום את {name}?",
+        "body": "המשתמש לא יוכל להתחבר למערכת, וכל הסשנים הפעילים שלו ינותקו מיד. אפשר לבטל את החסימה בכל עת."
+      },
+      "details": {
+        "title": "פרטי משתמש",
+        "name": "שם",
+        "email": "מייל",
+        "twoFaOn": "מופעל",
+        "twoFaOff": "לא מופעל",
+        "created": "נוצר",
+        "updated": "עודכן לאחרונה"
+      },
+      "role": {
+        "title": "תפקיד פלטפורמה",
+        "current": "תפקיד נוכחי",
+        "otherRole": "תפקיד אחר",
+        "noPlatformRole": "ללא תפקיד פלטפורמה",
+        "change": "שנה תפקיד",
+        "noRole": "ללא תפקיד",
+        "updating": "מעדכן תפקיד..."
+      },
+      "memberships": {
+        "title": "מנוי ופיצ׳רים לפי עסק",
+        "line": "{role} · {status} · מסלול {tier}",
+        "otherRole": "חבר צוות",
+        "unknownStatus": "מצב לא ידוע",
+        "inactive": " · חברות לא פעילה",
+        "none": "המשתמש לא משויך לאף עסק, ולכן אין מנוי או פיצ׳רים לניהול."
+      },
+      "danger": {
+        "title": "אזור מסוכן",
+        "body": "מחיקת המשתמש היא פעולה בלתי הפיכה. החשבון והגישה שלו לכל העסקים יימחקו לצמיתות.",
+        "deleteButton": "מחק משתמש לצמיתות"
+      },
+      "delete": {
+        "dialogAria": "אישור מחיקת משתמש",
+        "title": "מחיקת {name} לצמיתות",
+        "body": "הפעולה אינה ניתנת לביטול. החשבון, הסשנים והחברות של המשתמש בכל העסקים יימחקו. כדי לאשר, הקלידו את כתובת המייל של המשתמש:",
+        "inputAria": "הקלדת כתובת המייל לאישור המחיקה",
+        "confirm": "מחק לצמיתות"
+      }
+    },
+    "ownerUsersPage": {
+      "statusFilter": {
+        "all": "הכל",
+        "active": "פעילים",
+        "blocked": "חסומים"
+      },
+      "relative": {
+        "never": "מעולם לא",
+        "today": "היום",
+        "yesterday": "אתמול",
+        "twoDaysAgo": "לפני יומיים",
+        "daysAgo": "לפני {days} ימים",
+        "monthAgo": "לפני חודש",
+        "monthsAgo": "לפני {months} חודשים"
+      },
+      "toasts": {
+        "unblocked": "החסימה בוטלה",
+        "blocked": "המשתמש נחסם והסשנים שלו נותקו",
+        "actionFailed": "הפעולה נכשלה",
+        "created": "המשתמש נוצר"
+      },
+      "title": "משתמשים",
+      "subtitle": "כל משתמשי הפלטפורמה, העסק שלהם ורמת הפעילות · {total} סה״כ",
+      "newUser": "משתמש חדש",
+      "searchPlaceholder": "חיפוש לפי שם או מייל...",
+      "searchAria": "חיפוש משתמשים",
+      "statusFilterAria": "סינון לפי מצב",
+      "staffOnly": "צוות פלטפורמה בלבד",
+      "loadError": "שגיאה בטעינת נתונים: {message}",
+      "emptyFiltered": "לא נמצאו משתמשים שתואמים לחיפוש או לסינון. נסו לשנות את הסינון.",
+      "empty": "עדיין אין משתמשים בפלטפורמה.",
+      "columns": {
+        "user": "משתמש",
+        "business": "עסק",
+        "platformRole": "תפקיד פלטפורמה",
+        "joined": "הצטרפות",
+        "lastActivity": "פעילות אחרונה",
+        "score30": "ציון 30 יום",
+        "status": "מצב",
+        "actions": "פעולות"
+      },
+      "testBadge": "בדיקה",
+      "otherTier": "מסלול אחר",
+      "linkedBusinesses": "משויך ל-{count} עסקים",
+      "otherRole": "תפקיד אחר",
+      "twoFaOn": "מופעל",
+      "scoreTitle": "מספר פעולות ב-30 הימים האחרונים",
+      "status": {
+        "active": "פעיל",
+        "blocked": "חסום"
+      },
+      "details": "פרטים",
+      "block": "חסום",
+      "unblock": "בטל חסימה",
+      "pagination": {
+        "pageOf": "עמוד {page} מתוך {totalPages}",
+        "prev": "הקודם",
+        "next": "הבא"
+      },
+      "blockModal": {
+        "dialogAria": "אישור חסימת משתמש",
+        "title": "לחסום את {name}?",
+        "body": "המשתמש לא יוכל להתחבר למערכת, וכל הסשנים הפעילים שלו ינותקו מיד. אפשר לבטל את החסימה בכל עת.",
+        "blocking": "חוסם...",
+        "blockUser": "חסום משתמש"
+      },
+      "createModal": {
+        "title": "משתמש חדש",
+        "name": "שם *",
+        "namePlaceholder": "שם מלא",
+        "email": "מייל *",
+        "password": "סיסמה *",
+        "passwordPlaceholder": "לפחות 8 תווים",
+        "platformRole": "תפקיד פלטפורמה",
+        "noPlatformRole": "ללא תפקיד פלטפורמה",
+        "creating": "יוצר...",
+        "create": "צור משתמש"
+      }
+    }
+  },
   "payments": {
     "paymentRequestPage": {
       "title": "בקשת תשלום",
@@ -8136,6 +10898,111 @@
       "tierGate": {
         "title": "ניהול תמחור ושירותים",
         "description": "הגדר שירותים, מחירונים ופריטי חיוב. הכלי הבסיסי לניהול הכנסות של העסק."
+      }
+    }
+  },
+  "publicIntake": {
+    "intakeDetailPage": {
+      "steps": {
+        "dogDetails": "פרטי הכלב",
+        "health": "בריאות",
+        "behavior": "התנהגות",
+        "medications": "תרופות"
+      },
+      "behaviorFlags": {
+        "dogAggression": "תוקפנות כלפי כלבים",
+        "humanAggression": "תוקפנות כלפי בני אדם",
+        "leashReactivity": "תגובתיות ברצועה",
+        "leashPulling": "משיכה ברצועה",
+        "jumping": "קפיצה על אנשים",
+        "separationAnxiety": "חרדת נטישה",
+        "excessiveBarking": "נביחות מוגזמות",
+        "destruction": "הרס חפצים",
+        "resourceGuarding": "שמירת משאבים",
+        "fears": "פחדים (רעשים, זיקוקים)",
+        "badWithKids": "בעייתי עם ילדים",
+        "houseSoiling": "עושה צרכים בבית",
+        "biteHistory": "היסטוריית נשיכות"
+      },
+      "errors": {
+        "loadFailed": "שגיאה בטעינת הטופס",
+        "saveFailed": "שגיאה בשמירה",
+        "submitFailed": "שגיאה בשליחת הטופס"
+      },
+      "errorState": {
+        "contactBusiness": "פנה לבעל העסק לקבלת קישור חדש"
+      },
+      "success": {
+        "title": "הטופס נשלח בהצלחה!",
+        "thanks": "תודה שמילאת את טופס הקליטה"
+      },
+      "header": {
+        "title": "טופס קליטה"
+      },
+      "dog": {
+        "nameLabel": "שם הכלב *",
+        "breedLabel": "גזע",
+        "genderLabel": "מין",
+        "genderSelect": "בחר",
+        "genderMale": "זכר",
+        "genderFemale": "נקבה",
+        "weightLabel": "משקל (ק\"ג)",
+        "birthDateLabel": "תאריך לידה"
+      },
+      "owner": {
+        "sectionTitle": "פרטי בעלים",
+        "nameLabel": "שם הבעלים *",
+        "phoneLabel": "טלפון *"
+      },
+      "health": {
+        "allergiesLabel": "אלרגיות",
+        "allergiesPlaceholder": "פרט אלרגיות ידועות...",
+        "conditionsLabel": "מצבים רפואיים",
+        "conditionsPlaceholder": "מצבים רפואיים קיימים...",
+        "surgeriesLabel": "ניתוחים בעבר",
+        "surgeriesPlaceholder": "אם עבר ניתוחים — פרט סוג ותאריך...",
+        "activityLabel": "מגבלות פעילות",
+        "activityPlaceholder": "האם יש מגבלות על פעילות גופנית? פרט...",
+        "foodLabel": "הוראות האכלה / אוכל",
+        "foodPlaceholder": "כמה ארוחות ביום, איזה מזון, כמות...",
+        "vetNameLabel": "שם וטרינר",
+        "vetPhoneLabel": "טלפון וטרינר",
+        "neuteredLabel": "מסורס/מעוקרת?",
+        "originLabel": "מאיפה הכלב? (מקור)",
+        "originPlaceholder": "מגדל, כלביה, אימוץ...",
+        "timeWithOwnerLabel": "כמה זמן הכלב אצלכם?",
+        "timeWithOwnerPlaceholder": "שנתיים, 3 חודשים..."
+      },
+      "yesNo": {
+        "yes": "כן",
+        "no": "לא"
+      },
+      "behavior": {
+        "markRelevant": "סמן את הבעיות הרלוונטיות",
+        "biteDetailsLabel": "פרט על היסטוריית נשיכות",
+        "triggersLabel": "טריגרים ידועים",
+        "triggersPlaceholder": "מה גורם לבעיות ההתנהגות...",
+        "notesLabel": "הערות התנהגות נוספות",
+        "notesPlaceholder": "פרט כל מידע נוסף על התנהגות הכלב...",
+        "priorTrainingLabel": "עבר אילוף קודם?",
+        "priorTrainingPlaceholder": "פרט על האילוף הקודם..."
+      },
+      "medications": {
+        "itemTitle": "תרופה {n}",
+        "remove": "הסר",
+        "namePlaceholder": "שם התרופה",
+        "dosagePlaceholder": "מינון",
+        "frequencyPlaceholder": "תדירות",
+        "add": "+ הוסף תרופה",
+        "noneHint": "אם הכלב לא לוקח תרופות, המשך לשליחה"
+      },
+      "submit": {
+        "sending": "שולח...",
+        "button": "שלח טופס קליטה"
+      },
+      "nav": {
+        "back": "חזור",
+        "next": "הבא"
       }
     }
   },
@@ -11394,6 +14261,83 @@
         "createdPets": "חיות נוצרו",
         "importMore": "ייבוא נוסף",
         "retry": "נסה שוב"
+      }
+    }
+  },
+  "sign": {
+    "signDetailPage": {
+      "fieldLabels": {
+        "customer_name": "שם מלא",
+        "id_number": "תעודת זהות",
+        "address": "כתובת",
+        "phone": "טלפון",
+        "pet_name": "שם הכלב",
+        "pet_breed": "גזע",
+        "pet_microchip": "שבב",
+        "pet_birthdate": "תאריך לידה",
+        "pet_gender": "מין",
+        "pet_color": "צבע"
+      },
+      "errors": {
+        "loadFailed": "שגיאה בטעינת החוזה",
+        "network": "שגיאת רשת",
+        "tryAgain": "שגיאה. נסה שוב.",
+        "networkTryAgain": "שגיאת רשת. נסה שוב."
+      },
+      "alreadySigned": {
+        "title": "החוזה כבר נחתם ✅",
+        "line1": "החתימה כבר התקבלה ונשמרה בהצלחה.",
+        "line2": "אין צורך לחתום שוב.",
+        "canClose": "אפשר לסגור את העמוד"
+      },
+      "expired": {
+        "title": "תוקף הקישור פג ⏳",
+        "line1": "הקישור לחתימה כבר אינו בתוקף.",
+        "line2": "פנה לעסק ובקש שישלחו לך קישור חדש לחתימה."
+      },
+      "loadError": {
+        "title": "לא ניתן לטעון את החוזה"
+      },
+      "signedDone": {
+        "title": "החוזה נחתם בהצלחה!",
+        "thanks": "תודה, {name}.",
+        "receivedBy": "החתימה שלך התקבלה אצל <b>{business}</b>.",
+        "document": "מסמך",
+        "statusSigned": "נחתם",
+        "status": "סטטוס",
+        "download": "הורד עותק של החוזה החתום",
+        "canClose": "ניתן לסגור את הדף"
+      },
+      "footer": {
+        "secureSignature": "חתימה דיגיטלית מאובטחת"
+      },
+      "topBar": {
+        "sign": "חתום"
+      },
+      "summary": {
+        "title": "הפרטים שיופיעו בחוזה"
+      },
+      "read": {
+        "title": "קרא את החוזה",
+        "openPdf": "פתח PDF בחלון חדש",
+        "cannotDisplay": "לא ניתן להציג את המסמך כאן",
+        "nextPage": "עמוד הבא ({page} מתוך {total})",
+        "confirmed": "קראתי את החוזה ✓",
+        "confirmAndContinue": "קראתי את החוזה — המשך לחתימה"
+      },
+      "signature": {
+        "title": "חתום כאן",
+        "recorded": "✓ חתימה נרשמה",
+        "signHere": "חתום בתיבה זו",
+        "clear": "נקה וחתום שוב",
+        "consent": "קראתי את <b>{template}</b> של {business}, הבנתי את תנאיו ואני מסכים לחתום עליו."
+      },
+      "submit": {
+        "sending": "שולח...",
+        "confirmReadFirst": "אשר קריאת החוזה כדי לחתום",
+        "signAboveFirst": "חתום בתיבה למעלה כדי להמשיך",
+        "button": "שלח חתימה ואשר",
+        "notice": "לחיצה תשלח את חתימתך. החוזה החתום יישמר ויישלח ל{business}."
       }
     }
   },

@@ -1,26 +1,28 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 
-const CLIENTS = [
-  { src: "/clients/shalom-lekelev.png",  alt: "שלום לכלב" },
-  { src: "/clients/iluf-bachan.png",      alt: "אילוף בחן" },
+const CLIENTS: { src: string; alt?: string; altKey?: string }[] = [
+  { src: "/clients/shalom-lekelev.png",  altKey: "shalomLekelev" },
+  { src: "/clients/iluf-bachan.png",      altKey: "ilufBachan" },
   { src: "/clients/dog-island.png",       alt: "Dog Island" },
-  { src: "/clients/nadav-meamen.png",     alt: "נדב מאמן הכלבים" },
-  { src: "/clients/liad-yosef.png",       alt: "ליעד יוסף אילוף כלבים" },
-  { src: "/clients/beikevot-hartzua.png", alt: "בעקבות הרצועה" },
-  { src: "/clients/itiel.png",            alt: "איתיאל כלבנות" },
+  { src: "/clients/nadav-meamen.png",     altKey: "nadavMeamen" },
+  { src: "/clients/liad-yosef.png",       altKey: "liadYosef" },
+  { src: "/clients/beikevot-hartzua.png", altKey: "beikevotHartzua" },
+  { src: "/clients/itiel.png",            altKey: "itiel" },
   { src: "/clients/doglogic.png",         alt: "DogLogic" },
-  { src: "/clients/simba-service.png",    alt: "סימבה כלבי שירות" },
+  { src: "/clients/simba-service.png",    altKey: "simbaService" },
 ];
 
-export function ClientsMarquee() {
+export async function ClientsMarquee() {
+  const t = await getTranslations("landing.clientsMarquee");
   const track = [...CLIENTS, ...CLIENTS];
 
   return (
     <section
       id="clients"
-      aria-label="לקוחות פטרה"
+      aria-label={t("sectionLabel")}
       className="relative py-16 bg-slate-950 overflow-hidden"
     >
       <style>{`
@@ -62,8 +64,8 @@ export function ClientsMarquee() {
 
       {/* Header */}
       <div className="text-center mb-12 px-4">
-        <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">עסקים כמוכם כבר בפטרה.</h2>
-        <p className="text-slate-300 text-base">מאלפים, גרומרים ומנהלי פנסיונים משתמשים בפטרה כדי לעשות סדר ביום העבודה ולהתעסק פחות בניהול.</p>
+        <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">{t("title")}</h2>
+        <p className="text-slate-300 text-base">{t("subtitle")}</p>
       </div>
 
       {/* Track — force LTR so translateX(-50%) works correctly on RTL pages.
@@ -82,7 +84,7 @@ export function ClientsMarquee() {
             <div key={i} className="petra-logo-item">
               <Image
                 src={c.src}
-                alt={c.alt}
+                alt={c.altKey ? t(`clients.${c.altKey}`) : (c.alt ?? "")}
                 width={120}
                 height={60}
                 className="object-contain"
@@ -95,9 +97,9 @@ export function ClientsMarquee() {
       {/* Stats */}
       <div className="mt-12 flex items-center justify-center gap-10 px-4 flex-wrap">
         {[
-          { num: "130", label: "עסקים פעילים בישראל" },
-          { num: "5,000+", label: "תורים שנקבעו במערכת" },
-          { num: "98%", label: "שביעות רצון" },
+          { num: "130", label: t("stats.businesses") },
+          { num: "5,000+", label: t("stats.appointments") },
+          { num: "98%", label: t("stats.satisfaction") },
         ].map(({ num, label }) => (
           <div key={label} className="text-center">
             <div className="text-2xl font-bold text-brand-400">{num}</div>
@@ -112,8 +114,8 @@ export function ClientsMarquee() {
           className="inline-flex items-center gap-2 rounded-xl px-8 py-3.5 text-[15px] font-semibold text-white lp-press focus:outline-none focus:ring-2 focus:ring-brand-400"
           style={{ background: "#C2410C" }}
         >
-          התחילו בחינם
-          <ChevronLeft className="w-4 h-4" aria-hidden="true" />
+          {t("cta")}
+          <ChevronLeft className="w-4 h-4 ltr:-scale-x-100" aria-hidden="true" />
         </Link>
       </div>
     </section>

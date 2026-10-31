@@ -21,6 +21,9 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
+import { currencySymbol } from "@/lib/format";
 import { fetchJSON, cn } from "@/lib/utils";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import {
@@ -96,17 +99,22 @@ interface AuditLog {
 
 const DAY_MS = 86_400_000;
 
-function daysLeftLabel(endsAt: string | null): string {
+/** Platform subscription prices / MRR are billed in ILS (data, not the viewer's business currency). */
+const PLATFORM_CURRENCY = "ILS"; // i18n-ok
+
+type OwnerPageT = ReturnType<typeof useTranslations<"owner.ownerPage">>;
+
+function daysLeftLabel(endsAt: string | null, t: OwnerPageT): string {
   if (!endsAt) return "";
   const days = Math.max(0, Math.ceil((new Date(endsAt).getTime() - Date.now()) / DAY_MS));
-  if (days <= 0) return "פג היום";
-  if (days === 1) return "נותר יום אחד";
-  return `נותרו ${days} ימים`;
+  if (days <= 0) return t("attention.expiresToday");
+  if (days === 1) return t("attention.oneDayLeft");
+  return t("attention.daysLeft", { days });
 }
 
-/** "2026-10-02" → "02.10" */
-function shortDate(iso: string): string {
-  return `${iso.slice(8, 10)}.${iso.slice(5, 7)}`;
+/** "2026-10-02" → "02.10" (he) / "10/02" (en) */
+function shortDate(iso: string, t: OwnerPageT): string {
+  return t("usage.shortDate", { day: iso.slice(8, 10), month: iso.slice(5, 7) });
 }
 
 function StatCard({
@@ -169,6 +177,7 @@ function AttentionLinkCard({
   label: string;
   cta: string;
 }) {
+  const t = useTranslations("owner.ownerPage");
   return (
     <Link
       href={href}
@@ -185,13 +194,16 @@ function AttentionLinkCard({
           <span className="text-lg font-bold me-1.5">{count.toLocaleString()}</span>
           {label}
         </div>
-        <div className={cn("text-xs mt-0.5", tone === "red" ? "text-red-700" : "text-amber-700")}>{cta} ←</div>
+        <div className={cn("text-xs mt-0.5", tone === "red" ? "text-red-700" : "text-amber-700")}>{t("attention.ctaArrow", { cta })}</div>
       </div>
     </Link>
   );
 }
 
 export default function OwnerDashboard() {
+  const t = useTranslations("owner.ownerPage");
+  const { locale } = useBusinessLocale();
+  const sym = currencySymbol({ locale, currency: PLATFORM_CURRENCY });
   const [includeTest, setIncludeTest] = useState(false);
 
   const {
@@ -233,11 +245,11 @@ export default function OwnerDashboard() {
       {/* 1. Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
-          <h1 className="page-title">דשבורד פלטפורמה</h1>
-          <p className="text-sm text-slate-500 mt-1">מה דורש טיפול, הכנסות ושימוש בפלטפורמה</p>
+          <h1 className="page-title">{t("header.title")}</h1>
+          <p className="text-sm text-slate-500 mt-1">{t("header.subtitle")}</p>
           {stats && !includeTest && stats.excludedTestBusinesses > 0 && (
             <p className="text-xs text-slate-500 mt-1">
-              {stats.excludedTestBusinesses} עסקי בדיקה מוחרגים מהמדדים
+              {t("header.excludedTest", { count: stats.excludedTestBusinesses })}
             </p>
           )}
         </div>
@@ -249,7 +261,7 @@ export default function OwnerDashboard() {
               checked={includeTest}
               onChange={(e) => setIncludeTest(e.target.checked)}
             />
-            הצג חשבונות בדיקה
+            {t("header.showTest")}
           </label>
         </div>
       </div>
@@ -258,17 +270,17 @@ export default function OwnerDashboard() {
         <PetraLoader />
       ) : statsError || !stats ? (
         <div className="card p-8 text-center text-sm text-slate-500 mb-8">
-          לא הצלחנו לטעון את נתוני הדשבורד. נסו לרענן את העמוד.
+          {t("loadError")}
         </div>
       ) : (
         <>
           {/* 2. Needs attention */}
           <section className="mb-8">
-            <SectionTitle>דורש טיפול</SectionTitle>
+            <SectionTitle>{t("attention.title")}</SectionTitle>
             {!hasAttention || !attention ? (
               <div className="flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-800">
                 <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-green-600" />
-                אין פריטים שדורשים טיפול
+                {t("attention.none")}
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 items-start">
@@ -278,8 +290,8 @@ export default function OwnerDashboard() {
                     icon={LifeBuoy}
                     tone="amber"
                     count={attention.openSupportTickets}
-                    label="פניות תמיכה פתוחות"
-                    cta="לטיפול בפניות"
+                    label={t("attention.openTickets")}
+                    cta={t("attention.openTicketsCta")}
                   />
                 )}
 
@@ -289,7 +301,7 @@ export default function OwnerDashboard() {
                       <AlertTriangle className="w-5 h-5 flex-shrink-0 text-amber-600" />
                       <div className="text-sm font-semibold text-amber-900">
                         <span className="text-lg font-bold me-1.5">{expiringSoon.length}</span>
-                        מנויים יפוגו תוך 7 ימים
+                        {t("attention.expiringIn7")}
                       </div>
                     </div>
                     <ul className="mt-2 space-y-1">
@@ -301,7 +313,7 @@ export default function OwnerDashboard() {
                           >
                             <span className="font-medium text-amber-900 truncate">{b.name}</span>
                             <span className="text-amber-700 flex-shrink-0">
-                              {daysLeftLabel(b.subscriptionEndsAt)}
+                              {daysLeftLabel(b.subscriptionEndsAt, t)}
                             </span>
                           </Link>
                         </li>
@@ -316,8 +328,8 @@ export default function OwnerDashboard() {
                     icon={PauseCircle}
                     tone="red"
                     count={attention.suspendedTenants}
-                    label="עסקים מושהים"
-                    cta="לרשימת המושהים"
+                    label={t("attention.suspended")}
+                    cta={t("attention.suspendedCta")}
                   />
                 )}
 
@@ -327,8 +339,8 @@ export default function OwnerDashboard() {
                     icon={Bot}
                     tone="red"
                     count={attention.mcpErrors24h}
-                    label="שגיאות עוזר AI ב-24 שעות"
-                    cta="לבדיקת השגיאות"
+                    label={t("attention.mcpErrors")}
+                    cta={t("attention.mcpErrorsCta")}
                   />
                 )}
               </div>
@@ -337,36 +349,36 @@ export default function OwnerDashboard() {
 
           {/* 3. Revenue */}
           <section className="mb-8">
-            <SectionTitle>הכנסות</SectionTitle>
+            <SectionTitle>{t("revenue.title")}</SectionTitle>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
               <StatCard
                 icon={TrendingUp}
                 iconClass="text-green-600"
                 title="MRR"
-                value={`₪${stats.mrr.toLocaleString()}`}
-                sub="הכנסה חוזרת חודשית"
+                value={`${sym}${stats.mrr.toLocaleString()}`}
+                sub={t("revenue.mrrSub")}
               />
               <StatCard
                 icon={Building2}
                 iconClass="text-blue-600"
-                title="עסקים פעילים"
+                title={t("revenue.activeTenants")}
                 value={stats.activeTenants.toLocaleString()}
-                sub={`מתוך ${stats.totalTenants.toLocaleString()} סה״כ`}
+                sub={t("revenue.ofTotal", { total: stats.totalTenants.toLocaleString() })}
                 href="/owner/tenants"
               />
               <StatCard
                 icon={CreditCard}
                 iconClass="text-orange-500"
-                title="מנויים משלמים"
+                title={t("revenue.paying")}
                 value={stats.activeSubscriptions.toLocaleString()}
-                sub="מנוי פעיל בתשלום"
+                sub={t("revenue.payingSub")}
               />
               <StatCard
                 icon={Clock}
                 iconClass="text-amber-500"
-                title="בתקופת ניסיון"
+                title={t("revenue.trial")}
                 value={stats.trialCount.toLocaleString()}
-                sub="ניסיון פעיל"
+                sub={t("revenue.trialSub")}
               />
             </div>
 
@@ -374,46 +386,46 @@ export default function OwnerDashboard() {
               <div className="card overflow-hidden lg:col-span-2">
                 <div className="px-5 py-3 border-b border-slate-100 flex items-center gap-2">
                   <TrendingUp className="w-4 h-4 text-orange-500" />
-                  <h3 className="font-semibold text-slate-900 text-sm">פירוט לפי מנוי</h3>
+                  <h3 className="font-semibold text-slate-900 text-sm">{t("revenue.byTier")}</h3>
                 </div>
                 {tierRows.length === 0 ? (
                   <div className="px-5 py-8 text-center text-sm text-slate-500">
-                    אין עסקים פעילים להצגה.
+                    {t("revenue.noActive")}
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full">
                       <thead>
                         <tr className="border-b border-slate-100">
-                          <th className="table-header-cell">מנוי</th>
-                          <th className="table-header-cell text-center">עסקים</th>
-                          <th className="table-header-cell text-center">מחיר/חודש</th>
-                          <th className="table-header-cell text-center">תרומה ל-MRR</th>
+                          <th className="table-header-cell">{t("revenue.colTier")}</th>
+                          <th className="table-header-cell text-center">{t("revenue.colBusinesses")}</th>
+                          <th className="table-header-cell text-center">{t("revenue.colPrice")}</th>
+                          <th className="table-header-cell text-center">{t("revenue.colContribution")}</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {tierRows.map((row) => (
                           <tr key={row.tier} className="hover:bg-slate-50">
                             <td className="table-cell font-medium text-sm text-slate-900">
-                              {TIER_LABELS[row.tier] ?? "מנוי אחר"}
+                              {TIER_LABELS[row.tier] ?? t("revenue.otherTier")}
                             </td>
                             <td className="table-cell text-center text-sm text-slate-700">{row.count}</td>
                             <td className="table-cell text-center text-sm text-slate-700">
-                              ₪{row.pricePerMonth.toLocaleString()}
+                              {sym}{row.pricePerMonth.toLocaleString()}
                             </td>
                             <td className="table-cell text-center font-semibold text-sm text-green-700">
-                              ₪{row.contribution.toLocaleString()}
+                              {sym}{row.contribution.toLocaleString()}
                             </td>
                           </tr>
                         ))}
                         <tr className="bg-slate-50 border-t-2 border-slate-200">
-                          <td className="table-cell font-bold text-slate-900">סה״כ</td>
+                          <td className="table-cell font-bold text-slate-900">{t("revenue.total")}</td>
                           <td className="table-cell text-center font-bold text-slate-900">
                             {stats.activeTenants}
                           </td>
                           <td className="table-cell" />
                           <td className="table-cell text-center font-bold text-green-700">
-                            ₪{stats.mrr.toLocaleString()}
+                            {sym}{stats.mrr.toLocaleString()}
                           </td>
                         </tr>
                       </tbody>
@@ -425,11 +437,11 @@ export default function OwnerDashboard() {
               <div className="card overflow-hidden">
                 <div className="px-5 py-3 border-b border-slate-100 flex items-center gap-2">
                   <Zap className="w-4 h-4 text-green-600" />
-                  <h3 className="font-semibold text-slate-900 text-sm">הפעלות אחרונות</h3>
+                  <h3 className="font-semibold text-slate-900 text-sm">{t("revenue.recentActivations")}</h3>
                 </div>
                 {stats.recentPayments.length === 0 ? (
                   <div className="px-5 py-8 text-center text-sm text-slate-500">
-                    עדיין לא הופעלו מנויים.
+                    {t("revenue.noActivations")}
                   </div>
                 ) : (
                   <div className="divide-y divide-slate-100">
@@ -445,11 +457,11 @@ export default function OwnerDashboard() {
                               {p.business.name}
                             </Link>
                           ) : (
-                            <div className="text-sm text-slate-500">עסק שנמחק</div>
+                            <div className="text-sm text-slate-500">{t("revenue.deletedBusiness")}</div>
                           )}
                         </div>
                         <span className="text-xs text-slate-500 flex-shrink-0">
-                          {new Date(p.createdAt).toLocaleDateString("he-IL")}
+                          {new Date(p.createdAt).toLocaleDateString(locale)}
                         </span>
                       </div>
                     ))}
@@ -461,33 +473,33 @@ export default function OwnerDashboard() {
 
           {/* 4. Usage */}
           <section className="mb-8">
-            <SectionTitle hint="30 הימים האחרונים">שימוש</SectionTitle>
+            <SectionTitle hint={t("usage.hint")}>{t("usage.title")}</SectionTitle>
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
               <StatCard
                 icon={Users}
                 iconClass="text-blue-600"
-                title="משתמשים פעילים בחודש"
+                title={t("usage.mau")}
                 value={stats.usage.mau.toLocaleString()}
                 sub="MAU"
               />
               <StatCard
                 icon={UserCheck}
                 iconClass="text-green-600"
-                title="פעילים היום"
+                title={t("usage.activeToday")}
                 value={stats.usage.activeToday.toLocaleString()}
               />
               <StatCard
                 icon={UserPlus}
                 iconClass="text-orange-500"
-                title="נרשמו ב-7 ימים"
+                title={t("usage.signups7d")}
                 value={stats.usage.newSignups7d.toLocaleString()}
               />
               <StatCard
                 icon={Users}
                 iconClass="text-slate-600"
-                title="סה״כ משתמשים"
+                title={t("usage.totalUsers")}
                 value={stats.totalUsers.toLocaleString()}
-                sub={`${stats.blockedUsers.toLocaleString()} חסומים`}
+                sub={t("usage.blocked", { count: stats.blockedUsers.toLocaleString() })}
                 href="/owner/users"
               />
               <StatCard
@@ -495,7 +507,7 @@ export default function OwnerDashboard() {
                 iconClass="text-indigo-600"
                 title="Google Calendar"
                 value={stats.gcalConnectedCount.toLocaleString()}
-                sub="משתמשים מחוברים"
+                sub={t("usage.connectedUsers")}
               />
             </div>
 
@@ -503,13 +515,13 @@ export default function OwnerDashboard() {
               <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
                 <div className="flex items-center gap-2">
                   <Activity className="w-4 h-4 text-orange-500" />
-                  <h3 className="font-semibold text-slate-900 text-sm">פעילות יומית — 14 ימים</h3>
+                  <h3 className="font-semibold text-slate-900 text-sm">{t("usage.dailyTitle")}</h3>
                 </div>
-                <span className="text-xs text-slate-500">{dailyTotal.toLocaleString()} פעולות</span>
+                <span className="text-xs text-slate-500">{t("usage.actions", { count: dailyTotal.toLocaleString(), n: dailyTotal })}</span>
               </div>
               {dailyTotal === 0 ? (
                 <div className="py-8 text-center text-sm text-slate-500">
-                  לא נרשמה פעילות ב-14 הימים האחרונים.
+                  {t("usage.noDaily")}
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -518,7 +530,7 @@ export default function OwnerDashboard() {
                       <div
                         key={d.date}
                         className="flex-1 min-w-0 flex flex-col items-center"
-                        title={`${shortDate(d.date)} — ${d.count.toLocaleString()} פעולות`}
+                        title={t("usage.dayTitle", { date: shortDate(d.date, t), count: d.count.toLocaleString(), n: d.count })}
                       >
                         <span className="text-[10px] leading-4 text-slate-600 tabular-nums">
                           {d.count.toLocaleString()}
@@ -535,7 +547,7 @@ export default function OwnerDashboard() {
                           />
                         </div>
                         <span className="text-[10px] leading-4 text-slate-500 mt-1 tabular-nums">
-                          {shortDate(d.date)}
+                          {shortDate(d.date, t)}
                         </span>
                       </div>
                     ))}
@@ -547,11 +559,11 @@ export default function OwnerDashboard() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="card overflow-hidden">
                 <div className="px-5 py-3 border-b border-slate-100">
-                  <h3 className="font-semibold text-slate-900 text-sm">משתמשים פעילים ביותר</h3>
+                  <h3 className="font-semibold text-slate-900 text-sm">{t("usage.topUsers")}</h3>
                 </div>
                 {topUsers.length === 0 ? (
                   <div className="px-5 py-8 text-center text-sm text-slate-500">
-                    אין פעילות משתמשים ב-30 הימים האחרונים.
+                    {t("usage.noTopUsers")}
                   </div>
                 ) : (
                   <div className="divide-y divide-slate-100">
@@ -565,10 +577,10 @@ export default function OwnerDashboard() {
                           {i + 1}
                         </span>
                         <span className="flex-1 min-w-0 text-sm font-medium text-slate-900 truncate">
-                          {u.userName?.trim() || "משתמש ללא שם"}
+                          {u.userName?.trim() || t("usage.unnamedUser")}
                         </span>
                         <span className="text-xs text-slate-500 flex-shrink-0">
-                          {u.count.toLocaleString()} פעולות
+                          {t("usage.actions", { count: u.count.toLocaleString(), n: u.count })}
                         </span>
                       </Link>
                     ))}
@@ -578,11 +590,11 @@ export default function OwnerDashboard() {
 
               <div className="card overflow-hidden">
                 <div className="px-5 py-3 border-b border-slate-100">
-                  <h3 className="font-semibold text-slate-900 text-sm">התפלגות פעולות</h3>
+                  <h3 className="font-semibold text-slate-900 text-sm">{t("usage.byAction")}</h3>
                 </div>
                 {byAction.length === 0 ? (
                   <div className="px-5 py-8 text-center text-sm text-slate-500">
-                    אין פעולות להצגה ב-30 הימים האחרונים.
+                    {t("usage.noByAction")}
                   </div>
                 ) : (
                   <div className="p-4 space-y-3">
@@ -614,16 +626,16 @@ export default function OwnerDashboard() {
       <section>
         <div className="card overflow-hidden">
           <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between gap-2">
-            <h2 className="font-semibold text-slate-900 text-sm">פעולות אדמין אחרונות</h2>
+            <h2 className="font-semibold text-slate-900 text-sm">{t("audit.title")}</h2>
             <Link href="/owner/audit-logs" className="text-xs font-medium text-orange-600 hover:text-orange-700">
-              הצג הכל ←
+              {t("audit.viewAll")}
             </Link>
           </div>
           {logsLoading ? (
             <PetraLoader variant="inline" />
           ) : logs.length === 0 ? (
             <div className="px-5 py-8 text-center text-sm text-slate-500">
-              עדיין לא נרשמו פעולות אדמין.
+              {t("audit.empty")}
             </div>
           ) : (
             <div className="divide-y divide-slate-100">
@@ -631,7 +643,7 @@ export default function OwnerDashboard() {
                 const target =
                   log.targetName?.trim() ||
                   (log.targetType ? TARGET_TYPE_LABELS[log.targetType] : undefined);
-                const actor = log.actor?.name?.trim() || log.actor?.email || "מערכת";
+                const actor = log.actor?.name?.trim() || log.actor?.email || t("audit.system");
                 return (
                   <div key={log.id} className="px-5 py-3 flex flex-wrap items-center gap-x-3 gap-y-1">
                     <span className="badge badge-neutral flex-shrink-0">{auditActionLabel(log.action)}</span>
@@ -640,7 +652,7 @@ export default function OwnerDashboard() {
                       {target && <span className="text-slate-500"> · {target}</span>}
                     </span>
                     <span className="text-xs text-slate-500 flex-shrink-0">
-                      {new Date(log.timestamp).toLocaleString("he-IL")}
+                      {new Date(log.timestamp).toLocaleString(locale)}
                     </span>
                   </div>
                 );

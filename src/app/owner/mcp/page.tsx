@@ -5,6 +5,8 @@ import { Bot, Activity, CheckCircle2, AlertCircle, TrendingUp, Clock } from "luc
 import { cn } from "@/lib/utils";
 import { isExpectedMcpError } from "@/lib/mcp-error-kind";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 
 interface McpStats {
   totalConnections: number;
@@ -26,16 +28,21 @@ interface McpStats {
   }>;
 }
 
-const TOOL_LABELS: Record<string, string> = {
-  list_clients: "רשימת לקוחות",
-  list_upcoming_appointments: "תורים קרובים",
-  get_business_stats: "סטטיסטיקות",
-  create_appointment: "יצירת תור",
-  add_client_note: "הוספת הערה",
-  send_reminder: "שליחת תזכורת",
-};
+/** Tools with a translated label under `owner.ownerMcpPage.tools.*`. */
+const LABELLED_TOOLS = new Set([
+  "list_clients",
+  "list_upcoming_appointments",
+  "get_business_stats",
+  "create_appointment",
+  "add_client_note",
+  "send_reminder",
+]);
 
 export default function OwnerMcpPage() {
+  const t = useTranslations("owner.ownerMcpPage");
+  const { locale } = useBusinessLocale();
+  const toolLabel = (tool: string | undefined): string | undefined =>
+    tool && LABELLED_TOOLS.has(tool) ? t(`tools.${tool}`) : undefined;
   const { data, isLoading } = useQuery<McpStats>({
     queryKey: ["owner-mcp-stats"],
     queryFn: () => fetch("/api/owner/mcp-stats").then((r) => r.json()),
@@ -55,34 +62,34 @@ export default function OwnerMcpPage() {
           <Bot className="w-5 h-5 text-white" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-slate-800">MCP — עוזרי AI</h1>
-          <p className="text-sm text-slate-500">מעקב קריאות, שגיאות וחיבורים פעילים</p>
+          <h1 className="text-xl font-bold text-slate-800">{t("title")}</h1>
+          <p className="text-sm text-slate-500">{t("subtitle")}</p>
         </div>
       </div>
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard icon={Bot} label="חיבורים פעילים" value={data.activeConnections} sub={`${data.totalConnections} סה"כ`} color="indigo" />
-        <StatCard icon={Activity} label="קריאות 24 שעות" value={data.calls24h} sub={`${data.calls7d} ב-7 ימים`} color="emerald" />
-        <StatCard icon={AlertCircle} label="שגיאות 24 שעות" value={data.errors24h} sub={`${data.errorRate24h}% error rate${data.expectedErrors24h ? ` · ${data.expectedErrors24h} תשובות צפויות` : ""}`} color={data.errors24h > 5 ? "red" : "slate"} />
-        <StatCard icon={TrendingUp} label="כלי פופולרי" value={TOOL_LABELS[data.popularTools[0]?.tool] ?? "—"} sub={`${data.popularTools[0]?.count ?? 0} פעמים / 30 ימים`} color="violet" />
+        <StatCard icon={Bot} label={t("stats.activeConnections")} value={data.activeConnections} sub={t("stats.totalConnections", { count: data.totalConnections })} color="indigo" />
+        <StatCard icon={Activity} label={t("stats.calls24h")} value={data.calls24h} sub={t("stats.calls7d", { count: data.calls7d })} color="emerald" />
+        <StatCard icon={AlertCircle} label={t("stats.errors24h")} value={data.errors24h} sub={`${t("stats.errorRate", { rate: data.errorRate24h })}${data.expectedErrors24h ? t("stats.expectedErrors", { count: data.expectedErrors24h }) : ""}`} color={data.errors24h > 5 ? "red" : "slate"} />
+        <StatCard icon={TrendingUp} label={t("stats.popularTool")} value={toolLabel(data.popularTools[0]?.tool) ?? "—"} sub={t("stats.popularToolCount", { count: data.popularTools[0]?.count ?? 0 })} color="violet" />
       </div>
 
       {/* Popular tools */}
       {data.popularTools.length > 0 && (
         <div className="bg-white border border-slate-200 rounded-xl p-5">
-          <h2 className="font-semibold text-slate-700 mb-4">כלים פופולריים (30 ימים)</h2>
+          <h2 className="font-semibold text-slate-700 mb-4">{t("popularTools")}</h2>
           <div className="space-y-2">
-            {data.popularTools.map((t) => {
+            {data.popularTools.map((tl) => {
               const max = data.popularTools[0]?.count ?? 1;
-              const pct = Math.round((t.count / max) * 100);
+              const pct = Math.round((tl.count / max) * 100);
               return (
-                <div key={t.tool} className="flex items-center gap-3">
-                  <span className="text-sm text-slate-600 w-44 flex-shrink-0">{TOOL_LABELS[t.tool] ?? t.tool}</span>
+                <div key={tl.tool} className="flex items-center gap-3">
+                  <span className="text-sm text-slate-600 w-44 flex-shrink-0">{toolLabel(tl.tool) ?? tl.tool}</span>
                   <div className="flex-1 bg-slate-100 rounded-full h-2">
                     <div className="bg-indigo-500 h-2 rounded-full" style={{ width: `${pct}%` }} />
                   </div>
-                  <span className="text-sm font-medium text-slate-700 w-10 text-left">{t.count}</span>
+                  <span className="text-sm font-medium text-slate-700 w-10 text-end">{tl.count}</span>
                 </div>
               );
             })}
@@ -92,9 +99,9 @@ export default function OwnerMcpPage() {
 
       {/* Recent logs */}
       <div className="bg-white border border-slate-200 rounded-xl p-5">
-        <h2 className="font-semibold text-slate-700 mb-4">קריאות אחרונות</h2>
+        <h2 className="font-semibold text-slate-700 mb-4">{t("recentCalls")}</h2>
         {data.recentLogs.length === 0 ? (
-          <p className="text-slate-400 text-sm text-center py-8">אין קריאות עדיין</p>
+          <p className="text-slate-400 text-sm text-center py-8">{t("noCalls")}</p>
         ) : (
           <div className="space-y-2 max-h-96 overflow-y-auto">
             {data.recentLogs.map((log) => (
@@ -106,7 +113,7 @@ export default function OwnerMcpPage() {
                 )} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-slate-700">{TOOL_LABELS[log.toolName] ?? log.toolName}</span>
+                    <span className="text-sm font-medium text-slate-700">{toolLabel(log.toolName) ?? log.toolName}</span>
                     <span className="text-xs text-slate-400">·</span>
                     <span className="text-xs text-slate-500 truncate">{log.connection.business.name}</span>
                     <span className="text-xs text-slate-400">·</span>
@@ -115,7 +122,7 @@ export default function OwnerMcpPage() {
                   <p className="text-xs text-slate-500 mt-0.5">
                     {log.status === "error" ? (
                       <span className={isExpectedMcpError(log.errorMessage) ? "text-amber-600" : "text-red-500"}>
-                        {isExpectedMcpError(log.errorMessage) && /not found/i.test(log.errorMessage ?? "") ? "הרשומה לא נמצאה (כנראה נמחקה)" : log.errorMessage}
+                        {isExpectedMcpError(log.errorMessage) && /not found/i.test(log.errorMessage ?? "") ? t("recordNotFound") : log.errorMessage}
                       </span>
                     ) : (
                       log.resultSummary
@@ -124,7 +131,7 @@ export default function OwnerMcpPage() {
                 </div>
                 <div className="flex items-center gap-1 text-xs text-slate-400 flex-shrink-0">
                   <Clock className="w-3 h-3" />
-                  {new Date(log.createdAt).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}
+                  {new Date(log.createdAt).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}
                 </div>
               </div>
             ))}

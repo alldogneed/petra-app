@@ -217,6 +217,404 @@
       "new": "New"
     }
   },
+  "auth": {
+    "forgotPasswordPage": {
+      "tagline": "Pet business management",
+      "errors": {
+        "sendFailed": "Couldn't send the email",
+        "network": "Network error. Please try again."
+      },
+      "sent": {
+        "title": "Email sent!",
+        "body": "If <addr>{email}</addr> is registered, we'll send it a password reset link.",
+        "validity": "The link is valid for 60 minutes. Check your spam folder too."
+      },
+      "backToLogin": "Back to sign in",
+      "form": {
+        "title": "Forgot password",
+        "subtitle": "Enter your email and we'll send you a password reset link",
+        "emailLabel": "Email",
+        "sending": "Sending...",
+        "submit": "Send reset link"
+      }
+    },
+    "invitePage": {
+      "tagline": "Pet business management",
+      "roles": {
+        "owner": "Owner",
+        "manager": "Manager",
+        "user": "Staff",
+        "volunteer": "Volunteer"
+      },
+      "passwordChecks": {
+        "length": "12+ characters",
+        "upper": "Uppercase letter",
+        "lower": "Lowercase letter",
+        "digit": "Number"
+      },
+      "errors": {
+        "invalidLink": "This link is invalid. Ask the business owner to send a new invitation.",
+        "loadFailed": "We couldn't load the invitation",
+        "acceptFailed": "Couldn't accept the invitation",
+        "network": "Network error. Please try again."
+      },
+      "toLogin": "Go to sign in",
+      "done": {
+        "title": "Welcome to the {business} team!",
+        "subtitle": "You've joined. Taking you to Petra..."
+      },
+      "form": {
+        "title": "Invitation to join the team",
+        "introByInviter": "{inviter} invited you to <b>{business}</b> as <b>{role}</b>.",
+        "intro": "You've been invited to <b>{business}</b> as <b>{role}</b>.",
+        "usernameLabel": "Username: ",
+        "signedInAsInvitee": "You're signed in to this account — just confirm.",
+        "hasAccount": "You already have a Petra account with this email. Sign in to it to accept — your password won't change.",
+        "fullName": "Full name",
+        "choosePassword": "Choose a password",
+        "passwordPlaceholder": "At least 12 characters",
+        "hidePassword": "Hide password",
+        "showPassword": "Show password",
+        "confirmPassword": "Confirm password",
+        "passwordMismatch": "Passwords don't match",
+        "loginAndAccept": "Sign in and accept",
+        "accepting": "Accepting...",
+        "accept": "Accept invitation",
+        "notYours": "Don't know this business? You can just close this page."
+      }
+    },
+    "loginPage": {
+      "googleErrors": {
+        "google_config": "Google sign-in isn't configured. Contact your system administrator.",
+        "google_denied": "Google sign-in was canceled.",
+        "missing_params": "Invalid response from Google. Please try again.",
+        "invalid_state": "Verification error. Please try again.",
+        "email_not_verified": "Your Google email address isn't verified.",
+        "account_disabled": "This account is disabled. Contact your system administrator.",
+        "server_error": "Server error. Please try again.",
+        "generic": "Couldn't sign in with Google"
+      },
+      "errors": {
+        "accessEnded": "Your access to the business has ended — the owner deactivated your user. Contact them with any questions.",
+        "loginFailed": "Couldn't sign in",
+        "loginFailedRetry": "Couldn't sign in. Please try again."
+      },
+      "title": "Welcome back",
+      "subtitle": "Sign in to your business account — clients, appointments and boarding in one place.",
+      "emailLabel": "Email",
+      "passwordLabel": "Password",
+      "passwordPlaceholder": "Enter password",
+      "rememberMe": "Remember me on this device",
+      "forgotPassword": "Forgot password?",
+      "rememberMeOn": "You'll stay signed in for 30 days while active. Don't check this on a shared computer.",
+      "rememberMeOff": "Automatic sign-out after 8 hours. Recommended on shared or public computers.",
+      "loggingIn": "Signing in...",
+      "submit": "Sign in",
+      "or": "or",
+      "continueWithGoogle": "Continue with Google",
+      "googleNewUser": "New user? An account will be created automatically",
+      "noAccount": "Don't have an account yet?",
+      "createAccount": "Create a free account",
+      "copyright": "All rights reserved all-dog - The Israeli Center for Dog Behavior",
+      "privacy": "Privacy policy",
+      "terms": "Terms of use",
+      "hero": {
+        "badge": "130 active businesses in Israel",
+        "quote": "Petra changed my life. All my clients, programs and reminders — everything in one place. I save at least 2 hours a day",
+        "initials": "YC",
+        "name": "Yael Cohen",
+        "role": "Senior dog trainer · Studio Kanin, Tel Aviv",
+        "stats": {
+          "businesses": "Active businesses",
+          "appointments": "Appointments booked",
+          "satisfaction": "Satisfaction"
+        }
+      }
+    },
+    "consentForm": {
+      "roles": {
+        "owner": "Owner",
+        "manager": "Manager",
+        "user": "User",
+        "volunteer": "Volunteer"
+      },
+      "profileHints": {
+        "full": "Everything your role in the business allows",
+        "read": "View only — no changes"
+      },
+      "errors": {
+        "approveFailed": "Couldn't approve the connection. Please try again.",
+        "network": "Network error. Check your connection and try again."
+      },
+      "eyebrow": "Account access request",
+      "title": "Connect <client></client> to Petra",
+      "subtitle": "The app will be able to read and update your business data based on the access level you choose here.",
+      "redirectNotice": "After approval you'll be sent to: <target></target>",
+      "redirectWarning": "Approve only if you just asked to connect an AI assistant to Petra.",
+      "unverified": "Unverified app — make sure you trust the destination before approving",
+      "signedInAs": "Signed in as <email></email>",
+      "notYou": "Not you? Sign out",
+      "businessLabel": "Business",
+      "noEligibleOption": "— No business available to connect —",
+      "unnamedBusiness": "Unnamed business",
+      "businessPrefix": "Business: ",
+      "ineligible": {
+        "none": "No business on this account can be connected to an AI assistant.",
+        "single": "An AI assistant can't be connected to this business.",
+        "all": "None of your businesses can be connected right now."
+      },
+      "profileLegend": "Access level",
+      "scopeNote": {
+        "manager": "As a manager, the connection won't include payments, reports or irreversible actions — even with full access.",
+        "other": "Permissions are always limited to your role in the business (manager: no payments, reports or irreversible actions).",
+        "disconnect": "You can disconnect at any time in Settings → AI assistants."
+      },
+      "approve": "Approve connection"
+    },
+    "oauthAuthorizePage": {
+      "metaTitle": "Connect an AI assistant | Petra",
+      "errors": {
+        "hint": "You can close this window and try connecting again from the AI assistant. If the problem persists, contact Petra support.",
+        "invalidTitle": "Invalid connection request",
+        "unknownClientTitle": "Unknown app",
+        "badRedirectTitle": "Invalid redirect address",
+        "unsupportedTitle": "Unsupported connection request",
+        "insecureTitle": "Insecure connection request",
+        "missingClientId": "The app ID (client_id) is missing or invalid.",
+        "unknownClient": "The app trying to connect to Petra isn't registered (the registration may have expired). Try removing the connection from the AI assistant and adding it again.",
+        "badRedirect": "The request's redirect address (redirect_uri) doesn't match the app's registered address, so we won't continue.",
+        "badState": "The request's state parameter is invalid (duplicated or too long).",
+        "badResponseType": "The requested response type (response_type) isn't supported — only code is supported.",
+        "missingPkce": "The request is missing PKCE verification (code_challenge), so we won't continue.",
+        "badPkceMethod": "The PKCE method must be S256.",
+        "badResource": "The request is meant for another server (resource), not Petra."
+      }
+    },
+    "registerPage": {
+      "passwordStrength": {
+        "checks": {
+          "length": "12+ characters",
+          "upper": "Uppercase",
+          "lower": "Lowercase",
+          "digit": "Number"
+        },
+        "weak": "Weak",
+        "medium": "Medium",
+        "strong": "Strong"
+      },
+      "errors": {
+        "passwordRules": "Password must be at least 12 characters and include an uppercase letter (A-Z), a lowercase letter (a-z) and a number (0-9)",
+        "tosRequired": "Please accept the Terms of Use to continue",
+        "createFailed": "Couldn't create the account",
+        "network": "Network error. Please try again."
+      },
+      "tagline": "Pet business management",
+      "google": {
+        "continue": "Continue with Google",
+        "hint": "The fastest way — no password needed"
+      },
+      "divider": "or sign up with email",
+      "form": {
+        "title": "Create an account",
+        "subtitle": "Join Petra and run your business with ease",
+        "fullName": "Full name",
+        "fullNamePlaceholder": "John Smith",
+        "businessName": "Business name *",
+        "businessNamePlaceholder": "e.g. Daniel's Dog Boarding",
+        "email": "Email",
+        "password": "Password",
+        "passwordPlaceholder": "At least 12 characters",
+        "tos": "I have read and agree to Petra's <terms>Terms of Use</terms> and <privacy>Privacy Policy</privacy>",
+        "creating": "Creating account...",
+        "submit": "Create free account"
+      },
+      "haveAccount": "Already have an account? <link>Log in</link>",
+      "copyright": "All rights reserved all-dog - The Israeli Center for Dog Behavior"
+    },
+    "resetPasswordPage": {
+      "passwordStrength": {
+        "checks": {
+          "length": "12+ characters",
+          "upper": "Uppercase",
+          "lower": "Lowercase",
+          "digit": "Number"
+        },
+        "weak": "Weak",
+        "medium": "Medium",
+        "strong": "Strong"
+      },
+      "errors": {
+        "invalidLink": "Invalid link — go back to the 'Forgot password' page and request a new link.",
+        "resetFailed": "Couldn't reset the password",
+        "network": "Network error. Please try again."
+      },
+      "tagline": "Pet business management",
+      "success": {
+        "title": "Password changed!",
+        "body": "Your password was updated. Taking you to the dashboard..."
+      },
+      "form": {
+        "title": "Reset password",
+        "subtitle": "Choose a new password for your account",
+        "newPassword": "New password",
+        "newPasswordPlaceholder": "At least 12 characters",
+        "confirmPassword": "Confirm password",
+        "confirmPlaceholder": "Enter it again",
+        "mismatch": "Passwords don't match",
+        "match": "✓ Passwords match",
+        "updating": "Updating password...",
+        "submit": "Update password",
+        "expiredLink": "Link expired? Request a new one"
+      }
+    },
+    "tosAcceptPage": {
+      "errors": {
+        "saveFailed": "Couldn't save your consent",
+        "network": "Network error. Try again."
+      },
+      "title": "Terms of Use – Petra",
+      "subtitle": "Version 1.0 | Please read carefully before using the system",
+      "welcome": "Welcome to Petra – an advanced management system for dog trainers, boarding owners and private pet service providers. Use of the system is subject to the terms set out below.",
+      "sections": {
+        "intro": {
+          "title": "1. Introduction",
+          "items": {
+            "p1": "These Terms of Use constitute a binding legal agreement between the user and the company operating the system.",
+            "p2": "Use of the system constitutes the user's full consent to these terms. If you do not agree – please do not use the system.",
+            "p3": "Additional terms, including the privacy policy, the acceptable use policy (AUP) and other terms, form an integral part of this agreement.",
+            "p4": "The user is aware that the system is under continuous development and improvement, and therefore changes, temporary malfunctions or functions that are not fully available may occur at any time."
+          }
+        },
+        "definitions": {
+          "title": "2. Definitions",
+          "items": {
+            "p1": "\"The System\" – the Petra system and all of its digital services.",
+            "p2": "\"The Company\" – the owners and operators of Petra.",
+            "p3": "\"User\" – any private individual or business entity using the system, including during a trial period.",
+            "p4": "\"Service\" – all functions and content provided through Petra.",
+            "p5": "\"Content\" – any data, file, text, information or other material entered or created through the system."
+          }
+        },
+        "registration": {
+          "title": "3. Registration and use",
+          "items": {
+            "p1": "Use of the system is conditional upon registration and providing accurate details.",
+            "p2": "The user is responsible for keeping the password confidential and for any use made under their account.",
+            "p3": "The company reserves the right to refuse service or suspend an account at its discretion.",
+            "p4": "An account may include a primary user and authorized users according to the structure of the business."
+          }
+        },
+        "acceptableUse": {
+          "title": "4. Acceptable use policy (Acceptable Use)",
+          "items": {
+            "p1": "The system may not be used for the following purposes:",
+            "p2": "4.1 Uploading illegal, offensive, harmful or misleading content.",
+            "p3": "4.2 Unauthorized access, reverse engineering or interfering with the operation of the system.",
+            "p4": "4.3 Sending spam or mass content.",
+            "p5": "4.4 Infringing intellectual property rights or impersonation."
+          }
+        },
+        "license": {
+          "title": "5. License and intellectual property",
+          "items": {
+            "p1": "All intellectual property rights in the system, including the design, code, brand and content – belong to the company.",
+            "p2": "The company grants a personal, limited, non-exclusive, non-transferable license to use the system under these terms.",
+            "p3": "The system may not be copied, duplicated, distributed or modified without the company's express permission.",
+            "p4": "The company may use anonymous information to improve the service."
+          }
+        },
+        "payments": {
+          "title": "6. Payments and subscriptions",
+          "items": {
+            "p1": "The service is provided for a monthly or annual fee, according to the selected plan.",
+            "p2": "Usage fees are charged in advance.",
+            "p3": "Cancellation of the service is made through the system or by written request and takes effect at the end of the billing period.",
+            "p4": "The company may update prices with 30 days' advance notice.",
+            "p5": "No refunds will be given unless stated otherwise.",
+            "p6": "End of subscription: when the subscription expires, access automatically drops to the free plan (Free). Data entered is kept and not deleted automatically, but access to advanced features will be blocked until the subscription is renewed.",
+            "p7": "Trial period: at the end of the free trial period, access automatically moves to the free plan. A trial period cannot be reset after it has ended."
+          }
+        },
+        "dataRetention": {
+          "title": "7. Data retention and data transfer",
+          "items": {
+            "p1": "Data will be kept for up to 90 days after the service ends.",
+            "p2": "Deletion or transfer of data may be requested.",
+            "p3": "All processing is subject to the privacy policy and the DPA appendix."
+          }
+        },
+        "privacy": {
+          "title": "8. Privacy and information security",
+          "items": {
+            "p1": "The company undertakes to keep personal and business information confidential.",
+            "p2": "Reasonable and accepted measures are used to protect the information.",
+            "p3": "Credit card details are not stored on the company's servers."
+          }
+        },
+        "liability": {
+          "title": "9. Warranty and limitations",
+          "items": {
+            "p1": "The system is provided As-Is, without warranty of uninterrupted operation.",
+            "p2": "The company will not be liable for indirect damages.",
+            "p3": "The company's liability is limited to the amount paid in the preceding 6 months."
+          }
+        },
+        "indemnity": {
+          "title": "10. Indemnification",
+          "items": {
+            "p1": "The user undertakes to indemnify the company for any claim or damage arising from a breach of these terms."
+          }
+        },
+        "termination": {
+          "title": "11. Termination of service",
+          "items": {
+            "p1": "The company may suspend or cancel the service in the event of a breach.",
+            "p2": "Upon termination of the service, the data may be deleted after a defined period.",
+            "p3": "No partial refund will be given for an unused period."
+          }
+        },
+        "changes": {
+          "title": "12. Changes to the terms",
+          "items": {
+            "p1": "The company may update the terms with 30 days' advance notice.",
+            "p2": "Continued use constitutes consent to the updated terms."
+          }
+        },
+        "jurisdiction": {
+          "title": "13. Jurisdiction",
+          "items": {
+            "p1": "The applicable law is Israeli law.",
+            "p2": "Jurisdiction lies with the courts of the Tel Aviv district.",
+            "p3": "Arbitration may be used by mutual consent."
+          }
+        },
+        "forceMajeure": {
+          "title": "14. Force majeure",
+          "items": {
+            "p1": "The company will not be liable for events beyond its control (such as communication failures, pandemics, strikes, etc.)."
+          }
+        }
+      },
+      "consent": "I have read and understood <b>Petra's Terms of Use</b> (version 1.0) and I agree to everything stated in them. I understand that my consent will be recorded for legal purposes.",
+      "saving": "Saving consent...",
+      "accept": "I agree – continue to the system",
+      "evidenceNote": "Your consent will be recorded together with your IP address, date and time as legal evidence."
+    },
+    "verifyDetailPage": {
+      "meta": {
+        "notFoundTitle": "Certificate not found",
+        "title": "Certificate of completion — {studentName}",
+        "description": "Verification of the completion certificate for the course \"{courseTitle}\" issued by {businessName}"
+      },
+      "revokedBanner": {
+        "title": "This certificate has been revoked",
+        "body": "The certificate is no longer valid and should not be relied upon."
+      },
+      "revokedStamp": "Revoked",
+      "revokedFooter": "This certificate has been revoked and is not valid.",
+      "verifiedFooter": "✓ This certificate is verified — issued on {date}"
+    }
+  },
   "boarding": {
     "boardingDailyPage": {
       "weekdays": {
@@ -887,6 +1285,233 @@
         "inactive": "Inactive"
       },
       "edit": "Edit"
+    }
+  },
+  "booking": {
+    "bookDetailLayout": {
+      "defaultTitle": "Book online",
+      "title": "{name} — Book online",
+      "description": "Book an appointment with {name} quickly and easily. Services for dogs"
+    },
+    "myBookingDetailPage": {
+      "status": {
+        "pending": "Awaiting approval",
+        "confirmed": "Confirmed",
+        "declined": "Declined",
+        "cancelled": "Canceled"
+      },
+      "errors": {
+        "load": "Error loading the booking",
+        "cancel": "Error canceling the booking"
+      },
+      "notFound": {
+        "title": "Booking not found",
+        "body": "The link is invalid or has expired."
+      },
+      "serviceFallback": "Service",
+      "whatsapp": {
+        "message": "Hi, this is {name}. I wanted to talk about my booking (#{ref}).",
+        "customerFallback": "a client"
+      },
+      "header": {
+        "yourBookingAt": "Your booking with"
+      },
+      "statusLabel": "Booking status",
+      "fields": {
+        "service": "Service",
+        "when": "Date & time",
+        "atTime": "at {time}",
+        "name": "Name",
+        "dogs": "Dogs",
+        "notes": "Notes"
+      },
+      "contact": "Contact {name}",
+      "cancel": {
+        "button": "Cancel booking",
+        "confirmTitle": "Cancel this booking?",
+        "irreversible": "This action can't be undone",
+        "confirm": "Yes, cancel booking",
+        "back": "Back"
+      },
+      "poweredBy": "Powered by <brand>Petra</brand>"
+    },
+    "bookDetailPage": {
+      "weekdaysShort": {
+        "sun": "Su",
+        "mon": "Mo",
+        "tue": "Tu",
+        "wed": "We",
+        "thu": "Th",
+        "fri": "Fr",
+        "sat": "Sa"
+      },
+      "calendarLink": {
+        "details": "Booking: {service} · {price}"
+      },
+      "reminder": {
+        "title": "📅 Appointment reminder",
+        "service": "Service: {name}",
+        "date": "Date: {date}",
+        "time": "Time: {time}",
+        "dogs": "Dog(s): {names}",
+        "price": "Price: {price}"
+      },
+      "steps": {
+        "service": "Service",
+        "date": "Date",
+        "time": "Time",
+        "dates": "Dates",
+        "details": "Details",
+        "dogs": "Dogs",
+        "confirm": "Confirm",
+        "mobileProgress": "Step {current} of {total}: <hl>{label}</hl>",
+        "ariaLabel": "Booking steps",
+        "currentSr": "Current step: {label}"
+      },
+      "pageTitle": {
+        "service": "{business} — Choose a service",
+        "date": "{business} — Choose a date",
+        "time": "{business} — Choose a time",
+        "boardingDates": "{business} — Boarding dates",
+        "customer": "{business} — Your details",
+        "dogs": "{business} — Choose a dog",
+        "confirm": "{business} — Confirm booking",
+        "done": "{business} — Booking confirmed",
+        "default": "{business} — Online booking"
+      },
+      "errors": {
+        "loadPage": "Couldn't load the page",
+        "createBooking": "Couldn't create the booking",
+        "phoneInvalid": "Invalid phone number (e.g. (555) 123-4567)",
+        "emailInvalid": "Invalid email address",
+        "nameMin": "Name must be at least 2 characters"
+      },
+      "notFound": {
+        "title": "Business not found",
+        "body": "The link may be wrong or the business is no longer active",
+        "backHome": "Back to home page"
+      },
+      "header": {
+        "subtitle": "Online booking"
+      },
+      "back": "Back",
+      "continue": "Continue",
+      "service": {
+        "title": "Choose a service",
+        "subtitle": "What would you like to book?",
+        "empty": "No services available right now",
+        "deposit": "Deposit",
+        "minutes": "{count} min"
+      },
+      "date": {
+        "title": "Choose a date",
+        "today": "Today",
+        "closed": "Closed"
+      },
+      "time": {
+        "title": "Choose a time",
+        "change": "Change",
+        "fullTitle": "Fully booked",
+        "fullBody": "This day has reached full capacity. Try choosing another date",
+        "noAvailabilityTitle": "No availability on this day",
+        "noAvailabilityBody": "Try choosing another date",
+        "pickOtherDate": "Choose another date",
+        "available": "{count, plural, one {# time available} other {# times available}}"
+      },
+      "boarding": {
+        "title": "Boarding dates",
+        "perNight": "{price} / night",
+        "checkIn": "Check-in",
+        "checkOut": "Check-out",
+        "dateLabel": "Date *",
+        "timeLabel": "Time",
+        "nightsRange": "<b>{count}</b> {count, plural, one {night} other {nights}} · {from} — {to}",
+        "invalidRange": "Check-out date must be after the check-in date"
+      },
+      "customer": {
+        "title": "Owner details",
+        "phoneLabel": "Phone number *",
+        "phonePlaceholder": "(555) 123-4567",
+        "existing": "Existing client",
+        "new": "New client",
+        "nameLabel": "Full name *",
+        "namePlaceholder": "Jane Smith",
+        "emailLabel": "Email",
+        "addressLabel": "Address",
+        "addressPlaceholder": "Street, city...",
+        "notesLabel": "Notes",
+        "notesPlaceholder": "Anything else we should know...",
+        "found": "Hi {name}! We found you 👋",
+        "yourDogs": "Your dogs: <b>{names}</b>"
+      },
+      "dogs": {
+        "title": "Choose a dog for the service",
+        "forService": "Choose a dog for: {service}",
+        "saved": "On file",
+        "nameLabel": "Dog's name *",
+        "namePlaceholder": "Max, Bella...",
+        "breedLabel": "Breed",
+        "breedPlaceholder": "Labrador...",
+        "sexLabel": "Sex",
+        "sexUnknown": "Unknown",
+        "male": "Male",
+        "female": "Female",
+        "notesLabel": "Medical notes / other",
+        "notesPlaceholder": "Allergies, medical info...",
+        "breedValue": "Breed: {breed}",
+        "addDog": "Add another dog",
+        "needOne": "Enter at least one dog's name",
+        "continue": "Continue to confirm"
+      },
+      "confirm": {
+        "title": "Confirm booking",
+        "service": "Service",
+        "durationPrice": "{count} min · {price}",
+        "boardingDates": "Boarding dates",
+        "checkInAt": "Check-in: {date} at {time}",
+        "checkOutAt": "Check-out: {date} at {time}",
+        "nights": "{count, plural, one {# night} other {# nights}}",
+        "when": "When",
+        "timeAt": "Time {time}",
+        "owner": "Owner",
+        "dogs": "Dogs",
+        "requiresApproval": "⏳ This service requires the business's approval. You'll be notified once it's approved.",
+        "depositNotice": "💳 A deposit of {amount} is required to confirm the booking.",
+        "cancellationPolicy": "📋 Cancellation policy",
+        "submit": "Confirm booking"
+      },
+      "deposit": {
+        "title": "Deposit required",
+        "body": "To hold your appointment, please pay a deposit",
+        "amountLabel": "Deposit amount",
+        "service": "Service: {name}",
+        "fullPrice": "Full price: {price}",
+        "bookingNumber": "Booking number: <b>{id}</b>",
+        "payButton": "Pay deposit",
+        "payHint": "Tap the button to go to the payment page, then tap “I've paid”",
+        "instructionsTitle": "Deposit payment instructions:",
+        "contactTitle": "Contact us to pay:",
+        "whatsappText": "Hi, I booked an appointment for {service} (No. {id}). I'd like to pay the deposit.",
+        "whatsappButton": "Send WhatsApp to pay",
+        "done": "I've paid ✓"
+      },
+      "done": {
+        "confirmedTitle": "Booking confirmed! 🎉",
+        "requestTitle": "Request received",
+        "bookingNumber": "Booking number:",
+        "service": "Service:",
+        "checkIn": "Check-in:",
+        "checkOut": "Check-out:",
+        "date": "Date:",
+        "time": "Time:",
+        "dog": "Dog:",
+        "addToGoogle": "Add to Google Calendar",
+        "whatsappReminder": "Send myself a WhatsApp reminder",
+        "bookAnother": "Book another appointment"
+      },
+      "footer": {
+        "poweredBy": "Powered by <link>Petra</link>"
+      }
     }
   },
   "bookings": {
@@ -1594,6 +2219,136 @@
         "sendNextLinkTitle": "Send a link to book the next appointment",
         "deleteAppointment": "Delete appointment"
       }
+    }
+  },
+  "checkout": {
+    "checkoutPage": {
+      "plans": {
+        "basic": {
+          "tagline": "Perfect for independent groomers and trainers — solo, professional, affordable",
+          "features": {
+            "unlimitedClients": "Unlimited clients and appointments",
+            "calendar": "Appointment and meeting calendar + Google Calendar",
+            "paymentRequests": "Payment requests + digital intake forms",
+            "portfolio": "Before/after portfolio",
+            "reports": "Reports and analytics"
+          }
+        },
+        "pro": {
+          "tagline": "Perfect for boarding and training centers — team, growth, full control",
+          "features": {
+            "everythingInBasic": "Everything in Basic",
+            "whatsappReminders": "Automatic WhatsApp reminders",
+            "contracts": "Digital contract signing",
+            "teamBoarding": "Team, boarding and room management",
+            "onlineBookings": "24/7 online bookings"
+          }
+        }
+      },
+      "errors": {
+        "businessTypeRequired": "Please select a business type",
+        "createPaymentForm": "Error creating the payment form",
+        "createPaymentFormRetry": "Error creating the payment form. Please try again.",
+        "serverConnection": "Could not connect to the server. Please try again."
+      },
+      "topBar": {
+        "logoAlt": "Petra logo",
+        "purchase": "Buy a subscription",
+        "upgrade": "Upgrade subscription",
+        "back": "Back"
+      },
+      "summary": {
+        "yourPackage": "Your plan",
+        "planName": "{name} plan",
+        "perMonth": "/month",
+        "totalDue": "Total due",
+        "perMonthSpaced": "/ month",
+        "testMode": "🧪 Test mode — charging only {currencySymbol}{testAmount} (instead of {currencySymbol}{price})",
+        "securePayment": "Secure PCI DSS–compliant payment.",
+        "taxInvoiceByEmail": "A tax invoice will be emailed to you automatically.",
+        "securedByCardcom": "Secured by Cardcom",
+        "cancelAnytime": "Cancel anytime",
+        "noPenalties": "No penalties"
+      },
+      "panel": {
+        "title": "Payment details",
+        "stepInvoiceDetails": "Invoice details",
+        "stepCardCharge": "Card payment"
+      },
+      "form": {
+        "introAuthenticated": "Please confirm your invoice details before continuing to payment.",
+        "introNewUser": "Enter your details — we'll email you your login once payment is complete.",
+        "fullName": "Full name",
+        "fullNamePlaceholder": "Jane Smith",
+        "email": "Email",
+        "mobilePhone": "Mobile phone",
+        "businessName": "Business name",
+        "businessNamePlaceholder": "e.g. \"Paw Grooming\"",
+        "billingEmail": "Invoice email",
+        "billingPhone": "Billing phone",
+        "businessType": "Business type",
+        "businessTypes": {
+          "company": "Company (Ltd.)",
+          "licensedDealer": "Licensed dealer",
+          "exemptDealer": "Exempt dealer"
+        },
+        "vatNumber": "Company / VAT / exempt dealer number",
+        "vatNumberPlaceholder": "e.g. 012345678",
+        "address": "Business address",
+        "addressHint": "(for the invoice)",
+        "addressPlaceholder": "e.g. 12 Main St, Springfield",
+        "tos": "I have read and agree to Petra's<tos>Terms of Use</tos>and<privacy>Privacy Policy</privacy>",
+        "emailExistsLogin": "Already have an account? Log in →",
+        "continueToPayment": "Continue to payment",
+        "haveAccount": "Already have an account?",
+        "login": "Log in"
+      },
+      "iframe": {
+        "loading": "Loading secure payment page...",
+        "retry": "Try again",
+        "title": "Secure payment form"
+      }
+    },
+    "paymentCancelledPage": {
+      "title": "Payment canceled",
+      "body": "You were not charged. You can try again at any time.",
+      "retry": "Try again",
+      "backToSite": "Back to site"
+    },
+    "paymentSuccessPage": {
+      "verifying": "Verifying payment...",
+      "successTitle": "Payment received!",
+      "successBody": "Thank you for your payment. It was processed successfully and we'll send you a confirmation soon.",
+      "transactionId": "Transaction ID: {sessionId}",
+      "closeWindow": "Close window",
+      "backToSite": "Back to site",
+      "errorTitle": "Unable to verify payment",
+      "errorBody": "If you made a payment, it may have gone through — check with the business to confirm."
+    },
+    "paymentErrorPage": {
+      "title": "Payment failed",
+      "body": "We couldn't process your payment. You can try again or contact support.",
+      "retry": "Try again",
+      "whatsappMessage": "Hi, my payment on Petra failed. I'd appreciate some help.",
+      "contactSupport": "Contact support"
+    },
+    "paymentResultSuccessPage": {
+      "tiers": {
+        "basic": "Basic",
+        "pro": "Pro",
+        "groomer": "Groomer+",
+        "service_dog": "Service Dog"
+      },
+      "title": "Payment successful!",
+      "subscriptionStatus": "Your <tier>{tierLabel}</tier> subscription is {status}",
+      "statusActive": "now active",
+      "statusActivating": "activating...",
+      "activating": "Activating your subscription...",
+      "loginEmailSent": "We've emailed you your login details.",
+      "redirectingToLogin": "Redirecting to the login page in a few seconds...",
+      "loginNow": "Log in now",
+      "redirectingToDashboard": "Redirecting to the dashboard in a few seconds...",
+      "goToDashboardNow": "Go to the dashboard now"
     }
   },
   "customers": {
@@ -4233,6 +4988,582 @@
       "cancel": "Cancel"
     }
   },
+  "landing": {
+    "accessibilityButton": {
+      "dialogLabel": "Accessibility settings",
+      "title": "Accessibility settings",
+      "profilesTitle": "Accessibility profiles",
+      "profiles": {
+        "cognitive": "Cognitive",
+        "visual": "Visually impaired",
+        "epilepsy": "Epilepsy",
+        "motor": "Motor impairment"
+      },
+      "fontSize": {
+        "label": "Text size",
+        "normal": "Normal",
+        "large": "Large",
+        "xlarge": "Extra large"
+      },
+      "contrast": {
+        "label": "Contrast",
+        "normal": "Normal",
+        "high": "High",
+        "inverted": "Inverted"
+      },
+      "saturation": {
+        "label": "Color saturation",
+        "normal": "Normal",
+        "high": "High",
+        "low": "Low",
+        "bw": "B/W"
+      },
+      "align": {
+        "label": "Text alignment",
+        "default": "Default",
+        "right": "Right",
+        "center": "Center",
+        "left": "Left"
+      },
+      "displayTitle": "Display and readability",
+      "highlightLinks": "Highlight links",
+      "reset": "Reset settings",
+      "closeMenu": "Close accessibility menu",
+      "openMenu": "Open accessibility menu"
+    },
+    "clientsMarquee": {
+      "sectionLabel": "Petra clients",
+      "clients": {
+        "shalomLekelev": "Shalom LaKelev",
+        "ilufBachan": "Iluf Bachan",
+        "nadavMeamen": "Nadav the Dog Trainer",
+        "liadYosef": "Liad Yosef Dog Training",
+        "beikevotHartzua": "Beikvot HaRetzua",
+        "itiel": "Itiel Dog Care",
+        "simbaService": "Simba Service Dogs"
+      },
+      "title": "Businesses like yours already use Petra.",
+      "subtitle": "Trainers, groomers and boarding managers use Petra to get their workday in order and spend less time on admin.",
+      "stats": {
+        "businesses": "Active businesses in Israel",
+        "appointments": "Appointments booked in the system",
+        "satisfaction": "Satisfaction"
+      },
+      "cta": "Start for free"
+    },
+    "landingNav": {
+      "links": {
+        "video": "How it works",
+        "features": "Features",
+        "clients": "Clients",
+        "pricing": "Pricing"
+      },
+      "homeLabel": "Petra — back to home page",
+      "mainNavLabel": "Main navigation",
+      "login": "Log in",
+      "startFree": "Start for free",
+      "closeMenu": "Close menu",
+      "openMenu": "Open menu",
+      "loginToAccount": "Log in to your account"
+    },
+    "productDemo": {
+      "tabs": {
+        "calendar": {
+          "label": "Appointment calendar",
+          "text": "See what's waiting for you today, what's already booked and where there's room.",
+          "desktopAlt": "Petra's appointment calendar in weekly view, with sessions and boarding stays",
+          "phoneAlt": "Home screen on mobile: quick actions and today's tasks"
+        },
+        "customer": {
+          "label": "Client card",
+          "text": "Client details, pet, appointments and payments in one place.",
+          "desktopAlt": "Client card: contact details, pet, appointments, payments and orders",
+          "phoneAlt": "Client card on mobile: contact details, payments, package tracking and pets"
+        },
+        "leads": {
+          "label": "Leads",
+          "text": "See who reached out, who you've already talked to and who needs a call back.",
+          "desktopAlt": "Petra's leads board by stage",
+          "phoneAlt": "Leads screen on mobile with a lead summary and conversion rate"
+        },
+        "boarding": {
+          "label": "Boarding",
+          "text": "See room occupancy, who's checking in and who's late to check out.",
+          "desktopAlt": "Boarding room map: occupied and free rooms and check-out alerts",
+          "phoneAlt": "Boarding screen on mobile"
+        }
+      },
+      "tablistLabel": "Screens from the system"
+    },
+    "teaserVideo": {
+      "videoLabel": "Promo video — Petra, pet business management",
+      "watchDemo": "Watch the demo"
+    },
+    "whatsAppFAB": {
+      "ariaLabel": "Open a WhatsApp support chat — opens in a new window",
+      "label": "Talk to us"
+    },
+    "pricingSection": {
+      "header": {
+        "title": "Start free. Grow at your own pace.",
+        "subtitle": "Pick the plan that fits your business. You can switch plans or cancel later, with no long-term commitment."
+      },
+      "plansAria": "Subscription plans",
+      "priceAmount": "₪{price}",
+      "perMonth": "/month",
+      "perMonthAria": "per month",
+      "newBadge": "New",
+      "plans": {
+        "free": {
+          "name": "Free",
+          "description": "Get your clients and calendar organized without adding a business expense.",
+          "features": {
+            "clients30": "Up to 30 clients",
+            "appointments20": "Up to 20 appointments (total)",
+            "orders15": "Up to 15 orders (total)",
+            "leads15": "CRM / leads (up to 15)",
+            "training10": "Training programs (up to 10)",
+            "priceList8": "Service price list (up to 8 items)",
+            "tasks20": "Task management (up to 20)"
+          },
+          "notIncluded": {
+            "whatsappReminders": "Automatic WhatsApp reminders",
+            "googleCalendar": "Google Calendar sync",
+            "reports": "Reports and analytics",
+            "paymentRequest": "Send payment requests"
+          }
+        },
+        "basic": {
+          "name": "Basic",
+          "description": "For businesses that want to save time on appointments, messages and client management, and focus on the work itself.",
+          "features": {
+            "unlimitedClients": "Unlimited clients and appointments",
+            "calendarGcal": "Appointment calendar + Google Calendar",
+            "whatsappReminders": "Automatic WhatsApp reminders",
+            "onlineBooking": "Online booking — clients book on their own 24/7",
+            "paymentRequestIntake": "Payment requests + digital intake forms",
+            "portfolio": "Before/after portfolio",
+            "contracts": "Digital contract signing",
+            "reports": "Reports and analytics",
+            "singleUser": "Single user (no team management)",
+            "whatsappSupport": "Personal support on WhatsApp"
+          },
+          "notIncluded": {
+            "whatsappAutomations": "Advanced WhatsApp automations",
+            "boardingTeam": "Boarding and team management"
+          }
+        },
+        "pro": {
+          "name": "Pro",
+          "badge": "Recommended · Best value",
+          "description": "For businesses with more clients, processes and staff who want everything organized, including an AI assistant.",
+          "features": {
+            "allBasic": "Everything in Basic",
+            "aiAssistant": "AI assistant — connect Claude or ChatGPT to your business",
+            "leadAlert": "WhatsApp alert for every new lead",
+            "leadWebhook": "Automatic lead capture from your website (Webhook)",
+            "groupClasses": "Group classes with waitlist and attendance",
+            "teamPermissions": "Team management and advanced permissions",
+            "boardingRooms": "Boarding and room management",
+            "advancedTraining": "Advanced training module",
+            "whatsappAutomations": "Advanced WhatsApp automations",
+            "financeReports": "Financial reports + Excel export",
+            "prioritySupport": "Priority personal support on WhatsApp"
+          }
+        }
+      },
+      "cta": {
+        "buyAria": "Buy now — {name} plan",
+        "upgradeNow": "Upgrade now",
+        "buyNow": "Buy now",
+        "billingNote": "Charged immediately · Cancel anytime · Receipt by email",
+        "startFreeAria": "Start free — {name} plan",
+        "startFree": "Start free",
+        "freeNote": "No time limit, no credit card required"
+      },
+      "serviceDogs": {
+        "eyebrow": "Unique in Israel",
+        "title": "Running a service dog training center? We have a dedicated solution for you",
+        "body": "A complete platform for managing recipients, training and Ministry of Agriculture compliance.",
+        "cta": "Talk to us about a plan"
+      },
+      "compare": {
+        "hide": "Hide full comparison",
+        "show": "Full feature comparison",
+        "tableAria": "Plan comparison table",
+        "featureColumn": "Feature",
+        "freePrice": "Free",
+        "included": "Included",
+        "notIncluded": "Not included",
+        "values": {
+          "upTo30": "Up to 30",
+          "upTo15": "Up to 15",
+          "upTo20": "Up to 20",
+          "upTo10": "Up to 10",
+          "upTo20Appointments": "Up to 20 appointments",
+          "unlimited": "Unlimited"
+        },
+        "groups": {
+          "clients": {
+            "title": "Clients and pets",
+            "rows": {
+              "clients": "Clients",
+              "leads": "CRM / leads",
+              "petHealth": "Pet health record",
+              "intakeForms": "Digital intake forms",
+              "tasks": "Task management",
+              "priceList": "Service price list"
+            }
+          },
+          "calendar": {
+            "title": "Calendar and appointments",
+            "rows": {
+              "calendar": "Appointment calendar",
+              "onlineBooking": "Online booking (clients book on their own)",
+              "googleCalendar": "Google Calendar sync"
+            }
+          },
+          "whatsapp": {
+            "title": "WhatsApp and messaging",
+            "rows": {
+              "reminders": "Automatic WhatsApp reminders",
+              "paymentRequest": "WhatsApp payment requests",
+              "automations": "Advanced WhatsApp automations",
+              "customMessages": "Custom messages",
+              "leadAlert": "WhatsApp alert for new leads"
+            }
+          },
+          "ai": {
+            "title": "AI assistant and automation",
+            "rows": {
+              "aiConnect": "Connect Claude / ChatGPT to your business data",
+              "leadWebhook": "Lead capture from website / Make (Webhook)"
+            }
+          },
+          "professional": {
+            "title": "Professional tools",
+            "rows": {
+              "training": "Training programs",
+              "advancedTraining": "Advanced training module",
+              "groupClasses": "Group classes (waitlist, attendance)",
+              "boarding": "Boarding + rooms",
+              "portfolio": "Groomer before/after portfolio"
+            }
+          },
+          "finance": {
+            "title": "Finance and reports",
+            "rows": {
+              "paymentRequest": "Send payment requests",
+              "contracts": "Digital contract signing",
+              "orders": "Order management",
+              "reports": "Reports and analytics",
+              "financeReports": "Financial reports + Excel export"
+            }
+          },
+          "team": {
+            "title": "Team management",
+            "rows": {
+              "team": "Team and user management",
+              "roles": "Role-based permissions"
+            }
+          }
+        }
+      },
+      "faq": {
+        "title": "Frequently asked questions",
+        "items": {
+          "whatCanManage": {
+            "q": "What can I manage with Petra?",
+            "a": "Petra is built specifically for pet businesses and covers: clients and pets, appointment calendar, automatic WhatsApp reminders, online booking, boarding and room management, training programs, group classes with waitlist and attendance, payment requests, CRM and leads, task management, analytics and an AI assistant — all in one place."
+          },
+          "basicVsPro": {
+            "q": "What's the difference between Basic and Pro?",
+            "a": "Basic is for independent groomers and trainers — a single user with a calendar, automatic WhatsApp reminders, online booking, payment requests, intake forms and a before/after portfolio. Pro is for boarding facilities and training centers — it adds an AI assistant, boarding and room management, team management with permissions, group classes with waitlist and attendance, advanced WhatsApp automations and an alert for every new lead."
+          },
+          "aiAssistant": {
+            "q": "What is Petra's AI assistant?",
+            "a": "On the Pro plan you connect Claude or ChatGPT directly to your business data. Ask \"What do I have tomorrow?\", \"Who hasn't paid yet?\", \"Book an appointment for Dana on Tuesday\" — and the assistant answers and acts inside the system, according to the permissions you set. The connection is secured with a personal token you can revoke at any time."
+          },
+          "mobile": {
+            "q": "Does Petra work on mobile?",
+            "a": "Yes — Petra is fully mobile-friendly and works in the browser on any device. You can also add it to your home screen as a PWA for quick access, just like a regular app, with no app store download."
+          },
+          "whatsappReminders": {
+            "q": "How do automatic WhatsApp reminders work?",
+            "a": "Petra automatically sends clients WhatsApp reminders before appointments, boarding check-in/check-out confirmations and more — through Meta's official API. You can choose how many hours in advance to send (24/48/72/96 hours) and customize the message text. Available on Basic and up."
+          },
+          "onlineBooking": {
+            "q": "Can clients book appointments on their own?",
+            "a": "Yes — from the Basic plan and up you get a personal link to an online booking page. The client picks a service, a date and an open time and confirms — everything goes straight into your calendar. 24/7, no phone calls."
+          },
+          "googleCalendar": {
+            "q": "Is there Google Calendar sync?",
+            "a": "Yes — Basic and up include two-way sync with Google Calendar. Every appointment created in Petra shows up in your Google Calendar automatically."
+          },
+          "payments": {
+            "q": "How do payments work?",
+            "a": "Basic and up include sending payment requests on WhatsApp with a direct link for the client. On Pro you can create full orders with itemized services and export all your financial data to Excel. Petra does not issue tax invoices — use separate accounting software for that."
+          },
+          "boarding": {
+            "q": "Is there boarding management?",
+            "a": "Yes — the Pro plan includes full boarding management: rooms, check-in/out, double-booking prevention and automatic WhatsApp updates for owners. The Free and Basic plans do not include the boarding module."
+          },
+          "team": {
+            "q": "Is there team management?",
+            "a": "Yes — the Pro plan includes team management with role-based permissions: owner, manager and staff. Each employee signs in with their own credentials and sees only what is relevant to their role. The Basic plan is for a single user only."
+          },
+          "importData": {
+            "q": "What if I already have data on my phone or in another system?",
+            "a": "Switching is easy and safe — our team helps you import your data. You won't lose any information."
+          },
+          "cancel": {
+            "q": "Can I cancel? What happens to my data?",
+            "a": "You can cancel anytime from the settings screen, with no penalties. Your data is kept for 30 days after cancellation, and you can export everything to Excel before you leave."
+          },
+          "upgrade": {
+            "q": "How do I upgrade my plan?",
+            "a": "From the dashboard → Settings → Upgrade plan. Pick a plan, enter a credit card, and within seconds all features are unlocked."
+          }
+        }
+      },
+      "contact": {
+        "question": "Questions? We're happy to help you choose the right plan",
+        "aria": "Contact us on WhatsApp — opens in a new window",
+        "cta": "Contact us now"
+      },
+      "footnote": "All plans include support, full RTL and data security · Upgrade, downgrade or cancel anytime"
+    },
+    "landingPage": {
+      "meta": {
+        "title": "Petra — Management software for pet businesses | Training, boarding, grooming",
+        "description": "Smart management software for dog trainers, groomers and boarding facilities in Israel. Client management, appointments, automatic WhatsApp reminders, an AI assistant, a digital calendar and more — all in one place. Free plan, no credit card required.",
+        "keywords": "dog trainer management software,dog training software,dog boarding management,groomer software,CRM for trainers,appointment scheduling for trainers,automatic WhatsApp reminders,dog training software Israel,client management for dog businesses,AI assistant for business,Petra",
+        "ogTitle": "Petra — Management software for pet businesses",
+        "ogDescription": "Clients, appointments, WhatsApp and boarding — every tool your business needs in one place. Start free.",
+        "ogImageAlt": "Petra — Management software for pet businesses"
+      },
+      "skipToContent": "Skip to main content",
+      "startFree": "Start free",
+      "bullets": {
+        "free": "Free, no credit card",
+        "easyMigration": "Easy switch from other systems",
+        "aiAssistant": "AI assistant on the Pro plan",
+        "upgradeAnytime": "Upgrade to a paid plan anytime"
+      },
+      "hero": {
+        "titleLine1": "Stop chasing",
+        "titleLine2": "your tail.",
+        "subtitle": "Let Petra handle appointments, clients and reminders. You get back to what you really love: working with animals.",
+        "watchDemo": "Watch the demo",
+        "shotAlt": "Petra's sales system: a lead board by stage with total leads, leads in progress and conversion rate",
+        "phoneAlt": "Client card on mobile: contact details, payments, package tracking and pets",
+        "toastTitle": "Reminder sent",
+        "toastBody": "Dorit got a WhatsApp reminder for her appointment"
+      },
+      "trust": {
+        "ariaLabel": "Trust stats",
+        "stats": {
+          "activeBusinesses": "Active businesses",
+          "appointmentsBooked": "Appointments booked",
+          "satisfaction": "Satisfaction",
+          "yearsInField": "Years of field experience"
+        }
+      },
+      "demo": {
+        "title": "This is how Petra works.",
+        "subtitle": "Take a look at the calendar, client management and day-to-day tracking. See how it all connects without jumping between systems."
+      },
+      "day": {
+        "title": "A day with Petra",
+        "steps": {
+          "morning": {
+            "when": "In the morning",
+            "text": "Open the calendar and see who's coming today, what service they're booked for and what to prepare."
+          },
+          "midday": {
+            "when": "Mid-workday",
+            "text": "A new client reaches out. Log them as a lead in seconds, and you know who to call back."
+          },
+          "beforeAppointment": {
+            "when": "Before the appointment",
+            "text": "A WhatsApp reminder goes out to the client, without you stopping what you're doing.",
+            "note": "Automatic reminders on the Basic and Pro plans."
+          },
+          "endOfDay": {
+            "when": "End of day",
+            "text": "See completed sessions, payments and what's waiting for you tomorrow."
+          }
+        }
+      },
+      "audiences": {
+        "title": "Petra knows your work.",
+        "subtitle": "Every business has its own kind of day. Petra adapts to how you work, not the other way around.",
+        "items": {
+          "trainers": {
+            "title": "Dog trainers",
+            "desc": "Your whole training process stays organized, even mid-lesson.",
+            "features": {
+              "progress": "See what you've already worked on with each dog and what's next.",
+              "records": "Keep session summaries, homework and progress in one place.",
+              "reminders": "Clients get reminders without you stopping to send messages."
+            },
+            "shotAlt": "Training programs screen: dogs in training, completed sessions and dogs that need attention"
+          },
+          "groomers": {
+            "title": "Groomers",
+            "desc": "Less time on the calendar. More time for grooming.",
+            "features": {
+              "selfBooking": "Clients book appointments without you answering every message.",
+              "reminders": "Reminders go out automatically and help cut down on forgotten appointments.",
+              "records": "Save photos and grooming details, so everything is ready for the next visit."
+            },
+            "shotAlt": "Client card: contact details, pets, appointments, payments and orders"
+          },
+          "boarding": {
+            "title": "Boarding facilities",
+            "desc": "Know who's arriving, who's leaving and where every dog is.",
+            "features": {
+              "occupancy": "See room occupancy and spot booking conflicts.",
+              "checkIn": "Get to check-in with the dog's care details and instructions already in order.",
+              "stayRecords": "Keep stay details and updates in one place, without digging through chats."
+            },
+            "shotAlt": "Boarding room map: occupied and available rooms and a checked-in stay"
+          },
+          "serviceDogs": {
+            "title": "Service dog training centers",
+            "desc": "Every dog, recipient and training process in one place.",
+            "features": {
+              "stages": "Track training stages and know what's left to do.",
+              "records": "Manage recipients, dogs and placements without scattering information.",
+              "reports": "Produce reports and gather the information needed for documentation and follow-up."
+            },
+            "shotAlt": "Service dog management: list of dogs by training stage, breed and recipient"
+          }
+        }
+      },
+      "features": {
+        "title": "Less work around the work.",
+        "subtitle": "Your calendar, clients, messages and payments work together. You don't have to connect it all yourself.",
+        "tierBasicPro": "On the Basic and Pro plans",
+        "examplesAriaLabel": "Example questions",
+        "items": {
+          "whatsapp": {
+            "name": "WhatsApp reminders",
+            "title": "Fewer messages. Fewer no-shows.",
+            "desc": "Appointment reminders go out automatically on WhatsApp, even when you're mid-session or mid-lesson."
+          },
+          "calendar": {
+            "name": "Appointment calendar",
+            "title": "Your calendar, always organized.",
+            "desc": "See what's ahead today, manage availability and sync with Google Calendar. No accidental double-booking."
+          },
+          "contracts": {
+            "name": "Digital contracts",
+            "title": "No more chasing signatures.",
+            "desc": "Send a contract for the client to sign remotely and keep the signed document in their file. No printing, no lost paperwork."
+          },
+          "business": {
+            "name": "Business management",
+            "title": "Know what's happening with the money.",
+            "desc": "Track revenue, payments and business activity. See the full picture without gathering data from all over the place."
+          },
+          "onlineBooking": {
+            "name": "Online booking",
+            "title": "Let clients book even when you're busy.",
+            "desc": "Send clients a booking link and they pick an open slot themselves. You keep working without stopping to open the calendar."
+          },
+          "leads": {
+            "name": "Lead management",
+            "title": "No inquiry gets lost.",
+            "desc": "See who reached out, who you've already talked to and who needs a call back. Fewer potential clients forgotten in WhatsApp."
+          },
+          "ai": {
+            "name": "AI assistant on the Pro plan",
+            "title": "Ask Petra. She knows.",
+            "desc": "Need a detail about a client or want to understand what's going on in the business? Ask the assistant and get an answer from your own data, based on what's available in the system.",
+            "examples": {
+              "callBack": "Who do I need to call back today?",
+              "lastMeeting": "What did we agree on with the client at the last meeting?",
+              "openPayments": "Which payments are still open?"
+            }
+          }
+        }
+      },
+      "googleContacts": {
+        "badge": "Google Contacts sync",
+        "title": "New lead in Petra — <accent>a contact in Google.</accent>",
+        "body": "When you turn on sync, every lead (potential client) created in Petra is automatically saved as a contact in your Google Contacts, and updated when you change their details in Petra. That way the name shows up on your phone and in WhatsApp from the very first call.",
+        "points": {
+          "consent": "Sync works only after you approve access on Google's permissions screen (OAuth).",
+          "createUpdateOnly": "Petra only creates and updates contacts for your leads — it doesn't read your existing contacts, share them or delete them.",
+          "offByDefault": "Sync is off by default, and you can turn it off anytime in Settings → Integrations, or revoke access from your Google account."
+        }
+      },
+      "about": {
+        "title": "We weren't born in an air-conditioned office.",
+        "intro": "We came from the field. Petra is the digital division of All-Dog, a training center with 15 years of experience. We built a system that understands what a workday with animals really looks like.",
+        "points": {
+          "knowYourDay": {
+            "title": "We know your day.",
+            "text": "Leash in one hand, phone in the other, a client calling mid-lesson and a message you need to remember to answer. We know it, because we work this way too."
+          },
+          "builtTogether": {
+            "title": "Petra is built together with you.",
+            "text": "We listen to the trainers, groomers and boarding managers who use the system. What complicates their day helps us understand what to improve."
+          },
+          "builtWhatWasMissing": {
+            "title": "We built what we were missing.",
+            "text": "We wanted one place to manage clients, appointments and workflows without wasting the day on messages, spreadsheets and paperwork. That's where Petra started."
+          }
+        },
+        "imageAlt": "A trainer working with a dog in a field session — Petra and All-Dog",
+        "statTitle": "15 years of experience",
+        "statSubtitle": "With dogs. In the field."
+      },
+      "how": {
+        "title": "Get started without the hassle.",
+        "subtitle": "Open an account, add your clients and start working. No complicated system to learn.",
+        "steps": {
+          "openAccount": {
+            "title": "Open an account",
+            "desc": "Sign up for Petra and log in. No installs and no long sign-up process."
+          },
+          "addClients": {
+            "title": "Add your clients",
+            "desc": "Bring over your existing client list and keep all the details in one place. No need to start from scratch."
+          },
+          "backToWork": {
+            "title": "Get back to work",
+            "desc": "Your calendar is organized, reminders go out automatically and you can focus on working with animals."
+          }
+        }
+      },
+      "finalCta": {
+        "title": "Let Petra bring some order.",
+        "subtitle": "Clients, appointments and reminders in one place. Less to remember, fewer messages to dig for and more time for the work you love."
+      },
+      "footer": {
+        "logoAlt": "Petra logo",
+        "brandName": "Petra",
+        "tagline": "Pet business management",
+        "navAriaLabel": "Footer navigation",
+        "links": {
+          "features": "Features",
+          "pricing": "Pricing",
+          "support": "Support",
+          "privacy": "Privacy",
+          "terms": "Terms of use",
+          "accessibility": "Accessibility"
+        },
+        "credit": "© 2026 Petra · Founded by the digital division of <link>All-Dog</link>"
+      },
+      "jsonLd": {
+        "description": "Smart management software for dog trainers, groomers and boarding facilities in Israel. Client management, appointments, automatic WhatsApp reminders, an AI assistant and a digital calendar.",
+        "freeOfferName": "Free",
+        "freeOfferDescription": "Up to 30 clients, no credit card required"
+      }
+    }
+  },
   "layout": {
     "rootLayout": {
       "title": "Petra — Management software for pet businesses",
@@ -5220,6 +6551,378 @@
       }
     }
   },
+  "legal": {
+    "termsPage": {
+      "meta": {
+        "title": "Terms of use – Petra",
+        "description": "The terms of use of the Petra management system for pet businesses"
+      },
+      "title": "Terms of use – Petra",
+      "version": "Version 1.1 | Last updated: April 2026",
+      "intro": "Welcome to Petra – an advanced management system for dog trainers, boarding owners and private pet service providers, operated by <b>Kol Kelev - alldog</b>, business no. 304996408. Use of the system is subject to the terms set out below.",
+      "sections": {
+        "intro": {
+          "title": "1. Introduction",
+          "items": {
+            "bindingAgreement": "These Terms of Use constitute a binding legal agreement between the user and the company operating the system.",
+            "acceptance": "Use of the system constitutes the user's full consent to these terms. If you do not agree, please do not use the system.",
+            "additionalTerms": "Additional terms, including the privacy policy, the acceptable use policy (AUP) and other terms, form an integral part of this agreement.",
+            "ongoingDevelopment": "The user is aware that the system is under continuous development and improvement, and therefore changes, temporary malfunctions or features that are not fully available may occur at any time."
+          }
+        },
+        "definitions": {
+          "title": "2. Definitions",
+          "items": {
+            "system": "\"The System\" – the Petra system and all of its digital services.",
+            "company": "\"The Company\" – Kol Kelev - alldog, business no. 304996408, the owners and operators of Petra.",
+            "user": "\"User\" – any private individual or business entity using the system, including during a trial period.",
+            "service": "\"Service\" – all functions and content provided through Petra.",
+            "content": "\"Content\" – any data, file, text, information or other material entered into or created through the system.",
+            "tradeSecret": "\"Trade secret\" – the system's design, user interfaces, workflows, business logic, data structures and technological solutions included in the system, which constitute confidential business information owned by the Company."
+          }
+        },
+        "registration": {
+          "title": "3. Registration and use",
+          "items": {
+            "accurateDetails": "Use of the system is conditional on registration and on providing accurate details.",
+            "passwordSecrecy": "The user is responsible for keeping the password confidential and for any use made under their account.",
+            "refuseOrSuspend": "The Company reserves the right to refuse service or suspend an account at its discretion.",
+            "authorizedUsers": "An account may include a primary user and authorized users according to the business structure."
+          }
+        },
+        "acceptableUse": {
+          "title": "4. Acceptable use policy (Acceptable Use)",
+          "items": {
+            "prohibitedIntro": "The system may not be used for the following purposes:",
+            "illegalContent": "4.1 Uploading illegal, offensive, harmful or misleading content.",
+            "unauthorizedAccess": "4.2 Unauthorized access, reverse engineering or interfering with the operation of the system.",
+            "spam": "4.3 Sending spam or mass content.",
+            "ipInfringement": "4.4 Infringing intellectual property rights or impersonation.",
+            "competitiveAnalysis": "4.5 Using the system for competitive analysis, building a competing product, or any activity intended to learn from the system in order to create an alternative service.",
+            "systematicDocumentation": "4.6 Systematic documentation of the user interfaces, workflows or system capabilities for the purpose of replication, demonstration to competitors, or distribution to a third party.",
+            "scraping": "4.7 Using automated tools, crawlers, bots or any other technical means to collect, scrape (scraping) or extract data from the system other than for its proper use."
+          }
+        },
+        "license": {
+          "title": "5. License and intellectual property",
+          "items": {
+            "ownership": "All intellectual property rights in the system, including the design, code, brand and content, belong to the Company.",
+            "grant": "The Company grants a personal, limited, non-exclusive, non-transferable license to use the system in accordance with these terms.",
+            "noCopying": "The system may not be copied, replicated, distributed or modified without the Company's explicit approval.",
+            "anonymousData": "The Company may use anonymous information to improve the service."
+          }
+        },
+        "tradeSecrets": {
+          "title": "6. Trade secrets and protection of intellectual property",
+          "items": {
+            "definition": "The system's design, user interfaces, workflows, business logic, data structures, algorithms and technological solutions included in the system constitute trade secrets and intellectual property of the Company.",
+            "noDisclosure": "The user undertakes not to disclose, transfer, share or publish such information to any third party, including competitors, without the Company's explicit written approval.",
+            "permittedUseOnly": "The user undertakes not to use the trade secrets outside the normal proper use of the system for operating their business.",
+            "remedies": "A breach of this section will entitle the Company to all remedies provided by law, including injunctions and compensation for actual damages and emotional distress.",
+            "survival": "The confidentiality obligation set out in this section will continue to apply after use of the system ends, without time limit."
+          }
+        },
+        "payments": {
+          "title": "7. Payments and subscriptions",
+          "items": {
+            "billingCycle": "The service is provided for a monthly or annual payment, according to the selected plan.",
+            "prepaid": "Usage fees are charged in advance.",
+            "cancellation": "Cancellation of the service is done through the system or by written request and takes effect at the end of the billing period.",
+            "priceChanges": "The Company may update prices with 30 days' advance notice.",
+            "noRefund": "No refund will be given unless stated otherwise.",
+            "subscriptionEnd": "End of subscription: when the subscription expires, access automatically drops to the free plan (Free). Entered data is kept and is not deleted automatically, but access to advanced features will be blocked until the subscription is renewed.",
+            "trial": "Trial period: at the end of the free trial period, access automatically moves to the free plan. A trial period cannot be reset after it has ended."
+          }
+        },
+        "dataRetention": {
+          "title": "8. Data retention and data transfer",
+          "items": {
+            "retentionPeriod": "Information will be retained for up to 90 days after the service ends.",
+            "deletionOrTransfer": "Deletion or transfer of information may be requested.",
+            "dpa": "All processing is subject to the privacy policy and the DPA appendix."
+          }
+        },
+        "privacy": {
+          "title": "9. Privacy and information security",
+          "items": {
+            "confidentiality": "The Company undertakes to keep personal and business information confidential.",
+            "reasonableMeasures": "Reasonable and accepted measures are used to protect the information.",
+            "noCardStorage": "Credit card details are not stored on the Company's servers."
+          }
+        },
+        "liability": {
+          "title": "10. Liability and limitations",
+          "items": {
+            "asIs": "The system is provided As-Is, without warranty of continuous operation.",
+            "indirectDamages": "The Company will not be liable for indirect damages.",
+            "cap": "The Company's liability is limited to the amount paid in the preceding 6 months."
+          }
+        },
+        "indemnification": {
+          "title": "11. Indemnification",
+          "items": {
+            "indemnify": "The user undertakes to indemnify the Company for any claim or damage arising from a breach of these terms."
+          }
+        },
+        "termination": {
+          "title": "12. Termination of service",
+          "items": {
+            "suspendOnBreach": "The Company may suspend or cancel the service in the event of a breach.",
+            "dataDeletion": "When the service ends, the information may be deleted after a defined period.",
+            "noPartialRefund": "No partial refund will be given for an unused period."
+          }
+        },
+        "changes": {
+          "title": "13. Changes to the terms",
+          "items": {
+            "notice": "The Company may update the terms with 30 days' advance notice.",
+            "continuedUse": "Continued use constitutes acceptance of the updated terms."
+          }
+        },
+        "jurisdiction": {
+          "title": "14. Jurisdiction",
+          "items": {
+            "governingLaw": "The applicable law is Israeli law.",
+            "venue": "Jurisdiction lies with the courts of the Tel Aviv district.",
+            "arbitration": "Arbitration may be used by mutual agreement."
+          }
+        },
+        "forceMajeure": {
+          "title": "15. Force majeure",
+          "items": {
+            "noLiability": "The Company will not be liable for events beyond its control (such as communication failures, epidemics, strikes, etc.)."
+          }
+        }
+      },
+      "footer": {
+        "rights": "Petra. All rights reserved.",
+        "privacyLink": "Privacy policy"
+      }
+    },
+    "accessibilityPage": {
+      "meta": {
+        "title": "Accessibility statement — Petra",
+        "description": "Petra's accessibility statement — our commitment to digital accessibility under the WCAG 2.1 AA standard and the Israeli Equal Rights for Persons with Disabilities Law."
+      },
+      "lastUpdatedValue": "March 2026",
+      "hero": {
+        "eyebrow": "Accessibility statement",
+        "title": "Digital accessibility — Petra",
+        "intro": "Petra is committed to full digital accessibility for all users, including people with disabilities, in accordance with the Israeli Equal Rights for Persons with Disabilities Law (5758–1998) and its regulations.",
+        "lastUpdated": "Last updated: {date}"
+      },
+      "badges": {
+        "levelLabel": "Level AA",
+        "levelSub": "Full conformance level",
+        "israeliSub": "Israeli Standard IS 5568"
+      },
+      "about": {
+        "title": "1. About Petra",
+        "body": "Petra is a B2B business management system for pet businesses in Israel — dog trainers, groomers, boarding kennels and service dog organizations. The system is developed and maintained by the digital division of <link>All-Dog</link>.",
+        "siteAddress": "Website address: <code>petra-app.com</code>"
+      },
+      "commitment": {
+        "title": "2. Our commitment to accessibility",
+        "body1": "We believe every person deserves equal access to information and digital services. We aim to meet conformance level <strong>AA</strong> of the WCAG 2.1 standard and the Israeli Standard IS 5568, and we work to improve continuously.",
+        "body2": "Accessibility is not only a legal obligation for us — it is a core value. Our clients include business owners and trainers who also work with service dogs and people with disabilities, so the accessibility of the system is especially important to us."
+      },
+      "measures": {
+        "title": "3. Measures taken",
+        "rtl": "Full RTL interface in Hebrew — all components are aligned and ordered right-to-left",
+        "contrast": "Color contrast meets WCAG 2.1 AA requirements (minimum ratio of 4.5:1 for normal text)",
+        "keyboard": "All buttons and interactive elements are accessible by keyboard alone (Tab, Enter, Escape)",
+        "aria": "Complete ARIA labels on all interactive components",
+        "textSize": "Minimum text size of 14px, with support for zooming up to 200% without loss of content",
+        "skipLink": "A \"Skip to main content\" link at the start of every page",
+        "altText": "All images include appropriate alternative text (alt), and decorative images are marked <code>alt=\"\"</code>",
+        "toolProfiles": "Built-in accessibility tool with profiles: cognitive, visually impaired, epilepsy, motor disability",
+        "toolControls": "Change text size, contrast, color saturation and alignment directly from the accessibility menu",
+        "headings": "Properly structured pages with hierarchical headings (h1–h4)",
+        "forms": "Forms with clear labels and understandable error messages",
+        "responsive": "Fully responsive interface — works on mobile, tablet and desktop"
+      },
+      "limitations": {
+        "title": "4. Known accessibility limitations",
+        "intro": "The following limitations have been identified. We are continuously working to fix them:",
+        "documents": "<strong>Attached documents</strong> — PDF documents uploaded by clients may not include accessibility tags. We will work with clients to improve the accessibility of documents.",
+        "charts": "<strong>Charts and graphs</strong> — revenue charts and visual reports include descriptive titles but may not provide a full alternative data table.",
+        "userContent": "<strong>User-generated content</strong> — notes and content that users enter into the system may not meet accessibility standards."
+      },
+      "tech": {
+        "title": "5. Technologies we support",
+        "intro": "The website was built using the following technologies and tested with the following tools:",
+        "browsers": "Supported browsers",
+        "screenReaders": "Screen readers",
+        "testingTools": "Testing tools",
+        "references": "Reference documents",
+        "israeliStandard": "Standard IS 5568 (Israel)",
+        "equalRightsLaw": "Equal Rights Law 5758–1998"
+      },
+      "feedback": {
+        "title": "6. Accessibility requests",
+        "body": "Ran into an accessibility issue? We'd love to hear about it and will handle it as quickly as possible. We are committed to responding to accessibility requests within <strong>5 business days</strong>.",
+        "email": "Email",
+        "phone": "Phone",
+        "sendMessage": "Send a message",
+        "commission": "If you did not receive a satisfactory response, you can contact the Commission for Equal Rights of Persons with Disabilities at the Israeli Ministry of Justice: <link>Commission website</link>."
+      },
+      "date": {
+        "title": "7. Statement date and updates",
+        "body": "This accessibility statement was last updated in <strong>{date}</strong> and will be updated at least once a year, or whenever material changes are made to the website.",
+        "auditBy": "The review was carried out by Petra's internal development team — the digital division of All-Dog."
+      },
+      "backLink": "→ Back to the Petra website",
+      "footer": "© 2026 Petra — the digital division of All-Dog"
+    },
+    "privacyPage": {
+      "meta": {
+        "title": "Privacy policy – Petra",
+        "description": "The privacy policy of Petra, the pet business management system"
+      },
+      "header": {
+        "title": "Privacy policy – Petra",
+        "lastUpdated": "Last updated: October 2026"
+      },
+      "intro": "We are committed to protecting our users' privacy. This document explains, with full transparency, how we collect, use and protect your information.",
+      "footer": "© {year} Petra. All rights reserved. <link>Terms of use</link>",
+      "sections": {
+        "intro": {
+          "title": "1. Introduction",
+          "items": {
+            "about": "Petra (\"the system\", \"we\") is a platform for managing pet-industry businesses – dog trainers, boarding kennels and service providers.",
+            "purpose": "This privacy policy explains what information we collect, how we use it and how we protect it.",
+            "consent": "Using the system constitutes consent to this policy. If you do not agree, please stop using it.",
+            "lastUpdated": "Last updated: October 2026."
+          }
+        },
+        "collected": {
+          "title": "2. Information we collect",
+          "items": {
+            "account": "2.1 Account details: name, email address, phone number and your business details.",
+            "clients": "2.2 Client data: names, phone numbers, emails and addresses of the clients you enter into the system.",
+            "pets": "2.3 Pet data: name, sex, breed, date of birth, medical details and behavioral information.",
+            "appointments": "2.4 Meetings and appointments: dates, times, services and treatment statuses.",
+            "payment": "2.5 Payment and subscription data: subscription type, end date, payment history. Credit card details are not stored on our servers and are handled directly by Stripe.",
+            "googleCalendar": "2.6 Google Calendar: when you connect Google Calendar, we read and write events in your calendar only to sync appointments.",
+            "googleContacts": "2.7 Google Contacts: when you connect Google Contacts, we create and update contacts in your account for the leads recorded in Petra. We do not read your existing contacts.",
+            "usage": "2.8 Usage data: technical logs, IP address, browser type – for security and to improve the system."
+          }
+        },
+        "calendarApi": {
+          "title": "3. Use of the Google Calendar API and Limited Use policy",
+          "items": {
+            "purpose": "We use the Google Calendar API solely to sync your appointments between Petra and your Google Calendar.",
+            "consentOnly": "We access your Google Calendar only after your explicit approval through Google's OAuth flow.",
+            "visibleFunction": "We access, read and write calendar events solely for the user-facing feature — syncing appointments in Petra.",
+            "noUnrelated": "We do not read, store or share Google Calendar events that are unrelated to appointments created in Petra.",
+            "noSharing": "We do not sell, transfer or share information received from Google APIs with any third party.",
+            "noAds": "We do not use Google data for advertising, targeting, tracking or any use not directly related to the operation of the system.",
+            "staffAccess": "Staff access to Google data is strictly limited — access is possible only for security purposes, requested technical support, legal compliance or anonymous aggregate analysis of system performance.",
+            "revoke": "You can revoke access at any time through your Google account settings (myaccount.google.com/permissions) or through the system settings.",
+            "compliance": "Our use of Google APIs fully complies with the Google API Services User Data Policy, including the Limited Use requirements."
+          }
+        },
+        "contactsApi": {
+          "title": "4. Use of Google Contacts (People API) and Limited Use policy",
+          "items": {
+            "optional": "Syncing to Google Contacts is optional, off by default, and turned on only after your explicit approval through Google's OAuth flow.",
+            "scope": "We use the contacts permission (https://www.googleapis.com/auth/contacts) solely to create and update contacts for leads recorded in Petra in your Google Contacts account.",
+            "dataWritten": "Data written to the contact: the lead's name, phone number, email address (if any), city and a short note from Petra. We store only the identifier of the contact we created, so we can update it later.",
+            "noReading": "We do not read, download, store or analyze the existing contacts in your Google account. The only access is to the contacts Petra itself created, in order to update them.",
+            "noSharing": "We do not sell, transfer or share information received from Google APIs with any third party, and we do not use it for advertising, targeting, tracking or training AI models.",
+            "revoke": "You can turn the sync off at any time in Petra under Settings → Integrations, or revoke access at myaccount.google.com/permissions. After revocation we will not create or update any further contacts; contacts already created remain in your account and under your control.",
+            "limitedUse": "Limited Use statement: Petra's use of information received from Google APIs, and its transfer to any other app, adhere to the Google API Services User Data Policy, including the Limited Use requirements."
+          }
+        },
+        "aiGoogleData": {
+          "title": "4a. Artificial intelligence (AI) and Google data",
+          "items": {
+            "petraAi": "Petra AI, the in-app support assistant, runs on Anthropic's Claude API (a commercial API service). It receives only your question and general data about the business in the system (such as the subscription plan and the number of clients), and receives no information from Google APIs.",
+            "mcp": "AI assistants (MCP connector, private beta): the business owner can connect their Claude or ChatGPT account to the business data in Petra. The connector does not expose any information from Google APIs — no contacts, and no events or busy times from Google Calendar.",
+            "noTransfer": "We do not transfer information received from Google APIs — raw, aggregated, anonymized or derived — to any third-party AI service, and we do not use it to create, train or improve AI or machine-learning models.",
+            "noAggregators": "We do not use model aggregators or gateways, and we do not run self-hosted models.",
+            "statement": "Statement: the use of raw or derived data received from Google APIs will adhere to the Google API Services User Data Policy, including the Limited Use requirements."
+          }
+        },
+        "usage": {
+          "title": "5. How we use information",
+          "items": {
+            "operate": "Operating the system and providing the services: managing clients, appointments, tasks and payments.",
+            "reminders": "Sending reminders and updates: SMS, WhatsApp and email to the business's clients (with their consent).",
+            "improve": "Improving the system: anonymous analysis of usage patterns to improve the interface.",
+            "security": "Security: detecting unauthorized access and preventing misuse.",
+            "support": "Technical support: responding to requests and resolving issues."
+          }
+        },
+        "sharing": {
+          "title": "6. Sharing information with third parties",
+          "items": {
+            "noSale": "We do not sell, rent or trade users' personal information.",
+            "email": "6.1 Email services: Resend – sending transactional emails (password reset, reminders).",
+            "whatsapp": "6.2 WhatsApp / SMS: Twilio – sending WhatsApp and SMS messages to the business's clients at your request.",
+            "payments": "6.3 Payment processing: Stripe – processing online payments. Credit card details are sent directly to Stripe and are not stored by us.",
+            "storage": "6.4 File storage: Vercel Blob – storing files uploaded to the system (images, documents).",
+            "google": "6.5 Google: we access Google APIs according to the permission you granted. Google is subject to its own privacy policy.",
+            "legal": "6.6 Legal requirement: we will disclose information if required under Israeli law.",
+            "transfer": "6.7 Business transfer: in the event of a sale or merger, the information may be transferred to the acquiring company under the same terms."
+          }
+        },
+        "storage": {
+          "title": "7. Data storage and security",
+          "items": {
+            "cloud": "The information is stored on secure cloud servers (Supabase / PostgreSQL) with industry-standard encryption.",
+            "oauthTokens": "Google OAuth tokens are encrypted with AES-256 before being stored.",
+            "login": "Sign-in is protected by an encrypted password (bcrypt) and a secure session cookie.",
+            "staffAccess": "Access to data is limited to authorized employees for support and operations.",
+            "rateLimiting": "We apply rate limiting and monitoring to detect suspicious activity."
+          }
+        },
+        "retention": {
+          "title": "8. Data retention",
+          "items": {
+            "active": "Account information is kept for as long as the account is active.",
+            "afterEnd": "After the subscription ends, the information is kept for up to 90 days and then permanently deleted.",
+            "earlyDeletion": "You can request earlier deletion by contacting us."
+          }
+        },
+        "rights": {
+          "title": "9. User rights",
+          "items": {
+            "access": "Access: you can view all the information stored about your account.",
+            "correction": "Correction: you can update personal details directly in the system.",
+            "deletion": "Deletion: you can request deletion of your account and all data related to it.",
+            "portability": "Portability: you can export your data in CSV/XLSX format through the system settings.",
+            "googleRevoke": "Revoking Google access: you can revoke access at any time at myaccount.google.com/permissions.",
+            "exercise": "To exercise your rights – contact us at the email address listed in section 11."
+          }
+        },
+        "cookies": {
+          "title": "10. Cookies",
+          "items": {
+            "session": "We use a single session cookie (petra_session) to identify a signed-in user.",
+            "noTracking": "We do not use advertising or tracking cookies.",
+            "blocking": "You can block cookies in your browser settings, but this will impair the ability to sign in to the system."
+          }
+        },
+        "contact": {
+          "title": "11. Contact us",
+          "items": {
+            "intro": "For questions, deletion requests or any privacy-related matter:",
+            "email": "Email: info@petra-app.com",
+            "response": "We will respond within 14 business days."
+          }
+        },
+        "changes": {
+          "title": "12. Changes to the policy",
+          "items": {
+            "updates": "We may update this policy from time to time.",
+            "notice": "In the event of a material change, we will notify you by email or by an in-app notification 30 days in advance.",
+            "continued": "Continued use after the change constitutes consent to the updated policy."
+          }
+        }
+      }
+    }
+  },
   "messages": {
     "messagesPage": {
       "title": "Messages",
@@ -5501,6 +7204,12 @@
         "openWhatsApp": "Open WhatsApp",
         "copyMessage": "Copy message"
       }
+    }
+  },
+  "meta": {
+    "manifest": {
+      "name": "Petra - Pet business management",
+      "description": "Advanced management system for pet businesses"
     }
   },
   "onboarding": {
@@ -7079,6 +8788,1059 @@
       }
     }
   },
+  "owner": {
+    "ownerAuditLogsPage": {
+      "tabs": {
+        "admin": "Admin actions",
+        "activity": "User activity"
+      },
+      "target": {
+        "otherType": "Other target",
+        "deleted": " (deleted)"
+      },
+      "admin": {
+        "filterLabel": "Filter by action",
+        "allActions": "All actions",
+        "eventsCount": "{count} events",
+        "loadError": "Failed to load the audit log: {message}",
+        "emptyFiltered": "No events of this type. Try another action.",
+        "empty": "No admin actions recorded yet.",
+        "columns": {
+          "time": "Time",
+          "action": "Action",
+          "actor": "Actor",
+          "target": "Target"
+        },
+        "system": "System"
+      },
+      "pagination": {
+        "pageOf": "Page {page} of {totalPages}",
+        "prev": "Previous",
+        "next": "Next"
+      },
+      "relative": {
+        "now": "Just now",
+        "minutesAgo": "{count} min ago",
+        "hoursAgo": "{count} hr ago",
+        "daysAgo": "{count, plural, one {# day ago} other {# days ago}}"
+      },
+      "activity": {
+        "categories": {
+          "all": "All",
+          "logins": "Logins",
+          "customers": "Clients",
+          "pets": "Pets",
+          "appointments": "Appointments",
+          "payments": "Payments",
+          "leads": "Leads",
+          "orders": "Orders",
+          "tasks": "Tasks",
+          "boarding": "Boarding",
+          "team": "Team & security"
+        },
+        "updatedAt": "Updated {time}",
+        "autoRefresh": "Updates every 30 seconds",
+        "refresh": "Refresh",
+        "loadError": "Failed to load activity: {message}",
+        "empty": "No user activity recorded yet.",
+        "emptyFiltered": "No activity in this category. Try another one.",
+        "deleteBadge": "Delete",
+        "deletedBusiness": "Business (deleted)",
+        "noBusiness": "No business",
+        "lastHundred": "Showing the last 100 actions."
+      },
+      "page": {
+        "title": "Audit log",
+        "subtitleAdmin": "Admin and security actions performed on the platform",
+        "subtitleActivity": "What business users are doing in the system, updated automatically"
+      }
+    },
+    "ownerBroadcastPage": {
+      "types": {
+        "info": "Info",
+        "success": "Success",
+        "warning": "Warning",
+        "error": "Error/emergency"
+      },
+      "expiry": {
+        "presets": {
+          "tomorrow": "Tomorrow",
+          "threeDays": "3 days",
+          "week": "1 week",
+          "twoWeeks": "2 weeks",
+          "month": "1 month"
+        },
+        "remove": "Remove expiry",
+        "disappearsAt": "The message will disappear from inboxes on {date}",
+        "noneHint": "No expiry — the message stays until the user dismisses it"
+      },
+      "relative": {
+        "now": "Just now",
+        "minutesAgo": "{count} min ago",
+        "hoursAgo": "{count, plural, one {# hour ago} other {# hours ago}}",
+        "daysAgo": "{count, plural, one {# day ago} other {# days ago}}"
+      },
+      "preview": {
+        "titlePlaceholder": "Message title",
+        "contentPlaceholder": "The message content will appear here...",
+        "title": "Preview",
+        "subtitle": "How users will see the message · Type: {type}"
+      },
+      "toasts": {
+        "updated": "Broadcast updated in {count, plural, one {# inbox} other {# inboxes}}",
+        "sent": "Message sent to {count, plural, one {# business} other {# businesses}}",
+        "sendError": "Failed to send",
+        "deleted": "Broadcast removed from {count, plural, one {# inbox} other {# inboxes}}",
+        "deleteError": "Failed to delete"
+      },
+      "page": {
+        "title": "Broadcast messages",
+        "subtitle": "Send a system message to all Petra users, and edit or remove past broadcasts",
+        "refresh": "Refresh"
+      },
+      "composer": {
+        "titleEdit": "Edit existing broadcast",
+        "titleNew": "Compose message",
+        "subtitleEdit": "The update applies to every copy still in inboxes — copies users deleted won't come back",
+        "subtitleNew": "The message will appear in the app for every registered user on the platform",
+        "cancelEdit": "Cancel editing",
+        "typeLabel": "Message type",
+        "titleField": "Title *",
+        "titlePlaceholder": "e.g. Important system update",
+        "contentField": "Message content *",
+        "contentPlaceholder": "Describe the update or change...",
+        "urlField": "Link URL (optional)",
+        "urlPlaceholder": "/calendar or https://...",
+        "buttonField": "Button text (optional)",
+        "buttonPlaceholder": "Learn more",
+        "buttonHint": "The button is shown to users only when both the URL and the button text are filled in.",
+        "expiryField": "Expiry date (optional)",
+        "submitEdit": "Update broadcast",
+        "submitNew": "Send to all users"
+      },
+      "history": {
+        "title": "Broadcast history",
+        "loadError": "Failed to load history.",
+        "retry": "Try again",
+        "empty": "No messages sent yet — broadcasts you send will appear here with how many businesses received and read them.",
+        "editingBadge": "Editing",
+        "businesses": "{count, plural, one {# business} other {# businesses}}",
+        "readTooltip": "How many inboxes marked the message as read (excluding businesses that deleted it)",
+        "readCount": "{count} read",
+        "sentAt": "Sent {date}",
+        "expiresAt": " · Expires {date}",
+        "edit": "Edit broadcast",
+        "remove": "Remove broadcast from all inboxes"
+      },
+      "confirmSend": {
+        "titleEdit": "Confirm broadcast update",
+        "titleNew": "Confirm sending to all users",
+        "warningEdit": "The update will replace the message content for every business that hasn't deleted it yet.",
+        "warningNew": "The message will be shown to every registered user in every active business on Petra. You can edit or remove it after sending, but users who already saw it have seen it.",
+        "type": "Type",
+        "link": "Link",
+        "buttonLabel": " · Button: \"{label}\"",
+        "noButtonText": " · No button text (button won't be shown)",
+        "noLink": "No link",
+        "expiry": "Expiry",
+        "noExpiry": "No expiry",
+        "sending": "Sending...",
+        "confirmEdit": "Yes, update broadcast",
+        "confirmNew": "Yes, send to all users"
+      },
+      "confirmDelete": {
+        "title": "Remove broadcast from all inboxes",
+        "warning": "The message will be deleted from the inboxes of all {count} businesses that haven't deleted it yet. This can't be undone.",
+        "removing": "Removing...",
+        "confirm": "Yes, remove for everyone"
+      }
+    },
+    "ownerConsentsPage": {
+      "title": "Terms of use consents",
+      "subtitle": "All users who accepted the terms of use and privacy policy",
+      "refresh": "Refresh",
+      "exportCsv": "Export CSV",
+      "stats": {
+        "totalConsents": "Total consents",
+        "uniqueUsers": "Unique users"
+      },
+      "filters": {
+        "searchPlaceholder": "Search by name, email, or business name...",
+        "searchAriaLabel": "Search consents",
+        "versionAriaLabel": "Filter by version",
+        "allVersions": "All versions",
+        "versionOption": "Version {version}",
+        "showing": "Showing {shown} of {total}"
+      },
+      "loadError": "Error loading data",
+      "empty": {
+        "noMatches": "No consents match your search or filter.",
+        "none": "No terms of use consents have been recorded yet."
+      },
+      "table": {
+        "userName": "User name",
+        "email": "Email address",
+        "businessName": "Business name",
+        "version": "Version",
+        "dateTime": "Date and time",
+        "ipAddress": "IP address",
+        "browser": "Browser",
+        "pdf": "PDF",
+        "downloadPdfAriaLabel": "Download consent PDF — {name}",
+        "downloadPdf": "Download PDF"
+      },
+      "footer": {
+        "records": "{count, plural, one {# record} other {# records}}",
+        "downloadCsv": "Download CSV"
+      },
+      "legalNote": "This document serves as legal evidence of acceptance of the terms of use. The IP address, browser user agent and consent date were recorded in real time when the user signed up. The CSV export includes all fields. To export a PDF for a specific user, click the PDF icon in their row."
+    },
+    "ownerCustomerSuccessPage": {
+      "segments": {
+        "churn_risk": {
+          "label": "Churn risk",
+          "meaning": "Were active, no activity for 14+ days"
+        },
+        "never_activated": {
+          "label": "Not activated",
+          "meaning": "Signed up but added no client or appointment"
+        },
+        "watch": {
+          "label": "Watching",
+          "meaning": "Low usage or 7+ days without activity"
+        },
+        "new": {
+          "label": "New",
+          "meaning": "First 3 days"
+        },
+        "healthy": {
+          "label": "Healthy",
+          "meaning": "Active on a regular basis"
+        }
+      },
+      "lastLogin": {
+        "never": "Never",
+        "today": "Today",
+        "oneDayAgo": "1 day ago",
+        "daysAgo": "{count} days ago"
+      },
+      "days": {
+        "one": "1 day",
+        "other": "{count} days"
+      },
+      "plan": {
+        "trialLeft": "Trial · {days} left",
+        "expiredAgo": "Subscription expired {days} ago",
+        "subscriptionLeft": "Subscription · {days} left",
+        "active": "Active subscription"
+      },
+      "empty": {
+        "none": "No businesses to show.",
+        "payingInSegment": "No paying businesses in \"{segment}\".",
+        "inSegment": "No businesses in \"{segment}\" right now.",
+        "paying": "No paying businesses to show."
+      },
+      "title": "Client health",
+      "subtitle": "Who needs attention now — churn vs. signups that never activated",
+      "showTestAccounts": "Show test accounts",
+      "refresh": "Refresh",
+      "loadError": "Failed to load data. Please try again.",
+      "retry": "Try again",
+      "payingAtRisk": "{count} of them paying",
+      "filters": {
+        "payingOnly": "Paying only",
+        "clear": "Clear filters",
+        "showing": "Showing {shown} of {total} businesses"
+      },
+      "table": {
+        "business": "Business",
+        "owner": "Owner",
+        "tenure": "Tenure",
+        "lastActivity": "Last activity",
+        "clients": "Clients",
+        "appointments": "Appointments",
+        "plan": "Subscription/trial",
+        "status": "Status",
+        "contact": "Contact",
+        "daysActive": "{count, plural, one {# day} other {# days}}"
+      },
+      "badges": {
+        "paying": "Paying",
+        "test": "Test"
+      },
+      "unknownSegment": "Unknown",
+      "contact": {
+        "whatsappTitle": "WhatsApp to {name} ({phone})",
+        "whatsappAriaLabel": "Send WhatsApp to {name}",
+        "whatsapp": "WhatsApp",
+        "emailTitle": "Email to {email}",
+        "emailAriaLabel": "Send email to {name}",
+        "email": "Email",
+        "none": "No contact details"
+      }
+    },
+    "ownerMcpPage": {
+      "tools": {
+        "list_clients": "Client list",
+        "list_upcoming_appointments": "Upcoming appointments",
+        "get_business_stats": "Statistics",
+        "create_appointment": "Create appointment",
+        "add_client_note": "Add note",
+        "send_reminder": "Send reminder"
+      },
+      "title": "MCP — AI assistants",
+      "subtitle": "Track calls, errors and active connections",
+      "stats": {
+        "activeConnections": "Active connections",
+        "totalConnections": "{count} total",
+        "calls24h": "Calls (24 hours)",
+        "calls7d": "{count} in 7 days",
+        "errors24h": "Errors (24 hours)",
+        "errorRate": "{rate}% error rate",
+        "expectedErrors": " · {count, plural, one {# expected response} other {# expected responses}}",
+        "popularTool": "Top tool",
+        "popularToolCount": "{count, plural, one {# time} other {# times}} / 30 days"
+      },
+      "popularTools": "Popular tools (30 days)",
+      "recentCalls": "Recent calls",
+      "noCalls": "No calls yet",
+      "recordNotFound": "Record not found (probably deleted)"
+    },
+    "ownerMigrationPage": {
+      "steps": {
+        "business": "Choose business",
+        "upload": "Upload file",
+        "preview": "Preview",
+        "import": "Import"
+      },
+      "issueTypes": {
+        "customer": "Client",
+        "pet": "Pet",
+        "other": "Other"
+      },
+      "errors": {
+        "chooseFile": "Choose a file",
+        "chooseBusiness": "Choose a business",
+        "parseFailed": "Failed to analyze the file",
+        "noBatch": "No batch to run",
+        "importFailed": "Import failed",
+        "loadBusinesses": "Failed to load the business list"
+      },
+      "toasts": {
+        "importDone": "Import complete"
+      },
+      "header": {
+        "title": "Data import",
+        "subtitle": "Import clients and pets from a CSV/XLSX file into a specific business",
+        "downloadTemplate": "Download template"
+      },
+      "result": {
+        "title": "Import completed successfully",
+        "businessLine": "The data was added to {name}",
+        "newCustomers": "New clients",
+        "mergedCustomers": "Clients merged",
+        "petsAdded": "Pets added",
+        "importAnother": "Import more"
+      },
+      "business": {
+        "title": "1. Choose target business",
+        "searchPlaceholder": "Search business by name, email or phone...",
+        "searchAria": "Search business",
+        "noMatch": "No businesses match your search",
+        "empty": "No businesses to show",
+        "capped": "Showing the first 100 businesses — narrow it down with search.",
+        "target": "Target business: <b>{name}</b>"
+      },
+      "file": {
+        "title": "2. Upload file (CSV / XLSX)",
+        "dropHint": "Drag a file here or click to choose",
+        "columns": "CSV, XLSX — columns: full_name, phone (required), email, city, notes",
+        "parsing": "Analyzing...",
+        "parse": "Analyze file"
+      },
+      "preview": {
+        "title": "3. Preview",
+        "notWritten": "Nothing has been written yet. The data will be written to {name} only after you confirm.",
+        "customersToImport": "Clients to import",
+        "petsToImport": "Pets to import",
+        "inFileDuplicates": "Duplicates in file",
+        "alreadyExist": "Already in business",
+        "skippedRows": "Skipped rows: {count}",
+        "orphanPets": " · Pets with no matching client: {count}",
+        "issuesTitle": "Rows with issues (up to 10 shown)",
+        "colRow": "Row",
+        "colType": "Type",
+        "colIssue": "Issue",
+        "noIssues": "No problem rows found in the file.",
+        "execute": "Run import ({count, plural, one {# client} other {# clients}})",
+        "restart": "Start over",
+        "noNewCustomers": "There are no new clients to import in this file."
+      },
+      "confirm": {
+        "title": "Confirm import",
+        "body": "You are about to import <b>{rows} rows</b> ({customers} clients and {pets} pets) into <b>{name}</b>.",
+        "warning": "The data will be written directly to a real client's account. Make sure this is the right business before confirming.",
+        "importing": "Importing...",
+        "submit": "Confirm and import"
+      }
+    },
+    "ownerPage": {
+      "header": {
+        "title": "Platform dashboard",
+        "subtitle": "What needs attention, revenue and platform usage",
+        "excludedTest": "{count, plural, one {# test business is} other {# test businesses are}} excluded from the metrics",
+        "showTest": "Show test accounts"
+      },
+      "loadError": "We couldn't load the dashboard data. Try refreshing the page.",
+      "attention": {
+        "title": "Needs attention",
+        "none": "Nothing needs attention",
+        "openTickets": "Open support tickets",
+        "openTicketsCta": "Handle tickets",
+        "expiringIn7": "Subscriptions expiring within 7 days",
+        "suspended": "Suspended businesses",
+        "suspendedCta": "View suspended",
+        "mcpErrors": "AI assistant errors in 24 hours",
+        "mcpErrorsCta": "Review the errors",
+        "ctaArrow": "{cta} →",
+        "expiresToday": "Expires today",
+        "oneDayLeft": "1 day left",
+        "daysLeft": "{days} days left"
+      },
+      "revenue": {
+        "title": "Revenue",
+        "mrrSub": "Monthly recurring revenue",
+        "activeTenants": "Active businesses",
+        "ofTotal": "of {total} total",
+        "paying": "Paying subscriptions",
+        "payingSub": "Active paid subscription",
+        "trial": "On trial",
+        "trialSub": "Active trial",
+        "byTier": "Breakdown by plan",
+        "noActive": "No active businesses to show.",
+        "colTier": "Plan",
+        "colBusinesses": "Businesses",
+        "colPrice": "Price/month",
+        "colContribution": "MRR contribution",
+        "otherTier": "Other plan",
+        "total": "Total",
+        "recentActivations": "Recent activations",
+        "noActivations": "No subscriptions activated yet.",
+        "deletedBusiness": "Deleted business"
+      },
+      "usage": {
+        "title": "Usage",
+        "hint": "Last 30 days",
+        "mau": "Monthly active users",
+        "activeToday": "Active today",
+        "signups7d": "Signed up in 7 days",
+        "totalUsers": "Total users",
+        "blocked": "{count} blocked",
+        "connectedUsers": "Connected users",
+        "dailyTitle": "Daily activity — 14 days",
+        "actions": "{n, plural, one {{count} action} other {{count} actions}}",
+        "noDaily": "No activity recorded in the last 14 days.",
+        "dayTitle": "{date} — {n, plural, one {{count} action} other {{count} actions}}",
+        "shortDate": "{month}/{day}",
+        "topUsers": "Most active users",
+        "noTopUsers": "No user activity in the last 30 days.",
+        "unnamedUser": "Unnamed user",
+        "byAction": "Actions breakdown",
+        "noByAction": "No actions to show in the last 30 days."
+      },
+      "audit": {
+        "title": "Recent admin actions",
+        "viewAll": "View all →",
+        "empty": "No admin actions recorded yet.",
+        "system": "System"
+      }
+    },
+    "ownerSupportPage": {
+      "tabs": {
+        "all": "All",
+        "open": "Open",
+        "inProgress": "In progress",
+        "resolved": "Closed"
+      },
+      "errors": {
+        "generic": "Error",
+        "updateFailed": "Update failed"
+      },
+      "header": {
+        "title": "Support tickets",
+        "counts": "{open} open · {inProgress} in progress · {resolved} closed"
+      },
+      "awaiting": {
+        "total": "{count, plural, one {# ticket is} other {# tickets are}} waiting for our reply",
+        "overdue": " · {count} over {hours} hours"
+      },
+      "list": {
+        "empty": "No tickets",
+        "waiting": "Waiting for reply {waiting}",
+        "answered": "Answered · waiting for client",
+        "selectPrompt": "Choose a ticket to reply and see its handling history"
+      },
+      "toasts": {
+        "noteSaved": "Note saved (only the team can see it)",
+        "emailNotSent": "The reply was saved and is visible to the client in the app, but the email was not sent",
+        "replySent": "Reply sent to the client — by email and in Messages from Petra",
+        "statusUpdated": "Status updated"
+      },
+      "detail": {
+        "notFound": "Ticket not found",
+        "back": "All tickets",
+        "firstResponse": "First response: {date}",
+        "customerUnread": "The client hasn't read the latest reply yet",
+        "waitingOnUs": "Waiting for our reply {waiting}"
+      },
+      "composer": {
+        "replyTab": "Reply to client",
+        "internalTab": "Internal note",
+        "internalPlaceholder": "Note for the team — the client won't see it",
+        "replyPlaceholder": "The reply will be emailed to the client and shown in the app under \"My tickets\"",
+        "saving": "Saving…",
+        "saveNote": "Save note",
+        "sendAndClose": "Send and close",
+        "sending": "Sending…",
+        "send": "Send reply"
+      },
+      "status": {
+        "changeLabel": "Change status without a message:",
+        "markOpen": "Mark open",
+        "markInProgress": "Mark in progress",
+        "markResolved": "Mark closed"
+      }
+    },
+    "tenantsDetailPage": {
+      "tiers": {
+        "free": "Free",
+        "basic": "Basic",
+        "pro": "Pro",
+        "service_dog": "Service Dog (organization)",
+        "groomer": "Groomer+ (legacy)"
+      },
+      "features": {
+        "gcal_sync": {
+          "label": "Google Calendar sync",
+          "description": "Connect Google Calendar to verify and update appointments"
+        },
+        "payments": {
+          "label": "Payments",
+          "description": "Payment links, card processing"
+        },
+        "invoicing": {
+          "label": "Invoices",
+          "description": "Issue invoices and receipts (Green Invoice / Morning)"
+        },
+        "scheduled_messages": {
+          "label": "WhatsApp reminders",
+          "description": "Automatic appointment reminders"
+        },
+        "automations": {
+          "label": "Message automations",
+          "description": "Automatic send rules by event"
+        },
+        "custom_messages": {
+          "label": "Custom messages",
+          "description": "Personalized message templates"
+        },
+        "training": {
+          "label": "Training management",
+          "description": "Training programs, goals and session tracking"
+        },
+        "training_groups": {
+          "label": "Group classes and workshops",
+          "description": "Manage group classes and workshops"
+        },
+        "boarding": {
+          "label": "Boarding",
+          "description": "Rooms, stays and occupancy calendar (drag & drop)"
+        },
+        "leads": {
+          "label": "CRM / Leads",
+          "description": "Lead kanban and sales tracking"
+        },
+        "staff_management": {
+          "label": "Staff management",
+          "description": "Add users, roles and access control"
+        },
+        "excel_export": {
+          "label": "Excel export",
+          "description": "Export clients and pets to Excel"
+        },
+        "groomer_portfolio": {
+          "label": "Before/after portfolio",
+          "description": "Before/after gallery (Basic+)"
+        },
+        "service_dogs": {
+          "label": "Service dogs module",
+          "description": "Manage service dogs, recipients, placements and ADI"
+        },
+        "online_bookings": {
+          "label": "Online booking",
+          "description": "Manage online appointments and approve bookings"
+        },
+        "analytics": {
+          "label": "Reports and analytics",
+          "description": "Charts, statistics and performance tracking"
+        },
+        "intake_forms": {
+          "label": "Intake forms",
+          "description": "Digital intake forms for clients"
+        },
+        "payment_links": {
+          "label": "Payment links",
+          "description": "WhatsApp payment requests with a link"
+        },
+        "orders": {
+          "label": "Orders",
+          "description": "Manage orders and deal details"
+        },
+        "pricing": {
+          "label": "Price list",
+          "description": "Services and billing items"
+        },
+        "pets_advanced": {
+          "label": "Advanced pets",
+          "description": "Manage pets and extended records"
+        }
+      },
+      "status": {
+        "active": "Active",
+        "suspended": "Suspended",
+        "closed": "Closed"
+      },
+      "roles": {
+        "user": "Employee",
+        "manager": "Manager",
+        "owner": "Owner"
+      },
+      "errors": {
+        "loadFailed": "Failed to load business details",
+        "generic": "Error",
+        "actionFailed": "Action failed",
+        "removeFailed": "Removal failed",
+        "saveOverridesFailed": "Failed to save changes. Try again."
+      },
+      "backToList": "Back to businesses",
+      "header": {
+        "createdOn": "Created {date}",
+        "tosConsent": "Terms acceptance",
+        "impersonateTitle": "Log in as business (impersonation)",
+        "impersonate": "Log in as business",
+        "suspend": "Suspend business",
+        "activate": "Activate business"
+      },
+      "details": {
+        "title": "Business details",
+        "name": "Name",
+        "email": "Email",
+        "phone": "Phone",
+        "currentTier": "Current plan",
+        "tierUpdated": "✓ Plan updated"
+      },
+      "stats": {
+        "customers": "Clients",
+        "monthlyAppointments": "Appointments this month",
+        "monthlyRevenue": "Revenue this month",
+        "lastSeen": "Last login"
+      },
+      "trial": {
+        "title": "Free trial",
+        "noTrial": "No trial",
+        "set14": "Set 14-day trial",
+        "set30": "Set 30-day trial",
+        "remove": "Remove trial"
+      },
+      "subscription": {
+        "title": "Annual subscription",
+        "lessThan14": "⚠️ Less than 14 days!",
+        "noSubscription": "No active subscription",
+        "daysLeftParen": "({days} days left)",
+        "add1Month": "+1 month",
+        "add6Months": "+6 months",
+        "addYear": "+1 year",
+        "remove": "Remove subscription"
+      },
+      "period": {
+        "activeDaysLeft": "Active — {days} days left",
+        "expired": "Expired",
+        "endDate": "End date: {date}",
+        "endNow": "End now",
+        "updated": "✓ Updated"
+      },
+      "featuresPanel": {
+        "title": "Feature management",
+        "activeOverrides": "{count, plural, one {# active override} other {# active overrides}}",
+        "resetAll": "Reset all",
+        "saveChanges": "Save changes",
+        "legendDefault": "<strong>Default</strong> = by plan",
+        "legendOpen": "Open = forced-on override",
+        "legendBlocked": "Blocked = forced-off override",
+        "colFeature": "Feature",
+        "colDefault": "Default",
+        "colDefaultByTier": "(by {tier})",
+        "colEffective": "Effective",
+        "included": "Included",
+        "notIncluded": "Not included",
+        "default": "Default",
+        "open": "Open",
+        "blocked": "Blocked",
+        "saved": "✓ Changes saved"
+      },
+      "members": {
+        "title": "Team members ({count})",
+        "addMember": "Add employee",
+        "addFormTitle": "Add a new employee",
+        "fullNamePlaceholder": "Full name",
+        "emailPlaceholder": "Email",
+        "tempPasswordPlaceholder": "Temporary password (8+ characters)",
+        "adding": "Adding...",
+        "empty": "No team members",
+        "colUser": "User",
+        "colRole": "Role",
+        "colPlatformRole": "Platform role",
+        "colState": "Status",
+        "colActions": "Actions",
+        "suspendAccess": "Suspend access",
+        "activateAccess": "Activate access",
+        "removeFromBusiness": "Remove from business"
+      },
+      "suspendDialog": {
+        "title": "Suspend the business \"{name}\"?",
+        "body": "All users of the business ({count}) will lose access to the system until the business is reactivated. The data is kept, and the business can be reactivated at any time.",
+        "suspending": "Suspending..."
+      },
+      "removeDialog": {
+        "title": "Remove {name} from the business?",
+        "body": "{name} ({email}) will be removed from the \"{business}\" team and will lose access to the business. To restore access, they will need to be added again.",
+        "removing": "Removing..."
+      }
+    },
+    "ownerTenantsPage": {
+      "title": "Businesses",
+      "total": "{total} total",
+      "hiddenTest": " · {count} test businesses hidden",
+      "newTenant": "New business",
+      "filters": {
+        "searchPlaceholder": "Search by business name, owner, email or phone...",
+        "allStatuses": "All statuses",
+        "allTiers": "All plans",
+        "showTest": "Show test accounts"
+      },
+      "statuses": {
+        "active": "Active",
+        "suspended": "Suspended",
+        "closed": "Closed"
+      },
+      "tiers": {
+        "free": "Free",
+        "basic": "Basic",
+        "pro": "Pro",
+        "service_dog": "Service Dog (organization)",
+        "groomer": "Groomer+ (legacy)"
+      },
+      "loadError": "Error loading data: {message}",
+      "columns": {
+        "business": "Business",
+        "owner": "Owner",
+        "lastLogin": "Last login",
+        "subscription": "Plan",
+        "members": "Team members",
+        "status": "Status",
+        "created": "Created",
+        "actions": "Actions"
+      },
+      "testBadge": "Test",
+      "noOwner": "No owner",
+      "rowActions": {
+        "suspend": "Suspend",
+        "activate": "Activate"
+      },
+      "empty": "No businesses match the search and filters",
+      "pagination": {
+        "pageOf": "Page {page} of {totalPages}",
+        "prev": "Previous",
+        "next": "Next"
+      },
+      "subscriptionUntil": "Subscribed until {date}",
+      "trialUntil": "Trial until {date}",
+      "relative": {
+        "never": "Never",
+        "justNow": "Just now",
+        "minute": "1 minute ago",
+        "minutes": "{count} minutes ago",
+        "hour": "1 hour ago",
+        "twoHours": "2 hours ago",
+        "hours": "{count} hours ago",
+        "yesterday": "Yesterday",
+        "twoDays": "2 days ago",
+        "days": "{count} days ago",
+        "month": "1 month ago",
+        "twoMonths": "2 months ago",
+        "months": "{count} months ago",
+        "year": "1 year ago",
+        "twoYears": "2 years ago",
+        "years": "{count} years ago"
+      },
+      "toasts": {
+        "suspended": "Business \"{name}\" suspended",
+        "activated": "Business \"{name}\" activated",
+        "actionFailed": "Action failed"
+      },
+      "suspendModal": {
+        "title": "Suspend the business \"{name}\"?",
+        "body": "All of the business's users ({count}) will lose access until the business is reactivated. The data is kept, and you can reactivate the business at any time.",
+        "suspending": "Suspending...",
+        "confirm": "Suspend business"
+      },
+      "createdAlert": "Business created successfully!\nBusiness admin created: {email}",
+      "createModal": {
+        "title": "New business",
+        "nameLabel": "Business name *",
+        "namePlaceholder": "e.g. Happy Paws Training",
+        "emailLabel": "Email",
+        "phoneLabel": "Phone",
+        "tierLabel": "Plan",
+        "tierOption": "{label} — {price}/month",
+        "addOwner": "Add a business admin",
+        "ownerHint": "If you leave this empty, you can add an admin later",
+        "ownerNameLabel": "Full name",
+        "ownerNamePlaceholder": "Jane Smith",
+        "ownerEmailLabel": "Email",
+        "passwordLabel": "Password (at least 8 characters)",
+        "creating": "Creating...",
+        "create": "Create business"
+      }
+    },
+    "ownerSearch": {
+      "placeholder": "Search business, user, email or phone...",
+      "ariaLabel": "Search the admin panel",
+      "searching": "Searching...",
+      "noResults": "No results found",
+      "businesses": "Businesses",
+      "suspended": "Suspended",
+      "users": "Users",
+      "blocked": "Blocked"
+    },
+    "ownerShell": {
+      "groups": {
+        "overview": "Overview",
+        "clients": "Clients",
+        "communication": "Communication",
+        "compliance": "Compliance & logs",
+        "system": "System"
+      },
+      "nav": {
+        "dashboard": "Dashboard",
+        "tenants": "Businesses",
+        "users": "Users",
+        "customerSuccess": "Client health",
+        "support": "Support",
+        "broadcast": "Broadcasts",
+        "consents": "Terms consents",
+        "auditLogs": "Audit log",
+        "mcp": "AI assistants (MCP)",
+        "migration": "Data import",
+        "settings": "Settings"
+      },
+      "platformAdmin": "Platform admin",
+      "closeMenu": "Close menu",
+      "openMenu": "Open menu",
+      "supportBadgeTitle": "Tickets awaiting a reply",
+      "loggingOut": "Logging out...",
+      "logout": "Log out",
+      "backToApp": "Back to the app →"
+    },
+    "usersDetailPage": {
+      "otherTier": "Other plan",
+      "tierNotes": {
+        "service_dog": "Enterprise",
+        "groomer": "Legacy"
+      },
+      "featureLabels": {
+        "gcal_sync": "Google sync",
+        "payments": "Payments",
+        "invoicing": "Invoices",
+        "scheduled_messages": "WhatsApp reminders",
+        "automations": "Automations",
+        "custom_messages": "Custom messages",
+        "training": "1-on-1 training",
+        "training_groups": "Group classes and workshops",
+        "boarding": "Boarding",
+        "leads": "CRM / Leads",
+        "staff_management": "Staff management",
+        "excel_export": "Excel export",
+        "groomer_portfolio": "Before/after portfolio",
+        "service_dogs": "Service dogs"
+      },
+      "memberRoles": {
+        "owner": "Owner",
+        "manager": "Manager",
+        "user": "User",
+        "staff": "Staff member",
+        "volunteer": "Volunteer"
+      },
+      "bizStatus": {
+        "active": "Active",
+        "suspended": "Suspended",
+        "closed": "Closed"
+      },
+      "features": {
+        "subscription": "Subscription",
+        "tierOption": "{tier} — {price}/mo",
+        "tierOptionWithNote": "{tier} ({note}) — {price}/mo",
+        "featuresLabel": "Features",
+        "resetAll": "Reset all ({count})",
+        "colFeature": "Feature",
+        "colTierDefault": "Plan default",
+        "colOverride": "Override",
+        "colEffective": "Effective",
+        "default": "Default",
+        "effectiveOn": "On",
+        "effectiveOff": "Blocked"
+      },
+      "toasts": {
+        "unblocked": "User unblocked",
+        "blocked": "User blocked and signed out of all sessions",
+        "actionFailed": "Action failed",
+        "deleted": "User permanently deleted",
+        "deleteFailed": "Couldn't delete the user"
+      },
+      "loadError": "Error loading user details",
+      "backToList": "Back to users",
+      "status": {
+        "active": "Active",
+        "blocked": "Blocked"
+      },
+      "block": {
+        "blocking": "Blocking...",
+        "blockUser": "Block user",
+        "unblocking": "Unblocking...",
+        "unblock": "Unblock",
+        "dialogAria": "Confirm blocking user",
+        "title": "Block {name}?",
+        "body": "The user won't be able to sign in, and all their active sessions will end immediately. You can unblock them at any time."
+      },
+      "details": {
+        "title": "User details",
+        "name": "Name",
+        "email": "Email",
+        "twoFaOn": "Enabled",
+        "twoFaOff": "Not enabled",
+        "created": "Created",
+        "updated": "Last updated"
+      },
+      "role": {
+        "title": "Platform role",
+        "current": "Current role",
+        "otherRole": "Other role",
+        "noPlatformRole": "No platform role",
+        "change": "Change role",
+        "noRole": "No role",
+        "updating": "Updating role..."
+      },
+      "memberships": {
+        "title": "Subscription and features by business",
+        "line": "{role} · {status} · {tier} plan",
+        "otherRole": "Team member",
+        "unknownStatus": "Unknown status",
+        "inactive": " · Inactive membership",
+        "none": "This user isn't linked to any business, so there's no subscription or features to manage."
+      },
+      "danger": {
+        "title": "Danger zone",
+        "body": "Deleting the user can't be undone. The account and its access to all businesses will be permanently deleted.",
+        "deleteButton": "Delete user permanently"
+      },
+      "delete": {
+        "dialogAria": "Confirm deleting user",
+        "title": "Permanently delete {name}",
+        "body": "This can't be undone. The user's account, sessions and memberships in all businesses will be deleted. To confirm, type the user's email address:",
+        "inputAria": "Type the email address to confirm deletion",
+        "confirm": "Delete permanently"
+      }
+    },
+    "ownerUsersPage": {
+      "statusFilter": {
+        "all": "All",
+        "active": "Active",
+        "blocked": "Blocked"
+      },
+      "relative": {
+        "never": "Never",
+        "today": "Today",
+        "yesterday": "Yesterday",
+        "twoDaysAgo": "2 days ago",
+        "daysAgo": "{days} days ago",
+        "monthAgo": "A month ago",
+        "monthsAgo": "{months} months ago"
+      },
+      "toasts": {
+        "unblocked": "User unblocked",
+        "blocked": "User blocked and signed out of all sessions",
+        "actionFailed": "Action failed",
+        "created": "User created"
+      },
+      "title": "Users",
+      "subtitle": "All platform users, their business and activity level · {total} total",
+      "newUser": "New user",
+      "searchPlaceholder": "Search by name or email...",
+      "searchAria": "Search users",
+      "statusFilterAria": "Filter by status",
+      "staffOnly": "Platform staff only",
+      "loadError": "Error loading data: {message}",
+      "emptyFiltered": "No users match your search or filters. Try changing the filters.",
+      "empty": "There are no users on the platform yet.",
+      "columns": {
+        "user": "User",
+        "business": "Business",
+        "platformRole": "Platform role",
+        "joined": "Joined",
+        "lastActivity": "Last activity",
+        "score30": "30-day score",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "testBadge": "Test",
+      "otherTier": "Other plan",
+      "linkedBusinesses": "{count, plural, one {Linked to # business} other {Linked to # businesses}}",
+      "otherRole": "Other role",
+      "twoFaOn": "Enabled",
+      "scoreTitle": "Number of actions in the last 30 days",
+      "status": {
+        "active": "Active",
+        "blocked": "Blocked"
+      },
+      "details": "Details",
+      "block": "Block",
+      "unblock": "Unblock",
+      "pagination": {
+        "pageOf": "Page {page} of {totalPages}",
+        "prev": "Previous",
+        "next": "Next"
+      },
+      "blockModal": {
+        "dialogAria": "Confirm blocking user",
+        "title": "Block {name}?",
+        "body": "The user won't be able to sign in, and all their active sessions will end immediately. You can unblock them at any time.",
+        "blocking": "Blocking...",
+        "blockUser": "Block user"
+      },
+      "createModal": {
+        "title": "New user",
+        "name": "Name *",
+        "namePlaceholder": "Full name",
+        "email": "Email *",
+        "password": "Password *",
+        "passwordPlaceholder": "At least 8 characters",
+        "platformRole": "Platform role",
+        "noPlatformRole": "No platform role",
+        "creating": "Creating...",
+        "create": "Create user"
+      }
+    }
+  },
   "payments": {
     "paymentRequestPage": {
       "title": "Payment request",
@@ -8136,6 +10898,111 @@
       "tierGate": {
         "title": "Pricing and services",
         "description": "Set up services, price lists and billable items. The core tool for managing your business revenue."
+      }
+    }
+  },
+  "publicIntake": {
+    "intakeDetailPage": {
+      "steps": {
+        "dogDetails": "Dog details",
+        "health": "Health",
+        "behavior": "Behavior",
+        "medications": "Medications"
+      },
+      "behaviorFlags": {
+        "dogAggression": "Aggression toward dogs",
+        "humanAggression": "Aggression toward people",
+        "leashReactivity": "Leash reactivity",
+        "leashPulling": "Leash pulling",
+        "jumping": "Jumping on people",
+        "separationAnxiety": "Separation anxiety",
+        "excessiveBarking": "Excessive barking",
+        "destruction": "Destructive chewing",
+        "resourceGuarding": "Resource guarding",
+        "fears": "Fears (noises, fireworks)",
+        "badWithKids": "Not good with kids",
+        "houseSoiling": "House soiling",
+        "biteHistory": "Bite history"
+      },
+      "errors": {
+        "loadFailed": "Couldn't load the form",
+        "saveFailed": "Couldn't save",
+        "submitFailed": "Couldn't submit the form"
+      },
+      "errorState": {
+        "contactBusiness": "Contact the business for a new link"
+      },
+      "success": {
+        "title": "Form submitted!",
+        "thanks": "Thanks for filling out the intake form"
+      },
+      "header": {
+        "title": "Intake form"
+      },
+      "dog": {
+        "nameLabel": "Dog's name *",
+        "breedLabel": "Breed",
+        "genderLabel": "Sex",
+        "genderSelect": "Select",
+        "genderMale": "Male",
+        "genderFemale": "Female",
+        "weightLabel": "Weight (kg)",
+        "birthDateLabel": "Date of birth"
+      },
+      "owner": {
+        "sectionTitle": "Owner details",
+        "nameLabel": "Owner's name *",
+        "phoneLabel": "Phone *"
+      },
+      "health": {
+        "allergiesLabel": "Allergies",
+        "allergiesPlaceholder": "List any known allergies...",
+        "conditionsLabel": "Medical conditions",
+        "conditionsPlaceholder": "Existing medical conditions...",
+        "surgeriesLabel": "Past surgeries",
+        "surgeriesPlaceholder": "If any, list the type and date...",
+        "activityLabel": "Activity restrictions",
+        "activityPlaceholder": "Any limits on physical activity? Details...",
+        "foodLabel": "Feeding instructions / food",
+        "foodPlaceholder": "Meals per day, which food, amount...",
+        "vetNameLabel": "Vet name",
+        "vetPhoneLabel": "Vet phone",
+        "neuteredLabel": "Spayed/neutered?",
+        "originLabel": "Where is the dog from? (origin)",
+        "originPlaceholder": "Breeder, shelter, adoption...",
+        "timeWithOwnerLabel": "How long have you had the dog?",
+        "timeWithOwnerPlaceholder": "2 years, 3 months..."
+      },
+      "yesNo": {
+        "yes": "Yes",
+        "no": "No"
+      },
+      "behavior": {
+        "markRelevant": "Check the issues that apply",
+        "biteDetailsLabel": "Describe the bite history",
+        "triggersLabel": "Known triggers",
+        "triggersPlaceholder": "What triggers the behavior issues...",
+        "notesLabel": "Additional behavior notes",
+        "notesPlaceholder": "Anything else about the dog's behavior...",
+        "priorTrainingLabel": "Any previous training?",
+        "priorTrainingPlaceholder": "Describe the previous training..."
+      },
+      "medications": {
+        "itemTitle": "Medication {n}",
+        "remove": "Remove",
+        "namePlaceholder": "Medication name",
+        "dosagePlaceholder": "Dosage",
+        "frequencyPlaceholder": "Frequency",
+        "add": "+ Add medication",
+        "noneHint": "If the dog takes no medications, continue to submit"
+      },
+      "submit": {
+        "sending": "Sending...",
+        "button": "Submit intake form"
+      },
+      "nav": {
+        "back": "Back",
+        "next": "Next"
       }
     }
   },
@@ -11394,6 +14261,83 @@
         "createdPets": "Pets created",
         "importMore": "Import more",
         "retry": "Try again"
+      }
+    }
+  },
+  "sign": {
+    "signDetailPage": {
+      "fieldLabels": {
+        "customer_name": "Full name",
+        "id_number": "ID number",
+        "address": "Address",
+        "phone": "Phone",
+        "pet_name": "Dog's name",
+        "pet_breed": "Breed",
+        "pet_microchip": "Microchip",
+        "pet_birthdate": "Date of birth",
+        "pet_gender": "Sex",
+        "pet_color": "Color"
+      },
+      "errors": {
+        "loadFailed": "Couldn't load the contract",
+        "network": "Network error",
+        "tryAgain": "Something went wrong. Please try again.",
+        "networkTryAgain": "Network error. Please try again."
+      },
+      "alreadySigned": {
+        "title": "This contract is already signed ✅",
+        "line1": "Your signature was already received and saved.",
+        "line2": "No need to sign again.",
+        "canClose": "You can close this page"
+      },
+      "expired": {
+        "title": "This link has expired ⏳",
+        "line1": "The signing link is no longer valid.",
+        "line2": "Contact the business and ask them to send you a new signing link."
+      },
+      "loadError": {
+        "title": "Couldn't load the contract"
+      },
+      "signedDone": {
+        "title": "Contract signed!",
+        "thanks": "Thank you, {name}.",
+        "receivedBy": "Your signature was received by <b>{business}</b>.",
+        "document": "Document",
+        "statusSigned": "Signed",
+        "status": "Status",
+        "download": "Download a copy of the signed contract",
+        "canClose": "You can close this page"
+      },
+      "footer": {
+        "secureSignature": "Secure digital signature"
+      },
+      "topBar": {
+        "sign": "Sign"
+      },
+      "summary": {
+        "title": "Details that will appear in the contract"
+      },
+      "read": {
+        "title": "Read the contract",
+        "openPdf": "Open PDF in a new window",
+        "cannotDisplay": "The document can't be displayed here",
+        "nextPage": "Next page ({page} of {total})",
+        "confirmed": "I've read the contract ✓",
+        "confirmAndContinue": "I've read the contract → continue to sign"
+      },
+      "signature": {
+        "title": "Sign here",
+        "recorded": "✓ Signature captured",
+        "signHere": "Sign in this box",
+        "clear": "Clear and sign again",
+        "consent": "I have read <b>{template}</b> from {business}, I understand its terms, and I agree to sign it."
+      },
+      "submit": {
+        "sending": "Sending...",
+        "confirmReadFirst": "Confirm you've read the contract to sign",
+        "signAboveFirst": "Sign in the box above to continue",
+        "button": "Submit signature",
+        "notice": "Tapping will submit your signature. The signed contract will be saved and sent to {business}."
       }
     }
   },
