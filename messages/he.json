@@ -11,6 +11,18 @@
     "nav.training": {
       "dogs": "ניהול תהליכי אילוף",
       "generic": "ניהול תוכניות"
+    },
+    "training.page_title": {
+      "dogs": "אימונים",
+      "generic": "תוכניות"
+    },
+    "training.page_subtitle": {
+      "dogs": "קבוצות ותוכניות אימון",
+      "generic": "תוכניות ומפגשים ללקוחות"
+    },
+    "search.placeholder": {
+      "dogs": "חפש לקוח, חיית מחמד, תור, ליד, משימה...",
+      "generic": "חפש לקוח, תור, ליד, משימה..."
     }
   }
 }

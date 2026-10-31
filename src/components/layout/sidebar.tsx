@@ -40,6 +40,7 @@ import {
   MonitorPlay,
   MessageSquare,
   Sparkles,
+  ClipboardList,
 } from "lucide-react";
 import { hasFeatureWithOverrides, type FeatureKey, type TierKey } from "@/lib/feature-flags";
 import { cn } from "@/lib/utils";
@@ -48,6 +49,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/providers/auth-provider";
 import { hasTenantPermission, screenPermissionForPath, type PermissionOverrides, type TenantRole } from "@/lib/permissions";
 import { usePWAInstall } from "./PWAInstallProvider";
+import { useVertical } from "@/hooks/useVertical";
+import type { VocabKey } from "@/lib/verticals/vocab";
 
 interface NavItem {
   name: string;
@@ -60,6 +63,9 @@ interface NavItem {
   hiddenForTiers?: TierKey[];
   /** Show orange "חדש" badge */
   isNew?: boolean;
+  /** Verticals: label from the dictionary (dogs value = `name`) + icon used by "generic". */
+  vocabKey?: VocabKey;
+  genericIcon?: React.ComponentType<{ className?: string }>;
 }
 
 interface NavGroup {
@@ -120,7 +126,7 @@ const navEntries: NavEntry[] = [
   { eyebrow: "מודולים" },
   { name: "פנסיון", href: "/boarding", icon: Hotel, lockedFeature: "boarding", hiddenForTiers: ["groomer", "groomer_plus"] },
   { name: "ניהול כלבי שירות", href: "/service-dogs", icon: Shield, lockedFeature: "service_dogs", hiddenForTiers: ["groomer", "groomer_plus"] },
-  { name: "ניהול תהליכי אילוף", href: "/training", icon: Dog, hiddenForTiers: ["groomer", "groomer_plus"] },
+  { name: "ניהול תהליכי אילוף", vocabKey: "nav.training", href: "/training", icon: Dog, genericIcon: ClipboardList, hiddenForTiers: ["groomer", "groomer_plus"] },
   { name: "חיות מחמד", href: "/pets", icon: PawPrint, minRole: "manager", lockedFeature: "pets_advanced" },
   { name: "שיעורים אונליין", href: "/online-classes", icon: MonitorPlay, lockedFeature: "online_classes", isNew: true },
   // Connecting an AI assistant (POST /api/mcp/connections) is owner/manager-only, so staff never see it.
@@ -152,6 +158,7 @@ export function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname();
   const { user, loading: authLoading } = useAuth();
+  const { v, isGeneric, hidesScreen } = useVertical();
   const isMaster = user?.isAdmin === true;
 
   // PWA install — permanent entry so users can add Petra to their home screen
@@ -227,6 +234,9 @@ export function Sidebar({
   const HIDDEN_WHEN_LOCKED: FeatureKey[] = ["pets_advanced", "online_classes"];
 
   function isItemHidden(item: NavItem): boolean {
+    // Verticals: a module the business's vertical hides is not rendered at all (hidden ≠ locked).
+    // Unknown vertical (auth loading) = "dogs" = nothing hidden.
+    if (hidesScreen(item.href)) return true;
     // While auth is loading, never hide an item — same optimistic policy as locking.
     if (authLoading || !user) return false;
     // Hidden if tier is in the item's hiddenForTiers list
@@ -258,6 +268,8 @@ export function Sidebar({
 
   const { data: sdAlerts } = useQuery<{ total: number }>({
     queryKey: ["sd-alerts"],
+    // Hidden module for "generic" → the API answers 404; don't ask.
+    enabled: !hidesScreen("/service-dogs"),
     queryFn: () => fetch("/api/service-dogs/alerts").then((r) => {
       if (!r.ok) throw new Error("Failed");
       return r.json();
@@ -282,7 +294,12 @@ export function Sidebar({
     "/service-dogs": `${sdAlerts?.total || 0} התראות פעילות`,
   };
 
-  const renderNavItem = (item: NavItem, isMobile: boolean, isChild = false) => {
+  const renderNavItem = (rawItem: NavItem, isMobile: boolean, isChild = false) => {
+    const item: NavItem = {
+      ...rawItem,
+      name: rawItem.vocabKey ? v(rawItem.vocabKey) : rawItem.name,
+      icon: isGeneric && rawItem.genericIcon ? rawItem.genericIcon : rawItem.icon,
+    };
     const isActive =
       item.href === "/dashboard"
         ? pathname === "/" || pathname === "/dashboard"

@@ -44,6 +44,7 @@ const GlobalSearch = dynamic(
 import { cn, fetchJSON, formatCurrency, toWhatsAppPhone } from "@/lib/utils";
 import { ReportBugButton } from "@/components/layout/ReportBugButton";
 import { toast } from "sonner";
+import { useVertical } from "@/hooks/useVertical";
 
 const PAGE_TITLES: Record<string, { title: string; subtitle?: string }> = {
   "/customers": { title: "לקוחות", subtitle: "ניהול בסיס הלקוחות" },
@@ -340,6 +341,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout, isOwner } = useAuth();
+  const { v } = useVertical();
   const queryClient = useQueryClient();
 
   // Close all panels/dropdowns on route change
@@ -518,7 +520,10 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
   const pageKey = Object.keys(PAGE_TITLES).find((key) =>
     pathname.startsWith(key)
   );
-  const pageInfo = pageKey ? PAGE_TITLES[pageKey] : null;
+  // Verticals: a few titles read from the dictionary (dogs value = the text above).
+  const pageInfo = pageKey === "/training"
+    ? { title: v("training.page_title"), subtitle: v("training.page_subtitle") }
+    : pageKey ? PAGE_TITLES[pageKey] : null;
 
   const displayName = user?.name || "משתמש";
   const initials = displayName.charAt(0);
