@@ -14,10 +14,10 @@ Branch: `claude/gracious-dijkstra-p3eq67` (ראו DECISIONS D-001). סשן חי�
 | גל א — nav/layout/common/topbar/search/help | ✅ | 31 | 1,766 (he+en) | ~60 | [wave-a](qa/wave-a/) — he ≤0.08% (16/16), en ✅ | 5543163 |
 | גל ב — customers, pets, leads, calendar, scheduler, orders, dashboard | ✅ | 90 | 6,064 (he+en) | ~230 | [wave-b](qa/wave-b/) — he ≤0.009% (32/32), en ✅ | 4c03f6b |
 | גל ג — settings, business-admin, messages, onboarding | ✅ | 69 | 3,670 (he+en) | ~120 | [wave-c](qa/wave-c/) — he 32/34 ≤0.5%; 2 = רשימת סשנים גדלה בכל התחברות QA (דאטה), en ✅ | 4d49890 |
-| גל ד — boarding | 🔄 | | | | | |
-| גל ה — training, online-classes, portal | ⬜ | | | | | |
-| גל ו — service-dogs | ⬜ | | | | | |
-| גל ז — landing, auth, legal, public pages, owner | ⬜ | | | | | |
+| גל ד — boarding | ✅ | 6 | ~1,370 (he+en) | ~30 | [wave-def](qa/wave-def/) — he 22/22 ≤0.5% (D+E+F), en ✅ | 7761ea6 |
+| גל ה — training, online-classes, portal | ✅ | 21 | ~2,700 (he+en) | ~40 | [wave-def](qa/wave-def/) | 7761ea6 |
+| גל ו — service-dogs | ✅ | 12 | ~2,100 (he+en) | ~60 | [wave-def](qa/wave-def/) — אין דאטה של כלב שירות ב‑seed: הפרופיל (977 מחרוזות) נבדק ב‑verify-he + tsc, לא בצילום | 7761ea6 |
+| גל ז — landing, auth, legal, public pages, owner | 🔄 | | | | | |
 
 ## רשימות קבצים לפי גל (נכתבו לפני תחילת כל גל)
 
