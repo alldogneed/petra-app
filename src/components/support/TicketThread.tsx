@@ -1,7 +1,10 @@
 "use client";
 
 import { AlertCircle, CheckCircle, Clock, Lock, ExternalLink } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
+import { DEFAULT_LOCALE, LOCALE_CONFIG } from "@/lib/locale";
 import { SUPPORT_STATUS_LABELS, type SupportTicketStatus } from "@/lib/support-tickets";
 
 export interface TicketEvent {
@@ -26,9 +29,10 @@ export function StatusBadge({ status }: { status: string }) {
   return <span className={cn("text-xs px-2 py-0.5 rounded-full border font-medium whitespace-nowrap", meta.color)}>{meta.label}</span>;
 }
 
-export function formatTicketDate(iso: string) {
-  return new Date(iso).toLocaleString("he-IL", {
-    timeZone: "Asia/Jerusalem",
+/** `opts` omitted → Petra's default locale/timezone (platform admin screens). */
+export function formatTicketDate(iso: string, opts?: { locale: string; timezone: string }) {
+  return new Date(iso).toLocaleString(opts?.locale ?? DEFAULT_LOCALE, {
+    timeZone: opts?.timezone ?? LOCALE_CONFIG[DEFAULT_LOCALE].timezone,
     day: "2-digit",
     month: "2-digit",
     year: "2-digit",
@@ -59,11 +63,13 @@ export function TicketThread({
   events: TicketEvent[];
   viewer: "customer" | "staff";
 }) {
-  const customerName = viewer === "customer" ? "את/ה" : openedBy || "הלקוח";
+  const t = useTranslations("help.ticketThread");
+  const { locale, timezone } = useBusinessLocale();
+  const customerName = viewer === "customer" ? t("you") : openedBy || t("theCustomer");
   return (
     <ol className="space-y-3">
       <li>
-        <Bubble side="customer" author={`${customerName} · פתיחת הפנייה`} at={createdAt}>
+        <Bubble side="customer" author={t("openedTicket", { name: customerName })} at={createdAt}>
           {description}
           {pageUrl && (
             <span className="mt-2 flex items-center gap-1.5 text-xs text-slate-400 break-all" dir="ltr">
@@ -76,12 +82,14 @@ export function TicketThread({
       {events.map((e) => {
         if (e.type === "created") return null;
         if (e.type === "status_change") {
-          const who = e.authorType === "system" ? "המערכת" : viewer === "customer" ? "צוות פטרה" : e.authorName || "צוות";
+          const who = e.authorType === "system" ? t("system") : viewer === "customer" ? t("petraTeam") : e.authorName || t("team");
           return (
             <li key={e.id} className="flex items-center gap-2 text-xs text-slate-400 px-1">
               <span className="h-px flex-1 bg-slate-100" />
               <span className="text-center">
-                {`${who} שינה סטטוס ${e.fromStatus ? `מ"${statusLabel(e.fromStatus)}" ` : ""}ל"${statusLabel(e.toStatus)}" · ${formatTicketDate(e.createdAt)}`}
+                {e.fromStatus
+                  ? t("statusChangedFrom", { who, from: statusLabel(e.fromStatus), to: statusLabel(e.toStatus), date: formatTicketDate(e.createdAt, { locale, timezone }) })
+                  : t("statusChanged", { who, to: statusLabel(e.toStatus), date: formatTicketDate(e.createdAt, { locale, timezone }) })}
               </span>
               <span className="h-px flex-1 bg-slate-100" />
             </li>
@@ -90,11 +98,11 @@ export function TicketThread({
         const internal = e.type === "internal_note";
         const fromCustomer = e.authorType === "customer";
         const author = fromCustomer
-          ? viewer === "customer" ? "את/ה" : e.authorName || customerName
-          : viewer === "customer" ? "צוות פטרה" : e.authorName || "צוות פטרה";
+          ? viewer === "customer" ? t("you") : e.authorName || customerName
+          : viewer === "customer" ? t("petraTeam") : e.authorName || t("petraTeam");
         return (
           <li key={e.id}>
-            <Bubble side={fromCustomer ? "customer" : internal ? "internal" : "staff"} author={internal ? `${author} · הערה פנימית` : author} at={e.createdAt}>
+            <Bubble side={fromCustomer ? "customer" : internal ? "internal" : "staff"} author={internal ? t("internalNote", { author }) : author} at={e.createdAt}>
               {e.body}
             </Bubble>
           </li>
@@ -105,20 +113,21 @@ export function TicketThread({
 }
 
 function Bubble({ side, author, at, children }: { side: "customer" | "staff" | "internal"; author: string; at: string; children: React.ReactNode }) {
+  const { locale, timezone } = useBusinessLocale();
   return (
     <div className={cn("flex", side === "customer" ? "justify-start" : "justify-end")}>
       <div
         className={cn(
           "max-w-[92%] sm:max-w-[80%] rounded-2xl px-4 py-3 border",
-          side === "customer" && "bg-slate-50 border-slate-100 rounded-tr-sm",
-          side === "staff" && "bg-orange-50 border-orange-100 rounded-tl-sm",
-          side === "internal" && "bg-yellow-50 border-dashed border-yellow-300 rounded-tl-sm"
+          side === "customer" && "bg-slate-50 border-slate-100 rounded-ss-sm",
+          side === "staff" && "bg-orange-50 border-orange-100 rounded-se-sm",
+          side === "internal" && "bg-yellow-50 border-dashed border-yellow-300 rounded-se-sm"
         )}
       >
         <div className="flex items-center gap-1.5 text-xs text-slate-500 mb-1 flex-wrap">
           {side === "internal" && <Lock className="w-3 h-3" />}
           <span className="font-semibold text-slate-700">{author}</span>
-          <span>· {formatTicketDate(at)}</span>
+          <span>· {formatTicketDate(at, { locale, timezone })}</span>
         </div>
         <div className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap break-words">{children}</div>
       </div>

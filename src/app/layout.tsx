@@ -32,83 +32,85 @@ const montserrat = Montserrat({
   variable: "--font-montserrat",
 });
 
-export const metadata: Metadata = {
-  metadataBase: new URL("https://petra-app.com"),
-  title: {
-    default: "Petra — מערכת ניהול לעסקי חיות מחמד",
-    template: "%s | Petra",
-  },
-  description:
-    "ניהול לקוחות, תורים, WhatsApp ופנסיון — כל הכלים לעסק שלך במקום אחד. מסלול חינמי ללא כרטיס אשראי. מאלפי כלבים, גרומרים, פנסיונים וארגוני כלבי שירות.",
-  keywords: [
-    "מערכת ניהול כלבים",
-    "תוכנה לאלף כלבים",
-    "ניהול פנסיון כלבים",
-    "תוכנה לגרומרים",
-    "ניהול תורים לאלפים",
-    "CRM לעסקי חיות מחמד",
-    "תוכנת ניהול לקוחות לאלפים",
-    "אילוף כלבים תוכנה",
-    "ניהול עסק כלבים ישראל",
-    "petra app",
-    "פטרה",
-  ],
-  authors: [{ name: "Petra — All-Dog", url: "https://petra-app.com" }],
-  creator: "All-Dog",
-  publisher: "All-Dog",
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = localeFromBusiness({ locale: await getLocale() });
+  const tm = await getTranslations("layout.rootLayout");
+  const kw = tm.raw("keywords") as Record<string, string>;
+  return {
+    metadataBase: new URL("https://petra-app.com"),
+    title: {
+      default: tm("title"),
+      template: "%s | Petra",
+    },
+    description: tm("description"),
+    keywords: [
+      kw.dogManagementSystem,
+      kw.dogTrainerSoftware,
+      kw.dogBoardingManagement,
+      kw.groomerSoftware,
+      kw.trainerScheduling,
+      kw.petBusinessCrm,
+      kw.trainerClientManagement,
+      kw.dogTrainingSoftware,
+      kw.dogBusinessManagement,
+      "petra app",
+      kw.brandName,
+    ],
+    authors: [{ name: "Petra — All-Dog", url: "https://petra-app.com" }],
+    creator: "All-Dog",
+    publisher: "All-Dog",
+    robots: {
       index: true,
       follow: true,
-      "max-image-preview": "large",
-      "max-snippet": -1,
-    },
-  },
-  openGraph: {
-    type: "website",
-    locale: "he_IL",
-    url: "https://petra-app.com/landing",
-    siteName: "Petra",
-    title: "Petra — מערכת ניהול לעסקי חיות מחמד",
-    description:
-      "ניהול לקוחות, תורים, WhatsApp ופנסיון — כל הכלים לעסק שלך במקום אחד. התחל בחינם.",
-    images: [
-      {
-        url: "/hero-image.png",
-        width: 1200,
-        height: 630,
-        alt: "Petra — מערכת ניהול לעסקי חיות מחמד",
+      googleBot: {
+        index: true,
+        follow: true,
+        "max-image-preview": "large",
+        "max-snippet": -1,
       },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Petra — מערכת ניהול לעסקי חיות מחמד",
-    description:
-      "ניהול לקוחות, תורים, WhatsApp ופנסיון — כל הכלים לעסק שלך במקום אחד.",
-    images: ["/hero-image.png"],
-  },
-  alternates: {
-    canonical: "https://petra-app.com/landing",
-  },
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "Petra",
-  },
-  icons: {
-    icon: [
-      { url: "/favicon.ico", type: "image/x-icon", sizes: "16x16" },
-      { url: "/favicon.ico", type: "image/x-icon", sizes: "32x32" },
-      { url: "/icon.png", type: "image/png", sizes: "192x192" },
-      { url: "/icon-512.png", type: "image/png", sizes: "512x512" },
-    ],
-    shortcut: "/favicon.ico",
-    apple: { url: "/apple-icon.png", sizes: "180x180" },
-  },
-};
+    },
+    openGraph: {
+      type: "website",
+      locale: locale.replace("-", "_"),
+      url: "https://petra-app.com/landing",
+      siteName: "Petra",
+      title: tm("title"),
+      description: tm("ogDescription"),
+      images: [
+        {
+          url: "/hero-image.png",
+          width: 1200,
+          height: 630,
+          alt: tm("title"),
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: tm("title"),
+      description: tm("twitterDescription"),
+      images: ["/hero-image.png"],
+    },
+    alternates: {
+      canonical: "https://petra-app.com/landing",
+    },
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: "default",
+      title: "Petra",
+    },
+    icons: {
+      icon: [
+        { url: "/favicon.ico", type: "image/x-icon", sizes: "16x16" },
+        { url: "/favicon.ico", type: "image/x-icon", sizes: "32x32" },
+        { url: "/icon.png", type: "image/png", sizes: "192x192" },
+        { url: "/icon-512.png", type: "image/png", sizes: "512x512" },
+      ],
+      shortcut: "/favicon.ico",
+      apple: { url: "/apple-icon.png", sizes: "180x180" },
+    },
+  };
+}
 
 export const viewport: Viewport = {
   width: "device-width",

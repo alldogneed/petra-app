@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Lock } from "lucide-react";
 import type { ReactNode } from "react";
 import { useAuth } from "@/providers/auth-provider";
@@ -14,6 +15,7 @@ import { isScreenBlocked } from "@/lib/permissions";
 export function ScreenGuard({ children }: { children: ReactNode }) {
   const pathname = usePathname() ?? "";
   const { user, loading } = useAuth();
+  const t = useTranslations("layout.screenGuard");
 
   if (loading || !user || user.isAdmin || user.isImpersonating) return <>{children}</>;
   if (!isScreenBlocked(user.businessRole, user.businessPermissionOverrides, pathname)) return <>{children}</>;
@@ -24,12 +26,12 @@ export function ScreenGuard({ children }: { children: ReactNode }) {
         <div className="w-12 h-12 mx-auto mb-4 rounded-2xl bg-slate-100 flex items-center justify-center">
           <Lock className="w-5 h-5 text-petra-muted" />
         </div>
-        <h1 className="text-lg font-bold text-petra-text mb-1">אין לך גישה למסך הזה</h1>
+        <h1 className="text-lg font-bold text-petra-text mb-1">{t("title")}</h1>
         <p className="text-sm text-petra-muted mb-5">
-          בעל העסק יכול לפתוח אותו עבורך בהגדרות ← צוות והרשאות.
+          {t("body")}
         </p>
         <Link href="/dashboard" className="btn-primary inline-flex">
-          חזרה לדשבורד
+          {t("backToDashboard")}
         </Link>
       </div>
     </div>

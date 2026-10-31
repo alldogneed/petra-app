@@ -23,6 +23,1489 @@
       "exporting": "Exporting..."
     }
   },
+  "errors": {
+    "dashboardError": {
+      "updating": "Updating to the latest version...",
+      "title": "An error occurred",
+      "description": "Something went wrong while loading the page. Please try again.",
+      "errorCode": "Error code: {digest}",
+      "tryAgain": "Try again",
+      "home": "Go to home"
+    },
+    "forbiddenPage": {
+      "metaTitle": "403 Access denied — Petra",
+      "title": "Access denied",
+      "description": "You don't have permission to access this resource. If you think this is a mistake, contact your system administrator.",
+      "backToDashboard": "Back to dashboard",
+      "switchAccount": "Switch account"
+    },
+    "error": {
+      "title": "An error occurred",
+      "description": "Something went wrong. Please refresh the page and try again.",
+      "errorCode": "Error code: {digest}",
+      "tryAgain": "Try again",
+      "home": "Go to home"
+    },
+    "globalError": {
+      "title": "Something went wrong",
+      "description": "We're already aware of the issue. Try refreshing the page.",
+      "tryAgain": "Try again"
+    },
+    "notFound": {
+      "title": "Page not found",
+      "description": "The page you're looking for doesn't exist, was removed, or the link is broken",
+      "home": "Go to home",
+      "clientsList": "Go to client list",
+      "contactSupport": "If you think the link is correct, contact support"
+    }
+  },
+  "help": {
+    "helpConnectAiPage": {
+      "codeLine": {
+        "copied": "Copied",
+        "copy": "Copy"
+      },
+      "easy": {
+        "claude": {
+          "openSettings": "Open <strong>Settings → Connectors → Add custom connector</strong>",
+          "nameAndUrl": "Under <strong>Name</strong> enter <code>Petra</code>, and under <strong>Remote MCP server URL</strong> paste:",
+          "addConnect": "Click <strong>Add</strong> and then <strong>Connect</strong>",
+          "loginApprove": "The Petra sign-in page opens — sign in, choose a business and an access profile, and click <strong>Approve connection</strong>"
+        },
+        "runInTerminal": "Run in your terminal:",
+        "claudeCode": {
+          "authenticate": "Then in Claude Code type <code>/mcp</code>, choose <strong>petra</strong> → <strong>Authenticate</strong> — your browser opens to sign in and approve."
+        },
+        "codex": {
+          "browserOpens": "Your browser opens to sign in to Petra and approve the connection."
+        },
+        "title": "The easy way: just a URL",
+        "recommended": "Recommended",
+        "intro": "No token needed. Add Petra's URL, sign in with your usual email and password, choose a business and an access profile — and you're connected. The connection renews automatically as long as you use it, and appears in <link>Settings → AI assistants</link> with the \"Auto sign-in\" tag — you can disconnect it there at any time.",
+        "rolesNote": "Only owners or managers can approve a connection. As a manager, the connection won't include analytics/revenue, payments or deletions."
+      },
+      "steps": {
+        "step1": {
+          "title": "Open your business settings",
+          "description": "Go to <link>Settings → AI assistants</link> and click \"Connect new assistant\"."
+        },
+        "step2": {
+          "title": "Name the connection and choose an access profile",
+          "name": "Pick a name that reminds you where you'll use it, like \"Claude Desktop\" or \"ChatGPT Plugin\".",
+          "profile": "Choose an access profile — <strong>we recommend starting with \"Read only\"</strong>; focused profiles (intake / calendar / boarding) let the agent create and update in one area only, and \"Full\" is for owners only. Need more later? Create a separate connection with another profile.",
+          "expiry": "Note: the token is valid for <strong>180 days</strong> from creation; after that, just create a new connection and update the URL in your AI assistant."
+        },
+        "step3": {
+          "title": "Save the token",
+          "description": "Petra generates an access token. Keep it somewhere safe — it's shown only once!"
+        },
+        "step4": {
+          "title": "Set up Claude Desktop",
+          "intro": "In Claude Desktop open <strong>Settings → Connectors → Add custom connector</strong>, and fill in:",
+          "url": "<strong>Remote MCP server URL:</strong> paste the URL below, replacing <code>YOUR_TOKEN_HERE</code> with your token:",
+          "add": "Click <strong>Add</strong> — that's it. No files to edit.",
+          "advanced": "Advanced — via a config file (Developer → Edit Config)"
+        },
+        "step5": {
+          "title": "Start chatting!",
+          "description": "Restart Claude Desktop. Now you can ask: \"Who are my active clients?\" or \"Book an appointment for Danny this Tuesday\"."
+        }
+      },
+      "capabilities": {
+        "title": "What can the assistant do?",
+        "clients": {
+          "title": "Client list",
+          "desc": "See all your clients, search by name"
+        },
+        "appointments": {
+          "title": "Upcoming appointments",
+          "desc": "Who's coming this week? What's on your schedule?"
+        },
+        "stats": {
+          "title": "Stats",
+          "desc": "How many clients do I have? What's revenue this month?"
+        },
+        "createAppointment": {
+          "title": "Book appointments",
+          "desc": "Book a new appointment right from the chat"
+        },
+        "addNote": {
+          "title": "Add notes",
+          "desc": "Add a note to a client's file"
+        },
+        "sendReminder": {
+          "title": "Send reminders",
+          "desc": "Send a client a WhatsApp reminder before the appointment"
+        }
+      },
+      "unavailable": "This page is not available.",
+      "backToSettings": "Back to settings",
+      "title": "Connect an AI assistant to Petra",
+      "intro": "An AI assistant connected to Petra knows everything about your business and can act on your behalf — like booking appointments, sending reminders and answering questions about your clients.",
+      "advanced": {
+        "title": "Advanced: connect with a manual token",
+        "intro": "For assistants that don't support auto sign-in, or when you need a permanent token (automations, scripts)."
+      },
+      "cta": {
+        "ready": "Ready to start?",
+        "pasteUrl": "Paste the URL <code>{url}</code> into your AI assistant — or create a manual token in settings.",
+        "connectNow": "Connect an AI assistant now",
+        "disconnectAnytime": "You can disconnect any time from the settings page."
+      }
+    },
+    "supportPage": {
+      "genericError": "Error",
+      "title": "My tickets",
+      "subtitle": "All your tickets to the Petra team, the replies and the full handling history",
+      "newTicket": "New ticket",
+      "empty": "You haven't opened any tickets yet",
+      "newReplySuffix": " · New reply",
+      "selectPrompt": "Select a ticket to see the replies and handling history",
+      "pane": {
+        "sentReopened": "Message sent and the ticket was reopened",
+        "sent": "Message sent to the Petra team",
+        "notFound": "Ticket not found",
+        "backToList": "Back to the list",
+        "allTickets": "All tickets",
+        "reopenPlaceholder": "Still not working? Write here and the ticket will be reopened",
+        "replyPlaceholder": "Write a reply to the Petra team…",
+        "sending": "Sending…",
+        "send": "Send"
+      },
+      "form": {
+        "created": "Ticket sent — we'll get back to you soon 🙏",
+        "allTickets": "All tickets",
+        "title": "New ticket to the Petra team",
+        "subject": "Subject",
+        "subjectPlaceholder": "In one sentence — what happened?",
+        "details": "Details",
+        "detailsPlaceholder": "What you tried to do, what actually happened, and on which screen",
+        "cancel": "Cancel",
+        "sending": "Sending…",
+        "submit": "Send ticket"
+      }
+    },
+    "tutorialsPage": {
+      "title": "Tutorial videos",
+      "subtitle": "Short videos to help you get the most out of Petra",
+      "newBadge": "New"
+    },
+    "assistantDrawer": {
+      "genericError": "Petra AI couldn't answer right now. Please try again.",
+      "ratingFailed": "Your rating wasn't saved. Please try again.",
+      "escalateFailed": "Your request wasn't sent. Please try again.",
+      "escalateSent": "Request sent. The Petra team will get back to you.",
+      "helpOnScreen": "Help on: {screen}",
+      "helpGeneral": "Help using Petra",
+      "newConversation": "New conversation",
+      "close": "Close",
+      "welcome": "Hi! I'm Petra AI. Ask me how to do anything in Petra, and I'll explain step by step.",
+      "suggestionsTitle": "Common questions on this screen",
+      "typing": "Petra AI is typing",
+      "helpful": "This answer helped",
+      "notHelpful": "This answer didn't help",
+      "escalatedNotice": "Your request was passed to the Petra team, along with this conversation. We'll get back to you soon.",
+      "talkToHuman": "Talk to a person",
+      "escalateWithChat": "We'll pass the conversation, the screen you're on and your business details to the Petra team. You can add a note.",
+      "escalateNoChat": "Tell us in a few words what you need help with. We'll pass your request to the Petra team along with the screen and your business details.",
+      "notePlaceholderOptional": "Note (optional)",
+      "notePlaceholderRequired": "What do you need help with?",
+      "sending": "Sending...",
+      "submitEscalation": "Send request",
+      "cancel": "Cancel",
+      "conversationFull": "This conversation is long — start a new one",
+      "inputPlaceholder": "How do I...?",
+      "inputAriaLabel": "Question for Petra AI",
+      "send": "Send",
+      "helpCenter": "Help center",
+      "disclaimer": "Petra AI answers questions about using Petra and may make mistakes."
+    },
+    "ticketThread": {
+      "you": "You",
+      "theCustomer": "The client",
+      "openedTicket": "{name} · Opened the ticket",
+      "system": "The system",
+      "petraTeam": "Petra team",
+      "team": "Team",
+      "statusChangedFrom": "{who} changed the status from \"{from}\" to \"{to}\" · {date}",
+      "statusChanged": "{who} changed the status to \"{to}\" · {date}",
+      "internalNote": "{author} · Internal note"
+    },
+    "helpCenter": {
+      "title": "Help center",
+      "tabs": {
+        "faq": "FAQ",
+        "changelog": "What's new",
+        "contact": "Contact us"
+      },
+      "faqTab": {
+        "searchPlaceholder": "Search questions...",
+        "all": "All",
+        "noResults": "No results found",
+        "tryOtherWords": "Try searching with different words",
+        "questionsCount": "{count, plural, one {# question} other {# questions}}",
+        "resultsFound": "{count, plural, one {# result found} other {# results found}}"
+      },
+      "contact": {
+        "heading": "Contact support",
+        "myTickets": "My requests",
+        "myTicketsDescription": "Team replies and the full history of your requests",
+        "email": "Email",
+        "responseTime": "Response time",
+        "whatsappResponse": "WhatsApp: usually within an hour during business hours (Sun–Fri, 09:00–18:00 Israel time).",
+        "emailResponse": "Email: within 24 hours."
+      },
+      "bugReport": {
+        "heading": "Report a bug",
+        "placeholder": "Describe what happened, what you were trying to do, and what the error was...",
+        "screenshotHint": "📸 Attach a screenshot: it really speeds up handling your request!",
+        "screenshotReady": "✓ Screenshot ready to send",
+        "attachScreenshot": "Click to attach a screenshot (up to 2MB)",
+        "footerNote": "Your request will be sent to the development team with details of the current page",
+        "sending": "Sending...",
+        "send": "Send",
+        "fileTooLarge": "File is too large: 2MB max",
+        "defaultTitle": "Request from the help center",
+        "errorGeneric": "Error",
+        "success": "Request sent: we'll get back to you soon 🙏",
+        "successDescription": "The reply will arrive by email and appear under \"My requests\"",
+        "viewTicket": "View request",
+        "sendError": "Error sending the request"
+      },
+      "faq": {
+        "dashboard": {
+          "name": "Dashboard",
+          "items": {
+            "whatIsShown": {
+              "question": "What's on the dashboard?",
+              "answer": "The dashboard gives an up-to-date snapshot of your business: a metrics row (clients, today's appointments, this month's revenue, open tasks and more), upcoming appointments, boarding, recent orders, open tasks and recent activity. Every number and every row is clickable and takes you straight to the filtered list behind it (for example, \"Active orders\" opens only the open orders)."
+            },
+            "customize": {
+              "question": "How do I customize my dashboard?",
+              "answer": "Click \"Customize dashboard\" at the top of the page. You can hide widgets you don't need and change their order. Customization is per user: each team member arranges their own dashboard, and it's saved across devices. Widgets that require a permission (such as revenue) are shown only to people allowed to see them."
+            },
+            "alertsBar": {
+              "question": "What's in the alerts bar at the top?",
+              "answer": "The alerts bar shows important system notices: expired vaccinations, medications due for dogs currently in boarding, dog birthdays in the next two weeks, and leads waiting for follow-up."
+            },
+            "dailyFocus": {
+              "question": "What is the daily focus area?",
+              "answer": "The daily focus area shows up to 5 urgent tasks (overdue or due today). Switch between \"Overdue\" and \"Today\" with one click. If there are more than 5 tasks, a \"Show X more\" link takes you to the Tasks page."
+            },
+            "quickSearch": {
+              "question": "How does quick search at the top work?",
+              "answer": "The search bar lets you search the whole system at once: clients (by name, phone, email), pets (by name and breed), appointments, tasks, orders and leads. Results appear instantly as you type."
+            }
+          }
+        },
+        "customers": {
+          "name": "Clients",
+          "items": {
+            "addClient": {
+              "question": "How do I add a new client?",
+              "answer": "Go to \"Clients\" in the menu and click \"New client\", or tap \"New client\" in the bottom bar on mobile. Fill in full name, phone (required), email, address, requested service, source, tags and notes. You can also add a pet right from the new client form."
+            },
+            "profile": {
+              "question": "What's in a client profile?",
+              "answer": "The client card includes: a summary row at the top (balance due, next appointment, last visit and number of appointments), contact details and tags you can edit in place, pet cards with medical details, upcoming appointments and visit history, payments and orders (including recording a payment right from the card), training programs, sales history from the lead the client came from, and a timeline of every action. A navigation bar at the top of the card jumps straight to each section."
+            },
+            "findClient": {
+              "question": "How do I find a specific client?",
+              "answer": "The Clients page has a search bar for name, phone (any format: with dashes, without, or with the country code) and email. You can filter by status (active / VIP), balance due, tag, last visit, pet type, source, join date and service type, and sort by balance. Filters apply to all clients in the business, not just what's loaded on screen. For a quick lookup, use the global search bar at the top."
+            },
+            "merge": {
+              "question": "How do I merge a duplicate client?",
+              "answer": "Open the duplicate client's card and choose \"Merge duplicate client\". Petra suggests similar clients (by phone and name), shows what will be moved (pets, appointments, orders, payments, contracts and notes) and asks you to confirm by typing the client's name. After the merge you're left with one card with the full history. This can't be undone and requires delete permission (the owner, or someone the owner approved)."
+            },
+            "bulkActions": {
+              "question": "Can I act on several clients at once?",
+              "answer": "Yes. Click \"Select\" on the Clients page, check the clients you want, and then you can add or remove a tag for all of them, export only the selected ones, or send each one a personal WhatsApp message (with '{'name'}' filled in automatically). The messages open one at a time with each click."
+            },
+            "importExport": {
+              "question": "How do I import and export clients?",
+              "answer": "Import: Settings → Data → \"Import clients\": upload an Excel/CSV file with name and phone (required). Petra detects duplicates by phone and shows a preview before importing. Export: from the Clients page or Settings → Data, download an XLSX/CSV file with all client details."
+            }
+          }
+        },
+        "pets": {
+          "name": "Pets",
+          "items": {
+            "addPet": {
+              "question": "How do I add a pet to a client?",
+              "answer": "In the client profile, click \"Add pet\". Fill in name, species (dog/cat/other), breed (from a list of 60+ dog breeds and 14 cat breeds), date of birth, weight, sex and microchip. After adding it, you can manage medical info, vaccinations, medications and behavior."
+            },
+            "medicalInfo": {
+              "question": "What medical info is kept for a dog?",
+              "answer": "The health card includes: spayed/neutered, allergies, chronic conditions, surgeries, and the vet's name and phone. Plus vaccinations with expiration dates (rabies, DHPP, deworming, kennel cough and more) and ongoing medications with dosage, frequency and times."
+            },
+            "behaviorProfile": {
+              "question": "What's in the behavior profile?",
+              "answer": "The behavior profile has 13+ flags: aggression toward dogs/people/strangers, reactivity, jumping, leash pulling, separation anxiety, chasing cats, food stealing and more. Each flag can be checked and given a note."
+            },
+            "petsPage": {
+              "question": "What is the main Pets page?",
+              "answer": "The \"Pets\" page (separate from the client profile) shows every pet in the system with search, filtering by species and breed, and quick access to each pet's profile. You can also see pets with expired vaccinations and active medications."
+            },
+            "weightTracking": {
+              "question": "How does weight tracking work?",
+              "answer": "The pet profile (on the \"Pets\" page) has a weight tracking tab. Add weight entries with a date and notes. Weight is shown as a line chart with all past data points, so you can track changes over time."
+            },
+            "photos": {
+              "question": "How do I upload photos of a pet?",
+              "answer": "The pet profile has its own photo gallery. Click \"Upload photo\" → choose an image from your device. Photos are shown in a grid. Clicking a photo opens a lightbox view with an option to delete it."
+            },
+            "careLog": {
+              "question": "What is the boarding care log?",
+              "answer": "The care log tracks everything done for a dog during a boarding stay: feeding, medication, walks and more. Click \"Care log\" next to the stay and you'll find a full timeline of every action, with the time and who did it."
+            }
+          }
+        },
+        "calendar": {
+          "name": "Calendar & appointments",
+          "items": {
+            "addAppointment": {
+              "question": "How do I add a new appointment?",
+              "answer": "On the \"Calendar\" page, click an empty slot at the time you want, or the \"+\" button at the top. Choose a client, service, pet (optional), date, start time and end time (calculated automatically from the service length). You can add internal notes."
+            },
+            "views": {
+              "question": "How do the calendar views work?",
+              "answer": "The calendar has four views: day, week, month and agenda. Day and week views show 08:00–20:00, and each event appears as a colored block by its category. Move forward and back with the arrows, or return to the current date with the \"Today\" button. On mobile the view adjusts automatically: day in portrait, week in landscape."
+            },
+            "filterByType": {
+              "question": "How do I filter the calendar by activity type?",
+              "answer": "Above the calendar there's a two-part filter row. On top, \"View\": quick lens buttons that switch the whole calendar at once: \"All\", \"Client bookings\" (only client appointments and services), \"My services\" (only the professional training you deliver), or \"Admin\" (tasks, leads and Google Calendar). Below, grouped chips for precise filtering: clicking a chip turns a single category on or off. The chips also serve as the color legend. Your filter is saved automatically and will be waiting for you after a refresh or a new login."
+            },
+            "categories": {
+              "question": "What categories does the calendar have?",
+              "answer": "11 categories in three groups. \"Bookings & client services\": client appointments, grooming, boarding (stay) and consultation. \"Professional training\": in-home training, board-and-train, group training and workshops. \"Admin & operations\": tasks, sales/leads and events from your external Google Calendar. Each event belongs to exactly one category, and each category has its own fixed color, so you can see the type of activity at a glance."
+            },
+            "trainingTypes": {
+              "question": "Why separate the training types?",
+              "answer": "Previously, all training types were shown together under one filter. Now the four types are fully separate (in-home training, board-and-train, group training and workshops), each with its own color and filter. So you can, for example, show only this month's workshops, or only home visits to plan your driving. The split happens automatically based on the program or group type you set up, with no manual tagging needed."
+            },
+            "googleColors": {
+              "question": "Are calendar colors synced to Google Calendar too?",
+              "answer": "Yes. Every event sent to Google Calendar now carries its category color: grooming in pink, boarding in green, in-home training in blue, board-and-train in orange, group training in purple, workshops in red and consultation in lavender. So even when you look at Google Calendar on your phone, you can tell the activity type right away, with the same visual language in both places. Sync covers appointments, boarding stays, and training sessions and groups."
+            },
+            "statuses": {
+              "question": "What statuses can an appointment have?",
+              "answer": "An appointment can be: pending (not confirmed), scheduled, completed, canceled, or \"No-show\". Click an appointment to open its details and update the status. Canceling lets you add a cancellation reason."
+            },
+            "whatsappReminders": {
+              "question": "How do WhatsApp reminders work?",
+              "answer": "On PRO and above, you can send clients automatic WhatsApp reminders before an appointment. In Settings → Integrations → WhatsApp you can turn on reminders and set the lead time (24/48/72/96 hours before). You can also send a reminder manually from the calendar or the client profile."
+            },
+            "schedulingPage": {
+              "question": "What is the Scheduling page?",
+              "answer": "The \"Scheduling\" page lets you set business hours for each day of the week (Sunday–Saturday) and create time blocks for vacations, breaks and special days. Business hours determine what clients see when booking online."
+            },
+            "tutorialVideo": {
+              "question": "Is there a tutorial video on the calendar?",
+              "answer": "Yes! On the \"Tutorial videos\" page you'll find a detailed video on managing the calendar, including the different views, booking appointments and syncing with Google Calendar. You can reach the videos from the sidebar or from the \"Tutorials\" button in the bottom menu."
+            }
+          }
+        },
+        "tasks": {
+          "name": "Task management",
+          "items": {
+            "createTask": {
+              "question": "How do I create a new task?",
+              "answer": "On the \"Task management\" page, click \"New task\". Set a title, detailed description, category, priority, due date and time. You can link a task to a specific client, dog or lead to keep everything in one place."
+            },
+            "categories": {
+              "question": "What task categories are there?",
+              "answer": "7 categories: General, Boarding (care for dogs on a stay), Training (preparing for sessions), Leads (following up with prospects), Health (medical follow-up), Medications (giving ongoing medications), Feeding (special diet instructions)."
+            },
+            "dueDateVsTime": {
+              "question": "What's the difference between a due date and a due time?",
+              "answer": "A due date is a general date with no specific time (like \"done by Friday\"). A due time is an exact deadline with a time (like \"give medication at 8:00\"). Tasks whose due time has passed are marked \"Overdue\" and highlighted in red."
+            },
+            "markAndFilter": {
+              "question": "How do I check off and filter tasks?",
+              "answer": "Click the checkbox to mark a task complete; it moves to the \"Completed\" tab with a timestamp. You can filter by status (open/completed/canceled), category and priority. Overdue tasks and today's tasks also appear in the daily focus area on the dashboard."
+            }
+          }
+        },
+        "leads": {
+          "name": "Sales",
+          "items": {
+            "board": {
+              "question": "How does the leads board work?",
+              "answer": "The leads board is a kanban with custom stages. The defaults are: New, Contacted, Qualified, and Won/Lost stages (locked). You can create, edit, delete and reorder stages and change their colors. Drag and drop moves leads between stages. The top of each column shows the total deal value of its leads, and each card shows its own deal value."
+            },
+            "dealValue": {
+              "question": "What is deal value?",
+              "answer": "Deal value is the amount (in shekels) a lead is expected to bring in. Enter it on the lead card, in the \"Deal value\" field. The amount appears on the card, is totaled at the top of each kanban column, and feeds the \"Sales from leads\" report, which shows what closed deals are worth and what the open pipeline is worth. Deal value is an estimate, not revenue: revenue in Reports counts only actual payments."
+            },
+            "leadSource": {
+              "question": "How do I know where a lead came from?",
+              "answer": "When a lead comes in from a website form (via webhook), Petra saves the traffic source (organic, paid, social, WhatsApp, referral or direct) and the page the inquiry was sent from. This shows on the lead card, and Reports break down the last 12 months by source and by page. For this to work, your website form needs to pass the utm fields, the referrer and the landing page to the webhook."
+            },
+            "salesReports": {
+              "question": "Where do I see sales reports?",
+              "answer": "Sales has a \"Reports\" tab: a funnel by stage, conversion rate (deals won out of all closed leads, won or lost), leads by source, loss reasons, and which team member closed each deal. The same data also appears on the Reports page, in the \"Leads & sales\" tab."
+            },
+            "agingIndicator": {
+              "question": "What is the lead aging indicator?",
+              "answer": "Each lead card shows how long it's been since it was created: green (under 4 days), orange (4–7 days), red (8+ days). It helps you spot leads that weren't handled fast enough and need attention."
+            },
+            "createLead": {
+              "question": "How do I create a new lead?",
+              "answer": "Click \"New lead\" and fill in: name, phone, email, source (website, Instagram, Facebook, referral, other) and initial notes. You can also receive leads automatically via webhook from website forms, and from new clients who sign up through the online booking form."
+            },
+            "convert": {
+              "question": "How do I turn a lead into a client?",
+              "answer": "When a lead closes successfully (the \"Won\" stage), click \"Convert to client\" on the lead card. Petra automatically creates a new client with all the details collected at the lead stage. Everything recorded on the lead (calls, \"what was agreed\", stage changes, follow-up tasks and deal value) keeps showing on the client card under \"Sales history\", with a link back to the lead."
+            },
+            "callLog": {
+              "question": "How do I log calls and follow-ups?",
+              "answer": "In the lead profile you can keep a call log: date, call length, summary and outcome. Every action is recorded in the activity log. You can also set a next follow-up date, which creates a task automatically. Quick actions include: call, WhatsApp and email."
+            },
+            "lost": {
+              "question": "What happens when a lead is lost?",
+              "answer": "When you move a lead to the \"Lost\" stage, Petra asks for a reason code (price, competition, not relevant, other) and a free-text explanation. The data appears in Reports so you can analyze the most common reasons."
+            }
+          }
+        },
+        "bookingsOnline": {
+          "name": "Online booking",
+          "items": {
+            "howItWorks": {
+              "question": "How does online booking work?",
+              "answer": "Every business gets its own public link. Clients open the link and go through a wizard: choose a service → choose a pet (existing or new) → pick a date and time from the availability you set → fill in details → confirm. The booking lands in your pending approvals. A new client who signs up through the form is also created as a lead automatically."
+            },
+            "approveDecline": {
+              "question": "How do I approve or decline bookings?",
+              "answer": "On the \"Booking management\" page you'll find pending bookings marked. Click \"Approve\" to add the appointment to the calendar, or \"Decline\" with an option to give a reason. The client is notified either way. The number of pending bookings shows as a red badge in the sidebar."
+            },
+            "schedulingPage": {
+              "question": "What is the Scheduling page?",
+              "answer": "The \"Scheduling\" page is the heart of online booking. This is where you set business hours for each day, blocks and more. You can require a deposit for bookings, set buffer time between appointments, and set the minimum notice for booking."
+            },
+            "intakeForms": {
+              "question": "What are intake forms?",
+              "answer": "An intake form is an online questionnaire sent to a client before their first visit. It has 4 steps: dog details → medical info (allergies, vaccinations, vet) → behavior assessment (13+ flags) → medications. The info is saved automatically to the dog's card."
+            }
+          }
+        },
+        "boarding": {
+          "name": "Boarding",
+          "items": {
+            "rooms": {
+              "question": "How do I set up rooms?",
+              "answer": "On the \"Room management\" page you'll find the room grid with names and capacity. You can add new rooms, update capacity and see occupancy in real time (number of dogs / maximum capacity). Full rooms are marked in a different color."
+            },
+            "checkInOut": {
+              "question": "How do I check dogs in and out?",
+              "answer": "Click \"New stay\" → choose a client → choose a dog → choose a room → set check-in and check-out dates and times. Choosing a check-in date resets the check-out date automatically. Once created, click \"Check in\" on the stay when the dog physically arrives. At the end, click \"Check out\"."
+            },
+            "lateBanner": {
+              "question": "What is the late check-out banner?",
+              "answer": "When a dog passes its planned check-out time (default: 11:00), a red banner shows the dog's name, how many hours late it is, and a \"Handle now\" button that takes you straight to the Check-outs today tab. You can change the check-out time in Settings."
+            },
+            "feedingBoard": {
+              "question": "What is the feeding board?",
+              "answer": "The feeding board shows every dog currently in boarding with its personal feeding instructions: food type, amount, feeding times and special instructions. You can mark each meal as done and see the feeding history."
+            },
+            "medicationBoard": {
+              "question": "What is the medication board?",
+              "answer": "The medication board shows every medication that needs to be given to dogs in boarding today, including the medication name, dosage, times and which dog it's for. You can mark each dose as given. The board updates automatically from the dogs' medical records."
+            },
+            "tabs": {
+              "question": "What tabs are on the Boarding page?",
+              "answer": "4 tabs: \"All\" (all active stays), \"Check-ins today\" (stays starting today, with a count badge), \"Check-outs today\" (stays ending today, including late detection), and \"History\" (finished stays, the archive)."
+            },
+            "yardMap": {
+              "question": "What is the yard map?",
+              "answer": "The \"Yards\" tab shows all the boarding yards as cards: how many dogs are in each yard, their names and details. You can print the map straight from the button at the top of the page for a snapshot with the date and total number of dogs, handy for yard signs and staff on the floor."
+            }
+          }
+        },
+        "training": {
+          "name": "Training",
+          "items": {
+            "groupsVsPrograms": {
+              "question": "What's the difference between group classes and private programs?",
+              "answer": "Group classes are for several dogs together (like a puppy class) with regular sessions on a fixed day and time. Private programs are an individual training file for one dog, with goals, homework and progress tracking."
+            },
+            "createGroup": {
+              "question": "How do I create a group class?",
+              "answer": "On the \"Training\" page, in the \"Groups\" tab, click \"New group\". Set a name, type, location, fixed day and time, maximum number of participants, status (active/full/ended) and automatic reminders for participants."
+            },
+            "privateProgram": {
+              "question": "How do I manage a private program?",
+              "answer": "In the \"Private programs\" tab, click \"New program\". Set goals with a progress percentage for each, add sessions with a summary and a 1–5 rating, and assign homework with a due date. You can link it to a specific dog and client."
+            },
+            "attendance": {
+              "question": "How do I track attendance in groups?",
+              "answer": "At each group session you can mark attendance for every participant (present/absent/late). Attendance is saved in the session history so you can track how consistently people attend."
+            }
+          }
+        },
+        "serviceDogs": {
+          "name": "Service dogs",
+          "items": {
+            "module": {
+              "question": "What is the service dogs module?",
+              "answer": "A complete module for running service and assistance dog programs: mobility dogs, PTSD dogs, guide dogs, autism dogs, alert dogs and more. It has 7 main pages: overview (dashboard), dog list, recipients (kanban), placements, ID cards, and compliance and reporting. Each dog has 9 detailed tabs to manage every area of its work."
+            },
+            "dashboard": {
+              "question": "What does the service dogs dashboard show?",
+              "answer": "The service dogs dashboard shows: key stats (total dogs, certified, in training, active placements), an alerts widget (overdue protocols, missing vaccinations, urgent government reports) and ID card status. The number of active alerts also shows as an orange badge in the sidebar."
+            },
+            "profileTabs": {
+              "question": "What are the 10 tabs in a dog's profile?",
+              "answer": "1) Dog file: basic details, breed, photo, health status. 2) Vaccinations & treatments: vaccinations, medications and routine health. 3) Placements: placement history with recipients. 4) Certification tests: ADI, SIMBA and the recurring annual test. 5) Documents: attached files. 6) Insurance: policies and claims. 7) Equipment: vests and dog gear. 8) Medical protocols: required checks and procedures by phase. 9) Training log: sessions with cumulative hours. 10) Certification card: digital ID card with a QR code."
+            },
+            "phases": {
+              "question": "What are the training phases of a service dog?",
+              "answer": "8 phases: Selection (SELECTION) → Raising (RAISING) → Puppy (PUPPY) → In training (IN_TRAINING) → Advanced training (ADVANCED_TRAINING) → Certified (CERTIFIED) → Retired (RETIRED) → Decertified (DECERTIFIED). You can update the phase from the dog file. The phase shows as a colored badge everywhere. The Raising phase is for dogs being raised by a foster family before formal training begins."
+            },
+            "serviceTypes": {
+              "question": "What service types are available?",
+              "answer": "7 service types: Mobility (help with movement), Psychiatric (anxiety, depression), PTSD (trauma, post-trauma; separate from Psychiatric), Guide (visually impaired), Autism (children and adults), Alert (diabetes, epilepsy), and Other. You set the service type in the dog file, and it shows as a badge wherever the dog appears."
+            },
+            "location": {
+              "question": "What is a dog's current location?",
+              "answer": "Each dog is marked with a location: with the trainer (default), foster family, boarding, or field. The location shows as a badge on the dog's card in the list and in reports. You can update it from the dog file and filter dogs by location."
+            },
+            "certificationTests": {
+              "question": "What are the certification tests?",
+              "answer": "The \"Certification tests\" tab handles several kinds of tests: ADI (Assistance Dogs International), 18 standard categories (distractions, leash control, confidence in public, interaction with dogs and more). SIMBA, a public access + task test (PS + FT) with a manual result. The recurring annual test, including the next test date and an alert before it expires. Each test has: date, examiner, result (passed/passed with conditions/failed), and an option to attach a file."
+            },
+            "trainingLog": {
+              "question": "What is the training log?",
+              "answer": "The \"Training log\" tab records every training session with: date, hours (totaled automatically), location, trainer, activities done, successes and challenges, and recommendations going forward. Total training hours show in the dog file and are a key part of the certification process."
+            },
+            "medicalProtocols": {
+              "question": "What are medical protocols and how do they work?",
+              "answer": "The \"Medical protocols\" tab shows a tailored list of checks and procedures the dog needs: vaccinations (rabies, DHPP, Bordetella), national checks and ADI approvals. Protocols are created automatically based on the training phase, including protocols specific to Israel. Each protocol has a due date and can be marked complete, and overdue protocols show as a red alert."
+            },
+            "digitalId": {
+              "question": "What is the digital ID card?",
+              "answer": "On the \"ID cards\" page and in the \"Certification\" tab of the dog's profile, you can create a digital ID card with a QR code. The card includes: the dog's photo, name, the recipient's name, organization and certification date. Scanning the QR code opens a public verification page. You can download it as a PDF to print."
+            },
+            "insurance": {
+              "question": "What is insurance and claims?",
+              "answer": "The \"Insurance\" tab manages policies: policy number, insurer, dates and coverage amount. Expired policies show in red. You can also manage insurance claims: open a claim, track its status (open/approved/denied), claim amount and attached documents."
+            },
+            "recipients": {
+              "question": "How do I manage recipients?",
+              "answer": "Recipients are managed in a kanban or table view with custom stages (you can create stages and change their name, color and order). Each recipient card shows: name, phone, assigned dog's name, stage and placement status. Clicking a card opens the full profile. Sensitive fields (disability, ID number, funding) are hidden from regular staff. The \"Rejected\" stage (REJECTED) is the archive: hidden by default, and shown by clicking the \"Archive\" button at the top of the page."
+            },
+            "placement": {
+              "question": "How does placing a dog with a recipient work?",
+              "answer": "Placements are made in the \"Placements\" tab of the dog's profile. Choose a recipient and a placement date. Each placement has only two statuses: Active (ACTIVE), the default; Ended (TERMINATED), when the placement has come to an end. When a placement ends with TERMINATED, Petra automatically moves the recipient to the right stage. You can filter placements by status."
+            },
+            "import": {
+              "question": "How do I import service dogs and recipients from a file?",
+              "answer": "On the \"Service dogs\" page (dog list), click \"Import from file\" → download the sample Excel template → fill in details (name, breed, sex, phase, service type and more) → upload the file. Petra shows a preview with errors and confirmations before importing. Also available for recipients (name, phone, disability type, funding source and more)."
+            },
+            "compliance": {
+              "question": "What is compliance and government reporting?",
+              "answer": "The \"Compliance\" page and the \"Government reporting\" tab in a dog's profile manage compliance events (48-hour reports, inspections). Each event has: type, date, status (pending/completed/late) and deadline. Urgent events are highlighted in the alerts widget. You can mark an event as handled."
+            },
+            "reports": {
+              "question": "What is the service dogs Reports page?",
+              "answer": "The \"Reports\" page offers detailed XLSX exports: dog profiles, medical history, training summary and placements. The reports are built for government reporting requirements and ADI standards."
+            }
+          }
+        },
+        "finance": {
+          "name": "Finance",
+          "items": {
+            "payments": {
+              "question": "How do I manage payments?",
+              "answer": "On the \"Payments\" page you can see every payment, filter by status (pending/paid/canceled) and date, and see a total summary. Each payment includes: amount, payment method (cash, card, Bit, bank transfer), client and notes."
+            },
+            "paymentRequest": {
+              "question": "How do I send a payment request?",
+              "answer": "When creating an order, or on an existing order's page, click \"Send payment request on WhatsApp\". Petra builds a detailed message with service names, quantities, the final total and a payment link, and opens WhatsApp to send it to the client."
+            },
+            "priceList": {
+              "question": "How do I set up my price list?",
+              "answer": "On the \"Price list\" page you can manage two kinds of items: billing items (products and services you charge for) and services. Billing items include: name, category, price, unit (per session/per day/per hour/flat), description, payment link and sales tax status. Click \"Services\" to manage your business services (training, grooming, etc.) separately."
+            },
+            "newOrder": {
+              "question": "How do I create a new order?",
+              "answer": "Click \"New order\" → choose a category: boarding, training, products, or grooming. Then choose a client and pet(s). Boarding automatically calculates days × dogs and creates a stay. You can change the order status: draft/active/paid/canceled. Sales tax (18%) is calculated automatically."
+            },
+            "boardingCalc": {
+              "question": "How is boarding calculated?",
+              "answer": "In a boarding order: choose a client → select one or more dogs → set the check-in and check-out date and time. Petra calculates the number of nights × the number of selected dogs and sets the quantity automatically. For example: 10 nights × 2 dogs = 20 units × price per night."
+            }
+          }
+        },
+        "messages": {
+          "name": "Messages & automations",
+          "items": {
+            "notSending": {
+              "question": "Why aren't automatic messages being sent to my clients?",
+              "answer": "Automatic messages are opt-in: for a message to be sent, two switches must be on: the main \"Send automatic WhatsApp messages\" switch and the switch for that specific message type (for example \"Appointment confirmation\" or \"Boarding pickup reminder\") on the Messages → Automations page. If both are on and it still wasn't sent, make sure the client has a valid phone number and that your plan includes WhatsApp messages (Basic and up)."
+            },
+            "whySent": {
+              "question": "Why did a client get an automatic message?",
+              "answer": "Petra sends messages only when the matching automation is turned on for you. Check which switches are on in Messages → Automations; turning a switch off stops that type completely. Each appointment is confirmed only once, so no duplicates are sent."
+            },
+            "createTemplate": {
+              "question": "How do I create a message template?",
+              "answer": "On the \"Messages\" page, click \"New template\". Choose a channel (WhatsApp, SMS, email) and name the template. For email, add a subject too. Write the body with dynamic variables. Petra includes 8 ready-to-use templates (appointment reminder, booking confirmation, post-visit follow-up, birthday greeting and more). To edit an existing template, click the pencil icon next to it."
+            },
+            "variables": {
+              "question": "What dynamic variables are available?",
+              "answer": "Variables available in templates: '{'customerName'}' client name, '{'petName'}' pet name, '{'petAge'}' pet age, '{'date'}' date, '{'time'}' time, '{'serviceName'}' service name, '{'businessPhone'}' business phone, '{'paymentUrl'}' payment link, '{'orderTotal'}' order total. Click a variable to insert it at the cursor."
+            },
+            "whatsappReminders": {
+              "question": "What are automatic WhatsApp reminders?",
+              "answer": "On PRO and above, Petra sends clients automatic WhatsApp reminders before an appointment/boarding/training. In Settings → Integrations → WhatsApp you can turn them on/off and set the lead time (24/48/72/96). Reminders are sent through the Meta WhatsApp Cloud API and appear in the send queue."
+            },
+            "connectNumber": {
+              "question": "How do I connect my business WhatsApp number?",
+              "answer": "On PRO and above, automatic messages can be sent from your business number instead of Petra's number. 1) Settings → Integrations → WhatsApp → \"Connect your business WhatsApp\" (we recommend leaving Coexistence checked so you can keep using the WhatsApp Business app on your phone). 2) Log in to the business's Facebook account, choose/create a WhatsApp Business number and verify it by SMS. 3) After connecting, click \"Sync templates\" and wait for Meta's approval; until then, messages keep going out from Petra's number."
+            },
+            "automations": {
+              "question": "What are automations?",
+              "answer": "Automations send messages automatically based on events: appointment reminder, booking confirmation, post-appointment message, expired vaccination reminder, birthday greeting, new lead follow-up, and payment request. Each automation is linked to a message template."
+            },
+            "sendQueue": {
+              "question": "How does the send queue work?",
+              "answer": "The \"Send queue\" shows every message scheduled to go out: pending, sent successfully and failed. You can cancel a message before it's sent, resend a failed message, and view the error log."
+            },
+            "whereSent": {
+              "question": "Where are messages sent from?",
+              "answer": "Each manual template shows exactly where in the app it's sent from. For example: appointment reminder, from the calendar via the WhatsApp button; booking confirmation, sent automatically as soon as an appointment is booked (PRO+); payment request, from the order page → Payments section; birthday greeting, from the client profile → the pet card. Every manual message is sent through WhatsApp when you click; Petra never sends on your behalf without your approval."
+            }
+          }
+        },
+        "analytics": {
+          "name": "Reports",
+          "items": {
+            "whatsShown": {
+              "question": "What's on the Reports page?",
+              "answer": "The Reports page is split into tabs (overview, finance, leads & sales and more) with a period picker and comparison to the previous period: new clients and client retention, appointments and cancellation rate, revenue by service and by category, open balances, lead conversion and sales from leads, boarding occupancy and training. All metrics are calculated on the server using the same definitions, so a number is identical everywhere in Petra. Financial data is shown only to people allowed to see revenue."
+            },
+            "export": {
+              "question": "How do I export data?",
+              "answer": "Settings → Data → \"Export\": choose a type: clients, pets, service dogs, or recipients. The file downloads as XLSX or CSV. The client export includes contact details, tags and number of appointments. The service dog export includes current location, phase, service type and medical details."
+            },
+            "import": {
+              "question": "How do I import data?",
+              "answer": "Import is available for clients (Settings → Data), service dogs (dogs page → \"Import from file\") and recipients (recipients page → \"Import from file\"). In every case: download the sample Excel template, fill in the data and upload the file. Petra shows a preview with errors before running the import."
+            }
+          }
+        },
+        "settings": {
+          "name": "Settings",
+          "items": {
+            "whatCanManage": {
+              "question": "What can I manage in Settings?",
+              "answer": "Settings are grouped: Business (business details, subscription & billing), Operations (availability & booking, boarding, service dogs, contracts), Communication & team (messages & automations, team & permissions), Connections & data (integrations, AI assistants, import & export) and My account (profile & security). Changes are saved with a save bar that appears at the bottom, and Petra warns you before leaving with unsaved changes. People without permission to change business settings see them as read-only."
+            },
+            "teamPermissions": {
+              "question": "How do I manage my team and permissions?",
+              "answer": "In Settings → \"Team & permissions\" (owner only) you add team members and set a role: Owner (full access), Manager (full operations; critical actions need owner approval), Staff and Volunteer. Beyond the role, the owner can grant or deny specific permissions for each team member, for example: see revenue, record payments, edit the price list, export or import data, send messages to clients, change business hours, manage contract templates, manage boarding and sync to Google Calendar. Permission changes take effect immediately, and revoking access disconnects the team member right away."
+            },
+            "businessAdmin": {
+              "question": "What is \"Admin & oversight\"?",
+              "answer": "\"Admin & oversight\" in the menu (owner only) is your business's control center: a full activity log with filters, search and Excel export (who did what and when), AI assistant activity, an activity summary for each team member and a permissions table, active sessions with the option to sign out a device, security alerts (for example on a delete, an export or a permission change) and a data health check that finds duplicates and incomplete records."
+            },
+            "services": {
+              "question": "How do I manage services?",
+              "answer": "Service management is on the \"Price list\" page: click the \"Services\" button in the top right corner. A services panel opens where you can create a new service (name, type, length, price, calendar color, online availability), edit, delete, and enable/disable services."
+            },
+            "googleCalendar": {
+              "question": "How do I connect Google Calendar?",
+              "answer": "In Settings → Integrations, click \"Connect Google Calendar\" and approve access. Once connected, every new appointment is added automatically to your Google Calendar, in a separate calendar called \"Petra Bookings\". Changes sync in real time."
+            },
+            "webhook": {
+              "question": "What is a webhook and how do I set it up?",
+              "answer": "A webhook lets you receive leads automatically from the contact forms on your website. In Settings → Integrations, copy your dedicated webhook URL and add it to your site. Every new inquiry from the site will create a new lead in Sales automatically."
+            }
+          }
+        },
+        "general": {
+          "name": "General",
+          "items": {
+            "firstLogin": {
+              "question": "What happens the first time I log in?",
+              "answer": "On your first login, a setup wizard guides you through: adding your first client, adding a service to the price list, and connecting Google Calendar. You can skip any step and finish later. Once the wizard is complete, it won't be shown again."
+            },
+            "permissionLevels": {
+              "question": "What permission levels are there?",
+              "answer": "4 levels: Owner: full access to every feature, including settings, analytics, finance and deletions. Manager: full access to operations, but deletions and critical actions need owner approval (the \"pending approvals\" flow). Staff: access to the calendar, clients, pets and tasks only, without leads, messages, finance and analytics. Volunteer: view only, with no editing."
+            },
+            "pendingApprovals": {
+              "question": "What is the pending approvals flow?",
+              "answer": "When a manager tries a critical action (such as deleting a client or changing sensitive settings), the action is saved as \"Pending approval\" and isn't carried out right away. The owner sees all pending approvals in Settings → Team and can approve or decline them. Approvals that aren't handled expire after 48 hours."
+            },
+            "bottomBar": {
+              "question": "What is the mobile bottom bar?",
+              "answer": "On mobile there's a bottom navigation bar with 5 buttons: New client (quick create), Tutorials (tutorial videos), Home (a prominent center button), Tasks, and Appointments (calendar). The bar adjusts to the device's safe area (Safe Area)."
+            },
+            "tutorialVideos": {
+              "question": "Where are the tutorial videos?",
+              "answer": "Tutorial videos are available from the sidebar (\"Tutorial videos\" with a New badge) and from the bottom menu on mobile (\"Tutorials\"). The videos cover every module: dashboard, calendar, clients, pets, sales, tasks, orders, finance, boarding, training, admin & oversight and settings. Click a card to watch a video."
+            },
+            "mobile": {
+              "question": "Does Petra work on mobile?",
+              "answer": "Yes, Petra is fully adapted for mobile, tablet and desktop (Responsive Design). On mobile, the sidebar opens as a drawer when you tap the menu button. On tablet, the sidebar collapses to icons only automatically. Every feature is available on every device."
+            },
+            "session": {
+              "question": "How long do I stay logged in?",
+              "answer": "By default, a session lasts 8 hours. If you check \"Remember me\" on the login page, the session is kept for 30 days, so you don't have to log in again every time. Signing in with Google automatically keeps you signed in for 30 days. You can log out manually from the menu at the top of the page."
+            },
+            "reportBug": {
+              "question": "How do I report a bug?",
+              "answer": "Click the \"?\" button in the top bar, go to the \"Report a bug\" tab and describe the problem. You can also attach a screenshot (up to 2MB), which really speeds up handling your request. The report goes straight to the Petra team by email and is saved in the system. We'll get back to you as soon as we can."
+            }
+          }
+        }
+      },
+      "changelog": {
+        "v19": {
+          "date": "October 2026",
+          "title": "New dashboard, new client card, upgraded sales and full control over permissions ✨",
+          "items": {
+            "dashboard": "Dashboard: a clean new design, every number and row is clickable and takes you to the exact list behind it, plus per-user customization: the 'Customize dashboard' button lets you hide widgets and change their order",
+            "clientList": "Clients: a new client list: filter by status, balance, tag, last visit, pet type and source, sort by balance, search phone numbers in any format, and act on several clients at once (tags, export, personal WhatsApp)",
+            "clientCard": "Clients: a new client card: summary row with balance, next appointment and last visit, quick navigation between sections, in-place tag editing and recording payments right from the card",
+            "clientMerge": "Clients: merge duplicate clients: two cards for the same client become one, with all pets, appointments, orders and payments",
+            "salesBoard": "Sales: a new design for the leads board, a 'Deal value' for every lead with a total at the top of each column, and a Reports tab: funnel, conversion rates, sources, loss reasons and who closed each deal",
+            "salesAttribution": "Sales: the traffic source of website leads (organic / paid / social / WhatsApp) and the page they came from, including a 12-month report. And the lead's history carries over to the client: 'Sales history' on the client card",
+            "reports": "Reports: a new tabbed Reports page with accurate, consistent metrics across Petra: client retention, revenue by service, open balances and sales from leads",
+            "businessAdmin": "Admin & oversight: a control center for business owners: activity log with filters and export, AI assistant activity, a summary for each team member, signing out connected devices, security alerts and a data health check",
+            "permissions": "Team & permissions: the owner decides what each team member may do: revenue, payments, price list, export and import, client messages, business hours, contracts, boarding and Google Calendar. Permissions are enforced across Petra and take effect immediately",
+            "settings": "Settings: a reorganized Settings screen in groups, a consistent save bar, a warning before leaving with unsaved changes, and read-only mode for people not allowed to make changes",
+            "aiAssistant": "AI assistant: one-click connection to Claude and Codex (no token copying), and the assistant respects the permissions the owner set for each team member",
+            "boardingServiceDogs": "Boarding: the care log is shared between the daily board and the feeding board; Service dogs: a simpler insurance form",
+            "mobile": "Mobile: a full pass over every screen on phones: buttons that don't get cut off, windows that open properly and confirmation before every delete. And across Petra: one consistent Petra loading animation"
+          }
+        },
+        "v18": {
+          "date": "August 2026",
+          "title": "An AI assistant for every business, message tracking in the menu and end-to-end stability 🤖",
+          "items": {
+            "aiAssistant": "AI assistant in the main menu: connect Petra to Claude or Codex and let the assistant book appointments, add clients, check the calendar and run reports, in plain language. The full explanation is under 'AI assistant' in the menu",
+            "messagesMenu": "Messages moved to the menu: the message tracking screen (what was sent, what's pending, what failed) is now available straight from the 'Admin' group in the sidebar, no need to dig through booking management",
+            "deliveryTracking": "Real WhatsApp delivery tracking: Petra receives a delivery receipt for every message and alerts you automatically about failures, so lead alerts and client messages are more reliable than ever",
+            "quickPayment": "Quick payment recording: a 'Record payment' button right from the orders list",
+            "calendar": "Calendar: open an order with one click from an appointment, a monthly view fully synced with Google Calendar, and room capacity enforcement in boarding",
+            "stability": "Dozens of stability fixes: deleting pets with history, adding a client from the mobile bottom menu, a client list that updates instantly, and the 'file' errors after system updates are finally gone"
+          }
+        },
+        "v17": {
+          "date": "July 2026",
+          "title": "Full control over messages, upgraded digital contracts and dozens of improvements 🚀",
+          "items": {
+            "messageControl": "Full control over automatic messages: no message goes to a client unless you explicitly turned it on. Each message type (appointment confirmation, reminders, boarding messages) has its own switch on the Messages → Automations page, and each appointment is confirmed only once",
+            "salesAutomations": "New sales automations: automatic follow-up on a new lead (a WhatsApp message X hours after the inquiry, canceled automatically if the lead closes) and an automatic payment request with a payment link as soon as an order is confirmed",
+            "contracts": "Upgraded digital contracts: an instant alert when a client signs (in the bell and on WhatsApp), a fixed contract view for the signing client, clear status screens (signed / expired), and signatures saved in the right proportions",
+            "salesReports": "New sales reports: leads by source with conversion rates (finally see which marketing channel really works) and a breakdown of lead loss reasons, also in the Excel export",
+            "petsPage": "Pets page: add and delete pets right from the page, and the owner's phone is clickable for calls and WhatsApp",
+            "orders": "Orders: edit items in a draft order, confirm and send a payment request from desktop too, and cancel a payment recorded by mistake",
+            "intakeForms": "Intake forms: view the answers the client filled in and delete old forms",
+            "navigation": "Better navigation: the invoices page joined the finance tabs, bulk delete of leads and tasks with double confirmation, manual ordering of the price list, and a fix for saving business details in Settings"
+          }
+        },
+        "v16": {
+          "date": "July 2026",
+          "title": "Smart calendar: filter by activity type 📅",
+          "items": {
+            "categoryFilter": "Filter the calendar by category: 11 categories in three groups: bookings & client services, professional training, and admin & operations. Each event gets a fixed color by type, so you can see what's happening in the day at a glance",
+            "lenses": "Quick view lenses: one button switches the whole calendar: \"Client bookings\" shows only what clients booked, \"My services\" only the professional training you deliver, and \"Admin\" only tasks and leads. No more mixing the two",
+            "trainingTypes": "Training types fully separated: in-home training, board-and-train, group training and workshops, each with its own filter and color. Show only workshops, or only visits to clients' homes to plan your driving",
+            "taskFilter": "Task filtering: you can now hide or show tasks on the calendar (until now they always appeared)",
+            "googleColors": "Colors synced to Google Calendar: every event is sent to Google with its category color, the same visual language in Petra and in Google Calendar on your phone",
+            "savedFilter": "Your filter is saved: your choice is saved automatically and waits for you even after a refresh or a new login",
+            "thanks": "Special thanks to Shachar 🙏 This upgrade was born from her feedback. If you have an idea that would make Petra better, we'd love to hear it through \"Contact us\""
+          }
+        },
+        "v15": {
+          "date": "June 2026",
+          "title": "Upgraded training management 🎓",
+          "items": {
+            "calendarSessions": "Training sessions on the calendar: private program and group sessions now appear in every calendar view (day / week / month / agenda), a full picture of all your training in one place",
+            "groupReminders": "Automatic WhatsApp reminders for group classes: every participant gets a reminder before the session based on the group's settings (until now they weren't sent), so fewer no-shows",
+            "weeklySeries": "Create a weekly session series in one click: the \"Create series\" button on the group card generates all the regular sessions in advance, including attendance and reminders",
+            "metrics": "New training metrics in Reports: completed sessions, active groups, group sessions and training revenue, real tracking of your activity",
+            "followUpTasks": "Automatic follow-up tasks: Petra opens a task for you when an active training program has gone a long time without a session, and before an upcoming group session, so no client falls through the cracks",
+            "reschedule": "Edit and reschedule sessions: changing a session date automatically updates the client's reminder too",
+            "stability": "Stability fixes: deleting a dog assigned to a group, accurate attendance counts, and validation on every program/group creation"
+          }
+        },
+        "v14": {
+          "date": "April 2026",
+          "title": "Tutorial videos + landing page improvements",
+          "items": {
+            "videoLibrary": "Tutorial video library: 13 short videos for every module, available from the sidebar and the bottom menu",
+            "calendarVideo": "New video: the Petra calendar, managing appointments, views and Google Calendar sync",
+            "landingScreenshot": "Landing page: a real dashboard screenshot instead of a drawn mockup",
+            "mobileTutorials": "Mobile bottom menu: a new \"Tutorials\" button for quick access to the videos",
+            "newBadges": "\"New\" badges in the sidebar: task management, pets, calendar and admin & oversight",
+            "safariFix": "Fixed video playback in Safari iOS, full support on iPhone and iPad",
+            "tryNow": "The \"Try now\" button on the free plan goes straight to the sign-up page"
+          }
+        },
+        "v13": {
+          "date": "April 2026",
+          "title": "Screenshots in bug reports + service dog improvements",
+          "items": {
+            "screenshot": "Bug reports: you can now attach a screenshot, which really speeds up handling your request",
+            "yardPrint": "Print the yard map straight from the app, with 2 columns and an automatic date",
+            "raisingPhase": "New Raising (RAISING) phase in the service dog lifecycle, between Selection and Puppy",
+            "certTests": "Certification tests: added the SIMBA test + manual overall result for every test type",
+            "xlsxExport": "XLSX export now includes the recurring annual test date",
+            "rejectedArchive": "Recipients: the \"Rejected\" stage is hidden by default (archive) and shown with a dedicated button",
+            "ux": "UX improvements: reordered dog tabs, recipient stage management, a dog name column in the table"
+          }
+        },
+        "v12": {
+          "date": "March 2026",
+          "title": "Service dog import + performance",
+          "items": {
+            "import": "Import service dogs and recipients from an Excel file, with a ready-made template, preview and confirmation",
+            "mobileBar": "New mobile bar: new client, leads, home, tasks, appointments",
+            "performance": "Performance improvements: self-hosted Heebo font, Cache-Control on API routes, reduced prefetch",
+            "nullFix": "Fixed a null crash in payments without a linked service"
+          }
+        },
+        "v11": {
+          "date": "March 2026",
+          "title": "RBAC + team permissions",
+          "items": {
+            "levels": "4 permission levels: owner, manager, staff, volunteer",
+            "pendingApprovals": "Pending approvals flow for managers (deletions, critical settings)",
+            "sensitiveFields": "Sensitive fields hidden from staff: address, finance, recipient details",
+            "doubleConfirm": "Deleting a client/dog/program requires double confirmation from the owner",
+            "locationTracking": "Service dog location tracking: trainer / foster / boarding / field"
+          }
+        },
+        "v10": {
+          "date": "March 2026",
+          "title": "WhatsApp + payments + Google Calendar",
+          "items": {
+            "reminders": "Automatic WhatsApp appointment reminders (PRO+) with a configurable lead time in hours",
+            "paymentRequest": "WhatsApp payment requests from orders and the order page",
+            "googleCalendar": "Two-way Google Calendar connection, syncing appointments in real time",
+            "templates": "8 ready-to-use message templates with dynamic variables"
+          }
+        },
+        "v9": {
+          "date": "March 2026",
+          "title": "User experience + service dogs",
+          "items": {
+            "rememberMe": "\"Remember me\" at login, keeps you signed in for 30 days",
+            "placement": "Place a service dog with a recipient straight from the dog file",
+            "dashboard": "Upgraded dashboard: clickable cards, a daily focus area, a lead aging indicator",
+            "lateBanner": "Late check-out banner in boarding with a \"Handle now\" button"
+          }
+        },
+        "v8": {
+          "date": "March 2026",
+          "title": "Pets module",
+          "items": {
+            "weight": "Weight tracking with a history line chart",
+            "gallery": "Photo gallery + lightbox view",
+            "careLog": "Boarding care log (feeding, medication, walks)",
+            "breeds": "Combobox with 60+ dog breeds and 14 cat breeds",
+            "export": "XLSX export of all pets"
+          }
+        },
+        "v7": {
+          "date": "March 2026",
+          "title": "WhatsApp Meta API + service dogs",
+          "items": {
+            "cloudApi": "Support for the Meta WhatsApp Cloud API",
+            "dashboard": "Service dogs dashboard with an alerts widget",
+            "security": "Security fixes (IDOR) across all API routes"
+          }
+        },
+        "v6": {
+          "date": "Feb 2026",
+          "title": "Export, security, kanban DnD",
+          "items": {
+            "export": "Export clients + pets to XLSX/CSV",
+            "dragDrop": "Drag and drop on the leads board (kanban DnD)",
+            "customStages": "Custom lead stages: create, edit, colors"
+          }
+        },
+        "v5": {
+          "date": "Jan 2026",
+          "title": "Service dogs module",
+          "items": {
+            "tabs": "9 tabs: file, training, medical, ADI tests, placement, insurance, equipment, documents, certification",
+            "digitalId": "Digital ID card + QR verification",
+            "recipientsKanban": "Recipients kanban with custom stages",
+            "placementStatuses": "Placement statuses (trial / active / completed)"
+          }
+        }
+      }
+    }
+  },
+  "layout": {
+    "rootLayout": {
+      "title": "Petra — Management software for pet businesses",
+      "description": "Clients, appointments, WhatsApp and boarding — every tool your business needs in one place. Free plan, no credit card required. For dog trainers, groomers, boarding facilities and service dog organizations.",
+      "ogDescription": "Clients, appointments, WhatsApp and boarding — every tool your business needs in one place. Start free.",
+      "twitterDescription": "Clients, appointments, WhatsApp and boarding — every tool your business needs in one place.",
+      "keywords": {
+        "dogManagementSystem": "dog business management software",
+        "dogTrainerSoftware": "dog trainer software",
+        "dogBoardingManagement": "dog boarding management",
+        "groomerSoftware": "grooming software",
+        "trainerScheduling": "dog trainer scheduling",
+        "petBusinessCrm": "pet business CRM",
+        "trainerClientManagement": "client management for dog trainers",
+        "dogTrainingSoftware": "dog training software",
+        "dogBusinessManagement": "dog business management USA",
+        "brandName": "Petra"
+      }
+    },
+    "protectedRoute": {
+      "title": "Access denied",
+      "message": "You don't have permission to view this page. Ask the business owner for access.",
+      "backToDashboard": "Back to dashboard"
+    },
+    "installPWABanner": {
+      "title": "Add Petra to your home screen",
+      "iosInstructions": "Tap <icon></icon> then “Add to Home Screen”",
+      "subtitle": "Quick access, works like a real app",
+      "install": "Install",
+      "later": "Later",
+      "dontShowAgain": "Don't show again"
+    },
+    "notificationBell": {
+      "today": "Today",
+      "tomorrow": "Tomorrow",
+      "title": "Notifications",
+      "todayCount": "{count, plural, one {# appointment today} other {# appointments today}}",
+      "empty": "No upcoming appointments",
+      "openCalendar": "Open calendar →"
+    },
+    "pullToRefresh": {
+      "refreshing": "Refreshing…",
+      "releaseToRefresh": "Release to refresh",
+      "pullToRefresh": "Pull to refresh"
+    },
+    "reportBugButton": {
+      "autoTitle": "Request from the app",
+      "genericError": "Error",
+      "sentToast": "Request sent — we'll get back to you soon 🙏",
+      "sendError": "Couldn't send the request",
+      "reportIssue": "Report an issue",
+      "issueShort": "Issue?",
+      "modalTitle": "Report a problem",
+      "modalSubtitle": "We're happy to help — we'll get back to you soon",
+      "describeLabel": "Describe the problem",
+      "describePlaceholder": "Describe what happened, what you were trying to do, and what the error was...",
+      "pageLabel": "Page:",
+      "sending": "Sending...",
+      "submit": "Send request"
+    },
+    "screenGuard": {
+      "title": "You don't have access to this screen",
+      "body": "The business owner can turn it on for you in Settings → Team & permissions.",
+      "backToDashboard": "Back to dashboard"
+    },
+    "systemInbox": {
+      "title": "Inbox",
+      "newCount": "{count, plural, one {# new message} other {# new messages}}",
+      "empty": "No messages",
+      "clickToOpen": "Click to open →",
+      "deleteMessage": "Delete message"
+    },
+    "appShell": {
+      "impersonating": "⚠️ Impersonation mode — business: <b>{name}</b>",
+      "exitImpersonation": "← Back to Master Admin",
+      "assistantAriaLabel": "Petra AI — help"
+    },
+    "mobileBottomNav": {
+      "drawer": {
+        "limitReached": "You've reached the client limit on your current plan",
+        "created": "Client created!",
+        "createError": "Couldn't create the client",
+        "title": "New client",
+        "fullName": "Full name",
+        "namePlaceholder": "John Smith",
+        "phone": "Phone",
+        "submit": "Create client"
+      },
+      "items": {
+        "newCustomer": "New client",
+        "tutorials": "Tutorials",
+        "home": "Home",
+        "tasks": "Tasks",
+        "calendar": "Calendar"
+      }
+    },
+    "sidebar": {
+      "eyebrows": {
+        "main": "Main menu",
+        "modules": "Modules",
+        "management": "Management"
+      },
+      "nav": {
+        "dashboard": "Dashboard",
+        "customers": "Clients",
+        "leads": "Sales",
+        "tasks": "Tasks",
+        "scheduler": "Online booking",
+        "calendar": "Calendar",
+        "boarding": "Boarding",
+        "serviceDogs": "Service dogs",
+        "training": "Training",
+        "pets": "Pets",
+        "onlineClasses": "Online classes",
+        "aiAssistant": "AI assistant",
+        "finance": "Finance",
+        "messages": "Messages",
+        "reports": "Reports",
+        "businessAdmin": "Admin & oversight",
+        "tutorials": "Video tutorials",
+        "settings": "Settings"
+      },
+      "badges": {
+        "openTasks": "{count, plural, one {# open task} other {# open tasks}}",
+        "overdueFollowUps": "{count, plural, one {# lead with an overdue follow-up} other {# leads with overdue follow-ups}}",
+        "pendingBookings": "{count, plural, one {# booking awaiting approval} other {# bookings awaiting approval}}",
+        "activeBoarding": "{count, plural, one {# dog in boarding} other {# dogs in boarding}}",
+        "serviceDogAlerts": "{count, plural, one {# active alert} other {# active alerts}}"
+      },
+      "newBadge": "New",
+      "asideAriaLabel": "Navigation sidebar",
+      "navAriaLabel": "Main navigation",
+      "moreFeatures": "More features",
+      "help": "Help",
+      "installApp": "Install app",
+      "iosInstallHint": "Tap <icon></icon> in your browser, then “Add to Home Screen”",
+      "upgrade": "Upgrade plan",
+      "platformAdmin": "Platform admin",
+      "collapse": "Collapse menu"
+    },
+    "topbar": {
+      "pages": {
+        "customers": {
+          "title": "Clients",
+          "subtitle": "Manage your client base"
+        },
+        "calendar": {
+          "title": "Calendar",
+          "subtitle": "Appointments and meetings"
+        },
+        "leads": {
+          "title": "Leads",
+          "subtitle": "Manage prospective clients"
+        },
+        "messages": {
+          "title": "Messages",
+          "subtitle": "Templates and automations"
+        },
+        "boarding": {
+          "title": "Boarding",
+          "subtitle": "Manage stays and pets"
+        },
+        "settings": {
+          "title": "Settings",
+          "subtitle": "Business settings"
+        },
+        "dashboard": {
+          "title": "Dashboard",
+          "subtitle": "Overview"
+        },
+        "tasks": {
+          "title": "Tasks",
+          "subtitle": "Manage operational tasks"
+        },
+        "training": {
+          "title": "Training",
+          "subtitle": "Group classes and training programs"
+        },
+        "payments": {
+          "title": "Payments",
+          "subtitle": "Manage payments and revenue"
+        },
+        "bookings": {
+          "title": "Bookings",
+          "subtitle": "Manage online bookings"
+        },
+        "intake": {
+          "title": "Intake forms",
+          "subtitle": "Manage intake forms"
+        },
+        "analytics": {
+          "title": "Reports",
+          "subtitle": "Business reports and statistics"
+        },
+        "orders": {
+          "title": "Orders",
+          "subtitle": "Manage orders"
+        },
+        "paymentRequest": {
+          "title": "Payment request",
+          "subtitle": "Send a payment request to a client"
+        },
+        "pricing": {
+          "title": "Price list",
+          "subtitle": "Manage prices"
+        },
+        "scheduler": {
+          "title": "Appointments",
+          "subtitle": "Book appointments for clients"
+        },
+        "serviceDogs": {
+          "title": "Service dogs",
+          "subtitle": "Manage service dogs"
+        },
+        "invoices": {
+          "title": "Invoices",
+          "subtitle": "Manage invoices and documents"
+        },
+        "automations": {
+          "title": "Automations",
+          "subtitle": "Automated messages to clients"
+        },
+        "scheduledMessages": {
+          "title": "Send queue",
+          "subtitle": "Scheduled messages"
+        },
+        "intakeForms": {
+          "title": "Intake forms",
+          "subtitle": "Manage intake forms you sent"
+        },
+        "exports": {
+          "title": "Data export",
+          "subtitle": "Download business data to a file"
+        },
+        "vaccinations": {
+          "title": "Vaccinations",
+          "subtitle": "Rabies vaccination reminders"
+        },
+        "pets": {
+          "title": "Pets",
+          "subtitle": "All pets registered with the business"
+        },
+        "medications": {
+          "title": "Medication board",
+          "subtitle": "Pets with active medications"
+        },
+        "feeding": {
+          "title": "Feeding board",
+          "subtitle": "Daily feeding log for boarding pets"
+        },
+        "onboarding": {
+          "title": "Business setup",
+          "subtitle": "Initial setup wizard"
+        }
+      },
+      "roles": {
+        "owner": "Owner",
+        "manager": "Manager",
+        "user": "Staff"
+      },
+      "userRole": {
+        "systemAdmin": "System admin",
+        "businessOwner": "Business owner",
+        "manager": "Manager",
+        "user": "User"
+      },
+      "defaultUserName": "User",
+      "relativeTime": {
+        "todayAt": "Today at {time}",
+        "tomorrowAt": "Tomorrow at {time}",
+        "dateAt": "{date} at {time}",
+        "now": "Just now",
+        "minutesAgo": "{count, plural, one {# minute ago} other {# minutes ago}}",
+        "hoursAgo": "{count, plural, one {# hour ago} other {# hours ago}}"
+      },
+      "invite": {
+        "sent": "Invitation sent to {email}",
+        "emailFailed": "The invitation was created but the email wasn't sent — share the link from Settings → Team & permissions",
+        "inviteNewUser": "Invite a new user",
+        "title": "Invite user",
+        "namePlaceholder": "Name",
+        "emailPlaceholder": "Email",
+        "fillAllFields": "Please fill in all fields",
+        "submit": "Invite"
+      },
+      "openMenu": "Open menu",
+      "refreshData": "Refresh data",
+      "petraMessagesAria": "Petra messages",
+      "messages": {
+        "title": "Messages from Petra",
+        "markAllRead": "Mark all as read",
+        "empty": "No new messages from Petra",
+        "moreDetails": "Learn more"
+      },
+      "notifications": {
+        "title": "Business alerts",
+        "criticalCount": "{count, plural, one {# item needs attention} other {# items need attention}}",
+        "readAll": "Mark all read",
+        "allGood": "All good!",
+        "empty": "No active alerts right now",
+        "tasks": "Tasks",
+        "calendar": "Calendar",
+        "payments": "Payments"
+      },
+      "userMenuAria": "User menu — {name}",
+      "logoAlt": "Logo",
+      "businessLogoAlt": "Business logo",
+      "profile": {
+        "tabProfile": "Profile",
+        "tabUsers": "User access",
+        "systemHealth": "System health",
+        "connected": "Connected",
+        "notConnected": "Not connected",
+        "active": "Active",
+        "notConfigured": "Not set up",
+        "businessPerformance": "Business performance",
+        "monthRevenue": "Revenue this month",
+        "topService": "Top service",
+        "settings": "Settings",
+        "terms": "Terms of use",
+        "privacy": "Privacy policy",
+        "logout": "Log out"
+      },
+      "members": {
+        "empty": "No users",
+        "you": "(you)",
+        "deactivate": "Deactivate",
+        "activate": "Activate"
+      }
+    }
+  },
+  "paywall": {
+    "upgradePage": {
+      "plans": {
+        "free": {
+          "name": "Free",
+          "description": "Start managing your business — free, with no time limit",
+          "features": {
+            "clients": "Up to 30 clients",
+            "leads": "CRM / leads (up to 15)",
+            "trainingPrograms": "Training program management (up to 10 programs)",
+            "appointments": "Appointments (up to 20 total)",
+            "orders": "Orders (up to 15 total)",
+            "tasks": "Task management (up to 20 open)",
+            "priceList": "Service price list (up to 8 items)"
+          },
+          "notIncluded": {
+            "unlimitedCalendar": "Unlimited appointments + Google Calendar",
+            "whatsappReminders": "Automatic WhatsApp reminders",
+            "boarding": "Boarding management",
+            "intakeForms": "Send intake forms to clients",
+            "team": "Team management"
+          }
+        },
+        "basic": {
+          "name": "Basic",
+          "description": "Perfect for independent groomers and trainers — solo, professional, affordable",
+          "features": {
+            "unlimitedClients": "Unlimited clients and appointments",
+            "calendar": "Appointment calendar + Google Calendar",
+            "portfolio": "Before/after portfolio",
+            "paymentsAndForms": "Payment requests + digital intake forms",
+            "unlimitedLeads": "Unlimited CRM / leads",
+            "reports": "Reports and analytics"
+          },
+          "notIncluded": {
+            "whatsappReminders": "Automatic WhatsApp reminders",
+            "teamAndUsers": "Team and user management",
+            "boarding": "Boarding management",
+            "onlineBooking": "Online booking",
+            "whatsappAutomations": "Advanced WhatsApp automations"
+          }
+        },
+        "pro": {
+          "name": "Pro",
+          "description": "Perfect for boarding and training centers — team, growth, full control",
+          "badge": "Most popular",
+          "features": {
+            "everythingInBasic": "Everything in Basic",
+            "whatsappReminders": "Automatic WhatsApp reminders",
+            "contracts": "Digital contract signing",
+            "teamPermissions": "Team management and advanced permissions",
+            "boardingRooms": "Boarding and room management",
+            "onlineBooking": "Online booking — clients book on their own 24/7",
+            "whatsappAutomations": "Advanced WhatsApp automations"
+          }
+        },
+        "groomer": {
+          "name": "Groomer+ (legacy)",
+          "description": "Legacy plan — no longer sold. You can switch to Basic or Pro.",
+          "features": {
+            "portfolio": "Before/after portfolio",
+            "whatsappAutomations": "WhatsApp automations",
+            "team": "Team management",
+            "excelExport": "Excel export"
+          },
+          "notIncluded": {
+            "boarding": "Boarding",
+            "advancedTraining": "Advanced training"
+          }
+        },
+        "serviceDog": {
+          "name": "Service Dog",
+          "description": "Organization plan for service dogs — recipients, training and compliance.",
+          "features": {
+            "everythingInPro": "Everything in Pro",
+            "serviceDogs": "Service dog and recipient management",
+            "certification": "Certification tests and medical protocols",
+            "ministryReporting": "Reporting to the Ministry of Agriculture"
+          }
+        }
+      },
+      "toasts": {
+        "cancelError": "Couldn't cancel the subscription",
+        "cancelSuccessUntil": "Cancellation received. You keep your subscription until {date}.",
+        "cancelSuccess": "Cancellation received.",
+        "networkError": "Network error. Please try again."
+      },
+      "whatsapp": {
+        "downgradeAction": "downgrade",
+        "upgradeAction": "upgrade",
+        "message": "Hi, I'd like to {action} my Petra subscription to the {planName} plan ({currencySymbol}{price}/month). Can you help me?"
+      },
+      "header": {
+        "badge": "Upgrade your subscription",
+        "title": "Choose the plan that fits you",
+        "subtitle": "All plans include full access to the core features. You can upgrade, downgrade or cancel at any time."
+      },
+      "card": {
+        "currentBadge": "Your current plan",
+        "free": "Free",
+        "price": "{currencySymbol}{price}",
+        "perMonth": "/month",
+        "yourPlan": "✓ Your plan",
+        "cancelToFree": "Cancel subscription → switch to Free",
+        "downgradeTo": "Downgrade to {planName}",
+        "alwaysFree": "Always free",
+        "payNow": "Pay now",
+        "upgradeViaWhatsapp": "Upgrade via WhatsApp",
+        "upgradeTo": "Upgrade to {planName}"
+      },
+      "cancel": {
+        "pending": "Cancellation received — full access until <strong>{date}</strong>. After that you'll move to the Free plan.",
+        "wantToCancel": "Want to cancel your subscription?",
+        "confirmWithDate": "Your subscription will be canceled at the end of the billing period ({date}). Until then you keep every feature — no further charges.",
+        "confirm": "Your subscription will be canceled at the end of the billing period. Until then you keep every feature — no further charges.",
+        "cancelling": "Canceling...",
+        "yesCancel": "Yes, cancel subscription",
+        "back": "Back"
+      },
+      "faq": {
+        "title": "FAQ",
+        "howToUpgrade": {
+          "q": "How do I upgrade?",
+          "a": "Click \"Pay now\" — you'll go to a secure payment page. Your plan updates right after the payment is approved."
+        },
+        "canCancel": {
+          "q": "Can I cancel?",
+          "a": "Yes, you can cancel at any time with no fees. Click \"Want to cancel your subscription?\" above, or go to Settings → Subscription."
+        },
+        "dataOnCancel": {
+          "q": "What happens to my data if I cancel?",
+          "a": "Your data is kept. When the subscription ends you go back to the Free plan with its usual limits."
+        },
+        "securePayment": {
+          "q": "Is the payment secure?",
+          "a": "Yes. Card details are entered directly in Cardcom's secure environment (PCI DSS). Petra never sees your card details."
+        }
+      },
+      "contact": {
+        "text": "Questions? Message us on WhatsApp and we'll help you pick the right plan.",
+        "cta": "Contact us now"
+      }
+    },
+    "limitReachedModal": {
+      "title": "You've reached the Free plan limit",
+      "upgradeCta": "Upgrade to Basic — {currencySymbol}99/month",
+      "whatYouGet": "What you get with Basic:",
+      "benefits": {
+        "unlimited": "Unlimited appointments, clients and orders",
+        "whatsappReminders": "Automatic WhatsApp reminders",
+        "googleCalendar": "Google Calendar sync",
+        "reports": "Reports and analytics",
+        "paymentLinks": "Payment links for clients"
+      },
+      "maybeLater": "Maybe later"
+    },
+    "paywallCard": {
+      "badge": "{planName} plan",
+      "ctaWithPrice": "Upgrade to {planName} — {currencySymbol}{price}/month",
+      "cta": "Upgrade to {planName}",
+      "priceNote": "{currencySymbol}{price}/month · cancel anytime"
+    }
+  },
+  "search": {
+    "searchModal": {
+      "boardingStatus": {
+        "reserved": "Reserved",
+        "checked_in": "Staying",
+        "checked_out": "Checked out",
+        "cancelled": "Canceled"
+      },
+      "pet": {
+        "owner": "Owner: {name}"
+      },
+      "appointment": {
+        "unknownService": "Unknown service"
+      },
+      "groups": {
+        "customers": "Clients",
+        "pets": "Pets",
+        "appointments": "Appointments",
+        "boarding": "Boarding"
+      },
+      "inputPlaceholder": "Search clients, pets, appointments, boarding...",
+      "prompt": {
+        "title": "Quick search",
+        "minChars": "Type at least 2 characters to search",
+        "pets": "Pets"
+      },
+      "empty": {
+        "title": "No results found",
+        "body": "No results for “{query}”"
+      },
+      "footer": {
+        "navigate": "Navigate",
+        "open": "Open",
+        "resultsCount": "{count, plural, one {# result} other {# results}}"
+      }
+    },
+    "globalSearch": {
+      "trigger": "Quick search... <hint>(⌘K)</hint>",
+      "label": "Search",
+      "inputPlaceholder": "Search client, pet, appointment, lead, task...",
+      "clear": "Clear search",
+      "close": "Close search",
+      "noResults": "No results found for \"{query}\"",
+      "sections": {
+        "customers": "Clients",
+        "pets": "Pets",
+        "appointments": "Appointments",
+        "boarding": "Boarding",
+        "leads": "Leads",
+        "tasks": "Tasks"
+      },
+      "species": {
+        "dog": "Dog",
+        "cat": "Cat"
+      },
+      "appointmentFallback": "Appointment",
+      "leadStatus": {
+        "won": "Won",
+        "lost": "Lost",
+        "new": "New"
+      },
+      "priority": {
+        "urgent": "Urgent",
+        "high": "High",
+        "medium": "Medium",
+        "low": "Low"
+      },
+      "minChars": "Type at least 2 characters to search"
+    }
+  },
   "tasks": {
     "title": "Tasks",
     "categories": {
@@ -281,6 +1764,22 @@
         "completedAt": "Completed",
         "relatedEntityName": "Linked to (client/pet)"
       }
+    }
+  },
+  "ui": {
+    "confirmDeleteModal": {
+      "irreversible": "This can't be undone",
+      "typeToConfirm": "To continue, type the following text exactly:",
+      "placeholder": "Type here...",
+      "mismatch": "Text doesn't match",
+      "matched": "✓ Confirmed",
+      "deleteForever": "Delete permanently"
+    },
+    "confirmDialog": {
+      "confirm": "Confirm"
+    },
+    "desktopBanner": {
+      "message": "This page is designed for desktop — some actions may be limited on mobile"
     }
   }
 }

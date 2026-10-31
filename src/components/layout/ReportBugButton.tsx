@@ -6,6 +6,8 @@ import { useMutation } from "@tanstack/react-query";
 import { LifeBuoy, X, Send } from "lucide-react";
 import { toast } from "sonner";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 
 interface FormState {
   title: string;
@@ -16,10 +18,13 @@ export function ReportBugButton({ menuMode = false }: { menuMode?: boolean }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<FormState>({ title: "", description: "" });
   const pathname = usePathname();
+  const t = useTranslations("layout.reportBugButton");
+  const tc = useTranslations("common");
+  const { cfg } = useBusinessLocale();
 
   const mutation = useMutation({
     mutationFn: async (data: FormState) => {
-      const autoTitle = data.description.slice(0, 60).trim() || "פנייה מהאפליקציה";
+      const autoTitle = data.description.slice(0, 60).trim() || t("autoTitle");
       const res = await fetch("/api/support/report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -27,17 +32,17 @@ export function ReportBugButton({ menuMode = false }: { menuMode?: boolean }) {
       });
       if (!res.ok) {
         const json = await res.json();
-        throw new Error(json.error ?? "שגיאה");
+        throw new Error(json.error ?? t("genericError"));
       }
       return res.json();
     },
     onSuccess: () => {
-      toast.success("הפנייה נשלחה — נחזור אליך בהקדם 🙏");
+      toast.success(t("sentToast"));
       setOpen(false);
       setForm({ title: "", description: "" });
     },
     onError: (err: Error) => {
-      toast.error(err.message || "שגיאה בשליחת הפנייה");
+      toast.error(err.message || t("sendError"));
     },
   });
 
@@ -55,15 +60,15 @@ export function ReportBugButton({ menuMode = false }: { menuMode?: boolean }) {
         className={menuMode
           ? "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-amber-700 hover:bg-amber-50 transition-colors"
           : "flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition-all duration-150 text-xs font-medium"}
-        title="דווח על תקלה"
+        title={t("reportIssue")}
       >
         <LifeBuoy className={menuMode ? "w-4 h-4 text-amber-500" : "w-4 h-4 flex-shrink-0"} />
-        <span>{menuMode ? "דווח על תקלה" : "תקלה?"}</span>
+        <span>{menuMode ? t("reportIssue") : t("issueShort")}</span>
       </button>
 
       {open && typeof window !== "undefined" && createPortal(
         <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/30 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-white rounded-2xl shadow-xl" dir="rtl">
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-xl" dir={cfg.dir}>
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
@@ -71,8 +76,8 @@ export function ReportBugButton({ menuMode = false }: { menuMode?: boolean }) {
                   <LifeBuoy className="w-4 h-4 text-orange-600" />
                 </div>
                 <div>
-                  <h2 className="text-sm font-semibold text-slate-800">דיווח על בעיה</h2>
-                  <p className="text-xs text-slate-500">נשמח לעזור — נחזור אליך בהקדם</p>
+                  <h2 className="text-sm font-semibold text-slate-800">{t("modalTitle")}</h2>
+                  <p className="text-xs text-slate-500">{t("modalSubtitle")}</p>
                 </div>
               </div>
               <button
@@ -86,11 +91,11 @@ export function ReportBugButton({ menuMode = false }: { menuMode?: boolean }) {
             {/* Form */}
             <form onSubmit={handleSubmit} className="p-5 space-y-4">
               <div>
-                <label className="label block mb-1.5">תאר את הבעיה</label>
+                <label className="label block mb-1.5">{t("describeLabel")}</label>
                 <textarea
                   className="input w-full resize-none"
                   rows={5}
-                  placeholder="תאר מה קרה, מה ניסית לעשות, ומה הייתה השגיאה..."
+                  placeholder={t("describePlaceholder")}
                   value={form.description}
                   onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
                   autoFocus
@@ -100,7 +105,7 @@ export function ReportBugButton({ menuMode = false }: { menuMode?: boolean }) {
               </div>
 
               <div className="bg-slate-50 rounded-xl px-3 py-2 text-xs text-slate-500">
-                <span className="font-medium">דף:</span>{" "}
+                <span className="font-medium">{t("pageLabel")}</span>{" "}
                 <span dir="ltr">{pathname}</span>
               </div>
 
@@ -110,7 +115,7 @@ export function ReportBugButton({ menuMode = false }: { menuMode?: boolean }) {
                   onClick={() => setOpen(false)}
                   className="btn-secondary flex-1 justify-center"
                 >
-                  ביטול
+                  {tc("actions.cancel")}
                 </button>
                 <button
                   type="submit"
@@ -118,7 +123,7 @@ export function ReportBugButton({ menuMode = false }: { menuMode?: boolean }) {
                   className="btn-primary flex-1 justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Send className="w-4 h-4" />
-                  {mutation.isPending ? "שולח..." : "שלח פנייה"}
+                  {mutation.isPending ? t("sending") : t("submit")}
                 </button>
               </div>
             </form>

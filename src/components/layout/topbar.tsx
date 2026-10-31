@@ -34,6 +34,9 @@ import {
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/providers/auth-provider";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
+import { formatCurrency } from "@/lib/format";
 import dynamic from "next/dynamic";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 
@@ -41,39 +44,40 @@ const GlobalSearch = dynamic(
   () => import("@/components/search/global-search").then((m) => ({ default: m.GlobalSearch })),
   { ssr: false, loading: () => <div className="h-9 w-64 bg-slate-100 rounded-xl animate-pulse" /> }
 );
-import { cn, fetchJSON, formatCurrency, toWhatsAppPhone } from "@/lib/utils";
+import { cn, fetchJSON, toWhatsAppPhone } from "@/lib/utils";
 import { ReportBugButton } from "@/components/layout/ReportBugButton";
 import { toast } from "sonner";
 
-const PAGE_TITLES: Record<string, { title: string; subtitle?: string }> = {
-  "/customers": { title: "לקוחות", subtitle: "ניהול בסיס הלקוחות" },
-  "/calendar": { title: "יומן", subtitle: "תורים ופגישות" },
-  "/leads": { title: "לידים", subtitle: "ניהול לקוחות פוטנציאליים" },
-  "/messages": { title: "הודעות", subtitle: "תבניות ואוטומציות" },
-  "/boarding": { title: "פנסיון", subtitle: "ניהול לינה וחיות" },
-  "/settings": { title: "הגדרות", subtitle: "הגדרות העסק" },
-  "/dashboard": { title: "דשבורד", subtitle: "סקירה כללית" },
-  "/tasks": { title: "משימות", subtitle: "ניהול משימות תפעוליות" },
-  "/training": { title: "אימונים", subtitle: "קבוצות ותוכניות אימון" },
-  "/payments": { title: "תשלומים", subtitle: "ניהול תשלומים והכנסות" },
-  "/bookings": { title: "ניהול תורים", subtitle: "ניהול תורים אונליין" },
-  "/intake": { title: "טפסי קליטה", subtitle: "ניהול טפסי קליטה" },
-  "/analytics": { title: "דוחות", subtitle: "דוחות וסטטיסטיקות של העסק" },
-  "/orders": { title: "הזמנות", subtitle: "ניהול הזמנות" },
-  "/payment-request": { title: "בקשת תשלום", subtitle: "שליחת בקשת תשלום ללקוח" },
-  "/pricing": { title: "מחירון", subtitle: "ניהול מחירים" },
-  "/scheduler": { title: "תורים", subtitle: "קביעת תורים ללקוחות" },
-  "/service-dogs": { title: "כלבי שירות", subtitle: "ניהול כלבי שירות" },
-  "/invoices": { title: "חשבוניות", subtitle: "ניהול חשבוניות ומסמכים" },
-  "/automations": { title: "אוטומציות", subtitle: "הודעות אוטומטיות ללקוחות" },
-  "/scheduled-messages": { title: "תור שליחה", subtitle: "הודעות מתוזמנות" },
-  "/intake-forms": { title: "טפסי קליטה", subtitle: "ניהול טפסי קליטה ששלחת" },
-  "/exports": { title: "ייצוא נתונים", subtitle: "הורד נתוני עסק לקובץ" },
-  "/vaccinations": { title: "חיסונים", subtitle: "תזכורות חיסוני כלבת" },
-  "/pets": { title: "חיות מחמד", subtitle: "כל החיות הרשומות בעסק" },
-  "/medications": { title: "לוח תרופות", subtitle: "חיות עם תרופות פעילות" },
-  "/feeding": { title: "לוח האכלה", subtitle: "מעקב האכלה יומי לחיות בפנסיון" },
-  "/onboarding": { title: "הגדרת העסק", subtitle: "אשף הגדרה ראשוני" },
+// Route prefix → message key under layout.topbar.pages.<key>.{title,subtitle}
+const PAGE_TITLES: Record<string, string> = {
+  "/customers": "customers",
+  "/calendar": "calendar",
+  "/leads": "leads",
+  "/messages": "messages",
+  "/boarding": "boarding",
+  "/settings": "settings",
+  "/dashboard": "dashboard",
+  "/tasks": "tasks",
+  "/training": "training",
+  "/payments": "payments",
+  "/bookings": "bookings",
+  "/intake": "intake",
+  "/analytics": "analytics",
+  "/orders": "orders",
+  "/payment-request": "paymentRequest",
+  "/pricing": "pricing",
+  "/scheduler": "scheduler",
+  "/service-dogs": "serviceDogs",
+  "/invoices": "invoices",
+  "/automations": "automations",
+  "/scheduled-messages": "scheduledMessages",
+  "/intake-forms": "intakeForms",
+  "/exports": "exports",
+  "/vaccinations": "vaccinations",
+  "/pets": "pets",
+  "/medications": "medications",
+  "/feeding": "feeding",
+  "/onboarding": "onboarding",
 };
 
 interface IntegrationStatus {
@@ -109,16 +113,11 @@ interface Member {
 
 type PanelTab = "profile" | "users";
 
-const ROLE_LABELS: Record<string, string> = {
-  owner: "בעלים",
-  manager: "מנהל",
-  user: "צוות",
-};
-
-const ROLE_OPTIONS: { value: string; label: string }[] = [
-  { value: "owner", label: "בעלים" },
-  { value: "manager", label: "מנהל" },
-  { value: "user", label: "צוות" },
+// Labels: layout.topbar.roles.<value>
+const ROLE_OPTIONS: { value: string }[] = [
+  { value: "owner" },
+  { value: "manager" },
+  { value: "user" },
 ];
 
 interface SystemMessage {
@@ -172,7 +171,9 @@ interface MessageTemplate {
   body: string;
 }
 
-function getRelativeTimeLabel(date: Date): string {
+type TopbarT = ReturnType<typeof useTranslations<"layout.topbar">>;
+
+function getRelativeTimeLabel(date: Date, t: TopbarT, locale: string): string {
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffMin = Math.floor(diffMs / 60000);
@@ -180,22 +181,22 @@ function getRelativeTimeLabel(date: Date): string {
 
   // Future dates (appointments)
   if (diffMs < 0) {
-    const time = date.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" });
+    const time = date.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
     const isToday = date.toDateString() === now.toDateString();
     const tomorrow = new Date(now);
     tomorrow.setDate(tomorrow.getDate() + 1);
     const isTomorrow = date.toDateString() === tomorrow.toDateString();
-    if (isToday) return `היום בשעה ${time}`;
-    if (isTomorrow) return `מחר בשעה ${time}`;
-    return date.toLocaleDateString("he-IL", { day: "numeric", month: "short" }) + ` בשעה ${time}`;
+    if (isToday) return t("relativeTime.todayAt", { time });
+    if (isTomorrow) return t("relativeTime.tomorrowAt", { time });
+    return t("relativeTime.dateAt", { date: date.toLocaleDateString(locale, { day: "numeric", month: "short" }), time });
   }
 
   // Past dates
-  if (diffMin < 1) return "עכשיו";
-  if (diffMin < 60) return `לפני ${diffMin} דקות`;
-  if (diffHr < 24) return `לפני ${diffHr} שעות`;
-  const time = date.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" });
-  return date.toLocaleDateString("he-IL", { day: "numeric", month: "short" }) + ` ${time}`;
+  if (diffMin < 1) return t("relativeTime.now");
+  if (diffMin < 60) return t("relativeTime.minutesAgo", { count: diffMin });
+  if (diffHr < 24) return t("relativeTime.hoursAgo", { count: diffHr });
+  const time = date.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" });
+  return date.toLocaleDateString(locale, { day: "numeric", month: "short" }) + ` ${time}`;
 }
 
 function getNotifTypeColor(type: string): string {
@@ -285,7 +286,7 @@ function TopbarPanel({
   return (
     <div
       data-topbar-panel
-      className="absolute left-0 top-full mt-2 w-80 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-50 animate-fade-in"
+      className="absolute end-0 top-full mt-2 w-80 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-50 animate-fade-in"
     >
       {children}
     </div>
@@ -293,12 +294,13 @@ function TopbarPanel({
 }
 
 function PanelCloseButton({ onClick }: { onClick: () => void }) {
+  const tc = useTranslations("common");
   return (
     <button
       type="button"
       onClick={onClick}
       className="sm:hidden w-8 h-8 -me-1 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 flex-shrink-0"
-      aria-label="סגור"
+      aria-label={tc("actions.close")}
     >
       <X className="w-4 h-4" />
     </button>
@@ -306,6 +308,9 @@ function PanelCloseButton({ onClick }: { onClick: () => void }) {
 }
 
 export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
+  const t = useTranslations("layout.topbar");
+  const tc = useTranslations("common");
+  const { locale, currency } = useBusinessLocale();
   const [profileOpen, setProfileOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [messagesOpen, setMessagesOpen] = useState(false);
@@ -504,8 +509,8 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
       queryClient.invalidateQueries({ queryKey: ["business-members"] });
       queryClient.invalidateQueries({ queryKey: ["team-invitations"] });
       // The member joins after confirming from the emailed link — see הגדרות ← צוות.
-      if (res.emailSent) toast.success(`ההזמנה נשלחה ל-${vars.email}`);
-      else toast.error("ההזמנה נוצרה אבל המייל לא נשלח — שלח/י את הקישור מהגדרות ← צוות והרשאות");
+      if (res.emailSent) toast.success(t("invite.sent", { email: vars.email }));
+      else toast.error(t("invite.emailFailed"));
       setInviteData({ email: "", name: "", role: "user" });
       setShowInviteForm(false);
       setInviteError("");
@@ -518,18 +523,23 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
   const pageKey = Object.keys(PAGE_TITLES).find((key) =>
     pathname.startsWith(key)
   );
-  const pageInfo = pageKey ? PAGE_TITLES[pageKey] : null;
+  const pageInfo = pageKey
+    ? {
+        title: t(`pages.${PAGE_TITLES[pageKey]}.title`),
+        subtitle: t(`pages.${PAGE_TITLES[pageKey]}.subtitle`),
+      }
+    : null;
 
-  const displayName = user?.name || "משתמש";
+  const displayName = user?.name || t("defaultUserName");
   const initials = displayName.charAt(0);
   const roleLabel =
     user?.isAdmin
-      ? "מנהל מערכת"
+      ? t("userRole.systemAdmin")
       : user?.businessRole === "owner"
-      ? "בעל עסק"
+      ? t("userRole.businessOwner")
       : user?.businessRole === "manager"
-      ? "מנהל"
-      : "משתמש";
+      ? t("userRole.manager")
+      : t("userRole.user");
 
   const gcal = integrations?.find((i) => i.id === "google-calendar");
   const whatsapp = integrations?.find((i) => i.id === "whatsapp");
@@ -549,7 +559,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
         <button
           onClick={onMenuToggle}
           className="flex md:hidden items-center justify-center w-10 h-10 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors flex-shrink-0"
-          aria-label="פתח תפריט"
+          aria-label={t("openMenu")}
         >
           <Menu className="w-5 h-5" />
         </button>
@@ -585,8 +595,8 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
             }}
             disabled={isRefreshing}
             className="hidden md:flex items-center justify-center w-9 h-9 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-            title="רענן נתונים"
-            aria-label="רענן נתונים"
+            title={t("refreshData")}
+            aria-label={t("refreshData")}
           >
             <RefreshCw className={`w-[18px] h-[18px] transition-transform ${isRefreshing ? "animate-spin" : ""}`} />
           </button>
@@ -602,11 +612,11 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                 setNotificationsOpen(false);
               }}
               className="relative flex items-center justify-center w-9 h-9 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-              aria-label="הודעות פטרה"
+              aria-label={t("petraMessagesAria")}
             >
               <Mail className="w-[18px] h-[18px]" />
               {unreadCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-brand-500 text-white text-[10px] font-bold px-1 ring-2 ring-white">
+                <span className="absolute -top-0.5 -start-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-brand-500 text-white text-[10px] font-bold px-1 ring-2 ring-white">
                   {unreadCount}
                 </span>
               )}
@@ -614,16 +624,16 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
 
             {/* Petra Messages Dropdown */}
             {messagesOpen && (
-              <TopbarPanel isMobile={isMobile} label="הודעות מפטרה" onClose={() => setMessagesOpen(false)}>
+              <TopbarPanel isMobile={isMobile} label={t("messages.title")} onClose={() => setMessagesOpen(false)}>
                 <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-slate-100 flex-shrink-0">
-                  <h3 className="text-sm font-bold text-petra-text">הודעות מפטרה</h3>
+                  <h3 className="text-sm font-bold text-petra-text">{t("messages.title")}</h3>
                   <div className="flex items-center gap-2">
                     {unreadCount > 0 && (
                       <button
                         onClick={handleMarkAllRead}
                         className="text-[11px] text-brand-600 font-medium cursor-pointer hover:underline"
                       >
-                        סמן הכל כנקרא
+                        {t("messages.markAllRead")}
                       </button>
                     )}
                     <PanelCloseButton onClick={() => setMessagesOpen(false)} />
@@ -633,7 +643,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                   {systemMessages.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-10 text-center">
                       <Mail className="w-7 h-7 text-slate-300 mb-1.5" />
-                      <p className="text-xs text-slate-400">אין הודעות חדשות מפטרה</p>
+                      <p className="text-xs text-slate-400">{t("messages.empty")}</p>
                     </div>
                   ) : (
                     systemMessages.map((msg) => {
@@ -665,7 +675,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                             </div>
                             <p className="text-[11px] text-petra-muted mt-0.5 line-clamp-2">{msg.content}</p>
                             <span className="text-[10px] text-slate-400 mt-1 block">
-                              {getRelativeTimeLabel(new Date(msg.createdAt))}
+                              {getRelativeTimeLabel(new Date(msg.createdAt), t, locale)}
                             </span>
                           </div>
                         </div>
@@ -707,14 +717,14 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                     <div className="min-w-0">
                       <h3 className="text-sm font-bold text-petra-text leading-snug">{selectedSysMsg.title}</h3>
                       <span className="text-[11px] text-slate-400">
-                        {getRelativeTimeLabel(new Date(selectedSysMsg.createdAt))}
+                        {getRelativeTimeLabel(new Date(selectedSysMsg.createdAt), t, locale)}
                       </span>
                     </div>
                   </div>
                   <button
                     onClick={() => setSelectedSysMsg(null)}
                     className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors flex-shrink-0"
-                    aria-label="סגור"
+                    aria-label={tc("actions.close")}
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -739,7 +749,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                       }}
                       className="w-full btn-primary text-sm py-2.5 rounded-xl"
                     >
-                      {selectedSysMsg.actionLabel || "לפרטים נוספים"}
+                      {selectedSysMsg.actionLabel || t("messages.moreDetails")}
                     </button>
                   </div>
                 )}
@@ -756,11 +766,11 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                 setMessagesOpen(false);
               }}
               className="relative flex items-center justify-center w-9 h-9 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-              aria-label="התראות עסקיות"
+              aria-label={t("notifications.title")}
             >
               <Bell className="w-[18px] h-[18px]" />
               {criticalCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold px-1 ring-2 ring-white">
+                <span className="absolute -top-0.5 -start-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold px-1 ring-2 ring-white">
                   {criticalCount}
                 </span>
               )}
@@ -768,12 +778,12 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
 
             {/* Business Notifications Dropdown */}
             {notificationsOpen && (
-              <TopbarPanel isMobile={isMobile} label="התראות עסקיות" onClose={() => setNotificationsOpen(false)}>
+              <TopbarPanel isMobile={isMobile} label={t("notifications.title")} onClose={() => setNotificationsOpen(false)}>
                 <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-slate-100 flex-shrink-0">
                   <div>
-                    <h3 className="text-sm font-bold text-petra-text">התראות עסקיות</h3>
+                    <h3 className="text-sm font-bold text-petra-text">{t("notifications.title")}</h3>
                     {criticalCount > 0 && (
-                      <p className="text-[11px] text-red-500 mt-0.5">{criticalCount} פריטים דורשים טיפול</p>
+                      <p className="text-[11px] text-red-500 mt-0.5">{t("notifications.criticalCount", { count: criticalCount })}</p>
                     )}
                   </div>
                   {bizNotifications.length > 0 && (
@@ -787,7 +797,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                       className="flex items-center gap-1 text-[11px] text-brand-600 hover:text-brand-700 font-medium flex-shrink-0"
                     >
                       <Check className="w-3 h-3" />
-                      קראתי הכל
+                      {t("notifications.readAll")}
                     </button>
                   )}
                   <PanelCloseButton onClick={() => setNotificationsOpen(false)} />
@@ -796,8 +806,8 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                   {bizNotifications.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-10 text-center">
                       <CheckCircle className="w-7 h-7 text-green-400 mb-1.5" />
-                      <p className="text-xs text-slate-500 font-medium">הכל תקין!</p>
-                      <p className="text-[11px] text-slate-400">אין התראות פעילות כרגע</p>
+                      <p className="text-xs text-slate-500 font-medium">{t("notifications.allGood")}</p>
+                      <p className="text-[11px] text-slate-400">{t("notifications.empty")}</p>
                     </div>
                   ) : (
                     bizNotifications.map((item) => {
@@ -839,23 +849,23 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                     <Link
                       href="/tasks"
                       onClick={() => setNotificationsOpen(false)}
-                      className="flex-1 text-center py-2.5 text-xs font-medium text-brand-600 hover:bg-slate-50 transition-colors border-l border-slate-100"
+                      className="flex-1 text-center py-2.5 text-xs font-medium text-brand-600 hover:bg-slate-50 transition-colors border-e border-slate-100"
                     >
-                      משימות
+                      {t("notifications.tasks")}
                     </Link>
                     <Link
                       href="/calendar"
                       onClick={() => setNotificationsOpen(false)}
-                      className="flex-1 text-center py-2.5 text-xs font-medium text-brand-600 hover:bg-slate-50 transition-colors border-l border-slate-100"
+                      className="flex-1 text-center py-2.5 text-xs font-medium text-brand-600 hover:bg-slate-50 transition-colors border-e border-slate-100"
                     >
-                      יומן
+                      {t("notifications.calendar")}
                     </Link>
                     <Link
                       href="/payments"
                       onClick={() => setNotificationsOpen(false)}
                       className="flex-1 text-center py-2.5 text-xs font-medium text-brand-600 hover:bg-slate-50 transition-colors"
                     >
-                      תשלומים
+                      {t("notifications.payments")}
                     </Link>
                   </div>
                 )}
@@ -868,14 +878,14 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
           {/* User avatar */}
           <button
             onClick={() => setProfileOpen(true)}
-            aria-label={`תפריט משתמש — ${displayName}`}
+            aria-label={t("userMenuAria", { name: displayName })}
             className="flex items-center gap-2.5 px-2 py-1.5 rounded-xl hover:bg-slate-100 transition-all duration-150 group"
           >
             <div aria-hidden="true" className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0 bg-white border border-slate-200">
               {showLogo ? (
                 <img
                   src={logoUrl!}
-                  alt="לוגו"
+                  alt={t("logoAlt")}
                   className="w-full h-full object-contain p-0.5"
                   onError={() => setLogoError(true)}
                 />
@@ -912,7 +922,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
           {/* Panel - slides from left */}
           <div
             className={cn(
-              "absolute top-0 left-0 h-full w-[320px] max-w-full bg-white shadow-2xl",
+              "absolute top-0 end-0 h-full w-[320px] max-w-full bg-white shadow-2xl",
               "transition-transform duration-300 ease-out",
               "flex flex-col overflow-hidden"
             )}
@@ -920,7 +930,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
             {/* Close button */}
             <button
               onClick={() => setProfileOpen(false)}
-              className="absolute top-4 right-4 w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+              className="absolute top-4 start-4 w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
@@ -933,7 +943,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                   {showLogo ? (
                     <img
                       src={logoUrl!}
-                      alt="לוגו עסק"
+                      alt={t("businessLogoAlt")}
                       className="w-full h-full object-contain p-1"
                       onError={() => setLogoError(true)}
                     />
@@ -972,7 +982,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                       : "text-petra-muted hover:text-petra-text"
                   )}
                 >
-                  פרופיל
+                  {t("profile.tabProfile")}
                   {activeTab === "profile" && (
                     <span className="absolute bottom-0 inset-x-4 h-0.5 bg-brand-500 rounded-full" />
                   )}
@@ -987,7 +997,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                   )}
                 >
                   <Users className="w-3.5 h-3.5" />
-                  בקרת משתמשים
+                  {t("profile.tabUsers")}
                   {activeTab === "users" && (
                     <span className="absolute bottom-0 inset-x-4 h-0.5 bg-brand-500 rounded-full" />
                   )}
@@ -1003,7 +1013,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                 {/* System Health */}
                 <div className="p-5 border-b border-slate-100">
                   <h3 className="text-xs font-bold text-petra-muted uppercase tracking-wider mb-3">
-                    בריאות מערכת
+                    {t("profile.systemHealth")}
                   </h3>
                   <div className="space-y-2">
                     <div className="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50">
@@ -1019,7 +1029,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                           )}
                         />
                         <span className="text-[11px] text-petra-muted">
-                          {gcal?.connected ? "מחובר" : "לא מחובר"}
+                          {gcal?.connected ? t("profile.connected") : t("profile.notConnected")}
                         </span>
                       </div>
                     </div>
@@ -1037,7 +1047,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                           )}
                         />
                         <span className="text-[11px] text-petra-muted">
-                          {whatsapp?.connected ? "פעיל" : "לא מוגדר"}
+                          {whatsapp?.connected ? t("profile.active") : t("profile.notConfigured")}
                         </span>
                       </div>
                     </div>
@@ -1048,17 +1058,17 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                 {/* Business Performance */}
                 <div className="p-5 border-b border-slate-100">
                   <h3 className="text-xs font-bold text-petra-muted uppercase tracking-wider mb-3">
-                    ביצועי עסק
+                    {t("profile.businessPerformance")}
                   </h3>
                   <div className="space-y-2">
                     <div className="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50">
                       <CreditCard className="w-4 h-4 text-slate-500 flex-shrink-0" />
                       <span className="text-sm text-petra-text flex-1">
-                        הכנסות החודש
+                        {t("profile.monthRevenue")}
                       </span>
                       <span className="text-sm font-semibold text-petra-text">
                         {dashData
-                          ? formatCurrency(dashData.monthRevenue)
+                          ? formatCurrency(dashData.monthRevenue, { locale, currency })
                           : "—"}
                       </span>
                     </div>
@@ -1066,7 +1076,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                       <div className="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50">
                         <Star className="w-4 h-4 text-slate-500 flex-shrink-0" />
                         <span className="text-sm text-petra-text flex-1">
-                          שירות מוביל
+                          {t("profile.topService")}
                         </span>
                         <span className="text-sm font-medium text-brand-600">
                           {dashData.topService.name}
@@ -1087,7 +1097,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                       className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-petra-text hover:bg-slate-50 transition-colors"
                     >
                       <Settings className="w-4 h-4 text-slate-500" />
-                      הגדרות
+                      {t("profile.settings")}
                     </Link>
                     <ReportBugButton menuMode />
                     <Link
@@ -1097,7 +1107,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                       className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-petra-text hover:bg-slate-50 transition-colors"
                     >
                       <FileText className="w-4 h-4 text-slate-500" />
-                      תנאי שימוש
+                      {t("profile.terms")}
                     </Link>
                     <Link
                       href="/privacy"
@@ -1106,7 +1116,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                       className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-petra-text hover:bg-slate-50 transition-colors"
                     >
                       <ShieldCheck className="w-4 h-4 text-slate-500" />
-                      מדיניות פרטיות
+                      {t("profile.privacy")}
                     </Link>
                     <button
                       onClick={() => {
@@ -1116,7 +1126,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                       className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-red-600 hover:bg-red-50 transition-colors"
                     >
                       <LogOut className="w-4 h-4" />
-                      התנתק
+                      {t("profile.logout")}
                     </button>
                   </div>
                 </div>
@@ -1132,7 +1142,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                     <PetraLoader variant="inline" />
                   ) : !members?.length ? (
                     <div className="text-center py-8 text-sm text-petra-muted">
-                      אין משתמשים
+                      {t("members.empty")}
                     </div>
                   ) : (
                     members.map((member) => {
@@ -1165,7 +1175,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                                   {member.user.name}
                                 </p>
                                 {isSelf && (
-                                  <span className="text-[10px] text-petra-muted">(את/ה)</span>
+                                  <span className="text-[10px] text-petra-muted">{t("members.you")}</span>
                                 )}
                               </div>
                               <p className="text-[11px] text-petra-muted truncate">
@@ -1183,7 +1193,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                                   : "bg-slate-100 text-slate-600"
                               )}
                             >
-                              {ROLE_LABELS[member.role] || member.role}
+                              {t.has(`roles.${member.role}`) ? t(`roles.${member.role}`) : member.role}
                             </span>
                           </div>
 
@@ -1200,15 +1210,15 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                                       data: { role: e.target.value },
                                     })
                                   }
-                                  className="w-full appearance-none text-xs bg-slate-50 border border-petra-border rounded-xl px-2.5 py-1.5 pr-7 text-petra-text cursor-pointer hover:border-slate-300 transition-colors"
+                                  className="w-full appearance-none text-xs bg-slate-50 border border-petra-border rounded-xl px-2.5 py-1.5 ps-7 text-petra-text cursor-pointer hover:border-slate-300 transition-colors"
                                 >
                                   {ROLE_OPTIONS.map((opt) => (
                                     <option key={opt.value} value={opt.value}>
-                                      {opt.label}
+                                      {t(`roles.${opt.value}`)}
                                     </option>
                                   ))}
                                 </select>
-                                <ChevronDown className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 pointer-events-none" />
+                                <ChevronDown className="absolute end-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 pointer-events-none" />
                               </div>
                               {/* Active toggle */}
                               <button
@@ -1225,7 +1235,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                                     : "bg-green-50 text-green-600 hover:bg-green-100"
                                 )}
                               >
-                                {member.isActive ? "השבת" : "הפעל"}
+                                {member.isActive ? t("members.deactivate") : t("members.activate")}
                               </button>
                             </div>
                           )}
@@ -1243,13 +1253,13 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                       className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium text-brand-600 bg-brand-50 hover:bg-brand-100 transition-colors"
                     >
                       <UserPlus className="w-4 h-4" />
-                      הזמן משתמש חדש
+                      {t("invite.inviteNewUser")}
                     </button>
                   ) : (
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <h4 className="text-xs font-bold text-petra-muted uppercase tracking-wider">
-                          הזמנת משתמש
+                          {t("invite.title")}
                         </h4>
                         <button
                           onClick={() => {
@@ -1258,12 +1268,12 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                           }}
                           className="text-xs text-petra-muted hover:text-petra-text"
                         >
-                          ביטול
+                          {tc("actions.cancel")}
                         </button>
                       </div>
                       <input
                         type="text"
-                        placeholder="שם"
+                        placeholder={t("invite.namePlaceholder")}
                         value={inviteData.name}
                         onChange={(e) =>
                           setInviteData((d) => ({ ...d, name: e.target.value }))
@@ -1272,7 +1282,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                       />
                       <input
                         type="email"
-                        placeholder="אימייל"
+                        placeholder={t("invite.emailPlaceholder")}
                         dir="ltr"
                         value={inviteData.email}
                         onChange={(e) =>
@@ -1289,7 +1299,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                       >
                         {ROLE_OPTIONS.map((opt) => (
                           <option key={opt.value} value={opt.value}>
-                            {opt.label}
+                            {t(`roles.${opt.value}`)}
                           </option>
                         ))}
                       </select>
@@ -1299,7 +1309,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                       <button
                         onClick={() => {
                           if (!inviteData.email || !inviteData.name) {
-                            setInviteError("נא למלא את כל השדות");
+                            setInviteError(t("invite.fillAllFields"));
                             return;
                           }
                           setInviteError("");
@@ -1313,7 +1323,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                         ) : (
                           <>
                             <UserPlus className="w-4 h-4" />
-                            הזמן
+                            {t("invite.submit")}
                           </>
                         )}
                       </button>

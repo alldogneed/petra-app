@@ -4,10 +4,18 @@ import { useState, useEffect } from "react";
 import { Lock, Crown, X, Zap } from "lucide-react";
 import Link from "next/link";
 import { LIMIT_REACHED_EVENT, type LimitReachedDetail } from "@/lib/limit-reached";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
+import { currencySymbol } from "@/lib/format";
+
+const BENEFIT_KEYS = ["unlimited", "whatsappReminders", "googleCalendar", "reports", "paymentLinks"] as const;
 
 export function LimitReachedModal() {
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState("");
+  const t = useTranslations("paywall.limitReachedModal");
+  const tc = useTranslations("common");
+  const { locale, currency, cfg } = useBusinessLocale();
 
   useEffect(() => {
     function handler(e: Event) {
@@ -28,14 +36,14 @@ export function LimitReachedModal() {
     >
       <div
         className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 relative"
-        dir="rtl"
+        dir={cfg.dir}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close */}
         <button
           onClick={() => setOpen(false)}
-          className="absolute top-4 left-4 text-slate-400 hover:text-slate-600 transition-colors"
-          aria-label="סגור"
+          className="absolute top-4 end-4 text-slate-400 hover:text-slate-600 transition-colors"
+          aria-label={tc("actions.close")}
         >
           <X className="w-4 h-4" />
         </button>
@@ -49,7 +57,7 @@ export function LimitReachedModal() {
 
         {/* Title */}
         <h2 className="text-center text-lg font-bold text-slate-900 mb-2">
-          הגעת לתקרת המנוי החינמי
+          {t("title")}
         </h2>
 
         {/* Message from API */}
@@ -64,26 +72,20 @@ export function LimitReachedModal() {
           className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-colors"
         >
           <Crown className="w-4 h-4" />
-          שדרג לבייסיק — ₪99/חודש
+          {t("upgradeCta", { currencySymbol: currencySymbol({ locale, currency }) })}
         </Link>
 
         {/* What you get */}
         <div className="mt-4 p-3 bg-slate-50 rounded-xl">
           <p className="text-xs font-semibold text-slate-600 mb-2 flex items-center gap-1">
             <Zap className="w-3 h-3 text-brand-500" />
-            מה מקבלים בבייסיק:
+            {t("whatYouGet")}
           </p>
           <ul className="space-y-1">
-            {[
-              "תורים, לקוחות והזמנות ללא הגבלה",
-              "תזכורות WhatsApp אוטומטיות",
-              "Google Calendar סנכרון",
-              "אנליטיקס ודוחות",
-              "לינקי תשלום ללקוחות",
-            ].map((item) => (
+            {BENEFIT_KEYS.map((item) => (
               <li key={item} className="flex items-center gap-1.5 text-xs text-slate-500">
                 <span className="w-3.5 h-3.5 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0 text-emerald-600 text-[9px] font-bold">✓</span>
-                {item}
+                {t(`benefits.${item}`)}
               </li>
             ))}
           </ul>
@@ -94,7 +96,7 @@ export function LimitReachedModal() {
           onClick={() => setOpen(false)}
           className="mt-3 w-full text-xs text-slate-400 hover:text-slate-600 py-1 transition-colors"
         >
-          אולי אחר כך
+          {t("maybeLater")}
         </button>
       </div>
     </div>

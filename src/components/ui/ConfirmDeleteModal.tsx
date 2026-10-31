@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { AlertTriangle, X, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 
 interface ConfirmDeleteModalProps {
   open: boolean;
@@ -30,6 +32,9 @@ export function ConfirmDeleteModal({
   description,
   loading = false,
 }: ConfirmDeleteModalProps) {
+  const t = useTranslations("ui.confirmDeleteModal");
+  const tc = useTranslations("common");
+  const { cfg } = useBusinessLocale();
   const [typed, setTyped] = useState("");
 
   if (!open) return null;
@@ -47,7 +52,7 @@ export function ConfirmDeleteModal({
   };
 
   return (
-    <div className="modal-overlay" dir="rtl">
+    <div className="modal-overlay" dir={cfg.dir}>
       <div className="modal-content max-w-md w-full">
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
@@ -57,7 +62,7 @@ export function ConfirmDeleteModal({
             </div>
             <div>
               <h2 className="text-lg font-bold text-slate-800">{title}</h2>
-              <p className="text-xs text-red-600 font-medium">פעולה בלתי הפיכה</p>
+              <p className="text-xs text-red-600 font-medium">{t("irreversible")}</p>
             </div>
           </div>
           <button onClick={handleClose} className="p-1 hover:bg-slate-100 rounded-lg transition-colors">
@@ -73,7 +78,7 @@ export function ConfirmDeleteModal({
         {/* Confirmation input */}
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-4">
           <p className="text-sm text-red-700 mb-2">
-            להמשך, הקלד את הטקסט הבא בדיוק:
+            {t("typeToConfirm")}
           </p>
           <p className="font-mono font-bold text-red-800 bg-white border border-red-300 rounded-lg px-3 py-2 text-sm mb-3 select-all">
             {confirmText}
@@ -83,7 +88,7 @@ export function ConfirmDeleteModal({
             value={typed}
             onChange={(e) => setTyped(e.target.value)}
             onPaste={(e) => e.preventDefault()} // must type, not paste
-            placeholder="הקלד כאן..."
+            placeholder={t("placeholder")}
             className={cn(
               "w-full border rounded-lg px-3 py-2 text-sm outline-none transition-colors",
               isMatch
@@ -93,10 +98,10 @@ export function ConfirmDeleteModal({
             autoFocus
           />
           {typed.length > 0 && !isMatch && (
-            <p className="text-xs text-red-500 mt-1">הטקסט אינו תואם</p>
+            <p className="text-xs text-red-500 mt-1">{t("mismatch")}</p>
           )}
           {isMatch && (
-            <p className="text-xs text-green-600 mt-1 font-medium">✓ אושר</p>
+            <p className="text-xs text-green-600 mt-1 font-medium">{t("matched")}</p>
           )}
         </div>
 
@@ -113,14 +118,14 @@ export function ConfirmDeleteModal({
             )}
           >
             <Trash2 className="w-4 h-4" />
-            {loading ? "מוחק..." : "מחק לצמיתות"}
+            {loading ? tc("progress.deleting") : t("deleteForever")}
           </button>
           <button
             onClick={handleClose}
             disabled={loading}
             className="btn-secondary px-5 py-2.5 text-sm"
           >
-            ביטול
+            {tc("actions.cancel")}
           </button>
         </div>
       </div>

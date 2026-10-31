@@ -4,6 +4,8 @@ import { Mail, X, Trash2 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { AlertCircle, Bell, Trophy, Info, CheckCircle } from "lucide-react";
 
 interface SystemMessage {
@@ -44,6 +46,8 @@ export function SystemInbox() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const t = useTranslations("layout.systemInbox");
+  const { locale, cfg } = useBusinessLocale();
 
   const { data: messages = [], refetch } = useQuery<SystemMessage[]>({
     queryKey: ["systemMessages"],
@@ -91,12 +95,12 @@ export function SystemInbox() {
       <button
         onClick={() => setOpen((v) => !v)}
         className="relative w-9 h-9 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-all duration-150"
-        aria-label="דואר נכנס"
+        aria-label={t("title")}
       >
         <Mail className="w-[18px] h-[18px]" />
         {unreadCount > 0 && (
           <span
-            className="absolute top-1 left-1 min-w-[16px] h-4 px-0.5 rounded-full border-2 border-white flex items-center justify-center text-[9px] font-bold text-white"
+            className="absolute top-1 end-1 min-w-[16px] h-4 px-0.5 rounded-full border-2 border-white flex items-center justify-center text-[9px] font-bold text-white"
             style={{ background: "#3B82F6", lineHeight: 1 }}
           >
             {unreadCount > 9 ? "9+" : unreadCount}
@@ -106,17 +110,17 @@ export function SystemInbox() {
 
       {open && (
         <div
-          className="absolute left-0 top-11 w-96 max-w-[calc(100vw-1rem)] rounded-2xl shadow-xl border border-slate-200 overflow-hidden z-50"
+          className="absolute end-0 top-11 w-96 max-w-[calc(100vw-1rem)] rounded-2xl shadow-xl border border-slate-200 overflow-hidden z-50"
           style={{ background: "#fff" }}
-          dir="rtl"
+          dir={cfg.dir}
         >
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
             <div>
-              <p className="text-[14px] font-semibold text-slate-800">דואר נכנס</p>
+              <p className="text-[14px] font-semibold text-slate-800">{t("title")}</p>
               {unreadCount > 0 && (
                 <p className="text-[11px] text-slate-400 mt-0.5">
-                  {unreadCount} הודעות חדשות
+                  {t("newCount", { count: unreadCount })}
                 </p>
               )}
             </div>
@@ -133,7 +137,7 @@ export function SystemInbox() {
             {messages.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 text-center">
                 <Mail className="w-8 h-8 text-slate-300 mb-2" />
-                <p className="text-sm text-slate-400">אין הודעות</p>
+                <p className="text-sm text-slate-400">{t("empty")}</p>
               </div>
             ) : (
               messages.map((msg) => {
@@ -176,7 +180,7 @@ export function SystemInbox() {
 
                         {/* Timestamp */}
                         <p className="text-[11px] text-slate-400 mt-1.5">
-                          {new Date(msg.createdAt).toLocaleDateString("he-IL", {
+                          {new Date(msg.createdAt).toLocaleDateString(locale, {
                             day: "numeric",
                             month: "short",
                             hour: "2-digit",
@@ -187,7 +191,7 @@ export function SystemInbox() {
                         {/* Action hint */}
                         {msg.actionUrl && !isExpired && (
                           <p className="text-[11px] text-brand-500 mt-1.5">
-                            {msg.actionLabel || "לחץ לפתיחה →"}
+                            {msg.actionLabel || t("clickToOpen")}
                           </p>
                         )}
                       </div>
@@ -199,7 +203,7 @@ export function SystemInbox() {
                           deleteMessage(msg.id);
                         }}
                         className="flex-shrink-0 w-7 h-7 rounded flex items-center justify-center text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition-colors"
-                        aria-label="מחק הודעה"
+                        aria-label={t("deleteMessage")}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>

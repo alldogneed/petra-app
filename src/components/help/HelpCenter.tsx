@@ -5,6 +5,7 @@ import { useMutation } from "@tanstack/react-query";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -41,13 +42,13 @@ import {
 import { cn } from "@/lib/utils";
 
 interface FaqItem {
-  question: string;
-  answer: string;
+  questionKey: string;
+  answerKey: string;
 }
 
 interface FaqCategory {
   id: string;
-  name: string;
+  nameKey: string;
   icon: React.ElementType;
   items: FaqItem[];
 }
@@ -55,621 +56,518 @@ interface FaqCategory {
 const faqCategories: FaqCategory[] = [
   {
     id: "dashboard",
-    name: "דשבורד",
+    nameKey: "help.helpCenter.faq.dashboard.name",
     icon: LayoutDashboard,
     items: [
       {
-        question: "מה מוצג בדשבורד?",
-        answer:
-          "הדשבורד מציג תמונת מצב עדכנית של העסק: שורת מדדים (לקוחות, תורים להיום, הכנסות החודש, משימות פתוחות ועוד), תורים קרובים, פנסיון, הזמנות אחרונות, משימות פתוחות ופעילות אחרונה. כל מספר וכל שורה לחיצים — ומובילים בדיוק לרשימה המסוננת שמאחוריהם (למשל \"הזמנות פעילות\" פותח את ההזמנות הפתוחות בלבד).",
+        questionKey: "help.helpCenter.faq.dashboard.items.whatIsShown.question",
+        answerKey: "help.helpCenter.faq.dashboard.items.whatIsShown.answer",
       },
       {
-        question: "איך מתאימים את הדשבורד אישית?",
-        answer:
-          "לחצו על \"התאמת הדשבורד\" בראש העמוד. אפשר להסתיר רכיבים שלא רלוונטיים לכם ולשנות את הסדר שלהם. ההתאמה אישית לכל משתמש — כל חבר צוות מסדר את הדשבורד שלו, והיא נשמרת בכל מכשיר. רכיבים שדורשים הרשאה (למשל הכנסות) יוצגו רק למי שמורשה לראות אותם.",
+        questionKey: "help.helpCenter.faq.dashboard.items.customize.question",
+        answerKey: "help.helpCenter.faq.dashboard.items.customize.answer",
       },
       {
-        question: "מה כולל סרגל ההתראות בראש המסך?",
-        answer:
-          "סרגל ההתראות מציג הודעות מערכת חשובות: חיסונים שפגו תוקפם, תרופות שצריך לתת לכלבים הנמצאים בפנסיון, ימי הולדת של כלבים בשבועיים הקרובים, ולידים שממתינים לטיפול.",
+        questionKey: "help.helpCenter.faq.dashboard.items.alertsBar.question",
+        answerKey: "help.helpCenter.faq.dashboard.items.alertsBar.answer",
       },
       {
-        question: "מה זה אזור המיקוד היומי?",
-        answer:
-          "אזור המיקוד היומי מציג עד 5 משימות דחופות (באיחור או של היום). ניתן לעבור בין תצוגת \"באיחור\" ו\"היום\" בלחיצה. אם יש יותר מ-5 משימות, מוצג קישור \"הצג X נוספות\" שמנווט לעמוד המשימות.",
+        questionKey: "help.helpCenter.faq.dashboard.items.dailyFocus.question",
+        answerKey: "help.helpCenter.faq.dashboard.items.dailyFocus.answer",
       },
       {
-        question: "איך עובד החיפוש המהיר בראש המסך?",
-        answer:
-          "סרגל החיפוש מאפשר חיפוש חופשי בכל המערכת בו-זמנית: לקוחות (לפי שם, טלפון, אימייל), חיות מחמד (לפי שם וגזע), תורים, משימות, הזמנות ולידים. התוצאות מופיעות מיידית תוך כדי הקלדה.",
+        questionKey: "help.helpCenter.faq.dashboard.items.quickSearch.question",
+        answerKey: "help.helpCenter.faq.dashboard.items.quickSearch.answer",
       },
     ],
   },
   {
     id: "customers",
-    name: "לקוחות",
+    nameKey: "help.helpCenter.faq.customers.name",
     icon: Users,
     items: [
       {
-        question: "איך מוסיפים לקוח חדש?",
-        answer:
-          "היכנסו ל\"לקוחות\" בתפריט ולחצו \"לקוח חדש\", או לחצו \"לקוח חדש\" בסרגל התחתון בנייד. מלאו שם מלא, טלפון (חובה), אימייל, כתובת, שירות מבוקש, מקור הגעה, תגיות והערות. ניתן גם להוסיף חיית מחמד ישירות מטופס יצירת הלקוח.",
+        questionKey: "help.helpCenter.faq.customers.items.addClient.question",
+        answerKey: "help.helpCenter.faq.customers.items.addClient.answer",
       },
       {
-        question: "מה כולל פרופיל הלקוח?",
-        answer:
-          "כרטיס הלקוח כולל: שורת סיכום בראש (יתרה לתשלום, התור הבא, הביקור האחרון ומספר התורים), פרטי קשר ותגיות לעריכה במקום, כרטיסי חיות מחמד עם הפרטים הרפואיים, תורים קרובים והיסטוריית ביקורים, תשלומים והזמנות (כולל רישום תשלום ישירות מהכרטיס), תוכניות אילוף, היסטוריית מכירה מהליד שממנו הגיע הלקוח, וציר זמן עם כל הפעולות. סרגל ניווט בראש הכרטיס קופץ ישירות לכל אזור.",
+        questionKey: "help.helpCenter.faq.customers.items.profile.question",
+        answerKey: "help.helpCenter.faq.customers.items.profile.answer",
       },
       {
-        question: "איך מחפשים לקוח ספציפי?",
-        answer:
-          "בעמוד הלקוחות יש שורת חיפוש לפי שם, טלפון (בכל פורמט — עם מקף, בלי, או 972) ואימייל. אפשר לסנן לפי סטטוס (פעיל / VIP), יתרת חוב, תגית, ביקור אחרון, סוג חיה, מקור הגעה, תאריך הצטרפות וסוג שירות — ולמיין לפי יתרה. הסינון חל על כל הלקוחות בעסק, לא רק על מה שנטען במסך. לחיפוש מהיר השתמשו בסרגל החיפוש הכללי בראש המסך.",
+        questionKey: "help.helpCenter.faq.customers.items.findClient.question",
+        answerKey: "help.helpCenter.faq.customers.items.findClient.answer",
       },
       {
-        question: "איך ממזגים לקוח כפול?",
-        answer:
-          "פתחו את כרטיס הלקוח הכפול ובחרו \"מיזוג לקוח כפול\". המערכת מציעה מועמדים דומים (לפי טלפון ושם), מציגה מה יועבר — חיות מחמד, תורים, הזמנות, תשלומים, חוזים והערות — ומבקשת אישור בהקלדת שם הלקוח. אחרי המיזוג נשאר כרטיס אחד עם כל ההיסטוריה. הפעולה אינה הפיכה ודורשת הרשאת מחיקה (בעלים, או מי שהבעלים אישר).",
+        questionKey: "help.helpCenter.faq.customers.items.merge.question",
+        answerKey: "help.helpCenter.faq.customers.items.merge.answer",
       },
       {
-        question: "אפשר לבצע פעולה על כמה לקוחות יחד?",
-        answer:
-          "כן. לחצו \"בחר\" בעמוד הלקוחות, סמנו לקוחות, ואז אפשר להוסיף או להסיר תגית לכולם, לייצא רק את הנבחרים, או לשלוח הודעת WhatsApp אישית לכל אחד (עם {שם} שמתחלף אוטומטית) — ההודעות נפתחות אחת-אחת בלחיצה.",
+        questionKey: "help.helpCenter.faq.customers.items.bulkActions.question",
+        answerKey: "help.helpCenter.faq.customers.items.bulkActions.answer",
       },
       {
-        question: "איך מייבאים ומייצאים לקוחות?",
-        answer:
-          "ייבוא: בהגדרות ← נתונים ← \"ייבוא לקוחות\" — העלו קובץ Excel/CSV עם שם וטלפון (חובה). המערכת מזהה כפילויות לפי טלפון ומציגה תצוגה מקדימה לפני הייבוא. ייצוא: בעמוד הלקוחות או בהגדרות ← נתונים — הורדת קובץ XLSX/CSV עם כל פרטי הלקוחות.",
+        questionKey: "help.helpCenter.faq.customers.items.importExport.question",
+        answerKey: "help.helpCenter.faq.customers.items.importExport.answer",
       },
     ],
   },
   {
     id: "pets",
-    name: "חיות מחמד",
+    nameKey: "help.helpCenter.faq.pets.name",
     icon: PawPrint,
     items: [
       {
-        question: "איך מוסיפים חיית מחמד ללקוח?",
-        answer:
-          "בפרופיל הלקוח, לחצו \"הוסף חיה\". מלאו שם, מין (כלב/חתול/אחר), גזע (מתוך רשימה של 60+ גזעי כלבים ו-14 גזעי חתולים), תאריך לידה, משקל, מגדר ומיקרוצ'יפ. לאחר הוספה ניתן לנהל מידע רפואי, חיסונים, תרופות והתנהגות.",
+        questionKey: "help.helpCenter.faq.pets.items.addPet.question",
+        answerKey: "help.helpCenter.faq.pets.items.addPet.answer",
       },
       {
-        question: "מה כולל המידע הרפואי של כלב?",
-        answer:
-          "כרטיס הבריאות כולל: סירוס/עיקור, אלרגיות, מצבים רפואיים כרוניים, ניתוחים, שם וטלפון הווטרינר. בנוסף: חיסונים עם תאריכי תפוגה (כלבת, משושה, תילוע, קדחת קש ועוד), ותרופות שוטפות עם מינון, תדירות ושעות מתן.",
+        questionKey: "help.helpCenter.faq.pets.items.medicalInfo.question",
+        answerKey: "help.helpCenter.faq.pets.items.medicalInfo.answer",
       },
       {
-        question: "מה כולל הפרופיל ההתנהגותי?",
-        answer:
-          "הפרופיל ההתנהגותי כולל 13+ דגלים: תוקפנות כלפי כלבים/אנשים/זרים, תגובתיות, קפיצות, משיכה ברצועה, חרדת נטישה, רדיפת חתולים, גנבת מזון ועוד. כל דגל מסומן עם אפשרות להוסיף הערה.",
+        questionKey: "help.helpCenter.faq.pets.items.behaviorProfile.question",
+        answerKey: "help.helpCenter.faq.pets.items.behaviorProfile.answer",
       },
       {
-        question: "מה זה עמוד חיות המחמד הכללי?",
-        answer:
-          "עמוד \"חיות מחמד\" (נפרד מפרופיל הלקוח) מציג את כל החיות במערכת עם אפשרות חיפוש, סינון לפי מין וגזע, וגישה מהירה לפרופיל כל חיה. ניתן גם לצפות בחיות עם חיסונים שפגי תוקף ותרופות פעילות.",
+        questionKey: "help.helpCenter.faq.pets.items.petsPage.question",
+        answerKey: "help.helpCenter.faq.pets.items.petsPage.answer",
       },
       {
-        question: "איך עובד מעקב המשקל?",
-        answer:
-          "בפרופיל החיה (עמוד \"חיות מחמד\") קיימת לשונית מעקב משקל. ניתן להוסיף רשומות משקל עם תאריך והערות. המשקל מוצג כגרף קו עם כל הנקודות ההיסטוריות, כך ניתן לעקוב אחרי שינויים לאורך זמן.",
+        questionKey: "help.helpCenter.faq.pets.items.weightTracking.question",
+        answerKey: "help.helpCenter.faq.pets.items.weightTracking.answer",
       },
       {
-        question: "איך מעלים תמונות לחיה?",
-        answer:
-          "בפרופיל החיה יש גלריית תמונות ייעודית. לחצו \"העלה תמונה\" ← בחרו קובץ תמונה מהמכשיר. התמונות מוצגות בגריד. לחיצה על תמונה פותחת תצוגת lightbox עם אפשרות מחיקה.",
+        questionKey: "help.helpCenter.faq.pets.items.photos.question",
+        answerKey: "help.helpCenter.faq.pets.items.photos.answer",
       },
       {
-        question: "מה זה יומן הטיפול בפנסיון?",
-        answer:
-          "יומן הטיפול עוקב אחרי כל הפעולות שבוצעו לכלב בשהות בפנסיון: האכלה, מתן תרופה, טיול ועוד. לחצו \"יומן טיפול\" ליד השהייה הרלוונטית, ותמצאו ציר זמן מלא של כל הפעולות עם שעה ומי ביצע.",
+        questionKey: "help.helpCenter.faq.pets.items.careLog.question",
+        answerKey: "help.helpCenter.faq.pets.items.careLog.answer",
       },
     ],
   },
   {
     id: "calendar",
-    name: "יומן ותורים",
+    nameKey: "help.helpCenter.faq.calendar.name",
     icon: Calendar,
     items: [
       {
-        question: "איך מוסיפים תור חדש?",
-        answer:
-          "בעמוד \"יומן\" לחצו על משבצת ריקה בשעה הרצויה, או על כפתור \"+\" בראש המסך. בחרו לקוח, שירות, חיית מחמד (אופציונלי), תאריך, שעת התחלה ושעת סיום (מחושבת אוטומטית לפי משך השירות). ניתן להוסיף הערות פנימיות.",
+        questionKey: "help.helpCenter.faq.calendar.items.addAppointment.question",
+        answerKey: "help.helpCenter.faq.calendar.items.addAppointment.answer",
       },
       {
-        question: "איך עובדת תצוגת היומן?",
-        answer:
-          "ליומן יש ארבע תצוגות: יום, שבוע, חודש וסדר יום (פריסה). בתצוגות יום ושבוע מוצגות השעות 08:00-20:00, וכל אירוע מופיע כבלוק צבעוני לפי הקטגוריה שלו. ניתן לנווט קדימה ואחורה עם החצים, או לחזור לתאריך הנוכחי בכפתור \"היום\". בנייד התצוגה מותאמת אוטומטית — יום במצב אנכי, שבוע במצב אופקי.",
+        questionKey: "help.helpCenter.faq.calendar.items.views.question",
+        answerKey: "help.helpCenter.faq.calendar.items.views.answer",
       },
       {
-        question: "איך מסננים את היומן לפי סוג פעילות?",
-        answer:
-          "מעל היומן יש שורת סינון בשני חלקים. למעלה — \"תצוגה\": כפתורי עדשה מהירים שמחליפים את כל היומן בבת אחת — \"הכל\", \"הזמנות לקוח\" (רק פגישות ושירותים ללקוחות), \"השירותים שלי\" (רק האילוף המקצועי שאתם מבצעים), או \"ניהול\" (משימות, לידים ויומן גוגל). מתחת — צ'יפים מקובצים לסינון מדויק: לחיצה על צ'יפ מדליקה או מכבה קטגוריה בודדת. הצ'יפים משמשים גם כמקרא הצבעים. הסינון שבחרתם נשמר אוטומטית וימתין לכם גם אחרי רענון הדף או כניסה מחדש.",
+        questionKey: "help.helpCenter.faq.calendar.items.filterByType.question",
+        answerKey: "help.helpCenter.faq.calendar.items.filterByType.answer",
       },
       {
-        question: "אילו קטגוריות יש ביומן?",
-        answer:
-          "11 קטגוריות בשלוש קבוצות. \"הזמנות ושירותי לקוח\": פגישות לקוח, תספורת, פנסיון (שהייה) וייעוץ. \"אילוף מקצועי\": אילוף בבית הלקוח, אילוף בתנאי פנסיון, אילוף קבוצתי וסדנאות. \"ניהול ותפעול\": משימות, מכירות/לידים ואירועים מיומן גוגל החיצוני. כל אירוע משויך לקטגוריה אחת בלבד, וכל קטגוריה מקבלת צבע קבוע משלה — כך שבמבט אחד רואים מה סוג הפעילות.",
+        questionKey: "help.helpCenter.faq.calendar.items.categories.question",
+        answerKey: "help.helpCenter.faq.calendar.items.categories.answer",
       },
       {
-        question: "למה חשוב להפריד בין סוגי האילוף?",
-        answer:
-          "בעבר כל סוגי האילוף הוצגו יחד תחת סינון אחד. כיום ארבעת הסוגים מופרדים לחלוטין — אילוף בבית הלקוח, אילוף בתנאי פנסיון, אילוף קבוצתי וסדנאות — כל אחד עם צבע וסנן משלו. כך אפשר, למשל, להציג רק את הסדנאות של החודש, או לראות רק את הביקורים בבתי לקוחות כדי לתכנן נסיעות. ההפרדה נעשית אוטומטית לפי סוג התוכנית או הקבוצה שהגדרתם — אין צורך לתייג ידנית.",
+        questionKey: "help.helpCenter.faq.calendar.items.trainingTypes.question",
+        answerKey: "help.helpCenter.faq.calendar.items.trainingTypes.answer",
       },
       {
-        question: "הצבעים ביומן מסונכרנים גם ליומן גוגל?",
-        answer:
-          "כן. כל אירוע שנשלח ליומן גוגל נושא כעת את צבע הקטגוריה שלו — תספורת בוורוד, פנסיון בירוק, אילוף בבית בכחול, אילוף בתנאי פנסיון בכתום, אילוף קבוצתי בסגול, סדנאות באדום וייעוץ בלבנדר. כך שגם כשאתם מסתכלים ביומן גוגל בנייד, אתם מזהים מיד את סוג הפעילות — אותה שפה חזותית בשני המקומות. הסנכרון חל על תורים, שהיות פנסיון ומפגשי אילוף וקבוצות.",
+        questionKey: "help.helpCenter.faq.calendar.items.googleColors.question",
+        answerKey: "help.helpCenter.faq.calendar.items.googleColors.answer",
       },
       {
-        question: "אילו סטטוסים יש לתור?",
-        answer:
-          "תור יכול להיות: ממתין (לא אושר), מתוזמן, הושלם, בוטל, או \"לא הגיע\". לחצו על תור לפתיחת חלון הפרטים ועדכון הסטטוס. ביטול מאפשר הוספת סיבת ביטול.",
+        questionKey: "help.helpCenter.faq.calendar.items.statuses.question",
+        answerKey: "help.helpCenter.faq.calendar.items.statuses.answer",
       },
       {
-        question: "איך עובדות תזכורות WhatsApp?",
-        answer:
-          "בחבילת PRO ומעלה, ניתן לשלוח תזכורות WhatsApp אוטומטיות ללקוחות לפני תור. בהגדרות ← אינטגרציות ← WhatsApp ניתן להפעיל תזכורות ולהגדיר מרחק שעות (24/48/72/96 שעות לפני). ניתן גם לשלוח תזכורת ידנית מלוח השנה או מפרופיל הלקוח.",
+        questionKey: "help.helpCenter.faq.calendar.items.whatsappReminders.question",
+        answerKey: "help.helpCenter.faq.calendar.items.whatsappReminders.answer",
       },
       {
-        question: "מה זה עמוד התזמון?",
-        answer:
-          "עמוד \"תזמון\" מאפשר הגדרת שעות פעילות לכל יום בשבוע (ראשון-שבת), ויצירת חסימות זמן לחופשות, הפסקות וימים מיוחדים. שעות הפעילות קובעות מה יוצג ללקוחות בהזמנה האונליין.",
+        questionKey: "help.helpCenter.faq.calendar.items.schedulingPage.question",
+        answerKey: "help.helpCenter.faq.calendar.items.schedulingPage.answer",
       },
       {
-        question: "יש סרטון הדרכה על היומן?",
-        answer:
-          "כן! בעמוד \"סרטוני הדרכה\" תמצאו סרטון מפורט על ניהול היומן, כולל תצוגות שונות, קביעת תורים, וסנכרון עם Google Calendar. ניתן להגיע לסרטונים מהסיידבר או מכפתור \"הדרכה\" בתפריט התחתון.",
+        questionKey: "help.helpCenter.faq.calendar.items.tutorialVideo.question",
+        answerKey: "help.helpCenter.faq.calendar.items.tutorialVideo.answer",
       },
     ],
   },
   {
     id: "tasks",
-    name: "ניהול משימות",
+    nameKey: "help.helpCenter.faq.tasks.name",
     icon: ListTodo,
     items: [
       {
-        question: "איך יוצרים משימה חדשה?",
-        answer:
-          "בעמוד \"ניהול משימות\" לחצו \"משימה חדשה\". הגדירו כותרת, תיאור מפורט, קטגוריה, עדיפות, תאריך יעד ושעה. ניתן לקשר משימה ללקוח, כלב או ליד ספציפי לניהול מרוכז.",
+        questionKey: "help.helpCenter.faq.tasks.items.createTask.question",
+        answerKey: "help.helpCenter.faq.tasks.items.createTask.answer",
       },
       {
-        question: "אילו קטגוריות משימות קיימות?",
-        answer:
-          "7 קטגוריות: כללי, פנסיון (טיפול בכלבים בשהייה), אילוף (הכנה למפגשים), לידים (מעקב אחרי לקוחות פוטנציאליים), בריאות (מעקב רפואי), תרופות (מתן תרופות שוטף), האכלה (הוראות תזונה מיוחדות).",
+        questionKey: "help.helpCenter.faq.tasks.items.categories.question",
+        answerKey: "help.helpCenter.faq.tasks.items.categories.answer",
       },
       {
-        question: "מה ההבדל בין תאריך יעד לשעת יעד?",
-        answer:
-          "תאריך יעד הוא תאריך כללי ללא שעה ספציפית (כמו \"הושלם עד יום שישי\"). שעת יעד היא דדליין מדויק עם שעה (כמו \"תן תרופה בשעה 8:00\"). משימות עם שעת יעד שעברה מסומנות כ\"באיחור\" ומודגשות באדום.",
+        questionKey: "help.helpCenter.faq.tasks.items.dueDateVsTime.question",
+        answerKey: "help.helpCenter.faq.tasks.items.dueDateVsTime.answer",
       },
       {
-        question: "איך מסמנים ומסננים משימות?",
-        answer:
-          "לחצו על הצ'קבוקס לסימון כהושלמה — המשימה תעבור ללשונית \"הושלמו\" עם חותמת זמן. ניתן לסנן לפי סטטוס (פתוחות/הושלמו/בוטלו), קטגוריה ועדיפות. משימות באיחור ומשימות של היום מופיעות גם באזור המיקוד היומי בדשבורד.",
+        questionKey: "help.helpCenter.faq.tasks.items.markAndFilter.question",
+        answerKey: "help.helpCenter.faq.tasks.items.markAndFilter.answer",
       },
     ],
   },
   {
     id: "leads",
-    name: "מערכת מכירות",
+    nameKey: "help.helpCenter.faq.leads.name",
     icon: Target,
     items: [
       {
-        question: "איך עובד לוח הלידים?",
-        answer:
-          "לוח הלידים מוצג כקנבן עם שלבים מותאמים אישית. ברירת המחדל כוללת: חדש, נוצר קשר, מתאים, ושלבי זכייה/הפסד (נעולים). ניתן ליצור, לערוך, למחוק ולשנות סדר שלבים + צבעים. גרירה ושחרור מעבירה לידים בין שלבים. בראש כל עמודה מוצג סך ערך העסקאות של הלידים שבה, ועל כל כרטיס מופיע ערך העסקה שלו.",
+        questionKey: "help.helpCenter.faq.leads.items.board.question",
+        answerKey: "help.helpCenter.faq.leads.items.board.answer",
       },
       {
-        question: "מה זה ערך עסקה?",
-        answer:
-          "ערך עסקה הוא הסכום (בשקלים) שהליד צפוי להכניס. מזינים אותו בכרטיס הליד, בשדה \"ערך עסקה\". הסכום מופיע על הכרטיס, מסתכם בראש כל עמודה בקנבן, ונכנס לדוח \"מכירות מלידים\" — שמראה כמה שוות העסקאות שנסגרו וכמה שווה הצנרת הפתוחה. ערך עסקה הוא הערכה ולא הכנסה: ההכנסות בדוחות נספרות רק מתשלומים בפועל.",
+        questionKey: "help.helpCenter.faq.leads.items.dealValue.question",
+        answerKey: "help.helpCenter.faq.leads.items.dealValue.answer",
       },
       {
-        question: "איך יודעים מאיפה הגיע ליד?",
-        answer:
-          "כשליד מגיע מטופס באתר (דרך Webhook), פטרה שומרת את מקור התנועה — אורגני, ממומן, רשתות חברתיות, WhatsApp, הפניה או ישיר — ואת העמוד שממנו נשלחה הפנייה. המידע מופיע בכרטיס הליד, ובדוחות יש פילוח של 12 החודשים האחרונים לפי מקור ולפי עמוד. כדי שזה יעבוד, הטופס באתר צריך להעביר ל-Webhook את שדות ה-utm, ה-referrer ועמוד הנחיתה.",
+        questionKey: "help.helpCenter.faq.leads.items.leadSource.question",
+        answerKey: "help.helpCenter.faq.leads.items.leadSource.answer",
       },
       {
-        question: "איפה רואים דוחות מכירה?",
-        answer:
-          "במערכת המכירות יש לשונית \"דוחות\": משפך לפי שלבים, אחוז המרה (עסקאות שנסגרו מתוך כלל הלידים שנסגרו — זכייה או הפסד), לידים לפי מקור, סיבות אובדן, ומי מהצוות סגר כל עסקה. אותם נתונים מופיעים גם בעמוד הדוחות, בלשונית \"לידים ומכירות\".",
+        questionKey: "help.helpCenter.faq.leads.items.salesReports.question",
+        answerKey: "help.helpCenter.faq.leads.items.salesReports.answer",
       },
       {
-        question: "מה זה מחוון הזדקנות ליד?",
-        answer:
-          "כל כרטיס ליד מציג מחוון זמן מאז היצירה: ירוק (פחות מ-4 ימים), כתום (4-7 ימים), אדום (8+ ימים). המחוון עוזר לזהות לידים שלא טופלו מספיק מהר ודורשים תשומת לב.",
+        questionKey: "help.helpCenter.faq.leads.items.agingIndicator.question",
+        answerKey: "help.helpCenter.faq.leads.items.agingIndicator.answer",
       },
       {
-        question: "איך יוצרים ליד חדש?",
-        answer:
-          "לחצו \"ליד חדש\" ומלאו: שם, טלפון, אימייל, מקור (אתר, אינסטגרם, פייסבוק, המלצה, אחר) והערות ראשוניות. ניתן גם לקבל לידים אוטומטית דרך Webhook מטפסי אתר, ומלקוחות חדשים שנרשמים דרך טופס ההזמנה האונליין.",
+        questionKey: "help.helpCenter.faq.leads.items.createLead.question",
+        answerKey: "help.helpCenter.faq.leads.items.createLead.answer",
       },
       {
-        question: "איך עוברים מליד ללקוח?",
-        answer:
-          "כשליד נסגר בהצלחה (שלב \"זכייה\"), לחצו \"המר ללקוח\" בכרטיס הליד. המערכת תיצור לקוח חדש אוטומטית עם כל הפרטים שנאספו בשלב הליד. כל מה שתועד בליד — שיחות, \"מה סוכם\", שינויי שלב, משימות מעקב וערך העסקה — ממשיך להופיע בכרטיס הלקוח תחת \"היסטוריית מכירה\", עם קישור חזרה לליד.",
+        questionKey: "help.helpCenter.faq.leads.items.convert.question",
+        answerKey: "help.helpCenter.faq.leads.items.convert.answer",
       },
       {
-        question: "איך מתעדים שיחות ומעקב?",
-        answer:
-          "בפרופיל הליד ניתן לתעד יומן שיחות: תאריך, אורך השיחה, סיכום ותוצאה. כל פעולה נרשמת בלוג הפעילות. ניתן גם לקבוע תאריך מעקב הבא שייצור משימה אוטומטית. פעולות מהירות כוללות: חיוג, WhatsApp ומייל.",
+        questionKey: "help.helpCenter.faq.leads.items.callLog.question",
+        answerKey: "help.helpCenter.faq.leads.items.callLog.answer",
       },
       {
-        question: "מה קורה כשליד אבד?",
-        answer:
-          "כשמעבירים ליד לשלב \"אבוד\" המערכת מבקשת קוד סיבה (מחיר, תחרות, לא רלוונטי, אחר) והסבר חופשי. הנתונים מופיעים בדוחות לניתוח הסיבות הנפוצות.",
+        questionKey: "help.helpCenter.faq.leads.items.lost.question",
+        answerKey: "help.helpCenter.faq.leads.items.lost.answer",
       },
     ],
   },
   {
     id: "bookings-online",
-    name: "הזמנות אונליין",
+    nameKey: "help.helpCenter.faq.bookingsOnline.name",
     icon: CalendarCheck,
     items: [
       {
-        question: "איך עובדת ההזמנה האונליין?",
-        answer:
-          "לכל עסק יש קישור ציבורי ייחודי. לקוחות נכנסים לקישור ועוברים אשף: בחירת שירות ← בחירת חיית מחמד (קיימת או חדשה) ← בחירת תאריך ושעה מהזמינות שהגדרתם ← מילוי פרטים ← אישור. ההזמנה מגיעה לממתינות לאישורכם. לקוח חדש שנרשם דרך הטופס נוצר גם כליד אוטומטית.",
+        questionKey: "help.helpCenter.faq.bookingsOnline.items.howItWorks.question",
+        answerKey: "help.helpCenter.faq.bookingsOnline.items.howItWorks.answer",
       },
       {
-        question: "איך מאשרים ודוחים הזמנות?",
-        answer:
-          "בעמוד \"ניהול תורים\" תמצאו הזמנות ממתינות מסומנות. לחצו \"אשר\" להוספת התור ליומן, או \"דחה\" עם אפשרות לציין סיבה. הלקוח מקבל עדכון בכל מקרה. מספר ההזמנות הממתינות מוצג בתג אדום בסרגל.",
+        questionKey: "help.helpCenter.faq.bookingsOnline.items.approveDecline.question",
+        answerKey: "help.helpCenter.faq.bookingsOnline.items.approveDecline.answer",
       },
       {
-        question: "מה זה עמוד התזמון?",
-        answer:
-          "עמוד \"תזמון\" הוא לב מערכת ההזמנות האונליין. כאן מגדירים שעות פעילות לכל יום, חסימות ועוד. ניתן לקבוע שהזמנות דורשות מקדמה, להגדיר זמן בופר בין תורים, וזמן מינימלי מראש לביצוע הזמנה.",
+        questionKey: "help.helpCenter.faq.bookingsOnline.items.schedulingPage.question",
+        answerKey: "help.helpCenter.faq.bookingsOnline.items.schedulingPage.answer",
       },
       {
-        question: "מה זה טפסי קליטה?",
-        answer:
-          "טופס קליטה הוא שאלון מקוון שנשלח ללקוח לפני ביקור ראשון. כולל 4 שלבים: פרטי הכלב ← מידע רפואי (אלרגיות, חיסונים, וטרינר) ← הערכה התנהגותית (13+ דגלים) ← תרופות. המידע נשמר אוטומטית בכרטיס הכלב.",
+        questionKey: "help.helpCenter.faq.bookingsOnline.items.intakeForms.question",
+        answerKey: "help.helpCenter.faq.bookingsOnline.items.intakeForms.answer",
       },
     ],
   },
   {
     id: "boarding",
-    name: "פנסיון",
+    nameKey: "help.helpCenter.faq.boarding.name",
     icon: Hotel,
     items: [
       {
-        question: "איך מגדירים חדרים?",
-        answer:
-          "בעמוד \"ניהול חדרים\" תמצאו את רשת החדרים עם שם וקיבולת. ניתן להוסיף חדרים חדשים, לעדכן קיבולת, ולראות תפוסה בזמן אמת (מספר כלבים / קיבולת מקסימלית). חדרים מלאים מסומנים בצבע שונה.",
+        questionKey: "help.helpCenter.faq.boarding.items.rooms.question",
+        answerKey: "help.helpCenter.faq.boarding.items.rooms.answer",
       },
       {
-        question: "איך מבצעים צ'ק-אין וצ'ק-אאוט?",
-        answer:
-          "לחצו \"שהייה חדשה\" ← בחרו לקוח ← בחרו כלב ← בחרו חדר ← הגדירו תאריכי כניסה ויציאה + שעות. בחירת תאריך כניסה מאפסת אוטומטית את תאריך היציאה. לאחר היצירה, לחצו \"צ'ק-אין\" בשהייה כשהכלב מגיע פיזית. בסיום לחצו \"צ'ק-אאוט\".",
+        questionKey: "help.helpCenter.faq.boarding.items.checkInOut.question",
+        answerKey: "help.helpCenter.faq.boarding.items.checkInOut.answer",
       },
       {
-        question: "מה זה באנר האיחור בצ'ק-אאוט?",
-        answer:
-          "כשכלב עובר את שעת הצ'ק-אאוט המתוכננת (ברירת מחדל: 11:00), מוצג באנר אדום עם שם הכלב, מספר שעות האיחור, וכפתור \"טפל עכשיו\" שמנווט ישירות ללשונית צ'ק-אאוט היום. שעת הצ'ק-אאוט ניתנת להגדרה בהגדרות.",
+        questionKey: "help.helpCenter.faq.boarding.items.lateBanner.question",
+        answerKey: "help.helpCenter.faq.boarding.items.lateBanner.answer",
       },
       {
-        question: "מה זה לוח האכלה?",
-        answer:
-          "לוח האכלה מציג את כל הכלבים הנמצאים כרגע בפנסיון עם הוראות האכלה אישיות: סוג מזון, כמות, שעות האכלה והוראות מיוחדות. ניתן לסמן כל ארוחה כבוצעה ולראות היסטוריית האכלה.",
+        questionKey: "help.helpCenter.faq.boarding.items.feedingBoard.question",
+        answerKey: "help.helpCenter.faq.boarding.items.feedingBoard.answer",
       },
       {
-        question: "מה זה לוח תרופות?",
-        answer:
-          "לוח התרופות מציג את כל התרופות שצריך לתת לכלבים בפנסיון היום. כולל שם התרופה, המינון, השעות ומי הכלב. ניתן לסמן כל מתן תרופה כבוצע. הלוח מתעדכן אוטומטית לפי הרשומות הרפואיות של הכלבים.",
+        questionKey: "help.helpCenter.faq.boarding.items.medicationBoard.question",
+        answerKey: "help.helpCenter.faq.boarding.items.medicationBoard.answer",
       },
       {
-        question: "אילו לשוניות יש בעמוד הפנסיון?",
-        answer:
-          "4 לשוניות: \"הכל\" (כל השהיות הפעילות), \"צ'ק-אין היום\" (שהיות שמתחילות היום — עם תג מספר), \"צ'ק-אאוט היום\" (שהיות שמסתיימות היום — כולל זיהוי איחורים), ו\"היסטוריה\" (שהיות שהסתיימו — ארכיון).",
+        questionKey: "help.helpCenter.faq.boarding.items.tabs.question",
+        answerKey: "help.helpCenter.faq.boarding.items.tabs.answer",
       },
       {
-        question: "מה זה מפת חצרות?",
-        answer:
-          "לשונית \"חצרות\" מציגה את כל חצרות הפנסיון בתצוגת כרטיסים — כמה כלבים נמצאים בכל חצר, שמותיהם ופרטיהם. ניתן להדפיס את המפה ישירות מהכפתור בראש הדף לקבלת תמונת מצב עם תאריך ומספר כלבים כולל, מתאים לשלטי חצרות ולצוות השטח.",
+        questionKey: "help.helpCenter.faq.boarding.items.yardMap.question",
+        answerKey: "help.helpCenter.faq.boarding.items.yardMap.answer",
       },
     ],
   },
   {
     id: "training",
-    name: "תהליכי אילוף",
+    nameKey: "help.helpCenter.faq.training.name",
     icon: Dog,
     items: [
       {
-        question: "מה ההבדל בין קבוצות אילוף לתוכניות אישיות?",
-        answer:
-          "קבוצות אילוף מיועדות למספר כלבים יחד (כמו כיתת גורים) עם מפגשים קבועים ביום ושעה קבועים. תוכניות אישיות הן תיק אילוף פרטני לכלב בודד עם מטרות, שיעורי בית ומעקב התקדמות.",
+        questionKey: "help.helpCenter.faq.training.items.groupsVsPrograms.question",
+        answerKey: "help.helpCenter.faq.training.items.groupsVsPrograms.answer",
       },
       {
-        question: "איך יוצרים קבוצת אילוף?",
-        answer:
-          "בעמוד \"אימונים\" בלשונית \"קבוצות\", לחצו \"קבוצה חדשה\". הגדירו שם, סוג, מיקום, יום ושעה קבועים, מספר משתתפים מקסימלי, סטטוס (פעיל/מלא/הסתיים) ותזכורות אוטומטיות למשתתפים.",
+        questionKey: "help.helpCenter.faq.training.items.createGroup.question",
+        answerKey: "help.helpCenter.faq.training.items.createGroup.answer",
       },
       {
-        question: "איך מנהלים תוכנית אישית?",
-        answer:
-          "בלשונית \"תוכניות אישיות\", לחצו \"תוכנית חדשה\". הגדירו מטרות עם אחוז התקדמות לכל מטרה, הוסיפו מפגשים עם סיכום ודירוג 1-5, הגדירו שיעורי בית עם תאריך יעד. ניתן לקשר לכלב ולקוח ספציפיים.",
+        questionKey: "help.helpCenter.faq.training.items.privateProgram.question",
+        answerKey: "help.helpCenter.faq.training.items.privateProgram.answer",
       },
       {
-        question: "איך מנהלים נוכחות בקבוצות?",
-        answer:
-          "בכל מפגש קבוצתי ניתן לסמן נוכחות לכל משתתף (נכח/לא נכח/איחר). הנוכחות נשמרת בהיסטוריית המפגש ומאפשרת מעקב אחרי עקביות ההשתתפות.",
+        questionKey: "help.helpCenter.faq.training.items.attendance.question",
+        answerKey: "help.helpCenter.faq.training.items.attendance.answer",
       },
     ],
   },
   {
     id: "service-dogs",
-    name: "כלבי שירות",
+    nameKey: "help.helpCenter.faq.serviceDogs.name",
     icon: Shield,
     items: [
       {
-        question: "מה זה מודול כלבי השירות?",
-        answer:
-          "מודול מקיף לניהול תוכניות כלבי שירות ועזר: כלבי ניידות, כלבי PTSD, כלבי נחייה, כלבי אוטיזם, כלבי התרעה ועוד. המודול כולל 7 עמודים ראשיים: סקירה כללית (דשבורד), רשימת כלבים, זכאים (קנבן), שיבוצים, תעודות זיהוי, ציות ודיווח. כל כלב כולל 9 לשוניות פרטניות לניהול מלא של כל תחומי הפעילות.",
+        questionKey: "help.helpCenter.faq.serviceDogs.items.module.question",
+        answerKey: "help.helpCenter.faq.serviceDogs.items.module.answer",
       },
       {
-        question: "מה מוצג בדשבורד כלבי השירות?",
-        answer:
-          "דשבורד כלבי השירות מציג: סטטיסטיקות מרכזיות (סה\"כ כלבים, מוסמכים, באימון, שיבוצים פעילים), ווידג'ט התראות (פרוטוקולים שעברו מועד, חיסונים חסרים, דיווח ממשלתי דחוף), וסטטוס תעודות זיהוי. מספר ההתראות הפעילות מוצג גם כתג כתום בסרגל הצד.",
+        questionKey: "help.helpCenter.faq.serviceDogs.items.dashboard.question",
+        answerKey: "help.helpCenter.faq.serviceDogs.items.dashboard.answer",
       },
       {
-        question: "מה כוללות 10 הלשוניות בפרופיל הכלב?",
-        answer:
-          "1) תיק כלב — פרטים בסיסיים, גזע, תמונה, מצב בריאותי. 2) חיסונים וטיפולים — חיסונים, תרופות ובריאות שוטפת. 3) שיבוצים — היסטוריית שיבוץ לזכאים. 4) מבחני הסמכה — ADI, SIMBA ומבחן שנתי מחזורי. 5) מסמכים — קבצים מצורפים. 6) ביטוח — פוליסות ותביעות. 7) ציוד — אפודות וציוד כלב. 8) פרוטוקולים רפואיים — רשימת בדיקות ופרוצדורות נדרשות לפי שלב. 9) יומן אימונים — מפגשים עם שעות מצטברות. 10) תעודת הסמכה — תעודת זיהוי דיגיטלית עם QR.",
+        questionKey: "help.helpCenter.faq.serviceDogs.items.profileTabs.question",
+        answerKey: "help.helpCenter.faq.serviceDogs.items.profileTabs.answer",
       },
       {
-        question: "מה הם שלבי האימון של כלב שירות?",
-        answer:
-          "8 שלבים: בחירה (SELECTION) ← גידול (RAISING) ← גור (PUPPY) ← באימון (IN_TRAINING) ← אימון מתקדם (ADVANCED_TRAINING) ← מוסמך (CERTIFIED) ← בדימוס (RETIRED) ← מבוטל (DECERTIFIED). ניתן לעדכן שלב מתיק הכלב. השלב מוצג כתג צבעוני בכל מקום. שלב הגידול מיועד לכלבים שמתגדלים במשפחת אומנה לפני תחילת אימון רשמי.",
+        questionKey: "help.helpCenter.faq.serviceDogs.items.phases.question",
+        answerKey: "help.helpCenter.faq.serviceDogs.items.phases.answer",
       },
       {
-        question: "אילו סוגי שירות זמינים לכלבים?",
-        answer:
-          "7 סוגי שירות: ניידות (עזרה בתנועה), פסיכיאטרי (חרדה, דיכאון), PTSD (טראומה, פוסט-טראומה — נפרד מפסיכיאטרי), נחייה (לקויי ראייה), אוטיזם (ילדים ומבוגרים), התרעה (סוכרת, אפילפסיה), ואחר. ניתן לקבוע סוג שירות בתיק הכלב, והוא מופיע כתג בכל מקום שמוצג הכלב.",
+        questionKey: "help.helpCenter.faq.serviceDogs.items.serviceTypes.question",
+        answerKey: "help.helpCenter.faq.serviceDogs.items.serviceTypes.answer",
       },
       {
-        question: "מה זה מיקום נוכחי של כלב?",
-        answer:
-          "כל כלב מסומן במיקום: אצל המאמן (ברירת מחדל), משפחת אומנה, פנסיון, או שטח. המיקום מוצג כתג על כרטיס הכלב ברשימה ובדוחות. ניתן לעדכן מתיק הכלב, ולסנן כלבים לפי מיקום.",
+        questionKey: "help.helpCenter.faq.serviceDogs.items.location.question",
+        answerKey: "help.helpCenter.faq.serviceDogs.items.location.answer",
       },
       {
-        question: "מה הם מבחני ההסמכה?",
-        answer:
-          "לשונית \"מבחני הסמכה\" מנהלת כמה סוגי בדיקות: ADI (Assistance Dogs International) — 18 קטגוריות סטנדרטיות (הסחות דעת, שליטה ברצועה, ביטחון בציבור, אינטראקציה עם כלבים ועוד). SIMBA — מבחן כשירות במרחב הציבורי+משימות (PS + FT) עם תוצאה ידנית. מבחן שנתי מחזורי — כולל תאריך בחינה הבא והתראה לפני פקיעת התוקף. לכל מבחן: תאריך, בוחן, תוצאה (עבר/עבר בתנאים/נכשל), ואפשרות לצרף קובץ.",
+        questionKey: "help.helpCenter.faq.serviceDogs.items.certificationTests.question",
+        answerKey: "help.helpCenter.faq.serviceDogs.items.certificationTests.answer",
       },
       {
-        question: "מה זה יומן האימונים?",
-        answer:
-          "לשונית \"יומן אימונים\" מתעדת כל מפגש אימון עם: תאריך, שעות (מצטברות אוטומטית), מיקום, מאלף, פעילויות שבוצעו, הצלחות ואתגרים, והמלצות להמשך. שעות האימון הכוללות מוצגות בתיק הכלב ומהוות נדבך מרכזי בתהליך ההסמכה.",
+        questionKey: "help.helpCenter.faq.serviceDogs.items.trainingLog.question",
+        answerKey: "help.helpCenter.faq.serviceDogs.items.trainingLog.answer",
       },
       {
-        question: "מה הם פרוטוקולים רפואיים ואיך הם עובדים?",
-        answer:
-          "לשונית \"פרוטוקולים רפואיים\" מציגה רשימה מותאמת של בדיקות ופרוצדורות נדרשות לכלב: חיסונים (כלבת, DHPP, בורדטלה), בדיקות לאומיות, ואישורי ADI. הפרוטוקולים נוצרים אוטומטית בהתאם לשלב האימון — כולל פרוטוקולים ייחודיים לישראל. כל פרוטוקול כולל תאריך יעד, ניתן לסמנו כהושלם, ופרוטוקולים שעברו מועד מוצגים כהתראה אדומה.",
+        questionKey: "help.helpCenter.faq.serviceDogs.items.medicalProtocols.question",
+        answerKey: "help.helpCenter.faq.serviceDogs.items.medicalProtocols.answer",
       },
       {
-        question: "מה זה תעודת זיהוי דיגיטלית?",
-        answer:
-          "בעמוד \"תעודות זיהוי\" ובלשונית \"הסמכה\" בפרופיל הכלב ניתן ליצור תעודת זיהוי דיגיטלית עם QR. התעודה כוללת: תמונת הכלב, שם, שם המוטב, ארגון, תאריך הסמכה. סריקת ה-QR פותחת דף ציבורי לאימות. ניתן להוריד כ-PDF להדפסה.",
+        questionKey: "help.helpCenter.faq.serviceDogs.items.digitalId.question",
+        answerKey: "help.helpCenter.faq.serviceDogs.items.digitalId.answer",
       },
       {
-        question: "מה זה ביטוח ותביעות?",
-        answer:
-          "לשונית \"ביטוח\" מנהלת פוליסות: מספר פוליסה, מבטח, תאריכים, סכום כיסוי. פוליסות שפגו מוצגות באדום. בנוסף, ניתן לנהל תביעות ביטוח: פתיחת תביעה, מעקב סטטוס (פתוחה/מאושרת/נדחתה), סכום תביעה, ומסמכים מצורפים.",
+        questionKey: "help.helpCenter.faq.serviceDogs.items.insurance.question",
+        answerKey: "help.helpCenter.faq.serviceDogs.items.insurance.answer",
       },
       {
-        question: "איך מנהלים זכאים (מוטבים)?",
-        answer:
-          "זכאים מנוהלים בתצוגת קנבן או טבלה עם שלבים מותאמים אישית (ניתן ליצור, לשנות שם, צבע וסדר). כל כרטיס זכאי מציג: שם, טלפון, שם כלב משובץ, שלב ומצב שיבוץ. לחיצה על כרטיס פותחת פרופיל מלא. שדות רגישים (מוגבלות, ת.ז., מימון) מוסתרים מעובדים רגילים. שלב \"נדחה\" (REJECTED) הוא ארכיון — מוסתר כברירת מחדל, ניתן להציג בלחיצה על כפתור \"ארכיון\" בראש הדף.",
+        questionKey: "help.helpCenter.faq.serviceDogs.items.recipients.question",
+        answerKey: "help.helpCenter.faq.serviceDogs.items.recipients.answer",
       },
       {
-        question: "איך עובד שיבוץ כלב לזכאי?",
-        answer:
-          "שיבוץ נעשה בלשונית \"שיבוצים\" בפרופיל הכלב. בחרו זכאי ותאריך שיבוץ. לכל שיבוץ יש שני סטטוסים בלבד: פעיל (ACTIVE) — ברירת המחדל; הסתיים (TERMINATED) — כשהשיבוץ הגיע לסיומו. בסיום שיבוץ עם TERMINATED, המערכת מעדכנת אוטומטית את הזכאי לשלב מתאים. ניתן לסנן שיבוצים לפי סטטוס.",
+        questionKey: "help.helpCenter.faq.serviceDogs.items.placement.question",
+        answerKey: "help.helpCenter.faq.serviceDogs.items.placement.answer",
       },
       {
-        question: "איך מייבאים כלבי שירות וזכאים מקובץ?",
-        answer:
-          "בעמוד \"כלבי שירות\" (רשימת כלבים) לחצו \"ייבוא מקובץ\" → הורידו תבנית Excel לדוגמה → מלאו פרטים (שם, גזע, מין, שלב, סוג שירות ועוד) → העלו את הקובץ. המערכת מציגה תצוגה מקדימה עם שגיאות ואישורים לפני הייבוא. זמין גם עבור זכאים (שם, טלפון, סוג מוגבלות, מקור מימון ועוד).",
+        questionKey: "help.helpCenter.faq.serviceDogs.items.import.question",
+        answerKey: "help.helpCenter.faq.serviceDogs.items.import.answer",
       },
       {
-        question: "מה זה ציות ודיווח ממשלתי?",
-        answer:
-          "עמוד \"ציות\" ולשונית \"דיווח ממשלתי\" בפרופיל כלב מנהלים אירועי תאימות (דיווח 48 שעות, ביקורות). כל אירוע כולל: סוג, תאריך, מצב (ממתין/הושלם/איחור) ומועד אחרון. אירועים דחופים מודגשים בווידג'ט ההתראות. ניתן לסמן אירוע כטופל.",
+        questionKey: "help.helpCenter.faq.serviceDogs.items.compliance.question",
+        answerKey: "help.helpCenter.faq.serviceDogs.items.compliance.answer",
       },
       {
-        question: "מה זה עמוד הדוחות של כלבי שירות?",
-        answer:
-          "עמוד \"דוחות\" מאפשר ייצוא XLSX מפורט: פרופילי כלבים, היסטוריה רפואית, סיכום אימונים ושיבוצים. הדוחות מותאמים לדרישות דיווח ממשלתי ולסטנדרטים של ADI.",
+        questionKey: "help.helpCenter.faq.serviceDogs.items.reports.question",
+        answerKey: "help.helpCenter.faq.serviceDogs.items.reports.answer",
       },
     ],
   },
   {
     id: "finance",
-    name: "פיננסים",
+    nameKey: "help.helpCenter.faq.finance.name",
     icon: Wallet,
     items: [
       {
-        question: "איך מנהלים תשלומים?",
-        answer:
-          "בעמוד \"תשלומים\" ניתן לצפות בכל התשלומים, לסנן לפי סטטוס (ממתין/שולם/בוטל) ותאריך, ולראות סיכום כולל. כל תשלום כולל: סכום, שיטת תשלום (מזומן, כרטיס, Bit, העברה בנקאית), לקוח והערות.",
+        questionKey: "help.helpCenter.faq.finance.items.payments.question",
+        answerKey: "help.helpCenter.faq.finance.items.payments.answer",
       },
       {
-        question: "איך שולחים בקשת תשלום?",
-        answer:
-          "ביצירת הזמנה ובעמוד הזמנה קיימת, לחצו \"שלח דרישת תשלום בוואטסאפ\". המערכת בונה הודעה מפורטת עם שמות שירותים, כמויות, סיכום סופי וקישור לתשלום, ופותחת WhatsApp לשליחה ללקוח.",
+        questionKey: "help.helpCenter.faq.finance.items.paymentRequest.question",
+        answerKey: "help.helpCenter.faq.finance.items.paymentRequest.answer",
       },
       {
-        question: "איך מגדירים מחירון?",
-        answer:
-          "בעמוד \"מחירון\" ניתן לנהל שני סוגים: פריטי חיוב (מוצרים ושירותים לחיוב) ושירותים. פריטי חיוב כוללים: שם, קטגוריה, מחיר, יחידה (למפגש/ליום/לשעה/שטוח), תיאור, קישור לתשלום וסטטוס מע\"מ. לחצו על \"שירותים\" כדי לנהל שירותי העסק (אילוף, טיפוח וכד') בנפרד.",
+        questionKey: "help.helpCenter.faq.finance.items.priceList.question",
+        answerKey: "help.helpCenter.faq.finance.items.priceList.answer",
       },
       {
-        question: "איך יוצרים הזמנה חדשה?",
-        answer:
-          "לחצו \"הזמנה חדשה\" ← בחרו קטגוריה: פנסיון, אילוף, מוצרים, או טיפוח. לאחר מכן בחרו לקוח וחיית/ות מחמד. פנסיון מחשב אוטומטית ימים × כלבים ויוצר שהייה. ניתן לשנות סטטוס הזמנה: טיוטה/פעיל/שולם/בוטל. חישוב מע\"מ (18%) אוטומטי.",
+        questionKey: "help.helpCenter.faq.finance.items.newOrder.question",
+        answerKey: "help.helpCenter.faq.finance.items.newOrder.answer",
       },
       {
-        question: "איך עובד חישוב הפנסיון?",
-        answer:
-          "בהזמנת פנסיון: בחרו לקוח ← סמנו כלב אחד או יותר ← הגדירו תאריך ושעת כניסה ויציאה. המערכת מחשבת את מספר הלילות × מספר הכלבים שנבחרו ומגדירה אוטומטית את הכמות. לדוגמה: 10 לילות × 2 כלבים = 20 יחידות × מחיר ללילה.",
+        questionKey: "help.helpCenter.faq.finance.items.boardingCalc.question",
+        answerKey: "help.helpCenter.faq.finance.items.boardingCalc.answer",
       },
     ],
   },
   {
     id: "messages",
-    name: "הודעות ואוטומציות",
+    nameKey: "help.helpCenter.faq.messages.name",
     icon: MessageSquare,
     items: [
       {
-        question: "למה לא נשלחות הודעות אוטומטיות ללקוחות שלי?",
-        answer:
-          "הודעות אוטומטיות הן בהפעלה מפורשת (opt-in): כדי שהודעה תישלח, צריך ששני מתגים יהיו דלוקים — המתג הראשי \"שליחת הודעות אוטומטיות בוואטסאפ\" והמתג של סוג ההודעה הספציפי (למשל \"אישור קביעת פגישה\" או \"תזכורת איסוף מפנסיון\") בעמוד הודעות ← אוטומציות. אם שניהם דלוקים ועדיין לא נשלח — ודאו שללקוח יש מספר טלפון תקין ושהמסלול שלכם כולל הודעות וואטסאפ (בייסיק ומעלה).",
+        questionKey: "help.helpCenter.faq.messages.items.notSending.question",
+        answerKey: "help.helpCenter.faq.messages.items.notSending.answer",
       },
       {
-        question: "למה נשלחה ללקוח הודעה אוטומטית?",
-        answer:
-          "המערכת שולחת הודעות רק כשהאוטומציה המתאימה דלוקה אצלכם. בדקו בעמוד הודעות ← אוטומציות אילו מתגים פעילים — כיבוי מתג עוצר את הסוג הזה לחלוטין. כל פגישה מקבלת אישור פעם אחת בלבד, כך שלא יישלחו כפילויות.",
+        questionKey: "help.helpCenter.faq.messages.items.whySent.question",
+        answerKey: "help.helpCenter.faq.messages.items.whySent.answer",
       },
       {
-        question: "איך יוצרים תבנית הודעה?",
-        answer:
-          "בעמוד \"הודעות\" לחצו \"תבנית חדשה\". בחרו ערוץ (וואטסאפ, SMS, אימייל), תנו שם לתבנית. לאימייל הוסיפו גם נושא. כתבו גוף עם משתנים דינמיים. המערכת כוללת 8 תבניות מוכנות לשימוש (תזכורת תור, אישור הזמנה, מעקב לאחר טיפול, ברכת יום הולדת ועוד). לעריכת תבנית קיימת לחצו על אייקון העפרון ליד התבנית.",
+        questionKey: "help.helpCenter.faq.messages.items.createTemplate.question",
+        answerKey: "help.helpCenter.faq.messages.items.createTemplate.answer",
       },
       {
-        question: "אילו משתנים דינמיים זמינים?",
-        answer:
-          "המשתנים הזמינים בתבניות: {customerName} שם לקוח, {petName} שם חיה, {petAge} גיל חיה, {date} תאריך, {time} שעה, {serviceName} שם שירות, {businessPhone} טלפון העסק, {paymentUrl} קישור לתשלום, {orderTotal} סכום הזמנה. לחצו על משתנה להכנסתו במיקום הסמן.",
+        questionKey: "help.helpCenter.faq.messages.items.variables.question",
+        answerKey: "help.helpCenter.faq.messages.items.variables.answer",
       },
       {
-        question: "מה זה תזכורות WhatsApp אוטומטיות?",
-        answer:
-          "בחבילת PRO ומעלה, המערכת שולחת תזכורות WhatsApp אוטומטיות ללקוחות לפני תור/פנסיון/אילוף. בהגדרות ← אינטגרציות ← WhatsApp ניתן להפעיל/לכבות ולהגדיר מרחק שעות (24/48/72/96). התזכורות נשלחות דרך Meta WhatsApp Cloud API ומופיעות בתור השליחה.",
+        questionKey: "help.helpCenter.faq.messages.items.whatsappReminders.question",
+        answerKey: "help.helpCenter.faq.messages.items.whatsappReminders.answer",
       },
       {
-        question: "איך מחברים את מספר הוואטסאפ של העסק?",
-        answer:
-          "בחבילת PRO ומעלה ניתן לשלוח את ההודעות האוטומטיות מהמספר של העסק במקום מהמספר של Petra. 1) הגדרות ← אינטגרציות ← WhatsApp ← \"חבר את הוואטסאפ של העסק\" (מומלץ להשאיר את Coexistence מסומן כדי להמשיך להשתמש באפליקציית WhatsApp Business בטלפון). 2) מתחברים לחשבון Facebook של העסק, בוחרים/יוצרים מספר WhatsApp Business ומאמתים אותו ב-SMS. 3) לאחר החיבור לוחצים \"סנכרן תבניות\" וממתינים לאישור Meta — עד אז ההודעות ממשיכות לצאת מהמספר של Petra.",
+        questionKey: "help.helpCenter.faq.messages.items.connectNumber.question",
+        answerKey: "help.helpCenter.faq.messages.items.connectNumber.answer",
       },
       {
-        question: "מה זה אוטומציות?",
-        answer:
-          "אוטומציות מאפשרות שליחת הודעות אוטומטית על בסיס אירועים: תזכורת פגישה, אישור הזמנה, הודעת לאחר תור, תזכורת לחיסון שפג, ברכת יום הולדת, מעקב ליד חדש, ודרישת תשלום. כל אוטומציה מקושרת לתבנית הודעה.",
+        questionKey: "help.helpCenter.faq.messages.items.automations.question",
+        answerKey: "help.helpCenter.faq.messages.items.automations.answer",
       },
       {
-        question: "איך עובד תור השליחה?",
-        answer:
-          "\"תור שליחה\" מציג את כל ההודעות שמתוזמנות לשליחה: הודעות ממתינות, שנשלחו בהצלחה ושנכשלו. ניתן לבטל הודעה לפני שליחה, לשלוח מחדש הודעה שנכשלה, ולראות לוג שגיאות.",
+        questionKey: "help.helpCenter.faq.messages.items.sendQueue.question",
+        answerKey: "help.helpCenter.faq.messages.items.sendQueue.answer",
       },
       {
-        question: "מאיפה נשלחות ההודעות האוטומטיות?",
-        answer:
-          "כל תבנית ידנית מציגה בדיוק מהיכן בממשק היא נשלחת. למשל: תזכורת תור — מלוח השנה דרך כפתור WhatsApp; אישור הזמנה — נשלח אוטומטית ברגע קביעת תור (PRO+); דרישת תשלום — מעמוד הזמנה → סעיף תשלומים; ברכת יום הולדת — מפרופיל לקוח → כרטיס חיית המחמד. כל הודעה ידנית נשלחת דרך WhatsApp כשאתם לוחצים — המערכת לא שולחת בשמכם ללא אישור.",
+        questionKey: "help.helpCenter.faq.messages.items.whereSent.question",
+        answerKey: "help.helpCenter.faq.messages.items.whereSent.answer",
       },
     ],
   },
   {
     id: "analytics",
-    name: "דוחות",
+    nameKey: "help.helpCenter.faq.analytics.name",
     icon: BarChart3,
     items: [
       {
-        question: "מה מוצג בעמוד הדוחות?",
-        answer:
-          "עמוד הדוחות מחולק ללשוניות — סקירה, כספים, לידים ומכירות ועוד — עם בחירת תקופה והשוואה לתקופה הקודמת: לקוחות חדשים ושימור לקוחות, תורים ושיעור ביטול, הכנסות לפי שירות ולפי קטגוריה, יתרות פתוחות, המרת לידים ומכירות מלידים, תפוסת פנסיון ואילוף. כל המדדים מחושבים בשרת לפי הגדרות אחידות, כך שהמספר זהה בכל מקום במערכת. נתונים כספיים מוצגים רק למי שמורשה לראות הכנסות.",
+        questionKey: "help.helpCenter.faq.analytics.items.whatsShown.question",
+        answerKey: "help.helpCenter.faq.analytics.items.whatsShown.answer",
       },
       {
-        question: "איך מייצאים נתונים?",
-        answer:
-          "בהגדרות ← נתונים ← \"ייצוא\" — בחרו סוג: לקוחות, חיות מחמד, כלבי שירות, או זכאים. הקובץ יורד ב-XLSX או CSV. ייצוא לקוחות כולל פרטי קשר, תגיות ומספר תורים. ייצוא כלבי שירות כולל מיקום נוכחי, שלב, סוג שירות ופרטים רפואיים.",
+        questionKey: "help.helpCenter.faq.analytics.items.export.question",
+        answerKey: "help.helpCenter.faq.analytics.items.export.answer",
       },
       {
-        question: "איך מייבאים נתונים?",
-        answer:
-          "ייבוא זמין עבור לקוחות (הגדרות ← נתונים), כלבי שירות (עמוד כלבים ← \"ייבוא מקובץ\"), וזכאים (עמוד זכאים ← \"ייבוא מקובץ\"). בכל מקרה: הורידו תבנית Excel לדוגמה, מלאו נתונים, העלו את הקובץ. המערכת מציגה תצוגה מקדימה עם שגיאות לפני ביצוע הייבוא.",
+        questionKey: "help.helpCenter.faq.analytics.items.import.question",
+        answerKey: "help.helpCenter.faq.analytics.items.import.answer",
       },
     ],
   },
   {
     id: "settings",
-    name: "הגדרות",
+    nameKey: "help.helpCenter.faq.settings.name",
     icon: Settings,
     items: [
       {
-        question: "מה ניתן לנהל בהגדרות?",
-        answer:
-          "ההגדרות מחולקות לקבוצות: העסק (פרטי העסק, מנוי וחיוב), תפעול (זמינות והזמנות, פנסיון, כלבי שירות, חוזים), תקשורת וצוות (הודעות ואוטומציות, צוות והרשאות), חיבורים ונתונים (אינטגרציות, עוזרי AI, ייבוא וייצוא) והחשבון שלי (פרופיל ואבטחה). שינויים נשמרים בסרגל שמירה שמופיע בתחתית, והמערכת מזהירה לפני יציאה עם שינויים שלא נשמרו. מי שאין לו הרשאה לשנות הגדרות עסק רואה אותן לקריאה בלבד.",
+        questionKey: "help.helpCenter.faq.settings.items.whatCanManage.question",
+        answerKey: "help.helpCenter.faq.settings.items.whatCanManage.answer",
       },
       {
-        question: "איך מנהלים צוות והרשאות?",
-        answer:
-          "בהגדרות ← \"צוות והרשאות\" (בעלים בלבד) מוסיפים חברי צוות ומגדירים תפקיד: בעלים (גישה מלאה), מנהל (תפעול מלא, פעולות קריטיות דורשות אישור בעלים), עובד ומתנדב. מעבר לתפקיד, הבעלים יכול להעניק או לשלול לכל חבר צוות הרשאות ספציפיות — למשל לראות הכנסות, לרשום תשלומים, לערוך מחירון, לייצא או לייבא נתונים, לשלוח הודעות ללקוחות, לשנות שעות פעילות, לנהל תבניות חוזים, לנהל פנסיון ולסנכרן ליומן Google. שינוי הרשאה נכנס לתוקף מיד, וביטול גישה מנתק את חבר הצוות מיידית.",
+        questionKey: "help.helpCenter.faq.settings.items.teamPermissions.question",
+        answerKey: "help.helpCenter.faq.settings.items.teamPermissions.answer",
       },
       {
-        question: "מה זה \"ניהול ובקרה\"?",
-        answer:
-          "\"ניהול ובקרה\" בתפריט (בעלים בלבד) הוא מרכז הבקרה של העסק: יומן פעילות מלא עם סינון, חיפוש וייצוא לאקסל (מי עשה מה ומתי), פעילות עוזר ה-AI, סיכום פעילות לכל חבר צוות וטבלת הרשאות, סשנים פעילים עם אפשרות לנתק מכשיר, התראות אבטחה (למשל על מחיקה, ייצוא או שינוי הרשאות) ובדיקת בריאות נתונים שמאתרת כפילויות ורשומות חסרות.",
+        questionKey: "help.helpCenter.faq.settings.items.businessAdmin.question",
+        answerKey: "help.helpCenter.faq.settings.items.businessAdmin.answer",
       },
       {
-        question: "איך מנהלים שירותים?",
-        answer:
-          "ניהול שירותים נמצא בעמוד \"מחירון\" — לחצו על כפתור \"שירותים\" בפינה הימנית העליונה. ייפתח לוח ניהול שירותים שבו ניתן: ליצור שירות חדש (שם, סוג, משך, מחיר, צבע ביומן, זמינות אונליין), לערוך, למחוק ולהפעיל/לבטל שירותים.",
+        questionKey: "help.helpCenter.faq.settings.items.services.question",
+        answerKey: "help.helpCenter.faq.settings.items.services.answer",
       },
       {
-        question: "איך מחברים Google Calendar?",
-        answer:
-          "בהגדרות ← אינטגרציות, לחצו \"חבר יומן Google\" ואשרו גישה. לאחר החיבור, כל תור חדש יתווסף אוטומטית ליומן Google שלכם ביומן נפרד בשם \"Petra Bookings\". שינויים מסתנכרנים בזמן אמת.",
+        questionKey: "help.helpCenter.faq.settings.items.googleCalendar.question",
+        answerKey: "help.helpCenter.faq.settings.items.googleCalendar.answer",
       },
       {
-        question: "מה זה Webhook ואיך מגדירים?",
-        answer:
-          "Webhook מאפשר קבלת לידים אוטומטית מטפסי יצירת קשר באתר שלכם. בהגדרות ← אינטגרציות, העתיקו את כתובת ה-Webhook הייעודית שלכם ושלבו אותה באתר. כל פנייה חדשה מהאתר תיצור ליד חדש אוטומטית במערכת המכירות.",
+        questionKey: "help.helpCenter.faq.settings.items.webhook.question",
+        answerKey: "help.helpCenter.faq.settings.items.webhook.answer",
       },
     ],
   },
   {
     id: "general",
-    name: "כללי",
+    nameKey: "help.helpCenter.faq.general.name",
     icon: HelpCircle,
     items: [
       {
-        question: "מה קורה בכניסה הראשונה למערכת?",
-        answer:
-          "בכניסה הראשונה מוצג אשף הקמה שמנחה: הוספת לקוח ראשון, הגדרת שירות במחירון, וחיבור Google Calendar. ניתן לדלג בכל שלב ולהשלים מאוחר יותר. לאחר השלמת האשף לא יוצג שוב.",
+        questionKey: "help.helpCenter.faq.general.items.firstLogin.question",
+        answerKey: "help.helpCenter.faq.general.items.firstLogin.answer",
       },
       {
-        question: "אילו רמות הרשאות קיימות?",
-        answer:
-          "4 רמות: בעלים — גישה מלאה לכל הפיצ'רים כולל הגדרות, אנליטיקס, פיננסים ומחיקות. מנהל — גישה מלאה לתפעול, אך מחיקות ופעולות קריטיות דורשות אישור בעלים (מנגנון \"אישורים ממתינים\"). עובד — גישה ליומן, לקוחות, חיות מחמד ומשימות בלבד, ללא לידים, הודעות, פיננסים ואנליטיקס. מתנדב — צפייה בלבד ללא אפשרות עריכה.",
+        questionKey: "help.helpCenter.faq.general.items.permissionLevels.question",
+        answerKey: "help.helpCenter.faq.general.items.permissionLevels.answer",
       },
       {
-        question: "מה זה מנגנון אישורים ממתינים?",
-        answer:
-          "כשמנהל מנסה לבצע פעולה קריטית (כמו מחיקת לקוח, שינוי הגדרות רגישות), הפעולה נשמרת כ\"ממתינה לאישור\" ולא מתבצעת מיידית. הבעלים רואה את כל האישורים הממתינים בהגדרות ← צוות, ויכול לאשר או לדחות. אישורים שלא טופלו פגים לאחר 48 שעות.",
+        questionKey: "help.helpCenter.faq.general.items.pendingApprovals.question",
+        answerKey: "help.helpCenter.faq.general.items.pendingApprovals.answer",
       },
       {
-        question: "מה זה סרגל תחתון בנייד?",
-        answer:
-          "במובייל מוצג סרגל ניווט תחתון עם 5 כפתורים: לקוח חדש (יצירה מהירה), הדרכה (סרטוני הדרכה), דף הבית (כפתור מרכזי בולט), משימות, ותורים (יומן). הסרגל מותאם לגובה בטוח של המכשיר (Safe Area).",
+        questionKey: "help.helpCenter.faq.general.items.bottomBar.question",
+        answerKey: "help.helpCenter.faq.general.items.bottomBar.answer",
       },
       {
-        question: "איפה נמצאים סרטוני ההדרכה?",
-        answer:
-          "סרטוני ההדרכה נגישים מהסיידבר (\"סרטוני הדרכה\" עם תג חדש) ומהתפריט התחתון במובייל (\"הדרכה\"). הסרטונים מכסים את כל מודולי המערכת: דשבורד, יומן, לקוחות, חיות מחמד, מכירות, משימות, הזמנות, פיננסים, פנסיון, אילוף, ניהול ובקרה והגדרות. לחצו על כרטיס כדי לצפות בסרטון.",
+        questionKey: "help.helpCenter.faq.general.items.tutorialVideos.question",
+        answerKey: "help.helpCenter.faq.general.items.tutorialVideos.answer",
       },
       {
-        question: "המערכת תומכת במובייל?",
-        answer:
-          "כן, המערכת מותאמת במלואה למובייל, טאבלט ומחשב (Responsive Design). בנייד, סרגל הצד מתפתח כמגירה בלחיצה על כפתור התפריט. בטאבלט, הסרגל מתכווץ אוטומטית לאייקונים בלבד. כל הפיצ'רים זמינים בכל מכשיר.",
+        questionKey: "help.helpCenter.faq.general.items.mobile.question",
+        answerKey: "help.helpCenter.faq.general.items.mobile.answer",
       },
       {
-        question: "מה הסשן — כמה זמן נשארים מחוברים?",
-        answer:
-          "כברירת מחדל, הסשן תקף ל-8 שעות. אם מסמנים \"זכור אותי\" בדף ההתחברות, הסשן נשמר ל-30 יום — אין צורך להתחבר מחדש בכל כניסה. התחברות עם Google שומרת אוטומטית סשן ל-30 יום. ניתן להתנתק ידנית מהתפריט בראש הדף.",
+        questionKey: "help.helpCenter.faq.general.items.session.question",
+        answerKey: "help.helpCenter.faq.general.items.session.answer",
       },
       {
-        question: "איך מדווחים על תקלה?",
-        answer:
-          "לחצו על כפתור \"?\" בסרגל העליון, עברו ללשונית \"דיווח על תקלה\" ותארו את הבעיה. ניתן גם לצרף צילום מסך (עד 2MB) — זה מאיץ מאוד את הטיפול בפנייה. הדיווח נשלח ישירות לצוות Petra באימייל ונשמר במערכת. אנחנו מתחייבים לחזור אליכם בהקדם.",
+        questionKey: "help.helpCenter.faq.general.items.reportBug.question",
+        answerKey: "help.helpCenter.faq.general.items.reportBug.answer",
       },
     ],
   },
@@ -678,209 +576,93 @@ const faqCategories: FaqCategory[] = [
 const changelog = [
   {
     version: "v19.0",
-    date: "אוקטובר 2026",
-    title: "דשבורד חדש, כרטיס לקוח חדש, מערכת מכירות משודרגת ושליטה מלאה בהרשאות ✨",
-    items: [
-      "דשבורד — עיצוב חדש ונקי, כל מספר וכל שורה לחיצים ומובילים בדיוק לרשימה שמאחוריהם, והתאמה אישית לכל משתמש: כפתור 'התאמת הדשבורד' מאפשר להסתיר רכיבים ולשנות את הסדר",
-      "לקוחות — רשימת לקוחות חדשה: סינון לפי סטטוס, חוב, תגית, ביקור אחרון, סוג חיה ומקור, מיון לפי יתרה, חיפוש טלפון בכל פורמט, ופעולות על כמה לקוחות יחד (תגיות, ייצוא, WhatsApp אישי)",
-      "לקוחות — כרטיס לקוח חדש: שורת סיכום עם יתרה, התור הבא והביקור האחרון, ניווט מהיר בין אזורים, עריכת תגיות במקום ורישום תשלום ישירות מהכרטיס",
-      "לקוחות — מיזוג לקוח כפול: שני כרטיסים של אותו לקוח הופכים לאחד, עם כל החיות, התורים, ההזמנות והתשלומים",
-      "מערכת מכירות — עיצוב חדש ללוח הלידים, 'ערך עסקה' לכל ליד עם סיכום בראש כל עמודה, ולשונית דוחות: משפך, אחוזי המרה, מקורות, סיבות אובדן ומי סגר כל עסקה",
-      "מערכת מכירות — מקור התנועה של לידים מהאתר (אורגני / ממומן / רשתות / WhatsApp) והעמוד שממנו הגיעו, כולל דוח של 12 חודשים. וההיסטוריה של הליד ממשיכה עם הלקוח: 'היסטוריית מכירה' בכרטיס הלקוח",
-      "דוחות — עמוד דוחות חדש בלשוניות, עם מדדים מדויקים ואחידים בכל המערכת: שימור לקוחות, הכנסות לפי שירות, יתרות פתוחות ומכירות מלידים",
-      "ניהול ובקרה — מרכז בקרה לבעלי העסק: יומן פעילות עם סינון וייצוא, פעילות עוזר ה-AI, סיכום לכל חבר צוות, ניתוק מכשירים מחוברים, התראות אבטחה ובדיקת בריאות נתונים",
-      "צוות והרשאות — הבעלים קובע לכל חבר צוות מה מותר: הכנסות, תשלומים, מחירון, ייצוא וייבוא, הודעות ללקוחות, שעות פעילות, חוזים, פנסיון ויומן Google. ההרשאות נאכפות בכל המערכת ונכנסות לתוקף מיד",
-      "הגדרות — מסך הגדרות מסודר מחדש בקבוצות, סרגל שמירה אחיד, אזהרה לפני יציאה עם שינויים שלא נשמרו, ומצב קריאה בלבד למי שאינו מורשה לשנות",
-      "עוזר AI — חיבור בלחיצה אחת ל-Claude ול-Codex (בלי להעתיק טוקן), והעוזר מכבד את ההרשאות שהבעלים הגדיר לכל חבר צוות",
-      "פנסיון — יומן הטיפול משותף בין הלוח היומי ללוח ההאכלה; כלבי שירות — טופס ביטוח פשוט יותר",
-      "מובייל — מעבר מקיף על כל המסכים בטלפון: כפתורים שלא נחתכים, חלונות שנפתחים כמו שצריך ואישור לפני כל פעולת מחיקה. ובכל המערכת — אנימציית טעינה אחידה של פטרה",
-    ],
+    id: "v19",
+    items: ["dashboard", "clientList", "clientCard", "clientMerge", "salesBoard", "salesAttribution", "reports", "businessAdmin", "permissions", "settings", "aiAssistant", "boardingServiceDogs", "mobile"],
   },
   {
     version: "v18.0",
-    date: "אוגוסט 2026",
-    title: "עוזר AI לכל עסק, מעקב הודעות בתפריט ויציבות מקצה לקצה 🤖",
-    items: [
-      "עוזר AI בתפריט הראשי: חברו את פטרה ל-Claude או ל-Codex ותנו לעוזר לקבוע תורים, להוסיף לקוחות, לבדוק יומן ולהפיק דוחות — בשפה חופשית. ההסבר המלא ב'עוזר AI' בתפריט",
-      "הודעות עברו לתפריט: מסך מעקב ההודעות (מה נשלח, מה ממתין, מה נכשל) זמין עכשיו ישירות מקבוצת 'ניהול' בתפריט הצד — בלי לחפש בתוך ניהול תורים",
-      "מעקב מסירה אמיתי לוואטסאפ: המערכת מקבלת אישור מסירה על כל הודעה ומתריעה אוטומטית על כשלים — התראות לידים והודעות ללקוחות יציבות מתמיד",
-      "רישום תשלום מהיר: כפתור 'רשום תשלום' ישירות מרשימת ההזמנות",
-      "יומן: פתיחת הזמנה בלחיצה מתוך תור ביומן, תצוגה חודשית מסונכרנת במלואה עם יומן גוגל, ואכיפת קיבולת חדרים בפנסיון",
-      "עשרות תיקוני יציבות: מחיקת חיות מחמד עם היסטוריה, הוספת לקוח מהתפריט התחתון במובייל, רשימת לקוחות שמתעדכנת מיד, והיעלמות סופית של שגיאות ה'קובץ' אחרי עדכוני מערכת",
-    ],
+    id: "v18",
+    items: ["aiAssistant", "messagesMenu", "deliveryTracking", "quickPayment", "calendar", "stability"],
   },
   {
     version: "v17.0",
-    date: "יולי 2026",
-    title: "שליטה מלאה בהודעות, חוזים דיגיטליים משודרגים ועשרות שיפורים 🚀",
-    items: [
-      "שליטה מלאה בהודעות אוטומטיות: שום הודעה לא נשלחת ללקוח בלי שהפעלתם אותה במפורש — כל סוג הודעה (אישור פגישה, תזכורות, הודעות פנסיון) עם מתג משלו בעמוד הודעות ← אוטומציות, וכל פגישה מקבלת אישור פעם אחת בלבד",
-      "אוטומציות מכירה חדשות: מעקב אוטומטי אחרי ליד חדש (הודעת וואטסאפ X שעות אחרי הפנייה, מתבטלת לבד אם הליד נסגר) ודרישת תשלום אוטומטית עם לינק תשלום ברגע שהזמנה מאושרת",
-      "חוזים דיגיטליים משודרגים: התראה מיידית כשלקוח חותם (בפעמון ובוואטסאפ), תיקון תצוגת החוזה אצל הלקוח החותם, מסכי סטטוס ברורים (נחתם / פג תוקף), וחתימה שנשמרת בפרופורציות נכונות",
-      "דוחות מכירה חדשים: לידים לפי מקור עם אחוזי המרה — סוף סוף רואים איזה ערוץ שיווק באמת עובד — ופילוח סיבות אובדן לידים, גם בייצוא לאקסל",
-      "עמוד חיות מחמד: הוספה ומחיקה של חיות ישירות מהעמוד, וטלפון הבעלים לחיץ לשיחה ולוואטסאפ",
-      "הזמנות: עריכת פריטים בהזמנת טיוטה, אישור ושליחת בקשת תשלום גם מהמחשב, וביטול תשלום שנרשם בטעות",
-      "טפסי קליטה: צפייה בתשובות שהלקוח מילא ומחיקת טפסים ישנים",
-      "ניווט משופר: דף החשבוניות צורף לטאבי הכספים, מחיקה מרובה של לידים ומשימות עם אישור כפול, סידור ידני של המחירון, ותיקון תקלה בשמירת פרטי העסק בהגדרות",
-    ],
+    id: "v17",
+    items: ["messageControl", "salesAutomations", "contracts", "salesReports", "petsPage", "orders", "intakeForms", "navigation"],
   },
   {
     version: "v16.0",
-    date: "יולי 2026",
-    title: "יומן חכם: סינון לפי סוג פעילות 📅",
-    items: [
-      "סינון היומן לפי קטגוריה: 11 קטגוריות בשלוש קבוצות — הזמנות ושירותי לקוח, אילוף מקצועי, וניהול ותפעול. כל אירוע מקבל צבע קבוע לפי סוגו, כך שבמבט אחד רואים מה קורה ביום",
-      "עדשות תצוגה מהירות: כפתור אחד מחליף את כל היומן — \"הזמנות לקוח\" מציג רק את מה שהלקוחות הזמינו, \"השירותים שלי\" רק את האילוף המקצועי שאתם מבצעים, ו\"ניהול\" רק משימות ולידים. סוף לערבוב בין השניים",
-      "הפרדה מלאה בין סוגי האילוף: אילוף בבית הלקוח, אילוף בתנאי פנסיון, אילוף קבוצתי וסדנאות — כל אחד עם סנן וצבע נפרדים. אפשר להציג רק את הסדנאות, או רק את הביקורים בבתי לקוחות כדי לתכנן נסיעות",
-      "סינון משימות: אפשר עכשיו להסתיר או להציג משימות ביומן (עד היום הן תמיד הופיעו)",
-      "צבעים מסונכרנים ליומן גוגל: כל אירוע נשלח לגוגל עם צבע הקטגוריה שלו — אותה שפה חזותית בפטרה וביומן גוגל בנייד",
-      "הסינון נשמר: הבחירה שלכם נשמרת אוטומטית וממתינה לכם גם אחרי רענון או כניסה מחדש",
-      "תודה מיוחדת לשחר 🙏 — השדרוג הזה נולד מהמשוב שלה. אם יש לכם רעיון שישפר את פטרה, נשמח לשמוע דרך \"צרו קשר\"",
-    ],
+    id: "v16",
+    items: ["categoryFilter", "lenses", "trainingTypes", "taskFilter", "googleColors", "savedFilter", "thanks"],
   },
   {
     version: "v15.0",
-    date: "יוני 2026",
-    title: "שדרוג מערך ניהול האילוף 🎓",
-    items: [
-      "מפגשי אילוף בלוח השנה: מפגשי תוכניות אישיות וקבוצות מופיעים כעת בכל תצוגות היומן (יום / שבוע / חודש / סדר יום) — תמונה מלאה של כל האילופים שלך במקום אחד",
-      "תזכורות WhatsApp אוטומטיות לקבוצות אילוף: כל משתתף מקבל תזכורת לפני המפגש לפי הגדרות הקבוצה (עד עכשיו הן לא נשלחו) — פחות אי-הגעות",
-      "יצירת סדרת מפגשים שבועיים בלחיצה אחת: כפתור \"צור סדרה\" בכרטיס הקבוצה מייצר את כל המפגשים הקבועים מראש, כולל נוכחות ותזכורות",
-      "מדדי אילוף חדשים בדוחות: מספר מפגשים שהושלמו, קבוצות פעילות, מפגשי קבוצה והכנסות מאילוף — מעקב אמיתי אחרי הפעילות",
-      "משימות מעקב אוטומטיות: המערכת פותחת לך משימה כשתוכנית אילוף פעילה נשארת ללא מפגש זמן רב, ולפני מפגש קבוצתי קרוב — שום לקוח לא נופל בין הכיסאות",
-      "עריכה ותזמון-מחדש של מפגשים: שינוי תאריך מפגש מעדכן אוטומטית גם את התזכורת ללקוח",
-      "תיקוני יציבות: מחיקת כלב המשובץ בקבוצה, ספירת נוכחות מדויקת, ובדיקות תקינות בכל יצירת תוכנית/קבוצה",
-    ],
+    id: "v15",
+    items: ["calendarSessions", "groupReminders", "weeklySeries", "metrics", "followUpTasks", "reschedule", "stability"],
   },
   {
     version: "v14.0",
-    date: "אפריל 2026",
-    title: "סרטוני הדרכה + שיפורי דף נחיתה",
-    items: [
-      "ספריית סרטוני הדרכה: 13 סרטונים קצרים לכל מודולי המערכת — נגישים מהסיידבר ומהתפריט התחתון",
-      "סרטון חדש: יומן פטרה — ניהול תורים, תצוגות וסנכרון Google Calendar",
-      "דף נחיתה: תמונת דשבורד אמיתית במקום מוקאפ מצויר",
-      "תפריט תחתון במובייל: כפתור \"הדרכה\" חדש לגישה מהירה לסרטונים",
-      "תגי \"חדש\" בסיידבר: ניהול משימות, חיות מחמד, יומן וניהול ובקרה",
-      "תיקון ניגון סרטונים ב-Safari iOS — תמיכה מלאה באייפון ואייפד",
-      "כפתור \"נסה עכשיו\" במסלול החינמי מפנה ישירות לדף ההרשמה",
-    ],
+    id: "v14",
+    items: ["videoLibrary", "calendarVideo", "landingScreenshot", "mobileTutorials", "newBadges", "safariFix", "tryNow"],
   },
   {
     version: "v13.0",
-    date: "אפריל 2026",
-    title: "צילום מסך בדיווח + שיפורי כלבי שירות",
-    items: [
-      "דיווח על תקלה: ניתן כעת לצרף צילום מסך — מאיץ מאוד את הטיפול בפנייה",
-      "הדפסת מפת חצרות ישירות מהממשק — תמיכה ב-2 עמודות ותאריך אוטומטי",
-      "שלב גידול (RAISING) חדש במחזור כלב שירות — בין בחירה לגור",
-      "מבחני הסמכה: הוספת מבחן SIMBA + בחירת תוצאה כללית ידנית לכל סוגי המבחנים",
-      "ייצוא XLSX כולל כעת תאריך בחינה שנתית מחזורית",
-      "זכאים — שלב \"נדחה\" מוסתר כברירת מחדל (ארכיון), נחשף בכפתור ייעודי",
-      "שיפורי UX: לשוניות כלב שסודרו מחדש, ניהול שלבי זכאים, עמודת שם כלב בטבלה",
-    ],
+    id: "v13",
+    items: ["screenshot", "yardPrint", "raisingPhase", "certTests", "xlsxExport", "rejectedArchive", "ux"],
   },
   {
     version: "v12.0",
-    date: "מרץ 2026",
-    title: "ייבוא כלבי שירות + ביצועים",
-    items: [
-      "ייבוא כלבי שירות וזכאים מקובץ Excel — תבנית מוכנה להורדה, תצוגה מקדימה ואישור",
-      "סרגל נייד חדש: לקוח חדש, לידים, דף הבית, משימות, תורים",
-      "שיפורי ביצועים: פונט Heebo self-hosted, Cache-Control בנתיבי API, צמצום prefetch",
-      "תיקון קריסת null בתשלומים ללא שירות משויך",
-    ],
+    id: "v12",
+    items: ["import", "mobileBar", "performance", "nullFix"],
   },
   {
     version: "v11.0",
-    date: "מרץ 2026",
-    title: "RBAC + הרשאות צוות",
-    items: [
-      "4 רמות הרשאות: בעלים, מנהל, עובד, מתנדב",
-      "מנגנון אישורים ממתינים למנהלים (מחיקות, הגדרות קריטיות)",
-      "הסתרת שדות רגישים מעובדים: כתובת, פיננסים, פרטי זכאים",
-      "מחיקת לקוח/כלב/תוכנית דורשת אישור כפול מבעלים",
-      "מעקב מיקום כלבי שירות: מאמן / אומנה / פנסיון / שטח",
-    ],
+    id: "v11",
+    items: ["levels", "pendingApprovals", "sensitiveFields", "doubleConfirm", "locationTracking"],
   },
   {
     version: "v10.0",
-    date: "מרץ 2026",
-    title: "WhatsApp + תשלומים + Google Calendar",
-    items: [
-      "תזכורות WhatsApp אוטומטיות לתורים (PRO+) עם הגדרת מרחק שעות",
-      "דרישת תשלום בוואטסאפ מהזמנות ומעמוד הזמנה",
-      "חיבור Google Calendar דו-כיווני — סנכרון תורים בזמן אמת",
-      "8 תבניות הודעות מוכנות לשימוש עם משתנים דינמיים",
-    ],
+    id: "v10",
+    items: ["reminders", "paymentRequest", "googleCalendar", "templates"],
   },
   {
     version: "v9.0",
-    date: "מרץ 2026",
-    title: "חוויית משתמש + כלבי שירות",
-    items: [
-      "\"זכור אותי\" בהתחברות — שמירת סשן ל-30 יום",
-      "שיבוץ כלב שירות לזכאי ישירות מתיק הכלב",
-      "דשבורד משודרג: כרטיסים לחיצים, אזור מיקוד יומי, מחוון הזדקנות לידים",
-      "באנר איחור צ'ק-אאוט בפנסיון עם כפתור \"טפל עכשיו\"",
-    ],
+    id: "v9",
+    items: ["rememberMe", "placement", "dashboard", "lateBanner"],
   },
   {
     version: "v8.0",
-    date: "מרץ 2026",
-    title: "מודול חיות מחמד",
-    items: [
-      "מעקב משקל עם גרף קו היסטורי",
-      "גלריית תמונות + תצוגת lightbox",
-      "יומן טיפול בפנסיון (האכלה, תרופה, טיול)",
-      "קומבובוקס 60+ גזעי כלבים ו-14 גזעי חתולים",
-      "ייצוא XLSX לכל חיות המחמד",
-    ],
+    id: "v8",
+    items: ["weight", "gallery", "careLog", "breeds", "export"],
   },
   {
     version: "v7.0",
-    date: "מרץ 2026",
-    title: "WhatsApp Meta API + כלבי שירות",
-    items: [
-      "תמיכה ב-Meta WhatsApp Cloud API",
-      "דשבורד כלבי שירות עם ווידג'ט התראות",
-      "תיקוני אבטחה (IDOR) בכל נתיבי ה-API",
-    ],
+    id: "v7",
+    items: ["cloudApi", "dashboard", "security"],
   },
   {
     version: "v6.0",
-    date: "פבר׳ 2026",
-    title: "ייצוא, אבטחה, DnD קנבן",
-    items: [
-      "ייצוא לקוחות + חיות מחמד ל-XLSX/CSV",
-      "גרירה ושחרור בלוח הלידים (DnD קנבן)",
-      "שלבי לידים מותאמים אישית — יצירה, עריכה, צבעים",
-    ],
+    id: "v6",
+    items: ["export", "dragDrop", "customStages"],
   },
   {
     version: "v5.0",
-    date: "ינו׳ 2026",
-    title: "מודול כלבי שירות",
-    items: [
-      "9 לשוניות: תיק, אימון, רפואה, מבחני ADI, שיבוץ, ביטוח, ציוד, מסמכים, הסמכה",
-      "תעודת זיהוי דיגיטלית + QR לאימות",
-      "קנבן זכאים עם שלבים מותאמים",
-      "מיתאמי שיבוץ (ניסיון / פעיל / הושלם)",
-    ],
+    id: "v5",
+    items: ["tabs", "digitalId", "recipientsKanban", "placementStatuses"],
   },
 ];
 
 function AccordionItem({ item }: { item: FaqItem }) {
+  const t = useTranslations();
   const [isOpen, setIsOpen] = useState(false);
 
   return (
     <div className="border-b border-petra-border last:border-b-0">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between py-3.5 px-4 text-right hover:bg-slate-50 transition-colors duration-150 gap-3"
+        className="w-full flex items-center justify-between py-3.5 px-4 text-start hover:bg-slate-50 transition-colors duration-150 gap-3"
       >
         <span className="text-sm font-medium text-petra-text leading-relaxed">
-          {item.question}
+          {t(item.questionKey)}
         </span>
         <ChevronDown
           className={cn(
@@ -896,7 +678,7 @@ function AccordionItem({ item }: { item: FaqItem }) {
         )}
       >
         <p className="px-4 pb-4 text-sm text-petra-muted leading-relaxed">
-          {item.answer}
+          {t(item.answerKey)}
         </p>
       </div>
     </div>
@@ -911,6 +693,8 @@ interface HelpCenterProps {
 }
 
 export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
+  const t = useTranslations("help.helpCenter");
+  const tr = useTranslations();
   const [activeTab, setActiveTab] = useState<Tab>("faq");
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -925,7 +709,7 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 2 * 1024 * 1024) {
-      toast.error("הקובץ גדול מדי — מקסימום 2MB");
+      toast.error(t("bugReport.fileTooLarge"));
       return;
     }
     const reader = new FileReader();
@@ -938,7 +722,7 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
 
   const bugMutation = useMutation({
     mutationFn: async (description: string) => {
-      const autoTitle = description.slice(0, 60).trim() || "פנייה ממרכז עזרה";
+      const autoTitle = description.slice(0, 60).trim() || t("bugReport.defaultTitle");
       const res = await fetch("/api/support/report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -946,15 +730,15 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
       });
       if (!res.ok) {
         const json = await res.json();
-        throw new Error(json.error ?? "שגיאה");
+        throw new Error(json.error ?? t("bugReport.errorGeneric"));
       }
       return res.json();
     },
     onSuccess: (data: { id?: string }) => {
-      toast.success("הפנייה נשלחה — נחזור אליך בהקדם 🙏", {
-        description: "התשובה תגיע במייל ותופיע תחת \"הפניות שלי\"",
+      toast.success(t("bugReport.success"), {
+        description: t("bugReport.successDescription"),
         action: data?.id
-          ? { label: "לצפייה בפנייה", onClick: () => { onOpenChange(false); router.push(`/support?ticket=${data.id}`); } }
+          ? { label: t("bugReport.viewTicket"), onClick: () => { onOpenChange(false); router.push(`/support?ticket=${data.id}`); } }
           : undefined,
       });
       setBugDescription("");
@@ -963,7 +747,7 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
       if (screenshotInputRef.current) screenshotInputRef.current.value = "";
     },
     onError: (err: Error) => {
-      toast.error(err.message || "שגיאה בשליחת הפנייה");
+      toast.error(err.message || t("bugReport.sendError"));
     },
   });
 
@@ -977,12 +761,12 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
         items: cat.items.filter(
           (item) =>
             !search.trim() ||
-            item.question.includes(search) ||
-            item.answer.includes(search)
+            tr(item.questionKey).includes(search) ||
+            tr(item.answerKey).includes(search)
         ),
       }))
       .filter((cat) => cat.items.length > 0);
-  }, [search, selectedCategory]);
+  }, [search, selectedCategory, tr]);
 
   const totalResults = filteredCategories.reduce(
     (acc, cat) => acc + cat.items.length,
@@ -996,7 +780,7 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
         <DialogHeader className="p-5 pb-0 border-b border-petra-border space-y-0">
           <div className="flex items-center justify-between mb-4">
             <DialogTitle className="text-xl font-bold text-petra-text">
-              מרכז עזרה
+              {t("title")}
             </DialogTitle>
           </div>
 
@@ -1004,10 +788,10 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
           <div className="flex gap-0 border-b border-petra-border -mb-px">
             {(
               [
-                { id: "faq" as Tab, label: "שאלות נפוצות" },
-                { id: "changelog" as Tab, label: "מה חדש" },
-                { id: "contact" as Tab, label: "צרו קשר" },
-              ] as { id: Tab; label: string }[]
+                { id: "faq" as Tab },
+                { id: "changelog" as Tab },
+                { id: "contact" as Tab },
+              ] as { id: Tab }[]
             ).map((tab) => (
               <button
                 key={tab.id}
@@ -1019,7 +803,7 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
                     : "border-transparent text-petra-muted hover:text-petra-text"
                 )}
               >
-                {tab.label}
+                {t(`tabs.${tab.id}`)}
               </button>
             ))}
           </div>
@@ -1028,13 +812,13 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
           {activeTab === "faq" && (
             <div className="pt-4 space-y-3 pb-4">
               <div className="relative">
-                <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted" />
+                <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted" />
                 <input
                   type="text"
-                  placeholder="חפשו שאלה..."
+                  placeholder={t("faqTab.searchPlaceholder")}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="input pr-10"
+                  className="input ps-10"
                 />
               </div>
 
@@ -1048,7 +832,7 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
                       : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                   )}
                 >
-                  הכל
+                  {t("faqTab.all")}
                 </button>
                 {faqCategories.map((cat) => {
                   const Icon = cat.icon;
@@ -1068,7 +852,7 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
                       )}
                     >
                       <Icon className="w-3 h-3" />
-                      {cat.name}
+                      {tr(cat.nameKey)}
                     </button>
                   );
                 })}
@@ -1088,10 +872,10 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
                     <Search className="w-6 h-6 text-slate-400" />
                   </div>
                   <p className="text-sm font-medium text-petra-text mb-1">
-                    לא נמצאו תוצאות
+                    {t("faqTab.noResults")}
                   </p>
                   <p className="text-xs text-petra-muted">
-                    נסו לחפש במילים אחרות
+                    {t("faqTab.tryOtherWords")}
                   </p>
                 </div>
               ) : (
@@ -1104,10 +888,10 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
                           <Icon className="w-3.5 h-3.5 text-brand-600" />
                         </div>
                         <h3 className="text-sm font-semibold text-petra-text">
-                          {category.name}
+                          {tr(category.nameKey)}
                         </h3>
                         <span className="badge-neutral text-[10px] ms-auto">
-                          {category.items.length} שאלות
+                          {t("faqTab.questionsCount", { count: category.items.length })}
                         </span>
                       </div>
 
@@ -1121,7 +905,7 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
 
               {search.trim() && filteredCategories.length > 0 && (
                 <p className="text-center text-xs text-petra-muted pt-2">
-                  נמצאו {totalResults} תוצאות
+                  {t("faqTab.resultsFound", { count: totalResults })}
                 </p>
               )}
             </>
@@ -1139,20 +923,20 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-bold text-petra-text">
-                          {release.title}
+                          {t(`changelog.${release.id}.title`)}
                         </span>
                         <span className="badge bg-brand-50 text-brand-700 border border-brand-100 text-[10px]">
                           {release.version}
                         </span>
                       </div>
                     </div>
-                    <span className="text-xs text-petra-muted">{release.date}</span>
+                    <span className="text-xs text-petra-muted">{t(`changelog.${release.id}.date`)}</span>
                   </div>
                   <ul className="px-4 py-3 space-y-1.5">
-                    {release.items.map((item, idx) => (
-                      <li key={idx} className="flex items-start gap-2 text-sm text-petra-muted">
+                    {release.items.map((item) => (
+                      <li key={item} className="flex items-start gap-2 text-sm text-petra-muted">
                         <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-brand-400 flex-shrink-0" />
-                        {item}
+                        {t(`changelog.${release.id}.items.${item}`)}
                       </li>
                     ))}
                   </ul>
@@ -1166,7 +950,7 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
             <div className="space-y-4">
               <div className="card p-5 space-y-4">
                 <h3 className="text-base font-semibold text-petra-text">
-                  יצירת קשר עם התמיכה
+                  {t("contact.heading")}
                 </h3>
                 <div className="space-y-3">
                   <Link
@@ -1178,8 +962,8 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
                       <LifeBuoy className="w-4 h-4 text-orange-600" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-petra-text">הפניות שלי</p>
-                      <p className="text-xs text-petra-muted">תשובות הצוות וכל היסטוריית הטיפול בפניות שלך</p>
+                      <p className="text-sm font-medium text-petra-text">{t("contact.myTickets")}</p>
+                      <p className="text-xs text-petra-muted">{t("contact.myTicketsDescription")}</p>
                     </div>
                   </Link>
 
@@ -1206,7 +990,7 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
                       <Mail className="w-4 h-4 text-blue-600" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-petra-text">אימייל</p>
+                      <p className="text-sm font-medium text-petra-text">{t("contact.email")}</p>
                       <p className="text-xs text-petra-muted">alldogneed@gmail.com</p>
                     </div>
                   </a>
@@ -1218,12 +1002,12 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
                   <Clock className="w-4 h-4 text-amber-600" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-petra-text mb-1">זמן תגובה</p>
+                  <p className="text-sm font-medium text-petra-text mb-1">{t("contact.responseTime")}</p>
                   <p className="text-sm text-petra-muted">
-                    WhatsApp — בדרך כלל תוך שעה בשעות פעילות (א׳–ו׳, 09:00–18:00).
+                    {t("contact.whatsappResponse")}
                   </p>
                   <p className="text-sm text-petra-muted mt-1">
-                    אימייל — תוך 24 שעות.
+                    {t("contact.emailResponse")}
                   </p>
                 </div>
               </div>
@@ -1234,7 +1018,7 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
                   <div className="w-7 h-7 rounded-lg bg-orange-100 flex items-center justify-center">
                     <LifeBuoy className="w-3.5 h-3.5 text-orange-600" />
                   </div>
-                  <h3 className="text-sm font-semibold text-petra-text">דווח על תקלה</h3>
+                  <h3 className="text-sm font-semibold text-petra-text">{t("bugReport.heading")}</h3>
                 </div>
                 <form
                   onSubmit={(e) => {
@@ -1247,7 +1031,7 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
                   <textarea
                     className="input w-full resize-none text-sm"
                     rows={4}
-                    placeholder="תאר מה קרה, מה ניסית לעשות, ומה הייתה השגיאה..."
+                    placeholder={t("bugReport.placeholder")}
                     value={bugDescription}
                     onChange={(e) => setBugDescription(e.target.value)}
                     maxLength={1000}
@@ -1256,14 +1040,14 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
                   {/* Screenshot upload */}
                   <div className="rounded-xl border-2 border-dashed border-amber-200 bg-amber-50/60 px-4 py-3">
                     <p className="text-xs font-medium text-amber-800 mb-2">
-                      📸 צרף צילום מסך — מאיץ מאוד את הטיפול בפנייה!
+                      {t("bugReport.screenshotHint")}
                     </p>
                     {screenshotBase64 ? (
                       <div className="flex items-center gap-2">
                         <img src={screenshotBase64} alt="screenshot preview" className="h-16 w-24 object-cover rounded-lg border border-amber-300 flex-shrink-0" />
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-medium text-petra-text truncate">{screenshotName}</p>
-                          <p className="text-[10px] text-green-600 mt-0.5">✓ הצילום מוכן לשליחה</p>
+                          <p className="text-[10px] text-green-600 mt-0.5">{t("bugReport.screenshotReady")}</p>
                         </div>
                         <button
                           type="button"
@@ -1280,7 +1064,7 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
                         className="flex items-center gap-2 text-xs text-amber-700 hover:text-amber-900 font-medium transition-colors"
                       >
                         <ImagePlus className="w-4 h-4" />
-                        לחץ לצירוף צילום מסך (עד 2MB)
+                        {t("bugReport.attachScreenshot")}
                       </button>
                     )}
                     <input
@@ -1294,7 +1078,7 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
 
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-xs text-petra-muted">
-                      הפנייה תישלח לצוות הפיתוח עם פרטי הדף הנוכחי
+                      {t("bugReport.footerNote")}
                     </p>
                     <button
                       type="submit"
@@ -1302,7 +1086,7 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
                       className="btn-primary gap-2 flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Send className="w-3.5 h-3.5" />
-                      {bugMutation.isPending ? "שולח..." : "שלח"}
+                      {bugMutation.isPending ? t("bugReport.sending") : t("bugReport.send")}
                     </button>
                   </div>
                 </form>

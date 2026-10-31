@@ -118,7 +118,8 @@ const HE_MESSAGES = JSON.parse(readFileSync(join(ROOT, "messages/he.json"), "utf
 function heMessage(key) {
   const v = key.split(".").reduce((o, k) => (o && typeof o === "object" ? o[k] : undefined), HE_MESSAGES);
   if (typeof v !== "string") throw new Error(`messages/he.json: key "${key}" not found (assistant knowledge)`);
-  return v;
+  // ICU escaping → plain text: '{' '}' '#' and '' (apostrophe)
+  return v.replace(/'([{}#|])'/g, "$1").replace(/''/g, "'");
 }
 function resolveMessageKeys(value) {
   if (Array.isArray(value)) return value.map(resolveMessageKeys);
