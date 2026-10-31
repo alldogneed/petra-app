@@ -16,6 +16,7 @@ const BUSINESS_TYPES = [
   { value: "פנסיון", label: "פנסיון לכלבים", emoji: "🏠" },
   { value: "מספרה", label: "מספרה לחיות מחמד", emoji: "✂️" },
   { value: "משולב", label: "משולב (אילוף, פנסיון, מספרה)", emoji: "🌟" },
+  { value: "עסק אחר", label: "עסק אחר (לא חיות מחמד)", emoji: "💼" },
 ];
 
 const CLIENT_RANGES = ["עד 20", "20-50", "50+"];

@@ -15,6 +15,7 @@ import { cookies } from "next/headers";
 import prisma from "@/lib/prisma";
 import { isMcpAllowedUser } from "@/lib/mcp-allowlist";
 import { hasActiveRecurring, isAwaitingRecurringCharge, isSubscriptionLapsed } from "@/lib/subscription-access";
+import { normalizeVertical } from "@/lib/verticals";
 import {
   createSession as _createSession,
   deleteSession as _deleteSession,
@@ -214,7 +215,7 @@ export async function getCurrentUser() {
     effectiveBusinessId
       ? prisma.business.findUnique({
           where: { id: effectiveBusinessId },
-          select: { name: true, slug: true, tier: true, featureOverrides: true, trialEndsAt: true, subscriptionEndsAt: true, subscriptionStatus: true, cardcomRecurringId: true },
+          select: { name: true, slug: true, tier: true, vertical: true, featureOverrides: true, trialEndsAt: true, subscriptionEndsAt: true, subscriptionStatus: true, cardcomRecurringId: true },
         })
       : Promise.resolve(null),
     prisma.platformUser.findUnique({
@@ -268,6 +269,8 @@ export async function getCurrentUser() {
     businessName: business?.name ?? null,
     businessSlug,
     businessTier: storedTier,
+    // "dogs" | "generic" — drives useVertical() (docs/verticals)
+    businessVertical: normalizeVertical(business?.vertical),
     businessEffectiveTier,
     businessTrialEndsAt: trialEndsAt?.toISOString() ?? null,
     businessSubscriptionEndsAt: subscriptionEndsAt?.toISOString() ?? null,

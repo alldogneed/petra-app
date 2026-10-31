@@ -309,6 +309,7 @@ model Business {
   gcalBlockExternal  Boolean @default(false) // block any GCal event (not just Petra ones)
   customerTags String  @default("[\"VIP\",\"קבוע\",\"מזדמן\",\"פוטנציאל\",\"לשעבר\",\"עסקי\"]") // JSON array of preset customer tag labels
   timezone    String   @default("Asia/Jerusalem")
+  vertical    String   @default("dogs") // "dogs" | "generic" — see src/lib/verticals/index.ts (docs/verticals)
   webhookApiKey String? @unique // per-business webhook API key (pk_...)
   webhookApiKeyCreatedAt DateTime?
   sdSettings    Json?   // service-dog settings: { trackHours, defaultTargetHours, allowManualCert }
@@ -1418,7 +1419,7 @@ model TrainingPackage {
 model TrainingProgram {
   id                   String   @id @default(uuid())
   businessId           String
-  dogId                String
+  dogId                String? // null only for vertical "generic" (a program without a subject)
   customerId           String?
   packageId            String?  // FK → TrainingPackage (optional)
   name                 String   // e.g. "אילוף בסיסי", "תגובתיות"
@@ -1443,7 +1444,7 @@ model TrainingProgram {
   updatedAt            DateTime @updatedAt
 
   business      Business          @relation(fields: [businessId], references: [id])
-  dog           Pet               @relation(fields: [dogId], references: [id], onDelete: Cascade)
+  dog           Pet?              @relation(fields: [dogId], references: [id], onDelete: Cascade)
   customer      Customer?         @relation(fields: [customerId], references: [id])
   package       TrainingPackage?  @relation(fields: [packageId], references: [id])
   order         Order?            @relation("OrderTrainingPrograms", fields: [orderId], references: [id], onDelete: SetNull)

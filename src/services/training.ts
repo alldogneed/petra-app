@@ -1168,6 +1168,11 @@ export async function convertProgramToGroup(
   if (!program.customerId) {
     throw new ServiceError("לתוכנית אין לקוח משויך — לא ניתן להמיר לקבוצה", "VALIDATION");
   }
+  const dogId = program.dogId;
+  if (!dogId) {
+    // Generic-vertical program (no subject) — group participants are per dog.
+    throw new ServiceError("לא ניתן להמיר לקבוצה תוכנית ללא משתתף", "VALIDATION");
+  }
 
   const group = await db.trainingGroup.findFirst({
     where: { id: input.trainingGroupId, businessId },
@@ -1176,10 +1181,10 @@ export async function convertProgramToGroup(
   if (!group) throw new ServiceError("קבוצת אימון לא נמצאה", "NOT_FOUND");
 
   const participant = await db.trainingGroupParticipant.upsert({
-    where: { trainingGroupId_dogId: { trainingGroupId: group.id, dogId: program.dogId } },
+    where: { trainingGroupId_dogId: { trainingGroupId: group.id, dogId } },
     create: {
       trainingGroupId: group.id,
-      dogId: program.dogId,
+      dogId,
       customerId: program.customerId,
       status: "ACTIVE",
       orderId: program.orderId,
@@ -1335,7 +1340,7 @@ export async function createProgramSession(
     sessionStatus === "COMPLETED" ? await completeAppointmentOfSession(businessId, db, session.appointmentId) : null;
 
   // Accumulate training hours for service dog programs
-  if (sessionStatus === "COMPLETED" && program.trainingType === "SERVICE_DOG") {
+  if (sessionStatus === "COMPLETED" && program.trainingType === "SERVICE_DOG" && program.dogId) {
     const sdProfile = await db.serviceDogProfile.findFirst({
       where: { petId: program.dogId, businessId },
     });
@@ -1487,6 +1492,7 @@ export async function deleteProgramSession(
   if (
     session.status === "COMPLETED" &&
     program.trainingType === "SERVICE_DOG" &&
+    program.dogId &&
     session.durationMinutes
   ) {
     const sdProfile = await db.serviceDogProfile.findFirst({

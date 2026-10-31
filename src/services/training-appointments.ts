@@ -97,7 +97,7 @@ export async function bookSessionAsAppointment(
 export interface AttachablePrograms {
   id: string;
   name: string;
-  dogId: string;
+  dogId: string | null;
   dogName: string;
   totalSessions: number | null;
   completedSessions: number;

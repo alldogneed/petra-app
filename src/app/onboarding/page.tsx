@@ -28,6 +28,8 @@ import { hasFeature } from "@/lib/feature-flags";
 import type { TierKey } from "@/lib/feature-flags";
 import { LEGAL_ENTITY_TYPES } from "@/lib/legal-entity";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { VERTICALS, normalizeVertical, type Vertical } from "@/lib/verticals";
+import { vocab } from "@/lib/verticals/vocab";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -35,6 +37,7 @@ interface BusinessInfo {
   name: string;
   phone: string;
   tier: TierKey;
+  vertical: Vertical;
 }
 
 // ─── Step definitions ─────────────────────────────────────────────────────────
@@ -63,9 +66,10 @@ function OnboardingInner() {
           name: d.name ?? "",
           phone: d.phone ?? "",
           tier: (d.effectiveTier ?? d.tier ?? "free") as TierKey,
+          vertical: normalizeVertical(d.vertical),
         });
       })
-      .catch(() => setBusiness({ name: "", phone: "", tier: "free" }));
+      .catch(() => setBusiness({ name: "", phone: "", tier: "free", vertical: "dogs" }));
   }, []);
 
   // Detect return from Google OAuth (keep for backward-compat)
@@ -184,8 +188,9 @@ function OnboardingInner() {
           <StepBusiness
             initialName={business?.name ?? ""}
             initialPhone={business?.phone ?? ""}
-            onNext={(updatedName) => {
-              setBusiness((prev) => prev ? { ...prev, name: updatedName } : prev);
+            initialVertical={business?.vertical ?? "dogs"}
+            onNext={(updatedName, vertical) => {
+              setBusiness((prev) => prev ? { ...prev, name: updatedName, vertical } : prev);
               setStep(2);
             }}
           />
@@ -295,13 +300,17 @@ function StepWelcome({
 function StepBusiness({
   initialName,
   initialPhone,
+  initialVertical,
   onNext,
 }: {
   initialName: string;
   initialPhone: string;
-  onNext: (name: string) => void;
+  initialVertical: Vertical;
+  onNext: (name: string, vertical: Vertical) => void;
 }) {
   const [name, setName] = useState(initialName);
+  // Verticals (docs/verticals): "עסק אחר" hides the dog modules. Default = today's flow.
+  const [vertical, setVertical] = useState<Vertical>(initialVertical);
   const [phone, setPhone] = useState(initialPhone);
   const [legalEntityType, setLegalEntityType] = useState("");
   const [vatNumber, setVatNumber] = useState("");
@@ -324,16 +333,22 @@ function StepBusiness({
           phone: phone.trim(),
           ...(legalEntityType ? { legalEntityType } : {}),
           ...(legalEntityType && vatNumber.trim() ? { vatNumber: vatNumber.trim() } : {}),
+          // Sent only when changed — the default (dogs) request body is exactly as before.
+          ...(vertical !== initialVertical ? { vertical } : {}),
         }),
       });
       if (!res.ok) { const d = await res.json(); setError(d.error || "שגיאה בשמירה"); return; }
+      if (vertical !== initialVertical) {
+        // /api/auth/me is HTTP-cached for 60s — refresh it so the dashboard opens with the new vertical.
+        await fetch("/api/auth/me", { cache: "reload" }).catch(() => null);
+      }
       await fetch("/api/onboarding/progress", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ stepCompleted1: true }),
       });
       toast.success("פרטי העסק נשמרו!");
-      onNext(name.trim());
+      onNext(name.trim(), vertical);
     } finally {
       setSaving(false);
     }
@@ -344,6 +359,28 @@ function StepBusiness({
       <div>
         <h2 className="text-xl font-bold text-petra-text mb-1">פרטי העסק</h2>
         <p className="text-sm text-petra-muted">שם ומספר טלפון — נדרשים לתזכורות WhatsApp ולדף ההזמנות האונליין שלך</p>
+      </div>
+
+      <div>
+        <label className="label">סוג העסק</label>
+        <div className="grid grid-cols-2 gap-2 mt-1">
+          {VERTICALS.map((key) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setVertical(key)}
+              aria-pressed={vertical === key}
+              className={`px-3 py-2.5 rounded-xl border text-right transition-colors ${
+                vertical === key
+                  ? "border-brand-500 bg-brand-50 text-brand-700"
+                  : "border-slate-200 bg-white text-petra-muted hover:border-slate-300"
+              }`}
+            >
+              <span className="block text-sm font-medium">{vocab("business.kind", { vertical: key })}</span>
+              <span className="block text-[11px] mt-0.5 opacity-80">{vocab("business.kind_hint", { vertical: key })}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       <div>

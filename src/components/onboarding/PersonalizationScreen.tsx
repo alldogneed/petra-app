@@ -7,7 +7,7 @@ const QUESTIONS = [
   {
     id: "businessType",
     question: "מה סוג העסק שלך?",
-    options: ["מאלף כלבים", "פנסיון", "מספרה", "משולב"],
+    options: ["מאלף כלבים", "פנסיון", "מספרה", "משולב", "עסק אחר"],
   },
   {
     id: "activeClientsRange",
