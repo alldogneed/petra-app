@@ -12,9 +12,9 @@ Branch: `claude/gracious-dijkstra-p3eq67` (ראו DECISIONS D-001). סשן חי�
 | 0.6 פיילוט tasks | ✅ | tasks/page.tsx, PetraLoader.tsx | 207 מפתחות (268 מקטעים) | 13 | [phase0](qa/phase0/) | 8d7735f |
 | 0.7 שער יציאה | ✅ | tsc + build ירוקים, he 0.000% (tasks), en נבדק, סקירת אבטחה ללא HIGH/MEDIUM | — | — | [phase0](qa/phase0/) · [דוח](PHASE-0-report.md) | phase0-close |
 | גל א — nav/layout/common/topbar/search/help | ✅ | 31 | 1,766 (he+en) | ~60 | [wave-a](qa/wave-a/) — he ≤0.08% (16/16), en ✅ | 5543163 |
-| גל ב — customers, pets, leads, calendar, scheduler, orders, dashboard | 🔄 | | | | | |
-| גל ג — settings, business-admin, messages, onboarding | ⬜ | | | | | |
-| גל ד — boarding | ⬜ | | | | | |
+| גל ב — customers, pets, leads, calendar, scheduler, orders, dashboard | ✅ | 90 | 6,064 (he+en) | ~230 | [wave-b](qa/wave-b/) — he ≤0.009% (32/32), en ✅ | 4c03f6b |
+| גל ג — settings, business-admin, messages, onboarding | 🔄 | | | | | |
+| גל ד — boarding | 🔄 | | | | | |
 | גל ה — training, online-classes, portal | ⬜ | | | | | |
 | גל ו — service-dogs | ⬜ | | | | | |
 | גל ז — landing, auth, legal, public pages, owner | ⬜ | | | | | |
@@ -146,7 +146,7 @@ Branch: `claude/gracious-dijkstra-p3eq67` (ראו DECISIONS D-001). סשן חי�
 - `src/app/(dashboard)/pricing/page.tsx` → `pricing.pricingPage` (107)
 - `src/app/(dashboard)/scheduler/page.tsx` → `scheduler.schedulerPage` (74)
 
-### גל C — settings, business-admin, messages, onboarding (+intake-forms, import, availability) · 48 קבצים · ~1768 מחרוזות · 16 סוכנים
+### גל C — settings, business-admin, messages, onboarding (+intake-forms, import, availability) · 69 קבצים · ~2104 מחרוזות · 19 סוכנים
 - `src/app/(dashboard)/business-admin/page.tsx` → `businessAdmin.businessAdminPage` (16)
 - `src/components/business-admin/ActivityTab.tsx` → `businessAdmin.activityTab` (23)
 - `src/components/business-admin/AiActivityTab.tsx` → `businessAdmin.aiActivityTab` (22)
@@ -195,35 +195,35 @@ Branch: `claude/gracious-dijkstra-p3eq67` (ראו DECISIONS D-001). סשן חי�
 - `src/components/settings/shared.tsx` → `settings.shared` (24)
 - `src/hooks/useBusinessSettings.ts` → `settings.useBusinessSettings` (3)
 - `src/components/tenant-admin/tenant-admin-shell.tsx` → `tenantAdmin.tenantAdminShell` (8)
+- `src/app/onboarding/layout.tsx` → `onboarding.onboardingLayout` (3)
+- `src/app/onboarding/page.tsx` → `onboarding.onboardingPage` (108)
+- `src/components/onboarding/AddCustomerForm.tsx` → `onboarding.addCustomerForm` (11)
+- `src/components/onboarding/CompletionScreen.tsx` → `onboarding.completionScreen` (7)
+- `src/components/onboarding/EnableRemindersStep.tsx` → `onboarding.enableRemindersStep` (6)
+- `src/components/onboarding/OnboardingOverlay.tsx` → `onboarding.onboardingOverlay` (21)
+- `src/components/onboarding/OnboardingProgressBar.tsx` → `onboarding.onboardingProgressBar` (4)
+- `src/components/onboarding/OnboardingWizard.tsx` → `onboarding.onboardingWizard` (8)
+- `src/components/onboarding/OnboardingWizardModal.tsx` → `onboarding.onboardingWizardModal` (10)
+- `src/components/onboarding/PersonalizationScreen.tsx` → `onboarding.personalizationScreen` (15)
+- `src/components/onboarding/ScheduleServiceForm.tsx` → `onboarding.scheduleServiceForm` (12)
+- `src/components/onboarding/SetupChecklist.tsx` → `onboarding.setupChecklist` (10)
+- `src/components/onboarding/SkipConfirmModal.tsx` → `onboarding.skipConfirmModal` (4)
+- `src/components/onboarding/StepBusinessDetails.tsx` → `onboarding.stepBusinessDetails` (14)
+- `src/components/onboarding/StepCompletion.tsx` → `onboarding.stepCompletion` (9)
+- `src/components/onboarding/StepFirstClient.tsx` → `onboarding.stepFirstClient` (16)
+- `src/components/onboarding/StepFirstService.tsx` → `onboarding.stepFirstService` (16)
+- `src/components/onboarding/StepWelcomeProfile.tsx` → `onboarding.stepWelcomeProfile` (26)
+- `src/components/onboarding/TeamWelcomeModal.tsx` → `onboarding.teamWelcomeModal` (18)
+- `src/components/onboarding/WelcomeScreen.tsx` → `onboarding.welcomeScreen` (5)
+- `src/components/onboarding/WhatNextScreen.tsx` → `onboarding.whatNextScreen` (13)
 
-### גל D — boarding (+feeding, medications) · 27 קבצים · ~1021 מחרוזות · 7 סוכנים
+### גל D — boarding (+feeding, medications) · 6 קבצים · ~685 מחרוזות · 3 סוכנים
 - `src/app/(dashboard)/boarding/daily/page.tsx` → `boarding.boardingDailyPage` (49)
 - `src/app/(dashboard)/boarding/yards/page.tsx` → `boarding.boardingYardsPage` (78)
 - `src/app/(dashboard)/boarding/page.tsx` → `boarding.boardingPage` (419)
 - `src/app/(dashboard)/feeding/page.tsx` → `boarding.feedingPage` (69)
 - `src/app/(dashboard)/medications/page.tsx` → `boarding.medicationsPage` (63)
-- `src/app/onboarding/layout.tsx` → `boarding.onboardingLayout` (3)
-- `src/app/onboarding/page.tsx` → `boarding.onboardingPage` (108)
 - `src/components/boarding/BoardingTabs.tsx` → `boarding.boardingTabs` (7)
-- `src/components/onboarding/AddCustomerForm.tsx` → `boarding.addCustomerForm` (11)
-- `src/components/onboarding/CompletionScreen.tsx` → `boarding.completionScreen` (7)
-- `src/components/onboarding/EnableRemindersStep.tsx` → `boarding.enableRemindersStep` (6)
-- `src/components/onboarding/OnboardingOverlay.tsx` → `boarding.onboardingOverlay` (21)
-- `src/components/onboarding/OnboardingProgressBar.tsx` → `boarding.onboardingProgressBar` (4)
-- `src/components/onboarding/OnboardingWizard.tsx` → `boarding.onboardingWizard` (8)
-- `src/components/onboarding/OnboardingWizardModal.tsx` → `boarding.onboardingWizardModal` (10)
-- `src/components/onboarding/PersonalizationScreen.tsx` → `boarding.personalizationScreen` (15)
-- `src/components/onboarding/ScheduleServiceForm.tsx` → `boarding.scheduleServiceForm` (12)
-- `src/components/onboarding/SetupChecklist.tsx` → `boarding.setupChecklist` (10)
-- `src/components/onboarding/SkipConfirmModal.tsx` → `boarding.skipConfirmModal` (4)
-- `src/components/onboarding/StepBusinessDetails.tsx` → `boarding.stepBusinessDetails` (14)
-- `src/components/onboarding/StepCompletion.tsx` → `boarding.stepCompletion` (9)
-- `src/components/onboarding/StepFirstClient.tsx` → `boarding.stepFirstClient` (16)
-- `src/components/onboarding/StepFirstService.tsx` → `boarding.stepFirstService` (16)
-- `src/components/onboarding/StepWelcomeProfile.tsx` → `boarding.stepWelcomeProfile` (26)
-- `src/components/onboarding/TeamWelcomeModal.tsx` → `boarding.teamWelcomeModal` (18)
-- `src/components/onboarding/WelcomeScreen.tsx` → `boarding.welcomeScreen` (5)
-- `src/components/onboarding/WhatNextScreen.tsx` → `boarding.whatNextScreen` (13)
 
 ### גל E — training, online-classes, portal · 21 קבצים · ~1484 מחרוזות · 7 סוכנים
 - `src/app/(dashboard)/online-classes/page.tsx` → `onlineClasses.onlineClassesPage` (18)

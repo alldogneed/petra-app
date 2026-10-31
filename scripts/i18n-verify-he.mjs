@@ -70,7 +70,7 @@ for (const f of files) {
     continue;
   }
   // literal "\n" escapes in the source = whitespace in the chunk text
-  const current = fs.existsSync(f) ? norm(fs.readFileSync(f, "utf8").replace(/\\n/g, " ")) : "";
+  const current = fs.existsSync(f) ? norm(fs.readFileSync(f, "utf8").replace(/\\n/g, " ").replace(/\\(["'`])/g, "$1")) : "";
   for (const c of chunks(baseSrc, f)) {
     checked++;
     // ICU placeholders split JSX text like "שלום {name}" — test each Hebrew run between braces
