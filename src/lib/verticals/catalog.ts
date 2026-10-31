@@ -26,3 +26,29 @@ export function priceCategoryLabel(vertical: unknown, category: string): string 
   if (category === PROGRAM_PRICE_CATEGORY) return vocab("pricing.category_program", { vertical: normalizeVertical(vertical) });
   return category;
 }
+
+/**
+ * Stored enum values (task categories, order types, appointment categories…) that only
+ * exist in the dog domain. They are never rewritten — "generic" just isn't offered them
+ * in pickers / filters.
+ */
+export const DOG_ONLY_VALUES: readonly string[] = [
+  // Task.category
+  "BOARDING", "HEALTH", "MEDICATION", "FEEDING",
+  // Order.orderType / service categories
+  "boarding", "grooming", "service_dog", "daycare",
+];
+
+/** Values that mean "program / training" and read differently for "generic". */
+const PROGRAM_VALUES: readonly string[] = ["TRAINING", "training", PROGRAM_PRICE_CATEGORY];
+
+export function isValueOffered(vertical: unknown, value: string): boolean {
+  return normalizeVertical(vertical) === "dogs" || !DOG_ONLY_VALUES.includes(value);
+}
+
+/** Display label of a stored enum value. dogs → `dogsLabel` unchanged. */
+export function valueLabel(vertical: unknown, value: string, dogsLabel: string): string {
+  if (normalizeVertical(vertical) === "dogs") return dogsLabel;
+  if (PROGRAM_VALUES.includes(value)) return vocab("pricing.category_program", { vertical: "generic" });
+  return dogsLabel;
+}

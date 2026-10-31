@@ -341,7 +341,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout, isOwner } = useAuth();
-  const { v } = useVertical();
+  const { v, hidesScreen } = useVertical();
   const queryClient = useQueryClient();
 
   // Close all panels/dropdowns on route change
@@ -521,7 +521,8 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
     pathname.startsWith(key)
   );
   // Verticals: a few titles read from the dictionary (dogs value = the text above).
-  const pageInfo = pageKey === "/training"
+  // A screen the vertical hides shows its not-found card — no module title above it.
+  const pageInfo = hidesScreen(pathname) ? null : pageKey === "/training"
     ? { title: v("training.page_title"), subtitle: v("training.page_subtitle") }
     : pageKey ? PAGE_TITLES[pageKey] : null;
 

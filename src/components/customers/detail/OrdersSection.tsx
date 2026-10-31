@@ -1,5 +1,6 @@
 "use client";
 
+import { useVertical } from "@/hooks/useVertical";
 import { useState } from "react";
 import Link from "next/link";
 import { ChevronDown, ChevronUp, Link2, Plus, ShoppingCart } from "lucide-react";
@@ -23,6 +24,7 @@ export function OrdersSection({
   canWritePayments: boolean;
   onNewOrder: () => void;
 }) {
+  const vt = useVertical();
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   return (
@@ -67,11 +69,11 @@ export function OrdersSection({
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium text-petra-text">
-                      {canSeeFinance ? formatCurrency(order.total) : ORDER_TYPE_LABELS[order.orderType] || order.orderType}
+                      {canSeeFinance ? formatCurrency(order.total) : vt.label(order.orderType, ORDER_TYPE_LABELS[order.orderType] || order.orderType)}
                       <span className="text-xs text-petra-muted mr-1">· {order.lines.length} פריטים</span>
                     </div>
                     <div className="text-xs text-petra-muted">
-                      {canSeeFinance && <>{ORDER_TYPE_LABELS[order.orderType] || order.orderType} · </>}
+                      {canSeeFinance && <>{vt.label(order.orderType, ORDER_TYPE_LABELS[order.orderType] || order.orderType)} · </>}
                       {formatDayDate(order.createdAt)}
                     </div>
                   </div>

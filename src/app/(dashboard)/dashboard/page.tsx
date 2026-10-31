@@ -75,6 +75,7 @@ const RevenueChart = dynamic(
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
+  const vt = useVertical();
   const { user } = useAuth();
   const { subscriptionActive, subscriptionExpired, subscriptionDaysLeft, hasRecurring, isFree, isGroomer } = usePlan();
   const perms = usePermissions();
@@ -398,7 +399,7 @@ export default function DashboardPage() {
                   >
                     <div className="flex flex-col gap-0.5 min-w-0">
                       <span className="text-sm font-medium truncate">{order.customerName}</span>
-                      <span className="text-xs text-slate-500">{typeInfo.label}</span>
+                      <span className="text-xs text-slate-500">{vt.label(order.orderType, typeInfo.label)}</span>
                     </div>
                     <span className="text-xs font-medium" style={{ color: ORDER_STATUS_COLOR[order.status] ?? "#64748B" }}>
                       {ORDER_STATUS_LABEL[order.status] || order.status}
@@ -455,7 +456,7 @@ export default function DashboardPage() {
                     >
                       {task.title}
                     </Link>
-                    <span className="text-xs text-slate-500 flex-shrink-0">{TASK_CATEGORY_LABELS[task.category] ?? task.category}</span>
+                    <span className="text-xs text-slate-500 flex-shrink-0">{vt.label(task.category, TASK_CATEGORY_LABELS[task.category] ?? task.category)}</span>
                   </div>
                 );
               })

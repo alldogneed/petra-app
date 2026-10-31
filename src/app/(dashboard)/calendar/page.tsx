@@ -978,6 +978,7 @@ export default function CalendarPage() {
 }
 
 function CalendarContent() {
+  const vt = useVertical();
   const queryClient = useQueryClient();
   const { user } = useAuth();
   // Verticals (docs/verticals): "generic" sees no dog-only categories and no boarding.
@@ -1846,7 +1847,7 @@ function CalendarContent() {
         </div>
         {!compact && (
           <div className={cn("truncate", overdue ? "text-red-500 text-[10px] font-medium" : "text-petra-muted")}>
-            {overdue ? "⚠️ באיחור" : TASK_CATEGORY_LABELS[task.category] || task.category}
+            {overdue ? "⚠️ באיחור" : vt.label(task.category, TASK_CATEGORY_LABELS[task.category] || task.category)}
           </div>
         )}
       </div>
@@ -2711,7 +2712,7 @@ function CalendarContent() {
                       <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
                       <span className="truncate text-petra-text">{task.title}</span>
                       <span className="text-petra-muted ms-auto">
-                        {TASK_CATEGORY_LABELS[task.category] || task.category}
+                        {vt.label(task.category, TASK_CATEGORY_LABELS[task.category] || task.category)}
                       </span>
                     </div>
                   );
@@ -3233,7 +3234,7 @@ function CalendarContent() {
                 time: dateTimeToTime(t.dueAt!),
                 sortKey: dateTimeToTime(t.dueAt!),
                 title: t.title,
-                subtitle: TASK_CATEGORY_LABELS[t.category] || t.category,
+                subtitle: vt.label(t.category, TASK_CATEGORY_LABELS[t.category] || t.category),
                 color: overdue ? "#EF4444" : (TASK_PRIORITY_COLORS[t.priority] || "#9CA3AF"),
                 href: "/tasks",
                 icon: overdue ? "⚠️" : "✅",

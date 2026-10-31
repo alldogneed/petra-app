@@ -100,7 +100,7 @@ function AnalyticsContent() {
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab");
   const activeTab: TabId = isTabId(tabParam) ? tabParam : "overview";
-  const { hides: hidesModule } = useVertical();
+  const { hides: hidesModule, v } = useVertical();
 
   const setTab = useCallback(
     (tab: TabId) => {
@@ -268,7 +268,7 @@ function AnalyticsContent() {
                 )}
               >
                 <Icon className={cn("w-4 h-4", active ? "text-brand-500" : "")} />
-                {t.label}
+                {t.id === "operations" ? v("analytics.operations_tab") : t.label}
               </button>
             );
           })}

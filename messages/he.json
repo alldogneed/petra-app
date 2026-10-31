@@ -211,6 +211,10 @@
     "analytics.program_revenue": {
       "dogs": "הכנסות אילוף בתקופה",
       "generic": "הכנסות מתוכניות בתקופה"
+    },
+    "analytics.operations_tab": {
+      "dogs": "אילוף ופנסיון",
+      "generic": "תוכניות"
     }
   }
 }
