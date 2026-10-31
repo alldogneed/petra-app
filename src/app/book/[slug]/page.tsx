@@ -271,7 +271,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
       done: `${business.name} — הזמנה אושרה`,
     }
     document.title = labels[step] ?? `${business.name} — קביעת תור אונליין`
-  }, [step, business])
+  }, [step, business, noPets])
 
   // ── Load business ──────────────────────────────────────────────────────────
   useEffect(() => {

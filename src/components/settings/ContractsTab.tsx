@@ -1,4 +1,5 @@
 "use client";
+import { useVertical } from "@/hooks/useVertical";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Save, Loader2, FileText, X, Pencil, Trash2, Plus, AlertTriangle } from "lucide-react";
@@ -360,6 +361,8 @@ function FieldsSummary({ fields, onClear }: { fields: ContractField[]; onClear: 
 }
 
 function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+  // Verticals: no pet fields for "generic".
+  const noPets = useVertical().hides("pets");
   const [name, setName] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [signaturePage, setSignaturePage] = useState(1);
@@ -563,7 +566,7 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
               <div>
                 <p className="text-xs text-petra-muted mb-2">בחר סוג שדה ולחץ על המסמך למיקומו:</p>
                 <div className="flex flex-wrap gap-2">
-                  {FIELD_TYPES.map((ft) => (
+                  {FIELD_TYPES.filter((ft) => !(noPets && ft.type.startsWith("pet_"))).map((ft) => (
                     <button
                       key={ft.type}
                       type="button"
@@ -655,6 +658,8 @@ function EditContractTemplateModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  // Verticals: no pet fields for "generic".
+  const noPets = useVertical().hides("pets");
   const [name, setName] = useState(template.name);
   const [signaturePage, setSignaturePage] = useState(template.signaturePage);
   const [totalPages, setTotalPages] = useState(0);
@@ -833,7 +838,7 @@ function EditContractTemplateModal({
             <div>
               <p className="text-xs text-petra-muted mb-2">בחר סוג שדה ולחץ על המסמך למיקומו:</p>
               <div className="flex flex-wrap gap-2">
-                {FIELD_TYPES.map((ft) => (
+                {FIELD_TYPES.filter((ft) => !(noPets && ft.type.startsWith("pet_"))).map((ft) => (
                   <button key={ft.type} type="button" onClick={() => setSelectedType(ft.type)}
                     className={cn("px-3 py-1.5 rounded-lg text-xs font-medium border transition-all", selectedType === ft.type ? "ring-2 ring-orange-500 border-transparent" : "border-slate-200 hover:border-slate-300")}
                     style={selectedType === ft.type ? { background: ft.bgColor, color: ft.color } : {}}>

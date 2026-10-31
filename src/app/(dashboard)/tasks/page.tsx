@@ -1,4 +1,5 @@
 "use client";
+import { useVertical } from "@/hooks/useVertical";
 import { PageTitle } from "@/components/ui/PageTitle";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -1588,6 +1589,7 @@ function EntityPicker({
   entityName: string | null;
   onChange: (type: string | null, id: string | null, name: string | null) => void;
 }) {
+  const noPets = useVertical().hides("pets");
   const [search, setSearch] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -1618,7 +1620,7 @@ function EntityPicker({
     { value: null,       label: "ללא",           icon: null },
     { value: "CUSTOMER", label: "לקוח",          icon: Users },
     { value: "DOG",      label: "חיית מחמד",    icon: PawPrint },
-  ];
+  ].filter((o) => !(noPets && o.value === "DOG")); // verticals: "generic" has no pets
 
   return (
     <div>

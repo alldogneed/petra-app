@@ -1,4 +1,5 @@
 "use client";
+import { useVertical } from "@/hooks/useVertical";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import React, { useState, useRef } from "react";
 import { CheckCircle2, Loader2, XCircle, CheckCircle, AlertCircle, Download, Upload, FileSpreadsheet, Clock, Info, Users, PawPrint, RefreshCw, CalendarRange, Lock } from "lucide-react";
@@ -67,6 +68,8 @@ function fmtFileSize(bytes: number | null): string {
 }
 
 export function DataTab() {
+  // Verticals: "generic" has no pets — only the customers export.
+  const noPets = useVertical().hides("pets");
   const queryClient = useQueryClient();
   const { canExportData, canImportData } = usePermissions();
   // POST /api/import/parse + /api/import/execute require DATA_IMPORT (owner-grantable).
@@ -219,7 +222,7 @@ export function DataTab() {
             <div>
               <label className="label mb-2 block">סוג ייצוא</label>
               <div className="space-y-2">
-                {EXPORT_DATA_TYPES.map((t) => {
+                {EXPORT_DATA_TYPES.filter((t) => !(noPets && t.value !== "customers")).map((t) => {
                   const Icon = t.icon;
                   const sel = exportType === t.value;
                   return (

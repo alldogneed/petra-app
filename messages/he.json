@@ -183,6 +183,34 @@
     "dashboard.at_risk_message": {
       "dogs": "שלום {name}! 🐾\nזמן רב לא ראינו אתכם, מתגעגעים!\nהאם תרצו לקבוע תור? נשמח לראות אתכם שוב 😊",
       "generic": "שלום {name}!\nזמן רב לא ראינו אתכם, מתגעגעים!\nהאם תרצו לקבוע תור? נשמח לראות אתכם שוב 😊"
+    },
+    "team.critical_delete_label": {
+      "dogs": "למחוק לקוחות וכלבים",
+      "generic": "למחוק לקוחות"
+    },
+    "team.view_training_label": {
+      "dogs": "תהליכי אילוף",
+      "generic": "תוכניות"
+    },
+    "team.view_training_hint": {
+      "dogs": "תוכניות אילוף וקבוצות",
+      "generic": "תוכניות וחבילות מפגשים"
+    },
+    "booking.share_link_message": {
+      "dogs": "היי! 🐾\nרוצה לקבוע תור? אפשר לעשות את זה בקלות דרך הלינק הזה:\n{url}",
+      "generic": "היי!\nרוצה לקבוע תור? אפשר לעשות את זה בקלות דרך הלינק הזה:\n{url}"
+    },
+    "analytics.training_title": {
+      "dogs": "אילוף",
+      "generic": "תוכניות"
+    },
+    "analytics.active_programs": {
+      "dogs": "תוכניות אילוף פעילות",
+      "generic": "תוכניות פעילות"
+    },
+    "analytics.program_revenue": {
+      "dogs": "הכנסות אילוף בתקופה",
+      "generic": "הכנסות מתוכניות בתקופה"
     }
   }
 }

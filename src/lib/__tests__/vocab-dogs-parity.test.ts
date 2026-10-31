@@ -3,6 +3,7 @@
  * dictionary must render, for "dogs", exactly what the code rendered before
  * (copied verbatim from the replaced code — git history of each file).
  */
+import he from "../../../messages/he.json";
 import { vocab, type VocabKey } from "@/lib/verticals/vocab";
 
 const CASES: { key: VocabKey; params?: Record<string, string>; before: string }[] = [
@@ -58,6 +59,13 @@ const CASES: { key: VocabKey; params?: Record<string, string>; before: string }[
   { key: "onboarding.done_title", before: "הכל מוכן! 🐾" },
   { key: "dashboard.welcome_icon", before: "🐾" },
   { key: "dashboard.at_risk_message", params: { name: "דנה" }, before: "שלום דנה! 🐾\nזמן רב לא ראינו אתכם, מתגעגעים!\nהאם תרצו לקבוע תור? נשמח לראות אתכם שוב 😊" },
+  { key: "team.critical_delete_label", before: "למחוק לקוחות וכלבים" },
+  { key: "team.view_training_label", before: "תהליכי אילוף" },
+  { key: "team.view_training_hint", before: "תוכניות אילוף וקבוצות" },
+  { key: "booking.share_link_message", params: { url: "https://x/book/a" }, before: "היי! 🐾\nרוצה לקבוע תור? אפשר לעשות את זה בקלות דרך הלינק הזה:\nhttps://x/book/a" },
+  { key: "analytics.training_title", before: "אילוף" },
+  { key: "analytics.active_programs", before: "תוכניות אילוף פעילות" },
+  { key: "analytics.program_revenue", before: "הכנסות אילוף בתקופה" },
 ];
 
 describe("dogs values are the pre-verticals text", () => {
@@ -72,8 +80,7 @@ describe("every dictionary key that replaced code text is covered here", () => {
     // Keys that never existed as code text (new UI) — nothing to compare against.
     const NEW_KEYS = new Set<string>(["business.kind", "business.kind_hint"]);
     const covered = new Set(CASES.map((c) => c.key));
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const all = Object.keys(require("../../../messages/he.json").vocab);
+    const all = Object.keys(he.vocab);
     expect(all.filter((k) => !covered.has(k as VocabKey) && !NEW_KEYS.has(k))).toEqual([]);
   });
 });

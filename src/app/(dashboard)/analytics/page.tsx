@@ -1,5 +1,6 @@
 "use client";
 
+import { useVertical } from "@/hooks/useVertical";
 import { Suspense, useCallback, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
@@ -67,7 +68,7 @@ export default function AnalyticsPage() {
   );
 }
 
-function buildShareText(data: AnalyticsData, periodLabel: string): string {
+function buildShareText(data: AnalyticsData, periodLabel: string, noBoarding = false): string {
   const from = new Date(data.from).toLocaleDateString("he-IL");
   const to = new Date(data.to).toLocaleDateString("he-IL");
   const o = data.overview;
@@ -84,7 +85,8 @@ function buildShareText(data: AnalyticsData, periodLabel: string): string {
       ? [`💼 מכירות מלידים: ${formatIls(data.leadSales.total)} (עסקאות ${formatIls(data.leadSales.dealValueTotal)} + הזמנות ${formatIls(data.leadSales.ordersTotal)})`]
       : []),
     `✅ משימות הושלמו: ${data.tasks.completedThisPeriod}`,
-    `🐾 שהות פנסיון: ${data.boarding.staysThisPeriod}${data.boarding.occupancyRate != null ? ` (${data.boarding.occupancyRate}% תפוסה)` : ""}`,
+    // Verticals: "generic" has no boarding.
+    ...(noBoarding ? [] : [`🐾 שהות פנסיון: ${data.boarding.staysThisPeriod}${data.boarding.occupancyRate != null ? ` (${data.boarding.occupancyRate}% תפוסה)` : ""}`]),
     ...(data.finance && data.finance.outstanding.total > 0
       ? [`🧾 יתרות פתוחות: ${formatCurrency(data.finance.outstanding.total)}`]
       : []),
@@ -98,6 +100,7 @@ function AnalyticsContent() {
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab");
   const activeTab: TabId = isTabId(tabParam) ? tabParam : "overview";
+  const { hides: hidesModule } = useVertical();
 
   const setTab = useCallback(
     (tab: TabId) => {
@@ -143,8 +146,8 @@ function AnalyticsContent() {
 
   const periodLabel = dateMode === "custom" ? "מותאם אישית" : PERIODS.find((p) => p.id === period)?.label ?? period;
   const shareHref = useMemo(
-    () => (data ? `https://api.whatsapp.com/send?text=${encodeURIComponent(buildShareText(data, periodLabel))}` : ""),
-    [data, periodLabel]
+    () => (data ? `https://api.whatsapp.com/send?text=${encodeURIComponent(buildShareText(data, periodLabel, hidesModule("boarding")))}` : ""),
+    [data, periodLabel, hidesModule]
   );
 
   const startCustom = () => {
