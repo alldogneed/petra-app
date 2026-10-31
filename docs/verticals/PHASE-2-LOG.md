@@ -53,3 +53,13 @@
 - `PaymentRequestDialog`: פתיח ההודעה מהמילון.
 - הודעות שהשרת שולח (`reminder-service.ts`, `payment-request.ts`, `/api/appointments/[id]/remind`, תבניות Meta) — שלב 5.
 - `training/page.tsx` (הודעות "עדכון אימון עבור <כלב> 🐾") — מסך dogs בלבד, generic לא מגיע אליו.
+
+## 6. booking
+- `GET /api/book/[slug]` מחזיר `vertical`. `/book/[slug]` ב-generic: אין שלב "כלבים" (גם לא במחוון השלבים), "המשך" מפרטים → אישור,
+  "פרטי בעל הכלב" / "בעל הכלב" מהמילון, אין בלוק כלבים באישור, אייקון שירות כללי (`CalendarCheck`), כותרת הטאב של שלב הכלבים לא קיימת.
+- `book/[slug]/layout.tsx` — meta description מהמילון.
+- `POST /api/book/[slug]/booking`: `dogs` כבר אופציונלי; ב-generic הזמנה של שירות "אילוף" (= מפגשים וחבילות) בלי כלב פותחת תוכנית ללקוח
+  (`dogId` null). dogs: אותו כלל (אין כלב → אין תוכנית).
+- בדיקה חיה: slots ל-generic → 200; הזמנה בלי כלבים → 201 confirmed, תור בלי חיה, תוכנית בלי כלב.
+- לא נגעתי: טופס הקליטה הציבורי `/intake/[token]` (המודול מוסתר ב-generic, אין דרך ליצור טופס), `/my-booking` (בלוק "כלבים" רק כשיש כלבים).
+- לוגו פטרה / "Petra" בעמוד ההזמנה — שלב 3.

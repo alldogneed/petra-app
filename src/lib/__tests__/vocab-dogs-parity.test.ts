@@ -49,6 +49,9 @@ const CASES: { key: VocabKey; params?: Record<string, string>; before: string }[
   { key: "starter.appointment_followup", before: "שלום {customerName}! 🌟\n\nרצינו לדעת איך {petName} מרגיש/ת לאחר הפגישה האחרונה.\nאם הכל בסדר – נשמח לשמוע! ואם יש משהו שלא כשורה, חשוב לנו לדעת.\n\nתודה שבחרתם בנו 💛" },
   { key: "starter.new_customer", before: "שלום {customerName}! 😊\n\nברוכים הבאים! שמחים לקבל אתכם ואת {petName} אלינו.\n\nיש לנו הרבה מה לחגוג ביחד – מחכים לראות אתכם בפגישה הראשונה! 🐾" },
   { key: "starter.review_request", before: "שלום {customerName}! ⭐\n\nתודה שסמכתם עלינו לטפל ב-{petName}.\n\nאם אהבתם, נשמח מאוד לביקורת קצרה – זה עוזר לנו ולבעלי חיות אחרים בחיפוש שירות מקצועי 🙏\n\nתודה מהלב!" },
+  { key: "booking.customer_step_title", before: "פרטי בעל הכלב" },
+  { key: "booking.customer_label", before: "בעל הכלב" },
+  { key: "booking.meta_description", params: { name: "נדב" }, before: "קבע/י תור אצל נדב בקלות ובמהירות. שירותים לכלבים" },
 ];
 
 describe("dogs values are the pre-verticals text", () => {

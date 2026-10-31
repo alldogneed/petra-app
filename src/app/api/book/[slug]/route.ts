@@ -29,6 +29,7 @@ export async function GET(
         cancellationPolicy: true,
         bookingWelcomeText: true,
         depositInstructions: true,
+        vertical: true, // verticals: "generic" → no dogs step on the booking page
         priceListItems: {
           where: { isActive: true, isBookableOnline: true },
           select: {

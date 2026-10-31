@@ -1,4 +1,5 @@
 export const dynamic = 'force-dynamic';
+import { normalizeVertical } from "@/lib/verticals"
 import { NextRequest, NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
 import { getAvailableSlots, utcToLocalDateStr } from "@/lib/slots"
@@ -166,7 +167,7 @@ export async function POST(
 
   const business = await prisma.business.findUnique({
     where: { slug: params.slug },
-    select: { id: true, name: true, status: true, timezone: true, phone: true, bookingRequiresApproval: true, tier: true, featureOverrides: true, whatsappRemindersEnabled: true },
+    select: { id: true, name: true, status: true, timezone: true, phone: true, bookingRequiresApproval: true, tier: true, featureOverrides: true, whatsappRemindersEnabled: true, vertical: true },
   })
 
   if (!business || business.status !== "active") {
@@ -453,7 +454,10 @@ export async function POST(
     }
     // Auto-create TrainingProgram for training services (category contains "אילוף")
     const isTraining = item.category?.includes("אילוף")
-    if (isTraining && firstPetId) {
+    // Verticals (docs/verticals): a "generic" business has no pets — its program is per
+    // customer (dogId null). Dogs keep the old rule: no dog in the booking → no program.
+    const programWithoutSubject = isTraining && !firstPetId && normalizeVertical(business.vertical) === "generic"
+    if ((isTraining && firstPetId) || programWithoutSubject) {
       const existing = await prisma.trainingProgram.findFirst({
         where: { businessId: business.id, customerId: customer.id, dogId: firstPetId, status: { in: ["ACTIVE", "PAUSED"] } },
       })
