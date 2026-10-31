@@ -272,8 +272,8 @@ export function MobileBottomNav() {
                     ].join(" ")}
                     style={{
                       background: isHome
-                        ? "linear-gradient(135deg, #EA580C, #F97316)"
-                        : "linear-gradient(135deg, #F97316, #FB923C)",
+                        ? "linear-gradient(135deg, rgb(var(--brand-600)), rgb(var(--brand-500)))"
+                        : "linear-gradient(135deg, rgb(var(--brand-500)), rgb(var(--brand-400)))",
                     }}
                   >
                     <Icon size={26} className="text-white" strokeWidth={2} />

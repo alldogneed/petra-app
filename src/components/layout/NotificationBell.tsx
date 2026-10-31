@@ -96,7 +96,7 @@ export function NotificationBell() {
         {badgeCount > 0 && (
           <span
             className="absolute top-1 left-1 min-w-[16px] h-4 px-0.5 rounded-full border-2 border-white flex items-center justify-center text-[9px] font-bold text-white"
-            style={{ background: "#F97316", lineHeight: 1 }}
+            style={{ background: "rgb(var(--brand-500))", lineHeight: 1 }}
           >
             {badgeCount > 9 ? "9+" : badgeCount}
           </span>
@@ -152,7 +152,7 @@ export function NotificationBell() {
                       <div
                         className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0"
                         style={{
-                          background: appt.service?.color ?? "#F97316",
+                          background: appt.service?.color ?? "rgb(var(--brand-500))",
                         }}
                       />
                       <div className="flex-1 min-w-0">

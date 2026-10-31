@@ -30,7 +30,7 @@ const config: Config = {
   				card: '#FFFFFF',
   				sidebar: '#0F172A',
   				'sidebar-hover': '#1E293B',
-  				'sidebar-active': '#F97316',
+  				'sidebar-active': 'rgb(var(--brand-500) / <alpha-value>)',
   				border: '#E2E8F0',
   				muted: '#64748B',
   				text: '#0F172A'
@@ -99,11 +99,11 @@ const config: Config = {
   			'card-hover': '0 8px 24px -4px rgba(0,0,0,0.10), 0 2px 8px -2px rgba(0,0,0,0.06)',
   			modal: '0 24px 48px -12px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.05)',
   			'inner-sm': 'inset 0 1px 2px rgba(0,0,0,0.06)',
-  			glow: '0 0 0 3px rgba(249,115,22,0.15)',
+  			glow: '0 0 0 3px rgb(var(--brand-500) / 0.15)',
   		},
   		backgroundImage: {
   			'gradient-sidebar': 'linear-gradient(180deg, #0F172A 0%, #1A2744 100%)',
-  			'gradient-brand': 'linear-gradient(135deg, #F97316 0%, #FB923C 100%)',
+  			'gradient-brand': 'linear-gradient(135deg, rgb(var(--brand-500)) 0%, rgb(var(--brand-400)) 100%)',
   			'gradient-card': 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
   		},
   		animation: {

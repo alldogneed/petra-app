@@ -239,9 +239,9 @@ function getBizNotifRoute(type: string): string {
 function getBizNotifStyle(type: string): { color: string; Icon: typeof AlertCircle } {
   switch (type) {
     case "task_overdue": return { color: "#EF4444", Icon: AlertCircle };
-    case "task_urgent":  return { color: "#F97316", Icon: ListTodo };
+    case "task_urgent":  return { color: "rgb(var(--brand-500))", Icon: ListTodo };
     case "payment":      return { color: "#F59E0B", Icon: CreditCard };
-    case "appointment":  return { color: "#F97316", Icon: Calendar };
+    case "appointment":  return { color: "rgb(var(--brand-500))", Icon: Calendar };
     case "boarding_checkin":
     case "boarding_checkout": return { color: "#3B82F6", Icon: Hotel };
     default:             return { color: "#94A3B8", Icon: Info };
@@ -888,7 +888,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
               ) : (
                 <div
                   className="w-full h-full flex items-center justify-center text-white text-sm font-bold"
-                  style={{ background: "linear-gradient(135deg, #F97316 0%, #FB923C 100%)" }}
+                  style={{ background: "linear-gradient(135deg, rgb(var(--brand-500)) 0%, rgb(var(--brand-400)) 100%)" }}
                 >
                   {initials}
                 </div>
@@ -946,7 +946,7 @@ export function Topbar({ onMenuToggle }: { onMenuToggle?: () => void }) {
                   ) : (
                     <div
                       className="w-full h-full flex items-center justify-center text-white text-lg font-bold"
-                      style={{ background: "linear-gradient(135deg, #F97316 0%, #FB923C 100%)" }}
+                      style={{ background: "linear-gradient(135deg, rgb(var(--brand-500)) 0%, rgb(var(--brand-400)) 100%)" }}
                     >
                       {initials}
                     </div>

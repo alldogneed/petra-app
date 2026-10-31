@@ -588,6 +588,8 @@ export default function DashboardPage() {
             <ShoppingCart className="w-4 h-4 shrink-0" />
             הזמנה חדשה
           </button>
+          {/* Verticals: the intake form is a pet form — not for "generic" */}
+          {!hidesModule("pets") && (
           <button
             onClick={handleCopyIntakeForm}
             disabled={intakeLoading}
@@ -602,6 +604,7 @@ export default function DashboardPage() {
             {intakeCopied ? <ClipboardCheck className="w-4 h-4 shrink-0" /> : <Copy className="w-4 h-4 shrink-0" />}
             {intakeCopied ? "הועתק!" : "טופס קליטה"}
           </button>
+          )}
           {user?.businessSlug && (
             <button
               onClick={() => {
@@ -637,13 +640,13 @@ export default function DashboardPage() {
           <div
             className="card p-8 text-center animate-slide-up"
             style={{
-              background: "linear-gradient(135deg, rgba(249,115,22,0.06) 0%, rgba(59,130,246,0.04) 100%)",
-              borderColor: "rgba(249,115,22,0.15)",
+              background: "linear-gradient(135deg, rgb(var(--brand-500) / 0.06) 0%, rgba(59,130,246,0.04) 100%)",
+              borderColor: "rgb(var(--brand-500) / 0.15)",
             }}
           >
             <div
               className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 text-3xl"
-              style={{ background: "linear-gradient(135deg, #F97316, #FB923C)" }}
+              style={{ background: "linear-gradient(135deg, rgb(var(--brand-500)), rgb(var(--brand-400)))" }}
             >
               {v("dashboard.welcome_icon")}
             </div>
@@ -689,6 +692,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {!hidesModule("pets") && (
             <button
               onClick={handleCopyIntakeForm}
               disabled={intakeLoading}
@@ -705,6 +709,7 @@ export default function DashboardPage() {
                 <p className="text-xs text-petra-muted">העתק קישור לטופס קליטה ושלח ללקוח</p>
               </div>
             </button>
+            )}
 
             {user?.businessSlug && (
               <button
