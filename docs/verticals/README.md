@@ -95,3 +95,7 @@ Business.vertical ("dogs" | "generic")
 ## מתי עוצרים ושואלים
 שינוי שנוגע בעסקי dogs; החלטה שלא כתובה כאן; "כלב" שלא ברור אם דומייני או של כלבי שירות;
 קונפליקט עם קוד i18n קיים.
+
+## מצב פרודקשן (31/10/2026)
+- DDL 001 + 002 קיימים ב-Supabase (`petra`): `Business.vertical` NOT NULL default `dogs`, `TrainingProgram.dogId` nullable; 70/70 עסקים = `dogs`.
+- הקוד עוד לא מוזג ל-main — ענף `claude/fervent-johnson-2ffsxw`.

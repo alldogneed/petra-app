@@ -37,8 +37,10 @@ Commit: `feat(verticals): phase 4 — tenant subdomains`
 - ✅ בדיקה חיה (build עם `TENANT_ROOT_DOMAIN=petra.test`): `Host: <slug>.petra.test /` → "Gen Studio — קביעת תור אונליין";
   `localhost` / `www.petra.test` → דף הנחיתה כרגיל; login מתת-דומיין → `Domain=.petra.test`, מ-`localhost` → בלי Domain (כמו היום).
 - ✅ דפדפן (Chromium עם host-resolver): `http://<slug>.petra.test:3000/` — דף הזמנות ממותג, 5 שלבים בלי "כלבים", בלי "Petra"; ההגדרות מציגות את הכתובת.
-- ℹ️ מגבלה: רק slug באותיות לטיניות / ספרות / מקף יכול להיות תת-דומיין (`generateBusinessSlug` משאיר אותיות עבריות) — לעסק כזה הכתובת לא מוצגת,
-  ו-`/book/<slug>` בדומיין הראשי ממשיך לעבוד. אם רוצים כתובת לכולם — שדה slug לטיני נפרד (לא בתכולה).
+- ✅ slug עברי: punycode (RFC 3492, ללא תלות — בדיקה מול ה-codec של Python); כללי IDNA BIDI נאכפים (עברית + אותיות לטיניות = תווית
+  לא חוקית בדפדפן, לכן לא מוצעת). ברירת המחדל של `generateBusinessSlug` לשם עברי (עברית + hex) לא חוקית כתווית —
+  **בעל העסק בוחר כתובת לטינית** בהגדרות → מיתוג (`PATCH /api/settings/branding {subdomain}`: ייחודית, ≥ 3 תווים, לא שמורה, 409 כשתפוסה,
+  אישור לפני שמירה כי קישור `/book/<slug>` הקודם משתנה). בדיקות `tenant-host.test.ts` (21).
 
 ## מה להגדיר ידנית — סיכום
 - Vercel → Domains: `petra.app` + `*.petra.app` (wildcard דורש DNS אצל Vercel או CNAME `*` → `cname.vercel-dns.com` + TXT).

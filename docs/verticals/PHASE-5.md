@@ -22,4 +22,9 @@ Commit: `feat(verticals): phase 5 — customer messages`
 - ✅ `appointment-followup-chain.test.ts`: generic → `{{2}}` = "את/ה"; dogs → "הכלב שלכם" (כמו קודם); `lead-meeting-reminder.test.ts` ירוק.
 - ✅ דוח: `docs/verticals/meta-templates-audit.md` — אף תבנית קטלוג שנשלחת **ללקוח** לא מכילה "פטרה" (רק התראות לבעל הפלטפורמה);
   התבניות הישנות (`petra_appointment_reminder*`, `petra_appointment_confirmation*`, `petra_lead_followup*`) — הטקסט רק ב-Meta, **לבדוק ב-WhatsApp Manager**.
-- ⚠️ החלטה פתוחה: ה-display name של מספר ה-WhatsApp של הפלטפורמה גלוי ללקוחות של עסק generic שלא חיבר מספר משלו.
+- ✅ בדיקה אוטומטית בפרודקשן: `GET /api/cron/sync-platform-templates` מחזיר `verticalAudit` — תבניות ללקוח שהגוף המאושר שלהן ב-Meta
+  מזכיר פטרה / מילה כלבית (`src/lib/verticals/template-audit.ts`, בדיקות). רשימה ריקה = אין מה להגיש מחדש. (מהסביבה הזו אין טוקן Meta — להריץ בפרודקשן.)
+- ✅ שם השולח ב-WhatsApp: עסק generic בלי מספר משלו רואה בכרטיס המיתוג הסבר + קישור לחיבור מספר עסקי (Embedded Signup).
+  ⚠️ החלטה עסקית שנשארת פתוחה: שם התצוגה של מספר הפלטפורמה עצמו (משפיע על כל העסקים, לא שיניתי).
+- ✅ PDF + מייל: `verticals-pdf-email.test.ts` — round-trip של pdf-lib (author/creator/producer = העסק ב-generic, ברירות מחדל ב-dogs) ו-`sendEmail`
+  מול Resend מדומה (שם שולח של העסק, HTML ממותג בלי Petra; dogs — שולח Petra כמו קודם).

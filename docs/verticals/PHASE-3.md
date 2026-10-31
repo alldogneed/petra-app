@@ -39,4 +39,5 @@ Commit: `feat(verticals): phase 3 — branding`
 - ✅ מיילים ללקוח (crons של שיעורים אונליין): header/footer/שם שולח של העסק ב-generic (בדיקת יחידה; שליחה אמיתית לא נבדקה — אין RESEND_API_KEY בסביבה).
 - ✅ PDF: ה-PDF החתום הוא תבנית החוזה של העסק + חתימה — אין בו סימני Petra (נבדק בקוד); דף החתימה ממותג ב-generic; metadata של ה-PDF
   (author / creator / producer) = שם העסק ב-generic. לא נבדק end-to-end בדפדפן (דורש העלאת PDF ל-Blob).
+- ✅ דף השדרוג ומרכז העזרה ב-generic: בלי שורות / שאלות עם תוכן כלבי (`src/lib/verticals/help.ts`, בדיקות `verticals-help.test.ts`).
 - ℹ️ נשאר בכוונה: `PetraLoader` (כלל #29 — זהות הפלטפורמה במסך טעינה), צבעי hex קבועים במסכים פנימיים (גרפים, תגיות) — רוב הממשק עובר דרך `brand-*`.
