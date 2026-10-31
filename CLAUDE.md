@@ -518,3 +518,9 @@ import { env, isDev, isProd } from "@/lib/env";
 | MCP DB models | `McpConnection` (businessId, name, tokenHash, scopes, lastUsedAt, revokedAt) + `McpAuditLog` (connectionId, toolName, params, status, resultSummary) |
 | Service layer | `src/services/` — 11 domains; all business logic; API routes only do auth + call service. See `docs/service-layer.md` |
 | ServiceError | `throw new ServiceError(message, code)` — codes: NOT_FOUND / UNAUTHORIZED / VALIDATION / CONFLICT / EXTERNAL |
+
+---
+
+## US expansion / i18n (started 2026-10-31)
+Master plan: `docs/us-expansion-plan.md`. Phase work orders: `docs/us-expansion/PHASE-*.md`.
+Rules once a file is migrated: no hardcoded `he-IL` / `ILS` / `Asia/Jerusalem` / `₪` — always from `Business.locale/currency/timezone`; no Hebrew literals in `src/` outside `messages/` (`npm run check:i18n`). Keys/enums/column names never change — only labels move to `messages/*.json`.
