@@ -108,7 +108,29 @@ function readConst(relPath, name) {
   if (!init) throw new Error(`${relPath}: const ${name} not found — the knowledge build needs it`);
   const value = evaluate(init, consts);
   if (value === UNRESOLVED) throw new Error(`${relPath}: const ${name} is not a plain literal`);
-  return value;
+  return resolveMessageKeys(value);
+}
+
+// i18n (docs/i18n.md): migrated constants hold message keys in `<field>Key`
+// siblings (e.g. nameKey: "layout.sidebar.nav.reports"). The assistant's
+// knowledge is Hebrew, so resolve each key from messages/he.json into <field>.
+const HE_MESSAGES = JSON.parse(readFileSync(join(ROOT, "messages/he.json"), "utf8"));
+function heMessage(key) {
+  const v = key.split(".").reduce((o, k) => (o && typeof o === "object" ? o[k] : undefined), HE_MESSAGES);
+  if (typeof v !== "string") throw new Error(`messages/he.json: key "${key}" not found (assistant knowledge)`);
+  return v;
+}
+function resolveMessageKeys(value) {
+  if (Array.isArray(value)) return value.map(resolveMessageKeys);
+  if (!value || typeof value !== "object") return value;
+  const out = {};
+  for (const [k, v] of Object.entries(value)) {
+    if (k.endsWith("Key") && k.length > 3 && typeof v === "string" && v.includes(".")) {
+      const field = k.slice(0, -3);
+      if (out[field] === undefined) out[field] = heMessage(v);
+    } else out[k] = resolveMessageKeys(v);
+  }
+  return out;
 }
 
 // ─── Sources ─────────────────────────────────────────────────────────────────

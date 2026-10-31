@@ -22,8 +22,8 @@ const bi = args.indexOf("--base");
 if (bi !== -1) { base = args[bi + 1]; args.splice(bi, 2); }
 const files = args;
 const HEBREW = /[\u0590-\u05FF]/;
-const ENTITIES = { "&quot;": '"', "&amp;": "&", "&apos;": "'", "&#39;": "'", "&lt;": "<", "&gt;": ">", "&nbsp;": " " };
-const norm = (s) => s.replace(/&(quot|amp|apos|#39|lt|gt|nbsp);/g, (m) => ENTITIES[m]).replace(/\s+/g, " ").trim();
+const ENTITIES = { "&quot;": '"', "&amp;": "&", "&apos;": "'", "&#39;": "'", "&lt;": "<", "&gt;": ">", "&nbsp;": " ", "&ldquo;": "“", "&rdquo;": "”", "&lsquo;": "‘", "&rsquo;": "’", "&hellip;": "…", "&ndash;": "–", "&mdash;": "—" };
+const norm = (s) => s.replace(/&(quot|amp|apos|#39|lt|gt|nbsp|ldquo|rdquo|lsquo|rsquo|hellip|ndash|mdash);/g, (m) => ENTITIES[m]).replace(/\s+/g, " ").trim();
 
 function chunks(src, file) {
   const sf = ts.createSourceFile(file, src, ts.ScriptTarget.Latest, true, file.endsWith("x") ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
