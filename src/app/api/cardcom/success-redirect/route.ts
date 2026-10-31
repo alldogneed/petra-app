@@ -256,7 +256,7 @@ export async function GET(request: NextRequest) {
       }).catch(() => null);
 
       // Create Business + BusinessUser membership
-      const businessId = await ensureUserHasBusiness(user.id, checkout.businessName || checkout.name);
+      const businessId = await ensureUserHasBusiness(user.id, checkout.businessName || checkout.name, checkout.businessName);
 
       // Create OnboardingProgress
       await prisma.onboardingProgress.create({

@@ -73,7 +73,9 @@ export function generateBusinessSlug(name: string): string {
  */
 export async function ensureUserHasBusiness(
   userId: string,
-  displayName: string
+  displayName: string,
+  /** A business name the user typed (register / checkout) — used as-is, without "העסק של". */
+  businessName?: string | null,
 ): Promise<string> {
   // Check for existing active membership
   const existing = await prisma.businessUser.findFirst({
@@ -88,7 +90,7 @@ export async function ensureUserHasBusiness(
   // Sequential operations (no interactive $transaction — Supabase PgBouncer incompatible)
   const biz = await prisma.business.create({
     data: {
-      name: `העסק של ${displayName}`,
+      name: businessName?.trim() || `העסק של ${displayName}`,
       slug,
       status: "active",
       tier: "free",
