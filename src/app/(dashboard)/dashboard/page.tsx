@@ -1,4 +1,5 @@
 "use client";
+import { useVertical } from "@/hooks/useVertical";
 import { PageTitle } from "@/components/ui/PageTitle";
 import { useState, useCallback } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
@@ -77,6 +78,8 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const { subscriptionActive, subscriptionExpired, subscriptionDaysLeft, hasRecurring, isFree, isGroomer } = usePlan();
   const perms = usePermissions();
+  // Verticals: "generic" has no pets / boarding → those widgets + quick actions don't exist.
+  const { hides: hidesModule, v } = useVertical();
   const queryClient = useQueryClient();
   const [showNewCustomer, setShowNewCustomer] = useState(false);
   const [showNewAppointment, setShowNewAppointment] = useState(false);
@@ -200,6 +203,8 @@ export default function DashboardPage() {
     revenue: perms.canSeeRevenueSummary,
     leads: perms.canViewLeads,
     activity: !perms.isStaff && !perms.isVolunteer,
+    pets: !hidesModule("pets"),
+    boarding: !hidesModule("boarding"),
   };
   const dashPrefs = prefsData?.prefs ?? defaultDashboardPrefs(null);
   const layoutBlocks = computeLayout(visibleBlocks(dashPrefs, widgetFlags));
@@ -358,10 +363,13 @@ export default function DashboardPage() {
             />
             <div className="pb-2.5">
               <Segmented
-                options={SERVICE_TYPE_TABS.filter((tab) => !(isGroomer && (tab.key === "training" || tab.key === "boarding"))).map((tab) => ({
-                  key: tab.key,
-                  label: tab.label,
-                }))}
+                options={SERVICE_TYPE_TABS.filter((tab) => !(isGroomer && (tab.key === "training" || tab.key === "boarding")))
+                  // Verticals: "generic" has no boarding / grooming; "אילוף" reads "מפגשים וחבילות".
+                  .filter((tab) => !(hidesModule("pets") && (tab.key === "boarding" || tab.key === "grooming")))
+                  .map((tab) => ({
+                    key: tab.key,
+                    label: tab.key === "training" ? v("pricing.category_program") : tab.label,
+                  }))}
                 value={serviceFilter}
                 onChange={setServiceFilter}
               />
@@ -636,7 +644,7 @@ export default function DashboardPage() {
               className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 text-3xl"
               style={{ background: "linear-gradient(135deg, #F97316, #FB923C)" }}
             >
-              🐾
+              {v("dashboard.welcome_icon")}
             </div>
             <h2 className="text-xl font-bold text-petra-text mb-2">ברוכים הבאים ל-Petra!</h2>
             <p className="text-sm text-petra-muted max-w-md mx-auto">

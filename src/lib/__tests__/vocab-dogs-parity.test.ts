@@ -56,6 +56,8 @@ const CASES: { key: VocabKey; params?: Record<string, string>; before: string }[
   { key: "onboarding.first_service_placeholder", before: "לדוגמה: שיעור אילוף בסיסי" },
   { key: "onboarding.next_service_placeholder", before: "לדוגמה: שיעור אילוף מתקדם" },
   { key: "onboarding.done_title", before: "הכל מוכן! 🐾" },
+  { key: "dashboard.welcome_icon", before: "🐾" },
+  { key: "dashboard.at_risk_message", params: { name: "דנה" }, before: "שלום דנה! 🐾\nזמן רב לא ראינו אתכם, מתגעגעים!\nהאם תרצו לקבוע תור? נשמח לראות אתכם שוב 😊" },
 ];
 
 describe("dogs values are the pre-verticals text", () => {

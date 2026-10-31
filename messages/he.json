@@ -175,6 +175,14 @@
     "onboarding.done_title": {
       "dogs": "הכל מוכן! 🐾",
       "generic": "הכל מוכן! 🎉"
+    },
+    "dashboard.welcome_icon": {
+      "dogs": "🐾",
+      "generic": "👋"
+    },
+    "dashboard.at_risk_message": {
+      "dogs": "שלום {name}! 🐾\nזמן רב לא ראינו אתכם, מתגעגעים!\nהאם תרצו לקבוע תור? נשמח לראות אתכם שוב 😊",
+      "generic": "שלום {name}!\nזמן רב לא ראינו אתכם, מתגעגעים!\nהאם תרצו לקבוע תור? נשמח לראות אתכם שוב 😊"
     }
   }
 }

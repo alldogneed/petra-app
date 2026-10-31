@@ -71,3 +71,10 @@
 - `/register` + `/login` — לפני שיש עסק / משותפים לכולם — לא נגעתי (login ממותג בתת-דומיין = שלב 4).
 - קוד לא מחובר (לא נגעתי מעבר ל"עסק אחר" בשלב 1): `OnboardingWizard(Modal)`, `StepFirstClient`, `StepBusinessDetails`, `OnboardingOverlay`,
   `CompletionScreen`, `WhatNextScreen`, `AddCustomerForm`, `PersonalizationScreen`.
+
+## 8. דשבורד
+- `dashboard-widgets.ts`: דרישות חדשות `pets` / `boarding` (`WidgetRequirement`) על פנסיון היום, תרופות, חיסונים, ימי הולדת.
+  ב-dogs שתיהן `true` → אותם ווידג'טים כמו קודם (בדיקה ב-`dashboard-widgets.test.ts`); ב-generic לא מרונדרים ולא מוצעים ב"התאמת דשבורד".
+- טאבי סוג שירות בתורים קרובים בלי פנסיון / טיפוח, "אילוף" → "מפגשים וחבילות"; אייקון "ברוכים הבאים"; הודעת "לקוחות בסיכון" מהמילון.
+- `dashboard/NewCustomerModal`: "הוספת חיה" לא מרונדר ב-generic.
+- הודעות פנסיון (כניסה / איסוף) — רק כשיש שהיות, לא קיים ב-generic.

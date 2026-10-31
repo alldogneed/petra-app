@@ -2,6 +2,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { toWhatsAppPhone } from "@/lib/utils";
+import { useVertical } from "@/hooks/useVertical";
 import { DashboardStats } from "@/components/dashboard/dashboard-shared";
 import { DashCard, DashCardHeader, DashLink, SentMark, WaIconButton, WaTextButton } from "@/components/dashboard/dash-ui";
 
@@ -10,11 +11,12 @@ import { DashCard, DashCardHeader, DashLink, SentMark, WaIconButton, WaTextButto
 export function AtRiskCustomersWidget({ customers }: { customers: DashboardStats["atRiskCustomers"] }) {
   const [sentIds, setSentIds] = useState<Set<string>>(new Set());
   const [bulkSending, setBulkSending] = useState(false);
+  const { v } = useVertical();
 
   if (!customers || customers.length === 0) return null;
 
   function buildMsg(c: DashboardStats["atRiskCustomers"][0]) {
-    return `שלום ${c.name}! 🐾\nזמן רב לא ראינו אתכם, מתגעגעים!\nהאם תרצו לקבוע תור? נשמח לראות אתכם שוב 😊`;
+    return v("dashboard.at_risk_message", { name: c.name });
   }
 
   function handleBulkSend() {
