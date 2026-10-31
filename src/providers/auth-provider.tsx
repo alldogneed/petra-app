@@ -19,6 +19,8 @@ interface AuthUser {
   businessTier: string | null;
   /** "dogs" | "generic" — read through useVertical(), never compare raw strings in components */
   businessVertical?: string | null;
+  /** Own brand of a "generic" business (null = Petra). See src/lib/verticals/branding.ts. */
+  businessBranding?: { name: string; logoUrl: string; primaryColor: string } | null;
   businessEffectiveTier: string | null;
   businessTrialEndsAt: string | null;
   businessSubscriptionEndsAt: string | null;

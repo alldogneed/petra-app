@@ -16,6 +16,7 @@ import prisma from "@/lib/prisma";
 import { isMcpAllowedUser } from "@/lib/mcp-allowlist";
 import { hasActiveRecurring, isAwaitingRecurringCharge, isSubscriptionLapsed } from "@/lib/subscription-access";
 import { normalizeVertical } from "@/lib/verticals";
+import { resolveBranding } from "@/lib/verticals/branding";
 import {
   createSession as _createSession,
   deleteSession as _deleteSession,
@@ -215,7 +216,7 @@ export async function getCurrentUser() {
     effectiveBusinessId
       ? prisma.business.findUnique({
           where: { id: effectiveBusinessId },
-          select: { name: true, slug: true, tier: true, vertical: true, featureOverrides: true, trialEndsAt: true, subscriptionEndsAt: true, subscriptionStatus: true, cardcomRecurringId: true },
+          select: { name: true, slug: true, tier: true, vertical: true, logo: true, brandingSettings: { select: { logoUrl: true, primaryColor: true, secondaryColor: true, senderName: true } }, featureOverrides: true, trialEndsAt: true, subscriptionEndsAt: true, subscriptionStatus: true, cardcomRecurringId: true },
         })
       : Promise.resolve(null),
     prisma.platformUser.findUnique({
@@ -271,6 +272,16 @@ export async function getCurrentUser() {
     businessTier: storedTier,
     // "dogs" | "generic" — drives useVertical() (docs/verticals)
     businessVertical: normalizeVertical(business?.vertical),
+    // Phase 3: the business's own brand — only for "generic" (dogs → null = Petra look).
+    businessBranding: (() => {
+      const b = resolveBranding({
+        vertical: business?.vertical,
+        businessName: business?.name,
+        businessLogo: business?.logo,
+        branding: business?.brandingSettings,
+      });
+      return b.enabled ? { name: b.name, logoUrl: b.logoUrl, primaryColor: b.primaryColor } : null;
+    })(),
     businessEffectiveTier,
     businessTrialEndsAt: trialEndsAt?.toISOString() ?? null,
     businessSubscriptionEndsAt: subscriptionEndsAt?.toISOString() ?? null,

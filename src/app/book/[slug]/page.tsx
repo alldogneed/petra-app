@@ -7,6 +7,7 @@ import { PetraLoader } from "@/components/ui/PetraLoader";
 import { toWhatsAppPhone } from "@/lib/utils";
 import { isModuleHidden, normalizeVertical } from "@/lib/verticals";
 import { vocab, type VocabKey } from "@/lib/verticals/vocab";
+import { brandCssVariables } from "@/lib/verticals/branding";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -46,6 +47,8 @@ interface BusinessInfo {
   depositInstructions: string | null
   /** "dogs" | "generic" (docs/verticals) — generic: no dogs step, no dog words */
   vertical?: string | null
+  /** Own brand of a "generic" business (null = Petra look) — docs/verticals phase 3 */
+  branding?: { name: string; logoUrl: string; primaryColor: string } | null
   services: BusinessService[]
   availabilityRules: AvailabilityRule[]
 }
@@ -460,10 +463,22 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
   // ─── Render card ──────────────────────────────────────────────────────────
   return (
     <main id="main-content" className="min-h-screen bg-petra-bg" dir="rtl">
+      {business.branding && (
+        <style dangerouslySetInnerHTML={{ __html: `:root{${brandCssVariables(business.branding.primaryColor)}}` }} />
+      )}
       {/* Header */}
       <header className="bg-white/95 backdrop-blur-sm border-b border-petra-border sticky top-0 z-10">
         <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">
-          {business.logo ? (
+          {business.branding ? (
+            business.branding.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- uploaded logo (any host)
+              <img src={business.branding.logoUrl} alt={business.name} className="w-10 h-10 rounded-xl object-cover" />
+            ) : (
+              <div className="w-10 h-10 rounded-xl bg-brand-500 text-white font-bold flex items-center justify-center flex-shrink-0">
+                {business.name.trim().charAt(0)}
+              </div>
+            )
+          ) : business.logo ? (
             <Image src={business.logo} alt={business.name} width={40} height={40} className="w-10 h-10 rounded-xl object-cover" />
           ) : (
             <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0">
@@ -1453,13 +1468,15 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
 
         </div>
 
-        {/* Footer */}
-        <p className="text-center text-xs text-petra-muted mt-6">
-          מופעל על ידי{" "}
-          <a href="https://petra-app.com" target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-600 hover:underline">
-            Petra
-          </a>
-        </p>
+        {/* Footer — a "generic" business's page carries its own brand only */}
+        {!business.branding && (
+          <p className="text-center text-xs text-petra-muted mt-6">
+            מופעל על ידי{" "}
+            <a href="https://petra-app.com" target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-600 hover:underline">
+              Petra
+            </a>
+          </p>
+        )}
       </div>
     </main>
   )

@@ -7,6 +7,8 @@ import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { sendWhatsAppMessage } from "@/lib/whatsapp";
 import { toWhatsAppPhone } from "@/lib/utils";
 import { PDFDocument } from "pdf-lib";
+import { resolveBranding } from "@/lib/verticals/branding";
+import { normalizeVertical } from "@/lib/verticals";
 import { readFileSync } from "fs";
 import { join } from "path";
 
@@ -49,7 +51,7 @@ export async function GET(
             fields: true,
           },
         },
-        business: { select: { name: true } },
+        business: { select: { name: true, logo: true, vertical: true, brandingSettings: { select: { logoUrl: true, primaryColor: true } } } },
         customer: { select: { name: true, phone: true, idNumber: true, address: true } },
         pet: { select: { name: true, breed: true, microchip: true, birthDate: true, gender: true, color: true } },
       },
@@ -100,6 +102,16 @@ export async function GET(
     return NextResponse.json({
       customerName: contractRequest.customer?.name ?? "",
       businessName: contractRequest.business.name,
+      // Verticals phase 3: a "generic" business's sign page carries its own brand (dogs → null = Petra).
+      branding: (() => {
+        const b = resolveBranding({
+          vertical: contractRequest.business.vertical,
+          businessName: contractRequest.business.name,
+          businessLogo: contractRequest.business.logo,
+          branding: contractRequest.business.brandingSettings,
+        });
+        return b.enabled ? { name: b.name, logoUrl: b.logoUrl, primaryColor: b.primaryColor } : null;
+      })(),
       templateName: contractRequest.template.name,
       pdfUrl: contractRequest.template.fileUrl,
       signaturePage: contractRequest.template.signaturePage,
@@ -136,7 +148,7 @@ export async function POST(
         template: true,
         customer: { select: { id: true, businessId: true, documents: true, name: true, phone: true, idNumber: true, address: true } },
         pet: { select: { name: true, breed: true, microchip: true, birthDate: true, gender: true, color: true } },
-        business: { select: { id: true, name: true, phone: true } },
+        business: { select: { id: true, name: true, phone: true, vertical: true } },
       },
     });
 
@@ -269,6 +281,13 @@ export async function POST(
       page.drawImage(sigImage, { x: sigX, y: sigY, width: sigW, height: sigH });
     }
 
+    // Verticals phase 3: the signed PDF of a "generic" business names the business as its
+    // author / creator (pdf-lib's own defaults stay for dogs — unchanged).
+    if (normalizeVertical(contractRequest.business.vertical) === "generic") {
+      pdfDoc.setAuthor(contractRequest.business.name);
+      pdfDoc.setCreator(contractRequest.business.name);
+      pdfDoc.setProducer(contractRequest.business.name);
+    }
     const signedPdfBytes = await pdfDoc.save();
     const signedPdfBuffer = Buffer.from(signedPdfBytes);
 

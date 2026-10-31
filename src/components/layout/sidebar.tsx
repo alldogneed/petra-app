@@ -159,6 +159,7 @@ export function Sidebar({
   const pathname = usePathname();
   const { user, loading: authLoading } = useAuth();
   const { v, isGeneric, hidesScreen } = useVertical();
+  const brand = user?.businessBranding ?? null;
   const isMaster = user?.isAdmin === true;
 
   // PWA install — permanent entry so users can add Petra to their home screen
@@ -339,8 +340,8 @@ export function Sidebar({
         style={
           !locked && isActive
             ? {
-                background: "rgba(249,115,22,0.15)",
-                boxShadow: "inset 0 0 0 1px rgba(249,115,22,0.4)",
+                background: "rgb(var(--brand-500) / 0.15)",
+                boxShadow: "inset 0 0 0 1px rgb(var(--brand-500) / 0.4)",
               }
             : undefined
         }
@@ -381,7 +382,7 @@ export function Sidebar({
         {!locked && isActive && isExpanded && (
           <span
             className="absolute right-0 w-1 h-5 rounded-l-full"
-            style={{ background: "#F97316" }}
+            style={{ background: "rgb(var(--brand-500))" }}
           />
         )}
       </Link>
@@ -409,8 +410,8 @@ export function Sidebar({
           style={
             anyChildActive
               ? {
-                  background: "rgba(249,115,22,0.15)",
-                  boxShadow: "inset 0 0 0 1px rgba(249,115,22,0.4)",
+                  background: "rgb(var(--brand-500) / 0.15)",
+                  boxShadow: "inset 0 0 0 1px rgb(var(--brand-500) / 0.4)",
                 }
               : undefined
           }
@@ -439,8 +440,8 @@ export function Sidebar({
           style={
             anyChildActive && !isOpen
               ? {
-                  background: "rgba(249,115,22,0.15)",
-                  boxShadow: "inset 0 0 0 1px rgba(249,115,22,0.4)",
+                  background: "rgb(var(--brand-500) / 0.15)",
+                  boxShadow: "inset 0 0 0 1px rgb(var(--brand-500) / 0.4)",
                 }
               : undefined
           }
@@ -503,10 +504,28 @@ export function Sidebar({
             !isMobile && collapsed ? "justify-center px-0" : "px-4 gap-3"
           )}
         >
-          <div className="w-9 h-9 rounded-xl overflow-hidden flex-shrink-0">
-            <Image src="/logo.svg" alt="Petra" width={36} height={36} className="w-full h-full object-cover" priority />
-          </div>
-          {isExpanded && (
+          {/* Verticals phase 3: a "generic" business shows its own logo + name. Dogs: Petra, unchanged. */}
+          {brand ? (
+            <div className="w-9 h-9 rounded-xl overflow-hidden flex-shrink-0 bg-brand-500 flex items-center justify-center">
+              {brand.logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element -- uploaded logo (any host), not a static asset
+                <img src={brand.logoUrl} alt={brand.name} className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-white font-bold text-base">{brand.name.trim().charAt(0)}</span>
+              )}
+            </div>
+          ) : (
+            <div className="w-9 h-9 rounded-xl overflow-hidden flex-shrink-0">
+              <Image src="/logo.svg" alt="Petra" width={36} height={36} className="w-full h-full object-cover" priority />
+            </div>
+          )}
+          {isExpanded && (brand ? (
+            <div className="flex-1 min-w-0">
+              <span className="block text-white font-bold text-[15px] tracking-tight leading-tight truncate">
+                {brand.name}
+              </span>
+            </div>
+          ) : (
             <div className="flex-1">
               <span className="text-white font-bold text-[17px] tracking-tight leading-none">
                 Petra
@@ -515,7 +534,7 @@ export function Sidebar({
                 Pet Business
               </span>
             </div>
-          )}
+          ))}
           {isMobile && (
             <button
               onClick={onMobileClose}

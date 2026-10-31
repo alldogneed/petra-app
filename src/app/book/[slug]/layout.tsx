@@ -24,7 +24,8 @@ export async function generateMetadata({ params }: Omit<Props, "children">): Pro
   const description = vocab("booking.meta_description", { vertical: business.vertical, params: { name: business.name } })
 
   return {
-    title,
+    // Verticals phase 3: a "generic" business's page title carries no "| Petra" suffix.
+    title: business.vertical === "generic" ? { absolute: title } : title,
     description,
     openGraph: {
       title,

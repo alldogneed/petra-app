@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { useBusinessSettings, patchBusinessSettings, BUSINESS_SETTINGS_QUERY_KEY } from "@/hooks/useBusinessSettings";
 import { ValidationErrors, validatePhone, validateVatNumber } from "./shared";
 import { ReadOnlyNotice, SettingsFieldset, SettingsSaveBar, SettingsSectionHeader } from "./settings-ui";
+import { BrandingCard } from "./BrandingCard";
 
 export function BusinessTab() {
   const { values, isLoading, set, reset, save, dirty, isSaving, canEdit } = useBusinessSettings({
@@ -166,6 +167,9 @@ export function BusinessTab() {
       </SettingsFieldset>
 
       <SettingsSaveBar dirty={dirty} saving={isSaving} onSave={handleSave} onReset={handleReset} canEdit={canEdit} />
+
+      {/* Verticals phase 3 — renders only for a "generic" business */}
+      <BrandingCard />
     </div>
   );
 }

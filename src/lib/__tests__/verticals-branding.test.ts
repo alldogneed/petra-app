@@ -1,3 +1,5 @@
+import { readFileSync } from "fs";
+import { join } from "path";
 import {
   BRAND_SHADES,
   PETRA_BRAND_SCALE,
@@ -55,5 +57,47 @@ describe("resolveBranding", () => {
   it("rejects a bad colour", () => {
     expect(isValidHexColor("#12345")).toBe(false);
     expect(resolveBranding({ vertical: "generic", businessName: "n", branding: { primaryColor: "red" } }).primaryColor).toBe("#F97316");
+  });
+});
+
+describe("globals.css defaults = Petra's scale (dogs look byte-identical)", () => {
+  it("every --brand-N in :root is the rgb of PETRA_BRAND_SCALE[N]", () => {
+    const css = readFileSync(join(__dirname, "../../app/globals.css"), "utf8");
+    for (const shade of BRAND_SHADES) {
+      expect(css).toContain(`--brand-${shade}: ${rgbTriplet(PETRA_BRAND_SCALE[shade])};`);
+    }
+  });
+  it("tailwind brand tokens read the variables", () => {
+    const tw = readFileSync(join(__dirname, "../../../tailwind.config.ts"), "utf8");
+    for (const shade of BRAND_SHADES) expect(tw).toContain(`'${shade}': 'rgb(var(--brand-${shade}) / <alpha-value>)'`);
+  });
+});
+
+import { applyEmailBranding, brandFooter, brandHeader, EMAIL_BRAND_FOOTER, EMAIL_BRAND_HEADER, withDisplayName } from "@/lib/email";
+import { neutralizeForVertical } from "@/lib/verticals/catalog";
+
+describe("e-mail branding", () => {
+  const generic = resolveBranding({ vertical: "generic", businessName: "סטודיו <נועה>", businessLogo: "https://cdn/x.png", branding: { primaryColor: "#2563EB" } });
+  const dogs = resolveBranding({ vertical: "dogs", businessName: "כלבים" });
+  it("dogs / no branding → the Petra header + footer, unchanged", () => {
+    expect(brandHeader(dogs)).toBe(brandHeader());
+    expect(brandFooter(dogs)).toBe(brandFooter());
+    expect(brandHeader()).toContain("Petra");
+    expect(applyEmailBranding(`${EMAIL_BRAND_HEADER}x${EMAIL_BRAND_FOOTER}`, null)).toBe(`${brandHeader()}x${brandFooter()}`);
+  });
+  it("generic → business name (escaped), logo, colour; no Petra", () => {
+    const h = brandHeader(generic) + brandFooter(generic);
+    expect(h).toContain("סטודיו &lt;נועה&gt;");
+    expect(h).toContain("#2563EB");
+    expect(h).toContain("https://cdn/x.png");
+    expect(h).not.toMatch(/Petra|petra|חיות מחמד/);
+  });
+  it("display name keeps the verified address", () => {
+    expect(withDisplayName("Petra <noreply@petra-app.com>", "סטודיו נועה")).toBe('"סטודיו נועה" <noreply@petra-app.com>');
+    expect(withDisplayName("noreply@x.com", 'a"b<c>')).toBe('"abc" <noreply@x.com>');
+  });
+  it("pet emoji dropped for generic only", () => {
+    expect(neutralizeForVertical("נתראה בשיעור! 🐾", "generic")).toBe("נתראה בשיעור!");
+    expect(neutralizeForVertical("נתראה בשיעור! 🐾", "dogs")).toBe("נתראה בשיעור! 🐾");
   });
 });

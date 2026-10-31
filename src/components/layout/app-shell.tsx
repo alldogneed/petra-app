@@ -11,6 +11,7 @@ import { LimitReachedModal } from "@/components/paywall/LimitReachedModal";
 import { PWAInstallProvider } from "./PWAInstallProvider";
 import { PullToRefresh } from "./PullToRefresh";
 import { ScreenGuard } from "./ScreenGuard";
+import { BrandTheme } from "./BrandTheme";
 
 const HelpCenter = dynamic(
   () => import("@/components/help/HelpCenter").then((m) => ({ default: m.HelpCenter })),
@@ -41,6 +42,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <PWAInstallProvider>
     <div className="min-h-screen" data-petra-shell={collapsed ? "collapsed" : "open"}>
+      <BrandTheme />
       {/* Impersonation banner */}
       {user?.isImpersonating && (
         <div className="bg-red-600 text-white text-sm px-4 py-2.5 flex items-center justify-between sticky top-0 z-50">

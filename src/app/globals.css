@@ -42,6 +42,18 @@
   }
 
   :root {
+    /* Brand scale (r g b) — Petra defaults = the hex values tailwind used before (tests:
+       verticals-branding.test.ts). A "generic" business overrides them (BrandTheme). */
+    --brand-50: 255 247 237;
+    --brand-100: 255 237 213;
+    --brand-200: 254 215 170;
+    --brand-300: 253 186 116;
+    --brand-400: 251 146 60;
+    --brand-500: 249 115 22;
+    --brand-600: 234 88 12;
+    --brand-700: 194 65 12;
+    --brand-800: 154 52 18;
+    --brand-900: 124 45 18;
     --background: 0 0% 100%;
     --foreground: 0 0% 3.9%;
     --card: 0 0% 100%;

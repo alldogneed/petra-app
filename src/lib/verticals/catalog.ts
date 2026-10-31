@@ -52,3 +52,12 @@ export function valueLabel(vertical: unknown, value: string, dogsLabel: string):
   if (PROGRAM_VALUES.includes(value)) return vocab("pricing.category_program", { vertical: "generic" });
   return dogsLabel;
 }
+
+/**
+ * Free text written for the dog domain can carry pet emoji ("נתראה! 🐾"). For a "generic"
+ * business they are dropped; dogs → the text unchanged.
+ */
+export function neutralizeForVertical(text: string, vertical: unknown): string {
+  if (normalizeVertical(vertical) === "dogs") return text;
+  return text.replace(/ ?(🐾|🐕|🐶|🦴)/gu, "");
+}
