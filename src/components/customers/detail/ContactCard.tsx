@@ -1,5 +1,6 @@
 "use client";
 
+import { useVertical } from "@/hooks/useVertical";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Mail, MapPin, MessageCircle, Pencil, Phone, Plus, Send, X } from "lucide-react";
@@ -23,6 +24,7 @@ export function ContactCard({
   onEdit: () => void;
   onCompose: () => void;
 }) {
+  const vt = useVertical();
   const hasPhone = !!customer.phone?.trim();
   const counts = customer.summary?.counts;
 
@@ -102,9 +104,9 @@ export function ContactCard({
         </div>
       )}
 
-      <div className="pt-3 border-t border-slate-100 grid grid-cols-3 gap-2">
+      <div className={`pt-3 border-t border-slate-100 grid ${vt.hides("pets") ? "grid-cols-2" : "grid-cols-3"} gap-2`}>
         <Stat value={counts?.appointments ?? 0} label="תורים" />
-        <Stat value={counts?.pets ?? customer.pets.length} label="חיות" />
+        {!vt.hides("pets") && <Stat value={counts?.pets ?? customer.pets.length} label="חיות" />}
         <Stat value={counts?.orders ?? 0} label="הזמנות" />
       </div>
     </div>

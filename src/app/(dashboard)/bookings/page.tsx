@@ -1,5 +1,6 @@
 "use client";
 
+import { useVertical } from "@/hooks/useVertical";
 import { BookingsTabs } from "@/components/bookings/BookingsTabs";
 import { DesktopBanner } from "@/components/ui/DesktopBanner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -95,6 +96,7 @@ function BookingsContent() {
   const [editNotes, setEditNotes] = useState("");
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const { v } = useVertical();
 
   const { data: bookings = [], isLoading } = useQuery<BookingData[]>({
     queryKey: ["bookings", activeStatus, dateFrom, dateTo],
@@ -598,10 +600,10 @@ function BookingsContent() {
                               "",
                               `📅 תאריך: ${dateStr}`,
                               `🕐 שעה: ${timeStr}`,
-                              `🐾 שירות: ${modalSvcInfo.name}`,
+                              `${v("gcal.service_icon")} שירות: ${modalSvcInfo.name}`,
                               petNames ? `🐕 חיית מחמד: ${petNames}` : null,
                               "",
-                              `מחכים לראותכם! 🐾`,
+                              v("booking.confirm_signoff"),
                             ].filter((line) => line !== null).join("\n");
                             return (
                               <button

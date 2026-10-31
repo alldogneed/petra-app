@@ -1,6 +1,7 @@
 import { cache } from "react"
 import prisma from "@/lib/prisma"
 import type { Metadata } from "next"
+import { vocab } from "@/lib/verticals/vocab"
 
 type Props = { params: { slug: string }; children: React.ReactNode }
 
@@ -8,7 +9,7 @@ const getBusiness = cache(async (slug: string) => {
   try {
     return await prisma.business.findUnique({
       where: { slug },
-      select: { name: true, logo: true },
+      select: { name: true, logo: true, vertical: true },
     })
   } catch {
     return null
@@ -20,10 +21,11 @@ export async function generateMetadata({ params }: Omit<Props, "children">): Pro
   if (!business) return { title: "קביעת תור אונליין" }
 
   const title = `${business.name} — קביעת תור אונליין`
-  const description = `קבע/י תור אצל ${business.name} בקלות ובמהירות. שירותים לכלבים`
+  const description = vocab("booking.meta_description", { vertical: business.vertical, params: { name: business.name } })
 
   return {
-    title,
+    // Verticals phase 3: a "generic" business's page title carries no "| Petra" suffix.
+    title: business.vertical === "generic" ? { absolute: title } : title,
     description,
     openGraph: {
       title,

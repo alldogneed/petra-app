@@ -11,10 +11,13 @@
  */
 
 import crypto from "crypto";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { sessionCookieDomain } from "@/lib/verticals/tenant-host";
 import prisma from "@/lib/prisma";
 import { isMcpAllowedUser } from "@/lib/mcp-allowlist";
 import { hasActiveRecurring, isAwaitingRecurringCharge, isSubscriptionLapsed } from "@/lib/subscription-access";
+import { normalizeVertical } from "@/lib/verticals";
+import { resolveBranding } from "@/lib/verticals/branding";
 import {
   createSession as _createSession,
   deleteSession as _deleteSession,
@@ -132,15 +135,32 @@ export function getSessionToken(): string | null {
  */
 const REMEMBER_ME_COOKIE = "petra_rm";
 
+/**
+ * Verticals phase 4: `Domain=SESSION_COOKIE_DOMAIN` when the request's host is under it
+ * (one login across `{slug}.petra.app`); otherwise no Domain = host-only, as before.
+ */
+function cookieDomainOpts(): { domain?: string } {
+  let host: string | null = null;
+  try {
+    host = headers().get("host");
+  } catch {
+    host = null; // outside a request scope
+  }
+  const domain = sessionCookieDomain(host, process.env.SESSION_COOKIE_DOMAIN);
+  return domain ? { domain } : {};
+}
+
 export function setSessionCookie(token: string, rememberMe = false) {
   const maxAge = rememberMe ? 30 * 24 * 60 * 60 : 8 * 60 * 60; // 30 days or 8 hours
   const isProd = process.env.NODE_ENV === "production";
+  const domainOpts = cookieDomainOpts();
   cookies().set(SESSION_COOKIE, token, {
     httpOnly: true,
     secure: isProd,
     sameSite: "lax",
     path: "/",
     maxAge,
+    ...domainOpts,
   });
   cookies().set(REMEMBER_ME_COOKIE, rememberMe ? "1" : "0", {
     httpOnly: true,
@@ -148,17 +168,20 @@ export function setSessionCookie(token: string, rememberMe = false) {
     sameSite: "lax",
     path: "/",
     maxAge,
+    ...domainOpts,
   });
 }
 
 export function clearSessionCookie() {
   const isProd = process.env.NODE_ENV === "production";
+  const domainOpts = cookieDomainOpts();
   cookies().set(SESSION_COOKIE, "", {
     httpOnly: true,
     secure: isProd,
     sameSite: "lax",
     path: "/",
     maxAge: 0,
+    ...domainOpts,
   });
   cookies().set(REMEMBER_ME_COOKIE, "", {
     httpOnly: true,
@@ -166,6 +189,7 @@ export function clearSessionCookie() {
     sameSite: "lax",
     path: "/",
     maxAge: 0,
+    ...domainOpts,
   });
 }
 
@@ -214,7 +238,7 @@ export async function getCurrentUser() {
     effectiveBusinessId
       ? prisma.business.findUnique({
           where: { id: effectiveBusinessId },
-          select: { name: true, slug: true, tier: true, featureOverrides: true, trialEndsAt: true, subscriptionEndsAt: true, subscriptionStatus: true, cardcomRecurringId: true },
+          select: { name: true, slug: true, tier: true, vertical: true, logo: true, brandingSettings: { select: { logoUrl: true, primaryColor: true, secondaryColor: true, senderName: true } }, featureOverrides: true, trialEndsAt: true, subscriptionEndsAt: true, subscriptionStatus: true, cardcomRecurringId: true },
         })
       : Promise.resolve(null),
     prisma.platformUser.findUnique({
@@ -268,6 +292,18 @@ export async function getCurrentUser() {
     businessName: business?.name ?? null,
     businessSlug,
     businessTier: storedTier,
+    // "dogs" | "generic" — drives useVertical() (docs/verticals)
+    businessVertical: normalizeVertical(business?.vertical),
+    // Phase 3: the business's own brand — only for "generic" (dogs → null = Petra look).
+    businessBranding: (() => {
+      const b = resolveBranding({
+        vertical: business?.vertical,
+        businessName: business?.name,
+        businessLogo: business?.logo,
+        branding: business?.brandingSettings,
+      });
+      return b.enabled ? { name: b.name, logoUrl: b.logoUrl, primaryColor: b.primaryColor } : null;
+    })(),
     businessEffectiveTier,
     businessTrialEndsAt: trialEndsAt?.toISOString() ?? null,
     businessSubscriptionEndsAt: subscriptionEndsAt?.toISOString() ?? null,

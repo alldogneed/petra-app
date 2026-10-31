@@ -1,5 +1,6 @@
 "use client";
 
+import { useVertical } from "@/hooks/useVertical";
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { X, ListTodo } from "lucide-react";
@@ -34,6 +35,7 @@ export function QuickTaskModal({
   onClose: () => void;
   onSuccess: () => void;
 }) {
+  const vt = useVertical();
   const today = new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState({
     title: "",
@@ -98,8 +100,8 @@ export function QuickTaskModal({
                 value={form.category}
                 onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
               >
-                {TASK_CATEGORIES.map((c) => (
-                  <option key={c.id} value={c.id}>{c.label}</option>
+                {TASK_CATEGORIES.filter((c) => vt.offers(c.id)).map((c) => (
+                  <option key={c.id} value={c.id}>{vt.label(c.id, c.label)}</option>
                 ))}
               </select>
             </div>

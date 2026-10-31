@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import { Loader2, CheckCircle2, AlertCircle, RotateCcw, PenLine, ChevronLeft, ChevronRight, User, Phone, MapPin, CreditCard, FileText, Download, Clock, Dog, PawPrint, Cpu, Calendar, Heart, Palette } from "lucide-react";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { brandCssVariables } from "@/lib/verticals/branding";
 
 interface ContractField {
   id: string;
@@ -19,6 +20,8 @@ interface ContractField {
 interface ContractData {
   customerName: string;
   businessName: string;
+  /** Own brand of a "generic" business (null = Petra) — docs/verticals phase 3 */
+  branding?: { name: string; logoUrl: string; primaryColor: string } | null;
   templateName: string;
   pdfUrl: string;
   status: string;
@@ -361,11 +364,7 @@ export default function SignContractPage() {
           )}
           <p className="text-xs text-slate-400 text-center">ניתן לסגור את הדף</p>
           <div className="pt-6 border-t border-slate-100 text-center">
-            <div className="flex items-center justify-center gap-2">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo.svg" alt="Petra" className="w-7 h-7 rounded-lg" />
-              <span className="text-sm font-bold text-slate-600">Petra</span>
-            </div>
+            <SignBrandMark branding={contract?.branding ?? null} size="md" />
             <p className="text-[11px] text-slate-400 mt-1.5">חתימה דיגיטלית מאובטחת</p>
           </div>
         </div>
@@ -601,16 +600,42 @@ export default function SignContractPage() {
           </div>
         </div>
 
-        {/* Petra branding footer */}
+        {/* Branding footer — Petra, or the business's own brand ("generic") */}
         <div className="py-6 flex flex-col items-center gap-1.5">
-          <div className="flex items-center gap-2">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.svg" alt="Petra" className="w-6 h-6 rounded-lg" />
-            <span className="text-sm font-bold text-slate-400">Petra</span>
-          </div>
+          <SignBrandMark branding={contract.branding ?? null} size="sm" />
           <p className="text-[11px] text-slate-400">חתימה דיגיטלית מאובטחת</p>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Footer mark of the sign page: Petra (dogs, unchanged) or the business's logo + name. */
+function SignBrandMark({ branding, size }: { branding: ContractData["branding"]; size: "sm" | "md" }) {
+  const box = size === "md" ? "w-7 h-7" : "w-6 h-6";
+  const text = size === "md" ? "text-sm font-bold text-slate-600" : "text-sm font-bold text-slate-400";
+  if (!branding) {
+    return (
+      <div className="flex items-center justify-center gap-2">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.svg" alt="Petra" className={`${box} rounded-lg`} />
+        <span className={text}>Petra</span>
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-center justify-center gap-2">
+      {/* the page's brand-* colours follow the business colour too */}
+      <style dangerouslySetInnerHTML={{ __html: `:root{${brandCssVariables(branding.primaryColor)}}` }} />
+      {branding.logoUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element -- uploaded logo (any host)
+        <img src={branding.logoUrl} alt={branding.name} className={`${box} rounded-lg object-cover`} />
+      ) : (
+        <span className={`${box} rounded-lg text-white text-xs font-bold flex items-center justify-center`} style={{ background: branding.primaryColor }}>
+          {branding.name.trim().charAt(0)}
+        </span>
+      )}
+      <span className={text}>{branding.name}</span>
     </div>
   );
 }

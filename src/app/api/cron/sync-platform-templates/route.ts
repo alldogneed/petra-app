@@ -1,7 +1,9 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { verifyCronAuth, verifyCronAuthWithVault } from "@/lib/cron-auth";
-import { ensurePlatformTemplates } from "@/lib/whatsapp-connections";
+import { ensurePlatformTemplates, getPlatformTemplateTexts } from "@/lib/whatsapp-connections";
+import { META_TEMPLATES } from "@/lib/reminder-service";
+import { auditTemplatesForGeneric } from "@/lib/verticals/template-audit";
 
 /**
  * GET /api/cron/sync-platform-templates — creates the Meta templates listed in
@@ -14,5 +16,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const result = await ensurePlatformTemplates();
-  return NextResponse.json(result, { status: result.ok ? 200 : 502 });
+  // Verticals phase 5: approved customer templates a "generic" business can't send as-is
+  // (Petra / dog wording in the body). Empty list = nothing to resubmit.
+  const verticalAudit = await getPlatformTemplateTexts()
+    .then((texts) => auditTemplatesForGeneric(texts, Object.values(META_TEMPLATES).flat()))
+    .catch(() => null);
+  return NextResponse.json({ ...result, verticalAudit }, { status: result.ok ? 200 : 502 });
 }

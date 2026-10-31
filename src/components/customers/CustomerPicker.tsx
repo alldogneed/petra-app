@@ -9,6 +9,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Search, X, UserPlus } from "lucide-react";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { cn } from "@/lib/utils";
+import { useVertical } from "@/hooks/useVertical";
 
 export interface PickerPet {
   id: string;
@@ -107,7 +108,7 @@ export function CustomerPicker({
   onSelect,
   onClear,
   selectedCustomer,
-  placeholder = "חיפוש לפי שם לקוח, טלפון או שם הכלב",
+  placeholder,
   autoFocus,
   className,
   disabled,
@@ -115,6 +116,9 @@ export function CustomerPicker({
   onCreateNew,
   createNewLabel = "לקוח חדש",
 }: CustomerPickerProps) {
+  // Verticals: the default placeholder mentions the dog name only for "dogs".
+  const { v } = useVertical();
+  const placeholderText = placeholder ?? v("picker.customer_placeholder");
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
   const [open, setOpen] = useState(false);
@@ -274,7 +278,7 @@ export function CustomerPicker({
           ref={inputRef}
           type="text"
           className="input pr-9"
-          placeholder={value ? "טוען לקוח..." : placeholder}
+          placeholder={value ? "טוען לקוח..." : placeholderText}
           value={query}
           autoFocus={autoFocus}
           disabled={disabled}

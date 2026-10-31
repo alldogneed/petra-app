@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
+import { useVertical } from "@/hooks/useVertical";
 import { Search, Users, PawPrint, Calendar, Hotel, X, Loader2, UserPlus, CheckSquare } from "lucide-react";
 interface SearchResults {
   customers: {
@@ -53,6 +54,7 @@ interface SearchResults {
 }
 
 export function GlobalSearch() {
+  const { v } = useVertical();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResults | null>(null);
@@ -185,7 +187,7 @@ export function GlobalSearch() {
               type="search"
               value={query}
               onChange={(e) => handleInput(e.target.value)}
-              placeholder="חפש לקוח, חיית מחמד, תור, ליד, משימה..."
+              placeholder={v("search.placeholder")}
               className="flex-1 text-base sm:text-sm text-petra-text bg-transparent border-none outline-none placeholder-slate-400"
               dir="rtl"
               aria-label="חיפוש"

@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import { vocab } from "@/lib/verticals/vocab";
+import { getBusinessVertical } from "@/lib/verticals/server";
 import { interpolateTemplate } from "@/lib/whatsapp";
 import { REMINDER_TEMPLATES } from "@/lib/training-groups";
 import { hasFeatureWithOverrides } from "@/lib/feature-flags";
@@ -42,6 +44,11 @@ export const META_TEMPLATES = {
 } as const;
 
 const single = (name: string, params: string[]): TemplateStep[] => buildTemplateChain([{ name, params }]);
+
+/** Greeting emoji of the default free-text bodies: 🐾 for dogs (unchanged), 🙂 for "generic". */
+function petEmoji(vertical: string | null | undefined): string {
+  return vocab("messages.greeting_emoji", { vertical });
+}
 
 /** {{1}} name · {{2}} service · {{3}} date · {{4}} time · {{5}} business name */
 export function bookingRequestReceivedChain(p: { customerName: string; serviceName: string; date: string; time: string; businessName: string }): TemplateStep[] {
@@ -119,11 +126,13 @@ export function boardingThankYouChain(p: { customerName: string; petName: string
 }
 
 /** Pet is optional on an appointment — a generic word keeps the template step valid. */
-export function appointmentFollowupChain(p: { customerName: string; petName: string | null | undefined; businessPhone: string }): TemplateStep[] {
+export function appointmentFollowupChain(p: { customerName: string; petName: string | null | undefined; businessPhone: string; vertical?: string | null }): TemplateStep[] {
+  // {{2}} fallback: dogs "הכלב שלכם" (unchanged); generic "את/ה" ("איך את/ה מרגיש/ה…").
+  const subject = p.petName?.trim() || vocab("messages.followup_subject", { vertical: p.vertical });
   return buildTemplateChain(
     META_TEMPLATES.appointmentFollowup.map((name) => ({
       name,
-      params: [p.customerName, p.petName?.trim() || "הכלב שלכם", p.businessPhone],
+      params: [p.customerName, subject, p.businessPhone],
     }))
   );
 }
@@ -235,7 +244,7 @@ export async function scheduleAppointmentReminder(appt: AppointmentForReminder) 
     const petPart = appt.pet ? ` עם ${appt.pet.name}` : "";
     const bizPhone = customerContactPhoneOf(rule?.business) ?? customerContactPhoneOf(bizSettings) ?? "";
     const footer = `\n\n_הודעה אוטומטית – אין להשיב להודעה זו.\nלפניות ויצירת קשר ישיר עם בית העסק: ${bizPhone}_`;
-    body = `שלום ${appt.customer.name}! 🐾\n\nתזכורת לתור שלך ב-${formattedDate} בשעה ${appt.startTime}.${appt.service?.name ? `\nשירות: ${appt.service.name}${petPart}.` : petPart ? `\n${DEFAULT_MEETING_LABEL}${petPart}.` : ""}\n\nנתראה! 😊${footer}`;
+    body = `שלום ${appt.customer.name}! ${petEmoji(await getBusinessVertical(appt.businessId))}\n\nתזכורת לתור שלך ב-${formattedDate} בשעה ${appt.startTime}.${appt.service?.name ? `\nשירות: ${appt.service.name}${petPart}.` : petPart ? `\n${DEFAULT_MEETING_LABEL}${petPart}.` : ""}\n\nנתראה! 😊${footer}`;
   }
 
   // Ordered template chain: _v2 (footer phone param) first, original 4-param template
@@ -351,7 +360,7 @@ export async function scheduleAppointmentFollowup(
   } else {
     const petPart = appt.pet ? ` של ${appt.pet.name}` : "";
     const footer = `\n\n_הודעה אוטומטית – אין להשיב להודעה זו.\nלפניות ויצירת קשר ישיר עם בית העסק: ${bizPhone}_`;
-    body = `שלום ${appt.customer.name}! 🐾\n\nתודה שהגעתם${petPart}. מקווים שהיה מעולה!\nנשמח לשמוע איך הולך, ואם יש שאלות אנחנו כאן.${footer}`;
+    body = `שלום ${appt.customer.name}! ${petEmoji(await getBusinessVertical(appt.businessId))}\n\nתודה שהגעתם${petPart}. מקווים שהיה מעולה!\nנשמח לשמוע איך הולך, ואם יש שאלות אנחנו כאן.${footer}`;
   }
 
   return prisma.scheduledMessage.create({
@@ -367,6 +376,7 @@ export async function scheduleAppointmentFollowup(
           customerName: appt.customer.name,
           petName: appt.pet?.name,
           businessPhone: bizPhone,
+          vertical: await getBusinessVertical(appt.businessId),
         }),
       }),
       sendAt,
@@ -513,7 +523,7 @@ export async function scheduleLeadFollowup(lead: LeadForFollowup) {
   } else {
     const servicePart = lead.requestedService?.trim() ? ` לגבי ${lead.requestedService.trim()}` : "";
     const footer = `\n\n_הודעה אוטומטית – אין להשיב להודעה זו.\nלפניות ויצירת קשר ישיר עם בית העסק: ${contactPhone}_`;
-    body = `שלום ${lead.name}! 🐾\n\nקיבלנו את פנייתך${servicePart} ונשמח לעזור!\nנחזור אליך בהקדם.${footer}`;
+    body = `שלום ${lead.name}! ${petEmoji(await getBusinessVertical(lead.businessId))}\n\nקיבלנו את פנייתך${servicePart} ונשמח לעזור!\nנחזור אליך בהקדם.${footer}`;
   }
 
   // Ordered chain: UTILITY notice first, legacy MARKETING template second. Both
@@ -624,7 +634,7 @@ export async function scheduleLeadMeetingReminder(meeting: LeadMeetingForReminde
       ? `\n\n_הודעה אוטומטית – אין להשיב להודעה זו.\nלפניות ויצירת קשר ישיר עם בית העסק: ${contactPhone}_`
       : "";
     const typePart = meeting.service?.name?.trim() ? `\n${serviceName}` : "";
-    body = `שלום ${meeting.lead.name}! 🐾\n\nתזכורת לפגישה שלנו ב-${formattedDate} בשעה ${meeting.startTime}.${typePart}${placePart}\n\nנתראה! 😊${footer}`;
+    body = `שלום ${meeting.lead.name}! ${petEmoji(await getBusinessVertical(meeting.businessId))}\n\nתזכורת לפגישה שלנו ב-${formattedDate} בשעה ${meeting.startTime}.${typePart}${placePart}\n\nנתראה! 😊${footer}`;
   }
 
   // The lead has usually not messaged in 24h — a template is required. The approved
@@ -1242,7 +1252,11 @@ export async function scheduleTrainingSessionReminder(data: TrainingSessionForRe
   const bizPhone = (customerContactPhoneOf(bizSettings) ?? "").trim();
   const footer = `\n\n_הודעה אוטומטית – אין להשיב להודעה זו.\nלפניות ויצירת קשר ישיר עם בית העסק: ${bizPhone}_`;
   const timeStr = formattedTime ? ` בשעה ${formattedTime}` : "";
-  const body = `שלום ${data.customerName}! 🐾\n\nתזכורת למפגש אילוף עם ${data.dogName} ב-${formattedDate}${timeStr}.\n\nנתראה! 😊${footer}`;
+  // Verticals: a program without a subject ("generic") — no dog words; dogName = the program name there.
+  const vertical = await getBusinessVertical(data.businessId);
+  const body = vertical === "generic"
+    ? `שלום ${data.customerName}!\n\nתזכורת למפגש ${data.programName} ב-${formattedDate}${timeStr}.\n\nנתראה! 😊${footer}`
+    : `שלום ${data.customerName}! 🐾\n\nתזכורת למפגש אילוף עם ${data.dogName} ב-${formattedDate}${timeStr}.\n\nנתראה! 😊${footer}`;
 
   // Reuses the appointment reminder templates. A date-only session has no time →
   // every template step has an empty {{3}} and is dropped → free text only (Meta

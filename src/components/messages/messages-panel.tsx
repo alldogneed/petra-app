@@ -1,5 +1,8 @@
 "use client";
 
+import { vocab, type VocabKey } from "@/lib/verticals/vocab";
+import type { Vertical } from "@/lib/verticals";
+import { useVertical } from "@/hooks/useVertical";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import React, { useState } from "react";
 import {
@@ -103,63 +106,76 @@ function applyPreview(body: string): string {
 
 const AUTOMATED_FOOTER = "\n\n_לפניות ישירות לעסק: {businessPhone}. הודעה אוטומטית – אין להשיב להודעה זו._";
 
-const STARTER_TEMPLATES = [
-  {
-    label: "📅 תזכורת לפני פגישה",
-    body: "שלום {customerName}! 🐾\n\nתזכורת לפגישה שלנו ב-{date} בשעה {time}.\nשירות: {serviceName}.\n\nמחכים לראות אתכם! 😊" + AUTOMATED_FOOTER,
-    trigger: "appointment_reminder", offset: 24,
-  },
-  {
-    label: "✅ אישור קביעת פגישה",
-    body: "שלום {customerName}! ✅\n\nהפגישה שלך נקבעה בהצלחה!\n📅 תאריך: {date}\n🕐 שעה: {time}\nשירות: {serviceName}\n\nמחכים לראות אתכם! 🐾" + AUTOMATED_FOOTER,
-    trigger: "appointment_confirmation", offset: 0,
-  },
-  {
-    label: "💳 דרישת תשלום",
-    body: "שלום {customerName}! 🐾\n\n*דרישת תשלום*\nעבור: {serviceName} – {petName}\n\n💰 סה\"כ לתשלום: *{orderTotal}*\n\n💳 לתשלום מאובטח לחצו כאן:\n{paymentUrl}\n\nתודה שבחרתם בנו! 😊\n_לפניות ושאלות: {businessPhone}_",
-    trigger: "payment_request", offset: 0,
-  },
-  {
-    label: "📞 מעקב אחרי ליד חדש",
-    body: "שלום {customerName}! 🐾\n\nקיבלנו את פנייתך לגבי {serviceName} ונשמח לעזור!\nנחזור אליך בהקדם." + AUTOMATED_FOOTER,
-    trigger: "lead_followup", offset: 24,
-  },
-  {
-    label: "🌟 מעקב אחרי פגישה",
-    body: "שלום {customerName}! 🌟\n\nרצינו לדעת איך {petName} מרגיש/ת לאחר הפגישה האחרונה.\nאם הכל בסדר – נשמח לשמוע! ואם יש משהו שלא כשורה, חשוב לנו לדעת.\n\nתודה שבחרתם בנו 💛" + AUTOMATED_FOOTER,
-    trigger: "appointment_followup", offset: 24,
-  },
-  {
-    label: "🎂 יום הולדת לחיית המחמד",
-    body: "יום הולדת שמח ל-{petName}! 🎂🐾\n\n{petName} מלא/ה {petAge} היום – כל הכבוד! 🎉\n\nכמתנה קטנה, נשמח להעניק לכם 10% הנחה על הפגישה הבאה 🎁\n(ציינו שקיבלתם הודעה זו בעת קביעת הפגישה)" + AUTOMATED_FOOTER,
-    trigger: "birthday_reminder", offset: 0,
-  },
-  {
-    label: "👋 ברוכים הבאים",
-    body: "שלום {customerName}! 😊\n\nברוכים הבאים! שמחים לקבל אתכם ואת {petName} אלינו.\n\nיש לנו הרבה מה לחגוג ביחד – מחכים לראות אתכם בפגישה הראשונה! 🐾" + AUTOMATED_FOOTER,
-    trigger: "new_customer", offset: 0,
-  },
-  {
-    label: "🏠 אישור קביעת פנסיון",
-    body: "שלום {customerName}! 🏠\n\nהזמנת הפנסיון ל-{petName} אושרה בהצלחה!\n📅 כניסה: {checkIn}\n📅 יציאה: {checkOut}\n\nמחכים לקבל אתכם! 🐾",
-    trigger: "boarding_confirmation", offset: 0,
-  },
-  {
-    label: "🏨 תזכורת איסוף מפנסיון",
-    body: "שלום {customerName}! 🏨\n\nתזכורת – מחר הוא יום האיסוף של {petName} מהפנסיון.\n\n{petName} נהנה/ת מאוד ומחכה לכם! 🐕" + AUTOMATED_FOOTER,
-    trigger: "boarding_pickup", offset: 24,
-  },
-  {
-    label: "🌟 תודה אחרי פנסיון",
-    body: "שלום {customerName}! 🌟\n\nתודה שבחרתם בנו לטפל ב-{petName}.\n\nהיה לנו כיף לארח אותו/ה! נשמח לראותכם שוב 🐾" + AUTOMATED_FOOTER,
-    trigger: "boarding_thank_you", offset: 0,
-  },
-  {
-    label: "⭐ בקשת ביקורת",
-    body: "שלום {customerName}! ⭐\n\nתודה שסמכתם עלינו לטפל ב-{petName}.\n\nאם אהבתם, נשמח מאוד לביקורת קצרה – זה עוזר לנו ולבעלי חיות אחרים בחיפוש שירות מקצועי 🙏\n\nתודה מהלב!" + AUTOMATED_FOOTER,
-    trigger: "appointment_followup", offset: 48,
-  },
-];
+/**
+ * Starter templates. Bodies come from the dictionary (`starter.*`, dogs value = the text this
+ * file had before verticals); the dog-only flows (pet birthday, boarding) are not offered to
+ * a "generic" business (docs/verticals). `STARTER_TEMPLATES` = the dogs list, unchanged.
+ */
+const DOG_ONLY_TRIGGERS = new Set(["birthday_reminder", "boarding_confirmation", "boarding_pickup", "boarding_thank_you"]);
+
+function buildStarterTemplates(vertical: Vertical) {
+  const body = (key: VocabKey) => vocab(key, { vertical });
+  const all = [
+    {
+      label: "📅 תזכורת לפני פגישה",
+      body: body("starter.appointment_reminder") + AUTOMATED_FOOTER,
+      trigger: "appointment_reminder", offset: 24,
+    },
+    {
+      label: "✅ אישור קביעת פגישה",
+      body: body("starter.appointment_confirmation") + AUTOMATED_FOOTER,
+      trigger: "appointment_confirmation", offset: 0,
+    },
+    {
+      label: "💳 דרישת תשלום",
+      body: body("starter.payment_request"),
+      trigger: "payment_request", offset: 0,
+    },
+    {
+      label: "📞 מעקב אחרי ליד חדש",
+      body: body("starter.lead_followup") + AUTOMATED_FOOTER,
+      trigger: "lead_followup", offset: 24,
+    },
+    {
+      label: "🌟 מעקב אחרי פגישה",
+      body: body("starter.appointment_followup") + AUTOMATED_FOOTER,
+      trigger: "appointment_followup", offset: 24,
+    },
+    {
+      label: "🎂 יום הולדת לחיית המחמד",
+      body: "יום הולדת שמח ל-{petName}! 🎂🐾\n\n{petName} מלא/ה {petAge} היום – כל הכבוד! 🎉\n\nכמתנה קטנה, נשמח להעניק לכם 10% הנחה על הפגישה הבאה 🎁\n(ציינו שקיבלתם הודעה זו בעת קביעת הפגישה)" + AUTOMATED_FOOTER,
+      trigger: "birthday_reminder", offset: 0,
+    },
+    {
+      label: "👋 ברוכים הבאים",
+      body: body("starter.new_customer") + AUTOMATED_FOOTER,
+      trigger: "new_customer", offset: 0,
+    },
+    {
+      label: "🏠 אישור קביעת פנסיון",
+      body: "שלום {customerName}! 🏠\n\nהזמנת הפנסיון ל-{petName} אושרה בהצלחה!\n📅 כניסה: {checkIn}\n📅 יציאה: {checkOut}\n\nמחכים לקבל אתכם! 🐾",
+      trigger: "boarding_confirmation", offset: 0,
+    },
+    {
+      label: "🏨 תזכורת איסוף מפנסיון",
+      body: "שלום {customerName}! 🏨\n\nתזכורת – מחר הוא יום האיסוף של {petName} מהפנסיון.\n\n{petName} נהנה/ת מאוד ומחכה לכם! 🐕" + AUTOMATED_FOOTER,
+      trigger: "boarding_pickup", offset: 24,
+    },
+    {
+      label: "🌟 תודה אחרי פנסיון",
+      body: "שלום {customerName}! 🌟\n\nתודה שבחרתם בנו לטפל ב-{petName}.\n\nהיה לנו כיף לארח אותו/ה! נשמח לראותכם שוב 🐾" + AUTOMATED_FOOTER,
+      trigger: "boarding_thank_you", offset: 0,
+    },
+    {
+      label: "⭐ בקשת ביקורת",
+      body: body("starter.review_request") + AUTOMATED_FOOTER,
+      trigger: "appointment_followup", offset: 48,
+    },
+  ];
+  return vertical === "generic" ? all.filter((s) => !DOG_ONLY_TRIGGERS.has(s.trigger)) : all;
+}
+
+const STARTER_TEMPLATES = buildStarterTemplates("dogs");
 
 // Default templates shown in the ידני tab — always visible, user can only edit body
 const MANUAL_STARTERS = STARTER_TEMPLATES.map(({ label, body, trigger }) => ({ label, body, trigger }));
@@ -444,6 +460,11 @@ const TRIGGER_ICONS: Record<string, React.ElementType> = {
 // ─── Templates Tab ────────────────────────────────────────────────────────────
 
 function TemplatesTab() {
+  // Verticals: starters + automation triggers for this business (generic → no pet birthday / boarding).
+  const { vertical } = useVertical();
+  const starterTemplates = vertical === "dogs" ? STARTER_TEMPLATES : buildStarterTemplates(vertical);
+  const automationTriggers = vertical === "dogs" ? AUTOMATION_TRIGGERS : AUTOMATION_TRIGGERS.filter((t) => !DOG_ONLY_TRIGGERS.has(t.id));
+  const manualStarters = vertical === "dogs" ? MANUAL_STARTERS : starterTemplates.map(({ label, body, trigger }) => ({ label, body, trigger }));
   const [innerTab] = useState<"auto" | "manual">("auto");
   const [previewTriggerId, setPreviewTriggerId] = useState<string | null>(null);
   const [showEditor, setShowEditor] = useState(false);
@@ -554,10 +575,10 @@ function TemplatesTab() {
     onError: () => toast.error("שגיאה בעדכון אוטומציה"),
   });
 
-  // Auto-creates template + rule from the fixed STARTER_TEMPLATES default — no editor needed
+  // Auto-creates template + rule from the fixed starterTemplates default — no editor needed
   const autoActivateMutation = useMutation({
     mutationFn: async (triggerId: string) => {
-      const starter = STARTER_TEMPLATES.find((s) => s.trigger === triggerId);
+      const starter = starterTemplates.find((s) => s.trigger === triggerId);
       if (!starter) throw new Error("No default template for trigger");
       const templateRes = await fetch("/api/messages", {
         method: "POST",
@@ -699,7 +720,7 @@ function TemplatesTab() {
           {isLoading ? (
             <PetraLoader />
           ) : (
-            AUTOMATION_TRIGGERS.map((trigger) => {
+            automationTriggers.map((trigger) => {
               const linked = templates.find(
                 (t) => t.automationRules?.[0]?.trigger === trigger.id
               );
@@ -710,7 +731,7 @@ function TemplatesTab() {
               const isActive = isOptimisticallyToggling
                 ? (toggleRuleMutation.variables?.isActive ?? !!(linked && rule?.isActive))
                 : !!(linked && rule?.isActive);
-              const previewBody = linked?.body ?? STARTER_TEMPLATES.find((s) => s.trigger === trigger.id)?.body ?? "";
+              const previewBody = linked?.body ?? starterTemplates.find((s) => s.trigger === trigger.id)?.body ?? "";
               // First non-empty line of body as preview
               const previewLine = previewBody.split("\n").find((l) => l.trim()) ?? "";
 
@@ -779,9 +800,9 @@ function TemplatesTab() {
 
         {/* ── Message preview modal ── */}
         {previewTriggerId && (() => {
-          const trigger = AUTOMATION_TRIGGERS.find((t) => t.id === previewTriggerId)!;
+          const trigger = automationTriggers.find((t) => t.id === previewTriggerId)!;
           const linked = templates.find((t) => t.automationRules?.[0]?.trigger === previewTriggerId);
-          const body = linked?.body ?? STARTER_TEMPLATES.find((s) => s.trigger === previewTriggerId)?.body ?? "";
+          const body = linked?.body ?? starterTemplates.find((s) => s.trigger === previewTriggerId)?.body ?? "";
           const TriggerIcon = TRIGGER_ICONS[trigger.id] ?? Zap;
           return (
             <div className="modal-overlay" onClick={() => setPreviewTriggerId(null)}>
@@ -828,7 +849,7 @@ function TemplatesTab() {
         <div className="space-y-3 mt-2">
           {isLoading
             ? <PetraLoader />
-            : MANUAL_STARTERS.map((starter) => {
+            : manualStarters.map((starter) => {
                 const dbVersion = manualTemplates.find((t) => t.name === starter.label);
                 const isCustomized = !!dbVersion;
                 const StarterIcon = TRIGGER_ICONS[starter.trigger] ?? MessageSquare;
@@ -947,7 +968,7 @@ function TemplatesTab() {
                       </button>
                       {showStarters && (
                         <div className="absolute left-0 top-5 z-20 w-52 bg-white rounded-xl shadow-lg border border-petra-border p-1">
-                          {STARTER_TEMPLATES.map((s) => (
+                          {starterTemplates.map((s) => (
                             <button
                               key={s.label}
                               type="button"
@@ -1040,12 +1061,12 @@ function TemplatesTab() {
                       value={form.autoTrigger}
                       onChange={e => setForm(f => ({ ...f, autoTrigger: e.target.value }))}
                     >
-                      {AUTOMATION_TRIGGERS.map(t => (
+                      {automationTriggers.map(t => (
                         <option key={t.id} value={t.id}>{t.label}</option>
                       ))}
                     </select>
                     <p className="text-xs text-petra-muted mt-1">
-                      {AUTOMATION_TRIGGERS.find(t => t.id === form.autoTrigger)?.description}
+                      {automationTriggers.find(t => t.id === form.autoTrigger)?.description}
                     </p>
                   </div>
                   {!IMMEDIATE_TRIGGERS.has(form.autoTrigger) && (

@@ -144,7 +144,7 @@ export async function GET(request: NextRequest) {
 
     for (const prog of stalePrograms) {
       const businessId = prog.businessId;
-      const dogName = prog.dog.name;
+      const dogName = prog.dog?.name ?? prog.name;
       const lastSession = prog.sessions[0];
       const daysSince = lastSession
         ? Math.floor((now.getTime() - new Date(lastSession.sessionDate).getTime()) / DAY_MS)

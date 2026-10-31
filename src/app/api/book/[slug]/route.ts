@@ -1,4 +1,5 @@
 export const dynamic = 'force-dynamic';
+import { resolveBranding } from "@/lib/verticals/branding"
 import { NextRequest, NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
@@ -29,6 +30,8 @@ export async function GET(
         cancellationPolicy: true,
         bookingWelcomeText: true,
         depositInstructions: true,
+        vertical: true, // verticals: "generic" → no dogs step on the booking page
+        brandingSettings: { select: { logoUrl: true, primaryColor: true, secondaryColor: true, senderName: true } },
         priceListItems: {
           where: { isActive: true, isBookableOnline: true },
           select: {
@@ -80,8 +83,11 @@ export async function GET(
       paymentUrl: item.paymentUrl ?? null,
     }))
 
-    const { priceListItems: _unused, status: _status, availabilityRules, ...businessData } = business
-    return NextResponse.json({ business: { ...businessData, availabilityRules, services } })
+    const { priceListItems: _unused, status: _status, availabilityRules, brandingSettings, ...businessData } = business
+    // Verticals phase 3: a "generic" business books under its own logo + colour (dogs → null = Petra look).
+    const resolved = resolveBranding({ vertical: business.vertical, businessName: business.name, businessLogo: business.logo, branding: brandingSettings })
+    const branding = resolved.enabled ? { name: resolved.name, logoUrl: resolved.logoUrl, primaryColor: resolved.primaryColor } : null
+    return NextResponse.json({ business: { ...businessData, availabilityRules, services, branding } })
   } catch (error) {
     console.error("GET /api/book/[slug] error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

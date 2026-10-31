@@ -1,4 +1,5 @@
 "use client";
+import { useVertical } from "@/hooks/useVertical";
 import { useState } from "react";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { PawPrint, UserPlus, X, ChevronDown, ChevronUp } from "lucide-react";
@@ -19,6 +20,7 @@ export function NewCustomerModal({
   onClose: () => void;
   onCreated: () => void;
 }) {
+  const noPets = useVertical().hides("pets");
   const queryClient = useQueryClient();
   const PRESET_TAGS = ["VIP", "קבוע", "מזדמן", "פוטנציאל", "לשעבר", "עסקי"];
   const [form, setForm] = useState({
@@ -218,7 +220,8 @@ export function NewCustomerModal({
           </div>
           <p className="text-[11px] text-petra-muted -mt-2">ניתן להשלים מאוחר יותר</p>
 
-          {/* Optional pet */}
+          {/* Optional pet — verticals: "generic" has no pets */}
+          {!noPets && (
           <div className="border border-slate-200 rounded-xl overflow-hidden">
             <button
               type="button"
@@ -262,6 +265,7 @@ export function NewCustomerModal({
               </div>
             )}
           </div>
+          )}
 
           <div>
             <label className="label">הערות</label>

@@ -1,4 +1,5 @@
 "use client";
+import { useVertical } from "@/hooks/useVertical";
 import { useState } from "react";
 import Link from "next/link";
 import { isToday, isPast, isYesterday, differenceInMinutes, format, startOfDay } from "date-fns";
@@ -62,6 +63,7 @@ export function DailyFocusSection({ todayTasks, overdueTasks, onComplete }: {
   overdueTasks: DashboardStats["overdueTasks"];
   onComplete: (taskId: string) => void;
 }) {
+  const vt = useVertical();
   const [completingIds, setCompletingIds] = useState<Set<string>>(new Set());
   const [focusFilterState, setFocusFilter] = useState<"overdue" | "today" | null>(null);
   // A filter whose bucket emptied (e.g. all overdue tasks completed) falls back to "all"
@@ -105,7 +107,7 @@ export function DailyFocusSection({ todayTasks, overdueTasks, onComplete }: {
         const isCompleting = completingIds.has(task.id);
         const focusStatus = computeFocusStatus(task);
         const overdue = focusStatus === "overdue";
-        const category = TASK_CATEGORY_LABELS[task.category] ?? null;
+        const category = TASK_CATEGORY_LABELS[task.category] ? vt.label(task.category, TASK_CATEGORY_LABELS[task.category]) : null;
         return (
           <div
             key={task.id}

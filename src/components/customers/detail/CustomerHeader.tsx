@@ -34,6 +34,8 @@ export interface CustomerHeaderProps {
   deleteIsRequest: boolean;
   canMerge: boolean;
   intakeSending: boolean;
+  /** Verticals: the pet intake form doesn't exist for "generic" (default: shown, as before). */
+  showIntake?: boolean;
   onNewAppointment: () => void;
   onNewTask: () => void;
   onNewOrder: () => void;
@@ -58,7 +60,7 @@ export function CustomerHeader(props: CustomerHeaderProps) {
     ...(canWritePayments
       ? [{ key: "payreq", label: "בקשת תשלום", icon: Send, href: paymentRequestHref(customer) } as MenuItem]
       : []),
-    ...(canSendMessages && hasPhone
+    ...(canSendMessages && hasPhone && props.showIntake !== false
       ? [{ key: "intake", label: props.intakeSending ? "שולח..." : "טופס קבלה", icon: FileText, disabled: props.intakeSending, onClick: props.onSendIntake } as MenuItem]
       : []),
     ...(bookingHref

@@ -1,4 +1,6 @@
 "use client";
+import { useVertical } from "@/hooks/useVertical";
+import { GenericProgramsView } from "@/components/training/GenericProgramsView";
 import { PageTitle } from "@/components/ui/PageTitle";
 
 import { TierGate } from "@/components/paywall/TierGate";
@@ -7297,6 +7299,19 @@ function AddRecipientInlineModal({ onClose }: { onClose: () => void }) {
 }
 
 export default function TrainingPage() {
+  // Verticals (docs/verticals): a "generic" business gets the programs view (same module,
+  // same API, no dogs). Every "dogs" business keeps exactly the page below.
+  const { isGeneric } = useVertical();
+  if (isGeneric) {
+    return (
+      <>
+        <PageTitle title="תוכניות" />
+        <TierGate feature="training" title="תוכניות ומפגשים" description="ניהול חבילות מפגשים ותוכניות ללקוחות.">
+          <GenericProgramsView />
+        </TierGate>
+      </>
+    );
+  }
   return (
     <>
       <PageTitle title="אילוף" />

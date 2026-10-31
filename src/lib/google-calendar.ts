@@ -6,6 +6,7 @@
  * Timezone: Always uses Asia/Jerusalem for event times.
  */
 
+import { vocab } from "@/lib/verticals/vocab";
 import { prisma } from "./prisma";
 import { encryptToken, decryptToken } from "./encryption";
 import { hasTenantPermission, parsePermissionOverrides, TENANT_PERMS, type TenantRole } from "./permissions";
@@ -260,7 +261,7 @@ interface BookingWithRelations {
   priceListItem: { name: string; basePrice: number } | null;
   customer: { name: string; phone: string; address: string | null; email: string | null };
   dogs: { pet: { name: string } }[];
-  business?: { name: string; address: string | null };
+  business?: { name: string; address: string | null; vertical?: string | null };
 }
 
 interface GoogleEventPayload {
@@ -309,7 +310,7 @@ export function buildEventPayload(
     `📞 טלפון: ${booking.customer.phone}`,
     booking.customer.email ? `📧 אימייל: ${booking.customer.email}` : null,
     ``,
-    `🐾 שירות: ${serviceName}`,
+    `${vocab("gcal.service_icon", { vertical: booking.business?.vertical })} שירות: ${serviceName}`,
     `💰 מחיר: ₪${servicePrice.toFixed(2)}`,
     petNames ? `🐶 כלבים: ${petNames}` : null,
     ``,
@@ -544,7 +545,7 @@ async function fetchBookingWithRelations(bookingId: string) {
       priceListItem: { select: { name: true, basePrice: true } },
       customer:      { select: { name: true, phone: true, address: true, email: true } },
       dogs:          { include: { pet: { select: { name: true } } } },
-      business:      { select: { name: true, address: true } },
+      business:      { select: { name: true, address: true, vertical: true } },
     },
   });
 
@@ -1052,17 +1053,20 @@ export async function syncTrainingProgramSessionToGcal(sessionId: string, busine
   }
 
   const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://petra-app.com";
+  // Verticals: a program without a subject (dogId null) exists only for a "generic"
+  // business — no dog words there. Dogs programs always have a dog → unchanged text.
+  const noSubject = !s.program.dog;
   const dogName = s.program.dog?.name ?? "כלב";
   const cust = s.program.customer;
-  const summaryParts = [cust?.name ?? dogName, dogName];
+  const summaryParts = noSubject ? [cust?.name ?? s.program.name] : [cust?.name ?? dogName, dogName];
   if (cust?.phone) summaryParts.push(cust.phone);
   const payload = {
-    summary: `${summaryParts.join(" – ")} – אילוף`,
+    summary: noSubject ? `${summaryParts.join(" – ")} – ${s.program.name || "מפגש"}` : `${summaryParts.join(" – ")} – אילוף`,
     description: [
-      `🐕 אילוף${s.program.name ? ` – ${s.program.name}` : ""}`,
+      noSubject ? `📋 ${s.program.name || "מפגש"}` : `🐕 אילוף${s.program.name ? ` – ${s.program.name}` : ""}`,
       cust?.name ? `👤 לקוח: ${cust.name}` : null,
       cust?.phone ? `📞 טלפון: ${cust.phone}` : null,
-      s.trainerName ? `🧑‍🏫 מאלף: ${s.trainerName}` : null,
+      s.trainerName ? `🧑‍🏫 ${noSubject ? "מדריך/ה" : "מאלף"}: ${s.trainerName}` : null,
       ``,
       `🔗 ${appBaseUrl}/training`,
       `⚙️ מנוהל על ידי Petra`,

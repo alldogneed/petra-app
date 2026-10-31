@@ -1,4 +1,5 @@
 "use client";
+import { useVertical } from "@/hooks/useVertical";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import React, { useState } from "react";
 import { CheckCircle2, Zap, Plug, Calendar, MessageCircle, Mail, ExternalLink, Loader2, XCircle, CheckCircle, AlertCircle, FileText, Settings2, X, Eye, EyeOff, Copy, CreditCard, RefreshCw, Repeat, Lock } from "lucide-react";
@@ -847,6 +848,7 @@ function WhatsAppTestModal({ onClose }: { onClose: () => void }) {
 
 function MakeWebhookCard() {
   const queryClient = useQueryClient();
+  const noPets = useVertical().hides("pets"); // verticals: no pet fields to document for "generic"
   const appUrl =
     typeof window !== "undefined"
       ? window.location.origin
@@ -1040,7 +1042,7 @@ function MakeWebhookCard() {
             ["petName", "שם הכלב"],
             ["notes", "הערות חופשיות"],
             ["source", "מקור (ברירת מחדל: website)"],
-          ].map(([field, desc]) => (
+          ].filter(([field]) => !(noPets && (field === "breed" || field === "petName"))).map(([field, desc]) => (
             <div key={field} className="flex gap-2">
               <code className="text-violet-600 font-mono">{field}</code>
               <span>{desc}</span>

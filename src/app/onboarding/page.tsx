@@ -28,6 +28,9 @@ import { hasFeature } from "@/lib/feature-flags";
 import type { TierKey } from "@/lib/feature-flags";
 import { LEGAL_ENTITY_TYPES } from "@/lib/legal-entity";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { VERTICALS, normalizeVertical, type Vertical } from "@/lib/verticals";
+import { vocab } from "@/lib/verticals/vocab";
+import { offeredPriceCategories, priceCategoryLabel } from "@/lib/verticals/catalog";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -35,6 +38,7 @@ interface BusinessInfo {
   name: string;
   phone: string;
   tier: TierKey;
+  vertical: Vertical;
 }
 
 // ─── Step definitions ─────────────────────────────────────────────────────────
@@ -63,9 +67,10 @@ function OnboardingInner() {
           name: d.name ?? "",
           phone: d.phone ?? "",
           tier: (d.effectiveTier ?? d.tier ?? "free") as TierKey,
+          vertical: normalizeVertical(d.vertical),
         });
       })
-      .catch(() => setBusiness({ name: "", phone: "", tier: "free" }));
+      .catch(() => setBusiness({ name: "", phone: "", tier: "free", vertical: "dogs" }));
   }, []);
 
   // Detect return from Google OAuth (keep for backward-compat)
@@ -159,6 +164,7 @@ function OnboardingInner() {
       <div className="card p-8 shadow-lg animate-fade-in">
         {step === 4 ? (
           <StepDone
+            vertical={business?.vertical ?? "dogs"}
             onGoToDashboard={async () => {
               await fetch("/api/onboarding/progress", {
                 method: "PATCH",
@@ -184,15 +190,16 @@ function OnboardingInner() {
           <StepBusiness
             initialName={business?.name ?? ""}
             initialPhone={business?.phone ?? ""}
-            onNext={(updatedName) => {
-              setBusiness((prev) => prev ? { ...prev, name: updatedName } : prev);
+            initialVertical={business?.vertical ?? "dogs"}
+            onNext={(updatedName, vertical) => {
+              setBusiness((prev) => prev ? { ...prev, name: updatedName, vertical } : prev);
               setStep(2);
             }}
           />
         ) : step === 2 ? (
-          <StepPricing onNext={() => setStep(3)} onBack={() => setStep(1)} />
+          <StepPricing vertical={business?.vertical ?? "dogs"} onNext={() => setStep(3)} onBack={() => setStep(1)} />
         ) : (
-          <StepClient onNext={() => setStep(4)} onBack={() => setStep(2)} onSkip={handleSkip} />
+          <StepClient vertical={business?.vertical ?? "dogs"} onNext={() => setStep(4)} onBack={() => setStep(2)} onSkip={handleSkip} />
         )}
       </div>
     </div>
@@ -295,13 +302,17 @@ function StepWelcome({
 function StepBusiness({
   initialName,
   initialPhone,
+  initialVertical,
   onNext,
 }: {
   initialName: string;
   initialPhone: string;
-  onNext: (name: string) => void;
+  initialVertical: Vertical;
+  onNext: (name: string, vertical: Vertical) => void;
 }) {
   const [name, setName] = useState(initialName);
+  // Verticals (docs/verticals): "עסק אחר" hides the dog modules. Default = today's flow.
+  const [vertical, setVertical] = useState<Vertical>(initialVertical);
   const [phone, setPhone] = useState(initialPhone);
   const [legalEntityType, setLegalEntityType] = useState("");
   const [vatNumber, setVatNumber] = useState("");
@@ -324,16 +335,22 @@ function StepBusiness({
           phone: phone.trim(),
           ...(legalEntityType ? { legalEntityType } : {}),
           ...(legalEntityType && vatNumber.trim() ? { vatNumber: vatNumber.trim() } : {}),
+          // Sent only when changed — the default (dogs) request body is exactly as before.
+          ...(vertical !== initialVertical ? { vertical } : {}),
         }),
       });
       if (!res.ok) { const d = await res.json(); setError(d.error || "שגיאה בשמירה"); return; }
+      if (vertical !== initialVertical) {
+        // /api/auth/me is HTTP-cached for 60s — refresh it so the dashboard opens with the new vertical.
+        await fetch("/api/auth/me", { cache: "reload" }).catch(() => null);
+      }
       await fetch("/api/onboarding/progress", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ stepCompleted1: true }),
       });
       toast.success("פרטי העסק נשמרו!");
-      onNext(name.trim());
+      onNext(name.trim(), vertical);
     } finally {
       setSaving(false);
     }
@@ -347,10 +364,32 @@ function StepBusiness({
       </div>
 
       <div>
+        <label className="label">סוג העסק</label>
+        <div className="grid grid-cols-2 gap-2 mt-1">
+          {VERTICALS.map((key) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setVertical(key)}
+              aria-pressed={vertical === key}
+              className={`px-3 py-2.5 rounded-xl border text-right transition-colors ${
+                vertical === key
+                  ? "border-brand-500 bg-brand-50 text-brand-700"
+                  : "border-slate-200 bg-white text-petra-muted hover:border-slate-300"
+              }`}
+            >
+              <span className="block text-sm font-medium">{vocab("business.kind", { vertical: key })}</span>
+              <span className="block text-[11px] mt-0.5 opacity-80">{vocab("business.kind_hint", { vertical: key })}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
         <label className="label">שם העסק *</label>
         <input
           className="input w-full mt-1"
-          placeholder="לדוגמה: אילוף כלבים ישראלי"
+          placeholder={vocab("onboarding.business_name_placeholder", { vertical })}
           value={name}
           onChange={(e) => setName(e.target.value)}
           autoFocus
@@ -428,7 +467,9 @@ function StepBusiness({
 
 const SERVICE_TYPES = ["אילוף", "פנסיון", "טיפוח", "מוצרים"];
 
-function StepPricing({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
+function StepPricing({ vertical, onNext, onBack }: { vertical: Vertical; onNext: () => void; onBack: () => void }) {
+  // Verticals: "generic" offers no boarding / grooming category; "אילוף" (the key) reads "מפגשים וחבילות".
+  const serviceTypes = offeredPriceCategories(vertical, SERVICE_TYPES);
   const [name, setName] = useState("");
   const [type, setType] = useState("אילוף");
   const [duration, setDuration] = useState("60");
@@ -505,7 +546,9 @@ function StepPricing({ onNext, onBack }: { onNext: () => void; onBack: () => voi
         <label className="label">{servicesAdded === 0 ? "שם השירות הראשון *" : "שם השירות הנוסף *"}</label>
         <input
           className="input w-full mt-1"
-          placeholder={servicesAdded === 0 ? "לדוגמה: שיעור אילוף בסיסי" : "לדוגמה: שיעור אילוף מתקדם"}
+          placeholder={servicesAdded === 0
+            ? vocab("onboarding.first_service_placeholder", { vertical })
+            : vocab("onboarding.next_service_placeholder", { vertical })}
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
@@ -514,7 +557,7 @@ function StepPricing({ onNext, onBack }: { onNext: () => void; onBack: () => voi
       <div>
         <label className="label mb-2">קטגוריה</label>
         <div className="flex flex-wrap gap-2 mt-1">
-          {SERVICE_TYPES.map((t) => (
+          {serviceTypes.map((t) => (
             <button key={t} onClick={() => setType(t)}
               className={cn(
                 "px-3 py-1.5 rounded-lg border text-sm transition-all",
@@ -522,7 +565,7 @@ function StepPricing({ onNext, onBack }: { onNext: () => void; onBack: () => voi
                   ? "border-brand-500 bg-brand-50 text-brand-700 font-medium"
                   : "border-slate-200 text-petra-muted hover:border-brand-300"
               )}>
-              {t}
+              {priceCategoryLabel(vertical, t)}
             </button>
           ))}
         </div>
@@ -586,10 +629,12 @@ function StepPricing({ onNext, onBack }: { onNext: () => void; onBack: () => voi
 // ─── Step 3: First Client (skippable) ────────────────────────────────────────
 
 function StepClient({
+  vertical,
   onNext,
   onBack,
   onSkip,
 }: {
+  vertical: Vertical;
   onNext: () => void;
   onBack: () => void;
   onSkip: () => void;
@@ -645,6 +690,8 @@ function StepClient({
         </div>
       </div>
 
+      {/* Verticals: no pets in "generic" */}
+      {vertical !== "generic" && (
       <div className="border-t pt-4">
         <p className="text-sm font-medium text-petra-text mb-3">פרטי כלב (אופציונלי)</p>
         <div className="grid grid-cols-2 gap-4">
@@ -660,6 +707,7 @@ function StepClient({
           </div>
         </div>
       </div>
+      )}
 
       {error && <p className="text-sm text-red-500">{error}</p>}
 
@@ -682,14 +730,14 @@ function StepClient({
 
 // ─── Step 4: Done ─────────────────────────────────────────────────────────────
 
-function StepDone({ onGoToDashboard }: { onGoToDashboard: () => void }) {
+function StepDone({ vertical, onGoToDashboard }: { vertical: Vertical; onGoToDashboard: () => void }) {
   return (
     <div className="text-center space-y-6 py-4">
       <div className="w-20 h-20 rounded-full bg-emerald-50 flex items-center justify-center mx-auto">
         <CheckCircle2 className="w-10 h-10 text-emerald-500" />
       </div>
       <div>
-        <h2 className="text-2xl font-bold text-petra-text mb-2">הכל מוכן! 🐾</h2>
+        <h2 className="text-2xl font-bold text-petra-text mb-2">{vocab("onboarding.done_title", { vertical })}</h2>
         <p className="text-petra-muted leading-relaxed text-sm">
           Petra מוכנה לשרת את העסק שלך.
           תוכל לחבר יומן Google ולהגדיר תזכורות WhatsApp תחת{" "}

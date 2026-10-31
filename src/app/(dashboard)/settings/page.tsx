@@ -80,8 +80,9 @@ function SettingsScreen() {
   const visibleTabs = useMemo(
     () => SETTINGS_TABS.filter((t) => isTabVisible(t, {
       isOwner, isManager, isGroomer: plan.isGroomer, mcpAllowed: user?.mcpAllowed === true,
+      vertical: user?.businessVertical,
     })),
-    [isOwner, isManager, plan.isGroomer, user?.mcpAllowed],
+    [isOwner, isManager, plan.isGroomer, user?.mcpAllowed, user?.businessVertical],
   );
 
   // The URL is the source of truth (?tab=) — refresh, back/forward and deep links

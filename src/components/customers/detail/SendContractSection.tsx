@@ -39,7 +39,7 @@ export function getDaysUntilExpiry(expiresAt: string): number {
   return Math.ceil((new Date(expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
 }
 
-export function SendContractSection({ customerId, customerName, pets }: { customerId: string; customerName: string; pets: { id: string; name: string }[] }) {
+export function SendContractSection({ customerId, customerName, pets, hidePetLink }: { customerId: string; customerName: string; pets: { id: string; name: string }[]; hidePetLink?: boolean }) {
   const queryClient = useQueryClient();
   const { canSendMessages } = usePermissions();
   const [showModal, setShowModal] = useState(false);
@@ -279,7 +279,7 @@ export function SendContractSection({ customerId, customerName, pets }: { custom
                   {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
                 </select>
               </div>
-              {pets.length > 0 && (
+              {!hidePetLink && pets.length > 0 && (
                 <div>
                   <label className="label">שייך לכלב (אופציונלי)</label>
                   <select className="input w-full" value={selectedPetId} onChange={(e) => setSelectedPetId(e.target.value)}>

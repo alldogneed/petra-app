@@ -12,6 +12,7 @@ import { ACTIVE_ORDER_STATUSES, ACTIVE_ORDER_STATUS_FILTER } from "@/lib/constan
 import { attachAppointmentToProgram } from "./training-appointments";
 import type { PrismaClient } from "@prisma/client";
 import { ServiceError } from "./types";
+import { normalizeVertical } from "@/lib/verticals";
 import { calcOrder } from "@/lib/order-calc";
 import { parseOrderDateTime } from "@/lib/order-time";
 import { israelDayStart, israelDayEnd } from "@/lib/report-dates";
@@ -340,8 +341,19 @@ export async function createOrder(
 
   // Auto-create TrainingProgram (+ BoardingStay if boarding subtype)
   const trainingPetId = appointmentData?.petId || petId;
-  if (orderType === "training" && trainingPetId) {
-    if (trainingSubType === "group" && trainingGroupId) {
+  // Verticals (docs/verticals): a "generic" business has no pets — its private / package
+  // order still opens a program, without a subject (dogId null). Dogs keep the old rule
+  // (no pet → no program); the vertical is only read when that rule would skip.
+  const programWithoutSubject =
+    orderType === "training" &&
+    !trainingPetId &&
+    trainingSubType !== "group" &&
+    trainingSubType !== "boarding" &&
+    normalizeVertical(
+      (await db.business.findUnique({ where: { id: businessId }, select: { vertical: true } }))?.vertical
+    ) === "generic";
+  if (orderType === "training" && (trainingPetId || programWithoutSubject)) {
+    if (trainingSubType === "group" && trainingGroupId && trainingPetId) {
       // IDOR: the training group must belong to this business — otherwise a user
       // could inject a participant into another tenant's group via a forged id.
       const groupCheck = await db.trainingGroup.findFirst({
@@ -359,7 +371,7 @@ export async function createOrder(
       let resolvedPackageId: string | null = trainingPackageId || null;
       let resolvedPriceListItemId: string | null = null;
       let totalSessions: number | null = null;
-      let programName = lines[0]?.name || "תוכנית אילוף";
+      let programName = lines[0]?.name || (programWithoutSubject ? "תוכנית" : "תוכנית אילוף");
 
       // Resolve sessions from PriceListItem
       const lineItemIds = lines.map((l) => l.priceListItemId).filter(Boolean) as string[];
@@ -392,7 +404,7 @@ export async function createOrder(
       }
 
       let boardingStayId: string | null = null;
-      if (trainingSubType === "boarding" && trainingBoardingStart) {
+      if (trainingSubType === "boarding" && trainingBoardingStart && trainingPetId) {
         const stay = await db.boardingStay.create({
           data: {
             businessId,
@@ -411,10 +423,10 @@ export async function createOrder(
       const newProgram = await db.trainingProgram.create({
         data: {
           businessId,
-          dogId: trainingPetId,
+          dogId: trainingPetId ?? null,
           customerId,
           name: programName,
-          programType: (programType as string) || "BASIC_OBEDIENCE",
+          programType: (programType as string) || (programWithoutSubject ? "CUSTOM" : "BASIC_OBEDIENCE"),
           trainingType: trainingSubType === "boarding" ? "BOARDING" : "HOME",
           startDate: trainingSubType === "boarding" && trainingBoardingStart
             ? new Date(trainingBoardingStart)

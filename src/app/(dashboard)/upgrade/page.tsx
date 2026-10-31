@@ -1,5 +1,8 @@
 "use client";
 
+import { useVertical } from "@/hooks/useVertical";
+import { vocab, type VocabKey } from "@/lib/verticals/vocab";
+import { hasDogText } from "@/lib/verticals/help";
 import { Check, X, MessageCircle, Crown, Zap, CreditCard, Loader2 } from "lucide-react";
 import { usePlan } from "@/hooks/usePlan";
 import { cn } from "@/lib/utils";
@@ -83,6 +86,29 @@ const PLANS: {
   },
 ];
 
+// ─── Verticals: a "generic" business reads the plans without dog-domain lines ───
+// (renamed lines come from the dictionary; dog-only features — boarding, grooming
+// portfolio, pet intake forms — are not offered there). Dogs → the plan unchanged.
+const GENERIC_LINE_KEYS: Record<string, VocabKey> = {
+  "מערכת ניהול תהליכי אילוף (עד 10 תוכניות)": "plans.free_programs",
+  "בקשת תשלום + טפסי קליטה דיגיטליים": "plans.payment_request",
+  "מושלם לגרומרים ומאלפים עצמאיים — יחיד, מקצועי, חסכוני": "plans.basic_description",
+  "מושלם לפנסיונים ומרכזי אילוף — צוות, גדילה, שליטה מלאה": "plans.pro_description",
+};
+const GENERIC_DROPPED = /תיק עבודות|טפסי קליטה/;
+
+function planForVertical<P extends { description: string; features: string[]; notIncluded: string[] }>(plan: P, vertical: string): P {
+  if (vertical !== "generic") return plan;
+  const line = (t: string) => (GENERIC_LINE_KEYS[t] ? vocab(GENERIC_LINE_KEYS[t], { vertical }) : t);
+  const keep = (t: string) => !!GENERIC_LINE_KEYS[t] || (!hasDogText(t) && !GENERIC_DROPPED.test(t));
+  return {
+    ...plan,
+    description: line(plan.description),
+    features: plan.features.filter(keep).map(line),
+    notIncluded: plan.notIncluded.filter(keep).map(line),
+  };
+}
+
 // ─── Legacy plans (DB only — for display when user is currently on one) ───────
 const LEGACY_PLANS: typeof PLANS = [
   {
@@ -128,6 +154,7 @@ const TIER_RANK: Record<string, number> = {
 const CARDCOM_TIERS = new Set(["basic", "pro"]);
 
 export default function UpgradePage() {
+  const { vertical } = useVertical();
   const { tier, cancelPending, subscriptionEndsAt } = usePlan();
   const { refreshUser } = useAuth();
   const searchParams = useSearchParams();
@@ -169,9 +196,9 @@ export default function UpgradePage() {
 
   // If user is on a legacy tier, append their current plan card so they see it
   const isLegacyTier = tier && !["free", "basic", "pro"].includes(tier);
-  const visiblePlans = isLegacyTier
+  const visiblePlans = (isLegacyTier
     ? [...PLANS, ...(LEGACY_PLANS.filter(p => p.key === tier))]
-    : PLANS;
+    : PLANS).map((plan) => planForVertical(plan, vertical));
 
   function goToCheckout(planKey: string) {
     router.push(`/checkout?tier=${planKey}`);

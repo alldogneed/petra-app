@@ -1,5 +1,6 @@
 "use client";
 
+import { useVertical } from "@/hooks/useVertical";
 import { BookingsTabs } from "@/components/bookings/BookingsTabs";
 import Link from "next/link";
 import { useState, useMemo, useEffect } from "react";
@@ -178,6 +179,8 @@ export default function SchedulerPage() {
 }
 
 function SchedulerContent() {
+  const { hides, v } = useVertical();
+  const noPets = hides("pets");
   const queryClient = useQueryClient();
   const today = todayStr();
   const searchParams = useSearchParams();
@@ -459,7 +462,7 @@ function SchedulerContent() {
   if (bookingResult) {
     const waPhone = toWhatsAppPhone(bookingResult.phone);
     const waMsg = encodeURIComponent(
-      `שלום ${bookingResult.customerName}! התור שלך ל${bookingResult.serviceName} נקבע ל${formatHebDate(bookingResult.date)} בשעה ${bookingResult.time}. סה״כ: ${formatCurrency(bookingResult.price)}. תודה! 🐾`
+      `שלום ${bookingResult.customerName}! התור שלך ל${bookingResult.serviceName} נקבע ל${formatHebDate(bookingResult.date)} בשעה ${bookingResult.time}. סה״כ: ${formatCurrency(bookingResult.price)}. ${v("appointment.booked_signoff")}`
     );
     return (
       <div className="p-6 max-w-xl mx-auto animate-fade-in">
@@ -881,7 +884,8 @@ function SchedulerContent() {
               )}
             </div>
 
-            {/* Pet Selection */}
+            {/* Pet Selection — verticals: "generic" has no pets */}
+            {!noPets && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
                 חיית מחמד
@@ -910,6 +914,7 @@ function SchedulerContent() {
                 </div>
               )}
             </div>
+            )}
           </div>
 
           {/* Attach to a training package */}
@@ -923,7 +928,7 @@ function SchedulerContent() {
                   onChange={(e) => setAttachToProgram(e.target.checked)}
                 />
                 <span className="text-sm text-gray-700">
-                  לשייך לחבילת אילוף: <strong>{attachProgram.name}</strong> — מפגש{" "}
+                  {v("appointment.attach_to_package")}: <strong>{attachProgram.name}</strong> — מפגש{" "}
                   {attachProgram.nextSessionNumber}
                   {attachProgram.totalSessions ? `/${attachProgram.totalSessions}` : ""}
                   {!selectedPetId && attachProgram.dogName ? ` (${attachProgram.dogName})` : ""}

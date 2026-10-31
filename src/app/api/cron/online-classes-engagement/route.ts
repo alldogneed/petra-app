@@ -4,7 +4,10 @@ import prisma from "@/lib/prisma";
 import { verifyCronAuth } from "@/lib/cron-auth";
 import { sendWhatsAppMessage } from "@/lib/whatsapp";
 import { hasFeatureWithOverrides } from "@/lib/feature-flags";
-import { sendEmail, brandHeader, brandFooter } from "@/lib/email";
+import { sendEmail, applyEmailBranding, EMAIL_BRAND_HEADER, EMAIL_BRAND_FOOTER } from "@/lib/email";
+import { getBusinessBranding } from "@/services/branding";
+import { neutralizeForVertical } from "@/lib/verticals/catalog";
+import type { ResolvedBranding } from "@/lib/verticals/branding";
 import { toWhatsAppPhone } from "@/lib/utils";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -63,8 +66,20 @@ function notifyWithEmailFallback(params: {
   businessId: string;
   context: string;
 }): void {
+  // Verticals phase 3/5: a "generic" business's students get its brand, no pet emoji.
+  void getBusinessBranding(params.businessId)
+    .catch(() => null)
+    .then((branding) => sendNotification(params, branding));
+}
+
+function sendNotification(
+  params: Parameters<typeof notifyWithEmailFallback>[0],
+  branding: ResolvedBranding | null
+): void {
+  const html = applyEmailBranding(params.emailHtml, branding);
+  const body = branding?.enabled ? neutralizeForVertical(params.body, "generic") : params.body;
   const sendFallbackEmail = () => {
-    sendEmail({ to: params.email, subject: params.emailSubject, html: params.emailHtml })
+    sendEmail({ to: params.email, subject: params.emailSubject, html, fromName: branding?.enabled ? branding.senderName : null })
       .catch(() => {});
   };
   // Email-only students (enrolled by email, no phone on file) go straight to email.
@@ -74,7 +89,7 @@ function notifyWithEmailFallback(params: {
   }
   sendWhatsAppMessage({
     to: toWhatsAppPhone(params.phone),
-    body: params.body,
+    body,
     businessId: params.businessId,
     context: params.context,
   })
@@ -100,11 +115,11 @@ function isEntitled(business: {
 function wrapEmail(innerHtml: string): string {
   return `
     <div dir="rtl" style="font-family:'Heebo',Arial,sans-serif;max-width:520px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;">
-      ${brandHeader()}
+      ${EMAIL_BRAND_HEADER}
       <div style="padding:32px 24px;">
         ${innerHtml}
       </div>
-      ${brandFooter()}
+      ${EMAIL_BRAND_FOOTER}
     </div>`;
 }
 

@@ -3,6 +3,7 @@
 // feature unlocks it. The lock icon in the nav and the PaywallCard both read
 // `isTabLocked()`, so they can never disagree.
 import type { FeatureKey } from "@/lib/feature-flags";
+import { isModuleHidden, type VerticalModule } from "@/lib/verticals";
 
 export type SettingsTabId =
   | "business"
@@ -44,6 +45,8 @@ export interface SettingsTabDef {
   paywallDescription?: string;
   /** Who can see the tab at all. */
   visibility?: "owner" | "ownerOrManager" | "mcpAllowed" | "notGroomer";
+  /** Verticals (docs/verticals): module of the tab — hidden (not locked) when the vertical hides it. */
+  module?: VerticalModule;
 }
 
 export const SETTINGS_TABS: SettingsTabDef[] = [
@@ -57,13 +60,13 @@ export const SETTINGS_TABS: SettingsTabDef[] = [
   },
   {
     id: "boarding", label: "פנסיון", group: "operations", description: "צ׳ק-אין, צ׳ק-אאוט ומינימום לילות",
-    feature: "boarding", requiredTier: "pro", visibility: "notGroomer",
+    feature: "boarding", requiredTier: "pro", visibility: "notGroomer", module: "boarding",
     paywallTitle: "הגדרות פנסיון",
     paywallDescription: "הגדר שעות צ׳ק-אין/אאוט ומינימום לילות — זמין במנוי פרו ומעלה.",
   },
   {
     id: "service-dogs", label: "כלבי שירות", group: "operations", description: "שעות אימון, הסמכה ולוח חיסונים",
-    feature: "service_dogs", requiredTier: "service_dog", visibility: "notGroomer",
+    feature: "service_dogs", requiredTier: "service_dog", visibility: "notGroomer", module: "service_dogs",
     paywallTitle: "הגדרות כלבי שירות",
     paywallDescription: "הגדרות תוכנית כלבי שירות — זמין במנוי Service Dog בלבד.",
   },
@@ -127,9 +130,12 @@ export interface TabAccessContext {
   isManager: boolean;
   isGroomer: boolean;
   mcpAllowed: boolean;
+  /** Business vertical; missing = "dogs" (nothing hidden). */
+  vertical?: string | null;
 }
 
 export function isTabVisible(tab: SettingsTabDef, ctx: TabAccessContext): boolean {
+  if (tab.module && isModuleHidden(ctx.vertical, tab.module)) return false;
   switch (tab.visibility) {
     case "owner": return ctx.isOwner;
     case "ownerOrManager": return ctx.isOwner || ctx.isManager;

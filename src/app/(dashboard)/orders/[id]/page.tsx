@@ -1,5 +1,6 @@
 "use client";
 
+import { useVertical } from "@/hooks/useVertical";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -232,6 +233,7 @@ function AddPaymentModal({
 }
 
 export default function OrderDetailPage() {
+  const { v } = useVertical();
   const params = useParams();
   const router = useRouter();
   const qc = useQueryClient();
@@ -439,7 +441,7 @@ export default function OrderDetailPage() {
                   {s.label}
                 </span>
                 <span className="text-xs text-petra-muted bg-slate-100 px-2 py-1 rounded-lg">
-                  {ORDER_TYPE_MAP[order.orderType] ?? order.orderType}
+                  {order.orderType === "training" ? v("order.type_training") : (ORDER_TYPE_MAP[order.orderType] ?? order.orderType)}
                 </span>
               </div>
               <p className="text-sm text-petra-muted mt-0.5">

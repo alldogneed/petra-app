@@ -99,7 +99,7 @@ export async function POST(
           customerId: program.customer.id,
           customerName: program.customer.name,
           customerPhone: program.customer.phone,
-          dogName: program.dog.name,
+          dogName: program.dog?.name ?? program.name, // no dog = generic program → the program name
           programName: program.name,
         });
       } catch (err) {

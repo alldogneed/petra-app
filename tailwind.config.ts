@@ -10,24 +10,27 @@ const config: Config = {
   theme: {
   	extend: {
   		colors: {
+  			// Verticals phase 3: CSS variables (defaults in globals.css = these exact Petra values,
+  			// see PETRA_BRAND_SCALE in src/lib/verticals/branding.ts). A "generic" business
+  			// overrides them with its own colour (BrandTheme in app-shell). Keep in sync.
   			brand: {
-  				'50': '#FFF7ED',
-  				'100': '#FFEDD5',
-  				'200': '#FED7AA',
-  				'300': '#FDBA74',
-  				'400': '#FB923C',
-  				'500': '#F97316',
-  				'600': '#EA580C',
-  				'700': '#C2410C',
-  				'800': '#9A3412',
-  				'900': '#7C2D12'
+  				'50': 'rgb(var(--brand-50) / <alpha-value>)',
+  				'100': 'rgb(var(--brand-100) / <alpha-value>)',
+  				'200': 'rgb(var(--brand-200) / <alpha-value>)',
+  				'300': 'rgb(var(--brand-300) / <alpha-value>)',
+  				'400': 'rgb(var(--brand-400) / <alpha-value>)',
+  				'500': 'rgb(var(--brand-500) / <alpha-value>)',
+  				'600': 'rgb(var(--brand-600) / <alpha-value>)',
+  				'700': 'rgb(var(--brand-700) / <alpha-value>)',
+  				'800': 'rgb(var(--brand-800) / <alpha-value>)',
+  				'900': 'rgb(var(--brand-900) / <alpha-value>)'
   			},
   			petra: {
   				bg: '#F8FAFC',
   				card: '#FFFFFF',
   				sidebar: '#0F172A',
   				'sidebar-hover': '#1E293B',
-  				'sidebar-active': '#F97316',
+  				'sidebar-active': 'rgb(var(--brand-500) / <alpha-value>)',
   				border: '#E2E8F0',
   				muted: '#64748B',
   				text: '#0F172A'
@@ -96,11 +99,11 @@ const config: Config = {
   			'card-hover': '0 8px 24px -4px rgba(0,0,0,0.10), 0 2px 8px -2px rgba(0,0,0,0.06)',
   			modal: '0 24px 48px -12px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.05)',
   			'inner-sm': 'inset 0 1px 2px rgba(0,0,0,0.06)',
-  			glow: '0 0 0 3px rgba(249,115,22,0.15)',
+  			glow: '0 0 0 3px rgb(var(--brand-500) / 0.15)',
   		},
   		backgroundImage: {
   			'gradient-sidebar': 'linear-gradient(180deg, #0F172A 0%, #1A2744 100%)',
-  			'gradient-brand': 'linear-gradient(135deg, #F97316 0%, #FB923C 100%)',
+  			'gradient-brand': 'linear-gradient(135deg, rgb(var(--brand-500)) 0%, rgb(var(--brand-400)) 100%)',
   			'gradient-card': 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
   		},
   		animation: {

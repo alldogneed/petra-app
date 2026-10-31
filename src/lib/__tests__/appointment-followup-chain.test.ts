@@ -13,4 +13,8 @@ describe("appointmentFollowupChain", () => {
   it("drops the step when a required param is empty (free text stays the fallback)", () => {
     expect(appointmentFollowupChain({ customerName: "חי", petName: "x", businessPhone: "" })).toEqual([]);
   });
+  it("verticals: a generic business gets a neutral {{2}} (no dog words); dogs unchanged", () => {
+    expect(appointmentFollowupChain({ customerName: "חי", petName: null, businessPhone: "050", vertical: "generic" })[0].params[1]).toBe("את/ה");
+    expect(appointmentFollowupChain({ customerName: "חי", petName: null, businessPhone: "050", vertical: "dogs" })[0].params[1]).toBe("הכלב שלכם");
+  });
 });

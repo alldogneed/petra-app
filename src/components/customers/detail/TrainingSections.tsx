@@ -26,7 +26,8 @@ export function PackageTracking({ programs }: { programs: TrainingProgramInfo[] 
               <div className="flex items-center justify-between gap-2 mb-1">
                 <span className="text-xs font-medium text-petra-text truncate">
                   {program.dog?.name ? `${program.dog.name} · ` : ""}
-                  {PROGRAM_TYPE_LABELS[program.programType] || program.name}
+                  {/* No subject = a "generic" program (docs/verticals) → its own name, not "מותאם אישית". */}
+                  {program.dog ? (PROGRAM_TYPE_LABELS[program.programType] || program.name) : program.name}
                 </span>
                 <span className="text-[10px] text-petra-muted flex-shrink-0">{completed}/{total} מפגשים</span>
               </div>

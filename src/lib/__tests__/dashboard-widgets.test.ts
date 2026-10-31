@@ -9,8 +9,8 @@ import {
   type RequirementFlags,
 } from "../dashboard-widgets";
 
-const ALL: RequirementFlags = { finance: true, revenue: true, leads: true, activity: true };
-const STAFF: RequirementFlags = { finance: false, revenue: false, leads: false, activity: false };
+const ALL: RequirementFlags = { finance: true, revenue: true, leads: true, activity: true, pets: true, boarding: true };
+const STAFF: RequirementFlags = { finance: false, revenue: false, leads: false, activity: false, pets: true, boarding: true };
 
 describe("normalizeDashboardPrefs", () => {
   it("rejects non-objects and missing arrays", () => {
@@ -96,5 +96,18 @@ describe("layoutBlocks", () => {
     expect(staff.recent_orders).toBe(false);
     const lone = layoutBlocks(visibleBlocks({ ...prefs, hidden: ["revenue_chart", "activity_feed", "recent_orders"] }, ALL));
     expect(lone.find((b) => b.id === "upcoming_appointments")?.wide).toBe(true);
+  });
+});
+
+describe("verticals — generic hides the dog-only widgets (dogs flags = before)", () => {
+  const GENERIC: RequirementFlags = { ...ALL, pets: false, boarding: false };
+  it("dogs (pets + boarding true) sees every block it saw before", () => {
+    const before = visibleBlocks(defaultDashboardPrefs(null), ALL).map((b) => b.id);
+    expect(before).toEqual(expect.arrayContaining(["boarding_today", "vaccinations", "medications", "birthdays"]));
+  });
+  it("generic never sees boarding / pet widgets", () => {
+    const ids = visibleBlocks(defaultDashboardPrefs(null), GENERIC).map((b) => b.id);
+    for (const id of ["boarding_today", "vaccinations", "medications", "birthdays"]) expect(ids).not.toContain(id);
+    expect(ids).toEqual(expect.arrayContaining(["daily_focus", "upcoming_appointments", "at_risk"]));
   });
 });
