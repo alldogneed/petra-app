@@ -215,6 +215,14 @@
     "analytics.operations_tab": {
       "dogs": "אילוף ופנסיון",
       "generic": "תוכניות"
+    },
+    "messages.followup_subject": {
+      "dogs": "הכלב שלכם",
+      "generic": "את/ה"
+    },
+    "messages.greeting_emoji": {
+      "dogs": "🐾",
+      "generic": "🙂"
     }
   }
 }

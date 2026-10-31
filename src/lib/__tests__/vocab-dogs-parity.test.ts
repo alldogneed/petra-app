@@ -67,6 +67,8 @@ const CASES: { key: VocabKey; params?: Record<string, string>; before: string }[
   { key: "analytics.active_programs", before: "תוכניות אילוף פעילות" },
   { key: "analytics.program_revenue", before: "הכנסות אילוף בתקופה" },
   { key: "analytics.operations_tab", before: "אילוף ופנסיון" },
+  { key: "messages.followup_subject", before: "הכלב שלכם" },
+  { key: "messages.greeting_emoji", before: "🐾" },
 ];
 
 describe("dogs values are the pre-verticals text", () => {
