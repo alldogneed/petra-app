@@ -14,6 +14,273 @@
     "errors": {
       "required": "שדה חובה",
       "phoneInvalid": "מספר טלפון לא תקין"
+    },
+    "loaderAriaLabel": "טוען",
+    "progress": {
+      "saving": "שומר...",
+      "deleting": "מוחק...",
+      "updating": "מעדכן...",
+      "exporting": "מייצא..."
+    }
+  },
+  "tasks": {
+    "title": "משימות",
+    "categories": {
+      "ALL": "הכל",
+      "GENERAL": "כללי",
+      "BOARDING": "פנסיון",
+      "TRAINING": "אילוף",
+      "LEADS": "לידים",
+      "HEALTH": "בריאות",
+      "MEDICATION": "תרופות",
+      "FEEDING": "האכלה"
+    },
+    "priorities": {
+      "LOW": "נמוכה",
+      "MEDIUM": "בינונית",
+      "HIGH": "גבוהה",
+      "URGENT": "דחופה"
+    },
+    "statusFilters": {
+      "ALL": "הכל",
+      "active": "עכשיו",
+      "overdue": "באיחור",
+      "scheduled": "מתוכננות",
+      "COMPLETED": "הושלמו"
+    },
+    "computedStatus": {
+      "active": "עכשיו",
+      "overdue": "באיחור",
+      "scheduled": "מתוכנן",
+      "completed": "הושלם"
+    },
+    "taskStatus": {
+      "OPEN": "פתוח",
+      "COMPLETED": "הושלם",
+      "CANCELED": "בוטל"
+    },
+    "weekdays": {
+      "sun": "ראשון",
+      "mon": "שני",
+      "tue": "שלישי",
+      "wed": "רביעי",
+      "thu": "חמישי",
+      "fri": "שישי",
+      "sat": "שבת"
+    },
+    "dateFormats": {
+      "time": "HH:mm",
+      "shortDate": "d/M/yy",
+      "shortDateTime": "d/M HH:mm",
+      "dueWithTime": "EEEE, d MMMM yyyy · HH:mm",
+      "dueAllDay": "EEEE, d MMMM yyyy · כל היום",
+      "exportDate": "dd/MM/yyyy",
+      "exportTime": "HH:mm",
+      "exportDateTime": "dd/MM/yyyy HH:mm"
+    },
+    "toasts": {
+      "notFound": "המשימה לא נמצאה או שכבר הושלמה",
+      "created": "המשימה נוצרה בהצלחה",
+      "limitReached": "הגעת למגבלת המשימות — שדרג לבייסיק כדי להוסיף עוד",
+      "createError": "שגיאה ביצירת המשימה. נסה שוב.",
+      "completed": "המשימה הושלמה ✓",
+      "updateError": "שגיאה בעדכון המשימה. נסה שוב.",
+      "deleteError": "שגיאה במחיקת המשימה. נסה שוב.",
+      "deleted": "המשימה נמחקה",
+      "bulkCompleted": "{count} משימות הושלמו",
+      "bulkUpdateError": "שגיאה בעדכון המשימות. נסה שוב.",
+      "bulkDeletePartial": "{deleted} משימות נמחקו, {failed} נכשלו. נסה שוב.",
+      "bulkDeleted": "{count} משימות נמחקו",
+      "bulkDeleteError": "שגיאה במחיקת המשימות. נסה שוב.",
+      "postponed": "המשימה נדחתה בהצלחה",
+      "postponeError": "שגיאה בדחיית המשימה. נסה שוב.",
+      "duplicated": "המשימה שוכפלה",
+      "duplicateError": "שגיאה בשכפול המשימה",
+      "updated": "המשימה עודכנה בהצלחה"
+    },
+    "duplicateTitle": "{title} (עותק)",
+    "header": {
+      "upgrade": "שדרג לבייסיק",
+      "newTask": "משימה חדשה",
+      "autoRefreshOff": "כבה אוטו-רענון",
+      "autoRefreshOn": "הפעל אוטו-רענון (30 שנ׳)",
+      "auto": "אוטו",
+      "refreshNow": "רענן עכשיו"
+    },
+    "freeLimit": {
+      "banner": "{count}/{max} משימות פתוחות — מגבלת המנוי החינמי",
+      "upgradeLink": "שדרג לבייסיק ←"
+    },
+    "stats": {
+      "overdue": "באיחור",
+      "activeNow": "פעיל עכשיו",
+      "scheduled": "מתוכנן",
+      "completed": "הושלמו"
+    },
+    "filters": {
+      "searchPlaceholder": "חפש משימה...",
+      "clearDates": "נקה תאריכים"
+    },
+    "toolbar": {
+      "export": "ייצוא",
+      "select": "בחר",
+      "cancelSelection": "בטל בחירה"
+    },
+    "bulk": {
+      "selected": "{count} נבחרו",
+      "completeAll": "השלם הכל",
+      "deleteSelected": "מחק נבחרים"
+    },
+    "list": {
+      "loadError": "שגיאה בטעינת המשימות",
+      "loadErrorHint": "נסה לרענן את הדף",
+      "empty": "אין משימות",
+      "emptyFiltered": "אין משימות בסטטוס הנבחר",
+      "emptyHint": "צור משימה חדשה כדי להתחיל",
+      "selectAll": "בחר הכל",
+      "deselectAll": "בטל בחירת הכל"
+    },
+    "deleteDialog": {
+      "title": "מחיקת משימה",
+      "body": "למחוק את המשימה \"{title}\"?",
+      "irreversible": "פעולה זו אינה ניתנת לביטול"
+    },
+    "bulkDeleteDialog": {
+      "title": "מחיקת משימות",
+      "body": "למחוק {count} משימות?"
+    },
+    "automation": {
+      "templatesTitle": "תבניות משימות",
+      "templatesSubtitle": "תבניות לשימוש חוזר ביצירת משימות",
+      "newTemplate": "תבנית חדשה",
+      "templateName": "שם התבנית *",
+      "templateNamePlaceholder": "למשל: האכלת בוקר",
+      "defaultTitle": "כותרת ברירת מחדל *",
+      "defaultTitlePlaceholder": "כותרת שתופיע במשימה",
+      "descriptionOptional": "תיאור (אופציונלי)",
+      "saveTemplate": "שמור תבנית",
+      "noTemplates": "אין תבניות עדיין",
+      "createTask": "צור משימה",
+      "deleteTemplate": "מחק תבנית",
+      "confirmDeleteTemplate": "למחוק את התבנית \"{name}\"?",
+      "recurringTitle": "משימות חוזרות",
+      "recurringSubtitle": "משימות שנוצרות אוטומטית לפי לוח זמנים",
+      "newRule": "חוק חדש",
+      "needTemplateFirst": "יש ליצור תבנית משימה לפני הגדרת חוזרות",
+      "newRuleTitle": "חוק חוזרות חדש",
+      "template": "תבנית *",
+      "chooseTemplate": "בחר תבנית...",
+      "frequency": "תדירות",
+      "freq": {
+        "DAILY": "יומי",
+        "WEEKLY": "שבועי",
+        "MONTHLY": "חודשי"
+      },
+      "every": "כל כמה",
+      "units": {
+        "days": "ימים",
+        "weeks": "שבועות",
+        "months": "חודשים"
+      },
+      "weekDays": "ימים בשבוע",
+      "startFrom": "תחילה מ *",
+      "endOptional": "סיום (אופציונלי)",
+      "createRule": "צור חוק",
+      "noRules": "אין חוקי חוזרות עדיין",
+      "off": "כבוי",
+      "taskCount": "{count} משימות",
+      "lastRun": "הופעל לאחרונה: {date}",
+      "runTitle": "צור משימות ל-30 ימים הקרובים",
+      "run": "הפעל",
+      "pause": "השהה",
+      "toasts": {
+        "templateCreated": "תבנית נוצרה",
+        "templateCreateError": "שגיאה ביצירת התבנית",
+        "templateDeleted": "תבנית נמחקה",
+        "templateDeleteError": "שגיאה במחיקת התבנית",
+        "taskFromTemplate": "משימה נוצרה מהתבנית",
+        "taskCreateError": "שגיאה ביצירת משימה",
+        "ruleCreated": "חוק חוזרות נוצר",
+        "ruleCreateError": "שגיאה ביצירת חוק",
+        "ruleUpdateError": "שגיאה בעדכון החוק",
+        "ruleDeleted": "חוק נמחק",
+        "ruleDeleteError": "שגיאה במחיקה",
+        "generated": "נוצרו {count} משימות חדשות",
+        "generateError": "שגיאה ביצירת משימות",
+        "chooseTemplate": "בחר תבנית"
+      }
+    },
+    "rrule": {
+      "daily": "כל יום",
+      "everyNDays": "כל {n} ימים",
+      "weekly": "שבועי – {days}",
+      "everyWeek": "כל שבוע",
+      "everyNWeeks": "כל {n} שבועות – {days}",
+      "monthly": "כל חודש",
+      "everyNMonths": "כל {n} חודשים"
+    },
+    "card": {
+      "today": "היום",
+      "todayAt": "היום {time}",
+      "edit": "ערוך",
+      "postpone": "דחה",
+      "duplicate": "שכפל"
+    },
+    "entityPicker": {
+      "label": "שיוך ל",
+      "none": "ללא",
+      "customer": "לקוח",
+      "pet": "חיית מחמד",
+      "searchCustomer": "הקלד שם לקוח...",
+      "searchPet": "הקלד שם חיית מחמד...",
+      "noResults": "לא נמצאו תוצאות"
+    },
+    "form": {
+      "newTitle": "משימה חדשה",
+      "editTitle": "עריכת משימה",
+      "title": "כותרת *",
+      "titlePlaceholder": "מה צריך לעשות?",
+      "description": "תיאור",
+      "descriptionPlaceholder": "פרטים נוספים...",
+      "category": "קטגוריה",
+      "priority": "עדיפות",
+      "dueDateRequired": "תאריך יעד *",
+      "dueDate": "תאריך יעד",
+      "time": "שעה",
+      "create": "צור משימה",
+      "saveChanges": "שמור שינויים"
+    },
+    "postpone": {
+      "title": "דחיית משימה",
+      "tomorrow": "מחר",
+      "inTwoDays": "עוד יומיים",
+      "inAWeek": "עוד שבוע",
+      "newDate": "תאריך חדש",
+      "submit": "דחה משימה"
+    },
+    "export": {
+      "title": "ייצוא משימות לאקסל",
+      "intro": "{count} משימות ייצאו (לפי הסינון הנוכחי). בחר אילו עמודות לכלול:",
+      "selectAll": "בחר הכל",
+      "clearAll": "נקה הכל",
+      "submit": "ייצא ({count} עמודות)",
+      "noColumns": "בחר לפחות עמודה אחת לייצוא",
+      "success": "יוצאו {count} משימות לאקסל",
+      "error": "שגיאה בייצוא",
+      "sheetName": "משימות",
+      "fileName": "משימות_{date}.xlsx",
+      "columns": {
+        "title": "כותרת",
+        "description": "תיאור",
+        "category": "קטגוריה",
+        "priority": "עדיפות",
+        "status": "סטטוס",
+        "dueDate": "תאריך יעד",
+        "dueAt": "שעת יעד",
+        "createdAt": "תאריך יצירה",
+        "completedAt": "תאריך השלמה",
+        "relatedEntityName": "שיוך (לקוח/חיה)"
+      }
     }
   }
 }

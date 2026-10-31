@@ -15,7 +15,7 @@ const ROOT = path.resolve(__dirname, "..");
 const LIST = path.join(ROOT, "scripts", "i18n-migrated.txt");
 const HEBREW = /[\u0590-\u05FF]/;
 /** Israel-only values that must come from the business in migrated files (CLAUDE.md "US expansion"). */
-const HARDCODED = [/["'`]he-IL["'`]/, /["'`]ILS["'`]/, /["'`]Asia\/Jerusalem["'`]/, /\u20AA/, /from ["']date-fns\/locale["']/];
+const HARDCODED = [/["'`]he-IL["'`]/, /["'`]ILS["'`]/, /["'`]Asia\/Jerusalem["'`]/, /\u20AA/, /from ["']date-fns\/locale["']/, /\blang=["']he["']/, /\bdir=["']rtl["']/, /direction:\s*rtl/];
 
 function globToRegex(glob: string): RegExp {
   let re = "";
@@ -131,7 +131,9 @@ function main() {
     console.error(`missing ${path.relative(ROOT, LIST)}`);
     process.exit(2);
   }
-  const patterns = fs
+  // `check-no-hebrew.ts <file…>` → check just these files (agents, before they are listed)
+  const cliFiles = process.argv.slice(2);
+  const patterns = cliFiles.length ? cliFiles : fs
     .readFileSync(LIST, "utf8")
     .split("\n")
     .map((l) => l.replace(/#.*/, "").trim())
@@ -169,7 +171,7 @@ function main() {
       }
     });
   }
-  problems += checkMessages();
+  if (!cliFiles.length) problems += checkMessages();
   for (const p of unmatched) console.error(`i18n-migrated.txt: "${p}" matches no file`);
   if (problems || unmatched.length) {
     console.error(`\ncheck:i18n FAILED — ${problems} Hebrew line(s) in migrated files${unmatched.length ? `, ${unmatched.length} stale entr(ies)` : ""}`);

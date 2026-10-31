@@ -23,7 +23,8 @@
     "codemod:logical-css": "node scripts/codemod-logical-css.mjs",
     "i18n:extract": "node scripts/extract-hebrew.mjs",
     "i18n:verify-he": "node scripts/i18n-verify-he.mjs",
-    "i18n:merge": "node scripts/i18n-merge-fragments.mjs"
+    "i18n:merge": "node scripts/i18n-merge-fragments.mjs",
+    "i18n:check-file": "TS_NODE_BASEURL=. ts-node --transpile-only --compiler-options '{\"module\":\"CommonJS\",\"moduleResolution\":\"node\"}' scripts/check-no-hebrew.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.132.1",

@@ -14,6 +14,273 @@
     "errors": {
       "required": "Required",
       "phoneInvalid": "Invalid phone number"
+    },
+    "loaderAriaLabel": "Loading",
+    "progress": {
+      "saving": "Saving...",
+      "deleting": "Deleting...",
+      "updating": "Updating...",
+      "exporting": "Exporting..."
+    }
+  },
+  "tasks": {
+    "title": "Tasks",
+    "categories": {
+      "ALL": "All",
+      "GENERAL": "General",
+      "BOARDING": "Boarding",
+      "TRAINING": "Training",
+      "LEADS": "Leads",
+      "HEALTH": "Health",
+      "MEDICATION": "Medication",
+      "FEEDING": "Feeding"
+    },
+    "priorities": {
+      "LOW": "Low",
+      "MEDIUM": "Medium",
+      "HIGH": "High",
+      "URGENT": "Urgent"
+    },
+    "statusFilters": {
+      "ALL": "All",
+      "active": "Now",
+      "overdue": "Overdue",
+      "scheduled": "Scheduled",
+      "COMPLETED": "Completed"
+    },
+    "computedStatus": {
+      "active": "Now",
+      "overdue": "Overdue",
+      "scheduled": "Scheduled",
+      "completed": "Completed"
+    },
+    "taskStatus": {
+      "OPEN": "Open",
+      "COMPLETED": "Completed",
+      "CANCELED": "Canceled"
+    },
+    "weekdays": {
+      "sun": "Sun",
+      "mon": "Mon",
+      "tue": "Tue",
+      "wed": "Wed",
+      "thu": "Thu",
+      "fri": "Fri",
+      "sat": "Sat"
+    },
+    "dateFormats": {
+      "time": "h:mm a",
+      "shortDate": "M/d/yy",
+      "shortDateTime": "M/d h:mm a",
+      "dueWithTime": "EEEE, MMMM d, yyyy · h:mm a",
+      "dueAllDay": "EEEE, MMMM d, yyyy · 'all day'",
+      "exportDate": "MM/dd/yyyy",
+      "exportTime": "h:mm a",
+      "exportDateTime": "MM/dd/yyyy h:mm a"
+    },
+    "toasts": {
+      "notFound": "Task not found or already completed",
+      "created": "Task created",
+      "limitReached": "You've reached the task limit — upgrade to Basic to add more",
+      "createError": "Couldn't create the task. Try again.",
+      "completed": "Task completed ✓",
+      "updateError": "Couldn't update the task. Try again.",
+      "deleteError": "Couldn't delete the task. Try again.",
+      "deleted": "Task deleted",
+      "bulkCompleted": "{count, plural, one {# task completed} other {# tasks completed}}",
+      "bulkUpdateError": "Couldn't update the tasks. Try again.",
+      "bulkDeletePartial": "{deleted, plural, one {# task deleted} other {# tasks deleted}}, {failed} failed. Try again.",
+      "bulkDeleted": "{count, plural, one {# task deleted} other {# tasks deleted}}",
+      "bulkDeleteError": "Couldn't delete the tasks. Try again.",
+      "postponed": "Task postponed",
+      "postponeError": "Couldn't postpone the task. Try again.",
+      "duplicated": "Task duplicated",
+      "duplicateError": "Couldn't duplicate the task",
+      "updated": "Task updated"
+    },
+    "duplicateTitle": "{title} (copy)",
+    "header": {
+      "upgrade": "Upgrade to Basic",
+      "newTask": "New task",
+      "autoRefreshOff": "Turn off auto-refresh",
+      "autoRefreshOn": "Turn on auto-refresh (30s)",
+      "auto": "Auto",
+      "refreshNow": "Refresh now"
+    },
+    "freeLimit": {
+      "banner": "{count}/{max} open tasks — free plan limit",
+      "upgradeLink": "Upgrade to Basic →"
+    },
+    "stats": {
+      "overdue": "Overdue",
+      "activeNow": "Active now",
+      "scheduled": "Scheduled",
+      "completed": "Completed"
+    },
+    "filters": {
+      "searchPlaceholder": "Search tasks...",
+      "clearDates": "Clear dates"
+    },
+    "toolbar": {
+      "export": "Export",
+      "select": "Select",
+      "cancelSelection": "Cancel selection"
+    },
+    "bulk": {
+      "selected": "{count} selected",
+      "completeAll": "Complete all",
+      "deleteSelected": "Delete selected"
+    },
+    "list": {
+      "loadError": "Couldn't load tasks",
+      "loadErrorHint": "Try refreshing the page",
+      "empty": "No tasks",
+      "emptyFiltered": "No tasks with the selected status",
+      "emptyHint": "Create a new task to get started",
+      "selectAll": "Select all",
+      "deselectAll": "Deselect all"
+    },
+    "deleteDialog": {
+      "title": "Delete task",
+      "body": "Delete the task \"{title}\"?",
+      "irreversible": "This action can't be undone"
+    },
+    "bulkDeleteDialog": {
+      "title": "Delete tasks",
+      "body": "{count, plural, one {Delete # task?} other {Delete # tasks?}}"
+    },
+    "automation": {
+      "templatesTitle": "Task templates",
+      "templatesSubtitle": "Reusable templates for creating tasks",
+      "newTemplate": "New template",
+      "templateName": "Template name *",
+      "templateNamePlaceholder": "e.g. Morning feeding",
+      "defaultTitle": "Default title *",
+      "defaultTitlePlaceholder": "Title shown on the task",
+      "descriptionOptional": "Description (optional)",
+      "saveTemplate": "Save template",
+      "noTemplates": "No templates yet",
+      "createTask": "Create task",
+      "deleteTemplate": "Delete template",
+      "confirmDeleteTemplate": "Delete the template \"{name}\"?",
+      "recurringTitle": "Recurring tasks",
+      "recurringSubtitle": "Tasks created automatically on a schedule",
+      "newRule": "New rule",
+      "needTemplateFirst": "Create a task template before setting up recurrence",
+      "newRuleTitle": "New recurrence rule",
+      "template": "Template *",
+      "chooseTemplate": "Choose a template...",
+      "frequency": "Frequency",
+      "freq": {
+        "DAILY": "Daily",
+        "WEEKLY": "Weekly",
+        "MONTHLY": "Monthly"
+      },
+      "every": "Every",
+      "units": {
+        "days": "days",
+        "weeks": "weeks",
+        "months": "months"
+      },
+      "weekDays": "Days of the week",
+      "startFrom": "Starts on *",
+      "endOptional": "Ends (optional)",
+      "createRule": "Create rule",
+      "noRules": "No recurrence rules yet",
+      "off": "Off",
+      "taskCount": "{count, plural, one {# task} other {# tasks}}",
+      "lastRun": "Last run: {date}",
+      "runTitle": "Create tasks for the next 30 days",
+      "run": "Run",
+      "pause": "Pause",
+      "toasts": {
+        "templateCreated": "Template created",
+        "templateCreateError": "Couldn't create the template",
+        "templateDeleted": "Template deleted",
+        "templateDeleteError": "Couldn't delete the template",
+        "taskFromTemplate": "Task created from template",
+        "taskCreateError": "Couldn't create the task",
+        "ruleCreated": "Recurrence rule created",
+        "ruleCreateError": "Couldn't create the rule",
+        "ruleUpdateError": "Couldn't update the rule",
+        "ruleDeleted": "Rule deleted",
+        "ruleDeleteError": "Couldn't delete",
+        "generated": "{count, plural, one {Created # new task} other {Created # new tasks}}",
+        "generateError": "Couldn't create tasks",
+        "chooseTemplate": "Choose a template"
+      }
+    },
+    "rrule": {
+      "daily": "Every day",
+      "everyNDays": "Every {n} days",
+      "weekly": "Weekly – {days}",
+      "everyWeek": "every week",
+      "everyNWeeks": "Every {n} weeks – {days}",
+      "monthly": "Every month",
+      "everyNMonths": "Every {n} months"
+    },
+    "card": {
+      "today": "Today",
+      "todayAt": "Today {time}",
+      "edit": "Edit",
+      "postpone": "Postpone",
+      "duplicate": "Duplicate"
+    },
+    "entityPicker": {
+      "label": "Link to",
+      "none": "None",
+      "customer": "Client",
+      "pet": "Pet",
+      "searchCustomer": "Type a client name...",
+      "searchPet": "Type a pet name...",
+      "noResults": "No results found"
+    },
+    "form": {
+      "newTitle": "New task",
+      "editTitle": "Edit task",
+      "title": "Title *",
+      "titlePlaceholder": "What needs to be done?",
+      "description": "Description",
+      "descriptionPlaceholder": "More details...",
+      "category": "Category",
+      "priority": "Priority",
+      "dueDateRequired": "Due date *",
+      "dueDate": "Due date",
+      "time": "Time",
+      "create": "Create task",
+      "saveChanges": "Save changes"
+    },
+    "postpone": {
+      "title": "Postpone task",
+      "tomorrow": "Tomorrow",
+      "inTwoDays": "In 2 days",
+      "inAWeek": "In a week",
+      "newDate": "New date",
+      "submit": "Postpone task"
+    },
+    "export": {
+      "title": "Export tasks to Excel",
+      "intro": "{count, plural, one {# task will be exported} other {# tasks will be exported}} (current filters). Choose which columns to include:",
+      "selectAll": "Select all",
+      "clearAll": "Clear all",
+      "submit": "Export ({count, plural, one {# column} other {# columns}})",
+      "noColumns": "Select at least one column to export",
+      "success": "Exported {count, plural, one {# task} other {# tasks}} to Excel",
+      "error": "Export failed",
+      "sheetName": "Tasks",
+      "fileName": "tasks_{date}.xlsx",
+      "columns": {
+        "title": "Title",
+        "description": "Description",
+        "category": "Category",
+        "priority": "Priority",
+        "status": "Status",
+        "dueDate": "Due date",
+        "dueAt": "Due time",
+        "createdAt": "Created",
+        "completedAt": "Completed",
+        "relatedEntityName": "Linked to (client/pet)"
+      }
     }
   }
 }

@@ -4,3 +4,5 @@
 src/i18n/*.ts
 src/hooks/useBusinessLocale.ts
 src/components/ui/DirIcon.tsx
+src/app/(dashboard)/tasks/page.tsx
+src/components/ui/PetraLoader.tsx
