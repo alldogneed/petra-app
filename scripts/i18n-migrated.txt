@@ -199,3 +199,45 @@ src/components/onboarding/StepWelcomeProfile.tsx
 src/components/onboarding/TeamWelcomeModal.tsx
 src/components/onboarding/WelcomeScreen.tsx
 src/components/onboarding/WhatNextScreen.tsx
+# Wave D
+src/app/(dashboard)/boarding/daily/page.tsx
+src/app/(dashboard)/boarding/yards/page.tsx
+src/app/(dashboard)/boarding/page.tsx
+src/app/(dashboard)/feeding/page.tsx
+src/app/(dashboard)/medications/page.tsx
+src/components/boarding/BoardingTabs.tsx
+# Wave E
+src/app/(dashboard)/online-classes/page.tsx
+src/components/online-classes/BrandingTab.tsx
+src/components/online-classes/CertificateView.tsx
+src/components/online-classes/CertificatesTab.tsx
+src/components/online-classes/LiveClassesTab.tsx
+src/components/online-classes/CoursesTab.tsx
+src/components/online-classes/MembershipsTab.tsx
+src/components/online-classes/QuestionsTab.tsx
+src/components/online-classes/QuizEditor.tsx
+src/components/online-classes/ReportsTab.tsx
+src/components/online-classes/StudentDossier.tsx
+src/app/c/[slug]/_components/portal-ui.tsx
+src/app/c/[slug]/classes/page.tsx
+src/app/c/[slug]/courses/[courseId]/page.tsx
+src/app/c/[slug]/courses/page.tsx
+src/app/c/[slug]/layout.tsx
+src/app/c/[slug]/login/page.tsx
+src/app/c/[slug]/page.tsx
+src/components/portal/LessonQA.tsx
+src/components/portal/QuizRunner.tsx
+src/app/(dashboard)/training/page.tsx
+# Wave F
+src/app/(dashboard)/service-dogs/[id]/page.tsx
+src/app/(dashboard)/service-dogs/compliance/page.tsx
+src/app/(dashboard)/service-dogs/dogs/page.tsx
+src/app/(dashboard)/service-dogs/id-cards/page.tsx
+src/app/(dashboard)/service-dogs/page.tsx
+src/app/(dashboard)/service-dogs/placements/page.tsx
+src/app/(dashboard)/service-dogs/recipients/page.tsx
+src/app/(dashboard)/service-dogs/recipients/[id]/page.tsx
+src/app/(dashboard)/service-dogs/reports/page.tsx
+src/app/(dashboard)/service-dogs/vaccinations/page.tsx
+src/app/(dashboard)/vaccinations/page.tsx
+src/components/service-dogs/ServiceDogsTabs.tsx

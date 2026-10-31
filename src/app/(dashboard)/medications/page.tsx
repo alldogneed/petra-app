@@ -238,6 +238,7 @@ function EditModal({
 
 function AddModal({ onClose }: { onClose: () => void }) {
   const t = useTranslations("boarding.medicationsPage");
+  const tc = useTranslations("common");
   const { cfg } = useBusinessLocale();
   const queryClient = useQueryClient();
 

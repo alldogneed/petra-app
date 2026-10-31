@@ -217,6 +217,678 @@
       "new": "New"
     }
   },
+  "boarding": {
+    "boardingDailyPage": {
+      "weekdays": {
+        "0": "Sunday",
+        "1": "Monday",
+        "2": "Tuesday",
+        "3": "Wednesday",
+        "4": "Thursday",
+        "5": "Friday",
+        "6": "Saturday"
+      },
+      "dateLabel": "{day}, {date}",
+      "logTypes": {
+        "FEEDING": "Feeding",
+        "MEDICATION": "Medication",
+        "WALK": "Walk",
+        "NOTE": "Note"
+      },
+      "noteModal": {
+        "title": "Add entry",
+        "note": "Note",
+        "walk": "Walk",
+        "walkPlaceholder": "Walk details (length, behavior...)",
+        "notePlaceholder": "Note for the team..."
+      },
+      "card": {
+        "grams": "{grams}g",
+        "serviceDog": "Service dog",
+        "checkedIn": "Checked in",
+        "reserved": "Reserved",
+        "feedings": "Feedings",
+        "medications": "Medications",
+        "given": "Given",
+        "addWalkOrNote": "Add walk / note",
+        "todayLog": "Today's log",
+        "undo": "Undo"
+      },
+      "toasts": {
+        "saveError": "Couldn't save. Please try again.",
+        "undoError": "Couldn't undo. Please try again."
+      },
+      "print": {
+        "title": "Daily care board — Boarding",
+        "generated": "{date} · Generated {time}"
+      },
+      "nav": {
+        "prevDay": "Previous day",
+        "nextDay": "Next day",
+        "today": "Today",
+        "print": "Print"
+      },
+      "summary": {
+        "dogs": "Dogs",
+        "feedings": "Feedings",
+        "medications": "Medications",
+        "walks": "Walks"
+      },
+      "empty": {
+        "title": "No dogs in boarding",
+        "subtitle": "No active stays found for this date",
+        "goToBoard": "Go to the boarding board"
+      }
+    },
+    "boardingYardsPage": {
+      "yardTypes": {
+        "standard": "Standard",
+        "large": "Large",
+        "group": "Group"
+      },
+      "statuses": {
+        "available": "Available",
+        "occupied": "Occupied",
+        "needs_cleaning": "Needs cleaning"
+      },
+      "serviceDog": "Service dog",
+      "reserved": "Reserved",
+      "removeFromYard": "Remove from yard",
+      "edit": "Edit",
+      "delete": "Delete",
+      "cannotDeleteWithStays": "Can't delete a yard with active stays",
+      "pricePerStay": "{symbol}{price}/stay",
+      "full": "Full",
+      "dropHere": "Drop here",
+      "dropHereToAdd": "Drop here to add",
+      "dragDogHere": "Drag a dog here",
+      "errors": {
+        "generic": "Error"
+      },
+      "toasts": {
+        "assignError": "Couldn't assign the dog",
+        "created": "Yard created",
+        "createError": "Couldn't create the yard",
+        "updated": "Yard updated",
+        "deleteError": "Couldn't delete the yard",
+        "updateError": "Couldn't update the yard",
+        "deleted": "Yard deleted",
+        "yardFull": "Yard {name} is full (capacity {capacity})"
+      },
+      "print": {
+        "title": "Yard map — {date}",
+        "button": "Print"
+      },
+      "yardsSummary": "{yards, plural, one {# yard} other {# yards}} · {dogs, plural, one {# dog} other {# dogs}} in yards",
+      "title": "Yard management",
+      "share": {
+        "messageTitle": "🌿 Yard rotation — {date}",
+        "tooltip": "Share yard rotation",
+        "button": "Yard rotation"
+      },
+      "addYard": "Add yard",
+      "waitingForAssignment": "{count} waiting to be assigned",
+      "printTooltip": "Print yard map",
+      "form": {
+        "newYardTitle": "Add a new yard",
+        "nameRequired": "Yard name *",
+        "namePlaceholder": "e.g. Yard A, Large yard...",
+        "namePlaceholderShort": "Yard name",
+        "capacity": "Capacity",
+        "type": "Type",
+        "pricePerStay": "Price/stay ({symbol})",
+        "optional": "Optional",
+        "adding": "Adding..."
+      },
+      "empty": {
+        "title": "No yards yet",
+        "hint": "Click \"Add yard\" to get started",
+        "addFirst": "Add your first yard"
+      },
+      "panel": {
+        "title": "Waiting for a yard",
+        "allAssigned": "All dogs assigned ✓",
+        "noDogs": "No dogs on these dates"
+      },
+      "deleteDialog": {
+        "title": "Delete yard",
+        "body": "Delete the yard \"{name}\"? This can't be undone."
+      }
+    },
+    "boardingPage": {
+      "title": "Boarding",
+      "tierGate": {
+        "title": "Boarding management",
+        "description": "Manage rooms, overnight stays and occupancy. Track every dog in boarding in real time."
+      },
+      "serviceDog": "Service dog",
+      "checkIn": "Check-in",
+      "checkOut": "Check-out",
+      "checkInToday": "Check-in today",
+      "checkOutToday": "Check-out today",
+      "today": "Today",
+      "noRoom": "No room",
+      "notes": "Notes",
+      "reminder": "Reminder",
+      "openStay": "Open booking",
+      "dogsCount": "{count, plural, one {# dog} other {# dogs}}",
+      "stayStatus": {
+        "reserved": "Reserved",
+        "checked_in": "Checked in",
+        "checked_out": "Checked out",
+        "canceled": "Canceled"
+      },
+      "roomStatus": {
+        "available": "Available",
+        "occupied": "Occupied",
+        "needs_cleaning": "Needs cleaning"
+      },
+      "roomTypes": {
+        "standard": "Standard",
+        "premium": "Premium",
+        "suite": "Suite"
+      },
+      "weekdaysShort": {
+        "sun": "Sun",
+        "mon": "Mon",
+        "tue": "Tue",
+        "wed": "Wed",
+        "thu": "Thu",
+        "fri": "Fri",
+        "sat": "Sat"
+      },
+      "progress": {
+        "overdue": "Overdue! {pct}%"
+      },
+      "room": {
+        "label": "Room",
+        "pricePerNight": "{currency}{price}/night",
+        "checkOutOn": "Out: {date}",
+        "checkInOn": "In: {date}",
+        "dropHere": "Drop here",
+        "availableForGuests": "Available for guests",
+        "markClean": "Mark as clean"
+      },
+      "calendar": {
+        "nextMonth": "Next month",
+        "prevMonth": "Previous month",
+        "legend": {
+          "partlyBooked": "Partly booked",
+          "almostFull": "Almost full",
+          "full": "Full",
+          "arrivals": "Arrivals",
+          "departures": "Departures"
+        }
+      },
+      "timeline": {
+        "barTitle": "{pet} — {customer}\n{range}\nClick to open the booking",
+        "barAria": "{pet}, {range} — open booking",
+        "until": "Until {date}",
+        "noMatches": "No matching bookings in this range"
+      },
+      "unassigned": {
+        "dropToUnassign": "Drop here to remove from room",
+        "checkInPet": "Check in {name}",
+        "checkOutPet": "Check out {name}"
+      },
+      "row": {
+        "serviceDogProfile": "Go to service dog profile",
+        "lateCheckOut": "Late check-out!",
+        "openEnded": "(open)",
+        "deleteStay": "Delete stay",
+        "sendCheckInReminder": "Send check-in reminder",
+        "sendCheckOutReminder": "Send check-out reminder",
+        "sendCareInstructions": "Send care instructions",
+        "instructions": "Instructions",
+        "extendStay": "Extend stay",
+        "extend": "Extend"
+      },
+      "count": {
+        "nights": "{count, plural, one {# night} other {# nights}}",
+        "days": "{count, plural, one {# day} other {# days}}"
+      },
+      "health": {
+        "dogAggression": "Aggression toward dogs",
+        "humanAggression": "Aggression toward people",
+        "biteHistoryDetails": "Bite history: {details}",
+        "biteHistory": "Bite history",
+        "resourceGuarding": "Resource guarding",
+        "leashReactivity": "Leash reactivity",
+        "separationAnxiety": "Separation anxiety",
+        "allergies": "Allergies: {value}",
+        "medicalConditions": "Medical conditions: {value}",
+        "activityLimitations": "Activity limitations: {value}",
+        "medication": "Medication: {details}",
+        "urgentTitle": "⚠️ Heads up — important info about this dog",
+        "title": "About this dog"
+      },
+      "dialog": {
+        "roomLabel": "Room:",
+        "notAssigned": "Not assigned",
+        "yardLabel": "Yard:",
+        "checkInLabel": "Check-in:",
+        "checkOutLabel": "Check-out:",
+        "processing": "Processing..."
+      },
+      "checkin": {
+        "checkInDate": "Check-in date:",
+        "plannedCheckOutDate": "Planned check-out date:",
+        "actualTime": "Actual arrival time",
+        "early": "Early arrival — the set check-in time is {time}",
+        "notes": "Check-in notes",
+        "notesPlaceholder": "Arrival notes...",
+        "createMedTasks": "💊 Create automatic medication tasks ({count})",
+        "confirm": "Confirm check-in"
+      },
+      "checkout": {
+        "noPaymentLinkWarning": "No payment link set up — the message is sent without a link (to set up Stripe: Settings → Integrations)",
+        "pet": "Pet:",
+        "client": "Client:",
+        "duration": "Length of stay:",
+        "late": "Late departure — the set check-out time is {time}",
+        "pricePerNight": "Price per night ({currency})",
+        "pricePerDay": "Price per day ({currency})",
+        "discount": "Discount",
+        "noDiscount": "No discount",
+        "discountPercent": "Discount %",
+        "discountFixed": "Discount {currency}",
+        "subtotal": "Subtotal",
+        "toPay": "Amount due",
+        "notes": "Check-out notes",
+        "notesPlaceholder": "Departure notes...",
+        "preparingLink": "Preparing link...",
+        "sendPaymentRequest": "Send payment request on WhatsApp",
+        "confirm": "Confirm check-out"
+      },
+      "edit": {
+        "title": "Edit booking",
+        "openClientCard": "Open client card",
+        "checkIn": "Check-in",
+        "checkOut": "Check-out",
+        "invalidRange": "Check-out must be after check-in",
+        "priceHint": "Price and discount are set on the check-out screen, before the payment request is sent.",
+        "saveChanges": "Save changes"
+      },
+      "extend": {
+        "titleExtend": "Extend stay",
+        "titleSet": "Set check-out date",
+        "currentCheckOut": "Current check-out:",
+        "openStay": "Open stay — no date set",
+        "newDateLabel": "New check-out date *",
+        "dateLabel": "Check-out date *",
+        "update": "Update check-out date",
+        "set": "Set check-out date"
+      },
+      "vaccination": {
+        "expiredCount": "{count} expired",
+        "notVaccinatedCount": "{count} not vaccinated",
+        "expiringSoonCount": "{count} expiring soon",
+        "summary": "Dogs: {parts}",
+        "expiringSoonDogs": "{count, plural, one {# dog with a vaccine expiring soon} other {# dogs with a vaccine expiring soon}}",
+        "notVaccinated": "Not vaccinated",
+        "validUntil": "Rabies: {date}",
+        "showMore": "Show {count} more..."
+      },
+      "training": {
+        "saveError": "Error saving training minutes",
+        "minutesUnit": "training min",
+        "editTitle": "Edit daily training minutes",
+        "minutes": "{count} training min",
+        "add": "Add training minutes"
+      },
+      "careLog": {
+        "types": {
+          "FEEDING": "Feeding",
+          "MEDICATION": "Medication",
+          "WALK": "Walk",
+          "NOTE": "Note"
+        },
+        "genericError": "Error",
+        "added": "Entry added",
+        "addError": "Error adding entry",
+        "deleteError": "Error deleting entry",
+        "title": "Care log — {name}",
+        "titlePlaceholder": "Entry title *",
+        "notesPlaceholder": "Notes (optional)",
+        "add": "Add entry",
+        "empty": "No entries yet",
+        "open": "Care log"
+      },
+      "toasts": {
+        "stayCreated": "Stay created",
+        "createErrorRetry": "Error creating the stay. Please try again.",
+        "createError": "Error creating the stay",
+        "statusError": "Error updating status",
+        "statusErrorRetry": "Error updating status. Please try again.",
+        "checkInWithMedTasks": "{count, plural, one {Checked in ✓ — # medication task created} other {Checked in ✓ — # medication tasks created}}",
+        "checkInDone": "Checked in",
+        "medTasksError": "Error creating medication tasks — please check manually",
+        "checkOutDone": "Checked out",
+        "roomAssignError": "Error assigning the room",
+        "roomAssignErrorRetry": "Error assigning the room. Please try again.",
+        "roomStatusError": "Error updating room status",
+        "roomUpdateErrorRetry": "Error updating the room. Please try again.",
+        "roomMarkedClean": "Room marked as clean",
+        "stayUpdated": "Booking updated",
+        "stayUpdateError": "Error updating the booking",
+        "checkOutDateErrorRetry": "Error updating the check-out date. Please try again.",
+        "checkOutDateUpdated": "Check-out date updated",
+        "roomCreated": "Room created",
+        "roomCreateErrorRetry": "Error creating the room. Please try again.",
+        "roomUpdated": "Room updated",
+        "roomDeleteError": "Error deleting the room",
+        "roomDeleted": "Room deleted",
+        "roomDeleteErrorRetry": "Error deleting the room. Please try again.",
+        "stayDeleteError": "Error deleting the stay",
+        "stayDeleted": "Stay deleted"
+      },
+      "medTask": {
+        "dosage": "Dosage: {value}",
+        "frequency": "Frequency: {value}",
+        "times": "Times: {value}"
+      },
+      "tabs": {
+        "all": "All",
+        "history": "History"
+      },
+      "header": {
+        "refresh": "Refresh data",
+        "summary": "{stays} active stays · {rooms} rooms",
+        "exportTitle": "Daily export to Excel",
+        "export": "Daily export"
+      },
+      "rounds": {
+        "morningTitle": "🏨 Boarding morning round — {date}",
+        "petsBoarded": "{count, plural, one {# pet boarding} other {# pets boarding}}",
+        "allergies": "⚠️ Allergies: {value}",
+        "medicalConditions": "🏥 Medical conditions: {value}",
+        "aggression": "🔴 Aggression!",
+        "separationAnxiety": "😰 Separation anxiety",
+        "checkOut": "📅 Check-out: {date}",
+        "shareMorning": "Share morning round",
+        "morning": "Morning round",
+        "feedingTitle": "🍽️ Feeding round — {date}",
+        "feeding": "Feeding round",
+        "feedingShort": "Feeding"
+      },
+      "rooms": {
+        "manage": "Manage rooms",
+        "subtitle": "Add, edit or delete rooms",
+        "empty": "No rooms yet",
+        "namePlaceholder": "Room name",
+        "capacity": "Capacity",
+        "type": "Type",
+        "pricePerNightLabel": "Price/night ({currency})",
+        "optional": "Optional",
+        "capacityInline": "· Capacity {count}",
+        "activeInline": "· {count} active",
+        "edit": "Edit",
+        "cannotDelete": "Can't delete a room with active stays",
+        "delete": "Delete room",
+        "addNew": "Add a new room",
+        "nameRequired": "Room name *",
+        "nameExample": "e.g. Room 5, Premium room...",
+        "adding": "Adding...",
+        "add": "Add room"
+      },
+      "newStay": {
+        "title": "New stay",
+        "subtitle": "Add a boarding stay",
+        "regularClient": "Regular client",
+        "clientRequired": "Client *",
+        "change": "Change",
+        "serviceDogRequired": "Service dog *",
+        "certified": "Certified",
+        "inTraining": "In training",
+        "searchServiceDogs": "Search by name or breed...",
+        "noActiveServiceDogs": "No active service dogs",
+        "noResults": "No results",
+        "petsLabel": "Pets * ({count} selected)",
+        "noPets": "No pets",
+        "priceEstimateLabel": "Price per night ({currency}) — cost estimate only",
+        "priceNotSaved": "This amount isn't saved automatically — add a payment manually in the \"Finance\" tab",
+        "availabilityByDates": "Availability for the selected dates",
+        "roomAvailable": "✓ Available",
+        "roomTaken": "✗ Taken",
+        "roomOptionToday": "{name} (today {count}/{capacity})",
+        "roomOptionNeedsCleaning": "— needs cleaning",
+        "checkInRequired": "Check-in *",
+        "retroTitle": "Past stay — the check-in date has already passed",
+        "retroHint": "You can record dogs that are already in boarding (or stays that have ended) without a manual check-in.",
+        "retroCheckedIn": "Dog is already here (checked in)",
+        "retroCheckedOut": "Stay has ended (past)",
+        "retroReserved": "Reservation only (awaiting check-in)",
+        "staffMember": "Staff member",
+        "unassigned": "Unassigned",
+        "serviceDogNoCharge": "Service dog in training — no charge",
+        "summaryNights": "Nights",
+        "summaryPricePerNight": "Price per night",
+        "summaryDogs": "Dogs",
+        "summaryTotal": "Total",
+        "createMany": "Create {count} stays",
+        "create": "Create stay"
+      },
+      "species": {
+        "dog": "Dog",
+        "cat": "Cat",
+        "other": "Other"
+      },
+      "overdue": {
+        "title": "{count, plural, one {# stay with a late check-out} other {# stays with a late check-out}}",
+        "petLateOneHour": "{name} ({hours} hour late)",
+        "petLateHours": "{name} ({hours} hours late)",
+        "handleNow": "Handle now"
+      },
+      "search": {
+        "placeholder": "Search by pet, client, room...",
+        "noRooms": "No rooms with \"{query}\" on the selected dates"
+      },
+      "view": {
+        "roomMap": "Room map",
+        "show": "Show",
+        "prevPeriod": "Previous period",
+        "nextPeriod": "Next period",
+        "backToToday": "Back to today",
+        "fullyFree": "✓ Fully available",
+        "prevWeek": "Previous week",
+        "nextWeek": "Next week",
+        "timelineStartTitle": "Timeline start date (past dates allowed)",
+        "daysCount": "{count} days",
+        "printTitle": "Print room report",
+        "print": "Print",
+        "cards": "Cards",
+        "timeline": "Timeline",
+        "availability": "Availability"
+      },
+      "stats": {
+        "available": "Available",
+        "occupied": "Occupied",
+        "lateCheckOut": "Late check-out"
+      },
+      "empty": {
+        "noRoomsInSystem": "No rooms set up yet",
+        "addFirstRoom": "Add your first room",
+        "noRooms": "No rooms set up"
+      },
+      "print": {
+        "title": "Boarding room map",
+        "generated": "Generated: {date}"
+      },
+      "filter": {
+        "showingFor": "Showing stays for {date}",
+        "clear": "Clear filter"
+      },
+      "list": {
+        "title": "Stays board",
+        "loadError": "Error loading boarding data. Try refreshing the page.",
+        "noMatches": "No matching stays",
+        "noCheckIns": "No check-ins scheduled for today",
+        "noCheckOuts": "No check-outs scheduled for today",
+        "noActive": "No active stays",
+        "noHistory": "No past stays"
+      },
+      "serviceDogs": {
+        "title": "Service dogs in boarding",
+        "trainingHours": "{hours} training hours",
+        "profile": "Dog profile"
+      },
+      "deleteStay": {
+        "title": "Delete stay",
+        "confirm": "Delete {name}'s stay? This can't be undone."
+      }
+    },
+    "boardingTabs": {
+      "daily": "Daily board",
+      "rooms": "Rooms",
+      "yards": "Yards",
+      "feeding": "Feeding",
+      "medications": "Medications",
+      "vaccinations": "Vaccinations",
+      "intakeForms": "Intake forms"
+    },
+    "feedingPage": {
+      "meals": {
+        "breakfast": "Breakfast",
+        "lunch": "Lunch",
+        "dinner": "Dinner"
+      },
+      "medTimes": {
+        "morning": "Morning",
+        "noon": "Noon",
+        "evening": "Evening",
+        "night": "Night"
+      },
+      "planModal": {
+        "title": "Feeding plan",
+        "foodType": "Food type",
+        "foodTypePlaceholder": "e.g. Royal Canin Medium Adult",
+        "amountGrams": "Amount (g)",
+        "timesPerDay": "Times per day",
+        "times": {
+          "once": "Once",
+          "twice": "Twice",
+          "three": "3 times",
+          "four": "4 times"
+        },
+        "notes": "Feeding notes",
+        "notesPlaceholder": "Special instructions, allergies, preferences..."
+      },
+      "medsBoard": {
+        "empty": "No dogs in boarding with active medications",
+        "medsCount": "{count, plural, one {# medication} other {# medications}}",
+        "given": "Given",
+        "markGiven": "Mark as given"
+      },
+      "serviceDog": "Service dog",
+      "toasts": {
+        "saveError": "Couldn't save. Please try again.",
+        "cancelError": "Couldn't undo. Please try again.",
+        "planSaveError": "Couldn't save the feeding plan",
+        "planSaved": "Feeding plan saved"
+      },
+      "gramsShort": "{grams}g",
+      "print": {
+        "title": "Feeding board — Boarding",
+        "generated": "{date} · Generated {time}",
+        "button": "Print"
+      },
+      "title": "Feeding board",
+      "today": "Today",
+      "prevDay": "Previous day",
+      "nextDay": "Next day",
+      "mealsDone": "meals",
+      "refresh": "Refresh",
+      "loadError": "Couldn't load the data",
+      "empty": "No dogs in boarding on this date",
+      "goToBoarding": "Go to the boarding board",
+      "allDone": {
+        "title": "All meals done!",
+        "body": "All {count} dogs were fed {when}",
+        "whenDay": "today",
+        "whenDate": "on this date"
+      },
+      "table": {
+        "dogName": "Dog name",
+        "feedingInstructions": "Feeding instructions",
+        "boardingPlan": "Boarding plan",
+        "planLine": "{grams}g · {times}× a day",
+        "fromPetProfile": "From dog profile",
+        "gramsPerDay": "{grams}g/day",
+        "noPlan": "No plan",
+        "editPlan": "Edit feeding plan",
+        "addPlan": "Add feeding plan",
+        "unmarkMeal": "Unmark – {meal}",
+        "markMeal": "Mark {meal}"
+      }
+    },
+    "medicationsPage": {
+      "errors": {
+        "update": "Update failed",
+        "add": "Couldn't add",
+        "delete": "Delete failed"
+      },
+      "editModal": {
+        "title": "Edit medication",
+        "frequencyPlaceholder": "e.g. once a day",
+        "submit": "Save changes"
+      },
+      "addModal": {
+        "title": "Add medication",
+        "pickDog": "Choose a dog *",
+        "pickDogOption": "-- Choose a dog --",
+        "medNamePlaceholder": "e.g. Amoxicillin",
+        "frequencyPlaceholder": "e.g. twice a day",
+        "instructionsPlaceholder": "Additional instructions...",
+        "adding": "Adding..."
+      },
+      "form": {
+        "medName": "Medication name *",
+        "dosage": "Dosage",
+        "dosagePlaceholder": "e.g. 10mg",
+        "frequency": "Frequency",
+        "times": "Times given (comma-separated)",
+        "timesPlaceholder": "e.g. 8:00 AM, 8:00 PM",
+        "instructions": "Instructions",
+        "startDate": "Start date",
+        "endDate": "End date"
+      },
+      "addMed": "Add medication",
+      "toasts": {
+        "deleted": "Medication deleted",
+        "deleteError": "Couldn't delete the medication. Please try again."
+      },
+      "confirmDelete": "Delete the medication \"{medName}\"?",
+      "title": "Medications",
+      "subtitle": "Dog medication tracking – entire business",
+      "refresh": "Refresh",
+      "searchPlaceholder": "Search by dog, client or medication...",
+      "filters": {
+        "all": "All",
+        "active": "Active",
+        "inactive": "Inactive"
+      },
+      "count": "{count, plural, one {# medication} other {# medications}}",
+      "loadError": "Couldn't load data",
+      "empty": "No medications found",
+      "addFirst": "Add the first medication",
+      "table": {
+        "dogName": "Dog name",
+        "owner": "Owner",
+        "medication": "Medication",
+        "dosage": "Dosage",
+        "frequency": "Frequency",
+        "start": "Start",
+        "end": "End",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "status": {
+        "active": "Active",
+        "inactive": "Inactive"
+      },
+      "edit": "Edit"
+    }
+  },
   "bookings": {
     "bookingsPage": {
       "tierGate": {
@@ -5314,6 +5986,581 @@
       "toDashboard": "Take me to the dashboard"
     }
   },
+  "onlineClasses": {
+    "onlineClassesPage": {
+      "title": "Online classes",
+      "tierGateDescription": "A branded members portal with live Zoom classes and recorded courses",
+      "viewPortal": "View portal",
+      "setPortalAddressHint": "Set a business address (slug) in Settings to open the portal",
+      "setPortalAddress": "Set portal address",
+      "tabs": {
+        "classes": "Live classes",
+        "courses": "Courses",
+        "memberships": "Memberships",
+        "reports": "Progress",
+        "certificates": "Certificates",
+        "questions": "Questions",
+        "branding": "Branding"
+      },
+      "stats": {
+        "upcomingClasses": "Upcoming classes",
+        "publishedCourses": "Published courses",
+        "activeMembers": "Active members",
+        "pendingMembers": "Pending approval"
+      }
+    },
+    "brandingTab": {
+      "noDataToSave": "No data to save",
+      "saved": "Branding saved",
+      "saveError": "Couldn't save branding",
+      "loadError": "Couldn't load branding settings",
+      "retry": "Try again",
+      "title": "Portal branding",
+      "primaryColor": "Primary color",
+      "secondaryColor": "Secondary color",
+      "senderName": "Sender name (in messages to clients)",
+      "businessNamePlaceholder": "Business name",
+      "paymentLink": "Membership payment link",
+      "paymentLinkPlaceholder": "https://... (Venmo / PayPal / checkout page)",
+      "paymentLinkHint": "Clients see this link in join requests and membership renewal reminders",
+      "aboutText": "About text",
+      "aboutTextPlaceholder": "A few words about your business for the portal home page...",
+      "logoUrl": "Logo link",
+      "logoUrlHint": "If empty, the business logo is used",
+      "save": "Save branding",
+      "certificate": {
+        "title": "Certificate design",
+        "subtitle": "Signature and text shown on every course completion certificate",
+        "signatureUrl": "Signature image link",
+        "signatureUrlPlaceholder": "https://... (transparent signature image, PNG)",
+        "signerName": "Signer name",
+        "signerNamePlaceholder": "Jane Smith",
+        "footerText": "Footer line",
+        "footerTextPlaceholder": "e.g. Accredited by the National Dog Trainers Association",
+        "signaturePreview": "Signature preview",
+        "signatureAlt": "Signature"
+      },
+      "security": {
+        "title": "Course security",
+        "subtitle": "Restrictions that prevent students from sharing accounts and content",
+        "maxDevices": "Devices allowed per student",
+        "maxDevicesHint": "0 = unlimited. Signing in on a device beyond the limit automatically signs out the oldest one.",
+        "ipRestriction": "Restrict access by IP address",
+        "allowedIps": "Allowed addresses",
+        "allowedIpsHint": "IP addresses or CIDR ranges, one per line. An empty list blocks no one."
+      },
+      "preview": {
+        "title": "Portal preview",
+        "logoAlt": "Logo",
+        "membersPortal": "Members portal",
+        "join": "Join membership",
+        "nextLiveClass": "Next live class",
+        "sampleClassTime": "Sunday · 8:00 PM · on Zoom"
+      }
+    },
+    "certificateView": {
+      "title": "Certificate of completion",
+      "awardedTo": "Presented to",
+      "forCompleting": "for completing the course",
+      "signatureAlt": "Signature",
+      "issuedOn": "Issued on: {date}",
+      "print": "Print / save as PDF"
+    },
+    "certificatesTab": {
+      "filters": {
+        "all": "All",
+        "valid": "Valid",
+        "revoked": "Revoked"
+      },
+      "toast": {
+        "revoked": "Certificate revoked",
+        "restored": "Certificate restored",
+        "updateError": "Couldn't update the certificate"
+      },
+      "revokeConfirm": "Revoke {name}'s certificate for the course \"{course}\"?\nThe certificate will be marked as revoked on the verification page.",
+      "revokeReasonPrompt": "Reason for revoking (optional):",
+      "loadError": "Couldn't load certificates",
+      "retry": "Try again",
+      "allCourses": "All courses",
+      "issueManually": "Issue certificate manually",
+      "empty": {
+        "title": "No certificates to show",
+        "body": "Certificates are issued automatically when a student completes a course, or manually here for someone who finished outside the system"
+      },
+      "table": {
+        "student": "Student",
+        "course": "Course",
+        "serial": "Certificate no.",
+        "issuedAt": "Issue date",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "manualBadge": "Manual",
+      "status": {
+        "revoked": "Revoked",
+        "valid": "Valid"
+      },
+      "viewHint": "Open the certificate page (print or save as PDF)",
+      "view": "View",
+      "restore": "Restore",
+      "revoke": "Revoke",
+      "viewFootnote": "The \"View\" button opens the certificate page, where you can print it or save it as a PDF.",
+      "issueModal": {
+        "issued": "Certificate issued. The student was notified",
+        "issueError": "Couldn't issue the certificate",
+        "title": "Issue certificate manually",
+        "intro": "For a student who finished the course outside the system. The certificate will be marked as manually issued and the student will get a message with a link.",
+        "student": "Student *",
+        "selectStudent": "Select student",
+        "course": "Course *",
+        "selectCourse": "Select course",
+        "noPublishedCourses": "No published courses. Certificates can only be issued for a published course",
+        "issuing": "Issuing...",
+        "issue": "Issue certificate"
+      }
+    },
+    "liveClassesTab": {
+      "registrationStatus": {
+        "registered": "Registered",
+        "waitlist": "Waitlist",
+        "cancelled": "Canceled"
+      },
+      "toast": {
+        "updated": "Class updated",
+        "created": "Class created",
+        "saveError": "Couldn't save the class",
+        "deleted": "Class deleted",
+        "deleteError": "Couldn't delete the class"
+      },
+      "deleteConfirm": "Delete the class \"{title}\"? All its registrations will be deleted.",
+      "loadError": "Couldn't load classes",
+      "retry": "Try again",
+      "title": "Live Zoom classes",
+      "newClass": "New class",
+      "empty": {
+        "title": "No live classes yet",
+        "body": "Create your first Zoom class and portal members will be able to sign up"
+      },
+      "ended": "Ended",
+      "durationSuffix": " ({min} min)",
+      "instructor": "Instructor: {name}",
+      "waitlistCount": "{count} waitlisted",
+      "zoomLinkSet": "Zoom link set",
+      "zoomLinkMissing": "Zoom link missing",
+      "registrations": "Registrations",
+      "deleteTitle": "Delete",
+      "form": {
+        "editTitle": "Edit class",
+        "title": "Class name *",
+        "titlePlaceholder": "e.g. Puppy socialization class",
+        "description": "Description",
+        "instructorName": "Instructor name",
+        "startsAt": "Date and time *",
+        "duration": "Duration (minutes)",
+        "capacity": "Capacity *",
+        "zoomLink": "Zoom link",
+        "zoomLinkHint": "The Zoom link is sent automatically to registrants about an hour before the class starts.",
+        "saveChanges": "Save changes",
+        "create": "Create class"
+      },
+      "registrationsModal": {
+        "title": "Registrations — {title}",
+        "empty": "No one has registered for this class yet"
+      }
+    },
+    "coursesTab": {
+      "lessonTypes": {
+        "video": "Video",
+        "pdf": "PDF",
+        "text": "Text"
+      },
+      "status": {
+        "published": "Published",
+        "draft": "Draft"
+      },
+      "retry": "Try again",
+      "backToCourses": "Back to courses",
+      "lessonsCount": "{count, plural, one {# lesson} other {# lessons}}",
+      "dragToReorder": "Drag to reorder",
+      "addLesson": "Add lesson",
+      "toasts": {
+        "courseCreated": "Course created",
+        "courseCreateError": "Error creating the course",
+        "courseDeleted": "Course deleted",
+        "courseDeleteError": "Error deleting the course",
+        "addedOneNotified": "Student added and notified",
+        "addedManyNotified": "{count} students added and notified",
+        "addedOne": "Student added",
+        "addedMany": "{count} students added",
+        "noneAdded": "No students were added",
+        "enrollError": "Error adding the students",
+        "reorderError": "Error changing the order",
+        "coursePublished": "Course published to the portal",
+        "courseUnpublished": "Course hidden (draft)",
+        "statusError": "Error updating the course status",
+        "moduleAdded": "Chapter added",
+        "moduleAddError": "Error adding the chapter",
+        "moduleRenamed": "Chapter name updated",
+        "moduleUpdateError": "Error updating the chapter",
+        "moduleDeleted": "Chapter deleted",
+        "moduleDeleteError": "Error deleting the chapter",
+        "lessonUpdated": "Lesson updated",
+        "lessonAdded": "Lesson added",
+        "lessonSaveError": "Error saving the lesson",
+        "lessonDeleted": "Lesson deleted",
+        "lessonDeleteError": "Error deleting the lesson"
+      },
+      "list": {
+        "errorLoading": "Error loading courses",
+        "title": "Recorded courses",
+        "newCourse": "New course",
+        "emptyTitle": "No courses yet",
+        "emptyHint": "Build your first recorded course with chapters and YouTube video lessons",
+        "addStudentsTitle": "Add students to the course by email",
+        "addStudents": "Add students",
+        "deleteCourseTitle": "Delete course"
+      },
+      "create": {
+        "titleLabel": "Course name *",
+        "titlePlaceholder": "e.g. Puppy training at home",
+        "descriptionLabel": "Description",
+        "coverUrlLabel": "Cover image link",
+        "creating": "Creating...",
+        "submit": "Create course"
+      },
+      "enroll": {
+        "modalTitle": "Add students — {title}",
+        "intro": "Adding manually gives the student an <strong>active membership</strong> in your portal and sends a message with a direct link to the course. An active membership unlocks all the courses you published and the live classes.",
+        "emailsLabel": "Email addresses *",
+        "emailsHint": "You can paste several addresses — separated by commas, spaces or new lines",
+        "emailsCount": " ({count} addresses)",
+        "nameLabel": "Name (optional)",
+        "namePlaceholder": "For a new student",
+        "phoneLabel": "Phone (optional)",
+        "validUntilLabel": "Membership valid until (optional)",
+        "paymentNoteLabel": "Payment note",
+        "paymentNotePlaceholder": "e.g. Paid via Venmo",
+        "notify": "Send a message about it (WhatsApp + email)",
+        "added": "Added ({count})",
+        "newUserSuffix": " — new user",
+        "skipped": "Not added ({count})",
+        "adding": "Adding...",
+        "submitMany": "Add {count} students",
+        "submitOne": "Add to course"
+      },
+      "deleteModal": {
+        "title": "Delete course",
+        "irreversible": "This action cannot be undone.",
+        "body": "Deleting <strong>\"{title}\"</strong> permanently deletes all chapters, {lessons} lessons, and all student progress data in the course.",
+        "lossOfAccess": "Students watching the course will lose access immediately. There is no restore.",
+        "confirmLabel": "To continue, type the exact course name:",
+        "confirmPlaceholder": "Course name",
+        "submit": "Delete course permanently"
+      },
+      "builder": {
+        "errorLoading": "Error loading the course",
+        "unpublish": "Unpublish",
+        "publish": "Publish course",
+        "deleteCourseTitle": "Delete the course",
+        "confirmDeleteCourse": "Delete the course \"{title}\" with all its chapters and lessons?",
+        "emptyTitle": "No chapters in this course",
+        "emptyHint": "Add a first chapter to start building the course",
+        "confirmDeleteModule": "Delete the chapter \"{title}\" with all its lessons?",
+        "confirmDeleteLesson": "Delete the lesson \"{title}\"?",
+        "moduleNamePlaceholder": "Chapter name...",
+        "addModule": "Add chapter"
+      },
+      "lessonModal": {
+        "editTitle": "Edit lesson",
+        "newTitle": "New lesson",
+        "titleLabel": "Lesson name *",
+        "descriptionLabel": "Lesson description",
+        "descriptionPlaceholder": "What will this lesson teach?",
+        "copyPrevious": "Copy description from the previous lesson",
+        "typeLabel": "Type",
+        "durationLabel": "Duration (minutes)",
+        "videoLabel": "YouTube video ID *",
+        "videoHint": "YouTube video ID — the characters after v= in the URL. You can also paste a full URL and the ID will be extracted automatically.",
+        "pdfLabel": "PDF file link *",
+        "textLabel": "Lesson content *",
+        "freePreview": "Free preview lesson",
+        "saveChanges": "Save changes"
+      },
+      "module": {
+        "title": "Chapter {number}: {title}",
+        "quiz": "Chapter quiz",
+        "rename": "Rename",
+        "delete": "Delete chapter",
+        "noLessons": "No lessons in this chapter"
+      },
+      "lesson": {
+        "description": "Description",
+        "minutes": "{count} min",
+        "freePreview": "Free preview",
+        "delete": "Delete"
+      }
+    },
+    "membershipsTab": {
+      "status": {
+        "pending": "Pending approval",
+        "active": "Active",
+        "expired": "Expired",
+        "suspended": "Suspended"
+      },
+      "filters": {
+        "all": "All",
+        "pending": "Pending",
+        "active": "Active",
+        "expired": "Expired",
+        "suspended": "Suspended"
+      },
+      "toasts": {
+        "approved": "Membership approved — the client was notified",
+        "updated": "Membership updated",
+        "updateError": "Couldn't update the membership",
+        "created": "Membership added and approved",
+        "createError": "Couldn't add the membership"
+      },
+      "loadError": "Couldn't load memberships",
+      "retry": "Try again",
+      "addManual": "Add membership manually",
+      "empty": {
+        "title": "No memberships to show",
+        "body": "When dog owners ask to join through the portal, they'll show up here for approval"
+      },
+      "columns": {
+        "name": "Name",
+        "phone": "Phone",
+        "email": "Email",
+        "status": "Status",
+        "validUntil": "Valid until",
+        "paymentNote": "Payment note",
+        "approvedAt": "Approved on",
+        "actions": "Actions"
+      },
+      "openDossier": "Open student file",
+      "standingOrder": "Recurring",
+      "actions": {
+        "approve": "Approve",
+        "suspend": "Suspend",
+        "activate": "Activate",
+        "editTitle": "Edit validity and payment note"
+      },
+      "approveModal": {
+        "title": "Approve membership — {name}",
+        "body": "Once approved, the client gets a message with a link to the portal.",
+        "approving": "Approving...",
+        "submit": "Approve membership"
+      },
+      "editModal": {
+        "title": "Edit membership — {name}",
+        "submit": "Save changes"
+      },
+      "manualModal": {
+        "title": "Add membership manually",
+        "body": "The membership is created as active right away — for clients who paid outside the system.",
+        "adding": "Adding...",
+        "submit": "Add membership"
+      },
+      "form": {
+        "validUntilOptional": "Valid until (optional)",
+        "validUntil": "Valid until",
+        "renewingHint": "Leave empty for a recurring membership",
+        "paymentNote": "Payment note",
+        "paymentNotePlaceholder": "e.g. Paid by Venmo 1/9",
+        "fullName": "Full name *",
+        "phone": "Phone *",
+        "email": "Email *"
+      }
+    },
+    "questionsTab": {
+      "filters": {
+        "pending": "Awaiting answer",
+        "answered": "Answered",
+        "all": "All"
+      },
+      "toasts": {
+        "answered": "Answer sent — the student will get a notification",
+        "answerError": "Couldn't send the answer",
+        "deleted": "Question deleted",
+        "deleteError": "Couldn't delete the question",
+        "emptyAnswer": "You can't send an empty answer",
+        "tooLong": "The answer is too long — up to 2000 characters"
+      },
+      "confirmDelete": "Delete {name}'s question? This can't be undone and the question will also disappear from the portal.",
+      "loadError": "Couldn't load questions",
+      "retry": "Try again",
+      "empty": {
+        "title": "No questions to show",
+        "body": "When students ask questions under course lessons, they'll show up here for you to answer"
+      },
+      "answeredBadge": "Answered",
+      "privateQuestion": "Private question",
+      "deleteTitle": "Delete question",
+      "yourAnswer": "Your answer",
+      "answerPlaceholder": "Write your answer to the student here…",
+      "sendAnswer": "Send answer",
+      "editAnswer": "Edit answer",
+      "answerQuestion": "Answer question"
+    },
+    "quizEditor": {
+      "validation": {
+        "titleRequired": "The quiz needs a title",
+        "titleTooLong": "The quiz title is too long (max {max} characters)",
+        "passScoreRange": "Passing score must be a whole number between 0 and 100",
+        "atLeastOneQuestion": "Add at least one question to the quiz",
+        "maxQuestions": "Up to {max} questions per quiz",
+        "questionTextRequired": "Question {n}: question text is required",
+        "questionTextTooLong": "Question {n}: question text is too long (max {max} characters)",
+        "optionsCount": "Question {n}: needs {min} to {max} answers",
+        "optionTextRequired": "Question {n}: every answer needs text",
+        "optionTextTooLong": "Question {n}: answer text is too long (max {max} characters)",
+        "exactlyOneCorrect": "Question {n}: mark exactly one correct answer"
+      },
+      "title": "Quiz — {moduleTitle}",
+      "toasts": {
+        "saved": "Quiz saved",
+        "saveError": "Couldn't save the quiz",
+        "deleted": "Quiz deleted",
+        "deleteError": "Couldn't delete the quiz"
+      },
+      "confirmDelete": "Delete the quiz? All questions and student attempts will be permanently deleted.",
+      "loadError": "Couldn't load the quiz",
+      "retry": "Try again",
+      "titleLabel": "Quiz title",
+      "titlePlaceholder": "End-of-module quiz",
+      "passScoreLabel": "Passing score",
+      "questionNumber": "Question {n}",
+      "removeQuestion": "Remove question",
+      "questionPlaceholder": "Question text",
+      "correctAnswerAria": "Correct answer {n}",
+      "optionPlaceholder": "Answer {n}",
+      "removeOption": "Remove answer",
+      "addOption": "Add answer",
+      "addQuestion": "Add question",
+      "deleteQuiz": "Delete quiz",
+      "saveQuiz": "Save quiz"
+    },
+    "reportsTab": {
+      "membershipStatus": {
+        "active": "Active membership",
+        "pending": "Pending approval",
+        "expired": "Membership expired",
+        "suspended": "Suspended"
+      },
+      "loadError": "Couldn't load reports",
+      "retry": "Try again",
+      "notStarted": "Not started",
+      "stats": {
+        "activeStudents": "Active students",
+        "startedStudents": "Started learning",
+        "finishedStudents": "Finished a course",
+        "avgCompletion": "Avg. completion"
+      },
+      "courses": {
+        "heading": "Progress by course",
+        "emptyTitle": "No courses yet",
+        "emptyBody": "Create a course in the \"Courses\" tab and the data will show up here",
+        "draft": "Draft",
+        "lessonCount": "{count, plural, one {# lesson} other {# lessons}}",
+        "started": "{count} started",
+        "completed": "{count} finished",
+        "outOf": "out of {count, plural, one {# student} other {# students}}",
+        "dropOff": "<b>Drop-off point: </b>\"{title}\" ({moduleTitle}) — {dropped} of {reached} students who reached the previous lesson didn't finish it"
+      },
+      "students": {
+        "heading": "Student progress",
+        "allCourses": "All courses",
+        "emptyTitle": "No active students",
+        "emptyBody": "Approve memberships in the \"Memberships\" tab and student progress will show up here",
+        "columns": {
+          "name": "Name",
+          "email": "Email",
+          "progress": "Progress",
+          "lastActivity": "Last activity"
+        },
+        "lessonsProgress": "{done}/{total} lessons",
+        "stalled": "Stuck {days, plural, one {# day} other {# days}}"
+      },
+      "detail": {
+        "title": "Progress — {name}",
+        "studentFallback": "Student",
+        "loadError": "Couldn't load student data",
+        "joined": "· Joined {date}",
+        "noCourses": "No active courses for this student",
+        "completedOn": "Completed {date}"
+      }
+    },
+    "studentDossier": {
+      "statuses": {
+        "pending": "Pending approval",
+        "active": "Active",
+        "expired": "Expired",
+        "suspended": "Suspended"
+      },
+      "regStatuses": {
+        "registered": "Registered",
+        "waitlist": "Waitlist",
+        "cancelled": "Canceled"
+      },
+      "courseStatus": {
+        "published": "Published",
+        "draft": "Draft"
+      },
+      "minutes": "{min} min",
+      "lessThanMinute": "Under a minute",
+      "notStarted": "Not started",
+      "inactiveDays": "Inactive for {days} days",
+      "title": "Student file",
+      "titleWithName": "Student file — {name}",
+      "loadError": "Couldn't load the student file",
+      "retry": "Try again",
+      "course": {
+        "lessonsProgress": "{completed}/{total} lessons",
+        "lastActivity": "Last activity: {date}",
+        "hideLessons": "Hide lessons",
+        "showLessons": "{count, plural, one {Show # lesson} other {Show # lessons}}"
+      },
+      "certificate": {
+        "revoked": "Certificate revoked",
+        "issued": "Certificate issued {date}",
+        "manual": "Manual",
+        "verify": "Verify certificate",
+        "none": "No certificate yet"
+      },
+      "lesson": {
+        "completed": "Completed",
+        "watchedOf": "{watched} of {duration}"
+      },
+      "header": {
+        "email": "Email:",
+        "phone": "Phone:",
+        "joined": "Joined:",
+        "validUntil": "Valid until:",
+        "standingOrder": "Recurring",
+        "paymentNote": "Payment note:"
+      },
+      "stats": {
+        "coursesStarted": "Courses started",
+        "coursesCompleted": "Courses completed",
+        "certificates": "Certificates",
+        "lastActivity": "Last activity",
+        "questionsAsked": "Questions asked"
+      },
+      "sections": {
+        "courses": "Courses",
+        "noCourses": "No courses to show",
+        "questions": "Questions asked",
+        "pendingCount": "{count} pending",
+        "noQuestions": "No questions asked",
+        "liveClasses": "Live classes"
+      },
+      "question": {
+        "answered": "Answered · {date}",
+        "awaitingAnswer": "Awaiting answer"
+      }
+    }
+  },
   "orders": {
     "paymentRequestDialog": {
       "title": "Payment request",
@@ -6463,6 +7710,212 @@
       }
     }
   },
+  "portal": {
+    "cDetailPage": {
+      "loadError": "Couldn't load the page",
+      "requestError": "Couldn't send the request",
+      "requestSent": "Request sent! The business will approve it soon",
+      "notFound": {
+        "title": "Portal not found",
+        "body": "The link may be wrong or the portal may be inactive"
+      },
+      "membersPortal": "Members portal",
+      "membership": {
+        "title": "My membership",
+        "loginHint": "Quick sign-in with an email code — no passwords",
+        "login": "Sign in",
+        "noMembership": "Hi {name}! You don't have a membership with {business} yet",
+        "requestJoin": "Request to join",
+        "pay": "Pay now",
+        "pendingNote": "We got your request — we'll let you know as soon as the business approves it"
+      },
+      "classes": {
+        "title": "Upcoming classes",
+        "viewAll": "All classes",
+        "empty": "No upcoming classes right now",
+        "registered": "Registered",
+        "waitlist": "Waitlisted",
+        "spotsLeft": "{count} left",
+        "full": "Full"
+      },
+      "courses": {
+        "title": "Recorded courses",
+        "viewAll": "All courses",
+        "empty": "No courses available right now",
+        "lessonCount": "{count, plural, one {# lesson} other {# lessons}}"
+      },
+      "teaser": {
+        "liveTitle": "Live Zoom classes",
+        "liveBody": "Sign up for live classes with a Zoom link — members only",
+        "coursesTitle": "Recorded courses",
+        "coursesBody": "Full video library with progress tracking — members only",
+        "loggedOutHint": "Sign in and request to join to unlock all content",
+        "pendingHint": "Once your membership is approved, all content unlocks automatically"
+      }
+    },
+    "lessonQA": {
+      "loadError": "Couldn't load questions",
+      "tooShort": "Question is too short — at least 3 characters",
+      "tooLong": "Question is too long — up to 1000 characters",
+      "sendError": "Couldn't send the question",
+      "title": "Q&A",
+      "retry": "Try again",
+      "empty": "No questions yet — be the first to ask",
+      "me": "Me",
+      "private": "Private",
+      "instructorAnswer": "Instructor's answer",
+      "awaitingAnswer": "Awaiting answer",
+      "askLabel": "Ask a question",
+      "placeholder": "Anything unclear in the lesson? Write here and we'll get back to you",
+      "privateCheckbox": "Only I can see this question",
+      "submit": "Send question"
+    },
+    "quizRunner": {
+      "loadError": "Couldn't load the quiz",
+      "submitError": "Couldn't submit the quiz",
+      "notFound": "Quiz not found",
+      "retry": "Try again",
+      "result": {
+        "passed": "✓ You passed the quiz",
+        "failed": "✗ You didn't pass the quiz",
+        "summary": "{correct} of {total} correct · Passing score: {passScore}%",
+        "previousBest": "Previous best attempt: {score}%",
+        "correctAnswer": "Correct answer",
+        "yourAnswer": "Your answer"
+      },
+      "form": {
+        "moduleAndPassScore": "{module} · Passing score: {passScore}%",
+        "yourBest": "Your best score: {score}%",
+        "passedSuffix": " — passed",
+        "canSubmit": "Ready to submit",
+        "answerAll": "Answer all questions to submit",
+        "submitting": "Submitting...",
+        "submit": "Submit answers"
+      }
+    },
+    "portalUi": {
+      "membership": {
+        "active": "Active membership",
+        "validUntil": "until {date}",
+        "pending": "Awaiting business approval",
+        "suspended": "Membership paused",
+        "expired": "Membership ended"
+      }
+    },
+    "detailClassesPage": {
+      "backToPortal": "Back to portal",
+      "title": "Live classes",
+      "membersOnly": "Class registration is open to active members only.",
+      "requestToJoin": "Request to join",
+      "empty": "No upcoming classes right now — check back soon",
+      "status": {
+        "registered": "Registered",
+        "waitlist": "On the waitlist"
+      },
+      "durationMinutes": "{count} min",
+      "fullWaitlist": "Full — waitlist",
+      "spotsLeft": "{count, plural, one {# spot left} other {# spots left}}",
+      "joinZoom": "Join Zoom",
+      "actions": {
+        "joinWaitlist": "Join the waitlist",
+        "register": "Register",
+        "cancelRegistration": "Cancel registration"
+      },
+      "confirmCancel": "Cancel your registration for \"{title}\"?",
+      "toasts": {
+        "registerError": "Couldn't register for the class",
+        "waitlisted": "The class is full — you're on the waitlist",
+        "registered": "You're registered!",
+        "cancelError": "Couldn't cancel the registration",
+        "canceled": "Registration canceled"
+      }
+    },
+    "coursesDetailPage": {
+      "completed": "Completed ✓",
+      "watchedPercent": "Watched {percent}%",
+      "errors": {
+        "notFound": "Course not found",
+        "loadFailed": "Couldn't load the course",
+        "markFailed": "Couldn't mark the lesson"
+      },
+      "backToCourseList": "Back to the course list",
+      "allCourses": "All courses",
+      "certificate": {
+        "ready": "You finished the course! Your certificate is ready",
+        "view": "View certificate"
+      },
+      "courseProgress": "{done} of {total} lessons completed",
+      "minutesShort": "{count} min",
+      "quizPassScore": "Quiz · passing score {score}%",
+      "noLessons": "This course has no lessons yet",
+      "locked": {
+        "title": "Active membership required",
+        "body": "This lesson is open to active members only",
+        "requestToJoin": "Request to join"
+      },
+      "pdf": {
+        "body": "This lesson includes a PDF file",
+        "open": "Open PDF"
+      },
+      "textLesson": "Text lesson",
+      "contentUnavailable": "This lesson's content isn't available yet",
+      "minutes": "{count} minutes",
+      "markComplete": "Mark as completed"
+    },
+    "detailCoursesPage": {
+      "backToPortal": "Back to portal",
+      "title": "Recorded courses",
+      "empty": "No courses available right now — check back soon",
+      "freeLesson": "Free lesson",
+      "lessonCount": "{count, plural, one {# lesson} other {# lessons}}"
+    },
+    "cDetailLayout": {
+      "metaTitle": "Members portal",
+      "metaTitleWithBusiness": "{business} — Members portal",
+      "metaDescription": "{business}'s members portal — live classes, recorded courses and membership"
+    },
+    "detailLoginPage": {
+      "backToPortal": "Back to portal",
+      "errors": {
+        "invalidEmail": "Invalid email address",
+        "tooManyRequests": "Too many attempts — try again in a few minutes",
+        "sendFailed": "Couldn't send the code",
+        "sendNetwork": "Couldn't send the code — check your connection",
+        "codeLength": "Enter the 6-digit code",
+        "nameRequired": "Enter your full name",
+        "phoneInvalid": "Invalid phone number (05X-XXXXXXX)",
+        "tooManyAttempts": "Too many attempts — request a new code",
+        "invalidCode": "Wrong or expired code — try again",
+        "verifyNetwork": "Verification failed — check your connection"
+      },
+      "deviceNotice": {
+        "one": "You were signed out of another device — this account is limited to a few devices",
+        "many": "You were signed out of {count} other devices — this account is limited to a few devices"
+      },
+      "email": {
+        "title": "Sign in to the portal",
+        "subtitle": "We'll email you a one-time code — no passwords",
+        "label": "Email address",
+        "submit": "Send code"
+      },
+      "code": {
+        "title": "Enter the code",
+        "sentTo": "We sent a 6-digit code to <ltr>{email}</ltr>",
+        "submit": "Verify",
+        "resendIn": "You can request a new code in {count} seconds",
+        "resend": "Didn't get it? Send a new code",
+        "changeEmail": "Change email address"
+      },
+      "profile": {
+        "title": "Nice to meet you!",
+        "subtitle": "Almost done — just your name and phone",
+        "nameLabel": "Full name",
+        "namePlaceholder": "Your name",
+        "phoneLabel": "Mobile phone",
+        "submit": "Finish and sign in"
+      }
+    }
+  },
   "pricing": {
     "priceListsPage": {
       "units": {
@@ -6858,6 +8311,1733 @@
         "low": "Low"
       },
       "minChars": "Type at least 2 characters to search"
+    }
+  },
+  "serviceDogs": {
+    "serviceDogsDetailPage": {
+      "header": {
+        "toastPhaseUpdated": "Phase updated",
+        "errorPhaseUpdate": "Error updating phase",
+        "toastSentForApproval": "Request sent for owner approval",
+        "toastDogDeleted": "Dog deleted",
+        "errorDogDelete": "Error deleting dog",
+        "toastLocationUpdated": "Location updated",
+        "errorLocationUpdate": "Error updating location",
+        "notFound": "Dog not found",
+        "backToList": "Back to list",
+        "back": "Back",
+        "breadcrumbServiceDogs": "Service dogs",
+        "breadcrumbDogs": "Dogs",
+        "genderMale": " · Male",
+        "genderFemale": " · Female",
+        "changePhase": "Change phase",
+        "currentLocation": "Current location",
+        "govReportRequired": "Government report required",
+        "serviceType": "Service type",
+        "deleteDog": "Delete dog",
+        "medicalCompliance": "Medical compliance",
+        "trainingMonths": "Training months",
+        "started": "Started",
+        "certified": "Certified",
+        "inTraining": "In training",
+        "certifiedOn": "Certified",
+        "noTabAccess": "You don't have access to the dog file tabs. The business owner can enable them in Settings → Team & permissions.",
+        "deleteDogTitle": "Delete dog",
+        "deleteConfirmPrefix": "Delete",
+        "deleteConfirmSuffix": "? This action can't be undone.",
+        "tierGateTitle": "Service dogs module",
+        "tierGateDescription": "Manage service dogs, recipients, placements and certification cards — available on the Service Dog plan only."
+      },
+      "tabs": {
+        "dogfile": "Dog file",
+        "placements": "Placements",
+        "training": "Training log",
+        "tests": "Certification tests",
+        "equipment": "Equipment",
+        "medical": "Medical protocols",
+        "compliance": "Compliance reports",
+        "idcard": "Certification card"
+      },
+      "shared": {
+        "vaccinesTreatments": "Vaccines & treatments",
+        "documents": "Documents",
+        "insurance": "Insurance",
+        "trainingHours": "Training hours",
+        "readyForCert": "Ready for certification!",
+        "notes": "Notes",
+        "error": "Error",
+        "saveChanges": "Save changes",
+        "toastStatusUpdated": "Status updated",
+        "errorUpdate": "Error updating",
+        "certificationDate": "Certification date",
+        "until": "Until",
+        "creating": "Creating...",
+        "renewalColon": "Renewal:",
+        "errorFileUpload": "Error uploading the file",
+        "uploadingFile": "Uploading file...",
+        "toastDocDeleted": "Document deleted",
+        "errorDocDelete": "Error deleting document",
+        "uploading": "Uploading...",
+        "errorSave": "Error saving",
+        "microchip": "Microchip number",
+        "active": "Active",
+        "breed": "Breed",
+        "editShort": "Edit",
+        "notEntered": "Not entered",
+        "birthDate": "Date of birth",
+        "intakeDate": "Intake date",
+        "color": "Color",
+        "sex": "Sex",
+        "male": "Male",
+        "female": "Female",
+        "neutered": "Neutered / spayed",
+        "vet": "Vet",
+        "medicalCondition": "Medical condition",
+        "rabies": "Rabies",
+        "dhppAdult": "Adult DHPP",
+        "kennelCough": "Kennel cough",
+        "parkWorm": "Spirocerca (park worm)",
+        "deworming": "Deworming",
+        "fleaTick": "Fleas & ticks",
+        "neuterDate": "Neuter / spay date",
+        "month": "Month",
+        "year": "Year",
+        "fileTooLarge5": "File too large (max 5MB)",
+        "addUpdate": "Add update",
+        "invoice": "Invoice",
+        "visitSummary": "Visit summary",
+        "activePlural": "Active",
+        "optional": "(optional)",
+        "clickToUpload": "Click to upload a file",
+        "status": "Status",
+        "type": "Type",
+        "choose": "Choose...",
+        "validUntil": "Valid until"
+      },
+      "milestones": {
+        "toastUpdated": "Milestone updated",
+        "errorUpdate": "Error updating milestone",
+        "title": "Milestones",
+        "unmark": "Unmark milestone",
+        "markAchieved": "Mark as achieved"
+      },
+      "training": {
+        "structuredProgramsCta": "Manage structured training programs",
+        "structuredProgramsHint": "Sessions, goals, homework",
+        "goToTraining": "Go to training →",
+        "adiProgress": "ADI progress",
+        "hoursDone": "Hours done",
+        "hoursTarget": "Hour goal",
+        "months": "Months",
+        "hoursLeft": "Hours left",
+        "completion": "Completion",
+        "zeroHours": "0 hours",
+        "hours": "hours",
+        "sessionsTitle": "Training sessions (",
+        "addSession": "Add session",
+        "noSessions": "No training sessions yet",
+        "confirmDeleteSession": "Delete this training session?",
+        "toastSessionDeleted": "Session deleted",
+        "errorSessionDelete": "Error deleting session",
+        "minutes": "min",
+        "cumulative": "cumulative)",
+        "copyToOtherDog": "Copy session to another dog",
+        "editSession": "Edit session",
+        "deleteSession": "Delete session",
+        "toastCopied": "Session copied to the selected dog",
+        "errorCopy": "Error copying session",
+        "copyFrom": "Session from ",
+        "copyWillCopy": "min will be copied to the dog you choose.",
+        "chooseTargetDog": "Choose target dog",
+        "chooseDogOption": "— Choose a dog —",
+        "noName": "No name",
+        "copying": "Copying...",
+        "copySession": "Copy session",
+        "toastSessionUpdated": "Session updated",
+        "toastSessionAdded": "Training session added",
+        "errorSessionUpdate": "Error updating session",
+        "errorSessionAdd": "Error adding session",
+        "editSessionTitle": "Edit session",
+        "newSessionTitle": "New training session",
+        "dateRequired": "Date *",
+        "durationRequired": "Duration (minutes) *",
+        "trainer": "Trainer",
+        "trainerPlaceholder": "Trainer name",
+        "location": "Location",
+        "locationPlaceholder": "Training location",
+        "skillsTrained": "Skills trained",
+        "sessionRating": "Session rating",
+        "notesPlaceholder": "Notes about the session...",
+        "saveSession": "Save session"
+      },
+      "medical": {
+        "toastProtocolUpdated": "Protocol updated",
+        "errorProtocolUpdate": "Error updating protocol",
+        "errorSync": "Sync error",
+        "noChanges": "No changes — protocols are already up to date",
+        "markedDone": "{count} marked as done",
+        "dueDatesUpdated": "{count} due dates updated",
+        "syncDone": "Sync complete: {parts}",
+        "errorVaccineSync": "Error syncing vaccines",
+        "status": {
+          "COMPLETED": "Done",
+          "PENDING": "Pending",
+          "OVERDUE": "Overdue",
+          "WAIVED": "Waived"
+        },
+        "syncBanner": "Vaccine data found in the dog's profile — due dates can be synced and completed protocols marked automatically",
+        "syncing": "Syncing...",
+        "syncVaccines": "Sync vaccines",
+        "outOf": "of",
+        "protocolsCompleted": "protocols completed",
+        "overdueCount": "overdue",
+        "pendingCount": "pending",
+        "due": "Due:",
+        "done": "Done:",
+        "expires": "Expires:",
+        "markDone": "Mark as done"
+      },
+      "compliance": {
+        "status": {
+          "PENDING": "Pending submission",
+          "SENT": "Sent",
+          "WAIVED": "Waived",
+          "NOT_REQUIRED": "Not required",
+          "FAILED": "Failed"
+        },
+        "govReportRequired": "Government report required",
+        "reportWithin48h": "Some events must be reported to the relevant authority within 48 hours",
+        "overdueTitle": "Overdue (",
+        "pendingTitle": "Pending submission (",
+        "history": "History",
+        "noEvents": "No compliance events",
+        "mandatoryReport": "Mandatory report",
+        "deadline": "· Deadline:",
+        "sent": "Sent ✓",
+        "waive": "Waive"
+      },
+      "placements": {
+        "toastCreated": "Placement created",
+        "errorCreate": "Error creating placement",
+        "toastProcessDone": "Process completed — the dog and recipient were moved to the archive",
+        "errorProcessDone": "Error completing the process",
+        "activePlacement": "Active placement",
+        "placementDate": "Placement date",
+        "trialEnd": "Trial end",
+        "followUp": "Follow-up check",
+        "recipientMeetings": "Meetings with recipient",
+        "confirmComplete": "Complete the training and placement process?\n\nThe dog {dogName} and recipient {recipientName} will be archived and will no longer appear in active lists.",
+        "archiving": "Archiving...",
+        "completeProcess": "✓ Complete training & placement → Archive",
+        "noPlacements": "No placements",
+        "createNew": "Create new placement",
+        "history": "Placement history",
+        "add": "Add placement",
+        "placed": "Placed:",
+        "certified": "Certified:",
+        "newPlacementTitle": "New placement —",
+        "recipientRequired": "Recipient *",
+        "chooseRecipient": "Choose recipient...",
+        "create": "Create placement"
+      },
+      "tests": {
+        "adiCategories": {
+          "HEEL_ON_LEASH": "Heel on leash",
+          "HEEL_OFF_LEASH": "Heel off leash",
+          "SIT_STAY": "Sit-stay",
+          "DOWN_STAY": "Down-stay",
+          "COME_RECALL": "Come — recall",
+          "STAND_FOR_EXAM": "Stand for exam",
+          "PUBLIC_ACCESS_1": "Public access: entering a building",
+          "PUBLIC_ACCESS_2": "Public access: riding public transit",
+          "PUBLIC_ACCESS_3": "Public access: restaurant / mall",
+          "DISTRACTION_1": "Distractions: auditory",
+          "DISTRACTION_2": "Distractions: visual",
+          "TASK_SPECIFIC": "Tasks specific to the dog type",
+          "HANDLER_CONTROL": "Handler control",
+          "GREETING_STRANGERS": "Greeting strangers",
+          "LEAVE_IT": "Leave it",
+          "AGGRESSION_TEST": "Aggression test",
+          "SEPARATION": "Temporary separation test",
+          "GROOMING_TOLERANCE": "Grooming tolerance"
+        },
+        "types": {
+          "SIMBA_COMBINED": "Certification test",
+          "SIMBA_PUBLIC_SPACE": "Annual public-space competency test",
+          "INITIAL_EVAL": "Initial evaluation",
+          "PROGRESS_TEST": "Progress test",
+          "PRE_CERT": "Pre-certification",
+          "ADI_CERT": "ADI certification test",
+          "ANNUAL_RETEST": "Annual periodic retest",
+          "OTHER": "Other",
+          "SIMBA_FUNCTIONAL_TASKS": "Functional tasks test (Simba)"
+        },
+        "simbaTasks": {
+          "PS_01": "Exits the vehicle in a controlled, appropriate manner",
+          "PS_02": "Safe, calm behavior walking from the parking lot to the building entrance",
+          "PS_03": "Enters the building calmly and patiently",
+          "PS_04": "Moves safely and calmly inside a building",
+          "PS_05": "Exits the building calmly and safely — not distracted by cars",
+          "PS_06": "Enters the vehicle in a controlled, appropriate manner",
+          "PS_07": "Appropriate behavior in a restaurant — ignores distractions",
+          "PS_08": "Goes up/down stairs / escalators / elevator in a controlled, safe manner",
+          "PS_09": "Safe, calm behavior on public transit",
+          "PS_10": "Obeys the 'sit' command — 4 sub-scenarios",
+          "PS_11": "Obeys the 'down' command",
+          "PS_12": "Calm response to ambient noise",
+          "PS_13": "Returns to the handler from a distance while ignoring distractions",
+          "PS_14": "Stays calm when the leash is handed to another person",
+          "PS_15": "Calm, secure bond between the dog and the handler",
+          "PS_16": "Ignores other dogs and cats in public spaces",
+          "PS_R1": "No external aids, punishment or negative reinforcement were used",
+          "PS_R2": "The test was done on a standard leash that stayed loose throughout",
+          "PS_R3": "The dog showed no inappropriate behavior (growling, barking, biting, jumping, running at people/dogs)",
+          "FT_01": "Finds and brings medication during an anxiety attack or pain",
+          "FT_02": "Brings a drink to help swallow medication",
+          "FT_03": "Presses an emergency button",
+          "FT_04": "Finds and alerts the primary caregiver",
+          "FT_05": "Carries a note from person to person",
+          "FT_06": "Checks whether a room is empty and signals the handler",
+          "FT_07": "Turns on a light",
+          "FT_08": "Helps with waking up",
+          "FT_09": "Wakes from nightmares",
+          "FT_10": "Performs 'deep pressure' to calm the handler",
+          "FT_11": "Performs a 'block' — stands behind/in front of/beside the handler to keep space",
+          "FT_12": "Performs a 'circle' around the handler to keep space",
+          "FT_13": "Interrupts mild self-harm behaviors (nail biting, scratching)",
+          "FT_14": "Provides sensory stimulation — licking or leaning in during an episode",
+          "FT_15": "Alerts to an anxiety attack via scent training",
+          "FT_16": "Alerts to a migraine via scent training",
+          "FT_17": "Brings the handler out of dissociation by alerting",
+          "FT_18": "Alerts to the handler's agitation",
+          "FT_19": "Leads to a building exit",
+          "FT_20": "Leads to an empty chair",
+          "FT_21": "Alerts to expected noises",
+          "FT_22": "Alerts to approaching danger",
+          "FT_23": "Reminds to take medication at a set time each day",
+          "FT_24": "Pulls a blanket off the handler",
+          "FT_25": "Turns on the TV/radio to ground during a flashback or dissociation"
+        },
+        "results": {
+          "PASS": "Passed ✓",
+          "FAIL": "Failed ✗",
+          "CONDITIONAL_PASS": "Passed with notes"
+        },
+        "toastSaved": "Test saved",
+        "errorSave": "Error saving test",
+        "confirmDelete": "Delete this test?",
+        "annualExpired": "Annual periodic retest expired",
+        "annualUpcoming": "Annual retest renewal coming up",
+        "renewalOn": "Renewal on {date}",
+        "statTests": "Tests",
+        "statPassed": "Passed",
+        "statFailed": "Failed",
+        "listTitle": "Training tests (",
+        "tasksPassed": "tasks passed",
+        "categoriesCount": "categories",
+        "openFile": "Open test file",
+        "file": "File",
+        "editDateType": "Edit test date and type",
+        "publicSpace": "Public space",
+        "functionalTasks": "Functional tasks",
+        "generalNotes": "General notes",
+        "addTest": "+ Add training test",
+        "editTitle": "Edit test",
+        "testType": "Test type",
+        "date": "Date",
+        "addTitle": "Add training test",
+        "linkedDog": "Dog linked to the test",
+        "current": " (current)",
+        "examinerName": "Examiner name",
+        "examinerPlaceholder": "Examiner / evaluator name",
+        "overallResult": "Overall result",
+        "uploadFileOptional": "Upload test file (optional)",
+        "chooseFile": "Choose file",
+        "fileHint": "PDF, Word, image — up to 10MB",
+        "remove": "Remove",
+        "autoCalcFunctional": "Auto score: {passed}/{total} tasks — {result} (threshold: {threshold})",
+        "autoCalcCombined": "Auto score: {passed}/{total} — {result}",
+        "autoCalc": "Auto score: {result}",
+        "testTasks": "Test tasks",
+        "passedParen": "passed)",
+        "notesPlaceholder": "Notes...",
+        "additionalRequirements": "Additional requirements",
+        "requiredPrefix": "(need",
+        "requiredToPass": "or more to pass)",
+        "publicSpaceAlt": "Public space",
+        "requiredMin": "or more)",
+        "renewalDateNextYear": "Renewal date (in a year)",
+        "renewalAlertHint": "An alert will show when the renewal date is near",
+        "adiCategoriesTitle": "ADI test categories",
+        "colCategory": "Category",
+        "colResult": "Result",
+        "colScore": "Score",
+        "colImprovement": "Points to improve",
+        "pass": "Passed",
+        "fail": "Failed",
+        "summaryPlaceholder": "Test summary, next-step recommendations...",
+        "saveTest": "Save test"
+      },
+      "documents": {
+        "types": {
+          "HEALTH_CERT": "Health certificate",
+          "ANTIBODIES": "Antibodies",
+          "LICENSE": "License",
+          "VACCINATION": "Vaccination certificate",
+          "VET_REPORT": "Vet report",
+          "PURCHASE_INVOICE": "Purchase invoice",
+          "VISIT_INVOICE": "Visit invoice",
+          "OTHER": "Other"
+        },
+        "confirmDelete": "Delete this document?",
+        "title": "Documents (",
+        "upload": "Upload document",
+        "open": "Open document",
+        "editNameType": "Edit name and type",
+        "empty": "No documents yet",
+        "toastUpdated": "Document updated",
+        "toastUploaded": "Document uploaded",
+        "errorUpdate": "Error updating the document",
+        "editTitle": "Edit document",
+        "name": "Document name",
+        "type": "Document type",
+        "fileLabel": "File:",
+        "fileUnchanged": "— the file itself doesn't change",
+        "errorUpload": "Upload error",
+        "uploadTitle": "Upload document",
+        "nameRequired": "Document name *",
+        "namePlaceholder": "e.g. Health certificate 2025",
+        "fileRequired": "File *",
+        "clickToChoose": "Click to choose a file",
+        "upTo10mb": "Up to 10MB",
+        "uploadButton": "Upload"
+      },
+      "idCard": {
+        "toastCertUpdated": "Certification details updated",
+        "toastCardIssued": "Certification card issued",
+        "errorIssue": "Error issuing card",
+        "toastCertified": "Dog certified",
+        "errorCertify": "Certification error",
+        "photoTooLarge": "Image too large (max 3MB)",
+        "toastPhotoUpdated": "Dog photo updated",
+        "errorPhotoSave": "Error saving photo",
+        "errorLoadCard": "Error loading the card",
+        "dogPhotoAlt": "Dog photo",
+        "photoForCard": "Dog photo for the card",
+        "photoHint": "The photo will appear on the certification card",
+        "replacePhoto": "Replace photo",
+        "uploadPhoto": "Upload photo",
+        "certDetails": "Certification details",
+        "certExpiry": "Certification expiry",
+        "certifyingBody": "Certifying body",
+        "certifyingBodyPlaceholder": "e.g. ADI, IAADP",
+        "registrationNumber": "Registration number",
+        "registrationPlaceholder": "Certificate / registration number",
+        "microchipMissing": "Not entered — can be updated in the dog file",
+        "saveCertDetails": "Save certification details",
+        "notCertified": "The dog isn't certified yet",
+        "manualHint": "You can change the phase manually or use manual certification at your discretion",
+        "ownerDiscretion": "Certification at the business owner's discretion — no hours requirement",
+        "confirmManual": "Certify {name} manually? The dog will move to the \"Certified\" phase.",
+        "certifyManually": "Certify manually",
+        "onlyCertifiedCanIssue": "A certification card can only be issued for certified dogs (phase: Certified). Change the phase at the top of the page.",
+        "noActiveCard": "No active certification card",
+        "generating": "Generating...",
+        "issueCard": "Issue certification card",
+        "activeCard": "Active certification card",
+        "issued": "Issued:",
+        "expiresSuffix": " · Expires: {date}",
+        "viewCard": "View card",
+        "print": "Print",
+        "serviceDogCard": "Service dog card",
+        "qrAlt": "Service dog card QR code",
+        "fieldDogName": "Dog name",
+        "fieldRecipient": "Recipient",
+        "printCard": "Print card"
+      },
+      "dogFile": {
+        "behaviorFlags": {
+          "dogAggression": "Aggression toward dogs",
+          "humanAggression": "Aggression toward people",
+          "leashReactivity": "Leash reactivity",
+          "leashPulling": "Leash pulling",
+          "jumping": "Jumping on people",
+          "separationAnxiety": "Separation anxiety",
+          "excessiveBarking": "Excessive barking",
+          "destruction": "Destructiveness",
+          "resourceGuarding": "Resource guarding",
+          "fears": "Fears",
+          "badWithKids": "Not good with kids",
+          "houseSoiling": "House soiling",
+          "biteHistory": "Bite history",
+          "priorTraining": "Previously trained"
+        },
+        "toastMicrochipUpdated": "Microchip number updated",
+        "errorMicrochip": "Error updating microchip",
+        "toastHoursUpdated": "Training hours updated",
+        "errorHours": "Error updating hours",
+        "toastMedRemoved": "Medication removed",
+        "errorMedDelete": "Error deleting medication",
+        "dogDetails": "Dog details",
+        "neuterStatus": "Status",
+        "notNeutered": "Not neutered",
+        "dogOrigin": "Dog origin",
+        "hoursDone": "Hours completed",
+        "hoursTarget": "Hour goal (empty = no goal)",
+        "noTarget": "No goal",
+        "targetHours": "goal hours",
+        "hoursNoTarget": "hours (no goal)",
+        "medicalNotes": "Medical notes",
+        "feeding": "Feeding",
+        "update": "Update",
+        "latest": "Latest",
+        "amount": "Amount:",
+        "gramsPerDay": "g/day",
+        "frequency": "Frequency:",
+        "dogWeight": "Dog weight:",
+        "kg": "kg",
+        "deleteEntry": "Delete entry",
+        "confirmDeleteEntry": "Delete this entry?",
+        "errorDeleteFeeding": "Error deleting feeding entry",
+        "brand": "Brand:",
+        "addFeeding": "+ Add feeding details",
+        "medicationsTitle": "Medications (",
+        "dosage": "Dosage:",
+        "times": "Times:",
+        "from": "From ",
+        "addAnotherMed": "+ Add another medication",
+        "addMed": "+ Add medication",
+        "healthVaccines": "Health & vaccines",
+        "allergies": "Allergies:",
+        "conditions": "Medical conditions:",
+        "surgeries": "Surgeries:",
+        "limitations": "Limitations:",
+        "renewVaccine": "↻ Renew vaccine",
+        "expiredPrefix": "⚠️ Expired: ",
+        "validUntilPrefix": "⏰ Valid until: ",
+        "validPrefix": "Valid: ",
+        "historyCount": "History (",
+        "vaccinatedOn": "Vaccinated:",
+        "valid": "Valid:",
+        "renewTreatment": "↻ Renew treatment",
+        "noVaccines": "No vaccines recorded",
+        "dhppPuppy": "Puppy DHPP",
+        "dose1": "Dose 1:",
+        "dose2": "Dose 2:",
+        "dose3": "Dose 3:",
+        "addHealth": "+ Add health & vaccine info",
+        "behavior": "Behavior",
+        "biteDetails": "Bite details:",
+        "triggers": "Triggers:",
+        "noBehaviorIssues": "No behavior issues recorded",
+        "confirmDeleteMed": "Delete this medication?"
+      },
+      "editPet": {
+        "toastUpdated": "Dog details updated",
+        "errorUpdate": "Error updating dog details",
+        "title": "Edit dog details",
+        "nameRequired": "Name *",
+        "breedPlaceholder": "Dog breed...",
+        "notSet": "Not set",
+        "dogColor": "Dog color",
+        "colorPlaceholder": "Black, brown, gray...",
+        "microchipPlaceholder": "15 digits...",
+        "notesPlaceholder": "Free notes about the dog..."
+      },
+      "extraInfo": {
+        "clear": "Clear",
+        "toastUpdated": "Details updated",
+        "title": "Origin, licensing & care",
+        "pedigree": "Pedigree certificate",
+        "pedigreePlaceholder": "Pedigree certificate number",
+        "purchasePriceCurrency": "Purchase price ({currency})",
+        "purchaseSource": "Purchase source",
+        "purchaseSourcePlaceholder": "Breeder / organization name",
+        "cityLicense": "Municipal license",
+        "licenseNumberPlaceholder": "License number",
+        "licenseExpiry": "License validity",
+        "yardGroup": "Yard group",
+        "yardGroupPlaceholder": "Puppies / retrievers / large",
+        "specialFeeding": "Special feeding instructions",
+        "specialFeedingPlaceholder": "Feeding instructions specific to this service dog",
+        "careNotes": "Care notes",
+        "careNotesPlaceholder": "Day-to-day operational notes",
+        "purchasePrice": "Purchase price",
+        "feedingInstructions": "Feeding instructions",
+        "addDetails": "+ Add origin & license details"
+      },
+      "insurance": {
+        "errorClaimUpdateThe": "Error updating the claim",
+        "errorStatusUpdate": "Error updating status",
+        "toastClaimUpdated": "Claim updated",
+        "errorClaimUpdate": "Error updating claim",
+        "toastNoteAdded": "Update added",
+        "errorNoteAdd": "Error adding update",
+        "toastNoteDeleted": "Update deleted",
+        "errorNoteDelete": "Error deleting update",
+        "toastDocUploaded": "Document uploaded",
+        "errorDocUpload": "Error uploading document",
+        "noDescription": "No description",
+        "incident": "Incident:",
+        "vetColon": "Vet:",
+        "statusUpdate": "Update status",
+        "claimDetails": "Claim details",
+        "incidentDate": "Incident date",
+        "claimNumber": "Claim number",
+        "claimAmountCurrency": "Claim amount ({currency})",
+        "deductibleCurrency": "Deductible ({currency})",
+        "reimbursedCurrency": "Amount reimbursed ({currency})",
+        "submittedDate": "Submission date",
+        "followUpDate": "🔔 Follow-up date",
+        "incidentDescription": "Incident description",
+        "incidentDateColon": "Incident date:",
+        "numberColon": "No.:",
+        "claimColon": "Claim:",
+        "deductibleShort": "Ded.:",
+        "reimbursedColon": "Reimbursed:",
+        "submittedColon": "Submitted:",
+        "closedColon": "Closed:",
+        "followUpColon": "🔔 Follow-up:",
+        "overdueSuffix": " (overdue!)",
+        "updatesLog": "Updates log",
+        "notePlaceholder": "e.g. \"Spoke with the insurance rep, waiting for vet approval\"",
+        "noUpdates": "No updates yet",
+        "deleteUpdate": "Delete update",
+        "addDocument": "Add document",
+        "noDocuments": "No documents",
+        "docGeneric": "Document",
+        "download": "Download",
+        "deleteDocument": "Delete document",
+        "toastPolicyAdded": "Policy added",
+        "errorPolicyAdd": "Error adding policy",
+        "toastPolicyUpdated": "Policy updated",
+        "errorPolicyUpdate": "Error updating policy",
+        "toastPolicyDeleted": "Policy deleted",
+        "errorPolicyDelete": "Error deleting policy",
+        "toastClaimAdded": "Claim added",
+        "errorClaimAdd": "Error adding claim",
+        "claimsTracking": "Claims tracking",
+        "openCount": "open",
+        "closedFilter": "Closed",
+        "noActiveClaims": "No active claims",
+        "noClosedClaims": "No closed claims",
+        "policies": "Insurance policies",
+        "addPolicy": "Add policy",
+        "noPolicies": "No insurance policies",
+        "unknownInsurer": "Unknown insurer",
+        "inactive": "Inactive",
+        "openClaims": "open claims",
+        "policyColon": "Policy:",
+        "premium": "Premium: {currency}",
+        "claimsCount": "claims",
+        "coverageType": "Coverage type",
+        "deductible": "Deductible",
+        "coverageStart": "Coverage start",
+        "downloadPolicy": "Download policy document",
+        "newClaimOnPolicy": "New claim on this policy",
+        "editPolicy": "Edit policy",
+        "confirmDeletePolicy": "Delete the policy from {provider}?",
+        "deletePolicy": "Delete policy",
+        "delete": "Delete",
+        "insurer": "Insurance company",
+        "policyNumber": "Policy number",
+        "policyStart": "Policy start",
+        "policyEnd": "Policy end",
+        "activePolicy": "Active policy",
+        "policyDocMax": "Policy document (PDF / image, up to 4MB)",
+        "replaceDocHint": "A document is attached — choosing a new file will replace it",
+        "replaceFile": "Replace file",
+        "uploadedWillSave": "File uploaded — it will be saved with the policy:",
+        "fileTooLargeSize": "File too large ({size}MB) — max 4MB. Try compressing the PDF and uploading again",
+        "fileTooLarge4": "File too large — max 4MB",
+        "errorUploadRetry": "Error uploading the file — try again",
+        "newPolicy": "New policy",
+        "insurerPlaceholder": "Insurance company name",
+        "policyDoc": "Policy document (PDF / image)",
+        "fileUploaded": "File uploaded:",
+        "newClaim": "New claim",
+        "incidentDateRequired": "Incident date *",
+        "claimNumberPlaceholder": "From the insurance company",
+        "documentsOptional": "Documents (optional)",
+        "openClaim": "Open claim"
+      },
+      "equipment": {
+        "toastVestAdded": "Vest added",
+        "errorVestAdd": "Error adding vest",
+        "toastVestRetired": "Vest retired",
+        "title": "Equipment — vests",
+        "addVest": "Add vest",
+        "noActive": "No active vests",
+        "vestFallback": "Vest",
+        "sizeSuffix": " · Size {size}",
+        "serialShort": "S/N:",
+        "assigned": "Assigned:",
+        "confirmRetire": "Retire this vest?",
+        "retire": "Retire",
+        "archive": "Archive (",
+        "newVest": "New vest",
+        "size": "Size",
+        "colorPlaceholder": "Orange / blue / black",
+        "condition": "Condition",
+        "serialNumber": "Serial number"
+      },
+      "renewal": {
+        "toastVaccineUpdated": "{label} vaccine updated",
+        "errorVaccine": "Error updating vaccine",
+        "vaccineTitle": "Vaccine renewal —",
+        "newVaccineDate": "New vaccine date *",
+        "historyNote": "The current vaccine will be kept in the history and can be viewed under the vaccine row.",
+        "saveVaccine": "Save new vaccine",
+        "toastTreatmentUpdated": "{label} treatment updated",
+        "errorTreatment": "Error updating treatment",
+        "treatmentTitle": "Treatment renewal —",
+        "newTreatmentDate": "New treatment date *",
+        "saveTreatment": "Save new treatment"
+      },
+      "health": {
+        "toastUpdated": "Health info updated",
+        "errorUpdate": "Error updating health info",
+        "title": "Health —",
+        "rabiesYearly": "Rabies — once a year",
+        "vaccineDate": "Vaccine date",
+        "dhppPuppy3": "Puppy DHPP — 3 doses",
+        "dose1": "Dose 1",
+        "dose2": "Dose 2",
+        "dose3": "Dose 3",
+        "receivedDate": "Date received",
+        "treatmentDate": "Treatment date",
+        "dewormingDate": "Deworming date",
+        "treatmentType": "Treatment type",
+        "allergies": "Allergies",
+        "conditions": "Medical conditions",
+        "pastSurgeries": "Past surgeries",
+        "activityLimits": "Activity limitations",
+        "vetName": "Vet name",
+        "vetPhone": "Vet phone",
+        "general": "General",
+        "origin": "Origin",
+        "originPlaceholder": "Adopted, breeder...",
+        "timeWithOwner": "Time with owner / handler"
+      },
+      "behavior": {
+        "toastUpdated": "Behavior info updated",
+        "errorUpdate": "Error updating behavior info",
+        "title": "Behavior —",
+        "flags": "Behavior flags",
+        "biteDetails": "Bite details",
+        "triggers": "Triggers",
+        "triggersPlaceholder": "Loud noises, other dogs...",
+        "priorTraining": "Previous training details",
+        "otherIssues": "Other issues",
+        "addIssuePlaceholder": "Add issue..."
+      },
+      "feeding": {
+        "toastAdded": "Feeding entry added",
+        "errorSave": "Error saving feeding details",
+        "title": "Feeding update —",
+        "updateDate": "Update date",
+        "foodBrand": "Food brand",
+        "brandPlaceholder": "e.g. Royal Canin",
+        "typePlaceholder": "e.g. Salmon adult, puppy",
+        "amountPerDay": "Amount (g/day)",
+        "frequency": "Feeding frequency",
+        "freq1": "Once a day",
+        "freq2": "Twice a day",
+        "freq3": "3 times a day",
+        "freq4": "4 times a day",
+        "dogWeightKg": "Dog weight (kg)"
+      },
+      "med": {
+        "toastUpdated": "Medication updated",
+        "toastAdded": "Medication added",
+        "errorSave": "Error saving medication",
+        "editTitle": "Edit medication",
+        "addTitle": "Add medication",
+        "nameRequired": "Medication name *",
+        "dosage": "Dosage",
+        "dosagePlaceholder": "1 pill",
+        "frequency": "Frequency",
+        "frequencyPlaceholder": "Twice a day",
+        "times": "Administration times",
+        "instructions": "Instructions",
+        "startDate": "Start date",
+        "endDate": "End date"
+      },
+      "months": {
+        "m01": "January",
+        "m02": "February",
+        "m03": "March",
+        "m04": "April",
+        "m05": "May",
+        "m06": "June",
+        "m07": "July",
+        "m08": "August",
+        "m09": "September",
+        "m10": "October",
+        "m11": "November",
+        "m12": "December"
+      },
+      "vaccinations": {
+        "day": "Day",
+        "toastPlanSaved": "Vaccination plan saved",
+        "errorPlanSave": "Error saving plan",
+        "toastTreatmentUpdated": "Treatment updated",
+        "noPlan": "No vaccination plan set",
+        "createPuppyPlanHint": "Create a puppy vaccination plan — track the initial vaccine series",
+        "createAnnualPlanHint": "Create an annual vaccination plan for the dog",
+        "yearColon": "Year:",
+        "toastPlanCreated": "Plan created — set planned dates",
+        "createPlan": "Create vaccination plan",
+        "savePlan": "Save plan",
+        "editPlan": "Edit plan",
+        "centralManagement": "Central management",
+        "puppyTitle": "Puppy vaccines & treatments",
+        "annualTitle": "Annual vaccines & treatments{yearSuffix}",
+        "editPuppyHint": "Set dates for each dose (day/month/year)",
+        "editAnnualHint": "Set a month for each dose — the month the annual treatment is planned",
+        "expiredCount": "{count} expired",
+        "expiringCount": "{count} expiring soon",
+        "colTreatment": "Treatment",
+        "plannedDateEdit": "Planned date ✏️",
+        "plannedDate": "Planned date",
+        "confirm": "Confirm",
+        "statusExpired": "Expired",
+        "notVaccinated": "Not vaccinated",
+        "unknown": "Unknown",
+        "done": "✓ Done",
+        "undo": "Undo",
+        "puppyArchive": "Puppy plan — archive"
+      }
+    },
+    "serviceDogsCompliancePage": {
+      "title": "Government reporting",
+      "subtitle": "Manage incidents and reports required by the authorities",
+      "breadcrumb": {
+        "serviceDogs": "Service dogs"
+      },
+      "toasts": {
+        "statusUpdated": "Status updated",
+        "updateError": "Update failed"
+      },
+      "filters": {
+        "pending": "Pending ({count})",
+        "overdue": "Overdue ({count})",
+        "sent": "Sent ({count})",
+        "all": "All ({count})"
+      },
+      "urgent": {
+        "title": "{count, plural, one {# report is} other {# reports are}} past the filing deadline!",
+        "body": "Handle urgently. Reporting is required within 48 hours of the incident."
+      },
+      "stats": {
+        "overdue": "Overdue",
+        "pending": "Pending",
+        "sent": "Sent",
+        "total": "Total"
+      },
+      "empty": {
+        "noPending": "No pending reports — great!",
+        "noEvents": "No events"
+      },
+      "badges": {
+        "overdue": "⚠ Overdue report",
+        "required": "Required report"
+      },
+      "deadline": "Deadline: {date}",
+      "sentAt": "Sent: {date}",
+      "statuses": {
+        "PENDING": "Pending",
+        "SENT": "Sent",
+        "WAIVED": "Waived",
+        "NOT_REQUIRED": "Not required",
+        "FAILED": "Failed"
+      },
+      "actions": {
+        "markSent": "Sent ✓",
+        "waive": "Waive"
+      },
+      "other": "Other ({count})",
+      "tierGate": {
+        "title": "Service dogs module",
+        "description": "Manage service dogs, recipients, placements and certifications — available on the Service Dog plan only."
+      }
+    },
+    "serviceDogsDogsPage": {
+      "toasts": {
+        "phaseUpdated": "Phase updated",
+        "phaseUpdateError": "Failed to update phase"
+      },
+      "breadcrumb": {
+        "serviceDogs": "Service dogs",
+        "dogs": "Dogs"
+      },
+      "title": {
+        "archive": "Dog archive",
+        "active": "Dog management"
+      },
+      "subtitle": {
+        "archive": "{count, plural, one {# dog} other {# dogs}} that completed training and placement",
+        "active": "{count, plural, one {# dog} other {# dogs}} in an active process"
+      },
+      "archive": {
+        "back": "Back to active",
+        "toggle": "Archive ({count})"
+      },
+      "searchPlaceholder": "Search by name or breed...",
+      "actions": {
+        "import": "Import from file",
+        "add": "Add service dog"
+      },
+      "phaseFilter": {
+        "all": "All ({count})"
+      },
+      "empty": {
+        "noResults": "No dogs match your search",
+        "noDogs": "No service dogs"
+      },
+      "table": {
+        "name": "Name",
+        "birthDate": "Date of birth",
+        "microchip": "Microchip",
+        "breed": "Breed",
+        "phase": "Phase",
+        "location": "Location",
+        "recipient": "Recipient",
+        "certificationDate": "Certification date",
+        "reportBadge": "Report",
+        "atTrainer": "Trainer"
+      },
+      "card": {
+        "reportPending": "Report pending",
+        "readyForCert": "Ready for certification",
+        "trainingHours": "Training hours",
+        "medicalCompliance": "Medical compliance",
+        "overdue": "({count} overdue)",
+        "recipient": "Recipient: {name}",
+        "viewProfile": "View profile"
+      },
+      "trainingStatuses": {
+        "NOT_STARTED": "Not started",
+        "IN_PROGRESS": "In progress",
+        "PENDING_CERT": "Pending certification",
+        "CERTIFIED": "Certified",
+        "FAILED": "Did not pass"
+      },
+      "importTitle": "Import service dogs",
+      "tierGate": {
+        "title": "Service dogs module",
+        "description": "Manage service dogs, recipients, placements and certifications — available on the Service Dog plan only."
+      },
+      "addModal": {
+        "toasts": {
+          "created": "Service dog profile created",
+          "createError": "Failed to create profile"
+        },
+        "title": "Add new service dog",
+        "petSearchLabel": "Search dog (by dog name) *",
+        "petSearchPlaceholder": "Type the dog's name...",
+        "alreadyExists": "This dog is already in the service dogs system",
+        "notFound": "No dog named \"{name}\"",
+        "newPetSelected": "New dog: {name}",
+        "createNewPet": "+ Create a new dog with this name",
+        "phaseLabel": "Phase / status",
+        "serviceTypeLabel": "Service type",
+        "notSelected": "Not selected",
+        "notesLabel": "Notes",
+        "creating": "Creating...",
+        "create": "Create profile"
+      }
+    },
+    "serviceDogsIdCardsPage": {
+      "toasts": {
+        "issued": "Certificate issued",
+        "issueError": "Failed to issue certificate",
+        "popupBlocked": "Pop-ups are blocked — allow them in your browser",
+        "printError": "Failed to prepare the certificate for printing",
+        "notFound": "Certificate not found",
+        "loadError": "Failed to load the certificate"
+      },
+      "print": {
+        "docTitle": "Certificate — {name}",
+        "headerTitle": "Certificate — Service dog",
+        "recipient": "Handler / recipient",
+        "qrNote": "Scan to verify the certificate",
+        "footerBefore": "Issued with ",
+        "footerAfter": " — pet business management system · Official document"
+      },
+      "fields": {
+        "breed": "Breed",
+        "registrationNumber": "Registration number",
+        "certifyingBody": "Certifying body",
+        "certificationDate": "Certification date",
+        "expiry": "Valid until",
+        "phase": "Phase",
+        "recipient": "Recipient"
+      },
+      "breadcrumb": {
+        "serviceDogs": "Service dogs"
+      },
+      "title": "Certificates",
+      "subtitle": "{active} active certificates · {withoutCard} certified without a certificate",
+      "stats": {
+        "activeCards": "Active certificates",
+        "certifiedDogs": "Certified dogs",
+        "awaitingCard": "Awaiting certificate",
+        "expiredAndSoon": "{expired} expired · {expiring} soon",
+        "expiringSoon": "Expiring soon",
+        "valid": "All valid"
+      },
+      "expired": {
+        "title": "Expired certificates ({count})",
+        "expiredOn": "Expired {date}",
+        "renew": "Renew certificate"
+      },
+      "withoutCard": {
+        "title": "Certified dogs without a certificate ({count})",
+        "certifiedOn": " · Certified {date}",
+        "issue": "Issue"
+      },
+      "active": {
+        "title": "Active certificates ({count})",
+        "empty": "No active certificates",
+        "emptyHint": "Certify dogs before issuing certificates"
+      },
+      "status": {
+        "expired": "Expired",
+        "expiringSoon": "Expiring soon",
+        "active": "Active certificate"
+      },
+      "actions": {
+        "view": "View"
+      },
+      "modal": {
+        "title": "Service dog certificate",
+        "dogName": "Dog name",
+        "qrLoadError": "Failed to load QR",
+        "qrUnavailable": "QR unavailable",
+        "reissueHint": "Reissue the certificate",
+        "print": "Print certificate"
+      },
+      "tierGate": {
+        "title": "Service dogs module",
+        "description": "Manage service dogs, recipients, placements and certifications — available on the Service Dog plan only."
+      }
+    },
+    "serviceDogsPage": {
+      "header": {
+        "title": "Service dogs — Overview",
+        "subtitle": "Service dog training center · Professional management",
+        "addDog": "Add dog",
+        "addRecipient": "Add recipient"
+      },
+      "stats": {
+        "totalDogs": "Total dogs",
+        "inTraining": "In training",
+        "certified": "Certified",
+        "pendingCert": "Pending certification",
+        "reportAlerts": "Report alerts",
+        "activePlacements": "Active placements",
+        "sessionsThisWeek": "Sessions this week",
+        "totalRecipients": "Total recipients",
+        "waitingForMatch": "Awaiting placement",
+        "activeRecipients": "Active recipients"
+      },
+      "pipeline": {
+        "title": "Recipient pipeline",
+        "manage": "Manage recipients",
+        "unknownFunding": "Unknown"
+      },
+      "attention": {
+        "title": "Needs attention",
+        "allDogs": "All dogs",
+        "allOk": "All dogs are in good standing",
+        "overdueProtocols": "{count, plural, one {# overdue protocol} other {# overdue protocols}}",
+        "readyForCert": "Ready for certification"
+      },
+      "markHandled": "Mark as handled",
+      "totalBadge": "{count} total",
+      "recent": {
+        "title": "Recent sessions",
+        "allPrograms": "All training programs",
+        "session": "Session {number}"
+      },
+      "phaseDistribution": {
+        "title": "Distribution by phase"
+      },
+      "archive": {
+        "showButton": "{count, plural, one {# item marked} other {# items marked}} — show archive",
+        "title": "Handled items archive",
+        "clearAll": "Clear all",
+        "empty": "No items in the archive",
+        "typeDog": "Dog",
+        "typeEvent": "Report",
+        "typeAlert": "Alert",
+        "restore": "Restore",
+        "footer": "Items are kept for 7 days and then deleted automatically"
+      },
+      "addRecipient": {
+        "toastSuccess": "Recipient added",
+        "toastError": "Error adding recipient",
+        "title": "Add new recipient",
+        "fullName": "Full name *",
+        "fullNamePlaceholder": "First and last name",
+        "phone": "Phone",
+        "email": "Email",
+        "idNumber": "ID number",
+        "idNumberPlaceholder": "9 digits",
+        "disabilityType": "Disability type",
+        "notSelected": "Not selected",
+        "address": "Address",
+        "addressPlaceholder": "Street, city",
+        "disabilityNotes": "Disability details",
+        "disabilityNotesPlaceholder": "More information about the disability...",
+        "notes": "Notes",
+        "submit": "Add recipient"
+      },
+      "addDog": {
+        "toastSuccess": "Service dog added",
+        "toastError": "Error adding dog",
+        "title": "Add service dog",
+        "info": "This dog will appear in Training — Service dogs and in service dog management. It won't be linked to a client.",
+        "name": "Dog name *",
+        "namePlaceholder": "Dog name",
+        "breed": "Breed",
+        "breedPlaceholder": "Breed...",
+        "gender": "Sex",
+        "genderUnknown": "Unknown",
+        "male": "Male",
+        "female": "Female",
+        "birthDate": "Date of birth",
+        "weight": "Weight (kg)",
+        "microchip": "Microchip",
+        "microchipPlaceholder": "Chip number...",
+        "serviceType": "Service type",
+        "serviceTypePlaceholder": "Mobility / seizure / emotional support...",
+        "medicalNotes": "Medical notes",
+        "behaviorNotes": "Behavior notes",
+        "generalNotes": "General notes"
+      },
+      "alerts": {
+        "title": "Alert center — Service dogs",
+        "activeCount": "{count, plural, one {# active alert} other {# active alerts}}",
+        "urgentCount": "· {count} urgent",
+        "urgentBadge": "{count} urgent",
+        "urgent": "Urgent",
+        "schedule": "Schedule",
+        "medicalSection": "Vaccinations and medical protocols",
+        "overdueDate": "Overdue: {date}",
+        "dueDate": "Due: {date}",
+        "noDueDate": "No due date",
+        "trainingSection": "Training — no session in two weeks",
+        "daysWithoutSession": "{count, plural, one {# day without a session} other {# days without a session}}",
+        "noSessionYet": "No session yet",
+        "lastSession": "Last session: {date}",
+        "noSessionRecorded": "No session recorded"
+      },
+      "tierGate": {
+        "pageTitle": "Service dogs",
+        "title": "Service dogs module",
+        "description": "Manage service dogs, recipients, placements and certification cards. Track 120 training hours per the ADI standard.",
+        "ctaLabel": "Service dog management, certificates and 120-hour tracking are available on the Service Dog plan — upgrade now"
+      }
+    },
+    "serviceDogsPlacementsPage": {
+      "toasts": {
+        "statusUpdated": "Placement status updated",
+        "statusUpdateError": "Error updating status",
+        "deleted": "Placement deleted",
+        "deleteError": "Error deleting placement",
+        "updated": "Placement updated",
+        "updateError": "Error updating placement",
+        "created": "Placement created",
+        "createError": "Error creating placement"
+      },
+      "breadcrumb": {
+        "serviceDogs": "Service dogs",
+        "placements": "Placements"
+      },
+      "title": "Placement management",
+      "subtitle": "{active} active placements · {terminated} ended",
+      "newPlacement": "New placement",
+      "legend": {
+        "active": "<strong>Active</strong> — approved, full placement",
+        "terminated": "<strong>Ended</strong> — the placement was terminated"
+      },
+      "activeHeading": "Active placements ({count})",
+      "confirmDelete": "Delete the placement of {dog} → {recipient}?",
+      "actions": {
+        "delete": "Delete",
+        "deleteAria": "Delete placement"
+      },
+      "nextCheckIn": "Follow-up check: {date}",
+      "filterAll": "All ({count})",
+      "empty": "No placements",
+      "table": {
+        "dog": "Dog",
+        "recipient": "Recipient",
+        "status": "Status",
+        "placementDate": "Placement date",
+        "certifiedAt": "Certification date",
+        "nextCheck": "Next check",
+        "actions": "Actions"
+      },
+      "confirmTerminate": "End this placement?",
+      "terminate": "End",
+      "tierGate": {
+        "title": "Service dog module",
+        "description": "Manage service dogs, recipients, placements and certificates — available on the Service Dog plan only."
+      },
+      "noResults": "No results",
+      "editModal": {
+        "title": "Edit placement — {dog} → {recipient}"
+      },
+      "form": {
+        "status": "Status",
+        "placementDate": "Placement date",
+        "certifiedAt": "Certification date",
+        "nextCheckIn": "Next follow-up check",
+        "notes": "Notes",
+        "saveChanges": "Save changes",
+        "dogLabel": "Service dog *",
+        "dogPlaceholder": "Search by dog name...",
+        "recipientLabel": "Recipient *",
+        "recipientPlaceholder": "Search by recipient name...",
+        "creating": "Creating...",
+        "create": "Create placement"
+      }
+    },
+    "serviceDogsRecipientsPage": {
+      "stageColors": {
+        "gray": "Gray",
+        "blue": "Blue",
+        "green": "Green",
+        "purple": "Purple",
+        "orange": "Orange",
+        "red": "Red",
+        "indigo": "Indigo"
+      },
+      "deleteRecipientTitle": "Delete recipient",
+      "column": {
+        "dropHere": "Drop here"
+      },
+      "empty": "No recipients",
+      "toasts": {
+        "statusUpdateError": "Error updating status",
+        "stageUpdated": "Stage updated",
+        "stageDeleted": "Stage deleted",
+        "stageDeleteError": "Error deleting stage",
+        "pendingApproval": "Request sent for owner approval",
+        "genericError": "Error",
+        "recipientDeleted": "Recipient deleted",
+        "deleteError": "Error deleting",
+        "stageAdded": "Stage added",
+        "added": "Recipient added",
+        "addError": "Error adding recipient"
+      },
+      "breadcrumb": {
+        "serviceDogs": "Service dogs",
+        "recipients": "Recipients"
+      },
+      "title": "Recipient management",
+      "subtitle": "{total} recipients · {waitlist} on the waitlist · {active} active",
+      "searchPlaceholder": "Search by name or phone...",
+      "editColumns": "Edit columns",
+      "finishEditing": "Done editing",
+      "hideArchive": "Hide archive",
+      "archive": "Archive",
+      "importFromFile": "Import from file",
+      "addRecipient": "Add recipient",
+      "confirmDeleteStage": "Delete this stage? Recipients will keep their current status.",
+      "newStage": "New stage",
+      "stageNamePlaceholder": "Stage name...",
+      "addColumn": "Add column",
+      "table": {
+        "name": "Name",
+        "idNumber": "ID no.",
+        "residence": "Residence",
+        "funding": "Funding",
+        "stage": "Recipient stage",
+        "dogName": "Dog name"
+      },
+      "importTitle": "Import recipients",
+      "deleteModal": {
+        "title": "Delete recipient",
+        "question": "Are you sure you want to delete <b>{name}</b>?",
+        "irreversible": "This action cannot be undone."
+      },
+      "noPermission": {
+        "title": "No permission",
+        "body": "You don't have permission to view recipients. Contact the business manager."
+      },
+      "tierGate": {
+        "title": "Service dog module",
+        "description": "Manage service dogs, recipients, placements and certificates — available on the Service Dog plan only."
+      },
+      "addModal": {
+        "title": "New recipient",
+        "fullName": "Full name *",
+        "fullNamePlaceholder": "First and last name",
+        "mobile": "Mobile",
+        "email": "Email",
+        "phone": "Phone",
+        "idNumber": "ID no.",
+        "stageStatus": "Stage/status",
+        "address": "Address",
+        "disabilityType": "Disability type",
+        "choose": "Select...",
+        "fundingSource": "Funding source",
+        "disabilityNotes": "Disability notes",
+        "notes": "Notes",
+        "adding": "Adding...",
+        "disabilityTypes": {
+          "PTSD": "PTSD",
+          "VISUAL": "Visual impairment",
+          "HEARING": "Hearing impairment",
+          "MOBILITY": "Mobility impairment",
+          "AUTISM": "Autism",
+          "DIABETES": "Diabetes",
+          "EPILEPSY": "Epilepsy",
+          "OTHER": "Other"
+        }
+      }
+    },
+    "recipientsDetailPage": {
+      "meetingTypes": {
+        "ASSESSMENT": "Initial assessment",
+        "INITIAL_TRAINING": "Initial instruction",
+        "RECIPIENT_TRAINING": "Training with recipient",
+        "COMPATIBILITY_CHECK": "Compatibility check",
+        "FOLLOW_UP": "Follow-up",
+        "ANNUAL_REVIEW": "Annual review",
+        "GROUP_TRAINING": "Group training",
+        "OTHER": "Other"
+      },
+      "meetingStatuses": {
+        "SCHEDULED": "Scheduled",
+        "COMPLETED": "Completed",
+        "CANCELLED": "Canceled"
+      },
+      "docTypes": {
+        "INTAKE_DOCS": "Intake documents",
+        "HANDOVER_DOCS": "Handover documents",
+        "PHOTOS": "Photos",
+        "CONTACT_NOTE": "Call summary",
+        "OTHER": "Other"
+      },
+      "contactRoles": {
+        "relative": "Relative",
+        "caregiver": "Caregiver",
+        "socialWorker": "Social worker",
+        "doctor": "Doctor",
+        "therapist": "Therapist",
+        "other": "Other"
+      },
+      "disabilityTypes": {
+        "PTSD": "PTSD",
+        "VISUAL": "Visual impairment",
+        "HEARING": "Hearing impairment",
+        "MOBILITY": "Mobility impairment",
+        "AUTISM": "Autism",
+        "DIABETES": "Diabetes",
+        "EPILEPSY": "Epilepsy",
+        "OTHER": "Other"
+      },
+      "toasts": {
+        "deleteSentForApproval": "Request sent to the owner for approval",
+        "error": "Error",
+        "deleted": "Recipient deleted",
+        "deleteError": "Error deleting",
+        "updated": "Details updated",
+        "updateError": "Error updating",
+        "docUploaded": "Document uploaded",
+        "fileUploaded": "File uploaded"
+      },
+      "confirms": {
+        "deleteMeeting": "Delete this meeting?",
+        "deleteDocument": "Delete this document?",
+        "documentNamePrompt": "Document name:",
+        "deleteContactPerson": "Delete this contact?",
+        "deleteCrisisInstructions": "Delete the seizure instructions?"
+      },
+      "notFound": {
+        "message": "Recipient not found",
+        "back": "Back"
+      },
+      "tabs": {
+        "details": "Details",
+        "documents": "Documents",
+        "meetings": "Meetings",
+        "guidelines": "Instructions"
+      },
+      "breadcrumb": {
+        "serviceDogs": "Service dogs",
+        "recipients": "Recipients"
+      },
+      "header": {
+        "linkCustomer": "Link to client",
+        "report": "Report"
+      },
+      "fields": {
+        "fullName": "Full name",
+        "fundingSource": "Funding source",
+        "phone": "Phone",
+        "mobile": "Mobile",
+        "email": "Email",
+        "idNumber": "ID number",
+        "address": "Address",
+        "photoConsent": "Photo consent",
+        "waitlistDate": "Waitlist date",
+        "disabilityType": "Disability type",
+        "status": "Status",
+        "certificationDate": "Certification date",
+        "notes": "Notes"
+      },
+      "details": {
+        "contactInfo": "Contact info",
+        "photoConsentYes": "✓ Consents to being photographed",
+        "photoConsentNo": "No photo consent",
+        "disabilityInfo": "Disability info"
+      },
+      "contactPersons": {
+        "title": "Contacts ({count})",
+        "empty": "No contacts yet",
+        "renameTitle": "Rename",
+        "uploadNote": "Upload call summary"
+      },
+      "placements": {
+        "title": "Placements ({count})",
+        "empty": "No placements yet",
+        "placedOn": "Placed: {date}",
+        "certifiedOn": "Certified: {date}",
+        "checkInOn": "Check-in: {date}"
+      },
+      "documents": {
+        "title": "Documents ({count})",
+        "upload": "Upload document",
+        "openTitle": "Open document",
+        "empty": "No documents yet"
+      },
+      "meetings": {
+        "title": "Meetings and coordination ({count})",
+        "minutes": "{count} min",
+        "copyTitle": "Copy meeting to another recipient",
+        "editTitle": "Edit",
+        "add": "+ Add meeting"
+      },
+      "deleteDialog": {
+        "title": "Delete recipient",
+        "confirm": "Are you sure you want to delete <b>{name}</b>?",
+        "irreversible": "This action can't be undone."
+      },
+      "tierGate": {
+        "title": "Service dogs module",
+        "description": "Manage service dogs, recipients, placements and certifications — available on the Service Dog plan only."
+      },
+      "crisis": {
+        "title": "Instructions",
+        "heading": "Instructions during a seizure",
+        "hint": "Click to add — e.g. approach from the front, hold both hands firmly, give water",
+        "placeholder": "E.g. approach from the front, hold both hands firmly, give water"
+      },
+      "editModal": {
+        "title": "Edit recipient details",
+        "fullNameRequired": "Full name *",
+        "fullNamePlaceholder": "First and last name",
+        "email": "Email",
+        "idNumber": "ID no.",
+        "stageStatus": "Stage/status",
+        "photoConsent": "Photo consent — the recipient agrees to be photographed",
+        "disabilityType": "Disability type",
+        "choose": "Select...",
+        "disabilityNotes": "Disability notes",
+        "saveChanges": "Save changes"
+      },
+      "uploadModal": {
+        "titleNote": "Upload call summary",
+        "titleDoc": "Upload document",
+        "nameLabel": "Document name *",
+        "namePlaceholder": "E.g. Medical certificate 2025",
+        "typeLabel": "Document type",
+        "fileLabel": "File *",
+        "clickToChoose": "Click to choose a file",
+        "maxSize": "Up to 10MB",
+        "uploading": "Uploading...",
+        "upload": "Upload",
+        "uploadError": "Upload error",
+        "uploadFileError": "Error uploading the file"
+      },
+      "contactModal": {
+        "editTitle": "Edit contact",
+        "addTitle": "Add contact",
+        "nameLabel": "Name *",
+        "namePlaceholder": "Full name",
+        "roleLabel": "Role / relationship"
+      },
+      "copyModal": {
+        "success": "Meeting copied to the selected recipient",
+        "error": "Error copying the meeting",
+        "description": "{meeting}{date} will be copied to the recipient you choose.",
+        "targetLabel": "Choose target recipient",
+        "targetPlaceholder": "— Choose recipient —",
+        "copying": "Copying...",
+        "copy": "Copy meeting"
+      },
+      "meetingModal": {
+        "editTitle": "Edit meeting",
+        "addTitle": "Add meeting",
+        "type": "Meeting type",
+        "date": "Date",
+        "duration": "Duration (minutes)",
+        "trainer": "Trainer name",
+        "trainerPlaceholder": "Service dog trainer name",
+        "notesPlaceholder": "Meeting summary, results, follow-up tasks...",
+        "addMeeting": "Add meeting"
+      },
+      "linkModal": {
+        "title": "Link to a client",
+        "description": "Search for an existing client and link them to the recipient's file. The client will appear on the profile and you can move between the two profiles.",
+        "searchPlaceholder": "Search by name or phone...",
+        "searching": "Searching...",
+        "noResults": "No clients found"
+      },
+      "report": {
+        "title": "Recipient status report for authorities",
+        "print": "Print",
+        "heading": "Recipient status report — Service dog",
+        "generatedOn": "Generated on: {date}",
+        "recipientDetails": "Recipient details",
+        "disabilityDetails": "Disability details: ",
+        "contactPersons": "Contacts",
+        "dogDetails": "Placed dog details",
+        "dogName": "Dog name:",
+        "breed": "Breed:",
+        "phase": "Training phase:",
+        "placementDate": "Placement date:",
+        "certificationDate": "Certification date:",
+        "checkIn": "Follow-up check:",
+        "placementNotes": "Placement notes: ",
+        "generalNotes": "General notes",
+        "footer": "This report was generated by Petra · {date}"
+      }
+    },
+    "serviceDogsReportsPage": {
+      "title": "Internal reports — Service dogs",
+      "generatedAt": "Generated: {date}",
+      "subtitle": "Operations summary · Training · Placements",
+      "noPlacement": "Not placed",
+      "breadcrumb": {
+        "serviceDogs": "Service dogs",
+        "reports": "Internal reports"
+      },
+      "actions": {
+        "print": "Print",
+        "printReport": "Print report",
+        "govReportTitle": "Government report — Ministry of Agriculture format",
+        "govReport": "Government report",
+        "exportDogs": "Export dogs to Excel",
+        "exportRecipients": "Export recipients to Excel",
+        "exportBituachLeumi": "Export National Insurance",
+        "exportMinistryOfDefense": "Export Ministry of Defense",
+        "careExportTitle": "Sheet 1: Feedings | Sheet 2: Medications — service dogs only",
+        "careExport": "Feedings & medications"
+      },
+      "print": {
+        "placedTo": "Placed — {name}",
+        "footer": "Generated by Petra · {date}",
+        "statTotalDogs": "Total dogs:",
+        "statCertified": "Certified:",
+        "statInTraining": "In training:",
+        "statPlaced": "Placed:",
+        "colName": "Name",
+        "colBreed": "Breed",
+        "colCertDate": "Certification date",
+        "colPlacement": "Placement",
+        "byPhaseHeading": "Dogs by phase",
+        "colPhase": "Phase",
+        "colCount": "Count",
+        "colDogName": "Dog name"
+      },
+      "location": {
+        "heading": "Dog locations"
+      },
+      "stats": {
+        "totalDogs": "Total dogs",
+        "certified": "Certified",
+        "inTraining": "In training",
+        "activePlacements": "Active placements"
+      },
+      "pipeline": {
+        "heading": "Recipient pipeline ({count})",
+        "title": "Recipient pipeline"
+      },
+      "funding": {
+        "title": "By funding source",
+        "unknown": "Unknown",
+        "printHeading": "Recipients by funding source",
+        "colSource": "Funding source"
+      },
+      "phases": {
+        "heading": "Breakdown by phase"
+      },
+      "certified": {
+        "heading": "Certified dogs ({count})",
+        "title": "Certified dogs",
+        "empty": "No certified dogs yet",
+        "certifiedOn": "Certified {date}",
+        "noCertDate": "No certification date",
+        "placedTo": "Placed — {name}"
+      },
+      "renewals": {
+        "licenseExpiry": "License expiry",
+        "certificationExpiry": "Certification expiry",
+        "heading": "Upcoming renewals — 90 days",
+        "items": "{count, plural, one {# item} other {# items}}",
+        "expired": "Expired",
+        "title": "Upcoming renewals",
+        "printHeading": "Upcoming renewals — 90 days ({count, plural, one {# item} other {# items}})",
+        "colType": "Renewal type",
+        "colDate": "Date"
+      },
+      "tierGate": {
+        "title": "Service dogs module",
+        "description": "Manage service dogs, recipients, placements and certification cards — available on the Service Dog plan only."
+      }
+    },
+    "serviceDogsVaccinationsPage": {
+      "pageTitle": "Vaccination management",
+      "errors": {
+        "generic": "Error"
+      },
+      "toasts": {
+        "updated": "Treatment updated",
+        "updateError": "Update failed"
+      },
+      "noAccess": {
+        "title": "You don't have access to this screen",
+        "body": "The business owner can open it for you in Settings → Team & permissions.",
+        "back": "Back to service dogs"
+      },
+      "print": {
+        "title": "Vaccinations & treatments report — Service dogs",
+        "generatedAt": "Generated: {date}"
+      },
+      "tabs": {
+        "adults": "Adult vaccinations & treatments",
+        "puppies": "Puppy vaccinations & treatments"
+      },
+      "searchPlaceholder": "Search by dog name...",
+      "printReport": "Print report",
+      "treatmentFilterAll": "All",
+      "dogsCount": "{count, plural, one {# dog} other {# dogs}}",
+      "statusFilters": {
+        "all": "All",
+        "soon": "Expiring soon",
+        "overdue": "Expired",
+        "unknown": "Unknown"
+      },
+      "warning": {
+        "overdue": "{count, plural, one {# expired vaccination} other {# expired vaccinations}}",
+        "soon": "{count, plural, one {# vaccination expiring soon} other {# vaccinations expiring soon}}",
+        "suffix": " – consider sending reminders to the owners"
+      },
+      "empty": "No dogs found",
+      "table": {
+        "dogName": "Dog name",
+        "location": "Dog location",
+        "edit": "Edit"
+      },
+      "locations": {
+        "TRAINER": "Trainer",
+        "FOSTER": "Foster family",
+        "BOARDING": "Boarding",
+        "FIELD": "Field"
+      },
+      "cell": {
+        "overdue": "Expired",
+        "notVaccinated": "Not vaccinated",
+        "unknown": "Unknown",
+        "markDone": "✓ Done"
+      },
+      "actions": {
+        "editPlan": "Edit plan",
+        "dogFile": "Dog file"
+      }
+    },
+    "vaccinationsPage": {
+      "title": "Vaccination management",
+      "subtitle": "Track vaccinations and treatments for your dogs",
+      "refresh": "Refresh",
+      "columns": {
+        "rabies": "Rabies",
+        "dhpp": "DHPP",
+        "deworming": "Deworming",
+        "fleaTick": "Ticks"
+      },
+      "typeFilters": {
+        "all": "All",
+        "rabies": "Rabies",
+        "dhpp": "Adult DHPP",
+        "dhppPuppy1": "Puppy dose 1",
+        "dhppPuppy2": "Puppy dose 2",
+        "dhppPuppy3": "Puppy dose 3",
+        "bordetella": "Kennel cough",
+        "parkWorm": "Park worm",
+        "deworming": "Deworming",
+        "fleaTick": "Ticks/fleas"
+      },
+      "cell": {
+        "unknown": "Unknown",
+        "expiredDays": "Expired ({days}d)",
+        "expiresInDays": "Expires in {days}d",
+        "until": "Until {date}",
+        "markDone": "✓ Done"
+      },
+      "errors": {
+        "generic": "Error"
+      },
+      "toasts": {
+        "updated": "Vaccination updated",
+        "updateError": "Failed to update vaccination"
+      },
+      "statusFilters": {
+        "all": "All",
+        "expired": "Expired",
+        "expiring_soon": "Expiring soon",
+        "valid": "Valid",
+        "unknown": "Unknown"
+      },
+      "searchPlaceholder": "Search by dog, client...",
+      "dogsCount": "{count, plural, one {# dog} other {# dogs}}",
+      "loadError": "Failed to load data",
+      "empty": {
+        "filtered": "No dogs match the selected filter",
+        "none": "No vaccination records found. Add vaccination dates in the pet profile."
+      },
+      "alert": {
+        "expired": "{count, plural, one {# expired vaccination} other {# expired vaccinations}}",
+        "expiring": "{count, plural, one {# vaccination expiring soon} other {# vaccinations expiring soon}}",
+        "suffix": " – consider sending a reminder to the owners"
+      },
+      "table": {
+        "dogName": "Dog name",
+        "owner": "Owner",
+        "actions": "Actions"
+      },
+      "serviceDog": "Service dog",
+      "actions": {
+        "reminder": "Reminder",
+        "profile": "Profile",
+        "dogFile": "Dog file"
+      }
+    },
+    "serviceDogsTabs": {
+      "overview": "Overview",
+      "dogs": "Dogs",
+      "recipients": "Recipients",
+      "placements": "Placements",
+      "vaccinations": "Vaccinations",
+      "idCards": "Certification cards",
+      "reports": "Internal reports"
     }
   },
   "settings": {
@@ -8489,6 +11669,727 @@
       "backToApp": "Back to app",
       "logout": "Log out",
       "suspended": "Suspended"
+    }
+  },
+  "training": {
+    "trainingPage": {
+      "days": {
+        "sun": "Sunday",
+        "mon": "Monday",
+        "tue": "Tuesday",
+        "wed": "Wednesday",
+        "thu": "Thursday",
+        "fri": "Friday",
+        "sat": "Saturday"
+      },
+      "tabs": {
+        "overview": "Overview",
+        "individual": "In-home training",
+        "boarding": "Board & train",
+        "groups": "Group training",
+        "archive": "Archive"
+      },
+      "typeBadge": {
+        "individual": "In-home training",
+        "boarding": "Boarding",
+        "group": "Group",
+        "workshop": "Workshop"
+      },
+      "programTypes": {
+        "BASIC_OBEDIENCE": "Basic obedience",
+        "REACTIVITY": "Reactivity",
+        "PUPPY": "Puppies",
+        "BEHAVIOR": "Behavior problems",
+        "ADVANCED": "Advanced obedience",
+        "CUSTOM": "Custom",
+        "SD_FOUNDATION": "Foundation phase",
+        "SD_BASIC": "Basic phase",
+        "SD_ADVANCED": "Advanced phase",
+        "SD_FIELD": "Field phase",
+        "SD_PLACEMENT": "Placement phase"
+      },
+      "sdPhases": {
+        "SD_FOUNDATION": "Foundation",
+        "SD_BASIC": "Basic",
+        "SD_ADVANCED": "Advanced",
+        "SD_FIELD": "Field",
+        "SD_PLACEMENT": "Placement"
+      },
+      "groupTypes": {
+        "PUPPY_CLASS": "Puppy class",
+        "REACTIVITY": "Reactivity",
+        "OBEDIENCE": "Obedience",
+        "CUSTOM": "Custom",
+        "WORKSHOP": "Workshop"
+      },
+      "programStatus": {
+        "ACTIVE": "Active",
+        "COMPLETED": "Completed",
+        "PAUSED": "Paused",
+        "CANCELED": "Canceled"
+      },
+      "stars": {
+        "1": "Weak",
+        "2": "Fair",
+        "3": "Good",
+        "4": "Excellent",
+        "5": "Perfect"
+      },
+      "sessionLog": {
+        "weekly": {
+          "titleEdit": "Edit weekly update",
+          "title": "Weekly update",
+          "badge": "Week {n}",
+          "dateLabel": "Weekly update date",
+          "ratingLabel": "This week's progress rating (optional)",
+          "practiceLabel": "Goals achieved this week",
+          "practicePlaceholder": "Which goals were achieved this week...",
+          "goalsLabel": "Goals for next week",
+          "goalsPlaceholder": "What you'll work on next week...",
+          "homeworkLabel": "Owner instructions for next week",
+          "homeworkPlaceholder": "Home practice for next week...",
+          "summaryLabel": "Weekly summary (optional)",
+          "summaryPlaceholder": "Describe this week's progress, areas to improve, wins...",
+          "save": "Save weekly update"
+        },
+        "saveChanges": "Save changes",
+        "serviceDog": {
+          "titleEdit": "Edit training session",
+          "title": "Log training session",
+          "badge": "Session #{n}",
+          "dateLabel": "Session date",
+          "ratingLabel": "Dog's rating this session (optional)",
+          "goalsLabel": "Goals for next session",
+          "goalsPlaceholder": "What you'll work on next session...",
+          "homeworkLabel": "Notes for the team",
+          "homeworkPlaceholder": "Notes relevant to the rest of the team...",
+          "summaryLabel": "Session summary (optional)",
+          "summaryPlaceholder": "Describe what you worked on today, progress, wins, areas to improve...",
+          "save": "Save session"
+        },
+        "practiceLabel": "Exercises practiced",
+        "practicePlaceholder": "Which exercises did you do today...",
+        "session": {
+          "titleEdit": "Edit session",
+          "title": "Log session",
+          "badge": "Session #{n}",
+          "dateLabel": "Session date",
+          "ratingLabel": "Dog's rating this session (optional)",
+          "goalsLabel": "Goals for next meeting",
+          "goalsPlaceholder": "What you'll work on next meeting...",
+          "homeworkLabel": "Client homework",
+          "homeworkPlaceholder": "Home practice...",
+          "summaryLabel": "Session summary (optional)",
+          "summaryPlaceholder": "Describe what you worked on today, progress, home practice instructions...",
+          "save": "Save session"
+        },
+        "processType": "Process type",
+        "processIndividual": "Private training",
+        "processPackage": "Training package",
+        "processGroup": "Group training (move to a group)",
+        "processHint": "Switching between private and package is immediate. Choosing “Group” moves the dog to a group — the current program will be replaced.",
+        "trainerName": "Trainer name",
+        "trainerNamePlaceholder": "Name of the trainer who ran the session...",
+        "homeSessions": "Home sessions this week",
+        "notThisWeek": "Note — the date you picked is not in the current week",
+        "updateHomeGoals": "Update progress on goals also achieved at home",
+        "noGoals": "No goals set for this program — set goals to update them here"
+      },
+      "time": "Time",
+      "durationMinutes": "Duration (minutes)",
+      "minutesOption": "{n} min",
+      "schedule": {
+        "title": "Schedule session — {dog}",
+        "recurring": "Recurring session (book several weeks ahead)",
+        "frequency": "Frequency",
+        "everyWeek": "Every week",
+        "every2Weeks": "Every 2 weeks",
+        "every3Weeks": "Every 3 weeks",
+        "every4Weeks": "Every 4 weeks",
+        "occurrences": "Number of sessions",
+        "preview": "{count, plural, one {# session} other {# sessions}} will be booked — every {day} at {time}",
+        "previewInterval": " (once every {weeks} weeks)",
+        "reminderNote": "A WhatsApp reminder will be sent to the client automatically before the session (if WhatsApp reminders are on)",
+        "scheduling": "Scheduling...",
+        "submitMany": "Schedule {count, plural, one {# session} other {# sessions}}",
+        "submit": "Schedule session"
+      },
+      "convert": {
+        "title": "Convert to group training — {dog}",
+        "body": "The dog will be added as a participant in the selected group, and the existing private training program (including its sessions and goals) will be deleted. The order stays linked — the price won't change automatically and can be updated manually.",
+        "selectGroup": "Select target group",
+        "selectPlaceholder": "— Select a group —",
+        "noGroups": "No active groups. Create a group first in the “Group training” tab.",
+        "converting": "Converting...",
+        "submit": "Convert to group"
+      },
+      "overview": {
+        "daysLeft": "{count, plural, one {# day} other {# days}} left",
+        "noCheckout": "No check-out date",
+        "sessions": "Sessions",
+        "sessionsLeft": "{count, plural, one {# session} other {# sessions}} left",
+        "daysWithoutSession": "{count, plural, one {# day} other {# days}} without a session",
+        "completed": "Completed",
+        "lastSessionAt": "Last session: {date}",
+        "sendOwnerUpdate": "Send owner an update",
+        "days": "{count, plural, one {# day} other {# days}}",
+        "send": "Send",
+        "emptyTitle": "No dogs in training",
+        "emptyHint": "Add dogs to training from the different tabs",
+        "sectionAttention": "Need attention ({count})",
+        "sectionActive": "In active training ({count})",
+        "sectionCompleted": "Completed ({count})",
+        "listView": "List view",
+        "gridView": "Card view",
+        "colDog": "Dog",
+        "colOwner": "Owner",
+        "colType": "Training type",
+        "colSessions": "Sessions",
+        "colLastSession": "Last session"
+      },
+      "toasts": {
+        "sessionSaveError": "Error saving the session. Try again.",
+        "sessionLogged": "Session logged",
+        "sessionUpdated": "Session updated",
+        "sessionUpdateError": "Error updating the session",
+        "groupCreated": "Group created",
+        "groupCreateError": "Error creating the group. Try again.",
+        "changesSaved": "Changes saved",
+        "groupUpdateError": "Error updating the group. Try again.",
+        "addedToWaitlist": "Added to the waitlist",
+        "dogAddedToGroup": "Dog added to the group",
+        "dogAddToGroupError": "Error adding the dog to the group",
+        "dogRemovedFromGroup": "Dog removed from the group",
+        "dogRemoveFromGroupError": "Error removing the dog from the group",
+        "convertedToGroup": "Program converted to group training",
+        "orderDowngraded": "The order was canceled instead of deleted (a paid/invoiced order can't be deleted)",
+        "convertToGroupError": "Error converting to group",
+        "deleteRequestSent": "Delete request sent for the owner's approval",
+        "programDeleted": "Training program deleted",
+        "programDeleteError": "Error deleting the program",
+        "convertedToPackage": "Program converted to a training package",
+        "convertedToPrivate": "Program converted to private training",
+        "processTypeError": "Error changing the program type",
+        "dogConvertedToPrivate": "Dog moved to private training",
+        "convertToPrivateError": "Error converting to private",
+        "groupDeleted": "Group deleted",
+        "groupDeleteError": "Error deleting the group",
+        "programCreated": "Training program created",
+        "programCreateErrorRetry": "Error creating the training program. Try again.",
+        "packageCreated": "Package created",
+        "packageCreateError": "Error creating the package",
+        "packageUpdated": "Package updated",
+        "packageUpdateError": "Error updating the package",
+        "packageDeleted": "Package deleted",
+        "packageDeleteError": "Error deleting the package",
+        "programCreateError": "Error creating the training program",
+        "trainingFinished": "Training completed ✓",
+        "dogArchived": "Dog moved to the archive",
+        "statusUpdateError": "Error updating status",
+        "programSettingsUpdated": "Program settings updated",
+        "programSettingsError": "Error updating program settings. Try again.",
+        "sessionsScheduled": "{count} sessions added to the calendar ✓ — WhatsApp reminders will be sent automatically",
+        "sessionScheduled": "Session added to the calendar ✓ — a WhatsApp reminder will be sent to the client automatically",
+        "scheduleError": "Error scheduling the session",
+        "scheduledSessionCanceled": "Scheduled session canceled",
+        "cancelSessionError": "Error canceling the session",
+        "serviceDogProgramElsewhere": "A service dog's training program is managed on the Service dogs page",
+        "noActiveProgram": "This dog has no active program"
+      },
+      "boardingFollowup": {
+        "name": "Follow-up sessions — {dog}",
+        "notes": "Follow-up sessions after board & train"
+      },
+      "stats": {
+        "dogsInTraining": "Dogs in training",
+        "personal": "Private training",
+        "boarding": "Board & train",
+        "groups": "Groups & workshops"
+      },
+      "header": {
+        "title": "Training & dog management",
+        "manualAddTitle": "Add a manual training program without an order",
+        "manualAdd": "Add manual program",
+        "refreshNow": "Refresh now",
+        "autoRefreshOff": "Turn off auto-refresh",
+        "autoRefreshOn": "Turn on auto-refresh (30s)",
+        "autoRefreshActive": "Auto-refresh on",
+        "autoRefresh": "Auto-refresh"
+      },
+      "freeLimit": {
+        "count": "{used}/{max} training programs — free plan limit",
+        "upgrade": "Upgrade to Basic →"
+      },
+      "searchPlaceholder": "Search by dog or owner name...",
+      "loadError": "Error loading training data",
+      "tryAgain": "Try again",
+      "subTabs": {
+        "private": "Private training",
+        "package": "Training package",
+        "groups": "Training groups",
+        "workshops": "Special workshops"
+      },
+      "summarySend": {
+        "title": "Session logged! ✓",
+        "subtitle": "{dog} — Session {n}",
+        "hint": "Send a session summary straight to the client on WhatsApp",
+        "send": "Send summary on WhatsApp",
+        "skip": "Skip — not now"
+      },
+      "convertToPrivate": {
+        "title": "Convert to private training",
+        "message": "Move {dog} from the group to private training? A private training program will be created and the dog will be removed from the group.",
+        "confirm": "Convert to private"
+      },
+      "deleteGroup": {
+        "titleWorkshop": "Delete workshop",
+        "title": "Delete group",
+        "message": "Delete \"{name}\"? This deletes all of the group's sessions and participants. Clients' orders won't be deleted.",
+        "confirm": "Delete permanently"
+      },
+      "goals": {
+        "updateError": "Error updating the goal",
+        "removed": "Goal removed",
+        "deleteError": "Error deleting the goal",
+        "changeStatus": "Change status",
+        "delete": "Delete goal",
+        "defaultLabel": "Training goals",
+        "added": "Goal added ✓",
+        "addError": "Error adding the goal",
+        "add": "Add goal",
+        "empty": "No goals yet — click “Add goal” to track progress",
+        "placeholder": "Describe the goal..."
+      },
+      "homework": {
+        "updateError": "Error updating homework",
+        "added": "Homework added ✓",
+        "addError": "Error adding homework",
+        "deleteError": "Error deleting homework",
+        "title": "Homework ({done}/{total})",
+        "send": "Send homework",
+        "empty": "No homework yet",
+        "placeholder": "Homework description..."
+      },
+      "checklist": {
+        "rescheduled": "Session time updated",
+        "rescheduleError": "Error updating the session time",
+        "deleted": "Session deleted",
+        "deleteError": "Error deleting the session",
+        "dateAtTime": "{date} at {time}",
+        "headerOf": "Sessions ({used}/{total})",
+        "header": "Sessions ({used})",
+        "remaining": "{count} left",
+        "allDone": "All done ✓",
+        "sessionN": "Session {num}",
+        "dotRated": "Session {num} — {r}★",
+        "dotDone": "Session {num} — done",
+        "ratings": "Session ratings",
+        "editSession": "Edit session",
+        "confirmDelete": "Delete this session record?",
+        "deleteSession": "Delete session",
+        "editTime": "Edit time",
+        "setTime": "Schedule",
+        "editTimeTitle": "Edit session time",
+        "practice": "Exercises:",
+        "nextGoals": "Next goals:",
+        "homework": "Homework:",
+        "summary": "Summary:",
+        "scheduledSession": "Scheduled session",
+        "logSession": "Log session",
+        "scheduleAhead": "Schedule a future session"
+      },
+      "date": "Date",
+      "minutesShort": "{n} min",
+      "sdPhase": {
+        "updated": "Phase updated ✓",
+        "updateError": "Error updating the phase",
+        "title": "Training phase",
+        "fullProfile": "Full profile →"
+      },
+      "sdLog": {
+        "emptyTitle": "No service dog training programs",
+        "goToServiceDogs": "Go to service dog management",
+        "sessionsDone": "{count, plural, one {# session} other {# sessions}} done",
+        "started": "• Started {date}",
+        "profile": "Profile →",
+        "settings": "Settings",
+        "manage": "Manage service dog →",
+        "title": "Training log",
+        "empty": "No sessions yet",
+        "sessionN": "Session {n}",
+        "practice": "📝 Exercises:",
+        "summary": "💬 Summary:",
+        "nextGoals": "🎯 Goals for next session:",
+        "teamNotes": "📋 Notes for the team:",
+        "trainer": "👤 Trainer: {name}",
+        "addSession": "Add session +"
+      },
+      "printLog": {
+        "title": "Training log — {dog}",
+        "subtitle": "Total {count, plural, one {# session} other {# sessions}} · printed {date}",
+        "colTrainer": "Trainer",
+        "colRating": "Rating",
+        "colPractice": "Exercises",
+        "colNextGoals": "Next goals",
+        "colTeamNotes": "Notes for the team",
+        "colSummary": "Summary",
+        "print": "Print training log"
+      },
+      "individual": {
+        "count": "{count, plural, one {# training program} other {# training programs}}",
+        "emptyTitle": "No in-home training programs",
+        "emptyHint": "Training packages will show here after a sale via “New order”",
+        "lowSessions": "Low sessions",
+        "alsoInGroup": "Also in group: {group}",
+        "finishBlocked": "Complete all {total} sessions before finishing the training ({done} completed)",
+        "finish": "Finish training",
+        "dropout": "Dropped out",
+        "deleteProgram": "Delete program",
+        "sendReport": "Send report",
+        "sendCertificateTitle": "Send completion certificate",
+        "certificate": "Certificate",
+        "startDate": "Start date",
+        "estimatedEnd": "Estimated end",
+        "location": "Location",
+        "frequency": "Session frequency",
+        "viewOrder": "View original order",
+        "baseline": "📋 Behavior baseline"
+      },
+      "frequency": {
+        "WEEKLY": "Once a week",
+        "BIWEEKLY": "Every 2 weeks",
+        "CUSTOM": "Other"
+      },
+      "boardingTab": {
+        "availableCount": "{count, plural, one {# boarding dog} other {# boarding dogs}} without training",
+        "addToStay": "Add training to a stay",
+        "noStays": "No stays found",
+        "createProgram": "Create training program",
+        "pickerCheckout": " · check-out {date}",
+        "emptyTitle": "No dogs in board & train",
+        "emptyHint": "Stays with a training program will show here",
+        "missingDates": "Missing dates",
+        "noProgram": "No program",
+        "daysLeft": "{count, plural, one {# day} other {# days}} left",
+        "checkOut": "Check-out: {date}",
+        "checkIn": "Check-in: {date}",
+        "noRoom": "No room",
+        "baseline": "Behavior baseline",
+        "expectations": "Client expectations",
+        "workPlan": "Work plan — visible to staff",
+        "goalsLabel": "Training goals — before going home",
+        "weeklyUpdates": "Weekly updates ({count})",
+        "weeklyUpdateBtn": "Weekly update (week {n})",
+        "weeklyUpdateBtnFirst": "Weekly update (week 1)",
+        "homeSessionsOf": "{used}/{total} sessions",
+        "homeSessions": "{count, plural, one {# session} other {# sessions}}",
+        "homeSessionN": "In-home session ({n})",
+        "homeSession": "In-home session",
+        "leavingToday": "The dog is due to leave today!",
+        "onlyDaysLeft": "Only {count, plural, one {# day} other {# days}} left",
+        "noProgramYet": "No board & train program created yet",
+        "createBoardingProgram": "Create board & train program"
+      },
+      "endAt": "End: {date}",
+      "startAt": "Start: {date}",
+      "groupsTab": {
+        "count": "{count, plural, one {# group} other {# groups}}",
+        "new": "New group",
+        "emptyTitle": "No training groups",
+        "emptyHint": "Create a new training group to get started"
+      },
+      "workshopsTab": {
+        "count": "{count, plural, one {# workshop} other {# workshops}}",
+        "new": "New workshop",
+        "emptyTitle": "No workshops",
+        "emptyHint": "Create a new workshop to get started"
+      },
+      "group": {
+        "sessionCreated": "Session created",
+        "sessionCreateError": "Error creating the session",
+        "seriesCreated": "{count, plural, one {# weekly session} other {# weekly sessions}} created",
+        "seriesError": "Error creating the session series",
+        "attendanceError": "Error updating attendance",
+        "summarySaved": "Session summary saved",
+        "summaryError": "Error saving the summary",
+        "allMarkedPresent": "All participants marked present",
+        "attendanceUpdateError": "Error updating attendance",
+        "promoted": "Participant moved up from the waitlist",
+        "promoteError": "Error promoting from the waitlist",
+        "paymentRequestCreated": "Payment request created",
+        "paymentRequestError": "Error creating the payment request",
+        "full": " · Full",
+        "inactive": "Inactive",
+        "participants": "{count, plural, one {# participant} other {# participants}}",
+        "dayOf": "{day}",
+        "addSession": "Add session",
+        "assignClient": "Assign client",
+        "editWorkshop": "Edit workshop",
+        "editGroup": "Edit group",
+        "deleteWorkshop": "Delete workshop",
+        "deleteGroup": "Delete group",
+        "sendReminder": "Send reminder",
+        "newSession": "New session",
+        "creating": "Creating...",
+        "createSession": "Create session",
+        "weeklySeries": "Weekly series (number of sessions)",
+        "seriesHint": "Creates weekly sessions starting from the selected date/time",
+        "createSeries": "Create series ({count})",
+        "participantsHeader": "Participants ({count})",
+        "noParticipants": "No registered participants",
+        "pay": {
+          "noOrder": "No order",
+          "paid": "Paid",
+          "partial": "Partially paid",
+          "pending": "Awaiting payment"
+        },
+        "attended": "Attended {attended}/{held}",
+        "paymentRequestHint": "Creates an order and sends a payment request on WhatsApp",
+        "paymentRequest": "Payment request",
+        "removeParticipant": "Remove participant",
+        "collected": "Collected <ok>{collected}</ok> of <total>{expected}</total>",
+        "waitlist": "Waitlist ({count})",
+        "promoteFull": "The workshop is full — free a spot to promote",
+        "promoteHint": "Move to the participant list",
+        "promoting": "Promoting...",
+        "promote": "Promote",
+        "removeFromWaitlist": "Remove from the waitlist",
+        "noSessions": "No sessions",
+        "presentCount": "{present}/{total} present",
+        "markAttendance": "Take attendance",
+        "reschedule": "Reschedule session",
+        "confirmDeleteSession": "Delete session {num} on {date}? It will also be removed from the calendar.",
+        "convertDog": "Convert a dog to private training",
+        "selectDog": "— Select a dog —",
+        "noActiveForAttendance": "No active participants to take attendance for",
+        "marking": "Marking...",
+        "markAllPresent": "Mark everyone present",
+        "dogFallback": "Dog",
+        "markAbsent": "Mark absent",
+        "markPresent": "Mark present",
+        "present": "Present",
+        "absent": "Absent",
+        "sessionSummary": "Session summary",
+        "summaryPlaceholder": "What we worked on today, wins, areas to improve...",
+        "saveSummary": "Save summary"
+      },
+      "programForm": {
+        "autoName": "{type} training - {dog}",
+        "manualTitle": "Add manual training program",
+        "manualHint": "For clients already in training from another system — not linked to a new order",
+        "client": "Client *",
+        "dog": "Dog *",
+        "noDogs": "This client has no registered dogs — add a dog in the client's profile first.",
+        "selectDog": "Select a dog...",
+        "trainingType": "Training type",
+        "customTypePlaceholder": "Describe the training type...",
+        "endDate": "End date",
+        "optional": "(optional)",
+        "notes": "Notes",
+        "manualNotesPlaceholder": "Context, where the program stood before the move...",
+        "addProgram": "Add program",
+        "programType": "Program type",
+        "programName": "Program name",
+        "sessionsRequired": "Number of sessions *",
+        "price": "Price ({cur})"
+      },
+      "sellPackage": {
+        "title": "Sell a training package",
+        "choose": "Choose a training package:",
+        "continue": "Continue",
+        "noPackage": "No package",
+        "selected": "{name} — {count, plural, one {# session} other {# sessions}}",
+        "change": "Change",
+        "create": "Create package"
+      },
+      "groupForm": {
+        "editWorkshop": "Edit workshop",
+        "editGroup": "Edit group",
+        "newGroup": "New training group",
+        "nameWorkshop": "Workshop name *",
+        "nameGroup": "Group name *",
+        "namePlaceholderWorkshop": "e.g. Socialization workshop",
+        "namePlaceholderGroup": "e.g. Puppy group - round 3",
+        "type": "Type",
+        "fixedDay": "Fixed day",
+        "notSet": "Not set",
+        "locationPlaceholder": "Public park...",
+        "capacity": "Capacity",
+        "maxParticipants": "Max participants",
+        "createWorkshop": "Create workshop",
+        "createGroup": "Create group"
+      },
+      "assign": {
+        "title": "Assign client & dog — {group}",
+        "addToWaitlist": "Add to the waitlist",
+        "evenIfRoom": "(even if there's room)",
+        "submitWaitlist": "Add to waitlist",
+        "submit": "Assign client & dog"
+      },
+      "sdTab": {
+        "count": "{count, plural, one {# service dog program} other {# service dog programs}}",
+        "new": "New program",
+        "viewProfile": "View service dog profile →"
+      },
+      "packageTypes": {
+        "HOME": "In-home training",
+        "BOARDING": "Board & train",
+        "GROUP": "Group",
+        "WORKSHOP": "Workshop"
+      },
+      "packagesTab": {
+        "count": "{count, plural, one {# package} other {# packages}}",
+        "new": "New package",
+        "emptyTitle": "No training packages",
+        "emptyHint": "Set up training packages to sell to clients easily",
+        "boardingDays": "{count, plural, one {# boarding day} other {# boarding days}}",
+        "activePrograms": "{count, plural, one {# active program} other {# active programs}}"
+      },
+      "packageForm": {
+        "newTitle": "New training package",
+        "name": "Package name *",
+        "namePlaceholder": "e.g. \"5 basic training sessions\"",
+        "priceRequired": "Price ({cur}) *",
+        "boardingDays": "Boarding days",
+        "descriptionOptional": "Description (optional)",
+        "descriptionPlaceholder": "Short description...",
+        "editTitle": "Edit package",
+        "description": "Description"
+      },
+      "boardingForm": {
+        "programName": "Board & train program — {dog}",
+        "title": "Board & train program — {dog}",
+        "start": "Program start *",
+        "end": "Program end *",
+        "datesRequired": "Start and end dates are required for the client to be marked \"active client\"",
+        "baseline": "Initial behavior baseline",
+        "baselinePlaceholder": "Describe the dog's current behavior: independence, reactions to stimuli, existing skills...",
+        "expectationsPlaceholder": "What the client expects to achieve during the stay...",
+        "workPlan": "Weekly work plan",
+        "visibleToStaff": "— visible to staff",
+        "workPlanPlaceholder": "Describe the daily/weekly training plan for the boarding staff...",
+        "handoff": "Handoff — follow-up sessions at the client's home",
+        "handoffHint": "Sessions at the client's home after boarding ends — to keep continuity and hand the tools over to the owners",
+        "followupCount": "Sessions (0 = no follow-up sessions)",
+        "followupNote": "✓ A follow-up program of {count, plural, one {# session} other {# sessions}} will be created automatically under \"In-home training\""
+      },
+      "settingsForm": {
+        "title": "Package settings - {dog}",
+        "startRequired": "Start date *",
+        "notDefined": "Not set",
+        "sessionsInPackage": "Sessions in package",
+        "forChecklist": "(for the tracking checklist)",
+        "sessionsPlaceholder": "e.g. 8",
+        "finishHint": "The “Finish training” button will be available only after all {total} sessions are checked",
+        "address": "Address (training location)",
+        "addressPlaceholder": "Street, city...",
+        "save": "Save settings",
+        "addressPlaceholderShort": "Street, city"
+      },
+      "dropout": {
+        "title": "Drop out of program — {dog}",
+        "body": "The dog will be moved to the archive with status “Dropped out”. You can note the reason for tracking.",
+        "reason": "Dropout reason (optional)",
+        "reasonPlaceholder": "e.g. client canceled, missed sessions, moved to another trainer...",
+        "confirm": "Confirm dropout"
+      },
+      "processing": "Processing...",
+      "deleteProgram": {
+        "title": "Delete training program — {dog}",
+        "body": "This permanently deletes the training program including all sessions, goals and homework. This can't be undone.",
+        "orderQuestion": "What should happen to the linked order?",
+        "orderKeep": "Keep the order as is",
+        "orderCancel": "Cancel the order (status: canceled)",
+        "orderDelete": "Delete the order too",
+        "paidNote": "A paid or invoiced order will be canceled instead of deleted."
+      },
+      "finish": {
+        "title": "Finish training — {dog}",
+        "body": "{dog}'s training will be marked completed and moved to the archive. This can't be undone.",
+        "confirm": "Confirm finish"
+      },
+      "archive": {
+        "xlsx": {
+          "dogName": "Dog name",
+          "breed": "Breed",
+          "clientName": "Client name",
+          "phone": "Phone",
+          "programType": "Program type",
+          "sessionsDone": "Sessions completed",
+          "startDate": "Start date",
+          "endDate": "End date",
+          "status": "Status",
+          "notes": "Dropout reason / notes",
+          "sheetName": "Training archive"
+        },
+        "droppedOut": "Dropped out",
+        "filterAll": "All",
+        "filterCompleted": "Completed",
+        "filterDropped": "Dropped out",
+        "from": "From",
+        "to": "To",
+        "searchPlaceholder": "Search by dog / client...",
+        "export": "Export Excel ({count})",
+        "empty": "The archive is empty",
+        "noResults": "No search results",
+        "emptyHint": "Finished training programs or ones the dog dropped out of will show here. Click \"Finish training\" or \"Dropped out\" on the dog's card.",
+        "noResultsHint": "Try changing the search or filter",
+        "completed": "Completed ✓",
+        "dropoutReason": "Dropout reason:",
+        "restoreTitle": "Restore to active",
+        "restore": "Restore"
+      },
+      "sdDog": {
+        "added": "Service dog added",
+        "addError": "Error adding the dog",
+        "add": "Add service dog",
+        "hint": "This dog will appear in Training — Service dogs and in service dog management. It won't be linked to a client.",
+        "nameRequired": "Dog name *",
+        "breedPlaceholder": "Breed...",
+        "sex": "Sex",
+        "unknown": "Unknown",
+        "male": "Male",
+        "female": "Female",
+        "birthDate": "Date of birth",
+        "weight": "Weight (kg)",
+        "microchip": "Microchip",
+        "microchipPlaceholder": "Chip number...",
+        "serviceType": "Service type",
+        "serviceTypePlaceholder": "Mobility / seizure / emotional support...",
+        "medicalNotes": "Medical notes",
+        "behaviorNotes": "Behavioral notes",
+        "generalNotes": "General notes"
+      },
+      "sdProgram": {
+        "name": "Service dog training — {dog}",
+        "created": "Training program created",
+        "createError": "Error creating the program",
+        "title": "New training program — service dog",
+        "dog": "Service dog *",
+        "noDogs": "No active service dogs. <link>Add a service dog</link>",
+        "create": "Create training program"
+      },
+      "recipient": {
+        "added": "Recipient added",
+        "addError": "Error adding the recipient",
+        "title": "Add new recipient",
+        "fullName": "Full name *",
+        "fullNamePlaceholder": "First and last name",
+        "email": "Email",
+        "idNumber": "ID number",
+        "idPlaceholder": "9 digits",
+        "disabilityType": "Disability type",
+        "notSelected": "Not selected",
+        "address": "Address",
+        "disabilityDetails": "Disability details",
+        "disabilityPlaceholder": "More about the disability...",
+        "add": "Add recipient"
+      },
+      "pageTitle": "Training",
+      "tierGate": {
+        "title": "Training program engine",
+        "description": "Manage training programs, goals and sessions. Track every dog's progress in every program."
+      }
     }
   },
   "ui": {

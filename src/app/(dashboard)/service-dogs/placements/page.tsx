@@ -19,7 +19,10 @@ import {
   Trash2,
   Info,
 } from "lucide-react";
-import { cn, formatDate } from "@/lib/utils";
+import { useTranslations } from "next-intl";
+import { cn } from "@/lib/utils";
+import { formatDate } from "@/lib/format";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { ServiceDogsTabs } from "@/components/service-dogs/ServiceDogsTabs";
 import {
   PLACEMENT_STATUS_MAP,
@@ -69,6 +72,10 @@ interface RecipientOption {
 }
 
 function PlacementsPageContent() {
+  const t = useTranslations("serviceDogs.serviceDogsPlacementsPage");
+  const tc = useTranslations("common");
+  const { locale } = useBusinessLocale();
+  const fmtDate = (d: string) => formatDate(d, { locale, style: "long" });
   const [statusFilter, setStatusFilter] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingPlacement, setEditingPlacement] = useState<Placement | null>(null);
@@ -107,8 +114,8 @@ function PlacementsPageContent() {
         if (!r.ok) throw new Error("Failed");
         return r.json();
       }),
-    onSuccess: () => { invalidateAll(); toast.success("סטטוס שיבוץ עודכן"); },
-    onError: () => toast.error("שגיאה בעדכון סטטוס"),
+    onSuccess: () => { invalidateAll(); toast.success(t("toasts.statusUpdated")); },
+    onError: () => toast.error(t("toasts.statusUpdateError")),
   });
 
   const deleteMutation = useMutation({
@@ -117,8 +124,8 @@ function PlacementsPageContent() {
         if (!r.ok) throw new Error("Failed");
         return r.json();
       }),
-    onSuccess: () => { invalidateAll(); toast.success("שיבוץ נמחק"); },
-    onError: () => toast.error("שגיאה במחיקת שיבוץ"),
+    onSuccess: () => { invalidateAll(); toast.success(t("toasts.deleted")); },
+    onError: () => toast.error(t("toasts.deleteError")),
   });
 
   const filtered = statusFilter
@@ -140,21 +147,21 @@ function PlacementsPageContent() {
       <div className="page-header">
         <div>
           <div className="flex items-center gap-2 text-sm text-petra-muted mb-1">
-            <Link href="/service-dogs" className="hover:text-foreground">כלבי שירות</Link>
-            <ChevronLeft className="w-3.5 h-3.5" />
-            <span>שיבוצים</span>
+            <Link href="/service-dogs" className="hover:text-foreground">{t("breadcrumb.serviceDogs")}</Link>
+            <ChevronLeft className="w-3.5 h-3.5 ltr:-scale-x-100" />
+            <span>{t("breadcrumb.placements")}</span>
           </div>
           <h1 className="page-title flex items-center gap-2">
             <Activity className="w-6 h-6 text-brand-500" />
-            ניהול שיבוצים
+            {t("title")}
           </h1>
           <p className="text-sm text-petra-muted mt-1">
-            {activePlacements.length} שיבוצים פעילים · {placements.filter((p) => p.status === "TERMINATED").length} הסתיימו
+            {t("subtitle", { active: activePlacements.length, terminated: placements.filter((p) => p.status === "TERMINATED").length })}
           </p>
         </div>
         <button onClick={() => setShowAddModal(true)} className="btn-primary flex items-center gap-2">
           <Plus className="w-4 h-4" />
-          שיבוץ חדש
+          {t("newPlacement")}
         </button>
       </div>
 
@@ -162,8 +169,8 @@ function PlacementsPageContent() {
       <div className="flex items-start gap-2 p-3 rounded-xl bg-blue-50 border border-blue-100 text-sm">
         <Info className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
         <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-blue-700">
-          <span><strong>פעיל</strong> — שיבוץ מאושר ומלא</span>
-          <span><strong>הסתיים</strong> — השיבוץ הופסק</span>
+          <span>{t.rich("legend.active", { strong: (c) => <strong>{c}</strong> })}</span>
+          <span>{t.rich("legend.terminated", { strong: (c) => <strong>{c}</strong> })}</span>
         </div>
       </div>
 
@@ -172,7 +179,7 @@ function PlacementsPageContent() {
         <div>
           <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
             <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-            שיבוצים פעילים ({activePlacements.length})
+            {t("activeHeading", { count: activePlacements.length })}
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {activePlacements.map((p) => (
@@ -193,25 +200,25 @@ function PlacementsPageContent() {
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => setEditingPlacement(p)}
-                      title="עריכה"
+                      title={tc("actions.edit")}
                       className="p-1 rounded hover:bg-emerald-100 text-emerald-500 hover:text-brand-600 transition-colors"
                     >
                       <Pencil className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => {
-                        if (confirm(`למחוק את השיבוץ של ${p.serviceDog.pet.name} → ${p.recipient.name}?`)) {
+                        if (confirm(t("confirmDelete", { dog: p.serviceDog.pet.name, recipient: p.recipient.name }))) {
                           deleteMutation.mutate(p.id);
                         }
                       }}
                       disabled={deleteMutation.isPending}
-                      title="מחיקה"
-                      aria-label="מחק שיבוץ"
+                      title={t("actions.delete")}
+                      aria-label={t("actions.deleteAria")}
                       className="p-2 rounded hover:bg-red-50 text-emerald-500 hover:text-red-500 transition-colors"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
-                    <ArrowLeft className="w-5 h-5 text-emerald-500 mr-1" />
+                    <ArrowLeft className="w-5 h-5 text-emerald-500 ms-1 ltr:-scale-x-100" />
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -233,7 +240,7 @@ function PlacementsPageContent() {
                 {p.nextCheckInAt && (
                   <div className="mt-2 flex items-center gap-1.5 text-xs text-emerald-700">
                     <Calendar className="w-3.5 h-3.5" />
-                    בדיקת מעקב: {formatDate(p.nextCheckInAt)}
+                    {t("nextCheckIn", { date: fmtDate(p.nextCheckInAt) })}
                   </div>
                 )}
               </div>
@@ -251,7 +258,7 @@ function PlacementsPageContent() {
             !statusFilter ? "bg-slate-800 text-white" : "text-petra-muted hover:bg-slate-50"
           )}
         >
-          הכל ({placements.length})
+          {t("filterAll", { count: placements.length })}
         </button>
         {SERVICE_DOG_PLACEMENT_STATUSES.map((s) => {
           const count = statusCounts[s.id] || 0;
@@ -279,20 +286,20 @@ function PlacementsPageContent() {
       ) : filtered.length === 0 ? (
         <div className="empty-state">
           <Activity className="empty-state-icon" />
-          <p className="text-petra-muted">אין שיבוצים</p>
+          <p className="text-petra-muted">{t("empty")}</p>
         </div>
       ) : (
         <div className="card p-0 overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b bg-slate-50/50">
-                <th className="table-header-cell">כלב</th>
-                <th className="table-header-cell">זכאי</th>
-                <th className="table-header-cell">סטטוס</th>
-                <th className="table-header-cell">תאריך שיבוץ</th>
-                <th className="table-header-cell">תאריך הסמכה</th>
-                <th className="table-header-cell">בדיקה הבאה</th>
-                <th className="table-header-cell">פעולות</th>
+                <th className="table-header-cell">{t("table.dog")}</th>
+                <th className="table-header-cell">{t("table.recipient")}</th>
+                <th className="table-header-cell">{t("table.status")}</th>
+                <th className="table-header-cell">{t("table.placementDate")}</th>
+                <th className="table-header-cell">{t("table.certifiedAt")}</th>
+                <th className="table-header-cell">{t("table.nextCheck")}</th>
+                <th className="table-header-cell">{t("table.actions")}</th>
               </tr>
             </thead>
             <tbody>
@@ -331,43 +338,43 @@ function PlacementsPageContent() {
                       </span>
                     </td>
                     <td className="table-cell text-petra-muted text-sm">
-                      {placement.placementDate ? formatDate(placement.placementDate) : "—"}
+                      {placement.placementDate ? fmtDate(placement.placementDate) : "—"}
                     </td>
                     <td className="table-cell text-petra-muted text-sm">
-                      {placement.certifiedAt ? formatDate(placement.certifiedAt) : "—"}
+                      {placement.certifiedAt ? fmtDate(placement.certifiedAt) : "—"}
                     </td>
                     <td className="table-cell text-petra-muted text-sm">
-                      {placement.nextCheckInAt ? formatDate(placement.nextCheckInAt) : "—"}
+                      {placement.nextCheckInAt ? fmtDate(placement.nextCheckInAt) : "—"}
                     </td>
                     <td className="table-cell">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         {placement.status === "ACTIVE" && (
                           <button
                             onClick={() =>
-                              confirm("האם לסיים את השיבוץ?") &&
+                              confirm(t("confirmTerminate")) &&
                               statusChangeMutation.mutate({ id: placement.id, status: "TERMINATED" })
                             }
                             disabled={statusChangeMutation.isPending}
                             className="text-xs text-red-500 hover:text-red-600 font-medium"
                           >
-                            סיים
+                            {t("terminate")}
                           </button>
                         )}
                         <button
                           onClick={() => setEditingPlacement(placement)}
-                          title="עריכה"
+                          title={tc("actions.edit")}
                           className="p-1 rounded hover:bg-slate-100 text-petra-muted hover:text-brand-600 transition-colors"
                         >
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
                         <button
                           onClick={() => {
-                            if (confirm(`למחוק את השיבוץ של ${placement.serviceDog.pet.name} → ${placement.recipient.name}?`)) {
+                            if (confirm(t("confirmDelete", { dog: placement.serviceDog.pet.name, recipient: placement.recipient.name }))) {
                               deleteMutation.mutate(placement.id);
                             }
                           }}
                           disabled={deleteMutation.isPending}
-                          title="מחיקה"
+                          title={t("actions.delete")}
                           className="p-1 rounded hover:bg-red-50 text-petra-muted hover:text-red-500 transition-colors"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -401,11 +408,12 @@ function PlacementsPageContent() {
 }
 
 export default function PlacementsPage() {
+  const t = useTranslations("serviceDogs.serviceDogsPlacementsPage");
   return (
     <TierGate
       feature="service_dogs"
-      title="מודול כלבי שירות"
-      description="ניהול כלבי שירות, זכאים, שיבוצים ותעודות הסמכה — זמין במנוי Service Dog בלבד."
+      title={t("tierGate.title")}
+      description={t("tierGate.description")}
       upgradeTier="service_dog"
     >
       <PlacementsPageContent />
@@ -432,6 +440,7 @@ function SearchableSelect({
   renderItem: (item: { id: string; [key: string]: unknown }) => React.ReactNode;
   renderSelected: (item: { id: string; [key: string]: unknown }) => string;
 }) {
+  const t = useTranslations("serviceDogs.serviceDogsPlacementsPage");
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
 
@@ -463,7 +472,7 @@ function SearchableSelect({
         </div>
       ) : (
         <div className="relative">
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted" />
+          <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted" />
           <input
             autoFocus
             type="text"
@@ -471,7 +480,7 @@ function SearchableSelect({
             onChange={(e) => setSearch(e.target.value)}
             onFocus={() => setOpen(true)}
             onBlur={() => setTimeout(() => setOpen(false), 150)}
-            className="input w-full pr-10"
+            className="input w-full ps-10"
             placeholder={placeholder}
           />
         </div>
@@ -479,13 +488,13 @@ function SearchableSelect({
       {open && (
         <div className="absolute z-50 w-full mt-1 bg-white border rounded-xl shadow-lg max-h-52 overflow-y-auto">
           {filtered.length === 0 ? (
-            <div className="p-3 text-sm text-petra-muted text-center">אין תוצאות</div>
+            <div className="p-3 text-sm text-petra-muted text-center">{t("noResults")}</div>
           ) : (
             filtered.map((item) => (
               <button
                 key={item.id}
                 type="button"
-                className="w-full text-right px-3 py-2.5 text-sm hover:bg-slate-50 transition-colors border-b last:border-0"
+                className="w-full text-start px-3 py-2.5 text-sm hover:bg-slate-50 transition-colors border-b last:border-0"
                 onMouseDown={() => { onSelect(item.id); setOpen(false); setSearch(""); }}
               >
                 {renderItem(item)}
@@ -509,6 +518,9 @@ function EditPlacementModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const t = useTranslations("serviceDogs.serviceDogsPlacementsPage");
+  const tc = useTranslations("common");
+  const { cfg } = useBusinessLocale();
   const [status, setStatus] = useState(placement.status);
   const [placementDate, setPlacementDate] = useState(
     placement.placementDate ? placement.placementDate.slice(0, 10) : ""
@@ -534,8 +546,8 @@ function EditPlacementModal({
         if (!r.ok) throw new Error("Failed");
         return r.json();
       }),
-    onSuccess: () => { toast.success("שיבוץ עודכן בהצלחה"); onSaved(); },
-    onError: () => toast.error("שגיאה בעדכון שיבוץ"),
+    onSuccess: () => { toast.success(t("toasts.updated")); onSaved(); },
+    onError: () => toast.error(t("toasts.updateError")),
   });
 
   return (
@@ -544,14 +556,14 @@ function EditPlacementModal({
       <div className="modal-content max-w-md mx-4 p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold">
-            עריכת שיבוץ — {placement.serviceDog.pet.name} → {placement.recipient.name}
+            {t("editModal.title", { dog: placement.serviceDog.pet.name, recipient: placement.recipient.name })}
           </h2>
           <button onClick={onClose} className="btn-ghost p-1"><X className="w-5 h-5" /></button>
         </div>
 
         <div className="space-y-4">
           <div>
-            <label className="label">סטטוס</label>
+            <label className="label">{t("form.status")}</label>
             <select value={status} onChange={(e) => setStatus(e.target.value)} className="input w-full">
               {SERVICE_DOG_PLACEMENT_STATUSES.map((s) => (
                 <option key={s.id} value={s.id}>{PLACEMENT_STATUS_MAP[s.id]?.label || s.label}</option>
@@ -560,22 +572,22 @@ function EditPlacementModal({
           </div>
 
           <div>
-            <label className="label">תאריך שיבוץ</label>
-            <input type="date" lang="he" value={placementDate} onChange={(e) => setPlacementDate(e.target.value)} className="input w-full" />
+            <label className="label">{t("form.placementDate")}</label>
+            <input type="date" lang={cfg.lang} value={placementDate} onChange={(e) => setPlacementDate(e.target.value)} className="input w-full" />
           </div>
 
           <div>
-            <label className="label">תאריך הסמכה</label>
-            <input type="date" lang="he" value={certifiedAt} onChange={(e) => setCertifiedAt(e.target.value)} className="input w-full" />
+            <label className="label">{t("form.certifiedAt")}</label>
+            <input type="date" lang={cfg.lang} value={certifiedAt} onChange={(e) => setCertifiedAt(e.target.value)} className="input w-full" />
           </div>
 
           <div>
-            <label className="label">בדיקת מעקב הבאה</label>
-            <input type="date" lang="he" value={nextCheckInAt} onChange={(e) => setNextCheckInAt(e.target.value)} className="input w-full" />
+            <label className="label">{t("form.nextCheckIn")}</label>
+            <input type="date" lang={cfg.lang} value={nextCheckInAt} onChange={(e) => setNextCheckInAt(e.target.value)} className="input w-full" />
           </div>
 
           <div>
-            <label className="label">הערות</label>
+            <label className="label">{t("form.notes")}</label>
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="input w-full" rows={3} />
           </div>
 
@@ -594,9 +606,9 @@ function EditPlacementModal({
               disabled={updateMutation.isPending}
               className="btn-primary flex-1"
             >
-              {updateMutation.isPending ? "שומר..." : "שמור שינויים"}
+              {updateMutation.isPending ? tc("progress.saving") : t("form.saveChanges")}
             </button>
-            <button onClick={onClose} className="btn-secondary flex-1">ביטול</button>
+            <button onClick={onClose} className="btn-secondary flex-1">{tc("actions.cancel")}</button>
           </div>
         </div>
       </div>
@@ -615,6 +627,9 @@ function AddPlacementModal({
   recipients: RecipientOption[];
   onClose: () => void;
 }) {
+  const t = useTranslations("serviceDogs.serviceDogsPlacementsPage");
+  const tc = useTranslations("common");
+  const { cfg } = useBusinessLocale();
   const queryClient = useQueryClient();
   const [serviceDogId, setServiceDogId] = useState("");
   const [recipientId, setRecipientId] = useState("");
@@ -640,10 +655,10 @@ function AddPlacementModal({
       queryClient.invalidateQueries({ queryKey: ["service-dogs"] });
       queryClient.invalidateQueries({ queryKey: ["service-compliance"] });
       queryClient.invalidateQueries({ queryKey: ["sd-alerts"] });
-      toast.success("שיבוץ נוצר בהצלחה");
+      toast.success(t("toasts.created"));
       onClose();
     },
-    onError: () => toast.error("שגיאה ביצירת שיבוץ"),
+    onError: () => toast.error(t("toasts.createError")),
   });
 
   return (
@@ -651,14 +666,14 @@ function AddPlacementModal({
       <div className="modal-backdrop" />
       <div className="modal-content max-w-md mx-4 p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-bold">שיבוץ חדש</h2>
+          <h2 className="text-lg font-bold">{t("newPlacement")}</h2>
           <button onClick={onClose} className="btn-ghost p-1"><X className="w-5 h-5" /></button>
         </div>
 
         <div className="space-y-4">
           <SearchableSelect
-            label="כלב שירות *"
-            placeholder="חפש לפי שם כלב..."
+            label={t("form.dogLabel")}
+            placeholder={t("form.dogPlaceholder")}
             items={dogs as unknown as { id: string; [key: string]: unknown }[]}
             selectedId={serviceDogId}
             onSelect={setServiceDogId}
@@ -671,7 +686,7 @@ function AddPlacementModal({
               return (
                 <div>
                   <span className="font-medium">{d.pet.name}</span>
-                  <span className="text-petra-muted mr-2 text-xs">
+                  <span className="text-petra-muted ms-2 text-xs">
                     {SERVICE_DOG_PHASE_MAP[d.phase]?.label}
                     {d.pet.breed ? ` · ${d.pet.breed}` : ""}
                     {d.phase !== "CERTIFIED" ? " ⚠️" : ""}
@@ -682,8 +697,8 @@ function AddPlacementModal({
           />
 
           <SearchableSelect
-            label="זכאי *"
-            placeholder="חפש לפי שם זכאי..."
+            label={t("form.recipientLabel")}
+            placeholder={t("form.recipientPlaceholder")}
             items={recipients as unknown as { id: string; [key: string]: unknown }[]}
             selectedId={recipientId}
             onSelect={setRecipientId}
@@ -699,7 +714,7 @@ function AddPlacementModal({
                 <div>
                   <span className="font-medium">{r.name}</span>
                   {r.disabilityType && (
-                    <span className="text-petra-muted mr-2 text-xs">{DISABILITY_TYPE_MAP[r.disabilityType]}</span>
+                    <span className="text-petra-muted ms-2 text-xs">{DISABILITY_TYPE_MAP[r.disabilityType]}</span>
                   )}
                 </div>
               );
@@ -707,17 +722,17 @@ function AddPlacementModal({
           />
 
           <div>
-            <label className="label">תאריך שיבוץ</label>
-            <input type="date" lang="he" value={placementDate} onChange={(e) => setPlacementDate(e.target.value)} className="input w-full" />
+            <label className="label">{t("form.placementDate")}</label>
+            <input type="date" lang={cfg.lang} value={placementDate} onChange={(e) => setPlacementDate(e.target.value)} className="input w-full" />
           </div>
 
           <div>
-            <label className="label">תאריך הסמכה</label>
-            <input type="date" lang="he" value={certifiedAt} onChange={(e) => setCertifiedAt(e.target.value)} className="input w-full" />
+            <label className="label">{t("form.certifiedAt")}</label>
+            <input type="date" lang={cfg.lang} value={certifiedAt} onChange={(e) => setCertifiedAt(e.target.value)} className="input w-full" />
           </div>
 
           <div>
-            <label className="label">הערות</label>
+            <label className="label">{t("form.notes")}</label>
             <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="input w-full" rows={2} />
           </div>
 
@@ -737,9 +752,9 @@ function AddPlacementModal({
               disabled={!serviceDogId || !recipientId || createMutation.isPending}
               className="btn-primary flex-1"
             >
-              {createMutation.isPending ? "יוצר..." : "צור שיבוץ"}
+              {createMutation.isPending ? t("form.creating") : t("form.create")}
             </button>
-            <button onClick={onClose} className="btn-secondary flex-1">ביטול</button>
+            <button onClick={onClose} className="btn-secondary flex-1">{tc("actions.cancel")}</button>
           </div>
         </div>
       </div>

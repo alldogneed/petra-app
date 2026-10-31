@@ -375,7 +375,7 @@ const RoomStatusCard = memo(function RoomStatusCard({
                       <PawPrint className="w-3 h-3 text-orange-500 flex-shrink-0" />
                       <button
                         type="button"
-                        className="flex-1 min-w-0 text-right"
+                        className="flex-1 min-w-0 text-start"
                         onPointerDown={(e) => e.stopPropagation()}
                         onClick={() => onOpenStay(stay)}
                         title={t("openStay")}
@@ -412,7 +412,7 @@ const RoomStatusCard = memo(function RoomStatusCard({
                       <PawPrint className="w-3 h-3 text-purple-500 flex-shrink-0" />
                       <button
                         type="button"
-                        className="flex-1 min-w-0 text-right"
+                        className="flex-1 min-w-0 text-start"
                         onPointerDown={(e) => e.stopPropagation()}
                         onClick={() => onOpenStay(stay)}
                         title={t("openStay")}
@@ -1893,7 +1893,7 @@ function VaccinationAlertBanner() {
     <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 overflow-hidden">
       <button
         onClick={() => setExpanded((v) => !v)}
-        className="w-full flex items-center gap-3 p-3 text-right"
+        className="w-full flex items-center gap-3 p-3 text-start"
       >
         <ShieldAlert className="w-5 h-5 text-amber-600 shrink-0" />
         <div className="flex-1 min-w-0">
@@ -1936,7 +1936,7 @@ function VaccinationAlertBanner() {
                   <span className="text-sm font-medium text-petra-text">
                     {alert.petName}
                   </span>
-                  <span className="text-xs text-petra-muted mr-2">
+                  <span className="text-xs text-petra-muted ms-2">
                     ({alert.customerName})
                   </span>
                   {isNotVaccinated ? (
@@ -2204,6 +2204,10 @@ function CareLogModal({ stayId, petName, onClose }: { stayId: string; petName: s
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 function BoardingPageContent() {
+  const t = useTranslations("boarding.boardingPage");
+  const tCommon = useTranslations("common");
+  const { locale, currency, timezone, cfg } = useBusinessLocale();
+  const sym = currencySymbol({ locale, currency });
   const { canExportData, canManageBoarding } = usePermissions();
   const [showNewStay, setShowNewStay] = useState(false);
   const [careLogStay, setCareLogStay] = useState<{ id: string; petName: string } | null>(null);
@@ -2360,9 +2364,9 @@ function BoardingPageContent() {
       setForm({ customerId: "", petIds: [], roomId: "", checkIn: "", checkOut: "", checkInTime: settings.boardingCheckInTime || "14:00", checkOutTime: settings.boardingCheckOutTime || "11:00", notes: "", pricePerNight: settings.boardingPricePerNight || 150, assignedToUserId: "", status: "" });
       setPickedCustomer(null);
       setServiceDogMode(false);
-      toast.success("ההשמה נוצרה בהצלחה");
+      toast.success(t("toasts.stayCreated"));
     },
-    onError: (err: Error) => toast.error(err.message === "Failed" ? "שגיאה ביצירת ההשמה. נסה שוב." : (err.message || "שגיאה ביצירת ההשמה")),
+    onError: (err: Error) => toast.error(err.message === "Failed" ? t("toasts.createErrorRetry") : (err.message || t("toasts.createError"))),
   });
 
   const statusMutation = useMutation({
@@ -2374,7 +2378,7 @@ function BoardingPageContent() {
       });
       if (!r.ok) {
         const err = await r.json().catch(() => ({}));
-        throw new Error(err.error || "שגיאה בעדכון הסטטוס");
+        throw new Error(err.error || t("toasts.statusError"));
       }
       return r.json();
     },
@@ -2388,7 +2392,7 @@ function BoardingPageContent() {
     },
     onError: (_err, _vars, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(["boarding"], ctx.prev);
-      toast.error(_err instanceof Error && _err.message ? _err.message : "שגיאה בעדכון הסטטוס. נסה שוב.");
+      toast.error(_err instanceof Error && _err.message ? _err.message : t("toasts.statusErrorRetry"));
     },
     onSuccess: (updatedStay: BoardingStay, payload) => {
       // Merge server response into cache (may include updated notes/times)
@@ -2409,9 +2413,9 @@ function BoardingPageContent() {
                 body: JSON.stringify({
                   title: `💊 ${med.medName} — ${stay!.pet.name}`,
                   description: [
-                    med.dosage ? `מינון: ${med.dosage}` : "",
-                    med.frequency ? `תדירות: ${med.frequency}` : "",
-                    med.times ? `שעות: ${med.times}` : "",
+                    med.dosage ? t("medTask.dosage", { value: med.dosage }) : "",
+                    med.frequency ? t("medTask.frequency", { value: med.frequency }) : "",
+                    med.times ? t("medTask.times", { value: med.times }) : "",
                   ].filter(Boolean).join(", "),
                   category: "MEDICATION",
                   priority: "HIGH",
@@ -2422,16 +2426,16 @@ function BoardingPageContent() {
             )
           ).then(() => {
             queryClient.invalidateQueries({ queryKey: ["tasks"] });
-            toast.success(`צ'ק-אין בוצע ✓ — ${meds.length} משימות תרופות נוצרו`);
+            toast.success(t("toasts.checkInWithMedTasks", { count: meds.length }));
           }).catch(() => {
-            toast.success("צ'ק-אין בוצע בהצלחה");
-            toast.error("שגיאה ביצירת משימות תרופות — בדוק ידנית");
+            toast.success(t("toasts.checkInDone"));
+            toast.error(t("toasts.medTasksError"));
           });
         } else {
-          toast.success("צ'ק-אין בוצע בהצלחה");
+          toast.success(t("toasts.checkInDone"));
         }
       } else if (payload.status === "checked_out") {
-        toast.success("צ'ק-אאוט בוצע בהצלחה");
+        toast.success(t("toasts.checkOutDone"));
       }
     },
   });
@@ -2445,7 +2449,7 @@ function BoardingPageContent() {
       });
       if (!r.ok) {
         const err = await r.json().catch(() => ({}));
-        throw new Error(err.error || "שגיאה בשיוך החדר");
+        throw new Error(err.error || t("toasts.roomAssignError"));
       }
       return r.json();
     },
@@ -2526,7 +2530,7 @@ function BoardingPageContent() {
       if (ctx?.prev) queryClient.setQueryData(["boarding"], ctx.prev);
       if (ctx?.prevRooms) queryClient.setQueryData(["rooms"], ctx.prevRooms);
       if (ctx?.prevOcc) queryClient.setQueryData(ctx.occKey, ctx.prevOcc);
-      toast.error(_err instanceof Error && _err.message ? _err.message : "שגיאה בשיוך החדר. נסה שוב.");
+      toast.error(_err instanceof Error && _err.message ? _err.message : t("toasts.roomAssignErrorRetry"));
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["boarding"] });
@@ -2542,7 +2546,7 @@ function BoardingPageContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "available" }),
       });
-      if (!r.ok) throw new Error("שגיאה בעדכון סטטוס חדר");
+      if (!r.ok) throw new Error(t("toasts.roomStatusError"));
       return r.json();
     },
     onMutate: async (roomId) => {
@@ -2555,9 +2559,9 @@ function BoardingPageContent() {
     },
     onError: (_err, _vars, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(["rooms"], ctx.prev);
-      toast.error("שגיאה בעדכון החדר. נסה שוב.");
+      toast.error(t("toasts.roomUpdateErrorRetry"));
     },
-    onSuccess: () => toast.success("החדר סומן כנקי"),
+    onSuccess: () => toast.success(t("toasts.roomMarkedClean")),
     onSettled: () => queryClient.invalidateQueries({ queryKey: ["rooms"] }),
   });
 
@@ -2570,10 +2574,10 @@ function BoardingPageContent() {
       }),
     onSuccess: () => {
       setEditStay(null);
-      toast.success("ההזמנה עודכנה");
+      toast.success(t("toasts.stayUpdated"));
     },
     onError: (err: unknown) => {
-      const msg = err instanceof Error ? err.message : "שגיאה בעדכון ההזמנה";
+      const msg = err instanceof Error ? err.message : t("toasts.stayUpdateError");
       toast.error(msg);
     },
     onSettled: () => {
@@ -2600,14 +2604,14 @@ function BoardingPageContent() {
     },
     onError: (_err, _vars, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(["boarding"], ctx.prev);
-      toast.error(_err instanceof Error && _err.message ? _err.message : "שגיאה בעדכון תאריך היציאה. נסה שוב.");
+      toast.error(_err instanceof Error && _err.message ? _err.message : t("toasts.checkOutDateErrorRetry"));
     },
     onSuccess: (updatedStay: BoardingStay) => {
       queryClient.setQueryData<BoardingStay[]>(["boarding"], (old) =>
         old?.map((s) => s.id === updatedStay.id ? updatedStay : s) ?? []
       );
       setExtendDialogStay(null);
-      toast.success("תאריך היציאה עודכן בהצלחה");
+      toast.success(t("toasts.checkOutDateUpdated"));
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["boarding"] });
@@ -2625,9 +2629,9 @@ function BoardingPageContent() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["rooms"] });
       setNewRoomForm({ name: "", capacity: 1, type: "standard", pricePerNight: "" });
-      toast.success("החדר נוצר בהצלחה");
+      toast.success(t("toasts.roomCreated"));
     },
-    onError: () => toast.error("שגיאה ביצירת החדר. נסה שוב."),
+    onError: () => toast.error(t("toasts.roomCreateErrorRetry")),
   });
 
   const updateRoomMutation = useMutation({
@@ -2640,33 +2644,33 @@ function BoardingPageContent() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["rooms"] });
       setEditingRoomId(null);
-      toast.success("החדר עודכן בהצלחה");
+      toast.success(t("toasts.roomUpdated"));
     },
-    onError: () => toast.error("שגיאה בעדכון החדר. נסה שוב."),
+    onError: () => toast.error(t("toasts.roomUpdateErrorRetry")),
   });
 
   const deleteRoomMutation = useMutation({
     mutationFn: (id: string) =>
       fetch(`/api/boarding/rooms/${id}`, { method: "DELETE" })
-        .then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה במחיקת החדר"); return d; }),
+        .then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || t("toasts.roomDeleteError")); return d; }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["rooms"] });
-      toast.success("החדר נמחק");
+      toast.success(t("toasts.roomDeleted"));
     },
-    onError: (err: Error) => toast.error(err.message || "שגיאה במחיקת החדר. נסה שוב."),
+    onError: (err: Error) => toast.error(err.message || t("toasts.roomDeleteErrorRetry")),
   });
 
   const deleteStayMutation = useMutation({
     mutationFn: (id: string) =>
       fetch(`/api/boarding/${id}`, { method: "DELETE" })
-        .then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה במחיקת השהות"); return d; }),
+        .then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || t("toasts.stayDeleteError")); return d; }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["boarding"] });
       queryClient.invalidateQueries({ queryKey: ["rooms"] });
-      toast.success("השהות נמחקה");
+      toast.success(t("toasts.stayDeleted"));
       setDeleteDialogStay(null);
     },
-    onError: (err: Error) => toast.error(err.message || "שגיאה במחיקת השהות"),
+    onError: (err: Error) => toast.error(err.message || t("toasts.stayDeleteError")),
   });
 
   function startEditRoom(room: Room) {
@@ -2866,10 +2870,10 @@ function BoardingPageContent() {
   const draggedStay = activeStayId ? stays.find((s) => s.id === activeStayId) : null;
 
   const tabs: { key: TabKey; label: string; count?: number }[] = [
-    { key: "active", label: "הכל", count: activeStays.length },
-    { key: "checkin_today", label: "צ׳ק-אין היום", count: checkinTodayCount },
-    { key: "checkout_today", label: "צ׳ק-אאוט היום", count: checkoutTodayCount },
-    { key: "history", label: "היסטוריה" },
+    { key: "active", label: t("tabs.all"), count: activeStays.length },
+    { key: "checkin_today", label: t("checkInToday"), count: checkinTodayCount },
+    { key: "checkout_today", label: t("checkOutToday"), count: checkoutTodayCount },
+    { key: "history", label: t("tabs.history") },
   ];
 
   // ── Occupancy checker computation ──
@@ -2912,44 +2916,44 @@ function BoardingPageContent() {
       <BoardingTabs />
       {/* Header */}
       <div className="flex items-center gap-3 mb-4 flex-wrap">
-        <h1 className="page-title">פנסיון</h1>
+        <h1 className="page-title">{t("title")}</h1>
         <button
           onClick={() => {
             queryClient.invalidateQueries({ queryKey: ["boarding"] });
             queryClient.invalidateQueries({ queryKey: ["rooms"] });
             queryClient.invalidateQueries({ queryKey: ["boarding-occupancy"] });
           }}
-          title="רענן נתונים"
+          title={t("header.refresh")}
           className="w-7 h-7 flex items-center justify-center rounded-lg text-petra-muted hover:text-petra-text hover:bg-slate-100 transition-colors"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${isBoardingFetching ? "animate-spin" : ""}`} />
         </button>
         <p className="text-sm text-petra-muted">
-          {activeStays.length} שהיות פעילות · {rooms.length} חדרים
+          {t("header.summary", { stays: activeStays.length, rooms: rooms.length })}
         </p>
         <div className="flex gap-2">
           {activeStays.filter((s) => s.status === "checked_in").length > 0 && (() => {
             const checkedIn = activeStays.filter((s) => s.status === "checked_in");
-            const todayStr2 = new Date().toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" });
+            const todayStr2 = new Date().toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" });
             const lines = [
-              `🏨 סבב בוקר פנסיון — ${todayStr2}`,
-              `${checkedIn.length} חיות מאוכסנות`,
+              t("rounds.morningTitle", { date: todayStr2 }),
+              t("rounds.petsBoarded", { count: checkedIn.length }),
               "",
             ];
             for (const s of checkedIn) {
-              lines.push(`🐾 *${s.pet.name}*${s.pet.breed ? ` (${s.pet.breed})` : ""} — ${s.room?.name || "ללא חדר"}`);
-              if (s.pet.health?.allergies) lines.push(`  ⚠️ אלרגיות: ${s.pet.health.allergies}`);
-              if (s.pet.health?.medicalConditions) lines.push(`  🏥 מצב רפואי: ${s.pet.health.medicalConditions}`);
+              lines.push(`🐾 *${s.pet.name}*${s.pet.breed ? ` (${s.pet.breed})` : ""} — ${s.room?.name || t("noRoom")}`);
+              if (s.pet.health?.allergies) lines.push(`  ${t("rounds.allergies", { value: s.pet.health.allergies })}`);
+              if (s.pet.health?.medicalConditions) lines.push(`  ${t("rounds.medicalConditions", { value: s.pet.health.medicalConditions })}`);
               if (s.pet.medications && s.pet.medications.length > 0) {
                 s.pet.medications.forEach((m) => {
                   lines.push(`  💊 ${m.medName}${m.dosage ? ` · ${m.dosage}` : ""}${m.times ? ` · ${m.times}` : ""}`);
                 });
               }
               if (s.pet.behavior?.dogAggression || s.pet.behavior?.humanAggression) {
-                lines.push(`  🔴 תוקפנות!`);
+                lines.push(`  ${t("rounds.aggression")}`);
               }
-              if (s.pet.behavior?.separationAnxiety) lines.push(`  😰 חרדת נטישה`);
-              if (s.checkOut) lines.push(`  📅 יציאה: ${new Date(s.checkOut).toLocaleDateString("he-IL")}`);
+              if (s.pet.behavior?.separationAnxiety) lines.push(`  ${t("rounds.separationAnxiety")}`);
+              if (s.checkOut) lines.push(`  ${t("rounds.checkOut", { date: new Date(s.checkOut).toLocaleDateString(locale) })}`);
               lines.push("");
             }
             const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(lines.join("\n"))}`;
@@ -2959,25 +2963,25 @@ function BoardingPageContent() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="btn-secondary hidden sm:flex"
-                title="שתף סבב בוקר"
+                title={t("rounds.shareMorning")}
               >
                 <Share2 className="w-4 h-4" />
-                סבב בוקר
+                {t("rounds.morning")}
               </a>
             );
           })()}
           {activeStays.filter((s) => s.status === "checked_in" && (s.pet.foodNotes || (s.pet.medications && s.pet.medications.length > 0))).length > 0 && (() => {
             const checkedIn = activeStays.filter((s) => s.status === "checked_in");
-            const todayStr3 = new Date().toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" });
+            const todayStr3 = new Date().toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" });
             const lines = [
-              `🍽️ סבב האכלה — ${todayStr3}`,
+              t("rounds.feedingTitle", { date: todayStr3 }),
               "",
             ];
             for (const s of checkedIn) {
               const hasFoodInfo = s.pet.foodNotes || (s.pet.medications && s.pet.medications.length > 0) || s.pet.health?.allergies;
               if (!hasFoodInfo) continue;
-              lines.push(`🐾 *${s.pet.name}* — ${s.room?.name || "ללא חדר"}`);
-              if (s.pet.health?.allergies) lines.push(`  ⚠️ אלרגיות: ${s.pet.health.allergies}`);
+              lines.push(`🐾 *${s.pet.name}* — ${s.room?.name || t("noRoom")}`);
+              if (s.pet.health?.allergies) lines.push(`  ${t("rounds.allergies", { value: s.pet.health.allergies })}`);
               if (s.pet.foodNotes) lines.push(`  🍗 ${s.pet.foodNotes}`);
               if (s.pet.medications && s.pet.medications.length > 0) {
                 s.pet.medications.forEach((m) => {
@@ -2996,10 +3000,10 @@ function BoardingPageContent() {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="btn-secondary hidden sm:flex"
-                title="סבב האכלה"
+                title={t("rounds.feeding")}
               >
                 <Share2 className="w-4 h-4" />
-                האכלה
+                {t("rounds.feedingShort")}
               </a>
             );
           })()}
@@ -3008,19 +3012,19 @@ function BoardingPageContent() {
             href="/api/boarding/export"
             download
             className="btn-secondary hidden sm:flex"
-            title="ייצוא יומי לאקסל"
+            title={t("header.exportTitle")}
           >
             <ClipboardList className="w-4 h-4" />
-            ייצוא יומי
+            {t("header.export")}
           </a>
           )}
           {canManageBoarding && (
           <button className="btn-secondary" onClick={() => setShowRoomsManager(true)}>
-            <Settings2 className="w-4 h-4" />ניהול חדרים
+            <Settings2 className="w-4 h-4" />{t("rooms.manage")}
           </button>
           )}
 <button className="btn-primary" onClick={() => { setForm((f) => ({ ...f, pricePerNight: settings.boardingPricePerNight || 150, checkInTime: settings.boardingCheckInTime || "14:00", checkOutTime: settings.boardingCheckOutTime || "11:00" })); setShowNewStay(true); }}>
-            <Plus className="w-4 h-4" />שהייה חדשה
+            <Plus className="w-4 h-4" />{t("newStay.title")}
           </button>
         </div>
       </div>
@@ -3036,7 +3040,7 @@ function BoardingPageContent() {
           </div>
           <div className="flex-1">
             <p className="text-sm font-bold text-red-700">
-              {overdueStays.length} שהיות עם איחור בצ׳ק-אאוט
+              {t("overdue.title", { count: overdueStays.length })}
             </p>
             <div className="flex flex-wrap gap-x-3 gap-y-1 mt-0.5">
               {overdueStays.map((s) => {
@@ -3046,7 +3050,9 @@ function BoardingPageContent() {
                 const hoursOverdue = Math.floor((Date.now() - checkOutDate.getTime()) / (1000 * 60 * 60));
                 return (
                   <span key={s.id} className="text-xs text-red-600">
-                    {s.pet.name} ({hoursOverdue}{hoursOverdue === 1 ? " שעה" : " שעות"} איחור)
+                    {hoursOverdue === 1
+                      ? t("overdue.petLateOneHour", { name: s.pet.name, hours: hoursOverdue })
+                      : t("overdue.petLateHours", { name: s.pet.name, hours: hoursOverdue })}
                   </span>
                 );
               })}
@@ -3059,25 +3065,25 @@ function BoardingPageContent() {
             }}
             className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-red-600 text-white text-xs font-semibold hover:bg-red-700 transition-colors"
           >
-            טפל עכשיו
+            {t("overdue.handleNow")}
           </button>
         </div>
       )}
 
       {/* Search — above room map */}
       <div className="relative mb-4 max-w-sm">
-        <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-petra-muted pointer-events-none" />
+        <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-petra-muted pointer-events-none" />
         <input
           type="text"
           value={staySearch}
           onChange={(e) => setStaySearch(e.target.value)}
-          placeholder="חפש לפי חיה, לקוח, חדר..."
-          className="input pr-8 text-sm h-8"
+          placeholder={t("search.placeholder")}
+          className="input ps-8 text-sm h-8"
         />
         {staySearch && (
           <button
             onClick={() => setStaySearch("")}
-            className="absolute left-2 top-1/2 -translate-y-1/2 text-petra-muted hover:text-petra-text"
+            className="absolute end-2 top-1/2 -translate-y-1/2 text-petra-muted hover:text-petra-text"
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -3087,18 +3093,18 @@ function BoardingPageContent() {
       {/* View Toggle + Occupancy strip */}
       <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
         <div className="flex items-center gap-3 flex-wrap">
-          <h2 className="text-sm font-semibold text-petra-text">מפת חדרים</h2>
+          <h2 className="text-sm font-semibold text-petra-text">{t("view.roomMap")}</h2>
           {/* ── Occupancy checker strip ── */}
           <div className="flex items-center gap-1.5 flex-wrap">
             <Calendar className="w-3.5 h-3.5 text-petra-muted flex-shrink-0" />
             <input
-              type="date" lang="he" value={occDraftFrom}
+              type="date" lang={cfg.lang} value={occDraftFrom}
               onChange={e => setOccDraftFrom(e.target.value)}
               className="text-xs border border-petra-border rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-brand-400 h-7 w-32"
             />
             <span className="text-xs text-petra-muted">—</span>
             <input
-              type="date" lang="he" value={occDraftTo} min={occDraftFrom}
+              type="date" lang={cfg.lang} value={occDraftTo} min={occDraftFrom}
               onChange={e => setOccDraftTo(e.target.value)}
               className="text-xs border border-petra-border rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-brand-400 h-7 w-32"
             />
@@ -3106,7 +3112,7 @@ function BoardingPageContent() {
               onClick={() => { setOccFrom(occDraftFrom); setOccTo(occDraftTo); }}
               className="h-7 px-2.5 rounded-lg bg-brand-600 text-white text-xs font-medium hover:bg-brand-700 transition-colors flex-shrink-0"
             >
-              הצג
+              {t("view.show")}
             </button>
             {/* Shift the whole window by its own length, forwards or back */}
             {(() => {
@@ -3118,9 +3124,9 @@ function BoardingPageContent() {
                 from.setDate(from.getDate() + dir * span);
                 to.setDate(to.getDate() + dir * span);
                 const f = from.toLocaleDateString("en-CA");
-                const t = to.toLocaleDateString("en-CA");
-                setOccDraftFrom(f); setOccDraftTo(t);
-                setOccFrom(f); setOccTo(t);
+                const toYmd = to.toLocaleDateString("en-CA");
+                setOccDraftFrom(f); setOccDraftTo(toYmd);
+                setOccFrom(f); setOccTo(toYmd);
               };
               const jumpToday = () => {
                 const from = new Date(`${occDraftFrom}T00:00:00`);
@@ -3132,29 +3138,29 @@ function BoardingPageContent() {
                 const end = new Date();
                 end.setDate(end.getDate() + span);
                 const f = start.toLocaleDateString("en-CA");
-                const t = end.toLocaleDateString("en-CA");
-                setOccDraftFrom(f); setOccDraftTo(t);
-                setOccFrom(f); setOccTo(t);
+                const toYmd = end.toLocaleDateString("en-CA");
+                setOccDraftFrom(f); setOccDraftTo(toYmd);
+                setOccFrom(f); setOccTo(toYmd);
               };
               return (
                 <>
-                  <button type="button" onClick={() => shiftOcc(-1)} title="תקופה אחורה"
+                  <button type="button" onClick={() => shiftOcc(-1)} title={t("view.prevPeriod")}
                     className="h-7 w-7 rounded-lg border border-petra-border text-petra-muted hover:bg-slate-50 flex-shrink-0">‹</button>
-                  <button type="button" onClick={() => shiftOcc(1)} title="תקופה קדימה"
+                  <button type="button" onClick={() => shiftOcc(1)} title={t("view.nextPeriod")}
                     className="h-7 w-7 rounded-lg border border-petra-border text-petra-muted hover:bg-slate-50 flex-shrink-0">›</button>
-                  <button type="button" onClick={jumpToday} title="חזרה להיום"
-                    className="h-7 px-2 rounded-lg bg-orange-50 text-orange-700 text-xs font-medium hover:bg-orange-100 flex-shrink-0">היום</button>
+                  <button type="button" onClick={jumpToday} title={t("view.backToToday")}
+                    className="h-7 px-2 rounded-lg bg-orange-50 text-orange-700 text-xs font-medium hover:bg-orange-100 flex-shrink-0">{t("today")}</button>
                 </>
               );
             })()}
-            {occLoading && <span className="text-xs text-petra-muted animate-pulse">טוען...</span>}
+            {occLoading && <span className="text-xs text-petra-muted animate-pulse">{tCommon("loading")}</span>}
             {!occLoading && occFrom && occTo && (
               <div className="flex items-center gap-1">
                 {occTotalDogs === 0 ? (
-                  <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-lg">✓ פנוי לגמרי</span>
+                  <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-lg">{t("view.fullyFree")}</span>
                 ) : (
                   <span className="text-xs font-medium text-blue-700 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-lg">
-                    {occTotalDogs} כלבים
+                    {t("dogsCount", { count: occTotalDogs })}
                   </span>
                 )}
               </div>
@@ -3165,7 +3171,7 @@ function BoardingPageContent() {
           {viewMode === "timeline" && (
             <div className="flex items-center gap-1 text-xs">
               {(() => {
-                const todayYmd = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" });
+                const todayYmd = new Date().toLocaleDateString("en-CA", { timeZone: timezone });
                 const base = timelineStart || todayYmd;
                 const shift = (d: number) => {
                   const dt = new Date(base + "T00:00:00"); dt.setDate(dt.getDate() + d);
@@ -3174,17 +3180,17 @@ function BoardingPageContent() {
                 };
                 return (
                   <>
-                    <button type="button" onClick={() => shift(-7)} className="px-1.5 py-1 rounded-md hover:bg-slate-100 text-petra-muted" title="שבוע אחורה">‹</button>
+                    <button type="button" onClick={() => shift(-7)} className="px-1.5 py-1 rounded-md hover:bg-slate-100 text-petra-muted" title={t("view.prevWeek")}>‹</button>
                     <input
-                      type="date" lang="he"
+                      type="date" lang={cfg.lang}
                       className="input !py-1 !px-2 text-xs w-[8.5rem]"
                       value={base}
                       onChange={(e) => setTimelineStart(e.target.value && e.target.value !== todayYmd ? e.target.value : "")}
-                      title="תאריך התחלה של ציר הזמן (אפשר גם אחורה)"
+                      title={t("view.timelineStartTitle")}
                     />
-                    <button type="button" onClick={() => shift(7)} className="px-1.5 py-1 rounded-md hover:bg-slate-100 text-petra-muted" title="שבוע קדימה">›</button>
+                    <button type="button" onClick={() => shift(7)} className="px-1.5 py-1 rounded-md hover:bg-slate-100 text-petra-muted" title={t("view.nextWeek")}>›</button>
                     {timelineStart && (
-                      <button type="button" onClick={() => setTimelineStart("")} className="px-2 py-1 rounded-md bg-orange-50 text-orange-700 font-medium hover:bg-orange-100">היום</button>
+                      <button type="button" onClick={() => setTimelineStart("")} className="px-2 py-1 rounded-md bg-orange-50 text-orange-700 font-medium hover:bg-orange-100">{t("today")}</button>
                     )}
                   </>
                 );
@@ -3202,7 +3208,7 @@ function BoardingPageContent() {
                     timelineDays === n ? "bg-white shadow-sm text-petra-text" : "text-petra-muted hover:text-petra-text"
                   )}
                 >
-                  {n} ימים
+                  {t("view.daysCount", { count: n })}
                 </button>
               ))}
             </div>
@@ -3211,9 +3217,9 @@ function BoardingPageContent() {
             <button
               onClick={() => window.print()}
               className="btn-primary flex items-center gap-1.5 text-sm"
-              title="הדפס דוח חדרים"
+              title={t("view.printTitle")}
             >
-              <Printer className="w-3.5 h-3.5" />הדפסה
+              <Printer className="w-3.5 h-3.5" />{t("view.print")}
             </button>
           )}
           <div className="flex gap-1 bg-slate-100 rounded-lg p-0.5">
@@ -3224,7 +3230,7 @@ function BoardingPageContent() {
                 viewMode === "grid" ? "bg-white shadow-sm text-petra-text" : "text-petra-muted hover:text-petra-text"
               )}
             >
-              <LayoutGrid className="w-3.5 h-3.5" />כרטיסים
+              <LayoutGrid className="w-3.5 h-3.5" />{t("view.cards")}
             </button>
             <button
               onClick={() => { setViewMode("timeline"); setSelectedCalendarDate(null); }}
@@ -3233,7 +3239,7 @@ function BoardingPageContent() {
                 viewMode === "timeline" ? "bg-white shadow-sm text-petra-text" : "text-petra-muted hover:text-petra-text"
               )}
             >
-              <GanttChart className="w-3.5 h-3.5" />ציר זמן
+              <GanttChart className="w-3.5 h-3.5" />{t("view.timeline")}
             </button>
             <button
               onClick={() => setViewMode("calendar")}
@@ -3242,7 +3248,7 @@ function BoardingPageContent() {
                 viewMode === "calendar" ? "bg-white shadow-sm text-petra-text" : "text-petra-muted hover:text-petra-text"
               )}
             >
-              <Calendar className="w-3.5 h-3.5" />זמינות
+              <Calendar className="w-3.5 h-3.5" />{t("view.availability")}
             </button>
           </div>
         </div>
@@ -3256,7 +3262,7 @@ function BoardingPageContent() {
           </div>
           <div>
             <p className="text-lg font-bold text-petra-text">{availableRooms}</p>
-            <p className="text-[10px] text-petra-muted">פנויים</p>
+            <p className="text-[10px] text-petra-muted">{t("stats.available")}</p>
           </div>
         </div>
         <div className="card p-3 flex items-center gap-3">
@@ -3265,7 +3271,7 @@ function BoardingPageContent() {
           </div>
           <div>
             <p className="text-lg font-bold text-petra-text">{occupiedRooms}</p>
-            <p className="text-[10px] text-petra-muted">תפוסים</p>
+            <p className="text-[10px] text-petra-muted">{t("stats.occupied")}</p>
           </div>
         </div>
         <div className="card p-3 flex items-center gap-3">
@@ -3274,7 +3280,7 @@ function BoardingPageContent() {
           </div>
           <div>
             <p className="text-lg font-bold text-petra-text">{cleaningRooms}</p>
-            <p className="text-[10px] text-petra-muted">דרוש ניקיון</p>
+            <p className="text-[10px] text-petra-muted">{t("roomStatus.needs_cleaning")}</p>
           </div>
         </div>
         <div className="card p-3 flex items-center gap-3">
@@ -3283,7 +3289,7 @@ function BoardingPageContent() {
           </div>
           <div>
             <p className="text-lg font-bold text-petra-text">{overdueStays.length}</p>
-            <p className="text-[10px] text-petra-muted">איחור צ׳ק-אאוט</p>
+            <p className="text-[10px] text-petra-muted">{t("stats.lateCheckOut")}</p>
           </div>
         </div>
       </div>
@@ -3297,10 +3303,10 @@ function BoardingPageContent() {
                 <div className="empty-state-icon mx-auto mb-3">
                   <Hotel className="w-6 h-6 text-slate-400" />
                 </div>
-                <p className="text-sm text-petra-muted mb-3">אין חדרים מוגדרים במערכת</p>
+                <p className="text-sm text-petra-muted mb-3">{t("empty.noRoomsInSystem")}</p>
                 {canManageBoarding && (
                 <button className="btn-primary mx-auto" onClick={() => setShowRoomsManager(true)}>
-                  <Plus className="w-4 h-4" />הוסף חדר ראשון
+                  <Plus className="w-4 h-4" />{t("empty.addFirstRoom")}
                 </button>
                 )}
               </div>
@@ -3309,8 +3315,8 @@ function BoardingPageContent() {
               <div className="boarding-print-header">
                 <img src="/petra-logo.png" alt="Petra" style={{ width: 38, height: 38, objectFit: "contain", borderRadius: 6, flexShrink: 0 }} />
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: 16, color: "#1e293b" }}>מפת חדרי פנסיון</div>
-                  <div style={{ fontSize: 11, color: "#64748b" }}>הופק: {new Date().toLocaleDateString("he-IL", { day: "2-digit", month: "2-digit", year: "numeric" })}</div>
+                  <div style={{ fontWeight: 700, fontSize: 16, color: "#1e293b" }}>{t("print.title")}</div>
+                  <div style={{ fontSize: 11, color: "#64748b" }}>{t("print.generated", { date: new Date().toLocaleDateString(locale, { day: "2-digit", month: "2-digit", year: "numeric" }) })}</div>
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4" data-print-rooms>
@@ -3335,7 +3341,7 @@ function BoardingPageContent() {
                 ))}
               </div>
               {searchNorm && gridRooms.length === 0 && (
-                <p className="text-sm text-petra-muted text-center py-4">לא נמצאו חדרים עם &quot;{staySearch.trim()}&quot; בתאריכים שנבחרו</p>
+                <p className="text-sm text-petra-muted text-center py-4">{t("search.noRooms", { query: staySearch.trim() })}</p>
               )}
               </>
             )}
@@ -3349,7 +3355,7 @@ function BoardingPageContent() {
                   </div>
                   <div>
                     <div className="text-xs font-semibold text-petra-text">{draggedStay.pet.name}</div>
-                    <div className="text-[10px] text-petra-muted">{draggedStay.customer?.name ?? "כלב שירות"}</div>
+                    <div className="text-[10px] text-petra-muted">{draggedStay.customer?.name ?? t("serviceDog")}</div>
                   </div>
                 </div>
               </div>
@@ -3363,7 +3369,7 @@ function BoardingPageContent() {
         <div className="mb-8">
           {rooms.length === 0 ? (
             <div className="card p-8 text-center">
-              <p className="text-sm text-petra-muted">אין חדרים מוגדרים</p>
+              <p className="text-sm text-petra-muted">{t("empty.noRooms")}</p>
             </div>
           ) : (
             <TimelineView rooms={rooms} stays={stays} search={searchNorm} onOpenStay={setEditStay} numDays={timelineDays} startDate={timelineStart ? new Date(timelineStart + "T00:00:00") : undefined} />
@@ -3390,19 +3396,19 @@ function BoardingPageContent() {
           <div className="flex items-center gap-2 px-3 py-2 mb-3 bg-brand-50 border border-brand-100 rounded-xl text-sm text-brand-700">
             <Calendar className="w-3.5 h-3.5 flex-shrink-0 text-brand-500" />
             <span className="flex-1">
-              מציג שהיות ל-{new Date(selectedCalendarDate).toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" })}
+              {t("filter.showingFor", { date: new Date(selectedCalendarDate).toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" }) })}
             </span>
             <button
               onClick={() => setSelectedCalendarDate(null)}
               className="text-brand-400 hover:text-brand-700 transition-colors"
-              aria-label="נקה סינון"
+              aria-label={t("filter.clear")}
             >
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
         )}
         <div className="mb-3">
-          <h2 className="text-sm font-semibold text-petra-text">לוח שהיות</h2>
+          <h2 className="text-sm font-semibold text-petra-text">{t("list.title")}</h2>
         </div>
 
         <div className="flex gap-1 mb-4 flex-wrap">
@@ -3443,7 +3449,7 @@ function BoardingPageContent() {
             <div className="empty-state-icon">
               <AlertCircle className="w-6 h-6 text-red-400" />
             </div>
-            <p className="text-sm text-petra-muted">שגיאה בטעינת נתוני הפנסיון. נסה לרענן את הדף.</p>
+            <p className="text-sm text-petra-muted">{t("list.loadError")}</p>
           </div>
         ) : displayedStays.length === 0 ? (
           <div className="empty-state">
@@ -3452,11 +3458,11 @@ function BoardingPageContent() {
             </div>
             <p className="text-sm text-petra-muted">
               {staySearch.trim()
-                ? "לא נמצאו שהיות תואמות"
-                : activeTab === "checkin_today" ? "אין צ׳ק-אינים מתוכננים להיום"
-                : activeTab === "checkout_today" ? "אין צ׳ק-אאוטים מתוכננים להיום"
-                : activeTab === "active" ? "אין שהיות פעילות"
-                : "אין שהיות בהיסטוריה"}
+                ? t("list.noMatches")
+                : activeTab === "checkin_today" ? t("list.noCheckIns")
+                : activeTab === "checkout_today" ? t("list.noCheckOuts")
+                : activeTab === "active" ? t("list.noActive")
+                : t("list.noHistory")}
             </p>
           </div>
         ) : (
@@ -3472,13 +3478,13 @@ function BoardingPageContent() {
                   settings={settings}
                 />
                 {(stay.status === "checked_in" || stay.status === "reserved") && (
-                  <div className="mr-14 mt-1 mb-2 flex items-center gap-4 flex-wrap">
+                  <div className="ms-14 mt-1 mb-2 flex items-center gap-4 flex-wrap">
                     <button
                       onClick={() => setCareLogStay({ id: stay.id, petName: stay.pet.name })}
                       className="text-xs text-petra-muted hover:text-brand-600 flex items-center gap-1 transition-colors"
                     >
                       <ClipboardList className="w-3 h-3" />
-                      יומן טיפול
+                      {t("careLog.open")}
                     </button>
                     {stay.pet.serviceDogProfile && (
                       <TrainingMinutesField stay={stay} />
@@ -3496,9 +3502,9 @@ function BoardingPageContent() {
         <div className="mt-6 card p-5">
           <h2 className="font-semibold mb-3 flex items-center gap-2 text-blue-700">
             <ShieldAlert className="w-4 h-4 text-blue-500" />
-            כלבי שירות בפנסיון
+            {t("serviceDogs.title")}
             <span className="text-xs font-medium bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-              {serviceDogsInBoarding.length} כלבים
+              {t("dogsCount", { count: serviceDogsInBoarding.length })}
             </span>
           </h2>
           <div className="divide-y">
@@ -3509,12 +3515,12 @@ function BoardingPageContent() {
                   {dog.pet.breed && <p className="text-xs text-petra-muted">{dog.pet.breed}</p>}
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-xs text-petra-muted">{dog.trainingTotalHours.toFixed(0)} שעות אימון</span>
+                  <span className="text-xs text-petra-muted">{t("serviceDogs.trainingHours", { hours: dog.trainingTotalHours.toFixed(0) })}</span>
                   <a
                     href={`/service-dogs/${dog.id}`}
                     className="text-xs text-brand-600 hover:underline"
                   >
-                    תיק כלב
+                    {t("serviceDogs.profile")}
                   </a>
                 </div>
               </div>
@@ -3539,8 +3545,8 @@ function BoardingPageContent() {
           <div className="modal-content max-w-lg mx-4 flex flex-col max-h-[85dvh] overflow-hidden">
             <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100 flex-shrink-0">
               <div>
-                <h2 className="text-xl font-bold text-petra-text">ניהול חדרים</h2>
-                <p className="text-sm text-petra-muted mt-0.5">הוסף, ערוך או מחק חדרים</p>
+                <h2 className="text-xl font-bold text-petra-text">{t("rooms.manage")}</h2>
+                <p className="text-sm text-petra-muted mt-0.5">{t("rooms.subtitle")}</p>
               </div>
               <button
                 onClick={() => { setShowRoomsManager(false); setEditingRoomId(null); }}
@@ -3553,7 +3559,7 @@ function BoardingPageContent() {
             <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 pt-4 pb-6">
             <div className="space-y-2 mb-6">
               {rooms.length === 0 ? (
-                <p className="text-sm text-petra-muted text-center py-4">אין חדרים עדיין</p>
+                <p className="text-sm text-petra-muted text-center py-4">{t("rooms.empty")}</p>
               ) : (
                 rooms.map((room) => (
                   <div key={room.id} className="card p-3">
@@ -3561,14 +3567,14 @@ function BoardingPageContent() {
                       <div className="space-y-2">
                         <input
                           className="input"
-                          placeholder="שם החדר"
+                          placeholder={t("rooms.namePlaceholder")}
                           value={editRoomForm.name}
                           onChange={(e) => setEditRoomForm({ ...editRoomForm, name: e.target.value })}
                           autoFocus
                         />
                         <div className="flex gap-2">
                           <div className="flex-1">
-                            <label className="label text-[11px]">קיבולת</label>
+                            <label className="label text-[11px]">{t("rooms.capacity")}</label>
                             <input
                               type="number"
                               min={1}
@@ -3578,24 +3584,24 @@ function BoardingPageContent() {
                             />
                           </div>
                           <div className="flex-1">
-                            <label className="label text-[11px]">סוג</label>
+                            <label className="label text-[11px]">{t("rooms.type")}</label>
                             <select
                               className="input"
                               value={editRoomForm.type}
                               onChange={(e) => setEditRoomForm({ ...editRoomForm, type: e.target.value })}
                             >
-                              <option value="standard">רגיל</option>
-                              <option value="premium">פרמיום</option>
-                              <option value="suite">סוויט</option>
+                              <option value="standard">{t("roomTypes.standard")}</option>
+                              <option value="premium">{t("roomTypes.premium")}</option>
+                              <option value="suite">{t("roomTypes.suite")}</option>
                             </select>
                           </div>
                           <div className="flex-1">
-                            <label className="label text-[11px]">מחיר/לילה (₪)</label>
+                            <label className="label text-[11px]">{t("rooms.pricePerNightLabel", { currency: sym })}</label>
                             <input
                               type="number"
                               min={0}
                               className="input"
-                              placeholder="אופציונלי"
+                              placeholder={t("rooms.optional")}
                               value={editRoomForm.pricePerNight}
                               onChange={(e) => setEditRoomForm({ ...editRoomForm, pricePerNight: e.target.value })}
                             />
@@ -3608,13 +3614,13 @@ function BoardingPageContent() {
                             onClick={() => updateRoomMutation.mutate({ id: room.id, ...editRoomForm })}
                           >
                             <Check className="w-3.5 h-3.5" />
-                            {updateRoomMutation.isPending ? "שומר..." : "שמור"}
+                            {updateRoomMutation.isPending ? tCommon("progress.saving") : tCommon("actions.save")}
                           </button>
                           <button
                             className="btn-secondary text-xs"
                             onClick={() => setEditingRoomId(null)}
                           >
-                            ביטול
+                            {tCommon("actions.cancel")}
                           </button>
                         </div>
                       </div>
@@ -3623,17 +3629,17 @@ function BoardingPageContent() {
                         <DoorOpen className="w-4 h-4 text-brand-400 flex-shrink-0" />
                         <div className="flex-1 min-w-0">
                           <span className="text-sm font-semibold text-petra-text">{room.name}</span>
-                          <span className="text-xs text-petra-muted mr-2">· קיבולת {room.capacity}</span>
-                          <span className="text-xs text-petra-muted">· {room._count.boardingStays} פעילות</span>
+                          <span className="text-xs text-petra-muted ms-2">{t("rooms.capacityInline", { count: room.capacity })}</span>
+                          <span className="text-xs text-petra-muted">{t("rooms.activeInline", { count: room._count.boardingStays })}</span>
                           {room.pricePerNight != null && (
-                            <span className="text-xs text-brand-600 mr-2">· ₪{room.pricePerNight}/לילה</span>
+                            <span className="text-xs text-brand-600 ms-2">· {t("room.pricePerNight", { currency: sym, price: room.pricePerNight })}</span>
                           )}
                         </div>
                         <div className="flex items-center gap-1 flex-shrink-0">
                           <button
                             className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted hover:text-petra-text transition-colors"
                             onClick={() => startEditRoom(room)}
-                            title="ערוך"
+                            title={t("rooms.edit")}
                           >
                             <Pencil className="w-3.5 h-3.5" />
                           </button>
@@ -3641,7 +3647,7 @@ function BoardingPageContent() {
                             className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-petra-muted hover:text-red-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                             onClick={() => deleteRoomMutation.mutate(room.id)}
                             disabled={room._count.boardingStays > 0 || deleteRoomMutation.isPending}
-                            title={room._count.boardingStays > 0 ? "לא ניתן למחוק חדר עם שהיות פעילות" : "מחק חדר"}
+                            title={room._count.boardingStays > 0 ? t("rooms.cannotDelete") : t("rooms.delete")}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -3654,20 +3660,20 @@ function BoardingPageContent() {
             </div>
 
             <div className="border-t border-slate-100 pt-5">
-              <h3 className="text-sm font-semibold text-petra-text mb-3">הוסף חדר חדש</h3>
+              <h3 className="text-sm font-semibold text-petra-text mb-3">{t("rooms.addNew")}</h3>
               <div className="space-y-3">
                 <div>
-                  <label className="label">שם החדר *</label>
+                  <label className="label">{t("rooms.nameRequired")}</label>
                   <input
                     className="input"
-                    placeholder='לדוגמה: חדר 5, חדר פרמיום...'
+                    placeholder={t("rooms.nameExample")}
                     value={newRoomForm.name}
                     onChange={(e) => setNewRoomForm({ ...newRoomForm, name: e.target.value })}
                   />
                 </div>
                 <div className="flex gap-3">
                   <div className="flex-1">
-                    <label className="label">קיבולת</label>
+                    <label className="label">{t("rooms.capacity")}</label>
                     <input
                       type="number"
                       min={1}
@@ -3677,24 +3683,24 @@ function BoardingPageContent() {
                     />
                   </div>
                   <div className="flex-1">
-                    <label className="label">סוג</label>
+                    <label className="label">{t("rooms.type")}</label>
                     <select
                       className="input"
                       value={newRoomForm.type}
                       onChange={(e) => setNewRoomForm({ ...newRoomForm, type: e.target.value })}
                     >
-                      <option value="standard">רגיל</option>
-                      <option value="premium">פרמיום</option>
-                      <option value="suite">סוויט</option>
+                      <option value="standard">{t("roomTypes.standard")}</option>
+                      <option value="premium">{t("roomTypes.premium")}</option>
+                      <option value="suite">{t("roomTypes.suite")}</option>
                     </select>
                   </div>
                   <div className="flex-1">
-                    <label className="label">מחיר/לילה (₪)</label>
+                    <label className="label">{t("rooms.pricePerNightLabel", { currency: sym })}</label>
                     <input
                       type="number"
                       min={0}
                       className="input"
-                      placeholder="אופציונלי"
+                      placeholder={t("rooms.optional")}
                       value={newRoomForm.pricePerNight}
                       onChange={(e) => setNewRoomForm({ ...newRoomForm, pricePerNight: e.target.value })}
                     />
@@ -3706,7 +3712,7 @@ function BoardingPageContent() {
                   onClick={() => createRoomMutation.mutate(newRoomForm)}
                 >
                   <Plus className="w-4 h-4" />
-                  {createRoomMutation.isPending ? "מוסיף..." : "הוסף חדר"}
+                  {createRoomMutation.isPending ? t("rooms.adding") : t("rooms.add")}
                 </button>
               </div>
             </div>
@@ -3722,8 +3728,8 @@ function BoardingPageContent() {
           <div className="modal-content max-w-lg mx-4 flex flex-col max-h-[90dvh] overflow-hidden">
             <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100 flex-shrink-0">
               <div>
-                <h2 className="text-xl font-bold text-petra-text">שהייה חדשה</h2>
-                <p className="text-sm text-petra-muted mt-0.5">הוסף שהייה לפנסיון</p>
+                <h2 className="text-xl font-bold text-petra-text">{t("newStay.title")}</h2>
+                <p className="text-sm text-petra-muted mt-0.5">{t("newStay.subtitle")}</p>
               </div>
               <button
                 onClick={() => setShowNewStay(false)}
@@ -3742,21 +3748,21 @@ function BoardingPageContent() {
                   onClick={() => { setServiceDogMode(false); setForm({ ...form, petIds: [], customerId: "" }); setPickedCustomer(null); }}
                   className={cn("flex-1 text-xs py-1.5 rounded-md font-medium transition-colors", !serviceDogMode ? "bg-white shadow-sm text-petra-text" : "text-petra-muted hover:text-petra-text")}
                 >
-                  לקוח רגיל
+                  {t("newStay.regularClient")}
                 </button>
                 <button
                   type="button"
                   onClick={() => { setServiceDogMode(true); setForm({ ...form, petIds: [], customerId: "" }); setPickedCustomer(null); setServiceDogSearch(""); }}
                   className={cn("flex-1 text-xs py-1.5 rounded-md font-medium transition-colors", serviceDogMode ? "bg-white shadow-sm text-petra-text" : "text-petra-muted hover:text-petra-text")}
                 >
-                  כלב שירות
+                  {t("serviceDog")}
                 </button>
               </div>
 
               {/* Customer selector */}
               {!serviceDogMode && (
               <div>
-                <label className="label">לקוח *</label>
+                <label className="label">{t("newStay.clientRequired")}</label>
                 {form.customerId && selectedCustomer ? (
                   <div className="flex items-center justify-between p-3 rounded-xl bg-brand-50 border border-brand-100">
                     <div className="flex items-center gap-2.5">
@@ -3773,7 +3779,7 @@ function BoardingPageContent() {
                       onClick={() => { setForm({ ...form, customerId: "", petIds: [] }); setPickedCustomer(null); }}
                       className="text-xs text-brand-500 hover:text-brand-700 font-medium"
                     >
-                      שנה
+                      {t("newStay.change")}
                     </button>
                   </div>
                 ) : (
@@ -3792,7 +3798,7 @@ function BoardingPageContent() {
               {/* Service dog selector */}
               {serviceDogMode && (
               <div>
-                <label className="label">כלב שירות *</label>
+                <label className="label">{t("newStay.serviceDogRequired")}</label>
                 {selectedServiceDog ? (
                   <div className="flex items-center justify-between p-3 rounded-xl bg-brand-50 border border-brand-100">
                     <div className="flex items-center gap-2.5">
@@ -3803,7 +3809,7 @@ function BoardingPageContent() {
                         <div className="flex items-center gap-1.5">
                           <p className="text-sm font-semibold text-petra-text">{selectedServiceDog.pet.name}</p>
                           <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full font-medium", selectedServiceDog.phase === "CERTIFIED" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700")}>
-                            {selectedServiceDog.phase === "CERTIFIED" ? "מוסמך" : "בהכשרה"}
+                            {selectedServiceDog.phase === "CERTIFIED" ? t("newStay.certified") : t("newStay.inTraining")}
                           </span>
                         </div>
                         {selectedServiceDog.pet.breed && <p className="text-[10px] text-petra-muted">{selectedServiceDog.pet.breed}</p>}
@@ -3814,16 +3820,16 @@ function BoardingPageContent() {
                       onClick={() => setForm({ ...form, petIds: [] })}
                       className="text-xs text-brand-500 hover:text-brand-700 font-medium"
                     >
-                      שנה
+                      {t("newStay.change")}
                     </button>
                   </div>
                 ) : (
                   <div>
                     <div className="relative mb-2">
-                      <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                      <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
                       <input
-                        className="input pr-10"
-                        placeholder="חיפוש לפי שם או גזע..."
+                        className="input ps-10"
+                        placeholder={t("newStay.searchServiceDogs")}
                         value={serviceDogSearch}
                         onChange={(e) => setServiceDogSearch(e.target.value)}
                         autoFocus
@@ -3831,14 +3837,14 @@ function BoardingPageContent() {
                     </div>
                   <div className="max-h-48 overflow-y-auto border border-petra-border rounded-xl divide-y divide-petra-border">
                     {filteredServiceDogs.length === 0 ? (
-                      <div className="py-4 text-center text-sm text-petra-muted">{serviceDogsList.length === 0 ? "אין כלבי שירות פעילים" : "לא נמצאו תוצאות"}</div>
+                      <div className="py-4 text-center text-sm text-petra-muted">{serviceDogsList.length === 0 ? t("newStay.noActiveServiceDogs") : t("newStay.noResults")}</div>
                     ) : (
                       filteredServiceDogs.map((sd) => (
                         <button
                           key={sd.id}
                           type="button"
                           onClick={() => setForm({ ...form, petIds: [sd.pet.id], customerId: "", pricePerNight: settings.boardingPricePerNight || 150 })}
-                          className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-slate-50 transition-colors text-right"
+                          className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-slate-50 transition-colors text-start"
                         >
                           <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-sm flex-shrink-0">🐕</div>
                           <div className="flex-1 min-w-0">
@@ -3857,10 +3863,10 @@ function BoardingPageContent() {
               {/* Pet selector — checkboxes for multi-select */}
               {selectedCustomer && (
                 <div>
-                  <label className="label">חיות מחמד * ({form.petIds.length} נבחרו)</label>
+                  <label className="label">{t("newStay.petsLabel", { count: form.petIds.length })}</label>
                   <div className="border border-petra-border rounded-xl divide-y divide-petra-border max-h-40 overflow-y-auto">
                     {selectedCustomer.pets.length === 0 ? (
-                      <div className="py-3 text-center text-sm text-petra-muted">אין חיות מחמד</div>
+                      <div className="py-3 text-center text-sm text-petra-muted">{t("newStay.noPets")}</div>
                     ) : (
                       selectedCustomer.pets.map((p) => {
                         const checked = form.petIds.includes(p.id);
@@ -3887,7 +3893,7 @@ function BoardingPageContent() {
                             />
                             <PawPrint className="w-4 h-4 text-petra-muted flex-shrink-0" />
                             <span className="text-sm font-medium text-petra-text">{p.name}</span>
-                            <span className="text-xs text-petra-muted">{p.species === "dog" ? "כלב" : p.species === "cat" ? "חתול" : "אחר"}</span>
+                            <span className="text-xs text-petra-muted">{p.species === "dog" ? t("species.dog") : p.species === "cat" ? t("species.cat") : t("species.other")}</span>
                           </label>
                         );
                       })
@@ -3899,7 +3905,7 @@ function BoardingPageContent() {
               {/* Price per night — display only, not saved to stay record */}
               {selectedCustomer && showPricing && (
                 <div>
-                  <label className="label">מחיר ללילה (₪) — הערכת עלות בלבד</label>
+                  <label className="label">{t("newStay.priceEstimateLabel", { currency: sym })}</label>
                   <input
                     type="number"
                     className="input"
@@ -3907,17 +3913,17 @@ function BoardingPageContent() {
                     value={form.pricePerNight}
                     onChange={(e) => setForm({ ...form, pricePerNight: Number(e.target.value) || 0 })}
                   />
-                  <p className="text-[11px] text-petra-muted mt-1">הסכום לא נשמר אוטומטית — יש להוסיף תשלום ידנית בלשונית "פיננסים"</p>
+                  <p className="text-[11px] text-petra-muted mt-1">{t("newStay.priceNotSaved")}</p>
                 </div>
               )}
 
               {/* Room selector */}
               <div>
                 <label className="label">
-                  חדר
+                  {t("room.label")}
                   {form.checkIn && form.checkOut && (
-                    <span className="text-[10px] font-normal text-brand-500 mr-2">
-                      זמינות לפי תאריכים שנבחרו
+                    <span className="text-[10px] font-normal text-brand-500 ms-2">
+                      {t("newStay.availabilityByDates")}
                     </span>
                   )}
                 </label>
@@ -3928,13 +3934,13 @@ function BoardingPageContent() {
                       type="button"
                       onClick={() => setForm({ ...form, roomId: "" })}
                       className={cn(
-                        "flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-all text-right",
+                        "flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-all text-start",
                         form.roomId === ""
                           ? "border-brand-400 bg-brand-50 text-brand-700"
                           : "border-slate-200 bg-white hover:border-slate-300 text-petra-muted"
                       )}
                     >
-                      <span className="flex-1">ללא חדר</span>
+                      <span className="flex-1">{t("noRoom")}</span>
                     </button>
                     {[...rooms]
                       .sort((a, b) => {
@@ -3952,7 +3958,7 @@ function BoardingPageContent() {
                             disabled={!available}
                             onClick={() => available && setForm({ ...form, roomId: r.id, pricePerNight: r.pricePerNight ?? form.pricePerNight })}
                             className={cn(
-                              "flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-all text-right",
+                              "flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-all text-start",
                               isSelected
                                 ? "border-brand-400 bg-brand-50 text-brand-700"
                                 : available
@@ -3960,14 +3966,14 @@ function BoardingPageContent() {
                                 : "border-slate-100 bg-slate-50 text-slate-300 cursor-not-allowed"
                             )}
                           >
-                            <span className="flex-1">{r.name} · {ROOM_TYPE_LABELS[r.type] || r.type}</span>
+                            <span className="flex-1">{r.name} · {roomTypeLabel(t, r.type)}</span>
                             {r.pricePerNight != null && (
-                              <span className="text-[10px] text-petra-muted ms-1">₪{r.pricePerNight}</span>
+                              <span className="text-[10px] text-petra-muted ms-1">{sym}{r.pricePerNight}</span>
                             )}
                             {available ? (
-                              <span className="text-[10px] font-medium text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full">✓ זמין</span>
+                              <span className="text-[10px] font-medium text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full">{t("newStay.roomAvailable")}</span>
                             ) : (
-                              <span className="text-[10px] font-medium text-red-500 bg-red-50 px-1.5 py-0.5 rounded-full">✗ תפוס</span>
+                              <span className="text-[10px] font-medium text-red-500 bg-red-50 px-1.5 py-0.5 rounded-full">{t("newStay.roomTaken")}</span>
                             )}
                           </button>
                         );
@@ -3980,7 +3986,7 @@ function BoardingPageContent() {
                     value={form.roomId}
                     onChange={(e) => setForm({ ...form, roomId: e.target.value })}
                   >
-                    <option value="">ללא חדר</option>
+                    <option value="">{t("noRoom")}</option>
                     {rooms.map((r) => {
                       // No dates yet → show only who occupies the room TODAY (not every future booking);
                       // real availability is checked once dates are picked.
@@ -3988,7 +3994,7 @@ function BoardingPageContent() {
                       const todayCount = roomTodayCount[r.id] ?? 0;
                       return (
                         <option key={r.id} value={r.id}>
-                          {r.name} (היום {todayCount}/{r.capacity}){roomStatus === "needs_cleaning" ? " — דרוש ניקיון" : ""}
+                          {t("newStay.roomOptionToday", { name: r.name, count: todayCount, capacity: r.capacity })}{roomStatus === "needs_cleaning" ? ` ${t("newStay.roomOptionNeedsCleaning")}` : ""}
                         </option>
                       );
                     })}
@@ -3998,16 +4004,16 @@ function BoardingPageContent() {
 
               {/* Check-in */}
               <div>
-                <label className="label">צ׳ק-אין *</label>
+                <label className="label">{t("newStay.checkInRequired")}</label>
                 <div className="grid grid-cols-2 gap-2">
                   <input
-                    type="date" lang="he"
+                    type="date" lang={cfg.lang}
                     className="input"
                     value={form.checkIn}
                     onChange={(e) => {
                       const newCheckIn = e.target.value;
                       const newCheckOut = form.checkOut && form.checkOut <= newCheckIn ? "" : form.checkOut;
-                      const todayYmd = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" });
+                      const todayYmd = new Date().toLocaleDateString("en-CA", { timeZone: timezone });
                       // Backdated check-in → the dog is already here (or already left) — default accordingly.
                       const autoStatus = newCheckIn && newCheckIn < todayYmd
                         ? (newCheckOut && newCheckOut < todayYmd ? "checked_out" : "checked_in")
@@ -4016,10 +4022,10 @@ function BoardingPageContent() {
                     }}
                   />
                   <div className="relative">
-                    <Clock className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-petra-muted pointer-events-none" />
+                    <Clock className="absolute start-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-petra-muted pointer-events-none" />
                     <input
                       type="time"
-                      className="input pr-9"
+                      className="input ps-9"
                       value={form.checkInTime}
                       onChange={(e) => setForm({ ...form, checkInTime: e.target.value })}
                     />
@@ -4028,37 +4034,37 @@ function BoardingPageContent() {
               </div>
 
               {/* Retroactive stay — dog entered before today (e.g. existing dogs when joining Petra) */}
-              {form.checkIn && form.checkIn < new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" }) && (
+              {form.checkIn && form.checkIn < new Date().toLocaleDateString("en-CA", { timeZone: timezone }) && (
                 <div className="sm:col-span-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm">
-                  <div className="font-medium text-amber-800 mb-1">שהייה רטרואקטיבית — תאריך הכניסה כבר עבר</div>
-                  <p className="text-amber-700 text-xs mb-2">אפשר לרשום כלבים שכבר נמצאים בפנסיון (או שהיות שהסתיימו) בלי לעבור צ׳ק-אין ידני.</p>
+                  <div className="font-medium text-amber-800 mb-1">{t("newStay.retroTitle")}</div>
+                  <p className="text-amber-700 text-xs mb-2">{t("newStay.retroHint")}</p>
                   <select
                     className="input"
                     value={form.status || "checked_in"}
                     onChange={(e) => setForm({ ...form, status: e.target.value as typeof form.status })}
                   >
-                    <option value="checked_in">הכלב כבר בפנסיון (צ׳ק-אין בוצע)</option>
-                    <option value="checked_out">השהייה הסתיימה (היסטורית)</option>
-                    <option value="reserved">הזמנה בלבד (ממתין לצ׳ק-אין)</option>
+                    <option value="checked_in">{t("newStay.retroCheckedIn")}</option>
+                    <option value="checked_out">{t("newStay.retroCheckedOut")}</option>
+                    <option value="reserved">{t("newStay.retroReserved")}</option>
                   </select>
                 </div>
               )}
 
               {/* Check-out */}
               <div>
-                <label className="label">צ׳ק-אאוט</label>
+                <label className="label">{t("checkOut")}</label>
                 <div className="grid grid-cols-2 gap-2">
                   <input
-                    type="date" lang="he"
+                    type="date" lang={cfg.lang}
                     className="input"
                     value={form.checkOut}
                     onChange={(e) => setForm({ ...form, checkOut: e.target.value })}
                   />
                   <div className="relative">
-                    <Clock className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-petra-muted pointer-events-none" />
+                    <Clock className="absolute start-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-petra-muted pointer-events-none" />
                     <input
                       type="time"
-                      className="input pr-9"
+                      className="input ps-9"
                       value={form.checkOutTime}
                       onChange={(e) => setForm({ ...form, checkOutTime: e.target.value })}
                     />
@@ -4068,7 +4074,7 @@ function BoardingPageContent() {
 
               {/* Notes */}
               <div>
-                <label className="label">הערות</label>
+                <label className="label">{t("notes")}</label>
                 <textarea
                   className="input"
                   rows={2}
@@ -4080,13 +4086,13 @@ function BoardingPageContent() {
               {/* Staff picker */}
               {teamMembers.length > 0 && (
                 <div>
-                  <label className="label">איש צוות</label>
+                  <label className="label">{t("newStay.staffMember")}</label>
                   <select
                     className="input"
                     value={form.assignedToUserId}
                     onChange={(e) => setForm((f) => ({ ...f, assignedToUserId: e.target.value }))}
                   >
-                    <option value="">ללא שיוך</option>
+                    <option value="">{t("newStay.unassigned")}</option>
                     {teamMembers.map((m) => (
                       <option key={m.id} value={m.id}>{m.name}</option>
                     ))}
@@ -4098,7 +4104,7 @@ function BoardingPageContent() {
             {/* Training notice for service dogs in training */}
             {isServiceDogInTraining && form.checkIn && form.petIds.length > 0 && (
               <div className="mt-4 p-3 rounded-xl bg-blue-50 border border-blue-200 text-sm text-blue-700">
-                כלב שירות בהכשרה — ללא חיוב
+                {t("newStay.serviceDogNoCharge")}
               </div>
             )}
 
@@ -4111,20 +4117,20 @@ function BoardingPageContent() {
               return (
                 <div className="mt-4 p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1.5">
                   <div className="flex justify-between text-sm text-petra-muted">
-                    <span>לילות</span>
+                    <span>{t("newStay.summaryNights")}</span>
                     <span>{nights}</span>
                   </div>
                   <div className="flex justify-between text-sm text-petra-muted">
-                    <span>מחיר ללילה</span>
-                    <span>₪{form.pricePerNight}</span>
+                    <span>{t("newStay.summaryPricePerNight")}</span>
+                    <span>{sym}{form.pricePerNight}</span>
                   </div>
                   <div className="flex justify-between text-sm text-petra-muted">
-                    <span>כלבים</span>
+                    <span>{t("newStay.summaryDogs")}</span>
                     <span>{form.petIds.length}</span>
                   </div>
                   <div className="border-t border-slate-200 pt-1.5 flex justify-between text-sm font-bold text-petra-text">
-                    <span>סה״כ</span>
-                    <span>₪{total.toLocaleString()}</span>
+                    <span>{t("newStay.summaryTotal")}</span>
+                    <span>{sym}{total.toLocaleString()}</span>
                   </div>
                 </div>
               );
@@ -4138,10 +4144,10 @@ function BoardingPageContent() {
                 onClick={() => createMutation.mutate(form)}
               >
                 <Plus className="w-4 h-4" />
-                {createMutation.isPending ? "שומר..." : form.petIds.length > 1 ? `צור ${form.petIds.length} שהיות` : "צור שהייה"}
+                {createMutation.isPending ? tCommon("progress.saving") : form.petIds.length > 1 ? t("newStay.createMany", { count: form.petIds.length }) : t("newStay.create")}
               </button>
               <button className="btn-secondary" onClick={() => { setShowNewStay(false); setServiceDogMode(false); }}>
-                ביטול
+                {tCommon("actions.cancel")}
               </button>
             </div>
           </div>
@@ -4201,12 +4207,12 @@ function BoardingPageContent() {
                 <Trash2 className="w-5 h-5 text-red-500" />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-petra-text">מחיקת שהות</h2>
-                <p className="text-sm text-petra-muted">{deleteDialogStay.pet.name} — {deleteDialogStay.customer?.name ?? "כלב שירות"}</p>
+                <h2 className="text-lg font-bold text-petra-text">{t("deleteStay.title")}</h2>
+                <p className="text-sm text-petra-muted">{deleteDialogStay.pet.name} — {deleteDialogStay.customer?.name ?? t("serviceDog")}</p>
               </div>
             </div>
             <p className="text-sm text-petra-muted mb-5">
-              האם למחוק את השהות של {deleteDialogStay.pet.name}? פעולה זו בלתי הפיכה.
+              {t("deleteStay.confirm", { name: deleteDialogStay.pet.name })}
             </p>
             <div className="flex gap-3">
               <button
@@ -4215,9 +4221,9 @@ function BoardingPageContent() {
                 onClick={() => deleteStayMutation.mutate(deleteDialogStay.id)}
               >
                 <Trash2 className="w-4 h-4" />
-                {deleteStayMutation.isPending ? "מוחק..." : "מחק"}
+                {deleteStayMutation.isPending ? tCommon("progress.deleting") : tCommon("actions.delete")}
               </button>
-              <button className="btn-secondary flex-1" onClick={() => setDeleteDialogStay(null)}>ביטול</button>
+              <button className="btn-secondary flex-1" onClick={() => setDeleteDialogStay(null)}>{tCommon("actions.cancel")}</button>
             </div>
           </div>
         </div>
@@ -4227,6 +4233,7 @@ function BoardingPageContent() {
 }
 
 export default function BoardingPage() {
+  const t = useTranslations("boarding.boardingPage");
   return (
     <>
       <style>{`
@@ -4243,11 +4250,11 @@ export default function BoardingPage() {
           .boarding-print-header { display: flex !important; align-items: center; gap: 12px; padding-bottom: 12px; border-bottom: 2px solid #e2e8f0; margin-bottom: 16px; }
         }
       `}</style>
-      <PageTitle title="פנסיון" />
+      <PageTitle title={t("title")} />
       <TierGate
       feature="boarding"
-      title="ניהול פנסיון"
-      description="ניהול חדרים, לינות ותפוסה. עקוב אחרי כל כלב שנמצא בפנסיון בזמן אמת."
+      title={t("tierGate.title")}
+      description={t("tierGate.description")}
     >
       <BoardingPageContent />
     </TierGate>

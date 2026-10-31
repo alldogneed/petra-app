@@ -217,6 +217,678 @@
       "new": "חדש"
     }
   },
+  "boarding": {
+    "boardingDailyPage": {
+      "weekdays": {
+        "0": "ראשון",
+        "1": "שני",
+        "2": "שלישי",
+        "3": "רביעי",
+        "4": "חמישי",
+        "5": "שישי",
+        "6": "שבת"
+      },
+      "dateLabel": "{day}, {date}",
+      "logTypes": {
+        "FEEDING": "האכלה",
+        "MEDICATION": "תרופה",
+        "WALK": "טיול",
+        "NOTE": "הערה"
+      },
+      "noteModal": {
+        "title": "הוסף רשומה",
+        "note": "הערה",
+        "walk": "טיול",
+        "walkPlaceholder": "פרטי הטיול (אורך, התנהגות...)",
+        "notePlaceholder": "הערה לצוות..."
+      },
+      "card": {
+        "grams": "{grams}ג׳",
+        "serviceDog": "כלב שירות",
+        "checkedIn": "נמצא",
+        "reserved": "הזמנה",
+        "feedings": "האכלות",
+        "medications": "תרופות",
+        "given": "ניתן",
+        "addWalkOrNote": "הוסף טיול / הערה",
+        "todayLog": "לוג היום",
+        "undo": "בטל"
+      },
+      "toasts": {
+        "saveError": "שגיאה בשמירה. נסה שוב.",
+        "undoError": "שגיאה בביטול. נסה שוב."
+      },
+      "print": {
+        "title": "לוח טיפול יומי — פנסיון",
+        "generated": "{date} · הופק {time}"
+      },
+      "nav": {
+        "prevDay": "יום קודם",
+        "nextDay": "יום הבא",
+        "today": "היום",
+        "print": "הדפסה"
+      },
+      "summary": {
+        "dogs": "כלבים",
+        "feedings": "האכלות",
+        "medications": "תרופות",
+        "walks": "טיולים"
+      },
+      "empty": {
+        "title": "אין כלבים בפנסיון",
+        "subtitle": "לא נמצאו שהיות פעילות לתאריך זה",
+        "goToBoard": "עבור ללוח הפנסיון"
+      }
+    },
+    "boardingYardsPage": {
+      "yardTypes": {
+        "standard": "רגילה",
+        "large": "גדולה",
+        "group": "קבוצתית"
+      },
+      "statuses": {
+        "available": "פנוי",
+        "occupied": "תפוס",
+        "needs_cleaning": "דרוש ניקיון"
+      },
+      "serviceDog": "כלב שירות",
+      "reserved": "הזמנה",
+      "removeFromYard": "הסר מהחצר",
+      "edit": "ערוך",
+      "delete": "מחק",
+      "cannotDeleteWithStays": "לא ניתן למחוק חצר עם שהיות פעילות",
+      "pricePerStay": "{symbol}{price}/שהייה",
+      "full": "מלאה",
+      "dropHere": "שחרר כאן",
+      "dropHereToAdd": "שחרר כאן להוספה",
+      "dragDogHere": "גרור כלב לכאן",
+      "errors": {
+        "generic": "שגיאה"
+      },
+      "toasts": {
+        "assignError": "שגיאה בשיבוץ הכלב",
+        "created": "החצר נוצרה בהצלחה",
+        "createError": "שגיאה ביצירת החצר",
+        "updated": "החצר עודכנה",
+        "updateError": "שגיאה בעדכון החצר",
+        "deleted": "החצר נמחקה",
+        "deleteError": "שגיאה במחיקת החצר",
+        "yardFull": "החצר {name} מלאה (קיבולת {capacity})"
+      },
+      "print": {
+        "title": "מפת חצרות — {date}",
+        "button": "הדפסה"
+      },
+      "yardsSummary": "{yards} חצרות · {dogs} כלבים בחצרות",
+      "title": "ניהול חצרות",
+      "share": {
+        "messageTitle": "🌿 סבב חצרות — {date}",
+        "tooltip": "שתף סבב חצרות",
+        "button": "סבב חצרות"
+      },
+      "addYard": "הוסף חצר",
+      "waitingForAssignment": "{count} ממתינים לשיבוץ",
+      "printTooltip": "הדפס מפת חצרות",
+      "form": {
+        "newYardTitle": "הוסף חצר חדשה",
+        "nameRequired": "שם החצר *",
+        "namePlaceholder": "לדוגמה: חצר א׳, חצר גדולה...",
+        "namePlaceholderShort": "שם החצר",
+        "capacity": "קיבולת",
+        "type": "סוג",
+        "pricePerStay": "מחיר/שהייה ({symbol})",
+        "optional": "אופציונלי",
+        "adding": "מוסיף..."
+      },
+      "empty": {
+        "title": "אין חצרות עדיין",
+        "hint": "לחץ על \"הוסף חצר\" כדי להתחיל",
+        "addFirst": "הוסף חצר ראשונה"
+      },
+      "panel": {
+        "title": "ממתינים לחצר",
+        "allAssigned": "כל הכלבים שובצו ✓",
+        "noDogs": "אין כלבים בתאריכים אלו"
+      },
+      "deleteDialog": {
+        "title": "מחיקת חצר",
+        "body": "האם למחוק את החצר \"{name}\"? פעולה זו בלתי הפיכה."
+      }
+    },
+    "boardingPage": {
+      "title": "פנסיון",
+      "tierGate": {
+        "title": "ניהול פנסיון",
+        "description": "ניהול חדרים, לינות ותפוסה. עקוב אחרי כל כלב שנמצא בפנסיון בזמן אמת."
+      },
+      "serviceDog": "כלב שירות",
+      "checkIn": "צ׳ק-אין",
+      "checkOut": "צ׳ק-אאוט",
+      "checkInToday": "צ׳ק-אין היום",
+      "checkOutToday": "צ׳ק-אאוט היום",
+      "today": "היום",
+      "noRoom": "ללא חדר",
+      "notes": "הערות",
+      "reminder": "תזכורת",
+      "openStay": "פתח את ההזמנה",
+      "dogsCount": "{count} כלבים",
+      "stayStatus": {
+        "reserved": "הזמנה",
+        "checked_in": "נמצא",
+        "checked_out": "יצא",
+        "canceled": "בוטל"
+      },
+      "roomStatus": {
+        "available": "פנוי",
+        "occupied": "תפוס",
+        "needs_cleaning": "דרוש ניקיון"
+      },
+      "roomTypes": {
+        "standard": "רגיל",
+        "premium": "פרמיום",
+        "suite": "סוויט"
+      },
+      "weekdaysShort": {
+        "sun": "א׳",
+        "mon": "ב׳",
+        "tue": "ג׳",
+        "wed": "ד׳",
+        "thu": "ה׳",
+        "fri": "ו׳",
+        "sat": "ש׳"
+      },
+      "progress": {
+        "overdue": "חריגה! {pct}%"
+      },
+      "room": {
+        "label": "חדר",
+        "pricePerNight": "{currency}{price}/לילה",
+        "checkOutOn": "יציאה: {date}",
+        "checkInOn": "כניסה: {date}",
+        "dropHere": "שחרר כאן",
+        "availableForGuests": "פנוי לאורחים",
+        "markClean": "סמן כנקי"
+      },
+      "calendar": {
+        "nextMonth": "חודש הבא",
+        "prevMonth": "חודש קודם",
+        "legend": {
+          "partlyBooked": "מעט תפוס",
+          "almostFull": "כמעט מלא",
+          "full": "מלא",
+          "arrivals": "הגעות",
+          "departures": "עזיבות"
+        }
+      },
+      "timeline": {
+        "barTitle": "{pet} — {customer}\n{range}\nלחצו לפתיחת ההזמנה",
+        "barAria": "{pet}, {range} — פתח את ההזמנה",
+        "until": "עד {date}",
+        "noMatches": "לא נמצאו הזמנות תואמות בטווח המוצג"
+      },
+      "unassigned": {
+        "dropToUnassign": "שחרר כאן להסרה מחדר",
+        "checkInPet": "צ׳ק-אין {name}",
+        "checkOutPet": "צ׳ק-אאוט {name}"
+      },
+      "row": {
+        "serviceDogProfile": "עבור לפרופיל כלב שירות",
+        "lateCheckOut": "איחור צ׳ק-אאוט!",
+        "openEnded": "(פתוח)",
+        "deleteStay": "מחק שהות",
+        "sendCheckInReminder": "שלח תזכורת צ׳ק-אין",
+        "sendCheckOutReminder": "שלח תזכורת צ׳ק-אאוט",
+        "sendCareInstructions": "שלח הוראות טיפול",
+        "instructions": "הוראות",
+        "extendStay": "הארך שהות",
+        "extend": "הארך"
+      },
+      "count": {
+        "nights": "{count} לילות",
+        "days": "{count} ימים"
+      },
+      "health": {
+        "dogAggression": "תוקפנות כלפי כלבים",
+        "humanAggression": "תוקפנות כלפי אנשים",
+        "biteHistoryDetails": "היסטוריית נשיכה: {details}",
+        "biteHistory": "היסטוריית נשיכה",
+        "resourceGuarding": "שמירת משאבים",
+        "leashReactivity": "ריאקטיביות בשרשרת",
+        "separationAnxiety": "חרדת נטישה",
+        "allergies": "אלרגיות: {value}",
+        "medicalConditions": "מצב רפואי: {value}",
+        "activityLimitations": "הגבלות תנועה: {value}",
+        "medication": "תרופה: {details}",
+        "urgentTitle": "⚠️ שים לב — מידע חשוב על הכלב",
+        "title": "מידע על הכלב"
+      },
+      "dialog": {
+        "roomLabel": "חדר:",
+        "notAssigned": "לא שובץ",
+        "yardLabel": "חצר:",
+        "checkInLabel": "כניסה:",
+        "checkOutLabel": "יציאה:",
+        "processing": "מבצע..."
+      },
+      "checkin": {
+        "checkInDate": "תאריך כניסה:",
+        "plannedCheckOutDate": "תאריך יציאה מתוכנן:",
+        "actualTime": "שעת כניסה בפועל",
+        "early": "כניסה מוקדמת — שעת הצ׳ק-אין המוגדרת היא {time}",
+        "notes": "הערות צ׳ק-אין",
+        "notesPlaceholder": "הערות לכניסה...",
+        "createMedTasks": "💊 צור משימות תרופות אוטומטיות ({count})",
+        "confirm": "אשר צ׳ק-אין"
+      },
+      "checkout": {
+        "noPaymentLinkWarning": "לא הוגדר קישור תשלום — ההודעה נשלחת ללא לינק (להגדרת Stripe: הגדרות ← אינטגרציות)",
+        "pet": "חיה:",
+        "client": "לקוח:",
+        "duration": "משך שהייה:",
+        "late": "יציאה מאוחרת — שעת הצ׳ק-אאוט המוגדרת היא {time}",
+        "pricePerNight": "מחיר ללילה ({currency})",
+        "pricePerDay": "מחיר ליום ({currency})",
+        "discount": "הנחה",
+        "noDiscount": "ללא הנחה",
+        "discountPercent": "הנחה %",
+        "discountFixed": "הנחה {currency}",
+        "subtotal": "סכום ביניים",
+        "toPay": "לתשלום",
+        "notes": "הערות צ׳ק-אאוט",
+        "notesPlaceholder": "הערות ליציאה...",
+        "preparingLink": "מכין קישור...",
+        "sendPaymentRequest": "שלח בקשת תשלום בוואטסאפ",
+        "confirm": "אשר צ׳ק-אאוט"
+      },
+      "edit": {
+        "title": "עריכת הזמנה",
+        "openClientCard": "פתח כרטיס לקוח",
+        "checkIn": "כניסה",
+        "checkOut": "יציאה",
+        "invalidRange": "תאריך היציאה חייב להיות אחרי תאריך הכניסה",
+        "priceHint": "המחיר וההנחה נקבעים במסך הצ׳ק-אאוט, לפני שליחת דרישת התשלום.",
+        "saveChanges": "שמור שינויים"
+      },
+      "extend": {
+        "titleExtend": "הארכת שהות",
+        "titleSet": "הגדרת תאריך יציאה",
+        "currentCheckOut": "יציאה נוכחית:",
+        "openStay": "שהות פתוחה — לא הוגדר תאריך",
+        "newDateLabel": "תאריך יציאה חדש *",
+        "dateLabel": "תאריך יציאה *",
+        "update": "עדכן תאריך יציאה",
+        "set": "הגדר תאריך יציאה"
+      },
+      "vaccination": {
+        "expiredCount": "{count} פג תוקף",
+        "notVaccinatedCount": "{count} לא חוסן",
+        "expiringSoonCount": "{count} פוגים בקרוב",
+        "summary": "כלבים: {parts}",
+        "expiringSoonDogs": "{count} כלבים עם חיסון פג בקרוב",
+        "notVaccinated": "לא חוסן",
+        "validUntil": "כלב: {date}",
+        "showMore": "הצג עוד {count}..."
+      },
+      "training": {
+        "saveError": "שגיאה בשמירת דקות אימון",
+        "minutesUnit": "דק׳ אימון",
+        "editTitle": "ערוך דקות אימון יומי",
+        "minutes": "{count} דק׳ אימון",
+        "add": "הוסף דקות אימון"
+      },
+      "careLog": {
+        "types": {
+          "FEEDING": "האכלה",
+          "MEDICATION": "תרופה",
+          "WALK": "טיול",
+          "NOTE": "הערה"
+        },
+        "genericError": "שגיאה",
+        "added": "רישום נוסף",
+        "addError": "שגיאה בהוספת רישום",
+        "deleteError": "שגיאה במחיקת הרישום",
+        "title": "יומן טיפול — {name}",
+        "titlePlaceholder": "כותרת הרישום *",
+        "notesPlaceholder": "הערות (אופציונלי)",
+        "add": "הוסף רישום",
+        "empty": "אין רישומים עדיין",
+        "open": "יומן טיפול"
+      },
+      "toasts": {
+        "stayCreated": "ההשמה נוצרה בהצלחה",
+        "createErrorRetry": "שגיאה ביצירת ההשמה. נסה שוב.",
+        "createError": "שגיאה ביצירת ההשמה",
+        "statusError": "שגיאה בעדכון הסטטוס",
+        "statusErrorRetry": "שגיאה בעדכון הסטטוס. נסה שוב.",
+        "checkInWithMedTasks": "צ'ק-אין בוצע ✓ — {count} משימות תרופות נוצרו",
+        "checkInDone": "צ'ק-אין בוצע בהצלחה",
+        "medTasksError": "שגיאה ביצירת משימות תרופות — בדוק ידנית",
+        "checkOutDone": "צ'ק-אאוט בוצע בהצלחה",
+        "roomAssignError": "שגיאה בשיוך החדר",
+        "roomAssignErrorRetry": "שגיאה בשיוך החדר. נסה שוב.",
+        "roomStatusError": "שגיאה בעדכון סטטוס חדר",
+        "roomUpdateErrorRetry": "שגיאה בעדכון החדר. נסה שוב.",
+        "roomMarkedClean": "החדר סומן כנקי",
+        "stayUpdated": "ההזמנה עודכנה",
+        "stayUpdateError": "שגיאה בעדכון ההזמנה",
+        "checkOutDateErrorRetry": "שגיאה בעדכון תאריך היציאה. נסה שוב.",
+        "checkOutDateUpdated": "תאריך היציאה עודכן בהצלחה",
+        "roomCreated": "החדר נוצר בהצלחה",
+        "roomCreateErrorRetry": "שגיאה ביצירת החדר. נסה שוב.",
+        "roomUpdated": "החדר עודכן בהצלחה",
+        "roomDeleteError": "שגיאה במחיקת החדר",
+        "roomDeleted": "החדר נמחק",
+        "roomDeleteErrorRetry": "שגיאה במחיקת החדר. נסה שוב.",
+        "stayDeleteError": "שגיאה במחיקת השהות",
+        "stayDeleted": "השהות נמחקה"
+      },
+      "medTask": {
+        "dosage": "מינון: {value}",
+        "frequency": "תדירות: {value}",
+        "times": "שעות: {value}"
+      },
+      "tabs": {
+        "all": "הכל",
+        "history": "היסטוריה"
+      },
+      "header": {
+        "refresh": "רענן נתונים",
+        "summary": "{stays} שהיות פעילות · {rooms} חדרים",
+        "exportTitle": "ייצוא יומי לאקסל",
+        "export": "ייצוא יומי"
+      },
+      "rounds": {
+        "morningTitle": "🏨 סבב בוקר פנסיון — {date}",
+        "petsBoarded": "{count} חיות מאוכסנות",
+        "allergies": "⚠️ אלרגיות: {value}",
+        "medicalConditions": "🏥 מצב רפואי: {value}",
+        "aggression": "🔴 תוקפנות!",
+        "separationAnxiety": "😰 חרדת נטישה",
+        "checkOut": "📅 יציאה: {date}",
+        "shareMorning": "שתף סבב בוקר",
+        "morning": "סבב בוקר",
+        "feedingTitle": "🍽️ סבב האכלה — {date}",
+        "feeding": "סבב האכלה",
+        "feedingShort": "האכלה"
+      },
+      "rooms": {
+        "manage": "ניהול חדרים",
+        "subtitle": "הוסף, ערוך או מחק חדרים",
+        "empty": "אין חדרים עדיין",
+        "namePlaceholder": "שם החדר",
+        "capacity": "קיבולת",
+        "type": "סוג",
+        "pricePerNightLabel": "מחיר/לילה ({currency})",
+        "optional": "אופציונלי",
+        "capacityInline": "· קיבולת {count}",
+        "activeInline": "· {count} פעילות",
+        "edit": "ערוך",
+        "cannotDelete": "לא ניתן למחוק חדר עם שהיות פעילות",
+        "delete": "מחק חדר",
+        "addNew": "הוסף חדר חדש",
+        "nameRequired": "שם החדר *",
+        "nameExample": "לדוגמה: חדר 5, חדר פרמיום...",
+        "adding": "מוסיף...",
+        "add": "הוסף חדר"
+      },
+      "newStay": {
+        "title": "שהייה חדשה",
+        "subtitle": "הוסף שהייה לפנסיון",
+        "regularClient": "לקוח רגיל",
+        "clientRequired": "לקוח *",
+        "change": "שנה",
+        "serviceDogRequired": "כלב שירות *",
+        "certified": "מוסמך",
+        "inTraining": "בהכשרה",
+        "searchServiceDogs": "חיפוש לפי שם או גזע...",
+        "noActiveServiceDogs": "אין כלבי שירות פעילים",
+        "noResults": "לא נמצאו תוצאות",
+        "petsLabel": "חיות מחמד * ({count} נבחרו)",
+        "noPets": "אין חיות מחמד",
+        "priceEstimateLabel": "מחיר ללילה ({currency}) — הערכת עלות בלבד",
+        "priceNotSaved": "הסכום לא נשמר אוטומטית — יש להוסיף תשלום ידנית בלשונית \"פיננסים\"",
+        "availabilityByDates": "זמינות לפי תאריכים שנבחרו",
+        "roomAvailable": "✓ זמין",
+        "roomTaken": "✗ תפוס",
+        "roomOptionToday": "{name} (היום {count}/{capacity})",
+        "roomOptionNeedsCleaning": "— דרוש ניקיון",
+        "checkInRequired": "צ׳ק-אין *",
+        "retroTitle": "שהייה רטרואקטיבית — תאריך הכניסה כבר עבר",
+        "retroHint": "אפשר לרשום כלבים שכבר נמצאים בפנסיון (או שהיות שהסתיימו) בלי לעבור צ׳ק-אין ידני.",
+        "retroCheckedIn": "הכלב כבר בפנסיון (צ׳ק-אין בוצע)",
+        "retroCheckedOut": "השהייה הסתיימה (היסטורית)",
+        "retroReserved": "הזמנה בלבד (ממתין לצ׳ק-אין)",
+        "staffMember": "איש צוות",
+        "unassigned": "ללא שיוך",
+        "serviceDogNoCharge": "כלב שירות בהכשרה — ללא חיוב",
+        "summaryNights": "לילות",
+        "summaryPricePerNight": "מחיר ללילה",
+        "summaryDogs": "כלבים",
+        "summaryTotal": "סה״כ",
+        "createMany": "צור {count} שהיות",
+        "create": "צור שהייה"
+      },
+      "species": {
+        "dog": "כלב",
+        "cat": "חתול",
+        "other": "אחר"
+      },
+      "overdue": {
+        "title": "{count} שהיות עם איחור בצ׳ק-אאוט",
+        "petLateOneHour": "{name} ({hours} שעה איחור)",
+        "petLateHours": "{name} ({hours} שעות איחור)",
+        "handleNow": "טפל עכשיו"
+      },
+      "search": {
+        "placeholder": "חפש לפי חיה, לקוח, חדר...",
+        "noRooms": "לא נמצאו חדרים עם \"{query}\" בתאריכים שנבחרו"
+      },
+      "view": {
+        "roomMap": "מפת חדרים",
+        "show": "הצג",
+        "prevPeriod": "תקופה אחורה",
+        "nextPeriod": "תקופה קדימה",
+        "backToToday": "חזרה להיום",
+        "fullyFree": "✓ פנוי לגמרי",
+        "prevWeek": "שבוע אחורה",
+        "nextWeek": "שבוע קדימה",
+        "timelineStartTitle": "תאריך התחלה של ציר הזמן (אפשר גם אחורה)",
+        "daysCount": "{count} ימים",
+        "printTitle": "הדפס דוח חדרים",
+        "print": "הדפסה",
+        "cards": "כרטיסים",
+        "timeline": "ציר זמן",
+        "availability": "זמינות"
+      },
+      "stats": {
+        "available": "פנויים",
+        "occupied": "תפוסים",
+        "lateCheckOut": "איחור צ׳ק-אאוט"
+      },
+      "empty": {
+        "noRoomsInSystem": "אין חדרים מוגדרים במערכת",
+        "addFirstRoom": "הוסף חדר ראשון",
+        "noRooms": "אין חדרים מוגדרים"
+      },
+      "print": {
+        "title": "מפת חדרי פנסיון",
+        "generated": "הופק: {date}"
+      },
+      "filter": {
+        "showingFor": "מציג שהיות ל-{date}",
+        "clear": "נקה סינון"
+      },
+      "list": {
+        "title": "לוח שהיות",
+        "loadError": "שגיאה בטעינת נתוני הפנסיון. נסה לרענן את הדף.",
+        "noMatches": "לא נמצאו שהיות תואמות",
+        "noCheckIns": "אין צ׳ק-אינים מתוכננים להיום",
+        "noCheckOuts": "אין צ׳ק-אאוטים מתוכננים להיום",
+        "noActive": "אין שהיות פעילות",
+        "noHistory": "אין שהיות בהיסטוריה"
+      },
+      "serviceDogs": {
+        "title": "כלבי שירות בפנסיון",
+        "trainingHours": "{hours} שעות אימון",
+        "profile": "תיק כלב"
+      },
+      "deleteStay": {
+        "title": "מחיקת שהות",
+        "confirm": "האם למחוק את השהות של {name}? פעולה זו בלתי הפיכה."
+      }
+    },
+    "boardingTabs": {
+      "daily": "לוח יומי",
+      "rooms": "ניהול חדרים",
+      "yards": "ניהול חצרות",
+      "feeding": "האכלה",
+      "medications": "תרופות",
+      "vaccinations": "חיסונים",
+      "intakeForms": "טפסי קליטה"
+    },
+    "feedingPage": {
+      "meals": {
+        "breakfast": "ארוחת בוקר",
+        "lunch": "ארוחת צהריים",
+        "dinner": "ארוחת ערב"
+      },
+      "medTimes": {
+        "morning": "בוקר",
+        "noon": "צהריים",
+        "evening": "ערב",
+        "night": "לילה"
+      },
+      "planModal": {
+        "title": "תוכנית האכלה",
+        "foodType": "סוג האוכל",
+        "foodTypePlaceholder": "לדוג׳ Royal Canin Medium Adult",
+        "amountGrams": "כמות בגרם",
+        "timesPerDay": "כמה פעמים ביום",
+        "times": {
+          "once": "פעם אחת",
+          "twice": "פעמיים",
+          "three": "שלוש פעמים",
+          "four": "ארבע פעמים"
+        },
+        "notes": "הערות האכלה",
+        "notesPlaceholder": "הוראות מיוחדות, אלרגיות, העדפות..."
+      },
+      "medsBoard": {
+        "empty": "אין כלבים עם תרופות פעילות בפנסיון",
+        "medsCount": "{count} תרופות",
+        "given": "ניתן",
+        "markGiven": "סמן כניתן"
+      },
+      "serviceDog": "כלב שירות",
+      "toasts": {
+        "saveError": "שגיאה בשמירה. נסה שוב.",
+        "cancelError": "שגיאה בביטול. נסה שוב.",
+        "planSaveError": "שגיאה בשמירת תוכנית האכלה",
+        "planSaved": "תוכנית האכלה נשמרה"
+      },
+      "gramsShort": "{grams}ג׳",
+      "print": {
+        "title": "לוח האכלה — פנסיון",
+        "generated": "{date} · הופק {time}",
+        "button": "הדפסה"
+      },
+      "title": "לוח האכלה",
+      "today": "היום",
+      "prevDay": "יום קודם",
+      "nextDay": "יום הבא",
+      "mealsDone": "האכלות",
+      "refresh": "רענן",
+      "loadError": "שגיאה בטעינת הנתונים",
+      "empty": "אין כלבים בפנסיון בתאריך זה",
+      "goToBoarding": "עבור ללוח הפנסיון",
+      "allDone": {
+        "title": "כל ההאכלות הושלמו!",
+        "body": "כל {count} הכלבים הואכלו ב{when} זה",
+        "whenDay": "יום",
+        "whenDate": "תאריך"
+      },
+      "table": {
+        "dogName": "שם הכלב",
+        "feedingInstructions": "הוראות האכלה",
+        "boardingPlan": "תוכנית פנסיון",
+        "planLine": "{grams}ג׳ · {times}× ביום",
+        "fromPetProfile": "מפרופיל הכלב",
+        "gramsPerDay": "{grams}ג׳/יום",
+        "noPlan": "אין תוכנית",
+        "editPlan": "ערוך תוכנית האכלה",
+        "addPlan": "הוסף תוכנית האכלה",
+        "unmarkMeal": "בוטל סימון – {meal}",
+        "markMeal": "סמן {meal}"
+      }
+    },
+    "medicationsPage": {
+      "errors": {
+        "update": "שגיאה בעדכון",
+        "add": "שגיאה בהוספה",
+        "delete": "שגיאה במחיקה"
+      },
+      "editModal": {
+        "title": "עריכת תרופה",
+        "frequencyPlaceholder": "לדוגמה: פעם ביום",
+        "submit": "שמור שינויים"
+      },
+      "addModal": {
+        "title": "הוספת תרופה",
+        "pickDog": "בחר כלב *",
+        "pickDogOption": "-- בחר כלב --",
+        "medNamePlaceholder": "לדוגמה: אמוקסיצילין",
+        "frequencyPlaceholder": "לדוגמה: פעמיים ביום",
+        "instructionsPlaceholder": "הוראות נוספות...",
+        "adding": "מוסיף..."
+      },
+      "form": {
+        "medName": "שם התרופה *",
+        "dosage": "מינון",
+        "dosagePlaceholder": "לדוגמה: 10mg",
+        "frequency": "תדירות",
+        "times": "שעות מתן (מופרדות בפסיק)",
+        "timesPlaceholder": "לדוגמה: 08:00, 20:00",
+        "instructions": "הוראות",
+        "startDate": "תאריך התחלה",
+        "endDate": "תאריך סיום"
+      },
+      "addMed": "הוסף תרופה",
+      "toasts": {
+        "deleted": "התרופה נמחקה",
+        "deleteError": "שגיאה במחיקת התרופה. נסה שוב."
+      },
+      "confirmDelete": "למחוק את התרופה \"{medName}\"?",
+      "title": "ניהול תרופות",
+      "subtitle": "מעקב תרופות לכלבים – כל העסק",
+      "refresh": "רענן",
+      "searchPlaceholder": "חיפוש לפי כלב, לקוח או תרופה...",
+      "filters": {
+        "all": "הכל",
+        "active": "פעילות",
+        "inactive": "לא פעילות"
+      },
+      "count": "{count} תרופות",
+      "loadError": "שגיאה בטעינת נתונים",
+      "empty": "לא נמצאו תרופות",
+      "addFirst": "הוסף תרופה ראשונה",
+      "table": {
+        "dogName": "שם הכלב",
+        "owner": "בעל הכלב",
+        "medication": "תרופה",
+        "dosage": "מינון",
+        "frequency": "תדירות",
+        "start": "התחלה",
+        "end": "סיום",
+        "status": "סטטוס",
+        "actions": "פעולות"
+      },
+      "status": {
+        "active": "פעיל",
+        "inactive": "לא פעיל"
+      },
+      "edit": "ערוך"
+    }
+  },
   "bookings": {
     "bookingsPage": {
       "tierGate": {
@@ -5314,6 +5986,581 @@
       "toDashboard": "קח אותי לדשבורד"
     }
   },
+  "onlineClasses": {
+    "onlineClassesPage": {
+      "title": "שיעורים אונליין",
+      "tierGateDescription": "פורטל חברים ממותג עם שיעורים חיים בזום וקורסים מוקלטים",
+      "viewPortal": "צפה בפורטל",
+      "setPortalAddressHint": "הגדר כתובת (slug) לעסק בהגדרות כדי לפתוח את הפורטל",
+      "setPortalAddress": "הגדר כתובת לפורטל",
+      "tabs": {
+        "classes": "שיעורים חיים",
+        "courses": "קורסים",
+        "memberships": "מנויים",
+        "reports": "התקדמות",
+        "certificates": "תעודות",
+        "questions": "שאלות",
+        "branding": "מיתוג"
+      },
+      "stats": {
+        "upcomingClasses": "שיעורים קרובים",
+        "publishedCourses": "קורסים שפורסמו",
+        "activeMembers": "מנויים פעילים",
+        "pendingMembers": "ממתינים לאישור"
+      }
+    },
+    "brandingTab": {
+      "noDataToSave": "אין נתונים לשמירה",
+      "saved": "המיתוג נשמר",
+      "saveError": "שגיאה בשמירת המיתוג",
+      "loadError": "שגיאה בטעינת הגדרות המיתוג",
+      "retry": "נסה שוב",
+      "title": "מיתוג הפורטל",
+      "primaryColor": "צבע ראשי",
+      "secondaryColor": "צבע משני",
+      "senderName": "שם שולח (בהודעות ללקוחות)",
+      "businessNamePlaceholder": "שם העסק",
+      "paymentLink": "קישור לתשלום מנוי",
+      "paymentLinkPlaceholder": "https://... (ביט / פייבוקס / דף סליקה)",
+      "paymentLinkHint": "הקישור מוצג ללקוחות בבקשת הצטרפות ובתזכורות חידוש מנוי",
+      "aboutText": "טקסט אודות",
+      "aboutTextPlaceholder": "כמה מילים על העסק שיוצגו בעמוד הבית של הפורטל...",
+      "logoUrl": "קישור ללוגו",
+      "logoUrlHint": "אם ריק — ישתמש בלוגו העסק",
+      "save": "שמור מיתוג",
+      "certificate": {
+        "title": "עיצוב התעודה",
+        "subtitle": "חתימה וטקסט שיופיעו על כל תעודת סיום קורס",
+        "signatureUrl": "קישור לתמונת חתימה",
+        "signatureUrlPlaceholder": "https://... (תמונת חתימה שקופה, PNG)",
+        "signerName": "שם החותם",
+        "signerNamePlaceholder": "אור רבינוביץ׳",
+        "footerText": "שורת תחתית",
+        "footerTextPlaceholder": "לדוגמה: הסמכה בהכרת ארגון מאלפי הכלבים בישראל",
+        "signaturePreview": "תצוגה מקדימה של החתימה",
+        "signatureAlt": "חתימה"
+      },
+      "security": {
+        "title": "אבטחת הקורסים",
+        "subtitle": "הגבלות שמונעות שיתוף חשבונות ותכנים בין תלמידים",
+        "maxDevices": "מספר מכשירים מותר לכל תלמיד",
+        "maxDevicesHint": "0 = ללא הגבלה. בכניסה ממכשיר נוסף מעבר למכסה, המכשיר הישן ביותר יתנתק אוטומטית.",
+        "ipRestriction": "הגבלת גישה לפי כתובת IP",
+        "allowedIps": "כתובות מורשות",
+        "allowedIpsHint": "כתובות IP או טווחי CIDR, שורה לכל כתובת. רשימה ריקה = לא חוסם אף אחד."
+      },
+      "preview": {
+        "title": "תצוגה מקדימה של הפורטל",
+        "logoAlt": "לוגו",
+        "membersPortal": "פורטל חברים",
+        "join": "הצטרפות למנוי",
+        "nextLiveClass": "שיעור חי הקרוב",
+        "sampleClassTime": "יום ראשון · 20:00 · בזום"
+      }
+    },
+    "certificateView": {
+      "title": "תעודת סיום",
+      "awardedTo": "מוענקת ל־",
+      "forCompleting": "על השלמת הקורס",
+      "signatureAlt": "חתימה",
+      "issuedOn": "תאריך הנפקה: {date}",
+      "print": "הדפס / שמור כ-PDF"
+    },
+    "certificatesTab": {
+      "filters": {
+        "all": "הכל",
+        "valid": "תקפות",
+        "revoked": "בוטלו"
+      },
+      "toast": {
+        "revoked": "התעודה בוטלה",
+        "restored": "התעודה שוחזרה",
+        "updateError": "שגיאה בעדכון התעודה"
+      },
+      "revokeConfirm": "לבטל את התעודה של {name} בקורס \"{course}\"?\nהתעודה תסומן כבוטלה בעמוד האימות.",
+      "revokeReasonPrompt": "סיבת ביטול (אופציונלי):",
+      "loadError": "שגיאה בטעינת התעודות",
+      "retry": "נסה שוב",
+      "allCourses": "כל הקורסים",
+      "issueManually": "הנפק תעודה ידנית",
+      "empty": {
+        "title": "אין תעודות להצגה",
+        "body": "תעודות מונפקות אוטומטית כשתלמיד משלים קורס, או ידנית מכאן עבור מי שסיים מחוץ למערכת"
+      },
+      "table": {
+        "student": "תלמיד",
+        "course": "קורס",
+        "serial": "מספר תעודה",
+        "issuedAt": "תאריך הנפקה",
+        "status": "סטטוס",
+        "actions": "פעולות"
+      },
+      "manualBadge": "ידני",
+      "status": {
+        "revoked": "בוטלה",
+        "valid": "תקפה"
+      },
+      "viewHint": "פתח את עמוד התעודה (ניתן להדפיס / לשמור כ-PDF)",
+      "view": "צפה",
+      "restore": "שחזר",
+      "revoke": "בטל",
+      "viewFootnote": "הכפתור \"צפה\" פותח את עמוד התעודה, שממנו ניתן להדפיס או לשמור כ-PDF.",
+      "issueModal": {
+        "issued": "התעודה הונפקה — נשלחה הודעה לתלמיד",
+        "issueError": "שגיאה בהנפקת התעודה",
+        "title": "הנפקת תעודה ידנית",
+        "intro": "מתאים לתלמיד שסיים את הקורס מחוץ למערכת. התעודה תסומן כהנפקה ידנית ותישלח לתלמיד הודעה עם קישור.",
+        "student": "תלמיד *",
+        "selectStudent": "בחר תלמיד",
+        "course": "קורס *",
+        "selectCourse": "בחר קורס",
+        "noPublishedCourses": "אין קורסים מפורסמים — ניתן להנפיק תעודה רק עבור קורס מפורסם",
+        "issuing": "מנפיק...",
+        "issue": "הנפק תעודה"
+      }
+    },
+    "liveClassesTab": {
+      "registrationStatus": {
+        "registered": "רשום",
+        "waitlist": "המתנה",
+        "cancelled": "בוטל"
+      },
+      "toast": {
+        "updated": "השיעור עודכן",
+        "created": "השיעור נוצר",
+        "saveError": "שגיאה בשמירת השיעור",
+        "deleted": "השיעור נמחק",
+        "deleteError": "שגיאה במחיקת השיעור"
+      },
+      "deleteConfirm": "למחוק את השיעור \"{title}\"? כל הרישומים אליו יימחקו.",
+      "loadError": "שגיאה בטעינת השיעורים",
+      "retry": "נסה שוב",
+      "title": "שיעורים חיים בזום",
+      "newClass": "שיעור חדש",
+      "empty": {
+        "title": "אין שיעורים חיים עדיין",
+        "body": "צור שיעור זום ראשון והחברים בפורטל יוכלו להירשם"
+      },
+      "ended": "הסתיים",
+      "durationSuffix": " ({min} דק׳)",
+      "instructor": "מדריך: {name}",
+      "waitlistCount": "{count} בהמתנה",
+      "zoomLinkSet": "קישור זום מוגדר",
+      "zoomLinkMissing": "חסר קישור זום",
+      "registrations": "נרשמים",
+      "deleteTitle": "מחיקה",
+      "form": {
+        "editTitle": "עריכת שיעור",
+        "title": "שם השיעור *",
+        "titlePlaceholder": "למשל: שיעור חיברות לגורים",
+        "description": "תיאור",
+        "instructorName": "שם המדריך",
+        "startsAt": "תאריך ושעה *",
+        "duration": "משך (דקות)",
+        "capacity": "קיבולת *",
+        "zoomLink": "קישור זום",
+        "zoomLinkHint": "קישור הזום נשלח אוטומטית לנרשמים כשעה לפני תחילת השיעור.",
+        "saveChanges": "שמור שינויים",
+        "create": "צור שיעור"
+      },
+      "registrationsModal": {
+        "title": "נרשמים — {title}",
+        "empty": "אין נרשמים לשיעור זה עדיין"
+      }
+    },
+    "coursesTab": {
+      "lessonTypes": {
+        "video": "וידאו",
+        "pdf": "PDF",
+        "text": "טקסט"
+      },
+      "status": {
+        "published": "פורסם",
+        "draft": "טיוטה"
+      },
+      "retry": "נסה שוב",
+      "backToCourses": "חזרה לקורסים",
+      "lessonsCount": "{count} שיעורים",
+      "dragToReorder": "גרור לשינוי סדר",
+      "addLesson": "הוסף שיעור",
+      "toasts": {
+        "courseCreated": "הקורס נוצר",
+        "courseCreateError": "שגיאה ביצירת הקורס",
+        "courseDeleted": "הקורס נמחק",
+        "courseDeleteError": "שגיאה במחיקת הקורס",
+        "addedOneNotified": "תלמיד/ה נוסף/ה וקיבלו הודעה",
+        "addedManyNotified": "{count} תלמידים נוספו וקיבלו הודעה",
+        "addedOne": "תלמיד/ה נוסף/ה",
+        "addedMany": "{count} תלמידים נוספו",
+        "noneAdded": "אף תלמיד לא נוסף",
+        "enrollError": "שגיאה בהוספת התלמידים",
+        "reorderError": "שגיאה בשינוי הסדר",
+        "coursePublished": "הקורס פורסם בפורטל",
+        "courseUnpublished": "הקורס הוסתר (טיוטה)",
+        "statusError": "שגיאה בעדכון סטטוס הקורס",
+        "moduleAdded": "הפרק נוסף",
+        "moduleAddError": "שגיאה בהוספת פרק",
+        "moduleRenamed": "שם הפרק עודכן",
+        "moduleUpdateError": "שגיאה בעדכון הפרק",
+        "moduleDeleted": "הפרק נמחק",
+        "moduleDeleteError": "שגיאה במחיקת הפרק",
+        "lessonUpdated": "השיעור עודכן",
+        "lessonAdded": "השיעור נוסף",
+        "lessonSaveError": "שגיאה בשמירת השיעור",
+        "lessonDeleted": "השיעור נמחק",
+        "lessonDeleteError": "שגיאה במחיקת השיעור"
+      },
+      "list": {
+        "errorLoading": "שגיאה בטעינת הקורסים",
+        "title": "קורסים מוקלטים",
+        "newCourse": "קורס חדש",
+        "emptyTitle": "אין קורסים עדיין",
+        "emptyHint": "בנה קורס מוקלט ראשון עם פרקים ושיעורי וידאו מיוטיוב",
+        "addStudentsTitle": "הוסף תלמידים לקורס לפי אימייל",
+        "addStudents": "הוסף תלמידים",
+        "deleteCourseTitle": "מחק קורס"
+      },
+      "create": {
+        "titleLabel": "שם הקורס *",
+        "titlePlaceholder": "למשל: קורס גורים מהבית",
+        "descriptionLabel": "תיאור",
+        "coverUrlLabel": "קישור לתמונת שער",
+        "creating": "יוצר...",
+        "submit": "צור קורס"
+      },
+      "enroll": {
+        "modalTitle": "הוספת תלמידים — {title}",
+        "intro": "הוספה ידנית מפעילה לתלמיד/ה <strong>מנוי פעיל</strong> בפורטל שלך ושולחת הודעה עם קישור ישיר לקורס. מנוי פעיל פותח את כל הקורסים שפרסמת ואת השיעורים החיים.",
+        "emailsLabel": "כתובות אימייל *",
+        "emailsHint": "אפשר להדביק כמה כתובות — מופרדות בפסיק, רווח או שורה חדשה",
+        "emailsCount": " ({count} כתובות)",
+        "nameLabel": "שם (לא חובה)",
+        "namePlaceholder": "לתלמיד/ה חדש/ה",
+        "phoneLabel": "טלפון (לא חובה)",
+        "validUntilLabel": "תוקף מנוי (לא חובה)",
+        "paymentNoteLabel": "תיעוד תשלום",
+        "paymentNotePlaceholder": "למשל: שולם בביט",
+        "notify": "שלח הודעה על ההוספה (וואטסאפ + אימייל)",
+        "added": "נוספו ({count})",
+        "newUserSuffix": " — משתמש חדש",
+        "skipped": "לא נוספו ({count})",
+        "adding": "מוסיף...",
+        "submitMany": "הוסף {count} תלמידים",
+        "submitOne": "הוסף לקורס"
+      },
+      "deleteModal": {
+        "title": "מחיקת קורס",
+        "irreversible": "הפעולה הזו בלתי הפיכה.",
+        "body": "מחיקת <strong>\"{title}\"</strong> תמחק לצמיתות את כל הפרקים, {lessons} השיעורים, וכל נתוני ההתקדמות של התלמידים בקורס.",
+        "lossOfAccess": "תלמידים שצופים בקורס יאבדו אליו גישה מיידית. אין שחזור.",
+        "confirmLabel": "להמשך, הקלד/י את שם הקורס במדויק:",
+        "confirmPlaceholder": "שם הקורס",
+        "submit": "מחק את הקורס לצמיתות"
+      },
+      "builder": {
+        "errorLoading": "שגיאה בטעינת הקורס",
+        "unpublish": "בטל פרסום",
+        "publish": "פרסם קורס",
+        "deleteCourseTitle": "מחיקת הקורס",
+        "confirmDeleteCourse": "למחוק את הקורס \"{title}\" על כל הפרקים והשיעורים שבו?",
+        "emptyTitle": "אין פרקים בקורס",
+        "emptyHint": "הוסף פרק ראשון כדי להתחיל לבנות את הקורס",
+        "confirmDeleteModule": "למחוק את הפרק \"{title}\" על כל השיעורים שבו?",
+        "confirmDeleteLesson": "למחוק את השיעור \"{title}\"?",
+        "moduleNamePlaceholder": "שם הפרק...",
+        "addModule": "הוסף פרק"
+      },
+      "lessonModal": {
+        "editTitle": "עריכת שיעור",
+        "newTitle": "שיעור חדש",
+        "titleLabel": "שם השיעור *",
+        "descriptionLabel": "תיאור השיעור",
+        "descriptionPlaceholder": "מה נלמד בשיעור הזה?",
+        "copyPrevious": "העתק תיאור מהשיעור הקודם",
+        "typeLabel": "סוג",
+        "durationLabel": "משך (דקות)",
+        "videoLabel": "מזהה סרטון יוטיוב *",
+        "videoHint": "מזהה סרטון יוטיוב — האותיות אחרי v= בכתובת. אפשר גם להדביק כתובת מלאה והמזהה יחולץ אוטומטית.",
+        "pdfLabel": "קישור לקובץ PDF *",
+        "textLabel": "תוכן השיעור *",
+        "freePreview": "שיעור לצפייה חופשית",
+        "saveChanges": "שמור שינויים"
+      },
+      "module": {
+        "title": "פרק {number}: {title}",
+        "quiz": "בוחן הפרק",
+        "rename": "שינוי שם",
+        "delete": "מחיקת פרק",
+        "noLessons": "אין שיעורים בפרק זה"
+      },
+      "lesson": {
+        "description": "תיאור",
+        "minutes": "{count} דק׳",
+        "freePreview": "צפייה חופשית",
+        "delete": "מחיקה"
+      }
+    },
+    "membershipsTab": {
+      "status": {
+        "pending": "ממתין לאישור",
+        "active": "פעיל",
+        "expired": "פג תוקף",
+        "suspended": "מושהה"
+      },
+      "filters": {
+        "all": "הכל",
+        "pending": "ממתינים",
+        "active": "פעילים",
+        "expired": "פגי תוקף",
+        "suspended": "מושהים"
+      },
+      "toasts": {
+        "approved": "המנוי אושר — נשלחה הודעה ללקוח",
+        "updated": "המנוי עודכן",
+        "updateError": "שגיאה בעדכון המנוי",
+        "created": "המנוי נוסף ואושר",
+        "createError": "שגיאה בהוספת המנוי"
+      },
+      "loadError": "שגיאה בטעינת המנויים",
+      "retry": "נסה שוב",
+      "addManual": "הוסף מנוי ידנית",
+      "empty": {
+        "title": "אין מנויים להצגה",
+        "body": "כשבעלי כלבים יבקשו להצטרף דרך הפורטל — הם יופיעו כאן לאישור"
+      },
+      "columns": {
+        "name": "שם",
+        "phone": "טלפון",
+        "email": "אימייל",
+        "status": "סטטוס",
+        "validUntil": "בתוקף עד",
+        "paymentNote": "הערת תשלום",
+        "approvedAt": "אושר בתאריך",
+        "actions": "פעולות"
+      },
+      "openDossier": "פתח תיק סטודנט",
+      "standingOrder": "הו\"ק",
+      "actions": {
+        "approve": "אשר",
+        "suspend": "השהה",
+        "activate": "הפעל",
+        "editTitle": "עריכת תוקף והערת תשלום"
+      },
+      "approveModal": {
+        "title": "אישור מנוי — {name}",
+        "body": "עם האישור תישלח ללקוח הודעה עם קישור לפורטל.",
+        "approving": "מאשר...",
+        "submit": "אשר מנוי"
+      },
+      "editModal": {
+        "title": "עריכת מנוי — {name}",
+        "submit": "שמור שינויים"
+      },
+      "manualModal": {
+        "title": "הוספת מנוי ידנית",
+        "body": "המנוי ייווצר במצב פעיל מיידית — מתאים ללקוחות ששילמו מחוץ למערכת.",
+        "adding": "מוסיף...",
+        "submit": "הוסף מנוי"
+      },
+      "form": {
+        "validUntilOptional": "בתוקף עד (אופציונלי)",
+        "validUntil": "בתוקף עד",
+        "renewingHint": "השאר ריק למנוי מתחדש (הו\"ק)",
+        "paymentNote": "הערת תשלום",
+        "paymentNotePlaceholder": "למשל: שולם בביט 1.9",
+        "fullName": "שם מלא *",
+        "phone": "טלפון *",
+        "email": "אימייל *"
+      }
+    },
+    "questionsTab": {
+      "filters": {
+        "pending": "ממתינות לתשובה",
+        "answered": "נענו",
+        "all": "הכל"
+      },
+      "toasts": {
+        "answered": "התשובה נשלחה — התלמיד/ה יקבל/תקבל התראה",
+        "answerError": "שגיאה בשליחת התשובה",
+        "deleted": "השאלה נמחקה",
+        "deleteError": "שגיאה במחיקת השאלה",
+        "emptyAnswer": "לא ניתן לשלוח תשובה ריקה",
+        "tooLong": "התשובה ארוכה מדי — עד 2000 תווים"
+      },
+      "confirmDelete": "למחוק את השאלה של {name}? הפעולה אינה הפיכה והשאלה תיעלם גם מהפורטל.",
+      "loadError": "שגיאה בטעינת השאלות",
+      "retry": "נסה שוב",
+      "empty": {
+        "title": "אין שאלות להצגה",
+        "body": "כשתלמידים ישאלו שאלות מתחת לשיעורים בקורסים — הן יופיעו כאן למענה"
+      },
+      "answeredBadge": "נענתה",
+      "privateQuestion": "שאלה פרטית",
+      "deleteTitle": "מחיקת השאלה",
+      "yourAnswer": "התשובה שלך",
+      "answerPlaceholder": "כתוב/כתבי כאן את התשובה לתלמיד/ה…",
+      "sendAnswer": "שלח תשובה",
+      "editAnswer": "עריכת התשובה",
+      "answerQuestion": "מענה על השאלה"
+    },
+    "quizEditor": {
+      "validation": {
+        "titleRequired": "נדרשת כותרת לבוחן",
+        "titleTooLong": "כותרת הבוחן ארוכה מדי (מקסימום {max} תווים)",
+        "passScoreRange": "ציון עובר חייב להיות מספר שלם בין 0 ל-100",
+        "atLeastOneQuestion": "יש להוסיף לפחות שאלה אחת לבוחן",
+        "maxQuestions": "מקסימום {max} שאלות בבוחן",
+        "questionTextRequired": "שאלה {n}: נדרש טקסט לשאלה",
+        "questionTextTooLong": "שאלה {n}: טקסט השאלה ארוך מדי (מקסימום {max} תווים)",
+        "optionsCount": "שאלה {n}: נדרשות בין {min} ל-{max} תשובות",
+        "optionTextRequired": "שאלה {n}: נדרש טקסט לכל תשובה",
+        "optionTextTooLong": "שאלה {n}: טקסט התשובה ארוך מדי (מקסימום {max} תווים)",
+        "exactlyOneCorrect": "שאלה {n}: יש לסמן תשובה נכונה אחת בדיוק"
+      },
+      "title": "בוחן — {moduleTitle}",
+      "toasts": {
+        "saved": "הבוחן נשמר",
+        "saveError": "שגיאה בשמירת הבוחן",
+        "deleted": "הבוחן נמחק",
+        "deleteError": "שגיאה במחיקת הבוחן"
+      },
+      "confirmDelete": "למחוק את הבוחן? כל השאלות והניסיונות של התלמידים יימחקו לצמיתות.",
+      "loadError": "שגיאה בטעינת הבוחן",
+      "retry": "נסה שוב",
+      "titleLabel": "כותרת הבוחן",
+      "titlePlaceholder": "בוחן סיום פרק",
+      "passScoreLabel": "ציון עובר",
+      "questionNumber": "שאלה {n}",
+      "removeQuestion": "הסר שאלה",
+      "questionPlaceholder": "נוסח השאלה",
+      "correctAnswerAria": "תשובה נכונה {n}",
+      "optionPlaceholder": "תשובה {n}",
+      "removeOption": "הסר תשובה",
+      "addOption": "הוסף תשובה",
+      "addQuestion": "הוסף שאלה",
+      "deleteQuiz": "מחק בוחן",
+      "saveQuiz": "שמור בוחן"
+    },
+    "reportsTab": {
+      "membershipStatus": {
+        "active": "מנוי פעיל",
+        "pending": "ממתין לאישור",
+        "expired": "מנוי פג",
+        "suspended": "מושהה"
+      },
+      "loadError": "שגיאה בטעינת הדוחות",
+      "retry": "נסה שוב",
+      "notStarted": "טרם התחיל",
+      "stats": {
+        "activeStudents": "תלמידים פעילים",
+        "startedStudents": "התחילו ללמוד",
+        "finishedStudents": "סיימו קורס",
+        "avgCompletion": "אחוז השלמה ממוצע"
+      },
+      "courses": {
+        "heading": "התקדמות לפי קורס",
+        "emptyTitle": "אין קורסים עדיין",
+        "emptyBody": "צרו קורס בלשונית \"קורסים\" והנתונים יופיעו כאן",
+        "draft": "טיוטה",
+        "lessonCount": "{count} שיעורים",
+        "started": "{count} התחילו",
+        "completed": "{count} סיימו",
+        "outOf": "מתוך {count} תלמידים",
+        "dropOff": "<b>נקודת נטישה: </b>\"{title}\" ({moduleTitle}) — {dropped} מתוך {reached} תלמידים שהגיעו לשיעור הקודם לא סיימו אותו"
+      },
+      "students": {
+        "heading": "התקדמות תלמידים",
+        "allCourses": "כל הקורסים",
+        "emptyTitle": "אין תלמידים פעילים",
+        "emptyBody": "אשרו מנויים בלשונית \"מנויים\" והתקדמות התלמידים תופיע כאן",
+        "columns": {
+          "name": "שם",
+          "email": "אימייל",
+          "progress": "התקדמות",
+          "lastActivity": "פעילות אחרונה"
+        },
+        "lessonsProgress": "{done}/{total} שיעורים",
+        "stalled": "תקוע {days} ימים"
+      },
+      "detail": {
+        "title": "התקדמות — {name}",
+        "studentFallback": "תלמיד",
+        "loadError": "שגיאה בטעינת נתוני התלמיד",
+        "joined": "· הצטרף ב-{date}",
+        "noCourses": "אין קורסים פעילים עבור תלמיד זה",
+        "completedOn": "הושלם {date}"
+      }
+    },
+    "studentDossier": {
+      "statuses": {
+        "pending": "ממתין לאישור",
+        "active": "פעיל",
+        "expired": "פג תוקף",
+        "suspended": "מושהה"
+      },
+      "regStatuses": {
+        "registered": "רשום",
+        "waitlist": "רשימת המתנה",
+        "cancelled": "בוטל"
+      },
+      "courseStatus": {
+        "published": "מפורסם",
+        "draft": "טיוטה"
+      },
+      "minutes": "{min} דק'",
+      "lessThanMinute": "פחות מדקה",
+      "notStarted": "טרם התחיל",
+      "inactiveDays": "לא פעיל {days} ימים",
+      "title": "תיק סטודנט",
+      "titleWithName": "תיק סטודנט — {name}",
+      "loadError": "שגיאה בטעינת תיק הסטודנט",
+      "retry": "נסה שוב",
+      "course": {
+        "lessonsProgress": "{completed}/{total} שיעורים",
+        "lastActivity": "פעילות אחרונה: {date}",
+        "hideLessons": "הסתר שיעורים",
+        "showLessons": "הצג {count} שיעורים"
+      },
+      "certificate": {
+        "revoked": "התעודה בוטלה",
+        "issued": "תעודה הונפקה {date}",
+        "manual": "ידני",
+        "verify": "אימות תעודה",
+        "none": "אין תעודה עדיין"
+      },
+      "lesson": {
+        "completed": "הושלם",
+        "watchedOf": "{watched} מתוך {duration}"
+      },
+      "header": {
+        "email": "אימייל:",
+        "phone": "טלפון:",
+        "joined": "הצטרף:",
+        "validUntil": "בתוקף עד:",
+        "standingOrder": "הו\"ק",
+        "paymentNote": "הערת תשלום:"
+      },
+      "stats": {
+        "coursesStarted": "קורסים שהתחיל",
+        "coursesCompleted": "קורסים שהשלים",
+        "certificates": "תעודות",
+        "lastActivity": "פעילות אחרונה",
+        "questionsAsked": "שאלות ששאל"
+      },
+      "sections": {
+        "courses": "קורסים",
+        "noCourses": "אין קורסים להצגה",
+        "questions": "שאלות ששאל",
+        "pendingCount": "{count} ממתינות",
+        "noQuestions": "לא נשאלו שאלות",
+        "liveClasses": "שיעורים חיים"
+      },
+      "question": {
+        "answered": "נענתה · {date}",
+        "awaitingAnswer": "ממתינה לתשובה"
+      }
+    }
+  },
   "orders": {
     "paymentRequestDialog": {
       "title": "דרישת תשלום",
@@ -6463,6 +7710,212 @@
       }
     }
   },
+  "portal": {
+    "cDetailPage": {
+      "loadError": "שגיאה בטעינת העמוד",
+      "requestError": "שגיאה בשליחת הבקשה",
+      "requestSent": "הבקשה נשלחה! העסק יאשר אותה בהקדם",
+      "notFound": {
+        "title": "הפורטל לא נמצא",
+        "body": "ייתכן שהקישור שגוי או שהפורטל אינו פעיל"
+      },
+      "membersPortal": "פורטל חברים",
+      "membership": {
+        "title": "המנוי שלי",
+        "loginHint": "התחברות מהירה עם קוד למייל — בלי סיסמאות",
+        "login": "התחבר",
+        "noMembership": "שלום {name}! עדיין אין לך מנוי אצל {business}",
+        "requestJoin": "בקש הצטרפות",
+        "pay": "לתשלום",
+        "pendingNote": "קיבלנו את הבקשה שלך — נעדכן אותך ברגע שהעסק יאשר אותה"
+      },
+      "classes": {
+        "title": "שיעורים קרובים",
+        "viewAll": "לכל השיעורים",
+        "empty": "אין שיעורים קרובים כרגע",
+        "registered": "רשום/ה",
+        "waitlist": "בהמתנה",
+        "spotsLeft": "נותרו {count}",
+        "full": "מלא"
+      },
+      "courses": {
+        "title": "קורסים מוקלטים",
+        "viewAll": "לכל הקורסים",
+        "empty": "אין קורסים זמינים כרגע",
+        "lessonCount": "{count} שיעורים"
+      },
+      "teaser": {
+        "liveTitle": "שיעורים חיים בזום",
+        "liveBody": "הרשמה לשיעורים חיים עם קישור זום — למנויים בלבד",
+        "coursesTitle": "קורסים מוקלטים",
+        "coursesBody": "ספריית וידאו מלאה עם מעקב התקדמות — למנויים בלבד",
+        "loggedOutHint": "התחברו ובקשו הצטרפות כדי לפתוח את כל התכנים",
+        "pendingHint": "לאחר אישור המנוי כל התכנים ייפתחו אוטומטית"
+      }
+    },
+    "lessonQA": {
+      "loadError": "שגיאה בטעינת השאלות",
+      "tooShort": "השאלה קצרה מדי — לפחות 3 תווים",
+      "tooLong": "השאלה ארוכה מדי — עד 1000 תווים",
+      "sendError": "שגיאה בשליחת השאלה",
+      "title": "שאלות ותשובות",
+      "retry": "נסה שוב",
+      "empty": "אין עדיין שאלות — היו הראשונים לשאול",
+      "me": "אני",
+      "private": "פרטי",
+      "instructorAnswer": "תשובת המדריך",
+      "awaitingAnswer": "ממתין לתשובה",
+      "askLabel": "שאל שאלה",
+      "placeholder": "מה לא ברור בשיעור? כתבו כאן ונחזור אליכם",
+      "privateCheckbox": "רק אני אראה את השאלה",
+      "submit": "שליחת שאלה"
+    },
+    "quizRunner": {
+      "loadError": "שגיאה בטעינת הבוחן",
+      "submitError": "שגיאה בשליחת הבוחן",
+      "notFound": "הבוחן לא נמצא",
+      "retry": "נסה שוב",
+      "result": {
+        "passed": "✓ עברת את הבוחן",
+        "failed": "✗ לא עברת את הבוחן",
+        "summary": "{correct} מתוך {total} תשובות נכונות · ציון עובר: {passScore}%",
+        "previousBest": "ניסיון קודם הטוב ביותר: {score}%",
+        "correctAnswer": "התשובה הנכונה",
+        "yourAnswer": "התשובה שלך"
+      },
+      "form": {
+        "moduleAndPassScore": "{module} · ציון עובר: {passScore}%",
+        "yourBest": "הציון הטוב ביותר שלך: {score}%",
+        "passedSuffix": " — עברת",
+        "canSubmit": "אפשר לשלוח",
+        "answerAll": "יש לענות על כל השאלות כדי לשלוח",
+        "submitting": "שולח...",
+        "submit": "שלח תשובות"
+      }
+    },
+    "portalUi": {
+      "membership": {
+        "active": "מנוי פעיל",
+        "validUntil": "עד {date}",
+        "pending": "ממתין לאישור העסק",
+        "suspended": "המנוי מושהה",
+        "expired": "המנוי הסתיים"
+      }
+    },
+    "detailClassesPage": {
+      "backToPortal": "חזרה לפורטל",
+      "title": "שיעורים חיים",
+      "membersOnly": "הרשמה לשיעורים פתוחה למנויים פעילים בלבד.",
+      "requestToJoin": "לבקשת הצטרפות",
+      "empty": "אין שיעורים קרובים כרגע — שווה לחזור לבדוק",
+      "status": {
+        "registered": "רשום/ה",
+        "waitlist": "ברשימת המתנה"
+      },
+      "durationMinutes": "{count} דקות",
+      "fullWaitlist": "מלא — רשימת המתנה",
+      "spotsLeft": "נותרו {count} מקומות",
+      "joinZoom": "הצטרף לזום",
+      "actions": {
+        "joinWaitlist": "הרשמה לרשימת ההמתנה",
+        "register": "הרשמה",
+        "cancelRegistration": "ביטול הרשמה"
+      },
+      "confirmCancel": "לבטל את ההרשמה לשיעור \"{title}\"?",
+      "toasts": {
+        "registerError": "שגיאה בהרשמה לשיעור",
+        "waitlisted": "השיעור מלא — נרשמת לרשימת ההמתנה",
+        "registered": "נרשמת לשיעור!",
+        "cancelError": "שגיאה בביטול ההרשמה",
+        "canceled": "ההרשמה בוטלה"
+      }
+    },
+    "coursesDetailPage": {
+      "completed": "הושלם ✓",
+      "watchedPercent": "נצפו {percent}%",
+      "errors": {
+        "notFound": "הקורס לא נמצא",
+        "loadFailed": "שגיאה בטעינת הקורס",
+        "markFailed": "שגיאה בסימון השיעור"
+      },
+      "backToCourseList": "חזרה לרשימת הקורסים",
+      "allCourses": "לכל הקורסים",
+      "certificate": {
+        "ready": "סיימת את הקורס! התעודה שלך מוכנה",
+        "view": "לצפייה בתעודה"
+      },
+      "courseProgress": "הושלמו {done} מתוך {total} שיעורים",
+      "minutesShort": "{count} דק׳",
+      "quizPassScore": "בוחן · ציון עובר {score}%",
+      "noLessons": "אין שיעורים בקורס הזה עדיין",
+      "locked": {
+        "title": "נדרש מנוי פעיל לצפייה",
+        "body": "השיעור הזה פתוח למנויים פעילים בלבד",
+        "requestToJoin": "לבקשת הצטרפות"
+      },
+      "pdf": {
+        "body": "שיעור זה כולל קובץ PDF לצפייה",
+        "open": "פתח PDF"
+      },
+      "textLesson": "שיעור טקסט",
+      "contentUnavailable": "התוכן של השיעור הזה עדיין לא זמין",
+      "minutes": "{count} דקות",
+      "markComplete": "סמן כהושלם"
+    },
+    "detailCoursesPage": {
+      "backToPortal": "חזרה לפורטל",
+      "title": "קורסים מוקלטים",
+      "empty": "אין קורסים זמינים כרגע — שווה לחזור לבדוק",
+      "freeLesson": "שיעור חינם",
+      "lessonCount": "{count} שיעורים"
+    },
+    "cDetailLayout": {
+      "metaTitle": "פורטל חברים",
+      "metaTitleWithBusiness": "{business} — פורטל חברים",
+      "metaDescription": "פורטל החברים של {business} — שיעורים חיים, קורסים מוקלטים ומנוי"
+    },
+    "detailLoginPage": {
+      "backToPortal": "חזרה לפורטל",
+      "errors": {
+        "invalidEmail": "כתובת אימייל לא תקינה",
+        "tooManyRequests": "יותר מדי ניסיונות — נסו שוב בעוד כמה דקות",
+        "sendFailed": "שגיאה בשליחת הקוד",
+        "sendNetwork": "שגיאה בשליחת הקוד — בדקו את החיבור לרשת",
+        "codeLength": "יש להזין קוד בן 6 ספרות",
+        "nameRequired": "יש להזין שם מלא",
+        "phoneInvalid": "מספר טלפון לא תקין (05X-XXXXXXX)",
+        "tooManyAttempts": "יותר מדי ניסיונות — בקשו קוד חדש",
+        "invalidCode": "קוד שגוי או שפג תוקפו — נסו שוב",
+        "verifyNetwork": "שגיאה באימות — בדקו את החיבור לרשת"
+      },
+      "deviceNotice": {
+        "one": "נותקת ממכשיר אחר — חשבון זה מוגבל למספר מכשירים",
+        "many": "נותקת מ-{count} מכשירים אחרים — חשבון זה מוגבל למספר מכשירים"
+      },
+      "email": {
+        "title": "התחברות לפורטל",
+        "subtitle": "נשלח לך קוד חד-פעמי למייל — בלי סיסמאות",
+        "label": "כתובת אימייל",
+        "submit": "שלח קוד"
+      },
+      "code": {
+        "title": "הזינו את הקוד",
+        "sentTo": "שלחנו קוד בן 6 ספרות אל <ltr>{email}</ltr>",
+        "submit": "אימות",
+        "resendIn": "אפשר לבקש קוד חדש בעוד {count} שניות",
+        "resend": "לא קיבלתי — שלחו קוד חדש",
+        "changeEmail": "שינוי כתובת אימייל"
+      },
+      "profile": {
+        "title": "נעים להכיר!",
+        "subtitle": "עוד רגע מסיימים — נשארו רק שם וטלפון",
+        "nameLabel": "שם מלא",
+        "namePlaceholder": "השם שלך",
+        "phoneLabel": "טלפון נייד",
+        "submit": "סיום והתחברות"
+      }
+    }
+  },
   "pricing": {
     "priceListsPage": {
       "units": {
@@ -6858,6 +8311,1733 @@
         "low": "נמוך"
       },
       "minChars": "הקלד לפחות 2 תווים לחיפוש"
+    }
+  },
+  "serviceDogs": {
+    "serviceDogsDetailPage": {
+      "header": {
+        "toastPhaseUpdated": "שלב עודכן",
+        "errorPhaseUpdate": "שגיאה בעדכון שלב",
+        "toastSentForApproval": "הבקשה נשלחה לאישור הבעלים",
+        "toastDogDeleted": "הכלב נמחק בהצלחה",
+        "errorDogDelete": "שגיאה במחיקת הכלב",
+        "toastLocationUpdated": "מיקום עודכן",
+        "errorLocationUpdate": "שגיאה בעדכון מיקום",
+        "notFound": "כלב לא נמצא",
+        "backToList": "חזרה לרשימה",
+        "back": "חזרה",
+        "breadcrumbServiceDogs": "כלבי שירות",
+        "breadcrumbDogs": "כלבים",
+        "genderMale": " · זכר",
+        "genderFemale": " · נקבה",
+        "changePhase": "שנה שלב",
+        "currentLocation": "מיקום נוכחי",
+        "govReportRequired": "דיווח ממשלתי נדרש",
+        "serviceType": "סוג שירות",
+        "deleteDog": "מחק כלב",
+        "medicalCompliance": "משמעת רפואית",
+        "trainingMonths": "חודשי אימון",
+        "started": "התחיל",
+        "certified": "מוסמך",
+        "inTraining": "באימון",
+        "certifiedOn": "הוסמך",
+        "noTabAccess": "אין לך גישה ללשוניות של תיק הכלב. בעל העסק יכול לפתוח אותן בהגדרות ← צוות והרשאות.",
+        "deleteDogTitle": "מחיקת כלב",
+        "deleteConfirmPrefix": "האם למחוק את",
+        "deleteConfirmSuffix": "? פעולה זו אינה הפיכה.",
+        "tierGateTitle": "מודול כלבי שירות",
+        "tierGateDescription": "ניהול כלבי שירות, זכאים, שיבוצים ותעודות הסמכה — זמין במנוי Service Dog בלבד."
+      },
+      "tabs": {
+        "dogfile": "תיק כלב",
+        "placements": "שיבוצים",
+        "training": "יומן אימונים",
+        "tests": "מבחני הסמכה",
+        "equipment": "ציוד",
+        "medical": "פרוטוקולים רפואיים",
+        "compliance": "דיווחי ציות",
+        "idcard": "תעודת הסמכה"
+      },
+      "shared": {
+        "vaccinesTreatments": "חיסונים וטיפולים",
+        "documents": "מסמכים",
+        "insurance": "ביטוח",
+        "trainingHours": "שעות אימון",
+        "readyForCert": "מוכן להסמכה!",
+        "notes": "הערות",
+        "error": "שגיאה",
+        "saveChanges": "שמור שינויים",
+        "toastStatusUpdated": "סטטוס עודכן",
+        "errorUpdate": "שגיאה בעדכון",
+        "certificationDate": "תאריך הסמכה",
+        "until": "עד",
+        "creating": "יוצר...",
+        "renewalColon": "חידוש:",
+        "errorFileUpload": "שגיאה בהעלאת הקובץ",
+        "uploadingFile": "מעלה קובץ...",
+        "toastDocDeleted": "מסמך נמחק",
+        "errorDocDelete": "שגיאה במחיקת מסמך",
+        "uploading": "מעלה...",
+        "errorSave": "שגיאה בשמירה",
+        "microchip": "מספר שבב",
+        "active": "פעיל",
+        "breed": "גזע",
+        "editShort": "ערוך",
+        "notEntered": "לא הוזן",
+        "birthDate": "תאריך לידה",
+        "intakeDate": "תאריך קליטה",
+        "color": "צבע",
+        "sex": "מין",
+        "male": "זכר",
+        "female": "נקבה",
+        "neutered": "מסורס / מעוקרת",
+        "vet": "וטרינר",
+        "medicalCondition": "מצב רפואי",
+        "rabies": "כלבת",
+        "dhppAdult": "משושה בוגר (DHPP)",
+        "kennelCough": "שעלת מכלאות",
+        "parkWorm": "תולעת הפארק",
+        "deworming": "תילוע",
+        "fleaTick": "קרציות ופרעושים",
+        "neuterDate": "תאריך סירוס / עיקור",
+        "month": "חודש",
+        "year": "שנה",
+        "fileTooLarge5": "קובץ גדול מדי (מקסימום 5MB)",
+        "addUpdate": "הוסף עדכון",
+        "invoice": "חשבונית",
+        "visitSummary": "סיכום ביקור",
+        "activePlural": "פעילות",
+        "optional": "(לא חובה)",
+        "clickToUpload": "לחץ להעלאת קובץ",
+        "status": "סטטוס",
+        "type": "סוג",
+        "choose": "בחר...",
+        "validUntil": "תוקף עד"
+      },
+      "milestones": {
+        "toastUpdated": "אבן דרך עודכנה",
+        "errorUpdate": "שגיאה בעדכון אבן דרך",
+        "title": "אבני דרך",
+        "unmark": "בטל אבן דרך",
+        "markAchieved": "סמן כהושג"
+      },
+      "training": {
+        "structuredProgramsCta": "לניהול תוכניות אילוף מובנות",
+        "structuredProgramsHint": "מפגשים, יעדים, שיעורי בית",
+        "goToTraining": "← מעבר לאימונים",
+        "adiProgress": "התקדמות ADI",
+        "hoursDone": "שעות בוצעו",
+        "hoursTarget": "יעד שעות",
+        "months": "חודשים",
+        "hoursLeft": "שעות נותרו",
+        "completion": "השלמה",
+        "zeroHours": "0 שעות",
+        "hours": "שעות",
+        "sessionsTitle": "מפגשי אימון (",
+        "addSession": "הוסף מפגש",
+        "noSessions": "אין מפגשי אימון עדיין",
+        "confirmDeleteSession": "למחוק מפגש אימון זה?",
+        "toastSessionDeleted": "מפגש נמחק",
+        "errorSessionDelete": "שגיאה במחיקת מפגש",
+        "minutes": "דקות",
+        "cumulative": "מצטבר)",
+        "copyToOtherDog": "העתק מפגש לכלב אחר",
+        "editSession": "ערוך מפגש",
+        "deleteSession": "מחק מפגש",
+        "toastCopied": "המפגש הועתק לכלב הנבחר",
+        "errorCopy": "שגיאה בהעתקת המפגש",
+        "copyFrom": "מפגש מ-",
+        "copyWillCopy": "דקות יועתק לכלב שתבחר/י.",
+        "chooseTargetDog": "בחר/י כלב יעד",
+        "chooseDogOption": "— בחר/י כלב —",
+        "noName": "ללא שם",
+        "copying": "מעתיק...",
+        "copySession": "העתק מפגש",
+        "toastSessionUpdated": "מפגש עודכן",
+        "toastSessionAdded": "מפגש אימון נוסף",
+        "errorSessionUpdate": "שגיאה בעדכון מפגש",
+        "errorSessionAdd": "שגיאה בהוספת מפגש",
+        "editSessionTitle": "עריכת מפגש",
+        "newSessionTitle": "מפגש אימון חדש",
+        "dateRequired": "תאריך *",
+        "durationRequired": "משך (דקות) *",
+        "trainer": "מאמן",
+        "trainerPlaceholder": "שם המאמן",
+        "location": "מיקום",
+        "locationPlaceholder": "מיקום האימון",
+        "skillsTrained": "כישורים שאומנו",
+        "sessionRating": "דירוג מפגש",
+        "notesPlaceholder": "הערות לגבי המפגש...",
+        "saveSession": "שמור מפגש"
+      },
+      "medical": {
+        "toastProtocolUpdated": "פרוטוקול עודכן",
+        "errorProtocolUpdate": "שגיאה בעדכון פרוטוקול",
+        "errorSync": "שגיאה בסנכרון",
+        "noChanges": "אין שינויים — הפרוטוקולים כבר מעודכנים",
+        "markedDone": "{count} סומנו כבוצעו",
+        "dueDatesUpdated": "{count} מועדים עודכנו",
+        "syncDone": "סנכרון הושלם: {parts}",
+        "errorVaccineSync": "שגיאה בסנכרון חיסונים",
+        "status": {
+          "COMPLETED": "בוצע",
+          "PENDING": "ממתין",
+          "OVERDUE": "באיחור",
+          "WAIVED": "ויתור"
+        },
+        "syncBanner": "נמצאו נתוני חיסונים בפרופיל הכלב — ניתן לסנכרן מועדים ולסמן פרוטוקולים שבוצעו אוטומטית",
+        "syncing": "מסנכרן...",
+        "syncVaccines": "סנכרן חיסונים",
+        "outOf": "מתוך",
+        "protocolsCompleted": "פרוטוקולים הושלמו",
+        "overdueCount": "באיחור",
+        "pendingCount": "ממתינים",
+        "due": "יעד:",
+        "done": "בוצע:",
+        "expires": "פג:",
+        "markDone": "סמן כבוצע"
+      },
+      "compliance": {
+        "status": {
+          "PENDING": "ממתין לשליחה",
+          "SENT": "נשלח",
+          "WAIVED": "ויתור",
+          "NOT_REQUIRED": "לא נדרש",
+          "FAILED": "נכשל"
+        },
+        "govReportRequired": "נדרש דיווח ממשלתי",
+        "reportWithin48h": "ישנם אירועים שדורשים דיווח לרשות הרלוונטית בתוך 48 שעות",
+        "overdueTitle": "באיחור (",
+        "pendingTitle": "ממתינים לשליחה (",
+        "history": "היסטוריה",
+        "noEvents": "אין אירועי משמעת",
+        "mandatoryReport": "דיווח חובה",
+        "deadline": "· דד-ליין:",
+        "sent": "נשלח ✓",
+        "waive": "ויתור"
+      },
+      "placements": {
+        "toastCreated": "שיבוץ נוצר בהצלחה",
+        "errorCreate": "שגיאה ביצירת שיבוץ",
+        "toastProcessDone": "תהליך הסתיים — הכלב והזכאי הועברו לארכיון",
+        "errorProcessDone": "שגיאה בסיום התהליך",
+        "activePlacement": "שיבוץ פעיל",
+        "placementDate": "תאריך שיבוץ",
+        "trialEnd": "סיום ניסיון",
+        "followUp": "בדיקת מעקב",
+        "recipientMeetings": "מפגשים עם זכאי",
+        "confirmComplete": "לסיים את תהליך ההכשרה והשיבוץ?\n\nהכלב {dogName} והזכאי {recipientName} יועברו לארכיון ולא יופיעו עוד ברשימות הפעילות.",
+        "archiving": "מעביר לארכיון...",
+        "completeProcess": "✓ סיום תהליך הכשרה ושיבוץ → ארכיון",
+        "noPlacements": "אין שיבוצים",
+        "createNew": "צור שיבוץ חדש",
+        "history": "היסטוריית שיבוצים",
+        "add": "הוסף שיבוץ",
+        "placed": "שובץ:",
+        "certified": "מוסמך:",
+        "newPlacementTitle": "שיבוץ חדש —",
+        "recipientRequired": "זכאי *",
+        "chooseRecipient": "בחר זכאי...",
+        "create": "צור שיבוץ"
+      },
+      "tests": {
+        "adiCategories": {
+          "HEEL_ON_LEASH": "הליכה ברצועה",
+          "HEEL_OFF_LEASH": "הליכה ללא רצועה",
+          "SIT_STAY": "שב ושמור",
+          "DOWN_STAY": "שכב ושמור",
+          "COME_RECALL": "בוא — חזרה לקריאה",
+          "STAND_FOR_EXAM": "עמד לבדיקה",
+          "PUBLIC_ACCESS_1": "גישה לציבור: כניסה לבניין",
+          "PUBLIC_ACCESS_2": "גישה לציבור: נסיעה בתחבורה",
+          "PUBLIC_ACCESS_3": "גישה לציבור: מסעדה / קניון",
+          "DISTRACTION_1": "הסחות: קולניות",
+          "DISTRACTION_2": "הסחות: חזותיות",
+          "TASK_SPECIFIC": "משימות ייחודיות לסוג הכלב",
+          "HANDLER_CONTROL": "שליטת המטפל",
+          "GREETING_STRANGERS": "ברכת זרים",
+          "LEAVE_IT": "עזוב",
+          "AGGRESSION_TEST": "בדיקת אגרסיביות",
+          "SEPARATION": "בדיקת הפרדה מזמנית",
+          "GROOMING_TOLERANCE": "סובלנות לטיפוח"
+        },
+        "types": {
+          "SIMBA_COMBINED": "מבחן הסמכה",
+          "SIMBA_PUBLIC_SPACE": "מבחן כשירות שנתי במרחב הציבורי",
+          "INITIAL_EVAL": "הערכה ראשונית",
+          "PROGRESS_TEST": "בחינת התקדמות",
+          "PRE_CERT": "טרום הסמכה",
+          "ADI_CERT": "בחינת הסמכה ADI",
+          "ANNUAL_RETEST": "בחינה שנתית מחזורית",
+          "OTHER": "אחר",
+          "SIMBA_FUNCTIONAL_TASKS": "מבחן משימות תפקודיות (סימבה)"
+        },
+        "simbaTasks": {
+          "PS_01": "יצא מרכב בצורה מבוקרת ונאותה",
+          "PS_02": "התנהגות בטוחה ורגועה בצעידה מחניון לכניסה לבניין",
+          "PS_03": "נכנס למבנה בצורה רגועה וסבלנית",
+          "PS_04": "התנהל בבטחה וברוגע בתוך מבנה",
+          "PS_05": "יצא ממבנה בצורה רגועה ובטוחה — לא הוסח ממכוניות",
+          "PS_06": "נכנס לרכב בצורה מבוקרת ונאותה",
+          "PS_07": "הצגת התנהגות נאותה במסעדה — התעלמות ממסיחים",
+          "PS_08": "עלה/ירד מדרגות / מדרגות נעות / מעלית בצורה מבוקרת ובטוחה",
+          "PS_09": "התנהלות בטוחה ורגועה בתחבורה ציבורית",
+          "PS_10": "ציות לפקודת 'שב' — 4 תת-תרחישים",
+          "PS_11": "ציות לפקודת 'שכב'",
+          "PS_12": "תגובה רגועה לרעשי סביבה",
+          "PS_13": "חזרה אל הנעזר ממרחק תוך התעלמות מהפרעות",
+          "PS_14": "נשאר רגוע בהעברת הרצועה לאדם אחר",
+          "PS_15": "קשר רגוע ובטוח בין הכלב לנעזר",
+          "PS_16": "התעלמות מכלבים וחתולים אחרים במרחב הציבורי",
+          "PS_R1": "לא נעשה שימוש בעזרים חיצוניים, ענישה או חיזוקים שליליים",
+          "PS_R2": "המבחן התבצע עם רצועה סטנדרטית שנותרה רפויה לאורך כל המבחן",
+          "PS_R3": "הכלב לא הציג התנהגויות בלתי הולמות (נהמה, נביחה, נשיכה, קפיצה, ריצה לעבר אנשים/כלבים)",
+          "FT_01": "מאתר ומביא תרופות במצב של התקף חרדה או כאב",
+          "FT_02": "מביא משקה להקלה על בליעת תרופות",
+          "FT_03": "לוחץ על לחצן מצוקה",
+          "FT_04": "מחפש ומזעיק את המטפל העיקרי",
+          "FT_05": "מעביר פתק מאדם לאדם",
+          "FT_06": "בודק אם חדר ריק ומסמן לנעזר",
+          "FT_07": "מדליק אור",
+          "FT_08": "מסייע בהתעוררות",
+          "FT_09": "מעיר מסיוטים",
+          "FT_10": "מבצע תרגיל 'שמיכה כבדה' להרגעת הנעזר",
+          "FT_11": "מבצע 'בלוק' — עמידה מאחורי/לפני/לצד הנעזר לשמירת מרחב",
+          "FT_12": "מבצע 'מעגל' מסביב לנעזר לשמירת מרחב",
+          "FT_13": "מפריע לפעולות של פגיעה עצמית קלה (כסיסת ציפורניים, גירוד)",
+          "FT_14": "מבצע גירוי חושי — ליקוק או היצמדות בעת התקף",
+          "FT_15": "מתריע על התקף חרדה לפי אימון ריח",
+          "FT_16": "מתריע על מיגרנה לפי אימון ריח",
+          "FT_17": "מוציא את הנעזר ממצב ניתוק על ידי התרעה",
+          "FT_18": "מתריע על התרגשות של הנעזר",
+          "FT_19": "מוביל ליציאה מבניין",
+          "FT_20": "מוביל לכיסא פנוי",
+          "FT_21": "מתריע על רעשים צפויים",
+          "FT_22": "מתריע על סכנה מתקרבת",
+          "FT_23": "מתזכר לקחת תרופות בזמן קבוע ביום",
+          "FT_24": "מוריד שמיכה מגוף הנעזר",
+          "FT_25": "מדליק טלוויזיה/רדיו לקשב בעת פלאשבק או ניתוק"
+        },
+        "results": {
+          "PASS": "עבר ✓",
+          "FAIL": "נכשל ✗",
+          "CONDITIONAL_PASS": "עבר עם הערות"
+        },
+        "toastSaved": "מבחן נשמר",
+        "errorSave": "שגיאה בשמירת מבחן",
+        "confirmDelete": "למחוק את המבחן?",
+        "annualExpired": "בחינה שנתית מחזורית פג תוקפה",
+        "annualUpcoming": "חידוש בחינה שנתית מתקרב",
+        "renewalOn": "חידוש ב-{date}",
+        "statTests": "מבחנים",
+        "statPassed": "עברו",
+        "statFailed": "נכשלו",
+        "listTitle": "מבחני הכשרה (",
+        "tasksPassed": "משימות עברו",
+        "categoriesCount": "קטגוריות",
+        "openFile": "פתח קובץ מבחן",
+        "file": "קובץ",
+        "editDateType": "ערוך תאריך וסוג מבחן",
+        "publicSpace": "מרחב ציבורי",
+        "functionalTasks": "משימות תפקודיות",
+        "generalNotes": "הערות כלליות",
+        "addTest": "+ הוסף מבחן הכשרה",
+        "editTitle": "עריכת מבחן",
+        "testType": "סוג מבחן",
+        "date": "תאריך",
+        "addTitle": "הוספת מבחן הכשרה",
+        "linkedDog": "כלב מקושר למבחן",
+        "current": " (נוכחי)",
+        "examinerName": "שם הבוחן",
+        "examinerPlaceholder": "שם הבוחן / מעריך",
+        "overallResult": "תוצאה כללית",
+        "uploadFileOptional": "העלאת קובץ המבחן (אופציונלי)",
+        "chooseFile": "בחר קובץ",
+        "fileHint": "PDF, Word, תמונה — עד 10MB",
+        "remove": "הסר",
+        "autoCalcFunctional": "חישוב אוטומטי: {passed}/{total} משימות — {result} (סף: {threshold})",
+        "autoCalcCombined": "חישוב אוטומטי: {passed}/{total} — {result}",
+        "autoCalc": "חישוב אוטומטי: {result}",
+        "testTasks": "משימות המבחן",
+        "passedParen": "עברו)",
+        "notesPlaceholder": "הערות...",
+        "additionalRequirements": "דרישות נוספות",
+        "requiredPrefix": "(נדרשות",
+        "requiredToPass": "לפחות להעברה)",
+        "publicSpaceAlt": "מרחב הציבורי",
+        "requiredMin": "לפחות)",
+        "renewalDateNextYear": "תאריך חידוש (בעוד שנה)",
+        "renewalAlertHint": "תוצג התראה כשמועד החידוש מתקרב",
+        "adiCategoriesTitle": "קטגוריות מבחן ADI",
+        "colCategory": "קטגוריה",
+        "colResult": "תוצאה",
+        "colScore": "ניקוד",
+        "colImprovement": "נקודות לשיפור",
+        "pass": "עבר",
+        "fail": "נכשל",
+        "summaryPlaceholder": "סיכום המבחן, המלצות להמשך...",
+        "saveTest": "שמור מבחן"
+      },
+      "documents": {
+        "types": {
+          "HEALTH_CERT": "אישור בריאות",
+          "ANTIBODIES": "נוגדנים",
+          "LICENSE": "רישיון",
+          "VACCINATION": "תעודת חיסונים",
+          "VET_REPORT": "דוח וטרינר",
+          "PURCHASE_INVOICE": "חשבונית רכש",
+          "VISIT_INVOICE": "חשבונית ביקור",
+          "OTHER": "אחר"
+        },
+        "confirmDelete": "למחוק את המסמך?",
+        "title": "מסמכים (",
+        "upload": "העלה מסמך",
+        "open": "פתח מסמך",
+        "editNameType": "ערוך שם וסוג",
+        "empty": "אין מסמכים עדיין",
+        "toastUpdated": "המסמך עודכן",
+        "toastUploaded": "מסמך הועלה בהצלחה",
+        "errorUpdate": "שגיאה בעדכון המסמך",
+        "editTitle": "עריכת מסמך",
+        "name": "שם המסמך",
+        "type": "סוג מסמך",
+        "fileLabel": "קובץ:",
+        "fileUnchanged": "— הקובץ עצמו לא משתנה",
+        "errorUpload": "שגיאה בהעלאה",
+        "uploadTitle": "העלאת מסמך",
+        "nameRequired": "שם המסמך *",
+        "namePlaceholder": "לדוג׳ אישור בריאות 2025",
+        "fileRequired": "קובץ *",
+        "clickToChoose": "לחץ לבחירת קובץ",
+        "upTo10mb": "עד 10MB",
+        "uploadButton": "העלה"
+      },
+      "idCard": {
+        "toastCertUpdated": "פרטי ההסמכה עודכנו",
+        "toastCardIssued": "תעודת הסמכה הונפקה",
+        "errorIssue": "שגיאה בהנפקת תעודה",
+        "toastCertified": "הכלב הוסמך בהצלחה",
+        "errorCertify": "שגיאה בהסמכה",
+        "photoTooLarge": "תמונה גדולה מדי (מקסימום 3MB)",
+        "toastPhotoUpdated": "תמונת הכלב עודכנה",
+        "errorPhotoSave": "שגיאה בשמירת תמונה",
+        "errorLoadCard": "שגיאה בטעינת התעודה",
+        "dogPhotoAlt": "תמונת כלב",
+        "photoForCard": "תמונת הכלב לתעודה",
+        "photoHint": "התמונה תוצג בתעודת ההסמכה",
+        "replacePhoto": "החלף תמונה",
+        "uploadPhoto": "העלה תמונה",
+        "certDetails": "פרטי הסמכה",
+        "certExpiry": "תפוגת הסמכה",
+        "certifyingBody": "גוף מסמיך",
+        "certifyingBodyPlaceholder": "לדוגמה: ADI, IAADP",
+        "registrationNumber": "מספר רישום",
+        "registrationPlaceholder": "מספר תעודה / רישום",
+        "microchipMissing": "לא הוזן — ניתן לעדכן בתיק הכלב",
+        "saveCertDetails": "שמור פרטי הסמכה",
+        "notCertified": "הכלב טרם הוסמך",
+        "manualHint": "ניתן לשנות את השלב לידני או להשתמש בהסמכה ידנית על פי שיקול דעתך",
+        "ownerDiscretion": "הסמכה על פי שיקול דעת בעל העסק — ללא דרישת שעות",
+        "confirmManual": "להסמיך את {name} ידנית? הכלב יועבר לשלב \"מוסמך\".",
+        "certifyManually": "הסמך ידנית",
+        "onlyCertifiedCanIssue": "ניתן להנפיק תעודת הסמכה רק לכלבים מוסמכים (שלב: מוסמך). שנה את השלב בראש הדף.",
+        "noActiveCard": "אין תעודת הסמכה פעילה",
+        "generating": "מייצר...",
+        "issueCard": "הנפק תעודת הסמכה",
+        "activeCard": "תעודת הסמכה פעילה",
+        "issued": "הונפקה:",
+        "expiresSuffix": " · פגה: {date}",
+        "viewCard": "צפה בתעודה",
+        "print": "הדפס",
+        "serviceDogCard": "תעודת כלב שירות",
+        "qrAlt": "QR Code תעודת כלב שירות",
+        "fieldDogName": "שם הכלב",
+        "fieldRecipient": "זכאי",
+        "printCard": "הדפס תעודה"
+      },
+      "dogFile": {
+        "behaviorFlags": {
+          "dogAggression": "תוקפנות כלפי כלבים",
+          "humanAggression": "תוקפנות כלפי בני אדם",
+          "leashReactivity": "ריאקטיביות בשרשרת",
+          "leashPulling": "משיכה בשרשרת",
+          "jumping": "קפיצה על אנשים",
+          "separationAnxiety": "חרדת נטישה",
+          "excessiveBarking": "נביחות מוגזמות",
+          "destruction": "הרס",
+          "resourceGuarding": "שמירת משאבים",
+          "fears": "פחדים",
+          "badWithKids": "לא מתאים לילדים",
+          "houseSoiling": "כלוך בבית",
+          "biteHistory": "היסטוריית נשיכה",
+          "priorTraining": "עבר אילוף בעבר"
+        },
+        "toastMicrochipUpdated": "מספר שבב עודכן",
+        "errorMicrochip": "שגיאה בעדכון שבב",
+        "toastHoursUpdated": "שעות אימון עודכנו",
+        "errorHours": "שגיאה בעדכון שעות",
+        "toastMedRemoved": "תרופה הוסרה",
+        "errorMedDelete": "שגיאה במחיקת תרופה",
+        "dogDetails": "פרטי כלב",
+        "neuterStatus": "מצב",
+        "notNeutered": "לא מסורס",
+        "dogOrigin": "מקור הכלב",
+        "hoursDone": "שעות שבוצעו",
+        "hoursTarget": "יעד שעות (ריק = ללא יעד)",
+        "noTarget": "ללא יעד",
+        "targetHours": "שעות יעד",
+        "hoursNoTarget": "שעות (ללא יעד)",
+        "medicalNotes": "הערות רפואיות",
+        "feeding": "האכלה",
+        "update": "עדכון",
+        "latest": "עדכני",
+        "amount": "כמות:",
+        "gramsPerDay": "גרם/יום",
+        "frequency": "תדירות:",
+        "dogWeight": "משקל כלב:",
+        "kg": "ק״ג",
+        "deleteEntry": "מחק רשומה",
+        "confirmDeleteEntry": "למחוק רשומה זו?",
+        "errorDeleteFeeding": "שגיאה במחיקת רשומת האכלה",
+        "brand": "מותג:",
+        "addFeeding": "+ הוסף פרטי האכלה",
+        "medicationsTitle": "תרופות (",
+        "dosage": "מינון:",
+        "times": "שעות:",
+        "from": "מ-",
+        "addAnotherMed": "+ הוסף תרופה נוספת",
+        "addMed": "+ הוסף תרופה",
+        "healthVaccines": "בריאות וחיסונים",
+        "allergies": "אלרגיות:",
+        "conditions": "מצבים רפואיים:",
+        "surgeries": "ניתוחים:",
+        "limitations": "מגבלות:",
+        "renewVaccine": "↻ חדש חיסון",
+        "expiredPrefix": "⚠️ פג תוקף: ",
+        "validUntilPrefix": "⏰ תוקף עד: ",
+        "validPrefix": "תוקף: ",
+        "historyCount": "היסטוריה (",
+        "vaccinatedOn": "חוסן:",
+        "valid": "תוקף:",
+        "renewTreatment": "↻ חדש טיפול",
+        "noVaccines": "אין חיסונים מתועדים",
+        "dhppPuppy": "משושה גורים",
+        "dose1": "מנה 1:",
+        "dose2": "מנה 2:",
+        "dose3": "מנה 3:",
+        "addHealth": "+ הוסף מידע בריאות וחיסונים",
+        "behavior": "התנהגות",
+        "biteDetails": "פרטי נשיכה:",
+        "triggers": "טריגרים:",
+        "noBehaviorIssues": "לא תועדו בעיות התנהגות",
+        "confirmDeleteMed": "למחוק תרופה זו?"
+      },
+      "editPet": {
+        "toastUpdated": "פרטי הכלב עודכנו",
+        "errorUpdate": "שגיאה בעדכון פרטי הכלב",
+        "title": "עריכת פרטי כלב",
+        "nameRequired": "שם *",
+        "breedPlaceholder": "גזע הכלב...",
+        "notSet": "לא מוגדר",
+        "dogColor": "צבע הכלב",
+        "colorPlaceholder": "שחור, חום, אפור...",
+        "microchipPlaceholder": "15 ספרות...",
+        "notesPlaceholder": "הערות חופשיות על הכלב..."
+      },
+      "extraInfo": {
+        "clear": "נקה",
+        "toastUpdated": "פרטים עודכנו",
+        "title": "מקור, רישוי ואחזקה",
+        "pedigree": "תעודת יוחסין",
+        "pedigreePlaceholder": "מספר תעודת יוחסין",
+        "purchasePriceCurrency": "סכום קניה ({currency})",
+        "purchaseSource": "מקור קניה",
+        "purchaseSourcePlaceholder": "שם המגדל / ארגון",
+        "cityLicense": "רשיון עירוני",
+        "licenseNumberPlaceholder": "מספר רשיון",
+        "licenseExpiry": "תוקף רשיון",
+        "yardGroup": "קבוצת חצר",
+        "yardGroupPlaceholder": "גורים / רטריברים / גדולים",
+        "specialFeeding": "הוראות האכלה מיוחדות",
+        "specialFeedingPlaceholder": "הוראות האכלה ייחודיות לכלב שירות זה",
+        "careNotes": "הערות אחזקה",
+        "careNotesPlaceholder": "הערות תפעולי שוטף",
+        "purchasePrice": "סכום קניה",
+        "feedingInstructions": "הוראות האכלה",
+        "addDetails": "+ הוסף פרטי מקור ורישוי"
+      },
+      "insurance": {
+        "errorClaimUpdateThe": "שגיאה בעדכון התביעה",
+        "errorStatusUpdate": "שגיאה בעדכון סטטוס",
+        "toastClaimUpdated": "תביעה עודכנה",
+        "errorClaimUpdate": "שגיאה בעדכון תביעה",
+        "toastNoteAdded": "עדכון נוסף",
+        "errorNoteAdd": "שגיאה בהוספת עדכון",
+        "toastNoteDeleted": "עדכון נמחק",
+        "errorNoteDelete": "שגיאה במחיקת עדכון",
+        "toastDocUploaded": "מסמך הועלה",
+        "errorDocUpload": "שגיאה בהעלאת מסמך",
+        "noDescription": "ללא תיאור",
+        "incident": "אירוע:",
+        "vetColon": "וטרינר:",
+        "statusUpdate": "עדכון סטטוס",
+        "claimDetails": "פרטי תביעה",
+        "incidentDate": "תאריך אירוע",
+        "claimNumber": "מספר תביעה",
+        "claimAmountCurrency": "סכום תביעה ({currency})",
+        "deductibleCurrency": "השתתפות עצמית ({currency})",
+        "reimbursedCurrency": "סכום שהוחזר ({currency})",
+        "submittedDate": "תאריך הגשה",
+        "followUpDate": "🔔 תאריך מעקב",
+        "incidentDescription": "תיאור האירוע",
+        "incidentDateColon": "תאריך אירוע:",
+        "numberColon": "מספר:",
+        "claimColon": "תביעה:",
+        "deductibleShort": "ה״ע:",
+        "reimbursedColon": "הוחזר:",
+        "submittedColon": "הוגש:",
+        "closedColon": "נסגר:",
+        "followUpColon": "🔔 מעקב:",
+        "overdueSuffix": " (באיחור!)",
+        "updatesLog": "יומן עדכונים",
+        "notePlaceholder": "למשל: \"דיברתי עם נציג הביטוח, מחכים לאישור רופא\"",
+        "noUpdates": "אין עדכונים עדיין",
+        "deleteUpdate": "מחק עדכון",
+        "addDocument": "הוסף מסמך",
+        "noDocuments": "אין מסמכים",
+        "docGeneric": "מסמך",
+        "download": "הורד",
+        "deleteDocument": "מחק מסמך",
+        "toastPolicyAdded": "פוליסה נוספה",
+        "errorPolicyAdd": "שגיאה בהוספת פוליסה",
+        "toastPolicyUpdated": "פוליסה עודכנה",
+        "errorPolicyUpdate": "שגיאה בעדכון פוליסה",
+        "toastPolicyDeleted": "פוליסה נמחקה",
+        "errorPolicyDelete": "שגיאה במחיקת פוליסה",
+        "toastClaimAdded": "תביעה נוספה",
+        "errorClaimAdd": "שגיאה בהוספת תביעה",
+        "claimsTracking": "מעקב תביעות",
+        "openCount": "פתוחות",
+        "closedFilter": "סגורות",
+        "noActiveClaims": "אין תביעות פעילות",
+        "noClosedClaims": "אין תביעות סגורות",
+        "policies": "פוליסות ביטוח",
+        "addPolicy": "הוסף פוליסה",
+        "noPolicies": "אין פוליסות ביטוח",
+        "unknownInsurer": "ביטוח לא ידוע",
+        "inactive": "לא פעיל",
+        "openClaims": "תביעות פתוחות",
+        "policyColon": "פוליסה:",
+        "premium": "פרמיה: {currency}",
+        "claimsCount": "תביעות",
+        "coverageType": "סוג כיסוי",
+        "deductible": "השתתפות עצמית",
+        "coverageStart": "תחילת כיסוי",
+        "downloadPolicy": "הורד מסמך פוליסה",
+        "newClaimOnPolicy": "תביעה חדשה בפוליסה זו",
+        "editPolicy": "עריכת פוליסה",
+        "confirmDeletePolicy": "למחוק את הפוליסה של {provider}?",
+        "deletePolicy": "מחיקת פוליסה",
+        "delete": "מחיקה",
+        "insurer": "חברת ביטוח",
+        "policyNumber": "מספר פוליסה",
+        "policyStart": "תחילת פוליסה",
+        "policyEnd": "סיום פוליסה",
+        "activePolicy": "פוליסה פעילה",
+        "policyDocMax": "מסמך פוליסה (PDF / תמונה, עד 4MB)",
+        "replaceDocHint": "קיים מסמך מצורף — בחירת קובץ חדש תחליף אותו",
+        "replaceFile": "החלף קובץ",
+        "uploadedWillSave": "הקובץ הועלה — יישמר עם הפוליסה:",
+        "fileTooLargeSize": "הקובץ גדול מדי ({size}MB) — עד 4MB. אפשר לכווץ את ה-PDF ולנסות שוב",
+        "fileTooLarge4": "הקובץ גדול מדי — עד 4MB",
+        "errorUploadRetry": "שגיאה בהעלאת הקובץ — נסה שוב",
+        "newPolicy": "פוליסה חדשה",
+        "insurerPlaceholder": "שם חברת הביטוח",
+        "policyDoc": "מסמך פוליסה (PDF / תמונה)",
+        "fileUploaded": "הקובץ הועלה:",
+        "newClaim": "תביעה חדשה",
+        "incidentDateRequired": "תאריך אירוע *",
+        "claimNumberPlaceholder": "ממחברת הביטוח",
+        "documentsOptional": "מסמכים (אופציונלי)",
+        "openClaim": "פתח תביעה"
+      },
+      "equipment": {
+        "toastVestAdded": "וסט נוסף",
+        "errorVestAdd": "שגיאה בהוספת וסט",
+        "toastVestRetired": "וסט יצא משימוש",
+        "title": "ציוד — אפודות",
+        "addVest": "הוסף אפודה",
+        "noActive": "אין אפודות פעילות",
+        "vestFallback": "אפודה",
+        "sizeSuffix": " · מידה {size}",
+        "serialShort": "ס/נ:",
+        "assigned": "שובץ:",
+        "confirmRetire": "להוציא אפודה משימוש?",
+        "retire": "יצא משימוש",
+        "archive": "ארכיון (",
+        "newVest": "אפודה חדשה",
+        "size": "מידה",
+        "colorPlaceholder": "כתום / כחול / שחור",
+        "condition": "מצב",
+        "serialNumber": "מספר סידורי"
+      },
+      "renewal": {
+        "toastVaccineUpdated": "חיסון {label} עודכן",
+        "errorVaccine": "שגיאה בעדכון חיסון",
+        "vaccineTitle": "חידוש חיסון —",
+        "newVaccineDate": "תאריך חיסון חדש *",
+        "historyNote": "החיסון הנוכחי יישמר בהיסטוריה ויוצג ניתן לצפייה תחת שורת החיסון.",
+        "saveVaccine": "שמור חיסון חדש",
+        "toastTreatmentUpdated": "טיפול {label} עודכן",
+        "errorTreatment": "שגיאה בעדכון טיפול",
+        "treatmentTitle": "חידוש טיפול —",
+        "newTreatmentDate": "תאריך טיפול חדש *",
+        "saveTreatment": "שמור טיפול חדש"
+      },
+      "health": {
+        "toastUpdated": "מידע בריאות עודכן",
+        "errorUpdate": "שגיאה בעדכון מידע הבריאות",
+        "title": "בריאות —",
+        "rabiesYearly": "כלבת — אחת לשנה",
+        "vaccineDate": "תאריך חיסון",
+        "dhppPuppy3": "משושה גורים — 3 מנות",
+        "dose1": "מנה 1",
+        "dose2": "מנה 2",
+        "dose3": "מנה 3",
+        "receivedDate": "תאריך קבלה",
+        "treatmentDate": "תאריך טיפול",
+        "dewormingDate": "תאריך תילוע",
+        "treatmentType": "סוג טיפול",
+        "allergies": "אלרגיות",
+        "conditions": "מצבים רפואיים",
+        "pastSurgeries": "ניתוחים בעבר",
+        "activityLimits": "מגבלות פעילות",
+        "vetName": "שם וטרינר",
+        "vetPhone": "טלפון וטרינר",
+        "general": "כללי",
+        "origin": "מקור",
+        "originPlaceholder": "מאמץ, מגדל...",
+        "timeWithOwner": "זמן עם הבעלים / מטפל"
+      },
+      "behavior": {
+        "toastUpdated": "מידע התנהגות עודכן",
+        "errorUpdate": "שגיאה בעדכון מידע ההתנהגות",
+        "title": "התנהגות —",
+        "flags": "דגלי התנהגות",
+        "biteDetails": "פרטי נשיכה",
+        "triggers": "טריגרים",
+        "triggersPlaceholder": "קולות חזקים, כלבים אחרים...",
+        "priorTraining": "פרטי אילוף קודם",
+        "otherIssues": "בעיות נוספות",
+        "addIssuePlaceholder": "הוסף בעיה..."
+      },
+      "feeding": {
+        "toastAdded": "רשומת האכלה נוספה",
+        "errorSave": "שגיאה בשמירת פרטי האכלה",
+        "title": "עדכון האכלה —",
+        "updateDate": "תאריך עדכון",
+        "foodBrand": "מותג אוכל",
+        "brandPlaceholder": "למשל: רויאל קנין",
+        "typePlaceholder": "למשל: סלומון בוגרים, גורים",
+        "amountPerDay": "כמות (גרם/יום)",
+        "frequency": "תדירות האכלה",
+        "freq1": "פעם ביום",
+        "freq2": "פעמיים ביום",
+        "freq3": "3 פעמים ביום",
+        "freq4": "4 פעמים ביום",
+        "dogWeightKg": "משקל כלב (ק״ג)"
+      },
+      "med": {
+        "toastUpdated": "תרופה עודכנה",
+        "toastAdded": "תרופה נוספה",
+        "errorSave": "שגיאה בשמירת תרופה",
+        "editTitle": "ערוך תרופה",
+        "addTitle": "הוסף תרופה",
+        "nameRequired": "שם תרופה *",
+        "dosage": "מינון",
+        "dosagePlaceholder": "1 כדור",
+        "frequency": "תדירות",
+        "frequencyPlaceholder": "פעמיים ביום",
+        "times": "שעות מתן",
+        "instructions": "הוראות",
+        "startDate": "תאריך התחלה",
+        "endDate": "תאריך סיום"
+      },
+      "months": {
+        "m01": "ינואר",
+        "m02": "פברואר",
+        "m03": "מרץ",
+        "m04": "אפריל",
+        "m05": "מאי",
+        "m06": "יוני",
+        "m07": "יולי",
+        "m08": "אוגוסט",
+        "m09": "ספטמבר",
+        "m10": "אוקטובר",
+        "m11": "נובמבר",
+        "m12": "דצמבר"
+      },
+      "vaccinations": {
+        "day": "יום",
+        "toastPlanSaved": "תוכנית חיסונים נשמרה",
+        "errorPlanSave": "שגיאה בשמירת תוכנית",
+        "toastTreatmentUpdated": "טיפול עודכן",
+        "noPlan": "לא הוגדרה תוכנית חיסונים",
+        "createPuppyPlanHint": "צור תוכנית חיסונים לגור — מעקב אחר סדרת החיסונים הראשונית",
+        "createAnnualPlanHint": "צור תוכנית חיסונים שנתית לכלב",
+        "yearColon": "שנה:",
+        "toastPlanCreated": "תוכנית נוצרה — הגדר תאריכים מתוכננים",
+        "createPlan": "צור תוכנית חיסונים",
+        "savePlan": "שמור תוכנית",
+        "editPlan": "ערוך תוכנית",
+        "centralManagement": "ניהול מרכזי",
+        "puppyTitle": "חיסונים וטיפולים גורים",
+        "annualTitle": "חיסונים וטיפולים שנתיים{yearSuffix}",
+        "editPuppyHint": "הגדר תאריכים לכל מנה (יום/חודש/שנה)",
+        "editAnnualHint": "הגדר חודש לכל מנה — החודש שבו מתוכנן הטיפול השנתי",
+        "expiredCount": "{count} פגי תוקף",
+        "expiringCount": "{count} עומדים לפוג",
+        "colTreatment": "טיפול",
+        "plannedDateEdit": "תאריך מתוכנן ✏️",
+        "plannedDate": "תאריך מתוכנן",
+        "confirm": "אישור",
+        "statusExpired": "פג תוקף",
+        "notVaccinated": "לא חוסן",
+        "unknown": "לא יודע",
+        "done": "✓ בוצע",
+        "undo": "בטל",
+        "puppyArchive": "תוכנית גורים — ארכיון"
+      }
+    },
+    "serviceDogsCompliancePage": {
+      "title": "דיווח ממשלתי",
+      "subtitle": "ניהול אירועי משמעת ודיווחים נדרשים לרשויות",
+      "breadcrumb": {
+        "serviceDogs": "כלבי שירות"
+      },
+      "toasts": {
+        "statusUpdated": "סטטוס עודכן",
+        "updateError": "שגיאה בעדכון"
+      },
+      "filters": {
+        "pending": "ממתינים ({count})",
+        "overdue": "באיחור ({count})",
+        "sent": "נשלחו ({count})",
+        "all": "הכל ({count})"
+      },
+      "urgent": {
+        "title": "{count} דיווחים עברו את מועד הגשה!",
+        "body": "יש לטפל בדחיפות. מדינת ישראל מחייבת דיווח בתוך 48 שעות מהאירוע."
+      },
+      "stats": {
+        "overdue": "באיחור",
+        "pending": "ממתינים",
+        "sent": "נשלחו",
+        "total": "סה״כ"
+      },
+      "empty": {
+        "noPending": "אין דיווחים ממתינים — מצוין!",
+        "noEvents": "אין אירועים"
+      },
+      "badges": {
+        "overdue": "⚠ דיווח באיחור",
+        "required": "דיווח חובה"
+      },
+      "deadline": "דד-ליין: {date}",
+      "sentAt": "נשלח: {date}",
+      "statuses": {
+        "PENDING": "ממתין לשליחה",
+        "SENT": "נשלח",
+        "WAIVED": "ויתור",
+        "NOT_REQUIRED": "לא נדרש",
+        "FAILED": "נכשל"
+      },
+      "actions": {
+        "markSent": "נשלח ✓",
+        "waive": "ויתור"
+      },
+      "other": "אחר ({count})",
+      "tierGate": {
+        "title": "מודול כלבי שירות",
+        "description": "ניהול כלבי שירות, זכאים, שיבוצים ותעודות הסמכה — זמין במנוי Service Dog בלבד."
+      }
+    },
+    "serviceDogsDogsPage": {
+      "toasts": {
+        "phaseUpdated": "שלב עודכן בהצלחה",
+        "phaseUpdateError": "שגיאה בעדכון השלב"
+      },
+      "breadcrumb": {
+        "serviceDogs": "כלבי שירות",
+        "dogs": "כלבים"
+      },
+      "title": {
+        "archive": "ארכיון כלבים",
+        "active": "ניהול כלבים"
+      },
+      "subtitle": {
+        "archive": "{count} כלבים שסיימו תהליך הכשרה ושיבוץ",
+        "active": "{count} כלבים בתהליך פעיל"
+      },
+      "archive": {
+        "back": "חזרה לפעילים",
+        "toggle": "ארכיון ({count})"
+      },
+      "searchPlaceholder": "חיפוש לפי שם או גזע...",
+      "actions": {
+        "import": "ייבוא מקובץ",
+        "add": "הוסף כלב שירות"
+      },
+      "phaseFilter": {
+        "all": "הכל ({count})"
+      },
+      "empty": {
+        "noResults": "לא נמצאו כלבים התואמים לחיפוש",
+        "noDogs": "אין כלבי שירות"
+      },
+      "table": {
+        "name": "שם",
+        "birthDate": "תאריך לידה",
+        "microchip": "שבב",
+        "breed": "גזע",
+        "phase": "שלב",
+        "location": "מיקום",
+        "recipient": "זכאי",
+        "certificationDate": "תאריך הסמכה",
+        "reportBadge": "דיווח",
+        "atTrainer": "מאלף"
+      },
+      "card": {
+        "reportPending": "דיווח ממתין",
+        "readyForCert": "מוכן להסמכה",
+        "trainingHours": "שעות אימון",
+        "medicalCompliance": "משמעת רפואית",
+        "overdue": "({count} באיחור)",
+        "recipient": "זכאי: {name}",
+        "viewProfile": "צפה בפרופיל"
+      },
+      "trainingStatuses": {
+        "NOT_STARTED": "טרם החל",
+        "IN_PROGRESS": "בתהליך",
+        "PENDING_CERT": "ממתין להסמכה",
+        "CERTIFIED": "הוסמך",
+        "FAILED": "לא עבר"
+      },
+      "importTitle": "ייבוא כלבי שירות",
+      "tierGate": {
+        "title": "מודול כלבי שירות",
+        "description": "ניהול כלבי שירות, זכאים, שיבוצים ותעודות הסמכה — זמין במנוי Service Dog בלבד."
+      },
+      "addModal": {
+        "toasts": {
+          "created": "פרופיל כלב שירות נוצר בהצלחה",
+          "createError": "שגיאה ביצירת פרופיל"
+        },
+        "title": "הוסף כלב שירות חדש",
+        "petSearchLabel": "חיפוש כלב (לפי שם הכלב) *",
+        "petSearchPlaceholder": "הקלד שם הכלב...",
+        "alreadyExists": "הכלב כבר מופיע במערכת כלבי השירות",
+        "notFound": "לא נמצא כלב בשם \"{name}\"",
+        "newPetSelected": "כלב חדש: {name}",
+        "createNewPet": "+ צור כלב חדש בשם זה",
+        "phaseLabel": "שלב / סטטוס",
+        "serviceTypeLabel": "סוג שירות",
+        "notSelected": "לא נבחר",
+        "notesLabel": "הערות",
+        "creating": "יוצר...",
+        "create": "צור פרופיל"
+      }
+    },
+    "serviceDogsIdCardsPage": {
+      "toasts": {
+        "issued": "תעודת הסמכה הונפקה בהצלחה",
+        "issueError": "שגיאה בהנפקת תעודה",
+        "popupBlocked": "חסמת חלונות קופצים — אפשר ידנית בדפדפן",
+        "printError": "שגיאה בהכנת תעודה להדפסה",
+        "notFound": "לא נמצאה תעודה",
+        "loadError": "שגיאה בטעינת התעודה"
+      },
+      "print": {
+        "docTitle": "תעודת הסמכה — {name}",
+        "headerTitle": "תעודת הסמכה — כלב שירות",
+        "recipient": "משתמש / זכאי",
+        "qrNote": "סרוק לאימות תעודה",
+        "footerBefore": "הונפק באמצעות ",
+        "footerAfter": " — מערכת ניהול עסקי חיות מחמד · מסמך רשמי"
+      },
+      "fields": {
+        "breed": "גזע",
+        "registrationNumber": "מספר רישום",
+        "certifyingBody": "גוף מסמיך",
+        "certificationDate": "תאריך הסמכה",
+        "expiry": "תוקף",
+        "phase": "שלב",
+        "recipient": "זכאי"
+      },
+      "breadcrumb": {
+        "serviceDogs": "כלבי שירות"
+      },
+      "title": "תעודות הסמכה",
+      "subtitle": "{active} תעודות פעילות · {withoutCard} מוסמכים ללא תעודה",
+      "stats": {
+        "activeCards": "תעודות פעילות",
+        "certifiedDogs": "כלבים מוסמכים",
+        "awaitingCard": "ממתינים לתעודה",
+        "expiredAndSoon": "{expired} פגו · {expiring} בקרוב",
+        "expiringSoon": "פג בקרוב",
+        "valid": "תקינות"
+      },
+      "expired": {
+        "title": "תעודות שפג תוקפן ({count})",
+        "expiredOn": "פג {date}",
+        "renew": "חדש תעודה"
+      },
+      "withoutCard": {
+        "title": "כלבים מוסמכים ללא תעודת הסמכה ({count})",
+        "certifiedOn": " · הוסמך {date}",
+        "issue": "הנפק"
+      },
+      "active": {
+        "title": "תעודות פעילות ({count})",
+        "empty": "אין תעודות פעילות",
+        "emptyHint": "יש להסמיך כלבים לפני הנפקת תעודות"
+      },
+      "status": {
+        "expired": "פג תוקף",
+        "expiringSoon": "פג בקרוב",
+        "active": "תעודה פעילה"
+      },
+      "actions": {
+        "view": "צפה"
+      },
+      "modal": {
+        "title": "תעודת כלב שירות",
+        "dogName": "שם הכלב",
+        "qrLoadError": "שגיאה בטעינת QR",
+        "qrUnavailable": "QR לא זמין",
+        "reissueHint": "הנפק תעודה מחדש",
+        "print": "הדפס תעודה"
+      },
+      "tierGate": {
+        "title": "מודול כלבי שירות",
+        "description": "ניהול כלבי שירות, זכאים, שיבוצים ותעודות הסמכה — זמין במנוי Service Dog בלבד."
+      }
+    },
+    "serviceDogsPage": {
+      "header": {
+        "title": "כלבי שירות — סקירה כללית",
+        "subtitle": "מרכז הכשרת כלבי שירות · ניהול מקצועי",
+        "addDog": "הוסף כלב",
+        "addRecipient": "הוסף זכאי"
+      },
+      "stats": {
+        "totalDogs": "סה״כ כלבים",
+        "inTraining": "באימון",
+        "certified": "מוסמכים",
+        "pendingCert": "ממתינים להסמכה",
+        "reportAlerts": "התראות דיווח",
+        "activePlacements": "שיבוצים פעילים",
+        "sessionsThisWeek": "אימונים השבוע",
+        "totalRecipients": "סה״כ זכאים",
+        "waitingForMatch": "ממתינים לשיבוץ",
+        "activeRecipients": "זכאים פעילים"
+      },
+      "pipeline": {
+        "title": "פיפליין זכאים",
+        "manage": "ניהול זכאים",
+        "unknownFunding": "לא ידוע"
+      },
+      "attention": {
+        "title": "דורשים תשומת לב",
+        "allDogs": "כל הכלבים",
+        "allOk": "כל הכלבים תקינים",
+        "overdueProtocols": "{count} פרוטוקולים באיחור",
+        "readyForCert": "מוכן להסמכה"
+      },
+      "markHandled": "סמן כטופל",
+      "totalBadge": "{count} סה״כ",
+      "recent": {
+        "title": "אימונים אחרונים",
+        "allPrograms": "כל תהליכי האילוף",
+        "session": "אימון {number}"
+      },
+      "phaseDistribution": {
+        "title": "התפלגות לפי שלב"
+      },
+      "archive": {
+        "showButton": "{count} פריטים מסומנים — הצג ארכיון",
+        "title": "ארכיון פריטים מטופלים",
+        "clearAll": "נקה הכל",
+        "empty": "אין פריטים בארכיון",
+        "typeDog": "כלב",
+        "typeEvent": "דיווח",
+        "typeAlert": "התראה",
+        "restore": "שחזר",
+        "footer": "פריטים נשמרים ל-7 ימים ואז נמחקים אוטומטית"
+      },
+      "addRecipient": {
+        "toastSuccess": "זכאי נוסף בהצלחה",
+        "toastError": "שגיאה בהוספת זכאי",
+        "title": "הוסף זכאי חדש",
+        "fullName": "שם מלא *",
+        "fullNamePlaceholder": "שם ומשפחה",
+        "phone": "טלפון",
+        "email": "אימייל",
+        "idNumber": "תעודת זהות",
+        "idNumberPlaceholder": "9 ספרות",
+        "disabilityType": "סוג לקות",
+        "notSelected": "לא נבחר",
+        "address": "כתובת",
+        "addressPlaceholder": "רחוב, עיר",
+        "disabilityNotes": "פירוט הלקות",
+        "disabilityNotesPlaceholder": "מידע נוסף על הלקות...",
+        "notes": "הערות",
+        "submit": "הוסף זכאי"
+      },
+      "addDog": {
+        "toastSuccess": "כלב שירות נוסף בהצלחה",
+        "toastError": "שגיאה בהוספת כלב",
+        "title": "הוסף כלב שירות",
+        "info": "כלב זה יופיע בתהליכי אילוף — כלבי שירות ובניהול כלבי שירות. לא ישויך ללקוח.",
+        "name": "שם הכלב *",
+        "namePlaceholder": "שם הכלב",
+        "breed": "גזע",
+        "breedPlaceholder": "גזע...",
+        "gender": "מין",
+        "genderUnknown": "לא ידוע",
+        "male": "זכר",
+        "female": "נקבה",
+        "birthDate": "תאריך לידה",
+        "weight": "משקל (ק״ג)",
+        "microchip": "מיקרוצ׳יפ",
+        "microchipPlaceholder": "מספר שבב...",
+        "serviceType": "סוג שירות",
+        "serviceTypePlaceholder": "כלב ניידות / פרכוסים / רגשי...",
+        "medicalNotes": "הערות רפואיות",
+        "behaviorNotes": "הערות התנהגותיות",
+        "generalNotes": "הערות כלליות"
+      },
+      "alerts": {
+        "title": "מרכז התראות — כלבי שירות",
+        "activeCount": "{count} התראות פעילות",
+        "urgentCount": "· {count} דחופות",
+        "urgentBadge": "{count} דחוף",
+        "urgent": "דחוף",
+        "schedule": "תזמן",
+        "medicalSection": "חיסונים ופרוטוקולים רפואיים",
+        "overdueDate": "עבר תאריך: {date}",
+        "dueDate": "יעד: {date}",
+        "noDueDate": "ללא תאריך יעד",
+        "trainingSection": "אימונים — ללא מפגש בשבועיים",
+        "daysWithoutSession": "{count} ימים ללא אימון",
+        "noSessionYet": "טרם בוצע אימון",
+        "lastSession": "אימון אחרון: {date}",
+        "noSessionRecorded": "אין אימון מתועד"
+      },
+      "tierGate": {
+        "pageTitle": "כלבי שירות",
+        "title": "מודול כלבי שירות",
+        "description": "ניהול כלבי שירות, זכאים, שיבוצים ותעודות הסמכה. מעקב 120 שעות אימון לפי תקן ADI.",
+        "ctaLabel": "ניהול כלבי שירות, תעודות ומעקב 120 שעות זמין במסלול Service Dog — שדרג עכשיו"
+      }
+    },
+    "serviceDogsPlacementsPage": {
+      "toasts": {
+        "statusUpdated": "סטטוס שיבוץ עודכן",
+        "statusUpdateError": "שגיאה בעדכון סטטוס",
+        "deleted": "שיבוץ נמחק",
+        "deleteError": "שגיאה במחיקת שיבוץ",
+        "updated": "שיבוץ עודכן בהצלחה",
+        "updateError": "שגיאה בעדכון שיבוץ",
+        "created": "שיבוץ נוצר בהצלחה",
+        "createError": "שגיאה ביצירת שיבוץ"
+      },
+      "breadcrumb": {
+        "serviceDogs": "כלבי שירות",
+        "placements": "שיבוצים"
+      },
+      "title": "ניהול שיבוצים",
+      "subtitle": "{active} שיבוצים פעילים · {terminated} הסתיימו",
+      "newPlacement": "שיבוץ חדש",
+      "legend": {
+        "active": "<strong>פעיל</strong> — שיבוץ מאושר ומלא",
+        "terminated": "<strong>הסתיים</strong> — השיבוץ הופסק"
+      },
+      "activeHeading": "שיבוצים פעילים ({count})",
+      "confirmDelete": "למחוק את השיבוץ של {dog} → {recipient}?",
+      "actions": {
+        "delete": "מחיקה",
+        "deleteAria": "מחק שיבוץ"
+      },
+      "nextCheckIn": "בדיקת מעקב: {date}",
+      "filterAll": "הכל ({count})",
+      "empty": "אין שיבוצים",
+      "table": {
+        "dog": "כלב",
+        "recipient": "זכאי",
+        "status": "סטטוס",
+        "placementDate": "תאריך שיבוץ",
+        "certifiedAt": "תאריך הסמכה",
+        "nextCheck": "בדיקה הבאה",
+        "actions": "פעולות"
+      },
+      "confirmTerminate": "האם לסיים את השיבוץ?",
+      "terminate": "סיים",
+      "tierGate": {
+        "title": "מודול כלבי שירות",
+        "description": "ניהול כלבי שירות, זכאים, שיבוצים ותעודות הסמכה — זמין במנוי Service Dog בלבד."
+      },
+      "noResults": "אין תוצאות",
+      "editModal": {
+        "title": "עריכת שיבוץ — {dog} → {recipient}"
+      },
+      "form": {
+        "status": "סטטוס",
+        "placementDate": "תאריך שיבוץ",
+        "certifiedAt": "תאריך הסמכה",
+        "nextCheckIn": "בדיקת מעקב הבאה",
+        "notes": "הערות",
+        "saveChanges": "שמור שינויים",
+        "dogLabel": "כלב שירות *",
+        "dogPlaceholder": "חפש לפי שם כלב...",
+        "recipientLabel": "זכאי *",
+        "recipientPlaceholder": "חפש לפי שם זכאי...",
+        "creating": "יוצר...",
+        "create": "צור שיבוץ"
+      }
+    },
+    "serviceDogsRecipientsPage": {
+      "stageColors": {
+        "gray": "אפור",
+        "blue": "כחול",
+        "green": "ירוק",
+        "purple": "סגול",
+        "orange": "כתום",
+        "red": "אדום",
+        "indigo": "אינדיגו"
+      },
+      "deleteRecipientTitle": "מחק זכאי",
+      "column": {
+        "dropHere": "שחרר כאן"
+      },
+      "empty": "אין זכאים",
+      "toasts": {
+        "statusUpdateError": "שגיאה בעדכון סטטוס",
+        "stageUpdated": "שלב עודכן",
+        "stageDeleted": "שלב נמחק",
+        "stageDeleteError": "שגיאה במחיקת שלב",
+        "pendingApproval": "הבקשה נשלחה לאישור הבעלים",
+        "genericError": "שגיאה",
+        "recipientDeleted": "הזכאי נמחק",
+        "deleteError": "שגיאה במחיקה",
+        "stageAdded": "שלב נוסף",
+        "added": "זכאי נוסף בהצלחה",
+        "addError": "שגיאה בהוספת זכאי"
+      },
+      "breadcrumb": {
+        "serviceDogs": "כלבי שירות",
+        "recipients": "זכאים"
+      },
+      "title": "ניהול זכאים",
+      "subtitle": "{total} זכאים · {waitlist} ברשימת המתנה · {active} פעילים",
+      "searchPlaceholder": "חיפוש לפי שם או טלפון...",
+      "editColumns": "ערוך עמודות",
+      "finishEditing": "סיום עריכה",
+      "hideArchive": "הסתר ארכיון",
+      "archive": "ארכיון",
+      "importFromFile": "ייבוא מקובץ",
+      "addRecipient": "הוסף זכאי",
+      "confirmDeleteStage": "למחוק את השלב? הזכאים ישארו עם הסטטוס הנוכחי.",
+      "newStage": "שלב חדש",
+      "stageNamePlaceholder": "שם השלב...",
+      "addColumn": "הוסף עמודה",
+      "table": {
+        "name": "שם",
+        "idNumber": "ת\"ז",
+        "residence": "מקום מגורים",
+        "funding": "מימון",
+        "stage": "שלב זכאי",
+        "dogName": "שם כלב"
+      },
+      "importTitle": "ייבוא זכאים",
+      "deleteModal": {
+        "title": "מחיקת זכאי",
+        "question": "בטוח שברצונך למחוק את <b>{name}</b>?",
+        "irreversible": "פעולה זו אינה ניתנת לביטול."
+      },
+      "noPermission": {
+        "title": "אין הרשאה",
+        "body": "אין לך הרשאה לצפות בזכאים. פנה למנהל העסק."
+      },
+      "tierGate": {
+        "title": "מודול כלבי שירות",
+        "description": "ניהול כלבי שירות, זכאים, שיבוצים ותעודות הסמכה — זמין במנוי Service Dog בלבד."
+      },
+      "addModal": {
+        "title": "זכאי חדש",
+        "fullName": "שם מלא *",
+        "fullNamePlaceholder": "שם פרטי ושם משפחה",
+        "mobile": "נייד",
+        "email": "מייל",
+        "phone": "טלפון",
+        "idNumber": "ת.ז.",
+        "stageStatus": "שלב/סטטוס",
+        "address": "כתובת",
+        "disabilityType": "סוג מוגבלות",
+        "choose": "בחר...",
+        "fundingSource": "מקור מימון",
+        "disabilityNotes": "הערות מוגבלות",
+        "notes": "הערות",
+        "adding": "מוסיף...",
+        "disabilityTypes": {
+          "PTSD": "PTSD",
+          "VISUAL": "לקות ראייה",
+          "HEARING": "לקות שמיעה",
+          "MOBILITY": "לקות תנועה",
+          "AUTISM": "אוטיזם",
+          "DIABETES": "סוכרת",
+          "EPILEPSY": "אפילפסיה",
+          "OTHER": "אחר"
+        }
+      }
+    },
+    "recipientsDetailPage": {
+      "meetingTypes": {
+        "ASSESSMENT": "הערכה ראשונית",
+        "INITIAL_TRAINING": "הדרכה ראשונית",
+        "RECIPIENT_TRAINING": "אימון עם זכאי",
+        "COMPATIBILITY_CHECK": "בדיקת התאמה",
+        "FOLLOW_UP": "מעקב",
+        "ANNUAL_REVIEW": "בדיקה שנתית",
+        "GROUP_TRAINING": "אימון קבוצתי",
+        "OTHER": "אחר"
+      },
+      "meetingStatuses": {
+        "SCHEDULED": "מתוכנן",
+        "COMPLETED": "הושלם",
+        "CANCELLED": "בוטל"
+      },
+      "docTypes": {
+        "INTAKE_DOCS": "מסמכי קבלה",
+        "HANDOVER_DOCS": "מסמכי מסירה",
+        "PHOTOS": "צילומים",
+        "CONTACT_NOTE": "סיכום שיחה",
+        "OTHER": "אחר"
+      },
+      "contactRoles": {
+        "relative": "קרוב משפחה",
+        "caregiver": "גורם מטפל",
+        "socialWorker": "עו\"ס",
+        "doctor": "רופא",
+        "therapist": "מטפל",
+        "other": "אחר"
+      },
+      "disabilityTypes": {
+        "PTSD": "PTSD",
+        "VISUAL": "לקות ראייה",
+        "HEARING": "לקות שמיעה",
+        "MOBILITY": "לקות תנועה",
+        "AUTISM": "אוטיזם",
+        "DIABETES": "סוכרת",
+        "EPILEPSY": "אפילפסיה",
+        "OTHER": "אחר"
+      },
+      "toasts": {
+        "deleteSentForApproval": "הבקשה נשלחה לאישור הבעלים",
+        "error": "שגיאה",
+        "deleted": "הזכאי נמחק",
+        "deleteError": "שגיאה במחיקה",
+        "updated": "פרטים עודכנו",
+        "updateError": "שגיאה בעדכון",
+        "docUploaded": "מסמך הועלה בהצלחה",
+        "fileUploaded": "קובץ הועלה בהצלחה"
+      },
+      "confirms": {
+        "deleteMeeting": "למחוק את המפגש?",
+        "deleteDocument": "למחוק את המסמך?",
+        "documentNamePrompt": "שם המסמך:",
+        "deleteContactPerson": "למחוק גורם קשר זה?",
+        "deleteCrisisInstructions": "למחוק את ההנחיות בזמן התקף?"
+      },
+      "notFound": {
+        "message": "זכאי לא נמצא",
+        "back": "חזרה"
+      },
+      "tabs": {
+        "details": "פרטים",
+        "documents": "מסמכים",
+        "meetings": "מפגשים",
+        "guidelines": "הנחיות"
+      },
+      "breadcrumb": {
+        "serviceDogs": "כלבי שירות",
+        "recipients": "זכאים"
+      },
+      "header": {
+        "linkCustomer": "קשר ללקוח",
+        "report": "דוח"
+      },
+      "fields": {
+        "fullName": "שם מלא",
+        "fundingSource": "מקור מימון",
+        "phone": "טלפון",
+        "mobile": "נייד",
+        "email": "אימייל",
+        "idNumber": "תעודת זהות",
+        "address": "כתובת",
+        "photoConsent": "אישור צילום",
+        "waitlistDate": "תאריך רשימת המתנה",
+        "disabilityType": "סוג לקות",
+        "status": "סטטוס",
+        "certificationDate": "תאריך הסמכה",
+        "notes": "הערות"
+      },
+      "details": {
+        "contactInfo": "פרטי קשר",
+        "photoConsentYes": "✓ יש הסכמה לצילום",
+        "photoConsentNo": "אין הסכמה לצילום",
+        "disabilityInfo": "מידע על הלקות"
+      },
+      "contactPersons": {
+        "title": "גורמי קשר ({count})",
+        "empty": "אין גורמי קשר עדיין",
+        "renameTitle": "ערוך שם",
+        "uploadNote": "העלה סיכום שיחה"
+      },
+      "placements": {
+        "title": "שיבוצים ({count})",
+        "empty": "אין שיבוצים עדיין",
+        "placedOn": "שיבוץ: {date}",
+        "certifiedOn": "הסמכה: {date}",
+        "checkInOn": "בדיקה: {date}"
+      },
+      "documents": {
+        "title": "מסמכים ({count})",
+        "upload": "העלה מסמך",
+        "openTitle": "פתח מסמך",
+        "empty": "אין מסמכים עדיין"
+      },
+      "meetings": {
+        "title": "מפגשים ותיאומים ({count})",
+        "minutes": "{count} דקות",
+        "copyTitle": "העתק מפגש לזכאי אחר",
+        "editTitle": "ערוך",
+        "add": "+ הוסף מפגש"
+      },
+      "deleteDialog": {
+        "title": "מחיקת זכאי",
+        "confirm": "בטוח שברצונך למחוק את <b>{name}</b>?",
+        "irreversible": "פעולה זו אינה ניתנת לביטול."
+      },
+      "tierGate": {
+        "title": "מודול כלבי שירות",
+        "description": "ניהול כלבי שירות, זכאים, שיבוצים ותעודות הסמכה — זמין במנוי Service Dog בלבד."
+      },
+      "crisis": {
+        "title": "הנחיות",
+        "heading": "הנחיות בזמן התקף",
+        "hint": "לחץ כדי להוסיף — למשל: לגשת מקדימה, להחזיק שתי ידיים בחוזקה, לתת מים",
+        "placeholder": "לדוגמה: לגשת מקדימה, להחזיק שתי ידיים בחוזקה, לתת מים"
+      },
+      "editModal": {
+        "title": "עריכת פרטי זכאי",
+        "fullNameRequired": "שם מלא *",
+        "fullNamePlaceholder": "שם פרטי ושם משפחה",
+        "email": "מייל",
+        "idNumber": "ת.ז.",
+        "stageStatus": "שלב/סטטוס",
+        "photoConsent": "אישור צילום — הזכאי מסכים להצטלם",
+        "disabilityType": "סוג מוגבלות",
+        "choose": "בחר...",
+        "disabilityNotes": "הערות מוגבלות",
+        "saveChanges": "שמור שינויים"
+      },
+      "uploadModal": {
+        "titleNote": "העלאת סיכום שיחה",
+        "titleDoc": "העלאת מסמך",
+        "nameLabel": "שם המסמך *",
+        "namePlaceholder": "לדוג׳ אישור רפואי 2025",
+        "typeLabel": "סוג מסמך",
+        "fileLabel": "קובץ *",
+        "clickToChoose": "לחץ לבחירת קובץ",
+        "maxSize": "עד 10MB",
+        "uploading": "מעלה...",
+        "upload": "העלה",
+        "uploadError": "שגיאה בהעלאה",
+        "uploadFileError": "שגיאה בהעלאת הקובץ"
+      },
+      "contactModal": {
+        "editTitle": "עריכת גורם קשר",
+        "addTitle": "הוספת גורם קשר",
+        "nameLabel": "שם *",
+        "namePlaceholder": "שם מלא",
+        "roleLabel": "תפקיד / קשר"
+      },
+      "copyModal": {
+        "success": "המפגש הועתק לזכאי הנבחר",
+        "error": "שגיאה בהעתקת המפגש",
+        "description": "{meeting}{date} יועתק לזכאי שתבחר/י.",
+        "targetLabel": "בחר/י זכאי יעד",
+        "targetPlaceholder": "— בחר/י זכאי —",
+        "copying": "מעתיק...",
+        "copy": "העתק מפגש"
+      },
+      "meetingModal": {
+        "editTitle": "עריכת מפגש",
+        "addTitle": "הוספת מפגש",
+        "type": "סוג מפגש",
+        "date": "תאריך",
+        "duration": "משך (דקות)",
+        "trainer": "שם המאמן",
+        "trainerPlaceholder": "שם מאמן כלבי השירות",
+        "notesPlaceholder": "סיכום המפגש, תוצאות, משימות המשך...",
+        "addMeeting": "הוסף מפגש"
+      },
+      "linkModal": {
+        "title": "קישור ללקוח במערכת",
+        "description": "חיפוש לקוח קיים במערכת וקישורו לתיק הזכאי. הלקוח יופיע בפרופיל ותוכל לנווט בין שני הפרופילים.",
+        "searchPlaceholder": "חיפוש לפי שם או טלפון...",
+        "searching": "מחפש...",
+        "noResults": "לא נמצאו לקוחות"
+      },
+      "report": {
+        "title": "דוח מצב זכאי לרשויות",
+        "print": "הדפס",
+        "heading": "דוח מצב זכאי — כלב שירות",
+        "generatedOn": "תאריך הפקה: {date}",
+        "recipientDetails": "פרטי הזכאי",
+        "disabilityDetails": "פרטים על הלקות: ",
+        "contactPersons": "גורמי קשר",
+        "dogDetails": "פרטי הכלב המשובץ",
+        "dogName": "שם הכלב:",
+        "breed": "גזע:",
+        "phase": "שלב אימון:",
+        "placementDate": "תאריך שיבוץ:",
+        "certificationDate": "תאריך הסמכה:",
+        "checkIn": "בדיקת מעקב:",
+        "placementNotes": "הערות שיבוץ: ",
+        "generalNotes": "הערות כלליות",
+        "footer": "דוח זה הופק ממערכת Petra · {date}"
+      }
+    },
+    "serviceDogsReportsPage": {
+      "title": "דוחות פנימיים — כלבי שירות",
+      "generatedAt": "הופק: {date}",
+      "subtitle": "סיכום תפעולי · אימונים · שיבוצים",
+      "noPlacement": "ללא שיבוץ",
+      "breadcrumb": {
+        "serviceDogs": "כלבי שירות",
+        "reports": "דוחות פנימיים"
+      },
+      "actions": {
+        "print": "הדפס",
+        "printReport": "הדפס דוח",
+        "govReportTitle": "דיווח ממשלתי — פורמט משרד החקלאות",
+        "govReport": "דיווח ממשלתי",
+        "exportDogs": "ייצוא כלבים לאקסל",
+        "exportRecipients": "ייצוא זכאים לאקסל",
+        "exportBituachLeumi": "ייצוא ביטוח לאומי",
+        "exportMinistryOfDefense": "ייצוא משרד הביטחון",
+        "careExportTitle": "גיליון 1: האכלות | גיליון 2: תרופות — כלבי שירות בלבד",
+        "careExport": "האכלות ותרופות"
+      },
+      "print": {
+        "placedTo": "משובץ — {name}",
+        "footer": "הופק ממערכת Petra · {date}",
+        "statTotalDogs": "סה\"כ כלבים:",
+        "statCertified": "מוסמכים:",
+        "statInTraining": "באימון:",
+        "statPlaced": "משובצים:",
+        "colName": "שם",
+        "colBreed": "גזע",
+        "colCertDate": "תאריך הסמכה",
+        "colPlacement": "שיבוץ",
+        "byPhaseHeading": "כלבים לפי שלב",
+        "colPhase": "שלב",
+        "colCount": "כמות",
+        "colDogName": "שם הכלב"
+      },
+      "location": {
+        "heading": "מיקום כלבים"
+      },
+      "stats": {
+        "totalDogs": "סה״כ כלבים",
+        "certified": "מוסמכים",
+        "inTraining": "באימון",
+        "activePlacements": "שיבוצים פעילים"
+      },
+      "pipeline": {
+        "heading": "פיפליין זכאים ({count})",
+        "title": "פיפליין זכאים"
+      },
+      "funding": {
+        "title": "לפי מקור מימון",
+        "unknown": "לא ידוע",
+        "printHeading": "זכאים לפי מקור מימון",
+        "colSource": "מקור מימון"
+      },
+      "phases": {
+        "heading": "התפלגות לפי שלב"
+      },
+      "certified": {
+        "heading": "כלבים מוסמכים ({count})",
+        "title": "כלבים מוסמכים",
+        "empty": "אין כלבים מוסמכים עדיין",
+        "certifiedOn": "הוסמך {date}",
+        "noCertDate": "ללא תאריך הסמכה",
+        "placedTo": "משובץ — {name}"
+      },
+      "renewals": {
+        "licenseExpiry": "תוקף רישיון",
+        "certificationExpiry": "תוקף הסמכה",
+        "heading": "חידושים קרובים — 90 יום",
+        "items": "{count} פריטים",
+        "expired": "פג תוקף",
+        "title": "חידושים קרובים",
+        "printHeading": "חידושים קרובים — 90 יום ({count} פריטים)",
+        "colType": "סוג חידוש",
+        "colDate": "תאריך"
+      },
+      "tierGate": {
+        "title": "מודול כלבי שירות",
+        "description": "ניהול כלבי שירות, זכאים, שיבוצים ותעודות הסמכה — זמין במנוי Service Dog בלבד."
+      }
+    },
+    "serviceDogsVaccinationsPage": {
+      "pageTitle": "ניהול חיסונים",
+      "errors": {
+        "generic": "שגיאה"
+      },
+      "toasts": {
+        "updated": "הטיפול עודכן",
+        "updateError": "שגיאה בעדכון"
+      },
+      "noAccess": {
+        "title": "אין לך גישה למסך הזה",
+        "body": "בעל העסק יכול לפתוח אותו עבורך בהגדרות ← צוות והרשאות.",
+        "back": "חזרה לכלבי שירות"
+      },
+      "print": {
+        "title": "דוח חיסונים וטיפולים — כלבי שירות",
+        "generatedAt": "הופק: {date}"
+      },
+      "tabs": {
+        "adults": "חיסונים וטיפולים בוגרים",
+        "puppies": "חיסונים וטיפולים צעירים"
+      },
+      "searchPlaceholder": "חיפוש לפי שם כלב...",
+      "printReport": "הדפס דוח",
+      "treatmentFilterAll": "כלל",
+      "dogsCount": "{count} כלבים",
+      "statusFilters": {
+        "all": "הכל",
+        "soon": "פוקע בקרוב",
+        "overdue": "פג תוקף",
+        "unknown": "לא יודע"
+      },
+      "warning": {
+        "overdue": "{count} חיסונים פגי תוקף",
+        "soon": "{count} חיסונים עומדים לפוג",
+        "suffix": " – מומלץ לשלוח תזכורות לבעלי הכלבים"
+      },
+      "empty": "לא נמצאו כלבים",
+      "table": {
+        "dogName": "שם הכלב",
+        "location": "מיקום הכלב",
+        "edit": "עריכה"
+      },
+      "locations": {
+        "TRAINER": "מאלף",
+        "FOSTER": "משפחת אומנה",
+        "BOARDING": "פנסיון",
+        "FIELD": "שטח"
+      },
+      "cell": {
+        "overdue": "פג תוקף",
+        "notVaccinated": "לא חוסן",
+        "unknown": "לא יודע",
+        "markDone": "✓ בוצע"
+      },
+      "actions": {
+        "editPlan": "ערוך תוכנית",
+        "dogFile": "תיק כלב"
+      }
+    },
+    "vaccinationsPage": {
+      "title": "ניהול חיסונים",
+      "subtitle": "מעקב חיסונים וטיפולים לכלבי העסק",
+      "refresh": "רענן",
+      "columns": {
+        "rabies": "כלבת",
+        "dhpp": "משושה",
+        "deworming": "תילוע",
+        "fleaTick": "קרציות"
+      },
+      "typeFilters": {
+        "all": "הכל",
+        "rabies": "כלבת",
+        "dhpp": "משושה בוגר",
+        "dhppPuppy1": "גורים מנה 1",
+        "dhppPuppy2": "גורים מנה 2",
+        "dhppPuppy3": "גורים מנה 3",
+        "bordetella": "שעלת מכלאות",
+        "parkWorm": "תולעת הפארק",
+        "deworming": "תילוע",
+        "fleaTick": "קרציות/פרעושים"
+      },
+      "cell": {
+        "unknown": "לא ידוע",
+        "expiredDays": "פג ({days}י׳)",
+        "expiresInDays": "פוקע בעוד {days}י׳",
+        "until": "עד {date}",
+        "markDone": "✓ בוצע"
+      },
+      "errors": {
+        "generic": "שגיאה"
+      },
+      "toasts": {
+        "updated": "החיסון עודכן בהצלחה",
+        "updateError": "שגיאה בעדכון החיסון"
+      },
+      "statusFilters": {
+        "all": "הכל",
+        "expired": "פג תוקף",
+        "expiring_soon": "פוקע בקרוב",
+        "valid": "תקף",
+        "unknown": "לא ידוע"
+      },
+      "searchPlaceholder": "חיפוש לפי כלב, לקוח...",
+      "dogsCount": "{count} כלבים",
+      "loadError": "שגיאה בטעינת נתונים",
+      "empty": {
+        "filtered": "לא נמצאו כלבים מתאימים לפילטר הנבחר",
+        "none": "לא נמצאו רשומות חיסון. הוסף תאריכי חיסון בפרופיל החיות."
+      },
+      "alert": {
+        "expired": "{count} חיסונים פגי תוקף",
+        "expiring": "{count} חיסונים עומדים לפוג",
+        "suffix": " – מומלץ לשלוח תזכורת לבעלי הכלבים"
+      },
+      "table": {
+        "dogName": "שם הכלב",
+        "owner": "בעל הכלב",
+        "actions": "פעולות"
+      },
+      "serviceDog": "כלב שירות",
+      "actions": {
+        "reminder": "תזכורת",
+        "profile": "פרופיל",
+        "dogFile": "תיק כלב"
+      }
+    },
+    "serviceDogsTabs": {
+      "overview": "סקירה",
+      "dogs": "כלבים",
+      "recipients": "זכאים",
+      "placements": "שיבוצים",
+      "vaccinations": "חיסונים",
+      "idCards": "תעודות הסמכה",
+      "reports": "דוחות פנימיים"
     }
   },
   "settings": {
@@ -8489,6 +11669,727 @@
       "backToApp": "חזרה לאפליקציה",
       "logout": "התנתק",
       "suspended": "מושהה"
+    }
+  },
+  "training": {
+    "trainingPage": {
+      "days": {
+        "sun": "ראשון",
+        "mon": "שני",
+        "tue": "שלישי",
+        "wed": "רביעי",
+        "thu": "חמישי",
+        "fri": "שישי",
+        "sat": "שבת"
+      },
+      "tabs": {
+        "overview": "סקירה",
+        "individual": "אילוף בבית הלקוח",
+        "boarding": "אילוף בתנאי פנסיון",
+        "groups": "אילוף קבוצתי",
+        "archive": "ארכיון"
+      },
+      "typeBadge": {
+        "individual": "אילוף בבית הלקוח",
+        "boarding": "פנסיון",
+        "group": "קבוצה",
+        "workshop": "סדנה"
+      },
+      "programTypes": {
+        "BASIC_OBEDIENCE": "משמעת בסיסית",
+        "REACTIVITY": "תגובתיות",
+        "PUPPY": "גורים",
+        "BEHAVIOR": "בעיות התנהגות",
+        "ADVANCED": "משמעת מתקדמת",
+        "CUSTOM": "מותאם אישית",
+        "SD_FOUNDATION": "שלב הסתגלות",
+        "SD_BASIC": "שלב בסיסי",
+        "SD_ADVANCED": "שלב מתקדם",
+        "SD_FIELD": "שלב שטח",
+        "SD_PLACEMENT": "שלב שיבוץ"
+      },
+      "sdPhases": {
+        "SD_FOUNDATION": "הסתגלות",
+        "SD_BASIC": "בסיסי",
+        "SD_ADVANCED": "מתקדם",
+        "SD_FIELD": "שטח",
+        "SD_PLACEMENT": "שיבוץ"
+      },
+      "groupTypes": {
+        "PUPPY_CLASS": "כיתת גורים",
+        "REACTIVITY": "תגובתיות",
+        "OBEDIENCE": "משמעת",
+        "CUSTOM": "מותאם אישית",
+        "WORKSHOP": "סדנה"
+      },
+      "programStatus": {
+        "ACTIVE": "פעיל",
+        "COMPLETED": "הושלם",
+        "PAUSED": "מושהה",
+        "CANCELED": "בוטל"
+      },
+      "stars": {
+        "1": "חלש",
+        "2": "סביר",
+        "3": "טוב",
+        "4": "מצוין",
+        "5": "מושלם"
+      },
+      "sessionLog": {
+        "weekly": {
+          "titleEdit": "עריכת עדכון שבועי",
+          "title": "עדכון שבועי",
+          "badge": "שבוע {n}",
+          "dateLabel": "תאריך עדכון שבועי",
+          "ratingLabel": "דירוג התקדמות השבוע (אופציונלי)",
+          "practiceLabel": "יעדים שהושגו השבוע",
+          "practicePlaceholder": "אילו יעדים הושגו השבוע...",
+          "goalsLabel": "יעדים לשבוע הבא",
+          "goalsPlaceholder": "מה תעבדו בשבוע הבא...",
+          "homeworkLabel": "הנחיות לבעלים לשבוע הבא",
+          "homeworkPlaceholder": "תרגול לבית לשבוע הבא...",
+          "summaryLabel": "סיכום שבועי (אופציונלי)",
+          "summaryPlaceholder": "תאר את ההתקדמות השבועית, נקודות לשיפור, הצלחות...",
+          "save": "שמור עדכון שבועי"
+        },
+        "saveChanges": "שמור שינויים",
+        "serviceDog": {
+          "titleEdit": "עריכת אימון",
+          "title": "רישום אימון",
+          "badge": "אימון מספר {n}",
+          "dateLabel": "תאריך האימון",
+          "ratingLabel": "דירוג הכלב באימון (אופציונלי)",
+          "goalsLabel": "יעדים לאימון הבא",
+          "goalsPlaceholder": "מה תעבדו באימון הבא...",
+          "homeworkLabel": "הערות לצוות",
+          "homeworkPlaceholder": "הערות רלוונטיות לשאר הצוות...",
+          "summaryLabel": "סיכום האימון (אופציונלי)",
+          "summaryPlaceholder": "תאר מה עבדתם היום, התקדמות, הצלחות, נקודות לשיפור...",
+          "save": "שמור אימון"
+        },
+        "practiceLabel": "תרגילים שבוצעו",
+        "practicePlaceholder": "אילו תרגילים עשיתם היום...",
+        "session": {
+          "titleEdit": "עריכת מפגש",
+          "title": "רישום מפגש",
+          "badge": "מפגש מספר {n}",
+          "dateLabel": "תאריך המפגש",
+          "ratingLabel": "דירוג הכלב במפגש (אופציונלי)",
+          "goalsLabel": "יעדים לפגישה הבאה",
+          "goalsPlaceholder": "מה תעבדו בפגישה הבאה...",
+          "homeworkLabel": "שיעורי בית ללקוח",
+          "homeworkPlaceholder": "תרגול לבית...",
+          "summaryLabel": "סיכום המפגש (אופציונלי)",
+          "summaryPlaceholder": "תאר מה עבדתם היום, התקדמות, הוראות לתרגול בבית...",
+          "save": "שמור מפגש"
+        },
+        "processType": "סוג תהליך",
+        "processIndividual": "אילוף פרטני",
+        "processPackage": "חבילת אילוף",
+        "processGroup": "אילוף קבוצתי (העברה לקבוצה)",
+        "processHint": "מעבר בין פרטני לחבילה הוא מיידי. בחירת “קבוצתי” תעביר את הכלב לקבוצה — התוכנית הנוכחית תוחלף.",
+        "trainerName": "שם המאמן/ת",
+        "trainerNamePlaceholder": "שם המאמן שביצע את האימון...",
+        "homeSessions": "מפגשים בבית השבוע",
+        "notThisWeek": "שים לב — התאריך שבחרת אינו בשבוע הנוכחי",
+        "updateHomeGoals": "עדכן התקדמות יעדים שהושגו גם בבית",
+        "noGoals": "אין יעדים מוגדרים לתוכנית זו — הגדר יעדים כדי לעדכן כאן"
+      },
+      "time": "שעה",
+      "durationMinutes": "משך (דקות)",
+      "minutesOption": "{n} דקות",
+      "schedule": {
+        "title": "קבע מפגש — {dog}",
+        "recurring": "מפגש חוזר (קביעה מראש לכמה שבועות)",
+        "frequency": "תדירות",
+        "everyWeek": "כל שבוע",
+        "every2Weeks": "כל שבועיים",
+        "every3Weeks": "כל 3 שבועות",
+        "every4Weeks": "כל 4 שבועות",
+        "occurrences": "מספר מפגשים",
+        "preview": "ייקבעו {count} מפגשים — כל יום {day} בשעה {time}",
+        "previewInterval": " (אחת ל-{weeks} שבועות)",
+        "reminderNote": "תזכורת ווצאפ תישלח ללקוח אוטומטית לפני המפגש (אם תזכורות ווצאפ מופעלות)",
+        "scheduling": "קובע...",
+        "submitMany": "קבע {count} מפגשים",
+        "submit": "קבע מפגש"
+      },
+      "convert": {
+        "title": "המרה לאילוף קבוצתי — {dog}",
+        "body": "הכלב יתווסף כמשתתף בקבוצה הנבחרת, ותוכנית האילוף הפרטנית הקיימת (כולל המפגשים והיעדים שלה) תימחק. ההזמנה תישאר מקושרת — המחיר לא ישתנה אוטומטית וניתן לעדכן אותו ידנית.",
+        "selectGroup": "בחר קבוצת יעד",
+        "selectPlaceholder": "— בחר קבוצה —",
+        "noGroups": "אין קבוצות פעילות. צור קבוצה תחילה בלשונית “אילוף קבוצתי”.",
+        "converting": "ממיר...",
+        "submit": "המר לקבוצתי"
+      },
+      "overview": {
+        "daysLeft": "{count} ימים נותרו",
+        "noCheckout": "ללא תאריך יציאה",
+        "sessions": "מפגשים",
+        "sessionsLeft": "{count} מפגשים נותרו",
+        "daysWithoutSession": "{count} ימים ללא מפגש",
+        "completed": "הושלם",
+        "lastSessionAt": "מפגש אחרון: {date}",
+        "sendOwnerUpdate": "שלח עדכון לבעלים",
+        "days": "{count} ימים",
+        "send": "שלח",
+        "emptyTitle": "אין כלבים באימון",
+        "emptyHint": "הוסף כלבים לאימון דרך הטאבים השונים",
+        "sectionAttention": "דורשים תשומת לב ({count})",
+        "sectionActive": "באימון פעיל ({count})",
+        "sectionCompleted": "הושלמו ({count})",
+        "listView": "תצוגת שורות",
+        "gridView": "תצוגת כרטיסים",
+        "colDog": "כלב",
+        "colOwner": "בעלים",
+        "colType": "סוג אימון",
+        "colSessions": "מפגשים",
+        "colLastSession": "מפגש אחרון"
+      },
+      "toasts": {
+        "sessionSaveError": "שגיאה בשמירת המפגש. נסה שוב.",
+        "sessionLogged": "מפגש נרשם בהצלחה",
+        "sessionUpdated": "המפגש עודכן",
+        "sessionUpdateError": "שגיאה בעדכון המפגש",
+        "groupCreated": "הקבוצה נוצרה בהצלחה",
+        "groupCreateError": "שגיאה ביצירת הקבוצה. נסה שוב.",
+        "changesSaved": "השינויים נשמרו בהצלחה",
+        "groupUpdateError": "שגיאה בעדכון הקבוצה. נסה שוב.",
+        "addedToWaitlist": "נוסף לרשימת ההמתנה",
+        "dogAddedToGroup": "הכלב נוסף לקבוצה",
+        "dogAddToGroupError": "שגיאה בהוספת כלב לקבוצה",
+        "dogRemovedFromGroup": "הכלב הוסר מהקבוצה",
+        "dogRemoveFromGroupError": "שגיאה בהסרת הכלב מהקבוצה",
+        "convertedToGroup": "התהליך הומר לאילוף קבוצתי",
+        "orderDowngraded": "ההזמנה בוטלה במקום להימחק (הזמנה ששולמה/הופקה לא ניתנת למחיקה)",
+        "convertToGroupError": "שגיאה בהמרה לקבוצה",
+        "deleteRequestSent": "בקשת המחיקה נשלחה לאישור הבעלים",
+        "programDeleted": "תהליך האילוף נמחק",
+        "programDeleteError": "שגיאה במחיקת התהליך",
+        "convertedToPackage": "התהליך הומר לחבילת אילוף",
+        "convertedToPrivate": "התהליך הומר לאילוף פרטני",
+        "processTypeError": "שגיאה בשינוי סוג התהליך",
+        "dogConvertedToPrivate": "הכלב הומר לאילוף פרטני",
+        "convertToPrivateError": "שגיאה בהמרה לפרטני",
+        "groupDeleted": "הקבוצה נמחקה",
+        "groupDeleteError": "שגיאה במחיקת הקבוצה",
+        "programCreated": "תוכנית אילוף נוצרה בהצלחה",
+        "programCreateErrorRetry": "שגיאה ביצירת תוכנית אימון. נסה שוב.",
+        "packageCreated": "חבילה נוצרה בהצלחה",
+        "packageCreateError": "שגיאה ביצירת חבילה",
+        "packageUpdated": "חבילה עודכנה",
+        "packageUpdateError": "שגיאה בעדכון חבילה",
+        "packageDeleted": "חבילה נמחקה",
+        "packageDeleteError": "שגיאה במחיקת חבילה",
+        "programCreateError": "שגיאה ביצירת תוכנית אילוף",
+        "trainingFinished": "אילוף הסתיים ✓",
+        "dogArchived": "כלב עבר לארכיון",
+        "statusUpdateError": "שגיאה בעדכון סטטוס",
+        "programSettingsUpdated": "הגדרות התוכנית עודכנו",
+        "programSettingsError": "שגיאה בעדכון הגדרות התוכנית. נסה שוב.",
+        "sessionsScheduled": "{count} מפגשים נקבעו ליומן ✓ — תזכורות ווצאפ יישלחו אוטומטית",
+        "sessionScheduled": "מפגש נוסף ליומן ✓ — תזכורת ווצאפ תישלח ללקוח אוטומטית",
+        "scheduleError": "שגיאה בקביעת מפגש",
+        "scheduledSessionCanceled": "מפגש מתוזמן בוטל",
+        "cancelSessionError": "שגיאה בביטול מפגש",
+        "serviceDogProgramElsewhere": "תוכנית האימון של כלב שירות מנוהלת בעמוד כלבי שירות",
+        "noActiveProgram": "לכלב זה אין תוכנית פעילה"
+      },
+      "boardingFollowup": {
+        "name": "מפגשי המשך — {dog}",
+        "notes": "מפגשי המשך לאחר אילוף פנסיון"
+      },
+      "stats": {
+        "dogsInTraining": "כלבים באימון",
+        "personal": "אימון אישי",
+        "boarding": "אימון בפנסיון",
+        "groups": "קבוצות וסדנאות"
+      },
+      "header": {
+        "title": "אימונים וניהול כלבים",
+        "manualAddTitle": "הוסף תהליך אילוף ידני ללא הזמנה",
+        "manualAdd": "הוסף תהליך ידני",
+        "refreshNow": "רענן עכשיו",
+        "autoRefreshOff": "כבה אוטו-רענון",
+        "autoRefreshOn": "הפעל אוטו-רענון (30 שנ׳)",
+        "autoRefreshActive": "רענון אוטו פעיל",
+        "autoRefresh": "אוטו-רענון"
+      },
+      "freeLimit": {
+        "count": "{used}/{max} תהליכי אילוף — מגבלת המנוי החינמי",
+        "upgrade": "שדרג לבייסיק ←"
+      },
+      "searchPlaceholder": "חיפוש לפי שם כלב או בעלים...",
+      "loadError": "שגיאה בטעינת נתוני אילוף",
+      "tryAgain": "נסה שוב",
+      "subTabs": {
+        "private": "אילוף פרטני",
+        "package": "חבילת אילוף",
+        "groups": "קבוצות אימון",
+        "workshops": "סדנאות מיוחדות"
+      },
+      "summarySend": {
+        "title": "מפגש נרשם בהצלחה! ✓",
+        "subtitle": "{dog} — מפגש {n}",
+        "hint": "שלח סיכום מפגש ישירות ללקוח בוואטסאפ",
+        "send": "שלח סיכום בוואטסאפ",
+        "skip": "דלג — לא עכשיו"
+      },
+      "convertToPrivate": {
+        "title": "המרה לאילוף פרטני",
+        "message": "להמיר את {dog} מהקבוצה לאילוף פרטני? תיווצר תוכנית אילוף פרטנית והכלב יוסר מהקבוצה.",
+        "confirm": "המר לפרטני"
+      },
+      "deleteGroup": {
+        "titleWorkshop": "מחיקת סדנה",
+        "title": "מחיקת קבוצה",
+        "message": "למחוק את \"{name}\"? פעולה זו תמחק את כל המפגשים והמשתתפים בקבוצה. ההזמנות של הלקוחות לא יימחקו.",
+        "confirm": "מחק לצמיתות"
+      },
+      "goals": {
+        "updateError": "שגיאה בעדכון יעד",
+        "removed": "יעד הוסר",
+        "deleteError": "שגיאה במחיקת יעד",
+        "changeStatus": "שנה סטטוס",
+        "delete": "מחק יעד",
+        "defaultLabel": "יעדי אילוף",
+        "added": "יעד נוסף ✓",
+        "addError": "שגיאה בהוספת יעד",
+        "add": "הוסף יעד",
+        "empty": "אין יעדים עדיין — לחץ “הוסף יעד” כדי לעקוב אחר ההתקדמות",
+        "placeholder": "תאר את היעד..."
+      },
+      "homework": {
+        "updateError": "שגיאה בעדכון שיעורי בית",
+        "added": "שיעור בית נוסף ✓",
+        "addError": "שגיאה בהוספת שיעור בית",
+        "deleteError": "שגיאה במחיקת שיעור בית",
+        "title": "שיעורי בית ({done}/{total})",
+        "send": "שלח שיעורי בית",
+        "empty": "אין שיעורי בית עדיין",
+        "placeholder": "תיאור שיעור הבית..."
+      },
+      "checklist": {
+        "rescheduled": "מועד המפגש עודכן",
+        "rescheduleError": "שגיאה בעדכון מועד המפגש",
+        "deleted": "המפגש נמחק",
+        "deleteError": "שגיאה במחיקת המפגש",
+        "dateAtTime": "{date} בשעה {time}",
+        "headerOf": "מפגשים ({used}/{total})",
+        "header": "מפגשים ({used})",
+        "remaining": "נותרו {count}",
+        "allDone": "הכל הושלם ✓",
+        "sessionN": "מפגש {num}",
+        "dotRated": "מפגש {num} — {r}★",
+        "dotDone": "מפגש {num} — בוצע",
+        "ratings": "דירוגי מפגשים",
+        "editSession": "ערוך מפגש",
+        "confirmDelete": "למחוק את רישום המפגש?",
+        "deleteSession": "מחק מפגש",
+        "editTime": "ערוך מועד",
+        "setTime": "קבע מועד",
+        "editTimeTitle": "עריכת מועד מפגש",
+        "practice": "תרגילים:",
+        "nextGoals": "יעדים הבאים:",
+        "homework": "שיעורי בית:",
+        "summary": "סיכום:",
+        "scheduledSession": "מפגש מתוזמן",
+        "logSession": "רשום מפגש",
+        "scheduleAhead": "קבע מפגש קדימה"
+      },
+      "date": "תאריך",
+      "minutesShort": "{n} דק׳",
+      "sdPhase": {
+        "updated": "שלב עודכן ✓",
+        "updateError": "שגיאה בעדכון שלב",
+        "title": "שלב הכשרה",
+        "fullProfile": "פרופיל מלא ←"
+      },
+      "sdLog": {
+        "emptyTitle": "אין תוכניות אילוף לכלבי שירות",
+        "goToServiceDogs": "עבור לניהול כלבי שירות",
+        "sessionsDone": "{count} אימונים בוצעו",
+        "started": "• התחיל {date}",
+        "profile": "פרופיל ←",
+        "settings": "הגדרות",
+        "manage": "ניהול כלב שירות ←",
+        "title": "יומן אימונים",
+        "empty": "טרם בוצעו אימונים",
+        "sessionN": "אימון {n}",
+        "practice": "📝 תרגילים:",
+        "summary": "💬 סיכום:",
+        "nextGoals": "🎯 יעדים לאימון הבא:",
+        "teamNotes": "📋 הערות לצוות:",
+        "trainer": "👤 מאמן: {name}",
+        "addSession": "הוסף אימון +"
+      },
+      "printLog": {
+        "title": "יומן אימונים — {dog}",
+        "subtitle": "סה\"כ {count} אימונים · הודפס {date}",
+        "colTrainer": "מאמן",
+        "colRating": "דירוג",
+        "colPractice": "תרגילים",
+        "colNextGoals": "יעדים הבאים",
+        "colTeamNotes": "הערות לצוות",
+        "colSummary": "סיכום",
+        "print": "הדפס יומן אימונים"
+      },
+      "individual": {
+        "count": "{count} תוכניות אילוף",
+        "emptyTitle": "אין תוכניות אילוף בבית לקוח",
+        "emptyHint": "חבילות אילוף יופיעו כאן לאחר מכירה דרך “הזמנה חדשה”",
+        "lowSessions": "מפגשים נמוכים",
+        "alsoInGroup": "גם בקבוצה: {group}",
+        "finishBlocked": "יש להשלים את כל {total} המפגשים לפני סיום האילוף (הושלמו {done})",
+        "finish": "סיים אילוף",
+        "dropout": "נשר מתהליך",
+        "deleteProgram": "מחק תהליך",
+        "sendReport": "שלח דוח",
+        "sendCertificateTitle": "שלח תעודת סיום",
+        "certificate": "תעודת סיום",
+        "startDate": "תאריך התחלה",
+        "estimatedEnd": "יעד סיום משוער",
+        "location": "מיקום",
+        "frequency": "תדירות מפגשים",
+        "viewOrder": "צפה בהזמנה המקורית",
+        "baseline": "📋 קו בסיס התנהגותי"
+      },
+      "frequency": {
+        "WEEKLY": "אחת לשבוע",
+        "BIWEEKLY": "אחת לשבועיים",
+        "CUSTOM": "אחר"
+      },
+      "boardingTab": {
+        "availableCount": "{count} כלבים בפנסיון ללא אילוף",
+        "addToStay": "הוסף אילוף ללינה",
+        "noStays": "לא נמצאו לינות",
+        "createProgram": "צור תוכנית אילוף",
+        "pickerCheckout": " · יציאה {date}",
+        "emptyTitle": "אין כלבים באילוף בפנסיון",
+        "emptyHint": "לינות עם תוכנית אילוף יופיעו כאן",
+        "missingDates": "חסרים תאריכים",
+        "noProgram": "ללא תוכנית",
+        "daysLeft": "נותרו {count} ימים",
+        "checkOut": "יציאה: {date}",
+        "checkIn": "כניסה: {date}",
+        "noRoom": "ללא חדר",
+        "baseline": "בסיס התנהגותי",
+        "expectations": "ציפיות הלקוח",
+        "workPlan": "תוכנית עבודה — גלוי לצוות",
+        "goalsLabel": "יעדי אילוף — לפני יציאה לבית",
+        "weeklyUpdates": "עדכונים שבועיים ({count})",
+        "weeklyUpdateBtn": "עדכון שבועי (שבוע {n})",
+        "weeklyUpdateBtnFirst": "עדכון שבועי (שבוע 1)",
+        "homeSessionsOf": "{used}/{total} מפגשים",
+        "homeSessions": "{count} מפגשים",
+        "homeSessionN": "מפגש בית הלקוח ({n})",
+        "homeSession": "מפגש בית הלקוח",
+        "leavingToday": "הכלב צפוי לצאת היום!",
+        "onlyDaysLeft": "נותרו {count} ימים בלבד",
+        "noProgramYet": "טרם נוצרה תוכנית אילוף לפנסיון",
+        "createBoardingProgram": "צור תוכנית אילוף לפנסיון"
+      },
+      "endAt": "סיום: {date}",
+      "startAt": "התחלה: {date}",
+      "groupsTab": {
+        "count": "{count} קבוצות",
+        "new": "קבוצה חדשה",
+        "emptyTitle": "אין קבוצות אימון",
+        "emptyHint": "צור קבוצת אימון חדשה כדי להתחיל"
+      },
+      "workshopsTab": {
+        "count": "{count} סדנאות",
+        "new": "סדנה חדשה",
+        "emptyTitle": "אין סדנאות",
+        "emptyHint": "צור סדנה חדשה כדי להתחיל"
+      },
+      "group": {
+        "sessionCreated": "מפגש נוצר בהצלחה",
+        "sessionCreateError": "שגיאה ביצירת מפגש",
+        "seriesCreated": "נוצרו {count} מפגשים שבועיים",
+        "seriesError": "שגיאה ביצירת סדרת מפגשים",
+        "attendanceError": "שגיאה בעדכון נוכחות",
+        "summarySaved": "סיכום המפגש נשמר",
+        "summaryError": "שגיאה בשמירת הסיכום",
+        "allMarkedPresent": "כל המשתתפים סומנו כנוכחים",
+        "attendanceUpdateError": "שגיאה בעדכון הנוכחות",
+        "promoted": "המשתתף קודם מרשימת ההמתנה",
+        "promoteError": "שגיאה בקידום מרשימת ההמתנה",
+        "paymentRequestCreated": "דרישת התשלום נוצרה",
+        "paymentRequestError": "שגיאה ביצירת דרישת התשלום",
+        "full": " · מלא",
+        "inactive": "לא פעיל",
+        "participants": "{count} משתתפים",
+        "dayOf": "יום {day}",
+        "addSession": "הוסף מפגש",
+        "assignClient": "שייך לקוח",
+        "editWorkshop": "ערוך סדנה",
+        "editGroup": "ערוך קבוצה",
+        "deleteWorkshop": "מחק סדנה",
+        "deleteGroup": "מחק קבוצה",
+        "sendReminder": "שלח תזכורת",
+        "newSession": "מפגש חדש",
+        "creating": "יוצר...",
+        "createSession": "צור מפגש",
+        "weeklySeries": "סדרה שבועית (מספר מפגשים)",
+        "seriesHint": "יוצר מפגשים שבועיים החל מהתאריך/שעה שנבחרו",
+        "createSeries": "צור סדרה ({count})",
+        "participantsHeader": "משתתפים ({count})",
+        "noParticipants": "אין משתתפים רשומים",
+        "pay": {
+          "noOrder": "אין הזמנה",
+          "paid": "שולם",
+          "partial": "שולם חלקית",
+          "pending": "ממתין לתשלום"
+        },
+        "attended": "נכח {attended}/{held}",
+        "paymentRequestHint": "יוצר הזמנה ושולח דרישת תשלום בוואטסאפ",
+        "paymentRequest": "דרישת תשלום",
+        "removeParticipant": "הסר משתתף",
+        "collected": "נגבה <ok>{collected}</ok> מתוך <total>{expected}</total>",
+        "waitlist": "רשימת המתנה ({count})",
+        "promoteFull": "הסדנה מלאה — פנה מקום כדי לקדם",
+        "promoteHint": "קדם לרשימת המשתתפים",
+        "promoting": "מקדם...",
+        "promote": "קדם",
+        "removeFromWaitlist": "הסר מרשימת ההמתנה",
+        "noSessions": "אין מפגשים",
+        "presentCount": "{present}/{total} נוכחים",
+        "markAttendance": "סמן נוכחות",
+        "reschedule": "שנה מועד מפגש",
+        "confirmDeleteSession": "למחוק את מפגש {num} בתאריך {date}? הפעולה תסיר אותו גם מהיומן.",
+        "convertDog": "המר כלב לאילוף פרטני",
+        "selectDog": "— בחר כלב —",
+        "noActiveForAttendance": "אין משתתפים פעילים לסימון נוכחות",
+        "marking": "מסמן...",
+        "markAllPresent": "סמן את כולם כנוכחים",
+        "dogFallback": "כלב",
+        "markAbsent": "סמן כנעדר",
+        "markPresent": "סמן כנוכח",
+        "present": "נוכח",
+        "absent": "נעדר",
+        "sessionSummary": "סיכום מפגש",
+        "summaryPlaceholder": "מה עבדנו היום, הצלחות, נקודות לשיפור...",
+        "saveSummary": "שמור סיכום"
+      },
+      "programForm": {
+        "autoName": "אילוף {type} - {dog}",
+        "manualTitle": "הוסף תהליך אילוף ידני",
+        "manualHint": "להוספת לקוחות שכבר בתהליך אילוף ממערכת אחרת — ללא קישור להזמנה חדשה",
+        "client": "לקוח *",
+        "dog": "כלב *",
+        "noDogs": "ללקוח זה אין כלבים רשומים — יש להוסיף כלב בפרופיל הלקוח תחילה.",
+        "selectDog": "בחר כלב...",
+        "trainingType": "סוג אילוף",
+        "customTypePlaceholder": "פרט את סוג האילוף...",
+        "endDate": "תאריך סיום",
+        "optional": "(אופציונלי)",
+        "notes": "הערות",
+        "manualNotesPlaceholder": "הקשר, שלב התהליך לפני המעבר...",
+        "addProgram": "הוסף תהליך",
+        "programType": "סוג תוכנית",
+        "programName": "שם תוכנית",
+        "sessionsRequired": "מספר מפגשים *",
+        "price": "מחיר ({cur})"
+      },
+      "sellPackage": {
+        "title": "מכירת חבילת אימון",
+        "choose": "בחר חבילת אילוף:",
+        "continue": "המשך",
+        "noPackage": "ללא חבילה",
+        "selected": "{name} — {count} מפגשים",
+        "change": "שנה",
+        "create": "צור חבילה"
+      },
+      "groupForm": {
+        "editWorkshop": "עריכת סדנה",
+        "editGroup": "עריכת קבוצה",
+        "newGroup": "קבוצת אימון חדשה",
+        "nameWorkshop": "שם הסדנה *",
+        "nameGroup": "שם הקבוצה *",
+        "namePlaceholderWorkshop": "למשל: סדנת סוציאליזציה",
+        "namePlaceholderGroup": "למשל: קבוצת גורים - מחזור 3",
+        "type": "סוג",
+        "fixedDay": "יום קבוע",
+        "notSet": "לא נקבע",
+        "locationPlaceholder": "גן ציבורי...",
+        "capacity": "קיבולת",
+        "maxParticipants": "מקסימום משתתפים",
+        "createWorkshop": "צור סדנה",
+        "createGroup": "צור קבוצה"
+      },
+      "assign": {
+        "title": "שיוך לקוח וכלב — {group}",
+        "addToWaitlist": "הוסף לרשימת ההמתנה",
+        "evenIfRoom": "(גם כשיש מקום פנוי)",
+        "submitWaitlist": "הוסף להמתנה",
+        "submit": "שייך לקוח וכלב"
+      },
+      "sdTab": {
+        "count": "{count} תוכניות כלבי שירות",
+        "new": "תוכנית חדשה",
+        "viewProfile": "צפה בפרופיל כלב שירות ←"
+      },
+      "packageTypes": {
+        "HOME": "אילוף בבית",
+        "BOARDING": "אילוף בפנסיון",
+        "GROUP": "קבוצה",
+        "WORKSHOP": "סדנה"
+      },
+      "packagesTab": {
+        "count": "{count} חבילות",
+        "new": "חבילה חדשה",
+        "emptyTitle": "אין חבילות אילוף",
+        "emptyHint": "הגדר חבילות אילוף כדי למכור ללקוחות בקלות",
+        "boardingDays": "{count} ימי פנסיון",
+        "activePrograms": "{count} תוכניות פעילות"
+      },
+      "packageForm": {
+        "newTitle": "חבילת אילוף חדשה",
+        "name": "שם החבילה *",
+        "namePlaceholder": "דוג׳ \"5 מפגשי אילוף בסיסי\"",
+        "priceRequired": "מחיר ({cur}) *",
+        "boardingDays": "ימי פנסיון",
+        "descriptionOptional": "תיאור (אופציונלי)",
+        "descriptionPlaceholder": "תיאור קצר...",
+        "editTitle": "עריכת חבילה",
+        "description": "תיאור"
+      },
+      "boardingForm": {
+        "programName": "תוכנית אילוף פנסיון — {dog}",
+        "title": "תוכנית אילוף לפנסיון — {dog}",
+        "start": "התחלת תוכנית *",
+        "end": "סיום תוכנית *",
+        "datesRequired": "נדרשים תאריך התחלה וסיום כדי שהלקוח יסומן כ\"לקוח פעיל\"",
+        "baseline": "בסיס התנהגותי ראשוני",
+        "baselinePlaceholder": "תאר את ההתנהגות הנוכחית של הכלב: רמת עצמאות, תגובות לגירויים, כישורים קיימים...",
+        "expectationsPlaceholder": "מה הלקוח מצפה להשיג במהלך הפנסיון...",
+        "workPlan": "תוכנית עבודה שבועית",
+        "visibleToStaff": "— גלוי לצוות",
+        "workPlanPlaceholder": "תאר את תוכנית האילוף היומית/שבועית לצוות הפנסיון...",
+        "handoff": "העברת שרביט — מפגשי המשך בבית הלקוח",
+        "handoffHint": "מפגשים בבית הלקוח לאחר סיום הפנסיון — להבטיח רצף ולהעביר את הכלי לידיים של הבעלים",
+        "followupCount": "מפגשים (0 = ללא מפגשי המשך)",
+        "followupNote": "✓ תוכנית המשך של {count} מפגשים תיווצר אוטומטית תחת \"אילוף בבית הלקוח\""
+      },
+      "settingsForm": {
+        "title": "הגדרות חבילה - {dog}",
+        "startRequired": "תאריך התחלה *",
+        "notDefined": "לא מוגדר",
+        "sessionsInPackage": "כמות מפגשים בחבילה",
+        "forChecklist": "(לצ׳קליסט מעקב)",
+        "sessionsPlaceholder": "למשל: 8",
+        "finishHint": "כפתור ״סיים אילוף״ יהיה זמין רק לאחר סימון כל {total} המפגשים",
+        "address": "כתובת (מיקום האימון)",
+        "addressPlaceholder": "רחוב, עיר...",
+        "save": "שמור הגדרות",
+        "addressPlaceholderShort": "רחוב, עיר"
+      },
+      "dropout": {
+        "title": "נשירה מתהליך — {dog}",
+        "body": "הכלב יועבר לארכיון עם סטטוס “נשר”. ניתן לציין את סיבת הנשירה לצורכי מעקב.",
+        "reason": "סיבת הנשירה (אופציונלי)",
+        "reasonPlaceholder": "לדוגמה: לקוח ביטל, לא הגיע לפגישות, עבר לאימון אחר...",
+        "confirm": "אשר נשירה"
+      },
+      "processing": "מעבד...",
+      "deleteProgram": {
+        "title": "מחיקת תהליך אילוף — {dog}",
+        "body": "פעולה זו תמחק לצמיתות את תוכנית האילוף כולל כל המפגשים, היעדים ושיעורי הבית. לא ניתן לשחזר.",
+        "orderQuestion": "מה לעשות עם ההזמנה המקושרת?",
+        "orderKeep": "להשאיר את ההזמנה כפי שהיא",
+        "orderCancel": "לבטל את ההזמנה (סטטוס: מבוטל)",
+        "orderDelete": "למחוק גם את ההזמנה",
+        "paidNote": "הזמנה ששולמה או שהופקה ממנה חשבונית תבוטל במקום להימחק."
+      },
+      "finish": {
+        "title": "סיום אילוף — {dog}",
+        "body": "האילוף של {dog} יסומן כהושלם ויועבר לארכיון. פעולה זו אינה הפיכה.",
+        "confirm": "אשר סיום"
+      },
+      "archive": {
+        "xlsx": {
+          "dogName": "שם הכלב",
+          "breed": "גזע",
+          "clientName": "שם הלקוח",
+          "phone": "טלפון",
+          "programType": "סוג תוכנית",
+          "sessionsDone": "מפגשים שהושלמו",
+          "startDate": "תאריך התחלה",
+          "endDate": "תאריך סיום",
+          "status": "סטטוס",
+          "notes": "סיבת נשירה / הערות",
+          "sheetName": "ארכיון אילוף"
+        },
+        "droppedOut": "נשר",
+        "filterAll": "הכל",
+        "filterCompleted": "הושלמו",
+        "filterDropped": "נשרו",
+        "from": "מ-",
+        "to": "עד-",
+        "searchPlaceholder": "חיפוש לפי כלב / לקוח...",
+        "export": "יצא Excel ({count})",
+        "empty": "הארכיון ריק",
+        "noResults": "אין תוצאות לחיפוש",
+        "emptyHint": "תהליכי אילוף שהסתיימו או שבהם הכלב נשר יופיעו כאן. לחץ \"סיים אילוף\" או \"נשר מתהליך\" בכרטיסיית הכלב.",
+        "noResultsHint": "נסה לשנות את החיפוש או הסינון",
+        "completed": "הושלם ✓",
+        "dropoutReason": "סיבת נשירה:",
+        "restoreTitle": "השב לתהליך פעיל",
+        "restore": "השב לתהליך"
+      },
+      "sdDog": {
+        "added": "כלב שירות נוסף בהצלחה",
+        "addError": "שגיאה בהוספת כלב",
+        "add": "הוסף כלב שירות",
+        "hint": "כלב זה יופיע בתהליכי אילוף — כלבי שירות ובניהול כלבי שירות. לא ישויך ללקוח.",
+        "nameRequired": "שם הכלב *",
+        "breedPlaceholder": "גזע...",
+        "sex": "מין",
+        "unknown": "לא ידוע",
+        "male": "זכר",
+        "female": "נקבה",
+        "birthDate": "תאריך לידה",
+        "weight": "משקל (ק״ג)",
+        "microchip": "מיקרוצ׳יפ",
+        "microchipPlaceholder": "מספר שבב...",
+        "serviceType": "סוג שירות",
+        "serviceTypePlaceholder": "כלב ניידות / פרכוסים / רגשי...",
+        "medicalNotes": "הערות רפואיות",
+        "behaviorNotes": "הערות התנהגותיות",
+        "generalNotes": "הערות כלליות"
+      },
+      "sdProgram": {
+        "name": "הכשרת כלב שירות — {dog}",
+        "created": "תוכנית אימון נוצרה בהצלחה",
+        "createError": "שגיאה ביצירת תוכנית",
+        "title": "תוכנית אימון חדשה — כלב שירות",
+        "dog": "כלב שירות *",
+        "noDogs": "אין כלבי שירות פעילים. <link>הוסף כלב שירות</link>",
+        "create": "צור תוכנית אימון"
+      },
+      "recipient": {
+        "added": "זכאי נוסף בהצלחה",
+        "addError": "שגיאה בהוספת זכאי",
+        "title": "הוסף זכאי חדש",
+        "fullName": "שם מלא *",
+        "fullNamePlaceholder": "שם ומשפחה",
+        "email": "אימייל",
+        "idNumber": "תעודת זהות",
+        "idPlaceholder": "9 ספרות",
+        "disabilityType": "סוג לקות",
+        "notSelected": "לא נבחר",
+        "address": "כתובת",
+        "disabilityDetails": "פירוט הלקות",
+        "disabilityPlaceholder": "מידע נוסף על הלקות...",
+        "add": "הוסף זכאי"
+      },
+      "pageTitle": "אילוף",
+      "tierGate": {
+        "title": "מנוע תהליכי אילוף",
+        "description": "ניהול תוכניות אילוף, מטרות ומפגשים. עקוב אחרי ההתקדמות של כל כלב בכל תוכנית אילוף."
+      }
     }
   },
   "ui": {
