@@ -35,6 +35,18 @@
 ולהוסיף אותה **בתחילת** השרשרת (כלל #26 — לא במקום הישנה). דרך מהירה לראות את הטקסטים: מסך `/scheduled-messages` → תצוגה מקדימה
 (`getPlatformTemplateTexts()` קורא את הטקסטים המאושרים מ-Meta), או `GET /api/cron/sync-platform-templates`.
 
+## 2א. תוצאת הבדיקה בפרודקשן (31/10/2026) ומה תוקן
+`GET /api/cron/sync-platform-templates` → `verticalAudit` (אחרי deploy של PR #190) — תבניות מאושרות עם ניסוח כלבי בגוף:
+`petra_appointment_reminder_v2`, `petra_appointment_reminder`, `petra_appointment_confirmation_v2`, `petra_appointment_confirmation`,
+`petra_lead_followup`, `petra_boarding_*` (×4), `petra_pet_birthday`. אף אחת לא מזכירה "פטרה".
+
+**התיקון** — נקודת שליחה אחת: `sendWithTemplateChain()` → `adaptChainForVertical()` (`src/lib/verticals/template-audit.ts`, `GENERIC_TEMPLATE_SWAPS`).
+עסק generic: תזכורת תור → `petra_meeting_reminder`, אישור תור → `petra_meeting_confirmation` (תבניות קטלוג UTILITY חדשות, ניסוח ניטרלי,
+אותם פרמטרים כמו v2); שאר התבניות המסומנות יורדות מהשרשרת (מעקב ליד נשאר עם `petra_lead_followup_notice` הנקייה; פנסיון / יום הולדת /
+חיסונים ממילא לא רצים — מודול מוסתר). עד ש-Meta מאשרת את התבניות החדשות, עסק generic מקבל את הטקסט החופשי הניטרלי (חלון 24 שעות בלבד) —
+**אף פעם** את התבנית הכלבית. עסק dogs — השרשרת זהה לחלוטין, ובדיקת הורטיקל רצה רק כשבשרשרת יש תבנית מהרשימה.
+`verticalAudit` מחזיר גם `matched` (המילים שסימנו) ובודק גם את `petra_payment_request` (נשלחת ישירות, לא דרך שרשרת).
+
 ## 3. שם השולח
 עסק שלא חיבר מספר משלו (Embedded Signup) שולח מהמספר של הפלטפורמה — **ה-display name של המספר הזה נראה ללקוח**.
 אם הוא "Petra" / "פטרה", לקוח של עסק generic יראה אותו. המלצה: לעסקי generic לחבר מספר עסקי משלהם
