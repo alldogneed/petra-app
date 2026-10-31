@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { sessionCookieDomain, tenantSlugFromHost } from "@/lib/verticals/tenant-host";
 
 /**
  * Paths that allow unauthenticated access.
@@ -72,6 +73,13 @@ function isValidTokenFormat(token: string): boolean {
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // Verticals phase 4: `{slug}.{TENANT_ROOT_DOMAIN}/` is the business's booking page.
+  // Off unless TENANT_ROOT_DOMAIN is set; petra-app.com never matches.
+  if (pathname === "/") {
+    const tenantSlug = tenantSlugFromHost(request.headers.get("host"), process.env.TENANT_ROOT_DOMAIN);
+    if (tenantSlug) return NextResponse.rewrite(new URL(`/book/${tenantSlug}`, request.url));
+  }
 
   // Allow public intake pages: /intake/[token] only — NOT /intake, /intake/create, /intake/list, /intake/send
   // Tokens are UUIDs (36 chars) or cuid-style IDs (25+ chars) — require at least 20 chars to exclude short admin paths
@@ -169,12 +177,15 @@ export function middleware(request: NextRequest) {
   if (rememberMe) {
     const isProd = process.env.NODE_ENV === "production";
     const maxAge = 30 * 24 * 60 * 60;
+    // Phase 4: shared across tenant sub-domains only when configured AND on such a host.
+    const domain = sessionCookieDomain(request.headers.get("host"), process.env.SESSION_COOKIE_DOMAIN);
     response.cookies.set("petra_session", sessionToken, {
       httpOnly: true,
       secure: isProd,
       sameSite: "lax",
       path: "/",
       maxAge,
+      ...(domain ? { domain } : {}),
     });
     response.cookies.set("petra_rm", "1", {
       httpOnly: true,
@@ -182,6 +193,7 @@ export function middleware(request: NextRequest) {
       sameSite: "lax",
       path: "/",
       maxAge,
+      ...(domain ? { domain } : {}),
     });
   }
   return response;

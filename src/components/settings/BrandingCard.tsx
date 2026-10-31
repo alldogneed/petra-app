@@ -16,6 +16,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useVertical } from "@/hooks/useVertical";
 import { fetchJSON } from "@/lib/utils";
 import { brandPalette, isValidHexColor, PETRA_PRIMARY } from "@/lib/verticals/branding";
+import { tenantUrl } from "@/lib/verticals/tenant-host";
 import { ReadOnlyNotice, SettingsSectionHeader } from "./settings-ui";
 import { useRegisterDirty } from "./SettingsDirtyContext";
 
@@ -37,7 +38,9 @@ export function BrandingCard() {
 
 function BrandingCardInner() {
   const qc = useQueryClient();
-  const { refreshUser } = useAuth();
+  const { refreshUser, user } = useAuth();
+  // Phase 4: `{slug}.petra.app` — shown only when sub-domains are switched on.
+  const tenantAddress = tenantUrl(user?.businessSlug, process.env.NEXT_PUBLIC_TENANT_ROOT_DOMAIN);
   const canEdit = usePermissions().canCriticalSettings;
   const { data, isLoading } = useQuery<BrandingEdit>({
     queryKey: QUERY_KEY,
@@ -97,6 +100,16 @@ function BrandingCardInner() {
         description="הצבעים והשם שהלקוחות שלך רואים — במערכת, בדף ההזמנות, במיילים ובדף החתימה. הלוגו הוא לוגו העסק שלמעלה."
       />
       {!canEdit && <ReadOnlyNotice className="mb-5" />}
+
+      {tenantAddress && (
+        <div className="mb-5 p-3 rounded-xl bg-slate-50 border border-slate-200 text-sm" data-testid="tenant-address">
+          <p className="text-petra-muted text-xs mb-1">הכתובת של העסק שלך</p>
+          <a href={tenantAddress} target="_blank" rel="noopener noreferrer" dir="ltr" className="font-medium text-brand-600 hover:underline">
+            {tenantAddress.replace("https://", "")}
+          </a>
+          <p className="text-[11px] text-petra-muted mt-1">דף ההזמנות בכתובת שלך; גם כניסה למערכת עובדת שם.</p>
+        </div>
+      )}
 
       <fieldset disabled={!canEdit} className="space-y-4">
         <div className="grid grid-cols-2 gap-4">

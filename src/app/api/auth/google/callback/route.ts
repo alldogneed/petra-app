@@ -1,4 +1,5 @@
 export const dynamic = 'force-dynamic';
+import { sessionCookieDomain } from "@/lib/verticals/tenant-host";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { createSession, ensureUserHasBusiness, validateSession } from "@/lib/auth";
@@ -161,6 +162,11 @@ export async function GET(request: NextRequest) {
       sameSite: "lax" as const,
       path: "/",
       maxAge: 30 * 24 * 60 * 60, // 30 days — matches SESSION_TTL_REMEMBER_ME in session.ts
+      // Verticals phase 4: shared across tenant sub-domains only when configured (else host-only, as before)
+      ...(() => {
+        const domain = sessionCookieDomain(request.headers.get("host"), process.env.SESSION_COOKIE_DOMAIN);
+        return domain ? { domain } : {};
+      })(),
     };
     response.cookies.set("petra_session", token, cookieOpts);
     // Companion flag cookie: tells middleware to roll the session cookie forward on each request

@@ -11,7 +11,8 @@
  */
 
 import crypto from "crypto";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { sessionCookieDomain } from "@/lib/verticals/tenant-host";
 import prisma from "@/lib/prisma";
 import { isMcpAllowedUser } from "@/lib/mcp-allowlist";
 import { hasActiveRecurring, isAwaitingRecurringCharge, isSubscriptionLapsed } from "@/lib/subscription-access";
@@ -134,15 +135,32 @@ export function getSessionToken(): string | null {
  */
 const REMEMBER_ME_COOKIE = "petra_rm";
 
+/**
+ * Verticals phase 4: `Domain=SESSION_COOKIE_DOMAIN` when the request's host is under it
+ * (one login across `{slug}.petra.app`); otherwise no Domain = host-only, as before.
+ */
+function cookieDomainOpts(): { domain?: string } {
+  let host: string | null = null;
+  try {
+    host = headers().get("host");
+  } catch {
+    host = null; // outside a request scope
+  }
+  const domain = sessionCookieDomain(host, process.env.SESSION_COOKIE_DOMAIN);
+  return domain ? { domain } : {};
+}
+
 export function setSessionCookie(token: string, rememberMe = false) {
   const maxAge = rememberMe ? 30 * 24 * 60 * 60 : 8 * 60 * 60; // 30 days or 8 hours
   const isProd = process.env.NODE_ENV === "production";
+  const domainOpts = cookieDomainOpts();
   cookies().set(SESSION_COOKIE, token, {
     httpOnly: true,
     secure: isProd,
     sameSite: "lax",
     path: "/",
     maxAge,
+    ...domainOpts,
   });
   cookies().set(REMEMBER_ME_COOKIE, rememberMe ? "1" : "0", {
     httpOnly: true,
@@ -150,17 +168,20 @@ export function setSessionCookie(token: string, rememberMe = false) {
     sameSite: "lax",
     path: "/",
     maxAge,
+    ...domainOpts,
   });
 }
 
 export function clearSessionCookie() {
   const isProd = process.env.NODE_ENV === "production";
+  const domainOpts = cookieDomainOpts();
   cookies().set(SESSION_COOKIE, "", {
     httpOnly: true,
     secure: isProd,
     sameSite: "lax",
     path: "/",
     maxAge: 0,
+    ...domainOpts,
   });
   cookies().set(REMEMBER_ME_COOKIE, "", {
     httpOnly: true,
@@ -168,6 +189,7 @@ export function clearSessionCookie() {
     sameSite: "lax",
     path: "/",
     maxAge: 0,
+    ...domainOpts,
   });
 }
 
