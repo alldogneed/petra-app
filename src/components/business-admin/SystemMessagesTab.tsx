@@ -3,6 +3,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import {
   Plus,
@@ -26,12 +28,8 @@ interface SystemMsg {
   createdAt: string;
 }
 
-const MSG_TYPE_LABELS: Record<string, string> = {
-  info: "מידע",
-  warning: "אזהרה",
-  success: "הצלחה",
-  error: "שגיאה",
-};
+// Type labels: businessAdmin.systemMessagesTab.types.<type>
+const MSG_TYPES = ["info", "warning", "success", "error"] as const;
 const MSG_TYPE_COLORS: Record<string, string> = {
   info: "bg-blue-50 text-blue-700",
   warning: "bg-amber-50 text-amber-700",
@@ -42,6 +40,10 @@ const MSG_TYPE_COLORS: Record<string, string> = {
 const EMPTY_FORM = { title: "", content: "", type: "info" as const, actionUrl: "", actionLabel: "", expiresAt: "" };
 
 export function SystemMessagesTab() {
+  const t = useTranslations("businessAdmin.systemMessagesTab");
+  const tc = useTranslations("common");
+  const { locale } = useBusinessLocale();
+  const typeLabel = (type: string) => (t.has(`types.${type}`) ? t(`types.${type}`) : undefined);
   const qc = useQueryClient();
   const [form, setForm] = useState({ ...EMPTY_FORM });
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -79,12 +81,12 @@ export function SystemMessagesTab() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["system-messages-admin"] });
       qc.invalidateQueries({ queryKey: ["systemMessages"] });
-      toast.success(editingId ? "הודעה עודכנה" : "הודעה נוצרה");
+      toast.success(editingId ? t("toasts.updated") : t("toasts.created"));
       setShowForm(false);
       setEditingId(null);
       setForm({ ...EMPTY_FORM });
     },
-    onError: () => toast.error("שגיאה בשמירה"),
+    onError: () => toast.error(t("errors.save")),
   });
 
   const del = useMutation({
@@ -93,10 +95,10 @@ export function SystemMessagesTab() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["system-messages-admin"] });
       qc.invalidateQueries({ queryKey: ["systemMessages"] });
-      toast.success("הודעה נמחקה");
+      toast.success(t("toasts.deleted"));
       setConfirmDeleteId(null);
     },
-    onError: () => toast.error("שגיאה במחיקה"),
+    onError: () => toast.error(t("errors.delete")),
   });
 
   function startEdit(msg: SystemMsg) {
@@ -122,14 +124,14 @@ export function SystemMessagesTab() {
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <p className="text-sm text-petra-muted">{messages.length} הודעות במערכת</p>
+        <p className="text-sm text-petra-muted">{t("count", { count: messages.length })}</p>
         {!showForm && (
           <button
             onClick={() => setShowForm(true)}
             className="btn-primary gap-1.5 text-sm"
           >
             <Plus className="w-4 h-4" />
-            הודעה חדשה
+            {t("newMessage")}
           </button>
         )}
       </div>
@@ -138,12 +140,12 @@ export function SystemMessagesTab() {
       {showForm && (
         <div className="bg-slate-50 border border-petra-border rounded-xl p-4 space-y-3">
           <h3 className="text-sm font-bold text-petra-text">
-            {editingId ? "עריכת הודעה" : "הודעה חדשה"}
+            {editingId ? t("form.editTitle") : t("newMessage")}
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="sm:col-span-2">
               <input
-                placeholder="כותרת *"
+                placeholder={t("form.titlePlaceholder")}
                 value={form.title}
                 onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
                 className="input w-full text-sm"
@@ -151,7 +153,7 @@ export function SystemMessagesTab() {
             </div>
             <div className="sm:col-span-2">
               <textarea
-                placeholder="תוכן ההודעה *"
+                placeholder={t("form.contentPlaceholder")}
                 value={form.content}
                 onChange={(e) => setForm((f) => ({ ...f, content: e.target.value }))}
                 rows={3}
@@ -163,27 +165,26 @@ export function SystemMessagesTab() {
               onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as typeof form.type }))}
               className="input text-sm"
             >
-              <option value="info">מידע</option>
-              <option value="warning">אזהרה</option>
-              <option value="success">הצלחה</option>
-              <option value="error">שגיאה</option>
+              {MSG_TYPES.map((type) => (
+                <option key={type} value={type}>{t(`types.${type}`)}</option>
+              ))}
             </select>
             <input
               type="datetime-local"
               value={form.expiresAt}
               onChange={(e) => setForm((f) => ({ ...f, expiresAt: e.target.value }))}
               className="input text-sm"
-              placeholder="תפוגה (אופציונלי)"
+              placeholder={t("form.expiresPlaceholder")}
             />
             <input
-              placeholder="כתובת קישור (אופציונלי)"
+              placeholder={t("form.actionUrlPlaceholder")}
               value={form.actionUrl}
               onChange={(e) => setForm((f) => ({ ...f, actionUrl: e.target.value }))}
               className="input text-sm"
               dir="ltr"
             />
             <input
-              placeholder="טקסט לכפתור (אופציונלי)"
+              placeholder={t("form.actionLabelPlaceholder")}
               value={form.actionLabel}
               onChange={(e) => setForm((f) => ({ ...f, actionLabel: e.target.value }))}
               className="input text-sm"
@@ -200,10 +201,10 @@ export function SystemMessagesTab() {
               ) : (
                 <CheckCircle2 className="w-3.5 h-3.5" />
               )}
-              {editingId ? "שמור שינויים" : "צור הודעה"}
+              {editingId ? t("form.saveChanges") : t("form.create")}
             </button>
             <button onClick={cancelForm} className="btn-secondary text-sm">
-              ביטול
+              {tc("actions.cancel")}
             </button>
           </div>
         </div>
@@ -216,16 +217,16 @@ export function SystemMessagesTab() {
         ) : messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 text-center">
             <MessageSquare className="w-8 h-8 text-slate-300 mb-2" />
-            <p className="text-sm text-petra-muted">אין הודעות מערכת</p>
+            <p className="text-sm text-petra-muted">{t("empty")}</p>
           </div>
         ) : (
           <table className="w-full text-sm">
             <thead className="bg-slate-50 border-b border-slate-100">
               <tr>
-                <th className="text-right px-4 py-3 font-medium text-petra-muted w-20">סוג</th>
-                <th className="text-right px-4 py-3 font-medium text-petra-muted">כותרת / תוכן</th>
-                <th className="text-right px-4 py-3 font-medium text-petra-muted hidden sm:table-cell w-28">תאריך</th>
-                <th className="text-right px-4 py-3 font-medium text-petra-muted hidden md:table-cell w-24">סטטוס</th>
+                <th className="text-start px-4 py-3 font-medium text-petra-muted w-20">{t("table.type")}</th>
+                <th className="text-start px-4 py-3 font-medium text-petra-muted">{t("table.titleContent")}</th>
+                <th className="text-start px-4 py-3 font-medium text-petra-muted hidden sm:table-cell w-28">{t("table.date")}</th>
+                <th className="text-start px-4 py-3 font-medium text-petra-muted hidden md:table-cell w-24">{t("table.status")}</th>
                 <th className="px-4 py-3 w-20" />
               </tr>
             </thead>
@@ -236,7 +237,7 @@ export function SystemMessagesTab() {
                   <tr key={msg.id} className={`border-b border-slate-50 last:border-0 ${isExpired ? "opacity-50" : ""}`}>
                     <td className="px-4 py-3">
                       <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${MSG_TYPE_COLORS[msg.type]}`}>
-                        {MSG_TYPE_LABELS[msg.type]}
+                        {typeLabel(msg.type)}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -244,12 +245,12 @@ export function SystemMessagesTab() {
                       <p className="text-[11px] text-petra-muted truncate max-w-[160px] sm:max-w-xs mt-0.5">{msg.content}</p>
                     </td>
                     <td className="px-4 py-3 text-petra-muted text-xs hidden sm:table-cell">
-                      {new Date(msg.createdAt).toLocaleDateString("he-IL")}
-                      {isExpired && <span className="block text-red-400">פג תוקף</span>}
+                      {new Date(msg.createdAt).toLocaleDateString(locale)}
+                      {isExpired && <span className="block text-red-400">{t("expired")}</span>}
                     </td>
                     <td className="px-4 py-3 hidden md:table-cell">
                       <span className={`text-[11px] px-2 py-0.5 rounded-full ${msg.isRead ? "bg-slate-100 text-slate-500" : "bg-brand-50 text-brand-600 font-medium"}`}>
-                        {msg.isRead ? "נקרא" : "לא נקרא"}
+                        {msg.isRead ? t("read") : t("unread")}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -260,13 +261,13 @@ export function SystemMessagesTab() {
                               onClick={() => del.mutate(msg.id)}
                               className="text-[11px] text-white bg-red-500 hover:bg-red-600 px-2 py-1 rounded-lg transition-colors"
                             >
-                              מחק
+                              {tc("actions.delete")}
                             </button>
                             <button
                               onClick={() => setConfirmDeleteId(null)}
                               className="text-[11px] text-petra-muted hover:text-petra-text px-2 py-1 rounded-lg transition-colors"
                             >
-                              ביטול
+                              {tc("actions.cancel")}
                             </button>
                           </>
                         ) : (
@@ -274,14 +275,14 @@ export function SystemMessagesTab() {
                             <button
                               onClick={() => startEdit(msg)}
                               className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-brand-600 hover:bg-brand-50 transition-colors"
-                              title="ערוך"
+                              title={t("editTitle")}
                             >
                               <PenLine className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={() => setConfirmDeleteId(msg.id)}
                               className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                              title="מחק"
+                              title={tc("actions.delete")}
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>

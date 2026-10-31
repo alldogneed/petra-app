@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FinanceTabs } from "@/components/finance/FinanceTabs";
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Search,
@@ -26,6 +27,11 @@ import { cn, toWhatsAppPhone, fetchJSON } from "@/lib/utils";
 import { TierGate } from "@/components/paywall/TierGate";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
+import { currencySymbol } from "@/lib/format";
+
+/** Internal id of the "all categories" tab (label from messages). */
+const ALL_CATEGORIES = "__all__";
 
 // ─── Types ────────────────────────────────────────────────────────
 
@@ -48,11 +54,12 @@ interface Customer {
 // ─── Component ────────────────────────────────────────────────────
 
 export default function PaymentRequestPage() {
+  const t = useTranslations("payments.paymentRequestPage");
   return (
     <TierGate
       feature="payment_links"
-      title="בקשת תשלום"
-      description="שלח בקשות תשלום ללקוחות בוואטסאפ עם קישורי תשלום אוטומטיים. שדרג כדי להפעיל."
+      title={t("title")}
+      description={t("tierGate.description")}
     >
       <PaymentRequestContent />
     </TierGate>
@@ -60,6 +67,9 @@ export default function PaymentRequestPage() {
 }
 
 function PaymentRequestContent() {
+  const t = useTranslations("payments.paymentRequestPage");
+  const { locale, currency, cfg: localeCfg } = useBusinessLocale();
+  const sym = currencySymbol({ locale, currency });
   const { canWritePayments } = usePermissions();
   const searchParams = useSearchParams();
   const prefilledCustomerId = searchParams.get("customerId");
@@ -88,7 +98,7 @@ function PaymentRequestContent() {
         name: item.name,
         price: item.basePrice,
         paymentUrl: item.paymentUrl || "",
-        category: item.category || "כללי",
+        category: item.category || t("categories.general"),
         unit: item.unit || "unit",
       }));
     },
@@ -96,12 +106,12 @@ function PaymentRequestContent() {
 
   const categories = useMemo(() => {
     const cats = [...new Set(products.map((p) => p.category))].sort();
-    return ["הכל", ...cats];
+    return [ALL_CATEGORIES, ...cats];
   }, [products]);
 
   // Selected items & discount
   const [selectedItems, setSelectedItems] = useState<Map<string, number>>(new Map());
-  const [activeCategory, setActiveCategory] = useState("הכל");
+  const [activeCategory, setActiveCategory] = useState(ALL_CATEGORIES);
 
   // Discount & manual override
   const [discountPercent, setDiscountPercent] = useState(0);
@@ -171,7 +181,7 @@ function PaymentRequestContent() {
   // ─── Product helpers ─────────────────────────────────────────
 
   const filteredProducts =
-    activeCategory === "הכל"
+    activeCategory === ALL_CATEGORIES
       ? products
       : products.filter((p) => p.category === activeCategory);
 
@@ -262,7 +272,7 @@ function PaymentRequestContent() {
       }));
     if (isManualOverride && overrideDiff < 0) {
       lines.push({
-        name: "התאמת מחיר ידנית",
+        name: t("order.manualAdjustmentLine"),
         unit: "unit",
         quantity: 1,
         unitPrice: -overrideDiff,
@@ -287,13 +297,13 @@ function PaymentRequestContent() {
         lines,
         ...discount,
         status: "confirmed",
-        notes: "נוצר מדף בקשת תשלום",
+        notes: t("order.notes"),
       }),
     });
 
     if (!res.ok) {
-      const body = await res.json().catch(() => ({ error: "שגיאה ביצירת ההזמנה" }));
-      toast.error(body.error || "שגיאה ביצירת ההזמנה — הבקשה לא נשלחה");
+      const body = await res.json().catch(() => ({ error: t("errors.createOrder") }));
+      toast.error(body.error || t("errors.createOrderNotSent"));
       return null;
     }
 
@@ -301,7 +311,7 @@ function PaymentRequestContent() {
     setCreatedOrderId(order.id);
     queryClient.invalidateQueries({ queryKey: ["orders"] });
     queryClient.invalidateQueries({ queryKey: ["customer", selectedCustomer.id] });
-    toast.success("נוצרה הזמנה במערכת — לאחר קבלת התשלום סמן אותה כשולמה");
+    toast.success(t("toasts.orderCreated"));
     return order.id;
   }
 
@@ -342,7 +352,7 @@ function PaymentRequestContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           amount: finalPrice,
-          description: itemNames || "תשלום",
+          description: itemNames || "תשלום", // i18n-ok — Stripe checkout text shown to the client (Phase 3)
           customerId: selectedCustomer?.id,
           orderId,
         }),
@@ -351,15 +361,15 @@ function PaymentRequestContent() {
       const data = await res.json();
 
       if (!res.ok) {
-        toast.error(data.error || "שגיאה ביצירת קישור Stripe");
+        toast.error(data.error || t("errors.stripeLink"));
         return;
       }
 
       setStripeLink(data.url);
       setCustomPaymentUrl(data.url);
-      toast.success("קישור Stripe נוצר!");
+      toast.success(t("toasts.stripeCreated"));
     } catch {
-      toast.error("שגיאת רשת — נסה שוב");
+      toast.error(t("errors.networkRetry"));
     } finally {
       setStripeLoading(false);
     }
@@ -387,7 +397,7 @@ function PaymentRequestContent() {
       }
     } catch {
       waWindow?.close();
-      toast.error("שגיאת רשת — הבקשה לא נשלחה");
+      toast.error(t("errors.networkNotSent"));
     } finally {
       setSendingWhatsApp(false);
     }
@@ -427,20 +437,21 @@ function PaymentRequestContent() {
 
     const phone = toWhatsAppPhone(selectedCustomer.phone);
 
+    // Customer-facing WhatsApp text — Phase 3 (messages sent to clients).
     const itemLines = selectedProductsList
-      .map(({ product, qty }) => `• ${product.name} x${qty} - ₪${product.price * qty}`)
+      .map(({ product, qty }) => `• ${product.name} x${qty} - ₪${product.price * qty}`) // i18n-ok
       .join("\n");
 
-    let message = `שלום ${selectedCustomer.name},\nהנה פירוט ההזמנה שלך:\n${itemLines}`;
+    let message = `שלום ${selectedCustomer.name},\nהנה פירוט ההזמנה שלך:\n${itemLines}`; // i18n-ok
 
     if (discountPercent > 0) {
-      message += `\nהנחה: ${discountPercent}%`;
+      message += `\nהנחה: ${discountPercent}%`; // i18n-ok
     }
 
-    message += `\n\nסה"כ לתשלום: ₪${finalPrice}`;
+    message += `\n\nסה"כ לתשלום: ₪${finalPrice}`; // i18n-ok
 
     if (effectivePaymentUrl) {
-      message += `\n\nלתשלום: ${effectivePaymentUrl}`;
+      message += `\n\nלתשלום: ${effectivePaymentUrl}`; // i18n-ok
     }
 
     return `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)}`;
@@ -463,7 +474,7 @@ function PaymentRequestContent() {
           <div className="flex items-center justify-center gap-3">
             {sendingWhatsApp ? <Loader2 className="w-6 h-6 animate-spin" /> : <MessageCircle className="w-6 h-6" />}
             <span className="text-lg font-semibold">
-              {sendingWhatsApp ? "יוצר הזמנה..." : `שלח בקשת תשלום בוואטסאפ — ₪${finalPrice}`}
+              {sendingWhatsApp ? t("creatingOrder") : t("banner.send", { amount: `${sym}${finalPrice}` })}
             </span>
             <Send className="w-5 h-5" />
           </div>
@@ -472,8 +483,8 @@ function PaymentRequestContent() {
 
       {/* Page Title */}
       <div>
-        <h1 className="text-2xl font-bold text-petra-text">בקשת תשלום</h1>
-        <p className="text-sm text-slate-500 mt-1">בחר לקוח, הוסף מוצרים ושלח בקשת תשלום בוואטסאפ</p>
+        <h1 className="text-2xl font-bold text-petra-text">{t("title")}</h1>
+        <p className="text-sm text-slate-500 mt-1">{t("subtitle")}</p>
       </div>
 
       {/* Main Grid */}
@@ -484,7 +495,7 @@ function PaymentRequestContent() {
           <div className="bg-white rounded-2xl border border-slate-200 p-5">
             <div className="flex items-center gap-2 mb-4">
               <User className="w-5 h-5 text-slate-500" />
-              <h2 className="text-lg font-semibold text-petra-text">בחירת לקוח</h2>
+              <h2 className="text-lg font-semibold text-petra-text">{t("customer.title")}</h2>
             </div>
 
             {selectedCustomer ? (
@@ -509,13 +520,13 @@ function PaymentRequestContent() {
             ) : (
               <div ref={searchRef} className="relative">
                 <div className="relative">
-                  <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <input
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="חפש לקוח לפי שם או טלפון..."
-                    className="w-full pr-10 pl-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+                    placeholder={t("customer.searchPlaceholder")}
+                    className="w-full ps-10 pe-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
                   />
                 </div>
 
@@ -529,7 +540,7 @@ function PaymentRequestContent() {
                           setShowDropdown(false);
                           setSearchQuery("");
                         }}
-                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors text-right"
+                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors text-start"
                       >
                         <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
                           <User className="w-4 h-4 text-slate-500" />
@@ -552,7 +563,7 @@ function PaymentRequestContent() {
           <div className="bg-white rounded-2xl border border-slate-200 p-5">
             <div className="flex items-center gap-2 mb-4">
               <ShoppingBag className="w-5 h-5 text-slate-500" />
-              <h2 className="text-lg font-semibold text-petra-text">מוצרים ושירותים</h2>
+              <h2 className="text-lg font-semibold text-petra-text">{t("products.title")}</h2>
             </div>
 
             {/* Category Tabs */}
@@ -568,7 +579,7 @@ function PaymentRequestContent() {
                       : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                   )}
                 >
-                  {cat}
+                  {cat === ALL_CATEGORIES ? t("categories.all") : cat}
                 </button>
               ))}
             </div>
@@ -579,12 +590,12 @@ function PaymentRequestContent() {
             ) : products.length === 0 ? (
               <div className="text-center py-8">
                 <ShoppingBag className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                <p className="text-sm text-slate-400">אין פריטים במחירון</p>
+                <p className="text-sm text-slate-400">{t("products.empty")}</p>
                 <Link
                   href="/pricing"
                   className="text-xs text-brand-600 hover:text-brand-700 hover:underline mt-1 inline-block"
                 >
-                  הוסף פריטים במחירון ←
+                  {t("products.addToPriceList")}
                 </Link>
               </div>
             ) : (
@@ -607,7 +618,7 @@ function PaymentRequestContent() {
                         <span className="text-xs text-slate-500">{product.category}</span>
                       </div>
                       <span className="text-sm font-semibold text-petra-text">
-                        ₪{product.price}
+                        {sym}{product.price}
                       </span>
                     </div>
 
@@ -639,7 +650,7 @@ function PaymentRequestContent() {
                         className="mt-3 w-full py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium transition-colors flex items-center justify-center gap-1.5"
                       >
                         <Plus className="w-4 h-4" />
-                        הוסף
+                        {t("products.add")}
                       </button>
                     )}
                   </div>
@@ -655,13 +666,13 @@ function PaymentRequestContent() {
           <div className="bg-white rounded-2xl shadow-lg p-5 sticky top-6">
             <div className="flex items-center gap-2 mb-5">
               <Calculator className="w-5 h-5 text-slate-500" />
-              <h2 className="text-lg font-semibold text-petra-text">סיכום הזמנה</h2>
+              <h2 className="text-lg font-semibold text-petra-text">{t("summary.title")}</h2>
             </div>
 
             {selectedProductsList.length === 0 ? (
               <div className="text-center py-8">
                 <ShoppingBag className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-                <p className="text-sm text-slate-400">לא נבחרו מוצרים</p>
+                <p className="text-sm text-slate-400">{t("summary.empty")}</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -679,7 +690,7 @@ function PaymentRequestContent() {
                         )}
                       </span>
                       <span className="font-medium text-petra-text">
-                        ₪{product.price * qty}
+                        {sym}{product.price * qty}
                       </span>
                     </div>
                   ))}
@@ -688,15 +699,15 @@ function PaymentRequestContent() {
                 <div className="border-t border-slate-200 pt-3 space-y-3">
                   {/* Subtotal */}
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-500">סכום ביניים</span>
-                    <span className="text-petra-text">₪{subtotal}</span>
+                    <span className="text-slate-500">{t("summary.subtotal")}</span>
+                    <span className="text-petra-text">{sym}{subtotal}</span>
                   </div>
 
                   {/* Discount */}
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
                       <Percent className="w-4 h-4 text-slate-400" />
-                      <span className="text-sm text-slate-500">הנחה</span>
+                      <span className="text-sm text-slate-500">{t("summary.discount")}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <input
@@ -713,8 +724,8 @@ function PaymentRequestContent() {
                       />
                       <span className="text-sm text-slate-500">%</span>
                       {discountAmount > 0 && (
-                        <span className="text-sm text-green-600 mr-auto" dir="ltr">
-                          -₪{discountAmount}
+                        <span className={cn("text-sm text-green-600", localeCfg.dir === "rtl" ? "mr-auto" : "ml-auto")} dir="ltr">{/* rtl-ok: the span is dir="ltr", logical margins would follow it */}
+                          -{sym}{discountAmount}
                         </span>
                       )}
                     </div>
@@ -722,8 +733,8 @@ function PaymentRequestContent() {
 
                   {/* Calculated Total */}
                   <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-500">סה&quot;כ אחרי הנחה</span>
-                    <span className="text-petra-text">₪{calculatedTotal}</span>
+                    <span className="text-slate-500">{t("summary.afterDiscount")}</span>
+                    <span className="text-petra-text">{sym}{calculatedTotal}</span>
                   </div>
 
                   {/* Manual Override */}
@@ -738,11 +749,11 @@ function PaymentRequestContent() {
                         }}
                         className="w-4 h-4 rounded border-slate-300 text-orange-500 focus:ring-orange-500"
                       />
-                      <span className="text-sm text-slate-600">עריכה ידנית של המחיר</span>
+                      <span className="text-sm text-slate-600">{t("summary.manualOverride")}</span>
                     </label>
                     {isManualOverride && (
                       <div className="flex items-center gap-2">
-                        <span className="text-sm text-slate-500">₪</span>
+                        <span className="text-sm text-slate-500">{sym}</span>
                         <input
                           type="number"
                           min={0}
@@ -758,15 +769,15 @@ function PaymentRequestContent() {
                 {/* Final Price */}
                 <div className="border-t border-slate-200 pt-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-base font-bold text-petra-text">סה&quot;כ לתשלום</span>
-                    <span className="text-xl font-bold text-orange-600">₪{finalPrice}</span>
+                    <span className="text-base font-bold text-petra-text">{t("summary.totalToPay")}</span>
+                    <span className="text-xl font-bold text-orange-600">{sym}{finalPrice}</span>
                   </div>
                 </div>
 
                 {/* Attach to an existing open order instead of creating a second one */}
                 {openOrders.length > 0 && (
                   <div className="border-t border-slate-200 pt-3 space-y-1.5">
-                    <span className="text-xs font-medium text-slate-500">לאיזו הזמנה שייכת הבקשה?</span>
+                    <span className="text-xs font-medium text-slate-500">{t("linkOrder.question")}</span>
                     {openOrders.map((o) => (
                       <label key={o.id} className="flex items-start gap-2 text-xs cursor-pointer">
                         <input
@@ -777,7 +788,7 @@ function PaymentRequestContent() {
                           onChange={() => { linkTouched.current = true; setLinkTarget(o.id); }}
                         />
                         <span>
-                          הזמנה קיימת #{o.id.slice(-8).toUpperCase()} — נותר לתשלום ₪{o.remaining.toLocaleString("he-IL")}
+                          {t("linkOrder.existing", { id: o.id.slice(-8).toUpperCase(), amount: `${sym}${o.remaining.toLocaleString(locale)}` })}
                           {o.lines?.length ? <span className="text-slate-400"> · {o.lines.map((l) => l.name).slice(0, 2).join(", ")}</span> : null}
                         </span>
                       </label>
@@ -789,10 +800,10 @@ function PaymentRequestContent() {
                         checked={linkTarget === "new"}
                         onChange={() => { linkTouched.current = true; setLinkTarget("new"); }}
                       />
-                      הזמנה חדשה (₪{finalPrice.toLocaleString("he-IL")})
+                      {t("linkOrder.newOrder", { amount: `${sym}${finalPrice.toLocaleString(locale)}` })}
                     </label>
                     {linkTarget !== "new" && (
-                      <p className="text-[11px] text-emerald-700">לא תיווצר הזמנה נוספת — הבקשה תשויך להזמנה הקיימת.</p>
+                      <p className="text-[11px] text-emerald-700">{t("linkOrder.attachNote")}</p>
                     )}
                   </div>
                 )}
@@ -801,7 +812,7 @@ function PaymentRequestContent() {
                 <div className="border-t border-slate-200 pt-3 space-y-1.5">
                   <div className="flex items-center gap-1.5">
                     <LinkIcon className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                    <span className="text-xs font-medium text-slate-500">קישור לתשלום</span>
+                    <span className="text-xs font-medium text-slate-500">{t("paymentLink.title")}</span>
                     {effectivePaymentUrl && (
                       <a
                         href={effectivePaymentUrl}
@@ -825,7 +836,7 @@ function PaymentRequestContent() {
                       ) : (
                         <CreditCard className="w-3.5 h-3.5" />
                       )}
-                      {stripeLoading ? "יוצר קישור Stripe..." : `צור קישור Stripe — ₪${finalPrice}`}
+                      {stripeLoading ? t("paymentLink.creatingStripe") : t("paymentLink.createStripe", { amount: `${sym}${finalPrice}` })}
                     </button>
                   )}
                   <input
@@ -835,24 +846,24 @@ function PaymentRequestContent() {
                       setCustomPaymentUrl(e.target.value);
                       if (stripeLink && e.target.value !== stripeLink) setStripeLink(null);
                     }}
-                    placeholder={autoPaymentUrl || "הדבק קישור לדף תשלום..."}
+                    placeholder={autoPaymentUrl || t("paymentLink.placeholder")}
                     dir="ltr"
-                    className={cn("w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 placeholder:text-slate-300", !autoPaymentUrl && "placeholder:text-right")}
+                    className={cn("w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 placeholder:text-slate-300", !autoPaymentUrl && localeCfg.dir === "rtl" && "placeholder:text-right")} // rtl-ok: dir="ltr" input, Hebrew placeholder aligned right
                   />
                   {stripeLink && customPaymentUrl === stripeLink && (
                     <p className="text-xs text-violet-600 flex items-center gap-1">
                       <CreditCard className="w-3 h-3" />
-                      קישור Stripe נוצר — ישלח בהודעה
+                      {t("paymentLink.stripeReady")}
                     </p>
                   )}
                   {!customPaymentUrl && autoPaymentUrl && (
                     <p className="text-xs text-slate-400">
-                      ↑ קישור אוטומטי מהמוצר הנבחר
+                      {t("paymentLink.autoFromProduct")}
                     </p>
                   )}
                   {!effectivePaymentUrl && (
                     <p className="text-xs text-amber-500">
-                      ללא קישור — ההודעה תישלח ללא לינק תשלום
+                      {t("paymentLink.noLink")}
                     </p>
                   )}
                 </div>
@@ -866,12 +877,12 @@ function PaymentRequestContent() {
                   >
                     <span className="flex items-center justify-center gap-2">
                       {sendingWhatsApp ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageCircle className="w-4 h-4" />}
-                      {sendingWhatsApp ? "יוצר הזמנה..." : "שלח בוואטסאפ"}
+                      {sendingWhatsApp ? t("creatingOrder") : t("sendWhatsApp")}
                     </span>
                   </button>
                 ) : (
                   <div className="py-3 rounded-xl bg-slate-100 text-slate-400 text-center text-sm">
-                    {!selectedCustomer ? "בחר לקוח כדי לשלוח" : "הוסף מוצרים כדי לשלוח"}
+                    {!selectedCustomer ? t("disabled.selectCustomer") : t("disabled.addProducts")}
                   </div>
                 )}
               </div>

@@ -2,22 +2,24 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { LayoutDashboard, Dog, UserCheck, Activity, CreditCard, BarChart2, Syringe } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
 
 const TABS = [
-  { name: "סקירה",          href: "/service-dogs",              icon: LayoutDashboard },
-  { name: "כלבים",          href: "/service-dogs/dogs",         icon: Dog             },
-  { name: "זכאים",          href: "/service-dogs/recipients",   icon: UserCheck,      requirePerm: "canSeeRecipientsSensitive" as const },
-  { name: "שיבוצים",        href: "/service-dogs/placements",   icon: Activity,       requirePerm: "canSeeRecipientsSensitive" as const },
-  { name: "חיסונים",        href: "/service-dogs/vaccinations", icon: Syringe         },
-  { name: "תעודות הסמכה",  href: "/service-dogs/id-cards",     icon: CreditCard      },
-  { name: "דוחות פנימיים", href: "/service-dogs/reports",      icon: BarChart2       },
+  { key: "overview",         href: "/service-dogs",              icon: LayoutDashboard },
+  { key: "dogs",             href: "/service-dogs/dogs",         icon: Dog             },
+  { key: "recipients",       href: "/service-dogs/recipients",   icon: UserCheck,      requirePerm: "canSeeRecipientsSensitive" as const },
+  { key: "placements",       href: "/service-dogs/placements",   icon: Activity,       requirePerm: "canSeeRecipientsSensitive" as const },
+  { key: "vaccinations",     href: "/service-dogs/vaccinations", icon: Syringe         },
+  { key: "idCards",          href: "/service-dogs/id-cards",     icon: CreditCard      },
+  { key: "reports",          href: "/service-dogs/reports",      icon: BarChart2       },
 ];
 
 export function ServiceDogsTabs() {
   const pathname = usePathname();
+  const t = useTranslations("serviceDogs.serviceDogsTabs");
   const perms = usePermissions();
 
   return (
@@ -31,12 +33,13 @@ export function ServiceDogsTabs() {
             ? pathname === "/service-dogs"
             : pathname === tab.href || pathname.startsWith(tab.href + "/");
         const Icon = tab.icon;
+        const name = t(tab.key);
         return (
           <Link
             key={tab.href}
             href={tab.href}
-            aria-label={tab.name}
-            title={tab.name}
+            aria-label={name}
+            title={name}
             className={cn(
               "flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all flex-1 whitespace-nowrap",
               isActive
@@ -45,7 +48,7 @@ export function ServiceDogsTabs() {
             )}
           >
             <Icon className="w-4 h-4 flex-shrink-0" />
-            <span className="hidden sm:inline">{tab.name}</span>
+            <span className="hidden sm:inline">{name}</span>
           </Link>
         );
       })}

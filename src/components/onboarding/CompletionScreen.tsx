@@ -1,16 +1,18 @@
 "use client";
 
 import { CheckCircle2, ArrowLeft } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface CompletionScreenProps {
   onContinue: () => void;
 }
 
 export function CompletionScreen({ onContinue }: CompletionScreenProps) {
+  const t = useTranslations("onboarding.completionScreen");
   const checklist = [
-    "לקוח נוסף",
-    "שירות נקבע",
-    "תזכורת אוטומטית הופעלה",
+    t("checklist.customerAdded"),
+    t("checklist.serviceSet"),
+    t("checklist.reminderEnabled"),
   ];
 
   return (
@@ -29,11 +31,11 @@ export function CompletionScreen({ onContinue }: CompletionScreenProps) {
 
         {/* Title */}
         <h1 className="text-2xl font-bold text-petra-text mb-6">
-          העסק שלך כבר נראה אחרת.
+          {t("title")}
         </h1>
 
         {/* Checklist */}
-        <div className="space-y-3 mb-8 text-right max-w-xs mx-auto">
+        <div className="space-y-3 mb-8 text-start max-w-xs mx-auto">
           {checklist.map((item) => (
             <div
               key={item}
@@ -49,9 +51,9 @@ export function CompletionScreen({ onContinue }: CompletionScreenProps) {
 
         {/* Human line */}
         <p className="text-sm text-petra-muted mb-8 leading-relaxed max-w-xs mx-auto">
-          בעלי עסקים בתחום הכלבים עובדים קשה.
+          {t("humanLine1")}
           <br />
-          פטרה כאן כדי להוריד ממך עומס.
+          {t("humanLine2")}
         </p>
 
         {/* CTA */}
@@ -59,8 +61,8 @@ export function CompletionScreen({ onContinue }: CompletionScreenProps) {
           onClick={onContinue}
           className="btn-primary inline-flex items-center gap-2 text-base py-3 px-8"
         >
-          המשך להגדרות
-          <ArrowLeft className="w-4 h-4" />
+          {t("continueToSettings")}
+          <ArrowLeft className="w-4 h-4 ltr:-scale-x-100" />
         </button>
       </div>
     </div>

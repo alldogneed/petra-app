@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { formatCurrency } from "@/lib/utils";
+import { useTranslations } from "next-intl";
+import { formatCurrency as formatCurrencyL } from "@/lib/format";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { DashCard, DashCardHeader, DashLink } from "@/components/dashboard/dash-ui";
 
 /**
@@ -21,6 +23,9 @@ export default function RevenueChart({
   /** Shown as a "לדוחות" link when the viewer may open the reports page. */
   reportsHref?: string;
 }) {
+  const t = useTranslations("dashboard.revenueChart");
+  const { locale, currency } = useBusinessLocale();
+  const formatCurrency = (amount: number) => formatCurrencyL(amount, { locale, currency });
   const [hover, setHover] = useState(-1);
   const total = data.reduce((s, d) => s + d.amount, 0);
   const max = Math.max(target || 0, ...data.map((d) => d.amount), 0) * 1.12 || 1;
@@ -30,14 +35,14 @@ export default function RevenueChart({
   return (
     <DashCard>
       <DashCardHeader
-        title="הכנסות אחרונות"
-        titleExtra={reportsHref ? <DashLink href={reportsHref}>לדוחות</DashLink> : undefined}
+        title={t("title")}
+        titleExtra={reportsHref ? <DashLink href={reportsHref}>{t("toReports")}</DashLink> : undefined}
         subtitle={
           <>
-            סה״כ {formatCurrency(total)}
+            {t("total", { amount: formatCurrency(total) })}
             {topService && (
               <>
-                {" · "}שירות מוביל: <span className="text-slate-900 font-medium">{topService.name}</span>
+                {" · "}{t("topService")}{" "}<span className="text-slate-900 font-medium">{topService.name}</span>
               </>
             )}
           </>
@@ -46,25 +51,25 @@ export default function RevenueChart({
           <div className="flex items-center gap-3.5 text-xs text-slate-500">
             <span className="inline-flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-[2px] bg-[#F97316]" />
-              הכנסות
+              {t("legendRevenue")}
             </span>
             <span className="inline-flex items-center gap-1.5">
               <span className="w-3.5 border-t-[1.5px] border-dashed border-[#94A3B8]" />
-              יעד
+              {t("legendTarget")}
             </span>
           </div>
         }
       />
 
-      <div role="img" aria-label={`גרף הכנסות חודשי. סה"כ ${formatCurrency(total)} בתקופה הנבחרת`}>
+      <div role="img" aria-label={t("ariaLabel", { amount: formatCurrency(total) })}>
         <div className="relative h-[200px] mt-4 border-b border-slate-200" onMouseLeave={() => setHover(-1)}>
           {target > 0 && (
             <div
               className="absolute inset-x-0 border-t-[1.5px] border-dashed border-[#94A3B8] z-[1] pointer-events-none"
               style={{ bottom: pct(target) }}
             >
-              <span className="absolute -top-[18px] left-0 text-[11px] text-slate-500 bg-white px-1 tabular-nums">
-                יעד {formatCurrency(target)}
+              <span className="absolute -top-[18px] end-0 text-[11px] text-slate-500 bg-white px-1 tabular-nums">
+                {t("targetLabel", { amount: formatCurrency(target) })}
               </span>
             </div>
           )}
@@ -80,7 +85,7 @@ export default function RevenueChart({
                 >
                   {hover === i && (
                     <div
-                      className="absolute left-1/2 -translate-x-1/2 bg-[#0F172A] text-white text-xs font-medium px-2 py-1 rounded-md whitespace-nowrap tabular-nums z-[2]"
+                      className="absolute end-1/2 -translate-x-1/2 ltr:translate-x-1/2 bg-[#0F172A] text-white text-xs font-medium px-2 py-1 rounded-md whitespace-nowrap tabular-nums z-[2]"
                       style={{ bottom: `calc(${h} + 8px)` }}
                     >
                       {d.month} · {formatCurrency(d.amount)}

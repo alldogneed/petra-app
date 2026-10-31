@@ -6,6 +6,7 @@ import type { TeamStatsResponse, TeamStatsMember, TeamStatsDays } from "@/lib/te
 import { PermissionsMatrix } from "./PermissionsMatrix";
 import { useAuth } from "@/providers/auth-provider";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import {
   UserCheck,
@@ -17,19 +18,18 @@ import {
   KeyRound,
   Users,
 } from "lucide-react";
-import { TeamMember, ROLE_LABELS, ROLE_COLORS, relativeTime, formatTs, isOnline, Avatar } from "./shared";
+import { TeamMember, ROLE_COLORS, isOnline, Avatar, useBusinessAdminFormat } from "./shared";
 
 type MemberRow = TeamMember & { permissionOverrides?: Record<string, boolean> | null };
 
-const PERIODS: { days: TeamStatsDays; label: string }[] = [
-  { days: 7, label: "7 ימים" },
-  { days: 30, label: "30 יום" },
-  { days: 90, label: "90 יום" },
-];
+// Labels: businessAdmin.teamTab.periods.<days>
+const PERIODS: { days: TeamStatsDays }[] = [{ days: 7 }, { days: 30 }, { days: 90 }];
 
 const TEAM_QUERY_KEY = ["ba-team"] as const;
 
 export function TeamTab({ currentUserId }: { currentUserId: string }) {
+  const t = useTranslations("businessAdmin.teamTab");
+  const fmt = useBusinessAdminFormat();
   const { user } = useAuth();
   const businessId = user?.businessId ?? "";
   const queryClient = useQueryClient();
@@ -43,7 +43,7 @@ export function TeamTab({ currentUserId }: { currentUserId: string }) {
     queryFn: () =>
       fetch(`/api/admin/${businessId}/members`).then(async (r) => {
         const d = await r.json();
-        if (!r.ok || !Array.isArray(d)) throw new Error(d?.error || "שגיאה בטעינת הצוות");
+        if (!r.ok || !Array.isArray(d)) throw new Error(d?.error || t("errors.loadTeam"));
         return d;
       }),
   });
@@ -54,7 +54,7 @@ export function TeamTab({ currentUserId }: { currentUserId: string }) {
     queryFn: () =>
       fetch(`/api/business-admin/team-stats?days=${days}`).then(async (r) => {
         const d = await r.json();
-        if (!r.ok) throw new Error(d?.error || "שגיאה בטעינת הסיכום");
+        if (!r.ok) throw new Error(d?.error || t("errors.loadStats"));
         return d;
       }),
   });
@@ -65,15 +65,15 @@ export function TeamTab({ currentUserId }: { currentUserId: string }) {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בעדכון"); return d; }),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || t("errors.update")); return d; }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ba-team"] });
       queryClient.invalidateQueries({ queryKey: ["ba-overview"] });
       queryClient.invalidateQueries({ queryKey: ["ba-team-stats"] });
       setEditingId(null);
-      toast.success("עודכן בהצלחה");
+      toast.success(t("toasts.updated"));
     },
-    onError: () => toast.error("שגיאה בעדכון"),
+    onError: () => toast.error(t("errors.update")),
   });
 
   const handleRoleSave = (memberId: string) => {
@@ -99,9 +99,9 @@ export function TeamTab({ currentUserId }: { currentUserId: string }) {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <BarChart3 className="w-4 h-4 text-brand-500" />
-            <h3 className="text-sm font-semibold text-petra-text">סיכום לפי עובד</h3>
+            <h3 className="text-sm font-semibold text-petra-text">{t("summary.title")}</h3>
           </div>
-          <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5" role="group" aria-label="תקופה">
+          <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5" role="group" aria-label={t("summary.periodAria")}>
             {PERIODS.map((p) => (
               <button
                 key={p.days}
@@ -112,7 +112,7 @@ export function TeamTab({ currentUserId }: { currentUserId: string }) {
                   days === p.days ? "bg-brand-500 text-white" : "text-petra-muted hover:bg-slate-50"
                 }`}
               >
-                {p.label}
+                {t(`periods.${p.days}`)}
               </button>
             ))}
           </div>
@@ -123,9 +123,9 @@ export function TeamTab({ currentUserId }: { currentUserId: string }) {
             <PetraLoader variant="inline" />
           </div>
         ) : statsError || !stats ? (
-          <div className="card p-6 text-center text-sm text-petra-muted">לא ניתן לטעון את סיכום הפעילות</div>
+          <div className="card p-6 text-center text-sm text-petra-muted">{t("summary.loadFailed")}</div>
         ) : stats.members.length === 0 ? (
-          <div className="card p-6 text-center text-sm text-petra-muted">אין עובדים להצגה</div>
+          <div className="card p-6 text-center text-sm text-petra-muted">{t("summary.empty")}</div>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {stats.members.map((m) => (
@@ -139,18 +139,18 @@ export function TeamTab({ currentUserId }: { currentUserId: string }) {
       <section className="space-y-3">
         <div className="flex items-center gap-2">
           <Users className="w-4 h-4 text-brand-500" />
-          <h3 className="text-sm font-semibold text-petra-text">ניהול צוות</h3>
+          <h3 className="text-sm font-semibold text-petra-text">{t("table.title")}</h3>
         </div>
     <div className="card overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-slate-100 text-xs text-petra-muted">
-            <th className="text-right px-4 py-3 font-medium">משתמש</th>
-            <th className="text-right px-4 py-3 font-medium">תפקיד</th>
-            <th className="text-right px-4 py-3 font-medium hidden sm:table-cell">
-              פעילות אחרונה
+            <th className="text-start px-4 py-3 font-medium">{t("table.user")}</th>
+            <th className="text-start px-4 py-3 font-medium">{t("table.role")}</th>
+            <th className="text-start px-4 py-3 font-medium hidden sm:table-cell">
+              {t("table.lastActivity")}
             </th>
-            <th className="text-right px-4 py-3 font-medium">סטטוס</th>
+            <th className="text-start px-4 py-3 font-medium">{t("table.status")}</th>
             <th className="px-4 py-3" />
           </tr>
         </thead>
@@ -171,14 +171,14 @@ export function TeamTab({ currentUserId }: { currentUserId: string }) {
                     <div className="relative">
                       <Avatar name={member.user.name} url={member.user.avatarUrl} size={8} />
                       {online && (
-                        <span className="absolute -bottom-0.5 -left-0.5 w-3 h-3 bg-green-400 border-2 border-white rounded-full" />
+                        <span className="absolute -bottom-0.5 -end-0.5 w-3 h-3 bg-green-400 border-2 border-white rounded-full" />
                       )}
                     </div>
                     <div>
                       <p className="font-medium text-slate-800">
                         {member.user.name}
                         {isMe && (
-                          <span className="text-xs text-petra-muted font-normal"> (אתה)</span>
+                          <span className="text-xs text-petra-muted font-normal">{t("you")}</span>
                         )}
                       </p>
                       <p className="text-xs text-petra-muted">{member.user.email}</p>
@@ -196,21 +196,21 @@ export function TeamTab({ currentUserId }: { currentUserId: string }) {
                         onChange={(e) => setNewRole(e.target.value)}
                         autoFocus
                       >
-                        <option value="owner">בעלים</option>
-                        <option value="manager">מנג׳ר</option>
-                        <option value="user">עובד</option>
+                        <option value="owner">{fmt.roleLabel("owner")}</option>
+                        <option value="manager">{fmt.roleLabel("manager")}</option>
+                        <option value="user">{fmt.roleLabel("user")}</option>
                       </select>
                       <button
                         onClick={() => handleRoleSave(member.id)}
                         className="text-green-600 hover:text-green-700"
-                        title="שמור"
+                        title={t("actions.save")}
                       >
                         <CheckCircle2 className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => setEditingId(null)}
                         className="text-slate-400 hover:text-slate-600"
-                        title="בטל"
+                        title={t("actions.cancel")}
                       >
                         <XCircle className="w-4 h-4" />
                       </button>
@@ -221,7 +221,7 @@ export function TeamTab({ currentUserId }: { currentUserId: string }) {
                         ROLE_COLORS[member.role] ?? "bg-slate-100 text-slate-700"
                       }`}
                     >
-                      {ROLE_LABELS[member.role] ?? member.role}
+                      {fmt.roleLabel(member.role)}
                     </span>
                   )}
                 </td>
@@ -229,11 +229,11 @@ export function TeamTab({ currentUserId }: { currentUserId: string }) {
                 {/* Last seen */}
                 <td className="px-4 py-3 text-petra-muted hidden sm:table-cell">
                   {latestSession ? (
-                    <span title={formatTs(latestSession.lastSeenAt)}>
-                      {relativeTime(latestSession.lastSeenAt)}
+                    <span title={fmt.formatTs(latestSession.lastSeenAt)}>
+                      {fmt.relativeTime(latestSession.lastSeenAt)}
                     </span>
                   ) : (
-                    <span className="text-slate-300">מעולם לא</span>
+                    <span className="text-slate-300">{t("never")}</span>
                   )}
                 </td>
 
@@ -249,12 +249,12 @@ export function TeamTab({ currentUserId }: { currentUserId: string }) {
                     {member.isActive ? (
                       <>
                         <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                        פעיל
+                        {t("status.active")}
                       </>
                     ) : (
                       <>
                         <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-                        מושבת
+                        {t("status.inactive")}
                       </>
                     )}
                   </span>
@@ -270,7 +270,7 @@ export function TeamTab({ currentUserId }: { currentUserId: string }) {
                           setNewRole(member.role);
                         }}
                         className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-brand-600 hover:bg-brand-50 transition-colors"
-                        title="שנה תפקיד"
+                        title={t("actions.changeRole")}
                       >
                         <PenLine className="w-3.5 h-3.5" />
                       </button>
@@ -282,7 +282,7 @@ export function TeamTab({ currentUserId }: { currentUserId: string }) {
                             ? "text-slate-400 hover:text-red-600 hover:bg-red-50"
                             : "text-slate-400 hover:text-green-600 hover:bg-green-50"
                         }`}
-                        title={member.isActive ? "השבת משתמש" : "הפעל משתמש"}
+                        title={member.isActive ? t("actions.deactivate") : t("actions.activate")}
                       >
                         {member.isActive ? (
                           <UserX className="w-3.5 h-3.5" />
@@ -305,7 +305,7 @@ export function TeamTab({ currentUserId }: { currentUserId: string }) {
       <section className="space-y-3">
         <div className="flex items-center gap-2">
           <KeyRound className="w-4 h-4 text-brand-500" />
-          <h3 className="text-sm font-semibold text-petra-text">הרשאות לפי עובד</h3>
+          <h3 className="text-sm font-semibold text-petra-text">{t("permissionsTitle")}</h3>
         </div>
         <div className="card p-4">
           <PermissionsMatrix
@@ -323,14 +323,16 @@ export function TeamTab({ currentUserId }: { currentUserId: string }) {
 // ── Summary card ─────────────────────────────────────────────────
 
 function MemberSummaryCard({ member, isMe }: { member: TeamStatsMember; isMe: boolean }) {
+  const t = useTranslations("businessAdmin.teamTab");
+  const fmt = useBusinessAdminFormat();
   const c = member.counts;
-  const items: { label: string; value: number; sub?: string; danger?: boolean }[] = [
-    { label: "תורים שהושלמו", value: c.appointmentsCompleted, sub: c.appointmentsCreated ? `${c.appointmentsCreated} נוצרו` : undefined },
-    { label: "לקוחות חדשים", value: c.customersCreated },
-    { label: "לידים שנסגרו", value: c.leadsWon, sub: c.leadsLost ? `${c.leadsLost} אבדו` : undefined },
-    { label: "משימות שהושלמו", value: c.tasksCompleted },
-    { label: "תשלומים שנרשמו", value: c.paymentsRecorded },
-    { label: "מחיקות", value: c.deletes, danger: c.deletes > 0 },
+  const items: { id: string; label: string; value: number; sub?: string; danger?: boolean }[] = [
+    { id: "appointmentsCompleted", label: t("card.appointmentsCompleted"), value: c.appointmentsCompleted, sub: c.appointmentsCreated ? t("card.appointmentsCreated", { count: c.appointmentsCreated }) : undefined },
+    { id: "customersCreated", label: t("card.customersCreated"), value: c.customersCreated },
+    { id: "leadsWon", label: t("card.leadsWon"), value: c.leadsWon, sub: c.leadsLost ? t("card.leadsLost", { count: c.leadsLost }) : undefined },
+    { id: "tasksCompleted", label: t("card.tasksCompleted"), value: c.tasksCompleted },
+    { id: "paymentsRecorded", label: t("card.paymentsRecorded"), value: c.paymentsRecorded },
+    { id: "deletes", label: t("card.deletes"), value: c.deletes, danger: c.deletes > 0 },
   ];
 
   return (
@@ -339,30 +341,30 @@ function MemberSummaryCard({ member, isMe }: { member: TeamStatsMember; isMe: bo
         <div className="min-w-0">
           <p className="font-medium text-slate-800 truncate">
             {member.name}
-            {isMe && <span className="text-xs text-petra-muted font-normal"> (אתה)</span>}
+            {isMe && <span className="text-xs text-petra-muted font-normal">{t("you")}</span>}
           </p>
           <p className="text-xs text-petra-muted">
-            פעיל לאחרונה:{" "}
+            {t("card.lastActive")}{" "}
             {member.lastActiveAt ? (
-              <span title={formatTs(member.lastActiveAt)}>{relativeTime(member.lastActiveAt)}</span>
+              <span title={fmt.formatTs(member.lastActiveAt)}>{fmt.relativeTime(member.lastActiveAt)}</span>
             ) : (
-              "מעולם לא"
+              t("never")
             )}
           </p>
         </div>
         <div className="flex flex-col items-end gap-1 flex-shrink-0">
           <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${ROLE_COLORS[member.role] ?? "bg-slate-100 text-slate-700"}`}>
-            {ROLE_LABELS[member.role] ?? member.role}
+            {fmt.roleLabel(member.role)}
           </span>
           {!member.isActive && (
-            <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-red-100 text-red-600">מושבת</span>
+            <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-red-100 text-red-600">{t("status.inactive")}</span>
           )}
         </div>
       </div>
 
       <div className="grid grid-cols-3 gap-2">
         {items.map((it) => (
-          <div key={it.label} className={`rounded-lg px-2 py-1.5 ${it.danger ? "bg-red-50" : "bg-slate-50"}`}>
+          <div key={it.id} className={`rounded-lg px-2 py-1.5 ${it.danger ? "bg-red-50" : "bg-slate-50"}`}>
             <p className={`text-base font-semibold leading-tight ${it.danger ? "text-red-600" : "text-slate-800"}`}>{it.value}</p>
             <p className="text-[11px] text-petra-muted leading-tight">{it.label}</p>
             {it.sub && <p className="text-[10px] text-slate-400 leading-tight">{it.sub}</p>}
@@ -372,11 +374,16 @@ function MemberSummaryCard({ member, isMe }: { member: TeamStatsMember; isMe: bo
 
       {member.openTasks !== null && (
         <p className="text-xs text-petra-muted mt-3">
-          משימות פתוחות: <span className="font-medium text-slate-700">{member.openTasks}</span>
-          {" / "}באיחור:{" "}
-          <span className={member.overdueTasks ? "font-semibold text-red-600" : "font-medium text-slate-700"}>
-            {member.overdueTasks ?? 0}
-          </span>
+          {t.rich("card.openTasks", {
+            open: member.openTasks,
+            overdue: member.overdueTasks ?? 0,
+            o: (chunks) => <span className="font-medium text-slate-700">{chunks}</span>,
+            d: (chunks) => (
+              <span className={member.overdueTasks ? "font-semibold text-red-600" : "font-medium text-slate-700"}>
+                {chunks}
+              </span>
+            ),
+          })}
         </p>
       )}
     </div>

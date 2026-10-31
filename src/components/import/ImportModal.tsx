@@ -5,6 +5,7 @@ import { X, Upload, Download, FileSpreadsheet, AlertTriangle, CheckCircle2 } fro
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { useTranslations } from "next-intl";
 
 interface ImportIssue {
   rowNumber: number;
@@ -38,6 +39,8 @@ interface ImportModalProps {
 }
 
 export function ImportModal({ title, templateUrl, importUrl, onSuccess, onClose }: ImportModalProps) {
+  const t = useTranslations("import.importModal");
+  const tc = useTranslations("common");
   const [stage, setStage] = useState<Stage>("idle");
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<PreviewResult | null>(null);
@@ -48,7 +51,7 @@ export function ImportModal({ title, templateUrl, importUrl, onSuccess, onClose 
   const handleFile = useCallback(async (f: File) => {
     const ext = f.name.split(".").pop()?.toLowerCase();
     if (!["xlsx", "xls", "csv"].includes(ext || "")) {
-      toast.error("נדרש קובץ Excel (.xlsx) או CSV");
+      toast.error(t("errors.fileTypeRequired"));
       return;
     }
 
@@ -63,18 +66,18 @@ export function ImportModal({ title, templateUrl, importUrl, onSuccess, onClose 
       const res = await fetch(importUrl, { method: "POST", body: formData });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "שגיאה בניתוח הקובץ");
+        throw new Error(err.error || t("errors.parseFailed"));
       }
 
       const data: PreviewResult = await res.json();
       setPreview(data);
       setStage("preview");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "שגיאה בניתוח הקובץ");
+      toast.error(err instanceof Error ? err.message : t("errors.parseFailed"));
       setStage("idle");
       setFile(null);
     }
-  }, [importUrl]);
+  }, [importUrl, t]);
 
   const handleExecute = async () => {
     if (!file) return;
@@ -88,7 +91,7 @@ export function ImportModal({ title, templateUrl, importUrl, onSuccess, onClose 
       const res = await fetch(importUrl, { method: "POST", body: formData });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "שגיאה בייבוא");
+        throw new Error(err.error || t("errors.importFailed"));
       }
 
       const data: ExecuteResult = await res.json();
@@ -96,7 +99,7 @@ export function ImportModal({ title, templateUrl, importUrl, onSuccess, onClose 
       setStage("done");
       onSuccess();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "שגיאה בייבוא");
+      toast.error(err instanceof Error ? err.message : t("errors.importFailed"));
       setStage("preview");
     }
   };
@@ -143,7 +146,7 @@ export function ImportModal({ title, templateUrl, importUrl, onSuccess, onClose 
               className="flex items-center gap-2 text-sm text-brand-600 hover:text-brand-700 font-medium"
             >
               <Download className="w-4 h-4" />
-              הורד קובץ לדוגמא (Excel)
+              {t("idle.downloadTemplate")}
             </a>
 
             <div
@@ -159,8 +162,8 @@ export function ImportModal({ title, templateUrl, importUrl, onSuccess, onClose 
               onDragLeave={handleDragLeave}
             >
               <Upload className="w-8 h-8 text-petra-muted mx-auto mb-3" />
-              <p className="text-sm text-petra-muted mb-1">גרור קובץ לכאן או לחץ לבחירה</p>
-              <p className="text-xs text-petra-muted/70">Excel (.xlsx) או CSV</p>
+              <p className="text-sm text-petra-muted mb-1">{t("idle.dropHint")}</p>
+              <p className="text-xs text-petra-muted/70">{t("idle.fileTypes")}</p>
             </div>
 
             <input
@@ -180,7 +183,7 @@ export function ImportModal({ title, templateUrl, importUrl, onSuccess, onClose 
         {stage === "uploading" && (
           <div className="flex flex-col items-center pb-10">
             <PetraLoader variant="inline" />
-            <p className="text-sm text-petra-muted">...מנתח קובץ</p>
+            <p className="text-sm text-petra-muted">{t("uploading.analyzing")}</p>
           </div>
         )}
 
@@ -188,24 +191,24 @@ export function ImportModal({ title, templateUrl, importUrl, onSuccess, onClose 
         {stage === "preview" && preview && (
           <div className="space-y-4">
             <p className="text-sm text-petra-muted">
-              קובץ: <span className="font-medium text-foreground">{file?.name}</span>
+              {t.rich("preview.fileName", { name: file?.name ?? "", b: (c) => <span className="font-medium text-foreground">{c}</span> })}
             </p>
 
             {/* Stats cards */}
             <div className="grid grid-cols-3 gap-3">
               <div className="card p-3 text-center">
                 <p className="text-2xl font-bold">{preview.total}</p>
-                <p className="text-xs text-petra-muted">סה״כ שורות</p>
+                <p className="text-xs text-petra-muted">{t("preview.totalRows")}</p>
               </div>
               <div className="card p-3 text-center">
                 <p className="text-2xl font-bold text-emerald-600">{preview.valid}</p>
-                <p className="text-xs text-petra-muted">תקינות</p>
+                <p className="text-xs text-petra-muted">{t("preview.valid")}</p>
               </div>
               <div className="card p-3 text-center">
                 <p className={cn("text-2xl font-bold", preview.issues.length > 0 ? "text-red-600" : "text-slate-400")}>
                   {preview.issues.length}
                 </p>
-                <p className="text-xs text-petra-muted">שגיאות</p>
+                <p className="text-xs text-petra-muted">{t("preview.errors")}</p>
               </div>
             </div>
 
@@ -214,12 +217,12 @@ export function ImportModal({ title, templateUrl, importUrl, onSuccess, onClose 
               <div className="border rounded-xl overflow-hidden">
                 <div className="bg-red-50 px-4 py-2 border-b flex items-center gap-2">
                   <AlertTriangle className="w-4 h-4 text-red-500" />
-                  <span className="text-sm font-medium text-red-700">שגיאות ({preview.issues.length})</span>
+                  <span className="text-sm font-medium text-red-700">{t("preview.errorsCount", { count: preview.issues.length })}</span>
                 </div>
                 <div className="max-h-48 overflow-y-auto divide-y">
                   {preview.issues.map((issue, idx) => (
                     <div key={idx} className="px-4 py-2 text-sm flex items-start gap-2">
-                      <span className="text-petra-muted shrink-0">שורה {issue.rowNumber}:</span>
+                      <span className="text-petra-muted shrink-0">{t("preview.row", { row: issue.rowNumber })}</span>
                       <span className="text-red-600">{issue.message}</span>
                     </div>
                   ))}
@@ -234,13 +237,13 @@ export function ImportModal({ title, templateUrl, importUrl, onSuccess, onClose 
                 disabled={preview.valid === 0}
                 className="btn-primary flex-1"
               >
-                ייבא {preview.valid} רשומות
+                {t("preview.importRecords", { count: preview.valid })}
               </button>
               <button
                 onClick={() => { setStage("idle"); setFile(null); setPreview(null); }}
                 className="btn-secondary"
               >
-                ביטול
+                {tc("actions.cancel")}
               </button>
             </div>
           </div>
@@ -250,7 +253,7 @@ export function ImportModal({ title, templateUrl, importUrl, onSuccess, onClose 
         {stage === "executing" && (
           <div className="flex flex-col items-center pb-10">
             <PetraLoader variant="inline" />
-            <p className="text-sm text-petra-muted">...מייבא</p>
+            <p className="text-sm text-petra-muted">{t("executing.importing")}</p>
           </div>
         )}
 
@@ -259,18 +262,18 @@ export function ImportModal({ title, templateUrl, importUrl, onSuccess, onClose 
           <div className="space-y-4 text-center py-4">
             <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto" />
             <div>
-              <p className="text-lg font-bold text-emerald-700">הייבוא הושלם!</p>
+              <p className="text-lg font-bold text-emerald-700">{t("done.title")}</p>
               <p className="text-sm text-petra-muted mt-1">
-                נוצרו {result.created} רשומות מתוך {result.total}
+                {t("done.created", { created: result.created, total: result.total })}
               </p>
               {result.issues.length > 0 && (
                 <p className="text-sm text-amber-600 mt-1">
-                  {result.issues.length} שגיאות
+                  {t("done.errorsCount", { count: result.issues.length })}
                 </p>
               )}
             </div>
             <button onClick={onClose} className="btn-primary mx-auto">
-              סגור
+              {tc("actions.close")}
             </button>
           </div>
         )}

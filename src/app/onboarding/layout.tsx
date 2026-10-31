@@ -1,20 +1,27 @@
 import { Metadata } from "next";
 import Image from "next/image";
+import { getLocale, getTranslations } from "next-intl/server";
+import { LOCALE_CONFIG, localeFromBusiness } from "@/lib/locale";
 
-export const metadata: Metadata = {
-  title: "הגדרת חשבון - Petra",
-  description: "הגדרת החשבון והעסק שלך במערכת פטרה",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("onboarding.onboardingLayout");
+  return {
+    title: t("metaTitle"),
+    description: t("metaDescription"),
+  };
+}
 
-export default function OnboardingLayout({
+export default async function OnboardingLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const t = await getTranslations("onboarding.onboardingLayout");
+  const cfg = LOCALE_CONFIG[localeFromBusiness({ locale: await getLocale() })];
   return (
     <div
       className="min-h-screen flex flex-col"
-      dir="rtl"
+      dir={cfg.dir}
       style={{ background: "#F8FAFC" }}
     >
       {/* Top bar */}
@@ -23,7 +30,7 @@ export default function OnboardingLayout({
           <Image src="/logo.svg" alt="Petra" width={28} height={28} />
           <span className="text-lg font-bold text-petra-text">Petra</span>
         </div>
-        <span className="text-sm text-petra-muted">הגדרת חשבון</span>
+        <span className="text-sm text-petra-muted">{t("headerLabel")}</span>
       </header>
 
       {/* Main content */}

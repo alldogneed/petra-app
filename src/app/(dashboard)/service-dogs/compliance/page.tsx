@@ -13,7 +13,10 @@ import {
   FileText,
   Filter,
 } from "lucide-react";
-import { cn, formatDate } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { formatDate } from "@/lib/format";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { ServiceDogsTabs } from "@/components/service-dogs/ServiceDogsTabs";
 import { COMPLIANCE_EVENT_MAP } from "@/lib/service-dogs";
 import { toast } from "sonner";
@@ -34,17 +37,25 @@ interface ComplianceEvent {
   placement?: { recipient?: { name: string } } | null;
 }
 
-const NOTIFICATION_STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  PENDING: { label: "ממתין לשליחה", className: "bg-amber-100 text-amber-700" },
-  SENT: { label: "נשלח", className: "bg-emerald-100 text-emerald-700" },
-  WAIVED: { label: "ויתור", className: "bg-slate-100 text-slate-600" },
-  NOT_REQUIRED: { label: "לא נדרש", className: "bg-slate-100 text-slate-500" },
-  FAILED: { label: "נכשל", className: "bg-red-100 text-red-600" },
+const NOTIFICATION_STATUS_CONFIG: Record<string, { className: string }> = {
+  PENDING: { className: "bg-amber-100 text-amber-700" },
+  SENT: { className: "bg-emerald-100 text-emerald-700" },
+  WAIVED: { className: "bg-slate-100 text-slate-600" },
+  NOT_REQUIRED: { className: "bg-slate-100 text-slate-500" },
+  FAILED: { className: "bg-red-100 text-red-600" },
 };
+
+/** Status label key — unknown statuses fall back to PENDING (same as the className lookup). */
+function statusKey(status: string): string {
+  return NOTIFICATION_STATUS_CONFIG[status] ? status : "PENDING";
+}
 
 function CompliancePageContent() {
   const [filter, setFilter] = useState<"all" | "pending" | "overdue" | "sent">("pending");
   const queryClient = useQueryClient();
+  const t = useTranslations("serviceDogs.serviceDogsCompliancePage");
+  const { locale } = useBusinessLocale();
+  const fmtDate = (d: string) => formatDate(d, { locale });
 
   const { data: events = [], isLoading } = useQuery<ComplianceEvent[]>({
     queryKey: ["service-compliance"],
@@ -64,9 +75,9 @@ function CompliancePageContent() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["service-compliance"] });
       queryClient.invalidateQueries({ queryKey: ["service-dogs"] });
-      toast.success("סטטוס עודכן");
+      toast.success(t("toasts.statusUpdated"));
     },
-    onError: () => toast.error("שגיאה בעדכון"),
+    onError: () => toast.error(t("toasts.updateError")),
   });
 
   const now = new Date();
@@ -92,10 +103,10 @@ function CompliancePageContent() {
   })();
 
   const filterTabs = [
-    { id: "pending" as const, label: `ממתינים (${pendingEvents.length})`, color: pendingEvents.length > 0 ? "amber" : "default" },
-    { id: "overdue" as const, label: `באיחור (${overdueEvents.length})`, color: overdueEvents.length > 0 ? "red" : "default" },
-    { id: "sent" as const, label: `נשלחו (${sentEvents.length})`, color: "emerald" },
-    { id: "all" as const, label: `הכל (${events.length})`, color: "default" },
+    { id: "pending" as const, label: t("filters.pending", { count: pendingEvents.length }), color: pendingEvents.length > 0 ? "amber" : "default" },
+    { id: "overdue" as const, label: t("filters.overdue", { count: overdueEvents.length }), color: overdueEvents.length > 0 ? "red" : "default" },
+    { id: "sent" as const, label: t("filters.sent", { count: sentEvents.length }), color: "emerald" },
+    { id: "all" as const, label: t("filters.all", { count: events.length }), color: "default" },
   ];
 
   return (
@@ -105,16 +116,16 @@ function CompliancePageContent() {
       <div className="page-header">
         <div>
           <div className="flex items-center gap-2 text-sm text-petra-muted mb-1">
-            <Link href="/service-dogs" className="hover:text-foreground">כלבי שירות</Link>
-            <ChevronLeft className="w-3.5 h-3.5" />
-            <span>דיווח ממשלתי</span>
+            <Link href="/service-dogs" className="hover:text-foreground">{t("breadcrumb.serviceDogs")}</Link>
+            <ChevronLeft className="w-3.5 h-3.5 ltr:-scale-x-100" />
+            <span>{t("title")}</span>
           </div>
           <h1 className="page-title flex items-center gap-2">
             <AlertTriangle className="w-6 h-6 text-brand-500" />
-            דיווח ממשלתי
+            {t("title")}
           </h1>
           <p className="text-sm text-petra-muted mt-1">
-            ניהול אירועי משמעת ודיווחים נדרשים לרשויות
+            {t("subtitle")}
           </p>
         </div>
       </div>
@@ -125,10 +136,10 @@ function CompliancePageContent() {
           <AlertTriangle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5 animate-pulse" />
           <div>
             <p className="font-bold text-red-700">
-              {overdueEvents.length} דיווחים עברו את מועד הגשה!
+              {t("urgent.title", { count: overdueEvents.length })}
             </p>
             <p className="text-sm text-red-600 mt-0.5">
-              יש לטפל בדחיפות. מדינת ישראל מחייבת דיווח בתוך 48 שעות מהאירוע.
+              {t("urgent.body")}
             </p>
           </div>
         </div>
@@ -138,19 +149,19 @@ function CompliancePageContent() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className={cn("rounded-xl p-4 border", overdueEvents.length > 0 ? "bg-red-50 border-red-200" : "bg-slate-50/50")}>
           <div className={cn("text-2xl font-bold", overdueEvents.length > 0 ? "text-red-600" : "text-slate-600")}>{overdueEvents.length}</div>
-          <div className="text-xs text-petra-muted mt-0.5">באיחור</div>
+          <div className="text-xs text-petra-muted mt-0.5">{t("stats.overdue")}</div>
         </div>
         <div className="rounded-xl p-4 border bg-amber-50 border-amber-200">
           <div className="text-2xl font-bold text-amber-600">{nonOverduePending.length}</div>
-          <div className="text-xs text-petra-muted mt-0.5">ממתינים</div>
+          <div className="text-xs text-petra-muted mt-0.5">{t("stats.pending")}</div>
         </div>
         <div className="rounded-xl p-4 border bg-emerald-50 border-emerald-200">
           <div className="text-2xl font-bold text-emerald-600">{sentEvents.length}</div>
-          <div className="text-xs text-petra-muted mt-0.5">נשלחו</div>
+          <div className="text-xs text-petra-muted mt-0.5">{t("stats.sent")}</div>
         </div>
         <div className="rounded-xl p-4 border bg-slate-50/50">
           <div className="text-2xl font-bold text-slate-600">{events.length}</div>
-          <div className="text-xs text-petra-muted mt-0.5">סה״כ</div>
+          <div className="text-xs text-petra-muted mt-0.5">{t("stats.total")}</div>
         </div>
       </div>
 
@@ -179,7 +190,7 @@ function CompliancePageContent() {
         <div className="empty-state py-12">
           <CheckCircle2 className="empty-state-icon text-emerald-400" />
           <p className="text-petra-muted">
-            {filter === "pending" ? "אין דיווחים ממתינים — מצוין!" : "אין אירועים"}
+            {filter === "pending" ? t("empty.noPending") : t("empty.noEvents")}
           </p>
         </div>
       ) : (
@@ -212,7 +223,7 @@ function CompliancePageContent() {
                           isOverdue ? "bg-red-200 text-red-700" : "bg-amber-100 text-amber-700"
                         )}
                       >
-                        {isOverdue ? "⚠ דיווח באיחור" : "דיווח חובה"}
+                        {isOverdue ? t("badges.overdue") : t("badges.required")}
                       </span>
                     )}
                     {event.serviceDog && (
@@ -231,7 +242,7 @@ function CompliancePageContent() {
                   <div className="flex items-center gap-4 mt-1.5 text-xs text-petra-muted">
                     <span className="flex items-center gap-1">
                       <Clock className="w-3 h-3" />
-                      {formatDate(event.eventAt)}
+                      {fmtDate(event.eventAt)}
                     </span>
                     {event.notificationDue && (
                       <span
@@ -241,13 +252,13 @@ function CompliancePageContent() {
                         )}
                       >
                         <FileText className="w-3 h-3" />
-                        דד-ליין: {formatDate(event.notificationDue)}
+                        {t("deadline", { date: fmtDate(event.notificationDue) })}
                       </span>
                     )}
                     {event.notificationSentAt && (
                       <span className="text-emerald-600 flex items-center gap-1">
                         <CheckCircle2 className="w-3 h-3" />
-                        נשלח: {formatDate(event.notificationSentAt)}
+                        {t("sentAt", { date: fmtDate(event.notificationSentAt) })}
                       </span>
                     )}
                   </div>
@@ -255,7 +266,7 @@ function CompliancePageContent() {
 
                 <div className="flex flex-col items-end gap-2 flex-shrink-0">
                   <span className={cn("text-xs px-2 py-1 rounded-full font-medium", sc.className)}>
-                    {sc.label}
+                    {t(`statuses.${statusKey(event.notificationStatus)}`)}
                   </span>
 
                   {event.notificationStatus === "PENDING" && (
@@ -266,14 +277,14 @@ function CompliancePageContent() {
                         className="btn-primary text-xs py-1 px-2.5 flex items-center gap-1"
                       >
                         <Send className="w-3 h-3" />
-                        נשלח ✓
+                        {t("actions.markSent")}
                       </button>
                       <button
                         onClick={() => markMutation.mutate({ id: event.id, notificationStatus: "WAIVED" })}
                         disabled={markMutation.isPending}
                         className="btn-ghost text-xs py-1 px-2"
                       >
-                        ויתור
+                        {t("actions.waive")}
                       </button>
                     </div>
                   )}
@@ -286,7 +297,7 @@ function CompliancePageContent() {
           {filter === "all" && otherEvents.length > 0 && (
             <div className="mt-4">
               <h4 className="text-sm font-medium text-petra-muted mb-2">
-                אחר ({otherEvents.length})
+                {t("other", { count: otherEvents.length })}
               </h4>
               {otherEvents.map((event) => {
                 const sc = NOTIFICATION_STATUS_CONFIG[event.notificationStatus] || NOTIFICATION_STATUS_CONFIG.PENDING;
@@ -294,10 +305,10 @@ function CompliancePageContent() {
                   <div key={event.id} className="card p-3 mb-2 opacity-70 flex items-center justify-between">
                     <div>
                       <p className="text-sm">{COMPLIANCE_EVENT_MAP[event.eventType]?.label || event.eventType}</p>
-                      <p className="text-xs text-petra-muted">{formatDate(event.eventAt)}</p>
+                      <p className="text-xs text-petra-muted">{fmtDate(event.eventAt)}</p>
                     </div>
                     <span className={cn("text-xs px-2 py-0.5 rounded-full", sc.className)}>
-                      {sc.label}
+                      {t(`statuses.${statusKey(event.notificationStatus)}`)}
                     </span>
                   </div>
                 );
@@ -311,11 +322,12 @@ function CompliancePageContent() {
 }
 
 export default function CompliancePage() {
+  const t = useTranslations("serviceDogs.serviceDogsCompliancePage");
   return (
     <TierGate
       feature="service_dogs"
-      title="מודול כלבי שירות"
-      description="ניהול כלבי שירות, זכאים, שיבוצים ותעודות הסמכה — זמין במנוי Service Dog בלבד."
+      title={t("tierGate.title")}
+      description={t("tierGate.description")}
       upgradeTier="service_dog"
     >
       <CompliancePageContent />

@@ -1,5 +1,8 @@
 "use client";
 import { PageTitle } from "@/components/ui/PageTitle";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
+import { currencySymbol, formatCurrency as fmtCurrency, formatDate as fmtDate } from "@/lib/format";
 
 import { TierGate } from "@/components/paywall/TierGate";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -42,7 +45,7 @@ import {
   Pencil,
   Repeat,
 } from "lucide-react";
-import { cn, formatDate, formatCurrency, toWhatsAppPhone, fetchJSON, escapeHtml } from "@/lib/utils";
+import { cn, toWhatsAppPhone, fetchJSON, escapeHtml } from "@/lib/utils";
 import { triggerLimitModal } from "@/lib/limit-reached";
 import { toast } from "sonner";
 import {
@@ -191,65 +194,79 @@ interface UnifiedDog {
 
 // ─── Constants ───────────────────────────────────────
 
-const DAY_NAMES = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
+const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
+
+type TT = ReturnType<typeof useTranslations<"training.trainingPage">>;
+
+const dayName = (t: TT, i: number) => (DAY_KEYS[i] ? t(`days.${DAY_KEYS[i]}`) : "");
+
+/** Business-locale date/currency formatting (identical output to the old utils helpers for he-IL/ILS). */
+function useFmt() {
+  const { locale, currency } = useBusinessLocale();
+  return useMemo(
+    () => ({
+      formatDate: (d: Date | string) => fmtDate(d, { locale, style: "long" }),
+      formatCurrency: (n: number) => fmtCurrency(n, { locale, currency }),
+      cur: currencySymbol({ locale, currency }),
+    }),
+    [locale, currency]
+  );
+}
 
 type TabId = "overview" | "individual" | "boarding" | "groups" | "archive";
 
-const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
-  { id: "overview", label: "סקירה", icon: <GraduationCap className="w-4 h-4" /> },
-  { id: "individual", label: "אילוף בבית הלקוח", icon: <Dog className="w-4 h-4" /> },
-  { id: "boarding", label: "אילוף בתנאי פנסיון", icon: <Hotel className="w-4 h-4" /> },
-  { id: "groups", label: "אילוף קבוצתי", icon: <Users className="w-4 h-4" /> },
-  { id: "archive", label: "ארכיון", icon: <Archive className="w-4 h-4" /> },
+const TABS: { id: TabId; icon: React.ReactNode }[] = [
+  { id: "overview", icon: <GraduationCap className="w-4 h-4" /> },
+  { id: "individual", icon: <Dog className="w-4 h-4" /> },
+  { id: "boarding", icon: <Hotel className="w-4 h-4" /> },
+  { id: "groups", icon: <Users className="w-4 h-4" /> },
+  { id: "archive", icon: <Archive className="w-4 h-4" /> },
 ];
 
 // Preset session durations (minutes) — used for all duration selects so the
 // user can pick 30 etc. without fighting a number input's min-clamp on keystroke.
 const DURATION_OPTIONS = [15, 30, 45, 60, 75, 90, 105, 120, 150, 180, 240, 300, 360, 420, 480];
 
-const TYPE_BADGE: Record<TrainingType, { label: string; bg: string; text: string }> = {
-  individual: { label: "אילוף בבית הלקוח", bg: "bg-blue-100", text: "text-blue-700" },
-  boarding: { label: "פנסיון", bg: "bg-green-100", text: "text-green-700" },
-  group: { label: "קבוצה", bg: "bg-purple-100", text: "text-purple-700" },
-  workshop: { label: "סדנה", bg: "bg-pink-100", text: "text-pink-700" },
+const TYPE_BADGE: Record<TrainingType, { bg: string; text: string }> = {
+  individual: { bg: "bg-blue-100", text: "text-blue-700" },
+  boarding: { bg: "bg-green-100", text: "text-green-700" },
+  group: { bg: "bg-purple-100", text: "text-purple-700" },
+  workshop: { bg: "bg-pink-100", text: "text-pink-700" },
 };
 
-const PROGRAM_TYPES_MAP: Record<string, string> = {
-  BASIC_OBEDIENCE: "משמעת בסיסית",
-  REACTIVITY: "תגובתיות",
-  PUPPY: "גורים",
-  BEHAVIOR: "בעיות התנהגות",
-  ADVANCED: "משמעת מתקדמת",
-  CUSTOM: "מותאם אישית",
+const PROGRAM_TYPE_KEYS = [
+  "BASIC_OBEDIENCE",
+  "REACTIVITY",
+  "PUPPY",
+  "BEHAVIOR",
+  "ADVANCED",
+  "CUSTOM",
   // Service dog phases
-  SD_FOUNDATION: "שלב הסתגלות",
-  SD_BASIC: "שלב בסיסי",
-  SD_ADVANCED: "שלב מתקדם",
-  SD_FIELD: "שלב שטח",
-  SD_PLACEMENT: "שלב שיבוץ",
-};
-
-const SERVICE_DOG_PHASES = [
-  { value: "SD_FOUNDATION", label: "הסתגלות" },
-  { value: "SD_BASIC", label: "בסיסי" },
-  { value: "SD_ADVANCED", label: "מתקדם" },
-  { value: "SD_FIELD", label: "שטח" },
-  { value: "SD_PLACEMENT", label: "שיבוץ" },
+  "SD_FOUNDATION",
+  "SD_BASIC",
+  "SD_ADVANCED",
+  "SD_FIELD",
+  "SD_PLACEMENT",
 ] as const;
 
-const GROUP_TYPES_MAP: Record<string, string> = {
-  PUPPY_CLASS: "כיתת גורים",
-  REACTIVITY: "תגובתיות",
-  OBEDIENCE: "משמעת",
-  CUSTOM: "מותאם אישית",
-  WORKSHOP: "סדנה",
-};
+/** Label of a program type (unknown / custom names are shown as stored). */
+const programTypeLabel = (t: TT, type: string) => (t.has(`programTypes.${type}`) ? t(`programTypes.${type}`) : type);
 
-const PROGRAM_STATUS_MAP: Record<string, { label: string; color: string }> = {
-  ACTIVE: { label: "פעיל", color: "bg-blue-100 text-blue-700" },
-  COMPLETED: { label: "הושלם", color: "bg-green-100 text-green-700" },
-  PAUSED: { label: "מושהה", color: "bg-yellow-100 text-yellow-700" },
-  CANCELED: { label: "בוטל", color: "bg-red-100 text-red-700" },
+const SERVICE_DOG_PHASES = [
+  { value: "SD_FOUNDATION" },
+  { value: "SD_BASIC" },
+  { value: "SD_ADVANCED" },
+  { value: "SD_FIELD" },
+  { value: "SD_PLACEMENT" },
+] as const;
+
+const GROUP_TYPE_KEYS = ["PUPPY_CLASS", "REACTIVITY", "OBEDIENCE", "CUSTOM", "WORKSHOP"] as const;
+
+const PROGRAM_STATUS_MAP: Record<string, { color: string }> = {
+  ACTIVE: { color: "bg-blue-100 text-blue-700" },
+  COMPLETED: { color: "bg-green-100 text-green-700" },
+  PAUSED: { color: "bg-yellow-100 text-yellow-700" },
+  CANCELED: { color: "bg-red-100 text-red-700" },
 };
 
 // ═══════════════════════════════════════════════════════
@@ -283,6 +300,9 @@ function SessionLogModal({
   processKind?: "INDIVIDUAL" | "PACKAGE";
   onSelectProcessType?: (target: "INDIVIDUAL" | "PACKAGE" | "GROUP") => void;
 }) {
+  const t = useTranslations("training.trainingPage");
+  const tc = useTranslations("common");
+  const { cfg } = useBusinessLocale();
   const isEdit = !!initialData;
   const today = new Date().toISOString().slice(0, 10);
   const [summary, setSummary] = useState(initialData?.summary ?? "");
@@ -308,50 +328,50 @@ function SessionLogModal({
     return d >= startOfWeek && d < endOfWeek;
   };
 
-  const STAR_LABELS = ["חלש", "סביר", "טוב", "מצוין", "מושלם"];
+  const STAR_LABELS = [t("stars.1"), t("stars.2"), t("stars.3"), t("stars.4"), t("stars.5")];
 
   const L = isWeekly ? {
-    title: isEdit ? "עריכת עדכון שבועי" : "עדכון שבועי",
-    badge: `שבוע ${sessionNumber}`,
-    dateLabel: "תאריך עדכון שבועי",
-    ratingLabel: "דירוג התקדמות השבוע (אופציונלי)",
-    practiceLabel: "יעדים שהושגו השבוע",
-    practicePlaceholder: "אילו יעדים הושגו השבוע...",
-    goalsLabel: "יעדים לשבוע הבא",
-    goalsPlaceholder: "מה תעבדו בשבוע הבא...",
-    homeworkLabel: "הנחיות לבעלים לשבוע הבא",
-    homeworkPlaceholder: "תרגול לבית לשבוע הבא...",
-    summaryLabel: "סיכום שבועי (אופציונלי)",
-    summaryPlaceholder: "תאר את ההתקדמות השבועית, נקודות לשיפור, הצלחות...",
-    saveBtn: isEdit ? "שמור שינויים" : "שמור עדכון שבועי",
+    title: isEdit ? t("sessionLog.weekly.titleEdit") : t("sessionLog.weekly.title"),
+    badge: t("sessionLog.weekly.badge", { n: sessionNumber }),
+    dateLabel: t("sessionLog.weekly.dateLabel"),
+    ratingLabel: t("sessionLog.weekly.ratingLabel"),
+    practiceLabel: t("sessionLog.weekly.practiceLabel"),
+    practicePlaceholder: t("sessionLog.weekly.practicePlaceholder"),
+    goalsLabel: t("sessionLog.weekly.goalsLabel"),
+    goalsPlaceholder: t("sessionLog.weekly.goalsPlaceholder"),
+    homeworkLabel: t("sessionLog.weekly.homeworkLabel"),
+    homeworkPlaceholder: t("sessionLog.weekly.homeworkPlaceholder"),
+    summaryLabel: t("sessionLog.weekly.summaryLabel"),
+    summaryPlaceholder: t("sessionLog.weekly.summaryPlaceholder"),
+    saveBtn: isEdit ? t("sessionLog.saveChanges") : t("sessionLog.weekly.save"),
   } : isServiceDog ? {
-    title: isEdit ? "עריכת אימון" : "רישום אימון",
-    badge: `אימון מספר ${sessionNumber}`,
-    dateLabel: "תאריך האימון",
-    ratingLabel: "דירוג הכלב באימון (אופציונלי)",
-    practiceLabel: "תרגילים שבוצעו",
-    practicePlaceholder: "אילו תרגילים עשיתם היום...",
-    goalsLabel: "יעדים לאימון הבא",
-    goalsPlaceholder: "מה תעבדו באימון הבא...",
-    homeworkLabel: "הערות לצוות",
-    homeworkPlaceholder: "הערות רלוונטיות לשאר הצוות...",
-    summaryLabel: "סיכום האימון (אופציונלי)",
-    summaryPlaceholder: "תאר מה עבדתם היום, התקדמות, הצלחות, נקודות לשיפור...",
-    saveBtn: isEdit ? "שמור שינויים" : "שמור אימון",
+    title: isEdit ? t("sessionLog.serviceDog.titleEdit") : t("sessionLog.serviceDog.title"),
+    badge: t("sessionLog.serviceDog.badge", { n: sessionNumber }),
+    dateLabel: t("sessionLog.serviceDog.dateLabel"),
+    ratingLabel: t("sessionLog.serviceDog.ratingLabel"),
+    practiceLabel: t("sessionLog.practiceLabel"),
+    practicePlaceholder: t("sessionLog.practicePlaceholder"),
+    goalsLabel: t("sessionLog.serviceDog.goalsLabel"),
+    goalsPlaceholder: t("sessionLog.serviceDog.goalsPlaceholder"),
+    homeworkLabel: t("sessionLog.serviceDog.homeworkLabel"),
+    homeworkPlaceholder: t("sessionLog.serviceDog.homeworkPlaceholder"),
+    summaryLabel: t("sessionLog.serviceDog.summaryLabel"),
+    summaryPlaceholder: t("sessionLog.serviceDog.summaryPlaceholder"),
+    saveBtn: isEdit ? t("sessionLog.saveChanges") : t("sessionLog.serviceDog.save"),
   } : {
-    title: isEdit ? "עריכת מפגש" : "רישום מפגש",
-    badge: `מפגש מספר ${sessionNumber}`,
-    dateLabel: "תאריך המפגש",
-    ratingLabel: "דירוג הכלב במפגש (אופציונלי)",
-    practiceLabel: "תרגילים שבוצעו",
-    practicePlaceholder: "אילו תרגילים עשיתם היום...",
-    goalsLabel: "יעדים לפגישה הבאה",
-    goalsPlaceholder: "מה תעבדו בפגישה הבאה...",
-    homeworkLabel: "שיעורי בית ללקוח",
-    homeworkPlaceholder: "תרגול לבית...",
-    summaryLabel: "סיכום המפגש (אופציונלי)",
-    summaryPlaceholder: "תאר מה עבדתם היום, התקדמות, הוראות לתרגול בבית...",
-    saveBtn: isEdit ? "שמור שינויים" : "שמור מפגש",
+    title: isEdit ? t("sessionLog.session.titleEdit") : t("sessionLog.session.title"),
+    badge: t("sessionLog.session.badge", { n: sessionNumber }),
+    dateLabel: t("sessionLog.session.dateLabel"),
+    ratingLabel: t("sessionLog.session.ratingLabel"),
+    practiceLabel: t("sessionLog.practiceLabel"),
+    practicePlaceholder: t("sessionLog.practicePlaceholder"),
+    goalsLabel: t("sessionLog.session.goalsLabel"),
+    goalsPlaceholder: t("sessionLog.session.goalsPlaceholder"),
+    homeworkLabel: t("sessionLog.session.homeworkLabel"),
+    homeworkPlaceholder: t("sessionLog.session.homeworkPlaceholder"),
+    summaryLabel: t("sessionLog.session.summaryLabel"),
+    summaryPlaceholder: t("sessionLog.session.summaryPlaceholder"),
+    saveBtn: isEdit ? t("sessionLog.saveChanges") : t("sessionLog.session.save"),
   };
 
   return (
@@ -372,7 +392,7 @@ function SessionLogModal({
           </div>
           {processKind && onSelectProcessType && (
             <div>
-              <label className="label">סוג תהליך</label>
+              <label className="label">{t("sessionLog.processType")}</label>
               <select
                 className="input"
                 value={processKind}
@@ -381,25 +401,25 @@ function SessionLogModal({
                   if (target !== processKind) onSelectProcessType(target);
                 }}
               >
-                <option value="INDIVIDUAL">אילוף פרטני</option>
-                <option value="PACKAGE">חבילת אילוף</option>
-                <option value="GROUP">אילוף קבוצתי (העברה לקבוצה)</option>
+                <option value="INDIVIDUAL">{t("sessionLog.processIndividual")}</option>
+                <option value="PACKAGE">{t("sessionLog.processPackage")}</option>
+                <option value="GROUP">{t("sessionLog.processGroup")}</option>
               </select>
-              <p className="text-[11px] text-petra-muted mt-1">מעבר בין פרטני לחבילה הוא מיידי. בחירת &ldquo;קבוצתי&rdquo; תעביר את הכלב לקבוצה — התוכנית הנוכחית תוחלף.</p>
+              <p className="text-[11px] text-petra-muted mt-1">{t("sessionLog.processHint")}</p>
             </div>
           )}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="label">{L.dateLabel}</label>
               <input
-                type="date" lang="he"
+                type="date" lang={cfg.lang}
                 className="input"
                 value={sessionDate}
                 onChange={(e) => setSessionDate(e.target.value)}
               />
             </div>
             <div>
-              <label className="label">שעה</label>
+              <label className="label">{t("time")}</label>
               <input
                 type="time"
                 className="input"
@@ -409,14 +429,14 @@ function SessionLogModal({
             </div>
           </div>
           <div>
-            <label className="label">משך (דקות)</label>
+            <label className="label">{t("durationMinutes")}</label>
             <select
               className="input"
               value={durationMinutes}
               onChange={(e) => setDurationMinutes(parseInt(e.target.value))}
             >
               {(DURATION_OPTIONS.includes(durationMinutes) ? DURATION_OPTIONS : [durationMinutes, ...DURATION_OPTIONS].sort((a, b) => a - b)).map((d) => (
-                <option key={d} value={d}>{d} דקות</option>
+                <option key={d} value={d}>{t("minutesOption", { n: d })}</option>
               ))}
             </select>
           </div>
@@ -442,7 +462,7 @@ function SessionLogModal({
                 );
               })}
               {(hoverRating ?? rating) && (
-                <span className="text-xs text-petra-muted mr-1">
+                <span className="text-xs text-petra-muted ms-1">
                   {STAR_LABELS[(hoverRating ?? rating ?? 1) - 1]}
                 </span>
               )}
@@ -464,8 +484,8 @@ function SessionLogModal({
           </div>
           {isServiceDog && (
             <div>
-              <label className="label">שם המאמן/ת</label>
-              <input className="input" placeholder="שם המאמן שביצע את האימון..." value={trainerName} onChange={(e) => setTrainerName(e.target.value)} />
+              <label className="label">{t("sessionLog.trainerName")}</label>
+              <input className="input" placeholder={t("sessionLog.trainerNamePlaceholder")} value={trainerName} onChange={(e) => setTrainerName(e.target.value)} />
             </div>
           )}
           <div>
@@ -482,12 +502,12 @@ function SessionLogModal({
             <div className="rounded-xl border border-green-200 overflow-hidden">
               <button
                 type="button"
-                className="w-full flex items-center justify-between px-4 py-3 bg-green-50 hover:bg-green-100 transition-colors text-right"
+                className="w-full flex items-center justify-between px-4 py-3 bg-green-50 hover:bg-green-100 transition-colors text-start"
                 onClick={() => setHomeSession(!homeSession)}
               >
                 <ChevronDown className={cn("w-4 h-4 text-green-600 transition-transform flex-shrink-0", homeSession && "rotate-180")} />
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-semibold text-green-800">מפגשים בבית השבוע</span>
+                  <span className="text-sm font-semibold text-green-800">{t("sessionLog.homeSessions")}</span>
                   <Home className="w-4 h-4 text-green-600" />
                 </div>
               </button>
@@ -495,18 +515,18 @@ function SessionLogModal({
                 <div className="px-4 py-3 space-y-2 bg-white">
                   {!isSameWeek(sessionDate) && (
                     <p className="text-xs text-amber-700 bg-amber-50 px-3 py-2 rounded-lg">
-                      שים לב — התאריך שבחרת אינו בשבוע הנוכחי
+                      {t("sessionLog.notThisWeek")}
                     </p>
                   )}
                   {goals && goals.length > 0 ? (
                     <>
-                      <p className="text-[11px] text-petra-muted pb-1">עדכן התקדמות יעדים שהושגו גם בבית</p>
+                      <p className="text-[11px] text-petra-muted pb-1">{t("sessionLog.updateHomeGoals")}</p>
                       {goals.map((goal) => (
                         <GoalProgressRow key={goal.id} goal={goal} programId={programId} />
                       ))}
                     </>
                   ) : (
-                    <p className="text-xs text-petra-muted text-center py-4">אין יעדים מוגדרים לתוכנית זו — הגדר יעדים כדי לעדכן כאן</p>
+                    <p className="text-xs text-petra-muted text-center py-4">{t("sessionLog.noGoals")}</p>
                   )}
                 </div>
               )}
@@ -520,9 +540,9 @@ function SessionLogModal({
             onClick={() => onSubmit(summary, `${sessionDate}T${sessionTime || "10:00"}:00`, rating, practiceItems, nextSessionGoals, homeworkForCustomer, trainerName || undefined, durationMinutes)}
           >
             <CheckCircle2 className="w-4 h-4" />
-            {isPending ? "שומר..." : L.saveBtn}
+            {isPending ? tc("progress.saving") : L.saveBtn}
           </button>
-          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+          <button className="btn-secondary" onClick={onClose}>{tc("actions.cancel")}</button>
         </div>
       </div>
     </div>
@@ -546,6 +566,9 @@ function ScheduleSessionModal({
   onClose: () => void;
   onSubmit: (data: { sessionDate: string; durationMinutes: number; sessionNumber: number; repeat: boolean; occurrences: number; intervalDays: number }) => void;
 }) {
+  const t = useTranslations("training.trainingPage");
+  const tc = useTranslations("common");
+  const { cfg } = useBusinessLocale();
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   const defaultDate = tomorrow.toISOString().slice(0, 10);
@@ -565,30 +588,30 @@ function ScheduleSessionModal({
       <div className="modal-backdrop" onClick={onClose} />
       <div className="modal-content max-w-sm mx-4 p-6">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-bold text-petra-text">קבע מפגש — {dogName}</h2>
+          <h2 className="text-lg font-bold text-petra-text">{t("schedule.title", { dog: dogName })}</h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         <div className="p-3 rounded-xl bg-blue-50 border border-blue-100 text-sm text-blue-700 font-medium mb-5">
-          מפגש מספר {sessionNumber}
+          {t("sessionLog.session.badge", { n: sessionNumber })}
         </div>
 
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">תאריך המפגש</label>
+              <label className="label">{t("sessionLog.session.dateLabel")}</label>
               <input
                 type="date"
-                lang="he"
+                lang={cfg.lang}
                 className="input"
                 value={sessionDate}
                 onChange={(e) => setSessionDate(e.target.value)}
               />
             </div>
             <div>
-              <label className="label">שעה</label>
+              <label className="label">{t("time")}</label>
               <input
                 type="time"
                 className="input"
@@ -599,14 +622,14 @@ function ScheduleSessionModal({
           </div>
 
           <div>
-            <label className="label">משך (דקות)</label>
+            <label className="label">{t("durationMinutes")}</label>
             <select
               className="input"
               value={durationMinutes}
               onChange={(e) => setDurationMinutes(parseInt(e.target.value))}
             >
               {DURATION_OPTIONS.map((d) => (
-                <option key={d} value={d}>{d} דקות</option>
+                <option key={d} value={d}>{t("minutesOption", { n: d })}</option>
               ))}
             </select>
           </div>
@@ -620,27 +643,27 @@ function ScheduleSessionModal({
                 checked={repeat}
                 onChange={(e) => setRepeat(e.target.checked)}
               />
-              <span className="text-sm font-medium text-petra-text">מפגש חוזר (קביעה מראש לכמה שבועות)</span>
+              <span className="text-sm font-medium text-petra-text">{t("schedule.recurring")}</span>
             </label>
 
             {repeat && (
               <div className="space-y-3 pt-1">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="label">תדירות</label>
+                    <label className="label">{t("schedule.frequency")}</label>
                     <select
                       className="input"
                       value={intervalDays}
                       onChange={(e) => setIntervalDays(parseInt(e.target.value))}
                     >
-                      <option value={7}>כל שבוע</option>
-                      <option value={14}>כל שבועיים</option>
-                      <option value={21}>כל 3 שבועות</option>
-                      <option value={28}>כל 4 שבועות</option>
+                      <option value={7}>{t("schedule.everyWeek")}</option>
+                      <option value={14}>{t("schedule.every2Weeks")}</option>
+                      <option value={21}>{t("schedule.every3Weeks")}</option>
+                      <option value={28}>{t("schedule.every4Weeks")}</option>
                     </select>
                   </div>
                   <div>
-                    <label className="label">מספר מפגשים</label>
+                    <label className="label">{t("schedule.occurrences")}</label>
                     <select
                       className="input"
                       value={occurrences}
@@ -653,8 +676,8 @@ function ScheduleSessionModal({
                   </div>
                 </div>
                 <p className="text-xs text-brand-600 bg-brand-50 rounded-lg p-2">
-                  ייקבעו {occurrences} מפגשים — כל יום {DAY_NAMES[dayOfWeek]} בשעה {sessionTime}
-                  {intervalDays > 7 ? ` (אחת ל-${intervalDays / 7} שבועות)` : ""}.
+                  {t("schedule.preview", { count: occurrences, day: dayName(t, dayOfWeek), time: sessionTime })}
+                  {intervalDays > 7 ? t("schedule.previewInterval", { weeks: intervalDays / 7 }) : ""}.
                 </p>
               </div>
             )}
@@ -662,7 +685,7 @@ function ScheduleSessionModal({
 
           <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 flex items-start gap-2">
             <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-emerald-600" />
-            <span>תזכורת ווצאפ תישלח ללקוח אוטומטית לפני המפגש (אם תזכורות ווצאפ מופעלות)</span>
+            <span>{t("schedule.reminderNote")}</span>
           </div>
         </div>
 
@@ -673,9 +696,9 @@ function ScheduleSessionModal({
             onClick={() => onSubmit({ sessionDate: `${sessionDate}T${sessionTime}:00`, durationMinutes, sessionNumber, repeat, occurrences, intervalDays })}
           >
             <Calendar className="w-4 h-4" />
-            {isPending ? "קובע..." : repeat ? `קבע ${occurrences} מפגשים` : "קבע מפגש"}
+            {isPending ? t("schedule.scheduling") : repeat ? t("schedule.submitMany", { count: occurrences }) : t("schedule.submit")}
           </button>
-          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+          <button className="btn-secondary" onClick={onClose}>{tc("actions.cancel")}</button>
         </div>
       </div>
     </div>
@@ -699,6 +722,8 @@ function ConvertToGroupModal({
   onClose: () => void;
   onSubmit: (trainingGroupId: string) => void;
 }) {
+  const t = useTranslations("training.trainingPage");
+  const tc = useTranslations("common");
   const [groupId, setGroupId] = useState("");
 
   return (
@@ -708,26 +733,25 @@ function ConvertToGroupModal({
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-base font-bold text-petra-text flex items-center gap-2">
             <Repeat className="w-5 h-5 text-brand-500" />
-            המרה לאילוף קבוצתי — {program.dog.name}
+            {t("convert.title", { dog: program.dog.name })}
           </h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
             <X className="w-4 h-4" />
           </button>
         </div>
         <p className="text-sm text-petra-muted mb-4">
-          הכלב יתווסף כמשתתף בקבוצה הנבחרת, ותוכנית האילוף הפרטנית הקיימת (כולל המפגשים והיעדים שלה) תימחק.
-          ההזמנה תישאר מקושרת — המחיר לא ישתנה אוטומטית וניתן לעדכן אותו ידנית.
+          {t("convert.body")}
         </p>
         <div>
-          <label className="label">בחר קבוצת יעד</label>
+          <label className="label">{t("convert.selectGroup")}</label>
           <select className="input" value={groupId} onChange={(e) => setGroupId(e.target.value)}>
-            <option value="">— בחר קבוצה —</option>
+            <option value="">{t("convert.selectPlaceholder")}</option>
             {groups.map((g) => (
               <option key={g.id} value={g.id}>{g.name}</option>
             ))}
           </select>
           {groups.length === 0 && (
-            <p className="text-xs text-amber-600 mt-2">אין קבוצות פעילות. צור קבוצה תחילה בלשונית &ldquo;אילוף קבוצתי&rdquo;.</p>
+            <p className="text-xs text-amber-600 mt-2">{t("convert.noGroups")}</p>
           )}
         </div>
         <div className="flex gap-3 mt-5">
@@ -737,9 +761,9 @@ function ConvertToGroupModal({
             onClick={() => groupId && onSubmit(groupId)}
           >
             <Repeat className="w-4 h-4" />
-            {isPending ? "ממיר..." : "המר לקבוצתי"}
+            {isPending ? t("convert.converting") : t("convert.submit")}
           </button>
-          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+          <button className="btn-secondary" onClick={onClose}>{tc("actions.cancel")}</button>
         </div>
       </div>
     </div>
@@ -751,6 +775,7 @@ function ConvertToGroupModal({
 // ═══════════════════════════════════════════════════════
 
 function TrainingPageContent() {
+  const t = useTranslations("training.trainingPage");
   const { isFree, tier } = usePlan();
   const maxTrainingPrograms = getMaxTrainingPrograms(tier);
   const [activeTab, setActiveTab] = useState<TabId>("overview");
@@ -890,7 +915,7 @@ function TrainingPageContent() {
         customerPhone: p.customer?.phone ?? "",
         type: "individual",
         status: p.status,
-        detail: PROGRAM_TYPES_MAP[p.programType] || p.programType,
+        detail: programTypeLabel(t, p.programType),
         progress: p.totalSessions ? { used: usedSessions, total: p.totalSessions } : undefined,
         entityId: p.id,
         lastSessionDate: lastSession?.sessionDate,
@@ -911,7 +936,7 @@ function TrainingPageContent() {
         customerPhone: "",
         type: "boarding",
         status: "checked_in",
-        detail: daysLeft !== null ? `${Math.max(0, daysLeft)} ימים נותרו` : "ללא תאריך יציאה",
+        detail: daysLeft !== null ? t("overview.daysLeft", { count: Math.max(0, daysLeft) }) : t("overview.noCheckout"),
         entityId: s.id,
       });
     });
@@ -949,7 +974,7 @@ function TrainingPageContent() {
     });
 
     return dogs;
-  }, [programs, activeStays, regularGroups, workshops]);
+  }, [programs, activeStays, regularGroups, workshops, t]);
 
   const filteredDogs = useMemo(() => {
     if (!searchQuery.trim()) return allDogs;
@@ -983,7 +1008,7 @@ function TrainingPageContent() {
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || "שגיאה בשמירת המפגש. נסה שוב.");
+        throw new Error(body.error || t("toasts.sessionSaveError"));
       }
       return res.json();
     },
@@ -1005,12 +1030,12 @@ function TrainingPageContent() {
           rating: variables.rating,
         });
       } else {
-        toast.success("מפגש נרשם בהצלחה");
+        toast.success(t("toasts.sessionLogged"));
       }
       setSessionLogTarget(null);
     },
     // Keep the modal open on failure — closing it would discard everything typed.
-    onError: (err: Error) => { toast.error(err.message || "שגיאה בשמירת המפגש. נסה שוב."); },
+    onError: (err: Error) => { toast.error(err.message || t("toasts.sessionSaveError")); },
   });
 
   const editSessionMutation = useMutation({
@@ -1030,9 +1055,9 @@ function TrainingPageContent() {
       queryClient.invalidateQueries({ queryKey: ["service-dogs"] });
       queryClient.invalidateQueries({ queryKey: ["training-program-sessions-cal"] });
       setEditSessionTarget(null);
-      toast.success("המפגש עודכן");
+      toast.success(t("toasts.sessionUpdated"));
     },
-    onError: () => toast.error("שגיאה בעדכון המפגש"),
+    onError: () => toast.error(t("toasts.sessionUpdateError")),
   });
 
   const createGroupMutation = useMutation({
@@ -1054,13 +1079,13 @@ function TrainingPageContent() {
       queryClient.invalidateQueries({ queryKey: ["training-groups"] });
       setShowNewGroup(false);
       setShowNewWorkshop(false);
-      toast.success("הקבוצה נוצרה בהצלחה");
+      toast.success(t("toasts.groupCreated"));
     },
     onError: (err: Error) => {
       if ((err as unknown as Record<string, unknown>).code === "LIMIT_REACHED") {
         triggerLimitModal(err.message);
       } else {
-        toast.error(err.message || "שגיאה ביצירת הקבוצה. נסה שוב.");
+        toast.error(err.message || t("toasts.groupCreateError"));
       }
     },
   });
@@ -1075,9 +1100,9 @@ function TrainingPageContent() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["training-groups"] });
       setEditingGroup(null);
-      toast.success("השינויים נשמרו בהצלחה");
+      toast.success(t("toasts.changesSaved"));
     },
-    onError: (err: Error) => toast.error(err.message || "שגיאה בעדכון הקבוצה. נסה שוב."),
+    onError: (err: Error) => toast.error(err.message || t("toasts.groupUpdateError")),
   });
 
   const addParticipantMutation = useMutation({
@@ -1098,12 +1123,12 @@ function TrainingPageContent() {
       setShowAssignDog(null);
       const status = data?.status ?? data?.participant?.status;
       if (status === "WAITLIST") {
-        toast.success("נוסף לרשימת ההמתנה");
+        toast.success(t("toasts.addedToWaitlist"));
       } else {
-        toast.success("הכלב נוסף לקבוצה");
+        toast.success(t("toasts.dogAddedToGroup"));
       }
     },
-    onError: (err: Error) => toast.error(err.message || "שגיאה בהוספת כלב לקבוצה"),
+    onError: (err: Error) => toast.error(err.message || t("toasts.dogAddToGroupError")),
   });
 
   const removeParticipantMutation = useMutation({
@@ -1118,9 +1143,9 @@ function TrainingPageContent() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["training-groups"] });
-      toast.success("הכלב הוסר מהקבוצה");
+      toast.success(t("toasts.dogRemovedFromGroup"));
     },
-    onError: () => toast.error("שגיאה בהסרת הכלב מהקבוצה"),
+    onError: () => toast.error(t("toasts.dogRemoveFromGroupError")),
   });
 
   // Invalidate every training-related query (programs across sub-tabs + groups + calendars)
@@ -1146,10 +1171,10 @@ function TrainingPageContent() {
     onSuccess: (data) => {
       invalidateAllTraining();
       setConvertToGroupTarget(null);
-      toast.success("התהליך הומר לאילוף קבוצתי");
-      if (data?.orderDowngraded) toast.warning("ההזמנה בוטלה במקום להימחק (הזמנה ששולמה/הופקה לא ניתנת למחיקה)");
+      toast.success(t("toasts.convertedToGroup"));
+      if (data?.orderDowngraded) toast.warning(t("toasts.orderDowngraded"));
     },
-    onError: (e: Error) => toast.error(e.message || "שגיאה בהמרה לקבוצה"),
+    onError: (e: Error) => toast.error(e.message || t("toasts.convertToGroupError")),
   });
 
   // Delete individual program (+ chosen order action). Handles owner-confirm + manager approval.
@@ -1166,11 +1191,11 @@ function TrainingPageContent() {
     onSuccess: (data) => {
       invalidateAllTraining();
       setDeleteProgramTarget(null);
-      if (data?.pendingApproval) { toast.success("בקשת המחיקה נשלחה לאישור הבעלים"); return; }
-      toast.success("תהליך האילוף נמחק");
-      if (data?.orderDowngraded) toast.warning("ההזמנה בוטלה במקום להימחק (הזמנה ששולמה/הופקה לא ניתנת למחיקה)");
+      if (data?.pendingApproval) { toast.success(t("toasts.deleteRequestSent")); return; }
+      toast.success(t("toasts.programDeleted"));
+      if (data?.orderDowngraded) toast.warning(t("toasts.orderDowngraded"));
     },
-    onError: (e: Error) => toast.error(e.message || "שגיאה במחיקת התהליך"),
+    onError: (e: Error) => toast.error(e.message || t("toasts.programDeleteError")),
   });
 
   // Toggle individual ↔ package (same TrainingProgram, just the isPackage flag)
@@ -1188,9 +1213,9 @@ function TrainingPageContent() {
       invalidateAllTraining();
       setEditSessionTarget(null);
       setEditingProgram(null);
-      toast.success(vars.isPackage ? "התהליך הומר לחבילת אילוף" : "התהליך הומר לאילוף פרטני");
+      toast.success(vars.isPackage ? t("toasts.convertedToPackage") : t("toasts.convertedToPrivate"));
     },
-    onError: (e: Error) => toast.error(e.message || "שגיאה בשינוי סוג התהליך"),
+    onError: (e: Error) => toast.error(e.message || t("toasts.processTypeError")),
   });
 
   // Convert group participant → individual program
@@ -1207,9 +1232,9 @@ function TrainingPageContent() {
     onSuccess: () => {
       invalidateAllTraining();
       setConvertParticipantTarget(null);
-      toast.success("הכלב הומר לאילוף פרטני");
+      toast.success(t("toasts.dogConvertedToPrivate"));
     },
-    onError: (e: Error) => toast.error(e.message || "שגיאה בהמרה לפרטני"),
+    onError: (e: Error) => toast.error(e.message || t("toasts.convertToPrivateError")),
   });
 
   // Delete a whole group / workshop
@@ -1222,9 +1247,9 @@ function TrainingPageContent() {
     onSuccess: () => {
       invalidateAllTraining();
       setDeleteGroupTarget(null);
-      toast.success("הקבוצה נמחקה");
+      toast.success(t("toasts.groupDeleted"));
     },
-    onError: (e: Error) => toast.error(e.message || "שגיאה במחיקת הקבוצה"),
+    onError: (e: Error) => toast.error(e.message || t("toasts.groupDeleteError")),
   });
 
   const createProgramMutation = useMutation({
@@ -1246,13 +1271,13 @@ function TrainingPageContent() {
       queryClient.invalidateQueries({ queryKey: ["training-programs"] });
       setShowSellPackage(false);
       setShowManualAdd(false);
-      toast.success("תוכנית אילוף נוצרה בהצלחה");
+      toast.success(t("toasts.programCreated"));
     },
     onError: (err: Error) => {
       if ((err as unknown as Record<string, unknown>).code === "LIMIT_REACHED") {
         triggerLimitModal(err.message);
       } else {
-        toast.error(err.message || "שגיאה ביצירת תוכנית אימון. נסה שוב.");
+        toast.error(err.message || t("toasts.programCreateErrorRetry"));
       }
     },
   });
@@ -1270,9 +1295,9 @@ function TrainingPageContent() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["training-packages"] });
       setShowCreatePackage(false);
-      toast.success("חבילה נוצרה בהצלחה");
+      toast.success(t("toasts.packageCreated"));
     },
-    onError: () => toast.error("שגיאה ביצירת חבילה"),
+    onError: () => toast.error(t("toasts.packageCreateError")),
   });
 
   const updatePackageMutation = useMutation({
@@ -1288,9 +1313,9 @@ function TrainingPageContent() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["training-packages"] });
       setEditingPackage(null);
-      toast.success("חבילה עודכנה");
+      toast.success(t("toasts.packageUpdated"));
     },
-    onError: () => toast.error("שגיאה בעדכון חבילה"),
+    onError: () => toast.error(t("toasts.packageUpdateError")),
   });
 
   const deletePackageMutation = useMutation({
@@ -1302,9 +1327,9 @@ function TrainingPageContent() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["training-packages"] });
-      toast.success("חבילה נמחקה");
+      toast.success(t("toasts.packageDeleted"));
     },
-    onError: (err: Error) => toast.error(err.message || "שגיאה במחיקת חבילה"),
+    onError: (err: Error) => toast.error(err.message || t("toasts.packageDeleteError")),
   });
 
   const createBoardingTrainingMutation = useMutation({
@@ -1326,11 +1351,11 @@ function TrainingPageContent() {
             dogId: boardingData.dogId,
             customerId: boardingData.customerId,
             trainingType: "HOME",
-            name: `מפגשי המשך — ${boardingProgram.dog?.name || ""}`,
+            name: t("boardingFollowup.name", { dog: boardingProgram.dog?.name || "" }),
             programType: "CUSTOM",
             startDate: boardingData.endDate || new Date().toISOString(),
             totalSessions: homeFollowupSessions,
-            notes: "מפגשי המשך לאחר אילוף פנסיון",
+            notes: t("boardingFollowup.notes"),
           }),
         }).catch(console.error);
       }
@@ -1340,9 +1365,9 @@ function TrainingPageContent() {
       queryClient.invalidateQueries({ queryKey: ["training-programs"] });
       queryClient.invalidateQueries({ queryKey: ["training-programs-boarding"] });
       setShowBoardingTraining(null);
-      toast.success("תוכנית אילוף נוצרה בהצלחה");
+      toast.success(t("toasts.programCreated"));
     },
-    onError: () => toast.error("שגיאה ביצירת תוכנית אילוף"),
+    onError: () => toast.error(t("toasts.programCreateError")),
   });
 
   const updateStatusMutation = useMutation({
@@ -1366,9 +1391,9 @@ function TrainingPageContent() {
       queryClient.invalidateQueries({ queryKey: ["training-programs-archive"] });
       setDropoutTarget(null);
       setFinishTarget(null);
-      toast.success(variables.status === "COMPLETED" ? "אילוף הסתיים ✓" : "כלב עבר לארכיון");
+      toast.success(variables.status === "COMPLETED" ? t("toasts.trainingFinished") : t("toasts.dogArchived"));
     },
-    onError: () => toast.error("שגיאה בעדכון סטטוס"),
+    onError: () => toast.error(t("toasts.statusUpdateError")),
   });
 
   const updateProgramSettingsMutation = useMutation({
@@ -1400,9 +1425,9 @@ function TrainingPageContent() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["training-programs"] });
       setEditingProgram(null);
-      toast.success("הגדרות התוכנית עודכנו");
+      toast.success(t("toasts.programSettingsUpdated"));
     },
-    onError: () => { setEditingProgram(null); toast.error("שגיאה בעדכון הגדרות התוכנית. נסה שוב."); },
+    onError: () => { setEditingProgram(null); toast.error(t("toasts.programSettingsError")); },
   });
 
   const scheduleSessionMutation = useMutation({
@@ -1448,10 +1473,10 @@ function TrainingPageContent() {
       setScheduleSessionTarget(null);
       const created = (data as { created?: number })?.created;
       toast.success(created && created > 1
-        ? `${created} מפגשים נקבעו ליומן ✓ — תזכורות ווצאפ יישלחו אוטומטית`
-        : "מפגש נוסף ליומן ✓ — תזכורת ווצאפ תישלח ללקוח אוטומטית");
+        ? t("toasts.sessionsScheduled", { count: created })
+        : t("toasts.sessionScheduled"));
     },
-    onError: () => toast.error("שגיאה בקביעת מפגש"),
+    onError: () => toast.error(t("toasts.scheduleError")),
   });
 
   const cancelScheduledSessionMutation = useMutation({
@@ -1467,9 +1492,9 @@ function TrainingPageContent() {
       queryClient.invalidateQueries({ queryKey: ["training-programs-boarding"] });
       queryClient.invalidateQueries({ queryKey: ["training-program-sessions-cal"] });
       queryClient.invalidateQueries({ queryKey: ["training-group-sessions-cal"] });
-      toast.success("מפגש מתוזמן בוטל");
+      toast.success(t("toasts.scheduledSessionCanceled"));
     },
-    onError: () => toast.error("שגיאה בביטול מפגש"),
+    onError: () => toast.error(t("toasts.cancelSessionError")),
   });
 
   // ─── Helpers ───
@@ -1567,24 +1592,24 @@ function TrainingPageContent() {
           setActiveTab("overview");
           if (findProgram(serviceDogPrograms)) {
             // SERVICE_DOG programs have no card on this page — point to the profile instead.
-            toast.info("תוכנית האימון של כלב שירות מנוהלת בעמוד כלבי שירות");
+            toast.info(t("toasts.serviceDogProgramElsewhere"));
           } else {
-            toast.info("לכלב זה אין תוכנית פעילה");
+            toast.info(t("toasts.noActiveProgram"));
           }
         }
       }
     }
-  }, [programs, boardingPrograms, serviceDogPrograms, groups, workshops, focusCard, isLoading, boardingProgramsLoading, serviceDogProgramsLoading]);
+  }, [programs, boardingPrograms, serviceDogPrograms, groups, workshops, focusCard, isLoading, boardingProgramsLoading, serviceDogProgramsLoading, t]);
 
   const activePrograms = programs.filter((p) => p.status === "ACTIVE");
 
   // ─── Stats ───
 
   const stats = [
-    { label: "כלבים באימון", value: allDogs.length, color: "bg-orange-50 text-orange-600", iconBg: "bg-orange-100" },
-    { label: "אימון אישי", value: activePrograms.length, color: "bg-blue-50 text-blue-600", iconBg: "bg-blue-100" },
-    { label: "אימון בפנסיון", value: activeStays.length, color: "bg-green-50 text-green-600", iconBg: "bg-green-100" },
-    { label: "קבוצות וסדנאות", value: regularGroups.length + workshops.length, color: "bg-purple-50 text-purple-600", iconBg: "bg-purple-100" },
+    { label: t("stats.dogsInTraining"), value: allDogs.length, color: "bg-orange-50 text-orange-600", iconBg: "bg-orange-100" },
+    { label: t("stats.personal"), value: activePrograms.length, color: "bg-blue-50 text-blue-600", iconBg: "bg-blue-100" },
+    { label: t("stats.boarding"), value: activeStays.length, color: "bg-green-50 text-green-600", iconBg: "bg-green-100" },
+    { label: t("stats.groups"), value: regularGroups.length + workshops.length, color: "bg-purple-50 text-purple-600", iconBg: "bg-purple-100" },
   ];
 
   const statIcons = [
@@ -1605,29 +1630,29 @@ function TrainingPageContent() {
         <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center">
           <GraduationCap className="w-5 h-5 text-brand-500" />
         </div>
-        <h1 className="page-title">אימונים וניהול כלבים</h1>
+        <h1 className="page-title">{t("header.title")}</h1>
 
         {/* Refresh controls */}
         <div className="flex items-center gap-2 ms-auto">
           <button
             onClick={() => setShowManualAdd(true)}
             className="btn-primary text-sm"
-            title="הוסף תהליך אילוף ידני ללא הזמנה"
+            title={t("header.manualAddTitle")}
           >
             <Plus className="w-4 h-4" />
-            הוסף תהליך ידני
+            {t("header.manualAdd")}
           </button>
           <button
             onClick={() => refetchPrograms()}
             disabled={programsFetching}
-            title="רענן עכשיו"
+            title={t("header.refreshNow")}
             className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-petra-muted hover:text-petra-text transition-colors disabled:opacity-50"
           >
             <RefreshCw className={cn("w-4 h-4", programsFetching && "animate-spin")} />
           </button>
           <button
             onClick={() => setAutoRefresh(!autoRefresh)}
-            title={autoRefresh ? "כבה אוטו-רענון" : "הפעל אוטו-רענון (30 שנ׳)"}
+            title={autoRefresh ? t("header.autoRefreshOff") : t("header.autoRefreshOn")}
             className={cn(
               "flex items-center gap-1.5 px-3 h-8 rounded-lg border text-xs font-medium transition-all",
               autoRefresh
@@ -1636,7 +1661,7 @@ function TrainingPageContent() {
             )}
           >
             <span className={cn("w-1.5 h-1.5 rounded-full", autoRefresh ? "bg-emerald-500 animate-pulse" : "bg-slate-300")} />
-            {autoRefresh ? "רענון אוטו פעיל" : "אוטו-רענון"}
+            {autoRefresh ? t("header.autoRefreshActive") : t("header.autoRefresh")}
           </button>
         </div>
       </div>
@@ -1666,12 +1691,12 @@ function TrainingPageContent() {
           <div className="flex items-center gap-2 text-sm">
             <Sparkles className={`w-4 h-4 flex-shrink-0 ${programs.length >= maxTrainingPrograms ? "text-amber-500" : "text-slate-400"}`} />
             <span className={programs.length >= maxTrainingPrograms ? "text-amber-800" : "text-slate-600"}>
-              {programs.length}/{maxTrainingPrograms} תהליכי אילוף — מגבלת המנוי החינמי
+              {t("freeLimit.count", { used: programs.length, max: maxTrainingPrograms })}
             </span>
           </div>
           {programs.length >= maxTrainingPrograms && (
             <a href="/upgrade" className="text-xs font-semibold text-amber-700 hover:text-amber-900 whitespace-nowrap">
-              שדרג לבייסיק ←
+              {t("freeLimit.upgrade")}
             </a>
           )}
         </div>
@@ -1679,10 +1704,10 @@ function TrainingPageContent() {
 
       {/* Global Search */}
       <div className="relative mb-4">
-        <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted" />
+        <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted" />
         <input
-          className="input pr-10 w-full"
-          placeholder="חיפוש לפי שם כלב או בעלים..."
+          className="input ps-10 w-full"
+          placeholder={t("searchPlaceholder")}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
         />
@@ -1702,7 +1727,7 @@ function TrainingPageContent() {
             )}
           >
             {tab.icon}
-            {tab.label}
+            {t(`tabs.${tab.id}`)}
           </button>
         ))}
       </div>
@@ -1711,8 +1736,8 @@ function TrainingPageContent() {
       {isError ? (
         <div className="card p-8 text-center">
           <AlertTriangle className="w-8 h-8 mx-auto mb-3 text-red-400" />
-          <p className="text-red-600 font-medium mb-2">שגיאה בטעינת נתוני אילוף</p>
-          <button className="btn-secondary text-sm" onClick={() => refetchPrograms()}>נסה שוב</button>
+          <p className="text-red-600 font-medium mb-2">{t("loadError")}</p>
+          <button className="btn-secondary text-sm" onClick={() => refetchPrograms()}>{t("tryAgain")}</button>
         </div>
       ) : isLoading ? (
         <PetraLoader />
@@ -1732,8 +1757,8 @@ function TrainingPageContent() {
               {/* Sub-tabs */}
               <div className="flex gap-1 p-1 bg-slate-100 rounded-xl mb-5 overflow-x-auto scrollbar-hide">
                 {[
-                  { id: "private" as const, label: "אילוף פרטני" },
-                  { id: "package" as const, label: "חבילת אילוף" },
+                  { id: "private" as const, label: t("subTabs.private") },
+                  { id: "package" as const, label: t("subTabs.package") },
                   // { id: "boarding-alt" as const, label: "חלופות פנסיון בבית הלקוח" }, // hidden — future feature
                 ].map((sub) => (
                   <button
@@ -1865,8 +1890,8 @@ function TrainingPageContent() {
               {/* Sub-tabs */}
               <div className="flex gap-1 p-1 bg-slate-100 rounded-xl mb-5 overflow-x-auto scrollbar-hide">
                 {[
-                  { id: "groups" as const, label: "קבוצות אימון" },
-                  { id: "workshops" as const, label: "סדנאות מיוחדות" },
+                  { id: "groups" as const, label: t("subTabs.groups") },
+                  { id: "workshops" as const, label: t("subTabs.workshops") },
                 ].map((sub) => (
                   <button
                     key={sub.id}
@@ -2035,25 +2060,25 @@ function TrainingPageContent() {
                 <CheckCircle2 className="w-5 h-5 text-green-600" />
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-petra-text text-sm">מפגש נרשם בהצלחה! ✓</h3>
-                <p className="text-xs text-petra-muted">{sessionSummarySend.dogName} — מפגש {sessionSummarySend.sessionNumber}</p>
+                <h3 className="font-semibold text-petra-text text-sm">{t("summarySend.title")}</h3>
+                <p className="text-xs text-petra-muted">{t("summarySend.subtitle", { dog: sessionSummarySend.dogName, n: sessionSummarySend.sessionNumber })}</p>
               </div>
               <button className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted flex-shrink-0" onClick={() => setSessionSummarySend(null)}>
                 <X className="w-3.5 h-3.5" />
               </button>
             </div>
-            <p className="text-xs text-petra-muted mb-4">שלח סיכום מפגש ישירות ללקוח בוואטסאפ</p>
+            <p className="text-xs text-petra-muted mb-4">{t("summarySend.hint")}</p>
             {(() => {
               const lines: string[] = [
-                `שלום ${sessionSummarySend.customerName}! 🐾`,
-                `סיכום מפגש ${sessionSummarySend.sessionNumber} — ${sessionSummarySend.dogName}`,
+                `שלום ${sessionSummarySend.customerName}! 🐾`, // i18n-ok — WhatsApp text the trainer sends to the client
+                `סיכום מפגש ${sessionSummarySend.sessionNumber} — ${sessionSummarySend.dogName}`, // i18n-ok
                 "",
               ];
-              if (sessionSummarySend.practiceItems) lines.push(`📝 תרגילים שעשינו:\n${sessionSummarySend.practiceItems}`, "");
-              if (sessionSummarySend.homeworkForCustomer) lines.push(`🏠 שיעורי בית לתרגול:\n${sessionSummarySend.homeworkForCustomer}`, "");
-              if (sessionSummarySend.nextSessionGoals) lines.push(`🎯 יעדים לפגישה הבאה:\n${sessionSummarySend.nextSessionGoals}`, "");
-              if (sessionSummarySend.rating) lines.push(`⭐ דירוג המפגש: ${"★".repeat(sessionSummarySend.rating)}`);
-              lines.push("", "נתראה בפגישה הבאה! 🐾");
+              if (sessionSummarySend.practiceItems) lines.push(`📝 תרגילים שעשינו:\n${sessionSummarySend.practiceItems}`, ""); // i18n-ok
+              if (sessionSummarySend.homeworkForCustomer) lines.push(`🏠 שיעורי בית לתרגול:\n${sessionSummarySend.homeworkForCustomer}`, ""); // i18n-ok
+              if (sessionSummarySend.nextSessionGoals) lines.push(`🎯 יעדים לפגישה הבאה:\n${sessionSummarySend.nextSessionGoals}`, ""); // i18n-ok
+              if (sessionSummarySend.rating) lines.push(`⭐ דירוג המפגש: ${"★".repeat(sessionSummarySend.rating)}`); // i18n-ok
+              lines.push("", "נתראה בפגישה הבאה! 🐾"); // i18n-ok
               const msg = lines.join("\n");
               const url = `https://api.whatsapp.com/send?phone=${toWhatsAppPhone(sessionSummarySend.customerPhone)}&text=${encodeURIComponent(msg)}`;
               return (
@@ -2066,13 +2091,13 @@ function TrainingPageContent() {
                     onClick={() => setTimeout(() => setSessionSummarySend(null), 800)}
                   >
                     <Send className="w-4 h-4" />
-                    שלח סיכום בוואטסאפ
+                    {t("summarySend.send")}
                   </a>
                   <button
                     className="w-full py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-petra-muted text-xs font-medium transition-colors"
                     onClick={() => setSessionSummarySend(null)}
                   >
-                    דלג — לא עכשיו
+                    {t("summarySend.skip")}
                   </button>
                 </div>
               );
@@ -2274,9 +2299,9 @@ function TrainingPageContent() {
 
       {convertParticipantTarget && (
         <ConfirmActionModal
-          title="המרה לאילוף פרטני"
-          message={`להמיר את ${convertParticipantTarget.dogName} מהקבוצה לאילוף פרטני? תיווצר תוכנית אילוף פרטנית והכלב יוסר מהקבוצה.`}
-          confirmLabel="המר לפרטני"
+          title={t("convertToPrivate.title")}
+          message={t("convertToPrivate.message", { dog: convertParticipantTarget.dogName })}
+          confirmLabel={t("convertToPrivate.confirm")}
           isPending={convertParticipantMutation.isPending}
           onClose={() => setConvertParticipantTarget(null)}
           onConfirm={() =>
@@ -2290,9 +2315,9 @@ function TrainingPageContent() {
 
       {deleteGroupTarget && (
         <ConfirmActionModal
-          title={deleteGroupTarget.isWorkshop ? "מחיקת סדנה" : "מחיקת קבוצה"}
-          message={`למחוק את "${deleteGroupTarget.groupName}"? פעולה זו תמחק את כל המפגשים והמשתתפים בקבוצה. ההזמנות של הלקוחות לא יימחקו.`}
-          confirmLabel="מחק לצמיתות"
+          title={deleteGroupTarget.isWorkshop ? t("deleteGroup.titleWorkshop") : t("deleteGroup.title")}
+          message={t("deleteGroup.message", { name: deleteGroupTarget.groupName })}
+          confirmLabel={t("deleteGroup.confirm")}
           danger
           isPending={deleteGroupMutation.isPending}
           onClose={() => setDeleteGroupTarget(null)}
@@ -2317,13 +2342,15 @@ function DogStatusDot({ dog }: { dog: UnifiedDog }) {
 }
 
 function OverviewDogCard({ dog, onFocus }: { dog: UnifiedDog; onFocus?: (dog: UnifiedDog) => void }) {
+  const t = useTranslations("training.trainingPage");
+  const { formatDate } = useFmt();
   const badge = TYPE_BADGE[dog.type];
   const isLowSessions = dog.sessionsRemaining !== undefined && dog.sessionsRemaining <= 2 && dog.status === "ACTIVE";
   const isOverdue = dog.daysSinceLastSession !== undefined && dog.daysSinceLastSession >= 14 && dog.status === "ACTIVE";
   const isCompleted = dog.status === "COMPLETED";
 
   const whatsappUrl = dog.customerPhone
-    ? `https://api.whatsapp.com/send?phone=${toWhatsAppPhone(dog.customerPhone)}&text=${encodeURIComponent(`שלום! עדכון אימון עבור ${dog.dogName} 🐾`)}`
+    ? `https://api.whatsapp.com/send?phone=${toWhatsAppPhone(dog.customerPhone)}&text=${encodeURIComponent(`שלום! עדכון אימון עבור ${dog.dogName} 🐾`)}` // i18n-ok — WhatsApp text sent to the client
     : null;
 
   return (
@@ -2350,7 +2377,7 @@ function OverviewDogCard({ dog, onFocus }: { dog: UnifiedDog; onFocus?: (dog: Un
           <p className="text-xs text-petra-muted truncate">{dog.customerName}</p>
         </div>
         <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium flex-shrink-0", badge.bg, badge.text)}>
-          {badge.label}
+          {t(`typeBadge.${dog.type}`)}
         </span>
       </div>
 
@@ -2361,7 +2388,7 @@ function OverviewDogCard({ dog, onFocus }: { dog: UnifiedDog; onFocus?: (dog: Un
       {dog.progress && (
         <div className="mb-3">
           <div className="flex justify-between text-[10px] text-petra-muted mb-1">
-            <span>מפגשים</span>
+            <span>{t("overview.sessions")}</span>
             <span className="font-semibold">{dog.progress.used}/{dog.progress.total}</span>
           </div>
           <div className="w-full h-2 rounded-full bg-slate-100">
@@ -2378,22 +2405,22 @@ function OverviewDogCard({ dog, onFocus }: { dog: UnifiedDog; onFocus?: (dog: Un
         {isLowSessions && (
           <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium flex items-center gap-1">
             <AlertTriangle className="w-3 h-3" />
-            {dog.sessionsRemaining} מפגשים נותרו
+            {t("overview.sessionsLeft", { count: dog.sessionsRemaining })}
           </span>
         )}
         {isOverdue && (
           <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">
-            {dog.daysSinceLastSession} ימים ללא מפגש
+            {t("overview.daysWithoutSession", { count: dog.daysSinceLastSession })}
           </span>
         )}
         {isCompleted && (
           <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-medium flex items-center gap-1">
-            <CheckCircle2 className="w-3 h-3" /> הושלם
+            <CheckCircle2 className="w-3 h-3" /> {t("overview.completed")}
           </span>
         )}
         {dog.lastSessionDate && !isCompleted && !isOverdue && (
           <span className="text-[10px] text-petra-muted">
-            מפגש אחרון: {formatDate(dog.lastSessionDate)}
+            {t("overview.lastSessionAt", { date: formatDate(dog.lastSessionDate) })}
           </span>
         )}
       </div>
@@ -2408,7 +2435,7 @@ function OverviewDogCard({ dog, onFocus }: { dog: UnifiedDog; onFocus?: (dog: Un
           onClick={(e) => e.stopPropagation()}
         >
           <Send className="w-3 h-3" />
-          שלח עדכון לבעלים
+          {t("overview.sendOwnerUpdate")}
         </a>
       )}
     </div>
@@ -2416,13 +2443,15 @@ function OverviewDogCard({ dog, onFocus }: { dog: UnifiedDog; onFocus?: (dog: Un
 }
 
 function OverviewDogRow({ dog, onFocus }: { dog: UnifiedDog; onFocus: (dog: UnifiedDog) => void }) {
+  const t = useTranslations("training.trainingPage");
+  const { formatDate } = useFmt();
   const badge = TYPE_BADGE[dog.type];
   const isLowSessions = dog.sessionsRemaining !== undefined && dog.sessionsRemaining <= 2 && dog.status === "ACTIVE";
   const isOverdue = dog.daysSinceLastSession !== undefined && dog.daysSinceLastSession >= 14 && dog.status === "ACTIVE";
   const isCompleted = dog.status === "COMPLETED";
 
   const whatsappUrl = dog.customerPhone
-    ? `https://api.whatsapp.com/send?phone=${toWhatsAppPhone(dog.customerPhone)}&text=${encodeURIComponent(`שלום! עדכון אימון עבור ${dog.dogName} 🐾`)}`
+    ? `https://api.whatsapp.com/send?phone=${toWhatsAppPhone(dog.customerPhone)}&text=${encodeURIComponent(`שלום! עדכון אימון עבור ${dog.dogName} 🐾`)}` // i18n-ok — WhatsApp text sent to the client
     : null;
 
   return (
@@ -2440,7 +2469,7 @@ function OverviewDogRow({ dog, onFocus }: { dog: UnifiedDog; onFocus: (dog: Unif
       <td className="p-3 text-sm text-petra-muted">{dog.customerName}</td>
       <td className="p-3">
         <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium", badge.bg, badge.text)}>
-          {badge.label}
+          {t(`typeBadge.${dog.type}`)}
         </span>
       </td>
       <td className="p-3">
@@ -2460,7 +2489,7 @@ function OverviewDogRow({ dog, onFocus }: { dog: UnifiedDog; onFocus: (dog: Unif
       </td>
       <td className="p-3 text-xs text-petra-muted">
         {isOverdue ? (
-          <span className="text-amber-600 font-medium">{dog.daysSinceLastSession} ימים</span>
+          <span className="text-amber-600 font-medium">{t("overview.days", { count: dog.daysSinceLastSession })}</span>
         ) : dog.lastSessionDate ? (
           formatDate(dog.lastSessionDate)
         ) : "—"}
@@ -2475,7 +2504,7 @@ function OverviewDogRow({ dog, onFocus }: { dog: UnifiedDog; onFocus: (dog: Unif
             className="flex items-center gap-1 text-[11px] text-green-700 hover:text-green-800 font-medium bg-green-50 hover:bg-green-100 px-2 py-1 rounded-lg transition-colors border border-green-200"
           >
             <Send className="w-3 h-3" />
-            שלח
+            {t("overview.send")}
           </a>
         )}
       </td>
@@ -2484,14 +2513,15 @@ function OverviewDogRow({ dog, onFocus }: { dog: UnifiedDog; onFocus: (dog: Unif
 }
 
 function OverviewTab({ dogs, onFocus }: { dogs: UnifiedDog[]; onFocus: (dog: UnifiedDog) => void }) {
+  const t = useTranslations("training.trainingPage");
   const [viewMode, setViewMode] = useState<"grid" | "list">("list");
 
   if (dogs.length === 0) {
     return (
       <div className="empty-state">
         <div className="empty-state-icon"><Dog className="w-6 h-6 text-slate-400" /></div>
-        <h3 className="text-base font-semibold text-petra-text mb-1">אין כלבים באימון</h3>
-        <p className="text-sm text-petra-muted">הוסף כלבים לאימון דרך הטאבים השונים</p>
+        <h3 className="text-base font-semibold text-petra-text mb-1">{t("overview.emptyTitle")}</h3>
+        <p className="text-sm text-petra-muted">{t("overview.emptyHint")}</p>
       </div>
     );
   }
@@ -2504,9 +2534,9 @@ function OverviewTab({ dogs, onFocus }: { dogs: UnifiedDog[]; onFocus: (dog: Uni
   const completed = dogs.filter((d) => d.status === "COMPLETED");
 
   const sections: { label: string; icon: React.ReactNode; labelClass: string; dogs: UnifiedDog[] }[] = [
-    { label: `דורשים תשומת לב (${attention.length})`, icon: <AlertTriangle className="w-4 h-4" />, labelClass: "text-red-600", dogs: attention },
-    { label: `באימון פעיל (${active.length})`, icon: <CheckCircle2 className="w-4 h-4" />, labelClass: "text-emerald-700", dogs: active },
-    { label: `הושלמו (${completed.length})`, icon: <Clock className="w-4 h-4" />, labelClass: "text-slate-500", dogs: completed },
+    { label: t("overview.sectionAttention", { count: attention.length }), icon: <AlertTriangle className="w-4 h-4" />, labelClass: "text-red-600", dogs: attention },
+    { label: t("overview.sectionActive", { count: active.length }), icon: <CheckCircle2 className="w-4 h-4" />, labelClass: "text-emerald-700", dogs: active },
+    { label: t("overview.sectionCompleted", { count: completed.length }), icon: <Clock className="w-4 h-4" />, labelClass: "text-slate-500", dogs: completed },
   ].filter((s) => s.dogs.length > 0);
 
   return (
@@ -2516,14 +2546,14 @@ function OverviewTab({ dogs, onFocus }: { dogs: UnifiedDog[]; onFocus: (dog: Uni
           <button
             onClick={() => setViewMode("list")}
             className={cn("p-1.5 rounded transition-colors", viewMode === "list" ? "bg-white shadow-sm text-brand-600" : "text-petra-muted")}
-            title="תצוגת שורות"
+            title={t("overview.listView")}
           >
             <LayoutList className="w-4 h-4" />
           </button>
           <button
             onClick={() => setViewMode("grid")}
             className={cn("p-1.5 rounded transition-colors", viewMode === "grid" ? "bg-white shadow-sm text-brand-600" : "text-petra-muted")}
-            title="תצוגת כרטיסים"
+            title={t("overview.gridView")}
           >
             <LayoutGrid className="w-4 h-4" />
           </button>
@@ -2544,14 +2574,14 @@ function OverviewTab({ dogs, onFocus }: { dogs: UnifiedDog[]; onFocus: (dog: Uni
         ))
       ) : (
         <div className="card overflow-x-auto">
-          <table className="w-full text-right text-sm">
+          <table className="w-full text-start text-sm">
             <thead>
               <tr className="border-b bg-slate-50">
-                <th className="p-3 font-medium text-petra-muted">כלב</th>
-                <th className="p-3 font-medium text-petra-muted">בעלים</th>
-                <th className="p-3 font-medium text-petra-muted">סוג אימון</th>
-                <th className="p-3 font-medium text-petra-muted">מפגשים</th>
-                <th className="p-3 font-medium text-petra-muted">מפגש אחרון</th>
+                <th className="p-3 font-medium text-petra-muted">{t("overview.colDog")}</th>
+                <th className="p-3 font-medium text-petra-muted">{t("overview.colOwner")}</th>
+                <th className="p-3 font-medium text-petra-muted">{t("overview.colType")}</th>
+                <th className="p-3 font-medium text-petra-muted">{t("overview.colSessions")}</th>
+                <th className="p-3 font-medium text-petra-muted">{t("overview.colLastSession")}</th>
                 <th className="p-3"></th>
               </tr>
             </thead>
@@ -2584,6 +2614,7 @@ function OverviewTab({ dogs, onFocus }: { dogs: UnifiedDog[]; onFocus: (dog: Uni
 // ═══════════════════════════════════════════════════════
 
 function GoalProgressRow({ goal, programId }: { goal: { id: string; title: string; status: string; progressPercent: number }; programId: string }) {
+  const t = useTranslations("training.trainingPage");
   const queryClient = useQueryClient();
   const [localProgress, setLocalProgress] = useState(goal.progressPercent);
 
@@ -2600,14 +2631,14 @@ function GoalProgressRow({ goal, programId }: { goal: { id: string; title: strin
         body: JSON.stringify({ goalId: goal.id, progressPercent: progress, status }),
       }),
     onSuccess: invalidate,
-    onError: () => toast.error("שגיאה בעדכון יעד"),
+    onError: () => toast.error(t("goals.updateError")),
   });
 
   const deleteMutation = useMutation({
     mutationFn: () =>
       fetchJSON(`/api/training-programs/${programId}/goals?goalId=${goal.id}`, { method: "DELETE" }),
-    onSuccess: () => { invalidate(); toast.success("יעד הוסר"); },
-    onError: () => toast.error("שגיאה במחיקת יעד"),
+    onSuccess: () => { invalidate(); toast.success(t("goals.removed")); },
+    onError: () => toast.error(t("goals.deleteError")),
   });
 
   const cycleStatus = () => {
@@ -2626,7 +2657,7 @@ function GoalProgressRow({ goal, programId }: { goal: { id: string; title: strin
     <div className="p-2 rounded-lg bg-slate-50 space-y-1.5">
       <div className="flex items-center gap-2">
         <button
-          title="שנה סטטוס"
+          title={t("goals.changeStatus")}
           onClick={cycleStatus}
           disabled={updateMutation.isPending}
           className={cn("text-[11px] font-bold flex-shrink-0 w-5 h-5 flex items-center justify-center rounded-full border transition-all hover:scale-110", statusColor,
@@ -2640,7 +2671,7 @@ function GoalProgressRow({ goal, programId }: { goal: { id: string; title: strin
           onClick={() => deleteMutation.mutate()}
           disabled={deleteMutation.isPending}
           className="w-5 h-5 flex items-center justify-center rounded hover:bg-red-50 text-petra-muted hover:text-red-500 transition-colors flex-shrink-0"
-          title="מחק יעד"
+          title={t("goals.delete")}
         >
           <Trash2 className="w-3 h-3" />
         </button>
@@ -2677,6 +2708,8 @@ function GoalProgressRow({ goal, programId }: { goal: { id: string; title: strin
 // ─── Homework Section ────────────────────────────────────────────────────────
 
 function HomeworkSection({ program }: { program: TrainingProgram }) {
+  const t = useTranslations("training.trainingPage");
+  const tc = useTranslations("common");
   const queryClient = useQueryClient();
   const [newTitle, setNewTitle] = useState("");
   const [showAdd, setShowAdd] = useState(false);
@@ -2689,7 +2722,7 @@ function HomeworkSection({ program }: { program: TrainingProgram }) {
         body: JSON.stringify({ homeworkId, isCompleted }),
       }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["training-programs"] }),
-    onError: () => toast.error("שגיאה בעדכון שיעורי בית"),
+    onError: () => toast.error(t("homework.updateError")),
   });
 
   const addMutation = useMutation({
@@ -2703,16 +2736,16 @@ function HomeworkSection({ program }: { program: TrainingProgram }) {
       queryClient.invalidateQueries({ queryKey: ["training-programs"] });
       setNewTitle("");
       setShowAdd(false);
-      toast.success("שיעור בית נוסף ✓");
+      toast.success(t("homework.added"));
     },
-    onError: () => toast.error("שגיאה בהוספת שיעור בית"),
+    onError: () => toast.error(t("homework.addError")),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (homeworkId: string) =>
       fetchJSON(`/api/training-programs/${program.id}/homework?homeworkId=${homeworkId}`, { method: "DELETE" }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["training-programs"] }),
-    onError: () => toast.error("שגיאה במחיקת שיעור בית"),
+    onError: () => toast.error(t("homework.deleteError")),
   });
 
   const completed = program.homework.filter((h) => h.isCompleted).length;
@@ -2722,16 +2755,16 @@ function HomeworkSection({ program }: { program: TrainingProgram }) {
       <div className="flex items-center gap-2 mb-2">
         <BookOpen className="w-3.5 h-3.5 text-petra-muted" />
         <h4 className="text-xs font-semibold text-petra-muted flex-1">
-          שיעורי בית ({completed}/{program.homework.length})
+          {t("homework.title", { done: completed, total: program.homework.length })}
         </h4>
         {program.customer?.phone && program.homework.filter((h) => !h.isCompleted).length > 0 && (() => {
           const pending = program.homework.filter((h) => !h.isCompleted);
           const lines = [
-            `📝 שיעורי בית לאימון — ${program.dog.name}`,
+            `📝 שיעורי בית לאימון — ${program.dog.name}`, // i18n-ok — WhatsApp text sent to the client
             "",
             ...pending.map((h, i) => `${i + 1}. ${h.title}`),
             "",
-            "יש להתאמן על הנקודות הנ״ל עד המפגש הבא 🐾",
+            "יש להתאמן על הנקודות הנ״ל עד המפגש הבא 🐾", // i18n-ok
           ];
           return (
             <a
@@ -2739,11 +2772,11 @@ function HomeworkSection({ program }: { program: TrainingProgram }) {
               target="_blank"
               rel="noopener noreferrer"
               className="text-[10px] text-green-700 hover:text-green-800 font-medium flex items-center gap-0.5 bg-green-50 px-1.5 py-0.5 rounded"
-              title="שלח שיעורי בית"
+              title={t("homework.send")}
               onClick={(e) => e.stopPropagation()}
             >
               <Send className="w-2.5 h-2.5" />
-              שלח
+              {t("overview.send")}
             </a>
           );
         })()}
@@ -2752,12 +2785,12 @@ function HomeworkSection({ program }: { program: TrainingProgram }) {
           onClick={() => setShowAdd((v) => !v)}
         >
           <Plus className="w-3.5 h-3.5" />
-          הוסף
+          {tc("actions.add")}
         </button>
       </div>
 
       {program.homework.length === 0 && !showAdd && (
-        <p className="text-xs text-petra-muted">אין שיעורי בית עדיין</p>
+        <p className="text-xs text-petra-muted">{t("homework.empty")}</p>
       )}
 
       <div className="space-y-1.5">
@@ -2800,7 +2833,7 @@ function HomeworkSection({ program }: { program: TrainingProgram }) {
             autoFocus
             type="text"
             className="input text-xs flex-1 py-1"
-            placeholder="תיאור שיעור הבית..."
+            placeholder={t("homework.placeholder")}
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}
             onKeyDown={(e) => {
@@ -2813,7 +2846,7 @@ function HomeworkSection({ program }: { program: TrainingProgram }) {
             disabled={!newTitle.trim() || addMutation.isPending}
             onClick={() => { if (newTitle.trim()) addMutation.mutate(newTitle.trim()); }}
           >
-            {addMutation.isPending ? "..." : "הוסף"}
+            {addMutation.isPending ? "..." : tc("actions.add")}
           </button>
           <button className="btn-secondary text-xs px-2 py-1" onClick={() => { setShowAdd(false); setNewTitle(""); }}>
             <X className="w-3 h-3" />
@@ -2828,7 +2861,10 @@ function HomeworkSection({ program }: { program: TrainingProgram }) {
 // GOAL SECTION (inline add-goal)
 // ═══════════════════════════════════════════════════════
 
-function GoalSection({ program, label = "יעדי אילוף" }: { program: TrainingProgram; label?: string }) {
+function GoalSection({ program, label: labelProp }: { program: TrainingProgram; label?: string }) {
+  const t = useTranslations("training.trainingPage");
+  const tc = useTranslations("common");
+  const label = labelProp ?? t("goals.defaultLabel");
   const queryClient = useQueryClient();
   const [newTitle, setNewTitle] = useState("");
   const [showAdd, setShowAdd] = useState(false);
@@ -2846,9 +2882,9 @@ function GoalSection({ program, label = "יעדי אילוף" }: { program: Trai
       queryClient.invalidateQueries({ queryKey: ["training-programs-service"] });
       setNewTitle("");
       setShowAdd(false);
-      toast.success("יעד נוסף ✓");
+      toast.success(t("goals.added"));
     },
-    onError: () => toast.error("שגיאה בהוספת יעד"),
+    onError: () => toast.error(t("goals.addError")),
   });
 
   return (
@@ -2863,12 +2899,12 @@ function GoalSection({ program, label = "יעדי אילוף" }: { program: Trai
           onClick={() => setShowAdd((v) => !v)}
         >
           <Plus className="w-3.5 h-3.5" />
-          הוסף יעד
+          {t("goals.add")}
         </button>
       </div>
 
       {program.goals.length === 0 && !showAdd && (
-        <p className="text-xs text-petra-muted">אין יעדים עדיין — לחץ &ldquo;הוסף יעד&rdquo; כדי לעקוב אחר ההתקדמות</p>
+        <p className="text-xs text-petra-muted">{t("goals.empty")}</p>
       )}
 
       <div className="space-y-2">
@@ -2883,7 +2919,7 @@ function GoalSection({ program, label = "יעדי אילוף" }: { program: Trai
             autoFocus
             type="text"
             className="input text-xs flex-1 py-1"
-            placeholder="תאר את היעד..."
+            placeholder={t("goals.placeholder")}
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}
             onKeyDown={(e) => {
@@ -2896,7 +2932,7 @@ function GoalSection({ program, label = "יעדי אילוף" }: { program: Trai
             disabled={!newTitle.trim() || addMutation.isPending}
             onClick={() => { if (newTitle.trim()) addMutation.mutate(newTitle.trim()); }}
           >
-            {addMutation.isPending ? "..." : "הוסף"}
+            {addMutation.isPending ? "..." : tc("actions.add")}
           </button>
           <button className="btn-secondary text-xs px-2 py-1" onClick={() => { setShowAdd(false); setNewTitle(""); }}>
             <X className="w-3 h-3" />
@@ -2937,6 +2973,10 @@ function SessionChecklist({
   onCancelSession?: (sessionId: string) => void;
   onEditSession?: (session: ProgramSession) => void;
 }) {
+  const t = useTranslations("training.trainingPage");
+  const tc = useTranslations("common");
+  const { formatDate } = useFmt();
+  const { cfg, locale } = useBusinessLocale();
   const queryClient = useQueryClient();
   const [expandedSessionId, setExpandedSessionId] = useState<string | null>(null);
   const [editingSession, setEditingSession] = useState<{ id: string; date: string; time: string; duration: number } | null>(null);
@@ -2960,9 +3000,9 @@ function SessionChecklist({
       queryClient.invalidateQueries({ queryKey: ["training-program-sessions-cal"] });
       queryClient.invalidateQueries({ queryKey: ["training-group-sessions-cal"] });
       setEditingSession(null);
-      toast.success("מועד המפגש עודכן");
+      toast.success(t("checklist.rescheduled"));
     },
-    onError: () => toast.error("שגיאה בעדכון מועד המפגש"),
+    onError: () => toast.error(t("checklist.rescheduleError")),
   });
 
   const deleteSessionMutation = useMutation({
@@ -2974,9 +3014,9 @@ function SessionChecklist({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["training-programs"] });
       queryClient.invalidateQueries({ queryKey: ["training-programs-boarding"] });
-      toast.success("המפגש נמחק");
+      toast.success(t("checklist.deleted"));
     },
-    onError: () => toast.error("שגיאה במחיקת המפגש"),
+    onError: () => toast.error(t("checklist.deleteError")),
   });
   const total = program.totalSessions;
   // Prefer the COMPLETED row when duplicate rows share a sessionNumber —
@@ -2992,9 +3032,9 @@ function SessionChecklist({
 
   const formatSessionDateTime = (dateStr: string) => {
     const d = new Date(dateStr);
-    const date = new Intl.DateTimeFormat("he-IL", { day: "numeric", month: "long" }).format(d);
-    const time = new Intl.DateTimeFormat("he-IL", { hour: "2-digit", minute: "2-digit", hour12: false }).format(d);
-    return `${date} בשעה ${time}`;
+    const date = new Intl.DateTimeFormat(locale, { day: "numeric", month: "long" }).format(d);
+    const time = new Intl.DateTimeFormat(locale, { hour: "2-digit", minute: "2-digit", hourCycle: cfg.hourCycle }).format(d);
+    return t("checklist.dateAtTime", { date, time });
   };
 
   return (
@@ -3003,11 +3043,11 @@ function SessionChecklist({
       <div className="flex items-center justify-between mb-2">
         <h4 className="text-xs font-semibold text-petra-muted flex items-center gap-1.5">
           <Calendar className="w-3.5 h-3.5" />
-          {total ? `מפגשים (${usedSessions}/${total})` : `מפגשים (${usedSessions})`}
+          {total ? t("checklist.headerOf", { used: usedSessions, total }) : t("checklist.header", { used: usedSessions })}
         </h4>
         {total && (
           <span className="text-[11px] text-petra-muted">
-            {total - usedSessions > 0 ? `נותרו ${total - usedSessions}` : "הכל הושלם ✓"}
+            {total - usedSessions > 0 ? t("checklist.remaining", { count: total - usedSessions }) : t("checklist.allDone")}
           </span>
         )}
       </div>
@@ -3029,7 +3069,7 @@ function SessionChecklist({
             const num = i + 1;
             const session = sessionsByNumber.get(num);
             if (!session || session.status !== "COMPLETED") {
-              return <span key={num} className="w-2.5 h-2.5 rounded-full bg-slate-100 border border-slate-200" title={`מפגש ${num}`} />;
+              return <span key={num} className="w-2.5 h-2.5 rounded-full bg-slate-100 border border-slate-200" title={t("checklist.sessionN", { num })} />;
             }
             const r = session.rating;
             const color = !r ? "bg-slate-300" : r >= 4 ? "bg-emerald-500" : r === 3 ? "bg-amber-400" : "bg-red-400";
@@ -3037,11 +3077,11 @@ function SessionChecklist({
               <span
                 key={num}
                 className={cn("w-2.5 h-2.5 rounded-full", color)}
-                title={`מפגש ${num}${r ? ` — ${r}★` : " — בוצע"}`}
+                title={r ? t("checklist.dotRated", { num, r }) : t("checklist.dotDone", { num })}
               />
             );
           })}
-          <span className="text-[10px] text-petra-muted mr-0.5">דירוגי מפגשים</span>
+          <span className="text-[10px] text-petra-muted ms-0.5">{t("checklist.ratings")}</span>
         </div>
       )}
 
@@ -3082,7 +3122,7 @@ function SessionChecklist({
                   {isCompleted ? <CheckCircle2 className="w-3.5 h-3.5" /> : isScheduled ? <Calendar className="w-3 h-3" /> : num}
                 </div>
 
-                <span className="text-xs font-medium text-petra-text flex-1">מפגש {num}</span>
+                <span className="text-xs font-medium text-petra-text flex-1">{t("checklist.sessionN", { num })}</span>
 
                 {isCompleted && session && (
                   <>
@@ -3095,17 +3135,17 @@ function SessionChecklist({
                         type="button"
                         onClick={(e) => { e.stopPropagation(); onEditSession(session); }}
                         className="w-5 h-5 flex items-center justify-center rounded hover:bg-emerald-100 text-slate-300 hover:text-emerald-600 transition-colors"
-                        title="ערוך מפגש"
+                        title={t("checklist.editSession")}
                       >
                         <Pencil className="w-3 h-3" />
                       </button>
                     )}
                     <button
                       type="button"
-                      onClick={(e) => { e.stopPropagation(); if (confirm("למחוק את רישום המפגש?")) deleteSessionMutation.mutate(session.id); }}
+                      onClick={(e) => { e.stopPropagation(); if (confirm(t("checklist.confirmDelete"))) deleteSessionMutation.mutate(session.id); }}
                       disabled={deleteSessionMutation.isPending}
                       className="w-5 h-5 flex items-center justify-center rounded hover:bg-red-100 text-slate-300 hover:text-red-500 transition-colors"
-                      title="מחק מפגש"
+                      title={t("checklist.deleteSession")}
                     >
                       <Trash2 className="w-3 h-3" />
                     </button>
@@ -3130,7 +3170,7 @@ function SessionChecklist({
                         });
                       }}
                       className="w-5 h-5 flex items-center justify-center rounded hover:bg-blue-100 text-blue-400 hover:text-blue-600 transition-colors"
-                      title="ערוך מועד"
+                      title={t("checklist.editTime")}
                     >
                       <Pencil className="w-3 h-3" />
                     </button>
@@ -3140,7 +3180,7 @@ function SessionChecklist({
                         onClick={(e) => { e.stopPropagation(); onCancelSession(session.id); }}
                         className="text-[10px] text-red-500 hover:text-red-700 px-1.5 py-0.5 rounded hover:bg-red-50 transition-colors"
                       >
-                        ביטול
+                        {tc("actions.cancel")}
                       </button>
                     )}
                   </>
@@ -3155,7 +3195,7 @@ function SessionChecklist({
                       className="text-xs font-semibold text-brand-600 hover:text-brand-700 flex items-center gap-1 transition-colors"
                     >
                       <Plus className="w-3 h-3" />
-                      הוסף
+                      {tc("actions.add")}
                     </button>
                     {onScheduleSession && (
                       <button
@@ -3164,7 +3204,7 @@ function SessionChecklist({
                         className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1 transition-colors"
                       >
                         <Calendar className="w-3 h-3" />
-                        קבע מועד
+                        {t("checklist.setTime")}
                       </button>
                     )}
                   </div>
@@ -3176,28 +3216,28 @@ function SessionChecklist({
                 const es = editingSession;
                 return (
                   <div className="mx-3 mt-0.5 mb-1 p-3 bg-blue-50 border border-blue-200 rounded-xl" onClick={(e) => e.stopPropagation()}>
-                    <p className="text-[10px] font-semibold text-blue-700 mb-2">עריכת מועד מפגש</p>
+                    <p className="text-[10px] font-semibold text-blue-700 mb-2">{t("checklist.editTimeTitle")}</p>
                     <div className="flex gap-2 items-end">
                       <div className="flex-1">
-                        <label className="label text-[10px]">תאריך</label>
-                        <input type="date" lang="he" className="input text-xs py-1.5" value={es.date} onChange={(e) => setEditingSession({ id: es.id, date: e.target.value, time: es.time, duration: es.duration })} />
+                        <label className="label text-[10px]">{t("date")}</label>
+                        <input type="date" lang={cfg.lang} className="input text-xs py-1.5" value={es.date} onChange={(e) => setEditingSession({ id: es.id, date: e.target.value, time: es.time, duration: es.duration })} />
                       </div>
                       <div className="flex-1">
-                        <label className="label text-[10px]">שעה</label>
+                        <label className="label text-[10px]">{t("time")}</label>
                         <input type="time" className="input text-xs py-1.5" value={es.time} onChange={(e) => setEditingSession({ id: es.id, date: es.date, time: e.target.value, duration: es.duration })} />
                       </div>
                       <div className="w-20">
-                        <label className="label text-[10px]">משך (דקות)</label>
+                        <label className="label text-[10px]">{t("durationMinutes")}</label>
                         <select className="input text-xs py-1.5" value={es.duration} onChange={(e) => setEditingSession({ id: es.id, date: es.date, time: es.time, duration: parseInt(e.target.value) })}>
                           {(DURATION_OPTIONS.includes(es.duration) ? DURATION_OPTIONS : [es.duration, ...DURATION_OPTIONS].sort((a, b) => a - b)).map((d) => (
-                            <option key={d} value={d}>{d} דק׳</option>
+                            <option key={d} value={d}>{t("minutesShort", { n: d })}</option>
                           ))}
                         </select>
                       </div>
                       <button className="btn-primary text-xs py-1.5" disabled={rescheduleSessionMutation.isPending || !es.date || !es.time} onClick={() => rescheduleSessionMutation.mutate({ sessionId: es.id, date: es.date, time: es.time, duration: es.duration })}>
-                        {rescheduleSessionMutation.isPending ? "שומר..." : "שמור"}
+                        {rescheduleSessionMutation.isPending ? tc("progress.saving") : tc("actions.save")}
                       </button>
-                      <button className="btn-secondary text-xs py-1.5" onClick={() => setEditingSession(null)}>ביטול</button>
+                      <button className="btn-secondary text-xs py-1.5" onClick={() => setEditingSession(null)}>{tc("actions.cancel")}</button>
                     </div>
                   </div>
                 );
@@ -3207,16 +3247,16 @@ function SessionChecklist({
               {expanded && session && (
                 <div className="mx-3 mt-0.5 mb-1 p-3 bg-white border border-emerald-100 rounded-xl text-xs space-y-1.5">
                   {session.practiceItems && (
-                    <div><span className="font-semibold text-petra-muted">תרגילים: </span>{session.practiceItems}</div>
+                    <div><span className="font-semibold text-petra-muted">{t("checklist.practice")} </span>{session.practiceItems}</div>
                   )}
                   {session.nextSessionGoals && (
-                    <div><span className="font-semibold text-petra-muted">יעדים הבאים: </span>{session.nextSessionGoals}</div>
+                    <div><span className="font-semibold text-petra-muted">{t("checklist.nextGoals")} </span>{session.nextSessionGoals}</div>
                   )}
                   {session.homeworkForCustomer && (
-                    <div><span className="font-semibold text-petra-muted">שיעורי בית: </span>{session.homeworkForCustomer}</div>
+                    <div><span className="font-semibold text-petra-muted">{t("checklist.homework")} </span>{session.homeworkForCustomer}</div>
                   )}
                   {session.summary && (
-                    <div><span className="font-semibold text-petra-muted">סיכום: </span>{session.summary}</div>
+                    <div><span className="font-semibold text-petra-muted">{t("checklist.summary")} </span>{session.summary}</div>
                   )}
                 </div>
               )}
@@ -3254,7 +3294,7 @@ function SessionChecklist({
                         {isCompleted ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Calendar className="w-3 h-3" />}
                       </div>
                       <span className="text-xs font-medium text-petra-text flex-1">
-                        {isScheduled ? "מפגש מתוזמן" : `מפגש ${session.sessionNumber || ""}`}
+                        {isScheduled ? t("checklist.scheduledSession") : t("checklist.sessionN", { num: session.sessionNumber || "" })}
                       </span>
                       {isCompleted && (
                         <>
@@ -3265,17 +3305,17 @@ function SessionChecklist({
                               type="button"
                               onClick={(e) => { e.stopPropagation(); onEditSession(session); }}
                               className="w-5 h-5 flex items-center justify-center rounded hover:bg-emerald-100 text-slate-300 hover:text-emerald-600 transition-colors"
-                              title="ערוך מפגש"
+                              title={t("checklist.editSession")}
                             >
                               <Pencil className="w-3 h-3" />
                             </button>
                           )}
                           <button
                             type="button"
-                            onClick={(e) => { e.stopPropagation(); if (confirm("למחוק את רישום המפגש?")) deleteSessionMutation.mutate(session.id); }}
+                            onClick={(e) => { e.stopPropagation(); if (confirm(t("checklist.confirmDelete"))) deleteSessionMutation.mutate(session.id); }}
                             disabled={deleteSessionMutation.isPending}
                             className="w-5 h-5 flex items-center justify-center rounded hover:bg-red-100 text-slate-300 hover:text-red-500 transition-colors"
-                            title="מחק מפגש"
+                            title={t("checklist.deleteSession")}
                           >
                             <Trash2 className="w-3 h-3" />
                           </button>
@@ -3299,7 +3339,7 @@ function SessionChecklist({
                               });
                             }}
                             className="w-5 h-5 flex items-center justify-center rounded hover:bg-blue-100 text-blue-400 hover:text-blue-600 transition-colors"
-                            title="ערוך מועד"
+                            title={t("checklist.editTime")}
                           >
                             <Pencil className="w-3 h-3" />
                           </button>
@@ -3309,7 +3349,7 @@ function SessionChecklist({
                               onClick={(e) => { e.stopPropagation(); onCancelSession(session.id); }}
                               className="text-[10px] text-red-500 hover:text-red-700 px-1.5 py-0.5 rounded hover:bg-red-50 transition-colors"
                             >
-                              ביטול
+                              {tc("actions.cancel")}
                             </button>
                           )}
                         </>
@@ -3319,38 +3359,38 @@ function SessionChecklist({
                       const es = editingSession;
                       return (
                         <div className="mx-3 mt-0.5 mb-1 p-3 bg-blue-50 border border-blue-200 rounded-xl" onClick={(e) => e.stopPropagation()}>
-                          <p className="text-[10px] font-semibold text-blue-700 mb-2">עריכת מועד מפגש</p>
+                          <p className="text-[10px] font-semibold text-blue-700 mb-2">{t("checklist.editTimeTitle")}</p>
                           <div className="flex gap-2 items-end">
                             <div className="flex-1">
-                              <label className="label text-[10px]">תאריך</label>
-                              <input type="date" lang="he" className="input text-xs py-1.5" value={es.date} onChange={(e) => setEditingSession({ id: es.id, date: e.target.value, time: es.time, duration: es.duration })} />
+                              <label className="label text-[10px]">{t("date")}</label>
+                              <input type="date" lang={cfg.lang} className="input text-xs py-1.5" value={es.date} onChange={(e) => setEditingSession({ id: es.id, date: e.target.value, time: es.time, duration: es.duration })} />
                             </div>
                             <div className="flex-1">
-                              <label className="label text-[10px]">שעה</label>
+                              <label className="label text-[10px]">{t("time")}</label>
                               <input type="time" className="input text-xs py-1.5" value={es.time} onChange={(e) => setEditingSession({ id: es.id, date: es.date, time: e.target.value, duration: es.duration })} />
                             </div>
                             <div className="w-20">
-                              <label className="label text-[10px]">משך (דקות)</label>
+                              <label className="label text-[10px]">{t("durationMinutes")}</label>
                               <select className="input text-xs py-1.5" value={es.duration} onChange={(e) => setEditingSession({ id: es.id, date: es.date, time: es.time, duration: parseInt(e.target.value) })}>
                           {(DURATION_OPTIONS.includes(es.duration) ? DURATION_OPTIONS : [es.duration, ...DURATION_OPTIONS].sort((a, b) => a - b)).map((d) => (
-                            <option key={d} value={d}>{d} דק׳</option>
+                            <option key={d} value={d}>{t("minutesShort", { n: d })}</option>
                           ))}
                         </select>
                             </div>
                             <button className="btn-primary text-xs py-1.5" disabled={rescheduleSessionMutation.isPending || !es.date || !es.time} onClick={() => rescheduleSessionMutation.mutate({ sessionId: es.id, date: es.date, time: es.time, duration: es.duration })}>
-                              {rescheduleSessionMutation.isPending ? "שומר..." : "שמור"}
+                              {rescheduleSessionMutation.isPending ? tc("progress.saving") : tc("actions.save")}
                             </button>
-                            <button className="btn-secondary text-xs py-1.5" onClick={() => setEditingSession(null)}>ביטול</button>
+                            <button className="btn-secondary text-xs py-1.5" onClick={() => setEditingSession(null)}>{tc("actions.cancel")}</button>
                           </div>
                         </div>
                       );
                     })()}
                     {expanded && (
                       <div className="mx-3 mt-0.5 mb-1 p-3 bg-white border border-emerald-100 rounded-xl text-xs space-y-1.5">
-                        {session.practiceItems && <div><span className="font-semibold text-petra-muted">תרגילים: </span>{session.practiceItems}</div>}
-                        {session.nextSessionGoals && <div><span className="font-semibold text-petra-muted">יעדים הבאים: </span>{session.nextSessionGoals}</div>}
-                        {session.homeworkForCustomer && <div><span className="font-semibold text-petra-muted">שיעורי בית: </span>{session.homeworkForCustomer}</div>}
-                        {session.summary && <div><span className="font-semibold text-petra-muted">סיכום: </span>{session.summary}</div>}
+                        {session.practiceItems && <div><span className="font-semibold text-petra-muted">{t("checklist.practice")} </span>{session.practiceItems}</div>}
+                        {session.nextSessionGoals && <div><span className="font-semibold text-petra-muted">{t("checklist.nextGoals")} </span>{session.nextSessionGoals}</div>}
+                        {session.homeworkForCustomer && <div><span className="font-semibold text-petra-muted">{t("checklist.homework")} </span>{session.homeworkForCustomer}</div>}
+                        {session.summary && <div><span className="font-semibold text-petra-muted">{t("checklist.summary")} </span>{session.summary}</div>}
                       </div>
                     )}
                   </div>
@@ -3370,7 +3410,7 @@ function SessionChecklist({
             className="flex-1 py-2 rounded-xl border-2 border-dashed border-brand-200 text-xs font-semibold text-brand-500 hover:bg-brand-50 hover:border-brand-400 transition-all flex items-center justify-center gap-1.5"
           >
             <Plus className="w-3.5 h-3.5" />
-            רשום מפגש
+            {t("checklist.logSession")}
           </button>
           {onScheduleSession && (
             <button
@@ -3379,7 +3419,7 @@ function SessionChecklist({
               className="flex-1 py-2 rounded-xl border-2 border-dashed border-blue-200 text-xs font-semibold text-blue-500 hover:bg-blue-50 hover:border-blue-400 transition-all flex items-center justify-center gap-1.5"
             >
               <Calendar className="w-3.5 h-3.5" />
-              קבע מפגש קדימה
+              {t("checklist.scheduleAhead")}
             </button>
           )}
         </div>
@@ -3393,6 +3433,7 @@ function SessionChecklist({
 // ═══════════════════════════════════════════════════════
 
 function ServiceDogPhaseRow({ program }: { program: TrainingProgram }) {
+  const t = useTranslations("training.trainingPage");
   const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: (programType: string) =>
@@ -3403,9 +3444,9 @@ function ServiceDogPhaseRow({ program }: { program: TrainingProgram }) {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["training-programs-service"] });
-      toast.success("שלב עודכן ✓");
+      toast.success(t("sdPhase.updated"));
     },
-    onError: () => toast.error("שגיאה בעדכון שלב"),
+    onError: () => toast.error(t("sdPhase.updateError")),
   });
 
   const currentIdx = SERVICE_DOG_PHASES.findIndex((p) => p.value === program.programType);
@@ -3415,10 +3456,10 @@ function ServiceDogPhaseRow({ program }: { program: TrainingProgram }) {
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Shield className="w-3.5 h-3.5 text-brand-500 flex-shrink-0" />
-          <span className="text-xs font-semibold text-brand-700">שלב הכשרה</span>
+          <span className="text-xs font-semibold text-brand-700">{t("sdPhase.title")}</span>
         </div>
         <a href="/service-dogs/dogs" className="text-[10px] text-brand-600 hover:text-brand-700 font-medium flex items-center gap-0.5">
-          פרופיל מלא ←
+          {t("sdPhase.fullProfile")}
         </a>
       </div>
       {/* Phase dots */}
@@ -3429,7 +3470,7 @@ function ServiceDogPhaseRow({ program }: { program: TrainingProgram }) {
             disabled={mutation.isPending}
             onClick={() => mutation.mutate(phase.value)}
             className="flex flex-col items-center gap-1 group"
-            title={phase.label}
+            title={t(`sdPhases.${phase.value}`)}
           >
             <span className={cn(
               "w-4 h-4 rounded-full border-2 transition-all",
@@ -3441,7 +3482,7 @@ function ServiceDogPhaseRow({ program }: { program: TrainingProgram }) {
               "text-[9px] font-medium whitespace-nowrap",
               idx === currentIdx ? "text-brand-600" : "text-petra-muted"
             )}>
-              {phase.label}
+              {t(`sdPhases.${phase.value}`)}
             </span>
           </button>
         ))}
@@ -3473,6 +3514,9 @@ function ServiceDogSessionLog({
   onDropoutProgram?: (programId: string, dogName: string) => void;
   isUpdatingStatus?: boolean;
 }) {
+  const t = useTranslations("training.trainingPage");
+  const { formatDate } = useFmt();
+  const { cfg, locale } = useBusinessLocale();
   const filtered = useMemo(() => {
     if (!searchQuery.trim()) return programs;
     const q = searchQuery.toLowerCase();
@@ -3483,9 +3527,9 @@ function ServiceDogSessionLog({
     return (
       <div className="empty-state">
         <div className="empty-state-icon"><Shield className="w-6 h-6 text-slate-400" /></div>
-        <h3 className="text-base font-semibold text-petra-text mb-1">אין תוכניות אילוף לכלבי שירות</h3>
+        <h3 className="text-base font-semibold text-petra-text mb-1">{t("sdLog.emptyTitle")}</h3>
         <p className="text-sm text-petra-muted">
-          <a href="/service-dogs" className="text-brand-600 hover:underline">עבור לניהול כלבי שירות</a>
+          <a href="/service-dogs" className="text-brand-600 hover:underline">{t("sdLog.goToServiceDogs")}</a>
         </p>
       </div>
     );
@@ -3511,29 +3555,29 @@ function ServiceDogSessionLog({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="text-sm font-semibold text-petra-text">{program.dog.name}</h3>
-                    <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium", statusInfo.color)}>{statusInfo.label}</span>
+                    <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium", statusInfo.color)}>{t(`programStatus.${PROGRAM_STATUS_MAP[program.status] ? program.status : "ACTIVE"}`)}</span>
                     {program.programType && (
                       <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-brand-100 text-brand-700">
-                        {SERVICE_DOG_PHASES.find((p) => p.value === program.programType)?.label ?? program.programType}
+                        {SERVICE_DOG_PHASES.some((p) => p.value === program.programType) ? t(`sdPhases.${program.programType}`) : program.programType}
                       </span>
                     )}
                   </div>
                   <div className="flex items-center gap-2 mt-0.5 text-xs text-petra-muted">
-                    <span>{usedSessions} אימונים בוצעו</span>
-                    {program.startDate && <span>• התחיל {formatDate(program.startDate)}</span>}
+                    <span>{t("sdLog.sessionsDone", { count: usedSessions })}</span>
+                    {program.startDate && <span>{t("sdLog.started", { date: formatDate(program.startDate) })}</span>}
                   </div>
                 </div>
                 <a href={`/service-dogs/${program.dog.id}`} className="text-xs text-brand-600 hover:underline flex items-center gap-0.5 flex-shrink-0">
-                  פרופיל ←
+                  {t("sdLog.profile")}
                 </a>
               </div>
               {/* Actions — no finish/dropout for service dogs; managed via service dogs system */}
               <div className="flex gap-2 mt-3 flex-wrap">
                 <button className="btn-secondary text-xs" onClick={() => onEditSettings(program)}>
-                  <Settings className="w-3.5 h-3.5" /> הגדרות
+                  <Settings className="w-3.5 h-3.5" /> {t("sdLog.settings")}
                 </button>
                 <a href={`/service-dogs/${program.dog.id}`} className="btn-secondary text-xs flex items-center gap-1">
-                  <Shield className="w-3.5 h-3.5" /> ניהול כלב שירות ←
+                  <Shield className="w-3.5 h-3.5" /> {t("sdLog.manage")}
                 </a>
               </div>
             </div>
@@ -3542,17 +3586,17 @@ function ServiceDogSessionLog({
             <div className="p-4">
               <h4 className="text-xs font-semibold text-petra-muted mb-3 flex items-center gap-1.5">
                 <Calendar className="w-3.5 h-3.5" />
-                יומן אימונים
+                {t("sdLog.title")}
               </h4>
 
               {completedSessions.length === 0 ? (
-                <p className="text-xs text-petra-muted text-center py-4">טרם בוצעו אימונים</p>
+                <p className="text-xs text-petra-muted text-center py-4">{t("sdLog.empty")}</p>
               ) : (
                 <div className="space-y-2">
                   {completedSessions.map((session) => (
                     <div key={session.id} className="p-3 rounded-xl bg-slate-50 border border-petra-border text-xs">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="font-semibold text-petra-text">אימון {session.sessionNumber}</span>
+                        <span className="font-semibold text-petra-text">{t("sdLog.sessionN", { n: session.sessionNumber })}</span>
                         <div className="flex items-center gap-2">
                           {session.rating && <span className="text-amber-500">{"★".repeat(session.rating)}</span>}
                           <span className="text-petra-muted">{formatDate(session.sessionDate)}</span>
@@ -3560,31 +3604,31 @@ function ServiceDogSessionLog({
                       </div>
                       {session.practiceItems && (
                         <div className="mb-1.5">
-                          <span className="font-medium text-petra-muted">📝 תרגילים: </span>
+                          <span className="font-medium text-petra-muted">{t("sdLog.practice")} </span>
                           <span className="text-petra-text whitespace-pre-line">{session.practiceItems}</span>
                         </div>
                       )}
                       {session.summary && (
                         <div className="mb-1.5">
-                          <span className="font-medium text-petra-muted">💬 סיכום: </span>
+                          <span className="font-medium text-petra-muted">{t("sdLog.summary")} </span>
                           <span className="text-petra-text whitespace-pre-line">{session.summary}</span>
                         </div>
                       )}
                       {session.nextSessionGoals && (
                         <div className="mb-1.5">
-                          <span className="font-medium text-petra-muted">🎯 יעדים לאימון הבא: </span>
+                          <span className="font-medium text-petra-muted">{t("sdLog.nextGoals")} </span>
                           <span className="text-petra-text whitespace-pre-line">{session.nextSessionGoals}</span>
                         </div>
                       )}
                       {session.homeworkForCustomer && (
                         <div className="mb-1.5">
-                          <span className="font-medium text-petra-muted">📋 הערות לצוות: </span>
+                          <span className="font-medium text-petra-muted">{t("sdLog.teamNotes")} </span>
                           <span className="text-petra-text whitespace-pre-line">{session.homeworkForCustomer}</span>
                         </div>
                       )}
                       {(session as { trainerName?: string | null }).trainerName && (
                         <div className="mt-1 text-[11px] text-petra-muted">
-                          👤 מאמן: {(session as { trainerName?: string | null }).trainerName}
+                          {t("sdLog.trainer", { name: (session as { trainerName?: string | null }).trainerName ?? "" })}
                         </div>
                       )}
                     </div>
@@ -3600,12 +3644,12 @@ function ServiceDogSessionLog({
                   onClick={() => {
                     const win = window.open("", "_blank");
                     if (!win) return;
-                    win.document.write(`<html dir="rtl"><head><title>יומן אימונים — ${escapeHtml(program.dog.name)}</title><style>body{font-family:sans-serif;padding:24px;direction:rtl}h1{font-size:20px;margin-bottom:4px}h2{font-size:13px;color:#666;margin-bottom:20px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{border:1px solid #ddd;padding:8px;text-align:right}th{background:#f3f4f6}@media print{button{display:none}}</style></head><body>`);
-                    win.document.write(`<h1>יומן אימונים — ${escapeHtml(program.dog.name)}</h1><h2>סה"כ ${completedSessions.length} אימונים · הודפס ${new Date().toLocaleDateString("he-IL")}</h2>`);
-                    win.document.write(`<table><thead><tr><th>#</th><th>תאריך</th><th>מאמן</th><th>דירוג</th><th>תרגילים</th><th>יעדים הבאים</th><th>הערות לצוות</th><th>סיכום</th></tr></thead><tbody>`);
+                    win.document.write(`<html dir="${cfg.dir}" lang="${cfg.lang}"><head><title>${t("printLog.title", { dog: escapeHtml(program.dog.name) })}</title><style>body{font-family:sans-serif;padding:24px;direction:${cfg.dir}}h1{font-size:20px;margin-bottom:4px}h2{font-size:13px;color:#666;margin-bottom:20px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{border:1px solid #ddd;padding:8px;text-align:start}th{background:#f3f4f6}@media print{button{display:none}}</style></head><body>`);
+                    win.document.write(`<h1>${t("printLog.title", { dog: escapeHtml(program.dog.name) })}</h1><h2>${t("printLog.subtitle", { count: completedSessions.length, date: new Date().toLocaleDateString(locale) })}</h2>`);
+                    win.document.write(`<table><thead><tr><th>#</th><th>${t("date")}</th><th>${t("printLog.colTrainer")}</th><th>${t("printLog.colRating")}</th><th>${t("printLog.colPractice")}</th><th>${t("printLog.colNextGoals")}</th><th>${t("printLog.colTeamNotes")}</th><th>${t("printLog.colSummary")}</th></tr></thead><tbody>`);
                     completedSessions.forEach((s) => {
                       const sTyped = s as { sessionNumber?: number | null; sessionDate: string; trainerName?: string | null; rating?: number | null; practiceItems?: string | null; nextSessionGoals?: string | null; homeworkForCustomer?: string | null; summary?: string | null };
-                      win.document.write(`<tr><td>${sTyped.sessionNumber ?? ""}</td><td>${new Date(sTyped.sessionDate).toLocaleDateString("he-IL")}</td><td>${escapeHtml(sTyped.trainerName)}</td><td>${sTyped.rating ? "★".repeat(sTyped.rating) : ""}</td><td>${escapeHtml(sTyped.practiceItems)?.replace(/\n/g, "<br>")}</td><td>${escapeHtml(sTyped.nextSessionGoals)?.replace(/\n/g, "<br>")}</td><td>${escapeHtml(sTyped.homeworkForCustomer)?.replace(/\n/g, "<br>")}</td><td>${escapeHtml(sTyped.summary)?.replace(/\n/g, "<br>")}</td></tr>`);
+                      win.document.write(`<tr><td>${sTyped.sessionNumber ?? ""}</td><td>${new Date(sTyped.sessionDate).toLocaleDateString(locale)}</td><td>${escapeHtml(sTyped.trainerName)}</td><td>${sTyped.rating ? "★".repeat(sTyped.rating) : ""}</td><td>${escapeHtml(sTyped.practiceItems)?.replace(/\n/g, "<br>")}</td><td>${escapeHtml(sTyped.nextSessionGoals)?.replace(/\n/g, "<br>")}</td><td>${escapeHtml(sTyped.homeworkForCustomer)?.replace(/\n/g, "<br>")}</td><td>${escapeHtml(sTyped.summary)?.replace(/\n/g, "<br>")}</td></tr>`);
                     });
                     win.document.write("</tbody></table></body></html>");
                     win.document.close();
@@ -3613,7 +3657,7 @@ function ServiceDogSessionLog({
                   }}
                 >
                   <Printer className="w-3.5 h-3.5" />
-                  הדפס יומן אימונים
+                  {t("printLog.print")}
                 </button>
               )}
 
@@ -3626,7 +3670,7 @@ function ServiceDogSessionLog({
                   className="mt-3 w-full py-2.5 rounded-xl border-2 border-dashed border-brand-200 text-xs font-semibold text-brand-500 hover:bg-brand-50 hover:border-brand-400 transition-all flex items-center justify-center gap-1.5"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  הוסף אימון +
+                  {t("sdLog.addSession")}
                 </button>
               )}
             </div>
@@ -3672,6 +3716,8 @@ function IndividualTab({
   onCancelSession?: (programId: string, sessionId: string) => void;
   onEditSession?: (programId: string, session: ProgramSession, dogName: string) => void;
 }) {
+  const t = useTranslations("training.trainingPage");
+  const { formatDate, formatCurrency } = useFmt();
   // Map dog IDs to their group names for cross-reference
   const dogGroupMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -3696,14 +3742,14 @@ function IndividualTab({
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <p className="text-sm text-petra-muted">{filtered.length} תוכניות אילוף</p>
+        <p className="text-sm text-petra-muted">{t("individual.count", { count: filtered.length })}</p>
       </div>
 
       {filtered.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon"><GraduationCap className="w-6 h-6 text-slate-400" /></div>
-          <h3 className="text-base font-semibold text-petra-text mb-1">אין תוכניות אילוף בבית לקוח</h3>
-          <p className="text-sm text-petra-muted">חבילות אילוף יופיעו כאן לאחר מכירה דרך &ldquo;הזמנה חדשה&rdquo;</p>
+          <h3 className="text-base font-semibold text-petra-text mb-1">{t("individual.emptyTitle")}</h3>
+          <p className="text-sm text-petra-muted">{t("individual.emptyHint")}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -3732,18 +3778,18 @@ function IndividualTab({
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="text-sm font-semibold text-petra-text">{program.dog.name}</h3>
                       <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium", statusInfo.color)}>
-                        {statusInfo.label}
+                        {t(`programStatus.${PROGRAM_STATUS_MAP[program.status] ? program.status : "ACTIVE"}`)}
                       </span>
                       {isLowSessions && (
                         <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-orange-100 text-orange-700 flex items-center gap-1">
                           <AlertTriangle className="w-3 h-3" />
-                          מפגשים נמוכים
+                          {t("individual.lowSessions")}
                         </span>
                       )}
                       {dogGroupMap.get(program.dog.id) && (
                         <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-purple-100 text-purple-700 flex items-center gap-1">
                           <Users className="w-3 h-3" />
-                          גם בקבוצה: {dogGroupMap.get(program.dog.id)}
+                          {t("individual.alsoInGroup", { group: dogGroupMap.get(program.dog.id) ?? "" })}
                         </span>
                       )}
                     </div>
@@ -3756,7 +3802,7 @@ function IndividualTab({
                           color: typeColors?.text || "#2563EB",
                         }}
                       >
-                        {PROGRAM_TYPES_MAP[program.programType] || program.programType}
+                        {programTypeLabel(t, program.programType)}
                       </span>
                       {program.price && (
                         <span>{formatCurrency(program.price)}</span>
@@ -3794,7 +3840,7 @@ function IndividualTab({
                         }}
                       >
                         <Settings className="w-3.5 h-3.5" />
-                        הגדרות
+                        {t("sdLog.settings")}
                       </button>
                       {program.status === "ACTIVE" && onFinishProgram && (
                         <button
@@ -3805,11 +3851,11 @@ function IndividualTab({
                               : "text-slate-400 cursor-not-allowed opacity-60"
                           )}
                           disabled={isUpdatingStatus || !allSessionsDone}
-                          title={!allSessionsDone ? `יש להשלים את כל ${program.totalSessions} המפגשים לפני סיום האילוף (הושלמו ${usedSessions})` : undefined}
+                          title={!allSessionsDone ? t("individual.finishBlocked", { total: program.totalSessions ?? "", done: usedSessions }) : undefined}
                           onClick={(e) => { e.stopPropagation(); onFinishProgram(program.id, program.dog.name); }}
                         >
                           <CheckCircle2 className="w-3.5 h-3.5" />
-                          סיים אילוף
+                          {t("individual.finish")}
                           {!allSessionsDone && program.totalSessions && (
                             <span className="text-[10px] font-normal">({usedSessions}/{program.totalSessions})</span>
                           )}
@@ -3822,7 +3868,7 @@ function IndividualTab({
                           onClick={(e) => { e.stopPropagation(); onDropoutProgram(program.id, program.dog.name); }}
                         >
                           <XCircle className="w-3.5 h-3.5" />
-                          נשר מתהליך
+                          {t("individual.dropout")}
                         </button>
                       )}
                       {onDeleteProgram && (
@@ -3831,7 +3877,7 @@ function IndividualTab({
                           onClick={(e) => { e.stopPropagation(); onDeleteProgram(program); }}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
-                          מחק תהליך
+                          {t("individual.deleteProgram")}
                         </button>
                       )}
                       {program.customer?.phone && (
@@ -3845,15 +3891,15 @@ function IndividualTab({
                               (a, b) => ((b.sessionNumber ?? 0) - (a.sessionNumber ?? 0))
                             )[0];
                             const lines = [
-                              `שלום ${program.customer?.name ?? ""}! 🐾`,
-                              `דוח התקדמות אילוף — ${program.dog.name}`,
+                              `שלום ${program.customer?.name ?? ""}! 🐾`, // i18n-ok
+                              `דוח התקדמות אילוף — ${program.dog.name}`, // i18n-ok
                               "",
-                              `📊 מפגשים: ${usedSessions}${program.totalSessions ? `/${program.totalSessions}` : ""}`,
+                              `📊 מפגשים: ${usedSessions}${program.totalSessions ? `/${program.totalSessions}` : ""}`, // i18n-ok
                             ];
-                            if (totalGoals > 0) lines.push(`🎯 יעדים: ${completedGoals}/${totalGoals} הושגו`);
-                            if (totalHomework > 0) lines.push(`📝 שיעורי בית: ${completedHomework}/${totalHomework} הושלמו`);
+                            if (totalGoals > 0) lines.push(`🎯 יעדים: ${completedGoals}/${totalGoals} הושגו`); // i18n-ok
+                            if (totalHomework > 0) lines.push(`📝 שיעורי בית: ${completedHomework}/${totalHomework} הושלמו`); // i18n-ok
                             if (lastSession?.summary) {
-                              lines.push("", `💬 סיכום מפגש אחרון:`, lastSession.summary);
+                              lines.push("", `💬 סיכום מפגש אחרון:`, lastSession.summary); // i18n-ok
                             }
                             return `https://api.whatsapp.com/send?phone=${toWhatsAppPhone(program.customer?.phone ?? "")}&text=${encodeURIComponent(lines.join("\n"))}`;
                           })()}
@@ -3863,7 +3909,7 @@ function IndividualTab({
                           onClick={(e) => e.stopPropagation()}
                         >
                           <Send className="w-3.5 h-3.5" />
-                          שלח דוח
+                          {t("individual.sendReport")}
                         </a>
                       )}
                       {program.customer?.phone && program.status === "COMPLETED" && (
@@ -3872,16 +3918,16 @@ function IndividualTab({
                             const completedGoals = program.goals?.filter((g: { status: string }) => g.status === "ACHIEVED").length ?? 0;
                             const totalGoals = program.goals?.length ?? 0;
                             const lines = [
-                              `🎓 *תעודת סיום אילוף*`,
+                              `🎓 *תעודת סיום אילוף*`, // i18n-ok
                               "",
-                              `כלב: ${program.dog.name}${program.dog.breed ? ` (${program.dog.breed})` : ""}`,
-                              `בעלים: ${program.customer?.name ?? ""}`,
-                              `תוכנית: ${program.name}`,
-                              `מפגשים שהושלמו: ${usedSessions}`,
-                              totalGoals > 0 ? `יעדים שהושגו: ${completedGoals}/${totalGoals}` : "",
+                              `כלב: ${program.dog.name}${program.dog.breed ? ` (${program.dog.breed})` : ""}`, // i18n-ok
+                              `בעלים: ${program.customer?.name ?? ""}`, // i18n-ok
+                              `תוכנית: ${program.name}`, // i18n-ok
+                              `מפגשים שהושלמו: ${usedSessions}`, // i18n-ok
+                              totalGoals > 0 ? `יעדים שהושגו: ${completedGoals}/${totalGoals}` : "", // i18n-ok
                               "",
-                              `🏆 ${program.dog.name} סיים/ה בהצלחה את תוכנית האילוף!`,
-                              `מברכים אתכם ומאחלים המשך הנאה עם הכלב! 🐾`,
+                              `🏆 ${program.dog.name} סיים/ה בהצלחה את תוכנית האילוף!`, // i18n-ok
+                              `מברכים אתכם ומאחלים המשך הנאה עם הכלב! 🐾`, // i18n-ok
                             ].filter(Boolean);
                             return `https://api.whatsapp.com/send?phone=${toWhatsAppPhone(program.customer?.phone ?? "")}&text=${encodeURIComponent(lines.join("\n"))}`;
                           })()}
@@ -3889,10 +3935,10 @@ function IndividualTab({
                           rel="noopener noreferrer"
                           className="btn-secondary text-xs"
                           onClick={(e) => e.stopPropagation()}
-                          title="שלח תעודת סיום"
+                          title={t("individual.sendCertificateTitle")}
                         >
                           <CheckCircle2 className="w-3.5 h-3.5" />
-                          תעודת סיום
+                          {t("individual.certificate")}
                         </a>
                       )}
                     </div>
@@ -3900,21 +3946,21 @@ function IndividualTab({
                     {/* Details Info */}
                     <div className="mb-4 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs text-petra-muted bg-slate-50 p-3 rounded-xl border border-petra-border">
                       <div>
-                        <span className="font-semibold block mb-0.5">תאריך התחלה</span>
+                        <span className="font-semibold block mb-0.5">{t("individual.startDate")}</span>
                         {program.startDate ? formatDate(program.startDate) : "-"}
                       </div>
                       <div>
-                        <span className="font-semibold block mb-0.5">יעד סיום משוער</span>
+                        <span className="font-semibold block mb-0.5">{t("individual.estimatedEnd")}</span>
                         {program.endDate ? formatDate(program.endDate) : "-"}
                       </div>
                       <div>
-                        <span className="font-semibold block mb-0.5">מיקום</span>
+                        <span className="font-semibold block mb-0.5">{t("individual.location")}</span>
                         {program.location || "-"}
                       </div>
                       <div>
-                        <span className="font-semibold block mb-0.5">תדירות מפגשים</span>
-                        {program.frequency === "WEEKLY" ? "אחת לשבוע" :
-                          program.frequency === "BIWEEKLY" ? "אחת לשבועיים" :
+                        <span className="font-semibold block mb-0.5">{t("individual.frequency")}</span>
+                        {program.frequency === "WEEKLY" ? t("frequency.WEEKLY") :
+                          program.frequency === "BIWEEKLY" ? t("frequency.BIWEEKLY") :
                             program.frequency || "-"}
                       </div>
                     </div>
@@ -3927,7 +3973,7 @@ function IndividualTab({
                         onClick={(e) => e.stopPropagation()}
                       >
                         <ShoppingCart className="w-3.5 h-3.5 flex-shrink-0" />
-                        צפה בהזמנה המקורית
+                        {t("individual.viewOrder")}
                       </a>
                     )}
 
@@ -3939,7 +3985,7 @@ function IndividualTab({
                     {/* Behavior Baseline */}
                     {program.behaviorBaseline && (
                       <div className="mb-4 p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800">
-                        <span className="font-semibold block mb-0.5">📋 קו בסיס התנהגותי</span>
+                        <span className="font-semibold block mb-0.5">{t("individual.baseline")}</span>
                         {program.behaviorBaseline}
                       </div>
                     )}
@@ -4000,6 +4046,8 @@ function BoardingTrainingTab({
   onLogSession: (programId: string, sessionNumber: number, dogName: string, goals?: { id: string; title: string; status: string; progressPercent: number }[]) => void;
   onLogHomeSession: (programId: string, sessionNumber: number, dogName: string) => void;
 }) {
+  const t = useTranslations("training.trainingPage");
+  const { formatDate } = useFmt();
   const filtered = useMemo(() => {
     if (!searchQuery.trim()) return stays;
     const q = searchQuery.toLowerCase();
@@ -4027,28 +4075,28 @@ function BoardingTrainingTab({
         onClick={() => setShowPicker((v) => !v)}
         aria-expanded={showPicker}
       >
-        <span className="text-xs text-petra-muted">{availableStays.length} כלבים בפנסיון ללא אילוף</span>
+        <span className="text-xs text-petra-muted">{t("boardingTab.availableCount", { count: availableStays.length })}</span>
         <span className="flex items-center gap-1.5">
-          הוסף אילוף ללינה
+          {t("boardingTab.addToStay")}
           <Plus className="w-4 h-4" />
         </span>
       </button>
       {showPicker && (
         <div className="border-t divide-y">
           {pickerStays.length === 0 ? (
-            <p className="px-4 py-3 text-xs text-petra-muted text-right">לא נמצאו לינות</p>
+            <p className="px-4 py-3 text-xs text-petra-muted text-start">{t("boardingTab.noStays")}</p>
           ) : (
             pickerStays.map((stay) => (
               <div key={stay.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
                 <button type="button" className="btn-secondary text-xs" onClick={() => onAddTraining(stay)}>
                   <Plus className="w-3.5 h-3.5" />
-                  צור תוכנית אילוף
+                  {t("boardingTab.createProgram")}
                 </button>
-                <div className="min-w-0 text-right">
+                <div className="min-w-0 text-start">
                   <p className="text-sm font-medium text-petra-text truncate">{stay.pet.name}</p>
                   <p className="text-xs text-petra-muted truncate">
                     {stay.customer.name}
-                    {stay.checkOut ? ` · יציאה ${formatDate(stay.checkOut)}` : ""}
+                    {stay.checkOut ? t("boardingTab.pickerCheckout", { date: formatDate(stay.checkOut) }) : ""}
                   </p>
                 </div>
               </div>
@@ -4064,8 +4112,8 @@ function BoardingTrainingTab({
       <div className="space-y-3">
         <div className="empty-state">
           <div className="empty-state-icon"><Hotel className="w-6 h-6 text-slate-400" /></div>
-          <h3 className="text-base font-semibold text-petra-text mb-1">אין כלבים באילוף בפנסיון</h3>
-          <p className="text-sm text-petra-muted">לינות עם תוכנית אילוף יופיעו כאן</p>
+          <h3 className="text-base font-semibold text-petra-text mb-1">{t("boardingTab.emptyTitle")}</h3>
+          <p className="text-sm text-petra-muted">{t("boardingTab.emptyHint")}</p>
         </div>
         {picker}
       </div>
@@ -4096,13 +4144,13 @@ function BoardingTrainingTab({
                 {linkedProgram ? (
                   linkedProgram.startDate && linkedProgram.endDate ? (
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3" /> פעיל
+                      <CheckCircle2 className="w-3 h-3" /> {t("programStatus.ACTIVE")}
                     </span>
                   ) : (
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">חסרים תאריכים</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">{t("boardingTab.missingDates")}</span>
                   )
                 ) : (
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-medium">ללא תוכנית</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-medium">{t("boardingTab.noProgram")}</span>
                 )}
                 {daysRemaining !== null && (
                   <span className={cn(
@@ -4111,14 +4159,14 @@ function BoardingTrainingTab({
                     daysRemaining <= 3 ? "bg-amber-100 text-amber-700" :
                     "bg-slate-100 text-slate-600"
                   )}>
-                    נותרו {Math.max(0, daysRemaining)} ימים
+                    {t("boardingTab.daysLeft", { count: Math.max(0, daysRemaining) })}
                   </span>
                 )}
               </div>
               <div className="flex items-center gap-2.5">
                 <div>
-                  <p className="text-sm font-bold text-petra-text text-right">{stay.pet.name}</p>
-                  <p className="text-xs text-petra-muted text-right">{stay.customer.name}</p>
+                  <p className="text-sm font-bold text-petra-text text-start">{stay.pet.name}</p>
+                  <p className="text-xs text-petra-muted text-start">{stay.customer.name}</p>
                 </div>
                 <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0">
                   <Hotel className="w-5 h-5 text-amber-600" />
@@ -4128,11 +4176,11 @@ function BoardingTrainingTab({
 
             {/* ── Stay dates row ── */}
             <div className="flex items-center justify-end gap-3 text-xs text-petra-muted bg-slate-50 px-4 py-2 border-t border-b">
-              {stay.checkOut && <span>יציאה: {formatDate(stay.checkOut)}</span>}
+              {stay.checkOut && <span>{t("boardingTab.checkOut", { date: formatDate(stay.checkOut) })}</span>}
               {stay.checkOut && <span>•</span>}
-              <span>כניסה: {formatDate(stay.checkIn)}</span>
+              <span>{t("boardingTab.checkIn", { date: formatDate(stay.checkIn) })}</span>
               <span>•</span>
-              <span>{stay.room?.name ?? "ללא חדר"}</span>
+              <span>{stay.room?.name ?? t("boardingTab.noRoom")}</span>
               <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
             </div>
 
@@ -4142,35 +4190,35 @@ function BoardingTrainingTab({
                 <div className="space-y-3">
                   {(linkedProgram.startDate || linkedProgram.endDate) && (
                     <div className="flex items-center justify-end gap-2 text-xs text-petra-muted">
-                      {linkedProgram.endDate && <span>סיום: {formatDate(linkedProgram.endDate)}</span>}
+                      {linkedProgram.endDate && <span>{t("endAt", { date: formatDate(linkedProgram.endDate) })}</span>}
                       {linkedProgram.startDate && linkedProgram.endDate && <span>•</span>}
-                      {linkedProgram.startDate && <span>התחלה: {formatDate(linkedProgram.startDate)}</span>}
+                      {linkedProgram.startDate && <span>{t("startAt", { date: formatDate(linkedProgram.startDate) })}</span>}
                     </div>
                   )}
                   <div className="space-y-2">
                     {linkedProgram.behaviorBaseline && (
                       <div className="p-3 rounded-xl bg-blue-50 border border-blue-100">
-                        <p className="text-[10px] font-bold text-blue-600 mb-1">בסיס התנהגותי</p>
+                        <p className="text-[10px] font-bold text-blue-600 mb-1">{t("boardingTab.baseline")}</p>
                         <p className="text-xs text-petra-text">{linkedProgram.behaviorBaseline}</p>
                       </div>
                     )}
                     {linkedProgram.customerExpectations && (
                       <div className="p-3 rounded-xl bg-purple-50 border border-purple-100">
-                        <p className="text-[10px] font-bold text-purple-600 mb-1">ציפיות הלקוח</p>
+                        <p className="text-[10px] font-bold text-purple-600 mb-1">{t("boardingTab.expectations")}</p>
                         <p className="text-xs text-petra-text">{linkedProgram.customerExpectations}</p>
                       </div>
                     )}
                     {linkedProgram.workPlan && (
                       <div className="p-3 rounded-xl bg-amber-50 border border-amber-100">
-                        <p className="text-[10px] font-bold text-amber-600 mb-1">תוכנית עבודה — גלוי לצוות</p>
+                        <p className="text-[10px] font-bold text-amber-600 mb-1">{t("boardingTab.workPlan")}</p>
                         <p className="text-xs text-petra-text whitespace-pre-line">{linkedProgram.workPlan}</p>
                       </div>
                     )}
                   </div>
-                  <GoalSection program={linkedProgram} label="יעדי אילוף — לפני יציאה לבית" />
+                  <GoalSection program={linkedProgram} label={t("boardingTab.goalsLabel")} />
                   {linkedProgram.sessions && linkedProgram.sessions.length > 0 && (
                     <div className="space-y-1.5">
-                      <p className="text-[10px] font-bold text-petra-muted">עדכונים שבועיים ({usedSessions})</p>
+                      <p className="text-[10px] font-bold text-petra-muted">{t("boardingTab.weeklyUpdates", { count: usedSessions })}</p>
                       {linkedProgram.sessions.slice(0, 3).map((s) => (
                         <div key={s.id} className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-xs space-y-0.5">
                           <p className="font-semibold text-petra-text">{formatDate(s.sessionDate)}</p>
@@ -4185,7 +4233,7 @@ function BoardingTrainingTab({
                     onClick={() => onLogSession(linkedProgram.id, nextSessionNum, stay.pet.name, linkedProgram.goals)}
                   >
                     <Plus className="w-4 h-4" />
-                    עדכון שבועי {nextSessionNum > 1 ? `(שבוע ${nextSessionNum})` : "(שבוע 1)"}
+                    {nextSessionNum > 1 ? t("boardingTab.weeklyUpdateBtn", { n: nextSessionNum }) : t("boardingTab.weeklyUpdateBtnFirst")}
                   </button>
                   {homeProgram && (
                     <button
@@ -4193,10 +4241,10 @@ function BoardingTrainingTab({
                       onClick={() => onLogHomeSession(homeProgram.id, homeNextSession, stay.pet.name)}
                     >
                       <span className="text-[11px] text-green-600">
-                        {homeProgram.totalSessions ? `${homeUsedSessions}/${homeProgram.totalSessions} מפגשים` : `${homeUsedSessions} מפגשים`}
+                        {homeProgram.totalSessions ? t("boardingTab.homeSessionsOf", { used: homeUsedSessions, total: homeProgram.totalSessions }) : t("boardingTab.homeSessions", { count: homeUsedSessions })}
                       </span>
                       <div className="flex items-center gap-1.5">
-                        מפגש בית הלקוח {homeNextSession > 1 ? `(${homeNextSession})` : ""}
+                        {homeNextSession > 1 ? t("boardingTab.homeSessionN", { n: homeNextSession }) : t("boardingTab.homeSession")}
                         <Home className="w-4 h-4" />
                       </div>
                     </button>
@@ -4209,9 +4257,9 @@ function BoardingTrainingTab({
                       <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
                       <div>
                         <p className="text-xs font-semibold text-red-700">
-                          {daysRemaining <= 0 ? "הכלב צפוי לצאת היום!" : `נותרו ${daysRemaining} ימים בלבד`}
+                          {daysRemaining <= 0 ? t("boardingTab.leavingToday") : t("boardingTab.onlyDaysLeft", { count: daysRemaining })}
                         </p>
-                        <p className="text-[10px] text-red-600 mt-0.5">טרם נוצרה תוכנית אילוף לפנסיון</p>
+                        <p className="text-[10px] text-red-600 mt-0.5">{t("boardingTab.noProgramYet")}</p>
                       </div>
                     </div>
                   )}
@@ -4225,7 +4273,7 @@ function BoardingTrainingTab({
                     onClick={() => onAddTraining(stay)}
                   >
                     <Plus className="w-4 h-4" />
-                    צור תוכנית אילוף לפנסיון
+                    {t("boardingTab.createBoardingProgram")}
                   </button>
                 </div>
               )}
@@ -4264,6 +4312,7 @@ function GroupsTab({
   onConvertParticipant: (groupId: string, participantId: string, dogName: string) => void;
   onDeleteGroup: (groupId: string, groupName: string) => void;
 }) {
+  const t = useTranslations("training.trainingPage");
   const filtered = useMemo(() => {
     if (!searchQuery.trim()) return groups;
     const q = searchQuery.toLowerCase();
@@ -4279,18 +4328,18 @@ function GroupsTab({
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <p className="text-sm text-petra-muted">{filtered.length} קבוצות</p>
+        <p className="text-sm text-petra-muted">{t("groupsTab.count", { count: filtered.length })}</p>
         <button className="btn-primary" onClick={onNewGroup}>
           <Plus className="w-4 h-4" />
-          קבוצה חדשה
+          {t("groupsTab.new")}
         </button>
       </div>
 
       {filtered.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon"><Users className="w-6 h-6 text-slate-400" /></div>
-          <h3 className="text-base font-semibold text-petra-text mb-1">אין קבוצות אימון</h3>
-          <p className="text-sm text-petra-muted">צור קבוצת אימון חדשה כדי להתחיל</p>
+          <h3 className="text-base font-semibold text-petra-text mb-1">{t("groupsTab.emptyTitle")}</h3>
+          <p className="text-sm text-petra-muted">{t("groupsTab.emptyHint")}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -4340,6 +4389,7 @@ function WorkshopsTab({
   onConvertParticipant: (groupId: string, participantId: string, dogName: string) => void;
   onDeleteGroup: (groupId: string, groupName: string) => void;
 }) {
+  const t = useTranslations("training.trainingPage");
   const filtered = useMemo(() => {
     if (!searchQuery.trim()) return workshops;
     const q = searchQuery.toLowerCase();
@@ -4355,18 +4405,18 @@ function WorkshopsTab({
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <p className="text-sm text-petra-muted">{filtered.length} סדנאות</p>
+        <p className="text-sm text-petra-muted">{t("workshopsTab.count", { count: filtered.length })}</p>
         <button className="btn-primary" onClick={onNewWorkshop}>
           <Plus className="w-4 h-4" />
-          סדנה חדשה
+          {t("workshopsTab.new")}
         </button>
       </div>
 
       {filtered.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon"><Calendar className="w-6 h-6 text-slate-400" /></div>
-          <h3 className="text-base font-semibold text-petra-text mb-1">אין סדנאות</h3>
-          <p className="text-sm text-petra-muted">צור סדנה חדשה כדי להתחיל</p>
+          <h3 className="text-base font-semibold text-petra-text mb-1">{t("workshopsTab.emptyTitle")}</h3>
+          <p className="text-sm text-petra-muted">{t("workshopsTab.emptyHint")}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -4415,6 +4465,10 @@ function GroupCard({
   onDeleteGroup?: () => void;
   isWorkshop?: boolean;
 }) {
+  const t = useTranslations("training.trainingPage");
+  const tc = useTranslations("common");
+  const { cfg } = useBusinessLocale();
+  const { formatDate, formatCurrency } = useFmt();
   const queryClient = useQueryClient();
   const [expandedAttendanceSession, setExpandedAttendanceSession] = useState<string | null>(null);
   const [sessionNotesInput, setSessionNotesInput] = useState<Record<string, string>>({});
@@ -4446,9 +4500,9 @@ function GroupCard({
       queryClient.invalidateQueries({ queryKey: ["training-groups"] });
       queryClient.invalidateQueries({ queryKey: ["training-group-sessions-cal"] });
       setShowAddSession(false);
-      toast.success("מפגש נוצר בהצלחה");
+      toast.success(t("group.sessionCreated"));
     },
-    onError: (err: Error) => toast.error(err.message || "שגיאה ביצירת מפגש"),
+    onError: (err: Error) => toast.error(err.message || t("group.sessionCreateError")),
   });
 
   const generateSeriesMutation = useMutation({
@@ -4462,9 +4516,9 @@ function GroupCard({
       queryClient.invalidateQueries({ queryKey: ["training-groups"] });
       queryClient.invalidateQueries({ queryKey: ["training-group-sessions-cal"] });
       setShowAddSession(false);
-      toast.success(`נוצרו ${res?.created ?? seriesCount} מפגשים שבועיים`);
+      toast.success(t("group.seriesCreated", { count: res?.created ?? seriesCount }));
     },
-    onError: () => toast.error("שגיאה ביצירת סדרת מפגשים"),
+    onError: () => toast.error(t("group.seriesError")),
   });
   const typeColor = GROUP_TYPE_COLORS[group.groupType] || GROUP_TYPE_COLORS.CUSTOM;
 
@@ -4476,7 +4530,7 @@ function GroupCard({
         body: JSON.stringify({ attendanceStatus: status }),
       }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["training-groups"] }),
-    onError: () => toast.error("שגיאה בעדכון נוכחות"),
+    onError: () => toast.error(t("group.attendanceError")),
   });
 
   const sessionNotesMutation = useMutation({
@@ -4489,9 +4543,9 @@ function GroupCard({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["training-groups"] });
       queryClient.invalidateQueries({ queryKey: ["training-group-sessions-cal"] });
-      toast.success("סיכום המפגש נשמר");
+      toast.success(t("group.summarySaved"));
     },
-    onError: () => toast.error("שגיאה בשמירת הסיכום"),
+    onError: () => toast.error(t("group.summaryError")),
   });
 
   const updateSessionDatetimeMutation = useMutation({
@@ -4505,9 +4559,9 @@ function GroupCard({
       queryClient.invalidateQueries({ queryKey: ["training-groups"] });
       queryClient.invalidateQueries({ queryKey: ["training-group-sessions-cal"] });
       setEditingSession(null);
-      toast.success("מועד המפגש עודכן");
+      toast.success(t("checklist.rescheduled"));
     },
-    onError: (err: Error) => toast.error(err.message || "שגיאה בעדכון מועד המפגש"),
+    onError: (err: Error) => toast.error(err.message || t("checklist.rescheduleError")),
   });
 
   const deleteSessionMutation = useMutation({
@@ -4516,9 +4570,9 @@ function GroupCard({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["training-groups"] });
       queryClient.invalidateQueries({ queryKey: ["training-group-sessions-cal"] });
-      toast.success("המפגש נמחק");
+      toast.success(t("checklist.deleted"));
     },
-    onError: () => toast.error("שגיאה במחיקת המפגש"),
+    onError: () => toast.error(t("checklist.deleteError")),
   });
 
   // Seed attendance rows for a session (idempotent); optional markAll bulk-sets everyone PRESENT
@@ -4532,9 +4586,9 @@ function GroupCard({
     onSuccess: (_data, vars) => {
       queryClient.invalidateQueries({ queryKey: ["training-groups"] });
       setExpandedAttendanceSession(vars.sessionId);
-      if (vars.markAll === "PRESENT") toast.success("כל המשתתפים סומנו כנוכחים");
+      if (vars.markAll === "PRESENT") toast.success(t("group.allMarkedPresent"));
     },
-    onError: (err: Error) => toast.error(err.message || "שגיאה בעדכון הנוכחות"),
+    onError: (err: Error) => toast.error(err.message || t("group.attendanceUpdateError")),
   });
 
   // Promote WAITLIST → ACTIVE (workshops)
@@ -4547,9 +4601,9 @@ function GroupCard({
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["training-groups"] });
-      toast.success("המשתתף קודם מרשימת ההמתנה");
+      toast.success(t("group.promoted"));
     },
-    onError: (err: Error) => toast.error(err.message || "שגיאה בקידום מרשימת ההמתנה"),
+    onError: (err: Error) => toast.error(err.message || t("group.promoteError")),
   });
 
   // Create payment-request Order for a workshop participant, then open WhatsApp
@@ -4567,20 +4621,20 @@ function GroupCard({
       }),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["training-groups"] });
-      toast.success("דרישת התשלום נוצרה");
+      toast.success(t("group.paymentRequestCreated"));
       const phone = toWhatsAppPhone(data.customer?.phone ?? "");
       if (!phone) return;
       const amount = formatCurrency(data.order?.total ?? group.price ?? 0);
       const lines: string[] = [
-        `שלום ${data.customer?.name ?? ""}! 🐾`,
-        `דרישת תשלום עבור הסדנה "${group.name}"`,
-        `סכום לתשלום: ${amount}`,
+        `שלום ${data.customer?.name ?? ""}! 🐾`, // i18n-ok
+        `דרישת תשלום עבור הסדנה "${group.name}"`, // i18n-ok
+        `סכום לתשלום: ${amount}`, // i18n-ok
       ];
-      if (data.paymentUrl) lines.push("", `לתשלום מאובטח בקישור:`, data.paymentUrl);
-      lines.push("", `לשאלות אנחנו זמינים${data.businessPhone ? ` בטלפון ${data.businessPhone}` : ""}. תודה! 🐾`);
+      if (data.paymentUrl) lines.push("", `לתשלום מאובטח בקישור:`, data.paymentUrl); // i18n-ok
+      lines.push("", `לשאלות אנחנו זמינים${data.businessPhone ? ` בטלפון ${data.businessPhone}` : ""}. תודה! 🐾`); // i18n-ok
       window.open(`https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(lines.join("\n"))}`, "_blank");
     },
-    onError: (err: Error) => toast.error(err.message || "שגיאה ביצירת דרישת התשלום"),
+    onError: (err: Error) => toast.error(err.message || t("group.paymentRequestError")),
   });
 
   return (
@@ -4614,7 +4668,7 @@ function GroupCard({
                 )}
               >
                 {activeParticipants.length}/{group.maxParticipants}
-                {isFull && " · מלא"}
+                {isFull && t("group.full")}
               </span>
             )}
             {isWorkshop && group.price != null && (
@@ -4622,18 +4676,18 @@ function GroupCard({
                 {formatCurrency(group.price)}
               </span>
             )}
-            {!group.isActive && <span className="badge-danger text-[10px]">לא פעיל</span>}
+            {!group.isActive && <span className="badge-danger text-[10px]">{t("group.inactive")}</span>}
           </div>
           <div className="flex items-center gap-4 mt-1 text-xs text-petra-muted flex-wrap">
             <span className="flex items-center gap-1">
               <Users className="w-3 h-3" />
-              {isWorkshop ? activeParticipants.length : group._count.participants} משתתפים
+              {t("group.participants", { count: isWorkshop ? activeParticipants.length : group._count.participants })}
               {group.maxParticipants && ` / ${group.maxParticipants}`}
             </span>
             {group.defaultDayOfWeek !== null && (
               <span className="flex items-center gap-1">
                 <Calendar className="w-3 h-3" />
-                יום {DAY_NAMES[group.defaultDayOfWeek]}
+                {t("group.dayOf", { day: dayName(t, group.defaultDayOfWeek) })}
               </span>
             )}
             {group.defaultTime && (
@@ -4668,15 +4722,15 @@ function GroupCard({
               onClick={(e) => { e.stopPropagation(); setShowAddSession(!showAddSession); }}
             >
               <Plus className="w-3.5 h-3.5" />
-              הוסף מפגש
+              {t("group.addSession")}
             </button>
             <button className="btn-secondary text-xs" onClick={(e) => { e.stopPropagation(); onAssignDog(); }}>
               <Plus className="w-3.5 h-3.5" />
-              שייך לקוח
+              {t("group.assignClient")}
             </button>
             <button className="btn-secondary text-xs" onClick={(e) => { e.stopPropagation(); onEditGroup(); }}>
               <Pencil className="w-3.5 h-3.5" />
-              {isWorkshop ? "ערוך סדנה" : "ערוך קבוצה"}
+              {isWorkshop ? t("group.editWorkshop") : t("group.editGroup")}
             </button>
             {onDeleteGroup && (
               <button
@@ -4684,7 +4738,7 @@ function GroupCard({
                 onClick={(e) => { e.stopPropagation(); onDeleteGroup(); }}
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                {isWorkshop ? "מחק סדנה" : "מחק קבוצה"}
+                {isWorkshop ? t("group.deleteWorkshop") : t("group.deleteGroup")}
               </button>
             )}
             {isWorkshop && activeParticipants.length > 0 && (
@@ -4697,7 +4751,7 @@ function GroupCard({
                     if (p.customer?.phone ?? "") {
                       const phone = toWhatsAppPhone(p.customer?.phone ?? "");
                       const msg = encodeURIComponent(
-                        `היי! תזכורת לסדנת "${group.name}"${group.location ? ` ב${group.location}` : ""}${group.defaultTime ? ` בשעה ${group.defaultTime}` : ""}. נתראה!`
+                        `היי! תזכורת לסדנת "${group.name}"${group.location ? ` ב${group.location}` : ""}${group.defaultTime ? ` בשעה ${group.defaultTime}` : ""}. נתראה!` // i18n-ok
                       );
                       window.open(`https://api.whatsapp.com/send?phone=${phone}&text=${msg}`, "_blank");
                     }
@@ -4705,7 +4759,7 @@ function GroupCard({
                 }}
               >
                 <Send className="w-3.5 h-3.5" />
-                שלח תזכורת
+                {t("group.sendReminder")}
               </button>
             )}
           </div>
@@ -4713,12 +4767,12 @@ function GroupCard({
           {/* Add Session Inline Form */}
           {showAddSession && (
             <div className="mx-4 mb-3 p-3 rounded-xl bg-brand-50 border border-brand-100 space-y-2">
-              <p className="text-xs font-semibold text-brand-700">מפגש חדש</p>
+              <p className="text-xs font-semibold text-brand-700">{t("group.newSession")}</p>
               <div className="flex gap-2">
                 <div className="flex-1">
-                  <label className="label text-[10px]">תאריך</label>
+                  <label className="label text-[10px]">{t("date")}</label>
                   <input
-                    type="date" lang="he"
+                    type="date" lang={cfg.lang}
                     className="input text-xs py-1.5"
                     value={newSessionDate}
                     onChange={(e) => setNewSessionDate(e.target.value)}
@@ -4726,7 +4780,7 @@ function GroupCard({
                   />
                 </div>
                 <div className="flex-1">
-                  <label className="label text-[10px]">שעה</label>
+                  <label className="label text-[10px]">{t("time")}</label>
                   <input
                     type="time"
                     className="input text-xs py-1.5"
@@ -4742,19 +4796,19 @@ function GroupCard({
                   disabled={addSessionMutation.isPending || !newSessionDate}
                   onClick={(e) => { e.stopPropagation(); addSessionMutation.mutate(); }}
                 >
-                  {addSessionMutation.isPending ? "יוצר..." : "צור מפגש"}
+                  {addSessionMutation.isPending ? t("group.creating") : t("group.createSession")}
                 </button>
                 <button
                   className="btn-secondary text-xs"
                   onClick={(e) => { e.stopPropagation(); setShowAddSession(false); }}
                 >
-                  ביטול
+                  {tc("actions.cancel")}
                 </button>
               </div>
               {/* Recurring weekly series */}
               <div className="pt-2 mt-1 border-t border-brand-100 flex items-end gap-2">
                 <div className="flex-1">
-                  <label className="label text-[10px]">סדרה שבועית (מספר מפגשים)</label>
+                  <label className="label text-[10px]">{t("group.weeklySeries")}</label>
                   <input
                     type="number" min={1} max={52}
                     className="input text-xs py-1.5"
@@ -4767,9 +4821,9 @@ function GroupCard({
                   className="btn-secondary text-xs whitespace-nowrap"
                   disabled={generateSeriesMutation.isPending || !newSessionDate || seriesCount < 1}
                   onClick={(e) => { e.stopPropagation(); generateSeriesMutation.mutate(); }}
-                  title="יוצר מפגשים שבועיים החל מהתאריך/שעה שנבחרו"
+                  title={t("group.seriesHint")}
                 >
-                  {generateSeriesMutation.isPending ? "יוצר..." : `צור סדרה (${seriesCount})`}
+                  {generateSeriesMutation.isPending ? t("group.creating") : t("group.createSeries", { count: seriesCount })}
                 </button>
               </div>
             </div>
@@ -4779,22 +4833,22 @@ function GroupCard({
           <div className="p-4 border-b border-petra-border">
             <h4 className="text-xs font-semibold text-petra-muted mb-3 flex items-center gap-1.5">
               <Dog className="w-3.5 h-3.5" />
-              משתתפים ({mainParticipants.length})
+              {t("group.participantsHeader", { count: mainParticipants.length })}
             </h4>
             {mainParticipants.length === 0 ? (
-              <p className="text-xs text-petra-muted">אין משתתפים רשומים</p>
+              <p className="text-xs text-petra-muted">{t("group.noParticipants")}</p>
             ) : (
               <div className={cn("grid gap-2", isWorkshop ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2")}>
                 {mainParticipants.map((p) => {
                   const paymentChip = !isWorkshop
                     ? null
                     : !p.order
-                      ? { label: "אין הזמנה", cls: "bg-slate-100 text-slate-500" }
+                      ? { label: t("group.pay.noOrder"), cls: "bg-slate-100 text-slate-500" }
                       : p.order.paidAmount >= p.order.total
-                        ? { label: "שולם", cls: "bg-emerald-100 text-emerald-700" }
+                        ? { label: t("group.pay.paid"), cls: "bg-emerald-100 text-emerald-700" }
                         : p.order.paidAmount > 0
-                          ? { label: "שולם חלקית", cls: "bg-blue-100 text-blue-700" }
-                          : { label: "ממתין לתשלום", cls: "bg-amber-100 text-amber-700" };
+                          ? { label: t("group.pay.partial"), cls: "bg-blue-100 text-blue-700" }
+                          : { label: t("group.pay.pending"), cls: "bg-amber-100 text-amber-700" };
                   return (
                     <div key={p.id} className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 group/item">
                       <div className="w-7 h-7 rounded-lg bg-brand-50 flex items-center justify-center text-xs font-bold text-brand-600 flex-shrink-0">
@@ -4809,7 +4863,7 @@ function GroupCard({
                       </div>
                       {isWorkshop && (p.heldCount ?? 0) > 0 && (
                         <span className="text-[10px] text-petra-muted whitespace-nowrap">
-                          נכח {p.attendedCount ?? 0}/{p.heldCount ?? 0}
+                          {t("group.attended", { attended: p.attendedCount ?? 0, held: p.heldCount ?? 0 })}
                         </span>
                       )}
                       {paymentChip && (
@@ -4822,16 +4876,16 @@ function GroupCard({
                           className="btn-secondary text-[10px] py-1 px-2 whitespace-nowrap flex-shrink-0"
                           disabled={createOrderMutation.isPending}
                           onClick={(e) => { e.stopPropagation(); createOrderMutation.mutate(p.id); }}
-                          title="יוצר הזמנה ושולח דרישת תשלום בוואטסאפ"
+                          title={t("group.paymentRequestHint")}
                         >
                           <Send className="w-3 h-3" />
-                          {createOrderMutation.isPending ? "יוצר..." : "דרישת תשלום"}
+                          {createOrderMutation.isPending ? t("group.creating") : t("group.paymentRequest")}
                         </button>
                       )}
                       <button
                         className="w-6 h-6 flex items-center justify-center rounded hover:bg-red-50 text-slate-300 hover:text-red-500 opacity-100 sm:opacity-0 sm:group-hover/item:opacity-100 transition-opacity flex-shrink-0"
                         onClick={(e) => { e.stopPropagation(); onRemoveParticipant(p.id); }}
-                        title="הסר משתתף"
+                        title={t("group.removeParticipant")}
                       >
                         <Trash2 className="w-3 h-3" />
                       </button>
@@ -4842,7 +4896,7 @@ function GroupCard({
             )}
             {isWorkshop && group.price != null && activeParticipants.length > 0 && (
               <p className="text-xs text-petra-muted mt-3 pt-2 border-t border-dashed border-slate-200">
-                נגבה <span className="font-semibold text-emerald-600">{formatCurrency(collectedAmount)}</span> מתוך <span className="font-semibold text-petra-text">{formatCurrency(expectedAmount)}</span>
+                {t.rich("group.collected", { collected: formatCurrency(collectedAmount), expected: formatCurrency(expectedAmount), ok: (c) => <span className="font-semibold text-emerald-600">{c}</span>, total: (c) => <span className="font-semibold text-petra-text">{c}</span> })}
               </p>
             )}
           </div>
@@ -4852,7 +4906,7 @@ function GroupCard({
             <div className="p-4 border-b border-petra-border">
               <h4 className="text-xs font-semibold text-petra-muted mb-3 flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5" />
-                רשימת המתנה ({waitlistParticipants.length})
+                {t("group.waitlist", { count: waitlistParticipants.length })}
               </h4>
               <div className="space-y-2">
                 {waitlistParticipants.map((p) => (
@@ -4870,15 +4924,15 @@ function GroupCard({
                     <button
                       className="btn-secondary text-[10px] py-1 px-2 whitespace-nowrap flex-shrink-0 disabled:opacity-50"
                       disabled={isFull || promoteMutation.isPending}
-                      title={isFull ? "הסדנה מלאה — פנה מקום כדי לקדם" : "קדם לרשימת המשתתפים"}
+                      title={isFull ? t("group.promoteFull") : t("group.promoteHint")}
                       onClick={(e) => { e.stopPropagation(); promoteMutation.mutate(p.id); }}
                     >
-                      {promoteMutation.isPending ? "מקדם..." : "קדם"}
+                      {promoteMutation.isPending ? t("group.promoting") : t("group.promote")}
                     </button>
                     <button
                       className="w-6 h-6 flex items-center justify-center rounded hover:bg-red-50 text-slate-300 hover:text-red-500 opacity-100 sm:opacity-0 sm:group-hover/item:opacity-100 transition-opacity flex-shrink-0"
                       onClick={(e) => { e.stopPropagation(); onRemoveParticipant(p.id); }}
-                      title="הסר מרשימת ההמתנה"
+                      title={t("group.removeFromWaitlist")}
                     >
                       <Trash2 className="w-3 h-3" />
                     </button>
@@ -4892,10 +4946,10 @@ function GroupCard({
           <div className="p-4">
             <h4 className="text-xs font-semibold text-petra-muted mb-3 flex items-center gap-1.5">
               <Calendar className="w-3.5 h-3.5" />
-              מפגשים ({group._count.sessions})
+              {t("checklist.header", { used: group._count.sessions })}
             </h4>
             {group.sessions.length === 0 ? (
-              <p className="text-xs text-petra-muted">אין מפגשים</p>
+              <p className="text-xs text-petra-muted">{t("group.noSessions")}</p>
             ) : (
               <div className="space-y-1.5">
                 {group.sessions.slice(0, 5).map((session) => {
@@ -4909,9 +4963,9 @@ function GroupCard({
                           session.status === "COMPLETED" ? "bg-emerald-500" :
                             session.status === "CANCELED" ? "bg-red-400" : "bg-blue-400"
                         )} />
-                        <span className="text-xs text-petra-text">מפגש {session.sessionNumber || ""}</span>
+                        <span className="text-xs text-petra-text">{t("checklist.sessionN", { num: session.sessionNumber || "" })}</span>
                         <span className="text-[10px] text-petra-muted">{formatDate(session.sessionDatetime)}</span>
-                        <span className="text-[10px] badge-neutral">{presentCount}/{session.attendance.length || mainParticipants.length} נוכחים</span>
+                        <span className="text-[10px] badge-neutral">{t("group.presentCount", { present: presentCount, total: session.attendance.length || mainParticipants.length })}</span>
                         <div className="ms-auto flex items-center gap-1.5">
                           <button
                             className="text-[10px] text-brand-600 hover:text-brand-700 font-medium disabled:opacity-50"
@@ -4927,11 +4981,11 @@ function GroupCard({
                               setExpandedAttendanceSession(session.id);
                             }}
                           >
-                            {isAttendanceOpen ? "סגור" : seedAttendanceMutation.isPending ? "טוען..." : "סמן נוכחות"}
+                            {isAttendanceOpen ? tc("actions.close") : seedAttendanceMutation.isPending ? tc("loading") : t("group.markAttendance")}
                           </button>
                           <button
                             className="w-6 h-6 flex items-center justify-center rounded hover:bg-brand-50 text-slate-400 hover:text-brand-600"
-                            title="שנה מועד מפגש"
+                            title={t("group.reschedule")}
                             onClick={(e) => {
                               e.stopPropagation();
                               const d = new Date(session.sessionDatetime);
@@ -4947,11 +5001,11 @@ function GroupCard({
                           </button>
                           <button
                             className="w-6 h-6 flex items-center justify-center rounded hover:bg-red-50 text-slate-400 hover:text-red-500"
-                            title="מחק מפגש"
+                            title={t("checklist.deleteSession")}
                             disabled={deleteSessionMutation.isPending}
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (window.confirm(`למחוק את מפגש ${session.sessionNumber || ""} בתאריך ${formatDate(session.sessionDatetime)}? הפעולה תסיר אותו גם מהיומן.`)) {
+                              if (window.confirm(t("group.confirmDeleteSession", { num: session.sessionNumber || "", date: formatDate(session.sessionDatetime) }))) {
                                 deleteSessionMutation.mutate(session.id);
                               }
                             }}
@@ -4964,16 +5018,16 @@ function GroupCard({
                         <div className="px-3 pb-2 pt-1 border-t border-slate-200 space-y-2" onClick={(e) => e.stopPropagation()}>
                           <div className="flex items-end gap-2">
                             <div className="flex-1">
-                              <label className="label text-[10px]">תאריך</label>
+                              <label className="label text-[10px]">{t("date")}</label>
                               <input
-                                type="date" lang="he"
+                                type="date" lang={cfg.lang}
                                 className="input text-xs py-1.5"
                                 value={editingSession.date}
                                 onChange={(e) => setEditingSession({ ...editingSession, date: e.target.value })}
                               />
                             </div>
                             <div className="flex-1">
-                              <label className="label text-[10px]">שעה</label>
+                              <label className="label text-[10px]">{t("time")}</label>
                               <input
                                 type="time"
                                 className="input text-xs py-1.5"
@@ -4986,22 +5040,22 @@ function GroupCard({
                               disabled={updateSessionDatetimeMutation.isPending || !editingSession.date || !editingSession.time}
                               onClick={() => updateSessionDatetimeMutation.mutate({ sessionId: session.id, date: editingSession.date, time: editingSession.time })}
                             >
-                              {updateSessionDatetimeMutation.isPending ? "שומר..." : "שמור"}
+                              {updateSessionDatetimeMutation.isPending ? tc("progress.saving") : tc("actions.save")}
                             </button>
                             <button className="btn-secondary text-xs py-1.5" onClick={() => setEditingSession(null)}>
-                              ביטול
+                              {tc("actions.cancel")}
                             </button>
                           </div>
                           {onConvertParticipant && group.participants.length > 0 && (
                             <div className="flex items-end gap-2 border-t border-dashed border-slate-200 pt-2">
                               <div className="flex-1">
-                                <label className="label text-[10px]">המר כלב לאילוף פרטני</label>
+                                <label className="label text-[10px]">{t("group.convertDog")}</label>
                                 <select
                                   className="input text-xs py-1.5"
                                   value={convertParticipantId}
                                   onChange={(e) => setConvertParticipantId(e.target.value)}
                                 >
-                                  <option value="">— בחר כלב —</option>
+                                  <option value="">{t("group.selectDog")}</option>
                                   {group.participants.map((p) => (
                                     <option key={p.id} value={p.id}>{p.dog.name}{p.customer?.name ? ` (${p.customer.name})` : ""}</option>
                                   ))}
@@ -5016,7 +5070,7 @@ function GroupCard({
                                 }}
                               >
                                 <Repeat className="w-3 h-3" />
-                                המר לפרטני
+                                {t("convertToPrivate.confirm")}
                               </button>
                             </div>
                           )}
@@ -5025,7 +5079,7 @@ function GroupCard({
                       {isAttendanceOpen && (
                         <div className="px-3 pb-3 border-t border-slate-200 pt-2 space-y-1.5">
                           {session.attendance.length === 0 ? (
-                            <p className="text-[10px] text-petra-muted">אין משתתפים פעילים לסימון נוכחות</p>
+                            <p className="text-[10px] text-petra-muted">{t("group.noActiveForAttendance")}</p>
                           ) : (
                             <button
                               className="btn-secondary text-[10px] py-1 px-2"
@@ -5033,12 +5087,12 @@ function GroupCard({
                               onClick={(e) => { e.stopPropagation(); seedAttendanceMutation.mutate({ sessionId: session.id, markAll: "PRESENT" }); }}
                             >
                               <CheckCircle2 className="w-3 h-3" />
-                              {seedAttendanceMutation.isPending ? "מסמן..." : "סמן את כולם כנוכחים"}
+                              {seedAttendanceMutation.isPending ? t("group.marking") : t("group.markAllPresent")}
                             </button>
                           )}
                           {session.attendance.map((att) => {
                             const participant = group.participants.find((p) => p.id === att.participantId);
-                            const dogName = att.participant?.dog.name ?? participant?.dog.name ?? "כלב";
+                            const dogName = att.participant?.dog.name ?? participant?.dog.name ?? t("group.dogFallback");
                             const customerName = att.participant?.customer.name ?? participant?.customer.name ?? "";
                             const isPresent = att.attendanceStatus === "PRESENT";
                             return (
@@ -5055,7 +5109,7 @@ function GroupCard({
                                     attendanceMutation.mutate({ attendanceId: att.id, status: isPresent ? "NO_SHOW" : "PRESENT" });
                                   }}
                                   disabled={attendanceMutation.isPending}
-                                  title={isPresent ? "סמן כנעדר" : "סמן כנוכח"}
+                                  title={isPresent ? t("group.markAbsent") : t("group.markPresent")}
                                 >
                                   {isPresent ? "✓" : "✗"}
                                 </button>
@@ -5065,18 +5119,18 @@ function GroupCard({
                                   "text-[10px] ms-auto",
                                   isPresent ? "text-emerald-600" : "text-red-500"
                                 )}>
-                                  {isPresent ? "נוכח" : "נעדר"}
+                                  {isPresent ? t("group.present") : t("group.absent")}
                                 </span>
                               </div>
                             );
                           })}
                           {/* Session notes */}
                           <div className="pt-2 border-t border-slate-100 space-y-1.5">
-                            <p className="text-[10px] font-semibold text-petra-muted">סיכום מפגש</p>
+                            <p className="text-[10px] font-semibold text-petra-muted">{t("group.sessionSummary")}</p>
                             <textarea
                               className="input text-xs py-1.5 resize-none w-full"
                               rows={2}
-                              placeholder="מה עבדנו היום, הצלחות, נקודות לשיפור..."
+                              placeholder={t("group.summaryPlaceholder")}
                               value={sessionNotesInput[session.id] ?? session.notes ?? ""}
                               onChange={(e) => setSessionNotesInput((prev) => ({ ...prev, [session.id]: e.target.value }))}
                               onClick={(e) => e.stopPropagation()}
@@ -5089,7 +5143,7 @@ function GroupCard({
                                 sessionNotesMutation.mutate({ sessionId: session.id, notes: sessionNotesInput[session.id] ?? session.notes ?? "" });
                               }}
                             >
-                              שמור סיכום
+                              {t("group.saveSummary")}
                             </button>
                           </div>
                         </div>
@@ -5119,6 +5173,9 @@ function ManualAddProgramModal({
   onSubmit: (data: Record<string, unknown>) => void;
   isPending: boolean;
 }) {
+  const t = useTranslations("training.trainingPage");
+  const tc = useTranslations("common");
+  const { cfg } = useBusinessLocale();
   const [customerId, setCustomerId] = useState("");
   const [dogId, setDogId] = useState("");
   const [programType, setProgramType] = useState("BASIC_OBEDIENCE");
@@ -5132,9 +5189,9 @@ function ManualAddProgramModal({
   const selectedCustomer: Customer | undefined =
     pickedCustomer && pickedCustomer.id === customerId ? pickedCustomer : undefined;
   const selectedDog = selectedCustomer?.pets.find((p) => p.id === dogId);
-  const effectiveProgramType = programType === "CUSTOM" ? (customTypeName.trim() || "מותאם אישית") : (PROGRAM_TYPES_MAP[programType] || programType);
+  const effectiveProgramType = programType === "CUSTOM" ? (customTypeName.trim() || t("programTypes.CUSTOM")) : programTypeLabel(t, programType);
   const autoName = selectedDog
-    ? `אילוף ${effectiveProgramType} - ${selectedDog.name}`
+    ? t("programForm.autoName", { type: effectiveProgramType, dog: selectedDog.name })
     : "";
 
   const handleSubmit = () => {
@@ -5160,7 +5217,7 @@ function ManualAddProgramModal({
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-bold text-petra-text flex items-center gap-2">
             <GraduationCap className="w-5 h-5 text-brand-500" />
-            הוסף תהליך אילוף ידני
+            {t("programForm.manualTitle")}
           </h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
             <X className="w-4 h-4" />
@@ -5168,12 +5225,12 @@ function ManualAddProgramModal({
         </div>
 
         <p className="text-xs text-petra-muted bg-blue-50 border border-blue-100 rounded-xl px-3 py-2 mb-4">
-          להוספת לקוחות שכבר בתהליך אילוף ממערכת אחרת — ללא קישור להזמנה חדשה
+          {t("programForm.manualHint")}
         </p>
 
         <div className="space-y-4">
           <div>
-            <label className="label">לקוח *</label>
+            <label className="label">{t("programForm.client")}</label>
             <CustomerPicker
               value={customerId || null}
               selectedCustomer={pickedCustomer}
@@ -5188,14 +5245,14 @@ function ManualAddProgramModal({
 
           {customerId && selectedCustomer && (
             <div>
-              <label className="label">כלב *</label>
+              <label className="label">{t("programForm.dog")}</label>
               {selectedCustomer.pets.length === 0 ? (
                 <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2.5">
-                  ללקוח זה אין כלבים רשומים — יש להוסיף כלב בפרופיל הלקוח תחילה.
+                  {t("programForm.noDogs")}
                 </p>
               ) : (
                 <select className="input" value={dogId} onChange={(e) => setDogId(e.target.value)}>
-                  <option value="">בחר כלב...</option>
+                  <option value="">{t("programForm.selectDog")}</option>
                   {selectedCustomer.pets.map((p) => (
                     <option key={p.id} value={p.id}>{p.name}</option>
                   ))}
@@ -5205,16 +5262,16 @@ function ManualAddProgramModal({
           )}
 
           <div>
-            <label className="label">סוג אילוף</label>
+            <label className="label">{t("programForm.trainingType")}</label>
             <select className="input" value={programType} onChange={(e) => { setProgramType(e.target.value); setCustomTypeName(""); }}>
-              {Object.entries(PROGRAM_TYPES_MAP).filter(([k]) => !k.startsWith("SD_")).map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
+              {PROGRAM_TYPE_KEYS.filter((k) => !k.startsWith("SD_")).map((value) => (
+                <option key={value} value={value}>{programTypeLabel(t, value)}</option>
               ))}
             </select>
             {programType === "CUSTOM" && (
               <input
                 className="input mt-2"
-                placeholder="פרט את סוג האילוף..."
+                placeholder={t("programForm.customTypePlaceholder")}
                 value={customTypeName}
                 onChange={(e) => setCustomTypeName(e.target.value)}
                 autoFocus
@@ -5224,7 +5281,7 @@ function ManualAddProgramModal({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">מספר מפגשים</label>
+              <label className="label">{t("schedule.occurrences")}</label>
               <input
                 type="number"
                 className="input"
@@ -5235,9 +5292,9 @@ function ManualAddProgramModal({
               />
             </div>
             <div>
-              <label className="label">תאריך התחלה</label>
+              <label className="label">{t("individual.startDate")}</label>
               <input
-                type="date" lang="he"
+                type="date" lang={cfg.lang}
                 className="input"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
@@ -5247,9 +5304,9 @@ function ManualAddProgramModal({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">תאריך סיום <span className="text-petra-muted font-normal">(אופציונלי)</span></label>
+              <label className="label">{t("programForm.endDate")} <span className="text-petra-muted font-normal">{t("programForm.optional")}</span></label>
               <input
-                type="date" lang="he"
+                type="date" lang={cfg.lang}
                 className="input"
                 value={endDate}
                 min={startDate}
@@ -5260,13 +5317,13 @@ function ManualAddProgramModal({
           </div>
 
           <div>
-            <label className="label">הערות</label>
+            <label className="label">{t("programForm.notes")}</label>
             <textarea
               className="input"
               rows={2}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="הקשר, שלב התהליך לפני המעבר..."
+              placeholder={t("programForm.manualNotesPlaceholder")}
             />
           </div>
         </div>
@@ -5278,9 +5335,9 @@ function ManualAddProgramModal({
             onClick={handleSubmit}
           >
             <Plus className="w-4 h-4" />
-            {isPending ? "שומר..." : "הוסף תהליך"}
+            {isPending ? tc("progress.saving") : t("programForm.addProgram")}
           </button>
-          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+          <button className="btn-secondary" onClick={onClose}>{tc("actions.cancel")}</button>
         </div>
       </div>
     </div>
@@ -5302,6 +5359,9 @@ function SellPackageModal({
   isPending: boolean;
   packages?: TrainingPackage[];
 }) {
+  const t = useTranslations("training.trainingPage");
+  const tc = useTranslations("common");
+  const { formatCurrency, cur } = useFmt();
   const [step, setStep] = useState(packages.length > 0 ? 1 : 2);
   const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
   const [customerId, setCustomerId] = useState("");
@@ -5317,11 +5377,11 @@ function SellPackageModal({
     pickedCustomer && pickedCustomer.id === customerId ? pickedCustomer : undefined;
   const selectedDog = selectedCustomer?.pets.find((p) => p.id === dogId);
   const selectedPkg = packages.find((p) => p.id === selectedPackageId);
-  const effectiveProgramType = programType === "CUSTOM" ? (customTypeName.trim() || "מותאם אישית") : (PROGRAM_TYPES_MAP[programType] || programType);
+  const effectiveProgramType = programType === "CUSTOM" ? (customTypeName.trim() || t("programTypes.CUSTOM")) : programTypeLabel(t, programType);
   const autoName = selectedDog
     ? selectedPkg
       ? `${selectedPkg.name} - ${selectedDog.name}`
-      : `אילוף ${effectiveProgramType} - ${selectedDog.name}`
+      : t("programForm.autoName", { type: effectiveProgramType, dog: selectedDog.name })
     : "";
 
   const handleSelectPackage = (pkg: TrainingPackage | null) => {
@@ -5356,7 +5416,7 @@ function SellPackageModal({
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-bold text-petra-text flex items-center gap-2">
             <Package className="w-5 h-5 text-brand-500" />
-            מכירת חבילת אימון
+            {t("sellPackage.title")}
           </h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
             <X className="w-4 h-4" />
@@ -5365,13 +5425,13 @@ function SellPackageModal({
 
         {step === 1 && packages.length > 0 && (
           <div>
-            <p className="text-sm text-petra-muted mb-4">בחר חבילת אילוף:</p>
+            <p className="text-sm text-petra-muted mb-4">{t("sellPackage.choose")}</p>
             <div className="space-y-2 mb-4">
               {packages.map((pkg) => (
                 <button
                   key={pkg.id}
                   className={cn(
-                    "w-full text-right p-3 rounded-xl border-2 transition-all",
+                    "w-full text-start p-3 rounded-xl border-2 transition-all",
                     selectedPackageId === pkg.id
                       ? "border-brand-500 bg-brand-50"
                       : "border-petra-border bg-white hover:border-brand-200"
@@ -5382,7 +5442,7 @@ function SellPackageModal({
                     <span className="text-sm font-semibold text-petra-text">{pkg.name}</span>
                     <span className="text-sm font-bold text-brand-600">{formatCurrency(pkg.price)}</span>
                   </div>
-                  <p className="text-xs text-petra-muted mt-0.5">{pkg.sessions} מפגשים</p>
+                  <p className="text-xs text-petra-muted mt-0.5">{t("boardingTab.homeSessions", { count: pkg.sessions })}</p>
                   {pkg.description && <p className="text-xs text-petra-muted mt-0.5 line-clamp-1">{pkg.description}</p>}
                 </button>
               ))}
@@ -5393,10 +5453,10 @@ function SellPackageModal({
                 disabled={!selectedPackageId}
                 onClick={() => handleSelectPackage(packages.find((p) => p.id === selectedPackageId) ?? null)}
               >
-                המשך
+                {t("sellPackage.continue")}
               </button>
               <button className="btn-secondary" onClick={() => handleSelectPackage(null)}>
-                ללא חבילה
+                {t("sellPackage.noPackage")}
               </button>
             </div>
           </div>
@@ -5406,9 +5466,9 @@ function SellPackageModal({
           <>
             {selectedPkg && (
               <div className="p-3 mb-4 rounded-xl bg-brand-50 border border-brand-100 text-sm text-brand-700 flex items-center justify-between">
-                <span>{selectedPkg.name} — {selectedPkg.sessions} מפגשים</span>
+                <span>{t("sellPackage.selected", { name: selectedPkg.name, count: selectedPkg.sessions })}</span>
                 {packages.length > 0 && (
-                  <button className="text-xs text-brand-500 hover:underline" onClick={() => setStep(1)}>שנה</button>
+                  <button className="text-xs text-brand-500 hover:underline" onClick={() => setStep(1)}>{t("sellPackage.change")}</button>
                 )}
               </div>
             )}
@@ -5416,7 +5476,7 @@ function SellPackageModal({
             <div className="space-y-4">
               {/* Customer */}
               <div>
-                <label className="label">לקוח *</label>
+                <label className="label">{t("programForm.client")}</label>
                 <CustomerPicker
                   value={customerId || null}
                   selectedCustomer={pickedCustomer}
@@ -5433,9 +5493,9 @@ function SellPackageModal({
               {/* Dog */}
               {customerId && selectedCustomer && (
                 <div>
-                  <label className="label">כלב *</label>
+                  <label className="label">{t("programForm.dog")}</label>
                   <select className="input" value={dogId} onChange={(e) => setDogId(e.target.value)}>
-                    <option value="">בחר כלב...</option>
+                    <option value="">{t("programForm.selectDog")}</option>
                     {selectedCustomer.pets.map((pet) => (
                       <option key={pet.id} value={pet.id}>{pet.name}</option>
                     ))}
@@ -5446,16 +5506,16 @@ function SellPackageModal({
               {/* Program Type */}
               {!selectedPkg && (
                 <div>
-                  <label className="label">סוג תוכנית</label>
+                  <label className="label">{t("programForm.programType")}</label>
                   <select className="input" value={programType} onChange={(e) => { setProgramType(e.target.value); setCustomTypeName(""); }}>
-                    {Object.entries(PROGRAM_TYPES_MAP).filter(([k]) => !k.startsWith("SD_")).map(([k, v]) => (
-                      <option key={k} value={k}>{v}</option>
+                    {PROGRAM_TYPE_KEYS.filter((k) => !k.startsWith("SD_")).map((k) => (
+                      <option key={k} value={k}>{programTypeLabel(t, k)}</option>
                     ))}
                   </select>
                   {programType === "CUSTOM" && (
                     <input
                       className="input mt-2"
-                      placeholder="פרט את סוג האילוף..."
+                      placeholder={t("programForm.customTypePlaceholder")}
                       value={customTypeName}
                       onChange={(e) => setCustomTypeName(e.target.value)}
                       autoFocus
@@ -5467,14 +5527,14 @@ function SellPackageModal({
               {/* Auto Name */}
               {autoName && (
                 <div>
-                  <label className="label">שם תוכנית</label>
+                  <label className="label">{t("programForm.programName")}</label>
                   <input className="input bg-slate-50" value={autoName} readOnly />
                 </div>
               )}
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="label">מספר מפגשים *</label>
+                  <label className="label">{t("programForm.sessionsRequired")}</label>
                   <input
                     type="number"
                     className="input"
@@ -5484,7 +5544,7 @@ function SellPackageModal({
                   />
                 </div>
                 <div>
-                  <label className="label">מחיר (₪)</label>
+                  <label className="label">{t("programForm.price", { cur })}</label>
                   <input
                     type="number"
                     className="input"
@@ -5496,7 +5556,7 @@ function SellPackageModal({
               </div>
 
               <div>
-                <label className="label">הערות</label>
+                <label className="label">{t("programForm.notes")}</label>
                 <textarea className="input" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
               </div>
             </div>
@@ -5508,9 +5568,9 @@ function SellPackageModal({
                 onClick={handleSubmit}
               >
                 <Package className="w-4 h-4" />
-                {isPending ? "שומר..." : "צור חבילה"}
+                {isPending ? tc("progress.saving") : t("sellPackage.create")}
               </button>
-              <button className="btn-secondary" onClick={onClose}>ביטול</button>
+              <button className="btn-secondary" onClick={onClose}>{tc("actions.cancel")}</button>
             </div>
           </>
         )}
@@ -5536,6 +5596,10 @@ function CreateGroupModal({
   isWorkshop: boolean;
   initial?: TrainingGroup | null;
 }) {
+  const t = useTranslations("training.trainingPage");
+  const tc = useTranslations("common");
+  const { cfg } = useBusinessLocale();
+  const { cur } = useFmt();
   const [form, setForm] = useState({
     name: initial?.name ?? "",
     groupType: initial?.groupType ?? (isWorkshop ? "WORKSHOP" : "CUSTOM"),
@@ -5572,8 +5636,8 @@ function CreateGroupModal({
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-bold text-petra-text">
             {initial
-              ? (isWorkshop ? "עריכת סדנה" : "עריכת קבוצה")
-              : (isWorkshop ? "סדנה חדשה" : "קבוצת אימון חדשה")}
+              ? (isWorkshop ? t("groupForm.editWorkshop") : t("groupForm.editGroup"))
+              : (isWorkshop ? t("workshopsTab.new") : t("groupForm.newGroup"))}
           </h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
             <X className="w-4 h-4" />
@@ -5582,27 +5646,27 @@ function CreateGroupModal({
 
         <div className="space-y-4">
           <div>
-            <label className="label">שם {isWorkshop ? "הסדנה" : "הקבוצה"} *</label>
+            <label className="label">{isWorkshop ? t("groupForm.nameWorkshop") : t("groupForm.nameGroup")}</label>
             <input
               className="input"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder={isWorkshop ? "למשל: סדנת סוציאליזציה" : "למשל: קבוצת גורים - מחזור 3"}
+              placeholder={isWorkshop ? t("groupForm.namePlaceholderWorkshop") : t("groupForm.namePlaceholderGroup")}
             />
           </div>
 
           {!isWorkshop && (
             <div>
-              <label className="label">סוג</label>
+              <label className="label">{t("groupForm.type")}</label>
               <select
                 className="input"
                 value={form.groupType}
                 onChange={(e) => setForm({ ...form, groupType: e.target.value })}
               >
-                {Object.entries(GROUP_TYPES_MAP)
-                  .filter(([k]) => k !== "WORKSHOP")
-                  .map(([k, v]) => (
-                    <option key={k} value={k}>{v}</option>
+                {GROUP_TYPE_KEYS
+                  .filter((k) => k !== "WORKSHOP")
+                  .map((k) => (
+                    <option key={k} value={k}>{t(`groupTypes.${k}`)}</option>
                   ))}
               </select>
             </div>
@@ -5610,20 +5674,20 @@ function CreateGroupModal({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">יום קבוע</label>
+              <label className="label">{t("groupForm.fixedDay")}</label>
               <select
                 className="input"
                 value={form.defaultDayOfWeek}
                 onChange={(e) => setForm({ ...form, defaultDayOfWeek: e.target.value })}
               >
-                <option value="">לא נקבע</option>
-                {DAY_NAMES.map((name, i) => (
-                  <option key={i} value={i}>{name}</option>
+                <option value="">{t("groupForm.notSet")}</option>
+                {DAY_KEYS.map((dk, i) => (
+                  <option key={i} value={i}>{t(`days.${dk}`)}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="label">שעה</label>
+              <label className="label">{t("time")}</label>
               <input
                 type="time"
                 className="input"
@@ -5635,16 +5699,16 @@ function CreateGroupModal({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">מיקום</label>
+              <label className="label">{t("individual.location")}</label>
               <input
                 className="input"
                 value={form.location}
                 onChange={(e) => setForm({ ...form, location: e.target.value })}
-                placeholder="גן ציבורי..."
+                placeholder={t("groupForm.locationPlaceholder")}
               />
             </div>
             <div>
-              <label className="label">{isWorkshop ? "קיבולת" : "מקסימום משתתפים"} {isWorkshop && <span className="text-petra-muted font-normal">(אופציונלי)</span>}</label>
+              <label className="label">{isWorkshop ? t("groupForm.capacity") : t("groupForm.maxParticipants")} {isWorkshop && <span className="text-petra-muted font-normal">{t("programForm.optional")}</span>}</label>
               <input
                 type="number"
                 min={1}
@@ -5658,7 +5722,7 @@ function CreateGroupModal({
 
           {isWorkshop && (
             <div>
-              <label className="label">מחיר (₪) <span className="text-petra-muted font-normal">(אופציונלי)</span></label>
+              <label className="label">{t("programForm.price", { cur })} <span className="text-petra-muted font-normal">{t("programForm.optional")}</span></label>
               <input
                 type="number"
                 min={0}
@@ -5673,18 +5737,18 @@ function CreateGroupModal({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">תאריך התחלה <span className="text-petra-muted font-normal">(אופציונלי)</span></label>
+              <label className="label">{t("individual.startDate")} <span className="text-petra-muted font-normal">{t("programForm.optional")}</span></label>
               <input
-                type="date" lang="he"
+                type="date" lang={cfg.lang}
                 className="input"
                 value={form.startDate}
                 onChange={(e) => setForm({ ...form, startDate: e.target.value })}
               />
             </div>
             <div>
-              <label className="label">תאריך סיום <span className="text-petra-muted font-normal">(אופציונלי)</span></label>
+              <label className="label">{t("programForm.endDate")} <span className="text-petra-muted font-normal">{t("programForm.optional")}</span></label>
               <input
-                type="date" lang="he"
+                type="date" lang={cfg.lang}
                 className="input"
                 value={form.endDate}
                 min={form.startDate || undefined}
@@ -5694,7 +5758,7 @@ function CreateGroupModal({
           </div>
 
           <div>
-            <label className="label">הערות</label>
+            <label className="label">{t("programForm.notes")}</label>
             <textarea
               className="input"
               rows={2}
@@ -5711,9 +5775,9 @@ function CreateGroupModal({
             onClick={handleSubmit}
           >
             {initial ? <Pencil className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-            {isPending ? "שומר..." : initial ? "שמור שינויים" : isWorkshop ? "צור סדנה" : "צור קבוצה"}
+            {isPending ? tc("progress.saving") : initial ? t("sessionLog.saveChanges") : isWorkshop ? t("groupForm.createWorkshop") : t("groupForm.createGroup")}
           </button>
-          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+          <button className="btn-secondary" onClick={onClose}>{tc("actions.cancel")}</button>
         </div>
       </div>
     </div>
@@ -5741,6 +5805,8 @@ function AssignDogModal({
   isPending: boolean;
   error: string | null;
 }) {
+  const t = useTranslations("training.trainingPage");
+  const tc = useTranslations("common");
   const [customerId, setCustomerId] = useState("");
   const [dogId, setDogId] = useState("");
   const [waitlist, setWaitlist] = useState(false);
@@ -5755,7 +5821,7 @@ function AssignDogModal({
       <div className="modal-backdrop" onClick={onClose} />
       <div className="modal-content max-w-sm mx-4 p-6">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-bold text-petra-text">שיוך לקוח וכלב — {groupName}</h2>
+          <h2 className="text-lg font-bold text-petra-text">{t("assign.title", { group: groupName })}</h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
             <X className="w-4 h-4" />
           </button>
@@ -5764,7 +5830,7 @@ function AssignDogModal({
         <div className="space-y-4">
           {/* Customer — search-first picker */}
           <div>
-            <label className="label">לקוח *</label>
+            <label className="label">{t("programForm.client")}</label>
             <CustomerPicker
               value={customerId || null}
               selectedCustomer={pickedCustomer}
@@ -5781,14 +5847,14 @@ function AssignDogModal({
           {/* Dog — shown after customer selected */}
           {customerId && selectedCustomer && (
             <div>
-              <label className="label">כלב *</label>
+              <label className="label">{t("programForm.dog")}</label>
               {selectedCustomer.pets.length === 0 ? (
                 <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2.5">
-                  ללקוח זה אין כלבים רשומים — יש להוסיף כלב בפרופיל הלקוח תחילה.
+                  {t("programForm.noDogs")}
                 </p>
               ) : (
                 <select className="input" value={dogId} onChange={(e) => setDogId(e.target.value)}>
-                  <option value="">בחר כלב...</option>
+                  <option value="">{t("programForm.selectDog")}</option>
                   {selectedCustomer.pets.map((pet) => (
                     <option key={pet.id} value={pet.id}>{pet.name}{pet.species ? ` (${pet.species})` : ""}</option>
                   ))}
@@ -5806,8 +5872,8 @@ function AssignDogModal({
                 checked={waitlist}
                 onChange={(e) => setWaitlist(e.target.checked)}
               />
-              <span className="text-sm text-petra-text">הוסף לרשימת ההמתנה</span>
-              <span className="text-[11px] text-petra-muted">(גם כשיש מקום פנוי)</span>
+              <span className="text-sm text-petra-text">{t("assign.addToWaitlist")}</span>
+              <span className="text-[11px] text-petra-muted">{t("assign.evenIfRoom")}</span>
             </label>
           )}
 
@@ -5823,9 +5889,9 @@ function AssignDogModal({
             onClick={() => onSubmit(customerId, dogId, waitlist)}
           >
             <Plus className="w-4 h-4" />
-            {isPending ? "שומר..." : waitlist ? "הוסף להמתנה" : "שייך לקוח וכלב"}
+            {isPending ? tc("progress.saving") : waitlist ? t("assign.submitWaitlist") : t("assign.submit")}
           </button>
-          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+          <button className="btn-secondary" onClick={onClose}>{tc("actions.cancel")}</button>
         </div>
       </div>
     </div>
@@ -5849,6 +5915,7 @@ function ServiceDogsTrainingTab({
   searchQuery: string;
   onNewProgram: () => void;
 }) {
+  const t = useTranslations("training.trainingPage");
   const filtered = useMemo(() => {
     if (!searchQuery.trim()) return programs;
     const q = searchQuery.toLowerCase();
@@ -5860,19 +5927,19 @@ function ServiceDogsTrainingTab({
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <p className="text-sm text-petra-muted">{filtered.length} תוכניות כלבי שירות</p>
+        <p className="text-sm text-petra-muted">{t("sdTab.count", { count: filtered.length })}</p>
         <button className="btn-primary text-sm" onClick={onNewProgram}>
           <Plus className="w-4 h-4" />
-          תוכנית חדשה
+          {t("sdTab.new")}
         </button>
       </div>
 
       {filtered.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon"><Shield className="w-6 h-6 text-slate-400" /></div>
-          <h3 className="text-base font-semibold text-petra-text mb-1">אין תוכניות אילוף לכלבי שירות</h3>
+          <h3 className="text-base font-semibold text-petra-text mb-1">{t("sdLog.emptyTitle")}</h3>
           <p className="text-sm text-petra-muted">
-            <a href="/service-dogs" className="text-brand-600 hover:underline">עבור לניהול כלבי שירות</a>
+            <a href="/service-dogs" className="text-brand-600 hover:underline">{t("sdLog.goToServiceDogs")}</a>
           </p>
         </div>
       ) : (
@@ -5891,13 +5958,13 @@ function ServiceDogsTrainingTab({
                     <p className="text-xs text-petra-muted truncate">{p.customer?.name ?? ""}</p>
                   </div>
                   <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium", statusInfo.color)}>
-                    {statusInfo.label}
+                    {t(`programStatus.${PROGRAM_STATUS_MAP[p.status] ? p.status : "ACTIVE"}`)}
                   </span>
                 </div>
                 {p.totalSessions && (
                   <div className="mb-2">
                     <div className="flex justify-between text-[10px] text-petra-muted mb-1">
-                      <span>מפגשים</span>
+                      <span>{t("overview.sessions")}</span>
                       <span>{usedSessions}/{p.totalSessions}</span>
                     </div>
                     <div className="w-full h-1.5 rounded-full bg-slate-100">
@@ -5909,7 +5976,7 @@ function ServiceDogsTrainingTab({
                   href={`/service-dogs/${p.dog.id}`}
                   className="text-xs text-brand-600 hover:underline mt-1 block"
                 >
-                  צפה בפרופיל כלב שירות ←
+                  {t("sdTab.viewProfile")}
                 </a>
               </div>
             );
@@ -5924,12 +5991,7 @@ function ServiceDogsTrainingTab({
 // PACKAGES TAB
 // ═══════════════════════════════════════════════════════
 
-const PACKAGE_TYPE_LABELS: Record<string, string> = {
-  HOME: "אילוף בבית",
-  BOARDING: "אילוף בפנסיון",
-  GROUP: "קבוצה",
-  WORKSHOP: "סדנה",
-};
+/** Package type ids; labels live in messages (training.trainingPage.packageTypes.*). */
 
 const PACKAGE_TYPE_COLORS: Record<string, string> = {
   HOME: "bg-blue-100 text-blue-700",
@@ -5953,21 +6015,24 @@ function PackagesTab({
   onToggleActive: (pkg: TrainingPackage) => void;
   isDeleting: boolean;
 }) {
+  const t = useTranslations("training.trainingPage");
+  const tc = useTranslations("common");
+  const { formatCurrency } = useFmt();
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <p className="text-sm text-petra-muted">{packages.length} חבילות</p>
+        <p className="text-sm text-petra-muted">{t("packagesTab.count", { count: packages.length })}</p>
         <button className="btn-primary text-sm" onClick={onCreatePackage}>
           <Plus className="w-4 h-4" />
-          חבילה חדשה
+          {t("packagesTab.new")}
         </button>
       </div>
 
       {packages.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon"><Package className="w-6 h-6 text-slate-400" /></div>
-          <h3 className="text-base font-semibold text-petra-text mb-1">אין חבילות אילוף</h3>
-          <p className="text-sm text-petra-muted">הגדר חבילות אילוף כדי למכור ללקוחות בקלות</p>
+          <h3 className="text-base font-semibold text-petra-text mb-1">{t("packagesTab.emptyTitle")}</h3>
+          <p className="text-sm text-petra-muted">{t("packagesTab.emptyHint")}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -5977,14 +6042,14 @@ function PackagesTab({
                 <div className="flex-1 min-w-0">
                   <h3 className="text-sm font-semibold text-petra-text mb-1">{pkg.name}</h3>
                   <span className={cn("text-[10px] px-2 py-0.5 rounded-full font-medium", PACKAGE_TYPE_COLORS[pkg.type] || "bg-slate-100 text-slate-600")}>
-                    {PACKAGE_TYPE_LABELS[pkg.type] || pkg.type}
+                    {t.has(`packageTypes.${pkg.type}`) ? t(`packageTypes.${pkg.type}`) : pkg.type}
                   </span>
                 </div>
-                <div className="flex gap-1 mr-2 flex-shrink-0">
+                <div className="flex gap-1 ms-2 flex-shrink-0">
                   <button
                     className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted"
                     onClick={() => onEditPackage(pkg)}
-                    title="עריכה"
+                    title={tc("actions.edit")}
                   >
                     <Settings className="w-3.5 h-3.5" />
                   </button>
@@ -5993,7 +6058,7 @@ function PackagesTab({
                       className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-petra-muted hover:text-red-500"
                       onClick={() => onDeletePackage(pkg.id)}
                       disabled={isDeleting}
-                      title="מחק"
+                      title={tc("actions.delete")}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -6003,11 +6068,11 @@ function PackagesTab({
 
               <div className="flex items-center justify-between text-sm mb-2">
                 <span className="font-bold text-petra-text">{formatCurrency(pkg.price)}</span>
-                <span className="text-xs text-petra-muted">{pkg.sessions} מפגשים</span>
+                <span className="text-xs text-petra-muted">{t("boardingTab.homeSessions", { count: pkg.sessions })}</span>
               </div>
 
               {pkg.durationDays && (
-                <p className="text-xs text-petra-muted mb-2">{pkg.durationDays} ימי פנסיון</p>
+                <p className="text-xs text-petra-muted mb-2">{t("packagesTab.boardingDays", { count: pkg.durationDays })}</p>
               )}
 
               {pkg.description && (
@@ -6015,7 +6080,7 @@ function PackagesTab({
               )}
 
               <div className="flex items-center justify-between border-t pt-2 mt-2">
-                <span className="text-[10px] text-petra-muted">{pkg._count.programs} תוכניות פעילות</span>
+                <span className="text-[10px] text-petra-muted">{t("packagesTab.activePrograms", { count: pkg._count.programs })}</span>
                 <button
                   onClick={() => onToggleActive(pkg)}
                   className={cn(
@@ -6025,7 +6090,7 @@ function PackagesTab({
                       : "bg-slate-100 text-slate-500 hover:bg-slate-200"
                   )}
                 >
-                  {pkg.isActive ? "פעיל" : "לא פעיל"}
+                  {pkg.isActive ? t("programStatus.ACTIVE") : t("group.inactive")}
                 </button>
               </div>
             </div>
@@ -6049,6 +6114,9 @@ function CreatePackageModal({
   onSubmit: (data: Record<string, unknown>) => void;
   isPending: boolean;
 }) {
+  const t = useTranslations("training.trainingPage");
+  const tc = useTranslations("common");
+  const { cur } = useFmt();
   const [name, setName] = useState("");
   const [type, setType] = useState("HOME");
   const [sessions, setSessions] = useState("");
@@ -6066,51 +6134,51 @@ function CreatePackageModal({
       <div className="modal-backdrop" onClick={onClose} />
       <div className="modal-content max-w-md mx-4 p-6">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-bold text-petra-text">חבילת אילוף חדשה</h2>
+          <h2 className="text-lg font-bold text-petra-text">{t("packageForm.newTitle")}</h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
             <X className="w-4 h-4" />
           </button>
         </div>
         <div className="space-y-4">
           <div>
-            <label className="label">שם החבילה *</label>
-            <input className="input" placeholder='דוג׳ "5 מפגשי אילוף בסיסי"' value={name} onChange={(e) => setName(e.target.value)} />
+            <label className="label">{t("packageForm.name")}</label>
+            <input className="input" placeholder={t("packageForm.namePlaceholder")} value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <div>
-            <label className="label">סוג</label>
+            <label className="label">{t("groupForm.type")}</label>
             <select className="input" value={type} onChange={(e) => setType(e.target.value)}>
-              <option value="HOME">אילוף בבית</option>
-              <option value="BOARDING">אילוף בפנסיון</option>
-              <option value="GROUP">קבוצה</option>
-              <option value="WORKSHOP">סדנה</option>
+              <option value="HOME">{t("packageTypes.HOME")}</option>
+              <option value="BOARDING">{t("packageTypes.BOARDING")}</option>
+              <option value="GROUP">{t("packageTypes.GROUP")}</option>
+              <option value="WORKSHOP">{t("packageTypes.WORKSHOP")}</option>
             </select>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">מספר מפגשים *</label>
+              <label className="label">{t("programForm.sessionsRequired")}</label>
               <input type="number" min={1} className="input" placeholder="5" value={sessions} onChange={(e) => setSessions(e.target.value)} />
             </div>
             <div>
-              <label className="label">מחיר (₪) *</label>
+              <label className="label">{t("packageForm.priceRequired", { cur })}</label>
               <input type="number" min={0} className="input" placeholder="1500" value={price} onChange={(e) => setPrice(e.target.value)} />
             </div>
           </div>
           {type === "BOARDING" && (
             <div>
-              <label className="label">ימי פנסיון</label>
+              <label className="label">{t("packageForm.boardingDays")}</label>
               <input type="number" min={1} className="input" placeholder="14" value={durationDays} onChange={(e) => setDurationDays(e.target.value)} />
             </div>
           )}
           <div>
-            <label className="label">תיאור (אופציונלי)</label>
-            <textarea className="input" rows={2} placeholder="תיאור קצר..." value={description} onChange={(e) => setDescription(e.target.value)} />
+            <label className="label">{t("packageForm.descriptionOptional")}</label>
+            <textarea className="input" rows={2} placeholder={t("packageForm.descriptionPlaceholder")} value={description} onChange={(e) => setDescription(e.target.value)} />
           </div>
         </div>
         <div className="flex gap-3 mt-6">
           <button className="btn-primary flex-1" disabled={isPending || !name.trim() || !sessions || !price} onClick={handleSubmit}>
-            {isPending ? "יוצר..." : "צור חבילה"}
+            {isPending ? t("group.creating") : t("sellPackage.create")}
           </button>
-          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+          <button className="btn-secondary" onClick={onClose}>{tc("actions.cancel")}</button>
         </div>
       </div>
     </div>
@@ -6132,6 +6200,9 @@ function EditPackageModal({
   onSubmit: (data: Record<string, unknown>) => void;
   isPending: boolean;
 }) {
+  const t = useTranslations("training.trainingPage");
+  const tc = useTranslations("common");
+  const { cur } = useFmt();
   const [name, setName] = useState(pkg.name);
   const [type, setType] = useState(pkg.type);
   const [sessions, setSessions] = useState(String(pkg.sessions));
@@ -6149,51 +6220,51 @@ function EditPackageModal({
       <div className="modal-backdrop" onClick={onClose} />
       <div className="modal-content max-w-md mx-4 p-6">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-bold text-petra-text">עריכת חבילה</h2>
+          <h2 className="text-lg font-bold text-petra-text">{t("packageForm.editTitle")}</h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
             <X className="w-4 h-4" />
           </button>
         </div>
         <div className="space-y-4">
           <div>
-            <label className="label">שם החבילה *</label>
+            <label className="label">{t("packageForm.name")}</label>
             <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <div>
-            <label className="label">סוג</label>
+            <label className="label">{t("groupForm.type")}</label>
             <select className="input" value={type} onChange={(e) => setType(e.target.value)}>
-              <option value="HOME">אילוף בבית</option>
-              <option value="BOARDING">אילוף בפנסיון</option>
-              <option value="GROUP">קבוצה</option>
-              <option value="WORKSHOP">סדנה</option>
+              <option value="HOME">{t("packageTypes.HOME")}</option>
+              <option value="BOARDING">{t("packageTypes.BOARDING")}</option>
+              <option value="GROUP">{t("packageTypes.GROUP")}</option>
+              <option value="WORKSHOP">{t("packageTypes.WORKSHOP")}</option>
             </select>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">מספר מפגשים *</label>
+              <label className="label">{t("programForm.sessionsRequired")}</label>
               <input type="number" min={1} className="input" value={sessions} onChange={(e) => setSessions(e.target.value)} />
             </div>
             <div>
-              <label className="label">מחיר (₪) *</label>
+              <label className="label">{t("packageForm.priceRequired", { cur })}</label>
               <input type="number" min={0} className="input" value={price} onChange={(e) => setPrice(e.target.value)} />
             </div>
           </div>
           {type === "BOARDING" && (
             <div>
-              <label className="label">ימי פנסיון</label>
+              <label className="label">{t("packageForm.boardingDays")}</label>
               <input type="number" min={1} className="input" value={durationDays} onChange={(e) => setDurationDays(e.target.value)} />
             </div>
           )}
           <div>
-            <label className="label">תיאור</label>
+            <label className="label">{t("packageForm.description")}</label>
             <textarea className="input" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
           </div>
         </div>
         <div className="flex gap-3 mt-6">
           <button className="btn-primary flex-1" disabled={isPending || !name.trim() || !sessions || !price} onClick={handleSubmit}>
-            {isPending ? "שומר..." : "שמור שינויים"}
+            {isPending ? tc("progress.saving") : t("sessionLog.saveChanges")}
           </button>
-          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+          <button className="btn-secondary" onClick={onClose}>{tc("actions.cancel")}</button>
         </div>
       </div>
     </div>
@@ -6215,6 +6286,9 @@ function BoardingTrainingModal({
   onSubmit: (data: Record<string, unknown>) => void;
   isPending: boolean;
 }) {
+  const t = useTranslations("training.trainingPage");
+  const tc = useTranslations("common");
+  const { cfg } = useBusinessLocale();
   const stayCheckIn = stay.checkIn ? new Date(stay.checkIn).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
   const stayCheckOut = stay.checkOut ? new Date(stay.checkOut).toISOString().slice(0, 10) : "";
 
@@ -6231,7 +6305,7 @@ function BoardingTrainingModal({
       customerId: stay.customer.id,
       boardingStayId: stay.id,
       trainingType: "BOARDING",
-      name: `תוכנית אילוף פנסיון — ${stay.pet.name}`,
+      name: t("boardingForm.programName", { dog: stay.pet.name }),
       programType: "CUSTOM",
       startDate: startDate ? new Date(startDate).toISOString() : new Date().toISOString(),
       endDate: endDate ? new Date(endDate).toISOString() : null,
@@ -6247,59 +6321,59 @@ function BoardingTrainingModal({
       <div className="modal-backdrop" onClick={onClose} />
       <div className="modal-content max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-bold text-petra-text">תוכנית אילוף לפנסיון — {stay.pet.name}</h2>
+          <h2 className="text-lg font-bold text-petra-text">{t("boardingForm.title", { dog: stay.pet.name })}</h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         <div className="p-3 rounded-xl bg-amber-50 border border-amber-100 text-sm text-amber-700 mb-4">
-          {stay.pet.name} • {stay.customer.name} • {stay.room?.name ?? "ללא חדר"}
+          {stay.pet.name} • {stay.customer.name} • {stay.room?.name ?? t("boardingTab.noRoom")}
         </div>
 
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">התחלת תוכנית *</label>
-              <input type="date" lang="he" className="input" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+              <label className="label">{t("boardingForm.start")}</label>
+              <input type="date" lang={cfg.lang} className="input" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
             </div>
             <div>
-              <label className="label">סיום תוכנית *</label>
-              <input type="date" lang="he" className="input" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+              <label className="label">{t("boardingForm.end")}</label>
+              <input type="date" lang={cfg.lang} className="input" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
             </div>
           </div>
           {(!startDate || !endDate) && (
             <p className="text-xs text-amber-600 flex items-center gap-1">
               <AlertTriangle className="w-3 h-3" />
-              נדרשים תאריך התחלה וסיום כדי שהלקוח יסומן כ&quot;לקוח פעיל&quot;
+              {t("boardingForm.datesRequired")}
             </p>
           )}
           <div>
-            <label className="label">בסיס התנהגותי ראשוני</label>
+            <label className="label">{t("boardingForm.baseline")}</label>
             <textarea
               className="input"
               rows={3}
-              placeholder="תאר את ההתנהגות הנוכחית של הכלב: רמת עצמאות, תגובות לגירויים, כישורים קיימים..."
+              placeholder={t("boardingForm.baselinePlaceholder")}
               value={behaviorBaseline}
               onChange={(e) => setBehaviorBaseline(e.target.value)}
             />
           </div>
           <div>
-            <label className="label">ציפיות הלקוח</label>
+            <label className="label">{t("boardingTab.expectations")}</label>
             <textarea
               className="input"
               rows={2}
-              placeholder="מה הלקוח מצפה להשיג במהלך הפנסיון..."
+              placeholder={t("boardingForm.expectationsPlaceholder")}
               value={customerExpectations}
               onChange={(e) => setCustomerExpectations(e.target.value)}
             />
           </div>
           <div>
-            <label className="label">תוכנית עבודה שבועית <span className="text-[10px] text-amber-600 font-normal">— גלוי לצוות</span></label>
+            <label className="label">{t("boardingForm.workPlan")} <span className="text-[10px] text-amber-600 font-normal">{t("boardingForm.visibleToStaff")}</span></label>
             <textarea
               className="input"
               rows={4}
-              placeholder="תאר את תוכנית האילוף היומית/שבועית לצוות הפנסיון..."
+              placeholder={t("boardingForm.workPlanPlaceholder")}
               value={workPlan}
               onChange={(e) => setWorkPlan(e.target.value)}
             />
@@ -6309,10 +6383,10 @@ function BoardingTrainingModal({
           <div className="p-3 rounded-xl border border-brand-100 bg-brand-50/50 space-y-2">
             <label className="text-xs font-semibold text-brand-700 flex items-center gap-1.5">
               <Dog className="w-3.5 h-3.5" />
-              העברת שרביט — מפגשי המשך בבית הלקוח
+              {t("boardingForm.handoff")}
             </label>
             <p className="text-[11px] text-brand-600">
-              מפגשים בבית הלקוח לאחר סיום הפנסיון — להבטיח רצף ולהעביר את הכלי לידיים של הבעלים
+              {t("boardingForm.handoffHint")}
             </p>
             <div className="flex items-center gap-3">
               <input
@@ -6324,11 +6398,11 @@ function BoardingTrainingModal({
                 placeholder="0"
                 onChange={(e) => setHomeFollowupSessions(Math.max(0, parseInt(e.target.value) || 0))}
               />
-              <span className="text-xs text-petra-muted">מפגשים (0 = ללא מפגשי המשך)</span>
+              <span className="text-xs text-petra-muted">{t("boardingForm.followupCount")}</span>
             </div>
             {homeFollowupSessions > 0 && (
               <p className="text-[11px] text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg">
-                ✓ תוכנית המשך של {homeFollowupSessions} מפגשים תיווצר אוטומטית תחת &quot;אילוף בבית הלקוח&quot;
+                {t("boardingForm.followupNote", { count: homeFollowupSessions })}
               </p>
             )}
           </div>
@@ -6336,9 +6410,9 @@ function BoardingTrainingModal({
 
         <div className="flex gap-3 mt-6">
           <button className="btn-primary flex-1" disabled={isPending || !startDate || !endDate} onClick={handleSubmit}>
-            {isPending ? "יוצר..." : "צור תוכנית אילוף"}
+            {isPending ? t("group.creating") : t("boardingTab.createProgram")}
           </button>
-          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+          <button className="btn-secondary" onClick={onClose}>{tc("actions.cancel")}</button>
         </div>
       </div>
     </div>
@@ -6371,7 +6445,10 @@ function ProgramSettingsModal({
   processKind?: "INDIVIDUAL" | "PACKAGE";
   onSelectProcessType?: (target: "INDIVIDUAL" | "PACKAGE" | "GROUP") => void;
 }) {
-  const isKnownType = (t: string) => t in PROGRAM_TYPES_MAP;
+  const t = useTranslations("training.trainingPage");
+  const tc = useTranslations("common");
+  const { cfg } = useBusinessLocale();
+  const isKnownType = (pt: string) => (PROGRAM_TYPE_KEYS as readonly string[]).includes(pt);
   const initialType = program.programType && isKnownType(program.programType) ? program.programType : "CUSTOM";
   const initialCustomName = program.programType && !isKnownType(program.programType) ? program.programType : "";
 
@@ -6404,7 +6481,7 @@ function ProgramSettingsModal({
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-bold text-petra-text flex items-center gap-2">
             <Settings className="w-5 h-5 text-brand-500" />
-            הגדרות חבילה - {program.dog.name}
+            {t("settingsForm.title", { dog: program.dog.name })}
           </h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
             <X className="w-4 h-4" />
@@ -6414,7 +6491,7 @@ function ProgramSettingsModal({
         <div className="space-y-4">
           {processKind && onSelectProcessType && (
             <div className="p-3 rounded-xl border border-brand-100 bg-brand-50/50">
-              <label className="label">סוג תהליך</label>
+              <label className="label">{t("sessionLog.processType")}</label>
               <select
                 className="input"
                 value={processKind}
@@ -6423,31 +6500,31 @@ function ProgramSettingsModal({
                   if (target !== processKind) onSelectProcessType(target);
                 }}
               >
-                <option value="INDIVIDUAL">אילוף פרטני</option>
-                <option value="PACKAGE">חבילת אילוף</option>
-                <option value="GROUP">אילוף קבוצתי (העברה לקבוצה)</option>
+                <option value="INDIVIDUAL">{t("sessionLog.processIndividual")}</option>
+                <option value="PACKAGE">{t("sessionLog.processPackage")}</option>
+                <option value="GROUP">{t("sessionLog.processGroup")}</option>
               </select>
-              <p className="text-[11px] text-petra-muted mt-1">מעבר בין פרטני לחבילה הוא מיידי. בחירת &ldquo;קבוצתי&rdquo; תעביר את הכלב לקבוצה — התוכנית הנוכחית תוחלף.</p>
+              <p className="text-[11px] text-petra-muted mt-1">{t("sessionLog.processHint")}</p>
             </div>
           )}
           <div>
-            <label className="label">סוג אילוף</label>
+            <label className="label">{t("programForm.trainingType")}</label>
             <select
               className="input"
               value={form.programType}
               onChange={(e) => { setForm({ ...form, programType: e.target.value }); setCustomTypeName(""); }}
             >
-              <option value="BASIC_OBEDIENCE">משמעת בסיסית</option>
-              <option value="REACTIVITY">תגובתיות</option>
-              <option value="PUPPY">גורים</option>
-              <option value="BEHAVIOR">בעיות התנהגות</option>
-              <option value="ADVANCED">משמעת מתקדמת</option>
-              <option value="CUSTOM">מותאם אישית</option>
+              <option value="BASIC_OBEDIENCE">{t("programTypes.BASIC_OBEDIENCE")}</option>
+              <option value="REACTIVITY">{t("programTypes.REACTIVITY")}</option>
+              <option value="PUPPY">{t("programTypes.PUPPY")}</option>
+              <option value="BEHAVIOR">{t("programTypes.BEHAVIOR")}</option>
+              <option value="ADVANCED">{t("programTypes.ADVANCED")}</option>
+              <option value="CUSTOM">{t("programTypes.CUSTOM")}</option>
             </select>
             {form.programType === "CUSTOM" && (
               <input
                 className="input mt-2"
-                placeholder="פרט את סוג האילוף..."
+                placeholder={t("programForm.customTypePlaceholder")}
                 value={customTypeName}
                 onChange={(e) => setCustomTypeName(e.target.value)}
                 autoFocus
@@ -6457,18 +6534,18 @@ function ProgramSettingsModal({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">תאריך התחלה *</label>
+              <label className="label">{t("settingsForm.startRequired")}</label>
               <input
-                type="date" lang="he"
+                type="date" lang={cfg.lang}
                 className="input"
                 value={form.startDate}
                 onChange={(e) => setForm({ ...form, startDate: e.target.value })}
               />
             </div>
             <div>
-              <label className="label">יעד סיום משוער</label>
+              <label className="label">{t("individual.estimatedEnd")}</label>
               <input
-                type="date" lang="he"
+                type="date" lang={cfg.lang}
                 className="input"
                 value={form.endDate}
                 onChange={(e) => setForm({ ...form, endDate: e.target.value })}
@@ -6477,46 +6554,46 @@ function ProgramSettingsModal({
           </div>
 
           <div>
-            <label className="label">תדירות מפגשים</label>
+            <label className="label">{t("individual.frequency")}</label>
             <select
               className="input"
               value={form.frequency}
               onChange={(e) => setForm({ ...form, frequency: e.target.value })}
             >
-              <option value="">לא מוגדר</option>
-              <option value="WEEKLY">אחת לשבוע</option>
-              <option value="BIWEEKLY">אחת לשבועיים</option>
-              <option value="CUSTOM">אחר</option>
+              <option value="">{t("settingsForm.notDefined")}</option>
+              <option value="WEEKLY">{t("frequency.WEEKLY")}</option>
+              <option value="BIWEEKLY">{t("frequency.BIWEEKLY")}</option>
+              <option value="CUSTOM">{t("frequency.CUSTOM")}</option>
             </select>
           </div>
 
           <div>
             <label className="label">
-              כמות מפגשים בחבילה
-              <span className="text-xs font-normal text-petra-muted mr-1">(לצ׳קליסט מעקב)</span>
+              {t("settingsForm.sessionsInPackage")}
+              <span className="text-xs font-normal text-petra-muted ms-1">{t("settingsForm.forChecklist")}</span>
             </label>
             <input
               type="number"
               min={1}
               max={100}
               className="input"
-              placeholder="למשל: 8"
+              placeholder={t("settingsForm.sessionsPlaceholder")}
               value={form.totalSessions}
               onChange={(e) => setForm({ ...form, totalSessions: e.target.value })}
             />
             {form.totalSessions && parseInt(form.totalSessions) > 0 && (
               <p className="text-[11px] text-petra-muted mt-1">
-                כפתור ״סיים אילוף״ יהיה זמין רק לאחר סימון כל {form.totalSessions} המפגשים
+                {t("settingsForm.finishHint", { total: form.totalSessions })}
               </p>
             )}
           </div>
 
           <div>
-            <label className="label">כתובת (מיקום האימון)</label>
+            <label className="label">{t("settingsForm.address")}</label>
             <input
               type="text"
               className="input"
-              placeholder="רחוב, עיר..."
+              placeholder={t("settingsForm.addressPlaceholder")}
               value={form.location}
               onChange={(e) => setForm({ ...form, location: e.target.value })}
             />
@@ -6530,9 +6607,9 @@ function ProgramSettingsModal({
             onClick={handleSubmit}
           >
             <CheckCircle2 className="w-4 h-4" />
-            {isPending ? "שומר..." : "שמור הגדרות"}
+            {isPending ? tc("progress.saving") : t("settingsForm.save")}
           </button>
-          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+          <button className="btn-secondary" onClick={onClose}>{tc("actions.cancel")}</button>
         </div>
       </div>
     </div>
@@ -6554,6 +6631,8 @@ function DropoutModal({
   onClose: () => void;
   onSubmit: (reason: string) => void;
 }) {
+  const t = useTranslations("training.trainingPage");
+  const tc = useTranslations("common");
   const [reason, setReason] = useState("");
 
   return (
@@ -6563,21 +6642,21 @@ function DropoutModal({
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-base font-bold text-petra-text flex items-center gap-2">
             <XCircle className="w-5 h-5 text-red-500" />
-            נשירה מתהליך — {dogName}
+            {t("dropout.title", { dog: dogName })}
           </h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
             <X className="w-4 h-4" />
           </button>
         </div>
         <p className="text-sm text-petra-muted mb-4">
-          הכלב יועבר לארכיון עם סטטוס &ldquo;נשר&rdquo;. ניתן לציין את סיבת הנשירה לצורכי מעקב.
+          {t("dropout.body")}
         </p>
         <div>
-          <label className="label">סיבת הנשירה (אופציונלי)</label>
+          <label className="label">{t("dropout.reason")}</label>
           <textarea
             className="input"
             rows={3}
-            placeholder="לדוגמה: לקוח ביטל, לא הגיע לפגישות, עבר לאימון אחר..."
+            placeholder={t("dropout.reasonPlaceholder")}
             value={reason}
             onChange={(e) => setReason(e.target.value)}
           />
@@ -6589,9 +6668,9 @@ function DropoutModal({
             onClick={() => onSubmit(reason)}
           >
             <XCircle className="w-4 h-4" />
-            {isPending ? "מעבד..." : "אשר נשירה"}
+            {isPending ? t("processing") : t("dropout.confirm")}
           </button>
-          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+          <button className="btn-secondary" onClick={onClose}>{tc("actions.cancel")}</button>
         </div>
       </div>
     </div>
@@ -6613,6 +6692,8 @@ function DeleteProgramModal({
   onClose: () => void;
   onSubmit: (orderAction: string) => void;
 }) {
+  const t = useTranslations("training.trainingPage");
+  const tc = useTranslations("common");
   const [orderAction, setOrderAction] = useState<"keep" | "cancel" | "delete">("keep");
   const hasOrder = !!program.orderId;
 
@@ -6623,23 +6704,23 @@ function DeleteProgramModal({
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-base font-bold text-petra-text flex items-center gap-2">
             <Trash2 className="w-5 h-5 text-red-500" />
-            מחיקת תהליך אילוף — {program.dog.name}
+            {t("deleteProgram.title", { dog: program.dog.name })}
           </h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
             <X className="w-4 h-4" />
           </button>
         </div>
         <p className="text-sm text-petra-muted mb-4">
-          פעולה זו תמחק לצמיתות את תוכנית האילוף כולל כל המפגשים, היעדים ושיעורי הבית. לא ניתן לשחזר.
+          {t("deleteProgram.body")}
         </p>
         {hasOrder && (
           <div className="mb-4">
-            <label className="label">מה לעשות עם ההזמנה המקושרת?</label>
+            <label className="label">{t("deleteProgram.orderQuestion")}</label>
             <div className="space-y-2 mt-1">
               {([
-                { v: "keep", label: "להשאיר את ההזמנה כפי שהיא" },
-                { v: "cancel", label: "לבטל את ההזמנה (סטטוס: מבוטל)" },
-                { v: "delete", label: "למחוק גם את ההזמנה" },
+                { v: "keep", label: t("deleteProgram.orderKeep") },
+                { v: "cancel", label: t("deleteProgram.orderCancel") },
+                { v: "delete", label: t("deleteProgram.orderDelete") },
               ] as const).map((opt) => (
                 <label key={opt.v} className="flex items-center gap-2 text-sm text-petra-text cursor-pointer">
                   <input
@@ -6654,7 +6735,7 @@ function DeleteProgramModal({
               ))}
             </div>
             {orderAction === "delete" && (
-              <p className="text-xs text-amber-600 mt-2">הזמנה ששולמה או שהופקה ממנה חשבונית תבוטל במקום להימחק.</p>
+              <p className="text-xs text-amber-600 mt-2">{t("deleteProgram.paidNote")}</p>
             )}
           </div>
         )}
@@ -6665,9 +6746,9 @@ function DeleteProgramModal({
             onClick={() => onSubmit(orderAction)}
           >
             <Trash2 className="w-4 h-4" />
-            {isPending ? "מוחק..." : "מחק לצמיתות"}
+            {isPending ? tc("progress.deleting") : t("deleteGroup.confirm")}
           </button>
-          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+          <button className="btn-secondary" onClick={onClose}>{tc("actions.cancel")}</button>
         </div>
       </div>
     </div>
@@ -6695,6 +6776,8 @@ function ConfirmActionModal({
   onClose: () => void;
   onConfirm: () => void;
 }) {
+  const t = useTranslations("training.trainingPage");
+  const tc = useTranslations("common");
   return (
     <div className="modal-overlay">
       <div className="modal-backdrop" onClick={onClose} />
@@ -6718,9 +6801,9 @@ function ConfirmActionModal({
             disabled={isPending}
             onClick={onConfirm}
           >
-            {isPending ? "מעבד..." : confirmLabel}
+            {isPending ? t("processing") : confirmLabel}
           </button>
-          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+          <button className="btn-secondary" onClick={onClose}>{tc("actions.cancel")}</button>
         </div>
       </div>
     </div>
@@ -6742,6 +6825,8 @@ function FinishTrainingModal({
   onClose: () => void;
   onSubmit: () => void;
 }) {
+  const t = useTranslations("training.trainingPage");
+  const tc = useTranslations("common");
   return (
     <div className="modal-overlay">
       <div className="modal-backdrop" onClick={onClose} />
@@ -6749,14 +6834,14 @@ function FinishTrainingModal({
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-base font-bold text-petra-text flex items-center gap-2">
             <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-            סיום אילוף — {dogName}
+            {t("finish.title", { dog: dogName })}
           </h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
             <X className="w-4 h-4" />
           </button>
         </div>
         <p className="text-sm text-petra-muted mb-5">
-          האילוף של {dogName} יסומן כהושלם ויועבר לארכיון. פעולה זו אינה הפיכה.
+          {t("finish.body", { dog: dogName })}
         </p>
         <div className="flex gap-3">
           <button
@@ -6765,9 +6850,9 @@ function FinishTrainingModal({
             onClick={onSubmit}
           >
             <CheckCircle2 className="w-4 h-4" />
-            {isPending ? "מעבד..." : "אשר סיום"}
+            {isPending ? t("processing") : t("finish.confirm")}
           </button>
-          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+          <button className="btn-secondary" onClick={onClose}>{tc("actions.cancel")}</button>
         </div>
       </div>
     </div>
@@ -6778,18 +6863,18 @@ function FinishTrainingModal({
 // ARCHIVE TAB
 // ═══════════════════════════════════════════════════════
 
-function exportArchiveXLSX(programs: TrainingProgram[]) {
+function exportArchiveXLSX(programs: TrainingProgram[], t: TT, formatDate: (d: string) => string) {
   import("xlsx").then((XLSX) => {
-    const headers = ["שם הכלב", "גזע", "שם הלקוח", "טלפון", "סוג תוכנית", "מפגשים שהושלמו", "תאריך התחלה", "תאריך סיום", "סטטוס", "סיבת נשירה / הערות"];
+    const headers = [t("archive.xlsx.dogName"), t("archive.xlsx.breed"), t("archive.xlsx.clientName"), t("archive.xlsx.phone"), t("archive.xlsx.programType"), t("archive.xlsx.sessionsDone"), t("archive.xlsx.startDate"), t("archive.xlsx.endDate"), t("archive.xlsx.status"), t("archive.xlsx.notes")];
     const rows = programs.map((p) => {
       const usedSessions = p.sessions.filter((s) => s.status === "COMPLETED").length;
-      const statusLabel = p.status === "COMPLETED" ? "הושלם" : "נשר";
+      const statusLabel = p.status === "COMPLETED" ? t("overview.completed") : t("archive.droppedOut");
       return [
         p.dog.name,
         (p.dog as { breed?: string | null }).breed || "",
         p.customer?.name ?? "",
         p.customer?.phone ?? "",
-        PROGRAM_TYPES_MAP[p.programType] || p.programType,
+        programTypeLabel(t, p.programType),
         usedSessions,
         p.startDate ? formatDate(p.startDate) : "",
         p.endDate ? formatDate(p.endDate) : "",
@@ -6800,12 +6885,15 @@ function exportArchiveXLSX(programs: TrainingProgram[]) {
     const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
     ws["!cols"] = [14, 12, 14, 12, 14, 10, 12, 12, 10, 20].map((w) => ({ wch: w }));
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "ארכיון אילוף");
+    XLSX.utils.book_append_sheet(wb, ws, t("archive.xlsx.sheetName"));
     XLSX.writeFile(wb, `training_archive_${new Date().toISOString().slice(0, 10)}.xlsx`);
   });
 }
 
 function ArchiveTab({ programs, isLoading, onRestore }: { programs: TrainingProgram[]; isLoading: boolean; onRestore: (id: string) => void }) {
+  const t = useTranslations("training.trainingPage");
+  const { cfg } = useBusinessLocale();
+  const { formatDate } = useFmt();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "COMPLETED" | "CANCELED">("all");
   const [dateFrom, setDateFrom] = useState("");
@@ -6853,25 +6941,25 @@ function ArchiveTab({ programs, isLoading, onRestore }: { programs: TrainingProg
                 statusFilter === s ? "bg-white shadow-sm text-petra-text" : "text-petra-muted hover:bg-white/60"
               )}
             >
-              {s === "all" ? "הכל" : s === "COMPLETED" ? "הושלמו" : "נשרו"}
+              {s === "all" ? t("archive.filterAll") : s === "COMPLETED" ? t("archive.filterCompleted") : t("archive.filterDropped")}
             </button>
           ))}
         </div>
         {/* Date range */}
         <div className="flex items-center gap-1.5">
-          <span className="text-xs text-petra-muted whitespace-nowrap">מ-</span>
-          <input type="date" lang="he" className="input text-xs h-8 px-2 w-32" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-          <span className="text-xs text-petra-muted whitespace-nowrap">עד-</span>
-          <input type="date" lang="he" className="input text-xs h-8 px-2 w-32" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+          <span className="text-xs text-petra-muted whitespace-nowrap">{t("archive.from")}</span>
+          <input type="date" lang={cfg.lang} className="input text-xs h-8 px-2 w-32" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+          <span className="text-xs text-petra-muted whitespace-nowrap">{t("archive.to")}</span>
+          <input type="date" lang={cfg.lang} className="input text-xs h-8 px-2 w-32" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
           {(dateFrom || dateTo) && (
             <button onClick={() => { setDateFrom(""); setDateTo(""); }} className="text-[10px] text-petra-muted hover:text-red-500 px-1">✕</button>
           )}
         </div>
         <div className="relative flex-1 min-w-[160px]">
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-petra-muted" />
+          <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-petra-muted" />
           <input
-            className="input pr-9 text-sm w-full"
-            placeholder="חיפוש לפי כלב / לקוח..."
+            className="input ps-9 text-sm w-full"
+            placeholder={t("archive.searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -6879,10 +6967,10 @@ function ArchiveTab({ programs, isLoading, onRestore }: { programs: TrainingProg
         {programs.length > 0 && (
           <button
             className="btn-secondary text-xs flex items-center gap-1.5"
-            onClick={() => exportArchiveXLSX(filtered.length > 0 ? filtered : programs)}
+            onClick={() => exportArchiveXLSX(filtered.length > 0 ? filtered : programs, t, formatDate)}
           >
             <Download className="w-3.5 h-3.5" />
-            יצא Excel ({filtered.length})
+            {t("archive.export", { count: filtered.length })}
           </button>
         )}
       </div>
@@ -6891,12 +6979,12 @@ function ArchiveTab({ programs, isLoading, onRestore }: { programs: TrainingProg
         <div className="empty-state">
           <div className="empty-state-icon"><Archive className="w-6 h-6 text-slate-400" /></div>
           <h3 className="text-base font-semibold text-petra-text mb-1">
-            {programs.length === 0 ? "הארכיון ריק" : "אין תוצאות לחיפוש"}
+            {programs.length === 0 ? t("archive.empty") : t("archive.noResults")}
           </h3>
           <p className="text-sm text-petra-muted">
             {programs.length === 0
-              ? 'תהליכי אילוף שהסתיימו או שבהם הכלב נשר יופיעו כאן. לחץ "סיים אילוף" או "נשר מתהליך" בכרטיסיית הכלב.'
-              : "נסה לשנות את החיפוש או הסינון"}
+              ? t("archive.emptyHint")
+              : t("archive.noResultsHint")}
           </p>
         </div>
       ) : (
@@ -6922,32 +7010,32 @@ function ArchiveTab({ programs, isLoading, onRestore }: { programs: TrainingProg
                       "text-[10px] px-2 py-0.5 rounded-full font-medium",
                       isCompleted ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
                     )}>
-                      {isCompleted ? "הושלם ✓" : "נשר"}
+                      {isCompleted ? t("archive.completed") : t("archive.droppedOut")}
                     </span>
                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
-                      {PROGRAM_TYPES_MAP[p.programType] || p.programType}
+                      {programTypeLabel(t, p.programType)}
                     </span>
                   </div>
                   <div className="flex items-center gap-3 text-xs text-petra-muted flex-wrap">
                     <span>{p.customer?.name ?? ""}</span>
                     <span>{p.customer?.phone ?? ""}</span>
-                    <span>{usedSessions} מפגשים</span>
-                    {p.startDate && <span>התחלה: {formatDate(p.startDate)}</span>}
-                    {p.endDate && <span>סיום: {formatDate(p.endDate)}</span>}
+                    <span>{t("boardingTab.homeSessions", { count: usedSessions })}</span>
+                    {p.startDate && <span>{t("startAt", { date: formatDate(p.startDate) })}</span>}
+                    {p.endDate && <span>{t("endAt", { date: formatDate(p.endDate) })}</span>}
                   </div>
                   {!isCompleted && p.notes && (
                     <p className="mt-1.5 text-xs text-red-700 bg-red-50 px-2 py-1 rounded-lg">
-                      <span className="font-semibold">סיבת נשירה: </span>{p.notes}
+                      <span className="font-semibold">{t("archive.dropoutReason")} </span>{p.notes}
                     </p>
                   )}
                 </div>
                 <button
                   onClick={() => onRestore(p.id)}
                   className="flex-shrink-0 flex items-center gap-1.5 text-xs text-brand-600 hover:text-brand-700 bg-brand-50 hover:bg-brand-100 border border-brand-200 px-3 py-1.5 rounded-lg transition-colors"
-                  title="השב לתהליך פעיל"
+                  title={t("archive.restoreTitle")}
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
-                  השב לתהליך
+                  {t("archive.restore")}
                 </button>
               </div>
             );
@@ -6969,6 +7057,9 @@ function AddStandaloneServiceDogModal({
   onClose: () => void;
   onSuccess: () => void;
 }) {
+  const t = useTranslations("training.trainingPage");
+  const tc = useTranslations("common");
+  const { cfg } = useBusinessLocale();
   const [name, setName] = useState("");
   const [breed, setBreed] = useState("");
   const [gender, setGender] = useState("");
@@ -6988,11 +7079,11 @@ function AddStandaloneServiceDogModal({
         body: JSON.stringify(data),
       }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
     onSuccess: () => {
-      toast.success("כלב שירות נוסף בהצלחה");
+      toast.success(t("sdDog.added"));
       onSuccess();
       onClose();
     },
-    onError: () => toast.error("שגיאה בהוספת כלב"),
+    onError: () => toast.error(t("sdDog.addError")),
   });
 
   return (
@@ -7002,62 +7093,62 @@ function AddStandaloneServiceDogModal({
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold text-petra-text flex items-center gap-2">
             <Dog className="w-5 h-5 text-brand-500" />
-            הוסף כלב שירות
+            {t("sdDog.add")}
           </h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
             <X className="w-4 h-4" />
           </button>
         </div>
         <div className="p-3 rounded-xl bg-brand-50 border border-brand-100 text-xs text-brand-700 mb-4">
-          כלב זה יופיע בתהליכי אילוף — כלבי שירות ובניהול כלבי שירות. לא ישויך ללקוח.
+          {t("sdDog.hint")}
         </div>
         <div className="space-y-3">
           <div>
-            <label className="label">שם הכלב *</label>
-            <input type="text" className="input" placeholder="שם הכלב" value={name} onChange={(e) => setName(e.target.value)} />
+            <label className="label">{t("sdDog.nameRequired")}</label>
+            <input type="text" className="input" placeholder={t("archive.xlsx.dogName")} value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">גזע</label>
-              <input type="text" className="input" placeholder="גזע..." value={breed} onChange={(e) => setBreed(e.target.value)} />
+              <label className="label">{t("archive.xlsx.breed")}</label>
+              <input type="text" className="input" placeholder={t("sdDog.breedPlaceholder")} value={breed} onChange={(e) => setBreed(e.target.value)} />
             </div>
             <div>
-              <label className="label">מין</label>
+              <label className="label">{t("sdDog.sex")}</label>
               <select className="input" value={gender} onChange={(e) => setGender(e.target.value)}>
-                <option value="">לא ידוע</option>
-                <option value="male">זכר</option>
-                <option value="female">נקבה</option>
+                <option value="">{t("sdDog.unknown")}</option>
+                <option value="male">{t("sdDog.male")}</option>
+                <option value="female">{t("sdDog.female")}</option>
               </select>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">תאריך לידה</label>
-              <input type="date" lang="he" className="input" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
+              <label className="label">{t("sdDog.birthDate")}</label>
+              <input type="date" lang={cfg.lang} className="input" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
             </div>
             <div>
-              <label className="label">משקל (ק״ג)</label>
+              <label className="label">{t("sdDog.weight")}</label>
               <input type="number" className="input" placeholder="0.0" step="0.1" value={weight} onChange={(e) => setWeight(e.target.value)} />
             </div>
           </div>
           <div>
-            <label className="label">מיקרוצ׳יפ</label>
-            <input type="text" className="input" placeholder="מספר שבב..." value={microchip} onChange={(e) => setMicrochip(e.target.value)} />
+            <label className="label">{t("sdDog.microchip")}</label>
+            <input type="text" className="input" placeholder={t("sdDog.microchipPlaceholder")} value={microchip} onChange={(e) => setMicrochip(e.target.value)} />
           </div>
           <div>
-            <label className="label">סוג שירות</label>
-            <input type="text" className="input" placeholder="כלב ניידות / פרכוסים / רגשי..." value={serviceType} onChange={(e) => setServiceType(e.target.value)} />
+            <label className="label">{t("sdDog.serviceType")}</label>
+            <input type="text" className="input" placeholder={t("sdDog.serviceTypePlaceholder")} value={serviceType} onChange={(e) => setServiceType(e.target.value)} />
           </div>
           <div>
-            <label className="label">הערות רפואיות</label>
+            <label className="label">{t("sdDog.medicalNotes")}</label>
             <textarea className="input" rows={2} value={medicalNotes} onChange={(e) => setMedicalNotes(e.target.value)} />
           </div>
           <div>
-            <label className="label">הערות התנהגותיות</label>
+            <label className="label">{t("sdDog.behaviorNotes")}</label>
             <textarea className="input" rows={2} value={behaviorNotes} onChange={(e) => setBehaviorNotes(e.target.value)} />
           </div>
           <div>
-            <label className="label">הערות כלליות</label>
+            <label className="label">{t("sdDog.generalNotes")}</label>
             <textarea className="input" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
         </div>
@@ -7067,9 +7158,9 @@ function AddStandaloneServiceDogModal({
             disabled={!name.trim() || mutation.isPending}
             onClick={() => mutation.mutate({ name, breed, gender, birthDate, weight, microchip, medicalNotes, behaviorNotes, serviceType, notes })}
           >
-            {mutation.isPending ? "שומר..." : "הוסף כלב שירות"}
+            {mutation.isPending ? tc("progress.saving") : t("sdDog.add")}
           </button>
-          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+          <button className="btn-secondary" onClick={onClose}>{tc("actions.cancel")}</button>
         </div>
       </div>
     </div>
@@ -7094,6 +7185,9 @@ function CreateServiceDogProgramModal({
   onClose: () => void;
   onSuccess: () => void;
 }) {
+  const t = useTranslations("training.trainingPage");
+  const tc = useTranslations("common");
+  const { cfg } = useBusinessLocale();
   const [selectedDogId, setSelectedDogId] = useState("");
   const [programType, setProgramType] = useState("SD_FOUNDATION");
   const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10));
@@ -7115,7 +7209,7 @@ function CreateServiceDogProgramModal({
           dogId: dog.petId,
           customerId: dog.pet.customerId ?? null,
           trainingType: "SERVICE_DOG",
-          name: `הכשרת כלב שירות — ${dog.pet.name}`,
+          name: t("sdProgram.name", { dog: dog.pet.name }),
           programType,
           startDate: new Date(startDate).toISOString(),
           status: "ACTIVE",
@@ -7128,10 +7222,10 @@ function CreateServiceDogProgramModal({
       return res.json();
     },
     onSuccess: () => {
-      toast.success("תוכנית אימון נוצרה בהצלחה");
+      toast.success(t("sdProgram.created"));
       onSuccess();
     },
-    onError: (err: Error) => toast.error(err.message || "שגיאה ביצירת תוכנית"),
+    onError: (err: Error) => toast.error(err.message || t("sdProgram.createError")),
   });
 
   const activeDogs = dogs.filter((d) => !["RETIRED", "DECERTIFIED"].includes(d.phase));
@@ -7143,7 +7237,7 @@ function CreateServiceDogProgramModal({
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold text-petra-text flex items-center gap-2">
             <Shield className="w-5 h-5 text-brand-500" />
-            תוכנית אימון חדשה — כלב שירות
+            {t("sdProgram.title")}
           </h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
             <X className="w-4 h-4" />
@@ -7151,14 +7245,14 @@ function CreateServiceDogProgramModal({
         </div>
         <div className="space-y-4">
           <div>
-            <label className="label">כלב שירות *</label>
+            <label className="label">{t("sdProgram.dog")}</label>
             {isLoading ? (
-              <div className="input text-petra-muted text-sm">טוען...</div>
+              <div className="input text-petra-muted text-sm">{tc("loading")}</div>
             ) : activeDogs.length === 0 ? (
-              <p className="text-sm text-petra-muted py-2">אין כלבי שירות פעילים. <a href="/service-dogs" className="text-brand-600 hover:underline">הוסף כלב שירות</a></p>
+              <p className="text-sm text-petra-muted py-2">{t.rich("sdProgram.noDogs", { link: (c) => <a href="/service-dogs" className="text-brand-600 hover:underline">{c}</a> })}</p>
             ) : (
               <select className="input" value={selectedDogId} onChange={(e) => setSelectedDogId(e.target.value)}>
-                <option value="">בחר כלב...</option>
+                <option value="">{t("programForm.selectDog")}</option>
                 {activeDogs.map((d) => (
                   <option key={d.id} value={d.id}>
                     {d.pet.name}{d.pet.breed ? ` (${d.pet.breed})` : ""}
@@ -7168,16 +7262,16 @@ function CreateServiceDogProgramModal({
             )}
           </div>
           <div>
-            <label className="label">שלב הכשרה</label>
+            <label className="label">{t("sdPhase.title")}</label>
             <select className="input" value={programType} onChange={(e) => setProgramType(e.target.value)}>
               {SERVICE_DOG_PHASES.map((p) => (
-                <option key={p.value} value={p.value}>{p.label}</option>
+                <option key={p.value} value={p.value}>{t(`sdPhases.${p.value}`)}</option>
               ))}
             </select>
           </div>
           <div>
-            <label className="label">תאריך התחלה</label>
-            <input type="date" lang="he" className="input" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+            <label className="label">{t("individual.startDate")}</label>
+            <input type="date" lang={cfg.lang} className="input" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
           </div>
         </div>
         <div className="flex gap-3 mt-6">
@@ -7186,9 +7280,9 @@ function CreateServiceDogProgramModal({
             disabled={!selectedDogId || !startDate || mutation.isPending}
             onClick={() => mutation.mutate()}
           >
-            {mutation.isPending ? "יוצר..." : "צור תוכנית אימון"}
+            {mutation.isPending ? t("group.creating") : t("sdProgram.create")}
           </button>
-          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+          <button className="btn-secondary" onClick={onClose}>{tc("actions.cancel")}</button>
         </div>
       </div>
     </div>
@@ -7200,6 +7294,8 @@ function CreateServiceDogProgramModal({
 // ═══════════════════════════════════════════════════════
 
 function AddRecipientInlineModal({ onClose }: { onClose: () => void }) {
+  const t = useTranslations("training.trainingPage");
+  const tc = useTranslations("common");
   const qc = useQueryClient();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -7219,10 +7315,10 @@ function AddRecipientInlineModal({ onClose }: { onClose: () => void }) {
       }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["service-recipients"] });
-      toast.success("זכאי נוסף בהצלחה");
+      toast.success(t("recipient.added"));
       onClose();
     },
-    onError: () => toast.error("שגיאה בהוספת זכאי"),
+    onError: () => toast.error(t("recipient.addError")),
   });
 
   return (
@@ -7232,7 +7328,7 @@ function AddRecipientInlineModal({ onClose }: { onClose: () => void }) {
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold text-petra-text flex items-center gap-2">
             <UserCheck className="w-5 h-5 text-brand-500" />
-            הוסף זכאי חדש
+            {t("recipient.title")}
           </h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
             <X className="w-4 h-4" />
@@ -7240,28 +7336,28 @@ function AddRecipientInlineModal({ onClose }: { onClose: () => void }) {
         </div>
         <div className="space-y-3">
           <div>
-            <label className="label">שם מלא *</label>
-            <input type="text" className="input" placeholder="שם ומשפחה" value={name} onChange={(e) => setName(e.target.value)} />
+            <label className="label">{t("recipient.fullName")}</label>
+            <input type="text" className="input" placeholder={t("recipient.fullNamePlaceholder")} value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">טלפון</label>
+              <label className="label">{t("archive.xlsx.phone")}</label>
               <input type="tel" dir="ltr" className="input text-right" placeholder="05x-xxxxxxx" value={phone} onChange={(e) => setPhone(e.target.value)} />
             </div>
             <div>
-              <label className="label">אימייל</label>
+              <label className="label">{t("recipient.email")}</label>
               <input type="email" dir="ltr" className="input text-right" placeholder="mail@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">תעודת זהות</label>
-              <input type="text" className="input" placeholder="9 ספרות" value={idNumber} onChange={(e) => setIdNumber(e.target.value)} />
+              <label className="label">{t("recipient.idNumber")}</label>
+              <input type="text" className="input" placeholder={t("recipient.idPlaceholder")} value={idNumber} onChange={(e) => setIdNumber(e.target.value)} />
             </div>
             <div>
-              <label className="label">סוג לקות</label>
+              <label className="label">{t("recipient.disabilityType")}</label>
               <select className="input" value={disabilityType} onChange={(e) => setDisabilityType(e.target.value)}>
-                <option value="">לא נבחר</option>
+                <option value="">{t("recipient.notSelected")}</option>
                 {DISABILITY_TYPES.map((d) => (
                   <option key={d.id} value={d.id}>{d.label}</option>
                 ))}
@@ -7269,15 +7365,15 @@ function AddRecipientInlineModal({ onClose }: { onClose: () => void }) {
             </div>
           </div>
           <div>
-            <label className="label">כתובת</label>
-            <input type="text" className="input" placeholder="רחוב, עיר" value={address} onChange={(e) => setAddress(e.target.value)} />
+            <label className="label">{t("recipient.address")}</label>
+            <input type="text" className="input" placeholder={t("settingsForm.addressPlaceholderShort")} value={address} onChange={(e) => setAddress(e.target.value)} />
           </div>
           <div>
-            <label className="label">פירוט הלקות</label>
-            <textarea className="input" rows={2} placeholder="מידע נוסף על הלקות..." value={disabilityNotes} onChange={(e) => setDisabilityNotes(e.target.value)} />
+            <label className="label">{t("recipient.disabilityDetails")}</label>
+            <textarea className="input" rows={2} placeholder={t("recipient.disabilityPlaceholder")} value={disabilityNotes} onChange={(e) => setDisabilityNotes(e.target.value)} />
           </div>
           <div>
-            <label className="label">הערות</label>
+            <label className="label">{t("programForm.notes")}</label>
             <textarea className="input" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
         </div>
@@ -7287,9 +7383,9 @@ function AddRecipientInlineModal({ onClose }: { onClose: () => void }) {
             disabled={!name.trim() || mutation.isPending}
             onClick={() => mutation.mutate({ name, phone, email, idNumber, address, disabilityType, disabilityNotes, notes })}
           >
-            {mutation.isPending ? "שומר..." : "הוסף זכאי"}
+            {mutation.isPending ? tc("progress.saving") : t("recipient.add")}
           </button>
-          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+          <button className="btn-secondary" onClick={onClose}>{tc("actions.cancel")}</button>
         </div>
       </div>
     </div>
@@ -7297,13 +7393,14 @@ function AddRecipientInlineModal({ onClose }: { onClose: () => void }) {
 }
 
 export default function TrainingPage() {
+  const t = useTranslations("training.trainingPage");
   return (
     <>
-      <PageTitle title="אילוף" />
+      <PageTitle title={t("pageTitle")} />
       <TierGate
       feature="training"
-      title="מנוע תהליכי אילוף"
-      description="ניהול תוכניות אילוף, מטרות ומפגשים. עקוב אחרי ההתקדמות של כל כלב בכל תוכנית אילוף."
+      title={t("tierGate.title")}
+      description={t("tierGate.description")}
     >
       <TrainingPageContent />
     </TierGate>

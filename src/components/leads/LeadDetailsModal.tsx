@@ -4,7 +4,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { X, Trash2, Edit2, Plus, CheckCircle, Calendar, CheckCircle2, XCircle, PawPrint } from "lucide-react";
-import { formatDate, formatTime } from "@/lib/utils";
+import { useTranslations } from "next-intl";
+import { formatTime } from "@/lib/utils";
+import { formatDate } from "@/lib/format";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { LOST_REASON_CODES } from "@/lib/constants";
 import { formatAttributionLine, PAGE_TYPE_LABELS, type PageType } from "@/lib/lead-attribution";
 import LostReasonModal from "@/components/leads/LostReasonModal";
@@ -54,6 +57,7 @@ interface Toast {
 // ─── Toast Component ─────────────────────────────────────────────────────────
 
 function ToastNotification({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }) {
+  const t = useTranslations("leads");
   useEffect(() => {
     const timer = setTimeout(onDismiss, 6000);
     return () => clearTimeout(timer);
@@ -75,7 +79,7 @@ function ToastNotification({ toast, onDismiss }: { toast: Toast; onDismiss: () =
               className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-brand-600 hover:text-brand-700 bg-brand-50 hover:bg-brand-100 rounded-lg px-3 py-1.5 transition-colors"
             >
               <PawPrint className="w-3.5 h-3.5" />
-              הוסף כלב עכשיו
+              {t("leadDetailsModal.addDogNow")}
             </Link>
           )}
         </div>
@@ -101,6 +105,9 @@ export default function LeadDetailsModal({
   isOpen: boolean;
   onClose: () => void;
 }) {
+  const t = useTranslations("leads");
+  const tc = useTranslations("common");
+  const { locale, cfg } = useBusinessLocale();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<"logs" | "task">("logs");
   const [summaryForm, setSummaryForm] = useState({ summary: "", treatment: "" });
@@ -120,7 +127,7 @@ export default function LeadDetailsModal({
   }, []);
 
   const removeToast = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
+    setToasts((prev) => prev.filter((x) => x.id !== id));
   }, []);
 
   // ─── Close Won mutation ──────────────────────────────────────────────────
@@ -136,10 +143,10 @@ export default function LeadDetailsModal({
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["leads"] });
       queryClient.invalidateQueries({ queryKey: ["customers"] });
-      addToast("הליד נסגר ונוצר לקוח חדש", "success", data.customerId);
+      addToast(t("leadDetailsModal.toasts.wonCreated"), "success", data.customerId);
     },
     onError: (err: Error) => {
-      addToast(err.message || "שגיאה בסגירת הליד", "error");
+      addToast(err.message || t("leadDetailsModal.toasts.wonError"), "error");
     },
   });
 
@@ -160,10 +167,10 @@ export default function LeadDetailsModal({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leads"] });
       setLostModalOpen(false);
-      addToast("הליד סומן כאבוד ונשמרה הסיבה.", "success");
+      addToast(t("leadDetailsModal.toasts.lostSaved"), "success");
     },
     onError: (err: Error) => {
-      addToast(err.message || "שגיאה בסימון הליד כאבוד", "error");
+      addToast(err.message || t("leadDetailsModal.toasts.lostError"), "error");
     },
   });
 
@@ -249,7 +256,7 @@ export default function LeadDetailsModal({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: `טיפול בליד: ${lead.name}`,
+          title: t("leadDetailsModal.taskTitle", { name: lead.name }),
           description: data.description,
           dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : null,
           priority: "HIGH",
@@ -291,9 +298,11 @@ export default function LeadDetailsModal({
 
   const attributionLine = formatAttributionLine({ trafficSource: lead.trafficSource, landingPage: lead.landingPage });
   const attributionExtras = [
-    lead.medium ? `מדיום: ${lead.medium}` : null,
-    lead.campaign ? `קמפיין: ${lead.campaign}` : null,
-    lead.pageType ? `סוג עמוד: ${PAGE_TYPE_LABELS[lead.pageType as PageType] ?? lead.pageType}` : null,
+    lead.medium ? t("leadDetailsModal.attribution.medium", { value: lead.medium }) : null,
+    lead.campaign ? t("leadDetailsModal.attribution.campaign", { value: lead.campaign }) : null,
+    lead.pageType
+      ? t("leadDetailsModal.attribution.pageType", { value: PAGE_TYPE_LABELS[lead.pageType as PageType] ?? lead.pageType })
+      : null,
   ].filter(Boolean).join(" · ");
 
   if (!isOpen) return null;
@@ -307,7 +316,7 @@ export default function LeadDetailsModal({
           <div className="flex items-center justify-between mb-5">
             <div>
               <h2 className="text-xl font-bold text-petra-text">{lead.name}</h2>
-              <p className="text-sm text-petra-muted mt-0.5">ניהול רשומות וטיפולים</p>
+              <p className="text-sm text-petra-muted mt-0.5">{t("leadDetailsModal.subtitle")}</p>
               {attributionLine && (
                 <p className="text-xs text-petra-muted mt-1" title={lead.referrer ?? undefined}>
                   {attributionLine}
@@ -336,15 +345,15 @@ export default function LeadDetailsModal({
               {lead.wonAt ? (
                 <>
                   <CheckCircle2 className="w-4 h-4" />
-                  ליד נסגר בהצלחה
-                  {lead.wonAt && <span className="text-xs opacity-75 mr-1">· {formatDate(lead.wonAt)}</span>}
+                  {t("leadDetailsModal.wonBanner")}
+                  {lead.wonAt && <span className="text-xs opacity-75 ms-1">· {formatDate(lead.wonAt, { locale })}</span>}
                 </>
               ) : (
                 <>
                   <XCircle className="w-4 h-4" />
-                  ליד אבוד
-                  {lostReasonLabel && <span className="text-xs opacity-75 mr-1">· {lostReasonLabel}</span>}
-                  {lead.lostReasonText && <span className="text-xs opacity-75 mr-1">({lead.lostReasonText})</span>}
+                  {t("leadDetailsModal.lostBanner")}
+                  {lostReasonLabel && <span className="text-xs opacity-75 ms-1">· {lostReasonLabel}</span>}
+                  {lead.lostReasonText && <span className="text-xs opacity-75 ms-1">({lead.lostReasonText})</span>}
                 </>
               )}
             </div>
@@ -356,7 +365,7 @@ export default function LeadDetailsModal({
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-green-500 hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <CheckCircle2 className="w-4 h-4" />
-                {closeWonMutation.isPending ? "סוגר..." : "נסגר"}
+                {closeWonMutation.isPending ? t("leadDetailsModal.closingWon") : t("leadDetailsModal.closeWon")}
               </button>
               <button
                 onClick={handleCloseLost}
@@ -364,7 +373,7 @@ export default function LeadDetailsModal({
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <XCircle className="w-4 h-4" />
-                אבוד
+                {t("leadDetailsModal.closeLost")}
               </button>
             </div>
           )}
@@ -379,7 +388,7 @@ export default function LeadDetailsModal({
                   : "border-transparent text-petra-muted hover:text-petra-text"
               }`}
             >
-              רשומות שיחה
+              {t("leadDetailsModal.tabs.logs")}
             </button>
             <button
               onClick={() => setActiveTab("task")}
@@ -389,7 +398,7 @@ export default function LeadDetailsModal({
                   : "border-transparent text-petra-muted hover:text-petra-text"
               }`}
             >
-              משימה קדימה
+              {t("leadDetailsModal.tabs.task")}
             </button>
           </div>
 
@@ -399,11 +408,11 @@ export default function LeadDetailsModal({
               {/* Form */}
               <div className="bg-slate-50 rounded-xl p-4 space-y-3">
                 <div>
-                  <label className="label">סיכום השיחה *</label>
+                  <label className="label">{t("leadDetailsModal.logForm.summaryLabel")}</label>
                   <textarea
                     className="input resize-none"
                     rows={3}
-                    placeholder="תיאור קצר של השיחה..."
+                    placeholder={t("leadDetailsModal.logForm.summaryPlaceholder")}
                     value={summaryForm.summary}
                     onChange={(e) =>
                       setSummaryForm({ ...summaryForm, summary: e.target.value })
@@ -411,11 +420,11 @@ export default function LeadDetailsModal({
                   />
                 </div>
                 <div>
-                  <label className="label">הטיפול שתעשה *</label>
+                  <label className="label">{t("leadDetailsModal.logForm.treatmentLabel")}</label>
                   <textarea
                     className="input resize-none"
                     rows={3}
-                    placeholder="מה הצעדים הבאים?"
+                    placeholder={t("leadDetailsModal.logForm.treatmentPlaceholder")}
                     value={summaryForm.treatment}
                     onChange={(e) =>
                       setSummaryForm({ ...summaryForm, treatment: e.target.value })
@@ -433,14 +442,14 @@ export default function LeadDetailsModal({
                     className="btn-primary flex-1"
                   >
                     <Plus className="w-4 h-4" />
-                    {editingId ? "עדכן" : "הוסף"} רשומה
+                    {editingId ? t("leadDetailsModal.logForm.updateLog") : t("leadDetailsModal.logForm.addLog")}
                   </button>
                   {editingId && (
                     <button
                       onClick={handleCancelEdit}
                       className="btn-secondary"
                     >
-                      ביטול
+                      {tc("actions.cancel")}
                     </button>
                   )}
                 </div>
@@ -448,12 +457,12 @@ export default function LeadDetailsModal({
 
               {/* Call Logs List */}
               <div className="space-y-2">
-                <h3 className="text-sm font-semibold text-petra-text">רשומות קודמות</h3>
+                <h3 className="text-sm font-semibold text-petra-text">{t("leadDetailsModal.previousLogs")}</h3>
                 {isLoading ? (
                   <PetraLoader variant="inline" />
                 ) : callLogs.length === 0 ? (
                   <div className="text-center py-6 text-petra-muted text-sm">
-                    אין רשומות שיחה עדיין
+                    {t("leadDetailsModal.noLogs")}
                   </div>
                 ) : (
                   <div className="space-y-2 max-h-64 overflow-y-auto">
@@ -465,8 +474,10 @@ export default function LeadDetailsModal({
                         <div className="flex items-start justify-between mb-2">
                           <div className="flex-1 min-w-0">
                             <p className="text-xs text-petra-muted">
-                              {formatDate(log.createdAt)} בשעה{" "}
-                              {formatTime(log.createdAt)}
+                              {t("leadDetailsModal.logDateTime", {
+                                date: formatDate(log.createdAt, { locale }),
+                                time: formatTime(log.createdAt),
+                              })}
                             </p>
                           </div>
                           <div className="flex gap-1 ms-2">
@@ -490,13 +501,13 @@ export default function LeadDetailsModal({
                         <div className="space-y-1.5">
                           <div>
                             <p className="text-xs font-medium text-slate-500 mb-0.5">
-                              סיכום
+                              {t("leadDetailsModal.logSummary")}
                             </p>
                             <p className="text-sm text-petra-text">{log.summary}</p>
                           </div>
                           <div>
                             <p className="text-xs font-medium text-slate-500 mb-0.5">
-                              טיפול
+                              {t("leadDetailsModal.logTreatment")}
                             </p>
                             <p className="text-sm text-petra-text">{log.treatment}</p>
                           </div>
@@ -514,15 +525,15 @@ export default function LeadDetailsModal({
             <div className="space-y-4">
               <div className="bg-brand-50 border border-brand-200 rounded-lg p-3 flex gap-2 text-sm text-brand-800">
                 <CheckCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                <p>המשימה תופיע בדשבורד בתאריך שנבחר</p>
+                <p>{t("leadDetailsModal.taskForm.hint")}</p>
               </div>
 
               <div>
-                <label className="label">תיאור המשימה *</label>
+                <label className="label">{t("leadDetailsModal.taskForm.descriptionLabel")}</label>
                 <textarea
                   className="input resize-none"
                   rows={4}
-                  placeholder="תיאור מפורט של המשימה..."
+                  placeholder={t("leadDetailsModal.taskForm.descriptionPlaceholder")}
                   value={taskForm.description}
                   onChange={(e) =>
                     setTaskForm({ ...taskForm, description: e.target.value })
@@ -531,9 +542,9 @@ export default function LeadDetailsModal({
               </div>
 
               <div>
-                <label className="label">תאריך הטיפול *</label>
+                <label className="label">{t("leadDetailsModal.taskForm.dueDateLabel")}</label>
                 <input
-                  type="date" lang="he"
+                  type="date" lang={cfg.lang}
                   className="input"
                   value={taskForm.dueDate}
                   onChange={(e) =>
@@ -553,10 +564,10 @@ export default function LeadDetailsModal({
                   className="btn-primary flex-1"
                 >
                   <Calendar className="w-4 h-4" />
-                  {taskMutation.isPending ? "יוצר..." : "צור משימה"}
+                  {taskMutation.isPending ? t("leadDetailsModal.taskForm.creating") : t("leadDetailsModal.taskForm.create")}
                 </button>
                 <button onClick={onClose} className="btn-secondary">
-                  סגור
+                  {tc("actions.close")}
                 </button>
               </div>
             </div>
@@ -574,9 +585,9 @@ export default function LeadDetailsModal({
 
       <ConfirmDialog
         open={confirmWonOpen}
-        title="לסגור את הליד כלקוח?"
-        description={lead.customerId ? "הליד יסומן כנסגר בהצלחה." : "הליד יסומן כנסגר בהצלחה ויווצר ממנו לקוח חדש."}
-        confirmLabel="כן, נסגר כלקוח"
+        title={t("leadDetailsModal.confirmWon.title")}
+        description={lead.customerId ? t("leadDetailsModal.confirmWon.descriptionExisting") : t("leadDetailsModal.confirmWon.descriptionNew")}
+        confirmLabel={t("leadDetailsModal.confirmWon.confirm")}
         loading={closeWonMutation.isPending}
         onCancel={() => setConfirmWonOpen(false)}
         onConfirm={() => closeWonMutation.mutate(lead.id, { onSettled: () => setConfirmWonOpen(false) })}
@@ -584,8 +595,8 @@ export default function LeadDetailsModal({
 
       <ConfirmDialog
         open={deleteLogTarget !== null}
-        title="למחוק את תיעוד השיחה?"
-        confirmLabel="מחק"
+        title={t("leadDetailsModal.confirmDeleteLog.title")}
+        confirmLabel={tc("actions.delete")}
         danger
         loading={deleteMutation.isPending}
         onCancel={() => setDeleteLogTarget(null)}
@@ -596,7 +607,7 @@ export default function LeadDetailsModal({
 
       {/* Toast Notifications */}
       {toasts.length > 0 && (
-        <div className="fixed bottom-6 left-6 z-[70] flex flex-col gap-2">
+        <div className="fixed bottom-6 end-6 z-[70] flex flex-col gap-2">
           {toasts.map((toast) => (
             <ToastNotification
               key={toast.id}

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { X } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -121,6 +122,8 @@ function OptionGroup<T extends string>({
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export function AccessibilityButton() {
+  const t = useTranslations("landing.accessibilityButton");
+  const tc = useTranslations("common");
   const [open, setOpen] = useState(false);
   const [state, setState] = useState<A11yState>(DEFAULTS);
 
@@ -165,13 +168,13 @@ export function AccessibilityButton() {
   const isModified = JSON.stringify(state) !== JSON.stringify(DEFAULTS);
 
   return (
-    <div className="fixed bottom-[72px] right-4 sm:bottom-[88px] sm:right-5 z-50 flex flex-col items-end">
+    <div className="fixed bottom-[72px] start-4 sm:bottom-[88px] sm:start-5 z-50 flex flex-col items-end">
       {/* Panel */}
       {open && (
         <div
           role="dialog"
           aria-modal="true"
-          aria-label="הגדרות נגישות"
+          aria-label={t("dialogLabel")}
           className="lp-pop mb-3 bg-white rounded-2xl shadow-2xl border border-slate-200 w-[calc(100vw-2rem)] max-w-[288px] max-h-[75vh] overflow-y-auto"
         >
           {/* Header */}
@@ -181,9 +184,9 @@ export function AccessibilityButton() {
                 <circle cx="12" cy="5" r="1.5"/>
                 <path d="M9 19l3-8 3 8M9 12h6M5 8l2 2M19 8l-2 2"/>
               </svg>
-              <span className="font-bold text-sm">הגדרות נגישות</span>
+              <span className="font-bold text-sm">{t("title")}</span>
             </div>
-            <button onClick={() => setOpen(false)} aria-label="סגור" className="hover:bg-white/20 rounded-full p-1 transition-colors">
+            <button onClick={() => setOpen(false)} aria-label={tc("actions.close")} className="hover:bg-white/20 rounded-full p-1 transition-colors">
               <X className="w-4 h-4" />
             </button>
           </div>
@@ -191,13 +194,13 @@ export function AccessibilityButton() {
           <div className="p-4">
             {/* Profiles */}
             <div className="mb-4">
-              <p className="text-xs font-bold text-slate-500 mb-2">פרופילי נגישות</p>
+              <p className="text-xs font-bold text-slate-500 mb-2">{t("profilesTitle")}</p>
               <div className="grid grid-cols-2 gap-2">
                 {([
-                  { value: "cognitive", label: "קוגניטיבי", icon: "🧠" },
-                  { value: "visual", label: "לקויי ראייה", icon: "👁" },
-                  { value: "epilepsy", label: "אפילפסיה", icon: "⚡" },
-                  { value: "motor", label: "מוגבלות מוטורית", icon: "✋" },
+                  { value: "cognitive", icon: "🧠" },
+                  { value: "visual", icon: "👁" },
+                  { value: "epilepsy", icon: "⚡" },
+                  { value: "motor", icon: "✋" },
                 ] as const).map((p) => (
                   <button
                     key={p.value}
@@ -209,63 +212,63 @@ export function AccessibilityButton() {
                     }`}
                   >
                     <span aria-hidden="true">{p.icon}</span>
-                    {p.label}
+                    {t(`profiles.${p.value}`)}
                   </button>
                 ))}
               </div>
             </div>
 
             <OptionGroup
-              label="גודל טקסט"
+              label={t("fontSize.label")}
               value={state.fontSize}
               onChange={(v) => update({ fontSize: v })}
               options={[
-                { value: "normal", label: "רגיל" },
-                { value: "large", label: "גדול" },
-                { value: "xlarge", label: "גדול מאוד" },
+                { value: "normal", label: t("fontSize.normal") },
+                { value: "large", label: t("fontSize.large") },
+                { value: "xlarge", label: t("fontSize.xlarge") },
               ]}
             />
 
             <OptionGroup
-              label="ניגודיות"
+              label={t("contrast.label")}
               value={state.contrast}
               onChange={(v) => update({ contrast: v })}
               options={[
-                { value: "normal", label: "רגיל" },
-                { value: "high", label: "גבוהה" },
-                { value: "inverted", label: "הפוכה" },
+                { value: "normal", label: t("contrast.normal") },
+                { value: "high", label: t("contrast.high") },
+                { value: "inverted", label: t("contrast.inverted") },
               ]}
             />
 
             <OptionGroup
-              label="רוויית צבע"
+              label={t("saturation.label")}
               value={state.saturation}
               onChange={(v) => update({ saturation: v })}
               options={[
-                { value: "normal", label: "רגיל" },
-                { value: "high", label: "גבוהה" },
-                { value: "low", label: "נמוכה" },
-                { value: "bw", label: "ש/ל" },
+                { value: "normal", label: t("saturation.normal") },
+                { value: "high", label: t("saturation.high") },
+                { value: "low", label: t("saturation.low") },
+                { value: "bw", label: t("saturation.bw") },
               ]}
             />
 
             <OptionGroup
-              label="יישור טקסט"
+              label={t("align.label")}
               value={state.align}
               onChange={(v) => update({ align: v })}
               options={[
-                { value: "default", label: "ברירת מחדל" },
-                { value: "right", label: "ימין" },
-                { value: "center", label: "מרכז" },
-                { value: "left", label: "שמאל" },
+                { value: "default", label: t("align.default") },
+                { value: "right", label: t("align.right") },
+                { value: "center", label: t("align.center") },
+                { value: "left", label: t("align.left") },
               ]}
             />
 
             {/* Toggles */}
             <div className="mb-4">
-              <p className="text-xs font-bold text-slate-500 mb-2">תצוגה וקריאות</p>
+              <p className="text-xs font-bold text-slate-500 mb-2">{t("displayTitle")}</p>
               <label className="flex items-center justify-between bg-slate-50 rounded-xl px-3 py-2.5 cursor-pointer">
-                <span className="text-xs font-medium text-slate-700">הדגשת קישורים</span>
+                <span className="text-xs font-medium text-slate-700">{t("highlightLinks")}</span>
                 <div
                   role="switch"
                   aria-checked={state.highlightLinks}
@@ -283,7 +286,7 @@ export function AccessibilityButton() {
                 onClick={reset}
                 className="w-full py-2 text-xs text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
               >
-                איפוס הגדרות
+                {t("reset")}
               </button>
             )}
           </div>
@@ -293,7 +296,7 @@ export function AccessibilityButton() {
       {/* Trigger button — matches All-Dog: blue, h-14 w-14 */}
       <button
         onClick={() => setOpen((v) => !v)}
-        aria-label={open ? "סגור תפריט נגישות" : "פתח תפריט נגישות"}
+        aria-label={open ? t("closeMenu") : t("openMenu")}
         aria-expanded={open}
         aria-haspopup="dialog"
         className="h-10 w-10 sm:h-14 sm:w-14 bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg hover:shadow-xl transition-[transform,background-color,box-shadow] duration-200 [transition-timing-function:cubic-bezier(0.22,1,0.36,1)] [@media(hover:hover)_and_(pointer:fine)]:hover:scale-105 active:scale-[0.97] flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2"

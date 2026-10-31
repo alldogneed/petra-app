@@ -3,9 +3,11 @@
 import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { Clock, Wifi, WifiOff, RefreshCw, LogOut, Monitor, ShieldAlert } from "lucide-react";
-import { SessionEntry, ROLE_LABELS, ROLE_COLORS, relativeTime, formatTs, isOnline, Avatar } from "./shared";
+import { SessionEntry, ROLE_COLORS, isOnline, Avatar, useBusinessAdminFormat } from "./shared";
 
 /** GET /api/business-admin/sessions row (server adds device/isCurrent/isNewDevice). */
 type SessionRow = SessionEntry & { device: string; isCurrent: boolean; isNewDevice: boolean; canRevoke: boolean };
@@ -17,10 +19,13 @@ async function jsonOrThrow(r: Response, fallback: string) {
 }
 
 export function SessionsTab({ currentUserId }: { currentUserId: string }) {
+  const t = useTranslations("businessAdmin.sessionsTab");
+  const fmt = useBusinessAdminFormat();
+  const { cfg } = useBusinessLocale();
   const queryClient = useQueryClient();
   const { data, isLoading, refetch, isFetching } = useQuery<SessionRow[]>({
     queryKey: ["ba-sessions"],
-    queryFn: () => fetch("/api/business-admin/sessions").then((r) => jsonOrThrow(r, "שגיאה בטעינת הסשנים")),
+    queryFn: () => fetch("/api/business-admin/sessions").then((r) => jsonOrThrow(r, t("errors.load"))),
     refetchInterval: 30_000,
   });
 
@@ -32,18 +37,18 @@ export function SessionsTab({ currentUserId }: { currentUserId: string }) {
   const revokeOne = useMutation({
     mutationFn: (id: string) =>
       fetch(`/api/business-admin/sessions/${encodeURIComponent(id)}`, { method: "DELETE" }).then((r) =>
-        jsonOrThrow(r, "שגיאה בניתוק הסשן")
+        jsonOrThrow(r, t("errors.revokeOne"))
       ),
-    onSuccess: () => { toast.success("הסשן נותק"); invalidate(); },
+    onSuccess: () => { toast.success(t("toasts.revokedOne")); invalidate(); },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const revokeAll = useMutation({
     mutationFn: (userId: string) =>
       fetch(`/api/business-admin/sessions?userId=${encodeURIComponent(userId)}`, { method: "DELETE" }).then((r) =>
-        jsonOrThrow(r, "שגיאה בניתוק הסשנים")
+        jsonOrThrow(r, t("errors.revokeAll"))
       ) as Promise<{ revoked: number }>,
-    onSuccess: (d) => { toast.success(d.revoked ? `נותקו ${d.revoked} סשנים` : "אין סשנים לניתוק"); invalidate(); },
+    onSuccess: (d) => { toast.success(d.revoked ? t("toasts.revokedAll", { count: d.revoked }) : t("toasts.noneToRevoke")); invalidate(); },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -65,14 +70,14 @@ export function SessionsTab({ currentUserId }: { currentUserId: string }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-sm text-petra-muted">סשנים פעילים · מתרענן כל 30 שניות</p>
+        <p className="text-sm text-petra-muted">{t("header")}</p>
         <button
           onClick={() => refetch()}
           className="btn-ghost text-sm flex items-center gap-1.5 px-3"
           disabled={isFetching}
         >
           <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? "animate-spin" : ""}`} />
-          רענן
+          {t("refresh")}
         </button>
       </div>
 
@@ -81,7 +86,7 @@ export function SessionsTab({ currentUserId }: { currentUserId: string }) {
       ) : groups.length === 0 ? (
         <div className="card p-10 text-center">
           <WifiOff className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-          <p className="text-sm text-petra-muted">אין סשנים פעילים כרגע</p>
+          <p className="text-sm text-petra-muted">{t("empty")}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -96,9 +101,9 @@ export function SessionsTab({ currentUserId }: { currentUserId: string }) {
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-slate-800 truncate">
                       {first.user.name}
-                      {isMe && <span className="text-xs text-petra-muted font-normal"> (את/ה)</span>}
+                      {isMe && <span className="text-xs text-petra-muted font-normal">{t("you")}</span>}
                     </p>
-                    <p className="text-xs text-petra-muted truncate" dir="ltr" style={{ textAlign: "right" }}>
+                    <p className="text-xs text-petra-muted truncate" dir="ltr" style={{ textAlign: cfg.dir === "rtl" ? "right" : "left" }}>
                       {first.user.email}
                     </p>
                   </div>
@@ -107,20 +112,20 @@ export function SessionsTab({ currentUserId }: { currentUserId: string }) {
                       ROLE_COLORS[first.businessRole] ?? "bg-slate-100 text-slate-700"
                     }`}
                   >
-                    {ROLE_LABELS[first.businessRole] ?? first.businessRole}
+                    {fmt.roleLabel(first.businessRole)}
                   </span>
                   {canRevokeAll && (
                     <button
                       className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1.5 text-red-600"
                       disabled={busy}
                       onClick={() => {
-                        if (window.confirm(`לנתק את כל הסשנים של ${first.user.name}? המשתמש/ת יידרש/תידרש להתחבר מחדש בכל המכשירים.`)) {
+                        if (window.confirm(t("confirm.revokeAll", { name: first.user.name }))) {
                           revokeAll.mutate(first.userId);
                         }
                       }}
                     >
                       <LogOut className="w-3.5 h-3.5" />
-                      נתק את כל הסשנים
+                      {t("revokeAll")}
                     </button>
                   )}
                 </div>
@@ -135,16 +140,16 @@ export function SessionsTab({ currentUserId }: { currentUserId: string }) {
                         <span className="font-medium text-slate-700">{s.device}</span>
                         {s.isCurrent && (
                           <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
-                            המכשיר הזה
+                            {t("badges.thisDevice")}
                           </span>
                         )}
                         {s.isNewDevice && (
                           <span
                             className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-800"
-                            title="מכשיר שלא נראה אצל המשתמש ב-90 הימים האחרונים"
+                            title={t("badges.newDeviceTitle")}
                           >
                             <ShieldAlert className="w-3 h-3" />
-                            מכשיר חדש
+                            {t("badges.newDevice")}
                           </span>
                         )}
                         <span
@@ -153,13 +158,13 @@ export function SessionsTab({ currentUserId }: { currentUserId: string }) {
                           }`}
                         >
                           {online ? <Wifi className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-                          {online ? "מחובר" : "לא פעיל"}
+                          {online ? t("status.online") : t("status.inactive")}
                         </span>
-                        <span className="text-xs text-petra-muted whitespace-nowrap" title={formatTs(s.lastSeenAt)}>
-                          נראה {relativeTime(s.lastSeenAt)}
+                        <span className="text-xs text-petra-muted whitespace-nowrap" title={fmt.formatTs(s.lastSeenAt)}>
+                          {t("lastSeen", { when: fmt.relativeTime(s.lastSeenAt) })}
                         </span>
-                        <span className="text-xs text-petra-muted whitespace-nowrap hidden sm:inline" title={formatTs(s.createdAt)}>
-                          · התחבר {relativeTime(s.createdAt)}
+                        <span className="text-xs text-petra-muted whitespace-nowrap hidden sm:inline" title={fmt.formatTs(s.createdAt)}>
+                          {t("connected", { when: fmt.relativeTime(s.createdAt) })}
                         </span>
                         {s.ipAddress && (
                           <span className="text-xs text-petra-muted hidden lg:inline" dir="ltr">
@@ -171,13 +176,13 @@ export function SessionsTab({ currentUserId }: { currentUserId: string }) {
                             className="ms-auto text-xs font-medium text-red-600 hover:bg-red-50 rounded-lg px-2.5 py-1 flex items-center gap-1"
                             disabled={busy}
                             onClick={() => {
-                              if (window.confirm(`לנתק את הסשן של ${s.user.name} (${s.device})?`)) {
+                              if (window.confirm(t("confirm.revokeOne", { name: s.user.name, device: s.device }))) {
                                 revokeOne.mutate(s.id);
                               }
                             }}
                           >
                             <LogOut className="w-3.5 h-3.5" />
-                            נתק
+                            {t("revokeOne")}
                           </button>
                         )}
                       </li>

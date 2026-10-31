@@ -1,10 +1,12 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import { DashCard, DashCardHeader, DashLink, DashRow } from "@/components/dashboard/dash-ui";
 
 // ─── Medications Widget ───────────────────────────────────────────────────────
 
 export function MedicationsWidget() {
+  const t = useTranslations("dashboard.medications");
   const { data } = useQuery<{ pets: { petName: string; customerName: string; medications: { medName: string }[] }[]; total: number }>({
     queryKey: ["dashboard-medications"],
     queryFn: () => fetch("/api/pets/medications?boarded=true").then((r) => {
@@ -20,8 +22,8 @@ export function MedicationsWidget() {
   return (
     <DashCard>
       <DashCardHeader
-        title="תרופות – חיות בפנסיון"
-        actions={<DashLink href="/medications">לוח מלא</DashLink>}
+        title={t("title")}
+        actions={<DashLink href="/medications">{t("fullBoard")}</DashLink>}
       />
       {pets.slice(0, 5).map((p) => (
         <DashRow key={p.petName + p.customerName} className="justify-between">
@@ -30,7 +32,7 @@ export function MedicationsWidget() {
             {p.customerName && <span className="font-normal text-xs text-slate-500"> · {p.customerName}</span>}
           </span>
           <span
-            className="text-xs text-slate-600 text-left truncate min-w-0 max-w-[50%]"
+            className="text-xs text-slate-600 text-end truncate min-w-0 max-w-[50%]"
             title={p.medications.map((m) => m.medName).join(", ")}
           >
             {p.medications.map((m) => m.medName).join(", ")}
@@ -39,7 +41,7 @@ export function MedicationsWidget() {
       ))}
       {pets.length > 5 && (
         <p className="m-0 py-2.5 border-t border-slate-100 text-xs text-slate-500">
-          ועוד {pets.length - 5} חיות נוספות
+          {t("more", { count: pets.length - 5 })}
         </p>
       )}
     </DashCard>

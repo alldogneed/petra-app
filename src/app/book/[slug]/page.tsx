@@ -3,8 +3,11 @@
 import { useState, useEffect, useCallback } from "react"
 import Image from "next/image"
 import { ChevronRight, ChevronLeft, Check, Clock, Calendar, PawPrint, User, Plus, X, MapPin, Mail, CreditCard, ExternalLink, Scissors, GraduationCap, Hotel, Sparkles, MessageCircle, CalendarPlus } from "lucide-react"
+import { useLocale, useTranslations } from "next-intl"
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { toWhatsAppPhone } from "@/lib/utils";
+import { formatCurrency } from "@/lib/format";
+import { DEFAULT_LOCALE, LOCALE_CONFIG, localeFromBusiness } from "@/lib/locale";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -42,6 +45,8 @@ interface BusinessInfo {
   cancellationPolicy: string | null
   bookingWelcomeText: string | null
   depositInstructions: string | null
+  /** Not returned by /api/book/[slug] yet — falls back to the locale default currency */
+  currency?: string | null
   services: BusinessService[]
   availabilityRules: AvailabilityRule[]
 }
@@ -66,12 +71,10 @@ type Step = "service" | "date" | "time" | "boarding-dates" | "customer" | "dogs"
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-// Calendar column headers: the Hebrew day letters (the first letter of each name would read "ר ש ש ר ח ש ש")
-const DAYS_HE_SHORT = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"]
+type BookT = ReturnType<typeof useTranslations<"booking.bookDetailPage">>
 
-function formatPrice(price: number) {
-  return new Intl.NumberFormat("he-IL", { style: "currency", currency: "ILS", maximumFractionDigits: 0 }).format(price)
-}
+// Calendar column headers: the Hebrew day letters (the first letter of each name would read "ר ש ש ר ח ש ש")
+const WEEKDAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const
 
 function getDatesForMonth(year: number, month: number): Date[] {
   const dates: Date[] = []
@@ -88,7 +91,7 @@ function toDateStr(date: Date): string {
 }
 
 /** Build a Google Calendar link for the booking */
-function buildGoogleCalLink(service: BusinessService, dateStr: string, slotTime: string, businessName: string, address: string | null): string {
+function buildGoogleCalLink(t: BookT, formatPrice: (n: number) => string, service: BusinessService, dateStr: string, slotTime: string, businessName: string, address: string | null): string {
   const [h, m] = slotTime.split(":").map(Number)
   const startDate = new Date(dateStr + "T12:00:00")
   startDate.setHours(h, m, 0, 0)
@@ -98,22 +101,22 @@ function buildGoogleCalLink(service: BusinessService, dateStr: string, slotTime:
     action: "TEMPLATE",
     text: `${service.name} — ${businessName}`,
     dates: `${fmt(startDate)}/${fmt(endDate)}`,
-    details: `הזמנה: ${service.name} · ${formatPrice(service.price)}`,
+    details: t("calendarLink.details", { service: service.name, price: formatPrice(service.price) }),
     location: address || businessName,
   })
   return `https://calendar.google.com/calendar/render?${params.toString()}`
 }
 
 /** Build a WhatsApp self-reminder text */
-function buildWhatsAppReminder(service: BusinessService, dateStr: string, slotTime: string, customerName: string, dogNames: string[]): string {
-  const dateLabel = new Date(dateStr + "T12:00:00").toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" })
+function buildWhatsAppReminder(t: BookT, locale: string, formatPrice: (n: number) => string, service: BusinessService, dateStr: string, slotTime: string, customerName: string, dogNames: string[]): string {
+  const dateLabel = new Date(dateStr + "T12:00:00").toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" })
   const lines = [
-    `📅 תזכורת לתור`,
-    `שירות: ${service.name}`,
-    `תאריך: ${dateLabel}`,
-    `שעה: ${slotTime}`,
-    dogNames.length > 0 ? `כלב/ים: ${dogNames.join(", ")}` : "",
-    `מחיר: ${formatPrice(service.price)}`,
+    t("reminder.title"),
+    t("reminder.service", { name: service.name }),
+    t("reminder.date", { date: dateLabel }),
+    t("reminder.time", { time: slotTime }),
+    dogNames.length > 0 ? t("reminder.dogs", { names: dogNames.join(", ") }) : "",
+    t("reminder.price", { price: formatPrice(service.price) }),
   ].filter(Boolean)
   return encodeURIComponent(lines.join("\n"))
 }
@@ -131,24 +134,27 @@ function ServiceIcon({ type, className }: { type: string; className?: string }) 
 
 // ─── Step indicator ─────────────────────────────────────────────────────────
 
-const STEPS_DEFAULT: { key: Step; label: string }[] = [
-  { key: "service", label: "שירות" },
-  { key: "date", label: "תאריך" },
-  { key: "time", label: "שעה" },
-  { key: "customer", label: "פרטים" },
-  { key: "dogs", label: "כלבים" },
-  { key: "confirm", label: "אישור" },
+type StepLabelKey = "service" | "date" | "time" | "dates" | "details" | "dogs" | "confirm"
+
+const STEPS_DEFAULT: { key: Step; labelKey: StepLabelKey }[] = [
+  { key: "service", labelKey: "service" },
+  { key: "date", labelKey: "date" },
+  { key: "time", labelKey: "time" },
+  { key: "customer", labelKey: "details" },
+  { key: "dogs", labelKey: "dogs" },
+  { key: "confirm", labelKey: "confirm" },
 ]
 
-const STEPS_BOARDING: { key: Step; label: string }[] = [
-  { key: "service", label: "שירות" },
-  { key: "boarding-dates", label: "תאריכים" },
-  { key: "customer", label: "פרטים" },
-  { key: "dogs", label: "כלבים" },
-  { key: "confirm", label: "אישור" },
+const STEPS_BOARDING: { key: Step; labelKey: StepLabelKey }[] = [
+  { key: "service", labelKey: "service" },
+  { key: "boarding-dates", labelKey: "dates" },
+  { key: "customer", labelKey: "details" },
+  { key: "dogs", labelKey: "dogs" },
+  { key: "confirm", labelKey: "confirm" },
 ]
 
 function StepIndicator({ current, isBoarding }: { current: Step; isBoarding: boolean }) {
+  const t = useTranslations("booking.bookDetailPage")
   const STEPS = isBoarding ? STEPS_BOARDING : STEPS_DEFAULT
   const currentIdx = STEPS.findIndex((s) => s.key === current)
   if (currentIdx === -1) return null
@@ -157,7 +163,12 @@ function StepIndicator({ current, isBoarding }: { current: Step; isBoarding: boo
     <div className="mb-6">
       {/* Mobile: show current step text */}
       <p className="sm:hidden text-center text-xs text-petra-muted mb-3">
-        שלב {currentIdx + 1} מתוך {STEPS.length}: <span className="font-medium text-brand-700">{STEPS[currentIdx].label}</span>
+        {t.rich("steps.mobileProgress", {
+          current: currentIdx + 1,
+          total: STEPS.length,
+          label: t(`steps.${STEPS[currentIdx].labelKey}`),
+          hl: (c) => <span className="font-medium text-brand-700">{c}</span>,
+        })}
       </p>
       {/* Mobile: progress bar */}
       <div className="sm:hidden h-1.5 bg-slate-200 rounded-full mb-4 overflow-hidden">
@@ -167,7 +178,7 @@ function StepIndicator({ current, isBoarding }: { current: Step; isBoarding: boo
         />
       </div>
       {/* Desktop: step circles */}
-      <ol className="hidden sm:flex items-center justify-center gap-1 overflow-x-auto pb-1" aria-label="שלבי הזמנה">
+      <ol className="hidden sm:flex items-center justify-center gap-1 overflow-x-auto pb-1" aria-label={t("steps.ariaLabel")}>
         {STEPS.map((step, i) => (
           <li key={step.key} className="flex items-center">
             <div
@@ -180,10 +191,10 @@ function StepIndicator({ current, isBoarding }: { current: Step; isBoarding: boo
                 }`}
             >
               {i < currentIdx ? <Check className="w-3.5 h-3.5" aria-hidden="true" /> : i + 1}
-              {i === currentIdx && <span className="sr-only">שלב נוכחי: {step.label}</span>}
+              {i === currentIdx && <span className="sr-only">{t("steps.currentSr", { label: t(`steps.${step.labelKey}`) })}</span>}
             </div>
-            <span className={`ml-1 mr-2 text-xs ${i === currentIdx ? "text-brand-700 font-medium" : "text-slate-400"}`}>
-              {step.label}
+            <span className={`me-1 ms-2 text-xs ${i === currentIdx ? "text-brand-700 font-medium" : "text-slate-400"}`}>
+              {t(`steps.${step.labelKey}`)}
             </span>
             {i < STEPS.length - 1 && <div className="w-4 h-px bg-slate-300 mx-1" aria-hidden="true" />}
           </li>
@@ -197,6 +208,9 @@ function StepIndicator({ current, isBoarding }: { current: Step; isBoarding: boo
 
 export default function BookingPage({ params }: { params: { slug: string } }) {
   const { slug } = params
+  const t = useTranslations("booking.bookDetailPage")
+  const locale = localeFromBusiness({ locale: useLocale() })
+  const cfg = LOCALE_CONFIG[locale]
 
   // Business data
   const [business, setBusiness] = useState<BusinessInfo | null>(null)
@@ -251,18 +265,19 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
   // ── Dynamic page title ────────────────────────────────────────────────────
   useEffect(() => {
     if (!business) return
+    const v = { business: business.name }
     const labels: Partial<Record<Step, string>> = {
-      service: `${business.name} — בחר שירות`,
-      date: `${business.name} — בחר תאריך`,
-      time: `${business.name} — בחר שעה`,
-      "boarding-dates": `${business.name} — תאריכי פנסיון`,
-      customer: `${business.name} — פרטי לקוח`,
-      dogs: `${business.name} — בחירת כלב`,
-      confirm: `${business.name} — אישור הזמנה`,
-      done: `${business.name} — הזמנה אושרה`,
+      service: t("pageTitle.service", v),
+      date: t("pageTitle.date", v),
+      time: t("pageTitle.time", v),
+      "boarding-dates": t("pageTitle.boardingDates", v),
+      customer: t("pageTitle.customer", v),
+      dogs: t("pageTitle.dogs", v),
+      confirm: t("pageTitle.confirm", v),
+      done: t("pageTitle.done", v),
     }
-    document.title = labels[step] ?? `${business.name} — קביעת תור אונליין`
-  }, [step, business])
+    document.title = labels[step] ?? t("pageTitle.default", v)
+  }, [step, business, t])
 
   // ── Load business ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -272,8 +287,8 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
         if (data.error) setLoadError(data.error)
         else setBusiness(data.business)
       })
-      .catch(() => setLoadError("שגיאה בטעינת העמוד"))
-  }, [slug])
+      .catch(() => setLoadError(t("errors.loadPage")))
+  }, [slug]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Load slots when date+service changes ──────────────────────────────────
   const loadSlots = useCallback(
@@ -336,7 +351,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
       })
       const data = await res.json()
       if (!res.ok) {
-        setSubmitError(data.error ?? "שגיאה ביצירת ההזמנה")
+        setSubmitError(data.error ?? t("errors.createBooking"))
       } else {
         setBookingResult(data)
         // If deposit required, show deposit payment step before done
@@ -411,19 +426,19 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
 
   if (loadError) {
     return (
-      <div className="min-h-screen bg-petra-bg flex items-center justify-center p-4" dir="rtl">
+      <div className="min-h-screen bg-petra-bg flex items-center justify-center p-4" dir={cfg.dir}>
         <div className="text-center max-w-sm">
           <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
             <PawPrint className="w-7 h-7 text-slate-400" />
           </div>
-          <h1 className="text-xl font-bold text-petra-text mb-2">העסק לא נמצא</h1>
+          <h1 className="text-xl font-bold text-petra-text mb-2">{t("notFound.title")}</h1>
           <p className="text-petra-muted mb-1">{loadError}</p>
-          <p className="text-sm text-petra-muted mb-5">ייתכן שהקישור שגוי או שהעסק כבר לא פעיל</p>
+          <p className="text-sm text-petra-muted mb-5">{t("notFound.body")}</p>
           <a
             href="https://petra-app.com"
             className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-brand-500 text-white text-sm font-medium hover:bg-brand-600 transition-colors"
           >
-            חזרה לדף הבית
+            {t("notFound.backHome")}
           </a>
         </div>
       </div>
@@ -443,6 +458,11 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
     return dow <= 4
   }
 
+  // The BUSINESS's currency, never the visitor's locale default (review finding): until
+  // /api/book/[slug] returns it, fall back to the platform default (he-IL → ILS) as before.
+  const currency = business.currency || LOCALE_CONFIG[DEFAULT_LOCALE].currency
+  const formatPrice = (price: number) => formatCurrency(price, { locale, currency })
+
   const today = toDateStr(new Date())
   const calDates = getDatesForMonth(calMonth.year, calMonth.month)
   const firstDow = new Date(calMonth.year, calMonth.month, 1).getDay()
@@ -450,7 +470,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
 
   // ─── Render card ──────────────────────────────────────────────────────────
   return (
-    <main id="main-content" className="min-h-screen bg-petra-bg" dir="rtl">
+    <main id="main-content" className="min-h-screen bg-petra-bg" dir={cfg.dir}>
       {/* Header */}
       <header className="bg-white/95 backdrop-blur-sm border-b border-petra-border sticky top-0 z-10">
         <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">
@@ -463,7 +483,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
           )}
           <div className="flex-1 min-w-0">
             <h1 className="font-bold text-petra-text text-sm leading-tight truncate">{business.name}</h1>
-            <p className="text-xs text-petra-muted">קביעת תור אונליין</p>
+            <p className="text-xs text-petra-muted">{t("header.subtitle")}</p>
           </div>
           {business.address && (
             <a
@@ -482,7 +502,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
       {/* Main card */}
       <div className="max-w-lg mx-auto px-4 py-6">
         {step !== "done" && step !== "deposit" && (
-          <nav aria-label="שלבי הזמנה">
+          <nav aria-label={t("steps.ariaLabel")}>
             <StepIndicator current={step} isBoarding={selectedService?.type === "boarding"} />
           </nav>
         )}
@@ -497,14 +517,14 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                   {business.bookingWelcomeText}
                 </div>
               )}
-              <h2 className="text-lg font-bold text-petra-text mb-1">בחר שירות</h2>
-              <p className="text-sm text-petra-muted mb-4">מה תרצה לקבוע?</p>
+              <h2 className="text-lg font-bold text-petra-text mb-1">{t("service.title")}</h2>
+              <p className="text-sm text-petra-muted mb-4">{t("service.subtitle")}</p>
               {business.services.length === 0 ? (
                 <div className="empty-state">
                   <div className="empty-state-icon">
                     <Calendar className="w-6 h-6 text-slate-400" />
                   </div>
-                  <p className="text-petra-muted">אין שירותים זמינים כרגע</p>
+                  <p className="text-petra-muted">{t("service.empty")}</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -522,7 +542,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                           setStep("date")
                         }
                       }}
-                      className="w-full text-right p-4 rounded-xl border-2 border-petra-border hover:border-brand-300 hover:bg-brand-50/40 transition-all group"
+                      className="w-full text-start p-4 rounded-xl border-2 border-petra-border hover:border-brand-300 hover:bg-brand-50/40 transition-all group"
                     >
                       <div className="flex items-center gap-3">
                         {/* Service color + icon */}
@@ -541,7 +561,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                           <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                             <span className="font-semibold text-petra-text group-hover:text-brand-700 leading-tight">{svc.name}</span>
                             {svc.depositRequired && svc.depositAmount && (
-                              <span className="text-[10px] bg-brand-50 text-brand-600 border border-brand-100 px-1.5 py-0.5 rounded-full font-medium flex-shrink-0">מקדמה</span>
+                              <span className="text-[10px] bg-brand-50 text-brand-600 border border-brand-100 px-1.5 py-0.5 rounded-full font-medium flex-shrink-0">{t("service.deposit")}</span>
                             )}
                           </div>
                           {svc.description && (
@@ -550,14 +570,14 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                           {svc.type !== "boarding" && svc.duration ? (
                             <div className="flex items-center gap-2 text-xs text-petra-muted">
                               <span className="flex items-center gap-1">
-                                <Clock className="w-3 h-3" />{svc.duration} דקות
+                                <Clock className="w-3 h-3" />{t("service.minutes", { count: svc.duration })}
                               </span>
                             </div>
                           ) : null}
                         </div>
-                        <div className="text-right flex-shrink-0">
+                        <div className="text-start flex-shrink-0">
                           <span className="font-bold text-petra-text text-base">{formatPrice(svc.price)}</span>
-                          <ChevronLeft className="w-4 h-4 text-slate-400 group-hover:text-brand-500 mx-auto mt-0.5" />
+                          <ChevronLeft className="w-4 h-4 text-slate-400 group-hover:text-brand-500 mx-auto mt-0.5 ltr:-scale-x-100" />
                         </div>
                       </div>
                     </button>
@@ -587,9 +607,9 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
             <div className="p-6 animate-fade-in">
               <div className="flex items-center justify-between mb-4">
                 <button onClick={() => setStep("service")} className="text-brand-600 text-sm flex items-center gap-1 hover:text-brand-700 hover:underline">
-                  <ChevronRight className="w-4 h-4" /> חזור
+                  <ChevronRight className="w-4 h-4 ltr:-scale-x-100" /> {t("back")}
                 </button>
-                <h2 className="text-lg font-bold text-petra-text">בחר תאריך</h2>
+                <h2 className="text-lg font-bold text-petra-text">{t("date.title")}</h2>
               </div>
 
               {/* Service summary */}
@@ -598,7 +618,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                   <ServiceIcon type={selectedService.type} className="w-3.5 h-3.5" {...({ style: { color: selectedService.color || "#F97316" } } as any)} />
                 </div>
                 <span className="text-sm font-medium text-brand-800 flex-1 truncate">{selectedService.name}</span>
-                <span className="text-xs text-brand-600 font-medium">{selectedService.duration} דקות</span>
+                <span className="text-xs text-brand-600 font-medium">{t("service.minutes", { count: selectedService.duration })}</span>
               </div>
 
               {/* Calendar navigation */}
@@ -610,18 +630,18 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                   className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors disabled:opacity-30"
                   disabled={isCurrentMonth}
                 >
-                  <ChevronRight className="w-5 h-5 text-petra-muted" />
+                  <ChevronRight className="w-5 h-5 text-petra-muted ltr:-scale-x-100" />
                 </button>
                 <div className="flex items-center gap-2">
                   <span className="font-semibold text-petra-text">
-                    {new Date(calMonth.year, calMonth.month).toLocaleDateString("he-IL", { month: "long", year: "numeric" })}
+                    {new Date(calMonth.year, calMonth.month).toLocaleDateString(locale, { month: "long", year: "numeric" })}
                   </span>
                   {!isCurrentMonth && (
                     <button
                       onClick={() => { const n = new Date(); setCalMonth({ year: n.getFullYear(), month: n.getMonth() }) }}
                       className="text-xs text-brand-600 hover:underline"
                     >
-                      היום
+                      {t("date.today")}
                     </button>
                   )}
                 </div>
@@ -631,14 +651,14 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                   })}
                   className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
                 >
-                  <ChevronLeft className="w-5 h-5 text-petra-muted" />
+                  <ChevronLeft className="w-5 h-5 text-petra-muted ltr:-scale-x-100" />
                 </button>
               </div>
 
               {/* Day headers */}
               <div className="grid grid-cols-7 mb-1">
-                {DAYS_HE_SHORT.map((d) => (
-                  <div key={d} className="text-center text-xs text-petra-muted py-1 font-medium">{d}</div>
+                {WEEKDAY_KEYS.map((d) => (
+                  <div key={d} className="text-center text-xs text-petra-muted py-1 font-medium">{t(`weekdaysShort.${d}`)}</div>
                 ))}
               </div>
 
@@ -667,6 +687,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                     >
                       {date.getDate()}
                       {isToday && !isSelected && (
+                        // rtl-ok: physically centered dot (left-1/2 + -translate-x-1/2), same in both directions
                         <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-brand-500" />
                       )}
                     </button>
@@ -676,8 +697,8 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
 
               {/* Legend */}
               <div className="flex items-center gap-4 mt-3 text-[10px] text-petra-muted">
-                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-brand-50 ring-1 ring-brand-300 inline-block" /> היום</span>
-                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-slate-100 inline-block line-through" /> סגור</span>
+                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-brand-50 ring-1 ring-brand-300 inline-block" /> {t("date.today")}</span>
+                <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-slate-100 inline-block line-through" /> {t("date.closed")}</span>
               </div>
             </div>
           )}
@@ -687,15 +708,15 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
             <div className="p-6 animate-fade-in">
               <div className="flex items-center justify-between mb-4">
                 <button onClick={() => setStep("date")} className="text-brand-600 text-sm flex items-center gap-1 hover:text-brand-700 hover:underline">
-                  <ChevronRight className="w-4 h-4" /> חזור
+                  <ChevronRight className="w-4 h-4 ltr:-scale-x-100" /> {t("back")}
                 </button>
-                <h2 className="text-lg font-bold text-petra-text">בחר שעה</h2>
+                <h2 className="text-lg font-bold text-petra-text">{t("time.title")}</h2>
               </div>
 
               <div className="bg-brand-50 rounded-xl p-3 mb-4 text-sm text-brand-800 flex items-center gap-2 border border-brand-100">
                 <Calendar className="w-4 h-4" />
-                {new Date(selectedDate + "T12:00:00").toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" })}
-                <button onClick={() => setStep("date")} className="ms-auto text-xs text-brand-500 hover:underline">שנה</button>
+                {new Date(selectedDate + "T12:00:00").toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" })}
+                <button onClick={() => setStep("date")} className="ms-auto text-xs text-brand-500 hover:underline">{t("time.change")}</button>
               </div>
 
               {slotsLoading ? (
@@ -707,20 +728,20 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                   </div>
                   {capacityReached ? (
                     <>
-                      <p className="text-petra-muted font-medium mb-1">היום מלא</p>
-                      <p className="text-xs text-petra-muted mb-3">הגענו לקיבולת המקסימלית ביום זה. נסה לבחור תאריך אחר</p>
+                      <p className="text-petra-muted font-medium mb-1">{t("time.fullTitle")}</p>
+                      <p className="text-xs text-petra-muted mb-3">{t("time.fullBody")}</p>
                     </>
                   ) : (
                     <>
-                      <p className="text-petra-muted font-medium mb-1">אין זמינות ביום זה</p>
-                      <p className="text-xs text-petra-muted mb-3">נסה לבחור תאריך אחר</p>
+                      <p className="text-petra-muted font-medium mb-1">{t("time.noAvailabilityTitle")}</p>
+                      <p className="text-xs text-petra-muted mb-3">{t("time.noAvailabilityBody")}</p>
                     </>
                   )}
-                  <button onClick={() => setStep("date")} className="btn-secondary text-sm">בחר תאריך אחר</button>
+                  <button onClick={() => setStep("date")} className="btn-secondary text-sm">{t("time.pickOtherDate")}</button>
                 </div>
               ) : (
                 <>
-                  <p className="text-xs text-petra-muted mb-3">{slots.length} שעות זמינות</p>
+                  <p className="text-xs text-petra-muted mb-3">{t("time.available", { count: slots.length })}</p>
                   <div className="grid grid-cols-3 gap-2">
                     {slots.map((slot) => (
                       <button
@@ -745,9 +766,9 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
             <div className="p-6 animate-fade-in">
               <div className="flex items-center justify-between mb-4">
                 <button onClick={() => setStep("service")} className="text-brand-600 text-sm flex items-center gap-1 hover:text-brand-700 hover:underline">
-                  <ChevronRight className="w-4 h-4" /> חזור
+                  <ChevronRight className="w-4 h-4 ltr:-scale-x-100" /> {t("back")}
                 </button>
-                <h2 className="text-lg font-bold text-petra-text">תאריכי פנסיון</h2>
+                <h2 className="text-lg font-bold text-petra-text">{t("boarding.title")}</h2>
               </div>
 
               {/* Service summary */}
@@ -756,7 +777,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                   <ServiceIcon type={selectedService.type} className="w-3.5 h-3.5" {...({ style: { color: selectedService.color || "#F97316" } } as any)} />
                 </div>
                 <span className="text-sm font-medium text-brand-800 flex-1 truncate">{selectedService.name}</span>
-                <span className="text-xs text-brand-600 font-medium">{formatPrice(selectedService.price)} / לילה</span>
+                <span className="text-xs text-brand-600 font-medium">{t("boarding.perNight", { price: formatPrice(selectedService.price) })}</span>
               </div>
 
               <div className="space-y-5">
@@ -766,13 +787,13 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                     <div className="w-6 h-6 rounded-lg bg-emerald-100 flex items-center justify-center">
                       <Calendar className="w-3.5 h-3.5 text-emerald-600" />
                     </div>
-                    צ׳ק-אין
+                    {t("boarding.checkIn")}
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-medium text-petra-muted mb-1">תאריך *</label>
+                      <label className="block text-xs font-medium text-petra-muted mb-1">{t("boarding.dateLabel")}</label>
                       <input
-                        type="date" lang="he"
+                        type="date" lang={cfg.lang}
                         className="input"
                         value={boardingCheckInDate}
                         min={toDateStr(new Date())}
@@ -786,7 +807,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-petra-muted mb-1">שעה</label>
+                      <label className="block text-xs font-medium text-petra-muted mb-1">{t("boarding.timeLabel")}</label>
                       <input
                         type="time"
                         className="input"
@@ -803,13 +824,13 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                     <div className="w-6 h-6 rounded-lg bg-blue-100 flex items-center justify-center">
                       <Calendar className="w-3.5 h-3.5 text-blue-600" />
                     </div>
-                    צ׳ק-אאוט
+                    {t("boarding.checkOut")}
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-medium text-petra-muted mb-1">תאריך *</label>
+                      <label className="block text-xs font-medium text-petra-muted mb-1">{t("boarding.dateLabel")}</label>
                       <input
-                        type="date" lang="he"
+                        type="date" lang={cfg.lang}
                         className="input"
                         value={boardingCheckOutDate}
                         min={boardingCheckInDate || toDateStr(new Date())}
@@ -818,7 +839,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-petra-muted mb-1">שעה</label>
+                      <label className="block text-xs font-medium text-petra-muted mb-1">{t("boarding.timeLabel")}</label>
                       <input
                         type="time"
                         className="input"
@@ -836,13 +857,15 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                       const nights = Math.ceil((new Date(boardingCheckOutDate).getTime() - new Date(boardingCheckInDate).getTime()) / 86400000)
                       return nights > 0 ? (
                         <span>
-                          <span className="font-bold text-petra-text">{nights}</span> לילות ·{" "}
-                          {new Date(boardingCheckInDate + "T12:00:00").toLocaleDateString("he-IL", { day: "numeric", month: "short" })}
-                          {" — "}
-                          {new Date(boardingCheckOutDate + "T12:00:00").toLocaleDateString("he-IL", { day: "numeric", month: "short" })}
+                          {t.rich("boarding.nightsRange", {
+                            count: nights,
+                            from: new Date(boardingCheckInDate + "T12:00:00").toLocaleDateString(locale, { day: "numeric", month: "short" }),
+                            to: new Date(boardingCheckOutDate + "T12:00:00").toLocaleDateString(locale, { day: "numeric", month: "short" }),
+                            b: (c) => <span className="font-bold text-petra-text">{c}</span>,
+                          })}
                         </span>
                       ) : (
-                        <span className="text-red-500">תאריך יציאה חייב להיות לאחר תאריך הכניסה</span>
+                        <span className="text-red-500">{t("boarding.invalidRange")}</span>
                       )
                     })()}
                   </div>
@@ -853,7 +876,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                   onClick={() => setStep("customer")}
                   className="btn-primary w-full py-3 justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  המשך
+                  {t("continue")}
                 </button>
               </div>
             </div>
@@ -864,27 +887,27 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
             <div className="p-6 animate-fade-in">
               <div className="flex items-center justify-between mb-4">
                 <button onClick={() => setStep(selectedService?.type === "boarding" ? "boarding-dates" : "time")} className="text-brand-600 text-sm flex items-center gap-1 hover:text-brand-700 hover:underline">
-                  <ChevronRight className="w-4 h-4" /> חזור
+                  <ChevronRight className="w-4 h-4 ltr:-scale-x-100" /> {t("back")}
                 </button>
-                <h2 className="text-lg font-bold text-petra-text">פרטי בעל הכלב</h2>
+                <h2 className="text-lg font-bold text-petra-text">{t("customer.title")}</h2>
               </div>
 
               <div className="space-y-4">
                 <div>
-                  <label className="label">מספר טלפון *</label>
+                  <label className="label">{t("customer.phoneLabel")}</label>
                   <div className="flex gap-2 relative">
                     <input
                       type="tel"
                       value={phone}
                       onChange={(e) => { setPhone(e.target.value); if (phoneError) setPhoneError("") }}
-                      onBlur={() => { if (phone && !validatePhone(phone)) setPhoneError("מספר טלפון לא תקין (לדוגמה: 050-1234567)") }}
-                      placeholder="050-0000000"
+                      onBlur={() => { if (phone && !validatePhone(phone)) setPhoneError(t("errors.phoneInvalid")) }}
+                      placeholder={t("customer.phonePlaceholder")}
                       className={`input flex-1 text-right ${phoneError ? "border-red-400 focus:ring-red-300" : ""}`}
                       dir="ltr"
                       autoComplete="tel"
                     />
                     {isLookingUpPhone && (
-                      <div className="absolute left-3 top-1/2 -translate-y-1/2">
+                      <div className="absolute end-3 top-1/2 -translate-y-1/2">
                         <div className="animate-spin w-4 h-4 border-2 border-brand-400 border-t-transparent rounded-full" />
                       </div>
                     )}
@@ -898,13 +921,13 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                       onClick={() => setIsNewCustomer(false)}
                       className="flex-1 py-2.5 text-sm border border-petra-border rounded-xl hover:bg-slate-50 text-petra-text transition-colors"
                     >
-                      לקוח קיים
+                      {t("customer.existing")}
                     </button>
                     <button
                       onClick={() => setIsNewCustomer(true)}
                       className="flex-1 py-2.5 text-sm bg-brand-50 border border-brand-200 text-brand-700 rounded-xl hover:bg-brand-100 transition-colors"
                     >
-                      לקוח חדש
+                      {t("customer.new")}
                     </button>
                   </div>
                 )}
@@ -912,24 +935,24 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                 {isNewCustomer === true && (
                   <>
                     <div>
-                      <label className="label">שם מלא *</label>
+                      <label className="label">{t("customer.nameLabel")}</label>
                       <input
                         type="text"
                         value={customerName}
                         onChange={(e) => { setCustomerName(e.target.value); if (nameError) setNameError("") }}
-                        placeholder="ישראל ישראלי"
+                        placeholder={t("customer.namePlaceholder")}
                         className={`input ${nameError ? "border-red-400 focus:ring-red-300" : ""}`}
                         autoComplete="name"
                       />
                       {nameError && <p className="text-xs text-red-600 mt-1">{nameError}</p>}
                     </div>
                     <div>
-                      <label className="label">אימייל</label>
+                      <label className="label">{t("customer.emailLabel")}</label>
                       <input
                         type="email"
                         value={customerEmail}
                         onChange={(e) => { setCustomerEmail(e.target.value); if (emailError) setEmailError("") }}
-                        onBlur={() => { if (customerEmail && !validateEmail(customerEmail)) setEmailError("כתובת אימייל לא תקינה") }}
+                        onBlur={() => { if (customerEmail && !validateEmail(customerEmail)) setEmailError(t("errors.emailInvalid")) }}
                         placeholder="example@email.com"
                         className={`input ${emailError ? "border-red-400 focus:ring-red-300" : ""}`}
                         dir="ltr"
@@ -938,22 +961,22 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                       {emailError && <p className="text-xs text-red-600 mt-1">{emailError}</p>}
                     </div>
                     <div>
-                      <label className="label">כתובת</label>
+                      <label className="label">{t("customer.addressLabel")}</label>
                       <input
                         type="text"
                         value={customerAddress}
                         onChange={(e) => setCustomerAddress(e.target.value)}
-                        placeholder="עיר, רחוב..."
+                        placeholder={t("customer.addressPlaceholder")}
                         className="input"
                         autoComplete="street-address"
                       />
                     </div>
                     <div>
-                      <label className="label">הערות</label>
+                      <label className="label">{t("customer.notesLabel")}</label>
                       <textarea
                         value={customerNotes}
                         onChange={(e) => setCustomerNotes(e.target.value)}
-                        placeholder="מידע נוסף שחשוב לנו לדעת..."
+                        placeholder={t("customer.notesPlaceholder")}
                         rows={2}
                         className="input resize-none"
                       />
@@ -965,11 +988,11 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                   <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-sm text-emerald-800">
                     <div className="flex items-center gap-2 font-semibold mb-1">
                       <Check className="w-5 h-5 text-emerald-600 flex-shrink-0" />
-                      שלום {customerName}! מצאנו אותך 👋
+                      {t("customer.found", { name: customerName })}
                     </div>
                     {existingDogNames.length > 0 && (
                       <p className="text-emerald-700 text-xs">
-                        הכלבים שלך: <span className="font-medium">{existingDogNames.join(", ")}</span>
+                        {t.rich("customer.yourDogs", { names: existingDogNames.join(", "), b: (c) => <span className="font-medium">{c}</span> })}
                       </p>
                     )}
                   </div>
@@ -978,14 +1001,14 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                 <button
                   disabled={!phone || !validatePhone(phone) || isNewCustomer === null || isLookingUpPhone || (isNewCustomer === true && customerName.trim().length < 2)}
                   onClick={() => {
-                    if (!validatePhone(phone)) { setPhoneError("מספר טלפון לא תקין (לדוגמה: 050-1234567)"); return }
-                    if (isNewCustomer === true && customerName.trim().length < 2) { setNameError("שם חייב להכיל לפחות 2 תווים"); return }
-                    if (isNewCustomer === true && !validateEmail(customerEmail)) { setEmailError("כתובת אימייל לא תקינה"); return }
+                    if (!validatePhone(phone)) { setPhoneError(t("errors.phoneInvalid")); return }
+                    if (isNewCustomer === true && customerName.trim().length < 2) { setNameError(t("errors.nameMin")); return }
+                    if (isNewCustomer === true && !validateEmail(customerEmail)) { setEmailError(t("errors.emailInvalid")); return }
                     setStep("dogs")
                   }}
                   className="btn-primary w-full py-3 justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  המשך
+                  {t("continue")}
                 </button>
               </div>
             </div>
@@ -996,9 +1019,9 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
             <div className="p-6 animate-fade-in">
               <div className="flex items-center justify-between mb-4">
                 <button onClick={() => setStep("customer")} className="text-brand-600 text-sm flex items-center gap-1 hover:text-brand-700 hover:underline">
-                  <ChevronRight className="w-4 h-4" /> חזור
+                  <ChevronRight className="w-4 h-4 ltr:-scale-x-100" /> {t("back")}
                 </button>
-                <h2 className="text-lg font-bold text-petra-text">בחירת כלב לשירות</h2>
+                <h2 className="text-lg font-bold text-petra-text">{t("dogs.title")}</h2>
               </div>
 
               {/* Service context banner */}
@@ -1006,7 +1029,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                 <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: selectedService.color ? `${selectedService.color}33` : "#FFF0E0" }}>
                   <ServiceIcon type={selectedService.type} className="w-3.5 h-3.5" {...({ style: { color: selectedService.color || "#F97316" } } as any)} />
                 </div>
-                <span className="text-sm font-medium text-brand-800">בחר כלב עבור: {selectedService.name}</span>
+                <span className="text-sm font-medium text-brand-800">{t("dogs.forService", { service: selectedService.name })}</span>
               </div>
 
               <div className="space-y-4">
@@ -1018,14 +1041,14 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                       {dogs.length > 1 && dog.isNew && (
                         <button
                           onClick={() => setDogs((d) => d.filter((_, i) => i !== idx))}
-                          className="absolute top-1 left-1 p-2 text-slate-400 hover:text-red-500 transition-colors"
+                          className="absolute top-1 end-1 p-2 text-slate-400 hover:text-red-500 transition-colors"
                         >
                           <X className="w-4 h-4" />
                         </button>
                       )}
 
                       {!dog.isNew && (
-                        <div className="absolute top-0 right-0 w-full h-full cursor-pointer z-10"
+                        <div className="absolute top-0 start-0 w-full h-full cursor-pointer z-10"
                           onClick={() => {
                             if (isSelected) {
                               setDogs(d => d.map((x, i) => i === idx ? { ...x, name: "" } : x))
@@ -1037,23 +1060,23 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                       )}
 
                       {!dog.isNew && (
-                        <div className="absolute top-3 left-3 flex items-center gap-1.5">
+                        <div className="absolute top-3 end-3 flex items-center gap-1.5">
                           {isSelected && <Check className="w-4 h-4 text-brand-600" />}
                           <span className="text-xs bg-brand-100 text-brand-700 font-medium px-2 py-0.5 rounded-md">
-                            שמור במערכת
+                            {t("dogs.saved")}
                           </span>
                         </div>
                       )}
 
                       <div className="space-y-3">
                         <div>
-                          <label className="block text-xs font-medium text-petra-muted mb-1">שם הכלב *</label>
+                          <label className="block text-xs font-medium text-petra-muted mb-1">{t("dogs.nameLabel")}</label>
                           <input
                             type="text"
                             value={dog.isNew ? dog.name : (dog.originalName || dog.name)}
                             disabled={!dog.isNew}
                             onChange={(e) => setDogs((d) => d.map((x, i) => i === idx ? { ...x, name: e.target.value } : x))}
-                            placeholder="בוקסר, רקסי..."
+                            placeholder={t("dogs.namePlaceholder")}
                             className="input text-sm disabled:bg-slate-50 disabled:text-slate-500"
                           />
                         </div>
@@ -1061,42 +1084,42 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                           <>
                             <div className="grid grid-cols-2 gap-2">
                               <div>
-                                <label className="block text-xs font-medium text-petra-muted mb-1">גזע</label>
+                                <label className="block text-xs font-medium text-petra-muted mb-1">{t("dogs.breedLabel")}</label>
                                 <input
                                   type="text"
                                   value={dog.breed}
                                   onChange={(e) => setDogs((d) => d.map((x, i) => i === idx ? { ...x, breed: e.target.value } : x))}
-                                  placeholder="לברדור..."
+                                  placeholder={t("dogs.breedPlaceholder")}
                                   className="input text-sm"
                                 />
                               </div>
                               <div>
-                                <label className="block text-xs font-medium text-petra-muted mb-1">מין</label>
+                                <label className="block text-xs font-medium text-petra-muted mb-1">{t("dogs.sexLabel")}</label>
                                 <select
                                   value={dog.sex}
                                   onChange={(e) => setDogs((d) => d.map((x, i) => i === idx ? { ...x, sex: e.target.value } : x))}
                                   className="input text-sm bg-white"
                                 >
-                                  <option value="">לא ידוע</option>
-                                  <option value="male">זכר</option>
-                                  <option value="female">נקבה</option>
+                                  <option value="">{t("dogs.sexUnknown")}</option>
+                                  <option value="male">{t("dogs.male")}</option>
+                                  <option value="female">{t("dogs.female")}</option>
                                 </select>
                               </div>
                             </div>
                             <div>
-                              <label className="block text-xs font-medium text-petra-muted mb-1">הערות רפואיות / אחר</label>
+                              <label className="block text-xs font-medium text-petra-muted mb-1">{t("dogs.notesLabel")}</label>
                               <input
                                 type="text"
                                 value={dog.notes}
                                 onChange={(e) => setDogs((d) => d.map((x, i) => i === idx ? { ...x, notes: e.target.value } : x))}
-                                placeholder="אלרגיות, מידע רפואי..."
+                                placeholder={t("dogs.notesPlaceholder")}
                                 className="input text-sm"
                               />
                             </div>
                           </>
                         )}
                         {!dog.isNew && dog.breed && (
-                          <p className="text-xs text-petra-muted">גזע: {dog.breed}</p>
+                          <p className="text-xs text-petra-muted">{t("dogs.breedValue", { breed: dog.breed })}</p>
                         )}
                       </div>
                     </div>
@@ -1106,18 +1129,18 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                   onClick={() => setDogs((d) => [...d, { name: "", breed: "", sex: "", notes: "", isNew: true }])}
                   className="w-full py-2.5 border-2 border-dashed border-petra-border rounded-xl text-sm text-petra-muted hover:border-brand-300 hover:text-brand-600 flex items-center justify-center gap-1 transition-colors"
                 >
-                  <Plus className="w-4 h-4" /> הוסף כלב נוסף
+                  <Plus className="w-4 h-4" /> {t("dogs.addDog")}
                 </button>
 
                 {dogs.every((d) => !d.name.trim()) && (
-                  <p className="text-xs text-amber-600 text-center">יש להזין שם כלב אחד לפחות</p>
+                  <p className="text-xs text-amber-600 text-center">{t("dogs.needOne")}</p>
                 )}
                 <button
                   disabled={dogs.every((d) => !d.name.trim())}
                   onClick={() => setStep("confirm")}
                   className="btn-primary w-full py-3 justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  המשך לאישור
+                  {t("dogs.continue")}
                 </button>
               </div>
             </div>
@@ -1128,9 +1151,9 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
             <div className="p-6 animate-fade-in">
               <div className="flex items-center justify-between mb-4">
                 <button onClick={() => setStep("dogs")} className="text-brand-600 text-sm flex items-center gap-1 hover:text-brand-700 hover:underline">
-                  <ChevronRight className="w-4 h-4" /> חזור
+                  <ChevronRight className="w-4 h-4 ltr:-scale-x-100" /> {t("back")}
                 </button>
-                <h2 className="text-lg font-bold text-petra-text">אישור הזמנה</h2>
+                <h2 className="text-lg font-bold text-petra-text">{t("confirm.title")}</h2>
               </div>
 
               <div className="space-y-4">
@@ -1141,9 +1164,9 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                       <ServiceIcon type={selectedService.type} className="w-4 h-4" {...({ style: { color: selectedService.color || "#F97316" } } as any)} />
                     </div>
                     <div>
-                      <p className="text-xs text-petra-muted">שירות</p>
+                      <p className="text-xs text-petra-muted">{t("confirm.service")}</p>
                       <p className="font-semibold text-petra-text">{selectedService.name}</p>
-                      <p className="text-sm text-petra-muted">{selectedService.duration} דקות · {formatPrice(selectedService.price)}</p>
+                      <p className="text-sm text-petra-muted">{t("confirm.durationPrice", { count: selectedService.duration, price: formatPrice(selectedService.price) })}</p>
                     </div>
                   </div>
 
@@ -1154,24 +1177,24 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                     <div>
                       {selectedService.type === "boarding" ? (
                         <>
-                          <p className="text-xs text-petra-muted">תאריכי פנסיון</p>
+                          <p className="text-xs text-petra-muted">{t("confirm.boardingDates")}</p>
                           <p className="font-semibold text-petra-text">
-                            כניסה: {new Date(boardingCheckInDate + "T12:00:00").toLocaleDateString("he-IL", { weekday: "short", day: "numeric", month: "long" })} בשעה {boardingCheckInTime}
+                            {t("confirm.checkInAt", { date: new Date(boardingCheckInDate + "T12:00:00").toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "long" }), time: boardingCheckInTime })}
                           </p>
                           <p className="font-semibold text-petra-text">
-                            יציאה: {new Date(boardingCheckOutDate + "T12:00:00").toLocaleDateString("he-IL", { weekday: "short", day: "numeric", month: "long" })} בשעה {boardingCheckOutTime}
+                            {t("confirm.checkOutAt", { date: new Date(boardingCheckOutDate + "T12:00:00").toLocaleDateString(locale, { weekday: "short", day: "numeric", month: "long" }), time: boardingCheckOutTime })}
                           </p>
                           <p className="text-sm text-petra-muted">
-                            {Math.ceil((new Date(boardingCheckOutDate).getTime() - new Date(boardingCheckInDate).getTime()) / 86400000)} לילות
+                            {t("confirm.nights", { count: Math.ceil((new Date(boardingCheckOutDate).getTime() - new Date(boardingCheckInDate).getTime()) / 86400000) })}
                           </p>
                         </>
                       ) : (
                         <>
-                          <p className="text-xs text-petra-muted">מועד</p>
+                          <p className="text-xs text-petra-muted">{t("confirm.when")}</p>
                           <p className="font-semibold text-petra-text">
-                            {new Date(selectedDate + "T12:00:00").toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                            {new Date(selectedDate + "T12:00:00").toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
                           </p>
-                          <p className="text-sm text-petra-muted">שעה {selectedSlot!.time}</p>
+                          <p className="text-sm text-petra-muted">{t("confirm.timeAt", { time: selectedSlot!.time })}</p>
                         </>
                       )}
                     </div>
@@ -1182,8 +1205,8 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                       <User className="w-4 h-4 text-emerald-600" />
                     </div>
                     <div>
-                      <p className="text-xs text-petra-muted">בעל הכלב</p>
-                      <p className="font-semibold text-petra-text">{customerName || "לקוח קיים"}</p>
+                      <p className="text-xs text-petra-muted">{t("confirm.owner")}</p>
+                      <p className="font-semibold text-petra-text">{customerName || t("customer.existing")}</p>
                       <p className="text-sm text-petra-muted">{phone}</p>
                       {customerEmail && (
                         <p className="text-sm text-petra-muted flex items-center gap-1"><Mail className="w-3 h-3" />{customerEmail}</p>
@@ -1199,7 +1222,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                       <PawPrint className="w-4 h-4 text-purple-600" />
                     </div>
                     <div>
-                      <p className="text-xs text-petra-muted">כלבים</p>
+                      <p className="text-xs text-petra-muted">{t("confirm.dogs")}</p>
                       {dogs.filter((d) => d.name.trim()).map((d, i) => (
                         <p key={i} className="font-semibold text-petra-text">{d.name}{d.breed ? ` (${d.breed})` : ""}</p>
                       ))}
@@ -1209,19 +1232,19 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
 
                 {selectedService.bookingMode === "requires_approval" && (
                   <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700">
-                    ⏳ שירות זה דורש אישור מבעל העסק. תקבל הודעה לאחר האישור.
+                    {t("confirm.requiresApproval")}
                   </div>
                 )}
 
                 {selectedService.depositRequired && selectedService.depositAmount && (
                   <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-xs text-blue-700">
-                    💳 נדרשת מקדמה של {formatPrice(selectedService.depositAmount)} לאישור ההזמנה.
+                    {t("confirm.depositNotice", { amount: formatPrice(selectedService.depositAmount) })}
                   </div>
                 )}
 
                 {business.cancellationPolicy && (
                   <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
-                    <p className="font-semibold mb-1">📋 מדיניות ביטול</p>
+                    <p className="font-semibold mb-1">{t("confirm.cancellationPolicy")}</p>
                     <p className="whitespace-pre-wrap">{business.cancellationPolicy}</p>
                   </div>
                 )}
@@ -1240,7 +1263,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                   ) : (
                     <>
                       <Check className="w-5 h-5" />
-                      אשר הזמנה
+                      {t("confirm.submit")}
                     </>
                   )}
                 </button>
@@ -1255,29 +1278,29 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                 <div className="w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-3">
                   <CreditCard className="w-7 h-7 text-amber-600" />
                 </div>
-                <h2 className="text-lg font-bold text-petra-text mb-1">נדרש תשלום מקדמה</h2>
+                <h2 className="text-lg font-bold text-petra-text mb-1">{t("deposit.title")}</h2>
                 <p className="text-sm text-petra-muted">
-                  כדי לשריין את התור, יש לשלם מקדמה
+                  {t("deposit.body")}
                 </p>
               </div>
 
               {/* Deposit details */}
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-amber-800">סכום מקדמה</span>
+                  <span className="text-sm text-amber-800">{t("deposit.amountLabel")}</span>
                   <span className="text-lg font-bold text-amber-900">
                     {formatPrice(selectedService.depositAmount || 0)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-xs text-amber-700">
-                  <span>שירות: {selectedService.name}</span>
-                  <span>מחיר מלא: {formatPrice(selectedService.price)}</span>
+                  <span>{t("deposit.service", { name: selectedService.name })}</span>
+                  <span>{t("deposit.fullPrice", { price: formatPrice(selectedService.price) })}</span>
                 </div>
               </div>
 
               {/* Booking ID */}
               <div className="bg-slate-50 rounded-xl p-3 text-xs text-petra-muted text-center mb-4">
-                <p>מספר הזמנה: <span className="font-mono font-bold text-petra-text text-sm">{bookingResult.bookingId.slice(0, 8).toUpperCase()}</span></p>
+                <p>{t.rich("deposit.bookingNumber", { id: bookingResult.bookingId.slice(0, 8).toUpperCase(), b: (c) => <span className="font-mono font-bold text-petra-text text-sm">{c}</span> })}</p>
               </div>
 
               {/* Payment link or instructions */}
@@ -1290,21 +1313,21 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                     className="btn-primary w-full py-4 justify-center text-lg mb-2"
                   >
                     <ExternalLink className="w-5 h-5" />
-                    לתשלום מקדמה
+                    {t("deposit.payButton")}
                   </a>
-                  <p className="text-center text-xs text-petra-muted mb-3">לחץ על הכפתור לדף התשלום, ואחר כך לחץ ״סיימתי לשלם״</p>
+                  <p className="text-center text-xs text-petra-muted mb-3">{t("deposit.payHint")}</p>
                 </>
               ) : business?.depositInstructions ? (
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-3 text-sm text-blue-800">
-                  <p className="font-semibold mb-2">הוראות תשלום מקדמה:</p>
+                  <p className="font-semibold mb-2">{t("deposit.instructionsTitle")}</p>
                   <p className="whitespace-pre-wrap text-xs">{business.depositInstructions}</p>
                 </div>
               ) : (
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-3 text-sm text-blue-800 text-center">
-                  <p className="font-semibold mb-1">ליצירת קשר לתשלום:</p>
+                  <p className="font-semibold mb-1">{t("deposit.contactTitle")}</p>
                   {business?.phone && (
-                    <a href={`https://api.whatsapp.com/send?phone=${toWhatsAppPhone(business.phone)}&text=${encodeURIComponent(`שלום, קבעתי תור ל${selectedService.name} (מס' ${bookingResult.bookingId.slice(0, 8).toUpperCase()}). אשמח לשלם מקדמה.`)}`} className="text-green-600 hover:underline flex items-center justify-center gap-1 mt-1">
-                      <MessageCircle className="w-4 h-4" /> שלח WhatsApp לתשלום
+                    <a href={`https://api.whatsapp.com/send?phone=${toWhatsAppPhone(business.phone)}&text=${encodeURIComponent(t("deposit.whatsappText", { service: selectedService.name, id: bookingResult.bookingId.slice(0, 8).toUpperCase() }))}`} className="text-green-600 hover:underline flex items-center justify-center gap-1 mt-1">
+                      <MessageCircle className="w-4 h-4" /> {t("deposit.whatsappButton")}
                     </a>
                   )}
                   {business?.email && (
@@ -1319,7 +1342,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                 onClick={() => setStep("done")}
                 className="btn-secondary w-full py-3 justify-center"
               >
-                סיימתי לשלם ✓
+                {t("deposit.done")}
               </button>
             </div>
           )}
@@ -1336,37 +1359,37 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
               </div>
 
               <h2 className="text-xl font-bold text-petra-text mb-1">
-                {bookingResult.status === "confirmed" ? "ההזמנה אושרה! 🎉" : "הבקשה התקבלה"}
+                {bookingResult.status === "confirmed" ? t("done.confirmedTitle") : t("done.requestTitle")}
               </h2>
               <p className="text-petra-muted text-sm mb-2">{bookingResult.message}</p>
 
               {/* Booking ID badge */}
               <div className="inline-flex items-center gap-2 bg-slate-100 rounded-xl px-4 py-2 mb-5">
-                <span className="text-xs text-petra-muted">מספר הזמנה:</span>
+                <span className="text-xs text-petra-muted">{t("done.bookingNumber")}</span>
                 <span className="font-mono font-bold text-petra-text tracking-wider">{bookingResult.bookingId.slice(0, 8).toUpperCase()}</span>
               </div>
 
               {/* Summary */}
-              <div className="bg-slate-50 rounded-xl p-4 text-sm text-right space-y-2 mb-5">
+              <div className="bg-slate-50 rounded-xl p-4 text-sm text-start space-y-2 mb-5">
                 <div className="flex items-center gap-2">
                   <ServiceIcon type={selectedService.type} className="w-4 h-4 text-brand-500 flex-shrink-0" />
-                  <span className="text-petra-muted">שירות:</span>
+                  <span className="text-petra-muted">{t("done.service")}</span>
                   <span className="font-medium text-petra-text">{selectedService.name}</span>
                 </div>
                 {selectedService.type === "boarding" ? (
                   <>
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4 text-blue-500 flex-shrink-0" />
-                      <span className="text-petra-muted">כניסה:</span>
+                      <span className="text-petra-muted">{t("done.checkIn")}</span>
                       <span className="font-medium text-petra-text">
-                        {new Date(boardingCheckInDate + "T12:00:00").toLocaleDateString("he-IL", { day: "numeric", month: "long" })} {boardingCheckInTime}
+                        {new Date(boardingCheckInDate + "T12:00:00").toLocaleDateString(locale, { day: "numeric", month: "long" })} {boardingCheckInTime}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4 text-emerald-500 flex-shrink-0" />
-                      <span className="text-petra-muted">יציאה:</span>
+                      <span className="text-petra-muted">{t("done.checkOut")}</span>
                       <span className="font-medium text-petra-text">
-                        {new Date(boardingCheckOutDate + "T12:00:00").toLocaleDateString("he-IL", { day: "numeric", month: "long" })} {boardingCheckOutTime}
+                        {new Date(boardingCheckOutDate + "T12:00:00").toLocaleDateString(locale, { day: "numeric", month: "long" })} {boardingCheckOutTime}
                       </span>
                     </div>
                   </>
@@ -1374,14 +1397,14 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                   <>
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4 text-blue-500 flex-shrink-0" />
-                      <span className="text-petra-muted">תאריך:</span>
+                      <span className="text-petra-muted">{t("done.date")}</span>
                       <span className="font-medium text-petra-text">
-                        {new Date(selectedDate + "T12:00:00").toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" })}
+                        {new Date(selectedDate + "T12:00:00").toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" })}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
                       <Clock className="w-4 h-4 text-blue-500 flex-shrink-0" />
-                      <span className="text-petra-muted">שעה:</span>
+                      <span className="text-petra-muted">{t("done.time")}</span>
                       <span className="font-medium text-petra-text">{selectedSlot!.time}</span>
                     </div>
                   </>
@@ -1389,7 +1412,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                 {dogs.filter(d => d.name.trim()).length > 0 && (
                   <div className="flex items-center gap-2">
                     <PawPrint className="w-4 h-4 text-purple-500 flex-shrink-0" />
-                    <span className="text-petra-muted">כלב:</span>
+                    <span className="text-petra-muted">{t("done.dog")}</span>
                     <span className="font-medium text-petra-text">{dogs.filter(d => d.name.trim()).map(d => d.name).join(", ")}</span>
                   </div>
                 )}
@@ -1400,26 +1423,26 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                 {/* Add to Google Calendar */}
                 {selectedService.type !== "boarding" && selectedSlot && (
                   <a
-                    href={buildGoogleCalLink(selectedService, selectedDate, selectedSlot.time, business.name, business.address)}
+                    href={buildGoogleCalLink(t, formatPrice, selectedService, selectedDate, selectedSlot.time, business.name, business.address)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors text-sm font-medium"
                   >
                     <CalendarPlus className="w-4 h-4" />
-                    הוסף ליומן Google
+                    {t("done.addToGoogle")}
                   </a>
                 )}
 
                 {/* Send self WA reminder */}
                 {selectedService.type !== "boarding" && selectedSlot && (
                   <a
-                    href={`https://api.whatsapp.com/send?text=${buildWhatsAppReminder(selectedService, selectedDate, selectedSlot.time, customerName, dogs.filter(d => d.name.trim()).map(d => d.name))}`}
+                    href={`https://api.whatsapp.com/send?text=${buildWhatsAppReminder(t, locale, formatPrice, selectedService, selectedDate, selectedSlot.time, customerName, dogs.filter(d => d.name.trim()).map(d => d.name))}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 transition-colors text-sm font-medium"
                   >
                     <MessageCircle className="w-4 h-4" />
-                    שלח לעצמי תזכורת ב-WhatsApp
+                    {t("done.whatsappReminder")}
                   </a>
                 )}
               </div>
@@ -1435,7 +1458,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                 }}
                 className="btn-secondary w-full py-3 justify-center text-sm"
               >
-                הזמן תור נוסף
+                {t("done.bookAnother")}
               </button>
             </div>
           )}
@@ -1444,10 +1467,13 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
 
         {/* Footer */}
         <p className="text-center text-xs text-petra-muted mt-6">
-          מופעל על ידי{" "}
-          <a href="https://petra-app.com" target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-600 hover:underline">
-            Petra
-          </a>
+          {t.rich("footer.poweredBy", {
+            link: (c) => (
+              <a href="https://petra-app.com" target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-600 hover:underline">
+                {c}
+              </a>
+            ),
+          })}
         </p>
       </div>
     </main>

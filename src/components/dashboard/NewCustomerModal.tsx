@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { PawPrint, UserPlus, X, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { validateIsraeliPhone, validateEmail, sanitizeName, validateName, normalizeIsraeliPhone } from "@/lib/validation";
 
@@ -19,8 +20,10 @@ export function NewCustomerModal({
   onClose: () => void;
   onCreated: () => void;
 }) {
+  const t = useTranslations("dashboard.newCustomerModal");
+  const tc = useTranslations("common");
   const queryClient = useQueryClient();
-  const PRESET_TAGS = ["VIP", "קבוע", "מזדמן", "פוטנציאל", "לשעבר", "עסקי"];
+  const PRESET_TAGS = ["VIP", "קבוע", "מזדמן", "פוטנציאל", "לשעבר", "עסקי"]; // i18n-ok — tag values stored on the client (data, Phase 3)
   const [form, setForm] = useState({
     name: "",
     phone: "",
@@ -81,9 +84,9 @@ export function NewCustomerModal({
       setShowPetForm(false);
       setFieldErrors({});
       onCreated();
-      toast.success("הלקוח נוצר בהצלחה");
+      toast.success(t("toasts.created"));
     },
-    onError: (err) => toast.error(err.message || "שגיאה ביצירת הלקוח"),
+    onError: (err) => toast.error(err.message || t("toasts.createError")),
   });
 
   function validateAndSubmitNew() {
@@ -107,8 +110,8 @@ export function NewCustomerModal({
       <div className="modal-content max-w-lg mx-4 p-6">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-xl font-bold text-petra-text">לקוח חדש</h2>
-            <p className="text-sm text-petra-muted mt-0.5">הוסף לקוח למערכת</p>
+            <h2 className="text-xl font-bold text-petra-text">{t("title")}</h2>
+            <p className="text-sm text-petra-muted mt-0.5">{t("subtitle")}</p>
           </div>
           <button
             onClick={onClose}
@@ -120,18 +123,18 @@ export function NewCustomerModal({
 
         <div className="space-y-4">
           <div>
-            <label className="label">שם מלא *</label>
+            <label className="label">{t("fields.name")}</label>
             <input
               className={cn("input", fieldErrors.name && "border-red-300 focus:ring-red-200")}
               value={form.name}
               onChange={(e) => { setForm({ ...form, name: e.target.value }); if (fieldErrors.name) setFieldErrors({ ...fieldErrors, name: undefined }); }}
-              placeholder="שם הלקוח"
+              placeholder={t("fields.namePlaceholder")}
             />
             {fieldErrors.name && <p className="text-xs text-red-500 mt-1">{fieldErrors.name}</p>}
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="label">טלפון *</label>
+              <label className="label">{t("fields.phone")}</label>
               <input
                 className={cn("input text-right", fieldErrors.phone && "border-red-300 focus:ring-red-200")}
                 type="tel"
@@ -144,7 +147,7 @@ export function NewCustomerModal({
               {fieldErrors.phone && <p className="text-xs text-red-500 mt-1">{fieldErrors.phone}</p>}
             </div>
             <div>
-              <label className="label">אימייל</label>
+              <label className="label">{t("fields.email")}</label>
               <input
                 className={cn("input text-right", fieldErrors.email && "border-red-300 focus:ring-red-200")}
                 type="email"
@@ -156,17 +159,17 @@ export function NewCustomerModal({
             </div>
           </div>
           <div>
-            <label className="label">כתובת</label>
+            <label className="label">{t("fields.address")}</label>
             <input
               className="input"
               value={form.address}
               onChange={(e) => setForm({ ...form, address: e.target.value })}
-              placeholder="עיר, רחוב"
+              placeholder={t("fields.addressPlaceholder")}
             />
           </div>
           {/* Tags */}
           <div>
-            <label className="label">תגיות לקוח</label>
+            <label className="label">{t("fields.tags")}</label>
             <div className="flex flex-wrap gap-1.5 mt-1">
               {PRESET_TAGS.map((tag) => (
                 <button
@@ -175,7 +178,7 @@ export function NewCustomerModal({
                   onClick={() => setForm((f) => ({
                     ...f,
                     selectedTags: f.selectedTags.includes(tag)
-                      ? f.selectedTags.filter((t) => t !== tag)
+                      ? f.selectedTags.filter((x) => x !== tag)
                       : [...f.selectedTags, tag],
                   }))}
                   className={`px-3 py-1 rounded-full text-xs font-medium transition-all border ${form.selectedTags.includes(tag)
@@ -193,30 +196,30 @@ export function NewCustomerModal({
           {/* Optional fields */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">סוג שירות מבוקש</label>
+              <label className="label">{t("fields.requestedService")}</label>
               <select className="input" value={form.requestedService} onChange={(e) => setForm({ ...form, requestedService: e.target.value })}>
-                <option value="">בחר...</option>
-                <option value="training">אילוף</option>
-                <option value="grooming">טיפוח</option>
-                <option value="boarding">פנסיון</option>
-                <option value="other">אחר</option>
+                <option value="">{t("fields.choose")}</option>
+                <option value="training">{t("serviceOptions.training")}</option>
+                <option value="grooming">{t("serviceOptions.grooming")}</option>
+                <option value="boarding">{t("serviceOptions.boarding")}</option>
+                <option value="other">{t("other")}</option>
               </select>
             </div>
             <div>
-              <label className="label">מקור הפנייה</label>
+              <label className="label">{t("fields.source")}</label>
               <select className="input" value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })}>
-                <option value="">— לא ידוע —</option>
-                <option value="referral">המלצה מלקוח</option>
-                <option value="google">גוגל</option>
-                <option value="instagram">אינסטגרם</option>
-                <option value="facebook">פייסבוק</option>
-                <option value="tiktok">טיקטוק</option>
-                <option value="signage">שלט / מעבר ברחוב</option>
-                <option value="other">אחר</option>
+                <option value="">{t("sourceOptions.unknown")}</option>
+                <option value="referral">{t("sourceOptions.referral")}</option>
+                <option value="google">{t("sourceOptions.google")}</option>
+                <option value="instagram">{t("sourceOptions.instagram")}</option>
+                <option value="facebook">{t("sourceOptions.facebook")}</option>
+                <option value="tiktok">{t("sourceOptions.tiktok")}</option>
+                <option value="signage">{t("sourceOptions.signage")}</option>
+                <option value="other">{t("other")}</option>
               </select>
             </div>
           </div>
-          <p className="text-[11px] text-petra-muted -mt-2">ניתן להשלים מאוחר יותר</p>
+          <p className="text-[11px] text-petra-muted -mt-2">{t("completeLater")}</p>
 
           {/* Optional pet */}
           <div className="border border-slate-200 rounded-xl overflow-hidden">
@@ -227,8 +230,8 @@ export function NewCustomerModal({
             >
               <span className="flex items-center gap-2">
                 <PawPrint className="w-4 h-4 text-petra-muted" />
-                הוספת חיה
-                <span className="text-[11px] text-petra-muted font-normal">(אופציונלי)</span>
+                {t("pet.add")}
+                <span className="text-[11px] text-petra-muted font-normal">{t("pet.optional")}</span>
               </span>
               {showPetForm ? <ChevronUp className="w-4 h-4 text-petra-muted" /> : <ChevronDown className="w-4 h-4 text-petra-muted" />}
             </button>
@@ -236,26 +239,26 @@ export function NewCustomerModal({
               <div className="px-4 pb-4 pt-1 border-t border-slate-100 space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="label">שם החיה</label>
-                    <input className="input" value={petForm.name} onChange={(e) => setPetForm({ ...petForm, name: e.target.value })} placeholder="בוקי" />
+                    <label className="label">{t("pet.name")}</label>
+                    <input className="input" value={petForm.name} onChange={(e) => setPetForm({ ...petForm, name: e.target.value })} placeholder={t("pet.namePlaceholder")} />
                   </div>
                   <div>
-                    <label className="label">סוג</label>
+                    <label className="label">{t("pet.species")}</label>
                     <select className="input" value={petForm.species} onChange={(e) => setPetForm({ ...petForm, species: e.target.value })}>
-                      <option value="">בחר...</option>
-                      <option value="dog">כלב</option>
-                      <option value="cat">חתול</option>
-                      <option value="other">אחר</option>
+                      <option value="">{t("fields.choose")}</option>
+                      <option value="dog">{t("pet.dog")}</option>
+                      <option value="cat">{t("pet.cat")}</option>
+                      <option value="other">{t("other")}</option>
                     </select>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="label">גזע</label>
-                    <input className="input" value={petForm.breed} onChange={(e) => setPetForm({ ...petForm, breed: e.target.value })} placeholder="לברדור" />
+                    <label className="label">{t("pet.breed")}</label>
+                    <input className="input" value={petForm.breed} onChange={(e) => setPetForm({ ...petForm, breed: e.target.value })} placeholder={t("pet.breedPlaceholder")} />
                   </div>
                   <div>
-                    <label className="label">גיל</label>
+                    <label className="label">{t("pet.age")}</label>
                     <input className="input" value={petForm.age} onChange={(e) => setPetForm({ ...petForm, age: e.target.value })} placeholder="2" />
                   </div>
                 </div>
@@ -264,7 +267,7 @@ export function NewCustomerModal({
           </div>
 
           <div>
-            <label className="label">הערות</label>
+            <label className="label">{t("fields.notes")}</label>
             <textarea
               className="input"
               rows={2}
@@ -281,10 +284,10 @@ export function NewCustomerModal({
             onClick={validateAndSubmitNew}
           >
             <UserPlus className="w-4 h-4" />
-            {mutation.isPending ? "שומר..." : "הוסף לקוח"}
+            {mutation.isPending ? tc("progress.saving") : t("submit")}
           </button>
           <button className="btn-secondary" onClick={onClose}>
-            ביטול
+            {tc("actions.cancel")}
           </button>
         </div>
       </div>

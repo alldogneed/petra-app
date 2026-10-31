@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ShieldCheck, ExternalLink, AlertTriangle, Check, X } from "lucide-react";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { useTranslations } from "next-intl";
 
 export interface ConsentBusiness {
   businessId: string;
@@ -33,19 +34,10 @@ interface ConsentFormProps {
   params: ConsentParams;
 }
 
-const ROLE_LABELS: Record<string, string> = {
-  owner: "בעלים",
-  manager: "מנהל",
-  user: "משתמש",
-  volunteer: "מתנדב",
-};
-
-const PROFILE_HINTS: Record<string, string> = {
-  full: "כל מה שההרשאה שלך בעסק מאפשרת",
-  read: "צפייה בלבד — בלי שינויים",
-};
-
 export function ConsentForm({ clientName, redirectTarget, verified, userEmail, businesses, profiles, params }: ConsentFormProps) {
+  const t = useTranslations("auth.consentForm");
+  const tc = useTranslations("common");
+  const roleLabel = (role: string) => (t.has(`roles.${role}`) ? t(`roles.${role}`) : "");
   const eligible = businesses.filter((b) => b.eligible);
   const [businessId, setBusinessId] = useState<string>(eligible[0]?.businessId ?? "");
   const defaultProfile = verified ? "full" : "read";
@@ -72,13 +64,13 @@ export function ConsentForm({ clientName, redirectTarget, verified, userEmail, b
       });
       const data = (await res.json().catch(() => ({}))) as { redirect?: string; error?: string };
       if (!res.ok || typeof data.redirect !== "string") {
-        setError(data.error || "שגיאה באישור החיבור. נסו שוב.");
+        setError(data.error || t("errors.approveFailed"));
         return;
       }
       setRedirecting(true);
       window.location.href = data.redirect;
     } catch {
-      setError("שגיאת רשת. בדקו את החיבור ונסו שוב.");
+      setError(t("errors.network"));
     } finally {
       setBusy(null);
     }
@@ -101,25 +93,28 @@ export function ConsentForm({ clientName, redirectTarget, verified, userEmail, b
       <div className="card p-6">
         <div className="flex items-center gap-2 text-brand-500 mb-3">
           <ShieldCheck className="w-5 h-5" />
-          <span className="text-xs font-semibold">בקשת גישה לחשבון</span>
+          <span className="text-xs font-semibold">{t("eyebrow")}</span>
         </div>
 
         {/* client name is attacker-controlled → plain text only */}
         <h1 className="text-[22px] font-bold tracking-tight text-petra-text leading-snug break-words">
-          חיבור <span dir="auto">{clientName}</span> לפטרה
+          {t.rich("title", { client: () => <span dir="auto">{clientName}</span> })}
         </h1>
         <p className="text-sm text-petra-muted mt-1.5 leading-relaxed">
-          האפליקציה תוכל לקרוא ולעדכן נתונים בעסק שלך לפי רמת הגישה שתבחר/י כאן.
+          {t("subtitle")}
         </p>
 
         <div className="mt-4 p-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-900 flex items-start gap-2">
           <ExternalLink className="w-4 h-4 mt-0.5 shrink-0" />
           <div>
-            לאחר האישור תועבר/י אל:{" "}
-            <span dir="ltr" className="font-bold break-all">
-              {redirectTarget}
-            </span>
-            <div className="text-xs text-amber-800 mt-0.5">אשר/י רק אם ביקשת עכשיו לחבר עוזר AI לפטרה.</div>
+            {t.rich("redirectNotice", {
+              target: () => (
+                <span dir="ltr" className="font-bold break-all">
+                  {redirectTarget}
+                </span>
+              ),
+            })}
+            <div className="text-xs text-amber-800 mt-0.5">{t("redirectWarning")}</div>
           </div>
         </div>
 
@@ -129,16 +124,19 @@ export function ConsentForm({ clientName, redirectTarget, verified, userEmail, b
             className="mt-3 p-3 rounded-xl bg-red-50 border border-red-200 text-sm text-red-700 flex items-start gap-2"
           >
             <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
-            <span className="font-semibold">אפליקציה לא מאומתת — ודא/י שאת/ה סומך/ת על היעד לפני האישור</span>
+            <span className="font-semibold">{t("unverified")}</span>
           </div>
         )}
 
         <div className="mt-4 flex items-center justify-between gap-2 text-xs text-petra-muted">
           <span className="truncate">
-            מחובר/ת בתור{" "}
-            <span dir="ltr" className="font-medium text-petra-text">
-              {userEmail}
-            </span>
+            {t.rich("signedInAs", {
+              email: () => (
+                <span dir="ltr" className="font-medium text-petra-text">
+                  {userEmail}
+                </span>
+              ),
+            })}
           </span>
           <button
             type="button"
@@ -146,7 +144,7 @@ export function ConsentForm({ clientName, redirectTarget, verified, userEmail, b
             disabled={loggingOut || redirecting}
             className="shrink-0 text-brand-500 hover:text-brand-600 hover:underline underline-offset-2 disabled:opacity-50"
           >
-            לא את/ה? התנתק/י
+            {t("notYou")}
           </button>
         </div>
 
@@ -155,7 +153,7 @@ export function ConsentForm({ clientName, redirectTarget, verified, userEmail, b
           {businesses.length > 1 ? (
             <>
               <label className="label" htmlFor="oauth-business">
-                עסק
+                {t("businessLabel")}
               </label>
               <select
                 id="oauth-business"
@@ -164,11 +162,11 @@ export function ConsentForm({ clientName, redirectTarget, verified, userEmail, b
                 onChange={(e) => setBusinessId(e.target.value)}
                 disabled={!!busy || redirecting}
               >
-                {onlyIneligible && <option value="">— אין עסק זמין לחיבור —</option>}
+                {onlyIneligible && <option value="">{t("noEligibleOption")}</option>}
                 {businesses.map((b) => (
                   <option key={b.businessId} value={b.businessId} disabled={!b.eligible}>
-                    {(b.name || "עסק ללא שם") +
-                      (ROLE_LABELS[b.role] ? ` · ${ROLE_LABELS[b.role]}` : "") +
+                    {(b.name || t("unnamedBusiness")) +
+                      (roleLabel(b.role) ? ` · ${roleLabel(b.role)}` : "") +
                       (!b.eligible && b.reason ? ` — ${b.reason}` : "")}
                   </option>
                 ))}
@@ -176,8 +174,8 @@ export function ConsentForm({ clientName, redirectTarget, verified, userEmail, b
             </>
           ) : businesses.length === 1 ? (
             <div className="text-sm">
-              <span className="text-petra-muted">עסק: </span>
-              <span className="font-semibold text-petra-text">{businesses[0].name || "עסק ללא שם"}</span>
+              <span className="text-petra-muted">{t("businessPrefix")}</span>
+              <span className="font-semibold text-petra-text">{businesses[0].name || t("unnamedBusiness")}</span>
             </div>
           ) : null}
 
@@ -186,10 +184,10 @@ export function ConsentForm({ clientName, redirectTarget, verified, userEmail, b
               <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
               <span>
                 {businesses.length === 0
-                  ? "לא נמצא עסק שאפשר לחבר אליו עוזר AI מהחשבון הזה."
+                  ? t("ineligible.none")
                   : businesses.length === 1
-                  ? businesses[0].reason || "לא ניתן לחבר עוזר AI לעסק הזה."
-                  : "אף אחד מהעסקים שלך אינו זמין לחיבור כרגע."}
+                  ? businesses[0].reason || t("ineligible.single")
+                  : t("ineligible.all")}
               </span>
             </div>
           )}
@@ -198,7 +196,7 @@ export function ConsentForm({ clientName, redirectTarget, verified, userEmail, b
         {/* Profile */}
         {!onlyIneligible && (
           <fieldset className="mt-5" disabled={!!busy || redirecting}>
-            <legend className="label">רמת גישה</legend>
+            <legend className="label">{t("profileLegend")}</legend>
             <div className="space-y-2">
               {profiles.map((p) => (
                 <label
@@ -217,8 +215,8 @@ export function ConsentForm({ clientName, redirectTarget, verified, userEmail, b
                   />
                   <span>
                     <span className="block text-sm font-medium text-petra-text">{p.label}</span>
-                    {PROFILE_HINTS[p.key] && (
-                      <span className="block text-xs text-petra-muted mt-0.5">{PROFILE_HINTS[p.key]}</span>
+                    {t.has(`profileHints.${p.key}`) && (
+                      <span className="block text-xs text-petra-muted mt-0.5">{t(`profileHints.${p.key}`)}</span>
                     )}
                   </span>
                 </label>
@@ -226,9 +224,9 @@ export function ConsentForm({ clientName, redirectTarget, verified, userEmail, b
             </div>
             <p className="text-[11px] text-petra-muted mt-2 leading-relaxed">
               {selected?.role === "manager"
-                ? "כמנהל/ת, החיבור לא יכלול תשלומים, דוחות ופעולות בלתי הפיכות — גם בגישה מלאה."
-                : "ההרשאות מוגבלות תמיד לתפקיד שלך בעסק (מנהל: ללא תשלומים, דוחות ופעולות בלתי הפיכות)."}{" "}
-              אפשר לנתק את החיבור בכל עת בהגדרות ← עוזרי AI.
+                ? t("scopeNote.manager")
+                : t("scopeNote.other")}{" "}
+              {t("scopeNote.disconnect")}
             </p>
           </fieldset>
         )}
@@ -249,7 +247,7 @@ export function ConsentForm({ clientName, redirectTarget, verified, userEmail, b
             ) : (
               <Check className="w-4 h-4" />
             )}
-            אשר חיבור
+            {t("approve")}
           </button>
           <button
             type="button"
@@ -262,7 +260,7 @@ export function ConsentForm({ clientName, redirectTarget, verified, userEmail, b
             ) : (
               <X className="w-4 h-4" />
             )}
-            ביטול
+            {tc("actions.cancel")}
           </button>
         </div>
       </div>

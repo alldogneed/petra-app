@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { ShieldAlert, Mail, MessageCircle, Save, ShieldCheck } from "lucide-react";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import {
@@ -44,7 +45,7 @@ function Toggle({
     >
       <span
         className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${
-          checked ? "right-[1.375rem]" : "right-0.5"
+          checked ? "start-[1.375rem]" : "start-0.5"
         }`}
       />
     </button>
@@ -75,13 +76,15 @@ function Row({
 }
 
 export function SecurityAlertsTab() {
+  const t = useTranslations("businessAdmin.securityAlertsTab");
+  const tc = useTranslations("common");
   const queryClient = useQueryClient();
   const { data, isLoading } = useQuery<SecurityAlertsResponse>({
     queryKey: ["ba-security-alerts"],
     queryFn: async () => {
       const r = await fetch("/api/business-admin/security-alerts");
       const d = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(d.error || "שגיאה בטעינת ההתראות");
+      if (!r.ok) throw new Error(d.error || t("errors.load"));
       return d;
     },
   });
@@ -99,12 +102,12 @@ export function SecurityAlertsTab() {
         body: JSON.stringify(prefs),
       });
       const d = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(d.error || "שגיאה בשמירה");
+      if (!r.ok) throw new Error(d.error || t("errors.save"));
       return d as SecurityAlertPrefs;
     },
     onSuccess: (prefs) => {
       setDraft(prefs);
-      toast.success("הגדרות ההתראות נשמרו");
+      toast.success(t("toasts.saved"));
       queryClient.invalidateQueries({ queryKey: ["ba-security-alerts"] });
       queryClient.invalidateQueries({ queryKey: ["ba-activity"] });
     },
@@ -113,7 +116,7 @@ export function SecurityAlertsTab() {
 
   if (isLoading || !draft) {
     return isLoading ? <PetraLoader /> : (
-      <div className="card p-8 text-center text-sm text-petra-muted">לא ניתן לטעון את הגדרות ההתראות</div>
+      <div className="card p-8 text-center text-sm text-petra-muted">{t("loadFailed")}</div>
     );
   }
 
@@ -127,45 +130,45 @@ export function SecurityAlertsTab() {
       {data && !data.tierAllowed && (
         <div className="card p-4 border border-amber-200 bg-amber-50 text-sm text-amber-800 flex items-start gap-2">
           <ShieldAlert className="w-4 h-4 mt-0.5 flex-shrink-0" />
-          <span>התראות אבטחה נשלחות רק במסלול הכולל ניהול צוות. ההגדרות נשמרות ויופעלו לאחר שדרוג.</span>
+          <span>{t("tierNotice")}</span>
         </div>
       )}
 
       <div className="card p-4 sm:p-5">
         <div className="flex items-center gap-2 mb-1">
           <ShieldCheck className="w-5 h-5 text-orange-500" />
-          <h3 className="font-semibold text-slate-800">התראות אבטחה</h3>
+          <h3 className="font-semibold text-slate-800">{t("title")}</h3>
         </div>
         <p className="text-xs text-petra-muted mb-3">
-          קבל/י הודעה כשמישהו בצוות מבצע פעולה רגישה. עד 20 התראות לשעה לעסק.
+          {t("subtitle")}
         </p>
 
-        <Row title="הפעלת התראות" description="כיבוי עוצר את כל ההתראות (היומן ממשיך להירשם).">
-          <Toggle label="הפעלת התראות" checked={draft.enabled} onChange={(v) => set({ enabled: v })} />
+        <Row title={t("enabled.title")} description={t("enabled.description")}>
+          <Toggle label={t("enabled.title")} checked={draft.enabled} onChange={(v) => set({ enabled: v })} />
         </Row>
-        <Row title="אימייל" description="נשלח לכתובת האימייל של כל בעלי העסק." icon={<Mail className="w-4 h-4" />}>
-          <Toggle label="אימייל" checked={draft.email} disabled={off} onChange={(v) => set({ email: v })} />
+        <Row title={t("email.title")} description={t("email.description")} icon={<Mail className="w-4 h-4" />}>
+          <Toggle label={t("email.title")} checked={draft.email} disabled={off} onChange={(v) => set({ email: v })} />
         </Row>
         <Row
           title="WhatsApp"
-          description="הודעה לטלפון של העסק (מוגדר בהגדרות → פרטי העסק). נשלח כמיטב היכולת."
+          description={t("whatsapp.description")}
           icon={<MessageCircle className="w-4 h-4" />}
         >
           <Toggle label="WhatsApp" checked={draft.whatsapp} disabled={off} onChange={(v) => set({ whatsapp: v })} />
         </Row>
         <Row
-          title="גם על פעולות של בעלי העסק"
-          description="כברירת מחדל לא נשלחת התראה על פעולות שביצעת בעצמך (חוץ מכניסה ממכשיר חדש)."
+          title={t("ownActions.title")}
+          description={t("ownActions.description")}
         >
           <Toggle
-            label="גם על פעולות של בעלי העסק"
+            label={t("ownActions.title")}
             checked={draft.includeOwnActions}
             disabled={off}
             onChange={(v) => set({ includeOwnActions: v })}
           />
         </Row>
 
-        <h4 className="text-xs font-semibold text-petra-muted mt-4 mb-1">על מה להתריע</h4>
+        <h4 className="text-xs font-semibold text-petra-muted mt-4 mb-1">{t("rulesHeading")}</h4>
         {SECURITY_ALERT_RULE_KEYS.map((k) => (
           <Row key={k} title={SECURITY_ALERT_RULE_INFO[k].title} description={SECURITY_ALERT_RULE_INFO[k].description}>
             <Toggle
@@ -180,7 +183,7 @@ export function SecurityAlertsTab() {
         <div className="flex flex-wrap justify-end gap-2 mt-4">
           {dirty && (
             <button className="btn-secondary text-sm" onClick={() => data && setDraft(data.prefs)} disabled={save.isPending}>
-              ביטול שינויים
+              {t("discardChanges")}
             </button>
           )}
           <button
@@ -189,16 +192,16 @@ export function SecurityAlertsTab() {
             onClick={() => save.mutate(draft)}
           >
             <Save className="w-4 h-4" />
-            {save.isPending ? "שומר..." : "שמור"}
+            {save.isPending ? tc("progress.saving") : tc("actions.save")}
           </button>
         </div>
       </div>
 
       <div className="card p-4 sm:p-5">
-        <h3 className="font-semibold text-slate-800 mb-1">פעולות רגישות אחרונות</h3>
-        <p className="text-xs text-petra-muted mb-3">14 הימים האחרונים · כל המשתמשים (כולל בעלים)</p>
+        <h3 className="font-semibold text-slate-800 mb-1">{t("recent.title")}</h3>
+        <p className="text-xs text-petra-muted mb-3">{t("recent.subtitle")}</p>
         {!data?.recent?.length ? (
-          <p className="text-sm text-petra-muted text-center py-6">לא בוצעו פעולות רגישות בתקופה זו</p>
+          <p className="text-sm text-petra-muted text-center py-6">{t("recent.empty")}</p>
         ) : (
           <div>
             {data.recent.map((e) => (

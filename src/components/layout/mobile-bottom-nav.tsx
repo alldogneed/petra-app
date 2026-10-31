@@ -12,6 +12,8 @@ import {
   Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { useQueryClient } from "@tanstack/react-query";
 import { triggerLimitModal } from "@/lib/limit-reached";
 import { useAuth } from "@/providers/auth-provider";
@@ -26,6 +28,8 @@ function NewCustomerDrawer({ open, onClose }: { open: boolean; onClose: () => vo
   const [loading, setLoading] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
+  const t = useTranslations("layout.mobileBottomNav");
+  const { cfg } = useBusinessLocale();
 
   useEffect(() => {
     if (open) {
@@ -58,21 +62,21 @@ function NewCustomerDrawer({ open, onClose }: { open: boolean; onClose: () => vo
           triggerLimitModal(
             typeof data?.error === "string" && data.error
               ? data.error
-              : "הגעת לתקרת הלקוחות במסלול הנוכחי"
+              : t("drawer.limitReached")
           );
           return;
         }
         // Surface the real reason (duplicate phone, invalid phone, etc.)
         throw new Error(typeof data?.error === "string" ? data.error : "");
       }
-      toast.success("לקוח נוצר בהצלחה!");
+      toast.success(t("drawer.created"));
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       onClose();
       // Jump straight to the new customer's card (same as the desktop add flow)
       if (data?.id) router.push(`/customers/${data.id}`);
     } catch (err) {
       toast.error(
-        err instanceof Error && err.message ? err.message : "שגיאה ביצירת הלקוח"
+        err instanceof Error && err.message ? err.message : t("drawer.createError")
       );
     } finally {
       setLoading(false);
@@ -115,7 +119,7 @@ function NewCustomerDrawer({ open, onClose }: { open: boolean; onClose: () => vo
           >
             <X size={18} />
           </button>
-          <h2 className="text-base font-bold text-petra-text">לקוח חדש</h2>
+          <h2 className="text-base font-bold text-petra-text">{t("drawer.title")}</h2>
           <div className="w-8" />
         </div>
 
@@ -123,21 +127,21 @@ function NewCustomerDrawer({ open, onClose }: { open: boolean; onClose: () => vo
         <form onSubmit={handleSubmit} className="px-5 pt-5 space-y-4" style={{ paddingBottom: "max(2rem, env(safe-area-inset-bottom, 0px))" }}>
           <div>
             <label className="label">
-              שם מלא <span className="text-red-500">*</span>
+              {t("drawer.fullName")} <span className="text-red-500">*</span>
             </label>
             <input
               ref={nameRef}
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="ישראל ישראלי"
-              dir="rtl"
+              placeholder={t("drawer.namePlaceholder")}
+              dir={cfg.dir}
               className="input"
             />
           </div>
           <div>
             <label className="label">
-              טלפון <span className="text-red-500">*</span>
+              {t("drawer.phone")} <span className="text-red-500">*</span>
             </label>
             <input
               type="tel"
@@ -158,7 +162,7 @@ function NewCustomerDrawer({ open, onClose }: { open: boolean; onClose: () => vo
             ) : (
               <>
                 <UserPlus size={16} />
-                צור לקוח
+                {t("drawer.submit")}
               </>
             )}
           </button>
@@ -175,6 +179,8 @@ export function MobileBottomNav() {
   const pathname = usePathname();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const { user } = useAuth();
+  const t = useTranslations("layout.mobileBottomNav");
+  const { cfg } = useBusinessLocale();
   // Screens the owner switched off for this member disappear from the bar too.
   const screenOff = (path: string) =>
     !!user && !user.isAdmin && !user.isImpersonating &&
@@ -190,14 +196,14 @@ export function MobileBottomNav() {
     {
       key: "new-customer",
       icon: UserPlus,
-      label: "לקוח חדש",
+      label: t("items.newCustomer"),
       onClick: () => setDrawerOpen(true),
       isCenter: false,
     },
     {
       key: "tutorials",
       icon: PlayCircle,
-      label: "הדרכה",
+      label: t("items.tutorials"),
       onClick: () => router.push("/tutorials"),
       isCenter: false,
       active: pathname.startsWith("/tutorials"),
@@ -205,7 +211,7 @@ export function MobileBottomNav() {
     {
       key: "home",
       icon: Home,
-      label: "דף הבית",
+      label: t("items.home"),
       onClick: () => router.push("/dashboard"),
       isCenter: true,
       active: isHome,
@@ -213,7 +219,7 @@ export function MobileBottomNav() {
     {
       key: "tasks",
       icon: ListChecks,
-      label: "משימות",
+      label: t("items.tasks"),
       onClick: () => router.push("/tasks"),
       isCenter: false,
       active: pathname.startsWith("/tasks"),
@@ -221,7 +227,7 @@ export function MobileBottomNav() {
     {
       key: "calendar",
       icon: Calendar,
-      label: "תורים",
+      label: t("items.calendar"),
       onClick: () => router.push("/calendar"),
       isCenter: false,
       active: pathname.startsWith("/calendar"),
@@ -239,7 +245,7 @@ export function MobileBottomNav() {
 
       {/* Bottom nav bar — visible only on mobile */}
       <nav
-        dir="rtl"
+        dir={cfg.dir}
         className={[
           "fixed bottom-0 inset-x-0 z-30 md:hidden",
           "bg-white border-t border-petra-border",

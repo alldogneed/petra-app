@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { PawPrint, Plus } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { fetchJSON } from "@/lib/utils";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ConfirmDeleteModal } from "@/components/ui/ConfirmDeleteModal";
@@ -28,6 +29,8 @@ export function PetsSection({
   canDelete: boolean;
   deleteIsRequest: boolean;
 }) {
+  const t = useTranslations("customers.petsSection");
+  const tc = useTranslations("common");
   const customerId = customer.id;
   const queryClient = useQueryClient();
   const [expandedPetId, setExpandedPetId] = useState<string | null>(null);
@@ -50,11 +53,11 @@ export function PetsSection({
     onSuccess: () => {
       invalidateCustomer();
       setDeletingMed(null);
-      toast.success("התרופה נמחקה");
+      toast.success(t("toastMedDeleted"));
     },
     onError: (e: Error) => {
       setDeletingMed(null);
-      toast.error(e.message || "שגיאה במחיקת התרופה");
+      toast.error(e.message || t("toastMedDeleteError"));
     },
   });
 
@@ -69,18 +72,18 @@ export function PetsSection({
     onSuccess: (data) => {
       setDeletingPet(null);
       if (data?.pendingApproval) {
-        toast.success("הבקשה נשלחה לאישור הבעלים");
+        toast.success(t("toastRequestSent"));
         return;
       }
       invalidateCustomer();
       // Pets list + customers list cache the pet under the global staleTime.
       queryClient.invalidateQueries({ queryKey: ["pets-all"] });
       queryClient.invalidateQueries({ queryKey: ["customers"] });
-      toast.success("חיית המחמד נמחקה");
+      toast.success(t("toastPetDeleted"));
     },
     onError: (err) => {
       setDeletingPet(null);
-      toast.error(err?.message || "שגיאה במחיקת חיית המחמד");
+      toast.error(err?.message || t("toastPetDeleteError"));
     },
   });
 
@@ -100,21 +103,21 @@ export function PetsSection({
     <div id="pets" className="card p-5 scroll-mt-32">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-base font-bold text-petra-text">
-          חיות מחמד ({customer.summary?.counts.pets ?? customer.pets.length})
+          {t("title", { count: customer.summary?.counts.pets ?? customer.pets.length })}
         </h2>
         <button className="btn-ghost text-xs" onClick={() => setShowAdd(true)}>
           <Plus className="w-3.5 h-3.5" />
-          הוסף
+          {tc("actions.add")}
         </button>
       </div>
 
       {customer.pets.length === 0 ? (
         <div className="empty-state py-8">
           <PawPrint className="empty-state-icon w-8 h-8" />
-          <p className="text-sm text-petra-muted mt-2">אין חיות מחמד רשומות</p>
+          <p className="text-sm text-petra-muted mt-2">{t("empty")}</p>
           <button className="btn-primary mt-3 text-xs" onClick={() => setShowAdd(true)}>
             <Plus className="w-3.5 h-3.5" />
-            הוסף חיית מחמד
+            {t("addPet")}
           </button>
         </div>
       ) : (
@@ -191,9 +194,9 @@ export function PetsSection({
 
       <ConfirmDialog
         open={!!deletingMed}
-        title="מחיקת תרופה"
-        description={deletingMed ? `למחוק את ${deletingMed.name}? פעולה זו אינה הפיכה.` : undefined}
-        confirmLabel="מחק"
+        title={t("deleteMedTitle")}
+        description={deletingMed ? t("deleteMedDescription", { name: deletingMed.name }) : undefined}
+        confirmLabel={tc("actions.delete")}
         danger
         loading={deleteMedMutation.isPending}
         onCancel={() => setDeletingMed(null)}
@@ -205,12 +208,12 @@ export function PetsSection({
           open
           onClose={() => setDeletingPet(null)}
           onConfirm={() => deletePetMutation.mutate(deletingPet.id)}
-          title={deleteIsRequest ? "בקשת מחיקת חיית מחמד" : "מחיקת חיית מחמד"}
+          title={deleteIsRequest ? t("deletePetRequestTitle") : t("deletePetTitle")}
           confirmText={deletingPet.name}
           description={
             deleteIsRequest
-              ? `הבקשה למחיקת ${deletingPet.name} תישלח לאישור הבעלים לפני ביצוע המחיקה.`
-              : `מחיקת ${deletingPet.name} תסיר את כל הנתונים הרפואיים, המשקל וההיסטוריה המשויכים. פעולה זו אינה ניתנת לביטול.`
+              ? t("deletePetRequestDescription", { name: deletingPet.name })
+              : t("deletePetDescription", { name: deletingPet.name })
           }
           loading={deletePetMutation.isPending}
         />

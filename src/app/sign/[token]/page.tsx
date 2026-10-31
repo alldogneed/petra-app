@@ -2,8 +2,10 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
 import { Loader2, CheckCircle2, AlertCircle, RotateCcw, PenLine, ChevronLeft, ChevronRight, User, Phone, MapPin, CreditCard, FileText, Download, Clock, Dog, PawPrint, Cpu, Calendar, Heart, Palette } from "lucide-react";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { LOCALE_CONFIG, localeFromBusiness } from "@/lib/locale";
 
 interface ContractField {
   id: string;
@@ -25,19 +27,6 @@ interface ContractData {
   fields: ContractField[];
   customerData: Record<string, string>;
 }
-
-const FIELD_LABELS: Record<string, string> = {
-  customer_name: "שם מלא",
-  id_number: "תעודת זהות",
-  address: "כתובת",
-  phone: "טלפון",
-  pet_name: "שם הכלב",
-  pet_breed: "גזע",
-  pet_microchip: "שבב",
-  pet_birthdate: "תאריך לידה",
-  pet_gender: "מין",
-  pet_color: "צבע",
-};
 
 const FIELD_ICONS: Record<string, React.ReactNode> = {
   customer_name: <User className="w-3.5 h-3.5" />,
@@ -94,6 +83,8 @@ function exportSignaturePng(canvas: HTMLCanvasElement): string {
 
 export default function SignContractPage() {
   const { token } = useParams<{ token: string }>();
+  const t = useTranslations("sign.signDetailPage");
+  const cfg = LOCALE_CONFIG[localeFromBusiness({ locale: useLocale() })];
   const [contract, setContract] = useState<ContractData | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   // Distinct terminal states from the API: SIGNED (409) / EXPIRED (410)
@@ -133,10 +124,10 @@ export default function SignContractPage() {
         } else if (r.status === 410 || data.status === "EXPIRED") {
           setLinkState("EXPIRED");
         } else {
-          setLoadError(data.error || "שגיאה בטעינת החוזה");
+          setLoadError(data.error || t("errors.loadFailed"));
         }
       })
-      .catch(() => setLoadError("שגיאת רשת"))
+      .catch(() => setLoadError(t("errors.network")))
       .finally(() => setLoading(false));
   }, [token]);
 
@@ -261,8 +252,8 @@ export default function SignContractPage() {
       if (r.ok) { const d = await r.json(); setSigned(true); setSignedFileUrl(d.signedFileUrl ?? null); }
       else if (r.status === 409) { setLinkState("SIGNED"); }
       else if (r.status === 410) { setLinkState("EXPIRED"); }
-      else { const d = await r.json().catch(() => ({})); alert(d.error || "שגיאה. נסה שוב."); }
-    } catch { alert("שגיאת רשת. נסה שוב."); }
+      else { const d = await r.json().catch(() => ({})); alert(d.error || t("errors.tryAgain")); }
+    } catch { alert(t("errors.networkTryAgain")); }
     finally { setSubmitting(false); }
   };
 
@@ -274,17 +265,17 @@ export default function SignContractPage() {
   // ── Already signed (409) ─────────────────────────────────────────────────────
   if (linkState === "SIGNED") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4" dir="rtl">
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4" dir={cfg.dir}>
         <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center space-y-4 shadow-sm border border-emerald-100">
           <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto">
             <CheckCircle2 className="w-8 h-8 text-emerald-500" />
           </div>
-          <h2 className="text-lg font-bold text-slate-800">החוזה כבר נחתם ✅</h2>
+          <h2 className="text-lg font-bold text-slate-800">{t("alreadySigned.title")}</h2>
           <p className="text-sm text-slate-500 leading-relaxed">
-            החתימה כבר התקבלה ונשמרה בהצלחה.<br />
-            אין צורך לחתום שוב.
+            {t("alreadySigned.line1")}<br />
+            {t("alreadySigned.line2")}
           </p>
-          <p className="text-xs text-slate-400">אפשר לסגור את העמוד</p>
+          <p className="text-xs text-slate-400">{t("alreadySigned.canClose")}</p>
         </div>
       </div>
     );
@@ -293,15 +284,15 @@ export default function SignContractPage() {
   // ── Link expired (410) ───────────────────────────────────────────────────────
   if (linkState === "EXPIRED") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4" dir="rtl">
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4" dir={cfg.dir}>
         <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center space-y-4 shadow-sm border border-amber-100">
           <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto">
             <Clock className="w-8 h-8 text-amber-500" />
           </div>
-          <h2 className="text-lg font-bold text-slate-800">תוקף הקישור פג ⏳</h2>
+          <h2 className="text-lg font-bold text-slate-800">{t("expired.title")}</h2>
           <p className="text-sm text-slate-500 leading-relaxed">
-            הקישור לחתימה כבר אינו בתוקף.<br />
-            פנה לעסק ובקש שישלחו לך קישור חדש לחתימה.
+            {t("expired.line1")}<br />
+            {t("expired.line2")}
           </p>
         </div>
       </div>
@@ -310,10 +301,10 @@ export default function SignContractPage() {
 
   if (loadError) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4" dir="rtl">
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4" dir={cfg.dir}>
         <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center space-y-4 shadow-sm">
           <AlertCircle className="w-12 h-12 text-red-400 mx-auto" />
-          <h2 className="text-lg font-bold text-slate-800">לא ניתן לטעון את החוזה</h2>
+          <h2 className="text-lg font-bold text-slate-800">{t("loadError.title")}</h2>
           <p className="text-sm text-slate-500">{loadError}</p>
         </div>
       </div>
@@ -323,28 +314,31 @@ export default function SignContractPage() {
   // ── Signed ───────────────────────────────────────────────────────────────────
   if (signed) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-orange-50 via-white to-white p-6" dir="rtl">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-orange-50 via-white to-white p-6" dir={cfg.dir}>
         <div className="space-y-6 max-w-sm w-full">
           <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto">
             <CheckCircle2 className="w-10 h-10 text-emerald-500" />
           </div>
-          <div className="space-y-2 text-right">
-            <h2 className="text-2xl font-bold text-slate-800">החוזה נחתם בהצלחה!</h2>
+          <div className="space-y-2 text-start">
+            <h2 className="text-2xl font-bold text-slate-800">{t("signedDone.title")}</h2>
             <p className="text-sm text-slate-500 leading-relaxed">
-              תודה, {contract?.customerName}.<br />
-              החתימה שלך התקבלה אצל <strong className="text-slate-700">{contract?.businessName}</strong>.
+              {t("signedDone.thanks", { name: contract?.customerName ?? "" })}<br />
+              {t.rich("signedDone.receivedBy", {
+                business: contract?.businessName ?? "",
+                b: (c) => <strong className="text-slate-700">{c}</strong>,
+              })}
             </p>
           </div>
           <div className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-slate-700">{contract?.templateName}</span>
-              <span className="text-xs text-slate-400">מסמך</span>
+              <span className="text-xs text-slate-400">{t("signedDone.document")}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-sm font-semibold text-emerald-600 flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4" /> נחתם
+                <CheckCircle2 className="w-4 h-4" /> {t("signedDone.statusSigned")}
               </span>
-              <span className="text-xs text-slate-400">סטטוס</span>
+              <span className="text-xs text-slate-400">{t("signedDone.status")}</span>
             </div>
           </div>
           {signedFileUrl && (
@@ -356,17 +350,17 @@ export default function SignContractPage() {
               className="flex items-center justify-center gap-2 w-full px-4 py-3 rounded-2xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 active:scale-95 transition-all"
             >
               <Download className="w-4 h-4" />
-              הורד עותק של החוזה החתום
+              {t("signedDone.download")}
             </a>
           )}
-          <p className="text-xs text-slate-400 text-center">ניתן לסגור את הדף</p>
+          <p className="text-xs text-slate-400 text-center">{t("signedDone.canClose")}</p>
           <div className="pt-6 border-t border-slate-100 text-center">
             <div className="flex items-center justify-center gap-2">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/logo.svg" alt="Petra" className="w-7 h-7 rounded-lg" />
               <span className="text-sm font-bold text-slate-600">Petra</span>
             </div>
-            <p className="text-[11px] text-slate-400 mt-1.5">חתימה דיגיטלית מאובטחת</p>
+            <p className="text-[11px] text-slate-400 mt-1.5">{t("footer.secureSignature")}</p>
           </div>
         </div>
       </div>
@@ -387,7 +381,7 @@ export default function SignContractPage() {
   const isLastPage = currentPage >= totalPages;
 
   return (
-    <div className="min-h-screen bg-slate-50" dir="rtl">
+    <div className="min-h-screen bg-slate-50" dir={cfg.dir}>
 
       {/* ── Sticky top bar ───────────────────────────────────────────────────── */}
       <div className="sticky top-0 z-20 bg-white border-b border-slate-100 shadow-sm">
@@ -407,7 +401,7 @@ export default function SignContractPage() {
             className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold rounded-xl transition-colors"
           >
             <PenLine className="w-3.5 h-3.5" />
-            חתום
+            {t("topBar.sign")}
           </button>
         </div>
       </div>
@@ -417,13 +411,13 @@ export default function SignContractPage() {
         {/* ── Summary: customer details ──────────────────────────────────────── */}
         {summaryFields.length > 0 && (
           <div className="bg-white sm:rounded-2xl sm:border sm:border-slate-200 px-4 py-4 shadow-sm">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">הפרטים שיופיעו בחוזה</p>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">{t("summary.title")}</p>
             <div className="grid grid-cols-2 gap-2">
               {summaryFields.map(({ type, value }) => (
                 <div key={type} className="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2">
                   <span className="text-slate-400">{FIELD_ICONS[type]}</span>
                   <div className="min-w-0">
-                    <p className="text-[10px] text-slate-400 leading-none mb-0.5">{FIELD_LABELS[type]}</p>
+                    <p className="text-[10px] text-slate-400 leading-none mb-0.5">{t.has(`fieldLabels.${type}`) ? t(`fieldLabels.${type}`) : undefined}</p>
                     <p className="text-sm font-medium text-slate-700 truncate">{value}</p>
                   </div>
                 </div>
@@ -437,18 +431,18 @@ export default function SignContractPage() {
           <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50">
             <div className="flex items-center gap-2">
               <span className="w-5 h-5 rounded-full bg-orange-500 text-white text-[11px] font-bold flex items-center justify-center">1</span>
-              <span className="text-sm font-semibold text-slate-700">קרא את החוזה</span>
+              <span className="text-sm font-semibold text-slate-700">{t("read.title")}</span>
             </div>
             {/* Page nav + open-in-new-window escape hatch */}
             <div className="flex items-center gap-2">
               {totalPages > 1 && (
                 <div className="flex items-center gap-1.5">
                   <button type="button" disabled={currentPage >= totalPages} onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))} className="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-100 disabled:opacity-30 bg-white">
-                    <ChevronRight className="w-4 h-4" />
+                    <ChevronRight className="w-4 h-4 ltr:-scale-x-100" />
                   </button>
                   <span className="text-xs font-medium text-slate-600 min-w-[44px] text-center" dir="ltr">{currentPage} / {totalPages}</span>
                   <button type="button" disabled={currentPage <= 1} onClick={() => setCurrentPage((p) => Math.max(1, p - 1))} className="w-8 h-8 rounded-lg border border-slate-200 flex items-center justify-center text-slate-500 hover:bg-slate-100 disabled:opacity-30 bg-white">
-                    <ChevronLeft className="w-4 h-4" />
+                    <ChevronLeft className="w-4 h-4 ltr:-scale-x-100" />
                   </button>
                 </div>
               )}
@@ -459,7 +453,7 @@ export default function SignContractPage() {
                 className={`items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 transition-colors ${totalPages > 1 ? "hidden sm:flex" : "flex"}`}
               >
                 <Download className="w-3.5 h-3.5" />
-                פתח PDF בחלון חדש
+                {t("read.openPdf")}
               </a>
             </div>
           </div>
@@ -475,10 +469,10 @@ export default function SignContractPage() {
               <div className="flex items-center justify-center bg-white" style={{ minHeight: 300 }}>
                 <div className="text-center space-y-3 px-6">
                   <AlertCircle className="w-8 h-8 text-amber-400 mx-auto" />
-                  <p className="text-sm text-slate-500">לא ניתן להציג את המסמך כאן</p>
+                  <p className="text-sm text-slate-500">{t("read.cannotDisplay")}</p>
                   <a href={pdfProxyUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm font-semibold text-orange-600 hover:text-orange-700">
                     <Download className="w-4 h-4" />
-                    פתח PDF בחלון חדש
+                    {t("read.openPdf")}
                   </a>
                 </div>
               </div>
@@ -497,8 +491,8 @@ export default function SignContractPage() {
               onClick={() => { setCurrentPage((p) => Math.min(totalPages, p + 1)); window.scrollTo({ top: 0, behavior: "smooth" }); }}
               className="w-full py-3.5 text-sm font-semibold border-t border-slate-100 flex items-center justify-center gap-2 transition-colors bg-slate-50 hover:bg-slate-100 text-slate-700"
             >
-              עמוד הבא ({currentPage + 1} מתוך {totalPages})
-              <ChevronLeft className="w-4 h-4" />
+              {t("read.nextPage", { page: currentPage + 1, total: totalPages })}
+              <ChevronLeft className="w-4 h-4 ltr:-scale-x-100" />
             </button>
           ) : (
             <button
@@ -514,7 +508,7 @@ export default function SignContractPage() {
               }`}
             >
               <CheckCircle2 className="w-4 h-4" />
-              {readConfirmed ? "קראתי את החוזה ✓" : "קראתי את החוזה — המשך לחתימה"}
+              {readConfirmed ? t("read.confirmed") : t("read.confirmAndContinue")}
             </button>
           )}
         </div>
@@ -523,8 +517,8 @@ export default function SignContractPage() {
         <div ref={signatureSectionRef} className="bg-white sm:rounded-2xl sm:border sm:border-slate-200 overflow-hidden shadow-sm">
           <div className="px-4 py-3 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
             <span className="w-5 h-5 rounded-full bg-orange-500 text-white text-[11px] font-bold flex items-center justify-center">2</span>
-            <span className="text-sm font-semibold text-slate-700">חתום כאן</span>
-            {hasSignature && <span className="mr-auto text-xs text-emerald-600 font-medium">✓ חתימה נרשמה</span>}
+            <span className="text-sm font-semibold text-slate-700">{t("signature.title")}</span>
+            {hasSignature && <span className="ms-auto text-xs text-emerald-600 font-medium">{t("signature.recorded")}</span>}
           </div>
 
           <div className="px-4 py-4 space-y-3">
@@ -546,7 +540,7 @@ export default function SignContractPage() {
               {!hasSignature && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none gap-1">
                   <PenLine className="w-6 h-6 text-slate-300" />
-                  <p className="text-slate-300 text-sm">חתום בתיבה זו</p>
+                  <p className="text-slate-300 text-sm">{t("signature.signHere")}</p>
                 </div>
               )}
             </div>
@@ -557,7 +551,7 @@ export default function SignContractPage() {
                 className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 transition-colors"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
-                נקה וחתום שוב
+                {t("signature.clear")}
               </button>
             )}
           </div>
@@ -571,7 +565,11 @@ export default function SignContractPage() {
                 className="mt-0.5 w-4 h-4 rounded border-slate-300 text-orange-500 accent-orange-500"
               />
               <span className="text-xs text-slate-500 leading-relaxed group-hover:text-slate-700 transition-colors">
-                קראתי את <strong className="text-slate-700">{contract.templateName}</strong> של {contract.businessName}, הבנתי את תנאיו ואני מסכים לחתום עליו.
+                {t.rich("signature.consent", {
+                  template: contract.templateName,
+                  business: contract.businessName,
+                  b: (c) => <strong className="text-slate-700">{c}</strong>,
+                })}
               </span>
             </label>
           </div>
@@ -583,19 +581,19 @@ export default function SignContractPage() {
               className="w-full py-4 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 disabled:bg-slate-100 disabled:text-slate-400 text-white font-bold text-base rounded-2xl transition-colors flex items-center justify-center gap-2"
             >
               {submitting ? (
-                <><Loader2 className="w-5 h-5 animate-spin" /> שולח...</>
+                <><Loader2 className="w-5 h-5 animate-spin" /> {t("submit.sending")}</>
               ) : !readConfirmed ? (
-                "אשר קריאת החוזה כדי לחתום"
+                t("submit.confirmReadFirst")
               ) : !hasSignature ? (
-                "חתום בתיבה למעלה כדי להמשיך"
+                t("submit.signAboveFirst")
               ) : (
-                <><CheckCircle2 className="w-5 h-5" /> שלח חתימה ואשר</>
+                <><CheckCircle2 className="w-5 h-5" /> {t("submit.button")}</>
               )}
             </button>
 
             {hasSignature && readConfirmed && (
               <p className="text-[11px] text-slate-400 text-center mt-2.5 leading-relaxed">
-                לחיצה תשלח את חתימתך. החוזה החתום יישמר ויישלח ל{contract.businessName}.
+                {t("submit.notice", { business: contract.businessName })}
               </p>
             )}
           </div>
@@ -608,7 +606,7 @@ export default function SignContractPage() {
             <img src="/logo.svg" alt="Petra" className="w-6 h-6 rounded-lg" />
             <span className="text-sm font-bold text-slate-400">Petra</span>
           </div>
-          <p className="text-[11px] text-slate-400">חתימה דיגיטלית מאובטחת</p>
+          <p className="text-[11px] text-slate-400">{t("footer.secureSignature")}</p>
         </div>
       </div>
     </div>

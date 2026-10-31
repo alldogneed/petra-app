@@ -31,6 +31,11 @@ import { TEMPLATE_VARIABLES } from "@/lib/constants";
 import { usePlan } from "@/hooks/usePlan";
 import { usePermissions } from "@/hooks/usePermissions";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
+import { currencySymbol } from "@/lib/format";
+
+type PanelT = ReturnType<typeof useTranslations<"messages.messagesPanel">>;
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -57,106 +62,112 @@ interface MessageTemplate {
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 
+// Labels/descriptions: messages.messagesPanel.triggers.<id>
 const AUTOMATION_TRIGGERS = [
-  { id: "appointment_confirmation", label: "אישור קביעת פגישה", description: "שלח מיד כשנקבעת פגישה חדשה" },
-  { id: "appointment_reminder", label: "תזכורת לפני פגישה", description: "שלח הודעה X שעות לפני הפגישה" },
-  { id: "appointment_followup", label: "מעקב אחרי פגישה", description: "שלח הודעה X שעות אחרי הפגישה" },
-  { id: "payment_request", label: "דרישת תשלום", description: "שלח מיד כשנוצרת הזמנה חדשה" },
-  { id: "lead_followup", label: "ליד חדש", description: "שלח הודעה X שעות אחרי יצירת ליד" },
-  { id: "birthday_reminder", label: "יום הולדת לכלב", description: "שלח ביום ההולדת בשעה 08:00" },
-  { id: "boarding_confirmation", label: "אישור קביעת פנסיון", description: "שלח מיד כשנקבעת שהייה בפנסיון" },
-  { id: "boarding_pickup", label: "תזכורת איסוף מפנסיון", description: "שלח הודעה X שעות לפני יום האיסוף" },
-  { id: "boarding_thank_you", label: "תודה אחרי פנסיון", description: "שלח שעה אחרי סיום השהייה" },
+  { id: "appointment_confirmation" },
+  { id: "appointment_reminder" },
+  { id: "appointment_followup" },
+  { id: "payment_request" },
+  { id: "lead_followup" },
+  { id: "birthday_reminder" },
+  { id: "boarding_confirmation" },
+  { id: "boarding_pickup" },
+  { id: "boarding_thank_you" },
 ];
 
 const IMMEDIATE_TRIGGERS = new Set(["appointment_confirmation", "payment_request", "new_customer", "birthday_reminder"]);
 
-function triggerOffsetLabel(trigger: string, offset: number): string {
-  if (trigger === "appointment_confirmation") return "מיידי בקביעת פגישה";
-  if (trigger === "payment_request") return "מיידי ביצירת הזמנה";
-  if (trigger === "new_customer") return "מיידי בהוספת לקוח";
-  if (trigger === "birthday_reminder") return "ביום ההולדת ב-08:00";
-  if (trigger === "appointment_reminder") return `${offset} שעות לפני`;
-  if (trigger === "appointment_followup") return `${offset} שעות אחרי`;
-  if (trigger === "lead_followup") return `${offset} שעות אחרי יצירה`;
-  if (trigger === "boarding_pickup") return `${offset} שעות לפני האיסוף`;
-  return `${offset} שעות`;
+function triggerOffsetLabel(t: PanelT, trigger: string, offset: number): string {
+  if (trigger === "appointment_confirmation") return t("offset.appointmentConfirmation");
+  if (trigger === "payment_request") return t("offset.paymentRequest");
+  if (trigger === "new_customer") return t("offset.newCustomer");
+  if (trigger === "birthday_reminder") return t("offset.birthday");
+  if (trigger === "appointment_reminder") return t("offset.hoursBefore", { offset });
+  if (trigger === "appointment_followup") return t("offset.hoursAfter", { offset });
+  if (trigger === "lead_followup") return t("offset.hoursAfterCreation", { offset });
+  if (trigger === "boarding_pickup") return t("offset.hoursBeforePickup", { offset });
+  return t("offset.hours", { offset });
 }
 
 
-// Sample data used in the live preview
-const SAMPLE_VARS: Record<string, string> = {
-  customerName: "ישראל ישראלי",
-  petName: "רקס",
-  petAge: "3 שנים",
-  date: "יום שני, 10 במרץ",
-  time: "14:00",
-  serviceName: "אילוף פרטני",
-  businessPhone: "050-1234567",
-  paymentUrl: "https://bit.ly/example",
-  orderTotal: "₪350",
-};
-
-function applyPreview(body: string): string {
-  return body.replace(/\{(\w+)\}/g, (match, key) => SAMPLE_VARS[key] ?? match);
+// Sample data used in the live preview (display only — texts in messages.messagesPanel.sample)
+function buildSampleVars(t: PanelT, symbol: string): Record<string, string> {
+  return {
+    customerName: t("sample.customerName"),
+    petName: t("sample.petName"),
+    petAge: t("sample.petAge"),
+    date: t("sample.date"),
+    time: t("sample.time"),
+    serviceName: t("sample.serviceName"),
+    businessPhone: "050-1234567",
+    paymentUrl: "https://bit.ly/example",
+    orderTotal: `${symbol}350`,
+  };
 }
 
-const AUTOMATED_FOOTER = "\n\n_לפניות ישירות לעסק: {businessPhone}. הודעה אוטומטית – אין להשיב להודעה זו._";
+function applyPreview(body: string, sampleVars: Record<string, string>): string {
+  return body.replace(/\{(\w+)\}/g, (match, key) => sampleVars[key] ?? match);
+}
 
+const AUTOMATED_FOOTER = "\n\n_לפניות ישירות לעסק: {businessPhone}. הודעה אוטומטית – אין להשיב להודעה זו._"; // i18n-ok — sent to clients (Phase 3: STARTER_TEMPLATES[locale])
+
+// i18n-ok: STARTER_TEMPLATES are DATA — `label` is saved as the template name and matched
+// against DB rows (manualTemplates.find(t => t.name === starter.label)); `body` is sent to
+// clients. Phase 3 → STARTER_TEMPLATES[locale].
 const STARTER_TEMPLATES = [
   {
-    label: "📅 תזכורת לפני פגישה",
-    body: "שלום {customerName}! 🐾\n\nתזכורת לפגישה שלנו ב-{date} בשעה {time}.\nשירות: {serviceName}.\n\nמחכים לראות אתכם! 😊" + AUTOMATED_FOOTER,
+    label: "📅 תזכורת לפני פגישה", // i18n-ok
+    body: "שלום {customerName}! 🐾\n\nתזכורת לפגישה שלנו ב-{date} בשעה {time}.\nשירות: {serviceName}.\n\nמחכים לראות אתכם! 😊" + AUTOMATED_FOOTER, // i18n-ok
     trigger: "appointment_reminder", offset: 24,
   },
   {
-    label: "✅ אישור קביעת פגישה",
-    body: "שלום {customerName}! ✅\n\nהפגישה שלך נקבעה בהצלחה!\n📅 תאריך: {date}\n🕐 שעה: {time}\nשירות: {serviceName}\n\nמחכים לראות אתכם! 🐾" + AUTOMATED_FOOTER,
+    label: "✅ אישור קביעת פגישה", // i18n-ok
+    body: "שלום {customerName}! ✅\n\nהפגישה שלך נקבעה בהצלחה!\n📅 תאריך: {date}\n🕐 שעה: {time}\nשירות: {serviceName}\n\nמחכים לראות אתכם! 🐾" + AUTOMATED_FOOTER, // i18n-ok
     trigger: "appointment_confirmation", offset: 0,
   },
   {
-    label: "💳 דרישת תשלום",
-    body: "שלום {customerName}! 🐾\n\n*דרישת תשלום*\nעבור: {serviceName} – {petName}\n\n💰 סה\"כ לתשלום: *{orderTotal}*\n\n💳 לתשלום מאובטח לחצו כאן:\n{paymentUrl}\n\nתודה שבחרתם בנו! 😊\n_לפניות ושאלות: {businessPhone}_",
+    label: "💳 דרישת תשלום", // i18n-ok
+    body: "שלום {customerName}! 🐾\n\n*דרישת תשלום*\nעבור: {serviceName} – {petName}\n\n💰 סה\"כ לתשלום: *{orderTotal}*\n\n💳 לתשלום מאובטח לחצו כאן:\n{paymentUrl}\n\nתודה שבחרתם בנו! 😊\n_לפניות ושאלות: {businessPhone}_", // i18n-ok
     trigger: "payment_request", offset: 0,
   },
   {
-    label: "📞 מעקב אחרי ליד חדש",
-    body: "שלום {customerName}! 🐾\n\nקיבלנו את פנייתך לגבי {serviceName} ונשמח לעזור!\nנחזור אליך בהקדם." + AUTOMATED_FOOTER,
+    label: "📞 מעקב אחרי ליד חדש", // i18n-ok
+    body: "שלום {customerName}! 🐾\n\nקיבלנו את פנייתך לגבי {serviceName} ונשמח לעזור!\nנחזור אליך בהקדם." + AUTOMATED_FOOTER, // i18n-ok
     trigger: "lead_followup", offset: 24,
   },
   {
-    label: "🌟 מעקב אחרי פגישה",
-    body: "שלום {customerName}! 🌟\n\nרצינו לדעת איך {petName} מרגיש/ת לאחר הפגישה האחרונה.\nאם הכל בסדר – נשמח לשמוע! ואם יש משהו שלא כשורה, חשוב לנו לדעת.\n\nתודה שבחרתם בנו 💛" + AUTOMATED_FOOTER,
+    label: "🌟 מעקב אחרי פגישה", // i18n-ok
+    body: "שלום {customerName}! 🌟\n\nרצינו לדעת איך {petName} מרגיש/ת לאחר הפגישה האחרונה.\nאם הכל בסדר – נשמח לשמוע! ואם יש משהו שלא כשורה, חשוב לנו לדעת.\n\nתודה שבחרתם בנו 💛" + AUTOMATED_FOOTER, // i18n-ok
     trigger: "appointment_followup", offset: 24,
   },
   {
-    label: "🎂 יום הולדת לחיית המחמד",
-    body: "יום הולדת שמח ל-{petName}! 🎂🐾\n\n{petName} מלא/ה {petAge} היום – כל הכבוד! 🎉\n\nכמתנה קטנה, נשמח להעניק לכם 10% הנחה על הפגישה הבאה 🎁\n(ציינו שקיבלתם הודעה זו בעת קביעת הפגישה)" + AUTOMATED_FOOTER,
+    label: "🎂 יום הולדת לחיית המחמד", // i18n-ok
+    body: "יום הולדת שמח ל-{petName}! 🎂🐾\n\n{petName} מלא/ה {petAge} היום – כל הכבוד! 🎉\n\nכמתנה קטנה, נשמח להעניק לכם 10% הנחה על הפגישה הבאה 🎁\n(ציינו שקיבלתם הודעה זו בעת קביעת הפגישה)" + AUTOMATED_FOOTER, // i18n-ok
     trigger: "birthday_reminder", offset: 0,
   },
   {
-    label: "👋 ברוכים הבאים",
-    body: "שלום {customerName}! 😊\n\nברוכים הבאים! שמחים לקבל אתכם ואת {petName} אלינו.\n\nיש לנו הרבה מה לחגוג ביחד – מחכים לראות אתכם בפגישה הראשונה! 🐾" + AUTOMATED_FOOTER,
+    label: "👋 ברוכים הבאים", // i18n-ok
+    body: "שלום {customerName}! 😊\n\nברוכים הבאים! שמחים לקבל אתכם ואת {petName} אלינו.\n\nיש לנו הרבה מה לחגוג ביחד – מחכים לראות אתכם בפגישה הראשונה! 🐾" + AUTOMATED_FOOTER, // i18n-ok
     trigger: "new_customer", offset: 0,
   },
   {
-    label: "🏠 אישור קביעת פנסיון",
-    body: "שלום {customerName}! 🏠\n\nהזמנת הפנסיון ל-{petName} אושרה בהצלחה!\n📅 כניסה: {checkIn}\n📅 יציאה: {checkOut}\n\nמחכים לקבל אתכם! 🐾",
+    label: "🏠 אישור קביעת פנסיון", // i18n-ok
+    body: "שלום {customerName}! 🏠\n\nהזמנת הפנסיון ל-{petName} אושרה בהצלחה!\n📅 כניסה: {checkIn}\n📅 יציאה: {checkOut}\n\nמחכים לקבל אתכם! 🐾", // i18n-ok
     trigger: "boarding_confirmation", offset: 0,
   },
   {
-    label: "🏨 תזכורת איסוף מפנסיון",
-    body: "שלום {customerName}! 🏨\n\nתזכורת – מחר הוא יום האיסוף של {petName} מהפנסיון.\n\n{petName} נהנה/ת מאוד ומחכה לכם! 🐕" + AUTOMATED_FOOTER,
+    label: "🏨 תזכורת איסוף מפנסיון", // i18n-ok
+    body: "שלום {customerName}! 🏨\n\nתזכורת – מחר הוא יום האיסוף של {petName} מהפנסיון.\n\n{petName} נהנה/ת מאוד ומחכה לכם! 🐕" + AUTOMATED_FOOTER, // i18n-ok
     trigger: "boarding_pickup", offset: 24,
   },
   {
-    label: "🌟 תודה אחרי פנסיון",
-    body: "שלום {customerName}! 🌟\n\nתודה שבחרתם בנו לטפל ב-{petName}.\n\nהיה לנו כיף לארח אותו/ה! נשמח לראותכם שוב 🐾" + AUTOMATED_FOOTER,
+    label: "🌟 תודה אחרי פנסיון", // i18n-ok
+    body: "שלום {customerName}! 🌟\n\nתודה שבחרתם בנו לטפל ב-{petName}.\n\nהיה לנו כיף לארח אותו/ה! נשמח לראותכם שוב 🐾" + AUTOMATED_FOOTER, // i18n-ok
     trigger: "boarding_thank_you", offset: 0,
   },
   {
-    label: "⭐ בקשת ביקורת",
-    body: "שלום {customerName}! ⭐\n\nתודה שסמכתם עלינו לטפל ב-{petName}.\n\nאם אהבתם, נשמח מאוד לביקורת קצרה – זה עוזר לנו ולבעלי חיות אחרים בחיפוש שירות מקצועי 🙏\n\nתודה מהלב!" + AUTOMATED_FOOTER,
+    label: "⭐ בקשת ביקורת", // i18n-ok
+    body: "שלום {customerName}! ⭐\n\nתודה שסמכתם עלינו לטפל ב-{petName}.\n\nאם אהבתם, נשמח מאוד לביקורת קצרה – זה עוזר לנו ולבעלי חיות אחרים בחיפוש שירות מקצועי 🙏\n\nתודה מהלב!" + AUTOMATED_FOOTER, // i18n-ok
     trigger: "appointment_followup", offset: 48,
   },
 ];
@@ -164,25 +175,27 @@ const STARTER_TEMPLATES = [
 // Default templates shown in the ידני tab — always visible, user can only edit body
 const MANUAL_STARTERS = STARTER_TEMPLATES.map(({ label, body, trigger }) => ({ label, body, trigger }));
 
-/** Where in the app each manual template is triggered / found */
-const TRIGGER_LOCATION: Record<string, string> = {
-  appointment_reminder:     "לוח שנה ← תור ← כפתור WhatsApp",
-  appointment_confirmation: "נשלח אוטומטית בעת קביעת תור",
-  payment_request:          "הזמנה ← סעיף תשלומים ← כפתור דרישת תשלום",
-  lead_followup:            "נשלח אוטומטית מספר שעות אחרי יצירת ליד",
-  appointment_followup:     "פרופיל לקוח ← תורים שהושלמו ← מעקב",
-  birthday_reminder:        "פרופיל לקוח ← כרטיס חיית המחמד ← יום הולדת",
-  new_customer:             "פרופיל לקוח ← כפתור ברוכים הבאים",
-  boarding_confirmation:    "נשלח אוטומטית בעת קביעת שהייה בפנסיון",
-  boarding_pickup:          "ניהול פנסיון ← רשימת שהיות",
-  boarding_thank_you:       "נשלח אוטומטית שעה אחרי סיום שהייה",
-};
+/** Where in the app each manual template is triggered / found — text: messages.messagesPanel.locations.<trigger> */
+const TRIGGER_LOCATION_IDS = new Set([
+  "appointment_reminder",
+  "appointment_confirmation",
+  "payment_request",
+  "lead_followup",
+  "appointment_followup",
+  "birthday_reminder",
+  "new_customer",
+  "boarding_confirmation",
+  "boarding_pickup",
+  "boarding_thank_you",
+]);
 
 // ─── Send Modal ───────────────────────────────────────────────────────────────
 
 interface SendCustomer { id: string; name: string; phone: string; email?: string | null }
 
 function SendModal({ template, onClose }: { template: MessageTemplate; onClose: () => void }) {
+  const t = useTranslations("messages.messagesPanel");
+  const tc = useTranslations("common");
   const [customerSearch, setCustomerSearch] = useState("");
   const [selected, setSelected] = useState<SendCustomer | null>(null);
 
@@ -225,7 +238,7 @@ function SendModal({ template, onClose }: { template: MessageTemplate; onClose: 
       <div className="modal-content max-w-lg mx-4 p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-lg font-bold text-petra-text">שליחת הודעה</h2>
+            <h2 className="text-lg font-bold text-petra-text">{t("sendModal.title")}</h2>
             <p className="text-xs text-petra-muted mt-0.5">{template.name}</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
@@ -235,10 +248,10 @@ function SendModal({ template, onClose }: { template: MessageTemplate; onClose: 
 
         {/* Customer picker */}
         <div className="mb-4">
-          <label className="label">בחר לקוח</label>
+          <label className="label">{t("sendModal.pickCustomer")}</label>
           <input
             className="input mb-2"
-            placeholder="חפש לפי שם או טלפון..."
+            placeholder={t("sendModal.searchPlaceholder")}
             value={customerSearch}
             onChange={(e) => setCustomerSearch(e.target.value)}
             autoFocus
@@ -249,7 +262,7 @@ function SendModal({ template, onClose }: { template: MessageTemplate; onClose: 
                 key={c.id}
                 onClick={() => { setSelected(c); setCustomerSearch(c.name); }}
                 className={cn(
-                  "w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-slate-50 transition-colors text-right",
+                  "w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-slate-50 transition-colors text-start",
                   selected?.id === c.id && "bg-brand-50 text-brand-700"
                 )}
               >
@@ -258,7 +271,7 @@ function SendModal({ template, onClose }: { template: MessageTemplate; onClose: 
               </button>
             ))}
             {filtered.length === 0 && (
-              <p className="text-xs text-petra-muted text-center py-3">לא נמצאו לקוחות</p>
+              <p className="text-xs text-petra-muted text-center py-3">{t("sendModal.noCustomers")}</p>
             )}
           </div>
         </div>
@@ -266,7 +279,7 @@ function SendModal({ template, onClose }: { template: MessageTemplate; onClose: 
         {/* Preview */}
         {selected && (
           <div className="mb-4">
-            <label className="label">תצוגה מקדימה</label>
+            <label className="label">{t("sendModal.preview")}</label>
             <div className="bg-slate-50 rounded-lg p-3 text-sm text-petra-text whitespace-pre-wrap border border-petra-border max-h-32 overflow-y-auto">
               {preview}
             </div>
@@ -274,14 +287,14 @@ function SendModal({ template, onClose }: { template: MessageTemplate; onClose: 
         )}
 
         <div className="flex gap-2 justify-end">
-          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+          <button className="btn-secondary" onClick={onClose}>{tc("actions.cancel")}</button>
           <button
             className="btn-primary"
             disabled={!selected}
             onClick={handleSend}
           >
             <Send className="w-4 h-4" />
-            פתח בוואטסאפ
+            {t("sendModal.openWhatsApp")}
           </button>
         </div>
       </div>
@@ -292,6 +305,8 @@ function SendModal({ template, onClose }: { template: MessageTemplate; onClose: 
 // ─── Bulk Send Modal ──────────────────────────────────────────────────────────
 
 function BulkSendModal({ template, onClose }: { template: MessageTemplate; onClose: () => void }) {
+  const t = useTranslations("messages.messagesPanel");
+  const tc = useTranslations("common");
   const [customerSearch, setCustomerSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [sentIds, setSentIds] = useState<Set<string>>(new Set());
@@ -346,7 +361,7 @@ function BulkSendModal({ template, onClose }: { template: MessageTemplate; onClo
         setSentIds((prev) => new Set([...prev, c.id]));
       }, i * 700);
     });
-    toast.success(`שולחים ל-${toSend.length} לקוחות...`);
+    toast.success(t("bulkModal.sending", { count: toSend.length }));
   }
 
   const allFiltered = filtered.length > 0 && filtered.every((c) => selectedIds.has(c.id));
@@ -358,7 +373,7 @@ function BulkSendModal({ template, onClose }: { template: MessageTemplate; onClo
       <div className="modal-content max-w-lg mx-4 p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-lg font-bold text-petra-text">שליחה לקבוצה</h2>
+            <h2 className="text-lg font-bold text-petra-text">{t("bulkModal.title")}</h2>
             <p className="text-xs text-petra-muted mt-0.5">{template.name}</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
@@ -369,13 +384,13 @@ function BulkSendModal({ template, onClose }: { template: MessageTemplate; onClo
         <div className="mb-2 flex items-center gap-2">
           <input
             className="input flex-1"
-            placeholder="חפש לפי שם או טלפון..."
+            placeholder={t("sendModal.searchPlaceholder")}
             value={customerSearch}
             onChange={(e) => setCustomerSearch(e.target.value)}
             autoFocus
           />
           <button className="btn-secondary text-xs whitespace-nowrap" onClick={toggleAll}>
-            {allFiltered ? "בטל הכל" : "בחר הכל"}
+            {allFiltered ? t("bulkModal.deselectAll") : t("bulkModal.selectAll")}
           </button>
         </div>
 
@@ -385,7 +400,7 @@ function BulkSendModal({ template, onClose }: { template: MessageTemplate; onClo
               key={c.id}
               onClick={() => toggleSelect(c.id)}
               className={cn(
-                "w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-slate-50 transition-colors text-right",
+                "w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-slate-50 transition-colors text-start",
                 selectedIds.has(c.id) && "bg-brand-50"
               )}
             >
@@ -401,23 +416,23 @@ function BulkSendModal({ template, onClose }: { template: MessageTemplate; onClo
             </button>
           ))}
           {filtered.length === 0 && (
-            <p className="text-xs text-petra-muted text-center py-3">לא נמצאו לקוחות</p>
+            <p className="text-xs text-petra-muted text-center py-3">{t("sendModal.noCustomers")}</p>
           )}
         </div>
 
         <div className="flex gap-2 justify-between items-center">
           <span className="text-xs text-petra-muted">
-            {selectedCount > 0 ? `${selectedCount} לקוחות נבחרו` : "לא נבחרו לקוחות"}
+            {selectedCount > 0 ? t("bulkModal.selectedCount", { count: selectedCount }) : t("bulkModal.noneSelected")}
           </span>
           <div className="flex gap-2">
-            <button className="btn-secondary" onClick={onClose}>ביטול</button>
+            <button className="btn-secondary" onClick={onClose}>{tc("actions.cancel")}</button>
             <button
               className="btn-primary"
               disabled={selectedCount === 0}
               onClick={handleBulkSend}
             >
               <Users className="w-4 h-4" />
-              שלח ל-{selectedCount > 0 ? selectedCount : "..."} לקוחות
+              {t("bulkModal.sendTo", { count: selectedCount > 0 ? selectedCount : "..." })}
             </button>
           </div>
         </div>
@@ -444,6 +459,10 @@ const TRIGGER_ICONS: Record<string, React.ElementType> = {
 // ─── Templates Tab ────────────────────────────────────────────────────────────
 
 function TemplatesTab() {
+  const t = useTranslations("messages.messagesPanel");
+  const tc = useTranslations("common");
+  const { locale, currency, cfg } = useBusinessLocale();
+  const sampleVars = buildSampleVars(t, currencySymbol({ locale, currency }));
   const [innerTab] = useState<"auto" | "manual">("auto");
   const [previewTriggerId, setPreviewTriggerId] = useState<string | null>(null);
   const [showEditor, setShowEditor] = useState(false);
@@ -471,7 +490,7 @@ function TemplatesTab() {
 
   const reminderSettingsMutation = useMutation({
     mutationFn: async (data: { whatsappRemindersEnabled?: boolean; whatsappReminderLeadHours?: number }) => {
-      if (!canCriticalSettings) throw new Error("רק בעל העסק יכול לשנות את הגדרות ההודעות האוטומטיות");
+      if (!canCriticalSettings) throw new Error(t("toasts.ownerOnly"));
       const r = await fetch("/api/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -479,7 +498,7 @@ function TemplatesTab() {
       });
       if (!r.ok) {
         const err = await r.json().catch(() => ({}));
-        throw new Error(err.error || "שמירה נכשלה");
+        throw new Error(err.error || t("toasts.saveFailed"));
       }
       return r.json();
     },
@@ -487,10 +506,10 @@ function TemplatesTab() {
       queryClient.invalidateQueries({ queryKey: ["settings"] });
       toast.success(
         vars.whatsappRemindersEnabled === undefined
-          ? "זמן התזכורת עודכן"
+          ? t("toasts.reminderTimeUpdated")
           : vars.whatsappRemindersEnabled
-            ? "תזכורות וואטסאפ הופעלו"
-            : "תזכורות וואטסאפ כובו"
+            ? t("toasts.remindersOn")
+            : t("toasts.remindersOff")
       );
     },
     onError: (err: Error) => toast.error(err.message),
@@ -529,11 +548,11 @@ function TemplatesTab() {
       queryClient.invalidateQueries({ queryKey: ["messages"] });
       queryClient.refetchQueries({ queryKey: ["messages"] });
       setShowEditor(false);
-      toast.success(editingTemplate ? "התבנית עודכנה" : "התבנית נוצרה בהצלחה");
+      toast.success(editingTemplate ? t("toasts.templateUpdated") : t("toasts.templateCreated"));
       setEditingTemplate(null);
       setForm(emptyForm);
     },
-    onError: () => toast.error("שגיאה בשמירת התבנית. נסה שוב."),
+    onError: () => toast.error(t("toasts.templateSaveError")),
   });
 
   const deleteMutation = useMutation({
@@ -541,9 +560,9 @@ function TemplatesTab() {
       fetch(`/api/messages/${id}`, { method: "DELETE" }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["messages"] });
-      toast.success("התבנית נמחקה");
+      toast.success(t("toasts.templateDeleted"));
     },
-    onError: () => toast.error("שגיאה במחיקת התבנית. נסה שוב."),
+    onError: () => toast.error(t("toasts.templateDeleteError")),
   });
 
   const toggleRuleMutation = useMutation({
@@ -551,7 +570,7 @@ function TemplatesTab() {
       fetch(`/api/automations/${ruleId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ isActive }) })
         .then(r => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["messages"] }),
-    onError: () => toast.error("שגיאה בעדכון אוטומציה"),
+    onError: () => toast.error(t("toasts.automationUpdateError")),
   });
 
   // Auto-creates template + rule from the fixed STARTER_TEMPLATES default — no editor needed
@@ -579,9 +598,9 @@ function TemplatesTab() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["messages"] });
       queryClient.refetchQueries({ queryKey: ["messages"] });
-      toast.success("האוטומציה הופעלה בהצלחה");
+      toast.success(t("toasts.automationActivated"));
     },
-    onError: (e: Error) => toast.error(e.message || "שגיאה בהפעלת האוטומציה"),
+    onError: (e: Error) => toast.error(e.message || t("toasts.automationActivateError")),
   });
 
   function insertVariable(v: string) {
@@ -608,15 +627,15 @@ function TemplatesTab() {
     setShowEditor(true);
   }
 
-  const manualTemplates = templates.filter(t => !t.automationRules?.length);
+  const manualTemplates = templates.filter(tpl => !tpl.automationRules?.length);
 
   return (
     <>
       {/* Tab description */}
       <p className="text-xs text-petra-muted mb-4">
-        הודעות שנשלחות אוטומטית על ידי המערכת בהתאם לאירועים — למשל אישור תור, תזכורת לפני פגישה, או יום הולדת. הפעל כל הודעה בלחיצה על המתג.{" "}
+        {t("auto.intro")}{" "}
         <a href="/scheduled-messages" className="text-brand-600 hover:underline font-medium">
-          צפה בהודעות שנשלחו ←
+          {t("auto.viewSent")}
         </a>
       </p>
 
@@ -634,32 +653,32 @@ function TemplatesTab() {
               <MessageSquare className="w-4 h-4 text-emerald-600" />
             </div>
             <div className="flex-1 min-w-[180px]">
-              <p className="text-sm font-semibold text-petra-text leading-snug">שליחת הודעות אוטומטיות בוואטסאפ</p>
+              <p className="text-sm font-semibold text-petra-text leading-snug">{t("auto.waTitle")}</p>
               <p className="text-xs text-petra-muted mt-0.5 leading-snug">
                 {bizSettings.whatsappRemindersEnabled
-                  ? "המערכת שולחת תזכורות והודעות אוטומטיות ללקוחות."
-                  : "כבוי — שום תזכורת או הודעה אוטומטית לא נשלחת ללקוחות, גם אם האוטומציות למטה פעילות."}
+                  ? t("auto.waOn")
+                  : t("auto.waOff")}
               </p>
               {!canCriticalSettings && (
                 <p className="text-xs text-amber-700 mt-1 leading-snug flex items-center gap-1">
                   <Lock className="w-3 h-3 flex-shrink-0" />
-                  רק בעל העסק (או מי שקיבל ממנו הרשאה) יכול לשנות הגדרה זו.
+                  {t("auto.ownerOnlyNote")}
                 </p>
               )}
             </div>
             {bizSettings.whatsappRemindersEnabled && (
               <div className="flex items-center gap-2">
-                <span className="text-xs text-petra-muted whitespace-nowrap">תזכורת לפני תור:</span>
+                <span className="text-xs text-petra-muted whitespace-nowrap">{t("auto.reminderBefore")}</span>
                 <select
                   className="text-sm border border-slate-200 rounded-lg px-2 py-1 bg-white text-petra-text"
                   value={bizSettings.whatsappReminderLeadHours}
                   onChange={(e) => reminderSettingsMutation.mutate({ whatsappReminderLeadHours: Number(e.target.value) })}
                   disabled={reminderSettingsMutation.isPending || !canCriticalSettings}
                 >
-                  <option value={24}>24 שעות</option>
-                  <option value={48}>48 שעות</option>
-                  <option value={72}>72 שעות</option>
-                  <option value={96}>96 שעות</option>
+                  <option value={24}>{t("auto.leadHours.h24")}</option>
+                  <option value={48}>{t("auto.leadHours.h48")}</option>
+                  <option value={72}>{t("auto.leadHours.h72")}</option>
+                  <option value={96}>{t("auto.leadHours.h96")}</option>
                 </select>
               </div>
             )}
@@ -673,7 +692,7 @@ function TemplatesTab() {
                 "relative inline-flex h-6 w-11 items-center rounded-full transition-colors flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed",
                 bizSettings.whatsappRemindersEnabled ? "bg-emerald-500" : "bg-slate-300"
               )}
-              title={bizSettings.whatsappRemindersEnabled ? "כבה הודעות אוטומטיות" : "הפעל הודעות אוטומטיות"}
+              title={bizSettings.whatsappRemindersEnabled ? t("auto.switchOff") : t("auto.switchOn")}
             >
               <span
                 className={cn(
@@ -687,11 +706,8 @@ function TemplatesTab() {
         {can("whatsapp_reminders") && (
           <div className="rounded-lg border border-sky-200 bg-sky-50/70 px-4 py-3 mb-4">
             <p className="text-xs text-sky-900 leading-relaxed">
-              <span className="font-semibold">איך נשלחות ההודעות בפועל:</span>{" "}
-              תזכורות והודעות יזומות נשלחות דרך תבניות וואטסאפ מאושרות של Meta, בנוסח אחיד וקבוע —
-              כך מתירה Meta לשלוח הודעה יזומה מחוץ לחלון של 24 שעות מפניית הלקוח.
-              עריכת הטקסט כאן חלה על הודעות שנשלחות בתוך 24 שעות מפניית הלקוח; מחוץ לחלון הזה
-              הלקוח מקבל את הנוסח המאושר. לכן ייתכן שהטקסט שמוצג כאן לא זהה מילה-במילה למה שהלקוח מקבל.
+              <span className="font-semibold">{t("auto.howTitle")}</span>{" "}
+              {t("auto.howBody")}
             </p>
           </div>
         )}
@@ -701,7 +717,7 @@ function TemplatesTab() {
           ) : (
             AUTOMATION_TRIGGERS.map((trigger) => {
               const linked = templates.find(
-                (t) => t.automationRules?.[0]?.trigger === trigger.id
+                (tpl) => tpl.automationRules?.[0]?.trigger === trigger.id
               );
               const rule = linked?.automationRules?.[0];
               const TriggerIcon = TRIGGER_ICONS[trigger.id] ?? Zap;
@@ -723,25 +739,25 @@ function TemplatesTab() {
 
                   {/* Name + description */}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-petra-text leading-snug">{trigger.label}</p>
-                    <p className="text-xs text-petra-muted mt-0.5 leading-snug">{trigger.description}</p>
+                    <p className="text-sm font-semibold text-petra-text leading-snug">{t(`triggers.${trigger.id}.label`)}</p>
+                    <p className="text-xs text-petra-muted mt-0.5 leading-snug">{t(`triggers.${trigger.id}.description`)}</p>
                   </div>
 
                   {/* Status badge */}
                   <div className="flex-shrink-0">
                     {isActive ? (
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-green-50 text-green-700 border border-green-200 whitespace-nowrap">
-                        פעיל
+                        {t("auto.active")}
                       </span>
                     ) : (
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-500 border border-slate-200 whitespace-nowrap">
-                        מושבת
+                        {t("auto.inactive")}
                       </span>
                     )}
                   </div>
 
                   {/* Template body preview (read-only) */}
-                  <div className="hidden sm:block w-44 flex-shrink-0 text-xs text-petra-muted truncate" dir="rtl">
+                  <div className="hidden sm:block w-44 flex-shrink-0 text-xs text-petra-muted truncate" dir={cfg.dir}>
                     {previewLine}
                   </div>
 
@@ -779,8 +795,8 @@ function TemplatesTab() {
 
         {/* ── Message preview modal ── */}
         {previewTriggerId && (() => {
-          const trigger = AUTOMATION_TRIGGERS.find((t) => t.id === previewTriggerId)!;
-          const linked = templates.find((t) => t.automationRules?.[0]?.trigger === previewTriggerId);
+          const trigger = AUTOMATION_TRIGGERS.find((tr) => tr.id === previewTriggerId)!;
+          const linked = templates.find((tpl) => tpl.automationRules?.[0]?.trigger === previewTriggerId);
           const body = linked?.body ?? STARTER_TEMPLATES.find((s) => s.trigger === previewTriggerId)?.body ?? "";
           const TriggerIcon = TRIGGER_ICONS[trigger.id] ?? Zap;
           return (
@@ -793,8 +809,8 @@ function TemplatesTab() {
                     <TriggerIcon className="w-4 h-4 text-brand-600" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-base font-semibold text-petra-text">{trigger.label}</h3>
-                    <p className="text-xs text-petra-muted">{linked ? "תבנית מותאמת אישית" : "תבנית ברירת מחדל"}</p>
+                    <h3 className="text-base font-semibold text-petra-text">{t(`triggers.${trigger.id}.label`)}</h3>
+                    <p className="text-xs text-petra-muted">{linked ? t("previewModal.custom") : t("previewModal.default")}</p>
                   </div>
                   <button onClick={() => setPreviewTriggerId(null)} className="text-petra-muted hover:text-petra-text flex-shrink-0">
                     <X className="w-5 h-5" />
@@ -802,15 +818,15 @@ function TemplatesTab() {
                 </div>
 
                 {/* Label */}
-                <p className="text-xs font-medium text-petra-muted mb-2">תוכן ההודעה שהלקוח יקבל</p>
+                <p className="text-xs font-medium text-petra-muted mb-2">{t("previewModal.contentLabel")}</p>
 
                 {/* Message body */}
-                <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-petra-text whitespace-pre-wrap leading-relaxed" dir="rtl">
+                <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-petra-text whitespace-pre-wrap leading-relaxed" dir={cfg.dir}>
                   {body}
                 </div>
 
                 <p className="text-[11px] text-petra-muted mt-3">
-                  המשתנים בסוגריים מוחלפים אוטומטית בנתוני הלקוח בעת השליחה.
+                  {t("previewModal.varsNote")}
                 </p>
               </div>
             </div>
@@ -821,15 +837,15 @@ function TemplatesTab() {
 
       {/* ── Manual section ── */}
       <div className="mt-8 mb-2">
-        <h3 className="text-sm font-bold text-petra-text">הודעות ידניות</h3>
-        <p className="text-xs text-petra-muted mt-0.5">תבניות שניתן לשלוח ידנית — חץ ירוק לשליחה ללקוח בודד, אנשים לשליחה קבוצתית, עיפרון לעריכה.</p>
+        <h3 className="text-sm font-bold text-petra-text">{t("manual.title")}</h3>
+        <p className="text-xs text-petra-muted mt-0.5">{t("manual.description")}</p>
       </div>
       {(true && (
         <div className="space-y-3 mt-2">
           {isLoading
             ? <PetraLoader />
             : MANUAL_STARTERS.map((starter) => {
-                const dbVersion = manualTemplates.find((t) => t.name === starter.label);
+                const dbVersion = manualTemplates.find((tpl) => tpl.name === starter.label);
                 const isCustomized = !!dbVersion;
                 const StarterIcon = TRIGGER_ICONS[starter.trigger] ?? MessageSquare;
                 const templateForModal: MessageTemplate = {
@@ -837,7 +853,7 @@ function TemplatesTab() {
                   body: dbVersion?.body ?? starter.body, variables: "", isActive: true,
                   createdAt: "", automationRules: [],
                 };
-                const locationText = TRIGGER_LOCATION[starter.trigger] ?? null;
+                const locationText = TRIGGER_LOCATION_IDS.has(starter.trigger) ? t(`locations.${starter.trigger}`) : null;
                 return (
                   <div key={starter.label} className="card p-4 flex items-center gap-4">
                     <div className="w-9 h-9 rounded-lg bg-brand-50 flex items-center justify-center flex-shrink-0">
@@ -859,11 +875,11 @@ function TemplatesTab() {
                     <div className="flex-shrink-0">
                       {isCustomized ? (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-green-50 text-green-700 border border-green-200 whitespace-nowrap">
-                          מותאם
+                          {t("manual.customized")}
                         </span>
                       ) : (
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200 whitespace-nowrap">
-                          ברירת מחדל
+                          {t("manual.default")}
                         </span>
                       )}
                     </div>
@@ -871,14 +887,14 @@ function TemplatesTab() {
                       <button
                         onClick={() => setSendingTemplate(templateForModal)}
                         className="p-1.5 rounded-lg hover:bg-green-50 text-slate-400 hover:text-green-600"
-                        title="שלח ללקוח בודד"
+                        title={t("manual.sendSingle")}
                       >
                         <Send className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => setBulkSendingTemplate(templateForModal)}
                         className="p-1.5 rounded-lg hover:bg-brand-50 text-slate-400 hover:text-brand-600"
-                        title="שלח לקבוצת לקוחות"
+                        title={t("manual.sendGroup")}
                       >
                         <Users className="w-3.5 h-3.5" />
                       </button>
@@ -893,7 +909,7 @@ function TemplatesTab() {
                           setShowEditor(true);
                         }}
                         className="p-1.5 rounded-lg hover:bg-slate-50 text-slate-400 hover:text-brand-600"
-                        title="ערוך תבנית"
+                        title={t("manual.editTemplate")}
                       >
                         <Edit3 className="w-3.5 h-3.5" />
                       </button>
@@ -911,7 +927,7 @@ function TemplatesTab() {
           <div className="modal-content max-w-lg mx-4 p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-bold text-petra-text">
-                {editingTemplate ? "ערוך תבנית" : "תבנית חדשה"}
+                {editingTemplate ? t("editor.editTitle") : t("editor.newTitle")}
               </h2>
               <button
                 onClick={() => setShowEditor(false)}
@@ -922,7 +938,7 @@ function TemplatesTab() {
             </div>
             <div className="space-y-4">
               <div>
-                <label className="label">שם התבנית *</label>
+                <label className="label">{t("editor.nameLabel")}</label>
                 <input
                   className="input"
                   value={form.name}
@@ -933,7 +949,7 @@ function TemplatesTab() {
               <div>
                 {/* Label row: title + starter picker + char count */}
                 <div className="flex items-center justify-between mb-1">
-                  <label className="label mb-0">תוכן ההודעה *</label>
+                  <label className="label mb-0">{t("editor.bodyLabel")}</label>
                   <div className="flex items-center gap-3">
                     {/* Starter templates */}
                     <div className="relative">
@@ -943,10 +959,10 @@ function TemplatesTab() {
                         className="flex items-center gap-1 text-[11px] text-brand-500 hover:text-brand-700 font-medium"
                       >
                         <Wand2 className="w-3 h-3" />
-                        טען דוגמה
+                        {t("editor.loadExample")}
                       </button>
                       {showStarters && (
-                        <div className="absolute left-0 top-5 z-20 w-52 bg-white rounded-xl shadow-lg border border-petra-border p-1">
+                        <div className="absolute end-0 top-5 z-20 w-52 bg-white rounded-xl shadow-lg border border-petra-border p-1">
                           {STARTER_TEMPLATES.map((s) => (
                             <button
                               key={s.label}
@@ -961,7 +977,7 @@ function TemplatesTab() {
                                 }));
                                 setShowStarters(false);
                               }}
-                              className="w-full text-right px-3 py-2 text-xs rounded-lg hover:bg-slate-50 text-petra-text transition-colors"
+                              className="w-full text-start px-3 py-2 text-xs rounded-lg hover:bg-slate-50 text-petra-text transition-colors"
                             >
                               {s.label}
                             </button>
@@ -971,7 +987,7 @@ function TemplatesTab() {
                     </div>
                     {/* Char count */}
                     <span className={`text-[11px] font-medium ${form.body.length > 800 ? "text-amber-500" : "text-petra-muted"}`}>
-                      {form.body.length} תווים
+                      {t("editor.chars", { count: form.body.length })}
                     </span>
                   </div>
                 </div>
@@ -979,7 +995,7 @@ function TemplatesTab() {
                 <textarea
                   className="input font-mono text-sm"
                   rows={5}
-                  placeholder="שלום {customerName}, פגישתך עם {petName} נקבעה ל-{date} בשעה {time}."
+                  placeholder={t("editor.bodyPlaceholder", { customerName: "{customerName}", petName: "{petName}", date: "{date}", time: "{time}" })}
                   value={form.body}
                   onChange={(e) => setForm({ ...form, body: e.target.value })}
                   onSelect={(e) => setCursorPos((e.target as HTMLTextAreaElement).selectionStart)}
@@ -994,7 +1010,7 @@ function TemplatesTab() {
                       type="button"
                       onClick={() => insertVariable(v)}
                       className="px-2 py-0.5 rounded-md bg-brand-50 text-brand-600 text-[11px] font-medium hover:bg-brand-100 transition-colors"
-                      title={`לחץ להוספת ${v} בנקודת הסמן`}
+                      title={t("editor.insertVarTitle", { v })}
                     >
                       {v}
                     </button>
@@ -1006,10 +1022,10 @@ function TemplatesTab() {
                   <div className="mt-3 rounded-xl bg-slate-50 border border-petra-border p-3">
                     <div className="flex items-center gap-1.5 mb-2">
                       <Eye className="w-3 h-3 text-petra-muted" />
-                      <span className="text-[10px] text-petra-muted font-medium">תצוגה מקדימה (נתונים לדוגמה)</span>
+                      <span className="text-[10px] text-petra-muted font-medium">{t("editor.livePreview")}</span>
                     </div>
                     <p className="text-sm text-petra-text whitespace-pre-wrap leading-relaxed">
-                      {applyPreview(form.body)}
+                      {applyPreview(form.body, sampleVars)}
                     </p>
                   </div>
                 )}
@@ -1021,9 +1037,9 @@ function TemplatesTab() {
                 <div>
                   <p className="text-sm font-semibold text-petra-text flex items-center gap-1.5">
                     <Zap className="w-4 h-4 text-brand-500" />
-                    שליחה אוטומטית
+                    {t("editor.autoTitle")}
                   </p>
-                  <p className="text-xs text-petra-muted mt-0.5">הפעל כדי לשלוח הודעה זו אוטומטית</p>
+                  <p className="text-xs text-petra-muted mt-0.5">{t("editor.autoHint")}</p>
                 </div>
                 <button type="button" onClick={() => setForm(f => ({ ...f, autoEnabled: !f.autoEnabled }))}>
                   {form.autoEnabled
@@ -1034,23 +1050,23 @@ function TemplatesTab() {
               {form.autoEnabled && (
                 <div className="space-y-3 p-3 bg-slate-50 rounded-xl">
                   <div>
-                    <label className="label">מתי לשלוח?</label>
+                    <label className="label">{t("editor.whenToSend")}</label>
                     <select
                       className="input"
                       value={form.autoTrigger}
                       onChange={e => setForm(f => ({ ...f, autoTrigger: e.target.value }))}
                     >
-                      {AUTOMATION_TRIGGERS.map(t => (
-                        <option key={t.id} value={t.id}>{t.label}</option>
+                      {AUTOMATION_TRIGGERS.map(tr => (
+                        <option key={tr.id} value={tr.id}>{t(`triggers.${tr.id}.label`)}</option>
                       ))}
                     </select>
                     <p className="text-xs text-petra-muted mt-1">
-                      {AUTOMATION_TRIGGERS.find(t => t.id === form.autoTrigger)?.description}
+                      {AUTOMATION_TRIGGERS.some(tr => tr.id === form.autoTrigger) ? t(`triggers.${form.autoTrigger}.description`) : undefined}
                     </p>
                   </div>
                   {!IMMEDIATE_TRIGGERS.has(form.autoTrigger) && (
                     <div>
-                      <label className="label">שעות</label>
+                      <label className="label">{t("editor.hoursLabel")}</label>
                       <input
                         type="number"
                         className="input"
@@ -1061,7 +1077,7 @@ function TemplatesTab() {
                         dir="ltr"
                       />
                       <p className="text-xs text-petra-muted mt-1">
-                        {triggerOffsetLabel(form.autoTrigger, form.autoOffset)}
+                        {triggerOffsetLabel(t, form.autoTrigger, form.autoOffset)}
                       </p>
                     </div>
                   )}
@@ -1075,9 +1091,9 @@ function TemplatesTab() {
                 disabled={!form.name || !form.body || saveMutation.isPending}
                 onClick={() => saveMutation.mutate(form)}
               >
-                {saveMutation.isPending ? "שומר..." : editingTemplate ? "שמור שינויים" : "צור תבנית"}
+                {saveMutation.isPending ? tc("progress.saving") : editingTemplate ? t("editor.saveChanges") : t("editor.create")}
               </button>
-              <button className="btn-secondary" onClick={() => setShowEditor(false)}>ביטול</button>
+              <button className="btn-secondary" onClick={() => setShowEditor(false)}>{tc("actions.cancel")}</button>
             </div>
           </div>
         </div>
@@ -1113,9 +1129,10 @@ interface CustomerBasic {
   pets: Array<{ id: string; name: string }>;
 }
 
+// Labels: messages.messagesPanel.bulkTab.audience.<id>
 const AUDIENCE_OPTIONS = [
-  { id: "all", label: "כל הלקוחות" },
-  { id: "with_pets", label: "לקוחות עם כלבים" },
+  { id: "all" },
+  { id: "with_pets" },
 ];
 
 function interpolateForCustomer(body: string, customer: CustomerBasic, businessPhone = ""): string {
@@ -1128,6 +1145,7 @@ function interpolateForCustomer(body: string, customer: CustomerBasic, businessP
 }
 
 function BulkSendTab() {
+  const t = useTranslations("messages.messagesPanel");
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [audience, setAudience] = useState("all");
   const [search, setSearch] = useState("");
@@ -1139,7 +1157,7 @@ function BulkSendTab() {
   });
 
   const whatsappTemplates = templates.filter(
-    (t) => t.channel === "whatsapp"
+    (tpl) => tpl.channel === "whatsapp"
   );
 
   const { data: allCustomers = [], isLoading } = useQuery<CustomerBasic[]>({
@@ -1154,7 +1172,7 @@ function BulkSendTab() {
   });
   const bizPhone = settings?.phone ?? "";
 
-  const selectedTemplate = whatsappTemplates.find((t) => t.id === selectedTemplateId);
+  const selectedTemplate = whatsappTemplates.find((tpl) => tpl.id === selectedTemplateId);
 
   const filteredCustomers = allCustomers.filter((c) => {
     const matchSearch =
@@ -1188,19 +1206,19 @@ function BulkSendTab() {
       {/* Setup row */}
       <div className="flex flex-wrap gap-3 mb-5">
         <div className="flex-1 min-w-[200px]">
-          <label className="label">תבנית הודעה</label>
+          <label className="label">{t("bulkTab.templateLabel")}</label>
           {whatsappTemplates.length === 0 ? (
-            <div className="input text-petra-muted text-sm">אין תבניות WhatsApp — צור תבנית קודם</div>
+            <div className="input text-petra-muted text-sm">{t("bulkTab.noTemplates")}</div>
           ) : (
             <select
               className="input"
               value={selectedTemplateId}
               onChange={(e) => setSelectedTemplateId(e.target.value)}
             >
-              <option value="">בחר תבנית...</option>
-              {whatsappTemplates.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
+              <option value="">{t("bulkTab.chooseTemplate")}</option>
+              {whatsappTemplates.map((tpl) => (
+                <option key={tpl.id} value={tpl.id}>
+                  {tpl.name}
                 </option>
               ))}
             </select>
@@ -1208,23 +1226,23 @@ function BulkSendTab() {
         </div>
 
         <div className="min-w-[180px]">
-          <label className="label">קהל יעד</label>
+          <label className="label">{t("bulkTab.audienceLabel")}</label>
           <select
             className="input"
             value={audience}
             onChange={(e) => setAudience(e.target.value)}
           >
             {AUDIENCE_OPTIONS.map((a) => (
-              <option key={a.id} value={a.id}>{a.label}</option>
+              <option key={a.id} value={a.id}>{t(`bulkTab.audience.${a.id}`)}</option>
             ))}
           </select>
         </div>
 
         <div className="flex-1 min-w-[180px]">
-          <label className="label">חיפוש לקוח</label>
+          <label className="label">{t("bulkTab.searchLabel")}</label>
           <input
             className="input"
-            placeholder="שם או טלפון..."
+            placeholder={t("bulkTab.searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -1236,8 +1254,8 @@ function BulkSendTab() {
         <div className="card p-4 mb-5 bg-green-50 border border-green-200">
           <div className="flex items-center gap-2 mb-2">
             <MessageSquare className="w-4 h-4 text-green-600" />
-            <span className="text-sm font-semibold text-green-800">תצוגה מקדימה של ההודעה</span>
-            <span className="badge-neutral text-[10px]">וואטסאפ</span>
+            <span className="text-sm font-semibold text-green-800">{t("bulkTab.previewTitle")}</span>
+            <span className="badge-neutral text-[10px]">{t("bulkTab.whatsappBadge")}</span>
           </div>
           <p className="text-sm text-green-900 whitespace-pre-wrap font-mono bg-white rounded-lg p-3 border border-green-100">
             {allCustomers[0]
@@ -1245,7 +1263,7 @@ function BulkSendTab() {
               : selectedTemplate.body}
           </p>
           {allCustomers[0] && (
-            <p className="text-xs text-green-700 mt-1">* תצוגה עבור הלקוח הראשון: {allCustomers[0].name}</p>
+            <p className="text-xs text-green-700 mt-1">{t("bulkTab.previewFor", { name: allCustomers[0].name })}</p>
           )}
         </div>
       )}
@@ -1254,22 +1272,22 @@ function BulkSendTab() {
       {!selectedTemplateId ? (
         <div className="empty-state">
           <div className="empty-state-icon"><Send className="w-6 h-6 text-slate-400" /></div>
-          <h3 className="text-base font-semibold text-petra-text mb-1">בחר תבנית להתחלה</h3>
-          <p className="text-sm text-petra-muted">בחר תבנית הודעה כדי לראות את הלקוחות ולשלוח הודעות</p>
+          <h3 className="text-base font-semibold text-petra-text mb-1">{t("bulkTab.emptyTitle")}</h3>
+          <p className="text-sm text-petra-muted">{t("bulkTab.emptyBody")}</p>
         </div>
       ) : isLoading ? (
         <PetraLoader />
       ) : filteredCustomers.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state-icon"><Users className="w-6 h-6 text-slate-400" /></div>
-          <h3 className="text-base font-semibold text-petra-text mb-1">אין לקוחות</h3>
-          <p className="text-sm text-petra-muted">לא נמצאו לקוחות עם הסינון הנוכחי</p>
+          <h3 className="text-base font-semibold text-petra-text mb-1">{t("bulkTab.noCustomersTitle")}</h3>
+          <p className="text-sm text-petra-muted">{t("bulkTab.noCustomersBody")}</p>
         </div>
       ) : (
         <>
           <div className="flex items-center gap-2 mb-3">
             <Users className="w-4 h-4 text-petra-muted" />
-            <span className="text-sm text-petra-muted">{filteredCustomers.length} לקוחות</span>
+            <span className="text-sm text-petra-muted">{t("bulkTab.count", { count: filteredCustomers.length })}</span>
           </div>
           <div className="space-y-2">
             {filteredCustomers.map((customer) => {
@@ -1305,7 +1323,7 @@ function BulkSendTab() {
                       <button
                         onClick={() => openWhatsApp(customer)}
                         className="btn-primary text-xs py-1.5 px-3 flex items-center gap-1.5"
-                        title="פתח WhatsApp"
+                        title={t("bulkTab.openWhatsApp")}
                       >
                         <ExternalLink className="w-3 h-3" />
                         WhatsApp
@@ -1319,7 +1337,7 @@ function BulkSendTab() {
                           ? "bg-green-100 text-green-600"
                           : "hover:bg-slate-100 text-slate-400"
                       )}
-                      title="העתק הודעה"
+                      title={t("bulkTab.copyMessage")}
                     >
                       {isCopied
                         ? <CheckCheck className="w-4 h-4" />
@@ -1339,6 +1357,7 @@ function BulkSendTab() {
 // ─── Main Panel ───────────────────────────────────────────────────────────────
 
 export function MessagesPanel() {
+  const t = useTranslations("messages.messagesPanel");
   const [activeTab, setActiveTab] = useState<"templates" | "bulk">("templates");
 
   return (
@@ -1356,7 +1375,7 @@ export function MessagesPanel() {
         >
           <span className="flex items-center gap-2">
             <MessageSquare className="w-4 h-4" />
-            תבניות
+            {t("tabs.templates")}
           </span>
         </button>
         <button
@@ -1370,7 +1389,7 @@ export function MessagesPanel() {
         >
           <span className="flex items-center gap-2">
             <Send className="w-4 h-4" />
-            שליחה קבוצתית
+            {t("tabs.bulk")}
           </span>
         </button>
       </div>

@@ -309,6 +309,12 @@ model Business {
   gcalBlockExternal  Boolean @default(false) // block any GCal event (not just Petra ones)
   customerTags String  @default("[\"VIP\",\"קבוע\",\"מזדמן\",\"פוטנציאל\",\"לשעבר\",\"עסקי\"]") // JSON array of preset customer tag labels
   timezone    String   @default("Asia/Jerusalem")
+  // US expansion (docs/us-expansion-plan.md §3.1) — locale drives language/dir/currency/phone
+  locale           String @default("he-IL")    // "he-IL" | "en-US" — src/lib/locale.ts
+  country          String @default("IL")       // ISO-3166 alpha-2
+  currency         String @default("ILS")      // "ILS" | "USD"
+  messagingChannel String @default("whatsapp") // "whatsapp" | "sms"
+  billingProvider  String @default("cardcom")  // "cardcom" | "stripe"
   webhookApiKey String? @unique // per-business webhook API key (pk_...)
   webhookApiKeyCreatedAt DateTime?
   sdSettings    Json?   // service-dog settings: { trackHours, defaultTargetHours, allowManualCert }

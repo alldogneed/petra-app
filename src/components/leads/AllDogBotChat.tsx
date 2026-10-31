@@ -6,13 +6,15 @@
  * (other businesses / leads without a bot chat get 404 → hidden).
  * The rep can answer through the bot number (24h window) or hand the chat back to the bot.
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Bot, Send, UserRound } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
 import { autoMessageLabel } from "@/lib/alldog/missed-call-labels";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 
 interface BotConversationView {
   id: string;
@@ -22,14 +24,6 @@ interface BotConversationView {
   autoResumeAt: string | null;
   messages: Array<{ id: string; role: string; kind: string; text: string; createdAt: string; mediaUrl?: string | null }>;
 }
-
-const timeFmt = new Intl.DateTimeFormat("he-IL", {
-  timeZone: "Asia/Jerusalem",
-  day: "2-digit",
-  month: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-});
 
 async function loadConversation(leadId: string): Promise<BotConversationView | null> {
   const res = await fetch(`/api/leads/${leadId}/whatsapp-bot`);
@@ -45,11 +39,24 @@ async function post(leadId: string, body: Record<string, unknown>): Promise<BotC
     body: JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || "שגיאה");
+  if (!res.ok) throw new Error(data.error || "");
   return data.conversation as BotConversationView;
 }
 
 export function AllDogBotChat({ leadId }: { leadId: string }) {
+  const t = useTranslations("leads");
+  const { locale, timezone } = useBusinessLocale();
+  const timeFmt = useMemo(
+    () =>
+      new Intl.DateTimeFormat(locale, {
+        timeZone: timezone,
+        day: "2-digit",
+        month: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    [locale, timezone]
+  );
   const qc = useQueryClient();
   const perms = usePermissions();
   const [text, setText] = useState("");
@@ -72,37 +79,39 @@ export function AllDogBotChat({ leadId }: { leadId: string }) {
     onSuccess: (c) => {
       qc.setQueryData(key, c);
       setText("");
-      toast.success("נשלח בוואטסאפ");
+      toast.success(t("allDogBotChat.sentOnWhatsApp"));
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(e.message || t("allDogBotChat.error")),
   });
   const resume = useMutation({
     mutationFn: () => post(leadId, { action: "resume" }),
     onSuccess: (c) => {
       qc.setQueryData(key, c);
-      toast.success("השיחה חזרה לבוט");
+      toast.success(t("allDogBotChat.backToBotToast"));
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(e.message || t("allDogBotChat.error")),
   });
 
   if (!conv) return null;
 
   const statusLine =
     conv.status === "handoff"
-      ? `אצל נציגה${conv.autoResumeAt ? ` · חוזר לבוט אוטומטית ${timeFmt.format(new Date(conv.autoResumeAt))}` : ""}`
+      ? conv.autoResumeAt
+        ? t("allDogBotChat.status.handoffAutoResume", { time: timeFmt.format(new Date(conv.autoResumeAt)) })
+        : t("allDogBotChat.status.handoff")
       : conv.status === "stopped"
-        ? "הלקוח ביקש להפסיק"
+        ? t("allDogBotChat.status.stopped")
         : conv.status === "closed_partial"
-          ? "נסגרה באמצע · הלקוח הפסיק לענות"
+          ? t("allDogBotChat.status.closedPartial")
           : conv.status === "general"
-            ? "פנייה כללית לאור · לא קשורה לכלב"
-            : "הבוט עונה";
+            ? t("allDogBotChat.status.general")
+            : t("allDogBotChat.status.active");
 
   return (
     <div className="px-6 py-5 border-b border-[#F1F5F9]">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <div className="text-xs font-semibold text-slate-500">וואטסאפ עם הבוט</div>
+          <div className="text-xs font-semibold text-slate-500">{t("allDogBotChat.title")}</div>
           <div
             className={cn(
               "mt-0.5 text-sm font-semibold",
@@ -119,13 +128,13 @@ export function AllDogBotChat({ leadId }: { leadId: string }) {
             disabled={resume.isPending}
             onClick={() => resume.mutate()}
           >
-            <Bot className="w-3.5 h-3.5" /> החזר לבוט
+            <Bot className="w-3.5 h-3.5" /> {t("allDogBotChat.resumeBot")}
           </button>
         )}
       </div>
 
       <div ref={listRef} className="mt-3 max-h-72 overflow-y-auto space-y-1.5 rounded-xl bg-slate-50 p-3" data-no-pull-refresh>
-        {conv.messages.length === 0 && <div className="text-xs text-slate-400">אין הודעות</div>}
+        {conv.messages.length === 0 && <div className="text-xs text-slate-400">{t("allDogBotChat.noMessages")}</div>}
         {conv.messages.map((m) => {
           const mine = m.role !== "user";
           return (
@@ -141,20 +150,24 @@ export function AllDogBotChat({ leadId }: { leadId: string }) {
                 {m.role !== "user" && (
                   <div className="mb-0.5 flex items-center gap-1 text-[11px] font-semibold text-slate-500">
                     {m.role === "human" ? <UserRound className="w-3 h-3" /> : <Bot className="w-3 h-3" />}
-                    {m.role === "human" ? "נציגה" : autoMessageLabel(m.kind) ?? "בוט"}
+                    {m.role === "human" ? t("allDogBotChat.roleRep") : autoMessageLabel(m.kind) ?? t("allDogBotChat.roleBot")}
                   </div>
                 )}
                 {m.kind === "image" && m.mediaUrl && (
                   // Item 39: the photo the customer sent (proxied from WhatsApp, Meta keeps it ~30 days).
                   <a href={m.mediaUrl} target="_blank" rel="noopener noreferrer" className="mb-1 block">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={m.mediaUrl} alt="תמונה מהלקוח" loading="lazy" className="max-h-48 rounded-lg object-cover" />
+                    <img src={m.mediaUrl} alt={t("allDogBotChat.imageAlt")} loading="lazy" className="max-h-48 rounded-lg object-cover" />
                   </a>
                 )}
-                {m.kind === "voice" ? `🎤 ${m.text}` : m.kind === "image" ? `📷 ${m.text.replace(/^\[תמונה:?\s*/u, "").replace(/\]/u, "") || "תמונה"}` : m.text}
+                {m.kind === "voice"
+                  ? `🎤 ${m.text}`
+                  : m.kind === "image"
+                    ? `📷 ${m.text.replace(/^\[תמונה:?\s*/u, "").replace(/\]/u, "") || t("allDogBotChat.image")}` // i18n-ok — strips the stored "[תמונה: …]" prefix
+                    : m.text}
                 {m.kind === "media" && m.mediaUrl && (
                   <a href={m.mediaUrl} target="_blank" rel="noopener noreferrer" className="mt-1 block text-xs font-semibold text-blue-600 underline">
-                    פתיחת הקובץ
+                    {t("allDogBotChat.openFile")}
                   </a>
                 )}
                 <div className="mt-0.5 text-[10px] text-slate-400 tabular-nums">{timeFmt.format(new Date(m.createdAt))}</div>
@@ -177,19 +190,19 @@ export function AllDogBotChat({ leadId }: { leadId: string }) {
               className="input min-h-[42px] flex-1 resize-y text-sm"
               rows={2}
               maxLength={2000}
-              placeholder="תשובה ללקוח (נשלחת מהמספר של הבוט, והבוט עוצר)"
+              placeholder={t("allDogBotChat.replyPlaceholder")}
               value={text}
               onChange={(e) => setText(e.target.value)}
             />
-            <button type="submit" className="btn-primary" disabled={!text.trim() || send.isPending} aria-label="שלח">
+            <button type="submit" className="btn-primary" disabled={!text.trim() || send.isPending} aria-label={t("allDogBotChat.send")}>
               <Send className="w-4 h-4" />
             </button>
           </form>
         ) : (
           <div className="mt-3 text-xs text-slate-500">
             {conv.lastInboundAt
-              ? "עברו 24 שעות מההודעה האחרונה של הלקוח, אז וואטסאפ לא מאפשר לשלוח טקסט. אפשר להתקשר."
-              : "הלקוח עוד לא ענה – אפשר להתקשר אליו"}
+              ? t("allDogBotChat.windowClosed")
+              : t("allDogBotChat.noReplyYet")}
           </div>
         )
       )}

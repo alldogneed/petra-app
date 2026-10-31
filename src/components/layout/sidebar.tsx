@@ -48,9 +48,12 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/providers/auth-provider";
 import { hasTenantPermission, screenPermissionForPath, type PermissionOverrides, type TenantRole } from "@/lib/permissions";
 import { usePWAInstall } from "./PWAInstallProvider";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 
 interface NavItem {
-  name: string;
+  /** Full message key (from the root), e.g. "layout.sidebar.nav.reports". */
+  nameKey: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   minRole?: "owner" | "manager" | "user" | "volunteer";
@@ -64,7 +67,8 @@ interface NavItem {
 
 interface NavGroup {
   key: string;
-  name: string;
+  /** Full message key (from the root). */
+  nameKey: string;
   icon: React.ComponentType<{ className?: string }>;
   defaultHref: string; // where collapsed-icon click navigates to
   children: NavItem[];
@@ -72,8 +76,8 @@ interface NavGroup {
 }
 
 interface NavEyebrow {
-  /** Section label rendered as an uppercase eyebrow above the next group of items. */
-  eyebrow: string;
+  /** Section label (full message key) rendered as an uppercase eyebrow above the next group of items. */
+  eyebrowKey: string;
 }
 
 type NavEntry = NavItem | NavGroup | NavEyebrow;
@@ -83,7 +87,7 @@ function isGroup(entry: NavEntry): entry is NavGroup {
 }
 
 function isEyebrow(entry: NavEntry): entry is NavEyebrow {
-  return "eyebrow" in entry;
+  return "eyebrowKey" in entry;
 }
 
 const ROLE_LEVEL: Record<string, number> = { owner: 0, admin: 0, manager: 1, user: 2, volunteer: 3 };
@@ -109,30 +113,30 @@ function canSee(
 }
 
 const navEntries: NavEntry[] = [
-  { eyebrow: "תפריט ראשי" },
-  { name: "דשבורד", href: "/dashboard", icon: LayoutDashboard },
-  { name: "לקוחות", href: "/customers", icon: Users, minRole: "manager" },
-  { name: "מערכת מכירות", href: "/leads", icon: Target, minRole: "manager", lockedFeature: "leads" },
-  { name: "ניהול משימות", href: "/tasks", icon: ListTodo },
-  { name: "ניהול תורים אונליין", href: "/scheduler", icon: CalendarCheck, minRole: "manager", lockedFeature: "online_bookings" },
-  { name: "יומן", href: "/calendar", icon: Calendar, minRole: "manager" },
+  { eyebrowKey: "layout.sidebar.eyebrows.main" },
+  { nameKey: "layout.sidebar.nav.dashboard", href: "/dashboard", icon: LayoutDashboard },
+  { nameKey: "layout.sidebar.nav.customers", href: "/customers", icon: Users, minRole: "manager" },
+  { nameKey: "layout.sidebar.nav.leads", href: "/leads", icon: Target, minRole: "manager", lockedFeature: "leads" },
+  { nameKey: "layout.sidebar.nav.tasks", href: "/tasks", icon: ListTodo },
+  { nameKey: "layout.sidebar.nav.scheduler", href: "/scheduler", icon: CalendarCheck, minRole: "manager", lockedFeature: "online_bookings" },
+  { nameKey: "layout.sidebar.nav.calendar", href: "/calendar", icon: Calendar, minRole: "manager" },
 
-  { eyebrow: "מודולים" },
-  { name: "פנסיון", href: "/boarding", icon: Hotel, lockedFeature: "boarding", hiddenForTiers: ["groomer", "groomer_plus"] },
-  { name: "ניהול כלבי שירות", href: "/service-dogs", icon: Shield, lockedFeature: "service_dogs", hiddenForTiers: ["groomer", "groomer_plus"] },
-  { name: "ניהול תהליכי אילוף", href: "/training", icon: Dog, hiddenForTiers: ["groomer", "groomer_plus"] },
-  { name: "חיות מחמד", href: "/pets", icon: PawPrint, minRole: "manager", lockedFeature: "pets_advanced" },
-  { name: "שיעורים אונליין", href: "/online-classes", icon: MonitorPlay, lockedFeature: "online_classes", isNew: true },
+  { eyebrowKey: "layout.sidebar.eyebrows.modules" },
+  { nameKey: "layout.sidebar.nav.boarding", href: "/boarding", icon: Hotel, lockedFeature: "boarding", hiddenForTiers: ["groomer", "groomer_plus"] },
+  { nameKey: "layout.sidebar.nav.serviceDogs", href: "/service-dogs", icon: Shield, lockedFeature: "service_dogs", hiddenForTiers: ["groomer", "groomer_plus"] },
+  { nameKey: "layout.sidebar.nav.training", href: "/training", icon: Dog, hiddenForTiers: ["groomer", "groomer_plus"] },
+  { nameKey: "layout.sidebar.nav.pets", href: "/pets", icon: PawPrint, minRole: "manager", lockedFeature: "pets_advanced" },
+  { nameKey: "layout.sidebar.nav.onlineClasses", href: "/online-classes", icon: MonitorPlay, lockedFeature: "online_classes", isNew: true },
   // Connecting an AI assistant (POST /api/mcp/connections) is owner/manager-only, so staff never see it.
-  { name: "עוזר AI", href: "/help/connect-ai", icon: Sparkles, minRole: "manager", lockedFeature: "ai_assistant" },
+  { nameKey: "layout.sidebar.nav.aiAssistant", href: "/help/connect-ai", icon: Sparkles, minRole: "manager", lockedFeature: "ai_assistant" },
 
-  { eyebrow: "ניהול" },
-  { name: "פיננסים", href: "/pricing", icon: Wallet, minRole: "manager" },
-  { name: "הודעות", href: "/scheduled-messages", icon: MessageSquare, minRole: "manager" },
-  { name: "דוחות", href: "/analytics", icon: BarChart3, minRole: "owner", lockedFeature: "analytics" },
-  { name: "ניהול ובקרה", href: "/business-admin", icon: ShieldCheck, minRole: "owner", lockedFeature: "staff_management" },
-  { name: "סרטוני הדרכה", href: "/tutorials", icon: PlayCircle },
-  { name: "הגדרות", href: "/settings", icon: Settings, minRole: "owner" },
+  { eyebrowKey: "layout.sidebar.eyebrows.management" },
+  { nameKey: "layout.sidebar.nav.finance", href: "/pricing", icon: Wallet, minRole: "manager" },
+  { nameKey: "layout.sidebar.nav.messages", href: "/scheduled-messages", icon: MessageSquare, minRole: "manager" },
+  { nameKey: "layout.sidebar.nav.reports", href: "/analytics", icon: BarChart3, minRole: "owner", lockedFeature: "analytics" },
+  { nameKey: "layout.sidebar.nav.businessAdmin", href: "/business-admin", icon: ShieldCheck, minRole: "owner", lockedFeature: "staff_management" },
+  { nameKey: "layout.sidebar.nav.tutorials", href: "/tutorials", icon: PlayCircle },
+  { nameKey: "layout.sidebar.nav.settings", href: "/settings", icon: Settings, minRole: "owner" },
 ];
 
 interface SidebarProps {
@@ -153,6 +157,9 @@ export function Sidebar({
   const pathname = usePathname();
   const { user, loading: authLoading } = useAuth();
   const isMaster = user?.isAdmin === true;
+  const t = useTranslations("layout.sidebar");
+  const tRoot = useTranslations();
+  const { cfg } = useBusinessLocale();
 
   // PWA install — permanent entry so users can add Petra to their home screen
   // any time (the bottom nudge banner is mobile-only and dismissable).
@@ -275,11 +282,11 @@ export function Sidebar({
     "/service-dogs": sdAlerts?.total || 0,
   };
   const BADGE_TOOLTIPS: Record<string, string> = {
-    "/tasks": `${counters?.openTasks || 0} משימות פתוחות`,
-    "/leads": `${counters?.overdueFollowUps || 0} לידים עם מעקב באיחור`,
-    "/scheduler": `${counters?.pendingBookings || 0} הזמנות ממתינות לאישור`,
-    "/boarding": `${counters?.activeBoarding || 0} כלבים בפנסיון`,
-    "/service-dogs": `${sdAlerts?.total || 0} התראות פעילות`,
+    "/tasks": t("badges.openTasks", { count: counters?.openTasks || 0 }),
+    "/leads": t("badges.overdueFollowUps", { count: counters?.overdueFollowUps || 0 }),
+    "/scheduler": t("badges.pendingBookings", { count: counters?.pendingBookings || 0 }),
+    "/boarding": t("badges.activeBoarding", { count: counters?.activeBoarding || 0 }),
+    "/service-dogs": t("badges.serviceDogAlerts", { count: sdAlerts?.total || 0 }),
   };
 
   const renderNavItem = (item: NavItem, isMobile: boolean, isChild = false) => {
@@ -312,7 +319,7 @@ export function Sidebar({
         onClick={isMobile ? onMobileClose : undefined}
         className={cn(
           "flex items-center gap-3 px-3 py-1.5 rounded-xl text-sm font-medium transition-all duration-150 group relative",
-          isChild && isExpanded && "pr-8",
+          isChild && isExpanded && "ps-8",
           locked
             ? "text-slate-500 hover:text-slate-400 hover:bg-white/[0.04]"
             : isActive
@@ -327,7 +334,7 @@ export function Sidebar({
               }
             : undefined
         }
-        title={!isMobile && collapsed ? item.name : undefined}
+        title={!isMobile && collapsed ? tRoot(item.nameKey) : undefined}
       >
         <div
           className={cn(
@@ -341,13 +348,13 @@ export function Sidebar({
         >
           <Icon className="w-[18px] h-[18px]" />
           {badge > 0 && !locked && collapsed && !isMobile && (
-            <span title={badgeTooltip} aria-label={badgeTooltip} className="absolute -top-1 -left-1 min-w-[14px] h-[14px] rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center px-0.5 leading-none">
+            <span title={badgeTooltip} aria-label={badgeTooltip} className="absolute -top-1 -end-1 min-w-[14px] h-[14px] rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center px-0.5 leading-none">
               {badge > 99 ? "99+" : badge}
             </span>
           )}
         </div>
         {isExpanded && (
-          <span className={cn("flex-1", !locked && isActive ? "text-white" : "")}>{item.name}</span>
+          <span className={cn("flex-1", !locked && isActive ? "text-white" : "")}>{tRoot(item.nameKey)}</span>
         )}
         {/* Lock badge — shown instead of notification badge */}
         {locked && isExpanded && (
@@ -359,11 +366,11 @@ export function Sidebar({
           </span>
         )}
         {item.isNew && !locked && badge === 0 && isExpanded && (
-          <span className="text-[10px] font-bold bg-brand-500 text-white px-1.5 py-0.5 rounded-full leading-none flex-shrink-0">חדש</span>
+          <span className="text-[10px] font-bold bg-brand-500 text-white px-1.5 py-0.5 rounded-full leading-none flex-shrink-0">{t("newBadge")}</span>
         )}
         {!locked && isActive && isExpanded && (
           <span
-            className="absolute right-0 w-1 h-5 rounded-l-full"
+            className="absolute start-0 w-1 h-5 rounded-e-full"
             style={{ background: "#F97316" }}
           />
         )}
@@ -384,7 +391,7 @@ export function Sidebar({
           key={`${group.key}-collapsed`}
           href={group.defaultHref}
           prefetch={false}
-          title={group.name}
+          title={tRoot(group.nameKey)}
           className={cn(
             "flex items-center justify-center px-3 py-1.5 rounded-xl transition-all duration-150 group",
             !anyChildActive && "hover:bg-white/[0.06]"
@@ -434,7 +441,7 @@ export function Sidebar({
               anyChildActive ? "text-brand-400" : "text-slate-500 group-hover:text-slate-300"
             )}
           />
-          <span className="flex-1 text-right">{group.name}</span>
+          <span className="flex-1 text-start">{tRoot(group.nameKey)}</span>
           <ChevronDown
             className={cn(
               "w-3.5 h-3.5 flex-shrink-0 transition-transform duration-200 text-slate-500",
@@ -446,7 +453,7 @@ export function Sidebar({
         {isOpen && (
           <div id={`sidebar-group-${group.key}`} className="mt-0.5 space-y-0.5 relative">
             <div
-              className="absolute top-0 bottom-0 right-[26px] w-px"
+              className="absolute top-0 bottom-0 start-[26px] w-px"
               style={{ background: "rgba(255,255,255,0.08)" }}
             />
             {group.children
@@ -468,7 +475,7 @@ export function Sidebar({
 
     return (
       <aside
-        aria-label="סרגל ניווט"
+        aria-label={t("asideAriaLabel")}
         className={cn(
           "flex flex-col h-full transition-all duration-300",
           !isMobile && (collapsed ? "w-[72px]" : "w-[240px]"),
@@ -476,7 +483,7 @@ export function Sidebar({
         )}
         style={{
           background: "linear-gradient(180deg, #0F172A 0%, #1a2744 100%)",
-          borderLeft: isMobile ? "none" : "1px solid rgba(255,255,255,0.06)",
+          borderInlineEnd: isMobile ? "none" : "1px solid rgba(255,255,255,0.06)",
         }}
       >
         {/* Logo */}
@@ -510,7 +517,7 @@ export function Sidebar({
         </div>
 
         {/* Navigation */}
-        <nav ref={!isMobile ? navRef : undefined} aria-label="ניווט ראשי" className="sidebar-nav flex-1 px-3 py-2 overflow-y-auto" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.3) transparent", overflowAnchor: "none" }}>
+        <nav ref={!isMobile ? navRef : undefined} aria-label={t("navAriaLabel")} className="sidebar-nav flex-1 px-3 py-2 overflow-y-auto" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.3) transparent", overflowAnchor: "none" }}>
           <div className="space-y-0.5">
             {/* Main nav — unlocked items (expanded) or all items (collapsed) */}
             {(isExpanded ? mainNavEntries : visibleEntries.filter(e => !isEyebrow(e))).map((entry, idx) => {
@@ -518,13 +525,13 @@ export function Sidebar({
                 if (!isExpanded) return null;
                 return (
                   <div
-                    key={`eyebrow-${idx}-${entry.eyebrow}`}
+                    key={`eyebrow-${idx}-${entry.eyebrowKey}`}
                     className={cn(
                       "px-3 text-[10px] font-bold uppercase tracking-[0.08em] text-white/40",
                       idx === 0 ? "pt-1 pb-1.5" : "pt-4 pb-1.5"
                     )}
                   >
-                    {entry.eyebrow}
+                    {tRoot(entry.eyebrowKey)}
                   </div>
                 );
               }
@@ -542,7 +549,7 @@ export function Sidebar({
                   className="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-xl text-[11px] font-medium text-slate-500 hover:text-slate-400 transition-colors"
                 >
                   <Lock className="w-3 h-3 flex-shrink-0" />
-                  <span className="flex-1 text-right">תכונות נוספות</span>
+                  <span className="flex-1 text-start">{t("moreFeatures")}</span>
                   <span className="text-[10px] bg-white/[0.08] text-slate-500 px-1.5 py-0.5 rounded-full">{lockedNavEntries.length}</span>
                   <ChevronDown className={cn("w-3 h-3 transition-transform duration-200 text-slate-600", lockedSectionOpen && "rotate-180")} />
                 </button>
@@ -557,13 +564,13 @@ export function Sidebar({
             {/* Help button */}
             <button
               onClick={handleHelpClick}
-              title={!isMobile && collapsed ? "עזרה" : undefined}
+              title={!isMobile && collapsed ? t("help") : undefined}
               className="w-full flex items-center gap-3 px-3 py-1.5 rounded-xl text-sm font-medium transition-all duration-150 group text-slate-400 hover:text-white hover:bg-white/[0.06]"
             >
               <div className="flex-shrink-0 text-slate-500 group-hover:text-slate-300">
                 <HelpCircle className="w-[18px] h-[18px]" />
               </div>
-              {isExpanded && <span>עזרה</span>}
+              {isExpanded && <span>{t("help")}</span>}
             </button>
 
             {/* Install app — permanent home-screen install entry (hidden once installed) */}
@@ -577,19 +584,19 @@ export function Sidebar({
                       setIosHintOpen((v) => !v);
                     }
                   }}
-                  title={!isMobile && collapsed ? "התקן אפליקציה" : undefined}
+                  title={!isMobile && collapsed ? t("installApp") : undefined}
                   className="w-full flex items-center gap-3 px-3 py-1.5 rounded-xl text-sm font-medium transition-all duration-150 group text-brand-300 hover:text-white hover:bg-brand-500/10"
                 >
                   <div className="flex-shrink-0 text-brand-400 group-hover:text-brand-300">
                     <Smartphone className="w-[18px] h-[18px]" />
                   </div>
-                  {isExpanded && <span className="flex-1 text-right">התקן אפליקציה</span>}
+                  {isExpanded && <span className="flex-1 text-start">{t("installApp")}</span>}
                 </button>
                 {isExpanded && iosHintOpen && isIOS && (
                   <p className="px-3 pb-2 pt-1 text-[11px] text-slate-400 leading-snug">
-                    לחץ על{" "}
-                    <Share className="inline w-3 h-3 mx-0.5 text-blue-400" />
-                    {" "}בדפדפן ואז &ldquo;הוסף למסך הבית&rdquo;
+                    {t.rich("iosInstallHint", {
+                      icon: () => <Share className="inline w-3 h-3 mx-0.5 text-blue-400" />,
+                    })}
                   </p>
                 )}
               </div>
@@ -601,13 +608,13 @@ export function Sidebar({
               <Link
                 href="/upgrade"
                 onClick={isMobile ? onMobileClose : undefined}
-                title={!isMobile && collapsed ? "שדרג מנוי" : undefined}
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-semibold transition-all duration-150 bg-gradient-to-r from-brand-600/30 to-brand-500/20 text-brand-300 hover:from-brand-600/50 hover:to-brand-500/30 border border-brand-500/20"
+                title={!isMobile && collapsed ? t("upgrade") : undefined}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-semibold transition-all duration-150 bg-gradient-to-r ltr:bg-gradient-to-l from-brand-600/30 to-brand-500/20 text-brand-300 hover:from-brand-600/50 hover:to-brand-500/30 border border-brand-500/20"
               >
                 <div className="flex-shrink-0">
                   <Crown className="w-[18px] h-[18px]" />
                 </div>
-                {isExpanded && <span>שדרג מנוי</span>}
+                {isExpanded && <span>{t("upgrade")}</span>}
               </Link>
             )}
           </div>
@@ -619,7 +626,7 @@ export function Sidebar({
             <Link
               href="/owner"
               onClick={isMobile ? onMobileClose : undefined}
-              title={!isMobile && collapsed ? "ניהול פלטפורמה" : undefined}
+              title={!isMobile && collapsed ? t("platformAdmin") : undefined}
               className={cn(
                 "w-full flex items-center h-11 transition-colors",
                 !isMobile && collapsed ? "justify-center" : "px-4 gap-2.5",
@@ -629,7 +636,7 @@ export function Sidebar({
               )}
             >
               <Crown className="w-[18px] h-[18px] flex-shrink-0" />
-              {isExpanded && <span className="text-sm font-bold">ניהול פלטפורמה</span>}
+              {isExpanded && <span className="text-sm font-bold">{t("platformAdmin")}</span>}
             </Link>
           )}
 
@@ -642,11 +649,11 @@ export function Sidebar({
               )}
             >
               {collapsed ? (
-                <ChevronLeft className="w-4 h-4" />
+                <ChevronLeft className="w-4 h-4 ltr:-scale-x-100" />
               ) : (
                 <>
-                  <ChevronRight className="w-4 h-4" />
-                  <span className="text-xs font-medium">כווץ תפריט</span>
+                  <ChevronRight className="w-4 h-4 ltr:-scale-x-100" />
+                  <span className="text-xs font-medium">{t("collapse")}</span>
                 </>
               )}
             </button>
@@ -660,7 +667,7 @@ export function Sidebar({
     <>
       <div
         className={cn(
-          "hidden md:block fixed top-0 right-0 h-screen z-40 transition-all duration-300",
+          "hidden md:block fixed top-0 start-0 h-screen z-40 transition-all duration-300",
           collapsed ? "w-[72px]" : "w-[240px]"
         )}
       >
@@ -678,10 +685,10 @@ export function Sidebar({
 
       <div
         className={cn(
-          "fixed top-0 right-0 h-dvh z-50 md:hidden transition-transform duration-300",
-          mobileOpen ? "translate-x-0" : "translate-x-full"
+          "fixed top-0 start-0 h-dvh z-50 md:hidden transition-transform duration-300",
+          mobileOpen ? "translate-x-0" : "translate-x-full ltr:-translate-x-full"
         )}
-        style={mobileOpen ? { boxShadow: "-8px 0 32px rgba(0,0,0,0.4)" } : undefined}
+        style={mobileOpen ? { boxShadow: cfg.dir === "rtl" ? "-8px 0 32px rgba(0,0,0,0.4)" : "8px 0 32px rgba(0,0,0,0.4)" } : undefined}
       >
         {sidebarContent(true)}
       </div>

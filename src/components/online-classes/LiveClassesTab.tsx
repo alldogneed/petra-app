@@ -13,6 +13,7 @@ import {
   Link2,
   AlertTriangle,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { fetchJSON } from "@/lib/utils";
 import {
   Modal,
@@ -24,10 +25,10 @@ import {
 } from "./shared";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 
-const REG_STATUS: Record<string, { label: string; cls: string }> = {
-  registered: { label: "רשום", cls: "badge-success" },
-  waitlist: { label: "המתנה", cls: "badge-warning" },
-  cancelled: { label: "בוטל", cls: "badge-neutral" },
+const REG_STATUS: Record<string, { cls: string }> = {
+  registered: { cls: "badge-success" },
+  waitlist: { cls: "badge-warning" },
+  cancelled: { cls: "badge-neutral" },
 };
 
 interface ClassFormState {
@@ -55,6 +56,8 @@ function waitlistCountOf(c: OnlineClassItem): number {
 }
 
 export function LiveClassesTab() {
+  const t = useTranslations("onlineClasses.liveClassesTab");
+  const tc = useTranslations("common");
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [editingClass, setEditingClass] = useState<OnlineClassItem | null>(null);
@@ -94,23 +97,23 @@ export function LiveClassesTab() {
       });
     },
     onSuccess: () => {
-      toast.success(editingClass ? "השיעור עודכן" : "השיעור נוצר");
+      toast.success(editingClass ? t("toast.updated") : t("toast.created"));
       setShowForm(false);
       setEditingClass(null);
       setForm(EMPTY_FORM);
       invalidate();
     },
-    onError: (e: Error) => toast.error(e.message || "שגיאה בשמירת השיעור"),
+    onError: (e: Error) => toast.error(e.message || t("toast.saveError")),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
       fetchJSON(`/api/online-classes/classes/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      toast.success("השיעור נמחק");
+      toast.success(t("toast.deleted"));
       invalidate();
     },
-    onError: (e: Error) => toast.error(e.message || "שגיאה במחיקת השיעור"),
+    onError: (e: Error) => toast.error(e.message || t("toast.deleteError")),
   });
 
   const openCreate = () => {
@@ -134,7 +137,7 @@ export function LiveClassesTab() {
   };
 
   const handleDelete = (c: OnlineClassItem) => {
-    if (window.confirm(`למחוק את השיעור "${c.title}"? כל הרישומים אליו יימחקו.`)) {
+    if (window.confirm(t("deleteConfirm", { title: c.title }))) {
       deleteMutation.mutate(c.id);
     }
   };
@@ -143,8 +146,8 @@ export function LiveClassesTab() {
     return (
       <div className="card p-8 text-center">
         <AlertTriangle className="w-8 h-8 mx-auto mb-3 text-red-400" />
-        <p className="text-red-600 font-medium mb-2">שגיאה בטעינת השיעורים</p>
-        <button className="btn-secondary text-sm" onClick={() => refetch()}>נסה שוב</button>
+        <p className="text-red-600 font-medium mb-2">{t("loadError")}</p>
+        <button className="btn-secondary text-sm" onClick={() => refetch()}>{t("retry")}</button>
       </div>
     );
   }
@@ -152,10 +155,10 @@ export function LiveClassesTab() {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-base font-bold text-petra-text">שיעורים חיים בזום</h2>
+        <h2 className="text-base font-bold text-petra-text">{t("title")}</h2>
         <button className="btn-primary text-sm" onClick={openCreate}>
           <Plus className="w-4 h-4" />
-          שיעור חדש
+          {t("newClass")}
         </button>
       </div>
 
@@ -166,11 +169,11 @@ export function LiveClassesTab() {
           <div className="empty-state-icon">
             <Video className="w-6 h-6 text-slate-400" />
           </div>
-          <p className="font-medium text-petra-text mb-1">אין שיעורים חיים עדיין</p>
-          <p className="text-sm text-petra-muted mb-4">צור שיעור זום ראשון והחברים בפורטל יוכלו להירשם</p>
+          <p className="font-medium text-petra-text mb-1">{t("empty.title")}</p>
+          <p className="text-sm text-petra-muted mb-4">{t("empty.body")}</p>
           <button className="btn-primary text-sm" onClick={openCreate}>
             <Plus className="w-4 h-4" />
-            שיעור חדש
+            {t("newClass")}
           </button>
         </div>
       ) : (
@@ -187,31 +190,31 @@ export function LiveClassesTab() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-bold text-petra-text">{c.title}</p>
-                      {isPast && <span className="badge-neutral">הסתיים</span>}
+                      {isPast && <span className="badge-neutral">{t("ended")}</span>}
                     </div>
                     <div className="flex items-center gap-3 flex-wrap mt-1 text-sm text-petra-muted">
                       <span className="flex items-center gap-1">
                         <Clock className="w-3.5 h-3.5" />
                         {heDateTime(c.startsAt)}
-                        {c.durationMin ? ` (${c.durationMin} דק׳)` : ""}
+                        {c.durationMin ? t("durationSuffix", { min: c.durationMin }) : ""}
                       </span>
-                      {c.instructorName && <span>מדריך: {c.instructorName}</span>}
+                      {c.instructorName && <span>{t("instructor", { name: c.instructorName })}</span>}
                       <span className="flex items-center gap-1">
                         <Users className="w-3.5 h-3.5" />
                         {c.spotsTaken}/{c.capacity}
                       </span>
                       {waitlist > 0 && (
-                        <span className="badge-warning">{waitlist} בהמתנה</span>
+                        <span className="badge-warning">{t("waitlistCount", { count: waitlist })}</span>
                       )}
                       {c.zoomLink ? (
                         <span className="flex items-center gap-1 text-emerald-600">
                           <Link2 className="w-3.5 h-3.5" />
-                          קישור זום מוגדר
+                          {t("zoomLinkSet")}
                         </span>
                       ) : (
                         <span className="flex items-center gap-1 text-amber-600">
                           <Link2 className="w-3.5 h-3.5" />
-                          חסר קישור זום
+                          {t("zoomLinkMissing")}
                         </span>
                       )}
                     </div>
@@ -225,18 +228,18 @@ export function LiveClassesTab() {
                       onClick={() => setRegistrationsFor(c)}
                     >
                       <Users className="w-3.5 h-3.5" />
-                      נרשמים
+                      {t("registrations")}
                     </button>
                     <button
                       className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted"
-                      title="עריכה"
+                      title={tc("actions.edit")}
                       onClick={() => openEdit(c)}
                     >
                       <Pencil className="w-4 h-4" />
                     </button>
                     <button
                       className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-petra-muted hover:text-red-600"
-                      title="מחיקה"
+                      title={t("deleteTitle")}
                       onClick={() => handleDelete(c)}
                     >
                       <Trash2 className="w-4 h-4" />
@@ -252,7 +255,7 @@ export function LiveClassesTab() {
       {/* Create / Edit modal */}
       {showForm && (
         <Modal
-          title={editingClass ? "עריכת שיעור" : "שיעור חדש"}
+          title={editingClass ? t("form.editTitle") : t("newClass")}
           onClose={() => {
             setShowForm(false);
             setEditingClass(null);
@@ -260,16 +263,16 @@ export function LiveClassesTab() {
         >
           <div className="space-y-4">
             <div>
-              <label className="label">שם השיעור *</label>
+              <label className="label">{t("form.title")}</label>
               <input
                 className="input"
                 value={form.title}
                 onChange={(e) => setForm({ ...form, title: e.target.value })}
-                placeholder="למשל: שיעור חיברות לגורים"
+                placeholder={t("form.titlePlaceholder")}
               />
             </div>
             <div>
-              <label className="label">תיאור</label>
+              <label className="label">{t("form.description")}</label>
               <textarea
                 className="input min-h-[70px]"
                 value={form.description}
@@ -277,7 +280,7 @@ export function LiveClassesTab() {
               />
             </div>
             <div>
-              <label className="label">שם המדריך</label>
+              <label className="label">{t("form.instructorName")}</label>
               <input
                 className="input"
                 value={form.instructorName}
@@ -286,7 +289,7 @@ export function LiveClassesTab() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="label">תאריך ושעה *</label>
+                <label className="label">{t("form.startsAt")}</label>
                 <input
                   type="datetime-local"
                   className="input"
@@ -295,7 +298,7 @@ export function LiveClassesTab() {
                 />
               </div>
               <div>
-                <label className="label">משך (דקות)</label>
+                <label className="label">{t("form.duration")}</label>
                 <input
                   type="number"
                   min={5}
@@ -307,7 +310,7 @@ export function LiveClassesTab() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="label">קיבולת *</label>
+                <label className="label">{t("form.capacity")}</label>
                 <input
                   type="number"
                   min={1}
@@ -317,7 +320,7 @@ export function LiveClassesTab() {
                 />
               </div>
               <div>
-                <label className="label">קישור זום</label>
+                <label className="label">{t("form.zoomLink")}</label>
                 <input
                   className="input"
                   dir="ltr"
@@ -328,7 +331,7 @@ export function LiveClassesTab() {
               </div>
             </div>
             <p className="text-[11px] text-petra-muted">
-              קישור הזום נשלח אוטומטית לנרשמים כשעה לפני תחילת השיעור.
+              {t("form.zoomLinkHint")}
             </p>
             <div className="flex gap-2 pt-1">
               <button
@@ -342,7 +345,7 @@ export function LiveClassesTab() {
                 }
                 onClick={() => saveMutation.mutate()}
               >
-                {saveMutation.isPending ? "שומר..." : editingClass ? "שמור שינויים" : "צור שיעור"}
+                {saveMutation.isPending ? tc("progress.saving") : editingClass ? t("form.saveChanges") : t("form.create")}
               </button>
               <button
                 className="btn-secondary"
@@ -351,7 +354,7 @@ export function LiveClassesTab() {
                   setEditingClass(null);
                 }}
               >
-                ביטול
+                {tc("actions.cancel")}
               </button>
             </div>
           </div>
@@ -376,6 +379,7 @@ function RegistrationsModal({
   cls: OnlineClassItem;
   onClose: () => void;
 }) {
+  const t = useTranslations("onlineClasses.liveClassesTab");
   const { data, isLoading } = useQuery({
     queryKey: ["oc-registrations", cls.id],
     queryFn: () => fetchJSON(`/api/online-classes/classes/${cls.id}/registrations`),
@@ -383,7 +387,7 @@ function RegistrationsModal({
   const registrations = unwrapList<ClassRegistration>(data, "registrations", "items");
 
   return (
-    <Modal title={`נרשמים — ${cls.title}`} onClose={onClose} maxWidth="max-w-lg">
+    <Modal title={t("registrationsModal.title", { title: cls.title })} onClose={onClose} maxWidth="max-w-lg">
       {isLoading ? (
         <PetraLoader variant="inline" />
       ) : registrations.length === 0 ? (
@@ -391,15 +395,16 @@ function RegistrationsModal({
           <div className="empty-state-icon">
             <Users className="w-6 h-6 text-slate-400" />
           </div>
-          <p className="text-sm text-petra-muted">אין נרשמים לשיעור זה עדיין</p>
+          <p className="text-sm text-petra-muted">{t("registrationsModal.empty")}</p>
         </div>
       ) : (
         <div className="divide-y divide-slate-100 max-h-[60vh] overflow-y-auto">
           {registrations.map((r) => {
-            const badge = REG_STATUS[r.status?.toLowerCase()] ?? {
-              label: r.status,
-              cls: "badge-neutral",
-            };
+            const statusKey = r.status?.toLowerCase();
+            const known = REG_STATUS[statusKey];
+            const badge = known
+              ? { label: t(`registrationStatus.${statusKey}`), cls: known.cls }
+              : { label: r.status, cls: "badge-neutral" };
             return (
               <div key={r.id} className="flex items-center gap-3 py-3">
                 <div className="min-w-0 flex-1">

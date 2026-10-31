@@ -5,6 +5,8 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tansta
 import { Search, Shield, UserCheck, UserX, Plus, X, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { fetchJSON, cn } from "@/lib/utils";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { TIER_LABELS, PLATFORM_ROLE_LABELS } from "@/lib/platform-labels";
@@ -39,10 +41,11 @@ type StatusFilter = "all" | "active" | "blocked";
 
 const PAGE_SIZE = 20;
 
-const STATUS_OPTIONS: { key: StatusFilter; label: string }[] = [
-  { key: "all", label: "הכל" },
-  { key: "active", label: "פעילים" },
-  { key: "blocked", label: "חסומים" },
+// Labels: owner.ownerUsersPage.statusFilter.*
+const STATUS_OPTIONS: { key: StatusFilter }[] = [
+  { key: "all" },
+  { key: "active" },
+  { key: "blocked" },
 ];
 
 const ROLE_BADGE: Record<string, string> = {
@@ -51,23 +54,27 @@ const ROLE_BADGE: Record<string, string> = {
   support: "badge-neutral",
 };
 
-/** Relative Hebrew day distance: "היום", "אתמול", "לפני 3 ימים". */
-function relativeDay(dateStr: string | null): string {
-  if (!dateStr) return "מעולם לא";
+type UsersT = ReturnType<typeof useTranslations<"owner">>;
+
+/** Relative day distance ("today", "yesterday", "3 days ago") — texts in owner.ownerUsersPage.relative.*. */
+function relativeDay(dateStr: string | null, t: UsersT, locale: string): string {
+  if (!dateStr) return t("ownerUsersPage.relative.never");
   const then = new Date(dateStr);
-  if (Number.isNaN(then.getTime())) return "מעולם לא";
+  if (Number.isNaN(then.getTime())) return t("ownerUsersPage.relative.never");
   const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
   const days = Math.round((startOfDay(new Date()) - startOfDay(then)) / 86_400_000);
-  if (days <= 0) return "היום";
-  if (days === 1) return "אתמול";
-  if (days === 2) return "לפני יומיים";
-  if (days < 30) return `לפני ${days} ימים`;
-  if (days < 60) return "לפני חודש";
-  if (days < 365) return `לפני ${Math.floor(days / 30)} חודשים`;
-  return then.toLocaleDateString("he-IL");
+  if (days <= 0) return t("ownerUsersPage.relative.today");
+  if (days === 1) return t("ownerUsersPage.relative.yesterday");
+  if (days === 2) return t("ownerUsersPage.relative.twoDaysAgo");
+  if (days < 30) return t("ownerUsersPage.relative.daysAgo", { days });
+  if (days < 60) return t("ownerUsersPage.relative.monthAgo");
+  if (days < 365) return t("ownerUsersPage.relative.monthsAgo", { months: Math.floor(days / 30) });
+  return then.toLocaleDateString(locale);
 }
 
 export default function OwnerUsersPage() {
+  const t = useTranslations("owner");
+  const { locale, cfg } = useBusinessLocale();
   const queryClient = useQueryClient();
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
@@ -79,11 +86,11 @@ export default function OwnerUsersPage() {
 
   // Debounce the search box
   useEffect(() => {
-    const t = setTimeout(() => {
+    const timer = setTimeout(() => {
       setSearch(searchInput.trim());
       setPage(1);
     }, 300);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [searchInput]);
 
   const { data, isLoading, isFetching, error } = useQuery<UsersResponse>({
@@ -106,11 +113,11 @@ export default function OwnerUsersPage() {
         body: JSON.stringify({ isActive: vars.isActive }),
       }),
     onSuccess: (_res, vars) => {
-      toast.success(vars.isActive ? "החסימה בוטלה" : "המשתמש נחסם והסשנים שלו נותקו");
+      toast.success(vars.isActive ? t("ownerUsersPage.toasts.unblocked") : t("ownerUsersPage.toasts.blocked"));
       setBlockTarget(null);
       queryClient.invalidateQueries({ queryKey: ["owner", "users"] });
     },
-    onError: (err: Error) => toast.error(err.message || "הפעולה נכשלה"),
+    onError: (err: Error) => toast.error(err.message || t("ownerUsersPage.toasts.actionFailed")),
   });
 
   const users = data?.users ?? [];
@@ -122,15 +129,15 @@ export default function OwnerUsersPage() {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
-          <h1 className="page-title">משתמשים</h1>
+          <h1 className="page-title">{t("ownerUsersPage.title")}</h1>
           <p className="text-sm text-slate-500 mt-1">
-            כל משתמשי הפלטפורמה, העסק שלהם ורמת הפעילות · {total} סה״כ
+            {t("ownerUsersPage.subtitle", { total })}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => setShowCreate(true)} className="btn-primary flex items-center gap-2">
             <Plus className="w-4 h-4" />
-            משתמש חדש
+            {t("ownerUsersPage.newUser")}
           </button>
         </div>
       </div>
@@ -138,18 +145,18 @@ export default function OwnerUsersPage() {
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+          <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
           <input
             type="text"
-            placeholder="חיפוש לפי שם או מייל..."
-            aria-label="חיפוש משתמשים"
+            placeholder={t("ownerUsersPage.searchPlaceholder")}
+            aria-label={t("ownerUsersPage.searchAria")}
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            className="input w-full pr-10"
+            className="input w-full ps-10"
           />
         </div>
 
-        <div className="flex rounded-xl border border-slate-200 bg-white p-0.5" role="group" aria-label="סינון לפי מצב">
+        <div className="flex rounded-xl border border-slate-200 bg-white p-0.5" role="group" aria-label={t("ownerUsersPage.statusFilterAria")}>
           {STATUS_OPTIONS.map((opt) => (
             <button
               key={opt.key}
@@ -162,7 +169,7 @@ export default function OwnerUsersPage() {
                   : "text-slate-600 hover:bg-slate-50"
               )}
             >
-              {opt.label}
+              {t(`ownerUsersPage.statusFilter.${opt.key}`)}
             </button>
           ))}
         </div>
@@ -174,14 +181,14 @@ export default function OwnerUsersPage() {
             onChange={(e) => { setStaffOnly(e.target.checked); setPage(1); }}
             className="w-4 h-4 rounded border-slate-300 accent-orange-500"
           />
-          צוות פלטפורמה בלבד
+          {t("ownerUsersPage.staffOnly")}
         </label>
       </div>
 
       {/* Error */}
       {error && (
         <div className="mb-4 p-3 rounded-xl bg-red-50 text-red-700 text-sm">
-          שגיאה בטעינת נתונים: {(error as Error).message}
+          {t("ownerUsersPage.loadError", { message: (error as Error).message })}
         </div>
       )}
 
@@ -192,23 +199,23 @@ export default function OwnerUsersPage() {
         ) : users.length === 0 ? (
           <div className="px-5 py-12 text-center text-sm text-slate-500">
             {hasFilters
-              ? "לא נמצאו משתמשים שתואמים לחיפוש או לסינון. נסו לשנות את הסינון."
-              : "עדיין אין משתמשים בפלטפורמה."}
+              ? t("ownerUsersPage.emptyFiltered")
+              : t("ownerUsersPage.empty")}
           </div>
         ) : (
           <div className={cn("overflow-x-auto transition-opacity", isFetching && "opacity-60")}>
             <table className="w-full min-w-[980px]">
               <thead>
                 <tr className="border-b border-slate-100">
-                  <th className="table-header-cell">משתמש</th>
-                  <th className="table-header-cell">עסק</th>
-                  <th className="table-header-cell">תפקיד פלטפורמה</th>
+                  <th className="table-header-cell">{t("ownerUsersPage.columns.user")}</th>
+                  <th className="table-header-cell">{t("ownerUsersPage.columns.business")}</th>
+                  <th className="table-header-cell">{t("ownerUsersPage.columns.platformRole")}</th>
                   <th className="table-header-cell">2FA</th>
-                  <th className="table-header-cell">הצטרפות</th>
-                  <th className="table-header-cell">פעילות אחרונה</th>
-                  <th className="table-header-cell">ציון 30 יום</th>
-                  <th className="table-header-cell">מצב</th>
-                  <th className="table-header-cell">פעולות</th>
+                  <th className="table-header-cell">{t("ownerUsersPage.columns.joined")}</th>
+                  <th className="table-header-cell">{t("ownerUsersPage.columns.lastActivity")}</th>
+                  <th className="table-header-cell">{t("ownerUsersPage.columns.score30")}</th>
+                  <th className="table-header-cell">{t("ownerUsersPage.columns.status")}</th>
+                  <th className="table-header-cell">{t("ownerUsersPage.columns.actions")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -230,9 +237,9 @@ export default function OwnerUsersPage() {
                               >
                                 {user.name || user.email}
                               </Link>
-                              {user.isTest && <span className="badge badge-neutral">בדיקה</span>}
+                              {user.isTest && <span className="badge badge-neutral">{t("ownerUsersPage.testBadge")}</span>}
                             </div>
-                            <div className="text-xs text-slate-500" dir="ltr" style={{ textAlign: "right" }}>
+                            <div className="text-xs text-slate-500" dir="ltr" style={{ textAlign: cfg.dir === "rtl" ? "right" : "left" }}>
                               {user.email}
                             </div>
                           </div>
@@ -249,13 +256,13 @@ export default function OwnerUsersPage() {
                             </Link>
                             {user.businessTier && (
                               <span className="badge badge-brand">
-                                {TIER_LABELS[user.businessTier] ?? "מסלול אחר"}
+                                {TIER_LABELS[user.businessTier] ?? t("ownerUsersPage.otherTier")}
                               </span>
                             )}
                             {extraBusinesses > 0 && (
                               <span
                                 className="text-xs text-slate-500"
-                                title={`משויך ל-${user._count.businessMemberships} עסקים`}
+                                title={t("ownerUsersPage.linkedBusinesses", { count: user._count.businessMemberships })}
                               >
                                 +{extraBusinesses}
                               </span>
@@ -268,7 +275,7 @@ export default function OwnerUsersPage() {
                       <td className="table-cell">
                         {user.platformRole ? (
                           <span className={cn("badge", ROLE_BADGE[user.platformRole] ?? "badge-neutral")}>
-                            {PLATFORM_ROLE_LABELS[user.platformRole] ?? "תפקיד אחר"}
+                            {PLATFORM_ROLE_LABELS[user.platformRole] ?? t("ownerUsersPage.otherRole")}
                           </span>
                         ) : (
                           <span className="text-sm text-slate-500">—</span>
@@ -277,20 +284,20 @@ export default function OwnerUsersPage() {
                       <td className="table-cell">
                         {user.twoFaEnabled ? (
                           <span className="flex items-center gap-1 text-xs text-green-700">
-                            <Shield className="w-3.5 h-3.5" /> מופעל
+                            <Shield className="w-3.5 h-3.5" /> {t("ownerUsersPage.twoFaOn")}
                           </span>
                         ) : (
                           <span className="text-sm text-slate-500">—</span>
                         )}
                       </td>
                       <td className="table-cell text-sm text-slate-700 whitespace-nowrap">
-                        {new Date(user.createdAt).toLocaleDateString("he-IL")}
+                        {new Date(user.createdAt).toLocaleDateString(locale)}
                       </td>
                       <td
                         className="table-cell text-sm text-slate-700 whitespace-nowrap"
-                        title={lastSeen ? new Date(lastSeen).toLocaleString("he-IL") : undefined}
+                        title={lastSeen ? new Date(lastSeen).toLocaleString(locale) : undefined}
                       >
-                        {relativeDay(lastSeen)}
+                        {relativeDay(lastSeen, t, locale)}
                       </td>
                       <td className="table-cell">
                         <span
@@ -298,14 +305,14 @@ export default function OwnerUsersPage() {
                             "text-sm font-semibold tabular-nums",
                             user.activityScore > 0 ? "text-slate-900" : "text-slate-500"
                           )}
-                          title="מספר פעולות ב-30 הימים האחרונים"
+                          title={t("ownerUsersPage.scoreTitle")}
                         >
                           {user.activityScore}
                         </span>
                       </td>
                       <td className="table-cell">
                         <span className={cn("badge", user.isActive ? "badge-success" : "badge-danger")}>
-                          {user.isActive ? "פעיל" : "חסום"}
+                          {user.isActive ? t("ownerUsersPage.status.active") : t("ownerUsersPage.status.blocked")}
                         </span>
                       </td>
                       <td className="table-cell">
@@ -314,7 +321,7 @@ export default function OwnerUsersPage() {
                             href={`/owner/users/${user.id}`}
                             className="text-xs px-3 py-1.5 rounded-lg font-medium bg-orange-50 text-orange-700 hover:bg-orange-100 transition-colors"
                           >
-                            פרטים
+                            {t("ownerUsersPage.details")}
                           </Link>
                           {user.isActive ? (
                             <button
@@ -322,7 +329,7 @@ export default function OwnerUsersPage() {
                               disabled={toggleMutation.isPending}
                               className="text-xs px-3 py-1.5 rounded-lg font-medium transition-colors disabled:opacity-40 flex items-center gap-1.5 bg-red-50 text-red-700 hover:bg-red-100"
                             >
-                              <UserX className="w-3.5 h-3.5" /> חסום
+                              <UserX className="w-3.5 h-3.5" /> {t("ownerUsersPage.block")}
                             </button>
                           ) : (
                             <button
@@ -330,7 +337,7 @@ export default function OwnerUsersPage() {
                               disabled={toggleMutation.isPending}
                               className="text-xs px-3 py-1.5 rounded-lg font-medium transition-colors disabled:opacity-40 flex items-center gap-1.5 bg-green-50 text-green-700 hover:bg-green-100"
                             >
-                              <UserCheck className="w-3.5 h-3.5" /> בטל חסימה
+                              <UserCheck className="w-3.5 h-3.5" /> {t("ownerUsersPage.unblock")}
                             </button>
                           )}
                         </div>
@@ -347,7 +354,7 @@ export default function OwnerUsersPage() {
         {totalPages > 1 && (
           <div className="px-5 py-3 border-t border-slate-100 flex items-center justify-between">
             <span className="text-xs text-slate-500">
-              עמוד {page} מתוך {totalPages}
+              {t("ownerUsersPage.pagination.pageOf", { page, totalPages })}
             </span>
             <div className="flex gap-2">
               <button
@@ -355,14 +362,14 @@ export default function OwnerUsersPage() {
                 disabled={page === 1}
                 className="btn-ghost text-xs px-3 py-1 disabled:opacity-40"
               >
-                הקודם
+                {t("ownerUsersPage.pagination.prev")}
               </button>
               <button
                 onClick={() => setPage((p) => p + 1)}
                 disabled={page >= totalPages}
                 className="btn-ghost text-xs px-3 py-1 disabled:opacity-40"
               >
-                הבא
+                {t("ownerUsersPage.pagination.next")}
               </button>
             </div>
           </div>
@@ -385,7 +392,7 @@ export default function OwnerUsersPage() {
           onClose={() => setShowCreate(false)}
           onCreated={() => {
             setShowCreate(false);
-            toast.success("המשתמש נוצר");
+            toast.success(t("ownerUsersPage.toasts.created"));
             queryClient.invalidateQueries({ queryKey: ["owner", "users"] });
           }}
         />
@@ -405,6 +412,9 @@ function BlockUserModal({
   onClose: () => void;
   onConfirm: () => void;
 }) {
+  const t = useTranslations("owner");
+  const tc = useTranslations("common");
+  const { cfg } = useBusinessLocale();
   return (
     <div className="modal-overlay" onClick={pending ? undefined : onClose}>
       <div className="modal-backdrop" />
@@ -412,7 +422,7 @@ function BlockUserModal({
         className="modal-content max-w-md p-5"
         role="dialog"
         aria-modal="true"
-        aria-label="אישור חסימת משתמש"
+        aria-label={t("ownerUsersPage.blockModal.dialogAria")}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start gap-3 mb-4">
@@ -420,21 +430,21 @@ function BlockUserModal({
             <AlertTriangle className="w-5 h-5 text-red-600" />
           </div>
           <div className="min-w-0">
-            <h2 className="text-lg font-bold text-slate-900">לחסום את {user.name || user.email}?</h2>
-            <p className="text-xs text-slate-500 mt-0.5 break-all" dir="ltr" style={{ textAlign: "right" }}>
+            <h2 className="text-lg font-bold text-slate-900">{t("ownerUsersPage.blockModal.title", { name: user.name || user.email })}</h2>
+            <p className="text-xs text-slate-500 mt-0.5 break-all" dir="ltr" style={{ textAlign: cfg.dir === "rtl" ? "right" : "left" }}>
               {user.email}
             </p>
           </div>
         </div>
         <p className="text-sm text-slate-700">
-          המשתמש לא יוכל להתחבר למערכת, וכל הסשנים הפעילים שלו ינותקו מיד. אפשר לבטל את החסימה בכל עת.
+          {t("ownerUsersPage.blockModal.body")}
         </p>
         <div className="flex gap-2 mt-5">
           <button onClick={onClose} disabled={pending} className="btn-secondary flex-1 disabled:opacity-40">
-            ביטול
+            {tc("actions.cancel")}
           </button>
           <button onClick={onConfirm} disabled={pending} className="btn-danger flex-1 justify-center disabled:opacity-40">
-            {pending ? "חוסם..." : "חסום משתמש"}
+            {pending ? t("ownerUsersPage.blockModal.blocking") : t("ownerUsersPage.blockModal.blockUser")}
           </button>
         </div>
       </div>
@@ -443,6 +453,8 @@ function BlockUserModal({
 }
 
 function CreateUserModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const t = useTranslations("owner");
+  const tc = useTranslations("common");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -468,25 +480,25 @@ function CreateUserModal({ onClose, onCreated }: { onClose: () => void; onCreate
       <div className="modal-backdrop" />
       <div className="modal-content max-w-md p-5" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-slate-900">משתמש חדש</h2>
-          <button onClick={onClose} className="btn-ghost p-1 rounded-lg" aria-label="סגור" title="סגור">
+          <h2 className="text-lg font-bold text-slate-900">{t("ownerUsersPage.createModal.title")}</h2>
+          <button onClick={onClose} className="btn-ghost p-1 rounded-lg" aria-label={tc("actions.close")} title={tc("actions.close")}>
             <X className="w-5 h-5" />
           </button>
         </div>
 
         <div className="space-y-3">
           <div>
-            <label className="label">שם *</label>
+            <label className="label">{t("ownerUsersPage.createModal.name")}</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="input w-full"
-              placeholder="שם מלא"
+              placeholder={t("ownerUsersPage.createModal.namePlaceholder")}
             />
           </div>
           <div>
-            <label className="label">מייל *</label>
+            <label className="label">{t("ownerUsersPage.createModal.email")}</label>
             <input
               type="email"
               value={email}
@@ -497,20 +509,20 @@ function CreateUserModal({ onClose, onCreated }: { onClose: () => void; onCreate
             />
           </div>
           <div>
-            <label className="label">סיסמה *</label>
+            <label className="label">{t("ownerUsersPage.createModal.password")}</label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="input w-full"
               dir="ltr"
-              placeholder="לפחות 8 תווים"
+              placeholder={t("ownerUsersPage.createModal.passwordPlaceholder")}
             />
           </div>
           <div>
-            <label className="label">תפקיד פלטפורמה</label>
+            <label className="label">{t("ownerUsersPage.createModal.platformRole")}</label>
             <select value={platformRole} onChange={(e) => setPlatformRole(e.target.value)} className="input w-full">
-              <option value="">ללא תפקיד פלטפורמה</option>
+              <option value="">{t("ownerUsersPage.createModal.noPlatformRole")}</option>
               {Object.entries(PLATFORM_ROLE_LABELS).map(([key, label]) => (
                 <option key={key} value={key}>{label}</option>
               ))}
@@ -526,14 +538,14 @@ function CreateUserModal({ onClose, onCreated }: { onClose: () => void; onCreate
 
         <div className="flex gap-2 mt-5">
           <button onClick={onClose} className="btn-secondary flex-1">
-            ביטול
+            {tc("actions.cancel")}
           </button>
           <button
             onClick={() => mutation.mutate()}
             disabled={!name.trim() || !email.trim() || !password || password.length < 8 || mutation.isPending}
             className="btn-primary flex-1 disabled:opacity-40"
           >
-            {mutation.isPending ? "יוצר..." : "צור משתמש"}
+            {mutation.isPending ? t("ownerUsersPage.createModal.creating") : t("ownerUsersPage.createModal.create")}
           </button>
         </div>
       </div>

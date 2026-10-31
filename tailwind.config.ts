@@ -83,6 +83,8 @@ const config: Config = {
   		},
   		fontFamily: {
   			sans: [
+  				// --font-sans = Heebo (he) / Inter (en), set on <html> in src/app/layout.tsx
+  				'var(--font-sans)',
   				'var(--font-heebo)',
   				'Heebo',
   				'system-ui',

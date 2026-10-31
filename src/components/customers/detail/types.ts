@@ -1,3 +1,8 @@
+import type { useTranslations } from "next-intl";
+
+/** Translator of the "customers" namespace (pass `useTranslations("customers")`). */
+export type CustomersT = ReturnType<typeof useTranslations<"customers">>;
+
 export interface PetDoc {
   id: string;
   name: string;
@@ -233,14 +238,21 @@ export interface PagedPayments { payments: PaymentInfo[]; nextCursor: string | n
 export interface PagedTimeline { events: CustomerTimelineEvent[]; nextCursor: string | null }
 
 /** Service name for an appointment row (service → price-list item → fallback). */
-export function appointmentServiceName(apt: Pick<CustomerAppointment, "service" | "priceListItem">, fallback = "שירות"): string {
-  return apt.service?.name || apt.priceListItem?.name || fallback;
+export function appointmentServiceName(apt: Pick<CustomerAppointment, "service" | "priceListItem">, fallback?: string, t?: CustomersT): string {
+  return apt.service?.name || apt.priceListItem?.name || (fallback ?? (t ? t("detailTypes.serviceFallback") : "שירות")); // i18n-ok — legacy he-IL default for callers without `t`
 }
 
-/** "2.10.2026" from an ISO date (date part only — no timezone shift). */
-export function formatDayDate(date: string): string {
+/**
+ * "2.10.2026" from an ISO date (date part only — no timezone shift).
+ * Pass the business `locale` for other locales ("10/2/2026" in en-US); omitted / he-IL → the legacy output.
+ */
+export function formatDayDate(date: string, locale?: string): string {
   const [y, m, d] = String(date).slice(0, 10).split("-");
   if (!y || !m || !d) return "";
+  if (locale && !locale.startsWith("he")) {
+    return new Intl.DateTimeFormat(locale, { day: "numeric", month: "numeric", year: "numeric", timeZone: "UTC" })
+      .format(new Date(Date.UTC(Number(y), Number(m) - 1, Number(d))));
+  }
   return `${Number(d)}.${Number(m)}.${y}`;
 }
 
@@ -254,7 +266,8 @@ export function parseTags(raw: string | null | undefined): string[] {
   }
 }
 
-export function calcAge(birthDate: string | null): string | null {
+/** "5 חודשים" / "3 שנ׳" — pass `t` (customers namespace) for the business language; omitted → legacy Hebrew. */
+export function calcAge(birthDate: string | null, t?: CustomersT): string | null {
   if (!birthDate) return null;
   const birth = new Date(birthDate);
   const now = new Date();
@@ -262,9 +275,9 @@ export function calcAge(birthDate: string | null): string | null {
     (now.getFullYear() - birth.getFullYear()) * 12 +
     (now.getMonth() - birth.getMonth());
   if (totalMonths < 0) return null;
-  if (totalMonths < 12) return `${totalMonths} חודשים`;
+  if (totalMonths < 12) return t ? t("detailTypes.ageMonths", { count: totalMonths }) : `${totalMonths} חודשים`; // i18n-ok — legacy default without `t`
   const years = Math.floor(totalMonths / 12);
-  return `${years} שנ׳`;
+  return t ? t("detailTypes.ageYears", { count: years }) : `${years} שנ׳`; // i18n-ok — legacy default without `t`
 }
 
 export const MAX_UPLOAD_MB = 10;

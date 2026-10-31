@@ -25,7 +25,10 @@ import {
   AlertTriangle,
   RefreshCw,
 } from "lucide-react";
-import { cn, formatCurrency, formatDate, fetchJSON, toWhatsAppPhone } from "@/lib/utils";
+import { cn, fetchJSON, toWhatsAppPhone } from "@/lib/utils";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
+import { formatCurrency as formatCurrencyL, formatDate as formatDateL, currencySymbol } from "@/lib/format";
 import { toast } from "sonner";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -54,17 +57,17 @@ interface Customer {
 }
 
 const PAYMENT_STATUSES = [
-  { id: "ALL", label: "הכל" },
-  { id: "pending", label: "ממתין" },
-  { id: "paid", label: "שולם" },
-  { id: "canceled", label: "בוטל" },
+  { id: "ALL" },
+  { id: "pending" },
+  { id: "paid" },
+  { id: "canceled" },
 ];
 
 const DATE_PERIODS = [
-  { id: "ALL", label: "כל הזמן" },
-  { id: "today", label: "היום" },
-  { id: "week", label: "השבוע" },
-  { id: "month", label: "החודש" },
+  { id: "ALL" },
+  { id: "today" },
+  { id: "week" },
+  { id: "month" },
 ];
 
 function isInPeriod(dateStr: string, period: string): boolean {
@@ -84,22 +87,21 @@ function isInPeriod(dateStr: string, period: string): boolean {
   return true;
 }
 
-const STATUS_INFO: Record<string, { label: string; color: string; icon: React.ElementType }> = {
-  pending: { label: "ממתין", color: "#F59E0B", icon: Clock },
-  paid: { label: "שולם", color: "#22C55E", icon: CheckCircle2 },
-  canceled: { label: "בוטל", color: "#EF4444", icon: XCircle },
+const STATUS_INFO: Record<string, { id: string; color: string; icon: React.ElementType }> = {
+  pending: { id: "pending", color: "#F59E0B", icon: Clock },
+  paid: { id: "paid", color: "#22C55E", icon: CheckCircle2 },
+  canceled: { id: "canceled", color: "#EF4444", icon: XCircle },
 };
 
-const METHOD_LABELS: Record<string, string> = {
-  cash: "מזומן",
-  credit_card: "כרטיס אשראי",
-  bank_transfer: "העברה בנקאית",
-  bit: "ביט",
-  paybox: "פייבוקס",
-  check: "צ'ק",
-};
+const METHOD_IDS = ["cash", "credit_card", "bank_transfer", "bit", "paybox", "check"];
 
 function PaymentsPageContent() {
+  const t = useTranslations("payments.paymentsPage");
+  const tc = useTranslations("common");
+  const { locale, currency } = useBusinessLocale();
+  const formatCurrency = (amount: number) => formatCurrencyL(amount, { locale, currency });
+  const formatDate = (d: Date | string) => formatDateL(d, { locale, style: "long" });
+  const methodLabel = (m: string) => (t.has(`methods.${m}`) ? t(`methods.${m}`) : m);
   const { canExportData, canWritePayments } = usePermissions();
   const [activeStatus, setActiveStatus] = useState("ALL");
   const [activePeriod, setActivePeriod] = useState("ALL");
@@ -163,11 +165,11 @@ function PaymentsPageContent() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["payments"] });
       setMarkingPaidId(null);
-      toast.success("התשלום סומן כשולם");
+      toast.success(t("toasts.markedPaid"));
     },
     onError: () => {
       setMarkingPaidId(null);
-      toast.error("שגיאה בעדכון התשלום. נסה שוב.");
+      toast.error(t("toasts.markPaidError"));
     },
   });
 
@@ -180,9 +182,9 @@ function PaymentsPageContent() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["payments"] });
-      toast.success("התשלום בוטל");
+      toast.success(t("toasts.canceled"));
     },
-    onError: () => toast.error("שגיאה בביטול התשלום. נסה שוב."),
+    onError: () => toast.error(t("toasts.cancelError")),
   });
 
   const deletePaymentMutation = useMutation({
@@ -191,11 +193,11 @@ function PaymentsPageContent() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["payments"] });
       setConfirmDeleteId(null);
-      toast.success("התשלום נמחק");
+      toast.success(t("toasts.deleted"));
     },
     onError: () => {
       setConfirmDeleteId(null);
-      toast.error("שגיאה במחיקת התשלום. נסה שוב.");
+      toast.error(t("toasts.deleteError"));
     },
   });
 
@@ -208,18 +210,18 @@ function PaymentsPageContent() {
       }).then(async (r) => {
         if (!r.ok) {
           const data = await r.json().catch(() => ({}));
-          throw new Error(data.error || "שגיאה בהפקת מסמך");
+          throw new Error(data.error || t("toasts.issueFailed"));
         }
         return r.json();
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["payments"] });
       setIssuingPaymentId(null);
-      toast.success("המסמך הופק בהצלחה");
+      toast.success(t("toasts.issued"));
     },
     onError: (err: Error) => {
       setIssuingPaymentId(null);
-      toast.error(err.message || "שגיאה בהפקת המסמך. נסה שוב.");
+      toast.error(err.message || t("toasts.issueError"));
     },
   });
 
@@ -245,9 +247,9 @@ function PaymentsPageContent() {
     const now = Date.now();
     const pending = allPayments.filter((p) => p.status === "pending");
     const buckets = [
-      { label: "0–30 יום", days: [0, 30], count: 0, total: 0, color: "text-amber-600", bg: "bg-amber-50", border: "border-amber-200" },
-      { label: "31–60 יום", days: [31, 60], count: 0, total: 0, color: "text-orange-600", bg: "bg-orange-50", border: "border-orange-200" },
-      { label: "60+ יום", days: [61, Infinity], count: 0, total: 0, color: "text-red-600", bg: "bg-red-50", border: "border-red-200" },
+      { id: "d0to30", days: [0, 30], count: 0, total: 0, color: "text-amber-600", bg: "bg-amber-50", border: "border-amber-200" },
+      { id: "d31to60", days: [31, 60], count: 0, total: 0, color: "text-orange-600", bg: "bg-orange-50", border: "border-orange-200" },
+      { id: "d60plus", days: [61, Infinity], count: 0, total: 0, color: "text-red-600", bg: "bg-red-50", border: "border-red-200" },
     ];
     for (const p of pending) {
       const ageDays = Math.floor((now - new Date(p.createdAt).getTime()) / (1000 * 60 * 60 * 24));
@@ -264,8 +266,8 @@ function PaymentsPageContent() {
 
   function buildReminderText(payment: Payment) {
     const association = payment.appointment?.service?.name
-      || (payment.boardingStay ? `פנסיון — ${payment.boardingStay.pet.name}` : "");
-    return `שלום ${payment.customer?.name ?? "לקוח"}! 😊\nתזכורת לגבי תשלום ממתין בסך ${formatCurrency(payment.amount)}${association ? ` עבור ${association}` : ""}.\nנשמח לקבל את התשלום בהקדם 🙏`;
+      || (payment.boardingStay ? `פנסיון — ${payment.boardingStay.pet.name}` : ""); // i18n-ok — WhatsApp text sent to the client
+    return `שלום ${payment.customer?.name ?? "לקוח"}! 😊\nתזכורת לגבי תשלום ממתין בסך ${formatCurrency(payment.amount)}${association ? ` עבור ${association}` : ""}.\nנשמח לקבל את התשלום בהקדם 🙏`; // i18n-ok — WhatsApp text sent to the client
   }
 
   async function sendAllReminders() {
@@ -273,7 +275,7 @@ function PaymentsPageContent() {
       (p) => p.status === "pending" && p.customer?.phone
     );
     if (!pending.length) {
-      toast.error("אין תשלומים ממתינים לשליחה");
+      toast.error(t("toasts.noPendingToSend"));
       return;
     }
     setIsSendingAll(true);
@@ -294,24 +296,24 @@ function PaymentsPageContent() {
     setIsSendingAll(false);
     const blocked = pending.length - opened;
     if (blocked === 0) {
-      toast.success(`נשלחו ${opened} תזכורות`);
+      toast.success(t("toasts.remindersSent", { count: opened }));
     } else if (opened === 0) {
-      toast.error("הדפדפן חסם את פתיחת WhatsApp. שלח את התזכורות אחת-אחת מכפתור התזכורת בכל שורה.");
+      toast.error(t("toasts.popupBlocked"));
     } else {
-      toast.warning(`נפתחו ${opened} מתוך ${pending.length} תזכורות — הדפדפן חסם את השאר (${blocked}). שלח אותן אחת-אחת מכפתור התזכורת בכל שורה.`);
+      toast.warning(t("toasts.remindersPartial", { opened, total: pending.length, blocked }));
     }
   }
 
   function exportCSV() {
     const rows = [
-      ["תאריך", "לקוח", "סכום", "אמצעי תשלום", "סטטוס", "שירות", "הזמנה", "מספר חשבונית"],
+      [t("csv.date"), t("csv.client"), t("csv.amount"), t("csv.method"), t("csv.status"), t("csv.service"), t("csv.order"), t("csv.invoiceNumber")],
       ...filteredPayments.map((p) => [
         formatDate(p.createdAt),
         p.customer?.name ?? "",
         p.amount.toString(),
-        METHOD_LABELS[p.method] || p.method,
-        STATUS_INFO[p.status]?.label || p.status,
-        p.appointment?.service?.name || (p.boardingStay ? `פנסיון — ${p.boardingStay.pet.name}` : ""),
+        methodLabel(p.method),
+        STATUS_INFO[p.status] ? t(`statuses.${p.status}`) : p.status,
+        p.appointment?.service?.name || (p.boardingStay ? t("csv.boardingService", { pet: p.boardingStay.pet.name }) : ""),
         p.orderId ? `#${p.orderId.slice(-8).toUpperCase()}` : "",
         p.invoiceNumber || "",
       ]),
@@ -321,7 +323,7 @@ function PaymentsPageContent() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `תשלומים_${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = t("csv.fileName", { date: new Date().toISOString().slice(0, 10) });
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -333,14 +335,14 @@ function PaymentsPageContent() {
       <DesktopBanner />
       <FinanceTabs />
       <div className="flex items-center gap-3 mb-6 flex-wrap">
-        <h1 className="page-title">תשלומים</h1>
+        <h1 className="page-title">{t("title")}</h1>
         <p className="text-sm text-petra-muted">
-          {searchQuery.trim() ? `${filteredPayments.length} מתוך ${payments.length}` : payments.length} תשלומים
+          {searchQuery.trim() ? t("header.countFiltered", { filtered: filteredPayments.length, total: payments.length }) : t("header.count", { count: payments.length })}
         </p>
         {canWritePayments && (
         <button className="btn-primary" onClick={() => setShowNewPayment(true)}>
           <Plus className="w-4 h-4" />
-          תשלום חדש
+          {t("header.newPayment")}
         </button>
         )}
         {pendingCount > 0 && (
@@ -348,10 +350,10 @@ function PaymentsPageContent() {
             className="btn-secondary flex items-center gap-2"
             onClick={sendAllReminders}
             disabled={isSendingAll}
-            title={`שלח תזכורת וואטסאפ לכל ${pendingCount} תשלומים הממתינים`}
+            title={t("header.sendAllTitle", { count: pendingCount })}
           >
             <MessageCircle className="w-4 h-4 text-green-600" />
-            {isSendingAll ? "שולח..." : `שלח לכולם (${pendingCount})`}
+            {isSendingAll ? t("header.sending") : t("header.sendAll", { count: pendingCount })}
           </button>
         )}
         {canExportData && (
@@ -359,10 +361,10 @@ function PaymentsPageContent() {
           className="btn-secondary"
           onClick={exportCSV}
           disabled={filteredPayments.length === 0}
-          title="ייצוא לקובץ CSV"
+          title={t("header.exportTitle")}
         >
           <Download className="w-4 h-4" />
-          ייצוא CSV
+          {t("header.exportCsv")}
         </button>
         )}
         {/* Refresh controls */}
@@ -370,14 +372,14 @@ function PaymentsPageContent() {
           <button
             onClick={() => refetchPayments()}
             disabled={paymentsFetching}
-            title="רענן עכשיו"
+            title={t("header.refreshNow")}
             className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-petra-muted hover:text-petra-text transition-colors disabled:opacity-50"
           >
             <RefreshCw className={cn("w-4 h-4", paymentsFetching && "animate-spin")} />
           </button>
           <button
             onClick={() => setAutoRefresh(!autoRefresh)}
-            title={autoRefresh ? "כבה אוטו-רענון" : "הפעל אוטו-רענון (30 שנ׳)"}
+            title={autoRefresh ? t("header.autoRefreshTurnOff") : t("header.autoRefreshTurnOn")}
             className={cn(
               "flex items-center gap-1.5 px-3 h-8 rounded-lg border text-xs font-medium transition-all",
               autoRefresh
@@ -386,22 +388,22 @@ function PaymentsPageContent() {
             )}
           >
             <span className={cn("w-1.5 h-1.5 rounded-full", autoRefresh ? "bg-emerald-500 animate-pulse" : "bg-slate-300")} />
-            {autoRefresh ? "רענון אוטו פעיל" : "אוטו-רענון"}
+            {autoRefresh ? t("header.autoRefreshActive") : t("header.autoRefresh")}
           </button>
         </div>
 
         <div className="relative ms-auto">
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted pointer-events-none" />
+          <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted pointer-events-none" />
           <input
             type="text"
-            placeholder="חפש לפי לקוח..."
-            className="input pr-9 pl-3 text-sm w-44 sm:w-56"
+            placeholder={t("header.searchPlaceholder")}
+            className="input ps-9 pe-3 text-sm w-44 sm:w-56"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
           {searchQuery && (
             <button
-              className="absolute left-2 top-1/2 -translate-y-1/2 text-petra-muted hover:text-petra-text"
+              className="absolute end-2 top-1/2 -translate-y-1/2 text-petra-muted hover:text-petra-text"
               onClick={() => setSearchQuery("")}
             >
               <X className="w-3.5 h-3.5" />
@@ -417,59 +419,59 @@ function PaymentsPageContent() {
             <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
               <DollarSign className="w-4 h-4 text-emerald-500" />
             </div>
-            <span className="text-xs text-petra-muted">שולם</span>
+            <span className="text-xs text-petra-muted">{t("statuses.paid")}</span>
           </div>
           <span className="text-lg font-bold text-petra-text">{formatCurrency(totalPaid)}</span>
-          <span className="text-[10px] text-petra-muted block mt-0.5">{paidCount} תשלומים</span>
+          <span className="text-[10px] text-petra-muted block mt-0.5">{t("summary.paymentsCount", { count: paidCount })}</span>
         </div>
         <div className="stat-card">
           <div className="flex items-center gap-2 mb-2">
             <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center">
               <Clock className="w-4 h-4 text-amber-500" />
             </div>
-            <span className="text-xs text-petra-muted">ממתין</span>
+            <span className="text-xs text-petra-muted">{t("statuses.pending")}</span>
           </div>
           <span className="text-lg font-bold text-petra-text">{formatCurrency(totalPending)}</span>
-          <span className="text-[10px] text-petra-muted block mt-0.5">{pendingCount} תשלומים</span>
+          <span className="text-[10px] text-petra-muted block mt-0.5">{t("summary.paymentsCount", { count: pendingCount })}</span>
         </div>
         <div className="stat-card">
           <div className="flex items-center gap-2 mb-2">
             <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
               <CreditCard className="w-4 h-4 text-blue-500" />
             </div>
-            <span className="text-xs text-petra-muted">סה״כ</span>
+            <span className="text-xs text-petra-muted">{t("summary.total")}</span>
           </div>
           <span className="text-lg font-bold text-petra-text">{formatCurrency(totalPaid + totalPending)}</span>
-          <span className="text-[10px] text-petra-muted block mt-0.5">{payments.length} תשלומים</span>
+          <span className="text-[10px] text-petra-muted block mt-0.5">{t("summary.paymentsCount", { count: payments.length })}</span>
         </div>
         <div className="stat-card">
           <div className="flex items-center gap-2 mb-2">
             <div className="w-8 h-8 rounded-lg bg-brand-50 flex items-center justify-center">
               <Banknote className="w-4 h-4 text-brand-500" />
             </div>
-            <span className="text-xs text-petra-muted">ממוצע</span>
+            <span className="text-xs text-petra-muted">{t("summary.average")}</span>
           </div>
           <span className="text-lg font-bold text-petra-text">
-            {payments.length > 0 ? formatCurrency((totalPaid + totalPending) / payments.length) : "₪0"}
+            {payments.length > 0 ? formatCurrency((totalPaid + totalPending) / payments.length) : `${currencySymbol({ locale, currency })}0`}
           </span>
-          <span className="text-[10px] text-petra-muted block mt-0.5">לתשלום</span>
+          <span className="text-[10px] text-petra-muted block mt-0.5">{t("summary.perPayment")}</span>
         </div>
       </div>
 
       {/* Debt Aging Breakdown */}
       {agingBuckets.totalPendingCount > 0 && (
-        <div className="card p-4 mb-5 border-r-4 border-amber-400">
+        <div className="card p-4 mb-5 border-s-4 border-amber-400">
           <div className="flex items-center gap-2 mb-3">
             <AlertTriangle className="w-4 h-4 text-amber-500" />
-            <h3 className="text-sm font-semibold text-petra-text">ניתוח גיל חובות</h3>
-            <span className="text-xs text-petra-muted">({agingBuckets.totalPendingCount} תשלומים ממתינים)</span>
+            <h3 className="text-sm font-semibold text-petra-text">{t("aging.title")}</h3>
+            <span className="text-xs text-petra-muted">{t("aging.pendingCount", { count: agingBuckets.totalPendingCount })}</span>
           </div>
           <div className="grid grid-cols-3 gap-3">
             {agingBuckets.buckets.map((b) => (
-              <div key={b.label} className={`rounded-xl p-3 border ${b.bg} ${b.border}`}>
-                <p className={`text-xs font-semibold ${b.color} mb-1`}>{b.label}</p>
+              <div key={b.id} className={`rounded-xl p-3 border ${b.bg} ${b.border}`}>
+                <p className={`text-xs font-semibold ${b.color} mb-1`}>{t(`aging.buckets.${b.id}`)}</p>
                 <p className={`text-base font-bold ${b.color}`}>{formatCurrency(b.total)}</p>
-                <p className={`text-[11px] ${b.color} opacity-70`}>{b.count} תשלומים</p>
+                <p className={`text-[11px] ${b.color} opacity-70`}>{t("summary.paymentsCount", { count: b.count })}</p>
               </div>
             ))}
           </div>
@@ -490,7 +492,7 @@ function PaymentsPageContent() {
                   : "bg-slate-100 text-petra-muted hover:bg-slate-200"
               )}
             >
-              {s.label}
+              {t(`statuses.${s.id}`)}
             </button>
           ))}
         </div>
@@ -506,7 +508,7 @@ function PaymentsPageContent() {
                   : "bg-slate-100 text-petra-muted hover:bg-slate-200"
               )}
             >
-              {p.label}
+              {t(`periods.${p.id}`)}
             </button>
           ))}
         </div>
@@ -520,8 +522,8 @@ function PaymentsPageContent() {
           <div className="empty-state-icon">
             <XCircle className="w-6 h-6 text-red-400" />
           </div>
-          <h3 className="text-base font-semibold text-petra-text mb-1">שגיאה בטעינת התשלומים</h3>
-          <p className="text-sm text-petra-muted">נסה לרענן את הדף</p>
+          <h3 className="text-base font-semibold text-petra-text mb-1">{t("states.loadError")}</h3>
+          <p className="text-sm text-petra-muted">{t("states.tryRefresh")}</p>
         </div>
       ) : filteredPayments.length === 0 ? (
         <div className="empty-state">
@@ -529,10 +531,10 @@ function PaymentsPageContent() {
             <CreditCard className="w-6 h-6 text-slate-400" />
           </div>
           <h3 className="text-base font-semibold text-petra-text mb-1">
-            {searchQuery.trim() ? "לא נמצאו תשלומים" : "אין תשלומים"}
+            {searchQuery.trim() ? t("states.noResults") : t("states.empty")}
           </h3>
           <p className="text-sm text-petra-muted mb-4">
-            {searchQuery.trim() ? "נסה חיפוש אחר" : "צור תשלום חדש כדי להתחיל"}
+            {searchQuery.trim() ? t("states.tryOtherSearch") : t("states.emptyHint")}
           </p>
         </div>
       ) : (
@@ -543,9 +545,9 @@ function PaymentsPageContent() {
               const statusInfo = STATUS_INFO[payment.status] || STATUS_INFO.pending;
               const StatusIcon = statusInfo.icon;
               const association = payment.appointment
-                ? `תור: ${payment.appointment.service?.name ?? "ללא שירות"}`
+                ? t("row.appointment", { service: payment.appointment.service?.name ?? t("row.noService") })
                 : payment.boardingStay
-                ? `פנסיון: ${payment.boardingStay.pet.name}`
+                ? t("row.boarding", { pet: payment.boardingStay.pet.name })
                 : null;
               return (
                 <div key={payment.id} className="p-4">
@@ -563,7 +565,7 @@ function PaymentsPageContent() {
                       <span className="text-sm font-semibold text-petra-text">
                         {formatCurrency(payment.amount)}
                         {payment.isDeposit && (
-                          <span className="badge-warning text-[9px] ms-1">מקדמה</span>
+                          <span className="badge-warning text-[9px] ms-1">{t("row.deposit")}</span>
                         )}
                       </span>
                       <span
@@ -571,12 +573,12 @@ function PaymentsPageContent() {
                         style={{ background: `${statusInfo.color}15`, color: statusInfo.color }}
                       >
                         <StatusIcon className="w-3 h-3" />
-                        {statusInfo.label}
+                        {t(`statuses.${statusInfo.id}`)}
                       </span>
                     </div>
                   </div>
                   <div className="flex items-center justify-between mt-1.5 text-xs text-petra-muted">
-                    <span>{METHOD_LABELS[payment.method] || payment.method}</span>
+                    <span>{methodLabel(payment.method)}</span>
                     <span>{formatDate(payment.createdAt)}</span>
                   </div>
                   {association && (
@@ -597,7 +599,7 @@ function PaymentsPageContent() {
                         ) : (
                           <CheckCircle2 className="w-3 h-3" />
                         )}
-                        סמן כשולם
+                        {t("row.markPaid")}
                       </button>
                     )}
                     {payment.invoiceNumber ? (
@@ -619,26 +621,26 @@ function PaymentsPageContent() {
                         ) : (
                           <FileText className="w-3 h-3" />
                         )}
-                        הפק מסמך
+                        {t("row.issueDocument")}
                       </button>
                     ) : null}
                     {payment.status === "paid" && payment.customer?.phone && (
                       <a
-                        href={`https://api.whatsapp.com/send?phone=${toWhatsAppPhone(payment.customer?.phone)}&text=${encodeURIComponent(`שלום ${payment.customer?.name ?? ""}!\nקיבלנו את תשלומך בסך ${formatCurrency(payment.amount)} - תודה רבה! 🙏`)}`}
+                        href={`https://api.whatsapp.com/send?phone=${toWhatsAppPhone(payment.customer?.phone)}&text=${encodeURIComponent(`שלום ${payment.customer?.name ?? ""}!\nקיבלנו את תשלומך בסך ${formatCurrency(payment.amount)} - תודה רבה! 🙏`) /* i18n-ok — WhatsApp text sent to the client */}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 text-xs text-green-600 hover:text-green-700"
-                        title="שלח אישור תשלום בוואטסאפ"
+                        title={t("row.sendReceiptTitle")}
                       >
                         <MessageCircle className="w-3.5 h-3.5" />
-                        קבלה
+                        {t("row.receipt")}
                       </a>
                     )}
                     {payment.status === "pending" && payment.customer?.phone && (
                       sentReminders.has(payment.id) ? (
                         <span className="inline-flex items-center gap-1 text-xs text-emerald-600 font-medium">
                           <CheckCircle2 className="w-3.5 h-3.5" />
-                          נשלח ✓
+                          {t("row.sent")}
                         </span>
                       ) : (
                         <a
@@ -646,11 +648,11 @@ function PaymentsPageContent() {
                           target="_blank"
                           rel="noopener noreferrer"
                           className="inline-flex items-center gap-1 text-xs text-green-600 hover:text-green-700"
-                          title="שלח תזכורת תשלום בוואטסאפ"
+                          title={t("row.sendReminderTitle")}
                           onClick={() => setSentReminders((prev) => new Set([...prev, payment.id]))}
                         >
                           <MessageCircle className="w-3.5 h-3.5" />
-                          תזכורת
+                          {t("row.reminder")}
                         </a>
                       )
                     )}
@@ -658,14 +660,14 @@ function PaymentsPageContent() {
                       <button
                         className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-red-600 hover:bg-red-50 px-2 py-1 rounded-lg transition-colors"
                         onClick={() => {
-                          if (window.confirm(`לבטל את התשלום של ${payment.customer?.name ?? "הלקוח"} על סך ${formatCurrency(payment.amount)}?`)) {
+                          if (window.confirm(t("row.cancelConfirm", { name: payment.customer?.name ?? t("row.theClient"), amount: formatCurrency(payment.amount) }))) {
                             cancelPaymentMutation.mutate(payment.id);
                           }
                         }}
                         disabled={cancelPaymentMutation.isPending}
                       >
                         <XCircle className="w-3 h-3" />
-                        בטל
+                        {t("row.cancel")}
                       </button>
                     )}
                     {canWritePayments && (confirmDeleteId === payment.id ? (
@@ -675,20 +677,20 @@ function PaymentsPageContent() {
                           onClick={() => deletePaymentMutation.mutate(payment.id)}
                           disabled={deletePaymentMutation.isPending}
                         >
-                          {deletePaymentMutation.isPending ? "מוחק..." : "מחק"}
+                          {deletePaymentMutation.isPending ? tc("progress.deleting") : tc("actions.delete")}
                         </button>
                         <button
                           className="text-petra-muted hover:underline"
                           onClick={() => setConfirmDeleteId(null)}
                         >
-                          ביטול
+                          {tc("actions.cancel")}
                         </button>
                       </span>
                     ) : (
                       <button
                         className="inline-flex items-center gap-1 text-xs text-red-400 hover:text-red-600 px-1 py-1 rounded transition-colors"
                         onClick={() => setConfirmDeleteId(payment.id)}
-                        title="מחק תשלום"
+                        title={t("row.deletePaymentTitle")}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -701,16 +703,16 @@ function PaymentsPageContent() {
           {/* Desktop table */}
           <div className="overflow-x-auto hidden md:block">
             <table className="w-full">
-              <caption className="sr-only">רשימת תשלומים</caption>
+              <caption className="sr-only">{t("table.caption")}</caption>
               <thead>
                 <tr className="border-b border-petra-border">
-                  <th scope="col" className="table-header-cell">לקוח</th>
-                  <th scope="col" className="table-header-cell">סכום</th>
-                  <th scope="col" className="table-header-cell">אמצעי תשלום</th>
-                  <th scope="col" className="table-header-cell">שיוך</th>
-                  <th scope="col" className="table-header-cell">סטטוס</th>
-                  <th scope="col" className="table-header-cell">מסמך</th>
-                  <th scope="col" className="table-header-cell">תאריך</th>
+                  <th scope="col" className="table-header-cell">{t("table.client")}</th>
+                  <th scope="col" className="table-header-cell">{t("table.amount")}</th>
+                  <th scope="col" className="table-header-cell">{t("table.method")}</th>
+                  <th scope="col" className="table-header-cell">{t("table.association")}</th>
+                  <th scope="col" className="table-header-cell">{t("table.status")}</th>
+                  <th scope="col" className="table-header-cell">{t("table.document")}</th>
+                  <th scope="col" className="table-header-cell">{t("table.date")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -718,9 +720,9 @@ function PaymentsPageContent() {
                   const statusInfo = STATUS_INFO[payment.status] || STATUS_INFO.pending;
                   const StatusIcon = statusInfo.icon;
                   const serviceInfo = payment.appointment
-                    ? `תור: ${payment.appointment.service?.name ?? "ללא שירות"}`
+                    ? t("row.appointment", { service: payment.appointment.service?.name ?? t("row.noService") })
                     : payment.boardingStay
-                    ? `פנסיון: ${payment.boardingStay.pet.name}`
+                    ? t("row.boarding", { pet: payment.boardingStay.pet.name })
                     : null;
 
                   return (
@@ -747,12 +749,12 @@ function PaymentsPageContent() {
                           {formatCurrency(payment.amount)}
                         </span>
                         {payment.isDeposit && (
-                          <span className="badge-warning text-[9px] ms-1">מקדמה</span>
+                          <span className="badge-warning text-[9px] ms-1">{t("row.deposit")}</span>
                         )}
                       </td>
                       <td className="table-cell">
                         <span className="text-sm text-petra-text">
-                          {METHOD_LABELS[payment.method] || payment.method}
+                          {methodLabel(payment.method)}
                         </span>
                       </td>
                       <td className="table-cell">
@@ -763,7 +765,7 @@ function PaymentsPageContent() {
                               className="text-xs font-medium text-brand-600 hover:underline block"
                               onClick={(e) => e.stopPropagation()}
                             >
-                              הזמנה #{payment.order.id.slice(-8).toUpperCase()}
+                              {t("row.order", { id: payment.order.id.slice(-8).toUpperCase() })}
                             </Link>
                           )}
                           {serviceInfo && (
@@ -783,7 +785,7 @@ function PaymentsPageContent() {
                           }}
                         >
                           <StatusIcon className="w-3 h-3" />
-                          {statusInfo.label}
+                          {t(`statuses.${statusInfo.id}`)}
                         </span>
                       </td>
                       <td className="table-cell">
@@ -802,7 +804,7 @@ function PaymentsPageContent() {
                               ) : (
                                 <CheckCircle2 className="w-3 h-3" />
                               )}
-                              סמן כשולם
+                              {t("row.markPaid")}
                             </button>
                           )}
                           {payment.invoiceNumber ? (
@@ -824,25 +826,25 @@ function PaymentsPageContent() {
                               ) : (
                                 <FileText className="w-3 h-3" />
                               )}
-                              הפק מסמך
+                              {t("row.issueDocument")}
                             </button>
                           ) : payment.status !== "pending" ? (
                             <span className="text-xs text-petra-muted">—</span>
                           ) : null}
                           {payment.status === "paid" && payment.customer?.phone && (
                             <a
-                              href={`https://api.whatsapp.com/send?phone=${toWhatsAppPhone(payment.customer?.phone)}&text=${encodeURIComponent(`שלום ${payment.customer?.name ?? ""}!\nקיבלנו את תשלומך בסך ${formatCurrency(payment.amount)} - תודה רבה! 🙏`)}`}
+                              href={`https://api.whatsapp.com/send?phone=${toWhatsAppPhone(payment.customer?.phone)}&text=${encodeURIComponent(`שלום ${payment.customer?.name ?? ""}!\nקיבלנו את תשלומך בסך ${formatCurrency(payment.amount)} - תודה רבה! 🙏`) /* i18n-ok — WhatsApp text sent to the client */}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="w-7 h-7 flex items-center justify-center rounded-lg text-green-600 hover:bg-green-50 transition-colors"
-                              title="שלח אישור תשלום בוואטסאפ"
+                              title={t("row.sendReceiptTitle")}
                             >
                               <MessageCircle className="w-3.5 h-3.5" />
                             </a>
                           )}
                           {payment.status === "pending" && payment.customer?.phone && (
                             sentReminders.has(payment.id) ? (
-                              <span className="w-7 h-7 flex items-center justify-center text-emerald-600" title="נשלחה תזכורת">
+                              <span className="w-7 h-7 flex items-center justify-center text-emerald-600" title={t("row.reminderSentTitle")}>
                                 <CheckCircle2 className="w-3.5 h-3.5" />
                               </span>
                             ) : (
@@ -851,7 +853,7 @@ function PaymentsPageContent() {
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="w-7 h-7 flex items-center justify-center rounded-lg text-green-600 hover:bg-green-50 transition-colors"
-                                title="שלח תזכורת תשלום בוואטסאפ"
+                                title={t("row.sendReminderTitle")}
                                 onClick={() => setSentReminders((prev) => new Set([...prev, payment.id]))}
                               >
                                 <MessageCircle className="w-3.5 h-3.5" />
@@ -862,12 +864,12 @@ function PaymentsPageContent() {
                             <button
                               className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
                               onClick={() => {
-                          if (window.confirm(`לבטל את התשלום של ${payment.customer?.name ?? "הלקוח"} על סך ${formatCurrency(payment.amount)}?`)) {
+                          if (window.confirm(t("row.cancelConfirm", { name: payment.customer?.name ?? t("row.theClient"), amount: formatCurrency(payment.amount) }))) {
                             cancelPaymentMutation.mutate(payment.id);
                           }
                         }}
                               disabled={cancelPaymentMutation.isPending}
-                              title="בטל תשלום"
+                              title={t("row.cancelPaymentTitle")}
                             >
                               <XCircle className="w-3.5 h-3.5" />
                             </button>
@@ -879,20 +881,20 @@ function PaymentsPageContent() {
                                 onClick={() => deletePaymentMutation.mutate(payment.id)}
                                 disabled={deletePaymentMutation.isPending}
                               >
-                                {deletePaymentMutation.isPending ? "..." : "מחק"}
+                                {deletePaymentMutation.isPending ? "..." : tc("actions.delete")}
                               </button>
                               <button
                                 className="text-petra-muted hover:underline"
                                 onClick={() => setConfirmDeleteId(null)}
                               >
-                                לא
+                                {t("row.no")}
                               </button>
                             </span>
                           ) : (
                             <button
                               className="w-7 h-7 flex items-center justify-center rounded-lg text-red-300 hover:text-red-600 hover:bg-red-50 transition-colors"
                               onClick={() => setConfirmDeleteId(payment.id)}
-                              title="מחק תשלום"
+                              title={t("row.deletePaymentTitle")}
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -935,6 +937,9 @@ function NewPaymentModal({
   onClose: () => void;
   onSuccess: () => void;
 }) {
+  const t = useTranslations("payments.paymentsPage");
+  const tc = useTranslations("common");
+  const { locale, currency } = useBusinessLocale();
   const [form, setForm] = useState({
     customerId: "",
     amount: "",
@@ -968,10 +973,10 @@ function NewPaymentModal({
         return r.json();
       }),
     onSuccess: () => {
-      toast.success("התשלום נרשם בהצלחה");
+      toast.success(t("modal.created"));
       onSuccess();
     },
-    onError: () => toast.error("שגיאה ברישום התשלום. נסה שוב."),
+    onError: () => toast.error(t("modal.createError")),
   });
 
   const selectedCustomer = customers.find((c) => c.id === form.customerId);
@@ -981,7 +986,7 @@ function NewPaymentModal({
       <div className="modal-backdrop" onClick={onClose} />
       <div className="modal-content max-w-md mx-4 p-6">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-bold text-petra-text">תשלום חדש</h2>
+          <h2 className="text-lg font-bold text-petra-text">{t("modal.title")}</h2>
           <button
             onClick={onClose}
             className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted"
@@ -993,7 +998,7 @@ function NewPaymentModal({
         <div className="space-y-4">
           {/* Customer Selection */}
           <div>
-            <label className="label">לקוח *</label>
+            <label className="label">{t("modal.client")}</label>
             {selectedCustomer ? (
               <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50">
                 <div>
@@ -1008,21 +1013,21 @@ function NewPaymentModal({
                   onClick={() => setForm({ ...form, customerId: "" })}
                   className="text-xs text-red-500 hover:text-red-700"
                 >
-                  שנה
+                  {t("modal.change")}
                 </button>
               </div>
             ) : (
               <div>
                 <input
                   className="input mb-2"
-                  placeholder="חפש לקוח..."
+                  placeholder={t("modal.searchClient")}
                   value={customerSearch}
                   onChange={(e) => setCustomerSearch(e.target.value)}
                 />
                 {customerSearch && (
                   <div className="max-h-32 overflow-y-auto rounded-lg border border-petra-border">
                     {filteredCustomers.length === 0 ? (
-                      <p className="text-xs text-petra-muted p-2">לא נמצאו לקוחות</p>
+                      <p className="text-xs text-petra-muted p-2">{t("modal.noClients")}</p>
                     ) : (
                       filteredCustomers.slice(0, 5).map((c) => (
                         <button
@@ -1031,7 +1036,7 @@ function NewPaymentModal({
                             setForm({ ...form, customerId: c.id });
                             setCustomerSearch("");
                           }}
-                          className="w-full text-right p-2 hover:bg-slate-50 text-sm"
+                          className="w-full text-start p-2 hover:bg-slate-50 text-sm"
                         >
                           {c.name} - {c.phone}
                         </button>
@@ -1045,7 +1050,7 @@ function NewPaymentModal({
 
           {/* Amount */}
           <div>
-            <label className="label">סכום (₪) *</label>
+            <label className="label">{t("modal.amount", { currencySymbol: currencySymbol({ locale, currency }) })}</label>
             <input
               type="number"
               className="input"
@@ -1060,35 +1065,35 @@ function NewPaymentModal({
           {/* Method & Status */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">אמצעי תשלום</label>
+              <label className="label">{t("modal.method")}</label>
               <select
                 className="input"
                 value={form.method}
                 onChange={(e) => setForm({ ...form, method: e.target.value })}
               >
-                {Object.entries(METHOD_LABELS).map(([k, v]) => (
+                {METHOD_IDS.map((k) => (
                   <option key={k} value={k}>
-                    {v}
+                    {t(`methods.${k}`)}
                   </option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="label">סטטוס</label>
+              <label className="label">{t("modal.status")}</label>
               <select
                 className="input"
                 value={form.status}
                 onChange={(e) => setForm({ ...form, status: e.target.value })}
               >
-                <option value="paid">שולם</option>
-                <option value="pending">ממתין</option>
+                <option value="paid">{t("statuses.paid")}</option>
+                <option value="pending">{t("statuses.pending")}</option>
               </select>
             </div>
           </div>
 
           {/* Notes */}
           <div>
-            <label className="label">הערות</label>
+            <label className="label">{t("modal.notes")}</label>
             <textarea
               className="input"
               rows={2}
@@ -1105,10 +1110,10 @@ function NewPaymentModal({
             onClick={() => createMutation.mutate(form)}
           >
             <Plus className="w-4 h-4" />
-            {createMutation.isPending ? "שומר..." : "צור תשלום"}
+            {createMutation.isPending ? tc("progress.saving") : t("modal.create")}
           </button>
           <button className="btn-secondary" onClick={onClose}>
-            ביטול
+            {tc("actions.cancel")}
           </button>
         </div>
       </div>
@@ -1117,13 +1122,14 @@ function NewPaymentModal({
 }
 
 export default function PaymentsPage() {
+  const t = useTranslations("payments.paymentsPage");
   return (
     <>
-      <PageTitle title="תשלומים" />
+      <PageTitle title={t("title")} />
       <TierGate
       feature="payments"
-      title="ניהול תשלומים"
-      description="מעקב אחרי תשלומים, הנפקת קבלות וחשבוניות, וסקירת מצב פיננסי מלא."
+      title={t("tierTitle")}
+      description={t("tierDescription")}
     >
       <PaymentsPageContent />
     </TierGate>

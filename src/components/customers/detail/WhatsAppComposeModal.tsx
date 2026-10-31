@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { X, MessageCircle, AlertTriangle, Send } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 
 export function WhatsAppComposeModal({
   customerId,
@@ -17,13 +19,16 @@ export function WhatsAppComposeModal({
   onClose: () => void;
   onSent: () => void;
 }) {
+  const t = useTranslations("customers.whatsAppComposeModal");
+  const tc = useTranslations("common");
+  const { cfg } = useBusinessLocale();
   const [message, setMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSend() {
     if (!message.trim()) return;
-    if (!customerPhone) { setError("אין מספר טלפון ללקוח"); return; }
+    if (!customerPhone) { setError(t("noPhone")); return; }
     setSending(true);
     setError(null);
     try {
@@ -34,18 +39,18 @@ export function WhatsAppComposeModal({
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "שגיאה בשליחה");
+        setError(data.error || t("sendError"));
         setSending(false);
         return;
       }
       if (data.stub) {
-        toast.success("ההודעה תועדה (WhatsApp לא מחובר — שליחה בפועל בהמתנה לאימות)");
+        toast.success(t("loggedStub"));
       } else {
-        toast.success("ההודעה נשלחה בהצלחה");
+        toast.success(t("sentSuccess"));
       }
       onSent();
     } catch {
-      setError("שגיאה בשליחה");
+      setError(t("sendError"));
       setSending(false);
     }
   }
@@ -60,7 +65,7 @@ export function WhatsAppComposeModal({
               <MessageCircle className="w-4 h-4 text-green-600" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-petra-text">שליחת WhatsApp</h2>
+              <h2 className="text-base font-bold text-petra-text">{t("title")}</h2>
               <p className="text-xs text-petra-muted">{customerName}</p>
             </div>
           </div>
@@ -71,18 +76,18 @@ export function WhatsAppComposeModal({
 
         <div className="space-y-4">
           <div>
-            <label className="label">הודעה</label>
+            <label className="label">{t("messageLabel")}</label>
             <textarea
               className="input resize-none"
               rows={5}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder={`שלום ${customerName}, ...`}
+              placeholder={t("placeholder", { name: customerName })}
               maxLength={1500}
-              dir="rtl"
+              dir={cfg.dir}
               autoFocus
             />
-            <p className="text-xs text-petra-muted mt-1 text-left">{message.length}/1500</p>
+            <p className="text-xs text-petra-muted mt-1 text-end">{message.length}/1500</p>
           </div>
           {error && (
             <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
@@ -91,13 +96,13 @@ export function WhatsAppComposeModal({
             </div>
           )}
           <div className="flex justify-end gap-3">
-            <button onClick={onClose} className="btn-secondary">ביטול</button>
+            <button onClick={onClose} className="btn-secondary">{tc("actions.cancel")}</button>
             <button
               onClick={handleSend}
               disabled={!message.trim() || sending}
               className="btn-primary flex items-center gap-2"
             >
-              <Send className="w-4 h-4" /> {sending ? "שולח..." : "שלח הודעה"}
+              <Send className="w-4 h-4" /> {sending ? t("sending") : t("send")}
             </button>
           </div>
         </div>

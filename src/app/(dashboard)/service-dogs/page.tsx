@@ -33,7 +33,10 @@ import {
   Archive,
   RotateCcw,
 } from "lucide-react";
-import { cn, formatDate } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { formatDate } from "@/lib/format";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { ServiceDogsTabs } from "@/components/service-dogs/ServiceDogsTabs";
 import {
   SERVICE_DOG_PHASE_MAP,
@@ -78,6 +81,8 @@ interface ComplianceEvent {
 function ServiceDogsOverviewPageContent() {
   const perms = usePermissions();
   const { user } = useAuth();
+  const t = useTranslations("serviceDogs.serviceDogsPage");
+  const { locale } = useBusinessLocale();
 
   const { data: dogs = [] } = useQuery<ServiceDogSummary[]>({
     queryKey: ["service-dogs"],
@@ -186,10 +191,10 @@ function ServiceDogsOverviewPageContent() {
         <div>
           <h1 className="page-title flex items-center gap-2">
             <Shield className="w-6 h-6 text-brand-500" />
-            כלבי שירות — סקירה כללית
+            {t("header.title")}
           </h1>
           <p className="text-sm text-petra-muted mt-1">
-            מרכז הכשרת כלבי שירות · ניהול מקצועי
+            {t("header.subtitle")}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -199,7 +204,7 @@ function ServiceDogsOverviewPageContent() {
             onClick={() => setShowAddDog(true)}
           >
             <Plus className="w-4 h-4" />
-            הוסף כלב
+            {t("header.addDog")}
           </button>
           {perms.canSeeRecipientsSensitive && (
             <button
@@ -208,7 +213,7 @@ function ServiceDogsOverviewPageContent() {
               onClick={() => setShowAddRecipient(true)}
             >
               <Plus className="w-4 h-4" />
-              הוסף זכאי
+              {t("header.addRecipient")}
             </button>
           )}
         </div>
@@ -216,16 +221,16 @@ function ServiceDogsOverviewPageContent() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-5 lg:grid-cols-10 gap-3">
-        <StatCard label="סה״כ כלבים" value={totalDogs} icon={Dog} />
-        <StatCard label="באימון" value={inTraining} icon={Clock} color="blue" />
-        <StatCard label="מוסמכים" value={certified} icon={CheckCircle2} color="emerald" />
-        <StatCard label="ממתינים להסמכה" value={pendingCert} icon={CheckCircle2} color="amber" />
-        <StatCard label="התראות דיווח" value={complianceAlerts} icon={AlertTriangle} color={complianceAlerts > 0 ? "red" : "emerald"} />
-        <StatCard label="שיבוצים פעילים" value={activePlacements} icon={Activity} color="purple" />
-        <StatCard label="אימונים השבוע" value={thisWeek} icon={GraduationCap} color="brand" />
-        <StatCard label="סה״כ זכאים" value={totalRecipients} icon={UserCheck} />
-        <StatCard label="ממתינים לשיבוץ" value={waitingForMatch} icon={UserCheck} color="amber" />
-        <StatCard label="זכאים פעילים" value={activeRecipients} icon={UserCheck} color="emerald" />
+        <StatCard label={t("stats.totalDogs")} value={totalDogs} icon={Dog} />
+        <StatCard label={t("stats.inTraining")} value={inTraining} icon={Clock} color="blue" />
+        <StatCard label={t("stats.certified")} value={certified} icon={CheckCircle2} color="emerald" />
+        <StatCard label={t("stats.pendingCert")} value={pendingCert} icon={CheckCircle2} color="amber" />
+        <StatCard label={t("stats.reportAlerts")} value={complianceAlerts} icon={AlertTriangle} color={complianceAlerts > 0 ? "red" : "emerald"} />
+        <StatCard label={t("stats.activePlacements")} value={activePlacements} icon={Activity} color="purple" />
+        <StatCard label={t("stats.sessionsThisWeek")} value={thisWeek} icon={GraduationCap} color="brand" />
+        <StatCard label={t("stats.totalRecipients")} value={totalRecipients} icon={UserCheck} />
+        <StatCard label={t("stats.waitingForMatch")} value={waitingForMatch} icon={UserCheck} color="amber" />
+        <StatCard label={t("stats.activeRecipients")} value={activeRecipients} icon={UserCheck} color="emerald" />
       </div>
 
 
@@ -242,7 +247,7 @@ function ServiceDogsOverviewPageContent() {
           className="flex items-center gap-2 text-xs text-petra-muted hover:text-brand-600 transition-colors"
         >
           <Archive className="w-3.5 h-3.5" />
-          {archive.length} פריטים מסומנים — הצג ארכיון
+          {t("archive.showButton", { count: archive.length })}
         </button>
       )}
 
@@ -253,10 +258,10 @@ function ServiceDogsOverviewPageContent() {
             <div className="px-5 py-4 border-b flex items-center justify-between">
               <h2 className="font-semibold flex items-center gap-2">
                 <UserCheck className="w-4 h-4 text-brand-500" />
-                פיפליין זכאים
+                {t("pipeline.title")}
               </h2>
               <Link href="/service-dogs/recipients" className="text-xs text-brand-500 hover:text-brand-600 flex items-center gap-1">
-                ניהול זכאים <ArrowLeft className="w-3 h-3" />
+                {t("pipeline.manage")} <ArrowLeft className="w-3 h-3 ltr:-scale-x-100" />
               </Link>
             </div>
             <div className="p-4 overflow-x-auto">
@@ -291,7 +296,7 @@ function ServiceDogsOverviewPageContent() {
                 <div className="px-5 pb-4 flex items-center gap-3 flex-wrap">
                   {Object.entries(byFunding).map(([source, count]) => (
                     <span key={source} className="text-xs text-petra-muted">
-                      {FUNDING_SOURCE_MAP[source] || "לא ידוע"}: <strong>{count}</strong>
+                      {FUNDING_SOURCE_MAP[source] || t("pipeline.unknownFunding")}: <strong>{count}</strong>
                     </span>
                   ))}
                 </div>
@@ -305,7 +310,7 @@ function ServiceDogsOverviewPageContent() {
           <div className="px-5 py-4 border-b flex items-center justify-between">
             <h2 className="font-semibold flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-amber-500" />
-              דורשים תשומת לב
+              {t("attention.title")}
               {visibleDogs.length > 0 && (
                 <span className="bg-amber-100 text-amber-700 text-xs font-bold rounded-full px-2 py-0.5">
                   {visibleDogs.length}
@@ -313,14 +318,14 @@ function ServiceDogsOverviewPageContent() {
               )}
             </h2>
             <Link href="/service-dogs/dogs" className="text-xs text-brand-500 hover:text-brand-600 flex items-center gap-1">
-              כל הכלבים <ArrowLeft className="w-3 h-3" />
+              {t("attention.allDogs")} <ArrowLeft className="w-3 h-3 ltr:-scale-x-100" />
             </Link>
           </div>
 
           {visibleDogs.length === 0 ? (
             <div className="px-5 py-8 text-center">
               <CheckCircle2 className="w-10 h-10 mx-auto text-emerald-400 mb-2" />
-              <p className="text-sm text-petra-muted">כל הכלבים תקינים</p>
+              <p className="text-sm text-petra-muted">{t("attention.allOk")}</p>
             </div>
           ) : (
             <div className="divide-y">
@@ -333,7 +338,7 @@ function ServiceDogsOverviewPageContent() {
                       type="button"
                       onClick={() => dismiss(dog.id, dog.pet.name, "dog")}
                       className="w-5 h-5 rounded-full border-2 border-slate-300 flex-shrink-0 flex items-center justify-center hover:border-emerald-400 hover:bg-emerald-50 transition-all"
-                      title="סמן כטופל"
+                      title={t("markHandled")}
                     />
                     <Link
                       href={`/service-dogs/${dog.id}`}
@@ -360,15 +365,15 @@ function ServiceDogsOverviewPageContent() {
                           </span>
                           {dog.medicalCompliance.status === "red" && (
                             <span className="text-xs text-red-600">
-                              {dog.medicalCompliance.overdueCount} פרוטוקולים באיחור
+                              {t("attention.overdueProtocols", { count: dog.medicalCompliance.overdueCount })}
                             </span>
                           )}
                           {dog.trainingStatus === "PENDING_CERT" && (
-                            <span className="text-xs text-blue-600 font-medium">מוכן להסמכה</span>
+                            <span className="text-xs text-blue-600 font-medium">{t("attention.readyForCert")}</span>
                           )}
                         </div>
                       </div>
-                      <ChevronLeft className="w-4 h-4 text-petra-muted group-hover:text-brand-500 transition-colors flex-shrink-0" />
+                      <ChevronLeft className="w-4 h-4 text-petra-muted group-hover:text-brand-500 transition-colors flex-shrink-0 ltr:-scale-x-100" />
                     </Link>
                   </div>
                 );
@@ -385,13 +390,13 @@ function ServiceDogsOverviewPageContent() {
           <div className="px-5 py-4 border-b flex items-center justify-between">
             <h2 className="font-semibold flex items-center gap-2">
               <GraduationCap className="w-4 h-4 text-brand-500" />
-              אימונים אחרונים
+              {t("recent.title")}
               <span className="bg-brand-100 text-brand-700 text-xs font-bold rounded-full px-2 py-0.5">
-                {totalSessions} סה״כ
+                {t("totalBadge", { count: totalSessions })}
               </span>
             </h2>
             <Link href="/training" className="text-xs text-brand-500 hover:text-brand-600 flex items-center gap-1">
-              כל תהליכי האילוף <ArrowLeft className="w-3 h-3" />
+              {t("recent.allPrograms")} <ArrowLeft className="w-3 h-3 ltr:-scale-x-100" />
             </Link>
           </div>
           <div className="divide-y">
@@ -407,7 +412,7 @@ function ServiceDogsOverviewPageContent() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium text-petra-text">{session.dogName}</span>
-                    <span className="text-xs text-petra-muted">אימון {session.sessionNumber}</span>
+                    <span className="text-xs text-petra-muted">{t("recent.session", { number: session.sessionNumber ?? "" })}</span>
                     {session.rating && (
                       <span className="text-xs text-amber-500 flex items-center gap-0.5">
                         <Star className="w-3 h-3 fill-amber-400" />
@@ -419,7 +424,7 @@ function ServiceDogsOverviewPageContent() {
                     <p className="text-xs text-petra-muted truncate mt-0.5">{session.summary}</p>
                   )}
                 </div>
-                <span className="text-xs text-petra-muted flex-shrink-0">{formatDate(session.sessionDate)}</span>
+                <span className="text-xs text-petra-muted flex-shrink-0">{formatDate(session.sessionDate, { locale, style: "long" })}</span>
               </Link>
             ))}
           </div>
@@ -430,7 +435,7 @@ function ServiceDogsOverviewPageContent() {
       {/* Phase Distribution */}
       {dogs.length > 0 && (
         <div className="card p-5">
-          <h2 className="font-semibold mb-4">התפלגות לפי שלב</h2>
+          <h2 className="font-semibold mb-4">{t("phaseDistribution.title")}</h2>
           <div className="flex flex-wrap gap-3">
             {Object.entries(
               dogs.reduce((acc, d) => {
@@ -476,7 +481,7 @@ function ServiceDogsOverviewPageContent() {
             <div className="px-5 py-4 border-b flex items-center justify-between">
               <h2 className="font-bold flex items-center gap-2">
                 <Archive className="w-4 h-4 text-brand-500" />
-                ארכיון פריטים מטופלים
+                {t("archive.title")}
               </h2>
               <div className="flex items-center gap-2">
                 <button
@@ -485,7 +490,7 @@ function ServiceDogsOverviewPageContent() {
                   className="text-xs text-red-500 hover:text-red-600 flex items-center gap-1"
                 >
                   <RotateCcw className="w-3 h-3" />
-                  נקה הכל
+                  {t("archive.clearAll")}
                 </button>
                 <button type="button" onClick={() => setShowArchive(false)} className="p-1 hover:bg-slate-100 rounded-lg">
                   <X className="w-4 h-4 text-petra-muted" />
@@ -494,7 +499,7 @@ function ServiceDogsOverviewPageContent() {
             </div>
             <div className="overflow-y-auto flex-1">
               {archive.length === 0 ? (
-                <p className="text-center text-petra-muted py-8 text-sm">אין פריטים בארכיון</p>
+                <p className="text-center text-petra-muted py-8 text-sm">{t("archive.empty")}</p>
               ) : (
                 <div className="divide-y">
                   {[...archive].reverse().map((entry) => (
@@ -502,19 +507,19 @@ function ServiceDogsOverviewPageContent() {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{entry.label}</p>
                         <p className="text-xs text-petra-muted mt-0.5">
-                          {entry.type === "dog" ? "כלב" : entry.type === "event" ? "דיווח" : "התראה"}
+                          {entry.type === "dog" ? t("archive.typeDog") : entry.type === "event" ? t("archive.typeEvent") : t("archive.typeAlert")}
                           {" · "}
-                          {new Date(entry.dismissedAt).toLocaleDateString("he-IL", { day: "numeric", month: "long" })}
+                          {new Date(entry.dismissedAt).toLocaleDateString(locale, { day: "numeric", month: "long" })}
                         </p>
                       </div>
                       <button
                         type="button"
                         onClick={() => restore(entry.id)}
                         className="text-xs text-brand-500 hover:text-brand-700 flex items-center gap-1 flex-shrink-0"
-                        title="שחזר"
+                        title={t("archive.restore")}
                       >
                         <RotateCcw className="w-3 h-3" />
-                        שחזר
+                        {t("archive.restore")}
                       </button>
                     </div>
                   ))}
@@ -522,7 +527,7 @@ function ServiceDogsOverviewPageContent() {
               )}
             </div>
             <div className="px-5 py-3 border-t text-xs text-petra-muted">
-              פריטים נשמרים ל-7 ימים ואז נמחקים אוטומטית
+              {t("archive.footer")}
             </div>
           </div>
         </div>
@@ -572,6 +577,8 @@ function StatCard({
 
 // ─── Add Recipient Modal ────────────────────────────────────────────────────
 function AddRecipientModal({ onClose }: { onClose: () => void }) {
+  const t = useTranslations("serviceDogs.serviceDogsPage");
+  const tc = useTranslations("common");
   const qc = useQueryClient();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -591,10 +598,10 @@ function AddRecipientModal({ onClose }: { onClose: () => void }) {
       }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["service-recipients"] });
-      toast.success("זכאי נוסף בהצלחה");
+      toast.success(t("addRecipient.toastSuccess"));
       onClose();
     },
-    onError: () => toast.error("שגיאה בהוספת זכאי"),
+    onError: () => toast.error(t("addRecipient.toastError")),
   });
 
   return (
@@ -604,7 +611,7 @@ function AddRecipientModal({ onClose }: { onClose: () => void }) {
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold text-petra-text flex items-center gap-2">
             <UserCheck className="w-5 h-5 text-brand-500" />
-            הוסף זכאי חדש
+            {t("addRecipient.title")}
           </h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
             <X className="w-4 h-4" />
@@ -612,28 +619,28 @@ function AddRecipientModal({ onClose }: { onClose: () => void }) {
         </div>
         <div className="space-y-3">
           <div>
-            <label className="label">שם מלא *</label>
-            <input type="text" className="input" placeholder="שם ומשפחה" value={name} onChange={(e) => setName(e.target.value)} />
+            <label className="label">{t("addRecipient.fullName")}</label>
+            <input type="text" className="input" placeholder={t("addRecipient.fullNamePlaceholder")} value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">טלפון</label>
+              <label className="label">{t("addRecipient.phone")}</label>
               <input type="tel" dir="ltr" className="input text-right" placeholder="05x-xxxxxxx" value={phone} onChange={(e) => setPhone(e.target.value)} />
             </div>
             <div>
-              <label className="label">אימייל</label>
+              <label className="label">{t("addRecipient.email")}</label>
               <input type="email" dir="ltr" className="input text-right" placeholder="mail@example.com" value={email} onChange={(e) => setEmail(e.target.value)} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">תעודת זהות</label>
-              <input type="text" className="input" placeholder="9 ספרות" value={idNumber} onChange={(e) => setIdNumber(e.target.value)} />
+              <label className="label">{t("addRecipient.idNumber")}</label>
+              <input type="text" className="input" placeholder={t("addRecipient.idNumberPlaceholder")} value={idNumber} onChange={(e) => setIdNumber(e.target.value)} />
             </div>
             <div>
-              <label className="label">סוג לקות</label>
+              <label className="label">{t("addRecipient.disabilityType")}</label>
               <select className="input" value={disabilityType} onChange={(e) => setDisabilityType(e.target.value)}>
-                <option value="">לא נבחר</option>
+                <option value="">{t("addRecipient.notSelected")}</option>
                 {DISABILITY_TYPES.map((d) => (
                   <option key={d.id} value={d.id}>{d.label}</option>
                 ))}
@@ -641,15 +648,15 @@ function AddRecipientModal({ onClose }: { onClose: () => void }) {
             </div>
           </div>
           <div>
-            <label className="label">כתובת</label>
-            <input type="text" className="input" placeholder="רחוב, עיר" value={address} onChange={(e) => setAddress(e.target.value)} />
+            <label className="label">{t("addRecipient.address")}</label>
+            <input type="text" className="input" placeholder={t("addRecipient.addressPlaceholder")} value={address} onChange={(e) => setAddress(e.target.value)} />
           </div>
           <div>
-            <label className="label">פירוט הלקות</label>
-            <textarea className="input" rows={2} placeholder="מידע נוסף על הלקות..." value={disabilityNotes} onChange={(e) => setDisabilityNotes(e.target.value)} />
+            <label className="label">{t("addRecipient.disabilityNotes")}</label>
+            <textarea className="input" rows={2} placeholder={t("addRecipient.disabilityNotesPlaceholder")} value={disabilityNotes} onChange={(e) => setDisabilityNotes(e.target.value)} />
           </div>
           <div>
-            <label className="label">הערות</label>
+            <label className="label">{t("addRecipient.notes")}</label>
             <textarea className="input" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
         </div>
@@ -659,9 +666,9 @@ function AddRecipientModal({ onClose }: { onClose: () => void }) {
             disabled={!name.trim() || mutation.isPending}
             onClick={() => mutation.mutate({ name, phone, email, idNumber, address, disabilityType, disabilityNotes, notes })}
           >
-            {mutation.isPending ? "שומר..." : "הוסף זכאי"}
+            {mutation.isPending ? tc("progress.saving") : t("addRecipient.submit")}
           </button>
-          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+          <button className="btn-secondary" onClick={onClose}>{tc("actions.cancel")}</button>
         </div>
       </div>
     </div>
@@ -670,6 +677,9 @@ function AddRecipientModal({ onClose }: { onClose: () => void }) {
 
 // ─── Add Service Dog Modal ──────────────────────────────────────────────────
 function AddServiceDogModal({ onClose }: { onClose: () => void }) {
+  const t = useTranslations("serviceDogs.serviceDogsPage");
+  const tc = useTranslations("common");
+  const { cfg } = useBusinessLocale();
   const qc = useQueryClient();
   const [name, setName] = useState("");
   const [breed, setBreed] = useState("");
@@ -692,10 +702,10 @@ function AddServiceDogModal({ onClose }: { onClose: () => void }) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["service-dogs"] });
       qc.invalidateQueries({ queryKey: ["training-programs-service"] });
-      toast.success("כלב שירות נוסף בהצלחה");
+      toast.success(t("addDog.toastSuccess"));
       onClose();
     },
-    onError: () => toast.error("שגיאה בהוספת כלב"),
+    onError: () => toast.error(t("addDog.toastError")),
   });
 
   return (
@@ -705,62 +715,62 @@ function AddServiceDogModal({ onClose }: { onClose: () => void }) {
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold text-petra-text flex items-center gap-2">
             <Dog className="w-5 h-5 text-brand-500" />
-            הוסף כלב שירות
+            {t("addDog.title")}
           </h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
             <X className="w-4 h-4" />
           </button>
         </div>
         <div className="p-3 rounded-xl bg-brand-50 border border-brand-100 text-xs text-brand-700 mb-4">
-          כלב זה יופיע בתהליכי אילוף — כלבי שירות ובניהול כלבי שירות. לא ישויך ללקוח.
+          {t("addDog.info")}
         </div>
         <div className="space-y-3">
           <div>
-            <label className="label">שם הכלב *</label>
-            <input type="text" className="input" placeholder="שם הכלב" value={name} onChange={(e) => setName(e.target.value)} />
+            <label className="label">{t("addDog.name")}</label>
+            <input type="text" className="input" placeholder={t("addDog.namePlaceholder")} value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">גזע</label>
-              <input type="text" className="input" placeholder="גזע..." value={breed} onChange={(e) => setBreed(e.target.value)} />
+              <label className="label">{t("addDog.breed")}</label>
+              <input type="text" className="input" placeholder={t("addDog.breedPlaceholder")} value={breed} onChange={(e) => setBreed(e.target.value)} />
             </div>
             <div>
-              <label className="label">מין</label>
+              <label className="label">{t("addDog.gender")}</label>
               <select className="input" value={gender} onChange={(e) => setGender(e.target.value)}>
-                <option value="">לא ידוע</option>
-                <option value="male">זכר</option>
-                <option value="female">נקבה</option>
+                <option value="">{t("addDog.genderUnknown")}</option>
+                <option value="male">{t("addDog.male")}</option>
+                <option value="female">{t("addDog.female")}</option>
               </select>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">תאריך לידה</label>
-              <input type="date" lang="he" className="input" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
+              <label className="label">{t("addDog.birthDate")}</label>
+              <input type="date" lang={cfg.lang} className="input" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
             </div>
             <div>
-              <label className="label">משקל (ק״ג)</label>
+              <label className="label">{t("addDog.weight")}</label>
               <input type="number" className="input" placeholder="0.0" step="0.1" value={weight} onChange={(e) => setWeight(e.target.value)} />
             </div>
           </div>
           <div>
-            <label className="label">מיקרוצ׳יפ</label>
-            <input type="text" className="input" placeholder="מספר שבב..." value={microchip} onChange={(e) => setMicrochip(e.target.value)} />
+            <label className="label">{t("addDog.microchip")}</label>
+            <input type="text" className="input" placeholder={t("addDog.microchipPlaceholder")} value={microchip} onChange={(e) => setMicrochip(e.target.value)} />
           </div>
           <div>
-            <label className="label">סוג שירות</label>
-            <input type="text" className="input" placeholder="כלב ניידות / פרכוסים / רגשי..." value={serviceType} onChange={(e) => setServiceType(e.target.value)} />
+            <label className="label">{t("addDog.serviceType")}</label>
+            <input type="text" className="input" placeholder={t("addDog.serviceTypePlaceholder")} value={serviceType} onChange={(e) => setServiceType(e.target.value)} />
           </div>
           <div>
-            <label className="label">הערות רפואיות</label>
+            <label className="label">{t("addDog.medicalNotes")}</label>
             <textarea className="input" rows={2} value={medicalNotes} onChange={(e) => setMedicalNotes(e.target.value)} />
           </div>
           <div>
-            <label className="label">הערות התנהגותיות</label>
+            <label className="label">{t("addDog.behaviorNotes")}</label>
             <textarea className="input" rows={2} value={behaviorNotes} onChange={(e) => setBehaviorNotes(e.target.value)} />
           </div>
           <div>
-            <label className="label">הערות כלליות</label>
+            <label className="label">{t("addDog.generalNotes")}</label>
             <textarea className="input" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
         </div>
@@ -770,9 +780,9 @@ function AddServiceDogModal({ onClose }: { onClose: () => void }) {
             disabled={!name.trim() || mutation.isPending}
             onClick={() => mutation.mutate({ name, breed, gender, birthDate, weight, microchip, medicalNotes, behaviorNotes, serviceType, notes })}
           >
-            {mutation.isPending ? "שומר..." : "הוסף כלב שירות"}
+            {mutation.isPending ? tc("progress.saving") : t("addDog.title")}
           </button>
-          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+          <button className="btn-secondary" onClick={onClose}>{tc("actions.cancel")}</button>
         </div>
       </div>
     </div>
@@ -860,6 +870,8 @@ function AlertsWidget({
   dismissedIds: Set<string>;
   onDismiss: (id: string, label: string, type: "alert") => void;
 }) {
+  const t = useTranslations("serviceDogs.serviceDogsPage");
+  const { locale } = useBusinessLocale();
   const [open, setOpen] = useState<Record<string, boolean>>({
     medical: true,
     training: true,
@@ -883,7 +895,7 @@ function AlertsWidget({
   const sections = [
     {
       key: "medical",
-      label: "חיסונים ופרוטוקולים רפואיים",
+      label: t("alerts.medicalSection"),
       icon: Syringe,
       color: "text-amber-600",
       bg: "bg-amber-50 border-amber-200",
@@ -897,30 +909,32 @@ function AlertsWidget({
         sectionKey: "medical" as const,
         line1: p.label,
         line2: p.dueDate
-          ? `${p.isOverdue ? "עבר תאריך: " : "יעד: "}${new Intl.DateTimeFormat("he-IL", { day: "numeric", month: "long", year: "numeric" }).format(new Date(p.dueDate))}`
-          : "ללא תאריך יעד",
+          ? (p.isOverdue
+              ? t("alerts.overdueDate", { date: formatDate(p.dueDate, { locale, style: "long" }) })
+              : t("alerts.dueDate", { date: formatDate(p.dueDate, { locale, style: "long" }) }))
+          : t("alerts.noDueDate"),
       })),
     },
     {
       key: "training",
-      label: "אימונים — ללא מפגש בשבועיים",
+      label: t("alerts.trainingSection"),
       icon: Dumbbell,
       color: "text-blue-600",
       bg: "bg-blue-50 border-blue-200",
       headerBg: "bg-blue-50",
       count: alerts.training.count,
-      items: alerts.training.items.map((t) => ({
-        id: t.id,
-        dogId: t.dogId,
-        dogName: t.dogName,
+      items: alerts.training.items.map((tr) => ({
+        id: tr.id,
+        dogId: tr.dogId,
+        dogName: tr.dogName,
         isOverdue: false,
         sectionKey: "training" as const,
-        line1: t.daysSinceLastSession
-          ? `${t.daysSinceLastSession} ימים ללא אימון`
-          : "טרם בוצע אימון",
-        line2: t.lastSessionDate
-          ? `אימון אחרון: ${new Intl.DateTimeFormat("he-IL", { day: "numeric", month: "long", year: "numeric" }).format(new Date(t.lastSessionDate))}`
-          : "אין אימון מתועד",
+        line1: tr.daysSinceLastSession
+          ? t("alerts.daysWithoutSession", { count: tr.daysSinceLastSession })
+          : t("alerts.noSessionYet"),
+        line2: tr.lastSessionDate
+          ? t("alerts.lastSession", { date: formatDate(tr.lastSessionDate, { locale, style: "long" }) })
+          : t("alerts.noSessionRecorded"),
       })),
     },
   ].map((s) => ({ ...s, items: s.items.filter((i) => !dismissedIds.has(i.id)) }))
@@ -929,17 +943,17 @@ function AlertsWidget({
   return (
     <div className="card p-0 overflow-hidden border border-amber-200">
       {/* Header */}
-      <div className="px-5 py-4 bg-gradient-to-l from-amber-50 to-orange-50 border-b border-amber-200 flex items-center justify-between">
+      <div className="px-5 py-4 bg-gradient-to-l ltr:bg-gradient-to-r from-amber-50 to-orange-50 border-b border-amber-200 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center">
             <Bell className="w-5 h-5 text-amber-600" />
           </div>
           <div>
-            <h2 className="font-bold text-petra-text">מרכז התראות — כלבי שירות</h2>
+            <h2 className="font-bold text-petra-text">{t("alerts.title")}</h2>
             <p className="text-xs text-petra-muted mt-0.5">
-              {activeTotal} התראות פעילות
+              {t("alerts.activeCount", { count: activeTotal })}
               {overdueCount > 0 && (
-                <span className="text-red-600 font-semibold mr-1">· {overdueCount} דחופות</span>
+                <span className="text-red-600 font-semibold ms-1">{t("alerts.urgentCount", { count: overdueCount })}</span>
               )}
             </p>
           </div>
@@ -947,11 +961,11 @@ function AlertsWidget({
         <div className="flex items-center gap-2">
           {overdueCount > 0 && (
             <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full animate-pulse">
-              {overdueCount} דחוף
+              {t("alerts.urgentBadge", { count: overdueCount })}
             </span>
           )}
           <span className="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-0.5 rounded-full">
-            {activeTotal} סה״כ
+            {t("totalBadge", { count: activeTotal })}
           </span>
         </div>
       </div>
@@ -967,7 +981,7 @@ function AlertsWidget({
                 type="button"
                 onClick={() => toggle(section.key)}
                 className={cn(
-                  "w-full flex items-center justify-between px-5 py-3 hover:bg-slate-50 transition-colors text-right",
+                  "w-full flex items-center justify-between px-5 py-3 hover:bg-slate-50 transition-colors text-start",
                   isOpen && "bg-slate-50/50"
                 )}
               >
@@ -1003,7 +1017,7 @@ function AlertsWidget({
                         type="button"
                         onClick={(e) => dismiss(item.id, `${item.dogName} — ${item.line1}`, e)}
                         className="w-5 h-5 rounded-full border-2 border-slate-300 flex-shrink-0 flex items-center justify-center hover:border-emerald-400 hover:bg-emerald-50 transition-all mt-0.5"
-                        title="סמן כטופל"
+                        title={t("markHandled")}
                       />
                       <Link
                         href={`/service-dogs/${item.dogId}`}
@@ -1013,7 +1027,7 @@ function AlertsWidget({
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="text-sm font-semibold text-petra-text">{item.dogName}</span>
                             {item.isOverdue && (
-                              <span className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-bold">דחוף</span>
+                              <span className="text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full font-bold">{t("alerts.urgent")}</span>
                             )}
                           </div>
                           <p className="text-xs text-petra-muted mt-0.5">{item.line1}</p>
@@ -1021,7 +1035,7 @@ function AlertsWidget({
                             {item.line2}
                           </p>
                         </div>
-                        <ChevronLeft className="w-4 h-4 text-petra-muted flex-shrink-0 mt-0.5" />
+                        <ChevronLeft className="w-4 h-4 text-petra-muted flex-shrink-0 mt-0.5 ltr:-scale-x-100" />
                       </Link>
                       {item.sectionKey === "training" && (
                         <Link
@@ -1030,7 +1044,7 @@ function AlertsWidget({
                           onClick={(e) => e.stopPropagation()}
                         >
                           <Plus className="w-3 h-3" />
-                          תזמן
+                          {t("alerts.schedule")}
                         </Link>
                       )}
                     </div>
@@ -1046,15 +1060,16 @@ function AlertsWidget({
 }
 
 export default function ServiceDogsOverviewPage() {
+  const t = useTranslations("serviceDogs.serviceDogsPage");
   return (
     <>
-      <PageTitle title="כלבי שירות" />
+      <PageTitle title={t("tierGate.pageTitle")} />
       <TierGate
       feature="service_dogs"
-      title="מודול כלבי שירות"
-      description="ניהול כלבי שירות, זכאים, שיבוצים ותעודות הסמכה. מעקב 120 שעות אימון לפי תקן ADI."
+      title={t("tierGate.title")}
+      description={t("tierGate.description")}
       upgradeTier="service_dog"
-      ctaLabel="ניהול כלבי שירות, תעודות ומעקב 120 שעות זמין במסלול Service Dog — שדרג עכשיו"
+      ctaLabel={t("tierGate.ctaLabel")}
     >
       <ServiceDogsOverviewPageContent />
     </TierGate>

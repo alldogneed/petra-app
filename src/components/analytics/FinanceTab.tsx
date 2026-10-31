@@ -4,17 +4,23 @@ import Link from "next/link";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
 import { CreditCard, Lock, TrendingUp, Users, Wallet, PieChart as PieIcon, Briefcase, AlertCircle } from "lucide-react";
 import type { AnalyticsData } from "@/lib/analytics-types";
-import { formatCurrency } from "@/lib/utils";
+import { useTranslations } from "next-intl";
+import { formatCurrency as formatMoney } from "@/lib/format";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { formatMonthKey } from "@/lib/lead-attribution";
-import { ReportCard, EmptyState, BarList, MiniStat, ChartTooltip, CHART_COLORS, fmtMoney } from "./ReportBlocks";
+import { ReportCard, EmptyState, BarList, MiniStat, ChartTooltip, CHART_COLORS, useReportFormatters } from "./ReportBlocks";
 
 export function FinanceTab({ data }: { data: AnalyticsData }) {
+  const t = useTranslations("analytics.financeTab");
+  const { fmtMoney } = useReportFormatters();
+  const { locale, currency } = useBusinessLocale();
+  const formatCurrency = (amount: number) => formatMoney(amount, { locale, currency });
   const f = data.finance;
   if (!f) {
     return (
       <div className="card p-8 text-center">
         <Lock className="w-7 h-7 text-slate-300 mx-auto mb-2" />
-        <p className="text-sm text-petra-muted">אין הרשאה לנתונים כספיים</p>
+        <p className="text-sm text-petra-muted">{t("noPermission")}</p>
       </div>
     );
   }
@@ -30,17 +36,17 @@ export function FinanceTab({ data }: { data: AnalyticsData }) {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
-        <MiniStat label="לקוחות משלמים בתקופה" value={f.payingCustomers} tone="blue" />
-        <MiniStat label="הכנסה ממוצעת ללקוח משלם" value={fmtMoney(data.retention.avgRevenuePerCustomer)} tone="emerald" />
+        <MiniStat label={t("payingCustomers")} value={f.payingCustomers} tone="blue" />
+        <MiniStat label={t("avgRevenuePerPaying")} value={fmtMoney(data.retention.avgRevenuePerCustomer)} tone="emerald" />
       </div>
 
       <ReportCard
-        title="הכנסות לפי חודש מול שנה שעברה"
-        subtitle="12 החודשים האחרונים · השוואה לאותו חודש בשנה הקודמת"
+        title={t("monthlyVsLastYear")}
+        subtitle={t("monthlySubtitle")}
         icon={<TrendingUp className="w-4 h-4 text-brand-500" />}
       >
         {!hasMonthly ? (
-          <EmptyState text="אין הכנסות להצגה" />
+          <EmptyState text={t("noRevenueToShow")} />
         ) : (
           <div dir="ltr" className="h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -50,8 +56,8 @@ export function FinanceTab({ data }: { data: AnalyticsData }) {
                 <YAxis tick={{ fontSize: 10, fill: "#64748b" }} tickLine={false} axisLine={false} width={56} tickFormatter={(v: number) => formatCurrency(v)} />
                 <Tooltip content={<ChartTooltip valueFormatter={formatCurrency} labelFormatter={formatMonthKey} />} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Line type="monotone" dataKey="revenue" name="השנה" stroke={CHART_COLORS.brand} strokeWidth={2.5} dot={{ r: 3 }} />
-                <Line type="monotone" dataKey="prevYearRevenue" name="שנה שעברה" stroke={CHART_COLORS.slate} strokeWidth={2} strokeDasharray="5 4" dot={false} />
+                <Line type="monotone" dataKey="revenue" name={t("thisYear")} stroke={CHART_COLORS.brand} strokeWidth={2.5} dot={{ r: 3 }} />
+                <Line type="monotone" dataKey="prevYearRevenue" name={t("lastYear")} stroke={CHART_COLORS.slate} strokeWidth={2} strokeDasharray="5 4" dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -59,9 +65,9 @@ export function FinanceTab({ data }: { data: AnalyticsData }) {
       </ReportCard>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <ReportCard title="הכנסות לפי תחום" icon={<PieIcon className="w-4 h-4 text-brand-500" />}>
+        <ReportCard title={t("byCategory")} icon={<PieIcon className="w-4 h-4 text-brand-500" />}>
           {categories.length === 0 ? (
-            <EmptyState text="אין הכנסות בתקופה זו" />
+            <EmptyState text={t("noRevenue")} />
           ) : (
             <BarList
               barClassName="bg-emerald-400"
@@ -70,9 +76,9 @@ export function FinanceTab({ data }: { data: AnalyticsData }) {
           )}
         </ReportCard>
 
-        <ReportCard title="הכנסות לפי אמצעי תשלום" icon={<Wallet className="w-4 h-4 text-brand-500" />}>
+        <ReportCard title={t("byMethod")} icon={<Wallet className="w-4 h-4 text-brand-500" />}>
           {methods.length === 0 ? (
-            <EmptyState text="אין תשלומים בתקופה זו" />
+            <EmptyState text={t("noPayments")} />
           ) : (
             <BarList
               barClassName="bg-blue-400"
@@ -86,9 +92,9 @@ export function FinanceTab({ data }: { data: AnalyticsData }) {
           )}
         </ReportCard>
 
-        <ReportCard title="הכנסות לפי שירות" icon={<Briefcase className="w-4 h-4 text-brand-500" />}>
+        <ReportCard title={t("byService")} icon={<Briefcase className="w-4 h-4 text-brand-500" />}>
           {services.length === 0 ? (
-            <EmptyState text="אין הכנסות בתקופה זו" />
+            <EmptyState text={t("noRevenue")} />
           ) : (
             <BarList
               barClassName="bg-violet-400"
@@ -97,9 +103,9 @@ export function FinanceTab({ data }: { data: AnalyticsData }) {
           )}
         </ReportCard>
 
-        <ReportCard title="לקוחות חדשים מול חוזרים" icon={<Users className="w-4 h-4 text-brand-500" />} subtitle="הכנסות בתקופה לפי מועד הצטרפות הלקוח המשלם">
+        <ReportCard title={t("newVsReturning")} icon={<Users className="w-4 h-4 text-brand-500" />} subtitle={t("newVsReturningSubtitle")}>
           {nvrTotal === 0 ? (
-            <EmptyState text="אין הכנסות בתקופה זו" />
+            <EmptyState text={t("noRevenue")} />
           ) : (
             <div className="space-y-3">
               <div className="flex h-3 rounded-full overflow-hidden bg-slate-100">
@@ -107,16 +113,16 @@ export function FinanceTab({ data }: { data: AnalyticsData }) {
                 <div className="bg-slate-400" style={{ width: `${100 - newPct}%` }} />
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <MiniStat label="לקוחות חדשים" value={formatCurrency(nvr.newCustomers)} sub={`${newPct}%`} tone="brand" />
-                <MiniStat label="לקוחות חוזרים" value={formatCurrency(nvr.returningCustomers)} sub={`${100 - newPct}%`} />
+                <MiniStat label={t("newCustomers")} value={formatCurrency(nvr.newCustomers)} sub={`${newPct}%`} tone="brand" />
+                <MiniStat label={t("returningCustomers")} value={formatCurrency(nvr.returningCustomers)} sub={`${100 - newPct}%`} />
               </div>
             </div>
           )}
         </ReportCard>
 
-        <ReportCard title="לקוחות מובילים לפי הכנסות" icon={<CreditCard className="w-4 h-4 text-brand-500" />}>
+        <ReportCard title={t("topCustomers")} icon={<CreditCard className="w-4 h-4 text-brand-500" />}>
           {(data.topCustomers?.length ?? 0) === 0 ? (
-            <EmptyState text="אין הכנסות בתקופה זו" />
+            <EmptyState text={t("noRevenue")} />
           ) : (
             <BarList
               numbered
@@ -126,19 +132,19 @@ export function FinanceTab({ data }: { data: AnalyticsData }) {
                 href: `/customers/${c.id}`,
                 value: c.revenue,
                 display: formatCurrency(c.revenue),
-                sub: `${c.count} תשלומים`,
+                sub: t("paymentsCount", { count: c.count }),
               }))}
             />
           )}
         </ReportCard>
 
         <ReportCard
-          title="יתרות פתוחות"
+          title={t("outstanding")}
           icon={<AlertCircle className="w-4 h-4 text-amber-500" />}
-          subtitle={`סה״כ ${formatCurrency(f.outstanding.total)} · ${f.outstanding.customers} לקוחות · נכון להיום`}
+          subtitle={t("outstandingSubtitle", { total: formatCurrency(f.outstanding.total), customers: f.outstanding.customers })}
         >
           {f.outstanding.top.length === 0 ? (
-            <EmptyState text="אין יתרות פתוחות" />
+            <EmptyState text={t("noOutstanding")} />
           ) : (
             <div className="space-y-2">
               {f.outstanding.top.slice(0, 5).map((c) => (
@@ -149,7 +155,7 @@ export function FinanceTab({ data }: { data: AnalyticsData }) {
                 >
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-petra-text truncate">{c.name}</p>
-                    <p className="text-[11px] text-petra-muted">פתוח מ-{new Date(c.oldest).toLocaleDateString("he-IL")}</p>
+                    <p className="text-[11px] text-petra-muted">{t("openSince", { date: new Date(c.oldest).toLocaleDateString(locale) })}</p>
                   </div>
                   <span className="text-sm font-semibold text-amber-700 tabular-nums flex-shrink-0">{formatCurrency(c.total)}</span>
                 </Link>

@@ -17,6 +17,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 
 const THRESHOLD = 70; // px of (damped) pull needed to refresh
@@ -46,6 +47,7 @@ function modalOpen(): boolean {
 
 export function PullToRefresh() {
   const router = useRouter();
+  const t = useTranslations("layout.pullToRefresh");
   const queryClient = useQueryClient();
   const [pull, setPull] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
@@ -137,7 +139,7 @@ export function PullToRefresh() {
             className={cn("w-5 h-5", progress >= 1 || refreshing ? "text-orange-500" : "text-slate-400", refreshing && "animate-spin")}
             style={refreshing ? undefined : { transform: `rotate(${pull * 3}deg)` }}
           />
-          <span className="sr-only">{refreshing ? "מרענן נתונים…" : progress >= 1 ? "שחרר כדי לרענן" : "משוך כדי לרענן"}</span>
+          <span className="sr-only">{refreshing ? t("refreshing") : progress >= 1 ? t("releaseToRefresh") : t("pullToRefresh")}</span>
         </div>
       )}
     </div>

@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import * as Sentry from "@sentry/nextjs";
+import { useLocale, useTranslations } from "next-intl";
+import { LOCALE_CONFIG, localeFromBusiness } from "@/lib/locale";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 
 /**
@@ -34,6 +36,8 @@ export default function DashboardError({
   reset: () => void;
 }) {
   const [recovering, setRecovering] = useState(false);
+  const t = useTranslations("errors.dashboardError");
+  const cfg = LOCALE_CONFIG[localeFromBusiness({ locale: useLocale() })];
 
   // Stale-deployment chunk errors: reload once to pull fresh HTML instead of
   // showing the user an error they can only fix with a hard refresh.
@@ -70,10 +74,10 @@ export default function DashboardError({
 
   if (recovering) {
     return (
-      <div dir="rtl" className="flex items-center justify-center min-h-[60vh] p-6">
+      <div dir={cfg.dir} className="flex items-center justify-center min-h-[60vh] p-6">
         <div className="text-center space-y-3">
           <PetraLoader variant="inline" />
-          <p className="text-sm text-slate-500">מעדכן לגרסה החדשה...</p>
+          <p className="text-sm text-slate-500">{t("updating")}</p>
         </div>
       </div>
     );
@@ -81,18 +85,18 @@ export default function DashboardError({
 
   return (
     <div
-      dir="rtl"
+      dir={cfg.dir}
       className="flex items-center justify-center min-h-[60vh] p-6"
     >
       <div className="text-center space-y-4 max-w-lg">
         <div className="text-5xl">⚠️</div>
-        <h2 className="text-xl font-bold text-slate-800">אירעה שגיאה</h2>
-        <p className="text-slate-500 text-sm">משהו השתבש בטעינת הדף. אנא נסה שוב.</p>
+        <h2 className="text-xl font-bold text-slate-800">{t("title")}</h2>
+        <p className="text-slate-500 text-sm">{t("description")}</p>
         {error.digest && (
-          <p className="text-xs text-slate-400">קוד שגיאה: {error.digest}</p>
+          <p className="text-xs text-slate-400">{t("errorCode", { digest: error.digest })}</p>
         )}
         {isDev && (
-          <div className="text-right bg-slate-50 rounded-lg p-3 text-xs text-slate-500 space-y-1 break-all">
+          <div className="text-start bg-slate-50 rounded-lg p-3 text-xs text-slate-500 space-y-1 break-all">
             {error.name && <p><strong>Type:</strong> {error.name}</p>}
             {error.message && <p><strong>Message:</strong> {error.message}</p>}
             {error.stack && <p className="whitespace-pre-wrap font-mono text-[10px]">{error.stack.slice(0, 600)}</p>}
@@ -100,13 +104,13 @@ export default function DashboardError({
         )}
         <div className="flex gap-3 justify-center">
           <button onClick={reset} className="btn-primary">
-            נסה שוב
+            {t("tryAgain")}
           </button>
           <a
             href="/dashboard"
             className="px-4 py-2 bg-slate-100 text-slate-700 text-sm rounded-lg hover:bg-slate-200 transition-colors"
           >
-            לדף הבית
+            {t("home")}
           </a>
         </div>
       </div>

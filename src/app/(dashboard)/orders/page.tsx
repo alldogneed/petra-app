@@ -33,7 +33,10 @@ import {
   Printer,
   CreditCard,
 } from "lucide-react";
-import { cn, formatCurrency, formatDate, escapeHtml } from "@/lib/utils";
+import { cn, escapeHtml } from "@/lib/utils";
+import { formatCurrency, formatDate, currencySymbol } from "@/lib/format";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import dynamic from "next/dynamic";
 import { PetraLoader } from "@/components/ui/PetraLoader";
@@ -72,55 +75,49 @@ interface Order {
 }
 
 const ORDER_STATUSES = [
-  { id: "ALL", label: "כל הסטטוסים" },
-  { id: "active", label: "פעילות (טיוטות + מאושרות)" },
-  { id: "draft", label: "טיוטות" },
-  { id: "confirmed", label: "מאושרות" },
-  { id: "completed", label: "הושלמו" },
-  { id: "cancelled", label: "בוטלו" },
+  { id: "ALL", labelKey: "all" },
+  { id: "active", labelKey: "active" },
+  { id: "draft", labelKey: "draft" },
+  { id: "confirmed", labelKey: "confirmed" },
+  { id: "completed", labelKey: "completed" },
+  { id: "cancelled", labelKey: "cancelled" },
 ];
 
-const STATUS_INFO: Record<string, { label: string; badgeClass: string; icon: React.ElementType }> = {
+// Labels: orders.ordersPage.statuses.<id>
+const STATUS_INFO: Record<string, { badgeClass: string; icon: React.ElementType }> = {
   draft: {
-    label: "טיוטה",
     badgeClass: "badge bg-slate-100 text-slate-600",
     icon: Clock,
   },
   confirmed: {
-    label: "מאושרת",
     badgeClass: "badge bg-blue-50 text-blue-700 border border-blue-100",
     icon: CheckCircle2,
   },
   completed: {
-    label: "הושלמה",
     badgeClass: "badge bg-emerald-50 text-emerald-700 border border-emerald-100",
     icon: CheckCircle2,
   },
   cancelled: {
-    label: "בוטלה",
     badgeClass: "badge bg-red-50 text-red-600 border border-red-100",
     icon: XCircle,
   },
   canceled: {
-    label: "בוטלה",
     badgeClass: "badge bg-red-50 text-red-600 border border-red-100",
     icon: XCircle,
   },
 };
 
-const ORDER_TYPE_LABELS: Record<string, string> = {
-  // Legacy types (backward compat)
-  sale: "מוצרים",
-  appointment: "תור",
-  // New types
-  products: "מוצרים",
-  training: "אילוף",
-  boarding: "פנסיון",
-  grooming: "טיפוח",
-  service_dog: "כלבי שירות",
-};
+type OrdersT = ReturnType<typeof useTranslations<"orders">>;
 
-function fmt(n: number) { return `₪${n.toFixed(2)}`; }
+// Order types (legacy: sale, appointment; new: products, training, boarding,
+// grooming, service_dog) — labels in orders.ordersPage.types.<id>
+function orderTypeLabel(t: OrdersT, type: string) {
+  return t.has(`ordersPage.types.${type}`) ? t(`ordersPage.types.${type}`) : type;
+}
+
+function orderStatusLabel(t: OrdersT, status: string) {
+  return t.has(`ordersPage.statuses.${status}`) ? t(`ordersPage.statuses.${status}`) : status;
+}
 
 function shortId(id: string) { return id.slice(-8).toUpperCase(); }
 
@@ -128,6 +125,8 @@ function shortId(id: string) { return id.slice(-8).toUpperCase(); }
 
 function CancelDialog({ orderId, orderStatus, onClose }: { orderId: string; orderStatus?: string; onClose: () => void }) {
   const qc = useQueryClient();
+  const t = useTranslations("orders");
+  const tc = useTranslations("common");
 
   const isDelete = orderStatus === "draft" || orderStatus === "cancelled";
 
@@ -135,20 +134,20 @@ function CancelDialog({ orderId, orderStatus, onClose }: { orderId: string; orde
     mutationFn: () => {
       // Draft and cancelled orders can be deleted; confirmed orders are cancelled via PATCH
       if (isDelete) {
-        return fetch(`/api/orders/${orderId}`, { method: "DELETE" }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה במחיקה"); return d; });
+        return fetch(`/api/orders/${orderId}`, { method: "DELETE" }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || t("ordersPage.cancelDialog.deleteError")); return d; });
       }
       return fetch(`/api/orders/${orderId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "cancelled" }),
-      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בביטול"); return d; });
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || t("ordersPage.cancelDialog.cancelError")); return d; });
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["orders"] });
-      toast.success(isDelete ? "ההזמנה נמחקה" : "ההזמנה בוטלה בהצלחה");
+      toast.success(isDelete ? t("ordersPage.cancelDialog.deleted") : t("ordersPage.cancelDialog.cancelled"));
       onClose();
     },
-    onError: () => toast.error(isDelete ? "שגיאה במחיקת ההזמנה" : "שגיאה בביטול ההזמנה"),
+    onError: () => toast.error(isDelete ? t("ordersPage.cancelDialog.deleteFailed") : t("ordersPage.cancelDialog.cancelFailed")),
   });
 
   return (
@@ -159,19 +158,19 @@ function CancelDialog({ orderId, orderStatus, onClose }: { orderId: string; orde
           <AlertTriangle className="w-6 h-6 text-red-500" />
         </div>
         <h3 className="text-base font-bold text-petra-text mb-1">
-          {isDelete ? "למחוק את ההזמנה?" : "לבטל את ההזמנה?"}
+          {isDelete ? t("ordersPage.cancelDialog.deleteTitle") : t("ordersPage.cancelDialog.cancelTitle")}
         </h3>
-        <p className="text-sm text-petra-muted mb-4">פעולה זו לא ניתנת לביטול.</p>
+        <p className="text-sm text-petra-muted mb-4">{t("ordersPage.cancelDialog.irreversible")}</p>
         <div className="flex gap-3">
           <button
             onClick={() => cancelMutation.mutate()}
             disabled={cancelMutation.isPending}
             className="flex-1 py-2 rounded-xl bg-red-500 text-white text-sm font-medium hover:bg-red-600 transition-colors disabled:opacity-60"
           >
-            {cancelMutation.isPending ? (isDelete ? "מוחק..." : "מבטל...") : (isDelete ? "כן, מחק" : "כן, בטל")}
+            {cancelMutation.isPending ? (isDelete ? tc("progress.deleting") : t("ordersPage.cancelDialog.cancelling")) : (isDelete ? t("ordersPage.cancelDialog.confirmDelete") : t("ordersPage.cancelDialog.confirmCancel"))}
           </button>
           <button onClick={onClose} className="btn-secondary flex-1">
-            חזרה
+            {t("ordersPage.cancelDialog.back")}
           </button>
         </div>
       </div>
@@ -193,6 +192,13 @@ function get30DaysAgoStr() {
 
 function OrdersPageContent() {
   const { canExportData } = usePermissions();
+  const t = useTranslations("orders");
+  const tc = useTranslations("common");
+  const { locale, currency, cfg } = useBusinessLocale();
+  const sym = currencySymbol({ locale, currency });
+  const fmt = (n: number) => `${sym}${n.toFixed(2)}`;
+  const money = (n: number) => formatCurrency(n, { locale, currency });
+  const fmtDate = (d: string) => formatDate(d, { locale });
   const [activeStatus, setActiveStatus] = useState("ALL");
   const [paymentFilter, setPaymentFilter] = useState("ALL");
   const [showNewOrder, setShowNewOrder] = useState(false);
@@ -262,7 +268,7 @@ function OrdersPageContent() {
       let cmp = 0;
       if (sortField === "createdAt") cmp = new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
       else if (sortField === "total") cmp = a.total - b.total;
-      else if (sortField === "customer") cmp = a.customer.name.localeCompare(b.customer.name, "he");
+      else if (sortField === "customer") cmp = a.customer.name.localeCompare(b.customer.name, cfg.lang);
       return sortDir === "asc" ? cmp : -cmp;
     });
     return result;
@@ -274,14 +280,14 @@ function OrdersPageContent() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
-      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בעדכון"); return d; }),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || t("ordersPage.toasts.updateError")); return d; }),
     onSuccess: (_, { status }) => {
       queryClient.invalidateQueries({ queryKey: ["orders"] });
-      if (status === "completed") toast.success("ההזמנה סומנה כהושלמה");
-      else if (status === "confirmed") toast.success("ההזמנה אושרה");
-      else toast.success("הסטטוס עודכן");
+      if (status === "completed") toast.success(t("ordersPage.toasts.markedCompleted"));
+      else if (status === "confirmed") toast.success(t("ordersPage.toasts.confirmed"));
+      else toast.success(t("ordersPage.toasts.statusUpdated"));
     },
-    onError: () => toast.error("שגיאה בעדכון הסטטוס. נסה שוב."),
+    onError: () => toast.error(t("ordersPage.toasts.statusUpdateFailed")),
   });
 
   // Stats (based on full unfiltered list)
@@ -319,15 +325,7 @@ function OrdersPageContent() {
   function exportPDF() {
     setShowExportMenu(false);
     const origin = window.location.origin;
-    const STATUS_LABEL: Record<string, string> = {
-      draft: "טיוטה", confirmed: "מאושרת", completed: "הושלמה",
-      cancelled: "בוטלה", canceled: "בוטלה",
-    };
-    const TYPE_LABEL: Record<string, string> = {
-      sale: "מוצרים", products: "מוצרים", appointment: "תור",
-      training: "אילוף", boarding: "פנסיון", grooming: "טיפוח", service_dog: "כלבי שירות",
-    };
-    const today = new Date().toLocaleDateString("he-IL");
+    const today = new Date().toLocaleDateString(locale);
     const rows = filteredOrders.map((o) => {
       const paid = o.payments.filter(p => p.status === "paid").reduce((s, p) => s + p.amount, 0);
       const remaining = Math.max(0, o.total - paid);
@@ -335,32 +333,32 @@ function OrdersPageContent() {
         <tr>
           <td>#${o.id.slice(-8).toUpperCase()}</td>
           <td>${escapeHtml(o.customer.name)}<br/><small>${escapeHtml(o.customer.phone)}</small></td>
-          <td>${TYPE_LABEL[o.orderType] ?? o.orderType}</td>
-          <td>${STATUS_LABEL[o.status] ?? o.status}</td>
-          <td style="text-align:left">₪${o.total.toFixed(2)}</td>
-          <td style="text-align:left;color:${paid >= o.total ? "#059669" : paid > 0 ? "#d97706" : "#dc2626"}">
-            ${paid >= o.total ? "שולם" : paid > 0 ? `₪${paid.toFixed(2)}` : "טרם שולם"}
+          <td>${orderTypeLabel(t, o.orderType)}</td>
+          <td>${orderStatusLabel(t, o.status)}</td>
+          <td style="text-align:end">${sym}${o.total.toFixed(2)}</td>
+          <td style="text-align:end;color:${paid >= o.total ? "#059669" : paid > 0 ? "#d97706" : "#dc2626"}">
+            ${paid >= o.total ? t("ordersPage.print.colPaid") : paid > 0 ? `${sym}${paid.toFixed(2)}` : t("ordersPage.paymentFilters.unpaid")}
           </td>
-          <td style="text-align:left${remaining > 0 ? ";color:#dc2626;font-weight:600" : ""}">
-            ${remaining > 0.01 ? `₪${remaining.toFixed(2)}` : "—"}
+          <td style="text-align:end${remaining > 0 ? ";color:#dc2626;font-weight:600" : ""}">
+            ${remaining > 0.01 ? `${sym}${remaining.toFixed(2)}` : "—"}
           </td>
-          <td>${formatDate(o.createdAt)}</td>
+          <td>${fmtDate(o.createdAt)}</td>
         </tr>`;
     }).join("");
 
     const html = `<!DOCTYPE html>
-<html dir="rtl" lang="he">
+<html dir="${cfg.dir}" lang="${cfg.lang}">
 <head>
 <meta charset="UTF-8">
-<title>הזמנות – פטרה</title>
+<title>${t("ordersPage.print.docTitle")}</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Heebo', Arial, sans-serif; font-size: 12px; color: #1e293b; padding: 24px; direction: rtl; }
+  body { font-family: 'Heebo', Arial, sans-serif; font-size: 12px; color: #1e293b; padding: 24px; direction: ${cfg.dir}; }
   h1 { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
   .meta { font-size: 11px; color: #64748b; margin-bottom: 20px; }
   table { width: 100%; border-collapse: collapse; }
-  th { background: #f1f5f9; font-size: 11px; font-weight: 700; padding: 7px 10px; text-align: right; border-bottom: 2px solid #e2e8f0; }
+  th { background: #f1f5f9; font-size: 11px; font-weight: 700; padding: 7px 10px; text-align: start; border-bottom: 2px solid #e2e8f0; }
   td { padding: 7px 10px; border-bottom: 1px solid #f1f5f9; font-size: 11px; vertical-align: top; }
   tr:last-child td { border-bottom: none; }
   small { color: #94a3b8; font-size: 10px; }
@@ -371,22 +369,22 @@ function OrdersPageContent() {
 <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:12px;border-bottom:2px solid #e2e8f0;">
   <img src="${origin}/petra-logo.png" alt="Petra" style="width:36px;height:36px;object-fit:contain;border-radius:6px;" />
   <div>
-    <h1 style="margin:0">דוח הזמנות</h1>
-    <p class="meta" style="margin:2px 0 0 0">הופק: ${today} · סה"כ: ${filteredOrders.length} הזמנות</p>
+    <h1 style="margin:0">${t("ordersPage.print.heading")}</h1>
+    <p class="meta" style="margin:2px 0 0 0">${t("ordersPage.print.meta", { date: today, count: filteredOrders.length })}</p>
   </div>
 </div>
 <table>
-              <caption className="sr-only">רשימת הזמנות</caption>
+              <caption className="sr-only">${t("ordersPage.print.caption")}</caption>
   <thead>
     <tr>
-      <th>מס' הזמנה</th>
-      <th>לקוח</th>
-      <th>סוג</th>
-      <th>סטטוס</th>
-      <th>סה"כ</th>
-      <th>שולם</th>
-      <th>יתרה</th>
-      <th>תאריך</th>
+      <th>${t("ordersPage.print.colOrderNumber")}</th>
+      <th>${t("ordersPage.print.colClient")}</th>
+      <th>${t("ordersPage.print.colType")}</th>
+      <th>${t("ordersPage.print.colStatus")}</th>
+      <th>${t("ordersPage.print.colTotal")}</th>
+      <th>${t("ordersPage.print.colPaid")}</th>
+      <th>${t("ordersPage.print.colBalance")}</th>
+      <th>${t("ordersPage.print.colDate")}</th>
     </tr>
   </thead>
   <tbody>${rows}</tbody>
@@ -395,7 +393,7 @@ function OrdersPageContent() {
 </html>`;
 
     const win = window.open("", "_blank");
-    if (!win) { toast.error("חסום חלון קופץ — אפשר פופ-אפים בדפדפן"); return; }
+    if (!win) { toast.error(t("ordersPage.toasts.popupBlocked")); return; }
     win.document.write(html);
     win.document.close();
     win.focus();
@@ -422,10 +420,10 @@ function OrdersPageContent() {
       {/* ── Header ─────────────────────────────────────────────────────── */}
       <div className="page-header">
         <div className="flex items-center gap-2">
-          <h1 className="page-title">הזמנות</h1>
+          <h1 className="page-title">{t("ordersPage.header.title")}</h1>
           <button
             onClick={() => queryClient.invalidateQueries({ queryKey: ["orders"] })}
-            title="רענן נתונים"
+            title={t("ordersPage.header.refresh")}
             className="w-7 h-7 flex items-center justify-center rounded-lg text-petra-muted hover:text-petra-text hover:bg-slate-100 transition-colors"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isOrdersFetching ? "animate-spin" : ""}`} />
@@ -438,27 +436,27 @@ function OrdersPageContent() {
             <button
               className="btn-secondary gap-1.5"
               onClick={() => setShowExportMenu((v) => !v)}
-              title="ייצוא"
+              title={t("ordersPage.header.export")}
             >
               <Download className="w-4 h-4" />
-              ייצוא
+              {t("ordersPage.header.export")}
               <ChevronDown className="w-3.5 h-3.5" />
             </button>
             {showExportMenu && (
-              <div className="absolute left-0 top-full mt-1.5 w-44 bg-white rounded-xl shadow-lg border border-petra-border z-50 overflow-hidden animate-fade-in">
+              <div className="absolute end-0 top-full mt-1.5 w-44 bg-white rounded-xl shadow-lg border border-petra-border z-50 overflow-hidden animate-fade-in">
                 <button
                   className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-petra-text hover:bg-slate-50 transition-colors"
                   onClick={exportExcel}
                 >
                   <Sheet className="w-4 h-4 text-emerald-600" />
-                  ייצוא לאקסל
+                  {t("ordersPage.header.exportExcel")}
                 </button>
                 <button
                   className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-petra-text hover:bg-slate-50 transition-colors border-t border-petra-border"
                   onClick={exportPDF}
                 >
                   <Printer className="w-4 h-4 text-red-500" />
-                  ייצוא ל-PDF
+                  {t("ordersPage.header.exportPdf")}
                 </button>
               </div>
             )}
@@ -467,7 +465,7 @@ function OrdersPageContent() {
 
           <button className="btn-primary" onClick={() => setShowNewOrder(true)}>
             <Plus className="w-4 h-4" />
-            הזמנה חדשה
+            {t("ordersPage.header.newOrder")}
           </button>
         </div>
       </div>
@@ -476,7 +474,7 @@ function OrdersPageContent() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="stat-card">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold text-petra-muted uppercase tracking-wider">סה&quot;כ הזמנות</span>
+            <span className="text-xs font-semibold text-petra-muted uppercase tracking-wider">{t("ordersPage.stats.total")}</span>
             <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center">
               <ShoppingCart className="w-4 h-4 text-slate-500" />
             </div>
@@ -486,7 +484,7 @@ function OrdersPageContent() {
 
         <div className="stat-card">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold text-petra-muted uppercase tracking-wider">טיוטות</span>
+            <span className="text-xs font-semibold text-petra-muted uppercase tracking-wider">{t("ordersPage.stats.drafts")}</span>
             <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center">
               <Clock className="w-4 h-4 text-slate-500" />
             </div>
@@ -496,7 +494,7 @@ function OrdersPageContent() {
 
         <div className="stat-card">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold text-petra-muted uppercase tracking-wider">פעילות</span>
+            <span className="text-xs font-semibold text-petra-muted uppercase tracking-wider">{t("ordersPage.stats.active")}</span>
             <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center">
               <Package className="w-4 h-4 text-blue-500" />
             </div>
@@ -506,7 +504,7 @@ function OrdersPageContent() {
 
         <div className="stat-card">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold text-petra-muted uppercase tracking-wider">הושלמו</span>
+            <span className="text-xs font-semibold text-petra-muted uppercase tracking-wider">{t("ordersPage.stats.completed")}</span>
             <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center">
               <FileText className="w-4 h-4 text-emerald-500" />
             </div>
@@ -520,7 +518,7 @@ function OrdersPageContent() {
         <div className="flex flex-wrap gap-3 items-end">
           {/* Status tabs */}
           <div className="min-w-0 max-w-full">
-            <p className="text-xs font-medium text-petra-muted mb-1.5">סטטוס</p>
+            <p className="text-xs font-medium text-petra-muted mb-1.5">{t("ordersPage.filters.status")}</p>
             <div className="flex gap-1.5 flex-wrap">
               {ORDER_STATUSES.map((s) => (
                 <button
@@ -533,7 +531,7 @@ function OrdersPageContent() {
                       : "bg-white text-petra-muted border-petra-border hover:border-slate-300 hover:text-petra-text"
                   )}
                 >
-                  {s.label}
+                  {t(`ordersPage.statusFilters.${s.labelKey}`)}
                 </button>
               ))}
             </div>
@@ -541,12 +539,12 @@ function OrdersPageContent() {
 
           {/* Payment status filter */}
           <div className="min-w-0 max-w-full">
-            <p className="text-xs font-medium text-petra-muted mb-1.5">סטטוס תשלום</p>
+            <p className="text-xs font-medium text-petra-muted mb-1.5">{t("ordersPage.filters.paymentStatus")}</p>
             <div className="flex gap-1.5 flex-wrap">
               {[
-                { id: "ALL", label: "הכל" },
-                { id: "paid", label: "שולם" },
-                { id: "unpaid", label: "טרם שולם" },
+                { id: "ALL", labelKey: "all" },
+                { id: "paid", labelKey: "paid" },
+                { id: "unpaid", labelKey: "unpaid" },
               ].map((f) => (
                 <button
                   key={f.id}
@@ -562,7 +560,7 @@ function OrdersPageContent() {
                       : "bg-white text-petra-muted border-petra-border hover:border-slate-300 hover:text-petra-text"
                   )}
                 >
-                  {f.label}
+                  {t(`ordersPage.paymentFilters.${f.labelKey}`)}
                 </button>
               ))}
             </div>
@@ -570,12 +568,12 @@ function OrdersPageContent() {
 
           {/* Customer search */}
           <div className="flex-1 min-w-[180px]">
-            <p className="text-xs font-medium text-petra-muted mb-1.5">חיפוש לקוח</p>
+            <p className="text-xs font-medium text-petra-muted mb-1.5">{t("ordersPage.filters.clientSearch")}</p>
             <div className="relative">
-              <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+              <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
               <input
-                className="input pr-8 text-sm py-2"
-                placeholder="שם לקוח..."
+                className="input ps-8 text-sm py-2"
+                placeholder={t("ordersPage.filters.clientSearchPlaceholder")}
                 value={customerSearch}
                 onChange={(e) => setCustomerSearch(e.target.value)}
               />
@@ -585,13 +583,13 @@ function OrdersPageContent() {
           {/* Date presets */}
           <div className="flex gap-1.5 items-center flex-wrap">
             {[
-              { label: "היום", fn: () => { setFromDate(getTodayStr()); setToDate(getTodayStr()); } },
-              { label: "השבוע", fn: () => { const d = new Date(); const day = d.getDay(); const start = new Date(d); start.setDate(d.getDate() - day); setFromDate(toDateStr(start)); setToDate(getTodayStr()); } },
-              { label: "החודש", fn: () => { const d = new Date(); setFromDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`); setToDate(getTodayStr()); } },
-              { label: "הכל", fn: () => { setFromDate(""); setToDate(""); } },
-            ].map(({ label, fn }) => (
-              <button key={label} onClick={fn} className="text-xs px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-petra-muted hover:text-petra-text transition-colors">
-                {label}
+              { labelKey: "today", fn: () => { setFromDate(getTodayStr()); setToDate(getTodayStr()); } },
+              { labelKey: "week", fn: () => { const d = new Date(); const day = d.getDay(); const start = new Date(d); start.setDate(d.getDate() - day); setFromDate(toDateStr(start)); setToDate(getTodayStr()); } },
+              { labelKey: "month", fn: () => { const d = new Date(); setFromDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`); setToDate(getTodayStr()); } },
+              { labelKey: "all", fn: () => { setFromDate(""); setToDate(""); } },
+            ].map(({ labelKey, fn }) => (
+              <button key={labelKey} onClick={fn} className="text-xs px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-petra-muted hover:text-petra-text transition-colors">
+                {t(`ordersPage.datePresets.${labelKey}`)}
               </button>
             ))}
           </div>
@@ -601,19 +599,19 @@ function OrdersPageContent() {
             <div>
               <p className="text-xs font-medium text-petra-muted mb-1.5 flex items-center gap-1">
                 <CalendarRange className="w-3 h-3" />
-                מתאריך
+                {t("ordersPage.filters.fromDate")}
               </p>
               <input
-                type="date" lang="he"
+                type="date" lang={cfg.lang}
                 className="input text-sm py-2 w-[8.5rem] max-w-full"
                 value={fromDate}
                 onChange={(e) => setFromDate(e.target.value)}
               />
             </div>
             <div>
-              <p className="text-xs font-medium text-petra-muted mb-1.5">עד תאריך</p>
+              <p className="text-xs font-medium text-petra-muted mb-1.5">{t("ordersPage.filters.toDate")}</p>
               <input
-                type="date" lang="he"
+                type="date" lang={cfg.lang}
                 className="input text-sm py-2 w-[8.5rem] max-w-full"
                 value={toDate}
                 onChange={(e) => setToDate(e.target.value)}
@@ -625,7 +623,7 @@ function OrdersPageContent() {
                 className="btn-ghost text-xs py-2 px-2.5 mb-0.5"
               >
                 <X className="w-3.5 h-3.5" />
-                נקה
+                {t("ordersPage.filters.clear")}
               </button>
             )}
           </div>
@@ -641,10 +639,10 @@ function OrdersPageContent() {
             <div className="empty-state-icon">
               <AlertTriangle className="w-7 h-7 text-red-400" />
             </div>
-            <p className="text-petra-text font-semibold mb-1">שגיאה בטעינת הזמנות</p>
-            <p className="text-sm text-petra-muted mb-4">לא ניתן לטעון את הנתונים. אנא נסה שוב.</p>
+            <p className="text-petra-text font-semibold mb-1">{t("ordersPage.states.loadError")}</p>
+            <p className="text-sm text-petra-muted mb-4">{t("ordersPage.states.loadErrorHint")}</p>
             <button className="btn-secondary text-sm" onClick={() => window.location.reload()}>
-              רענן דף
+              {t("ordersPage.states.reload")}
             </button>
           </div>
         </div>
@@ -654,20 +652,20 @@ function OrdersPageContent() {
             <div className="empty-state-icon">
               <ShoppingCart className="w-7 h-7 text-slate-400" />
             </div>
-            <p className="text-petra-text font-semibold mb-1">אין הזמנות</p>
+            <p className="text-petra-text font-semibold mb-1">{t("ordersPage.states.empty")}</p>
             <p className="text-sm text-petra-muted mb-4">
               {hasActiveFilters
-                ? "לא נמצאו הזמנות בטווח הנבחר"
-                : "עדיין לא נוצרה אף הזמנה"}
+                ? t("ordersPage.states.emptyFiltered")
+                : t("ordersPage.states.emptyNone")}
             </p>
             {hasActiveFilters ? (
               <button className="btn-secondary text-sm" onClick={clearFilters}>
-                הצג את כל ההזמנות
+                {t("ordersPage.states.showAll")}
               </button>
             ) : (
               <button className="btn-primary text-sm" onClick={() => setShowNewOrder(true)}>
                 <Plus className="w-4 h-4" />
-                הזמנה חדשה
+                {t("ordersPage.header.newOrder")}
               </button>
             )}
           </div>
@@ -702,23 +700,23 @@ function OrdersPageContent() {
                       </div>
                       <div className="flex flex-col items-end gap-1.5">
                         <span className="text-sm font-semibold text-petra-text">
-                          {formatCurrency(order.total)}
+                          {money(order.total)}
                         </span>
                         <span className={statusInfo.badgeClass}>
-                          <StatusIcon className="w-3 h-3 mr-0.5" />
-                          {statusInfo.label}
+                          <StatusIcon className="w-3 h-3 ms-0.5" />
+                          {orderStatusLabel(t, STATUS_INFO[order.status] ? order.status : "draft")}
                         </span>
                       </div>
                     </div>
                     <div className="flex items-center justify-between mt-2 text-xs text-petra-muted">
                       <div className="flex items-center gap-2">
                         <span className="badge-neutral text-[10px]">
-                          {ORDER_TYPE_LABELS[order.orderType] ?? order.orderType}
+                          {orderTypeLabel(t, order.orderType)}
                         </span>
-                        <span>{order.lines.length} פריטים</span>
+                        <span>{t("ordersPage.card.items", { count: order.lines.length })}</span>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <span>{formatDate(order.createdAt)}</span>
+                        <span>{fmtDate(order.createdAt)}</span>
                         {isExpanded
                           ? <ChevronUp className="w-3.5 h-3.5" />
                           : <ChevronDown className="w-3.5 h-3.5" />
@@ -740,7 +738,7 @@ function OrdersPageContent() {
                             <span className="text-xs text-petra-muted flex-shrink-0">
                               {line.quantity} × {fmt(line.unitPrice)}
                             </span>
-                            <span className="text-sm font-medium text-petra-text flex-shrink-0 w-20 text-right">
+                            <span className="text-sm font-medium text-petra-text flex-shrink-0 w-20 text-start">
                               {fmt(line.lineTotal)}
                             </span>
                           </div>
@@ -750,34 +748,34 @@ function OrdersPageContent() {
                       {/* Totals */}
                       <div className="bg-white rounded-xl border border-petra-border p-3 space-y-1.5">
                         <div className="flex justify-between text-sm text-petra-muted">
-                          <span>סכום ביניים</span>
+                          <span>{t("ordersPage.card.subtotal")}</span>
                           <span dir="ltr">{fmt(order.subtotal)}</span>
                         </div>
                         {order.discountAmount > 0 && (
                           <div className="flex justify-between text-sm text-emerald-600">
-                            <span>הנחה</span>
+                            <span>{t("ordersPage.card.discount")}</span>
                             <span dir="ltr">−{fmt(order.discountAmount)}</span>
                           </div>
                         )}
                         {order.taxTotal > 0 && (
                           <div className="flex justify-between text-sm text-petra-muted">
-                            <span>מע&quot;מ</span>
+                            <span>{t("ordersPage.card.vat")}</span>
                             <span dir="ltr">{fmt(order.taxTotal)}</span>
                           </div>
                         )}
                         <div className="flex justify-between text-sm font-bold text-petra-text border-t border-petra-border pt-1.5 mt-1">
-                          <span>סה&quot;כ לתשלום</span>
+                          <span>{t("ordersPage.card.totalDue")}</span>
                           <span dir="ltr" className="text-brand-600">{fmt(order.total)}</span>
                         </div>
                         {paidAmount > 0 && (
                           <div className="flex justify-between text-xs text-emerald-600 pt-1">
-                            <span>שולם</span>
+                            <span>{t("ordersPage.card.paid")}</span>
                             <span dir="ltr">{fmt(paidAmount)}</span>
                           </div>
                         )}
                         {paidAmount > 0 && paidAmount < order.total && (
                           <div className="flex justify-between text-xs text-amber-600">
-                            <span>יתרה</span>
+                            <span>{t("ordersPage.card.balance")}</span>
                             <span dir="ltr">{fmt(order.total - paidAmount)}</span>
                           </div>
                         )}
@@ -797,7 +795,7 @@ function OrdersPageContent() {
                           className="btn-secondary text-xs py-1.5 px-3 gap-1.5"
                         >
                           <Eye className="w-3.5 h-3.5" />
-                          צפה בפרטים
+                          {t("ordersPage.actions.viewDetails")}
                         </Link>
                         {paidAmount < order.total && order.status !== "cancelled" && (
                           <Link
@@ -806,7 +804,7 @@ function OrdersPageContent() {
                             onClick={(e) => e.stopPropagation()}
                           >
                             <CreditCard className="w-3.5 h-3.5" />
-                            רשום תשלום
+                            {t("ordersPage.actions.recordPayment")}
                           </Link>
                         )}
                         {order.status === "draft" && (
@@ -816,7 +814,7 @@ function OrdersPageContent() {
                             disabled={statusMutation.isPending}
                           >
                             <CheckCircle2 className="w-3 h-3" />
-                            אשר הזמנה
+                            {t("ordersPage.actions.confirmOrder")}
                           </button>
                         )}
                         {order.status === "confirmed" && (
@@ -827,7 +825,7 @@ function OrdersPageContent() {
                               disabled={statusMutation.isPending}
                             >
                               <CheckCircle2 className="w-3 h-3" />
-                              סמן כהושלמה
+                              {t("ordersPage.actions.markCompleted")}
                             </button>
                             <button
                               className="text-xs py-1.5 px-3 rounded-xl font-medium text-white flex items-center gap-1.5 transition-all hover:opacity-90 disabled:opacity-60"
@@ -838,7 +836,7 @@ function OrdersPageContent() {
                               }}
                             >
                               <MessageCircle className="w-3 h-3" />
-                              שלח בקשת תשלום
+                              {t("ordersPage.actions.sendPaymentRequest")}
                             </button>
                           </>
                         )}
@@ -848,7 +846,7 @@ function OrdersPageContent() {
                             onClick={(e) => { e.stopPropagation(); setCancelOrder({ id: order.id, status: order.status }); }}
                           >
                             <XCircle className="w-3 h-3" />
-                            בטל
+                            {t("ordersPage.actions.cancel")}
                           </button>
                         )}
                         {order.status === "cancelled" && (
@@ -857,7 +855,7 @@ function OrdersPageContent() {
                             onClick={(e) => { e.stopPropagation(); setCancelOrder({ id: order.id, status: order.status }); }}
                           >
                             <Trash2 className="w-3 h-3" />
-                            מחק
+                            {tc("actions.delete")}
                           </button>
                         )}
                       </div>
@@ -873,29 +871,29 @@ function OrdersPageContent() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-petra-border bg-slate-50/60">
-                  <th scope="col" className="table-header-cell">מס&apos; הזמנה</th>
+                  <th scope="col" className="table-header-cell">{t("ordersPage.table.orderNumber")}</th>
                   <th scope="col" className="table-header-cell cursor-pointer select-none hover:bg-slate-100 transition-colors" onClick={() => toggleSort("customer")}>
                     <span className="flex items-center gap-1">
-                      לקוח
+                      {t("ordersPage.table.client")}
                       {sortField === "customer" ? (sortDir === "asc" ? <ChevronUp className="w-3 h-3 text-petra-primary" /> : <ChevronDown className="w-3 h-3 text-petra-primary" />) : <ChevronDown className="w-3 h-3 text-slate-300" />}
                     </span>
                   </th>
-                  <th scope="col" className="table-header-cell hidden lg:table-cell">סוג</th>
-                  <th scope="col" className="table-header-cell">סטטוס</th>
+                  <th scope="col" className="table-header-cell hidden lg:table-cell">{t("ordersPage.table.type")}</th>
+                  <th scope="col" className="table-header-cell">{t("ordersPage.table.status")}</th>
                   <th scope="col" className="table-header-cell cursor-pointer select-none hover:bg-slate-100 transition-colors" onClick={() => toggleSort("total")}>
                     <span className="flex items-center gap-1">
-                      סה&quot;כ לתשלום
+                      {t("ordersPage.table.totalDue")}
                       {sortField === "total" ? (sortDir === "asc" ? <ChevronUp className="w-3 h-3 text-petra-primary" /> : <ChevronDown className="w-3 h-3 text-petra-primary" />) : <ChevronDown className="w-3 h-3 text-slate-300" />}
                     </span>
                   </th>
-                  <th scope="col" className="table-header-cell">תשלום</th>
+                  <th scope="col" className="table-header-cell">{t("ordersPage.table.payment")}</th>
                   <th scope="col" className="table-header-cell cursor-pointer select-none hover:bg-slate-100 transition-colors" onClick={() => toggleSort("createdAt")}>
                     <span className="flex items-center gap-1">
-                      תאריך יצירה
+                      {t("ordersPage.table.createdAt")}
                       {sortField === "createdAt" ? (sortDir === "asc" ? <ChevronUp className="w-3 h-3 text-petra-primary" /> : <ChevronDown className="w-3 h-3 text-petra-primary" />) : <ChevronDown className="w-3 h-3 text-slate-300" />}
                     </span>
                   </th>
-                  <th scope="col" className="table-header-cell">פעולות</th>
+                  <th scope="col" className="table-header-cell">{t("ordersPage.table.actions")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-petra-border">
@@ -937,7 +935,7 @@ function OrdersPageContent() {
                       {/* Type */}
                       <td className="table-cell hidden lg:table-cell">
                         <span className="badge-neutral text-xs">
-                          {ORDER_TYPE_LABELS[order.orderType] ?? order.orderType}
+                          {orderTypeLabel(t, order.orderType)}
                         </span>
                       </td>
 
@@ -945,14 +943,14 @@ function OrdersPageContent() {
                       <td className="table-cell">
                         <span className={cn(statusInfo.badgeClass, "inline-flex items-center gap-1")}>
                           <StatusIcon className="w-3 h-3" />
-                          {statusInfo.label}
+                          {orderStatusLabel(t, STATUS_INFO[order.status] ? order.status : "draft")}
                         </span>
                       </td>
 
                       {/* Total */}
                       <td className="table-cell">
                         <span className="text-sm font-semibold text-petra-text" dir="ltr">
-                          {formatCurrency(order.total)}
+                          {money(order.total)}
                         </span>
                       </td>
 
@@ -961,27 +959,27 @@ function OrdersPageContent() {
                         {paidAmountDesk >= order.total ? (
                           <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg font-medium bg-emerald-50 text-emerald-700 border border-emerald-100">
                             <CheckCircle2 className="w-3 h-3" />
-                            שולם
+                            {t("ordersPage.table.paid")}
                           </span>
                         ) : paidAmountDesk > 0 ? (
                           <div className="flex flex-col gap-0.5">
                             <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg font-medium bg-amber-50 text-amber-700 border border-amber-100">
-                              שולם חלקית
+                              {t("ordersPage.table.partiallyPaid")}
                             </span>
                             <span className="text-[11px] text-petra-muted" dir="ltr">
-                              {formatCurrency(paidAmountDesk)} / {formatCurrency(order.total)}
+                              {money(paidAmountDesk)} / {money(order.total)}
                             </span>
                           </div>
                         ) : (
                           <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg font-medium bg-red-50 text-red-600 border border-red-100">
-                            טרם שולם
+                            {t("ordersPage.table.unpaid")}
                           </span>
                         )}
                       </td>
 
                       {/* Date */}
                       <td className="table-cell text-sm text-petra-muted">
-                        {formatDate(order.createdAt)}
+                        {fmtDate(order.createdAt)}
                       </td>
 
                       {/* Actions */}
@@ -992,7 +990,7 @@ function OrdersPageContent() {
                             className="btn-secondary text-xs py-1.5 px-3 gap-1.5"
                           >
                             <Eye className="w-3.5 h-3.5" />
-                            צפה בפרטים
+                            {t("ordersPage.actions.viewDetails")}
                           </Link>
                           {paidAmountDesk < order.total && order.status !== "cancelled" && (
                             <Link
@@ -1000,7 +998,7 @@ function OrdersPageContent() {
                               className="btn-primary text-xs py-1.5 px-3 gap-1.5"
                             >
                               <CreditCard className="w-3.5 h-3.5" />
-                              רשום תשלום
+                              {t("ordersPage.actions.recordPayment")}
                             </Link>
                           )}
                           {order.status === "draft" && (
@@ -1010,7 +1008,7 @@ function OrdersPageContent() {
                               disabled={statusMutation.isPending}
                             >
                               <CheckCircle2 className="w-3.5 h-3.5" />
-                              אשר הזמנה
+                              {t("ordersPage.actions.confirmOrder")}
                             </button>
                           )}
                           {order.status === "confirmed" && (
@@ -1021,16 +1019,16 @@ function OrdersPageContent() {
                                 disabled={statusMutation.isPending}
                               >
                                 <CheckCircle2 className="w-3.5 h-3.5" />
-                                הושלמה
+                                {t("ordersPage.actions.completed")}
                               </button>
                               <button
                                 className="text-xs py-1.5 px-3 rounded-xl font-medium text-white flex items-center gap-1.5 transition-all hover:opacity-90 disabled:opacity-60"
                                 style={{ background: "#25D366" }}
                                 onClick={() => setPaymentRequestOrder(order)}
-                                title="שלח בקשת תשלום בוואטסאפ"
+                                title={t("ordersPage.actions.sendPaymentRequestWhatsApp")}
                               >
                                 <MessageCircle className="w-3.5 h-3.5" />
-                                שלח בקשת תשלום
+                                {t("ordersPage.actions.sendPaymentRequest")}
                               </button>
                             </>
                           )}
@@ -1038,7 +1036,7 @@ function OrdersPageContent() {
                             <button
                               onClick={() => setCancelOrder({ id: order.id, status: order.status })}
                               className="p-1.5 rounded-lg text-petra-muted hover:text-red-500 hover:bg-red-50 transition-colors border border-transparent hover:border-red-100"
-                              title="בטל הזמנה"
+                              title={t("ordersPage.actions.cancelOrder")}
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -1047,7 +1045,7 @@ function OrdersPageContent() {
                             <button
                               onClick={() => setCancelOrder({ id: order.id, status: order.status })}
                               className="p-1.5 rounded-lg text-petra-muted hover:text-red-500 hover:bg-red-50 transition-colors border border-transparent hover:border-red-100"
-                              title="מחק הזמנה"
+                              title={t("ordersPage.actions.deleteOrder")}
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -1063,8 +1061,8 @@ function OrdersPageContent() {
 
           {/* Count footer */}
           <div className="px-5 py-3 border-t border-petra-border bg-slate-50/40 text-xs text-petra-muted">
-            מציג {filteredOrders.length} הזמנות
-            {filteredOrders.length !== orders.length && ` (מתוך ${orders.length})`}
+            {t("ordersPage.footer.showing", { count: filteredOrders.length })}
+            {filteredOrders.length !== orders.length && t("ordersPage.footer.ofTotal", { total: orders.length })}
           </div>
         </div>
       )}
@@ -1091,13 +1089,14 @@ function OrdersPageContent() {
 }
 
 export default function OrdersPage() {
+  const t = useTranslations("orders");
   return (
     <>
-      <PageTitle title="הזמנות" />
+      <PageTitle title={t("ordersPage.pageTitle")} />
       <TierGate
       feature="orders"
-      title="ניהול הזמנות"
-      description="צור ונהל הזמנות עם פריטי שורה, הנחות ותחשיב מע׳׳מ אוטומטי."
+      title={t("ordersPage.tierGate.title")}
+      description={t("ordersPage.tierGate.description")}
     >
       <OrdersPageContent />
     </TierGate>

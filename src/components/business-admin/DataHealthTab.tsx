@@ -3,6 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import {
   CheckCircle2,
   ChevronDown,
@@ -21,21 +23,22 @@ import {
   type DataHealthSeverity,
 } from "@/lib/data-health";
 
-const SEVERITY_META: Record<DataHealthSeverity, { label: string; badge: string; icon: typeof AlertTriangle; iconColor: string }> = {
-  high: { label: "חמור", badge: "bg-red-50 text-red-700 border-red-200", icon: AlertTriangle, iconColor: "text-red-500" },
-  medium: { label: "בינוני", badge: "bg-amber-50 text-amber-700 border-amber-200", icon: AlertCircle, iconColor: "text-amber-500" },
-  low: { label: "נמוך", badge: "bg-slate-50 text-slate-600 border-slate-200", icon: Info, iconColor: "text-slate-400" },
+const SEVERITY_META: Record<DataHealthSeverity, { badge: string; icon: typeof AlertTriangle; iconColor: string }> = {
+  high: { badge: "bg-red-50 text-red-700 border-red-200", icon: AlertTriangle, iconColor: "text-red-500" },
+  medium: { badge: "bg-amber-50 text-amber-700 border-amber-200", icon: AlertCircle, iconColor: "text-amber-500" },
+  low: { badge: "bg-slate-50 text-slate-600 border-slate-200", icon: Info, iconColor: "text-slate-400" },
 };
 
 const TONE_COLOR = { good: "#10B981", fair: "#F59E0B", poor: "#EF4444" } as const;
 
-async function fetchHealth(): Promise<DataHealthReport> {
+async function fetchHealth(fallbackError: string): Promise<DataHealthReport> {
   const res = await fetch("/api/business-admin/data-health");
-  if (!res.ok) throw new Error("שגיאה בטעינת בריאות הנתונים");
+  if (!res.ok) throw new Error(fallbackError);
   return res.json();
 }
 
 function ScoreRing({ score }: { score: number }) {
+  const t = useTranslations("businessAdmin.dataHealthTab");
   const verdict = healthVerdict(score);
   const color = TONE_COLOR[verdict.tone];
   const r = 42;
@@ -54,11 +57,11 @@ function ScoreRing({ score }: { score: number }) {
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span className="text-2xl font-bold text-slate-900 leading-none">{score}</span>
-          <span className="text-[10px] text-petra-muted mt-0.5">מתוך 100</span>
+          <span className="text-[10px] text-petra-muted mt-0.5">{t("score.outOf100")}</span>
         </div>
       </div>
       <div className="min-w-0">
-        <p className="text-xs text-petra-muted">ציון בריאות הנתונים</p>
+        <p className="text-xs text-petra-muted">{t("score.label")}</p>
         <p className="text-base font-bold" style={{ color }}>{verdict.label}</p>
       </div>
     </div>
@@ -66,6 +69,8 @@ function ScoreRing({ score }: { score: number }) {
 }
 
 function CheckRow({ check }: { check: DataHealthCheck }) {
+  const t = useTranslations("businessAdmin.dataHealthTab");
+  const { locale } = useBusinessLocale();
   const [open, setOpen] = useState(false);
   const ok = check.count === 0;
 
@@ -74,7 +79,7 @@ function CheckRow({ check }: { check: DataHealthCheck }) {
       <div className="flex items-center gap-3 px-4 py-3">
         <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" />
         <span className="text-sm text-slate-700 flex-1 min-w-0 truncate">{check.title}</span>
-        <span className="text-xs font-medium text-emerald-600 flex-shrink-0">תקין ✓</span>
+        <span className="text-xs font-medium text-emerald-600 flex-shrink-0">{t("check.ok")}</span>
       </div>
     );
   }
@@ -86,24 +91,24 @@ function CheckRow({ check }: { check: DataHealthCheck }) {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center gap-3 px-4 py-3 text-right hover:bg-slate-50 transition-colors"
+        className="w-full flex items-center gap-3 px-4 py-3 text-start hover:bg-slate-50 transition-colors"
         aria-expanded={open}
       >
         <Icon className={`w-5 h-5 flex-shrink-0 ${meta.iconColor}`} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm font-semibold text-slate-800">{check.title}</span>
-            <span className={`text-[11px] px-1.5 py-0.5 rounded border ${meta.badge}`}>{meta.label}</span>
+            <span className={`text-[11px] px-1.5 py-0.5 rounded border ${meta.badge}`}>{t(`severity.${check.severity}`)}</span>
           </div>
           <p className="text-xs text-petra-muted mt-0.5 line-clamp-2">{check.description}</p>
         </div>
         <span className="text-sm font-bold text-slate-900 bg-slate-100 rounded-full px-2.5 py-0.5 flex-shrink-0">
-          {check.count.toLocaleString("he-IL")}
+          {check.count.toLocaleString(locale)}
         </span>
         {open ? (
           <ChevronDown className="w-4 h-4 text-slate-400 flex-shrink-0" />
         ) : (
-          <ChevronLeft className="w-4 h-4 text-slate-400 flex-shrink-0" />
+          <ChevronLeft className="w-4 h-4 text-slate-400 flex-shrink-0 ltr:-scale-x-100" />
         )}
       </button>
 
@@ -124,14 +129,14 @@ function CheckRow({ check }: { check: DataHealthCheck }) {
                     <p className="text-sm text-slate-800 truncate">{item.label}</p>
                     {item.sublabel && <p className="text-xs text-petra-muted truncate">{item.sublabel}</p>}
                   </div>
-                  <ChevronLeft className="w-4 h-4 text-slate-300 flex-shrink-0" />
+                  <ChevronLeft className="w-4 h-4 text-slate-300 flex-shrink-0 ltr:-scale-x-100" />
                 </Link>
               </li>
             ))}
           </ul>
           {check.count > check.items.length && (
             <p className="text-xs text-petra-muted">
-              מוצגים {check.items.length} מתוך {check.count.toLocaleString("he-IL")}
+              {t("check.showing", { shown: check.items.length, total: check.count.toLocaleString(locale) })}
             </p>
           )}
         </div>
@@ -141,9 +146,11 @@ function CheckRow({ check }: { check: DataHealthCheck }) {
 }
 
 export function DataHealthTab() {
+  const t = useTranslations("businessAdmin.dataHealthTab");
+  const { locale, timezone } = useBusinessLocale();
   const { data, isLoading, isError, refetch, isFetching } = useQuery<DataHealthReport>({
     queryKey: ["ba-data-health"],
-    queryFn: fetchHealth,
+    queryFn: () => fetchHealth(t("errors.load")),
     staleTime: 60_000,
   });
 
@@ -152,16 +159,16 @@ export function DataHealthTab() {
   if (isError || !data) {
     return (
       <div className="card p-6 text-center space-y-3">
-        <p className="text-sm text-slate-600">לא הצלחנו לטעון את בדיקות הנתונים.</p>
-        <button onClick={() => refetch()} className="btn-secondary text-sm">נסו שוב</button>
+        <p className="text-sm text-slate-600">{t("errors.loadChecks")}</p>
+        <button onClick={() => refetch()} className="btn-secondary text-sm">{t("actions.retry")}</button>
       </div>
     );
   }
 
   const failing = data.checks.filter((c) => c.count > 0);
   const passing = data.checks.filter((c) => c.count === 0);
-  const generated = new Date(data.generatedAt).toLocaleString("he-IL", {
-    timeZone: "Asia/Jerusalem", day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit",
+  const generated = new Date(data.generatedAt).toLocaleString(locale, {
+    timeZone: timezone, day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit",
   });
 
   return (
@@ -170,7 +177,7 @@ export function DataHealthTab() {
         <ScoreRing score={data.score} />
         <div className="flex items-center justify-between sm:flex-col sm:items-end gap-2">
           <p className="text-xs text-petra-muted">
-            {failing.length ? `${failing.length} בדיקות דורשות טיפול` : "כל הבדיקות עברו"} · עודכן {generated}
+            {failing.length ? t("summary.failing", { count: failing.length }) : t("summary.allPassed")}{t("summary.updated", { time: generated })}
           </p>
           <button
             onClick={() => refetch()}
@@ -178,7 +185,7 @@ export function DataHealthTab() {
             disabled={isFetching}
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? "animate-spin" : ""}`} />
-            בדוק שוב
+            {t("actions.recheck")}
           </button>
         </div>
       </div>

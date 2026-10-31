@@ -1,0 +1,93 @@
+{
+  "threshold_pct": 0.5,
+  "results": {
+    "boarding-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "boarding-mobile.png": {
+      "pct": 0.006,
+      "ok": true
+    },
+    "boarding_daily-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "boarding_daily-mobile.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "boarding_yards-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "boarding_yards-mobile.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "c_demo-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "c_demo-mobile.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "feeding-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "feeding-mobile.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "medications-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "medications-mobile.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "online-classes-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "online-classes-mobile.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "service-dogs-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "service-dogs-mobile.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "service-dogs_recipients-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "service-dogs_recipients-mobile.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "training-desktop.png": {
+      "pct": 0.158,
+      "ok": true
+    },
+    "training-mobile.png": {
+      "pct": 0.363,
+      "ok": true
+    },
+    "vaccinations-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "vaccinations-mobile.png": {
+      "pct": 0.0,
+      "ok": true
+    }
+  }
+}

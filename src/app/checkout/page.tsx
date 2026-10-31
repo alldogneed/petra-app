@@ -7,6 +7,12 @@ import Link from "next/link";
 import { useState, useEffect, Suspense } from "react";
 import { useAuth } from "@/providers/auth-provider";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { useLocale, useTranslations } from "next-intl";
+import { LOCALE_CONFIG, localeFromBusiness } from "@/lib/locale";
+import { currencySymbol } from "@/lib/format";
+
+// Petra subscriptions are charged in ILS through Cardcom (USD/Stripe = Phase 6).
+const PLAN_CURRENCY = "ILS"; // i18n-ok: Cardcom subscription charges are ILS
 
 // ─── Plan details for the summary panel ───────────────────────────────────────
 // Only public tiers (Free/Basic/Pro). Legacy tiers (groomer, service_dog) are
@@ -15,38 +21,38 @@ const PLAN_DETAILS = {
   basic: {
     name: "Basic",
     price: 99,
-    tagline: "מושלם לגרומרים ומאלפים עצמאיים — יחיד, מקצועי, חסכוני",
-    features: [
-      "לקוחות ותורים ללא הגבלה",
-      "יומן תורים ופגישות + Google Calendar",
-      "שליחת בקשת תשלום + טפסי קליטה דיגיטליים",
-      "תיק עבודות לפני/אחרי",
-      "דוחות ואנליטיקס",
-    ],
+    // tagline + feature labels: checkout.checkoutPage.plans.basic.*
+    features: ["unlimitedClients", "calendar", "paymentRequests", "portfolio", "reports"],
     highlight: false,
   },
   pro: {
     name: "Pro",
     price: 199,
-    tagline: "מושלם לפנסיונים ומרכזי אילוף — צוות, גדילה, שליטה מלאה",
-    features: [
-      "הכל ב-Basic",
-      "תזכורות WhatsApp אוטומטיות",
-      "חתימת חוזים דיגיטלית",
-      "ניהול צוות, פנסיון וחדרים",
-      "הזמנות אונליין 24/7",
-    ],
+    // tagline + feature labels: checkout.checkoutPage.plans.pro.*
+    features: ["everythingInBasic", "whatsappReminders", "contracts", "teamBoarding", "onlineBookings"],
     highlight: true,
   },
 } as const;
 
 type PlanKey = keyof typeof PLAN_DETAILS;
 
+// Business-type values are sent to the API / stored as-is (Hebrew = data); labels come from messages.
+const BUSINESS_TYPES = [
+  { value: "חברה (ח.פ)", key: "company" }, // i18n-ok: value sent to the API
+  { value: "עוסק מורשה (ע.מ)", key: "licensedDealer" }, // i18n-ok: value sent to the API
+  { value: "עוסק פטור", key: "exemptDealer" }, // i18n-ok: value sent to the API
+] as const;
+
 // ─── Inner component (needs Suspense for useSearchParams) ─────────────────────
 function CheckoutContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
+  const t = useTranslations("checkout.checkoutPage");
+  const tc = useTranslations("common");
+  const locale = localeFromBusiness({ locale: useLocale() });
+  const cfg = LOCALE_CONFIG[locale];
+  const symbol = currencySymbol({ locale, currency: PLAN_CURRENCY });
 
   const tier = (searchParams.get("tier") ?? "") as PlanKey;
   // trial param is read but ignored — trial flow removed
@@ -105,7 +111,7 @@ function CheckoutContent() {
 
     // Client-side validation for businessType (not covered by native required)
     if (!formBusinessType) {
-      setFormError("נא לבחור סוג עוסק");
+      setFormError(t("errors.businessTypeRequired"));
       return;
     }
 
@@ -158,7 +164,7 @@ function CheckoutContent() {
       const data = await res.json();
 
       if (!res.ok) {
-        setFormError(data.error ?? "שגיאה ביצירת טופס תשלום");
+        setFormError(data.error ?? t("errors.createPaymentForm"));
         setFormErrorCode(data.code ?? null);
         return;
       }
@@ -176,10 +182,10 @@ function CheckoutContent() {
         setCardcomUrl(data.url);
         setOnStep2(true);
       } else {
-        setFormError("שגיאה ביצירת טופס תשלום. נסה שוב.");
+        setFormError(t("errors.createPaymentFormRetry"));
       }
     } catch {
-      setFormError("שגיאה בחיבור לשרת. נסה שוב.");
+      setFormError(t("errors.serverConnection"));
     } finally {
       setFormSubmitting(false);
     }
@@ -195,13 +201,13 @@ function CheckoutContent() {
   const showAuthLoading = authLoading || (!!user && !authPrefillLoaded && !onStep2);
 
   return (
-    <div className="min-h-screen bg-slate-50" dir="rtl">
+    <div className="min-h-screen bg-slate-50" dir={cfg.dir}>
       {/* ── Top bar ── */}
       <div className="bg-white border-b border-slate-200 px-4 sm:px-6 py-3 flex items-center justify-between sticky top-0 z-10">
         <div className="flex items-center gap-2.5">
           <Image
             src="/petra-logo.png"
-            alt="לוגו פטרה"
+            alt={t("topBar.logoAlt")}
             width={36}
             height={36}
             className="object-contain flex-shrink-0"
@@ -209,15 +215,15 @@ function CheckoutContent() {
           />
           <span className="text-slate-300 mx-0.5 hidden sm:inline">·</span>
           <span className="text-slate-500 text-sm hidden sm:inline">
-            {isNewUser ? "רכישת מנוי" : "שדרוג מנוי"}
+            {isNewUser ? t("topBar.purchase") : t("topBar.upgrade")}
           </span>
         </div>
         <button
           onClick={() => router.back()}
           className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 transition-colors"
         >
-          <ArrowRight className="w-3.5 h-3.5" />
-          חזרה
+          <ArrowRight className="w-3.5 h-3.5 ltr:-scale-x-100" />
+          {t("topBar.back")}
         </button>
       </div>
 
@@ -230,7 +236,7 @@ function CheckoutContent() {
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
 
               <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-5">
-                החבילה שלך
+                {t("summary.yourPackage")}
               </p>
 
               {/* Plan name + price */}
@@ -238,20 +244,20 @@ function CheckoutContent() {
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <Crown className={`w-4 h-4 ${plan.highlight ? "text-brand-500" : "text-amber-500"}`} />
-                    <span className="text-lg font-bold text-slate-900">מסלול {plan.name}</span>
+                    <span className="text-lg font-bold text-slate-900">{t("summary.planName", { name: plan.name })}</span>
                   </div>
-                  <p className="text-xs text-slate-500 leading-snug max-w-[180px]">{plan.tagline}</p>
+                  <p className="text-xs text-slate-500 leading-snug max-w-[180px]">{t(`plans.${tier}.tagline`)}</p>
                 </div>
-                <div className="text-left flex-shrink-0 mr-2">
+                <div className="text-end flex-shrink-0 ms-2">
                   {testAmount ? (
                     <>
-                      <div className="text-3xl font-extrabold text-red-600 leading-none">₪{testAmount}</div>
-                      <div className="text-xs text-red-400 mt-1 text-center line-through">₪{plan.price}</div>
+                      <div className="text-3xl font-extrabold text-red-600 leading-none">{symbol}{testAmount}</div>
+                      <div className="text-xs text-red-400 mt-1 text-center line-through">{symbol}{plan.price}</div>
                     </>
                   ) : (
                     <>
-                      <div className="text-3xl font-extrabold text-slate-900 leading-none">₪{plan.price}</div>
-                      <div className="text-xs text-slate-400 mt-1 text-center">/חודש</div>
+                      <div className="text-3xl font-extrabold text-slate-900 leading-none">{symbol}{plan.price}</div>
+                      <div className="text-xs text-slate-400 mt-1 text-center">{t("summary.perMonth")}</div>
                     </>
                   )}
                 </div>
@@ -262,21 +268,21 @@ function CheckoutContent() {
                 {plan.features.map((f) => (
                   <li key={f} className="flex items-start gap-2 text-sm text-slate-700">
                     <Check className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
-                    {f}
+                    {t(`plans.${tier}.features.${f}`)}
                   </li>
                 ))}
               </ul>
 
               {/* Total row */}
               <div className="flex items-center justify-between py-3 border-t border-slate-200">
-                <span className="text-sm font-semibold text-slate-700">סה״כ לתשלום</span>
+                <span className="text-sm font-semibold text-slate-700">{t("summary.totalDue")}</span>
                 <span className={`text-base font-extrabold ${testAmount ? "text-red-600" : "text-slate-900"}`}>
-                  ₪{testAmount ?? plan.price} <span className="text-xs font-normal text-slate-400">/ חודש</span>
+                  {symbol}{testAmount ?? plan.price} <span className="text-xs font-normal text-slate-400">{t("summary.perMonthSpaced")}</span>
                 </span>
               </div>
               {testAmount && (
                 <div className="mt-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-600 text-center font-medium">
-                  🧪 מצב בדיקה — חיוב ₪{testAmount} בלבד (במקום ₪{plan.price})
+                  {t("summary.testMode", { currencySymbol: symbol, testAmount, price: plan.price })}
                 </div>
               )}
 
@@ -284,8 +290,8 @@ function CheckoutContent() {
               <div className="mt-4 flex items-start gap-2.5 p-3.5 bg-emerald-50 border border-emerald-100 rounded-xl">
                 <Lock className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
                 <p className="text-xs text-emerald-700 leading-relaxed">
-                  תשלום מאובטח בתקן PCI DSS.<br />
-                  חשבונית מס תישלח אוטומטית למייל.
+                  {t("summary.securePayment")}<br />
+                  {t("summary.taxInvoiceByEmail")}
                 </p>
               </div>
 
@@ -293,12 +299,12 @@ function CheckoutContent() {
               <div className="mt-4 flex items-center justify-center gap-3 text-[10px] text-slate-400">
                 <span className="flex items-center gap-1">
                   <Shield className="w-3 h-3" />
-                  מאובטח על ידי Cardcom
+                  {t("summary.securedByCardcom")}
                 </span>
                 <span>·</span>
-                <span>ביטול בכל עת</span>
+                <span>{t("summary.cancelAnytime")}</span>
                 <span>·</span>
-                <span>ללא קנסות</span>
+                <span>{t("summary.noPenalties")}</span>
               </div>
             </div>
           </div>
@@ -312,18 +318,18 @@ function CheckoutContent() {
                 <div className="flex items-center gap-2">
                   <Lock className="w-3.5 h-3.5 text-emerald-500" />
                   <h2 className="font-semibold text-slate-800 text-sm">
-                    פרטי תשלום
+                    {t("panel.title")}
                   </h2>
                 </div>
                 {/* Step indicator */}
                 {!authLoading && (
                   <div className="flex items-center gap-1.5 text-xs">
                     <span className={`px-2.5 py-0.5 rounded-full font-semibold transition-colors ${!onStep2 ? "bg-brand-500 text-white" : "bg-emerald-100 text-emerald-600"}`}>
-                      פרטים להפקת חשבונית
+                      {t("panel.stepInvoiceDetails")}
                     </span>
-                    <ChevronLeft className="w-3 h-3 text-slate-300" />
+                    <ChevronLeft className="w-3 h-3 text-slate-300 ltr:-scale-x-100" />
                     <span className={`px-2.5 py-0.5 rounded-full font-semibold transition-colors ${onStep2 ? "bg-brand-500 text-white" : "bg-slate-100 text-slate-400"}`}>
-                      חיוב באשראי
+                      {t("panel.stepCardCharge")}
                     </span>
                   </div>
                 )}
@@ -339,8 +345,8 @@ function CheckoutContent() {
                 <form onSubmit={handleFormSubmit} className="p-6 space-y-4">
                   <p className="text-sm text-slate-600 leading-relaxed mb-2">
                     {user
-                      ? "אנא אמת/י את פרטי החשבונית לפני המשך לתשלום."
-                      : "הזן את הפרטים שלך — נשלח לך כניסה למערכת באימייל לאחר השלמת התשלום."}
+                      ? t("form.introAuthenticated")
+                      : t("form.introNewUser")}
                   </p>
 
                   {/* ── New-user only fields ── */}
@@ -349,7 +355,7 @@ function CheckoutContent() {
                       {/* Name */}
                       <div>
                         <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                          שם מלא <span className="text-red-500">*</span>
+                          {t("form.fullName")} <span className="text-red-500">*</span>
                         </label>
                         <input
                           type="text"
@@ -357,7 +363,7 @@ function CheckoutContent() {
                           minLength={2}
                           value={formName}
                           onChange={(e) => setFormName(e.target.value)}
-                          placeholder="ישראל ישראלי"
+                          placeholder={t("form.fullNamePlaceholder")}
                           className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent placeholder:text-slate-300"
                         />
                       </div>
@@ -365,7 +371,7 @@ function CheckoutContent() {
                       {/* Email */}
                       <div>
                         <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                          אימייל <span className="text-red-500">*</span>
+                          {t("form.email")} <span className="text-red-500">*</span>
                         </label>
                         <input
                           type="email"
@@ -381,7 +387,7 @@ function CheckoutContent() {
                       {/* Phone */}
                       <div>
                         <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                          טלפון נייד <span className="text-red-500">*</span>
+                          {t("form.mobilePhone")} <span className="text-red-500">*</span>
                         </label>
                         <input
                           type="tel"
@@ -397,7 +403,7 @@ function CheckoutContent() {
                       {/* Business Name */}
                       <div>
                         <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                          שם העסק <span className="text-red-500">*</span>
+                          {t("form.businessName")} <span className="text-red-500">*</span>
                         </label>
                         <input
                           type="text"
@@ -405,7 +411,7 @@ function CheckoutContent() {
                           minLength={2}
                           value={formBusinessName}
                           onChange={(e) => setFormBusinessName(e.target.value)}
-                          placeholder='למשל: "טיפוח פאו"'
+                          placeholder={t("form.businessNamePlaceholder")}
                           className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent placeholder:text-slate-300"
                         />
                       </div>
@@ -419,7 +425,7 @@ function CheckoutContent() {
                     <>
                       <div>
                         <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                          אימייל לחשבונית <span className="text-red-500">*</span>
+                          {t("form.billingEmail")} <span className="text-red-500">*</span>
                         </label>
                         <input
                           type="email"
@@ -433,7 +439,7 @@ function CheckoutContent() {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                          טלפון לחיוב <span className="text-red-500">*</span>
+                          {t("form.billingPhone")} <span className="text-red-500">*</span>
                         </label>
                         <input
                           type="tel"
@@ -451,10 +457,10 @@ function CheckoutContent() {
                   {/* Business Type */}
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">
-                      סוג עוסק <span className="text-red-500">*</span>
+                      {t("form.businessType")} <span className="text-red-500">*</span>
                     </label>
                     <div className="grid grid-cols-3 gap-2">
-                      {(["חברה (ח.פ)", "עוסק מורשה (ע.מ)", "עוסק פטור"] as const).map((type) => (
+                      {BUSINESS_TYPES.map(({ value: type, key }) => (
                         <button
                           key={type}
                           type="button"
@@ -465,7 +471,7 @@ function CheckoutContent() {
                               : "border-slate-200 text-slate-600 hover:border-slate-300"
                           }`}
                         >
-                          {type}
+                          {t(`form.businessTypes.${key}`)}
                         </button>
                       ))}
                     </div>
@@ -483,7 +489,7 @@ function CheckoutContent() {
                   {/* VAT / business reg number */}
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                      מספר ח.פ / ע.מ / עוסק פטור <span className="text-red-500">*</span>
+                      {t("form.vatNumber")} <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
@@ -492,7 +498,7 @@ function CheckoutContent() {
                       maxLength={15}
                       value={formVatNumber}
                       onChange={(e) => setFormVatNumber(e.target.value.replace(/\D/g, ""))}
-                      placeholder="למשל: 012345678"
+                      placeholder={t("form.vatNumberPlaceholder")}
                       dir="ltr"
                       className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent placeholder:text-slate-300"
                     />
@@ -501,8 +507,8 @@ function CheckoutContent() {
                   {/* Address */}
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                      כתובת העסק <span className="text-red-500">*</span>
-                      <span className="text-xs font-normal text-slate-400 mr-1">(לצורך חשבונית)</span>
+                      {t("form.address")} <span className="text-red-500">*</span>
+                      <span className="text-xs font-normal text-slate-400 ms-1">{t("form.addressHint")}</span>
                     </label>
                     <input
                       type="text"
@@ -510,7 +516,7 @@ function CheckoutContent() {
                       minLength={2}
                       value={formAddress}
                       onChange={(e) => setFormAddress(e.target.value)}
-                      placeholder='למשל: רחוב הרצל 12, תל אביב'
+                      placeholder={t("form.addressPlaceholder")}
                       className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent placeholder:text-slate-300"
                     />
                   </div>
@@ -527,11 +533,10 @@ function CheckoutContent() {
                         className="mt-0.5 w-4 h-4 rounded border-slate-300 text-brand-500 focus:ring-brand-400 flex-shrink-0"
                       />
                       <label htmlFor="tos" className="text-xs text-slate-600 leading-relaxed cursor-pointer">
-                        קראתי ואני מסכים/ה ל
-                        <Link href="/tos" target="_blank" className="text-brand-600 hover:underline mx-1">תנאי השימוש</Link>
-                        ול
-                        <Link href="/privacy" target="_blank" className="text-brand-600 hover:underline mx-1">מדיניות הפרטיות</Link>
-                        של פטרה
+                        {t.rich("form.tos", {
+                          tos: (chunks) => <Link href="/tos" target="_blank" className="text-brand-600 hover:underline mx-1">{chunks}</Link>,
+                          privacy: (chunks) => <Link href="/privacy" target="_blank" className="text-brand-600 hover:underline mx-1">{chunks}</Link>,
+                        })}
                       </label>
                     </div>
                   )}
@@ -545,7 +550,7 @@ function CheckoutContent() {
                           href={`/login?redirect=/checkout?tier=${tier}`}
                           className="mt-1.5 inline-flex items-center gap-1 text-xs font-semibold text-brand-600 hover:underline"
                         >
-                          כבר יש לך חשבון? התחבר ←
+                          {t("form.emailExistsLogin")}
                         </Link>
                       )}
                     </div>
@@ -558,17 +563,17 @@ function CheckoutContent() {
                     className="w-full py-3 rounded-xl bg-brand-500 hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2"
                   >
                     {formSubmitting ? (
-                      <><Loader2 className="w-4 h-4 animate-spin" /> טוען...</>
+                      <><Loader2 className="w-4 h-4 animate-spin" /> {tc("loading")}</>
                     ) : (
-                      <><CreditCard className="w-4 h-4" /> המשך לתשלום</>
+                      <><CreditCard className="w-4 h-4" /> {t("form.continueToPayment")}</>
                     )}
                   </button>
 
                   {!user && (
                     <p className="text-center text-xs text-slate-400">
-                      כבר יש לך חשבון?{" "}
+                      {t("form.haveAccount")}{" "}
                       <Link href="/login" className="text-brand-600 hover:underline font-medium">
-                        התחבר
+                        {t("form.login")}
                       </Link>
                     </p>
                   )}
@@ -579,7 +584,7 @@ function CheckoutContent() {
               {iframeLoading && (
                 <div className="flex flex-col items-center justify-center pb-10">
                   <PetraLoader variant="inline" />
-                  <p className="text-xs text-slate-400">טוען דף תשלום מאובטח...</p>
+                  <p className="text-xs text-slate-400">{t("iframe.loading")}</p>
                 </div>
               )}
 
@@ -591,7 +596,7 @@ function CheckoutContent() {
                     onClick={() => setOnStep2(false)}
                     className="text-xs px-4 py-2 rounded-lg bg-slate-900 text-white hover:bg-slate-800 transition-colors"
                   >
-                    נסה שוב
+                    {t("iframe.retry")}
                   </button>
                 </div>
               )}
@@ -600,7 +605,7 @@ function CheckoutContent() {
               {showIframe && (
                 <iframe
                   src={cardcomUrl}
-                  title="טופס תשלום מאובטח"
+                  title={t("iframe.title")}
                   allow="payment"
                   className="w-full block"
                   style={{ height: "560px", border: "none" }}

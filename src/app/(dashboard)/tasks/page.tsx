@@ -14,7 +14,7 @@ import {
   addDays,
   startOfDay,
 } from "date-fns";
-import { he } from "date-fns/locale";
+import { useTranslations } from "next-intl";
 import {
   ListTodo,
   Plus,
@@ -53,6 +53,8 @@ import { usePlan } from "@/hooks/usePlan";
 import { getMaxTasks } from "@/lib/feature-flags";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
+import { dateFnsLocaleFor } from "@/lib/format";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -78,48 +80,54 @@ type ComputedStatus = "active" | "overdue" | "scheduled" | "completed";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
+// Labels live in messages (tasks.categories / priorities / statusFilters / computedStatus);
+// these constants keep only ids + styling.
 const CATEGORIES = [
-  { id: "ALL", label: "הכל" },
-  { id: "GENERAL", label: "כללי" },
-  { id: "BOARDING", label: "פנסיון" },
-  { id: "TRAINING", label: "אילוף" },
-  { id: "LEADS", label: "לידים" },
-  { id: "HEALTH", label: "בריאות" },
-  { id: "MEDICATION", label: "תרופות" },
-  { id: "FEEDING", label: "האכלה" },
+  { id: "ALL" },
+  { id: "GENERAL" },
+  { id: "BOARDING" },
+  { id: "TRAINING" },
+  { id: "LEADS" },
+  { id: "HEALTH" },
+  { id: "MEDICATION" },
+  { id: "FEEDING" },
 ];
 
-const CATEGORY_LABEL: Record<string, string> = {
-  GENERAL: "כללי",
-  BOARDING: "פנסיון",
-  TRAINING: "אילוף",
-  LEADS: "לידים",
-  HEALTH: "בריאות",
-  MEDICATION: "תרופות",
-  FEEDING: "האכלה",
+const PRIORITIES: Record<string, { color: string }> = {
+  LOW: { color: "#94A3B8" },
+  MEDIUM: { color: "#F59E0B" },
+  HIGH: { color: "#EF4444" },
+  URGENT: { color: "#DC2626" },
 };
-
-const PRIORITIES: Record<string, { label: string; color: string }> = {
-  LOW: { label: "נמוכה", color: "#94A3B8" },
-  MEDIUM: { label: "בינונית", color: "#F59E0B" },
-  HIGH: { label: "גבוהה", color: "#EF4444" },
-  URGENT: { label: "דחופה", color: "#DC2626" },
-};
+const PRIORITY_IDS = Object.keys(PRIORITIES);
 
 const STATUS_FILTERS = [
-  { id: "ALL", label: "הכל", icon: ListTodo },
-  { id: "active", label: "עכשיו", icon: Flame },
-  { id: "overdue", label: "באיחור", icon: AlertCircle },
-  { id: "scheduled", label: "מתוכננות", icon: CalendarDays },
-  { id: "COMPLETED", label: "הושלמו", icon: CheckCircle2 },
+  { id: "ALL", icon: ListTodo },
+  { id: "active", icon: Flame },
+  { id: "overdue", icon: AlertCircle },
+  { id: "scheduled", icon: CalendarDays },
+  { id: "COMPLETED", icon: CheckCircle2 },
 ];
 
-const STATUS_CONFIG: Record<ComputedStatus, { label: string; color: string; bg: string; border: string }> = {
-  active: { label: "עכשיו", color: "#16A34A", bg: "#F0FDF4", border: "#BBF7D0" },
-  overdue: { label: "באיחור", color: "#DC2626", bg: "#FEF2F2", border: "#FECACA" },
-  scheduled: { label: "מתוכנן", color: "#6B7280", bg: "#F9FAFB", border: "#E5E7EB" },
-  completed: { label: "הושלם", color: "#10B981", bg: "#ECFDF5", border: "#A7F3D0" },
+const STATUS_CONFIG: Record<ComputedStatus, { color: string; bg: string; border: string }> = {
+  active: { color: "#16A34A", bg: "#F0FDF4", border: "#BBF7D0" },
+  overdue: { color: "#DC2626", bg: "#FEF2F2", border: "#FECACA" },
+  scheduled: { color: "#6B7280", bg: "#F9FAFB", border: "#E5E7EB" },
+  completed: { color: "#10B981", bg: "#ECFDF5", border: "#A7F3D0" },
 };
+
+// ─── i18n helpers ─────────────────────────────────────────────────────────────
+
+/** Translator of the "tasks" namespace, passed to module-level helpers. */
+type TasksT = ReturnType<typeof useTranslations<"tasks">>;
+
+// Values come from the API — an id without a message falls back to the raw id (as before).
+const categoryLabel = (t: TasksT, id: string) =>
+  t.has(`categories.${id}`) ? t(`categories.${id}`) : id;
+const priorityLabel = (t: TasksT, id: string) =>
+  t.has(`priorities.${id}`) ? t(`priorities.${id}`) : id;
+const taskStatusLabel = (t: TasksT, id: string) =>
+  t.has(`taskStatus.${id}`) ? t(`taskStatus.${id}`) : id;
 
 // ─── Status Calculation Logic ─────────────────────────────────────────────────
 
@@ -155,16 +163,16 @@ function computeTaskStatus(task: Task): ComputedStatus {
   return "scheduled";
 }
 
-function formatShortDate(task: Task): string {
+function formatShortDate(task: Task, t: TasksT): string {
   if (task.dueAt) {
     const d = new Date(task.dueAt);
-    if (isToday(d)) return `היום ${format(d, "HH:mm")}`;
-    return format(d, "d/M HH:mm");
+    if (isToday(d)) return t("card.todayAt", { time: format(d, t.raw("dateFormats.time")) });
+    return format(d, t.raw("dateFormats.shortDateTime"));
   }
   if (task.dueDate) {
     const d = new Date(task.dueDate);
-    if (isToday(d)) return "היום";
-    return format(d, "d/M/yy");
+    if (isToday(d)) return t("card.today");
+    return format(d, t.raw("dateFormats.shortDate"));
   }
   return "";
 }
@@ -172,6 +180,9 @@ function formatShortDate(task: Task): string {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function TasksPage() {
+  const t = useTranslations("tasks");
+  const tc = useTranslations("common");
+  const { cfg } = useBusinessLocale();
   const { canExportData } = usePermissions();
   const { isFree, tier } = usePlan();
   const maxTasks = getMaxTasks(tier);
@@ -296,7 +307,7 @@ export default function TasksPage() {
     taskDeepLinkHandled.current = true;
     const target = allTasks.find((t) => t.id === taskId);
     if (target) setEditTask(target);
-    else toast.error("המשימה לא נמצאה או שכבר הושלמה");
+    else toast.error(t("toasts.notFound"));
     params.delete("task");
     const qs = params.toString();
     window.history.replaceState(null, "", window.location.pathname + (qs ? `?${qs}` : ""));
@@ -330,13 +341,13 @@ export default function TasksPage() {
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["sidebar-counters"] });
       setShowNewTask(false);
-      toast.success("המשימה נוצרה בהצלחה");
+      toast.success(t("toasts.created"));
     },
     onError: (err: Error) => {
-      if (err.message?.includes("מוגבל") || err.message?.includes("403")) {
-        toast.error("הגעת למגבלת המשימות — שדרג לבייסיק כדי להוסיף עוד");
+      if (err.message?.includes("מוגבל") || err.message?.includes("403")) { // i18n-ok — matches the API error text
+        toast.error(t("toasts.limitReached"));
       } else {
-        toast.error("שגיאה ביצירת המשימה. נסה שוב.");
+        toast.error(t("toasts.createError"));
       }
     },
   });
@@ -369,11 +380,11 @@ export default function TasksPage() {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["sidebar-counters"] });
-      if (status === "COMPLETED") toast.success("המשימה הושלמה ✓");
+      if (status === "COMPLETED") toast.success(t("toasts.completed"));
     },
     onError: (_err, _vars, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(["tasks", activeCategory, activeFilter, dateFrom, dateTo], ctx.prev);
-      toast.error("שגיאה בעדכון המשימה. נסה שוב.");
+      toast.error(t("toasts.updateError"));
     },
   });
 
@@ -391,11 +402,11 @@ export default function TasksPage() {
     },
     onError: (_err, _vars, ctx) => {
       if (ctx?.prev) queryClient.setQueryData(["tasks", activeCategory, activeFilter, dateFrom, dateTo], ctx.prev);
-      toast.error("שגיאה במחיקת המשימה. נסה שוב.");
+      toast.error(t("toasts.deleteError"));
     },
     onSuccess: () => {
       setDeleteConfirm(null);
-      toast.success("המשימה נמחקה");
+      toast.success(t("toasts.deleted"));
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["sidebar-counters"] });
@@ -420,9 +431,9 @@ export default function TasksPage() {
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["sidebar-counters"] });
       setSelectedTaskIds(new Set());
-      toast.success(`${ids.length} משימות הושלמו`);
+      toast.success(t("toasts.bulkCompleted", { count: ids.length }));
     },
-    onError: () => toast.error("שגיאה בעדכון המשימות. נסה שוב."),
+    onError: () => toast.error(t("toasts.bulkUpdateError")),
   });
 
   const bulkDeleteMutation = useMutation({
@@ -441,9 +452,9 @@ export default function TasksPage() {
       const failed = results.filter((r) => !r.ok).length;
       const deleted = results.length - failed;
       if (failed > 0) {
-        toast.error(`${deleted} משימות נמחקו, ${failed} נכשלו. נסה שוב.`);
+        toast.error(t("toasts.bulkDeletePartial", { deleted, failed }));
       } else {
-        toast.success(`${deleted} משימות נמחקו`);
+        toast.success(t("toasts.bulkDeleted", { count: deleted }));
       }
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
@@ -454,7 +465,7 @@ export default function TasksPage() {
     },
     onError: () => {
       setShowBulkDeleteConfirm(false);
-      toast.error("שגיאה במחיקת המשימות. נסה שוב.");
+      toast.error(t("toasts.bulkDeleteError"));
     },
   });
 
@@ -479,9 +490,9 @@ export default function TasksPage() {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       setPostponeTask(null);
-      toast.success("המשימה נדחתה בהצלחה");
+      toast.success(t("toasts.postponed"));
     },
-    onError: () => toast.error("שגיאה בדחיית המשימה. נסה שוב."),
+    onError: () => toast.error(t("toasts.postponeError")),
   });
 
   const duplicateMutation = useMutation({
@@ -490,7 +501,7 @@ export default function TasksPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: `${task.title} (עותק)`,
+          title: t("duplicateTitle", { title: task.title }),
           description: task.description || undefined,
           category: task.category,
           priority: task.priority,
@@ -500,9 +511,9 @@ export default function TasksPage() {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["sidebar-counters"] });
-      toast.success("המשימה שוכפלה");
+      toast.success(t("toasts.duplicated"));
     },
-    onError: () => toast.error("שגיאה בשכפול המשימה"),
+    onError: () => toast.error(t("toasts.duplicateError")),
   });
 
   const editMutation = useMutation({
@@ -534,14 +545,14 @@ export default function TasksPage() {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       setEditTask(null);
-      toast.success("המשימה עודכנה בהצלחה");
+      toast.success(t("toasts.updated"));
     },
-    onError: () => toast.error("שגיאה בעדכון המשימה. נסה שוב."),
+    onError: () => toast.error(t("toasts.updateError")),
   });
 
   return (
     <div>
-      <PageTitle title="משימות" />
+      <PageTitle title={t("title")} />
       {/* Header */}
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
         {/* Right (RTL start): action buttons */}
@@ -550,12 +561,12 @@ export default function TasksPage() {
             isFree && maxTasks !== null && activeFilter !== "COMPLETED" && allTasks.length >= maxTasks ? (
               <a href="/upgrade" className="btn-primary gap-2 bg-amber-500 hover:bg-amber-600 border-amber-500 text-white rounded-xl px-4 py-2 text-sm font-medium flex items-center">
                 <Sparkles className="w-4 h-4" />
-                שדרג לבייסיק
+                {t("header.upgrade")}
               </a>
             ) : (
               <button className="btn-primary" onClick={() => setShowNewTask(true)}>
                 <Plus className="w-4 h-4" />
-                משימה חדשה
+                {t("header.newTask")}
               </button>
             )
           )}
@@ -565,7 +576,7 @@ export default function TasksPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => setAutoRefresh(!autoRefresh)}
-            title={autoRefresh ? "כבה אוטו-רענון" : "הפעל אוטו-רענון (30 שנ׳)"}
+            title={autoRefresh ? t("header.autoRefreshOff") : t("header.autoRefreshOn")}
             className={cn(
               "flex items-center gap-1.5 px-2.5 h-7 rounded-lg border text-xs font-medium transition-all",
               autoRefresh
@@ -574,20 +585,20 @@ export default function TasksPage() {
             )}
           >
             <span className={cn("w-1.5 h-1.5 rounded-full", autoRefresh ? "bg-emerald-500 animate-pulse" : "bg-slate-300")} />
-            {autoRefresh ? "אוטו" : "אוטו"}
+            {t("header.auto")}
           </button>
           <button
             onClick={() => { refetchTasks(); setTick((t) => t + 1); }}
             disabled={tasksFetching}
-            title="רענן עכשיו"
+            title={t("header.refreshNow")}
             className="w-7 h-7 flex items-center justify-center rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-petra-muted hover:text-petra-text transition-colors disabled:opacity-50"
           >
             <RefreshCw className={cn("w-3.5 h-3.5", tasksFetching && "animate-spin")} />
           </button>
           <h1 className="page-title">
-            משימות
+            {t("title")}
             {tab !== "automation" && (
-              <span className="text-sm font-normal text-petra-muted mr-2">({allTasks.length})</span>
+              <span className="text-sm font-normal text-petra-muted ms-2">({allTasks.length})</span>
             )}
           </h1>
         </div>
@@ -601,12 +612,12 @@ export default function TasksPage() {
           <div className="flex items-center gap-2 text-sm">
             <Sparkles className={`w-4 h-4 flex-shrink-0 ${allTasks.length >= maxTasks ? "text-amber-500" : "text-slate-400"}`} />
             <span className={allTasks.length >= maxTasks ? "text-amber-800" : "text-slate-600"}>
-              {allTasks.length}/{maxTasks} משימות פתוחות — מגבלת המנוי החינמי
+              {t("freeLimit.banner", { count: allTasks.length, max: maxTasks })}
             </span>
           </div>
           {allTasks.length >= maxTasks && (
             <a href="/upgrade" className="text-xs font-semibold text-amber-700 hover:text-amber-900 whitespace-nowrap">
-              שדרג לבייסיק ←
+              {t("freeLimit.upgradeLink")}
             </a>
           )}
         </div>
@@ -631,7 +642,7 @@ export default function TasksPage() {
             </div>
             <div>
               <p className="text-base font-bold text-petra-text">{statusCounts.overdue || 0}</p>
-              <p className="text-[10px] text-petra-muted">באיחור</p>
+              <p className="text-[10px] text-petra-muted">{t("stats.overdue")}</p>
             </div>
           </div>
           <div className="card p-3 flex items-center gap-2.5">
@@ -640,7 +651,7 @@ export default function TasksPage() {
             </div>
             <div>
               <p className="text-base font-bold text-petra-text">{statusCounts.active || 0}</p>
-              <p className="text-[10px] text-petra-muted">פעיל עכשיו</p>
+              <p className="text-[10px] text-petra-muted">{t("stats.activeNow")}</p>
             </div>
           </div>
           <div className="card p-3 flex items-center gap-2.5">
@@ -649,7 +660,7 @@ export default function TasksPage() {
             </div>
             <div>
               <p className="text-base font-bold text-petra-text">{statusCounts.scheduled || 0}</p>
-              <p className="text-[10px] text-petra-muted">מתוכנן</p>
+              <p className="text-[10px] text-petra-muted">{t("stats.scheduled")}</p>
             </div>
           </div>
           <div className="card p-3 flex items-center gap-2.5">
@@ -658,7 +669,7 @@ export default function TasksPage() {
             </div>
             <div>
               <p className="text-base font-bold text-petra-text">{statusCounts.completed || 0}</p>
-              <p className="text-[10px] text-petra-muted">הושלמו</p>
+              <p className="text-[10px] text-petra-muted">{t("stats.completed")}</p>
             </div>
           </div>
         </div>
@@ -685,7 +696,7 @@ export default function TasksPage() {
               )}
             >
               <Icon className="w-3.5 h-3.5" />
-              {f.label}
+              {t(`statusFilters.${f.id}`)}
               {count > 0 && (
                 <span className={cn(
                   "px-1.5 py-0.5 rounded-full text-[10px] font-bold min-w-[18px] text-center",
@@ -714,7 +725,7 @@ export default function TasksPage() {
                   : "bg-slate-100 text-petra-muted hover:bg-slate-200"
               )}
             >
-              {c.label}
+              {t(`categories.${c.id}`)}
             </button>
           ))}
         </div>
@@ -723,16 +734,16 @@ export default function TasksPage() {
       {/* Row 3: Search + Date Range */}
       <div className="flex items-center gap-2 mb-3 flex-wrap">
         <div className="relative flex-1 min-w-[160px] max-w-xs">
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted pointer-events-none" />
+          <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted pointer-events-none" />
           <input
-            className="input pr-9 w-full text-sm"
-            placeholder="חפש משימה..."
+            className="input ps-9 w-full text-sm"
+            placeholder={t("filters.searchPlaceholder")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
           {searchQuery && (
             <button
-              className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded-full hover:bg-slate-200 text-petra-muted"
+              className="absolute end-3 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded-full hover:bg-slate-200 text-petra-muted"
               onClick={() => setSearchQuery("")}
             >
               <X className="w-3 h-3" />
@@ -742,14 +753,14 @@ export default function TasksPage() {
         <div className="flex items-center gap-1.5">
           <Calendar className="w-3.5 h-3.5 text-petra-muted flex-shrink-0" />
           <input
-            type="date" lang="he"
+            type="date" lang={cfg.lang}
             className="input text-xs py-1.5 px-2 w-[120px]"
             value={dateFrom}
             onChange={(e) => setDateFrom(e.target.value)}
           />
           <span className="text-xs text-petra-muted">—</span>
           <input
-            type="date" lang="he"
+            type="date" lang={cfg.lang}
             className="input text-xs py-1.5 px-2 w-[120px]"
             value={dateTo}
             onChange={(e) => setDateTo(e.target.value)}
@@ -758,7 +769,7 @@ export default function TasksPage() {
             <button
               onClick={() => { setDateFrom(""); setDateTo(""); }}
               className="text-petra-muted hover:text-red-500 transition-colors"
-              title="נקה תאריכים"
+              title={t("filters.clearDates")}
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -775,7 +786,7 @@ export default function TasksPage() {
             className="btn-secondary gap-1.5 text-xs py-1.5 px-3"
           >
             <Download className="w-3.5 h-3.5" />
-            ייצוא
+            {t("toolbar.export")}
           </button>
           )}
           <button
@@ -791,7 +802,7 @@ export default function TasksPage() {
             }}
           >
             <CheckSquare className="w-3.5 h-3.5" />
-            {selectionMode ? "בטל בחירה" : "בחר"}
+            {selectionMode ? t("toolbar.cancelSelection") : t("toolbar.select")}
           </button>
         </div>
       </div>
@@ -799,14 +810,14 @@ export default function TasksPage() {
       {/* Bulk Action Bar */}
       {selectedTaskIds.size > 0 && (
         <div className="flex items-center gap-3 mb-3 p-3 rounded-xl bg-brand-50 border border-brand-100">
-          <span className="text-sm font-medium text-brand-700">{selectedTaskIds.size} נבחרו</span>
+          <span className="text-sm font-medium text-brand-700">{t("bulk.selected", { count: selectedTaskIds.size })}</span>
           <button
             className="btn-primary text-xs py-1.5 px-3"
             disabled={bulkCompleteMutation.isPending}
             onClick={() => bulkCompleteMutation.mutate([...selectedTaskIds])}
           >
             <CheckCircle2 className="w-3.5 h-3.5" />
-            {bulkCompleteMutation.isPending ? "..." : "השלם הכל"}
+            {bulkCompleteMutation.isPending ? "..." : t("bulk.completeAll")}
           </button>
           <button
             className="btn-danger text-xs py-1.5 px-3 inline-flex items-center gap-1.5"
@@ -814,13 +825,13 @@ export default function TasksPage() {
             onClick={() => setShowBulkDeleteConfirm(true)}
           >
             <Trash2 className="w-3.5 h-3.5" />
-            {bulkDeleteMutation.isPending ? "מוחק..." : "מחק נבחרים"}
+            {bulkDeleteMutation.isPending ? tc("progress.deleting") : t("bulk.deleteSelected")}
           </button>
           <button
             className="text-xs text-petra-muted hover:text-petra-text ms-auto"
             onClick={() => { setSelectedTaskIds(new Set()); setSelectionMode(false); }}
           >
-            בטל בחירה
+            {t("toolbar.cancelSelection")}
           </button>
         </div>
       )}
@@ -833,26 +844,26 @@ export default function TasksPage() {
           <div className="empty-state-icon">
             <AlertCircle className="w-6 h-6 text-red-400" />
           </div>
-          <h3 className="text-base font-semibold text-petra-text mb-1">שגיאה בטעינת המשימות</h3>
-          <p className="text-sm text-petra-muted">נסה לרענן את הדף</p>
+          <h3 className="text-base font-semibold text-petra-text mb-1">{t("list.loadError")}</h3>
+          <p className="text-sm text-petra-muted">{t("list.loadErrorHint")}</p>
         </div>
       ) : sortedTasks.length === 0 ? (
         <div className="empty-state text-center py-16">
           <div className="empty-state-icon mx-auto">
             <ListTodo className="w-6 h-6 text-slate-400" />
           </div>
-          <h3 className="text-base font-semibold text-petra-text mb-1">אין משימות</h3>
+          <h3 className="text-base font-semibold text-petra-text mb-1">{t("list.empty")}</h3>
           <p className="text-sm text-petra-muted mb-4">
             {activeFilter !== "ALL"
-              ? "אין משימות בסטטוס הנבחר"
-              : "צור משימה חדשה כדי להתחיל"}
+              ? t("list.emptyFiltered")
+              : t("list.emptyHint")}
           </p>
           <button
             className="btn-primary text-sm inline-flex items-center gap-1.5 mx-auto"
             onClick={() => setShowNewTask(true)}
           >
             <Plus className="w-4 h-4" />
-            משימה חדשה
+            {t("header.newTask")}
           </button>
         </div>
       ) : (
@@ -868,8 +879,8 @@ export default function TasksPage() {
                 }}
               >
                 {sortedTasks.filter((t) => t.status !== "COMPLETED").every((t) => selectedTaskIds.has(t.id))
-                  ? "בטל בחירת הכל"
-                  : "בחר הכל"}
+                  ? t("list.deselectAll")
+                  : t("list.selectAll")}
               </button>
             </div>
           )}
@@ -940,21 +951,21 @@ export default function TasksPage() {
               <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center mx-auto mb-4">
                 <Trash2 className="w-6 h-6 text-red-500" />
               </div>
-              <h2 className="text-lg font-bold text-petra-text mb-2">מחיקת משימה</h2>
+              <h2 className="text-lg font-bold text-petra-text mb-2">{t("deleteDialog.title")}</h2>
               <p className="text-sm text-petra-muted mb-1">
-                למחוק את המשימה &quot;{deleteConfirm.title}&quot;?
+                {t("deleteDialog.body", { title: deleteConfirm.title })}
               </p>
-              <p className="text-xs text-petra-muted mb-6">פעולה זו אינה ניתנת לביטול</p>
+              <p className="text-xs text-petra-muted mb-6">{t("deleteDialog.irreversible")}</p>
               <div className="flex gap-3">
                 <button
                   className="btn-danger flex-1"
                   disabled={deleteMutation.isPending}
                   onClick={() => deleteMutation.mutate(deleteConfirm.id)}
                 >
-                  {deleteMutation.isPending ? "מוחק..." : "מחק"}
+                  {deleteMutation.isPending ? tc("progress.deleting") : tc("actions.delete")}
                 </button>
                 <button className="btn-secondary flex-1" onClick={() => setDeleteConfirm(null)}>
-                  ביטול
+                  {tc("actions.cancel")}
                 </button>
               </div>
             </div>
@@ -971,21 +982,21 @@ export default function TasksPage() {
               <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center mx-auto mb-4">
                 <Trash2 className="w-6 h-6 text-red-500" />
               </div>
-              <h2 className="text-lg font-bold text-petra-text mb-2">מחיקת משימות</h2>
+              <h2 className="text-lg font-bold text-petra-text mb-2">{t("bulkDeleteDialog.title")}</h2>
               <p className="text-sm text-petra-muted mb-1">
-                למחוק {selectedTaskIds.size} משימות?
+                {t("bulkDeleteDialog.body", { count: selectedTaskIds.size })}
               </p>
-              <p className="text-xs text-petra-muted mb-6">פעולה זו אינה ניתנת לביטול</p>
+              <p className="text-xs text-petra-muted mb-6">{t("deleteDialog.irreversible")}</p>
               <div className="flex gap-3">
                 <button
                   className="btn-danger flex-1"
                   disabled={bulkDeleteMutation.isPending}
                   onClick={() => bulkDeleteMutation.mutate([...selectedTaskIds])}
                 >
-                  {bulkDeleteMutation.isPending ? "מוחק..." : "מחק"}
+                  {bulkDeleteMutation.isPending ? tc("progress.deleting") : tc("actions.delete")}
                 </button>
                 <button className="btn-secondary flex-1" onClick={() => setShowBulkDeleteConfirm(false)}>
-                  ביטול
+                  {tc("actions.cancel")}
                 </button>
               </div>
             </div>
@@ -1001,6 +1012,9 @@ export default function TasksPage() {
 // ─── Automation Tab ───────────────────────────────────────────────────────────
 
 function AutomationTab({ onTasksGenerated }: { onTasksGenerated: () => void }) {
+  const t = useTranslations("tasks");
+  const tc = useTranslations("common");
+  const { locale, cfg } = useBusinessLocale();
   const queryClient = useQueryClient();
 
   // Template state
@@ -1028,21 +1042,21 @@ function AutomationTab({ onTasksGenerated }: { onTasksGenerated: () => void }) {
       queryClient.invalidateQueries({ queryKey: ["task-templates"] });
       setShowNewTpl(false);
       setTplForm({ name: "", defaultCategory: "GENERAL", defaultPriority: "MEDIUM", defaultTitleTemplate: "", defaultDescriptionTemplate: "" });
-      toast.success("תבנית נוצרה");
+      toast.success(t("automation.toasts.templateCreated"));
     },
-    onError: () => toast.error("שגיאה ביצירת התבנית"),
+    onError: () => toast.error(t("automation.toasts.templateCreateError")),
   });
 
   const deleteTplMutation = useMutation({
     mutationFn: (id: string) => fetchJSON(`/api/task-templates/${id}`, { method: "DELETE" }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["task-templates"] }); toast.success("תבנית נמחקה"); },
-    onError: () => toast.error("שגיאה במחיקת התבנית"),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["task-templates"] }); toast.success(t("automation.toasts.templateDeleted")); },
+    onError: () => toast.error(t("automation.toasts.templateDeleteError")),
   });
 
   const useTplMutation = useMutation({
     mutationFn: (tpl: TaskTemplate) => fetchJSON("/api/tasks", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: tpl.defaultTitleTemplate, description: tpl.defaultDescriptionTemplate || undefined, category: tpl.defaultCategory, priority: tpl.defaultPriority }) }),
-    onSuccess: () => { onTasksGenerated(); toast.success("משימה נוצרה מהתבנית"); },
-    onError: () => toast.error("שגיאה ביצירת משימה"),
+    onSuccess: () => { onTasksGenerated(); toast.success(t("automation.toasts.taskFromTemplate")); },
+    onError: () => toast.error(t("automation.toasts.taskCreateError")),
   });
 
   const createRuleMutation = useMutation({
@@ -1052,22 +1066,22 @@ function AutomationTab({ onTasksGenerated }: { onTasksGenerated: () => void }) {
       queryClient.invalidateQueries({ queryKey: ["task-recurrence-rules"] });
       setShowNewRule(false);
       setRuleForm({ templateId: "", freq: "DAILY", interval: 1, weekDays: [], startAt: new Date().toISOString().slice(0, 10), endAt: "" });
-      toast.success("חוק חוזרות נוצר");
+      toast.success(t("automation.toasts.ruleCreated"));
     },
-    onError: () => toast.error("שגיאה ביצירת חוק"),
+    onError: () => toast.error(t("automation.toasts.ruleCreateError")),
   });
 
   const toggleRuleMutation = useMutation({
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
       fetchJSON(`/api/task-recurrence/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ isActive }) }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["task-recurrence-rules"] }),
-    onError: () => toast.error("שגיאה בעדכון החוק"),
+    onError: () => toast.error(t("automation.toasts.ruleUpdateError")),
   });
 
   const deleteRuleMutation = useMutation({
     mutationFn: (id: string) => fetchJSON(`/api/task-recurrence/${id}`, { method: "DELETE" }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["task-recurrence-rules"] }); toast.success("חוק נמחק"); },
-    onError: () => toast.error("שגיאה במחיקה"),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["task-recurrence-rules"] }); toast.success(t("automation.toasts.ruleDeleted")); },
+    onError: () => toast.error(t("automation.toasts.ruleDeleteError")),
   });
 
   async function generateNow(rule: RecurrenceRule) {
@@ -1075,10 +1089,10 @@ function AutomationTab({ onTasksGenerated }: { onTasksGenerated: () => void }) {
     try {
       const res = await fetchJSON<{ created: number; error?: string }>(`/api/task-recurrence/${rule.id}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ days: 30 }) });
       if ((res as { error?: string }).error) { toast.error((res as { error?: string }).error); return; }
-      toast.success(`נוצרו ${(res as { created: number }).created} משימות חדשות`);
+      toast.success(t("automation.toasts.generated", { count: (res as { created: number }).created }));
       onTasksGenerated();
       queryClient.invalidateQueries({ queryKey: ["task-recurrence-rules"] });
-    } catch { toast.error("שגיאה ביצירת משימות"); } finally { setGeneratingId(null); }
+    } catch { toast.error(t("automation.toasts.generateError")); } finally { setGeneratingId(null); }
   }
 
   return (
@@ -1089,51 +1103,51 @@ function AutomationTab({ onTasksGenerated }: { onTasksGenerated: () => void }) {
           <div>
             <h2 className="text-base font-bold text-petra-text flex items-center gap-2">
               <LayoutTemplate className="w-4 h-4 text-brand-500" />
-              תבניות משימות
+              {t("automation.templatesTitle")}
             </h2>
-            <p className="text-xs text-petra-muted mt-0.5">תבניות לשימוש חוזר ביצירת משימות</p>
+            <p className="text-xs text-petra-muted mt-0.5">{t("automation.templatesSubtitle")}</p>
           </div>
           {!showNewTpl && (
             <button onClick={() => setShowNewTpl(true)} className="btn-secondary gap-2">
-              <Plus className="w-4 h-4" />תבנית חדשה
+              <Plus className="w-4 h-4" />{t("automation.newTemplate")}
             </button>
           )}
         </div>
 
         {showNewTpl && (
           <div className="card p-4 mb-4 space-y-3">
-            <h3 className="text-sm font-bold text-petra-text">תבנית חדשה</h3>
+            <h3 className="text-sm font-bold text-petra-text">{t("automation.newTemplate")}</h3>
             <div>
-              <label className="label">שם התבנית *</label>
-              <input className="input w-full" placeholder="למשל: האכלת בוקר" value={tplForm.name} onChange={(e) => setTplForm({ ...tplForm, name: e.target.value })} />
+              <label className="label">{t("automation.templateName")}</label>
+              <input className="input w-full" placeholder={t("automation.templateNamePlaceholder")} value={tplForm.name} onChange={(e) => setTplForm({ ...tplForm, name: e.target.value })} />
             </div>
             <div>
-              <label className="label">כותרת ברירת מחדל *</label>
-              <input className="input w-full" placeholder="כותרת שתופיע במשימה" value={tplForm.defaultTitleTemplate} onChange={(e) => setTplForm({ ...tplForm, defaultTitleTemplate: e.target.value })} />
+              <label className="label">{t("automation.defaultTitle")}</label>
+              <input className="input w-full" placeholder={t("automation.defaultTitlePlaceholder")} value={tplForm.defaultTitleTemplate} onChange={(e) => setTplForm({ ...tplForm, defaultTitleTemplate: e.target.value })} />
             </div>
             <div>
-              <label className="label">תיאור (אופציונלי)</label>
+              <label className="label">{t("automation.descriptionOptional")}</label>
               <textarea className="input w-full resize-none" rows={2} value={tplForm.defaultDescriptionTemplate} onChange={(e) => setTplForm({ ...tplForm, defaultDescriptionTemplate: e.target.value })} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="label">קטגוריה</label>
+                <label className="label">{t("form.category")}</label>
                 <select className="input w-full" value={tplForm.defaultCategory} onChange={(e) => setTplForm({ ...tplForm, defaultCategory: e.target.value })}>
-                  {CATEGORIES.filter((c) => c.id !== "ALL").map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+                  {CATEGORIES.filter((c) => c.id !== "ALL").map((c) => <option key={c.id} value={c.id}>{t(`categories.${c.id}`)}</option>)}
                 </select>
               </div>
               <div>
-                <label className="label">עדיפות</label>
+                <label className="label">{t("form.priority")}</label>
                 <select className="input w-full" value={tplForm.defaultPriority} onChange={(e) => setTplForm({ ...tplForm, defaultPriority: e.target.value })}>
-                  {Object.entries(PRIORITIES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+                  {PRIORITY_IDS.map((k) => <option key={k} value={k}>{t(`priorities.${k}`)}</option>)}
                 </select>
               </div>
             </div>
             <div className="flex gap-2">
               <button className="btn-primary flex-1" disabled={!tplForm.name || !tplForm.defaultTitleTemplate || createTplMutation.isPending} onClick={() => createTplMutation.mutate(tplForm)}>
-                {createTplMutation.isPending ? "שומר..." : "שמור תבנית"}
+                {createTplMutation.isPending ? tc("progress.saving") : t("automation.saveTemplate")}
               </button>
-              <button className="btn-secondary" onClick={() => setShowNewTpl(false)}>ביטול</button>
+              <button className="btn-secondary" onClick={() => setShowNewTpl(false)}>{tc("actions.cancel")}</button>
             </div>
           </div>
         )}
@@ -1143,7 +1157,7 @@ function AutomationTab({ onTasksGenerated }: { onTasksGenerated: () => void }) {
         ) : templates.length === 0 ? (
           <div className="card p-8 text-center text-petra-muted text-sm">
             <LayoutTemplate className="w-8 h-8 mx-auto mb-2 opacity-30" />
-            <p>אין תבניות עדיין</p>
+            <p>{t("automation.noTemplates")}</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -1153,15 +1167,15 @@ function AutomationTab({ onTasksGenerated }: { onTasksGenerated: () => void }) {
                   <p className="text-sm font-semibold text-petra-text truncate">{tpl.name}</p>
                   <p className="text-xs text-petra-muted truncate">{tpl.defaultTitleTemplate}</p>
                   <div className="flex gap-1.5 mt-1">
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-600">{CATEGORY_LABEL[tpl.defaultCategory] ?? tpl.defaultCategory}</span>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-600">{PRIORITIES[tpl.defaultPriority]?.label ?? tpl.defaultPriority}</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-600">{categoryLabel(t, tpl.defaultCategory)}</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-600">{priorityLabel(t, tpl.defaultPriority)}</span>
                   </div>
                 </div>
                 <div className="flex gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                   <button onClick={() => useTplMutation.mutate(tpl)} disabled={useTplMutation.isPending} className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-brand-500 text-white hover:bg-brand-600 transition-colors">
-                    <Plus className="w-3 h-3" />צור משימה
+                    <Plus className="w-3 h-3" />{t("automation.createTask")}
                   </button>
-                  <button onClick={() => { if (window.confirm(`למחוק את התבנית "${tpl.name}"?`)) deleteTplMutation.mutate(tpl.id); }} disabled={deleteTplMutation.isPending} title="מחק תבנית" className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors">
+                  <button onClick={() => { if (window.confirm(t("automation.confirmDeleteTemplate", { name: tpl.name }))) deleteTplMutation.mutate(tpl.id); }} disabled={deleteTplMutation.isPending} title={t("automation.deleteTemplate")} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors">
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -1177,13 +1191,13 @@ function AutomationTab({ onTasksGenerated }: { onTasksGenerated: () => void }) {
           <div>
             <h2 className="text-base font-bold text-petra-text flex items-center gap-2">
               <Repeat2 className="w-4 h-4 text-violet-500" />
-              משימות חוזרות
+              {t("automation.recurringTitle")}
             </h2>
-            <p className="text-xs text-petra-muted mt-0.5">משימות שנוצרות אוטומטית לפי לוח זמנים</p>
+            <p className="text-xs text-petra-muted mt-0.5">{t("automation.recurringSubtitle")}</p>
           </div>
           {!showNewRule && templates.length > 0 && (
             <button onClick={() => setShowNewRule(true)} className="btn-secondary gap-2">
-              <Plus className="w-4 h-4" />חוק חדש
+              <Plus className="w-4 h-4" />{t("automation.newRule")}
             </button>
           )}
         </div>
@@ -1191,67 +1205,67 @@ function AutomationTab({ onTasksGenerated }: { onTasksGenerated: () => void }) {
         {templates.length === 0 && (
           <div className="card p-4 bg-amber-50 border-amber-200 text-sm text-amber-700 flex items-center gap-2 mb-4">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            יש ליצור תבנית משימה לפני הגדרת חוזרות
+            {t("automation.needTemplateFirst")}
           </div>
         )}
 
         {showNewRule && (
           <div className="card p-4 mb-4 space-y-3">
-            <h3 className="text-sm font-bold text-petra-text">חוק חוזרות חדש</h3>
+            <h3 className="text-sm font-bold text-petra-text">{t("automation.newRuleTitle")}</h3>
             <div>
-              <label className="label">תבנית *</label>
+              <label className="label">{t("automation.template")}</label>
               <select className="input w-full" value={ruleForm.templateId} onChange={(e) => setRuleForm({ ...ruleForm, templateId: e.target.value })}>
-                <option value="">בחר תבנית...</option>
-                {templates.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                <option value="">{t("automation.chooseTemplate")}</option>
+                {templates.map((tpl) => <option key={tpl.id} value={tpl.id}>{tpl.name}</option>)}
               </select>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="label">תדירות</label>
+                <label className="label">{t("automation.frequency")}</label>
                 <select className="input w-full" value={ruleForm.freq} onChange={(e) => setRuleForm({ ...ruleForm, freq: e.target.value, weekDays: [] })}>
-                  <option value="DAILY">יומי</option>
-                  <option value="WEEKLY">שבועי</option>
-                  <option value="MONTHLY">חודשי</option>
+                  <option value="DAILY">{t("automation.freq.DAILY")}</option>
+                  <option value="WEEKLY">{t("automation.freq.WEEKLY")}</option>
+                  <option value="MONTHLY">{t("automation.freq.MONTHLY")}</option>
                 </select>
               </div>
               <div>
-                <label className="label">כל כמה</label>
+                <label className="label">{t("automation.every")}</label>
                 <div className="flex items-center gap-1">
                   <input type="number" min={1} max={99} className="input w-full" value={ruleForm.interval} onChange={(e) => setRuleForm({ ...ruleForm, interval: Math.max(1, parseInt(e.target.value) || 1) })} />
-                  <span className="text-xs text-petra-muted whitespace-nowrap">{ruleForm.freq === "DAILY" ? "ימים" : ruleForm.freq === "WEEKLY" ? "שבועות" : "חודשים"}</span>
+                  <span className="text-xs text-petra-muted whitespace-nowrap">{ruleForm.freq === "DAILY" ? t("automation.units.days") : ruleForm.freq === "WEEKLY" ? t("automation.units.weeks") : t("automation.units.months")}</span>
                 </div>
               </div>
             </div>
             {ruleForm.freq === "WEEKLY" && (
               <div>
-                <label className="label">ימים בשבוע</label>
+                <label className="label">{t("automation.weekDays")}</label>
                 <div className="flex flex-wrap gap-1.5">
                   {DAYS_OF_WEEK.map((d) => (
                     <button key={d.value} type="button"
                       onClick={() => setRuleForm((prev) => ({ ...prev, weekDays: prev.weekDays.includes(d.value) ? prev.weekDays.filter((x) => x !== d.value) : [...prev.weekDays, d.value] }))}
                       className={cn("px-2 py-1 rounded-lg text-xs font-medium border transition-colors", ruleForm.weekDays.includes(d.value) ? "bg-brand-500 text-white border-brand-500" : "bg-white text-petra-muted border-slate-200 hover:border-brand-300")}
-                    >{d.label}</button>
+                    >{t(`weekdays.${d.key}`)}</button>
                   ))}
                 </div>
               </div>
             )}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="label">תחילה מ *</label>
-                <input type="date" lang="he" className="input w-full" value={ruleForm.startAt} onChange={(e) => setRuleForm({ ...ruleForm, startAt: e.target.value })} />
+                <label className="label">{t("automation.startFrom")}</label>
+                <input type="date" lang={cfg.lang} className="input w-full" value={ruleForm.startAt} onChange={(e) => setRuleForm({ ...ruleForm, startAt: e.target.value })} />
               </div>
               <div>
-                <label className="label">סיום (אופציונלי)</label>
-                <input type="date" lang="he" className="input w-full" value={ruleForm.endAt} onChange={(e) => setRuleForm({ ...ruleForm, endAt: e.target.value })} />
+                <label className="label">{t("automation.endOptional")}</label>
+                <input type="date" lang={cfg.lang} className="input w-full" value={ruleForm.endAt} onChange={(e) => setRuleForm({ ...ruleForm, endAt: e.target.value })} />
               </div>
             </div>
             <div className="flex gap-2">
               <button className="btn-primary flex-1" disabled={!ruleForm.templateId || !ruleForm.startAt || createRuleMutation.isPending}
-                onClick={() => { if (!ruleForm.templateId) { toast.error("בחר תבנית"); return; } createRuleMutation.mutate({ templateId: ruleForm.templateId, rrule: buildRrule(ruleForm.freq, ruleForm.interval, ruleForm.weekDays), startAt: new Date(ruleForm.startAt).toISOString(), endAt: ruleForm.endAt ? new Date(ruleForm.endAt).toISOString() : null }); }}
+                onClick={() => { if (!ruleForm.templateId) { toast.error(t("automation.toasts.chooseTemplate")); return; } createRuleMutation.mutate({ templateId: ruleForm.templateId, rrule: buildRrule(ruleForm.freq, ruleForm.interval, ruleForm.weekDays), startAt: new Date(ruleForm.startAt).toISOString(), endAt: ruleForm.endAt ? new Date(ruleForm.endAt).toISOString() : null }); }}
               >
-                {createRuleMutation.isPending ? "שומר..." : "צור חוק"}
+                {createRuleMutation.isPending ? tc("progress.saving") : t("automation.createRule")}
               </button>
-              <button className="btn-secondary" onClick={() => setShowNewRule(false)}>ביטול</button>
+              <button className="btn-secondary" onClick={() => setShowNewRule(false)}>{tc("actions.cancel")}</button>
             </div>
           </div>
         )}
@@ -1261,7 +1275,7 @@ function AutomationTab({ onTasksGenerated }: { onTasksGenerated: () => void }) {
         ) : rules.length === 0 ? (
           <div className="card p-8 text-center text-petra-muted text-sm">
             <Repeat2 className="w-8 h-8 mx-auto mb-2 opacity-30" />
-            <p>אין חוקי חוזרות עדיין</p>
+            <p>{t("automation.noRules")}</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -1271,21 +1285,21 @@ function AutomationTab({ onTasksGenerated }: { onTasksGenerated: () => void }) {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap mb-0.5">
                       <span className="text-sm font-semibold text-petra-text">{rule.template.name}</span>
-                      {!rule.isActive && <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-medium">כבוי</span>}
+                      {!rule.isActive && <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-medium">{t("automation.off")}</span>}
                     </div>
                     <div className="flex flex-wrap gap-1.5 mt-1.5">
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-brand-100 text-brand-700 font-medium">{humanizeRrule(rule.rrule)}</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-600">{CATEGORY_LABEL[rule.template.defaultCategory] ?? rule.template.defaultCategory}</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-600">{rule._count.tasks} משימות</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-brand-100 text-brand-700 font-medium">{humanizeRrule(rule.rrule, t)}</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-600">{categoryLabel(t, rule.template.defaultCategory)}</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-600">{t("automation.taskCount", { count: rule._count.tasks })}</span>
                     </div>
-                    {rule.lastGeneratedAt && <p className="text-[10px] text-petra-muted mt-1">הופעל לאחרונה: {new Date(rule.lastGeneratedAt).toLocaleDateString("he-IL")}</p>}
+                    {rule.lastGeneratedAt && <p className="text-[10px] text-petra-muted mt-1">{t("automation.lastRun", { date: new Date(rule.lastGeneratedAt).toLocaleDateString(locale) })}</p>}
                   </div>
                   <div className="flex items-center gap-1.5 flex-shrink-0">
                     <button onClick={() => generateNow(rule)} disabled={!rule.isActive || generatingId === rule.id}
-                      className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-colors disabled:opacity-40" title="צור משימות ל-30 ימים הקרובים">
-                      <RefreshCw className={cn("w-3 h-3", generatingId === rule.id && "animate-spin")} />הפעל
+                      className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-colors disabled:opacity-40" title={t("automation.runTitle")}>
+                      <RefreshCw className={cn("w-3 h-3", generatingId === rule.id && "animate-spin")} />{t("automation.run")}
                     </button>
-                    <button onClick={() => toggleRuleMutation.mutate({ id: rule.id, isActive: !rule.isActive })} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-brand-500 transition-colors" title={rule.isActive ? "השהה" : "הפעל"}>
+                    <button onClick={() => toggleRuleMutation.mutate({ id: rule.id, isActive: !rule.isActive })} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-brand-500 transition-colors" title={rule.isActive ? t("automation.pause") : t("automation.run")}>
                       {rule.isActive ? <ToggleRight className="w-4 h-4 text-brand-500" /> : <ToggleLeft className="w-4 h-4" />}
                     </button>
                     <button onClick={() => deleteRuleMutation.mutate(rule.id)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors">
@@ -1315,15 +1329,9 @@ interface TaskTemplate {
 
 // ─── Automation helpers (used by AutomationTab) ───────────────────────────────
 
-const DAYS_OF_WEEK = [
-  { value: 0, label: "ראשון" },
-  { value: 1, label: "שני" },
-  { value: 2, label: "שלישי" },
-  { value: 3, label: "רביעי" },
-  { value: 4, label: "חמישי" },
-  { value: 5, label: "שישי" },
-  { value: 6, label: "שבת" },
-];
+// value = JS weekday (0 = Sunday); key → tasks.weekdays.*
+const WEEKDAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
+const DAYS_OF_WEEK = WEEKDAY_KEYS.map((key, value) => ({ value, key }));
 
 interface RecurrenceRule {
   id: string;
@@ -1346,24 +1354,25 @@ function buildRrule(freq: string, interval: number, weekDays: number[]): string 
   return rule;
 }
 
-function humanizeRrule(rrule: string): string {
+function humanizeRrule(rrule: string, t: TasksT): string {
   const parts: Record<string, string> = {};
   for (const part of rrule.split(";")) {
     const [k, v] = part.split("=");
     if (k && v) parts[k] = v;
   }
-  const dayNames = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
   const dayMap: Record<string, number> = { SU: 0, MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6 };
   const interval = parseInt(parts["INTERVAL"] ?? "1", 10);
   const freq = parts["FREQ"];
-  if (freq === "DAILY") return interval === 1 ? "כל יום" : `כל ${interval} ימים`;
+  if (freq === "DAILY") return interval === 1 ? t("rrule.daily") : t("rrule.everyNDays", { n: interval });
   if (freq === "WEEKLY") {
     const days = parts["BYDAY"]
-      ? parts["BYDAY"].split(",").map((d) => dayNames[dayMap[d] ?? 0]).join(", ")
+      ? parts["BYDAY"].split(",").map((d) => t(`weekdays.${WEEKDAY_KEYS[dayMap[d] ?? 0]}`)).join(", ")
       : "";
-    return interval === 1 ? `שבועי – ${days || "כל שבוע"}` : `כל ${interval} שבועות – ${days}`;
+    return interval === 1
+      ? t("rrule.weekly", { days: days || t("rrule.everyWeek") })
+      : t("rrule.everyNWeeks", { n: interval, days });
   }
-  if (freq === "MONTHLY") return interval === 1 ? "כל חודש" : `כל ${interval} חודשים`;
+  if (freq === "MONTHLY") return interval === 1 ? t("rrule.monthly") : t("rrule.everyNMonths", { n: interval });
   return rrule;
 }
 
@@ -1390,11 +1399,14 @@ function TaskCard({
   onEdit: (task: Task) => void;
   onDuplicate: (task: Task) => void;
 }) {
+  const t = useTranslations("tasks");
+  const tc = useTranslations("common");
   const computed = computeTaskStatus(task);
   const config = STATUS_CONFIG[computed];
-  const priority = PRIORITIES[task.priority] || PRIORITIES.MEDIUM;
+  const priorityId = PRIORITIES[task.priority] ? task.priority : "MEDIUM";
+  const priority = PRIORITIES[priorityId];
   const isCompleted = computed === "completed";
-  const shortDate = formatShortDate(task);
+  const shortDate = formatShortDate(task, t);
 
   return (
     <div
@@ -1464,19 +1476,19 @@ function TaskCard({
                 border: `1px solid ${config.border}`,
               }}
             >
-              {config.label}
+              {t(`computedStatus.${computed}`)}
             </span>
           </div>
 
           {task.description && (
-            <p className="text-xs text-petra-muted truncate mb-1.5 mr-4.5">
+            <p className="text-xs text-petra-muted truncate mb-1.5 ms-4.5">
               {task.description}
             </p>
           )}
 
           {/* Related entity chip */}
           {task.relatedEntityName && task.relatedEntityCustomerId && (
-            <div className="mb-1.5 mr-4.5">
+            <div className="mb-1.5 ms-4.5">
               <Link
                 href={`/customers/${task.relatedEntityCustomerId}`}
                 onClick={(e) => e.stopPropagation()}
@@ -1491,7 +1503,7 @@ function TaskCard({
             </div>
           )}
           {task.relatedEntityName && task.relatedEntityLeadId && (
-            <div className="mb-1.5 mr-4.5">
+            <div className="mb-1.5 ms-4.5">
               <Link
                 href="/leads"
                 onClick={(e) => e.stopPropagation()}
@@ -1503,7 +1515,7 @@ function TaskCard({
             </div>
           )}
 
-          <div className="flex items-center gap-2 mr-4.5 flex-wrap">
+          <div className="flex items-center gap-2 ms-4.5 flex-wrap">
             {/* Due info */}
             {shortDate && (
               <span
@@ -1522,13 +1534,13 @@ function TaskCard({
             )}
             {/* Category */}
             <span className="badge-neutral text-[10px]">
-              {CATEGORY_LABEL[task.category] ?? task.category}
+              {categoryLabel(t, task.category)}
             </span>
             {/* Priority dot */}
             <div
               className="w-2 h-2 rounded-full flex-shrink-0"
               style={{ background: priority.color }}
-              title={priority.label}
+              title={t(`priorities.${priorityId}`)}
             />
           </div>
         </div>
@@ -1540,21 +1552,21 @@ function TaskCard({
               <button
                 onClick={() => onEdit(task)}
                 className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-brand-500 transition-colors"
-                title="ערוך"
+                title={t("card.edit")}
               >
                 <Pencil className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={() => onPostpone(task)}
                 className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-brand-500 transition-colors"
-                title="דחה"
+                title={t("card.postpone")}
               >
                 <CalendarClock className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={() => onDuplicate(task)}
                 className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400 hover:text-brand-500 transition-colors"
-                title="שכפל"
+                title={t("card.duplicate")}
               >
                 <Copy className="w-3.5 h-3.5" />
               </button>
@@ -1563,7 +1575,7 @@ function TaskCard({
           <button
             onClick={() => onDelete(task)}
             className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors"
-            title="מחק"
+            title={tc("actions.delete")}
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
@@ -1588,6 +1600,7 @@ function EntityPicker({
   entityName: string | null;
   onChange: (type: string | null, id: string | null, name: string | null) => void;
 }) {
+  const t = useTranslations("tasks");
   const [search, setSearch] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -1615,14 +1628,14 @@ function EntityPicker({
   }, []);
 
   const TYPE_OPTIONS = [
-    { value: null,       label: "ללא",           icon: null },
-    { value: "CUSTOMER", label: "לקוח",          icon: Users },
-    { value: "DOG",      label: "חיית מחמד",    icon: PawPrint },
+    { value: null,       label: t("entityPicker.none"),     icon: null },
+    { value: "CUSTOMER", label: t("entityPicker.customer"), icon: Users },
+    { value: "DOG",      label: t("entityPicker.pet"),      icon: PawPrint },
   ];
 
   return (
     <div>
-      <label className="label">שיוך ל</label>
+      <label className="label">{t("entityPicker.label")}</label>
       {/* Type selector chips */}
       <div className="flex gap-1.5 mb-2">
         {TYPE_OPTIONS.map((opt) => {
@@ -1648,22 +1661,22 @@ function EntityPicker({
       {/* Search input */}
       {entityType && !entityId && (
         <div className="relative" ref={dropdownRef}>
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-petra-muted pointer-events-none" />
+          <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-petra-muted pointer-events-none" />
           <input
-            className="input pr-9 text-sm w-full"
-            placeholder={entityType === "CUSTOMER" ? "הקלד שם לקוח..." : "הקלד שם חיית מחמד..."}
+            className="input ps-9 text-sm w-full"
+            placeholder={entityType === "CUSTOMER" ? t("entityPicker.searchCustomer") : t("entityPicker.searchPet")}
             value={search}
             autoFocus
             onChange={(e) => { setSearch(e.target.value); setShowDropdown(true); }}
             onFocus={() => setShowDropdown(true)}
           />
           {showDropdown && search.length >= 1 && (
-            <div className="absolute top-full right-0 left-0 mt-1 bg-white rounded-xl shadow-xl border border-slate-200 z-50 overflow-hidden max-h-52 overflow-y-auto">
+            <div className="absolute top-full start-0 end-0 mt-1 bg-white rounded-xl shadow-xl border border-slate-200 z-50 overflow-hidden max-h-52 overflow-y-auto">
               {results.length > 0 ? results.map((r) => (
                 <button
                   key={r.id}
                   type="button"
-                  className="w-full text-right px-3 py-2.5 hover:bg-slate-50 transition-colors flex items-center gap-2.5 border-b border-slate-50 last:border-0"
+                  className="w-full text-start px-3 py-2.5 hover:bg-slate-50 transition-colors flex items-center gap-2.5 border-b border-slate-50 last:border-0"
                   onClick={() => { onChange(entityType, r.id, r.name); setSearch(""); setShowDropdown(false); }}
                 >
                   {entityType === "CUSTOMER"
@@ -1674,7 +1687,7 @@ function EntityPicker({
                   {r.subtitle && <span className="text-xs text-petra-muted flex-shrink-0">{r.subtitle}</span>}
                 </button>
               )) : (
-                <div className="px-3 py-4 text-center text-xs text-petra-muted">לא נמצאו תוצאות</div>
+                <div className="px-3 py-4 text-center text-xs text-petra-muted">{t("entityPicker.noResults")}</div>
               )}
             </div>
           )}
@@ -1713,6 +1726,9 @@ function NewTaskModal({
   onSubmit: (data: { title: string; description: string; category: string; priority: string; dueDate: string; dueAt: string; relatedEntityType: string | null; relatedEntityId: string | null }) => void;
   isPending: boolean;
 }) {
+  const t = useTranslations("tasks");
+  const tc = useTranslations("common");
+  const { locale, cfg } = useBusinessLocale();
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -1730,7 +1746,7 @@ function NewTaskModal({
       <div className="modal-backdrop" onClick={onClose} />
       <div className="modal-content max-w-md mx-4 p-6">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-bold text-petra-text">משימה חדשה</h2>
+          <h2 className="text-lg font-bold text-petra-text">{t("form.newTitle")}</h2>
           <button
             onClick={onClose}
             className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted"
@@ -1741,20 +1757,20 @@ function NewTaskModal({
 
         <div className="space-y-4">
           <div>
-            <label className="label">כותרת *</label>
+            <label className="label">{t("form.title")}</label>
             <input
               className="input"
-              placeholder="מה צריך לעשות?"
+              placeholder={t("form.titlePlaceholder")}
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
             />
           </div>
           <div>
-            <label className="label">תיאור</label>
+            <label className="label">{t("form.description")}</label>
             <textarea
               className="input"
               rows={2}
-              placeholder="פרטים נוספים..."
+              placeholder={t("form.descriptionPlaceholder")}
               value={form.description}
               onChange={(e) =>
                 setForm({ ...form, description: e.target.value })
@@ -1763,7 +1779,7 @@ function NewTaskModal({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">קטגוריה</label>
+              <label className="label">{t("form.category")}</label>
               <select
                 className="input"
                 value={form.category}
@@ -1773,13 +1789,13 @@ function NewTaskModal({
               >
                 {CATEGORIES.filter((c) => c.id !== "ALL").map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.label}
+                    {t(`categories.${c.id}`)}
                   </option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="label">עדיפות</label>
+              <label className="label">{t("form.priority")}</label>
               <select
                 className="input"
                 value={form.priority}
@@ -1787,18 +1803,18 @@ function NewTaskModal({
                   setForm({ ...form, priority: e.target.value })
                 }
               >
-                <option value="LOW">נמוכה</option>
-                <option value="MEDIUM">בינונית</option>
-                <option value="HIGH">גבוהה</option>
-                <option value="URGENT">דחופה</option>
+                <option value="LOW">{t("priorities.LOW")}</option>
+                <option value="MEDIUM">{t("priorities.MEDIUM")}</option>
+                <option value="HIGH">{t("priorities.HIGH")}</option>
+                <option value="URGENT">{t("priorities.URGENT")}</option>
               </select>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">תאריך יעד *</label>
+              <label className="label">{t("form.dueDateRequired")}</label>
               <input
-                type="date" lang="he"
+                type="date" lang={cfg.lang}
                 className="input"
                 value={form.dueDate}
                 onChange={(e) =>
@@ -1807,7 +1823,7 @@ function NewTaskModal({
               />
             </div>
             <div>
-              <label className="label">שעה</label>
+              <label className="label">{t("form.time")}</label>
               <input
                 type="time"
                 className="input"
@@ -1825,13 +1841,13 @@ function NewTaskModal({
                 {form.dueAt
                   ? format(
                       new Date(`${form.dueDate}T${form.dueAt}:00`),
-                      "EEEE, d MMMM yyyy · HH:mm",
-                      { locale: he }
+                      t.raw("dateFormats.dueWithTime"),
+                      { locale: dateFnsLocaleFor(locale) }
                     )
                   : format(
                       new Date(form.dueDate + "T00:00:00"),
-                      "EEEE, d MMMM yyyy · כל היום",
-                      { locale: he }
+                      t.raw("dateFormats.dueAllDay"),
+                      { locale: dateFnsLocaleFor(locale) }
                     )}
               </span>
             </div>
@@ -1851,10 +1867,10 @@ function NewTaskModal({
             onClick={() => onSubmit({ ...form, relatedEntityType: entityType, relatedEntityId: entityId })}
           >
             <Plus className="w-4 h-4" />
-            {isPending ? "שומר..." : "צור משימה"}
+            {isPending ? tc("progress.saving") : t("form.create")}
           </button>
           <button className="btn-secondary" onClick={onClose}>
-            ביטול
+            {tc("actions.cancel")}
           </button>
         </div>
       </div>
@@ -1875,6 +1891,9 @@ function EditTaskModal({
   onSubmit: (data: { id: string; title: string; description: string; category: string; priority: string; dueDate: string; dueAt: string; relatedEntityType: string | null; relatedEntityId: string | null }) => void;
   isPending: boolean;
 }) {
+  const t = useTranslations("tasks");
+  const tc = useTranslations("common");
+  const { locale, cfg } = useBusinessLocale();
   const initialDate = task.dueAt
     ? format(new Date(task.dueAt), "yyyy-MM-dd")
     : task.dueDate
@@ -1900,7 +1919,7 @@ function EditTaskModal({
       <div className="modal-backdrop" onClick={onClose} />
       <div className="modal-content max-w-md mx-4 p-6">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-bold text-petra-text">עריכת משימה</h2>
+          <h2 className="text-lg font-bold text-petra-text">{t("form.editTitle")}</h2>
           <button
             onClick={onClose}
             className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted"
@@ -1911,7 +1930,7 @@ function EditTaskModal({
 
         <div className="space-y-4">
           <div>
-            <label className="label">כותרת *</label>
+            <label className="label">{t("form.title")}</label>
             <input
               className="input"
               value={form.title}
@@ -1919,7 +1938,7 @@ function EditTaskModal({
             />
           </div>
           <div>
-            <label className="label">תיאור</label>
+            <label className="label">{t("form.description")}</label>
             <textarea
               className="input"
               rows={2}
@@ -1929,43 +1948,43 @@ function EditTaskModal({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">קטגוריה</label>
+              <label className="label">{t("form.category")}</label>
               <select
                 className="input"
                 value={form.category}
                 onChange={(e) => setForm({ ...form, category: e.target.value })}
               >
                 {CATEGORIES.filter((c) => c.id !== "ALL").map((c) => (
-                  <option key={c.id} value={c.id}>{c.label}</option>
+                  <option key={c.id} value={c.id}>{t(`categories.${c.id}`)}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="label">עדיפות</label>
+              <label className="label">{t("form.priority")}</label>
               <select
                 className="input"
                 value={form.priority}
                 onChange={(e) => setForm({ ...form, priority: e.target.value })}
               >
-                <option value="LOW">נמוכה</option>
-                <option value="MEDIUM">בינונית</option>
-                <option value="HIGH">גבוהה</option>
-                <option value="URGENT">דחופה</option>
+                <option value="LOW">{t("priorities.LOW")}</option>
+                <option value="MEDIUM">{t("priorities.MEDIUM")}</option>
+                <option value="HIGH">{t("priorities.HIGH")}</option>
+                <option value="URGENT">{t("priorities.URGENT")}</option>
               </select>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">תאריך יעד</label>
+              <label className="label">{t("form.dueDate")}</label>
               <input
-                type="date" lang="he"
+                type="date" lang={cfg.lang}
                 className="input"
                 value={form.dueDate}
                 onChange={(e) => setForm({ ...form, dueDate: e.target.value })}
               />
             </div>
             <div>
-              <label className="label">שעה</label>
+              <label className="label">{t("form.time")}</label>
               <input
                 type="time"
                 className="input"
@@ -1979,8 +1998,8 @@ function EditTaskModal({
               <Timer className="w-3.5 h-3.5" />
               <span>
                 {form.dueAt
-                  ? format(new Date(`${form.dueDate}T${form.dueAt}:00`), "EEEE, d MMMM yyyy · HH:mm", { locale: he })
-                  : format(new Date(form.dueDate + "T00:00:00"), "EEEE, d MMMM yyyy · כל היום", { locale: he })}
+                  ? format(new Date(`${form.dueDate}T${form.dueAt}:00`), t.raw("dateFormats.dueWithTime"), { locale: dateFnsLocaleFor(locale) })
+                  : format(new Date(form.dueDate + "T00:00:00"), t.raw("dateFormats.dueAllDay"), { locale: dateFnsLocaleFor(locale) })}
               </span>
             </div>
           )}
@@ -1999,9 +2018,9 @@ function EditTaskModal({
             onClick={() => onSubmit({ id: task.id, ...form, relatedEntityType: entityType, relatedEntityId: entityId })}
           >
             <Pencil className="w-4 h-4" />
-            {isPending ? "שומר..." : "שמור שינויים"}
+            {isPending ? tc("progress.saving") : t("form.saveChanges")}
           </button>
-          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+          <button className="btn-secondary" onClick={onClose}>{tc("actions.cancel")}</button>
         </div>
       </div>
     </div>
@@ -2021,6 +2040,9 @@ function PostponeModal({
   onSubmit: (data: { id: string; dueDate: string; dueAt: string | null }) => void;
   isPending: boolean;
 }) {
+  const t = useTranslations("tasks");
+  const tc = useTranslations("common");
+  const { locale, cfg } = useBusinessLocale();
   const currentDate = task.dueDate
     ? format(new Date(task.dueDate), "yyyy-MM-dd")
     : task.dueAt
@@ -2035,9 +2057,9 @@ function PostponeModal({
   const [newTime, setNewTime] = useState(currentTime);
 
   const quickDates = [
-    { label: "מחר", value: format(addDays(new Date(), 1), "yyyy-MM-dd") },
-    { label: "עוד יומיים", value: format(addDays(new Date(), 2), "yyyy-MM-dd") },
-    { label: "עוד שבוע", value: format(addDays(new Date(), 7), "yyyy-MM-dd") },
+    { label: t("postpone.tomorrow"), value: format(addDays(new Date(), 1), "yyyy-MM-dd") },
+    { label: t("postpone.inTwoDays"), value: format(addDays(new Date(), 2), "yyyy-MM-dd") },
+    { label: t("postpone.inAWeek"), value: format(addDays(new Date(), 7), "yyyy-MM-dd") },
   ];
 
   return (
@@ -2045,7 +2067,7 @@ function PostponeModal({
       <div className="modal-backdrop" onClick={onClose} />
       <div className="modal-content max-w-sm mx-4 p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-petra-text">דחיית משימה</h2>
+          <h2 className="text-lg font-bold text-petra-text">{t("postpone.title")}</h2>
           <button
             onClick={onClose}
             className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted"
@@ -2078,16 +2100,16 @@ function PostponeModal({
 
         <div className="grid grid-cols-2 gap-3 mb-4">
           <div>
-            <label className="label">תאריך חדש</label>
+            <label className="label">{t("postpone.newDate")}</label>
             <input
-              type="date" lang="he"
+              type="date" lang={cfg.lang}
               className="input"
               value={newDate}
               onChange={(e) => setNewDate(e.target.value)}
             />
           </div>
           <div>
-            <label className="label">שעה</label>
+            <label className="label">{t("form.time")}</label>
             <input
               type="time"
               className="input"
@@ -2104,13 +2126,13 @@ function PostponeModal({
               {newTime
                 ? format(
                     new Date(`${newDate}T${newTime}:00`),
-                    "EEEE, d MMMM yyyy · HH:mm",
-                    { locale: he }
+                    t.raw("dateFormats.dueWithTime"),
+                    { locale: dateFnsLocaleFor(locale) }
                   )
                 : format(
                     new Date(newDate + "T00:00:00"),
-                    "EEEE, d MMMM yyyy · כל היום",
-                    { locale: he }
+                    t.raw("dateFormats.dueAllDay"),
+                    { locale: dateFnsLocaleFor(locale) }
                   )}
             </span>
           </div>
@@ -2129,10 +2151,10 @@ function PostponeModal({
             }
           >
             <CalendarClock className="w-4 h-4" />
-            {isPending ? "מעדכן..." : "דחה משימה"}
+            {isPending ? tc("progress.updating") : t("postpone.submit")}
           </button>
           <button className="btn-secondary" onClick={onClose}>
-            ביטול
+            {tc("actions.cancel")}
           </button>
         </div>
       </div>
@@ -2142,31 +2164,19 @@ function PostponeModal({
 
 // ─── Export Tasks Modal ────────────────────────────────────────────────────────
 
+// Header labels (= xlsx column titles) → tasks.export.columns.<key>
 const EXPORT_COLUMNS = [
-  { key: "title", label: "כותרת", default: true },
-  { key: "description", label: "תיאור", default: true },
-  { key: "category", label: "קטגוריה", default: true },
-  { key: "priority", label: "עדיפות", default: true },
-  { key: "status", label: "סטטוס", default: true },
-  { key: "dueDate", label: "תאריך יעד", default: true },
-  { key: "dueAt", label: "שעת יעד", default: false },
-  { key: "createdAt", label: "תאריך יצירה", default: true },
-  { key: "completedAt", label: "תאריך השלמה", default: false },
-  { key: "relatedEntityName", label: "שיוך (לקוח/חיה)", default: true },
+  { key: "title", default: true },
+  { key: "description", default: true },
+  { key: "category", default: true },
+  { key: "priority", default: true },
+  { key: "status", default: true },
+  { key: "dueDate", default: true },
+  { key: "dueAt", default: false },
+  { key: "createdAt", default: true },
+  { key: "completedAt", default: false },
+  { key: "relatedEntityName", default: true },
 ] as const;
-
-const STATUS_LABEL: Record<string, string> = {
-  OPEN: "פתוח",
-  COMPLETED: "הושלם",
-  CANCELED: "בוטל",
-};
-
-const PRIORITY_LABEL: Record<string, string> = {
-  LOW: "נמוכה",
-  MEDIUM: "בינונית",
-  HIGH: "גבוהה",
-  URGENT: "דחופה",
-};
 
 function ExportTasksModal({
   tasks,
@@ -2175,6 +2185,8 @@ function ExportTasksModal({
   tasks: Task[];
   onClose: () => void;
 }) {
+  const t = useTranslations("tasks");
+  const tc = useTranslations("common");
   const [selectedCols, setSelectedCols] = useState<Set<string>>(
     () => new Set(EXPORT_COLUMNS.filter((c) => c.default).map((c) => c.key))
   );
@@ -2195,13 +2207,19 @@ function ExportTasksModal({
 
   const handleExport = async () => {
     if (selectedCols.size === 0) {
-      toast.error("בחר לפחות עמודה אחת לייצוא");
+      toast.error(t("export.noColumns"));
       return;
     }
     setExporting(true);
     try {
       const XLSX = await import("xlsx");
-      const cols = EXPORT_COLUMNS.filter((c) => selectedCols.has(c.key));
+      const cols = EXPORT_COLUMNS.filter((c) => selectedCols.has(c.key)).map((c) => ({
+        ...c,
+        label: t(`export.columns.${c.key}`),
+      }));
+      const dateFmt = t.raw("dateFormats.exportDate");
+      const timeFmt = t.raw("dateFormats.exportTime");
+      const dateTimeFmt = t.raw("dateFormats.exportDateTime");
 
       const rows = tasks.map((task) => {
         const row: Record<string, string> = {};
@@ -2214,32 +2232,32 @@ function ExportTasksModal({
               row[col.label] = task.description ?? "";
               break;
             case "category":
-              row[col.label] = CATEGORY_LABEL[task.category] ?? task.category;
+              row[col.label] = categoryLabel(t, task.category);
               break;
             case "priority":
-              row[col.label] = PRIORITY_LABEL[task.priority] ?? task.priority;
+              row[col.label] = priorityLabel(t, task.priority);
               break;
             case "status":
-              row[col.label] = STATUS_LABEL[task.status] ?? task.status;
+              row[col.label] = taskStatusLabel(t, task.status);
               break;
             case "dueDate":
               row[col.label] = task.dueDate
-                ? format(new Date(task.dueDate), "dd/MM/yyyy")
+                ? format(new Date(task.dueDate), dateFmt)
                 : task.dueAt
-                ? format(new Date(task.dueAt), "dd/MM/yyyy")
+                ? format(new Date(task.dueAt), dateFmt)
                 : "";
               break;
             case "dueAt":
               row[col.label] = task.dueAt
-                ? format(new Date(task.dueAt), "HH:mm")
+                ? format(new Date(task.dueAt), timeFmt)
                 : "";
               break;
             case "createdAt":
-              row[col.label] = format(new Date(task.createdAt), "dd/MM/yyyy HH:mm");
+              row[col.label] = format(new Date(task.createdAt), dateTimeFmt);
               break;
             case "completedAt":
               row[col.label] = task.completedAt
-                ? format(new Date(task.completedAt), "dd/MM/yyyy HH:mm")
+                ? format(new Date(task.completedAt), dateTimeFmt)
                 : "";
               break;
             case "relatedEntityName":
@@ -2260,7 +2278,7 @@ function ExportTasksModal({
       ws["!cols"] = maxWidths.map((w) => ({ wch: w }));
 
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "משימות");
+      XLSX.utils.book_append_sheet(wb, ws, t("export.sheetName"));
 
       const buf = XLSX.write(wb, { type: "array", bookType: "xlsx" });
       const blob = new Blob([buf], {
@@ -2269,14 +2287,14 @@ function ExportTasksModal({
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `משימות_${format(new Date(), "yyyy-MM-dd")}.xlsx`;
+      a.download = t("export.fileName", { date: format(new Date(), "yyyy-MM-dd") });
       a.click();
       URL.revokeObjectURL(url);
 
-      toast.success(`יוצאו ${tasks.length} משימות לאקסל`);
+      toast.success(t("export.success", { count: tasks.length }));
       onClose();
     } catch {
-      toast.error("שגיאה בייצוא");
+      toast.error(t("export.error"));
     } finally {
       setExporting(false);
     }
@@ -2289,7 +2307,7 @@ function ExportTasksModal({
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold text-petra-text flex items-center gap-2">
             <FileSpreadsheet className="w-5 h-5 text-emerald-500" />
-            ייצוא משימות לאקסל
+            {t("export.title")}
           </h2>
           <button
             onClick={onClose}
@@ -2300,7 +2318,7 @@ function ExportTasksModal({
         </div>
 
         <p className="text-sm text-petra-muted mb-4">
-          {tasks.length} משימות ייצאו (לפי הסינון הנוכחי). בחר אילו עמודות לכלול:
+          {t("export.intro", { count: tasks.length })}
         </p>
 
         {/* Select all / none */}
@@ -2309,14 +2327,14 @@ function ExportTasksModal({
             onClick={selectAll}
             className="text-xs text-brand-600 hover:text-brand-800 font-medium"
           >
-            בחר הכל
+            {t("export.selectAll")}
           </button>
           <span className="text-xs text-petra-muted">|</span>
           <button
             onClick={selectNone}
             className="text-xs text-petra-muted hover:text-petra-text font-medium"
           >
-            נקה הכל
+            {t("export.clearAll")}
           </button>
         </div>
 
@@ -2333,7 +2351,7 @@ function ExportTasksModal({
                 onChange={() => toggleCol(col.key)}
                 className="w-4 h-4 rounded accent-brand-500"
               />
-              <span className="text-sm text-petra-text">{col.label}</span>
+              <span className="text-sm text-petra-text">{t(`export.columns.${col.key}`)}</span>
             </label>
           ))}
         </div>
@@ -2345,10 +2363,10 @@ function ExportTasksModal({
             onClick={handleExport}
           >
             <Download className="w-4 h-4" />
-            {exporting ? "מייצא..." : `ייצא (${selectedCols.size} עמודות)`}
+            {exporting ? tc("progress.exporting") : t("export.submit", { count: selectedCols.size })}
           </button>
           <button className="btn-secondary" onClick={onClose}>
-            ביטול
+            {tc("actions.cancel")}
           </button>
         </div>
       </div>

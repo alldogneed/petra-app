@@ -1,0 +1,69 @@
+{
+  "threshold_pct": 0.5,
+  "results": {
+    "403-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "403-mobile.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "dashboard-desktop.png": {
+      "pct": 0.031,
+      "ok": true
+    },
+    "dashboard-mobile.png": {
+      "pct": 0.081,
+      "ok": true
+    },
+    "help-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "help-mobile.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "help_connect-ai-desktop.png": {
+      "pct": 0.004,
+      "ok": true
+    },
+    "help_connect-ai-mobile.png": {
+      "pct": 0.013,
+      "ok": true
+    },
+    "support-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "support-mobile.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "this-page-does-not-exist-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "this-page-does-not-exist-mobile.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "tutorials-desktop.png": {
+      "pct": 0.001,
+      "ok": true
+    },
+    "tutorials-mobile.png": {
+      "pct": 0.002,
+      "ok": true
+    },
+    "upgrade-desktop.png": {
+      "pct": 0.001,
+      "ok": true
+    },
+    "upgrade-mobile.png": {
+      "pct": 0.003,
+      "ok": true
+    }
+  }
+}

@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useRef } from "react";
 import { X, Download, Share } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { usePWAInstall } from "./PWAInstallProvider";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 
 // All state is per-device (localStorage) — PWA install is a per-device/per-browser
 // thing, so a DB flag would wrongly suppress the nudge on a second device.
@@ -46,6 +48,8 @@ function isMobile(): boolean {
 
 export default function InstallPWABanner() {
   const { canInstall, isIOS, isInstalled, promptInstall } = usePWAInstall();
+  const t = useTranslations("layout.installPWABanner");
+  const { cfg } = useBusinessLocale();
   const [show, setShow] = useState(false);
   const [eligible, setEligible] = useState(false);
   const [dontShowAgain, setDontShowAgain] = useState(false);
@@ -106,7 +110,7 @@ export default function InstallPWABanner() {
 
   return (
     <div
-      dir="rtl"
+      dir={cfg.dir}
       // z-40: below modals (.modal-overlay is z-50) so it never covers their
       // bottom action buttons on mobile.
       // Mobile: sits ABOVE the bottom nav (offset by the nav's 5rem height +
@@ -121,17 +125,17 @@ export default function InstallPWABanner() {
         <img src="/icon.png" alt="Petra" className="w-10 h-10 rounded-xl flex-shrink-0 mt-0.5" />
 
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-sm leading-tight">הוסף את Petra למסך הבית</p>
+          <p className="font-semibold text-sm leading-tight">{t("title")}</p>
 
           {iosSafari ? (
             <p className="text-xs text-slate-300 mt-0.5 leading-snug">
-              לחץ על{" "}
-              <Share className="inline w-3.5 h-3.5 mx-0.5 text-blue-400" />
-              {" "}ואז &ldquo;הוסף למסך הבית&rdquo;
+              {t.rich("iosInstructions", {
+                icon: () => <Share className="inline w-3.5 h-3.5 mx-0.5 text-blue-400" />,
+              })}
             </p>
           ) : (
             <p className="text-xs text-slate-300 mt-0.5">
-              גישה מהירה, עבודה כמו אפליקציה אמיתית
+              {t("subtitle")}
             </p>
           )}
         </div>
@@ -142,28 +146,28 @@ export default function InstallPWABanner() {
             className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex-shrink-0 transition-colors"
           >
             <Download className="w-3.5 h-3.5" />
-            התקנה
+            {t("install")}
           </button>
         )}
 
         <button
           onClick={handleClose}
           className="flex-shrink-0 text-slate-400 hover:text-white p-1 transition-colors"
-          aria-label="אחר כך"
+          aria-label={t("later")}
         >
           <X className="w-4 h-4" />
         </button>
       </div>
 
       {/* Don't-show-again — soft close (X) snoozes; checked = never again */}
-      <label className="flex items-center gap-2 mt-2 pr-[52px] text-xs text-slate-400 cursor-pointer select-none">
+      <label className="flex items-center gap-2 mt-2 ps-[52px] text-xs text-slate-400 cursor-pointer select-none">
         <input
           type="checkbox"
           checked={dontShowAgain}
           onChange={(e) => setDontShowAgain(e.target.checked)}
           className="w-3.5 h-3.5 accent-orange-500"
         />
-        אל תציג שוב
+        {t("dontShowAgain")}
       </label>
     </div>
   );

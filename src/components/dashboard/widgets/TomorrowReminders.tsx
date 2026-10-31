@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { usePlan } from "@/hooks/usePlan";
 import { toWhatsAppPhone } from "@/lib/utils";
 import { DashboardStats } from "@/components/dashboard/dashboard-shared";
@@ -13,6 +14,7 @@ export function TomorrowReminders({
 }: {
   appointments: DashboardStats["tomorrowAppointments"];
 }) {
+  const t = useTranslations("dashboard.tomorrowReminders");
   const [sent, setSent] = useState<Set<string>>(new Set());
   const { can } = usePlan();
   const canWhatsApp = can("whatsapp_reminders");
@@ -23,7 +25,7 @@ export function TomorrowReminders({
 
   function buildMsg(a: DashboardStats["tomorrowAppointments"][0]) {
     return encodeURIComponent(
-      `שלום ${a.customerName}! 😊\nתזכורת לתור מחר בשעה ${a.startTime}${a.petName ? ` עם ${a.petName}` : ""} לשירות ${a.serviceName}.\nנתראה! 🐾`
+      `שלום ${a.customerName}! 😊\nתזכורת לתור מחר בשעה ${a.startTime}${a.petName ? ` עם ${a.petName}` : ""} לשירות ${a.serviceName}.\nנתראה! 🐾` // i18n-ok — WhatsApp reminder text sent to the customer
     );
   }
 
@@ -46,19 +48,19 @@ export function TomorrowReminders({
   return (
     <DashCard>
       <DashCardHeader
-        title={canWhatsApp ? "תזכורות למחר" : "תורים מחר"}
+        title={canWhatsApp ? t("titleWhatsApp") : t("titlePlain")}
         subtitle={
           canWhatsApp
-            ? `${appointments.length} תורים מתוכננים`
-            : `${appointments.length} תורים — זכור ליצור קשר עם הלקוחות`
+            ? t("subtitleWhatsApp", { count: appointments.length })
+            : t("subtitlePlain", { count: appointments.length })
         }
         actions={
           canWhatsApp ? (
             withPhone.length > 1 ? (
-              <MiniButton onClick={sendAll}>שלח הכל ({withPhone.length})</MiniButton>
+              <MiniButton onClick={sendAll}>{t("sendAll", { count: withPhone.length })}</MiniButton>
             ) : undefined
           ) : (
-            <DashLink href="/upgrade">שדרג לשליחת WhatsApp</DashLink>
+            <DashLink href="/upgrade">{t("upgradeLink")}</DashLink>
           )
         }
       />
@@ -81,15 +83,15 @@ export function TomorrowReminders({
             </Link>
             {canWhatsApp ? (
               a.customerPhone ? (
-                <WaTextButton onClick={() => sendOne(a)} title={hasSent ? "שלח שוב" : "שלח תזכורת בוואטסאפ"}>
-                  {hasSent ? "נשלח ✓" : "שלח"}
+                <WaTextButton onClick={() => sendOne(a)} title={hasSent ? t("resendTitle") : t("sendTitle")}>
+                  {hasSent ? t("sent") : t("send")}
                 </WaTextButton>
               ) : (
-                <span className="text-xs text-slate-500 whitespace-nowrap">אין טלפון</span>
+                <span className="text-xs text-slate-500 whitespace-nowrap">{t("noPhone")}</span>
               )
             ) : (
               <span className="text-xs text-slate-500 whitespace-nowrap tabular-nums [unicode-bidi:plaintext]">
-                {a.customerPhone || "אין טלפון"}
+                {a.customerPhone || t("noPhone")}
               </span>
             )}
           </div>
@@ -98,11 +100,13 @@ export function TomorrowReminders({
 
       {!canWhatsApp && (
         <p className="m-0 pt-3 pb-1 text-xs text-slate-500">
-          שדרג ל
-          <Link href="/upgrade" className="text-orange-600 hover:text-orange-700 hover:underline">
-            פרו
-          </Link>{" "}
-          כדי לשלוח תזכורות WhatsApp אוטומטיות
+          {t.rich("upgradeHint", {
+            link: (c) => (
+              <Link href="/upgrade" className="text-orange-600 hover:text-orange-700 hover:underline">
+                {c}
+              </Link>
+            ),
+          })}
         </p>
       )}
     </DashCard>

@@ -3,6 +3,8 @@
 import { Bell, Clock, X, Calendar } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 
 interface Appointment {
   id: string;
@@ -41,16 +43,22 @@ function isTomorrow(dateStr: string) {
   );
 }
 
-function getDateLabel(dateStr: string) {
-  if (isToday(dateStr)) return "היום";
-  if (isTomorrow(dateStr)) return "מחר";
+function getDateLabel(
+  dateStr: string,
+  t: ReturnType<typeof useTranslations<"layout.notificationBell">>,
+  locale: string,
+) {
+  if (isToday(dateStr)) return t("today");
+  if (isTomorrow(dateStr)) return t("tomorrow");
   const d = new Date(dateStr);
-  return d.toLocaleDateString("he-IL", { day: "numeric", month: "short" });
+  return d.toLocaleDateString(locale, { day: "numeric", month: "short" });
 }
 
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const t = useTranslations("layout.notificationBell");
+  const { locale, cfg } = useBusinessLocale();
 
   const { data } = useQuery<DashboardData>({
     queryKey: ["dashboard"],
@@ -80,7 +88,7 @@ export function NotificationBell() {
   // Group by date label
   const grouped: Record<string, Appointment[]> = {};
   for (const appt of upcoming) {
-    const label = getDateLabel(appt.date);
+    const label = getDateLabel(appt.date, t, locale);
     if (!grouped[label]) grouped[label] = [];
     grouped[label].push(appt);
   }
@@ -90,12 +98,12 @@ export function NotificationBell() {
       <button
         onClick={() => setOpen((v) => !v)}
         className="relative w-9 h-9 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-all duration-150"
-        aria-label="התראות"
+        aria-label={t("title")}
       >
         <Bell className="w-[18px] h-[18px]" />
         {badgeCount > 0 && (
           <span
-            className="absolute top-1 left-1 min-w-[16px] h-4 px-0.5 rounded-full border-2 border-white flex items-center justify-center text-[9px] font-bold text-white"
+            className="absolute top-1 end-1 min-w-[16px] h-4 px-0.5 rounded-full border-2 border-white flex items-center justify-center text-[9px] font-bold text-white"
             style={{ background: "#F97316", lineHeight: 1 }}
           >
             {badgeCount > 9 ? "9+" : badgeCount}
@@ -105,17 +113,17 @@ export function NotificationBell() {
 
       {open && (
         <div
-          className="absolute left-0 top-11 w-80 max-w-[calc(100vw-1rem)] rounded-2xl shadow-xl border border-slate-200 overflow-hidden z-50"
+          className="absolute end-0 top-11 w-80 max-w-[calc(100vw-1rem)] rounded-2xl shadow-xl border border-slate-200 overflow-hidden z-50"
           style={{ background: "#fff" }}
-          dir="rtl"
+          dir={cfg.dir}
         >
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
             <div>
-              <p className="text-[14px] font-semibold text-slate-800">התראות</p>
+              <p className="text-[14px] font-semibold text-slate-800">{t("title")}</p>
               {todayCount > 0 && (
                 <p className="text-[11px] text-slate-400 mt-0.5">
-                  {todayCount} תורים היום
+                  {t("todayCount", { count: todayCount })}
                 </p>
               )}
             </div>
@@ -132,7 +140,7 @@ export function NotificationBell() {
             {upcoming.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 text-center">
                 <Calendar className="w-8 h-8 text-slate-300 mb-2" />
-                <p className="text-sm text-slate-400">אין תורים קרובים</p>
+                <p className="text-sm text-slate-400">{t("empty")}</p>
               </div>
             ) : (
               Object.entries(grouped).map(([label, appts]) => (
@@ -192,7 +200,7 @@ export function NotificationBell() {
                 className="text-[12px] font-medium text-orange-500 hover:text-orange-600 transition-colors"
                 onClick={() => setOpen(false)}
               >
-                פתח יומן ←
+                {t("openCalendar")}
               </a>
             </div>
           )}

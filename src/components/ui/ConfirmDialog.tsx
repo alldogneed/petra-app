@@ -3,6 +3,8 @@
 import { useEffect, useRef } from "react";
 import { AlertTriangle, Loader2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -26,13 +28,16 @@ export function ConfirmDialog({
   open,
   title,
   description,
-  confirmLabel = "אישור",
-  cancelLabel = "ביטול",
+  confirmLabel,
+  cancelLabel,
   danger = false,
   loading = false,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
+  const t = useTranslations("ui.confirmDialog");
+  const tc = useTranslations("common");
+  const { cfg } = useBusinessLocale();
   const cancelRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -50,7 +55,7 @@ export function ConfirmDialog({
   return (
     <div
       className="modal-overlay"
-      dir="rtl"
+      dir={cfg.dir}
       onClick={(e) => { if (e.target === e.currentTarget && !loading) onCancel(); }}
     >
       <div
@@ -69,14 +74,14 @@ export function ConfirmDialog({
             </div>
             <h2 id="confirm-dialog-title" className="text-base font-bold text-petra-text">{title}</h2>
           </div>
-          <button type="button" onClick={onCancel} disabled={loading} className="text-petra-muted hover:text-petra-text" aria-label="סגור">
+          <button type="button" onClick={onCancel} disabled={loading} className="text-petra-muted hover:text-petra-text" aria-label={tc("actions.close")}>
             <X className="w-5 h-5" />
           </button>
         </div>
         {description && <div className="text-sm text-petra-muted mb-5 leading-relaxed">{description}</div>}
         <div className="flex gap-2 justify-end">
           <button ref={cancelRef} type="button" className="btn-secondary" onClick={onCancel} disabled={loading}>
-            {cancelLabel}
+            {cancelLabel ?? tc("actions.cancel")}
           </button>
           <button
             type="button"
@@ -85,7 +90,7 @@ export function ConfirmDialog({
             disabled={loading}
           >
             {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-            {confirmLabel}
+            {confirmLabel ?? t("confirm")}
           </button>
         </div>
       </div>

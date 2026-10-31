@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Play, X, Users, ShoppingBag, Clock, Sparkles, LayoutDashboard, Target, Settings, Hotel } from "lucide-react";
 import { TUTORIAL_VIDEOS, TUTORIAL_CATEGORIES, type TutorialVideo } from "@/lib/tutorials-config";
 
@@ -14,6 +15,7 @@ const ICON_MAP: Record<string, React.FC<{ className?: string }>> = {
 };
 
 export default function TutorialsPage() {
+  const t = useTranslations("help.tutorialsPage");
   const [activeVideo, setActiveVideo] = useState<TutorialVideo | null>(null);
 
   return (
@@ -21,9 +23,9 @@ export default function TutorialsPage() {
       {/* Header */}
       <div className="page-header">
         <div>
-          <h1 className="page-title">סרטוני הדרכה</h1>
+          <h1 className="page-title">{t("title")}</h1>
           <p className="text-sm text-petra-muted mt-0.5">
-            סרטונים קצרים שיעזרו לך להפיק את המקסימום מפטרה
+            {t("subtitle")}
           </p>
         </div>
       </div>
@@ -76,10 +78,11 @@ function VideoCard({
   video: TutorialVideo;
   onPlay: () => void;
 }) {
+  const t = useTranslations("help.tutorialsPage");
   return (
     <button
       onClick={onPlay}
-      className="group card text-right w-full overflow-hidden hover:shadow-card-hover hover:-translate-y-[1px] transition-all duration-200 cursor-pointer"
+      className="group card text-start w-full overflow-hidden hover:shadow-card-hover hover:-translate-y-[1px] transition-all duration-200 cursor-pointer"
     >
       {/* Thumbnail area */}
       <div className="relative bg-gradient-to-br from-slate-800 to-slate-900 h-40 flex items-center justify-center">
@@ -95,21 +98,21 @@ function VideoCard({
 
         {/* Play button */}
         <div className="relative w-14 h-14 rounded-full bg-brand-500 flex items-center justify-center shadow-lg group-hover:scale-110 group-hover:bg-brand-600 transition-all duration-200">
-          <Play className="w-6 h-6 text-white fill-white mr-[-2px]" />
+          <Play className="w-6 h-6 text-white fill-white mr-[-2px]" />{/* rtl-ok: play triangle never mirrors */}
         </div>
 
         {/* New badge */}
         {video.isNew && (
-          <div className="absolute top-2 right-2">
+          <div className="absolute top-2 start-2">
             <span className="inline-flex items-center gap-1 bg-brand-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
               <Sparkles className="w-3 h-3" />
-              חדש
+              {t("newBadge")}
             </span>
           </div>
         )}
 
         {/* Duration */}
-        <div className="absolute bottom-2 left-2 flex items-center gap-1 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full">
+        <div className="absolute bottom-2 end-2 flex items-center gap-1 bg-black/60 text-white text-xs px-2 py-0.5 rounded-full">
           <Clock className="w-3 h-3" />
           {video.durationLabel}
         </div>
@@ -145,7 +148,7 @@ function VideoModal({
           >
             <X className="w-5 h-5 text-white" />
           </button>
-          <div className="text-right flex-1 mr-2">
+          <div className="text-start flex-1 ms-2">
             <h3 className="text-white font-bold text-base sm:text-lg">{video.title}</h3>
             <p className="text-slate-400 text-xs sm:text-sm hidden sm:block">{video.description}</p>
           </div>

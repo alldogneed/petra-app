@@ -7,6 +7,8 @@ import { cn, fetchJSON } from "@/lib/utils";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 
 // ─── Legacy export ────────────────────────────────────────────────────────────
 // The settings tab used to be "תשלומים" (invoicing + contracts). Invoicing
@@ -44,6 +46,9 @@ export function ContractsTab() {
   // Deleting a template with signed contracts additionally needs CRITICAL_DELETE
   // (server answers 403 code SIGNED_CONTRACTS with a Hebrew message).
   const { canManageContracts: canEditTemplates } = usePermissions();
+  const t = useTranslations("settings.contractsTab");
+  const tc = useTranslations("common");
+  const { locale } = useBusinessLocale();
 
   const { data: templates = [], isLoading, isError } = useQuery<ContractTemplate[]>({
     queryKey: ["contract-templates"],
@@ -54,18 +59,18 @@ export function ContractsTab() {
     mutationFn: (id: string) =>
       fetch(`/api/contracts/templates/${id}`, { method: "DELETE" }).then(async (r) => {
         const d = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error((typeof d?.error === "string" && d.error) || "שגיאה במחיקת התבנית");
+        if (!r.ok) throw new Error((typeof d?.error === "string" && d.error) || t("toasts.deleteError"));
         return d;
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["contract-templates"] });
       setDeleteTarget(null);
-      toast.success("תבנית נמחקה");
+      toast.success(t("toasts.deleted"));
     },
     // Server's Hebrew message — incl. 403 SIGNED_CONTRACTS ("לתבנית יש N חוזים חתומים…").
     onError: (e: Error) => {
       setDeleteTarget(null);
-      toast.error(e.message || "שגיאה במחיקת התבנית");
+      toast.error(e.message || t("toasts.deleteError"));
     },
   });
 
@@ -77,69 +82,69 @@ export function ContractsTab() {
     <div className="space-y-5 max-w-2xl">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="min-w-0">
-          <h2 className="text-base font-semibold text-petra-text">חוזים</h2>
-          <p className="text-sm text-petra-muted mt-0.5">תבניות PDF להחתמת לקוחות</p>
+          <h2 className="text-base font-semibold text-petra-text">{t("header.title")}</h2>
+          <p className="text-sm text-petra-muted mt-0.5">{t("header.subtitle")}</p>
         </div>
         {canEditTemplates && (
           <button onClick={() => setShowModal(true)} className="btn-primary flex items-center gap-2">
             <Plus className="w-4 h-4" />
-            תבנית חדשה
+            {t("header.newTemplate")}
           </button>
         )}
       </div>
 
       {!canEditTemplates && (
-        <p className="text-xs text-petra-muted">הוספה, עריכה ומחיקה של תבניות חוזים דורשות את ההרשאה &quot;לנהל תבניות חוזים&quot; — בקש מבעל העסק.</p>
+        <p className="text-xs text-petra-muted">{t("noPermission")}</p>
       )}
 
       {isError ? (
-        <div className="card p-4 text-sm text-red-600">שגיאה בטעינת תבניות החוזים</div>
+        <div className="card p-4 text-sm text-red-600">{t("list.loadError")}</div>
       ) : templates.length === 0 ? (
         <div className="border-2 border-dashed border-slate-200 rounded-2xl p-10 text-center space-y-3">
           <FileText className="w-10 h-10 text-slate-300 mx-auto" />
-          <p className="text-sm text-petra-muted">אין תבניות חוזים עדיין</p>
+          <p className="text-sm text-petra-muted">{t("list.empty")}</p>
           {canEditTemplates && (
             <button onClick={() => setShowModal(true)} className="btn-primary text-sm inline-flex items-center gap-2">
               <Plus className="w-4 h-4" />
-              העלה תבנית ראשונה
+              {t("list.uploadFirst")}
             </button>
           )}
         </div>
       ) : (
         <div className="space-y-3">
-          {templates.map((t) => {
+          {templates.map((tpl) => {
             let fieldCount = 0;
-            try { fieldCount = JSON.parse(t.fields || "[]").length; } catch { fieldCount = 0; }
+            try { fieldCount = JSON.parse(tpl.fields || "[]").length; } catch { fieldCount = 0; }
             return (
-              <div key={t.id} className="card p-4 flex items-center gap-4">
+              <div key={tpl.id} className="card p-4 flex items-center gap-4">
                 <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center flex-shrink-0">
                   <FileText className="w-5 h-5 text-orange-500" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-petra-text text-sm truncate">{t.name}</p>
+                  <p className="font-medium text-petra-text text-sm truncate">{tpl.name}</p>
                   <p className="text-xs text-petra-muted mt-0.5 break-all">
-                    {t.fileName} · {(t.fileSize / 1024).toFixed(0)} KB
-                    {fieldCount > 0 ? ` · ${fieldCount} שדות` : " · ללא שדות"}
+                    {tpl.fileName} · {(tpl.fileSize / 1024).toFixed(0)} KB
+                    {fieldCount > 0 ? t("list.fieldsCount", { count: fieldCount }) : t("list.noFields")}
                   </p>
                   <p className="text-xs text-petra-muted">
-                    נוצר: {new Date(t.createdAt).toLocaleDateString("he-IL")}
+                    {t("list.created", { date: new Date(tpl.createdAt).toLocaleDateString(locale) })}
                   </p>
                 </div>
                 {canEditTemplates && (
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <button
-                      onClick={() => setEditingTemplate(t)}
+                      onClick={() => setEditingTemplate(tpl)}
                       className="btn-ghost text-xs py-1.5 px-3 inline-flex items-center gap-1"
                     >
                       <Pencil className="w-3.5 h-3.5" />
-                      ערוך
+                      {t("list.edit")}
                     </button>
                     <button
-                      onClick={() => setDeleteTarget(t)}
+                      onClick={() => setDeleteTarget(tpl)}
                       className="p-2 rounded-lg text-red-400 hover:bg-red-50 transition-colors"
                       disabled={deleteMutation.isPending}
-                      aria-label={`מחק את ${t.name}`}
-                      title="מחק תבנית"
+                      aria-label={t("list.deleteAria", { name: tpl.name })}
+                      title={t("list.deleteTitle")}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -153,9 +158,9 @@ export function ContractsTab() {
 
       <ConfirmDialog
         open={deleteTarget !== null}
-        title="למחוק את תבנית החוזה?"
-        description={deleteTarget ? <>התבנית &quot;{deleteTarget.name}&quot; תימחק לצמיתות — <strong>יחד עם כל בקשות ההחתמה שנשלחו ממנה, כולל חוזים חתומים וקבצי ה-PDF שלהם</strong>. לא ניתן לבטל פעולה זו. מחיקת תבנית שיש לה חוזים חתומים מותרת רק למי שמורשה למחוק לקוחות וכלבים.</> : undefined}
-        confirmLabel="מחק"
+        title={t("deleteDialog.title")}
+        description={deleteTarget ? <>{t.rich("deleteDialog.description", { name: deleteTarget.name, strong: (c) => <strong>{c}</strong> })}</> : undefined}
+        confirmLabel={tc("actions.delete")}
         danger
         loading={deleteMutation.isPending}
         onConfirm={() => { if (deleteTarget) deleteMutation.mutate(deleteTarget.id); }}
@@ -184,18 +189,18 @@ interface ContractField {
   height: number;
 }
 
-const FIELD_TYPES: { type: ContractFieldType; label: string; color: string; bgColor: string }[] = [
-  { type: "customer_name",  label: "👤 שם לקוח",  color: "#2563eb", bgColor: "rgba(37,99,235,0.12)" },
-  { type: "id_number",      label: "🆔 ת.ז.",      color: "#7c3aed", bgColor: "rgba(124,58,237,0.12)" },
-  { type: "address",        label: "🏠 כתובת",     color: "#16a34a", bgColor: "rgba(22,163,74,0.12)" },
-  { type: "phone",          label: "📞 טלפון",     color: "#0891b2", bgColor: "rgba(8,145,178,0.12)" },
-  { type: "pet_name",       label: "🐕 שם הכלב",   color: "#b45309", bgColor: "rgba(180,83,9,0.12)" },
-  { type: "pet_breed",      label: "🐾 גזע",       color: "#a16207", bgColor: "rgba(161,98,7,0.12)" },
-  { type: "pet_microchip",  label: "📟 מס׳ שבב",   color: "#dc2626", bgColor: "rgba(220,38,38,0.12)" },
-  { type: "pet_birthdate",  label: "📅 תאריך לידה", color: "#9333ea", bgColor: "rgba(147,51,234,0.12)" },
-  { type: "pet_gender",     label: "⚥ מין הכלב",    color: "#0d9488", bgColor: "rgba(13,148,136,0.12)" },
-  { type: "pet_color",      label: "🎨 צבע/סימנים", color: "#c026d3", bgColor: "rgba(192,38,211,0.12)" },
-  { type: "signature",      label: "✍️ חתימה",     color: "#ea580c", bgColor: "rgba(234,88,12,0.12)" },
+const FIELD_TYPES: { type: ContractFieldType; color: string; bgColor: string }[] = [
+  { type: "customer_name",  color: "#2563eb", bgColor: "rgba(37,99,235,0.12)" },
+  { type: "id_number",      color: "#7c3aed", bgColor: "rgba(124,58,237,0.12)" },
+  { type: "address",        color: "#16a34a", bgColor: "rgba(22,163,74,0.12)" },
+  { type: "phone",          color: "#0891b2", bgColor: "rgba(8,145,178,0.12)" },
+  { type: "pet_name",       color: "#b45309", bgColor: "rgba(180,83,9,0.12)" },
+  { type: "pet_breed",      color: "#a16207", bgColor: "rgba(161,98,7,0.12)" },
+  { type: "pet_microchip",  color: "#dc2626", bgColor: "rgba(220,38,38,0.12)" },
+  { type: "pet_birthdate",  color: "#9333ea", bgColor: "rgba(147,51,234,0.12)" },
+  { type: "pet_gender",     color: "#0d9488", bgColor: "rgba(13,148,136,0.12)" },
+  { type: "pet_color",      color: "#c026d3", bgColor: "rgba(192,38,211,0.12)" },
+  { type: "signature",      color: "#ea580c", bgColor: "rgba(234,88,12,0.12)" },
 ];
 
 const FIELD_DEFAULTS: Record<ContractFieldType, { width: number; height: number }> = {
@@ -212,20 +217,6 @@ const FIELD_DEFAULTS: Record<ContractFieldType, { width: number; height: number 
   signature:      { width: 0.35, height: 0.07 },
 };
 
-const FIELD_SHORT_LABELS: Record<ContractFieldType, string> = {
-  customer_name: "שם לקוח",
-  id_number: "ת.ז.",
-  address: "כתובת",
-  phone: "טלפון",
-  pet_name: "שם הכלב",
-  pet_breed: "גזע",
-  pet_microchip: "מס׳ שבב",
-  pet_birthdate: "תאריך לידה",
-  pet_gender: "מין",
-  pet_color: "צבע/סימנים",
-  signature: "חתימה",
-};
-
 function ContractFieldOverlay({
   field,
   overlayRef,
@@ -237,7 +228,8 @@ function ContractFieldOverlay({
   onUpdate: (id: string, updates: Partial<ContractField>) => void;
   onRemove: (id: string) => void;
 }) {
-  const ft = FIELD_TYPES.find((t) => t.type === field.type)!;
+  const t = useTranslations("settings.contractsTab");
+  const ft = FIELD_TYPES.find((x) => x.type === field.type)!;
 
   const startInteraction = (e: React.PointerEvent, mode: "drag" | "resize") => {
     e.stopPropagation();
@@ -276,7 +268,7 @@ function ContractFieldOverlay({
     <div
       style={{
         position: "absolute",
-        left: `${field.x * 100}%`,
+        left: `${field.x * 100}%`, // rtl-ok: PDF page coordinates are physical
         top: `${field.y * 100}%`,
         width: `${field.width * 100}%`,
         height: `${field.height * 100}%`,
@@ -297,7 +289,7 @@ function ContractFieldOverlay({
       }}
     >
       <span style={{ fontSize: 10, color: ft.color, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", pointerEvents: "none" }}>
-        {ft.label}
+        {t(`fieldTypes.${ft.type}`)}
       </span>
       <button
         type="button"
@@ -312,7 +304,7 @@ function ContractFieldOverlay({
         style={{
           position: "absolute",
           bottom: -4,
-          right: -4,
+          right: -4, // rtl-ok: handle sits on the physical bottom-right of a PDF-positioned box
           width: 8,
           height: 8,
           background: ft.color,
@@ -327,6 +319,7 @@ function ContractFieldOverlay({
 }
 
 function FieldsSummary({ fields, onClear }: { fields: ContractField[]; onClear: () => void }) {
+  const t = useTranslations("settings.contractsTab");
   if (fields.length === 0) return null;
   const hasSignature = fields.some((f) => f.type === "signature");
   const byPage = fields.reduce<Record<number, ContractField[]>>((acc, f) => {
@@ -339,20 +332,20 @@ function FieldsSummary({ fields, onClear }: { fields: ContractField[]; onClear: 
     <div className="mt-1.5 space-y-1">
       <div className="text-xs text-petra-muted space-y-0.5">
         {pages.map((p) => {
-          const labels = byPage[p].map((f) => FIELD_SHORT_LABELS[f.type]);
+          const labels = byPage[p].map((f) => t(`fieldShort.${f.type}`));
           return (
-            <p key={p}>עמוד {p}: <span className="font-medium text-petra-text">{labels.join(", ")}</span></p>
+            <p key={p}>{t("summary.page", { page: p })}<span className="font-medium text-petra-text">{labels.join(", ")}</span></p>
           );
         })}
       </div>
       <p className="text-xs text-petra-muted">
-        {fields.length} שד{fields.length === 1 ? "ה" : "ות"} בסך הכל ·{" "}
-        <button type="button" className="underline" onClick={onClear}>נקה הכל</button>
+        {fields.length === 1 ? t("summary.totalOne", { count: fields.length }) : t("summary.totalOther", { count: fields.length })}{" "}
+        <button type="button" className="underline" onClick={onClear}>{t("summary.clearAll")}</button>
       </p>
       {!hasSignature && (
         <div className="flex items-start gap-2 p-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-700">
           <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-          <p className="text-xs">לא הוצב שדה חתימה – הלקוח לא יוכל לחתום על המסמך</p>
+          <p className="text-xs">{t("summary.noSignature")}</p>
         </div>
       )}
     </div>
@@ -360,6 +353,8 @@ function FieldsSummary({ fields, onClear }: { fields: ContractField[]; onClear: 
 }
 
 function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+  const t = useTranslations("settings.contractsTab");
+  const tc = useTranslations("common");
   const [name, setName] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [signaturePage, setSignaturePage] = useState(1);
@@ -489,7 +484,7 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
     if (!file || !name.trim()) return;
     if (!fields.some((f) => f.type === "signature") && !sigWarningShown) {
       setSigWarningShown(true);
-      toast.error("לא הוצב שדה חתימה – הלקוח לא יוכל לחתום. לחץ שוב לשמור בכל זאת.");
+      toast.error(t("toasts.noSignature"));
       return;
     }
     setSaving(true);
@@ -501,11 +496,11 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
       fd.append("fields", JSON.stringify(fields));
       const r = await fetch("/api/contracts/templates", { method: "POST", body: fd });
       const d = await r.json();
-      if (!r.ok) { toast.error(d.error || "שגיאה בשמירה"); return; }
-      toast.success("תבנית נשמרה!");
+      if (!r.ok) { toast.error(d.error || t("toasts.saveError")); return; }
+      toast.success(t("toasts.saved"));
       onSaved();
     } catch {
-      toast.error("שגיאת רשת");
+      toast.error(t("toasts.networkError"));
     } finally {
       setSaving(false);
     }
@@ -518,18 +513,18 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
       <div className="modal-backdrop" onClick={onClose} />
       <div className="modal-content max-w-2xl mx-4 p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-bold text-petra-text">תבנית חוזה חדשה</h2>
+          <h2 className="text-lg font-bold text-petra-text">{t("modal.newTitle")}</h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted"><X className="w-4 h-4" /></button>
         </div>
 
         <div className="space-y-4">
           <div>
-            <label className="label">שם התבנית *</label>
-            <input className="input" placeholder="לדוג׳: חוזה פנסיון, הסכם אילוף..." value={name} onChange={(e) => setName(e.target.value)} />
+            <label className="label">{t("modal.nameRequired")}</label>
+            <input className="input" placeholder={t("modal.namePlaceholder")} value={name} onChange={(e) => setName(e.target.value)} />
           </div>
 
           <div>
-            <label className="label">קובץ PDF *</label>
+            <label className="label">{t("modal.pdfFile")}</label>
             <input type="file" accept="application/pdf" onChange={handleFileChange} className="input" />
           </div>
 
@@ -538,7 +533,7 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
               {/* Page navigation */}
               {totalPages > 0 && (
                 <div className="flex items-center gap-3">
-                  <span className="text-sm text-petra-muted">עמוד:</span>
+                  <span className="text-sm text-petra-muted">{t("modal.page")}</span>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
@@ -561,7 +556,7 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
 
               {/* Field type toolbar */}
               <div>
-                <p className="text-xs text-petra-muted mb-2">בחר סוג שדה ולחץ על המסמך למיקומו:</p>
+                <p className="text-xs text-petra-muted mb-2">{t("modal.pickFieldType")}</p>
                 <div className="flex flex-wrap gap-2">
                   {FIELD_TYPES.map((ft) => (
                     <button
@@ -576,7 +571,7 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
                       )}
                       style={selectedType === ft.type ? { background: ft.bgColor, color: ft.color } : {}}
                     >
-                      {ft.label}
+                      {t(`fieldTypes.${ft.type}`)}
                     </button>
                   ))}
                 </div>
@@ -601,7 +596,7 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
                       type="application/pdf"
                       className="absolute inset-0 w-full h-full"
                     >
-                      <p className="text-center text-sm text-petra-muted p-4">לא ניתן להציג את המסמך</p>
+                      <p className="text-center text-sm text-petra-muted p-4">{t("modal.cannotDisplay")}</p>
                     </object>
                   )}
                   {pageBlobUrl && !pdfLoading && (
@@ -635,9 +630,9 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
             disabled={!file || !name.trim() || saving}
             onClick={handleSave}
           >
-            {saving ? <><Loader2 className="w-4 h-4 animate-spin" />שומר...</> : <><Save className="w-4 h-4" />שמור תבנית</>}
+            {saving ? <><Loader2 className="w-4 h-4 animate-spin" />{tc("progress.saving")}</> : <><Save className="w-4 h-4" />{t("modal.saveTemplate")}</>}
           </button>
-          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+          <button className="btn-secondary" onClick={onClose}>{tc("actions.cancel")}</button>
         </div>
       </div>
     </div>
@@ -655,6 +650,8 @@ function EditContractTemplateModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const t = useTranslations("settings.contractsTab");
+  const tc = useTranslations("common");
   const [name, setName] = useState(template.name);
   const [signaturePage, setSignaturePage] = useState(template.signaturePage);
   const [totalPages, setTotalPages] = useState(0);
@@ -778,7 +775,7 @@ function EditContractTemplateModal({
     if (!name.trim()) return;
     if (!fields.some((f) => f.type === "signature") && !sigWarningShown) {
       setSigWarningShown(true);
-      toast.error("לא הוצב שדה חתימה – הלקוח לא יוכל לחתום. לחץ שוב לשמור בכל זאת.");
+      toast.error(t("toasts.noSignature"));
       return;
     }
     setSaving(true);
@@ -789,11 +786,11 @@ function EditContractTemplateModal({
         body: JSON.stringify({ name: name.trim(), fields: JSON.stringify(fields) }),
       });
       const d = await r.json();
-      if (!r.ok) { toast.error(d.error || "שגיאה בשמירה"); return; }
-      toast.success("תבנית עודכנה!");
+      if (!r.ok) { toast.error(d.error || t("toasts.saveError")); return; }
+      toast.success(t("toasts.updated"));
       onSaved();
     } catch {
-      toast.error("שגיאת רשת");
+      toast.error(t("toasts.networkError"));
     } finally {
       setSaving(false);
     }
@@ -806,13 +803,13 @@ function EditContractTemplateModal({
       <div className="modal-backdrop" onClick={onClose} />
       <div className="modal-content max-w-2xl mx-4 p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-bold text-petra-text">עריכת תבנית: {template.name}</h2>
+          <h2 className="text-lg font-bold text-petra-text">{t("modal.editTitle", { name: template.name })}</h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted"><X className="w-4 h-4" /></button>
         </div>
 
         <div className="space-y-4">
           <div>
-            <label className="label">שם התבנית</label>
+            <label className="label">{t("modal.name")}</label>
             <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
           </div>
 
@@ -820,7 +817,7 @@ function EditContractTemplateModal({
             {/* Page navigation */}
             {totalPages > 0 && (
               <div className="flex items-center gap-3">
-                <span className="text-sm text-petra-muted">עמוד:</span>
+                <span className="text-sm text-petra-muted">{t("modal.page")}</span>
                 <div className="flex items-center gap-2">
                   <button type="button" className="w-7 h-7 rounded-lg border border-slate-200 flex items-center justify-center text-petra-muted hover:bg-slate-100 disabled:opacity-40" disabled={signaturePage <= 1} onClick={() => setSignaturePage((p) => Math.max(1, p - 1))}>‹</button>
                   <span className="text-sm font-medium text-petra-text min-w-[60px] text-center">{signaturePage} / {totalPages}</span>
@@ -831,13 +828,13 @@ function EditContractTemplateModal({
 
             {/* Field type toolbar */}
             <div>
-              <p className="text-xs text-petra-muted mb-2">בחר סוג שדה ולחץ על המסמך למיקומו:</p>
+              <p className="text-xs text-petra-muted mb-2">{t("modal.pickFieldType")}</p>
               <div className="flex flex-wrap gap-2">
                 {FIELD_TYPES.map((ft) => (
                   <button key={ft.type} type="button" onClick={() => setSelectedType(ft.type)}
                     className={cn("px-3 py-1.5 rounded-lg text-xs font-medium border transition-all", selectedType === ft.type ? "ring-2 ring-orange-500 border-transparent" : "border-slate-200 hover:border-slate-300")}
                     style={selectedType === ft.type ? { background: ft.bgColor, color: ft.color } : {}}>
-                    {ft.label}
+                    {t(`fieldTypes.${ft.type}`)}
                   </button>
                 ))}
               </div>
@@ -850,8 +847,8 @@ function EditContractTemplateModal({
                 {pdfError && !pdfLoading && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-red-500">
                     <FileText className="w-8 h-8" />
-                    <p className="text-sm">שגיאה בטעינת המסמך</p>
-                    <button type="button" className="text-xs underline" onClick={() => { setPdfLoading(true); setPdfError(false); setTimeout(async () => { try { const resp = await fetch(`/api/contracts/templates/${template.id}/pdf`); if (!resp.ok) throw new Error("fetch failed"); const ab = await resp.arrayBuffer(); const bytes = new Uint8Array(ab); pdfBytesRef.current = bytes; const { getDocument, GlobalWorkerOptions } = await import("pdfjs-dist"); GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs"; const doc = await getDocument({ data: bytes.slice() }).promise; setTotalPages(doc.numPages); const pg = await doc.getPage(1); const vp = pg.getViewport({ scale: 1 }); setPageDims({ width: vp.width, height: vp.height }); doc.destroy(); const blob = await extractPageBlob(bytes, signaturePage); setPageBlobUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(blob); }); setPdfReady(true); setPdfError(false); } catch { setPdfError(true); } finally { setPdfLoading(false); } }, 100); }}>נסה שוב</button>
+                    <p className="text-sm">{t("modal.loadDocError")}</p>
+                    <button type="button" className="text-xs underline" onClick={() => { setPdfLoading(true); setPdfError(false); setTimeout(async () => { try { const resp = await fetch(`/api/contracts/templates/${template.id}/pdf`); if (!resp.ok) throw new Error("fetch failed"); const ab = await resp.arrayBuffer(); const bytes = new Uint8Array(ab); pdfBytesRef.current = bytes; const { getDocument, GlobalWorkerOptions } = await import("pdfjs-dist"); GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs"; const doc = await getDocument({ data: bytes.slice() }).promise; setTotalPages(doc.numPages); const pg = await doc.getPage(1); const vp = pg.getViewport({ scale: 1 }); setPageDims({ width: vp.width, height: vp.height }); doc.destroy(); const blob = await extractPageBlob(bytes, signaturePage); setPageBlobUrl((prev) => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(blob); }); setPdfReady(true); setPdfError(false); } catch { setPdfError(true); } finally { setPdfLoading(false); } }, 100); }}>{t("modal.retry")}</button>
                   </div>
                 )}
                 {pageBlobUrl && !pdfLoading && !pdfError && (
@@ -861,7 +858,7 @@ function EditContractTemplateModal({
                     type="application/pdf"
                     className="absolute inset-0 w-full h-full"
                   >
-                    <p className="text-center text-sm text-petra-muted p-4">לא ניתן להציג את המסמך</p>
+                    <p className="text-center text-sm text-petra-muted p-4">{t("modal.cannotDisplay")}</p>
                   </object>
                 )}
                 {pageBlobUrl && !pdfLoading && !pdfError && (
@@ -885,9 +882,9 @@ function EditContractTemplateModal({
 
         <div className="flex gap-3 pt-5 mt-2 border-t border-slate-100">
           <button className="btn-primary flex-1" disabled={!name.trim() || saving} onClick={handleSave}>
-            {saving ? <><Loader2 className="w-4 h-4 animate-spin" />שומר...</> : <><Save className="w-4 h-4" />שמור שינויים</>}
+            {saving ? <><Loader2 className="w-4 h-4 animate-spin" />{tc("progress.saving")}</> : <><Save className="w-4 h-4" />{t("modal.saveChanges")}</>}
           </button>
-          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+          <button className="btn-secondary" onClick={onClose}>{tc("actions.cancel")}</button>
         </div>
       </div>
     </div>

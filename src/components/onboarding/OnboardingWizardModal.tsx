@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { X, Check } from "lucide-react";
+import { useTranslations } from "next-intl";
 import StepWelcomeProfile from "./StepWelcomeProfile";
 import StepBusinessDetails from "./StepBusinessDetails";
 import StepFirstService from "./StepFirstService";
@@ -14,16 +15,18 @@ import { PetraLoader } from "@/components/ui/PetraLoader";
 // ─── Step config ──────────────────────────────────────────────────────────────
 
 const STEPS = [
-  { id: 0, label: "היכרות", emoji: "👋" },
-  { id: 1, label: "פרטי עסק", emoji: "🏢" },
-  { id: 2, label: "שירות", emoji: "🏷️" },
-  { id: 3, label: "לקוח", emoji: "👤" },
-  { id: 4, label: "סיום", emoji: "🎉" },
+  { id: 0, key: "intro", emoji: "👋" },
+  { id: 1, key: "businessDetails", emoji: "🏢" },
+  { id: 2, key: "service", emoji: "🏷️" },
+  { id: 3, key: "client", emoji: "👤" },
+  { id: 4, key: "finish", emoji: "🎉" },
 ];
 
 // ─── Progress Bar ─────────────────────────────────────────────────────────────
 
 function ModalProgressBar({ currentStep }: { currentStep: number }) {
+  const t = useTranslations("onboarding.onboardingWizardModal");
+  const currentKey = STEPS[currentStep]?.key;
   const pct = Math.round((currentStep / (STEPS.length - 1)) * 100);
   return (
     <div className="w-full mb-6">
@@ -61,7 +64,7 @@ function ModalProgressBar({ currentStep }: { currentStep: number }) {
                     color: isActive ? "#F97316" : isCompleted ? "#0F172A" : "#94A3B8",
                   }}
                 >
-                  {step.label}
+                  {t(`steps.${step.key}`)}
                 </span>
               </div>
               {i < STEPS.length - 1 && (
@@ -82,9 +85,9 @@ function ModalProgressBar({ currentStep }: { currentStep: number }) {
       {/* Mobile: text + bar */}
       <div className="sm:hidden">
         <p className="text-center text-xs text-petra-muted mb-2">
-          שלב {currentStep + 1} מתוך {STEPS.length}:{" "}
+          {t("stepOf", { step: currentStep + 1, total: STEPS.length })}{" "}
           <span className="font-bold" style={{ color: "#F97316" }}>
-            {STEPS[currentStep]?.label}
+            {currentKey ? t(`steps.${currentKey}`) : undefined}
           </span>
         </p>
         <div className="h-1.5 rounded-full bg-slate-200 overflow-hidden">
@@ -108,6 +111,8 @@ interface OnboardingWizardModalProps {
 }
 
 export default function OnboardingWizardModal({ onClose }: OnboardingWizardModalProps) {
+  const t = useTranslations("onboarding.onboardingWizardModal");
+  const tc = useTranslations("common");
   const router = useRouter();
   const queryClient = useQueryClient();
   const [currentStep, setCurrentStep] = useState<number>(0);
@@ -260,13 +265,13 @@ export default function OnboardingWizardModal({ onClose }: OnboardingWizardModal
         >
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-lg font-bold text-petra-text">הגדרת חשבון ראשונית</h2>
-              <p className="text-xs text-petra-muted mt-0.5">ניתן לשנות הכל בהמשך מדף ההגדרות</p>
+              <h2 className="text-lg font-bold text-petra-text">{t("title")}</h2>
+              <p className="text-xs text-petra-muted mt-0.5">{t("subtitle")}</p>
             </div>
             <button
               onClick={onClose}
               className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted transition-colors"
-              title="סגור"
+              title={tc("actions.close")}
             >
               <X className="w-4 h-4" />
             </button>

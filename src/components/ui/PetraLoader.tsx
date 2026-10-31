@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 
 // Petra loading animation — bouncing paw + PETRA wordmark (the full logo, in every variant).
@@ -17,6 +18,7 @@ import { cn } from "@/lib/utils";
 const SCALE = { page: 0.6, splash: 0.6, inline: 0.4 } as const;
 const CYCLE_MS = 1500;
 
+// rtl-ok: logo geometry (physical left/top) — the paw looks the same in RTL and LTR
 const TOES = [
   { left: 7, top: 48, width: 46, height: 62, rotate: -30, color: "#FE4C09", delay: 0 },
   { left: 45, top: 0, width: 52, height: 68, rotate: -12, color: "#0083DB", delay: 0.13 },
@@ -36,6 +38,7 @@ interface PetraLoaderProps {
 }
 
 export function PetraLoader({ variant = "page", className }: PetraLoaderProps) {
+  const tc = useTranslations("common");
   const overlay = variant !== "inline";
 
   // Overlays move to <body> after mount so a transformed ancestor (animate-slide-up etc.)
@@ -46,7 +49,7 @@ export function PetraLoader({ variant = "page", className }: PetraLoaderProps) {
   const node = (
     <div
       role="status"
-      aria-label="טוען"
+      aria-label={tc("loaderAriaLabel")}
       // phase differs between server and client render by design
       suppressHydrationWarning
       className={cn(

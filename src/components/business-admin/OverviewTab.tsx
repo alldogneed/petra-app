@@ -1,7 +1,9 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { formatCurrency } from "@/lib/utils";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
+import { formatCurrency } from "@/lib/format";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import {
   Users,
@@ -14,6 +16,8 @@ import {
 import { OverviewData, ActivityRow } from "./shared";
 
 export function OverviewTab() {
+  const t = useTranslations("businessAdmin.overviewTab");
+  const { locale, currency } = useBusinessLocale();
   const { data, isLoading, refetch, isFetching } = useQuery<OverviewData>({
     queryKey: ["ba-overview"],
     queryFn: () => fetch("/api/business-admin/overview").then((r) => r.json()),
@@ -22,29 +26,29 @@ export function OverviewTab() {
 
   const stats = [
     {
-      label: "חברי צוות פעילים",
+      label: t("stats.activeMembers"),
       value: data?.teamCount ?? "—",
       icon: Users,
       color: "#3B82F6",
       bg: "#EFF6FF",
     },
     {
-      label: "לקוחות",
+      label: t("stats.customers"),
       value: data?.customerCount ?? "—",
       icon: UserCheck,
       color: "#10B981",
       bg: "#ECFDF5",
     },
     {
-      label: "תורים היום",
+      label: t("stats.todayAppointments"),
       value: data?.todayAppts ?? "—",
       icon: Calendar,
       color: "#F97316",
       bg: "#FFF7ED",
     },
     {
-      label: "הכנסות החודש",
-      value: data ? formatCurrency(data.monthlyRevenue) : "—",
+      label: t("stats.monthRevenue"),
+      value: data ? formatCurrency(data.monthlyRevenue, { locale, currency }) : "—",
       icon: CreditCard,
       color: "#8B5CF6",
       bg: "#F5F3FF",
@@ -79,7 +83,7 @@ export function OverviewTab() {
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-bold text-slate-800 flex items-center gap-2">
             <Activity className="w-4 h-4 text-brand-500" />
-            פעילות אחרונה
+            {t("recent.title")}
           </h3>
           <button
             onClick={() => refetch()}
@@ -87,14 +91,14 @@ export function OverviewTab() {
             disabled={isFetching}
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? "animate-spin" : ""}`} />
-            רענן
+            {t("actions.refresh")}
           </button>
         </div>
 
         {isLoading ? (
           <PetraLoader variant="inline" />
         ) : !data?.recentActivity?.length ? (
-          <p className="text-sm text-petra-muted text-center py-6">אין פעילות עדיין</p>
+          <p className="text-sm text-petra-muted text-center py-6">{t("recent.empty")}</p>
         ) : (
           <div>
             {data.recentActivity.map((e) => (

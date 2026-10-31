@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { useQuery } from "@tanstack/react-query";
 import {
   Users,
@@ -76,11 +77,12 @@ interface StudentDetailData {
   courses: StudentDetailCourse[];
 }
 
-const MEMBERSHIP_STATUS: Record<string, { label: string; cls: string }> = {
-  active: { label: "מנוי פעיל", cls: "badge-success" },
-  pending: { label: "ממתין לאישור", cls: "badge-warning" },
-  expired: { label: "מנוי פג", cls: "badge-neutral" },
-  suspended: { label: "מושהה", cls: "badge-neutral" },
+// Labels: onlineClasses.reportsTab.membershipStatus.<id>
+const MEMBERSHIP_STATUS: Record<string, { cls: string }> = {
+  active: { cls: "badge-success" },
+  pending: { cls: "badge-warning" },
+  expired: { cls: "badge-neutral" },
+  suspended: { cls: "badge-neutral" },
 };
 
 const STALLED_THRESHOLD_DAYS = 7;
@@ -128,6 +130,7 @@ function StatCard({
 // ─── Main tab ───────────────────────────────────────────────────────────────
 
 export function ReportsTab() {
+  const t = useTranslations("onlineClasses");
   const [courseFilter, setCourseFilter] = useState("");
   const [openStudent, setOpenStudent] = useState<StudentRow | null>(null);
 
@@ -162,9 +165,9 @@ export function ReportsTab() {
     return (
       <div className="card p-8 text-center">
         <AlertTriangle className="w-8 h-8 mx-auto mb-3 text-red-400" />
-        <p className="text-red-600 font-medium mb-2">שגיאה בטעינת הדוחות</p>
+        <p className="text-red-600 font-medium mb-2">{t("reportsTab.loadError")}</p>
         <button className="btn-secondary text-sm" onClick={() => refetch()}>
-          נסה שוב
+          {t("reportsTab.retry")}
         </button>
       </div>
     );
@@ -181,25 +184,25 @@ export function ReportsTab() {
         <StatCard
           icon={<Users className="w-5 h-5 text-brand-500" />}
           iconClass="bg-brand-50"
-          label="תלמידים פעילים"
+          label={t("reportsTab.stats.activeStudents")}
           value={activeStudents}
         />
         <StatCard
           icon={<PlayCircle className="w-5 h-5 text-indigo-500" />}
           iconClass="bg-indigo-50"
-          label="התחילו ללמוד"
+          label={t("reportsTab.stats.startedStudents")}
           value={startedStudents}
         />
         <StatCard
           icon={<GraduationCap className="w-5 h-5 text-emerald-500" />}
           iconClass="bg-emerald-50"
-          label="סיימו קורס"
+          label={t("reportsTab.stats.finishedStudents")}
           value={finishedStudents}
         />
         <StatCard
           icon={<TrendingUp className="w-5 h-5 text-amber-500" />}
           iconClass="bg-amber-50"
-          label="אחוז השלמה ממוצע"
+          label={t("reportsTab.stats.avgCompletion")}
           value={`${avgPercent}%`}
         />
       </div>
@@ -207,16 +210,16 @@ export function ReportsTab() {
       {/* Courses */}
       <div>
         <h2 className="text-base font-bold text-petra-text mb-3">
-          התקדמות לפי קורס
+          {t("reportsTab.courses.heading")}
         </h2>
         {courses.length === 0 ? (
           <div className="empty-state card">
             <div className="empty-state-icon">
               <BookOpen className="w-6 h-6 text-slate-400" />
             </div>
-            <p className="font-medium text-petra-text mb-1">אין קורסים עדיין</p>
+            <p className="font-medium text-petra-text mb-1">{t("reportsTab.courses.emptyTitle")}</p>
             <p className="text-sm text-petra-muted">
-              צרו קורס בלשונית &quot;קורסים&quot; והנתונים יופיעו כאן
+              {t("reportsTab.courses.emptyBody")}
             </p>
           </div>
         ) : (
@@ -231,26 +234,26 @@ export function ReportsTab() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-bold text-petra-text">{c.title}</p>
                       {c.status !== "published" && (
-                        <span className="badge-neutral">טיוטה</span>
+                        <span className="badge-neutral">{t("reportsTab.courses.draft")}</span>
                       )}
                     </div>
                     <div className="flex items-center gap-3 flex-wrap mt-1 text-sm text-petra-muted">
-                      <span>{c.lessonCount} שיעורים</span>
+                      <span>{t("reportsTab.courses.lessonCount", { count: c.lessonCount })}</span>
                       <span className="flex items-center gap-1">
                         <PlayCircle className="w-3.5 h-3.5" />
-                        {c.startedStudents} התחילו
+                        {t("reportsTab.courses.started", { count: c.startedStudents })}
                       </span>
                       <span className="flex items-center gap-1">
                         <GraduationCap className="w-3.5 h-3.5" />
-                        {c.completedStudents} סיימו
+                        {t("reportsTab.courses.completed", { count: c.completedStudents })}
                       </span>
-                      <span>מתוך {c.enrolledStudents} תלמידים</span>
+                      <span>{t("reportsTab.courses.outOf", { count: c.enrolledStudents })}</span>
                     </div>
 
                     <div className="mt-3 max-w-md">
                       <div className="flex items-center justify-between mb-1 text-xs">
                         <span className="text-petra-muted">
-                          אחוז השלמה ממוצע
+                          {t("reportsTab.stats.avgCompletion")}
                         </span>
                         <span className="font-bold text-petra-text">
                           {c.avgCompletionPercent}%
@@ -263,12 +266,13 @@ export function ReportsTab() {
                       <div className="mt-3 flex items-start gap-2 rounded-xl bg-red-50 border border-red-100 px-3 py-2">
                         <TrendingDown className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
                         <p className="text-xs text-red-700 leading-relaxed">
-                          <span className="font-bold">נקודת נטישה: </span>
-                          &quot;{c.dropOffLesson.title}&quot; (
-                          {c.dropOffLesson.moduleTitle}) —{" "}
-                          {c.dropOffLesson.droppedCount} מתוך{" "}
-                          {c.dropOffLesson.reachedCount} תלמידים שהגיעו לשיעור
-                          הקודם לא סיימו אותו
+                          {t.rich("reportsTab.courses.dropOff", {
+                            b: (chunks) => <span className="font-bold">{chunks}</span>,
+                            title: c.dropOffLesson.title,
+                            moduleTitle: c.dropOffLesson.moduleTitle,
+                            dropped: c.dropOffLesson.droppedCount,
+                            reached: c.dropOffLesson.reachedCount,
+                          })}
                         </p>
                       </div>
                     )}
@@ -284,14 +288,14 @@ export function ReportsTab() {
       <div>
         <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
           <h2 className="text-base font-bold text-petra-text">
-            התקדמות תלמידים
+            {t("reportsTab.students.heading")}
           </h2>
           <select
             className="input w-auto text-sm"
             value={courseFilter}
             onChange={(e) => setCourseFilter(e.target.value)}
           >
-            <option value="">כל הקורסים</option>
+            <option value="">{t("reportsTab.students.allCourses")}</option>
             {courses.map((c) => (
               <option key={c.courseId} value={c.courseId}>
                 {c.title}
@@ -306,23 +310,23 @@ export function ReportsTab() {
               <Users className="w-6 h-6 text-slate-400" />
             </div>
             <p className="font-medium text-petra-text mb-1">
-              אין תלמידים פעילים
+              {t("reportsTab.students.emptyTitle")}
             </p>
             <p className="text-sm text-petra-muted">
-              אשרו מנויים בלשונית &quot;מנויים&quot; והתקדמות התלמידים תופיע כאן
+              {t("reportsTab.students.emptyBody")}
             </p>
           </div>
         ) : (
           <div className="card overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-right text-xs text-petra-muted border-b border-slate-100">
-                  <th className="font-medium px-4 py-3">שם</th>
+                <tr className="text-start text-xs text-petra-muted border-b border-slate-100">
+                  <th className="font-medium px-4 py-3">{t("reportsTab.students.columns.name")}</th>
                   <th className="font-medium px-4 py-3 hidden md:table-cell">
-                    אימייל
+                    {t("reportsTab.students.columns.email")}
                   </th>
-                  <th className="font-medium px-4 py-3 w-48">התקדמות</th>
-                  <th className="font-medium px-4 py-3">פעילות אחרונה</th>
+                  <th className="font-medium px-4 py-3 w-48">{t("reportsTab.students.columns.progress")}</th>
+                  <th className="font-medium px-4 py-3">{t("reportsTab.students.columns.lastActivity")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -351,12 +355,12 @@ export function ReportsTab() {
                         <div className="flex-1 min-w-[70px]">
                           <ProgressBar percent={s.percent} />
                         </div>
-                        <span className="text-xs font-bold text-petra-text w-9 text-left">
+                        <span className="text-xs font-bold text-petra-text w-9 text-end">
                           {s.percent}%
                         </span>
                       </div>
                       <p className="text-[11px] text-petra-muted mt-1">
-                        {s.completedLessons}/{s.totalLessons} שיעורים
+                        {t("reportsTab.students.lessonsProgress", { done: s.completedLessons, total: s.totalLessons })}
                       </p>
                     </td>
                     <td className="px-4 py-3">
@@ -364,12 +368,12 @@ export function ReportsTab() {
                         <span className="text-petra-muted">
                           {s.lastActivityAt
                             ? heDate(s.lastActivityAt)
-                            : "טרם התחיל"}
+                            : t("reportsTab.notStarted")}
                         </span>
                         {s.stalledDays !== null &&
                           s.stalledDays >= STALLED_THRESHOLD_DAYS && (
                             <span className="badge-warning">
-                              תקוע {s.stalledDays} ימים
+                              {t("reportsTab.students.stalled", { days: s.stalledDays })}
                             </span>
                           )}
                       </div>
@@ -401,6 +405,7 @@ function StudentDetailModal({
   student: StudentRow;
   onClose: () => void;
 }) {
+  const t = useTranslations("onlineClasses");
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["oc-report-student", student.membershipId],
     enabled: !!student.membershipId,
@@ -412,16 +417,16 @@ function StudentDetailModal({
 
   const detail = data?.student ?? null;
   const courses = unwrapList<StudentDetailCourse>(data, "courses");
+  const statusKey = detail?.membershipStatus?.toLowerCase();
   const badge = detail
-    ? (MEMBERSHIP_STATUS[detail.membershipStatus?.toLowerCase()] ?? {
-        label: detail.membershipStatus,
-        cls: "badge-neutral",
-      })
+    ? statusKey && MEMBERSHIP_STATUS[statusKey]
+      ? { label: t(`reportsTab.membershipStatus.${statusKey}`), cls: MEMBERSHIP_STATUS[statusKey].cls }
+      : { label: detail.membershipStatus, cls: "badge-neutral" }
     : null;
 
   return (
     <Modal
-      title={`התקדמות — ${student.name || "תלמיד"}`}
+      title={t("reportsTab.detail.title", { name: student.name || t("reportsTab.detail.studentFallback") })}
       onClose={onClose}
       maxWidth="max-w-2xl"
     >
@@ -429,10 +434,10 @@ function StudentDetailModal({
         <div className="p-6 text-center">
           <AlertTriangle className="w-7 h-7 mx-auto mb-3 text-red-400" />
           <p className="text-red-600 font-medium mb-2">
-            שגיאה בטעינת נתוני התלמיד
+            {t("reportsTab.detail.loadError")}
           </p>
           <button className="btn-secondary text-sm" onClick={() => refetch()}>
-            נסה שוב
+            {t("reportsTab.retry")}
           </button>
         </div>
       ) : isLoading ? (
@@ -445,7 +450,7 @@ function StudentDetailModal({
               <span dir="ltr">· {detail?.phone ?? student.phone}</span>
             )}
             {detail?.joinedAt && (
-              <span>· הצטרף ב-{heDate(detail.joinedAt)}</span>
+              <span>{t("reportsTab.detail.joined", { date: heDate(detail.joinedAt) })}</span>
             )}
             {badge && <span className={badge.cls}>{badge.label}</span>}
           </div>
@@ -456,7 +461,7 @@ function StudentDetailModal({
                 <BookOpen className="w-6 h-6 text-slate-400" />
               </div>
               <p className="text-sm text-petra-muted">
-                אין קורסים פעילים עבור תלמיד זה
+                {t("reportsTab.detail.noCourses")}
               </p>
             </div>
           ) : (
@@ -492,10 +497,10 @@ function StudentDetailModal({
                         </div>
                         <span className="text-xs text-petra-muted whitespace-nowrap">
                           {l.completedAt
-                            ? `הושלם ${heDate(l.completedAt)}`
+                            ? t("reportsTab.detail.completedOn", { date: heDate(l.completedAt) })
                             : l.percent > 0
                               ? `${l.percent}%`
-                              : "טרם התחיל"}
+                              : t("reportsTab.notStarted")}
                         </span>
                       </div>
                     ))}

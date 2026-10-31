@@ -6,6 +6,7 @@ import { MobileBottomNav } from "./mobile-bottom-nav";
 import { type ReactNode, useState, useEffect } from "react";
 import { MessageCircleQuestion } from "lucide-react";
 import dynamic from "next/dynamic";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/providers/auth-provider";
 import { LimitReachedModal } from "@/components/paywall/LimitReachedModal";
 import { PWAInstallProvider } from "./PWAInstallProvider";
@@ -38,6 +39,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [helpOpen, setHelpOpen] = useState(false);
   const [assistantOpen, setAssistantOpen] = useState(false);
   const { user, exitImpersonation } = useAuth();
+  const t = useTranslations("layout.appShell");
   return (
     <PWAInstallProvider>
     <div className="min-h-screen" data-petra-shell={collapsed ? "collapsed" : "open"}>
@@ -45,13 +47,13 @@ export function AppShell({ children }: { children: ReactNode }) {
       {user?.isImpersonating && (
         <div className="bg-red-600 text-white text-sm px-4 py-2.5 flex items-center justify-between sticky top-0 z-50">
           <span className="flex items-center gap-2">
-            ⚠️ מצב התחזות — עסק: <strong>{user.businessName}</strong>
+            {t.rich("impersonating", { name: user.businessName ?? "", b: (c) => <strong>{c}</strong> })}
           </span>
           <button
             onClick={exitImpersonation}
             className="bg-white/15 hover:bg-white/25 px-3 py-1 rounded-md font-semibold transition-colors flex items-center gap-1.5"
           >
-            ← חזרה ל-Master Admin
+            {t("exitImpersonation")}
           </button>
         </div>
       )}
@@ -66,8 +68,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div
         className={[
           "transition-all duration-300",
-          "mr-0",
-          collapsed ? "md:mr-[72px]" : "md:mr-[240px]",
+          "ms-0",
+          collapsed ? "md:ms-[72px]" : "md:ms-[240px]",
         ].join(" ")}
       >
         <Topbar onMenuToggle={() => setMobileOpen((prev) => !prev)} />
@@ -79,8 +81,8 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Floating Petra AI button — the help center stays reachable from the sidebar and from inside the drawer */}
       <button
         onClick={() => setAssistantOpen(true)}
-        className="fixed bottom-24 left-3 sm:bottom-6 sm:left-6 z-40 w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-brand-500 text-white shadow-lg hover:bg-brand-600 transition-all flex items-center justify-center opacity-90 sm:opacity-100"
-        aria-label="Petra AI — עזרה"
+        className="fixed bottom-24 end-3 sm:bottom-6 sm:end-6 z-40 w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-brand-500 text-white shadow-lg hover:bg-brand-600 transition-all flex items-center justify-center opacity-90 sm:opacity-100"
+        aria-label={t("assistantAriaLabel")}
       >
         <MessageCircleQuestion className="w-4 h-4 sm:w-5 sm:h-5" />
       </button>

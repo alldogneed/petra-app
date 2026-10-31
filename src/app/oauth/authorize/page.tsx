@@ -17,6 +17,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import Image from "next/image";
+import { getTranslations } from "next-intl/server";
 import prisma from "@/lib/prisma";
 import { getSession } from "@/lib/session";
 import {
@@ -33,10 +34,13 @@ import { ConsentForm } from "./ConsentForm";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "חיבור עוזר AI | Petra",
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("auth.oauthAuthorizePage");
+  return {
+    title: t("metaTitle"),
+    robots: { index: false, follow: false },
+  };
+}
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -61,14 +65,14 @@ function requestOrigin(): string {
   return getOAuthOrigin(fake);
 }
 
-function ErrorCard({ title, message }: { title: string; message: string }) {
+function ErrorCard({ title, message, hint }: { title: string; message: string; hint: string }) {
   return (
     <OAuthShell>
       <div className="card p-6">
         <h1 className="text-xl font-bold text-petra-text">{title}</h1>
         <p className="text-sm text-petra-muted mt-2 leading-relaxed">{message}</p>
         <p className="text-xs text-petra-muted mt-4 leading-relaxed">
-          אפשר לסגור את החלון ולנסות להתחבר מחדש מתוך עוזר ה-AI. אם הבעיה חוזרת — פנו לתמיכה של פטרה.
+          {hint}
         </p>
       </div>
     </OAuthShell>
@@ -92,62 +96,56 @@ function OAuthShell({ children }: { children: React.ReactNode }) {
 }
 
 export default async function OAuthAuthorizePage({ searchParams }: { searchParams: SearchParams }) {
+  const t = await getTranslations("auth.oauthAuthorizePage");
+  const errorCard = (title: string, message: string) => (
+    <ErrorCard title={t(`errors.${title}`)} message={t(`errors.${message}`)} hint={t("errors.hint")} />
+  );
   const clientIdP = single(searchParams, "client_id");
   const redirectUriP = single(searchParams, "redirect_uri");
 
   // ── 1. client_id ─────────────────────────────────────────────────────────
   const clientId = clientIdP.value?.trim();
   if (clientIdP.bad || !clientId || clientId.length > 100) {
-    return <ErrorCard title="בקשת חיבור לא תקינה" message="חסר מזהה אפליקציה (client_id) או שהוא לא תקין." />;
+    return errorCard("invalidTitle", "missingClientId");
   }
   const client = await prisma.oAuthClient.findUnique({
     where: { id: clientId },
     select: { id: true, clientName: true, redirectUris: true },
   });
   if (!client) {
-    return (
-      <ErrorCard
-        title="האפליקציה לא מוכרת"
-        message="האפליקציה שמנסה להתחבר לפטרה אינה רשומה (ייתכן שהרישום פג). נסו להסיר את החיבור מעוזר ה-AI ולהוסיף אותו מחדש."
-      />
-    );
+    return errorCard("unknownClientTitle", "unknownClient");
   }
 
   // ── 2. redirect_uri ──────────────────────────────────────────────────────
   const redirectUri = redirectUriP.value;
   if (redirectUriP.bad || !redirectUri || !redirectUriMatches(client.redirectUris, redirectUri)) {
-    return (
-      <ErrorCard
-        title="כתובת חזרה לא תקינה"
-        message="כתובת החזרה (redirect_uri) של הבקשה אינה תואמת לכתובת הרשומה של האפליקציה, ולכן לא נמשיך."
-      />
-    );
+    return errorCard("badRedirectTitle", "badRedirect");
   }
 
   // ── 3. remaining params → Hebrew error card (NEVER redirect before the user acted) ──
   const origin = requestOrigin();
   const stateP = single(searchParams, "state");
   if (stateP.bad) {
-    return <ErrorCard title="בקשת חיבור לא תקינה" message="הפרמטר state בבקשה אינו תקין (כפול או ארוך מדי)." />;
+    return errorCard("invalidTitle", "badState");
   }
   const state = stateP.value;
   const responseType = single(searchParams, "response_type");
   if (responseType.bad || responseType.value !== "code") {
-    return <ErrorCard title="בקשת חיבור לא נתמכת" message="סוג התגובה המבוקש (response_type) אינו נתמך — נתמך רק code." />;
+    return errorCard("unsupportedTitle", "badResponseType");
   }
   const challengeP = single(searchParams, "code_challenge");
   const codeChallenge = challengeP.value;
   if (challengeP.bad || !codeChallenge || !CODE_CHALLENGE_RE.test(codeChallenge)) {
-    return <ErrorCard title="בקשת חיבור לא מאובטחת" message="חסר אימות PKCE (code_challenge) בבקשה, ולכן לא נמשיך." />;
+    return errorCard("insecureTitle", "missingPkce");
   }
   const methodP = single(searchParams, "code_challenge_method");
   if (methodP.bad || methodP.value !== "S256") {
-    return <ErrorCard title="בקשת חיבור לא מאובטחת" message="שיטת אימות PKCE חייבת להיות S256." />;
+    return errorCard("insecureTitle", "badPkceMethod");
   }
   const resourceP = single(searchParams, "resource");
   const resource = resourceP.value;
   if (resourceP.bad || !isValidResource(resource, origin)) {
-    return <ErrorCard title="בקשת חיבור לא תקינה" message="הבקשה מיועדת לשרת אחר (resource) ולא לפטרה." />;
+    return errorCard("invalidTitle", "badResource");
   }
 
   // ── 4. session ───────────────────────────────────────────────────────────

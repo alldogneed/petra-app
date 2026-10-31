@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Mail, MapPin, MessageCircle, Pencil, Phone, Plus, Send, X } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { fetchJSON } from "@/lib/utils";
 import { DEFAULT_CUSTOMER_TAGS } from "./EditCustomerModal";
 import { waLink } from "./customer-actions";
@@ -23,19 +24,20 @@ export function ContactCard({
   onEdit: () => void;
   onCompose: () => void;
 }) {
+  const t = useTranslations("customers.contactCard");
   const hasPhone = !!customer.phone?.trim();
   const counts = customer.summary?.counts;
 
   return (
     <div className="card p-5 space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-base font-bold text-petra-text">פרטי קשר</h2>
+        <h2 className="text-base font-bold text-petra-text">{t("title")}</h2>
         {canEdit && (
           <button
             onClick={onEdit}
             className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted transition-colors"
-            title="ערוך לקוח"
-            aria-label="ערוך לקוח"
+            title={t("editClient")}
+            aria-label={t("editClient")}
           >
             <Pencil className="w-3.5 h-3.5" />
           </button>
@@ -53,10 +55,10 @@ export function ContactCard({
                   <button
                     onClick={onCompose}
                     className="flex items-center gap-1 rounded-lg bg-green-50 px-2 py-1 text-xs font-medium text-green-700 hover:bg-green-100 transition-colors"
-                    title="שלח הודעת WhatsApp מהמערכת"
+                    title={t("sendMessageTitle")}
                   >
                     <Send className="w-3 h-3" />
-                    שלח הודעה
+                    {t("sendMessage")}
                   </button>
                 )}
                 <a
@@ -64,15 +66,15 @@ export function ContactCard({
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-7 h-7 flex items-center justify-center rounded-lg text-green-600 hover:bg-green-50 transition-colors"
-                  title="פתח צ׳אט WhatsApp"
-                  aria-label="פתח צ׳אט WhatsApp"
+                  title={t("openWhatsApp")}
+                  aria-label={t("openWhatsApp")}
                 >
                   <MessageCircle className="w-3.5 h-3.5" />
                 </a>
               </div>
             </>
           ) : (
-            <span className="text-sm text-slate-300">אין טלפון</span>
+            <span className="text-sm text-slate-300">{t("noPhone")}</span>
           )}
         </div>
         {customer.email && (
@@ -103,9 +105,9 @@ export function ContactCard({
       )}
 
       <div className="pt-3 border-t border-slate-100 grid grid-cols-3 gap-2">
-        <Stat value={counts?.appointments ?? 0} label="תורים" />
-        <Stat value={counts?.pets ?? customer.pets.length} label="חיות" />
-        <Stat value={counts?.orders ?? 0} label="הזמנות" />
+        <Stat value={counts?.appointments ?? 0} label={t("stats.appointments")} />
+        <Stat value={counts?.pets ?? customer.pets.length} label={t("stats.pets")} />
+        <Stat value={counts?.orders ?? 0} label={t("stats.orders")} />
       </div>
     </div>
   );
@@ -125,6 +127,8 @@ function Stat({ value, label }: { value: number; label: string }) {
 const MAX_TAG_LEN = 50;
 
 function InlineTags({ customerId, rawTags, canEdit }: { customerId: string; rawTags: string; canEdit: boolean }) {
+  const t = useTranslations("customers.contactCard");
+  const tc = useTranslations("common");
   const queryClient = useQueryClient();
   const tags = useMemo(() => parseTags(rawTags), [rawTags]);
   const [adding, setAdding] = useState(false);
@@ -141,7 +145,7 @@ function InlineTags({ customerId, rawTags, canEdit }: { customerId: string; rawT
     const preset = parseTags(settings?.customerTags);
     const pool = Array.from(new Set([...(preset.length ? preset : DEFAULT_CUSTOMER_TAGS), ...DEFAULT_CUSTOMER_TAGS]));
     const q = draft.trim();
-    return pool.filter((t) => !tags.includes(t) && (!q || t.includes(q))).slice(0, 8);
+    return pool.filter((p) => !tags.includes(p) && (!q || p.includes(q))).slice(0, 8);
   }, [settings?.customerTags, tags, draft]);
 
   const mutation = useMutation({
@@ -155,7 +159,7 @@ function InlineTags({ customerId, rawTags, canEdit }: { customerId: string; rawT
       queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
       queryClient.invalidateQueries({ queryKey: ["customers"] });
     },
-    onError: (e: Error) => toast.error(e.message || "שגיאה בעדכון התגיות"),
+    onError: (e: Error) => toast.error(e.message || t("errorTags")),
   });
 
   const addTag = (raw: string) => {
@@ -179,10 +183,10 @@ function InlineTags({ customerId, rawTags, canEdit }: { customerId: string; rawT
             {canEdit && (
               <button
                 type="button"
-                onClick={() => mutation.mutate(tags.filter((t) => t !== tag))}
+                onClick={() => mutation.mutate(tags.filter((x) => x !== tag))}
                 disabled={mutation.isPending}
                 className="rounded-full hover:bg-black/10 p-0.5 disabled:opacity-50"
-                aria-label={`הסר תגית ${tag}`}
+                aria-label={t("removeTag", { tag })}
               >
                 <X className="w-2.5 h-2.5" />
               </button>
@@ -196,7 +200,7 @@ function InlineTags({ customerId, rawTags, canEdit }: { customerId: string; rawT
             className="inline-flex items-center gap-1 rounded-full border border-dashed border-slate-300 px-2 py-0.5 text-[11px] text-slate-500 hover:border-brand-300 hover:text-brand-600 transition-colors"
           >
             <Plus className="w-3 h-3" />
-            תגית
+            {t("tag")}
           </button>
         )}
       </div>
@@ -205,7 +209,7 @@ function InlineTags({ customerId, rawTags, canEdit }: { customerId: string; rawT
           <div className="flex gap-1.5">
             <input
               className="input text-sm py-1.5 flex-1 min-w-0"
-              placeholder="תגית חדשה..."
+              placeholder={t("newTagPlaceholder")}
               value={draft}
               maxLength={MAX_TAG_LEN}
               autoFocus
@@ -221,13 +225,13 @@ function InlineTags({ customerId, rawTags, canEdit }: { customerId: string; rawT
               disabled={!draft.trim() || mutation.isPending}
               onClick={() => addTag(draft)}
             >
-              הוסף
+              {tc("actions.add")}
             </button>
             <button
               type="button"
               className="w-8 flex items-center justify-center rounded-lg text-petra-muted hover:bg-slate-100"
               onClick={() => { setAdding(false); setDraft(""); }}
-              aria-label="סגור"
+              aria-label={tc("actions.close")}
             >
               <X className="w-4 h-4" />
             </button>

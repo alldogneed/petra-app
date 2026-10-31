@@ -4,21 +4,24 @@ import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Mail, Lock, Eye, EyeOff, User, UserPlus, CheckSquare, Square, Briefcase } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
+import { LOCALE_CONFIG, localeFromBusiness } from "@/lib/locale";
 
 // Password strength indicator
 function PasswordStrength({ password }: { password: string }) {
+  const t = useTranslations("auth.registerPage");
   if (!password) return null;
 
   const checks = [
-    { label: "12+ תווים", ok: password.length >= 12 },
-    { label: "אות גדולה", ok: /[A-Z]/.test(password) },
-    { label: "אות קטנה", ok: /[a-z]/.test(password) },
-    { label: "ספרה", ok: /[0-9]/.test(password) },
+    { id: "length", label: t("passwordStrength.checks.length"), ok: password.length >= 12 },
+    { id: "upper", label: t("passwordStrength.checks.upper"), ok: /[A-Z]/.test(password) },
+    { id: "lower", label: t("passwordStrength.checks.lower"), ok: /[a-z]/.test(password) },
+    { id: "digit", label: t("passwordStrength.checks.digit"), ok: /[0-9]/.test(password) },
   ];
 
   const score = checks.filter((c) => c.ok).length;
   const colors = ["#EF4444", "#EF4444", "#F59E0B", "#F59E0B", "#10B981"];
-  const labels = ["חלשה", "חלשה", "בינונית", "בינונית", "חזקה"];
+  const labels = [t("passwordStrength.weak"), t("passwordStrength.weak"), t("passwordStrength.medium"), t("passwordStrength.medium"), t("passwordStrength.strong")];
 
   return (
     <div className="mt-2 space-y-2">
@@ -37,7 +40,7 @@ function PasswordStrength({ password }: { password: string }) {
         <div className="flex gap-3">
           {checks.map((c) => (
             <span
-              key={c.label}
+              key={c.id}
               className="text-[10px] flex items-center gap-0.5"
               style={{ color: c.ok ? "#10B981" : "#94A3B8" }}
             >
@@ -63,6 +66,8 @@ const VALID_PLANS = new Set(["basic", "pro", "groomer", "service_dog"]);
 function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const t = useTranslations("auth.registerPage");
+  const cfg = LOCALE_CONFIG[localeFromBusiness({ locale: useLocale() })];
   const planParam = searchParams.get("plan") ?? "";
   const [name, setName] = useState("");
   const [businessName, setBusinessName] = useState("");
@@ -84,12 +89,12 @@ function RegisterForm() {
       !/[a-z]/.test(password) ||
       !/[0-9]/.test(password)
     ) {
-      setError("הסיסמה חייבת להכיל לפחות 12 תווים, אות גדולה (A-Z), אות קטנה (a-z) וספרה (0-9)");
+      setError(t("errors.passwordRules"));
       return;
     }
 
     if (!tosAccepted) {
-      setError("יש לאשר את תנאי השימוש כדי להמשיך");
+      setError(t("errors.tosRequired"));
       return;
     }
 
@@ -105,7 +110,7 @@ function RegisterForm() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "שגיאה ביצירת החשבון");
+        setError(data.error || t("errors.createFailed"));
         return;
       }
 
@@ -118,7 +123,7 @@ function RegisterForm() {
       router.push("/onboarding");
       router.refresh();
     } catch {
-      setError("שגיאת רשת. אנא נסה שוב.");
+      setError(t("errors.network"));
     } finally {
       setLoading(false);
     }
@@ -131,7 +136,7 @@ function RegisterForm() {
     password.length > 0;
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-petra-bg p-4" dir="rtl">
+    <div className="min-h-screen flex items-center justify-center bg-petra-bg p-4" dir={cfg.dir}>
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">
@@ -142,7 +147,7 @@ function RegisterForm() {
             <span className="text-white text-2xl font-bold">P</span>
           </div>
           <h1 className="text-2xl font-bold text-petra-text">Petra</h1>
-          <p className="text-sm text-petra-muted mt-1">ניהול עסקי חיות מחמד</p>
+          <p className="text-sm text-petra-muted mt-1">{t("tagline")}</p>
         </div>
 
         {/* Google signup */}
@@ -157,10 +162,10 @@ function RegisterForm() {
               <path d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
               <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 6.29C4.672 4.163 6.656 2.58 9 3.58z" fill="#EA4335"/>
             </svg>
-            המשך עם Google
+            {t("google.continue")}
           </a>
           <p className="text-center text-xs text-petra-muted mt-2">
-            הדרך המהירה ביותר — ללא צורך בסיסמה
+            {t("google.hint")}
           </p>
         </div>
 
@@ -170,16 +175,16 @@ function RegisterForm() {
             <div className="w-full border-t border-slate-200" />
           </div>
           <div className="relative flex justify-center text-xs">
-            <span className="bg-petra-bg px-3 text-petra-muted">או הירשם עם אימייל</span>
+            <span className="bg-petra-bg px-3 text-petra-muted">{t("divider")}</span>
           </div>
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="card p-6 space-y-4">
           <div>
-            <h2 className="text-lg font-bold text-petra-text">יצירת חשבון</h2>
+            <h2 className="text-lg font-bold text-petra-text">{t("form.title")}</h2>
             <p className="text-sm text-petra-muted mt-0.5">
-              הצטרף לפטרה וניהל את העסק בקלות
+              {t("form.subtitle")}
             </p>
           </div>
 
@@ -191,47 +196,47 @@ function RegisterForm() {
 
           {/* Name */}
           <div>
-            <label className="label">שם מלא</label>
+            <label className="label">{t("form.fullName")}</label>
             <div className="relative">
-              <User className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <User className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
                 type="text"
-                className="input pr-10"
-                placeholder="ישראל ישראלי"
+                className="input ps-10"
+                placeholder={t("form.fullNamePlaceholder")}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
                 autoComplete="name"
-                dir="rtl"
+                dir={cfg.dir}
               />
             </div>
           </div>
 
           {/* Business Name */}
           <div>
-            <label className="label">שם העסק *</label>
+            <label className="label">{t("form.businessName")}</label>
             <div className="relative">
-              <Briefcase className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Briefcase className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
                 type="text"
-                className="input pr-10"
-                placeholder="לדוגמה: פנסיון הכלבים של דניאל"
+                className="input ps-10"
+                placeholder={t("form.businessNamePlaceholder")}
                 value={businessName}
                 onChange={(e) => setBusinessName(e.target.value)}
                 required
-                dir="rtl"
+                dir={cfg.dir}
               />
             </div>
           </div>
 
           {/* Email */}
           <div>
-            <label className="label">אימייל</label>
+            <label className="label">{t("form.email")}</label>
             <div className="relative">
-              <Mail className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Mail className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
                 type="email"
-                className="input pr-10"
+                className={`input ${cfg.dir === "rtl" ? "pr-10" : "pl-10"}`} // rtl-ok: dir=ltr input, padding on the icon side
                 placeholder="name@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -244,13 +249,13 @@ function RegisterForm() {
 
           {/* Password */}
           <div>
-            <label className="label">סיסמה</label>
+            <label className="label">{t("form.password")}</label>
             <div className="relative">
-              <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Lock className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
                 type={showPassword ? "text" : "password"}
-                className="input pr-10 pl-10"
-                placeholder="לפחות 12 תווים"
+                className="input ps-10 pe-10"
+                placeholder={t("form.passwordPlaceholder")}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -260,7 +265,7 @@ function RegisterForm() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                className="absolute end-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
               >
                 {showPassword ? (
                   <EyeOff className="w-4 h-4" />
@@ -276,7 +281,7 @@ function RegisterForm() {
           <button
             type="button"
             onClick={() => setTosAccepted(!tosAccepted)}
-            className="flex items-start gap-2 w-full text-right group"
+            className="flex items-start gap-2 w-full text-start group"
           >
             <div className="mt-0.5 flex-shrink-0">
               {tosAccepted ? (
@@ -286,25 +291,28 @@ function RegisterForm() {
               )}
             </div>
             <span className="text-xs text-petra-muted leading-relaxed">
-              קראתי ואני מסכים/ה{" "}
-              <Link
-                href="/terms"
-                target="_blank"
-                className="text-brand-500 hover:underline"
-                onClick={(e) => e.stopPropagation()}
-              >
-                לתנאי השימוש
-              </Link>
-              {" "}ול
-              <Link
-                href="/privacy"
-                target="_blank"
-                className="text-brand-500 hover:underline"
-                onClick={(e) => e.stopPropagation()}
-              >
-                מדיניות הפרטיות
-              </Link>
-              {" "}של Petra
+              {t.rich("form.tos", {
+                terms: (chunks) => (
+                  <Link
+                    href="/terms"
+                    target="_blank"
+                    className="text-brand-500 hover:underline"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {chunks}
+                  </Link>
+                ),
+                privacy: (chunks) => (
+                  <Link
+                    href="/privacy"
+                    target="_blank"
+                    className="text-brand-500 hover:underline"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {chunks}
+                  </Link>
+                ),
+              })}
             </span>
           </button>
 
@@ -314,31 +322,34 @@ function RegisterForm() {
             disabled={loading || !isValid}
           >
             {loading ? (
-              <span className="animate-pulse">יוצר חשבון...</span>
+              <span className="animate-pulse">{t("form.creating")}</span>
             ) : (
               <>
                 <UserPlus className="w-4 h-4" />
-                צור חשבון חינם
+                {t("form.submit")}
               </>
             )}
           </button>
         </form>
 
         <p className="text-center text-sm text-petra-muted mt-4">
-          כבר יש לך חשבון?{" "}
-          <Link
-            href="/login"
-            className="font-medium text-brand-500 hover:text-brand-600 underline-offset-2 hover:underline"
-          >
-            התחבר
-          </Link>
+          {t.rich("haveAccount", {
+            link: (chunks) => (
+              <Link
+                href="/login"
+                className="font-medium text-brand-500 hover:text-brand-600 underline-offset-2 hover:underline"
+              >
+                {chunks}
+              </Link>
+            ),
+          })}
         </p>
 
         <p className="text-center text-xs text-petra-muted mt-4">
           Petra &copy; {new Date().getFullYear()}
         </p>
         <p className="text-center text-xs text-petra-muted mt-1">
-          כל הזכויות שמורות all-dog - המרכז הישראלי להתנהגות הכלב
+          {t("copyright")}
         </p>
       </div>
     </div>

@@ -7,11 +7,14 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { AlertCircle, CheckCircle2, Copy, Loader2, Mail, MessageCircle, RotateCw, UserPlus, X } from "lucide-react";
 import { cn, fetchJSON, formatRelativeTime } from "@/lib/utils";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
-const ROLE_LABELS: Record<string, string> = { owner: "בעלים", manager: "מנהל", user: "עובד", volunteer: "מתנדב" };
+type TeamT = ReturnType<typeof useTranslations<"settings.teamInvitations">>;
+
+const ROLE_IDS = new Set(["owner", "manager", "user", "volunteer"]);
 
 export interface TeamInvitation {
   id: string;
@@ -31,15 +34,15 @@ interface InviteResult {
   inviteUrl: string;
 }
 
-async function postJSON<T>(url: string, init: RequestInit): Promise<T> {
+async function postJSON<T>(url: string, init: RequestInit, fallbackError: string): Promise<T> {
   const r = await fetch(url, init);
   const data = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(typeof data.error === "string" ? data.error : "שגיאה. נסה/י שוב.");
+  if (!r.ok) throw new Error(typeof data.error === "string" ? data.error : fallbackError);
   return data as T;
 }
 
-function whatsappShareUrl(name: string, businessName: string, url: string) {
-  const text = `היי ${name}, הוספתי אותך לצוות של ${businessName} בפטרה. לאישור ההצטרפות ובחירת סיסמה: ${url}`;
+function whatsappShareUrl(t: TeamT, name: string, businessName: string, url: string) {
+  const text = t("whatsappShareText", { name, businessName, url });
   return `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
 }
 
@@ -68,55 +71,59 @@ function legacyCopy(text: string): boolean {
   return ok;
 }
 
-async function copy(text: string) {
+async function copy(t: TeamT, text: string) {
   // Synchronous fallback first while still inside the user gesture, then the async API.
   if (legacyCopy(text)) {
-    toast.success("הקישור הועתק");
+    toast.success(t("copy.copied"));
     return;
   }
   try {
     await navigator.clipboard.writeText(text);
-    toast.success("הקישור הועתק");
+    toast.success(t("copy.copied"));
   } catch {
-    toast.error("לא הצלחנו להעתיק — לחץ/י על הקישור, סמן/י והעתק/י ידנית");
+    toast.error(t("copy.failed"));
   }
 }
 
 /** Result card shared by the invite modal and "resend": status + link + share. */
 function InviteLinkCard({ result, businessName }: { result: InviteResult; businessName: string }) {
+  const t = useTranslations("settings.teamInvitations");
   return (
     <div className="space-y-3">
       {result.emailSent ? (
         <div className="flex items-start gap-2 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm">
           <CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5" />
           <span>
-            ההזמנה נשלחה ל-<span dir="ltr">{result.invitation.email}</span>. {result.invitation.name} יצטרף/תצטרף לצוות אחרי
-            שיאשר/תאשר ויבחר/תבחר סיסמה.
+            {t.rich("linkCard.emailSent", {
+              email: result.invitation.email,
+              name: result.invitation.name,
+              ltr: (c) => <span dir="ltr">{c}</span>,
+            })}
           </span>
         </div>
       ) : (
         <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm">
           <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-          <span>המייל לא נשלח. שלח/י את הקישור בוואטסאפ או העתק/י אותו.</span>
+          <span>{t("linkCard.emailFailed")}</span>
         </div>
       )}
       <div className="flex items-center gap-2">
-        <input className="input text-xs flex-1 min-w-0" dir="ltr" readOnly value={result.inviteUrl} onFocus={(e) => e.target.select()} aria-label="קישור ההזמנה" />
-        <button type="button" className="btn-secondary text-xs px-3 flex items-center gap-1" onClick={() => copy(result.inviteUrl)}>
+        <input className="input text-xs flex-1 min-w-0" dir="ltr" readOnly value={result.inviteUrl} onFocus={(e) => e.target.select()} aria-label={t("linkCard.linkAriaLabel")} />
+        <button type="button" className="btn-secondary text-xs px-3 flex items-center gap-1" onClick={() => copy(t, result.inviteUrl)}>
           <Copy className="w-3.5 h-3.5" />
-          העתק
+          {t("linkCard.copy")}
         </button>
       </div>
       <a
-        href={whatsappShareUrl(result.invitation.name, businessName, result.inviteUrl)}
+        href={whatsappShareUrl(t, result.invitation.name, businessName, result.inviteUrl)}
         target="_blank"
         rel="noopener noreferrer"
         className="btn-secondary w-full justify-center flex items-center gap-2 text-sm"
       >
         <MessageCircle className="w-4 h-4" />
-        שליחה בוואטסאפ
+        {t("linkCard.sendWhatsApp")}
       </a>
-      <p className="text-xs text-petra-muted">הקישור אישי ותקף ל-7 ימים.</p>
+      <p className="text-xs text-petra-muted">{t("linkCard.validity")}</p>
     </div>
   );
 }
@@ -134,6 +141,7 @@ export function InviteMemberModal({
   canAddOwner: boolean;
   onClose: () => void;
 }) {
+  const t = useTranslations("settings.teamInvitations");
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -143,12 +151,12 @@ export function InviteMemberModal({
 
   const mutation = useMutation({
     mutationFn: () => {
-      if (!businessId) throw new Error("לא ניתן להזמין — מזהה העסק חסר. נסה לרענן את הדף.");
+      if (!businessId) throw new Error(t("modal.missingBusinessId"));
       return postJSON<InviteResult>(`/api/admin/${businessId}/members`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: name.trim(), email: email.trim(), role }),
-      });
+      }, t("errors.generic"));
     },
     onSuccess: (res) => {
       setResult(res);
@@ -165,12 +173,12 @@ export function InviteMemberModal({
       <div className="modal-content max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-xl font-bold text-petra-text">{result ? "ההזמנה מוכנה" : "הזמנת עובד"}</h2>
+            <h2 className="text-xl font-bold text-petra-text">{result ? t("modal.titleReady") : t("modal.title")}</h2>
             <p className="text-sm text-petra-muted mt-0.5">
-              {result ? "העובד מאשר מהקישור ובוחר סיסמה בעצמו" : "העובד יקבל מייל, יאשר את ההצטרפות ויבחר סיסמה בעצמו"}
+              {result ? t("modal.subtitleReady") : t("modal.subtitle")}
             </p>
           </div>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted" aria-label="סגור">
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted" aria-label={t("modal.close")}>
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -178,7 +186,7 @@ export function InviteMemberModal({
         {result ? (
           <>
             <InviteLinkCard result={result} businessName={businessName} />
-            <button className="btn-primary w-full justify-center mt-4" onClick={onClose}>סיום</button>
+            <button className="btn-primary w-full justify-center mt-4" onClick={onClose}>{t("modal.done")}</button>
           </>
         ) : (
           <>
@@ -190,19 +198,19 @@ export function InviteMemberModal({
             )}
             <div className="space-y-4">
               <div>
-                <label className="label" htmlFor="invite-member-name">שם מלא *</label>
-                <input id="invite-member-name" className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="ישראל ישראלי" maxLength={100} />
+                <label className="label" htmlFor="invite-member-name">{t("modal.nameLabel")}</label>
+                <input id="invite-member-name" className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder={t("modal.namePlaceholder")} maxLength={100} />
               </div>
               <div>
-                <label className="label" htmlFor="invite-member-email">אימייל *</label>
+                <label className="label" htmlFor="invite-member-email">{t("modal.emailLabel")}</label>
                 <input id="invite-member-email" className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="user@example.com" dir="ltr" />
               </div>
               <div>
-                <label className="label" htmlFor="invite-member-role">תפקיד</label>
+                <label className="label" htmlFor="invite-member-role">{t("modal.roleLabel")}</label>
                 <select id="invite-member-role" className="input" value={role} onChange={(e) => setRole(e.target.value)}>
-                  <option value="user">עובד</option>
-                  <option value="manager">מנהל</option>
-                  {canAddOwner && <option value="owner">בעלים</option>}
+                  <option value="user">{t("roles.user")}</option>
+                  <option value="manager">{t("roles.manager")}</option>
+                  {canAddOwner && <option value="owner">{t("roles.owner")}</option>}
                 </select>
               </div>
             </div>
@@ -213,9 +221,9 @@ export function InviteMemberModal({
                 onClick={() => { setError(null); mutation.mutate(); }}
               >
                 {mutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
-                {mutation.isPending ? "שולח..." : "שלח הזמנה"}
+                {mutation.isPending ? t("modal.sending") : t("modal.send")}
               </button>
-              <button className="btn-secondary" onClick={onClose}>ביטול</button>
+              <button className="btn-secondary" onClick={onClose}>{t("modal.cancel")}</button>
             </div>
           </>
         )}
@@ -235,6 +243,7 @@ export function PendingInvitations({
   businessName: string;
   canManage: boolean;
 }) {
+  const t = useTranslations("settings.teamInvitations");
   const queryClient = useQueryClient();
   const [resent, setResent] = useState<InviteResult | null>(null);
   const [cancelTarget, setCancelTarget] = useState<TeamInvitation | null>(null);
@@ -247,23 +256,23 @@ export function PendingInvitations({
 
   const resend = useMutation({
     mutationFn: (id: string) =>
-      postJSON<InviteResult>(`/api/admin/${businessId}/invitations/${id}`, { method: "POST" }),
+      postJSON<InviteResult>(`/api/admin/${businessId}/invitations/${id}`, { method: "POST" }, t("errors.generic")),
     onSuccess: (res) => {
       setResent(res);
       queryClient.invalidateQueries({ queryKey: ["team-invitations"] });
-      if (res.emailSent) toast.success("ההזמנה נשלחה שוב");
-      else toast.error("המייל לא נשלח — שלח/י את הקישור בוואטסאפ");
+      if (res.emailSent) toast.success(t("pending.resent"));
+      else toast.error(t("pending.resendEmailFailed"));
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const cancel = useMutation({
     mutationFn: (id: string) =>
-      postJSON<{ ok: true }>(`/api/admin/${businessId}/invitations/${id}`, { method: "DELETE" }),
+      postJSON<{ ok: true }>(`/api/admin/${businessId}/invitations/${id}`, { method: "DELETE" }, t("errors.generic")),
     onSuccess: () => {
       setCancelTarget(null);
       queryClient.invalidateQueries({ queryKey: ["team-invitations"] });
-      toast.success("ההזמנה בוטלה");
+      toast.success(t("pending.cancelled"));
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -272,7 +281,7 @@ export function PendingInvitations({
 
   return (
     <div className="space-y-2">
-      <h4 className="text-xs font-semibold uppercase tracking-wide text-petra-muted">ממתינים לאישור ({invitations.length})</h4>
+      <h4 className="text-xs font-semibold uppercase tracking-wide text-petra-muted">{t("pending.title", { count: invitations.length })}</h4>
       {invitations.map((inv) => {
         const expired = inv.status === "expired";
         return (
@@ -284,18 +293,18 @@ export function PendingInvitations({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-medium text-petra-text truncate max-w-full">{inv.name}</span>
-                  <span className="badge badge-neutral text-xs">{ROLE_LABELS[inv.role] ?? inv.role}</span>
+                  <span className="badge badge-neutral text-xs">{ROLE_IDS.has(inv.role) ? t(`roles.${inv.role}` as "roles.user") : inv.role}</span>
                   {expired ? (
-                    <span className="badge badge-danger text-xs">פג תוקף</span>
+                    <span className="badge badge-danger text-xs">{t("pending.expired")}</span>
                   ) : inv.emailFailed ? (
-                    <span className="badge badge-danger text-xs">המייל לא נשלח</span>
+                    <span className="badge badge-danger text-xs">{t("pending.emailNotSent")}</span>
                   ) : (
-                    <span className="badge badge-warning text-xs">ממתין לאישור</span>
+                    <span className="badge badge-warning text-xs">{t("pending.awaiting")}</span>
                   )}
                 </div>
                 <div className="flex items-center gap-x-3 gap-y-0.5 mt-0.5 flex-wrap min-w-0">
                   <span className="text-xs text-petra-muted truncate max-w-full" dir="ltr">{inv.email}</span>
-                  {inv.lastSentAt && <span className="text-xs text-petra-muted">נשלח {formatRelativeTime(inv.lastSentAt)}</span>}
+                  {inv.lastSentAt && <span className="text-xs text-petra-muted">{t("pending.sentAgo", { time: formatRelativeTime(inv.lastSentAt) })}</span>}
                 </div>
               </div>
               {canManage && (
@@ -304,16 +313,16 @@ export function PendingInvitations({
                     className={cn("text-xs px-3 py-1.5 rounded-lg font-medium border border-slate-200 text-petra-text hover:bg-slate-50 flex items-center gap-1")}
                     onClick={() => resend.mutate(inv.id)}
                     disabled={resend.isPending}
-                    title="קישור חדש — הקודם מפסיק לעבוד"
+                    title={t("pending.resendTitle")}
                   >
                     <RotateCw className="w-3.5 h-3.5" />
-                    שלח שוב
+                    {t("pending.resend")}
                   </button>
                   <button
                     className="text-xs px-3 py-1.5 rounded-lg font-medium text-red-600 hover:bg-red-50 border border-red-200"
                     onClick={() => setCancelTarget(inv)}
                   >
-                    בטל
+                    {t("pending.cancel")}
                   </button>
                 </div>
               )}
@@ -329,9 +338,9 @@ export function PendingInvitations({
 
       <ConfirmDialog
         open={cancelTarget !== null}
-        title={`לבטל את ההזמנה של ${cancelTarget?.name ?? ""}?`}
-        description="הקישור שנשלח יפסיק לעבוד. אפשר להזמין שוב בכל עת."
-        confirmLabel="בטל הזמנה"
+        title={t("cancelDialog.title", { name: cancelTarget?.name ?? "" })}
+        description={t("cancelDialog.description")}
+        confirmLabel={t("cancelDialog.confirm")}
         danger
         loading={cancel.isPending}
         onConfirm={() => cancelTarget && cancel.mutate(cancelTarget.id)}

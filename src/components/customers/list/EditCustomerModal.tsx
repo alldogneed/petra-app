@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { validateIsraeliPhone, validateEmail, sanitizeName, validateName, normalizeIsraeliPhone } from "@/lib/validation";
 import { parseTags, REFERRAL_SOURCES, type EnhancedCustomer } from "./types";
@@ -20,6 +21,8 @@ export function EditCustomerModal({
   customer: EnhancedCustomer | null;
   presetTags: string[];
 }) {
+  const t = useTranslations("customers");
+  const tc = useTranslations("common");
   const queryClient = useQueryClient();
   const [form, setForm] = useState({
     name: "",
@@ -54,7 +57,7 @@ export function EditCustomerModal({
     setForm((f) => ({
       ...f,
       selectedTags: f.selectedTags.includes(tag)
-        ? f.selectedTags.filter((t) => t !== tag)
+        ? f.selectedTags.filter((tg) => tg !== tag)
         : [...f.selectedTags, tag],
     }));
   };
@@ -81,9 +84,9 @@ export function EditCustomerModal({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       onClose();
-      toast.success("פרטי הלקוח עודכנו");
+      toast.success(t("listEditCustomerModal.toastUpdated"));
     },
-    onError: () => toast.error("שגיאה בעדכון הלקוח. נסה שוב."),
+    onError: () => toast.error(t("listEditCustomerModal.toastError")),
   });
 
   function validateAndSubmitEdit() {
@@ -107,7 +110,7 @@ export function EditCustomerModal({
       <div className="modal-content max-w-lg mx-4 p-6">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-xl font-bold text-petra-text">עריכת לקוח</h2>
+            <h2 className="text-xl font-bold text-petra-text">{t("listEditCustomerModal.title")}</h2>
             <p className="text-sm text-petra-muted mt-0.5">{customer.name}</p>
           </div>
           <button
@@ -120,7 +123,7 @@ export function EditCustomerModal({
 
         <div className="space-y-4">
           <div>
-            <label className="label">שם מלא *</label>
+            <label className="label">{t("listEditCustomerModal.fullName")}</label>
             <input
               className={cn("input", editFieldErrors.name && "border-red-300 focus:ring-red-200")}
               value={form.name}
@@ -130,7 +133,7 @@ export function EditCustomerModal({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">טלפון *</label>
+              <label className="label">{t("listEditCustomerModal.phone")}</label>
               <input
                 className={cn("input", editFieldErrors.phone && "border-red-300 focus:ring-red-200")}
                 value={form.phone}
@@ -140,7 +143,7 @@ export function EditCustomerModal({
               {editFieldErrors.phone && <p className="text-xs text-red-500 mt-1">{editFieldErrors.phone}</p>}
             </div>
             <div>
-              <label className="label">אימייל</label>
+              <label className="label">{t("listEditCustomerModal.email")}</label>
               <input
                 className={cn("input", editFieldErrors.email && "border-red-300 focus:ring-red-200")}
                 value={form.email}
@@ -151,7 +154,7 @@ export function EditCustomerModal({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">כתובת</label>
+              <label className="label">{t("listEditCustomerModal.address")}</label>
               <input
                 className="input"
                 value={form.address}
@@ -159,7 +162,7 @@ export function EditCustomerModal({
               />
             </div>
             <div>
-              <label className="label">תעודת זהות</label>
+              <label className="label">{t("listEditCustomerModal.idNumber")}</label>
               <input
                 className="input"
                 value={form.idNumber}
@@ -170,7 +173,7 @@ export function EditCustomerModal({
             </div>
           </div>
           <div>
-            <label className="label">תגיות לקוח</label>
+            <label className="label">{t("listEditCustomerModal.tags")}</label>
             <div className="flex flex-wrap gap-1.5 mt-1">
               {presetTags.map((tag) => (
                 <button
@@ -190,20 +193,20 @@ export function EditCustomerModal({
             </div>
           </div>
           <div>
-            <label className="label">מקור הגעה</label>
+            <label className="label">{t("listEditCustomerModal.source")}</label>
             <select
               className="input"
               value={form.source}
               onChange={(e) => setForm({ ...form, source: e.target.value })}
             >
-              <option value="">— לא ידוע —</option>
+              <option value="">{t("listEditCustomerModal.sourceUnknown")}</option>
               {REFERRAL_SOURCES.map((s) => (
-                <option key={s.value} value={s.value}>{s.label}</option>
+                <option key={s.value} value={s.value}>{t(s.labelKey)}</option>
               ))}
             </select>
           </div>
           <div>
-            <label className="label">הערות</label>
+            <label className="label">{t("listEditCustomerModal.notes")}</label>
             <textarea
               className="input"
               rows={3}
@@ -219,10 +222,10 @@ export function EditCustomerModal({
             disabled={mutation.isPending}
             onClick={validateAndSubmitEdit}
           >
-            {mutation.isPending ? "שומר..." : "שמור שינויים"}
+            {mutation.isPending ? tc("progress.saving") : t("listEditCustomerModal.saveChanges")}
           </button>
           <button className="btn-secondary" onClick={onClose}>
-            ביטול
+            {tc("actions.cancel")}
           </button>
         </div>
       </div>

@@ -3,6 +3,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Star, Loader2, CreditCard } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { TIERS } from "@/lib/constants";
 import { useAuth } from "@/providers/auth-provider";
 import { usePlan } from "@/hooks/usePlan";
@@ -12,6 +14,8 @@ import { TIER_ICONS } from "./shared";
 
 export function SubscriptionCard({ tier, customerCount, appointmentCount }: { tier: string; customerCount: number; appointmentCount: number }) {
   const queryClient = useQueryClient();
+  const t = useTranslations("settings.subscriptionCard");
+  const { locale } = useBusinessLocale();
   const { user, refreshUser, isOwner } = useAuth();
   const { subscriptionEndsAt, subscriptionDaysLeft, subscriptionExpired, subscriptionActive, cancelPending, subscriptionStatus, hasRecurring, awaitingRecurringCharge } = usePlan();
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
@@ -23,8 +27,8 @@ export function SubscriptionCard({ tier, customerCount, appointmentCount }: { ti
   useEffect(() => {
     const url = new URL(window.location.href);
     const card = url.searchParams.get("card");
-    if (card === "updated") toast.success("הכרטיס עודכן. החיוב הבא יתבצע במועד הרגיל — לא חויבת עכשיו.");
-    if (card === "error") toast.error("עדכון הכרטיס לא הושלם. אפשר לנסות שוב.");
+    if (card === "updated") toast.success(t("toasts.cardUpdated"));
+    if (card === "error") toast.error(t("toasts.cardUpdateFailed"));
     if (url.searchParams.get("update-card") === "1") setCardPrompt(true);
     if (card || url.searchParams.has("update-card")) {
       url.searchParams.delete("card");
@@ -37,21 +41,21 @@ export function SubscriptionCard({ tier, customerCount, appointmentCount }: { ti
   const tierInfo = TIERS[tier as keyof typeof TIERS];
   const isFree = tier === "free";
 
-  const endsAtFormatted = subscriptionEndsAt ? new Date(subscriptionEndsAt).toLocaleDateString("he-IL") : "";
+  const endsAtFormatted = subscriptionEndsAt ? new Date(subscriptionEndsAt).toLocaleDateString(locale) : "";
 
   const statusLabel = isFree
-    ? "חינמי"
+    ? t("status.free")
     : cancelPending
-    ? `בתהליך ביטול — גישה מלאה עד ${endsAtFormatted}`
+    ? t("status.cancelPending", { date: endsAtFormatted })
     : subscriptionExpired
-    ? "פג תוקף"
+    ? t("status.expired")
     : awaitingRecurringCharge
-    ? "פעיל — החיוב החודשי בעיבוד"
+    ? t("status.awaitingCharge")
     : subscriptionActive && hasRecurring
-    ? `פעיל — מתחדש אוטומטית ב-${endsAtFormatted}`
+    ? t("status.activeRecurring", { date: endsAtFormatted })
     : subscriptionActive
-    ? `פעיל עד ${endsAtFormatted}`
-    : "לא פעיל";
+    ? t("status.activeUntil", { date: endsAtFormatted })
+    : t("status.inactive");
 
   const statusColor = subscriptionExpired
     ? "text-red-500"
@@ -76,12 +80,12 @@ export function SubscriptionCard({ tier, customerCount, appointmentCount }: { ti
       const res = await fetch("/api/cardcom/update-card", { method: "POST" });
       const d = await res.json().catch(() => ({}));
       if (!res.ok || !d.url) {
-        toast.error(d.error ?? "שגיאה בפתיחת עדכון הכרטיס");
+        toast.error(d.error ?? t("toasts.openCardUpdateError"));
         return;
       }
       window.location.href = d.url;
     } catch {
-      toast.error("שגיאת רשת. נסה שוב.");
+      toast.error(t("toasts.networkError"));
     } finally {
       setOpeningCard(false);
     }
@@ -95,15 +99,15 @@ export function SubscriptionCard({ tier, customerCount, appointmentCount }: { ti
       const res = await fetch("/api/subscription/cancel", { method: "POST" });
       if (!res.ok) {
         const d = await res.json();
-        toast.error(d.error ?? "שגיאה בביטול המנוי");
+        toast.error(d.error ?? t("toasts.cancelError"));
         return;
       }
-      toast.success(endsAtFormatted ? `הביטול נקלט. תמשיך ליהנות מהמנוי עד ${endsAtFormatted}.` : "המנוי בוטל.");
+      toast.success(endsAtFormatted ? t("toasts.cancelledUntil", { date: endsAtFormatted }) : t("toasts.cancelled"));
       setShowCancelConfirm(false);
       await refreshUser();
       queryClient.invalidateQueries({ queryKey: ["settings"] });
     } catch {
-      toast.error("שגיאת רשת. נסה שוב.");
+      toast.error(t("toasts.networkError"));
     } finally {
       setCancelling(false);
     }
@@ -120,41 +124,41 @@ export function SubscriptionCard({ tier, customerCount, appointmentCount }: { ti
           <TierIcon className="w-5 h-5 text-brand-500" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-petra-text">מנוי: {tierInfo?.name ?? (tier === "service_dog" ? "Service Dog" : tier)}</p>
+          <p className="text-sm font-semibold text-petra-text">{t("header.plan", { name: tierInfo?.name ?? (tier === "service_dog" ? "Service Dog" : tier) })}</p>
           <p className={`text-xs font-medium ${statusColor}`}>{statusLabel}</p>
-          <p className="text-xs text-petra-muted">{customerCount} לקוחות · {appointmentCount} פגישות</p>
+          <p className="text-xs text-petra-muted">{t("header.counts", { customers: customerCount, appointments: appointmentCount })}</p>
         </div>
         <a href="/upgrade" className="btn-secondary text-xs py-1.5 px-3 flex-shrink-0">
-          שנה מסלול
+          {t("header.changePlan")}
         </a>
       </div>
 
       {/* Cancel pending banner */}
       {cancelPending && (
         <div className="px-4 py-2 bg-amber-50 border-t border-amber-100 text-xs text-amber-700 flex items-center justify-between">
-          <span>הביטול נקלט — גישה מלאה עד <strong>{endsAtFormatted}</strong>. לאחר מכן תעבור למסלול חינמי.</span>
+          <span>{t.rich("banners.cancelPending", { date: endsAtFormatted, b: (c) => <strong>{c}</strong> })}</span>
         </div>
       )}
 
       {subscriptionActive && !cancelPending && !hasRecurring && subscriptionDaysLeft <= 7 && (
         <div className="px-4 py-2 bg-amber-50 border-t border-amber-100 text-xs text-amber-700 flex items-center justify-between">
-          <span>המנוי שלך יפוג בעוד {subscriptionDaysLeft} ימים</span>
-          <a href={renewHref} className="font-semibold underline">חדש עכשיו</a>
+          <span>{t("banners.expiresIn", { days: subscriptionDaysLeft })}</span>
+          <a href={renewHref} className="font-semibold underline">{t("banners.renewNow")}</a>
         </div>
       )}
       {subscriptionExpired && !isFree && (
         <div className="px-4 py-2 bg-red-50 border-t border-red-100 text-xs text-red-700 flex items-center justify-between">
-          <span>המנוי שלך פג — חזרת למסלול חינמי</span>
-          <a href={renewHref} className="font-semibold underline">חדש עכשיו</a>
+          <span>{t("banners.expired")}</span>
+          <a href={renewHref} className="font-semibold underline">{t("banners.renewNow")}</a>
         </div>
       )}
 
       {showCardWarning && (
         <div className="px-4 py-3 bg-amber-50 border-t border-amber-100 text-xs text-amber-800 flex items-center justify-between gap-3 flex-wrap">
-          <span>החיוב החודשי לא עבר. עדכנו אמצעי תשלום כדי שהמנוי ימשיך — לא תחויבו עכשיו.</span>
+          <span>{t("banners.chargeFailed")}</span>
           <button onClick={handleUpdateCard} disabled={openingCard} className="btn-primary text-xs py-1.5 px-3 flex items-center gap-1.5">
             {openingCard ? <Loader2 className="w-3 h-3 animate-spin" /> : <CreditCard className="w-3.5 h-3.5" />}
-            עדכון אמצעי תשלום
+            {t("actions.updateCard")}
           </button>
         </div>
       )}
@@ -169,14 +173,14 @@ export function SubscriptionCard({ tier, customerCount, appointmentCount }: { ti
               className="text-xs text-slate-500 hover:text-brand-600 transition-colors flex items-center gap-1.5"
             >
               {openingCard ? <Loader2 className="w-3 h-3 animate-spin" /> : <CreditCard className="w-3.5 h-3.5" />}
-              עדכון אמצעי תשלום
+              {t("actions.updateCard")}
             </button>
           ) : <span />}
           {canCancel && <button
             onClick={() => setShowCancelConfirm(true)}
             className="text-xs text-slate-400 hover:text-red-500 transition-colors underline"
           >
-            ביטול מנוי
+            {t("actions.cancelSubscription")}
           </button>}
         </div>
       )}
@@ -185,8 +189,8 @@ export function SubscriptionCard({ tier, customerCount, appointmentCount }: { ti
         <div className="px-4 py-3 border-t border-red-100 bg-red-50 flex flex-col gap-2">
           <p className="text-xs text-red-700 font-medium">
             {endsAtFormatted
-              ? `המנוי יבוטל בסוף תקופת החיוב (${endsAtFormatted}). עד אז תמשיך ליהנות מכל התכונות — ללא חיוב נוסף.`
-              : "המנוי יבוטל מיד והעסק יעבור למסלול החינמי."}
+              ? t("confirm.atPeriodEnd", { date: endsAtFormatted })
+              : t("confirm.immediate")}
           </p>
           <div className="flex gap-2">
             <button
@@ -195,13 +199,13 @@ export function SubscriptionCard({ tier, customerCount, appointmentCount }: { ti
               className="text-xs px-3 py-1.5 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center gap-1.5"
             >
               {cancelling && <Loader2 className="w-3 h-3 animate-spin" />}
-              {cancelling ? "מבטל..." : "כן, בטל מנוי"}
+              {cancelling ? t("confirm.cancelling") : t("confirm.yes")}
             </button>
             <button
               onClick={() => setShowCancelConfirm(false)}
               className="text-xs px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
             >
-              חזרה
+              {t("confirm.back")}
             </button>
           </div>
         </div>

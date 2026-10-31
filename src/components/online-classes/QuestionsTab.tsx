@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -27,10 +28,11 @@ export interface BusinessQuestionItem {
 
 type FilterId = "pending" | "answered" | "all";
 
-const FILTERS: { id: FilterId; label: string }[] = [
-  { id: "pending", label: "ממתינות לתשובה" },
-  { id: "answered", label: "נענו" },
-  { id: "all", label: "הכל" },
+// Labels: onlineClasses.questionsTab.filters.<id>
+const FILTERS: { id: FilterId }[] = [
+  { id: "pending" },
+  { id: "answered" },
+  { id: "all" },
 ];
 
 function queryFor(filter: FilterId): string {
@@ -40,6 +42,8 @@ function queryFor(filter: FilterId): string {
 }
 
 export function QuestionsTab() {
+  const t = useTranslations("onlineClasses");
+  const tc = useTranslations("common");
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<FilterId>("pending");
   /** questionId → draft answer text (open editor) */
@@ -62,7 +66,7 @@ export function QuestionsTab() {
         body: JSON.stringify({ answerBody }),
       }),
     onSuccess: (_d, vars) => {
-      toast.success("התשובה נשלחה — התלמיד/ה יקבל/תקבל התראה");
+      toast.success(t("questionsTab.toasts.answered"));
       setDrafts((prev) => {
         const next = { ...prev };
         delete next[vars.id];
@@ -70,17 +74,17 @@ export function QuestionsTab() {
       });
       invalidate();
     },
-    onError: (e: Error) => toast.error(e.message || "שגיאה בשליחת התשובה"),
+    onError: (e: Error) => toast.error(e.message || t("questionsTab.toasts.answerError")),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
       fetchJSON(`/api/online-classes/questions/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      toast.success("השאלה נמחקה");
+      toast.success(t("questionsTab.toasts.deleted"));
       invalidate();
     },
-    onError: (e: Error) => toast.error(e.message || "שגיאה במחיקת השאלה"),
+    onError: (e: Error) => toast.error(e.message || t("questionsTab.toasts.deleteError")),
   });
 
   const openEditor = (q: BusinessQuestionItem) =>
@@ -96,11 +100,11 @@ export function QuestionsTab() {
   const submitAnswer = (id: string) => {
     const text = (drafts[id] ?? "").trim();
     if (!text) {
-      toast.error("לא ניתן לשלוח תשובה ריקה");
+      toast.error(t("questionsTab.toasts.emptyAnswer"));
       return;
     }
     if (text.length > 2000) {
-      toast.error("התשובה ארוכה מדי — עד 2000 תווים");
+      toast.error(t("questionsTab.toasts.tooLong"));
       return;
     }
     answerMutation.mutate({ id, answerBody: text });
@@ -109,7 +113,7 @@ export function QuestionsTab() {
   const confirmDelete = (q: BusinessQuestionItem) => {
     if (
       window.confirm(
-        `למחוק את השאלה של ${q.student.name}? הפעולה אינה הפיכה והשאלה תיעלם גם מהפורטל.`
+        t("questionsTab.confirmDelete", { name: q.student.name })
       )
     ) {
       deleteMutation.mutate(q.id);
@@ -120,9 +124,9 @@ export function QuestionsTab() {
     return (
       <div className="card p-8 text-center">
         <AlertTriangle className="w-8 h-8 mx-auto mb-3 text-red-400" />
-        <p className="text-red-600 font-medium mb-2">שגיאה בטעינת השאלות</p>
+        <p className="text-red-600 font-medium mb-2">{t("questionsTab.loadError")}</p>
         <button className="btn-secondary text-sm" onClick={() => refetch()}>
-          נסה שוב
+          {t("questionsTab.retry")}
         </button>
       </div>
     );
@@ -142,7 +146,7 @@ export function QuestionsTab() {
                   : "px-3.5 py-1.5 rounded-full text-xs font-medium bg-slate-100 text-petra-muted hover:bg-slate-200 whitespace-nowrap"
               }
             >
-              {f.label}
+              {t(`questionsTab.filters.${f.id}`)}
             </button>
           ))}
         </div>
@@ -155,9 +159,9 @@ export function QuestionsTab() {
           <div className="empty-state-icon">
             <MessageCircleQuestion className="w-6 h-6 text-slate-400" />
           </div>
-          <p className="font-medium text-petra-text mb-1">אין שאלות להצגה</p>
+          <p className="font-medium text-petra-text mb-1">{t("questionsTab.empty.title")}</p>
           <p className="text-sm text-petra-muted">
-            כשתלמידים ישאלו שאלות מתחת לשיעורים בקורסים — הן יופיעו כאן למענה
+            {t("questionsTab.empty.body")}
           </p>
         </div>
       ) : (
@@ -174,12 +178,12 @@ export function QuestionsTab() {
                         {q.student.name || "—"}
                       </span>
                       {isAnswered && (
-                        <span className="badge-success">נענתה</span>
+                        <span className="badge-success">{t("questionsTab.answeredBadge")}</span>
                       )}
                       {q.isPrivate && (
                         <span className="inline-flex items-center gap-1 text-xs text-petra-muted">
                           <Lock className="w-3 h-3" />
-                          שאלה פרטית
+                          {t("questionsTab.privateQuestion")}
                         </span>
                       )}
                     </div>
@@ -192,7 +196,7 @@ export function QuestionsTab() {
                   </div>
                   <button
                     className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-petra-muted hover:text-red-600 shrink-0"
-                    title="מחיקת השאלה"
+                    title={t("questionsTab.deleteTitle")}
                     onClick={() => confirmDelete(q)}
                     disabled={deleteMutation.isPending}
                   >
@@ -207,7 +211,7 @@ export function QuestionsTab() {
                 {isAnswered && !editorOpen && (
                   <div className="rounded-xl bg-emerald-50/70 border border-emerald-100 p-3 mb-3">
                     <p className="text-xs font-semibold text-emerald-700 mb-1">
-                      התשובה שלך
+                      {t("questionsTab.yourAnswer")}
                       {q.answeredAt ? ` · ${heDateTime(q.answeredAt)}` : ""}
                     </p>
                     <p className="text-sm text-petra-text whitespace-pre-wrap">
@@ -222,7 +226,7 @@ export function QuestionsTab() {
                       className="input min-h-[96px] resize-y"
                       value={drafts[q.id] ?? ""}
                       maxLength={2000}
-                      placeholder="כתוב/כתבי כאן את התשובה לתלמיד/ה…"
+                      placeholder={t("questionsTab.answerPlaceholder")}
                       onChange={(e) =>
                         setDrafts((prev) => ({ ...prev, [q.id]: e.target.value }))
                       }
@@ -233,14 +237,14 @@ export function QuestionsTab() {
                         onClick={() => submitAnswer(q.id)}
                         disabled={answerMutation.isPending}
                       >
-                        שלח תשובה
+                        {t("questionsTab.sendAnswer")}
                       </button>
                       <button
                         className="btn-secondary text-sm"
                         onClick={() => closeEditor(q.id)}
                         disabled={answerMutation.isPending}
                       >
-                        ביטול
+                        {tc("actions.cancel")}
                       </button>
                       <span className="text-xs text-petra-muted">
                         {(drafts[q.id] ?? "").length}/2000
@@ -255,10 +259,10 @@ export function QuestionsTab() {
                     {isAnswered ? (
                       <>
                         <Pencil className="w-4 h-4" />
-                        עריכת התשובה
+                        {t("questionsTab.editAnswer")}
                       </>
                     ) : (
-                      "מענה על השאלה"
+                      t("questionsTab.answerQuestion")
                     )}
                   </button>
                 )}
