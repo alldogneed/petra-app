@@ -39,6 +39,8 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useVertical } from "@/hooks/useVertical";
+import { changelogForVertical, helpCategoriesForVertical } from "@/lib/verticals/help";
 
 interface FaqItem {
   question: string;
@@ -967,10 +969,15 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
     },
   });
 
-  const filteredCategories = useMemo(() => {
-    if (!search.trim() && !selectedCategory) return faqCategories;
+  // Verticals: a "generic" business sees only help without dog-domain content.
+  const { vertical } = useVertical();
+  const verticalCategories = useMemo(() => helpCategoriesForVertical(faqCategories, vertical), [vertical]);
+  const verticalChangelog = useMemo(() => changelogForVertical(changelog, vertical), [vertical]);
 
-    return faqCategories
+  const filteredCategories = useMemo(() => {
+    if (!search.trim() && !selectedCategory) return verticalCategories;
+
+    return verticalCategories
       .filter((cat) => !selectedCategory || cat.id === selectedCategory)
       .map((cat) => ({
         ...cat,
@@ -982,7 +989,7 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
         ),
       }))
       .filter((cat) => cat.items.length > 0);
-  }, [search, selectedCategory]);
+  }, [search, selectedCategory, verticalCategories]);
 
   const totalResults = filteredCategories.reduce(
     (acc, cat) => acc + cat.items.length,
@@ -1050,7 +1057,7 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
                 >
                   הכל
                 </button>
-                {faqCategories.map((cat) => {
+                {verticalCategories.map((cat) => {
                   const Icon = cat.icon;
                   return (
                     <button
@@ -1130,7 +1137,7 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
           {/* Changelog Tab */}
           {activeTab === "changelog" && (
             <div className="space-y-4">
-              {changelog.map((release) => (
+              {verticalChangelog.map((release) => (
                 <div key={release.version} className="card overflow-hidden">
                   <div className="flex items-center gap-3 px-4 py-3 bg-slate-50/80 border-b border-petra-border">
                     <div className="w-7 h-7 rounded-lg bg-brand-50 flex items-center justify-center">

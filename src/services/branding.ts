@@ -7,6 +7,7 @@ import prisma from "@/lib/prisma";
 import { resolveBranding, type ResolvedBranding } from "@/lib/verticals/branding";
 import { updateBranding } from "./online-classes";
 import { ServiceError } from "./types";
+import { isValidCustomSubdomain } from "@/lib/verticals/tenant-host";
 
 const BRANDING_SELECT = {
   name: true,
@@ -65,4 +66,24 @@ export async function updateBusinessBranding(businessId: string, input: Branding
   }
   await updateBranding(businessId, input);
   return getBrandingSettingsForEdit(businessId);
+}
+
+/**
+ * Phase 4: a "generic" business picks its own Latin address (`{value}.petra.app`). It IS
+ * the booking slug, so `/book/{old}` stops working — the settings card asks first.
+ */
+export async function updateBusinessSubdomain(businessId: string, value: string) {
+  const slug = value.trim().toLowerCase();
+  if (!isValidCustomSubdomain(slug)) {
+    throw new ServiceError("כתובת לא תקינה — אותיות באנגלית, ספרות ומקף, לפחות 3 תווים", "VALIDATION");
+  }
+  const taken = await prisma.business.findFirst({ where: { slug, NOT: { id: businessId } }, select: { id: true } });
+  if (taken) throw new ServiceError("הכתובת תפוסה — נסו כתובת אחרת", "CONFLICT");
+  try {
+    await prisma.business.update({ where: { id: businessId }, data: { slug } });
+  } catch (e) {
+    if ((e as { code?: string })?.code === "P2002") throw new ServiceError("הכתובת תפוסה — נסו כתובת אחרת", "CONFLICT");
+    throw e;
+  }
+  return slug;
 }

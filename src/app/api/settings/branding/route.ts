@@ -4,7 +4,7 @@ import { requireBusinessAuth, requireBusinessPermission, isGuardError } from "@/
 import { TENANT_PERMS } from "@/lib/permissions";
 import { logActivity, ACTIVITY_ACTIONS } from "@/lib/activity-log";
 import { getBusinessVertical } from "@/lib/verticals/server";
-import { getBrandingSettingsForEdit, updateBusinessBranding } from "@/services/branding";
+import { getBrandingSettingsForEdit, updateBusinessBranding, updateBusinessSubdomain } from "@/services/branding";
 import { ServiceError } from "@/services/types";
 
 /**
@@ -56,21 +56,28 @@ export async function PATCH(request: NextRequest) {
     if (v && v.length > 500) return NextResponse.json({ error: "כתובת הלוגו ארוכה מדי" }, { status: 400 });
     input.logoUrl = v;
   }
-  if (Object.keys(input).length === 0) {
+  const subdomain = typeof body.subdomain === "string" ? body.subdomain : undefined;
+  if (Object.keys(input).length === 0 && subdomain === undefined) {
     return NextResponse.json({ error: "לא נשלחו שדות לעדכון" }, { status: 400 });
   }
 
   try {
-    const result = await updateBusinessBranding(auth.businessId, input);
+    let slug: string | undefined;
+    if (subdomain !== undefined) slug = await updateBusinessSubdomain(auth.businessId, subdomain);
+    const result = Object.keys(input).length
+      ? await updateBusinessBranding(auth.businessId, input)
+      : await getBrandingSettingsForEdit(auth.businessId);
     logActivity(auth.session.user.id, auth.session.user.name, ACTIVITY_ACTIONS.UPDATE_SETTINGS, {
       businessId: auth.businessId,
       entityType: "BUSINESS",
       entityId: auth.businessId,
-      entityLabel: "מיתוג",
+      entityLabel: slug ? `מיתוג · כתובת ${slug}` : "מיתוג",
     });
-    return NextResponse.json(result);
+    return NextResponse.json({ ...result, ...(slug ? { slug } : {}) });
   } catch (error) {
-    if (error instanceof ServiceError) return NextResponse.json({ error: error.message }, { status: 400 });
+    if (error instanceof ServiceError) {
+      return NextResponse.json({ error: error.message }, { status: error.code === "CONFLICT" ? 409 : 400 });
+    }
     console.error("PATCH /api/settings/branding error:", error);
     return NextResponse.json({ error: "שגיאה בשמירת המיתוג" }, { status: 500 });
   }

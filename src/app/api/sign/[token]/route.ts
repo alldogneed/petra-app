@@ -8,7 +8,7 @@ import { sendWhatsAppMessage } from "@/lib/whatsapp";
 import { toWhatsAppPhone } from "@/lib/utils";
 import { PDFDocument } from "pdf-lib";
 import { resolveBranding } from "@/lib/verticals/branding";
-import { normalizeVertical } from "@/lib/verticals";
+import { applyPdfBranding } from "@/lib/verticals/pdf";
 import { readFileSync } from "fs";
 import { join } from "path";
 
@@ -283,11 +283,7 @@ export async function POST(
 
     // Verticals phase 3: the signed PDF of a "generic" business names the business as its
     // author / creator (pdf-lib's own defaults stay for dogs — unchanged).
-    if (normalizeVertical(contractRequest.business.vertical) === "generic") {
-      pdfDoc.setAuthor(contractRequest.business.name);
-      pdfDoc.setCreator(contractRequest.business.name);
-      pdfDoc.setProducer(contractRequest.business.name);
-    }
+    applyPdfBranding(pdfDoc, { vertical: contractRequest.business.vertical, businessName: contractRequest.business.name });
     const signedPdfBytes = await pdfDoc.save();
     const signedPdfBuffer = Buffer.from(signedPdfBytes);
 

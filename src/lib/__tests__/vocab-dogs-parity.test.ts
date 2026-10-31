@@ -69,6 +69,10 @@ const CASES: { key: VocabKey; params?: Record<string, string>; before: string }[
   { key: "analytics.operations_tab", before: "אילוף ופנסיון" },
   { key: "messages.followup_subject", before: "הכלב שלכם" },
   { key: "messages.greeting_emoji", before: "🐾" },
+  { key: "plans.free_programs", before: "מערכת ניהול תהליכי אילוף (עד 10 תוכניות)" },
+  { key: "plans.payment_request", before: "בקשת תשלום + טפסי קליטה דיגיטליים" },
+  { key: "plans.basic_description", before: "מושלם לגרומרים ומאלפים עצמאיים — יחיד, מקצועי, חסכוני" },
+  { key: "plans.pro_description", before: "מושלם לפנסיונים ומרכזי אילוף — צוות, גדילה, שליטה מלאה" },
 ];
 
 describe("dogs values are the pre-verticals text", () => {

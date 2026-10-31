@@ -1,4 +1,4 @@
-import { isDnsSafeSlug, sessionCookieDomain, tenantSlugFromHost, tenantUrl } from "@/lib/verticals/tenant-host";
+import { isValidCustomSubdomain, punycodeDecodeLabel, punycodeEncodeLabel, isDnsSafeSlug, sessionCookieDomain, tenantSlugFromHost, tenantUrl } from "@/lib/verticals/tenant-host";
 
 describe("tenantSlugFromHost", () => {
   const R = "petra.app";
@@ -32,9 +32,31 @@ describe("sessionCookieDomain", () => {
 describe("tenantUrl", () => {
   it("only for DNS-safe slugs", () => {
     expect(tenantUrl("noa-1a2b", "petra.app")).toBe("https://noa-1a2b.petra.app");
-    expect(tenantUrl("סטודיו-1a2b", "petra.app")).toBeNull();
+    expect(tenantUrl("סטודיו-1a2b", "petra.app")).toBeNull(); // Hebrew + Latin = invalid IDN (BIDI)
     expect(tenantUrl("www", "petra.app")).toBeNull();
     expect(tenantUrl("noa", undefined)).toBeNull();
     expect(isDnsSafeSlug("a".repeat(64))).toBe(false);
+  });
+});
+
+describe("punycode (RFC 3492)", () => {
+  it.each([["bücher", "xn--bcher-kva"], ["סטודיו-12", "xn---12-1pejbsk2e"], ["münchen", "xn--mnchen-3ya"]])("%s ⇄ %s", (u, a) => {
+    expect(punycodeEncodeLabel(u)).toBe(a);
+    expect(punycodeDecodeLabel(a)).toBe(u);
+  });
+  it("Hebrew slug with digits only → sub-domain", () => {
+    const label = punycodeEncodeLabel("סטודיו-12");
+    expect(tenantSlugFromHost(`${label}.petra.app`, "petra.app")).toBe("סטודיו-12");
+    expect(tenantUrl("סטודיו-12", "petra.app")).toBe(`https://${label}.petra.app`);
+  });
+  it("garbage punycode → null", () => {
+    expect(tenantSlugFromHost("xn--!!!.petra.app", "petra.app")).toBeNull();
+  });
+});
+
+describe("custom sub-domain", () => {
+  it("latin, 3+ chars, not reserved", () => {
+    expect(isValidCustomSubdomain("noa-studio")).toBe(true);
+    for (const v of ["ab", "www", "Noa", "נועה", "-noa", "noa_", ""]) expect(isValidCustomSubdomain(v)).toBe(false);
   });
 });

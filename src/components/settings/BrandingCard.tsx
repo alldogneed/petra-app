@@ -7,6 +7,8 @@
  * (Business.logo) — no second upload.
  */
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import type { WaConnectionStatus } from "@/lib/whatsapp-connections";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Palette } from "lucide-react";
 import { toast } from "sonner";
@@ -16,7 +18,8 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useVertical } from "@/hooks/useVertical";
 import { fetchJSON } from "@/lib/utils";
 import { brandPalette, isValidHexColor, PETRA_PRIMARY } from "@/lib/verticals/branding";
-import { tenantUrl } from "@/lib/verticals/tenant-host";
+import { isValidCustomSubdomain, tenantUrl } from "@/lib/verticals/tenant-host";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { ReadOnlyNotice, SettingsSectionHeader } from "./settings-ui";
 import { useRegisterDirty } from "./SettingsDirtyContext";
 
@@ -40,7 +43,36 @@ function BrandingCardInner() {
   const qc = useQueryClient();
   const { refreshUser, user } = useAuth();
   // Phase 4: `{slug}.petra.app` — shown only when sub-domains are switched on.
-  const tenantAddress = tenantUrl(user?.businessSlug, process.env.NEXT_PUBLIC_TENANT_ROOT_DOMAIN);
+  const tenantRoot = process.env.NEXT_PUBLIC_TENANT_ROOT_DOMAIN || "";
+  const tenantAddress = tenantUrl(user?.businessSlug, tenantRoot);
+  const [subdomain, setSubdomain] = useState("");
+  // Phase 5: customers see the sender number's display name — the platform's, until the
+  // business connects its own WhatsApp number (Embedded Signup).
+  const { data: waStatus } = useQuery<WaConnectionStatus>({
+    queryKey: ["whatsapp-connection"],
+    queryFn: () => fetchJSON<WaConnectionStatus>("/api/integrations/whatsapp/connection"),
+    staleTime: 60_000,
+  });
+  const [confirmSubdomain, setConfirmSubdomain] = useState(false);
+  const saveSubdomain = useMutation({
+    mutationFn: () =>
+      fetchJSON<{ slug?: string }>("/api/settings/branding", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subdomain }),
+      }),
+    onSuccess: async () => {
+      setConfirmSubdomain(false);
+      setSubdomain("");
+      await fetch("/api/auth/me", { cache: "reload" }).catch(() => null);
+      await refreshUser();
+      toast.success("הכתובת עודכנה");
+    },
+    onError: (e: Error) => {
+      setConfirmSubdomain(false);
+      toast.error(e.message || "שגיאה בעדכון הכתובת");
+    },
+  });
   const canEdit = usePermissions().canCriticalSettings;
   const { data, isLoading } = useQuery<BrandingEdit>({
     queryKey: QUERY_KEY,
@@ -101,15 +133,59 @@ function BrandingCardInner() {
       />
       {!canEdit && <ReadOnlyNotice className="mb-5" />}
 
-      {tenantAddress && (
+      {tenantRoot && (
         <div className="mb-5 p-3 rounded-xl bg-slate-50 border border-slate-200 text-sm" data-testid="tenant-address">
           <p className="text-petra-muted text-xs mb-1">הכתובת של העסק שלך</p>
-          <a href={tenantAddress} target="_blank" rel="noopener noreferrer" dir="ltr" className="font-medium text-brand-600 hover:underline">
-            {tenantAddress.replace("https://", "")}
-          </a>
+          {tenantAddress ? (
+            <a href={tenantAddress} target="_blank" rel="noopener noreferrer" dir="ltr" className="font-medium text-brand-600 hover:underline">
+              {tenantAddress.replace("https://", "")}
+            </a>
+          ) : (
+            <p className="text-xs text-amber-700">לשם העסק עדיין אין כתובת באנגלית — בחרו כתובת כאן למטה.</p>
+          )}
           <p className="text-[11px] text-petra-muted mt-1">דף ההזמנות בכתובת שלך; גם כניסה למערכת עובדת שם.</p>
+          {canEdit && (
+            <div className="mt-3 flex items-center gap-2" dir="ltr">
+              <input
+                aria-label="כתובת חדשה"
+                className="input flex-1 text-left"
+                placeholder="my-studio"
+                value={subdomain}
+                onChange={(e) => setSubdomain(e.target.value.trim().toLowerCase())}
+              />
+              <span className="text-xs text-petra-muted whitespace-nowrap">.{tenantRoot}</span>
+              <button
+                type="button"
+                className="btn-secondary text-xs"
+                disabled={!isValidCustomSubdomain(subdomain) || subdomain === user?.businessSlug || saveSubdomain.isPending}
+                onClick={() => setConfirmSubdomain(true)}
+              >
+                שמירה
+              </button>
+            </div>
+          )}
         </div>
       )}
+      {waStatus && waStatus.status !== "active" && (
+        <div className="mb-5 p-3 rounded-xl bg-amber-50 border border-amber-200 text-sm" data-testid="wa-sender-hint">
+          <p className="font-medium text-amber-800">הודעות WhatsApp יוצאות כרגע מהמספר של המערכת</p>
+          <p className="text-xs text-amber-700 mt-1">
+            הלקוחות רואים את שם המספר של המערכת ולא את שם העסק. כדי שההודעות ייצאו בשם העסק — חברו מספר WhatsApp עסקי משלכם.
+          </p>
+          <Link href="/settings?tab=integrations" className="inline-block mt-2 text-xs font-semibold text-brand-600 hover:underline">
+            לחיבור מספר משלכם ←
+          </Link>
+        </div>
+      )}
+      <ConfirmDialog
+        open={confirmSubdomain}
+        title="שינוי כתובת העסק"
+        description={`הכתובת החדשה תהיה ${subdomain}.${tenantRoot}. קישור ההזמנות הקודם (/book/${user?.businessSlug ?? ""}) יפסיק לעבוד — יש לעדכן אותו בכל מקום ששיתפתם.`}
+        confirmLabel="שנה כתובת"
+        loading={saveSubdomain.isPending}
+        onConfirm={() => saveSubdomain.mutate()}
+        onCancel={() => setConfirmSubdomain(false)}
+      />
 
       <fieldset disabled={!canEdit} className="space-y-4">
         <div className="grid grid-cols-2 gap-4">

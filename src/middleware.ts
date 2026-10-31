@@ -78,7 +78,7 @@ export function middleware(request: NextRequest) {
   // Off unless TENANT_ROOT_DOMAIN is set; petra-app.com never matches.
   if (pathname === "/") {
     const tenantSlug = tenantSlugFromHost(request.headers.get("host"), process.env.TENANT_ROOT_DOMAIN);
-    if (tenantSlug) return NextResponse.rewrite(new URL(`/book/${tenantSlug}`, request.url));
+    if (tenantSlug) return NextResponse.rewrite(new URL(`/book/${encodeURIComponent(tenantSlug)}`, request.url));
   }
 
   // Allow public intake pages: /intake/[token] only — NOT /intake, /intake/create, /intake/list, /intake/send
