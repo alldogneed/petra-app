@@ -971,7 +971,8 @@ export async function getTrainingProgram(businessId: string, db: DbClient, id: s
 
 export interface CreateTrainingProgramInput {
   name: string;
-  dogId: string;
+  /** null only for a "generic"-vertical business (the route enforces it) — a program without a subject. */
+  dogId: string | null;
   customerId?: string | null;
   packageId?: string | null;
   programType?: string;
@@ -1005,11 +1006,16 @@ export async function createTrainingProgram(
     }
   }
 
-  const dogCheck = await db.pet.findFirst({
-    where: { id: input.dogId, OR: [{ customer: { businessId } }, { businessId }] },
-    select: { id: true },
-  });
-  if (!dogCheck) throw new ServiceError("כלב לא נמצא", "NOT_FOUND");
+  if (input.dogId) {
+    const dogCheck = await db.pet.findFirst({
+      where: { id: input.dogId, OR: [{ customer: { businessId } }, { businessId }] },
+      select: { id: true },
+    });
+    if (!dogCheck) throw new ServiceError("כלב לא נמצא", "NOT_FOUND");
+  } else if (!input.customerId) {
+    // Without a subject the customer IS the program's subject.
+    throw new ServiceError("יש לבחור לקוח", "VALIDATION");
+  }
 
   if (input.customerId) {
     const customerCheck = await db.customer.findFirst({

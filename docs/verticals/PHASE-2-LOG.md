@@ -35,3 +35,13 @@
 - `orders/[id]`: סוג הזמנה "🐕 אילוף" מהמילון.
 - כבר מותנים בקיום חיות (לא נגעתי): מודלי תור בדשבורד ובכרטיס לקוח, hover preview ביומן.
 - נדחה לשלב 5: `/api/appointments/[id]/remind` (free-text בשרת).
+
+## 4. אימון
+- **החלטה:** `training/page.tsx` (7,300 שורות, טאבים של פנסיון / קבוצות / כלבי שירות, `program.dog.name` בכל כרטיס) לא נוגעים בו —
+  עסקי dogs ממשיכים לראות בדיוק אותו מסך. ב-generic `/training` מציג `GenericProgramsView` (`src/components/training/`):
+  אותו מודול, אותו API, אותן שורות `TrainingProgram` — לקוח, שם, כמות מפגשים, מחיר, התקדמות, "תיעוד מפגש", "סיום תוכנית".
+- `POST /api/training-programs` בלי `dogId`: dogs → 400 "יש לבחור כלב" (כמו היום); generic → חובה `customerId`, `HOME`, `CUSTOM`, `dogId = null`.
+  `createTrainingProgram()` מדלג על בדיקת הכלב רק כש-`dogId` null.
+- כרטיס לקוח `PackageTracking`: תוכנית בלי נושא מציגה את שמה (לא "מותאם אישית").
+- בדיקה חיה: יצירה ב-generic → 201 (`dogId` null, CUSTOM); תיעוד מפגש → 201; dogs בלי כלב → 400; הזמנת חבילה ב-generic → תוכנית 10 מפגשים מקושרת להזמנה; dogs בלי כלב → אין תוכנית.
+- לא בתכולה: הודעות שגיאה בשרת שמזכירות "תוכנית אילוף" (לא "כלב"), קבוצות אילוף (לא נגישות ב-generic), MCP.
