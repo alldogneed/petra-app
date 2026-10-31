@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
   // Verticals phase 5: approved customer templates a "generic" business can't send as-is
   // (Petra / dog wording in the body). Empty list = nothing to resubmit.
   const verticalAudit = await getPlatformTemplateTexts()
-    .then((texts) => auditTemplatesForGeneric(texts, Object.values(META_TEMPLATES).flat()))
+    .then((texts) => auditTemplatesForGeneric(texts, [...Object.values(META_TEMPLATES).flat(), "petra_payment_request"]))
     .catch(() => null);
   return NextResponse.json({ ...result, verticalAudit }, { status: result.ok ? 200 : 502 });
 }

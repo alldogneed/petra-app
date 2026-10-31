@@ -41,6 +41,9 @@ export const META_TEMPLATES = {
   contractToSign: ["petra_contract_to_sign"],
   vaccinationReminder: ["petra_vaccination_reminder"],
   petBirthday: ["petra_pet_birthday"],
+  /** "generic" vertical twins of appointmentReminder / appointmentConfirmation (same params as v2) — adaptChainForVertical() */
+  genericMeetingReminder: ["petra_meeting_reminder"],
+  genericMeetingConfirmation: ["petra_meeting_confirmation"],
 } as const;
 
 const single = (name: string, params: string[]): TemplateStep[] => buildTemplateChain([{ name, params }]);
