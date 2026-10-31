@@ -1,0 +1,6 @@
+# Files migrated to next-intl (docs/i18n.md). One path or glob per line.
+# check:i18n fails on Hebrew / hardcoded he-IL, ILS, ₪, Asia/Jerusalem in these files.
+# src/lib/locale.ts + src/lib/format.ts DEFINE the locale values and are intentionally not listed.
+src/i18n/*.ts
+src/hooks/useBusinessLocale.ts
+src/components/ui/DirIcon.tsx

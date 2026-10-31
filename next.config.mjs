@@ -1,5 +1,9 @@
 // @ts-check
 import { withSentryConfig } from "@sentry/nextjs";
+import createNextIntlPlugin from "next-intl/plugin";
+
+// i18n (docs/i18n.md): locale comes from the business, no URL prefix.
+const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -88,7 +92,7 @@ const nextConfig = {
   },
 };
 
-export default withSentryConfig(nextConfig, {
+export default withSentryConfig(withNextIntl(nextConfig), {
   org: "petra-app",
   project: "petra-app",
   silent: !process.env.CI,

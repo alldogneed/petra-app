@@ -214,7 +214,7 @@ export async function getCurrentUser() {
     effectiveBusinessId
       ? prisma.business.findUnique({
           where: { id: effectiveBusinessId },
-          select: { name: true, slug: true, tier: true, featureOverrides: true, trialEndsAt: true, subscriptionEndsAt: true, subscriptionStatus: true, cardcomRecurringId: true },
+          select: { name: true, slug: true, tier: true, featureOverrides: true, trialEndsAt: true, subscriptionEndsAt: true, subscriptionStatus: true, cardcomRecurringId: true, locale: true, country: true, currency: true, timezone: true },
         })
       : Promise.resolve(null),
     prisma.platformUser.findUnique({
@@ -267,6 +267,11 @@ export async function getCurrentUser() {
     businessId: effectiveBusinessId,
     businessName: business?.name ?? null,
     businessSlug,
+    // i18n (docs/i18n.md) — consumed by useBusinessLocale(); null without a business
+    businessLocale: business?.locale ?? null,
+    businessCountry: business?.country ?? null,
+    businessCurrency: business?.currency ?? null,
+    businessTimezone: business?.timezone ?? null,
     businessTier: storedTier,
     businessEffectiveTier,
     businessTrialEndsAt: trialEndsAt?.toISOString() ?? null,

@@ -1,0 +1,19 @@
+{
+  "common": {
+    "skipToContent": "דלג לתוכן הראשי",
+    "actions": {
+      "save": "שמור",
+      "cancel": "ביטול",
+      "close": "סגור",
+      "delete": "מחק",
+      "edit": "עריכה",
+      "add": "הוסף"
+    },
+    "loading": "טוען...",
+    "searchPlaceholder": "חיפוש...",
+    "errors": {
+      "required": "שדה חובה",
+      "phoneInvalid": "מספר טלפון לא תקין"
+    }
+  }
+}

@@ -18,7 +18,12 @@
     "db:seed": "ts-node --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed.ts",
     "db:seed-admin": "ts-node --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed-admin.ts",
     "deploy:staging": "bash scripts/deploy.sh staging",
-    "deploy:production": "bash scripts/deploy.sh production"
+    "deploy:production": "bash scripts/deploy.sh production",
+    "check:i18n": "TS_NODE_BASEURL=. ts-node --transpile-only --compiler-options '{\"module\":\"CommonJS\",\"moduleResolution\":\"node\"}' scripts/check-no-hebrew.ts && node scripts/i18n-check-keys.mjs",
+    "codemod:logical-css": "node scripts/codemod-logical-css.mjs",
+    "i18n:extract": "node scripts/extract-hebrew.mjs",
+    "i18n:verify-he": "node scripts/i18n-verify-he.mjs",
+    "i18n:merge": "node scripts/i18n-merge-fragments.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.132.1",
@@ -47,8 +52,10 @@
     "class-variance-authority": "^0.7",
     "clsx": "^2",
     "date-fns": "^4.1.0",
+    "libphonenumber-js": "^1.13.15",
     "lucide-react": "^0.400",
     "next": "14.2.35",
+    "next-intl": "^3.26.5",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^5.5.207",
     "qrcode": "^1.5.4",

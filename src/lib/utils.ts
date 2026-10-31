@@ -1,6 +1,7 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 import { Calendar, PawPrint, CreditCard, User, Clock, FileText, MessageCircle } from "lucide-react"
+import { formatCurrency as formatCurrencyL, formatDate as formatDateL, formatTime as formatTimeL } from "./format"
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -8,25 +9,19 @@ export function cn(...inputs: ClassValue[]) {
 
 export const DEMO_BUSINESS_ID = "demo-business-001"
 
+/** @deprecated use formatCurrency from "@/lib/format" with the business locale/currency */
 export function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("he-IL", {
-    style: "currency",
-    currency: "ILS",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount)
+  return formatCurrencyL(amount, { locale: "he-IL", currency: "ILS" })
 }
 
+/** @deprecated use formatDate from "@/lib/format" with the business locale/timezone */
 export function formatDate(date: Date | string): string {
-  return new Intl.DateTimeFormat("he-IL", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(new Date(date))
+  return formatDateL(date, { locale: "he-IL", style: "long" })
 }
 
+/** @deprecated use formatTime from "@/lib/format" with the business locale */
 export function formatTime(time: string): string {
-  return time.slice(0, 5)
+  return /^\d{1,2}:\d{2}/.test(time) ? formatTimeL(time, { locale: "he-IL" }) : time.slice(0, 5)
 }
 
 export function getStatusColor(status: string): string {

@@ -1,0 +1,19 @@
+{
+  "common": {
+    "skipToContent": "Skip to main content",
+    "actions": {
+      "save": "Save",
+      "cancel": "Cancel",
+      "close": "Close",
+      "delete": "Delete",
+      "edit": "Edit",
+      "add": "Add"
+    },
+    "loading": "Loading...",
+    "searchPlaceholder": "Search...",
+    "errors": {
+      "required": "Required",
+      "phoneInvalid": "Invalid phone number"
+    }
+  }
+}

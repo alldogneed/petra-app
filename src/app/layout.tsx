@@ -1,5 +1,8 @@
 import type { Metadata, Viewport } from "next";
-import { Heebo, Montserrat } from "next/font/google";
+import { Heebo, Inter, Montserrat } from "next/font/google";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages, getTimeZone, getTranslations } from "next-intl/server";
+import { LOCALE_CONFIG, localeFromBusiness } from "@/lib/locale";
 import "./globals.css";
 import { QueryProvider } from "@/providers/query-provider";
 import { AuthProvider } from "@/providers/auth-provider";
@@ -11,6 +14,14 @@ const heebo = Heebo({
   weight: ["300", "400", "500", "600", "700", "800"],
   display: "swap",
   variable: "--font-heebo",
+});
+
+// English UI (en-US businesses). Not preloaded — Hebrew pages never use it.
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-inter",
+  preload: false,
 });
 
 // PETRA wordmark in <PetraLoader /> — matches the logo lettering
@@ -106,28 +117,45 @@ export const viewport: Viewport = {
   themeColor: "#1e293b",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = localeFromBusiness({ locale: await getLocale() });
+  const cfg = LOCALE_CONFIG[locale];
+  const [messages, timeZone, t] = await Promise.all([
+    getMessages(),
+    getTimeZone(),
+    getTranslations("common"),
+  ]);
+  const isEn = cfg.lang === "en";
+  const font = isEn ? inter : heebo;
+  const fontFamily = isEn ? "Inter, sans-serif" : "Heebo, sans-serif";
   return (
-    <html lang="he" dir="rtl" className={`${heebo.variable} ${montserrat.variable}`}>
-      <body className={`${heebo.className} antialiased`}>
-        <a href="#main-content" className="skip-link">דלג לתוכן הראשי</a>
+    <html
+      lang={cfg.lang}
+      dir={cfg.dir}
+      className={`${heebo.variable} ${inter.variable} ${montserrat.variable}`}
+      style={{ ["--font-sans" as string]: isEn ? "var(--font-inter)" : "var(--font-heebo)" }}
+    >
+      <body className={`${font.className} antialiased`}>
+        <a href="#main-content" className="skip-link">{t("skipToContent")}</a>
         {/* Service Worker registration */}
         <script
           dangerouslySetInnerHTML={{
             __html: `if ('serviceWorker' in navigator) { window.addEventListener('load', function() { navigator.serviceWorker.register('/sw.js').catch(function(){}); }); }`,
           }}
         />
+        <NextIntlClientProvider locale={locale} messages={messages} timeZone={timeZone}>
         <QueryProvider>
           <ChunkErrorReload />
           <AuthProvider>{children}</AuthProvider>
           <Toaster
-            position="bottom-left"
+            position={cfg.dir === "rtl" ? "bottom-left" : "bottom-right"}
+            dir={cfg.dir}
             toastOptions={{
-              style: { fontFamily: "Heebo, sans-serif" },
+              style: { fontFamily },
               classNames: {
                 success: "!bg-green-50 !border-green-200 !text-green-800",
                 error: "!bg-red-50 !border-red-200 !text-red-700",
@@ -140,6 +168,7 @@ export default function RootLayout({
           <div id="a11y-polite" role="status" aria-live="polite" aria-atomic="true" className="sr-only" />
           <div id="a11y-assertive" role="alert" aria-live="assertive" aria-atomic="true" className="sr-only" />
         </QueryProvider>
+        </NextIntlClientProvider>
       </body>
     </html>
   );

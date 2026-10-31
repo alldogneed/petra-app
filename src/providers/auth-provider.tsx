@@ -16,6 +16,10 @@ interface AuthUser {
   businessId: string | null;
   businessName: string | null;
   businessSlug: string | null;
+  businessLocale?: string | null;
+  businessCountry?: string | null;
+  businessCurrency?: string | null;
+  businessTimezone?: string | null;
   businessTier: string | null;
   businessEffectiveTier: string | null;
   businessTrialEndsAt: string | null;
