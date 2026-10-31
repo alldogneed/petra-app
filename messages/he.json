@@ -71,6 +71,54 @@
     "customer.bulk_delete_warning": {
       "dogs": "פעולה זו תמחק גם את חיות המחמד, התורים ונתוני הלקוח לצמיתות.",
       "generic": "פעולה זו תמחק גם את התורים ונתוני הלקוח לצמיתות."
+    },
+    "calendar.group_training": {
+      "dogs": "אילוף מקצועי",
+      "generic": "תוכניות"
+    },
+    "calendar.category_training_home": {
+      "dogs": "אילוף בבית הלקוח",
+      "generic": "מפגשי תוכנית"
+    },
+    "calendar.session_title_prefix": {
+      "dogs": "אילוף",
+      "generic": "מפגש"
+    },
+    "calendar.session_icon": {
+      "dogs": "🐕",
+      "generic": "📋"
+    },
+    "calendar.reminder_service_icon": {
+      "dogs": "🐾",
+      "generic": "🗓️"
+    },
+    "calendar.next_booking_signoff": {
+      "dogs": "נתראה! 🐾",
+      "generic": "נתראה!"
+    },
+    "appointment.attach_to_package": {
+      "dogs": "לשייך לחבילת אילוף",
+      "generic": "לשייך לחבילה"
+    },
+    "appointment.default_session_note": {
+      "dogs": "מפגש אילוף",
+      "generic": "מפגש"
+    },
+    "appointment.booked_signoff": {
+      "dogs": "תודה! 🐾",
+      "generic": "תודה!"
+    },
+    "gcal.service_icon": {
+      "dogs": "🐾",
+      "generic": "🛎️"
+    },
+    "booking.confirm_signoff": {
+      "dogs": "מחכים לראותכם! 🐾",
+      "generic": "מחכים לראותכם!"
+    },
+    "order.type_training": {
+      "dogs": "🐕 אילוף",
+      "generic": "📋 מפגשים וחבילות"
     }
   }
 }

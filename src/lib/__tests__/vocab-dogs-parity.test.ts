@@ -30,6 +30,18 @@ const CASES: { key: VocabKey; params?: Record<string, string>; before: string }[
   { key: "order.payment_request_greeting", params: { name: "דנה" }, before: "שלום דנה! 🐾" },
   { key: "order.open_program", before: "פתח תוכנית אילוף →" },
   { key: "picker.customer_placeholder", before: "חיפוש לפי שם לקוח, טלפון או שם הכלב" },
+  { key: "calendar.group_training", before: "אילוף מקצועי" },
+  { key: "calendar.category_training_home", before: "אילוף בבית הלקוח" },
+  { key: "calendar.session_title_prefix", before: "אילוף" },
+  { key: "calendar.session_icon", before: "🐕" },
+  { key: "calendar.reminder_service_icon", before: "🐾" },
+  { key: "calendar.next_booking_signoff", before: "נתראה! 🐾" },
+  { key: "appointment.attach_to_package", before: "לשייך לחבילת אילוף" },
+  { key: "appointment.default_session_note", before: "מפגש אילוף" },
+  { key: "appointment.booked_signoff", before: "תודה! 🐾" },
+  { key: "gcal.service_icon", before: "🐾" },
+  { key: "booking.confirm_signoff", before: "מחכים לראותכם! 🐾" },
+  { key: "order.type_training", before: "🐕 אילוף" },
 ];
 
 describe("dogs values are the pre-verticals text", () => {
