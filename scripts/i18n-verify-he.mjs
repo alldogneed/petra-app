@@ -69,11 +69,13 @@ for (const f of files) {
     console.error(`${f}: not in ${base} (new file) — skipped`);
     continue;
   }
-  const current = fs.existsSync(f) ? norm(fs.readFileSync(f, "utf8")) : "";
+  // literal "\n" escapes in the source = whitespace in the chunk text
+  const current = fs.existsSync(f) ? norm(fs.readFileSync(f, "utf8").replace(/\\n/g, " ")) : "";
   for (const c of chunks(baseSrc, f)) {
     checked++;
     // ICU placeholders split JSX text like "שלום {name}" — test each Hebrew run between braces
-    const pieces = c.text.split(/\{[^}]*\}/).map(norm).filter((p) => HEBREW.test(p));
+    // split on ICU placeholders, HTML tags (print templates) and the ₪ sign (→ {currencySymbol})
+    const pieces = c.text.split(/\{[^}]*\}|<[^>]*>|\u20AA/).map(norm).filter((p) => HEBREW.test(p));
     for (const p of pieces) {
       if (haystack.includes(p) || current.includes(p)) continue;
       missing++;

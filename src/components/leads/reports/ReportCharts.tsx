@@ -5,10 +5,11 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid, Cell, Legend,
 } from "recharts";
 import { AlertTriangle, Hourglass, Target, Timer, TrendingUp } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import type { SalesReport } from "@/lib/analytics-types";
 import { formatIls } from "@/lib/lead-deal-value";
-import { AGING_BUCKET_LABELS, RESPONSE_BUCKET_LABELS, monthLabel } from "./format";
+import { agingBucketLabel, monthLabel, responseBucketLabel } from "./format";
 
 export function ReportCard({
   title,
@@ -40,15 +41,18 @@ const axisTick = { fontSize: 11, fill: "#94a3b8" };
 // ─── Monthly trend ────────────────────────────────────────────────────────────
 
 export function MonthlyTrendChart({ report }: { report: SalesReport }) {
-  const data = report.monthly.map((m) => ({ ...m, label: monthLabel(m.month) }));
+  const t = useTranslations("leads.reportCharts");
+  const tl = useTranslations("leads");
+  const wonValueName = t("monthly.wonValue");
+  const data = report.monthly.map((m) => ({ ...m, label: monthLabel(m.month, tl) }));
   const showValue = report.canSeeMoney && report.monthly.some((m) => (m.wonValue ?? 0) > 0);
   if (data.length === 0) return null;
 
   return (
     <ReportCard
-      title="מגמה חודשית"
+      title={t("monthly.title")}
       icon={<TrendingUp className="w-4 h-4 text-brand-500" />}
-      hint="נוצרו לפי תאריך יצירה, נסגרו לפי תאריך זכייה, אבדו לפי תאריך אובדן"
+      hint={t("monthly.hint")}
     >
       <ResponsiveContainer width="100%" height={240}>
         <LineChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
@@ -58,19 +62,19 @@ export function MonthlyTrendChart({ report }: { report: SalesReport }) {
           {showValue && <YAxis yAxisId="value" orientation="right" tick={axisTick} width={60} />}
           <Tooltip
             formatter={(value, name) =>
-              name === "ערך שנסגר" ? [formatIls(Number(value ?? 0)), name] : [value ?? 0, name]
+              name === wonValueName ? [formatIls(Number(value ?? 0)), name] : [value ?? 0, name]
             }
           />
           <Legend wrapperStyle={{ fontSize: 12 }} />
-          <Line yAxisId="count" type="monotone" dataKey="created" name="נוצרו" stroke="#6366F1" strokeWidth={2} dot={{ r: 3 }} />
-          <Line yAxisId="count" type="monotone" dataKey="won" name="נסגרו" stroke="#22C55E" strokeWidth={2} dot={{ r: 3 }} />
-          <Line yAxisId="count" type="monotone" dataKey="lost" name="אבדו" stroke="#EF4444" strokeWidth={2} dot={{ r: 3 }} />
+          <Line yAxisId="count" type="monotone" dataKey="created" name={t("monthly.created")} stroke="#6366F1" strokeWidth={2} dot={{ r: 3 }} />
+          <Line yAxisId="count" type="monotone" dataKey="won" name={t("monthly.won")} stroke="#22C55E" strokeWidth={2} dot={{ r: 3 }} />
+          <Line yAxisId="count" type="monotone" dataKey="lost" name={t("monthly.lost")} stroke="#EF4444" strokeWidth={2} dot={{ r: 3 }} />
           {showValue && (
             <Line
               yAxisId="value"
               type="monotone"
               dataKey="wonValue"
-              name="ערך שנסגר"
+              name={wonValueName}
               stroke="#F59E0B"
               strokeWidth={2}
               strokeDasharray="5 4"
@@ -86,15 +90,16 @@ export function MonthlyTrendChart({ report }: { report: SalesReport }) {
 // ─── Funnel ───────────────────────────────────────────────────────────────────
 
 export function FunnelChart({ report }: { report: SalesReport }) {
+  const t = useTranslations("leads.reportCharts");
   const { funnel } = report;
   if (funnel.length === 0) return null;
   const max = Math.max(...funnel.map((s) => s.reached), 1);
 
   return (
     <ReportCard
-      title="משפך מכירות"
+      title={t("funnel.title")}
       icon={<Target className="w-4 h-4 text-violet-500" />}
-      hint="״הגיעו לשלב״ = לידים שהגיעו לשלב הזה או לשלב מתקדם יותר (כולל לידים שנסגרו). האחוז = מעבר מהשלב הקודם."
+      hint={t("funnel.hint")}
     >
       <div className="space-y-2.5">
         {funnel.map((s, i) => {
@@ -103,13 +108,17 @@ export function FunnelChart({ report }: { report: SalesReport }) {
             <div key={s.stageId} className="space-y-1">
               {i > 0 && (
                 <p className="text-[11px] text-petra-muted ps-1">
-                  ↓ {s.stepConversion == null ? "—" : `${s.stepConversion}%`} המשיכו
+                  {s.stepConversion == null ? t("funnel.continuedNone") : t("funnel.continued", { pct: String(s.stepConversion) })}
                 </p>
               )}
               <div className="flex items-center justify-between gap-2 text-xs">
                 <span className="font-medium text-petra-text truncate">{s.name}</span>
                 <span className="flex-shrink-0 text-petra-muted">
-                  <strong className="text-petra-text">{s.reached}</strong> הגיעו · {s.current} כעת
+                  {t.rich("funnel.reachedNow", {
+                    reached: String(s.reached),
+                    current: String(s.current),
+                    b: (c) => <strong className="text-petra-text">{c}</strong>,
+                  })}
                 </span>
               </div>
               <div className="w-full bg-slate-100 rounded-full h-4">
@@ -129,21 +138,23 @@ export function FunnelChart({ report }: { report: SalesReport }) {
 // ─── Response time distribution ───────────────────────────────────────────────
 
 export function ResponseTimeChart({ report }: { report: SalesReport }) {
-  const data = report.responseTime.map((b) => ({ ...b, label: RESPONSE_BUCKET_LABELS[b.bucket] ?? b.bucket }));
+  const t = useTranslations("leads.reportCharts");
+  const tl = useTranslations("leads");
+  const data = report.responseTime.map((b) => ({ ...b, label: responseBucketLabel(b.bucket, tl) }));
   if (data.every((d) => d.count === 0)) return null;
 
   return (
     <ReportCard
-      title="זמן תגובה ראשונה"
+      title={t("responseTime.title")}
       icon={<Timer className="w-4 h-4 text-sky-600" />}
-      hint="מיצירת הליד ועד התיעוד הראשון של שיחה/הודעה (לידים שנוצרו בטווח)"
+      hint={t("responseTime.hint")}
     >
       <ResponsiveContainer width="100%" height={220}>
         <BarChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
           <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#94a3b8" }} interval={0} />
           <YAxis tick={axisTick} allowDecimals={false} />
-          <Tooltip formatter={(value) => [`${value ?? 0} לידים`, ""]} />
+          <Tooltip formatter={(value) => [t("responseTime.leadsCount", { count: String(value ?? 0) }), ""]} />
           <Bar dataKey="count" radius={[3, 3, 0, 0]}>
             {data.map((d) => (
               <Cell key={d.bucket} fill={d.bucket === "none" ? "#EF4444" : d.bucket === "gt3d" ? "#F59E0B" : "#3B82F6"} />
@@ -158,15 +169,17 @@ export function ResponseTimeChart({ report }: { report: SalesReport }) {
 // ─── Aging of open leads ──────────────────────────────────────────────────────
 
 export function AgingChart({ report }: { report: SalesReport }) {
-  const data = report.aging.map((b) => ({ ...b, label: AGING_BUCKET_LABELS[b.bucket] ?? b.bucket }));
+  const t = useTranslations("leads.reportCharts");
+  const tl = useTranslations("leads");
+  const data = report.aging.map((b) => ({ ...b, label: agingBucketLabel(b.bucket, tl) }));
   if (data.every((d) => d.count === 0)) return null;
   const showValue = report.canSeeMoney && data.some((d) => (d.value ?? 0) > 0);
 
   return (
     <ReportCard
-      title="גיל הלידים הפתוחים"
+      title={t("aging.title")}
       icon={<Hourglass className="w-4 h-4 text-amber-500" />}
-      hint="כל הלידים הפתוחים כעת, לפי זמן מאז יצירתם (לא תלוי בטווח)"
+      hint={t("aging.hint")}
     >
       <ResponsiveContainer width="100%" height={200}>
         <BarChart data={data} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
@@ -176,7 +189,7 @@ export function AgingChart({ report }: { report: SalesReport }) {
           <Tooltip
             formatter={(value, _name, item) => {
               const v = (item?.payload as { value?: number | null } | undefined)?.value;
-              return [`${value ?? 0} לידים${showValue && v ? ` · ${formatIls(v)}` : ""}`, ""];
+              return [`${t("aging.leadsCount", { count: String(value ?? 0) })}${showValue && v ? ` · ${formatIls(v)}` : ""}`, ""];
             }}
           />
           <Bar dataKey="count" radius={[3, 3, 0, 0]}>
@@ -205,22 +218,23 @@ export function AgingChart({ report }: { report: SalesReport }) {
 const STALE_DAYS = 14;
 
 export function StaleTable({ report }: { report: SalesReport }) {
+  const t = useTranslations("leads.reportCharts");
   const rows = report.stale.filter((s) => s.count > 0);
   if (rows.length === 0) return null;
 
   return (
     <ReportCard
-      title="לידים פתוחים לפי שלב"
+      title={t("stale.title")}
       icon={<AlertTriangle className="w-4 h-4 text-orange-500" />}
-      hint={`כל הלידים הפתוחים כעת. שלב שבו הליד הוותיק ביותר פתוח מעל ${STALE_DAYS} ימים מסומן באדום.`}
+      hint={t("stale.hint", { days: STALE_DAYS })}
     >
       <div className="overflow-x-auto -mx-1">
         <table className="w-full text-sm">
           <thead>
             <tr className="text-xs text-petra-muted border-b border-slate-100">
-              <th className="text-start font-medium py-2 px-1">שלב</th>
-              <th className="text-start font-medium py-2 px-1">לידים</th>
-              <th className="text-start font-medium py-2 px-1 whitespace-nowrap">הוותיק ביותר</th>
+              <th className="text-start font-medium py-2 px-1">{t("stale.colStage")}</th>
+              <th className="text-start font-medium py-2 px-1">{t("stale.colLeads")}</th>
+              <th className="text-start font-medium py-2 px-1 whitespace-nowrap">{t("stale.colOldest")}</th>
             </tr>
           </thead>
           <tbody>
@@ -240,7 +254,7 @@ export function StaleTable({ report }: { report: SalesReport }) {
                       s.oldestDays > STALE_DAYS ? "bg-red-50 text-red-600" : "bg-slate-100 text-petra-muted"
                     )}
                   >
-                    {s.oldestDays} ימים
+                    {t("stale.days", { days: String(s.oldestDays) })}
                   </span>
                 </td>
               </tr>

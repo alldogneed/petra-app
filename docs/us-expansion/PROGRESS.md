@@ -310,6 +310,12 @@ Branch: `claude/gracious-dijkstra-p3eq67` (ראו DECISIONS D-001). סשן חי�
 - `src/app/sign/[token]/page.tsx` → `sign.signDetailPage` (54)
 
 ## ממצאים לשלבים הבאים
+- (באג קיים, לא תוקן) `LeadDetailsModal` קורא `utils.formatTime(log.createdAt)` על ISO מלא → מציג "2026-" במקום שעה. תיקון: `formatTime(log.createdAt, { locale })` מ‑`@/lib/format` (שלב 4).
+- (באג קיים, לא תוקן) הדפסת הזמנות (`orders/page.tsx`): `<caption className="sr-only">` ב‑HTML גולמי — `className` לא תקף, הכיתוב מודפס.
+- (שלב 3) הודעות WhatsApp שנבנות בקליינט ללקוחות (ברכת יום הולדת, follow-up, ברוכים הבאים, תזכורת/קישור תור, בקשת תשלום, טופס קליטה) נשארו בעברית עם `i18n-ok`.
+- (שלב 3) ערכי דאטה בעברית: `DEFAULT_CUSTOMER_TAGS`, `DOG_BREEDS`/`CAT_BREEDS`/`BEHAVIORAL_TAGS`, קטגוריות מחירון (`PriceListItem.category`), `legalEntityType === "עוסק פטור"`, regex `^עיר:` בהערות ליד, סיכום `stage_change` שמפוענח ב‑sales-report.
+- (שלב 2) `formatIls()` ב‑`lead-deal-value.ts` קשיח ל‑ILS (ערכי עסקה בלידים); תוויות ב‑src/lib (LEAD_SOURCES, LOST_REASON_CODES, dashboard-widgets, SUPPORT_STATUS_LABELS, tutorials-config, getTierDisplay, validation).
+- (שלב 4/7) ישראלי מובנה: Bit/PayBox, ת"ז, placeholder `050-0000000`, משקל בק"ג, שעות תמיכה "שעון ישראל", מע"מ 18% בטקסט עזרה.
 - (שלב 3) `Business.currency/timezone/country` — allowlist לפני שיהיה נתיב כתיבה (סקירת אבטחה, LOW).
 - (שלב 3) לחבר `invalidateBusinessLocaleCache()` לנתיב שמשנה locale.
 - (שלב 8) root layout קורא cookie בכל בקשה → כל הדפים דינמיים, כולל שיווק. לבדוק ביצועים / per-segment provider (D-005).

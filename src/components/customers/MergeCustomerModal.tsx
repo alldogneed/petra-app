@@ -11,6 +11,7 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ArrowRight, GitMerge, Search, X, AlertTriangle, PawPrint, Phone } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { fetchJSON } from "@/lib/utils";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import {
@@ -42,12 +43,6 @@ interface Preview {
   total: number;
 }
 
-const MATCH_LABEL: Record<NonNullable<Candidate["match"]>, string> = {
-  phone: "אותו טלפון",
-  email: "אותו אימייל",
-  name: "אותו שם",
-};
-
 function useDebounced<T>(value: T, ms: number): T {
   const [v, setV] = useState(value);
   useEffect(() => {
@@ -58,6 +53,8 @@ function useDebounced<T>(value: T, ms: number): T {
 }
 
 export function MergeCustomerModal({ targetId, targetName, onClose, onMerged }: MergeCustomerModalProps) {
+  const t = useTranslations("customers.mergeCustomerModal");
+  const tc = useTranslations("common");
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const q = useDebounced(search.trim().slice(0, 100), 300);
@@ -99,13 +96,13 @@ export function MergeCustomerModal({ targetId, targetName, onClose, onMerged }: 
         body: JSON.stringify({ sourceId, confirm: mergeConfirmToken(sourceId) }),
       }),
     onSuccess: () => {
-      toast.success("הלקוחות מוזגו בהצלחה");
+      toast.success(t("toastMerged"));
       queryClient.invalidateQueries({ queryKey: ["customer", targetId] });
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       if (selected) queryClient.removeQueries({ queryKey: ["customer", selected.id] });
       onMerged();
     },
-    onError: (err: Error) => toast.error(err.message || "שגיאה במיזוג הלקוחות"),
+    onError: (err: Error) => toast.error(err.message || t("errorMerge")),
   });
 
   const sourceName = previewQuery.data?.source.name ?? selected?.name ?? "";
@@ -136,14 +133,14 @@ export function MergeCustomerModal({ targetId, targetName, onClose, onMerged }: 
                 onClick={backToSearch}
                 disabled={mergeMutation.isPending}
                 className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500"
-                aria-label="חזרה לבחירת לקוח"
+                aria-label={t("backToPickAria")}
               >
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-4 h-4 ltr:-scale-x-100" />
               </button>
             )}
             <GitMerge className="w-5 h-5 text-brand-500 shrink-0" />
             <h2 id="merge-customer-title" className="text-lg font-bold text-petra-text truncate">
-              מיזוג לקוח כפול
+              {t("title")}
             </h2>
           </div>
           <button
@@ -151,7 +148,7 @@ export function MergeCustomerModal({ targetId, targetName, onClose, onMerged }: 
             onClick={onClose}
             disabled={mergeMutation.isPending}
             className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500"
-            aria-label="סגור"
+            aria-label={tc("actions.close")}
           >
             <X className="w-5 h-5" />
           </button>
@@ -162,13 +159,16 @@ export function MergeCustomerModal({ targetId, targetName, onClose, onMerged }: 
             /* ── Step 1: pick the duplicate ── */
             <div className="space-y-3">
               <p className="text-sm text-petra-muted">
-                בחר את הלקוח הכפול שיתמזג לתוך <span className="font-semibold text-petra-text">{targetName}</span>.
+                {t.rich("pickIntro", {
+                  name: targetName,
+                  b: (c) => <span className="font-semibold text-petra-text">{c}</span>,
+                })}
               </p>
               <div className="relative">
-                <Search className="w-4 h-4 text-slate-400 absolute top-1/2 -translate-y-1/2 right-3 pointer-events-none" />
+                <Search className="w-4 h-4 text-slate-400 absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
                 <input
-                  className="input pr-9 w-full"
-                  placeholder="חיפוש לפי שם, טלפון או אימייל"
+                  className="input ps-9 w-full"
+                  placeholder={t("searchPlaceholder")}
                   value={search}
                   maxLength={100}
                   onChange={(e) => setSearch(e.target.value)}
@@ -176,17 +176,17 @@ export function MergeCustomerModal({ targetId, targetName, onClose, onMerged }: 
                 />
               </div>
               {!q && (
-                <p className="text-xs text-petra-muted">הצעות: לקוחות עם אותו טלפון / אימייל / שם מופיעים ראשונים.</p>
+                <p className="text-xs text-petra-muted">{t("suggestionsHint")}</p>
               )}
 
               {candidatesQuery.isLoading ? (
                 <PetraLoader variant="inline" className="py-6" />
               ) : candidatesQuery.isError ? (
                 <p className="text-sm text-red-600 py-4 text-center">
-                  {(candidatesQuery.error as Error)?.message || "שגיאה בטעינת לקוחות"}
+                  {(candidatesQuery.error as Error)?.message || t("errorLoadCandidates")}
                 </p>
               ) : (candidatesQuery.data?.candidates ?? []).length === 0 ? (
-                <p className="text-sm text-petra-muted py-6 text-center">לא נמצאו לקוחות מתאימים</p>
+                <p className="text-sm text-petra-muted py-6 text-center">{t("noCandidates")}</p>
               ) : (
                 <ul className="divide-y divide-slate-100 border border-slate-100 rounded-xl overflow-hidden">
                   {candidatesQuery.data!.candidates.map((c) => (
@@ -194,7 +194,7 @@ export function MergeCustomerModal({ targetId, targetName, onClose, onMerged }: 
                       <button
                         type="button"
                         onClick={() => { setSelected(c); setTyped(""); }}
-                        className="w-full text-right px-3 py-3 hover:bg-slate-50 focus:bg-slate-50 focus:outline-none flex items-start justify-between gap-3"
+                        className="w-full text-start px-3 py-3 hover:bg-slate-50 focus:bg-slate-50 focus:outline-none flex items-start justify-between gap-3"
                       >
                         <div className="min-w-0">
                           <div className="font-medium text-petra-text truncate">{c.name}</div>
@@ -211,7 +211,7 @@ export function MergeCustomerModal({ targetId, targetName, onClose, onMerged }: 
                         </div>
                         {c.match && (
                           <span className="shrink-0 text-[11px] font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-                            {MATCH_LABEL[c.match]}
+                            {t(`match.${c.match}`)}
                           </span>
                         )}
                       </button>
@@ -227,8 +227,8 @@ export function MergeCustomerModal({ targetId, targetName, onClose, onMerged }: 
                 <PetraLoader variant="inline" className="py-8" />
               ) : previewQuery.isError ? (
                 <div className="text-sm text-red-600 py-4 text-center space-y-3">
-                  <p>{(previewQuery.error as Error)?.message || "שגיאה בטעינת תצוגת המיזוג"}</p>
-                  <button type="button" className="btn-secondary" onClick={backToSearch}>חזרה</button>
+                  <p>{(previewQuery.error as Error)?.message || t("errorLoadPreview")}</p>
+                  <button type="button" className="btn-secondary" onClick={backToSearch}>{t("back")}</button>
                 </div>
               ) : previewQuery.data ? (
                 <>
@@ -236,19 +236,21 @@ export function MergeCustomerModal({ targetId, targetName, onClose, onMerged }: 
                     <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                     <div className="text-sm text-amber-900 space-y-1">
                       <p>
-                        הלקוח <span className="font-bold">{previewQuery.data.source.name}</span> יימחק וכל הנתונים שלו
-                        יועברו ל<span className="font-bold">{previewQuery.data.target.name}</span>.
+                        {t.rich("warningMain", {
+                          source: previewQuery.data.source.name,
+                          target: previewQuery.data.target.name,
+                          b: (c) => <span className="font-bold">{c}</span>,
+                        })}
                       </p>
                       <p className="text-xs text-amber-800">
-                        הפרטים של {previewQuery.data.target.name} נשמרים; שדות ריקים יושלמו מהלקוח הכפול, תגיות ומסמכים
-                        יאוחדו והערות יצורפו. לא ניתן לבטל פעולה זו.
+                        {t("warningDetails", { target: previewQuery.data.target.name })}
                       </p>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
                     <div className="rounded-xl border border-red-100 bg-red-50/50 p-3 min-w-0">
-                      <div className="text-xs text-red-600 font-medium mb-1">יימחק</div>
+                      <div className="text-xs text-red-600 font-medium mb-1">{t("willBeDeleted")}</div>
                       <div className="font-semibold text-petra-text truncate">{previewQuery.data.source.name}</div>
                       <div className="text-xs text-petra-muted truncate" dir="ltr">{previewQuery.data.source.phone}</div>
                       {previewQuery.data.source.email && (
@@ -256,16 +258,16 @@ export function MergeCustomerModal({ targetId, targetName, onClose, onMerged }: 
                       )}
                     </div>
                     <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 p-3 min-w-0">
-                      <div className="text-xs text-emerald-700 font-medium mb-1">נשאר</div>
+                      <div className="text-xs text-emerald-700 font-medium mb-1">{t("stays")}</div>
                       <div className="font-semibold text-petra-text truncate">{previewQuery.data.target.name}</div>
                       <div className="text-xs text-petra-muted truncate" dir="ltr">{previewQuery.data.target.phone}</div>
                     </div>
                   </div>
 
                   <div>
-                    <div className="label mb-1.5">מה יועבר</div>
+                    <div className="label mb-1.5">{t("whatMoves")}</div>
                     {movingRows.length === 0 ? (
-                      <p className="text-sm text-petra-muted">ללקוח הכפול אין נתונים מקושרים — רק פרטי הלקוח ימוזגו.</p>
+                      <p className="text-sm text-petra-muted">{t("nothingLinked")}</p>
                     ) : (
                       <ul className="grid grid-cols-2 gap-1.5">
                         {movingRows.map((r) => (
@@ -285,7 +287,10 @@ export function MergeCustomerModal({ targetId, targetName, onClose, onMerged }: 
 
                   <div>
                     <label className="label" htmlFor="merge-confirm-input">
-                      לאישור, הקלד את שם הלקוח שיימחק: <span className="font-bold">{previewQuery.data.source.name}</span>
+                      {t.rich("confirmLabel", {
+                        name: previewQuery.data.source.name,
+                        b: (c) => <span className="font-bold">{c}</span>,
+                      })}
                     </label>
                     <input
                       id="merge-confirm-input"
@@ -314,11 +319,11 @@ export function MergeCustomerModal({ targetId, targetName, onClose, onMerged }: 
               onClick={() => mergeMutation.mutate(previewQuery.data!.source.id)}
             >
               <GitMerge className="w-4 h-4" />
-              {mergeMutation.isPending ? "ממזג..." : "מזג לקוחות"}
+              {mergeMutation.isPending ? t("merging") : t("mergeButton")}
             </button>
           )}
           <button type="button" className="btn-secondary" onClick={onClose} disabled={mergeMutation.isPending}>
-            ביטול
+            {tc("actions.cancel")}
           </button>
         </div>
       </div>

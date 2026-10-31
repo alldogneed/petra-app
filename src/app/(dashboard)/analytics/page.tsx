@@ -2,6 +2,7 @@
 
 import { Suspense, useCallback, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useQuery } from "@tanstack/react-query";
 import {
   BarChart3,
@@ -19,7 +20,9 @@ import { DesktopBanner } from "@/components/ui/DesktopBanner";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { TierGate } from "@/components/paywall/TierGate";
 import { PetraLoader } from "@/components/ui/PetraLoader";
-import { cn, formatCurrency, fetchJSON } from "@/lib/utils";
+import { cn, fetchJSON } from "@/lib/utils";
+import { formatCurrency, type CurrencyOptions } from "@/lib/format";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { formatIls } from "@/lib/lead-deal-value";
 import type { AnalyticsData } from "@/lib/analytics-types";
 import { israelTodayYmd, israelYmdOf } from "@/lib/report-dates";
@@ -29,19 +32,14 @@ import { AppointmentsTab } from "@/components/analytics/AppointmentsTab";
 import { LeadsTab } from "@/components/analytics/LeadsTab";
 import { OperationsTab } from "@/components/analytics/OperationsTab";
 
-const PERIODS = [
-  { id: "week", label: "שבוע" },
-  { id: "month", label: "חודש" },
-  { id: "quarter", label: "רבעון" },
-  { id: "year", label: "שנה" },
-];
+const PERIODS = [{ id: "week" }, { id: "month" }, { id: "quarter" }, { id: "year" }];
 
 const TABS = [
-  { id: "overview", label: "סקירה", icon: LayoutDashboard },
-  { id: "finance", label: "כספים", icon: Wallet },
-  { id: "appointments", label: "תורים ולקוחות", icon: CalendarDays },
-  { id: "leads", label: "לידים ומכירות", icon: Target },
-  { id: "operations", label: "אילוף ופנסיון", icon: GraduationCap },
+  { id: "overview", icon: LayoutDashboard },
+  { id: "finance", icon: Wallet },
+  { id: "appointments", icon: CalendarDays },
+  { id: "leads", icon: Target },
+  { id: "operations", icon: GraduationCap },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
@@ -50,13 +48,16 @@ function isTabId(v: string | null): v is TabId {
   return !!v && TABS.some((t) => t.id === v);
 }
 
+type PageT = ReturnType<typeof useTranslations<"analytics.analyticsPage">>;
+
 export default function AnalyticsPage() {
+  const t = useTranslations("analytics.analyticsPage");
   return (
     <ProtectedRoute requiredRole="owner">
       <TierGate
         feature="analytics"
-        title="דוחות"
-        description="גרפים, סטטיסטיקות ומעקב ביצועים של העסק. שדרג כדי לגשת לדוחות מפורטים."
+        title={t("title")}
+        description={t("tierDescription")}
       >
         {/* useSearchParams (tab in the URL) needs a Suspense boundary in the app router */}
         <Suspense fallback={<PetraLoader />}>
@@ -67,32 +68,41 @@ export default function AnalyticsPage() {
   );
 }
 
-function buildShareText(data: AnalyticsData, periodLabel: string): string {
-  const from = new Date(data.from).toLocaleDateString("he-IL");
-  const to = new Date(data.to).toLocaleDateString("he-IL");
+function buildShareText(data: AnalyticsData, periodLabel: string, t: PageT, money: CurrencyOptions): string {
+  const from = new Date(data.from).toLocaleDateString(money.locale);
+  const to = new Date(data.to).toLocaleDateString(money.locale);
   const o = data.overview;
   const closed = data.leads.wonThisPeriod + data.leads.lostThisPeriod;
   const lines = [
-    `📊 *דוח ביצועים — ${periodLabel}*`,
+    t("share.title", { period: periodLabel }),
     `${from} – ${to}`,
     "",
-    ...(o.revenue != null ? [`💰 הכנסות: ${formatCurrency(o.revenue)}`] : []),
-    `📅 תורים: ${o.totalAppointments} (${o.completionRate}% הושלמו)`,
-    `👥 לקוחות חדשים: ${o.newCustomers}`,
-    `🎯 לידים שנסגרו: ${data.leads.wonThisPeriod}${closed > 0 ? ` (${data.leads.conversionRate}% המרה)` : ""}`,
+    ...(o.revenue != null ? [t("share.revenue", { amount: formatCurrency(o.revenue, money) })] : []),
+    t("share.appointments", { total: o.totalAppointments, rate: o.completionRate }),
+    t("share.newCustomers", { count: o.newCustomers }),
+    `${t("share.leadsWon", { count: data.leads.wonThisPeriod })}${closed > 0 ? t("share.conversion", { rate: data.leads.conversionRate }) : ""}`,
     ...(data.leadSales
-      ? [`💼 מכירות מלידים: ${formatIls(data.leadSales.total)} (עסקאות ${formatIls(data.leadSales.dealValueTotal)} + הזמנות ${formatIls(data.leadSales.ordersTotal)})`]
+      ? [
+          t("share.leadSales", {
+            total: formatIls(data.leadSales.total),
+            deals: formatIls(data.leadSales.dealValueTotal),
+            orders: formatIls(data.leadSales.ordersTotal),
+          }),
+        ]
       : []),
-    `✅ משימות הושלמו: ${data.tasks.completedThisPeriod}`,
-    `🐾 שהות פנסיון: ${data.boarding.staysThisPeriod}${data.boarding.occupancyRate != null ? ` (${data.boarding.occupancyRate}% תפוסה)` : ""}`,
+    t("share.tasksCompleted", { count: data.tasks.completedThisPeriod }),
+    `${t("share.boardingStays", { count: data.boarding.staysThisPeriod })}${data.boarding.occupancyRate != null ? t("share.occupancy", { rate: data.boarding.occupancyRate }) : ""}`,
     ...(data.finance && data.finance.outstanding.total > 0
-      ? [`🧾 יתרות פתוחות: ${formatCurrency(data.finance.outstanding.total)}`]
+      ? [t("share.outstanding", { amount: formatCurrency(data.finance.outstanding.total, money) })]
       : []),
   ];
   return lines.join("\n");
 }
 
 function AnalyticsContent() {
+  const t = useTranslations("analytics.analyticsPage");
+  const tc = useTranslations("common");
+  const { locale, currency, cfg } = useBusinessLocale();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -141,10 +151,14 @@ function AnalyticsContent() {
     setTimeout(() => setIsExporting(false), 3000);
   };
 
-  const periodLabel = dateMode === "custom" ? "מותאם אישית" : PERIODS.find((p) => p.id === period)?.label ?? period;
+  const periodLabel =
+    dateMode === "custom" ? t("custom") : PERIODS.some((p) => p.id === period) ? t(`periods.${period}`) : period;
   const shareHref = useMemo(
-    () => (data ? `https://api.whatsapp.com/send?text=${encodeURIComponent(buildShareText(data, periodLabel))}` : ""),
-    [data, periodLabel]
+    () =>
+      data
+        ? `https://api.whatsapp.com/send?text=${encodeURIComponent(buildShareText(data, periodLabel, t, { locale, currency }))}`
+        : "",
+    [data, periodLabel, t, locale, currency]
   );
 
   const startCustom = () => {
@@ -164,7 +178,7 @@ function AnalyticsContent() {
 
   return (
     <div className="animate-fade-in min-w-0">
-      <PageTitle title="דוחות" />
+      <PageTitle title={t("title")} />
       <DesktopBanner />
 
       {/* Header */}
@@ -172,9 +186,9 @@ function AnalyticsContent() {
         <div className="min-w-0">
           <h1 className="page-title flex items-center gap-2">
             <BarChart3 className="w-6 h-6 text-brand-500" />
-            דוחות
+            {t("title")}
           </h1>
-          <p className="text-sm text-petra-muted">דוחות וסטטיסטיקות של העסק</p>
+          <p className="text-sm text-petra-muted">{t("subtitle")}</p>
         </div>
         {data && (
           <div className="flex items-center gap-2">
@@ -183,20 +197,20 @@ function AnalyticsContent() {
               onClick={handleExport}
               disabled={isExporting || !exportFrom || !exportTo}
               className="btn-secondary flex items-center gap-1.5 disabled:opacity-50"
-              title="ייצוא דוח לאקסל"
+              title={t("exportTitle")}
             >
               <Download className="w-4 h-4" />
-              <span>{isExporting ? "מייצא..." : "Excel"}</span>
+              <span>{isExporting ? tc("progress.exporting") : "Excel"}</span>
             </button>
             <a
               href={shareHref}
               target="_blank"
               rel="noopener noreferrer"
               className="btn-secondary flex items-center gap-1.5"
-              title="שתף דוח בוואטסאפ"
+              title={t("shareTitle")}
             >
               <Share2 className="w-4 h-4" />
-              <span>שתף</span>
+              <span>{t("share.button")}</span>
             </a>
           </div>
         )}
@@ -214,58 +228,58 @@ function AnalyticsContent() {
             }}
             className={pill(dateMode === "preset" && period === p.id)}
           >
-            {p.label}
+            {t(`periods.${p.id}`)}
           </button>
         ))}
         <button type="button" onClick={startCustom} className={pill(dateMode === "custom")}>
-          מותאם אישית
+          {t("custom")}
         </button>
         {dateMode === "custom" && (
           <div className="flex flex-wrap items-center gap-1.5 w-full sm:w-auto">
             <input
               type="date"
-              lang="he"
+              lang={cfg.lang}
               value={customFrom}
               max={todayStr}
               onChange={(e) => setCustomFrom(e.target.value)}
               className={cn("input px-3 py-1.5 text-sm w-36", rangeInvalid && "border-red-300")}
-              aria-label="מתאריך"
+              aria-label={t("fromDateAria")}
             />
-            <span className="text-xs text-petra-muted">עד</span>
+            <span className="text-xs text-petra-muted">{t("until")}</span>
             <input
               type="date"
-              lang="he"
+              lang={cfg.lang}
               value={customTo}
               onChange={(e) => setCustomTo(e.target.value)}
               className={cn("input px-3 py-1.5 text-sm w-36", rangeInvalid && "border-red-300")}
-              placeholder="היום"
-              aria-label="עד תאריך"
+              placeholder={t("todayPlaceholder")}
+              aria-label={t("toDateAria")}
             />
-            {rangeInvalid && <span className="text-xs text-red-500 w-full sm:w-auto">תאריך ההתחלה חייב להיות לפני תאריך הסיום</span>}
+            {rangeInvalid && <span className="text-xs text-red-500 w-full sm:w-auto">{t("rangeInvalid")}</span>}
           </div>
         )}
       </div>
 
       {/* Tabs — horizontally scrollable on mobile, never the page */}
       <div className="max-w-full overflow-x-auto mb-4 -mx-1 px-1">
-        <div role="tablist" aria-label="קטגוריות דוחות" className="inline-flex gap-1 p-1 bg-slate-100 rounded-xl">
-          {TABS.map((t) => {
-            const Icon = t.icon;
-            const active = activeTab === t.id;
+        <div role="tablist" aria-label={t("tabsAria")} className="inline-flex gap-1 p-1 bg-slate-100 rounded-xl">
+          {TABS.map((tab) => {
+            const Icon = tab.icon;
+            const active = activeTab === tab.id;
             return (
               <button
-                key={t.id}
+                key={tab.id}
                 type="button"
                 role="tab"
                 aria-selected={active}
-                onClick={() => setTab(t.id)}
+                onClick={() => setTab(tab.id)}
                 className={cn(
                   "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all",
                   active ? "bg-white text-petra-text shadow-sm" : "text-petra-muted hover:text-petra-text"
                 )}
               >
                 <Icon className={cn("w-4 h-4", active ? "text-brand-500" : "")} />
-                {t.label}
+                {t(`tabs.${tab.id}`)}
               </button>
             );
           })}
@@ -277,8 +291,8 @@ function AnalyticsContent() {
       ) : isError ? (
         <div className="card p-8 text-center">
           <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-3" />
-          <p className="text-sm font-medium text-petra-text">שגיאה בטעינת הדוחות</p>
-          <p className="text-xs text-petra-muted mt-1">נסה לרענן את הדף</p>
+          <p className="text-sm font-medium text-petra-text">{t("loadError")}</p>
+          <p className="text-xs text-petra-muted mt-1">{t("loadErrorHint")}</p>
         </div>
       ) : data ? (
         <div role="tabpanel">

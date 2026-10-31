@@ -6,7 +6,10 @@ import {
   ArrowRight, CalendarClock, FileText, GitMerge, Link2, ListTodo, MessageCircle, MoreVertical, Printer, Send,
   ShoppingCart, Trash2, type LucideIcon,
 } from "lucide-react";
-import { cn, formatDate } from "@/lib/utils";
+import { useTranslations } from "next-intl";
+import { cn } from "@/lib/utils";
+import { formatDate } from "@/lib/format";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { CustomerLeadChip } from "@/components/customers/CustomerSalesHistory";
 import { bookingLinkHref, paymentRequestHref } from "./customer-actions";
 
@@ -45,36 +48,38 @@ export interface CustomerHeaderProps {
 
 export function CustomerHeader(props: CustomerHeaderProps) {
   const { customer, canSendMessages, canWritePayments } = props;
+  const t = useTranslations("customers.customerHeader");
+  const { locale } = useBusinessLocale();
   const [menuOpen, setMenuOpen] = useState(false);
   const hasPhone = !!customer.phone?.trim();
   const bookingHref = canSendMessages ? bookingLinkHref(customer, props.businessSlug) : "";
 
   const items: MenuItem[] = [
-    { key: "appointment", label: "קבע תור", icon: CalendarClock, inline: true, onClick: props.onNewAppointment },
-    { key: "task", label: "משימה", icon: ListTodo, onClick: props.onNewTask },
+    { key: "appointment", label: t("menu.appointment"), icon: CalendarClock, inline: true, onClick: props.onNewAppointment },
+    { key: "task", label: t("menu.task"), icon: ListTodo, onClick: props.onNewTask },
     ...(canSendMessages && hasPhone
-      ? [{ key: "compose", label: "שלח הודעה", icon: MessageCircle, inline: true, onClick: props.onCompose } as MenuItem]
+      ? [{ key: "compose", label: t("menu.compose"), icon: MessageCircle, inline: true, onClick: props.onCompose } as MenuItem]
       : []),
     ...(canWritePayments
-      ? [{ key: "payreq", label: "בקשת תשלום", icon: Send, href: paymentRequestHref(customer) } as MenuItem]
+      ? [{ key: "payreq", label: t("menu.paymentRequest"), icon: Send, href: paymentRequestHref(customer) } as MenuItem]
       : []),
     ...(canSendMessages && hasPhone
-      ? [{ key: "intake", label: props.intakeSending ? "שולח..." : "טופס קבלה", icon: FileText, disabled: props.intakeSending, onClick: props.onSendIntake } as MenuItem]
+      ? [{ key: "intake", label: props.intakeSending ? t("menu.intakeSending") : t("menu.intake"), icon: FileText, disabled: props.intakeSending, onClick: props.onSendIntake } as MenuItem]
       : []),
     ...(bookingHref
-      ? [{ key: "booking", label: "קישור הזמנה", icon: Link2, href: bookingHref, external: true } as MenuItem]
+      ? [{ key: "booking", label: t("menu.bookingLink"), icon: Link2, href: bookingHref, external: true } as MenuItem]
       : []),
-    { key: "print", label: "הדפס", icon: Printer, onClick: () => window.print() },
-    ...(props.canMerge ? [{ key: "merge", label: "מזג לקוח כפול", icon: GitMerge, onClick: props.onMerge } as MenuItem] : []),
+    { key: "print", label: t("menu.print"), icon: Printer, onClick: () => window.print() },
+    ...(props.canMerge ? [{ key: "merge", label: t("menu.merge"), icon: GitMerge, onClick: props.onMerge } as MenuItem] : []),
     ...(props.canDelete
-      ? [{ key: "delete", label: props.deleteIsRequest ? "בקשת מחיקה" : "מחק לקוח", icon: Trash2, danger: true, onClick: props.onDelete } as MenuItem]
+      ? [{ key: "delete", label: props.deleteIsRequest ? t("menu.deleteRequest") : t("menu.delete"), icon: Trash2, danger: true, onClick: props.onDelete } as MenuItem]
       : []),
-    { key: "order", label: "הזמנה חדשה", icon: ShoppingCart, inline: true, onClick: props.onNewOrder },
+    { key: "order", label: t("menu.newOrder"), icon: ShoppingCart, inline: true, onClick: props.onNewOrder },
   ];
 
   const itemClass = (it: MenuItem) =>
     cn(
-      "w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-right transition-colors disabled:opacity-50",
+      "w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-start transition-colors disabled:opacity-50",
       it.danger ? "text-red-600 hover:bg-red-50" : "text-slate-700 hover:bg-slate-50",
       it.inline && "sm:hidden"
     );
@@ -118,35 +123,35 @@ export function CustomerHeader(props: CustomerHeaderProps) {
         <Link
           href="/customers"
           className="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-slate-100 text-petra-muted transition-colors flex-shrink-0"
-          aria-label="חזרה לרשימת הלקוחות"
+          aria-label={t("backToList")}
         >
-          <ArrowRight className="w-5 h-5" />
+          <ArrowRight className="w-5 h-5 ltr:-scale-x-100" />
         </Link>
         <div className="min-w-0">
           <h1 className="text-xl font-bold text-petra-text truncate">{customer.name}</h1>
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <p className="text-sm text-petra-muted">נוסף {formatDate(customer.createdAt)}</p>
+            <p className="text-sm text-petra-muted">{t("added", { date: formatDate(customer.createdAt, { locale }) })}</p>
             <CustomerLeadChip customerId={customer.id} />
           </div>
         </div>
       </div>
 
       <div className="flex items-center gap-2 flex-shrink-0 no-print">
-        <button onClick={props.onNewAppointment} className={inlineBtn} title="קבע תור ללקוח זה">
+        <button onClick={props.onNewAppointment} className={inlineBtn} title={t("newAppointmentTitle")}>
           <CalendarClock className="w-4 h-4" />
-          קבע תור
+          {t("menu.appointment")}
         </button>
         {canSendMessages && hasPhone && (
-          <button onClick={props.onCompose} className={inlineBtn} title="שלח הודעת WhatsApp ללקוח">
+          <button onClick={props.onCompose} className={inlineBtn} title={t("composeTitle")}>
             <MessageCircle className="w-4 h-4" />
-            שלח הודעה
+            {t("menu.compose")}
           </button>
         )}
         <div className="relative">
           <button
             onClick={() => setMenuOpen((v) => !v)}
             className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-500 hover:bg-slate-100 border border-slate-200 transition-colors"
-            aria-label="פעולות נוספות"
+            aria-label={t("moreActions")}
             aria-expanded={menuOpen}
           >
             <MoreVertical className="w-4 h-4" />
@@ -154,7 +159,7 @@ export function CustomerHeader(props: CustomerHeaderProps) {
           {menuOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
-              <div className="absolute left-0 top-full mt-1 w-52 bg-white rounded-xl shadow-lg border border-slate-100 z-50 py-1 animate-fade-in">
+              <div className="absolute end-0 top-full mt-1 w-52 bg-white rounded-xl shadow-lg border border-slate-100 z-50 py-1 animate-fade-in">
                 {items.map(renderMenuItem)}
               </div>
             </>
@@ -162,7 +167,7 @@ export function CustomerHeader(props: CustomerHeaderProps) {
         </div>
         <button onClick={props.onNewOrder} className="hidden sm:flex btn-primary items-center gap-2">
           <ShoppingCart className="w-4 h-4" />
-          הזמנה חדשה
+          {t("menu.newOrder")}
         </button>
       </div>
     </div>

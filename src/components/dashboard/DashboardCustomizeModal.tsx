@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ChevronUp, ChevronDown, X, RotateCcw, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { cn, fetchJSON } from "@/lib/utils";
 import {
   DASHBOARD_BLOCKS,
@@ -50,6 +51,8 @@ export function DashboardCustomizeModal({
   flags: RequirementFlags;
   onClose: () => void;
 }) {
+  const t = useTranslations("dashboard.dashboardCustomizeModal");
+  const tc = useTranslations("common");
   const queryClient = useQueryClient();
   const [order, setOrder] = useState<DashboardBlockId[]>(() => resolveBlockOrder(prefs.order));
   const [hidden, setHidden] = useState<Set<DashboardWidgetId>>(() => new Set(prefs.hidden));
@@ -66,10 +69,10 @@ export function DashboardCustomizeModal({
       }),
     onSuccess: (data, body) => {
       queryClient.setQueryData(DASHBOARD_PREFS_QUERY_KEY, data);
-      toast.success(body.prefs === null ? "הדשבורד חזר לברירת המחדל" : "התצוגה נשמרה");
+      toast.success(body.prefs === null ? t("toasts.reset") : t("toasts.saved"));
       onClose();
     },
-    onError: (err: Error) => toast.error(err.message || "שגיאה בשמירת התצוגה"),
+    onError: (err: Error) => toast.error(err.message || t("toasts.saveError")),
   });
 
   const toggle = (id: DashboardWidgetId) =>
@@ -110,15 +113,15 @@ export function DashboardCustomizeModal({
       >
         <div className="flex items-start justify-between gap-3 p-5 border-b border-slate-100">
           <div className="flex flex-col gap-0.5">
-            <h2 id="dashboard-customize-title" className="m-0 text-lg font-bold text-slate-900">התאמת הדשבורד</h2>
+            <h2 id="dashboard-customize-title" className="m-0 text-lg font-bold text-slate-900">{t("title")}</h2>
             <p className="m-0 text-xs text-slate-500">
-              בחרו מה יוצג ובאיזה סדר. ההגדרה אישית — רק לכם, בכל מכשיר.
+              {t("subtitle")}
             </p>
           </div>
           <button
             onClick={onClose}
             className="w-8 h-8 flex-shrink-0 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 flex items-center justify-center"
-            aria-label="סגור"
+            aria-label={tc("actions.close")}
           >
             <X className="w-[18px] h-[18px]" />
           </button>
@@ -127,7 +130,7 @@ export function DashboardCustomizeModal({
         <div className="overflow-y-auto p-5 space-y-6">
           <section>
             <h3 className="text-sm font-semibold text-slate-900 mb-2">
-              אזורים <span className="text-slate-500 font-normal">({visibleCount} מוצגים)</span>
+              {t("areas")} <span className="text-slate-500 font-normal">{t("areasShown", { count: visibleCount })}</span>
             </h3>
             <ul className="space-y-1.5">
               {allowedBlocks.map((id, i) => {
@@ -147,7 +150,7 @@ export function DashboardCustomizeModal({
                         onClick={() => move(id, -1)}
                         disabled={i === 0}
                         className="w-[22px] h-[18px] flex items-center justify-center text-slate-400 hover:text-slate-900 disabled:opacity-30"
-                        aria-label={`הזז למעלה: ${def.label}`}
+                        aria-label={t("moveUp", { label: def.label })}
                       >
                         <ChevronUp className="w-4 h-4" />
                       </button>
@@ -156,7 +159,7 @@ export function DashboardCustomizeModal({
                         onClick={() => move(id, 1)}
                         disabled={i === allowedBlocks.length - 1}
                         className="w-[22px] h-[18px] flex items-center justify-center text-slate-400 hover:text-slate-900 disabled:opacity-30"
-                        aria-label={`הזז למטה: ${def.label}`}
+                        aria-label={t("moveDown", { label: def.label })}
                       >
                         <ChevronDown className="w-4 h-4" />
                       </button>
@@ -167,7 +170,7 @@ export function DashboardCustomizeModal({
                       </div>
                       <div className="text-xs text-slate-500 truncate">{def.hint}</div>
                     </div>
-                    <Toggle on={shown} onClick={() => toggle(id)} label={`הצג ${def.label}`} />
+                    <Toggle on={shown} onClick={() => toggle(id)} label={t("show", { label: def.label })} />
                   </li>
                 );
               })}
@@ -176,7 +179,7 @@ export function DashboardCustomizeModal({
 
           {allowedStats.length > 0 && !hidden.has("stats") && (
             <section>
-              <h3 className="text-sm font-semibold text-slate-900 mb-2">כרטיסי מספרים</h3>
+              <h3 className="text-sm font-semibold text-slate-900 mb-2">{t("statsHeading")}</h3>
               <div className="grid [grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr))] gap-1.5">
                 {allowedStats.map((s) => {
                   const shown = !hidden.has(s.id);
@@ -187,7 +190,7 @@ export function DashboardCustomizeModal({
                       onClick={() => toggle(s.id)}
                       aria-pressed={shown}
                       className={cn(
-                        "flex items-center gap-2 py-2.5 px-3 rounded-xl border text-sm text-right transition-colors",
+                        "flex items-center gap-2 py-2.5 px-3 rounded-xl border text-sm text-start transition-colors",
                         shown
                           ? "border-orange-200 bg-orange-50/50 text-slate-900"
                           : "border-slate-100 bg-slate-50 text-slate-500"
@@ -209,14 +212,14 @@ export function DashboardCustomizeModal({
             disabled={save.isPending}
             onClick={() => save.mutate({ prefs: { hidden: Array.from(hidden), order } })}
           >
-            {save.isPending ? "שומר..." : "שמור"}
+            {save.isPending ? tc("progress.saving") : tc("actions.save")}
           </button>
           <button
             className="h-[38px] px-4 rounded-xl border border-slate-200 bg-white text-slate-900 text-sm font-medium hover:bg-slate-50 hover:border-slate-300"
             onClick={onClose}
             disabled={save.isPending}
           >
-            ביטול
+            {tc("actions.cancel")}
           </button>
           <button
             type="button"
@@ -225,7 +228,7 @@ export function DashboardCustomizeModal({
             onClick={() => save.mutate({ prefs: null })}
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            חזרה לברירת מחדל
+            {t("resetDefault")}
           </button>
         </div>
       </div>

@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState, type DragEvent } from "react";
 import { Check, GripVertical, Pencil, Plus, Settings2, Trash2, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 // ─── Manage Tags Popover ─────────────────────────────────────────
 
@@ -13,6 +14,8 @@ export function ManageTagsPopover({
   onSave: (tags: string[]) => void;
   isSaving: boolean;
 }) {
+  const t = useTranslations("customers");
+  const tc = useTranslations("common");
   const [isOpen, setIsOpen] = useState(false);
   const [localTags, setLocalTags] = useState<string[]>(tags);
   const [newTag, setNewTag] = useState("");
@@ -77,12 +80,12 @@ export function ManageTagsPopover({
   const saveEdit = () => {
     if (editingIndex === null) return;
     const trimmed = editValue.trim();
-    if (!trimmed || localTags.some((t, i) => i !== editingIndex && t === trimmed)) {
+    if (!trimmed || localTags.some((tg, i) => i !== editingIndex && tg === trimmed)) {
       setEditingIndex(null);
       setEditValue("");
       return;
     }
-    const updated = localTags.map((t, i) => (i === editingIndex ? trimmed : t));
+    const updated = localTags.map((tg, i) => (i === editingIndex ? trimmed : tg));
     setLocalTags(updated);
     setEditingIndex(null);
     setEditValue("");
@@ -135,16 +138,16 @@ export function ManageTagsPopover({
           ? "bg-[#3D2E1F] text-white"
           : "text-[#A0845C] hover:bg-[#F3EDE6] hover:text-[#8B7355]"
           }`}
-        title="ניהול תוויות"
+        title={t("manageTagsPopover.title")}
       >
         <Settings2 className="w-3.5 h-3.5" />
       </button>
 
       {isOpen && (
-        <div className="absolute top-full right-0 mt-2 bg-white rounded-xl shadow-xl border border-[#E8DFD5] p-4 z-50 w-[280px] animate-fade-in">
+        <div className="absolute top-full start-0 mt-2 bg-white rounded-xl shadow-xl border border-[#E8DFD5] p-4 z-50 w-[280px] animate-fade-in">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-bold text-petra-text">ניהול תוויות</h3>
-            <span className="text-[10px] text-petra-muted">{localTags.length} תוויות</span>
+            <h3 className="text-sm font-bold text-petra-text">{t("manageTagsPopover.title")}</h3>
+            <span className="text-[10px] text-petra-muted">{t("manageTagsPopover.count", { count: localTags.length })}</span>
           </div>
 
           {/* Add new tag */}
@@ -160,7 +163,7 @@ export function ManageTagsPopover({
                   addTag();
                 }
               }}
-              placeholder="תווית חדשה..."
+              placeholder={t("manageTagsPopover.newTagPlaceholder")}
               className="flex-1 px-3 py-1.5 text-xs rounded-lg border border-[#E8DFD5] bg-[#FAF7F3] focus:outline-none focus:border-[#C4956A] focus:ring-1 focus:ring-[#C4956A]/20"
             />
             <button
@@ -206,14 +209,14 @@ export function ManageTagsPopover({
                     <button
                       onClick={saveEdit}
                       className="w-6 h-6 rounded flex items-center justify-center text-emerald-600 hover:bg-emerald-50 transition-colors flex-shrink-0"
-                      title="אישור"
+                      title={t("manageTagsPopover.confirm")}
                     >
                       <Check className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={cancelEdit}
                       className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-colors flex-shrink-0"
-                      title="ביטול"
+                      title={tc("actions.cancel")}
                     >
                       <X className="w-3 h-3" />
                     </button>
@@ -221,12 +224,12 @@ export function ManageTagsPopover({
                 ) : confirmDeleteIndex === index ? (
                   // ── Confirm delete inline ──
                   <div className="flex items-center gap-1.5 flex-1">
-                    <span className="flex-1 text-xs text-red-600 font-medium">מחק את &quot;{tag}&quot;?</span>
+                    <span className="flex-1 text-xs text-red-600 font-medium">{t("manageTagsPopover.confirmDelete", { tag })}</span>
                     <button
                       onClick={() => removeTag(index)}
                       className="px-2 py-0.5 rounded text-[10px] font-semibold bg-red-500 text-white hover:bg-red-600 transition-colors flex-shrink-0"
                     >
-                      מחק
+                      {tc("actions.delete")}
                     </button>
                     <button
                       onClick={() => setConfirmDeleteIndex(null)}
@@ -241,7 +244,7 @@ export function ManageTagsPopover({
                       className={`flex-1 text-xs font-medium cursor-pointer ${tag === "VIP" ? "text-amber-700" : "text-[#8B7355]"
                         }`}
                       onClick={() => startEdit(index)}
-                      title="לחץ לעריכה"
+                      title={t("manageTagsPopover.clickToEdit")}
                     >
                       {tag}
                     </span>
@@ -249,14 +252,14 @@ export function ManageTagsPopover({
                       <button
                         onClick={() => startEdit(index)}
                         className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-[#8B7355] hover:bg-[#F3EDE6] transition-colors"
-                        title="ערוך"
+                        title={t("manageTagsPopover.edit")}
                       >
                         <Pencil className="w-3 h-3" />
                       </button>
                       <button
                         onClick={() => setConfirmDeleteIndex(index)}
                         className="w-6 h-6 rounded flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                        title="מחק"
+                        title={tc("actions.delete")}
                       >
                         <Trash2 className="w-3 h-3" />
                       </button>
@@ -269,13 +272,13 @@ export function ManageTagsPopover({
 
           {localTags.length === 0 && (
             <div className="text-center py-3 text-xs text-petra-muted">
-              אין תוויות. הוסף תווית חדשה למעלה.
+              {t("manageTagsPopover.empty")}
             </div>
           )}
 
           {isSaving && (
             <div className="text-center pt-2 text-[10px] text-[#C4956A] font-medium">
-              שומר...
+              {tc("progress.saving")}
             </div>
           )}
         </div>

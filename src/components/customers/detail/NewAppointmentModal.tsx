@@ -4,6 +4,8 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { X } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { triggerLimitModal } from "@/lib/limit-reached";
 import { fetchJSON } from "@/lib/utils";
 import type { CustomerDetail } from "./types";
@@ -24,6 +26,9 @@ export function NewAppointmentModal({
   onClose: () => void;
   onSuccess: () => void;
 }) {
+  const t = useTranslations("customers.newAppointmentModal");
+  const tc = useTranslations("common");
+  const { cfg } = useBusinessLocale();
   const today = new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState({
     priceListItemId: "",
@@ -56,7 +61,7 @@ export function NewAppointmentModal({
         }),
       }),
     onSuccess: () => {
-      toast.success(`תור נקבע עבור ${customer.name}`);
+      toast.success(t("toastScheduled", { name: customer.name }));
       onSuccess();
       onClose();
     },
@@ -64,7 +69,7 @@ export function NewAppointmentModal({
       if ((err as unknown as Record<string, unknown>).code === "LIMIT_REACHED") {
         triggerLimitModal(err.message);
       } else {
-        toast.error("שגיאה בקביעת התור. נסה שוב.");
+        toast.error(t("toastError"));
       }
     },
   });
@@ -111,20 +116,20 @@ export function NewAppointmentModal({
       <div className="modal-backdrop" onClick={onClose} />
       <div className="modal-content max-w-md mx-4 p-6">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-petra-text">תור חדש — {customer.name}</h2>
+          <h2 className="text-xl font-bold text-petra-text">{t("title", { name: customer.name })}</h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
             <X className="w-4 h-4" />
           </button>
         </div>
         <div className="space-y-4">
           <div>
-            <label className="label">שירות *</label>
+            <label className="label">{t("serviceLabel")}</label>
             <select
               className="input w-full"
               value={form.priceListItemId}
               onChange={(e) => handleServiceChange(e.target.value)}
             >
-              <option value="">בחר שירות...</option>
+              <option value="">{t("selectService")}</option>
               {services.map((s) => (
                 <option key={s.id} value={s.id}>{s.name}</option>
               ))}
@@ -132,13 +137,13 @@ export function NewAppointmentModal({
           </div>
           {customer.pets.length > 0 && (
             <div>
-              <label className="label">חיית מחמד</label>
+              <label className="label">{t("petLabel")}</label>
               <select
                 className="input w-full"
                 value={form.petId}
                 onChange={(e) => setForm((f) => ({ ...f, petId: e.target.value }))}
               >
-                <option value="">ללא שיוך לחיה</option>
+                <option value="">{t("noPet")}</option>
                 {customer.pets.map((p) => (
                   <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
@@ -146,9 +151,9 @@ export function NewAppointmentModal({
             </div>
           )}
           <div>
-            <label className="label">תאריך *</label>
+            <label className="label">{t("dateLabel")}</label>
             <input
-              type="date" lang="he"
+              type="date" lang={cfg.lang}
               className="input w-full"
               value={form.date}
               onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
@@ -156,7 +161,7 @@ export function NewAppointmentModal({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">שעת התחלה *</label>
+              <label className="label">{t("startTimeLabel")}</label>
               <input
                 type="time"
                 className="input w-full"
@@ -165,7 +170,7 @@ export function NewAppointmentModal({
               />
             </div>
             <div>
-              <label className="label">שעת סיום *</label>
+              <label className="label">{t("endTimeLabel")}</label>
               <input
                 type="time"
                 className="input w-full"
@@ -175,11 +180,11 @@ export function NewAppointmentModal({
             </div>
           </div>
           <div>
-            <label className="label">הערות</label>
+            <label className="label">{t("notesLabel")}</label>
             <textarea
               className="input w-full"
               rows={2}
-              placeholder="הערות נוספות..."
+              placeholder={t("notesPlaceholder")}
               value={form.notes}
               onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
             />
@@ -189,17 +194,17 @@ export function NewAppointmentModal({
               className="btn-primary flex-1"
               disabled={!form.priceListItemId || !form.date || !form.startTime || !form.endTime || mutation.isPending}
               onClick={() => {
-                if (!form.priceListItemId) { setFieldError("יש לבחור שירות"); return; }
+                if (!form.priceListItemId) { setFieldError(t("serviceRequired")); return; }
                 mutation.mutate(form);
               }}
             >
-              {mutation.isPending ? "שומר..." : "קבע תור"}
+              {mutation.isPending ? tc("progress.saving") : t("submit")}
             </button>
-            <button className="btn-secondary" onClick={onClose}>ביטול</button>
+            <button className="btn-secondary" onClick={onClose}>{tc("actions.cancel")}</button>
           </div>
           {fieldError && <p className="text-xs text-red-600">{fieldError}</p>}
           {mutation.isError && (
-            <p className="text-xs text-red-600 text-center">שגיאה ביצירת התור. נסה שוב.</p>
+            <p className="text-xs text-red-600 text-center">{t("createError")}</p>
           )}
         </div>
       </div>

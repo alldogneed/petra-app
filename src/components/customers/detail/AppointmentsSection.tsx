@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, ExternalLink, MessageCircle, Plus, Send } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { cn, fetchJSON, getStatusColor, getStatusLabel } from "@/lib/utils";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { waLink } from "./customer-actions";
@@ -25,6 +27,10 @@ export function AppointmentsSection({
   canRemind: boolean;
   onNewAppointment: () => void;
 }) {
+  const t = useTranslations("customers.appointmentsSection");
+  const tc = useTranslations("common");
+  const tCustomers = useTranslations("customers");
+  const { locale } = useBusinessLocale();
   const customerId = customer.id;
   const queryClient = useQueryClient();
   const counts = customer.summary?.counts;
@@ -51,8 +57,8 @@ export function AppointmentsSection({
 
   const remindMutation = useMutation({
     mutationFn: (aptId: string) => fetchJSON(`/api/appointments/${aptId}/remind`, { method: "POST" }),
-    onSuccess: () => toast.success("תזכורת WhatsApp נשלחה"),
-    onError: (err: Error) => toast.error(err.message || "שגיאה בשליחת תזכורת"),
+    onSuccess: () => toast.success(t("toastReminderSent")),
+    onError: (err: Error) => toast.error(err.message || t("errorReminder")),
     onSettled: () => setBusyId(null),
   });
   const completeMutation = useMutation({
@@ -64,41 +70,41 @@ export function AppointmentsSection({
       }),
     onSuccess: () => {
       invalidate();
-      toast.success("התור סומן כהושלם");
+      toast.success(t("toastCompleted"));
     },
-    onError: (err: Error) => toast.error(err.message || "שגיאה בעדכון התור"),
+    onError: (err: Error) => toast.error(err.message || t("errorUpdate")),
     onSettled: () => setBusyId(null),
   });
 
   const hasPhone = !!customer.phone?.trim();
 
   const followUpLink = (apt: CustomerAppointment) => {
-    const serviceName = appointmentServiceName(apt, "הטיפול");
-    const petPart = apt.pet ? ` של ${apt.pet.name}` : "";
-    const msg = `שלום ${customer.name} 😊\n\nרציתי לבדוק איך ${apt.pet ? apt.pet.name : "הכלב"} מרגיש/ת אחרי ${serviceName}${petPart}.\n\nאם יש שאלות אנחנו כאן תמיד 🐾`;
+    const serviceName = appointmentServiceName(apt, "הטיפול"); // i18n-ok — part of the WhatsApp text sent to the client
+    const petPart = apt.pet ? ` של ${apt.pet.name}` : ""; // i18n-ok — WhatsApp text sent to the client
+    const msg = `שלום ${customer.name} 😊\n\nרציתי לבדוק איך ${apt.pet ? apt.pet.name : "הכלב"} מרגיש/ת אחרי ${serviceName}${petPart}.\n\nאם יש שאלות אנחנו כאן תמיד 🐾`; // i18n-ok — WhatsApp text sent to the client
     return waLink(customer.phone, msg);
   };
 
   return (
     <div id="appointments" className="card p-5 scroll-mt-32">
       <div className="flex items-center justify-between gap-2 mb-3">
-        <h2 className="text-base font-bold text-petra-text">תורים ({counts?.appointments ?? 0})</h2>
+        <h2 className="text-base font-bold text-petra-text">{t("title", { count: counts?.appointments ?? 0 })}</h2>
         <div className="flex items-center gap-2">
           <button className="btn-primary text-xs py-1.5 px-3" onClick={onNewAppointment}>
             <Plus className="w-3.5 h-3.5" />
-            קבע תור
+            {t("newAppointment")}
           </button>
           <Link href="/calendar" className="btn-ghost text-xs">
             <ExternalLink className="w-3.5 h-3.5" />
-            יומן
+            {t("calendar")}
           </Link>
         </div>
       </div>
 
       <div className="flex gap-1 p-1 mb-3 rounded-xl bg-slate-100 w-fit" role="tablist">
         {([
-          ["upcoming", `קרובים (${upcomingCount})`],
-          ["past", `היסטוריה (${pastCount})`],
+          ["upcoming", t("tabUpcoming", { count: upcomingCount })],
+          ["past", t("tabPast", { count: pastCount })],
         ] as const).map(([key, label]) => (
           <button
             key={key}
@@ -118,14 +124,14 @@ export function AppointmentsSection({
       {query.isLoading ? (
         <PetraLoader variant="inline" className="py-4" />
       ) : query.isError ? (
-        <p className="text-sm text-red-500 py-4 text-center">שגיאה בטעינת התורים</p>
+        <p className="text-sm text-red-500 py-4 text-center">{t("errorLoad")}</p>
       ) : appointments.length === 0 ? (
         <div className="py-4 text-center">
-          <p className="text-sm text-petra-muted">{scope === "upcoming" ? "אין תורים עתידיים" : "אין היסטוריית תורים"}</p>
+          <p className="text-sm text-petra-muted">{scope === "upcoming" ? t("emptyUpcoming") : t("emptyPast")}</p>
           {scope === "upcoming" && (
             <button className="btn-ghost text-xs mt-2 mx-auto" onClick={onNewAppointment}>
               <Plus className="w-3.5 h-3.5" />
-              קבע תור
+              {t("newAppointment")}
             </button>
           )}
         </div>
@@ -144,16 +150,16 @@ export function AppointmentsSection({
                 <Link
                   href={`/calendar?date=${String(apt.date).slice(0, 10)}&apt=${apt.id}`}
                   className="flex items-center gap-3 flex-1 min-w-0"
-                  title="פתח ועריכת תור ביומן"
+                  title={t("openInCalendar")}
                 >
                   <div className="w-1.5 h-8 rounded-full flex-shrink-0" style={{ background: apt.service?.color || "#F97316" }} />
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium text-petra-text truncate flex items-center gap-1.5">
-                      {appointmentServiceName(apt)}
-                      {isNext && <span className="badge-brand text-[10px] flex-shrink-0">התור הבא</span>}
+                      {appointmentServiceName(apt, undefined, tCustomers)}
+                      {isNext && <span className="badge-brand text-[10px] flex-shrink-0">{t("nextBadge")}</span>}
                     </div>
                     <div className="text-xs text-petra-muted truncate">
-                      {formatDayDate(apt.date)} · {apt.startTime}
+                      {formatDayDate(apt.date, locale)} · {apt.startTime}
                       {apt.pet ? ` · ${apt.pet.name}` : ""}
                     </div>
                   </div>
@@ -163,8 +169,8 @@ export function AppointmentsSection({
                   {apt.status === "scheduled" && hasPhone && canRemind && (
                     <button
                       className="w-7 h-7 flex items-center justify-center rounded-full bg-green-50 hover:bg-green-100 text-green-600 transition-colors disabled:opacity-50"
-                      title="שלח תזכורת WhatsApp"
-                      aria-label="שלח תזכורת WhatsApp"
+                      title={t("sendReminder")}
+                      aria-label={t("sendReminder")}
                       disabled={busyId === apt.id}
                       onClick={() => { setBusyId(apt.id); remindMutation.mutate(apt.id); }}
                     >
@@ -177,8 +183,8 @@ export function AppointmentsSection({
                       target="_blank"
                       rel="noopener noreferrer"
                       className="w-7 h-7 flex items-center justify-center rounded-full bg-blue-50 hover:bg-blue-100 text-blue-600 transition-colors"
-                      title="שלח מעקב WhatsApp"
-                      aria-label="שלח מעקב WhatsApp"
+                      title={t("sendFollowUp")}
+                      aria-label={t("sendFollowUp")}
                     >
                       <Send className="w-3 h-3" />
                     </a>
@@ -186,8 +192,8 @@ export function AppointmentsSection({
                   {apt.status === "scheduled" && (
                     <button
                       className="w-7 h-7 flex items-center justify-center rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-600 transition-colors disabled:opacity-50"
-                      title="סמן כהושלם"
-                      aria-label="סמן כהושלם"
+                      title={t("markCompleted")}
+                      aria-label={t("markCompleted")}
                       disabled={busyId === apt.id}
                       onClick={() => { setBusyId(apt.id); completeMutation.mutate(apt.id); }}
                     >
@@ -204,7 +210,7 @@ export function AppointmentsSection({
               disabled={query.isFetchingNextPage}
               className="w-full mt-1 py-2 text-xs text-petra-muted hover:text-petra-text transition-colors disabled:opacity-50"
             >
-              {query.isFetchingNextPage ? "טוען..." : "טען עוד"}
+              {query.isFetchingNextPage ? tc("loading") : t("loadMore")}
             </button>
           )}
         </div>

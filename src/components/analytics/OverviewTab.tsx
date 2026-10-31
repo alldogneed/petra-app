@@ -3,8 +3,10 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { Calendar, CreditCard, Users, Target, TrendingUp, Sparkles, Clock, ListTodo, Briefcase } from "lucide-react";
 import type { ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import type { AnalyticsData } from "@/lib/analytics-types";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency } from "@/lib/format";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { formatMonthKey } from "@/lib/lead-attribution";
 import { KpiCard, ChangeIndicator, ReportCard, EmptyState, ChartTooltip, CHART_COLORS, fmtMoney } from "./ReportBlocks";
 
@@ -21,6 +23,9 @@ function Highlight({ icon, label, value }: { icon: ReactNode; label: string; val
 }
 
 export function OverviewTab({ data }: { data: AnalyticsData }) {
+  const t = useTranslations("analytics.overviewTab");
+  const { locale, currency } = useBusinessLocale();
+  const money = (v: number) => formatCurrency(v, { locale, currency });
   const o = data.overview;
   const monthly = data.finance?.monthly ?? [];
   const hasMonthly = monthly.some((m) => m.revenue > 0);
@@ -37,19 +42,19 @@ export function OverviewTab({ data }: { data: AnalyticsData }) {
         <KpiCard
           icon={<CreditCard className="w-5 h-5" />}
           iconClassName="bg-emerald-50 text-emerald-500"
-          label="הכנסות"
-          value={fmtMoney(o.revenue)}
-          sub={o.paymentCount != null ? `${o.paymentCount} תשלומים` : undefined}
+          label={t("kpi.revenue")}
+          value={fmtMoney(o.revenue, { locale, currency })}
+          sub={o.paymentCount != null ? t("kpi.paymentCount", { count: o.paymentCount }) : undefined}
           change={o.revenue != null ? o.revenueChange : undefined}
         />
         <KpiCard
           icon={<Calendar className="w-5 h-5" />}
           iconClassName="bg-blue-50 text-blue-500"
-          label="תורים"
+          label={t("kpi.appointments")}
           value={o.totalAppointments}
           sub={
             <span className="inline-flex items-center gap-1.5 flex-wrap">
-              {o.completionRate}% הושלמו
+              {t("kpi.completionRate", { rate: o.completionRate })}
               {o.completionRateChange !== undefined && <ChangeIndicator value={o.completionRateChange} />}
             </span>
           }
@@ -60,17 +65,17 @@ export function OverviewTab({ data }: { data: AnalyticsData }) {
         <KpiCard
           icon={<Users className="w-5 h-5" />}
           iconClassName="bg-purple-50 text-purple-500"
-          label="לקוחות חדשים"
+          label={t("kpi.newCustomers")}
           value={o.newCustomers}
-          sub={`${o.totalCustomers} לקוחות בסה״כ`}
+          sub={t("kpi.totalCustomers", { count: o.totalCustomers })}
           change={o.newCustomersChange}
         />
         <KpiCard
           icon={<Target className="w-5 h-5" />}
           iconClassName="bg-amber-50 text-amber-500"
-          label="לידים שנסגרו"
+          label={t("kpi.leadsWon")}
           value={data.leads.wonThisPeriod}
-          sub={`${data.leads.wonThisPeriod + data.leads.lostThisPeriod > 0 ? `${data.leads.conversionRate}%` : "—"} המרה`}
+          sub={t("kpi.conversion", { rate: data.leads.wonThisPeriod + data.leads.lostThisPeriod > 0 ? `${data.leads.conversionRate}%` : "—" })}
           change={data.leads.wonChange}
         />
       </div>
@@ -78,37 +83,37 @@ export function OverviewTab({ data }: { data: AnalyticsData }) {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <ReportCard
           className="lg:col-span-2"
-          title="הכנסות לפי חודש"
-          subtitle="12 החודשים האחרונים · תשלומים ששולמו"
+          title={t("monthly.title")}
+          subtitle={t("monthly.subtitle")}
           icon={<TrendingUp className="w-4 h-4 text-brand-500" />}
         >
           {!data.finance ? (
-            <EmptyState text="אין הרשאה לנתונים כספיים" />
+            <EmptyState text={t("monthly.noFinancePermission")} />
           ) : !hasMonthly ? (
-            <EmptyState text="אין הכנסות ב-12 החודשים האחרונים" />
+            <EmptyState text={t("monthly.empty")} />
           ) : (
             <div dir="ltr" className="h-56">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={monthly} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                   <XAxis dataKey="month" tickFormatter={formatMonthKey} tick={{ fontSize: 10, fill: "#64748b" }} tickLine={false} axisLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: "#64748b" }} tickLine={false} axisLine={false} width={56} tickFormatter={(v: number) => formatCurrency(v)} />
-                  <Tooltip cursor={{ fill: "#f8fafc" }} content={<ChartTooltip valueFormatter={formatCurrency} labelFormatter={formatMonthKey} />} />
-                  <Bar dataKey="revenue" name="הכנסות" fill={CHART_COLORS.brand} radius={[4, 4, 0, 0]} />
+                  <YAxis tick={{ fontSize: 10, fill: "#64748b" }} tickLine={false} axisLine={false} width={56} tickFormatter={(v: number) => money(v)} />
+                  <Tooltip cursor={{ fill: "#f8fafc" }} content={<ChartTooltip valueFormatter={money} labelFormatter={formatMonthKey} />} />
+                  <Bar dataKey="revenue" name={t("monthly.revenueSeries")} fill={CHART_COLORS.brand} radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           )}
         </ReportCard>
 
-        <ReportCard title="בקצרה" icon={<Sparkles className="w-4 h-4 text-brand-500" />}>
+        <ReportCard title={t("highlights.title")} icon={<Sparkles className="w-4 h-4 text-brand-500" />}>
           <div className="space-y-2">
-            <Highlight icon={<ListTodo className="w-4 h-4 text-indigo-500" />} label="משימות שהושלמו בתקופה" value={data.tasks.completedThisPeriod} />
-            <Highlight icon={<ListTodo className="w-4 h-4 text-slate-400" />} label="משימות פתוחות כעת" value={data.tasks.open} />
-            {busiestDay && <Highlight icon={<Calendar className="w-4 h-4 text-blue-500" />} label="היום העמוס בשבוע" value={`יום ${busiestDay.day}`} />}
-            {busiestHour && <Highlight icon={<Clock className="w-4 h-4 text-violet-500" />} label="השעה העמוסה" value={busiestHour.label} />}
+            <Highlight icon={<ListTodo className="w-4 h-4 text-indigo-500" />} label={t("highlights.tasksCompleted")} value={data.tasks.completedThisPeriod} />
+            <Highlight icon={<ListTodo className="w-4 h-4 text-slate-400" />} label={t("highlights.tasksOpen")} value={data.tasks.open} />
+            {busiestDay && <Highlight icon={<Calendar className="w-4 h-4 text-blue-500" />} label={t("highlights.busiestDay")} value={t("highlights.busiestDayValue", { day: busiestDay.day })} />}
+            {busiestHour && <Highlight icon={<Clock className="w-4 h-4 text-violet-500" />} label={t("highlights.busiestHour")} value={busiestHour.label} />}
             {topService && topService.revenue > 0 && (
-              <Highlight icon={<Briefcase className="w-4 h-4 text-emerald-500" />} label="השירות המכניס ביותר" value={topService.name} />
+              <Highlight icon={<Briefcase className="w-4 h-4 text-emerald-500" />} label={t("highlights.topService")} value={topService.name} />
             )}
           </div>
         </ReportCard>

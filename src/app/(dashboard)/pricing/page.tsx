@@ -12,7 +12,10 @@ import {
   Clock, Package, Tag, Sparkles, ChevronUp, ChevronDown,
   AlertTriangle,
 } from "lucide-react";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
+import { formatCurrency, currencySymbol } from "@/lib/format";
 import { toast } from "sonner";
 import { usePlan } from "@/hooks/usePlan";
 import { getMaxPriceItems } from "@/lib/feature-flags";
@@ -53,29 +56,46 @@ interface PriceList {
 
 // ─── Constants ───────────────────────────────────────────────
 
-const UNITS: { id: string; label: string }[] = [
-  { id: "per_session", label: "לפגישה" },
-  { id: "per_day", label: "ליום" },
-  { id: "per_night", label: "ללילה" },
-  { id: "per_hour", label: "לשעה" },
-  { id: "per_item", label: "ליחידה" },
-  { id: "fixed", label: "מחיר קבוע" },
+const UNITS: { id: string }[] = [
+  { id: "per_session" },
+  { id: "per_day" },
+  { id: "per_night" },
+  { id: "per_hour" },
+  { id: "per_item" },
+  { id: "fixed" },
 ];
 
-const UNIT_LABEL: Record<string, string> = Object.fromEntries(
-  UNITS.map((u) => [u.id, u.label])
-);
-
-const TAX_LABELS: Record<string, string> = {
-  taxable: "חייב מע״מ",
-  exempt: "פטור מע״מ",
-  inherit: "לפי הגדרת עסק",
-  inclusive: "כולל מע״מ",
-  exclusive: "+ מע״מ",
-};
+const TAX_MODES = ["taxable", "exempt", "inherit", "inclusive", "exclusive"];
 
 // These 4 main categories are used by the order modal to filter items
-const CATEGORIES = ["פנסיון", "אילוף", "טיפוח", "מוצרים"];
+const CATEGORIES = ["פנסיון", "אילוף", "טיפוח", "מוצרים"]; // i18n-ok — stored category values (DB data)
+
+// Display label key per stored category value (the values themselves stay Hebrew data)
+const CATEGORY_KEY: Record<string, string> = {
+  "פנסיון": "boarding", // i18n-ok
+  "אילוף": "training", // i18n-ok
+  "טיפוח": "grooming", // i18n-ok
+  "מוצרים": "products", // i18n-ok
+  "כללי": "general", // i18n-ok
+};
+
+// Fallback group for items without a category (internal grouping key)
+const GENERAL_CATEGORY = "כללי"; // i18n-ok
+
+type PricingT = ReturnType<typeof useTranslations<"pricing">>;
+
+function categoryLabel(t: PricingT, cat: string): string {
+  const key = CATEGORY_KEY[cat];
+  return key ? t(`pricingPage.categories.${key}`) : cat;
+}
+
+function unitLabel(t: PricingT, unit: string): string {
+  return t.has(`pricingPage.units.${unit}`) ? t(`pricingPage.units.${unit}`) : unit;
+}
+
+function taxLabel(t: PricingT, mode: string): string | undefined {
+  return TAX_MODES.includes(mode) ? t(`pricingPage.taxModes.${mode}`) : undefined;
+}
 
 // ─── Item Modal ───────────────────────────────────────────────
 
@@ -109,6 +129,9 @@ function ItemModal({
   isSaving: boolean;
   isVatExempt?: boolean;
 }) {
+  const t = useTranslations("pricing");
+  const tc = useTranslations("common");
+  const { locale, currency } = useBusinessLocale();
   const isEdit = Boolean(item);
   const [form, setForm] = useState<ItemFormData>({
     name: item?.name ?? "",
@@ -136,7 +159,7 @@ function ItemModal({
       >
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold text-petra-text">
-            {isEdit ? "עריכת פריט" : "פריט חדש"}
+            {isEdit ? t("pricingPage.modal.editTitle") : t("pricingPage.modal.newTitle")}
           </h2>
           <button type="button" onClick={onClose} className="btn-ghost p-1.5 rounded-lg">
             <X className="w-4 h-4" />
@@ -153,32 +176,32 @@ function ItemModal({
         >
           {/* Type toggle */}
           <div className="flex gap-2">
-            {(["service", "product"] as const).map((t) => (
+            {(["service", "product"] as const).map((type) => (
               <button
-                key={t}
+                key={type}
                 type="button"
-                onClick={() => setForm({ ...form, type: t })}
+                onClick={() => setForm({ ...form, type })}
                 className={cn(
                   "flex-1 py-2 rounded-xl text-sm font-medium border transition-all flex items-center justify-center gap-2",
-                  form.type === t
+                  form.type === type
                     ? "border-brand-400 bg-brand-50 text-brand-600"
                     : "border-petra-border text-petra-muted hover:bg-slate-50"
                 )}
               >
-                {t === "service" ? (
-                  <><Clock className="w-3.5 h-3.5" /> שירות</>
+                {type === "service" ? (
+                  <><Clock className="w-3.5 h-3.5" /> {t("pricingPage.modal.typeService")}</>
                 ) : (
-                  <><Package className="w-3.5 h-3.5" /> מוצר</>
+                  <><Package className="w-3.5 h-3.5" /> {t("pricingPage.modal.typeProduct")}</>
                 )}
               </button>
             ))}
           </div>
 
           <div>
-            <label className="label">שם *</label>
+            <label className="label">{t("pricingPage.modal.nameLabel")}</label>
             <input
               className="input mt-1"
-              placeholder="לדוגמה: שיעור אילוף יחיד"
+              placeholder={t("pricingPage.modal.namePlaceholder")}
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               autoFocus
@@ -188,26 +211,26 @@ function ItemModal({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">קטגוריה *</label>
+              <label className="label">{t("pricingPage.modal.categoryLabel")}</label>
               <select
                 className="input mt-1"
                 value={form.category}
                 onChange={(e) => setForm({ ...form, category: e.target.value })}
                 required
               >
-                <option value="">בחר קטגוריה...</option>
-                {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                <option value="">{t("pricingPage.modal.categoryPlaceholder")}</option>
+                {CATEGORIES.map((c) => <option key={c} value={c}>{categoryLabel(t, c)}</option>)}
               </select>
             </div>
             <div>
-              <label className="label">יחידת מידה</label>
+              <label className="label">{t("pricingPage.modal.unitLabel")}</label>
               <select
                 className="input mt-1"
                 value={form.unit}
                 onChange={(e) => setForm({ ...form, unit: e.target.value })}
               >
                 {UNITS.map((u) => (
-                  <option key={u.id} value={u.id}>{u.label}</option>
+                  <option key={u.id} value={u.id}>{unitLabel(t, u.id)}</option>
                 ))}
               </select>
             </div>
@@ -215,7 +238,7 @@ function ItemModal({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">מחיר (₪) *</label>
+              <label className="label">{t("pricingPage.modal.priceLabel", { currency: currencySymbol({ locale, currency }) })}</label>
               <input
                 className="input mt-1"
                 type="number"
@@ -230,15 +253,15 @@ function ItemModal({
             </div>
             {!isVatExempt && (
               <div>
-                <label className="label">מע״מ</label>
+                <label className="label">{t("pricingPage.modal.vatLabel")}</label>
                 <select
                   className="input mt-1"
                   value={form.taxMode}
                   onChange={(e) => setForm({ ...form, taxMode: e.target.value })}
                 >
-                  <option value="taxable">חייב מע״מ</option>
-                  <option value="exempt">פטור מע״מ</option>
-                  <option value="inherit">לפי הגדרת עסק</option>
+                  <option value="taxable">{t("pricingPage.taxModes.taxable")}</option>
+                  <option value="exempt">{t("pricingPage.taxModes.exempt")}</option>
+                  <option value="inherit">{t("pricingPage.taxModes.inherit")}</option>
                 </select>
               </div>
             )}
@@ -246,7 +269,7 @@ function ItemModal({
 
           {form.type === "service" && (
             <div>
-              <label className="label">משך (דקות)</label>
+              <label className="label">{t("pricingPage.modal.durationLabel")}</label>
               <input
                 className="input mt-1"
                 type="number"
@@ -260,37 +283,37 @@ function ItemModal({
           )}
 
           {/* Sessions field — shown for training category items */}
-          {form.category === "אילוף" && (
+          {form.category === "אילוף" && ( // i18n-ok — stored category value
             <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-3 space-y-2">
               <p className="text-xs font-semibold text-blue-700 flex items-center gap-1.5">
                 <Package className="w-3.5 h-3.5" />
-                חבילת אילוף (אופציונלי)
+                {t("pricingPage.modal.trainingPackageTitle")}
               </p>
               <div>
-                <label className="label text-[11px]">כמות מפגשים בחבילה</label>
+                <label className="label text-[11px]">{t("pricingPage.modal.sessionsLabel")}</label>
                 <input
                   className="input mt-1"
                   type="number"
                   min="1"
                   max="100"
-                  placeholder="לדוגמה: 8 מפגשים"
+                  placeholder={t("pricingPage.modal.sessionsPlaceholder")}
                   value={form.sessions}
                   onChange={(e) => setForm({ ...form, sessions: e.target.value })}
                   dir="ltr"
                 />
               </div>
               <p className="text-[11px] text-blue-600">
-                אם מוגדרת כמות מפגשים, הפריט יוצג כ&quot;חבילת אילוף&quot; בהזמנה ויפתח מעקב מפגשים אוטומטי.
+                {t("pricingPage.modal.sessionsHint")}
               </p>
             </div>
           )}
 
           <div>
-            <label className="label">תיאור</label>
+            <label className="label">{t("pricingPage.modal.descriptionLabel")}</label>
             <textarea
               className="input mt-1 resize-none"
               rows={2}
-              placeholder="תיאור קצר (אופציונלי)"
+              placeholder={t("pricingPage.modal.descriptionPlaceholder")}
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
             />
@@ -300,7 +323,7 @@ function ItemModal({
           <div className="rounded-xl border border-petra-border p-4 space-y-3 bg-slate-50/50">
             <p className="text-xs font-semibold text-petra-text flex items-center gap-1.5">
               <CreditCard className="w-3.5 h-3.5 text-brand-500" />
-              קישור לדף תשלום
+              {t("pricingPage.modal.paymentUrlTitle")}
             </p>
             <input
               className="input bg-white"
@@ -311,7 +334,7 @@ function ItemModal({
               dir="ltr"
             />
             <p className="text-[11px] text-petra-muted">
-              קישור לדף תשלום של המסלקה שלך (Meshulam, Tranzila, iCount וכו׳). יישלח ללקוח אחרי הזמנה.
+              {t("pricingPage.modal.paymentUrlHint")}
             </p>
           </div>
 
@@ -320,7 +343,7 @@ function ItemModal({
             <div className="flex items-center justify-between">
               <p className="text-xs font-semibold text-petra-text flex items-center gap-1.5">
                 <CalendarCheck className="w-3.5 h-3.5 text-brand-500" />
-                זמין לתיאום תור אונליין
+                {t("pricingPage.bookableOnline")}
               </p>
               <button
                 type="button"
@@ -332,7 +355,7 @@ function ItemModal({
               >
                 <span className={cn(
                   "inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform",
-                  form.isBookableOnline ? "-translate-x-4" : "-translate-x-1"
+                  form.isBookableOnline ? "-translate-x-4 ltr:translate-x-4" : "-translate-x-1 ltr:translate-x-1"
                 )} />
               </button>
             </div>
@@ -340,10 +363,10 @@ function ItemModal({
             {form.isBookableOnline && (
               <>
                 <p className="text-[11px] text-petra-muted">
-                  הפריט יופיע בדף הזמנות האונליין שלך. הלקוח יוכל לבחור את השירות ולתאם תור.
+                  {t("pricingPage.modal.bookableOnlineHint")}
                 </p>
                 <div className="flex items-center justify-between">
-                  <p className="text-xs text-petra-text">דרוש מקדמה</p>
+                  <p className="text-xs text-petra-text">{t("pricingPage.modal.depositRequired")}</p>
                   <button
                     type="button"
                     onClick={() => setForm({ ...form, depositRequired: !form.depositRequired, depositAmount: "" })}
@@ -354,13 +377,13 @@ function ItemModal({
                   >
                     <span className={cn(
                       "inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform",
-                      form.depositRequired ? "-translate-x-4" : "-translate-x-1"
+                      form.depositRequired ? "-translate-x-4 ltr:translate-x-4" : "-translate-x-1 ltr:translate-x-1"
                     )} />
                   </button>
                 </div>
                 {form.depositRequired && (
                   <div>
-                    <label className="label">סכום מקדמה (₪)</label>
+                    <label className="label">{t("pricingPage.modal.depositAmountLabel", { currency: currencySymbol({ locale, currency }) })}</label>
                     <input
                       className="input mt-1 bg-white"
                       type="number"
@@ -374,18 +397,18 @@ function ItemModal({
                   </div>
                 )}
                 <div>
-                  <label className="label">מקסימום הזמנות ביום</label>
+                  <label className="label">{t("pricingPage.modal.maxBookingsLabel")}</label>
                   <input
                     className="input mt-1 bg-white"
                     type="number"
                     min="1"
                     step="1"
-                    placeholder="ללא הגבלה"
+                    placeholder={t("pricingPage.modal.maxBookingsPlaceholder")}
                     value={form.maxBookingsPerDay}
                     onChange={(e) => setForm({ ...form, maxBookingsPerDay: e.target.value })}
                     dir="ltr"
                   />
-                  <p className="text-[11px] text-petra-muted mt-1">הגבל כמה הזמנות אפשר לקבוע לשירות זה ביום אחד</p>
+                  <p className="text-[11px] text-petra-muted mt-1">{t("pricingPage.modal.maxBookingsHint")}</p>
                 </div>
               </>
             )}
@@ -398,10 +421,10 @@ function ItemModal({
               className="btn-primary flex-1 gap-2 justify-center"
             >
               {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-              {isEdit ? "שמור שינויים" : "הוסף פריט"}
+              {isEdit ? t("pricingPage.modal.saveChanges") : t("pricingPage.addItem")}
             </button>
             <button type="button" onClick={onClose} className="btn-secondary">
-              ביטול
+              {tc("actions.cancel")}
             </button>
           </div>
         </form>
@@ -438,6 +461,9 @@ function ItemRow({
   /** No PRICING_WRITE — hide all mutation buttons (server returns 403 anyway) */
   readOnly?: boolean;
 }) {
+  const t = useTranslations("pricing");
+  const tc = useTranslations("common");
+  const { locale, currency } = useBusinessLocale();
   return (
     <div
       className={cn(
@@ -460,12 +486,12 @@ function ItemRow({
             <span className="text-sm font-semibold text-petra-text leading-tight">{item.name}</span>
             {item.durationMinutes ? (
               <span className="text-[10px] text-slate-400 flex items-center gap-0.5">
-                <Clock className="w-2.5 h-2.5" />{item.durationMinutes}ד׳
+                <Clock className="w-2.5 h-2.5" />{t("pricingPage.row.minutesShort", { count: item.durationMinutes })}
               </span>
             ) : null}
             {item.sessions ? (
               <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-medium flex items-center gap-0.5">
-                <Package className="w-2.5 h-2.5" />{item.sessions} מפגשים
+                <Package className="w-2.5 h-2.5" />{t("pricingPage.row.sessions", { count: item.sessions })}
               </span>
             ) : null}
           </div>
@@ -475,21 +501,21 @@ function ItemRow({
         </div>
 
         {/* Price — always top-right */}
-        <div className="text-left flex-shrink-0">
-          <p className="text-sm font-bold text-petra-text">{formatCurrency(item.basePrice)}</p>
+        <div className="text-end flex-shrink-0">
+          <p className="text-sm font-bold text-petra-text">{formatCurrency(item.basePrice, { locale, currency })}</p>
           {!isVatExempt && item.taxMode && item.taxMode !== "inherit" && (
-            <p className="text-[10px] text-petra-muted">{TAX_LABELS[item.taxMode]}</p>
+            <p className="text-[10px] text-petra-muted">{taxLabel(t, item.taxMode)}</p>
           )}
         </div>
       </div>
 
       {/* Bottom row: unit + badges + action buttons */}
-      <div className="flex items-center gap-1 mt-1.5 pr-9">
-        <p className="text-[10px] text-petra-muted flex-shrink-0">{UNIT_LABEL[item.unit] ?? item.unit}</p>
+      <div className="flex items-center gap-1 mt-1.5 ps-9">
+        <p className="text-[10px] text-petra-muted flex-shrink-0">{unitLabel(t, item.unit)}</p>
 
         {item.isBookableOnline && (
           <span
-            title="זמין לתיאום תור אונליין"
+            title={t("pricingPage.bookableOnline")}
             className="w-5 h-5 rounded-md flex items-center justify-center bg-brand-50 text-brand-500 flex-shrink-0"
           >
             <CalendarCheck className="w-3 h-3" />
@@ -500,7 +526,7 @@ function ItemRow({
             href={item.paymentUrl}
             target="_blank"
             rel="noopener noreferrer"
-            title="דף תשלום"
+            title={t("pricingPage.row.paymentPage")}
             className="w-5 h-5 rounded-md flex items-center justify-center text-emerald-500 hover:bg-emerald-50 transition-all flex-shrink-0"
             onClick={(e) => e.stopPropagation()}
           >
@@ -518,7 +544,7 @@ function ItemRow({
               type="button"
               onClick={onMoveUp}
               disabled={!canMoveUp}
-              title="הזז למעלה"
+              title={t("pricingPage.row.moveUp")}
               className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all disabled:opacity-30 disabled:pointer-events-none"
             >
               <ChevronUp className="w-3.5 h-3.5" />
@@ -529,7 +555,7 @@ function ItemRow({
               type="button"
               onClick={onMoveDown}
               disabled={!canMoveDown}
-              title="הזז למטה"
+              title={t("pricingPage.row.moveDown")}
               className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all disabled:opacity-30 disabled:pointer-events-none"
             >
               <ChevronDown className="w-3.5 h-3.5" />
@@ -538,7 +564,7 @@ function ItemRow({
           <button
             type="button"
             onClick={onEdit}
-            title="ערוך"
+            title={t("pricingPage.row.edit")}
             className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-blue-500 hover:bg-blue-50 transition-all"
           >
             <Pencil className="w-3.5 h-3.5" />
@@ -546,7 +572,7 @@ function ItemRow({
           <button
             type="button"
             onClick={onDuplicate}
-            title="שכפל"
+            title={t("pricingPage.row.duplicate")}
             className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all"
           >
             <Copy className="w-3.5 h-3.5" />
@@ -554,7 +580,7 @@ function ItemRow({
           <button
             type="button"
             onClick={onToggle}
-            title={item.isActive ? "השבת" : "הפעל"}
+            title={item.isActive ? t("pricingPage.row.deactivate") : t("pricingPage.row.activate")}
             className="w-7 h-7 rounded-lg flex items-center justify-center transition-all"
           >
             {item.isActive ? (
@@ -566,7 +592,7 @@ function ItemRow({
           <button
             type="button"
             onClick={onDelete}
-            title="מחק"
+            title={tc("actions.delete")}
             className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all"
           >
             <Trash2 className="w-3.5 h-3.5" />
@@ -581,6 +607,9 @@ function ItemRow({
 // ─── Main Page ────────────────────────────────────────────────
 
 function PricingPageContent() {
+  const t = useTranslations("pricing");
+  const tcPage = useTranslations("common");
+  const { currency } = useBusinessLocale();
   const { isFree, tier } = usePlan();
   const { canEditPricing } = usePermissions();
   const maxPriceItems = getMaxPriceItems(tier);
@@ -593,7 +622,7 @@ function PricingPageContent() {
     queryKey: ["settings"],
     queryFn: () => fetch("/api/settings").then((r) => r.json()),
   });
-  const isVatExempt = settings?.legalEntityType === "עוסק פטור";
+  const isVatExempt = settings?.legalEntityType === "עוסק פטור"; // i18n-ok — DB value
 
   // Fetch all price lists, use the first active one (or first one)
   const { data: priceLists = [], isLoading: listsLoading } = useQuery<PriceList[]>({
@@ -616,17 +645,17 @@ function PricingPageContent() {
       fetch("/api/price-lists", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: "מחירון ראשי", currency: "ILS" }),
+        body: JSON.stringify({ name: t("pricingPage.defaultListName"), currency }),
       }).then(async (r) => {
         const d = await r.json();
-        if (!r.ok) throw new Error(d.error || "שגיאה ביצירה");
+        if (!r.ok) throw new Error(d.error || t("pricingPage.errors.create"));
         return d;
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["price-lists"] });
-      toast.success("מחירון ראשי נוצר");
+      toast.success(t("pricingPage.toasts.listCreated"));
     },
-    onError: () => toast.error("שגיאה ביצירת מחירון"),
+    onError: () => toast.error(t("pricingPage.toasts.listCreateError")),
   });
 
   const buildItemPayload = (data: ItemFormData) => ({
@@ -648,7 +677,7 @@ function PricingPageContent() {
         body: JSON.stringify(buildItemPayload(data)),
       }).then(async (r) => {
         const d = await r.json();
-        if (!r.ok) throw new Error(d.error || "שגיאה בהוספה");
+        if (!r.ok) throw new Error(d.error || t("pricingPage.errors.add"));
         return d;
       }),
     onSuccess: () => {
@@ -657,9 +686,9 @@ function PricingPageContent() {
       queryClient.invalidateQueries({ queryKey: ["price-list-items-all"] });
       queryClient.invalidateQueries({ queryKey: ["price-list-items-all-active"] });
       setShowAddItem(false);
-      toast.success("פריט נוסף");
+      toast.success(t("pricingPage.toasts.itemAdded"));
     },
-    onError: () => toast.error("שגיאה בהוספת פריט"),
+    onError: () => toast.error(t("pricingPage.toasts.itemAddError")),
   });
 
   const editMutation = useMutation({
@@ -670,7 +699,7 @@ function PricingPageContent() {
         body: JSON.stringify(buildItemPayload(data)),
       }).then(async (r) => {
         const d = await r.json();
-        if (!r.ok) throw new Error(d.error || "שגיאה בעדכון");
+        if (!r.ok) throw new Error(d.error || t("pricingPage.errors.update"));
         return d;
       }),
     onSuccess: () => {
@@ -678,9 +707,9 @@ function PricingPageContent() {
       queryClient.invalidateQueries({ queryKey: ["price-list-items-all"] });
       queryClient.invalidateQueries({ queryKey: ["price-list-items-all-active"] });
       setEditItem(null);
-      toast.success("פריט עודכן");
+      toast.success(t("pricingPage.toasts.itemUpdated"));
     },
-    onError: () => toast.error("שגיאה בעדכון פריט"),
+    onError: () => toast.error(t("pricingPage.toasts.itemUpdateError")),
   });
 
   const toggleMutation = useMutation({
@@ -691,7 +720,7 @@ function PricingPageContent() {
         body: JSON.stringify({ isActive }),
       }).then(async (r) => {
         const d = await r.json();
-        if (!r.ok) throw new Error(d.error || "שגיאה בעדכון");
+        if (!r.ok) throw new Error(d.error || t("pricingPage.errors.update"));
         return d;
       }),
     onSuccess: () => {
@@ -699,7 +728,7 @@ function PricingPageContent() {
       queryClient.invalidateQueries({ queryKey: ["price-list-items-all"] });
       queryClient.invalidateQueries({ queryKey: ["price-list-items-all-active"] });
     },
-    onError: () => toast.error("שגיאה בעדכון המצב. נסה שוב."),
+    onError: () => toast.error(t("pricingPage.toasts.toggleError")),
   });
 
   const duplicateMutation = useMutation({
@@ -708,7 +737,7 @@ function PricingPageContent() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: `${item.name} (עותק)`,
+          name: t("pricingPage.copyName", { name: item.name }),
           type: item.type,
           category: item.category,
           unit: item.unit,
@@ -720,22 +749,22 @@ function PricingPageContent() {
         }),
       }).then(async (r) => {
         const d = await r.json();
-        if (!r.ok) throw new Error(d.error || "שגיאה בשכפול");
+        if (!r.ok) throw new Error(d.error || t("pricingPage.errors.duplicate"));
         return d;
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["price-list-items", priceList?.id] });
       queryClient.invalidateQueries({ queryKey: ["price-lists"] });
-      toast.success("פריט שוכפל");
+      toast.success(t("pricingPage.toasts.itemDuplicated"));
     },
-    onError: () => toast.error("שגיאה בשכפול הפריט. נסה שוב."),
+    onError: () => toast.error(t("pricingPage.toasts.duplicateError")),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
       fetch(`/api/price-list-items/${id}`, { method: "DELETE" }).then(async (r) => {
         const d = await r.json();
-        if (!r.ok) throw new Error(d.error || "שגיאה במחיקה");
+        if (!r.ok) throw new Error(d.error || t("pricingPage.errors.delete"));
         return d;
       }),
     onSuccess: () => {
@@ -744,9 +773,9 @@ function PricingPageContent() {
       queryClient.invalidateQueries({ queryKey: ["price-list-items-all"] });
       queryClient.invalidateQueries({ queryKey: ["price-list-items-all-active"] });
       setDeleteItem(null);
-      toast.success("פריט נמחק");
+      toast.success(t("pricingPage.toasts.itemDeleted"));
     },
-    onError: () => toast.error("שגיאה במחיקת פריט"),
+    onError: () => toast.error(t("pricingPage.toasts.deleteError")),
   });
 
   // Persist a new order within a displayed group: reindex sortOrder sequentially
@@ -758,7 +787,7 @@ function PricingPageContent() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ sortOrder: u.sortOrder }),
         });
-        if (!r.ok) throw new Error("שגיאה בשמירת הסדר");
+        if (!r.ok) throw new Error(t("pricingPage.errors.reorder"));
       }
     },
     onSuccess: () => {
@@ -766,7 +795,7 @@ function PricingPageContent() {
       queryClient.invalidateQueries({ queryKey: ["price-list-items-all"] });
       queryClient.invalidateQueries({ queryKey: ["price-list-items-all-active"] });
     },
-    onError: () => toast.error("שגיאה בשמירת סדר הפריטים"),
+    onError: () => toast.error(t("pricingPage.toasts.reorderError")),
   });
 
   function moveItem(group: PriceListItem[], index: number, dir: -1 | 1) {
@@ -788,7 +817,7 @@ function PricingPageContent() {
 
   const grouped: Record<string, PriceListItem[]> = {};
   activeItems.forEach((item) => {
-    const cat = item.category || "כללי";
+    const cat = item.category || GENERAL_CATEGORY;
     if (!grouped[cat]) grouped[cat] = [];
     grouped[cat].push(item);
   });
@@ -809,17 +838,17 @@ function PricingPageContent() {
       <DesktopBanner />
       <div className="page-header">
         <div>
-          <h1 className="page-title">מחירון</h1>
+          <h1 className="page-title">{t("pricingPage.title")}</h1>
           <p className="text-sm text-petra-muted mt-1 hidden sm:block">
-            ניהול שירותים ומוצרים לפי קטגוריות
+            {t("pricingPage.subtitle")}
           </p>
         </div>
         {priceList && canEditPricing && (
           isFree && maxPriceItems !== null && activeItems.length >= maxPriceItems ? (
             <a href="/upgrade" className="btn-primary gap-2 bg-amber-500 hover:bg-amber-600 border-amber-500">
               <Sparkles className="w-4 h-4" />
-              <span className="hidden sm:inline">שדרג לבייסיק</span>
-              <span className="sm:hidden">שדרג</span>
+              <span className="hidden sm:inline">{t("pricingPage.upgradeToBasic")}</span>
+              <span className="sm:hidden">{t("pricingPage.upgrade")}</span>
             </a>
           ) : (
             <button
@@ -828,8 +857,8 @@ function PricingPageContent() {
               className="btn-primary gap-2"
             >
               <Plus className="w-4 h-4" />
-              <span className="hidden sm:inline">הוסף פריט</span>
-              <span className="sm:hidden">הוסף</span>
+              <span className="hidden sm:inline">{t("pricingPage.addItem")}</span>
+              <span className="sm:hidden">{tcPage("actions.add")}</span>
             </button>
           )
         )}
@@ -838,8 +867,8 @@ function PricingPageContent() {
       {/* VAT exempt banner */}
       {isVatExempt && (
         <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200 text-sm text-emerald-800">
-          <span className="font-semibold">עוסק פטור</span>
-          <span className="text-emerald-600">— כל פריטי המחירון פטורים ממע״מ. שדה מע״מ לא יוצג בהזמנות.</span>
+          <span className="font-semibold">{t("pricingPage.vatExempt.title")}</span>
+          <span className="text-emerald-600">{t("pricingPage.vatExempt.body")}</span>
         </div>
       )}
 
@@ -853,12 +882,12 @@ function PricingPageContent() {
           <div className="flex items-center gap-2 text-sm">
             <Sparkles className={`w-4 h-4 flex-shrink-0 ${activeItems.length >= maxPriceItems ? "text-amber-500" : "text-slate-400"}`} />
             <span className={activeItems.length >= maxPriceItems ? "text-amber-800" : "text-slate-600"}>
-              {activeItems.length}/{maxPriceItems} פריטי מחירון — מגבלת המנוי החינמי
+              {t("pricingPage.freeLimit.banner", { used: activeItems.length, max: maxPriceItems })}
             </span>
           </div>
           {activeItems.length >= maxPriceItems && (
             <a href="/upgrade" className="text-xs font-semibold text-amber-700 hover:text-amber-900 whitespace-nowrap">
-              שדרג לבייסיק ←
+              {t("pricingPage.freeLimit.upgradeLink")}
             </a>
           )}
         </div>
@@ -873,9 +902,9 @@ function PricingPageContent() {
           <div className="empty-state-icon">
             <Tag className="w-10 h-10" />
           </div>
-          <p className="text-petra-text font-semibold mt-3">אין מחירון עדיין</p>
+          <p className="text-petra-text font-semibold mt-3">{t("pricingPage.emptyList.title")}</p>
           <p className="text-sm text-petra-muted mt-1 max-w-xs text-center">
-            צור מחירון ראשי כדי להתחיל להגדיר שירותים ומוצרים
+            {t("pricingPage.emptyList.body")}
           </p>
           {canEditPricing && (
           <button
@@ -889,7 +918,7 @@ function PricingPageContent() {
             ) : (
               <Plus className="w-4 h-4" />
             )}
-            צור מחירון ראשי
+            {t("pricingPage.emptyList.create")}
           </button>
           )}
         </div>
@@ -900,9 +929,9 @@ function PricingPageContent() {
             <div className="empty-state-icon">
               <PackageOpen className="w-8 h-8" />
             </div>
-            <p className="text-sm font-semibold text-petra-text mt-2">אין פריטים במחירון</p>
+            <p className="text-sm font-semibold text-petra-text mt-2">{t("pricingPage.emptyItems.title")}</p>
             <p className="text-xs text-petra-muted mt-1 max-w-xs text-center">
-              הוסף שירותים ומוצרים לפי קטגוריות (פנסיון, אילוף, טיפוח, מוצרים)
+              {t("pricingPage.emptyItems.body")}
             </p>
             {canEditPricing && (
             <button
@@ -911,7 +940,7 @@ function PricingPageContent() {
               className="btn-primary mt-4 text-sm gap-2"
             >
               <Plus className="w-4 h-4" />
-              הוסף פריט ראשון
+              {t("pricingPage.emptyItems.addFirst")}
             </button>
             )}
           </div>
@@ -924,7 +953,7 @@ function PricingPageContent() {
               <div className="px-4 py-2 bg-slate-50/80 border-b border-petra-border flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-semibold text-petra-muted uppercase tracking-wider">
-                    {cat}
+                    {categoryLabel(t, cat)}
                   </span>
                   <span className="text-xs text-slate-400">({grouped[cat].length})</span>
                 </div>
@@ -955,9 +984,9 @@ function PricingPageContent() {
             <div>
               <div className="px-4 py-2 bg-slate-50/80 border-b border-petra-border">
                 <span className="text-xs font-semibold text-petra-muted uppercase tracking-wider">
-                  לא פעיל
+                  {t("pricingPage.inactive")}
                 </span>
-                <span className="text-xs text-slate-400 mr-2">({inactiveItems.length})</span>
+                <span className="text-xs text-slate-400 ms-2">({inactiveItems.length})</span>
               </div>
               {inactiveItems.map((item) => (
                 <ItemRow
@@ -1008,19 +1037,19 @@ function PricingPageContent() {
               <AlertTriangle className="w-6 h-6 text-red-500" />
             </div>
             <h3 className="text-base font-bold text-petra-text mb-1">
-              למחוק את &quot;{deleteItem.name}&quot;?
+              {t("pricingPage.deleteDialog.title", { name: deleteItem.name })}
             </h3>
-            <p className="text-sm text-petra-muted mb-4">פעולה זו לא ניתנת לביטול.</p>
+            <p className="text-sm text-petra-muted mb-4">{t("pricingPage.deleteDialog.body")}</p>
             <div className="flex gap-3">
               <button
                 onClick={() => deleteMutation.mutate(deleteItem.id)}
                 disabled={deleteMutation.isPending}
                 className="flex-1 py-2 rounded-xl bg-red-500 text-white text-sm font-medium hover:bg-red-600 transition-colors disabled:opacity-60"
               >
-                {deleteMutation.isPending ? "מוחק..." : "כן, מחק"}
+                {deleteMutation.isPending ? tcPage("progress.deleting") : t("pricingPage.deleteDialog.confirm")}
               </button>
               <button onClick={() => setDeleteItem(null)} className="btn-secondary flex-1">
-                חזרה
+                {t("pricingPage.deleteDialog.back")}
               </button>
             </div>
           </div>
@@ -1031,11 +1060,12 @@ function PricingPageContent() {
 }
 
 export default function PricingPage() {
+  const t = useTranslations("pricing");
   return (
     <TierGate
       feature="pricing"
-      title="ניהול תמחור ושירותים"
-      description="הגדר שירותים, מחירונים ופריטי חיוב. הכלי הבסיסי לניהול הכנסות של העסק."
+      title={t("pricingPage.tierGate.title")}
+      description={t("pricingPage.tierGate.description")}
     >
       <PricingPageContent />
     </TierGate>

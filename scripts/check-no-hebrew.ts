@@ -113,7 +113,9 @@ function checkMessages(): number {
       const a = argNames(v);
       if (k in en) {
         const b = argNames(en[k]);
-        if (a.join() !== b.join()) { bad++; console.error(`messages: "${k}" arguments differ he=[${a}] en=[${b}]`); }
+        // English may add a plural arg ({count}) next to Hebrew's plain {n}: one set must contain the other
+        const subset = (x: string[], y: string[]) => x.every((v) => y.includes(v));
+        if (!subset(a, b) && !subset(b, a)) { bad++; console.error(`messages: "${k}" arguments differ he=[${a}] en=[${b}]`); }
       }
     } catch (e) {
       bad++;

@@ -2,19 +2,22 @@
 
 import Link from "next/link";
 import { ExternalLink, GraduationCap } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
-import { PROGRAM_STATUS_COLORS, PROGRAM_STATUS_LABELS, PROGRAM_TYPE_LABELS } from "./constants";
+import { PROGRAM_STATUS_COLORS, constantLabel } from "./constants";
 import type { TrainingProgramInfo } from "./types";
 
 /** Session-package progress for active programs that have a session quota. */
 export function PackageTracking({ programs }: { programs: TrainingProgramInfo[] }) {
+  const t = useTranslations("customers.trainingSections");
+  const tk = useTranslations("customers.constants");
   const tracked = programs.filter((p) => p.status === "ACTIVE" && (p.totalSessions ?? 0) > 0);
   if (tracked.length === 0) return null;
   return (
     <div className="card p-5">
       <h3 className="text-sm font-bold text-petra-text mb-3 flex items-center gap-2">
         <GraduationCap className="w-4 h-4 text-amber-500" />
-        מעקב חבילות
+        {t("packageTracking")}
       </h3>
       <div className="space-y-4">
         {tracked.map((program) => {
@@ -26,9 +29,9 @@ export function PackageTracking({ programs }: { programs: TrainingProgramInfo[] 
               <div className="flex items-center justify-between gap-2 mb-1">
                 <span className="text-xs font-medium text-petra-text truncate">
                   {program.dog?.name ? `${program.dog.name} · ` : ""}
-                  {PROGRAM_TYPE_LABELS[program.programType] || program.name}
+                  {constantLabel(tk, "programTypes", program.programType) || program.name}
                 </span>
-                <span className="text-[10px] text-petra-muted flex-shrink-0">{completed}/{total} מפגשים</span>
+                <span className="text-[10px] text-petra-muted flex-shrink-0">{t("sessionsProgress", { completed, total })}</span>
               </div>
               <div className="h-2 bg-stone-100 rounded-full overflow-hidden">
                 <div
@@ -36,7 +39,7 @@ export function PackageTracking({ programs }: { programs: TrainingProgramInfo[] 
                   style={{ width: `${pct}%`, background: pct >= 100 ? "#10B981" : pct >= 60 ? "#F97316" : "#FBBF24" }}
                 />
               </div>
-              <p className="text-[10px] text-petra-muted mt-0.5 text-right">{pct}%</p>
+              <p className="text-[10px] text-petra-muted mt-0.5 text-start">{pct}%</p>
             </div>
           );
         })}
@@ -46,17 +49,19 @@ export function PackageTracking({ programs }: { programs: TrainingProgramInfo[] 
 }
 
 export function TrainingProgramsCard({ programs }: { programs: TrainingProgramInfo[] }) {
+  const t = useTranslations("customers.trainingSections");
+  const tk = useTranslations("customers.constants");
   if (programs.length === 0) return null;
   return (
     <div className="card p-5">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-base font-bold text-petra-text flex items-center gap-2">
           <GraduationCap className="w-4 h-4 text-petra-muted" />
-          תוכניות אימון ({programs.length})
+          {t("programsTitle", { count: programs.length })}
         </h2>
         <Link href="/training" className="btn-ghost text-xs">
           <ExternalLink className="w-3.5 h-3.5" />
-          הכל
+          {t("all")}
         </Link>
       </div>
       <div className="space-y-3">
@@ -69,18 +74,19 @@ export function TrainingProgramsCard({ programs }: { programs: TrainingProgramIn
             <div className="flex items-center justify-between gap-2 mb-2">
               <div className="min-w-0">
                 <span className="text-sm font-medium text-petra-text">{program.name}</span>
-                {program.dog && <span className="text-xs text-petra-muted mr-1">· {program.dog.name}</span>}
+                {program.dog && <span className="text-xs text-petra-muted ms-1">· {program.dog.name}</span>}
               </div>
               <span className={cn("badge text-[10px] flex-shrink-0", PROGRAM_STATUS_COLORS[program.status] || "badge-neutral")}>
-                {PROGRAM_STATUS_LABELS[program.status] || program.status}
+                {constantLabel(tk, "programStatuses", program.status) || program.status}
               </span>
             </div>
             <div className="flex items-center gap-2 text-xs text-petra-muted mb-2">
-              <span>{PROGRAM_TYPE_LABELS[program.programType] || program.programType}</span>
+              <span>{constantLabel(tk, "programTypes", program.programType) || program.programType}</span>
               <span>·</span>
               <span>
                 {program.completedSessions ?? 0}
-                {program.totalSessions ? `/${program.totalSessions}` : ""} מפגשים
+                {program.totalSessions ? `/${program.totalSessions}` : ""}
+                {t("sessionsSuffix")}
               </span>
             </div>
             {program.goals.length > 0 && (

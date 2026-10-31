@@ -21,11 +21,12 @@ import {
 import {
   cn,
   fetchJSON,
-  formatCurrency,
-  formatDate,
   toWhatsAppPhone,
   copyToClipboard,
 } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/format";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { TierGate } from "@/components/paywall/TierGate";
 import { useAuth } from "@/providers/auth-provider";
 import { toast } from "sonner";
@@ -113,8 +114,8 @@ interface BookingResult {
 
 /* ─────────────── Constants ─────────────── */
 
-const HEBREW_DAYS_SHORT = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"];
-const HEBREW_DAY_NAMES = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
+// Day keys by getDay() index (0 = Sunday); labels from messages (scheduler.schedulerPage.days.*)
+const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
 
 const DEFAULT_RULES: AvailabilityRule[] = [
   { dayOfWeek: 0, isOpen: true, openTime: "09:00", closeTime: "18:00" },
@@ -158,19 +159,20 @@ function addMinutes(time: string, mins: number): string {
   return `${pad2(Math.floor(total / 60))}:${pad2(total % 60)}`;
 }
 
-function formatHebDate(dateString: string): string {
+function formatHebDate(dateString: string, locale: string): string {
   const d = new Date(dateString + "T00:00:00");
-  return formatDate(d);
+  return formatDate(d, { locale, style: "long" });
 }
 
 /* ─────────────── Main Page ─────────────── */
 
 export default function SchedulerPage() {
+  const t = useTranslations("scheduler.schedulerPage");
   return (
     <TierGate
       feature="online_bookings"
-      title="ניהול תורים אונליין"
-      description="אפשר ללקוחות לקבוע תורים בעצמם — זמין במנוי בייסיק ומעלה."
+      title={t("tierGate.title")}
+      description={t("tierGate.description")}
     >
       <SchedulerContent />
     </TierGate>
@@ -178,6 +180,9 @@ export default function SchedulerPage() {
 }
 
 function SchedulerContent() {
+  const t = useTranslations("scheduler.schedulerPage");
+  const { locale, currency } = useBusinessLocale();
+  const fmtMoney = (n: number) => formatCurrency(n, { locale, currency });
   const queryClient = useQueryClient();
   const today = todayStr();
   const searchParams = useSearchParams();
@@ -190,7 +195,7 @@ function SchedulerContent() {
 
   function copyLink() {
     if (!user?.businessSlug) {
-      toast.error("קישור ההזמנה עדיין לא מוכן — רענן את הדף ונסה שוב");
+      toast.error(t("linkNotReady"));
       return;
     }
     copyToClipboard(bookingLink);
@@ -237,7 +242,7 @@ function SchedulerContent() {
       .map((s) => ({ id: s.id, name: s.name, duration: s.duration, price: s.price, isActive: true, source: "service" as const, isTraining: s.type === "training" }));
     const fromPriceList: ServiceOption[] = priceListItems
       .filter((p) => p.isActive)
-      .map((p) => ({ id: p.id, name: p.name, duration: p.durationMinutes ?? 60, price: p.basePrice, isActive: true, source: "price-list" as const, isTraining: p.category === "אילוף" }));
+      .map((p) => ({ id: p.id, name: p.name, duration: p.durationMinutes ?? 60, price: p.basePrice, isActive: true, source: "price-list" as const, isTraining: p.category === "אילוף" })); // i18n-ok — compared with the stored price-list category
     return [...fromServices, ...fromPriceList];
   }, [services, priceListItems]);
 
@@ -340,7 +345,7 @@ function SchedulerContent() {
         queryClient.invalidateQueries({ queryKey: ["attachable-programs"] });
       }
       if (linkedSession) {
-        toast.success(`התור נקבע ושויך לחבילה (מפגש ${linkedSession.sessionNumber})`);
+        toast.success(t("bookedAndAttached", { session: linkedSession.sessionNumber }));
       }
       setBookingResult({
         appointmentId: result.id as string,
@@ -459,7 +464,7 @@ function SchedulerContent() {
   if (bookingResult) {
     const waPhone = toWhatsAppPhone(bookingResult.phone);
     const waMsg = encodeURIComponent(
-      `שלום ${bookingResult.customerName}! התור שלך ל${bookingResult.serviceName} נקבע ל${formatHebDate(bookingResult.date)} בשעה ${bookingResult.time}. סה״כ: ${formatCurrency(bookingResult.price)}. תודה! 🐾`
+      `שלום ${bookingResult.customerName}! התור שלך ל${bookingResult.serviceName} נקבע ל${formatHebDate(bookingResult.date, locale)} בשעה ${bookingResult.time}. סה״כ: ${fmtMoney(bookingResult.price)}. תודה! 🐾` // i18n-ok — WhatsApp text sent to the client
     );
     return (
       <div className="p-6 max-w-xl mx-auto animate-fade-in">
@@ -467,30 +472,30 @@ function SchedulerContent() {
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircle2 className="w-8 h-8 text-green-600" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">התור נקבע בהצלחה!</h2>
-          <div className="bg-gray-50 rounded-xl p-4 space-y-2 text-sm text-gray-700 mt-4 text-right">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">{t("success.title")}</h2>
+          <div className="bg-gray-50 rounded-xl p-4 space-y-2 text-sm text-gray-700 mt-4 text-start">
             <div className="flex justify-between">
               <span className="font-medium">{bookingResult.serviceName}</span>
-              <span className="text-gray-500">שירות</span>
+              <span className="text-gray-500">{t("success.service")}</span>
             </div>
             <div className="flex justify-between">
               <span className="font-medium">{bookingResult.customerName}</span>
-              <span className="text-gray-500">לקוח</span>
+              <span className="text-gray-500">{t("success.client")}</span>
             </div>
             <div className="flex justify-between">
-              <span className="font-medium">{formatHebDate(bookingResult.date)}</span>
-              <span className="text-gray-500">תאריך</span>
+              <span className="font-medium">{formatHebDate(bookingResult.date, locale)}</span>
+              <span className="text-gray-500">{t("success.date")}</span>
             </div>
             <div className="flex justify-between">
               <span className="font-medium">{bookingResult.time}</span>
-              <span className="text-gray-500">שעה</span>
+              <span className="text-gray-500">{t("success.time")}</span>
             </div>
             {bookingResult.price > 0 && (
               <div className="flex justify-between border-t pt-2 mt-2">
                 <span className="font-bold text-gray-900">
-                  {formatCurrency(bookingResult.price)}
+                  {fmtMoney(bookingResult.price)}
                 </span>
-                <span className="text-gray-500">מחיר</span>
+                <span className="text-gray-500">{t("success.price")}</span>
               </div>
             )}
           </div>
@@ -505,7 +510,7 @@ function SchedulerContent() {
                 style={{ background: "#25D366" }}
               >
                 <MessageCircle className="w-4 h-4" />
-                שלח הודעת WhatsApp
+                {t("success.sendWhatsApp")}
               </a>
             )}
             <Link
@@ -513,14 +518,14 @@ function SchedulerContent() {
               className="btn-primary inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl"
             >
               <CalendarClock className="w-4 h-4" />
-              צפה ביומן
+              {t("success.viewCalendar")}
             </Link>
             <button
               onClick={resetAll}
               className="btn-secondary inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl"
             >
               <Plus className="w-4 h-4" />
-              קבע תור נוסף
+              {t("success.bookAnother")}
             </button>
           </div>
         </div>
@@ -530,7 +535,7 @@ function SchedulerContent() {
 
   /* ─────────────── Calendar helpers ─────────────── */
   const monthCells = getMonthDays(calMonth.year, calMonth.month);
-  const monthLabel = new Intl.DateTimeFormat("he-IL", {
+  const monthLabel = new Intl.DateTimeFormat(locale, {
     month: "long",
     year: "numeric",
   }).format(new Date(calMonth.year, calMonth.month, 1));
@@ -571,13 +576,13 @@ function SchedulerContent() {
           <CalendarClock className="w-5 h-5 text-orange-600" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-gray-900">תורים</h1>
-          <p className="text-sm text-gray-500">קביעת תורים ללקוחות</p>
+          <h1 className="text-xl font-bold text-gray-900">{t("header.title")}</h1>
+          <p className="text-sm text-gray-500">{t("header.subtitle")}</p>
         </div>
-        <div className="mr-auto">
+        <div className="ms-auto">
           <button onClick={copyLink} className="btn-secondary flex items-center gap-2">
             <Copy className="w-4 h-4" />
-            {copiedLink ? "הועתק!" : "העתק קישור הזמנה"}
+            {copiedLink ? t("header.copied") : t("header.copyLink")}
           </button>
         </div>
       </div>
@@ -598,11 +603,11 @@ function SchedulerContent() {
                     : "bg-gray-50 text-gray-400 border border-gray-200"
                 )}
               >
-                <span className="font-bold">{HEBREW_DAY_NAMES[dow]}</span>
+                <span className="font-bold">{t(`days.long.${DAY_KEYS[dow]}`)}</span>
                 <span className="mt-0.5">
                   {isOpen && rule
                     ? `${rule.openTime}-${rule.closeTime}`
-                    : "סגור"}
+                    : t("availability.closed")}
                 </span>
               </div>
             );
@@ -612,8 +617,8 @@ function SchedulerContent() {
           <div className="mt-2 flex items-center gap-2 text-xs text-gray-500">
             <Clock className="w-3.5 h-3.5" />
             <span>
-              {selectedService.name} — {selectedService.duration} דקות
-              {selectedService.price > 0 && ` — ${formatCurrency(selectedService.price)}`}
+              {t("availability.serviceInfo", { name: selectedService.name, duration: selectedService.duration })}
+              {selectedService.price > 0 && ` — ${fmtMoney(selectedService.price)}`}
             </span>
           </div>
         )}
@@ -626,7 +631,7 @@ function SchedulerContent() {
           {/* Service Select */}
           <div className="bg-white rounded-xl border border-gray-100 p-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              בחירת שירות
+              {t("service.label")}
             </label>
             <div className="relative">
               <button
@@ -639,10 +644,10 @@ function SchedulerContent() {
               >
                 <span className={selectedService ? "text-gray-900 truncate" : "text-gray-400 truncate"}>
                   {selectedService
-                    ? `${selectedService.name} — ${selectedService.duration} דק׳ — ${formatCurrency(selectedService.price)}`
+                    ? t("service.option", { name: selectedService.name, duration: selectedService.duration, price: fmtMoney(selectedService.price) })
                     : activeServices.length === 0
-                      ? "אין שירותים פעילים — הוסף שירות בהגדרות או במחירון"
-                      : "בחר שירות..."}
+                      ? t("service.noneActive")
+                      : t("service.placeholder")}
                 </span>
                 <ChevronDown className={cn("w-4 h-4 text-gray-400 flex-shrink-0 transition-transform", showServiceDropdown && "rotate-180")} />
               </button>
@@ -662,7 +667,7 @@ function SchedulerContent() {
                             : "text-gray-700 hover:bg-orange-50/50"
                         )}
                       >
-                        {s.name} — {s.duration} דק׳ — {formatCurrency(s.price)}
+                        {t("service.option", { name: s.name, duration: s.duration, price: fmtMoney(s.price) })}
                       </button>
                     ))}
                   </div>
@@ -670,7 +675,7 @@ function SchedulerContent() {
               )}
             </div>
             {activeServices.length === 0 && (services.length > 0 || priceListItems.length > 0) && (
-              <p className="text-xs text-amber-600 mt-1">יש שירותים לא פעילים — הפעל אותם בהגדרות או במחירון</p>
+              <p className="text-xs text-amber-600 mt-1">{t("service.inactiveHint")}</p>
             )}
           </div>
 
@@ -682,25 +687,25 @@ function SchedulerContent() {
                 onClick={prevMonth}
                 className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
               >
-                <ChevronRight className="w-4 h-4 text-gray-600" />
+                <ChevronRight className="w-4 h-4 text-gray-600 ltr:-scale-x-100" />
               </button>
               <span className="text-sm font-bold text-gray-800">{monthLabel}</span>
               <button
                 onClick={nextMonth}
                 className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
               >
-                <ChevronLeft className="w-4 h-4 text-gray-600" />
+                <ChevronLeft className="w-4 h-4 text-gray-600 ltr:-scale-x-100" />
               </button>
             </div>
 
             {/* Day headers */}
             <div className="grid grid-cols-7 gap-1 mb-1">
-              {HEBREW_DAYS_SHORT.map((d) => (
+              {DAY_KEYS.map((d) => (
                 <div
                   key={d}
                   className="text-center text-xs font-medium text-gray-400 py-1"
                 >
-                  {d}
+                  {t(`days.short.${d}`)}
                 </div>
               ))}
             </div>
@@ -744,20 +749,20 @@ function SchedulerContent() {
         <div className="bg-white rounded-xl border border-gray-100 p-4">
           <h3 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
             <Clock className="w-4 h-4" />
-            בחירת שעה
+            {t("slots.title")}
           </h3>
 
           {!selectedServiceId && (
             <div className="text-center py-10 text-gray-400 text-sm">
               <CalendarClock className="w-8 h-8 mx-auto mb-2 opacity-40" />
-              בחר שירות ותאריך כדי לראות תורים פנויים
+              {t("slots.pickServiceAndDate")}
             </div>
           )}
 
           {selectedServiceId && !selectedDate && (
             <div className="text-center py-10 text-gray-400 text-sm">
               <CalendarClock className="w-8 h-8 mx-auto mb-2 opacity-40" />
-              בחר תאריך מהלוח כדי לראות תורים פנויים
+              {t("slots.pickDate")}
             </div>
           )}
 
@@ -771,8 +776,8 @@ function SchedulerContent() {
             filteredSlots.length === 0 && (
               <div className="text-center py-10 text-gray-400 text-sm">
                 <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                <p>אין תורים זמינים ביום זה</p>
-                <p className="text-xs mt-1">נסה לבחור יום אחר</p>
+                <p>{t("slots.none")}</p>
+                <p className="text-xs mt-1">{t("slots.tryAnotherDay")}</p>
               </div>
             )}
 
@@ -810,13 +815,13 @@ function SchedulerContent() {
       {/* Booking Form — full width */}
       {selectedTime && (
         <div className="bg-white rounded-xl border border-gray-100 p-4 md:p-5 space-y-4 animate-slide-up">
-          <h3 className="text-sm font-bold text-gray-700">פרטי התור</h3>
+          <h3 className="text-sm font-bold text-gray-700">{t("form.title")}</h3>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Customer Selection */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                לקוח
+                {t("form.client")}
               </label>
               {!showNewCustomer ? (
                 <CustomerPicker
@@ -843,7 +848,7 @@ function SchedulerContent() {
                     if (q && !/\d/.test(q)) setNewCustomerName(q);
                     else if (q) setNewCustomerPhone(q);
                   }}
-                  createNewLabel="צור לקוח חדש"
+                  createNewLabel={t("form.createClient")}
                 />
               ) : (
                 <div className="space-y-2 p-3 bg-orange-50 rounded-xl border border-orange-200">
@@ -856,22 +861,22 @@ function SchedulerContent() {
                       }}
                       className="text-xs text-gray-500 hover:text-gray-700"
                     >
-                      → חזור לחיפוש
+                      {t("form.backToSearch")}
                     </button>
                     <span className="text-xs font-medium text-orange-700">
-                      לקוח חדש
+                      {t("form.newClient")}
                     </span>
                   </div>
                   <input
                     type="text"
-                    placeholder="שם הלקוח *"
+                    placeholder={t("form.clientNamePlaceholder")}
                     value={newCustomerName}
                     onChange={(e) => setNewCustomerName(e.target.value)}
                     className="input w-full text-sm"
                   />
                   <input
                     type="tel"
-                    placeholder="טלפון *"
+                    placeholder={t("form.phonePlaceholder")}
                     value={newCustomerPhone}
                     onChange={(e) => setNewCustomerPhone(e.target.value)}
                     className="input w-full text-sm"
@@ -884,7 +889,7 @@ function SchedulerContent() {
             {/* Pet Selection */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                חיית מחמד
+                {t("form.pet")}
               </label>
               {selectedCustomer && selectedCustomer.pets.length > 0 ? (
                 <select
@@ -895,18 +900,18 @@ function SchedulerContent() {
                   }}
                   className="input w-full"
                 >
-                  <option value="">ללא בחירה</option>
+                  <option value="">{t("form.noPet")}</option>
                   {selectedCustomer.pets.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.name} ({p.species === "dog" ? "כלב" : p.species === "cat" ? "חתול" : "אחר"})
+                      {p.name} ({p.species === "dog" ? t("species.dog") : p.species === "cat" ? t("species.cat") : t("species.other")})
                     </option>
                   ))}
                 </select>
               ) : (
                 <div className="input w-full text-sm text-gray-400 flex items-center">
                   {selectedCustomerId
-                    ? "אין חיות מחמד רשומות"
-                    : "בחר לקוח קודם"}
+                    ? t("form.noPets")
+                    : t("form.pickClientFirst")}
                 </div>
               )}
             </div>
@@ -923,8 +928,11 @@ function SchedulerContent() {
                   onChange={(e) => setAttachToProgram(e.target.checked)}
                 />
                 <span className="text-sm text-gray-700">
-                  לשייך לחבילת אילוף: <strong>{attachProgram.name}</strong> — מפגש{" "}
-                  {attachProgram.nextSessionNumber}
+                  {t.rich("attach.label", {
+                    name: attachProgram.name,
+                    session: attachProgram.nextSessionNumber,
+                    strong: (c) => <strong>{c}</strong>,
+                  })}
                   {attachProgram.totalSessions ? `/${attachProgram.totalSessions}` : ""}
                   {!selectedPetId && attachProgram.dogName ? ` (${attachProgram.dogName})` : ""}
                 </span>
@@ -937,7 +945,7 @@ function SchedulerContent() {
                 >
                   {attachablePrograms.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.name} · {p.dogName} — מפגש {p.nextSessionNumber}
+                      {p.name} · {p.dogName} {t("attach.optionSession", { session: p.nextSessionNumber })}
                       {p.totalSessions ? `/${p.totalSessions}` : ""}
                     </option>
                   ))}
@@ -949,12 +957,12 @@ function SchedulerContent() {
           {/* Notes */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              הערות
+              {t("form.notes")}
             </label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="הערות נוספות..."
+              placeholder={t("form.notesPlaceholder")}
               rows={2}
               className="input w-full resize-none"
             />
@@ -963,33 +971,33 @@ function SchedulerContent() {
           {/* Summary */}
           <div className="bg-gray-50 rounded-xl p-3 flex flex-wrap gap-x-6 gap-y-1 text-sm">
             <span className="text-gray-500">
-              תאריך:{" "}
+              {t("summary.date")}{" "}
               <span className="font-medium text-gray-800">
-                {formatHebDate(selectedDate)}
+                {formatHebDate(selectedDate, locale)}
               </span>
             </span>
             <span className="text-gray-500">
-              שעה: <span className="font-medium text-gray-800">{selectedTime}</span>
+              {t("summary.time")} <span className="font-medium text-gray-800">{selectedTime}</span>
             </span>
             {selectedService && (
               <>
                 <span className="text-gray-500">
-                  שירות:{" "}
+                  {t("summary.service")}{" "}
                   <span className="font-medium text-gray-800">
                     {selectedService.name}
                   </span>
                 </span>
                 <span className="text-gray-500">
-                  משך:{" "}
+                  {t("summary.duration")}{" "}
                   <span className="font-medium text-gray-800">
-                    {selectedService.duration} דקות
+                    {t("summary.minutes", { duration: selectedService.duration })}
                   </span>
                 </span>
                 {selectedService.price > 0 && (
                   <span className="text-gray-500">
-                    מחיר:{" "}
+                    {t("summary.price")}{" "}
                     <span className="font-bold text-gray-900">
-                      {formatCurrency(selectedService.price)}
+                      {fmtMoney(selectedService.price)}
                     </span>
                   </span>
                 )}
@@ -1001,7 +1009,7 @@ function SchedulerContent() {
           {createAppointment.isError && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700 flex items-center gap-2">
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              {(createAppointment.error as Error).message || "שגיאה ביצירת התור"}
+              {(createAppointment.error as Error).message || t("errors.create")}
             </div>
           )}
 
@@ -1019,7 +1027,7 @@ function SchedulerContent() {
             ) : (
               <Plus className="w-4 h-4" />
             )}
-            {isSubmitting ? "קובע תור..." : "קבע תור"}
+            {isSubmitting ? t("submit.booking") : t("submit.book")}
           </button>
         </div>
       )}

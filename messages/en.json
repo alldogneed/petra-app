@@ -23,6 +23,1975 @@
       "exporting": "Exporting..."
     }
   },
+  "analytics": {
+    "analyticsPage": {
+      "periods": {
+        "week": "Week",
+        "month": "Month",
+        "quarter": "Quarter",
+        "year": "Year"
+      },
+      "tabs": {
+        "overview": "Overview",
+        "finance": "Finance",
+        "appointments": "Appointments & clients",
+        "leads": "Leads & sales",
+        "operations": "Training & boarding"
+      },
+      "title": "Reports",
+      "tierDescription": "Charts, stats and performance tracking for your business. Upgrade to access detailed reports.",
+      "subtitle": "Business reports and statistics",
+      "exportTitle": "Export report to Excel",
+      "shareTitle": "Share report on WhatsApp",
+      "custom": "Custom",
+      "fromDateAria": "From date",
+      "until": "to",
+      "todayPlaceholder": "Today",
+      "toDateAria": "To date",
+      "rangeInvalid": "Start date must be before end date",
+      "tabsAria": "Report categories",
+      "loadError": "Couldn't load reports",
+      "loadErrorHint": "Try refreshing the page",
+      "share": {
+        "button": "Share",
+        "title": "📊 *Performance report — {period}*",
+        "revenue": "💰 Revenue: {amount}",
+        "appointments": "📅 Appointments: {total} ({rate}% completed)",
+        "newCustomers": "👥 New clients: {count}",
+        "leadsWon": "🎯 Leads won: {count}",
+        "conversion": " ({rate}% conversion)",
+        "leadSales": "💼 Sales from leads: {total} (deals {deals} + orders {orders})",
+        "tasksCompleted": "✅ Tasks completed: {count}",
+        "boardingStays": "🐾 Boarding stays: {count}",
+        "occupancy": " ({rate}% occupancy)",
+        "outstanding": "🧾 Open balances: {amount}"
+      }
+    },
+    "appointmentsTab": {
+      "completed": "Completed appointments",
+      "canceled": "Cancellations",
+      "noShow": "No-shows",
+      "ofAppointments": "{rate} of appointments",
+      "byDate": "Appointments by date",
+      "noAppointments": "No appointments in this period",
+      "seriesName": "Appointments",
+      "byDayOfWeek": "Appointments by day of week",
+      "byHour": "Appointments by hour",
+      "excludingCanceled": "Excluding canceled appointments",
+      "noData": "No data for this period",
+      "retention": "Client retention",
+      "returned": "{returning} of {total} clients returned",
+      "noPreviousActive": "No active clients in the previous period",
+      "retentionHint": "Clients who were active in the previous period (a completed appointment or a payment) and were active again in the current period.",
+      "petMix": "Pet mix",
+      "petsCount": "{count, plural, one {# pet} other {# pets}}",
+      "noPets": "No pets registered",
+      "topBreeds": "Top breeds",
+      "species": {
+        "dog": "🐕 Dogs",
+        "cat": "🐈 Cats",
+        "other": "🐾 Other"
+      }
+    },
+    "financeTab": {
+      "noPermission": "No permission to view financial data",
+      "payingCustomers": "Paying clients in period",
+      "avgRevenuePerPaying": "Avg. revenue per paying client",
+      "monthlyVsLastYear": "Monthly revenue vs. last year",
+      "monthlySubtitle": "Last 12 months · compared with the same month last year",
+      "noRevenueToShow": "No revenue to show",
+      "thisYear": "This year",
+      "lastYear": "Last year",
+      "byCategory": "Revenue by category",
+      "noRevenue": "No revenue in this period",
+      "byMethod": "Revenue by payment method",
+      "noPayments": "No payments in this period",
+      "byService": "Revenue by service",
+      "newVsReturning": "New vs. returning clients",
+      "newVsReturningSubtitle": "Revenue in period by when the paying client joined",
+      "newCustomers": "New clients",
+      "returningCustomers": "Returning clients",
+      "topCustomers": "Top clients by revenue",
+      "paymentsCount": "{count, plural, one {# payment} other {# payments}}",
+      "outstanding": "Open balances",
+      "outstandingSubtitle": "Total {total} · {customers, plural, one {# client} other {# clients}} · as of today",
+      "noOutstanding": "No open balances",
+      "openSince": "Open since {date}"
+    },
+    "leadsTab": {
+      "activeNow": "Active leads now",
+      "newInPeriod": "New leads in period",
+      "stillOpen": "{count} still open",
+      "lostInPeriod": "Leads lost in period",
+      "fullSalesReports": "Full sales reports",
+      "bySource": "Leads by source",
+      "bySourceSubtitle": "Leads created in period · conversion = won out of (won + lost)",
+      "noNewLeads": "No new leads in this period",
+      "cols": {
+        "source": "Source",
+        "total": "Total",
+        "won": "Won",
+        "lost": "Lost",
+        "open": "Open",
+        "conversion": "Conversion",
+        "wonValue": "Won value"
+      },
+      "lostReasons": "Lead loss reasons",
+      "noLostLeads": "No leads lost in this period",
+      "sales": {
+        "title": "Sales from leads",
+        "subtitle": "Leads won in period · deal value entered on the lead card + orders the client placed since closing, up to today (excluding canceled) · a separate metric, not included in \"Revenue\" · if you opened an order for the same deal, it is counted in orders too",
+        "dealValue": "Won deal value",
+        "withValueOf": "{withValue} of {won} leads have a value",
+        "ordersSince": "Orders since closing",
+        "ordersCount": "{count, plural, one {# order} other {# orders}}",
+        "total": "Total sales from leads",
+        "avgDeal": "Avg. deal {amount}",
+        "pipeline": "Pipeline value (open leads)",
+        "pipelineWithValue": "{count, plural, one {# lead} other {# leads}} with a value",
+        "noWon": "No leads won in this period",
+        "cols": {
+          "lead": "Lead",
+          "wonAt": "Won",
+          "dealValue": "Deal value",
+          "ordersSince": "Orders since"
+        },
+        "showingLatest": "Showing the latest {shown} of {total} · totals above include all of them"
+      },
+      "attribution": {
+        "byTrafficSource": "Leads by traffic source per month",
+        "byTrafficSourceSubtitle": "Last 12 months (regardless of selected range) · by utm / gclid / referrer sent from the website",
+        "noTrafficSource": "No leads with a traffic source in the last 12 months",
+        "byLandingPage": "Leads by landing page",
+        "byLandingPageSubtitle": "Last 12 months (regardless of selected range) · top 20 pages",
+        "noLandingPage": "No leads with a landing page in the last 12 months",
+        "cols": {
+          "page": "Page",
+          "leads": "Leads"
+        }
+      }
+    },
+    "operationsTab": {
+      "training": "Training",
+      "activePrograms": "Active training programs",
+      "completedSessions": "Sessions completed in period",
+      "activeGroups": "Active group classes",
+      "groupSessions": "Group sessions in period",
+      "trainingRevenue": "Training revenue in period",
+      "boarding": "Boarding",
+      "stays": "Boarding stays",
+      "occupancy": "Occupancy",
+      "setupRooms": "Set up rooms to see occupancy",
+      "roomNights": "{occupied} of {capacity} room-nights",
+      "boardingRevenue": "Boarding revenue in period"
+    },
+    "overviewTab": {
+      "kpi": {
+        "revenue": "Revenue",
+        "paymentCount": "{count, plural, one {# payment} other {# payments}}",
+        "appointments": "Appointments",
+        "completionRate": "{rate}% completed",
+        "newCustomers": "New clients",
+        "totalCustomers": "{count, plural, one {# client} other {# clients}} total",
+        "leadsWon": "Leads won",
+        "conversion": "{rate} conversion"
+      },
+      "monthly": {
+        "title": "Revenue by month",
+        "subtitle": "Last 12 months · paid payments",
+        "noFinancePermission": "No permission to view financial data",
+        "empty": "No revenue in the last 12 months",
+        "revenueSeries": "Revenue"
+      },
+      "highlights": {
+        "title": "At a glance",
+        "tasksCompleted": "Tasks completed in period",
+        "tasksOpen": "Open tasks now",
+        "busiestDay": "Busiest day of the week",
+        "busiestDayValue": "{day}",
+        "busiestHour": "Busiest hour",
+        "topService": "Top-earning service"
+      }
+    },
+    "reportBlocks": {
+      "new": "New"
+    }
+  },
+  "bookings": {
+    "bookingsPage": {
+      "tierGate": {
+        "title": "Online booking management",
+        "description": "Get bookings from clients, approve or decline appointments, and manage your public page. Upgrade to turn it on."
+      },
+      "filters": {
+        "all": "All",
+        "dateFromPlaceholder": "From date",
+        "dateRangeTo": "to"
+      },
+      "statuses": {
+        "pending": "Pending",
+        "confirmed": "Confirmed",
+        "declined": "Declined",
+        "cancelled": "Canceled"
+      },
+      "empty": {
+        "ALL": {
+          "title": "No bookings",
+          "description": "Share your booking link with clients to start getting bookings"
+        },
+        "pending": {
+          "title": "No pending bookings",
+          "description": "All bookings have been handled"
+        },
+        "confirmed": {
+          "title": "No confirmed bookings",
+          "description": "Bookings you confirm will show up here"
+        },
+        "declined": {
+          "title": "No declined bookings",
+          "description": "Bookings you decline will show up here"
+        },
+        "cancelled": {
+          "title": "No canceled bookings",
+          "description": "Canceled bookings will show up here"
+        }
+      },
+      "header": {
+        "title": "Bookings",
+        "count": "{count, plural, one {# booking} other {# bookings}}",
+        "pendingSuffix": " • {count} awaiting approval",
+        "copied": "Copied!",
+        "copyLink": "Copy booking link"
+      },
+      "source": {
+        "online": "Online",
+        "manual": "Manual"
+      },
+      "toasts": {
+        "updateError": "Update failed",
+        "updated": "Booking updated",
+        "updateFailed": "Couldn't update the booking. Please try again.",
+        "whatsappBlocked": "Booking confirmed, but your browser blocked WhatsApp from opening",
+        "openWhatsapp": "Open WhatsApp"
+      },
+      "detail": {
+        "title": "Booking details",
+        "service": "Service",
+        "minutes": "{count} min",
+        "dateTime": "Date and time",
+        "customerDetails": "Client details",
+        "dogs": "Dogs",
+        "notes": "Notes"
+      },
+      "edit": {
+        "title": "Edit appointment details",
+        "date": "Date",
+        "startTime": "Start time",
+        "endTime": "End time",
+        "notes": "Notes",
+        "saveChanges": "Save changes"
+      },
+      "actions": {
+        "editAppointment": "Edit appointment",
+        "cancelConfirm": "Cancel {name}'s appointment?",
+        "cancelAppointment": "Cancel appointment",
+        "reconfirm": "Confirm again",
+        "cancelledViewOnly": "Canceled booking — view only",
+        "declineReasonLabel": "Reason for declining (optional)",
+        "declineReasonPlaceholder": "e.g. No openings at this time...",
+        "confirmDecline": "Confirm decline",
+        "approve": "Confirm booking",
+        "decline": "Decline booking",
+        "approveAndWhatsapp": "Confirm + send WhatsApp confirmation"
+      }
+    },
+    "bookingsTabs": {
+      "scheduler": "Book manually",
+      "bookings": "Bookings",
+      "availability": "Availability",
+      "scheduledMessages": "Scheduled messages"
+    }
+  },
+  "calendar": {
+    "calendarPage": {
+      "days": {
+        "sun": "Sunday",
+        "mon": "Monday",
+        "tue": "Tuesday",
+        "wed": "Wednesday",
+        "thu": "Thursday",
+        "fri": "Friday",
+        "sat": "Saturday"
+      },
+      "viewModes": {
+        "day": "Day",
+        "week": "Week",
+        "month": "Month",
+        "agenda": "Agenda"
+      },
+      "categories": {
+        "appointment": "Client appointments",
+        "grooming": "Grooming",
+        "boarding": "Boarding (stay)",
+        "consultation": "Consultation",
+        "training_home": "In-home training",
+        "training_boarding": "Board & train",
+        "training_group": "Group training",
+        "workshop": "Workshops",
+        "task": "Tasks",
+        "lead": "Sales / leads",
+        "gcal": "Google Calendar"
+      },
+      "groups": {
+        "customer": "Client bookings & services",
+        "training": "Professional training",
+        "mgmt": "Management & operations"
+      },
+      "taskCategories": {
+        "GENERAL": "General",
+        "BOARDING": "Boarding",
+        "TRAINING": "Training",
+        "LEADS": "Leads",
+        "HEALTH": "Health",
+        "MEDICATION": "Medication",
+        "FEEDING": "Feeding"
+      },
+      "priceCategories": {
+        "training": "Training",
+        "grooming": "Grooming",
+        "boarding": "Boarding",
+        "products": "Products"
+      },
+      "appointmentFallback": "Appointment",
+      "minutesShort": "{minutes} min",
+      "species": {
+        "dog": "Dog",
+        "cat": "Cat",
+        "other": "Other"
+      },
+      "newModal": {
+        "title": "New appointment",
+        "subtitle": "Schedule an appointment",
+        "customerLabel": "Client *",
+        "serviceLabel": "Service / product",
+        "noService": "No service (general appointment)",
+        "generalGroup": "General",
+        "durationSuffix": " — {minutes} min",
+        "priceSuffix": " — {symbol}{price}",
+        "emptyPriceList": "No services in your price list yet — you can book a general appointment, or add services on the Pricing page.",
+        "petLabel": "Pet",
+        "noPet": "None",
+        "attachLabel": "Add to training package: <strong>{name}</strong> — session {session}",
+        "attachOption": "{name} · {dog} — session {session}",
+        "dateLabel": "Date *",
+        "timeLabel": "Time *",
+        "endTime": "Ends: {time}",
+        "conflict": "Scheduling conflict! ",
+        "notesLabel": "Notes",
+        "recurring": "Recurring appointment",
+        "frequency": "Frequency",
+        "everyWeek": "Every week",
+        "everyTwoWeeks": "Every 2 weeks",
+        "everyMonth": "Every month",
+        "occurrences": "Number of appointments",
+        "recurringSummary": "<strong>{count}</strong> appointments will be created starting {date}",
+        "selectedDate": "the selected date",
+        "defaultNoteTraining": "Training session",
+        "defaultNoteGeneral": "General appointment",
+        "createMany": "Create {count} appointments",
+        "createOne": "Create appointment",
+        "toasts": {
+          "recurringCreated": "{count} recurring appointments created",
+          "createdLinked": "Appointment booked and added to the package (session {session})",
+          "created": "Appointment booked",
+          "sendReminder": "Send WhatsApp reminder",
+          "reminderSent": "Reminder sent",
+          "error": "Error",
+          "sendError": "Failed to send",
+          "limitReached": "You've reached the appointment limit — upgrade to Basic to add more",
+          "createError": "Couldn't book the appointment. Please try again."
+        }
+      },
+      "payment": {
+        "title": "Record payment",
+        "amountLabel": "Amount ({symbol})",
+        "methodLabel": "Payment method",
+        "methods": {
+          "cash": "Cash",
+          "credit_card": "Credit card",
+          "bit": "Bit",
+          "paybox": "PayBox",
+          "bank_transfer": "Bank transfer",
+          "check": "Check"
+        },
+        "save": "Save payment",
+        "toasts": {
+          "saved": "Payment recorded",
+          "error": "Couldn't save the payment. Please try again."
+        }
+      },
+      "tierGate": {
+        "title": "Appointment calendar",
+        "description": "Schedule and manage appointments with clients — available on Basic and up."
+      },
+      "toasts": {
+        "completed": "Appointment marked as completed",
+        "canceled": "Appointment canceled",
+        "updateError": "Couldn't update the appointment. Please try again.",
+        "deleted": "Appointment deleted",
+        "deleteError": "Couldn't delete the appointment. Please try again.",
+        "moved": "Appointment moved",
+        "duplicated": "Appointment duplicated at the same time ✓",
+        "duplicateError": "Couldn't duplicate the appointment. Please try again.",
+        "notesUpdated": "Notes updated",
+        "notesError": "Couldn't update the notes. Please try again.",
+        "error": "Error",
+        "reminderSent": "WhatsApp reminder sent",
+        "reminderError": "Couldn't send the reminder",
+        "taskUpdateError": "Couldn't update the task"
+      },
+      "leadMeetingLabel": "Lead meeting · {name}",
+      "pendingBookingTitle": "Online booking awaiting approval",
+      "unknownService": "Unknown service",
+      "overdue": "⚠️ Overdue",
+      "title": "Calendar",
+      "loadError": "Couldn't load appointments. Try refreshing the page.",
+      "summary": {
+        "weekHeader": "📅 Weekly schedule — {range}",
+        "dayHeader": "📅 Daily plan — {date}",
+        "total": "Total: {count} appointments",
+        "shareWeekTitle": "Share the weekly schedule on WhatsApp",
+        "week": "Week summary",
+        "shareDayTitle": "Share the daily summary on WhatsApp",
+        "day": "Day summary"
+      },
+      "upgradeToBasic": "Upgrade to Basic",
+      "upgrade": "Upgrade",
+      "newAppointment": "New appointment",
+      "newShort": "New",
+      "freeLimit": "{count}/{max} appointments — free plan limit",
+      "upgradeToBasicArrow": "Upgrade to Basic →",
+      "today": "Today",
+      "viewLabel": "View",
+      "lenses": {
+        "all": "All",
+        "customer": "Client bookings",
+        "training": "My services",
+        "mgmt": "Management"
+      },
+      "toggleCategoryTitle": "Show/hide {label}",
+      "staff": "Team",
+      "filterByStaffTitle": "Filter by {name}",
+      "allDay": "All day ({count})",
+      "stay": {
+        "checkedIn": "In boarding",
+        "booked": "Booking",
+        "noRoom": "No room",
+        "title": "{status}: {pet} · {room}\nCheck-in: {checkIn}{checkOut}",
+        "checkOutSuffix": " · Check-out: {time}"
+      },
+      "followUpTitleWithTime": "Follow-up: {name}{service} ({time})",
+      "followUpTitle": "Follow-up: {name}{service}",
+      "overdueColon": "⚠️ Overdue:",
+      "followUpColon": "📞 Follow-up:",
+      "checkInTitle": "Check-in: {pet} — {customer}{room} ({time})",
+      "checkOutTitle": "Check-out: {pet} — {customer}{room} ({time})",
+      "trainingTitleWithTime": "Training: {label}{customer} ({time})",
+      "trainingTitle": "Training: {label}{customer}",
+      "addOnDay": "Add an appointment on this day",
+      "moreCount": "+{count} more",
+      "agenda": {
+        "salesFollowUp": "Sales follow-up",
+        "meetingUntil": "Meeting until {time}",
+        "workshop": "Workshop",
+        "groupTraining": "Training group",
+        "trainingWith": "Training · {name}",
+        "training": "Training",
+        "eventsCount": "{count, plural, one {# event} other {# events}}",
+        "noEvents": "No events",
+        "customerCard": "Client file"
+      },
+      "detail": {
+        "notesPlaceholder": "Add notes to the appointment...",
+        "saveNotes": "Save notes",
+        "noNotes": "No notes",
+        "editNotes": "Edit notes",
+        "cancellationReason": "Cancellation reason",
+        "sendWhatsappReminder": "Send a WhatsApp reminder",
+        "reschedule": "Move appointment",
+        "date": "Date",
+        "startTime": "Start time",
+        "durationKept": "Duration kept ({minutes} min)",
+        "endSuffix": " · ends {time}",
+        "confirmMove": "Confirm move",
+        "duplicating": "Duplicating...",
+        "duplicate": "Duplicate (same time)",
+        "openOrder": "Open order",
+        "customerCard": "Client file",
+        "deleteConfirm": "Delete this appointment permanently?",
+        "yesDelete": "Yes, delete",
+        "no": "No",
+        "cancelConfirm": "Cancel this appointment?",
+        "cancelReasonPlaceholder": "Cancellation reason (optional)",
+        "yesCancel": "Yes, cancel",
+        "sendReminderTitle": "Send WhatsApp reminder",
+        "completed": "Completed",
+        "noShow": "No-show",
+        "cancelAppointment": "Cancel appointment",
+        "addPayment": "Add payment",
+        "sendNextLinkTitle": "Send a link to book the next appointment",
+        "deleteAppointment": "Delete appointment"
+      }
+    }
+  },
+  "customers": {
+    "detailTypes": {
+      "serviceFallback": "Service",
+      "ageMonths": "{count, plural, one {# month} other {# months}}",
+      "ageYears": "{count, plural, one {# yr} other {# yrs}}"
+    },
+    "bulkTagModal": {
+      "toastAdded": "Tag \"{tag}\" added to {count, plural, one {# client} other {# clients}}",
+      "toastRemoved": "Tag \"{tag}\" removed from {count, plural, one {# client} other {# clients}}",
+      "updateError": "Couldn't update the clients. Try again.",
+      "title": "Tags for {count, plural, one {# client} other {# clients}}",
+      "tagLabel": "Tag",
+      "tagPlaceholder": "Pick or type a tag",
+      "addTag": "Add tag",
+      "removeTag": "Remove tag"
+    },
+    "bulkWhatsAppModal": {
+      "defaultMessage": "Hi '{'name'}', ",
+      "title": "Send a WhatsApp message",
+      "recipients": "{count, plural, one {# recipient} other {# recipients}}",
+      "invalidSuffix": " · {count} without a valid number",
+      "messageLabel": "Message",
+      "messagePlaceholder": "Hi '{'name'}'! We'd love to book your next appointment... 🐾",
+      "nameToken": "'{'name'}'",
+      "hint": "<token></token> is replaced with each client's first name. Each click opens one chat in your WhatsApp — send it, then click again for the next recipient.",
+      "opened": "Opened",
+      "skipped": "Skipped",
+      "again": "Again",
+      "open": "Open",
+      "sendTo": "Send to {name}",
+      "skipTitle": "Skip this recipient",
+      "skip": "Skip",
+      "finish": "Done ({done}/{total})"
+    },
+    "customerFiltersPanel": {
+      "mobileToggle": "Filter & sort",
+      "filterLabel": "Filter:",
+      "pills": {
+        "all": "All",
+        "active": "Active",
+        "dormant": "Dormant",
+        "debt": "Owes",
+        "balanced": "Settled"
+      },
+      "serviceType": "Service type",
+      "lastVisit": {
+        "label": "Last visit",
+        "days30": "No visit in 30+ days",
+        "days60": "No visit in 60+ days",
+        "days90": "No visit in 90+ days",
+        "never": "Never"
+      },
+      "species": {
+        "label": "Species",
+        "dog": "Dogs",
+        "cat": "Cats",
+        "other": "Other"
+      },
+      "source": "Referral source",
+      "joined": {
+        "label": "Joined:",
+        "from": "Joined from date",
+        "to": "Joined until date"
+      },
+      "minDebt": {
+        "label": "Owes over {currency}",
+        "ariaLabel": "Minimum balance owed"
+      },
+      "sort": {
+        "label": "Sort",
+        "option": "Sort: {label}"
+      },
+      "reset": "Clear filters",
+      "tagsLabel": "Tags:"
+    },
+    "petCareModals": {
+      "errors": {
+        "generic": "Error",
+        "update": "Update failed"
+      },
+      "saveChanges": "Save changes",
+      "feeding": {
+        "updated": "Feeding details updated",
+        "updateError": "Couldn't update feeding details. Try again.",
+        "title": "Feeding — {petName}",
+        "brand": "Food brand",
+        "brandPlaceholder": "e.g. Royal Canin, Hill's, Acana...",
+        "gramsPerDay": "Daily amount (grams)",
+        "gramsPlaceholder": "e.g. 250",
+        "frequency": "Feeding frequency",
+        "choose": "Select...",
+        "frequencies": {
+          "once": "Once a day",
+          "twice": "Twice a day",
+          "three": "3 times a day",
+          "four": "4 times a day",
+          "onDemand": "On demand"
+        },
+        "notes": "Additional notes (food allergies, preferences...)",
+        "notesPlaceholder": "e.g. gluten free, prefers wet food..."
+      },
+      "health": {
+        "updateError": "Couldn't update health info. Try again.",
+        "title": "Health — {petName}",
+        "vaccinesSection": "Vaccines and treatments",
+        "rabies": "Rabies — once a year",
+        "notVaccinated": "Not vaccinated",
+        "notTreated": "Not treated",
+        "vaccineDate": "Vaccination date",
+        "validUntil": "Valid until",
+        "dhppPuppy": "Puppy DHPP — 3 doses, two weeks apart",
+        "dhppAdult": "Adult DHPP — once a year",
+        "deworming": "Deworming — every six months",
+        "dewormingDate": "Deworming date",
+        "parkWorm": "Spirocerca (park worm) — every 3 months",
+        "treatmentDate": "Treatment date",
+        "fleaTick": "Fleas and ticks",
+        "fleaTickType": "Treatment (product name)",
+        "bordetella": "Kennel cough — record of receipt",
+        "bordetellaDate": "Date received",
+        "medicalSection": "Medical condition",
+        "allergies": "Allergies",
+        "allergiesPlaceholder": "Chicken, grass...",
+        "medicalConditions": "Medical conditions",
+        "surgeries": "Past surgeries",
+        "activityLimitations": "Activity limitations",
+        "vetSection": "Vet",
+        "vetName": "Vet name",
+        "vetPhone": "Vet phone",
+        "generalSection": "General",
+        "neutered": "Neutered / spayed",
+        "neuteredDate": "Neuter / spay date",
+        "origin": "Origin (where they came from)",
+        "originPlaceholder": "Adopted, breeder, street...",
+        "timeWithOwner": "Time with owner",
+        "timeWithOwnerPlaceholder": "3 years",
+        "dose1": "Dose 1",
+        "dose2": "Dose 2",
+        "dose3": "Dose 3"
+      },
+      "behavior": {
+        "updateError": "Couldn't update behavior info. Try again.",
+        "title": "Behavior — {petName}",
+        "flagsSection": "Behavior flags",
+        "flags": {
+          "dogAggression": "Dog aggression",
+          "humanAggression": "Human aggression",
+          "leashReactivity": "Leash reactivity",
+          "leashPulling": "Leash pulling",
+          "jumping": "Jumps on people",
+          "separationAnxiety": "Separation anxiety",
+          "excessiveBarking": "Excessive barking",
+          "destruction": "Destructive",
+          "resourceGuarding": "Resource guarding",
+          "badWithKids": "Not good with kids",
+          "houseSoiling": "House soiling",
+          "biteHistory": "Bite history",
+          "priorTraining": "Had prior training"
+        },
+        "biteDetails": "Bite details",
+        "triggers": "Triggers",
+        "triggersPlaceholder": "Loud noises, other dogs...",
+        "priorTrainingDetails": "Prior training details",
+        "customIssues": "Other issues (manual)",
+        "customIssuePlaceholder": "Describe a behavior issue..."
+      }
+    },
+    "petModals": {
+      "breed": {
+        "placeholder": "Enter breed",
+        "placeholderPick": "Enter or pick a breed"
+      },
+      "fields": {
+        "name": "Name *",
+        "species": "Type",
+        "breed": "Breed",
+        "gender": "Sex",
+        "weight": "Weight (kg)",
+        "birthDate": "Date of birth",
+        "microchip": "Microchip",
+        "microchipPlaceholder": "Chip number",
+        "neutered": "Spayed / neutered",
+        "profilePhoto": "Profile photo"
+      },
+      "species": {
+        "dog": "Dog",
+        "cat": "Cat",
+        "other": "Other"
+      },
+      "gender": {
+        "male": "Male",
+        "female": "Female",
+        "unknown": "Unknown"
+      },
+      "errors": {
+        "update": "Update failed"
+      },
+      "add": {
+        "title": "New pet",
+        "uploadingProfile": "Uploading profile photo...",
+        "profileUploadError": "Profile photo upload failed",
+        "uploadingDocs": "Uploading documents...",
+        "docUploadError": "Document upload failed",
+        "profileAlt": "Profile",
+        "photo": "Photo",
+        "behavior": "Behavior profile",
+        "documents": "Documents (licenses, vaccines, photos)",
+        "clickToChoose": "Click to choose files",
+        "fileHint": "PDF, JPG, PNG — up to {max}MB per file · images compressed automatically",
+        "submit": "Add pet",
+        "saveError": "Couldn't save — try again"
+      },
+      "docs": {
+        "title": "{petName}'s documents",
+        "deleteError": "Delete failed",
+        "deleteDocError": "Couldn't delete document",
+        "tooLarge": "{fileName} is too large (max {max}MB)",
+        "uploadError": "File upload failed",
+        "empty": "No documents yet",
+        "deleteDoc": "Delete document",
+        "uploading": "Uploading...",
+        "addDoc": "Add document",
+        "fileHint": "PDF, JPG, PNG — up to {max}MB · images compressed automatically",
+        "confirmTitle": "Delete document",
+        "confirmDescription": "The document will be permanently deleted. Continue?"
+      },
+      "edit": {
+        "saved": "Details saved",
+        "saveError": "Couldn't update the pet. Try again.",
+        "title": "Edit {name}",
+        "tags": "Behavior tags",
+        "saveChanges": "Save changes"
+      },
+      "note": {
+        "saveError": "Couldn't save the note. Try again.",
+        "placeholder": "Enter notes..."
+      },
+      "med": {
+        "addError": "Add failed",
+        "saveError": "Couldn't save the medication. Try again.",
+        "editTitle": "Edit medication",
+        "addTitle": "Add medication — {petName}",
+        "name": "Medication name *",
+        "namePlaceholder": "Rimadyl, amoxicillin...",
+        "dosage": "Dosage",
+        "dosagePlaceholder": "25 mg",
+        "frequency": "Frequency",
+        "frequencyPlaceholder": "Once a day",
+        "times": "Times given",
+        "instructions": "Instructions",
+        "instructionsPlaceholder": "With food, don't split...",
+        "startDate": "Start date",
+        "endDate": "End date",
+        "add": "Add medication"
+      }
+    },
+    "listTypes": {
+      "referralSources": {
+        "referral": "Client referral",
+        "google": "Google",
+        "instagram": "Instagram",
+        "facebook": "Facebook",
+        "tiktok": "TikTok",
+        "signage": "Sign / walk-by",
+        "website": "Website",
+        "manual": "Manual",
+        "other": "Other"
+      }
+    },
+    "cells": {
+      "status": {
+        "active": "Active",
+        "dormant": "Dormant"
+      },
+      "financial": {
+        "debt": "Owes",
+        "credit": "Credit",
+        "balanced": "Settled"
+      },
+      "pets": {
+        "none": "No pets",
+        "more": "+{count} more"
+      },
+      "appointments": {
+        "last": "Last: {date}",
+        "noHistory": "No history",
+        "next": "Next: {date}",
+        "notScheduled": "Not scheduled"
+      },
+      "actions": {
+        "whatsapp": "Send WhatsApp message",
+        "call": "Call {phone}",
+        "email": "Email {email}",
+        "edit": "Edit client"
+      }
+    },
+    "inlineTagEditor": {
+      "updateError": "Couldn't update tags. Please try again.",
+      "editTitle": "Edit tags",
+      "addTags": "Add tags",
+      "heading": "Client tags"
+    },
+    "manageTagsPopover": {
+      "title": "Manage tags",
+      "count": "{count, plural, one {# tag} other {# tags}}",
+      "newTagPlaceholder": "New tag...",
+      "confirm": "Confirm",
+      "confirmDelete": "Delete \"{tag}\"?",
+      "clickToEdit": "Click to edit",
+      "edit": "Edit",
+      "empty": "No tags yet. Add a new tag above."
+    },
+    "listEditCustomerModal": {
+      "toastUpdated": "Client details updated",
+      "toastError": "Couldn't update the client. Please try again.",
+      "title": "Edit client",
+      "fullName": "Full name *",
+      "phone": "Phone *",
+      "email": "Email",
+      "address": "Address",
+      "idNumber": "ID number",
+      "tags": "Client tags",
+      "source": "Referral source",
+      "sourceUnknown": "— Unknown —",
+      "notes": "Notes",
+      "saveChanges": "Save changes"
+    },
+    "newCustomerModal": {
+      "errorGeneric": "Error",
+      "toastCreated": "Client created",
+      "sendWelcome": "Send welcome",
+      "openCustomer": "Open client",
+      "toastCreateError": "Couldn't create the client. Please try again.",
+      "title": "New client",
+      "subtitle": "Add a client to the system",
+      "fullName": "Full name *",
+      "namePlaceholder": "Client name",
+      "phone": "Phone *",
+      "duplicatePhone": "This phone number already belongs to {name} — you can't create another client with the same number.",
+      "openExisting": "Open existing client",
+      "email": "Email",
+      "address": "Address",
+      "addressPlaceholder": "City, street",
+      "idNumber": "ID number",
+      "idNumberHint": "Needed for digital contracts",
+      "secondContact": "Additional contact",
+      "optional": "(optional)",
+      "secondContactNamePlaceholder": "Contact name",
+      "tags": "Client tags",
+      "source": "Referral source",
+      "sourceUnknown": "— Unknown —",
+      "notes": "Notes",
+      "submit": "Add client"
+    },
+    "customerPicker": {
+      "placeholder": "Search by client name, phone or dog name",
+      "createNew": "New client",
+      "change": "Change client",
+      "loadingCustomer": "Loading client...",
+      "recent": "Recent clients",
+      "noResults": "No clients found"
+    },
+    "customerSalesHistory": {
+      "days": {
+        "sameDay": "the same day",
+        "one": "1 day",
+        "many": "{count, plural, one {# day} other {# days}}"
+      },
+      "status": {
+        "won": "Won as client",
+        "lost": "Lost",
+        "open": "Open in sales"
+      },
+      "chip": {
+        "title": "Show sales history",
+        "label": "Came from a lead"
+      },
+      "card": {
+        "title": "Sales history",
+        "leadCount": "({count, plural, one {# lead} other {# leads}})"
+      },
+      "lead": {
+        "open": "Open lead",
+        "openedOn": "Opened {date}",
+        "wonOn": " → Won {date}",
+        "lostOn": " → Lost {date}",
+        "wonBy": " · Closed by {name}",
+        "openFor": "Open for {days}",
+        "wonWithin": "Won within {days}",
+        "inSales": "{days} in sales",
+        "notes": "Lead notes",
+        "showLess": "Show less",
+        "showAll": "Show all",
+        "journal": "Sales journal",
+        "showAllHistory": "Show full history ({count})",
+        "journalTruncated": "The journal is long — showing the latest entries only; older entries are in the lead card."
+      },
+      "info": {
+        "source": "Source",
+        "trafficSource": "Traffic source",
+        "landingPage": "Landing page",
+        "requestedService": "Requested service",
+        "dealValue": "Deal value",
+        "calls": "Calls",
+        "lostReason": "Lost reason",
+        "nextFollowUp": "Next follow-up"
+      },
+      "journal": {
+        "due": "Due: {date}",
+        "agreed": "Agreed: "
+      }
+    },
+    "customersDetailPage": {
+      "noAccess": {
+        "title": "No access",
+        "description": "You don't have permission to view client details. Contact the business manager."
+      },
+      "toasts": {
+        "deleteRequested": "Request sent for owner approval",
+        "deleted": "Client deleted",
+        "deleteError": "Error deleting client. Try again.",
+        "petRequired": "Add a pet to the client before creating an order",
+        "petRequiredHint": "Click 'Add' in the pets section",
+        "noPhone": "Client has no phone number",
+        "merged": "Clients merged successfully"
+      },
+      "error": {
+        "notFoundTitle": "Client not found",
+        "loadTitle": "Error loading page",
+        "notFoundDescription": "The client you're looking for doesn't exist or the link is wrong",
+        "loadDescription": "Something went wrong. Please refresh the page.",
+        "backToList": "Back to clients"
+      },
+      "nav": {
+        "pets": "Pets",
+        "appointments": "Appointments",
+        "finance": "Finance",
+        "sales": "Sales",
+        "documents": "Documents",
+        "timeline": "Timeline"
+      },
+      "delete": {
+        "requestTitle": "Request client deletion",
+        "title": "Delete client",
+        "requestDescription": "The request will be sent for owner approval. Once approved, the client and their appointments, payments and training programs will be deleted.",
+        "description": "Deleting the client removes all their appointments, payments and training programs. This can't be undone."
+      }
+    },
+    "customersPage": {
+      "newBadge": {
+        "today": "today",
+        "yesterday": "yesterday",
+        "daysAgo": "{count, plural, one {# day ago} other {# days ago}}",
+        "label": "New · {label}"
+      },
+      "noAccess": {
+        "title": "No access",
+        "description": "You don't have permission to view clients. Contact the business manager."
+      },
+      "toasts": {
+        "tagsSaved": "Tags saved",
+        "tagsSaveError": "Error saving tags. Try again."
+      },
+      "bulkDelete": {
+        "deleted": "{count} deleted",
+        "pending": "{count} sent for owner approval",
+        "failed": "{count} failed",
+        "none": "No clients deleted",
+        "error": "Error deleting clients. Try again.",
+        "confirmTitle": "Delete clients",
+        "confirmDescription": "You're about to delete <b>{count, plural, one {# client} other {# clients}}</b>. This will also permanently delete their pets, appointments and client data.",
+        "continue": "Continue",
+        "finalTitle": "Final confirmation",
+        "finalDescription": "Permanently delete <b>{count, plural, one {# client} other {# clients}}</b>? This can't be undone.",
+        "confirmLabel": "Delete {count, plural, one {# client} other {# clients}}"
+      },
+      "export": {
+        "success": "File downloaded",
+        "error": "Export failed. Try again.",
+        "selectedTitle": "Export selected clients to Excel",
+        "filteredTitle": "Export filtered clients to Excel",
+        "labelCount": "Export {count}",
+        "label": "Export"
+      },
+      "header": {
+        "title": "Clients",
+        "countOne": "{count} client",
+        "countMany": "{count} clients",
+        "refresh": "Refresh data",
+        "upgrade": "Upgrade to Basic",
+        "newCustomer": "New client",
+        "newOrder": "New order"
+      },
+      "import": {
+        "title": "Import clients from Excel",
+        "label": "Import"
+      },
+      "freeLimit": {
+        "usage": "{used}/{max} clients — free plan limit",
+        "upgrade": "Upgrade to Basic →"
+      },
+      "search": {
+        "placeholder": "Search by name, phone, email or pet name...",
+        "ariaLabel": "Search clients"
+      },
+      "bulk": {
+        "selected": "{count} selected",
+        "sendMessage": "Send message",
+        "tags": "Tags",
+        "deleteSelected": "Delete selected"
+      },
+      "selection": {
+        "cancel": "Cancel selection",
+        "select": "Select",
+        "selectAllCount": "Select all shown ({count})",
+        "selectAll": "Select all shown",
+        "deselectOne": "Deselect {name}",
+        "selectOne": "Select {name}"
+      },
+      "empty": {
+        "noResultsFor": "No results for \"{query}\"",
+        "noResults": "No results",
+        "noCustomers": "No clients",
+        "tryChanging": "Try changing the search or filters",
+        "getStarted": "Get started by adding your first client",
+        "clear": "Clear search and filters",
+        "addCustomer": "Add client"
+      },
+      "table": {
+        "sort": "Sort",
+        "caption": "Client list",
+        "name": "Name",
+        "status": "Status",
+        "pets": "Pets",
+        "appointments": "Appointments",
+        "finance": "Finance",
+        "actions": "Actions"
+      },
+      "loadMore": "Load more clients",
+      "footer": {
+        "showingOne": "Showing {shown} of {total} client",
+        "showingMany": "Showing {shown} of {total} clients",
+        "total": "{count} total",
+        "active": "{count} active",
+        "withDebt": "{count} with balance due"
+      }
+    },
+    "mergeCustomerModal": {
+      "title": "Merge duplicate client",
+      "backToPickAria": "Back to client selection",
+      "toastMerged": "Clients merged successfully",
+      "errorMerge": "Error merging clients",
+      "pickIntro": "Choose the duplicate client to merge into <b>{name}</b>.",
+      "searchPlaceholder": "Search by name, phone or email",
+      "suggestionsHint": "Suggestions: clients with the same phone / email / name appear first.",
+      "errorLoadCandidates": "Error loading clients",
+      "noCandidates": "No matching clients found",
+      "match": {
+        "phone": "Same phone",
+        "email": "Same email",
+        "name": "Same name"
+      },
+      "errorLoadPreview": "Error loading merge preview",
+      "back": "Back",
+      "warningMain": "Client <b>{source}</b> will be deleted and all their data moved to <b>{target}</b>.",
+      "warningDetails": "{target}'s details are kept; empty fields are filled from the duplicate, tags and documents are combined and notes are appended. This can't be undone.",
+      "willBeDeleted": "Will be deleted",
+      "stays": "Stays",
+      "whatMoves": "What moves",
+      "nothingLinked": "The duplicate has no linked data — only the client details will be merged.",
+      "confirmLabel": "To confirm, type the name of the client to be deleted: <b>{name}</b>",
+      "merging": "Merging...",
+      "mergeButton": "Merge clients"
+    },
+    "appointmentsSection": {
+      "toastReminderSent": "WhatsApp reminder sent",
+      "errorReminder": "Error sending reminder",
+      "toastCompleted": "Appointment marked as completed",
+      "errorUpdate": "Error updating appointment",
+      "title": "Appointments ({count})",
+      "newAppointment": "Book appointment",
+      "calendar": "Calendar",
+      "tabUpcoming": "Upcoming ({count})",
+      "tabPast": "History ({count})",
+      "errorLoad": "Error loading appointments",
+      "emptyUpcoming": "No upcoming appointments",
+      "emptyPast": "No appointment history",
+      "openInCalendar": "Open and edit in calendar",
+      "nextBadge": "Next appointment",
+      "sendReminder": "Send WhatsApp reminder",
+      "sendFollowUp": "Send WhatsApp follow-up",
+      "markCompleted": "Mark as completed",
+      "loadMore": "Load more"
+    },
+    "contactCard": {
+      "title": "Contact details",
+      "editClient": "Edit client",
+      "sendMessageTitle": "Send a WhatsApp message from Petra",
+      "sendMessage": "Send message",
+      "openWhatsApp": "Open WhatsApp chat",
+      "noPhone": "No phone",
+      "stats": {
+        "appointments": "Appointments",
+        "pets": "Pets",
+        "orders": "Orders"
+      },
+      "errorTags": "Error updating tags",
+      "removeTag": "Remove tag {tag}",
+      "tag": "Tag",
+      "newTagPlaceholder": "New tag..."
+    },
+    "customerDocumentsSection": {
+      "errorDelete": "Error deleting",
+      "errorUpload": "Error uploading file",
+      "title": "Documents ({count})",
+      "uploadDocument": "Upload document",
+      "docType": "Document type",
+      "docName": "Document name (optional)",
+      "docNamePlaceholder": "e.g. Training contract January 2026",
+      "clickToPick": "Click to choose files",
+      "allowedTypes": "PDF, JPG, PNG, DOC, XLS — up to {mb}MB per file",
+      "imagesCompressed": "Images are compressed automatically before upload",
+      "oversized": "{count, plural, one {# file exceeds} other {# files exceed}} the {mb}MB size limit and {count, plural, one {was} other {were}} not added.",
+      "uploading": "Uploading...",
+      "uploadWithCount": "Upload ({count})",
+      "upload": "Upload",
+      "filterAll": "All ({count})",
+      "emptyTitle": "No documents yet",
+      "emptyHint": "Contracts, invoices, receipts and more",
+      "uploadFirst": "Upload first document",
+      "emptyCategory": "No documents in this category",
+      "download": "Download",
+      "deleteTitle": "Delete document",
+      "deleteDescription": "Deleting the document removes it permanently. This can't be undone."
+    },
+    "customerHeader": {
+      "menu": {
+        "appointment": "Book appointment",
+        "task": "Task",
+        "compose": "Send message",
+        "paymentRequest": "Payment request",
+        "intakeSending": "Sending...",
+        "intake": "Intake form",
+        "bookingLink": "Booking link",
+        "print": "Print",
+        "merge": "Merge duplicate client",
+        "deleteRequest": "Request deletion",
+        "delete": "Delete client",
+        "newOrder": "New order"
+      },
+      "backToList": "Back to client list",
+      "added": "Added {date}",
+      "newAppointmentTitle": "Book an appointment for this client",
+      "composeTitle": "Send a WhatsApp message to the client",
+      "moreActions": "More actions"
+    },
+    "detailEditCustomerModal": {
+      "sources": {
+        "referral": "Client referral",
+        "google": "Google",
+        "instagram": "Instagram",
+        "facebook": "Facebook",
+        "tiktok": "TikTok",
+        "signage": "Sign / walk-by",
+        "other": "Other"
+      },
+      "errorUpdate": "Error updating client",
+      "errorUpdateRetry": "Error updating client. Please try again.",
+      "title": "Edit client",
+      "fields": {
+        "name": "Name *",
+        "phone": "Phone *",
+        "email": "Email",
+        "address": "Address",
+        "idNumber": "ID number",
+        "idNumberPlaceholder": "ID number",
+        "tags": "Client tags",
+        "source": "Referral source",
+        "notes": "Notes"
+      },
+      "sourceUnknown": "— Unknown —",
+      "saveChanges": "Save changes"
+    },
+    "newAppointmentModal": {
+      "toastScheduled": "Appointment booked for {name}",
+      "toastError": "Couldn't book the appointment. Try again.",
+      "title": "New appointment — {name}",
+      "serviceLabel": "Service *",
+      "selectService": "Select a service...",
+      "petLabel": "Pet",
+      "noPet": "No pet",
+      "dateLabel": "Date *",
+      "startTimeLabel": "Start time *",
+      "endTimeLabel": "End time *",
+      "notesLabel": "Notes",
+      "notesPlaceholder": "Additional notes...",
+      "serviceRequired": "Select a service",
+      "submit": "Book appointment",
+      "createError": "Couldn't create the appointment. Try again."
+    },
+    "ordersSection": {
+      "title": "Orders ({total})",
+      "newOrder": "New order",
+      "empty": "No orders yet",
+      "createFirst": "Create first order",
+      "itemsCount": "· {count, plural, one {# item} other {# items}}",
+      "openOrder": "Open order →",
+      "checkIn": "Check-in:",
+      "checkOut": "Check-out:",
+      "nights": "{count, plural, one {# night} other {# nights}}",
+      "dateTime": "Date and time:",
+      "discount": "Discount",
+      "tax": "Sales tax",
+      "total": "Total",
+      "sendPaymentRequest": "Send payment request",
+      "notes": "Notes:",
+      "showingLatest": "Showing the latest {shown} orders of {total}"
+    },
+    "paymentsSection": {
+      "title": "Payments ({total})",
+      "recordPayment": "Record payment",
+      "empty": "No payments yet",
+      "recordFirst": "Record first payment",
+      "depositSuffix": " · Deposit",
+      "boardingLabel": "Boarding – {petName}",
+      "loadError": "Error loading payments",
+      "loadMore": "Load more"
+    },
+    "petCard": {
+      "species": {
+        "dog": "Dog",
+        "cat": "Cat"
+      },
+      "gender": {
+        "male": "Male",
+        "female": "Female"
+      },
+      "birthdayWhatsApp": "Send a WhatsApp birthday greeting",
+      "editDetails": "Edit details",
+      "editDetailsAria": "Edit pet details",
+      "sendDeleteRequest": "Send delete request for approval",
+      "deletePetAria": "Delete pet",
+      "quick": {
+        "age": "Age: {age}",
+        "weight": "Weight: {weight} kg",
+        "microchip": "Microchip: {microchip}",
+        "medsCount": "{count, plural, one {# medication} other {# medications}}"
+      },
+      "feeding": {
+        "title": "Feeding",
+        "edit": "Edit feeding",
+        "brand": "Brand: ",
+        "amount": "Amount: ",
+        "gramsPerDay": "{grams} g/day",
+        "frequency": "Frequency: ",
+        "add": "+ Add feeding details"
+      },
+      "meds": {
+        "title": "Medications ({count})",
+        "edit": "Edit medications",
+        "editOne": "Edit",
+        "frequency": "Frequency: {frequency}",
+        "times": "Times: {times}",
+        "from": "From {date}",
+        "until": "Until {date}",
+        "addAnother": "+ Add another medication",
+        "addFirst": "+ Add first medication"
+      },
+      "health": {
+        "title": "Health",
+        "edit": "Edit health",
+        "rabies": "Rabies: ",
+        "rabiesUntil": "Rabies valid until: ",
+        "dhppPuppy1": "DHPP puppy #1: ",
+        "dhppPuppy2": "DHPP puppy #2: ",
+        "dhppPuppy3": "DHPP puppy #3: ",
+        "dhppAdult": "DHPP adult: ",
+        "bordetella": "Bordetella: ",
+        "parkWorm": "Spirocerca (park worm): ",
+        "deworming": "Deworming: ",
+        "fleaTick": "Flea/tick: ",
+        "notVaccinated": {
+          "rabies": "Rabies: not vaccinated",
+          "dhpp": "DHPP: not vaccinated",
+          "deworming": "Deworming: not treated",
+          "parkWorm": "Park worm: not treated",
+          "fleaTick": "Flea/tick: not treated",
+          "bordetella": "Bordetella: not vaccinated"
+        },
+        "allergies": "Allergies: ",
+        "medicalConditions": "Medical conditions: ",
+        "surgeries": "Surgeries: ",
+        "activityLimitations": "Activity limitations: ",
+        "vet": "Vet: ",
+        "origin": "Origin: ",
+        "timeWithOwner": "Time with owner: "
+      },
+      "behavior": {
+        "title": "Behavior",
+        "edit": "Edit behavior",
+        "triggers": "Triggers: ",
+        "biteDetails": "Bite details: ",
+        "priorTraining": "Prior training: "
+      },
+      "training": {
+        "title": "Training ({count})",
+        "open": "Open training →",
+        "status": {
+          "ACTIVE": "Active",
+          "PAUSED": "Paused",
+          "COMPLETED": "Completed",
+          "CANCELED": "Canceled"
+        },
+        "sessions": "Sessions",
+        "goalsAchieved": "Goals: {achieved}/{total} achieved",
+        "moreGoals": "+{count} more goals"
+      },
+      "notes": {
+        "medicalLabel": "Medical notes: ",
+        "behaviorLabel": "Behavior notes: ",
+        "notEntered": "Not entered",
+        "medicalTitle": "Medical notes",
+        "behaviorTitle": "Behavior notes"
+      },
+      "documents": {
+        "count": "{count, plural, one {# document} other {# documents}}",
+        "empty": "Documents and photos"
+      }
+    },
+    "petsSection": {
+      "toastMedDeleted": "Medication deleted",
+      "toastMedDeleteError": "Error deleting the medication",
+      "toastRequestSent": "Request sent for owner approval",
+      "toastPetDeleted": "Pet deleted",
+      "toastPetDeleteError": "Error deleting the pet",
+      "title": "Pets ({count})",
+      "empty": "No pets yet",
+      "addPet": "Add pet",
+      "deleteMedTitle": "Delete medication",
+      "deleteMedDescription": "Delete {name}? This can't be undone.",
+      "deletePetRequestTitle": "Request to delete pet",
+      "deletePetTitle": "Delete pet",
+      "deletePetRequestDescription": "The request to delete {name} will be sent to the owner for approval before anything is deleted.",
+      "deletePetDescription": "Deleting {name} removes all of its medical, weight and history data. This can't be undone."
+    },
+    "sectionNav": {
+      "ariaLabel": "Client card navigation"
+    },
+    "summaryStrip": {
+      "debt": "Owes {amount}",
+      "pendingOfWhich": "{amount} of it in pending payments",
+      "recordPayment": "Record payment",
+      "openInCalendar": "Open appointment in calendar",
+      "nextAppointment": "Next appointment",
+      "appointmentFallback": "Appointment",
+      "noUpcoming": "No upcoming appointment",
+      "book": "Book",
+      "visits": "Visits",
+      "lastVisit": "Last: {date}",
+      "neverVisited": "No visits yet",
+      "paidToDate": "Paid to date",
+      "noDebt": "No balance due",
+      "appointments": "Appointments",
+      "upcomingCount": "{count} upcoming"
+    },
+    "quickTaskModal": {
+      "categories": {
+        "GENERAL": "General",
+        "BOARDING": "Boarding",
+        "TRAINING": "Training",
+        "LEADS": "Leads",
+        "HEALTH": "Health",
+        "MEDICATION": "Medication",
+        "FEEDING": "Feeding"
+      },
+      "priorities": {
+        "LOW": "Low",
+        "MEDIUM": "Medium",
+        "HIGH": "High",
+        "URGENT": "Urgent"
+      },
+      "created": "Task created for {name}",
+      "title": "New task — {name}",
+      "titleLabel": "Title *",
+      "titlePlaceholder": "Describe the task...",
+      "category": "Category",
+      "priority": "Priority",
+      "dueDate": "Due date",
+      "submit": "Create task",
+      "error": "Couldn't create the task. Try again."
+    },
+    "recordPaymentModal": {
+      "toastPaid": "Payment recorded",
+      "toastPending": "Payment recorded as pending",
+      "errorGeneric": "Couldn't record the payment",
+      "errorPositive": "Enter a positive amount",
+      "errorMax": "Amount exceeds the limit (max {currencySymbol}1,000,000)",
+      "errorCardLast4": "Last 4 digits — exactly 4 digits",
+      "title": "Record payment",
+      "amountLabel": "Amount ({currencySymbol})",
+      "method": "Payment method",
+      "cardLast4": "Last 4 digits (optional)",
+      "checkNumber": "Check number (optional)",
+      "status": "Status",
+      "statuses": {
+        "paid": "Paid",
+        "pending": "Pending"
+      },
+      "linkToOrder": "Link to order",
+      "noLink": "Not linked",
+      "orderOption": "{type} · {date} · Balance {remaining}",
+      "notes": "Notes",
+      "deposit": "Deposit",
+      "submit": "Record payment"
+    },
+    "sendContractSection": {
+      "errorGeneric": "Error",
+      "createdNotSent": "The contract was created but not sent on WhatsApp",
+      "copyLink": "Copy link",
+      "linkCopied": "Link copied!",
+      "sentForSignature": "Contract sent for signature!",
+      "sendError": "Couldn't send",
+      "deleteError": "Couldn't delete",
+      "deleted": "Contract deleted",
+      "newContractSent": "New contract sent!",
+      "reminderSent": "Reminder sent!",
+      "statuses": {
+        "PENDING": "Pending",
+        "VIEWED": "Viewed",
+        "SIGNED": "Signed",
+        "EXPIRED": "Expired"
+      },
+      "title": "Contracts ({count})",
+      "noTemplatesHint": "Add contract templates in Settings → Contracts",
+      "sendForSignature": "Send for signature",
+      "empty": "No contracts sent",
+      "sendReminderTitle": "Send WhatsApp reminder",
+      "reminder": "Reminder",
+      "sendNewContractTitle": "Send a new contract",
+      "resend": "Resend",
+      "view": "View",
+      "download": "Download",
+      "deleteContract": "Delete contract",
+      "sentAt": "Sent: {date}",
+      "openedAt": "Opened: {date}",
+      "signedAt": "Signed: {date}",
+      "expiresIn": "{count, plural, one {Expires in # day} other {Expires in # days}}",
+      "modalTitle": "Send contract for signature",
+      "chooseTemplate": "Choose a contract template",
+      "chooseTemplatePlaceholder": "Choose a template...",
+      "linkToDog": "Link to a dog (optional)",
+      "noDog": "No dog",
+      "dogDetailsHint": "The dog's details (name, breed, microchip, sex, color) are filled into the contract automatically",
+      "sendTo": "Will be sent to <b>{name}</b> on WhatsApp",
+      "sending": "Sending...",
+      "send": "Send",
+      "deleteTitle": "Delete contract",
+      "deleteDescription": "Deleting the contract removes it permanently. This can't be undone.",
+      "downloadPdf": "Download PDF",
+      "pdfUnsupported": "Your browser doesn't support inline PDF viewing",
+      "docCategories": {
+        "contract": "Contract",
+        "invoice": "Invoice",
+        "receipt": "Receipt",
+        "agreement": "Agreement",
+        "medical": "Medical",
+        "insurance": "Insurance",
+        "other": "Other"
+      },
+      "signedAtWithIcon": "✍️ Signed: {date}"
+    },
+    "timelineSection": {
+      "filters": {
+        "all": "All",
+        "notes": "Notes",
+        "appointments": "Appointments",
+        "payments": "Payments",
+        "messages": "Messages"
+      },
+      "noteSaved": "Note saved",
+      "saveError": "Couldn't save the note",
+      "noteUpdated": "Note updated",
+      "updateError": "Couldn't update the note",
+      "noteDeleted": "Note deleted",
+      "deleteError": "Couldn't delete the note",
+      "title": "Timeline",
+      "addNote": "Add note",
+      "notePlaceholder": "Add a progress note, observation, or activity...",
+      "loadError": "Couldn't load the timeline",
+      "emptyAll": "No events",
+      "emptyFiltered": "No events of this type in the loaded range",
+      "loadMore": "Load more",
+      "deleteTitle": "Delete note",
+      "deleteDescription": "The note will be removed from the timeline. Continue?",
+      "editNote": "Edit note",
+      "deleteNote": "Delete note"
+    },
+    "trainingSections": {
+      "packageTracking": "Package tracking",
+      "sessionsProgress": "{completed}/{total} sessions",
+      "programsTitle": "Training programs ({count})",
+      "all": "All",
+      "sessionsSuffix": " sessions"
+    },
+    "whatsAppComposeModal": {
+      "noPhone": "This client has no phone number",
+      "sendError": "Couldn't send",
+      "loggedStub": "Message logged (WhatsApp isn't connected — actual sending is pending verification)",
+      "sentSuccess": "Message sent",
+      "title": "Send WhatsApp",
+      "messageLabel": "Message",
+      "placeholder": "Hi {name}, ...",
+      "sending": "Sending...",
+      "send": "Send message"
+    },
+    "constants": {
+      "paymentMethods": {
+        "cash": "Cash",
+        "credit_card": "Credit card",
+        "bank_transfer": "Bank transfer",
+        "bit": "Bit",
+        "paybox": "PayBox",
+        "check": "Check"
+      },
+      "paymentStatuses": {
+        "paid": "Paid",
+        "pending": "Pending",
+        "overdue": "Overdue",
+        "canceled": "Canceled"
+      },
+      "behaviorFlags": {
+        "dogAggression": "Dog aggression",
+        "humanAggression": "Human aggression",
+        "biteHistory": "Bite history",
+        "badWithKids": "Not good with kids",
+        "leashReactivity": "Leash reactive",
+        "leashPulling": "Leash pulling",
+        "jumping": "Jumping",
+        "separationAnxiety": "Separation anxiety",
+        "excessiveBarking": "Excessive barking",
+        "destruction": "Destructive",
+        "resourceGuarding": "Resource guarding",
+        "houseSoiling": "House soiling",
+        "priorTraining": "Prior training"
+      },
+      "programTypes": {
+        "BASIC_OBEDIENCE": "Basic obedience",
+        "REACTIVITY": "Reactivity",
+        "PUPPY": "Puppy",
+        "BEHAVIOR": "Behavior",
+        "ADVANCED": "Advanced",
+        "CUSTOM": "Custom"
+      },
+      "programStatuses": {
+        "ACTIVE": "Active",
+        "PAUSED": "Paused",
+        "COMPLETED": "Completed",
+        "CANCELED": "Canceled"
+      },
+      "orderStatuses": {
+        "draft": "Draft",
+        "confirmed": "Confirmed",
+        "paid": "Paid",
+        "partially_paid": "Partially paid",
+        "canceled": "Canceled",
+        "refunded": "Refunded"
+      },
+      "orderTypes": {
+        "sale": "Sale",
+        "products": "Products",
+        "appointment": "Appointment",
+        "boarding": "Boarding",
+        "training": "Training",
+        "grooming": "Grooming"
+      }
+    },
+    "customerActions": {
+      "noPhone": "This client has no phone number",
+      "intakeCreateFailed": "Couldn't create the intake form",
+      "intakeCreateError": "Error creating the intake form"
+    }
+  },
+  "dashboard": {
+    "dashboardPage": {
+      "pageTitle": "Dashboard",
+      "showAll": "View all",
+      "toasts": {
+        "intakeCopied": "Intake form link copied to clipboard!",
+        "intakeError": "Couldn't create the intake form link",
+        "bookingLinkCopied": "Booking link copied!",
+        "bookingLinkInfo": "Your client booking link:",
+        "copyFailed": "Couldn't copy"
+      },
+      "kpis": {
+        "monthRevenue": "Revenue this month",
+        "todaySub": "Today: {amount}",
+        "activeOrders": "Active orders",
+        "debtors": "Clients with a balance",
+        "todayAppointments": "Appointments today",
+        "openLeads": "Open leads",
+        "pendingBookings": "Bookings awaiting approval",
+        "needsApproval": "Needs approval"
+      },
+      "boarding": {
+        "title": "Boarding today",
+        "link": "Go to boarding",
+        "arrivals": "Check-ins",
+        "departures": "Check-outs",
+        "overdue": "Late check-out"
+      },
+      "appointments": {
+        "title": "Upcoming appointments",
+        "empty": "No upcoming appointments"
+      },
+      "orders": {
+        "title": "Recent orders",
+        "empty": "No orders"
+      },
+      "activity": {
+        "title": "Recent activity",
+        "last24h": "Last 24 hours"
+      },
+      "tasks": {
+        "title": "Open tasks",
+        "empty": "No open tasks"
+      },
+      "subscription": {
+        "expired": "Your subscription has expired — access to advanced features is limited",
+        "endsIn": "{days, plural, one {Your subscription ends in # day} other {Your subscription ends in # days}}",
+        "renew": "Renew"
+      },
+      "header": {
+        "greeting": "Hi, {name}",
+        "defaultName": "there",
+        "refresh": "Refresh data",
+        "customizeTitle": "Customize dashboard — what to show and in what order",
+        "customize": "Customize dashboard",
+        "prevDay": "Previous day",
+        "nextDay": "Next day",
+        "pickDate": "Show the dashboard for another date",
+        "today": "Today"
+      },
+      "actions": {
+        "newCustomer": "New client",
+        "bookAppointment": "Book appointment",
+        "newOrder": "New order",
+        "copied": "Copied!",
+        "intakeForm": "Intake form",
+        "intakeTitle": "Create an intake form and copy the link",
+        "onlineBooking": "Online booking",
+        "onlineBookingTitle": "Copy the online booking link"
+      },
+      "welcome": {
+        "title": "Welcome to Petra!",
+        "subtitle": "You're all set — let's start building your business. Here are a few first steps:",
+        "firstCustomer": "Add your first client",
+        "firstCustomerDesc": "Enter your first client's details",
+        "firstAppointment": "Book your first appointment",
+        "firstAppointmentDesc": "Schedule a first appointment with a client",
+        "setupServices": "Set up services and pricing",
+        "setupServicesDesc": "Add the services your business offers",
+        "intakeDesc": "Copy an intake form link and send it to a client",
+        "bookingDesc": "Copy your booking page link for your website"
+      }
+    },
+    "dashboardCustomizeModal": {
+      "toasts": {
+        "reset": "Dashboard reset to default",
+        "saved": "Layout saved",
+        "saveError": "Couldn't save the layout"
+      },
+      "title": "Customize dashboard",
+      "subtitle": "Choose what to show and in what order. Personal to you, on every device.",
+      "areas": "Sections",
+      "areasShown": "({count} shown)",
+      "moveUp": "Move up: {label}",
+      "moveDown": "Move down: {label}",
+      "show": "Show {label}",
+      "statsHeading": "Stat cards",
+      "resetDefault": "Reset to default"
+    },
+    "newAppointmentModal": {
+      "title": "New manual appointment",
+      "submit": "Book appointment",
+      "toasts": {
+        "created": "Appointment created!",
+        "createError": "Couldn't create the appointment. Try again."
+      },
+      "errors": {
+        "create": "Couldn't create the appointment",
+        "save": "Couldn't save the appointment. Try again."
+      },
+      "fields": {
+        "customer": "Client *",
+        "pet": "Pet (optional)",
+        "noPet": "No pet selected",
+        "service": "Service *",
+        "selectService": "Select a service...",
+        "durationSuffix": " ({duration} min)",
+        "date": "Date *",
+        "startTime": "Start time",
+        "endTime": "End time",
+        "notes": "Notes",
+        "notesPlaceholder": "Additional notes..."
+      }
+    },
+    "newCustomerModal": {
+      "title": "New client",
+      "subtitle": "Add a client to the system",
+      "submit": "Add client",
+      "other": "Other",
+      "completeLater": "You can fill these in later",
+      "toasts": {
+        "created": "Client created",
+        "createError": "Couldn't create the client"
+      },
+      "fields": {
+        "name": "Full name *",
+        "namePlaceholder": "Client name",
+        "phone": "Phone *",
+        "email": "Email",
+        "address": "Address",
+        "addressPlaceholder": "Street, city",
+        "tags": "Client tags",
+        "requestedService": "Requested service",
+        "choose": "Select...",
+        "source": "Referral source",
+        "notes": "Notes"
+      },
+      "serviceOptions": {
+        "training": "Training",
+        "grooming": "Grooming",
+        "boarding": "Boarding"
+      },
+      "sourceOptions": {
+        "unknown": "— Unknown —",
+        "referral": "Client referral",
+        "google": "Google",
+        "instagram": "Instagram",
+        "facebook": "Facebook",
+        "tiktok": "TikTok",
+        "signage": "Sign / walk-by"
+      },
+      "pet": {
+        "add": "Add a pet",
+        "optional": "(optional)",
+        "name": "Pet name",
+        "namePlaceholder": "Buddy",
+        "species": "Type",
+        "dog": "Dog",
+        "cat": "Cat",
+        "breed": "Breed",
+        "breedPlaceholder": "Labrador",
+        "age": "Age"
+      }
+    },
+    "revenueChart": {
+      "title": "Recent revenue",
+      "toReports": "Reports",
+      "total": "Total {amount}",
+      "topService": "Top service:",
+      "legendRevenue": "Revenue",
+      "legendTarget": "Target",
+      "ariaLabel": "Monthly revenue chart. Total {amount} in the selected period",
+      "targetLabel": "Target {amount}"
+    },
+    "dashUi": {
+      "waSend": "Send a WhatsApp message",
+      "sent": "Sent",
+      "markDone": "Mark as done",
+      "priority": {
+        "URGENT": "Urgent",
+        "HIGH": "High",
+        "MEDIUM": "Medium",
+        "LOW": "Low"
+      }
+    },
+    "dashboardShared": {
+      "taskCategories": {
+        "GENERAL": "General",
+        "BOARDING": "Boarding",
+        "TRAINING": "Training",
+        "LEADS": "Leads",
+        "HEALTH": "Health",
+        "MEDICATION": "Medications",
+        "FEEDING": "Feeding"
+      },
+      "appointmentStatus": {
+        "scheduled": "Scheduled",
+        "completed": "Completed",
+        "canceled": "Canceled",
+        "no_show": "No-show"
+      },
+      "serviceTabs": {
+        "all": "All",
+        "training": "Training",
+        "boarding": "Boarding",
+        "grooming": "Grooming"
+      },
+      "orderTypes": {
+        "sale": "Products",
+        "products": "Products",
+        "appointment": "Appointment",
+        "boarding": "Boarding",
+        "training": "Training",
+        "grooming": "Grooming"
+      },
+      "orderStatus": {
+        "draft": "Draft",
+        "confirmed": "Confirmed",
+        "completed": "Completed",
+        "canceled": "Canceled",
+        "cancelled": "Canceled"
+      },
+      "relativeTime": {
+        "now": "Just now",
+        "minutesAgo": "{count, plural, one {# minute ago} other {# minutes ago}}",
+        "hoursAgo": "{count, plural, one {# hour ago} other {# hours ago}}",
+        "daysAgo": "{count, plural, one {# day ago} other {# days ago}}"
+      }
+    },
+    "activityFeed": {
+      "empty": "No activity in the last 24 hours",
+      "sent": "Sent",
+      "failed": "Failed"
+    },
+    "atRiskCustomers": {
+      "title": "Clients at risk of not returning",
+      "subtitle": "{count, plural, one {# client hasn't visited in 60+ days} other {# clients haven't visited in 60+ days}}",
+      "sendAllTitle": "Send messages to every client on the list",
+      "sendAll": "Send to all",
+      "allCustomers": "All clients",
+      "notVisited": "{days, plural, one {No visit for # day} other {No visit for # days}}",
+      "totalVisits": "{count, plural, one {# visit total} other {# visits total}}",
+      "sendOneTitle": "Send a win-back WhatsApp message"
+    },
+    "dailyFocus": {
+      "allDay": "All day",
+      "overdue": "Overdue",
+      "yesterday": "Yesterday",
+      "overdueAt": "Overdue · {when}",
+      "dateFormats": {
+        "time": "h:mm a",
+        "dayMonth": "MM/dd"
+      },
+      "filters": {
+        "all": "All",
+        "overdue": "{count} overdue",
+        "today": "{count} today"
+      },
+      "title": "Daily focus",
+      "subtitleOne": "{count} task waiting",
+      "subtitleOther": "{count} tasks waiting",
+      "allTasks": "All tasks",
+      "showMore": "Show {count} more"
+    },
+    "leadAlerts": {
+      "row": {
+        "customer": " · Client: {name}",
+        "handleTitle": "Handle lead",
+        "handle": "Handle"
+      },
+      "today": {
+        "title": "Today's follow-ups",
+        "subtitleOne": "{count} lead to handle today",
+        "subtitleOther": "{count} leads to handle today",
+        "link": "Follow-ups",
+        "meta": "Follow up today"
+      },
+      "overdue": {
+        "title": "Overdue lead follow-ups",
+        "subtitleOne": "{count} lead past follow-up time",
+        "subtitleOther": "{count} leads past follow-up time",
+        "link": "Leads board",
+        "meta": "Overdue: {time}"
+      }
+    },
+    "medications": {
+      "title": "Medications – pets in boarding",
+      "fullBoard": "Full board",
+      "more": "And {count, plural, one {# more pet} other {# more pets}}"
+    },
+    "petBirthdays": {
+      "title": "Birthdays this week",
+      "subtitle": "{count, plural, one {# pet celebrates} other {# pets celebrate}} in the next 7 days",
+      "years": "{count, plural, one {# yr} other {# yrs}}",
+      "today": "Today",
+      "inDays": "In {count, plural, one {# day} other {# days}}",
+      "sendTitle": "Send birthday greeting",
+      "send": "Greet"
+    },
+    "tomorrowReminders": {
+      "titleWhatsApp": "Tomorrow's reminders",
+      "titlePlain": "Tomorrow's appointments",
+      "subtitleWhatsApp": "{count, plural, one {# appointment} other {# appointments}} scheduled",
+      "subtitlePlain": "{count, plural, one {# appointment} other {# appointments}} — remember to contact your clients",
+      "sendAll": "Send all ({count})",
+      "upgradeLink": "Upgrade to send WhatsApp",
+      "resendTitle": "Send again",
+      "sendTitle": "Send WhatsApp reminder",
+      "sent": "Sent ✓",
+      "send": "Send",
+      "noPhone": "No phone",
+      "upgradeHint": "Upgrade to <link>Pro</link> to send automatic WhatsApp reminders"
+    },
+    "topDebtors": {
+      "title": "Open payments",
+      "subtitleOne": "{count} client with a balance",
+      "subtitleOther": "{count} clients with a balance",
+      "allDebtors": "All debtors",
+      "sendTitle": "Send WhatsApp reminder"
+    },
+    "upcomingAppointments": {
+      "status": {
+        "scheduled": "Scheduled",
+        "completed": "Completed",
+        "canceled": "Canceled",
+        "no_show": "No-show"
+      },
+      "subtypes": {
+        "private": "Private",
+        "individual": "Private",
+        "group": "Group",
+        "boarding": "Boarding",
+        "package": "Package"
+      },
+      "fallbackName": "Appointment",
+      "tod": {
+        "morning": "Morning",
+        "noon": "Midday",
+        "afternoon": "Afternoon",
+        "evening": "Evening"
+      }
+    },
+    "vaccinations": {
+      "createTaskError": "Error creating task",
+      "title": "Rabies vaccines",
+      "subtitle": "{count, plural, one {# pet} other {# pets}} with an expired / expiring vaccine",
+      "allLink": "All vaccines",
+      "expired": "Expired {date}",
+      "expiresIn": "Expires in {count, plural, one {# day} other {# days}} · {date}",
+      "taskCreated": "Task created",
+      "createTaskTitle": "Create reminder task",
+      "taskTitle": "Renew rabies vaccine — {pet} ({customer})",
+      "task": "Task",
+      "sendTitle": "Send vaccine reminder on WhatsApp"
+    }
+  },
   "errors": {
     "dashboardError": {
       "updating": "Updating to the latest version...",
@@ -57,6 +2026,92 @@
       "home": "Go to home",
       "clientsList": "Go to client list",
       "contactSupport": "If you think the link is correct, contact support"
+    }
+  },
+  "finance": {
+    "financeTabs": {
+      "pricing": "Price list",
+      "orders": "Orders",
+      "paymentRequests": "Payment requests",
+      "payments": "Payments"
+    },
+    "invoicesPage": {
+      "title": "Invoices",
+      "newInvoice": "New invoice",
+      "empty": "No invoices yet",
+      "summary": {
+        "issued": "Issued",
+        "monthTotal": "Total this month",
+        "drafts": "Drafts",
+        "failed": "Failed"
+      },
+      "create": {
+        "subtitle": "Create a draft invoice",
+        "customerLabel": "Client *",
+        "customerSearch": "Search clients...",
+        "docType": "Document type",
+        "vatExemptNote": "Tax-exempt businesses issue receipts only (no tax invoice)",
+        "lines": "Line items",
+        "addLine": "+ Add line",
+        "description": "Description",
+        "quantity": "Qty",
+        "price": "Price",
+        "subtotal": "Subtotal before tax",
+        "vatExemptLine": "No sales tax — tax-exempt",
+        "vatLine": "Sales tax ({rate}%)",
+        "total": "Total",
+        "notes": "Notes",
+        "creating": "Creating...",
+        "createDraft": "Create draft"
+      },
+      "errors": {
+        "create": "Couldn't create the invoice",
+        "issue": "Couldn't issue",
+        "issueInvoice": "Couldn't issue the invoice",
+        "credit": "Couldn't create the credit note",
+        "delete": "Couldn't delete",
+        "deleteDoc": "Couldn't delete the document"
+      },
+      "toasts": {
+        "creditCreated": "Credit note created",
+        "draftDeleted": "Draft deleted"
+      },
+      "filters": {
+        "all": "All"
+      },
+      "table": {
+        "caption": "Invoice list",
+        "type": "Type",
+        "customer": "Client",
+        "amount": "Amount",
+        "status": "Status",
+        "date": "Date",
+        "docNumber": "Doc no.",
+        "actions": "Actions",
+        "creditTag": "(credit)"
+      },
+      "actions": {
+        "view": "View invoice",
+        "retry": "Try again",
+        "issue": "Issue",
+        "createCredit": "Create credit note",
+        "deleteDraft": "Delete draft"
+      },
+      "confirm": {
+        "creditTitle": "Create a credit note?",
+        "deleteTitle": "Delete this draft?",
+        "creditBody": "A credit note will be created for {name} for {amount}.",
+        "documentFallback": "the document",
+        "irreversible": "This action can't be undone.",
+        "working": "Working...",
+        "confirmCredit": "Yes, create credit",
+        "confirmDelete": "Yes, delete",
+        "back": "Back"
+      },
+      "tierGate": {
+        "title": "Invoices and financial documents",
+        "description": "Issue professional invoices, receipts and billing documents with the Morning (Green Invoice) integration. Available on Pro and up."
+      }
     }
   },
   "help": {
@@ -1273,6 +3328,1416 @@
       }
     }
   },
+  "leads": {
+    "leadsPage": {
+      "newLead": {
+        "existingPhoneWarning": "A lead with this number already exists: {name}",
+        "errorFallback": "Error",
+        "createdWithExistingCustomer": "Lead created — note: {name} is already a client",
+        "created": "Lead created",
+        "createError": "Couldn't create the lead. Try again.",
+        "phoneRequired": "Phone is required",
+        "title": "New lead",
+        "nameLabel": "Name *",
+        "phoneLabel": "Phone *",
+        "emailLabel": "Email",
+        "cityLabel": "City",
+        "cityPlaceholder": "Austin",
+        "addressLabel": "Street address",
+        "addressPlaceholder": "Street, number",
+        "serviceLabel": "Requested service",
+        "servicePlaceholder": "Training, boarding, grooming...",
+        "sourceLabel": "Source",
+        "stageLabel": "Stage",
+        "notesLabel": "Notes",
+        "submit": "Add lead"
+      },
+      "followUp": {
+        "none": "No follow-up date",
+        "overdue": "Overdue · {date}",
+        "today": "Today",
+        "tomorrow": "Tomorrow {date}",
+        "weekday": "{weekday} {date}",
+        "withTime": "{label} · {time}",
+        "dayMonth": "{month}/{day}",
+        "weekdays": {
+          "sun": "Sun",
+          "mon": "Mon",
+          "tue": "Tue",
+          "wed": "Wed",
+          "thu": "Thu",
+          "fri": "Fri",
+          "sat": "Sat"
+        },
+        "columns": {
+          "overdue": "Overdue",
+          "today": "Today",
+          "tomorrow": "Tomorrow",
+          "week": "This week",
+          "later": "Later / no date"
+        },
+        "quick": {
+          "today18": "Today 6:00 PM",
+          "tomorrow10": "Tomorrow 10:00 AM",
+          "in3Days": "In 3 days",
+          "inWeek": "In a week"
+        },
+        "picker": {
+          "saved": "Follow-up saved and task created",
+          "cleared": "Follow-up cleared",
+          "updateError": "Couldn't update the follow-up",
+          "invalidDate": "Invalid date",
+          "title": "Follow-up · {name}",
+          "save": "Save",
+          "clear": "Clear"
+        },
+        "emptyOverdue": "No overdue follow-ups",
+        "empty": "No follow-ups here"
+      },
+      "card": {
+        "deselectLead": "Deselect lead",
+        "selectLead": "Select lead",
+        "dealValue": "Deal value",
+        "details": "Lead details",
+        "existingCustomerTitle": "Existing client: {name}",
+        "existingCustomer": "Existing client",
+        "returningLeadTitle": "Returning lead — previous inquiry: {name}",
+        "returningLead": "Returning lead",
+        "updateFollowUp": "Update follow-up",
+        "whatsapp": "WhatsApp",
+        "logCall": "Log call"
+      },
+      "column": {
+        "changeColor": "Change color",
+        "colorFor": "Color for stage \"{name}\"",
+        "colorSwatch": "Color {color}",
+        "totalDealValue": "Total deal value in stage",
+        "cannotDelete": "This stage can't be deleted",
+        "deleteStage": "Delete stage",
+        "empty": "No leads in this stage"
+      },
+      "dropZones": {
+        "won": "Won · became a client",
+        "wonCount": "{count} won{suffix}",
+        "lost": "Lost · to archive",
+        "lostCount": "{count} lost{suffix}"
+      },
+      "list": {
+        "headers": {
+          "lead": "Lead",
+          "service": "Service",
+          "city": "City",
+          "source": "Source",
+          "stage": "Stage",
+          "followUp": "Follow-up",
+          "value": "Value"
+        },
+        "empty": "No leads found"
+      },
+      "mobile": {
+        "focusTab": "To handle",
+        "callClient": "Call client",
+        "emptyFocus": "No leads to handle today",
+        "empty": "No leads here"
+      },
+      "archive": {
+        "filters": {
+          "all": "All",
+          "won": "Won",
+          "lost": "Lost"
+        },
+        "headers": {
+          "lead": "Lead",
+          "service": "Service",
+          "status": "Status",
+          "reason": "Reason / note",
+          "date": "Date",
+          "value": "Value"
+        },
+        "sendWhatsapp": "Send WhatsApp",
+        "wonBadge": "Won",
+        "lostBadge": "Lost",
+        "restore": "Restore lead",
+        "noResults": "No results found",
+        "empty": "The archive is empty"
+      },
+      "addStage": {
+        "button": "Add stage",
+        "placeholder": "Stage name..."
+      },
+      "deleteStage": {
+        "title": "Delete stage \"{name}\"",
+        "hasLeads": "This stage can't be deleted because it has {count, plural, one {# lead} other {# leads}}. Move them to another stage first.",
+        "gotIt": "Got it",
+        "confirm": "Delete this stage? This can't be undone.",
+        "delete": "Delete stage"
+      },
+      "restore": {
+        "restored": "\"{name}\" is back in the leads pipeline",
+        "error": "Couldn't restore the lead",
+        "title": "Restore lead to board",
+        "toLastStage": "Restore <b>{name}</b> to their last stage?",
+        "restoreHere": "Restore to this stage",
+        "pickOther": "Pick another stage",
+        "whichStage": "Which stage should <b>{name}</b> go back to?",
+        "restore": "Restore lead"
+      },
+      "toasts": {
+        "leadNotFound": "Lead not found",
+        "moveError": "Couldn't move the lead. Try again.",
+        "stageUpdateError": "Couldn't update the stage. Try again.",
+        "stageCreated": "Stage created",
+        "stageCreateError": "Couldn't create the stage. Try again.",
+        "stageDeleted": "Stage deleted",
+        "stageDeleteError": "Couldn't delete the stage. Try again.",
+        "reorderError": "Couldn't reorder the stages. Try again.",
+        "bulkDeleted": "{count, plural, one {# lead deleted} other {# leads deleted}}",
+        "bulkPending": "{count, plural, one {# delete request sent} other {# delete requests sent}} for owner approval",
+        "bulkFailed": "{count, plural, one {# delete failed} other {# deletes failed}}. Try again.",
+        "bulkError": "Couldn't delete the leads. Try again.",
+        "followUpMoved": "Follow-up for {name}: {label}",
+        "followUpMoveError": "Couldn't update the follow-up. Try again."
+      },
+      "views": {
+        "board": "Pipeline",
+        "followup": "Follow-ups · {count}",
+        "list": "List",
+        "archive": "Archive · {count}",
+        "reports": "Reports"
+      },
+      "header": {
+        "title": "Sales",
+        "cancel": "Cancel",
+        "select": "Select",
+        "upgrade": "Upgrade to Basic",
+        "newLead": "New lead",
+        "oneOpenLead": "1 open lead",
+        "openLeads": "{count} open leads",
+        "pipeline": "{amount} in pipeline",
+        "overdue": "{count} overdue",
+        "today": "{count} due today"
+      },
+      "toolbar": {
+        "searchArchive": "Search archive",
+        "searchPlaceholder": "Search by name, phone or city",
+        "clearSearch": "Clear search",
+        "archiveHits": "{count} found in archive →",
+        "sourceFilter": "Filter by source",
+        "allSources": "All sources",
+        "cancelSelection": "Cancel selection",
+        "select": "Select",
+        "doneEditing": "Done editing",
+        "editStages": "Edit stages",
+        "exportLeads": "Export leads",
+        "export": "Export",
+        "exportTitle": "Export leads to Excel",
+        "exportFrom": "From date",
+        "exportTo": "To date",
+        "exportHint": "No date filter — exports all leads",
+        "downloadCsv": "Download CSV",
+        "refreshNow": "Refresh now",
+        "autoRefreshOff": "Turn off auto-refresh",
+        "autoRefreshOn": "Turn on auto-refresh (30s)",
+        "autoActive": "Auto on",
+        "autoRefresh": "Auto-refresh"
+      },
+      "limit": {
+        "reached": "<b>You've reached {max} leads</b> — the free plan limit.",
+        "upgrade": "Upgrade to Basic →"
+      },
+      "bulk": {
+        "selectAll": "Select all",
+        "selectedCount": "{count} selected",
+        "deleteSelected": "Delete selected",
+        "confirmTitle": "Delete {count, plural, one {# lead} other {# leads}}?",
+        "confirmBody": "The selected leads will be permanently deleted, including their call history. This can't be undone.",
+        "confirmDelete": "Delete {count, plural, one {# lead} other {# leads}}"
+      },
+      "editBanner": "<b>Edit mode on</b> — click a stage name to rename it, drag <grip></grip> to reorder, click the colored dot to change its color, or <trash></trash> to delete.",
+      "wonToast": {
+        "becameClient": "{name} became a client",
+        "converted": "The lead was converted to a new client",
+        "viewClient": "View client"
+      },
+      "tierGate": {
+        "title": "Leads & sales",
+        "description": "Lead management, CRM and sales tracking. Follow potential clients, send messages and track conversions."
+      }
+    },
+    "allDogBotChat": {
+      "error": "Error",
+      "sentOnWhatsApp": "Sent on WhatsApp",
+      "backToBotToast": "Chat handed back to the bot",
+      "status": {
+        "handoff": "With a rep",
+        "handoffAutoResume": "With a rep · back to the bot automatically {time}",
+        "stopped": "Client asked to stop",
+        "closedPartial": "Closed midway · client stopped replying",
+        "general": "General inquiry for Or · not about a dog",
+        "active": "Bot is replying"
+      },
+      "title": "WhatsApp with the bot",
+      "resumeBot": "Back to bot",
+      "noMessages": "No messages",
+      "roleRep": "Rep",
+      "roleBot": "Bot",
+      "imageAlt": "Photo from the client",
+      "image": "Photo",
+      "openFile": "Open file",
+      "replyPlaceholder": "Reply to the client (sent from the bot's number; the bot pauses)",
+      "send": "Send",
+      "windowClosed": "It's been 24 hours since the client's last message, so WhatsApp doesn't allow sending text. You can call.",
+      "noReplyYet": "The client hasn't replied yet – you can call them"
+    },
+    "leadDetailsModal": {
+      "addDogNow": "Add a dog now",
+      "toasts": {
+        "wonCreated": "Lead closed and a new client was created",
+        "wonError": "Error closing the lead",
+        "lostSaved": "Lead marked as lost and the reason was saved.",
+        "lostError": "Error marking the lead as lost"
+      },
+      "taskTitle": "Follow up on lead: {name}",
+      "attribution": {
+        "medium": "Medium: {value}",
+        "campaign": "Campaign: {value}",
+        "pageType": "Page type: {value}"
+      },
+      "subtitle": "Call logs and follow-ups",
+      "wonBanner": "Lead closed successfully",
+      "lostBanner": "Lost lead",
+      "closingWon": "Closing...",
+      "closeWon": "Won",
+      "closeLost": "Lost",
+      "tabs": {
+        "logs": "Call logs",
+        "task": "Follow-up task"
+      },
+      "logForm": {
+        "summaryLabel": "Call summary *",
+        "summaryPlaceholder": "Short description of the call...",
+        "treatmentLabel": "Your next action *",
+        "treatmentPlaceholder": "What are the next steps?",
+        "updateLog": "Update log",
+        "addLog": "Add log"
+      },
+      "previousLogs": "Previous logs",
+      "noLogs": "No call logs yet",
+      "logDateTime": "{date} at {time}",
+      "logSummary": "Summary",
+      "logTreatment": "Next action",
+      "taskForm": {
+        "hint": "The task will appear on the dashboard on the selected date",
+        "descriptionLabel": "Task description *",
+        "descriptionPlaceholder": "Detailed task description...",
+        "dueDateLabel": "Due date *",
+        "creating": "Creating...",
+        "create": "Create task"
+      },
+      "confirmWon": {
+        "title": "Close the lead as a client?",
+        "descriptionExisting": "The lead will be marked as won.",
+        "descriptionNew": "The lead will be marked as won and a new client will be created from it.",
+        "confirm": "Yes, close as client"
+      },
+      "confirmDeleteLog": {
+        "title": "Delete this call log?"
+      }
+    },
+    "leadMeetingsSection": {
+      "toasts": {
+        "updated": "Meeting updated",
+        "scheduled": "Meeting scheduled",
+        "saveError": "Error saving the meeting",
+        "canceled": "Meeting canceled",
+        "cancelError": "Error canceling the meeting",
+        "converted": "{name} is now a client",
+        "openCustomer": "Open client file",
+        "noShow": "Marked as no-show — follow-up set for tomorrow",
+        "outcomeError": "Error saving the meeting outcome"
+      },
+      "title": "Meetings",
+      "schedule": "Schedule meeting",
+      "alreadyCustomer": "This lead is already a client — book a regular appointment in the calendar.",
+      "loadError": "Error loading meetings",
+      "empty": "No meetings yet",
+      "actions": {
+        "completed": "Took place",
+        "noShow": "No-show",
+        "postponed": "Postponed",
+        "edit": "Edit",
+        "cancelMeeting": "Cancel meeting"
+      },
+      "form": {
+        "title": "Meeting with {name}",
+        "date": "Date",
+        "startTime": "Start time",
+        "endTime": "End time",
+        "service": "Service",
+        "location": "Location",
+        "notes": "Notes",
+        "optional": "(optional)",
+        "noService": "No service",
+        "reminderHint": "The lead stays a lead. A WhatsApp reminder is sent automatically the day before.",
+        "errors": {
+          "required": "Please fill in the date and times",
+          "startBeforeEnd": "Start time must be before end time"
+        }
+      },
+      "confirmCancel": {
+        "title": "Cancel this meeting?",
+        "description": "The meeting with {name} on {day} at {time} will be canceled, and the reminder won't be sent.",
+        "keep": "Keep"
+      }
+    },
+    "leadTreatmentModal": {
+      "timeline": {
+        "planned": "Planned",
+        "edit": "Edit",
+        "followUpTask": "Follow-up task",
+        "created": "Lead created",
+        "stageChange": "Stage change",
+        "dealValue": "Deal value",
+        "callLogged": "Call logged",
+        "followUpDone": "Follow-up completed",
+        "followUpScheduled": "Follow-up scheduled",
+        "won": "Lead won — client created",
+        "lost": "Lead lost"
+      },
+      "callLog": {
+        "title": "Call log",
+        "summaryLabel": "Summary",
+        "treatmentLabel": "Follow-up task for the client",
+        "draftRestored": "Unsaved draft restored",
+        "clearDraft": "Clear draft",
+        "summaryPlaceholder": "What was said on the call? What did you agree on?",
+        "treatmentPlaceholder": "What are the next steps with this lead?"
+      },
+      "errors": {
+        "updateInvalid": "Couldn't update the lead. Check the details and try again.",
+        "update": "Couldn't update the lead. Try again.",
+        "dealValue": "Couldn't save the deal value",
+        "closeWon": "Couldn't close the lead. Try again.",
+        "closeLost": "Couldn't mark the lead as lost. Try again.",
+        "editLog": "Couldn't update the call log. Try again.",
+        "deleteLog": "Couldn't delete the call log. Try again.",
+        "deleteLeadShort": "Couldn't delete the lead",
+        "deleteLead": "Couldn't delete the lead. Try again.",
+        "nameInvalid": "Invalid name — enter at least 2 characters",
+        "saveCallLog": "Couldn't save the call log. Try again."
+      },
+      "toasts": {
+        "deletePending": "Request sent to the owner for approval",
+        "alreadyDeleted": "The lead was already deleted",
+        "deleted": "Lead deleted",
+        "detailsSaved": "Lead details saved"
+      },
+      "deal": {
+        "label": "Deal value",
+        "ariaLabel": "Deal value",
+        "edit": "Edit",
+        "add": "Add value"
+      },
+      "header": {
+        "ariaLabel": "Lead card: {name}",
+        "entered": "Added {date}",
+        "deleteLead": "Delete lead",
+        "deleteConfirm": "Delete?",
+        "deleteYes": "Yes, delete",
+        "call": "Call client",
+        "whatsappTitle": "Send a WhatsApp message",
+        "whatsapp": "WhatsApp"
+      },
+      "close": {
+        "wonPending": "Closing...",
+        "won": "Won as client",
+        "lostPending": "Marking...",
+        "lost": "Lost",
+        "wonBanner": "Lead won — client created",
+        "lostBanner": "Lead lost"
+      },
+      "stage": {
+        "title": "Sales stage",
+        "pendingHint": "The stage will update when you click \"Save and close\""
+      },
+      "followUp": {
+        "next": "Next follow-up",
+        "notSet": "Not scheduled",
+        "dateLabel": "Follow-up date",
+        "statusAriaLabel": "Follow-up status",
+        "pending": "Pending",
+        "completed": "Done",
+        "required": "Set a follow-up date before saving a call"
+      },
+      "details": {
+        "editTitle": "Edit details",
+        "fields": {
+          "name": "Lead name",
+          "phone": "Phone",
+          "email": "Email",
+          "city": "City",
+          "address": "Address",
+          "requestedService": "Requested service"
+        },
+        "source": "Source",
+        "city": "City",
+        "save": "Save details"
+      },
+      "history": {
+        "title": "History",
+        "empty": "No history yet"
+      },
+      "footer": {
+        "saveAndClose": "Save and close"
+      },
+      "confirmWon": {
+        "title": "Close this lead as a client?",
+        "descExisting": "The lead will be marked as won.",
+        "descNew": "The lead will be marked as won and a new client will be created from it.",
+        "confirm": "Yes, won as client"
+      },
+      "confirmDeleteLog": {
+        "title": "Delete this call log?"
+      }
+    },
+    "leadsReports": {
+      "errors": {
+        "pickDates": "Choose a start date and an end date",
+        "startBeforeEnd": "The start date must be before the end date",
+        "maxRange": "The maximum range is 5 years"
+      },
+      "loadFailed": "We couldn't load the report",
+      "retry": "Try again",
+      "asOfToday": "· As of today",
+      "refreshing": "Refreshing",
+      "refreshFailed": "· Refresh failed, showing previous data",
+      "empty": {
+        "title": "No leads in this range yet",
+        "body": "Try a wider date range, or add leads — reports fill in automatically."
+      }
+    },
+    "lostReasonModal": {
+      "title": "Mark lead as lost",
+      "subtitle": "Choose a loss reason for reporting",
+      "reasonLabel": "Reason *",
+      "reasonPlaceholder": "Choose a reason...",
+      "otherLabel": "Explain briefly... *",
+      "noteLabel": "Note (optional)",
+      "otherPlaceholder": "Reason for the loss...",
+      "notePlaceholder": "Add a note...",
+      "confirm": "Confirm"
+    },
+    "reportCharts": {
+      "monthly": {
+        "title": "Monthly trend",
+        "hint": "Created by creation date, won by win date, lost by loss date",
+        "wonValue": "Value won",
+        "created": "Created",
+        "won": "Won",
+        "lost": "Lost"
+      },
+      "funnel": {
+        "title": "Sales funnel",
+        "hint": "\"Reached stage\" = leads that reached this stage or a later one (including won leads). The percentage = conversion from the previous stage.",
+        "continued": "↓ {pct}% moved on",
+        "continuedNone": "↓ — moved on",
+        "reachedNow": "<b>{reached}</b> reached · {current} now"
+      },
+      "responseTime": {
+        "title": "First response time",
+        "hint": "From lead creation to the first logged call/message (leads created in the range)",
+        "leadsCount": "{count} leads"
+      },
+      "aging": {
+        "title": "Age of open leads",
+        "hint": "All currently open leads, by time since they were created (not range-dependent)",
+        "leadsCount": "{count} leads"
+      },
+      "stale": {
+        "title": "Open leads by stage",
+        "hint": "All currently open leads. A stage whose oldest lead has been open over {days} days is marked in red.",
+        "colStage": "Stage",
+        "colLeads": "Leads",
+        "colOldest": "Oldest",
+        "days": "{days} days"
+      }
+    },
+    "reportControls": {
+      "dateRange": "Date range",
+      "fromDate": "From",
+      "toDate": "To",
+      "basisAriaLabel": "Calculation basis"
+    },
+    "reportKpis": {
+      "pointsUnit": " pts",
+      "new": "New",
+      "totalLeads": "Total leads",
+      "vsPreviousPeriod": "vs. previous period",
+      "conversionRate": "Close rate",
+      "wonLostOpen": "{won} won · {lost} lost · {open} open",
+      "rate": "Rate",
+      "dotWon": "· Won",
+      "firstResponseTime": "First response time",
+      "avgMedianResponded": "Average · median {median} · {count} responded",
+      "unrespondedOpen": "{count, plural, one {# open lead} other {# open leads}} with no response",
+      "avgTimeToClose": "Avg. time to close",
+      "fromCreationToClose": "From lead creation to close",
+      "wonDealsValue": "Won deals value",
+      "withValueOfWon": "{count} of {won} with a value",
+      "avgDeal": "Average deal",
+      "ofWonWithValue": "Of won leads with a value",
+      "pipelineValue": "Pipeline value",
+      "allOpenNow": "All currently open leads · {count} with a value",
+      "forecast": "Forecast",
+      "forecastBasis": "Based on the last 12 months' close rate: {rate}"
+    },
+    "reportTables": {
+      "columns": {
+        "total": "Total",
+        "won": "Won",
+        "lost": "Lost",
+        "open": "Open",
+        "conversionRate": "Close rate",
+        "wonValue": "Won value",
+        "rate": "Rate"
+      },
+      "bySource": {
+        "title": "By lead source",
+        "hint": "Intake channel chosen on the lead (Google, Instagram, referral…)",
+        "firstColumn": "Source"
+      },
+      "byTrafficSource": {
+        "title": "By traffic source",
+        "hint": "Where the visitor came to the website from (UTM / referrer) — website leads",
+        "firstColumn": "Traffic source"
+      },
+      "byLandingPage": {
+        "title": "By landing page",
+        "page": "Page"
+      },
+      "byCloser": {
+        "title": "By closer",
+        "hint": "Who moved the lead to won / lost",
+        "user": "User",
+        "notRecorded": "Not recorded"
+      },
+      "lostReasons": {
+        "title": "Lost reasons",
+        "tooltip": "{count, plural, one {{n} lead} other {{n} leads}}"
+      }
+    },
+    "format": {
+      "rangePresets": {
+        "d7": "7 days",
+        "d30": "30 days",
+        "quarter": "Quarter",
+        "halfYear": "6 months",
+        "year": "Year",
+        "fiveYears": "5 years",
+        "custom": "Custom"
+      },
+      "basis": {
+        "cohort": {
+          "label": "Leads created in period",
+          "hint": "All figures refer to leads created in the range — won/lost by their current status."
+        },
+        "activity": {
+          "label": "Activity in period",
+          "hint": "What happened in the range: leads created, won (win date) and lost (loss date) in it."
+        }
+      },
+      "months": {
+        "m1": "Jan",
+        "m2": "Feb",
+        "m3": "Mar",
+        "m4": "Apr",
+        "m5": "May",
+        "m6": "Jun",
+        "m7": "Jul",
+        "m8": "Aug",
+        "m9": "Sep",
+        "m10": "Oct",
+        "m11": "Nov",
+        "m12": "Dec"
+      },
+      "duration": {
+        "minutes": "{n} min",
+        "hours": "{count, plural, one {{n} hour} other {{n} hours}}",
+        "days": "{count, plural, one {{n} day} other {{n} days}}"
+      },
+      "sourceNotSpecified": "Not specified",
+      "trafficUnknown": "Unknown",
+      "responseBuckets": {
+        "lt1h": "Under 1 hour",
+        "h1to4": "1–4 hours",
+        "h4to24": "4–24 hours",
+        "d1to3": "1–3 days",
+        "gt3d": "Over 3 days",
+        "none": "No response"
+      },
+      "agingBuckets": {
+        "d0to7": "0–7 days",
+        "d8to14": "8–14 days",
+        "d15to30": "15–30 days",
+        "d31to60": "31–60 days",
+        "gt60": "Over 60 days"
+      }
+    }
+  },
+  "orders": {
+    "paymentRequestDialog": {
+      "title": "Payment request",
+      "subtitle": "To {name} · {amount}",
+      "close": "Close",
+      "toasts": {
+        "copied": "Message copied",
+        "copyFailed": "Couldn't copy — select the text and copy it manually"
+      },
+      "linkAttached": "Payment link attached",
+      "linkAttachedStripe": "Payment link attached (Stripe)",
+      "noLink": "No payment link is set for the products in this order (Price list → Payment link) — the message will be sent without a link.",
+      "messageLabel": "Message to send",
+      "noPhone": "This client has no phone number — copy the message and send it another way.",
+      "copyMessage": "Copy message",
+      "openWhatsApp": "Open in WhatsApp"
+    },
+    "ordersDetailPage": {
+      "status": {
+        "draft": "Draft",
+        "confirmed": "Confirmed",
+        "completed": "Completed",
+        "cancelled": "Canceled"
+      },
+      "orderTypes": {
+        "sale": "🛒 Sale",
+        "appointment": "📅 Appointment",
+        "boarding": "🏠 Boarding",
+        "training": "🐕 Training",
+        "grooming": "✂️ Grooming",
+        "products": "📦 Products"
+      },
+      "units": {
+        "per_session": "Per session",
+        "per_day": "Per day",
+        "per_night": "Per night",
+        "per_hour": "Per hour",
+        "per_item": "Per item",
+        "fixed": "Fixed"
+      },
+      "methods": {
+        "cash": "Cash",
+        "credit_card": "Credit card",
+        "bank_transfer": "Bank transfer",
+        "bit": "Bit",
+        "paybox": "PayBox",
+        "check": "Check"
+      },
+      "addPayment": {
+        "invalidAmount": "Invalid amount",
+        "saveError": "Error recording payment",
+        "saved": "Payment recorded",
+        "title": "Record payment",
+        "amountLabel": "Amount ({currency})",
+        "methodLabel": "Payment method",
+        "cardLast4": "Last 4 digits",
+        "cardType": "Card type",
+        "cardTypeOther": "Other",
+        "checkNumber": "Check number",
+        "checkDate": "Due date",
+        "checkBank": "Bank",
+        "checkBankPlaceholder": "Chase",
+        "checkBranch": "Branch",
+        "notesLabel": "Notes (optional)",
+        "notesPlaceholder": "Reference...",
+        "markDeposit": "Mark as deposit",
+        "submit": "Record payment"
+      },
+      "documentTitle": "Order #{id} — {name} | Petra",
+      "errors": {
+        "update": "Error updating",
+        "delete": "Error deleting",
+        "deleteOrder": "Error deleting the order",
+        "cancel": "Error canceling",
+        "saveLines": "Error saving items",
+        "cancelPayment": "Error canceling the payment"
+      },
+      "toasts": {
+        "completed": "Order marked as completed",
+        "deleted": "Order deleted",
+        "linesUpdated": "Order items updated",
+        "paymentCanceled": "Payment canceled"
+      },
+      "validation": {
+        "atLeastOneLine": "The order needs at least one item",
+        "lineNameRequired": "Row {row}: item name is required",
+        "lineQuantityInvalid": "Row {row}: invalid quantity",
+        "linePriceInvalid": "Row {row}: invalid price",
+        "discountInvalid": "Invalid discount value"
+      },
+      "notFound": "Order not found",
+      "backToList": "Back to list",
+      "breadcrumb": "Orders",
+      "title": "Order #{id}",
+      "createdAt": "Created {date}",
+      "actions": {
+        "confirmOrder": "Confirm order",
+        "markCompleted": "Mark as completed",
+        "cancelOrder": "Cancel order",
+        "cancelUnpaidTitle": "The order is unpaid — canceling removes the client's balance",
+        "deleteOrder": "Delete order"
+      },
+      "info": {
+        "customer": "Client",
+        "startDate": "Start date",
+        "endDate": "End date",
+        "notes": "Notes"
+      },
+      "training": {
+        "open": "Open training program",
+        "description": "View the training plan, sessions and goals"
+      },
+      "lines": {
+        "title": "Order items",
+        "edit": "Edit items",
+        "namePlaceholder": "Item name",
+        "quantityPlaceholder": "Qty",
+        "unitPricePlaceholder": "Unit price",
+        "removeLine": "Remove item",
+        "addLine": "Add item",
+        "discount": "Discount",
+        "discountNone": "No discount",
+        "discountPercentOption": "Percent (%)",
+        "discountFixedOption": "Fixed amount ({currency})",
+        "discountPercentLabel": "Discount percent",
+        "discountFixedLabel": "Discount amount ({currency})",
+        "saveChanges": "Save changes",
+        "empty": "No items in this order",
+        "colName": "Name",
+        "colUnit": "Unit",
+        "colQuantity": "Qty",
+        "colUnitPrice": "Unit price",
+        "colTax": "Sales tax",
+        "colLineTotal": "Line total",
+        "taxExempt": "Exempt"
+      },
+      "totals": {
+        "subtotal": "Subtotal",
+        "discountPercent": "Discount ({value}%)",
+        "discountFixed": "Discount (fixed)",
+        "tax": "Sales tax",
+        "total": "Total due"
+      },
+      "payments": {
+        "title": "Payments",
+        "fullyPaid": "Paid in full",
+        "partiallyPaid": "Partially paid",
+        "unpaid": "Not paid yet",
+        "requestTitle": "Send a payment request on WhatsApp",
+        "request": "Payment request",
+        "record": "Record payment",
+        "empty": "No payments recorded yet",
+        "deposit": "(deposit)",
+        "checkNumber": "Check #{number}",
+        "checkBranch": "Branch {branch}",
+        "statusPaid": "Paid",
+        "statusPending": "Pending",
+        "statusCanceled": "Canceled",
+        "cancelTitle": "Cancel payment",
+        "summaryTotal": "Total due",
+        "paid": "Paid",
+        "remaining": "Balance due"
+      },
+      "cancelPaymentDialog": {
+        "title": "Cancel this payment?",
+        "body": "The {amount} payment will be marked as canceled and won't count toward the order balance.",
+        "canceling": "Canceling...",
+        "confirm": "Yes, cancel payment",
+        "back": "Back"
+      },
+      "cancelDialog": {
+        "deleteTitle": "Delete this order?",
+        "cancelTitle": "Cancel this order?",
+        "deleteBody": "The order will be deleted permanently. This can't be undone.",
+        "cancelBody": "This can't be undone.",
+        "confirmDelete": "Yes, delete",
+        "canceling": "Canceling...",
+        "confirmCancel": "Yes, cancel",
+        "back": "Back"
+      }
+    },
+    "ordersPage": {
+      "pageTitle": "Orders",
+      "tierGate": {
+        "title": "Order management",
+        "description": "Create and manage orders with line items, discounts and automatic sales tax."
+      },
+      "statusFilters": {
+        "all": "All statuses",
+        "active": "Active (drafts + confirmed)",
+        "draft": "Drafts",
+        "confirmed": "Confirmed",
+        "completed": "Completed",
+        "cancelled": "Canceled"
+      },
+      "statuses": {
+        "draft": "Draft",
+        "confirmed": "Confirmed",
+        "completed": "Completed",
+        "cancelled": "Canceled",
+        "canceled": "Canceled"
+      },
+      "types": {
+        "sale": "Products",
+        "appointment": "Appointment",
+        "products": "Products",
+        "training": "Training",
+        "boarding": "Boarding",
+        "grooming": "Grooming",
+        "service_dog": "Service dogs"
+      },
+      "cancelDialog": {
+        "deleteError": "Delete failed",
+        "cancelError": "Cancel failed",
+        "deleted": "Order deleted",
+        "cancelled": "Order canceled",
+        "deleteFailed": "Couldn't delete the order",
+        "cancelFailed": "Couldn't cancel the order",
+        "deleteTitle": "Delete this order?",
+        "cancelTitle": "Cancel this order?",
+        "irreversible": "This can't be undone.",
+        "cancelling": "Canceling...",
+        "confirmDelete": "Yes, delete",
+        "confirmCancel": "Yes, cancel",
+        "back": "Back"
+      },
+      "toasts": {
+        "updateError": "Update failed",
+        "markedCompleted": "Order marked as completed",
+        "confirmed": "Order confirmed",
+        "statusUpdated": "Status updated",
+        "statusUpdateFailed": "Couldn't update the status. Please try again.",
+        "popupBlocked": "Pop-up blocked — allow pop-ups in your browser"
+      },
+      "print": {
+        "docTitle": "Orders – Petra",
+        "heading": "Orders report",
+        "meta": "Generated: {date} · Total: {count, plural, one {# order} other {# orders}}",
+        "caption": "Order list",
+        "colOrderNumber": "Order #",
+        "colClient": "Client",
+        "colType": "Type",
+        "colStatus": "Status",
+        "colTotal": "Total",
+        "colPaid": "Paid",
+        "colBalance": "Balance",
+        "colDate": "Date"
+      },
+      "header": {
+        "title": "Orders",
+        "refresh": "Refresh data",
+        "export": "Export",
+        "exportExcel": "Export to Excel",
+        "exportPdf": "Export to PDF",
+        "newOrder": "New order"
+      },
+      "stats": {
+        "total": "Total orders",
+        "drafts": "Drafts",
+        "active": "Active",
+        "completed": "Completed"
+      },
+      "filters": {
+        "status": "Status",
+        "paymentStatus": "Payment status",
+        "clientSearch": "Search client",
+        "clientSearchPlaceholder": "Client name...",
+        "fromDate": "From",
+        "toDate": "To",
+        "clear": "Clear"
+      },
+      "paymentFilters": {
+        "all": "All",
+        "paid": "Paid",
+        "unpaid": "Unpaid"
+      },
+      "datePresets": {
+        "today": "Today",
+        "week": "This week",
+        "month": "This month",
+        "all": "All"
+      },
+      "states": {
+        "loadError": "Couldn't load orders",
+        "loadErrorHint": "We couldn't load the data. Please try again.",
+        "reload": "Reload page",
+        "empty": "No orders",
+        "emptyFiltered": "No orders found in the selected range",
+        "emptyNone": "No orders have been created yet",
+        "showAll": "Show all orders"
+      },
+      "card": {
+        "items": "{count, plural, one {# item} other {# items}}",
+        "subtotal": "Subtotal",
+        "discount": "Discount",
+        "vat": "Sales tax",
+        "totalDue": "Total due",
+        "paid": "Paid",
+        "balance": "Balance"
+      },
+      "actions": {
+        "viewDetails": "View details",
+        "recordPayment": "Record payment",
+        "confirmOrder": "Confirm order",
+        "markCompleted": "Mark as completed",
+        "completed": "Completed",
+        "sendPaymentRequest": "Send payment request",
+        "sendPaymentRequestWhatsApp": "Send payment request via WhatsApp",
+        "cancel": "Cancel",
+        "cancelOrder": "Cancel order",
+        "deleteOrder": "Delete order"
+      },
+      "table": {
+        "orderNumber": "Order #",
+        "client": "Client",
+        "type": "Type",
+        "status": "Status",
+        "totalDue": "Total due",
+        "payment": "Payment",
+        "createdAt": "Created",
+        "actions": "Actions",
+        "paid": "Paid",
+        "partiallyPaid": "Partially paid",
+        "unpaid": "Unpaid"
+      },
+      "footer": {
+        "showing": "Showing {count, plural, one {# order} other {# orders}}",
+        "ofTotal": " (of {total})"
+      }
+    },
+    "createOrderModal": {
+      "units": {
+        "per_session": "Per session",
+        "per_day": "Per day",
+        "per_night": "Per night",
+        "per_hour": "Per hour",
+        "per_item": "Per item",
+        "fixed": "Fixed"
+      },
+      "categories": {
+        "training": "Training",
+        "boarding": "Boarding",
+        "products": "Products",
+        "grooming": "Grooming"
+      },
+      "customerFallback": "Client",
+      "errors": {
+        "createFailed": "Couldn't create the order",
+        "createFailedRetry": "Couldn't create the order. Please try again."
+      },
+      "calcUnits": {
+        "days": "days",
+        "nights": "nights"
+      },
+      "nightsTimesDogs": "{nights} × {dogs, plural, one {# dog} other {# dogs}} = {units}",
+      "totalToPay": "Total due",
+      "categoryStep": {
+        "prompt": "Choose the order type:"
+      },
+      "customerStep": {
+        "apptTitle": "Appointment details",
+        "date": "Date",
+        "startTime": "Start time",
+        "endTime": "End time",
+        "stayDates": "Stay dates",
+        "checkIn": "🔑 Check-in",
+        "checkOut": "🚪 Check-out",
+        "calcBySettings": "Calculated per business settings",
+        "cartAutoUpdate": "✓ Cart quantity updates automatically by {basis}",
+        "basisNightsTimesDogs": "nights × {dogs} dogs",
+        "basisNights": "number of nights",
+        "customerLabel": "Client *",
+        "customerSearch": "Search clients...",
+        "noCustomers": "No clients found",
+        "boardingDogs": "🐾 Dogs for boarding",
+        "selectedCount": "{count} selected",
+        "cannotCreate": "Can't create an order",
+        "petRequired": "Add a pet to this client before creating an order.",
+        "addPetLink": "Add a pet → client page",
+        "boardingNoticeOne": "✓ The dog will appear automatically on the boarding board under \"Awaiting room\"",
+        "boardingNoticeMany": "✓ The {count} dogs will appear automatically on the boarding board under \"Awaiting room\"",
+        "forWhichDog": "🐾 Which dog is this for?",
+        "allDogs": "All dogs",
+        "linkedTo": "✓ The order will be linked to {name}",
+        "selectDogWarning": "Select a specific dog to continue — the order links to a training program",
+        "continueToItems": "Continue to items →"
+      },
+      "itemsStep": {
+        "trainingType": "Training type",
+        "subTypes": {
+          "private": {
+            "label": "Single session",
+            "sub": "No package"
+          },
+          "package": {
+            "label": "Training package",
+            "sub": "Set number of sessions"
+          },
+          "boarding": {
+            "label": "Board & train",
+            "sub": "Stay at the kennel"
+          },
+          "group": {
+            "label": "Group class",
+            "sub": "Choose a group"
+          }
+        },
+        "choosePackage": "Choose a package",
+        "noPackages": "No active packages. Add a training item with a session count in your price list.",
+        "sessionsCount": "{count, plural, one {# session} other {# sessions}}",
+        "boardingIn": "Boarding check-in",
+        "boardingOut": "Boarding check-out",
+        "homeFollowup": "Follow-up sessions at the client's home (after boarding)",
+        "sessionsZeroNone": "sessions (0 = none)",
+        "followupWillBeCreated": "✓ A follow-up program of {count, plural, one {# session} other {# sessions}} will be created automatically",
+        "chooseGroup": "Choose a training group",
+        "noGroups": "No active groups. Set up groups under the Training tab.",
+        "days": {
+          "sun": "Sunday",
+          "mon": "Monday",
+          "tue": "Tuesday",
+          "wed": "Wednesday",
+          "thu": "Thursday",
+          "fri": "Friday",
+          "sat": "Saturday"
+        },
+        "dayLabel": "{day}",
+        "chooseCategory": "Choose a category",
+        "manualService": "Custom service",
+        "selectedService": "Selected service",
+        "refreshTitle": "Refresh service list",
+        "refresh": "Refresh",
+        "noServicesInCategory": "No services in \"{category}\".",
+        "addToPricing": "Add in price list",
+        "chooseService": "Choose a service...",
+        "totalUnits": "Total units",
+        "addToCart": "Add to cart",
+        "serviceNamePlaceholder": "Service name *",
+        "pricePlaceholder": "Price {currency}",
+        "qtyPlaceholder": "Qty",
+        "cartItems": "Items in cart ({count})",
+        "noDiscount": "No discount",
+        "discountPercent": "Discount %",
+        "discountFixed": "Discount {currency}",
+        "discountPercentPlaceholder": "% off",
+        "discountFixedPlaceholder": "{currency} off",
+        "noActiveGroupsWarning": "⚠️ No active training groups — create a group under the \"Training\" tab before creating the order",
+        "mustChooseGroup": "⚠️ Choose a training group to continue",
+        "continueToReview": "Continue to summary ({total}) →"
+      },
+      "paymentStep": {
+        "noPaymentLinkWarning": "No payment link is set for the items in this order — the message will be sent without a link",
+        "confirmedPaid": "Order confirmed and payment recorded!",
+        "confirmed": "Order confirmed!",
+        "paymentLinked": "The payment was linked to the order automatically",
+        "canSendRequest": "You can send the client a payment request on WhatsApp",
+        "includeLanding": "Include a landing / payment page link in the next message",
+        "discount": "Discount",
+        "vat": "Sales tax",
+        "openTrainingProgram": "Open training program →",
+        "goToOrder": "Go to order at checkout",
+        "sendAndGo": "Send message and continue",
+        "preparingLink": "Preparing link...",
+        "sendRequestWithLanding": "Send payment request with landing page link",
+        "sendRequestWhatsApp": "Send payment request on WhatsApp"
+      },
+      "reviewStep": {
+        "checkIn": "Check-in",
+        "checkOut": "Check-out",
+        "dateAtTime": "{date} at {time}",
+        "subtotal": "Subtotal",
+        "discountWith": "Discount ({detail})",
+        "fixedDiscount": "fixed",
+        "exemptNoVat": "Tax-exempt business — no sales tax",
+        "includingVat": "Incl. sales tax ({rate}%)",
+        "notes": "Order notes",
+        "notesPlaceholder": "Notes, special instructions...",
+        "staffMember": "Staff member",
+        "unassigned": "Unassigned",
+        "customerPaidNow": "Client paid now",
+        "amountReceived": "Amount received ({currency})",
+        "paymentMethod": "Payment method",
+        "methods": {
+          "cash": "Cash",
+          "credit_card": "Credit card",
+          "bank_transfer": "Bank transfer",
+          "bit": "Bit",
+          "paybox": "PayBox",
+          "check": "Check"
+        },
+        "last4": "Last 4 digits",
+        "cardType": "Card type",
+        "otherCard": "Other",
+        "checkNumber": "Check number",
+        "checkDueDate": "Due date",
+        "bank": "Bank",
+        "bankPlaceholder": "Chase",
+        "branch": "Branch",
+        "sendRequestToClient": "Send payment request to client (WhatsApp)",
+        "saveDraft": "Save as draft",
+        "confirmPaid": "Confirm + paid {amount}",
+        "confirmOrder": "Confirm order {amount}"
+      },
+      "steps": {
+        "category": "Choose category",
+        "customer": "Client",
+        "items": "Items",
+        "review": "Summary",
+        "payment": "Payment"
+      },
+      "header": {
+        "newOrder": "New order",
+        "orderOf": "{category} order",
+        "service": "Service",
+        "back": "← Back"
+      }
+    }
+  },
+  "payments": {
+    "paymentRequestPage": {
+      "title": "Payment request",
+      "tierGate": {
+        "description": "Send clients payment requests on WhatsApp with automatic payment links. Upgrade to turn it on."
+      },
+      "subtitle": "Pick a client, add products and send a payment request on WhatsApp",
+      "categories": {
+        "all": "All",
+        "general": "General"
+      },
+      "order": {
+        "manualAdjustmentLine": "Manual price adjustment",
+        "notes": "Created from the payment request page"
+      },
+      "errors": {
+        "createOrder": "Couldn't create the order",
+        "createOrderNotSent": "Couldn't create the order — the request was not sent",
+        "stripeLink": "Couldn't create the Stripe link",
+        "networkRetry": "Network error — try again",
+        "networkNotSent": "Network error — the request was not sent"
+      },
+      "toasts": {
+        "orderCreated": "Order created — mark it as paid once the payment arrives",
+        "stripeCreated": "Stripe link created!"
+      },
+      "creatingOrder": "Creating order...",
+      "banner": {
+        "send": "Send payment request on WhatsApp — {amount}"
+      },
+      "customer": {
+        "title": "Select client",
+        "searchPlaceholder": "Search clients by name or phone..."
+      },
+      "products": {
+        "title": "Products and services",
+        "empty": "No items in the price list",
+        "addToPriceList": "Add items to the price list →",
+        "add": "Add"
+      },
+      "summary": {
+        "title": "Order summary",
+        "empty": "No products selected",
+        "subtotal": "Subtotal",
+        "discount": "Discount",
+        "afterDiscount": "Total after discount",
+        "manualOverride": "Edit price manually",
+        "totalToPay": "Total due"
+      },
+      "linkOrder": {
+        "question": "Which order is this request for?",
+        "existing": "Existing order #{id} — {amount} left to pay",
+        "newOrder": "New order ({amount})",
+        "attachNote": "No extra order will be created — the request will be linked to the existing order."
+      },
+      "paymentLink": {
+        "title": "Payment link",
+        "creatingStripe": "Creating Stripe link...",
+        "createStripe": "Create Stripe link — {amount}",
+        "placeholder": "Paste a payment page link...",
+        "stripeReady": "Stripe link created — it will be sent in the message",
+        "autoFromProduct": "↑ Auto link from the selected product",
+        "noLink": "No link — the message will be sent without a payment link"
+      },
+      "sendWhatsApp": "Send on WhatsApp",
+      "disabled": {
+        "selectCustomer": "Select a client to send",
+        "addProducts": "Add products to send"
+      }
+    },
+    "paymentModal": {
+      "methods": {
+        "cash": "Cash",
+        "credit_card": "Credit card",
+        "bank_transfer": "Bank transfer",
+        "bit": "Bit",
+        "paybox": "PayBox",
+        "check": "Check"
+      },
+      "statuses": {
+        "paid": "Paid",
+        "pending": "Pending",
+        "partial": "Partial",
+        "refunded": "Refunded"
+      },
+      "errors": {
+        "invalidAmount": "Enter a valid amount",
+        "generic": "Error",
+        "saveFailed": "Couldn't save the payment"
+      },
+      "title": "Record payment",
+      "amountLabel": "Amount ({symbol})",
+      "methodLabel": "Payment method",
+      "statusLabel": "Status",
+      "deposit": "Deposit",
+      "notesLabel": "Notes",
+      "notesPlaceholder": "Optional note...",
+      "submit": "Record payment"
+    },
+    "paymentsPage": {
+      "title": "Payments",
+      "tierTitle": "Payment management",
+      "tierDescription": "Track payments, issue receipts and invoices, and get a full financial overview.",
+      "statuses": {
+        "ALL": "All",
+        "pending": "Pending",
+        "paid": "Paid",
+        "canceled": "Canceled"
+      },
+      "periods": {
+        "ALL": "All time",
+        "today": "Today",
+        "week": "This week",
+        "month": "This month"
+      },
+      "methods": {
+        "cash": "Cash",
+        "credit_card": "Credit card",
+        "bank_transfer": "Bank transfer",
+        "bit": "Bit",
+        "paybox": "PayBox",
+        "check": "Check"
+      },
+      "toasts": {
+        "markedPaid": "Payment marked as paid",
+        "markPaidError": "Couldn't update the payment. Try again.",
+        "canceled": "Payment canceled",
+        "cancelError": "Couldn't cancel the payment. Try again.",
+        "deleted": "Payment deleted",
+        "deleteError": "Couldn't delete the payment. Try again.",
+        "issueFailed": "Couldn't issue the document",
+        "issued": "Document issued",
+        "issueError": "Couldn't issue the document. Try again.",
+        "noPendingToSend": "No pending payments to send",
+        "remindersSent": "{count, plural, one {# reminder sent} other {# reminders sent}}",
+        "popupBlocked": "Your browser blocked WhatsApp from opening. Send the reminders one by one using the reminder button on each row.",
+        "remindersPartial": "Opened {opened} of {total} reminders — your browser blocked the rest ({blocked}). Send them one by one using the reminder button on each row."
+      },
+      "csv": {
+        "date": "Date",
+        "client": "Client",
+        "amount": "Amount",
+        "method": "Payment method",
+        "status": "Status",
+        "service": "Service",
+        "order": "Order",
+        "invoiceNumber": "Invoice number",
+        "boardingService": "Boarding — {pet}",
+        "fileName": "payments_{date}.csv"
+      },
+      "header": {
+        "countFiltered": "{filtered} of {total} payments",
+        "count": "{count, plural, one {# payment} other {# payments}}",
+        "newPayment": "New payment",
+        "sendAllTitle": "Send a WhatsApp reminder for all {count} pending payments",
+        "sending": "Sending...",
+        "sendAll": "Send to all ({count})",
+        "exportTitle": "Export to CSV",
+        "exportCsv": "Export CSV",
+        "refreshNow": "Refresh now",
+        "autoRefreshTurnOff": "Turn off auto-refresh",
+        "autoRefreshTurnOn": "Turn on auto-refresh (30 sec)",
+        "autoRefreshActive": "Auto-refresh on",
+        "autoRefresh": "Auto-refresh",
+        "searchPlaceholder": "Search by client..."
+      },
+      "summary": {
+        "total": "Total",
+        "average": "Average",
+        "perPayment": "per payment",
+        "paymentsCount": "{count, plural, one {# payment} other {# payments}}"
+      },
+      "aging": {
+        "title": "Debt aging",
+        "pendingCount": "({count, plural, one {# pending payment} other {# pending payments}})",
+        "buckets": {
+          "d0to30": "0–30 days",
+          "d31to60": "31–60 days",
+          "d60plus": "60+ days"
+        }
+      },
+      "states": {
+        "loadError": "Couldn't load payments",
+        "tryRefresh": "Try refreshing the page",
+        "noResults": "No payments found",
+        "empty": "No payments",
+        "tryOtherSearch": "Try a different search",
+        "emptyHint": "Create a new payment to get started"
+      },
+      "row": {
+        "appointment": "Appointment: {service}",
+        "noService": "No service",
+        "boarding": "Boarding: {pet}",
+        "deposit": "Deposit",
+        "markPaid": "Mark as paid",
+        "issueDocument": "Issue document",
+        "sendReceiptTitle": "Send payment confirmation on WhatsApp",
+        "receipt": "Receipt",
+        "sent": "Sent ✓",
+        "sendReminderTitle": "Send payment reminder on WhatsApp",
+        "reminder": "Reminder",
+        "reminderSentTitle": "Reminder sent",
+        "cancelConfirm": "Cancel the payment of {amount} from {name}?",
+        "theClient": "the client",
+        "cancel": "Cancel",
+        "cancelPaymentTitle": "Cancel payment",
+        "deletePaymentTitle": "Delete payment",
+        "no": "No",
+        "order": "Order #{id}"
+      },
+      "table": {
+        "caption": "Payments list",
+        "client": "Client",
+        "amount": "Amount",
+        "method": "Payment method",
+        "association": "Linked to",
+        "status": "Status",
+        "document": "Document",
+        "date": "Date"
+      },
+      "modal": {
+        "title": "New payment",
+        "client": "Client *",
+        "change": "Change",
+        "searchClient": "Search clients...",
+        "noClients": "No clients found",
+        "amount": "Amount ({currencySymbol}) *",
+        "method": "Payment method",
+        "status": "Status",
+        "notes": "Notes",
+        "create": "Create payment",
+        "created": "Payment recorded",
+        "createError": "Couldn't record the payment. Try again."
+      }
+    }
+  },
   "paywall": {
     "upgradePage": {
       "plans": {
@@ -1434,6 +4899,565 @@
       "ctaWithPrice": "Upgrade to {planName} — {currencySymbol}{price}/month",
       "cta": "Upgrade to {planName}",
       "priceNote": "{currencySymbol}{price}/month · cancel anytime"
+    }
+  },
+  "pets": {
+    "petsDetailPage": {
+      "status": {
+        "scheduled": "Scheduled",
+        "completed": "Completed",
+        "canceled": "Canceled",
+        "checked_in": "Checked in",
+        "checked_out": "Checked out",
+        "reserved": "Reserved",
+        "active": "Active",
+        "completed_prog": "Completed",
+        "paused": "Paused"
+      },
+      "weight": {
+        "kg": "{weight} kg",
+        "error": "Error",
+        "added": "Measurement added",
+        "addError": "Couldn't add measurement",
+        "deleted": "Measurement deleted",
+        "title": "Weight tracking",
+        "count": "({count, plural, one {# entry} other {# entries}})",
+        "addEntry": "Add measurement",
+        "weightLabel": "Weight (kg) *",
+        "dateLabel": "Date",
+        "notesLabel": "Notes (optional)",
+        "notesPlaceholder": "Notes about the weight...",
+        "empty": "No weight entries yet"
+      },
+      "photos": {
+        "tooLarge": "{name} is larger than 5MB",
+        "uploadError": "Upload error",
+        "uploaded": "Photos uploaded",
+        "uploadFailed": "Couldn't upload photos",
+        "deleted": "Photo deleted",
+        "deleteError": "Couldn't delete photo",
+        "title": "Photo gallery",
+        "uploading": "Uploading...",
+        "add": "Add photo",
+        "clickToUpload": "Click to upload photos"
+      },
+      "loadError": "Couldn't load pet details",
+      "header": {
+        "editDetails": "Edit details",
+        "medsCount": "{count, plural, one {# medication} other {# medications}}",
+        "vaccineExpired": "Vaccine expired",
+        "vaccineExpiring": "Vaccine expiring soon",
+        "noCustomer": "No linked client",
+        "refresh": "Refresh"
+      },
+      "info": {
+        "title": "Pet details",
+        "gender": "Sex",
+        "male": "Male",
+        "female": "Female",
+        "birthDate": "Date of birth",
+        "weight": "Weight",
+        "microchip": "Microchip",
+        "neutered": "Neutered/spayed",
+        "yes": "Yes"
+      },
+      "health": {
+        "title": "Health",
+        "rabiesValid": "Rabies – valid until",
+        "dhpp": "DHPP vaccine",
+        "deworming": "Deworming",
+        "vetName": "Veterinarian",
+        "vetPhone": "Vet phone",
+        "medicalConditions": "Medical conditions",
+        "allergies": "Allergies"
+      },
+      "notes": {
+        "title": "Notes",
+        "medical": "Medical",
+        "food": "Food",
+        "behavior": "Behavior"
+      },
+      "behavior": {
+        "title": "Behavior",
+        "dogAggression": "Aggressive toward dogs",
+        "humanAggression": "Aggressive toward people",
+        "biteHistory": "Bite history",
+        "leashPulling": "Pulls on leash",
+        "leashReactivity": "Leash reactive",
+        "separationAnxiety": "Separation anxiety",
+        "excessiveBarking": "Excessive barking",
+        "resourceGuarding": "Resource guarding",
+        "fears": "Fears",
+        "badWithKids": "Not good with kids",
+        "destruction": "Destructive",
+        "houseSoiling": "House soiling",
+        "priorTraining": "Prior training"
+      },
+      "meds": {
+        "title": "Medications",
+        "board": "Medication board",
+        "active": "Active",
+        "ended": "Ended",
+        "from": "From {date}",
+        "until": " to "
+      },
+      "appointments": {
+        "title": "Appointment history ({count})",
+        "calendarLink": "Calendar →",
+        "unknownService": "Unknown service"
+      },
+      "boarding": {
+        "title": "Boarding history ({count})",
+        "link": "Boarding →"
+      },
+      "training": {
+        "title": "Training programs ({count})",
+        "link": "Training →",
+        "started": "Started: {date}"
+      },
+      "emptyHistory": "No history for this pet yet"
+    },
+    "petsPage": {
+      "speciesFilter": {
+        "all": "All types",
+        "dog": "Dogs",
+        "cat": "Cats",
+        "other": "Other"
+      },
+      "speciesLabel": {
+        "dog": "Dog",
+        "cat": "Cat",
+        "other": "Other"
+      },
+      "genderLabel": {
+        "male": "Male",
+        "female": "Female"
+      },
+      "genderFilter": {
+        "all": "All sexes",
+        "male": "Males",
+        "female": "Females"
+      },
+      "vaccineFilter": {
+        "all": "All vaccines",
+        "expired": "Expired",
+        "expiring": "Expiring soon",
+        "ok": "Valid",
+        "unknown": "Unknown"
+      },
+      "vaccineBadge": {
+        "expired": "Vaccine expired",
+        "expiring": "Vaccine expiring",
+        "ok": "Vaccine valid"
+      },
+      "addModal": {
+        "title": "New pet",
+        "customerLabel": "Client *",
+        "changeCustomer": "Change client",
+        "customerSearchPlaceholder": "Search client by name or phone...",
+        "searching": "Searching...",
+        "noCustomers": "No clients found",
+        "nameLabel": "Name *",
+        "speciesLabel": "Type",
+        "breedLabel": "Breed",
+        "genderLabel": "Sex",
+        "genderUnspecified": "Not specified",
+        "birthDateLabel": "Date of birth",
+        "submit": "Add pet",
+        "toastSuccess": "Pet added",
+        "toastError": "Couldn't add the pet"
+      },
+      "tierGate": {
+        "title": "Pet management",
+        "description": "Advanced pet management — weight chart, photo gallery, medical history and more. Upgrade to get access."
+      },
+      "toasts": {
+        "pendingApproval": "Request sent to the owner for approval",
+        "deleted": "Pet deleted",
+        "deleteError": "Couldn't delete the pet",
+        "exportError": "Export failed"
+      },
+      "header": {
+        "title": "Pets",
+        "subtitle": "All pets registered with your business",
+        "addPet": "Add pet",
+        "exportXlsx": "Export XLSX",
+        "refresh": "Refresh"
+      },
+      "stats": {
+        "total": "Total pets",
+        "dogsCats": "Dogs · {cats} cats",
+        "vaccinationIssues": "Vaccine issues",
+        "withMeds": "On active medication"
+      },
+      "filters": {
+        "searchPlaceholder": "Search by pet name, breed, owner...",
+        "countFiltered": "{filtered} of {total} pets",
+        "countAll": "{total} pets"
+      },
+      "states": {
+        "loadError": "Error loading data",
+        "emptyFiltered": "No pets match the filters",
+        "empty": "No pets registered yet"
+      },
+      "table": {
+        "caption": "Pet list",
+        "name": "Name",
+        "breedSpecies": "Breed / type",
+        "owner": "Owner",
+        "ageWeight": "Age / weight",
+        "vaccine": "Vaccine",
+        "meds": "Medications",
+        "appointments": "Appointments",
+        "actions": "Actions",
+        "neutered": " · Spayed/neutered",
+        "serviceDog": "Service dog",
+        "ageMonths": "{count, plural, one {# month} other {# months}}",
+        "ageYears": "{count, plural, one {# year} other {# years}}",
+        "weight": "{weight} kg",
+        "vaccineUnknown": "Unknown",
+        "medsCount": "{count, plural, one {# medication} other {# medications}}",
+        "sendWhatsApp": "Send WhatsApp message",
+        "call": "Call {phone}",
+        "sendDeleteRequest": "Send delete request for approval"
+      },
+      "managerDelete": {
+        "title": "Pet delete request",
+        "body": "The request will be sent to the owner for approval before deleting. Continue?",
+        "sending": "Sending...",
+        "submit": "Send for approval"
+      },
+      "ownerDelete": {
+        "title": "Delete pet",
+        "description": "Deleting {name} will remove all associated medical, weight and history data. This action can't be undone."
+      }
+    }
+  },
+  "pricing": {
+    "priceListsPage": {
+      "units": {
+        "perSession": "Per session",
+        "perDay": "Per day",
+        "perNight": "Per night",
+        "perHour": "Per hour",
+        "perItem": "Per item",
+        "fixed": "Fixed price"
+      },
+      "categories": {
+        "training": "Training",
+        "grooming": "Grooming",
+        "boarding": "Boarding",
+        "consulting": "Consulting",
+        "products": "Products",
+        "addon": "Add-on",
+        "other": "Other"
+      },
+      "errors": {
+        "generic": "Error",
+        "update": "Failed to update",
+        "duplicate": "Failed to duplicate",
+        "delete": "Failed to delete",
+        "saveOrder": "Failed to save the order",
+        "saveItemsOrder": "Failed to save the item order",
+        "create": "Failed to create price list"
+      },
+      "form": {
+        "addError": "Failed to add item. Try again.",
+        "nameRequired": "Name is required",
+        "priceInvalid": "Price must be >= 0",
+        "unitRequired": "Unit is required",
+        "editTitle": "Edit item",
+        "subtitle": "Add a service or product to the price list",
+        "typeService": "🔧 Service",
+        "typeProduct": "📦 Product",
+        "nameLabel": "Name *",
+        "namePlaceholder": "e.g. Private training session",
+        "categoryLabel": "Category",
+        "categoryPlaceholder": "e.g. Training",
+        "unitLabel": "Unit *",
+        "basePriceLabel": "Base price ({currency}) *",
+        "vatLabel": "Sales tax",
+        "taxable": "Taxable",
+        "exempt": "Tax exempt",
+        "inherit": "Per business setting",
+        "durationLabel": "Duration (minutes)",
+        "descriptionLabel": "Description",
+        "descriptionPlaceholder": "Short description (optional)",
+        "paymentUrlLabel": "Payment page link",
+        "paymentUrlHint": "A link to your payment processor's checkout page (Stripe, Square, etc.). Sent to the client when an order is completed.",
+        "addItem": "Add item"
+      },
+      "row": {
+        "minutesShort": "{minutes}m",
+        "paymentPage": "Payment page",
+        "moveUp": "Move up",
+        "moveDown": "Move down",
+        "edit": "Edit",
+        "duplicate": "Duplicate",
+        "deactivate": "Deactivate",
+        "activate": "Activate"
+      },
+      "newItem": "New item",
+      "copyName": "{name} (copy)",
+      "itemDeleted": "Item deleted",
+      "uncategorized": "Uncategorized",
+      "empty": {
+        "title": "No price list yet",
+        "hint": "Create a price list to start adding services and products",
+        "creating": "Creating...",
+        "create": "Create price list"
+      },
+      "title": "Price list",
+      "activeCount": "{count} active items · {name}",
+      "shareTitle": "Share price list on WhatsApp",
+      "share": "Share price list",
+      "filters": {
+        "allCategories": "All categories",
+        "allTypes": "All",
+        "services": "Services",
+        "products": "Products",
+        "hideInactive": "Hide inactive",
+        "showInactive": "Show inactive"
+      },
+      "list": {
+        "noResults": "No items found",
+        "empty": "The price list is empty",
+        "tryOtherSearch": "Try a different search",
+        "addFirst": "Add the first item"
+      },
+      "deleteDialog": {
+        "title": "Delete \"{name}\"?",
+        "irreversible": "This action can't be undone.",
+        "confirm": "Yes, delete",
+        "back": "Back"
+      }
+    },
+    "pricingPage": {
+      "title": "Price list",
+      "subtitle": "Manage services and products by category",
+      "upgradeToBasic": "Upgrade to Basic",
+      "upgrade": "Upgrade",
+      "addItem": "Add item",
+      "bookableOnline": "Available for online booking",
+      "inactive": "Inactive",
+      "defaultListName": "Main price list",
+      "copyName": "{name} (copy)",
+      "units": {
+        "per_session": "per session",
+        "per_day": "per day",
+        "per_night": "per night",
+        "per_hour": "per hour",
+        "per_item": "per unit",
+        "fixed": "Fixed price"
+      },
+      "taxModes": {
+        "taxable": "Taxable",
+        "exempt": "Tax exempt",
+        "inherit": "Business default",
+        "inclusive": "Tax included",
+        "exclusive": "+ tax"
+      },
+      "categories": {
+        "boarding": "Boarding",
+        "training": "Training",
+        "grooming": "Grooming",
+        "products": "Products",
+        "general": "General"
+      },
+      "modal": {
+        "editTitle": "Edit item",
+        "newTitle": "New item",
+        "typeService": "Service",
+        "typeProduct": "Product",
+        "nameLabel": "Name *",
+        "namePlaceholder": "e.g. Private training lesson",
+        "categoryLabel": "Category *",
+        "categoryPlaceholder": "Select category...",
+        "unitLabel": "Unit",
+        "priceLabel": "Price ({currency}) *",
+        "vatLabel": "Sales tax",
+        "durationLabel": "Duration (minutes)",
+        "trainingPackageTitle": "Training package (optional)",
+        "sessionsLabel": "Sessions in package",
+        "sessionsPlaceholder": "e.g. 8 sessions",
+        "sessionsHint": "If a session count is set, the item appears as a \"Training package\" in orders and session tracking starts automatically.",
+        "descriptionLabel": "Description",
+        "descriptionPlaceholder": "Short description (optional)",
+        "paymentUrlTitle": "Payment page link",
+        "paymentUrlHint": "Link to your payment processor's checkout page (Stripe, Square, PayPal, etc.). Sent to the client after ordering.",
+        "bookableOnlineHint": "The item will appear on your online booking page. Clients can choose the service and book an appointment.",
+        "depositRequired": "Require deposit",
+        "depositAmountLabel": "Deposit amount ({currency})",
+        "maxBookingsLabel": "Max bookings per day",
+        "maxBookingsPlaceholder": "No limit",
+        "maxBookingsHint": "Limit how many bookings can be made for this service in one day",
+        "saveChanges": "Save changes"
+      },
+      "row": {
+        "minutesShort": "{count}m",
+        "sessions": "{count, plural, one {# session} other {# sessions}}",
+        "paymentPage": "Payment page",
+        "moveUp": "Move up",
+        "moveDown": "Move down",
+        "edit": "Edit",
+        "duplicate": "Duplicate",
+        "deactivate": "Deactivate",
+        "activate": "Activate"
+      },
+      "errors": {
+        "create": "Error creating",
+        "add": "Error adding",
+        "update": "Error updating",
+        "duplicate": "Error duplicating",
+        "delete": "Error deleting",
+        "reorder": "Error saving order"
+      },
+      "toasts": {
+        "listCreated": "Main price list created",
+        "listCreateError": "Error creating price list",
+        "itemAdded": "Item added",
+        "itemAddError": "Error adding item",
+        "itemUpdated": "Item updated",
+        "itemUpdateError": "Error updating item",
+        "toggleError": "Error updating status. Please try again.",
+        "itemDuplicated": "Item duplicated",
+        "duplicateError": "Error duplicating item. Please try again.",
+        "itemDeleted": "Item deleted",
+        "deleteError": "Error deleting item",
+        "reorderError": "Error saving item order"
+      },
+      "vatExempt": {
+        "title": "Tax exempt",
+        "body": "— all price list items are tax exempt. The sales tax field won't appear in orders."
+      },
+      "freeLimit": {
+        "banner": "{used}/{max} price list items — free plan limit",
+        "upgradeLink": "Upgrade to Basic →"
+      },
+      "emptyList": {
+        "title": "No price list yet",
+        "body": "Create a main price list to start setting up services and products",
+        "create": "Create main price list"
+      },
+      "emptyItems": {
+        "title": "No items in the price list",
+        "body": "Add services and products by category (Boarding, Training, Grooming, Products)",
+        "addFirst": "Add first item"
+      },
+      "deleteDialog": {
+        "title": "Delete \"{name}\"?",
+        "body": "This action can't be undone.",
+        "confirm": "Yes, delete",
+        "back": "Back"
+      },
+      "tierGate": {
+        "title": "Pricing and services",
+        "description": "Set up services, price lists and billable items. The core tool for managing your business revenue."
+      }
+    }
+  },
+  "scheduler": {
+    "schedulerPage": {
+      "days": {
+        "short": {
+          "sun": "S",
+          "mon": "M",
+          "tue": "T",
+          "wed": "W",
+          "thu": "T",
+          "fri": "F",
+          "sat": "S"
+        },
+        "long": {
+          "sun": "Sunday",
+          "mon": "Monday",
+          "tue": "Tuesday",
+          "wed": "Wednesday",
+          "thu": "Thursday",
+          "fri": "Friday",
+          "sat": "Saturday"
+        }
+      },
+      "tierGate": {
+        "title": "Online appointment booking",
+        "description": "Let clients book appointments themselves — available on Basic and up."
+      },
+      "linkNotReady": "The booking link isn't ready yet — refresh the page and try again",
+      "bookedAndAttached": "Appointment booked and added to the package (session {session})",
+      "success": {
+        "title": "Appointment booked!",
+        "service": "Service",
+        "client": "Client",
+        "date": "Date",
+        "time": "Time",
+        "price": "Price",
+        "sendWhatsApp": "Send WhatsApp message",
+        "viewCalendar": "View calendar",
+        "bookAnother": "Book another appointment"
+      },
+      "header": {
+        "title": "Appointments",
+        "subtitle": "Book appointments for clients",
+        "copied": "Copied!",
+        "copyLink": "Copy booking link"
+      },
+      "availability": {
+        "closed": "Closed",
+        "serviceInfo": "{name} — {duration} minutes"
+      },
+      "service": {
+        "label": "Select service",
+        "option": "{name} — {duration} min — {price}",
+        "noneActive": "No active services — add a service in Settings or the price list",
+        "placeholder": "Select a service...",
+        "inactiveHint": "Some services are inactive — activate them in Settings or the price list"
+      },
+      "slots": {
+        "title": "Select time",
+        "pickServiceAndDate": "Select a service and date to see available times",
+        "pickDate": "Pick a date on the calendar to see available times",
+        "none": "No available times on this day",
+        "tryAnotherDay": "Try another day"
+      },
+      "form": {
+        "title": "Appointment details",
+        "client": "Client",
+        "createClient": "Create new client",
+        "backToSearch": "← Back to search",
+        "newClient": "New client",
+        "clientNamePlaceholder": "Client name *",
+        "phonePlaceholder": "Phone *",
+        "pet": "Pet",
+        "noPet": "None",
+        "noPets": "No pets on file",
+        "pickClientFirst": "Select a client first",
+        "notes": "Notes",
+        "notesPlaceholder": "Additional notes..."
+      },
+      "species": {
+        "dog": "Dog",
+        "cat": "Cat",
+        "other": "Other"
+      },
+      "attach": {
+        "label": "Add to training package: <strong>{name}</strong> — session {session}",
+        "optionSession": "— session {session}"
+      },
+      "summary": {
+        "date": "Date:",
+        "time": "Time:",
+        "service": "Service:",
+        "duration": "Duration:",
+        "minutes": "{duration} minutes",
+        "price": "Price:"
+      },
+      "errors": {
+        "create": "Failed to create the appointment"
+      },
+      "submit": {
+        "booking": "Booking...",
+        "book": "Book appointment"
+      }
     }
   },
   "search": {

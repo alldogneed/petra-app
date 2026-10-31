@@ -23,6 +23,1975 @@
       "exporting": "מייצא..."
     }
   },
+  "analytics": {
+    "analyticsPage": {
+      "periods": {
+        "week": "שבוע",
+        "month": "חודש",
+        "quarter": "רבעון",
+        "year": "שנה"
+      },
+      "tabs": {
+        "overview": "סקירה",
+        "finance": "כספים",
+        "appointments": "תורים ולקוחות",
+        "leads": "לידים ומכירות",
+        "operations": "אילוף ופנסיון"
+      },
+      "title": "דוחות",
+      "tierDescription": "גרפים, סטטיסטיקות ומעקב ביצועים של העסק. שדרג כדי לגשת לדוחות מפורטים.",
+      "subtitle": "דוחות וסטטיסטיקות של העסק",
+      "exportTitle": "ייצוא דוח לאקסל",
+      "shareTitle": "שתף דוח בוואטסאפ",
+      "custom": "מותאם אישית",
+      "fromDateAria": "מתאריך",
+      "until": "עד",
+      "todayPlaceholder": "היום",
+      "toDateAria": "עד תאריך",
+      "rangeInvalid": "תאריך ההתחלה חייב להיות לפני תאריך הסיום",
+      "tabsAria": "קטגוריות דוחות",
+      "loadError": "שגיאה בטעינת הדוחות",
+      "loadErrorHint": "נסה לרענן את הדף",
+      "share": {
+        "button": "שתף",
+        "title": "📊 *דוח ביצועים — {period}*",
+        "revenue": "💰 הכנסות: {amount}",
+        "appointments": "📅 תורים: {total} ({rate}% הושלמו)",
+        "newCustomers": "👥 לקוחות חדשים: {count}",
+        "leadsWon": "🎯 לידים שנסגרו: {count}",
+        "conversion": " ({rate}% המרה)",
+        "leadSales": "💼 מכירות מלידים: {total} (עסקאות {deals} + הזמנות {orders})",
+        "tasksCompleted": "✅ משימות הושלמו: {count}",
+        "boardingStays": "🐾 שהות פנסיון: {count}",
+        "occupancy": " ({rate}% תפוסה)",
+        "outstanding": "🧾 יתרות פתוחות: {amount}"
+      }
+    },
+    "appointmentsTab": {
+      "completed": "תורים שהושלמו",
+      "canceled": "ביטולים",
+      "noShow": "לא הגיעו",
+      "ofAppointments": "{rate} מהתורים",
+      "byDate": "תורים לפי תאריך",
+      "noAppointments": "אין תורים בתקופה זו",
+      "seriesName": "תורים",
+      "byDayOfWeek": "תורים לפי יום בשבוע",
+      "byHour": "תורים לפי שעה",
+      "excludingCanceled": "ללא תורים שבוטלו",
+      "noData": "אין נתונים לתקופה זו",
+      "retention": "שימור לקוחות",
+      "returned": "{returning} מתוך {total} לקוחות חזרו",
+      "noPreviousActive": "לא היו לקוחות פעילים בתקופה הקודמת",
+      "retentionHint": "לקוחות שהיו פעילים בתקופה הקודמת (תור שהושלם או תשלום) וחזרו להיות פעילים בתקופה הנוכחית.",
+      "petMix": "הרכב חיות המחמד",
+      "petsCount": "{count} חיות",
+      "noPets": "אין חיות מחמד רשומות",
+      "topBreeds": "גזעים מובילים",
+      "species": {
+        "dog": "🐕 כלבים",
+        "cat": "🐈 חתולים",
+        "other": "🐾 אחר"
+      }
+    },
+    "financeTab": {
+      "noPermission": "אין הרשאה לנתונים כספיים",
+      "payingCustomers": "לקוחות משלמים בתקופה",
+      "avgRevenuePerPaying": "הכנסה ממוצעת ללקוח משלם",
+      "monthlyVsLastYear": "הכנסות לפי חודש מול שנה שעברה",
+      "monthlySubtitle": "12 החודשים האחרונים · השוואה לאותו חודש בשנה הקודמת",
+      "noRevenueToShow": "אין הכנסות להצגה",
+      "thisYear": "השנה",
+      "lastYear": "שנה שעברה",
+      "byCategory": "הכנסות לפי תחום",
+      "noRevenue": "אין הכנסות בתקופה זו",
+      "byMethod": "הכנסות לפי אמצעי תשלום",
+      "noPayments": "אין תשלומים בתקופה זו",
+      "byService": "הכנסות לפי שירות",
+      "newVsReturning": "לקוחות חדשים מול חוזרים",
+      "newVsReturningSubtitle": "הכנסות בתקופה לפי מועד הצטרפות הלקוח המשלם",
+      "newCustomers": "לקוחות חדשים",
+      "returningCustomers": "לקוחות חוזרים",
+      "topCustomers": "לקוחות מובילים לפי הכנסות",
+      "paymentsCount": "{count} תשלומים",
+      "outstanding": "יתרות פתוחות",
+      "outstandingSubtitle": "סה״כ {total} · {customers} לקוחות · נכון להיום",
+      "noOutstanding": "אין יתרות פתוחות",
+      "openSince": "פתוח מ-{date}"
+    },
+    "leadsTab": {
+      "activeNow": "לידים פעילים כעת",
+      "newInPeriod": "לידים חדשים בתקופה",
+      "stillOpen": "{count} עדיין פתוחים",
+      "lostInPeriod": "לידים שאבדו בתקופה",
+      "fullSalesReports": "לדוחות המכירות המלאים",
+      "bySource": "לידים לפי מקור",
+      "bySourceSubtitle": "לידים שנוצרו בתקופה · המרה = נסגרו מתוך (נסגרו + אבדו)",
+      "noNewLeads": "אין לידים חדשים בתקופה זו",
+      "cols": {
+        "source": "מקור",
+        "total": "סה״כ",
+        "won": "נסגרו",
+        "lost": "אבדו",
+        "open": "פתוחים",
+        "conversion": "המרה",
+        "wonValue": "ערך שנסגר"
+      },
+      "lostReasons": "סיבות אובדן לידים",
+      "noLostLeads": "אין לידים שאבדו בתקופה זו",
+      "sales": {
+        "title": "מכירות מלידים",
+        "subtitle": "לידים שנסגרו בתקופה · ערך העסקה שהוזן בכרטיס הליד + הזמנות שהלקוח ביצע מאז הסגירה ועד היום (ללא מבוטלות) · מדד נפרד, לא נכלל ב\"הכנסות\" · אם פתחת הזמנה על אותה עסקה היא תיספר גם בהזמנות",
+        "dealValue": "ערך עסקאות שנסגרו",
+        "withValueOf": "{withValue} מתוך {won} לידים עם ערך",
+        "ordersSince": "הזמנות מאז הסגירה",
+        "ordersCount": "{count} הזמנות",
+        "total": "סה״כ מכירות מלידים",
+        "avgDeal": "עסקה ממוצעת {amount}",
+        "pipeline": "ערך בצנרת (לידים פתוחים)",
+        "pipelineWithValue": "{count} לידים עם ערך",
+        "noWon": "אין לידים שנסגרו בתקופה זו",
+        "cols": {
+          "lead": "ליד",
+          "wonAt": "נסגר",
+          "dealValue": "ערך עסקה",
+          "ordersSince": "הזמנות מאז"
+        },
+        "showingLatest": "מוצגים {shown} האחרונים מתוך {total} · הסכומים למעלה כוללים את כולם"
+      },
+      "attribution": {
+        "byTrafficSource": "לידים לפי מקור תנועה לפי חודש",
+        "byTrafficSourceSubtitle": "12 החודשים האחרונים (ללא תלות בטווח שנבחר) · לפי utm / gclid / referrer שהגיעו מהאתר",
+        "noTrafficSource": "אין לידים עם מקור תנועה ב-12 החודשים האחרונים",
+        "byLandingPage": "לידים לפי עמוד נחיתה",
+        "byLandingPageSubtitle": "12 החודשים האחרונים (ללא תלות בטווח שנבחר) · 20 העמודים המובילים",
+        "noLandingPage": "אין לידים עם עמוד נחיתה ב-12 החודשים האחרונים",
+        "cols": {
+          "page": "עמוד",
+          "leads": "לידים"
+        }
+      }
+    },
+    "operationsTab": {
+      "training": "אילוף",
+      "activePrograms": "תוכניות אילוף פעילות",
+      "completedSessions": "מפגשים שהושלמו בתקופה",
+      "activeGroups": "קבוצות אילוף פעילות",
+      "groupSessions": "מפגשי קבוצה בתקופה",
+      "trainingRevenue": "הכנסות אילוף בתקופה",
+      "boarding": "פנסיון",
+      "stays": "שהיות בפנסיון",
+      "occupancy": "תפוסה",
+      "setupRooms": "הגדר חדרים כדי לראות תפוסה",
+      "roomNights": "{occupied} מתוך {capacity} לילות-חדר",
+      "boardingRevenue": "הכנסות פנסיון בתקופה"
+    },
+    "overviewTab": {
+      "kpi": {
+        "revenue": "הכנסות",
+        "paymentCount": "{count} תשלומים",
+        "appointments": "תורים",
+        "completionRate": "{rate}% הושלמו",
+        "newCustomers": "לקוחות חדשים",
+        "totalCustomers": "{count} לקוחות בסה״כ",
+        "leadsWon": "לידים שנסגרו",
+        "conversion": "{rate} המרה"
+      },
+      "monthly": {
+        "title": "הכנסות לפי חודש",
+        "subtitle": "12 החודשים האחרונים · תשלומים ששולמו",
+        "noFinancePermission": "אין הרשאה לנתונים כספיים",
+        "empty": "אין הכנסות ב-12 החודשים האחרונים",
+        "revenueSeries": "הכנסות"
+      },
+      "highlights": {
+        "title": "בקצרה",
+        "tasksCompleted": "משימות שהושלמו בתקופה",
+        "tasksOpen": "משימות פתוחות כעת",
+        "busiestDay": "היום העמוס בשבוע",
+        "busiestDayValue": "יום {day}",
+        "busiestHour": "השעה העמוסה",
+        "topService": "השירות המכניס ביותר"
+      }
+    },
+    "reportBlocks": {
+      "new": "חדש"
+    }
+  },
+  "bookings": {
+    "bookingsPage": {
+      "tierGate": {
+        "title": "ניהול תורים אונליין",
+        "description": "קבל הזמנות מלקוחות, אשר או דחה תורים, ונהל את העמוד הציבורי שלך. שדרג כדי להפעיל."
+      },
+      "filters": {
+        "all": "הכל",
+        "dateFromPlaceholder": "מתאריך",
+        "dateRangeTo": "עד"
+      },
+      "statuses": {
+        "pending": "ממתין",
+        "confirmed": "מאושר",
+        "declined": "נדחה",
+        "cancelled": "בוטל"
+      },
+      "empty": {
+        "ALL": {
+          "title": "אין הזמנות",
+          "description": "שתף את קישור ההזמנה עם לקוחות כדי לקבל הזמנות"
+        },
+        "pending": {
+          "title": "אין הזמנות ממתינות",
+          "description": "כל ההזמנות טופלו"
+        },
+        "confirmed": {
+          "title": "אין הזמנות מאושרות",
+          "description": "הזמנות שתאשר יופיעו כאן"
+        },
+        "declined": {
+          "title": "אין הזמנות שנדחו",
+          "description": "הזמנות שתדחה יופיעו כאן"
+        },
+        "cancelled": {
+          "title": "אין הזמנות שבוטלו",
+          "description": "הזמנות שבוטלו יופיעו כאן"
+        }
+      },
+      "header": {
+        "title": "ניהול תורים",
+        "count": "{count} הזמנות",
+        "pendingSuffix": " • {count} ממתינות לאישור",
+        "copied": "הועתק!",
+        "copyLink": "העתק קישור הזמנה"
+      },
+      "source": {
+        "online": "אונליין",
+        "manual": "ידני"
+      },
+      "toasts": {
+        "updateError": "שגיאה בעדכון",
+        "updated": "ההזמנה עודכנה בהצלחה",
+        "updateFailed": "שגיאה בעדכון ההזמנה. נסה שוב.",
+        "whatsappBlocked": "ההזמנה אושרה, אבל הדפדפן חסם את פתיחת WhatsApp",
+        "openWhatsapp": "פתח WhatsApp"
+      },
+      "detail": {
+        "title": "פרטי הזמנה",
+        "service": "שירות",
+        "minutes": "{count} דקות",
+        "dateTime": "תאריך ושעה",
+        "customerDetails": "פרטי לקוח",
+        "dogs": "כלבים",
+        "notes": "הערות"
+      },
+      "edit": {
+        "title": "עריכת פרטי תור",
+        "date": "תאריך",
+        "startTime": "שעת התחלה",
+        "endTime": "שעת סיום",
+        "notes": "הערות",
+        "saveChanges": "שמור שינויים"
+      },
+      "actions": {
+        "editAppointment": "עריכת תור",
+        "cancelConfirm": "לבטל את התור של {name}?",
+        "cancelAppointment": "ביטול תור",
+        "reconfirm": "אשר מחדש",
+        "cancelledViewOnly": "הזמנה שבוטלה — לצפייה בלבד",
+        "declineReasonLabel": "סיבת הדחייה (אופציונלי)",
+        "declineReasonPlaceholder": "למשל: אין פנויות בשעה זו...",
+        "confirmDecline": "אשר דחייה",
+        "approve": "אשר הזמנה",
+        "decline": "דחה הזמנה",
+        "approveAndWhatsapp": "אשר + שלח אישור WhatsApp"
+      }
+    },
+    "bookingsTabs": {
+      "scheduler": "קביעת תור ידני",
+      "bookings": "ניהול תורים",
+      "availability": "זמינות",
+      "scheduledMessages": "הודעות מתוזמנות"
+    }
+  },
+  "calendar": {
+    "calendarPage": {
+      "days": {
+        "sun": "ראשון",
+        "mon": "שני",
+        "tue": "שלישי",
+        "wed": "רביעי",
+        "thu": "חמישי",
+        "fri": "שישי",
+        "sat": "שבת"
+      },
+      "viewModes": {
+        "day": "יום",
+        "week": "שבוע",
+        "month": "חודש",
+        "agenda": "פריסה"
+      },
+      "categories": {
+        "appointment": "פגישות לקוח",
+        "grooming": "תספורת",
+        "boarding": "פנסיון (שהייה)",
+        "consultation": "ייעוץ",
+        "training_home": "אילוף בבית הלקוח",
+        "training_boarding": "אילוף בתנאי פנסיון",
+        "training_group": "אילוף קבוצתי",
+        "workshop": "סדנאות",
+        "task": "משימות",
+        "lead": "מכירות / לידים",
+        "gcal": "יומן גוגל"
+      },
+      "groups": {
+        "customer": "הזמנות ושירותי לקוח",
+        "training": "אילוף מקצועי",
+        "mgmt": "ניהול ותפעול"
+      },
+      "taskCategories": {
+        "GENERAL": "כללי",
+        "BOARDING": "פנסיון",
+        "TRAINING": "אילוף",
+        "LEADS": "לידים",
+        "HEALTH": "בריאות",
+        "MEDICATION": "תרופות",
+        "FEEDING": "האכלה"
+      },
+      "priceCategories": {
+        "training": "אילוף",
+        "grooming": "טיפוח",
+        "boarding": "פנסיון",
+        "products": "מוצרים"
+      },
+      "appointmentFallback": "תור",
+      "minutesShort": "{minutes} דק׳",
+      "species": {
+        "dog": "כלב",
+        "cat": "חתול",
+        "other": "אחר"
+      },
+      "newModal": {
+        "title": "פגישה חדשה",
+        "subtitle": "קבע פגישה ביומן",
+        "customerLabel": "לקוח *",
+        "serviceLabel": "שירות / מוצר",
+        "noService": "ללא שירות (תור כללי)",
+        "generalGroup": "כללי",
+        "durationSuffix": " — {minutes} דק׳",
+        "priceSuffix": " — {symbol}{price}",
+        "emptyPriceList": "אין שירותים במחירון עדיין — אפשר לקבוע תור כללי, או להוסיף שירותים בעמוד המחירון.",
+        "petLabel": "חיית מחמד",
+        "noPet": "ללא",
+        "attachLabel": "לשייך לחבילת אילוף: <strong>{name}</strong> — מפגש {session}",
+        "attachOption": "{name} · {dog} — מפגש {session}",
+        "dateLabel": "תאריך *",
+        "timeLabel": "שעה *",
+        "endTime": "סיום: {time}",
+        "conflict": "התנגשות בלוח הזמנים! ",
+        "notesLabel": "הערות",
+        "recurring": "פגישה חוזרת",
+        "frequency": "תדירות",
+        "everyWeek": "כל שבוע",
+        "everyTwoWeeks": "כל שבועיים",
+        "everyMonth": "כל חודש",
+        "occurrences": "מספר פגישות",
+        "recurringSummary": "ייווצרו <strong>{count}</strong> פגישות החל מ-{date}",
+        "selectedDate": "התאריך שנבחר",
+        "defaultNoteTraining": "מפגש אילוף",
+        "defaultNoteGeneral": "תור כללי",
+        "createMany": "צור {count} פגישות",
+        "createOne": "צור פגישה",
+        "toasts": {
+          "recurringCreated": "נקבעו {count} פגישות חוזרות בהצלחה",
+          "createdLinked": "התור נקבע ושויך לחבילה (מפגש {session})",
+          "created": "התור נקבע בהצלחה",
+          "sendReminder": "שלח תזכורת WhatsApp",
+          "reminderSent": "תזכורת נשלחה",
+          "error": "שגיאה",
+          "sendError": "שגיאה בשליחה",
+          "limitReached": "הגעת למגבלת הפגישות — שדרג לבייסיק כדי להוסיף עוד",
+          "createError": "שגיאה בקביעת התור. נסה שוב."
+        }
+      },
+      "payment": {
+        "title": "רישום תשלום",
+        "amountLabel": "סכום ({symbol})",
+        "methodLabel": "אמצעי תשלום",
+        "methods": {
+          "cash": "מזומן",
+          "credit_card": "כרטיס אשראי",
+          "bit": "ביט",
+          "paybox": "פייבוקס",
+          "bank_transfer": "העברה בנקאית",
+          "check": "צ׳ק"
+        },
+        "save": "שמור תשלום",
+        "toasts": {
+          "saved": "התשלום נרשם בהצלחה",
+          "error": "שגיאה בשמירת התשלום. נסה שוב."
+        }
+      },
+      "tierGate": {
+        "title": "יומן פגישות",
+        "description": "קבע וניהל פגישות עם לקוחות — זמין במנוי בייסיק ומעלה."
+      },
+      "toasts": {
+        "completed": "התור סומן כהושלם",
+        "canceled": "התור בוטל",
+        "updateError": "שגיאה בעדכון התור. נסה שוב.",
+        "deleted": "התור נמחק",
+        "deleteError": "שגיאה במחיקת התור. נסה שוב.",
+        "moved": "התור הועבר בהצלחה",
+        "duplicated": "התור שוכפל באותו מועד ✓",
+        "duplicateError": "שגיאה בשכפול התור. נסה שוב.",
+        "notesUpdated": "ההערות עודכנו",
+        "notesError": "שגיאה בעדכון ההערות. נסה שוב.",
+        "error": "שגיאה",
+        "reminderSent": "תזכורת WhatsApp נשלחה",
+        "reminderError": "שגיאה בשליחת תזכורת",
+        "taskUpdateError": "שגיאה בעדכון המשימה"
+      },
+      "leadMeetingLabel": "פגישת ליד · {name}",
+      "pendingBookingTitle": "הזמנה אונליין ממתינה לאישור",
+      "unknownService": "שירות לא ידוע",
+      "overdue": "⚠️ באיחור",
+      "title": "יומן",
+      "loadError": "שגיאה בטעינת התורים. נסה לרענן את הדף.",
+      "summary": {
+        "weekHeader": "📅 לוח שבוע — {range}",
+        "dayHeader": "📅 תוכנית יום — {date}",
+        "total": "סה\"כ {count} פגישות",
+        "shareWeekTitle": "שתף לוח שבוע בוואטסאפ",
+        "week": "סיכום שבוע",
+        "shareDayTitle": "שתף סיכום יום בוואטסאפ",
+        "day": "סיכום יום"
+      },
+      "upgradeToBasic": "שדרג לבייסיק",
+      "upgrade": "שדרג",
+      "newAppointment": "פגישה חדשה",
+      "newShort": "חדש",
+      "freeLimit": "{count}/{max} פגישות — מגבלת המנוי החינמי",
+      "upgradeToBasicArrow": "שדרג לבייסיק ←",
+      "today": "היום",
+      "viewLabel": "תצוגה",
+      "lenses": {
+        "all": "הכל",
+        "customer": "הזמנות לקוח",
+        "training": "השירותים שלי",
+        "mgmt": "ניהול"
+      },
+      "toggleCategoryTitle": "הצג/הסתר {label}",
+      "staff": "צוות",
+      "filterByStaffTitle": "סנן לפי {name}",
+      "allDay": "כל היום ({count})",
+      "stay": {
+        "checkedIn": "נמצא בפנסיון",
+        "booked": "הזמנה",
+        "noRoom": "ללא חדר",
+        "title": "{status}: {pet} · {room}\nכניסה: {checkIn}{checkOut}",
+        "checkOutSuffix": " · יציאה: {time}"
+      },
+      "followUpTitleWithTime": "פולואפ: {name}{service} ({time})",
+      "followUpTitle": "פולואפ: {name}{service}",
+      "overdueColon": "⚠️ באיחור:",
+      "followUpColon": "📞 פולואפ:",
+      "checkInTitle": "צ׳ק-אין: {pet} — {customer}{room} ({time})",
+      "checkOutTitle": "צ׳ק-אאוט: {pet} — {customer}{room} ({time})",
+      "trainingTitleWithTime": "אילוף: {label}{customer} ({time})",
+      "trainingTitle": "אילוף: {label}{customer}",
+      "addOnDay": "הוסף תור ביום זה",
+      "moreCount": "+{count} עוד",
+      "agenda": {
+        "salesFollowUp": "פולואפ מכירות",
+        "meetingUntil": "פגישה עד {time}",
+        "workshop": "סדנה",
+        "groupTraining": "קבוצת אימון",
+        "trainingWith": "אילוף · {name}",
+        "training": "אילוף",
+        "eventsCount": "{count} אירועים",
+        "noEvents": "אין אירועים",
+        "customerCard": "כרטיס לקוח"
+      },
+      "detail": {
+        "notesPlaceholder": "הוסף הערות לתור...",
+        "saveNotes": "שמור הערות",
+        "noNotes": "אין הערות",
+        "editNotes": "ערוך הערות",
+        "cancellationReason": "סיבת ביטול",
+        "sendWhatsappReminder": "שלח תזכורת בוואטסאפ",
+        "reschedule": "העבר תור",
+        "date": "תאריך",
+        "startTime": "שעת התחלה",
+        "durationKept": "משך התור נשמר ({minutes} דק׳)",
+        "endSuffix": " · סיום {time}",
+        "confirmMove": "אשר העברה",
+        "duplicating": "משכפל...",
+        "duplicate": "שכפל תור (אותו מועד)",
+        "openOrder": "פתח הזמנה",
+        "customerCard": "כרטיס לקוח",
+        "deleteConfirm": "למחוק את התור לצמיתות?",
+        "yesDelete": "כן, מחק",
+        "no": "לא",
+        "cancelConfirm": "לבטל את התור?",
+        "cancelReasonPlaceholder": "סיבת ביטול (אופציונלי)",
+        "yesCancel": "כן, בטל",
+        "sendReminderTitle": "שלח תזכורת WhatsApp",
+        "completed": "הושלם",
+        "noShow": "לא הגיע",
+        "cancelAppointment": "בטל תור",
+        "addPayment": "הוסף תשלום",
+        "sendNextLinkTitle": "שלח לינק לתור הבא",
+        "deleteAppointment": "מחק תור"
+      }
+    }
+  },
+  "customers": {
+    "detailTypes": {
+      "serviceFallback": "שירות",
+      "ageMonths": "{count} חודשים",
+      "ageYears": "{count} שנ׳"
+    },
+    "bulkTagModal": {
+      "toastAdded": "התגית \"{tag}\" נוספה ל-{count} לקוחות",
+      "toastRemoved": "התגית \"{tag}\" הוסרה מ-{count} לקוחות",
+      "updateError": "שגיאה בעדכון הלקוחות. נסה שוב.",
+      "title": "תגיות ל-{count} לקוחות",
+      "tagLabel": "תגית",
+      "tagPlaceholder": "בחר או הקלד תגית",
+      "addTag": "הוסף תגית",
+      "removeTag": "הסר תגית"
+    },
+    "bulkWhatsAppModal": {
+      "defaultMessage": "שלום '{'שם'}', ",
+      "title": "שליחת הודעה בוואטסאפ",
+      "recipients": "{count} נמענים",
+      "invalidSuffix": " · {count} ללא מספר תקין",
+      "messageLabel": "תוכן ההודעה",
+      "messagePlaceholder": "שלום '{'שם'}'! רצינו להזמין אותך לתור הבא שלך... 🐾",
+      "nameToken": "'{'שם'}'",
+      "hint": "<token></token> יוחלף בשם הפרטי של כל לקוח. כל לחיצה פותחת שיחה אחת בוואטסאפ שלך — שלחו ולחצו שוב לנמען הבא.",
+      "opened": "נפתח",
+      "skipped": "דולג",
+      "again": "שוב",
+      "open": "פתח",
+      "sendTo": "שלח ל-{name}",
+      "skipTitle": "דלג על נמען זה",
+      "skip": "דלג",
+      "finish": "סיום ({done}/{total})"
+    },
+    "customerFiltersPanel": {
+      "mobileToggle": "סינון ומיון",
+      "filterLabel": "סינון:",
+      "pills": {
+        "all": "הכל",
+        "active": "פעילים",
+        "dormant": "רדומים",
+        "debt": "חוב",
+        "balanced": "מאוזן"
+      },
+      "serviceType": "סוג שירות",
+      "lastVisit": {
+        "label": "ביקור אחרון",
+        "days30": "לא ביקרו 30+ ימים",
+        "days60": "לא ביקרו 60+ ימים",
+        "days90": "לא ביקרו 90+ ימים",
+        "never": "אף פעם"
+      },
+      "species": {
+        "label": "סוג חיה",
+        "dog": "כלבים",
+        "cat": "חתולים",
+        "other": "אחר"
+      },
+      "source": "מקור הגעה",
+      "joined": {
+        "label": "הצטרפו:",
+        "from": "הצטרפו מתאריך",
+        "to": "הצטרפו עד תאריך"
+      },
+      "minDebt": {
+        "label": "חוב מעל {currency}",
+        "ariaLabel": "חוב מינימלי"
+      },
+      "sort": {
+        "label": "מיון",
+        "option": "מיון: {label}"
+      },
+      "reset": "נקה סינון",
+      "tagsLabel": "תגיות:"
+    },
+    "petCareModals": {
+      "errors": {
+        "generic": "שגיאה",
+        "update": "שגיאה בעדכון"
+      },
+      "saveChanges": "שמור שינויים",
+      "feeding": {
+        "updated": "פרטי האכלה עודכנו",
+        "updateError": "שגיאה בעדכון פרטי האכלה. נסה שוב.",
+        "title": "האכלה — {petName}",
+        "brand": "מותג / חברת אוכל",
+        "brandPlaceholder": "לדוג׳ Royal Canin, Hill's, Acana...",
+        "gramsPerDay": "כמות יומית (גרם)",
+        "gramsPlaceholder": "לדוג׳ 250",
+        "frequency": "תדירות האכלה",
+        "choose": "בחר...",
+        "frequencies": {
+          "once": "פעם ביום",
+          "twice": "2 פעמים ביום",
+          "three": "3 פעמים ביום",
+          "four": "4 פעמים ביום",
+          "onDemand": "לפי דרישה"
+        },
+        "notes": "הערות נוספות (אלרגיות לאוכל, העדפות...)",
+        "notesPlaceholder": "לדוג׳ ללא גלוטן, מעדיף אוכל רטוב..."
+      },
+      "health": {
+        "updateError": "שגיאה בעדכון מידע הבריאות. נסה שוב.",
+        "title": "בריאות — {petName}",
+        "vaccinesSection": "חיסונים וטיפולים",
+        "rabies": "כלבת — אחת לשנה",
+        "notVaccinated": "לא חוסן",
+        "notTreated": "לא טופל",
+        "vaccineDate": "תאריך חיסון",
+        "validUntil": "תוקף עד",
+        "dhppPuppy": "משושה גורים — 3 מנות, שבועיים בין כל מנה",
+        "dhppAdult": "משושה בוגר (DHPP) — אחת לשנה",
+        "deworming": "תילוע — אחת לחצי שנה",
+        "dewormingDate": "תאריך תילוע",
+        "parkWorm": "תולעת הפארק — כל 3 חודשים",
+        "treatmentDate": "תאריך טיפול",
+        "fleaTick": "קרציות ופרעושים",
+        "fleaTickType": "סוג טיפול (שם מוצר)",
+        "bordetella": "שעלת מכלאות — תיעוד קבלה",
+        "bordetellaDate": "תאריך קבלה",
+        "medicalSection": "מצב רפואי",
+        "allergies": "אלרגיות",
+        "allergiesPlaceholder": "אלרגיה לעוף, דשא...",
+        "medicalConditions": "מצבים רפואיים",
+        "surgeries": "ניתוחים בעבר",
+        "activityLimitations": "מגבלות פעילות",
+        "vetSection": "וטרינר",
+        "vetName": "שם וטרינר",
+        "vetPhone": "טלפון וטרינר",
+        "generalSection": "כללי",
+        "neutered": "מסורס / מעוקרת",
+        "neuteredDate": "תאריך סירוס / עיקור",
+        "origin": "מקור (מאיפה הגיע)",
+        "originPlaceholder": "מאמץ, מגדל, רחוב...",
+        "timeWithOwner": "זמן עם הבעלים",
+        "timeWithOwnerPlaceholder": "3 שנים",
+        "dose1": "מנה 1",
+        "dose2": "מנה 2",
+        "dose3": "מנה 3"
+      },
+      "behavior": {
+        "updateError": "שגיאה בעדכון מידע ההתנהגות. נסה שוב.",
+        "title": "התנהגות — {petName}",
+        "flagsSection": "דגלי התנהגות",
+        "flags": {
+          "dogAggression": "תוקפנות כלפי כלבים",
+          "humanAggression": "תוקפנות כלפי בני אדם",
+          "leashReactivity": "ריאקטיביות בשרשרת",
+          "leashPulling": "משיכה בשרשרת",
+          "jumping": "קפיצה על אנשים",
+          "separationAnxiety": "חרדת נטישה",
+          "excessiveBarking": "נביחות מוגזמות",
+          "destruction": "הרס",
+          "resourceGuarding": "שמירת משאבים",
+          "badWithKids": "לא מתאים לילדים",
+          "houseSoiling": "כלוך בבית",
+          "biteHistory": "היסטוריית נשיכה",
+          "priorTraining": "עבר אילוף בעבר"
+        },
+        "biteDetails": "פרטי נשיכה",
+        "triggers": "טריגרים",
+        "triggersPlaceholder": "קולות חזקים, כלבים אחרים...",
+        "priorTrainingDetails": "פרטי אילוף קודם",
+        "customIssues": "בעיות נוספות (ידני)",
+        "customIssuePlaceholder": "תאר בעיה התנהגותית..."
+      }
+    },
+    "petModals": {
+      "breed": {
+        "placeholder": "הזן גזע",
+        "placeholderPick": "הזן או בחר גזע"
+      },
+      "fields": {
+        "name": "שם *",
+        "species": "סוג",
+        "breed": "גזע",
+        "gender": "מין",
+        "weight": "משקל (ק״ג)",
+        "birthDate": "תאריך לידה",
+        "microchip": "מיקרוצ׳יפ",
+        "microchipPlaceholder": "מספר שבב",
+        "neutered": "עיקור / סירוס",
+        "profilePhoto": "תמונת פרופיל"
+      },
+      "species": {
+        "dog": "כלב",
+        "cat": "חתול",
+        "other": "אחר"
+      },
+      "gender": {
+        "male": "זכר",
+        "female": "נקבה",
+        "unknown": "לא ידוע"
+      },
+      "errors": {
+        "update": "שגיאה בעדכון"
+      },
+      "add": {
+        "title": "חיית מחמד חדשה",
+        "uploadingProfile": "מעלה תמונת פרופיל...",
+        "profileUploadError": "שגיאה בהעלאת תמונת פרופיל",
+        "uploadingDocs": "מעלה מסמכים...",
+        "docUploadError": "שגיאה בהעלאת מסמך",
+        "profileAlt": "פרופיל",
+        "photo": "תמונה",
+        "behavior": "פרופיל התנהגותי",
+        "documents": "מסמכים (רישיונות, חיסונים, תמונות)",
+        "clickToChoose": "לחץ לבחירת קבצים",
+        "fileHint": "PDF, JPG, PNG — עד {max}MB לקובץ · תמונות מכווצות אוטומטית",
+        "submit": "הוסף חיית מחמד",
+        "saveError": "שגיאה בשמירה — נסה שוב"
+      },
+      "docs": {
+        "title": "מסמכי {petName}",
+        "deleteError": "שגיאה במחיקה",
+        "deleteDocError": "שגיאה במחיקת מסמך",
+        "tooLarge": "{fileName} גדול מדי (מקסימום {max}MB)",
+        "uploadError": "שגיאה בהעלאת קובץ",
+        "empty": "אין מסמכים עדיין",
+        "deleteDoc": "מחק מסמך",
+        "uploading": "מעלה...",
+        "addDoc": "הוסף מסמך",
+        "fileHint": "PDF, JPG, PNG — עד {max}MB · תמונות מכווצות אוטומטית",
+        "confirmTitle": "מחיקת מסמך",
+        "confirmDescription": "המסמך יימחק לצמיתות. להמשיך?"
+      },
+      "edit": {
+        "saved": "הפרטים נשמרו",
+        "saveError": "שגיאה בעדכון חיית המחמד. נסה שוב.",
+        "title": "עריכת {name}",
+        "tags": "תגיות התנהגותיות",
+        "saveChanges": "שמור שינויים"
+      },
+      "note": {
+        "saveError": "שגיאה בשמירת ההערה. נסה שוב.",
+        "placeholder": "הזן הערות..."
+      },
+      "med": {
+        "addError": "שגיאה בהוספה",
+        "saveError": "שגיאה בשמירת התרופה. נסה שוב.",
+        "editTitle": "עריכת תרופה",
+        "addTitle": "הוספת תרופה — {petName}",
+        "name": "שם תרופה *",
+        "namePlaceholder": "ריבוקסיב, אמוקסיצילין...",
+        "dosage": "מינון",
+        "dosagePlaceholder": "25 מ״ג",
+        "frequency": "תדירות",
+        "frequencyPlaceholder": "פעם ביום",
+        "times": "שעות מתן",
+        "instructions": "הוראות",
+        "instructionsPlaceholder": "עם אוכל, לא לחצות...",
+        "startDate": "תאריך התחלה",
+        "endDate": "תאריך סיום",
+        "add": "הוסף תרופה"
+      }
+    },
+    "listTypes": {
+      "referralSources": {
+        "referral": "המלצה מלקוח",
+        "google": "גוגל",
+        "instagram": "אינסטגרם",
+        "facebook": "פייסבוק",
+        "tiktok": "טיקטוק",
+        "signage": "שלט / מעבר ברחוב",
+        "website": "אתר",
+        "manual": "ידני",
+        "other": "אחר"
+      }
+    },
+    "cells": {
+      "status": {
+        "active": "פעיל",
+        "dormant": "רדום"
+      },
+      "financial": {
+        "debt": "חוב",
+        "credit": "קרדיט",
+        "balanced": "מאוזן"
+      },
+      "pets": {
+        "none": "אין חיות",
+        "more": "+{count} נוספים"
+      },
+      "appointments": {
+        "last": "אחרון: {date}",
+        "noHistory": "אין היסטוריה",
+        "next": "הבא: {date}",
+        "notScheduled": "לא נקבע"
+      },
+      "actions": {
+        "whatsapp": "שלח הודעת WhatsApp",
+        "call": "התקשר ל־{phone}",
+        "email": "שלח אימייל ל־{email}",
+        "edit": "עריכת לקוח"
+      }
+    },
+    "inlineTagEditor": {
+      "updateError": "שגיאה בעדכון התגיות. נסה שוב.",
+      "editTitle": "עריכת תגיות",
+      "addTags": "הוסף תגיות",
+      "heading": "תגיות לקוח"
+    },
+    "manageTagsPopover": {
+      "title": "ניהול תוויות",
+      "count": "{count} תוויות",
+      "newTagPlaceholder": "תווית חדשה...",
+      "confirm": "אישור",
+      "confirmDelete": "מחק את \"{tag}\"?",
+      "clickToEdit": "לחץ לעריכה",
+      "edit": "ערוך",
+      "empty": "אין תוויות. הוסף תווית חדשה למעלה."
+    },
+    "listEditCustomerModal": {
+      "toastUpdated": "פרטי הלקוח עודכנו",
+      "toastError": "שגיאה בעדכון הלקוח. נסה שוב.",
+      "title": "עריכת לקוח",
+      "fullName": "שם מלא *",
+      "phone": "טלפון *",
+      "email": "אימייל",
+      "address": "כתובת",
+      "idNumber": "תעודת זהות",
+      "tags": "תגיות לקוח",
+      "source": "מקור הגעה",
+      "sourceUnknown": "— לא ידוע —",
+      "notes": "הערות",
+      "saveChanges": "שמור שינויים"
+    },
+    "newCustomerModal": {
+      "errorGeneric": "שגיאה",
+      "toastCreated": "הלקוח נוצר בהצלחה",
+      "sendWelcome": "שלח ברוכים הבאים",
+      "openCustomer": "פתח את הלקוח",
+      "toastCreateError": "שגיאה ביצירת הלקוח. נסה שוב.",
+      "title": "לקוח חדש",
+      "subtitle": "הוסף לקוח למערכת",
+      "fullName": "שם מלא *",
+      "namePlaceholder": "שם הלקוח",
+      "phone": "טלפון *",
+      "duplicatePhone": "מספר טלפון זה כבר שייך ללקוח {name} — לא ניתן ליצור לקוח נוסף עם אותו מספר.",
+      "openExisting": "פתח את הלקוח הקיים",
+      "email": "אימייל",
+      "address": "כתובת",
+      "addressPlaceholder": "עיר, רחוב",
+      "idNumber": "תעודת זהות",
+      "idNumberHint": "חשוב לשליחת חוזים דיגיטליים",
+      "secondContact": "איש קשר נוסף",
+      "optional": "(אופציונלי)",
+      "secondContactNamePlaceholder": "שם איש הקשר",
+      "tags": "תגיות לקוח",
+      "source": "מקור הגעה",
+      "sourceUnknown": "— לא ידוע —",
+      "notes": "הערות",
+      "submit": "הוסף לקוח"
+    },
+    "customerPicker": {
+      "placeholder": "חיפוש לפי שם לקוח, טלפון או שם הכלב",
+      "createNew": "לקוח חדש",
+      "change": "החלף לקוח",
+      "loadingCustomer": "טוען לקוח...",
+      "recent": "לקוחות אחרונים",
+      "noResults": "לא נמצאו לקוחות"
+    },
+    "customerSalesHistory": {
+      "days": {
+        "sameDay": "באותו יום",
+        "one": "יום אחד",
+        "many": "{count} ימים"
+      },
+      "status": {
+        "won": "נסגר כלקוח",
+        "lost": "אבד",
+        "open": "פתוח במכירות"
+      },
+      "chip": {
+        "title": "הצג היסטוריית מכירה",
+        "label": "הגיע מליד"
+      },
+      "card": {
+        "title": "היסטוריית מכירה",
+        "leadCount": "({count} לידים)"
+      },
+      "lead": {
+        "open": "פתח את הליד",
+        "openedOn": "נפתח {date}",
+        "wonOn": " ← נסגר {date}",
+        "lostOn": " ← אבד {date}",
+        "wonBy": " · נסגר ע״י {name}",
+        "openFor": "פתוח {days}",
+        "wonWithin": "נסגר תוך {days}",
+        "inSales": "{days} במכירות",
+        "notes": "הערות ליד",
+        "showLess": "הצג פחות",
+        "showAll": "הצג הכל",
+        "journal": "יומן מכירה",
+        "showAllHistory": "הצג את כל ההיסטוריה ({count})",
+        "journalTruncated": "היומן ארוך — מוצגות הרשומות האחרונות בלבד; רשומות ישנות יותר זמינות בכרטיס הליד."
+      },
+      "info": {
+        "source": "מקור",
+        "trafficSource": "מקור תנועה",
+        "landingPage": "עמוד נחיתה",
+        "requestedService": "שירות מבוקש",
+        "dealValue": "ערך עסקה",
+        "calls": "שיחות",
+        "lostReason": "סיבת אובדן",
+        "nextFollowUp": "פולואפ הבא"
+      },
+      "journal": {
+        "due": "יעד: {date}",
+        "agreed": "מה סוכם: "
+      }
+    },
+    "customersDetailPage": {
+      "noAccess": {
+        "title": "אין הרשאה",
+        "description": "אין לך הרשאה לצפות בפרטי לקוחות. פנה למנהל העסק."
+      },
+      "toasts": {
+        "deleteRequested": "הבקשה נשלחה לאישור הבעלים",
+        "deleted": "הלקוח נמחק",
+        "deleteError": "שגיאה במחיקת הלקוח. נסה שוב.",
+        "petRequired": "חובה להוסיף חיית מחמד ללקוח לפני יצירת הזמנה",
+        "petRequiredHint": "לחץ על 'הוסף' בקטע חיות המחמד",
+        "noPhone": "אין מספר טלפון ללקוח",
+        "merged": "הלקוחות מוזגו בהצלחה"
+      },
+      "error": {
+        "notFoundTitle": "לקוח לא נמצא",
+        "loadTitle": "שגיאה בטעינת הדף",
+        "notFoundDescription": "הלקוח שחיפשת לא קיים או שהקישור שגוי",
+        "loadDescription": "משהו השתבש. אנא נסה לרענן את הדף.",
+        "backToList": "חזרה לרשימת הלקוחות"
+      },
+      "nav": {
+        "pets": "חיות",
+        "appointments": "תורים",
+        "finance": "כספים",
+        "sales": "מכירות",
+        "documents": "מסמכים",
+        "timeline": "ציר זמן"
+      },
+      "delete": {
+        "requestTitle": "בקשת מחיקת לקוח",
+        "title": "מחיקת לקוח",
+        "requestDescription": "הבקשה תישלח לאישור הבעלים. לאחר האישור יימחקו הלקוח, הפגישות, התשלומים ותוכניות האימון המשויכים.",
+        "description": "מחיקת הלקוח תסיר את כל הפגישות, התשלומים ותוכניות האימון המשויכות. פעולה זו אינה ניתנת לביטול."
+      }
+    },
+    "customersPage": {
+      "newBadge": {
+        "today": "היום",
+        "yesterday": "אתמול",
+        "daysAgo": "לפני {count} ימים",
+        "label": "חדש · {label}"
+      },
+      "noAccess": {
+        "title": "אין הרשאה",
+        "description": "אין לך הרשאה לצפות בלקוחות. פנה למנהל העסק."
+      },
+      "toasts": {
+        "tagsSaved": "התגיות נשמרו",
+        "tagsSaveError": "שגיאה בשמירת התגיות. נסה שוב."
+      },
+      "bulkDelete": {
+        "deleted": "{count} נמחקו",
+        "pending": "{count} נשלחו לאישור הבעלים",
+        "failed": "{count} נכשלו",
+        "none": "לא נמחקו לקוחות",
+        "error": "שגיאה במחיקת הלקוחות. נסה שוב.",
+        "confirmTitle": "מחיקת לקוחות",
+        "confirmDescription": "אתה עומד למחוק <b>{count} לקוחות</b>. פעולה זו תמחק גם את חיות המחמד, התורים ונתוני הלקוח לצמיתות.",
+        "continue": "המשך",
+        "finalTitle": "אישור סופי",
+        "finalDescription": "למחוק <b>{count} לקוחות</b> לצמיתות? לא ניתן לשחזר פעולה זו.",
+        "confirmLabel": "מחק {count} לקוחות"
+      },
+      "export": {
+        "success": "הקובץ הורד בהצלחה",
+        "error": "שגיאה בייצוא. נסה שוב.",
+        "selectedTitle": "ייצוא הלקוחות הנבחרים לאקסל",
+        "filteredTitle": "ייצוא הלקוחות המסוננים לאקסל",
+        "labelCount": "ייצוא {count}",
+        "label": "ייצוא"
+      },
+      "header": {
+        "title": "לקוחות",
+        "countOne": "{count} לקוח במערכת",
+        "countMany": "{count} לקוחות במערכת",
+        "refresh": "רענן נתונים",
+        "upgrade": "שדרג לבייסיק",
+        "newCustomer": "לקוח חדש",
+        "newOrder": "הזמנה חדשה"
+      },
+      "import": {
+        "title": "ייבוא לקוחות מאקסל",
+        "label": "ייבוא"
+      },
+      "freeLimit": {
+        "usage": "{used}/{max} לקוחות — מגבלת המנוי החינמי",
+        "upgrade": "שדרג לבייסיק ←"
+      },
+      "search": {
+        "placeholder": "חיפוש לפי שם, טלפון, אימייל או שם חיה...",
+        "ariaLabel": "חיפוש לקוחות"
+      },
+      "bulk": {
+        "selected": "{count} נבחרו",
+        "sendMessage": "שלח הודעה",
+        "tags": "תגיות",
+        "deleteSelected": "מחק נבחרים"
+      },
+      "selection": {
+        "cancel": "בטל בחירה",
+        "select": "בחר",
+        "selectAllCount": "בחר את כל המוצגים ({count})",
+        "selectAll": "בחר את כל המוצגים",
+        "deselectOne": "בטל בחירה של {name}",
+        "selectOne": "בחר את {name}"
+      },
+      "empty": {
+        "noResultsFor": "לא נמצאו תוצאות עבור \"{query}\"",
+        "noResults": "אין תוצאות",
+        "noCustomers": "אין לקוחות",
+        "tryChanging": "נסה לשנות את החיפוש או הסינון",
+        "getStarted": "התחל על ידי הוספת הלקוח הראשון",
+        "clear": "נקה חיפוש וסינון",
+        "addCustomer": "הוסף לקוח"
+      },
+      "table": {
+        "sort": "מיון",
+        "caption": "רשימת לקוחות",
+        "name": "שם",
+        "status": "סטטוס",
+        "pets": "חיות",
+        "appointments": "פגישות",
+        "finance": "כספי",
+        "actions": "פעולות"
+      },
+      "loadMore": "טען עוד לקוחות",
+      "footer": {
+        "showingOne": "מציג {shown} מתוך {total} לקוח",
+        "showingMany": "מציג {shown} מתוך {total} לקוחות",
+        "total": "{count} סה״כ",
+        "active": "{count} פעילים",
+        "withDebt": "{count} עם חוב"
+      }
+    },
+    "mergeCustomerModal": {
+      "title": "מיזוג לקוח כפול",
+      "backToPickAria": "חזרה לבחירת לקוח",
+      "toastMerged": "הלקוחות מוזגו בהצלחה",
+      "errorMerge": "שגיאה במיזוג הלקוחות",
+      "pickIntro": "בחר את הלקוח הכפול שיתמזג לתוך <b>{name}</b>.",
+      "searchPlaceholder": "חיפוש לפי שם, טלפון או אימייל",
+      "suggestionsHint": "הצעות: לקוחות עם אותו טלפון / אימייל / שם מופיעים ראשונים.",
+      "errorLoadCandidates": "שגיאה בטעינת לקוחות",
+      "noCandidates": "לא נמצאו לקוחות מתאימים",
+      "match": {
+        "phone": "אותו טלפון",
+        "email": "אותו אימייל",
+        "name": "אותו שם"
+      },
+      "errorLoadPreview": "שגיאה בטעינת תצוגת המיזוג",
+      "back": "חזרה",
+      "warningMain": "הלקוח <b>{source}</b> יימחק וכל הנתונים שלו יועברו ל<b>{target}</b>.",
+      "warningDetails": "הפרטים של {target} נשמרים; שדות ריקים יושלמו מהלקוח הכפול, תגיות ומסמכים יאוחדו והערות יצורפו. לא ניתן לבטל פעולה זו.",
+      "willBeDeleted": "יימחק",
+      "stays": "נשאר",
+      "whatMoves": "מה יועבר",
+      "nothingLinked": "ללקוח הכפול אין נתונים מקושרים — רק פרטי הלקוח ימוזגו.",
+      "confirmLabel": "לאישור, הקלד את שם הלקוח שיימחק: <b>{name}</b>",
+      "merging": "ממזג...",
+      "mergeButton": "מזג לקוחות"
+    },
+    "appointmentsSection": {
+      "toastReminderSent": "תזכורת WhatsApp נשלחה",
+      "errorReminder": "שגיאה בשליחת תזכורת",
+      "toastCompleted": "התור סומן כהושלם",
+      "errorUpdate": "שגיאה בעדכון התור",
+      "title": "תורים ({count})",
+      "newAppointment": "קבע תור",
+      "calendar": "יומן",
+      "tabUpcoming": "קרובים ({count})",
+      "tabPast": "היסטוריה ({count})",
+      "errorLoad": "שגיאה בטעינת התורים",
+      "emptyUpcoming": "אין תורים עתידיים",
+      "emptyPast": "אין היסטוריית תורים",
+      "openInCalendar": "פתח ועריכת תור ביומן",
+      "nextBadge": "התור הבא",
+      "sendReminder": "שלח תזכורת WhatsApp",
+      "sendFollowUp": "שלח מעקב WhatsApp",
+      "markCompleted": "סמן כהושלם",
+      "loadMore": "טען עוד"
+    },
+    "contactCard": {
+      "title": "פרטי קשר",
+      "editClient": "ערוך לקוח",
+      "sendMessageTitle": "שלח הודעת WhatsApp מהמערכת",
+      "sendMessage": "שלח הודעה",
+      "openWhatsApp": "פתח צ׳אט WhatsApp",
+      "noPhone": "אין טלפון",
+      "stats": {
+        "appointments": "תורים",
+        "pets": "חיות",
+        "orders": "הזמנות"
+      },
+      "errorTags": "שגיאה בעדכון התגיות",
+      "removeTag": "הסר תגית {tag}",
+      "tag": "תגית",
+      "newTagPlaceholder": "תגית חדשה..."
+    },
+    "customerDocumentsSection": {
+      "errorDelete": "שגיאה במחיקה",
+      "errorUpload": "שגיאה בהעלאת קובץ",
+      "title": "מסמכים ({count})",
+      "uploadDocument": "העלאת מסמך",
+      "docType": "סוג מסמך",
+      "docName": "שם מסמך (אופציונלי)",
+      "docNamePlaceholder": "לדוגמה: חוזה אילוף ינואר 2026",
+      "clickToPick": "לחץ לבחירת קבצים",
+      "allowedTypes": "PDF, JPG, PNG, DOC, XLS — עד {mb}MB לקובץ",
+      "imagesCompressed": "תמונות מכווצות אוטומטית לפני ההעלאה",
+      "oversized": "{count} קובץ/ים חורגים מגודל מקסימלי של {mb}MB ולא נוספו.",
+      "uploading": "מעלה...",
+      "uploadWithCount": "העלה ({count})",
+      "upload": "העלה ",
+      "filterAll": "הכל ({count})",
+      "emptyTitle": "אין מסמכים עדיין",
+      "emptyHint": "חוזים, חשבוניות, קבלות ועוד",
+      "uploadFirst": "העלה מסמך ראשון",
+      "emptyCategory": "אין מסמכים בקטגוריה זו",
+      "download": "הורד",
+      "deleteTitle": "מחיקת מסמך",
+      "deleteDescription": "מחיקת המסמך תסיר אותו לצמיתות. פעולה זו אינה ניתנת לביטול."
+    },
+    "customerHeader": {
+      "menu": {
+        "appointment": "קבע תור",
+        "task": "משימה",
+        "compose": "שלח הודעה",
+        "paymentRequest": "בקשת תשלום",
+        "intakeSending": "שולח...",
+        "intake": "טופס קבלה",
+        "bookingLink": "קישור הזמנה",
+        "print": "הדפס",
+        "merge": "מזג לקוח כפול",
+        "deleteRequest": "בקשת מחיקה",
+        "delete": "מחק לקוח",
+        "newOrder": "הזמנה חדשה"
+      },
+      "backToList": "חזרה לרשימת הלקוחות",
+      "added": "נוסף {date}",
+      "newAppointmentTitle": "קבע תור ללקוח זה",
+      "composeTitle": "שלח הודעת WhatsApp ללקוח",
+      "moreActions": "פעולות נוספות"
+    },
+    "detailEditCustomerModal": {
+      "sources": {
+        "referral": "המלצה מלקוח",
+        "google": "גוגל",
+        "instagram": "אינסטגרם",
+        "facebook": "פייסבוק",
+        "tiktok": "טיקטוק",
+        "signage": "שלט / מעבר ברחוב",
+        "other": "אחר"
+      },
+      "errorUpdate": "שגיאה בעדכון הלקוח",
+      "errorUpdateRetry": "שגיאה בעדכון הלקוח. נסה שוב.",
+      "title": "עריכת לקוח",
+      "fields": {
+        "name": "שם *",
+        "phone": "טלפון *",
+        "email": "אימייל",
+        "address": "כתובת",
+        "idNumber": "תעודת זהות",
+        "idNumberPlaceholder": "מספר ת.ז.",
+        "tags": "תגיות לקוח",
+        "source": "מקור הגעה",
+        "notes": "הערות"
+      },
+      "sourceUnknown": "— לא ידוע —",
+      "saveChanges": "שמור שינויים"
+    },
+    "newAppointmentModal": {
+      "toastScheduled": "תור נקבע עבור {name}",
+      "toastError": "שגיאה בקביעת התור. נסה שוב.",
+      "title": "תור חדש — {name}",
+      "serviceLabel": "שירות *",
+      "selectService": "בחר שירות...",
+      "petLabel": "חיית מחמד",
+      "noPet": "ללא שיוך לחיה",
+      "dateLabel": "תאריך *",
+      "startTimeLabel": "שעת התחלה *",
+      "endTimeLabel": "שעת סיום *",
+      "notesLabel": "הערות",
+      "notesPlaceholder": "הערות נוספות...",
+      "serviceRequired": "יש לבחור שירות",
+      "submit": "קבע תור",
+      "createError": "שגיאה ביצירת התור. נסה שוב."
+    },
+    "ordersSection": {
+      "title": "הזמנות ({total})",
+      "newOrder": "הזמנה חדשה",
+      "empty": "אין הזמנות עדיין",
+      "createFirst": "צור הזמנה ראשונה",
+      "itemsCount": "· {count} פריטים",
+      "openOrder": "פתח הזמנה ←",
+      "checkIn": "צ׳ק אין:",
+      "checkOut": "צ׳ק אאוט:",
+      "nights": "{count} לילות",
+      "dateTime": "תאריך ושעה:",
+      "discount": "הנחה",
+      "tax": "מע\"מ",
+      "total": "סה\"כ",
+      "sendPaymentRequest": "שלח בקשת תשלום",
+      "notes": "הערות:",
+      "showingLatest": "מוצגות {shown} ההזמנות האחרונות מתוך {total}"
+    },
+    "paymentsSection": {
+      "title": "תשלומים ({total})",
+      "recordPayment": "רשום תשלום",
+      "empty": "אין תשלומים עדיין",
+      "recordFirst": "רשום תשלום ראשון",
+      "depositSuffix": " · מקדמה",
+      "boardingLabel": "פנסיון – {petName}",
+      "loadError": "שגיאה בטעינת תשלומים",
+      "loadMore": "טען עוד"
+    },
+    "petCard": {
+      "species": {
+        "dog": "כלב",
+        "cat": "חתול"
+      },
+      "gender": {
+        "male": "זכר",
+        "female": "נקבה"
+      },
+      "birthdayWhatsApp": "שלח ברכת יום הולדת WhatsApp",
+      "editDetails": "ערוך פרטים",
+      "editDetailsAria": "ערוך פרטי חיית המחמד",
+      "sendDeleteRequest": "שלח בקשת מחיקה לאישור",
+      "deletePetAria": "מחק חיית מחמד",
+      "quick": {
+        "age": "גיל: {age}",
+        "weight": "משקל: {weight} ק״ג",
+        "microchip": "שבב: {microchip}",
+        "medsCount": "{count} תרופות"
+      },
+      "feeding": {
+        "title": "האכלה",
+        "edit": "ערוך האכלה",
+        "brand": "מותג: ",
+        "amount": "כמות: ",
+        "gramsPerDay": "{grams} גרם/יום",
+        "frequency": "תדירות: ",
+        "add": "+ הוסף פרטי האכלה"
+      },
+      "meds": {
+        "title": "תרופות ({count})",
+        "edit": "ערוך תרופות",
+        "editOne": "ערוך",
+        "frequency": "תדירות: {frequency}",
+        "times": "שעות: {times}",
+        "from": "מ-{date}",
+        "until": "עד {date}",
+        "addAnother": "+ הוסף תרופה נוספת",
+        "addFirst": "+ הוסף תרופה ראשונה"
+      },
+      "health": {
+        "title": "בריאות",
+        "edit": "ערוך בריאות",
+        "rabies": "כלבת: ",
+        "rabiesUntil": "כלבת עד: ",
+        "dhppPuppy1": "משושה גורים מ1: ",
+        "dhppPuppy2": "משושה גורים מ2: ",
+        "dhppPuppy3": "משושה גורים מ3: ",
+        "dhppAdult": "משושה בוגר: ",
+        "bordetella": "שעלת מכלאות: ",
+        "parkWorm": "תולעת פארק: ",
+        "deworming": "תילוע: ",
+        "fleaTick": "קרציות/פרעושים: ",
+        "notVaccinated": {
+          "rabies": "כלבת: לא חוסן",
+          "dhpp": "משושה: לא חוסן",
+          "deworming": "תילוע: לא טופל",
+          "parkWorm": "תולעת הפארק: לא טופל",
+          "fleaTick": "קרציות/פרעושים: לא טופל",
+          "bordetella": "שעלת מכלאות: לא חוסן"
+        },
+        "allergies": "אלרגיות: ",
+        "medicalConditions": "מצבים רפואיים: ",
+        "surgeries": "ניתוחים: ",
+        "activityLimitations": "מגבלות פעילות: ",
+        "vet": "וטרינר: ",
+        "origin": "מקור: ",
+        "timeWithOwner": "זמן עם הבעלים: "
+      },
+      "behavior": {
+        "title": "התנהגות",
+        "edit": "ערוך התנהגות",
+        "triggers": "טריגרים: ",
+        "biteDetails": "פרטי נשיכה: ",
+        "priorTraining": "אילוף קודם: "
+      },
+      "training": {
+        "title": "אילוף ({count})",
+        "open": "פתח אילוף ←",
+        "status": {
+          "ACTIVE": "פעיל",
+          "PAUSED": "מושהה",
+          "COMPLETED": "הושלם",
+          "CANCELED": "בוטל"
+        },
+        "sessions": "מפגשים",
+        "goalsAchieved": "יעדים: {achieved}/{total} הושגו",
+        "moreGoals": "+{count} יעדים נוספים"
+      },
+      "notes": {
+        "medicalLabel": "הערות רפואיות: ",
+        "behaviorLabel": "הערות התנהגות: ",
+        "notEntered": "לא הוזן",
+        "medicalTitle": "הערות רפואיות",
+        "behaviorTitle": "הערות התנהגות"
+      },
+      "documents": {
+        "count": "{count} מסמכים",
+        "empty": "מסמכים ותמונות"
+      }
+    },
+    "petsSection": {
+      "toastMedDeleted": "התרופה נמחקה",
+      "toastMedDeleteError": "שגיאה במחיקת התרופה",
+      "toastRequestSent": "הבקשה נשלחה לאישור הבעלים",
+      "toastPetDeleted": "חיית המחמד נמחקה",
+      "toastPetDeleteError": "שגיאה במחיקת חיית המחמד",
+      "title": "חיות מחמד ({count})",
+      "empty": "אין חיות מחמד רשומות",
+      "addPet": "הוסף חיית מחמד",
+      "deleteMedTitle": "מחיקת תרופה",
+      "deleteMedDescription": "למחוק את {name}? פעולה זו אינה הפיכה.",
+      "deletePetRequestTitle": "בקשת מחיקת חיית מחמד",
+      "deletePetTitle": "מחיקת חיית מחמד",
+      "deletePetRequestDescription": "הבקשה למחיקת {name} תישלח לאישור הבעלים לפני ביצוע המחיקה.",
+      "deletePetDescription": "מחיקת {name} תסיר את כל הנתונים הרפואיים, המשקל וההיסטוריה המשויכים. פעולה זו אינה ניתנת לביטול."
+    },
+    "sectionNav": {
+      "ariaLabel": "ניווט בכרטיס הלקוח"
+    },
+    "summaryStrip": {
+      "debt": "חוב {amount}",
+      "pendingOfWhich": "מתוכם {amount} בתשלומים ממתינים",
+      "recordPayment": "רשום תשלום",
+      "openInCalendar": "פתח את התור ביומן",
+      "nextAppointment": "התור הבא",
+      "appointmentFallback": "תור",
+      "noUpcoming": "אין תור עתידי",
+      "book": "קבע תור",
+      "visits": "ביקורים",
+      "lastVisit": "אחרון: {date}",
+      "neverVisited": "טרם ביקר",
+      "paidToDate": "שולם עד היום",
+      "noDebt": "אין חוב",
+      "appointments": "תורים",
+      "upcomingCount": "{count} עתידיים"
+    },
+    "quickTaskModal": {
+      "categories": {
+        "GENERAL": "כללי",
+        "BOARDING": "פנסיון",
+        "TRAINING": "אילוף",
+        "LEADS": "לידים",
+        "HEALTH": "בריאות",
+        "MEDICATION": "תרופות",
+        "FEEDING": "האכלה"
+      },
+      "priorities": {
+        "LOW": "נמוכה",
+        "MEDIUM": "בינונית",
+        "HIGH": "גבוהה",
+        "URGENT": "דחופה"
+      },
+      "created": "משימה נוצרה עבור {name}",
+      "title": "משימה חדשה — {name}",
+      "titleLabel": "כותרת *",
+      "titlePlaceholder": "תאר את המשימה...",
+      "category": "קטגוריה",
+      "priority": "עדיפות",
+      "dueDate": "תאריך יעד",
+      "submit": "צור משימה",
+      "error": "שגיאה ביצירת המשימה. נסה שוב."
+    },
+    "recordPaymentModal": {
+      "toastPaid": "התשלום נרשם",
+      "toastPending": "התשלום נרשם כממתין",
+      "errorGeneric": "שגיאה ברישום התשלום",
+      "errorPositive": "יש להזין סכום חיובי",
+      "errorMax": "סכום חורג מהמותר (מקסימום {currencySymbol}1,000,000)",
+      "errorCardLast4": "4 ספרות אחרונות — 4 ספרות בדיוק",
+      "title": "רישום תשלום",
+      "amountLabel": "סכום ({currencySymbol})",
+      "method": "אמצעי תשלום",
+      "cardLast4": "4 ספרות אחרונות (אופציונלי)",
+      "checkNumber": "מספר צ׳ק (אופציונלי)",
+      "status": "סטטוס",
+      "statuses": {
+        "paid": "שולם",
+        "pending": "ממתין"
+      },
+      "linkToOrder": "שיוך להזמנה",
+      "noLink": "ללא שיוך",
+      "orderOption": "{type} · {date} · יתרה {remaining}",
+      "notes": "הערות",
+      "deposit": "מקדמה",
+      "submit": "רשום תשלום"
+    },
+    "sendContractSection": {
+      "errorGeneric": "שגיאה",
+      "createdNotSent": "החוזה נוצר אך לא נשלח בוואטסאפ",
+      "copyLink": "העתק קישור",
+      "linkCopied": "הקישור הועתק!",
+      "sentForSignature": "החוזה נשלח לחתימה!",
+      "sendError": "שגיאה בשליחה",
+      "deleteError": "שגיאה במחיקה",
+      "deleted": "החוזה נמחק",
+      "newContractSent": "חוזה חדש נשלח!",
+      "reminderSent": "תזכורת נשלחה!",
+      "statuses": {
+        "PENDING": "ממתין",
+        "VIEWED": "נצפה",
+        "SIGNED": "נחתם",
+        "EXPIRED": "פג תוקף"
+      },
+      "title": "חוזים ({count})",
+      "noTemplatesHint": "הוסף תבניות חוזים בהגדרות → חוזים",
+      "sendForSignature": "שלח לחתימה",
+      "empty": "לא נשלחו חוזים",
+      "sendReminderTitle": "שלח תזכורת WhatsApp",
+      "reminder": "תזכורת",
+      "sendNewContractTitle": "שלח חוזה חדש",
+      "resend": "שלח מחדש",
+      "view": "צפה",
+      "download": "הורד",
+      "deleteContract": "מחק חוזה",
+      "sentAt": "נשלח: {date}",
+      "openedAt": "נפתח: {date}",
+      "signedAt": "נחתם: {date}",
+      "expiresIn": "יפוג בעוד {count} ימים",
+      "modalTitle": "שלח חוזה לחתימה",
+      "chooseTemplate": "בחר תבנית חוזה",
+      "chooseTemplatePlaceholder": "בחר תבנית...",
+      "linkToDog": "שייך לכלב (אופציונלי)",
+      "noDog": "ללא שיוך לכלב",
+      "dogDetailsHint": "פרטי הכלב (שם, גזע, שבב, מין, צבע) יוטבעו אוטומטית בחוזה",
+      "sendTo": "ישלח ל: <b>{name}</b> ב-WhatsApp",
+      "sending": "שולח...",
+      "send": "שלח",
+      "deleteTitle": "מחיקת חוזה",
+      "deleteDescription": "מחיקת החוזה תסיר אותו לצמיתות. פעולה זו אינה ניתנת לביטול.",
+      "downloadPdf": "הורד PDF",
+      "pdfUnsupported": "הדפדפן שלך לא תומך בתצוגת PDF מוטבעת",
+      "docCategories": {
+        "contract": "חוזה",
+        "invoice": "חשבונית",
+        "receipt": "קבלה",
+        "agreement": "הסכם",
+        "medical": "רפואי",
+        "insurance": "ביטוח",
+        "other": "אחר"
+      },
+      "signedAtWithIcon": "✍️ נחתם: {date}"
+    },
+    "timelineSection": {
+      "filters": {
+        "all": "הכל",
+        "notes": "הערות",
+        "appointments": "תורים",
+        "payments": "תשלומים",
+        "messages": "הודעות"
+      },
+      "noteSaved": "ההערה נשמרה",
+      "saveError": "שגיאה בשמירת ההערה",
+      "noteUpdated": "ההערה עודכנה",
+      "updateError": "שגיאה בעדכון ההערה",
+      "noteDeleted": "ההערה נמחקה",
+      "deleteError": "שגיאה במחיקת ההערה",
+      "title": "ציר זמן",
+      "addNote": "רשום הערה",
+      "notePlaceholder": "הוסף הערת התקדמות, תצפית, או פעילות...",
+      "loadError": "שגיאה בטעינת ציר הזמן",
+      "emptyAll": "אין אירועים",
+      "emptyFiltered": "אין אירועים מסוג זה בטווח שנטען",
+      "loadMore": "טען עוד",
+      "deleteTitle": "מחיקת הערה",
+      "deleteDescription": "ההערה תימחק מציר הזמן. להמשיך?",
+      "editNote": "ערוך הערה",
+      "deleteNote": "מחק הערה"
+    },
+    "trainingSections": {
+      "packageTracking": "מעקב חבילות",
+      "sessionsProgress": "{completed}/{total} מפגשים",
+      "programsTitle": "תוכניות אימון ({count})",
+      "all": "הכל",
+      "sessionsSuffix": " מפגשים"
+    },
+    "whatsAppComposeModal": {
+      "noPhone": "אין מספר טלפון ללקוח",
+      "sendError": "שגיאה בשליחה",
+      "loggedStub": "ההודעה תועדה (WhatsApp לא מחובר — שליחה בפועל בהמתנה לאימות)",
+      "sentSuccess": "ההודעה נשלחה בהצלחה",
+      "title": "שליחת WhatsApp",
+      "messageLabel": "הודעה",
+      "placeholder": "שלום {name}, ...",
+      "sending": "שולח...",
+      "send": "שלח הודעה"
+    },
+    "constants": {
+      "paymentMethods": {
+        "cash": "מזומן",
+        "credit_card": "כרטיס אשראי",
+        "bank_transfer": "העברה בנקאית",
+        "bit": "ביט",
+        "paybox": "פייבוקס",
+        "check": "צ׳ק"
+      },
+      "paymentStatuses": {
+        "paid": "שולם",
+        "pending": "ממתין",
+        "overdue": "באיחור",
+        "canceled": "בוטל"
+      },
+      "behaviorFlags": {
+        "dogAggression": "תוקפנות כלבים",
+        "humanAggression": "תוקפנות אנשים",
+        "biteHistory": "היסטוריית נשיכה",
+        "badWithKids": "בעייתי עם ילדים",
+        "leashReactivity": "ריאקטיבי בשרשרת",
+        "leashPulling": "משיכה בשרשרת",
+        "jumping": "קפיצה",
+        "separationAnxiety": "חרדת נטישה",
+        "excessiveBarking": "נביחות מוגזמות",
+        "destruction": "הרסנות",
+        "resourceGuarding": "שמירת משאבים",
+        "houseSoiling": "צרכים בבית",
+        "priorTraining": "אילוף קודם"
+      },
+      "programTypes": {
+        "BASIC_OBEDIENCE": "משמעת בסיסית",
+        "REACTIVITY": "ריאקטיביות",
+        "PUPPY": "גור",
+        "BEHAVIOR": "התנהגות",
+        "ADVANCED": "מתקדם",
+        "CUSTOM": "מותאם אישית"
+      },
+      "programStatuses": {
+        "ACTIVE": "פעיל",
+        "PAUSED": "מושהה",
+        "COMPLETED": "הושלם",
+        "CANCELED": "בוטל"
+      },
+      "orderStatuses": {
+        "draft": "טיוטה",
+        "confirmed": "מאושר",
+        "paid": "שולם",
+        "partially_paid": "שולם חלקית",
+        "canceled": "בוטל",
+        "refunded": "זוכה"
+      },
+      "orderTypes": {
+        "sale": "מכירה",
+        "products": "מוצרים",
+        "appointment": "תור",
+        "boarding": "פנסיון",
+        "training": "אילוף",
+        "grooming": "טיפוח"
+      }
+    },
+    "customerActions": {
+      "noPhone": "אין מספר טלפון ללקוח",
+      "intakeCreateFailed": "לא ניתן ליצור טופס קבלה",
+      "intakeCreateError": "שגיאה ביצירת טופס קבלה"
+    }
+  },
+  "dashboard": {
+    "dashboardPage": {
+      "pageTitle": "לוח בקרה",
+      "showAll": "הצג הכל",
+      "toasts": {
+        "intakeCopied": "קישור טופס הקליטה הועתק ללוח!",
+        "intakeError": "שגיאה ביצירת קישור טופס הרישום",
+        "bookingLinkCopied": "קישור הזמנת תורים הועתק!",
+        "bookingLinkInfo": "הקישור לקוחות שלך:",
+        "copyFailed": "לא הצלחנו להעתיק"
+      },
+      "kpis": {
+        "monthRevenue": "הכנסות החודש",
+        "todaySub": "היום: {amount}",
+        "activeOrders": "הזמנות פעילות",
+        "debtors": "לקוחות עם חוב",
+        "todayAppointments": "תורים היום",
+        "openLeads": "לידים פתוחים",
+        "pendingBookings": "תורים ממתינים לאישור",
+        "needsApproval": "דורש אישור"
+      },
+      "boarding": {
+        "title": "פנסיון היום",
+        "link": "לפנסיון",
+        "arrivals": "כניסות",
+        "departures": "יציאות",
+        "overdue": "יציאה באיחור"
+      },
+      "appointments": {
+        "title": "תורים קרובים",
+        "empty": "אין תורים קרובים"
+      },
+      "orders": {
+        "title": "הזמנות אחרונות",
+        "empty": "אין הזמנות"
+      },
+      "activity": {
+        "title": "פעילות אחרונה",
+        "last24h": "24 שעות אחרונות"
+      },
+      "tasks": {
+        "title": "משימות פתוחות",
+        "empty": "אין משימות פתוחות"
+      },
+      "subscription": {
+        "expired": "המנוי שלך פג — הגישה לתכונות מתקדמות הוגבלה",
+        "endsIn": "המנוי שלך מסתיים בעוד {days} ימים",
+        "renew": "חדש מנוי"
+      },
+      "header": {
+        "greeting": "שלום, {name}",
+        "defaultName": "משתמש",
+        "refresh": "רענן נתונים",
+        "customizeTitle": "התאמת הדשבורד — מה יוצג ובאיזה סדר",
+        "customize": "התאמת הדשבורד",
+        "prevDay": "יום אחורה",
+        "nextDay": "יום קדימה",
+        "pickDate": "הצג את לוח הבקרה לתאריך אחר",
+        "today": "היום"
+      },
+      "actions": {
+        "newCustomer": "לקוח חדש",
+        "bookAppointment": "קביעת תור",
+        "newOrder": "הזמנה חדשה",
+        "copied": "הועתק!",
+        "intakeForm": "טופס קליטה",
+        "intakeTitle": "יצירת טופס קליטה והעתקת קישור",
+        "onlineBooking": "תורים אונליין",
+        "onlineBookingTitle": "העתק קישור הזמנת תורים אונליין"
+      },
+      "welcome": {
+        "title": "ברוכים הבאים ל-Petra!",
+        "subtitle": "המערכת מוכנה — בואו נתחיל לבנות את העסק שלכם. הנה כמה צעדים ראשונים:",
+        "firstCustomer": "הוסף לקוח ראשון",
+        "firstCustomerDesc": "הכנס את פרטי הלקוח הראשון שלך למערכת",
+        "firstAppointment": "קבע תור ראשון",
+        "firstAppointmentDesc": "תזמן פגישה ראשונה עם לקוח",
+        "setupServices": "הגדר שירותים ומחירון",
+        "setupServicesDesc": "הוסף את השירותים שהעסק שלך מציע",
+        "intakeDesc": "העתק קישור לטופס קליטה ושלח ללקוח",
+        "bookingDesc": "העתק קישור לדף ההזמנה לאתר שלך"
+      }
+    },
+    "dashboardCustomizeModal": {
+      "toasts": {
+        "reset": "הדשבורד חזר לברירת המחדל",
+        "saved": "התצוגה נשמרה",
+        "saveError": "שגיאה בשמירת התצוגה"
+      },
+      "title": "התאמת הדשבורד",
+      "subtitle": "בחרו מה יוצג ובאיזה סדר. ההגדרה אישית — רק לכם, בכל מכשיר.",
+      "areas": "אזורים",
+      "areasShown": "({count} מוצגים)",
+      "moveUp": "הזז למעלה: {label}",
+      "moveDown": "הזז למטה: {label}",
+      "show": "הצג {label}",
+      "statsHeading": "כרטיסי מספרים",
+      "resetDefault": "חזרה לברירת מחדל"
+    },
+    "newAppointmentModal": {
+      "title": "תור ידני חדש",
+      "submit": "קבע תור",
+      "toasts": {
+        "created": "הפגישה נוצרה בהצלחה!",
+        "createError": "שגיאה ביצירת הפגישה. נסה שוב."
+      },
+      "errors": {
+        "create": "שגיאה ביצירת פגישה",
+        "save": "שגיאה בשמירת התור. נסה שוב."
+      },
+      "fields": {
+        "customer": "לקוח *",
+        "pet": "חיית מחמד (אופציונלי)",
+        "noPet": "ללא בחירת חיית מחמד",
+        "service": "שירות *",
+        "selectService": "בחר שירות...",
+        "durationSuffix": " ({duration} דק׳)",
+        "date": "תאריך *",
+        "startTime": "שעת התחלה",
+        "endTime": "שעת סיום",
+        "notes": "הערות",
+        "notesPlaceholder": "הערות נוספות..."
+      }
+    },
+    "newCustomerModal": {
+      "title": "לקוח חדש",
+      "subtitle": "הוסף לקוח למערכת",
+      "submit": "הוסף לקוח",
+      "other": "אחר",
+      "completeLater": "ניתן להשלים מאוחר יותר",
+      "toasts": {
+        "created": "הלקוח נוצר בהצלחה",
+        "createError": "שגיאה ביצירת הלקוח"
+      },
+      "fields": {
+        "name": "שם מלא *",
+        "namePlaceholder": "שם הלקוח",
+        "phone": "טלפון *",
+        "email": "אימייל",
+        "address": "כתובת",
+        "addressPlaceholder": "עיר, רחוב",
+        "tags": "תגיות לקוח",
+        "requestedService": "סוג שירות מבוקש",
+        "choose": "בחר...",
+        "source": "מקור הפנייה",
+        "notes": "הערות"
+      },
+      "serviceOptions": {
+        "training": "אילוף",
+        "grooming": "טיפוח",
+        "boarding": "פנסיון"
+      },
+      "sourceOptions": {
+        "unknown": "— לא ידוע —",
+        "referral": "המלצה מלקוח",
+        "google": "גוגל",
+        "instagram": "אינסטגרם",
+        "facebook": "פייסבוק",
+        "tiktok": "טיקטוק",
+        "signage": "שלט / מעבר ברחוב"
+      },
+      "pet": {
+        "add": "הוספת חיה",
+        "optional": "(אופציונלי)",
+        "name": "שם החיה",
+        "namePlaceholder": "בוקי",
+        "species": "סוג",
+        "dog": "כלב",
+        "cat": "חתול",
+        "breed": "גזע",
+        "breedPlaceholder": "לברדור",
+        "age": "גיל"
+      }
+    },
+    "revenueChart": {
+      "title": "הכנסות אחרונות",
+      "toReports": "לדוחות",
+      "total": "סה״כ {amount}",
+      "topService": "שירות מוביל:",
+      "legendRevenue": "הכנסות",
+      "legendTarget": "יעד",
+      "ariaLabel": "גרף הכנסות חודשי. סה\"כ {amount} בתקופה הנבחרת",
+      "targetLabel": "יעד {amount}"
+    },
+    "dashUi": {
+      "waSend": "שלח הודעה בוואטסאפ",
+      "sent": "נשלח",
+      "markDone": "סמן כבוצע",
+      "priority": {
+        "URGENT": "דחוף",
+        "HIGH": "גבוהה",
+        "MEDIUM": "בינונית",
+        "LOW": "נמוכה"
+      }
+    },
+    "dashboardShared": {
+      "taskCategories": {
+        "GENERAL": "כללי",
+        "BOARDING": "פנסיון",
+        "TRAINING": "אילוף",
+        "LEADS": "לידים",
+        "HEALTH": "בריאות",
+        "MEDICATION": "תרופות",
+        "FEEDING": "האכלה"
+      },
+      "appointmentStatus": {
+        "scheduled": "מתוכנן",
+        "completed": "הושלם",
+        "canceled": "בוטל",
+        "no_show": "לא הגיע"
+      },
+      "serviceTabs": {
+        "all": "הכל",
+        "training": "אילוף",
+        "boarding": "פנסיון",
+        "grooming": "טיפוח"
+      },
+      "orderTypes": {
+        "sale": "מוצרים",
+        "products": "מוצרים",
+        "appointment": "תור",
+        "boarding": "פנסיון",
+        "training": "אילוף",
+        "grooming": "טיפוח"
+      },
+      "orderStatus": {
+        "draft": "טיוטה",
+        "confirmed": "מאושר",
+        "completed": "הושלם",
+        "canceled": "בוטל",
+        "cancelled": "בוטל"
+      },
+      "relativeTime": {
+        "now": "עכשיו",
+        "minutesAgo": "לפני {count} דקות",
+        "hoursAgo": "לפני {count} שעות",
+        "daysAgo": "לפני {count} ימים"
+      }
+    },
+    "activityFeed": {
+      "empty": "אין פעילות ב-24 שעות האחרונות",
+      "sent": "נשלח",
+      "failed": "נכשל"
+    },
+    "atRiskCustomers": {
+      "title": "לקוחות בסיכון אי-חזרה",
+      "subtitle": "{count} לקוחות לא ביקרו 60+ יום",
+      "sendAllTitle": "שלח הודעות לכל הלקוחות ברשימה",
+      "sendAll": "שלח לכולם",
+      "allCustomers": "כל הלקוחות",
+      "notVisited": "לא ביקר {days} ימים",
+      "totalVisits": "{count} ביקורים סה״כ",
+      "sendOneTitle": "שלח הודעת חזרה בוואטסאפ"
+    },
+    "dailyFocus": {
+      "allDay": "כל היום",
+      "overdue": "באיחור",
+      "yesterday": "אתמול",
+      "overdueAt": "באיחור · {when}",
+      "dateFormats": {
+        "time": "HH:mm",
+        "dayMonth": "dd/MM"
+      },
+      "filters": {
+        "all": "הכל",
+        "overdue": "{count} באיחור",
+        "today": "{count} להיום"
+      },
+      "title": "מיקוד יומי",
+      "subtitleOne": "{count} משימה מחכה",
+      "subtitleOther": "{count} משימות מחכות",
+      "allTasks": "כל המשימות",
+      "showMore": "הצג {count} נוספות"
+    },
+    "leadAlerts": {
+      "row": {
+        "customer": " · לקוח: {name}",
+        "handleTitle": "לטפל בליד",
+        "handle": "לטיפול"
+      },
+      "today": {
+        "title": "מעקבים להיום",
+        "subtitleOne": "{count} ליד לטיפול היום",
+        "subtitleOther": "{count} לידים לטיפול היום",
+        "link": "למעקבים",
+        "meta": "מעקב היום"
+      },
+      "overdue": {
+        "title": "לידים שעבר מועד הפולואפ",
+        "subtitleOne": "{count} ליד עבר זמן הטיפול",
+        "subtitleOther": "{count} לידים עבר זמן הטיפול",
+        "link": "ללוח הלידים",
+        "meta": "עבר: {time}"
+      }
+    },
+    "medications": {
+      "title": "תרופות – חיות בפנסיון",
+      "fullBoard": "לוח מלא",
+      "more": "ועוד {count} חיות נוספות"
+    },
+    "petBirthdays": {
+      "title": "ימי הולדת השבוע",
+      "subtitle": "{count} חיות חוגגות ב-7 הימים הקרובים",
+      "years": "{count} שנ׳",
+      "today": "היום",
+      "inDays": "בעוד {count} ימים",
+      "sendTitle": "שלח ברכת יום הולדת",
+      "send": "ברכה"
+    },
+    "tomorrowReminders": {
+      "titleWhatsApp": "תזכורות למחר",
+      "titlePlain": "תורים מחר",
+      "subtitleWhatsApp": "{count} תורים מתוכננים",
+      "subtitlePlain": "{count} תורים — זכור ליצור קשר עם הלקוחות",
+      "sendAll": "שלח הכל ({count})",
+      "upgradeLink": "שדרג לשליחת WhatsApp",
+      "resendTitle": "שלח שוב",
+      "sendTitle": "שלח תזכורת בוואטסאפ",
+      "sent": "נשלח ✓",
+      "send": "שלח",
+      "noPhone": "אין טלפון",
+      "upgradeHint": "שדרג ל<link>פרו</link> כדי לשלוח תזכורות WhatsApp אוטומטיות"
+    },
+    "topDebtors": {
+      "title": "תשלומים פתוחים",
+      "subtitleOne": "{count} לקוח עם חוב",
+      "subtitleOther": "{count} לקוחות עם חוב",
+      "allDebtors": "לכל החייבים",
+      "sendTitle": "שלח תזכורת בוואטסאפ"
+    },
+    "upcomingAppointments": {
+      "status": {
+        "scheduled": "מתוכנן",
+        "completed": "הושלם",
+        "canceled": "בוטל",
+        "no_show": "לא הגיע"
+      },
+      "subtypes": {
+        "private": "פרטי",
+        "individual": "פרטי",
+        "group": "קבוצתי",
+        "boarding": "פנסיון",
+        "package": "חבילה"
+      },
+      "fallbackName": "תור",
+      "tod": {
+        "morning": "בוקר",
+        "noon": "צהריים",
+        "afternoon": "אחה\"צ",
+        "evening": "ערב"
+      }
+    },
+    "vaccinations": {
+      "createTaskError": "שגיאה ביצירת משימה",
+      "title": "חיסוני כלבת",
+      "subtitle": "{count} חיות מחמד עם חיסון פג תוקף / עומד לפוג",
+      "allLink": "לכל החיסונים",
+      "expired": "פג תוקף {date}",
+      "expiresIn": "פג תוקף עוד {count} ימים · {date}",
+      "taskCreated": "משימה נוצרה",
+      "createTaskTitle": "צור משימת תזכורת",
+      "taskTitle": "חידוש חיסון כלבת — {pet} ({customer})",
+      "task": "משימה",
+      "sendTitle": "שלח תזכורת חיסון בוואטסאפ"
+    }
+  },
   "errors": {
     "dashboardError": {
       "updating": "מעדכן לגרסה החדשה...",
@@ -57,6 +2026,92 @@
       "home": "לדף הבית",
       "clientsList": "לרשימת הלקוחות",
       "contactSupport": "אם חשבת שהקישור תקין, צור קשר עם התמיכה"
+    }
+  },
+  "finance": {
+    "financeTabs": {
+      "pricing": "מחירון",
+      "orders": "הזמנות",
+      "paymentRequests": "בקשות תשלום",
+      "payments": "תשלומים"
+    },
+    "invoicesPage": {
+      "title": "חשבוניות",
+      "newInvoice": "חשבונית חדשה",
+      "empty": "אין חשבוניות עדיין",
+      "summary": {
+        "issued": "הונפקו",
+        "monthTotal": "סה״כ החודש",
+        "drafts": "טיוטות",
+        "failed": "נכשלו"
+      },
+      "create": {
+        "subtitle": "צור טיוטת חשבונית",
+        "customerLabel": "לקוח *",
+        "customerSearch": "חפש לקוח...",
+        "docType": "סוג מסמך",
+        "vatExemptNote": "עוסק פטור מפיק קבלות בלבד (ללא חשבונית מס)",
+        "lines": "שורות",
+        "addLine": "+ הוסף שורה",
+        "description": "תיאור",
+        "quantity": "כמות",
+        "price": "מחיר",
+        "subtotal": "סכום לפני מע״מ",
+        "vatExemptLine": "ללא מע״מ — עוסק פטור",
+        "vatLine": "מע״מ ({rate}%)",
+        "total": "סה״כ",
+        "notes": "הערות",
+        "creating": "יוצר...",
+        "createDraft": "צור טיוטה"
+      },
+      "errors": {
+        "create": "שגיאה ביצירת חשבונית",
+        "issue": "שגיאה בהנפקה",
+        "issueInvoice": "שגיאה בהנפקת חשבונית",
+        "credit": "שגיאה ביצירת זיכוי",
+        "delete": "שגיאה במחיקה",
+        "deleteDoc": "שגיאה במחיקת המסמך"
+      },
+      "toasts": {
+        "creditCreated": "חשבונית זיכוי נוצרה",
+        "draftDeleted": "הטיוטה נמחקה"
+      },
+      "filters": {
+        "all": "הכל"
+      },
+      "table": {
+        "caption": "רשימת חשבוניות",
+        "type": "סוג",
+        "customer": "לקוח",
+        "amount": "סכום",
+        "status": "סטטוס",
+        "date": "תאריך",
+        "docNumber": "מס׳ מסמך",
+        "actions": "פעולות",
+        "creditTag": "(זיכוי)"
+      },
+      "actions": {
+        "view": "צפה בחשבונית",
+        "retry": "נסה שוב",
+        "issue": "הנפק",
+        "createCredit": "צור חשבונית זיכוי",
+        "deleteDraft": "מחק טיוטה"
+      },
+      "confirm": {
+        "creditTitle": "ליצור חשבונית זיכוי?",
+        "deleteTitle": "למחוק טיוטה זו?",
+        "creditBody": "יווצר מסמך זיכוי עבור {name} על סך {amount}.",
+        "documentFallback": "המסמך",
+        "irreversible": "פעולה זו לא ניתנת לביטול.",
+        "working": "מבצע...",
+        "confirmCredit": "כן, צור זיכוי",
+        "confirmDelete": "כן, מחק",
+        "back": "חזרה"
+      },
+      "tierGate": {
+        "title": "חשבוניות ומסמכים פיננסיים",
+        "description": "הפקת חשבוניות, קבלות ומסמכי חיוב מקצועיים עם אינטגרציה ל-Morning (Green Invoice). זמין במסלול Pro ומעלה."
+      }
     }
   },
   "help": {
@@ -1273,6 +3328,1416 @@
       }
     }
   },
+  "leads": {
+    "leadsPage": {
+      "newLead": {
+        "existingPhoneWarning": "ליד קיים עם מספר זה: {name}",
+        "errorFallback": "שגיאה",
+        "createdWithExistingCustomer": "ליד נוצר — שים לב: {name} כבר קיים כלקוח במערכת",
+        "created": "הליד נוצר בהצלחה",
+        "createError": "שגיאה ביצירת הליד. נסה שוב.",
+        "phoneRequired": "טלפון הוא שדה חובה",
+        "title": "ליד חדש",
+        "nameLabel": "שם *",
+        "phoneLabel": "טלפון *",
+        "emailLabel": "אימייל",
+        "cityLabel": "עיר מגורים",
+        "cityPlaceholder": "תל אביב",
+        "addressLabel": "כתובת מדויקת",
+        "addressPlaceholder": "רחוב, מספר",
+        "serviceLabel": "שירות מבוקש",
+        "servicePlaceholder": "אילוף, פנסיון, גרומינג...",
+        "sourceLabel": "מקור",
+        "stageLabel": "שלב",
+        "notesLabel": "הערות",
+        "submit": "הוסף ליד"
+      },
+      "followUp": {
+        "none": "ללא מועד חזרה",
+        "overdue": "באיחור · {date}",
+        "today": "היום",
+        "tomorrow": "מחר {date}",
+        "weekday": "{weekday} {date}",
+        "withTime": "{label} · {time}",
+        "dayMonth": "{day}.{month}",
+        "weekdays": {
+          "sun": "א׳",
+          "mon": "ב׳",
+          "tue": "ג׳",
+          "wed": "ד׳",
+          "thu": "ה׳",
+          "fri": "ו׳",
+          "sat": "ש׳"
+        },
+        "columns": {
+          "overdue": "באיחור",
+          "today": "היום",
+          "tomorrow": "מחר",
+          "week": "השבוע",
+          "later": "בהמשך / ללא מועד"
+        },
+        "quick": {
+          "today18": "היום 18:00",
+          "tomorrow10": "מחר 10:00",
+          "in3Days": "בעוד 3 ימים",
+          "inWeek": "בעוד שבוע"
+        },
+        "picker": {
+          "saved": "מועד החזרה נשמר ומשימה נוצרה",
+          "cleared": "מועד החזרה נוקה",
+          "updateError": "שגיאה בעדכון מועד החזרה",
+          "invalidDate": "תאריך לא תקין",
+          "title": "מועד חזרה · {name}",
+          "save": "שמירה",
+          "clear": "ניקוי"
+        },
+        "emptyOverdue": "אין פולואפים באיחור",
+        "empty": "אין פולואפים כאן"
+      },
+      "card": {
+        "deselectLead": "בטל בחירת ליד",
+        "selectLead": "בחר ליד",
+        "dealValue": "ערך עסקה",
+        "details": "פרטי ליד",
+        "existingCustomerTitle": "לקוח קיים: {name}",
+        "existingCustomer": "לקוח קיים",
+        "returningLeadTitle": "ליד חוזר — פנייה קודמת: {name}",
+        "returningLead": "ליד חוזר",
+        "updateFollowUp": "עדכון מועד חזרה",
+        "whatsapp": "וואטסאפ",
+        "logCall": "תיעוד שיחה"
+      },
+      "column": {
+        "changeColor": "שינוי צבע",
+        "colorFor": "צבע לשלב \"{name}\"",
+        "colorSwatch": "צבע {color}",
+        "totalDealValue": "סה״כ ערך עסקאות בשלב",
+        "cannotDelete": "לא ניתן למחוק שלב זה",
+        "deleteStage": "מחק שלב",
+        "empty": "אין לידים בשלב הזה"
+      },
+      "dropZones": {
+        "won": "נסגר כלקוח",
+        "wonCount": "{count} נסגרו{suffix}",
+        "lost": "אבד · לארכיון",
+        "lostCount": "{count} אבודים{suffix}"
+      },
+      "list": {
+        "headers": {
+          "lead": "ליד",
+          "service": "שירות",
+          "city": "עיר",
+          "source": "מקור",
+          "stage": "שלב",
+          "followUp": "חזרה",
+          "value": "שווי"
+        },
+        "empty": "לא נמצאו לידים"
+      },
+      "mobile": {
+        "focusTab": "לטיפול",
+        "callClient": "חיוג ללקוח",
+        "emptyFocus": "אין לידים לטיפול היום",
+        "empty": "אין לידים כאן"
+      },
+      "archive": {
+        "filters": {
+          "all": "הכל",
+          "won": "נסגרו",
+          "lost": "אבודים"
+        },
+        "headers": {
+          "lead": "ליד",
+          "service": "שירות",
+          "status": "סטטוס",
+          "reason": "סיבה / הערה",
+          "date": "תאריך",
+          "value": "שווי"
+        },
+        "sendWhatsapp": "שלח וואטסאפ",
+        "wonBadge": "נסגר",
+        "lostBadge": "אבוד",
+        "restore": "החזר ליד",
+        "noResults": "לא נמצאו תוצאות",
+        "empty": "הארכיון ריק"
+      },
+      "addStage": {
+        "button": "הוסף שלב",
+        "placeholder": "שם השלב..."
+      },
+      "deleteStage": {
+        "title": "מחיקת שלב \"{name}\"",
+        "hasLeads": "לא ניתן למחוק שלב זה כי יש בו {count} לידים. העבר את הלידים לשלב אחר לפני המחיקה.",
+        "gotIt": "הבנתי",
+        "confirm": "האם למחוק את השלב? לא ניתן לשחזר פעולה זו.",
+        "delete": "מחק שלב"
+      },
+      "restore": {
+        "restored": "\"{name}\" הוחזר למערכת הלידים",
+        "error": "שגיאה בהחזרת הליד",
+        "title": "החזר ליד לקנבן",
+        "toLastStage": "להחזיר את <b>{name}</b> לשלב האחרון שלו?",
+        "restoreHere": "החזר לשלב זה",
+        "pickOther": "בחר שלב אחר",
+        "whichStage": "לאיזה שלב להחזיר את <b>{name}</b>?",
+        "restore": "החזר ליד"
+      },
+      "toasts": {
+        "leadNotFound": "הליד לא נמצא",
+        "moveError": "שגיאה בהזזת הליד. נסה שוב.",
+        "stageUpdateError": "שגיאה בעדכון השלב. נסה שוב.",
+        "stageCreated": "השלב נוצר בהצלחה",
+        "stageCreateError": "שגיאה ביצירת השלב. נסה שוב.",
+        "stageDeleted": "השלב נמחק",
+        "stageDeleteError": "שגיאה במחיקת השלב. נסה שוב.",
+        "reorderError": "שגיאה בסידור השלבים. נסה שוב.",
+        "bulkDeleted": "{count} לידים נמחקו",
+        "bulkPending": "{count} בקשות מחיקה נשלחו לאישור הבעלים",
+        "bulkFailed": "{count} מחיקות נכשלו. נסה שוב.",
+        "bulkError": "שגיאה במחיקת הלידים. נסה שוב.",
+        "followUpMoved": "פולואפ ל{name}: {label}",
+        "followUpMoveError": "שגיאה בעדכון מועד החזרה. נסה שוב."
+      },
+      "views": {
+        "board": "שלבי מכירה",
+        "followup": "פולואפים · {count}",
+        "list": "רשימה",
+        "archive": "ארכיון · {count}",
+        "reports": "דוחות"
+      },
+      "header": {
+        "title": "מערכת מכירות",
+        "cancel": "בטל",
+        "select": "בחר",
+        "upgrade": "שדרג לבייסיק",
+        "newLead": "ליד חדש",
+        "oneOpenLead": "ליד פתוח אחד",
+        "openLeads": "{count} לידים פתוחים",
+        "pipeline": "{amount} בצנרת",
+        "overdue": "{count} באיחור",
+        "today": "{count} להיום"
+      },
+      "toolbar": {
+        "searchArchive": "חיפוש בארכיון",
+        "searchPlaceholder": "חיפוש לפי שם, טלפון או עיר",
+        "clearSearch": "נקה חיפוש",
+        "archiveHits": "נמצאו {count} בארכיון ←",
+        "sourceFilter": "סינון לפי מקור",
+        "allSources": "כל המקורות",
+        "cancelSelection": "בטל בחירה",
+        "select": "בחר",
+        "doneEditing": "סיום עריכה",
+        "editStages": "עריכת שלבים",
+        "exportLeads": "ייצוא לידים",
+        "export": "ייצוא",
+        "exportTitle": "ייצוא לידים לאקסל",
+        "exportFrom": "מתאריך",
+        "exportTo": "עד תאריך",
+        "exportHint": "ללא סינון תאריך — ייצא את כל הלידים",
+        "downloadCsv": "הורד CSV",
+        "refreshNow": "רענן עכשיו",
+        "autoRefreshOff": "כבה אוטו-רענון",
+        "autoRefreshOn": "הפעל אוטו-רענון (30 שנ׳)",
+        "autoActive": "אוטו פעיל",
+        "autoRefresh": "אוטו-רענון"
+      },
+      "limit": {
+        "reached": "<b>הגעת ל-{max} לידים</b> — מגבלת המנוי החינמי.",
+        "upgrade": "שדרג לבייסיק ←"
+      },
+      "bulk": {
+        "selectAll": "בחר הכל",
+        "selectedCount": "{count} נבחרו",
+        "deleteSelected": "מחק נבחרים",
+        "confirmTitle": "למחוק {count} לידים?",
+        "confirmBody": "הלידים הנבחרים יימחקו לצמיתות, כולל היסטוריית השיחות שלהם. לא ניתן לשחזר פעולה זו.",
+        "confirmDelete": "מחק {count} לידים"
+      },
+      "editBanner": "<b>מצב עריכה פעיל</b> — לחץ על שם שלב כדי לשנות אותו, גרור את <grip></grip> לשינוי סדר, לחץ על העיגול הצבעוני לשינוי צבע, או <trash></trash> למחיקה.",
+      "wonToast": {
+        "becameClient": "{name} הפך ללקוח",
+        "converted": "הליד הומר בהצלחה ללקוח חדש במערכת",
+        "viewClient": "צפה בלקוח"
+      },
+      "tierGate": {
+        "title": "מערכת לידים ומכירות",
+        "description": "ניהול לידים, CRM ועוקב מכירות. עקוב אחרי לקוחות פוטנציאליים, שלח הודעות ועקוב אחרי המרות."
+      }
+    },
+    "allDogBotChat": {
+      "error": "שגיאה",
+      "sentOnWhatsApp": "נשלח בוואטסאפ",
+      "backToBotToast": "השיחה חזרה לבוט",
+      "status": {
+        "handoff": "אצל נציגה",
+        "handoffAutoResume": "אצל נציגה · חוזר לבוט אוטומטית {time}",
+        "stopped": "הלקוח ביקש להפסיק",
+        "closedPartial": "נסגרה באמצע · הלקוח הפסיק לענות",
+        "general": "פנייה כללית לאור · לא קשורה לכלב",
+        "active": "הבוט עונה"
+      },
+      "title": "וואטסאפ עם הבוט",
+      "resumeBot": "החזר לבוט",
+      "noMessages": "אין הודעות",
+      "roleRep": "נציגה",
+      "roleBot": "בוט",
+      "imageAlt": "תמונה מהלקוח",
+      "image": "תמונה",
+      "openFile": "פתיחת הקובץ",
+      "replyPlaceholder": "תשובה ללקוח (נשלחת מהמספר של הבוט, והבוט עוצר)",
+      "send": "שלח",
+      "windowClosed": "עברו 24 שעות מההודעה האחרונה של הלקוח, אז וואטסאפ לא מאפשר לשלוח טקסט. אפשר להתקשר.",
+      "noReplyYet": "הלקוח עוד לא ענה – אפשר להתקשר אליו"
+    },
+    "leadDetailsModal": {
+      "addDogNow": "הוסף כלב עכשיו",
+      "toasts": {
+        "wonCreated": "הליד נסגר ונוצר לקוח חדש",
+        "wonError": "שגיאה בסגירת הליד",
+        "lostSaved": "הליד סומן כאבוד ונשמרה הסיבה.",
+        "lostError": "שגיאה בסימון הליד כאבוד"
+      },
+      "taskTitle": "טיפול בליד: {name}",
+      "attribution": {
+        "medium": "מדיום: {value}",
+        "campaign": "קמפיין: {value}",
+        "pageType": "סוג עמוד: {value}"
+      },
+      "subtitle": "ניהול רשומות וטיפולים",
+      "wonBanner": "ליד נסגר בהצלחה",
+      "lostBanner": "ליד אבוד",
+      "closingWon": "סוגר...",
+      "closeWon": "נסגר",
+      "closeLost": "אבוד",
+      "tabs": {
+        "logs": "רשומות שיחה",
+        "task": "משימה קדימה"
+      },
+      "logForm": {
+        "summaryLabel": "סיכום השיחה *",
+        "summaryPlaceholder": "תיאור קצר של השיחה...",
+        "treatmentLabel": "הטיפול שתעשה *",
+        "treatmentPlaceholder": "מה הצעדים הבאים?",
+        "updateLog": "עדכן רשומה",
+        "addLog": "הוסף רשומה"
+      },
+      "previousLogs": "רשומות קודמות",
+      "noLogs": "אין רשומות שיחה עדיין",
+      "logDateTime": "{date} בשעה {time}",
+      "logSummary": "סיכום",
+      "logTreatment": "טיפול",
+      "taskForm": {
+        "hint": "המשימה תופיע בדשבורד בתאריך שנבחר",
+        "descriptionLabel": "תיאור המשימה *",
+        "descriptionPlaceholder": "תיאור מפורט של המשימה...",
+        "dueDateLabel": "תאריך הטיפול *",
+        "creating": "יוצר...",
+        "create": "צור משימה"
+      },
+      "confirmWon": {
+        "title": "לסגור את הליד כלקוח?",
+        "descriptionExisting": "הליד יסומן כנסגר בהצלחה.",
+        "descriptionNew": "הליד יסומן כנסגר בהצלחה ויווצר ממנו לקוח חדש.",
+        "confirm": "כן, נסגר כלקוח"
+      },
+      "confirmDeleteLog": {
+        "title": "למחוק את תיעוד השיחה?"
+      }
+    },
+    "leadMeetingsSection": {
+      "toasts": {
+        "updated": "הפגישה עודכנה",
+        "scheduled": "הפגישה נקבעה",
+        "saveError": "שגיאה בשמירת הפגישה",
+        "canceled": "הפגישה בוטלה",
+        "cancelError": "שגיאה בביטול הפגישה",
+        "converted": "{name} הפך/ה ללקוח",
+        "openCustomer": "פתח כרטיס לקוח",
+        "noShow": "סומן: לא הגיע — נקבע מעקב למחר",
+        "outcomeError": "שגיאה בשמירת תוצאת הפגישה"
+      },
+      "title": "פגישות",
+      "schedule": "קבע פגישה",
+      "alreadyCustomer": "הליד כבר לקוח — קבע/י תור רגיל ביומן.",
+      "loadError": "שגיאה בטעינת הפגישות",
+      "empty": "אין פגישות עדיין",
+      "actions": {
+        "completed": "התקיימה",
+        "noShow": "לא הגיע",
+        "postponed": "נדחתה",
+        "edit": "ערוך",
+        "cancelMeeting": "בטל פגישה"
+      },
+      "form": {
+        "title": "פגישה עם {name}",
+        "date": "תאריך",
+        "startTime": "שעת התחלה",
+        "endTime": "שעת סיום",
+        "service": "שירות",
+        "location": "מיקום",
+        "notes": "הערות",
+        "optional": "(אופציונלי)",
+        "noService": "ללא שירות",
+        "reminderHint": "הליד נשאר ליד. תזכורת בוואטסאפ נשלחת אוטומטית יום לפני.",
+        "errors": {
+          "required": "יש למלא תאריך ושעות",
+          "startBeforeEnd": "שעת ההתחלה חייבת להיות לפני שעת הסיום"
+        }
+      },
+      "confirmCancel": {
+        "title": "לבטל את הפגישה?",
+        "description": "הפגישה עם {name} ב-{day} {time} תבוטל, והתזכורת לא תישלח.",
+        "keep": "השאר"
+      }
+    },
+    "leadTreatmentModal": {
+      "timeline": {
+        "planned": "מתוכנן",
+        "edit": "ערוך",
+        "followUpTask": "משימת חזרה",
+        "created": "ליד נוצר במערכת",
+        "stageChange": "שינוי שלב",
+        "dealValue": "ערך עסקה",
+        "callLogged": "שיחה תועדה",
+        "followUpDone": "פולואפ הושלם",
+        "followUpScheduled": "פולואפ מתוזמן",
+        "won": "ליד נסגר — לקוח נוצר",
+        "lost": "ליד אבד"
+      },
+      "callLog": {
+        "title": "תיעוד שיחה",
+        "summaryLabel": "סיכום",
+        "treatmentLabel": "משימת חזרה ללקוח",
+        "draftRestored": "שוחזרה טיוטה שלא נשמרה",
+        "clearDraft": "נקה טיוטה",
+        "summaryPlaceholder": "מה נאמר בשיחה? לאיזה סיכום הגעתם?",
+        "treatmentPlaceholder": "מה הצעדים הבאים להמשך הטיפול בליד?"
+      },
+      "errors": {
+        "updateInvalid": "שגיאה בעדכון הליד. בדוק את הפרטים ונסה שוב.",
+        "update": "שגיאה בעדכון הליד. נסה שוב.",
+        "dealValue": "שגיאה בשמירת ערך העסקה",
+        "closeWon": "שגיאה בסגירת הליד. נסה שוב.",
+        "closeLost": "שגיאה בסימון הליד כאבוד. נסה שוב.",
+        "editLog": "שגיאה בעדכון יומן השיחה. נסה שוב.",
+        "deleteLog": "שגיאה במחיקת יומן השיחה. נסה שוב.",
+        "deleteLeadShort": "שגיאה במחיקת הליד",
+        "deleteLead": "שגיאה במחיקת הליד. נסה שוב.",
+        "nameInvalid": "שם לא תקין — נא להזין לפחות 2 תווים",
+        "saveCallLog": "שגיאה בשמירת תיעוד השיחה. נסה שוב."
+      },
+      "toasts": {
+        "deletePending": "הבקשה נשלחה לאישור הבעלים",
+        "alreadyDeleted": "הליד כבר נמחק",
+        "deleted": "הליד נמחק",
+        "detailsSaved": "פרטי הליד נשמרו"
+      },
+      "deal": {
+        "label": "ערך עסקה",
+        "ariaLabel": "ערך עסקה בשקלים",
+        "edit": "ערוך",
+        "add": "הוסף ערך"
+      },
+      "header": {
+        "ariaLabel": "כרטיס ליד: {name}",
+        "entered": "נכנס {date}",
+        "deleteLead": "מחק ליד",
+        "deleteConfirm": "למחוק?",
+        "deleteYes": "כן, מחק",
+        "call": "חיוג ללקוח",
+        "whatsappTitle": "שלח הודעה בוואטסאפ",
+        "whatsapp": "וואטסאפ"
+      },
+      "close": {
+        "wonPending": "סוגר...",
+        "won": "נסגר כלקוח",
+        "lostPending": "מסמן...",
+        "lost": "אבד",
+        "wonBanner": "ליד נסגר בהצלחה — לקוח נוצר",
+        "lostBanner": "ליד אבוד"
+      },
+      "stage": {
+        "title": "שלב במכירה",
+        "pendingHint": "השלב יתעדכן בלחיצה על \"שמור וסגור\""
+      },
+      "followUp": {
+        "next": "חזרה הבאה",
+        "notSet": "לא נקבע מועד",
+        "dateLabel": "מועד חזרה",
+        "statusAriaLabel": "סטטוס חזרה",
+        "pending": "ממתין",
+        "completed": "הושלם",
+        "required": "יש לקבוע מועד חזרה לפני שמירת שיחה"
+      },
+      "details": {
+        "editTitle": "עריכת פרטים",
+        "fields": {
+          "name": "שם ליד",
+          "phone": "טלפון",
+          "email": "אימייל",
+          "city": "עיר מגורים",
+          "address": "כתובת",
+          "requestedService": "שירות מבוקש"
+        },
+        "source": "מקור",
+        "city": "עיר",
+        "save": "שמור פרטים"
+      },
+      "history": {
+        "title": "היסטוריה",
+        "empty": "אין עדיין היסטוריה"
+      },
+      "footer": {
+        "saveAndClose": "שמור וסגור"
+      },
+      "confirmWon": {
+        "title": "לסגור את הליד כלקוח?",
+        "descExisting": "הליד יסומן כנסגר בהצלחה.",
+        "descNew": "הליד יסומן כנסגר בהצלחה ויווצר ממנו לקוח חדש.",
+        "confirm": "כן, נסגר כלקוח"
+      },
+      "confirmDeleteLog": {
+        "title": "למחוק את יומן השיחה הזה?"
+      }
+    },
+    "leadsReports": {
+      "errors": {
+        "pickDates": "יש לבחור תאריך התחלה ותאריך סיום",
+        "startBeforeEnd": "תאריך ההתחלה חייב להיות לפני תאריך הסיום",
+        "maxRange": "הטווח המקסימלי הוא 5 שנים"
+      },
+      "loadFailed": "לא הצלחנו לטעון את הדוח",
+      "retry": "נסה שוב",
+      "asOfToday": "· נכון להיום",
+      "refreshing": "מרענן",
+      "refreshFailed": "· הרענון נכשל, מוצגים נתונים קודמים",
+      "empty": {
+        "title": "אין עדיין לידים בטווח הזה",
+        "body": "נסו טווח תאריכים רחב יותר, או הוסיפו לידים — הדוחות יתמלאו אוטומטית."
+      }
+    },
+    "lostReasonModal": {
+      "title": "סימון ליד כאבוד",
+      "subtitle": "בחר סיבת אובדן לדיווח",
+      "reasonLabel": "סיבה *",
+      "reasonPlaceholder": "בחר סיבה...",
+      "otherLabel": "פרט בקצרה... *",
+      "noteLabel": "הערה (אופציונלי)",
+      "otherPlaceholder": "סיבת האובדן...",
+      "notePlaceholder": "הוסף הערה ידנית...",
+      "confirm": "אישור"
+    },
+    "reportCharts": {
+      "monthly": {
+        "title": "מגמה חודשית",
+        "hint": "נוצרו לפי תאריך יצירה, נסגרו לפי תאריך זכייה, אבדו לפי תאריך אובדן",
+        "wonValue": "ערך שנסגר",
+        "created": "נוצרו",
+        "won": "נסגרו",
+        "lost": "אבדו"
+      },
+      "funnel": {
+        "title": "משפך מכירות",
+        "hint": "״הגיעו לשלב״ = לידים שהגיעו לשלב הזה או לשלב מתקדם יותר (כולל לידים שנסגרו). האחוז = מעבר מהשלב הקודם.",
+        "continued": "↓ {pct}% המשיכו",
+        "continuedNone": "↓ — המשיכו",
+        "reachedNow": "<b>{reached}</b> הגיעו · {current} כעת"
+      },
+      "responseTime": {
+        "title": "זמן תגובה ראשונה",
+        "hint": "מיצירת הליד ועד התיעוד הראשון של שיחה/הודעה (לידים שנוצרו בטווח)",
+        "leadsCount": "{count} לידים"
+      },
+      "aging": {
+        "title": "גיל הלידים הפתוחים",
+        "hint": "כל הלידים הפתוחים כעת, לפי זמן מאז יצירתם (לא תלוי בטווח)",
+        "leadsCount": "{count} לידים"
+      },
+      "stale": {
+        "title": "לידים פתוחים לפי שלב",
+        "hint": "כל הלידים הפתוחים כעת. שלב שבו הליד הוותיק ביותר פתוח מעל {days} ימים מסומן באדום.",
+        "colStage": "שלב",
+        "colLeads": "לידים",
+        "colOldest": "הוותיק ביותר",
+        "days": "{days} ימים"
+      }
+    },
+    "reportControls": {
+      "dateRange": "טווח תאריכים",
+      "fromDate": "מתאריך",
+      "toDate": "עד תאריך",
+      "basisAriaLabel": "בסיס החישוב"
+    },
+    "reportKpis": {
+      "pointsUnit": " נק׳",
+      "new": "חדש",
+      "totalLeads": "סה\"כ לידים",
+      "vsPreviousPeriod": "לעומת התקופה הקודמת",
+      "conversionRate": "שיעור סגירה",
+      "wonLostOpen": "{won} נסגרו · {lost} אבדו · {open} פתוחים",
+      "rate": "שיעור",
+      "dotWon": "· נסגרו",
+      "firstResponseTime": "זמן תגובה ראשונה",
+      "avgMedianResponded": "ממוצע · חציון {median} · {count} נענו",
+      "unrespondedOpen": "{count} לידים פתוחים ללא מענה",
+      "avgTimeToClose": "זמן סגירה ממוצע",
+      "fromCreationToClose": "מיצירת הליד ועד סגירה",
+      "wonDealsValue": "ערך עסקאות שנסגרו",
+      "withValueOfWon": "{count} מתוך {won} עם ערך",
+      "avgDeal": "עסקה ממוצעת",
+      "ofWonWithValue": "מתוך לידים שנסגרו עם ערך",
+      "pipelineValue": "ערך בצנרת",
+      "allOpenNow": "כל הלידים הפתוחים כעת · {count} עם ערך",
+      "forecast": "תחזית",
+      "forecastBasis": "לפי שיעור סגירה של 12 החודשים האחרונים: {rate}"
+    },
+    "reportTables": {
+      "columns": {
+        "total": "סה\"כ",
+        "won": "נסגרו",
+        "lost": "אבדו",
+        "open": "פתוחים",
+        "conversionRate": "שיעור סגירה",
+        "wonValue": "ערך שנסגר",
+        "rate": "שיעור"
+      },
+      "bySource": {
+        "title": "לפי מקור ליד",
+        "hint": "ערוץ הקליטה שנבחר בליד (גוגל, אינסטגרם, המלצה…)",
+        "firstColumn": "מקור"
+      },
+      "byTrafficSource": {
+        "title": "לפי מקור תנועה",
+        "hint": "מאיפה הגיע המבקר לאתר (UTM / מפנה) — לידים מהאתר",
+        "firstColumn": "מקור תנועה"
+      },
+      "byLandingPage": {
+        "title": "לפי עמוד נחיתה",
+        "page": "עמוד"
+      },
+      "byCloser": {
+        "title": "לפי סוגר",
+        "hint": "מי העביר את הליד לנסגר / אבד",
+        "user": "משתמש",
+        "notRecorded": "לא תועד"
+      },
+      "lostReasons": {
+        "title": "סיבות אובדן",
+        "tooltip": "{n} לידים"
+      }
+    },
+    "format": {
+      "rangePresets": {
+        "d7": "7 ימים",
+        "d30": "30 יום",
+        "quarter": "רבעון",
+        "halfYear": "חצי שנה",
+        "year": "שנה",
+        "fiveYears": "5 שנים",
+        "custom": "מותאם"
+      },
+      "basis": {
+        "cohort": {
+          "label": "לידים שנוצרו בתקופה",
+          "hint": "כל הנתונים מתייחסים ללידים שנוצרו בטווח — נסגרו/אבדו לפי המצב הנוכחי שלהם."
+        },
+        "activity": {
+          "label": "פעילות בתקופה",
+          "hint": "מה קרה בטווח: לידים שנוצרו בו, נסגרו בו (תאריך זכייה) ואבדו בו (תאריך אובדן)."
+        }
+      },
+      "months": {
+        "m1": "ינו",
+        "m2": "פבר",
+        "m3": "מרץ",
+        "m4": "אפר",
+        "m5": "מאי",
+        "m6": "יוני",
+        "m7": "יולי",
+        "m8": "אוג",
+        "m9": "ספט",
+        "m10": "אוק",
+        "m11": "נוב",
+        "m12": "דצמ"
+      },
+      "duration": {
+        "minutes": "{n} דק׳",
+        "hours": "{n} שעות",
+        "days": "{n} ימים"
+      },
+      "sourceNotSpecified": "לא צוין",
+      "trafficUnknown": "לא ידוע",
+      "responseBuckets": {
+        "lt1h": "עד שעה",
+        "h1to4": "1–4 שעות",
+        "h4to24": "4–24 שעות",
+        "d1to3": "1–3 ימים",
+        "gt3d": "מעל 3 ימים",
+        "none": "ללא מענה"
+      },
+      "agingBuckets": {
+        "d0to7": "0–7 ימים",
+        "d8to14": "8–14 ימים",
+        "d15to30": "15–30 ימים",
+        "d31to60": "31–60 ימים",
+        "gt60": "מעל 60 ימים"
+      }
+    }
+  },
+  "orders": {
+    "paymentRequestDialog": {
+      "title": "דרישת תשלום",
+      "subtitle": "ל{name} · {amount}",
+      "close": "סגירה",
+      "toasts": {
+        "copied": "ההודעה הועתקה",
+        "copyFailed": "לא ניתן להעתיק — סמנו את הטקסט והעתיקו ידנית"
+      },
+      "linkAttached": "קישור תשלום מצורף",
+      "linkAttachedStripe": "קישור תשלום מצורף (Stripe)",
+      "noLink": "למוצרים בהזמנה לא הוגדר קישור תשלום (מחירון ← קישור לתשלום) — ההודעה תישלח בלי קישור.",
+      "messageLabel": "ההודעה שתישלח",
+      "noPhone": "ללקוח אין מספר טלפון — העתיקו את ההודעה ושלחו בדרך אחרת.",
+      "copyMessage": "העתק הודעה",
+      "openWhatsApp": "פתח בוואטסאפ"
+    },
+    "ordersDetailPage": {
+      "status": {
+        "draft": "טיוטה",
+        "confirmed": "מאושר",
+        "completed": "הושלמה",
+        "cancelled": "בוטל"
+      },
+      "orderTypes": {
+        "sale": "🛒 מכירה",
+        "appointment": "📅 תור",
+        "boarding": "🏠 פנסיון",
+        "training": "🐕 אילוף",
+        "grooming": "✂️ טיפוח",
+        "products": "📦 מוצרים"
+      },
+      "units": {
+        "per_session": "לפגישה",
+        "per_day": "ליום",
+        "per_night": "ללילה",
+        "per_hour": "לשעה",
+        "per_item": "ליחידה",
+        "fixed": "קבוע"
+      },
+      "methods": {
+        "cash": "מזומן",
+        "credit_card": "כרטיס אשראי",
+        "bank_transfer": "העברה בנקאית",
+        "bit": "ביט",
+        "paybox": "פייבוקס",
+        "check": "צ'ק"
+      },
+      "addPayment": {
+        "invalidAmount": "סכום לא תקין",
+        "saveError": "שגיאה ברישום תשלום",
+        "saved": "התשלום נרשם",
+        "title": "רישום תשלום",
+        "amountLabel": "סכום ({currency})",
+        "methodLabel": "אמצעי תשלום",
+        "cardLast4": "4 ספרות אחרונות",
+        "cardType": "סוג כרטיס",
+        "cardTypeOther": "אחר",
+        "checkNumber": "מספר המחאה",
+        "checkDate": "תאריך פירעון",
+        "checkBank": "בנק",
+        "checkBankPlaceholder": "לאומי",
+        "checkBranch": "סניף",
+        "notesLabel": "הערות (אופציונלי)",
+        "notesPlaceholder": "אסמכתא...",
+        "markDeposit": "סמן כמקדמה",
+        "submit": "רשום תשלום"
+      },
+      "documentTitle": "הזמנה #{id} — {name} | Petra",
+      "errors": {
+        "update": "שגיאה בעדכון",
+        "delete": "שגיאה במחיקה",
+        "deleteOrder": "שגיאה במחיקת ההזמנה",
+        "cancel": "שגיאה בביטול",
+        "saveLines": "שגיאה בשמירת הפריטים",
+        "cancelPayment": "שגיאה בביטול התשלום"
+      },
+      "toasts": {
+        "completed": "ההזמנה סומנה כהושלמה",
+        "deleted": "ההזמנה נמחקה",
+        "linesUpdated": "פריטי ההזמנה עודכנו",
+        "paymentCanceled": "התשלום בוטל"
+      },
+      "validation": {
+        "atLeastOneLine": "נדרש לפחות פריט אחד בהזמנה",
+        "lineNameRequired": "שורה {row}: שם פריט חובה",
+        "lineQuantityInvalid": "שורה {row}: כמות לא תקינה",
+        "linePriceInvalid": "שורה {row}: מחיר לא תקין",
+        "discountInvalid": "ערך הנחה לא תקין"
+      },
+      "notFound": "הזמנה לא נמצאה",
+      "backToList": "חזרה לרשימה",
+      "breadcrumb": "הזמנות",
+      "title": "הזמנה #{id}",
+      "createdAt": "נוצר {date}",
+      "actions": {
+        "confirmOrder": "אשר הזמנה",
+        "markCompleted": "סמן כהושלמה",
+        "cancelOrder": "בטל הזמנה",
+        "cancelUnpaidTitle": "ההזמנה לא שולמה — ביטול מוחק את החוב של הלקוח",
+        "deleteOrder": "מחק הזמנה"
+      },
+      "info": {
+        "customer": "לקוח",
+        "startDate": "תאריך התחלה",
+        "endDate": "תאריך סיום",
+        "notes": "הערות"
+      },
+      "training": {
+        "open": "פתח תהליך אילוף",
+        "description": "צפה בתוכנית האילוף, מפגשים ויעדים"
+      },
+      "lines": {
+        "title": "פריטי הזמנה",
+        "edit": "עריכת פריטים",
+        "namePlaceholder": "שם פריט",
+        "quantityPlaceholder": "כמות",
+        "unitPricePlaceholder": "מחיר יחידה",
+        "removeLine": "הסר פריט",
+        "addLine": "הוסף פריט",
+        "discount": "הנחה",
+        "discountNone": "ללא הנחה",
+        "discountPercentOption": "אחוז (%)",
+        "discountFixedOption": "סכום קבוע ({currency})",
+        "discountPercentLabel": "אחוז הנחה",
+        "discountFixedLabel": "סכום הנחה ({currency})",
+        "saveChanges": "שמור שינויים",
+        "empty": "אין פריטים בהזמנה",
+        "colName": "שם",
+        "colUnit": "יחידה",
+        "colQuantity": "כמות",
+        "colUnitPrice": "מחיר יחידה",
+        "colTax": "מע\"מ",
+        "colLineTotal": "סה\"כ שורה",
+        "taxExempt": "פטור"
+      },
+      "totals": {
+        "subtotal": "סכום ביניים",
+        "discountPercent": "הנחה ({value}%)",
+        "discountFixed": "הנחה (קבועה)",
+        "tax": "מע\"מ",
+        "total": "סה\"כ לתשלום"
+      },
+      "payments": {
+        "title": "תשלומים",
+        "fullyPaid": "שולם במלואו",
+        "partiallyPaid": "שולם חלקית",
+        "unpaid": "טרם שולם",
+        "requestTitle": "שלח דרישת תשלום בוואטסאפ",
+        "request": "דרישת תשלום",
+        "record": "רשום תשלום",
+        "empty": "לא נרשמו תשלומים עדיין",
+        "deposit": "(מקדמה)",
+        "checkNumber": "המחאה #{number}",
+        "checkBranch": "סניף {branch}",
+        "statusPaid": "שולם",
+        "statusPending": "ממתין",
+        "statusCanceled": "בוטל",
+        "cancelTitle": "בטל תשלום",
+        "summaryTotal": "סה״כ לתשלום",
+        "paid": "שולם",
+        "remaining": "יתרה לתשלום"
+      },
+      "cancelPaymentDialog": {
+        "title": "לבטל את התשלום?",
+        "body": "תשלום על סך {amount} יסומן כמבוטל ולא ייספר ביתרת ההזמנה.",
+        "canceling": "מבטל...",
+        "confirm": "כן, בטל תשלום",
+        "back": "חזרה"
+      },
+      "cancelDialog": {
+        "deleteTitle": "למחוק את ההזמנה?",
+        "cancelTitle": "לבטל את ההזמנה?",
+        "deleteBody": "ההזמנה תימחק לצמיתות. פעולה זו לא ניתנת לביטול.",
+        "cancelBody": "פעולה זו לא ניתנת לביטול.",
+        "confirmDelete": "כן, מחק",
+        "canceling": "מבטל...",
+        "confirmCancel": "כן, בטל",
+        "back": "חזרה"
+      }
+    },
+    "ordersPage": {
+      "pageTitle": "הזמנות",
+      "tierGate": {
+        "title": "ניהול הזמנות",
+        "description": "צור ונהל הזמנות עם פריטי שורה, הנחות ותחשיב מע׳׳מ אוטומטי."
+      },
+      "statusFilters": {
+        "all": "כל הסטטוסים",
+        "active": "פעילות (טיוטות + מאושרות)",
+        "draft": "טיוטות",
+        "confirmed": "מאושרות",
+        "completed": "הושלמו",
+        "cancelled": "בוטלו"
+      },
+      "statuses": {
+        "draft": "טיוטה",
+        "confirmed": "מאושרת",
+        "completed": "הושלמה",
+        "cancelled": "בוטלה",
+        "canceled": "בוטלה"
+      },
+      "types": {
+        "sale": "מוצרים",
+        "appointment": "תור",
+        "products": "מוצרים",
+        "training": "אילוף",
+        "boarding": "פנסיון",
+        "grooming": "טיפוח",
+        "service_dog": "כלבי שירות"
+      },
+      "cancelDialog": {
+        "deleteError": "שגיאה במחיקה",
+        "cancelError": "שגיאה בביטול",
+        "deleted": "ההזמנה נמחקה",
+        "cancelled": "ההזמנה בוטלה בהצלחה",
+        "deleteFailed": "שגיאה במחיקת ההזמנה",
+        "cancelFailed": "שגיאה בביטול ההזמנה",
+        "deleteTitle": "למחוק את ההזמנה?",
+        "cancelTitle": "לבטל את ההזמנה?",
+        "irreversible": "פעולה זו לא ניתנת לביטול.",
+        "cancelling": "מבטל...",
+        "confirmDelete": "כן, מחק",
+        "confirmCancel": "כן, בטל",
+        "back": "חזרה"
+      },
+      "toasts": {
+        "updateError": "שגיאה בעדכון",
+        "markedCompleted": "ההזמנה סומנה כהושלמה",
+        "confirmed": "ההזמנה אושרה",
+        "statusUpdated": "הסטטוס עודכן",
+        "statusUpdateFailed": "שגיאה בעדכון הסטטוס. נסה שוב.",
+        "popupBlocked": "חסום חלון קופץ — אפשר פופ-אפים בדפדפן"
+      },
+      "print": {
+        "docTitle": "הזמנות – פטרה",
+        "heading": "דוח הזמנות",
+        "meta": "הופק: {date} · סה\"כ: {count} הזמנות",
+        "caption": "רשימת הזמנות",
+        "colOrderNumber": "מס' הזמנה",
+        "colClient": "לקוח",
+        "colType": "סוג",
+        "colStatus": "סטטוס",
+        "colTotal": "סה\"כ",
+        "colPaid": "שולם",
+        "colBalance": "יתרה",
+        "colDate": "תאריך"
+      },
+      "header": {
+        "title": "הזמנות",
+        "refresh": "רענן נתונים",
+        "export": "ייצוא",
+        "exportExcel": "ייצוא לאקסל",
+        "exportPdf": "ייצוא ל-PDF",
+        "newOrder": "הזמנה חדשה"
+      },
+      "stats": {
+        "total": "סה\"כ הזמנות",
+        "drafts": "טיוטות",
+        "active": "פעילות",
+        "completed": "הושלמו"
+      },
+      "filters": {
+        "status": "סטטוס",
+        "paymentStatus": "סטטוס תשלום",
+        "clientSearch": "חיפוש לקוח",
+        "clientSearchPlaceholder": "שם לקוח...",
+        "fromDate": "מתאריך",
+        "toDate": "עד תאריך",
+        "clear": "נקה"
+      },
+      "paymentFilters": {
+        "all": "הכל",
+        "paid": "שולם",
+        "unpaid": "טרם שולם"
+      },
+      "datePresets": {
+        "today": "היום",
+        "week": "השבוע",
+        "month": "החודש",
+        "all": "הכל"
+      },
+      "states": {
+        "loadError": "שגיאה בטעינת הזמנות",
+        "loadErrorHint": "לא ניתן לטעון את הנתונים. אנא נסה שוב.",
+        "reload": "רענן דף",
+        "empty": "אין הזמנות",
+        "emptyFiltered": "לא נמצאו הזמנות בטווח הנבחר",
+        "emptyNone": "עדיין לא נוצרה אף הזמנה",
+        "showAll": "הצג את כל ההזמנות"
+      },
+      "card": {
+        "items": "{count} פריטים",
+        "subtotal": "סכום ביניים",
+        "discount": "הנחה",
+        "vat": "מע\"מ",
+        "totalDue": "סה\"כ לתשלום",
+        "paid": "שולם",
+        "balance": "יתרה"
+      },
+      "actions": {
+        "viewDetails": "צפה בפרטים",
+        "recordPayment": "רשום תשלום",
+        "confirmOrder": "אשר הזמנה",
+        "markCompleted": "סמן כהושלמה",
+        "completed": "הושלמה",
+        "sendPaymentRequest": "שלח בקשת תשלום",
+        "sendPaymentRequestWhatsApp": "שלח בקשת תשלום בוואטסאפ",
+        "cancel": "בטל",
+        "cancelOrder": "בטל הזמנה",
+        "deleteOrder": "מחק הזמנה"
+      },
+      "table": {
+        "orderNumber": "מס' הזמנה",
+        "client": "לקוח",
+        "type": "סוג",
+        "status": "סטטוס",
+        "totalDue": "סה\"כ לתשלום",
+        "payment": "תשלום",
+        "createdAt": "תאריך יצירה",
+        "actions": "פעולות",
+        "paid": "שולם",
+        "partiallyPaid": "שולם חלקית",
+        "unpaid": "טרם שולם"
+      },
+      "footer": {
+        "showing": "מציג {count} הזמנות",
+        "ofTotal": " (מתוך {total})"
+      }
+    },
+    "createOrderModal": {
+      "units": {
+        "per_session": "לפגישה",
+        "per_day": "ליום",
+        "per_night": "ללילה",
+        "per_hour": "לשעה",
+        "per_item": "ליחידה",
+        "fixed": "קבוע"
+      },
+      "categories": {
+        "training": "אילוף",
+        "boarding": "פנסיון",
+        "products": "מוצרים",
+        "grooming": "טיפוח"
+      },
+      "customerFallback": "לקוח",
+      "errors": {
+        "createFailed": "שגיאה ביצירת ההזמנה",
+        "createFailedRetry": "שגיאה ביצירת ההזמנה. נסה שוב."
+      },
+      "calcUnits": {
+        "days": "ימים",
+        "nights": "לילות"
+      },
+      "nightsTimesDogs": "{nights} × {dogs} כלבים = {units}",
+      "totalToPay": "סה\"כ לתשלום",
+      "categoryStep": {
+        "prompt": "בחר את סוג ההזמנה:"
+      },
+      "customerStep": {
+        "apptTitle": "פרטי התור ביומן",
+        "date": "תאריך",
+        "startTime": "שעת התחלה",
+        "endTime": "שעת סיום",
+        "stayDates": "תאריכי שהייה",
+        "checkIn": "🔑 כניסה (Check-in)",
+        "checkOut": "🚪 יציאה (Check-out)",
+        "calcBySettings": "חישוב לפי הגדרות עסק",
+        "cartAutoUpdate": "✓ הכמות בעגלה מתעדכנת אוטומטית לפי {basis}",
+        "basisNightsTimesDogs": "לילות × {dogs} כלבים",
+        "basisNights": "מספר הלילות",
+        "customerLabel": "לקוח *",
+        "customerSearch": "חיפוש לקוח...",
+        "noCustomers": "לא נמצאו לקוחות",
+        "boardingDogs": "🐾 כלבים לפנסיון",
+        "selectedCount": "{count} נבחרו",
+        "cannotCreate": "לא ניתן ליצור הזמנה",
+        "petRequired": "חובה להוסיף חיית מחמד ללקוח לפני יצירת הזמנה.",
+        "addPetLink": "הוסף חיית מחמד ← דף הלקוח",
+        "boardingNoticeOne": "✓ הכלב יופיע אוטומטית בלוח הפנסיון תחת \"ממתין לשיבוץ\"",
+        "boardingNoticeMany": "✓ {count} הכלבים יופיעו אוטומטית בלוח הפנסיון תחת \"ממתין לשיבוץ\"",
+        "forWhichDog": "🐾 עבור איזה כלב?",
+        "allDogs": "כל הכלבים",
+        "linkedTo": "✓ ההזמנה תשויך ל{name}",
+        "selectDogWarning": "יש לבחור כלב ספציפי לפני המשך — ההזמנה תקשר לתוכנית אילוף",
+        "continueToItems": "המשך לפריטים →"
+      },
+      "itemsStep": {
+        "trainingType": "סוג האילוף",
+        "subTypes": {
+          "private": {
+            "label": "מפגש בודד",
+            "sub": "ללא חבילה"
+          },
+          "package": {
+            "label": "חבילת אילוף",
+            "sub": "עם כמות מוגדרת"
+          },
+          "boarding": {
+            "label": "אילוף פנסיון",
+            "sub": "שהייה בכלבייה"
+          },
+          "group": {
+            "label": "אילוף קבוצתי",
+            "sub": "בחר קבוצה"
+          }
+        },
+        "choosePackage": "בחר חבילה",
+        "noPackages": "אין חבילות פעילות. הגדר פריט אילוף עם כמות מפגשים במחירון.",
+        "sessionsCount": "{count} מפגשים",
+        "boardingIn": "כניסה לפנסיון",
+        "boardingOut": "יציאה מהפנסיון",
+        "homeFollowup": "מפגשי המשך בבית הלקוח (לאחר הפנסיון)",
+        "sessionsZeroNone": "מפגשים (0 = ללא)",
+        "followupWillBeCreated": "✓ תוכנית המשך של {count} מפגשים תיווצר אוטומטית",
+        "chooseGroup": "בחר קבוצת אילוף",
+        "noGroups": "אין קבוצות פעילות. הגדר קבוצות תחת לשונית אילוף.",
+        "days": {
+          "sun": "ראשון",
+          "mon": "שני",
+          "tue": "שלישי",
+          "wed": "רביעי",
+          "thu": "חמישי",
+          "fri": "שישי",
+          "sat": "שבת"
+        },
+        "dayLabel": "יום {day}",
+        "chooseCategory": "בחר קטגוריה",
+        "manualService": "שירות ידני",
+        "selectedService": "שירות נבחר",
+        "refreshTitle": "רענן רשימת שירותים",
+        "refresh": "רענן",
+        "noServicesInCategory": "אין שירותים בקטגוריה \"{category}\".",
+        "addToPricing": "הוסף במחירון",
+        "chooseService": "בחר שירות...",
+        "totalUnits": "סה\"כ יחידות",
+        "addToCart": "הוסף לעגלה",
+        "serviceNamePlaceholder": "שם שירות *",
+        "pricePlaceholder": "מחיר {currency}",
+        "qtyPlaceholder": "כמות",
+        "cartItems": "פריטים בעגלה ({count})",
+        "noDiscount": "ללא הנחה",
+        "discountPercent": "הנחה %",
+        "discountFixed": "הנחה {currency}",
+        "discountPercentPlaceholder": "% הנחה",
+        "discountFixedPlaceholder": "{currency} הנחה",
+        "noActiveGroupsWarning": "⚠️ אין קבוצות אילוף פעילות — יש ליצור קבוצה תחת לשונית \"אימונים\" לפני יצירת ההזמנה",
+        "mustChooseGroup": "⚠️ חובה לבחור קבוצת אילוף לפני המשך",
+        "continueToReview": "המשך לסיכום ({total}) →"
+      },
+      "paymentStep": {
+        "noPaymentLinkWarning": "לא הוגדר קישור תשלום למוצרים בהזמנה — ההודעה נשלחת ללא לינק",
+        "confirmedPaid": "ההזמנה אושרה ותשלום נרשם!",
+        "confirmed": "ההזמנה אושרה בהצלחה!",
+        "paymentLinked": "התשלום קושר להזמנה אוטומטית",
+        "canSendRequest": "ניתן לשלוח דרישת תשלום ללקוח בוואטסאפ",
+        "includeLanding": "כלול קישור לדף נחיתה / תשלום בהודעה הקרובה",
+        "discount": "הנחה",
+        "vat": "מע\"מ",
+        "openTrainingProgram": "פתח תוכנית אילוף →",
+        "goToOrder": "מעבר להזמנה בקופה",
+        "sendAndGo": "שלח הודעה ומעבר",
+        "preparingLink": "מכין קישור...",
+        "sendRequestWithLanding": "שלח דרישת תשלום עם קישור לדף הנחיתה",
+        "sendRequestWhatsApp": "שלח דרישת תשלום בוואטסאפ"
+      },
+      "reviewStep": {
+        "checkIn": "כניסה",
+        "checkOut": "יציאה",
+        "dateAtTime": "{date} בשעה {time}",
+        "subtotal": "סכום ביניים",
+        "discountWith": "הנחה ({detail})",
+        "fixedDiscount": "קבועה",
+        "exemptNoVat": "עוסק פטור — ללא מע\"מ",
+        "includingVat": "כולל מע\"מ ({rate}%)",
+        "notes": "הערות להזמנה",
+        "notesPlaceholder": "הערות, הוראות מיוחדות...",
+        "staffMember": "איש צוות",
+        "unassigned": "ללא שיוך",
+        "customerPaidNow": "הלקוח שילם עכשיו",
+        "amountReceived": "סכום שהתקבל ({currency})",
+        "paymentMethod": "אמצעי תשלום",
+        "methods": {
+          "cash": "מזומן",
+          "credit_card": "כרטיס אשראי",
+          "bank_transfer": "העברה בנקאית",
+          "bit": "ביט",
+          "paybox": "פייבוקס",
+          "check": "צ'ק"
+        },
+        "last4": "4 ספרות אחרונות",
+        "cardType": "סוג כרטיס",
+        "otherCard": "אחר",
+        "checkNumber": "מספר המחאה",
+        "checkDueDate": "תאריך פירעון",
+        "bank": "בנק",
+        "bankPlaceholder": "לאומי",
+        "branch": "סניף",
+        "sendRequestToClient": "שלח דרישת תשלום ללקוח (WhatsApp)",
+        "saveDraft": "שמור כטיוטה",
+        "confirmPaid": "אשר + שולם {amount}",
+        "confirmOrder": "אשר הזמנה {amount}"
+      },
+      "steps": {
+        "category": "בחירת קטגוריה",
+        "customer": "לקוח",
+        "items": "פריטים",
+        "review": "סיכום",
+        "payment": "תשלום"
+      },
+      "header": {
+        "newOrder": "הזמנה חדשה",
+        "orderOf": "הזמנת {category}",
+        "service": "שירות",
+        "back": "→ חזרה"
+      }
+    }
+  },
+  "payments": {
+    "paymentRequestPage": {
+      "title": "בקשת תשלום",
+      "tierGate": {
+        "description": "שלח בקשות תשלום ללקוחות בוואטסאפ עם קישורי תשלום אוטומטיים. שדרג כדי להפעיל."
+      },
+      "subtitle": "בחר לקוח, הוסף מוצרים ושלח בקשת תשלום בוואטסאפ",
+      "categories": {
+        "all": "הכל",
+        "general": "כללי"
+      },
+      "order": {
+        "manualAdjustmentLine": "התאמת מחיר ידנית",
+        "notes": "נוצר מדף בקשת תשלום"
+      },
+      "errors": {
+        "createOrder": "שגיאה ביצירת ההזמנה",
+        "createOrderNotSent": "שגיאה ביצירת ההזמנה — הבקשה לא נשלחה",
+        "stripeLink": "שגיאה ביצירת קישור Stripe",
+        "networkRetry": "שגיאת רשת — נסה שוב",
+        "networkNotSent": "שגיאת רשת — הבקשה לא נשלחה"
+      },
+      "toasts": {
+        "orderCreated": "נוצרה הזמנה במערכת — לאחר קבלת התשלום סמן אותה כשולמה",
+        "stripeCreated": "קישור Stripe נוצר!"
+      },
+      "creatingOrder": "יוצר הזמנה...",
+      "banner": {
+        "send": "שלח בקשת תשלום בוואטסאפ — {amount}"
+      },
+      "customer": {
+        "title": "בחירת לקוח",
+        "searchPlaceholder": "חפש לקוח לפי שם או טלפון..."
+      },
+      "products": {
+        "title": "מוצרים ושירותים",
+        "empty": "אין פריטים במחירון",
+        "addToPriceList": "הוסף פריטים במחירון ←",
+        "add": "הוסף"
+      },
+      "summary": {
+        "title": "סיכום הזמנה",
+        "empty": "לא נבחרו מוצרים",
+        "subtotal": "סכום ביניים",
+        "discount": "הנחה",
+        "afterDiscount": "סה\"כ אחרי הנחה",
+        "manualOverride": "עריכה ידנית של המחיר",
+        "totalToPay": "סה\"כ לתשלום"
+      },
+      "linkOrder": {
+        "question": "לאיזו הזמנה שייכת הבקשה?",
+        "existing": "הזמנה קיימת #{id} — נותר לתשלום {amount}",
+        "newOrder": "הזמנה חדשה ({amount})",
+        "attachNote": "לא תיווצר הזמנה נוספת — הבקשה תשויך להזמנה הקיימת."
+      },
+      "paymentLink": {
+        "title": "קישור לתשלום",
+        "creatingStripe": "יוצר קישור Stripe...",
+        "createStripe": "צור קישור Stripe — {amount}",
+        "placeholder": "הדבק קישור לדף תשלום...",
+        "stripeReady": "קישור Stripe נוצר — ישלח בהודעה",
+        "autoFromProduct": "↑ קישור אוטומטי מהמוצר הנבחר",
+        "noLink": "ללא קישור — ההודעה תישלח ללא לינק תשלום"
+      },
+      "sendWhatsApp": "שלח בוואטסאפ",
+      "disabled": {
+        "selectCustomer": "בחר לקוח כדי לשלוח",
+        "addProducts": "הוסף מוצרים כדי לשלוח"
+      }
+    },
+    "paymentModal": {
+      "methods": {
+        "cash": "מזומן",
+        "credit_card": "כרטיס אשראי",
+        "bank_transfer": "העברה בנקאית",
+        "bit": "ביט",
+        "paybox": "פייבוקס",
+        "check": "צ׳ק"
+      },
+      "statuses": {
+        "paid": "שולם",
+        "pending": "ממתין",
+        "partial": "חלקי",
+        "refunded": "הוחזר"
+      },
+      "errors": {
+        "invalidAmount": "יש להזין סכום תקין",
+        "generic": "שגיאה",
+        "saveFailed": "שגיאה בשמירת התשלום"
+      },
+      "title": "רישום תשלום",
+      "amountLabel": "סכום ({symbol})",
+      "methodLabel": "אמצעי תשלום",
+      "statusLabel": "סטטוס",
+      "deposit": "מקדמה",
+      "notesLabel": "הערות",
+      "notesPlaceholder": "הערה אופציונלית...",
+      "submit": "רשום תשלום"
+    },
+    "paymentsPage": {
+      "title": "תשלומים",
+      "tierTitle": "ניהול תשלומים",
+      "tierDescription": "מעקב אחרי תשלומים, הנפקת קבלות וחשבוניות, וסקירת מצב פיננסי מלא.",
+      "statuses": {
+        "ALL": "הכל",
+        "pending": "ממתין",
+        "paid": "שולם",
+        "canceled": "בוטל"
+      },
+      "periods": {
+        "ALL": "כל הזמן",
+        "today": "היום",
+        "week": "השבוע",
+        "month": "החודש"
+      },
+      "methods": {
+        "cash": "מזומן",
+        "credit_card": "כרטיס אשראי",
+        "bank_transfer": "העברה בנקאית",
+        "bit": "ביט",
+        "paybox": "פייבוקס",
+        "check": "צ'ק"
+      },
+      "toasts": {
+        "markedPaid": "התשלום סומן כשולם",
+        "markPaidError": "שגיאה בעדכון התשלום. נסה שוב.",
+        "canceled": "התשלום בוטל",
+        "cancelError": "שגיאה בביטול התשלום. נסה שוב.",
+        "deleted": "התשלום נמחק",
+        "deleteError": "שגיאה במחיקת התשלום. נסה שוב.",
+        "issueFailed": "שגיאה בהפקת מסמך",
+        "issued": "המסמך הופק בהצלחה",
+        "issueError": "שגיאה בהפקת המסמך. נסה שוב.",
+        "noPendingToSend": "אין תשלומים ממתינים לשליחה",
+        "remindersSent": "נשלחו {count} תזכורות",
+        "popupBlocked": "הדפדפן חסם את פתיחת WhatsApp. שלח את התזכורות אחת-אחת מכפתור התזכורת בכל שורה.",
+        "remindersPartial": "נפתחו {opened} מתוך {total} תזכורות — הדפדפן חסם את השאר ({blocked}). שלח אותן אחת-אחת מכפתור התזכורת בכל שורה."
+      },
+      "csv": {
+        "date": "תאריך",
+        "client": "לקוח",
+        "amount": "סכום",
+        "method": "אמצעי תשלום",
+        "status": "סטטוס",
+        "service": "שירות",
+        "order": "הזמנה",
+        "invoiceNumber": "מספר חשבונית",
+        "boardingService": "פנסיון — {pet}",
+        "fileName": "תשלומים_{date}.csv"
+      },
+      "header": {
+        "countFiltered": "{filtered} מתוך {total} תשלומים",
+        "count": "{count} תשלומים",
+        "newPayment": "תשלום חדש",
+        "sendAllTitle": "שלח תזכורת וואטסאפ לכל {count} תשלומים הממתינים",
+        "sending": "שולח...",
+        "sendAll": "שלח לכולם ({count})",
+        "exportTitle": "ייצוא לקובץ CSV",
+        "exportCsv": "ייצוא CSV",
+        "refreshNow": "רענן עכשיו",
+        "autoRefreshTurnOff": "כבה אוטו-רענון",
+        "autoRefreshTurnOn": "הפעל אוטו-רענון (30 שנ׳)",
+        "autoRefreshActive": "רענון אוטו פעיל",
+        "autoRefresh": "אוטו-רענון",
+        "searchPlaceholder": "חפש לפי לקוח..."
+      },
+      "summary": {
+        "total": "סה״כ",
+        "average": "ממוצע",
+        "perPayment": "לתשלום",
+        "paymentsCount": "{count} תשלומים"
+      },
+      "aging": {
+        "title": "ניתוח גיל חובות",
+        "pendingCount": "({count} תשלומים ממתינים)",
+        "buckets": {
+          "d0to30": "0–30 יום",
+          "d31to60": "31–60 יום",
+          "d60plus": "60+ יום"
+        }
+      },
+      "states": {
+        "loadError": "שגיאה בטעינת התשלומים",
+        "tryRefresh": "נסה לרענן את הדף",
+        "noResults": "לא נמצאו תשלומים",
+        "empty": "אין תשלומים",
+        "tryOtherSearch": "נסה חיפוש אחר",
+        "emptyHint": "צור תשלום חדש כדי להתחיל"
+      },
+      "row": {
+        "appointment": "תור: {service}",
+        "noService": "ללא שירות",
+        "boarding": "פנסיון: {pet}",
+        "deposit": "מקדמה",
+        "markPaid": "סמן כשולם",
+        "issueDocument": "הפק מסמך",
+        "sendReceiptTitle": "שלח אישור תשלום בוואטסאפ",
+        "receipt": "קבלה",
+        "sent": "נשלח ✓",
+        "sendReminderTitle": "שלח תזכורת תשלום בוואטסאפ",
+        "reminder": "תזכורת",
+        "reminderSentTitle": "נשלחה תזכורת",
+        "cancelConfirm": "לבטל את התשלום של {name} על סך {amount}?",
+        "theClient": "הלקוח",
+        "cancel": "בטל",
+        "cancelPaymentTitle": "בטל תשלום",
+        "deletePaymentTitle": "מחק תשלום",
+        "no": "לא",
+        "order": "הזמנה #{id}"
+      },
+      "table": {
+        "caption": "רשימת תשלומים",
+        "client": "לקוח",
+        "amount": "סכום",
+        "method": "אמצעי תשלום",
+        "association": "שיוך",
+        "status": "סטטוס",
+        "document": "מסמך",
+        "date": "תאריך"
+      },
+      "modal": {
+        "title": "תשלום חדש",
+        "client": "לקוח *",
+        "change": "שנה",
+        "searchClient": "חפש לקוח...",
+        "noClients": "לא נמצאו לקוחות",
+        "amount": "סכום ({currencySymbol}) *",
+        "method": "אמצעי תשלום",
+        "status": "סטטוס",
+        "notes": "הערות",
+        "create": "צור תשלום",
+        "created": "התשלום נרשם בהצלחה",
+        "createError": "שגיאה ברישום התשלום. נסה שוב."
+      }
+    }
+  },
   "paywall": {
     "upgradePage": {
       "plans": {
@@ -1434,6 +4899,565 @@
       "ctaWithPrice": "שדרג למסלול {planName} — {currencySymbol}{price}/חודש",
       "cta": "שדרג למסלול {planName}",
       "priceNote": "{currencySymbol}{price} לחודש · ביטול בכל עת"
+    }
+  },
+  "pets": {
+    "petsDetailPage": {
+      "status": {
+        "scheduled": "מתוכנן",
+        "completed": "הושלם",
+        "canceled": "בוטל",
+        "checked_in": "נמצא",
+        "checked_out": "יצא",
+        "reserved": "שמור",
+        "active": "פעיל",
+        "completed_prog": "הושלם",
+        "paused": "מושהה"
+      },
+      "weight": {
+        "kg": "{weight} ק\"ג",
+        "error": "שגיאה",
+        "added": "מדידה נוספה",
+        "addError": "שגיאה בהוספת מדידה",
+        "deleted": "מדידה נמחקה",
+        "title": "מעקב משקל",
+        "count": "({count} מדידות)",
+        "addEntry": "הוסף מדידה",
+        "weightLabel": "משקל (ק\"ג) *",
+        "dateLabel": "תאריך",
+        "notesLabel": "הערות (אופציונלי)",
+        "notesPlaceholder": "הערות על המשקל...",
+        "empty": "אין מדידות משקל עדיין"
+      },
+      "photos": {
+        "tooLarge": "{name} גדול מ-5MB",
+        "uploadError": "שגיאה בהעלאה",
+        "uploaded": "תמונות הועלו בהצלחה",
+        "uploadFailed": "שגיאה בהעלאת תמונות",
+        "deleted": "תמונה נמחקה",
+        "deleteError": "שגיאה במחיקת תמונה",
+        "title": "גלריית תמונות",
+        "uploading": "מעלה...",
+        "add": "הוסף תמונה",
+        "clickToUpload": "לחץ להעלאת תמונות"
+      },
+      "loadError": "שגיאה בטעינת פרטי החיה",
+      "header": {
+        "editDetails": "ערוך פרטים",
+        "medsCount": "{count} תרופות",
+        "vaccineExpired": "חיסון פג תוקף",
+        "vaccineExpiring": "חיסון עומד לפוג",
+        "noCustomer": "ללא לקוח משויך",
+        "refresh": "רענן"
+      },
+      "info": {
+        "title": "פרטי חיה",
+        "gender": "מין",
+        "male": "זכר",
+        "female": "נקבה",
+        "birthDate": "תאריך לידה",
+        "weight": "משקל",
+        "microchip": "מיקרוצ'יפ",
+        "neutered": "מסורס/מעוקרת",
+        "yes": "כן"
+      },
+      "health": {
+        "title": "בריאות",
+        "rabiesValid": "כלבת – תוקף",
+        "dhpp": "חיסון מחלות",
+        "deworming": "תילוע",
+        "vetName": "רופא וטרינר",
+        "vetPhone": "טלפון וטרינר",
+        "medicalConditions": "מצבים רפואיים",
+        "allergies": "אלרגיות"
+      },
+      "notes": {
+        "title": "הערות",
+        "medical": "רפואי",
+        "food": "אוכל",
+        "behavior": "התנהגות"
+      },
+      "behavior": {
+        "title": "התנהגות",
+        "dogAggression": "אגרסיבי כלפי כלבים",
+        "humanAggression": "אגרסיבי כלפי בני אדם",
+        "biteHistory": "היסטוריית נשיכה",
+        "leashPulling": "מושך רצועה",
+        "leashReactivity": "ריאקטיבי ברצועה",
+        "separationAnxiety": "חרדת נטישה",
+        "excessiveBarking": "נביחות מוגזמות",
+        "resourceGuarding": "שמירת משאבים",
+        "fears": "פחדים",
+        "badWithKids": "לא מתאים לילדים",
+        "destruction": "הרסני",
+        "houseSoiling": "מתלכלך בבית",
+        "priorTraining": "אילוף קודם"
+      },
+      "meds": {
+        "title": "תרופות",
+        "board": "לוח תרופות",
+        "active": "פעיל",
+        "ended": "הסתיים",
+        "from": "מ-{date}",
+        "until": " עד "
+      },
+      "appointments": {
+        "title": "היסטוריית תורים ({count})",
+        "calendarLink": "יומן ←",
+        "unknownService": "שירות לא ידוע"
+      },
+      "boarding": {
+        "title": "היסטוריית פנסיון ({count})",
+        "link": "פנסיון ←"
+      },
+      "training": {
+        "title": "תוכניות אימון ({count})",
+        "link": "אילוף ←",
+        "started": "התחיל: {date}"
+      },
+      "emptyHistory": "אין היסטוריה עדיין לחיה זו"
+    },
+    "petsPage": {
+      "speciesFilter": {
+        "all": "כל הסוגים",
+        "dog": "כלבים",
+        "cat": "חתולים",
+        "other": "אחר"
+      },
+      "speciesLabel": {
+        "dog": "כלב",
+        "cat": "חתול",
+        "other": "אחר"
+      },
+      "genderLabel": {
+        "male": "זכר",
+        "female": "נקבה"
+      },
+      "genderFilter": {
+        "all": "כל המינים",
+        "male": "זכרים",
+        "female": "נקבות"
+      },
+      "vaccineFilter": {
+        "all": "כל החיסונים",
+        "expired": "פג תוקף",
+        "expiring": "עומד לפוג",
+        "ok": "תקין",
+        "unknown": "לא ידוע"
+      },
+      "vaccineBadge": {
+        "expired": "חיסון פג",
+        "expiring": "חיסון פוקע",
+        "ok": "חיסון תקין"
+      },
+      "addModal": {
+        "title": "חיית מחמד חדשה",
+        "customerLabel": "לקוח *",
+        "changeCustomer": "החלף לקוח",
+        "customerSearchPlaceholder": "חפש לקוח לפי שם או טלפון...",
+        "searching": "מחפש...",
+        "noCustomers": "לא נמצאו לקוחות",
+        "nameLabel": "שם *",
+        "speciesLabel": "סוג",
+        "breedLabel": "גזע",
+        "genderLabel": "מין",
+        "genderUnspecified": "לא צוין",
+        "birthDateLabel": "תאריך לידה",
+        "submit": "הוסף חיית מחמד",
+        "toastSuccess": "חיית המחמד נוספה בהצלחה",
+        "toastError": "שגיאה בהוספת חיית המחמד"
+      },
+      "tierGate": {
+        "title": "ניהול חיות מחמד",
+        "description": "ניהול מתקדם של חיות מחמד — גרף משקל, גלריית תמונות, היסטוריה רפואית ועוד. שדרג כדי לגשת."
+      },
+      "toasts": {
+        "pendingApproval": "הבקשה נשלחה לאישור הבעלים",
+        "deleted": "חיית המחמד נמחקה",
+        "deleteError": "שגיאה במחיקת חיית המחמד",
+        "exportError": "שגיאה בייצוא"
+      },
+      "header": {
+        "title": "חיות מחמד",
+        "subtitle": "כל החיות הרשומות בעסק",
+        "addPet": "הוסף חיית מחמד",
+        "exportXlsx": "ייצוא XLSX",
+        "refresh": "רענן"
+      },
+      "stats": {
+        "total": "חיות סה״כ",
+        "dogsCats": "כלבים · {cats} חתולים",
+        "vaccinationIssues": "בעיות חיסון",
+        "withMeds": "עם תרופות פעילות"
+      },
+      "filters": {
+        "searchPlaceholder": "חפש לפי שם חיה, גזע, בעלים...",
+        "countFiltered": "{filtered} מתוך {total} חיות",
+        "countAll": "{total} חיות"
+      },
+      "states": {
+        "loadError": "שגיאה בטעינת נתונים",
+        "emptyFiltered": "לא נמצאו חיות התואמות את הסינון",
+        "empty": "אין חיות רשומות עדיין"
+      },
+      "table": {
+        "caption": "רשימת חיות מחמד",
+        "name": "שם",
+        "breedSpecies": "גזע / סוג",
+        "owner": "בעלים",
+        "ageWeight": "גיל / משקל",
+        "vaccine": "חיסון",
+        "meds": "תרופות",
+        "appointments": "תורים",
+        "actions": "פעולות",
+        "neutered": " · מסורס/מעוקרת",
+        "serviceDog": "כלב שירות",
+        "ageMonths": "{count} חודשים",
+        "ageYears": "{count} שנים",
+        "weight": "{weight} ק״ג",
+        "vaccineUnknown": "לא ידוע",
+        "medsCount": "{count} תרופות",
+        "sendWhatsApp": "שלח הודעת WhatsApp",
+        "call": "התקשר ל־{phone}",
+        "sendDeleteRequest": "שלח בקשת מחיקה לאישור"
+      },
+      "managerDelete": {
+        "title": "בקשת מחיקת חיית מחמד",
+        "body": "הבקשה תישלח לאישור הבעלים לפני ביצוע המחיקה. האם להמשיך?",
+        "sending": "שולח...",
+        "submit": "שלח לאישור"
+      },
+      "ownerDelete": {
+        "title": "מחיקת חיית מחמד",
+        "description": "מחיקת {name} תסיר את כל הנתונים הרפואיים, המשקל וההיסטוריה המשויכים. פעולה זו אינה ניתנת לביטול."
+      }
+    }
+  },
+  "pricing": {
+    "priceListsPage": {
+      "units": {
+        "perSession": "לפגישה",
+        "perDay": "ליום",
+        "perNight": "ללילה",
+        "perHour": "לשעה",
+        "perItem": "ליחידה",
+        "fixed": "מחיר קבוע"
+      },
+      "categories": {
+        "training": "אילוף",
+        "grooming": "טיפוח",
+        "boarding": "פנסיון",
+        "consulting": "ייעוץ",
+        "products": "מוצרים",
+        "addon": "תוסף",
+        "other": "אחר"
+      },
+      "errors": {
+        "generic": "שגיאה",
+        "update": "שגיאה בעדכון",
+        "duplicate": "שגיאה בשכפול",
+        "delete": "שגיאה במחיקה",
+        "saveOrder": "שגיאה בשמירת הסדר",
+        "saveItemsOrder": "שגיאה בשמירת סדר הפריטים",
+        "create": "שגיאה ביצירת מחירון"
+      },
+      "form": {
+        "addError": "שגיאה בהוספת פריט. נסה שוב.",
+        "nameRequired": "שם חובה",
+        "priceInvalid": "מחיר חייב להיות >= 0",
+        "unitRequired": "יחידה חובה",
+        "editTitle": "עריכת פריט",
+        "subtitle": "הוסף שירות או מוצר למחירון",
+        "typeService": "🔧 שירות",
+        "typeProduct": "📦 מוצר",
+        "nameLabel": "שם *",
+        "namePlaceholder": "לדוגמה: שיעור אילוף יחיד",
+        "categoryLabel": "קטגוריה",
+        "categoryPlaceholder": "לדוגמה: אילוף",
+        "unitLabel": "יחידה *",
+        "basePriceLabel": "מחיר בסיס ({currency}) *",
+        "vatLabel": "מע\"מ",
+        "taxable": "חייב מע\"מ",
+        "exempt": "פטור מע\"מ",
+        "inherit": "לפי הגדרת עסק",
+        "durationLabel": "משך (דקות)",
+        "descriptionLabel": "תיאור",
+        "descriptionPlaceholder": "תיאור קצר (אופציונלי)",
+        "paymentUrlLabel": "קישור לדף תשלום",
+        "paymentUrlHint": "קישור לדף תשלום של המסלקה שלך (Meshulam, Tranzila, iCount וכו׳). יישלח ללקוח בסיום הזמנה.",
+        "addItem": "הוסף פריט"
+      },
+      "row": {
+        "minutesShort": "{minutes}ד׳",
+        "paymentPage": "דף תשלום",
+        "moveUp": "הזז למעלה",
+        "moveDown": "הזז למטה",
+        "edit": "ערוך",
+        "duplicate": "שכפל",
+        "deactivate": "השבת",
+        "activate": "הפעל"
+      },
+      "newItem": "פריט חדש",
+      "copyName": "{name} (עותק)",
+      "itemDeleted": "פריט נמחק",
+      "uncategorized": "ללא קטגוריה",
+      "empty": {
+        "title": "אין עדיין מחירון",
+        "hint": "צור מחירון כדי להתחיל להוסיף שירותים ומוצרים",
+        "creating": "יוצר...",
+        "create": "צור מחירון"
+      },
+      "title": "מחירון",
+      "activeCount": "{count} פריטים פעילים · {name}",
+      "shareTitle": "שתף מחירון בוואטסאפ",
+      "share": "שתף מחירון",
+      "filters": {
+        "allCategories": "כל הקטגוריות",
+        "allTypes": "הכל",
+        "services": "שירותים",
+        "products": "מוצרים",
+        "hideInactive": "הסתר לא פעילים",
+        "showInactive": "הצג לא פעילים"
+      },
+      "list": {
+        "noResults": "לא נמצאו פריטים",
+        "empty": "המחירון ריק",
+        "tryOtherSearch": "נסה חיפוש אחר",
+        "addFirst": "הוסף את הפריט הראשון"
+      },
+      "deleteDialog": {
+        "title": "למחוק את \"{name}\"?",
+        "irreversible": "פעולה זו לא ניתנת לביטול.",
+        "confirm": "כן, מחק",
+        "back": "חזרה"
+      }
+    },
+    "pricingPage": {
+      "title": "מחירון",
+      "subtitle": "ניהול שירותים ומוצרים לפי קטגוריות",
+      "upgradeToBasic": "שדרג לבייסיק",
+      "upgrade": "שדרג",
+      "addItem": "הוסף פריט",
+      "bookableOnline": "זמין לתיאום תור אונליין",
+      "inactive": "לא פעיל",
+      "defaultListName": "מחירון ראשי",
+      "copyName": "{name} (עותק)",
+      "units": {
+        "per_session": "לפגישה",
+        "per_day": "ליום",
+        "per_night": "ללילה",
+        "per_hour": "לשעה",
+        "per_item": "ליחידה",
+        "fixed": "מחיר קבוע"
+      },
+      "taxModes": {
+        "taxable": "חייב מע״מ",
+        "exempt": "פטור מע״מ",
+        "inherit": "לפי הגדרת עסק",
+        "inclusive": "כולל מע״מ",
+        "exclusive": "+ מע״מ"
+      },
+      "categories": {
+        "boarding": "פנסיון",
+        "training": "אילוף",
+        "grooming": "טיפוח",
+        "products": "מוצרים",
+        "general": "כללי"
+      },
+      "modal": {
+        "editTitle": "עריכת פריט",
+        "newTitle": "פריט חדש",
+        "typeService": "שירות",
+        "typeProduct": "מוצר",
+        "nameLabel": "שם *",
+        "namePlaceholder": "לדוגמה: שיעור אילוף יחיד",
+        "categoryLabel": "קטגוריה *",
+        "categoryPlaceholder": "בחר קטגוריה...",
+        "unitLabel": "יחידת מידה",
+        "priceLabel": "מחיר ({currency}) *",
+        "vatLabel": "מע״מ",
+        "durationLabel": "משך (דקות)",
+        "trainingPackageTitle": "חבילת אילוף (אופציונלי)",
+        "sessionsLabel": "כמות מפגשים בחבילה",
+        "sessionsPlaceholder": "לדוגמה: 8 מפגשים",
+        "sessionsHint": "אם מוגדרת כמות מפגשים, הפריט יוצג כ\"חבילת אילוף\" בהזמנה ויפתח מעקב מפגשים אוטומטי.",
+        "descriptionLabel": "תיאור",
+        "descriptionPlaceholder": "תיאור קצר (אופציונלי)",
+        "paymentUrlTitle": "קישור לדף תשלום",
+        "paymentUrlHint": "קישור לדף תשלום של המסלקה שלך (Meshulam, Tranzila, iCount וכו׳). יישלח ללקוח אחרי הזמנה.",
+        "bookableOnlineHint": "הפריט יופיע בדף הזמנות האונליין שלך. הלקוח יוכל לבחור את השירות ולתאם תור.",
+        "depositRequired": "דרוש מקדמה",
+        "depositAmountLabel": "סכום מקדמה ({currency})",
+        "maxBookingsLabel": "מקסימום הזמנות ביום",
+        "maxBookingsPlaceholder": "ללא הגבלה",
+        "maxBookingsHint": "הגבל כמה הזמנות אפשר לקבוע לשירות זה ביום אחד",
+        "saveChanges": "שמור שינויים"
+      },
+      "row": {
+        "minutesShort": "{count}ד׳",
+        "sessions": "{count} מפגשים",
+        "paymentPage": "דף תשלום",
+        "moveUp": "הזז למעלה",
+        "moveDown": "הזז למטה",
+        "edit": "ערוך",
+        "duplicate": "שכפל",
+        "deactivate": "השבת",
+        "activate": "הפעל"
+      },
+      "errors": {
+        "create": "שגיאה ביצירה",
+        "add": "שגיאה בהוספה",
+        "update": "שגיאה בעדכון",
+        "duplicate": "שגיאה בשכפול",
+        "delete": "שגיאה במחיקה",
+        "reorder": "שגיאה בשמירת הסדר"
+      },
+      "toasts": {
+        "listCreated": "מחירון ראשי נוצר",
+        "listCreateError": "שגיאה ביצירת מחירון",
+        "itemAdded": "פריט נוסף",
+        "itemAddError": "שגיאה בהוספת פריט",
+        "itemUpdated": "פריט עודכן",
+        "itemUpdateError": "שגיאה בעדכון פריט",
+        "toggleError": "שגיאה בעדכון המצב. נסה שוב.",
+        "itemDuplicated": "פריט שוכפל",
+        "duplicateError": "שגיאה בשכפול הפריט. נסה שוב.",
+        "itemDeleted": "פריט נמחק",
+        "deleteError": "שגיאה במחיקת פריט",
+        "reorderError": "שגיאה בשמירת סדר הפריטים"
+      },
+      "vatExempt": {
+        "title": "עוסק פטור",
+        "body": "— כל פריטי המחירון פטורים ממע״מ. שדה מע״מ לא יוצג בהזמנות."
+      },
+      "freeLimit": {
+        "banner": "{used}/{max} פריטי מחירון — מגבלת המנוי החינמי",
+        "upgradeLink": "שדרג לבייסיק ←"
+      },
+      "emptyList": {
+        "title": "אין מחירון עדיין",
+        "body": "צור מחירון ראשי כדי להתחיל להגדיר שירותים ומוצרים",
+        "create": "צור מחירון ראשי"
+      },
+      "emptyItems": {
+        "title": "אין פריטים במחירון",
+        "body": "הוסף שירותים ומוצרים לפי קטגוריות (פנסיון, אילוף, טיפוח, מוצרים)",
+        "addFirst": "הוסף פריט ראשון"
+      },
+      "deleteDialog": {
+        "title": "למחוק את \"{name}\"?",
+        "body": "פעולה זו לא ניתנת לביטול.",
+        "confirm": "כן, מחק",
+        "back": "חזרה"
+      },
+      "tierGate": {
+        "title": "ניהול תמחור ושירותים",
+        "description": "הגדר שירותים, מחירונים ופריטי חיוב. הכלי הבסיסי לניהול הכנסות של העסק."
+      }
+    }
+  },
+  "scheduler": {
+    "schedulerPage": {
+      "days": {
+        "short": {
+          "sun": "א׳",
+          "mon": "ב׳",
+          "tue": "ג׳",
+          "wed": "ד׳",
+          "thu": "ה׳",
+          "fri": "ו׳",
+          "sat": "ש׳"
+        },
+        "long": {
+          "sun": "ראשון",
+          "mon": "שני",
+          "tue": "שלישי",
+          "wed": "רביעי",
+          "thu": "חמישי",
+          "fri": "שישי",
+          "sat": "שבת"
+        }
+      },
+      "tierGate": {
+        "title": "ניהול תורים אונליין",
+        "description": "אפשר ללקוחות לקבוע תורים בעצמם — זמין במנוי בייסיק ומעלה."
+      },
+      "linkNotReady": "קישור ההזמנה עדיין לא מוכן — רענן את הדף ונסה שוב",
+      "bookedAndAttached": "התור נקבע ושויך לחבילה (מפגש {session})",
+      "success": {
+        "title": "התור נקבע בהצלחה!",
+        "service": "שירות",
+        "client": "לקוח",
+        "date": "תאריך",
+        "time": "שעה",
+        "price": "מחיר",
+        "sendWhatsApp": "שלח הודעת WhatsApp",
+        "viewCalendar": "צפה ביומן",
+        "bookAnother": "קבע תור נוסף"
+      },
+      "header": {
+        "title": "תורים",
+        "subtitle": "קביעת תורים ללקוחות",
+        "copied": "הועתק!",
+        "copyLink": "העתק קישור הזמנה"
+      },
+      "availability": {
+        "closed": "סגור",
+        "serviceInfo": "{name} — {duration} דקות"
+      },
+      "service": {
+        "label": "בחירת שירות",
+        "option": "{name} — {duration} דק׳ — {price}",
+        "noneActive": "אין שירותים פעילים — הוסף שירות בהגדרות או במחירון",
+        "placeholder": "בחר שירות...",
+        "inactiveHint": "יש שירותים לא פעילים — הפעל אותם בהגדרות או במחירון"
+      },
+      "slots": {
+        "title": "בחירת שעה",
+        "pickServiceAndDate": "בחר שירות ותאריך כדי לראות תורים פנויים",
+        "pickDate": "בחר תאריך מהלוח כדי לראות תורים פנויים",
+        "none": "אין תורים זמינים ביום זה",
+        "tryAnotherDay": "נסה לבחור יום אחר"
+      },
+      "form": {
+        "title": "פרטי התור",
+        "client": "לקוח",
+        "createClient": "צור לקוח חדש",
+        "backToSearch": "→ חזור לחיפוש",
+        "newClient": "לקוח חדש",
+        "clientNamePlaceholder": "שם הלקוח *",
+        "phonePlaceholder": "טלפון *",
+        "pet": "חיית מחמד",
+        "noPet": "ללא בחירה",
+        "noPets": "אין חיות מחמד רשומות",
+        "pickClientFirst": "בחר לקוח קודם",
+        "notes": "הערות",
+        "notesPlaceholder": "הערות נוספות..."
+      },
+      "species": {
+        "dog": "כלב",
+        "cat": "חתול",
+        "other": "אחר"
+      },
+      "attach": {
+        "label": "לשייך לחבילת אילוף: <strong>{name}</strong> — מפגש {session}",
+        "optionSession": "— מפגש {session}"
+      },
+      "summary": {
+        "date": "תאריך:",
+        "time": "שעה:",
+        "service": "שירות:",
+        "duration": "משך:",
+        "minutes": "{duration} דקות",
+        "price": "מחיר:"
+      },
+      "errors": {
+        "create": "שגיאה ביצירת התור"
+      },
+      "submit": {
+        "booking": "קובע תור...",
+        "book": "קבע תור"
+      }
     }
   },
   "search": {

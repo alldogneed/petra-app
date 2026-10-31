@@ -2,6 +2,9 @@
 
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
+import { currencySymbol } from "@/lib/format";
 import { LOST_REASON_CODES, LEAD_SOURCES } from "@/lib/constants";
 import {
     Phone, Mail, X, Check, CheckCircle2, XCircle, MessageCircle, Pencil, Trash2,
@@ -117,6 +120,9 @@ function TimelineItem({
     event, editingLogId, editLogSummary, editLogTreatment,
     onEditChange, onEditSave, onEditCancel, onEdit, onDelete, isSaving,
 }: TimelineItemProps) {
+    const t = useTranslations("leads.leadTreatmentModal");
+    const tc = useTranslations("common");
+    const { locale } = useBusinessLocale();
     const isEditing = event.type === "call_log" && editingLogId === event.id;
 
     return (
@@ -130,13 +136,13 @@ function TimelineItem({
             <div className="min-w-0">
                 <div className="flex items-start justify-between gap-2">
                     <div className="text-[11px] text-slate-400 tabular-nums flex items-center gap-1.5">
-                        {new Date(event.date).toLocaleString("he-IL", {
+                        {new Date(event.date).toLocaleString(locale, {
                             day: "2-digit", month: "2-digit", year: "2-digit",
                             hour: "2-digit", minute: "2-digit",
                         })}
                         {event.isFuture && (
                             <span className="text-[10px] font-semibold text-[#C2410C] bg-[#FFF7ED] border border-[#FED7AA] px-1.5 rounded-full">
-                                מתוכנן
+                                {t("timeline.planned")}
                             </span>
                         )}
                     </div>
@@ -145,14 +151,14 @@ function TimelineItem({
                             <button
                                 onClick={() => onEdit(event)}
                                 className="w-6 h-6 flex items-center justify-center rounded-md text-slate-400 hover:bg-white hover:text-slate-700 transition-colors"
-                                title="ערוך"
+                                title={t("timeline.edit")}
                             >
                                 <Pencil className="w-3.5 h-3.5" />
                             </button>
                             <button
                                 onClick={() => onDelete(event)}
                                 className="w-6 h-6 flex items-center justify-center rounded-md text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors"
-                                title="מחק"
+                                title={tc("actions.delete")}
                             >
                                 <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -165,7 +171,7 @@ function TimelineItem({
                 {isEditing ? (
                     <div className="mt-2 space-y-2.5 rounded-[10px] border border-slate-200 bg-white p-3">
                         <div>
-                            <label className={FIELD_LABEL_CLS}>סיכום</label>
+                            <label className={FIELD_LABEL_CLS}>{t("callLog.summaryLabel")}</label>
                             <textarea
                                 className={TEXTAREA_CLS}
                                 rows={2}
@@ -174,7 +180,7 @@ function TimelineItem({
                             />
                         </div>
                         <div>
-                            <label className={FIELD_LABEL_CLS}>משימת חזרה ללקוח</label>
+                            <label className={FIELD_LABEL_CLS}>{t("callLog.treatmentLabel")}</label>
                             <textarea
                                 className={TEXTAREA_CLS}
                                 rows={2}
@@ -187,7 +193,7 @@ function TimelineItem({
                                 onClick={onEditCancel}
                                 className="h-8 px-3 rounded-lg border border-slate-200 bg-white text-[13px] text-slate-700 hover:bg-slate-50 transition-colors"
                             >
-                                ביטול
+                                {tc("actions.cancel")}
                             </button>
                             <button
                                 onClick={onEditSave}
@@ -197,7 +203,7 @@ function TimelineItem({
                                 {isSaving
                                     ? <span className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
                                     : <Check className="w-3 h-3" />}
-                                שמור
+                                {tc("actions.save")}
                             </button>
                         </div>
                     </div>
@@ -210,7 +216,7 @@ function TimelineItem({
                         )}
                         {event.action && (
                             <div className="mt-2 rounded-lg border border-[#FED7AA] bg-[#FFF7ED] p-2 text-[13px] text-[#9A3412]">
-                                <span className="block text-[11px] font-semibold mb-0.5">משימת חזרה</span>
+                                <span className="block text-[11px] font-semibold mb-0.5">{t("timeline.followUpTask")}</span>
                                 <p className="whitespace-pre-wrap break-words">{event.action}</p>
                             </div>
                         )}
@@ -224,6 +230,9 @@ function TimelineItem({
 // ─── Main Modal ──────────────────────────────────────────────────────────────
 
 export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDeleted }: LeadTreatmentModalProps) {
+    const t = useTranslations("leads.leadTreatmentModal");
+    const tc = useTranslations("common");
+    const { locale, currency } = useBusinessLocale();
     const queryClient = useQueryClient();
 
     // Use live data from cache so call logs update after saving
@@ -321,7 +330,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
             id: "created",
             type: "created",
             date: liveLead.createdAt,
-            title: "ליד נוצר במערכת",
+            title: t("timeline.created"),
             description: liveLead.notes || undefined,
         });
 
@@ -336,9 +345,9 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                         id: log.id,
                         type: isStageChange ? "stage_change" : isDealValue ? "deal_value" : "call_log",
                         date: log.createdAt,
-                        title: isStageChange ? "שינוי שלב" : isDealValue ? "ערך עסקה" : "שיחה תועדה",
+                        title: isStageChange ? t("timeline.stageChange") : isDealValue ? t("timeline.dealValue") : t("timeline.callLogged"),
                         description: log.summary,
-                        action: !isSystem && log.treatment && log.treatment !== "ללא טיפול" ? log.treatment : undefined,
+                        action: !isSystem && log.treatment && log.treatment !== "ללא טיפול" ? log.treatment : undefined, // i18n-ok — stored placeholder
                     });
                 });
         }
@@ -349,13 +358,13 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                 id: "follow_up",
                 type: "follow_up",
                 date: liveLead.nextFollowUpAt,
-                title: liveLead.followUpStatus === "completed" ? "פולואפ הושלם" : "פולואפ מתוזמן",
+                title: liveLead.followUpStatus === "completed" ? t("timeline.followUpDone") : t("timeline.followUpScheduled"),
                 isFuture,
             });
         }
 
         if (liveLead.wonAt) {
-            events.push({ id: "won", type: "won", date: liveLead.wonAt, title: "ליד נסגר — לקוח נוצר" });
+            events.push({ id: "won", type: "won", date: liveLead.wonAt, title: t("timeline.won") });
         }
 
         if (liveLead.lostAt) {
@@ -366,13 +375,13 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                 id: "lost",
                 type: "lost",
                 date: liveLead.lostAt,
-                title: "ליד אבד",
+                title: t("timeline.lost"),
                 description: reasonLabel || liveLead.lostReasonText || undefined,
             });
         }
 
         return events.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    }, [liveLead]);
+    }, [liveLead, t]);
 
     // ── Mutations ─────────────────────────────────────────────────────────
 
@@ -385,11 +394,11 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
             }).then(async (r) => {
                 const body = await r.json().catch(() => ({}));
                 // Surface the server's validation message (e.g. invalid phone) instead of failing silently
-                if (!r.ok) throw new Error(typeof body.error === "string" && body.error !== "Invalid input" ? body.error : "שגיאה בעדכון הליד. בדוק את הפרטים ונסה שוב.");
+                if (!r.ok) throw new Error(typeof body.error === "string" && body.error !== "Invalid input" ? body.error : t("errors.updateInvalid"));
                 return body;
             }),
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ["leads"] }),
-        onError: (err: Error) => toast.error(err.message || "שגיאה בעדכון הליד. נסה שוב."),
+        onError: (err: Error) => toast.error(err.message || t("errors.update")),
     });
 
     const dealValueMutation = useMutation({
@@ -400,7 +409,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                 body: JSON.stringify({ dealValue: value }),
             });
             const data = await r.json().catch(() => ({}));
-            if (!r.ok) throw new Error(data.error || "שגיאה בשמירת ערך העסקה");
+            if (!r.ok) throw new Error(data.error || t("errors.dealValue"));
             return data;
         },
         onSuccess: async (data: { id?: string; dealValue?: number | null }) => {
@@ -427,7 +436,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
             if (data.customerId && onWon) onWon(lead!.name, data.customerId);
             onClose();
         },
-        onError: () => toast.error("שגיאה בסגירת הליד. נסה שוב."),
+        onError: () => toast.error(t("errors.closeWon")),
     });
 
     const closeLostMutation = useMutation({
@@ -445,7 +454,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
             setLostModalOpen(false);
             onClose();
         },
-        onError: () => toast.error("שגיאה בסימון הליד כאבוד. נסה שוב."),
+        onError: () => toast.error(t("errors.closeLost")),
     });
 
     const addCallLogMutation = useMutation({
@@ -469,14 +478,14 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
             queryClient.invalidateQueries({ queryKey: ["leads"] });
             setEditingLogId(null);
         },
-        onError: () => toast.error("שגיאה בעדכון יומן השיחה. נסה שוב."),
+        onError: () => toast.error(t("errors.editLog")),
     });
 
     const deleteCallLogMutation = useMutation({
         mutationFn: (logId: string) =>
             fetch(`/api/leads/${lead!.id}/call-logs/${logId}`, { method: "DELETE" }).then((r) => r.json()),
         onSuccess: () => queryClient.invalidateQueries({ queryKey: ["leads"] }),
-        onError: () => toast.error("שגיאה במחיקת יומן השיחה. נסה שוב."),
+        onError: () => toast.error(t("errors.deleteLog")),
     });
 
     const deleteLeadMutation = useMutation({
@@ -492,23 +501,23 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
             // this board was stale). The end state is what the user wanted, so
             // treat it as done rather than an error.
             if (r.status === 404) return { status: 404, data };
-            if (!r.ok && r.status !== 202) throw new Error(data.error || "שגיאה במחיקת הליד");
+            if (!r.ok && r.status !== 202) throw new Error(data.error || t("errors.deleteLeadShort"));
             return { status: r.status, data };
         },
         onSuccess: ({ status, data }) => {
             if (status === 202) {
-                toast.success(data.message || "הבקשה נשלחה לאישור הבעלים");
+                toast.success(data.message || t("toasts.deletePending"));
             } else if (status === 404) {
-                toast.success("הליד כבר נמחק");
+                toast.success(t("toasts.alreadyDeleted"));
             } else {
-                toast.success("הליד נמחק");
+                toast.success(t("toasts.deleted"));
             }
             queryClient.invalidateQueries({ queryKey: ["leads"] });
             setShowDeleteConfirm(false);
             onClose();
             if (onDeleted) onDeleted();
         },
-        onError: (err: Error) => toast.error(err.message || "שגיאה במחיקת הליד. נסה שוב."),
+        onError: (err: Error) => toast.error(err.message || t("errors.deleteLead")),
     });
 
     const isWorking = saving || addCallLogMutation.isPending || updateLeadMutation.isPending || closeWonMutation.isPending || closeLostMutation.isPending || dealValueMutation.isPending;
@@ -549,7 +558,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
 
     /** Client-side check with the same rules the server applies — returns an error message or null. */
     const detailsError = (): string | null => {
-        if (editForm.name.trim().length < 2) return "שם לא תקין — נא להזין לפחות 2 תווים";
+        if (editForm.name.trim().length < 2) return t("errors.nameInvalid");
         if (editForm.phone.trim()) {
             const e = validateIsraeliPhone(editForm.phone);
             if (e) return e;
@@ -570,7 +579,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
         try {
             await updateLeadMutation.mutateAsync(detailsPayload());
             setIsEditing(false);
-            toast.success("פרטי הליד נשמרו");
+            toast.success(t("toasts.detailsSaved"));
         } catch {
             // toast already shown by the mutation
         } finally {
@@ -625,13 +634,13 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
         if (hasCallContent) {
             try {
                 const res = await addCallLogMutation.mutateAsync({
-                    summary: summary.trim() || "ללא סיכום",
-                    treatment: treatment.trim() || "ללא טיפול",
+                    summary: summary.trim() || "ללא סיכום", // i18n-ok — stored placeholder
+                    treatment: treatment.trim() || "ללא טיפול", // i18n-ok — stored placeholder
                 });
                 if (res && typeof res === "object" && "error" in res) throw new Error(String(res.error));
             } catch {
                 // Keep the typed notes (and the draft) — nothing was lost
-                toast.error("שגיאה בשמירת תיעוד השיחה. נסה שוב.");
+                toast.error(t("errors.saveCallLog"));
                 return;
             }
             clearLeadCallDraft(lead.id);
@@ -649,7 +658,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                 await fetch(`/api/leads/${lead.id}/logs`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ type: "stage_change", summary: `הועבר מ"${fromStage.name}" ל"${toStage.name}"`, treatment: "" }),
+                    body: JSON.stringify({ type: "stage_change", summary: `הועבר מ"${fromStage.name}" ל"${toStage.name}"`, treatment: "" }), // i18n-ok — parsed by sales-report.ts (rule #30)
                 });
             }
         }
@@ -684,8 +693,8 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
         const log = liveLead?.callLogs?.find(l => l.id === event.id);
         if (!log) return;
         setEditingLogId(event.id);
-        setEditLogSummary(log.summary === "ללא סיכום" ? "" : log.summary);
-        setEditLogTreatment(log.treatment === "ללא טיפול" ? "" : log.treatment);
+        setEditLogSummary(log.summary === "ללא סיכום" ? "" : log.summary); // i18n-ok — stored placeholder
+        setEditLogTreatment(log.treatment === "ללא טיפול" ? "" : log.treatment); // i18n-ok — stored placeholder
     };
 
     const handleDeleteLog = (event: TLEvent) => {
@@ -696,8 +705,8 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
         if (!editingLogId) return;
         editCallLogMutation.mutate({
             logId: editingLogId,
-            summary: editLogSummary.trim() || "ללא סיכום",
-            treatment: editLogTreatment.trim() || "ללא טיפול",
+            summary: editLogSummary.trim() || "ללא סיכום", // i18n-ok — stored placeholder
+            treatment: editLogTreatment.trim() || "ללא טיפול", // i18n-ok — stored placeholder
         });
     };
 
@@ -709,8 +718,8 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
         const onKeyDown = (e: KeyboardEvent) => {
             if (e.key !== "Escape" || e.defaultPrevented || lostModalOpen) return;
             // Never drop typed text: Escape inside a field, or with unsaved call notes, does not close
-            const t = e.target as HTMLElement | null;
-            if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT")) return;
+            const target = e.target as HTMLElement | null;
+            if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT")) return;
             if (editingLogId || summary.trim() || treatment.trim() || isEditing) return;
             onClose();
         };
@@ -725,8 +734,8 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
     const view = liveLead ?? lead; // cache-fresh after a save (the prop is a snapshot)
     const headerName = isEditing ? editForm.name : view.name;
     // Older leads keep city / service only inside notes ("עיר: …" / "שירות מבוקש: …")
-    const notesCity = view.notes?.match(/^עיר:\s*(.+)$/m)?.[1]?.trim() || null;
-    const notesService = view.notes?.match(/^שירות מבוקש:\s*(.+)$/m)?.[1]?.trim() || null;
+    const notesCity = view.notes?.match(/^עיר:\s*(.+)$/m)?.[1]?.trim() || null; // i18n-ok — matches stored notes
+    const notesService = view.notes?.match(/^שירות מבוקש:\s*(.+)$/m)?.[1]?.trim() || null; // i18n-ok — matches stored notes
     const displayCity = view.city || notesCity;
     const displayService = view.requestedService || notesService;
     const subtitleParts = [view.phone, displayCity, displayService].filter(Boolean) as string[];
@@ -744,7 +753,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
         tomorrowStart.setDate(tomorrowStart.getDate() + 1);
         if (d < todayStart) followUpColor = "#B91C1C";
         else if (d < tomorrowStart) followUpColor = "#C2410C";
-        followUpText = d.toLocaleString("he-IL", {
+        followUpText = d.toLocaleString(locale, {
             weekday: "long", day: "numeric", month: "numeric", year: "numeric",
             hour: "2-digit", minute: "2-digit",
         });
@@ -755,18 +764,18 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
 
     const dealValueCell = (
         <div className="min-w-0">
-            <div className="text-xs text-slate-500 mb-1">ערך עסקה</div>
+            <div className="text-xs text-slate-500 mb-1">{t("deal.label")}</div>
             {editingDeal ? (
                 <div className="flex flex-wrap items-center gap-1.5">
                     <div className="relative">
-                        <span className="absolute inset-y-0 right-3 flex items-center text-sm text-slate-400 pointer-events-none">₪</span>
+                        <span className="absolute inset-y-0 start-3 flex items-center text-sm text-slate-400 pointer-events-none">{currencySymbol({ locale, currency })}</span>
                         <input
                             type="text"
                             inputMode="decimal"
                             dir="ltr"
                             autoFocus
-                            aria-label="ערך עסקה בשקלים"
-                            className={cn(INPUT_CLS, "h-9 w-28 text-left pr-8 tabular-nums", dealError && "border-red-400 focus:border-red-400 focus:ring-red-500/15")}
+                            aria-label={t("deal.ariaLabel")}
+                            className={cn(INPUT_CLS, "h-9 w-28 text-left pr-8 ltr:pr-3 ltr:pl-8 tabular-nums", dealError && "border-red-400 focus:border-red-400 focus:ring-red-500/15")}
                             placeholder="350"
                             value={dealInput}
                             onChange={(e) => { setDealInput(e.target.value); setDealError(null); }}
@@ -779,20 +788,20 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                     <button
                         onClick={() => void saveDealValue()}
                         disabled={dealValueMutation.isPending}
-                        title="שמור"
+                        title={tc("actions.save")}
                         className="h-9 px-2.5 rounded-lg bg-[#F97316] hover:bg-[#EA580C] text-white text-xs font-semibold transition-colors disabled:opacity-50 flex items-center gap-1"
                     >
                         {dealValueMutation.isPending
                             ? <span className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
                             : <Check className="w-3 h-3" />}
-                        שמור
+                        {tc("actions.save")}
                     </button>
                     <button
                         onClick={() => { setEditingDeal(false); setDealError(null); }}
                         disabled={dealValueMutation.isPending}
                         className="h-9 px-2.5 rounded-lg border border-slate-200 bg-white text-xs text-slate-600 hover:bg-slate-50 transition-colors"
                     >
-                        ביטול
+                        {tc("actions.cancel")}
                     </button>
                 </div>
             ) : (
@@ -804,7 +813,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                         onClick={startDealEdit}
                         className="text-xs font-medium text-[#EA580C] hover:text-[#C2410C] hover:underline underline-offset-2"
                     >
-                        {currentDealValue != null ? "ערוך" : "הוסף ערך"}
+                        {currentDealValue != null ? t("deal.edit") : t("deal.add")}
                     </button>
                 </div>
             )}
@@ -825,8 +834,8 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
             <div
                 role="dialog"
                 aria-modal="true"
-                aria-label={`כרטיס ליד: ${lead.name}`}
-                className="fixed top-0 bottom-0 left-0 z-50 w-[460px] max-w-full bg-white overflow-y-auto flex flex-col text-[#0F172A] shadow-[0_24px_48px_-12px_rgba(0,0,0,0.18)] animate-in slide-in-from-left duration-300"
+                aria-label={t("header.ariaLabel", { name: lead.name })}
+                className="fixed top-0 bottom-0 end-0 z-50 w-[460px] max-w-full bg-white overflow-y-auto flex flex-col text-[#0F172A] shadow-[0_24px_48px_-12px_rgba(0,0,0,0.18)] animate-in slide-in-from-left ltr:slide-in-from-right duration-300"
             >
 
                 {/* ── Header ─────────────────────────────────────────── */}
@@ -839,7 +848,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                             </span>
                         )}
                         <span className="text-xs text-slate-400 tabular-nums">
-                            נכנס {new Date(lead.createdAt).toLocaleDateString("he-IL")}
+                            {t("header.entered", { date: new Date(lead.createdAt).toLocaleDateString(locale) })}
                         </span>
 
                         <div className="ms-auto flex items-center gap-1">
@@ -853,39 +862,39 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                                 )}
                             >
                                 <Pencil className="w-3.5 h-3.5" />
-                                עריכה
+                                {tc("actions.edit")}
                             </button>
                             {!showDeleteConfirm ? (
                                 <button
                                     onClick={() => setShowDeleteConfirm(true)}
                                     className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors"
-                                    title="מחק ליד"
+                                    title={t("header.deleteLead")}
                                 >
                                     <Trash2 className="w-4 h-4" />
                                 </button>
                             ) : (
                                 <div className="flex items-center gap-1.5 bg-red-50 border border-red-200 rounded-lg px-2 h-8">
-                                    <span className="text-xs text-red-700 font-medium">למחוק?</span>
+                                    <span className="text-xs text-red-700 font-medium">{t("header.deleteConfirm")}</span>
                                     <button
                                         onClick={() => deleteLeadMutation.mutate()}
                                         disabled={deleteLeadMutation.isPending}
                                         className="text-xs px-2 py-0.5 rounded-md bg-red-600 text-white hover:bg-red-700 font-medium transition-colors disabled:opacity-50"
                                     >
-                                        {deleteLeadMutation.isPending ? "מוחק..." : "כן, מחק"}
+                                        {deleteLeadMutation.isPending ? tc("progress.deleting") : t("header.deleteYes")}
                                     </button>
                                     <button
                                         onClick={() => setShowDeleteConfirm(false)}
                                         className="text-xs px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 font-medium transition-colors"
                                     >
-                                        ביטול
+                                        {tc("actions.cancel")}
                                     </button>
                                 </div>
                             )}
                             <button
                                 onClick={onClose}
                                 className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 transition-colors"
-                                title="סגור"
-                                aria-label="סגור"
+                                title={tc("actions.close")}
+                                aria-label={tc("actions.close")}
                             >
                                 <X className="w-4 h-4" />
                             </button>
@@ -926,17 +935,17 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                                 className="flex-1 h-10 rounded-[10px] inline-flex items-center justify-center gap-2 text-sm font-semibold text-white bg-[#F97316] hover:bg-[#EA580C] transition-colors"
                             >
                                 <Phone className="w-4 h-4" />
-                                חיוג ללקוח
+                                {t("header.call")}
                             </a>
                             <a
                                 href={`https://wa.me/${toWhatsAppPhone(view.phone)}`}
                                 target="whatsapp_window"
                                 rel="noopener noreferrer"
-                                title="שלח הודעה בוואטסאפ"
+                                title={t("header.whatsappTitle")}
                                 className="flex-1 h-10 rounded-[10px] inline-flex items-center justify-center gap-2 text-sm font-semibold text-white bg-[#059669] hover:bg-[#047857] transition-colors"
                             >
                                 <MessageCircle className="w-4 h-4" />
-                                וואטסאפ
+                                {t("header.whatsapp")}
                             </a>
                         </div>
                     )}
@@ -950,7 +959,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                                 className="flex-1 h-10 rounded-[10px] inline-flex items-center justify-center gap-1.5 border border-[#6EE7B7] bg-[#ECFDF5] text-[#047857] hover:bg-[#D1FAE5] text-sm font-semibold transition-colors disabled:opacity-50"
                             >
                                 <CheckCircle2 className="w-4 h-4" />
-                                {closeWonMutation.isPending ? "סוגר..." : "נסגר כלקוח"}
+                                {closeWonMutation.isPending ? t("close.wonPending") : t("close.won")}
                             </button>
                             <button
                                 onClick={handleCloseLost}
@@ -958,7 +967,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                                 className="flex-1 h-10 rounded-[10px] inline-flex items-center justify-center gap-1.5 border border-red-200 bg-white text-red-700 hover:bg-red-50 text-sm font-semibold transition-colors disabled:opacity-50"
                             >
                                 <XCircle className="w-4 h-4" />
-                                {closeLostMutation.isPending ? "מסמן..." : "אבד"}
+                                {closeLostMutation.isPending ? t("close.lostPending") : t("close.lost")}
                             </button>
                         </div>
                     ) : (
@@ -969,8 +978,8 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                                 : "bg-red-50 text-red-700 border-red-200"
                         )}>
                             {isWonLead
-                                ? <><CheckCircle2 className="w-4 h-4" /> ליד נסגר בהצלחה — לקוח נוצר</>
-                                : <><XCircle className="w-4 h-4" /> ליד אבוד</>
+                                ? <><CheckCircle2 className="w-4 h-4" /> {t("close.wonBanner")}</>
+                                : <><XCircle className="w-4 h-4" /> {t("close.lostBanner")}</>
                             }
                         </div>
                     )}
@@ -979,7 +988,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                 {/* ── Stage selector (won / lost have their own buttons above) ── */}
                 {!isClosed && (
                     <div className="px-6 py-5 border-b border-[#F1F5F9]">
-                        <div className="text-xs font-semibold text-slate-500">שלב במכירה</div>
+                        <div className="text-xs font-semibold text-slate-500">{t("stage.title")}</div>
                         <div className="mt-2 flex flex-wrap gap-2">
                             {stages.filter((s) => !s.isWon && !s.isLost).map((stage) => {
                                 const selected = selectedStage === stage.id;
@@ -1003,20 +1012,20 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                             })}
                         </div>
                         {selectedStage !== lead.stage && (
-                            <p className="mt-2 text-xs text-slate-500">השלב יתעדכן בלחיצה על &quot;שמור וסגור&quot;</p>
+                            <p className="mt-2 text-xs text-slate-500">{t("stage.pendingHint")}</p>
                         )}
                     </div>
                 )}
 
                 {/* ── Quick log + next follow-up ─────────────────────── */}
                 <div className="px-6 py-5 border-b border-[#F1F5F9]">
-                    <div className="text-xs font-semibold text-slate-500">חזרה הבאה</div>
+                    <div className="text-xs font-semibold text-slate-500">{t("followUp.next")}</div>
                     {followUpText ? (
                         <div className="mt-0.5 text-[15px] font-semibold tabular-nums" style={{ color: followUpColor }}>
                             {followUpText}
                         </div>
                     ) : (
-                        <div className="mt-0.5 text-[15px] font-semibold text-slate-400">לא נקבע מועד</div>
+                        <div className="mt-0.5 text-[15px] font-semibold text-slate-400">{t("followUp.notSet")}</div>
                     )}
                 </div>
 
@@ -1035,15 +1044,15 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                 <div className="px-6 py-5 border-b border-[#F1F5F9]">
                     {isEditing ? (
                         <div className="space-y-4">
-                            <h4 className="text-xs font-semibold text-slate-500">עריכת פרטים</h4>
+                            <h4 className="text-xs font-semibold text-slate-500">{t("details.editTitle")}</h4>
                             <div className="grid grid-cols-2 gap-x-4 gap-y-3">
                                 {[
-                                    { key: "name", label: "שם ליד" },
-                                    { key: "phone", label: "טלפון" },
-                                    { key: "email", label: "אימייל" },
-                                    { key: "city", label: "עיר מגורים" },
-                                    { key: "address", label: "כתובת" },
-                                    { key: "requestedService", label: "שירות מבוקש" },
+                                    { key: "name", label: t("details.fields.name") },
+                                    { key: "phone", label: t("details.fields.phone") },
+                                    { key: "email", label: t("details.fields.email") },
+                                    { key: "city", label: t("details.fields.city") },
+                                    { key: "address", label: t("details.fields.address") },
+                                    { key: "requestedService", label: t("details.fields.requestedService") },
                                 ].map(({ key, label }) => (
                                     <div key={key} className="min-w-0">
                                         <label className={FIELD_LABEL_CLS}>{label}</label>
@@ -1058,7 +1067,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                                     </div>
                                 ))}
                                 <div className="min-w-0">
-                                    <label className={FIELD_LABEL_CLS}>מקור</label>
+                                    <label className={FIELD_LABEL_CLS}>{t("details.source")}</label>
                                     <select
                                         className={INPUT_CLS}
                                         value={editForm.source}
@@ -1076,7 +1085,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                                     className="h-10 px-5 rounded-[10px] bg-[#F97316] hover:bg-[#EA580C] text-white font-semibold text-sm transition-colors disabled:opacity-50 inline-flex items-center gap-1.5"
                                 >
                                     <Check className="w-4 h-4" />
-                                    {savingDetails ? "שומר..." : "שמור פרטים"}
+                                    {savingDetails ? tc("progress.saving") : t("details.save")}
                                 </button>
                                 <button
                                     type="button"
@@ -1087,7 +1096,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                                     disabled={savingDetails}
                                     className="h-10 px-4 border border-slate-200 rounded-[10px] bg-white text-sm text-slate-700 hover:bg-slate-50 transition-colors"
                                 >
-                                    ביטול
+                                    {tc("actions.cancel")}
                                 </button>
                             </div>
                             <div className="pt-1">{dealValueCell}</div>
@@ -1095,16 +1104,16 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                     ) : (
                         <div className="grid grid-cols-2 gap-x-5 gap-y-4 text-sm">
                             <div className="min-w-0">
-                                <div className="text-xs text-slate-500 mb-1">שירות מבוקש</div>
+                                <div className="text-xs text-slate-500 mb-1">{t("details.fields.requestedService")}</div>
                                 <div className="font-medium break-words">{displayService || "—"}</div>
                             </div>
                             {dealValueCell}
                             <div className="min-w-0">
-                                <div className="text-xs text-slate-500 mb-1">מקור</div>
+                                <div className="text-xs text-slate-500 mb-1">{t("details.source")}</div>
                                 <div className="font-medium">{sourceLabel}</div>
                             </div>
                             <div className="min-w-0">
-                                <div className="text-xs text-slate-500 mb-1">עיר</div>
+                                <div className="text-xs text-slate-500 mb-1">{t("details.city")}</div>
                                 <div className="font-medium break-words">{displayCity || "—"}</div>
                             </div>
                         </div>
@@ -1116,43 +1125,43 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                     {/* ── Call log + follow-up ───────────────────────── */}
                     <div className="border border-slate-200 rounded-xl overflow-hidden">
                         <div className="bg-slate-50 px-4 py-2.5 text-[13px] font-semibold border-b border-slate-200">
-                            תיעוד שיחה
+                            {t("callLog.title")}
                         </div>
                         <div className="p-4 space-y-4">
                             {draftRestored && (summary.trim() || treatment.trim()) && (
                                 <div className="flex items-center justify-between gap-2 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800">
-                                    <span>שוחזרה טיוטה שלא נשמרה</span>
+                                    <span>{t("callLog.draftRestored")}</span>
                                     <button type="button" onClick={discardDraft} className="font-semibold underline hover:text-amber-900">
-                                        נקה טיוטה
+                                        {t("callLog.clearDraft")}
                                     </button>
                                 </div>
                             )}
                             <div>
-                                <label htmlFor="lead-call-summary-input" className={FIELD_LABEL_CLS}>סיכום</label>
+                                <label htmlFor="lead-call-summary-input" className={FIELD_LABEL_CLS}>{t("callLog.summaryLabel")}</label>
                                 <textarea
                                     id="lead-call-summary-input"
                                     className={TEXTAREA_CLS}
                                     rows={3}
                                     value={summary}
                                     onChange={(e) => { setSummary(e.target.value); persistDraft({ summary: e.target.value }); }}
-                                    placeholder="מה נאמר בשיחה? לאיזה סיכום הגעתם?"
+                                    placeholder={t("callLog.summaryPlaceholder")}
                                 />
                             </div>
                             <div>
-                                <label className={FIELD_LABEL_CLS}>משימת חזרה ללקוח</label>
+                                <label className={FIELD_LABEL_CLS}>{t("callLog.treatmentLabel")}</label>
                                 <textarea
                                     className={TEXTAREA_CLS}
                                     rows={2}
                                     value={treatment}
                                     onChange={(e) => { setTreatment(e.target.value); persistDraft({ treatment: e.target.value }); }}
-                                    placeholder="מה הצעדים הבאים להמשך הטיפול בליד?"
+                                    placeholder={t("callLog.treatmentPlaceholder")}
                                 />
                             </div>
 
                             {/* Follow-up scheduling — required before confirming a call */}
                             <div id="followup-section">
                                 <label htmlFor="followup-date-input" className={FIELD_LABEL_CLS}>
-                                    מועד חזרה <span className="text-red-500">*</span>
+                                    {t("followUp.dateLabel")} <span className="text-red-500">*</span>
                                 </label>
                                 <div className="flex flex-wrap items-center gap-2">
                                     <input
@@ -1166,7 +1175,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                                         value={nextFollowUpAt}
                                         onChange={(e) => { setNextFollowUpAt(e.target.value); setFollowUpError(false); persistDraft({ nextFollowUpAt: e.target.value }); }}
                                     />
-                                    <div className="flex h-10 p-1 rounded-[10px] bg-slate-100" role="group" aria-label="סטטוס חזרה">
+                                    <div className="flex h-10 p-1 rounded-[10px] bg-slate-100" role="group" aria-label={t("followUp.statusAriaLabel")}>
                                         <button
                                             type="button"
                                             className={cn(
@@ -1175,7 +1184,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                                             )}
                                             onClick={() => { setFollowUpStatus("pending"); persistDraft({ followUpStatus: "pending" }); }}
                                         >
-                                            ממתין
+                                            {t("followUp.pending")}
                                         </button>
                                         <button
                                             type="button"
@@ -1185,12 +1194,12 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                                             )}
                                             onClick={() => { setFollowUpStatus("completed"); persistDraft({ followUpStatus: "completed" }); }}
                                         >
-                                            הושלם
+                                            {t("followUp.completed")}
                                         </button>
                                     </div>
                                 </div>
                                 {followUpInvalid && (
-                                    <p className="mt-1.5 text-xs text-red-600">יש לקבוע מועד חזרה לפני שמירת שיחה</p>
+                                    <p className="mt-1.5 text-xs text-red-600">{t("followUp.required")}</p>
                                 )}
                             </div>
                         </div>
@@ -1198,10 +1207,10 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
 
                     {/* ── History (newest first) ─────────────────────── */}
                     <div>
-                        <h3 className={SECTION_TITLE_CLS}>היסטוריה</h3>
+                        <h3 className={SECTION_TITLE_CLS}>{t("history.title")}</h3>
                         {timeline.length > 0 ? (
                             <div className="relative">
-                                <div className="absolute top-3 bottom-3 right-[15px] w-px bg-slate-200" aria-hidden="true" />
+                                <div className="absolute top-3 bottom-3 start-[15px] w-px bg-slate-200" aria-hidden="true" />
                                 {[...timeline].reverse().map((event) => (
                                     <TimelineItem
                                         key={event.id}
@@ -1222,7 +1231,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                                 ))}
                             </div>
                         ) : (
-                            <p className="text-sm text-slate-400 py-4 text-center">אין עדיין היסטוריה</p>
+                            <p className="text-sm text-slate-400 py-4 text-center">{t("history.empty")}</p>
                         )}
                     </div>
                 </div>
@@ -1234,14 +1243,14 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                         disabled={isWorking}
                         className="h-10 px-5 rounded-[10px] bg-[#F97316] hover:bg-[#EA580C] text-white font-semibold text-sm transition-colors disabled:opacity-50"
                     >
-                        {saving || updateLeadMutation.isPending ? "שומר..." : "שמור וסגור"}
+                        {saving || updateLeadMutation.isPending ? tc("progress.saving") : t("footer.saveAndClose")}
                     </button>
                     <button
                         onClick={onClose}
                         disabled={isWorking}
                         className="h-10 px-4 border border-slate-200 rounded-[10px] bg-white text-sm text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50"
                     >
-                        סגור
+                        {tc("actions.close")}
                     </button>
 
                 </div>
@@ -1257,9 +1266,9 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
 
             <ConfirmDialog
                 open={confirmWonOpen}
-                title="לסגור את הליד כלקוח?"
-                description={liveLead?.customerId ? "הליד יסומן כנסגר בהצלחה." : "הליד יסומן כנסגר בהצלחה ויווצר ממנו לקוח חדש."}
-                confirmLabel="כן, נסגר כלקוח"
+                title={t("confirmWon.title")}
+                description={liveLead?.customerId ? t("confirmWon.descExisting") : t("confirmWon.descNew")}
+                confirmLabel={t("confirmWon.confirm")}
                 loading={closeWonMutation.isPending}
                 onCancel={() => setConfirmWonOpen(false)}
                 onConfirm={() => closeWonMutation.mutate(undefined, { onSettled: () => setConfirmWonOpen(false) })}
@@ -1267,8 +1276,8 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
 
             <ConfirmDialog
                 open={deleteLogTarget !== null}
-                title="למחוק את יומן השיחה הזה?"
-                confirmLabel="מחק"
+                title={t("confirmDeleteLog.title")}
+                confirmLabel={tc("actions.delete")}
                 danger
                 loading={deleteCallLogMutation.isPending}
                 onCancel={() => setDeleteLogTarget(null)}

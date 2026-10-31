@@ -5,10 +5,13 @@ import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import Link from "next/link";
 import { Plus, ShoppingCart, UserPlus, CalendarClock, Copy, ClipboardCheck, RefreshCw, Tag, SlidersHorizontal, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
+import { formatCurrency } from "@/lib/format";
 import { useAuth } from "@/providers/auth-provider";
 import { usePlan } from "@/hooks/usePlan";
 import { usePermissions } from "@/hooks/usePermissions";
-import { formatCurrency, fetchJSON, cn, toWhatsAppPhone, copyToClipboard } from "@/lib/utils";
+import { fetchJSON, cn, toWhatsAppPhone, copyToClipboard } from "@/lib/utils";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import {
   DashCard,
@@ -22,7 +25,7 @@ import {
   PriorityDot,
 } from "@/components/dashboard/dash-ui";
 import { defaultDashboardPrefs, layoutBlocks as computeLayout, visibleBlocks, visibleStats, DASHBOARD_PREFS_QUERY_KEY, type DashboardBlockId, type DashboardPrefsResponse, type RequirementFlags } from "@/lib/dashboard-widgets";
-import { TASK_CATEGORY_LABELS, DashboardStats, ActivityItem, SERVICE_TYPE_TABS, CATEGORY_TO_FILTER, ORDER_TYPE_INFO, ORDER_STATUS_LABEL, ORDER_STATUS_COLOR } from "@/components/dashboard/dashboard-shared";
+import { DashboardStats, ActivityItem, SERVICE_TYPE_TABS, CATEGORY_TO_FILTER, ORDER_STATUS_COLOR, useDashboardLabels } from "@/components/dashboard/dashboard-shared";
 import { AppointmentRow } from "@/components/dashboard/widgets/UpcomingAppointments";
 import { ActivityFeed } from "@/components/dashboard/widgets/ActivityFeed";
 import { DailyFocusSection } from "@/components/dashboard/widgets/DailyFocus";
@@ -74,6 +77,10 @@ const RevenueChart = dynamic(
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 export default function DashboardPage() {
+  const t = useTranslations("dashboard.dashboardPage");
+  const labels = useDashboardLabels();
+  const { locale, currency, timezone, cfg } = useBusinessLocale();
+  const money = (n: number) => formatCurrency(n, { locale, currency });
   const { user } = useAuth();
   const { subscriptionActive, subscriptionExpired, subscriptionDaysLeft, hasRecurring, isFree, isGroomer } = usePlan();
   const perms = usePermissions();
@@ -92,9 +99,9 @@ export default function DashboardPage() {
   // Empty string = today. Any other value shifts the whole dashboard to that day,
   // so the user can look at what is coming instead of only at today.
   const [dashDate, setDashDate] = useState("");
-  const realTodayYmd = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" });
+  const realTodayYmd = new Date().toLocaleDateString("en-CA", { timeZone: timezone });
   const viewedYmd = dashDate || realTodayYmd;
-  const viewedLabel = new Date(`${viewedYmd}T12:00:00`).toLocaleDateString("he-IL", {
+  const viewedLabel = new Date(`${viewedYmd}T12:00:00`).toLocaleDateString(locale, {
     weekday: "long",
     day: "numeric",
     month: "long",
@@ -148,14 +155,14 @@ export default function DashboardPage() {
         await copyToClipboard(data.url);
         setIntakeCopied(true);
         setTimeout(() => setIntakeCopied(false), 3000);
-        toast.success("קישור טופס הקליטה הועתק ללוח!", { description: data.url });
+        toast.success(t("toasts.intakeCopied"), { description: data.url });
       }
     } catch {
-      toast.error("שגיאה ביצירת קישור טופס הרישום");
+      toast.error(t("toasts.intakeError"));
     } finally {
       setIntakeLoading(false);
     }
-  }, []);
+  }, [t]);
 
   const handleCompleteTask = useCallback(
     (taskId: string) => {
@@ -177,7 +184,7 @@ export default function DashboardPage() {
   if (isLoading || prefsLoading) {
     return (
       <>
-        <PageTitle title="לוח בקרה" />
+        <PageTitle title={t("pageTitle")} />
         <PetraLoader />
       </>
     );
@@ -211,36 +218,36 @@ export default function DashboardPage() {
   if (shownStats.has("stat_revenue") && perms.canSeeRevenueSummary) {
     kpis.push({
       id: "stat_revenue",
-      label: "הכנסות החודש",
-      value: formatCurrency(data.monthRevenue),
-      sub: (data.todayRevenue ?? 0) > 0 ? `היום: ${formatCurrency(data.todayRevenue)}` : undefined,
+      label: t("kpis.monthRevenue"),
+      value: money(data.monthRevenue),
+      sub: (data.todayRevenue ?? 0) > 0 ? t("kpis.todaySub", { amount: money(data.todayRevenue) }) : undefined,
       href: "/payments?status=paid&period=month",
     });
   }
   if (shownStats.has("stat_active_orders") && perms.canSeeFinance) {
-    kpis.push({ id: "stat_active_orders", label: "הזמנות פעילות", value: data.activeOrders, href: "/orders?status=active" });
+    kpis.push({ id: "stat_active_orders", label: t("kpis.activeOrders"), value: data.activeOrders, href: "/orders?status=active" });
   }
   if (shownStats.has("stat_pending_payments") && perms.canSeeFinance) {
     kpis.push({
       id: "stat_pending_payments",
-      label: "לקוחות עם חוב",
+      label: t("kpis.debtors"),
       value: data.debtorsCount ?? data.pendingPayments,
-      sub: perms.canSeeRevenueSummary && data.pendingPaymentsAmount > 0 ? formatCurrency(data.pendingPaymentsAmount) : undefined,
+      sub: perms.canSeeRevenueSummary && data.pendingPaymentsAmount > 0 ? money(data.pendingPaymentsAmount) : undefined,
       href: "/customers?balance=debt",
     });
   }
   if (shownStats.has("stat_today_appointments")) {
-    kpis.push({ id: "stat_today_appointments", label: "תורים היום", value: data.todayAppointments, href: `/calendar?date=${viewedYmd}` });
+    kpis.push({ id: "stat_today_appointments", label: t("kpis.todayAppointments"), value: data.todayAppointments, href: `/calendar?date=${viewedYmd}` });
   }
   if (shownStats.has("stat_open_leads") && perms.canViewLeads) {
-    kpis.push({ id: "stat_open_leads", label: "לידים פתוחים", value: data.openLeads, href: "/leads" });
+    kpis.push({ id: "stat_open_leads", label: t("kpis.openLeads"), value: data.openLeads, href: "/leads" });
   }
   if (shownStats.has("stat_pending_bookings") && (data.pendingBookings ?? 0) > 0) {
     kpis.push({
       id: "stat_pending_bookings",
-      label: "תורים ממתינים לאישור",
+      label: t("kpis.pendingBookings"),
       value: data.pendingBookings ?? 0,
-      sub: "דורש אישור",
+      sub: t("kpis.needsApproval"),
       subClass: "text-red-700",
       href: "/bookings",
     });
@@ -248,20 +255,20 @@ export default function DashboardPage() {
 
   const boardingGroups = [
     {
-      title: "כניסות",
+      title: t("boarding.arrivals"),
       items: data.todayArrivals ?? [],
-      message: (s: DashboardStats["todayArrivals"][0]) => `שלום ${s.customer?.name ?? ""}! מזכירים לך שהיום הגעה של ${s.pet?.name ?? ""} לפנסיון 🐾`,
+      message: (s: DashboardStats["todayArrivals"][0]) => `שלום ${s.customer?.name ?? ""}! מזכירים לך שהיום הגעה של ${s.pet?.name ?? ""} לפנסיון 🐾`, // i18n-ok — WhatsApp text sent to the client (Phase 3)
     },
     {
-      title: "יציאות",
+      title: t("boarding.departures"),
       items: data.todayDepartures ?? [],
-      message: (s: DashboardStats["todayArrivals"][0]) => `שלום ${s.customer?.name ?? ""}! כלב שלך ${s.pet?.name ?? ""} מחכה לפיקאפ היום מהפנסיון 🐾`,
+      message: (s: DashboardStats["todayArrivals"][0]) => `שלום ${s.customer?.name ?? ""}! כלב שלך ${s.pet?.name ?? ""} מחכה לפיקאפ היום מהפנסיון 🐾`, // i18n-ok — WhatsApp text sent to the client (Phase 3)
     },
     {
-      title: "יציאה באיחור",
+      title: t("boarding.overdue"),
       titleClass: "text-red-700",
       items: data.overdueDepartures ?? [],
-      message: (s: DashboardStats["todayArrivals"][0]) => `שלום ${s.customer?.name ?? ""}! כלב שלך ${s.pet?.name ?? ""} מחכה לאיסוף מהפנסיון 🐾`,
+      message: (s: DashboardStats["todayArrivals"][0]) => `שלום ${s.customer?.name ?? ""}! כלב שלך ${s.pet?.name ?? ""} מחכה לאיסוף מהפנסיון 🐾`, // i18n-ok — WhatsApp text sent to the client (Phase 3)
     },
   ].filter((g) => g.items.length > 0);
 
@@ -311,7 +318,7 @@ export default function DashboardPage() {
         if (boardingGroups.length === 0) return null;
         return (
           <DashCard>
-            <DashCardHeader title="פנסיון היום" actions={<DashLink href="/boarding">לפנסיון</DashLink>} />
+            <DashCardHeader title={t("boarding.title")} actions={<DashLink href="/boarding">{t("boarding.link")}</DashLink>} />
             <div className="grid [grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr))] gap-x-8">
               {boardingGroups.map((g) => (
                 <div key={g.title}>
@@ -353,21 +360,21 @@ export default function DashboardPage() {
         return (
           <DashCard>
             <DashCardHeader
-              title="תורים קרובים"
-              actions={<DashLink href={`/calendar?date=${viewedYmd}`}>הצג הכל</DashLink>}
+              title={t("appointments.title")}
+              actions={<DashLink href={`/calendar?date=${viewedYmd}`}>{t("showAll")}</DashLink>}
             />
             <div className="pb-2.5">
               <Segmented
                 options={SERVICE_TYPE_TABS.filter((tab) => !(isGroomer && (tab.key === "training" || tab.key === "boarding"))).map((tab) => ({
                   key: tab.key,
-                  label: tab.label,
+                  label: labels.serviceTab(tab.key) ?? tab.key,
                 }))}
                 value={serviceFilter}
                 onChange={setServiceFilter}
               />
             </div>
             {filteredAppointments.length === 0 ? (
-              <DashEmpty>אין תורים קרובים</DashEmpty>
+              <DashEmpty>{t("appointments.empty")}</DashEmpty>
             ) : (
               filteredAppointments.map((apt) => <AppointmentRow key={apt.id} appointment={apt} />)
             )}
@@ -376,12 +383,12 @@ export default function DashboardPage() {
       case "recent_orders":
         return (
           <DashCard>
-            <DashCardHeader title="הזמנות אחרונות" actions={<DashLink href="/orders">הצג הכל</DashLink>} />
+            <DashCardHeader title={t("orders.title")} actions={<DashLink href="/orders">{t("showAll")}</DashLink>} />
             {data.recentOrders.length === 0 ? (
-              <DashEmpty>אין הזמנות</DashEmpty>
+              <DashEmpty>{t("orders.empty")}</DashEmpty>
             ) : (
               data.recentOrders.map((order) => {
-                const typeInfo = ORDER_TYPE_INFO[order.orderType] || ORDER_TYPE_INFO.sale;
+                const typeLabel = labels.orderType(order.orderType) ?? labels.orderType("sale");
                 return (
                   <Link
                     key={order.id}
@@ -390,12 +397,12 @@ export default function DashboardPage() {
                   >
                     <div className="flex flex-col gap-0.5 min-w-0">
                       <span className="text-sm font-medium truncate">{order.customerName}</span>
-                      <span className="text-xs text-slate-500">{typeInfo.label}</span>
+                      <span className="text-xs text-slate-500">{typeLabel}</span>
                     </div>
                     <span className="text-xs font-medium" style={{ color: ORDER_STATUS_COLOR[order.status] ?? "#64748B" }}>
-                      {ORDER_STATUS_LABEL[order.status] || order.status}
+                      {labels.orderStatus(order.status) || order.status}
                     </span>
-                    <span className="text-sm font-semibold min-w-[72px] text-left tabular-nums">{formatCurrency(order.total)}</span>
+                    <span className="text-sm font-semibold min-w-[72px] text-end tabular-nums">{money(order.total)}</span>
                   </Link>
                 );
               })
@@ -405,7 +412,7 @@ export default function DashboardPage() {
       case "activity_feed":
         return !perms.isStaff && !perms.isVolunteer ? (
           <DashCard>
-            <DashCardHeader title="פעילות אחרונה" actions={<span className="text-[13px] text-slate-500">24 שעות אחרונות</span>} />
+            <DashCardHeader title={t("activity.title")} actions={<span className="text-[13px] text-slate-500">{t("activity.last24h")}</span>} />
             <ActivityFeed activities={activityData?.activities || []} />
           </DashCard>
         ) : null;
@@ -422,9 +429,9 @@ export default function DashboardPage() {
       case "open_tasks":
         return (
           <DashCard>
-            <DashCardHeader title="משימות פתוחות" actions={<DashLink href="/tasks">הצג הכל</DashLink>} />
+            <DashCardHeader title={t("tasks.title")} actions={<DashLink href="/tasks">{t("showAll")}</DashLink>} />
             {data.recentTasks.length === 0 ? (
-              <DashEmpty>אין משימות פתוחות</DashEmpty>
+              <DashEmpty>{t("tasks.empty")}</DashEmpty>
             ) : (
               data.recentTasks.map((task) => {
                 const isCompleting = completingTaskIds.has(task.id);
@@ -447,7 +454,7 @@ export default function DashboardPage() {
                     >
                       {task.title}
                     </Link>
-                    <span className="text-xs text-slate-500 flex-shrink-0">{TASK_CATEGORY_LABELS[task.category] ?? task.category}</span>
+                    <span className="text-xs text-slate-500 flex-shrink-0">{labels.taskCategory(task.category) ?? task.category}</span>
                   </div>
                 );
               })
@@ -464,15 +471,15 @@ export default function DashboardPage() {
       {/* Subscription Banner */}
       {subscriptionExpired && !isFree && (
         <div className="rounded-xl px-4 py-3 flex items-center justify-between gap-4 bg-red-50 border border-red-100 text-red-700 text-sm">
-          <span className="font-medium">המנוי שלך פג — הגישה לתכונות מתקדמות הוגבלה</span>
-          <Link href="/upgrade" className="font-semibold underline shrink-0">חדש מנוי</Link>
+          <span className="font-medium">{t("subscription.expired")}</span>
+          <Link href="/upgrade" className="font-semibold underline shrink-0">{t("subscription.renew")}</Link>
         </div>
       )}
       {/* Recurring (הוראת קבע) customers renew automatically — a manual renew would charge twice */}
       {!isFree && !hasRecurring && subscriptionActive && subscriptionDaysLeft <= 14 && (
         <div className="rounded-xl px-4 py-3 flex items-center justify-between gap-4 bg-amber-50 border border-amber-100 text-amber-700 text-sm">
-          <span className="font-medium">המנוי שלך מסתיים בעוד {subscriptionDaysLeft} ימים</span>
-          <Link href="/upgrade" className="font-semibold underline shrink-0">חדש מנוי</Link>
+          <span className="font-medium">{t("subscription.endsIn", { days: subscriptionDaysLeft })}</span>
+          <Link href="/upgrade" className="font-semibold underline shrink-0">{t("subscription.renew")}</Link>
         </div>
       )}
       {/* Greeting Header */}
@@ -480,15 +487,15 @@ export default function DashboardPage() {
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-2">
             <h1 className="m-0 text-2xl font-bold tracking-[-0.02em] leading-tight text-slate-900">
-              שלום, {user?.name || "משתמש"}
+              {t("header.greeting", { name: user?.name || t("header.defaultName") })}
             </h1>
             <button
               onClick={() => {
                 queryClient.invalidateQueries({ queryKey: ["dashboard"] });
                 queryClient.invalidateQueries({ queryKey: ["dashboard-activity"] });
               }}
-              title="רענן נתונים"
-              aria-label="רענן נתונים"
+              title={t("header.refresh")}
+              aria-label={t("header.refresh")}
               // Phones refresh by pulling down (PullToRefresh) — no button there
               className="hidden md:flex w-7 h-7 items-center justify-center rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors"
             >
@@ -497,12 +504,12 @@ export default function DashboardPage() {
             {data.totalCustomers > 0 && (
               <button
                 onClick={() => setShowCustomize(true)}
-                title="התאמת הדשבורד — מה יוצג ובאיזה סדר"
-                aria-label="התאמת הדשבורד"
+                title={t("header.customizeTitle")}
+                aria-label={t("header.customize")}
                 className="h-7 px-2 flex items-center gap-1.5 rounded-lg text-[13px] text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors"
               >
                 <SlidersHorizontal className="w-[15px] h-[15px]" />
-                <span className="hidden sm:inline">התאמת הדשבורד</span>
+                <span className="hidden sm:inline">{t("header.customize")}</span>
               </button>
             )}
           </div>
@@ -511,20 +518,20 @@ export default function DashboardPage() {
             <button
               type="button"
               onClick={() => shiftDash(-1)}
-              title="יום אחורה"
-              aria-label="יום אחורה"
+              title={t("header.prevDay")}
+              aria-label={t("header.prevDay")}
               className="w-7 h-7 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-900 flex items-center justify-center"
             >
-              <ChevronRight className="w-3.5 h-3.5" />
+              <ChevronRight className="w-3.5 h-3.5 ltr:-scale-x-100" />
             </button>
             {/* Transparent native date input over the label: a tap opens the picker everywhere (incl. iOS) */}
             <label className="relative h-7 px-2 min-w-[190px] flex items-center justify-center rounded-lg text-sm text-slate-700 tabular-nums hover:bg-slate-100 cursor-pointer">
               {viewedLabel}
               <input
                 type="date"
-                lang="he"
-                aria-label="הצג את לוח הבקרה לתאריך אחר"
-                title="הצג את לוח הבקרה לתאריך אחר"
+                lang={cfg.lang}
+                aria-label={t("header.pickDate")}
+                title={t("header.pickDate")}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                 value={viewedYmd}
                 onClick={(e) => {
@@ -540,11 +547,11 @@ export default function DashboardPage() {
             <button
               type="button"
               onClick={() => shiftDash(1)}
-              title="יום קדימה"
-              aria-label="יום קדימה"
+              title={t("header.nextDay")}
+              aria-label={t("header.nextDay")}
               className="w-7 h-7 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-900 flex items-center justify-center"
             >
-              <ChevronLeft className="w-3.5 h-3.5" />
+              <ChevronLeft className="w-3.5 h-3.5 ltr:-scale-x-100" />
             </button>
             {dashDate && (
               <button
@@ -552,7 +559,7 @@ export default function DashboardPage() {
                 onClick={() => setDashDate("")}
                 className="h-7 px-2.5 ms-1 rounded-lg bg-orange-50 text-orange-700 text-[13px] font-medium hover:bg-orange-100"
               >
-                היום
+                {t("header.today")}
               </button>
             )}
           </div>
@@ -563,21 +570,21 @@ export default function DashboardPage() {
             className="h-10 px-4 rounded-xl bg-gradient-brand text-white text-sm font-semibold flex items-center justify-center gap-2 whitespace-nowrap shadow-sm hover:brightness-105 hover:shadow-[0_4px_12px_-2px_rgba(249,115,22,0.35)] active:scale-[0.98] transition-all"
           >
             <Plus className="w-4 h-4 shrink-0" />
-            לקוח חדש
+            {t("actions.newCustomer")}
           </button>
           <Link
             href="/calendar?new=1"
             className="h-10 px-4 rounded-xl bg-white border border-orange-500 text-orange-600 text-sm font-medium flex items-center justify-center gap-2 whitespace-nowrap hover:bg-orange-50 active:scale-[0.98] transition-all"
           >
             <CalendarClock className="w-4 h-4 shrink-0" />
-            קביעת תור
+            {t("actions.bookAppointment")}
           </Link>
           <button
             onClick={() => setShowNewOrder(true)}
             className="h-10 px-4 rounded-xl bg-white border border-slate-200 text-slate-500 text-sm font-medium flex items-center justify-center gap-2 whitespace-nowrap hover:bg-slate-50 hover:border-slate-300 active:scale-[0.98] transition-all"
           >
             <ShoppingCart className="w-4 h-4 shrink-0" />
-            הזמנה חדשה
+            {t("actions.newOrder")}
           </button>
           <button
             onClick={handleCopyIntakeForm}
@@ -588,24 +595,24 @@ export default function DashboardPage() {
                 ? "bg-green-50 border-green-300 text-green-700"
                 : "bg-white border-slate-200 text-slate-500 hover:bg-slate-50 hover:border-slate-300"
             )}
-            title="יצירת טופס קליטה והעתקת קישור"
+            title={t("actions.intakeTitle")}
           >
             {intakeCopied ? <ClipboardCheck className="w-4 h-4 shrink-0" /> : <Copy className="w-4 h-4 shrink-0" />}
-            {intakeCopied ? "הועתק!" : "טופס קליטה"}
+            {intakeCopied ? t("actions.copied") : t("actions.intakeForm")}
           </button>
           {user?.businessSlug && (
             <button
               onClick={() => {
                 const url = `${window.location.origin}/book/${user.businessSlug}`;
                 copyToClipboard(url)
-                  .then(() => toast.success("קישור הזמנת תורים הועתק!", { description: url }))
-                  .catch(() => toast.info("הקישור לקוחות שלך:", { description: url, duration: 10000 }));
+                  .then(() => toast.success(t("toasts.bookingLinkCopied"), { description: url }))
+                  .catch(() => toast.info(t("toasts.bookingLinkInfo"), { description: url, duration: 10000 }));
               }}
               className="h-10 px-4 rounded-xl bg-white border border-slate-200 text-slate-500 text-sm font-medium flex items-center justify-center gap-2 whitespace-nowrap hover:bg-slate-50 hover:border-slate-300 active:scale-[0.98] transition-all"
-              title="העתק קישור הזמנת תורים אונליין"
+              title={t("actions.onlineBookingTitle")}
             >
               <Copy className="w-4 h-4 shrink-0" />
-              תורים אונליין
+              {t("actions.onlineBooking")}
             </button>
           )}
         </div>
@@ -638,44 +645,44 @@ export default function DashboardPage() {
             >
               🐾
             </div>
-            <h2 className="text-xl font-bold text-petra-text mb-2">ברוכים הבאים ל-Petra!</h2>
+            <h2 className="text-xl font-bold text-petra-text mb-2">{t("welcome.title")}</h2>
             <p className="text-sm text-petra-muted max-w-md mx-auto">
-              המערכת מוכנה — בואו נתחיל לבנות את העסק שלכם. הנה כמה צעדים ראשונים:
+              {t("welcome.subtitle")}
             </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <button
               onClick={() => setShowNewCustomer(true)}
-              className="card p-5 text-right hover:border-brand-300 hover:shadow-md transition-all group"
+              className="card p-5 text-start hover:border-brand-300 hover:shadow-md transition-all group"
             >
               <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center mb-3 group-hover:bg-blue-100 transition-colors">
                 <UserPlus className="w-5 h-5 text-blue-600" />
               </div>
-              <h3 className="text-sm font-bold text-petra-text mb-1">הוסף לקוח ראשון</h3>
-              <p className="text-xs text-petra-muted leading-relaxed">הכנס את פרטי הלקוח הראשון שלך למערכת</p>
+              <h3 className="text-sm font-bold text-petra-text mb-1">{t("welcome.firstCustomer")}</h3>
+              <p className="text-xs text-petra-muted leading-relaxed">{t("welcome.firstCustomerDesc")}</p>
             </button>
 
             <Link
               href="/calendar?new=1"
-              className="card p-5 text-right hover:border-brand-300 hover:shadow-md transition-all group"
+              className="card p-5 text-start hover:border-brand-300 hover:shadow-md transition-all group"
             >
               <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center mb-3 group-hover:bg-violet-100 transition-colors">
                 <CalendarClock className="w-5 h-5 text-violet-600" />
               </div>
-              <h3 className="text-sm font-bold text-petra-text mb-1">קבע תור ראשון</h3>
-              <p className="text-xs text-petra-muted leading-relaxed">תזמן פגישה ראשונה עם לקוח</p>
+              <h3 className="text-sm font-bold text-petra-text mb-1">{t("welcome.firstAppointment")}</h3>
+              <p className="text-xs text-petra-muted leading-relaxed">{t("welcome.firstAppointmentDesc")}</p>
             </Link>
 
             <Link
               href="/pricing"
-              className="card p-5 text-right hover:border-brand-300 hover:shadow-md transition-all group"
+              className="card p-5 text-start hover:border-brand-300 hover:shadow-md transition-all group"
             >
               <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center mb-3 group-hover:bg-emerald-100 transition-colors">
                 <Tag className="w-5 h-5 text-emerald-600" />
               </div>
-              <h3 className="text-sm font-bold text-petra-text mb-1">הגדר שירותים ומחירון</h3>
-              <p className="text-xs text-petra-muted leading-relaxed">הוסף את השירותים שהעסק שלך מציע</p>
+              <h3 className="text-sm font-bold text-petra-text mb-1">{t("welcome.setupServices")}</h3>
+              <p className="text-xs text-petra-muted leading-relaxed">{t("welcome.setupServicesDesc")}</p>
             </Link>
           </div>
 
@@ -684,7 +691,7 @@ export default function DashboardPage() {
               onClick={handleCopyIntakeForm}
               disabled={intakeLoading}
               className={cn(
-                "card p-4 flex items-center gap-3 hover:border-brand-300 transition-all text-right",
+                "card p-4 flex items-center gap-3 hover:border-brand-300 transition-all text-start",
                 intakeCopied && "border-green-300 bg-green-50/50"
               )}
             >
@@ -692,8 +699,8 @@ export default function DashboardPage() {
                 {intakeCopied ? <ClipboardCheck className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4 text-orange-600" />}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-petra-text">{intakeCopied ? "הועתק!" : "טופס קליטה"}</p>
-                <p className="text-xs text-petra-muted">העתק קישור לטופס קליטה ושלח ללקוח</p>
+                <p className="text-sm font-medium text-petra-text">{intakeCopied ? t("actions.copied") : t("actions.intakeForm")}</p>
+                <p className="text-xs text-petra-muted">{t("welcome.intakeDesc")}</p>
               </div>
             </button>
 
@@ -702,17 +709,17 @@ export default function DashboardPage() {
                 onClick={() => {
                   const url = `${window.location.origin}/book/${user.businessSlug}`;
                   copyToClipboard(url).then(() => {
-                    toast.success("קישור הזמנת תורים הועתק!", { description: url });
-                  }).catch(() => toast.error("לא הצלחנו להעתיק"));
+                    toast.success(t("toasts.bookingLinkCopied"), { description: url });
+                  }).catch(() => toast.error(t("toasts.copyFailed")));
                 }}
-                className="card p-4 flex items-center gap-3 hover:border-brand-300 transition-all text-right"
+                className="card p-4 flex items-center gap-3 hover:border-brand-300 transition-all text-start"
               >
                 <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
                   <Copy className="w-4 h-4 text-blue-600" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-petra-text">תורים אונליין</p>
-                  <p className="text-xs text-petra-muted">העתק קישור לדף ההזמנה לאתר שלך</p>
+                  <p className="text-sm font-medium text-petra-text">{t("actions.onlineBooking")}</p>
+                  <p className="text-xs text-petra-muted">{t("welcome.bookingDesc")}</p>
                 </div>
               </button>
             )}

@@ -10,10 +10,13 @@ import {
   Trash2, User, FileText, Calendar, Tag, CreditCard, Plus, Send, GraduationCap,
   Pencil, X,
 } from "lucide-react";
-import { cn, formatDate } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
+import { formatDate, currencySymbol } from "@/lib/format";
 
 interface OrderLine {
   id: string;
@@ -65,33 +68,35 @@ interface Order {
   payments: OrderPayment[];
 }
 
-const STATUS_MAP: Record<string, { label: string; color: string; icon: React.ElementType }> = {
-  draft:     { label: "טיוטה",  color: "bg-slate-100 text-slate-600 border-transparent",    icon: Clock },
-  confirmed: { label: "מאושר", color: "bg-emerald-50 text-emerald-700 border-emerald-100", icon: CheckCircle2 },
-  completed: { label: "הושלמה", color: "bg-blue-50 text-blue-700 border-blue-100",          icon: CheckCircle2 },
-  cancelled: { label: "בוטל",  color: "bg-red-50 text-red-600 border-red-100",             icon: XCircle },
+// Labels: orders.ordersDetailPage.status.<key>
+const STATUS_MAP: Record<string, { color: string; icon: React.ElementType }> = {
+  draft:     { color: "bg-slate-100 text-slate-600 border-transparent",    icon: Clock },
+  confirmed: { color: "bg-emerald-50 text-emerald-700 border-emerald-100", icon: CheckCircle2 },
+  completed: { color: "bg-blue-50 text-blue-700 border-blue-100",          icon: CheckCircle2 },
+  cancelled: { color: "bg-red-50 text-red-600 border-red-100",             icon: XCircle },
 };
 
-const ORDER_TYPE_MAP: Record<string, string> = {
-  sale: "🛒 מכירה", appointment: "📅 תור", boarding: "🏠 פנסיון", training: "🐕 אילוף",
-  grooming: "✂️ טיפוח", products: "📦 מוצרים",
-};
+// Labels: orders.ordersDetailPage.methods.<key> (order = select option order)
+const METHOD_KEYS = ["cash", "credit_card", "bank_transfer", "bit", "paybox", "check"] as const;
 
-const UNIT_LABEL: Record<string, string> = {
-  per_session: "לפגישה", per_day: "ליום", per_night: "ללילה",
-  per_hour: "לשעה", per_item: "ליחידה", fixed: "קבוע",
-};
+/** Translator scoped to `orders.ordersDetailPage`. */
+interface DetailT {
+  (key: string): string;
+  has(key: string): boolean;
+}
 
-const METHOD_LABEL: Record<string, string> = {
-  cash: "מזומן",
-  credit_card: "כרטיס אשראי",
-  bank_transfer: "העברה בנקאית",
-  bit: "ביט",
-  paybox: "פייבוקס",
-  check: "צ'ק",
-};
+/** Known label key → translated label; unknown API value → the raw value. */
+function labelOr(t: DetailT, group: "orderTypes" | "units" | "methods", value: string): string {
+  const key = `${group}.${value}`;
+  return t.has(key) ? t(key) : value;
+}
 
-function fmt(n: number) { return `₪${n.toFixed(2)}`; }
+/** "₪12.50" — symbol from the business currency (identical for ILS). */
+function useMoney() {
+  const { locale, currency } = useBusinessLocale();
+  const sym = currencySymbol({ locale, currency });
+  return (n: number) => `${sym}${n.toFixed(2)}`;
+}
 
 // Editable line shape for the draft-order lines editor (string fields for inputs)
 interface EditableLine {
@@ -118,6 +123,9 @@ function AddPaymentModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const t = useTranslations("orders.ordersDetailPage");
+  const tc = useTranslations("common");
+  const { locale, currency } = useBusinessLocale();
   const [amount, setAmount] = useState(defaultAmount > 0 ? String(defaultAmount.toFixed(2)) : "");
   const [method, setMethod] = useState("cash");
   const [notes, setNotes] = useState("");
@@ -132,7 +140,7 @@ function AddPaymentModal({
 
   async function save() {
     const parsed = parseFloat(amount);
-    if (!parsed || parsed <= 0) { toast.error("סכום לא תקין"); return; }
+    if (!parsed || parsed <= 0) { toast.error(t("addPayment.invalidAmount")); return; }
     setSaving(true);
     const res = await fetch("/api/payments", {
       method: "POST",
@@ -149,8 +157,8 @@ function AddPaymentModal({
       }),
     });
     setSaving(false);
-    if (!res.ok) { toast.error("שגיאה ברישום תשלום"); return; }
-    toast.success("התשלום נרשם");
+    if (!res.ok) { toast.error(t("addPayment.saveError")); return; }
+    toast.success(t("addPayment.saved"));
     onSaved();
   }
 
@@ -158,36 +166,36 @@ function AddPaymentModal({
     <div className="modal-overlay">
       <div className="modal-backdrop" onClick={onClose} />
       <div className="modal-content max-w-sm mx-4 p-6">
-        <h3 className="text-base font-bold text-petra-text mb-4">רישום תשלום</h3>
+        <h3 className="text-base font-bold text-petra-text mb-4">{t("addPayment.title")}</h3>
         <div className="space-y-4">
           <div>
-            <label className="label">סכום (₪)</label>
+            <label className="label">{t("addPayment.amountLabel", { currency: currencySymbol({ locale, currency }) })}</label>
             <input type="number" min="0" step="0.01" className="input" value={amount} onChange={(e) => setAmount(e.target.value)} autoFocus />
           </div>
           <div>
-            <label className="label">אמצעי תשלום</label>
+            <label className="label">{t("addPayment.methodLabel")}</label>
             <select className="input" value={method} onChange={(e) => setMethod(e.target.value)}>
-              {Object.entries(METHOD_LABEL).map(([v, l]) => (
-                <option key={v} value={v}>{l}</option>
+              {METHOD_KEYS.map((v) => (
+                <option key={v} value={v}>{t(`methods.${v}`)}</option>
               ))}
             </select>
           </div>
           {method === "credit_card" && (
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="label">4 ספרות אחרונות</label>
+                <label className="label">{t("addPayment.cardLast4")}</label>
                 <input type="text" inputMode="numeric" maxLength={4} placeholder="1234" className="input"
                   value={cardLast4} onChange={(e) => setCardLast4(e.target.value.replace(/\D/g, ""))} />
               </div>
               <div>
-                <label className="label">סוג כרטיס</label>
+                <label className="label">{t("addPayment.cardType")}</label>
                 <select className="input" value={cardType} onChange={(e) => setCardType(e.target.value)}>
                   <option value="visa">Visa</option>
                   <option value="mastercard">Mastercard</option>
                   <option value="amex">Amex</option>
                   <option value="diners">Diners</option>
                   <option value="isracard">Isracard</option>
-                  <option value="other">אחר</option>
+                  <option value="other">{t("addPayment.cardTypeOther")}</option>
                 </select>
               </div>
             </div>
@@ -195,36 +203,36 @@ function AddPaymentModal({
           {method === "check" && (
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="label">מספר המחאה</label>
+                <label className="label">{t("addPayment.checkNumber")}</label>
                 <input type="text" placeholder="12345" className="input" value={checkNumber} onChange={(e) => setCheckNumber(e.target.value)} />
               </div>
               <div>
-                <label className="label">תאריך פירעון</label>
+                <label className="label">{t("addPayment.checkDate")}</label>
                 <input type="date" className="input" value={checkDate} onChange={(e) => setCheckDate(e.target.value)} />
               </div>
               <div>
-                <label className="label">בנק</label>
-                <input type="text" placeholder="לאומי" className="input" value={checkBank} onChange={(e) => setCheckBank(e.target.value)} />
+                <label className="label">{t("addPayment.checkBank")}</label>
+                <input type="text" placeholder={t("addPayment.checkBankPlaceholder")} className="input" value={checkBank} onChange={(e) => setCheckBank(e.target.value)} />
               </div>
               <div>
-                <label className="label">סניף</label>
+                <label className="label">{t("addPayment.checkBranch")}</label>
                 <input type="text" placeholder="900" className="input" value={checkBranch} onChange={(e) => setCheckBranch(e.target.value)} />
               </div>
             </div>
           )}
           <div>
-            <label className="label">הערות (אופציונלי)</label>
-            <input type="text" className="input" placeholder="אסמכתא..." value={notes} onChange={(e) => setNotes(e.target.value)} />
+            <label className="label">{t("addPayment.notesLabel")}</label>
+            <input type="text" className="input" placeholder={t("addPayment.notesPlaceholder")} value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
           <div className="flex items-center gap-2 pt-1">
             <input type="checkbox" id="isDeposit" checked={isDeposit} onChange={(e) => setIsDeposit(e.target.checked)}
               className="w-4 h-4 rounded accent-petra-primary cursor-pointer" />
-            <label htmlFor="isDeposit" className="text-sm text-petra-text cursor-pointer">סמן כמקדמה</label>
+            <label htmlFor="isDeposit" className="text-sm text-petra-text cursor-pointer">{t("addPayment.markDeposit")}</label>
           </div>
         </div>
         <div className="flex gap-3 mt-5">
-          <button className="btn-primary flex-1" onClick={save} disabled={saving}>{saving ? "שומר..." : "רשום תשלום"}</button>
-          <button className="btn-secondary flex-1" onClick={onClose}>ביטול</button>
+          <button className="btn-primary flex-1" onClick={save} disabled={saving}>{saving ? tc("progress.saving") : t("addPayment.submit")}</button>
+          <button className="btn-secondary flex-1" onClick={onClose}>{tc("actions.cancel")}</button>
         </div>
       </div>
     </div>
@@ -236,6 +244,10 @@ export default function OrderDetailPage() {
   const router = useRouter();
   const qc = useQueryClient();
   const orderId = params.id as string;
+  const t = useTranslations("orders.ordersDetailPage");
+  const tc = useTranslations("common");
+  const { locale, currency, timezone } = useBusinessLocale();
+  const fmt = useMoney();
   // false = closed; "cancel" = cancel the order; "delete" = delete a cancelled order
   const [confirmCancel, setConfirmCancel] = useState<false | "cancel" | "delete">(false);
   // ?pay=1 (from the orders-list "רשום תשלום" button) opens the payment modal
@@ -259,9 +271,9 @@ export default function OrderDetailPage() {
 
   useEffect(() => {
     if (order) {
-      document.title = `הזמנה #${order.id.slice(-8).toUpperCase()} — ${order.customer.name} | Petra`;
+      document.title = t("documentTitle", { id: order.id.slice(-8).toUpperCase(), name: order.customer.name });
     }
-  }, [order]);
+  }, [order, t]);
 
   const confirmMutation = useMutation({
     mutationFn: () =>
@@ -269,7 +281,7 @@ export default function OrderDetailPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "confirmed" }),
-      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בעדכון"); return d; }),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || t("errors.update")); return d; }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["order", orderId] }),
   });
 
@@ -279,19 +291,19 @@ export default function OrderDetailPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "completed" }),
-      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בעדכון"); return d; }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["order", orderId] }); toast.success("ההזמנה סומנה כהושלמה"); },
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || t("errors.update")); return d; }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["order", orderId] }); toast.success(t("toasts.completed")); },
   });
 
   const deleteCancelledMutation = useMutation({
     mutationFn: () =>
-      fetch(`/api/orders/${orderId}`, { method: "DELETE" }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה במחיקה"); return d; }),
+      fetch(`/api/orders/${orderId}`, { method: "DELETE" }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || t("errors.delete")); return d; }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["orders"] });
-      toast.success("ההזמנה נמחקה");
+      toast.success(t("toasts.deleted"));
       router.push("/orders");
     },
-    onError: (err: Error) => toast.error(err.message || "שגיאה במחיקת ההזמנה"),
+    onError: (err: Error) => toast.error(err.message || t("errors.deleteOrder")),
   });
 
   const cancelMutation = useMutation({
@@ -300,7 +312,7 @@ export default function OrderDetailPage() {
         // Draft → delete entirely
         const r = await fetch(`/api/orders/${orderId}`, { method: "DELETE" });
         const d = await r.json();
-        if (!r.ok) throw new Error(d.error || "שגיאה במחיקה");
+        if (!r.ok) throw new Error(d.error || t("errors.delete"));
         return d;
       }
       // Confirmed/other → cancel via PATCH
@@ -310,7 +322,7 @@ export default function OrderDetailPage() {
         body: JSON.stringify({ status: "cancelled" }),
       });
       const d = await r.json();
-      if (!r.ok) throw new Error(d.error || "שגיאה בביטול");
+      if (!r.ok) throw new Error(d.error || t("errors.cancel"));
       return d;
     },
     onSuccess: () => {
@@ -330,14 +342,14 @@ export default function OrderDetailPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
-      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בשמירת הפריטים"); return d; }),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || t("errors.saveLines")); return d; }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["order", orderId] });
       qc.invalidateQueries({ queryKey: ["orders"] });
       setEditingLines(false);
-      toast.success("פריטי ההזמנה עודכנו");
+      toast.success(t("toasts.linesUpdated"));
     },
-    onError: (err: Error) => toast.error(err.message || "שגיאה בשמירת הפריטים"),
+    onError: (err: Error) => toast.error(err.message || t("errors.saveLines")),
   });
 
   // Void a payment (status → canceled) via the payments PATCH API
@@ -347,13 +359,13 @@ export default function OrderDetailPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "canceled" }),
-      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בביטול התשלום"); return d; }),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || t("errors.cancelPayment")); return d; }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["order", orderId] });
       setCancelPayment(null);
-      toast.success("התשלום בוטל");
+      toast.success(t("toasts.paymentCanceled"));
     },
-    onError: (err: Error) => toast.error(err.message || "שגיאה בביטול התשלום"),
+    onError: (err: Error) => toast.error(err.message || t("errors.cancelPayment")),
   });
 
   function startEditLines() {
@@ -384,15 +396,15 @@ export default function OrderDetailPage() {
       taxMode: l.taxMode,
       priceListItemId: l.priceListItemId,
     }));
-    if (parsed.length === 0) { toast.error("נדרש לפחות פריט אחד בהזמנה"); return; }
+    if (parsed.length === 0) { toast.error(t("validation.atLeastOneLine")); return; }
     for (let i = 0; i < parsed.length; i++) {
       const l = parsed[i];
-      if (!l.name) { toast.error(`שורה ${i + 1}: שם פריט חובה`); return; }
-      if (!l.quantity || l.quantity <= 0 || isNaN(l.quantity)) { toast.error(`שורה ${i + 1}: כמות לא תקינה`); return; }
-      if (isNaN(l.unitPrice) || l.unitPrice < 0) { toast.error(`שורה ${i + 1}: מחיר לא תקין`); return; }
+      if (!l.name) { toast.error(t("validation.lineNameRequired", { row: i + 1 })); return; }
+      if (!l.quantity || l.quantity <= 0 || isNaN(l.quantity)) { toast.error(t("validation.lineQuantityInvalid", { row: i + 1 })); return; }
+      if (isNaN(l.unitPrice) || l.unitPrice < 0) { toast.error(t("validation.linePriceInvalid", { row: i + 1 })); return; }
     }
     const discountValue = editDiscountType === "none" ? 0 : parseFloat(editDiscountValue) || 0;
-    if (discountValue < 0) { toast.error("ערך הנחה לא תקין"); return; }
+    if (discountValue < 0) { toast.error(t("validation.discountInvalid")); return; }
     saveLinesMutation.mutate({ lines: parsed, discountType: editDiscountType, discountValue });
   }
 
@@ -403,13 +415,14 @@ export default function OrderDetailPage() {
   if (!order || (order as { error?: string }).error) {
     return (
       <div className="py-20 text-center">
-        <p className="text-petra-muted">הזמנה לא נמצאה</p>
-        <Link href="/orders" className="text-brand-600 text-sm hover:underline mt-2 inline-block">חזרה לרשימה</Link>
+        <p className="text-petra-muted">{t("notFound")}</p>
+        <Link href="/orders" className="text-brand-600 text-sm hover:underline mt-2 inline-block">{t("backToList")}</Link>
       </div>
     );
   }
 
-  const s = STATUS_MAP[order.status] ?? STATUS_MAP.draft;
+  const statusKey = STATUS_MAP[order.status] ? order.status : "draft";
+  const s = STATUS_MAP[statusKey];
   const StatusIcon = s.icon;
 
   return (
@@ -417,8 +430,8 @@ export default function OrderDetailPage() {
       {showPaymentRequest && <PaymentRequestDialog order={order} onClose={() => setShowPaymentRequest(false)} />}
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm">
-        <Link href="/orders" className="text-petra-muted hover:text-brand-600 transition-colors">הזמנות</Link>
-        <ArrowRight className="w-3.5 h-3.5 text-slate-300 rotate-180" />
+        <Link href="/orders" className="text-petra-muted hover:text-brand-600 transition-colors">{t("breadcrumb")}</Link>
+        <ArrowRight className="w-3.5 h-3.5 text-slate-300 rotate-180 ltr:-scale-x-100" />
         <span className="text-petra-text font-medium">#{orderId.slice(-8).toUpperCase()}</span>
       </div>
 
@@ -432,18 +445,18 @@ export default function OrderDetailPage() {
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-lg font-bold text-petra-text">
-                  הזמנה #{orderId.slice(-8).toUpperCase()}
+                  {t("title", { id: orderId.slice(-8).toUpperCase() })}
                 </h1>
                 <span className={cn("inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-full font-medium border", s.color)}>
                   <StatusIcon className="w-3 h-3" />
-                  {s.label}
+                  {t(`status.${statusKey}`)}
                 </span>
                 <span className="text-xs text-petra-muted bg-slate-100 px-2 py-1 rounded-lg">
-                  {ORDER_TYPE_MAP[order.orderType] ?? order.orderType}
+                  {labelOr(t, "orderTypes", order.orderType)}
                 </span>
               </div>
               <p className="text-sm text-petra-muted mt-0.5">
-                נוצר {formatDate(order.createdAt)}
+                {t("createdAt", { date: formatDate(order.createdAt, { locale, style: "long" }) })}
               </p>
             </div>
           </div>
@@ -458,14 +471,14 @@ export default function OrderDetailPage() {
                   className="btn-primary text-sm"
                 >
                   <CheckCircle2 className="w-4 h-4" />
-                  אשר הזמנה
+                  {t("actions.confirmOrder")}
                 </button>
                 <button
                   onClick={() => setConfirmCancel("cancel")}
                   className="btn-secondary text-sm text-red-500 hover:bg-red-50 hover:border-red-200"
                 >
                   <Trash2 className="w-4 h-4" />
-                  ביטול
+                  {tc("actions.cancel")}
                 </button>
               </>
             )}
@@ -477,14 +490,14 @@ export default function OrderDetailPage() {
                   className="btn-primary text-sm"
                 >
                   <CheckCircle2 className="w-4 h-4" />
-                  סמן כהושלמה
+                  {t("actions.markCompleted")}
                 </button>
                 <button
                   onClick={() => setConfirmCancel("cancel")}
                   className="btn-secondary text-sm text-red-500 hover:bg-red-50 hover:border-red-200"
                 >
                   <XCircle className="w-4 h-4" />
-                  בטל הזמנה
+                  {t("actions.cancelOrder")}
                 </button>
               </>
             )}
@@ -493,10 +506,10 @@ export default function OrderDetailPage() {
               <button
                 onClick={() => setConfirmCancel("cancel")}
                 className="btn-secondary text-sm text-red-500 hover:bg-red-50 hover:border-red-200"
-                title="ההזמנה לא שולמה — ביטול מוחק את החוב של הלקוח"
+                title={t("actions.cancelUnpaidTitle")}
               >
                 <XCircle className="w-4 h-4" />
-                בטל הזמנה
+                {t("actions.cancelOrder")}
               </button>
             )}
             {order.status === "cancelled" && (
@@ -506,7 +519,7 @@ export default function OrderDetailPage() {
                 className="btn-secondary text-sm text-red-500 hover:bg-red-50 hover:border-red-200"
               >
                 <Trash2 className="w-4 h-4" />
-                {deleteCancelledMutation.isPending ? "מוחק..." : "מחק הזמנה"}
+                {deleteCancelledMutation.isPending ? tc("progress.deleting") : t("actions.deleteOrder")}
               </button>
             )}
           </div>
@@ -516,7 +529,7 @@ export default function OrderDetailPage() {
         <div className="mt-4 pt-4 border-t border-petra-border grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <p className="text-xs text-petra-muted mb-1 flex items-center gap-1">
-              <User className="w-3 h-3" /> לקוח
+              <User className="w-3 h-3" /> {t("info.customer")}
             </p>
             <Link
               href={`/customers/${order.customer.id}`}
@@ -529,27 +542,27 @@ export default function OrderDetailPage() {
           {order.startAt && (
             <div>
               <p className="text-xs text-petra-muted mb-1 flex items-center gap-1">
-                <Calendar className="w-3 h-3" /> תאריך התחלה
+                <Calendar className="w-3 h-3" /> {t("info.startDate")}
               </p>
               <p className="text-sm font-medium text-petra-text">
-                {new Date(order.startAt).toLocaleString("he-IL", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Jerusalem" })}
+                {new Date(order.startAt).toLocaleString(locale, { dateStyle: "medium", timeStyle: "short", timeZone: timezone })}
               </p>
             </div>
           )}
           {order.endAt && (
             <div>
               <p className="text-xs text-petra-muted mb-1 flex items-center gap-1">
-                <Calendar className="w-3 h-3" /> תאריך סיום
+                <Calendar className="w-3 h-3" /> {t("info.endDate")}
               </p>
               <p className="text-sm font-medium text-petra-text">
-                {new Date(order.endAt).toLocaleString("he-IL", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Jerusalem" })}
+                {new Date(order.endAt).toLocaleString(locale, { dateStyle: "medium", timeStyle: "short", timeZone: timezone })}
               </p>
             </div>
           )}
           {order.notes && (
             <div>
               <p className="text-xs text-petra-muted mb-1 flex items-center gap-1">
-                <FileText className="w-3 h-3" /> הערות
+                <FileText className="w-3 h-3" /> {t("info.notes")}
               </p>
               <p className="text-sm text-petra-text">{order.notes}</p>
             </div>
@@ -567,10 +580,10 @@ export default function OrderDetailPage() {
             <GraduationCap className="w-5 h-5 text-orange-500" />
           </div>
           <div className="flex-1">
-            <p className="text-sm font-semibold text-petra-text">פתח תהליך אילוף</p>
-            <p className="text-xs text-petra-muted">צפה בתוכנית האילוף, מפגשים ויעדים</p>
+            <p className="text-sm font-semibold text-petra-text">{t("training.open")}</p>
+            <p className="text-xs text-petra-muted">{t("training.description")}</p>
           </div>
-          <ArrowRight className="w-4 h-4 text-petra-muted group-hover:text-brand-500 transition-colors rotate-180" />
+          <ArrowRight className="w-4 h-4 text-petra-muted group-hover:text-brand-500 transition-colors rotate-180 ltr:-scale-x-100" />
         </Link>
       )}
 
@@ -579,7 +592,7 @@ export default function OrderDetailPage() {
         <div className="px-5 py-3.5 border-b border-petra-border bg-slate-50/60 flex items-center justify-between">
           <h2 className="font-semibold text-petra-text text-sm flex items-center gap-2">
             <Tag className="w-4 h-4 text-brand-500" />
-            פריטי הזמנה
+            {t("lines.title")}
             <span className="text-xs font-normal text-petra-muted bg-slate-100 px-1.5 py-0.5 rounded-md">{order.lines.length}</span>
           </h2>
           {order.status === "draft" && !editingLines && (
@@ -588,7 +601,7 @@ export default function OrderDetailPage() {
               onClick={startEditLines}
             >
               <Pencil className="w-3.5 h-3.5" />
-              עריכת פריטים
+              {t("lines.edit")}
             </button>
           )}
         </div>
@@ -601,7 +614,7 @@ export default function OrderDetailPage() {
                 <div key={i} className="grid grid-cols-[1fr_1fr_32px] sm:grid-cols-[1fr_70px_100px_32px] gap-2 items-center">
                   <input
                     className="input text-sm col-span-3 sm:col-span-1"
-                    placeholder="שם פריט"
+                    placeholder={t("lines.namePlaceholder")}
                     value={line.name}
                     onChange={(e) => updateEditLine(i, "name", e.target.value)}
                   />
@@ -610,7 +623,7 @@ export default function OrderDetailPage() {
                     type="number"
                     min="0"
                     step="1"
-                    placeholder="כמות"
+                    placeholder={t("lines.quantityPlaceholder")}
                     value={line.quantity}
                     onChange={(e) => updateEditLine(i, "quantity", e.target.value)}
                     dir="ltr"
@@ -620,7 +633,7 @@ export default function OrderDetailPage() {
                     type="number"
                     min="0"
                     step="0.01"
-                    placeholder="מחיר יחידה"
+                    placeholder={t("lines.unitPricePlaceholder")}
                     value={line.unitPrice}
                     onChange={(e) => updateEditLine(i, "unitPrice", e.target.value)}
                     dir="ltr"
@@ -629,7 +642,7 @@ export default function OrderDetailPage() {
                     type="button"
                     className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-red-400 hover:text-red-500 transition-colors"
                     onClick={() => setEditLines((prev) => prev.filter((_, idx) => idx !== i))}
-                    title="הסר פריט"
+                    title={t("lines.removeLine")}
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -643,26 +656,26 @@ export default function OrderDetailPage() {
               onClick={() => setEditLines((prev) => [...prev, { name: "", unit: "per_item", quantity: "1", unitPrice: "", taxMode: "taxable", priceListItemId: null }])}
             >
               <Plus className="w-3.5 h-3.5" />
-              הוסף פריט
+              {t("lines.addLine")}
             </button>
 
             {/* Discount */}
             <div className="flex items-end gap-3 pt-2 border-t border-petra-border">
               <div>
-                <label className="label">הנחה</label>
+                <label className="label">{t("lines.discount")}</label>
                 <select
                   className="input mt-1 text-sm"
                   value={editDiscountType}
                   onChange={(e) => setEditDiscountType(e.target.value)}
                 >
-                  <option value="none">ללא הנחה</option>
-                  <option value="percent">אחוז (%)</option>
-                  <option value="fixed">סכום קבוע (₪)</option>
+                  <option value="none">{t("lines.discountNone")}</option>
+                  <option value="percent">{t("lines.discountPercentOption")}</option>
+                  <option value="fixed">{t("lines.discountFixedOption", { currency: currencySymbol({ locale, currency }) })}</option>
                 </select>
               </div>
               {editDiscountType !== "none" && (
                 <div>
-                  <label className="label">{editDiscountType === "percent" ? "אחוז הנחה" : "סכום הנחה (₪)"}</label>
+                  <label className="label">{editDiscountType === "percent" ? t("lines.discountPercentLabel") : t("lines.discountFixedLabel", { currency: currencySymbol({ locale, currency }) })}</label>
                   <input
                     className="input mt-1 text-sm"
                     type="number"
@@ -683,31 +696,31 @@ export default function OrderDetailPage() {
                 onClick={saveEditLines}
                 disabled={saveLinesMutation.isPending}
               >
-                {saveLinesMutation.isPending ? "שומר..." : "שמור שינויים"}
+                {saveLinesMutation.isPending ? tc("progress.saving") : t("lines.saveChanges")}
               </button>
               <button
                 className="btn-secondary text-sm flex-1"
                 onClick={() => setEditingLines(false)}
                 disabled={saveLinesMutation.isPending}
               >
-                ביטול
+                {tc("actions.cancel")}
               </button>
             </div>
           </div>
         ) : order.lines.length === 0 ? (
-          <div className="py-10 text-center text-sm text-petra-muted">אין פריטים בהזמנה</div>
+          <div className="py-10 text-center text-sm text-petra-muted">{t("lines.empty")}</div>
         ) : (
           <>
             <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-petra-border">
-                  <th className="table-header-cell">שם</th>
-                  <th className="table-header-cell hidden sm:table-cell">יחידה</th>
-                  <th className="table-header-cell">כמות</th>
-                  <th className="table-header-cell">מחיר יחידה</th>
-                  <th className="table-header-cell hidden md:table-cell">מע&quot;מ</th>
-                  <th className="table-header-cell">סה&quot;כ שורה</th>
+                  <th className="table-header-cell">{t("lines.colName")}</th>
+                  <th className="table-header-cell hidden sm:table-cell">{t("lines.colUnit")}</th>
+                  <th className="table-header-cell">{t("lines.colQuantity")}</th>
+                  <th className="table-header-cell">{t("lines.colUnitPrice")}</th>
+                  <th className="table-header-cell hidden md:table-cell">{t("lines.colTax")}</th>
+                  <th className="table-header-cell">{t("lines.colLineTotal")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-petra-border">
@@ -715,12 +728,12 @@ export default function OrderDetailPage() {
                   <tr key={line.id} className="hover:bg-slate-50/40 transition-colors">
                     <td className="table-cell font-medium text-petra-text">{line.name}</td>
                     <td className="table-cell hidden sm:table-cell text-xs text-petra-muted">
-                      {UNIT_LABEL[line.unit] ?? line.unit}
+                      {labelOr(t, "units", line.unit)}
                     </td>
                     <td className="table-cell text-petra-text">{line.quantity}</td>
                     <td className="table-cell text-petra-text" dir="ltr">{fmt(line.unitPrice)}</td>
                     <td className="table-cell hidden md:table-cell text-petra-muted text-xs" dir="ltr">
-                      {line.taxMode === "exempt" ? "פטור" : fmt(line.lineTax)}
+                      {line.taxMode === "exempt" ? t("lines.taxExempt") : fmt(line.lineTax)}
                     </td>
                     <td className="table-cell font-bold text-petra-text" dir="ltr">{fmt(line.lineTotal)}</td>
                   </tr>
@@ -732,25 +745,25 @@ export default function OrderDetailPage() {
             {/* Totals footer */}
             <div className="border-t border-petra-border px-5 py-4 space-y-1.5 bg-slate-50/40">
               <div className="flex justify-between text-sm text-petra-muted">
-                <span>סכום ביניים</span>
+                <span>{t("totals.subtotal")}</span>
                 <span dir="ltr">{fmt(order.subtotal)}</span>
               </div>
               {order.discountAmount > 0 && (
                 <div className="flex justify-between text-sm text-emerald-600">
                   <span>
-                    הנחה {order.discountType === "percent" ? `(${order.discountValue}%)` : "(קבועה)"}
+                    {order.discountType === "percent" ? t("totals.discountPercent", { value: order.discountValue }) : t("totals.discountFixed")}
                   </span>
                   <span dir="ltr">−{fmt(order.discountAmount)}</span>
                 </div>
               )}
               {order.taxTotal > 0 && (
                 <div className="flex justify-between text-sm text-petra-muted">
-                  <span>מע&quot;מ</span>
+                  <span>{t("totals.tax")}</span>
                   <span dir="ltr">{fmt(order.taxTotal)}</span>
                 </div>
               )}
               <div className="flex justify-between text-base font-bold text-petra-text border-t border-petra-border pt-2 mt-2">
-                <span>סה&quot;כ לתשלום</span>
+                <span>{t("totals.total")}</span>
                 <span dir="ltr" className="text-brand-600">{fmt(order.total)}</span>
               </div>
             </div>
@@ -770,19 +783,19 @@ export default function OrderDetailPage() {
             <div className="px-5 py-3.5 border-b border-petra-border bg-slate-50/60 flex items-center justify-between flex-wrap gap-2">
               <h2 className="font-semibold text-petra-text text-sm flex items-center gap-2">
                 <CreditCard className="w-4 h-4 text-brand-500" />
-                תשלומים
+                {t("payments.title")}
                 {fullyPaid ? (
                   <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-lg font-medium bg-emerald-50 text-emerald-700 border border-emerald-100">
                     <CheckCircle2 className="w-3 h-3" />
-                    שולם במלואו
+                    {t("payments.fullyPaid")}
                   </span>
                 ) : paidTotal > 0 ? (
                   <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-lg font-medium bg-amber-50 text-amber-700 border border-amber-100">
-                    שולם חלקית
+                    {t("payments.partiallyPaid")}
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-lg font-medium bg-red-50 text-red-600 border border-red-100">
-                    טרם שולם
+                    {t("payments.unpaid")}
                   </span>
                 )}
               </h2>
@@ -792,10 +805,10 @@ export default function OrderDetailPage() {
                     className="text-xs py-1.5 px-3 rounded-xl font-semibold flex items-center gap-1.5 border-2 transition-all disabled:opacity-60"
                     style={{ borderColor: "#25D366", color: "#16a34a", background: "#f0fdf4" }}
                     onClick={() => setShowPaymentRequest(true)}
-                    title="שלח דרישת תשלום בוואטסאפ"
+                    title={t("payments.requestTitle")}
                   >
                     <Send className="w-3.5 h-3.5" />
-                    דרישת תשלום
+                    {t("payments.request")}
                   </button>
                 )}
                 {!fullyPaid && order.status !== "cancelled" && (
@@ -804,7 +817,7 @@ export default function OrderDetailPage() {
                     onClick={() => setShowAddPayment(true)}
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    רשום תשלום
+                    {t("payments.record")}
                   </button>
                 )}
               </div>
@@ -812,7 +825,7 @@ export default function OrderDetailPage() {
 
             {payments.length === 0 ? (
               <div className="py-8 text-center text-sm text-petra-muted">
-                לא נרשמו תשלומים עדיין
+                {t("payments.empty")}
               </div>
             ) : (
               <div className="divide-y divide-petra-border">
@@ -823,25 +836,25 @@ export default function OrderDetailPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-petra-text">
-                        {METHOD_LABEL[p.method] ?? p.method}
+                        {labelOr(t, "methods", p.method)}
                         {p.method === "credit_card" && p.cardType && (
-                          <span className="mr-1 text-xs text-petra-muted capitalize">{p.cardType}{p.cardLast4 ? ` ****${p.cardLast4}` : ""}</span>
+                          <span className="ms-1 text-xs text-petra-muted capitalize">{p.cardType}{p.cardLast4 ? ` ****${p.cardLast4}` : ""}</span>
                         )}
-                        {p.isDeposit && <span className="mr-1.5 text-xs text-petra-muted">(מקדמה)</span>}
+                        {p.isDeposit && <span className="ms-1.5 text-xs text-petra-muted">{t("payments.deposit")}</span>}
                       </p>
                       {p.method === "check" && (p.checkNumber || p.checkBank || p.checkDate) && (
                         <p className="text-xs text-petra-muted">
-                          {[p.checkNumber && `המחאה #${p.checkNumber}`, p.checkBank, p.checkBranch && `סניף ${p.checkBranch}`, p.checkDate].filter(Boolean).join(" · ")}
+                          {[p.checkNumber && t("payments.checkNumber", { number: p.checkNumber }), p.checkBank, p.checkBranch && t("payments.checkBranch", { branch: p.checkBranch }), p.checkDate].filter(Boolean).join(" · ")}
                         </p>
                       )}
                       {p.notes && (
                         <p className="text-xs text-petra-muted truncate">{p.notes}</p>
                       )}
                     </div>
-                    <div className="text-right flex-shrink-0">
+                    <div className="text-start flex-shrink-0">
                       <p className="text-sm font-semibold text-petra-text" dir="ltr">{fmt(p.amount)}</p>
                       <p className="text-[11px] text-petra-muted">
-                        {p.paidAt ? formatDate(p.paidAt) : formatDate(p.createdAt)}
+                        {p.paidAt ? formatDate(p.paidAt, { locale, style: "long" }) : formatDate(p.createdAt, { locale, style: "long" })}
                       </p>
                     </div>
                     <span className={cn(
@@ -850,14 +863,14 @@ export default function OrderDetailPage() {
                       p.status === "pending" ? "bg-amber-50 text-amber-700 border-amber-100" :
                       "bg-red-50 text-red-600 border-red-100"
                     )}>
-                      {p.status === "paid" ? "שולם" : p.status === "pending" ? "ממתין" : "בוטל"}
+                      {p.status === "paid" ? t("payments.statusPaid") : p.status === "pending" ? t("payments.statusPending") : t("payments.statusCanceled")}
                     </span>
                     {(p.status === "paid" || p.status === "pending") && (
                       <button
                         type="button"
                         onClick={() => setCancelPayment(p)}
                         className="p-1.5 rounded-lg text-petra-muted hover:text-red-500 hover:bg-red-50 transition-colors border border-transparent hover:border-red-100 flex-shrink-0"
-                        title="בטל תשלום"
+                        title={t("payments.cancelTitle")}
                       >
                         <XCircle className="w-3.5 h-3.5" />
                       </button>
@@ -870,18 +883,18 @@ export default function OrderDetailPage() {
             {/* Summary footer */}
             <div className="border-t border-petra-border px-5 py-3 bg-slate-50/40 space-y-1">
               <div className="flex justify-between text-sm text-petra-muted">
-                <span>סה״כ לתשלום</span>
+                <span>{t("payments.summaryTotal")}</span>
                 <span dir="ltr">{fmt(order.total)}</span>
               </div>
               {paidTotal > 0 && (
                 <div className="flex justify-between text-sm text-emerald-700 font-medium">
-                  <span>שולם</span>
+                  <span>{t("payments.paid")}</span>
                   <span dir="ltr">{fmt(paidTotal)}</span>
                 </div>
               )}
               {remaining > 0.01 && (
                 <div className="flex justify-between text-sm font-bold text-red-600 border-t border-petra-border pt-1.5">
-                  <span>יתרה לתשלום</span>
+                  <span>{t("payments.remaining")}</span>
                   <span dir="ltr">{fmt(remaining)}</span>
                 </div>
               )}
@@ -912,9 +925,9 @@ export default function OrderDetailPage() {
             <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center mx-auto mb-3">
               <XCircle className="w-6 h-6 text-red-500" />
             </div>
-            <h3 className="text-base font-bold text-petra-text mb-1">לבטל את התשלום?</h3>
+            <h3 className="text-base font-bold text-petra-text mb-1">{t("cancelPaymentDialog.title")}</h3>
             <p className="text-sm text-petra-muted mb-4">
-              תשלום על סך {fmt(cancelPayment.amount)} יסומן כמבוטל ולא ייספר ביתרת ההזמנה.
+              {t("cancelPaymentDialog.body", { amount: fmt(cancelPayment.amount) })}
             </p>
             <div className="flex gap-3">
               <button
@@ -922,10 +935,10 @@ export default function OrderDetailPage() {
                 disabled={cancelPaymentMutation.isPending}
                 className="flex-1 py-2 rounded-xl bg-red-500 text-white text-sm font-medium hover:bg-red-600 transition-colors disabled:opacity-60"
               >
-                {cancelPaymentMutation.isPending ? "מבטל..." : "כן, בטל תשלום"}
+                {cancelPaymentMutation.isPending ? t("cancelPaymentDialog.canceling") : t("cancelPaymentDialog.confirm")}
               </button>
               <button onClick={() => setCancelPayment(null)} className="btn-secondary flex-1">
-                חזרה
+                {t("cancelPaymentDialog.back")}
               </button>
             </div>
           </div>
@@ -941,10 +954,10 @@ export default function OrderDetailPage() {
               <XCircle className="w-6 h-6 text-red-500" />
             </div>
             <h3 className="text-base font-bold text-petra-text mb-1">
-              {confirmCancel === "delete" ? "למחוק את ההזמנה?" : "לבטל את ההזמנה?"}
+              {confirmCancel === "delete" ? t("cancelDialog.deleteTitle") : t("cancelDialog.cancelTitle")}
             </h3>
             <p className="text-sm text-petra-muted mb-4">
-              {confirmCancel === "delete" ? "ההזמנה תימחק לצמיתות. פעולה זו לא ניתנת לביטול." : "פעולה זו לא ניתנת לביטול."}
+              {confirmCancel === "delete" ? t("cancelDialog.deleteBody") : t("cancelDialog.cancelBody")}
             </p>
             <div className="flex gap-3">
               <button
@@ -956,10 +969,10 @@ export default function OrderDetailPage() {
                 disabled={cancelMutation.isPending || deleteCancelledMutation.isPending}
                 className="flex-1 py-2 rounded-xl bg-red-500 text-white text-sm font-medium hover:bg-red-600 transition-colors"
               >
-                {confirmCancel === "delete" ? "כן, מחק" : cancelMutation.isPending ? "מבטל..." : "כן, בטל"}
+                {confirmCancel === "delete" ? t("cancelDialog.confirmDelete") : cancelMutation.isPending ? t("cancelDialog.canceling") : t("cancelDialog.confirmCancel")}
               </button>
               <button onClick={() => setConfirmCancel(false)} className="btn-secondary flex-1">
-                חזרה
+                {t("cancelDialog.back")}
               </button>
             </div>
           </div>

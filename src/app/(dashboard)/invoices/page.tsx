@@ -4,6 +4,7 @@ import { PageTitle } from "@/components/ui/PageTitle";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { TierGate } from "@/components/paywall/TierGate";
 import { FinanceTabs } from "@/components/finance/FinanceTabs";
@@ -23,7 +24,9 @@ import {
   Search,
   AlertTriangle,
 } from "lucide-react";
-import { cn, formatCurrency, formatDate, fetchJSON } from "@/lib/utils";
+import { cn, fetchJSON } from "@/lib/utils";
+import { formatCurrency, formatDate } from "@/lib/format";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { INVOICE_DOCUMENT_TYPES, INVOICE_STATUSES, VAT_RATE } from "@/lib/constants";
 import { isVatExempt } from "@/lib/legal-entity";
 import { PetraLoader } from "@/components/ui/PetraLoader";
@@ -88,6 +91,8 @@ function getStatusIcon(status: string) {
 // ─── Summary Cards ──────────────────────────────────────────────────────────
 
 function SummaryCards({ documents }: { documents: InvoiceDocument[] }) {
+  const t = useTranslations("finance.invoicesPage");
+  const { locale, currency } = useBusinessLocale();
   const issued = documents.filter((d) => d.status === "issued");
   const thisMonth = issued.filter((d) => {
     const date = new Date(d.createdAt);
@@ -98,10 +103,10 @@ function SummaryCards({ documents }: { documents: InvoiceDocument[] }) {
   const failed = documents.filter((d) => d.status === "failed");
 
   const cards = [
-    { label: "הונפקו", value: String(issued.length), icon: CheckCircle, color: "text-emerald-600", bg: "bg-emerald-50" },
-    { label: "סה״כ החודש", value: formatCurrency(thisMonth.reduce((s, d) => s + d.amount, 0)), icon: Receipt, color: "text-brand-600", bg: "bg-brand-50" },
-    { label: "טיוטות", value: String(drafts.length), icon: FileText, color: "text-slate-600", bg: "bg-slate-50" },
-    { label: "נכשלו", value: String(failed.length), icon: AlertCircle, color: "text-red-600", bg: "bg-red-50" },
+    { label: t("summary.issued"), value: String(issued.length), icon: CheckCircle, color: "text-emerald-600", bg: "bg-emerald-50" },
+    { label: t("summary.monthTotal"), value: formatCurrency(thisMonth.reduce((s, d) => s + d.amount, 0), { locale, currency }), icon: Receipt, color: "text-brand-600", bg: "bg-brand-50" },
+    { label: t("summary.drafts"), value: String(drafts.length), icon: FileText, color: "text-slate-600", bg: "bg-slate-50" },
+    { label: t("summary.failed"), value: String(failed.length), icon: AlertCircle, color: "text-red-600", bg: "bg-red-50" },
   ];
 
   return (
@@ -139,6 +144,9 @@ function CreateInvoiceModal({
   vatExempt: boolean;
   vatRate: number;
 }) {
+  const t = useTranslations("finance.invoicesPage");
+  const tc = useTranslations("common");
+  const { locale, currency } = useBusinessLocale();
   const [customerId, setCustomerId] = useState("");
   // עוסק פטור may not issue tax invoices — receipts only
   const availableDocTypes = vatExempt
@@ -164,7 +172,7 @@ function CreateInvoiceModal({
       }).then(async (r) => {
         if (!r.ok) {
           const body = await r.json().catch(() => ({}));
-          throw new Error(body.error || "שגיאה ביצירת חשבונית");
+          throw new Error(body.error || t("errors.create"));
         }
         return r.json();
       }),
@@ -189,8 +197,8 @@ function CreateInvoiceModal({
       <div className="modal-content max-w-2xl mx-4 p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-xl font-bold text-petra-text">חשבונית חדשה</h2>
-            <p className="text-sm text-petra-muted mt-0.5">צור טיוטת חשבונית</p>
+            <h2 className="text-xl font-bold text-petra-text">{t("newInvoice")}</h2>
+            <p className="text-sm text-petra-muted mt-0.5">{t("create.subtitle")}</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
             <X className="w-4 h-4" />
@@ -200,12 +208,12 @@ function CreateInvoiceModal({
         <div className="space-y-4">
           {/* Customer Search */}
           <div>
-            <label className="label">לקוח *</label>
+            <label className="label">{t("create.customerLabel")}</label>
             <div className="relative">
-              <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted" />
+              <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted" />
               <input
-                className="input pr-10"
-                placeholder="חפש לקוח..."
+                className="input ps-10"
+                placeholder={t("create.customerSearch")}
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setCustomerId(""); }}
               />
@@ -215,7 +223,7 @@ function CreateInvoiceModal({
                 {customers.map((c) => (
                   <button
                     key={c.id}
-                    className="w-full text-right px-3 py-2 hover:bg-slate-50 text-sm"
+                    className="w-full text-start px-3 py-2 hover:bg-slate-50 text-sm"
                     onClick={() => { setCustomerId(c.id); setSearch(c.name); }}
                   >
                     {c.name} · {c.phone}
@@ -227,29 +235,29 @@ function CreateInvoiceModal({
 
           {/* Document Type */}
           <div>
-            <label className="label">סוג מסמך</label>
+            <label className="label">{t("create.docType")}</label>
             <select className="input" value={docType} onChange={(e) => setDocType(Number(e.target.value))}>
               {availableDocTypes.map((dt) => (
                 <option key={dt.id} value={dt.id}>{dt.label}</option>
               ))}
             </select>
             {vatExempt && (
-              <p className="text-xs text-petra-muted mt-1">עוסק פטור מפיק קבלות בלבד (ללא חשבונית מס)</p>
+              <p className="text-xs text-petra-muted mt-1">{t("create.vatExemptNote")}</p>
             )}
           </div>
 
           {/* Line Items */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="label mb-0">שורות</label>
-              <button className="text-xs text-brand-500 hover:text-brand-600 font-medium" onClick={addLine}>+ הוסף שורה</button>
+              <label className="label mb-0">{t("create.lines")}</label>
+              <button className="text-xs text-brand-500 hover:text-brand-600 font-medium" onClick={addLine}>{t("create.addLine")}</button>
             </div>
             <div className="space-y-2">
               {lines.map((line, i) => (
                 <div key={i} className="grid grid-cols-[1fr_1fr_32px] sm:grid-cols-[1fr_80px_100px_32px] gap-2 items-center">
                   <input
                     className="input text-sm col-span-3 sm:col-span-1"
-                    placeholder="תיאור"
+                    placeholder={t("create.description")}
                     value={line.description}
                     onChange={(e) => updateLine(i, "description", e.target.value)}
                   />
@@ -257,7 +265,7 @@ function CreateInvoiceModal({
                     className="input text-sm text-center"
                     type="number"
                     min={1}
-                    placeholder="כמות"
+                    placeholder={t("create.quantity")}
                     value={line.quantity}
                     onChange={(e) => updateLine(i, "quantity", Number(e.target.value))}
                   />
@@ -266,7 +274,7 @@ function CreateInvoiceModal({
                     type="number"
                     min={0}
                     step={0.01}
-                    placeholder="מחיר"
+                    placeholder={t("create.price")}
                     value={line.unitPrice || ""}
                     onChange={(e) => updateLine(i, "unitPrice", Number(e.target.value))}
                   />
@@ -286,22 +294,22 @@ function CreateInvoiceModal({
           {/* Totals */}
           <div className="border-t pt-3 space-y-1 text-sm">
             <div className="flex justify-between text-petra-muted">
-              <span>סכום לפני מע״מ</span>
-              <span>{formatCurrency(subtotal)}</span>
+              <span>{t("create.subtotal")}</span>
+              <span>{formatCurrency(subtotal, { locale, currency })}</span>
             </div>
             <div className="flex justify-between text-petra-muted">
-              <span>{vatExempt ? "ללא מע״מ — עוסק פטור" : `מע״מ (${Math.round(vatRate * 100)}%)`}</span>
-              <span>{formatCurrency(vat)}</span>
+              <span>{vatExempt ? t("create.vatExemptLine") : t("create.vatLine", { rate: Math.round(vatRate * 100) })}</span>
+              <span>{formatCurrency(vat, { locale, currency })}</span>
             </div>
             <div className="flex justify-between font-bold text-petra-text">
-              <span>סה״כ</span>
-              <span>{formatCurrency(total)}</span>
+              <span>{t("create.total")}</span>
+              <span>{formatCurrency(total, { locale, currency })}</span>
             </div>
           </div>
 
           {/* Notes */}
           <div>
-            <label className="label">הערות</label>
+            <label className="label">{t("create.notes")}</label>
             <textarea className="input" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
         </div>
@@ -313,9 +321,9 @@ function CreateInvoiceModal({
             onClick={() => mutation.mutate({ customerId, docType, lines, notes })}
           >
             {mutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
-            {mutation.isPending ? "יוצר..." : "צור טיוטה"}
+            {mutation.isPending ? t("create.creating") : t("create.createDraft")}
           </button>
-          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+          <button className="btn-secondary" onClick={onClose}>{tc("actions.cancel")}</button>
         </div>
       </div>
     </div>
@@ -325,6 +333,8 @@ function CreateInvoiceModal({
 // ─── Main Page ──────────────────────────────────────────────────────────────
 
 function InvoicesPageContent() {
+  const t = useTranslations("finance.invoicesPage");
+  const { locale, currency } = useBusinessLocale();
   const queryClient = useQueryClient();
   const { canWritePayments } = usePermissions();
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -360,12 +370,12 @@ function InvoicesPageContent() {
       }).then(async (r) => {
         if (!r.ok) {
           const body = await r.json().catch(() => ({}));
-          throw new Error(body.error || "שגיאה בהנפקה");
+          throw new Error(body.error || t("errors.issue"));
         }
         return r.json();
       }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["invoicing-documents"] }),
-    onError: (err: Error) => toast.error(err.message || "שגיאה בהנפקת חשבונית"),
+    onError: (err: Error) => toast.error(err.message || t("errors.issueInvoice")),
   });
 
   const creditNoteMutation = useMutation({
@@ -377,41 +387,41 @@ function InvoicesPageContent() {
       }).then(async (r) => {
         if (!r.ok) {
           const body = await r.json().catch(() => ({}));
-          throw new Error(body.error || "שגיאה ביצירת זיכוי");
+          throw new Error(body.error || t("errors.credit"));
         }
         return r.json();
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["invoicing-documents"] });
       setConfirmAction(null);
-      toast.success("חשבונית זיכוי נוצרה");
+      toast.success(t("toasts.creditCreated"));
     },
-    onError: (err: Error) => toast.error(err.message || "שגיאה ביצירת זיכוי"),
+    onError: (err: Error) => toast.error(err.message || t("errors.credit")),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
       fetch(`/api/invoicing/documents/${id}`, { method: "DELETE" }).then(async (r) => {
-        if (!r.ok) throw new Error("שגיאה במחיקה");
+        if (!r.ok) throw new Error(t("errors.delete"));
         return r.json();
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["invoicing-documents"] });
       setConfirmAction(null);
-      toast.success("הטיוטה נמחקה");
+      toast.success(t("toasts.draftDeleted"));
     },
-    onError: () => toast.error("שגיאה במחיקת המסמך"),
+    onError: () => toast.error(t("errors.deleteDoc")),
   });
 
   // Status filter tabs
   const statusTabs = [
-    { id: "all", label: "הכל" },
+    { id: "all", label: t("filters.all") },
     ...INVOICE_STATUSES.map((s) => ({ id: s.id, label: s.label })),
   ];
 
   // Doc type sub-filter
   const docTypeTabs = [
-    { id: "all", label: "הכל" },
+    { id: "all", label: t("filters.all") },
     ...INVOICE_DOCUMENT_TYPES.map((dt) => ({ id: String(dt.id), label: dt.label })),
   ];
 
@@ -419,10 +429,10 @@ function InvoicesPageContent() {
     <div>
       <FinanceTabs />
       <div className="flex items-center justify-between mb-6">
-        <h1 className="page-title">חשבוניות</h1>
+        <h1 className="page-title">{t("title")}</h1>
         <button className="btn-primary flex items-center gap-2" onClick={() => setShowCreate(true)}>
           <Plus className="w-4 h-4" />
-          חשבונית חדשה
+          {t("newInvoice")}
         </button>
       </div>
 
@@ -470,23 +480,23 @@ function InvoicesPageContent() {
           <div className="empty-state-icon">
             <Receipt className="w-8 h-8" />
           </div>
-          <p className="text-petra-muted text-sm mt-3">אין חשבוניות עדיין</p>
+          <p className="text-petra-muted text-sm mt-3">{t("empty")}</p>
         </div>
       ) : (
         <div className="card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <caption className="sr-only">רשימת חשבוניות</caption>
+              <caption className="sr-only">{t("table.caption")}</caption>
               <thead>
                 <tr className="border-b border-slate-100">
                   <th scope="col" className="table-header-cell">#</th>
-                  <th scope="col" className="table-header-cell">סוג</th>
-                  <th scope="col" className="table-header-cell">לקוח</th>
-                  <th scope="col" className="table-header-cell">סכום</th>
-                  <th scope="col" className="table-header-cell">סטטוס</th>
-                  <th scope="col" className="table-header-cell">תאריך</th>
-                  <th scope="col" className="table-header-cell">מס׳ מסמך</th>
-                  <th scope="col" className="table-header-cell">פעולות</th>
+                  <th scope="col" className="table-header-cell">{t("table.type")}</th>
+                  <th scope="col" className="table-header-cell">{t("table.customer")}</th>
+                  <th scope="col" className="table-header-cell">{t("table.amount")}</th>
+                  <th scope="col" className="table-header-cell">{t("table.status")}</th>
+                  <th scope="col" className="table-header-cell">{t("table.date")}</th>
+                  <th scope="col" className="table-header-cell">{t("table.docNumber")}</th>
+                  <th scope="col" className="table-header-cell">{t("table.actions")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -515,12 +525,12 @@ function InvoicesPageContent() {
                     </td>
                     <td className="table-cell">
                       <span className={cn("font-semibold", doc.amount < 0 ? "text-red-600" : "text-petra-text")}>
-                        {formatCurrency(Math.abs(doc.amount))}
+                        {formatCurrency(Math.abs(doc.amount), { locale, currency })}
                       </span>
-                      {doc.amount < 0 && <span className="text-xs text-red-500 mr-1">(זיכוי)</span>}
+                      {doc.amount < 0 && <span className="text-xs text-red-500 ms-1">{t("table.creditTag")}</span>}
                     </td>
                     <td className="table-cell">{getStatusBadge(doc.status)}</td>
-                    <td className="table-cell text-petra-muted text-xs">{formatDate(doc.createdAt)}</td>
+                    <td className="table-cell text-petra-muted text-xs">{formatDate(doc.createdAt, { locale, style: "long" })}</td>
                     <td className="table-cell">
                       {doc.documentNumber ? (
                         <span className="font-mono text-xs">{doc.documentNumber}</span>
@@ -537,7 +547,7 @@ function InvoicesPageContent() {
                             target="_blank"
                             rel="noopener noreferrer"
                             className="p-1.5 rounded-lg hover:bg-slate-100 text-petra-muted hover:text-brand-500 transition-colors"
-                            title="צפה בחשבונית"
+                            title={t("actions.view")}
                           >
                             <ExternalLink className="w-3.5 h-3.5" />
                           </a>
@@ -549,7 +559,7 @@ function InvoicesPageContent() {
                             className="p-1.5 rounded-lg hover:bg-emerald-50 text-petra-muted hover:text-emerald-600 transition-colors"
                             onClick={() => issueMutation.mutate(doc.id)}
                             disabled={issueMutation.isPending}
-                            title={doc.status === "failed" ? "נסה שוב" : "הנפק"}
+                            title={doc.status === "failed" ? t("actions.retry") : t("actions.issue")}
                           >
                             {issueMutation.isPending ? (
                               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -567,7 +577,7 @@ function InvoicesPageContent() {
                             className="p-1.5 rounded-lg hover:bg-red-50 text-petra-muted hover:text-red-500 transition-colors"
                             onClick={() => setConfirmAction({ type: "credit", doc })}
                             disabled={creditNoteMutation.isPending}
-                            title="צור חשבונית זיכוי"
+                            title={t("actions.createCredit")}
                           >
                             <CreditCard className="w-3.5 h-3.5" />
                           </button>
@@ -579,7 +589,7 @@ function InvoicesPageContent() {
                             className="p-1.5 rounded-lg hover:bg-red-50 text-petra-muted hover:text-red-500 transition-colors"
                             onClick={() => setConfirmAction({ type: "delete", doc })}
                             disabled={deleteMutation.isPending}
-                            title="מחק טיוטה"
+                            title={t("actions.deleteDraft")}
                           >
                             <X className="w-3.5 h-3.5" />
                           </button>
@@ -610,12 +620,15 @@ function InvoicesPageContent() {
               <AlertTriangle className="w-6 h-6 text-red-500" />
             </div>
             <h3 className="text-base font-bold text-petra-text mb-1">
-              {confirmAction.type === "credit" ? "ליצור חשבונית זיכוי?" : "למחוק טיוטה זו?"}
+              {confirmAction.type === "credit" ? t("confirm.creditTitle") : t("confirm.deleteTitle")}
             </h3>
             <p className="text-sm text-petra-muted mb-4">
               {confirmAction.type === "credit"
-                ? `יווצר מסמך זיכוי עבור ${confirmAction.doc.customer?.name ?? "המסמך"} על סך ${formatCurrency(Math.abs(confirmAction.doc.amount))}.`
-                : "פעולה זו לא ניתנת לביטול."}
+                ? t("confirm.creditBody", {
+                    name: confirmAction.doc.customer?.name ?? t("confirm.documentFallback"),
+                    amount: formatCurrency(Math.abs(confirmAction.doc.amount), { locale, currency }),
+                  })
+                : t("confirm.irreversible")}
             </p>
             <div className="flex gap-3">
               <button
@@ -628,13 +641,13 @@ function InvoicesPageContent() {
                 className="flex-1 py-2 rounded-xl bg-red-500 text-white text-sm font-medium hover:bg-red-600 transition-colors disabled:opacity-60"
               >
                 {creditNoteMutation.isPending || deleteMutation.isPending
-                  ? "מבצע..."
+                  ? t("confirm.working")
                   : confirmAction.type === "credit"
-                    ? "כן, צור זיכוי"
-                    : "כן, מחק"}
+                    ? t("confirm.confirmCredit")
+                    : t("confirm.confirmDelete")}
               </button>
               <button onClick={() => setConfirmAction(null)} className="btn-secondary flex-1">
-                חזרה
+                {t("confirm.back")}
               </button>
             </div>
           </div>
@@ -658,13 +671,14 @@ function InvoicesPageContent() {
 }
 
 export default function InvoicesPage() {
+  const t = useTranslations("finance.invoicesPage");
   return (
     <>
-      <PageTitle title="חשבוניות" />
+      <PageTitle title={t("title")} />
       <TierGate
       feature="invoicing"
-      title="חשבוניות ומסמכים פיננסיים"
-      description="הפקת חשבוניות, קבלות ומסמכי חיוב מקצועיים עם אינטגרציה ל-Morning (Green Invoice). זמין במסלול Pro ומעלה."
+      title={t("tierGate.title")}
+      description={t("tierGate.description")}
       upgradeTier="pro"
     >
       <InvoicesPageContent />

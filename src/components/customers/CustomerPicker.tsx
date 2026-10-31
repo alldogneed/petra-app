@@ -6,6 +6,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import { Search, X, UserPlus } from "lucide-react";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { cn } from "@/lib/utils";
@@ -107,14 +108,17 @@ export function CustomerPicker({
   onSelect,
   onClear,
   selectedCustomer,
-  placeholder = "חיפוש לפי שם לקוח, טלפון או שם הכלב",
+  placeholder,
   autoFocus,
   className,
   disabled,
   requirePets,
   onCreateNew,
-  createNewLabel = "לקוח חדש",
+  createNewLabel,
 }: CustomerPickerProps) {
+  const t = useTranslations("customers.customerPicker");
+  const placeholderText = placeholder ?? t("placeholder");
+  const createNewText = createNewLabel ?? t("createNew");
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
   const [open, setOpen] = useState(false);
@@ -126,8 +130,8 @@ export function CustomerPicker({
   const listId = useId();
 
   useEffect(() => {
-    const t = setTimeout(() => setDebounced(query.trim()), DEBOUNCE_MS);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setDebounced(query.trim()), DEBOUNCE_MS);
+    return () => clearTimeout(timer);
   }, [query]);
 
   // Outside click closes
@@ -253,8 +257,8 @@ export function CustomerPicker({
             type="button"
             onClick={clear}
             className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted flex-shrink-0"
-            aria-label="החלף לקוח"
-            title="החלף לקוח"
+            aria-label={t("change")}
+            title={t("change")}
           >
             <X className="w-4 h-4" />
           </button>
@@ -269,12 +273,12 @@ export function CustomerPicker({
   return (
     <div ref={rootRef} className={cn("relative w-full", className)}>
       <div className="relative">
-        <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted pointer-events-none" />
+        <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted pointer-events-none" />
         <input
           ref={inputRef}
           type="text"
-          className="input pr-9"
-          placeholder={value ? "טוען לקוח..." : placeholder}
+          className="input ps-9"
+          placeholder={value ? t("loadingCustomer") : placeholderText}
           value={query}
           autoFocus={autoFocus}
           disabled={disabled}
@@ -299,7 +303,7 @@ export function CustomerPicker({
           ) : (
             <ul ref={listRef} id={listId} role="listbox" className="max-h-72 overflow-y-auto">
               {!q && rows.length > 0 && (
-                <li className="px-3 pt-2 pb-1 text-[11px] font-medium text-petra-muted">לקוחות אחרונים</li>
+                <li className="px-3 pt-2 pb-1 text-[11px] font-medium text-petra-muted">{t("recent")}</li>
               )}
               {rows.map((c, idx) => {
                 const petHits = q ? new Set(matchingPets(c, q).map((p) => p.id)) : new Set<string>();
@@ -310,7 +314,7 @@ export function CustomerPicker({
                       onMouseEnter={() => setActive(idx)}
                       onClick={() => choose(c)}
                       className={cn(
-                        "w-full text-right px-3 py-2.5 min-h-[48px] border-b border-slate-50 last:border-0 transition-colors",
+                        "w-full text-start px-3 py-2.5 min-h-[48px] border-b border-slate-50 last:border-0 transition-colors",
                         idx === active ? "bg-orange-50" : "hover:bg-slate-50"
                       )}
                     >
@@ -338,7 +342,7 @@ export function CustomerPicker({
                 );
               })}
               {rows.length === 0 && (
-                <li className="px-3 py-4 text-center text-sm text-petra-muted">לא נמצאו לקוחות</li>
+                <li className="px-3 py-4 text-center text-sm text-petra-muted">{t("noResults")}</li>
               )}
               {onCreateNew && (
                 <li data-idx={rows.length}>
@@ -350,12 +354,12 @@ export function CustomerPicker({
                       onCreateNew(q);
                     }}
                     className={cn(
-                      "w-full text-right px-3 py-3 text-sm font-medium text-brand-600 flex items-center gap-2 border-t border-slate-100",
+                      "w-full text-start px-3 py-3 text-sm font-medium text-brand-600 flex items-center gap-2 border-t border-slate-100",
                       active === rows.length ? "bg-orange-50" : "hover:bg-slate-50"
                     )}
                   >
                     <UserPlus className="w-4 h-4" />
-                    {createNewLabel}
+                    {createNewText}
                   </button>
                 </li>
               )}

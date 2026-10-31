@@ -5,6 +5,7 @@ import { DesktopBanner } from "@/components/ui/DesktopBanner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import {
   CalendarCheck,
   Clock,
@@ -20,7 +21,9 @@ import {
   MessageCircle,
   CalendarClock,
 } from "lucide-react";
-import { cn, fetchJSON, formatCurrency, formatRelativeTime, toWhatsAppPhone, copyToClipboard } from "@/lib/utils";
+import { cn, fetchJSON, formatRelativeTime, toWhatsAppPhone, copyToClipboard } from "@/lib/utils";
+import { formatCurrency } from "@/lib/format";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { useAuth } from "@/providers/auth-provider";
 import { TierGate } from "@/components/paywall/TierGate";
 import { PetraLoader } from "@/components/ui/PetraLoader";
@@ -45,35 +48,25 @@ function getServiceInfo(b: BookingData) {
   return { name: "—", price: 0 };
 }
 
-const BOOKING_STATUSES = [
-  { id: "ALL", label: "הכל" },
-  { id: "pending", label: "ממתין" },
-  { id: "confirmed", label: "מאושר" },
-  { id: "declined", label: "נדחה" },
-  { id: "cancelled", label: "בוטל" },
-];
+const BOOKING_STATUSES = ["ALL", "pending", "confirmed", "declined", "cancelled"] as const;
 
-const STATUS_INFO: Record<string, { label: string; color: string; icon: React.ElementType }> = {
-  pending: { label: "ממתין", color: "#F59E0B", icon: AlertCircle },
-  confirmed: { label: "מאושר", color: "#22C55E", icon: CheckCircle2 },
-  declined: { label: "נדחה", color: "#EF4444", icon: XCircle },
-  cancelled: { label: "בוטל", color: "#94A3B8", icon: XCircle },
+const STATUS_INFO: Record<string, { key: "pending" | "confirmed" | "declined" | "cancelled"; color: string; icon: React.ElementType }> = {
+  pending: { key: "pending", color: "#F59E0B", icon: AlertCircle },
+  confirmed: { key: "confirmed", color: "#22C55E", icon: CheckCircle2 },
+  declined: { key: "declined", color: "#EF4444", icon: XCircle },
+  cancelled: { key: "cancelled", color: "#94A3B8", icon: XCircle },
 };
 
-const EMPTY_MESSAGES: Record<string, { title: string; description: string }> = {
-  ALL: { title: "אין הזמנות", description: "שתף את קישור ההזמנה עם לקוחות כדי לקבל הזמנות" },
-  pending: { title: "אין הזמנות ממתינות", description: "כל ההזמנות טופלו" },
-  confirmed: { title: "אין הזמנות מאושרות", description: "הזמנות שתאשר יופיעו כאן" },
-  declined: { title: "אין הזמנות שנדחו", description: "הזמנות שתדחה יופיעו כאן" },
-  cancelled: { title: "אין הזמנות שבוטלו", description: "הזמנות שבוטלו יופיעו כאן" },
-};
+const EMPTY_MESSAGE_KEYS = ["ALL", "pending", "confirmed", "declined", "cancelled"] as const;
+type EmptyMessageKey = (typeof EMPTY_MESSAGE_KEYS)[number];
 
 export default function BookingsPage() {
+  const t = useTranslations("bookings.bookingsPage");
   return (
     <TierGate
       feature="online_bookings"
-      title="ניהול תורים אונליין"
-      description="קבל הזמנות מלקוחות, אשר או דחה תורים, ונהל את העמוד הציבורי שלך. שדרג כדי להפעיל."
+      title={t("tierGate.title")}
+      description={t("tierGate.description")}
     >
       <BookingsContent />
     </TierGate>
@@ -81,6 +74,9 @@ export default function BookingsPage() {
 }
 
 function BookingsContent() {
+  const t = useTranslations("bookings.bookingsPage");
+  const tc = useTranslations("common");
+  const { locale, currency, cfg } = useBusinessLocale();
   const [activeStatus, setActiveStatus] = useState("ALL");
   const [copiedLink, setCopiedLink] = useState(false);
   const [dateFrom, setDateFrom] = useState("");
@@ -123,20 +119,20 @@ function BookingsContent() {
           ...(startAt !== undefined && { startAt }),
           ...(endAt !== undefined && { endAt }),
         }),
-      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בעדכון"); return d; }),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || t("toasts.updateError")); return d; }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["bookings"] });
       // Confirmed/updated bookings appear on the calendar — keep it in sync
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
       queryClient.invalidateQueries({ queryKey: ["bookings-calendar"] });
-      toast.success("ההזמנה עודכנה בהצלחה");
+      toast.success(t("toasts.updated"));
       setSelectedBooking(null);
       setEditMode(false);
       setDeclineNote("");
       setShowDeclineInput(false);
     },
     onError: () => {
-      toast.error("שגיאה בעדכון ההזמנה. נסה שוב.");
+      toast.error(t("toasts.updateFailed"));
     },
   });
 
@@ -147,24 +143,26 @@ function BookingsContent() {
   }
 
   const pendingCount = bookings.filter((b) => b.status === "pending").length;
-  const emptyMsg = EMPTY_MESSAGES[activeStatus] || EMPTY_MESSAGES.ALL;
+  const emptyKey: EmptyMessageKey = (EMPTY_MESSAGE_KEYS as readonly string[]).includes(activeStatus)
+    ? (activeStatus as EmptyMessageKey)
+    : "ALL";
 
   return (
     <div>
       <DesktopBanner />
       <BookingsTabs />
       <div className="flex items-center gap-3 mb-6 flex-wrap">
-        <h1 className="page-title">ניהול תורים</h1>
+        <h1 className="page-title">{t("header.title")}</h1>
         <p className="text-sm text-petra-muted">
-          {bookings.length} הזמנות
-          {pendingCount > 0 && ` • ${pendingCount} ממתינות לאישור`}
+          {t("header.count", { count: bookings.length })}
+          {pendingCount > 0 && t("header.pendingSuffix", { count: pendingCount })}
         </p>
         <button
           onClick={copyLink}
           className="btn-secondary flex items-center gap-2"
         >
           <Copy className="w-4 h-4" />
-          {copiedLink ? "הועתק!" : "העתק קישור הזמנה"}
+          {copiedLink ? t("header.copied") : t("header.copyLink")}
         </button>
       </div>
 
@@ -175,30 +173,30 @@ function BookingsContent() {
         <div className="flex gap-1.5">
           {BOOKING_STATUSES.map((s) => (
             <button
-              key={s.id}
-              onClick={() => setActiveStatus(s.id)}
+              key={s}
+              onClick={() => setActiveStatus(s)}
               className={cn(
                 "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                activeStatus === s.id
+                activeStatus === s
                   ? "bg-brand-500 text-white"
                   : "bg-slate-100 text-petra-muted hover:bg-slate-200"
               )}
             >
-              {s.label}
+              {s === "ALL" ? t("filters.all") : t(`statuses.${s}`)}
             </button>
           ))}
         </div>
         <div className="flex gap-2 items-center">
           <input
-            type="date" lang="he"
+            type="date" lang={cfg.lang}
             value={dateFrom}
             onChange={(e) => setDateFrom(e.target.value)}
             className="input text-xs py-1.5 px-2"
-            placeholder="מתאריך"
+            placeholder={t("filters.dateFromPlaceholder")}
           />
-          <span className="text-xs text-petra-muted">עד</span>
+          <span className="text-xs text-petra-muted">{t("filters.dateRangeTo")}</span>
           <input
-            type="date" lang="he"
+            type="date" lang={cfg.lang}
             value={dateTo}
             onChange={(e) => setDateTo(e.target.value)}
             className="input text-xs py-1.5 px-2"
@@ -222,14 +220,14 @@ function BookingsContent() {
           <div className="empty-state-icon">
             <CalendarCheck className="w-6 h-6 text-slate-400" />
           </div>
-          <h3 className="text-base font-semibold text-petra-text mb-1">{emptyMsg.title}</h3>
-          <p className="text-sm text-petra-muted mb-4">{emptyMsg.description}</p>
+          <h3 className="text-base font-semibold text-petra-text mb-1">{t(`empty.${emptyKey}.title`)}</h3>
+          <p className="text-sm text-petra-muted mb-4">{t(`empty.${emptyKey}.description`)}</p>
           <button
             onClick={copyLink}
             className="btn-primary inline-flex items-center gap-2 mx-auto"
           >
             <Copy className="w-4 h-4" />
-            {copiedLink ? "הועתק!" : "העתק קישור הזמנה"}
+            {copiedLink ? t("header.copied") : t("header.copyLink")}
           </button>
         </div>
       ) : (
@@ -274,23 +272,23 @@ function BookingsContent() {
                           color: statusInfo.color,
                         }}
                       >
-                        {statusInfo.label}
+                        {t(`statuses.${statusInfo.key}`)}
                       </span>
                       {booking.source === "online" && (
-                        <span className="badge-neutral text-[10px]">אונליין</span>
+                        <span className="badge-neutral text-[10px]">{t("source.online")}</span>
                       )}
                       {booking.source === "manual" && (
-                        <span className="badge-neutral text-[10px]">ידני</span>
+                        <span className="badge-neutral text-[10px]">{t("source.manual")}</span>
                       )}
                     </div>
 
                     <div className="flex flex-wrap items-center gap-3 text-xs text-petra-muted mb-1">
                       <span className="flex items-center gap-1">
                         <Clock className="w-3 h-3" />
-                        {startDate.toLocaleDateString("he-IL")} {" "}
-                        {startDate.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}
+                        {startDate.toLocaleDateString(locale)} {" "}
+                        {startDate.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}
                         {" - "}
-                        {endDate.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}
+                        {endDate.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}
                       </span>
                       <span className="flex items-center gap-1">
                         <User className="w-3 h-3" />
@@ -314,9 +312,9 @@ function BookingsContent() {
                   </div>
 
                   {/* Price */}
-                  <div className="text-right flex-shrink-0">
+                  <div className="text-start flex-shrink-0">
                     <span className="text-sm font-bold text-petra-text">
-                      {formatCurrency(svcInfo.price)}
+                      {formatCurrency(svcInfo.price, { locale, currency })}
                     </span>
                   </div>
                 </div>
@@ -334,7 +332,7 @@ function BookingsContent() {
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-petra-text flex items-center gap-2">
                 <CalendarCheck className="w-5 h-5 text-brand-500" />
-                פרטי הזמנה
+                {t("detail.title")}
               </h3>
               <button onClick={() => { setSelectedBooking(null); setEditMode(false); }} className="p-1 rounded-lg hover:bg-slate-100 transition-colors">
                 <X className="w-4 h-4 text-slate-400" />
@@ -358,7 +356,7 @@ function BookingsContent() {
                       className="text-xs px-3 py-1 rounded-full font-medium"
                       style={{ background: `${statusInfo.color}15`, color: statusInfo.color }}
                     >
-                      {statusInfo.label}
+                      {t(`statuses.${statusInfo.key}`)}
                     </span>
                     <span className="text-xs text-petra-muted">
                       {formatRelativeTime(booking.createdAt)}
@@ -369,31 +367,31 @@ function BookingsContent() {
                   <div className="bg-slate-50 rounded-xl p-4 space-y-3">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-xs text-petra-muted">שירות</p>
+                        <p className="text-xs text-petra-muted">{t("detail.service")}</p>
                         <p className="font-semibold text-petra-text">{modalSvcInfo.name}</p>
-                        <p className="text-xs text-petra-muted">{modalDuration} דקות</p>
+                        <p className="text-xs text-petra-muted">{t("detail.minutes", { count: modalDuration })}</p>
                       </div>
                       <span className="text-lg font-bold text-petra-text">
-                        {formatCurrency(modalSvcInfo.price)}
+                        {formatCurrency(modalSvcInfo.price, { locale, currency })}
                       </span>
                     </div>
 
                     <div className="border-t border-slate-200 pt-3">
-                      <p className="text-xs text-petra-muted">תאריך ושעה</p>
+                      <p className="text-xs text-petra-muted">{t("detail.dateTime")}</p>
                       <p className="font-medium text-petra-text">
-                        {startDate.toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                        {startDate.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
                       </p>
                       <p className="text-sm text-petra-muted">
-                        {startDate.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}
+                        {startDate.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}
                         {" - "}
-                        {endDate.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}
+                        {endDate.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}
                       </p>
                     </div>
                   </div>
 
                   {/* Customer */}
                   <div className="space-y-2">
-                    <p className="text-xs text-petra-muted font-medium">פרטי לקוח</p>
+                    <p className="text-xs text-petra-muted font-medium">{t("detail.customerDetails")}</p>
                     <div className="flex flex-wrap gap-3 text-sm">
                       <span className="flex items-center gap-1.5 text-petra-text">
                         <User className="w-3.5 h-3.5 text-petra-muted" />
@@ -415,7 +413,7 @@ function BookingsContent() {
                   {/* Dogs */}
                   {dogNames.length > 0 && (
                     <div className="space-y-2">
-                      <p className="text-xs text-petra-muted font-medium">כלבים</p>
+                      <p className="text-xs text-petra-muted font-medium">{t("detail.dogs")}</p>
                       <div className="flex flex-wrap gap-2">
                         {dogNames.map((name, i) => (
                           <span key={i} className="flex items-center gap-1.5 text-sm bg-purple-50 text-purple-700 px-3 py-1 rounded-lg">
@@ -430,7 +428,7 @@ function BookingsContent() {
                   {/* Notes */}
                   {booking.notes && (
                     <div className="space-y-1">
-                      <p className="text-xs text-petra-muted font-medium">הערות</p>
+                      <p className="text-xs text-petra-muted font-medium">{t("detail.notes")}</p>
                       <p className="text-sm text-petra-text bg-slate-50 rounded-lg p-3">
                         {booking.notes}
                       </p>
@@ -440,25 +438,25 @@ function BookingsContent() {
                   {/* Inline edit form */}
                   {editMode && (
                     <div className="border border-brand-200 rounded-xl p-4 bg-brand-50/30 space-y-3">
-                      <p className="text-xs font-semibold text-petra-text">עריכת פרטי תור</p>
+                      <p className="text-xs font-semibold text-petra-text">{t("edit.title")}</p>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
-                          <label className="label text-xs">תאריך</label>
+                          <label className="label text-xs">{t("edit.date")}</label>
                           <input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} className="input w-full text-sm" />
                         </div>
                         <div className="grid grid-cols-2 gap-1.5">
                           <div>
-                            <label className="label text-xs">שעת התחלה</label>
+                            <label className="label text-xs">{t("edit.startTime")}</label>
                             <input type="time" value={editStartTime} onChange={(e) => setEditStartTime(e.target.value)} className="input w-full text-sm" />
                           </div>
                           <div>
-                            <label className="label text-xs">שעת סיום</label>
+                            <label className="label text-xs">{t("edit.endTime")}</label>
                             <input type="time" value={editEndTime} onChange={(e) => setEditEndTime(e.target.value)} className="input w-full text-sm" />
                           </div>
                         </div>
                       </div>
                       <div>
-                        <label className="label text-xs">הערות</label>
+                        <label className="label text-xs">{t("edit.notes")}</label>
                         <textarea value={editNotes} onChange={(e) => setEditNotes(e.target.value)} className="input w-full text-sm" rows={2} />
                       </div>
                       <div className="flex gap-2 pt-1">
@@ -471,9 +469,9 @@ function BookingsContent() {
                           disabled={!editDate || !editStartTime || !editEndTime || updateMutation.isPending}
                           className="btn-primary flex-1 text-sm py-2"
                         >
-                          {updateMutation.isPending ? "שומר..." : "שמור שינויים"}
+                          {updateMutation.isPending ? tc("progress.saving") : t("edit.saveChanges")}
                         </button>
-                        <button onClick={() => setEditMode(false)} className="btn-secondary flex-1 text-sm py-2">ביטול</button>
+                        <button onClick={() => setEditMode(false)} className="btn-secondary flex-1 text-sm py-2">{tc("actions.cancel")}</button>
                       </div>
                     </div>
                   )}
@@ -495,11 +493,11 @@ function BookingsContent() {
                         className="flex-1 px-4 py-2.5 rounded-lg bg-brand-50 text-brand-600 text-sm font-semibold hover:bg-brand-100 transition-colors flex items-center justify-center gap-2"
                       >
                         <CalendarClock className="w-4 h-4" />
-                        עריכת תור
+                        {t("actions.editAppointment")}
                       </button>
                       <button
                         onClick={() => {
-                          if (window.confirm(`לבטל את התור של ${booking.customer.name}?`)) {
+                          if (window.confirm(t("actions.cancelConfirm", { name: booking.customer.name }))) {
                             updateMutation.mutate({ id: booking.id, status: "cancelled" });
                           }
                         }}
@@ -507,7 +505,7 @@ function BookingsContent() {
                         className="flex-1 px-4 py-2.5 rounded-lg bg-red-50 text-red-600 text-sm font-semibold hover:bg-red-100 transition-colors flex items-center justify-center gap-2"
                       >
                         <XCircle className="w-4 h-4" />
-                        ביטול תור
+                        {t("actions.cancelAppointment")}
                       </button>
                     </div>
                   )}
@@ -521,7 +519,7 @@ function BookingsContent() {
                         className="w-full px-4 py-2.5 rounded-lg bg-emerald-50 text-emerald-600 text-sm font-semibold hover:bg-emerald-100 transition-colors flex items-center justify-center gap-2"
                       >
                         <CheckCircle2 className="w-4 h-4" />
-                        אשר מחדש
+                        {t("actions.reconfirm")}
                       </button>
                     </div>
                   )}
@@ -530,7 +528,7 @@ function BookingsContent() {
                   {booking.status === "cancelled" && (
                     <div className="border-t border-slate-100 pt-4">
                       <p className="text-sm text-petra-muted text-center bg-slate-50 rounded-lg py-2.5 px-3">
-                        הזמנה שבוטלה — לצפייה בלבד
+                        {t("actions.cancelledViewOnly")}
                       </p>
                     </div>
                   )}
@@ -540,11 +538,11 @@ function BookingsContent() {
                     <div className="border-t border-slate-100 pt-4 space-y-3">
                       {showDeclineInput ? (
                         <div className="space-y-2">
-                          <label className="text-xs font-medium text-petra-muted">סיבת הדחייה (אופציונלי)</label>
+                          <label className="text-xs font-medium text-petra-muted">{t("actions.declineReasonLabel")}</label>
                           <textarea
                             value={declineNote}
                             onChange={(e) => setDeclineNote(e.target.value)}
-                            placeholder="למשל: אין פנויות בשעה זו..."
+                            placeholder={t("actions.declineReasonPlaceholder")}
                             rows={2}
                             className="input w-full resize-none"
                           />
@@ -558,13 +556,13 @@ function BookingsContent() {
                               disabled={updateMutation.isPending}
                               className="flex-1 px-3 py-2 rounded-lg bg-red-500 text-white text-sm font-medium hover:bg-red-600 transition-colors"
                             >
-                              אשר דחייה
+                              {t("actions.confirmDecline")}
                             </button>
                             <button
                               onClick={() => setShowDeclineInput(false)}
                               className="px-3 py-2 rounded-lg bg-slate-100 text-sm text-petra-muted hover:bg-slate-200 transition-colors"
                             >
-                              ביטול
+                              {tc("actions.cancel")}
                             </button>
                           </div>
                         </div>
@@ -577,7 +575,7 @@ function BookingsContent() {
                               className="flex-1 px-4 py-2.5 rounded-lg bg-emerald-500 text-white text-sm font-semibold hover:bg-emerald-600 transition-colors flex items-center justify-center gap-2"
                             >
                               <CheckCircle2 className="w-4 h-4" />
-                              אשר הזמנה
+                              {t("actions.approve")}
                             </button>
                             <button
                               onClick={() => setShowDeclineInput(true)}
@@ -585,23 +583,23 @@ function BookingsContent() {
                               className="flex-1 px-4 py-2.5 rounded-lg bg-red-50 text-red-600 text-sm font-semibold hover:bg-red-100 transition-colors flex items-center justify-center gap-2"
                             >
                               <XCircle className="w-4 h-4" />
-                              דחה הזמנה
+                              {t("actions.decline")}
                             </button>
                           </div>
                           {booking.customer.phone && (() => {
-                            const dateStr = new Date(booking.startAt).toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" });
-                            const timeStr = new Date(booking.startAt).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" });
+                            const dateStr = new Date(booking.startAt).toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" }); // i18n-ok — part of the Hebrew customer WhatsApp text below (Phase 3)
+                            const timeStr = new Date(booking.startAt).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" }); // i18n-ok — customer WhatsApp text
                             const petNames = booking.dogs.map((d) => d.pet.name).join(", ");
                             const confirmMsg = [
-                              `שלום ${booking.customer.name}! 😊`,
-                              `ההזמנה שלך אושרה ✅`,
+                              `שלום ${booking.customer.name}! 😊`, // i18n-ok — customer WhatsApp text
+                              `ההזמנה שלך אושרה ✅`, // i18n-ok
                               "",
-                              `📅 תאריך: ${dateStr}`,
-                              `🕐 שעה: ${timeStr}`,
-                              `🐾 שירות: ${modalSvcInfo.name}`,
-                              petNames ? `🐕 חיית מחמד: ${petNames}` : null,
+                              `📅 תאריך: ${dateStr}`, // i18n-ok
+                              `🕐 שעה: ${timeStr}`, // i18n-ok
+                              `🐾 שירות: ${modalSvcInfo.name}`, // i18n-ok
+                              petNames ? `🐕 חיית מחמד: ${petNames}` : null, // i18n-ok
                               "",
-                              `מחכים לראותכם! 🐾`,
+                              `מחכים לראותכם! 🐾`, // i18n-ok
                             ].filter((line) => line !== null).join("\n");
                             return (
                               <button
@@ -616,9 +614,9 @@ function BookingsContent() {
                                         win.opener = null;
                                         win.location.href = waUrl;
                                       } else {
-                                        toast.warning("ההזמנה אושרה, אבל הדפדפן חסם את פתיחת WhatsApp", {
+                                        toast.warning(t("toasts.whatsappBlocked"), {
                                           duration: 15000,
-                                          action: { label: "פתח WhatsApp", onClick: () => window.open(waUrl, "_blank", "noopener,noreferrer") },
+                                          action: { label: t("toasts.openWhatsapp"), onClick: () => window.open(waUrl, "_blank", "noopener,noreferrer") },
                                         });
                                       }
                                     },
@@ -629,7 +627,7 @@ function BookingsContent() {
                                 className="w-full px-4 py-2.5 rounded-lg bg-green-50 text-green-700 text-sm font-semibold hover:bg-green-100 transition-colors flex items-center justify-center gap-2 border border-green-200"
                               >
                                 <MessageCircle className="w-4 h-4" />
-                                אשר + שלח אישור WhatsApp
+                                {t("actions.approveAndWhatsapp")}
                               </button>
                             );
                           })()}

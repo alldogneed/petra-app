@@ -7,6 +7,8 @@ import dynamic from "next/dynamic";
 import { useParams, useRouter } from "next/navigation";
 import { ShieldOff } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { useAuth } from "@/providers/auth-provider";
 import { usePlan } from "@/hooks/usePlan";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -41,13 +43,14 @@ const CreateOrderModal = dynamic(
 );
 
 export default function CustomerProfilePage() {
+  const t = useTranslations("customers.customersDetailPage");
   const perms = usePermissions();
   if (!perms.canSeePii) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
         <ShieldOff className="w-12 h-12 text-slate-300 mb-4" />
-        <h2 className="text-lg font-semibold text-petra-text mb-2">אין הרשאה</h2>
-        <p className="text-sm text-petra-muted">אין לך הרשאה לצפות בפרטי לקוחות. פנה למנהל העסק.</p>
+        <h2 className="text-lg font-semibold text-petra-text mb-2">{t("noAccess.title")}</h2>
+        <p className="text-sm text-petra-muted">{t("noAccess.description")}</p>
       </div>
     );
   }
@@ -57,6 +60,8 @@ export default function CustomerProfilePage() {
 type ModalName = "edit" | "order" | "appointment" | "task" | "compose" | "payment" | "delete" | "merge";
 
 function CustomerProfile() {
+  const t = useTranslations("customers.customersDetailPage");
+  const { cfg } = useBusinessLocale();
   const params = useParams();
   const customerId = params.id as string;
   const queryClient = useQueryClient();
@@ -93,16 +98,16 @@ function CustomerProfile() {
     onSuccess: (data) => {
       closeModal();
       if (data?.pendingApproval) {
-        toast.success("הבקשה נשלחה לאישור הבעלים");
+        toast.success(t("toasts.deleteRequested"));
         return;
       }
-      toast.success("הלקוח נמחק");
+      toast.success(t("toasts.deleted"));
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       router.push("/customers");
     },
     onError: (e: Error) => {
       closeModal();
-      toast.error(e?.message || "שגיאה במחיקת הלקוח. נסה שוב.");
+      toast.error(e?.message || t("toasts.deleteError"));
     },
   });
 
@@ -111,13 +116,13 @@ function CustomerProfile() {
   if (isError || !customer) {
     const isNotFound = (error as Error)?.message === "CUSTOMER_NOT_FOUND" || !customer;
     return (
-      <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4 text-center" dir="rtl">
+      <div className="flex flex-col items-center justify-center min-h-[50vh] gap-4 text-center" dir={cfg.dir}>
         <div className="text-6xl">{isNotFound ? "🔍" : "⚠️"}</div>
-        <h2 className="text-xl font-bold text-petra-text">{isNotFound ? "לקוח לא נמצא" : "שגיאה בטעינת הדף"}</h2>
+        <h2 className="text-xl font-bold text-petra-text">{isNotFound ? t("error.notFoundTitle") : t("error.loadTitle")}</h2>
         <p className="text-sm text-petra-muted max-w-xs">
-          {isNotFound ? "הלקוח שחיפשת לא קיים או שהקישור שגוי" : "משהו השתבש. אנא נסה לרענן את הדף."}
+          {isNotFound ? t("error.notFoundDescription") : t("error.loadDescription")}
         </p>
-        <Link href="/customers" className="btn-primary mt-2">חזרה לרשימת הלקוחות</Link>
+        <Link href="/customers" className="btn-primary mt-2">{t("error.backToList")}</Link>
       </div>
     );
   }
@@ -133,23 +138,23 @@ function CustomerProfile() {
 
   const openOrderModal = () => {
     if (!customer.pets?.length) {
-      toast.error("חובה להוסיף חיית מחמד ללקוח לפני יצירת הזמנה", { description: "לחץ על 'הוסף' בקטע חיות המחמד" });
+      toast.error(t("toasts.petRequired"), { description: t("toasts.petRequiredHint") });
       return;
     }
     setModal("order");
   };
   const openCompose = () => {
-    if (!hasPhone) return toast.error("אין מספר טלפון ללקוח");
+    if (!hasPhone) return toast.error(t("toasts.noPhone"));
     setModal("compose");
   };
 
   const navItems: SectionNavItem[] = [
-    { id: "pets", label: "חיות" },
-    { id: "appointments", label: "תורים" },
-    { id: "finance", label: "כספים" },
-    ...(salesHistory?.leads?.length ? [{ id: "sales-history", label: "מכירות" }] : []),
-    { id: "documents", label: "מסמכים" },
-    { id: "timeline", label: "ציר זמן" },
+    { id: "pets", label: t("nav.pets") },
+    { id: "appointments", label: t("nav.appointments") },
+    { id: "finance", label: t("nav.finance") },
+    ...(salesHistory?.leads?.length ? [{ id: "sales-history", label: t("nav.sales") }] : []),
+    { id: "documents", label: t("nav.documents") },
+    { id: "timeline", label: t("nav.timeline") },
   ];
 
   return (
@@ -281,7 +286,7 @@ function CustomerProfile() {
             closeModal();
             invalidateCustomer();
             queryClient.invalidateQueries({ queryKey: ["customers"] });
-            toast.success("הלקוחות מוזגו בהצלחה");
+            toast.success(t("toasts.merged"));
           }}
         />
       )}
@@ -289,12 +294,12 @@ function CustomerProfile() {
         open={modal === "delete"}
         onClose={closeModal}
         onConfirm={() => deleteCustomerMutation.mutate()}
-        title={deleteIsRequest ? "בקשת מחיקת לקוח" : "מחיקת לקוח"}
+        title={deleteIsRequest ? t("delete.requestTitle") : t("delete.title")}
         confirmText={customer.name}
         description={
           deleteIsRequest
-            ? "הבקשה תישלח לאישור הבעלים. לאחר האישור יימחקו הלקוח, הפגישות, התשלומים ותוכניות האימון המשויכים."
-            : "מחיקת הלקוח תסיר את כל הפגישות, התשלומים ותוכניות האימון המשויכות. פעולה זו אינה ניתנת לביטול."
+            ? t("delete.requestDescription")
+            : t("delete.description")
         }
         loading={deleteCustomerMutation.isPending}
       />

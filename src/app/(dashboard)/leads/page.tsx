@@ -45,6 +45,9 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
+import { formatTime } from "@/lib/format";
 
 interface Lead {
   id: string;
@@ -98,6 +101,8 @@ const STAGE_SWATCHES = [
 
 type SalesView = "board" | "followup" | "list" | "archive" | "reports";
 
+type LeadsPageT = ReturnType<typeof useTranslations<"leads.leadsPage">>;
+
 /** Normalize phone to 972XXXXXXXXX for local duplicate check */
 function toPhoneNormLocal(raw: string): string | null {
   const digits = raw.replace(/\D/g, "");
@@ -107,6 +112,8 @@ function toPhoneNormLocal(raw: string): string | null {
 }
 
 function NewLeadModal({ isOpen, onClose, stages }: { isOpen: boolean; onClose: () => void; stages: LeadStage[] }) {
+  const t = useTranslations("leads.leadsPage");
+  const tc = useTranslations("common");
   const queryClient = useQueryClient();
   const activeStages = stages.filter((s) => !s.isWon && !s.isLost);
   const emptyForm = { name: "", phone: "", email: "", city: "", address: "", requestedService: "", source: "manual", notes: "", stage: activeStages[0]?.id || "" };
@@ -124,15 +131,15 @@ function NewLeadModal({ isOpen, onClose, stages }: { isOpen: boolean; onClose: (
     if (!norm) { setPhoneWarning(null); return; }
     const cached = queryClient.getQueryData<Lead[]>(["leads"]) ?? [];
     const match = cached.find(l => l.phone && toPhoneNormLocal(l.phone) === norm);
-    setPhoneWarning(match ? `ליד קיים עם מספר זה: ${match.name}` : null);
+    setPhoneWarning(match ? t("newLead.existingPhoneWarning", { name: match.name }) : null);
   }
 
   const mutation = useMutation({
     mutationFn: (data: typeof form) =>
       fetch("/api/leads", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }).then(async (r) => {
         if (!r.ok) {
-          const body = await r.json().catch(() => ({ error: "שגיאה" }));
-          const err = new Error(body.error || "שגיאה");
+          const body = await r.json().catch(() => ({ error: t("newLead.errorFallback") }));
+          const err = new Error(body.error || t("newLead.errorFallback"));
           if (body.code) (err as unknown as Record<string, unknown>).code = body.code;
           throw err;
         }
@@ -142,16 +149,16 @@ function NewLeadModal({ isOpen, onClose, stages }: { isOpen: boolean; onClose: (
       queryClient.invalidateQueries({ queryKey: ["leads"] });
       onClose();
       if (data.existingCustomer) {
-        toast.warning(`ליד נוצר — שים לב: ${data.existingCustomer.name} כבר קיים כלקוח במערכת`, { duration: 6000 });
+        toast.warning(t("newLead.createdWithExistingCustomer", { name: data.existingCustomer.name }), { duration: 6000 });
       } else {
-        toast.success("הליד נוצר בהצלחה");
+        toast.success(t("newLead.created"));
       }
     },
     onError: (err: Error) => {
       if ((err as unknown as Record<string, unknown>).code === "LIMIT_REACHED") {
         triggerLimitModal(err.message);
       } else {
-        toast.error("שגיאה ביצירת הליד. נסה שוב.");
+        toast.error(t("newLead.createError"));
       }
     },
   });
@@ -163,7 +170,7 @@ function NewLeadModal({ isOpen, onClose, stages }: { isOpen: boolean; onClose: (
     const nameErr = validateName(form.name);
     if (nameErr) errors.name = nameErr;
     if (!form.phone.trim()) {
-      errors.phone = "טלפון הוא שדה חובה";
+      errors.phone = t("newLead.phoneRequired");
     } else {
       const phoneErr = validateIsraeliPhone(form.phone);
       if (phoneErr) errors.phone = phoneErr;
@@ -184,12 +191,12 @@ function NewLeadModal({ isOpen, onClose, stages }: { isOpen: boolean; onClose: (
       <div className="modal-backdrop" onClick={onClose} />
       <div className="modal-content max-w-lg mx-4 p-6">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-bold text-petra-text">ליד חדש</h2>
+          <h2 className="text-xl font-bold text-petra-text">{t("newLead.title")}</h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted"><X className="w-4 h-4" /></button>
         </div>
         <div className="space-y-4">
           <div>
-            <label className="label">שם *</label>
+            <label className="label">{t("newLead.nameLabel")}</label>
             <input
               className={cn("input", leadFieldErrors.name && "border-red-300 focus:ring-red-200")}
               value={form.name}
@@ -199,7 +206,7 @@ function NewLeadModal({ isOpen, onClose, stages }: { isOpen: boolean; onClose: (
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="label">טלפון *</label>
+              <label className="label">{t("newLead.phoneLabel")}</label>
               <input
                 type="tel"
                 dir="ltr"
@@ -226,7 +233,7 @@ function NewLeadModal({ isOpen, onClose, stages }: { isOpen: boolean; onClose: (
               )}
             </div>
             <div>
-              <label className="label">אימייל</label>
+              <label className="label">{t("newLead.emailLabel")}</label>
               <input
                 dir="ltr"
                 inputMode="email"
@@ -239,42 +246,42 @@ function NewLeadModal({ isOpen, onClose, stages }: { isOpen: boolean; onClose: (
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">עיר מגורים</label>
+              <label className="label">{t("newLead.cityLabel")}</label>
               <input
                 className="input"
                 value={form.city}
                 onChange={(e) => setForm({ ...form, city: e.target.value })}
-                placeholder="תל אביב"
+                placeholder={t("newLead.cityPlaceholder")}
               />
             </div>
             <div>
-              <label className="label">כתובת מדויקת</label>
+              <label className="label">{t("newLead.addressLabel")}</label>
               <input
                 className="input"
                 value={form.address}
                 onChange={(e) => setForm({ ...form, address: e.target.value })}
-                placeholder="רחוב, מספר"
+                placeholder={t("newLead.addressPlaceholder")}
               />
             </div>
           </div>
           <div>
-            <label className="label">שירות מבוקש</label>
+            <label className="label">{t("newLead.serviceLabel")}</label>
             <input
               className="input"
               value={form.requestedService}
               onChange={(e) => setForm({ ...form, requestedService: e.target.value })}
-              placeholder="אילוף, פנסיון, גרומינג..."
+              placeholder={t("newLead.servicePlaceholder")}
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">מקור</label>
+              <label className="label">{t("newLead.sourceLabel")}</label>
               <select className="input" value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })}>
                 {LEAD_SOURCES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
               </select>
             </div>
             <div>
-              <label className="label">שלב</label>
+              <label className="label">{t("newLead.stageLabel")}</label>
               <select className="input" value={form.stage} onChange={(e) => setForm({ ...form, stage: e.target.value })}>
                 {activeStages.map((s) => (
                   <option key={s.id} value={s.id}>{s.name}</option>
@@ -283,15 +290,15 @@ function NewLeadModal({ isOpen, onClose, stages }: { isOpen: boolean; onClose: (
             </div>
           </div>
           <div>
-            <label className="label">הערות</label>
+            <label className="label">{t("newLead.notesLabel")}</label>
             <textarea className="input" rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
           </div>
         </div>
         <div className="flex gap-3 mt-6">
           <button className="btn-primary flex-1" disabled={mutation.isPending} onClick={validateAndSubmitLead}>
-            <Plus className="w-4 h-4" />{mutation.isPending ? "שומר..." : "הוסף ליד"}
+            <Plus className="w-4 h-4" />{mutation.isPending ? tc("progress.saving") : t("newLead.submit")}
           </button>
-          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+          <button className="btn-secondary" onClick={onClose}>{tc("actions.cancel")}</button>
         </div>
       </div>
     </div>
@@ -301,7 +308,8 @@ function NewLeadModal({ isOpen, onClose, stages }: { isOpen: boolean; onClose: (
 
 // ─── Sales pipeline helpers ──────────────────────────────────────────────────
 
-const HE_WEEKDAYS = ["א׳", "ב׳", "ג׳", "ד׳", "ה׳", "ו׳", "ש׳"];
+// getDay() index → followUp.weekdays.* message key
+const WEEKDAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
 
 type FollowUpBucket = "overdue" | "today" | "tomorrow" | "week" | "later" | "none";
 
@@ -331,10 +339,6 @@ function clockOf(d: Date): string {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
-function dayMonth(d: Date): string {
-  return `${d.getDate()}.${d.getMonth() + 1}`;
-}
-
 function localDateInput(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
@@ -346,30 +350,37 @@ function atDayOffset(offset: number, hour: number): string {
   return d.toISOString();
 }
 
+/** Translator + business locale for the follow-up label; omitted → label "" (bucket / sortKey only). */
+interface FollowUpFmt {
+  t: LeadsPageT;
+  locale: string;
+}
+
 // Overdue = followUpDate < todayStart — the same condition sortLeadsByPriority() uses (rule #18).
-function getFollowUpInfo(nextFollowUpAt: string | null): FollowUpInfo {
+function getFollowUpInfo(nextFollowUpAt: string | null, fmt?: FollowUpFmt): FollowUpInfo {
   const neutral = { bg: "#F8FAFC", border: "#E2E8F0" };
   if (!nextFollowUpAt) {
-    return { bucket: "none", label: "ללא מועד חזרה", color: "#94A3B8", ...neutral, sortKey: Number.POSITIVE_INFINITY };
+    return { bucket: "none", label: fmt ? fmt.t("followUp.none") : "", color: "#94A3B8", ...neutral, sortKey: Number.POSITIVE_INFINITY };
   }
   const d = new Date(nextFollowUpAt);
   const todayStart = startOfToday();
   const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   const diff = Math.round((dayStart.getTime() - todayStart.getTime()) / 86400000);
-  const time = hasClockTime(d) ? clockOf(d) : "";
-  const withTime = (s: string) => (time ? `${s} · ${time}` : s);
+  const time = fmt && hasClockTime(d) ? formatTime(clockOf(d), { locale: fmt.locale }) : "";
+  const withTime = (s: string) => (time && fmt ? fmt.t("followUp.withTime", { label: s, time }) : s);
+  const dm = fmt ? fmt.t("followUp.dayMonth", { day: d.getDate(), month: d.getMonth() + 1 }) : "";
   const sortKey = d.getTime();
 
   if (d < todayStart) {
-    return { bucket: "overdue", label: `באיחור · ${dayMonth(d)}`, color: "#B91C1C", bg: "#FEF2F2", border: "#FECACA", sortKey };
+    return { bucket: "overdue", label: fmt ? fmt.t("followUp.overdue", { date: dm }) : "", color: "#B91C1C", bg: "#FEF2F2", border: "#FECACA", sortKey };
   }
   if (diff <= 0) {
-    return { bucket: "today", label: withTime("היום"), color: "#C2410C", bg: "#FFF7ED", border: "#FED7AA", sortKey };
+    return { bucket: "today", label: withTime(fmt ? fmt.t("followUp.today") : ""), color: "#C2410C", bg: "#FFF7ED", border: "#FED7AA", sortKey };
   }
   if (diff === 1) {
-    return { bucket: "tomorrow", label: withTime(`מחר ${dayMonth(d)}`), color: "#475569", ...neutral, sortKey };
+    return { bucket: "tomorrow", label: withTime(fmt ? fmt.t("followUp.tomorrow", { date: dm }) : ""), color: "#475569", ...neutral, sortKey };
   }
-  const weekdayLabel = withTime(`${HE_WEEKDAYS[d.getDay()]} ${dayMonth(d)}`);
+  const weekdayLabel = withTime(fmt ? fmt.t("followUp.weekday", { weekday: fmt.t(`followUp.weekdays.${WEEKDAY_KEYS[d.getDay()]}`), date: dm }) : "");
   if (diff < 7) {
     return { bucket: "week", label: weekdayLabel, color: "#475569", ...neutral, sortKey };
   }
@@ -385,26 +396,27 @@ function byFollowUp(a: Lead, b: Lead): number {
 
 const FU_DROP_PREFIX = "fu:";
 
+// Column name = followUp.columns.<id>
 const FOLLOW_UP_COLUMNS: {
-  id: string;
-  name: string;
+  id: "overdue" | "today" | "tomorrow" | "week" | "later";
   color: string;
   buckets: FollowUpBucket[];
   target: (() => string) | null;
 }[] = [
-  { id: "overdue", name: "באיחור", color: "#EF4444", buckets: ["overdue"], target: null },
-  { id: "today", name: "היום", color: "#F97316", buckets: ["today"], target: () => atDayOffset(0, 18) },
-  { id: "tomorrow", name: "מחר", color: "#3B82F6", buckets: ["tomorrow"], target: () => atDayOffset(1, 10) },
-  { id: "week", name: "השבוע", color: "#8B5CF6", buckets: ["week"], target: () => atDayOffset(3, 10) },
-  { id: "later", name: "בהמשך / ללא מועד", color: "#94A3B8", buckets: ["later", "none"], target: () => atDayOffset(7, 10) },
+  { id: "overdue", color: "#EF4444", buckets: ["overdue"], target: null },
+  { id: "today", color: "#F97316", buckets: ["today"], target: () => atDayOffset(0, 18) },
+  { id: "tomorrow", color: "#3B82F6", buckets: ["tomorrow"], target: () => atDayOffset(1, 10) },
+  { id: "week", color: "#8B5CF6", buckets: ["week"], target: () => atDayOffset(3, 10) },
+  { id: "later", color: "#94A3B8", buckets: ["later", "none"], target: () => atDayOffset(7, 10) },
 ];
 
+// Label = followUp.quick.<id>
 const FOLLOW_UP_QUICK = [
-  { label: "היום 18:00", at: () => atDayOffset(0, 18) },
-  { label: "מחר 10:00", at: () => atDayOffset(1, 10) },
-  { label: "בעוד 3 ימים", at: () => atDayOffset(3, 10) },
-  { label: "בעוד שבוע", at: () => atDayOffset(7, 10) },
-];
+  { id: "today18", at: () => atDayOffset(0, 18) },
+  { id: "tomorrow10", at: () => atDayOffset(1, 10) },
+  { id: "in3Days", at: () => atDayOffset(3, 10) },
+  { id: "inWeek", at: () => atDayOffset(7, 10) },
+] as const;
 
 function isHexColor(c: string | null | undefined): c is string {
   return !!c && /^#[0-9a-fA-F]{6}$/.test(c);
@@ -420,8 +432,8 @@ function parseLeadMeta(notes: string | null): { city: string | null; service: st
   let city: string | null = null;
   let service: string | null = null;
   const lines = notes.split("\n").filter((line) => {
-    const cityMatch = line.match(/^עיר:\s*(.+)/);
-    const serviceMatch = line.match(/^שירות מבוקש:\s*(.+)/);
+    const cityMatch = line.match(/^עיר:\s*(.+)/); // i18n-ok — legacy notes format (data)
+    const serviceMatch = line.match(/^שירות מבוקש:\s*(.+)/); // i18n-ok — legacy notes format (data)
     if (cityMatch) { city = cityMatch[1].trim(); return false; }
     if (serviceMatch) { service = serviceMatch[1].trim(); return false; }
     return true;
@@ -474,6 +486,9 @@ function StageDot({ color }: { color: string }) {
 // ─── Follow-up picker (card pill popover) ────────────────────────────────────
 
 function FollowUpPicker({ lead, onClose }: { lead: Lead; onClose: () => void }) {
+  const t = useTranslations("leads.leadsPage");
+  const tc = useTranslations("common");
+  const { cfg } = useBusinessLocale();
   const queryClient = useQueryClient();
   const initial = lead.nextFollowUpAt ? new Date(lead.nextFollowUpAt) : null;
   const [date, setDate] = useState(initial ? localDateInput(initial) : "");
@@ -490,16 +505,16 @@ function FollowUpPicker({ lead, onClose }: { lead: Lead; onClose: () => void }) 
       queryClient.invalidateQueries({ queryKey: ["leads"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["sidebar-counters"] });
-      toast.success(iso ? "מועד החזרה נשמר ומשימה נוצרה" : "מועד החזרה נוקה");
+      toast.success(iso ? t("followUp.picker.saved") : t("followUp.picker.cleared"));
       onClose();
     },
-    onError: () => toast.error("שגיאה בעדכון מועד החזרה"),
+    onError: () => toast.error(t("followUp.picker.updateError")),
   });
 
   const saveCustom = () => {
     if (!date) { mutation.mutate(null); return; }
     const d = new Date(`${date}T${time || "10:00"}`);
-    if (isNaN(d.getTime())) { toast.error("תאריך לא תקין"); return; }
+    if (isNaN(d.getTime())) { toast.error(t("followUp.picker.invalidDate")); return; }
     mutation.mutate(d.toISOString());
   };
 
@@ -507,24 +522,24 @@ function FollowUpPicker({ lead, onClose }: { lead: Lead; onClose: () => void }) 
     <>
       <div className="fixed inset-0 z-30" onClick={onClose} />
       <div className={cn("absolute top-9 inset-x-0 z-40 min-w-[200px] bg-white border border-slate-200 rounded-xl p-3", POPOVER_SHADOW)}>
-        <p className="text-xs font-semibold text-slate-500 mb-2">מועד חזרה · {lead.name}</p>
+        <p className="text-xs font-semibold text-slate-500 mb-2">{t("followUp.picker.title", { name: lead.name })}</p>
         <div className="grid grid-cols-2 gap-1.5 mb-3">
           {FOLLOW_UP_QUICK.map((q) => (
             <button
-              key={q.label}
+              key={q.id}
               type="button"
               disabled={mutation.isPending}
               onClick={() => mutation.mutate(q.at())}
               className="h-8 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-700 hover:border-[#FED7AA] hover:bg-[#FFF7ED] hover:text-[#C2410C] transition-colors disabled:opacity-50"
             >
-              {q.label}
+              {t(`followUp.quick.${q.id}`)}
             </button>
           ))}
         </div>
         <div className="grid grid-cols-1 gap-1.5">
           <input
             type="date"
-            lang="he"
+            lang={cfg.lang}
             value={date}
             onChange={(e) => setDate(e.target.value)}
             className="h-9 w-full border border-slate-200 rounded-lg px-2 text-[13px] bg-white outline-none focus:border-[#FB923C] focus:ring-[3px] focus:ring-orange-500/15"
@@ -544,7 +559,7 @@ function FollowUpPicker({ lead, onClose }: { lead: Lead; onClose: () => void }) 
             onClick={saveCustom}
             className="flex-1 h-8 rounded-lg bg-[#F97316] hover:bg-[#EA580C] text-white text-xs font-semibold transition-colors disabled:opacity-50"
           >
-            {mutation.isPending ? "שומר..." : "שמירה"}
+            {mutation.isPending ? tc("progress.saving") : t("followUp.picker.save")}
           </button>
           {lead.nextFollowUpAt && (
             <button
@@ -553,7 +568,7 @@ function FollowUpPicker({ lead, onClose }: { lead: Lead; onClose: () => void }) 
               onClick={() => mutation.mutate(null)}
               className="h-8 px-3 rounded-lg border border-slate-200 bg-white text-xs text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
             >
-              ניקוי
+              {t("followUp.picker.clear")}
             </button>
           )}
         </div>
@@ -583,6 +598,8 @@ function LeadCard({
   isSelected?: boolean;
   onToggleSelect?: () => void;
 }) {
+  const t = useTranslations("leads.leadsPage");
+  const { locale } = useBusinessLocale();
   const [showPicker, setShowPicker] = useState(false);
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: lead.id,
@@ -590,7 +607,7 @@ function LeadCard({
     disabled: selectionMode, // no dragging while selecting — clicks toggle selection
   });
 
-  const fu = getFollowUpInfo(lead.nextFollowUpAt);
+  const fu = getFollowUpInfo(lead.nextFollowUpAt, { t, locale });
   const { city, service } = leadMeta(lead);
   const snippet = leadSnippet(lead);
   const attributionLine = formatAttributionLine({ trafficSource: lead.trafficSource, landingPage: lead.landingPage });
@@ -614,7 +631,7 @@ function LeadCard({
       {selectionMode && (
         <button
           type="button"
-          aria-label={isSelected ? "בטל בחירת ליד" : "בחר ליד"}
+          aria-label={isSelected ? t("card.deselectLead") : t("card.selectLead")}
           className="absolute inset-0 z-10 cursor-pointer rounded-xl"
           onClick={(e) => { e.stopPropagation(); onToggleSelect?.(); }}
         />
@@ -628,7 +645,7 @@ function LeadCard({
         )}
         <span className="text-sm font-semibold text-petra-text flex-1 min-w-0 truncate">{lead.name}</span>
         {lead.dealValue != null && (
-          <span className="text-xs text-slate-500 tabular-nums flex-shrink-0" title="ערך עסקה">{formatIls(lead.dealValue)}</span>
+          <span className="text-xs text-slate-500 tabular-nums flex-shrink-0" title={t("card.dealValue")}>{formatIls(lead.dealValue)}</span>
         )}
         {!selectionMode && (
           <button
@@ -636,8 +653,8 @@ function LeadCard({
             onClick={(e) => { e.stopPropagation(); onDetails(); }}
             onPointerDown={(e) => e.stopPropagation()}
             onTouchStart={(e) => e.stopPropagation()}
-            title="פרטי ליד"
-            aria-label="פרטי ליד"
+            title={t("card.details")}
+            aria-label={t("card.details")}
             className="w-8 h-8 sm:w-6 sm:h-6 -my-1 -me-1.5 rounded-md flex items-center justify-center text-slate-300 hover:text-slate-700 hover:bg-slate-100 transition-colors flex-shrink-0 self-center"
           >
             <FileText className="w-3.5 h-3.5" />
@@ -665,13 +682,13 @@ function LeadCard({
       {(lead.existingCustomer || lead.duplicateLead) && (
         <div className="flex gap-1 mt-1.5 flex-wrap">
           {lead.existingCustomer && (
-            <span className="text-[11px] px-2 py-px rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-medium" title={`לקוח קיים: ${lead.existingCustomer.name}`}>
-              לקוח קיים
+            <span className="text-[11px] px-2 py-px rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-medium" title={t("card.existingCustomerTitle", { name: lead.existingCustomer.name })}>
+              {t("card.existingCustomer")}
             </span>
           )}
           {lead.duplicateLead && !lead.existingCustomer && (
-            <span className="text-[11px] px-2 py-px rounded-full bg-orange-50 text-orange-700 border border-orange-200 font-medium" title={`ליד חוזר — פנייה קודמת: ${lead.duplicateLead.name}`}>
-              ליד חוזר
+            <span className="text-[11px] px-2 py-px rounded-full bg-orange-50 text-orange-700 border border-orange-200 font-medium" title={t("card.returningLeadTitle", { name: lead.duplicateLead.name })}>
+              {t("card.returningLead")}
             </span>
           )}
         </div>
@@ -692,7 +709,7 @@ function LeadCard({
           <button
             type="button"
             onClick={() => setShowPicker((v) => !v)}
-            title="עדכון מועד חזרה"
+            title={t("card.updateFollowUp")}
             className="inline-flex items-center gap-1 h-8 sm:h-6 px-2 rounded-full border text-xs font-medium tabular-nums whitespace-nowrap max-w-full overflow-hidden"
             style={{ color: fu.color, background: fu.bg, borderColor: fu.border }}
           >
@@ -702,11 +719,11 @@ function LeadCard({
           {showPicker && <FollowUpPicker lead={lead} onClose={() => setShowPicker(false)} />}
         </div>
         {lead.phone && (
-          <button type="button" onClick={() => openWhatsApp(lead.phone!)} title="וואטסאפ" className={cn(WA_BTN, "w-9 h-9 sm:w-7 sm:h-7")}>
+          <button type="button" onClick={() => openWhatsApp(lead.phone!)} title={t("card.whatsapp")} className={cn(WA_BTN, "w-9 h-9 sm:w-7 sm:h-7")}>
             <MessageCircle className="w-3.5 h-3.5" />
           </button>
         )}
-        <button type="button" onClick={onOpen} title="תיעוד שיחה" className={cn(CALL_BTN, "w-9 h-9 sm:w-7 sm:h-7")}>
+        <button type="button" onClick={onOpen} title={t("card.logCall")} className={cn(CALL_BTN, "w-9 h-9 sm:w-7 sm:h-7")}>
           <Phone className="w-3.5 h-3.5" />
         </button>
       </div>
@@ -753,6 +770,7 @@ function StageColumn({
   selectedIds?: Set<string>;
   onToggleSelect?: (id: string) => void;
 }) {
+  const t = useTranslations("leads.leadsPage");
   const { isOver, setNodeRef } = useDroppable({ id: stage.id, disabled: editMode });
   const [showColorPicker, setShowColorPicker] = useState(false);
   const columnValue = sumDealValues(leads);
@@ -780,7 +798,7 @@ function StageColumn({
         <button
           type="button"
           onClick={() => setShowColorPicker((v) => !v)}
-          title="שינוי צבע"
+          title={t("column.changeColor")}
           className="w-[18px] h-[18px] rounded-full flex items-center justify-center hover:bg-slate-200 transition-colors flex-shrink-0"
         >
           <StageDot color={stage.color} />
@@ -788,14 +806,14 @@ function StageColumn({
         {showColorPicker && (
           <>
             <div className="fixed inset-0 z-30" onClick={() => setShowColorPicker(false)} />
-            <div className={cn("absolute top-8 right-0 z-40 bg-white border border-slate-200 rounded-xl p-2.5 w-44", POPOVER_SHADOW)}>
-              <div className="text-xs text-slate-500 mb-2 truncate">צבע לשלב &quot;{stage.name}&quot;</div>
+            <div className={cn("absolute top-8 start-0 z-40 bg-white border border-slate-200 rounded-xl p-2.5 w-44", POPOVER_SHADOW)}>
+              <div className="text-xs text-slate-500 mb-2 truncate">{t("column.colorFor", { name: stage.name })}</div>
               <div className="grid grid-cols-5 gap-1.5">
                 {STAGE_SWATCHES.map((c) => (
                   <button
                     key={c}
                     type="button"
-                    aria-label={`צבע ${c}`}
+                    aria-label={t("column.colorSwatch", { color: c })}
                     className="w-[26px] h-[26px] rounded-full"
                     style={{
                       background: c,
@@ -832,21 +850,21 @@ function StageColumn({
         <span className="text-[13px] text-slate-400 tabular-nums">{leads.length}</span>
 
         {columnValue > 0 && (
-          <span className="ms-auto text-xs text-slate-500 tabular-nums whitespace-nowrap" title="סה״כ ערך עסקאות בשלב">
+          <span className="ms-auto text-xs text-slate-500 tabular-nums whitespace-nowrap" title={t("column.totalDealValue")}>
             {formatIls(columnValue)}
           </span>
         )}
 
         {editMode && (
           stage.isWon || stage.isLost ? (
-            <span title="לא ניתן למחוק שלב זה" className={columnValue > 0 ? "" : "ms-auto"}>
+            <span title={t("column.cannotDelete")} className={columnValue > 0 ? "" : "ms-auto"}>
               <Lock className="w-4 h-4 text-petra-muted" />
             </span>
           ) : (
             <button
               onClick={() => onDelete(stage)}
               className={cn("w-6 h-6 flex items-center justify-center rounded-md text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors", columnValue > 0 ? "" : "ms-auto")}
-              title="מחק שלב"
+              title={t("column.deleteStage")}
             >
               <Trash2 className="w-4 h-4" />
             </button>
@@ -874,7 +892,7 @@ function StageColumn({
           </div>
         ))}
         {leads.length === 0 && !isOver && (
-          <div className="text-[13px] text-slate-400 text-center py-6">אין לידים בשלב הזה</div>
+          <div className="text-[13px] text-slate-400 text-center py-6">{t("column.empty")}</div>
         )}
       </div>
     </div>
@@ -915,6 +933,7 @@ function FollowUpColumn({
   onLeadClick: (l: Lead) => void;
   onDetails: (l: Lead) => void;
 }) {
+  const t = useTranslations("leads.leadsPage");
   const droppable = !!column.target;
   const { isOver, setNodeRef } = useDroppable({ id: FU_DROP_PREFIX + column.id, disabled: !droppable });
   const columnValue = sumDealValues(leads);
@@ -931,7 +950,7 @@ function FollowUpColumn({
     >
       <div className="flex items-center gap-2 px-1.5 pt-1 pb-3">
         <StageDot color={column.color} />
-        <span className="text-sm font-semibold text-petra-text">{column.name}</span>
+        <span className="text-sm font-semibold text-petra-text">{t(`followUp.columns.${column.id}`)}</span>
         <span className="text-[13px] text-slate-400 tabular-nums">{leads.length}</span>
         {columnValue > 0 && (
           <span className="ms-auto text-xs text-slate-500 tabular-nums whitespace-nowrap">{formatIls(columnValue)}</span>
@@ -950,7 +969,7 @@ function FollowUpColumn({
         ))}
         {leads.length === 0 && !isOver && (
           <div className="text-[13px] text-slate-400 text-center py-6">
-            {column.id === "overdue" ? "אין פולואפים באיחור" : "אין פולואפים כאן"}
+            {column.id === "overdue" ? t("followUp.emptyOverdue") : t("followUp.empty")}
           </div>
         )}
       </div>
@@ -976,6 +995,7 @@ function ArchiveDropZones({
   lostStage?: LeadStage;
   active: boolean;
 }) {
+  const t = useTranslations("leads.leadsPage");
   const won = useDroppable({ id: wonStage?.id || "__won", disabled: !wonStage });
   const lost = useDroppable({ id: lostStage?.id || "__lost", disabled: !lostStage });
 
@@ -988,20 +1008,20 @@ function ArchiveDropZones({
   // Always mounted (so dnd-kit measures them on drag start) — only faded in while a card is dragged.
   return (
     <div
-      className={cn("fixed bottom-5 left-4 md:left-6 z-40 flex gap-3 transition-opacity duration-150", active ? "opacity-100" : "opacity-0 pointer-events-none")}
-      style={{ right: "calc(var(--petra-shell-inset, 0px) + 16px)" }}
+      className={cn("fixed bottom-5 end-4 md:end-6 z-40 flex gap-3 transition-opacity duration-150", active ? "opacity-100" : "opacity-0 pointer-events-none")}
+      style={{ insetInlineStart: "calc(var(--petra-shell-inset, 0px) + 16px)" }}
       aria-hidden={!active}
     >
       {wonStage && (
         <div ref={won.setNodeRef} className={cn(zone, "border-[#6EE7B7] text-[#047857]", won.isOver ? "bg-[#ECFDF5]" : "bg-white")}>
-          נסגר כלקוח
-          <span className="text-[11px] font-normal text-slate-500 tabular-nums">{wonLeads.length} נסגרו{archiveValueSuffix(wonLeads)}</span>
+          {t("dropZones.won")}
+          <span className="text-[11px] font-normal text-slate-500 tabular-nums">{t("dropZones.wonCount", { count: wonLeads.length, suffix: archiveValueSuffix(wonLeads) })}</span>
         </div>
       )}
       {lostStage && (
         <div ref={lost.setNodeRef} className={cn(zone, "border-[#FCA5A5] text-[#B91C1C]", lost.isOver ? "bg-[#FEF2F2]" : "bg-white")}>
-          אבד · לארכיון
-          <span className="text-[11px] font-normal text-slate-500 tabular-nums">{lostLeads.length} אבודים{archiveValueSuffix(lostLeads)}</span>
+          {t("dropZones.lost")}
+          <span className="text-[11px] font-normal text-slate-500 tabular-nums">{t("dropZones.lostCount", { count: lostLeads.length, suffix: archiveValueSuffix(lostLeads) })}</span>
         </div>
       )}
     </div>
@@ -1023,16 +1043,18 @@ function LeadsListView({
   onLeadClick: (l: Lead) => void;
   onDetails: (l: Lead) => void;
 }) {
+  const t = useTranslations("leads.leadsPage");
+  const { locale } = useBusinessLocale();
   return (
     <div className={cn(PANEL, "overflow-x-auto")}>
       <div className="min-w-[1000px]">
         <div className={cn(LIST_GRID, "py-3 border-b border-slate-200 text-xs font-semibold text-slate-500")}>
-          <span>ליד</span><span>שירות</span><span>עיר</span><span>מקור</span><span>שלב</span><span>חזרה</span><span>שווי</span><span />
+          <span>{t("list.headers.lead")}</span><span>{t("list.headers.service")}</span><span>{t("list.headers.city")}</span><span>{t("list.headers.source")}</span><span>{t("list.headers.stage")}</span><span>{t("list.headers.followUp")}</span><span>{t("list.headers.value")}</span><span />
         </div>
         {leads.map((lead) => {
           const { city, service } = leadMeta(lead);
           const stage = stagesById.get(lead.stage);
-          const fu = getFollowUpInfo(lead.nextFollowUpAt);
+          const fu = getFollowUpInfo(lead.nextFollowUpAt, { t, locale });
           return (
             <div
               key={lead.id}
@@ -1053,15 +1075,15 @@ function LeadsListView({
               <span className="font-medium tabular-nums truncate" style={{ color: fu.color }}>{fu.label}</span>
               <span className="tabular-nums">{lead.dealValue != null ? formatIls(lead.dealValue) : "—"}</span>
               <span className="flex gap-1 justify-end" onClick={(e) => e.stopPropagation()}>
-                <button type="button" onClick={() => onDetails(lead)} title="פרטי ליד" className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors">
+                <button type="button" onClick={() => onDetails(lead)} title={t("card.details")} className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors">
                   <FileText className="w-3.5 h-3.5" />
                 </button>
                 {lead.phone && (
-                  <button type="button" onClick={() => openWhatsApp(lead.phone!)} title="וואטסאפ" className={cn(WA_BTN, "w-7 h-7")}>
+                  <button type="button" onClick={() => openWhatsApp(lead.phone!)} title={t("card.whatsapp")} className={cn(WA_BTN, "w-7 h-7")}>
                     <MessageCircle className="w-3.5 h-3.5" />
                   </button>
                 )}
-                <button type="button" onClick={() => onLeadClick(lead)} title="תיעוד שיחה" className={cn(CALL_BTN, "w-7 h-7")}>
+                <button type="button" onClick={() => onLeadClick(lead)} title={t("card.logCall")} className={cn(CALL_BTN, "w-7 h-7")}>
                   <Phone className="w-3.5 h-3.5" />
                 </button>
               </span>
@@ -1069,7 +1091,7 @@ function LeadsListView({
           );
         })}
         {leads.length === 0 && (
-          <div className="py-10 text-center text-[13px] text-slate-400">לא נמצאו לידים</div>
+          <div className="py-10 text-center text-[13px] text-slate-400">{t("list.empty")}</div>
         )}
       </div>
     </div>
@@ -1099,9 +1121,11 @@ function MobileBoard({
   onShownChange?: (ids: string[]) => void;
   onTabChange?: () => void;
 }) {
+  const t = useTranslations("leads.leadsPage");
+  const { locale } = useBusinessLocale();
   const [tab, setTabState] = useState<string>("focus");
-  const setTab = (t: string) => {
-    setTabState(t);
+  const setTab = (id: string) => {
+    setTabState(id);
     onTabChange?.();
   };
   const stagesById = useMemo(() => new Map(activeStages.map((s) => [s.id, s])), [activeStages]);
@@ -1110,7 +1134,7 @@ function MobileBoard({
     return b === "overdue" || b === "today";
   });
   const tabs = [
-    { id: "focus", label: "לטיפול", count: focus.length },
+    { id: "focus", label: t("mobile.focusTab"), count: focus.length },
     ...activeStages.map((s) => ({ id: s.id, label: s.name, count: leads.filter((l) => l.stage === s.id).length })),
   ];
   const shown = (tab === "focus" ? focus : leads.filter((l) => l.stage === tab)).slice().sort(byFollowUp);
@@ -1123,15 +1147,15 @@ function MobileBoard({
   return (
     <div>
       <div className="flex gap-1.5 overflow-x-auto scrollbar-hide -mx-4 px-4 pb-0.5">
-        {tabs.map((t) => (
-          <button key={t.id} type="button" onClick={() => setTab(t.id)} className={chipClass(tab === t.id, true)}>
-            {t.label} <span className="opacity-70 tabular-nums">{t.count}</span>
+        {tabs.map((tb) => (
+          <button key={tb.id} type="button" onClick={() => setTab(tb.id)} className={chipClass(tab === tb.id, true)}>
+            {tb.label} <span className="opacity-70 tabular-nums">{tb.count}</span>
           </button>
         ))}
       </div>
       <div className={cn("flex flex-col gap-2 mt-3.5", selectionMode ? "pb-40" : "pb-8")}>
         {shown.map((lead) => {
-          const fu = getFollowUpInfo(lead.nextFollowUpAt);
+          const fu = getFollowUpInfo(lead.nextFollowUpAt, { t, locale });
           const { city, service } = leadMeta(lead);
           const stage = stagesById.get(lead.stage);
           const isSelected = selectionMode && (selectedIds?.has(lead.id) ?? false);
@@ -1170,10 +1194,10 @@ function MobileBoard({
                 <span className="flex-1 min-w-0 text-[13px] font-medium tabular-nums truncate" style={{ color: fu.color }}>{fu.label}</span>
                 {lead.phone && !selectionMode && (
                   <>
-                    <button type="button" onClick={() => openWhatsApp(lead.phone!)} aria-label="וואטסאפ" className={cn(WA_BTN, "w-11 h-11 rounded-xl")}>
+                    <button type="button" onClick={() => openWhatsApp(lead.phone!)} aria-label={t("card.whatsapp")} className={cn(WA_BTN, "w-11 h-11 rounded-xl")}>
                       <MessageCircle className="w-[18px] h-[18px]" />
                     </button>
-                    <a href={`tel:${lead.phone}`} aria-label="חיוג ללקוח" className={cn(CALL_BTN, "w-11 h-11 rounded-xl")}>
+                    <a href={`tel:${lead.phone}`} aria-label={t("mobile.callClient")} className={cn(CALL_BTN, "w-11 h-11 rounded-xl")}>
                       <Phone className="w-[18px] h-[18px]" />
                     </a>
                   </>
@@ -1183,7 +1207,7 @@ function MobileBoard({
           );
         })}
         {shown.length === 0 && (
-          <div className="py-10 text-center text-[13px] text-slate-400">{tab === "focus" ? "אין לידים לטיפול היום" : "אין לידים כאן"}</div>
+          <div className="py-10 text-center text-[13px] text-slate-400">{tab === "focus" ? t("mobile.emptyFocus") : t("mobile.empty")}</div>
         )}
       </div>
     </div>
@@ -1209,6 +1233,8 @@ function ArchiveTab({
   searchQuery: string;
   onLeadClick: (l: Lead) => void;
 }) {
+  const t = useTranslations("leads.leadsPage");
+  const { locale } = useBusinessLocale();
   const queryClient = useQueryClient();
   const [restoreLead, setRestoreLead] = useState<Lead | null>(null);
   const [filterType, setFilterType] = useState<"all" | "won" | "lost">("all");
@@ -1240,9 +1266,9 @@ function ArchiveTab({
   return (
     <div>
       <div className="flex items-center gap-1 mb-4 flex-wrap">
-        {([["all", "הכל"], ["won", "נסגרו"], ["lost", "אבודים"]] as const).map(([f, label]) => (
+        {(["all", "won", "lost"] as const).map((f) => (
           <button key={f} type="button" onClick={() => setFilterType(f)} className={chipClass(filterType === f)}>
-            {label} <span className="tabular-nums opacity-80">{counts[f]}</span>
+            {t(`archive.filters.${f}`)} <span className="tabular-nums opacity-80">{counts[f]}</span>
           </button>
         ))}
       </div>
@@ -1250,7 +1276,7 @@ function ArchiveTab({
       <div className={cn(PANEL, "overflow-x-auto")}>
         <div className="min-w-[900px]">
           <div className={cn(ARCHIVE_GRID, "py-3 border-b border-slate-200 text-xs font-semibold text-slate-500")}>
-            <span>ליד</span><span>שירות</span><span>סטטוס</span><span>סיבה / הערה</span><span>תאריך</span><span>שווי</span><span />
+            <span>{t("archive.headers.lead")}</span><span>{t("archive.headers.service")}</span><span>{t("archive.headers.status")}</span><span>{t("archive.headers.reason")}</span><span>{t("archive.headers.date")}</span><span>{t("archive.headers.value")}</span><span />
           </div>
           {filtered.map(lead => {
             const isWon = lead.stage === wonStage?.id;
@@ -1276,7 +1302,7 @@ function ArchiveTab({
                       dir="ltr"
                       onClick={(e) => e.stopPropagation()}
                       className="block text-xs text-slate-500 hover:text-[#047857] tabular-nums text-right"
-                      title="שלח וואטסאפ"
+                      title={t("archive.sendWhatsapp")}
                     >
                       {lead.phone}
                     </a>
@@ -1288,11 +1314,11 @@ function ArchiveTab({
                     "inline-block text-xs font-medium px-2.5 py-0.5 rounded-full border",
                     isWon ? "bg-[#ECFDF5] text-[#047857] border-[#A7F3D0]" : "bg-[#FEF2F2] text-[#B91C1C] border-[#FECACA]",
                   )}>
-                    {isWon ? "נסגר" : "אבוד"}
+                    {isWon ? t("archive.wonBadge") : t("archive.lostBadge")}
                   </span>
                 </span>
                 <span className="text-slate-600 truncate" title={reason}>{reason}</span>
-                <span className="text-slate-500 tabular-nums whitespace-nowrap">{date ? new Date(date).toLocaleDateString("he-IL") : "—"}</span>
+                <span className="text-slate-500 tabular-nums whitespace-nowrap">{date ? new Date(date).toLocaleDateString(locale) : "—"}</span>
                 <span className="tabular-nums">{lead.dealValue != null ? formatIls(lead.dealValue) : "—"}</span>
                 <span className="flex justify-end">
                   <button
@@ -1300,14 +1326,14 @@ function ArchiveTab({
                     onClick={(e) => { e.stopPropagation(); setRestoreLead(lead); }}
                     className="h-[30px] px-3 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-700 hover:border-[#FED7AA] hover:text-[#C2410C] hover:bg-[#FFF7ED] transition-colors whitespace-nowrap"
                   >
-                    החזר ליד
+                    {t("archive.restore")}
                   </button>
                 </span>
               </div>
             );
           })}
           {filtered.length === 0 && (
-            <div className="py-12 text-center text-[13px] text-slate-400">{searchQuery ? "לא נמצאו תוצאות" : "הארכיון ריק"}</div>
+            <div className="py-12 text-center text-[13px] text-slate-400">{searchQuery ? t("archive.noResults") : t("archive.empty")}</div>
           )}
         </div>
       </div>
@@ -1331,6 +1357,7 @@ function ArchiveTab({
 // ─── Add Stage Inline ────────────────────────────────────────────────────────
 
 function AddStageInline({ onAdd, triggerOpen = 0 }: { onAdd: (name: string) => void; triggerOpen?: number }) {
+  const t = useTranslations("leads.leadsPage");
   const [isAdding, setIsAdding] = useState(false);
   const [name, setName] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -1362,7 +1389,7 @@ function AddStageInline({ onAdd, triggerOpen = 0 }: { onAdd: (name: string) => v
           className="flex items-center gap-2 px-4 py-3 rounded-xl border-2 border-dashed border-slate-200 text-petra-muted hover:border-brand-300 hover:text-brand-600 transition-colors"
         >
           <Plus className="w-4 h-4" />
-          <span className="text-sm font-medium">הוסף שלב</span>
+          <span className="text-sm font-medium">{t("addStage.button")}</span>
         </button>
       </div>
     );
@@ -1384,7 +1411,7 @@ function AddStageInline({ onAdd, triggerOpen = 0 }: { onAdd: (name: string) => v
             if (name.trim()) handleSubmit();
             else { setIsAdding(false); setName(""); }
           }}
-          placeholder="שם השלב..."
+          placeholder={t("addStage.placeholder")}
           autoFocus
         />
       </div>
@@ -1405,30 +1432,32 @@ function DeleteStageModal({
   onConfirm: () => void;
   onClose: () => void;
 }) {
+  const t = useTranslations("leads.leadsPage");
+  const tc = useTranslations("common");
   return (
     <div className="modal-overlay">
       <div className="modal-backdrop" onClick={onClose} />
       <div className="modal-content max-w-sm mx-4 p-6">
         <h3 className="text-lg font-bold text-petra-text mb-3">
-          מחיקת שלב &quot;{stage.name}&quot;
+          {t("deleteStage.title", { name: stage.name })}
         </h3>
         {leadCount > 0 ? (
           <>
             <p className="text-sm text-petra-muted mb-4">
-              לא ניתן למחוק שלב זה כי יש בו {leadCount} לידים. העבר את הלידים לשלב אחר לפני המחיקה.
+              {t("deleteStage.hasLeads", { count: leadCount })}
             </p>
             <div className="flex justify-end">
-              <button className="btn-secondary" onClick={onClose}>הבנתי</button>
+              <button className="btn-secondary" onClick={onClose}>{t("deleteStage.gotIt")}</button>
             </div>
           </>
         ) : (
           <>
             <p className="text-sm text-petra-muted mb-4">
-              האם למחוק את השלב? לא ניתן לשחזר פעולה זו.
+              {t("deleteStage.confirm")}
             </p>
             <div className="flex gap-3 justify-end">
-              <button className="btn-secondary" onClick={onClose}>ביטול</button>
-              <button className="btn-danger" onClick={onConfirm}>מחק שלב</button>
+              <button className="btn-secondary" onClick={onClose}>{tc("actions.cancel")}</button>
+              <button className="btn-danger" onClick={onConfirm}>{t("deleteStage.delete")}</button>
             </div>
           </>
         )}
@@ -1450,6 +1479,8 @@ function RestoreLeadModal({
   onClose: () => void;
   onRestored: () => void;
 }) {
+  const t = useTranslations("leads.leadsPage");
+  const tc = useTranslations("common");
   // If previousStageId is set and still exists as active stage → pre-select it
   const prevStage = lead.previousStageId
     ? activeStages.find(s => s.id === lead.previousStageId)
@@ -1474,10 +1505,10 @@ function RestoreLeadModal({
         }),
       });
       if (!res.ok) throw new Error("Failed");
-      toast.success(`"${lead.name}" הוחזר למערכת הלידים`);
+      toast.success(t("restore.restored", { name: lead.name }));
       onRestored();
     } catch {
-      toast.error("שגיאה בהחזרת הליד");
+      toast.error(t("restore.error"));
     } finally {
       setSaving(false);
     }
@@ -1488,7 +1519,7 @@ function RestoreLeadModal({
       <div className="modal-backdrop" />
       <div className="modal-content max-w-sm mx-4 p-6" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold">החזר ליד לקנבן</h2>
+          <h2 className="text-lg font-bold">{t("restore.title")}</h2>
           <button onClick={onClose} className="btn-ghost p-1"><X className="w-5 h-5" /></button>
         </div>
 
@@ -1496,7 +1527,7 @@ function RestoreLeadModal({
         {!showPicker && prevStage ? (
           <>
             <p className="text-sm text-petra-muted mb-4">
-              להחזיר את <span className="font-semibold text-petra-text">{lead.name}</span> לשלב האחרון שלו?
+              {t.rich("restore.toLastStage", { name: lead.name, b: (c) => <span className="font-semibold text-petra-text">{c}</span> })}
             </p>
             <div className="flex items-center gap-3 px-4 py-3 rounded-xl border-2 border-brand-300 bg-brand-50 mb-5">
               <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: prevStage.color }} />
@@ -1509,9 +1540,9 @@ function RestoreLeadModal({
                 className="btn-primary flex-1 flex items-center justify-center gap-2"
               >
                 {saving ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <RotateCcw className="w-4 h-4" />}
-                החזר לשלב זה
+                {t("restore.restoreHere")}
               </button>
-              <button onClick={() => setShowPicker(true)} className="btn-secondary px-3" title="בחר שלב אחר">
+              <button onClick={() => setShowPicker(true)} className="btn-secondary px-3" title={t("restore.pickOther")}>
                 <ChevronDown className="w-4 h-4" />
               </button>
             </div>
@@ -1519,7 +1550,7 @@ function RestoreLeadModal({
         ) : (
           <>
             <p className="text-sm text-petra-muted mb-4">
-              לאיזה שלב להחזיר את <span className="font-semibold text-petra-text">{lead.name}</span>?
+              {t.rich("restore.whichStage", { name: lead.name, b: (c) => <span className="font-semibold text-petra-text">{c}</span> })}
             </p>
             <div className="space-y-2 mb-5">
               {activeStages.map(stage => (
@@ -1527,7 +1558,7 @@ function RestoreLeadModal({
                   key={stage.id}
                   onClick={() => setSelectedStage(stage.id)}
                   className={cn(
-                    "w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all text-right",
+                    "w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 text-sm font-medium transition-all text-start",
                     selectedStage === stage.id
                       ? "border-brand-500 bg-brand-50 text-brand-700"
                       : "border-slate-200 hover:border-slate-300 text-petra-text"
@@ -1545,9 +1576,9 @@ function RestoreLeadModal({
                 className="btn-primary flex-1 flex items-center justify-center gap-2"
               >
                 {saving ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <RotateCcw className="w-4 h-4" />}
-                החזר ליד
+                {t("restore.restore")}
               </button>
-              <button onClick={onClose} className="btn-secondary flex-1">ביטול</button>
+              <button onClick={onClose} className="btn-secondary flex-1">{tc("actions.cancel")}</button>
             </div>
           </>
         )}
@@ -1588,6 +1619,9 @@ function sortLeadsByPriority(leads: Lead[]): Lead[] {
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 function LeadsPageContent() {
+  const t = useTranslations("leads.leadsPage");
+  const tc = useTranslations("common");
+  const { locale, cfg } = useBusinessLocale();
   const { canExportData } = usePermissions();
   const [showModal, setShowModal] = useState(false);
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
@@ -1694,7 +1728,7 @@ function LeadsPageContent() {
       if (stage?.isWon || stage?.isLost) setActiveTab("archive");
       setSelectedLead(target);
     } else {
-      toast.error("הליד לא נמצא");
+      toast.error(t("toasts.leadNotFound"));
     }
     router.replace("/leads", { scroll: false });
   }, [leadParam, leads, leadsInitialLoading, stages, stagesLoading, router]);
@@ -1733,19 +1767,19 @@ function LeadsPageContent() {
       if (fromStageName && toStageName) {
         await fetch(`/api/leads/${id}/logs`, {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ type: "stage_change", summary: `הועבר מ"${fromStageName}" ל"${toStageName}"`, treatment: "" }),
+          body: JSON.stringify({ type: "stage_change", summary: `הועבר מ"${fromStageName}" ל"${toStageName}"`, treatment: "" }), // i18n-ok — parsed by parseStageChangeSummary() (sales-report.ts)
         });
       }
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["leads"] }),
-    onError: () => toast.error("שגיאה בהזזת הליד. נסה שוב."),
+    onError: () => toast.error(t("toasts.moveError")),
   });
 
   const updateStageMutation = useMutation({
     mutationFn: ({ id, ...data }: { id: string; name?: string; color?: string }) =>
       fetch(`/api/leads/stages/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lead-stages"] }),
-    onError: () => toast.error("שגיאה בעדכון השלב. נסה שוב."),
+    onError: () => toast.error(t("toasts.stageUpdateError")),
   });
 
   const createStageMutation = useMutation({
@@ -1753,9 +1787,9 @@ function LeadsPageContent() {
       fetch("/api/leads/stages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["lead-stages"] });
-      toast.success("השלב נוצר בהצלחה");
+      toast.success(t("toasts.stageCreated"));
     },
-    onError: () => toast.error("שגיאה ביצירת השלב. נסה שוב."),
+    onError: () => toast.error(t("toasts.stageCreateError")),
   });
 
   const deleteStageMutation = useMutation({
@@ -1763,16 +1797,16 @@ function LeadsPageContent() {
       fetch(`/api/leads/stages/${id}`, { method: "DELETE" }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["lead-stages"] });
-      toast.success("השלב נמחק");
+      toast.success(t("toasts.stageDeleted"));
     },
-    onError: () => toast.error("שגיאה במחיקת השלב. נסה שוב."),
+    onError: () => toast.error(t("toasts.stageDeleteError")),
   });
 
   const reorderMutation = useMutation({
     mutationFn: (stageIds: string[]) =>
       fetch("/api/leads/stages/reorder", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ stageIds }) }).then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["lead-stages"] }),
-    onError: () => toast.error("שגיאה בסידור השלבים. נסה שוב."),
+    onError: () => toast.error(t("toasts.reorderError")),
   });
 
   // ─── Bulk Delete mutation ──────────────────────────────────────────────
@@ -1809,11 +1843,11 @@ function LeadsPageContent() {
       setShowBulkDeleteConfirm(false);
       setSelectedIds(new Set());
       setSelectionMode(false);
-      if (deleted > 0) toast.success(`${deleted} לידים נמחקו`);
-      if (pending > 0) toast.success(`${pending} בקשות מחיקה נשלחו לאישור הבעלים`);
-      if (failed > 0) toast.error(`${failed} מחיקות נכשלו. נסה שוב.`);
+      if (deleted > 0) toast.success(t("toasts.bulkDeleted", { count: deleted }));
+      if (pending > 0) toast.success(t("toasts.bulkPending", { count: pending }));
+      if (failed > 0) toast.error(t("toasts.bulkFailed", { count: failed }));
     },
-    onError: () => toast.error("שגיאה במחיקת הלידים. נסה שוב."),
+    onError: () => toast.error(t("toasts.bulkError")),
   });
 
   // ─── Follow-up reschedule (follow-up view drag) ────────────────────────
@@ -1828,11 +1862,11 @@ function LeadsPageContent() {
       queryClient.invalidateQueries({ queryKey: ["leads"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["sidebar-counters"] });
-      toast.success(`פולואפ ל${name}: ${getFollowUpInfo(at).label}`);
+      toast.success(t("toasts.followUpMoved", { name, label: getFollowUpInfo(at, { t, locale }).label }));
     },
     onError: () => {
       queryClient.invalidateQueries({ queryKey: ["leads"] });
-      toast.error("שגיאה בעדכון מועד החזרה. נסה שוב.");
+      toast.error(t("toasts.followUpMoveError"));
     },
   });
 
@@ -2050,11 +2084,11 @@ function LeadsPageContent() {
   const atLeadLimit = maxLeads !== null && leads.length >= maxLeads;
 
   const views: { id: SalesView; label: string }[] = [
-    { id: "board", label: "שלבי מכירה" },
-    { id: "followup", label: `פולואפים · ${overdueCount + todayCount}` },
-    { id: "list", label: "רשימה" },
-    { id: "archive", label: `ארכיון · ${archiveCount}` },
-    ...(canViewAnalytics ? [{ id: "reports" as const, label: "דוחות" }] : []),
+    { id: "board", label: t("views.board") },
+    { id: "followup", label: t("views.followup", { count: overdueCount + todayCount }) },
+    { id: "list", label: t("views.list") },
+    { id: "archive", label: t("views.archive", { count: archiveCount }) },
+    ...(canViewAnalytics ? [{ id: "reports" as const, label: t("views.reports") }] : []),
   ];
 
   const openLead = (lead: Lead) => setSelectedLead(lead);
@@ -2068,7 +2102,7 @@ function LeadsPageContent() {
       <div className="flex items-end justify-between gap-x-4 gap-y-3 flex-wrap">
         <div className="min-w-0 flex-1 md:flex-none">
           <div className="flex items-center justify-between gap-3">
-            <h1 className="text-xl md:text-2xl font-bold tracking-[-0.02em] text-petra-text">מערכת מכירות</h1>
+            <h1 className="text-xl md:text-2xl font-bold tracking-[-0.02em] text-petra-text">{t("header.title")}</h1>
             {/* Mobile: "בחר" (bulk select / delete) + compact new-lead button next to the title */}
             {activeTab === "board" && !editMode && (
               <button
@@ -2081,24 +2115,24 @@ function LeadsPageContent() {
                 )}
               >
                 <CheckSquare className="w-4 h-4" />
-                {selectionMode ? "בטל" : "בחר"}
+                {selectionMode ? t("header.cancel") : t("header.select")}
               </button>
             )}
             {atLeadLimit ? (
-              <a href="/upgrade" aria-label="שדרג לבייסיק" className="md:hidden w-11 h-11 rounded-xl bg-amber-500 text-white flex items-center justify-center flex-shrink-0">
+              <a href="/upgrade" aria-label={t("header.upgrade")} className="md:hidden w-11 h-11 rounded-xl bg-amber-500 text-white flex items-center justify-center flex-shrink-0">
                 <Sparkles className="w-5 h-5" />
               </a>
             ) : (
-              <button type="button" aria-label="ליד חדש" onClick={() => setShowModal(true)} className="md:hidden w-11 h-11 rounded-xl bg-[#F97316] active:bg-[#EA580C] text-white flex items-center justify-center flex-shrink-0">
+              <button type="button" aria-label={t("header.newLead")} onClick={() => setShowModal(true)} className="md:hidden w-11 h-11 rounded-xl bg-[#F97316] active:bg-[#EA580C] text-white flex items-center justify-center flex-shrink-0">
                 <Plus className="w-5 h-5" />
               </button>
             )}
           </div>
           <div className="mt-1.5 text-[13px] md:text-sm text-slate-500 flex gap-x-3.5 gap-y-1 flex-wrap tabular-nums">
-            <span>{openLeads.length === 1 ? "ליד פתוח אחד" : `${openLeads.length} לידים פתוחים`}</span>
-            {pipelineValue > 0 && <span>{formatIls(pipelineValue)} בצנרת</span>}
-            <span className="text-[#B91C1C] font-medium">{overdueCount} באיחור</span>
-            <span className="text-[#C2410C] font-medium">{todayCount} להיום</span>
+            <span>{openLeads.length === 1 ? t("header.oneOpenLead") : t("header.openLeads", { count: openLeads.length })}</span>
+            {pipelineValue > 0 && <span>{t("header.pipeline", { amount: formatIls(pipelineValue) })}</span>}
+            <span className="text-[#B91C1C] font-medium">{t("header.overdue", { count: overdueCount })}</span>
+            <span className="text-[#C2410C] font-medium">{t("header.today", { count: todayCount })}</span>
           </div>
         </div>
         <div className="flex items-center gap-2.5 w-full md:w-auto min-w-0">
@@ -2121,7 +2155,7 @@ function LeadsPageContent() {
           </div>
           {atLeadLimit ? (
             <a href="/upgrade" className="hidden md:flex h-[38px] px-4 rounded-[10px] bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold items-center gap-1.5 flex-shrink-0 transition-colors">
-              <Sparkles className="w-4 h-4" />שדרג לבייסיק
+              <Sparkles className="w-4 h-4" />{t("header.upgrade")}
             </a>
           ) : (
             <button
@@ -2129,7 +2163,7 @@ function LeadsPageContent() {
               onClick={() => setShowModal(true)}
               className="hidden md:flex h-[38px] px-4 rounded-[10px] bg-[#F97316] hover:bg-[#EA580C] text-white text-sm font-semibold items-center gap-1.5 flex-shrink-0 transition-colors"
             >
-              <Plus className="w-4 h-4" />ליד חדש
+              <Plus className="w-4 h-4" />{t("header.newLead")}
               {maxLeads !== null && <span className="opacity-75 text-xs tabular-nums">({leads.length}/{maxLeads})</span>}
             </button>
           )}
@@ -2144,12 +2178,12 @@ function LeadsPageContent() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={activeTab === "archive" ? "חיפוש בארכיון" : "חיפוש לפי שם, טלפון או עיר"}
-              className="w-full h-9 border border-slate-200 rounded-[10px] pr-[34px] pl-8 text-[13px] bg-white outline-none transition-shadow focus:border-[#FB923C] focus:ring-[3px] focus:ring-orange-500/15"
+              placeholder={activeTab === "archive" ? t("toolbar.searchArchive") : t("toolbar.searchPlaceholder")}
+              className="w-full h-9 border border-slate-200 rounded-[10px] ps-[34px] pe-8 text-[13px] bg-white outline-none transition-shadow focus:border-[#FB923C] focus:ring-[3px] focus:ring-orange-500/15"
             />
-            <Search className="absolute right-[11px] top-2.5 w-4 h-4 text-slate-400 pointer-events-none" />
+            <Search className="absolute start-[11px] top-2.5 w-4 h-4 text-slate-400 pointer-events-none" />
             {searchQuery && (
-              <button type="button" aria-label="נקה חיפוש" onClick={() => setSearchQuery("")} className="absolute left-2.5 top-2.5 text-slate-400 hover:text-slate-700">
+              <button type="button" aria-label={t("toolbar.clearSearch")} onClick={() => setSearchQuery("")} className="absolute end-2.5 top-2.5 text-slate-400 hover:text-slate-700">
                 <X className="w-3.5 h-3.5" />
               </button>
             )}
@@ -2157,7 +2191,7 @@ function LeadsPageContent() {
 
           {archiveHits > 0 && (
             <button type="button" onClick={() => setActiveTab("archive")} className="text-[13px] font-medium text-[#EA580C] hover:text-[#C2410C] flex items-center gap-1">
-              <Archive className="w-3.5 h-3.5" />נמצאו {archiveHits} בארכיון ←
+              <Archive className="w-3.5 h-3.5" />{t("toolbar.archiveHits", { count: archiveHits })}
             </button>
           )}
 
@@ -2165,10 +2199,10 @@ function LeadsPageContent() {
             <select
               value={sourceFilter ?? ""}
               onChange={(e) => setSourceFilter(e.target.value || null)}
-              aria-label="סינון לפי מקור"
-              className={cn(TOOL_BTN, "hidden md:flex pl-2 pr-3 cursor-pointer", sourceFilter && TOOL_BTN_ON)}
+              aria-label={t("toolbar.sourceFilter")}
+              className={cn(TOOL_BTN, "hidden md:flex pe-2 ps-3 cursor-pointer", sourceFilter && TOOL_BTN_ON)}
             >
-              <option value="">כל המקורות</option>
+              <option value="">{t("toolbar.allSources")}</option>
               {LEAD_SOURCES.map((src) => {
                 const count = leads.filter((l) => l.source === src.id).length;
                 if (count === 0 && sourceFilter !== src.id) return null;
@@ -2195,7 +2229,7 @@ function LeadsPageContent() {
                   }}
                 >
                   <CheckSquare className="w-3.5 h-3.5" />
-                  {selectionMode ? "בטל בחירה" : "בחר"}
+                  {selectionMode ? t("toolbar.cancelSelection") : t("toolbar.select")}
                 </button>
                 <button
                   type="button"
@@ -2208,19 +2242,20 @@ function LeadsPageContent() {
                   }}
                 >
                   <Pencil className="w-3.5 h-3.5" />
-                  {editMode ? "סיום עריכה" : "עריכת שלבים"}
+                  {editMode ? t("toolbar.doneEditing") : t("toolbar.editStages")}
                 </button>
                 {editMode && (
                   <button
                     type="button"
                     className={TOOL_BTN}
                     onClick={() => {
-                      setAddStageTrigger((t) => t + 1);
-                      setTimeout(() => { kanbanScrollRef.current?.scrollTo({ left: -kanbanScrollRef.current.scrollWidth, behavior: "smooth" }); }, 50);
+                      setAddStageTrigger((n) => n + 1);
+                      // The add-stage column sits at the inline end: far left in RTL, far right in LTR.
+                      setTimeout(() => { kanbanScrollRef.current?.scrollTo({ left: (cfg.dir === "rtl" ? -1 : 1) * kanbanScrollRef.current.scrollWidth, behavior: "smooth" }); }, 50);
                     }}
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    הוסף שלב
+                    {t("addStage.button")}
                   </button>
                 )}
               </>
@@ -2229,25 +2264,25 @@ function LeadsPageContent() {
             {/* Export */}
             {canExportData && (
             <div className="relative" ref={exportMenuRef}>
-              <button type="button" className={TOOL_BTN} onClick={() => setShowExportMenu((v) => !v)} title="ייצוא לידים">
-                <Download className="w-3.5 h-3.5" />ייצוא
+              <button type="button" className={TOOL_BTN} onClick={() => setShowExportMenu((v) => !v)} title={t("toolbar.exportLeads")}>
+                <Download className="w-3.5 h-3.5" />{t("toolbar.export")}
               </button>
               {showExportMenu && (
-                <div className={cn("absolute left-0 top-full mt-1.5 w-64 bg-white rounded-xl border border-slate-200 z-50 p-4 space-y-3", POPOVER_SHADOW)}>
-                  <p className="text-xs font-semibold text-petra-text">ייצוא לידים לאקסל</p>
+                <div className={cn("absolute end-0 top-full mt-1.5 w-64 bg-white rounded-xl border border-slate-200 z-50 p-4 space-y-3", POPOVER_SHADOW)}>
+                  <p className="text-xs font-semibold text-petra-text">{t("toolbar.exportTitle")}</p>
                   <div className="space-y-2">
                     <div>
-                      <label className="text-xs text-petra-muted mb-1 block">מתאריך</label>
-                      <input type="date" lang="he" className="input text-sm py-1.5" value={exportFrom} onChange={(e) => setExportFrom(e.target.value)} />
+                      <label className="text-xs text-petra-muted mb-1 block">{t("toolbar.exportFrom")}</label>
+                      <input type="date" lang={cfg.lang} className="input text-sm py-1.5" value={exportFrom} onChange={(e) => setExportFrom(e.target.value)} />
                     </div>
                     <div>
-                      <label className="text-xs text-petra-muted mb-1 block">עד תאריך</label>
-                      <input type="date" lang="he" className="input text-sm py-1.5" value={exportTo} onChange={(e) => setExportTo(e.target.value)} />
+                      <label className="text-xs text-petra-muted mb-1 block">{t("toolbar.exportTo")}</label>
+                      <input type="date" lang={cfg.lang} className="input text-sm py-1.5" value={exportTo} onChange={(e) => setExportTo(e.target.value)} />
                     </div>
                   </div>
-                  <p className="text-[11px] text-petra-muted">ללא סינון תאריך — ייצא את כל הלידים</p>
+                  <p className="text-[11px] text-petra-muted">{t("toolbar.exportHint")}</p>
                   <button type="button" className="w-full h-9 rounded-[10px] bg-[#F97316] hover:bg-[#EA580C] text-white text-sm font-semibold flex items-center justify-center gap-1.5 transition-colors" onClick={exportLeads}>
-                    <Download className="w-3.5 h-3.5" />הורד CSV
+                    <Download className="w-3.5 h-3.5" />{t("toolbar.downloadCsv")}
                   </button>
                 </div>
               )}
@@ -2259,8 +2294,8 @@ function LeadsPageContent() {
               type="button"
               onClick={() => refetchLeads()}
               disabled={leadsLoading}
-              title="רענן עכשיו"
-              aria-label="רענן עכשיו"
+              title={t("toolbar.refreshNow")}
+              aria-label={t("toolbar.refreshNow")}
               className={cn(TOOL_BTN, "w-9 px-0 justify-center")}
             >
               <RefreshCw className={cn("w-4 h-4", leadsLoading && "animate-spin")} />
@@ -2268,11 +2303,11 @@ function LeadsPageContent() {
             <button
               type="button"
               onClick={() => setAutoRefresh(!autoRefresh)}
-              title={autoRefresh ? "כבה אוטו-רענון" : "הפעל אוטו-רענון (30 שנ׳)"}
+              title={autoRefresh ? t("toolbar.autoRefreshOff") : t("toolbar.autoRefreshOn")}
               className={cn(TOOL_BTN, autoRefresh && "!bg-emerald-50 !border-emerald-300 !text-emerald-700")}
             >
               <span className={cn("w-1.5 h-1.5 rounded-full", autoRefresh ? "bg-emerald-500 animate-pulse" : "bg-slate-300")} />
-              {autoRefresh ? "אוטו פעיל" : "אוטו-רענון"}
+              {autoRefresh ? t("toolbar.autoActive") : t("toolbar.autoRefresh")}
             </button>
           </div>
         </div>
@@ -2284,11 +2319,11 @@ function LeadsPageContent() {
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-amber-500 flex-shrink-0" />
             <p className="text-sm text-amber-800">
-              <span className="font-semibold">הגעת ל-{maxLeads} לידים</span> — מגבלת המנוי החינמי.
+              {t.rich("limit.reached", { max: maxLeads ?? 0, b: (c) => <span className="font-semibold">{c}</span> })}
             </p>
           </div>
           <a href="/upgrade" className="flex-shrink-0 text-xs font-semibold text-amber-700 hover:text-amber-900 underline underline-offset-2 transition-colors">
-            שדרג לבייסיק ←
+            {t("limit.upgrade")}
           </a>
         </div>
       )}
@@ -2325,17 +2360,17 @@ function LeadsPageContent() {
               ) : (
                 <Square className="w-4 h-4" />
               )}
-              <span className="text-xs font-medium">בחר הכל</span>
+              <span className="text-xs font-medium">{t("bulk.selectAll")}</span>
             </button>
             <div className="w-px h-5 bg-[#FED7AA]" />
-            <span className="text-sm font-semibold text-petra-text">{selectedIds.size} נבחרו</span>
+            <span className="text-sm font-semibold text-petra-text">{t("bulk.selectedCount", { count: selectedIds.size })}</span>
             {selectedIds.size > 0 && (
               <button
                 className="ms-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 transition-colors"
                 onClick={() => setShowBulkDeleteConfirm(true)}
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                מחק נבחרים
+                {t("bulk.deleteSelected")}
               </button>
             )}
           </div>
@@ -2356,11 +2391,11 @@ function LeadsPageContent() {
                   className="h-11 px-3 rounded-xl text-[13px] font-medium text-slate-600 bg-slate-100 active:bg-slate-200 flex items-center gap-1.5 flex-shrink-0"
                 >
                   {allShownSelected ? <CheckSquare className="w-4 h-4 text-brand-500" /> : <Square className="w-4 h-4" />}
-                  בחר הכל
+                  {t("bulk.selectAll")}
                 </button>
               );
             })()}
-            <span className="flex-1 min-w-0 text-center text-sm font-semibold text-petra-text tabular-nums">{selectedIds.size} נבחרו</span>
+            <span className="flex-1 min-w-0 text-center text-sm font-semibold text-petra-text tabular-nums">{t("bulk.selectedCount", { count: selectedIds.size })}</span>
             <button
               type="button"
               disabled={selectedIds.size === 0}
@@ -2368,14 +2403,14 @@ function LeadsPageContent() {
               className="h-11 px-3.5 rounded-xl text-[13px] font-semibold bg-red-600 text-white active:bg-red-700 disabled:opacity-40 flex items-center gap-1.5 flex-shrink-0"
             >
               <Trash2 className="w-4 h-4" />
-              מחק
+              {tc("actions.delete")}
             </button>
             <button
               type="button"
               onClick={exitSelectionMode}
               className="h-11 px-3 rounded-xl text-[13px] font-medium text-slate-600 active:bg-slate-100 flex-shrink-0"
             >
-              ביטול
+              {tc("actions.cancel")}
             </button>
           </div>
         )}
@@ -2388,13 +2423,11 @@ function LeadsPageContent() {
                 <Pencil className="w-4 h-4 text-amber-600" />
               </div>
               <p className="text-sm text-amber-800">
-                <span className="font-semibold">{"מצב עריכה פעיל"}</span>
-                {" — "}
-                {"לחץ על שם שלב כדי לשנות אותו, גרור את "}
-                <GripVertical className="w-3.5 h-3.5 inline-block align-middle" />
-                {" לשינוי סדר, לחץ על העיגול הצבעוני לשינוי צבע, או "}
-                <Trash2 className="w-3.5 h-3.5 inline-block align-middle text-red-500" />
-                {" למחיקה."}
+                {t.rich("editBanner", {
+                  b: (c) => <span className="font-semibold">{c}</span>,
+                  grip: () => <GripVertical className="w-3.5 h-3.5 inline-block align-middle" />,
+                  trash: () => <Trash2 className="w-3.5 h-3.5 inline-block align-middle text-red-500" />,
+                })}
               </p>
             </div>
             <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleColumnDragEnd}>
@@ -2510,21 +2543,21 @@ function LeadsPageContent() {
 
       {/* Won Toast */}
       {wonToast && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] flex items-center gap-3 bg-white border border-slate-200 shadow-[0_24px_48px_-12px_rgba(0,0,0,0.18)] rounded-xl px-4 py-3 animate-in slide-in-from-bottom-4">
+        <div /* rtl-ok — centered, direction-neutral */ className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] flex items-center gap-3 bg-white border border-slate-200 shadow-[0_24px_48px_-12px_rgba(0,0,0,0.18)] rounded-xl px-4 py-3 animate-in slide-in-from-bottom-4">
           <div className="w-9 h-9 rounded-full bg-[#ECFDF5] flex items-center justify-center flex-shrink-0">
             <UserCheck className="w-[18px] h-[18px] text-[#059669]" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-petra-text">{wonToast.name} הפך ללקוח</p>
-            <p className="text-xs text-petra-muted">הליד הומר בהצלחה ללקוח חדש במערכת</p>
+            <p className="text-sm font-semibold text-petra-text">{t("wonToast.becameClient", { name: wonToast.name })}</p>
+            <p className="text-xs text-petra-muted">{t("wonToast.converted")}</p>
           </div>
           <button
             onClick={() => router.push(`/customers/${wonToast.customerId}`)}
             className="ms-2 h-8 px-3 text-xs font-semibold rounded-lg bg-[#059669] text-white hover:bg-[#047857] transition-colors whitespace-nowrap"
           >
-            צפה בלקוח
+            {t("wonToast.viewClient")}
           </button>
-          <button onClick={() => setWonToast(null)} aria-label="סגור" className="text-petra-muted hover:text-petra-text">
+          <button onClick={() => setWonToast(null)} aria-label={tc("actions.close")} className="text-petra-muted hover:text-petra-text">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -2571,10 +2604,10 @@ function LeadsPageContent() {
           <div className="modal-backdrop" onClick={() => { if (!bulkDeleteMutation.isPending) setShowBulkDeleteConfirm(false); }} />
           <div className="modal-content max-w-sm mx-4 p-6">
             <h3 className="text-lg font-bold text-petra-text mb-3">
-              למחוק {selectedIds.size} לידים?
+              {t("bulk.confirmTitle", { count: selectedIds.size })}
             </h3>
             <p className="text-sm text-petra-muted mb-4">
-              הלידים הנבחרים יימחקו לצמיתות, כולל היסטוריית השיחות שלהם. לא ניתן לשחזר פעולה זו.
+              {t("bulk.confirmBody")}
             </p>
             <div className="flex gap-3 justify-end">
               <button
@@ -2582,7 +2615,7 @@ function LeadsPageContent() {
                 onClick={() => setShowBulkDeleteConfirm(false)}
                 disabled={bulkDeleteMutation.isPending}
               >
-                ביטול
+                {tc("actions.cancel")}
               </button>
               <button
                 className="btn-danger flex items-center gap-1.5"
@@ -2590,7 +2623,7 @@ function LeadsPageContent() {
                 onClick={() => bulkDeleteMutation.mutate(Array.from(selectedIds))}
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                {bulkDeleteMutation.isPending ? "מוחק..." : `מחק ${selectedIds.size} לידים`}
+                {bulkDeleteMutation.isPending ? tc("progress.deleting") : t("bulk.confirmDelete", { count: selectedIds.size })}
               </button>
             </div>
           </div>
@@ -2601,13 +2634,14 @@ function LeadsPageContent() {
 }
 
 export default function LeadsPage() {
+  const t = useTranslations("leads.leadsPage");
   return (
     <>
-      <PageTitle title="מערכת מכירות" />
+      <PageTitle title={t("header.title")} />
       <TierGate
       feature="leads"
-      title="מערכת לידים ומכירות"
-      description="ניהול לידים, CRM ועוקב מכירות. עקוב אחרי לקוחות פוטנציאליים, שלח הודעות ועקוב אחרי המרות."
+      title={t("tierGate.title")}
+      description={t("tierGate.description")}
     >
       <LeadsPageContent />
     </TierGate>

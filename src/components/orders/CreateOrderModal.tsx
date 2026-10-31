@@ -15,6 +15,9 @@ import { calcOrder, CalcLineInput } from "@/lib/order-calc";
 import { VAT_RATE } from "@/lib/constants";
 import { usePlan } from "@/hooks/usePlan";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
+import { currencySymbol } from "@/lib/format";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -88,19 +91,16 @@ interface CustomerDetail {
   pets?: Pet[];
 }
 
-const UNITS: { id: string; label: string }[] = [
-  { id: "per_session", label: "לפגישה" },
-  { id: "per_day", label: "ליום" },
-  { id: "per_night", label: "ללילה" },
-  { id: "per_hour", label: "לשעה" },
-  { id: "per_item", label: "ליחידה" },
-  { id: "fixed", label: "קבוע" },
+// Labels: orders.createOrderModal.units.<id>
+const UNITS: { id: string }[] = [
+  { id: "per_session" },
+  { id: "per_day" },
+  { id: "per_night" },
+  { id: "per_hour" },
+  { id: "per_item" },
+  { id: "fixed" },
 ];
 
-function fmt(n: number) { return `₪${n.toFixed(2)}`; }
-function unitLabel(unit: string) {
-  return UNITS.find(u => u.id === unit)?.label ?? unit;
-}
 const PET_EMOJI: Record<string, string> = { dog: "🐕", cat: "🐈" };
 function petEmoji(species: string) { return PET_EMOJI[species] ?? "🐾"; }
 
@@ -165,19 +165,22 @@ function calcBoardingUnits(
 // ─── Category definitions ─────────────────────────────────────────────────────
 
 const CATEGORY_DEFS = [
-  { id: "training",  label: "אילוף",        icon: GraduationCap, color: "from-blue-500 to-blue-600" },
-  { id: "boarding",  label: "פנסיון",      icon: Building2,     color: "from-purple-500 to-purple-600" },
-  { id: "products",  label: "מוצרים",      icon: Package,       color: "from-emerald-500 to-emerald-600" },
-  { id: "grooming",  label: "טיפוח",       icon: Scissors,      color: "from-pink-500 to-pink-600" },
+  { id: "training",  icon: GraduationCap, color: "from-blue-500 to-blue-600" },
+  { id: "boarding",  icon: Building2,     color: "from-purple-500 to-purple-600" },
+  { id: "products",  icon: Package,       color: "from-emerald-500 to-emerald-600" },
+  { id: "grooming",  icon: Scissors,      color: "from-pink-500 to-pink-600" },
 ] as const;
 
-// Map order type → Hebrew category label (must match category field in PriceListItem)
+// Map order type → Hebrew category value (DATA — must match category field in PriceListItem).
+// Display labels come from orders.createOrderModal.categories.<orderType>.
 const CATEGORY_LABELS: Record<string, string> = {
-  boarding: "פנסיון",
-  training: "אילוף",
-  grooming: "טיפוח",
-  products: "מוצרים",
+  boarding: "פנסיון", // i18n-ok — compared with PriceListItem.category
+  training: "אילוף", // i18n-ok — compared with PriceListItem.category
+  grooming: "טיפוח", // i18n-ok — compared with PriceListItem.category
+  products: "מוצרים", // i18n-ok — compared with PriceListItem.category
 };
+const CHIP_CAT_IDS = ["boarding", "training", "grooming", "products"] as const;
+const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -195,6 +198,11 @@ export function CreateOrderModal({
   const qc = useQueryClient();
   const router = useRouter();
   const { isGroomer } = usePlan();
+  const t = useTranslations("orders.createOrderModal");
+  const tc = useTranslations("common");
+  const { locale, currency, cfg } = useBusinessLocale();
+  const curSym = currencySymbol({ locale, currency });
+  const fmt = (n: number) => `${curSym}${n.toFixed(2)}`;
 
   // Step state: "category" → "customer" → "items" → "review" → "payment"
   const [step, setStep] = useState<"category" | "customer" | "items" | "review" | "payment">("category");
@@ -299,7 +307,7 @@ export function CreateOrderModal({
 
   // Training package items — price list items in "אילוף" category with sessions > 0
   const trainingPackages = allItems.filter(
-    (i) => i.category === "אילוף" && i.sessions && i.sessions > 0 && i.isActive
+    (i) => i.category === CATEGORY_LABELS.training && i.sessions && i.sessions > 0 && i.isActive
   );
 
   const { data: trainingGroups = [] } = useQuery<TrainingGroup[]>({
@@ -352,7 +360,7 @@ export function CreateOrderModal({
   }, [business?.boardingCheckInTime, business?.boardingCheckOutTime]);
 
   const selectedCustomer = customers.find((c) => c.id === customerId) ??
-    (prefillCustomerId ? { id: prefillCustomerId, name: "לקוח", phone: "" } : null);
+    (prefillCustomerId ? { id: prefillCustomerId, name: t("customerFallback"), phone: "" } : null);
 
   // ── Order type helpers ────────────────────────────────────────────────────
 
@@ -401,7 +409,7 @@ export function CreateOrderModal({
     if (isBoardingOrder && boardingUnits !== null && lines.length === 0) {
       const boardingItem = allItems.find(
         (i) => (i.unit === "per_night" || i.unit === "per_day") &&
-                (i.category?.toLowerCase().includes("פנסיון") ?? true)
+                (i.category?.toLowerCase().includes(CATEGORY_LABELS.boarding) ?? true)
       );
       if (boardingItem) {
         setLines([{
@@ -546,8 +554,8 @@ export function CreateOrderModal({
       });
 
       if (!res.ok) {
-        const body = await res.json().catch(() => ({ error: "שגיאה ביצירת ההזמנה" }));
-        const orderErr = new Error(body.error || "שגיאה ביצירת ההזמנה");
+        const body = await res.json().catch(() => ({ error: t("errors.createFailed") }));
+        const orderErr = new Error(body.error || t("errors.createFailed"));
         if (body.code) (orderErr as unknown as Record<string, unknown>).code = body.code;
         throw orderErr;
       }
@@ -628,7 +636,7 @@ export function CreateOrderModal({
       if ((err as unknown as Record<string, unknown>).code === "LIMIT_REACHED") {
         triggerLimitModal(err.message);
       } else {
-        toast.error(err.message || "שגיאה ביצירת ההזמנה. נסה שוב.");
+        toast.error(err.message || t("errors.createFailedRetry"));
       }
     },
   });
@@ -671,7 +679,7 @@ export function CreateOrderModal({
   // ── Step 0: Category ──────────────────────────────────────────────────────
   const renderCategoryStep = () => (
     <div>
-      <p className="text-sm text-petra-muted mb-4">בחר את סוג ההזמנה:</p>
+      <p className="text-sm text-petra-muted mb-4">{t("categoryStep.prompt")}</p>
       <div className="grid grid-cols-2 gap-3">
         {CATEGORY_DEFS.filter((cat) => !(isGroomer && (cat.id === "training" || cat.id === "boarding"))).map((cat) => {
           const Icon = cat.icon;
@@ -687,13 +695,13 @@ export function CreateOrderModal({
               )}>
                 <Icon className="w-7 h-7 text-white" />
               </div>
-              <span className="text-sm font-semibold text-petra-text">{cat.label}</span>
+              <span className="text-sm font-semibold text-petra-text">{t(`categories.${cat.id}`)}</span>
             </button>
           );
         })}
       </div>
       <div className="mt-4">
-        <button onClick={handleClose} className="btn-secondary px-6">ביטול</button>
+        <button onClick={handleClose} className="btn-secondary px-6">{tc("actions.cancel")}</button>
       </div>
     </div>
   );
@@ -706,14 +714,14 @@ export function CreateOrderModal({
         <div className="rounded-2xl border border-brand-100 bg-brand-50/40 p-4 space-y-3">
           <p className="text-xs font-semibold text-brand-600 flex items-center gap-1.5">
             <CalendarDays className="w-3.5 h-3.5" />
-            פרטי התור ביומן
+            {t("customerStep.apptTitle")}
           </p>
 
           {/* Date */}
           <div>
-            <label className="label text-xs text-petra-muted mb-1">תאריך</label>
+            <label className="label text-xs text-petra-muted mb-1">{t("customerStep.date")}</label>
             <input
-              type="date" lang="he"
+              type="date" lang={cfg.lang}
               className="input text-sm"
               value={apptDate}
               onChange={(e) => setApptDate(e.target.value)}
@@ -723,9 +731,9 @@ export function CreateOrderModal({
           {/* Start / End time */}
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="label text-xs text-petra-muted mb-1">שעת התחלה</label>
+              <label className="label text-xs text-petra-muted mb-1">{t("customerStep.startTime")}</label>
               <div className="relative">
-                <Clock className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-petra-muted pointer-events-none" />
+                <Clock className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-petra-muted pointer-events-none" />{/* rtl-ok: sits on a dir="ltr" input with physical pr-9 */}
                 <input
                   type="time"
                   dir="ltr"
@@ -744,9 +752,9 @@ export function CreateOrderModal({
               </div>
             </div>
             <div>
-              <label className="label text-xs text-petra-muted mb-1">שעת סיום</label>
+              <label className="label text-xs text-petra-muted mb-1">{t("customerStep.endTime")}</label>
               <div className="relative">
-                <Clock className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-petra-muted pointer-events-none" />
+                <Clock className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-petra-muted pointer-events-none" />{/* rtl-ok: sits on a dir="ltr" input with physical pr-9 */}
                 <input
                   type="time"
                   dir="ltr"
@@ -766,17 +774,17 @@ export function CreateOrderModal({
         <div className="rounded-2xl border border-brand-100 bg-brand-50/40 p-4 space-y-3">
           <p className="text-xs font-semibold text-brand-600 flex items-center gap-1.5">
             <CalendarDays className="w-3.5 h-3.5" />
-            תאריכי שהייה
+            {t("customerStep.stayDates")}
           </p>
 
           {/* Check-in row */}
           <div>
             <label className="label text-xs text-petra-muted mb-1">
-              🔑 כניסה (Check-in)
+              {t("customerStep.checkIn")}
             </label>
             <div className="grid grid-cols-2 gap-2">
               <input
-                type="date" lang="he"
+                type="date" lang={cfg.lang}
                 className="input text-sm"
                 value={boardingCheckInDate}
                 onChange={(e) => {
@@ -787,7 +795,7 @@ export function CreateOrderModal({
                 }}
               />
               <div className="relative">
-                <Clock className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-petra-muted pointer-events-none" />
+                <Clock className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-petra-muted pointer-events-none" />{/* rtl-ok: sits on a dir="ltr" input with physical pr-9 */}
                 <input
                   type="time"
                   dir="ltr"
@@ -802,17 +810,17 @@ export function CreateOrderModal({
           {/* Check-out row */}
           <div>
             <label className="label text-xs text-petra-muted mb-1">
-              🚪 יציאה (Check-out)
+              {t("customerStep.checkOut")}
             </label>
             <div className="grid grid-cols-2 gap-2">
               <input
-                type="date" lang="he"
+                type="date" lang={cfg.lang}
                 className="input text-sm"
                 value={boardingCheckOutDate}
                 onChange={(e) => setBoardingCheckOutDate(e.target.value)}
               />
               <div className="relative">
-                <Clock className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-petra-muted pointer-events-none" />
+                <Clock className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-petra-muted pointer-events-none" />{/* rtl-ok: sits on a dir="ltr" input with physical pr-9 */}
                 <input
                   type="time"
                   dir="ltr"
@@ -828,18 +836,18 @@ export function CreateOrderModal({
           {business && boardingNights !== null && boardingCheckInDate && boardingCheckOutDate && (
             <div className="flex items-center justify-between bg-white border border-brand-100 rounded-xl px-3 py-2">
               <span className="text-xs text-petra-muted">
-                חישוב לפי הגדרות עסק
+                {t("customerStep.calcBySettings")}
                 {" · "}
                 <span className="text-petra-text font-medium">
-                  {business.boardingCalcMode === "days" ? "ימים" : "לילות"}
+                  {business.boardingCalcMode === "days" ? t("calcUnits.days") : t("calcUnits.nights")}
                 </span>
               </span>
               <span className="text-sm font-bold text-brand-600">
                 {boardingPetIds.length > 1
-                  ? `${boardingNights} × ${boardingPetIds.length} כלבים = ${boardingUnits}`
+                  ? t("nightsTimesDogs", { nights: boardingNights, dogs: boardingPetIds.length, units: boardingUnits ?? "" })
                   : `${boardingNights}`
                 }
-                {" "}{business.boardingCalcMode === "days" ? "ימים" : "לילות"}
+                {" "}{business.boardingCalcMode === "days" ? t("calcUnits.days") : t("calcUnits.nights")}
               </span>
             </div>
           )}
@@ -847,7 +855,7 @@ export function CreateOrderModal({
           {/* Notice if has boarding lines in cart */}
           {hasBoardingLine && (
             <p className="text-[11px] text-brand-500 flex items-center gap-1">
-              ✓ הכמות בעגלה מתעדכנת אוטומטית לפי {boardingPetIds.length > 1 ? `לילות × ${boardingPetIds.length} כלבים` : "מספר הלילות"}
+              {t("customerStep.cartAutoUpdate", { basis: boardingPetIds.length > 1 ? t("customerStep.basisNightsTimesDogs", { dogs: boardingPetIds.length }) : t("customerStep.basisNights") })}
             </p>
           )}
         </div>
@@ -855,12 +863,12 @@ export function CreateOrderModal({
 
       {!prefillCustomerId && (
         <div>
-          <label className="label">לקוח *</label>
+          <label className="label">{t("customerStep.customerLabel")}</label>
           <div className="relative mb-2">
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
-              className="input pr-10"
-              placeholder="חיפוש לקוח..."
+              className="input ps-10"
+              placeholder={t("customerStep.customerSearch")}
               value={customerSearch}
               onChange={(e) => setCustomerSearch(e.target.value)}
             />
@@ -871,7 +879,7 @@ export function CreateOrderModal({
                 key={c.id}
                 onClick={() => setCustomerId(c.id)}
                 className={cn(
-                  "w-full flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 transition-colors text-right",
+                  "w-full flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 transition-colors text-start",
                   customerId === c.id && "bg-brand-50"
                 )}
               >
@@ -881,7 +889,7 @@ export function CreateOrderModal({
                 )}>
                   {c.name.charAt(0)}
                 </div>
-                <div className="flex-1 text-right">
+                <div className="flex-1 text-start">
                   <p className="text-sm font-medium text-petra-text">{c.name}</p>
                   <p className="text-xs text-petra-muted" dir="ltr">{c.phone}</p>
                 </div>
@@ -889,7 +897,7 @@ export function CreateOrderModal({
               </button>
             ))}
             {customers.length === 0 && (
-              <div className="py-6 text-center text-sm text-petra-muted">לא נמצאו לקוחות</div>
+              <div className="py-6 text-center text-sm text-petra-muted">{t("customerStep.noCustomers")}</div>
             )}
           </div>
         </div>
@@ -914,10 +922,10 @@ export function CreateOrderModal({
           {isBoardingOrder && (
             <div>
               <label className="label flex items-center gap-1.5">
-                🐾 כלבים לפנסיון
+                {t("customerStep.boardingDogs")}
                 {boardingPetIds.length > 0 && (
                   <span className="text-[11px] bg-brand-100 text-brand-600 px-1.5 py-0.5 rounded-full font-bold">
-                    {boardingPetIds.length} נבחרו
+                    {t("customerStep.selectedCount", { count: boardingPetIds.length })}
                   </span>
                 )}
               </label>
@@ -927,9 +935,9 @@ export function CreateOrderModal({
                 <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-xl">
                   <span className="text-xl leading-none mt-0.5">🐾</span>
                   <div>
-                    <p className="text-sm font-semibold text-red-700">לא ניתן ליצור הזמנה</p>
-                    <p className="text-xs text-red-600 mt-0.5">חובה להוסיף חיית מחמד ללקוח לפני יצירת הזמנה.</p>
-                    <a href={`/customers/${customerId}`} className="text-xs text-brand-600 underline mt-1 inline-block">הוסף חיית מחמד ← דף הלקוח</a>
+                    <p className="text-sm font-semibold text-red-700">{t("customerStep.cannotCreate")}</p>
+                    <p className="text-xs text-red-600 mt-0.5">{t("customerStep.petRequired")}</p>
+                    <a href={`/customers/${customerId}`} className="text-xs text-brand-600 underline mt-1 inline-block">{t("customerStep.addPetLink")}</a>
                   </div>
                 </div>
               ) : (
@@ -942,7 +950,7 @@ export function CreateOrderModal({
                         type="button"
                         onClick={() => toggleBoardingPet(p.id)}
                         className={cn(
-                          "flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-right transition-all",
+                          "flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-start transition-all",
                           selected
                             ? "border-brand-400 bg-brand-50"
                             : "border-petra-border hover:bg-slate-50"
@@ -966,7 +974,9 @@ export function CreateOrderModal({
               )}
               {boardingPetIds.length > 0 && (
                 <p className="text-[11px] text-brand-500 mt-1.5 flex items-center gap-1">
-                  ✓ {boardingPetIds.length === 1 ? "הכלב" : `${boardingPetIds.length} הכלבים`} יופיע{boardingPetIds.length > 1 ? "ו" : ""} אוטומטית בלוח הפנסיון תחת &quot;ממתין לשיבוץ&quot;
+                  {boardingPetIds.length === 1
+                    ? t("customerStep.boardingNoticeOne")
+                    : t("customerStep.boardingNoticeMany", { count: boardingPetIds.length })}
                 </p>
               )}
             </div>
@@ -980,16 +990,16 @@ export function CreateOrderModal({
             <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-xl">
               <span className="text-xl leading-none mt-0.5">🐾</span>
               <div>
-                <p className="text-sm font-semibold text-red-700">לא ניתן ליצור הזמנה</p>
-                <p className="text-xs text-red-600 mt-0.5">חובה להוסיף חיית מחמד ללקוח לפני יצירת הזמנה.</p>
-                <a href={`/customers/${customerId}`} className="text-xs text-brand-600 underline mt-1 inline-block">הוסף חיית מחמד ← דף הלקוח</a>
+                <p className="text-sm font-semibold text-red-700">{t("customerStep.cannotCreate")}</p>
+                <p className="text-xs text-red-600 mt-0.5">{t("customerStep.petRequired")}</p>
+                <a href={`/customers/${customerId}`} className="text-xs text-brand-600 underline mt-1 inline-block">{t("customerStep.addPetLink")}</a>
               </div>
             </div>
           )}
           {!isBoardingOrder && !petsLoading && customerPets.length > 0 && (
             <div className="rounded-xl border border-amber-100 bg-amber-50/50 p-3 space-y-2">
               <p className="text-xs font-semibold text-amber-700 flex items-center gap-1.5">
-                🐾 עבור איזה כלב?
+                {t("customerStep.forWhichDog")}
               </p>
               <div className="flex flex-wrap gap-2">
                 {customerPets.length > 1 && (
@@ -1003,7 +1013,7 @@ export function CreateOrderModal({
                         : "border-petra-border bg-white text-petra-muted hover:bg-slate-50"
                     )}
                   >
-                    כל הכלבים
+                    {t("customerStep.allDogs")}
                   </button>
                 )}
                 {customerPets.map((pet) => (
@@ -1026,7 +1036,7 @@ export function CreateOrderModal({
               </div>
               {selectedPetId && (
                 <p className="text-[11px] text-amber-600">
-                  ✓ ההזמנה תשויך ל{customerPets.find(p => p.id === selectedPetId)?.name}
+                  {t("customerStep.linkedTo", { name: customerPets.find(p => p.id === selectedPetId)?.name ?? "" })}
                 </p>
               )}
             </div>
@@ -1037,7 +1047,7 @@ export function CreateOrderModal({
       {/* Training order: warn if no pet selected */}
       {orderType === "training" && !petsLoading && customerPets.length > 0 && !selectedPetId && (
         <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-center">
-          יש לבחור כלב ספציפי לפני המשך — ההזמנה תקשר לתוכנית אילוף
+          {t("customerStep.selectDogWarning")}
         </p>
       )}
       <button
@@ -1050,14 +1060,16 @@ export function CreateOrderModal({
         }
         onClick={handleAdvanceToItems}
       >
-        המשך לפריטים →
+        {t("customerStep.continueToItems")}
       </button>
     </div>
   );
 
   // ── Step 2: Items ─────────────────────────────────────────────────────────
   const renderItemsStep = () => {
-    const CHIP_CATS = ["פנסיון", "אילוף", "טיפוח", "מוצרים"];
+    const CHIP_CATS = CHIP_CAT_IDS.map((id) => ({ id, value: CATEGORY_LABELS[id] }));
+    const addCatId = CHIP_CAT_IDS.find((id) => CATEGORY_LABELS[id] === addCat);
+    const addCatLabel = addCatId ? t(`categories.${addCatId}`) : addCat;
     const catItems = allItems.filter(i => (i.category ?? "").toLowerCase() === addCat.toLowerCase());
     const selectedAddItem = catItems.find(i => i.id === addItemId);
 
@@ -1091,28 +1103,28 @@ export function CreateOrderModal({
           <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-3 space-y-3">
             <p className="text-xs font-semibold text-blue-700 flex items-center gap-1.5">
               <GraduationCap className="w-3.5 h-3.5" />
-              סוג האילוף
+              {t("itemsStep.trainingType")}
             </p>
             <div className="grid grid-cols-2 gap-2">
               {([
-                { id: "private" as const, label: "מפגש בודד", sub: "ללא חבילה" },
-                { id: "package" as const, label: "חבילת אילוף", sub: "עם כמות מוגדרת" },
-                { id: "boarding" as const, label: "אילוף פנסיון", sub: "שהייה בכלבייה" },
-                { id: "group" as const, label: "אילוף קבוצתי", sub: "בחר קבוצה" },
+                { id: "private" as const },
+                { id: "package" as const },
+                { id: "boarding" as const },
+                { id: "group" as const },
               ] as const).map((opt) => (
                 <button
                   key={opt.id}
                   type="button"
                   onClick={() => { setTrainingSubType(opt.id); setSelectedPackageId(""); setSelectedGroupId(""); }}
                   className={cn(
-                    "p-3 rounded-xl border text-right transition-all",
+                    "p-3 rounded-xl border text-start transition-all",
                     trainingSubType === opt.id
                       ? "border-blue-400 bg-blue-100"
                       : "border-petra-border bg-white hover:bg-slate-50"
                   )}
                 >
-                  <p className={cn("text-sm font-semibold", trainingSubType === opt.id ? "text-blue-700" : "text-petra-text")}>{opt.label}</p>
-                  <p className="text-[11px] text-petra-muted">{opt.sub}</p>
+                  <p className={cn("text-sm font-semibold", trainingSubType === opt.id ? "text-blue-700" : "text-petra-text")}>{t(`itemsStep.subTypes.${opt.id}.label`)}</p>
+                  <p className="text-[11px] text-petra-muted">{t(`itemsStep.subTypes.${opt.id}.sub`)}</p>
                 </button>
               ))}
             </div>
@@ -1120,9 +1132,9 @@ export function CreateOrderModal({
             {/* Package sub-form */}
             {trainingSubType === "package" && (
               <div className="space-y-2 pt-1">
-                <p className="text-xs font-semibold text-petra-muted">בחר חבילה</p>
+                <p className="text-xs font-semibold text-petra-muted">{t("itemsStep.choosePackage")}</p>
                 {trainingPackages.length === 0 ? (
-                  <p className="text-xs text-petra-muted">אין חבילות פעילות. הגדר פריט אילוף עם כמות מפגשים במחירון.</p>
+                  <p className="text-xs text-petra-muted">{t("itemsStep.noPackages")}</p>
                 ) : (
                   <div className="space-y-1.5">
                     {trainingPackages.map((pkg) => {
@@ -1145,17 +1157,17 @@ export function CreateOrderModal({
                             }]);
                           }}
                           className={cn(
-                            "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-right transition-all",
+                            "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-start transition-all",
                             selected ? "border-blue-400 bg-blue-50" : "border-petra-border bg-white hover:bg-slate-50"
                           )}
                         >
                           <Package className={cn("w-4 h-4 flex-shrink-0", selected ? "text-blue-600" : "text-petra-muted")} />
                           <div className="flex-1 min-w-0">
                             <p className={cn("text-sm font-semibold", selected ? "text-blue-700" : "text-petra-text")}>{pkg.name}</p>
-                            <p className="text-xs text-petra-muted">{pkgSessions} מפגשים{pkg.description ? ` · ${pkg.description}` : ""}</p>
+                            <p className="text-xs text-petra-muted">{t("itemsStep.sessionsCount", { count: pkgSessions })}{pkg.description ? ` · ${pkg.description}` : ""}</p>
                           </div>
                           <span className={cn("text-sm font-bold flex-shrink-0", selected ? "text-blue-600" : "text-petra-text")}>
-                            ₪{pkg.basePrice.toLocaleString()}
+                            {curSym}{pkg.basePrice.toLocaleString()}
                           </span>
                         </button>
                       );
@@ -1170,16 +1182,16 @@ export function CreateOrderModal({
               <div className="space-y-3 pt-1">
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="text-[11px] font-semibold text-petra-muted block mb-1">כניסה לפנסיון</label>
-                    <input type="date" lang="he" className="input text-sm" value={trainingBoardingStart} onChange={(e) => setTrainingBoardingStart(e.target.value)} />
+                    <label className="text-[11px] font-semibold text-petra-muted block mb-1">{t("itemsStep.boardingIn")}</label>
+                    <input type="date" lang={cfg.lang} className="input text-sm" value={trainingBoardingStart} onChange={(e) => setTrainingBoardingStart(e.target.value)} />
                   </div>
                   <div>
-                    <label className="text-[11px] font-semibold text-petra-muted block mb-1">יציאה מהפנסיון</label>
-                    <input type="date" lang="he" className="input text-sm" value={trainingBoardingEnd} onChange={(e) => setTrainingBoardingEnd(e.target.value)} />
+                    <label className="text-[11px] font-semibold text-petra-muted block mb-1">{t("itemsStep.boardingOut")}</label>
+                    <input type="date" lang={cfg.lang} className="input text-sm" value={trainingBoardingEnd} onChange={(e) => setTrainingBoardingEnd(e.target.value)} />
                   </div>
                 </div>
                 <div>
-                  <label className="text-[11px] font-semibold text-petra-muted block mb-1">מפגשי המשך בבית הלקוח (לאחר הפנסיון)</label>
+                  <label className="text-[11px] font-semibold text-petra-muted block mb-1">{t("itemsStep.homeFollowup")}</label>
                   <div className="flex items-center gap-2">
                     <input
                       type="number"
@@ -1190,11 +1202,11 @@ export function CreateOrderModal({
                       placeholder="0"
                       onChange={(e) => setTrainingHomeFollowup(Math.max(0, parseInt(e.target.value) || 0))}
                     />
-                    <span className="text-xs text-petra-muted">מפגשים (0 = ללא)</span>
+                    <span className="text-xs text-petra-muted">{t("itemsStep.sessionsZeroNone")}</span>
                   </div>
                   {trainingHomeFollowup > 0 && (
                     <p className="text-[11px] text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg mt-1">
-                      ✓ תוכנית המשך של {trainingHomeFollowup} מפגשים תיווצר אוטומטית
+                      {t("itemsStep.followupWillBeCreated", { count: trainingHomeFollowup })}
                     </p>
                   )}
                 </div>
@@ -1204,15 +1216,15 @@ export function CreateOrderModal({
             {/* Group training sub-form */}
             {trainingSubType === "group" && (
               <div className="space-y-2 pt-1">
-                <p className="text-xs font-semibold text-petra-muted">בחר קבוצת אילוף</p>
+                <p className="text-xs font-semibold text-petra-muted">{t("itemsStep.chooseGroup")}</p>
                 {trainingGroups.filter(g => g.isActive).length === 0 ? (
-                  <p className="text-xs text-petra-muted">אין קבוצות פעילות. הגדר קבוצות תחת לשונית אילוף.</p>
+                  <p className="text-xs text-petra-muted">{t("itemsStep.noGroups")}</p>
                 ) : (
                   <div className="space-y-1.5">
                     {trainingGroups.filter(g => g.isActive).map((grp) => {
                       const selected = selectedGroupId === grp.id;
-                      const DAY_NAMES = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
-                      const dayLabel = grp.defaultDayOfWeek != null ? `יום ${DAY_NAMES[grp.defaultDayOfWeek]}` : "";
+                      const dayKey = grp.defaultDayOfWeek != null ? DAY_KEYS[grp.defaultDayOfWeek] : undefined;
+                      const dayLabel = grp.defaultDayOfWeek != null ? t("itemsStep.dayLabel", { day: dayKey ? t(`itemsStep.days.${dayKey}`) : "" }) : "";
                       const timeLabel = grp.defaultTime ?? "";
                       return (
                         <button
@@ -1220,7 +1232,7 @@ export function CreateOrderModal({
                           type="button"
                           onClick={() => setSelectedGroupId(selected ? "" : grp.id)}
                           className={cn(
-                            "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-right transition-all",
+                            "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-start transition-all",
                             selected ? "border-blue-400 bg-blue-50" : "border-petra-border bg-white hover:bg-slate-50"
                           )}
                         >
@@ -1251,8 +1263,8 @@ export function CreateOrderModal({
               {" · "}
               <strong>
                 {boardingPetIds.length > 1
-                  ? `${boardingNights} × ${boardingPetIds.length} כלבים = ${boardingUnits} ${business?.boardingCalcMode === "days" ? "ימים" : "לילות"}`
-                  : `${boardingNights} ${business?.boardingCalcMode === "days" ? "ימים" : "לילות"}`
+                  ? `${t("nightsTimesDogs", { nights: boardingNights, dogs: boardingPetIds.length, units: boardingUnits ?? "" })} ${business?.boardingCalcMode === "days" ? t("calcUnits.days") : t("calcUnits.nights")}`
+                  : `${boardingNights} ${business?.boardingCalcMode === "days" ? t("calcUnits.days") : t("calcUnits.nights")}`
                 }
               </strong>
             </span>
@@ -1261,21 +1273,21 @@ export function CreateOrderModal({
 
         {/* Category chips */}
         <div>
-          <p className="text-xs font-semibold text-petra-muted mb-2">בחר קטגוריה</p>
+          <p className="text-xs font-semibold text-petra-muted mb-2">{t("itemsStep.chooseCategory")}</p>
           <div className="flex flex-wrap gap-2">
             {CHIP_CATS.map(cat => (
               <button
-                key={cat}
+                key={cat.value}
                 type="button"
-                onClick={() => { setAddCat(cat); setAddItemId(""); setAddUnits(1); setAddCustomMode(false); }}
+                onClick={() => { setAddCat(cat.value); setAddItemId(""); setAddUnits(1); setAddCustomMode(false); }}
                 className={cn(
                   "px-4 py-2 rounded-xl text-sm font-semibold transition-all border-2",
-                  addCat === cat && !addCustomMode
+                  addCat === cat.value && !addCustomMode
                     ? "bg-[#1a3a5c] text-white border-[#1a3a5c]"
                     : "bg-white text-petra-text border-petra-border hover:border-[#1a3a5c]/40"
                 )}
               >
-                {cat}
+                {t(`categories.${cat.id}`)}
               </button>
             ))}
             <button
@@ -1288,7 +1300,7 @@ export function CreateOrderModal({
                   : "bg-white text-petra-text border-petra-border hover:border-[#1a3a5c]/40"
               )}
             >
-              שירות ידני
+              {t("itemsStep.manualService")}
             </button>
           </div>
         </div>
@@ -1298,10 +1310,10 @@ export function CreateOrderModal({
           <div className="space-y-3 p-4 bg-slate-50 rounded-2xl border border-petra-border">
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <p className="text-sm font-semibold text-petra-text">שירות נבחר</p>
+                <p className="text-sm font-semibold text-petra-text">{t("itemsStep.selectedService")}</p>
                 <button
                   type="button"
-                  title="רענן רשימת שירותים"
+                  title={t("itemsStep.refreshTitle")}
                   onClick={() => {
                     qc.invalidateQueries({ queryKey: ["price-list-items-all-active"] });
                     qc.invalidateQueries({ queryKey: ["price-lists"] });
@@ -1309,13 +1321,13 @@ export function CreateOrderModal({
                   className="flex items-center gap-1 text-xs text-petra-muted hover:text-brand-600 transition-colors"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
-                  רענן
+                  {t("itemsStep.refresh")}
                 </button>
               </div>
               {catItems.length === 0 ? (
                 <div className="text-sm text-petra-muted p-3 bg-white border border-dashed border-petra-border rounded-xl text-center">
-                  אין שירותים בקטגוריה &quot;{addCat}&quot;.{" "}
-                  <a href="/pricing" target="_blank" rel="noopener noreferrer" className="text-brand-600 underline">הוסף במחירון</a>
+                  {t("itemsStep.noServicesInCategory", { category: addCatLabel })}{" "}
+                  <a href="/pricing" target="_blank" rel="noopener noreferrer" className="text-brand-600 underline">{t("itemsStep.addToPricing")}</a>
                 </div>
               ) : (
                 <select
@@ -1330,9 +1342,9 @@ export function CreateOrderModal({
                     }
                   }}
                 >
-                  <option value="">בחר שירות...</option>
+                  <option value="">{t("itemsStep.chooseService")}</option>
                   {catItems.map(i => (
-                    <option key={i.id} value={i.id}>{i.name} — ₪{i.basePrice}</option>
+                    <option key={i.id} value={i.id}>{i.name} — {curSym}{i.basePrice}</option>
                   ))}
                 </select>
               )}
@@ -1341,7 +1353,7 @@ export function CreateOrderModal({
             {addItemId && selectedAddItem && (
               <>
                 <div>
-                  <p className="text-sm font-semibold text-petra-text mb-1.5">סה&quot;כ יחידות</p>
+                  <p className="text-sm font-semibold text-petra-text mb-1.5">{t("itemsStep.totalUnits")}</p>
                   <div className="flex items-center gap-2">
                     <button type="button" onClick={() => setAddUnits(u => Math.max(0.5, u - 1))}
                       className="w-9 h-9 rounded-xl border border-petra-border flex items-center justify-center hover:bg-slate-100 transition-all">
@@ -1357,13 +1369,13 @@ export function CreateOrderModal({
                       className="w-9 h-9 rounded-xl border border-petra-border flex items-center justify-center hover:bg-slate-100 transition-all">
                       <Plus className="w-3.5 h-3.5" />
                     </button>
-                    <span className="text-sm font-bold text-petra-text flex-shrink-0 min-w-[60px] text-left">
+                    <span className="text-sm font-bold text-petra-text flex-shrink-0 min-w-[60px] text-end">
                       = {fmt(addUnits * selectedAddItem.basePrice)}
                     </span>
                   </div>
                 </div>
                 <button type="button" onClick={handleAddToCart} className="btn-primary w-full">
-                  <Plus className="w-4 h-4" /> הוסף לעגלה
+                  <Plus className="w-4 h-4" /> {t("itemsStep.addToCart")}
                 </button>
               </>
             )}
@@ -1373,20 +1385,20 @@ export function CreateOrderModal({
         {/* Custom / manual service form */}
         {addCustomMode && (
           <div className="space-y-3 p-4 bg-slate-50 rounded-2xl border border-petra-border">
-            <p className="text-sm font-semibold text-petra-text">שירות ידני</p>
+            <p className="text-sm font-semibold text-petra-text">{t("itemsStep.manualService")}</p>
             <div className="grid grid-cols-2 gap-2">
-              <input className="input text-sm" placeholder="שם שירות *" value={newLine.name}
+              <input className="input text-sm" placeholder={t("itemsStep.serviceNamePlaceholder")} value={newLine.name}
                 onChange={(e) => setNewLine({ ...newLine, name: e.target.value })} />
               <select className="input text-sm" value={newLine.unit}
                 onChange={(e) => setNewLine({ ...newLine, unit: e.target.value })}>
-                {UNITS.map(u => <option key={u.id} value={u.id}>{u.label}</option>)}
+                {UNITS.map(u => <option key={u.id} value={u.id}>{t(`units.${u.id}`)}</option>)}
               </select>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <input type="number" min="0" step="0.01" dir="ltr" className="input text-sm" placeholder="מחיר ₪"
+              <input type="number" min="0" step="0.01" dir="ltr" className="input text-sm" placeholder={t("itemsStep.pricePlaceholder", { currency: curSym })}
                 value={newLine.unitPrice || ""}
                 onChange={(e) => setNewLine({ ...newLine, unitPrice: parseFloat(e.target.value) || 0 })} />
-              <input type="number" min="0.5" step="0.5" dir="ltr" className="input text-sm" placeholder="כמות"
+              <input type="number" min="0.5" step="0.5" dir="ltr" className="input text-sm" placeholder={t("itemsStep.qtyPlaceholder")}
                 value={newLine.quantity}
                 onChange={(e) => setNewLine({ ...newLine, quantity: parseFloat(e.target.value) || 1 })} />
             </div>
@@ -1400,7 +1412,7 @@ export function CreateOrderModal({
               className="btn-primary w-full"
               disabled={!newLine.name}
             >
-              הוסף לעגלה
+              {t("itemsStep.addToCart")}
             </button>
           </div>
         )}
@@ -1409,7 +1421,7 @@ export function CreateOrderModal({
         {/* Cart items summary */}
         {lines.length > 0 && (
           <div className="space-y-1.5">
-            <p className="text-xs font-semibold text-petra-muted">פריטים בעגלה ({lines.length})</p>
+            <p className="text-xs font-semibold text-petra-muted">{t("itemsStep.cartItems", { count: lines.length })}</p>
             {lines.map((line, i) => (
               <div key={i} className="flex items-center gap-2 px-3 py-2 bg-white border border-petra-border rounded-xl text-sm">
                 <button
@@ -1432,13 +1444,13 @@ export function CreateOrderModal({
           <div className="grid grid-cols-2 gap-2">
             <select className="input text-sm" value={discountType}
               onChange={(e) => setDiscountType(e.target.value as "none" | "percent" | "fixed")}>
-              <option value="none">ללא הנחה</option>
-              <option value="percent">הנחה %</option>
-              <option value="fixed">הנחה ₪</option>
+              <option value="none">{t("itemsStep.noDiscount")}</option>
+              <option value="percent">{t("itemsStep.discountPercent")}</option>
+              <option value="fixed">{t("itemsStep.discountFixed", { currency: curSym })}</option>
             </select>
             {discountType !== "none" && (
               <input type="number" min="0" step="0.01" dir="ltr" className="input text-sm"
-                placeholder={discountType === "percent" ? "% הנחה" : "₪ הנחה"}
+                placeholder={discountType === "percent" ? t("itemsStep.discountPercentPlaceholder") : t("itemsStep.discountFixedPlaceholder", { currency: curSym })}
                 value={discountValue} onChange={(e) => setDiscountValue(e.target.value)} />
             )}
           </div>
@@ -1447,13 +1459,13 @@ export function CreateOrderModal({
         {/* Group training: no groups exist */}
         {orderType === "training" && trainingSubType === "group" && trainingGroups.filter(g => g.isActive).length === 0 && (
           <p className="text-xs text-red-700 bg-red-50 border border-red-300 rounded-lg px-3 py-2 text-center font-medium">
-            ⚠️ אין קבוצות אילוף פעילות — יש ליצור קבוצה תחת לשונית &quot;אימונים&quot; לפני יצירת ההזמנה
+            {t("itemsStep.noActiveGroupsWarning")}
           </p>
         )}
         {/* Group training: group not selected */}
         {orderType === "training" && trainingSubType === "group" && trainingGroups.filter(g => g.isActive).length > 0 && !selectedGroupId && (
           <p className="text-xs text-red-700 bg-red-50 border border-red-300 rounded-lg px-3 py-2 text-center font-medium">
-            ⚠️ חובה לבחור קבוצת אילוף לפני המשך
+            {t("itemsStep.mustChooseGroup")}
           </p>
         )}
         <button
@@ -1465,7 +1477,7 @@ export function CreateOrderModal({
           }
           onClick={() => setStep("review")}
         >
-          המשך לסיכום ({fmt(calc.total)}) →
+          {t("itemsStep.continueToReview", { total: fmt(calc.total) })}
         </button>
       </div>
     );
@@ -1473,15 +1485,15 @@ export function CreateOrderModal({
 
   // ── WhatsApp message builder ─────────────────────────────────────────────
   const buildWhatsAppMessage = () => {
-    const name = selectedCustomer?.name ?? "לקוח";
+    const name = selectedCustomer?.name ?? "לקוח"; // i18n-ok — WhatsApp text to the customer (Phase 3)
     const lineItems = calc.lines
       .map((l) => `• ${l.name} x${l.quantity} - ${fmt(l.lineSubtotal)}`)
       .join("\n");
     const discountLine = calc.discountAmount > 0
-      ? `\nהנחה: -${fmt(calc.discountAmount)}`
+      ? `\nהנחה: -${fmt(calc.discountAmount)}` // i18n-ok — WhatsApp text to the customer (Phase 3)
       : "";
     const taxLine = calc.taxTotal > 0
-      ? `\nמע"מ: ${fmt(calc.taxTotal)}`
+      ? `\nמע"מ: ${fmt(calc.taxTotal)}` // i18n-ok — WhatsApp text to the customer (Phase 3)
       : "";
 
     let paymentLinks = "";
@@ -1494,11 +1506,11 @@ export function CreateOrderModal({
         .filter(Boolean);
 
       if (itemLinks.length > 0) {
-        paymentLinks = `\n\nלמעבר לתשלום ופרטים נוספים:\n${Array.from(new Set(itemLinks)).join("\n")}`;
+        paymentLinks = `\n\nלמעבר לתשלום ופרטים נוספים:\n${Array.from(new Set(itemLinks)).join("\n")}`; // i18n-ok — WhatsApp text to the customer (Phase 3)
       }
     }
 
-    return `שלום ${name},\nהנה פירוט ההזמנה שלך:\n${lineItems}${discountLine}${taxLine}\n\nסה"כ לתשלום: ${fmt(calc.total)}${paymentLinks}`;
+    return `שלום ${name},\nהנה פירוט ההזמנה שלך:\n${lineItems}${discountLine}${taxLine}\n\nסה"כ לתשלום: ${fmt(calc.total)}${paymentLinks}`; // i18n-ok — WhatsApp text to the customer (Phase 3)
   };
 
   const openWhatsApp = (phone: string) => {
@@ -1517,27 +1529,27 @@ export function CreateOrderModal({
   );
 
   const buildPaymentRequestMessage = (links: string[] = paymentRequestUrls) => {
-    const name = selectedCustomer?.name ?? "לקוח";
+    const name = selectedCustomer?.name ?? "לקוח"; // i18n-ok — WhatsApp text to the customer (Phase 3)
     const serviceNames = Array.from(new Set(calc.lines.map((l) => l.name))).join(", ");
     // Build items summary
     const itemLines = calc.lines
       .map((l) => `• ${l.name}${l.quantity > 1 ? ` ×${l.quantity}` : ""} — ${fmt(l.lineSubtotal)}`)
       .join("\n");
-    const discountLine = calc.discountAmount > 0 ? `\nהנחה: −${fmt(calc.discountAmount)}` : "";
-    const taxLine = calc.taxTotal > 0 ? `\nמע"מ: ${fmt(calc.taxTotal)}` : "";
+    const discountLine = calc.discountAmount > 0 ? `\nהנחה: −${fmt(calc.discountAmount)}` : ""; // i18n-ok — WhatsApp text to the customer (Phase 3)
+    const taxLine = calc.taxTotal > 0 ? `\nמע"מ: ${fmt(calc.taxTotal)}` : ""; // i18n-ok — WhatsApp text to the customer (Phase 3)
     const linkBlock = links.length > 0
-      ? `\n\n💳 לתשלום מאובטח לחצו כאן:\n${links.join("\n")}`
+      ? `\n\n💳 לתשלום מאובטח לחצו כאן:\n${links.join("\n")}` // i18n-ok — WhatsApp text to the customer (Phase 3)
       : "";
-    const footer = business?.phone ? `\n\n_לפניות ושאלות: ${business.phone}_` : "";
+    const footer = business?.phone ? `\n\n_לפניות ושאלות: ${business.phone}_` : ""; // i18n-ok — WhatsApp text to the customer (Phase 3)
 
-    return `שלום ${name}! 🐾\n\n*דרישת תשלום*\nעבור: ${serviceNames}\n\n${itemLines}${discountLine}${taxLine}\n\n💰 סה"כ לתשלום: *${fmt(calc.total)}*${linkBlock}\n\nתודה שבחרתם בנו! 😊${footer}`;
+    return `שלום ${name}! 🐾\n\n*דרישת תשלום*\nעבור: ${serviceNames}\n\n${itemLines}${discountLine}${taxLine}\n\n💰 סה"כ לתשלום: *${fmt(calc.total)}*${linkBlock}\n\nתודה שבחרתם בנו! 😊${footer}`; // i18n-ok — WhatsApp text to the customer (Phase 3)
   };
 
   // Fallback: generate a one-off Stripe checkout link when no product URL is configured.
   // Returns null silently if Stripe isn't set up for the business.
   const generateStripePaymentLink = async (): Promise<string | null> => {
     try {
-      const description = Array.from(new Set(calc.lines.map((l) => l.name))).join(", ") || "תשלום";
+      const description = Array.from(new Set(calc.lines.map((l) => l.name))).join(", ") || "תשלום"; // i18n-ok — Stripe payment-link description sent to the API (Phase 3)
       const res = await fetch("/api/payments/stripe/payment-link", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1569,7 +1581,7 @@ export function CreateOrderModal({
         if (stripeUrl) links = [stripeUrl];
       }
       if (links.length === 0) {
-        toast.warning("לא הוגדר קישור תשלום למוצרים בהזמנה — ההודעה נשלחת ללא לינק");
+        toast.warning(t("paymentStep.noPaymentLinkWarning"));
       }
       const msg = encodeURIComponent(buildPaymentRequestMessage(links));
       const waUrl = `https://api.whatsapp.com/send?phone=${toWhatsAppPhone(phone)}&text=${msg}`;
@@ -1593,10 +1605,10 @@ export function CreateOrderModal({
         </div>
         <div>
           <p className="text-sm font-bold text-emerald-700">
-            {createdOrder?.paid ? "ההזמנה אושרה ותשלום נרשם!" : "ההזמנה אושרה בהצלחה!"}
+            {createdOrder?.paid ? t("paymentStep.confirmedPaid") : t("paymentStep.confirmed")}
           </p>
           <p className="text-xs text-emerald-600">
-            {createdOrder?.paid ? "התשלום קושר להזמנה אוטומטית" : "ניתן לשלוח דרישת תשלום ללקוח בוואטסאפ"}
+            {createdOrder?.paid ? t("paymentStep.paymentLinked") : t("paymentStep.canSendRequest")}
           </p>
         </div>
       </div>
@@ -1610,7 +1622,7 @@ export function CreateOrderModal({
           <div key={i} className="flex items-center gap-2 px-4 py-2.5 border-b border-petra-border last:border-0">
             <span className="flex-1 text-sm text-petra-text">{l.name}</span>
             <span className="text-xs text-petra-muted flex-shrink-0">{l.quantity} × {fmt(l.unitPrice)}</span>
-            <span className="text-sm font-semibold text-petra-text flex-shrink-0 w-16 text-left">{fmt(l.lineSubtotal)}</span>
+            <span className="text-sm font-semibold text-petra-text flex-shrink-0 w-16 text-end">{fmt(l.lineSubtotal)}</span>
           </div>
         ))}
       </div>
@@ -1624,7 +1636,7 @@ export function CreateOrderModal({
             onChange={(e) => setIncludeLandingPage(e.target.checked)}
             className="rounded border-petra-border text-brand-500 focus:ring-brand-500 w-4 h-4"
           />
-          כלול קישור לדף נחיתה / תשלום בהודעה הקרובה
+          {t("paymentStep.includeLanding")}
         </label>
       )}
 
@@ -1632,18 +1644,18 @@ export function CreateOrderModal({
       <div className="space-y-1.5 bg-slate-50 rounded-xl p-3 border border-petra-border">
         {calc.discountAmount > 0 && (
           <div className="flex justify-between text-sm text-emerald-600">
-            <span>הנחה</span>
+            <span>{t("paymentStep.discount")}</span>
             <span dir="ltr">−{fmt(calc.discountAmount)}</span>
           </div>
         )}
         {calc.taxTotal > 0 && (
           <div className="flex justify-between text-sm text-petra-muted">
-            <span>מע&quot;מ</span>
+            <span>{t("paymentStep.vat")}</span>
             <span dir="ltr">{fmt(calc.taxTotal)}</span>
           </div>
         )}
         <div className="flex justify-between text-base font-bold text-petra-text border-t border-petra-border pt-1.5 mt-1.5">
-          <span>סה&quot;כ לתשלום</span>
+          <span>{t("totalToPay")}</span>
           <span dir="ltr">{fmt(calc.total)}</span>
         </div>
       </div>
@@ -1657,7 +1669,7 @@ export function CreateOrderModal({
             handleClose();
           }}
         >
-          פתח תוכנית אילוף →
+          {t("paymentStep.openTrainingProgram")}
         </button>
       )}
 
@@ -1672,7 +1684,7 @@ export function CreateOrderModal({
             handleClose();
           }}
         >
-          מעבר להזמנה בקופה
+          {t("paymentStep.goToOrder")}
         </button>
         <button
           className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white transition-all flex items-center justify-center gap-2"
@@ -1687,7 +1699,7 @@ export function CreateOrderModal({
           disabled={!selectedCustomer?.phone}
         >
           <Send className="w-4 h-4" />
-          שלח הודעה ומעבר
+          {t("paymentStep.sendAndGo")}
         </button>
       </div>
 
@@ -1701,10 +1713,10 @@ export function CreateOrderModal({
         >
           <Send className="w-4 h-4" />
           {sendingPaymentRequest
-            ? "מכין קישור..."
+            ? t("paymentStep.preparingLink")
             : paymentRequestUrls.length > 0
-              ? "שלח דרישת תשלום עם קישור לדף הנחיתה"
-              : "שלח דרישת תשלום בוואטסאפ"}
+              ? t("paymentStep.sendRequestWithLanding")
+              : t("paymentStep.sendRequestWhatsApp")}
         </button>
       )}
     </div>
@@ -1717,17 +1729,17 @@ export function CreateOrderModal({
       {isBoardingOrder && boardingUnits !== null && (
         <div className="flex items-center gap-3 p-3 bg-brand-50 border border-brand-100 rounded-xl">
           <div className="text-2xl">🏠</div>
-          <div className="flex-1 text-right">
-            <p className="text-xs text-petra-muted">כניסה</p>
-            <p className="text-sm font-semibold text-petra-text">{boardingCheckInDate} בשעה {boardingCheckInTime}</p>
+          <div className="flex-1 text-start">
+            <p className="text-xs text-petra-muted">{t("reviewStep.checkIn")}</p>
+            <p className="text-sm font-semibold text-petra-text">{t("reviewStep.dateAtTime", { date: boardingCheckInDate, time: boardingCheckInTime })}</p>
           </div>
           <div className="flex flex-col items-center px-2">
             <div className="text-xs font-bold text-brand-600">{boardingUnits}</div>
-            <div className="text-[10px] text-petra-muted">{business?.boardingCalcMode === "days" ? "ימים" : "לילות"}</div>
+            <div className="text-[10px] text-petra-muted">{business?.boardingCalcMode === "days" ? t("calcUnits.days") : t("calcUnits.nights")}</div>
           </div>
-          <div className="flex-1 text-right">
-            <p className="text-xs text-petra-muted">יציאה</p>
-            <p className="text-sm font-semibold text-petra-text">{boardingCheckOutDate} בשעה {boardingCheckOutTime}</p>
+          <div className="flex-1 text-start">
+            <p className="text-xs text-petra-muted">{t("reviewStep.checkOut")}</p>
+            <p className="text-sm font-semibold text-petra-text">{t("reviewStep.dateAtTime", { date: boardingCheckOutDate, time: boardingCheckOutTime })}</p>
           </div>
         </div>
       )}
@@ -1738,7 +1750,7 @@ export function CreateOrderModal({
           <div key={i} className="flex items-center gap-2 px-4 py-2.5 border-b border-petra-border last:border-0">
             <span className="flex-1 text-sm text-petra-text">{l.name}</span>
             <span className="text-xs text-petra-muted flex-shrink-0">{l.quantity} × {fmt(l.unitPrice)}</span>
-            <span className="text-sm font-semibold text-petra-text flex-shrink-0 w-16 text-left">{fmt(l.lineSubtotal)}</span>
+            <span className="text-sm font-semibold text-petra-text flex-shrink-0 w-16 text-end">{fmt(l.lineSubtotal)}</span>
           </div>
         ))}
       </div>
@@ -1746,51 +1758,51 @@ export function CreateOrderModal({
       {/* Totals */}
       <div className="space-y-1.5 bg-slate-50 rounded-xl p-3 border border-petra-border">
         <div className="flex justify-between text-sm text-petra-muted">
-          <span>סכום ביניים</span>
+          <span>{t("reviewStep.subtotal")}</span>
           <span dir="ltr">{fmt(calc.subtotal)}</span>
         </div>
         {calc.discountAmount > 0 && (
           <div className="flex justify-between text-sm text-emerald-600">
-            <span>הנחה ({discountType === "percent" ? `${discountValue}%` : "קבועה"})</span>
+            <span>{t("reviewStep.discountWith", { detail: discountType === "percent" ? `${discountValue}%` : t("reviewStep.fixedDiscount") })}</span>
             <span dir="ltr">−{fmt(calc.discountAmount)}</span>
           </div>
         )}
-        {business?.legalEntityType === "עוסק פטור" ? (
+        {business?.legalEntityType === "עוסק פטור" ? ( // i18n-ok — compared with Business.legalEntityType (DB value)
           <div className="flex justify-between text-sm text-petra-muted">
-            <span className="text-emerald-600 font-medium">עוסק פטור — ללא מע&quot;מ</span>
+            <span className="text-emerald-600 font-medium">{t("reviewStep.exemptNoVat")}</span>
           </div>
         ) : calc.taxTotal > 0 ? (
           <div className="flex justify-between text-sm text-petra-muted">
-            <span>כולל מע&quot;מ ({((business?.vatRate ?? VAT_RATE) * 100).toFixed(0)}%)</span>
+            <span>{t("reviewStep.includingVat", { rate: ((business?.vatRate ?? VAT_RATE) * 100).toFixed(0) })}</span>
             <span dir="ltr">{fmt(calc.taxTotal)}</span>
           </div>
         ) : null}
         <div className="flex justify-between text-base font-bold text-petra-text border-t border-petra-border pt-1.5 mt-1.5">
-          <span>סה&quot;כ לתשלום</span>
+          <span>{t("totalToPay")}</span>
           <span dir="ltr">{fmt(calc.total)}</span>
         </div>
       </div>
 
       <div>
-        <label className="label">הערות להזמנה</label>
+        <label className="label">{t("reviewStep.notes")}</label>
         <textarea
           className="input resize-none text-sm"
           rows={2}
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          placeholder="הערות, הוראות מיוחדות..."
+          placeholder={t("reviewStep.notesPlaceholder")}
         />
       </div>
 
       {teamMembers.length > 0 && (
         <div>
-          <label className="label">איש צוות</label>
+          <label className="label">{t("reviewStep.staffMember")}</label>
           <select
             className="input"
             value={assignedToUserId}
             onChange={(e) => setAssignedToUserId(e.target.value)}
           >
-            <option value="">ללא שיוך</option>
+            <option value="">{t("reviewStep.unassigned")}</option>
             {teamMembers.map((m) => (
               <option key={m.id} value={m.id}>{m.name}</option>
             ))}
@@ -1812,14 +1824,14 @@ export function CreateOrderModal({
           />
           <span className="flex items-center gap-2 text-sm font-semibold text-emerald-700">
             <CreditCard className="w-4 h-4" />
-            הלקוח שילם עכשיו
+            {t("reviewStep.customerPaidNow")}
           </span>
         </label>
         {payAtCheckout && (
           <div className="px-3 pb-3 pt-2 space-y-2.5 bg-white border-t border-emerald-100">
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="label text-xs">סכום שהתקבל (₪)</label>
+                <label className="label text-xs">{t("reviewStep.amountReceived", { currency: curSym })}</label>
                 <input
                   type="number"
                   min="0"
@@ -1830,18 +1842,18 @@ export function CreateOrderModal({
                 />
               </div>
               <div>
-                <label className="label text-xs">אמצעי תשלום</label>
+                <label className="label text-xs">{t("reviewStep.paymentMethod")}</label>
                 <select
                   className="input text-sm"
                   value={checkoutPayMethod}
                   onChange={(e) => { setCheckoutPayMethod(e.target.value); }}
                 >
-                  <option value="cash">מזומן</option>
-                  <option value="credit_card">כרטיס אשראי</option>
-                  <option value="bank_transfer">העברה בנקאית</option>
-                  <option value="bit">ביט</option>
-                  <option value="paybox">פייבוקס</option>
-                  <option value="check">צ&apos;ק</option>
+                  <option value="cash">{t("reviewStep.methods.cash")}</option>
+                  <option value="credit_card">{t("reviewStep.methods.credit_card")}</option>
+                  <option value="bank_transfer">{t("reviewStep.methods.bank_transfer")}</option>
+                  <option value="bit">{t("reviewStep.methods.bit")}</option>
+                  <option value="paybox">{t("reviewStep.methods.paybox")}</option>
+                  <option value="check">{t("reviewStep.methods.check")}</option>
                 </select>
               </div>
             </div>
@@ -1849,7 +1861,7 @@ export function CreateOrderModal({
             {checkoutPayMethod === "credit_card" && (
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="label text-xs">4 ספרות אחרונות</label>
+                  <label className="label text-xs">{t("reviewStep.last4")}</label>
                   <input
                     type="text"
                     inputMode="numeric"
@@ -1861,14 +1873,14 @@ export function CreateOrderModal({
                   />
                 </div>
                 <div>
-                  <label className="label text-xs">סוג כרטיס</label>
+                  <label className="label text-xs">{t("reviewStep.cardType")}</label>
                   <select className="input text-sm" value={checkoutCardType} onChange={(e) => setCheckoutCardType(e.target.value)}>
                     <option value="visa">Visa</option>
                     <option value="mastercard">Mastercard</option>
                     <option value="amex">Amex</option>
                     <option value="diners">Diners</option>
                     <option value="isracard">Isracard</option>
-                    <option value="other">אחר</option>
+                    <option value="other">{t("reviewStep.otherCard")}</option>
                   </select>
                 </div>
               </div>
@@ -1877,19 +1889,19 @@ export function CreateOrderModal({
             {checkoutPayMethod === "check" && (
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="label text-xs">מספר המחאה</label>
+                  <label className="label text-xs">{t("reviewStep.checkNumber")}</label>
                   <input type="text" placeholder="12345" className="input text-sm" value={checkoutCheckNumber} onChange={(e) => setCheckoutCheckNumber(e.target.value)} />
                 </div>
                 <div>
-                  <label className="label text-xs">תאריך פירעון</label>
+                  <label className="label text-xs">{t("reviewStep.checkDueDate")}</label>
                   <input type="date" className="input text-sm" value={checkoutCheckDate} onChange={(e) => setCheckoutCheckDate(e.target.value)} />
                 </div>
                 <div>
-                  <label className="label text-xs">בנק</label>
-                  <input type="text" placeholder="לאומי" className="input text-sm" value={checkoutCheckBank} onChange={(e) => setCheckoutCheckBank(e.target.value)} />
+                  <label className="label text-xs">{t("reviewStep.bank")}</label>
+                  <input type="text" placeholder={t("reviewStep.bankPlaceholder")} className="input text-sm" value={checkoutCheckBank} onChange={(e) => setCheckoutCheckBank(e.target.value)} />
                 </div>
                 <div>
-                  <label className="label text-xs">סניף</label>
+                  <label className="label text-xs">{t("reviewStep.branch")}</label>
                   <input type="text" placeholder="900" className="input text-sm" value={checkoutCheckBranch} onChange={(e) => setCheckoutCheckBranch(e.target.value)} />
                 </div>
               </div>
@@ -1900,7 +1912,7 @@ export function CreateOrderModal({
 
       {mutation.isError && (
         <p className="text-sm text-red-500 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
-          {mutation.error?.message || "שגיאה ביצירת ההזמנה"}
+          {mutation.error?.message || t("errors.createFailed")}
         </p>
       )}
 
@@ -1913,7 +1925,7 @@ export function CreateOrderModal({
           onClick={() => openWhatsApp(selectedCustomer.phone)}
         >
           <Send className="w-4 h-4" />
-          שלח דרישת תשלום ללקוח (WhatsApp)
+          {t("reviewStep.sendRequestToClient")}
         </button>
       )}
 
@@ -1923,7 +1935,7 @@ export function CreateOrderModal({
           disabled={mutation.isPending}
           onClick={() => mutation.mutate({ status: "draft" })}
         >
-          שמור כטיוטה
+          {t("reviewStep.saveDraft")}
         </button>
         <button
           className={cn("btn-primary flex-1 gap-1.5", payAtCheckout && "bg-emerald-500 hover:bg-emerald-600 border-emerald-500")}
@@ -1942,9 +1954,9 @@ export function CreateOrderModal({
             } : undefined,
           })}
         >
-          {mutation.isPending ? "שומר..." : payAtCheckout
-            ? <><CheckCircle2 className="w-4 h-4" />אשר + שולם {fmt(parseFloat(checkoutPayAmount) || calc.total)}</>
-            : `אשר הזמנה ${fmt(calc.total)}`
+          {mutation.isPending ? tc("progress.saving") : payAtCheckout
+            ? <><CheckCircle2 className="w-4 h-4" />{t("reviewStep.confirmPaid", { amount: fmt(parseFloat(checkoutPayAmount) || calc.total) })}</>
+            : t("reviewStep.confirmOrder", { amount: fmt(calc.total) })
           }
         </button>
       </div>
@@ -1953,11 +1965,11 @@ export function CreateOrderModal({
 
   // Step phase for the 3-dot indicator (matching the screenshot design)
   const stepPhase = step === "category" ? 1 : (step === "customer" || step === "items") ? 2 : 3;
-  const stepLabel = step === "category" ? "בחירת קטגוריה"
-    : step === "customer" ? "לקוח"
-    : step === "items" ? "פריטים"
-    : step === "review" ? "סיכום"
-    : "תשלום";
+  const stepLabel = step === "category" ? t("steps.category")
+    : step === "customer" ? t("steps.customer")
+    : step === "items" ? t("steps.items")
+    : step === "review" ? t("steps.review")
+    : t("steps.payment");
 
   return (
     <div className="modal-overlay">
@@ -1968,8 +1980,8 @@ export function CreateOrderModal({
           <div>
             <h2 className="text-xl font-bold text-petra-text">
               {step === "category"
-                ? "הזמנה חדשה"
-                : `הזמנת ${CATEGORY_LABELS[orderType] ?? "שירות"}`}
+                ? t("header.newOrder")
+                : t("header.orderOf", { category: CATEGORY_LABELS[orderType] ? t(`categories.${orderType}`) : t("header.service") })}
             </h2>
             <div className="flex items-center gap-2 mt-1">
               {[1, 2, 3].map((s) => (
@@ -1978,14 +1990,14 @@ export function CreateOrderModal({
                   className={cn(
                     "h-1.5 rounded-full transition-all",
                     s === stepPhase
-                      ? "w-8 bg-gradient-to-l from-[#f38d49] to-[#FB923C]"
+                      ? "w-8 bg-gradient-to-l ltr:bg-gradient-to-r from-[#f38d49] to-[#FB923C]"
                       : s < stepPhase
                         ? "w-6 bg-[#f38d49]/40"
                         : "w-6 bg-slate-200"
                   )}
                 />
               ))}
-              <span className="text-xs text-petra-muted mr-1">{stepLabel}</span>
+              <span className="text-xs text-petra-muted ms-1">{stepLabel}</span>
             </div>
           </div>
           <button onClick={handleClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted transition-all">
@@ -2004,7 +2016,7 @@ export function CreateOrderModal({
               }}
               className="text-xs text-petra-muted hover:text-petra-text flex items-center gap-1"
             >
-              → חזרה
+              {t("header.back")}
             </button>
           </div>
         )}

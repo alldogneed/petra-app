@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { toWhatsAppPhone } from "@/lib/utils";
 import { DashboardStats } from "@/components/dashboard/dashboard-shared";
@@ -8,13 +9,14 @@ import { DashCard, DashCardHeader, DashLink, SentMark, WaIconButton, WaTextButto
 // ─── At-Risk Customers Widget ─────────────────────────────────────────────────
 
 export function AtRiskCustomersWidget({ customers }: { customers: DashboardStats["atRiskCustomers"] }) {
+  const t = useTranslations("dashboard.atRiskCustomers");
   const [sentIds, setSentIds] = useState<Set<string>>(new Set());
   const [bulkSending, setBulkSending] = useState(false);
 
   if (!customers || customers.length === 0) return null;
 
   function buildMsg(c: DashboardStats["atRiskCustomers"][0]) {
-    return `שלום ${c.name}! 🐾\nזמן רב לא ראינו אתכם, מתגעגעים!\nהאם תרצו לקבוע תור? נשמח לראות אתכם שוב 😊`;
+    return `שלום ${c.name}! 🐾\nזמן רב לא ראינו אתכם, מתגעגעים!\nהאם תרצו לקבוע תור? נשמח לראות אתכם שוב 😊`; // i18n-ok — WhatsApp text sent to the customer (Phase 3: business-language template)
   }
 
   function handleBulkSend() {
@@ -33,18 +35,18 @@ export function AtRiskCustomersWidget({ customers }: { customers: DashboardStats
   return (
     <DashCard>
       <DashCardHeader
-        title="לקוחות בסיכון אי-חזרה"
-        subtitle={`${customers.length} לקוחות לא ביקרו 60+ יום`}
+        title={t("title")}
+        subtitle={t("subtitle", { count: customers.length })}
         actions={
           <>
             <WaTextButton
               onClick={handleBulkSend}
               disabled={bulkSending || customers.filter((c) => c.phone).length === 0}
-              title="שלח הודעות לכל הלקוחות ברשימה"
+              title={t("sendAllTitle")}
             >
-              שלח לכולם
+              {t("sendAll")}
             </WaTextButton>
-            <DashLink href="/customers">כל הלקוחות</DashLink>
+            <DashLink href="/customers">{t("allCustomers")}</DashLink>
           </>
         }
       />
@@ -64,9 +66,9 @@ export function AtRiskCustomersWidget({ customers }: { customers: DashboardStats
                 {c.name}
               </Link>
               <span className="text-xs text-slate-500 truncate">
-                <span className={urgency}>לא ביקר {c.daysSinceVisit} ימים</span>
+                <span className={urgency}>{t("notVisited", { days: c.daysSinceVisit })}</span>
                 {" · "}
-                {c.totalVisits} ביקורים סה״כ
+                {t("totalVisits", { count: c.totalVisits })}
               </span>
             </div>
             {c.phone &&
@@ -75,7 +77,7 @@ export function AtRiskCustomersWidget({ customers }: { customers: DashboardStats
               ) : (
                 <WaIconButton
                   href={waLink}
-                  title="שלח הודעת חזרה בוואטסאפ"
+                  title={t("sendOneTitle")}
                   onClick={() => setSentIds((prev) => new Set([...prev, c.id]))}
                 />
               ))}

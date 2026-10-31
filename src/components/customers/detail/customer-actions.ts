@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { buildWhatsAppUrl } from "@/lib/utils";
 
 /** wa.me deep link (opens the user's own WhatsApp — the server sends nothing). Empty string when there's no phone. */
@@ -21,7 +22,7 @@ export function bookingLinkHref(customer: { name: string; phone: string }, busin
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   return waLink(
     customer.phone,
-    `שלום ${customer.name}! 📅\nקבע/י תור אונליין בקישור הבא:\n${origin}/book/${businessSlug}\nנשמח לראותך! 🐾`
+    `שלום ${customer.name}! 📅\nקבע/י תור אונליין בקישור הבא:\n${origin}/book/${businessSlug}\nנשמח לראותך! 🐾` // i18n-ok — text sent to the client (Phase 3)
   );
 }
 
@@ -30,11 +31,12 @@ export function bookingLinkHref(customer: { name: string; phone: string }, busin
  * Single implementation for header + mobile menu (MESSAGES_SEND gate is the caller's job).
  */
 export function useIntakeFormSender(customer: { id: string; name: string; phone: string }) {
+  const t = useTranslations("customers.customerActions");
   const [sending, setSending] = useState(false);
 
   async function send() {
     if (!customer.phone) {
-      toast.error("אין מספר טלפון ללקוח");
+      toast.error(t("noPhone"));
       return;
     }
     setSending(true);
@@ -46,13 +48,13 @@ export function useIntakeFormSender(customer: { id: string; name: string; phone:
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data?.url) {
-        toast.error(data?.error || "לא ניתן ליצור טופס קבלה");
+        toast.error(data?.error || t("intakeCreateFailed"));
         return;
       }
-      const msg = `שלום ${customer.name}! 📋\nאנא מלא טופס קבלה עבור הכלב שלך:\n${data.url}\nהקישור בתוקף ל-7 ימים. תודה! 🐾`;
+      const msg = `שלום ${customer.name}! 📋\nאנא מלא טופס קבלה עבור הכלב שלך:\n${data.url}\nהקישור בתוקף ל-7 ימים. תודה! 🐾`; // i18n-ok — text sent to the client (Phase 3)
       window.open(waLink(customer.phone, msg), "_blank", "noopener,noreferrer");
     } catch {
-      toast.error("שגיאה ביצירת טופס קבלה");
+      toast.error(t("intakeCreateError"));
     } finally {
       setSending(false);
     }

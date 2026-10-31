@@ -4,20 +4,22 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
 import { X } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { fetchJSON } from "@/lib/utils";
 import { validateIsraeliPhone, validateEmail, sanitizeName, normalizeIsraeliPhone, validateName } from "@/lib/validation";
 import type { CustomerDetail } from "./types";
 
-export const DEFAULT_CUSTOMER_TAGS = ["VIP", "קבוע", "מזדמן", "פוטנציאל", "לשעבר", "עסקי"];
+export const DEFAULT_CUSTOMER_TAGS = ["VIP", "קבוע", "מזדמן", "פוטנציאל", "לשעבר", "עסקי"]; // i18n-ok — stored tag values (Phase 3)
 
+/** Labels: `customers.detailEditCustomerModal.sources.<value>` */
 export const REFERRAL_SOURCES = [
-  { value: "referral", label: "המלצה מלקוח" },
-  { value: "google", label: "גוגל" },
-  { value: "instagram", label: "אינסטגרם" },
-  { value: "facebook", label: "פייסבוק" },
-  { value: "tiktok", label: "טיקטוק" },
-  { value: "signage", label: "שלט / מעבר ברחוב" },
-  { value: "other", label: "אחר" },
+  { value: "referral" },
+  { value: "google" },
+  { value: "instagram" },
+  { value: "facebook" },
+  { value: "tiktok" },
+  { value: "signage" },
+  { value: "other" },
 ];
 
 export function EditCustomerModal({
@@ -29,6 +31,8 @@ export function EditCustomerModal({
   isOpen: boolean;
   onClose: () => void;
 }) {
+  const t = useTranslations("customers.detailEditCustomerModal");
+  const tc = useTranslations("common");
   const queryClient = useQueryClient();
 
   const { data: businessSettings } = useQuery<{ customerTags?: string }>({
@@ -70,7 +74,7 @@ export function EditCustomerModal({
     setForm((prev) => ({
       ...prev,
       selectedTags: prev.selectedTags.includes(tag)
-        ? prev.selectedTags.filter((t) => t !== tag)
+        ? prev.selectedTags.filter((x) => x !== tag)
         : [...prev.selectedTags, tag],
     }));
   };
@@ -84,7 +88,7 @@ export function EditCustomerModal({
       });
       if (!r.ok) {
         const d = await r.json().catch(() => ({}));
-        throw new Error(d.error || "שגיאה בעדכון הלקוח");
+        throw new Error(d.error || t("errorUpdate"));
       }
       return r.json();
     },
@@ -92,7 +96,7 @@ export function EditCustomerModal({
       queryClient.invalidateQueries({ queryKey: ["customer", customer.id] });
       onClose();
     },
-    onError: (e: Error) => toast.error(e.message || "שגיאה בעדכון הלקוח. נסה שוב."),
+    onError: (e: Error) => toast.error(e.message || t("errorUpdateRetry")),
   });
 
   if (!isOpen) return null;
@@ -102,7 +106,7 @@ export function EditCustomerModal({
       <div className="modal-backdrop" onClick={onClose} />
       <div className="modal-content max-w-md mx-4 p-6">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-bold text-petra-text">עריכת לקוח</h2>
+          <h2 className="text-lg font-bold text-petra-text">{t("title")}</h2>
           <button
             onClick={onClose}
             className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted"
@@ -112,7 +116,7 @@ export function EditCustomerModal({
         </div>
         <div className="space-y-4">
           <div>
-            <label className="label">שם *</label>
+            <label className="label">{t("fields.name")}</label>
             <input
               className="input"
               value={form.name}
@@ -121,7 +125,7 @@ export function EditCustomerModal({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">טלפון *</label>
+              <label className="label">{t("fields.phone")}</label>
               <input
                 className="input"
                 value={form.phone}
@@ -129,7 +133,7 @@ export function EditCustomerModal({
               />
             </div>
             <div>
-              <label className="label">אימייל</label>
+              <label className="label">{t("fields.email")}</label>
               <input
                 className="input"
                 type="email"
@@ -139,7 +143,7 @@ export function EditCustomerModal({
             </div>
           </div>
           <div>
-            <label className="label">כתובת</label>
+            <label className="label">{t("fields.address")}</label>
             <input
               className="input"
               value={form.address}
@@ -147,16 +151,16 @@ export function EditCustomerModal({
             />
           </div>
           <div>
-            <label className="label">תעודת זהות</label>
+            <label className="label">{t("fields.idNumber")}</label>
             <input
               className="input"
-              placeholder="מספר ת.ז."
+              placeholder={t("fields.idNumberPlaceholder")}
               value={form.idNumber}
               onChange={(e) => setForm({ ...form, idNumber: e.target.value })}
             />
           </div>
           <div>
-            <label className="label">תגיות לקוח</label>
+            <label className="label">{t("fields.tags")}</label>
             <div className="flex flex-wrap gap-1.5 mt-1">
               {presetTags.map((tag: string) => (
                 <button
@@ -176,20 +180,20 @@ export function EditCustomerModal({
             </div>
           </div>
           <div>
-            <label className="label">מקור הגעה</label>
+            <label className="label">{t("fields.source")}</label>
             <select
               className="input"
               value={form.source}
               onChange={(e) => setForm({ ...form, source: e.target.value })}
             >
-              <option value="">— לא ידוע —</option>
+              <option value="">{t("sourceUnknown")}</option>
               {REFERRAL_SOURCES.map((s) => (
-                <option key={s.value} value={s.value}>{s.label}</option>
+                <option key={s.value} value={s.value}>{t(`sources.${s.value}`)}</option>
               ))}
             </select>
           </div>
           <div>
-            <label className="label">הערות</label>
+            <label className="label">{t("fields.notes")}</label>
             <textarea
               className="input min-h-[80px]"
               value={form.notes}
@@ -223,10 +227,10 @@ export function EditCustomerModal({
               });
             }}
           >
-            {mutation.isPending ? "שומר..." : "שמור שינויים"}
+            {mutation.isPending ? tc("progress.saving") : t("saveChanges")}
           </button>
           <button className="btn-secondary" onClick={onClose}>
-            ביטול
+            {tc("actions.cancel")}
           </button>
         </div>
         {fieldErrors.name && <p className="text-xs text-red-500 mt-2">{fieldErrors.name}</p>}

@@ -1,13 +1,34 @@
 // Shared label/colour constants for the customer card (src/components/customers/detail/*).
+//
+// i18n: labels are NOT stored here — components render them through `constantLabel(t, group, id)`
+// with `t = useTranslations("customers.constants")` (messages under `customers.constants.*`).
+// This file keeps only ids, colours and severities.
 
-export const PAYMENT_METHOD_LABELS: Record<string, string> = {
-  cash: "מזומן",
-  credit_card: "כרטיס אשראי",
-  bank_transfer: "העברה בנקאית",
-  bit: "ביט",
-  paybox: "פייבוקס",
-  check: "צ׳ק",
-};
+/** Translator scoped to `customers.constants` (`useTranslations("customers.constants")`). */
+export interface ConstantsTranslator {
+  (key: string): string;
+  has(key: string): boolean;
+}
+
+export type ConstantsGroup =
+  | "paymentMethods"
+  | "paymentStatuses"
+  | "behaviorFlags"
+  | "programTypes"
+  | "programStatuses"
+  | "orderStatuses"
+  | "orderTypes";
+
+/** Translated label for an id of one of the maps below; `undefined` when unknown (keep the caller's fallback). */
+export function constantLabel(
+  t: ConstantsTranslator,
+  group: ConstantsGroup,
+  id: string | null | undefined,
+): string | undefined {
+  if (!id) return undefined;
+  const key = `${group}.${id}`;
+  return t.has(key) ? t(key) : undefined;
+}
 
 export const PAYMENT_STATUS_COLORS: Record<string, string> = {
   paid: "badge-success",
@@ -16,49 +37,27 @@ export const PAYMENT_STATUS_COLORS: Record<string, string> = {
   canceled: "badge-neutral",
 };
 
-export const PAYMENT_STATUS_LABELS: Record<string, string> = {
-  paid: "שולם",
-  pending: "ממתין",
-  overdue: "באיחור",
-  canceled: "בוטל",
-};
-
-export const BEHAVIOR_FLAG_LABELS: Record<string, { label: string; severity: "red" | "orange" | "green" }> = {
-  dogAggression: { label: "תוקפנות כלבים", severity: "red" },
-  humanAggression: { label: "תוקפנות אנשים", severity: "red" },
-  biteHistory: { label: "היסטוריית נשיכה", severity: "red" },
-  badWithKids: { label: "בעייתי עם ילדים", severity: "red" },
-  leashReactivity: { label: "ריאקטיבי בשרשרת", severity: "orange" },
-  leashPulling: { label: "משיכה בשרשרת", severity: "orange" },
-  jumping: { label: "קפיצה", severity: "orange" },
-  separationAnxiety: { label: "חרדת נטישה", severity: "orange" },
-  excessiveBarking: { label: "נביחות מוגזמות", severity: "orange" },
-  destruction: { label: "הרסנות", severity: "orange" },
-  resourceGuarding: { label: "שמירת משאבים", severity: "orange" },
-  houseSoiling: { label: "צרכים בבית", severity: "orange" },
-  priorTraining: { label: "אילוף קודם", severity: "green" },
+/** Behaviour flag id → severity (order = display order). Labels: `behaviorFlags.<id>`. */
+export const BEHAVIOR_FLAG_SEVERITY: Record<string, "red" | "orange" | "green"> = {
+  dogAggression: "red",
+  humanAggression: "red",
+  biteHistory: "red",
+  badWithKids: "red",
+  leashReactivity: "orange",
+  leashPulling: "orange",
+  jumping: "orange",
+  separationAnxiety: "orange",
+  excessiveBarking: "orange",
+  destruction: "orange",
+  resourceGuarding: "orange",
+  houseSoiling: "orange",
+  priorTraining: "green",
 };
 
 export const SEVERITY_COLORS: Record<string, string> = {
   red: "bg-red-100 text-red-700 border-red-200",
   orange: "bg-amber-100 text-amber-700 border-amber-200",
   green: "bg-emerald-100 text-emerald-700 border-emerald-200",
-};
-
-export const PROGRAM_TYPE_LABELS: Record<string, string> = {
-  BASIC_OBEDIENCE: "משמעת בסיסית",
-  REACTIVITY: "ריאקטיביות",
-  PUPPY: "גור",
-  BEHAVIOR: "התנהגות",
-  ADVANCED: "מתקדם",
-  CUSTOM: "מותאם אישית",
-};
-
-export const PROGRAM_STATUS_LABELS: Record<string, string> = {
-  ACTIVE: "פעיל",
-  PAUSED: "מושהה",
-  COMPLETED: "הושלם",
-  CANCELED: "בוטל",
 };
 
 export const PROGRAM_STATUS_COLORS: Record<string, string> = {
@@ -68,20 +67,12 @@ export const PROGRAM_STATUS_COLORS: Record<string, string> = {
   CANCELED: "badge-neutral",
 };
 
-export const ORDER_STATUS_INFO: Record<string, { label: string; color: string }> = {
-  draft: { label: "טיוטה", color: "badge-neutral" },
-  confirmed: { label: "מאושר", color: "badge-brand" },
-  paid: { label: "שולם", color: "badge-success" },
-  partially_paid: { label: "שולם חלקית", color: "badge-warning" },
-  canceled: { label: "בוטל", color: "badge-danger" },
-  refunded: { label: "זוכה", color: "badge-danger" },
-};
-
-export const ORDER_TYPE_LABELS: Record<string, string> = {
-  sale: "מכירה",
-  products: "מוצרים",
-  appointment: "תור",
-  boarding: "פנסיון",
-  training: "אילוף",
-  grooming: "טיפוח",
+/** Order status → badge class. Labels: `orderStatuses.<id>`. */
+export const ORDER_STATUS_COLORS: Record<string, string> = {
+  draft: "badge-neutral",
+  confirmed: "badge-brand",
+  paid: "badge-success",
+  partially_paid: "badge-warning",
+  canceled: "badge-danger",
+  refunded: "badge-danger",
 };

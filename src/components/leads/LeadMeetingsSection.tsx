@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -9,6 +10,8 @@ import { CalendarPlus, Check, Clock, MapPin, Pencil, UserX, X, CalendarClock } f
 import { cn, fetchJSON } from "@/lib/utils";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
+import { formatTime } from "@/lib/format";
 import {
   LEAD_MEETING_STATUS_LABELS,
   addMinutesHHmm,
@@ -85,8 +88,8 @@ function meetingStart(m: LeadMeeting): Date {
   return new Date(`${m.date.slice(0, 10)}T${m.startTime}:00`);
 }
 
-function formatMeetingDay(ymd: string): string {
-  return new Date(`${ymd}T12:00:00`).toLocaleDateString("he-IL", {
+function formatMeetingDay(ymd: string, locale: string): string {
+  return new Date(`${ymd}T12:00:00`).toLocaleDateString(locale, {
     weekday: "short",
     day: "2-digit",
     month: "2-digit",
@@ -106,6 +109,9 @@ const emptyForm = (): MeetingForm => ({
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function LeadMeetingsSection({ leadId, leadName, isCustomer, onConverted }: LeadMeetingsSectionProps) {
+  const t = useTranslations("leads");
+  const tc = useTranslations("common");
+  const { locale, cfg } = useBusinessLocale();
   const queryClient = useQueryClient();
   const router = useRouter();
 
@@ -120,8 +126,8 @@ export function LeadMeetingsSection({ leadId, leadName, isCustomer, onConverted 
 
   useEffect(() => {
     setMounted(true);
-    const t = setInterval(() => setNow(new Date()), 60_000);
-    return () => clearInterval(t);
+    const timer = setInterval(() => setNow(new Date()), 60_000);
+    return () => clearInterval(timer);
   }, []);
 
   const { data, isLoading, isError } = useQuery<{ meetings: LeadMeeting[] }>({
@@ -176,22 +182,22 @@ export function LeadMeetingsSection({ leadId, leadName, isCustomer, onConverted 
           });
     },
     onSuccess: () => {
-      toast.success(editing ? "הפגישה עודכנה" : "הפגישה נקבעה");
+      toast.success(editing ? t("leadMeetingsSection.toasts.updated") : t("leadMeetingsSection.toasts.scheduled"));
       invalidateAll();
       closeModal();
     },
-    onError: (err: Error) => setFormError(err.message || "שגיאה בשמירת הפגישה"),
+    onError: (err: Error) => setFormError(err.message || t("leadMeetingsSection.toasts.saveError")),
   });
 
   const cancelMutation = useMutation({
     mutationFn: (meetingId: string) =>
       fetchJSON<{ ok: true }>(`/api/leads/${leadId}/meetings/${meetingId}`, { method: "DELETE" }),
     onSuccess: () => {
-      toast.success("הפגישה בוטלה");
+      toast.success(t("leadMeetingsSection.toasts.canceled"));
       invalidateAll();
       setCancelTarget(null);
     },
-    onError: (err: Error) => toast.error(err.message || "שגיאה בביטול הפגישה"),
+    onError: (err: Error) => toast.error(err.message || t("leadMeetingsSection.toasts.cancelError")),
   });
 
   const outcomeMutation = useMutation({
@@ -213,18 +219,18 @@ export function LeadMeetingsSection({ leadId, leadName, isCustomer, onConverted 
           // the page's won message with a link to the customer.
           onConverted(customer);
         } else if (customer) {
-          toast.success(`${customer.name || leadName} הפך/ה ללקוח`, {
+          toast.success(t("leadMeetingsSection.toasts.converted", { name: customer.name || leadName }), {
             duration: 8000,
-            action: { label: "פתח כרטיס לקוח", onClick: () => router.push(`/customers/${customer.id}`) },
+            action: { label: t("leadMeetingsSection.toasts.openCustomer"), onClick: () => router.push(`/customers/${customer.id}`) },
           });
         } else {
-          toast.success(`${leadName} הפך/ה ללקוח`);
+          toast.success(t("leadMeetingsSection.toasts.converted", { name: leadName }));
         }
       } else {
-        toast.success("סומן: לא הגיע — נקבע מעקב למחר");
+        toast.success(t("leadMeetingsSection.toasts.noShow"));
       }
     },
-    onError: (err: Error) => toast.error(err.message || "שגיאה בשמירת תוצאת הפגישה"),
+    onError: (err: Error) => toast.error(err.message || t("leadMeetingsSection.toasts.outcomeError")),
   });
 
   const busy = saveMutation.isPending || cancelMutation.isPending || outcomeMutation.isPending;
@@ -262,11 +268,11 @@ export function LeadMeetingsSection({ leadId, leadName, isCustomer, onConverted 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.date || !form.startTime || !form.endTime) {
-      setFormError("יש למלא תאריך ושעות");
+      setFormError(t("leadMeetingsSection.form.errors.required"));
       return;
     }
     if (form.startTime >= form.endTime) {
-      setFormError("שעת ההתחלה חייבת להיות לפני שעת הסיום");
+      setFormError(t("leadMeetingsSection.form.errors.startBeforeEnd"));
       return;
     }
     setFormError(null);
@@ -289,7 +295,7 @@ export function LeadMeetingsSection({ leadId, leadName, isCustomer, onConverted 
   return (
     <div className="px-6 py-5 border-b border-[#F1F5F9]">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-xs font-semibold text-slate-500">פגישות</div>
+        <div className="text-xs font-semibold text-slate-500">{t("leadMeetingsSection.title")}</div>
         {!isCustomer && (
           <button
             type="button"
@@ -298,21 +304,21 @@ export function LeadMeetingsSection({ leadId, leadName, isCustomer, onConverted 
             className={cn(SMALL_BTN, "border-[#FDBA74] bg-[#FFF7ED] text-[#9A3412] hover:bg-orange-100")}
           >
             <CalendarPlus className="w-4 h-4" />
-            קבע פגישה
+            {t("leadMeetingsSection.schedule")}
           </button>
         )}
       </div>
 
       {isCustomer && (
-        <p className="mt-2 text-xs text-slate-500">הליד כבר לקוח — קבע/י תור רגיל ביומן.</p>
+        <p className="mt-2 text-xs text-slate-500">{t("leadMeetingsSection.alreadyCustomer")}</p>
       )}
 
       {isLoading ? (
         <PetraLoader variant="inline" className="py-4" />
       ) : isError ? (
-        <p className="mt-2 text-sm text-red-600">שגיאה בטעינת הפגישות</p>
+        <p className="mt-2 text-sm text-red-600">{t("leadMeetingsSection.loadError")}</p>
       ) : meetings.length === 0 ? (
-        !isCustomer && <p className="mt-2 text-sm text-slate-400">אין פגישות עדיין</p>
+        !isCustomer && <p className="mt-2 text-sm text-slate-400">{t("leadMeetingsSection.empty")}</p>
       ) : (
         <ul className="mt-3 space-y-2">
           {meetings.map((m) => {
@@ -331,7 +337,7 @@ export function LeadMeetingsSection({ leadId, leadName, isCustomer, onConverted 
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="inline-flex items-center gap-1.5 text-sm font-semibold tabular-nums">
                     <Clock className="w-4 h-4 text-slate-400" />
-                    {formatMeetingDay(ymd)} · <span dir="ltr">{m.startTime}–{m.endTime}</span>
+                    {formatMeetingDay(ymd, locale)} · <span dir="ltr">{formatTime(m.startTime, { locale })}–{formatTime(m.endTime, { locale })}</span>
                   </span>
                   <span className={cn("ms-auto text-[11px] font-semibold border rounded-full px-2 py-0.5", STATUS_CHIP[m.status])}>
                     {LEAD_MEETING_STATUS_LABELS[m.status] ?? m.status}
@@ -362,7 +368,7 @@ export function LeadMeetingsSection({ leadId, leadName, isCustomer, onConverted 
                           className={cn(SMALL_BTN, "border-transparent bg-[#059669] text-white hover:bg-[#047857]")}
                         >
                           <Check className="w-4 h-4" />
-                          התקיימה
+                          {t("leadMeetingsSection.actions.completed")}
                         </button>
                         <button
                           type="button"
@@ -371,7 +377,7 @@ export function LeadMeetingsSection({ leadId, leadName, isCustomer, onConverted 
                           className={cn(SMALL_BTN, "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100")}
                         >
                           <UserX className="w-4 h-4" />
-                          לא הגיע
+                          {t("leadMeetingsSection.actions.noShow")}
                         </button>
                         <button
                           type="button"
@@ -380,7 +386,7 @@ export function LeadMeetingsSection({ leadId, leadName, isCustomer, onConverted 
                           className={cn(SMALL_BTN, "border-slate-200 bg-white text-slate-700 hover:bg-slate-50")}
                         >
                           <CalendarClock className="w-4 h-4" />
-                          נדחתה
+                          {t("leadMeetingsSection.actions.postponed")}
                         </button>
                       </>
                     ) : (
@@ -391,7 +397,7 @@ export function LeadMeetingsSection({ leadId, leadName, isCustomer, onConverted 
                         className={cn(SMALL_BTN, "border-slate-200 bg-white text-slate-700 hover:bg-slate-50")}
                       >
                         <Pencil className="w-3.5 h-3.5" />
-                        ערוך
+                        {t("leadMeetingsSection.actions.edit")}
                       </button>
                     )}
                     <button
@@ -401,7 +407,7 @@ export function LeadMeetingsSection({ leadId, leadName, isCustomer, onConverted 
                       className={cn(SMALL_BTN, "border-red-200 bg-white text-red-700 hover:bg-red-50")}
                     >
                       <X className="w-3.5 h-3.5" />
-                      בטל פגישה
+                      {t("leadMeetingsSection.actions.cancelMeeting")}
                     </button>
                   </div>
                 )}
@@ -413,7 +419,7 @@ export function LeadMeetingsSection({ leadId, leadName, isCustomer, onConverted 
 
       {/* Portaled to <body>: the drawer is a fixed z-50 layer, so its children can't stack above it */}
       {mounted && modalOpen && createPortal(
-        <div className="modal-overlay z-[60]" dir="rtl">
+        <div className="modal-overlay z-[60]" dir={cfg.dir}>
           <div className="modal-backdrop" onClick={() => { if (!saveMutation.isPending) closeModal(); }} />
           <form
             onSubmit={submit}
@@ -424,14 +430,14 @@ export function LeadMeetingsSection({ leadId, leadName, isCustomer, onConverted 
           >
             <div className="flex items-start justify-between gap-3 mb-4">
               <h2 id="lead-meeting-modal-title" className="text-base font-bold">
-                פגישה עם {leadName}
+                {t("leadMeetingsSection.form.title", { name: leadName })}
               </h2>
               <button
                 type="button"
                 onClick={closeModal}
                 disabled={saveMutation.isPending}
                 className="text-slate-400 hover:text-slate-700"
-                aria-label="סגור"
+                aria-label={tc("actions.close")}
               >
                 <X className="w-5 h-5" />
               </button>
@@ -439,7 +445,7 @@ export function LeadMeetingsSection({ leadId, leadName, isCustomer, onConverted 
 
             <div className="space-y-3">
               <div>
-                <label htmlFor="lead-meeting-date" className={FIELD_LABEL_CLS}>תאריך</label>
+                <label htmlFor="lead-meeting-date" className={FIELD_LABEL_CLS}>{t("leadMeetingsSection.form.date")}</label>
                 <input
                   id="lead-meeting-date"
                   type="date"
@@ -451,7 +457,7 @@ export function LeadMeetingsSection({ leadId, leadName, isCustomer, onConverted 
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="min-w-0">
-                  <label htmlFor="lead-meeting-start" className={FIELD_LABEL_CLS}>שעת התחלה</label>
+                  <label htmlFor="lead-meeting-start" className={FIELD_LABEL_CLS}>{t("leadMeetingsSection.form.startTime")}</label>
                   <input
                     id="lead-meeting-start"
                     type="time"
@@ -462,7 +468,7 @@ export function LeadMeetingsSection({ leadId, leadName, isCustomer, onConverted 
                   />
                 </div>
                 <div className="min-w-0">
-                  <label htmlFor="lead-meeting-end" className={FIELD_LABEL_CLS}>שעת סיום</label>
+                  <label htmlFor="lead-meeting-end" className={FIELD_LABEL_CLS}>{t("leadMeetingsSection.form.endTime")}</label>
                   <input
                     id="lead-meeting-end"
                     type="time"
@@ -475,7 +481,7 @@ export function LeadMeetingsSection({ leadId, leadName, isCustomer, onConverted 
               </div>
               <div>
                 <label htmlFor="lead-meeting-service" className={FIELD_LABEL_CLS}>
-                  שירות <span className="text-slate-400 font-normal">(אופציונלי)</span>
+                  {t("leadMeetingsSection.form.service")} <span className="text-slate-400 font-normal">{t("leadMeetingsSection.form.optional")}</span>
                 </label>
                 <select
                   id="lead-meeting-service"
@@ -483,7 +489,7 @@ export function LeadMeetingsSection({ leadId, leadName, isCustomer, onConverted 
                   value={form.serviceId}
                   onChange={(e) => setForm((f) => ({ ...f, serviceId: e.target.value }))}
                 >
-                  <option value="">ללא שירות</option>
+                  <option value="">{t("leadMeetingsSection.form.noService")}</option>
                   {(Array.isArray(services) ? services : []).map((s) => (
                     <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
@@ -491,7 +497,7 @@ export function LeadMeetingsSection({ leadId, leadName, isCustomer, onConverted 
               </div>
               <div>
                 <label htmlFor="lead-meeting-location" className={FIELD_LABEL_CLS}>
-                  מיקום <span className="text-slate-400 font-normal">(אופציונלי)</span>
+                  {t("leadMeetingsSection.form.location")} <span className="text-slate-400 font-normal">{t("leadMeetingsSection.form.optional")}</span>
                 </label>
                 <input
                   id="lead-meeting-location"
@@ -503,7 +509,7 @@ export function LeadMeetingsSection({ leadId, leadName, isCustomer, onConverted 
               </div>
               <div>
                 <label htmlFor="lead-meeting-notes" className={FIELD_LABEL_CLS}>
-                  הערות <span className="text-slate-400 font-normal">(אופציונלי)</span>
+                  {t("leadMeetingsSection.form.notes")} <span className="text-slate-400 font-normal">{t("leadMeetingsSection.form.optional")}</span>
                 </label>
                 <textarea
                   id="lead-meeting-notes"
@@ -515,7 +521,7 @@ export function LeadMeetingsSection({ leadId, leadName, isCustomer, onConverted 
                 />
               </div>
 
-              <p className="text-xs text-slate-500">הליד נשאר ליד. תזכורת בוואטסאפ נשלחת אוטומטית יום לפני.</p>
+              <p className="text-xs text-slate-500">{t("leadMeetingsSection.form.reminderHint")}</p>
               {formError && <p className="text-xs text-red-600">{formError}</p>}
             </div>
 
@@ -525,7 +531,7 @@ export function LeadMeetingsSection({ leadId, leadName, isCustomer, onConverted 
                 disabled={saveMutation.isPending}
                 className="h-10 px-5 rounded-[10px] bg-[#F97316] hover:bg-[#EA580C] text-white font-semibold text-sm transition-colors disabled:opacity-50"
               >
-                {saveMutation.isPending ? "שומר..." : editing ? "שמור" : "קבע פגישה"}
+                {saveMutation.isPending ? tc("progress.saving") : editing ? tc("actions.save") : t("leadMeetingsSection.schedule")}
               </button>
               <button
                 type="button"
@@ -533,7 +539,7 @@ export function LeadMeetingsSection({ leadId, leadName, isCustomer, onConverted 
                 disabled={saveMutation.isPending}
                 className="h-10 px-4 border border-slate-200 rounded-[10px] bg-white text-sm text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50"
               >
-                ביטול
+                {tc("actions.cancel")}
               </button>
             </div>
           </form>
@@ -544,14 +550,18 @@ export function LeadMeetingsSection({ leadId, leadName, isCustomer, onConverted 
       {mounted && createPortal(
         <ConfirmDialog
           open={!!cancelTarget}
-          title="לבטל את הפגישה?"
+          title={t("leadMeetingsSection.confirmCancel.title")}
           description={
             cancelTarget
-              ? `הפגישה עם ${leadName} ב-${formatMeetingDay(cancelTarget.date.slice(0, 10))} ${cancelTarget.startTime} תבוטל, והתזכורת לא תישלח.`
+              ? t("leadMeetingsSection.confirmCancel.description", {
+                  name: leadName,
+                  day: formatMeetingDay(cancelTarget.date.slice(0, 10), locale),
+                  time: formatTime(cancelTarget.startTime, { locale }),
+                })
               : undefined
           }
-          confirmLabel="בטל פגישה"
-          cancelLabel="השאר"
+          confirmLabel={t("leadMeetingsSection.actions.cancelMeeting")}
+          cancelLabel={t("leadMeetingsSection.confirmCancel.keep")}
           danger
           loading={cancelMutation.isPending}
           onConfirm={() => cancelTarget && cancelMutation.mutate(cancelTarget.id)}

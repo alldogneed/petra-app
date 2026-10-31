@@ -1,15 +1,17 @@
 "use client";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { cn } from "@/lib/utils";
-import { DashboardStats, STATUS_CONFIG } from "@/components/dashboard/dashboard-shared";
+import { DashboardStats, useDashboardLabels } from "@/components/dashboard/dashboard-shared";
 import { StatusDot } from "@/components/dashboard/dash-ui";
 
-/** Design status colours (text + dot). Other statuses fall back to STATUS_CONFIG's label in slate. */
-const APPT_STATUS: Record<string, { label: string; color: string; dot: string }> = {
-  scheduled: { label: "מתוכנן", color: "#1D4ED8", dot: "#3B82F6" },
-  completed: { label: "הושלם", color: "#047857", dot: "#10B981" },
-  canceled: { label: "בוטל", color: "#B91C1C", dot: "#EF4444" },
-  no_show: { label: "לא הגיע", color: "#B45309", dot: "#F59E0B" },
+/** Design status colours (text + dot). Other statuses fall back to the shared appointment-status label in slate. */
+const APPT_STATUS: Record<string, { color: string; dot: string }> = {
+  scheduled: { color: "#1D4ED8", dot: "#3B82F6" },
+  completed: { color: "#047857", dot: "#10B981" },
+  canceled: { color: "#B91C1C", dot: "#EF4444" },
+  no_show: { color: "#B45309", dot: "#F59E0B" },
 };
 
 
@@ -18,9 +20,12 @@ export function AppointmentRow({
 }: {
   appointment: DashboardStats["upcomingAppointments"][0];
 }) {
-  const status = STATUS_CONFIG[appointment.status] || STATUS_CONFIG.scheduled;
+  const t = useTranslations("dashboard.upcomingAppointments");
+  const { locale } = useBusinessLocale();
+  const labels = useDashboardLabels();
+  const statusLabel = labels.appointmentStatus(appointment.status) ?? labels.appointmentStatus("scheduled");
   const date = new Date(appointment.date);
-  const dayStr = date.toLocaleDateString("he-IL", {
+  const dayStr = date.toLocaleDateString(locale, {
     weekday: "short",
     day: "numeric",
     month: "short",
@@ -32,21 +37,14 @@ export function AppointmentRow({
   // trainingSubType "private" while TRAINING_SUBTYPE_LABELS only maps
   // "individual". Map known raw tokens to Hebrew for display (also covers
   // appointments already stored with the raw token).
-  const RAW_SUBTYPE_LABELS: Record<string, string> = {
-    private: "פרטי",
-    individual: "פרטי",
-    group: "קבוצתי",
-    boarding: "פנסיון",
-    package: "חבילה",
-  };
-  const rawItemName = appointment.priceListItem?.name ?? appointment.service?.name ?? appointment.notes ?? "תור";
+  const rawItemName = appointment.priceListItem?.name ?? appointment.service?.name ?? appointment.notes ?? t("fallbackName");
   const itemName = rawItemName.replace(
     /\((private|individual|group|boarding|package)\)/g,
-    (_m, key: string) => `(${RAW_SUBTYPE_LABELS[key]})`
+    (_m, key: string) => `(${t(`subtypes.${key}`)})`
   );
   // Time-of-day band (בוקר/צהריים/אחה"צ/ערב) inferred from startTime "HH:MM"
   const hour = parseInt(appointment.startTime.split(":")[0] ?? "0", 10);
-  const tod = hour < 12 ? "בוקר" : hour < 14 ? "צהריים" : hour < 17 ? "אחה\"צ" : "ערב";
+  const tod = hour < 12 ? t("tod.morning") : hour < 14 ? t("tod.noon") : hour < 17 ? t("tod.afternoon") : t("tod.evening");
 
   const design = APPT_STATUS[appointment.status];
   const canceled = appointment.status === "canceled";
@@ -79,9 +77,9 @@ export function AppointmentRow({
 
       {/* Status */}
       {design ? (
-        <StatusDot label={design.label} color={design.color} dot={design.dot} />
+        <StatusDot label={t(`status.${appointment.status}`)} color={design.color} dot={design.dot} />
       ) : (
-        <span className="text-xs font-medium text-slate-500 whitespace-nowrap">{status.label}</span>
+        <span className="text-xs font-medium text-slate-500 whitespace-nowrap">{statusLabel}</span>
       )}
     </Link>
   );

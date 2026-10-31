@@ -162,7 +162,13 @@ function processSource(src) {
         } else if (d === c || d === "\n") break;
       }
       const body = src.slice(i + 1, j);
-      const skip = /rtl-ok/.test(lineAt(i)) || inLtrTag(i);
+      // a literal that is the value of a non-class JSX attribute (name="pr-order", id=…, key=…) is never a class list
+      const before = src.slice(Math.max(0, i - 40), i);
+      const attr = /\s([A-Za-z_][\w-]*)=\{?$/.exec(before); // JSX attribute (no spaces around "=")
+      const nonClassAttr =
+        (attr && !/class/i.test(attr[1])) ||
+        /\b(id|name|key|type|value|href|htmlFor|role|slug|status)\s*:\s*$/.test(before);
+      const skip = /rtl-ok/.test(lineAt(i)) || inLtrTag(i) || nonClassAttr;
       if (skip) { out += src.slice(i, j + 1); }
       else {
         const [nb, ch, man] = convertLiteral(body);

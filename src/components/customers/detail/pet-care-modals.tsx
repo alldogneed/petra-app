@@ -4,15 +4,20 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { X } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import type { Pet } from "./types";
 
+// Stored values (Pet.foodFrequency) — data, not UI; labels come from messages via FOOD_FREQUENCY_KEYS.
 export const FOOD_FREQUENCIES = [
-  "פעם ביום",
-  "2 פעמים ביום",
-  "3 פעמים ביום",
-  "4 פעמים ביום",
-  "לפי דרישה",
+  "פעם ביום", // i18n-ok — stored value
+  "2 פעמים ביום", // i18n-ok — stored value
+  "3 פעמים ביום", // i18n-ok — stored value
+  "4 פעמים ביום", // i18n-ok — stored value
+  "לפי דרישה", // i18n-ok — stored value
 ];
+/** Message key per FOOD_FREQUENCIES entry (same order). */
+const FOOD_FREQUENCY_KEYS = ["once", "twice", "three", "four", "onDemand"] as const;
 
 export function EditFeedingModal({
   petId,
@@ -27,6 +32,8 @@ export function EditFeedingModal({
   customerId: string;
   onClose: () => void;
 }) {
+  const t = useTranslations("customers.petCareModals");
+  const tc = useTranslations("common");
   const queryClient = useQueryClient();
   const [form, setForm] = useState({
     foodBrand: pet.foodBrand ?? "",
@@ -46,13 +53,13 @@ export function EditFeedingModal({
           foodFrequency: form.foodFrequency || null,
           foodNotes: form.foodNotes || null,
         }),
-      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה"); return d; }),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || t("errors.generic")); return d; }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
-      toast.success("פרטי האכלה עודכנו");
+      toast.success(t("feeding.updated"));
       onClose();
     },
-    onError: () => toast.error("שגיאה בעדכון פרטי האכלה. נסה שוב."),
+    onError: () => toast.error(t("feeding.updateError")),
   });
 
   return (
@@ -60,65 +67,65 @@ export function EditFeedingModal({
       <div className="modal-backdrop" onClick={onClose} />
       <div className="modal-content max-w-md mx-4 p-6">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-bold text-petra-text">האכלה — {petName}</h2>
+          <h2 className="text-lg font-bold text-petra-text">{t("feeding.title", { petName })}</h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
             <X className="w-4 h-4" />
           </button>
         </div>
         <div className="space-y-4">
           <div>
-            <label className="label">מותג / חברת אוכל</label>
+            <label className="label">{t("feeding.brand")}</label>
             <input
               className="input"
-              placeholder="לדוג׳ Royal Canin, Hill's, Acana..."
+              placeholder={t("feeding.brandPlaceholder")}
               value={form.foodBrand}
               onChange={(e) => setForm({ ...form, foodBrand: e.target.value })}
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">כמות יומית (גרם)</label>
+              <label className="label">{t("feeding.gramsPerDay")}</label>
               <input
                 className="input"
                 type="number"
                 min="0"
                 step="1"
-                placeholder="לדוג׳ 250"
+                placeholder={t("feeding.gramsPlaceholder")}
                 value={form.foodGramsPerDay}
                 onChange={(e) => setForm({ ...form, foodGramsPerDay: e.target.value })}
               />
             </div>
             <div>
-              <label className="label">תדירות האכלה</label>
+              <label className="label">{t("feeding.frequency")}</label>
               <select
                 className="input"
                 value={form.foodFrequency}
                 onChange={(e) => setForm({ ...form, foodFrequency: e.target.value })}
               >
-                <option value="">בחר...</option>
-                {FOOD_FREQUENCIES.map((f) => (
-                  <option key={f} value={f}>{f}</option>
+                <option value="">{t("feeding.choose")}</option>
+                {FOOD_FREQUENCIES.map((f, i) => (
+                  <option key={f} value={f}>{t(`feeding.frequencies.${FOOD_FREQUENCY_KEYS[i]}`)}</option>
                 ))}
               </select>
             </div>
           </div>
           <div>
-            <label className="label">הערות נוספות (אלרגיות לאוכל, העדפות...)</label>
+            <label className="label">{t("feeding.notes")}</label>
             <textarea
               className="input min-h-[80px] resize-none"
-              placeholder="לדוג׳ ללא גלוטן, מעדיף אוכל רטוב..."
+              placeholder={t("feeding.notesPlaceholder")}
               value={form.foodNotes}
               onChange={(e) => setForm({ ...form, foodNotes: e.target.value })}
             />
           </div>
           <div className="flex gap-2 pt-2">
-            <button onClick={onClose} className="btn-secondary flex-1">ביטול</button>
+            <button onClick={onClose} className="btn-secondary flex-1">{tc("actions.cancel")}</button>
             <button
               onClick={() => mutation.mutate()}
               disabled={mutation.isPending}
               className="btn-primary flex-1"
             >
-              {mutation.isPending ? "שומר..." : "שמור"}
+              {mutation.isPending ? tc("progress.saving") : tc("actions.save")}
             </button>
           </div>
         </div>
@@ -142,6 +149,9 @@ export function EditHealthModal({
   customerId: string;
   onClose: () => void;
 }) {
+  const t = useTranslations("customers.petCareModals");
+  const tc = useTranslations("common");
+  const { cfg } = useBusinessLocale();
   const queryClient = useQueryClient();
   const toDateInput = (v: string | null) => (v ? v.split("T")[0] : "");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -179,12 +189,12 @@ export function EditHealthModal({
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
-      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בעדכון"); return d; }),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || t("errors.update")); return d; }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
       onClose();
     },
-    onError: () => toast.error("שגיאה בעדכון מידע הבריאות. נסה שוב."),
+    onError: () => toast.error(t("health.updateError")),
   });
 
   return (
@@ -192,7 +202,7 @@ export function EditHealthModal({
       <div className="modal-backdrop" onClick={onClose} />
       <div className="modal-content max-w-lg mx-4 p-6 max-h-[85vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-bold text-petra-text">בריאות — {petName}</h2>
+          <h2 className="text-lg font-bold text-petra-text">{t("health.title", { petName })}</h2>
           <button
             onClick={onClose}
             className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted"
@@ -203,12 +213,12 @@ export function EditHealthModal({
         <div className="space-y-5">
           {/* Vaccines */}
           <div className="space-y-4">
-            <p className="text-xs font-semibold text-petra-muted uppercase tracking-wide">חיסונים וטיפולים</p>
+            <p className="text-xs font-semibold text-petra-muted uppercase tracking-wide">{t("health.vaccinesSection")}</p>
 
             {/* כלבת */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-medium text-petra-text">כלבת — אחת לשנה</p>
+                <p className="text-xs font-medium text-petra-text">{t("health.rabies")}</p>
                 <label className="flex items-center gap-1.5 cursor-pointer">
                   <input
                     type="checkbox"
@@ -216,18 +226,18 @@ export function EditHealthModal({
                     onChange={(e) => setForm({ ...form, notVaccinatedFlags: { ...form.notVaccinatedFlags, rabies: e.target.checked } })}
                     className="w-3.5 h-3.5 accent-orange-500"
                   />
-                  <span className="text-xs text-orange-600 font-medium">לא חוסן</span>
+                  <span className="text-xs text-orange-600 font-medium">{t("health.notVaccinated")}</span>
                 </label>
               </div>
               {!form.notVaccinatedFlags.rabies && (
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="label">תאריך חיסון</label>
-                    <input className="input" type="date" lang="he" value={form.rabiesLastDate} onChange={(e) => setForm({ ...form, rabiesLastDate: e.target.value })} />
+                    <label className="label">{t("health.vaccineDate")}</label>
+                    <input className="input" type="date" lang={cfg.lang} value={form.rabiesLastDate} onChange={(e) => setForm({ ...form, rabiesLastDate: e.target.value })} />
                   </div>
                   <div>
-                    <label className="label">תוקף עד</label>
-                    <input className="input" type="date" lang="he" value={form.rabiesValidUntil} onChange={(e) => setForm({ ...form, rabiesValidUntil: e.target.value })} />
+                    <label className="label">{t("health.validUntil")}</label>
+                    <input className="input" type="date" lang={cfg.lang} value={form.rabiesValidUntil} onChange={(e) => setForm({ ...form, rabiesValidUntil: e.target.value })} />
                   </div>
                 </div>
               )}
@@ -235,19 +245,19 @@ export function EditHealthModal({
 
             {/* משושה גורים */}
             <div>
-              <p className="text-xs font-medium text-petra-text mb-2">משושה גורים — 3 מנות, שבועיים בין כל מנה</p>
+              <p className="text-xs font-medium text-petra-text mb-2">{t("health.dhppPuppy")}</p>
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="label">מנה 1</label>
-                  <input className="input" type="date" lang="he" value={form.dhppPuppy1Date} onChange={(e) => setForm({ ...form, dhppPuppy1Date: e.target.value })} />
+                  <label className="label">{t("health.dose1")}</label>
+                  <input className="input" type="date" lang={cfg.lang} value={form.dhppPuppy1Date} onChange={(e) => setForm({ ...form, dhppPuppy1Date: e.target.value })} />
                 </div>
                 <div>
-                  <label className="label">מנה 2</label>
-                  <input className="input" type="date" lang="he" value={form.dhppPuppy2Date} onChange={(e) => setForm({ ...form, dhppPuppy2Date: e.target.value })} />
+                  <label className="label">{t("health.dose2")}</label>
+                  <input className="input" type="date" lang={cfg.lang} value={form.dhppPuppy2Date} onChange={(e) => setForm({ ...form, dhppPuppy2Date: e.target.value })} />
                 </div>
                 <div>
-                  <label className="label">מנה 3</label>
-                  <input className="input" type="date" lang="he" value={form.dhppPuppy3Date} onChange={(e) => setForm({ ...form, dhppPuppy3Date: e.target.value })} />
+                  <label className="label">{t("health.dose3")}</label>
+                  <input className="input" type="date" lang={cfg.lang} value={form.dhppPuppy3Date} onChange={(e) => setForm({ ...form, dhppPuppy3Date: e.target.value })} />
                 </div>
               </div>
             </div>
@@ -255,17 +265,17 @@ export function EditHealthModal({
             {/* משושה בוגר */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-medium text-petra-text">משושה בוגר (DHPP) — אחת לשנה</p>
+                <p className="text-xs font-medium text-petra-text">{t("health.dhppAdult")}</p>
                 <label className="flex items-center gap-1.5 cursor-pointer">
                   <input type="checkbox" checked={!!form.notVaccinatedFlags.dhpp} onChange={(e) => setForm({ ...form, notVaccinatedFlags: { ...form.notVaccinatedFlags, dhpp: e.target.checked } })} className="w-3.5 h-3.5 accent-orange-500" />
-                  <span className="text-xs text-orange-600 font-medium">לא חוסן</span>
+                  <span className="text-xs text-orange-600 font-medium">{t("health.notVaccinated")}</span>
                 </label>
               </div>
               {!form.notVaccinatedFlags.dhpp && (
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="label">תאריך חיסון</label>
-                    <input className="input" type="date" lang="he" value={form.dhppLastDate} onChange={(e) => setForm({ ...form, dhppLastDate: e.target.value })} />
+                    <label className="label">{t("health.vaccineDate")}</label>
+                    <input className="input" type="date" lang={cfg.lang} value={form.dhppLastDate} onChange={(e) => setForm({ ...form, dhppLastDate: e.target.value })} />
                   </div>
                 </div>
               )}
@@ -274,17 +284,17 @@ export function EditHealthModal({
             {/* תילוע */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-medium text-petra-text">תילוע — אחת לחצי שנה</p>
+                <p className="text-xs font-medium text-petra-text">{t("health.deworming")}</p>
                 <label className="flex items-center gap-1.5 cursor-pointer">
                   <input type="checkbox" checked={!!form.notVaccinatedFlags.deworming} onChange={(e) => setForm({ ...form, notVaccinatedFlags: { ...form.notVaccinatedFlags, deworming: e.target.checked } })} className="w-3.5 h-3.5 accent-orange-500" />
-                  <span className="text-xs text-orange-600 font-medium">לא טופל</span>
+                  <span className="text-xs text-orange-600 font-medium">{t("health.notTreated")}</span>
                 </label>
               </div>
               {!form.notVaccinatedFlags.deworming && (
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="label">תאריך תילוע</label>
-                    <input className="input" type="date" lang="he" value={form.dewormingLastDate} onChange={(e) => setForm({ ...form, dewormingLastDate: e.target.value })} />
+                    <label className="label">{t("health.dewormingDate")}</label>
+                    <input className="input" type="date" lang={cfg.lang} value={form.dewormingLastDate} onChange={(e) => setForm({ ...form, dewormingLastDate: e.target.value })} />
                   </div>
                 </div>
               )}
@@ -293,17 +303,17 @@ export function EditHealthModal({
             {/* תולעת הפארק */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-medium text-petra-text">תולעת הפארק — כל 3 חודשים</p>
+                <p className="text-xs font-medium text-petra-text">{t("health.parkWorm")}</p>
                 <label className="flex items-center gap-1.5 cursor-pointer">
                   <input type="checkbox" checked={!!form.notVaccinatedFlags.parkWorm} onChange={(e) => setForm({ ...form, notVaccinatedFlags: { ...form.notVaccinatedFlags, parkWorm: e.target.checked } })} className="w-3.5 h-3.5 accent-orange-500" />
-                  <span className="text-xs text-orange-600 font-medium">לא טופל</span>
+                  <span className="text-xs text-orange-600 font-medium">{t("health.notTreated")}</span>
                 </label>
               </div>
               {!form.notVaccinatedFlags.parkWorm && (
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="label">תאריך טיפול</label>
-                    <input className="input" type="date" lang="he" value={form.parkWormDate} onChange={(e) => setForm({ ...form, parkWormDate: e.target.value })} />
+                    <label className="label">{t("health.treatmentDate")}</label>
+                    <input className="input" type="date" lang={cfg.lang} value={form.parkWormDate} onChange={(e) => setForm({ ...form, parkWormDate: e.target.value })} />
                   </div>
                 </div>
               )}
@@ -312,26 +322,26 @@ export function EditHealthModal({
             {/* קרציות ופרעושים */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-medium text-petra-text">קרציות ופרעושים</p>
+                <p className="text-xs font-medium text-petra-text">{t("health.fleaTick")}</p>
                 <label className="flex items-center gap-1.5 cursor-pointer">
                   <input type="checkbox" checked={!!form.notVaccinatedFlags.fleaTick} onChange={(e) => setForm({ ...form, notVaccinatedFlags: { ...form.notVaccinatedFlags, fleaTick: e.target.checked } })} className="w-3.5 h-3.5 accent-orange-500" />
-                  <span className="text-xs text-orange-600 font-medium">לא טופל</span>
+                  <span className="text-xs text-orange-600 font-medium">{t("health.notTreated")}</span>
                 </label>
               </div>
               {!form.notVaccinatedFlags.fleaTick && (
                 <div className="space-y-2">
                   <div>
-                    <label className="label">סוג טיפול (שם מוצר)</label>
+                    <label className="label">{t("health.fleaTickType")}</label>
                     <input className="input" placeholder="Nexgard, Bravecto, Advocate..." value={form.fleaTickType} onChange={(e) => setForm({ ...form, fleaTickType: e.target.value })} />
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="label">תאריך טיפול</label>
-                      <input className="input" type="date" lang="he" value={form.fleaTickDate} onChange={(e) => setForm({ ...form, fleaTickDate: e.target.value })} />
+                      <label className="label">{t("health.treatmentDate")}</label>
+                      <input className="input" type="date" lang={cfg.lang} value={form.fleaTickDate} onChange={(e) => setForm({ ...form, fleaTickDate: e.target.value })} />
                     </div>
                     <div>
-                      <label className="label">תוקף עד</label>
-                      <input className="input" type="date" lang="he" value={form.fleaTickExpiryDate} onChange={(e) => setForm({ ...form, fleaTickExpiryDate: e.target.value })} />
+                      <label className="label">{t("health.validUntil")}</label>
+                      <input className="input" type="date" lang={cfg.lang} value={form.fleaTickExpiryDate} onChange={(e) => setForm({ ...form, fleaTickExpiryDate: e.target.value })} />
                     </div>
                   </div>
                 </div>
@@ -341,17 +351,17 @@ export function EditHealthModal({
             {/* שעלת מכלאות */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-medium text-petra-text">שעלת מכלאות — תיעוד קבלה</p>
+                <p className="text-xs font-medium text-petra-text">{t("health.bordetella")}</p>
                 <label className="flex items-center gap-1.5 cursor-pointer">
                   <input type="checkbox" checked={!!form.notVaccinatedFlags.bordetella} onChange={(e) => setForm({ ...form, notVaccinatedFlags: { ...form.notVaccinatedFlags, bordetella: e.target.checked } })} className="w-3.5 h-3.5 accent-orange-500" />
-                  <span className="text-xs text-orange-600 font-medium">לא חוסן</span>
+                  <span className="text-xs text-orange-600 font-medium">{t("health.notVaccinated")}</span>
                 </label>
               </div>
               {!form.notVaccinatedFlags.bordetella && (
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="label">תאריך קבלה</label>
-                    <input className="input" type="date" lang="he" value={form.bordatellaDate} onChange={(e) => setForm({ ...form, bordatellaDate: e.target.value })} />
+                    <label className="label">{t("health.bordetellaDate")}</label>
+                    <input className="input" type="date" lang={cfg.lang} value={form.bordatellaDate} onChange={(e) => setForm({ ...form, bordatellaDate: e.target.value })} />
                   </div>
                 </div>
               )}
@@ -359,43 +369,43 @@ export function EditHealthModal({
           </div>
           {/* Medical */}
           <div>
-            <p className="text-xs font-semibold text-petra-muted uppercase tracking-wide mb-2">מצב רפואי</p>
+            <p className="text-xs font-semibold text-petra-muted uppercase tracking-wide mb-2">{t("health.medicalSection")}</p>
             <div className="space-y-3">
               <div>
-                <label className="label">אלרגיות</label>
-                <input className="input" value={form.allergies} onChange={(e) => setForm({ ...form, allergies: e.target.value })} placeholder="אלרגיה לעוף, דשא..." />
+                <label className="label">{t("health.allergies")}</label>
+                <input className="input" value={form.allergies} onChange={(e) => setForm({ ...form, allergies: e.target.value })} placeholder={t("health.allergiesPlaceholder")} />
               </div>
               <div>
-                <label className="label">מצבים רפואיים</label>
+                <label className="label">{t("health.medicalConditions")}</label>
                 <textarea className="input min-h-[60px]" value={form.medicalConditions} onChange={(e) => setForm({ ...form, medicalConditions: e.target.value })} />
               </div>
               <div>
-                <label className="label">ניתוחים בעבר</label>
+                <label className="label">{t("health.surgeries")}</label>
                 <input className="input" value={form.surgeriesHistory} onChange={(e) => setForm({ ...form, surgeriesHistory: e.target.value })} />
               </div>
               <div>
-                <label className="label">מגבלות פעילות</label>
+                <label className="label">{t("health.activityLimitations")}</label>
                 <input className="input" value={form.activityLimitations} onChange={(e) => setForm({ ...form, activityLimitations: e.target.value })} />
               </div>
             </div>
           </div>
           {/* Vet */}
           <div>
-            <p className="text-xs font-semibold text-petra-muted uppercase tracking-wide mb-2">וטרינר</p>
+            <p className="text-xs font-semibold text-petra-muted uppercase tracking-wide mb-2">{t("health.vetSection")}</p>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="label">שם וטרינר</label>
+                <label className="label">{t("health.vetName")}</label>
                 <input className="input" value={form.vetName} onChange={(e) => setForm({ ...form, vetName: e.target.value })} />
               </div>
               <div>
-                <label className="label">טלפון וטרינר</label>
+                <label className="label">{t("health.vetPhone")}</label>
                 <input className="input" value={form.vetPhone} onChange={(e) => setForm({ ...form, vetPhone: e.target.value })} />
               </div>
             </div>
           </div>
           {/* General */}
           <div>
-            <p className="text-xs font-semibold text-petra-muted uppercase tracking-wide mb-2">כללי</p>
+            <p className="text-xs font-semibold text-petra-muted uppercase tracking-wide mb-2">{t("health.generalSection")}</p>
             <div className="space-y-3">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -404,21 +414,21 @@ export function EditHealthModal({
                   onChange={(e) => setForm({ ...form, neuteredSpayed: e.target.checked })}
                   className="w-4 h-4 accent-brand-500"
                 />
-                <span className="text-sm text-petra-text">מסורס / מעוקרת</span>
+                <span className="text-sm text-petra-text">{t("health.neutered")}</span>
               </label>
               {form.neuteredSpayed && (
                 <div>
-                  <label className="label">תאריך סירוס / עיקור</label>
-                  <input type="date" lang="he" className="input" value={form.neuteredSpayedDate} onChange={(e) => setForm({ ...form, neuteredSpayedDate: e.target.value })} />
+                  <label className="label">{t("health.neuteredDate")}</label>
+                  <input type="date" lang={cfg.lang} className="input" value={form.neuteredSpayedDate} onChange={(e) => setForm({ ...form, neuteredSpayedDate: e.target.value })} />
                 </div>
               )}
               <div>
-                <label className="label">מקור (מאיפה הגיע)</label>
-                <input className="input" value={form.originInfo} onChange={(e) => setForm({ ...form, originInfo: e.target.value })} placeholder="מאמץ, מגדל, רחוב..." />
+                <label className="label">{t("health.origin")}</label>
+                <input className="input" value={form.originInfo} onChange={(e) => setForm({ ...form, originInfo: e.target.value })} placeholder={t("health.originPlaceholder")} />
               </div>
               <div>
-                <label className="label">זמן עם הבעלים</label>
-                <input className="input" value={form.timeWithOwner} onChange={(e) => setForm({ ...form, timeWithOwner: e.target.value })} placeholder="3 שנים" />
+                <label className="label">{t("health.timeWithOwner")}</label>
+                <input className="input" value={form.timeWithOwner} onChange={(e) => setForm({ ...form, timeWithOwner: e.target.value })} placeholder={t("health.timeWithOwnerPlaceholder")} />
               </div>
             </div>
           </div>
@@ -429,9 +439,9 @@ export function EditHealthModal({
             disabled={mutation.isPending}
             onClick={() => mutation.mutate()}
           >
-            {mutation.isPending ? "שומר..." : "שמור שינויים"}
+            {mutation.isPending ? tc("progress.saving") : t("saveChanges")}
           </button>
-          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+          <button className="btn-secondary" onClick={onClose}>{tc("actions.cancel")}</button>
         </div>
       </div>
     </div>
@@ -440,20 +450,27 @@ export function EditHealthModal({
 
 // ─── Edit Behavior Modal ──────────────────────────────────────────────────────
 
-export const BEHAVIOR_EDIT_FLAGS: { key: keyof NonNullable<Pet["behavior"]>; label: string }[] = [
-  { key: "dogAggression", label: "תוקפנות כלפי כלבים" },
-  { key: "humanAggression", label: "תוקפנות כלפי בני אדם" },
-  { key: "leashReactivity", label: "ריאקטיביות בשרשרת" },
-  { key: "leashPulling", label: "משיכה בשרשרת" },
-  { key: "jumping", label: "קפיצה על אנשים" },
-  { key: "separationAnxiety", label: "חרדת נטישה" },
-  { key: "excessiveBarking", label: "נביחות מוגזמות" },
-  { key: "destruction", label: "הרס" },
-  { key: "resourceGuarding", label: "שמירת משאבים" },
-  { key: "badWithKids", label: "לא מתאים לילדים" },
-  { key: "houseSoiling", label: "כלוך בבית" },
-  { key: "biteHistory", label: "היסטוריית נשיכה" },
-  { key: "priorTraining", label: "עבר אילוף בעבר" },
+/** Label = messages `customers.petCareModals.behavior.flags.<key>`. */
+type BehaviorFlagKey = Extract<
+  keyof NonNullable<Pet["behavior"]>,
+  | "dogAggression" | "humanAggression" | "leashReactivity" | "leashPulling" | "jumping"
+  | "separationAnxiety" | "excessiveBarking" | "destruction" | "resourceGuarding"
+  | "badWithKids" | "houseSoiling" | "biteHistory" | "priorTraining"
+>;
+export const BEHAVIOR_EDIT_FLAGS: { key: BehaviorFlagKey }[] = [
+  { key: "dogAggression" },
+  { key: "humanAggression" },
+  { key: "leashReactivity" },
+  { key: "leashPulling" },
+  { key: "jumping" },
+  { key: "separationAnxiety" },
+  { key: "excessiveBarking" },
+  { key: "destruction" },
+  { key: "resourceGuarding" },
+  { key: "badWithKids" },
+  { key: "houseSoiling" },
+  { key: "biteHistory" },
+  { key: "priorTraining" },
 ];
 
 export function EditBehaviorModal({
@@ -469,6 +486,8 @@ export function EditBehaviorModal({
   customerId: string;
   onClose: () => void;
 }) {
+  const t = useTranslations("customers.petCareModals");
+  const tc = useTranslations("common");
   const queryClient = useQueryClient();
   const [customInput, setCustomInput] = useState("");
   const [form, setForm] = useState({
@@ -500,12 +519,12 @@ export function EditBehaviorModal({
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
-      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בעדכון"); return d; }),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || t("errors.update")); return d; }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
       onClose();
     },
-    onError: () => toast.error("שגיאה בעדכון מידע ההתנהגות. נסה שוב."),
+    onError: () => toast.error(t("behavior.updateError")),
   });
 
   const toggle = (key: string) =>
@@ -516,7 +535,7 @@ export function EditBehaviorModal({
       <div className="modal-backdrop" onClick={onClose} />
       <div className="modal-content max-w-md mx-4 p-6 max-h-[85vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-bold text-petra-text">התנהגות — {petName}</h2>
+          <h2 className="text-lg font-bold text-petra-text">{t("behavior.title", { petName })}</h2>
           <button
             onClick={onClose}
             className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted"
@@ -527,9 +546,9 @@ export function EditBehaviorModal({
         <div className="space-y-4">
           {/* Behavior flags */}
           <div>
-            <p className="text-xs font-semibold text-petra-muted uppercase tracking-wide mb-2">דגלי התנהגות</p>
+            <p className="text-xs font-semibold text-petra-muted uppercase tracking-wide mb-2">{t("behavior.flagsSection")}</p>
             <div className="grid grid-cols-2 gap-y-2 gap-x-3">
-              {BEHAVIOR_EDIT_FLAGS.map(({ key, label }) => (
+              {BEHAVIOR_EDIT_FLAGS.map(({ key }) => (
                 <label key={key} className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
@@ -537,7 +556,7 @@ export function EditBehaviorModal({
                     onChange={() => toggle(key)}
                     className="w-4 h-4 accent-brand-500"
                   />
-                  <span className="text-xs text-petra-text">{label}</span>
+                  <span className="text-xs text-petra-text">{t(`behavior.flags.${key}`)}</span>
                 </label>
               ))}
             </div>
@@ -546,7 +565,7 @@ export function EditBehaviorModal({
           <div className="space-y-3">
             {form.biteHistory && (
               <div>
-                <label className="label">פרטי נשיכה</label>
+                <label className="label">{t("behavior.biteDetails")}</label>
                 <textarea
                   className="input min-h-[60px]"
                   value={form.biteDetails}
@@ -555,17 +574,17 @@ export function EditBehaviorModal({
               </div>
             )}
             <div>
-              <label className="label">טריגרים</label>
+              <label className="label">{t("behavior.triggers")}</label>
               <input
                 className="input"
                 value={form.triggers}
                 onChange={(e) => setForm({ ...form, triggers: e.target.value })}
-                placeholder="קולות חזקים, כלבים אחרים..."
+                placeholder={t("behavior.triggersPlaceholder")}
               />
             </div>
             {form.priorTraining && (
               <div>
-                <label className="label">פרטי אילוף קודם</label>
+                <label className="label">{t("behavior.priorTrainingDetails")}</label>
                 <input
                   className="input"
                   value={form.priorTrainingDetails}
@@ -576,7 +595,7 @@ export function EditBehaviorModal({
           </div>
           {/* Custom issues */}
           <div>
-            <p className="text-xs font-semibold text-petra-muted uppercase tracking-wide mb-2">בעיות נוספות (ידני)</p>
+            <p className="text-xs font-semibold text-petra-muted uppercase tracking-wide mb-2">{t("behavior.customIssues")}</p>
             {form.customIssues.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mb-2">
                 {form.customIssues.map((issue, idx) => (
@@ -601,7 +620,7 @@ export function EditBehaviorModal({
                 className="input flex-1"
                 value={customInput}
                 onChange={(e) => setCustomInput(e.target.value)}
-                placeholder="תאר בעיה התנהגותית..."
+                placeholder={t("behavior.customIssuePlaceholder")}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
@@ -624,7 +643,7 @@ export function EditBehaviorModal({
                   }
                 }}
               >
-                הוסף
+                {tc("actions.add")}
               </button>
             </div>
           </div>
@@ -635,9 +654,9 @@ export function EditBehaviorModal({
             disabled={mutation.isPending}
             onClick={() => mutation.mutate()}
           >
-            {mutation.isPending ? "שומר..." : "שמור שינויים"}
+            {mutation.isPending ? tc("progress.saving") : t("saveChanges")}
           </button>
-          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+          <button className="btn-secondary" onClick={onClose}>{tc("actions.cancel")}</button>
         </div>
       </div>
     </div>

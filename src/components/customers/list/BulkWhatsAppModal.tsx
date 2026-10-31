@@ -6,6 +6,7 @@
  */
 import { useMemo, useState } from "react";
 import { Check, MessageCircle, SkipForward, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { toWhatsAppPhone } from "@/lib/utils";
 import { personalizeMessage } from "@/lib/customer-filters";
 import type { EnhancedCustomer } from "./types";
@@ -19,12 +20,14 @@ export function BulkWhatsAppModal({
   customers: EnhancedCustomer[];
   onClose: () => void;
 }) {
+  const t = useTranslations("customers.bulkWhatsAppModal");
+  const tc = useTranslations("common");
   const recipients = useMemo(
     () => customers.filter((c) => c.phone && c.phone.replace(/\D/g, "").length >= 9),
     [customers]
   );
   const invalidCount = customers.length - recipients.length;
-  const [message, setMessage] = useState("שלום {שם}, ");
+  const [message, setMessage] = useState(() => t("defaultMessage"));
   const [state, setState] = useState<Record<string, RowState>>({});
   const nextIndex = recipients.findIndex((c) => !state[c.id] || state[c.id] === "pending");
   const next = nextIndex >= 0 ? recipients[nextIndex] : null;
@@ -43,19 +46,19 @@ export function BulkWhatsAppModal({
       <div className="modal-content max-w-md w-full mx-4 flex flex-col max-h-[85vh]" role="dialog" aria-modal="true" aria-labelledby="bulk-wa-title">
         <div className="flex items-center justify-between p-5 border-b border-slate-100 flex-shrink-0">
           <div>
-            <h2 id="bulk-wa-title" className="text-lg font-bold text-slate-900">שליחת הודעה בוואטסאפ</h2>
+            <h2 id="bulk-wa-title" className="text-lg font-bold text-slate-900">{t("title")}</h2>
             <p className="text-xs text-petra-muted mt-0.5">
-              {recipients.length} נמענים{invalidCount > 0 ? ` · ${invalidCount} ללא מספר תקין` : ""}
+              {t("recipients", { count: recipients.length })}{invalidCount > 0 ? t("invalidSuffix", { count: invalidCount }) : ""}
             </p>
           </div>
-          <button onClick={onClose} aria-label="סגור" className="btn-ghost w-8 h-8 p-0 flex items-center justify-center rounded-lg">
+          <button onClick={onClose} aria-label={tc("actions.close")} className="btn-ghost w-8 h-8 p-0 flex items-center justify-center rounded-lg">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           <div>
-            <label className="label" htmlFor="bulk-wa-msg">תוכן ההודעה</label>
+            <label className="label" htmlFor="bulk-wa-msg">{t("messageLabel")}</label>
             <textarea
               id="bulk-wa-msg"
               className="input resize-none"
@@ -63,11 +66,12 @@ export function BulkWhatsAppModal({
               maxLength={2000}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="שלום {שם}! רצינו להזמין אותך לתור הבא שלך... 🐾"
+              placeholder={t("messagePlaceholder")}
             />
             <p className="text-xs text-petra-muted mt-1">
-              <span className="font-mono bg-slate-100 px-1 rounded">{"{שם}"}</span> יוחלף בשם הפרטי של כל לקוח.
-              כל לחיצה פותחת שיחה אחת בוואטסאפ שלך — שלחו ולחצו שוב לנמען הבא.
+              {t.rich("hint", {
+                token: () => <span className="font-mono bg-slate-100 px-1 rounded">{t("nameToken")}</span>,
+              })}
             </p>
           </div>
 
@@ -85,15 +89,15 @@ export function BulkWhatsAppModal({
                     <p className="text-sm font-medium text-petra-text truncate">{c.name}</p>
                     <p className="text-xs text-petra-muted" dir="ltr">{c.phone}</p>
                   </div>
-                  {st === "sent" && <span className="text-[11px] text-green-700 flex items-center gap-1"><Check className="w-3 h-3" />נפתח</span>}
-                  {st === "skipped" && <span className="text-[11px] text-slate-400">דולג</span>}
+                  {st === "sent" && <span className="text-[11px] text-green-700 flex items-center gap-1"><Check className="w-3 h-3" />{t("opened")}</span>}
+                  {st === "skipped" && <span className="text-[11px] text-slate-400">{t("skipped")}</span>}
                   <button
                     type="button"
                     className="text-[11px] text-[#25D366] hover:underline flex-shrink-0"
                     onClick={() => openFor(c)}
                     disabled={!message.trim()}
                   >
-                    {st === "sent" ? "שוב" : "פתח"}
+                    {st === "sent" ? t("again") : t("open")}
                   </button>
                 </li>
               );
@@ -110,22 +114,22 @@ export function BulkWhatsAppModal({
                 className="btn-primary flex-1 flex items-center justify-center gap-2 min-w-0"
               >
                 <MessageCircle className="w-4 h-4 flex-shrink-0" />
-                <span className="truncate">שלח ל-{next.name}</span>
+                <span className="truncate">{t("sendTo", { name: next.name })}</span>
                 <span className="flex-shrink-0">({nextIndex + 1}/{recipients.length})</span>
               </button>
               <button
                 type="button"
                 className="btn-secondary flex items-center gap-1"
-                title="דלג על נמען זה"
+                title={t("skipTitle")}
                 onClick={() => setState((s) => ({ ...s, [next.id]: "skipped" }))}
               >
                 <SkipForward className="w-4 h-4" />
-                דלג
+                {t("skip")}
               </button>
             </div>
           ) : (
             <button onClick={onClose} className="btn-primary w-full">
-              סיום ({doneCount}/{recipients.length})
+              {t("finish", { done: doneCount, total: recipients.length })}
             </button>
           )}
         </div>
