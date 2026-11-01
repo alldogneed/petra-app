@@ -121,7 +121,7 @@ export function DailyFocusSection({ todayTasks, overdueTasks, onComplete }: {
             <Link
               href={`/tasks?task=${task.id}`}
               className={cn(
-                "flex-1 min-w-0 truncate text-sm font-medium text-slate-900 hover:text-orange-600 transition-colors",
+                "flex-1 min-w-0 truncate text-sm font-medium text-slate-900 hover:text-brand-600 transition-colors",
                 isCompleting && "line-through text-slate-400"
               )}
             >

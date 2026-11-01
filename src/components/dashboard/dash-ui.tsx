@@ -66,7 +66,7 @@ export function DashCardHeader({
 /** Orange text link used in card headers ("לכל ההזמנות", "הצג הכל"…). */
 export function DashLink({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) {
   return (
-    <Link href={href} className={cn("text-[13px] font-medium text-orange-600 hover:text-orange-700 hover:underline", className)}>
+    <Link href={href} className={cn("text-[13px] font-medium text-brand-600 hover:text-brand-700 hover:underline", className)}>
       {children}
     </Link>
   );

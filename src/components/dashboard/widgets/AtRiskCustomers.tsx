@@ -61,7 +61,7 @@ export function AtRiskCustomersWidget({ customers }: { customers: DashboardStats
             <div className="flex-1 min-w-0 flex flex-col gap-0.5">
               <Link
                 href={`/customers/${c.id}`}
-                className="text-sm font-medium text-slate-900 hover:text-orange-600 truncate"
+                className="text-sm font-medium text-slate-900 hover:text-brand-600 truncate"
               >
                 {c.name}
               </Link>

@@ -76,6 +76,8 @@ export async function ensureUserHasBusiness(
   displayName: string,
   /** A business name the user typed (register / checkout) — used as-is, without "העסק של". */
   businessName?: string | null,
+  /** Only "generic" is ever passed (/register?type=other); omitted → column default "dogs". */
+  vertical?: "generic",
 ): Promise<string> {
   // Check for existing active membership
   const existing = await prisma.businessUser.findFirst({
@@ -91,6 +93,7 @@ export async function ensureUserHasBusiness(
   const biz = await prisma.business.create({
     data: {
       name: businessName?.trim() || `העסק של ${displayName}`,
+      ...(vertical === "generic" ? { vertical } : {}),
       slug,
       status: "active",
       tier: "free",

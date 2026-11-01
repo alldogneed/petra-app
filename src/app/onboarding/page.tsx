@@ -30,6 +30,7 @@ import { LEGAL_ENTITY_TYPES } from "@/lib/legal-entity";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { VERTICALS, normalizeVertical, type Vertical } from "@/lib/verticals";
 import { vocab } from "@/lib/verticals/vocab";
+import { clearSignupVertical, readSignupVertical } from "@/lib/verticals/signup";
 import { offeredPriceCategories, priceCategoryLabel } from "@/lib/verticals/catalog";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -57,6 +58,10 @@ function OnboardingInner() {
   const searchParams = useSearchParams();
   const [step, setStep] = useState(0);
   const [business, setBusiness] = useState<BusinessInfo | null>(null);
+  // /register?type=other (kept across "המשך עם Google") — read after mount, no hydration mismatch.
+  const [signupVertical, setSignupVertical] = useState<Vertical | null>(null);
+  useEffect(() => setSignupVertical(readSignupVertical()), []);
+  const welcomeVertical: Vertical = business?.vertical === "generic" || signupVertical === "generic" ? "generic" : "dogs";
 
   // Load business info
   useEffect(() => {
@@ -184,6 +189,7 @@ function OnboardingInner() {
           <StepWelcome
             businessName={business?.name ?? ""}
             tier={tier}
+            vertical={welcomeVertical}
             onNext={() => setStep(1)}
           />
         ) : step === 1 ? (
@@ -191,6 +197,7 @@ function OnboardingInner() {
             initialName={business?.name ?? ""}
             initialPhone={business?.phone ?? ""}
             initialVertical={business?.vertical ?? "dogs"}
+            preferredVertical={signupVertical}
             onNext={(updatedName, vertical) => {
               setBusiness((prev) => prev ? { ...prev, name: updatedName, vertical } : prev);
               setStep(2);
@@ -221,15 +228,18 @@ export default function OnboardingPage() {
 
 // ─── Step 0: Welcome ──────────────────────────────────────────────────────────
 
+/** dogs text, unchanged; swapped per vertical when rendered (StepWelcome). */
+const CUSTOMERS_DESC = vocab("onboarding.feature_customers_desc");
+
 const FEATURES_BY_TIER: Record<string, { icon: React.ComponentType<{ className?: string }>; title: string; desc: string }[]> = {
   free: [
-    { icon: Users,         title: "ניהול לקוחות",     desc: "כרטיסי לקוח, כלבים, היסטוריה" },
+    { icon: Users,         title: "ניהול לקוחות",     desc: CUSTOMERS_DESC },
     { icon: Calendar,      title: "יומן תורים",        desc: "תזמון פגישות בקליק" },
     { icon: CreditCard,    title: "תשלומים בסיסיים",  desc: "מעקב הכנסות ותשלומים" },
     { icon: ClipboardList, title: "משימות",            desc: "ניהול רשימת מטלות" },
   ],
   basic: [
-    { icon: Users,         title: "לקוחות ללא הגבלה", desc: "כרטיסי לקוח, כלבים, היסטוריה" },
+    { icon: Users,         title: "לקוחות ללא הגבלה", desc: CUSTOMERS_DESC },
     { icon: Calendar,      title: "יומן + Google",     desc: "סנכרון אוטומטי עם Google Calendar" },
     { icon: Bell,          title: "תזכורות WhatsApp",  desc: "אוטומטיות 48 שעות לפני כל תור" },
     { icon: CreditCard,    title: "תשלומים",           desc: "מעקב מלא + קישורי תשלום" },
@@ -245,10 +255,12 @@ const FEATURES_BY_TIER: Record<string, { icon: React.ComponentType<{ className?:
 function StepWelcome({
   businessName,
   tier,
+  vertical,
   onNext,
 }: {
   businessName: string;
   tier: TierKey;
+  vertical: Vertical;
   onNext: () => void;
 }) {
   const features = FEATURES_BY_TIER[tier] ?? FEATURES_BY_TIER.default;
@@ -259,8 +271,7 @@ function StepWelcome({
       <div className="text-center">
         <h1 className="text-2xl font-bold text-petra-text mb-2">{greeting}</h1>
         <p className="text-petra-muted text-sm leading-relaxed max-w-md mx-auto">
-          Petra היא מערכת ניהול לעסקי חיות מחמד בישראל — מאלפים, פנסיון, גרומרים ומרכזי הכשרת כלבי שירות.
-          כל הכלים שצריך במקום אחד: לקוחות, תורים, תשלומים ותקשורת.
+          {vocab("onboarding.welcome_intro", { vertical })}
         </p>
       </div>
 
@@ -276,7 +287,9 @@ function StepWelcome({
               </div>
               <div>
                 <p className="text-sm font-semibold text-petra-text leading-tight">{title}</p>
-                <p className="text-[11px] text-petra-muted mt-0.5 leading-snug">{desc}</p>
+                <p className="text-[11px] text-petra-muted mt-0.5 leading-snug">
+                  {desc === CUSTOMERS_DESC ? vocab("onboarding.feature_customers_desc", { vertical }) : desc}
+                </p>
               </div>
             </div>
           ))}
@@ -303,16 +316,19 @@ function StepBusiness({
   initialName,
   initialPhone,
   initialVertical,
+  preferredVertical,
   onNext,
 }: {
   initialName: string;
   initialPhone: string;
   initialVertical: Vertical;
+  /** /register?type=other → "עסק אחר" pre-selected; null → the business's own value. */
+  preferredVertical?: Vertical | null;
   onNext: (name: string, vertical: Vertical) => void;
 }) {
   const [name, setName] = useState(initialName);
   // Verticals (docs/verticals): "עסק אחר" hides the dog modules. Default = today's flow.
-  const [vertical, setVertical] = useState<Vertical>(initialVertical);
+  const [vertical, setVertical] = useState<Vertical>(preferredVertical ?? initialVertical);
   const [phone, setPhone] = useState(initialPhone);
   const [legalEntityType, setLegalEntityType] = useState("");
   const [vatNumber, setVatNumber] = useState("");
@@ -349,6 +365,7 @@ function StepBusiness({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ stepCompleted1: true }),
       });
+      clearSignupVertical();
       toast.success("פרטי העסק נשמרו!");
       onNext(name.trim(), vertical);
     } finally {

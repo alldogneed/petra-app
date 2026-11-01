@@ -14,7 +14,7 @@ function LeadRow({ lead, meta, metaClass }: { lead: Lead; meta: string; metaClas
       <div className="flex-1 min-w-0 flex flex-col gap-0.5">
         <Link
           href={`/leads?lead=${lead.id}`}
-          className="text-sm font-medium text-slate-900 truncate hover:text-orange-600 transition-colors"
+          className="text-sm font-medium text-slate-900 truncate hover:text-brand-600 transition-colors"
         >
           {lead.name}
         </Link>

@@ -38,7 +38,7 @@ export function TopDebtorsWidget({
           <DashRow key={debtor.id}>
             <Link
               href={`/customers/${debtor.id}`}
-              className="flex-1 min-w-0 truncate text-sm font-medium text-slate-900 hover:text-orange-600 transition-colors"
+              className="flex-1 min-w-0 truncate text-sm font-medium text-slate-900 hover:text-brand-600 transition-colors"
             >
               {debtor.name}
             </Link>

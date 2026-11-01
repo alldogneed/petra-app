@@ -31,7 +31,7 @@ export function PetBirthdaysWidget({ birthdays }: { birthdays: DashboardStats["u
           <div key={pet.id} className="flex items-center gap-3 py-[11px] border-t border-slate-100">
             <Link
               href={pet.customer?.id ? `/customers/${pet.customer.id}` : "/customers"}
-              className="flex-1 min-w-0 flex flex-col gap-0.5 text-slate-900 hover:text-orange-600"
+              className="flex-1 min-w-0 flex flex-col gap-0.5 text-slate-900 hover:text-brand-600"
             >
               <span className="text-sm font-medium truncate">
                 {pet.name}

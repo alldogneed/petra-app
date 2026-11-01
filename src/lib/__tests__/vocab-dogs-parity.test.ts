@@ -8,6 +8,15 @@ import { vocab, type VocabKey } from "@/lib/verticals/vocab";
 
 const CASES: { key: VocabKey; params?: Record<string, string>; before: string }[] = [
   { key: "nav.training", before: "ניהול תהליכי אילוף" },
+  { key: "register.tagline", before: "ניהול עסקי חיות מחמד" },
+  { key: "register.business_placeholder", before: "לדוגמה: פנסיון הכלבים של דניאל" },
+  { key: "register.footer", before: "כל הזכויות שמורות all-dog - המרכז הישראלי להתנהגות הכלב" },
+  {
+    key: "onboarding.welcome_intro",
+    // The JSX text spanned two lines; React collapses the line break + indent to one space.
+    before: "Petra היא מערכת ניהול לעסקי חיות מחמד בישראל — מאלפים, פנסיון, גרומרים ומרכזי הכשרת כלבי שירות. כל הכלים שצריך במקום אחד: לקוחות, תורים, תשלומים ותקשורת.",
+  },
+  { key: "onboarding.feature_customers_desc", before: "כרטיסי לקוח, כלבים, היסטוריה" },
   { key: "training.page_title", before: "אימונים" },
   { key: "training.page_subtitle", before: "קבוצות ותוכניות אימון" },
   { key: "search.placeholder", before: "חפש לקוח, חיית מחמד, תור, ליד, משימה..." },
