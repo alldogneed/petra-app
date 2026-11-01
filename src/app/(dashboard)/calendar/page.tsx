@@ -199,8 +199,11 @@ const CAL_GROUPS: { key: CalGroupKey; label: string; keys: CalCategory[] }[] = [
 
 const ALL_CAL_CATEGORIES: CalCategory[] = CAL_CATEGORIES.map((c) => c.key);
 
-/** Verticals: categories that only exist in the dog domain — not offered to "generic". */
-const DOG_ONLY_CAL_CATEGORIES: readonly CalCategory[] = ["grooming", "boarding", "training_boarding", "training_group"];
+/**
+ * Verticals: categories not offered to "generic" — the dog domain, plus workshops, which
+ * come from training groups (only on the dog training page).
+ */
+const DOG_ONLY_CAL_CATEGORIES: readonly CalCategory[] = ["grooming", "boarding", "training_boarding", "training_group", "workshop"];
 
 /** Resolve an appointment/booking to a canonical category from its service metadata. */
 function resolveAppointmentCategory(
