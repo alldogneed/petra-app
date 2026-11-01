@@ -718,11 +718,11 @@ function NewAppointmentModal({
           )}
           {/* Attach to a training package */}
           {attachProgram && !recurring && (
-            <div className="border border-orange-200 bg-orange-50/60 rounded-xl p-3 space-y-2">
+            <div className="border border-brand-200 bg-brand-50/60 rounded-xl p-3 space-y-2">
               <label className="flex items-start gap-3 cursor-pointer">
                 <input
                   type="checkbox"
-                  className="w-4 h-4 mt-0.5 rounded accent-orange-500"
+                  className="w-4 h-4 mt-0.5 rounded accent-brand-500"
                   checked={attachToProgram}
                   onChange={(e) => setAttachToProgram(e.target.checked)}
                 />
@@ -804,7 +804,7 @@ function NewAppointmentModal({
             <label className="flex items-center gap-3 cursor-pointer">
               <input
                 type="checkbox"
-                className="w-4 h-4 rounded accent-orange-500"
+                className="w-4 h-4 rounded accent-brand-500"
                 checked={recurring}
                 onChange={(e) => setRecurring(e.target.checked)}
               />
@@ -835,7 +835,7 @@ function NewAppointmentModal({
                     onChange={(e) => setOccurrences(Number(e.target.value))}
                   />
                 </div>
-                <div className="col-span-2 text-xs text-petra-muted bg-orange-50 border border-orange-100 rounded-lg px-3 py-2">
+                <div className="col-span-2 text-xs text-petra-muted bg-brand-50 border border-brand-100 rounded-lg px-3 py-2">
                   ייווצרו <strong>{occurrences}</strong> פגישות החל מ-{form.date || "התאריך שנבחר"}
                 </div>
               </div>

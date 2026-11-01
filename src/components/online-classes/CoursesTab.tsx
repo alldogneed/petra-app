@@ -167,7 +167,7 @@ export function CoursesTab() {
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={c.coverUrl} alt={c.title} className="w-full h-full object-cover" />
                     ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-brand-400 to-orange-300 flex items-center justify-center">
+                      <div className="w-full h-full bg-gradient-to-br from-brand-400 to-brand-300 flex items-center justify-center">
                         <BookOpen className="w-8 h-8 text-white/70" />
                       </div>
                     )}

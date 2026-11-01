@@ -71,8 +71,8 @@ function SupportScreen() {
     <div className="max-w-5xl mx-auto">
       <div className="flex items-center justify-between gap-3 mb-5 flex-wrap">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
-            <LifeBuoy className="w-5 h-5 text-orange-600" />
+          <div className="w-10 h-10 rounded-xl bg-brand-100 flex items-center justify-center">
+            <LifeBuoy className="w-5 h-5 text-brand-600" />
           </div>
           <div>
             <h1 className="page-title">הפניות שלי</h1>
@@ -104,12 +104,12 @@ function SupportScreen() {
                       onClick={() => select(t.id)}
                       className={cn(
                         "w-full text-right rounded-xl px-3 py-2.5 transition-colors",
-                        selectedId === t.id ? "bg-orange-50" : "hover:bg-slate-50"
+                        selectedId === t.id ? "bg-brand-50" : "hover:bg-slate-50"
                       )}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <span className={cn("text-sm text-slate-800 line-clamp-2", t.customerUnread && t.openedByMe && "font-bold")}>
-                          {t.customerUnread && t.openedByMe && <span className="inline-block w-2 h-2 rounded-full bg-orange-500 ml-1.5 align-middle" />}
+                          {t.customerUnread && t.openedByMe && <span className="inline-block w-2 h-2 rounded-full bg-brand-500 ml-1.5 align-middle" />}
                           {t.title}
                         </span>
                         <StatusBadge status={t.status} />
@@ -176,7 +176,7 @@ function TicketPane({ id, onBack }: { id: string; onBack: () => void }) {
     return (
       <div className="card p-8 text-center text-sm text-slate-500">
         הפנייה לא נמצאה
-        <button className="block mx-auto mt-3 text-orange-600" onClick={onBack}>חזרה לרשימה</button>
+        <button className="block mx-auto mt-3 text-brand-600" onClick={onBack}>חזרה לרשימה</button>
       </div>
     );
   }

@@ -134,7 +134,7 @@ export function PullToRefresh() {
           style={{ transform: `translateY(${offset - 44}px)`, opacity: refreshing ? 1 : 0.35 + progress * 0.65 }}
         >
           <RefreshCw
-            className={cn("w-5 h-5", progress >= 1 || refreshing ? "text-orange-500" : "text-slate-400", refreshing && "animate-spin")}
+            className={cn("w-5 h-5", progress >= 1 || refreshing ? "text-brand-500" : "text-slate-400", refreshing && "animate-spin")}
             style={refreshing ? undefined : { transform: `rotate(${pull * 3}deg)` }}
           />
           <span className="sr-only">{refreshing ? "מרענן נתונים…" : progress >= 1 ? "שחרר כדי לרענן" : "משוך כדי לרענן"}</span>

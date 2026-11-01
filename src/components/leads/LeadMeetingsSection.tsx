@@ -59,7 +59,7 @@ interface MeetingForm {
 // ─── Styles (match LeadTreatmentModal) ───────────────────────────────────────
 
 const FIELD_BASE =
-  "w-full rounded-[10px] border border-slate-200 bg-white px-3 text-sm text-[#0F172A] placeholder:text-slate-400 outline-none transition-colors focus:border-[#FB923C] focus:ring-[3px] focus:ring-orange-500/15";
+  "w-full rounded-[10px] border border-slate-200 bg-white px-3 text-sm text-[#0F172A] placeholder:text-slate-400 outline-none transition-colors focus:border-brand-400 focus:ring-[3px] focus:ring-brand-500/15";
 const INPUT_CLS = cn(FIELD_BASE, "h-10");
 const TEXTAREA_CLS = cn(FIELD_BASE, "py-2 leading-relaxed resize-y");
 const FIELD_LABEL_CLS = "block text-[13px] font-medium text-[#0F172A] mb-1.5";

@@ -189,7 +189,7 @@ export function NotificationBell() {
             <div className="px-4 py-2.5 border-t border-slate-100 bg-slate-50">
               <a
                 href="/calendar"
-                className="text-[12px] font-medium text-orange-500 hover:text-orange-600 transition-colors"
+                className="text-[12px] font-medium text-brand-500 hover:text-brand-600 transition-colors"
                 onClick={() => setOpen(false)}
               >
                 פתח יומן ←

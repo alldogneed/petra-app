@@ -113,8 +113,8 @@ export function ContractsTab() {
             try { fieldCount = JSON.parse(t.fields || "[]").length; } catch { fieldCount = 0; }
             return (
               <div key={t.id} className="card p-4 flex items-center gap-4">
-                <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <FileText className="w-5 h-5 text-orange-500" />
+                <div className="w-10 h-10 bg-brand-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <FileText className="w-5 h-5 text-brand-500" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-petra-text text-sm truncate">{t.name}</p>
@@ -574,7 +574,7 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
                       className={cn(
                         "px-3 py-1.5 rounded-lg text-xs font-medium border transition-all",
                         selectedType === ft.type
-                          ? "ring-2 ring-orange-500 border-transparent"
+                          ? "ring-2 ring-brand-500 border-transparent"
                           : "border-slate-200 hover:border-slate-300"
                       )}
                       style={selectedType === ft.type ? { background: ft.bgColor, color: ft.color } : {}}
@@ -840,7 +840,7 @@ function EditContractTemplateModal({
               <div className="flex flex-wrap gap-2">
                 {FIELD_TYPES.filter((ft) => !(noPets && ft.type.startsWith("pet_"))).map((ft) => (
                   <button key={ft.type} type="button" onClick={() => setSelectedType(ft.type)}
-                    className={cn("px-3 py-1.5 rounded-lg text-xs font-medium border transition-all", selectedType === ft.type ? "ring-2 ring-orange-500 border-transparent" : "border-slate-200 hover:border-slate-300")}
+                    className={cn("px-3 py-1.5 rounded-lg text-xs font-medium border transition-all", selectedType === ft.type ? "ring-2 ring-brand-500 border-transparent" : "border-slate-200 hover:border-slate-300")}
                     style={selectedType === ft.type ? { background: ft.bgColor, color: ft.color } : {}}>
                     {ft.label}
                   </button>

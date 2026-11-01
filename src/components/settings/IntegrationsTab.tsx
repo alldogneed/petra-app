@@ -323,7 +323,7 @@ export function IntegrationsTab() {
                                     onSuccess: () => refetchCalendars(),
                                   });
                                 }}
-                                className="rounded accent-orange-500 w-3.5 h-3.5 flex-shrink-0"
+                                className="rounded accent-brand-500 w-3.5 h-3.5 flex-shrink-0"
                               />
                               <span
                                 className="w-2.5 h-2.5 rounded-full flex-shrink-0"
