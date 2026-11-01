@@ -73,7 +73,7 @@ describe("generateAsciiBusinessSlug (generic signups, QA 1/11)", () => {
   });
   it("Latin letters in the name are kept", () => {
     const s = generateAsciiBusinessSlug("Noa Pilates Studio");
-    expect(s).toMatch(/^noa-pilates-studio-[0-9a-f]{4}$/);
+    expect(s).toMatch(/^noa-pilates-studio-[0-9a-f]{8}$/);
     expect(tenantSlugFromHost(`${s}.petra.app`, "petra.app")).toBe(s);
   });
 });

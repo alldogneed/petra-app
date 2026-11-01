@@ -78,7 +78,7 @@ export function generateAsciiBusinessSlug(name: string): string {
     .replace(/^-+|-+$/g, "")
     .slice(0, 30)
     .replace(/-+$/g, "");
-  if (base.replace(/-/g, "").length >= 3) return `${base}-${crypto.randomBytes(2).toString("hex")}`;
+  if (base.replace(/-/g, "").length >= 3) return `${base}-${crypto.randomBytes(4).toString("hex")}`;
   return `biz-${crypto.randomBytes(4).toString("hex")}`;
 }
 
