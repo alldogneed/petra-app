@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
 
     // ── Create Business + BusinessUser membership ─────────────────────────────
     // Every new user gets their own isolated business workspace
-    const businessId = await ensureUserHasBusiness(user.id, (businessName?.trim() || name.trim()));
+    const businessId = await ensureUserHasBusiness(user.id, (businessName?.trim() || name.trim()), businessName?.trim());
 
     // Note: tier/trial are NOT set here. When a paid plan is selected,
     // the user is redirected to /checkout?trial=1 where they enter a card.
