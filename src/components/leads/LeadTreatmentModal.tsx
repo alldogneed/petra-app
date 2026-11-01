@@ -192,7 +192,7 @@ function TimelineItem({
                             <button
                                 onClick={onEditSave}
                                 disabled={isSaving}
-                                className="h-8 px-3 rounded-lg bg-[#F97316] hover:bg-[#EA580C] text-white text-[13px] font-semibold transition-colors disabled:opacity-50 flex items-center gap-1"
+                                className="h-8 px-3 rounded-lg bg-brand-500 hover:bg-brand-600 text-white text-[13px] font-semibold transition-colors disabled:opacity-50 flex items-center gap-1"
                             >
                                 {isSaving
                                     ? <span className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
@@ -780,7 +780,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                         onClick={() => void saveDealValue()}
                         disabled={dealValueMutation.isPending}
                         title="שמור"
-                        className="h-9 px-2.5 rounded-lg bg-[#F97316] hover:bg-[#EA580C] text-white text-xs font-semibold transition-colors disabled:opacity-50 flex items-center gap-1"
+                        className="h-9 px-2.5 rounded-lg bg-brand-500 hover:bg-brand-600 text-white text-xs font-semibold transition-colors disabled:opacity-50 flex items-center gap-1"
                     >
                         {dealValueMutation.isPending
                             ? <span className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
@@ -802,7 +802,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                     </span>
                     <button
                         onClick={startDealEdit}
-                        className="text-xs font-medium text-[#EA580C] hover:text-[#C2410C] hover:underline underline-offset-2"
+                        className="text-xs font-medium text-brand-600 hover:text-brand-700 hover:underline underline-offset-2"
                     >
                         {currentDealValue != null ? "ערוך" : "הוסף ערך"}
                     </button>
@@ -912,7 +912,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                             href={`https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(view.email)}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="mt-1 inline-flex items-center gap-1.5 text-[13px] text-slate-500 hover:text-[#EA580C] transition-colors"
+                            className="mt-1 inline-flex items-center gap-1.5 text-[13px] text-slate-500 hover:text-brand-600 transition-colors"
                         >
                             <Mail className="w-3.5 h-3.5" />
                             <span dir="ltr">{view.email}</span>
@@ -923,7 +923,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                         <div className="mt-4 flex gap-2">
                             <a
                                 href={`tel:${view.phone}`}
-                                className="flex-1 h-10 rounded-[10px] inline-flex items-center justify-center gap-2 text-sm font-semibold text-white bg-[#F97316] hover:bg-[#EA580C] transition-colors"
+                                className="flex-1 h-10 rounded-[10px] inline-flex items-center justify-center gap-2 text-sm font-semibold text-white bg-brand-500 hover:bg-brand-600 transition-colors"
                             >
                                 <Phone className="w-4 h-4" />
                                 חיוג ללקוח
@@ -1073,7 +1073,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                                     type="button"
                                     onClick={() => void handleSaveDetails()}
                                     disabled={savingDetails}
-                                    className="h-10 px-5 rounded-[10px] bg-[#F97316] hover:bg-[#EA580C] text-white font-semibold text-sm transition-colors disabled:opacity-50 inline-flex items-center gap-1.5"
+                                    className="h-10 px-5 rounded-[10px] bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-colors disabled:opacity-50 inline-flex items-center gap-1.5"
                                 >
                                     <Check className="w-4 h-4" />
                                     {savingDetails ? "שומר..." : "שמור פרטים"}
@@ -1232,7 +1232,7 @@ export function LeadTreatmentModal({ lead, isOpen, onClose, stages, onWon, onDel
                     <button
                         onClick={handleSave}
                         disabled={isWorking}
-                        className="h-10 px-5 rounded-[10px] bg-[#F97316] hover:bg-[#EA580C] text-white font-semibold text-sm transition-colors disabled:opacity-50"
+                        className="h-10 px-5 rounded-[10px] bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-colors disabled:opacity-50"
                     >
                         {saving || updateLeadMutation.isPending ? "שומר..." : "שמור וסגור"}
                     </button>

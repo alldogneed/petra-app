@@ -60,7 +60,7 @@ function CustomerItem({ c }: { c: SearchResults["customers"][0] }) {
   return (
     <div className="flex items-center gap-3 min-w-0">
       <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
-        style={{ background: "linear-gradient(135deg,#F97316,#FB923C)" }}>
+        style={{ background: "linear-gradient(135deg,rgb(var(--brand-500)),rgb(var(--brand-400)))" }}>
         {c.name.charAt(0)}
       </div>
       <div className="flex-1 min-w-0">

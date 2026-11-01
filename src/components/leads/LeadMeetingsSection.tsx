@@ -523,7 +523,7 @@ export function LeadMeetingsSection({ leadId, leadName, isCustomer, onConverted 
               <button
                 type="submit"
                 disabled={saveMutation.isPending}
-                className="h-10 px-5 rounded-[10px] bg-[#F97316] hover:bg-[#EA580C] text-white font-semibold text-sm transition-colors disabled:opacity-50"
+                className="h-10 px-5 rounded-[10px] bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-colors disabled:opacity-50"
               >
                 {saveMutation.isPending ? "שומר..." : editing ? "שמור" : "קבע פגישה"}
               </button>
