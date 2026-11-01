@@ -6,10 +6,15 @@ import { PetraLoader } from "@/components/ui/PetraLoader";
 import { cn, fetchJSON, formatRelativeTime } from "@/lib/utils";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
+import { currencySymbol } from "@/lib/format";
 
 // ─── Invoicing Tab ──────────────────────────────────────────────────────────
 
 export function InvoicingTab() {
+  const t = useTranslations("settings.invoicingTab");
+  const { locale, currency } = useBusinessLocale();
   const queryClient = useQueryClient();
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [showMappingModal, setShowMappingModal] = useState(false);
@@ -56,9 +61,9 @@ export function InvoicingTab() {
       queryClient.invalidateQueries({ queryKey: ["invoicing-settings"] });
       queryClient.invalidateQueries({ queryKey: ["integrations"] });
       setConfirmDisconnect(false);
-      toast.success("מערכת החשבוניות נותקה");
+      toast.success(t("toast.disconnected"));
     },
-    onError: () => toast.error("שגיאה בניתוק. נסה שוב."),
+    onError: () => toast.error(t("toast.disconnectError")),
   });
 
   const isConnected = settings?.status === "active";
@@ -72,12 +77,10 @@ export function InvoicingTab() {
   if (isConnected && settings?.documentMapping) {
     try {
       const map = JSON.parse(settings.documentMapping) as Record<string, number>;
-      const docLabels: Record<number, string> = { 305: "חשבונית מס", 320: "חשבונית מס / קבלה", 400: "קבלה", 330: "זיכוי", 0: "ללא מסמך" };
-      const methodLabels: Record<string, string> = { cash: "מזומן", credit_card: "כרטיס אשראי", bank_transfer: "העברה בנקאית", bit: "ביט", paybox: "פייבוקס", check: "צ׳ק" };
       mappingEntries = Object.entries(map).map(([m, dt]) => ({
         method: m,
-        label: methodLabels[m] ?? m,
-        docType: docLabels[dt] ?? String(dt),
+        label: t.has(`paymentMethods.${m}`) ? t(`paymentMethods.${m}`) : m,
+        docType: DOC_TYPE_KEYS[dt] ? t(`docTypes.${DOC_TYPE_KEYS[dt]}`) : String(dt),
       }));
     } catch { /* ignore */ }
   }
@@ -92,26 +95,26 @@ export function InvoicingTab() {
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <h3 className="font-semibold text-petra-text">חיבור ספק חשבוניות</h3>
+              <h3 className="font-semibold text-petra-text">{t("status.title")}</h3>
               {isConnected ? (
-                <span className="badge badge-success text-xs">מחובר</span>
+                <span className="badge badge-success text-xs">{t("status.connected")}</span>
               ) : (
-                <span className="badge badge-neutral text-xs">לא מחובר</span>
+                <span className="badge badge-neutral text-xs">{t("status.notConnected")}</span>
               )}
             </div>
             {isConnected ? (
               <p className="text-sm text-petra-muted mt-0.5">
-                מחובר ל-{settings?.providerName === "morning" ? "Morning (חשבונית ירוקה)" : settings?.providerName}
-                {settings?.connectedAt && <> · חובר {formatRelativeTime(settings.connectedAt)}</>}
+                {t("status.connectedTo", { provider: (settings?.providerName === "morning" ? t("morningName") : settings?.providerName) ?? "" })}
+                {settings?.connectedAt && <>{t("status.connectedAgo", { time: formatRelativeTime(settings.connectedAt) })}</>}
               </p>
             ) : (
               <p className="text-sm text-petra-muted mt-0.5">
-                חבר את חשבון Morning (חשבונית ירוקה) להפקת חשבוניות וקבלות אוטומטית
+                {t("status.connectPrompt")}
               </p>
             )}
             {settings?.lastTestedAt && settings.lastTestResult && (
               <p className={cn("text-xs mt-1", settings.lastTestResult === "success" ? "text-emerald-600" : "text-red-500")}>
-                בדיקה אחרונה: {settings.lastTestResult === "success" ? "תקין" : "נכשל"} · {formatRelativeTime(settings.lastTestedAt)}
+                {t("status.lastTest", { result: settings.lastTestResult === "success" ? t("status.testOk") : t("status.testFailed"), time: formatRelativeTime(settings.lastTestedAt) })}
               </p>
             )}
           </div>
@@ -123,7 +126,7 @@ export function InvoicingTab() {
                   onClick={() => setConfirmDisconnect(true)}
                   disabled={disconnectMutation.isPending}
                 >
-                  {disconnectMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "נתק"}
+                  {disconnectMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : t("disconnect")}
                 </button>
               </>
             ) : (
@@ -132,7 +135,7 @@ export function InvoicingTab() {
                 onClick={() => setShowConnectModal(true)}
               >
                 <Plug className="w-4 h-4" />
-                חבר
+                {t("status.connect")}
               </button>
             )}
           </div>
@@ -144,15 +147,15 @@ export function InvoicingTab() {
         <div className="card p-5">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="font-semibold text-petra-text">מיפוי מסמכים</h3>
-              <p className="text-sm text-petra-muted mt-0.5">איזה סוג מסמך יופק לכל אמצעי תשלום</p>
+              <h3 className="font-semibold text-petra-text">{t("mapping.title")}</h3>
+              <p className="text-sm text-petra-muted mt-0.5">{t("mapping.subtitle")}</p>
             </div>
             <button
               className="btn-ghost text-sm flex items-center gap-1.5"
               onClick={() => setShowMappingModal(true)}
             >
               <Settings2 className="w-3.5 h-3.5" />
-              ערוך
+              {t("mapping.edit")}
             </button>
           </div>
           {mappingEntries.length > 0 ? (
@@ -165,7 +168,7 @@ export function InvoicingTab() {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-petra-muted">מיפוי ברירת מחדל בשימוש</p>
+            <p className="text-sm text-petra-muted">{t("mapping.defaultInUse")}</p>
           )}
         </div>
       )}
@@ -173,7 +176,7 @@ export function InvoicingTab() {
       {/* Recent Documents */}
       {isConnected && documents && documents.length > 0 && (
         <div className="card p-5">
-          <h3 className="font-semibold text-petra-text mb-3">מסמכים אחרונים</h3>
+          <h3 className="font-semibold text-petra-text mb-3">{t("recent.title")}</h3>
           <div className="space-y-2">
             {documents.slice(0, 5).map((doc) => (
               <div key={doc.id} className="flex items-center justify-between px-3 py-2 bg-slate-50 rounded-lg">
@@ -184,10 +187,10 @@ export function InvoicingTab() {
                     <p className="text-xs text-petra-muted">{doc.customer?.name}</p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm font-medium text-petra-text">₪{doc.amount.toFixed(2)}</p>
+                <div className="text-start">
+                  <p className="text-sm font-medium text-petra-text">{currencySymbol({ locale, currency })}{doc.amount.toFixed(2)}</p>
                   <span className={cn("text-xs", doc.status === "issued" ? "text-emerald-600" : doc.status === "draft" ? "text-amber-600" : "text-petra-muted")}>
-                    {doc.status === "issued" ? "הופק" : doc.status === "draft" ? "טיוטה" : doc.status}
+                    {doc.status === "issued" ? t("recent.statusIssued") : doc.status === "draft" ? t("recent.statusDraft") : doc.status}
                   </span>
                 </div>
               </div>
@@ -202,23 +205,23 @@ export function InvoicingTab() {
           <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
             <FileText className="w-8 h-8 text-slate-400" />
           </div>
-          <h3 className="font-semibold text-petra-text mb-1">עדיין לא מחובר ספק חשבוניות</h3>
-          <p className="text-sm text-petra-muted mb-4">חבר את חשבון Morning שלך כדי להפיק חשבוניות וקבלות אוטומטית כשנרשמת תשלום</p>
+          <h3 className="font-semibold text-petra-text mb-1">{t("empty.title")}</h3>
+          <p className="text-sm text-petra-muted mb-4">{t("empty.body")}</p>
           <button
             className="btn-primary inline-flex items-center gap-2"
             onClick={() => setShowConnectModal(true)}
           >
             <Plug className="w-4 h-4" />
-            חבר עכשיו
+            {t("empty.connectNow")}
           </button>
         </div>
       )}
 
       <ConfirmDialog
         open={confirmDisconnect}
-        title="לנתק את מערכת החשבוניות?"
-        description="הפקת חשבוניות וקבלות אוטומטית תיפסק עד לחיבור מחדש. מסמכים שכבר הופקו לא יימחקו."
-        confirmLabel="נתק"
+        title={t("confirmDisconnect.title")}
+        description={t("confirmDisconnect.description")}
+        confirmLabel={t("disconnect")}
         danger
         loading={disconnectMutation.isPending}
         onConfirm={() => disconnectMutation.mutate()}
@@ -258,6 +261,8 @@ export function InvoicingConnectModal({
   onClose: () => void;
   onSuccess: () => void;
 }) {
+  const t = useTranslations("settings.invoicingTab");
+  const tc = useTranslations("common");
   const [provider, setProvider] = useState("morning");
   const [apiKey, setApiKey] = useState("");
   const [apiSecret, setApiSecret] = useState("");
@@ -272,7 +277,7 @@ export function InvoicingConnectModal({
         body: JSON.stringify({ providerName: provider, apiKey, apiSecret }),
       }).then(async (r) => {
         const data = await r.json();
-        if (!r.ok || !data.success) throw new Error(data.error || "בדיקה נכשלה");
+        if (!r.ok || !data.success) throw new Error(data.error || t("connectModal.testFailed"));
         return data;
       }),
     onMutate: () => {
@@ -295,7 +300,7 @@ export function InvoicingConnectModal({
       }).then(async (r) => {
         if (!r.ok) {
           const data = await r.json().catch(() => ({}));
-          throw new Error(data.error || "שמירה נכשלה");
+          throw new Error(data.error || t("saveFailed"));
         }
         return r.json();
       }),
@@ -312,8 +317,8 @@ export function InvoicingConnectModal({
       <div className="modal-content max-w-lg mx-4 p-6">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-xl font-bold text-petra-text">חיבור חשבוניות</h2>
-            <p className="text-sm text-petra-muted mt-0.5">הפקת חשבוניות וקבלות אוטומטית</p>
+            <h2 className="text-xl font-bold text-petra-text">{t("connectModal.title")}</h2>
+            <p className="text-sm text-petra-muted mt-0.5">{t("connectModal.subtitle")}</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
             <X className="w-4 h-4" />
@@ -322,9 +327,9 @@ export function InvoicingConnectModal({
 
         <div className="space-y-4">
           <div>
-            <label className="label">ספק</label>
+            <label className="label">{t("connectModal.provider")}</label>
             <select className="input" value={provider} onChange={(e) => setProvider(e.target.value)}>
-              <option value="morning">Morning (חשבונית ירוקה)</option>
+              <option value="morning">{t("morningName")}</option>
             </select>
           </div>
 
@@ -335,7 +340,7 @@ export function InvoicingConnectModal({
               dir="ltr"
               value={apiKey}
               onChange={(e) => { setApiKey(e.target.value); setTestStatus("idle"); }}
-              placeholder="API Key מ-Morning"
+              placeholder={t("connectModal.apiKeyPlaceholder")}
             />
           </div>
 
@@ -347,14 +352,14 @@ export function InvoicingConnectModal({
               dir="ltr"
               value={apiSecret}
               onChange={(e) => { setApiSecret(e.target.value); setTestStatus("idle"); }}
-              placeholder="API Secret מ-Morning"
+              placeholder={t("connectModal.apiSecretPlaceholder")}
             />
           </div>
 
           {testStatus === "success" && (
             <div className="flex items-center gap-2 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm">
               <CheckCircle className="w-4 h-4 flex-shrink-0" />
-              החיבור תקין!
+              {t("connectModal.success")}
             </div>
           )}
 
@@ -374,7 +379,7 @@ export function InvoicingConnectModal({
               onClick={() => testMutation.mutate()}
             >
               {testMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plug className="w-4 h-4" />}
-              {testMutation.isPending ? "בודק..." : "בדוק חיבור"}
+              {testMutation.isPending ? t("connectModal.testing") : t("connectModal.test")}
             </button>
           ) : (
             <button
@@ -384,10 +389,10 @@ export function InvoicingConnectModal({
               onClick={() => saveMutation.mutate()}
             >
               {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
-              {saveMutation.isPending ? "שומר..." : "שמור וחבר"}
+              {saveMutation.isPending ? tc("progress.saving") : t("connectModal.saveAndConnect")}
             </button>
           )}
-          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+          <button className="btn-secondary" onClick={onClose}>{tc("actions.cancel")}</button>
         </div>
       </div>
     </div>
@@ -396,21 +401,24 @@ export function InvoicingConnectModal({
 
 // ─── Invoicing Document Mapping Modal ───────────────────────────────────────
 
+// Labels: settings.invoicingTab.docTypes.<key>
+const DOC_TYPE_KEYS: Record<number, string> = {
+  305: "taxInvoice",
+  320: "taxInvoiceReceipt",
+  400: "receipt",
+  330: "creditNote",
+  0: "none",
+};
+
 const DOC_TYPE_OPTIONS = [
-  { value: 320, label: "חשבונית מס / קבלה" },
-  { value: 400, label: "קבלה" },
-  { value: 305, label: "חשבונית מס" },
-  { value: 0, label: "ללא מסמך" },
+  { value: 320, labelKey: "taxInvoiceReceipt" },
+  { value: 400, labelKey: "receipt" },
+  { value: 305, labelKey: "taxInvoice" },
+  { value: 0, labelKey: "none" },
 ];
 
-const PAYMENT_METHOD_LABELS: Record<string, string> = {
-  cash: "מזומן",
-  credit_card: "כרטיס אשראי",
-  bank_transfer: "העברה בנקאית",
-  bit: "ביט",
-  paybox: "פייבוקס",
-  check: "צ׳ק",
-};
+// Labels: settings.invoicingTab.paymentMethods.<method>
+const PAYMENT_METHODS = ["cash", "credit_card", "bank_transfer", "bit", "paybox", "check"];
 
 const DEFAULT_MAPPING: Record<string, number> = {
   cash: 320,
@@ -428,6 +436,8 @@ export function InvoicingMappingModal({
   onClose: () => void;
   onSuccess: () => void;
 }) {
+  const t = useTranslations("settings.invoicingTab");
+  const tc = useTranslations("common");
   const { data: settings } = useQuery<{ documentMapping: string } | null>({
     queryKey: ["invoicing-settings"],
     queryFn: () => fetchJSON("/api/invoicing/settings"),
@@ -453,7 +463,7 @@ export function InvoicingMappingModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ documentMapping: mapping, updateMappingOnly: true }),
       }).then(async (r) => {
-        if (!r.ok) throw new Error("שמירה נכשלה");
+        if (!r.ok) throw new Error(t("saveFailed"));
         return r.json();
       }),
     onSuccess,
@@ -465,8 +475,8 @@ export function InvoicingMappingModal({
       <div className="modal-content max-w-lg mx-4 p-6">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-xl font-bold text-petra-text">מיפוי מסמכים</h2>
-            <p className="text-sm text-petra-muted mt-0.5">בחר איזה מסמך יופק לכל אמצעי תשלום</p>
+            <h2 className="text-xl font-bold text-petra-text">{t("mapping.title")}</h2>
+            <p className="text-sm text-petra-muted mt-0.5">{t("mappingModal.subtitle")}</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
             <X className="w-4 h-4" />
@@ -474,16 +484,16 @@ export function InvoicingMappingModal({
         </div>
 
         <div className="space-y-3">
-          {Object.entries(PAYMENT_METHOD_LABELS).map(([method, label]) => (
+          {PAYMENT_METHODS.map((method) => (
             <div key={method} className="flex items-center justify-between gap-3">
-              <label className="text-sm font-medium text-petra-text w-32">{label}</label>
+              <label className="text-sm font-medium text-petra-text w-32">{t(`paymentMethods.${method}`)}</label>
               <select
                 className="input flex-1"
                 value={mapping[method] ?? 320}
                 onChange={(e) => setMapping({ ...mapping, [method]: Number(e.target.value) })}
               >
                 {DOC_TYPE_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  <option key={opt.value} value={opt.value}>{t(`docTypes.${opt.labelKey}`)}</option>
                 ))}
               </select>
             </div>
@@ -496,9 +506,9 @@ export function InvoicingMappingModal({
             disabled={saveMutation.isPending}
             onClick={() => saveMutation.mutate()}
           >
-            {saveMutation.isPending ? "שומר..." : "שמור"}
+            {saveMutation.isPending ? tc("progress.saving") : tc("actions.save")}
           </button>
-          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+          <button className="btn-secondary" onClick={onClose}>{tc("actions.cancel")}</button>
         </div>
       </div>
     </div>

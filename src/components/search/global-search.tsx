@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { useVertical } from "@/hooks/useVertical";
 import { Search, Users, PawPrint, Calendar, Hotel, X, Loader2, UserPlus, CheckSquare } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 interface SearchResults {
   customers: {
     id: string;
@@ -55,6 +57,8 @@ interface SearchResults {
 
 export function GlobalSearch() {
   const { v } = useVertical();
+  const t = useTranslations("search");
+  const { locale, cfg } = useBusinessLocale();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResults | null>(null);
@@ -132,18 +136,20 @@ export function GlobalSearch() {
       >
         <div className="relative">
           <Search
-            className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4"
+            className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4"
             style={{ color: "#94a3b8" }}
           />
           <div
-            className="w-full pr-10 pl-4 py-2 text-sm rounded-xl border text-right cursor-pointer"
+            className="w-full ps-10 pe-4 py-2 text-sm rounded-xl border text-start cursor-pointer"
             style={{
               background: "rgba(241,245,249,0.8)",
               borderColor: "#E2E8F0",
               color: "#94a3b8",
             }}
           >
-            חיפוש מהיר... <span className="hidden sm:inline">(⌘K)</span>
+            {t.rich("globalSearch.trigger", {
+              hint: (chunks) => <span className="hidden sm:inline">{chunks}</span>,
+            })}
           </div>
         </div>
       </button>
@@ -180,7 +186,7 @@ export function GlobalSearch() {
             ) : (
               <Search className="w-5 h-5 text-slate-400 flex-shrink-0" aria-hidden="true" />
             )}
-            <label htmlFor="global-search" className="sr-only">חיפוש</label>
+            <label htmlFor="global-search" className="sr-only">{t("globalSearch.label")}</label>
             <input
               ref={inputRef}
               id="global-search"
@@ -189,8 +195,8 @@ export function GlobalSearch() {
               onChange={(e) => handleInput(e.target.value)}
               placeholder={v("search.placeholder")}
               className="flex-1 text-base sm:text-sm text-petra-text bg-transparent border-none outline-none placeholder-slate-400"
-              dir="rtl"
-              aria-label="חיפוש"
+              dir={cfg.dir}
+              aria-label={t("globalSearch.label")}
             />
             {query && (
               <button
@@ -200,7 +206,7 @@ export function GlobalSearch() {
                   inputRef.current?.focus();
                 }}
                 className="p-1 rounded-md hover:bg-slate-100 text-slate-400"
-                aria-label="נקה חיפוש"
+                aria-label={t("globalSearch.clear")}
               >
                 <X className="w-4 h-4" />
               </button>
@@ -212,7 +218,7 @@ export function GlobalSearch() {
             <button
               onClick={closeModal}
               className="p-1.5 rounded-md hover:bg-slate-100 text-slate-500"
-              aria-label="סגור חיפוש"
+              aria-label={t("globalSearch.close")}
             >
               <X className="w-5 h-5" />
             </button>
@@ -222,13 +228,13 @@ export function GlobalSearch() {
           <div className="max-h-[50vh] overflow-y-auto">
             {query.length >= 2 && results && totalResults === 0 && (
               <div className="p-8 text-center">
-                <p className="text-sm text-petra-muted">לא נמצאו תוצאות עבור &quot;{query}&quot;</p>
+                <p className="text-sm text-petra-muted">{t("globalSearch.noResults", { query })}</p>
               </div>
             )}
 
             {results && results.customers.length > 0 && (
               <ResultSection
-                title="לקוחות"
+                title={t("globalSearch.sections.customers")}
                 icon={Users}
                 items={results.customers.map((c) => ({
                   id: c.id,
@@ -241,11 +247,11 @@ export function GlobalSearch() {
 
             {results && results.pets.filter((p) => p.customer != null).length > 0 && (
               <ResultSection
-                title="חיות מחמד"
+                title={t("globalSearch.sections.pets")}
                 icon={PawPrint}
                 items={results.pets.filter((p) => p.customer != null).map((p) => ({
                   id: p.id,
-                  title: `${p.name} (${p.species === "dog" ? "כלב" : p.species === "cat" ? "חתול" : p.species})`,
+                  title: `${p.name} (${p.species === "dog" ? t("globalSearch.species.dog") : p.species === "cat" ? t("globalSearch.species.cat") : p.species})`,
                   subtitle: `${p.customer!.name}${p.breed ? ` · ${p.breed}` : ""}`,
                   onClick: () => navigate(`/customers/${p.customer!.id}`),
                 }))}
@@ -254,12 +260,12 @@ export function GlobalSearch() {
 
             {results && results.appointments.filter((a) => a.customer != null && (a.service != null || a.priceListItem != null)).length > 0 && (
               <ResultSection
-                title="תורים"
+                title={t("globalSearch.sections.appointments")}
                 icon={Calendar}
                 items={results.appointments.filter((a) => a.customer != null && (a.service != null || a.priceListItem != null)).map((a) => ({
                   id: a.id,
-                  title: `${a.customer!.name} – ${a.service?.name ?? a.priceListItem?.name ?? "תור"}`,
-                  subtitle: `${new Date(a.date).toLocaleDateString("he-IL")} ${a.startTime}`,
+                  title: `${a.customer!.name} – ${a.service?.name ?? a.priceListItem?.name ?? t("globalSearch.appointmentFallback")}`,
+                  subtitle: `${new Date(a.date).toLocaleDateString(locale)} ${a.startTime}`,
                   onClick: () => navigate(`/calendar?date=${a.date.slice(0, 10)}&apt=${a.id}`),
                 }))}
               />
@@ -267,12 +273,12 @@ export function GlobalSearch() {
 
             {results && results.boarding.filter((b) => b.customer != null && b.pet != null).length > 0 && (
               <ResultSection
-                title="פנסיון"
+                title={t("globalSearch.sections.boarding")}
                 icon={Hotel}
                 items={results.boarding.filter((b) => b.customer != null && b.pet != null).map((b) => ({
                   id: b.id,
                   title: `${b.customer!.name} – ${b.pet!.name}`,
-                  subtitle: `${new Date(b.checkIn).toLocaleDateString("he-IL")}${b.room ? ` · ${b.room.name}` : ""}`,
+                  subtitle: `${new Date(b.checkIn).toLocaleDateString(locale)}${b.room ? ` · ${b.room.name}` : ""}`,
                   onClick: () => navigate(`/customers/${b.customer!.id}`),
                 }))}
               />
@@ -280,15 +286,15 @@ export function GlobalSearch() {
 
             {results && results.leads.length > 0 && (
               <ResultSection
-                title="לידים"
+                title={t("globalSearch.sections.leads")}
                 icon={UserPlus}
                 items={results.leads.map((l) => ({
                   id: l.id,
                   title: l.name,
                   subtitle: `${l.phone}${l.email ? ` · ${l.email}` : ""} · ${
-                    l.wonAt ? "נסגר בהצלחה" :
-                    l.lostAt ? "אבוד" :
-                    l.leadStage?.name ?? "חדש"
+                    l.wonAt ? t("globalSearch.leadStatus.won") :
+                    l.lostAt ? t("globalSearch.leadStatus.lost") :
+                    l.leadStage?.name ?? t("globalSearch.leadStatus.new")
                   }`,
                   // Opens this lead's card (also closed ones — they live in the archive tab).
                   onClick: () => navigate(`/leads?lead=${encodeURIComponent(l.id)}`),
@@ -298,16 +304,16 @@ export function GlobalSearch() {
 
             {results && results.tasks.length > 0 && (
               <ResultSection
-                title="משימות"
+                title={t("globalSearch.sections.tasks")}
                 icon={CheckSquare}
-                items={results.tasks.map((t) => ({
-                  id: t.id,
-                  title: t.title,
+                items={results.tasks.map((task) => ({
+                  id: task.id,
+                  title: task.title,
                   subtitle: `${
-                    t.priority === "URGENT" ? "דחוף" :
-                    t.priority === "HIGH" ? "גבוה" :
-                    t.priority === "MEDIUM" ? "בינוני" : "נמוך"
-                  }${t.dueDate ? ` · ${new Date(t.dueDate).toLocaleDateString("he-IL")}` : ""}`,
+                    task.priority === "URGENT" ? t("globalSearch.priority.urgent") :
+                    task.priority === "HIGH" ? t("globalSearch.priority.high") :
+                    task.priority === "MEDIUM" ? t("globalSearch.priority.medium") : t("globalSearch.priority.low")
+                  }${task.dueDate ? ` · ${new Date(task.dueDate).toLocaleDateString(locale)}` : ""}`,
                   onClick: () => navigate(`/tasks`),
                 }))}
               />
@@ -315,7 +321,7 @@ export function GlobalSearch() {
 
             {!results && query.length < 2 && (
               <div className="p-6 text-center">
-                <p className="text-sm text-petra-muted">הקלד לפחות 2 תווים לחיפוש</p>
+                <p className="text-sm text-petra-muted">{t("globalSearch.minChars")}</p>
               </div>
             )}
           </div>
@@ -347,7 +353,7 @@ function ResultSection({
         <button
           key={item.id}
           onClick={item.onClick}
-          className="w-full flex items-start gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors text-right"
+          className="w-full flex items-start gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors text-start"
         >
           <div className="flex-1 min-w-0">
             <div className="text-sm font-medium text-petra-text truncate">

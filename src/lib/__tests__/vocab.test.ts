@@ -33,8 +33,22 @@ describe("vocab()", () => {
   it("returns the generic value", () => {
     expect(vocab("nav.training", { vertical: "generic" })).toBe("ניהול תוכניות");
   });
+  it("reads English for en-US (messages/en.json)", () => {
+    expect(vocab("nav.training", { vertical: "generic", locale: "en-US" })).toBe("Programs");
+    expect(vocab("nav.training", { locale: "en-US" })).toBe("Training programs");
+  });
   it("falls back to he for an unknown locale", () => {
-    expect(vocab("nav.training", { vertical: "generic", locale: "en-US" })).toBe("ניהול תוכניות");
+    expect(vocab("nav.training", { vertical: "generic", locale: "fr-FR" })).toBe("ניהול תוכניות");
+  });
+  it("en.json has the same vocab keys and params as he.json", () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const en = require("../../../messages/en.json").vocab as Record<string, Record<string, string>>;
+    expect(Object.keys(en).sort()).toEqual(Object.keys(he.vocab).sort());
+    const params = (s: string) => (s.match(/\{[^}]+\}/g) ?? []).sort();
+    for (const [k, e] of Object.entries(he.vocab as Record<string, Record<string, string>>)) {
+      expect(params(en[k].dogs)).toEqual(params(e.dogs));
+      expect(params(en[k].generic)).toEqual(params(e.generic));
+    }
   });
   it("vocabFor binds the vertical", () => {
     const v = vocabFor("generic");

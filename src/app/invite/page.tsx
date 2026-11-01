@@ -6,8 +6,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { Lock, Eye, EyeOff, CheckCircle2, AlertCircle, Users } from "lucide-react";
 import { PetraLoader } from "@/components/ui/PetraLoader";
-
-const ROLE_LABELS: Record<string, string> = { owner: "בעלים", manager: "מנהל", user: "עובד", volunteer: "מתנדב" };
+import { useLocale, useTranslations } from "next-intl";
+import { LOCALE_CONFIG, localeFromBusiness } from "@/lib/locale";
 
 interface InviteInfo {
   businessName: string;
@@ -21,18 +21,19 @@ interface InviteInfo {
 }
 
 function PasswordChecks({ password }: { password: string }) {
+  const t = useTranslations("auth.invitePage.passwordChecks");
   if (!password) return null;
   const checks = [
-    { label: "12+ תווים", ok: password.length >= 12 },
-    { label: "אות גדולה", ok: /[A-Z]/.test(password) },
-    { label: "אות קטנה", ok: /[a-z]/.test(password) },
-    { label: "ספרה", ok: /[0-9]/.test(password) },
-  ];
+    { id: "length", ok: password.length >= 12 },
+    { id: "upper", ok: /[A-Z]/.test(password) },
+    { id: "lower", ok: /[a-z]/.test(password) },
+    { id: "digit", ok: /[0-9]/.test(password) },
+  ] as const;
   return (
     <div className="flex gap-3 mt-2 flex-wrap">
       {checks.map((c) => (
-        <span key={c.label} className={c.ok ? "text-[11px] text-emerald-600" : "text-[11px] text-slate-400"}>
-          {c.ok ? "✓" : "○"} {c.label}
+        <span key={c.id} className={c.ok ? "text-[11px] text-emerald-600" : "text-[11px] text-slate-400"}>
+          {c.ok ? "✓" : "○"} {t(c.id)}
         </span>
       ))}
     </div>
@@ -40,6 +41,7 @@ function PasswordChecks({ password }: { password: string }) {
 }
 
 function InviteForm() {
+  const t = useTranslations("auth.invitePage");
   const token = useSearchParams().get("token") ?? "";
 
   const [info, setInfo] = useState<InviteInfo | null>(null);
@@ -54,7 +56,7 @@ function InviteForm() {
 
   useEffect(() => {
     if (!token) {
-      setLoadError("הקישור לא תקין. בקש/י מבעל העסק לשלוח הזמנה חדשה.");
+      setLoadError(t("errors.invalidLink"));
       return;
     }
     fetch("/api/auth/invitation", {
@@ -64,7 +66,7 @@ function InviteForm() {
     })
       .then(async (r) => {
         const data = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(data.error || "לא הצלחנו לטעון את ההזמנה");
+        if (!r.ok) throw new Error(data.error || t("errors.loadFailed"));
         setInfo(data);
         setName(data.name ?? "");
       })
@@ -94,14 +96,14 @@ function InviteForm() {
       });
       const data = await r.json().catch(() => ({}));
       if (!r.ok) {
-        setError(data.error || "שגיאה באישור ההזמנה");
+        setError(data.error || t("errors.acceptFailed"));
         return;
       }
       setDone({ loggedIn: true });
       // Full reload so the session picks up the new membership.
       setTimeout(() => { window.location.href = "/dashboard"; }, 1500);
     } catch {
-      setError("שגיאת רשת. נסה/י שוב.");
+      setError(t("errors.network"));
     } finally {
       setSubmitting(false);
     }
@@ -114,7 +116,7 @@ function InviteForm() {
           <Image src="/icon.png" alt="Petra" width={64} height={64} className="w-full h-full" priority />
         </div>
         <h1 className="text-2xl font-bold text-petra-text">Petra</h1>
-        <p className="text-sm text-petra-muted mt-1">ניהול עסקי חיות מחמד</p>
+        <p className="text-sm text-petra-muted mt-1">{t("tagline")}</p>
       </div>
 
       {loadError ? (
@@ -123,7 +125,7 @@ function InviteForm() {
             <AlertCircle className="w-7 h-7 text-red-500" />
           </div>
           <p className="text-sm text-petra-text">{loadError}</p>
-          <Link href="/login" className="btn-secondary inline-flex justify-center">לדף ההתחברות</Link>
+          <Link href="/login" className="btn-secondary inline-flex justify-center">{t("toLogin")}</Link>
         </div>
       ) : !info ? (
         <PetraLoader />
@@ -133,8 +135,8 @@ function InviteForm() {
             <CheckCircle2 className="w-7 h-7 text-green-500" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-petra-text">ברוך/ה הבא/ה לצוות של {info.businessName}!</h2>
-            <p className="text-sm text-petra-muted mt-1">ההצטרפות אושרה. מעבירים אותך למערכת...</p>
+            <h2 className="text-lg font-bold text-petra-text">{t("done.title", { business: info.businessName })}</h2>
+            <p className="text-sm text-petra-muted mt-1">{t("done.subtitle")}</p>
           </div>
         </div>
       ) : (
@@ -144,17 +146,20 @@ function InviteForm() {
               <Users className="w-5 h-5 text-brand-600" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-petra-text">הזמנה להצטרף לצוות</h2>
+              <h2 className="text-lg font-bold text-petra-text">{t("form.title")}</h2>
               <p className="text-sm text-petra-muted mt-0.5">
-                {info.inviterName ? `${info.inviterName} הזמין/ה אותך ל` : "הוזמנת ל"}
-                <strong className="text-petra-text">{info.businessName}</strong> בתפקיד{" "}
-                <strong className="text-petra-text">{ROLE_LABELS[info.role] ?? info.role}</strong>.
+                {t.rich(info.inviterName ? "form.introByInviter" : "form.intro", {
+                  inviter: info.inviterName ?? "",
+                  business: info.businessName,
+                  role: t.has(`roles.${info.role}`) ? t(`roles.${info.role}`) : info.role,
+                  b: (c) => <strong className="text-petra-text">{c}</strong>,
+                })}
               </p>
             </div>
           </div>
 
           <div className="text-sm">
-            <span className="text-petra-muted">שם משתמש: </span>
+            <span className="text-petra-muted">{t("form.usernameLabel")}</span>
             <span className="font-medium text-petra-text" dir="ltr">{info.email}</span>
           </div>
 
@@ -168,24 +173,24 @@ function InviteForm() {
           {info.hasAccount ? (
             <p className="text-sm text-petra-muted">
               {info.signedInAsInvitee
-                ? "את/ה מחובר/ת לחשבון הזה — נשאר רק לאשר."
-                : "כבר יש לך חשבון בפטרה עם האימייל הזה. התחבר/י אליו כדי לאשר את ההצטרפות — הסיסמה שלך לא משתנה."}
+                ? t("form.signedInAsInvitee")
+                : t("form.hasAccount")}
             </p>
           ) : (
             <>
               <div>
-                <label className="label" htmlFor="invite-name">שם מלא</label>
+                <label className="label" htmlFor="invite-name">{t("form.fullName")}</label>
                 <input id="invite-name" className="input" value={name} onChange={(e) => setName(e.target.value)} maxLength={100} required />
               </div>
               <div>
-                <label className="label" htmlFor="invite-password">בחר/י סיסמה</label>
+                <label className="label" htmlFor="invite-password">{t("form.choosePassword")}</label>
                 <div className="relative">
-                  <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <Lock className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                   <input
                     id="invite-password"
                     type={showPassword ? "text" : "password"}
-                    className="input pr-10 pl-10"
-                    placeholder="לפחות 12 תווים"
+                    className="input ps-10 pe-10"
+                    placeholder={t("form.passwordPlaceholder")}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     autoComplete="new-password"
@@ -195,8 +200,8 @@ function InviteForm() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                    aria-label={showPassword ? "הסתר סיסמה" : "הצג סיסמה"}
+                    className="absolute end-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    aria-label={showPassword ? t("form.hidePassword") : t("form.showPassword")}
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -204,7 +209,7 @@ function InviteForm() {
                 <PasswordChecks password={password} />
               </div>
               <div>
-                <label className="label" htmlFor="invite-confirm">אימות סיסמה</label>
+                <label className="label" htmlFor="invite-confirm">{t("form.confirmPassword")}</label>
                 <input
                   id="invite-confirm"
                   type={showPassword ? "text" : "password"}
@@ -215,21 +220,21 @@ function InviteForm() {
                   dir="ltr"
                   required
                 />
-                {confirm && password !== confirm && <p className="text-xs text-red-500 mt-1">הסיסמאות אינן תואמות</p>}
+                {confirm && password !== confirm && <p className="text-xs text-red-500 mt-1">{t("form.passwordMismatch")}</p>}
               </div>
             </>
           )}
 
           {info.hasAccount && !info.signedInAsInvitee ? (
             <Link href={loginHref} className="btn-primary w-full justify-center">
-              התחברות ואישור
+              {t("form.loginAndAccept")}
             </Link>
           ) : (
             <button type="submit" className="btn-primary w-full justify-center" disabled={!canSubmit}>
-              {submitting ? <span className="animate-pulse">מאשר...</span> : "אישור הצטרפות"}
+              {submitting ? <span className="animate-pulse">{t("form.accepting")}</span> : t("form.accept")}
             </button>
           )}
-          <p className="text-xs text-petra-muted text-center">לא מכיר/ה את העסק? אפשר פשוט לסגור את הדף.</p>
+          <p className="text-xs text-petra-muted text-center">{t("form.notYours")}</p>
         </form>
       )}
     </div>
@@ -237,8 +242,9 @@ function InviteForm() {
 }
 
 export default function InvitePage() {
+  const cfg = LOCALE_CONFIG[localeFromBusiness({ locale: useLocale() })];
   return (
-    <div className="min-h-screen flex items-center justify-center bg-petra-bg p-4" dir="rtl">
+    <div className="min-h-screen flex items-center justify-center bg-petra-bg p-4" dir={cfg.dir}>
       <Suspense>
         <InviteForm />
       </Suspense>

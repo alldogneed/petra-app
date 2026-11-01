@@ -2,6 +2,10 @@
 
 
 import Link from "next/link";
+import { useMemo } from "react";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
+import { DEFAULT_LOCALE } from "@/lib/locale";
 import {
   Users,
   Activity,
@@ -210,12 +214,8 @@ export const ACTION_COLORS: Record<string, string> = {
   UPDATE_SECURITY_ALERTS: SLATE,
 };
 
-export const ROLE_LABELS: Record<string, string> = {
-  owner: "בעלים",
-  admin: "מנהל",
-  manager: "מנג׳ר",
-  user: "עובד",
-};
+/** Role ids that have a translated label (`businessAdmin.shared.roles.*`). */
+export const ROLE_IDS = ["owner", "admin", "manager", "user"] as const;
 
 export const ROLE_COLORS: Record<string, string> = {
   owner: "bg-amber-100 text-amber-800",
@@ -226,18 +226,42 @@ export const ROLE_COLORS: Record<string, string> = {
 
 // ── Helpers ──────────────────────────────────────────────────────
 
-export function relativeTime(date: string) {
-  const diffMs = Date.now() - new Date(date).getTime();
-  const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return "עכשיו";
-  if (diffMin < 60) return `לפני ${diffMin} דק׳`;
-  const diffHr = Math.floor(diffMin / 60);
-  if (diffHr < 24) return `לפני ${diffHr} שע׳`;
-  return `לפני ${Math.floor(diffHr / 24)} ימים`;
+export type BusinessAdminSharedT = ReturnType<typeof useTranslations<"businessAdmin.shared">>;
+
+/** Translated role label; an unknown role falls back to its raw id (same as the old map lookup). */
+export function roleLabel(role: string, t: BusinessAdminSharedT): string {
+  return t.has(`roles.${role}`) ? t(`roles.${role}`) : role;
 }
 
-export function formatTs(date: string) {
-  return new Date(date).toLocaleString("he-IL", {
+function relativeTimeText(date: string, t: BusinessAdminSharedT): string {
+  const diffMs = Date.now() - new Date(date).getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return t("relativeTime.now");
+  if (diffMin < 60) return t("relativeTime.minutesAgo", { count: diffMin });
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return t("relativeTime.hoursAgo", { count: diffHr });
+  return t("relativeTime.daysAgo", { count: Math.floor(diffHr / 24) });
+}
+
+/** Renders the translated relative time ("עכשיו" / "לפני 5 דק׳"…). */
+export function RelativeTime({ date }: { date: string }) {
+  const t = useTranslations("businessAdmin.shared");
+  return <>{relativeTimeText(date, t)}</>;
+}
+
+/**
+ * Relative time. With a translator → the string; without (legacy call sites) →
+ * a `<RelativeTime>` element that translates itself (usable as a JSX child only).
+ */
+export function relativeTime(date: string): React.ReactElement;
+export function relativeTime(date: string, t: BusinessAdminSharedT): string;
+export function relativeTime(date: string, t?: BusinessAdminSharedT): string | React.ReactElement {
+  return t ? relativeTimeText(date, t) : <RelativeTime date={date} />;
+}
+
+/** Short date+time. Pass the business locale (`useBusinessLocale().locale`); defaults to the platform default. */
+export function formatTs(date: string, locale: string = DEFAULT_LOCALE) {
+  return new Date(date).toLocaleString(locale, {
     day: "2-digit",
     month: "2-digit",
     year: "2-digit",
@@ -246,13 +270,27 @@ export function formatTs(date: string) {
   });
 }
 
-export function parseDevice(ua: string | null) {
-  if (!ua) return "לא ידוע";
+export function parseDevice(ua: string | null, t: BusinessAdminSharedT) {
+  if (!ua) return t("device.unknown");
   if (/iPhone|iPad/.test(ua)) return "iPhone / iPad";
   if (/Android/.test(ua)) return "Android";
   if (/Mac/.test(ua)) return "Mac";
   if (/Windows/.test(ua)) return "Windows";
-  return "דפדפן";
+  return t("device.browser");
+}
+
+/** Business-locale aware helpers for client components: role label, relative time, timestamp. */
+export function useBusinessAdminFormat() {
+  const t = useTranslations("businessAdmin.shared");
+  const { locale } = useBusinessLocale();
+  return useMemo(
+    () => ({
+      roleLabel: (role: string) => roleLabel(role, t),
+      relativeTime: (date: string) => relativeTimeText(date, t),
+      formatTs: (date: string) => formatTs(date, locale),
+    }),
+    [t, locale]
+  );
 }
 
 export function isOnline(lastSeenAt: string) {
@@ -318,6 +356,7 @@ export function EntityLabel({ entry }: { entry: ActivityEntry }) {
 }
 
 export function ActivityRow({ entry }: { entry: ActivityEntry }) {
+  const fmt = useBusinessAdminFormat();
   return (
     <div className="flex items-center gap-3 py-2.5 border-b border-slate-50 last:border-0">
       <ActionIcon action={entry.action} />
@@ -326,8 +365,8 @@ export function ActivityRow({ entry }: { entry: ActivityEntry }) {
         <span className="text-sm text-petra-muted"> {actionLabel(entry.action)} </span>
         <EntityLabel entry={entry} />
       </div>
-      <span className="text-xs text-petra-muted flex-shrink-0 whitespace-nowrap" title={formatTs(entry.createdAt)}>
-        {relativeTime(entry.createdAt)}
+      <span className="text-xs text-petra-muted flex-shrink-0 whitespace-nowrap" title={fmt.formatTs(entry.createdAt)}>
+        {fmt.relativeTime(entry.createdAt)}
       </span>
     </div>
   );

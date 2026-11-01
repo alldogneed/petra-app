@@ -3,6 +3,8 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Calendar, CalendarClock, X } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { CustomerPicker, type PickerCustomer } from "@/components/customers/CustomerPicker";
 
 
@@ -18,6 +20,9 @@ export function NewAppointmentModal({
   onClose: () => void;
   onCreated: () => void;
 }) {
+  const t = useTranslations("dashboard.newAppointmentModal");
+  const tc = useTranslations("common");
+  const { cfg } = useBusinessLocale();
   const today = new Date().toISOString().slice(0, 10);
   const [form, setForm] = useState({
     customerId: "",
@@ -80,14 +85,14 @@ export function NewAppointmentModal({
           petId: form.petId || null,
           notes: form.notes || null,
         }),
-      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה ביצירת פגישה"); return d; }),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || t("errors.create")); return d; }),
     onSuccess: () => {
       setForm({ customerId: "", petId: "", serviceId: "", date: today, startTime: "09:00", endTime: "10:00", notes: "" });
       setPickedCustomer(null);
-      toast.success("הפגישה נוצרה בהצלחה!");
+      toast.success(t("toasts.created"));
       onCreated();
     },
-    onError: (err: Error) => toast.error(err.message || "שגיאה ביצירת הפגישה. נסה שוב."),
+    onError: (err: Error) => toast.error(err.message || t("toasts.createError")),
   });
 
   if (!isOpen) return null;
@@ -99,7 +104,7 @@ export function NewAppointmentModal({
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold text-petra-text flex items-center gap-2">
             <CalendarClock className="w-5 h-5 text-brand-500" />
-            תור ידני חדש
+            {t("title")}
           </h2>
           <button onClick={onClose} className="btn-ghost p-1.5">
             <X className="w-4 h-4" />
@@ -109,7 +114,7 @@ export function NewAppointmentModal({
         <div className="space-y-4">
           {/* Customer */}
           <div>
-            <label className="label">לקוח *</label>
+            <label className="label">{t("fields.customer")}</label>
             <CustomerPicker
               value={form.customerId || null}
               selectedCustomer={selectedCustomer}
@@ -131,13 +136,13 @@ export function NewAppointmentModal({
           {/* Pet (optional, shown when customer selected) */}
           {selectedCustomer && (selectedCustomer.pets?.length ?? 0) > 0 && (
             <div>
-              <label className="label">חיית מחמד (אופציונלי)</label>
+              <label className="label">{t("fields.pet")}</label>
               <select
                 className="input"
                 value={form.petId}
                 onChange={(e) => setField("petId", e.target.value)}
               >
-                <option value="">ללא בחירת חיית מחמד</option>
+                <option value="">{t("fields.noPet")}</option>
                 {selectedCustomer.pets?.map((p) => (
                   <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
@@ -147,15 +152,15 @@ export function NewAppointmentModal({
 
           {/* Service */}
           <div>
-            <label className="label">שירות *</label>
+            <label className="label">{t("fields.service")}</label>
             <select
               className="input"
               value={form.serviceId}
               onChange={(e) => setField("serviceId", e.target.value)}
             >
-              <option value="">בחר שירות...</option>
+              <option value="">{t("fields.selectService")}</option>
               {services?.map((s) => (
-                <option key={s.id} value={s.id}>{s.name}{s.duration ? ` (${s.duration} דק׳)` : ""}</option>
+                <option key={s.id} value={s.id}>{s.name}{s.duration ? t("fields.durationSuffix", { duration: s.duration }) : ""}</option>
               ))}
             </select>
           </div>
@@ -163,16 +168,16 @@ export function NewAppointmentModal({
           {/* Date + Times */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <div className="col-span-2 sm:col-span-1">
-              <label className="label">תאריך *</label>
+              <label className="label">{t("fields.date")}</label>
               <input
-                type="date" lang="he"
+                type="date" lang={cfg.lang}
                 className="input"
                 value={form.date}
                 onChange={(e) => setField("date", e.target.value)}
               />
             </div>
             <div>
-              <label className="label">שעת התחלה</label>
+              <label className="label">{t("fields.startTime")}</label>
               <input
                 type="time"
                 className="input"
@@ -181,7 +186,7 @@ export function NewAppointmentModal({
               />
             </div>
             <div>
-              <label className="label">שעת סיום</label>
+              <label className="label">{t("fields.endTime")}</label>
               <input
                 type="time"
                 className="input"
@@ -193,13 +198,13 @@ export function NewAppointmentModal({
 
           {/* Notes */}
           <div>
-            <label className="label">הערות</label>
+            <label className="label">{t("fields.notes")}</label>
             <textarea
               className="input resize-none"
               rows={2}
               value={form.notes}
               onChange={(e) => setField("notes", e.target.value)}
-              placeholder="הערות נוספות..."
+              placeholder={t("fields.notesPlaceholder")}
             />
           </div>
         </div>
@@ -211,14 +216,14 @@ export function NewAppointmentModal({
             className="btn-primary flex items-center gap-2"
           >
             <Calendar className="w-4 h-4" />
-            {mutation.isPending ? "שומר..." : "קבע תור"}
+            {mutation.isPending ? tc("progress.saving") : t("submit")}
           </button>
           <button className="btn-secondary" onClick={onClose}>
-            ביטול
+            {tc("actions.cancel")}
           </button>
         </div>
         {mutation.isError && (
-          <p className="text-red-600 text-xs mt-2">שגיאה בשמירת התור. נסה שוב.</p>
+          <p className="text-red-600 text-xs mt-2">{t("errors.save")}</p>
         )}
       </div>
     </div>

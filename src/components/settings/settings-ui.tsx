@@ -1,6 +1,7 @@
 "use client";
 
 import { Loader2, Lock, RotateCcw, Save } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 
 /**
@@ -22,11 +23,12 @@ export function SettingsSaveBar({
   canEdit?: boolean;
   className?: string;
 }) {
+  const t = useTranslations("settings.settingsUi");
   if (!dirty || !canEdit) return null;
   return (
     <div
       role="region"
-      aria-label="שמירת שינויים"
+      aria-label={t("saveBar.ariaLabel")}
       className={cn(
         "sticky bottom-4 z-20 mt-6 flex items-center justify-between gap-3 flex-wrap",
         "rounded-xl border border-amber-200 bg-white/95 backdrop-blur px-4 py-3 shadow-lg",
@@ -35,16 +37,16 @@ export function SettingsSaveBar({
     >
       <span className="text-sm font-medium text-petra-text flex items-center gap-2">
         <span className="w-2 h-2 rounded-full bg-amber-500" aria-hidden />
-        יש שינויים שלא נשמרו
+        {t("saveBar.unsaved")}
       </span>
       <div className="flex items-center gap-2">
         <button type="button" className="btn-secondary flex items-center gap-1.5 text-sm" onClick={onReset} disabled={saving}>
           <RotateCcw className="w-4 h-4" />
-          בטל שינויים
+          {t("saveBar.discard")}
         </button>
         <button type="button" className="btn-primary flex items-center gap-1.5 text-sm" onClick={onSave} disabled={saving}>
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          שמור שינויים
+          {t("saveBar.save")}
         </button>
       </div>
     </div>
@@ -53,6 +55,7 @@ export function SettingsSaveBar({
 
 /** Shown on settings tabs the current member may view but not change. */
 export function ReadOnlyNotice({ className }: { className?: string }) {
+  const t = useTranslations("settings.settingsUi");
   return (
     <div
       role="note"
@@ -63,7 +66,7 @@ export function ReadOnlyNotice({ className }: { className?: string }) {
     >
       <Lock className="w-4 h-4 mt-0.5 flex-shrink-0" />
       <span>
-        תצוגה בלבד — רק בעלי העסק, או מי שקיבל ממנו את ההרשאה &quot;לשנות הגדרות עסק&quot;, יכולים לשנות הגדרות אלה.
+        {t("readOnlyNotice")}
       </span>
     </div>
   );

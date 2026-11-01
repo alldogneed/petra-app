@@ -7,8 +7,9 @@
     box-sizing: border-box;
   }
 
+  /* Direction comes from <html dir> (src/app/layout.tsx, per business locale) —
+     never force `direction` here or English pages stay RTL. */
   html {
-    direction: rtl;
     overflow-x: clip;
   }
 

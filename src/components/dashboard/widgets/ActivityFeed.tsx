@@ -1,12 +1,15 @@
 "use client";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
-import { ActivityItem, relativeTime } from "@/components/dashboard/dashboard-shared";
+import { ActivityItem, useDashboardLabels } from "@/components/dashboard/dashboard-shared";
 import { DashEmpty, DashLinkRow } from "@/components/dashboard/dash-ui";
 
 
 export function ActivityFeed({ activities }: { activities: ActivityItem[] }) {
+  const t = useTranslations("dashboard.activityFeed");
+  const labels = useDashboardLabels();
   if (activities.length === 0) {
-    return <DashEmpty>אין פעילות ב-24 שעות האחרונות</DashEmpty>;
+    return <DashEmpty>{t("empty")}</DashEmpty>;
   }
 
   return (
@@ -17,7 +20,7 @@ export function ActivityFeed({ activities }: { activities: ActivityItem[] }) {
             <div className="flex-1 min-w-0 flex flex-col gap-0.5">
               <span className="text-sm leading-[1.45] text-slate-900 break-words">{item.description}</span>
               <span className="text-xs text-slate-400 truncate">
-                {item.userName} · {relativeTime(item.createdAt)}
+                {item.userName} · {labels.relativeTime(item.createdAt)}
               </span>
             </div>
             {item.type === "whatsapp" && item.status && (
@@ -27,7 +30,7 @@ export function ActivityFeed({ activities }: { activities: ActivityItem[] }) {
                   item.status === "SENT" ? "text-emerald-700" : "text-red-700"
                 )}
               >
-                {item.status === "SENT" ? "נשלח" : "נכשל"}
+                {item.status === "SENT" ? t("sent") : t("failed")}
               </span>
             )}
           </>

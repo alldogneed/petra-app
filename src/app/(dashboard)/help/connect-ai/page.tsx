@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { ArrowRight, Bot, Key, Settings, Terminal, CheckCircle2, Zap, Copy, MessageSquare, Code2, LogIn } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
 import { copyToClipboard } from "@/lib/utils";
@@ -11,13 +12,14 @@ const FALLBACK_ORIGIN = "https://petra-app.com";
 
 /** Copyable LTR code line (URL / shell command). */
 function CodeLine({ text }: { text: string }) {
+  const t = useTranslations("help.helpConnectAiPage");
   return (
     <div className="mt-2 bg-slate-900 text-slate-100 rounded-xl px-4 py-3 text-xs font-mono flex items-center gap-3" dir="ltr">
-      <span className="flex-1 break-all select-all text-left">{text}</span>
+      <span className="flex-1 break-all select-all text-left">{text}</span>{/* rtl-ok: code line is always LTR */}
       <button
-        onClick={() => { copyToClipboard(text); toast.success("הועתק"); }}
+        onClick={() => { copyToClipboard(text); toast.success(t("codeLine.copied")); }}
         className="text-slate-400 hover:text-white flex-shrink-0"
-        title="העתק"
+        title={t("codeLine.copy")}
       >
         <Copy className="w-4 h-4" />
       </button>
@@ -25,8 +27,19 @@ function CodeLine({ text }: { text: string }) {
   );
 }
 
+type ConnectAiT = ReturnType<typeof useTranslations<"help.helpConnectAiPage">>;
+
+const richTags = {
+  strong: (c: React.ReactNode) => <strong>{c}</strong>,
+  code: (c: React.ReactNode) => <code>{c}</code>,
+};
+
+const settingsLink = (c: React.ReactNode) => (
+  <Link href="/settings?tab=ai-agents" className="text-indigo-600 underline">{c}</Link>
+);
+
 /** Recommended: URL-only connection — the client discovers OAuth and opens Petra's login. */
-function easyClients(mcpUrl: string) {
+function easyClients(mcpUrl: string, t: ConnectAiT) {
   return [
     {
       key: "claude",
@@ -35,13 +48,13 @@ function easyClients(mcpUrl: string) {
       body: (
         <>
           <ol className="list-decimal list-inside space-y-0.5">
-            <li>פתח <strong>Settings → Connectors → Add custom connector</strong></li>
-            <li>ב-<strong>Name</strong> כתוב <code>Petra</code>, וב-<strong>Remote MCP server URL</strong> הדבק:</li>
+            <li>{t.rich("easy.claude.openSettings", richTags)}</li>
+            <li>{t.rich("easy.claude.nameAndUrl", richTags)}</li>
           </ol>
           <CodeLine text={mcpUrl} />
           <ol className="list-decimal list-inside space-y-0.5 mt-2" start={3}>
-            <li>לחץ <strong>Add</strong> ואז <strong>Connect</strong></li>
-            <li>ייפתח דף הכניסה של פטרה — התחבר, בחר עסק ופרופיל גישה ולחץ <strong>אשר חיבור</strong></li>
+            <li>{t.rich("easy.claude.addConnect", richTags)}</li>
+            <li>{t.rich("easy.claude.loginApprove", richTags)}</li>
           </ol>
         </>
       ),
@@ -52,10 +65,10 @@ function easyClients(mcpUrl: string) {
       icon: Terminal,
       body: (
         <>
-          <p>הרץ בטרמינל:</p>
+          <p>{t("easy.runInTerminal")}</p>
           <CodeLine text={`claude mcp add --transport http petra ${mcpUrl}`} />
           <p className="mt-2">
-            ואז בתוך Claude Code הקלד <code>/mcp</code>, בחר <strong>petra</strong> ← <strong>Authenticate</strong> — הדפדפן ייפתח להתחברות ואישור.
+            {t.rich("easy.claudeCode.authenticate", richTags)}
           </p>
         </>
       ),
@@ -66,63 +79,60 @@ function easyClients(mcpUrl: string) {
       icon: Code2,
       body: (
         <>
-          <p>הרץ בטרמינל:</p>
+          <p>{t("easy.runInTerminal")}</p>
           <CodeLine text={`codex mcp add petra --url ${mcpUrl}`} />
           <CodeLine text="codex mcp login petra" />
-          <p className="mt-2">הדפדפן ייפתח להתחברות לפטרה ואישור החיבור.</p>
+          <p className="mt-2">{t("easy.codex.browserOpens")}</p>
         </>
       ),
     },
   ];
 }
 
-const steps = [
+function buildSteps(t: ConnectAiT) {
+  return [
   {
     number: 1,
-    title: "פתח את הגדרות העסק",
-    description: (
-      <>
-        עבור אל <Link href="/settings?tab=ai-agents" className="text-indigo-600 underline">הגדרות → עוזרי AI</Link> ולחץ על &quot;חבר עוזר חדש&quot;.
-      </>
-    ),
+    title: t("steps.step1.title"),
+    description: <>{t.rich("steps.step1.description", { link: settingsLink })}</>,
     icon: Settings,
   },
   {
     number: 2,
-    title: "תן שם לחיבור ובחר פרופיל גישה",
+    title: t("steps.step2.title"),
     description: (
       <>
-        תן שם שיזכיר לך איפה תשתמש בו, כמו &quot;Claude Desktop&quot; או &quot;ChatGPT Plugin&quot;.
+        {t("steps.step2.name")}
         <br />
-        בחר פרופיל גישה — <strong>מומלץ להתחיל ב&quot;קריאה בלבד&quot;</strong>; פרופילים ממוקדים (קבלה / יומן / פנסיון) נותנים לסוכן יצירה ועדכון רק בתחום אחד, ו&quot;מלא&quot; מיועד לבעלים בלבד. כשתצטרך יותר — צור חיבור נפרד עם פרופיל אחר.
+        {t.rich("steps.step2.profile", richTags)}
         <br />
-        לתשומת לבך: הטוקן תקף ל-<strong>180 יום</strong> מיום היצירה; אחרי זה פשוט צור חיבור חדש ועדכן את הכתובת בעוזר ה-AI.
+        {t.rich("steps.step2.expiry", richTags)}
       </>
     ),
     icon: Bot,
   },
   {
     number: 3,
-    title: "שמור את הטוקן",
-    description: "המערכת תייצר טוקן גישה. שמור אותו במקום בטוח — הוא יוצג פעם אחת בלבד!",
+    title: t("steps.step3.title"),
+    description: t("steps.step3.description"),
     icon: Key,
   },
   {
     number: 4,
-    title: "הגדר את Claude Desktop",
+    title: t("steps.step4.title"),
     description: (
       <>
-        ב-Claude Desktop פתח <strong>Settings → Connectors → Add custom connector</strong>, ומלא:
+        {t.rich("steps.step4.intro", richTags)}
         <ul className="list-disc list-inside text-sm text-slate-600 mt-2 space-y-0.5">
           <li><strong>Name:</strong> <code>Petra</code></li>
-          <li><strong>Remote MCP server URL:</strong> הדבק את הכתובת הבאה, והחלף את <code>YOUR_TOKEN_HERE</code> בטוקן שקיבלת:</li>
+          <li>{t.rich("steps.step4.url", richTags)}</li>
         </ul>
         <pre className="mt-2 bg-slate-900 text-slate-100 rounded-xl p-4 text-xs overflow-x-auto whitespace-pre-wrap font-mono text-right" dir="ltr">
 {`https://petra-app.com/api/mcp/u/YOUR_TOKEN_HERE`}
         </pre>
-        <p className="text-sm text-slate-500 mt-2">לחץ <strong>Add</strong> — וזהו. אין צורך לערוך קבצים.</p>
+        <p className="text-sm text-slate-500 mt-2">{t.rich("steps.step4.add", richTags)}</p>
         <details className="text-sm text-slate-500 mt-3">
-          <summary className="cursor-pointer select-none font-medium text-slate-600">דרך מתקדמת — דרך קובץ הגדרות (Developer → Edit Config)</summary>
+          <summary className="cursor-pointer select-none font-medium text-slate-600">{t("steps.step4.advanced")}</summary>
           <pre className="mt-2 bg-slate-900 text-slate-100 rounded-xl p-4 text-xs overflow-x-auto whitespace-pre-wrap font-mono text-right" dir="ltr">
 {`"petra": {
   "url": "https://petra-app.com/api/mcp",
@@ -138,22 +148,24 @@ const steps = [
   },
   {
     number: 5,
-    title: "התחל לשוחח!",
-    description: 'הפעל מחדש את Claude Desktop. עכשיו תוכל לשאול: "מה הלקוחות שלי הפעילים?" או "קבע לי תור לדני ביום שלישי הקרוב".',
+    title: t("steps.step5.title"),
+    description: t("steps.step5.description"),
     icon: CheckCircle2,
   },
-];
+  ];
+}
 
 const capabilities = [
-  { emoji: "👥", title: "רשימת לקוחות", desc: "ראה את כל הלקוחות שלך, חפש לפי שם" },
-  { emoji: "📅", title: "תורים קרובים", desc: "מי מגיע השבוע? מה הלוח שלך?" },
-  { emoji: "📊", title: "סטטיסטיקות", desc: "כמה לקוחות יש לי? מה ההכנסות החודש?" },
-  { emoji: "✅", title: "יצירת תור", desc: "קבע תור חדש ישירות מהשיחה" },
-  { emoji: "📝", title: "הוספת הערה", desc: "הוסף הערה לתיק הלקוח" },
-  { emoji: "💬", title: "שליחת תזכורת", desc: "שלח תזכורת WhatsApp ללקוח לפני הפגישה" },
-];
+  { emoji: "👥", id: "clients" },
+  { emoji: "📅", id: "appointments" },
+  { emoji: "📊", id: "stats" },
+  { emoji: "✅", id: "createAppointment" },
+  { emoji: "📝", id: "addNote" },
+  { emoji: "💬", id: "sendReminder" },
+] as const;
 
 export default function ConnectAiPage() {
+  const t = useTranslations("help.helpConnectAiPage");
   const { user, loading } = useAuth();
   // Real app origin (preview/staging/prod); resolved after mount to avoid SSR mismatch.
   const [origin, setOrigin] = useState(FALLBACK_ORIGIN);
@@ -161,12 +173,13 @@ export default function ConnectAiPage() {
     if (typeof window !== "undefined" && window.location?.origin) setOrigin(window.location.origin);
   }, []);
   const mcpUrl = `${origin}/api/mcp`;
+  const steps = buildSteps(t);
   // MCP private beta — page hidden for non-allowlisted accounts
   if (loading) return null;
   if (!user?.mcpAllowed) {
     return (
       <div className="max-w-2xl mx-auto p-6">
-        <p className="text-slate-500">העמוד אינו זמין.</p>
+        <p className="text-slate-500">{t("unavailable")}</p>
       </div>
     );
   }
@@ -175,30 +188,30 @@ export default function ConnectAiPage() {
       {/* Header */}
       <div>
         <Link href="/settings?tab=ai-agents" className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 mb-4">
-          <ArrowRight className="w-4 h-4" />
-          חזרה להגדרות
+          <ArrowRight className="w-4 h-4 ltr:-scale-x-100" />
+          {t("backToSettings")}
         </Link>
         <div className="flex items-center gap-3 mb-2">
           <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center">
             <Bot className="w-5 h-5 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-slate-800">חבר עוזר AI לפטרה</h1>
+          <h1 className="text-2xl font-bold text-slate-800">{t("title")}</h1>
         </div>
         <p className="text-slate-600">
-          עוזר AI מחובר לפטרה יודע הכל על העסק שלך ויכול לבצע פעולות בשמך — כמו לקבוע תורים, לשלוח תזכורות, ולענות על שאלות על הלקוחות שלך.
+          {t("intro")}
         </p>
       </div>
 
       {/* Capabilities */}
       <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-5">
-        <h2 className="font-semibold text-indigo-800 mb-3">מה העוזר יכול לעשות?</h2>
+        <h2 className="font-semibold text-indigo-800 mb-3">{t("capabilities.title")}</h2>
         <div className="grid grid-cols-2 gap-3">
           {capabilities.map((c) => (
-            <div key={c.title} className="flex items-start gap-2">
+            <div key={c.id} className="flex items-start gap-2">
               <span className="text-xl">{c.emoji}</span>
               <div>
-                <p className="text-sm font-medium text-slate-800">{c.title}</p>
-                <p className="text-xs text-slate-500">{c.desc}</p>
+                <p className="text-sm font-medium text-slate-800">{t(`capabilities.${c.id}.title`)}</p>
+                <p className="text-xs text-slate-500">{t(`capabilities.${c.id}.desc`)}</p>
               </div>
             </div>
           ))}
@@ -210,15 +223,14 @@ export default function ConnectAiPage() {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <Zap className="w-5 h-5 text-emerald-600" />
-            <h2 className="font-semibold text-emerald-800">הדרך הקלה: רק כתובת</h2>
-            <span className="text-[11px] font-medium px-1.5 py-0.5 rounded-md border bg-white text-emerald-700 border-emerald-200">מומלץ</span>
+            <h2 className="font-semibold text-emerald-800">{t("easy.title")}</h2>
+            <span className="text-[11px] font-medium px-1.5 py-0.5 rounded-md border bg-white text-emerald-700 border-emerald-200">{t("easy.recommended")}</span>
           </div>
           <p className="text-sm text-slate-600 leading-relaxed">
-            אין צורך ליצור טוקן. מוסיפים את הכתובת של פטרה, מתחברים עם המייל והסיסמה הרגילים, בוחרים עסק ופרופיל גישה — והחיבור מוכן.
-            החיבור מתחדש אוטומטית כל עוד משתמשים בו, ומופיע ב<Link href="/settings?tab=ai-agents" className="text-indigo-600 underline">הגדרות → עוזרי AI</Link> עם התג &quot;התחברות אוטומטית&quot; — שם אפשר לנתק אותו בכל רגע.
+            {t.rich("easy.intro", { link: settingsLink })}
           </p>
         </div>
-        {easyClients(mcpUrl).map((c) => {
+        {easyClients(mcpUrl, t).map((c) => {
           const Icon = c.icon;
           return (
             <div key={c.key} className="bg-white border border-emerald-100 rounded-xl p-4">
@@ -232,15 +244,15 @@ export default function ConnectAiPage() {
         })}
         <div className="flex items-start gap-2 text-xs text-slate-500">
           <LogIn className="w-4 h-4 flex-shrink-0 mt-0.5" />
-          <p>רק בעלים או מנהלים יכולים לאשר חיבור. כמנהל, החיבור לא יכלול אנליטיקה/הכנסות, תשלומים ומחיקות.</p>
+          <p>{t("easy.rolesNote")}</p>
         </div>
       </div>
 
       {/* Advanced: manual token */}
       <div>
-        <h2 className="font-semibold text-slate-700 mb-1">מתקדם: חיבור עם טוקן ידני</h2>
+        <h2 className="font-semibold text-slate-700 mb-1">{t("advanced.title")}</h2>
         <p className="text-sm text-slate-500 mb-4">
-          לעוזרים שלא תומכים בהתחברות אוטומטית, או כשצריך טוקן קבוע (אוטומציות, סקריפטים).
+          {t("advanced.intro")}
         </p>
         <div className="space-y-6">
           {steps.map((step) => {
@@ -268,14 +280,14 @@ export default function ConnectAiPage() {
 
       {/* CTA */}
       <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 text-center space-y-3">
-        <p className="text-slate-700 font-medium">מוכן להתחיל?</p>
-        <p className="text-sm text-slate-500">הדבק בעוזר ה-AI את הכתובת <code dir="ltr">{mcpUrl}</code> — או צור טוקן ידני בהגדרות.</p>
+        <p className="text-slate-700 font-medium">{t("cta.ready")}</p>
+        <p className="text-sm text-slate-500">{t.rich("cta.pasteUrl", { url: mcpUrl, code: (c) => <code dir="ltr">{c}</code> })}</p>
         <Link href="/settings?tab=ai-agents" className="btn-primary inline-flex items-center gap-2">
           <Bot className="w-4 h-4" />
-          חבר עוזר AI עכשיו
+          {t("cta.connectNow")}
         </Link>
         <p className="text-xs text-slate-400">
-          תוכל לנתק בכל עת מדף ההגדרות.
+          {t("cta.disconnectAnytime")}
         </p>
       </div>
     </div>

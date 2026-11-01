@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Plus, UserCheck, AlertTriangle, Pencil } from "lucide-react";
@@ -9,19 +11,21 @@ import { Modal, heDate, unwrapList, type MembershipItem } from "./shared";
 import { StudentDossier } from "./StudentDossier";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 
-const STATUS_META: Record<string, { label: string; cls: string }> = {
-  pending: { label: "ממתין לאישור", cls: "badge-warning" },
-  active: { label: "פעיל", cls: "badge-success" },
-  expired: { label: "פג תוקף", cls: "badge-neutral" },
-  suspended: { label: "מושהה", cls: "badge-neutral" },
+// Labels: onlineClasses.membershipsTab.status.<id>
+const STATUS_META: Record<string, { cls: string }> = {
+  pending: { cls: "badge-warning" },
+  active: { cls: "badge-success" },
+  expired: { cls: "badge-neutral" },
+  suspended: { cls: "badge-neutral" },
 };
 
-const FILTERS: { id: string; label: string }[] = [
-  { id: "", label: "הכל" },
-  { id: "pending", label: "ממתינים" },
-  { id: "active", label: "פעילים" },
-  { id: "expired", label: "פגי תוקף" },
-  { id: "suspended", label: "מושהים" },
+// Labels: onlineClasses.membershipsTab.filters.<labelKey>
+const FILTERS: { id: string; labelKey: "all" | "pending" | "active" | "expired" | "suspended" }[] = [
+  { id: "", labelKey: "all" },
+  { id: "pending", labelKey: "pending" },
+  { id: "active", labelKey: "active" },
+  { id: "expired", labelKey: "expired" },
+  { id: "suspended", labelKey: "suspended" },
 ];
 
 interface ManualForm {
@@ -35,6 +39,9 @@ interface ManualForm {
 const EMPTY_MANUAL: ManualForm = { name: "", phone: "", email: "", validUntil: "", paymentNote: "" };
 
 export function MembershipsTab() {
+  const t = useTranslations("onlineClasses");
+  const tc = useTranslations("common");
+  const { cfg } = useBusinessLocale();
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState("");
   const [showManual, setShowManual] = useState(false);
@@ -67,13 +74,13 @@ export function MembershipsTab() {
       }),
     onSuccess: (_d, vars) => {
       toast.success(
-        vars.body.action === "approve" ? "המנוי אושר — נשלחה הודעה ללקוח" : "המנוי עודכן"
+        vars.body.action === "approve" ? t("membershipsTab.toasts.approved") : t("membershipsTab.toasts.updated")
       );
       setApproving(null);
       setEditing(null);
       invalidate();
     },
-    onError: (e: Error) => toast.error(e.message || "שגיאה בעדכון המנוי"),
+    onError: (e: Error) => toast.error(e.message || t("membershipsTab.toasts.updateError")),
   });
 
   const createMutation = useMutation({
@@ -90,20 +97,20 @@ export function MembershipsTab() {
         }),
       }),
     onSuccess: () => {
-      toast.success("המנוי נוסף ואושר");
+      toast.success(t("membershipsTab.toasts.created"));
       setShowManual(false);
       setManualForm(EMPTY_MANUAL);
       invalidate();
     },
-    onError: (e: Error) => toast.error(e.message || "שגיאה בהוספת המנוי"),
+    onError: (e: Error) => toast.error(e.message || t("membershipsTab.toasts.createError")),
   });
 
   if (isError) {
     return (
       <div className="card p-8 text-center">
         <AlertTriangle className="w-8 h-8 mx-auto mb-3 text-red-400" />
-        <p className="text-red-600 font-medium mb-2">שגיאה בטעינת המנויים</p>
-        <button className="btn-secondary text-sm" onClick={() => refetch()}>נסה שוב</button>
+        <p className="text-red-600 font-medium mb-2">{t("membershipsTab.loadError")}</p>
+        <button className="btn-secondary text-sm" onClick={() => refetch()}>{t("membershipsTab.retry")}</button>
       </div>
     );
   }
@@ -122,13 +129,13 @@ export function MembershipsTab() {
                   : "px-3.5 py-1.5 rounded-full text-xs font-medium bg-slate-100 text-petra-muted hover:bg-slate-200 whitespace-nowrap"
               }
             >
-              {f.label}
+              {t(`membershipsTab.filters.${f.labelKey}`)}
             </button>
           ))}
         </div>
         <button className="btn-primary text-sm" onClick={() => setShowManual(true)}>
           <Plus className="w-4 h-4" />
-          הוסף מנוי ידנית
+          {t("membershipsTab.addManual")}
         </button>
       </div>
 
@@ -139,9 +146,9 @@ export function MembershipsTab() {
           <div className="empty-state-icon">
             <UserCheck className="w-6 h-6 text-slate-400" />
           </div>
-          <p className="font-medium text-petra-text mb-1">אין מנויים להצגה</p>
+          <p className="font-medium text-petra-text mb-1">{t("membershipsTab.empty.title")}</p>
           <p className="text-sm text-petra-muted">
-            כשבעלי כלבים יבקשו להצטרף דרך הפורטל — הם יופיעו כאן לאישור
+            {t("membershipsTab.empty.body")}
           </p>
         </div>
       ) : (
@@ -150,26 +157,27 @@ export function MembershipsTab() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-petra-border">
                 <tr>
-                  <th className="table-header-cell">שם</th>
-                  <th className="table-header-cell">טלפון</th>
-                  <th className="table-header-cell hidden md:table-cell">אימייל</th>
-                  <th className="table-header-cell">סטטוס</th>
-                  <th className="table-header-cell">בתוקף עד</th>
-                  <th className="table-header-cell hidden lg:table-cell">הערת תשלום</th>
-                  <th className="table-header-cell hidden lg:table-cell">אושר בתאריך</th>
-                  <th className="table-header-cell">פעולות</th>
+                  <th className="table-header-cell">{t("membershipsTab.columns.name")}</th>
+                  <th className="table-header-cell">{t("membershipsTab.columns.phone")}</th>
+                  <th className="table-header-cell hidden md:table-cell">{t("membershipsTab.columns.email")}</th>
+                  <th className="table-header-cell">{t("membershipsTab.columns.status")}</th>
+                  <th className="table-header-cell">{t("membershipsTab.columns.validUntil")}</th>
+                  <th className="table-header-cell hidden lg:table-cell">{t("membershipsTab.columns.paymentNote")}</th>
+                  <th className="table-header-cell hidden lg:table-cell">{t("membershipsTab.columns.approvedAt")}</th>
+                  <th className="table-header-cell">{t("membershipsTab.columns.actions")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {memberships.map((m) => {
                   const status = m.status?.toLowerCase();
-                  const meta = STATUS_META[status] ?? { label: m.status, cls: "badge-neutral" };
+                  const meta = STATUS_META[status] ?? { cls: "badge-neutral" };
+                  const statusLabel = STATUS_META[status] ? t(`membershipsTab.status.${status}`) : m.status;
                   return (
                     <tr
                       key={m.id}
                       className="hover:bg-slate-50/60 cursor-pointer"
                       onClick={() => setDossierId(m.id)}
-                      title="פתח תיק סטודנט"
+                      title={t("membershipsTab.openDossier")}
                     >
                       <td className="table-cell font-medium text-petra-text">
                         {m.portalUser?.name || "—"}
@@ -179,10 +187,10 @@ export function MembershipsTab() {
                         {m.portalUser?.email || "—"}
                       </td>
                       <td className="table-cell">
-                        <span className={meta.cls}>{meta.label}</span>
+                        <span className={meta.cls}>{statusLabel}</span>
                       </td>
                       <td className="table-cell">
-                        {m.validUntil ? heDate(m.validUntil) : status === "active" ? "הו\"ק" : "—"}
+                        {m.validUntil ? heDate(m.validUntil) : status === "active" ? t("membershipsTab.standingOrder") : "—"}
                       </td>
                       <td className="table-cell hidden lg:table-cell text-petra-muted max-w-[160px] truncate">
                         {m.paymentNote || "—"}
@@ -203,7 +211,7 @@ export function MembershipsTab() {
                                 setApproving(m);
                               }}
                             >
-                              אשר
+                              {t("membershipsTab.actions.approve")}
                             </button>
                           )}
                           {status === "active" && (
@@ -213,7 +221,7 @@ export function MembershipsTab() {
                                 patchMutation.mutate({ id: m.id, body: { status: "suspended" } })
                               }
                             >
-                              השהה
+                              {t("membershipsTab.actions.suspend")}
                             </button>
                           )}
                           {status === "suspended" && (
@@ -223,12 +231,12 @@ export function MembershipsTab() {
                                 patchMutation.mutate({ id: m.id, body: { status: "active" } })
                               }
                             >
-                              הפעל
+                              {t("membershipsTab.actions.activate")}
                             </button>
                           )}
                           <button
                             className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted"
-                            title="עריכת תוקף והערת תשלום"
+                            title={t("membershipsTab.actions.editTitle")}
                             onClick={() => {
                               setEditForm({
                                 validUntil: m.validUntil ? m.validUntil.slice(0, 10) : "",
@@ -252,29 +260,29 @@ export function MembershipsTab() {
 
       {/* Approve modal */}
       {approving && (
-        <Modal title={`אישור מנוי — ${approving.portalUser?.name || ""}`} onClose={() => setApproving(null)}>
+        <Modal title={t("membershipsTab.approveModal.title", { name: approving.portalUser?.name || "" })} onClose={() => setApproving(null)}>
           <div className="space-y-4">
             <p className="text-sm text-petra-muted">
-              עם האישור תישלח ללקוח הודעה עם קישור לפורטל.
+              {t("membershipsTab.approveModal.body")}
             </p>
             <div>
-              <label className="label">בתוקף עד (אופציונלי)</label>
+              <label className="label">{t("membershipsTab.form.validUntilOptional")}</label>
               <input
                 type="date"
-                lang="he"
+                lang={cfg.lang}
                 className="input"
                 value={approveForm.validUntil}
                 onChange={(e) => setApproveForm({ ...approveForm, validUntil: e.target.value })}
               />
-              <p className="text-[11px] text-petra-muted mt-1">השאר ריק למנוי מתחדש (הו&quot;ק)</p>
+              <p className="text-[11px] text-petra-muted mt-1">{t("membershipsTab.form.renewingHint")}</p>
             </div>
             <div>
-              <label className="label">הערת תשלום</label>
+              <label className="label">{t("membershipsTab.form.paymentNote")}</label>
               <input
                 className="input"
                 value={approveForm.paymentNote}
                 onChange={(e) => setApproveForm({ ...approveForm, paymentNote: e.target.value })}
-                placeholder="למשל: שולם בביט 1.9"
+                placeholder={t("membershipsTab.form.paymentNotePlaceholder")}
               />
             </div>
             <div className="flex gap-2 pt-1">
@@ -294,9 +302,9 @@ export function MembershipsTab() {
                   })
                 }
               >
-                {patchMutation.isPending ? "מאשר..." : "אשר מנוי"}
+                {patchMutation.isPending ? t("membershipsTab.approveModal.approving") : t("membershipsTab.approveModal.submit")}
               </button>
-              <button className="btn-secondary" onClick={() => setApproving(null)}>ביטול</button>
+              <button className="btn-secondary" onClick={() => setApproving(null)}>{tc("actions.cancel")}</button>
             </div>
           </div>
         </Modal>
@@ -304,21 +312,21 @@ export function MembershipsTab() {
 
       {/* Edit modal */}
       {editing && (
-        <Modal title={`עריכת מנוי — ${editing.portalUser?.name || ""}`} onClose={() => setEditing(null)}>
+        <Modal title={t("membershipsTab.editModal.title", { name: editing.portalUser?.name || "" })} onClose={() => setEditing(null)}>
           <div className="space-y-4">
             <div>
-              <label className="label">בתוקף עד</label>
+              <label className="label">{t("membershipsTab.form.validUntil")}</label>
               <input
                 type="date"
-                lang="he"
+                lang={cfg.lang}
                 className="input"
                 value={editForm.validUntil}
                 onChange={(e) => setEditForm({ ...editForm, validUntil: e.target.value })}
               />
-              <p className="text-[11px] text-petra-muted mt-1">השאר ריק למנוי מתחדש (הו&quot;ק)</p>
+              <p className="text-[11px] text-petra-muted mt-1">{t("membershipsTab.form.renewingHint")}</p>
             </div>
             <div>
-              <label className="label">הערת תשלום</label>
+              <label className="label">{t("membershipsTab.form.paymentNote")}</label>
               <input
                 className="input"
                 value={editForm.paymentNote}
@@ -341,9 +349,9 @@ export function MembershipsTab() {
                   })
                 }
               >
-                {patchMutation.isPending ? "שומר..." : "שמור שינויים"}
+                {patchMutation.isPending ? tc("progress.saving") : t("membershipsTab.editModal.submit")}
               </button>
-              <button className="btn-secondary" onClick={() => setEditing(null)}>ביטול</button>
+              <button className="btn-secondary" onClick={() => setEditing(null)}>{tc("actions.cancel")}</button>
             </div>
           </div>
         </Modal>
@@ -351,13 +359,13 @@ export function MembershipsTab() {
 
       {/* Manual add modal */}
       {showManual && (
-        <Modal title="הוספת מנוי ידנית" onClose={() => setShowManual(false)}>
+        <Modal title={t("membershipsTab.manualModal.title")} onClose={() => setShowManual(false)}>
           <div className="space-y-4">
             <p className="text-sm text-petra-muted">
-              המנוי ייווצר במצב פעיל מיידית — מתאים ללקוחות ששילמו מחוץ למערכת.
+              {t("membershipsTab.manualModal.body")}
             </p>
             <div>
-              <label className="label">שם מלא *</label>
+              <label className="label">{t("membershipsTab.form.fullName")}</label>
               <input
                 className="input"
                 value={manualForm.name}
@@ -366,7 +374,7 @@ export function MembershipsTab() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="label">טלפון *</label>
+                <label className="label">{t("membershipsTab.form.phone")}</label>
                 <input
                   className="input"
                   dir="ltr"
@@ -376,7 +384,7 @@ export function MembershipsTab() {
                 />
               </div>
               <div>
-                <label className="label">אימייל *</label>
+                <label className="label">{t("membershipsTab.form.email")}</label>
                 <input
                   type="email"
                   className="input"
@@ -387,17 +395,17 @@ export function MembershipsTab() {
               </div>
             </div>
             <div>
-              <label className="label">בתוקף עד (אופציונלי)</label>
+              <label className="label">{t("membershipsTab.form.validUntilOptional")}</label>
               <input
                 type="date"
-                lang="he"
+                lang={cfg.lang}
                 className="input"
                 value={manualForm.validUntil}
                 onChange={(e) => setManualForm({ ...manualForm, validUntil: e.target.value })}
               />
             </div>
             <div>
-              <label className="label">הערת תשלום</label>
+              <label className="label">{t("membershipsTab.form.paymentNote")}</label>
               <input
                 className="input"
                 value={manualForm.paymentNote}
@@ -415,9 +423,9 @@ export function MembershipsTab() {
                 }
                 onClick={() => createMutation.mutate()}
               >
-                {createMutation.isPending ? "מוסיף..." : "הוסף מנוי"}
+                {createMutation.isPending ? t("membershipsTab.manualModal.adding") : t("membershipsTab.manualModal.submit")}
               </button>
-              <button className="btn-secondary" onClick={() => setShowManual(false)}>ביטול</button>
+              <button className="btn-secondary" onClick={() => setShowManual(false)}>{tc("actions.cancel")}</button>
             </div>
           </div>
         </Modal>

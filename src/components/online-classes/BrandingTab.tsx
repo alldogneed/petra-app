@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Palette, AlertTriangle, Dog, ShieldCheck, Award } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { fetchJSON } from "@/lib/utils";
 import { unwrapObject, type BrandingData } from "./shared";
 import { PetraLoader } from "@/components/ui/PetraLoader";
@@ -56,6 +57,8 @@ function parseIpList(text: string): string[] {
 }
 
 export function BrandingTab({ businessName }: { businessName?: string | null }) {
+  const t = useTranslations("onlineClasses.brandingTab");
+  const tc = useTranslations("common");
   const queryClient = useQueryClient();
   const [form, setForm] = useState<BrandingForm | null>(null);
 
@@ -91,7 +94,7 @@ export function BrandingTab({ businessName }: { businessName?: string | null }) 
 
   const saveMutation = useMutation({
     mutationFn: () => {
-      if (!form) throw new Error("אין נתונים לשמירה");
+      if (!form) throw new Error(t("noDataToSave"));
       return fetchJSON("/api/online-classes/branding", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -112,18 +115,18 @@ export function BrandingTab({ businessName }: { businessName?: string | null }) 
       });
     },
     onSuccess: () => {
-      toast.success("המיתוג נשמר");
+      toast.success(t("saved"));
       queryClient.invalidateQueries({ queryKey: ["oc-branding"] });
     },
-    onError: (e: Error) => toast.error(e.message || "שגיאה בשמירת המיתוג"),
+    onError: (e: Error) => toast.error(e.message || t("saveError")),
   });
 
   if (isError) {
     return (
       <div className="card p-8 text-center">
         <AlertTriangle className="w-8 h-8 mx-auto mb-3 text-red-400" />
-        <p className="text-red-600 font-medium mb-2">שגיאה בטעינת הגדרות המיתוג</p>
-        <button className="btn-secondary text-sm" onClick={() => refetch()}>נסה שוב</button>
+        <p className="text-red-600 font-medium mb-2">{t("loadError")}</p>
+        <button className="btn-secondary text-sm" onClick={() => refetch()}>{t("retry")}</button>
       </div>
     );
   }
@@ -141,12 +144,12 @@ export function BrandingTab({ businessName }: { businessName?: string | null }) 
       <div className="card p-5 space-y-4">
         <div className="flex items-center gap-2 mb-1">
           <Palette className="w-4 h-4 text-brand-500" />
-          <h2 className="text-base font-bold text-petra-text">מיתוג הפורטל</h2>
+          <h2 className="text-base font-bold text-petra-text">{t("title")}</h2>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="label">צבע ראשי</label>
+            <label className="label">{t("primaryColor")}</label>
             <div className="flex items-center gap-2">
               <input
                 type="color"
@@ -164,7 +167,7 @@ export function BrandingTab({ businessName }: { businessName?: string | null }) 
             </div>
           </div>
           <div>
-            <label className="label">צבע משני</label>
+            <label className="label">{t("secondaryColor")}</label>
             <div className="flex items-center gap-2">
               <input
                 type="color"
@@ -184,41 +187,41 @@ export function BrandingTab({ businessName }: { businessName?: string | null }) 
         </div>
 
         <div>
-          <label className="label">שם שולח (בהודעות ללקוחות)</label>
+          <label className="label">{t("senderName")}</label>
           <input
             className="input"
             value={form.senderName}
             onChange={(e) => setForm({ ...form, senderName: e.target.value })}
-            placeholder={businessName || "שם העסק"}
+            placeholder={businessName || t("businessNamePlaceholder")}
           />
         </div>
 
         <div>
-          <label className="label">קישור לתשלום מנוי</label>
+          <label className="label">{t("paymentLink")}</label>
           <input
             className="input"
             dir="ltr"
             value={form.paymentLinkUrl}
             onChange={(e) => setForm({ ...form, paymentLinkUrl: e.target.value })}
-            placeholder="https://... (ביט / פייבוקס / דף סליקה)"
+            placeholder={t("paymentLinkPlaceholder")}
           />
           <p className="text-[11px] text-petra-muted mt-1">
-            הקישור מוצג ללקוחות בבקשת הצטרפות ובתזכורות חידוש מנוי
+            {t("paymentLinkHint")}
           </p>
         </div>
 
         <div>
-          <label className="label">טקסט אודות</label>
+          <label className="label">{t("aboutText")}</label>
           <textarea
             className="input min-h-[90px]"
             value={form.aboutText}
             onChange={(e) => setForm({ ...form, aboutText: e.target.value })}
-            placeholder="כמה מילים על העסק שיוצגו בעמוד הבית של הפורטל..."
+            placeholder={t("aboutTextPlaceholder")}
           />
         </div>
 
         <div>
-          <label className="label">קישור ללוגו</label>
+          <label className="label">{t("logoUrl")}</label>
           <input
             className="input"
             dir="ltr"
@@ -226,7 +229,7 @@ export function BrandingTab({ businessName }: { businessName?: string | null }) 
             onChange={(e) => setForm({ ...form, logoUrl: e.target.value })}
             placeholder="https://..."
           />
-          <p className="text-[11px] text-petra-muted mt-1">אם ריק — ישתמש בלוגו העסק</p>
+          <p className="text-[11px] text-petra-muted mt-1">{t("logoUrlHint")}</p>
         </div>
 
         {/* Certificate design */}
@@ -234,15 +237,15 @@ export function BrandingTab({ businessName }: { businessName?: string | null }) 
           <div>
             <div className="flex items-center gap-2">
               <Award className="w-4 h-4 text-brand-500" />
-              <h3 className="text-sm font-bold text-petra-text">עיצוב התעודה</h3>
+              <h3 className="text-sm font-bold text-petra-text">{t("certificate.title")}</h3>
             </div>
             <p className="text-[11px] text-petra-muted mt-1">
-              חתימה וטקסט שיופיעו על כל תעודת סיום קורס
+              {t("certificate.subtitle")}
             </p>
           </div>
 
           <div>
-            <label className="label">קישור לתמונת חתימה</label>
+            <label className="label">{t("certificate.signatureUrl")}</label>
             <input
               className="input"
               dir="ltr"
@@ -250,31 +253,31 @@ export function BrandingTab({ businessName }: { businessName?: string | null }) 
               onChange={(e) =>
                 setForm({ ...form, certificateSignatureUrl: e.target.value })
               }
-              placeholder="https://... (תמונת חתימה שקופה, PNG)"
+              placeholder={t("certificate.signatureUrlPlaceholder")}
             />
           </div>
 
           <div>
-            <label className="label">שם החותם</label>
+            <label className="label">{t("certificate.signerName")}</label>
             <input
               className="input"
               value={form.certificateSignerName}
               onChange={(e) =>
                 setForm({ ...form, certificateSignerName: e.target.value })
               }
-              placeholder="אור רבינוביץ׳"
+              placeholder={t("certificate.signerNamePlaceholder")}
             />
           </div>
 
           <div>
-            <label className="label">שורת תחתית</label>
+            <label className="label">{t("certificate.footerText")}</label>
             <input
               className="input"
               value={form.certificateFooterText}
               onChange={(e) =>
                 setForm({ ...form, certificateFooterText: e.target.value })
               }
-              placeholder="לדוגמה: הסמכה בהכרת ארגון מאלפי הכלבים בישראל"
+              placeholder={t("certificate.footerTextPlaceholder")}
             />
           </div>
 
@@ -282,14 +285,14 @@ export function BrandingTab({ businessName }: { businessName?: string | null }) 
             form.certificateSignerName.trim()) && (
             <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
               <p className="text-[11px] font-semibold text-slate-500 mb-2">
-                תצוגה מקדימה של החתימה
+                {t("certificate.signaturePreview")}
               </p>
               <div className="flex flex-col items-center gap-1">
                 {form.certificateSignatureUrl.trim() ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={form.certificateSignatureUrl}
-                    alt="חתימה"
+                    alt={t("certificate.signatureAlt")}
                     className="h-14 w-auto max-w-[160px] object-contain"
                   />
                 ) : null}
@@ -309,16 +312,16 @@ export function BrandingTab({ businessName }: { businessName?: string | null }) 
           <div>
             <div className="flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-brand-500" />
-              <h3 className="text-sm font-bold text-petra-text">אבטחת הקורסים</h3>
+              <h3 className="text-sm font-bold text-petra-text">{t("security.title")}</h3>
             </div>
             <p className="text-[11px] text-petra-muted mt-1">
-              הגבלות שמונעות שיתוף חשבונות ותכנים בין תלמידים
+              {t("security.subtitle")}
             </p>
           </div>
 
           <div>
             <label className="label" htmlFor="oc-max-devices">
-              מספר מכשירים מותר לכל תלמיד
+              {t("security.maxDevices")}
             </label>
             <input
               id="oc-max-devices"
@@ -337,7 +340,7 @@ export function BrandingTab({ businessName }: { businessName?: string | null }) 
               }
             />
             <p className="text-[11px] text-petra-muted mt-1">
-              0 = ללא הגבלה. בכניסה ממכשיר נוסף מעבר למכסה, המכשיר הישן ביותר יתנתק אוטומטית.
+              {t("security.maxDevicesHint")}
             </p>
           </div>
 
@@ -352,14 +355,14 @@ export function BrandingTab({ businessName }: { businessName?: string | null }) 
                 }
               />
               <span className="text-sm font-medium text-petra-text">
-                הגבלת גישה לפי כתובת IP
+                {t("security.ipRestriction")}
               </span>
             </label>
 
             {form.ipRestrictionEnabled && (
               <div className="mt-3">
                 <label className="label" htmlFor="oc-allowed-ips">
-                  כתובות מורשות
+                  {t("security.allowedIps")}
                 </label>
                 <textarea
                   id="oc-allowed-ips"
@@ -370,7 +373,7 @@ export function BrandingTab({ businessName }: { businessName?: string | null }) 
                   placeholder={"203.0.113.5\n192.168.1.0/24"}
                 />
                 <p className="text-[11px] text-petra-muted mt-1">
-                  כתובות IP או טווחי CIDR, שורה לכל כתובת. רשימה ריקה = לא חוסם אף אחד.
+                  {t("security.allowedIpsHint")}
                 </p>
               </div>
             )}
@@ -382,14 +385,14 @@ export function BrandingTab({ businessName }: { businessName?: string | null }) 
           disabled={saveMutation.isPending}
           onClick={() => saveMutation.mutate()}
         >
-          {saveMutation.isPending ? "שומר..." : "שמור מיתוג"}
+          {saveMutation.isPending ? tc("progress.saving") : t("save")}
         </button>
       </div>
 
       {/* Live preview */}
       <div className="card overflow-hidden">
         <div className="px-5 py-3 border-b border-slate-100">
-          <p className="text-sm font-semibold text-petra-text">תצוגה מקדימה של הפורטל</p>
+          <p className="text-sm font-semibold text-petra-text">{t("preview.title")}</p>
         </div>
         <div className="p-5 bg-slate-50">
           <div className="rounded-2xl overflow-hidden shadow-sm bg-white max-w-sm mx-auto">
@@ -403,7 +406,7 @@ export function BrandingTab({ businessName }: { businessName?: string | null }) 
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={form.logoUrl}
-                    alt="לוגו"
+                    alt={t("preview.logoAlt")}
                     className="w-12 h-12 rounded-xl bg-white/90 object-contain p-1"
                   />
                 ) : (
@@ -412,8 +415,8 @@ export function BrandingTab({ businessName }: { businessName?: string | null }) 
                   </div>
                 )}
                 <div>
-                  <p className="font-bold">{form.senderName || businessName || "שם העסק"}</p>
-                  <p className="text-xs text-white/80">פורטל חברים</p>
+                  <p className="font-bold">{form.senderName || businessName || t("businessNamePlaceholder")}</p>
+                  <p className="text-xs text-white/80">{t("preview.membersPortal")}</p>
                 </div>
               </div>
             </div>
@@ -425,11 +428,11 @@ export function BrandingTab({ businessName }: { businessName?: string | null }) 
                 className="rounded-xl px-4 py-2.5 text-center text-white text-sm font-medium"
                 style={{ backgroundColor: primary }}
               >
-                הצטרפות למנוי
+                {t("preview.join")}
               </div>
               <div className="rounded-xl border border-slate-100 px-4 py-3">
-                <p className="text-xs font-semibold text-slate-700">שיעור חי הקרוב</p>
-                <p className="text-[11px] text-slate-400 mt-0.5">יום ראשון · 20:00 · בזום</p>
+                <p className="text-xs font-semibold text-slate-700">{t("preview.nextLiveClass")}</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">{t("preview.sampleClassTime")}</p>
               </div>
               <p className="text-center text-[10px] text-slate-300 pt-1">Powered by Petra</p>
             </div>

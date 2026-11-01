@@ -1,13 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
+import { currencySymbol } from "@/lib/format";
 
 const DURATION_OPTIONS = [
-  { value: "30", label: "30 דק׳" },
-  { value: "45", label: "45 דק׳" },
-  { value: "60", label: "שעה" },
-  { value: "90", label: "שעה וחצי" },
-  { value: "120", label: "שעתיים" },
+  { value: "30" },
+  { value: "45" },
+  { value: "60" },
+  { value: "90" },
+  { value: "120" },
 ];
 
 interface StepFirstServiceProps {
@@ -21,6 +24,9 @@ export default function StepFirstService({
   onSkip,
   isPending,
 }: StepFirstServiceProps) {
+  const t = useTranslations("onboarding.stepFirstService");
+  const tc = useTranslations("common");
+  const { locale, currency, cfg } = useBusinessLocale();
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
   const [duration, setDuration] = useState("60");
@@ -38,13 +44,13 @@ export default function StepFirstService({
           name,
           price: price ? parseFloat(price) : 0,
           duration: parseInt(duration),
-          type: "אילוף",
+          type: "אילוף", // i18n-ok — service type value stored in DB
         }),
       });
       if (!res.ok) throw new Error("Failed to save service");
       onNext();
     } catch (_err) {
-      setError("שגיאה בשמירת השירות. אנא נסה שוב.");
+      setError(t("saveError"));
     } finally {
       setIsSaving(false);
     }
@@ -58,9 +64,9 @@ export default function StepFirstService({
       {/* Header */}
       <div className="text-center space-y-2">
         <div className="text-4xl mb-3">🏷️</div>
-        <h1 className="text-2xl font-bold text-petra-text">השירות הראשון שלך</h1>
+        <h1 className="text-2xl font-bold text-petra-text">{t("title")}</h1>
         <p className="text-petra-muted">
-          הוסף שירות אחד עכשיו — אפשר לשנות ולהוסיף עוד בהמשך מדף ההגדרות
+          {t("subtitle")}
         </p>
       </div>
 
@@ -68,20 +74,20 @@ export default function StepFirstService({
       <div className="space-y-4">
         <div>
           <label className="label">
-            שם השירות <span className="text-red-500">*</span>
+            {t("name")} <span className="text-red-500">*</span>
           </label>
           <input
             className="input"
-            placeholder='למשל: "שיעור אילוף פרטי" או "גיזום מלא"'
+            placeholder={t("namePlaceholder")}
             value={name}
             onChange={(e) => setName(e.target.value)}
-            dir="rtl"
+            dir={cfg.dir}
           />
         </div>
 
         <div>
           <label className="label">
-            מחיר (₪) <span className="text-red-500">*</span>
+            {t("price", { currency: currencySymbol({ locale, currency }) })} <span className="text-red-500">*</span>
           </label>
           <input
             className="input"
@@ -90,12 +96,12 @@ export default function StepFirstService({
             min="0"
             value={price}
             onChange={(e) => setPrice(e.target.value)}
-            dir="rtl"
+            dir={cfg.dir}
           />
         </div>
 
         <div>
-          <label className="label">משך השירות</label>
+          <label className="label">{t("duration")}</label>
           <div className="flex gap-2 flex-wrap">
             {DURATION_OPTIONS.map((opt) => (
               <button
@@ -107,7 +113,7 @@ export default function StepFirstService({
                     : "border-slate-200 hover:border-brand-200 text-petra-text"
                 }`}
               >
-                {opt.label}
+                {t(`durations.${opt.value}`)}
               </button>
             ))}
           </div>
@@ -126,14 +132,14 @@ export default function StepFirstService({
           disabled={!isComplete || busy}
           className="btn-primary w-full justify-center py-3 text-base"
         >
-          {busy ? "שומר..." : "שמור והמשך ←"}
+          {busy ? tc("progress.saving") : t("saveAndContinue")}
         </button>
         <button
           onClick={onSkip}
           disabled={busy}
           className="btn-secondary w-full justify-center py-2.5 text-sm"
         >
-          דלג לעת עתה
+          {t("skip")}
         </button>
       </div>
     </div>

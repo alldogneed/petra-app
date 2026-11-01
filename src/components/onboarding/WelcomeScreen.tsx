@@ -1,5 +1,6 @@
 "use client";
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 
 interface WelcomeScreenProps {
   onStart: () => void;
@@ -7,6 +8,7 @@ interface WelcomeScreenProps {
 }
 
 export function WelcomeScreen({ onStart, onSkip }: WelcomeScreenProps) {
+  const t = useTranslations("onboarding.welcomeScreen");
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-petra-bg">
       <div className="w-full max-w-md text-center animate-fade-in">
@@ -20,14 +22,14 @@ export function WelcomeScreen({ onStart, onSkip }: WelcomeScreenProps) {
 
         {/* Title */}
         <h1 className="text-3xl font-bold text-petra-text mb-3">
-          ברוך הבא לפטרה 👋
+          {t("title")}
         </h1>
 
         {/* Subtitle */}
         <p className="text-base text-petra-muted leading-relaxed mb-10 max-w-sm mx-auto">
-          בוא נסדר לך את העסק תוך כמה דקות.
+          {t("subtitleLine1")}
           <br />
-          בלי בלגן, בלי אקסלים, בלי תזכורות ידניות.
+          {t("subtitleLine2")}
         </p>
 
         {/* Primary CTA */}
@@ -35,7 +37,7 @@ export function WelcomeScreen({ onStart, onSkip }: WelcomeScreenProps) {
           onClick={onStart}
           className="btn-primary w-full max-w-xs mx-auto text-base py-3 mb-4"
         >
-          בוא נתחיל
+          {t("start")}
         </button>
 
         {/* Skip */}
@@ -43,7 +45,7 @@ export function WelcomeScreen({ onStart, onSkip }: WelcomeScreenProps) {
           onClick={onSkip}
           className="text-sm text-petra-muted hover:text-petra-text transition-colors"
         >
-          דלג
+          {t("skip")}
         </button>
       </div>
     </div>

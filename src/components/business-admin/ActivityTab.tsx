@@ -3,6 +3,7 @@
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/providers/auth-provider";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { RefreshCw, Search, FileSpreadsheet, X, Loader2 } from "lucide-react";
@@ -14,19 +15,21 @@ import {
   EntityLabel,
   ActivityRow,
   relativeTime,
-  formatTs,
+  useBusinessAdminFormat,
 } from "./shared";
 
 const SEARCH_MAX = 100;
 
-async function fetchJson<T>(url: string): Promise<T> {
+async function fetchJson<T>(url: string, fallbackError: string): Promise<T> {
   const res = await fetch(url);
   const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(json?.error || "שגיאה בטעינת הנתונים");
+  if (!res.ok) throw new Error(json?.error || fallbackError);
   return json as T;
 }
 
 export function ActivityTab() {
+  const t = useTranslations("businessAdmin.activityTab");
+  const { formatTs } = useBusinessAdminFormat();
   const { user } = useAuth();
   const businessId = user?.businessId ?? "";
   const queryClient = useQueryClient();
@@ -41,8 +44,8 @@ export function ActivityTab() {
 
   // Debounce the free-text search
   useEffect(() => {
-    const t = setTimeout(() => setSearch(searchInput.trim().slice(0, SEARCH_MAX)), 350);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setSearch(searchInput.trim().slice(0, SEARCH_MAX)), 350);
+    return () => clearTimeout(timer);
   }, [searchInput]);
 
   const { data: teamData } = useQuery<TeamMember[]>({
@@ -51,7 +54,7 @@ export function ActivityTab() {
     queryFn: () => fetch(`/api/admin/${businessId}/members`).then((r) => r.json()),
   });
 
-  const dateError = from && to && from > to ? "תאריך ההתחלה אחרי תאריך הסיום" : null;
+  const dateError = from && to && from > to ? t("errors.dateRange") : null;
 
   /** Current filters as query params (no cursor/take). */
   const filterParams = useMemo(() => {
@@ -84,7 +87,7 @@ export function ActivityTab() {
       const p = new URLSearchParams(filterKey);
       p.set("take", "50");
       if (pageParam) p.set("cursor", String(pageParam));
-      return fetchJson<ActivityPage>(`/api/business-admin/activity?${p}`);
+      return fetchJson<ActivityPage>(`/api/business-admin/activity?${p}`, t("errors.loadData"));
     },
     getNextPageParam: (last) => last.nextCursor ?? undefined,
   });
@@ -107,7 +110,7 @@ export function ActivityTab() {
       const res = await fetch(`/api/business-admin/activity/export?${filterKey}`);
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
-        throw new Error(json?.error || "שגיאה בייצוא");
+        throw new Error(json?.error || t("errors.export"));
       }
       const blob = await res.blob();
       const match = /filename="([^"]+)"/.exec(res.headers.get("Content-Disposition") ?? "");
@@ -119,11 +122,11 @@ export function ActivityTab() {
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      toast.success("יומן הפעילות יוצא לאקסל");
+      toast.success(t("toasts.exported"));
       queryClient.invalidateQueries({ queryKey: ["ba-activity"] });
       queryClient.invalidateQueries({ queryKey: ["ba-overview"] });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "שגיאה בייצוא");
+      toast.error(e instanceof Error ? e.message : t("errors.export"));
     } finally {
       setExporting(false);
     }
@@ -135,9 +138,9 @@ export function ActivityTab() {
       <div className="card p-4 space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <div>
-            <label className="label">חבר צוות</label>
+            <label className="label">{t("filters.member")}</label>
             <select className="input py-2 text-sm w-full" value={filterUser} onChange={(e) => setFilterUser(e.target.value)}>
-              <option value="">כל חברי הצוות</option>
+              <option value="">{t("filters.allMembers")}</option>
               {Array.isArray(teamData) &&
                 teamData.map((m) => (
                   <option key={m.userId} value={m.userId}>
@@ -147,7 +150,7 @@ export function ActivityTab() {
             </select>
           </div>
           <div>
-            <label className="label">פעולה</label>
+            <label className="label">{t("filters.action")}</label>
             <select className="input py-2 text-sm w-full" value={filterAction} onChange={(e) => setFilterAction(e.target.value)}>
               {ACTION_FILTER_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -158,22 +161,22 @@ export function ActivityTab() {
           </div>
           <div className="grid grid-cols-2 gap-2 sm:col-span-2 lg:col-span-1">
             <div>
-              <label className="label">מתאריך</label>
+              <label className="label">{t("filters.from")}</label>
               <input type="date" className="input py-2 text-sm w-full" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} />
             </div>
             <div>
-              <label className="label">עד תאריך</label>
+              <label className="label">{t("filters.to")}</label>
               <input type="date" className="input py-2 text-sm w-full" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} />
             </div>
           </div>
           <div>
-            <label className="label">חיפוש</label>
+            <label className="label">{t("filters.search")}</label>
             <div className="relative">
-              <Search className="w-4 h-4 text-petra-muted absolute top-1/2 -translate-y-1/2 right-3 pointer-events-none" />
+              <Search className="w-4 h-4 text-petra-muted absolute top-1/2 -translate-y-1/2 start-3 pointer-events-none" />
               <input
                 type="search"
-                className="input py-2 text-sm w-full pr-9"
-                placeholder="שם משתמש או פריט…"
+                className="input py-2 text-sm w-full ps-9"
+                placeholder={t("filters.searchPlaceholder")}
                 maxLength={SEARCH_MAX}
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
@@ -191,7 +194,7 @@ export function ActivityTab() {
             className="btn-secondary text-sm flex items-center gap-1.5 px-3 py-2"
           >
             {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileSpreadsheet className="w-4 h-4" />}
-            ייצוא לאקסל
+            {t("actions.exportExcel")}
           </button>
           <button
             onClick={() => refetch()}
@@ -199,12 +202,12 @@ export function ActivityTab() {
             disabled={isFetching}
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? "animate-spin" : ""}`} />
-            רענן
+            {t("actions.refresh")}
           </button>
           {hasFilters && (
             <button onClick={clearFilters} className="btn-ghost text-sm flex items-center gap-1.5 px-3 py-2">
               <X className="w-3.5 h-3.5" />
-              נקה סינון
+              {t("actions.clearFilters")}
             </button>
           )}
         </div>
@@ -216,11 +219,11 @@ export function ActivityTab() {
           <PetraLoader variant="inline" />
         ) : isError ? (
           <div className="p-10 text-center text-sm text-red-600">
-            {error instanceof Error ? error.message : "שגיאה בטעינת יומן הפעילות"}
+            {error instanceof Error ? error.message : t("errors.loadLog")}
           </div>
         ) : !items.length ? (
           <div className="p-10 text-center text-sm text-petra-muted">
-            {hasFilters ? "לא נמצאה פעילות שתואמת את הסינון" : "אין פעילות להצגה"}
+            {hasFilters ? t("empty.noMatch") : t("empty.none")}
           </div>
         ) : (
           <>
@@ -236,10 +239,10 @@ export function ActivityTab() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-100 text-xs text-petra-muted">
-                    <th className="text-right px-4 py-3 font-medium">משתמש</th>
-                    <th className="text-right px-4 py-3 font-medium">פעולה</th>
-                    <th className="text-right px-4 py-3 font-medium">פריט</th>
-                    <th className="text-right px-4 py-3 font-medium">זמן</th>
+                    <th className="text-start px-4 py-3 font-medium">{t("table.user")}</th>
+                    <th className="text-start px-4 py-3 font-medium">{t("table.action")}</th>
+                    <th className="text-start px-4 py-3 font-medium">{t("table.item")}</th>
+                    <th className="text-start px-4 py-3 font-medium">{t("table.time")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -272,7 +275,7 @@ export function ActivityTab() {
                   className="btn-ghost text-sm px-4 py-2 inline-flex items-center gap-1.5"
                 >
                   {isFetchingNextPage && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                  טען עוד
+                  {t("actions.loadMore")}
                 </button>
               </div>
             )}

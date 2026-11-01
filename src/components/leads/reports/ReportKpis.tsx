@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { ArrowDown, ArrowUp, Clock, Coins, Minus, Target, TrendingUp, Trophy, Users, Timer } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { SalesReport } from "@/lib/analytics-types";
@@ -35,18 +36,19 @@ function KpiCard({
 
 /** Arrow + change vs the previous equal-length range. `points` = percentage-point delta (for rates). */
 function Change({ current, previous, points }: { current: number | null; previous: number | null; points?: boolean }) {
+  const t = useTranslations("leads.reportKpis");
   if (current == null || previous == null) return null;
   let value: number | null;
   let unit: string;
   if (points) {
     value = current - previous;
-    unit = " נק׳";
+    unit = t("pointsUnit");
   } else {
     value = pctChange(current, previous);
     unit = "%";
   }
   if (value == null) {
-    return <span className="inline-flex items-center gap-0.5 text-emerald-600 font-medium">חדש</span>;
+    return <span className="inline-flex items-center gap-0.5 text-emerald-600 font-medium">{t("new")}</span>;
   }
   const Icon = value > 0 ? ArrowUp : value < 0 ? ArrowDown : Minus;
   return (
@@ -65,6 +67,8 @@ function Change({ current, previous, points }: { current: number | null; previou
 }
 
 export function ReportKpis({ report }: { report: SalesReport }) {
+  const t = useTranslations("leads.reportKpis");
+  const tl = useTranslations("leads");
   const { kpis, previous } = report;
   const showMoney =
     report.canSeeMoney &&
@@ -73,91 +77,94 @@ export function ReportKpis({ report }: { report: SalesReport }) {
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KpiCard label={'סה"כ לידים'} value={kpis.total} icon={<Users className="w-4 h-4 text-brand-600" />} iconBg="bg-brand-50">
+        <KpiCard label={t("totalLeads")} value={kpis.total} icon={<Users className="w-4 h-4 text-brand-600" />} iconBg="bg-brand-50">
           <p className="flex items-center gap-1 flex-wrap">
-            <Change current={kpis.total} previous={previous.total} /> <span>לעומת התקופה הקודמת</span>
+            <Change current={kpis.total} previous={previous.total} /> <span>{t("vsPreviousPeriod")}</span>
           </p>
         </KpiCard>
 
         <KpiCard
-          label="שיעור סגירה"
+          label={t("conversionRate")}
           value={formatRate(kpis.conversionRate)}
           icon={<Trophy className="w-4 h-4 text-green-600" />}
           iconBg="bg-green-50"
         >
           <p>
-            {kpis.won} נסגרו · {kpis.lost} אבדו · {kpis.open} פתוחים
+            {t("wonLostOpen", { won: kpis.won, lost: kpis.lost, open: kpis.open })}
           </p>
           <p className="flex items-center gap-1 flex-wrap">
-            <span>שיעור</span>
+            <span>{t("rate")}</span>
             <Change current={kpis.conversionRate} previous={previous.conversionRate} points />
-            <span>· נסגרו</span>
+            <span>{t("dotWon")}</span>
             <Change current={kpis.won} previous={previous.won} />
           </p>
         </KpiCard>
 
         <KpiCard
-          label="זמן תגובה ראשונה"
-          value={formatDuration(kpis.avgFirstResponseHours)}
+          label={t("firstResponseTime")}
+          value={formatDuration(kpis.avgFirstResponseHours, tl)}
           icon={<Timer className="w-4 h-4 text-sky-600" />}
           iconBg="bg-sky-50"
         >
           <p>
-            ממוצע · חציון {formatDuration(kpis.medianFirstResponseHours)} · {kpis.respondedCount} נענו
+            {t("avgMedianResponded", {
+              median: formatDuration(kpis.medianFirstResponseHours, tl),
+              count: kpis.respondedCount,
+            })}
           </p>
           {kpis.unrespondedOpenCount > 0 && (
-            <p className="text-red-600 font-medium">{kpis.unrespondedOpenCount} לידים פתוחים ללא מענה</p>
+            <p className="text-red-600 font-medium">{t("unrespondedOpen", { count: kpis.unrespondedOpenCount })}</p>
           )}
         </KpiCard>
 
         <KpiCard
-          label="זמן סגירה ממוצע"
-          value={formatDays(kpis.avgDaysToClose)}
+          label={t("avgTimeToClose")}
+          value={formatDays(kpis.avgDaysToClose, tl)}
           icon={<Clock className="w-4 h-4 text-amber-500" />}
           iconBg="bg-amber-50"
         >
-          <p>מיצירת הליד ועד סגירה</p>
+          <p>{t("fromCreationToClose")}</p>
         </KpiCard>
       </div>
 
       {showMoney && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <KpiCard
-            label="ערך עסקאות שנסגרו"
+            label={t("wonDealsValue")}
             value={kpis.wonValue != null ? formatIls(kpis.wonValue) : "—"}
             icon={<Coins className="w-4 h-4 text-emerald-600" />}
             iconBg="bg-emerald-50"
           >
             <p>
-              {kpis.wonWithValueCount} מתוך {kpis.won} עם ערך
+              {t("withValueOfWon", { count: kpis.wonWithValueCount, won: kpis.won })}
             </p>
             <p className="flex items-center gap-1 flex-wrap">
-              <Change current={kpis.wonValue} previous={previous.wonValue} /> <span>לעומת התקופה הקודמת</span>
+              <Change current={kpis.wonValue} previous={previous.wonValue} /> <span>{t("vsPreviousPeriod")}</span>
             </p>
           </KpiCard>
           <KpiCard
-            label="עסקה ממוצעת"
+            label={t("avgDeal")}
             value={kpis.avgDealValue != null ? formatIls(kpis.avgDealValue) : "—"}
             icon={<Trophy className="w-4 h-4 text-green-600" />}
             iconBg="bg-green-50"
           >
-            <p>מתוך לידים שנסגרו עם ערך</p>
+            <p>{t("ofWonWithValue")}</p>
           </KpiCard>
           <KpiCard
-            label="ערך בצנרת"
+            label={t("pipelineValue")}
             value={kpis.pipelineValue != null ? formatIls(kpis.pipelineValue) : "—"}
             icon={<Target className="w-4 h-4 text-amber-500" />}
             iconBg="bg-amber-50"
           >
-            <p>כל הלידים הפתוחים כעת · {kpis.pipelineWithValueCount} עם ערך</p>
+            <p>{t("allOpenNow", { count: kpis.pipelineWithValueCount })}</p>
           </KpiCard>
           <KpiCard
-            label="תחזית"
+            label={t("forecast")}
             value={kpis.forecastValue != null ? formatIls(kpis.forecastValue) : "—"}
             icon={<TrendingUp className="w-4 h-4 text-violet-500" />}
             iconBg="bg-violet-50"
           >
-            <p>לפי שיעור סגירה של 12 החודשים האחרונים: {formatRate(kpis.historicalConversionRate)}</p>
+            <p>{t("forecastBasis", { rate: formatRate(kpis.historicalConversionRate) })}</p>
           </KpiCard>
         </div>
       )}

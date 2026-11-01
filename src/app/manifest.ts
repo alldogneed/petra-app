@@ -1,10 +1,16 @@
 import type { MetadataRoute } from "next";
+import { getLocale, getTranslations } from "next-intl/server";
+import { LOCALE_CONFIG, localeFromBusiness } from "@/lib/locale";
 
-export default function manifest(): MetadataRoute.Manifest {
+export default async function manifest(): Promise<MetadataRoute.Manifest> {
+  // Locale = signed-in business, else NEXT_LOCALE cookie, else he-IL (src/i18n/resolve-locale.ts).
+  const locale = localeFromBusiness({ locale: await getLocale() });
+  const cfg = LOCALE_CONFIG[locale];
+  const t = await getTranslations({ locale, namespace: "meta.manifest" });
   return {
-    name: "Petra - ניהול עסקי חיות מחמד",
+    name: t("name"),
     short_name: "Petra",
-    description: "מערכת ניהול מתקדמת לעסקי חיות מחמד",
+    description: t("description"),
     start_url: "/dashboard",
     display: "standalone",
     background_color: "#F8FAFC",
@@ -27,7 +33,7 @@ export default function manifest(): MetadataRoute.Manifest {
       },
     ],
     categories: ["business", "productivity"],
-    lang: "he",
-    dir: "rtl",
+    lang: cfg.lang,
+    dir: cfg.dir,
   };
 }

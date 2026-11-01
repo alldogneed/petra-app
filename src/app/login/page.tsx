@@ -7,18 +7,21 @@ import Link from "next/link";
 import { Mail, Lock, Eye, EyeOff, LogIn } from "lucide-react";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { safeNextPath } from "@/lib/safe-redirect";
+import { useTranslations } from "next-intl";
 
-const GOOGLE_ERROR_MESSAGES: Record<string, string> = {
-  google_config: "חיבור Google לא מוגדר. פנה למנהל המערכת.",
-  google_denied: "ההתחברות עם Google בוטלה.",
-  missing_params: "שגיאה בתשובה מ-Google. נסה שוב.",
-  invalid_state: "שגיאת אימות. נסה שוב.",
-  email_not_verified: "כתובת האימייל ב-Google לא מאומתת.",
-  account_disabled: "החשבון מושבת. פנה למנהל המערכת.",
-  server_error: "שגיאת שרת. נסה שוב.",
-};
+// Error codes from /api/auth/google → messages under auth.loginPage.googleErrors.*
+const GOOGLE_ERROR_CODES = new Set([
+  "google_config",
+  "google_denied",
+  "missing_params",
+  "invalid_state",
+  "email_not_verified",
+  "account_disabled",
+  "server_error",
+]);
 
 function LoginForm() {
+  const t = useTranslations("auth.loginPage");
   const router = useRouter();
   const searchParams = useSearchParams();
   const googleError = searchParams.get("error");
@@ -34,9 +37,11 @@ function LoginForm() {
   const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState(
     googleError
-      ? GOOGLE_ERROR_MESSAGES[googleError] || "שגיאה בהתחברות עם Google"
+      ? GOOGLE_ERROR_CODES.has(googleError)
+        ? t(`googleErrors.${googleError}`)
+        : t("googleErrors.generic")
       : searchParams.get("reason") === "access_ended"
-        ? "הגישה שלך לעסק הסתיימה — בעל העסק השבית את המשתמש. לשאלות פנה/י אליו."
+        ? t("errors.accessEnded")
         : ""
   );
   const [loading, setLoading] = useState(false);
@@ -57,14 +62,14 @@ function LoginForm() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "שגיאה בהתחברות");
+        setError(data.error || t("errors.loginFailed"));
         return;
       }
 
       setEntering(true);
       window.location.href = nextPath ?? "/dashboard";
     } catch {
-      setError("שגיאה בהתחברות. נסה שוב.");
+      setError(t("errors.loginFailedRetry"));
     } finally {
       setLoading(false);
     }
@@ -82,9 +87,9 @@ function LoginForm() {
       </div>
 
       {/* Heading */}
-      <h1 className="text-[28px] font-bold tracking-tight text-petra-text leading-tight">ברוכים השבים</h1>
+      <h1 className="text-[28px] font-bold tracking-tight text-petra-text leading-tight">{t("title")}</h1>
       <p className="text-sm text-petra-muted mt-1.5 mb-7 leading-relaxed">
-        התחבר לחשבון הניהול של העסק שלך — לקוחות, תורים ופנסיון במקום אחד.
+        {t("subtitle")}
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -95,12 +100,12 @@ function LoginForm() {
         )}
 
         <div>
-          <label className="label">אימייל</label>
+          <label className="label">{t("emailLabel")}</label>
           <div className="relative">
-            <Mail className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Mail className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
               type="email"
-              className="input pr-10"
+              className="input ps-10"
               placeholder="name@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -112,13 +117,13 @@ function LoginForm() {
         </div>
 
         <div>
-          <label className="label">סיסמה</label>
+          <label className="label">{t("passwordLabel")}</label>
           <div className="relative">
-            <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Lock className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
               type={showPassword ? "text" : "password"}
-              className="input pr-10 pl-10"
-              placeholder="הכנס סיסמה"
+              className="input ps-10 pe-10"
+              placeholder={t("passwordPlaceholder")}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -128,7 +133,7 @@ function LoginForm() {
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+              className="absolute end-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
             >
               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
@@ -144,19 +149,19 @@ function LoginForm() {
                 onChange={(e) => setRememberMe(e.target.checked)}
                 className="w-4 h-4 rounded border-slate-300 text-brand-500 accent-orange-500 cursor-pointer"
               />
-              <span className="text-xs text-petra-muted">זכור אותי במכשיר זה</span>
+              <span className="text-xs text-petra-muted">{t("rememberMe")}</span>
             </label>
             <Link
               href="/forgot-password"
               className="text-xs text-petra-muted hover:text-brand-500 transition-colors"
             >
-              שכחתי סיסמה
+              {t("forgotPassword")}
             </Link>
           </div>
           <p className="text-[11px] text-petra-muted mt-1.5 leading-relaxed">
             {rememberMe
-              ? "ההתחברות תישמר למשך 30 יום כל עוד אתה פעיל. אל תסמן בשימוש במחשב משותף."
-              : "ניתוק אוטומטי לאחר 8 שעות. מומלץ במחשב משותף או ציבורי."}
+              ? t("rememberMeOn")
+              : t("rememberMeOff")}
           </p>
         </div>
 
@@ -166,11 +171,11 @@ function LoginForm() {
           disabled={loading || !email || !password}
         >
           {loading ? (
-            <span className="animate-pulse">מתחבר...</span>
+            <span className="animate-pulse">{t("loggingIn")}</span>
           ) : (
             <>
               <LogIn className="w-4 h-4" />
-              התחבר
+              {t("submit")}
             </>
           )}
         </button>
@@ -180,7 +185,7 @@ function LoginForm() {
             <div className="w-full border-t border-slate-200" />
           </div>
           <div className="relative flex justify-center text-xs">
-            <span className="bg-petra-bg px-2 text-petra-muted">או</span>
+            <span className="bg-petra-bg px-2 text-petra-muted">{t("or")}</span>
           </div>
         </div>
 
@@ -195,21 +200,21 @@ function LoginForm() {
               <path d="M3.964 10.71A5.41 5.41 0 013.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 000 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
               <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 00.957 4.958L3.964 6.29C4.672 4.163 6.656 2.58 9 3.58z" fill="#EA4335"/>
             </svg>
-            המשך עם Google
+            {t("continueWithGoogle")}
           </a>
           <p className="text-center text-xs text-petra-muted mt-1.5">
-            משתמש חדש? חשבון ייווצר אוטומטית
+            {t("googleNewUser")}
           </p>
         </div>
       </form>
 
       <p className="text-center text-sm text-petra-muted mt-4">
-        אין לך חשבון עדיין?{" "}
+        {t("noAccount")}{" "}
         <Link
           href="/register"
           className="font-medium text-brand-500 hover:text-brand-600 underline-offset-2 hover:underline"
         >
-          צור חשבון חינם
+          {t("createAccount")}
         </Link>
       </p>
 
@@ -217,15 +222,15 @@ function LoginForm() {
         Petra &copy; {new Date().getFullYear()}
       </p>
       <p className="text-center text-xs text-petra-muted mt-1">
-        כל הזכויות שמורות all-dog - המרכז הישראלי להתנהגות הכלב
+        {t("copyright")}
       </p>
       <p className="text-center text-xs text-petra-muted mt-2 flex items-center justify-center gap-2">
         <Link href="/privacy" className="hover:text-brand-500 transition-colors underline underline-offset-2">
-          מדיניות פרטיות
+          {t("privacy")}
         </Link>
         <span>·</span>
         <Link href="/terms" className="hover:text-brand-500 transition-colors underline underline-offset-2">
-          תנאי שימוש
+          {t("terms")}
         </Link>
       </p>
     </div>
@@ -233,6 +238,7 @@ function LoginForm() {
 }
 
 export default function LoginPage() {
+  const th = useTranslations("auth.loginPage.hero");
   return (
     <div className="min-h-screen grid lg:grid-cols-2 bg-petra-bg">
       {/* Form side */}
@@ -254,22 +260,22 @@ export default function LoginPage() {
       >
         <span className="inline-flex items-center gap-2 self-start px-3.5 py-1.5 rounded-full text-xs font-medium bg-white/15 backdrop-blur-sm border border-white/20">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-          130 עסקים פעילים בישראל
+          {th("badge")}
         </span>
 
         <div>
           <p className="text-[28px] font-semibold tracking-tight leading-snug max-w-md">
             <span className="text-brand-300 font-bold">&ldquo;</span>
-            פטרה שינתה לי את החיים. כל הלקוחות, התוכניות, התזכורות — הכל במקום אחד. חסכתי 2 שעות ביום לפחות
+            {th("quote")}
             <span className="text-brand-300 font-bold">.&rdquo;</span>
           </p>
           <div className="mt-6 flex items-center gap-3">
             <div className="w-11 h-11 rounded-full bg-brand-300 text-slate-900 flex items-center justify-center font-bold">
-              יע
+              {th("initials")}
             </div>
             <div>
-              <div className="text-sm font-semibold">יעל כהן</div>
-              <div className="text-xs text-white/70 mt-0.5">מאלפת כלבים בכירה · סטודיו קנין, תל אביב</div>
+              <div className="text-sm font-semibold">{th("name")}</div>
+              <div className="text-xs text-white/70 mt-0.5">{th("role")}</div>
             </div>
           </div>
         </div>
@@ -277,15 +283,15 @@ export default function LoginPage() {
         <div className="grid grid-cols-3 gap-4 pt-8 border-t border-white/15">
           <div>
             <div className="text-2xl font-bold tracking-tight">130</div>
-            <div className="text-[11px] text-white/70 mt-0.5 uppercase tracking-wider">עסקים פעילים</div>
+            <div className="text-[11px] text-white/70 mt-0.5 uppercase tracking-wider">{th("stats.businesses")}</div>
           </div>
           <div>
             <div className="text-2xl font-bold tracking-tight">5,000+</div>
-            <div className="text-[11px] text-white/70 mt-0.5 uppercase tracking-wider">תורים שנקבעו</div>
+            <div className="text-[11px] text-white/70 mt-0.5 uppercase tracking-wider">{th("stats.appointments")}</div>
           </div>
           <div>
             <div className="text-2xl font-bold tracking-tight">98%</div>
-            <div className="text-[11px] text-white/70 mt-0.5 uppercase tracking-wider">שביעות רצון</div>
+            <div className="text-[11px] text-white/70 mt-0.5 uppercase tracking-wider">{th("stats.satisfaction")}</div>
           </div>
         </div>
       </div>

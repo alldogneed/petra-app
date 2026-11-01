@@ -7,6 +7,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { fetchJSON } from "@/lib/utils";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useRegisterDirty } from "@/components/settings/SettingsDirtyContext";
@@ -21,14 +22,14 @@ function sameValue(a: unknown, b: unknown): boolean {
   return false;
 }
 
-export async function patchBusinessSettings(data: Partial<Business>): Promise<Business> {
+export async function patchBusinessSettings(data: Partial<Business>, fallbackError?: string): Promise<Business> {
   const r = await fetch("/api/settings", {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
   const d = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(d.error || "שגיאה בשמירת ההגדרות");
+  if (!r.ok) throw new Error(d.error || fallbackError || "Error");
   return d as Business;
 }
 
@@ -40,7 +41,8 @@ interface Options {
   defaults?: Partial<Business>;
 }
 
-export function useBusinessSettings({ dirtyKey, successMessage = "ההגדרות נשמרו", defaults }: Options) {
+export function useBusinessSettings({ dirtyKey, successMessage, defaults }: Options) {
+  const t = useTranslations("settings.useBusinessSettings");
   const queryClient = useQueryClient();
   const { canCriticalSettings } = usePermissions();
   const { data: biz, isLoading, isError } = useQuery<Business>({
@@ -81,13 +83,13 @@ export function useBusinessSettings({ dirtyKey, successMessage = "ההגדרות
   const reset = useCallback(() => setDraft({}), []);
 
   const mutation = useMutation({
-    mutationFn: (data: Partial<Business>) => patchBusinessSettings(data),
+    mutationFn: (data: Partial<Business>) => patchBusinessSettings(data, t("saveError")),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: BUSINESS_SETTINGS_QUERY_KEY });
       setDraft({});
-      toast.success(successMessage);
+      toast.success(successMessage ?? t("saved"));
     },
-    onError: (err: Error) => toast.error(err.message || "שגיאה בשמירת ההגדרות. נסה שוב."),
+    onError: (err: Error) => toast.error(err.message || t("saveErrorRetry")),
   });
 
   const save = useCallback(() => {

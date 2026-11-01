@@ -14,43 +14,47 @@ import { useState, useCallback } from "react";
 import { type FeatureKey, type TierKey, hasFeature } from "@/lib/feature-flags";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { TIER_LABELS, PLATFORM_ROLE_LABELS } from "@/lib/platform-labels";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
+import { currencySymbol } from "@/lib/format";
 
 // ─── Tier definitions ────────────────────────────────────────────────────────
 
-const TIERS: { key: TierKey; label: string; price: string; color: string; legacy?: boolean }[] = [
+const TIERS: { key: TierKey; price: number; color: string; legacy?: boolean }[] = [
   // ── Public tiers (sold via checkout) ───────────────────────────────────────
-  { key: "free",        label: "Free (חינמי)",            price: "₪0",   color: "bg-slate-100 text-slate-600 border-slate-300" },
-  { key: "basic",       label: "Basic",                   price: "₪99",  color: "bg-blue-50 text-blue-700 border-blue-300" },
-  { key: "pro",         label: "Pro",                     price: "₪199", color: "bg-violet-50 text-violet-700 border-violet-300" },
+  { key: "free",        price: 0,   color: "bg-slate-100 text-slate-600 border-slate-300" },
+  { key: "basic",       price: 99,  color: "bg-blue-50 text-blue-700 border-blue-300" },
+  { key: "pro",         price: 199, color: "bg-violet-50 text-violet-700 border-violet-300" },
   // ── Enterprise / legacy (manual assignment only) ────────────────────────
-  { key: "service_dog", label: "Service Dog (ארגוני)",    price: "₪229", color: "bg-emerald-50 text-emerald-700 border-emerald-300", legacy: true },
-  { key: "groomer",     label: "Groomer+ (legacy)",       price: "₪169", color: "bg-pink-50 text-pink-700 border-pink-300", legacy: true },
+  { key: "service_dog", price: 229, color: "bg-emerald-50 text-emerald-700 border-emerald-300", legacy: true },
+  { key: "groomer",     price: 169, color: "bg-pink-50 text-pink-700 border-pink-300", legacy: true },
 ];
 
 // ─── Feature rows ─────────────────────────────────────────────────────────────
 
-const FEATURE_ROWS: { key: FeatureKey; label: string; description: string }[] = [
-  { key: "gcal_sync",          label: "סנכרון יומן גוגל",     description: "חיבור Google Calendar לאימות ועדכון תורים" },
-  { key: "payments",           label: "תשלומים",              description: "קישורי תשלום, סליקה" },
-  { key: "invoicing",          label: "חשבוניות",             description: "הפקת חשבוניות וקבלות (Green Invoice / Morning)" },
-  { key: "scheduled_messages", label: "תזכורות בוואטסאפ",    description: "תזכורות אוטומטיות לתורים" },
-  { key: "automations",        label: "אוטומציות הודעות",     description: "כללי שליחה אוטומטית לפי אירועים" },
-  { key: "custom_messages",    label: "הודעות מותאמות",       description: "תבניות הודעה מותאמות אישית" },
-  { key: "training",           label: "מערכת ניהול תהליכי אילוף", description: "תכניות אילוף, מטרות ומעקב מפגשים" },
-  { key: "training_groups",    label: "ניהול קבוצות וסדנאות אילוף", description: "ניהול קבוצות אילוף וסדנאות" },
-  { key: "boarding",           label: "פנסיון",               description: "חדרים, לינות ויומן תפוסה (drag & drop)" },
-  { key: "leads",              label: "CRM / לידים",          description: "קנבן לידים ומעקב מכירות" },
-  { key: "staff_management",   label: "ניהול עובדים",         description: "הוספת משתמשים, תפקידים וניהול גישה" },
-  { key: "excel_export",       label: "ייצוא לאקסל",         description: "ייצוא לקוחות וחיות ל-Excel" },
-  { key: "groomer_portfolio",  label: "תיק עבודות לפני/אחרי", description: "גלריית לפני/אחרי (Basic+)" },
-  { key: "service_dogs",       label: "מודול כלבי שירות",    description: "ניהול כלבי שירות, זכאים, שיבוצים ו-ADI" },
-  { key: "online_bookings",    label: "הזמנות אונליין",      description: "ניהול תורים אונליין ואישור הזמנות" },
-  { key: "analytics",          label: "דוחות ואנליטיקס",     description: "גרפים, סטטיסטיקות ומעקב ביצועים" },
-  { key: "intake_forms",       label: "טפסי קליטה",          description: "טפסי קליטה דיגיטליים ללקוחות" },
-  { key: "payment_links",      label: "קישורי תשלום",        description: "בקשות תשלום בוואטסאפ עם לינק" },
-  { key: "orders",             label: "הזמנות",              description: "ניהול הזמנות ופרטי עסקה" },
-  { key: "pricing",            label: "מחירון",              description: "שירותים ופריטי חיוב" },
-  { key: "pets_advanced",      label: "חיות מחמד מתקדם",    description: "ניהול חיות מחמד ותיקים מורחבים" },
+// Labels/descriptions: owner.tenantsDetailPage.features.<key>.{label,description}
+const FEATURE_ROWS: { key: FeatureKey }[] = [
+  { key: "gcal_sync" },
+  { key: "payments" },
+  { key: "invoicing" },
+  { key: "scheduled_messages" },
+  { key: "automations" },
+  { key: "custom_messages" },
+  { key: "training" },
+  { key: "training_groups" },
+  { key: "boarding" },
+  { key: "leads" },
+  { key: "staff_management" },
+  { key: "excel_export" },
+  { key: "groomer_portfolio" },
+  { key: "service_dogs" },
+  { key: "online_bookings" },
+  { key: "analytics" },
+  { key: "intake_forms" },
+  { key: "payment_links" },
+  { key: "orders" },
+  { key: "pricing" },
+  { key: "pets_advanced" },
 ];
 
 type OverrideValue = true | false | null; // null = use tier default
@@ -98,44 +102,35 @@ interface TenantDetail {
 // ─── Small components ─────────────────────────────────────────────────────────
 
 function TierBadge({ tier }: { tier: string }) {
-  const t = TIERS.find((t) => t.key === tier);
-  if (!t) return <span className="text-xs text-slate-500">{TIER_LABELS[tier] ?? tier}</span>;
+  const t = useTranslations("owner.tenantsDetailPage");
+  const { locale, currency } = useBusinessLocale();
+  const tierDef = TIERS.find((x) => x.key === tier);
+  if (!tierDef) return <span className="text-xs text-slate-500">{TIER_LABELS[tier] ?? tier}</span>;
   return (
-    <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border", t.color)}>
-      {t.label}
-      <span className="opacity-60">{t.price}</span>
+    <span className={cn("inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border", tierDef.color)}>
+      {t(`tiers.${tierDef.key}`)}
+      <span className="opacity-60">{currencySymbol({ locale, currency })}{tierDef.price}</span>
     </span>
   );
 }
 
 function EffectiveBadge({ on }: { on: boolean }) {
+  const t = useTranslations("owner.tenantsDetailPage");
   return on ? (
     <span className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-green-600">
-      <Check className="w-3 h-3" /> פעיל
+      <Check className="w-3 h-3" /> {t("status.active")}
     </span>
   ) : (
     <span className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-slate-400">
-      <X className="w-3 h-3" /> חסום
+      <X className="w-3 h-3" /> {t("featuresPanel.blocked")}
     </span>
   );
 }
-
-const STATUS_LABEL: Record<string, string> = {
-  active: "פעיל",
-  suspended: "מושהה",
-  closed: "סגור",
-};
 
 const STATUS_BADGE: Record<string, string> = {
   active: "badge-success",
   suspended: "badge-danger",
   closed: "badge-neutral",
-};
-
-const ROLE_LABEL: Record<string, string> = {
-  owner: "בעלים",
-  manager: "מנהל",
-  user: "משתמש",
 };
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -144,6 +139,9 @@ export default function TenantDetailPage() {
   const { tenantId } = useParams<{ tenantId: string }>();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const t = useTranslations("owner.tenantsDetailPage");
+  const tc = useTranslations("common");
+  const { locale, currency } = useBusinessLocale();
 
   const [pendingOverrides, setPendingOverrides] = useState<Record<string, OverrideValue>>({});
   const [overridesDirty, setOverridesDirty] = useState(false);
@@ -339,8 +337,8 @@ export default function TenantDetailPage() {
   if (error || !tenant) {
     return (
       <div className="text-center py-20">
-        <p className="text-slate-400 mb-4">שגיאה בטעינת פרטי העסק</p>
-        <button onClick={() => router.push("/owner/tenants")} className="btn-secondary">חזרה לרשימת העסקים</button>
+        <p className="text-slate-400 mb-4">{t("errors.loadFailed")}</p>
+        <button onClick={() => router.push("/owner/tenants")} className="btn-secondary">{t("backToList")}</button>
       </div>
     );
   }
@@ -351,18 +349,18 @@ export default function TenantDetailPage() {
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-3">
         <Link href="/owner/tenants" className="btn-ghost p-2 rounded-lg">
-          <ArrowRight className="w-5 h-5" />
+          <ArrowRight className="w-5 h-5 ltr:-scale-x-100" />
         </Link>
         <div className="flex-1">
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="page-title">{tenant.name}</h1>
             <span className={cn("badge", STATUS_BADGE[tenant.status] ?? "badge-neutral")}>
-              {STATUS_LABEL[tenant.status] ?? tenant.status}
+              {t.has(`status.${tenant.status}`) ? t(`status.${tenant.status}`) : tenant.status}
             </span>
             <TierBadge tier={activeTier} />
           </div>
           <p className="text-sm text-slate-400 mt-1">
-            נוצר {new Date(tenant.createdAt).toLocaleDateString("he-IL")}
+            {t("header.createdOn", { date: new Date(tenant.createdAt).toLocaleDateString(locale) })}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -374,7 +372,7 @@ export default function TenantDetailPage() {
             className="flex items-center gap-1.5 text-sm px-3 py-2 rounded-xl font-medium transition-colors bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200"
           >
             <FileText className="w-4 h-4" />
-            חתימת תנאי שימוש
+            {t("header.tosConsent")}
           </a>
           {/* Impersonate button — super_admin only */}
           <button
@@ -383,14 +381,14 @@ export default function TenantDetailPage() {
             }}
             disabled={impersonateMutation.isPending || tenant.status === "closed"}
             className="flex items-center gap-1.5 text-sm px-3 py-2 rounded-xl font-medium bg-violet-50 text-violet-700 hover:bg-violet-100 transition-colors disabled:opacity-40"
-            title="כנס כעסק (impersonation)"
+            title={t("header.impersonateTitle")}
           >
             {impersonateMutation.isPending ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
               <LogIn className="w-4 h-4" />
             )}
-            כנס כעסק
+            {t("header.impersonate")}
           </button>
           <button
             onClick={() =>
@@ -404,7 +402,7 @@ export default function TenantDetailPage() {
               tenant.status === "active" ? "btn-danger" : "bg-green-50 text-green-600 hover:bg-green-100"
             )}
           >
-            {patchTenantMutation.isPending ? "מעדכן..." : tenant.status === "active" ? "השהה עסק" : "הפעל עסק"}
+            {patchTenantMutation.isPending ? tc("progress.updating") : tenant.status === "active" ? t("header.suspend") : t("header.activate")}
           </button>
         </div>
       </div>
@@ -414,18 +412,18 @@ export default function TenantDetailPage() {
         {/* ── Details + Tier selector ──────────────────────────────────────── */}
         <div className="card p-5 lg:col-span-2 space-y-5">
           <div>
-            <h2 className="font-semibold text-slate-900 mb-4">פרטי עסק</h2>
+            <h2 className="font-semibold text-slate-900 mb-4">{t("details.title")}</h2>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <div className="label">שם</div>
+                <div className="label">{t("details.name")}</div>
                 <div className="text-sm text-slate-900">{tenant.name}</div>
               </div>
               <div>
-                <div className="label">מייל</div>
+                <div className="label">{t("details.email")}</div>
                 <div className="text-sm text-slate-900" dir="ltr">{tenant.email ?? "—"}</div>
               </div>
               <div>
-                <div className="label">טלפון</div>
+                <div className="label">{t("details.phone")}</div>
                 <div className="text-sm text-slate-900" dir="ltr">{tenant.phone ?? "—"}</div>
               </div>
             </div>
@@ -433,7 +431,7 @@ export default function TenantDetailPage() {
 
           {/* ── Tier selector ──────────────────────────────────────────────── */}
           <div>
-            <div className="label mb-2">מנוי נוכחי</div>
+            <div className="label mb-2">{t("details.currentTier")}</div>
             <div className="relative inline-block">
               <button
                 onClick={() => setTierSelectOpen((p) => !p)}
@@ -443,21 +441,21 @@ export default function TenantDetailPage() {
                 <ChevronDown className="w-4 h-4 text-slate-400" />
               </button>
               {tierSelectOpen && (
-                <div className="absolute top-full mt-1 right-0 bg-white rounded-xl shadow-xl border border-slate-100 py-1 z-20 min-w-[200px]">
-                  {TIERS.map((t) => (
+                <div className="absolute top-full mt-1 start-0 bg-white rounded-xl shadow-xl border border-slate-100 py-1 z-20 min-w-[200px]">
+                  {TIERS.map((tierDef) => (
                     <button
-                      key={t.key}
-                      onClick={() => patchTenantMutation.mutate({ tier: t.key })}
+                      key={tierDef.key}
+                      onClick={() => patchTenantMutation.mutate({ tier: tierDef.key })}
                       disabled={patchTenantMutation.isPending}
                       className={cn(
                         "w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-slate-50 transition-colors",
-                        t.key === activeTier && "bg-orange-50"
+                        tierDef.key === activeTier && "bg-orange-50"
                       )}
                     >
-                      <span className={cn("w-2 h-2 rounded-full flex-shrink-0 border", t.color)} />
-                      <span className="font-medium flex-1 text-right">{t.label}</span>
-                      <span className="text-xs text-slate-400">{t.price}</span>
-                      {t.key === activeTier && <Check className="w-3.5 h-3.5 text-orange-500 flex-shrink-0" />}
+                      <span className={cn("w-2 h-2 rounded-full flex-shrink-0 border", tierDef.color)} />
+                      <span className="font-medium flex-1 text-start">{t(`tiers.${tierDef.key}`)}</span>
+                      <span className="text-xs text-slate-400">{currencySymbol({ locale, currency })}{tierDef.price}</span>
+                      {tierDef.key === activeTier && <Check className="w-3.5 h-3.5 text-orange-500 flex-shrink-0" />}
                     </button>
                   ))}
                 </div>
@@ -465,11 +463,11 @@ export default function TenantDetailPage() {
             </div>
             {patchTenantMutation.isPending && (
               <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">
-                <Loader2 className="w-3 h-3 animate-spin" /> שומר...
+                <Loader2 className="w-3 h-3 animate-spin" /> {tc("progress.saving")}
               </p>
             )}
             {patchTenantMutation.isSuccess && !tierSelectOpen && (
-              <p className="text-xs text-green-600 mt-1">✓ המנוי עודכן</p>
+              <p className="text-xs text-green-600 mt-1">{t("details.tierUpdated")}</p>
             )}
           </div>
         </div>
@@ -483,7 +481,7 @@ export default function TenantDetailPage() {
               </div>
               <div>
                 <div className="text-2xl font-bold text-slate-900">{tenant.stats?.customerCount ?? tenant._count.customers}</div>
-                <div className="text-xs text-slate-400">לקוחות</div>
+                <div className="text-xs text-slate-400">{t("stats.customers")}</div>
               </div>
             </div>
           </div>
@@ -494,7 +492,7 @@ export default function TenantDetailPage() {
               </div>
               <div>
                 <div className="text-2xl font-bold text-slate-900">{tenant.stats?.monthlyAppointments ?? 0}</div>
-                <div className="text-xs text-slate-400">תורים החודש</div>
+                <div className="text-xs text-slate-400">{t("stats.monthlyAppointments")}</div>
               </div>
             </div>
           </div>
@@ -504,8 +502,8 @@ export default function TenantDetailPage() {
                 <CreditCard className="w-5 h-5 text-white" />
               </div>
               <div>
-                <div className="text-2xl font-bold text-slate-900">₪{(tenant.stats?.monthlyRevenue ?? 0).toLocaleString()}</div>
-                <div className="text-xs text-slate-400">הכנסה החודש</div>
+                <div className="text-2xl font-bold text-slate-900">{currencySymbol({ locale, currency })}{(tenant.stats?.monthlyRevenue ?? 0).toLocaleString(locale)}</div>
+                <div className="text-xs text-slate-400">{t("stats.monthlyRevenue")}</div>
               </div>
             </div>
           </div>
@@ -517,10 +515,10 @@ export default function TenantDetailPage() {
               <div>
                 <div className="text-sm font-semibold text-slate-900">
                   {tenant.stats?.lastSeenAt
-                    ? new Date(tenant.stats.lastSeenAt).toLocaleDateString("he-IL")
+                    ? new Date(tenant.stats.lastSeenAt).toLocaleDateString(locale)
                     : "—"}
                 </div>
-                <div className="text-xs text-slate-400">כניסה אחרונה</div>
+                <div className="text-xs text-slate-400">{t("stats.lastSeen")}</div>
               </div>
             </div>
           </div>
@@ -531,22 +529,22 @@ export default function TenantDetailPage() {
       <div className="card p-5">
         <div className="flex items-center gap-2 mb-4">
           <Clock className="w-4 h-4 text-amber-500" />
-          <h2 className="font-semibold text-slate-900">ניסיון חינמי</h2>
+          <h2 className="font-semibold text-slate-900">{t("trial.title")}</h2>
           {trialActive && (
             <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">
-              פעיל — {trialDaysLeft} ימים נותרו
+              {t("period.activeDaysLeft", { days: trialDaysLeft })}
             </span>
           )}
           {trialExpired && (
-            <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-medium">פג תוקף</span>
+            <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-medium">{t("period.expired")}</span>
           )}
           {!trialEndsAt && (
-            <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">ללא ניסיון</span>
+            <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">{t("trial.noTrial")}</span>
           )}
         </div>
         {trialEndsAt && (
           <p className="text-sm text-slate-500 mb-4">
-            תאריך סיום: {trialEndsAt.toLocaleDateString("he-IL")}
+            {t("period.endDate", { date: trialEndsAt.toLocaleDateString(locale) })}
           </p>
         )}
         <div className="flex items-center gap-2 flex-wrap">
@@ -555,31 +553,31 @@ export default function TenantDetailPage() {
             disabled={setTrialMutation.isPending}
             className="text-sm px-3 py-2 rounded-xl bg-amber-50 text-amber-700 hover:bg-amber-100 font-medium transition-colors disabled:opacity-40"
           >
-            הגדר ניסיון 14 יום
+            {t("trial.set14")}
           </button>
           <button
             onClick={() => addTrialDays(30)}
             disabled={setTrialMutation.isPending}
             className="text-sm px-3 py-2 rounded-xl bg-amber-50 text-amber-700 hover:bg-amber-100 font-medium transition-colors disabled:opacity-40"
           >
-            הגדר ניסיון 30 יום
+            {t("trial.set30")}
           </button>
           <button
             onClick={() => setTrialMutation.mutate(new Date().toISOString())}
             disabled={setTrialMutation.isPending || !trialEndsAt}
             className="text-sm px-3 py-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 font-medium transition-colors disabled:opacity-40"
           >
-            סיים מיידית
+            {t("period.endNow")}
           </button>
           <button
             onClick={() => setTrialMutation.mutate(null)}
             disabled={setTrialMutation.isPending || !trialEndsAt}
             className="text-sm px-3 py-2 rounded-xl text-slate-500 hover:bg-slate-100 font-medium transition-colors disabled:opacity-40"
           >
-            הסר ניסיון
+            {t("trial.remove")}
           </button>
           {setTrialMutation.isPending && <Loader2 className="w-4 h-4 animate-spin text-slate-400" />}
-          {setTrialMutation.isSuccess && <span className="text-xs text-green-600">✓ עודכן</span>}
+          {setTrialMutation.isSuccess && <span className="text-xs text-green-600">{t("period.updated")}</span>}
         </div>
       </div>
 
@@ -588,29 +586,29 @@ export default function TenantDetailPage() {
         <div className="card p-5">
           <div className="flex items-center gap-2 mb-4">
             <CreditCard className="w-4 h-4 text-green-600" />
-            <h2 className="font-semibold text-slate-900">מנוי שנתי</h2>
+            <h2 className="font-semibold text-slate-900">{t("subscription.title")}</h2>
             {subActive && subDaysLeft > 14 && (
               <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
-                פעיל — {subDaysLeft} ימים נותרו
+                {t("period.activeDaysLeft", { days: subDaysLeft })}
               </span>
             )}
             {subActive && subDaysLeft <= 14 && (
               <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">
-                ⚠️ פחות מ-14 יום!
+                {t("subscription.lessThan14")}
               </span>
             )}
             {subExpired && (
-              <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-medium">פג תוקף</span>
+              <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-medium">{t("period.expired")}</span>
             )}
             {!subEndsAt && (
-              <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">ללא מנוי פעיל</span>
+              <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">{t("subscription.noSubscription")}</span>
             )}
           </div>
           {subEndsAt && (
             <p className="text-sm text-slate-500 mb-4">
-              תאריך סיום: {subEndsAt.toLocaleDateString("he-IL")}
+              {t("period.endDate", { date: subEndsAt.toLocaleDateString(locale) })}
               {subActive && subDaysLeft <= 14 && (
-                <span className="mr-2 text-amber-600 font-medium">({subDaysLeft} ימים נותרו)</span>
+                <span className="ms-2 text-amber-600 font-medium">{t("subscription.daysLeftParen", { days: subDaysLeft })}</span>
               )}
             </p>
           )}
@@ -620,38 +618,38 @@ export default function TenantDetailPage() {
               disabled={setSubscriptionMutation.isPending}
               className="text-sm px-3 py-2 rounded-xl bg-green-50 text-green-700 hover:bg-green-100 font-medium transition-colors disabled:opacity-40"
             >
-              +1 חודש
+              {t("subscription.add1Month")}
             </button>
             <button
               onClick={() => addSubMonths(6)}
               disabled={setSubscriptionMutation.isPending}
               className="text-sm px-3 py-2 rounded-xl bg-green-50 text-green-700 hover:bg-green-100 font-medium transition-colors disabled:opacity-40"
             >
-              +6 חודשים
+              {t("subscription.add6Months")}
             </button>
             <button
               onClick={() => addSubMonths(12)}
               disabled={setSubscriptionMutation.isPending}
               className="text-sm px-3 py-2 rounded-xl bg-green-50 text-green-700 hover:bg-green-100 font-medium transition-colors disabled:opacity-40"
             >
-              +שנה
+              {t("subscription.addYear")}
             </button>
             <button
               onClick={() => setSubscriptionMutation.mutate(new Date().toISOString())}
               disabled={setSubscriptionMutation.isPending || !subEndsAt}
               className="text-sm px-3 py-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 font-medium transition-colors disabled:opacity-40"
             >
-              סיים מיידית
+              {t("period.endNow")}
             </button>
             <button
               onClick={() => setSubscriptionMutation.mutate(null)}
               disabled={setSubscriptionMutation.isPending || !subEndsAt}
               className="text-sm px-3 py-2 rounded-xl text-slate-500 hover:bg-slate-100 font-medium transition-colors disabled:opacity-40"
             >
-              הסר מנוי
+              {t("subscription.remove")}
             </button>
             {setSubscriptionMutation.isPending && <Loader2 className="w-4 h-4 animate-spin text-slate-400" />}
-            {setSubscriptionMutation.isSuccess && <span className="text-xs text-green-600">✓ עודכן</span>}
+            {setSubscriptionMutation.isSuccess && <span className="text-xs text-green-600">{t("period.updated")}</span>}
           </div>
         </div>
       )}
@@ -662,10 +660,10 @@ export default function TenantDetailPage() {
         <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-2">
             <Zap className="w-4 h-4 text-orange-500" />
-            <h2 className="font-semibold text-slate-900">ניהול פיצ׳רים</h2>
+            <h2 className="font-semibold text-slate-900">{t("featuresPanel.title")}</h2>
             {activeOverridesCount > 0 && (
               <span className="text-[11px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-medium">
-                {activeOverridesCount} חריגות פעילות
+                {t("featuresPanel.activeOverrides", { count: activeOverridesCount })}
               </span>
             )}
           </div>
@@ -676,7 +674,7 @@ export default function TenantDetailPage() {
                 className="text-xs text-slate-400 hover:text-red-500 flex items-center gap-1 transition-colors"
               >
                 <RotateCcw className="w-3 h-3" />
-                אפס הכל
+                {t("featuresPanel.resetAll")}
               </button>
             )}
             {overridesDirty && (
@@ -686,9 +684,9 @@ export default function TenantDetailPage() {
                 className="text-sm px-4 py-1.5 rounded-lg bg-orange-500 text-white font-medium hover:bg-orange-600 transition-colors disabled:opacity-50 flex items-center gap-1.5"
               >
                 {saveOverridesMutation.isPending ? (
-                  <><Loader2 className="w-3.5 h-3.5 animate-spin" /> שומר...</>
+                  <><Loader2 className="w-3.5 h-3.5 animate-spin" /> {tc("progress.saving")}</>
                 ) : (
-                  "שמור שינויים"
+                  t("featuresPanel.saveChanges")
                 )}
               </button>
             )}
@@ -697,22 +695,22 @@ export default function TenantDetailPage() {
 
         {/* Legend */}
         <div className="px-5 py-3 bg-slate-50/60 border-b border-slate-100 flex items-center gap-6 text-[11px] text-slate-500">
-          <span><strong className="text-slate-700">ברירת מחדל</strong> = לפי המנוי</span>
-          <span className="text-green-600 font-semibold">פתוח = Override פתיחה כפויה</span>
-          <span className="text-red-600 font-semibold">חסום = Override חסימה כפויה</span>
+          <span>{t.rich("featuresPanel.legendDefault", { strong: (c) => <strong className="text-slate-700">{c}</strong> })}</span>
+          <span className="text-green-600 font-semibold">{t("featuresPanel.legendOpen")}</span>
+          <span className="text-red-600 font-semibold">{t("featuresPanel.legendBlocked")}</span>
         </div>
 
         {/* Column headers */}
         <div className="hidden md:grid md:grid-cols-[1fr_90px_160px_80px] px-5 py-2 bg-slate-50 border-b border-slate-100 text-[11px] font-semibold text-slate-400 uppercase tracking-wide gap-4">
-          <span>פיצ׳ר</span>
-          <span className="text-center">ברירת מחדל<br/><span className="font-normal normal-case">(לפי {TIERS.find(t=>t.key===activeTier)?.label})</span></span>
+          <span>{t("featuresPanel.colFeature")}</span>
+          <span className="text-center">{t("featuresPanel.colDefault")}<br/><span className="font-normal normal-case">{t("featuresPanel.colDefaultByTier", { tier: TIERS.some((x) => x.key === activeTier) ? t(`tiers.${activeTier}`) : "" })}</span></span>
           <span className="text-center">Override</span>
-          <span className="text-center">בפועל</span>
+          <span className="text-center">{t("featuresPanel.colEffective")}</span>
         </div>
 
         {/* Feature rows */}
         <div className="divide-y divide-slate-50">
-          {FEATURE_ROWS.map(({ key, label, description }) => {
+          {FEATURE_ROWS.map(({ key }) => {
             const tierDefault = hasFeature(activeTier, key);
             const override = getOverrideValue(key);
             const effective = getEffective(key);
@@ -729,23 +727,23 @@ export default function TenantDetailPage() {
                 {/* Name + description */}
                 <div>
                   <div className="text-sm font-medium text-slate-800 flex items-center gap-2">
-                    {label}
+                    {t(`features.${key}.label`)}
                     {hasOverride && (
                       <span className="text-[10px] bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded font-semibold">override</span>
                     )}
                   </div>
-                  <div className="text-xs text-slate-400">{description}</div>
+                  <div className="text-xs text-slate-400">{t(`features.${key}.description`)}</div>
                 </div>
 
                 {/* Tier default */}
                 <div className="flex justify-center">
                   {tierDefault ? (
                     <span className="inline-flex items-center gap-0.5 text-[11px] font-medium text-green-600">
-                      <Check className="w-3 h-3" /> כלול
+                      <Check className="w-3 h-3" /> {t("featuresPanel.included")}
                     </span>
                   ) : (
                     <span className="inline-flex items-center gap-0.5 text-[11px] font-medium text-slate-400">
-                      <X className="w-3 h-3" /> לא כלול
+                      <X className="w-3 h-3" /> {t("featuresPanel.notIncluded")}
                     </span>
                   )}
                 </div>
@@ -759,7 +757,7 @@ export default function TenantDetailPage() {
                       override === null ? "bg-slate-200 text-slate-700" : "text-slate-400 hover:bg-slate-100"
                     )}
                   >
-                    <Minus className="w-3 h-3" /> ברירת מחדל
+                    <Minus className="w-3 h-3" /> {t("featuresPanel.default")}
                   </button>
                   <button
                     onClick={() => setOverride(key, true)}
@@ -768,7 +766,7 @@ export default function TenantDetailPage() {
                       override === true ? "bg-green-100 text-green-700" : "text-slate-400 hover:bg-green-50 hover:text-green-700"
                     )}
                   >
-                    <ToggleRight className="w-3.5 h-3.5" /> פתוח
+                    <ToggleRight className="w-3.5 h-3.5" /> {t("featuresPanel.open")}
                   </button>
                   <button
                     onClick={() => setOverride(key, false)}
@@ -777,7 +775,7 @@ export default function TenantDetailPage() {
                       override === false ? "bg-red-100 text-red-700" : "text-slate-400 hover:bg-red-50 hover:text-red-700"
                     )}
                   >
-                    <ToggleLeft className="w-3.5 h-3.5" /> חסום
+                    <ToggleLeft className="w-3.5 h-3.5" /> {t("featuresPanel.blocked")}
                   </button>
                 </div>
 
@@ -792,12 +790,12 @@ export default function TenantDetailPage() {
 
         {saveOverridesMutation.isError && (
           <div className="px-5 py-3 text-xs text-red-500 border-t border-red-50 bg-red-50/50">
-            שגיאה בשמירת השינויים. נסה שוב.
+            {t("errors.saveOverridesFailed")}
           </div>
         )}
         {saveOverridesMutation.isSuccess && !overridesDirty && (
           <div className="px-5 py-3 text-xs text-green-600 border-t border-green-50 bg-green-50/50">
-            ✓ השינויים נשמרו בהצלחה
+            {t("featuresPanel.saved")}
           </div>
         )}
       </div>
@@ -805,30 +803,30 @@ export default function TenantDetailPage() {
       {/* ── Members table ─────────────────────────────────────────────────── */}
       <div className="card overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-          <h2 className="font-semibold text-slate-900">חברי צוות ({tenant.members.length})</h2>
+          <h2 className="font-semibold text-slate-900">{t("members.title", { count: tenant.members.length })}</h2>
           <button
             onClick={() => setShowAddMember(true)}
             className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-orange-50 text-orange-700 hover:bg-orange-100 transition-colors"
           >
             <UserPlus className="w-3.5 h-3.5" />
-            הוסף עובד
+            {t("members.addMember")}
           </button>
         </div>
 
         {/* Add member form */}
         {showAddMember && (
           <div className="px-5 py-4 border-b border-slate-100 bg-orange-50/40">
-            <p className="text-xs font-semibold text-slate-700 mb-3">הוספת עובד חדש</p>
+            <p className="text-xs font-semibold text-slate-700 mb-3">{t("members.addFormTitle")}</p>
             <div className="grid grid-cols-2 gap-3 mb-3">
               <input
                 className="input text-sm"
-                placeholder="שם מלא"
+                placeholder={t("members.fullNamePlaceholder")}
                 value={newMemberName}
                 onChange={(e) => setNewMemberName(e.target.value)}
               />
               <input
                 className="input text-sm"
-                placeholder="אימייל"
+                placeholder={t("members.emailPlaceholder")}
                 type="email"
                 dir="ltr"
                 value={newMemberEmail}
@@ -836,7 +834,7 @@ export default function TenantDetailPage() {
               />
               <input
                 className="input text-sm"
-                placeholder="סיסמה זמנית (8+ תווים)"
+                placeholder={t("members.tempPasswordPlaceholder")}
                 type="text"
                 dir="ltr"
                 value={newMemberPassword}
@@ -847,9 +845,9 @@ export default function TenantDetailPage() {
                 value={newMemberRole}
                 onChange={(e) => setNewMemberRole(e.target.value as "owner" | "manager" | "user")}
               >
-                <option value="user">עובד</option>
-                <option value="manager">מנהל</option>
-                <option value="owner">בעלים</option>
+                <option value="user">{t("roles.user")}</option>
+                <option value="manager">{t("roles.manager")}</option>
+                <option value="owner">{t("roles.owner")}</option>
               </select>
             </div>
             <div className="flex gap-2">
@@ -863,17 +861,17 @@ export default function TenantDetailPage() {
                 disabled={addMemberMutation.isPending || !newMemberName || !newMemberEmail}
                 className="px-4 py-1.5 text-xs font-medium rounded-lg bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-50 transition-colors"
               >
-                {addMemberMutation.isPending ? "מוסיף..." : "הוסף"}
+                {addMemberMutation.isPending ? t("members.adding") : tc("actions.add")}
               </button>
               <button
                 onClick={() => { setShowAddMember(false); setNewMemberName(""); setNewMemberEmail(""); setNewMemberPassword(""); }}
                 className="px-4 py-1.5 text-xs font-medium rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors"
               >
-                ביטול
+                {tc("actions.cancel")}
               </button>
               {addMemberMutation.isError && (
                 <span className="text-xs text-red-500 self-center">
-                  {(addMemberMutation.error as Error)?.message ?? "שגיאה"}
+                  {(addMemberMutation.error as Error)?.message ?? t("errors.generic")}
                 </span>
               )}
             </div>
@@ -881,16 +879,16 @@ export default function TenantDetailPage() {
         )}
 
         {tenant.members.length === 0 ? (
-          <div className="px-5 py-8 text-center text-slate-400 text-sm">אין חברי צוות</div>
+          <div className="px-5 py-8 text-center text-slate-400 text-sm">{t("members.empty")}</div>
         ) : (
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-100">
-                <th className="table-header-cell">משתמש</th>
-                <th className="table-header-cell">תפקיד</th>
-                <th className="table-header-cell">תפקיד פלטפורמה</th>
-                <th className="table-header-cell">מצב</th>
-                <th className="table-header-cell">פעולות</th>
+                <th className="table-header-cell">{t("members.colUser")}</th>
+                <th className="table-header-cell">{t("members.colRole")}</th>
+                <th className="table-header-cell">{t("members.colPlatformRole")}</th>
+                <th className="table-header-cell">{t("members.colState")}</th>
+                <th className="table-header-cell">{t("members.colActions")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -918,9 +916,9 @@ export default function TenantDetailPage() {
                       value={member.role}
                       onChange={(e) => patchMemberMutation.mutate({ memberId: member.id, data: { role: e.target.value } })}
                     >
-                      <option value="user">עובד</option>
-                      <option value="manager">מנהל</option>
-                      <option value="owner">בעלים</option>
+                      <option value="user">{t("roles.user")}</option>
+                      <option value="manager">{t("roles.manager")}</option>
+                      <option value="owner">{t("roles.owner")}</option>
                     </select>
                   </td>
                   <td className="table-cell">
@@ -935,7 +933,7 @@ export default function TenantDetailPage() {
                   </td>
                   <td className="table-cell">
                     <span className={cn("badge", member.isActive ? "badge-success" : "badge-danger")}>
-                      {member.isActive ? "פעיל" : "מושהה"}
+                      {member.isActive ? t("status.active") : t("status.suspended")}
                     </span>
                   </td>
                   <td className="table-cell">
@@ -943,7 +941,7 @@ export default function TenantDetailPage() {
                       <button
                         onClick={() => patchMemberMutation.mutate({ memberId: member.id, data: { isActive: !member.isActive } })}
                         disabled={patchMemberMutation.isPending}
-                        title={member.isActive ? "השהה גישה" : "הפעל גישה"}
+                        title={member.isActive ? t("members.suspendAccess") : t("members.activateAccess")}
                         className={cn(
                           "p-1.5 rounded-lg transition-colors",
                           member.isActive
@@ -956,8 +954,8 @@ export default function TenantDetailPage() {
                       <button
                         onClick={() => { deleteMemberMutation.reset(); setMemberToRemove(member); }}
                         disabled={deleteMemberMutation.isPending}
-                        title="הסר מהעסק"
-                        aria-label="הסר מהעסק"
+                        title={t("members.removeFromBusiness")}
+                        aria-label={t("members.removeFromBusiness")}
                         className="p-1.5 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -986,15 +984,14 @@ export default function TenantDetailPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <h2 id="suspend-tenant-title" className="text-lg font-bold text-slate-900">
-              להשהות את העסק &quot;{tenant.name}&quot;?
+              {t("suspendDialog.title", { name: tenant.name })}
             </h2>
             <p className="text-sm text-slate-700 mt-2">
-              כל המשתמשים של העסק ({tenant.members.length}) יאבדו גישה למערכת עד שהעסק יופעל מחדש.
-              הנתונים נשמרים, וניתן להפעיל את העסק שוב בכל עת.
+              {t("suspendDialog.body", { count: tenant.members.length })}
             </p>
             {patchTenantMutation.isError && (
               <p className="text-xs text-red-600 mt-3">
-                {(patchTenantMutation.error as Error)?.message ?? "הפעולה נכשלה"}
+                {(patchTenantMutation.error as Error)?.message ?? t("errors.actionFailed")}
               </p>
             )}
             <div className="flex gap-2 mt-5">
@@ -1003,14 +1000,14 @@ export default function TenantDetailPage() {
                 disabled={patchTenantMutation.isPending}
                 className="btn-secondary flex-1 disabled:opacity-40"
               >
-                ביטול
+                {tc("actions.cancel")}
               </button>
               <button
                 onClick={() => patchTenantMutation.mutate({ status: "suspended" })}
                 disabled={patchTenantMutation.isPending}
                 className="btn-danger flex-1 disabled:opacity-40"
               >
-                {patchTenantMutation.isPending ? "משהה..." : "השהה עסק"}
+                {patchTenantMutation.isPending ? t("suspendDialog.suspending") : t("header.suspend")}
               </button>
             </div>
           </div>
@@ -1032,15 +1029,14 @@ export default function TenantDetailPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <h2 id="remove-member-title" className="text-lg font-bold text-slate-900">
-              להסיר את {memberToRemove.user.name} מהעסק?
+              {t("removeDialog.title", { name: memberToRemove.user.name })}
             </h2>
             <p className="text-sm text-slate-700 mt-2">
-              {memberToRemove.user.name} ({memberToRemove.user.email}) יוסר/תוסר מהצוות של &quot;{tenant.name}&quot;
-              ויאבד/תאבד גישה לעסק. כדי להחזיר את הגישה יהיה צורך להוסיף אותו/ה מחדש.
+              {t("removeDialog.body", { name: memberToRemove.user.name, email: memberToRemove.user.email, business: tenant.name })}
             </p>
             {deleteMemberMutation.isError && (
               <p className="text-xs text-red-600 mt-3">
-                {(deleteMemberMutation.error as Error)?.message ?? "ההסרה נכשלה"}
+                {(deleteMemberMutation.error as Error)?.message ?? t("errors.removeFailed")}
               </p>
             )}
             <div className="flex gap-2 mt-5">
@@ -1049,14 +1045,14 @@ export default function TenantDetailPage() {
                 disabled={deleteMemberMutation.isPending}
                 className="btn-secondary flex-1 disabled:opacity-40"
               >
-                ביטול
+                {tc("actions.cancel")}
               </button>
               <button
                 onClick={() => deleteMemberMutation.mutate(memberToRemove.id)}
                 disabled={deleteMemberMutation.isPending}
                 className="btn-danger flex-1 disabled:opacity-40"
               >
-                {deleteMemberMutation.isPending ? "מסיר..." : "הסר מהעסק"}
+                {deleteMemberMutation.isPending ? t("removeDialog.removing") : t("members.removeFromBusiness")}
               </button>
             </div>
           </div>

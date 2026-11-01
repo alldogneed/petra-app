@@ -2,6 +2,8 @@
 
 import { useRef, useState, type KeyboardEvent } from "react";
 import { Calendar, UserRound, Target, Building2 } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
+import { LOCALE_CONFIG, localeFromBusiness } from "@/lib/locale";
 import { BrowserShot, PhoneShot } from "./ProductShots";
 
 // Real screens from the demo business (marketing-drafts/landing-review-2026-10-14/app).
@@ -9,45 +11,41 @@ const TABS = [
   {
     id: "calendar",
     icon: Calendar,
-    label: "יומן תורים",
-    text: "רואים מה מחכה לכם היום, מה כבר תפוס ואיפה יש מקום.",
-    desktop: { src: "/landing/screens/demo-calendar.webp", alt: "יומן התורים של פטרה בתצוגה שבועית, עם טיפולים ושהיות פנסיון" },
-    phone: { src: "/landing/screens/phone-dashboard.webp", alt: "מסך הבית בנייד: פעולות מהירות ומשימות להיום" },
+    desktop: { src: "/landing/screens/demo-calendar.webp" },
+    phone: { src: "/landing/screens/phone-dashboard.webp" },
   },
   {
     id: "customer",
     icon: UserRound,
-    label: "כרטיס לקוח",
-    text: "פרטי הלקוח, החיה, התורים והתשלומים במקום אחד.",
-    desktop: { src: "/landing/screens/demo-customer.webp", alt: "כרטיס לקוח: פרטי קשר, חיית מחמד, תורים, תשלומים והזמנות" },
-    phone: { src: "/landing/screens/phone-customer.webp", alt: "כרטיס לקוח בנייד: פרטי קשר, תשלומים, מעקב חבילות וחיות מחמד" },
+    desktop: { src: "/landing/screens/demo-customer.webp" },
+    phone: { src: "/landing/screens/phone-customer.webp" },
   },
   {
     id: "leads",
     icon: Target,
-    label: "לידים",
-    text: "רואים מי פנה, עם מי כבר דיברתם ולמי צריך לחזור.",
-    desktop: { src: "/landing/screens/hero-leads.webp", alt: "לוח הלידים של פטרה לפי שלבים" },
-    phone: { src: "/landing/screens/phone-leads.webp", alt: "מסך הלידים בנייד עם סיכום לידים ושיעור המרה" },
+    desktop: { src: "/landing/screens/hero-leads.webp" },
+    phone: { src: "/landing/screens/phone-leads.webp" },
   },
   {
     id: "boarding",
     icon: Building2,
-    label: "פנסיון",
-    text: "רואים את תפוסת החדרים, מי בצ׳ק-אין ומי מאחר לצ׳ק-אאוט.",
-    desktop: { src: "/landing/screens/demo-boarding.webp", alt: "מפת חדרי הפנסיון: חדרים תפוסים ופנויים והתראות צ׳ק-אאוט" },
-    phone: { src: "/landing/screens/phone-boarding.webp", alt: "מסך הפנסיון בנייד" },
+    desktop: { src: "/landing/screens/demo-boarding.webp" },
+    phone: { src: "/landing/screens/phone-boarding.webp" },
   },
 ] as const;
 
 export function ProductDemo() {
+  const t = useTranslations("landing.productDemo");
+  const cfg = LOCALE_CONFIG[localeFromBusiness({ locale: useLocale() })];
   const [active, setActive] = useState(0);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const tab = TABS[active];
 
-  // Arrow keys move between tabs (RTL: ArrowLeft = next)
+  // Arrow keys move between tabs (RTL: ArrowLeft = next; LTR: ArrowRight = next)
+  const nextKey = cfg.dir === "rtl" ? "ArrowLeft" : "ArrowRight";
+  const prevKey = cfg.dir === "rtl" ? "ArrowRight" : "ArrowLeft";
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    const step = e.key === "ArrowLeft" ? 1 : e.key === "ArrowRight" ? -1 : 0;
+    const step = e.key === nextKey ? 1 : e.key === prevKey ? -1 : 0;
     if (!step) return;
     e.preventDefault();
     const next = (active + step + TABS.length) % TABS.length;
@@ -59,20 +57,20 @@ export function ProductDemo() {
     <div>
       <div
         role="tablist"
-        aria-label="מסכים מתוך המערכת"
+        aria-label={t("tablistLabel")}
         onKeyDown={onKeyDown}
         className="flex flex-wrap justify-center gap-2 mb-8"
       >
-        {TABS.map((t, i) => {
-          const Icon = t.icon;
+        {TABS.map((tb, i) => {
+          const Icon = tb.icon;
           const selected = i === active;
           return (
             <button
-              key={t.id}
+              key={tb.id}
               ref={(el) => { tabRefs.current[i] = el; }}
               type="button"
               role="tab"
-              id={`demo-tab-${t.id}`}
+              id={`demo-tab-${tb.id}`}
               aria-selected={selected}
               aria-controls={selected ? "demo-panel" : undefined}
               tabIndex={selected ? 0 : -1}
@@ -82,22 +80,22 @@ export function ProductDemo() {
               }`}
             >
               <Icon className="w-4 h-4 shrink-0" aria-hidden="true" />
-              {t.label}
+              {t(`tabs.${tb.id}.label`)}
             </button>
           );
         })}
       </div>
 
       <div role="tabpanel" id="demo-panel" aria-labelledby={`demo-tab-${tab.id}`}>
-        <p className="text-center text-lg text-slate-200 mb-8">{tab.text}</p>
+        <p className="text-center text-lg text-slate-200 mb-8">{t(`tabs.${tab.id}.text`)}</p>
 
         {/* Phone first on small screens: the desktop screen is unreadable at 375px */}
         {/* All tabs stay mounted in one grid cell and crossfade (.lp-stack/.lp-swap): no pop, no blank frame, no height jump */}
         <div className="md:hidden mx-auto w-[240px]">
           <div className="lp-stack">
-            {TABS.map((t, i) => (
-              <div key={t.id} className="lp-swap" data-active={i === active} aria-hidden={i !== active}>
-                <PhoneShot src={t.phone.src} alt={t.phone.alt} width={780} height={1580} />
+            {TABS.map((tb, i) => (
+              <div key={tb.id} className="lp-swap" data-active={i === active} aria-hidden={i !== active}>
+                <PhoneShot src={tb.phone.src} alt={t(`tabs.${tb.id}.phoneAlt`)} width={780} height={1580} />
               </div>
             ))}
           </div>
@@ -105,17 +103,17 @@ export function ProductDemo() {
 
         <div className="hidden md:block mx-auto max-w-[960px]">
           <div className="lp-stack">
-            {TABS.map((t, i) => (
-              <div key={t.id} className="lp-swap relative pb-10" data-active={i === active} aria-hidden={i !== active}>
+            {TABS.map((tb, i) => (
+              <div key={tb.id} className="lp-swap relative pb-10" data-active={i === active} aria-hidden={i !== active}>
                 <BrowserShot
-                  src={t.desktop.src}
-                  alt={t.desktop.alt}
-                  width={t.id === "leads" ? 2400 : 1920}
-                  height={t.id === "leads" ? 1283 : 1200}
+                  src={tb.desktop.src}
+                  alt={t(`tabs.${tb.id}.desktopAlt`)}
+                  width={tb.id === "leads" ? 2400 : 1920}
+                  height={tb.id === "leads" ? 1283 : 1200}
                   sizes="(min-width: 1024px) 960px, 100vw"
                 />
-                <div className="absolute -bottom-2 -left-4 w-[170px]">
-                  <PhoneShot src={t.phone.src} alt={t.phone.alt} width={780} height={1580} />
+                <div className="absolute -bottom-2 -end-4 w-[170px]">
+                  <PhoneShot src={tb.phone.src} alt={t(`tabs.${tb.id}.phoneAlt`)} width={780} height={1580} />
                 </div>
               </div>
             ))}

@@ -4,9 +4,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useRef } from "react";
 import { X, Upload, FileText, Trash2, Download, FolderOpen, File, FileCheck, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { ConfirmDeleteModal } from "@/components/ui/ConfirmDeleteModal";
 import { cn } from "@/lib/utils";
-import { DOC_CATEGORY_COLORS, DOC_CATEGORY_LABELS } from "./SendContractSection";
+import { DOC_CATEGORY_COLORS, DOC_CATEGORY_IDS } from "./SendContractSection";
 import { CustomerDoc, MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, compressImage, formatFileSize } from "./types";
 
 export function getDocIcon(mimeType: string) {
@@ -22,6 +24,11 @@ export function CustomerDocumentsSection({
   customerId: string;
   documentsJson: string;
 }) {
+  const t = useTranslations("customers.customerDocumentsSection");
+  const tc = useTranslations("common");
+  const tDoc = useTranslations("customers.sendContractSection.docCategories");
+  const docCategoryLabel = (id: string) => (id && tDoc.has(id) ? tDoc(id) : id);
+  const { locale } = useBusinessLocale();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -50,7 +57,7 @@ export function CustomerDocumentsSection({
     mutationFn: (docId: string) =>
       fetch(`/api/customers/${customerId}/documents?docId=${docId}`, {
         method: "DELETE",
-      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה במחיקה"); return d; }),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || t("errorDelete")); return d; }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customerDocs", customerId] });
       queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
@@ -71,8 +78,8 @@ export function CustomerDocumentsSection({
         body: fd,
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "שגיאה בהעלאת קובץ" }));
-        toast.error(err.error || "שגיאה בהעלאת קובץ");
+        const err = await res.json().catch(() => ({ error: t("errorUpload") }));
+        toast.error(err.error || t("errorUpload"));
         anyFailed = true;
       }
     }
@@ -103,7 +110,7 @@ export function CustomerDocumentsSection({
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-base font-bold text-petra-text flex items-center gap-2">
           <FolderOpen className="w-4 h-4 text-petra-muted" />
-          מסמכים ({docs.length})
+          {t("title", { count: docs.length })}
         </h2>
         <button
           onClick={() => setShowUploadForm((v) => !v)}
@@ -115,7 +122,7 @@ export function CustomerDocumentsSection({
           )}
         >
           <Upload className="w-3.5 h-3.5" />
-          העלאת מסמך
+          {t("uploadDocument")}
         </button>
       </div>
 
@@ -125,10 +132,10 @@ export function CustomerDocumentsSection({
           {/* Category selector */}
           <div>
             <label className="text-xs font-medium text-stone-600 mb-1.5 block">
-              סוג מסמך
+              {t("docType")}
             </label>
             <div className="flex flex-wrap gap-1.5">
-              {Object.entries(DOC_CATEGORY_LABELS).map(([key, label]) => (
+              {DOC_CATEGORY_IDS.map((key) => (
                 <button
                   key={key}
                   type="button"
@@ -140,7 +147,7 @@ export function CustomerDocumentsSection({
                       : "bg-white text-petra-muted border-slate-200 hover:border-amber-300 hover:text-amber-700"
                   )}
                 >
-                  {label}
+                  {docCategoryLabel(key)}
                 </button>
               ))}
             </div>
@@ -149,13 +156,13 @@ export function CustomerDocumentsSection({
           {/* Optional label */}
           <div>
             <label className="text-xs font-medium text-stone-600 mb-1 block">
-              שם מסמך (אופציונלי)
+              {t("docName")}
             </label>
             <input
               className="input text-sm"
               value={uploadLabel}
               onChange={(e) => setUploadLabel(e.target.value)}
-              placeholder="לדוגמה: חוזה אילוף ינואר 2026"
+              placeholder={t("docNamePlaceholder")}
             />
           </div>
 
@@ -165,12 +172,12 @@ export function CustomerDocumentsSection({
             onClick={() => fileInputRef.current?.click()}
           >
             <Upload className="w-5 h-5 text-stone-400 mx-auto mb-1" />
-            <p className="text-xs text-petra-muted">לחץ לבחירת קבצים</p>
+            <p className="text-xs text-petra-muted">{t("clickToPick")}</p>
             <p className="text-[10px] text-slate-400 mt-0.5">
-              PDF, JPG, PNG, DOC, XLS — עד {MAX_UPLOAD_MB}MB לקובץ
+              {t("allowedTypes", { mb: MAX_UPLOAD_MB })}
             </p>
             <p className="text-[10px] text-emerald-600 mt-0.5">
-              תמונות מכווצות אוטומטית לפני ההעלאה
+              {t("imagesCompressed")}
             </p>
           </div>
           <input
@@ -186,7 +193,7 @@ export function CustomerDocumentsSection({
               const oversized = compressed.filter((f) => f.size > MAX_UPLOAD_BYTES);
               setPendingFiles((prev) => [...prev, ...valid]);
               if (oversized.length > 0) {
-                alert(`${oversized.length} קובץ/ים חורגים מגודל מקסימלי של ${MAX_UPLOAD_MB}MB ולא נוספו.`);
+                alert(t("oversized", { count: oversized.length, mb: MAX_UPLOAD_MB }));
               }
               e.target.value = "";
             }}
@@ -229,7 +236,7 @@ export function CustomerDocumentsSection({
               }}
               className="text-xs text-petra-muted hover:text-petra-text px-3 py-1.5 rounded-lg hover:bg-amber-100 transition-colors"
             >
-              ביטול
+              {tc("actions.cancel")}
             </button>
             <button
               onClick={handleUpload}
@@ -237,8 +244,10 @@ export function CustomerDocumentsSection({
               className="btn-primary text-xs py-1.5 px-4"
             >
               {isUploading
-                ? "מעלה..."
-                : `העלה ${pendingFiles.length > 0 ? `(${pendingFiles.length})` : ""}`}
+                ? t("uploading")
+                : pendingFiles.length > 0
+                  ? t("uploadWithCount", { count: pendingFiles.length })
+                  : t("upload")}
             </button>
           </div>
         </div>
@@ -256,7 +265,7 @@ export function CustomerDocumentsSection({
                 : "bg-white text-petra-muted border-slate-200 hover:border-stone-300"
             )}
           >
-            הכל ({docs.length})
+            {t("filterAll", { count: docs.length })}
           </button>
           {usedCategories.map((cat) => (
             <button
@@ -271,7 +280,7 @@ export function CustomerDocumentsSection({
                   : "bg-white text-petra-muted border-slate-200 hover:border-stone-300"
               )}
             >
-              {DOC_CATEGORY_LABELS[cat] || cat} ({categoryCounts[cat]})
+              {docCategoryLabel(cat)} ({categoryCounts[cat]})
             </button>
           ))}
         </div>
@@ -281,9 +290,9 @@ export function CustomerDocumentsSection({
       {docs.length === 0 ? (
         <div className="empty-state py-8">
           <FolderOpen className="empty-state-icon w-8 h-8" />
-          <p className="text-sm text-petra-muted mt-2">אין מסמכים עדיין</p>
+          <p className="text-sm text-petra-muted mt-2">{t("emptyTitle")}</p>
           <p className="text-xs text-slate-400 mt-1">
-            חוזים, חשבוניות, קבלות ועוד
+            {t("emptyHint")}
           </p>
           {!showUploadForm && (
             <button
@@ -291,13 +300,13 @@ export function CustomerDocumentsSection({
               onClick={() => setShowUploadForm(true)}
             >
               <Upload className="w-3.5 h-3.5" />
-              העלה מסמך ראשון
+              {t("uploadFirst")}
             </button>
           )}
         </div>
       ) : filteredDocs.length === 0 ? (
         <p className="text-sm text-petra-muted py-4 text-center">
-          אין מסמכים בקטגוריה זו
+          {t("emptyCategory")}
         </p>
       ) : (
         <div className="space-y-2">
@@ -323,12 +332,12 @@ export function CustomerDocumentsSection({
                           DOC_CATEGORY_COLORS.other
                       )}
                     >
-                      {DOC_CATEGORY_LABELS[doc.category] || doc.category}
+                      {docCategoryLabel(doc.category)}
                     </span>
                   </div>
                   <p className="text-[10px] text-petra-muted mt-0.5">
                     {formatFileSize(doc.size)} ·{" "}
-                    {new Date(doc.createdAt).toLocaleDateString("he-IL")}
+                    {new Date(doc.createdAt).toLocaleDateString(locale)}
                   </p>
                 </div>
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -337,14 +346,14 @@ export function CustomerDocumentsSection({
                     target="_blank"
                     rel="noopener noreferrer"
                     className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-amber-100 text-petra-muted hover:text-amber-700 transition-colors"
-                    title="הורד"
+                    title={t("download")}
                   >
                     <Download className="w-3.5 h-3.5" />
                   </a>
                   <button
                     onClick={() => setDeletingDoc({ id: doc.id, name: doc.name })}
                     className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-petra-muted hover:text-red-600 transition-colors"
-                    title="מחק"
+                    title={tc("actions.delete")}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -365,9 +374,9 @@ export function CustomerDocumentsSection({
             });
           }
         }}
-        title="מחיקת מסמך"
+        title={t("deleteTitle")}
         confirmText={deletingDoc?.name ?? ""}
-        description="מחיקת המסמך תסיר אותו לצמיתות. פעולה זו אינה ניתנת לביטול."
+        description={t("deleteDescription")}
         loading={deleteMutation.isPending}
       />
     </div>

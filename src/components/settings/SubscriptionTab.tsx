@@ -1,5 +1,6 @@
 "use client";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import { CreditCard } from "lucide-react";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { fetchJSON } from "@/lib/utils";
@@ -9,6 +10,7 @@ import { SettingsSectionHeader } from "./settings-ui";
 import type { Business } from "./shared";
 
 export function SubscriptionTab() {
+  const t = useTranslations("settings.subscriptionTab");
   const { data: biz, isLoading } = useQuery<Business>({
     queryKey: BUSINESS_SETTINGS_QUERY_KEY,
     queryFn: () => fetchJSON<Business>("/api/settings"),
@@ -19,7 +21,7 @@ export function SubscriptionTab() {
 
   return (
     <div className="max-w-xl">
-      <SettingsSectionHeader icon={CreditCard} title="מנוי וחיוב" description="המסלול הנוכחי, סטטוס החיוב ושדרוג" />
+      <SettingsSectionHeader icon={CreditCard} title={t("title")} description={t("description")} />
       <SubscriptionCard
         tier={biz.tier ?? "free"}
         customerCount={biz._count?.customers ?? 0}

@@ -11,12 +11,15 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, ClipboardList, Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { CustomerPicker, type PickerCustomer } from "@/components/customers/CustomerPicker";
-import { cn, fetchJSON, formatCurrency, formatDate } from "@/lib/utils";
+import { cn, fetchJSON } from "@/lib/utils";
+import { formatCurrency, formatDate, currencySymbol } from "@/lib/format";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { PROGRAM_STATUS_MAP } from "@/lib/training-programs";
 import { triggerLimitModal } from "@/lib/limit-reached";
 
@@ -38,6 +41,8 @@ function completedCount(p: GenericProgram) {
 }
 
 export function GenericProgramsView() {
+  const t = useTranslations("training.genericPrograms");
+  const { locale, currency } = useBusinessLocale();
   const qc = useQueryClient();
   const [tab, setTab] = useState<Tab>("active");
   const [showNew, setShowNew] = useState(false);
@@ -67,27 +72,27 @@ export function GenericProgramsView() {
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["training-programs"] });
-      toast.success("התוכנית הסתיימה");
+      toast.success(t("toasts.finished"));
     },
-    onError: (e: Error) => toast.error(e.message || "שגיאה בעדכון התוכנית"),
+    onError: (e: Error) => toast.error(e.message || t("toasts.finishError")),
   });
 
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <h1 className="page-title">תוכניות</h1>
-          <p className="text-sm text-petra-muted">חבילות מפגשים ותוכניות ללקוחות · {activeCount} פעילות</p>
+          <h1 className="page-title">{t("title")}</h1>
+          <p className="text-sm text-petra-muted">{t("subtitle", { count: activeCount })}</p>
         </div>
         <button className="btn-primary" onClick={() => setShowNew(true)}>
           <Plus className="w-4 h-4" />
-          תוכנית חדשה
+          {t("newProgram")}
         </button>
       </div>
 
       <div className="flex items-center gap-2 flex-wrap">
         <div className="flex gap-1 p-1 rounded-xl bg-slate-100 w-fit" role="tablist">
-          {([["active", "פעילות"], ["done", "הסתיימו"]] as const).map(([key, label]) => (
+          {(["active", "done"] as const).map((key) => (
             <button
               key={key}
               role="tab"
@@ -98,13 +103,13 @@ export function GenericProgramsView() {
                 tab === key ? "bg-white text-petra-text shadow-sm" : "text-petra-muted hover:text-petra-text"
               )}
             >
-              {label}
+              {t(`tabs.${key}`)}
             </button>
           ))}
         </div>
         <input
           className="input max-w-xs"
-          placeholder="חיפוש לפי תוכנית או לקוח..."
+          placeholder={t("searchPlaceholder")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -116,10 +121,10 @@ export function GenericProgramsView() {
         <div className="card p-10 text-center">
           <ClipboardList className="w-8 h-8 text-petra-muted mx-auto mb-3" />
           <h3 className="text-base font-semibold text-petra-text mb-1">
-            {tab === "active" ? "אין תוכניות פעילות" : "אין תוכניות שהסתיימו"}
+            {tab === "active" ? t("empty.active") : t("empty.done")}
           </h3>
           <p className="text-sm text-petra-muted">
-            תוכנית נפתחת כאן, או אוטומטית מהזמנה של חבילת מפגשים.
+            {t("empty.hint")}
           </p>
         </div>
       ) : (
@@ -148,9 +153,9 @@ export function GenericProgramsView() {
                 </div>
 
                 <div className="text-xs text-petra-muted flex items-center gap-3 flex-wrap">
-                  <span>{total > 0 ? `${done}/${total} מפגשים` : `${done} מפגשים`}</span>
-                  <span>התחלה: {formatDate(p.startDate)}</span>
-                  {p.price != null && <span>{formatCurrency(p.price)}</span>}
+                  <span>{total > 0 ? t("card.sessionsOfTotal", { done, total }) : t("card.sessions", { done })}</span>
+                  <span>{t("card.start", { date: formatDate(p.startDate, { locale }) })}</span>
+                  {p.price != null && <span>{formatCurrency(p.price, { locale, currency })}</span>}
                 </div>
 
                 {pct !== null && (
@@ -162,7 +167,7 @@ export function GenericProgramsView() {
                 {["ACTIVE", "PAUSED"].includes(p.status) && (
                   <div className="flex gap-2 pt-1">
                     <button className="btn-secondary text-xs flex-1" onClick={() => setLogFor(p)}>
-                      תיעוד מפגש
+                      {t("card.logSession")}
                     </button>
                     <button
                       className="btn-ghost text-xs"
@@ -170,7 +175,7 @@ export function GenericProgramsView() {
                       onClick={() => finish.mutate(p.id)}
                     >
                       <CheckCircle2 className="w-3.5 h-3.5" />
-                      סיום תוכנית
+                      {t("card.finish")}
                     </button>
                   </div>
                 )}
@@ -187,6 +192,9 @@ export function GenericProgramsView() {
 }
 
 function NewProgramModal({ onClose }: { onClose: () => void }) {
+  const t = useTranslations("training.genericPrograms");
+  const tc = useTranslations("common");
+  const { locale, currency } = useBusinessLocale();
   const qc = useQueryClient();
   const [customer, setCustomer] = useState<PickerCustomer | null>(null);
   const [name, setName] = useState("");
@@ -210,12 +218,12 @@ function NewProgramModal({ onClose }: { onClose: () => void }) {
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["training-programs"] });
-      toast.success("התוכנית נוצרה");
+      toast.success(t("newModal.created"));
       onClose();
     },
     onError: (e: Error & { code?: string }) => {
       if (e.code === "LIMIT_REACHED") triggerLimitModal(e.message);
-      else toast.error(e.message || "שגיאה ביצירת התוכנית");
+      else toast.error(e.message || t("newModal.createError"));
     },
   });
 
@@ -226,14 +234,14 @@ function NewProgramModal({ onClose }: { onClose: () => void }) {
       <div className="modal-backdrop" onClick={onClose} />
       <div className="modal-content max-w-md mx-4 p-6" role="dialog" aria-modal="true" aria-labelledby="new-program-title">
         <div className="flex items-center justify-between mb-5">
-          <h2 id="new-program-title" className="text-lg font-bold text-petra-text">תוכנית חדשה</h2>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted" aria-label="סגור">
+          <h2 id="new-program-title" className="text-lg font-bold text-petra-text">{t("newProgram")}</h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted" aria-label={tc("actions.close")}>
             <X className="w-4 h-4" />
           </button>
         </div>
         <div className="space-y-4">
           <div>
-            <label className="label">לקוח *</label>
+            <label className="label">{t("newModal.client")}</label>
             <CustomerPicker
               value={customer?.id ?? null}
               selectedCustomer={customer}
@@ -242,24 +250,24 @@ function NewProgramModal({ onClose }: { onClose: () => void }) {
             />
           </div>
           <div>
-            <label className="label">שם התוכנית *</label>
-            <input className="input w-full" placeholder="לדוגמה: חבילת 10 מפגשים" value={name} onChange={(e) => setName(e.target.value)} />
+            <label className="label">{t("newModal.name")}</label>
+            <input className="input w-full" placeholder={t("newModal.namePlaceholder")} value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">כמות מפגשים</label>
+              <label className="label">{t("newModal.totalSessions")}</label>
               <input className="input w-full" type="number" min={1} max={1000} dir="ltr" value={totalSessions} onChange={(e) => setTotalSessions(e.target.value)} />
             </div>
             <div>
-              <label className="label">מחיר (₪)</label>
+              <label className="label">{t("newModal.price", { symbol: currencySymbol({ locale, currency }) })}</label>
               <input className="input w-full" type="number" min={0} dir="ltr" value={price} onChange={(e) => setPrice(e.target.value)} />
             </div>
           </div>
           <div className="flex gap-3 pt-1">
             <button className="btn-primary flex-1" disabled={!canSave} onClick={() => create.mutate()}>
-              {create.isPending ? "שומר..." : "צור תוכנית"}
+              {create.isPending ? tc("progress.saving") : t("newModal.submit")}
             </button>
-            <button className="btn-secondary" onClick={onClose}>ביטול</button>
+            <button className="btn-secondary" onClick={onClose}>{tc("actions.cancel")}</button>
           </div>
         </div>
       </div>
@@ -268,6 +276,9 @@ function NewProgramModal({ onClose }: { onClose: () => void }) {
 }
 
 function LogSessionModal({ program, onClose }: { program: GenericProgram; onClose: () => void }) {
+  const t = useTranslations("training.genericPrograms");
+  const tc = useTranslations("common");
+  const { cfg } = useBusinessLocale();
   const qc = useQueryClient();
   const today = new Date().toISOString().slice(0, 10);
   const [date, setDate] = useState(today);
@@ -288,10 +299,10 @@ function LogSessionModal({ program, onClose }: { program: GenericProgram; onClos
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["training-programs"] });
       qc.invalidateQueries({ queryKey: ["customer"] });
-      toast.success("המפגש תועד");
+      toast.success(t("logModal.logged"));
       onClose();
     },
-    onError: (e: Error) => toast.error(e.message || "שגיאה בתיעוד המפגש"),
+    onError: (e: Error) => toast.error(e.message || t("logModal.logError")),
   });
 
   return (
@@ -299,25 +310,25 @@ function LogSessionModal({ program, onClose }: { program: GenericProgram; onClos
       <div className="modal-backdrop" onClick={onClose} />
       <div className="modal-content max-w-sm mx-4 p-6" role="dialog" aria-modal="true" aria-labelledby="log-session-title">
         <div className="flex items-center justify-between mb-5">
-          <h2 id="log-session-title" className="text-lg font-bold text-petra-text">תיעוד מפגש — {program.name}</h2>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted" aria-label="סגור">
+          <h2 id="log-session-title" className="text-lg font-bold text-petra-text">{t("logModal.title", { name: program.name })}</h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted" aria-label={tc("actions.close")}>
             <X className="w-4 h-4" />
           </button>
         </div>
         <div className="space-y-4">
           <div>
-            <label className="label">תאריך</label>
-            <input className="input w-full" type="date" lang="he" value={date} max={today} onChange={(e) => setDate(e.target.value)} />
+            <label className="label">{t("logModal.date")}</label>
+            <input className="input w-full" type="date" lang={cfg.lang} value={date} max={today} onChange={(e) => setDate(e.target.value)} />
           </div>
           <div>
-            <label className="label">סיכום (אופציונלי)</label>
+            <label className="label">{t("logModal.summary")}</label>
             <textarea className="input w-full min-h-[80px]" maxLength={5000} value={summary} onChange={(e) => setSummary(e.target.value)} />
           </div>
           <div className="flex gap-3">
             <button className="btn-primary flex-1" disabled={log.isPending || !date} onClick={() => log.mutate()}>
-              {log.isPending ? "שומר..." : "שמור מפגש"}
+              {log.isPending ? tc("progress.saving") : t("logModal.submit")}
             </button>
-            <button className="btn-secondary" onClick={onClose}>ביטול</button>
+            <button className="btn-secondary" onClick={onClose}>{tc("actions.cancel")}</button>
           </div>
         </div>
       </div>

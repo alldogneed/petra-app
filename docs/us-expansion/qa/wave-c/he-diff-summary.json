@@ -1,0 +1,143 @@
+{
+  "threshold_pct": 0.5,
+  "results": {
+    "availability-desktop.png": {
+      "pct": 0.001,
+      "ok": true
+    },
+    "availability-mobile.png": {
+      "pct": 0.003,
+      "ok": true
+    },
+    "business-admin-desktop.png": {
+      "pct": 0.002,
+      "ok": true
+    },
+    "business-admin-mobile.png": {
+      "pct": 0.004,
+      "ok": true
+    },
+    "intake-forms-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "intake-forms-mobile.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "messages-desktop.png": {
+      "pct": 0.001,
+      "ok": true
+    },
+    "messages-mobile.png": {
+      "pct": 0.002,
+      "ok": true
+    },
+    "onboarding-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "onboarding-mobile.png": {
+      "pct": 0.039,
+      "ok": true
+    },
+    "scheduled-messages-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "scheduled-messages-mobile.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "settings-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "settings-mobile.png": {
+      "pct": 0.006,
+      "ok": true
+    },
+    "settings_tab_ai-agents-desktop.png": {
+      "pct": 0.003,
+      "ok": true
+    },
+    "settings_tab_ai-agents-mobile.png": {
+      "pct": 0.017,
+      "ok": true
+    },
+    "settings_tab_boarding-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "settings_tab_boarding-mobile.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "settings_tab_booking-desktop.png": {
+      "pct": 0.001,
+      "ok": true
+    },
+    "settings_tab_booking-mobile.png": {
+      "pct": 0.002,
+      "ok": true
+    },
+    "settings_tab_data-desktop.png": {
+      "pct": 0.002,
+      "ok": true
+    },
+    "settings_tab_data-mobile.png": {
+      "pct": 0.005,
+      "ok": true
+    },
+    "settings_tab_integrations-desktop.png": {
+      "pct": 0.005,
+      "ok": true
+    },
+    "settings_tab_integrations-mobile.png": {
+      "pct": 0.005,
+      "ok": true
+    },
+    "settings_tab_messages-desktop.png": {
+      "pct": 0.001,
+      "ok": true
+    },
+    "settings_tab_messages-mobile.png": {
+      "pct": 0.002,
+      "ok": true
+    },
+    "settings_tab_payments-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "settings_tab_payments-mobile.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "settings_tab_security-desktop.png": {
+      "pct": 0.489,
+      "ok": false,
+      "note": "size (1440, 3395) -> (1440, 3542)"
+    },
+    "settings_tab_security-mobile.png": {
+      "pct": 1.133,
+      "ok": false,
+      "note": "size (390, 4489) -> (390, 4684)"
+    },
+    "settings_tab_subscription-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "settings_tab_subscription-mobile.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "settings_tab_team-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "settings_tab_team-mobile.png": {
+      "pct": 0.007,
+      "ok": true
+    }
+  }
+}

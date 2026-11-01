@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import { FileText, Globe, Megaphone, UserCheck, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -41,18 +42,19 @@ function SourceRowsTable({
   showMoney: boolean;
   firstColumn: string;
 }) {
+  const t = useTranslations("leads.reportTables");
   return (
     <div className="overflow-x-auto -mx-2">
       <table className="w-full text-sm">
         <thead>
           <tr className="text-xs text-petra-muted border-b border-slate-100">
             <th className={th}>{firstColumn}</th>
-            <th className={th}>{'סה"כ'}</th>
-            <th className={th}>נסגרו</th>
-            <th className={th}>אבדו</th>
-            <th className={th}>פתוחים</th>
-            <th className={th}>שיעור סגירה</th>
-            {showMoney && <th className={th}>ערך שנסגר</th>}
+            <th className={th}>{t("columns.total")}</th>
+            <th className={th}>{t("columns.won")}</th>
+            <th className={th}>{t("columns.lost")}</th>
+            <th className={th}>{t("columns.open")}</th>
+            <th className={th}>{t("columns.conversionRate")}</th>
+            {showMoney && <th className={th}>{t("columns.wonValue")}</th>}
           </tr>
         </thead>
         <tbody>
@@ -79,25 +81,27 @@ function SourceRowsTable({
 }
 
 export function SourceTables({ report }: { report: SalesReport }) {
+  const t = useTranslations("leads.reportTables");
+  const tl = useTranslations("leads");
   const showMoney = report.canSeeMoney && [...report.bySource, ...report.byTrafficSource].some((r) => (r.wonValue ?? 0) > 0);
   return (
     <>
       {report.bySource.length > 0 && (
         <ReportCard
-          title="לפי מקור ליד"
+          title={t("bySource.title")}
           icon={<Megaphone className="w-4 h-4 text-brand-500" />}
-          hint="ערוץ הקליטה שנבחר בליד (גוגל, אינסטגרם, המלצה…)"
+          hint={t("bySource.hint")}
         >
-          <SourceRowsTable rows={report.bySource} label={sourceLabel} showMoney={showMoney} firstColumn="מקור" />
+          <SourceRowsTable rows={report.bySource} label={(id) => sourceLabel(id, tl)} showMoney={showMoney} firstColumn={t("bySource.firstColumn")} />
         </ReportCard>
       )}
       {report.byTrafficSource.length > 0 && (
         <ReportCard
-          title="לפי מקור תנועה"
+          title={t("byTrafficSource.title")}
           icon={<Globe className="w-4 h-4 text-sky-600" />}
-          hint="מאיפה הגיע המבקר לאתר (UTM / מפנה) — לידים מהאתר"
+          hint={t("byTrafficSource.hint")}
         >
-          <SourceRowsTable rows={report.byTrafficSource} label={trafficLabel} showMoney={showMoney} firstColumn="מקור תנועה" />
+          <SourceRowsTable rows={report.byTrafficSource} label={(id) => trafficLabel(id, tl)} showMoney={showMoney} firstColumn={t("byTrafficSource.firstColumn")} />
         </ReportCard>
       )}
     </>
@@ -105,17 +109,18 @@ export function SourceTables({ report }: { report: SalesReport }) {
 }
 
 export function LandingPageTable({ report }: { report: SalesReport }) {
+  const t = useTranslations("leads.reportTables");
   if (report.byLandingPage.length === 0) return null;
   return (
-    <ReportCard title="לפי עמוד נחיתה" icon={<FileText className="w-4 h-4 text-violet-500" />}>
+    <ReportCard title={t("byLandingPage.title")} icon={<FileText className="w-4 h-4 text-violet-500" />}>
       <div className="overflow-x-auto -mx-2">
         <table className="w-full text-sm table-fixed min-w-[320px]">
           <thead>
             <tr className="text-xs text-petra-muted border-b border-slate-100">
-              <th className={cn(th, "w-1/2")}>עמוד</th>
-              <th className={th}>{'סה"כ'}</th>
-              <th className={th}>נסגרו</th>
-              <th className={th}>שיעור</th>
+              <th className={cn(th, "w-1/2")}>{t("byLandingPage.page")}</th>
+              <th className={th}>{t("columns.total")}</th>
+              <th className={th}>{t("columns.won")}</th>
+              <th className={th}>{t("columns.rate")}</th>
             </tr>
           </thead>
           <tbody>
@@ -139,29 +144,30 @@ export function LandingPageTable({ report }: { report: SalesReport }) {
 }
 
 export function ClosersTable({ report }: { report: SalesReport }) {
+  const t = useTranslations("leads.reportTables");
   if (report.byUser.length === 0) return null;
   const showMoney = report.canSeeMoney && report.byUser.some((u) => (u.wonValue ?? 0) > 0);
   return (
     <ReportCard
-      title="לפי סוגר"
+      title={t("byCloser.title")}
       icon={<UserCheck className="w-4 h-4 text-emerald-600" />}
-      hint="מי העביר את הליד לנסגר / אבד"
+      hint={t("byCloser.hint")}
     >
       <div className="overflow-x-auto -mx-2">
         <table className="w-full text-sm">
           <thead>
             <tr className="text-xs text-petra-muted border-b border-slate-100">
-              <th className={th}>משתמש</th>
-              <th className={th}>נסגרו</th>
-              <th className={th}>אבדו</th>
-              <th className={th}>שיעור סגירה</th>
-              {showMoney && <th className={th}>ערך שנסגר</th>}
+              <th className={th}>{t("byCloser.user")}</th>
+              <th className={th}>{t("columns.won")}</th>
+              <th className={th}>{t("columns.lost")}</th>
+              <th className={th}>{t("columns.conversionRate")}</th>
+              {showMoney && <th className={th}>{t("columns.wonValue")}</th>}
             </tr>
           </thead>
           <tbody>
             {report.byUser.map((u) => (
               <tr key={u.userId} className="border-b border-slate-50 last:border-0">
-                <td className={cn(td, "text-petra-text")}>{u.userId === "unknown" ? "לא תועד" : u.name}</td>
+                <td className={cn(td, "text-petra-text")}>{u.userId === "unknown" ? t("byCloser.notRecorded") : u.name}</td>
                 <td className={cn(td, "text-green-700 font-semibold")}>{u.won}</td>
                 <td className={cn(td, "text-red-600")}>{u.lost}</td>
                 <td className={td}><RateBadge rate={u.conversionRate} /></td>
@@ -176,12 +182,13 @@ export function ClosersTable({ report }: { report: SalesReport }) {
 }
 
 export function LostReasonsCard({ report }: { report: SalesReport }) {
+  const t = useTranslations("leads.reportTables");
   const data = report.lostReasons.filter((r) => r.count > 0);
   if (data.length === 0) return null;
   const total = data.reduce((s, r) => s + r.count, 0);
 
   return (
-    <ReportCard title="סיבות אובדן" icon={<XCircle className="w-4 h-4 text-red-500" />}>
+    <ReportCard title={t("lostReasons.title")} icon={<XCircle className="w-4 h-4 text-red-500" />}>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <ResponsiveContainer width="100%" height={180}>
           <PieChart>
@@ -190,7 +197,7 @@ export function LostReasonsCard({ report }: { report: SalesReport }) {
                 <Cell key={r.code || i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
               ))}
             </Pie>
-            <Tooltip formatter={(value) => [`${value ?? 0} לידים`, ""]} />
+            <Tooltip formatter={(value) => [t("lostReasons.tooltip", { n: String(value ?? 0), count: Number(value ?? 0) }), ""]} />
           </PieChart>
         </ResponsiveContainer>
         <div className="space-y-2 flex flex-col justify-center min-w-0">

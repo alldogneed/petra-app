@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import {
   ArrowLeftRight,
   CheckSquare,
@@ -20,7 +21,8 @@ import { PetraLoader } from "@/components/ui/PetraLoader";
 import { cn, fetchJSON } from "@/lib/utils";
 import { LEAD_SOURCES, LOST_REASON_CODES } from "@/lib/constants";
 import { TRAFFIC_SOURCE_LABELS, isTrafficSource } from "@/lib/lead-attribution";
-import { formatIls } from "@/lib/lead-deal-value";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
+import { formatCurrency } from "@/lib/format";
 import {
   SALES_JOURNAL_KIND_LABELS,
   TASK_STATUS_LABELS,
@@ -49,9 +51,7 @@ export function useCustomerSalesHistory(customerId: string) {
 
 // ─── Formatting helpers ──────────────────────────────────────────────────────
 
-const TZ = "Asia/Jerusalem";
-const DATE_FMT = new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: TZ });
-const TIME_FMT = new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: TZ });
+type SalesT = ReturnType<typeof useTranslations<"customers.customerSalesHistory">>;
 
 function toDate(iso: string | null | undefined): Date | null {
   if (!iso) return null;
@@ -59,14 +59,26 @@ function toDate(iso: string | null | undefined): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-function fmtDate(iso: string | null | undefined): string {
-  const d = toDate(iso);
-  return d ? DATE_FMT.format(d) : "";
-}
-
-function fmtDateTime(iso: string | null | undefined): string {
-  const d = toDate(iso);
-  return d ? `${DATE_FMT.format(d)} · ${TIME_FMT.format(d)}` : "";
+/**
+ * Date "dd/mm/yyyy" + time "HH:mm" in the business timezone (he-IL keeps the en-GB
+ * numeric layout it always had; other locales use their own order / hour cycle).
+ */
+function useSalesDateFormatters() {
+  const { locale, timezone, cfg } = useBusinessLocale();
+  return useMemo(() => {
+    const fmtLocale = cfg.lang === "he" ? "en-GB" : locale;
+    const dateFmt = new Intl.DateTimeFormat(fmtLocale, { day: "2-digit", month: "2-digit", year: "numeric", timeZone: timezone });
+    const timeFmt = new Intl.DateTimeFormat(fmtLocale, { hour: "2-digit", minute: "2-digit", hourCycle: cfg.hourCycle, timeZone: timezone });
+    const fmtDate = (iso: string | null | undefined): string => {
+      const d = toDate(iso);
+      return d ? dateFmt.format(d) : "";
+    };
+    const fmtDateTime = (iso: string | null | undefined): string => {
+      const d = toDate(iso);
+      return d ? `${dateFmt.format(d)} · ${timeFmt.format(d)}` : "";
+    };
+    return { fmtDate, fmtDateTime };
+  }, [locale, timezone, cfg]);
 }
 
 function daysBetween(fromIso: string, toIso: string | null): number | null {
@@ -76,10 +88,10 @@ function daysBetween(fromIso: string, toIso: string | null): number | null {
   return Math.max(0, Math.round((b.getTime() - a.getTime()) / 86_400_000));
 }
 
-function daysLabel(n: number): string {
-  if (n === 0) return "באותו יום";
-  if (n === 1) return "יום אחד";
-  return `${n} ימים`;
+function daysLabel(n: number, t: SalesT): string {
+  if (n === 0) return t("days.sameDay");
+  if (n === 1) return t("days.one");
+  return t("days.many", { count: n });
 }
 
 function sourceLabel(source: string): string {
@@ -102,10 +114,10 @@ const KIND_STYLE: Record<SalesJournalKind, { icon: LucideIcon; cls: string }> = 
   lost: { icon: XCircle, cls: "bg-red-50 text-red-600 border-red-100" },
 };
 
-const STATUS_BADGE: Record<SalesHistoryLead["status"], { label: string; cls: string }> = {
-  won: { label: "נסגר כלקוח", cls: "badge-success" },
-  lost: { label: "אבד", cls: "badge-danger" },
-  open: { label: "פתוח במכירות", cls: "badge-warning" },
+const STATUS_BADGE: Record<SalesHistoryLead["status"], { cls: string }> = {
+  won: { cls: "badge-success" },
+  lost: { cls: "badge-danger" },
+  open: { cls: "badge-warning" },
 };
 
 const TASK_STATUS_CHIP: Record<string, string> = {
@@ -122,6 +134,7 @@ const NOTES_PREVIEW_CHARS = 220;
 
 /** Small "הגיע מליד" chip for the customer header — renders only when sales history exists. */
 export function CustomerLeadChip({ customerId, className }: { customerId: string; className?: string }) {
+  const t = useTranslations("customers.customerSalesHistory");
   const { data } = useCustomerSalesHistory(customerId);
   if (!data?.leads?.length) return null;
   const won = data.leads.some((l) => l.status === "won");
@@ -136,10 +149,10 @@ export function CustomerLeadChip({ customerId, className }: { customerId: string
           : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100",
         className
       )}
-      title="הצג היסטוריית מכירה"
+      title={t("chip.title")}
     >
       <Handshake className="w-3 h-3" />
-      הגיע מליד
+      {t("chip.label")}
     </button>
   );
 }
@@ -147,6 +160,7 @@ export function CustomerLeadChip({ customerId, className }: { customerId: string
 // ─── Card ────────────────────────────────────────────────────────────────────
 
 export function CustomerSalesHistory({ customerId }: { customerId: string }) {
+  const t = useTranslations("customers.customerSalesHistory");
   const { data, isLoading, isError } = useCustomerSalesHistory(customerId);
 
   if (isLoading) {
@@ -165,8 +179,8 @@ export function CustomerSalesHistory({ customerId }: { customerId: string }) {
       <div className="flex items-center justify-between gap-2 mb-4">
         <h2 className="text-base font-bold text-petra-text flex items-center gap-2">
           <Handshake className="w-4 h-4 text-brand-500" />
-          היסטוריית מכירה
-          {leads.length > 1 && <span className="text-xs font-normal text-petra-muted">({leads.length} לידים)</span>}
+          {t("card.title")}
+          {leads.length > 1 && <span className="text-xs font-normal text-petra-muted">{t("card.leadCount", { count: leads.length })}</span>}
         </h2>
       </div>
       <div className="divide-y divide-slate-100">
@@ -190,10 +204,14 @@ function InfoItem({ label, value, ltr }: { label: string; value: string; ltr?: b
 }
 
 function LeadSection({ lead, showName }: { lead: SalesHistoryLead; showName: boolean }) {
+  const t = useTranslations("customers.customerSalesHistory");
+  const { locale, currency } = useBusinessLocale();
+  const { fmtDate, fmtDateTime } = useSalesDateFormatters();
   const [showAll, setShowAll] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
 
-  const status = STATUS_BADGE[lead.status] ?? STATUS_BADGE.open;
+  const statusKey: SalesHistoryLead["status"] = STATUS_BADGE[lead.status] ? lead.status : "open";
+  const status = STATUS_BADGE[statusKey];
   const endIso = lead.status === "won" ? lead.wonAt : lead.status === "lost" ? lead.lostAt : null;
   const duration = daysBetween(lead.createdAt, endIso);
   const trafficLabel =
@@ -219,7 +237,7 @@ function LeadSection({ lead, showName }: { lead: SalesHistoryLead; showName: boo
       {/* Summary strip */}
       <div className="space-y-2">
         <div className="flex flex-wrap items-center gap-2">
-          <span className={status.cls}>{status.label}</span>
+          <span className={status.cls}>{t(`status.${statusKey}`)}</span>
           {lead.stage && (
             <span className="inline-flex items-center gap-1.5 text-xs text-petra-text">
               <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: safeColor(lead.stage.color) }} />
@@ -232,48 +250,48 @@ function LeadSection({ lead, showName }: { lead: SalesHistoryLead; showName: boo
             className="ms-auto inline-flex items-center gap-1 text-xs font-medium text-brand-600 hover:text-brand-700 hover:underline"
           >
             <ExternalLink className="w-3.5 h-3.5" />
-            פתח את הליד
+            {t("lead.open")}
           </Link>
         </div>
         <p className="text-xs text-petra-muted leading-relaxed">
-          נפתח {fmtDate(lead.createdAt)}
-          {lead.status === "won" && lead.wonAt && <> ← נסגר {fmtDate(lead.wonAt)}</>}
-          {lead.status === "lost" && lead.lostAt && <> ← אבד {fmtDate(lead.lostAt)}</>}
-          {lead.status === "won" && lead.wonByName && <> · נסגר ע״י {lead.wonByName}</>}
+          {t("lead.openedOn", { date: fmtDate(lead.createdAt) })}
+          {lead.status === "won" && lead.wonAt && <>{t("lead.wonOn", { date: fmtDate(lead.wonAt) })}</>}
+          {lead.status === "lost" && lead.lostAt && <>{t("lead.lostOn", { date: fmtDate(lead.lostAt) })}</>}
+          {lead.status === "won" && lead.wonByName && <>{t("lead.wonBy", { name: lead.wonByName })}</>}
           {duration !== null && (
             <>
               {" · "}
-              {lead.status === "open" ? `פתוח ${daysLabel(duration)}` : lead.status === "won" ? `נסגר תוך ${daysLabel(duration)}` : `${daysLabel(duration)} במכירות`}
+              {lead.status === "open" ? t("lead.openFor", { days: daysLabel(duration, t) }) : lead.status === "won" ? t("lead.wonWithin", { days: daysLabel(duration, t) }) : t("lead.inSales", { days: daysLabel(duration, t) })}
             </>
           )}
         </p>
       </div>
 
       <dl className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-3 rounded-xl bg-slate-50/70 border border-slate-100 p-3">
-        <InfoItem label="מקור" value={sourceLabel(lead.source)} />
-        {trafficLabel && <InfoItem label="מקור תנועה" value={trafficLabel} />}
-        {lead.landingPage && <InfoItem label="עמוד נחיתה" value={lead.landingPage} ltr />}
-        {lead.requestedService && <InfoItem label="שירות מבוקש" value={lead.requestedService} />}
+        <InfoItem label={t("info.source")} value={sourceLabel(lead.source)} />
+        {trafficLabel && <InfoItem label={t("info.trafficSource")} value={trafficLabel} />}
+        {lead.landingPage && <InfoItem label={t("info.landingPage")} value={lead.landingPage} ltr />}
+        {lead.requestedService && <InfoItem label={t("info.requestedService")} value={lead.requestedService} />}
         {lead.dealValue !== null && lead.dealValue !== undefined && (
-          <InfoItem label="ערך עסקה" value={formatIls(lead.dealValue)} />
+          <InfoItem label={t("info.dealValue")} value={formatCurrency(lead.dealValue, { locale, currency, minimumFractionDigits: 0, maximumFractionDigits: 2 })} />
         )}
-        <InfoItem label="שיחות" value={String(lead.callCount ?? 0)} />
-        {lostReason && <InfoItem label="סיבת אובדן" value={lostReason} />}
+        <InfoItem label={t("info.calls")} value={String(lead.callCount ?? 0)} />
+        {lostReason && <InfoItem label={t("info.lostReason")} value={lostReason} />}
         {lead.status === "open" && lead.nextFollowUpAt && (
-          <InfoItem label="פולואפ הבא" value={fmtDateTime(lead.nextFollowUpAt)} />
+          <InfoItem label={t("info.nextFollowUp")} value={fmtDateTime(lead.nextFollowUpAt)} />
         )}
       </dl>
 
       {/* Notes */}
       {notes && (
         <div>
-          <p className="text-[11px] text-petra-muted mb-1">הערות ליד</p>
+          <p className="text-[11px] text-petra-muted mb-1">{t("lead.notes")}</p>
           <p className={cn("text-sm text-petra-text whitespace-pre-wrap break-words", notesLong && !notesOpen && "line-clamp-4")}>
             {notes}
           </p>
           {notesLong && (
             <button type="button" onClick={() => setNotesOpen((v) => !v)} className="text-xs text-brand-600 hover:underline mt-1">
-              {notesOpen ? "הצג פחות" : "הצג הכל"}
+              {notesOpen ? t("lead.showLess") : t("lead.showAll")}
             </button>
           )}
         </div>
@@ -282,7 +300,7 @@ function LeadSection({ lead, showName }: { lead: SalesHistoryLead; showName: boo
       {/* Journal */}
       {journal.length > 0 && (
         <div>
-          <p className="text-[11px] text-petra-muted mb-2">יומן מכירה</p>
+          <p className="text-[11px] text-petra-muted mb-2">{t("lead.journal")}</p>
           <ol className="relative border-s-2 border-slate-100 ms-3 space-y-4">
             {visible.map((e) => (
               <JournalItem key={e.id} entry={e} />
@@ -295,11 +313,11 @@ function LeadSection({ lead, showName }: { lead: SalesHistoryLead; showName: boo
               className="mt-3 inline-flex items-center gap-1 text-xs text-brand-600 hover:underline"
             >
               <ChevronDown className={cn("w-3.5 h-3.5 transition-transform", showAll && "rotate-180")} />
-              {showAll ? "הצג פחות" : `הצג את כל ההיסטוריה (${journal.length})`}
+              {showAll ? t("lead.showLess") : t("lead.showAllHistory", { count: journal.length })}
             </button>
           )}
           {lead.journalTruncated && (
-            <p className="text-[11px] text-petra-muted mt-1">היומן ארוך — מוצגות הרשומות האחרונות בלבד; רשומות ישנות יותר זמינות בכרטיס הליד.</p>
+            <p className="text-[11px] text-petra-muted mt-1">{t("lead.journalTruncated")}</p>
           )}
         </div>
       )}
@@ -308,6 +326,8 @@ function LeadSection({ lead, showName }: { lead: SalesHistoryLead; showName: boo
 }
 
 function JournalItem({ entry }: { entry: SalesJournalEntry }) {
+  const t = useTranslations("customers.customerSalesHistory");
+  const { fmtDateTime } = useSalesDateFormatters();
   const style = KIND_STYLE[entry.kind] ?? KIND_STYLE.call;
   const Icon = style.icon;
   const isTask = entry.kind === "task";
@@ -342,12 +362,12 @@ function JournalItem({ entry }: { entry: SalesJournalEntry }) {
               {TASK_STATUS_LABELS[taskStatus] ?? taskStatus}
             </span>
           )}
-          {entry.taskDue && <span className="text-[11px] text-petra-muted">יעד: {fmtDateTime(entry.taskDue)}</span>}
+          {entry.taskDue && <span className="text-[11px] text-petra-muted">{t("journal.due", { date: fmtDateTime(entry.taskDue) })}</span>}
         </div>
       ) : (
         entry.treatment && (
           <p className="text-xs text-petra-muted whitespace-pre-wrap break-words mt-1 rounded-lg bg-slate-50 px-2 py-1">
-            <span className="font-semibold text-petra-text">מה סוכם: </span>
+            <span className="font-semibold text-petra-text">{t("journal.agreed")}</span>
             {entry.treatment}
           </p>
         )

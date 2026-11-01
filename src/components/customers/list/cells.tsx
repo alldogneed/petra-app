@@ -1,13 +1,17 @@
 "use client";
 /** Small presentational pieces of the customers list (badges, cells, row actions). */
 import { Crown, Sparkles, Check, PawPrint, Clock, Calendar, Phone, Mail, Pencil } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { toWhatsAppPhone } from "@/lib/utils";
+import { currencySymbol } from "@/lib/format";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { isValidEmail } from "@/lib/validation";
 import { formatShortDate, type AppointmentInfo, type EnhancedCustomer, type FinancialInfo, type PetInfo } from "./types";
 
 // ─── Status Badge ───────────────────────────────────────────────
 
 export function StatusBadge({ status }: { status: string }) {
+  const t = useTranslations("customers");
   switch (status) {
     case "vip":
       return (
@@ -20,14 +24,14 @@ export function StatusBadge({ status }: { status: string }) {
       return (
         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-          פעיל
+          {t("cells.status.active")}
         </span>
       );
     case "dormant":
       return (
         <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-500 border border-slate-200">
           <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-          רדום
+          {t("cells.status.dormant")}
         </span>
       );
     default:
@@ -38,14 +42,16 @@ export function StatusBadge({ status }: { status: string }) {
 // ─── Financial Badge ────────────────────────────────────────────
 
 export function FinancialBadge({ financial }: { financial: FinancialInfo }) {
+  const t = useTranslations("customers");
+  const { locale, currency } = useBusinessLocale();
   if (financial.totalPending > 0) {
     return (
       <div className="flex flex-col items-start gap-0.5">
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-50 text-red-600 border border-red-100">
-          חוב
+          {t("cells.financial.debt")}
         </span>
-        <span className="text-xs font-bold text-red-600 mr-1">
-          ₪{financial.totalPending.toLocaleString()}
+        <span className="text-xs font-bold text-red-600 ms-1">
+          {currencySymbol({ locale, currency })}{financial.totalPending.toLocaleString()}
         </span>
       </div>
     );
@@ -54,7 +60,7 @@ export function FinancialBadge({ financial }: { financial: FinancialInfo }) {
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-600 border border-blue-100">
         <Sparkles className="w-3 h-3" />
-        קרדיט
+        {t("cells.financial.credit")}
       </span>
     );
   }
@@ -62,7 +68,7 @@ export function FinancialBadge({ financial }: { financial: FinancialInfo }) {
     return (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-600 border border-emerald-100">
         <Check className="w-3 h-3" />
-        מאוזן
+        {t("cells.financial.balanced")}
       </span>
     );
   }
@@ -72,8 +78,9 @@ export function FinancialBadge({ financial }: { financial: FinancialInfo }) {
 // ─── Pets Cell ──────────────────────────────────────────────────
 
 export function PetsCell({ pets, count }: { pets: PetInfo[]; count: number }) {
+  const t = useTranslations("customers");
   if (count === 0) {
-    return <span className="text-xs text-slate-400">אין חיות</span>;
+    return <span className="text-xs text-slate-400">{t("cells.pets.none")}</span>;
   }
   const primary = pets[0];
   return (
@@ -93,7 +100,7 @@ export function PetsCell({ pets, count }: { pets: PetInfo[]; count: number }) {
         </div>
         {count > 1 && (
           <span className="text-[10px] text-[#A0845C] font-medium">
-            +{count - 1} נוספים
+            {t("cells.pets.more", { count: count - 1 })}
           </span>
         )}
       </div>
@@ -110,12 +117,14 @@ export function AppointmentDates({
   last: AppointmentInfo | null;
   next: AppointmentInfo | null;
 }) {
+  const t = useTranslations("customers");
+  const { locale } = useBusinessLocale();
   return (
     <div className="space-y-1">
       <div className="flex items-center gap-1.5">
         <Clock className="w-3 h-3 text-slate-400 flex-shrink-0" />
         <span className="text-[11px] text-petra-muted">
-          {last ? <>אחרון: {formatShortDate(last.date)}</> : "אין היסטוריה"}
+          {last ? t("cells.appointments.last", { date: formatShortDate(last.date, locale) }) : t("cells.appointments.noHistory")}
         </span>
       </div>
       <div className="flex items-center gap-1.5">
@@ -123,7 +132,7 @@ export function AppointmentDates({
         <span
           className={`text-[11px] font-medium ${next ? "text-petra-text" : "text-slate-400"}`}
         >
-          {next ? <>הבא: {formatShortDate(next.date)}</> : "לא נקבע"}
+          {next ? t("cells.appointments.next", { date: formatShortDate(next.date, locale) }) : t("cells.appointments.notScheduled")}
         </span>
       </div>
     </div>
@@ -154,6 +163,7 @@ export function QuickActions({
   customer: EnhancedCustomer;
   onEdit: () => void;
 }) {
+  const t = useTranslations("customers");
   const waPhone = toWhatsAppPhone(customer.phone);
   const isValidPhone = customer.phone.replace(/\D/g, "").length >= 9;
 
@@ -166,8 +176,8 @@ export function QuickActions({
           target="_blank"
           rel="noopener noreferrer"
           className="w-8 h-8 rounded-lg flex items-center justify-center text-[#25D366] hover:bg-[#E8FEF0] transition-colors"
-          title="שלח הודעת WhatsApp"
-          aria-label={`שלח הודעת WhatsApp`}
+          title={t("cells.actions.whatsapp")}
+          aria-label={t("cells.actions.whatsapp")}
           onClick={(e) => e.stopPropagation()}
         >
           <WhatsAppIcon className="w-4 h-4" />
@@ -179,8 +189,8 @@ export function QuickActions({
         <a
           href={`tel:${customer.phone}`}
           className="w-8 h-8 rounded-lg flex items-center justify-center text-emerald-600 hover:bg-emerald-50 transition-colors"
-          title={`התקשר ל־${customer.phone}`}
-          aria-label={`התקשר ל־${customer.phone}`}
+          title={t("cells.actions.call", { phone: customer.phone })}
+          aria-label={t("cells.actions.call", { phone: customer.phone })}
           onClick={(e) => e.stopPropagation()}
         >
           <Phone className="w-4 h-4" />
@@ -191,7 +201,7 @@ export function QuickActions({
       {customer.email && isValidEmail(customer.email) ? (
         <button
           className="w-8 h-8 rounded-lg flex items-center justify-center text-blue-500 hover:bg-blue-50 transition-colors"
-          title={`שלח אימייל ל־${customer.email}`}
+          title={t("cells.actions.email", { email: customer.email })}
           onClick={(e) => {
             e.stopPropagation();
             window.open(`https://mail.google.com/mail/?view=cm&to=${encodeURIComponent(customer.email!)}`, "_blank");
@@ -206,7 +216,7 @@ export function QuickActions({
       {/* Edit */}
       <button
         className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:bg-slate-100 transition-colors"
-        title="עריכת לקוח"
+        title={t("cells.actions.edit")}
         onClick={(e) => {
           e.stopPropagation();
           onEdit();

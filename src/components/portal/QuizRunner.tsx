@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 
 // ─── Types (mirror src/services/quizzes.ts student payloads) ────
 
@@ -38,10 +40,10 @@ interface AttemptResult {
   }>;
 }
 
-function heDate(value: string | null | undefined): string {
+function heDate(value: string | null | undefined, locale: string, timeZone: string): string {
   if (!value) return "";
-  return new Date(value).toLocaleDateString("he-IL", {
-    timeZone: "Asia/Jerusalem",
+  return new Date(value).toLocaleDateString(locale, {
+    timeZone,
     day: "numeric",
     month: "numeric",
     year: "numeric",
@@ -59,6 +61,8 @@ export function QuizRunner({
   quizId: string;
   onPassed?: () => void;
 }) {
+  const t = useTranslations("portal.quizRunner");
+  const { locale, timezone } = useBusinessLocale();
   const [quiz, setQuiz] = useState<StudentQuiz | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -76,18 +80,18 @@ export function QuizRunner({
       );
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setLoadError(data?.error || "שגיאה בטעינת הבוחן");
+        setLoadError(data?.error || t("loadError"));
         setQuiz(null);
       } else {
         setQuiz(data?.quiz ?? null);
       }
     } catch {
-      setLoadError("שגיאה בטעינת הבוחן");
+      setLoadError(t("loadError"));
       setQuiz(null);
     } finally {
       setLoading(false);
     }
-  }, [slug, quizId]);
+  }, [slug, quizId, t]);
 
   useEffect(() => {
     loadQuiz();
@@ -112,13 +116,13 @@ export function QuizRunner({
       );
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setSubmitError(data?.error || "שגיאה בשליחת הבוחן");
+        setSubmitError(data?.error || t("submitError"));
         return;
       }
       setResult(data as AttemptResult);
       if (data?.passed) onPassed?.();
     } catch {
-      setSubmitError("שגיאה בשליחת הבוחן");
+      setSubmitError(t("submitError"));
     } finally {
       setSubmitting(false);
     }
@@ -148,13 +152,13 @@ export function QuizRunner({
   if (loadError || !quiz) {
     return (
       <div className="bg-white rounded-2xl shadow-card border border-petra-border p-6 text-center">
-        <p className="text-slate-600 mb-4">{loadError || "הבוחן לא נמצא"}</p>
+        <p className="text-slate-600 mb-4">{loadError || t("notFound")}</p>
         <button
           type="button"
           onClick={loadQuiz}
           className="px-4 py-2 rounded-xl border border-petra-border text-sm font-semibold text-slate-700 hover:bg-slate-50"
         >
-          נסה שוב
+          {t("retry")}
         </button>
       </div>
     );
@@ -181,17 +185,20 @@ export function QuizRunner({
                 : "bg-rose-50 text-rose-700 border border-rose-200"
             }`}
           >
-            {result.passed ? "✓ עברת את הבוחן" : "✗ לא עברת את הבוחן"}
+            {result.passed ? t("result.passed") : t("result.failed")}
           </div>
           <p className="text-sm text-slate-500 mt-3">
-            {result.correctCount} מתוך {result.totalQuestions} תשובות נכונות · ציון עובר:{" "}
-            {result.passScore}%
+            {t("result.summary", {
+              correct: result.correctCount,
+              total: result.totalQuestions,
+              passScore: result.passScore,
+            })}
           </p>
           {quiz.bestAttempt && (
             <p className="text-xs text-slate-400 mt-1">
-              ניסיון קודם הטוב ביותר: {quiz.bestAttempt.score}%
+              {t("result.previousBest", { score: quiz.bestAttempt.score })}
               {quiz.bestAttempt.createdAt
-                ? ` (${heDate(quiz.bestAttempt.createdAt)})`
+                ? ` (${heDate(quiz.bestAttempt.createdAt, locale, timezone)})`
                 : ""}
             </p>
           )}
@@ -202,7 +209,7 @@ export function QuizRunner({
               style={{ backgroundColor: "var(--portal-primary)" }}
               className="px-5 py-2.5 rounded-xl text-white text-sm font-semibold hover:brightness-95 active:brightness-90"
             >
-              נסה שוב
+              {t("retry")}
             </button>
           </div>
         </div>
@@ -245,11 +252,11 @@ export function QuizRunner({
                       <span>{o.text}</span>
                       {isCorrectOption ? (
                         <span className="text-xs font-semibold shrink-0">
-                          התשובה הנכונה
+                          {t("result.correctAnswer")}
                         </span>
                       ) : isChosen ? (
                         <span className="text-xs font-semibold shrink-0">
-                          התשובה שלך
+                          {t("result.yourAnswer")}
                         </span>
                       ) : null}
                     </div>
@@ -274,7 +281,7 @@ export function QuizRunner({
       <div className="bg-white rounded-2xl shadow-card border border-petra-border p-5">
         <h2 className="text-lg font-bold text-slate-900">{quiz.title}</h2>
         <p className="text-sm text-slate-500 mt-1">
-          {quiz.moduleTitle} · ציון עובר: {quiz.passScore}%
+          {t("form.moduleAndPassScore", { module: quiz.moduleTitle, passScore: quiz.passScore })}
         </p>
         {quiz.bestAttempt && (
           <p
@@ -282,10 +289,10 @@ export function QuizRunner({
               quiz.bestAttempt.passed ? "text-emerald-600" : "text-slate-500"
             }`}
           >
-            הציון הטוב ביותר שלך: {quiz.bestAttempt.score}%
-            {quiz.bestAttempt.passed ? " — עברת" : ""}
+            {t("form.yourBest", { score: quiz.bestAttempt.score })}
+            {quiz.bestAttempt.passed ? t("form.passedSuffix") : ""}
             {quiz.bestAttempt.createdAt
-              ? ` (${heDate(quiz.bestAttempt.createdAt)})`
+              ? ` (${heDate(quiz.bestAttempt.createdAt, locale, timezone)})`
               : ""}
           </p>
         )}
@@ -337,7 +344,7 @@ export function QuizRunner({
 
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs text-slate-400">
-          {allAnswered ? "אפשר לשלוח" : "יש לענות על כל השאלות כדי לשלוח"}
+          {allAnswered ? t("form.canSubmit") : t("form.answerAll")}
         </p>
         <button
           type="button"
@@ -346,7 +353,7 @@ export function QuizRunner({
           style={{ backgroundColor: "var(--portal-primary)" }}
           className="px-5 py-2.5 rounded-xl text-white text-sm font-semibold hover:brightness-95 active:brightness-90 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {submitting ? "שולח..." : "שלח תשובות"}
+          {submitting ? t("form.submitting") : t("form.submit")}
         </button>
       </div>
     </div>

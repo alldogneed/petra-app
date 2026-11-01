@@ -21,6 +21,8 @@ import {
   Printer,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { BoardingTabs } from "@/components/boarding/BoardingTabs";
 import { toast } from "sonner";
 import { PetraLoader } from "@/components/ui/PetraLoader";
@@ -91,10 +93,11 @@ function parseFeedingPlan(raw: string | null): FeedingPlan | null {
 
 type MealSlot = "breakfast" | "lunch" | "dinner";
 
-const MEAL_LABELS: Record<MealSlot, { label: string; emoji: string }> = {
-  breakfast: { label: "ארוחת בוקר", emoji: "🌅" },
-  lunch: { label: "ארוחת צהריים", emoji: "☀️" },
-  dinner: { label: "ארוחת ערב", emoji: "🌙" },
+// Labels: boarding.feedingPage.meals.<slot>
+const MEAL_LABELS: Record<MealSlot, { emoji: string }> = {
+  breakfast: { emoji: "🌅" },
+  lunch: { emoji: "☀️" },
+  dinner: { emoji: "🌙" },
 };
 
 const MEAL_SLOTS: MealSlot[] = ["breakfast", "lunch", "dinner"];
@@ -111,8 +114,8 @@ function addDays(d: Date, n: number): Date {
   return next;
 }
 
-function formatHebrewDate(d: Date): string {
-  return d.toLocaleDateString("he-IL", {
+function formatHebrewDate(d: Date, locale: string): string {
+  return d.toLocaleDateString(locale, {
     weekday: "long",
     day: "numeric",
     month: "long",
@@ -139,6 +142,8 @@ function FeedingPlanModal({
   onSave: (stayId: string, plan: FeedingPlan) => void;
   isSaving?: boolean;
 }) {
+  const t = useTranslations("boarding.feedingPage");
+  const tc = useTranslations("common");
   const existing = parseFeedingPlan(stay.feedingPlan);
   // Pre-populate from pet profile if no boarding-level plan exists
   const [foodType, setFoodType] = useState(existing?.foodType ?? stay.pet.foodBrand ?? "");
@@ -169,7 +174,7 @@ function FeedingPlanModal({
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-bold text-petra-text">תוכנית האכלה</h2>
+            <h2 className="text-lg font-bold text-petra-text">{t("planModal.title")}</h2>
             <p className="text-sm text-petra-muted">{stay.pet.name}</p>
           </div>
           <button
@@ -185,13 +190,13 @@ function FeedingPlanModal({
           {/* Food type */}
           <div className="space-y-1.5">
             <label className="block text-sm font-medium text-petra-text">
-              סוג האוכל <span className="text-red-500">*</span>
+              {t("planModal.foodType")} <span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               value={foodType}
               onChange={(e) => setFoodType(e.target.value)}
-              placeholder="לדוג׳ Royal Canin Medium Adult"
+              placeholder={t("planModal.foodTypePlaceholder")}
               className="input w-full"
               required
               autoFocus
@@ -202,7 +207,7 @@ function FeedingPlanModal({
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <label className="block text-sm font-medium text-petra-text">
-                כמות בגרם <span className="text-red-500">*</span>
+                {t("planModal.amountGrams")} <span className="text-red-500">*</span>
               </label>
               <input
                 type="number"
@@ -217,17 +222,17 @@ function FeedingPlanModal({
             </div>
             <div className="space-y-1.5">
               <label className="block text-sm font-medium text-petra-text">
-                כמה פעמים ביום
+                {t("planModal.timesPerDay")}
               </label>
               <select
                 value={timesPerDay}
                 onChange={(e) => setTimesPerDay(e.target.value)}
                 className="input w-full"
               >
-                <option value="1">פעם אחת</option>
-                <option value="2">פעמיים</option>
-                <option value="3">שלוש פעמים</option>
-                <option value="4">ארבע פעמים</option>
+                <option value="1">{t("planModal.times.once")}</option>
+                <option value="2">{t("planModal.times.twice")}</option>
+                <option value="3">{t("planModal.times.three")}</option>
+                <option value="4">{t("planModal.times.four")}</option>
               </select>
             </div>
           </div>
@@ -235,12 +240,12 @@ function FeedingPlanModal({
           {/* Notes */}
           <div className="space-y-1.5">
             <label className="block text-sm font-medium text-petra-text">
-              הערות האכלה
+              {t("planModal.notes")}
             </label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="הוראות מיוחדות, אלרגיות, העדפות..."
+              placeholder={t("planModal.notesPlaceholder")}
               rows={3}
               className="input w-full resize-none"
             />
@@ -249,14 +254,14 @@ function FeedingPlanModal({
           {/* Actions */}
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose} className="btn-secondary flex-1">
-              ביטול
+              {tc("actions.cancel")}
             </button>
             <button
               type="submit"
               disabled={!foodType.trim() || !amountGrams || isSaving}
               className="btn-primary flex-1"
             >
-              שמור
+              {tc("actions.save")}
             </button>
           </div>
         </form>
@@ -267,12 +272,8 @@ function FeedingPlanModal({
 
 // ─── Medications Board ────────────────────────────────────────────────────────
 
-const MED_TIME_LABELS: Record<string, string> = {
-  morning: "בוקר",
-  noon: "צהריים",
-  evening: "ערב",
-  night: "לילה",
-};
+// Labels: boarding.feedingPage.medTimes.<id>
+const MED_TIME_IDS = ["morning", "noon", "evening", "night"];
 
 function MedicationsBoard({
   stays,
@@ -283,6 +284,7 @@ function MedicationsBoard({
   onLog: (boardingStayId: string, petId: string, type: string, title: string, notes?: string) => void;
   onDelete: (logId: string) => void;
 }) {
+  const t = useTranslations("boarding.feedingPage");
   function toggleMed(stay: BoardingStay, med: Medication) {
     const existingLog = findAnyMedicationLog(stay.careLogs, med.medName);
     if (existingLog) {
@@ -300,7 +302,7 @@ function MedicationsBoard({
     return (
       <div className="card p-12 text-center space-y-3">
         <Pill className="w-10 h-10 mx-auto text-slate-300" />
-        <p className="text-petra-muted text-sm">אין כלבים עם תרופות פעילות בפנסיון</p>
+        <p className="text-petra-muted text-sm">{t("medsBoard.empty")}</p>
       </div>
     );
   }
@@ -335,10 +337,10 @@ function MedicationsBoard({
                   <p className={cn("font-medium text-sm", allGiven ? "line-through text-petra-muted" : "text-petra-text")}>
                     {stay.pet.name}
                     {stay.pet.breed && (
-                      <span className="text-xs text-petra-muted font-normal mr-1">({stay.pet.breed})</span>
+                      <span className="text-xs text-petra-muted font-normal ms-1">({stay.pet.breed})</span>
                     )}
                     {stay.pet.serviceDogProfile && (
-                      <span className="mr-2 badge badge-blue text-[10px]">כלב שירות</span>
+                      <span className="ms-2 badge badge-blue text-[10px]">{t("serviceDog")}</span>
                     )}
                   </p>
                   {stay.customer ? (
@@ -350,12 +352,12 @@ function MedicationsBoard({
                       {stay.customer.name}
                     </Link>
                   ) : (
-                    <span className="text-xs text-petra-muted">כלב שירות</span>
+                    <span className="text-xs text-petra-muted">{t("serviceDog")}</span>
                   )}
                 </div>
               </div>
               <span className="text-xs text-petra-muted">
-                {stay.pet.medications.length} תרופות
+                {t("medsBoard.medsCount", { count: stay.pet.medications.length })}
               </span>
             </div>
 
@@ -364,7 +366,7 @@ function MedicationsBoard({
               {stay.pet.medications.map((med) => {
                 const isGiven = !!findAnyMedicationLog(stay.careLogs, med.medName);
                 const times = med.times
-                  ? med.times.split(",").map((t) => MED_TIME_LABELS[t.trim()] ?? t.trim()).join(", ")
+                  ? med.times.split(",").map((x) => (MED_TIME_IDS.includes(x.trim()) ? t(`medTimes.${x.trim()}`) : x.trim())).join(", ")
                   : null;
 
                 return (
@@ -409,9 +411,9 @@ function MedicationsBoard({
                       )}
                     >
                       {isGiven ? (
-                        <><Check className="w-3.5 h-3.5" /> ניתן</>
+                        <><Check className="w-3.5 h-3.5" /> {t("medsBoard.given")}</>
                       ) : (
-                        <><Pill className="w-3.5 h-3.5" /> סמן כניתן</>
+                        <><Pill className="w-3.5 h-3.5" /> {t("medsBoard.markGiven")}</>
                       )}
                     </button>
                   </div>
@@ -428,6 +430,8 @@ function MedicationsBoard({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function FeedingPage() {
+  const t = useTranslations("boarding.feedingPage");
+  const { locale } = useBusinessLocale();
   const [currentDate, setCurrentDate] = useState(() => new Date());
   const dateStr = dateToISO(currentDate);
   const [editPlanStay, setEditPlanStay] = useState<BoardingStay | null>(null);
@@ -467,7 +471,7 @@ export default function FeedingPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["care-log", dateStr] });
     },
-    onError: () => toast.error("שגיאה בשמירה. נסה שוב."),
+    onError: () => toast.error(t("toasts.saveError")),
   });
 
   const deleteMutation = useMutation({
@@ -479,7 +483,7 @@ export default function FeedingPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["care-log", dateStr] });
     },
-    onError: () => toast.error("שגיאה בביטול. נסה שוב."),
+    onError: () => toast.error(t("toasts.cancelError")),
   });
 
   const savePlanMutation = useMutation({
@@ -489,15 +493,15 @@ export default function FeedingPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ feedingPlan: JSON.stringify(plan) }),
       });
-      if (!res.ok) throw new Error("שגיאה בשמירת תוכנית האכלה");
+      if (!res.ok) throw new Error(t("toasts.planSaveError"));
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["care-log"] });
-      toast.success("תוכנית האכלה נשמרה");
+      toast.success(t("toasts.planSaved"));
       setEditPlanStay(null);
     },
-    onError: () => toast.error("שגיאה בשמירת תוכנית האכלה"),
+    onError: () => toast.error(t("toasts.planSaveError")),
   });
 
   function toggleMeal(stay: BoardingStay, slot: MealSlot) {
@@ -507,7 +511,7 @@ export default function FeedingPage() {
     } else {
       const foodDesc = [
         stay.pet.foodBrand,
-        stay.pet.foodGramsPerDay ? `${stay.pet.foodGramsPerDay}ג׳` : null,
+        stay.pet.foodGramsPerDay ? t("gramsShort", { grams: stay.pet.foodGramsPerDay }) : null,
         stay.pet.foodNotes,
       ].filter(Boolean).join(" • ");
       logMutation.mutate({
@@ -550,8 +554,8 @@ export default function FeedingPage() {
       <div className="print-header">
         <img src="/petra-logo.png" alt="Petra" style={{ width: 38, height: 38, objectFit: "contain", borderRadius: 6 }} />
         <div>
-          <div style={{ fontWeight: 700, fontSize: 16, color: "#1e293b" }}>לוח האכלה — פנסיון</div>
-          <div style={{ fontSize: 11, color: "#64748b" }}>{formatHebrewDate(currentDate)} · הופק {new Date().toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}</div>
+          <div style={{ fontWeight: 700, fontSize: 16, color: "#1e293b" }}>{t("print.title")}</div>
+          <div style={{ fontSize: 11, color: "#64748b" }}>{t("print.generated", { date: formatHebrewDate(currentDate, locale), time: new Date().toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" }) })}</div>
         </div>
       </div>
       <BoardingTabs />
@@ -561,11 +565,11 @@ export default function FeedingPage() {
       {/* Header */}
       <div className="page-header">
         <div>
-          <h1 className="page-title">לוח האכלה</h1>
+          <h1 className="page-title">{t("title")}</h1>
           <p className="text-sm text-petra-muted mt-1">
-            {formatHebrewDate(currentDate)}
+            {formatHebrewDate(currentDate, locale)}
             {isToday && (
-              <span className="mr-2 badge badge-brand">היום</span>
+              <span className="ms-2 badge badge-brand">{t("today")}</span>
             )}
           </p>
         </div>
@@ -575,10 +579,10 @@ export default function FeedingPage() {
             <button
               onClick={() => setCurrentDate((d) => addDays(d, -1))}
               className="px-3 py-2 hover:bg-slate-50 text-petra-muted transition-colors"
-              title="יום קודם"
-              aria-label="יום קודם"
+              title={t("prevDay")}
+              aria-label={t("prevDay")}
             >
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="w-4 h-4 ltr:-scale-x-100" />
             </button>
             <button
               onClick={() => setCurrentDate(new Date())}
@@ -587,15 +591,15 @@ export default function FeedingPage() {
                 isToday ? "text-brand-600" : "text-petra-muted hover:text-petra-text"
               )}
             >
-              היום
+              {t("today")}
             </button>
             <button
               onClick={() => setCurrentDate((d) => addDays(d, 1))}
               className="px-3 py-2 hover:bg-slate-50 text-petra-muted transition-colors"
-              title="יום הבא"
-              aria-label="יום הבא"
+              title={t("nextDay")}
+              aria-label={t("nextDay")}
             >
-              <ChevronLeft className="w-4 h-4" />
+              <ChevronLeft className="w-4 h-4 ltr:-scale-x-100" />
             </button>
           </div>
 
@@ -610,7 +614,7 @@ export default function FeedingPage() {
               >
                 {doneMeals}/{totalMeals}
               </span>
-              <span className="text-petra-muted">האכלות</span>
+              <span className="text-petra-muted">{t("mealsDone")}</span>
               {allDone && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
             </div>
           )}
@@ -623,14 +627,14 @@ export default function FeedingPage() {
             <RefreshCw
               className={cn("w-4 h-4", isFetching && "animate-spin")}
             />
-            רענן
+            {t("refresh")}
           </button>
           <button
             onClick={() => window.print()}
             className="no-print btn-primary flex items-center gap-2"
           >
             <Printer className="w-4 h-4" />
-            הדפסה
+            {t("print.button")}
           </button>
         </div>
       </div>
@@ -642,7 +646,7 @@ export default function FeedingPage() {
         <div className="relative h-2 bg-slate-100 rounded-full overflow-hidden">
           <div
             className={cn(
-              "absolute inset-y-0 right-0 rounded-full transition-all duration-500",
+              "absolute inset-y-0 start-0 rounded-full transition-all duration-500",
               allDone ? "bg-emerald-400" : "bg-brand-400"
             )}
             style={{ width: `${(doneMeals / totalMeals) * 100}%` }}
@@ -656,7 +660,7 @@ export default function FeedingPage() {
       {/* Error */}
       {isError && (
         <div className="card p-8 text-center text-red-500 text-sm">
-          שגיאה בטעינת הנתונים
+          {t("loadError")}
         </div>
       )}
 
@@ -665,10 +669,10 @@ export default function FeedingPage() {
         <div className="card p-12 text-center space-y-3">
           <Hotel className="w-10 h-10 mx-auto text-slate-300" />
           <p className="text-petra-muted text-sm">
-            אין כלבים בפנסיון בתאריך זה
+            {t("empty")}
           </p>
           <Link href="/boarding" className="text-sm text-brand-500 hover:underline">
-            עבור ללוח הפנסיון
+            {t("goToBoarding")}
           </Link>
         </div>
       )}
@@ -679,11 +683,10 @@ export default function FeedingPage() {
           <CheckCircle2 className="w-6 h-6 text-emerald-500 flex-shrink-0" />
           <div>
             <p className="font-semibold text-emerald-800">
-              כל ההאכלות הושלמו!
+              {t("allDone.title")}
             </p>
             <p className="text-sm text-emerald-600">
-              כל {activePets.length} הכלבים הואכלו ב
-              {isToday ? "יום" : "תאריך"} זה
+              {t("allDone.body", { count: activePets.length, when: isToday ? t("allDone.whenDay") : t("allDone.whenDate") })}
             </p>
           </div>
         </div>
@@ -696,16 +699,16 @@ export default function FeedingPage() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-100">
                 <tr>
-                  <th className="table-header-cell">שם הכלב</th>
-                  <th className="table-header-cell">הוראות האכלה</th>
+                  <th className="table-header-cell">{t("table.dogName")}</th>
+                  <th className="table-header-cell">{t("table.feedingInstructions")}</th>
                   <th className="table-header-cell text-center">
-                    {MEAL_LABELS.breakfast.emoji} בוקר
+                    {MEAL_LABELS.breakfast.emoji} {t("medTimes.morning")}
                   </th>
                   <th className="table-header-cell text-center">
-                    {MEAL_LABELS.lunch.emoji} צהריים
+                    {MEAL_LABELS.lunch.emoji} {t("medTimes.noon")}
                   </th>
                   <th className="table-header-cell text-center">
-                    {MEAL_LABELS.dinner.emoji} ערב
+                    {MEAL_LABELS.dinner.emoji} {t("medTimes.evening")}
                   </th>
                 </tr>
               </thead>
@@ -750,7 +753,7 @@ export default function FeedingPage() {
                             >
                               {stay.pet.name}
                               {stay.pet.breed && (
-                                <span className="text-xs text-petra-muted font-normal mr-1">
+                                <span className="text-xs text-petra-muted font-normal ms-1">
                                   ({stay.pet.breed})
                                 </span>
                               )}
@@ -764,7 +767,7 @@ export default function FeedingPage() {
                                 {stay.customer.name}
                               </Link>
                             ) : (
-                              <span className="text-xs text-petra-muted">כלב שירות</span>
+                              <span className="text-xs text-petra-muted">{t("serviceDog")}</span>
                             )}
                           </div>
                         </div>
@@ -781,11 +784,11 @@ export default function FeedingPage() {
                                   <div className="bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 space-y-0.5">
                                     <p className="text-xs font-medium text-amber-700 flex items-center gap-1 mb-0.5">
                                       <UtensilsCrossed className="w-3 h-3" />
-                                      תוכנית פנסיון
+                                      {t("table.boardingPlan")}
                                     </p>
                                     <p className="text-xs text-amber-900 font-medium">{plan.foodType}</p>
                                     <p className="text-xs text-amber-700">
-                                      {plan.amountGrams}ג׳ · {plan.timesPerDay}× ביום
+                                      {t("table.planLine", { grams: plan.amountGrams, times: plan.timesPerDay })}
                                     </p>
                                     {plan.notes && (
                                       <p className="text-xs text-amber-600 leading-snug">{plan.notes}</p>
@@ -795,13 +798,13 @@ export default function FeedingPage() {
                                   <div className="bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 space-y-0.5">
                                     <p className="text-xs font-medium text-amber-700 flex items-center gap-1 mb-0.5">
                                       <UtensilsCrossed className="w-3 h-3" />
-                                      מפרופיל הכלב
+                                      {t("table.fromPetProfile")}
                                     </p>
                                     {stay.pet.foodBrand && (
                                       <p className="text-xs text-amber-900 font-medium">{stay.pet.foodBrand}</p>
                                     )}
                                     <div className="flex gap-2 text-xs text-amber-700">
-                                      {stay.pet.foodGramsPerDay && <span>{stay.pet.foodGramsPerDay}ג׳/יום</span>}
+                                      {stay.pet.foodGramsPerDay && <span>{t("table.gramsPerDay", { grams: stay.pet.foodGramsPerDay })}</span>}
                                       {stay.pet.foodFrequency && <span>{stay.pet.foodFrequency}</span>}
                                     </div>
                                     {stay.pet.foodNotes && (
@@ -809,13 +812,13 @@ export default function FeedingPage() {
                                     )}
                                   </div>
                                 ) : (
-                                  <span className="text-petra-muted text-xs">אין תוכנית</span>
+                                  <span className="text-petra-muted text-xs">{t("table.noPlan")}</span>
                                 )}
                               </div>
                               <button
                                 onClick={() => setEditPlanStay(stay)}
                                 className="p-1.5 rounded-lg hover:bg-slate-100 text-petra-muted hover:text-brand-600 transition-colors flex-shrink-0 mt-0.5"
-                                title={plan ? "ערוך תוכנית האכלה" : "הוסף תוכנית האכלה"}
+                                title={plan ? t("table.editPlan") : t("table.addPlan")}
                               >
                                 {plan ? (
                                   <Pencil className="w-3.5 h-3.5" />
@@ -844,8 +847,8 @@ export default function FeedingPage() {
                               )}
                               title={
                                 done
-                                  ? `בוטל סימון – ${MEAL_LABELS[slot].label}`
-                                  : `סמן ${MEAL_LABELS[slot].label}`
+                                  ? t("table.unmarkMeal", { meal: t(`meals.${slot}`) })
+                                  : t("table.markMeal", { meal: t(`meals.${slot}`) })
                               }
                             >
                               {done ? (
@@ -857,7 +860,7 @@ export default function FeedingPage() {
                             {done && mealLog?.doneAt && (
                               <p className="text-[10px] text-emerald-600 mt-0.5">
                                 {new Date(mealLog.doneAt).toLocaleTimeString(
-                                  "he-IL",
+                                  locale,
                                   { hour: "2-digit", minute: "2-digit" }
                                 )}
                               </p>

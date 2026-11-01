@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -8,30 +9,19 @@ import {
   Loader2, Plus, Trash2, Copy, Bot, Clock, CheckCircle2, AlertCircle, Key, Eye, Pencil,
   Users, CalendarDays, Home, ShieldCheck, User, CalendarClock, AlertTriangle, Zap, RefreshCw,
 } from "lucide-react";
-import { formatRelativeTime, formatDate, copyToClipboard } from "@/lib/utils";
+import { formatRelativeTime, copyToClipboard } from "@/lib/utils";
+import { formatDate } from "@/lib/format";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { useAuth } from "@/providers/auth-provider";
 import { usePermissions } from "@/hooks/usePermissions";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 
-// NOTE: these mirror MCP_PROFILE_LABELS in src/lib/mcp-auth.ts. That module imports
-// prisma (server-only) so it can't be imported from a client component — keep the
-// two maps in sync when adding/renaming a profile.
+// NOTE: the labels/descriptions (messages: settings.mcpConnectionsTab.profiles.*) mirror
+// MCP_PROFILE_LABELS in src/lib/mcp-auth.ts. That module imports prisma (server-only)
+// so it can't be imported from a client component — keep them in sync when
+// adding/renaming a profile.
 type McpProfile = "read" | "intake" | "calendar" | "boarding" | "full";
 const PROFILE_ORDER: McpProfile[] = ["read", "intake", "calendar", "boarding", "full"];
-const MCP_PROFILE_LABELS: Record<McpProfile, string> = {
-  read: "קריאה בלבד",
-  intake: "קבלה — לידים, משימות, לקוחות",
-  calendar: "יומן — תורים וזמינות",
-  boarding: "פנסיון",
-  full: "מלא",
-};
-const MCP_PROFILE_DESCRIPTIONS: Record<McpProfile, string> = {
-  read: "הסוכן רק קורא נתונים",
-  intake: "לידים, משימות, לקוחות (כולל יצירה/עדכון)",
-  calendar: "תורים, זמינות, חסימות",
-  boarding: "פנסיון — שהיות, זמינות, לוח יומי",
-  full: "כל היכולות שהתפקיד שלך מאפשר",
-};
 const PROFILE_ICONS: Record<McpProfile, React.ComponentType<{ className?: string }>> = {
   read: Eye,
   intake: Users,
@@ -77,6 +67,7 @@ const isReadOnlyConnection = (scopes: string[]) => !scopes.some((s) => s.startsW
 
 /** Profile badge. Legacy rows (profile = null) are derived from their scopes. */
 function ProfileBadge({ profile, scopes }: { profile: string | null; scopes: string[] }) {
+  const t = useTranslations("settings.mcpConnectionsTab");
   if (isMcpProfile(profile)) {
     const Icon = PROFILE_ICONS[profile];
     const cls =
@@ -88,63 +79,66 @@ function ProfileBadge({ profile, scopes }: { profile: string | null; scopes: str
     return (
       <span className={`inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded-md border ${cls}`}>
         <Icon className="w-3 h-3" />
-        {MCP_PROFILE_LABELS[profile]}
+        {t(`profiles.labels.${profile}`)}
       </span>
     );
   }
   return isReadOnlyConnection(scopes) ? (
     <span className="inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">
       <Eye className="w-3 h-3" />
-      קריאה בלבד
+      {t("profiles.labels.read")}
     </span>
   ) : (
     <span className="inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200">
       <Pencil className="w-3 h-3" />
-      מלא (ישן)
+      {t("badges.legacyFull")}
     </span>
   );
 }
 
 /** Badge for connections created via OAuth auto-login (client pasted the URL + logged in). */
 function OAuthBadge() {
+  const t = useTranslations("settings.mcpConnectionsTab");
   return (
     <span className="inline-flex items-center gap-1 text-[11px] font-medium px-1.5 py-0.5 rounded-md border bg-sky-50 text-sky-700 border-sky-200">
       <Zap className="w-3 h-3" />
-      התחברות אוטומטית
+      {t("badges.oauth")}
     </span>
   );
 }
 
 /** Minter + expiry metadata line, shared by active and revoked rows. */
 function GovernanceMeta({ conn }: { conn: McpConnection }) {
+  const t = useTranslations("settings.mcpConnectionsTab");
+  const { locale } = useBusinessLocale();
   if (!conn.createdBy && !conn.expiresAt) return null;
   return (
     <div className="flex items-center gap-3 mt-0.5 flex-wrap">
       {conn.createdBy && (
         <span className="flex items-center gap-1 text-xs text-slate-500" title={conn.createdBy.email}>
           <User className="w-3 h-3" />
-          נוצר ע״י {conn.createdBy.name || conn.createdBy.email}
+          {t("meta.createdBy", { name: conn.createdBy.name || conn.createdBy.email })}
         </span>
       )}
       {conn.expiresAt && (
         conn.isExpired ? (
           <span className="flex items-center gap-1 text-xs font-medium text-red-600">
             <AlertTriangle className="w-3 h-3" />
-            פג תוקף
+            {t("meta.expired")}
           </span>
         ) : conn.oauthClientId ? (
           // OAuth grants: expiresAt is a sliding 90-day refresh window — renewed on every token refresh.
           <span
             className="flex items-center gap-1 text-xs text-slate-500"
-            title={`אם לא ייעשה שימוש — יפוג ב-${formatDate(conn.expiresAt)}`}
+            title={t("meta.autoRenewTitle", { date: formatDate(conn.expiresAt, { locale }) })}
           >
             <RefreshCw className="w-3 h-3" />
-            מתחדש אוטומטית בזמן שימוש
+            {t("meta.autoRenew")}
           </span>
         ) : (
           <span className="flex items-center gap-1 text-xs text-slate-500">
             <CalendarClock className="w-3 h-3" />
-            תוקף עד {formatDate(conn.expiresAt)}
+            {t("meta.validUntil", { date: formatDate(conn.expiresAt, { locale }) })}
           </span>
         )
       )}
@@ -153,6 +147,8 @@ function GovernanceMeta({ conn }: { conn: McpConnection }) {
 }
 
 export function McpConnectionsTab() {
+  const t = useTranslations("settings.mcpConnectionsTab");
+  const tc = useTranslations("common");
   const queryClient = useQueryClient();
   const { user, isManager, isOwner } = useAuth();
   const { canUseAiAssistant } = usePermissions();
@@ -186,7 +182,7 @@ export function McpConnectionsTab() {
         body: JSON.stringify(input),
       }).then(async (r) => {
         const data = (await r.json()) as NewConnection;
-        if (!r.ok || !data.token) throw new Error(data.error || "שגיאה ביצירת חיבור");
+        if (!r.ok || !data.token) throw new Error(data.error || t("toasts.createError"));
         return data;
       }),
     onSuccess: (data: NewConnection) => {
@@ -197,25 +193,25 @@ export function McpConnectionsTab() {
       setNewProfile("read");
       setShowCreate(false);
       if (data.scopesCapped) {
-        toast.info("חלק מההרשאות הוסרו לפי התפקיד שלך");
+        toast.info(t("toasts.scopesCapped"));
       }
     },
-    onError: (err: Error) => toast.error(err.message || "שגיאה ביצירת חיבור"),
+    onError: (err: Error) => toast.error(err.message || t("toasts.createError")),
   });
 
   const revokeMutation = useMutation({
     mutationFn: (id: string) =>
       fetch(`/api/mcp/connections/${id}`, { method: "DELETE" }).then(async (r) => {
         const d = await r.json().catch(() => ({}));
-        if (!r.ok) throw new Error(d.error || "שגיאה בביטול חיבור");
+        if (!r.ok) throw new Error(d.error || t("toasts.revokeError"));
         return d;
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["mcp-connections"] });
       setConfirmRevoke(null);
-      toast.success("החיבור בוטל בהצלחה");
+      toast.success(t("toasts.revoked"));
     },
-    onError: (err: Error) => toast.error(err.message || "שגיאה בביטול חיבור"),
+    onError: (err: Error) => toast.error(err.message || t("toasts.revokeError")),
   });
 
   const submitCreate = () => {
@@ -241,16 +237,15 @@ export function McpConnectionsTab() {
             <Bot className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h3 className="font-semibold text-slate-800 text-base">חבר עוזר AI לעסק שלך</h3>
+            <h3 className="font-semibold text-slate-800 text-base">{t("intro.title")}</h3>
             <p className="text-slate-600 text-sm mt-1 leading-relaxed">
-              חבר את העסק שלך לעוזר AI כמו Claude או ChatGPT. תוכל לשאול &quot;מי הלקוחות שלי השבוע?&quot; או
-              &quot;קבע פגישה לדני ביום שלישי&quot; והוא יבצע את זה בשבילך.
+              {t("intro.body")}
             </p>
             <Link
               href="/help/connect-ai"
               className="inline-block mt-2 text-sm font-medium text-indigo-600 hover:text-indigo-800 hover:underline"
             >
-              מדריך חיבור מפורט ←
+              {t("intro.guideLink")}
             </Link>
           </div>
         </div>
@@ -260,17 +255,17 @@ export function McpConnectionsTab() {
       <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 space-y-2">
         <div className="flex items-center gap-2">
           <Zap className="w-4 h-4 text-emerald-600" />
-          <h4 className="font-semibold text-emerald-800 text-sm">הדרך הקלה (מומלץ): רק כתובת, בלי טוקן</h4>
+          <h4 className="font-semibold text-emerald-800 text-sm">{t("easy.title")}</h4>
         </div>
         <p className="text-sm text-emerald-900/80 leading-relaxed">
-          הדבק את הכתובת הזו כ-connector ב-Claude או ב-Codex, התחבר עם המייל והסיסמה של פטרה ואשר — החיבור יופיע כאן אוטומטית.
+          {t("easy.body")}
         </p>
         <div className="bg-white border border-emerald-200 rounded-lg p-2 flex items-center gap-2 font-mono text-xs break-all" dir="ltr">
           <span className="flex-1 text-slate-700 select-all">{mcpUrl}</span>
           <button
-            onClick={() => { copyToClipboard(mcpUrl); toast.success("הכתובת הועתקה"); }}
+            onClick={() => { copyToClipboard(mcpUrl); toast.success(t("toasts.urlCopied")); }}
             className="text-emerald-600 hover:text-emerald-800 flex-shrink-0"
-            title="העתק כתובת"
+            title={t("easy.copyUrlTitle")}
           >
             <Copy className="w-4 h-4" />
           </button>
@@ -279,10 +274,10 @@ export function McpConnectionsTab() {
           href="/help/connect-ai"
           className="inline-block text-sm font-medium text-emerald-700 hover:text-emerald-900 hover:underline"
         >
-          הוראות ל-Claude, Claude Code ו-Codex ←
+          {t("easy.instructionsLink")}
         </Link>
         <p className="text-xs text-slate-500">
-          הכפתור &quot;חבר עוזר חדש&quot; למטה (טוקן ידני) מיועד לחיבור מתקדם בלבד.
+          {t("easy.manualNote")}
         </p>
       </div>
 
@@ -291,28 +286,28 @@ export function McpConnectionsTab() {
         <div className="bg-amber-50 border-2 border-amber-300 rounded-xl p-5 space-y-3">
           <div className="flex items-center gap-2">
             <Key className="w-5 h-5 text-amber-600" />
-            <h4 className="font-semibold text-amber-800">הטוקן שלך — שמור אותו עכשיו!</h4>
+            <h4 className="font-semibold text-amber-800">{t("token.title")}</h4>
           </div>
           <p className="text-amber-700 text-sm">
-            הטוקן הזה יוצג <strong>פעם אחת בלבד</strong>. לאחר שתסגור את ההודעה הזו, לא תוכל לראות אותו שוב.
+            {t.rich("token.onceNotice", { strong: (c) => <strong>{c}</strong> })}
           </p>
           <div className="bg-white border border-amber-200 rounded-lg p-3 flex items-center gap-3 font-mono text-sm break-all">
             <span className="flex-1 text-slate-700 select-all">{newToken}</span>
             <button
-              onClick={() => { copyToClipboard(newToken); toast.success("הטוקן הועתק"); }}
+              onClick={() => { copyToClipboard(newToken); toast.success(t("toasts.tokenCopied")); }}
               className="text-amber-600 hover:text-amber-800 flex-shrink-0"
-              title="העתק"
+              title={t("token.copyTitle")}
             >
               <Copy className="w-5 h-5" />
             </button>
           </div>
           {/* Easy method — paste one URL into Claude Desktop's Connectors UI */}
           <div className="bg-white border border-emerald-200 rounded-lg p-3 space-y-2">
-            <p className="text-emerald-800 text-sm font-semibold">✅ הדרך הקלה (מומלץ) — חיבור ב-Claude Desktop בלי קוד:</p>
+            <p className="text-emerald-800 text-sm font-semibold">{t("token.easyTitle")}</p>
             <ol className="list-decimal list-inside space-y-0.5 text-xs text-slate-600">
-              <li>ב-Claude Desktop: <strong>Settings → Connectors → Add custom connector</strong></li>
-              <li>ב-<strong>Name</strong> כתוב: <code>Petra</code></li>
-              <li>ב-<strong>Remote MCP server URL</strong> הדבק את הכתובת הבאה (כוללת את הטוקן שלך):</li>
+              <li>{t.rich("token.easyStep1", { strong: (c) => <strong>{c}</strong> })}</li>
+              <li>{t.rich("token.easyStep2", { strong: (c) => <strong>{c}</strong>, code: (c) => <code>{c}</code> })}</li>
+              <li>{t.rich("token.easyStep3", { strong: (c) => <strong>{c}</strong> })}</li>
             </ol>
             <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-2 flex items-center gap-2 font-mono text-xs break-all">
               <span dir="ltr" className="flex-1 min-w-0 text-left text-slate-700 select-all">
@@ -321,24 +316,24 @@ export function McpConnectionsTab() {
               <button
                 onClick={() => {
                   copyToClipboard(`${appOrigin}/api/mcp/u/${newToken}`);
-                  toast.success("הכתובת הועתקה");
+                  toast.success(t("toasts.urlCopied"));
                 }}
                 className="text-emerald-600 hover:text-emerald-800 flex-shrink-0"
-                title="העתק כתובת"
+                title={t("easy.copyUrlTitle")}
               >
                 <Copy className="w-4 h-4" />
               </button>
             </div>
-            <p className="text-xs text-slate-500">לחץ <strong>Add</strong> וזהו — Claude מחובר לעסק שלך. 🎉</p>
+            <p className="text-xs text-slate-500">{t.rich("token.easyDone", { strong: (c) => <strong>{c}</strong> })}</p>
           </div>
 
           {/* Advanced method — config file with header auth */}
           <details className="text-amber-700 text-sm">
-            <summary className="font-medium cursor-pointer select-none">דרך מתקדמת — דרך קובץ הגדרות (Developer → Edit Config)</summary>
+            <summary className="font-medium cursor-pointer select-none">{t("token.advancedSummary")}</summary>
             <div className="space-y-1 mt-2">
               <ol className="list-decimal list-inside space-y-0.5 text-xs">
-                <li>ב-Claude Desktop: <strong>Settings → Developer → Edit Config</strong></li>
-                <li>הוסף את הבלוק הבא תחת <code>mcpServers</code>:</li>
+                <li>{t.rich("token.advancedStep1", { strong: (c) => <strong>{c}</strong> })}</li>
+                <li>{t.rich("token.advancedStep2", { code: (c) => <code>{c}</code> })}</li>
               </ol>
               <pre dir="ltr" className="bg-white border border-amber-200 rounded p-2 text-xs text-left overflow-x-auto mt-1 whitespace-pre-wrap">
 {`"petra": {
@@ -348,14 +343,14 @@ export function McpConnectionsTab() {
   }
 }`}
               </pre>
-              <p className="text-xs text-amber-600">סגור ופתח מחדש את Claude Desktop (Cmd+Q) כדי שהשינוי ייכנס לתוקף.</p>
+              <p className="text-xs text-amber-600">{t("token.restartNote")}</p>
             </div>
           </details>
           <button
             onClick={() => { setNewToken(null); setNewConnectionId(null); }}
             className="btn-secondary text-sm w-full mt-2"
           >
-            הבנתי, שמרתי את הטוקן
+            {t("token.dismiss")}
           </button>
         </div>
       )}
@@ -363,14 +358,14 @@ export function McpConnectionsTab() {
       {/* Active connections */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h4 className="font-semibold text-slate-700">חיבורים פעילים ({activeConnections.length})</h4>
+          <h4 className="font-semibold text-slate-700">{t("list.activeTitle", { count: activeConnections.length })}</h4>
           {!showCreate && canCreate && (
             <button
               onClick={() => setShowCreate(true)}
               className="btn-primary text-sm flex items-center gap-1.5"
             >
               <Plus className="w-4 h-4" />
-              חבר עוזר חדש
+              {t("list.newButton")}
             </button>
           )}
         </div>
@@ -378,11 +373,11 @@ export function McpConnectionsTab() {
         {/* Create form */}
         {showCreate && (
           <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-4 space-y-3">
-            <h5 className="text-sm font-medium text-slate-700">שם החיבור החדש</h5>
-            <p className="text-xs text-slate-500">תן שם שיזהה לך איפה הטוקן הזה משמש, למשל: &quot;Claude Desktop של אור&quot;</p>
+            <h5 className="text-sm font-medium text-slate-700">{t("create.title")}</h5>
+            <p className="text-xs text-slate-500">{t("create.hint")}</p>
             <input
               className="input w-full"
-              placeholder="למשל: Claude Desktop"
+              placeholder={t("create.placeholder")}
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && submitCreate()}
@@ -391,8 +386,8 @@ export function McpConnectionsTab() {
 
             {/* Access profile — read-only is the safe default */}
             <div className="bg-white border border-slate-200 rounded-lg p-3 space-y-2">
-              <p className="text-xs font-medium text-slate-600">פרופיל גישה</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2" role="radiogroup" aria-label="פרופיל גישה">
+              <p className="text-xs font-medium text-slate-600">{t("create.profileLabel")}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2" role="radiogroup" aria-label={t("create.profileLabel")}>
                 {PROFILE_ORDER.map((p) => {
                   const Icon = PROFILE_ICONS[p];
                   const selected = newProfile === p;
@@ -416,11 +411,11 @@ export function McpConnectionsTab() {
                       <span className="flex-1 min-w-0">
                         <span className="flex items-center gap-1.5 text-sm font-medium text-slate-800">
                           <Icon className={`w-4 h-4 ${p === "read" ? "text-emerald-600" : p === "full" ? "text-amber-600" : "text-indigo-600"}`} />
-                          {MCP_PROFILE_LABELS[p]}
-                          {p === "read" && <span className="text-[11px] font-normal text-emerald-700">(מומלץ)</span>}
+                          {t(`profiles.labels.${p}`)}
+                          {p === "read" && <span className="text-[11px] font-normal text-emerald-700">{t("create.recommended")}</span>}
                         </span>
                         <span className="block text-xs text-slate-500 mt-0.5 leading-relaxed">
-                          {MCP_PROFILE_DESCRIPTIONS[p]}
+                          {t(`profiles.descriptions.${p}`)}
                         </span>
                       </span>
                     </label>
@@ -431,7 +426,7 @@ export function McpConnectionsTab() {
                 <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg p-2">
                   <Pencil className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
                   <p className="text-xs text-amber-700 leading-relaxed">
-                    הסוכן יוכל ליצור ולעדכן רשומות בפטרה בתחומים של הפרופיל שנבחר. כל פעולה נרשמת ביומן.
+                    {t("create.writeWarning")}
                   </p>
                 </div>
               )}
@@ -439,11 +434,11 @@ export function McpConnectionsTab() {
                 <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-lg p-2">
                   <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
                   <p className="text-xs text-amber-800 leading-relaxed">
-                    כמנהל, חיבורים שתיצור לא יכללו: אנליטיקה/הכנסות, רישום תשלומים ומחיקות (נדרש בעלים)
+                    {t("create.managerWarning")}
                   </p>
                 </div>
               )}
-              <p className="text-[11px] text-slate-400">תוקף הטוקן: 180 יום מיום היצירה. ניתן לבטל בכל רגע.</p>
+              <p className="text-[11px] text-slate-400">{t("create.expiryNote")}</p>
             </div>
 
             <div className="flex gap-2">
@@ -452,10 +447,10 @@ export function McpConnectionsTab() {
                 disabled={!newName.trim() || createMutation.isPending}
                 className="btn-primary text-sm"
               >
-                {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "צור חיבור"}
+                {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : t("create.submit")}
               </button>
               <button onClick={resetCreateForm} className="btn-secondary text-sm">
-                ביטול
+                {tc("actions.cancel")}
               </button>
             </div>
           </div>
@@ -466,7 +461,7 @@ export function McpConnectionsTab() {
         ) : activeConnections.length === 0 ? (
           <div className="text-center py-8 text-slate-500">
             <Bot className="w-10 h-10 mx-auto mb-2 text-slate-300" />
-            <p className="text-sm">אין עוזרי AI מחוברים עדיין.</p>
+            <p className="text-sm">{t("list.empty")}</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -487,46 +482,46 @@ export function McpConnectionsTab() {
                         {conn.isExpired ? (
                           <span className="flex items-center gap-1 text-xs text-red-600">
                             <AlertTriangle className="w-3 h-3" />
-                            פג תוקף
+                            {t("meta.expired")}
                           </span>
                         ) : (
                           <span className="flex items-center gap-1 text-xs text-slate-500">
                             <CheckCircle2 className="w-3 h-3 text-emerald-500" />
-                            פעיל
+                            {t("list.active")}
                           </span>
                         )}
                         {conn.lastUsedAt ? (
                           <span className="flex items-center gap-1 text-xs text-slate-500">
                             <Clock className="w-3 h-3" />
-                            שימוש אחרון: {formatRelativeTime(conn.lastUsedAt)}
+                            {t("list.lastUsed", { time: formatRelativeTime(conn.lastUsedAt) })}
                           </span>
                         ) : (
-                          <span className="text-xs text-slate-400">טרם נעשה שימוש</span>
+                          <span className="text-xs text-slate-400">{t("list.neverUsed")}</span>
                         )}
-                        <span className="text-xs text-slate-400">{conn._count.auditLogs} פעולות</span>
+                        <span className="text-xs text-slate-400">{t("list.actionsCount", { count: conn._count.auditLogs })}</span>
                       </div>
                       <GovernanceMeta conn={conn} />
                     </div>
                   </div>
                   {!canRevoke(conn) ? null : confirmRevoke === conn.id ? (
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-red-600">לבטל?</span>
+                      <span className="text-xs text-red-600">{t("list.confirmRevoke")}</span>
                       <button
                         onClick={() => revokeMutation.mutate(conn.id)}
                         className="text-xs bg-red-500 text-white px-2 py-1 rounded"
                         disabled={revokeMutation.isPending}
                       >
-                        {revokeMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : "כן, בטל"}
+                        {revokeMutation.isPending ? <Loader2 className="w-3 h-3 animate-spin" /> : t("list.confirmYes")}
                       </button>
                       <button onClick={() => setConfirmRevoke(null)} className="text-xs text-slate-500">
-                        לא
+                        {t("list.confirmNo")}
                       </button>
                     </div>
                   ) : (
                     <button
                       onClick={() => setConfirmRevoke(conn.id)}
                       className="text-slate-400 hover:text-red-500 transition-colors"
-                      title="נתק"
+                      title={t("list.disconnectTitle")}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -542,7 +537,7 @@ export function McpConnectionsTab() {
       {revokedConnections.length > 0 && (
         <details className="text-sm">
           <summary className="text-slate-500 cursor-pointer select-none">
-            חיבורים שבוטלו ({revokedConnections.length})
+            {t("revoked.title", { count: revokedConnections.length })}
           </summary>
           <div className="mt-2 space-y-2">
             {revokedConnections.map((conn) => (
@@ -555,8 +550,8 @@ export function McpConnectionsTab() {
                     {conn.oauthClientId && <OAuthBadge />}
                   </div>
                   <p className="text-xs text-slate-400">
-                    בוטל {conn.revokedAt ? formatRelativeTime(conn.revokedAt) : ""}
-                    {conn.createdBy ? ` · נוצר ע״י ${conn.createdBy.name || conn.createdBy.email}` : ""}
+                    {t("revoked.revokedAt", { time: conn.revokedAt ? formatRelativeTime(conn.revokedAt) : "" })}
+                    {conn.createdBy ? t("revoked.createdBy", { name: conn.createdBy.name || conn.createdBy.email }) : ""}
                   </p>
                 </div>
               </div>

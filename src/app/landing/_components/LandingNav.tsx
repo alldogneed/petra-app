@@ -4,15 +4,17 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Menu, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 const NAV_LINKS = [
-  { href: "#video", label: "איך זה עובד" },
-  { href: "#features", label: "מאפיינים" },
-  { href: "#clients", label: "לקוחות" },
-  { href: "#pricing", label: "מחירים" },
-];
+  { href: "#video", key: "video" },
+  { href: "#features", key: "features" },
+  { href: "#clients", key: "clients" },
+  { href: "#pricing", key: "pricing" },
+] as const;
 
 export function LandingNav() {
+  const t = useTranslations("landing.landingNav");
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -35,7 +37,7 @@ export function LandingNav() {
 
   return (
     <header
-      className={`fixed top-0 right-0 left-0 z-50 transition-[background-color,box-shadow,backdrop-filter] duration-300 ${
+      className={`fixed top-0 start-0 end-0 z-50 transition-[background-color,box-shadow,backdrop-filter] duration-300 ${
         scrolled || menuOpen ? "lp-glass" : "bg-transparent"
       }`}
     >
@@ -46,7 +48,7 @@ export function LandingNav() {
           <Link
             href="/landing"
             className="flex items-center gap-2.5 shrink-0 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
-            aria-label="פטרה — חזרה לדף הבית"
+            aria-label={t("homeLabel")}
           >
             <Image
               src="/petra-logo.png"
@@ -61,14 +63,14 @@ export function LandingNav() {
           </Link>
 
           {/* Desktop nav */}
-          <nav aria-label="ניווט ראשי" className="hidden md:flex items-center gap-0.5">
-            {NAV_LINKS.map(({ href, label }) => (
+          <nav aria-label={t("mainNavLabel")} className="hidden md:flex items-center gap-0.5">
+            {NAV_LINKS.map(({ href, key }) => (
               <a
                 key={href}
                 href={href}
                 className="px-3.5 py-2 text-sm text-slate-300 hover:text-white rounded-lg hover:bg-white/8 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-400"
               >
-                {label}
+                {t(`links.${key}`)}
               </a>
             ))}
           </nav>
@@ -79,19 +81,19 @@ export function LandingNav() {
               href="/login"
               className="text-sm text-slate-400 hover:text-white transition-colors px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-400"
             >
-              כניסה
+              {t("login")}
             </Link>
 <Link
               href="/register"
               className="lp-press text-sm font-semibold px-4 py-2 rounded-xl bg-brand-700 hover:bg-brand-800 text-white focus:outline-none focus:ring-2 focus:ring-brand-400 focus:ring-offset-2 focus:ring-offset-slate-900"
             >
-              התחילו בחינם
+              {t("startFree")}
             </Link>
           </div>
 
           {/* Mobile menu toggle */}
           <button
-            aria-label={menuOpen ? "סגור תפריט" : "פתח תפריט"}
+            aria-label={menuOpen ? t("closeMenu") : t("openMenu")}
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((v) => !v)}
             className="md:hidden p-2 text-slate-300 hover:text-white rounded-lg lp-press focus:outline-none focus:ring-2 focus:ring-brand-400"
@@ -110,14 +112,14 @@ export function LandingNav() {
         >
           <div>
             <div className="py-4 px-4 sm:px-6 space-y-1">
-              {NAV_LINKS.map(({ href, label }) => (
+              {NAV_LINKS.map(({ href, key }) => (
                 <a
                   key={href}
                   href={href}
                   onClick={() => setMenuOpen(false)}
                   className="flex items-center px-4 py-3 text-sm text-slate-300 hover:text-white hover:bg-white/8 rounded-xl transition-colors"
                 >
-                  {label}
+                  {t(`links.${key}`)}
                 </a>
               ))}
               <div className="pt-3 flex flex-col gap-2">
@@ -126,14 +128,14 @@ export function LandingNav() {
                   onClick={() => setMenuOpen(false)}
                   className="lp-press text-sm font-semibold px-4 py-3 rounded-xl bg-brand-700 hover:bg-brand-800 text-white text-center"
                 >
-                  התחילו בחינם
+                  {t("startFree")}
                 </Link>
                 <Link
                   href="/login"
                   onClick={() => setMenuOpen(false)}
                   className="text-sm text-slate-400 hover:text-white transition-colors text-center py-2"
                 >
-                  כניסה לחשבון
+                  {t("loginToAccount")}
                 </Link>
               </div>
             </div>

@@ -3,6 +3,8 @@ import { notFound } from "next/navigation"
 import prisma from "@/lib/prisma"
 import { hasFeatureWithOverrides } from "@/lib/feature-flags"
 import type { Metadata } from "next"
+import { getLocale, getTranslations } from "next-intl/server"
+import { LOCALE_CONFIG, localeFromBusiness } from "@/lib/locale"
 
 type Props = { params: { slug: string }; children: React.ReactNode }
 
@@ -51,17 +53,21 @@ const getPortalBusiness = cache(async (rawSlug: string) => {
 
 export async function generateMetadata({ params }: Omit<Props, "children">): Promise<Metadata> {
   const data = await getPortalBusiness(params.slug)
-  if (!data) return { title: "פורטל חברים" }
-  const title = `${data.business.name} — פורטל חברים`
+  const t = await getTranslations("portal.cDetailLayout")
+  // TODO(i18n): the portal is public → locale = NEXT_LOCALE cookie / he-IL.
+  // Taking the locale from the business in the path is a later phase.
+  const locale = localeFromBusiness({ locale: await getLocale() })
+  if (!data) return { title: t("metaTitle") }
+  const title = t("metaTitleWithBusiness", { business: data.business.name })
   return {
     title,
-    description: `פורטל החברים של ${data.business.name} — שיעורים חיים, קורסים מוקלטים ומנוי`,
+    description: t("metaDescription", { business: data.business.name }),
     openGraph: {
       title,
       url: `https://petra-app.com/c/${params.slug}`,
       type: "website",
       images: data.business.logo ? [{ url: data.business.logo }] : [],
-      locale: "he_IL",
+      locale: locale.replace("-", "_"),
     },
     robots: { index: false, follow: false },
   }
@@ -77,6 +83,8 @@ export default async function PortalLayout({ children, params }: Props) {
   const overrides = (business.featureOverrides as Record<string, boolean> | null) ?? null
   if (!hasFeatureWithOverrides(business.tier, "online_classes", overrides)) notFound()
 
+  const cfg = LOCALE_CONFIG[localeFromBusiness({ locale: await getLocale() })]
+
   const primary =
     branding?.primaryColor && HEX_COLOR.test(branding.primaryColor)
       ? branding.primaryColor
@@ -87,7 +95,7 @@ export default async function PortalLayout({ children, params }: Props) {
       : "#EA580C"
 
   return (
-    <div className="portal-root min-h-screen bg-petra-bg flex flex-col" dir="rtl">
+    <div className="portal-root min-h-screen bg-petra-bg flex flex-col" dir={cfg.dir}>
       <style
         dangerouslySetInnerHTML={{
           __html: `.portal-root{--portal-primary:${primary};--portal-secondary:${secondary};}`,

@@ -2,20 +2,22 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { CreditCard, Send, Tag, ShoppingCart, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TABS = [
-  { name: "מחירון",        href: "/pricing",          icon: Tag         },
-  { name: "הזמנות",        href: "/orders",           icon: ShoppingCart },
-  { name: "בקשות תשלום",   href: "/payment-request", icon: Send        },
-  { name: "תשלומים",       href: "/payments",        icon: CreditCard  },
+  { key: "pricing",         href: "/pricing",          icon: Tag         },
+  { key: "orders",          href: "/orders",           icon: ShoppingCart },
+  { key: "paymentRequests", href: "/payment-request", icon: Send        },
+  { key: "payments",        href: "/payments",        icon: CreditCard  },
   // חשבוניות hidden until the Israeli invoicing regulation setup is complete
-  // { name: "חשבוניות",      href: "/invoices",        icon: FileText    },
-];
+  // { key: "invoices",        href: "/invoices",        icon: FileText    },
+] as const;
 
 export function FinanceTabs() {
   const pathname = usePathname();
+  const t = useTranslations("finance.financeTabs");
 
   return (
     <div className="flex gap-1 p-1 bg-slate-100 rounded-xl mb-6">
@@ -23,12 +25,13 @@ export function FinanceTabs() {
         const isActive =
           pathname === tab.href || pathname.startsWith(tab.href + "/");
         const Icon = tab.icon;
+        const name = t(tab.key);
         return (
           <Link
             key={tab.href}
             href={tab.href}
-            aria-label={tab.name}
-            title={tab.name}
+            aria-label={name}
+            title={name}
             className={cn(
               "flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all flex-1",
               isActive
@@ -37,7 +40,7 @@ export function FinanceTabs() {
             )}
           >
             <Icon className="w-4 h-4 flex-shrink-0" />
-            <span className="hidden sm:inline">{tab.name}</span>
+            <span className="hidden sm:inline">{name}</span>
           </Link>
         );
       })}

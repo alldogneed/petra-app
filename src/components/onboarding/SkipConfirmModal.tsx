@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 interface SkipConfirmModalProps {
   open: boolean;
   onConfirm: () => void;
@@ -11,6 +13,7 @@ export function SkipConfirmModal({
   onConfirm,
   onCancel,
 }: SkipConfirmModalProps) {
+  const t = useTranslations("onboarding.skipConfirmModal");
   if (!open) return null;
 
   return (
@@ -18,17 +21,17 @@ export function SkipConfirmModal({
       <div className="modal-backdrop" onClick={onCancel} />
       <div className="modal-content max-w-sm p-6 text-center animate-scale-in">
         <p className="text-base font-semibold text-petra-text mb-2">
-          בטוח שתרצה לדלג?
+          {t("title")}
         </p>
         <p className="text-sm text-petra-muted mb-6">
-          אפשר לחזור לזה אחר כך.
+          {t("body")}
         </p>
         <div className="flex gap-3 justify-center">
           <button onClick={onCancel} className="btn-secondary flex-1">
-            חזרה
+            {t("back")}
           </button>
           <button onClick={onConfirm} className="btn-danger flex-1">
-            דלג
+            {t("skip")}
           </button>
         </div>
       </div>

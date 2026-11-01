@@ -1,6 +1,7 @@
 "use client";
 import { Hotel, Clock, Moon } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { useBusinessSettings } from "@/hooks/useBusinessSettings";
 import type { Business } from "./shared";
@@ -14,9 +15,10 @@ const BOARDING_DEFAULTS: Partial<Business> = {
 };
 
 export function BoardingSettingsTab() {
+  const t = useTranslations("settings.boardingSettingsTab");
   const { values, isLoading, set, reset, save, dirty, isSaving, canEdit } = useBusinessSettings({
     dirtyKey: "boarding",
-    successMessage: "הגדרות הפנסיון נשמרו",
+    successMessage: t("saved"),
     defaults: BOARDING_DEFAULTS,
   });
 
@@ -24,11 +26,11 @@ export function BoardingSettingsTab() {
   if (!values) return null;
 
   const minNights = values.boardingMinNights ?? 1;
-  const unit = values.boardingCalcMode === "days" ? "ימים" : "לילות";
+  const unit = values.boardingCalcMode === "days" ? t("units.days") : t("units.nights");
 
   function handleSave() {
     if (!Number.isInteger(minNights) || minNights < 0 || minNights > 365) {
-      toast.error("מינימום לילות חייב להיות מספר שלם בין 0 ל-365");
+      toast.error(t("errors.minNightsRange"));
       return;
     }
     save();
@@ -36,7 +38,7 @@ export function BoardingSettingsTab() {
 
   return (
     <div className="max-w-xl">
-      <SettingsSectionHeader icon={Hotel} title="הגדרות פנסיון" description="ברירות מחדל לשהיות חדשות ולחישוב המחיר" />
+      <SettingsSectionHeader icon={Hotel} title={t("header.title")} description={t("header.description")} />
       {!canEdit && <ReadOnlyNotice className="mb-5" />}
       <SettingsFieldset readOnly={!canEdit}>
         <div className="space-y-4">
@@ -44,14 +46,14 @@ export function BoardingSettingsTab() {
             <div>
               <label className="label flex items-center gap-1.5" htmlFor="boarding-checkin">
                 <Clock className="w-3.5 h-3.5" />
-                שעת צ׳ק-אין
+                {t("fields.checkIn")}
               </label>
               <input id="boarding-checkin" type="time" className="input" value={values.boardingCheckInTime ?? "14:00"} onChange={(e) => set("boardingCheckInTime", e.target.value)} />
             </div>
             <div>
               <label className="label flex items-center gap-1.5" htmlFor="boarding-checkout">
                 <Clock className="w-3.5 h-3.5" />
-                שעת צ׳ק-אאוט
+                {t("fields.checkOut")}
               </label>
               <input id="boarding-checkout" type="time" className="input" value={values.boardingCheckOutTime ?? "11:00"} onChange={(e) => set("boardingCheckOutTime", e.target.value)} />
             </div>
@@ -60,15 +62,15 @@ export function BoardingSettingsTab() {
             <div>
               <label className="label flex items-center gap-1.5" htmlFor="boarding-calc">
                 <Moon className="w-3.5 h-3.5" />
-                חישוב לפי
+                {t("fields.calcMode")}
               </label>
               <select id="boarding-calc" className="input" value={values.boardingCalcMode ?? "nights"} onChange={(e) => set("boardingCalcMode", e.target.value)}>
-                <option value="nights">לילות</option>
-                <option value="days">ימים</option>
+                <option value="nights">{t("units.nights")}</option>
+                <option value="days">{t("units.days")}</option>
               </select>
             </div>
             <div>
-              <label className="label" htmlFor="boarding-min">מינימום {unit}</label>
+              <label className="label" htmlFor="boarding-min">{t("fields.minimum", { unit })}</label>
               <input
                 id="boarding-min"
                 type="number"

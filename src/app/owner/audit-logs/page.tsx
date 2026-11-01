@@ -5,6 +5,8 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Clock, RefreshCw } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { fetchJSON, cn } from "@/lib/utils";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { AUDIT_ACTION_LABELS, TARGET_TYPE_LABELS, auditActionLabel } from "@/lib/platform-labels";
@@ -12,10 +14,9 @@ import { ACTIVITY_ACTIONS as A, DELETE_ACTIONS, actionLabel } from "@/lib/activi
 
 type TabKey = "admin" | "activity";
 
-const TABS: { key: TabKey; label: string }[] = [
-  { key: "admin", label: "פעולות אדמין" },
-  { key: "activity", label: "פעילות משתמשים" },
-];
+type AuditT = ReturnType<typeof useTranslations<"owner.ownerAuditLogsPage">>;
+
+const TABS: { key: TabKey }[] = [{ key: "admin" }, { key: "activity" }];
 
 /* ───────────────────────── Tab 1 — admin audit log ───────────────────────── */
 
@@ -61,8 +62,9 @@ function targetHref(type: string | null, id: string | null): string | null {
 }
 
 function AuditTarget({ log }: { log: AuditLogRow }) {
+  const t = useTranslations("owner.ownerAuditLogsPage");
   if (!log.targetType) return <span className="text-slate-500">—</span>;
-  const typeLabel = TARGET_TYPE_LABELS[log.targetType] ?? "יעד אחר";
+  const typeLabel = TARGET_TYPE_LABELS[log.targetType] ?? t("target.otherType");
 
   if (log.targetName) {
     const href = targetHref(log.targetType, log.targetId);
@@ -85,12 +87,14 @@ function AuditTarget({ log }: { log: AuditLogRow }) {
   return (
     <span className="text-slate-500">
       {typeLabel}
-      {resolvable && log.targetId ? " (נמחק)" : ""}
+      {resolvable && log.targetId ? t("target.deleted") : ""}
     </span>
   );
 }
 
 function AdminActionsTab() {
+  const t = useTranslations("owner.ownerAuditLogsPage");
+  const { locale, cfg } = useBusinessLocale();
   const [action, setAction] = useState("");
   const [page, setPage] = useState(1);
 
@@ -111,7 +115,7 @@ function AdminActionsTab() {
     <div>
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <label htmlFor="audit-action-filter" className="sr-only">
-          סינון לפי פעולה
+          {t("admin.filterLabel")}
         </label>
         <select
           id="audit-action-filter"
@@ -122,19 +126,19 @@ function AdminActionsTab() {
           }}
           className="input w-full sm:w-64"
         >
-          <option value="">כל הפעולות</option>
+          <option value="">{t("admin.allActions")}</option>
           {AUDIT_ACTION_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
               {o.label}
             </option>
           ))}
         </select>
-        {data && <span className="text-sm text-slate-500">{total.toLocaleString("he-IL")} אירועים</span>}
+        {data && <span className="text-sm text-slate-500">{t("admin.eventsCount", { count: total.toLocaleString(locale) })}</span>}
       </div>
 
       {error && (
         <div className="mb-4 p-3 rounded-xl bg-red-50 text-red-700 text-sm">
-          שגיאה בטעינת יומן הפעולות: {(error as Error).message}
+          {t("admin.loadError", { message: (error as Error).message })}
         </div>
       )}
 
@@ -143,17 +147,17 @@ function AdminActionsTab() {
           <PetraLoader />
         ) : logs.length === 0 ? (
           <div className="px-4 py-12 text-center text-sm text-slate-500">
-            {action ? "לא נמצאו אירועים מסוג זה. נסו לבחור פעולה אחרת." : "עדיין לא נרשמו פעולות אדמין."}
+            {action ? t("admin.emptyFiltered") : t("admin.empty")}
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-100">
-                  <th className="table-header-cell">זמן</th>
-                  <th className="table-header-cell">פעולה</th>
-                  <th className="table-header-cell">מבצע</th>
-                  <th className="table-header-cell">יעד</th>
+                  <th className="table-header-cell">{t("admin.columns.time")}</th>
+                  <th className="table-header-cell">{t("admin.columns.action")}</th>
+                  <th className="table-header-cell">{t("admin.columns.actor")}</th>
+                  <th className="table-header-cell">{t("admin.columns.target")}</th>
                   <th className="table-header-cell">IP</th>
                 </tr>
               </thead>
@@ -161,7 +165,7 @@ function AdminActionsTab() {
                 {logs.map((log) => (
                   <tr key={log.id} className="hover:bg-slate-50 transition-colors">
                     <td className="table-cell text-xs text-slate-500 whitespace-nowrap">
-                      {new Date(log.timestamp).toLocaleString("he-IL")}
+                      {new Date(log.timestamp).toLocaleString(locale)}
                     </td>
                     <td className="table-cell">
                       <span className={cn("badge whitespace-nowrap", auditBadgeClass(log.action))} title={log.action}>
@@ -173,13 +177,13 @@ function AdminActionsTab() {
                         <div>
                           <div className="font-medium text-slate-700">{log.actor.name || log.actor.email}</div>
                           {log.actor.name && (
-                            <div className="text-slate-500" dir="ltr" style={{ textAlign: "right" }}>
+                            <div className="text-slate-500" dir="ltr" style={{ textAlign: cfg.dir === "rtl" ? "right" : "left" }}>
                               {log.actor.email}
                             </div>
                           )}
                         </div>
                       ) : (
-                        <span className="text-slate-500">מערכת</span>
+                        <span className="text-slate-500">{t("admin.system")}</span>
                       )}
                     </td>
                     <td className="table-cell text-xs">
@@ -198,7 +202,7 @@ function AdminActionsTab() {
         {totalPages > 1 && (
           <div className="px-4 py-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
             <span className="text-xs text-slate-500">
-              עמוד {page} מתוך {totalPages}
+              {t("pagination.pageOf", { page, totalPages })}
             </span>
             <div className="flex gap-2">
               <button
@@ -206,14 +210,14 @@ function AdminActionsTab() {
                 disabled={page === 1}
                 className="btn-ghost text-xs px-3 py-1 disabled:opacity-40"
               >
-                הקודם
+                {t("pagination.prev")}
               </button>
               <button
                 onClick={() => setPage((p) => p + 1)}
                 disabled={page >= totalPages}
                 className="btn-ghost text-xs px-3 py-1 disabled:opacity-40"
               >
-                הבא
+                {t("pagination.next")}
               </button>
             </div>
           </div>
@@ -234,21 +238,19 @@ interface FeedItem {
   businessName: string | null;
 }
 
-const ACTIVITY_CATEGORIES: { key: string; label: string; actions: string[] }[] = [
-  { key: "all", label: "הכל", actions: [] },
-  { key: "logins", label: "כניסות", actions: [A.LOGIN] },
+const ACTIVITY_CATEGORIES: { key: string; actions: string[] }[] = [
+  { key: "all", actions: [] },
+  { key: "logins", actions: [A.LOGIN] },
   {
     key: "customers",
-    label: "לקוחות",
     actions: [
       A.CREATE_CUSTOMER, A.UPDATE_CUSTOMER, A.DELETE_CUSTOMER, A.MERGE_CUSTOMER,
       A.BULK_UPDATE_CUSTOMERS, A.EXPORT_CUSTOMERS, A.DELETE_IMPORT_BATCH,
     ],
   },
-  { key: "pets", label: "חיות מחמד", actions: [A.ADD_PET, A.DELETE_PET] },
+  { key: "pets", actions: [A.ADD_PET, A.DELETE_PET] },
   {
     key: "appointments",
-    label: "תורים",
     actions: [
       A.CREATE_APPOINTMENT, A.UPDATE_APPOINTMENT, A.COMPLETE_APPOINTMENT,
       A.CANCEL_APPOINTMENT, A.DELETE_APPOINTMENT,
@@ -256,24 +258,20 @@ const ACTIVITY_CATEGORIES: { key: string; label: string; actions: string[] }[] =
   },
   {
     key: "payments",
-    label: "תשלומים",
     actions: [A.CREATE_PAYMENT, A.UPDATE_PAYMENT, A.CANCEL_PAYMENT, A.REFUND_PAYMENT, A.DELETE_PAYMENT],
   },
   {
     key: "leads",
-    label: "לידים",
     actions: [A.CREATE_LEAD, A.UPDATE_LEAD, A.CLOSE_LEAD_WON, A.CLOSE_LEAD_LOST, A.DELETE_LEAD],
   },
-  { key: "orders", label: "הזמנות", actions: [A.CREATE_ORDER, A.CANCEL_ORDER, A.DELETE_ORDER] },
-  { key: "tasks", label: "משימות", actions: [A.CREATE_TASK, A.COMPLETE_TASK, A.CANCEL_TASK, A.DELETE_TASK] },
+  { key: "orders", actions: [A.CREATE_ORDER, A.CANCEL_ORDER, A.DELETE_ORDER] },
+  { key: "tasks", actions: [A.CREATE_TASK, A.COMPLETE_TASK, A.CANCEL_TASK, A.DELETE_TASK] },
   {
     key: "boarding",
-    label: "פנסיון",
     actions: [A.CREATE_BOARDING_STAY, A.CHECKIN_BOARDING, A.CHECKOUT_BOARDING, A.DELETE_BOARDING],
   },
   {
     key: "team",
-    label: "צוות ואבטחה",
     actions: [
       A.INVITE_MEMBER, A.UPDATE_MEMBER_ROLE, A.UPDATE_MEMBER_PERMISSIONS, A.DEACTIVATE_MEMBER,
       A.ACTIVATE_MEMBER, A.REMOVE_MEMBER, A.REVOKE_SESSION, A.UPDATE_SECURITY_ALERTS, A.CHANGE_BUSINESS_PHONE,
@@ -286,16 +284,18 @@ function isDestructive(action: string): boolean {
   return DELETE_ACTIONS.has(action) || action.startsWith("DELETE_");
 }
 
-function relativeTime(date: string): string {
+function relativeTime(date: string, t: AuditT): string {
   const diffMin = Math.floor((Date.now() - new Date(date).getTime()) / 60000);
-  if (diffMin < 1) return "עכשיו";
-  if (diffMin < 60) return `לפני ${diffMin} דק׳`;
+  if (diffMin < 1) return t("relative.now");
+  if (diffMin < 60) return t("relative.minutesAgo", { count: diffMin });
   const diffHr = Math.floor(diffMin / 60);
-  if (diffHr < 24) return `לפני ${diffHr} שע׳`;
-  return `לפני ${Math.floor(diffHr / 24)} ימים`;
+  if (diffHr < 24) return t("relative.hoursAgo", { count: diffHr });
+  return t("relative.daysAgo", { count: Math.floor(diffHr / 24) });
 }
 
 function UserActivityTab() {
+  const t = useTranslations("owner.ownerAuditLogsPage");
+  const { locale } = useBusinessLocale();
   const [category, setCategory] = useState("all");
   const actions = ACTIVITY_CATEGORIES.find((c) => c.key === category)?.actions ?? [];
 
@@ -311,7 +311,7 @@ function UserActivityTab() {
 
   const feed = Array.isArray(data) ? data : [];
   const lastUpdated = dataUpdatedAt
-    ? new Date(dataUpdatedAt).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
+    ? new Date(dataUpdatedAt).toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit", second: "2-digit" })
     : null;
 
   return (
@@ -330,19 +330,19 @@ function UserActivityTab() {
                   : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
               )}
             >
-              {c.label}
+              {t(`activity.categories.${c.key}`)}
             </button>
           ))}
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-slate-500">
-            {lastUpdated ? `עודכן ${lastUpdated}` : "מתעדכן כל 30 שניות"}
+            {lastUpdated ? t("activity.updatedAt", { time: lastUpdated }) : t("activity.autoRefresh")}
           </span>
           <button
             onClick={() => refetch()}
             disabled={isFetching}
-            aria-label="רענן"
-            title="רענן"
+            aria-label={t("activity.refresh")}
+            title={t("activity.refresh")}
             className="btn-ghost p-2 disabled:opacity-50"
           >
             <RefreshCw className={cn("w-4 h-4", isFetching && "animate-spin")} />
@@ -352,7 +352,7 @@ function UserActivityTab() {
 
       {error && (
         <div className="mb-4 p-3 rounded-xl bg-red-50 text-red-700 text-sm">
-          שגיאה בטעינת הפעילות: {(error as Error).message}
+          {t("activity.loadError", { message: (error as Error).message })}
         </div>
       )}
 
@@ -362,8 +362,8 @@ function UserActivityTab() {
         ) : feed.length === 0 ? (
           <div className="px-4 py-12 text-center text-sm text-slate-500">
             {category === "all"
-              ? "עדיין לא נרשמה פעילות של משתמשים."
-              : "אין פעילות בקטגוריה הזו. נסו קטגוריה אחרת."}
+              ? t("activity.empty")
+              : t("activity.emptyFiltered")}
           </div>
         ) : (
           <ul className="divide-y divide-slate-100">
@@ -388,7 +388,7 @@ function UserActivityTab() {
                     <p className="text-sm text-slate-700 break-words">
                       <span className="font-medium text-slate-900">{item.userName}</span>{" "}
                       <span title={item.action}>{actionLabel(item.action)}</span>
-                      {destructive && <span className="badge badge-danger ms-2">מחיקה</span>}
+                      {destructive && <span className="badge badge-danger ms-2">{t("activity.deleteBadge")}</span>}
                     </p>
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-slate-500">
                       {item.businessId ? (
@@ -396,16 +396,16 @@ function UserActivityTab() {
                           href={`/owner/tenants/${encodeURIComponent(item.businessId)}`}
                           className="text-brand-600 hover:underline"
                         >
-                          {item.businessName ?? "עסק (נמחק)"}
+                          {item.businessName ?? t("activity.deletedBusiness")}
                         </Link>
                       ) : (
-                        <span>ללא עסק</span>
+                        <span>{t("activity.noBusiness")}</span>
                       )}
                       <span className="inline-flex items-center gap-1">
                         <Clock className="w-3 h-3" aria-hidden />
-                        {relativeTime(item.createdAt)}
+                        {relativeTime(item.createdAt, t)}
                       </span>
-                      <span>{new Date(item.createdAt).toLocaleString("he-IL")}</span>
+                      <span>{new Date(item.createdAt).toLocaleString(locale)}</span>
                     </div>
                   </div>
                 </li>
@@ -415,7 +415,7 @@ function UserActivityTab() {
         )}
       </div>
       {feed.length >= 100 && (
-        <p className="text-xs text-slate-500 mt-2">מוצגות 100 הפעולות האחרונות.</p>
+        <p className="text-xs text-slate-500 mt-2">{t("activity.lastHundred")}</p>
       )}
     </div>
   );
@@ -424,6 +424,7 @@ function UserActivityTab() {
 /* ───────────────────────── Page shell ───────────────────────── */
 
 function AuditLogsContent() {
+  const t = useTranslations("owner.ownerAuditLogsPage");
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -439,30 +440,30 @@ function AuditLogsContent() {
     <div>
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
-          <h1 className="page-title">יומן פעולות</h1>
+          <h1 className="page-title">{t("page.title")}</h1>
           <p className="text-sm text-slate-500 mt-1">
             {tab === "admin"
-              ? "פעולות ניהול ואבטחה שבוצעו בפלטפורמה"
-              : "מה משתמשי העסקים עושים במערכת, מתעדכן אוטומטית"}
+              ? t("page.subtitleAdmin")
+              : t("page.subtitleActivity")}
           </p>
         </div>
       </div>
 
       <div role="tablist" className="flex gap-1 border-b border-slate-200 mb-4 overflow-x-auto">
-        {TABS.map((t) => (
+        {TABS.map((tb) => (
           <button
-            key={t.key}
+            key={tb.key}
             role="tab"
-            aria-selected={tab === t.key}
-            onClick={() => setTab(t.key)}
+            aria-selected={tab === tb.key}
+            onClick={() => setTab(tb.key)}
             className={cn(
               "px-4 py-2 text-sm font-medium border-b-2 -mb-px whitespace-nowrap transition-colors",
-              tab === t.key
+              tab === tb.key
                 ? "border-brand-500 text-brand-700"
                 : "border-transparent text-slate-500 hover:text-slate-700"
             )}
           >
-            {t.label}
+            {t(`tabs.${tb.key}`)}
           </button>
         ))}
       </div>

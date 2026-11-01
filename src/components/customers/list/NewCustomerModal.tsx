@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, X } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { useFocusTrap } from "@/hooks/useFocusTrap";
 import { cn, toWhatsAppPhone } from "@/lib/utils";
 import { triggerLimitModal } from "@/lib/limit-reached";
@@ -24,6 +25,8 @@ export function NewCustomerModal({
   onClose: () => void;
   presetTags: string[];
 }) {
+  const t = useTranslations("customers");
+  const tc = useTranslations("common");
   const { v } = useVertical();
   const queryClient = useQueryClient();
   const router = useRouter();
@@ -46,7 +49,7 @@ export function NewCustomerModal({
     setForm((f) => ({
       ...f,
       selectedTags: f.selectedTags.includes(tag)
-        ? f.selectedTags.filter((t) => t !== tag)
+        ? f.selectedTags.filter((tg) => tg !== tag)
         : [...f.selectedTags, tag],
     }));
   };
@@ -70,8 +73,8 @@ export function NewCustomerModal({
         }),
       }).then(async (r) => {
         if (!r.ok) {
-          const body = await r.json().catch(() => ({ error: "שגיאה" }));
-          const err = new Error(body.error || "שגיאה");
+          const body = await r.json().catch(() => ({ error: t("newCustomerModal.errorGeneric") }));
+          const err = new Error(body.error || t("newCustomerModal.errorGeneric"));
           if (body.code) (err as unknown as Record<string, unknown>).code = body.code;
           if (body.existingId) (err as unknown as Record<string, unknown>).existingId = body.existingId;
           throw err;
@@ -88,14 +91,14 @@ export function NewCustomerModal({
       const waPhone = newCustomer.phone ? toWhatsAppPhone(newCustomer.phone) : null;
       if (waPhone) {
         const welcomeMsg = v("customer.welcome_message", { name: newCustomer.name });
-        toast.success("הלקוח נוצר בהצלחה", {
+        toast.success(t("newCustomerModal.toastCreated"), {
           action: {
-            label: "שלח ברוכים הבאים",
+            label: t("newCustomerModal.sendWelcome"),
             onClick: () => window.open(`https://api.whatsapp.com/send?phone=${waPhone}&text=${encodeURIComponent(welcomeMsg)}`, "_blank"),
           },
         });
       } else {
-        toast.success("הלקוח נוצר בהצלחה");
+        toast.success(t("newCustomerModal.toastCreated"));
       }
       router.push(`/customers/${newCustomer.id}`);
     },
@@ -106,11 +109,11 @@ export function NewCustomerModal({
       } else if (e.code === "DUPLICATE_PHONE" && typeof e.existingId === "string") {
         const existingId = e.existingId;
         toast.error(err.message, {
-          action: { label: "פתח את הלקוח", onClick: () => router.push(`/customers/${existingId}`) },
+          action: { label: t("newCustomerModal.openCustomer"), onClick: () => router.push(`/customers/${existingId}`) },
         });
       } else {
         // Surface the real server message instead of a generic error.
-        toast.error(err.message || "שגיאה ביצירת הלקוח. נסה שוב.");
+        toast.error(err.message || t("newCustomerModal.toastCreateError"));
       }
     },
   });
@@ -159,12 +162,12 @@ export function NewCustomerModal({
       <div className="modal-content max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto" ref={modalRef}>
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 id="new-customer-modal-title" className="text-xl font-bold text-petra-text">לקוח חדש</h2>
-            <p className="text-sm text-petra-muted mt-0.5">הוסף לקוח למערכת</p>
+            <h2 id="new-customer-modal-title" className="text-xl font-bold text-petra-text">{t("newCustomerModal.title")}</h2>
+            <p className="text-sm text-petra-muted mt-0.5">{t("newCustomerModal.subtitle")}</p>
           </div>
           <button
             onClick={onClose}
-            aria-label="סגור"
+            aria-label={tc("actions.close")}
             className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted"
           >
             <X className="w-4 h-4" aria-hidden="true" />
@@ -173,13 +176,13 @@ export function NewCustomerModal({
 
         <div className="space-y-4">
           <div>
-            <label htmlFor="nc-name" className="label">שם מלא *</label>
+            <label htmlFor="nc-name" className="label">{t("newCustomerModal.fullName")}</label>
             <input
               id="nc-name"
               className={cn("input", fieldErrors.name && "border-red-300 focus:ring-red-200")}
               value={form.name}
               onChange={(e) => { setForm({ ...form, name: e.target.value }); if (fieldErrors.name) setFieldErrors({ ...fieldErrors, name: undefined }); }}
-              placeholder="שם הלקוח"
+              placeholder={t("newCustomerModal.namePlaceholder")}
               required
               aria-required="true"
               aria-describedby={fieldErrors.name ? "nc-name-error" : undefined}
@@ -188,7 +191,7 @@ export function NewCustomerModal({
           </div>
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="flex-1">
-              <label htmlFor="nc-phone" className="label">טלפון *</label>
+              <label htmlFor="nc-phone" className="label">{t("newCustomerModal.phone")}</label>
               <input
                 id="nc-phone"
                 className={cn("input", fieldErrors.phone && "border-red-300 focus:ring-red-200")}
@@ -204,15 +207,15 @@ export function NewCustomerModal({
               {fieldErrors.phone && <p id="nc-phone-error" role="alert" className="text-xs text-red-500 mt-1">{fieldErrors.phone}</p>}
               {!fieldErrors.phone && duplicate && (
                 <p className="text-xs text-amber-700 mt-1" role="alert">
-                  מספר טלפון זה כבר שייך ללקוח {duplicate.name} — לא ניתן ליצור לקוח נוסף עם אותו מספר.{" "}
+                  {t("newCustomerModal.duplicatePhone", { name: duplicate.name })}{" "}
                   <Link href={`/customers/${duplicate.id}`} prefetch={false} className="font-semibold underline" onClick={onClose}>
-                    פתח את הלקוח הקיים
+                    {t("newCustomerModal.openExisting")}
                   </Link>
                 </p>
               )}
             </div>
             <div className="flex-1">
-              <label htmlFor="nc-email" className="label">אימייל</label>
+              <label htmlFor="nc-email" className="label">{t("newCustomerModal.email")}</label>
               <input
                 id="nc-email"
                 className={cn("input", fieldErrors.email && "border-red-300 focus:ring-red-200")}
@@ -224,19 +227,19 @@ export function NewCustomerModal({
             </div>
           </div>
           <div>
-            <label htmlFor="nc-address" className="label">כתובת</label>
+            <label htmlFor="nc-address" className="label">{t("newCustomerModal.address")}</label>
             <input
               id="nc-address"
               className="input"
               value={form.address}
               onChange={(e) => setForm({ ...form, address: e.target.value })}
-              placeholder="עיר, רחוב"
+              placeholder={t("newCustomerModal.addressPlaceholder")}
             />
           </div>
           <div>
             <label htmlFor="nc-idNumber" className="label">
-              תעודת זהות
-              <span className="text-[11px] text-brand-500 font-normal mr-1.5">חשוב לשליחת חוזים דיגיטליים</span>
+              {t("newCustomerModal.idNumber")}
+              <span className="text-[11px] text-brand-500 font-normal ms-1.5">{t("newCustomerModal.idNumberHint")}</span>
             </label>
             <input
               id="nc-idNumber"
@@ -249,13 +252,13 @@ export function NewCustomerModal({
             />
           </div>
           <div>
-            <label className="label">איש קשר נוסף <span className="text-[11px] text-petra-muted font-normal">(אופציונלי)</span></label>
+            <label className="label">{t("newCustomerModal.secondContact")} <span className="text-[11px] text-petra-muted font-normal">{t("newCustomerModal.optional")}</span></label>
             <div className="flex gap-3">
               <input
                 className="input flex-1"
                 value={form.secondContactName}
                 onChange={(e) => setForm({ ...form, secondContactName: e.target.value })}
-                placeholder="שם איש הקשר"
+                placeholder={t("newCustomerModal.secondContactNamePlaceholder")}
               />
               <input
                 className="input flex-1"
@@ -267,7 +270,7 @@ export function NewCustomerModal({
             </div>
           </div>
           <div>
-            <label className="label">תגיות לקוח</label>
+            <label className="label">{t("newCustomerModal.tags")}</label>
             <div className="flex flex-wrap gap-1.5 mt-1">
               {presetTags.map((tag) => (
                 <button
@@ -287,21 +290,21 @@ export function NewCustomerModal({
             </div>
           </div>
           <div>
-            <label htmlFor="nc-source" className="label">מקור הגעה</label>
+            <label htmlFor="nc-source" className="label">{t("newCustomerModal.source")}</label>
             <select
               id="nc-source"
               className="input"
               value={form.source}
               onChange={(e) => setForm({ ...form, source: e.target.value })}
             >
-              <option value="">— לא ידוע —</option>
+              <option value="">{t("newCustomerModal.sourceUnknown")}</option>
               {REFERRAL_SOURCES.map((s) => (
-                <option key={s.value} value={s.value}>{s.label}</option>
+                <option key={s.value} value={s.value}>{t(s.labelKey)}</option>
               ))}
             </select>
           </div>
           <div>
-            <label htmlFor="nc-notes" className="label">הערות</label>
+            <label htmlFor="nc-notes" className="label">{t("newCustomerModal.notes")}</label>
             <textarea
               id="nc-notes"
               className="input"
@@ -319,10 +322,10 @@ export function NewCustomerModal({
             onClick={validateAndSubmit}
           >
             <Plus className="w-4 h-4" />
-            {mutation.isPending ? "שומר..." : "הוסף לקוח"}
+            {mutation.isPending ? tc("progress.saving") : t("newCustomerModal.submit")}
           </button>
           <button className="btn-secondary" onClick={onClose}>
-            ביטול
+            {tc("actions.cancel")}
           </button>
         </div>
       </div>

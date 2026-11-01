@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { BookOpen, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -8,17 +9,18 @@ import { cn, fetchJSON, getTimelineIcon } from "@/lib/utils";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import type { CustomerTimelineEvent, PagedTimeline } from "./types";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 
 const PAGE_SIZE = 30;
 const MAX_NOTE = 2000;
 
 type Filter = "all" | "notes" | "appointments" | "payments" | "messages";
-const FILTERS: { key: Filter; label: string }[] = [
-  { key: "all", label: "הכל" },
-  { key: "notes", label: "הערות" },
-  { key: "appointments", label: "תורים" },
-  { key: "payments", label: "תשלומים" },
-  { key: "messages", label: "הודעות" },
+const FILTERS: { key: Filter }[] = [
+  { key: "all" },
+  { key: "notes" },
+  { key: "appointments" },
+  { key: "payments" },
+  { key: "messages" },
 ];
 
 /** Notes are the only editable/deletable events (server: type note | MANUAL_NOTE). */
@@ -35,17 +37,18 @@ function eventCategory(type: string): Exclude<Filter, "all"> | null {
   return null;
 }
 
-const dateTimeFmt = new Intl.DateTimeFormat("he-IL", {
-  timeZone: "Asia/Jerusalem",
+const DATE_TIME_OPTIONS: Intl.DateTimeFormatOptions = {
   day: "numeric",
   month: "numeric",
   year: "numeric",
   hour: "2-digit",
   minute: "2-digit",
-});
+};
 
 export function TimelineSection({ customerId, canWrite }: { customerId: string; canWrite: boolean }) {
   const queryClient = useQueryClient();
+  const t = useTranslations("customers.timelineSection");
+  const tc = useTranslations("common");
   const [filter, setFilter] = useState<Filter>("all");
   const [showNoteBox, setShowNoteBox] = useState(false);
   const [newNote, setNewNote] = useState("");
@@ -80,9 +83,9 @@ export function TimelineSection({ customerId, canWrite }: { customerId: string; 
       invalidate();
       setNewNote("");
       setShowNoteBox(false);
-      toast.success("ההערה נשמרה");
+      toast.success(t("noteSaved"));
     },
-    onError: (e: Error) => toast.error(e.message || "שגיאה בשמירת ההערה"),
+    onError: (e: Error) => toast.error(e.message || t("saveError")),
   });
 
   const editMutation = useMutation({
@@ -95,25 +98,25 @@ export function TimelineSection({ customerId, canWrite }: { customerId: string; 
     onSuccess: () => {
       invalidate();
       setEditing(null);
-      toast.success("ההערה עודכנה");
+      toast.success(t("noteUpdated"));
     },
-    onError: (e: Error) => toast.error(e.message || "שגיאה בעדכון ההערה"),
+    onError: (e: Error) => toast.error(e.message || t("updateError")),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => fetchJSON(`/api/customers/${customerId}/timeline/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       invalidate();
-      toast.success("ההערה נמחקה");
+      toast.success(t("noteDeleted"));
     },
-    onError: (e: Error) => toast.error(e.message || "שגיאה במחיקת ההערה"),
+    onError: (e: Error) => toast.error(e.message || t("deleteError")),
     onSettled: () => setDeletingId(null),
   });
 
   return (
     <div id="timeline" className="card p-5 scroll-mt-32">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-base font-bold text-petra-text">ציר זמן</h2>
+        <h2 className="text-base font-bold text-petra-text">{t("title")}</h2>
         {canWrite && (
           <button
             onClick={() => setShowNoteBox((v) => !v)}
@@ -123,7 +126,7 @@ export function TimelineSection({ customerId, canWrite }: { customerId: string; 
             )}
           >
             <BookOpen className="w-3.5 h-3.5" />
-            רשום הערה
+            {t("addNote")}
           </button>
         )}
       </div>
@@ -132,7 +135,7 @@ export function TimelineSection({ customerId, canWrite }: { customerId: string; 
         <div className="mb-4 p-3 rounded-xl bg-amber-50 border border-amber-100">
           <textarea
             className="w-full text-sm bg-transparent border-none outline-none resize-none placeholder:text-stone-400 text-petra-text min-h-[72px]"
-            placeholder="הוסף הערת התקדמות, תצפית, או פעילות..."
+            placeholder={t("notePlaceholder")}
             value={newNote}
             maxLength={MAX_NOTE}
             autoFocus
@@ -143,14 +146,14 @@ export function TimelineSection({ customerId, canWrite }: { customerId: string; 
               onClick={() => { setShowNoteBox(false); setNewNote(""); }}
               className="text-xs text-petra-muted hover:text-petra-text px-3 py-1.5 rounded-lg hover:bg-amber-100 transition-colors"
             >
-              ביטול
+              {tc("actions.cancel")}
             </button>
             <button
               onClick={() => addMutation.mutate(newNote.trim())}
               disabled={!newNote.trim() || addMutation.isPending}
               className="btn-primary text-xs py-1.5 px-4"
             >
-              {addMutation.isPending ? "שומר..." : "שמור"}
+              {addMutation.isPending ? tc("progress.saving") : tc("actions.save")}
             </button>
           </div>
         </div>
@@ -166,7 +169,7 @@ export function TimelineSection({ customerId, canWrite }: { customerId: string; 
               filter === f.key ? "border-brand-200 bg-brand-50 text-brand-700" : "border-slate-200 text-slate-500 hover:bg-slate-50"
             )}
           >
-            {f.label}
+            {t(`filters.${f.key}`)}
           </button>
         ))}
       </div>
@@ -174,9 +177,9 @@ export function TimelineSection({ customerId, canWrite }: { customerId: string; 
       {query.isLoading ? (
         <PetraLoader variant="inline" className="py-4" />
       ) : query.isError ? (
-        <p className="text-sm text-red-500 py-4 text-center">שגיאה בטעינת ציר הזמן</p>
+        <p className="text-sm text-red-500 py-4 text-center">{t("loadError")}</p>
       ) : visible.length === 0 ? (
-        <p className="text-sm text-petra-muted py-4 text-center">{filter === "all" ? "אין אירועים" : "אין אירועים מסוג זה בטווח שנטען"}</p>
+        <p className="text-sm text-petra-muted py-4 text-center">{filter === "all" ? t("emptyAll") : t("emptyFiltered")}</p>
       ) : (
         <div className="space-y-3">
           {visible.map((event) => (
@@ -201,15 +204,15 @@ export function TimelineSection({ customerId, canWrite }: { customerId: string; 
           disabled={query.isFetchingNextPage}
           className="w-full mt-3 py-2 text-xs text-petra-muted hover:text-petra-text transition-colors disabled:opacity-50"
         >
-          {query.isFetchingNextPage ? "טוען..." : "טען עוד"}
+          {query.isFetchingNextPage ? tc("loading") : t("loadMore")}
         </button>
       )}
 
       <ConfirmDialog
         open={!!deletingId}
-        title="מחיקת הערה"
-        description="ההערה תימחק מציר הזמן. להמשיך?"
-        confirmLabel="מחק"
+        title={t("deleteTitle")}
+        description={t("deleteDescription")}
+        confirmLabel={tc("actions.delete")}
         danger
         loading={deleteMutation.isPending}
         onCancel={() => setDeletingId(null)}
@@ -241,6 +244,13 @@ function TimelineRow({
   onSaveEdit: () => void;
   onDelete: () => void;
 }) {
+  const t = useTranslations("customers.timelineSection");
+  const tc = useTranslations("common");
+  const { locale, timezone } = useBusinessLocale();
+  const dateTimeFmt = useMemo(
+    () => new Intl.DateTimeFormat(locale, { ...DATE_TIME_OPTIONS, timeZone: timezone }),
+    [locale, timezone]
+  );
   const Icon = getTimelineIcon(event.type);
   const editable = canWrite && isNoteEvent(event.type);
   return (
@@ -260,10 +270,10 @@ function TimelineRow({
             />
             <div className="flex gap-2 justify-end">
               <button className="text-xs text-petra-muted hover:text-petra-text px-3 py-1.5 rounded-lg hover:bg-slate-100" onClick={onCancelEdit}>
-                ביטול
+                {tc("actions.cancel")}
               </button>
               <button className="btn-primary text-xs py-1.5 px-4" disabled={!editing.trim() || saving} onClick={onSaveEdit}>
-                {saving ? "שומר..." : "שמור"}
+                {saving ? tc("progress.saving") : tc("actions.save")}
               </button>
             </div>
           </div>
@@ -276,10 +286,10 @@ function TimelineRow({
       </div>
       {editable && editing === null && (
         <div className="flex items-center gap-1 flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
-          <button onClick={onStartEdit} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted" title="ערוך הערה" aria-label="ערוך הערה">
+          <button onClick={onStartEdit} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted" title={t("editNote")} aria-label={t("editNote")}>
             <Pencil className="w-3.5 h-3.5" />
           </button>
-          <button onClick={onDelete} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600" title="מחק הערה" aria-label="מחק הערה">
+          <button onClick={onDelete} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600" title={t("deleteNote")} aria-label={t("deleteNote")}>
             <Trash2 className="w-3.5 h-3.5" />
           </button>
         </div>

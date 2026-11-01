@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Users } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { cn, fetchJSON } from "@/lib/utils";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 
@@ -19,6 +20,7 @@ const QUERY_KEY = ["google-contacts-sync"];
  * Once on, "סנכרן לידים קיימים" backfills leads created before the sync was enabled.
  */
 export function GoogleContactsSyncRow() {
+  const t = useTranslations("settings.googleContactsSyncRow");
   const queryClient = useQueryClient();
   const [confirmBulk, setConfirmBulk] = useState(false);
   const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
@@ -41,9 +43,9 @@ export function GoogleContactsSyncRow() {
         return;
       }
       queryClient.invalidateQueries({ queryKey: QUERY_KEY });
-      toast.success(result.enabled ? "הסנכרון ל-Google Contacts הופעל" : "הסנכרון ל-Google Contacts כובה");
+      toast.success(result.enabled ? t("toast.enabled") : t("toast.disabled"));
     },
-    onError: (e: Error) => toast.error(e.message || "שגיאה בעדכון הסנכרון"),
+    onError: (e: Error) => toast.error(e.message || t("toast.toggleError")),
   });
 
   // The server syncs one chunk per call; keep calling until nothing is left.
@@ -61,10 +63,10 @@ export function GoogleContactsSyncRow() {
         // Stop when finished, or when a chunk made no progress (avoids looping on rejected leads).
         if (result.remaining === 0 || result.synced === 0) break;
       }
-      if (failed > 0) toast.warning(`${done} לידים סונכרנו, ${failed} נכשלו`);
-      else toast.success(`${done} לידים סונכרנו ל-Google Contacts`);
+      if (failed > 0) toast.warning(t("toast.bulkPartial", { done, failed }));
+      else toast.success(t("toast.bulkDone", { done }));
     } catch (e) {
-      toast.error((e as Error).message || "שגיאה בסנכרון הלידים");
+      toast.error((e as Error).message || t("toast.bulkError"));
     } finally {
       setBulkProgress(null);
       queryClient.invalidateQueries({ queryKey: QUERY_KEY });
@@ -78,36 +80,36 @@ export function GoogleContactsSyncRow() {
   return (
     <div className="mt-3 pt-3 border-t border-slate-100">
       <div className="flex items-center justify-between gap-3">
-        <span className="text-sm text-petra-text">סנכרון לידים ל-Google Contacts</span>
+        <span className="text-sm text-petra-text">{t("title")}</span>
         <button
           onClick={() => toggleMutation.mutate(!data.enabled)}
           disabled={toggleMutation.isPending || !data.canManage || bulkProgress !== null}
           role="switch"
           aria-checked={enabled}
-          aria-label="סנכרון לידים ל-Google Contacts"
+          aria-label={t("title")}
           className={cn(
             "relative inline-flex h-5 w-9 items-center rounded-full transition-colors flex-shrink-0",
             enabled ? "bg-emerald-500" : "bg-slate-300",
             !data.canManage && "opacity-50 cursor-not-allowed"
           )}
-          title={enabled ? "כבה סנכרון" : "הפעל סנכרון"}
+          title={enabled ? t("turnOff") : t("turnOn")}
         >
-          <span className={cn("inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform", enabled ? "-translate-x-4" : "-translate-x-0.5")} />
+          <span className={cn("inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform", enabled ? "-translate-x-4 ltr:translate-x-4" : "-translate-x-0.5 ltr:translate-x-0.5")} />
         </button>
       </div>
       <p className="text-xs text-petra-muted mt-1.5 leading-relaxed">
-        כל ליד שנוצר או מתעדכן בפטרה יישמר כאיש קשר ב-Google Contacts שלך. פטרה רק יוצרת ומעדכנת את אנשי הקשר של הלידים — היא לא קוראת את אנשי הקשר הקיימים שלך.
+        {t("description")}
         {data.canManage
-          ? " בהפעלה הראשונה תתבקש לאשר את הגישה במסך ההרשאות של Google."
-          : " רק בעל העסק יכול להפעיל או לכבות."}
+          ? t("consentHint")
+          : t("ownerOnlyHint")}
       </p>
 
       {showBulk && (
         <div className="mt-2.5 flex items-center justify-between gap-3">
           <span className="text-xs text-petra-muted">
             {bulkProgress
-              ? `מסנכרן… ${bulkProgress.done} מתוך ${bulkProgress.total}`
-              : `${data.pendingLeads} לידים קיימים עדיין לא נמצאים ב-Google Contacts`}
+              ? t("bulk.progress", { done: bulkProgress.done, total: bulkProgress.total })
+              : t("bulk.pending", { count: data.pendingLeads })}
           </span>
           <button
             className="btn-secondary text-xs flex items-center gap-1.5 flex-shrink-0"
@@ -115,16 +117,16 @@ export function GoogleContactsSyncRow() {
             disabled={bulkProgress !== null}
           >
             {bulkProgress ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Users className="w-3.5 h-3.5" />}
-            סנכרן לידים קיימים
+            {t("bulk.button")}
           </button>
         </div>
       )}
 
       <ConfirmDialog
         open={confirmBulk}
-        title="לסנכרן את כל הלידים הקיימים?"
-        description={`${data.pendingLeads} אנשי קשר חדשים ייווצרו ב-Google Contacts שלך — אחד לכל ליד שעדיין לא סונכרן. לידים שכבר סונכרנו לא ישוכפלו.`}
-        confirmLabel="סנכרן"
+        title={t("confirm.title")}
+        description={t("confirm.description", { count: data.pendingLeads })}
+        confirmLabel={t("confirm.confirmLabel")}
         onConfirm={() => runBulkSync(data.pendingLeads)}
         onCancel={() => setConfirmBulk(false)}
       />

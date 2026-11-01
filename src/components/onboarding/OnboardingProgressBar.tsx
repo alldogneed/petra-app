@@ -1,6 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 interface OnboardingProgressBarProps {
   currentStep: number; // 1-4
@@ -13,14 +14,15 @@ export function OnboardingProgressBar({
   totalSteps,
   onExit,
 }: OnboardingProgressBarProps) {
+  const t = useTranslations("onboarding.onboardingProgressBar");
   const progress = (currentStep / totalSteps) * 100;
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-[60] bg-white border-b border-petra-border shadow-sm">
+    <div className="fixed top-0 end-0 start-0 z-[60] bg-white border-b border-petra-border shadow-sm">
       <div className="flex items-center h-14 px-4 max-w-4xl mx-auto">
         {/* Step indicator */}
         <span className="text-sm font-semibold text-petra-text whitespace-nowrap">
-          שלב {currentStep} מתוך {totalSteps}
+          {t("stepOf", { current: currentStep, total: totalSteps })}
         </span>
 
         {/* Progress bar */}
@@ -38,9 +40,9 @@ export function OnboardingProgressBar({
         <button
           onClick={onExit}
           className="flex items-center gap-1.5 text-xs text-petra-muted hover:text-petra-text transition-colors px-2 py-1.5 rounded-lg hover:bg-slate-50"
-          title="יציאה מההדרכה"
+          title={t("exitTitle")}
         >
-          <span className="hidden sm:inline">יציאה</span>
+          <span className="hidden sm:inline">{t("exit")}</span>
           <X className="w-4 h-4" />
         </button>
       </div>

@@ -3,9 +3,10 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { Bot, RefreshCw, Loader2, KeyRound, Zap } from "lucide-react";
-import { relativeTime, formatTs } from "./shared";
+import { relativeTime, useBusinessAdminFormat } from "./shared";
 
 interface AiActivityItem {
   id: string;
@@ -34,27 +35,24 @@ interface AiActivityPage {
   connections?: AiConnectionOption[];
 }
 
-const STATUS_META: Record<string, { label: string; className: string }> = {
-  success: { label: "הצליח", className: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  error: { label: "שגיאה", className: "bg-red-50 text-red-700 border-red-200" },
-  denied: { label: "נחסם", className: "bg-amber-50 text-amber-800 border-amber-200" },
+const STATUS_META: Record<string, { className: string }> = {
+  success: { className: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  error: { className: "bg-red-50 text-red-700 border-red-200" },
+  denied: { className: "bg-amber-50 text-amber-800 border-amber-200" },
 };
 
-const STATUS_OPTIONS = [
-  { value: "", label: "כל הסטטוסים" },
-  { value: "success", label: "הצליח" },
-  { value: "error", label: "שגיאה" },
-  { value: "denied", label: "נחסם" },
-];
+const STATUS_OPTIONS = ["", "success", "error", "denied"];
 
-async function fetchPage(url: string): Promise<AiActivityPage> {
+async function fetchPage(url: string, fallbackError: string): Promise<AiActivityPage> {
   const res = await fetch(url);
   const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(json?.error || "שגיאה בטעינת הנתונים");
+  if (!res.ok) throw new Error(json?.error || fallbackError);
   return json as AiActivityPage;
 }
 
 export function AiActivityTab() {
+  const t = useTranslations("businessAdmin.aiActivityTab");
+  const { formatTs } = useBusinessAdminFormat();
   const [connectionId, setConnectionId] = useState("");
   const [status, setStatus] = useState("");
 
@@ -71,7 +69,7 @@ export function AiActivityTab() {
         const p = new URLSearchParams(filterKey);
         p.set("take", "50");
         if (pageParam) p.set("cursor", String(pageParam));
-        return fetchPage(`/api/business-admin/ai-activity?${p}`);
+        return fetchPage(`/api/business-admin/ai-activity?${p}`, t("errors.loadData"));
       },
       getNextPageParam: (last) => last.nextCursor ?? undefined,
     });
@@ -92,7 +90,7 @@ export function AiActivityTab() {
   if (isError) {
     return (
       <div className="card p-10 text-center text-sm text-red-600">
-        {error instanceof Error ? error.message : "שגיאה בטעינת פעילות ה-AI"}
+        {error instanceof Error ? error.message : t("errors.loadAi")}
       </div>
     );
   }
@@ -103,12 +101,12 @@ export function AiActivityTab() {
         <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto">
           <Bot className="w-6 h-6 text-slate-500" />
         </div>
-        <p className="font-semibold text-slate-800">עוד לא חוברו עוזרי AI לעסק</p>
+        <p className="font-semibold text-slate-800">{t("empty.noConnectionsTitle")}</p>
         <p className="text-sm text-petra-muted">
-          כשתחברו את Claude, ChatGPT או עוזר אחר — כל פעולה שהוא מבצע תופיע כאן.
+          {t("empty.noConnectionsBody")}
         </p>
         <Link href="/settings?tab=ai-agents" className="btn-primary inline-flex text-sm px-4 py-2">
-          לחיבור עוזר AI
+          {t("empty.connectCta")}
         </Link>
       </div>
     );
@@ -119,23 +117,23 @@ export function AiActivityTab() {
       {/* Filters */}
       <div className="card p-4 flex flex-col sm:flex-row sm:items-end gap-3">
         <div className="flex-1 min-w-0">
-          <label className="label">חיבור</label>
+          <label className="label">{t("filters.connection")}</label>
           <select className="input py-2 text-sm w-full" value={connectionId} onChange={(e) => setConnectionId(e.target.value)}>
-            <option value="">כל החיבורים</option>
+            <option value="">{t("filters.allConnections")}</option>
             {connections.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
-                {c.revoked ? " (בוטל)" : ""}
+                {c.revoked ? t("filters.revokedSuffix") : ""}
               </option>
             ))}
           </select>
         </div>
         <div className="flex-1 min-w-0">
-          <label className="label">סטטוס</label>
+          <label className="label">{t("filters.status")}</label>
           <select className="input py-2 text-sm w-full" value={status} onChange={(e) => setStatus(e.target.value)}>
-            {STATUS_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
+            {STATUS_OPTIONS.map((value) => (
+              <option key={value} value={value}>
+                {value ? t(`status.${value}`) : t("filters.allStatuses")}
               </option>
             ))}
           </select>
@@ -146,24 +144,24 @@ export function AiActivityTab() {
           disabled={isFetching}
         >
           <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? "animate-spin" : ""}`} />
-          רענן
+          {t("actions.refresh")}
         </button>
       </div>
 
-      <p className="text-xs text-petra-muted">מוצגות פעולות מ-90 הימים האחרונים.</p>
+      <p className="text-xs text-petra-muted">{t("rangeNote")}</p>
 
       {/* Feed */}
       <div className="card overflow-hidden">
         {!items.length ? (
           <div className="p-10 text-center text-sm text-petra-muted">
-            {hasFilters ? "לא נמצאו פעולות AI שתואמות את הסינון" : "עדיין אין פעולות AI ב-90 הימים האחרונים"}
+            {hasFilters ? t("empty.noMatch") : t("empty.none")}
           </div>
         ) : (
           <ul className="divide-y divide-slate-50">
             {items.map((it) => {
-              const meta = STATUS_META[it.status] ?? {
-                label: it.status,
-                className: "bg-slate-50 text-slate-700 border-slate-200",
+              const meta = {
+                label: STATUS_META[it.status] ? t(`status.${it.status}`) : it.status,
+                className: STATUS_META[it.status]?.className ?? "bg-slate-50 text-slate-700 border-slate-200",
               };
               const detail = it.errorMessage ?? it.resultSummary;
               return (
@@ -197,7 +195,7 @@ export function AiActivityTab() {
                         )}
                         <span className="truncate">{it.connection.name}</span>
                       </span>
-                      {it.connection.createdByName && <span>נוצר ע״י {it.connection.createdByName}</span>}
+                      {it.connection.createdByName && <span>{t("createdBy", { name: it.connection.createdByName })}</span>}
                     </div>
                   </div>
                   <span
@@ -220,7 +218,7 @@ export function AiActivityTab() {
               className="btn-ghost text-sm px-4 py-2 inline-flex items-center gap-1.5"
             >
               {isFetchingNextPage && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              טען עוד
+              {t("actions.loadMore")}
             </button>
           </div>
         )}

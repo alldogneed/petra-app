@@ -6,6 +6,9 @@
  * verification page (/verify/[serial]). No data fetching, no side effects.
  */
 
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
+
 const DEFAULT_PRIMARY = "#F97316";
 
 export interface CertificateViewProps {
@@ -23,11 +26,11 @@ export interface CertificateViewProps {
 
 const HEX_COLOR = /^#[0-9a-fA-F]{3,8}$/;
 
-function heDate(value: Date | string): string {
+function certDate(value: Date | string, locale: string, timeZone: string): string {
   const d = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(d.getTime())) return "";
-  return new Intl.DateTimeFormat("he-IL", {
-    timeZone: "Asia/Jerusalem",
+  return new Intl.DateTimeFormat(locale, {
+    timeZone,
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -72,12 +75,14 @@ export default function CertificateView({
   signerName,
   footerText,
 }: CertificateViewProps) {
+  const t = useTranslations("onlineClasses.certificateView");
+  const { locale, timezone, cfg } = useBusinessLocale();
   const color =
     primaryColor && HEX_COLOR.test(primaryColor) ? primaryColor : DEFAULT_PRIMARY;
-  const dateLabel = heDate(issuedAt);
+  const dateLabel = certDate(issuedAt, locale, timezone);
 
   return (
-    <div dir="rtl" className="petra-cert-root w-full">
+    <div dir={cfg.dir} className="petra-cert-root w-full">
       <style dangerouslySetInnerHTML={{ __html: PRINT_CSS }} />
 
       <div
@@ -114,19 +119,19 @@ export default function CertificateView({
               className="font-serif text-3xl font-bold tracking-tight sm:text-5xl"
               style={{ color }}
             >
-              תעודת סיום
+              {t("title")}
             </h1>
             <div
               className="h-[3px] w-24 rounded-full"
               style={{ backgroundColor: color }}
             />
 
-            <p className="text-base text-gray-600">מוענקת ל־</p>
+            <p className="text-base text-gray-600">{t("awardedTo")}</p>
             <p className="font-serif text-2xl font-bold text-gray-900 sm:text-4xl">
               {studentName}
             </p>
 
-            <p className="text-base text-gray-600">על השלמת הקורס</p>
+            <p className="text-base text-gray-600">{t("forCompleting")}</p>
             <p className="font-serif text-xl font-semibold text-gray-800 sm:text-2xl">
               {courseTitle}
             </p>
@@ -139,7 +144,7 @@ export default function CertificateView({
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={signatureUrl}
-                  alt={signerName || "חתימה"}
+                  alt={signerName || t("signatureAlt")}
                   className="h-16 w-auto max-w-[160px] object-contain"
                   style={{
                     WebkitPrintColorAdjust: "exact",
@@ -159,7 +164,7 @@ export default function CertificateView({
 
           {/* Footer */}
           <div className="flex w-full flex-col items-center justify-between gap-2 border-t border-gray-200 pt-4 text-xs text-gray-500 sm:flex-row">
-            <span>תאריך הנפקה: {dateLabel}</span>
+            <span>{t("issuedOn", { date: dateLabel })}</span>
             <span className="font-mono tracking-widest">{serial}</span>
           </div>
 
@@ -179,7 +184,7 @@ export default function CertificateView({
           className="rounded-xl px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-90"
           style={{ backgroundColor: color }}
         >
-          הדפס / שמור כ-PDF
+          {t("print")}
         </button>
       </div>
     </div>

@@ -1,0 +1,133 @@
+{
+  "threshold_pct": 0.5,
+  "results": {
+    "analytics-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "analytics-mobile.png": {
+      "pct": 0.005,
+      "ok": true
+    },
+    "bookings-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "bookings-mobile.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "calendar-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "calendar-mobile.png": {
+      "pct": 0.009,
+      "ok": true
+    },
+    "customers-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "customers-mobile.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "customers_cust-001-desktop.png": {
+      "pct": 0.001,
+      "ok": true
+    },
+    "customers_cust-001-mobile.png": {
+      "pct": 0.002,
+      "ok": true
+    },
+    "dashboard-desktop.png": {
+      "pct": 0.001,
+      "ok": true
+    },
+    "dashboard-mobile.png": {
+      "pct": 0.002,
+      "ok": true
+    },
+    "invoices-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "invoices-mobile.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "leads-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "leads-mobile.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "orders-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "orders-mobile.png": {
+      "pct": 0.005,
+      "ok": true
+    },
+    "payment-request-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "payment-request-mobile.png": {
+      "pct": 0.007,
+      "ok": true
+    },
+    "payments-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "payments-mobile.png": {
+      "pct": 0.005,
+      "ok": true
+    },
+    "pets-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "pets-mobile.png": {
+      "pct": 0.006,
+      "ok": true
+    },
+    "pets_pet-001-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "pets_pet-001-mobile.png": {
+      "pct": 0.005,
+      "ok": true
+    },
+    "price-lists-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "price-lists-mobile.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "pricing-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "pricing-mobile.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "scheduler-desktop.png": {
+      "pct": 0.0,
+      "ok": true
+    },
+    "scheduler-mobile.png": {
+      "pct": 0.006,
+      "ok": true
+    }
+  }
+}

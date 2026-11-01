@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { LifeBuoy, ArrowRight, Send, Lock, Timer, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PetraLoader } from "@/components/ui/PetraLoader";
@@ -41,17 +43,17 @@ interface TicketDetail {
   events: TicketEvent[];
 }
 
-const STATUS_TABS: { key: "" | SupportTicketStatus; label: string }[] = [
-  { key: "", label: "הכל" },
-  { key: "open", label: "פתוח" },
-  { key: "in_progress", label: "בטיפול" },
-  { key: "resolved", label: "נסגר" },
+const STATUS_TABS: { key: "" | SupportTicketStatus; labelKey: string }[] = [
+  { key: "", labelKey: "tabs.all" },
+  { key: "open", labelKey: "tabs.open" },
+  { key: "in_progress", labelKey: "tabs.inProgress" },
+  { key: "resolved", labelKey: "tabs.resolved" },
 ];
 
-async function fetchJSON<T>(url: string, init?: RequestInit): Promise<T> {
+async function fetchJSON<T>(url: string, errorFallback: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, init);
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || "שגיאה");
+  if (!res.ok) throw new Error(data.error || errorFallback);
   return data as T;
 }
 
@@ -64,6 +66,8 @@ export default function OwnerSupportPage() {
 }
 
 function OwnerSupport() {
+  const t = useTranslations("owner.ownerSupportPage");
+  const { locale, timezone, cfg } = useBusinessLocale();
   const router = useRouter();
   const selectedId = useSearchParams().get("ticket");
   const [statusFilter, setStatusFilter] = useState<"" | SupportTicketStatus>("");
@@ -74,7 +78,7 @@ function OwnerSupport() {
     awaiting: { total: number; overdue: number };
   }>({
     queryKey: ["owner-support", statusFilter],
-    queryFn: () => fetchJSON(`/api/owner/support${statusFilter ? `?status=${statusFilter}` : ""}`),
+    queryFn: () => fetchJSON(`/api/owner/support${statusFilter ? `?status=${statusFilter}` : ""}`, t("errors.generic")),
     refetchInterval: 60_000,
   });
 
@@ -83,15 +87,15 @@ function OwnerSupport() {
   const select = (id: string | null) => router.replace(id ? `/owner/support?ticket=${id}` : "/owner/support", { scroll: false });
 
   return (
-    <div className="p-4 sm:p-6 max-w-6xl mx-auto" dir="rtl">
+    <div className="p-4 sm:p-6 max-w-6xl mx-auto" dir={cfg.dir}>
       <div className="flex items-center gap-3 mb-5">
         <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
           <LifeBuoy className="w-5 h-5 text-orange-600" />
         </div>
         <div>
-          <h1 className="page-title">פניות תמיכה</h1>
+          <h1 className="page-title">{t("header.title")}</h1>
           <p className="text-sm text-slate-500">
-            {counts.open} פתוח · {counts.in_progress} בטיפול · {counts.resolved} נסגר
+            {t("header.counts", { open: counts.open, inProgress: counts.in_progress, resolved: counts.resolved })}
           </p>
         </div>
       </div>
@@ -102,8 +106,8 @@ function OwnerSupport() {
           data.awaiting.overdue > 0 ? "bg-red-50 border-red-200 text-red-700" : "bg-amber-50 border-amber-200 text-amber-800"
         )}>
           <Timer className="w-4 h-4 shrink-0" />
-          {data.awaiting.total} פניות ממתינות לתשובה שלנו
-          {data.awaiting.overdue > 0 && ` · ${data.awaiting.overdue} מעל ${SUPPORT_SLA_HOURS} שעות`}
+          {t("awaiting.total", { count: data.awaiting.total })}
+          {data.awaiting.overdue > 0 && t("awaiting.overdue", { count: data.awaiting.overdue, hours: SUPPORT_SLA_HOURS })}
         </div>
       )}
 
@@ -117,7 +121,7 @@ function OwnerSupport() {
               statusFilter === tab.key ? "bg-white shadow-sm text-slate-800" : "text-slate-500 hover:text-slate-700"
             )}
           >
-            {tab.label}
+            {t(tab.labelKey)}
           </button>
         ))}
       </div>
@@ -130,38 +134,38 @@ function OwnerSupport() {
             {tickets.length === 0 ? (
               <div className="card text-center py-14 text-slate-400">
                 <LifeBuoy className="w-10 h-10 mx-auto mb-3 opacity-40" />
-                <p>אין פניות</p>
+                <p>{t("list.empty")}</p>
               </div>
             ) : (
-              tickets.map((t) => {
-                const meta = STATUS_META[t.status];
+              tickets.map((tk) => {
+                const meta = STATUS_META[tk.status];
                 const Icon = meta.icon;
                 return (
                   <button
-                    key={t.id}
-                    onClick={() => select(t.id)}
+                    key={tk.id}
+                    onClick={() => select(tk.id)}
                     className={cn(
-                      "w-full text-right card p-4 transition-colors hover:border-orange-200",
-                      selectedId === t.id && "border-orange-300 ring-1 ring-orange-200"
+                      "w-full text-start card p-4 transition-colors hover:border-orange-200",
+                      selectedId === tk.id && "border-orange-300 ring-1 ring-orange-200"
                     )}
                   >
                     <div className="flex items-start gap-2.5">
                       <Icon className={cn("w-4 h-4 mt-0.5 shrink-0", meta.iconColor)} />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
-                          <span className="font-semibold text-slate-800 text-sm line-clamp-2">{t.title}</span>
-                          <StatusBadge status={t.status} />
+                          <span className="font-semibold text-slate-800 text-sm line-clamp-2">{tk.title}</span>
+                          <StatusBadge status={tk.status} />
                         </div>
                         <div className="text-xs text-slate-400 mt-1 truncate">
-                          {t.business.name} · {formatTicketDate(t.createdAt)}
+                          {tk.business.name} · {formatTicketDate(tk.createdAt, { locale, timezone })}
                         </div>
-                        {t.waitingSince ? (
-                          <div className={cn("text-xs mt-1.5 font-medium flex items-center gap-1", t.overdue ? "text-red-600" : "text-amber-600")}>
+                        {tk.waitingSince ? (
+                          <div className={cn("text-xs mt-1.5 font-medium flex items-center gap-1", tk.overdue ? "text-red-600" : "text-amber-600")}>
                             <Timer className="w-3.5 h-3.5" />
-                            ממתין לתשובה {waitingLabel(new Date(t.waitingSince))}
+                            {t("list.waiting", { waiting: waitingLabel(new Date(tk.waitingSince)) })}
                           </div>
-                        ) : t.status !== "resolved" ? (
-                          <div className="text-xs mt-1.5 text-slate-400">ענינו · ממתין ללקוח</div>
+                        ) : tk.status !== "resolved" ? (
+                          <div className="text-xs mt-1.5 text-slate-400">{t("list.answered")}</div>
                         ) : null}
                       </div>
                     </div>
@@ -175,7 +179,7 @@ function OwnerSupport() {
             {selectedId ? (
               <StaffTicketPane id={selectedId} onBack={() => select(null)} />
             ) : (
-              <div className="card p-10 text-center text-slate-400 text-sm">בחרו פנייה כדי לענות ולראות את היסטוריית הטיפול</div>
+              <div className="card p-10 text-center text-slate-400 text-sm">{t("list.selectPrompt")}</div>
             )}
           </div>
         </div>
@@ -185,13 +189,15 @@ function OwnerSupport() {
 }
 
 function StaffTicketPane({ id, onBack }: { id: string; onBack: () => void }) {
+  const t = useTranslations("owner.ownerSupportPage");
+  const { locale, timezone } = useBusinessLocale();
   const qc = useQueryClient();
   const [body, setBody] = useState("");
   const [internal, setInternal] = useState(false);
 
   const { data: ticket, isLoading, error } = useQuery<TicketDetail>({
     queryKey: ["owner-support-ticket", id],
-    queryFn: () => fetchJSON(`/api/owner/support/${id}`),
+    queryFn: () => fetchJSON(`/api/owner/support/${id}`, t("errors.generic")),
   });
 
   const refresh = () => {
@@ -202,16 +208,16 @@ function StaffTicketPane({ id, onBack }: { id: string; onBack: () => void }) {
 
   const send = useMutation({
     mutationFn: (status: SupportTicketStatus | null) =>
-      fetchJSON<{ status: string; emailSent: boolean | null }>(`/api/owner/support/${id}/messages`, {
+      fetchJSON<{ status: string; emailSent: boolean | null }>(`/api/owner/support/${id}/messages`, t("errors.generic"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ body, internal, status }),
       }),
     onSuccess: (r) => {
       setBody("");
-      if (internal) toast.success("ההערה נשמרה (רק הצוות רואה אותה)");
-      else if (r.emailSent === false) toast.warning("התשובה נשמרה ומופיעה ללקוח במערכת, אבל המייל לא נשלח");
-      else toast.success("התשובה נשלחה ללקוח — במייל ובהודעות מפטרה");
+      if (internal) toast.success(t("toasts.noteSaved"));
+      else if (r.emailSent === false) toast.warning(t("toasts.emailNotSent"));
+      else toast.success(t("toasts.replySent"));
       refresh();
     },
     onError: (e: Error) => toast.error(e.message),
@@ -219,28 +225,28 @@ function StaffTicketPane({ id, onBack }: { id: string; onBack: () => void }) {
 
   const patch = useMutation({
     mutationFn: (status: SupportTicketStatus) =>
-      fetchJSON(`/api/owner/support/${id}`, {
+      fetchJSON(`/api/owner/support/${id}`, t("errors.generic"), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
       }),
     onSuccess: () => {
-      toast.success("הסטטוס עודכן");
+      toast.success(t("toasts.statusUpdated"));
       refresh();
     },
-    onError: () => toast.error("שגיאה בעדכון"),
+    onError: () => toast.error(t("errors.updateFailed")),
   });
 
   if (isLoading) return <div className="card"><PetraLoader variant="inline" /></div>;
-  if (error || !ticket) return <div className="card p-8 text-center text-sm text-slate-500">הפנייה לא נמצאה</div>;
+  if (error || !ticket) return <div className="card p-8 text-center text-sm text-slate-500">{t("detail.notFound")}</div>;
 
   const canSend = body.trim().length >= 2 && !send.isPending;
 
   return (
     <div className="card p-4 sm:p-5">
       <button className="lg:hidden flex items-center gap-1 text-sm text-slate-500 mb-3" onClick={onBack}>
-        <ArrowRight className="w-4 h-4" />
-        כל הפניות
+        <ArrowRight className="w-4 h-4 ltr:-scale-x-100" />
+        {t("detail.back")}
       </button>
 
       <div className="flex items-start justify-between gap-3">
@@ -253,13 +259,13 @@ function StaffTicketPane({ id, onBack }: { id: string; onBack: () => void }) {
         <a href={`mailto:${ticket.user.email}`} dir="ltr" className="flex items-center gap-1 hover:text-slate-700">
           <Mail className="w-3 h-3" />{ticket.user.email}
         </a>
-        {ticket.firstResponseAt && <span>תגובה ראשונה: {formatTicketDate(ticket.firstResponseAt)}</span>}
-        {ticket.customerUnread && <span className="text-amber-600">הלקוח עוד לא קרא את התשובה האחרונה</span>}
+        {ticket.firstResponseAt && <span>{t("detail.firstResponse", { date: formatTicketDate(ticket.firstResponseAt, { locale, timezone }) })}</span>}
+        {ticket.customerUnread && <span className="text-amber-600">{t("detail.customerUnread")}</span>}
       </div>
       {ticket.waitingSince && (
         <div className={cn("mt-2 text-xs font-medium flex items-center gap-1", ticket.overdue ? "text-red-600" : "text-amber-600")}>
           <Timer className="w-3.5 h-3.5" />
-          ממתין לתשובה שלנו {waitingLabel(new Date(ticket.waitingSince))}
+          {t("detail.waitingOnUs", { waiting: waitingLabel(new Date(ticket.waitingSince)) })}
         </div>
       )}
 
@@ -280,19 +286,19 @@ function StaffTicketPane({ id, onBack }: { id: string; onBack: () => void }) {
             className={cn("px-3 py-1.5 text-xs rounded-md font-medium", !internal ? "bg-white shadow-sm text-slate-800" : "text-slate-500")}
             onClick={() => setInternal(false)}
           >
-            תשובה ללקוח
+            {t("composer.replyTab")}
           </button>
           <button
             className={cn("px-3 py-1.5 text-xs rounded-md font-medium flex items-center gap-1", internal ? "bg-white shadow-sm text-slate-800" : "text-slate-500")}
             onClick={() => setInternal(true)}
           >
             <Lock className="w-3 h-3" />
-            הערה פנימית
+            {t("composer.internalTab")}
           </button>
         </div>
         <textarea
           className={cn("input min-h-[110px] resize-y", internal && "bg-yellow-50 border-yellow-200")}
-          placeholder={internal ? "הערה לצוות — הלקוח לא יראה אותה" : "התשובה תישלח ללקוח במייל ותופיע לו במערכת תחת \"הפניות שלי\""}
+          placeholder={internal ? t("composer.internalPlaceholder") : t("composer.replyPlaceholder")}
           value={body}
           maxLength={SUPPORT_REPLY_MAX}
           onChange={(e) => setBody(e.target.value)}
@@ -300,18 +306,18 @@ function StaffTicketPane({ id, onBack }: { id: string; onBack: () => void }) {
         <div className="flex flex-wrap justify-end gap-2 mt-2">
           {internal ? (
             <button className="btn-secondary" disabled={!canSend} onClick={() => send.mutate(null)}>
-              {send.isPending ? "שומר…" : "שמירת הערה"}
+              {send.isPending ? t("composer.saving") : t("composer.saveNote")}
             </button>
           ) : (
             <>
               {ticket.status !== "resolved" && (
                 <button className="btn-secondary" disabled={!canSend} onClick={() => send.mutate("resolved")}>
-                  שליחה וסגירה
+                  {t("composer.sendAndClose")}
                 </button>
               )}
               <button className="btn-primary flex items-center gap-1.5" disabled={!canSend} onClick={() => send.mutate(null)}>
                 <Send className="w-4 h-4" />
-                {send.isPending ? "שולח…" : "שליחת תשובה"}
+                {send.isPending ? t("composer.sending") : t("composer.send")}
               </button>
             </>
           )}
@@ -319,20 +325,20 @@ function StaffTicketPane({ id, onBack }: { id: string; onBack: () => void }) {
       </div>
 
       <div className="flex gap-2 mt-4 flex-wrap border-t border-slate-100 pt-3">
-        <span className="text-xs text-slate-400 self-center">שינוי סטטוס בלי הודעה:</span>
+        <span className="text-xs text-slate-400 self-center">{t("status.changeLabel")}</span>
         {ticket.status !== "open" && (
           <button className="px-3 py-1.5 text-xs rounded-lg bg-red-50 text-red-600 hover:bg-red-100 font-medium" onClick={() => patch.mutate("open")}>
-            סמן כפתוח
+            {t("status.markOpen")}
           </button>
         )}
         {ticket.status !== "in_progress" && (
           <button className="px-3 py-1.5 text-xs rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 font-medium" onClick={() => patch.mutate("in_progress")}>
-            סמן בטיפול
+            {t("status.markInProgress")}
           </button>
         )}
         {ticket.status !== "resolved" && (
           <button className="px-3 py-1.5 text-xs rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 font-medium" onClick={() => patch.mutate("resolved")}>
-            סמן כנסגר
+            {t("status.markResolved")}
           </button>
         )}
       </div>

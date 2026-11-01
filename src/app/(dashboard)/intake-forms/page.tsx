@@ -21,14 +21,10 @@ import { cn, toWhatsAppPhone, copyToClipboard } from "@/lib/utils";
 import { BoardingTabs } from "@/components/boarding/BoardingTabs";
 import { TierGate } from "@/components/paywall/TierGate";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 
-const STATUS_LABELS: Record<string, string> = {
-  DRAFT: "טיוטה",
-  SENT: "נשלח",
-  OPENED: "נפתח",
-  SUBMITTED: "הוגש",
-  EXPIRED: "פג תוקף",
-};
+type IntakeT = ReturnType<typeof useTranslations<"intake">>;
 
 const STATUS_COLORS: Record<string, string> = {
   DRAFT: "badge-neutral",
@@ -55,55 +51,8 @@ interface IntakeForm {
 
 // ─── View responses modal ────────────────────────────────────────────────────
 
-const SUBMISSION_SECTION_LABELS: Record<string, string> = {
-  dog: "פרטי הכלב",
-  health: "בריאות",
-  behavior: "התנהגות",
-};
-
-const SUBMISSION_FIELD_LABELS: Record<string, string> = {
-  // dog
-  customerName: "שם הלקוח",
-  customerPhone: "טלפון הלקוח",
-  name: "שם הכלב",
-  breed: "גזע",
-  gender: "מין",
-  weight: "משקל",
-  birthDate: "תאריך לידה",
-  // health
-  allergies: "אלרגיות",
-  medicalConditions: "מצבים רפואיים",
-  surgeriesHistory: "היסטוריית ניתוחים",
-  activityLimitations: "מגבלות פעילות",
-  vetName: "וטרינר מטפל",
-  vetPhone: "טלפון וטרינר",
-  neuteredSpayed: "מעוקר/מסורס",
-  originInfo: "מקור הכלב",
-  timeWithOwner: "זמן אצל הבעלים",
-  foodNotes: "הערות האכלה",
-  // behavior
-  dogAggression: "תוקפנות כלפי כלבים",
-  humanAggression: "תוקפנות כלפי אנשים",
-  leashReactivity: "ריאקטיביות ברצועה",
-  leashPulling: "משיכה ברצועה",
-  jumping: "קפיצות",
-  separationAnxiety: "חרדת נטישה",
-  excessiveBarking: "נביחות יתר",
-  destruction: "הרס חפצים",
-  resourceGuarding: "שמירת משאבים",
-  fears: "פחדים",
-  badWithKids: "קושי עם ילדים",
-  houseSoiling: "עשיית צרכים בבית",
-  biteHistory: "היסטוריית נשיכות",
-  biteDetails: "פרטי נשיכות",
-  triggers: "טריגרים",
-  customIssues: "בעיות נוספות",
-  priorTraining: "אילוף קודם",
-  priorTrainingDetails: "פרטי אילוף קודם",
-};
-
-function formatSubmissionValue(value: unknown): string {
-  if (typeof value === "boolean") return value ? "כן" : "לא";
+function formatSubmissionValue(value: unknown, t: IntakeT): string {
+  if (typeof value === "boolean") return value ? t("intakeFormsPage.viewResponses.yes") : t("intakeFormsPage.viewResponses.no");
   if (value === null || value === undefined || value === "") return "—";
   return String(value);
 }
@@ -124,6 +73,8 @@ function ViewResponsesModal({
   formId: string;
   onClose: () => void;
 }) {
+  const t = useTranslations("intake");
+  const { locale } = useBusinessLocale();
   const { data, isLoading, isError } = useQuery<IntakeFormDetail>({
     queryKey: ["intakeForm", formId],
     queryFn: () =>
@@ -152,12 +103,12 @@ function ViewResponsesModal({
       <div className="modal-content max-w-lg mx-4 p-6 max-h-[85vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-5">
           <div>
-            <h2 className="text-lg font-bold text-petra-text">תשובות הטופס</h2>
+            <h2 className="text-lg font-bold text-petra-text">{t("intakeFormsPage.viewResponses.title")}</h2>
             {data && (
               <p className="text-sm text-petra-muted mt-0.5">
                 {data.customer?.name || data.phoneE164 || ""}
                 {data.submittedAt &&
-                  ` · הוגש ${new Date(data.submittedAt).toLocaleDateString("he-IL")}`}
+                  t("intakeFormsPage.viewResponses.submittedOn", { date: new Date(data.submittedAt).toLocaleDateString(locale) })}
               </p>
             )}
           </div>
@@ -172,10 +123,10 @@ function ViewResponsesModal({
         {isLoading ? (
           <PetraLoader variant="inline" />
         ) : isError ? (
-          <div className="py-8 text-center text-red-500 text-sm">שגיאה בטעינת התשובות</div>
+          <div className="py-8 text-center text-red-500 text-sm">{t("intakeFormsPage.viewResponses.loadError")}</div>
         ) : !submission ? (
           <div className="py-8 text-center text-petra-muted text-sm">
-            לא נמצאו תשובות לטופס זה
+            {t("intakeFormsPage.viewResponses.empty")}
           </div>
         ) : (
           <div className="space-y-5">
@@ -189,21 +140,21 @@ function ViewResponsesModal({
               return (
                 <div key={sectionKey}>
                   <h3 className="text-sm font-bold text-petra-text mb-2 pb-1 border-b border-slate-100">
-                    {SUBMISSION_SECTION_LABELS[sectionKey]}
+                    {t(`intakeFormsPage.viewResponses.sections.${sectionKey}`)}
                   </h3>
                   <dl className="space-y-1.5">
                     {entries.map(([key, value]) => (
                       <div key={key} className="flex items-start justify-between gap-3 text-sm">
                         <dt className="text-petra-muted flex-shrink-0">
-                          {SUBMISSION_FIELD_LABELS[key] || key}
+                          {t.has(`intakeFormsPage.viewResponses.fields.${key}`) ? t(`intakeFormsPage.viewResponses.fields.${key}`) : key}
                         </dt>
                         <dd
                           className={cn(
-                            "text-left font-medium break-words",
+                            "text-end font-medium break-words",
                             value === true ? "text-amber-600" : "text-petra-text"
                           )}
                         >
-                          {formatSubmissionValue(value)}
+                          {formatSubmissionValue(value, t)}
                         </dd>
                       </div>
                     ))}
@@ -215,13 +166,13 @@ function ViewResponsesModal({
             {medications.length > 0 && (
               <div>
                 <h3 className="text-sm font-bold text-petra-text mb-2 pb-1 border-b border-slate-100">
-                  תרופות
+                  {t("intakeFormsPage.viewResponses.medications")}
                 </h3>
                 <div className="space-y-2">
                   {medications.map((med, idx) => (
                     <div key={idx} className="bg-slate-50 rounded-xl px-3 py-2 text-sm">
                       <p className="font-medium text-petra-text">
-                        {formatSubmissionValue(med.medName)}
+                        {formatSubmissionValue(med.medName, t)}
                       </p>
                       <p className="text-xs text-petra-muted mt-0.5">
                         {[med.dosage, med.frequency, med.instructions]
@@ -239,7 +190,7 @@ function ViewResponsesModal({
 
         <div className="mt-6">
           <button className="btn-secondary w-full" onClick={onClose}>
-            סגור
+            {t("intakeFormsPage.close")}
           </button>
         </div>
       </div>
@@ -248,6 +199,7 @@ function ViewResponsesModal({
 }
 
 function CopyButton({ text }: { text: string }) {
+  const t = useTranslations("intake");
   const [copied, setCopied] = useState(false);
   return (
     <button
@@ -257,7 +209,7 @@ function CopyButton({ text }: { text: string }) {
         setTimeout(() => setCopied(false), 1500);
       }}
       className="w-6 h-6 flex items-center justify-center rounded hover:bg-slate-100 transition-colors"
-      title="העתק קישור"
+      title={t("intakeFormsPage.copyLink")}
     >
       {copied ? (
         <Check className="w-3.5 h-3.5 text-green-500" />
@@ -275,6 +227,7 @@ function NewIntakeModal({
   isOpen: boolean;
   onClose: () => void;
 }) {
+  const t = useTranslations("intake");
   const queryClient = useQueryClient();
   const [phone, setPhone] = useState("");
   const [customerSearch, setCustomerSearch] = useState("");
@@ -309,7 +262,7 @@ function NewIntakeModal({
       setIntakeUrl(data.url);
       setSent(true);
     },
-    onError: () => toast.error("שגיאה ביצירת טופס הרישום. נסה שוב."),
+    onError: () => toast.error(t("intakeFormsPage.newModal.createError")),
   });
 
   if (!isOpen) return null;
@@ -322,7 +275,7 @@ function NewIntakeModal({
         <div className="modal-backdrop" onClick={onClose} />
         <div className="modal-content max-w-md mx-4 p-6">
           <div className="flex items-center justify-between mb-5">
-            <h2 className="text-lg font-bold text-petra-text">טופס נוצר בהצלחה</h2>
+            <h2 className="text-lg font-bold text-petra-text">{t("intakeFormsPage.newModal.createdTitle")}</h2>
             <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
               <X className="w-4 h-4" />
             </button>
@@ -334,14 +287,14 @@ function NewIntakeModal({
             <button
               className="btn-primary flex-1 gap-1.5"
               onClick={() => {
-                const msg = `שלום! אנא מלא/י את טופס הקבלה לפני הביקור: ${intakeUrl}`;
+                const msg = `שלום! אנא מלא/י את טופס הקבלה לפני הביקור: ${intakeUrl}`; // i18n-ok — WhatsApp text sent to the client (Phase 3)
                 if (targetPhone) {
                   window.open(`https://api.whatsapp.com/send?phone=${toWhatsAppPhone(targetPhone)}&text=${encodeURIComponent(msg)}`, "_blank");
                 }
               }}
             >
               <MessageCircle className="w-4 h-4" />
-              שלח בוואטסאפ
+              {t("intakeFormsPage.newModal.sendWhatsApp")}
             </button>
             <button
               className="btn-secondary"
@@ -351,7 +304,7 @@ function NewIntakeModal({
             >
               <Copy className="w-4 h-4" />
             </button>
-            <button className="btn-secondary" onClick={onClose}>סגור</button>
+            <button className="btn-secondary" onClick={onClose}>{t("intakeFormsPage.close")}</button>
           </div>
         </div>
       </div>
@@ -363,19 +316,19 @@ function NewIntakeModal({
       <div className="modal-backdrop" onClick={onClose} />
       <div className="modal-content max-w-md mx-4 p-6">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-bold text-petra-text">יצירת טופס קבלה</h2>
+          <h2 className="text-lg font-bold text-petra-text">{t("intakeFormsPage.newModal.title")}</h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
             <X className="w-4 h-4" />
           </button>
         </div>
         <div className="space-y-4">
           <div>
-            <label className="label">חיפוש לקוח קיים</label>
+            <label className="label">{t("intakeFormsPage.newModal.searchLabel")}</label>
             <div className="relative">
-              <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted" />
+              <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted" />
               <input
-                className="input pr-9"
-                placeholder="שם או טלפון..."
+                className="input ps-9"
+                placeholder={t("intakeFormsPage.newModal.searchPlaceholder")}
                 value={customerSearch}
                 onChange={(e) => setCustomerSearch(e.target.value)}
               />
@@ -385,7 +338,7 @@ function NewIntakeModal({
                 {searchResults.slice(0, 5).map((c) => (
                   <button
                     key={c.id}
-                    className="w-full text-right px-3 py-2 text-sm hover:bg-slate-50 flex items-center justify-between"
+                    className="w-full text-start px-3 py-2 text-sm hover:bg-slate-50 flex items-center justify-between"
                     onClick={() => {
                       setSelectedCustomer(c);
                       setCustomerSearch("");
@@ -411,7 +364,7 @@ function NewIntakeModal({
           </div>
           {!selectedCustomer && (
             <div>
-              <label className="label">או מספר טלפון ישיר</label>
+              <label className="label">{t("intakeFormsPage.newModal.phoneLabel")}</label>
               <input
                 className="input"
                 placeholder="05X-XXXXXXX"
@@ -427,9 +380,9 @@ function NewIntakeModal({
             disabled={(!selectedCustomer && !phone) || mutation.isPending}
             onClick={() => mutation.mutate()}
           >
-            {mutation.isPending ? "יוצר..." : "צור טופס"}
+            {mutation.isPending ? t("intakeFormsPage.newModal.creating") : t("intakeFormsPage.newModal.create")}
           </button>
-          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+          <button className="btn-secondary" onClick={onClose}>{t("intakeFormsPage.cancel")}</button>
         </div>
       </div>
     </div>
@@ -437,11 +390,12 @@ function NewIntakeModal({
 }
 
 export default function IntakeFormsPage() {
+  const t = useTranslations("intake");
   return (
     <TierGate
       feature="intake_forms"
-      title="טפסי קליטה"
-      description="שלח טפסי קליטה ללקוחות לפני ביקור ראשון — מידע רפואי, התנהגותי ועוד. שדרג כדי להפעיל."
+      title={t("intakeFormsPage.gate.title")}
+      description={t("intakeFormsPage.gate.description")}
     >
       <IntakeFormsContent />
     </TierGate>
@@ -449,6 +403,8 @@ export default function IntakeFormsPage() {
 }
 
 function IntakeFormsContent() {
+  const t = useTranslations("intake");
+  const { locale } = useBusinessLocale();
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [showNewModal, setShowNewModal] = useState(false);
   const [viewFormId, setViewFormId] = useState<string | null>(null);
@@ -463,10 +419,10 @@ function IntakeFormsContent() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["intakeForms"] });
-      toast.success("הטופס נמחק");
+      toast.success(t("intakeFormsPage.toasts.deleted"));
       setDeleteForm(null);
     },
-    onError: () => toast.error("שגיאה במחיקת הטופס"),
+    onError: () => toast.error(t("intakeFormsPage.toasts.deleteError")),
   });
 
   const { data: rawForms, isLoading } = useQuery({
@@ -487,11 +443,11 @@ function IntakeFormsContent() {
   }, {});
 
   const FILTERS = [
-    { value: "ALL", label: "הכל", count: forms.length },
-    { value: "SENT", label: "נשלחו", count: statusCounts.SENT || 0 },
-    { value: "OPENED", label: "נפתחו", count: statusCounts.OPENED || 0 },
-    { value: "SUBMITTED", label: "הוגשו", count: statusCounts.SUBMITTED || 0 },
-    { value: "EXPIRED", label: "פגי תוקף", count: statusCounts.EXPIRED || 0 },
+    { value: "ALL", count: forms.length },
+    { value: "SENT", count: statusCounts.SENT || 0 },
+    { value: "OPENED", count: statusCounts.OPENED || 0 },
+    { value: "SUBMITTED", count: statusCounts.SUBMITTED || 0 },
+    { value: "EXPIRED", count: statusCounts.EXPIRED || 0 },
   ];
 
   return (
@@ -500,9 +456,9 @@ function IntakeFormsContent() {
       {/* Header */}
       <div className="page-header">
         <div>
-          <h1 className="page-title">טפסי קליטה</h1>
+          <h1 className="page-title">{t("intakeFormsPage.header.title")}</h1>
           <p className="text-sm text-petra-muted mt-1">
-            ניהול טפסי קליטה שנשלחו ללקוחות
+            {t("intakeFormsPage.header.subtitle")}
           </p>
         </div>
         <button
@@ -510,7 +466,7 @@ function IntakeFormsContent() {
           onClick={() => setShowNewModal(true)}
         >
           <Plus className="w-4 h-4" />
-          טופס חדש
+          {t("intakeFormsPage.header.newForm")}
         </button>
       </div>
 
@@ -527,10 +483,10 @@ function IntakeFormsContent() {
                 : "bg-white text-petra-muted border-slate-200 hover:border-brand-300 hover:text-petra-text"
             )}
           >
-            {f.label}
+            {t(`intakeFormsPage.filters.${f.value}`)}
             {f.count > 0 && (
               <span className={cn(
-                "mr-1.5 text-xs px-1.5 py-0.5 rounded-full",
+                "ms-1.5 text-xs px-1.5 py-0.5 rounded-full",
                 statusFilter === f.value ? "bg-white/20" : "bg-slate-100"
               )}>
                 {f.count}
@@ -551,14 +507,14 @@ function IntakeFormsContent() {
               <ClipboardList className="w-8 h-8" />
             </div>
             <p className="text-petra-muted text-sm mt-2">
-              {statusFilter === "ALL" ? "אין טפסי קליטה עדיין" : "אין טפסים בסטטוס זה"}
+              {statusFilter === "ALL" ? t("intakeFormsPage.empty.none") : t("intakeFormsPage.empty.noneInStatus")}
             </p>
             <button
               className="btn-primary mt-4 text-sm"
               onClick={() => setShowNewModal(true)}
             >
               <Plus className="w-3.5 h-3.5" />
-              שלח טופס ראשון
+              {t("intakeFormsPage.empty.sendFirst")}
             </button>
           </div>
         ) : (
@@ -566,12 +522,12 @@ function IntakeFormsContent() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-slate-100">
-                  <th className="table-header-cell">לקוח</th>
-                  <th className="table-header-cell">סטטוס</th>
-                  <th className="table-header-cell">נשלח</th>
-                  <th className="table-header-cell">נפתח</th>
-                  <th className="table-header-cell">הוגש</th>
-                  <th className="table-header-cell">פג תוקף</th>
+                  <th className="table-header-cell">{t("intakeFormsPage.table.client")}</th>
+                  <th className="table-header-cell">{t("intakeFormsPage.table.status")}</th>
+                  <th className="table-header-cell">{t("intakeFormsPage.table.sent")}</th>
+                  <th className="table-header-cell">{t("intakeFormsPage.table.opened")}</th>
+                  <th className="table-header-cell">{t("intakeFormsPage.table.submitted")}</th>
+                  <th className="table-header-cell">{t("intakeFormsPage.table.expires")}</th>
                   <th className="table-header-cell"></th>
                 </tr>
               </thead>
@@ -604,21 +560,21 @@ function IntakeFormsContent() {
                       </td>
                       <td className="table-cell">
                         <span className={cn("badge text-xs", STATUS_COLORS[effectiveStatus] || "badge-neutral")}>
-                          {STATUS_LABELS[effectiveStatus] || effectiveStatus}
+                          {t.has(`intakeFormsPage.statuses.${effectiveStatus}`) ? t(`intakeFormsPage.statuses.${effectiveStatus}`) : effectiveStatus}
                         </span>
                       </td>
                       <td className="table-cell text-sm text-petra-muted">
-                        {new Date(form.createdAt).toLocaleDateString("he-IL")}
+                        {new Date(form.createdAt).toLocaleDateString(locale)}
                       </td>
                       <td className="table-cell text-sm text-petra-muted">
                         {form.openedAt
-                          ? new Date(form.openedAt).toLocaleDateString("he-IL")
+                          ? new Date(form.openedAt).toLocaleDateString(locale)
                           : "—"}
                       </td>
                       <td className="table-cell text-sm text-petra-muted">
                         {form.submittedAt ? (
                           <span className="text-emerald-600 font-medium">
-                            {new Date(form.submittedAt).toLocaleDateString("he-IL")}
+                            {new Date(form.submittedAt).toLocaleDateString(locale)}
                           </span>
                         ) : (
                           "—"
@@ -626,7 +582,7 @@ function IntakeFormsContent() {
                       </td>
                       <td className="table-cell text-sm text-petra-muted">
                         <span className={cn(isExpired && form.status !== "SUBMITTED" && "text-red-500 font-medium")}>
-                          {new Date(form.expiresAt).toLocaleDateString("he-IL")}
+                          {new Date(form.expiresAt).toLocaleDateString(locale)}
                         </span>
                       </td>
                       <td className="table-cell">
@@ -634,11 +590,11 @@ function IntakeFormsContent() {
                           {effectiveStatus === "SUBMITTED" && (
                             <button
                               className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors border border-blue-200"
-                              title="צפה בתשובות"
+                              title={t("intakeFormsPage.row.viewResponses")}
                               onClick={() => setViewFormId(form.id)}
                             >
                               <Eye className="w-3 h-3" />
-                              צפה בתשובות
+                              {t("intakeFormsPage.row.viewResponses")}
                             </button>
                           )}
                           {(() => {
@@ -648,7 +604,7 @@ function IntakeFormsContent() {
                             return (
                               <button
                                 className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 transition-colors border border-green-200"
-                                title="שלח שוב"
+                                title={t("intakeFormsPage.row.resend")}
                                 onClick={() => {
                                   // Create a new intake for this customer / phone
                                   fetch("/api/intake/create", {
@@ -662,20 +618,20 @@ function IntakeFormsContent() {
                                     .then((r) => { if (!r.ok) throw new Error("Failed"); return r.json(); })
                                     .then((data) => {
                                       queryClient.invalidateQueries({ queryKey: ["intakeForms"] });
-                                      const msg = `שלום! אנא מלא/י את טופס הקבלה לפני הביקור: ${data.url}`;
+                                      const msg = `שלום! אנא מלא/י את טופס הקבלה לפני הביקור: ${data.url}`; // i18n-ok — WhatsApp text sent to the client (Phase 3)
                                       window.open(`https://api.whatsapp.com/send?phone=${toWhatsAppPhone(resendPhone)}&text=${encodeURIComponent(msg)}`, "_blank");
                                     })
-                                    .catch(() => toast.error("שגיאה בשליחת הטופס מחדש"));
+                                    .catch(() => toast.error(t("intakeFormsPage.toasts.resendError")));
                                 }}
                               >
                                 <RefreshCw className="w-3 h-3" />
-                                שלח שוב
+                                {t("intakeFormsPage.row.resend")}
                               </button>
                             );
                           })()}
                           <button
                             className="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-red-50 text-petra-muted hover:text-red-500 transition-colors"
-                            title="מחק טופס"
+                            title={t("intakeFormsPage.row.delete")}
                             onClick={() => setDeleteForm(form)}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -708,15 +664,15 @@ function IntakeFormsContent() {
                 <Trash2 className="w-5 h-5 text-red-500" />
               </div>
               <div>
-                <h2 className="text-lg font-bold text-petra-text">מחיקת טופס</h2>
+                <h2 className="text-lg font-bold text-petra-text">{t("intakeFormsPage.deleteModal.title")}</h2>
                 <p className="text-sm text-petra-muted">
-                  {deleteForm.customer?.name || deleteForm.phoneE164 || "ללא נמען"}
+                  {deleteForm.customer?.name || deleteForm.phoneE164 || t("intakeFormsPage.deleteModal.noRecipient")}
                 </p>
               </div>
             </div>
             <p className="text-sm text-petra-muted mb-5">
-              האם למחוק את טופס הקליטה? פעולה זו בלתי הפיכה
-              {deleteForm.status === "SUBMITTED" && " — כולל התשובות שהוגשו"}.
+              {t("intakeFormsPage.deleteModal.body")}
+              {deleteForm.status === "SUBMITTED" && t("intakeFormsPage.deleteModal.includingAnswers")}.
             </p>
             <div className="flex gap-3">
               <button
@@ -725,9 +681,9 @@ function IntakeFormsContent() {
                 onClick={() => deleteMutation.mutate(deleteForm.id)}
               >
                 <Trash2 className="w-4 h-4" />
-                {deleteMutation.isPending ? "מוחק..." : "מחק"}
+                {deleteMutation.isPending ? t("intakeFormsPage.deleteModal.deleting") : t("intakeFormsPage.deleteModal.delete")}
               </button>
-              <button className="btn-secondary flex-1" onClick={() => setDeleteForm(null)}>ביטול</button>
+              <button className="btn-secondary flex-1" onClick={() => setDeleteForm(null)}>{t("intakeFormsPage.cancel")}</button>
             </div>
           </div>
         </div>

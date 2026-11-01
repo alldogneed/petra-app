@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Lock, MessageCircleQuestion } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 
 export interface PortalQuestion {
   id: string;
@@ -16,12 +18,12 @@ export interface PortalQuestion {
 
 const MAX_BODY = 1000;
 
-function heDateTime(value: string | null): string {
+function heDateTime(value: string | null, locale: string, timeZone: string): string {
   if (!value) return "";
   const d = new Date(value);
   if (isNaN(d.getTime())) return "";
-  return d.toLocaleDateString("he-IL", {
-    timeZone: "Asia/Jerusalem",
+  return d.toLocaleDateString(locale, {
+    timeZone,
     day: "numeric",
     month: "numeric",
     year: "numeric",
@@ -41,6 +43,8 @@ export function LessonQA({
   lessonId: string;
   canAsk: boolean;
 }) {
+  const t = useTranslations("portal.lessonQA");
+  const { locale, timezone, cfg } = useBusinessLocale();
   const [questions, setQuestions] = useState<PortalQuestion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -59,16 +63,16 @@ export function LessonQA({
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(
-          typeof data?.error === "string" ? data.error : "שגיאה בטעינת השאלות"
+          typeof data?.error === "string" ? data.error : t("loadError")
         );
       }
       setQuestions(Array.isArray(data?.questions) ? data.questions : []);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "שגיאה בטעינת השאלות");
+      setError(e instanceof Error ? e.message : t("loadError"));
     } finally {
       setLoading(false);
     }
-  }, [slug, lessonId]);
+  }, [slug, lessonId, t]);
 
   useEffect(() => {
     void load();
@@ -77,11 +81,11 @@ export function LessonQA({
   const submit = async () => {
     const text = draft.trim();
     if (text.length < 3) {
-      setSendError("השאלה קצרה מדי — לפחות 3 תווים");
+      setSendError(t("tooShort"));
       return;
     }
     if (text.length > MAX_BODY) {
-      setSendError("השאלה ארוכה מדי — עד 1000 תווים");
+      setSendError(t("tooLong"));
       return;
     }
     setSending(true);
@@ -98,14 +102,14 @@ export function LessonQA({
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(
-          typeof data?.error === "string" ? data.error : "שגיאה בשליחת השאלה"
+          typeof data?.error === "string" ? data.error : t("sendError")
         );
       }
       setDraft("");
       setIsPrivate(false);
       await load();
     } catch (e) {
-      setSendError(e instanceof Error ? e.message : "שגיאה בשליחת השאלה");
+      setSendError(e instanceof Error ? e.message : t("sendError"));
     } finally {
       setSending(false);
     }
@@ -113,7 +117,7 @@ export function LessonQA({
 
   return (
     <section
-      dir="rtl"
+      dir={cfg.dir}
       className="rounded-2xl shadow-card bg-white border border-slate-100 p-5 mt-6"
     >
       <div className="flex items-center gap-2 mb-4">
@@ -121,7 +125,7 @@ export function LessonQA({
           className="w-5 h-5"
           style={{ color: "var(--portal-primary)" }}
         />
-        <h2 className="text-base font-bold text-slate-800">שאלות ותשובות</h2>
+        <h2 className="text-base font-bold text-slate-800">{t("title")}</h2>
       </div>
 
       {loading ? (
@@ -141,12 +145,12 @@ export function LessonQA({
             onClick={() => void load()}
             className="px-4 py-2 rounded-xl border border-slate-200 text-sm font-medium text-slate-700 hover:bg-slate-50"
           >
-            נסה שוב
+            {t("retry")}
           </button>
         </div>
       ) : questions.length === 0 ? (
         <p className="text-sm text-slate-500 py-4 text-center">
-          אין עדיין שאלות — היו הראשונים לשאול
+          {t("empty")}
         </p>
       ) : (
         <ul className="space-y-4">
@@ -154,15 +158,15 @@ export function LessonQA({
             <li key={q.id} className="border-b border-slate-100 pb-4 last:border-0 last:pb-0">
               <div className="flex items-center gap-2 flex-wrap mb-1">
                 <span className="text-sm font-semibold text-slate-800">
-                  {q.isMine ? "אני" : q.askedByName}
+                  {q.isMine ? t("me") : q.askedByName}
                 </span>
                 <span className="text-xs text-slate-400">
-                  {heDateTime(q.createdAt)}
+                  {heDateTime(q.createdAt, locale, timezone)}
                 </span>
                 {q.isPrivate && (
                   <span className="inline-flex items-center gap-1 text-xs text-slate-400">
                     <Lock className="w-3 h-3" />
-                    פרטי
+                    {t("private")}
                   </span>
                 )}
               </div>
@@ -173,15 +177,15 @@ export function LessonQA({
               {q.answerBody ? (
                 <div className="mt-3 me-4 rounded-xl bg-slate-50 border border-slate-100 p-3">
                   <p className="text-xs font-semibold text-slate-500 mb-1">
-                    תשובת המדריך
-                    {q.answeredAt ? ` · ${heDateTime(q.answeredAt)}` : ""}
+                    {t("instructorAnswer")}
+                    {q.answeredAt ? ` · ${heDateTime(q.answeredAt, locale, timezone)}` : ""}
                   </p>
                   <p className="text-sm text-slate-700 whitespace-pre-wrap">
                     {q.answerBody}
                   </p>
                 </div>
               ) : (
-                <p className="mt-2 text-xs text-slate-400">ממתין לתשובה</p>
+                <p className="mt-2 text-xs text-slate-400">{t("awaitingAnswer")}</p>
               )}
             </li>
           ))}
@@ -194,14 +198,14 @@ export function LessonQA({
             htmlFor="portal-qa-draft"
             className="block text-sm font-medium text-slate-700 mb-2"
           >
-            שאל שאלה
+            {t("askLabel")}
           </label>
           <textarea
             id="portal-qa-draft"
             value={draft}
             maxLength={MAX_BODY}
             onChange={(e) => setDraft(e.target.value)}
-            placeholder="מה לא ברור בשיעור? כתבו כאן ונחזור אליכם"
+            placeholder={t("placeholder")}
             className="w-full min-h-[90px] resize-y rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-200"
           />
 
@@ -212,7 +216,7 @@ export function LessonQA({
               onChange={(e) => setIsPrivate(e.target.checked)}
               className="w-4 h-4 rounded border-slate-300"
             />
-            רק אני אראה את השאלה
+            {t("privateCheckbox")}
           </label>
 
           {sendError && (
@@ -230,7 +234,7 @@ export function LessonQA({
               {sending && (
                 <span className="w-4 h-4 border-2 border-white/50 border-t-white rounded-full animate-spin" />
               )}
-              שליחת שאלה
+              {t("submit")}
             </button>
             <span className="text-xs text-slate-400">
               {draft.length}/{MAX_BODY}

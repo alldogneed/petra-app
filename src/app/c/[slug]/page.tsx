@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 import { toast } from "sonner"
+import { useTranslations } from "next-intl"
+import { useBusinessLocale } from "@/hooks/useBusinessLocale"
 import {
   Lock,
   LogIn,
@@ -60,15 +62,17 @@ type PortalCourse = {
   hasFreePreview: boolean
 }
 
-function formatClassDate(iso: string) {
+function formatClassDate(iso: string, locale: string) {
   const d = new Date(iso)
-  const date = d.toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" })
-  const time = d.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })
+  const date = d.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" })
+  const time = d.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })
   return `${date} · ${time}`
 }
 
 export default function PortalHomePage({ params }: { params: { slug: string } }) {
   const { slug } = params
+  const t = useTranslations("portal.cDetailPage")
+  const { locale } = useBusinessLocale()
 
   const [data, setData] = useState<BrandingData | null>(null)
   const [loadError, setLoadError] = useState("")
@@ -86,7 +90,7 @@ export default function PortalHomePage({ params }: { params: { slug: string } })
         if (d.error) setLoadError(d.error)
         else setData(d)
       })
-      .catch(() => setLoadError("שגיאה בטעינת העמוד"))
+      .catch(() => setLoadError(t("loadError")))
   }, [slug])
 
   useEffect(() => {
@@ -128,26 +132,26 @@ export default function PortalHomePage({ params }: { params: { slug: string } })
       const res = await fetch(`/api/portal/${slug}/membership/request`, { method: "POST" })
       const d = await res.json()
       if (!res.ok) {
-        toast.error(d.error ?? "שגיאה בשליחת הבקשה")
+        toast.error(d.error ?? t("requestError"))
       } else {
-        toast.success("הבקשה נשלחה! העסק יאשר אותה בהקדם")
+        toast.success(t("requestSent"))
         if (d.membership) {
           setMe((prev) => (prev ? { ...prev, membership: d.membership } : prev))
         }
       }
     } catch {
-      toast.error("שגיאה בשליחת הבקשה")
+      toast.error(t("requestError"))
     } finally {
       setRequesting(false)
     }
-  }, [slug])
+  }, [slug, t])
 
   if (loadError) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center p-4">
         <div className="text-center max-w-sm">
-          <h1 className="text-xl font-bold text-petra-text mb-2">הפורטל לא נמצא</h1>
-          <p className="text-sm text-petra-muted">ייתכן שהקישור שגוי או שהפורטל אינו פעיל</p>
+          <h1 className="text-xl font-bold text-petra-text mb-2">{t("notFound.title")}</h1>
+          <p className="text-sm text-petra-muted">{t("notFound.body")}</p>
         </div>
       </div>
     )
@@ -186,7 +190,7 @@ export default function PortalHomePage({ params }: { params: { slug: string } })
             <h1 className="font-bold text-petra-text text-sm leading-tight truncate">
               {data.business.name}
             </h1>
-            <p className="text-xs text-petra-muted">פורטל חברים</p>
+            <p className="text-xs text-petra-muted">{t("membersPortal")}</p>
           </div>
         </div>
       </header>
@@ -203,27 +207,27 @@ export default function PortalHomePage({ params }: { params: { slug: string } })
 
         {/* Membership state card */}
         <div className="bg-white rounded-2xl shadow-card border border-petra-border p-5">
-          <h2 className="font-bold text-petra-text mb-3">המנוי שלי</h2>
+          <h2 className="font-bold text-petra-text mb-3">{t("membership.title")}</h2>
 
           {loggedOut ? (
             <div className="space-y-3">
               <p className="text-sm text-petra-muted">
-                התחברות מהירה עם קוד למייל — בלי סיסמאות
+                {t("membership.loginHint")}
               </p>
               <Link href={`/c/${slug}/login`}>
                 <PortalButton className="w-full">
                   <LogIn className="w-4 h-4" />
-                  התחבר
+                  {t("membership.login")}
                 </PortalButton>
               </Link>
             </div>
           ) : !membership ? (
             <div className="space-y-3">
               <p className="text-sm text-petra-muted">
-                שלום {me?.portalUser.name}! עדיין אין לך מנוי אצל {data.business.name}
+                {t("membership.noMembership", { name: me?.portalUser.name ?? "", business: data.business.name })}
               </p>
               <PortalButton className="w-full" onClick={requestMembership} loading={requesting}>
-                בקש הצטרפות
+                {t("membership.requestJoin")}
               </PortalButton>
               {showPaymentLink && (
                 <a
@@ -234,7 +238,7 @@ export default function PortalHomePage({ params }: { params: { slug: string } })
                   className="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-petra-border text-sm font-semibold text-petra-text hover:bg-slate-50 transition-colors"
                 >
                   <CreditCard className="w-4 h-4" />
-                  לתשלום
+                  {t("membership.pay")}
                 </a>
               )}
             </div>
@@ -243,7 +247,7 @@ export default function PortalHomePage({ params }: { params: { slug: string } })
               <MembershipBadge membership={membership} />
               {membership.status === "pending" && (
                 <p className="text-sm text-petra-muted">
-                  קיבלנו את הבקשה שלך — נעדכן אותך ברגע שהעסק יאשר אותה
+                  {t("membership.pendingNote")}
                 </p>
               )}
               {showPaymentLink && (
@@ -255,7 +259,7 @@ export default function PortalHomePage({ params }: { params: { slug: string } })
                   className="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl border border-petra-border text-sm font-semibold text-petra-text hover:bg-slate-50 transition-colors"
                 >
                   <CreditCard className="w-4 h-4" />
-                  לתשלום
+                  {t("membership.pay")}
                 </a>
               )}
             </div>
@@ -269,19 +273,19 @@ export default function PortalHomePage({ params }: { params: { slug: string } })
               <div className="flex items-center justify-between mb-3">
                 <h2 className="font-bold text-petra-text flex items-center gap-2">
                   <Video className="w-4 h-4" style={{ color: "var(--portal-primary)" }} />
-                  שיעורים קרובים
+                  {t("classes.title")}
                 </h2>
                 <Link
                   href={`/c/${slug}/classes`}
                   className="text-sm font-medium flex items-center gap-0.5 hover:opacity-80 transition-opacity"
                   style={{ color: "var(--portal-primary)" }}
                 >
-                  לכל השיעורים
-                  <ChevronLeft className="w-4 h-4" />
+                  {t("classes.viewAll")}
+                  <ChevronLeft className="w-4 h-4 ltr:-scale-x-100" />
                 </Link>
               </div>
               {upcoming.length === 0 ? (
-                <p className="text-sm text-petra-muted py-2">אין שיעורים קרובים כרגע</p>
+                <p className="text-sm text-petra-muted py-2">{t("classes.empty")}</p>
               ) : (
                 <div className="space-y-3">
                   {upcoming.map((c) => {
@@ -298,21 +302,21 @@ export default function PortalHomePage({ params }: { params: { slug: string } })
                               {c.title}
                             </p>
                             <p className="text-xs text-petra-muted mt-0.5">
-                              {formatClassDate(c.startsAt)}
+                              {formatClassDate(c.startsAt, locale)}
                             </p>
                           </div>
                           {c.myStatus === "registered" ? (
                             <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex-shrink-0">
-                              רשום/ה
+                              {t("classes.registered")}
                             </span>
                           ) : c.myStatus === "waitlist" ? (
                             <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 flex-shrink-0">
-                              בהמתנה
+                              {t("classes.waitlist")}
                             </span>
                           ) : (
                             <span className="text-xs text-petra-muted flex items-center gap-1 flex-shrink-0">
                               <Users className="w-3 h-3" />
-                              {spotsLeft > 0 ? `נותרו ${spotsLeft}` : "מלא"}
+                              {spotsLeft > 0 ? t("classes.spotsLeft", { count: spotsLeft }) : t("classes.full")}
                             </span>
                           )}
                         </div>
@@ -328,19 +332,19 @@ export default function PortalHomePage({ params }: { params: { slug: string } })
               <div className="flex items-center justify-between mb-3">
                 <h2 className="font-bold text-petra-text flex items-center gap-2">
                   <GraduationCap className="w-4 h-4" style={{ color: "var(--portal-primary)" }} />
-                  קורסים מוקלטים
+                  {t("courses.title")}
                 </h2>
                 <Link
                   href={`/c/${slug}/courses`}
                   className="text-sm font-medium flex items-center gap-0.5 hover:opacity-80 transition-opacity"
                   style={{ color: "var(--portal-primary)" }}
                 >
-                  לכל הקורסים
-                  <ChevronLeft className="w-4 h-4" />
+                  {t("courses.viewAll")}
+                  <ChevronLeft className="w-4 h-4 ltr:-scale-x-100" />
                 </Link>
               </div>
               {courses.length === 0 ? (
-                <p className="text-sm text-petra-muted py-2">אין קורסים זמינים כרגע</p>
+                <p className="text-sm text-petra-muted py-2">{t("courses.empty")}</p>
               ) : (
                 <div className="grid grid-cols-2 gap-3">
                   {courses.slice(0, 4).map((course) => (
@@ -372,7 +376,7 @@ export default function PortalHomePage({ params }: { params: { slug: string } })
                           {course.title}
                         </p>
                         <p className="text-[11px] text-petra-muted mt-0.5">
-                          {course.lessonCount} שיעורים
+                          {t("courses.lessonCount", { count: course.lessonCount })}
                         </p>
                       </div>
                     </Link>
@@ -390,11 +394,11 @@ export default function PortalHomePage({ params }: { params: { slug: string } })
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-sm text-petra-text flex items-center gap-1.5">
-                  שיעורים חיים בזום
+                  {t("teaser.liveTitle")}
                   <Lock className="w-3.5 h-3.5 text-slate-400" />
                 </p>
                 <p className="text-xs text-petra-muted mt-0.5">
-                  הרשמה לשיעורים חיים עם קישור זום — למנויים בלבד
+                  {t("teaser.liveBody")}
                 </p>
               </div>
             </div>
@@ -404,19 +408,19 @@ export default function PortalHomePage({ params }: { params: { slug: string } })
               </div>
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-sm text-petra-text flex items-center gap-1.5">
-                  קורסים מוקלטים
+                  {t("teaser.coursesTitle")}
                   <Lock className="w-3.5 h-3.5 text-slate-400" />
                 </p>
                 <p className="text-xs text-petra-muted mt-0.5">
-                  ספריית וידאו מלאה עם מעקב התקדמות — למנויים בלבד
+                  {t("teaser.coursesBody")}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-2 text-xs text-petra-muted px-1">
               <Clock className="w-3.5 h-3.5" />
               {loggedOut
-                ? "התחברו ובקשו הצטרפות כדי לפתוח את כל התכנים"
-                : "לאחר אישור המנוי כל התכנים ייפתחו אוטומטית"}
+                ? t("teaser.loggedOutHint")
+                : t("teaser.pendingHint")}
             </div>
           </div>
         )}

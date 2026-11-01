@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import { useTranslations } from "next-intl"
 import Link from "next/link"
 import { ArrowRight, GraduationCap, PlayCircle } from "lucide-react"
 import { PortalSpinner } from "../_components/portal-ui"
@@ -18,6 +19,7 @@ type PortalCourse = {
 export default function PortalCoursesPage({ params }: { params: { slug: string } }) {
   const { slug } = params
   const router = useRouter()
+  const t = useTranslations("portal.detailCoursesPage")
   const [courses, setCourses] = useState<PortalCourse[] | null>(null)
 
   useEffect(() => {
@@ -41,16 +43,16 @@ export default function PortalCoursesPage({ params }: { params: { slug: string }
         href={`/c/${slug}`}
         className="inline-flex items-center gap-1 text-sm text-petra-muted hover:text-petra-text transition-colors mb-3"
       >
-        <ArrowRight className="w-4 h-4" />
-        חזרה לפורטל
+        <ArrowRight className="w-4 h-4 ltr:-scale-x-100" />
+        {t("backToPortal")}
       </Link>
 
-      <h1 className="text-xl font-bold text-petra-text mb-4">קורסים מוקלטים</h1>
+      <h1 className="text-xl font-bold text-petra-text mb-4">{t("title")}</h1>
 
       {courses.length === 0 ? (
         <div className="bg-white rounded-2xl shadow-card border border-petra-border p-8 text-center">
           <GraduationCap className="w-8 h-8 text-slate-300 mx-auto mb-3" />
-          <p className="text-sm text-petra-muted">אין קורסים זמינים כרגע — שווה לחזור לבדוק</p>
+          <p className="text-sm text-petra-muted">{t("empty")}</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -84,7 +86,7 @@ export default function PortalCoursesPage({ params }: { params: { slug: string }
                   {course.hasFreePreview && (
                     <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex-shrink-0 font-medium inline-flex items-center gap-1">
                       <PlayCircle className="w-3 h-3" />
-                      שיעור חינם
+                      {t("freeLesson")}
                     </span>
                   )}
                 </div>
@@ -94,7 +96,7 @@ export default function PortalCoursesPage({ params }: { params: { slug: string }
                   </p>
                 )}
                 <p className="text-xs text-petra-muted mt-2.5 font-medium">
-                  {course.lessonCount} שיעורים
+                  {t("lessonCount", { count: course.lessonCount })}
                 </p>
               </div>
             </Link>

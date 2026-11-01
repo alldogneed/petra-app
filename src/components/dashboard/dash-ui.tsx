@@ -8,6 +8,7 @@
  */
 import Link from "next/link";
 import { MessageCircle } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 
 export const CARD_SHADOW = "shadow-[0_1px_3px_0_rgba(0,0,0,0.06),0_1px_2px_-1px_rgba(0,0,0,0.04)]";
@@ -172,7 +173,9 @@ export function MiniButton({
 }
 
 /** Green WhatsApp icon button (opens wa.me in a new tab). */
-export function WaIconButton({ href, onClick, title = "שלח הודעה בוואטסאפ" }: { href: string; onClick?: () => void; title?: string }) {
+export function WaIconButton({ href, onClick, title: titleProp }: { href: string; onClick?: () => void; title?: string }) {
+  const t = useTranslations("dashboard.dashUi");
+  const title = titleProp ?? t("waSend");
   return (
     <a
       href={href}
@@ -221,8 +224,9 @@ export function WaTextButton({
 }
 
 /** "נשלח" confirmation shown in place of a send button. */
-export function SentMark({ children = "נשלח" }: { children?: React.ReactNode }) {
-  return <span className="text-xs font-medium text-emerald-700 min-w-[30px] text-center flex-shrink-0">{children}</span>;
+export function SentMark({ children }: { children?: React.ReactNode }) {
+  const t = useTranslations("dashboard.dashUi");
+  return <span className="text-xs font-medium text-emerald-700 min-w-[30px] text-center flex-shrink-0">{children === undefined ? t("sent") : children}</span>;
 }
 
 /** Coloured status text with a 6px dot (appointment status). */
@@ -237,13 +241,14 @@ export function StatusDot({ label, color, dot }: { label: string; color: string;
 
 /** Task checkbox (18px) — turns green on hover, filled while completing. */
 export function TaskCheckbox({ onClick, completing }: { onClick: () => void; completing?: boolean }) {
+  const t = useTranslations("dashboard.dashUi");
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={completing}
-      title="סמן כבוצע"
-      aria-label="סמן כבוצע"
+      title={t("markDone")}
+      aria-label={t("markDone")}
       className={cn(
         "group w-[18px] h-[18px] flex-shrink-0 rounded-[5px] border-[1.5px] flex items-center justify-center transition-all",
         completing
@@ -258,15 +263,17 @@ export function TaskCheckbox({ onClick, completing }: { onClick: () => void; com
   );
 }
 
-/** Priority dot colours (design PRIORITY map). */
-export const PRIORITY_DOT: Record<string, { color: string; label: string }> = {
-  URGENT: { color: "#DC2626", label: "דחוף" },
-  HIGH: { color: "#EF4444", label: "גבוהה" },
-  MEDIUM: { color: "#F59E0B", label: "בינונית" },
-  LOW: { color: "#94A3B8", label: "נמוכה" },
+/** Priority dot colours (design PRIORITY map). Labels: messages `dashboard.dashUi.priority.<KEY>`. */
+export const PRIORITY_DOT: Record<string, { color: string }> = {
+  URGENT: { color: "#DC2626" },
+  HIGH: { color: "#EF4444" },
+  MEDIUM: { color: "#F59E0B" },
+  LOW: { color: "#94A3B8" },
 };
 
 export function PriorityDot({ priority }: { priority: string }) {
-  const p = PRIORITY_DOT[priority] ?? PRIORITY_DOT.LOW;
-  return <span title={p.label} className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: p.color }} />;
+  const t = useTranslations("dashboard.dashUi");
+  const key = PRIORITY_DOT[priority] ? priority : "LOW";
+  const p = PRIORITY_DOT[key];
+  return <span title={t(`priority.${key}`)} className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: p.color }} />;
 }

@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 export interface SectionNavItem {
   id: string;
   label: string;
@@ -11,9 +13,10 @@ export interface SectionNavItem {
  * Target sections need `scroll-mt-32` so they land below the topbar + this bar.
  */
 export function SectionNav({ items }: { items: SectionNavItem[] }) {
+  const t = useTranslations("customers.sectionNav");
   return (
     <nav
-      aria-label="ניווט בכרטיס הלקוח"
+      aria-label={t("ariaLabel")}
       className="sticky top-16 z-20 -mx-4 md:-mx-6 px-4 md:px-6 py-2 bg-petra-bg/90 backdrop-blur no-print"
     >
       <div className="flex gap-2 overflow-x-auto max-w-full [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">

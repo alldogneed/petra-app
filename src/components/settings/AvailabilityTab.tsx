@@ -17,6 +17,8 @@ import {
 } from "lucide-react";
 import { cn, fetchJSON } from "@/lib/utils";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { useRegisterDirty } from "./SettingsDirtyContext";
@@ -34,6 +36,7 @@ async function jsonOrThrow(r: Response, fallback: string) {
 
 /** Shown when the member lacks AVAILABILITY_MANAGE — data stays visible, editing is off. */
 function AvailabilityReadOnlyNote() {
+  const t = useTranslations("settings.availabilityTab");
   return (
     <div
       role="note"
@@ -41,7 +44,7 @@ function AvailabilityReadOnlyNote() {
     >
       <Lock className="w-4 h-4 mt-0.5 flex-shrink-0" />
       <span>
-        תצוגה בלבד — רק בעלי העסק, או מי שקיבל ממנו את ההרשאה &quot;לשנות שעות פעילות וזמינות&quot;, יכולים לשנות שעות, הפסקות וחסימות.
+        {t("readOnlyNote")}
       </span>
     </div>
   );
@@ -79,12 +82,13 @@ interface AvailabilityBreak {
   label: string | null;
 }
 
-const DAYS_HE = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
+/** dayOfWeek (0 = Sunday) → message key under `settings.availabilityTab.days`. */
+const DAY_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
 
 const DAY_OPTIONS = [
-  { value: -1, label: "כל יום" },
-  ...DAYS_HE.map((name, i) => ({ value: i, label: name })),
-];
+  { value: -1, labelKey: "everyDay" },
+  ...DAY_KEYS.map((key, i) => ({ value: i, labelKey: key })),
+] as const;
 
 const TIMES: string[] = [];
 for (let h = 6; h <= 22; h++) {
@@ -95,6 +99,13 @@ for (let h = 6; h <= 22; h++) {
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function AvailabilityTab() {
+  const t = useTranslations("settings.availabilityTab");
+  const tc = useTranslations("common");
+  const { locale } = useBusinessLocale();
+  const dayLabel = (dayOfWeek: number) => {
+    const opt = DAY_OPTIONS.find((d) => d.value === dayOfWeek);
+    return t(`days.${opt ? opt.labelKey : "everyDay"}`);
+  };
   const queryClient = useQueryClient();
   const { canManageAvailability } = usePermissions();
   const readOnly = !canManageAvailability;
@@ -117,13 +128,13 @@ export default function AvailabilityTab() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ rules: rulesData }),
-      }).then((r) => jsonOrThrow(r, "שגיאה בשמירת לוח הזמנים")),
+      }).then((r) => jsonOrThrow(r, t("errors.saveSchedule"))),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["availability-rules"] });
       setEditedRules(null);
-      toast.success("לוח הזמנים נשמר");
+      toast.success(t("toasts.scheduleSaved"));
     },
-    onError: (err: Error) => toast.error(err.message || "שגיאה בשמירת לוח הזמנים"),
+    onError: (err: Error) => toast.error(err.message || t("errors.saveSchedule")),
   });
 
   function updateRule(dayOfWeek: number, updates: Partial<AvailabilityRule>) {
@@ -161,7 +172,7 @@ export default function AvailabilityTab() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-      }).then((r) => jsonOrThrow(r, "שגיאה בהוספת החסימה")),
+      }).then((r) => jsonOrThrow(r, t("errors.addBlock"))),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["availability-blocks"] });
       setBlockStartDate("");
@@ -173,14 +184,14 @@ export default function AvailabilityTab() {
   const deleteBlockMutation = useMutation({
     mutationFn: (id: string) =>
       fetch(`/api/booking/blocks/${id}`, { method: "DELETE" }).then((r) =>
-        jsonOrThrow(r, "שגיאה במחיקת החסימה"),
+        jsonOrThrow(r, t("errors.deleteBlock")),
       ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["availability-blocks"] });
       setPendingDelete(null);
-      toast.success("החסימה נמחקה");
+      toast.success(t("toasts.blockDeleted"));
     },
-    onError: (err: Error) => toast.error(err.message || "שגיאה במחיקת החסימה"),
+    onError: (err: Error) => toast.error(err.message || t("errors.deleteBlock")),
   });
 
   function handleAddBlock() {
@@ -214,13 +225,13 @@ export default function AvailabilityTab() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-      }).then((r) => jsonOrThrow(r, "שגיאה בשמירת ההגדרות")),
+      }).then((r) => jsonOrThrow(r, t("errors.saveSettings"))),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["booking-settings"] });
       setEditedSettings(null);
-      toast.success("הגדרות תיאום נשמרו");
+      toast.success(t("toasts.settingsSaved"));
     },
-    onError: (err: Error) => toast.error(err.message || "שגיאה בשמירת ההגדרות"),
+    onError: (err: Error) => toast.error(err.message || t("errors.saveSettings")),
   });
 
   // ── Breaks ────────────────────────────────────────────────────────────────
@@ -239,26 +250,26 @@ export default function AvailabilityTab() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ...data, label: data.label || null }),
-      }).then((r) => jsonOrThrow(r, "שגיאה בהוספת הפסקה")),
+      }).then((r) => jsonOrThrow(r, t("errors.addBreak"))),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["availability-breaks"] });
       setNewBreak({ dayOfWeek: -1, startTime: "13:00", endTime: "14:00", label: "" });
-      toast.success("הפסקה נוספה");
+      toast.success(t("toasts.breakAdded"));
     },
-    onError: (err: Error) => toast.error(err.message || "שגיאה בהוספת הפסקה"),
+    onError: (err: Error) => toast.error(err.message || t("errors.addBreak")),
   });
 
   const deleteBreakMutation = useMutation({
     mutationFn: (id: string) =>
       fetch(`/api/availability/breaks/${id}`, { method: "DELETE" }).then((r) =>
-        jsonOrThrow(r, "שגיאה במחיקת ההפסקה"),
+        jsonOrThrow(r, t("errors.deleteBreak")),
       ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["availability-breaks"] });
       setPendingDelete(null);
-      toast.success("ההפסקה נמחקה");
+      toast.success(t("toasts.breakDeleted"));
     },
-    onError: (err: Error) => toast.error(err.message || "שגיאה במחיקת ההפסקה"),
+    onError: (err: Error) => toast.error(err.message || t("errors.deleteBreak")),
   });
 
   // ── Import holidays ───────────────────────────────────────────────────────
@@ -266,13 +277,13 @@ export default function AvailabilityTab() {
   const importHolidaysMutation = useMutation({
     mutationFn: () =>
       fetch("/api/availability/import-holidays", { method: "POST" }).then((r) =>
-        jsonOrThrow(r, "שגיאה בייבוא חגים"),
+        jsonOrThrow(r, t("errors.importHolidays")),
       ),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["availability-blocks"] });
-      toast.success(`נוצרו ${data.created} חסימות חגים`);
+      toast.success(t("toasts.holidaysImported", { count: data.created }));
     },
-    onError: (err: Error) => toast.error(err.message || "שגיאה בייבוא חגים"),
+    onError: (err: Error) => toast.error(err.message || t("errors.importHolidays")),
   });
 
   // ── Unsaved changes (booking settings + weekly schedule share one save bar) ──
@@ -315,14 +326,14 @@ export default function AvailabilityTab() {
       <div>
         <div className="flex items-center gap-2 mb-4">
           <Settings2 className="w-5 h-5 text-brand-500" />
-          <h3 className="text-base font-semibold text-petra-text">הגדרות תיאום</h3>
+          <h3 className="text-base font-semibold text-petra-text">{t("bookingSettings.title")}</h3>
         </div>
 
         <SettingsFieldset readOnly={readOnly}>
         <div className="card p-4 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="label">מרווח בין פגישות</label>
+              <label className="label">{t("bookingSettings.buffer")}</label>
               <div className="flex items-center gap-2">
                 <input
                   type="number"
@@ -331,11 +342,11 @@ export default function AvailabilityTab() {
                   onChange={(e) => setEditedSettings({ ...displaySettings, bookingBuffer: Number(e.target.value) })}
                   className="input"
                 />
-                <span className="text-xs text-petra-muted whitespace-nowrap">דקות</span>
+                <span className="text-xs text-petra-muted whitespace-nowrap">{t("units.minutes")}</span>
               </div>
             </div>
             <div>
-              <label className="label">הודעה מראש (מינ׳)</label>
+              <label className="label">{t("bookingSettings.minNotice")}</label>
               <div className="flex items-center gap-2">
                 <input
                   type="number"
@@ -344,11 +355,11 @@ export default function AvailabilityTab() {
                   onChange={(e) => setEditedSettings({ ...displaySettings, bookingMinNotice: Number(e.target.value) })}
                   className="input"
                 />
-                <span className="text-xs text-petra-muted whitespace-nowrap">שעות</span>
+                <span className="text-xs text-petra-muted whitespace-nowrap">{t("units.hours")}</span>
               </div>
             </div>
             <div>
-              <label className="label">קביעה עד כמה ימים קדימה</label>
+              <label className="label">{t("bookingSettings.maxAdvance")}</label>
               <div className="flex items-center gap-2">
                 <input
                   type="number"
@@ -357,7 +368,7 @@ export default function AvailabilityTab() {
                   onChange={(e) => setEditedSettings({ ...displaySettings, bookingMaxAdvance: Number(e.target.value) })}
                   className="input"
                 />
-                <span className="text-xs text-petra-muted whitespace-nowrap">ימים</span>
+                <span className="text-xs text-petra-muted whitespace-nowrap">{t("units.days")}</span>
               </div>
             </div>
           </div>
@@ -376,15 +387,15 @@ export default function AvailabilityTab() {
               <div
                 className={cn(
                   "absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all",
-                  displaySettings.gcalBlockExternal ? "right-0.5" : "left-0.5"
+                  displaySettings.gcalBlockExternal ? "start-0.5" : "end-0.5"
                 )}
               />
             </button>
-            <span className="text-sm text-petra-text">חסום פגישות גוגל קלנדר (כולל אישיות)</span>
+            <span className="text-sm text-petra-text">{t("bookingSettings.gcalBlockExternal")}</span>
           </label>
 
           {!readOnly && (
-            <p className="text-xs text-petra-muted">השינויים נשמרים יחד עם לוח הזמנים השבועי — בסרגל השמירה שמופיע בתחתית.</p>
+            <p className="text-xs text-petra-muted">{t("bookingSettings.saveHint")}</p>
           )}
         </div>
         </SettingsFieldset>
@@ -394,52 +405,52 @@ export default function AvailabilityTab() {
       <div className="border-t border-slate-100 pt-6">
         <div className="flex items-center gap-2 mb-4">
           <Coffee className="w-5 h-5 text-brand-500" />
-          <h3 className="text-base font-semibold text-petra-text">הפסקות יומיות</h3>
-          <span className="text-sm text-petra-muted">צהריים, תפילה וכד׳</span>
+          <h3 className="text-base font-semibold text-petra-text">{t("breaks.title")}</h3>
+          <span className="text-sm text-petra-muted">{t("breaks.subtitle")}</span>
         </div>
 
         {!readOnly && (
         <div className="card p-4 mb-4">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
             <div>
-              <label className="label">יום</label>
+              <label className="label">{t("breaks.day")}</label>
               <select
                 value={newBreak.dayOfWeek}
                 onChange={(e) => setNewBreak((p) => ({ ...p, dayOfWeek: Number(e.target.value) }))}
                 className="input"
               >
                 {DAY_OPTIONS.map((d) => (
-                  <option key={d.value} value={d.value}>{d.label}</option>
+                  <option key={d.value} value={d.value}>{t(`days.${d.labelKey}`)}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="label">משעה</label>
+              <label className="label">{t("breaks.from")}</label>
               <select
                 value={newBreak.startTime}
                 onChange={(e) => setNewBreak((p) => ({ ...p, startTime: e.target.value }))}
                 className="input"
               >
-                {TIMES.map((t) => <option key={t} value={t}>{t}</option>)}
+                {TIMES.map((time) => <option key={time} value={time}>{time}</option>)}
               </select>
             </div>
             <div>
-              <label className="label">עד שעה</label>
+              <label className="label">{t("breaks.to")}</label>
               <select
                 value={newBreak.endTime}
                 onChange={(e) => setNewBreak((p) => ({ ...p, endTime: e.target.value }))}
                 className="input"
               >
-                {TIMES.map((t) => <option key={t} value={t}>{t}</option>)}
+                {TIMES.map((time) => <option key={time} value={time}>{time}</option>)}
               </select>
             </div>
             <div>
-              <label className="label">תווית (אופציונלי)</label>
+              <label className="label">{t("breaks.labelOptional")}</label>
               <input
                 type="text"
                 value={newBreak.label}
                 onChange={(e) => setNewBreak((p) => ({ ...p, label: e.target.value }))}
-                placeholder="הפסקת צהריים"
+                placeholder={t("breaks.labelPlaceholder")}
                 className="input"
               />
             </div>
@@ -450,7 +461,7 @@ export default function AvailabilityTab() {
             onClick={() => addBreakMutation.mutate(newBreak)}
           >
             {addBreakMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-            הוסף הפסקה
+            {t("breaks.add")}
           </button>
         </div>
         )}
@@ -458,7 +469,7 @@ export default function AvailabilityTab() {
         {breaksLoading ? (
           <PetraLoader variant="inline" />
         ) : breaksData.length === 0 ? (
-          <div className="text-center py-4 text-sm text-petra-muted">אין הפסקות מוגדרות</div>
+          <div className="text-center py-4 text-sm text-petra-muted">{t("breaks.empty")}</div>
         ) : (
           <div className="space-y-2">
             {breaksData.map((br) => (
@@ -468,10 +479,10 @@ export default function AvailabilityTab() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-petra-text">
-                    {DAY_OPTIONS.find((d) => d.value === br.dayOfWeek)?.label ?? "כל יום"}
+                    {dayLabel(br.dayOfWeek)}
                     {" — "}
-                    {br.startTime} עד {br.endTime}
-                    {br.label && <span className="mr-2 text-xs text-petra-muted">({br.label})</span>}
+                    {t("breaks.range", { start: br.startTime, end: br.endTime })}
+                    {br.label && <span className="ms-2 text-xs text-petra-muted">({br.label})</span>}
                   </p>
                 </div>
                 {!readOnly && (
@@ -480,11 +491,11 @@ export default function AvailabilityTab() {
                   onClick={() => setPendingDelete({
                     kind: "break",
                     id: br.id,
-                    label: `${DAY_OPTIONS.find((d) => d.value === br.dayOfWeek)?.label ?? "כל יום"} ${br.startTime}–${br.endTime}`,
+                    label: `${dayLabel(br.dayOfWeek)} ${br.startTime}–${br.endTime}`,
                   })}
                   disabled={deleteBreakMutation.isPending}
                   className="p-2 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors flex-shrink-0"
-                  aria-label="מחק הפסקה"
+                  aria-label={t("breaks.deleteAria")}
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -499,7 +510,7 @@ export default function AvailabilityTab() {
       <div className="border-t border-slate-100 pt-6">
         <div className="flex items-center gap-2 mb-4">
           <Clock className="w-5 h-5 text-brand-500" />
-          <h3 className="text-base font-semibold text-petra-text">לוח זמנים שבועי</h3>
+          <h3 className="text-base font-semibold text-petra-text">{t("schedule.title")}</h3>
         </div>
 
         <SettingsFieldset readOnly={readOnly}>
@@ -517,7 +528,7 @@ export default function AvailabilityTab() {
                 type="button"
                 role="switch"
                 aria-checked={rule.isOpen}
-                aria-label={`${DAYS_HE[rule.dayOfWeek]} פתוח`}
+                aria-label={t("schedule.dayOpenAria", { day: dayLabel(rule.dayOfWeek) })}
                 onClick={() => updateRule(rule.dayOfWeek, { isOpen: !rule.isOpen })}
                 className={cn(
                   "w-10 h-6 rounded-full relative transition-colors flex-shrink-0",
@@ -527,14 +538,14 @@ export default function AvailabilityTab() {
                 <div
                   className={cn(
                     "absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all",
-                    rule.isOpen ? "right-0.5" : "left-0.5"
+                    rule.isOpen ? "start-0.5" : "end-0.5"
                   )}
                 />
               </button>
 
               {/* Day name */}
               <span className="w-14 text-sm font-medium text-petra-text">
-                {DAYS_HE[rule.dayOfWeek]}
+                {dayLabel(rule.dayOfWeek)}
               </span>
 
               {/* Times */}
@@ -546,7 +557,7 @@ export default function AvailabilityTab() {
                     onChange={(e) => updateRule(rule.dayOfWeek, { openTime: e.target.value })}
                     className="input text-sm py-1.5 px-2 w-28"
                   />
-                  <span className="text-xs text-petra-muted">עד</span>
+                  <span className="text-xs text-petra-muted">{t("schedule.until")}</span>
                   <input
                     type="time"
                     value={rule.closeTime}
@@ -555,7 +566,7 @@ export default function AvailabilityTab() {
                   />
                 </div>
               ) : (
-                <span className="text-sm text-petra-muted">סגור</span>
+                <span className="text-sm text-petra-muted">{t("schedule.closed")}</span>
               )}
             </div>
           ))}
@@ -570,8 +581,8 @@ export default function AvailabilityTab() {
         <div className="flex items-center justify-between flex-wrap gap-2 mb-4">
           <div className="flex items-center gap-2 flex-wrap">
             <Ban className="w-5 h-5 text-brand-500" />
-            <h3 className="text-base font-semibold text-petra-text">חסימות זמינות</h3>
-            <span className="text-sm text-petra-muted">חופשות, ימי סגירה מיוחדים</span>
+            <h3 className="text-base font-semibold text-petra-text">{t("blocks.title")}</h3>
+            <span className="text-sm text-petra-muted">{t("blocks.subtitle")}</span>
           </div>
           {!readOnly && (
           <button
@@ -585,7 +596,7 @@ export default function AvailabilityTab() {
             ) : (
               <CalendarDays className="w-4 h-4" />
             )}
-            ייבא חגי ישראל 5786-5787
+            {t("blocks.importHolidays")}
           </button>
           )}
         </div>
@@ -595,7 +606,7 @@ export default function AvailabilityTab() {
         <div className="card p-4 mb-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
             <div>
-              <label className="label">תאריך ושעת התחלה *</label>
+              <label className="label">{t("blocks.start")}</label>
               <input
                 type="datetime-local"
                 value={blockStartDate}
@@ -604,7 +615,7 @@ export default function AvailabilityTab() {
               />
             </div>
             <div>
-              <label className="label">תאריך ושעת סיום *</label>
+              <label className="label">{t("blocks.end")}</label>
               <input
                 type="datetime-local"
                 value={blockEndDate}
@@ -614,12 +625,12 @@ export default function AvailabilityTab() {
             </div>
           </div>
           <div className="mb-3">
-            <label className="label">סיבה (אופציונלי)</label>
+            <label className="label">{t("blocks.reasonOptional")}</label>
             <input
               type="text"
               value={blockReason}
               onChange={(e) => setBlockReason(e.target.value)}
-              placeholder="חופשה, יום כיף צוות..."
+              placeholder={t("blocks.reasonPlaceholder")}
               className="input"
             />
           </div>
@@ -627,7 +638,7 @@ export default function AvailabilityTab() {
           {addBlockMutation.isError && (
             <div className="flex items-center gap-2 p-2 rounded-lg bg-red-50 text-red-700 text-xs mb-3">
               <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
-              {(addBlockMutation.error as Error)?.message || "שגיאה"}
+              {(addBlockMutation.error as Error)?.message || t("errors.generic")}
             </div>
           )}
 
@@ -641,7 +652,7 @@ export default function AvailabilityTab() {
             ) : (
               <Plus className="w-4 h-4" />
             )}
-            הוסף חסימה
+            {t("blocks.add")}
           </button>
         </div>
         )}
@@ -652,7 +663,7 @@ export default function AvailabilityTab() {
         ) : blocks.length === 0 ? (
           <div className="text-center py-6 text-sm text-petra-muted">
             <Calendar className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-            <p>אין חסימות פעילות</p>
+            <p>{t("blocks.empty")}</p>
           </div>
         ) : (
           <div className="space-y-2">
@@ -666,13 +677,13 @@ export default function AvailabilityTab() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-petra-text">
-                      {start.toLocaleDateString("he-IL", { day: "numeric", month: "short" })}
+                      {start.toLocaleDateString(locale, { day: "numeric", month: "short" })}
                       {" "}
-                      {start.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}
+                      {start.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}
                       {" — "}
-                      {end.toLocaleDateString("he-IL", { day: "numeric", month: "short" })}
+                      {end.toLocaleDateString(locale, { day: "numeric", month: "short" })}
                       {" "}
-                      {end.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}
+                      {end.toLocaleTimeString(locale, { hour: "2-digit", minute: "2-digit" })}
                     </p>
                     {block.reason && (
                       <p className="text-xs text-petra-muted">{block.reason}</p>
@@ -684,10 +695,10 @@ export default function AvailabilityTab() {
                     onClick={() => setPendingDelete({
                       kind: "block",
                       id: block.id,
-                      label: `${start.toLocaleDateString("he-IL", { day: "numeric", month: "short" })} — ${end.toLocaleDateString("he-IL", { day: "numeric", month: "short" })}${block.reason ? ` (${block.reason})` : ""}`,
+                      label: `${start.toLocaleDateString(locale, { day: "numeric", month: "short" })} — ${end.toLocaleDateString(locale, { day: "numeric", month: "short" })}${block.reason ? ` (${block.reason})` : ""}`,
                     })}
                     disabled={deleteBlockMutation.isPending}
-                    aria-label="מחק חסימה"
+                    aria-label={t("blocks.deleteAria")}
                     className="p-2 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors flex-shrink-0"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -702,17 +713,17 @@ export default function AvailabilityTab() {
 
       <ConfirmDialog
         open={pendingDelete !== null}
-        title={pendingDelete?.kind === "break" ? "למחוק את ההפסקה?" : "למחוק את החסימה?"}
+        title={pendingDelete?.kind === "break" ? t("confirmDelete.breakTitle") : t("confirmDelete.blockTitle")}
         description={pendingDelete ? (
           <>
             <span className="font-medium text-petra-text">{pendingDelete.label}</span>
             <br />
             {pendingDelete.kind === "break"
-              ? "הזמן הזה ייפתח שוב לקביעת תורים."
-              : "הזמנים האלה ייפתחו שוב לקביעת תורים אונליין."}
+              ? t("confirmDelete.breakDescription")
+              : t("confirmDelete.blockDescription")}
           </>
         ) : undefined}
-        confirmLabel="מחק"
+        confirmLabel={tc("actions.delete")}
         danger
         loading={deleteBreakMutation.isPending || deleteBlockMutation.isPending}
         onConfirm={confirmDelete}

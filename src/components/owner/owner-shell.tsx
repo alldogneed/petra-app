@@ -27,30 +27,31 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { PLATFORM_ROLE_LABELS } from "@/lib/platform-labels";
 import { OwnerSearch } from "@/components/owner/owner-search";
+import { useTranslations } from "next-intl";
 import { PLATFORM_PERMS, hasPlatformPermission, type PlatformPermission } from "@/lib/permissions";
 
 type NavEntry =
-  | { eyebrow: string }
-  | { name: string; href: string; icon: typeof LayoutDashboard; exact?: boolean; perm?: PlatformPermission };
+  | { eyebrow: string } // message key under owner.ownerShell.groups
+  | { nameKey: string; href: string; icon: typeof LayoutDashboard; exact?: boolean; perm?: PlatformPermission };
 
 // Grouped by eyebrows, same pattern as the main app sidebar.
 const navEntries: NavEntry[] = [
-  { eyebrow: "סקירה" },
-  { name: "דשבורד", href: "/owner", icon: LayoutDashboard, exact: true },
-  { eyebrow: "לקוחות" },
-  { name: "עסקים", href: "/owner/tenants", icon: Building2 },
-  { name: "משתמשים", href: "/owner/users", icon: Users },
-  { name: "בריאות לקוחות", href: "/owner/customer-success", icon: HeartHandshake, perm: PLATFORM_PERMS.SETTINGS_WRITE },
-  { name: "תמיכה", href: "/owner/support", icon: LifeBuoy },
-  { eyebrow: "תקשורת" },
-  { name: "הודעות שידור", href: "/owner/broadcast", icon: Megaphone, perm: PLATFORM_PERMS.SETTINGS_WRITE },
-  { eyebrow: "תאימות ויומנים" },
-  { name: "הסכמות תנאים", href: "/owner/consents", icon: ShieldCheck },
-  { name: "יומן פעולות", href: "/owner/audit-logs", icon: FileText },
-  { eyebrow: "מערכת" },
-  { name: "עוזרי AI (MCP)", href: "/owner/mcp", icon: Bot },
-  { name: "ייבוא נתונים", href: "/owner/migration", icon: Database, perm: PLATFORM_PERMS.SETTINGS_WRITE },
-  { name: "הגדרות", href: "/owner/settings", icon: Settings, perm: PLATFORM_PERMS.SETTINGS_WRITE },
+  { eyebrow: "overview" },
+  { nameKey: "dashboard", href: "/owner", icon: LayoutDashboard, exact: true },
+  { eyebrow: "clients" },
+  { nameKey: "tenants", href: "/owner/tenants", icon: Building2 },
+  { nameKey: "users", href: "/owner/users", icon: Users },
+  { nameKey: "customerSuccess", href: "/owner/customer-success", icon: HeartHandshake, perm: PLATFORM_PERMS.SETTINGS_WRITE },
+  { nameKey: "support", href: "/owner/support", icon: LifeBuoy },
+  { eyebrow: "communication" },
+  { nameKey: "broadcast", href: "/owner/broadcast", icon: Megaphone, perm: PLATFORM_PERMS.SETTINGS_WRITE },
+  { eyebrow: "compliance" },
+  { nameKey: "consents", href: "/owner/consents", icon: ShieldCheck },
+  { nameKey: "auditLogs", href: "/owner/audit-logs", icon: FileText },
+  { eyebrow: "system" },
+  { nameKey: "mcp", href: "/owner/mcp", icon: Bot },
+  { nameKey: "migration", href: "/owner/migration", icon: Database, perm: PLATFORM_PERMS.SETTINGS_WRITE },
+  { nameKey: "settings", href: "/owner/settings", icon: Settings, perm: PLATFORM_PERMS.SETTINGS_WRITE },
 ];
 
 export function OwnerShell({
@@ -60,6 +61,7 @@ export function OwnerShell({
   children: React.ReactNode;
   session: FullSession;
 }) {
+  const t = useTranslations("owner.ownerShell");
   const pathname = usePathname();
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
@@ -106,8 +108,8 @@ export function OwnerShell({
       <aside
         className={cn(
           "w-[230px] flex-shrink-0 flex flex-col h-screen z-50 transition-transform duration-200",
-          "fixed top-0 right-0 lg:sticky lg:translate-x-0",
-          mobileOpen ? "translate-x-0" : "translate-x-full"
+          "fixed top-0 start-0 lg:sticky lg:translate-x-0",
+          mobileOpen ? "translate-x-0" : "translate-x-full ltr:-translate-x-full lg:ltr:translate-x-0"
         )}
         style={{
           background: "linear-gradient(180deg, #0F172A 0%, #1a2744 100%)",
@@ -122,13 +124,13 @@ export function OwnerShell({
           <div className="flex-1 min-w-0">
             <div className="text-white font-bold text-sm leading-none">Petra</div>
             <div className="text-[10px] text-orange-300 font-semibold leading-none mt-1 tracking-wider">
-              ניהול פלטפורמה
+              {t("platformAdmin")}
             </div>
           </div>
           <button
             onClick={() => setMobileOpen(false)}
             className="lg:hidden p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/[0.06]"
-            aria-label="סגירת תפריט"
+            aria-label={t("closeMenu")}
           >
             <X className="w-5 h-5" />
           </button>
@@ -143,7 +145,7 @@ export function OwnerShell({
                   key={entry.eyebrow}
                   className="px-3 pt-4 pb-1 text-[10px] font-bold uppercase tracking-wider text-white/40 first:pt-1"
                 >
-                  {entry.eyebrow}
+                  {t(`groups.${entry.eyebrow}`)}
                 </div>
               );
             }
@@ -162,14 +164,14 @@ export function OwnerShell({
                 )}
               >
                 <Icon className={cn("w-4 h-4 flex-shrink-0", isActive && "text-orange-400")} />
-                {entry.name}
+                {t(`nav.${entry.nameKey}`)}
                 {entry.href === "/owner/support" && (supportSummary?.total ?? 0) > 0 && (
                   <span
                     className={cn(
                       "ms-auto min-w-[20px] h-5 px-1.5 rounded-full text-[11px] font-bold flex items-center justify-center",
                       (supportSummary?.overdue ?? 0) > 0 ? "bg-red-500 text-white" : "bg-orange-500/80 text-white"
                     )}
-                    title="פניות שממתינות לתשובה"
+                    title={t("supportBadgeTitle")}
                   >
                     {supportSummary!.total}
                   </span>
@@ -200,7 +202,7 @@ export function OwnerShell({
             className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/[0.06] text-sm transition-all"
           >
             <LogOut className="w-4 h-4" />
-            {loggingOut ? "מתנתק..." : "התנתק"}
+            {loggingOut ? t("loggingOut") : t("logout")}
           </button>
         </div>
       </aside>
@@ -211,7 +213,7 @@ export function OwnerShell({
           <button
             onClick={() => setMobileOpen(true)}
             className="lg:hidden p-2 -ms-2 rounded-lg text-slate-500 hover:bg-slate-100"
-            aria-label="פתיחת תפריט"
+            aria-label={t("openMenu")}
           >
             <Menu className="w-5 h-5" />
           </button>
@@ -220,7 +222,7 @@ export function OwnerShell({
             href="/dashboard"
             className="ms-auto flex-shrink-0 text-xs font-medium text-slate-500 hover:text-slate-800 transition-colors"
           >
-            חזרה לאפליקציה ←
+            {t("backToApp")}
           </Link>
         </header>
 

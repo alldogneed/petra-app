@@ -42,6 +42,9 @@ import { TierGate } from "@/components/paywall/TierGate";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { CustomerPicker, type PickerCustomer } from "@/components/customers/CustomerPicker";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
+import { currencySymbol } from "@/lib/format";
 
 // ─── Interfaces ──────────────────────────────────────────────────────────────
 
@@ -128,21 +131,15 @@ type ViewMode = "day" | "week" | "month" | "agenda";
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const HOURS = Array.from({ length: 13 }, (_, i) => i + 8);
-const DAYS_HE = [
-  "ראשון",
-  "שני",
-  "שלישי",
-  "רביעי",
-  "חמישי",
-  "שישי",
-  "שבת",
-];
+// Day ids in getDay() order (Sunday first); labels: calendarPage.days.*
+const DAY_IDS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
 
-const VIEW_MODES: { id: ViewMode; label: string }[] = [
-  { id: "day", label: "יום" },
-  { id: "week", label: "שבוע" },
-  { id: "month", label: "חודש" },
-  { id: "agenda", label: "פריסה" },
+// Labels: calendarPage.viewModes.*
+const VIEW_MODES: { id: ViewMode }[] = [
+  { id: "day" },
+  { id: "week" },
+  { id: "month" },
+  { id: "agenda" },
 ];
 
 // ─── Canonical calendar categories ───────────────────────────────────────────
@@ -166,35 +163,36 @@ type CalGroupKey = "customer" | "training" | "mgmt";
 
 interface CalCategoryDef {
   key: CalCategory;
-  label: string;
   color: string;
   group: CalGroupKey;
   gcalColorId?: string; // Google Calendar colorId (1–11), only for synced kinds
   square?: boolean;     // render swatch as a square (tasks) instead of a dot
 }
 
+// Labels: calendarPage.categories.<key>
 const CAL_CATEGORIES: CalCategoryDef[] = [
-  { key: "appointment",       label: "פגישות לקוח",        color: "#0EA5E9", group: "customer", gcalColorId: "7" },
-  { key: "grooming",          label: "תספורת",             color: "#EC4899", group: "customer", gcalColorId: "4" },
-  { key: "boarding",          label: "פנסיון (שהייה)",     color: "#10B981", group: "customer", gcalColorId: "10" },
-  { key: "consultation",      label: "ייעוץ",              color: "#8B5CF6", group: "customer", gcalColorId: "1" },
-  { key: "training_home",     label: "אילוף בבית הלקוח",   color: "#3B82F6", group: "training", gcalColorId: "9" },
-  { key: "training_boarding", label: "אילוף בתנאי פנסיון", color: "#1E40AF", group: "training", gcalColorId: "6" },
-  { key: "training_group",    label: "אילוף קבוצתי",       color: "#6366F1", group: "training", gcalColorId: "3" },
-  { key: "workshop",          label: "סדנאות",             color: "#F97316", group: "training", gcalColorId: "11" },
-  { key: "task",              label: "משימות",             color: "#F59E0B", group: "mgmt",     square: true },
-  { key: "lead",              label: "מכירות / לידים",     color: "#A855F7", group: "mgmt" },
-  { key: "gcal",              label: "יומן גוגל",          color: "#4285F4", group: "mgmt" },
+  { key: "appointment",       color: "#0EA5E9", group: "customer", gcalColorId: "7" },
+  { key: "grooming",          color: "#EC4899", group: "customer", gcalColorId: "4" },
+  { key: "boarding",          color: "#10B981", group: "customer", gcalColorId: "10" },
+  { key: "consultation",      color: "#8B5CF6", group: "customer", gcalColorId: "1" },
+  { key: "training_home",     color: "#3B82F6", group: "training", gcalColorId: "9" },
+  { key: "training_boarding", color: "#1E40AF", group: "training", gcalColorId: "6" },
+  { key: "training_group",    color: "#6366F1", group: "training", gcalColorId: "3" },
+  { key: "workshop",          color: "#F97316", group: "training", gcalColorId: "11" },
+  { key: "task",              color: "#F59E0B", group: "mgmt",     square: true },
+  { key: "lead",              color: "#A855F7", group: "mgmt" },
+  { key: "gcal",              color: "#4285F4", group: "mgmt" },
 ];
 
 const CAL_CATEGORY_MAP: Record<CalCategory, CalCategoryDef> = Object.fromEntries(
   CAL_CATEGORIES.map((c) => [c.key, c])
 ) as Record<CalCategory, CalCategoryDef>;
 
-const CAL_GROUPS: { key: CalGroupKey; label: string; keys: CalCategory[] }[] = [
-  { key: "customer", label: "הזמנות ושירותי לקוח", keys: ["appointment", "grooming", "boarding", "consultation"] },
-  { key: "training", label: "אילוף מקצועי", keys: ["training_home", "training_boarding", "training_group", "workshop"] },
-  { key: "mgmt", label: "ניהול ותפעול", keys: ["task", "lead", "gcal"] },
+// Labels: calendarPage.groups.<key>
+const CAL_GROUPS: { key: CalGroupKey; keys: CalCategory[] }[] = [
+  { key: "customer", keys: ["appointment", "grooming", "boarding", "consultation"] },
+  { key: "training", keys: ["training_home", "training_boarding", "training_group", "workshop"] },
+  { key: "mgmt", keys: ["task", "lead", "gcal"] },
 ];
 
 const ALL_CAL_CATEGORIES: CalCategory[] = CAL_CATEGORIES.map((c) => c.key);
@@ -212,10 +210,10 @@ function resolveAppointmentCategory(
 ): CalCategory {
   const type = service?.type ?? "";
   const cat = priceListItem?.category ?? "";
-  if (type === "grooming" || cat === "טיפוח") return "grooming";
-  if (type === "boarding" || cat === "פנסיון") return "boarding";
-  if (type === "consultation" || cat === "ייעוץ") return "consultation";
-  if (type === "training" || cat === "אילוף") return "training_home";
+  if (type === "grooming" || cat === "טיפוח") return "grooming"; // i18n-ok — DB category value
+  if (type === "boarding" || cat === "פנסיון") return "boarding"; // i18n-ok — DB category value
+  if (type === "consultation" || cat === "ייעוץ") return "consultation"; // i18n-ok — DB category value
+  if (type === "training" || cat === "אילוף") return "training_home"; // i18n-ok — DB category value
   return "appointment";
 }
 
@@ -236,15 +234,15 @@ const TASK_PRIORITY_COLORS: Record<string, string> = {
   LOW: "#9CA3AF",
 };
 
-const TASK_CATEGORY_LABELS: Record<string, string> = {
-  GENERAL: "כללי",
-  BOARDING: "פנסיון",
-  TRAINING: "אילוף",
-  LEADS: "לידים",
-  HEALTH: "בריאות",
-  MEDICATION: "תרופות",
-  FEEDING: "האכלה",
-};
+// Price-list category values stored in the DB (PriceListItem.category) → label key
+const PRICE_LIST_CATEGORIES = [
+  { value: "אילוף", key: "training" }, // i18n-ok — DB category value
+  { value: "טיפוח", key: "grooming" }, // i18n-ok — DB category value
+  { value: "פנסיון", key: "boarding" }, // i18n-ok — DB category value
+  { value: "מוצרים", key: "products" }, // i18n-ok — DB category value
+] as const;
+const PRICE_LIST_CATEGORY_VALUES: string[] = PRICE_LIST_CATEGORIES.map((c) => c.value);
+const TRAINING_PRICE_CATEGORY = PRICE_LIST_CATEGORIES[0].value;
 
 const DAY_START = 8 * 60;
 const SLOT_HEIGHT = 64;
@@ -347,8 +345,8 @@ function getAppointmentColor(
   return CAL_CATEGORY_MAP[resolveAppointmentCategory(service, priceListItem)].color;
 }
 
-function getAppointmentLabel(apt: AppointmentEvent): string {
-  return apt.service?.name ?? apt.priceListItem?.name ?? apt.notes ?? "תור";
+function getAppointmentLabel(apt: AppointmentEvent, fallback: string): string {
+  return apt.service?.name ?? apt.priceListItem?.name ?? apt.notes ?? fallback;
 }
 
 function getAppointmentDuration(apt: AppointmentEvent): number {
@@ -391,6 +389,7 @@ function HoverPreviewCard({
   x: number;
   y: number;
 }) {
+  const t = useTranslations("calendar.calendarPage");
   const color = getAppointmentColor(appointment.service, appointment.priceListItem);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const waPhone = toWhatsAppPhone(appointment.customer.phone);
@@ -417,10 +416,10 @@ function HoverPreviewCard({
           <PawPrint className="w-3 h-3" />
           {appointment.pet.name} (
           {appointment.pet.species === "dog"
-            ? "כלב"
+            ? t("species.dog")
             : appointment.pet.species === "cat"
-            ? "חתול"
-            : "אחר"}
+            ? t("species.cat")
+            : t("species.other")}
           )
         </div>
       )}
@@ -430,10 +429,10 @@ function HoverPreviewCard({
           {appointment.startTime} – {appointment.endTime}
         </span>
         <span className="opacity-50">·</span>
-        <span>{getAppointmentDuration(appointment)} דק׳</span>
+        <span>{t("minutesShort", { minutes: getAppointmentDuration(appointment) })}</span>
       </div>
       <div className="text-xs font-medium mt-1.5" style={{ color }}>
-        {getAppointmentLabel(appointment)}
+        {getAppointmentLabel(appointment, t("appointmentFallback"))}
       </div>
       <div className="flex items-center gap-1.5 mt-2 text-xs text-petra-muted">
         <Phone className="w-3.5 h-3.5" />
@@ -468,6 +467,10 @@ function NewAppointmentModal({
   defaultTime: string;
   existingAppointments?: AppointmentEvent[];
 }) {
+  const t = useTranslations("calendar.calendarPage");
+  const tc = useTranslations("common");
+  const { locale, currency, cfg } = useBusinessLocale();
+  const symbol = currencySymbol({ locale, currency });
   const queryClient = useQueryClient();
   const { can: canPlan } = usePlan();
   const { canSendMessages } = usePermissions();
@@ -531,7 +534,7 @@ function NewAppointmentModal({
 
   const selectedCustomer = pickedCustomer && pickedCustomer.id === form.customerId ? pickedCustomer : null;
   const selectedItem = priceListItems.find((i) => i.id === form.priceListItemId);
-  const attachToProgram = attachChoice ?? selectedItem?.category === "אילוף";
+  const attachToProgram = attachChoice ?? selectedItem?.category === TRAINING_PRICE_CATEGORY;
   const willAttach = !recurring && attachToProgram && !!attachProgram;
   const endTime = selectedItem?.durationMinutes
     ? addMinutes(form.startTime, selectedItem.durationMinutes)
@@ -571,16 +574,16 @@ function NewAppointmentModal({
       }
 
       if (recurring && result?.created) {
-        toast.success(`נקבעו ${result.created} פגישות חוזרות בהצלחה`);
+        toast.success(t("newModal.toasts.recurringCreated", { count: result.created }));
       } else {
         const newId = result?.id as string | undefined;
-        toast.success(linkedSession ? `התור נקבע ושויך לחבילה (מפגש ${linkedSession.sessionNumber})` : "התור נקבע בהצלחה", newId && selectedCustomer?.phone && canPlan("whatsapp_reminders") && canSendMessages ? {
+        toast.success(linkedSession ? t("newModal.toasts.createdLinked", { session: linkedSession.sessionNumber }) : t("newModal.toasts.created"), newId && selectedCustomer?.phone && canPlan("whatsapp_reminders") && canSendMessages ? {
           action: {
-            label: "שלח תזכורת WhatsApp",
+            label: t("newModal.toasts.sendReminder"),
             onClick: () => fetch(`/api/appointments/${newId}/remind`, { method: "POST" })
               .then((r) => r.json())
-              .then((d) => { if (d.success) toast.success("תזכורת נשלחה"); else toast.error(d.error ?? "שגיאה"); })
-              .catch(() => toast.error("שגיאה בשליחה")),
+              .then((d) => { if (d.success) toast.success(t("newModal.toasts.reminderSent")); else toast.error(d.error ?? t("newModal.toasts.error")); })
+              .catch(() => toast.error(t("newModal.toasts.sendError"))),
           },
         } : undefined);
       }
@@ -596,10 +599,10 @@ function NewAppointmentModal({
       setPickedCustomer(null);
     },
     onError: (err: Error) => {
-      if (err.message?.includes("מוגבל") || err.message?.includes("50")) {
-        toast.error("הגעת למגבלת הפגישות — שדרג לבייסיק כדי להוסיף עוד");
+      if (err.message?.includes("מוגבל") || err.message?.includes("50")) { // i18n-ok — matches the API error text
+        toast.error(t("newModal.toasts.limitReached"));
       } else {
-        toast.error("שגיאה בקביעת התור. נסה שוב.");
+        toast.error(t("newModal.toasts.createError"));
       }
     },
   });
@@ -627,8 +630,8 @@ function NewAppointmentModal({
       <div className="modal-content max-w-lg mx-4 p-6">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-xl font-bold text-petra-text">פגישה חדשה</h2>
-            <p className="text-sm text-petra-muted mt-0.5">קבע פגישה ביומן</p>
+            <h2 className="text-xl font-bold text-petra-text">{t("newModal.title")}</h2>
+            <p className="text-sm text-petra-muted mt-0.5">{t("newModal.subtitle")}</p>
           </div>
           <button
             onClick={onClose}
@@ -639,7 +642,7 @@ function NewAppointmentModal({
         </div>
         <div className="space-y-4">
           <div>
-            <label className="label">לקוח *</label>
+            <label className="label">{t("newModal.customerLabel")}</label>
             <CustomerPicker
               value={form.customerId || null}
               selectedCustomer={selectedCustomer}
@@ -661,7 +664,7 @@ function NewAppointmentModal({
             />
           </div>
           <div>
-            <label className="label">שירות / מוצר</label>
+            <label className="label">{t("newModal.serviceLabel")}</label>
             <select
               className="input"
               value={form.priceListItemId}
@@ -669,25 +672,25 @@ function NewAppointmentModal({
                 setForm({ ...form, priceListItemId: e.target.value })
               }
             >
-              <option value="">ללא שירות (תור כללי)</option>
-              {offeredPriceCategories(vertical, ["אילוף", "טיפוח", "פנסיון", "מוצרים"]).map((cat) => {
+              <option value="">{t("newModal.noService")}</option>
+              {PRICE_LIST_CATEGORIES.filter(({ value }) => offeredPriceCategories(vertical, [value]).length > 0).map(({ value: cat, key: catKey }) => {
                 const catItems = priceListItems.filter((i) => i.category === cat);
                 if (catItems.length === 0) return null;
                 return (
-                  <optgroup key={cat} label={priceCategoryLabel(vertical, cat)}>
+                  <optgroup key={cat} label={priceCategoryLabel(vertical, cat) !== cat ? v("pricing.category_program") : t(`priceCategories.${catKey}`)}>
                     {catItems.map((i) => (
                       <option key={i.id} value={i.id}>
-                        {i.name}{i.durationMinutes ? ` — ${i.durationMinutes} דק׳` : ""} — ₪{i.basePrice}
+                        {i.name}{i.durationMinutes ? t("newModal.durationSuffix", { minutes: i.durationMinutes }) : ""}{t("newModal.priceSuffix", { symbol, price: String(i.basePrice) })}
                       </option>
                     ))}
                   </optgroup>
                 );
               })}
-              {priceListItems.filter((i) => !i.category || !["אילוף","טיפוח","פנסיון","מוצרים"].includes(i.category)).length > 0 && (
-                <optgroup label="כללי">
-                  {priceListItems.filter((i) => !i.category || !["אילוף","טיפוח","פנסיון","מוצרים"].includes(i.category)).map((i) => (
+              {priceListItems.filter((i) => !i.category || !PRICE_LIST_CATEGORY_VALUES.includes(i.category)).length > 0 && (
+                <optgroup label={t("newModal.generalGroup")}>
+                  {priceListItems.filter((i) => !i.category || !PRICE_LIST_CATEGORY_VALUES.includes(i.category)).map((i) => (
                     <option key={i.id} value={i.id}>
-                      {i.name}{i.durationMinutes ? ` — ${i.durationMinutes} דק׳` : ""} — ₪{i.basePrice}
+                      {i.name}{i.durationMinutes ? t("newModal.durationSuffix", { minutes: i.durationMinutes }) : ""}{t("newModal.priceSuffix", { symbol, price: String(i.basePrice) })}
                     </option>
                   ))}
                 </optgroup>
@@ -695,13 +698,13 @@ function NewAppointmentModal({
             </select>
             {priceListItems.length === 0 && (
               <p className="text-xs text-petra-muted mt-1">
-                אין שירותים במחירון עדיין — אפשר לקבוע תור כללי, או להוסיף שירותים בעמוד המחירון.
+                {t("newModal.emptyPriceList")}
               </p>
             )}
           </div>
           {selectedCustomer && selectedCustomer.pets?.length > 0 && (
             <div>
-              <label className="label">חיית מחמד</label>
+              <label className="label">{t("newModal.petLabel")}</label>
               <select
                 className="input"
                 value={form.petId}
@@ -710,7 +713,7 @@ function NewAppointmentModal({
                   setAttachProgramId("");
                 }}
               >
-                <option value="">ללא</option>
+                <option value="">{t("newModal.noPet")}</option>
                 {selectedCustomer.pets.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
@@ -730,8 +733,12 @@ function NewAppointmentModal({
                   onChange={(e) => setAttachToProgram(e.target.checked)}
                 />
                 <span className="text-sm text-petra-text">
-                  {v("appointment.attach_to_package")}: <strong>{attachProgram.name}</strong> — מפגש{" "}
-                  {attachProgram.nextSessionNumber}
+                  {t.rich("newModal.attachLabelVertical", {
+                    label: v("appointment.attach_to_package"),
+                    name: attachProgram.name,
+                    session: attachProgram.nextSessionNumber,
+                    strong: (c) => <strong>{c}</strong>,
+                  })}
                   {attachProgram.totalSessions ? `/${attachProgram.totalSessions}` : ""}
                   {!form.petId && attachProgram.dogName ? ` (${attachProgram.dogName})` : ""}
                 </span>
@@ -744,7 +751,7 @@ function NewAppointmentModal({
                 >
                   {attachablePrograms.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.name} · {p.dogName} — מפגש {p.nextSessionNumber}
+                      {t("newModal.attachOption", { name: p.name, dog: p.dogName, session: p.nextSessionNumber })}
                       {p.totalSessions ? `/${p.totalSessions}` : ""}
                     </option>
                   ))}
@@ -754,16 +761,16 @@ function NewAppointmentModal({
           )}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">תאריך *</label>
+              <label className="label">{t("newModal.dateLabel")}</label>
               <input
-                type="date" lang="he"
+                type="date" lang={cfg.lang}
                 className="input"
                 value={form.date}
                 onChange={(e) => setForm({ ...form, date: e.target.value })}
               />
             </div>
             <div>
-              <label className="label">שעה *</label>
+              <label className="label">{t("newModal.timeLabel")}</label>
               <input
                 type="time"
                 className="input"
@@ -773,7 +780,7 @@ function NewAppointmentModal({
                 }
               />
               {selectedItem && (
-                <p className="text-xs text-petra-muted mt-1">סיום: {endTime}</p>
+                <p className="text-xs text-petra-muted mt-1">{t("newModal.endTime", { time: endTime })}</p>
               )}
             </div>
           </div>
@@ -782,10 +789,10 @@ function NewAppointmentModal({
             <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5">
               <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
               <div className="text-xs text-amber-800">
-                <span className="font-semibold">התנגשות בלוח הזמנים! </span>
+                <span className="font-semibold">{t("newModal.conflict")}</span>
                 {conflictingApts.map((a) => (
                   <span key={a.id}>
-                    {a.customer.name} ({a.startTime}–{a.endTime} · {getAppointmentLabel(a)})
+                    {a.customer.name} ({a.startTime}–{a.endTime} · {getAppointmentLabel(a, t("appointmentFallback"))})
                   </span>
                 )).reduce<React.ReactNode[]>((acc, el, i) => i === 0 ? [el] : [...acc, ", ", el], [])}
               </div>
@@ -793,7 +800,7 @@ function NewAppointmentModal({
           )}
 
           <div>
-            <label className="label">הערות</label>
+            <label className="label">{t("newModal.notesLabel")}</label>
             <textarea
               className="input"
               rows={2}
@@ -811,24 +818,24 @@ function NewAppointmentModal({
                 checked={recurring}
                 onChange={(e) => setRecurring(e.target.checked)}
               />
-              <span className="text-sm font-medium text-petra-text">פגישה חוזרת</span>
+              <span className="text-sm font-medium text-petra-text">{t("newModal.recurring")}</span>
             </label>
             {recurring && (
               <div className="grid grid-cols-2 gap-3 mt-3">
                 <div>
-                  <label className="label text-xs">תדירות</label>
+                  <label className="label text-xs">{t("newModal.frequency")}</label>
                   <select
                     className="input text-sm"
                     value={repeatEvery}
                     onChange={(e) => setRepeatEvery(e.target.value as "week" | "2weeks" | "month")}
                   >
-                    <option value="week">כל שבוע</option>
-                    <option value="2weeks">כל שבועיים</option>
-                    <option value="month">כל חודש</option>
+                    <option value="week">{t("newModal.everyWeek")}</option>
+                    <option value="2weeks">{t("newModal.everyTwoWeeks")}</option>
+                    <option value="month">{t("newModal.everyMonth")}</option>
                   </select>
                 </div>
                 <div>
-                  <label className="label text-xs">מספר פגישות</label>
+                  <label className="label text-xs">{t("newModal.occurrences")}</label>
                   <input
                     type="number"
                     className="input text-sm"
@@ -839,7 +846,11 @@ function NewAppointmentModal({
                   />
                 </div>
                 <div className="col-span-2 text-xs text-petra-muted bg-brand-50 border border-brand-100 rounded-lg px-3 py-2">
-                  ייווצרו <strong>{occurrences}</strong> פגישות החל מ-{form.date || "התאריך שנבחר"}
+                  {t.rich("newModal.recurringSummary", {
+                    count: occurrences,
+                    date: form.date || t("newModal.selectedDate"),
+                    strong: (c) => <strong>{c}</strong>,
+                  })}
                 </div>
               </div>
             )}
@@ -855,7 +866,7 @@ function NewAppointmentModal({
                 // Server requires a service, price-list item, OR notes to describe
                 // the appointment. For a service-less general appointment, fall
                 // back to a default note so booking still succeeds.
-                notes: form.notes || (form.priceListItemId ? "" : (willAttach ? v("appointment.default_session_note") : "תור כללי")),
+                notes: form.notes || (form.priceListItemId ? "" : (willAttach ? v("appointment.default_session_note") : t("newModal.defaultNoteGeneral"))),
                 endTime,
                 // Attaching to a package: link the dog of that package when none was chosen
                 ...(willAttach && attachProgram
@@ -865,10 +876,10 @@ function NewAppointmentModal({
             }
           >
             <Plus className="w-4 h-4" />
-            {mutation.isPending ? "שומר..." : recurring ? `צור ${occurrences} פגישות` : "צור פגישה"}
+            {mutation.isPending ? tc("progress.saving") : recurring ? t("newModal.createMany", { count: occurrences }) : t("newModal.createOne")}
           </button>
           <button className="btn-secondary" onClick={onClose}>
-            ביטול
+            {tc("actions.cancel")}
           </button>
         </div>
       </div>
@@ -885,6 +896,9 @@ function QuickPaymentModal({
   appointment: AppointmentEvent;
   onClose: () => void;
 }) {
+  const t = useTranslations("calendar.calendarPage");
+  const tc = useTranslations("common");
+  const { locale, currency } = useBusinessLocale();
   const queryClient = useQueryClient();
   const [amount, setAmount] = useState(appointment.service?.price || 0);
   const [method, setMethod] = useState("cash");
@@ -905,9 +919,9 @@ function QuickPaymentModal({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["payments"] });
       onClose();
-      toast.success("התשלום נרשם בהצלחה");
+      toast.success(t("payment.toasts.saved"));
     },
-    onError: () => toast.error("שגיאה בשמירת התשלום. נסה שוב."),
+    onError: () => toast.error(t("payment.toasts.error")),
   });
 
   return (
@@ -916,9 +930,9 @@ function QuickPaymentModal({
       <div className="modal-content max-w-sm mx-4 p-5">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-base font-bold text-petra-text">רישום תשלום</h2>
+            <h2 className="text-base font-bold text-petra-text">{t("payment.title")}</h2>
             <p className="text-xs text-petra-muted mt-0.5">
-              {appointment.customer.name} · {getAppointmentLabel(appointment)}
+              {appointment.customer.name} · {getAppointmentLabel(appointment, t("appointmentFallback"))}
             </p>
           </div>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
@@ -927,7 +941,7 @@ function QuickPaymentModal({
         </div>
         <div className="space-y-3">
           <div>
-            <label className="label">סכום (₪)</label>
+            <label className="label">{t("payment.amountLabel", { symbol: currencySymbol({ locale, currency }) })}</label>
             <input
               type="number"
               min={0}
@@ -939,14 +953,14 @@ function QuickPaymentModal({
             />
           </div>
           <div>
-            <label className="label">אמצעי תשלום</label>
+            <label className="label">{t("payment.methodLabel")}</label>
             <select className="input" value={method} onChange={(e) => setMethod(e.target.value)}>
-              <option value="cash">מזומן</option>
-              <option value="credit_card">כרטיס אשראי</option>
-              <option value="bit">ביט</option>
-              <option value="paybox">פייבוקס</option>
-              <option value="bank_transfer">העברה בנקאית</option>
-              <option value="check">צ׳ק</option>
+              <option value="cash">{t("payment.methods.cash")}</option>
+              <option value="credit_card">{t("payment.methods.credit_card")}</option>
+              <option value="bit">{t("payment.methods.bit")}</option>
+              <option value="paybox">{t("payment.methods.paybox")}</option>
+              <option value="bank_transfer">{t("payment.methods.bank_transfer")}</option>
+              <option value="check">{t("payment.methods.check")}</option>
             </select>
           </div>
         </div>
@@ -957,9 +971,9 @@ function QuickPaymentModal({
             onClick={() => mutation.mutate()}
           >
             <CreditCard className="w-4 h-4" />
-            {mutation.isPending ? "שומר..." : "שמור תשלום"}
+            {mutation.isPending ? tc("progress.saving") : t("payment.save")}
           </button>
-          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+          <button className="btn-secondary" onClick={onClose}>{tc("actions.cancel")}</button>
         </div>
       </div>
     </div>
@@ -969,11 +983,12 @@ function QuickPaymentModal({
 // ─── Main Calendar Page ──────────────────────────────────────────────────────
 
 export default function CalendarPage() {
+  const t = useTranslations("calendar.calendarPage");
   return (
     <TierGate
       feature="appointments"
-      title="יומן פגישות"
-      description="קבע וניהל פגישות עם לקוחות — זמין במנוי בייסיק ומעלה."
+      title={t("tierGate.title")}
+      description={t("tierGate.description")}
     >
       <CalendarContent />
     </TierGate>
@@ -981,20 +996,27 @@ export default function CalendarPage() {
 }
 
 function CalendarContent() {
+  const t = useTranslations("calendar.calendarPage");
+  const tc = useTranslations("common");
+  const { locale, cfg } = useBusinessLocale();
+  const aptLabel = (apt: AppointmentEvent) => getAppointmentLabel(apt, t("appointmentFallback"));
+  const taskCategoryLabel = (category: string) =>
+    t.has(`taskCategories.${category}`) ? t(`taskCategories.${category}`) : category;
   const vt = useVertical();
   const queryClient = useQueryClient();
   const { user } = useAuth();
   // Verticals (docs/verticals): "generic" sees no dog-only categories and no boarding.
-  const { isGeneric, v, hides } = useVertical();
+  const { isGeneric, v, vData, hides } = useVertical();
   const calGroups = isGeneric
     ? CAL_GROUPS.map((g) => ({
         ...g,
-        label: g.key === "training" ? v("calendar.group_training") : g.label,
         keys: g.keys.filter((k) => !DOG_ONLY_CAL_CATEGORIES.includes(k)),
       }))
     : CAL_GROUPS;
+  const calGroupLabel = (key: CalGroupKey) =>
+    isGeneric && key === "training" ? v("calendar.group_training") : t(`groups.${key}`);
   const calLabel = (key: CalCategory) =>
-    key === "training_home" ? v("calendar.category_training_home") : CAL_CATEGORY_MAP[key].label;
+    key === "training_home" ? v("calendar.category_training_home") : t(`categories.${key}`);
   const { canSendMessages } = usePermissions();
   const { isFree, tier, can } = usePlan();
   const maxAppts = getMaxAppointments(tier);
@@ -1286,7 +1308,7 @@ function CalendarContent() {
   const leadMeetings = leadFollowUpsData?.meetings ?? [];
   // Lead meetings render as solid violet blocks (follow-ups are pale violet)
   const LEAD_MEETING_COLOR = "#7C3AED";
-  const leadMeetingLabel = (m: LeadMeetingEvent) => `פגישת ליד · ${m.lead.name}`;
+  const leadMeetingLabel = (m: LeadMeetingEvent) => t("leadMeetingLabel", { name: m.lead.name });
   const leadMeetingTitle = (m: LeadMeetingEvent) =>
     `${leadMeetingLabel(m)}${m.service ? ` · ${m.service.name}` : ""} (${m.startTime}–${m.endTime})${m.location ? ` · ${m.location}` : ""}`;
 
@@ -1403,10 +1425,10 @@ function CalendarContent() {
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
       if (status === "canceled") queryClient.invalidateQueries({ queryKey: ["gcal-external-events"] });
       setSelectedAppointment(null);
-      if (status === "completed") toast.success("התור סומן כהושלם");
-      else if (status === "canceled") toast.success("התור בוטל");
+      if (status === "completed") toast.success(t("toasts.completed"));
+      else if (status === "canceled") toast.success(t("toasts.canceled"));
     },
-    onError: () => toast.error("שגיאה בעדכון התור. נסה שוב."),
+    onError: () => toast.error(t("toasts.updateError")),
   });
 
   const deleteMutation = useMutation({
@@ -1419,9 +1441,9 @@ function CalendarContent() {
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
       setSelectedAppointment(null);
       setConfirmDeleteId(null);
-      toast.success("התור נמחק");
+      toast.success(t("toasts.deleted"));
     },
-    onError: () => toast.error("שגיאה במחיקת התור. נסה שוב."),
+    onError: () => toast.error(t("toasts.deleteError")),
   });
 
   const rescheduleMutation = useMutation({
@@ -1436,9 +1458,9 @@ function CalendarContent() {
       queryClient.invalidateQueries({ queryKey: ["gcal-external-events"] });
       setSelectedAppointment(null);
       setRescheduling(false);
-      toast.success("התור הועבר בהצלחה");
+      toast.success(t("toasts.moved"));
     },
-    onError: () => toast.error("שגיאה בעדכון התור. נסה שוב."),
+    onError: () => toast.error(t("toasts.updateError")),
   });
 
   // Duplicate an appointment to the same date/time (same customer, pet & service)
@@ -1462,9 +1484,9 @@ function CalendarContent() {
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       setSelectedAppointment(null);
-      toast.success("התור שוכפל באותו מועד ✓");
+      toast.success(t("toasts.duplicated"));
     },
-    onError: () => toast.error("שגיאה בשכפול התור. נסה שוב."),
+    onError: () => toast.error(t("toasts.duplicateError")),
   });
 
   const notesMutation = useMutation({
@@ -1480,20 +1502,20 @@ function CalendarContent() {
       if (selectedAppointment) {
         setSelectedAppointment({ ...selectedAppointment, notes: notesInput || null });
       }
-      toast.success("ההערות עודכנו");
+      toast.success(t("toasts.notesUpdated"));
     },
-    onError: () => toast.error("שגיאה בעדכון ההערות. נסה שוב."),
+    onError: () => toast.error(t("toasts.notesError")),
   });
 
   const remindMutation = useMutation({
     mutationFn: (id: string) =>
       fetch(`/api/appointments/${id}/remind`, { method: "POST" }).then(async (r) => {
         const data = await r.json();
-        if (!r.ok) throw new Error(data.error ?? "שגיאה");
+        if (!r.ok) throw new Error(data.error ?? t("toasts.error"));
         return data;
       }),
-    onSuccess: () => toast.success("תזכורת WhatsApp נשלחה"),
-    onError: (err: Error) => toast.error(err.message || "שגיאה בשליחת תזכורת"),
+    onSuccess: () => toast.success(t("toasts.reminderSent")),
+    onError: (err: Error) => toast.error(err.message || t("toasts.reminderError")),
   });
 
   const taskCompleteMutation = useMutation({
@@ -1504,7 +1526,7 @@ function CalendarContent() {
         body: JSON.stringify({ status }),
       }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tasks-calendar"] }),
-    onError: () => toast.error("שגיאה בעדכון המשימה"),
+    onError: () => toast.error(t("toasts.taskUpdateError")),
   });
 
   // ── Navigation ──
@@ -1534,7 +1556,7 @@ function CalendarContent() {
   // ── Header subtitle ──
   const headerSubtitle = useMemo(() => {
     if (viewMode === "day") {
-      return selectedDay.toLocaleDateString("he-IL", {
+      return selectedDay.toLocaleDateString(locale, {
         weekday: "long",
         day: "numeric",
         month: "long",
@@ -1542,13 +1564,13 @@ function CalendarContent() {
       });
     }
     if (viewMode === "month") {
-      return anchor.toLocaleDateString("he-IL", {
+      return anchor.toLocaleDateString(locale, {
         month: "long",
         year: "numeric",
       });
     }
-    return `${weekDates[0].toLocaleDateString("he-IL", { day: "numeric", month: "long" })} – ${weekDates[6].toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" })}`;
-  }, [viewMode, selectedDay, anchor, weekDates]);
+    return `${weekDates[0].toLocaleDateString(locale, { day: "numeric", month: "long" })} – ${weekDates[6].toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" })}`;
+  }, [viewMode, selectedDay, anchor, weekDates, locale]);
 
   // ── Current time indicator ──
   const currentTimeTop = useMemo(() => {
@@ -1746,10 +1768,10 @@ function CalendarContent() {
       >
         {/* Status dots */}
         {apt.status === "completed" && (
-          <div className="absolute top-1 left-1 w-2 h-2 rounded-full bg-green-300 border border-green-400" />
+          <div className="absolute top-1 end-1 w-2 h-2 rounded-full bg-green-300 border border-green-400" />
         )}
         {apt.status === "no_show" && (
-          <div className="absolute top-1 left-1 w-2 h-2 rounded-full bg-gray-300 border border-gray-400" />
+          <div className="absolute top-1 end-1 w-2 h-2 rounded-full bg-gray-300 border border-gray-400" />
         )}
 
         <div className={cn("font-medium", compact ? "truncate" : "line-clamp-2 break-words", isCanceled && "line-through")}>
@@ -1758,7 +1780,7 @@ function CalendarContent() {
         {apt.pet && (
           <div className={cn("opacity-80", compact ? "truncate" : "line-clamp-1")}>{apt.customer.name}</div>
         )}
-        <div className={cn("opacity-80", compact ? "truncate" : "line-clamp-1")}>{getAppointmentLabel(apt)}</div>
+        <div className={cn("opacity-80", compact ? "truncate" : "line-clamp-1")}>{aptLabel(apt)}</div>
         <div className="opacity-80">{apt.startTime}</div>
         {apt.staff && !compact && (
           <div className="text-[10px] opacity-70 truncate">👤 {apt.staff.name}</div>
@@ -1766,7 +1788,7 @@ function CalendarContent() {
         {/* Resize handle */}
         {!isCanceled && (
           <div
-            className="absolute bottom-0 left-0 right-0 h-2 cursor-s-resize flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity"
+            className="absolute bottom-0 end-0 start-0 h-2 cursor-s-resize flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity"
             onMouseDown={(e) => handleResizeStart(apt, e)}
             onClick={(e) => e.stopPropagation()}
           >
@@ -1794,14 +1816,14 @@ function CalendarContent() {
           compact ? "text-xs" : "text-sm"
         )}
         style={{ ...style, zIndex: 9 }}
-        title="הזמנה אונליין ממתינה לאישור"
+        title={t("pendingBookingTitle")}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-1 font-medium text-amber-800 truncate">
           <AlertCircle className="w-3 h-3 flex-shrink-0 text-amber-500" />
           {booking.customer.name}
         </div>
-        <div className="text-amber-600 truncate">{booking.service?.name ?? "שירות לא ידוע"}</div>
+        <div className="text-amber-600 truncate">{booking.service?.name ?? t("unknownService")}</div>
         {!compact && dogNames && (
           <div className="text-amber-500 truncate">{dogNames}</div>
         )}
@@ -1830,7 +1852,7 @@ function CalendarContent() {
         )}
         style={{
           ...style,
-          borderRight: `3px solid ${overdue ? "#EF4444" : color}`,
+          borderInlineStart: `3px solid ${overdue ? "#EF4444" : color}`,
           zIndex: 10,
         }}
       >
@@ -1850,7 +1872,7 @@ function CalendarContent() {
         </div>
         {!compact && (
           <div className={cn("truncate", overdue ? "text-red-500 text-[10px] font-medium" : "text-petra-muted")}>
-            {overdue ? "⚠️ באיחור" : vt.label(task.category, TASK_CATEGORY_LABELS[task.category] || task.category)}
+            {overdue ? t("overdue") : vt.label(task.category, taskCategoryLabel(task.category))}
           </div>
         )}
       </div>
@@ -1859,12 +1881,12 @@ function CalendarContent() {
 
   return (
     <div>
-      <PageTitle title="יומן" />
+      <PageTitle title={t("title")} />
       {appointmentsLoading && <PetraLoader />}
       {appointmentsError && (
         <div className="mb-4 flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
           <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          שגיאה בטעינת התורים. נסה לרענן את הדף.
+          {t("loadError")}
         </div>
       )}
       {/* ── Header ── */}
@@ -1872,7 +1894,7 @@ function CalendarContent() {
         {/* Top row: title + new appointment */}
         <div className="flex items-center gap-2">
           <div>
-            <h1 className="page-title">יומן</h1>
+            <h1 className="page-title">{t("title")}</h1>
             <p className="text-xs text-petra-muted mt-0.5">{headerSubtitle}</p>
           </div>
           <div className="flex items-center gap-2">
@@ -1882,9 +1904,8 @@ function CalendarContent() {
                 .filter((a) => a.status !== "canceled")
                 .sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : a.startTime.localeCompare(b.startTime));
               if (weekAppts.length === 0) return null;
-              const weekLabel = `${weekDates[0].toLocaleDateString("he-IL", { day: "numeric", month: "long" })} – ${weekDates[6].toLocaleDateString("he-IL", { day: "numeric", month: "long" })}`;
-              const dayNames = ["ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת"];
-              const lines = [`📅 לוח שבוע — ${weekLabel}`, `סה"כ ${weekAppts.length} פגישות`, ""];
+              const weekLabel = `${weekDates[0].toLocaleDateString(locale, { day: "numeric", month: "long" })} – ${weekDates[6].toLocaleDateString(locale, { day: "numeric", month: "long" })}`;
+              const lines = [t("summary.weekHeader", { range: weekLabel }), t("summary.total", { count: weekAppts.length }), ""];
               const byDay: Record<string, typeof weekAppts> = {};
               for (const a of weekAppts) {
                 const key = a.date.slice(0, 10);
@@ -1893,10 +1914,10 @@ function CalendarContent() {
               }
               for (const dateStr of Object.keys(byDay).sort()) {
                 const date = new Date(dateStr + "T00:00:00");
-                const dayLabel = `${dayNames[date.getDay()]} ${date.toLocaleDateString("he-IL", { day: "numeric", month: "long" })}`;
+                const dayLabel = `${t(`days.${DAY_IDS[date.getDay()]}`)} ${date.toLocaleDateString(locale, { day: "numeric", month: "long" })}`;
                 lines.push(`📌 ${dayLabel}:`);
                 byDay[dateStr].forEach((a, i) => {
-                  lines.push(`  ${i + 1}. ${a.startTime} — ${a.customer.name}${a.pet ? ` (${a.pet.name})` : ""} · ${getAppointmentLabel(a)}`);
+                  lines.push(`  ${i + 1}. ${a.startTime} — ${a.customer.name}${a.pet ? ` (${a.pet.name})` : ""} · ${aptLabel(a)}`);
                 });
                 lines.push("");
               }
@@ -1907,10 +1928,10 @@ function CalendarContent() {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="btn-secondary text-sm hidden sm:flex items-center gap-1.5"
-                  title="שתף לוח שבוע בוואטסאפ"
+                  title={t("summary.shareWeekTitle")}
                 >
                   <Share2 className="w-4 h-4" />
-                  סיכום שבוע
+                  {t("summary.week")}
                 </a>
               );
             })()}
@@ -1922,13 +1943,13 @@ function CalendarContent() {
                 (a) => a.date.slice(0, 10) === summaryDateStr && a.status !== "canceled"
               ).sort((a, b) => a.startTime.localeCompare(b.startTime));
               if (summaryAppts.length === 0) return null;
-              const dateLabel = summaryDate.toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" });
+              const dateLabel = summaryDate.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" });
               const lines = [
-                `📅 תוכנית יום — ${dateLabel}`,
-                `סה"כ ${summaryAppts.length} פגישות`,
+                t("summary.dayHeader", { date: dateLabel }),
+                t("summary.total", { count: summaryAppts.length }),
                 "",
                 ...summaryAppts.map((a, i) =>
-                  `${i + 1}. ${a.startTime} — ${a.customer.name}${a.pet ? ` (${a.pet.name})` : ""} · ${getAppointmentLabel(a)}`
+                  `${i + 1}. ${a.startTime} — ${a.customer.name}${a.pet ? ` (${a.pet.name})` : ""} · ${aptLabel(a)}`
                 ),
               ];
               const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(lines.join("\n"))}`;
@@ -1938,18 +1959,18 @@ function CalendarContent() {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="btn-secondary text-sm hidden sm:flex items-center gap-1.5"
-                  title="שתף סיכום יום בוואטסאפ"
+                  title={t("summary.shareDayTitle")}
                 >
                   <Share2 className="w-4 h-4" />
-                  סיכום יום
+                  {t("summary.day")}
                 </a>
               );
             })()}
             {isFree && maxAppts !== null && totalApptCount >= maxAppts ? (
               <a href="/upgrade" className="btn-primary text-sm gap-1.5 bg-amber-500 hover:bg-amber-600 border-amber-500 text-white rounded-xl px-3 py-2 font-semibold flex items-center">
                 <Sparkles className="w-4 h-4" />
-                <span className="hidden sm:inline">שדרג לבייסיק</span>
-                <span className="sm:hidden">שדרג</span>
+                <span className="hidden sm:inline">{t("upgradeToBasic")}</span>
+                <span className="sm:hidden">{t("upgrade")}</span>
               </a>
             ) : (
               <button
@@ -1960,8 +1981,8 @@ function CalendarContent() {
                 }}
               >
                 <Plus className="w-4 h-4" />
-                <span className="hidden sm:inline">פגישה חדשה</span>
-                <span className="sm:hidden">חדש</span>
+                <span className="hidden sm:inline">{t("newAppointment")}</span>
+                <span className="sm:hidden">{t("newShort")}</span>
               </button>
             )}
           </div>
@@ -1975,12 +1996,12 @@ function CalendarContent() {
             <div className="flex items-center gap-2 text-sm">
               <Sparkles className={`w-4 h-4 flex-shrink-0 ${totalApptCount >= maxAppts ? "text-amber-500" : "text-slate-400"}`} />
               <span className={totalApptCount >= maxAppts ? "text-amber-800" : "text-slate-600"}>
-                {totalApptCount}/{maxAppts} פגישות — מגבלת המנוי החינמי
+                {t("freeLimit", { count: totalApptCount, max: maxAppts })}
               </span>
             </div>
             {totalApptCount >= maxAppts && (
               <a href="/upgrade" className="text-xs font-semibold text-amber-700 hover:text-amber-900 whitespace-nowrap">
-                שדרג לבייסיק ←
+                {t("upgradeToBasicArrow")}
               </a>
             )}
           </div>
@@ -1990,13 +2011,13 @@ function CalendarContent() {
         <div className="flex items-center gap-2">
           {/* Navigation */}
           <button onClick={() => navigate(-1)} className="btn-secondary p-2 flex-shrink-0">
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="w-4 h-4 ltr:-scale-x-100" />
           </button>
           <button onClick={goToToday} className="btn-secondary text-xs px-3 flex-shrink-0">
-            היום
+            {t("today")}
           </button>
           <button onClick={() => navigate(1)} className="btn-secondary p-2 flex-shrink-0">
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeft className="w-4 h-4 ltr:-scale-x-100" />
           </button>
 
           {/* View toggle — Week is tappable on mobile too (don't force a rotate to
@@ -2020,7 +2041,7 @@ function CalendarContent() {
                     : "text-petra-muted hover:text-petra-text hover:bg-slate-50"
                 )}
               >
-                {mode.label}
+                {t(`viewModes.${mode.id}`)}
               </button>
             ))}
           </div>
@@ -2031,14 +2052,14 @@ function CalendarContent() {
       <div className="mb-4 px-1 space-y-2">
         {/* View-lens presets */}
         <div className="flex items-center gap-1.5 flex-nowrap overflow-x-auto pb-1 md:flex-wrap md:overflow-visible md:pb-0 [&>*]:flex-shrink-0 [&>*]:whitespace-nowrap">
-          <span className="text-[11px] text-petra-muted ml-0.5">תצוגה</span>
+          <span className="text-[11px] text-petra-muted me-0.5">{t("viewLabel")}</span>
           {(() => {
             const lensEquals = (keys: CalCategory[]) =>
               keys.length === activeCategories.size && keys.every((k) => activeCategories.has(k));
             const lenses: { label: string; keys: CalCategory[] }[] = [
-              { label: "הכל", keys: ALL_CAL_CATEGORIES },
+              { label: t("lenses.all"), keys: ALL_CAL_CATEGORIES },
               ...calGroups.map((g) => ({
-                label: g.key === "customer" ? "הזמנות לקוח" : g.key === "training" ? "השירותים שלי" : "ניהול",
+                label: g.key === "customer" ? t("lenses.customer") : g.key === "training" ? t("lenses.training") : t("lenses.mgmt"),
                 keys: g.keys,
               })),
             ];
@@ -2066,8 +2087,8 @@ function CalendarContent() {
         <div className="flex items-center gap-x-3 gap-y-2 flex-nowrap overflow-x-auto pb-1 md:flex-wrap md:overflow-visible md:pb-0 [&>*]:flex-shrink-0">
           {calGroups.map((group, gi) => (
             <div key={group.key} className="flex items-center gap-1.5 whitespace-nowrap">
-              {gi > 0 && <div className="w-px h-4 bg-petra-border ml-1 hidden md:block" />}
-              <span className="text-[10px] tracking-wide text-petra-muted/80">{group.label}</span>
+              {gi > 0 && <div className="w-px h-4 bg-petra-border me-1 hidden md:block" />}
+              <span className="text-[10px] tracking-wide text-petra-muted/80">{calGroupLabel(group.key)}</span>
               {group.keys.map((key) => {
                 const def = CAL_CATEGORY_MAP[key];
                 const isActive = activeCategories.has(key);
@@ -2082,7 +2103,7 @@ function CalendarContent() {
                         : "border-transparent opacity-40 hover:opacity-70"
                     )}
                     style={{ color: isActive ? def.color : undefined }}
-                    title={`הצג/הסתר ${calLabel(key)}`}
+                    title={t("toggleCategoryTitle", { label: calLabel(key) })}
                   >
                     {key === "gcal" ? (
                       <span className="text-[9px] font-bold text-white rounded px-1 flex-shrink-0" style={{ background: def.color }}>G</span>
@@ -2102,8 +2123,8 @@ function CalendarContent() {
           {/* Staff filter chips */}
           {staffList.length > 1 && (
             <div className="flex items-center gap-1.5 whitespace-nowrap">
-              <div className="w-px h-4 bg-petra-border ml-1 hidden md:block" />
-              <span className="text-[10px] tracking-wide text-petra-muted/80">צוות</span>
+              <div className="w-px h-4 bg-petra-border me-1 hidden md:block" />
+              <span className="text-[10px] tracking-wide text-petra-muted/80">{t("staff")}</span>
               {staffList.map((s) => {
                 const isActive = staffFilter.includes(s.id);
                 return (
@@ -2120,7 +2141,7 @@ function CalendarContent() {
                         ? "border-slate-600 font-medium bg-slate-700 text-white"
                         : "border-transparent hover:border-petra-border hover:bg-petra-bg text-petra-muted"
                     )}
-                    title={`סנן לפי ${s.name}`}
+                    title={t("filterByStaffTitle", { name: s.name })}
                   >
                     <div className="w-4 h-4 rounded-full bg-slate-400 flex items-center justify-center text-[9px] text-white font-bold flex-shrink-0">
                       {(s.name ?? "").charAt(0) || "?"}
@@ -2149,7 +2170,7 @@ function CalendarContent() {
                     <div
                       key={i}
                       className={cn(
-                        "p-3 text-center border-r border-petra-border cursor-pointer hover:bg-slate-50/50 transition-colors",
+                        "p-3 text-center border-s border-petra-border cursor-pointer hover:bg-slate-50/50 transition-colors",
                         isToday && "bg-brand-50/30"
                       )}
                       onClick={() => {
@@ -2158,7 +2179,7 @@ function CalendarContent() {
                       }}
                     >
                       <div className="text-xs text-petra-muted font-medium">
-                        {DAYS_HE[i]}
+                        {t(`days.${DAY_IDS[i]}`)}
                       </div>
                       <div
                         className={cn(
@@ -2182,7 +2203,7 @@ function CalendarContent() {
                         onClick={() => setAllDayCollapsed((v) => !v)}
                         className="text-[10px] text-petra-muted hover:text-petra-text transition-colors whitespace-nowrap"
                       >
-                        {allDayCollapsed ? "▸" : "▾"} כל היום ({allDayStays.length + weekAllDayTasks.length})
+                        {allDayCollapsed ? "▸" : "▾"} {t("allDay", { count: allDayStays.length + weekAllDayTasks.length })}
                       </button>
                     </div>
                     {!allDayCollapsed && <div className="py-1.5 px-1 space-y-1">
@@ -2227,13 +2248,19 @@ function CalendarContent() {
                                 : "bg-violet-50 border-violet-200 text-violet-700"
                             )}
                             style={{
-                              marginRight: `${leftPct}%`,
+                              marginInlineStart: `${leftPct}%`,
                               width: `${widthPct}%`,
                             }}
-                            title={`${isCheckedIn ? "נמצא בפנסיון" : "הזמנה"}: ${stay.pet.name} · ${stay.room?.name || "ללא חדר"}\nכניסה: ${dateTimeToTime(stay.checkIn)}${stay.checkOut ? ` · יציאה: ${dateTimeToTime(stay.checkOut)}` : ""}`}
+                            title={t("stay.title", {
+                              status: isCheckedIn ? t("stay.checkedIn") : t("stay.booked"),
+                              pet: stay.pet.name,
+                              room: stay.room?.name || t("stay.noRoom"),
+                              checkIn: dateTimeToTime(stay.checkIn),
+                              checkOut: stay.checkOut ? t("stay.checkOutSuffix", { time: dateTimeToTime(stay.checkOut) }) : "",
+                            })}
                           >
                             <Hotel className="w-3 h-3 flex-shrink-0" />
-                            {stay.pet.name} · {stay.room?.name || "ללא חדר"}
+                            {stay.pet.name} · {stay.room?.name || t("stay.noRoom")}
                           </a>
                         );
                       })}
@@ -2251,9 +2278,9 @@ function CalendarContent() {
                             key={`task-allday-${task.id}`}
                             className="h-6 rounded-md text-[10px] font-medium flex items-center gap-1 px-2 truncate bg-white border border-slate-200"
                             style={{
-                              marginRight: `${leftPct}%`,
+                              marginInlineStart: `${leftPct}%`,
                               width: `${widthPct}%`,
-                              borderRight: `3px solid ${color}`,
+                              borderInlineStart: `3px solid ${color}`,
                             }}
                           >
                             <ListTodo className="w-3 h-3 flex-shrink-0 text-petra-muted" />
@@ -2284,7 +2311,7 @@ function CalendarContent() {
                         <div
                           key={dayIdx}
                           className={cn(
-                            "border-r border-t border-slate-100 relative cursor-pointer hover:bg-slate-50/50 transition-colors",
+                            "border-s border-t border-slate-100 relative cursor-pointer hover:bg-slate-50/50 transition-colors",
                             isDropTarget && "bg-brand-50/40"
                           )}
                           onClick={() => {
@@ -2321,9 +2348,9 @@ function CalendarContent() {
                       {
                         top,
                         height,
-                        right: `calc(60px + ${dayIdx} * (100% - 60px) / 7 + ${ln.lane} * (100% - 60px) / 7 / ${ln.lanes})`,
+                        insetInlineStart: `calc(60px + ${dayIdx} * (100% - 60px) / 7 + ${ln.lane} * (100% - 60px) / 7 / ${ln.lanes})`,
                         width: `calc((100% - 60px) / 7 / ${ln.lanes} - 4px)`,
-                        marginRight: 2,
+                        marginInlineStart: 2,
                       },
                       true
                     );
@@ -2346,9 +2373,9 @@ function CalendarContent() {
                       {
                         top,
                         height,
-                        right: `calc(60px + ${dayIdx} * (100% - 60px) / 7)`,
+                        insetInlineStart: `calc(60px + ${dayIdx} * (100% - 60px) / 7)`,
                         width: `calc((100% - 60px) / 7 - 4px)`,
-                        marginRight: 2,
+                        marginInlineStart: 2,
                       },
                       true
                     );
@@ -2370,9 +2397,9 @@ function CalendarContent() {
                       {
                         top,
                         height,
-                        right: `calc(60px + ${dayIdx} * (100% - 60px) / 7)`,
+                        insetInlineStart: `calc(60px + ${dayIdx} * (100% - 60px) / 7)`,
                         width: `calc((100% - 60px) / 7 - 4px)`,
-                        marginRight: 2,
+                        marginInlineStart: 2,
                       },
                       true
                     );
@@ -2403,13 +2430,13 @@ function CalendarContent() {
                         style={{
                           top,
                           height: Math.max(height, 22),
-                          right: `calc(60px + ${dayIdx} * (100% - 60px) / 7)`,
+                          insetInlineStart: `calc(60px + ${dayIdx} * (100% - 60px) / 7)`,
                           width: `calc((100% - 60px) / 7 - 4px)`,
-                          marginRight: 2,
+                          marginInlineStart: 2,
                           background: "#EDE9FE",
                           zIndex: 9,
                         }}
-                        title={`פולואפ: ${lead.name}${lead.requestedService ? ` · ${lead.requestedService}` : ""} (${startTime})`}
+                        title={t("followUpTitleWithTime", { name: lead.name, service: lead.requestedService ? ` · ${lead.requestedService}` : "", time: startTime })}
                       >
                         <div className={cn("text-[10px] font-semibold truncate", overdueLead ? "text-red-600" : "text-violet-700")}>
                           {overdueLead ? "⚠️" : "📞"} {lead.name}
@@ -2439,9 +2466,9 @@ function CalendarContent() {
                           style={{
                             top,
                             height,
-                            right: `calc(60px + ${dayIdx} * (100% - 60px) / 7)`,
+                            insetInlineStart: `calc(60px + ${dayIdx} * (100% - 60px) / 7)`,
                             width: `calc((100% - 60px) / 7 - 4px)`,
-                            marginRight: 2,
+                            marginInlineStart: 2,
                             background: LEAD_MEETING_COLOR,
                             borderColor: LEAD_MEETING_COLOR,
                             zIndex: 9,
@@ -2483,13 +2510,13 @@ function CalendarContent() {
                           style={{
                             top,
                             height: Math.max(height, 22),
-                            right: `calc(60px + ${dayIdx} * (100% - 60px) / 7)`,
+                            insetInlineStart: `calc(60px + ${dayIdx} * (100% - 60px) / 7)`,
                             width: `calc((100% - 60px) / 7 - 4px)`,
-                            marginRight: 2,
+                            marginInlineStart: 2,
                             background: "#D1FAE5",
                             zIndex: 8,
                           }}
-                          title={`צ׳ק-אין: ${stay.pet.name} — ${stay.customer.name}${stay.room ? ` · ${stay.room.name}` : ""} (${startTime})`}
+                          title={t("checkInTitle", { pet: stay.pet.name, customer: stay.customer.name, room: stay.room ? ` · ${stay.room.name}` : "", time: startTime })}
                         >
                           <div className="text-[10px] font-semibold text-emerald-800 truncate flex items-center gap-0.5">
                             <Hotel className="w-2.5 h-2.5 flex-shrink-0" />↓ {stay.pet.name}
@@ -2514,13 +2541,13 @@ function CalendarContent() {
                           style={{
                             top,
                             height: Math.max(height, 22),
-                            right: `calc(60px + ${dayIdx} * (100% - 60px) / 7)`,
+                            insetInlineStart: `calc(60px + ${dayIdx} * (100% - 60px) / 7)`,
                             width: `calc((100% - 60px) / 7 - 4px)`,
-                            marginRight: 2,
+                            marginInlineStart: 2,
                             background: "#FEF3C7",
                             zIndex: 8,
                           }}
-                          title={`צ׳ק-אאוט: ${stay.pet.name} — ${stay.customer.name}${stay.room ? ` · ${stay.room.name}` : ""} (${startTime})`}
+                          title={t("checkOutTitle", { pet: stay.pet.name, customer: stay.customer.name, room: stay.room ? ` · ${stay.room.name}` : "", time: startTime })}
                         >
                           <div className="text-[10px] font-semibold text-amber-800 truncate flex items-center gap-0.5">
                             <Hotel className="w-2.5 h-2.5 flex-shrink-0" />↑ {stay.pet.name}
@@ -2549,16 +2576,16 @@ function CalendarContent() {
                   const gcalWeekStyle: React.CSSProperties = {
                     top,
                     height: Math.max(height, 20),
-                    right: `calc(60px + ${dayIdx} * (100% - 60px) / 7)`,
+                    insetInlineStart: `calc(60px + ${dayIdx} * (100% - 60px) / 7)`,
                     width: `calc((100% - 60px) / 7 - 4px)`,
-                    marginRight: 2,
+                    marginInlineStart: 2,
                     background: ev.backgroundColor,
                     borderColor: ev.backgroundColor,
                     zIndex: 5,
                   };
                   const gcalWeekContent = (
                     <>
-                      <span className="absolute top-0.5 left-0.5 text-[8px] font-bold bg-white/80 rounded px-0.5" style={{ color: ev.backgroundColor }}>G</span>
+                      <span className="absolute top-0.5 end-0.5 text-[8px] font-bold bg-white/80 rounded px-0.5" style={{ color: ev.backgroundColor }}>G</span>
                       <div className="text-[10px] font-semibold truncate text-white drop-shadow-sm">
                         {ev.title}
                       </div>
@@ -2598,7 +2625,7 @@ function CalendarContent() {
                     <a key={`tg-${s.id}`} href="/training"
                       title={`${s.trainingGroup.name} (${startTime})`}
                       className="absolute rounded-lg px-1.5 py-0.5 overflow-hidden border flex flex-col justify-center hover:opacity-90 transition-opacity"
-                      style={{ top, height: Math.max(height, 20), right: `calc(60px + ${dayIdx} * (100% - 60px) / 7)`, width: `calc((100% - 60px) / 7 - 4px)`, marginRight: 2, background: bg, borderColor: bg, zIndex: 6 }}>
+                      style={{ top, height: Math.max(height, 20), insetInlineStart: `calc(60px + ${dayIdx} * (100% - 60px) / 7)`, width: `calc((100% - 60px) / 7 - 4px)`, marginInlineStart: 2, background: bg, borderColor: bg, zIndex: 6 }}>
                       <div className="text-[10px] font-semibold truncate text-white drop-shadow-sm">{isWorkshop ? "🎓" : "👥"} {s.trainingGroup.name}</div>
                     </a>
                   );
@@ -2616,9 +2643,9 @@ function CalendarContent() {
                   const label = s.program.dog?.name ?? s.program.name;
                   return (
                     <a key={`tp-${s.id}`} href="/training"
-                      title={`${v("calendar.session_title_prefix")}: ${label}${s.program.customer ? " · " + s.program.customer.name : ""} (${startTime})`}
+                      title={t("sessionTitleWithTime", { prefix: v("calendar.session_title_prefix"), label, customer: s.program.customer ? " · " + s.program.customer.name : "", time: startTime })}
                       className="absolute rounded-lg px-1.5 py-0.5 overflow-hidden border flex flex-col justify-center hover:opacity-90 transition-opacity"
-                      style={{ top, height: Math.max(height, 20), right: `calc(60px + ${dayIdx} * (100% - 60px) / 7)`, width: `calc((100% - 60px) / 7 - 4px)`, marginRight: 2, background: "#3B82F6", borderColor: "#3B82F6", zIndex: 6 }}>
+                      style={{ top, height: Math.max(height, 20), insetInlineStart: `calc(60px + ${dayIdx} * (100% - 60px) / 7)`, width: `calc((100% - 60px) / 7 - 4px)`, marginInlineStart: 2, background: "#3B82F6", borderColor: "#3B82F6", zIndex: 6 }}>
                       <div className="text-[10px] font-semibold truncate text-white drop-shadow-sm">{v("calendar.session_icon")} {label}</div>
                     </a>
                   );
@@ -2636,9 +2663,9 @@ function CalendarContent() {
                       style={{
                         top: previewTop,
                         height: Math.max(previewHeight, 20),
-                        right: `calc(60px + ${dayIdx} * (100% - 60px) / 7)`,
+                        insetInlineStart: `calc(60px + ${dayIdx} * (100% - 60px) / 7)`,
                         width: `calc((100% - 60px) / 7 - 4px)`,
-                        marginRight: 2,
+                        marginInlineStart: 2,
                         zIndex: 15,
                       }}
                     />
@@ -2651,12 +2678,12 @@ function CalendarContent() {
                     className="absolute pointer-events-none"
                     style={{
                       top: currentTimeTop,
-                      right: `calc(60px + ${todayColumnIndex} * (100% - 60px) / 7)`,
+                      insetInlineStart: `calc(60px + ${todayColumnIndex} * (100% - 60px) / 7)`,
                       width: `calc((100% - 60px) / 7)`,
                       zIndex: 20,
                     }}
                   >
-                    <div className="absolute -top-[5px] right-[-5px] w-[10px] h-[10px] rounded-full bg-red-500" />
+                    <div className="absolute -top-[5px] start-[-5px] w-[10px] h-[10px] rounded-full bg-red-500" />
                     <div className="h-[2px] bg-red-500 w-full" />
                   </div>
                 )}
@@ -2676,7 +2703,7 @@ function CalendarContent() {
                 onClick={() => setAllDayCollapsed((v) => !v)}
                 className="text-[10px] text-petra-muted font-medium mb-1.5 hover:text-petra-text transition-colors"
               >
-                {allDayCollapsed ? "▸" : "▾"} כל היום ({allDayStays.length + dayAllDayTasks.length})
+                {allDayCollapsed ? "▸" : "▾"} {t("allDay", { count: allDayStays.length + dayAllDayTasks.length })}
               </button>
               {!allDayCollapsed && <div className="space-y-1">
                 {allDayStays
@@ -2698,7 +2725,7 @@ function CalendarContent() {
                             : "bg-violet-50 border-violet-200 text-violet-700"
                         )}
                       >
-                        {stay.pet.name} · {stay.room?.name || "ללא חדר"} ·{" "}
+                        {stay.pet.name} · {stay.room?.name || t("stay.noRoom")} ·{" "}
                         {stay.customer.name}
                       </div>
                     );
@@ -2709,13 +2736,13 @@ function CalendarContent() {
                     <div
                       key={`task-allday-${task.id}`}
                       className="h-7 rounded-lg text-xs font-medium flex items-center gap-1.5 px-3 bg-white border border-slate-200"
-                      style={{ borderRight: `3px solid ${color}` }}
+                      style={{ borderInlineStart: `3px solid ${color}` }}
                     >
                       <ListTodo className="w-3.5 h-3.5 flex-shrink-0 text-petra-muted" />
                       <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
                       <span className="truncate text-petra-text">{task.title}</span>
                       <span className="text-petra-muted ms-auto">
-                        {vt.label(task.category, TASK_CATEGORY_LABELS[task.category] || task.category)}
+                        {vt.label(task.category, taskCategoryLabel(task.category))}
                       </span>
                     </div>
                   );
@@ -2737,7 +2764,7 @@ function CalendarContent() {
                 </div>
                 <div
                   className={cn(
-                    "border-r border-t border-slate-100 relative cursor-pointer hover:bg-slate-50/50 transition-colors",
+                    "border-s border-t border-slate-100 relative cursor-pointer hover:bg-slate-50/50 transition-colors",
                     dropPreview?.date === toLocalDateString(selectedDay) && "bg-brand-50/40"
                   )}
                   onClick={() => {
@@ -2768,7 +2795,7 @@ function CalendarContent() {
                   {
                     top,
                     height,
-                    right: `calc(60px + ${ln.lane} * (100% - 64px) / ${ln.lanes})`,
+                    insetInlineStart: `calc(60px + ${ln.lane} * (100% - 64px) / ${ln.lanes})`,
                     width: `calc((100% - 64px) / ${ln.lanes} - 2px)`,
                   },
                   false
@@ -2786,7 +2813,7 @@ function CalendarContent() {
                 {
                   top,
                   height,
-                  right: 60,
+                  insetInlineStart: 60,
                   width: "calc(100% - 64px)",
                 },
                 false
@@ -2814,15 +2841,15 @@ function CalendarContent() {
                     style={{
                       top,
                       height: Math.max(height, 22),
-                      right: 60,
+                      insetInlineStart: 60,
                       width: "calc(100% - 64px)",
                       background: overdueLead ? "#FEF2F2" : "#EDE9FE",
                       zIndex: 9,
                     }}
-                    title={`פולואפ: ${lead.name}${lead.requestedService ? ` · ${lead.requestedService}` : ""}`}
+                    title={t("followUpTitle", { name: lead.name, service: lead.requestedService ? ` · ${lead.requestedService}` : "" })}
                   >
                     <div className={cn("text-xs font-semibold truncate", overdueLead ? "text-red-600" : "text-violet-700")}>
-                      {overdueLead ? "⚠️ באיחור:" : "📞 פולואפ:"} {lead.name}
+                      {overdueLead ? t("overdueColon") : t("followUpColon")} {lead.name}
                     </div>
                     {lead.requestedService && (
                       <div className="text-[10px] text-violet-500 truncate">{lead.requestedService}</div>
@@ -2849,7 +2876,7 @@ function CalendarContent() {
                     style={{
                       top,
                       height,
-                      right: 60,
+                      insetInlineStart: 60,
                       width: "calc(100% - 64px)",
                       background: LEAD_MEETING_COLOR,
                       borderColor: LEAD_MEETING_COLOR,
@@ -2881,7 +2908,7 @@ function CalendarContent() {
                 const { top, height } = appointmentStyle(startTime, endTime);
                 return renderBookingBlock(
                   booking,
-                  { top, height, right: 60, width: "calc(100% - 64px)" },
+                  { top, height, insetInlineStart: 60, width: "calc(100% - 64px)" },
                   false
                 );
               })}
@@ -2898,7 +2925,7 @@ function CalendarContent() {
               const gcalDayStyle: React.CSSProperties = {
                 top,
                 height: Math.max(height, 22),
-                right: 60,
+                insetInlineStart: 60,
                 width: "calc(100% - 64px)",
                 background: ev.backgroundColor,
                 borderColor: ev.backgroundColor,
@@ -2906,7 +2933,7 @@ function CalendarContent() {
               };
               const gcalDayContent = (
                 <>
-                  <span className="absolute top-0.5 left-0.5 text-[8px] font-bold bg-white/80 rounded px-0.5" style={{ color: ev.backgroundColor }}>G</span>
+                  <span className="absolute top-0.5 end-0.5 text-[8px] font-bold bg-white/80 rounded px-0.5" style={{ color: ev.backgroundColor }}>G</span>
                   <div className="text-xs font-semibold truncate text-white drop-shadow-sm">
                     {ev.title}
                   </div>
@@ -2946,7 +2973,7 @@ function CalendarContent() {
                 <a key={`tg-day-${s.id}`} href="/training"
                   title={`${s.trainingGroup.name} (${startTime})`}
                   className="absolute rounded-lg px-2 py-0.5 overflow-hidden border flex flex-col justify-center hover:opacity-90 transition-opacity"
-                  style={{ top, height: Math.max(height, 22), right: 60, width: "calc(100% - 64px)", background: bg, borderColor: bg, zIndex: 6 }}>
+                  style={{ top, height: Math.max(height, 22), insetInlineStart: 60, width: "calc(100% - 64px)", background: bg, borderColor: bg, zIndex: 6 }}>
                   <div className="text-xs font-semibold truncate text-white drop-shadow-sm">{isWorkshop ? "🎓" : "👥"} {s.trainingGroup.name}</div>
                   {s.trainingGroup.location && <div className="text-[10px] truncate text-white/80">{s.trainingGroup.location}</div>}
                 </a>
@@ -2962,9 +2989,9 @@ function CalendarContent() {
               const label = s.program.dog?.name ?? s.program.name;
               return (
                 <a key={`tp-day-${s.id}`} href="/training"
-                  title={`${v("calendar.session_title_prefix")}: ${label}${s.program.customer ? " · " + s.program.customer.name : ""}`}
+                  title={t("sessionTitle", { prefix: v("calendar.session_title_prefix"), label, customer: s.program.customer ? " · " + s.program.customer.name : "" })}
                   className="absolute rounded-lg px-2 py-0.5 overflow-hidden border flex flex-col justify-center hover:opacity-90 transition-opacity"
-                  style={{ top, height: Math.max(height, 22), right: 60, width: "calc(100% - 64px)", background: "#3B82F6", borderColor: "#3B82F6", zIndex: 6 }}>
+                  style={{ top, height: Math.max(height, 22), insetInlineStart: 60, width: "calc(100% - 64px)", background: "#3B82F6", borderColor: "#3B82F6", zIndex: 6 }}>
                   <div className="text-xs font-semibold truncate text-white drop-shadow-sm">{v("calendar.session_icon")} {label}</div>
                   {s.program.customer && <div className="text-[10px] truncate text-white/80">{s.program.customer.name}</div>}
                 </a>
@@ -2981,7 +3008,7 @@ function CalendarContent() {
                   style={{
                     top: previewTop,
                     height: Math.max(previewHeight, 22),
-                    right: 60,
+                    insetInlineStart: 60,
                     width: "calc(100% - 64px)",
                     zIndex: 15,
                   }}
@@ -2995,15 +3022,15 @@ function CalendarContent() {
                 className="absolute pointer-events-none"
                 style={{
                   top: currentTimeTop,
-                  right: 0,
+                  insetInlineStart: 0,
                   width: "100%",
                   zIndex: 20,
                 }}
               >
-                <div className="absolute -top-[5px] right-[55px] w-[10px] h-[10px] rounded-full bg-red-500" />
+                <div className="absolute -top-[5px] start-[55px] w-[10px] h-[10px] rounded-full bg-red-500" />
                 <div
                   className="h-[2px] bg-red-500"
-                  style={{ marginRight: 60 }}
+                  style={{ marginInlineStart: 60 }}
                 />
               </div>
             )}
@@ -3016,12 +3043,12 @@ function CalendarContent() {
         <div className="card overflow-hidden">
           {/* Day-of-week headers */}
           <div className="grid grid-cols-7 border-b border-petra-border">
-            {DAYS_HE.map((day) => (
+            {DAY_IDS.map((day) => (
               <div
                 key={day}
                 className="p-2 text-center text-xs font-medium text-petra-muted"
               >
-                {day}
+                {t(`days.${day}`)}
               </div>
             ))}
           </div>
@@ -3123,7 +3150,7 @@ function CalendarContent() {
                 <div
                   key={idx}
                   className={cn(
-                    "group min-h-[72px] md:min-h-[96px] p-2 border-b border-r border-slate-100 cursor-pointer hover:bg-slate-50/50 transition-colors",
+                    "group min-h-[72px] md:min-h-[96px] p-2 border-b border-s border-slate-100 cursor-pointer hover:bg-slate-50/50 transition-colors",
                     !isCurrentMonth && "bg-slate-50/30"
                   )}
                   onClick={() => {
@@ -3140,7 +3167,7 @@ function CalendarContent() {
                         setShowNewModal(true);
                       }}
                       className="p-0.5 rounded-full text-petra-muted/60 md:opacity-0 md:group-hover:opacity-100 md:focus:opacity-100 hover:text-brand-600 hover:bg-brand-50 transition-opacity"
-                      title="הוסף תור ביום זה"
+                      title={t("addOnDay")}
                     >
                       <Plus className="w-3.5 h-3.5" />
                     </button>
@@ -3182,8 +3209,8 @@ function CalendarContent() {
                         </div>
                       ))}
                       {overflow > 0 && (
-                        <div className="text-[10px] text-petra-muted font-medium pr-3">
-                          +{overflow} עוד
+                        <div className="text-[10px] text-petra-muted font-medium ps-3">
+                          {t("moreCount", { count: overflow })}
                         </div>
                       )}
                     </div>
@@ -3221,7 +3248,7 @@ function CalendarContent() {
               time: a.startTime,
               sortKey: a.startTime,
               title: a.pet ? `${a.pet.name} — ${a.customer.name}` : a.customer.name,
-              subtitle: getAppointmentLabel(a),
+              subtitle: aptLabel(a),
               color: getAppointmentColor(a.service, a.priceListItem),
               icon: "📅",
               appointment: a,
@@ -3229,16 +3256,16 @@ function CalendarContent() {
             }));
 
           tasks
-            .filter((t) => t.dueAt && dateTimeToDateStr(t.dueAt) === dateStr)
-            .forEach((t) => {
-              const overdue = !!(t.dueAt && isOverdue(t.dueAt) && t.status !== "COMPLETED");
+            .filter((tk) => tk.dueAt && dateTimeToDateStr(tk.dueAt) === dateStr)
+            .forEach((tk) => {
+              const overdue = !!(tk.dueAt && isOverdue(tk.dueAt) && tk.status !== "COMPLETED");
               items.push({
-                key: `task-${t.id}`,
-                time: dateTimeToTime(t.dueAt!),
-                sortKey: dateTimeToTime(t.dueAt!),
-                title: t.title,
-                subtitle: vt.label(t.category, TASK_CATEGORY_LABELS[t.category] || t.category),
-                color: overdue ? "#EF4444" : (TASK_PRIORITY_COLORS[t.priority] || "#9CA3AF"),
+                key: `task-${tk.id}`,
+                time: dateTimeToTime(tk.dueAt!),
+                sortKey: dateTimeToTime(tk.dueAt!),
+                title: tk.title,
+                subtitle: vt.label(tk.category, taskCategoryLabel(tk.category)),
+                color: overdue ? "#EF4444" : (TASK_PRIORITY_COLORS[tk.priority] || "#9CA3AF"),
                 href: "/tasks",
                 icon: overdue ? "⚠️" : "✅",
                 overdue,
@@ -3255,7 +3282,7 @@ function CalendarContent() {
                   time: dateTimeToTime(l.nextFollowUpAt),
                   sortKey: dateTimeToTime(l.nextFollowUpAt),
                   title: l.name,
-                  subtitle: l.requestedService || "פולואפ מכירות",
+                  subtitle: l.requestedService || t("agenda.salesFollowUp"),
                   color: overdue ? "#EF4444" : "#8B5CF6",
                   href: "/leads",
                   icon: overdue ? "⚠️" : "📞",
@@ -3270,7 +3297,7 @@ function CalendarContent() {
                   time: m.startTime,
                   sortKey: m.startTime,
                   title: leadMeetingLabel(m),
-                  subtitle: m.service ? m.service.name : `פגישה עד ${m.endTime}`,
+                  subtitle: m.service ? m.service.name : t("agenda.meetingUntil", { time: m.endTime }),
                   color: LEAD_MEETING_COLOR,
                   href: "/leads",
                   icon: "🤝",
@@ -3304,7 +3331,7 @@ function CalendarContent() {
                   time,
                   sortKey: time,
                   title: s.trainingGroup.name,
-                  subtitle: isWorkshop ? "סדנה" : "קבוצת אימון",
+                  subtitle: isWorkshop ? t("agenda.workshop") : t("agenda.groupTraining"),
                   color: isWorkshop ? "#EC4899" : "#8B5CF6",
                   href: "/training",
                   icon: isWorkshop ? "🎓" : "👥",
@@ -3323,7 +3350,7 @@ function CalendarContent() {
                   time,
                   sortKey: time,
                   title: label,
-                  subtitle: s.program.customer ? `${v("calendar.session_title_prefix")} · ${s.program.customer.name}` : v("calendar.session_title_prefix"),
+                  subtitle: s.program.customer ? t("agenda.sessionWith", { prefix: v("calendar.session_title_prefix"), name: s.program.customer.name }) : v("calendar.session_title_prefix"),
                   color: "#3B82F6",
                   href: "/training",
                   icon: v("calendar.session_icon"),
@@ -3362,8 +3389,8 @@ function CalendarContent() {
                     onClick={() => { setSelectedDay(date); setViewMode("day"); }}
                   >
                     <span className="min-w-0 truncate">
-                      {date.toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" })}
-                      {items.length > 0 && <span className="mr-2 text-xs font-normal text-petra-muted">{items.length} אירועים</span>}
+                      {date.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" })}
+                      {items.length > 0 && <span className="ms-2 text-xs font-normal text-petra-muted">{t("agenda.eventsCount", { count: items.length })}</span>}
                     </span>
                     <button
                       onClick={(e) => {
@@ -3372,20 +3399,20 @@ function CalendarContent() {
                         setShowNewModal(true);
                       }}
                       className="p-1 rounded-full text-petra-muted hover:text-brand-600 hover:bg-brand-50 transition-colors flex-shrink-0"
-                      title="הוסף תור ביום זה"
+                      title={t("addOnDay")}
                     >
                       <Plus className="w-4 h-4" />
                     </button>
                   </div>
                   {items.length === 0 ? (
-                    <div className="px-4 py-3 text-xs text-petra-muted">אין אירועים</div>
+                    <div className="px-4 py-3 text-xs text-petra-muted">{t("agenda.noEvents")}</div>
                   ) : (
                     <div className="divide-y divide-slate-50">
                       {items.map((item) => {
                         const rowClass = "flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition-colors";
                         const rowContent = (
                           <>
-                            <div className="w-12 text-xs font-mono text-petra-muted text-left flex-shrink-0">{item.time}</div>
+                            <div className="w-12 text-xs font-mono text-petra-muted text-end flex-shrink-0">{item.time}</div>
                             <div
                               className="w-1 self-stretch rounded-full flex-shrink-0"
                               style={{ background: item.color }}
@@ -3400,7 +3427,7 @@ function CalendarContent() {
                                 onClick={(e) => e.stopPropagation()}
                                 className="text-xs text-brand-600 hover:underline flex-shrink-0"
                               >
-                                כרטיס לקוח
+                                {t("agenda.customerCard")}
                               </a>
                             )}
                             {item.icon === "G" ? (
@@ -3475,7 +3502,7 @@ function CalendarContent() {
                   {selectedAppointment.customer.name}
                 </a>
                 <p className="text-xs text-petra-muted mt-0.5">
-                  {new Date(selectedAppointment.date).toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" })}
+                  {new Date(selectedAppointment.date).toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long" })}
                 </p>
               </div>
               <button
@@ -3509,7 +3536,7 @@ function CalendarContent() {
                 </div>
               )}
               <div className="text-petra-text font-medium">
-                {getAppointmentLabel(selectedAppointment)}
+                {aptLabel(selectedAppointment)}
               </div>
               {/* Notes section with inline edit */}
               <div className="group/notes">
@@ -3520,7 +3547,7 @@ function CalendarContent() {
                       rows={3}
                       value={notesInput}
                       onChange={(e) => setNotesInput(e.target.value)}
-                      placeholder="הוסף הערות לתור..."
+                      placeholder={t("detail.notesPlaceholder")}
                       autoFocus
                     />
                     <div className="flex gap-2">
@@ -3530,13 +3557,13 @@ function CalendarContent() {
                         onClick={() => notesMutation.mutate({ id: selectedAppointment.id, notes: notesInput })}
                       >
                         <Check className="w-3.5 h-3.5" />
-                        {notesMutation.isPending ? "שומר..." : "שמור הערות"}
+                        {notesMutation.isPending ? tc("progress.saving") : t("detail.saveNotes")}
                       </button>
                       <button
                         className="btn-secondary text-xs py-1.5 px-3"
                         onClick={() => { setEditingNotes(false); setNotesInput(selectedAppointment.notes ?? ""); }}
                       >
-                        ביטול
+                        {tc("actions.cancel")}
                       </button>
                     </div>
                   </div>
@@ -3545,11 +3572,11 @@ function CalendarContent() {
                     {selectedAppointment.notes ? (
                       <p className="text-petra-muted flex-1">{selectedAppointment.notes}</p>
                     ) : (
-                      <p className="text-petra-muted/50 text-xs italic flex-1">אין הערות</p>
+                      <p className="text-petra-muted/50 text-xs italic flex-1">{t("detail.noNotes")}</p>
                     )}
                     <button
                       className="w-6 h-6 flex items-center justify-center rounded text-slate-400 hover:text-brand-500 hover:bg-slate-100 transition-colors flex-shrink-0 md:opacity-0 md:group-hover/notes:opacity-100"
-                      title="ערוך הערות"
+                      title={t("detail.editNotes")}
                       onClick={() => { setNotesInput(selectedAppointment.notes ?? ""); setEditingNotes(true); }}
                     >
                       <Pencil className="w-3 h-3" />
@@ -3571,7 +3598,7 @@ function CalendarContent() {
             {/* Cancellation note */}
             {selectedAppointment.status === "canceled" && selectedAppointment.cancellationNote && (
               <div className="mt-2 px-3 py-2 rounded-lg bg-red-50 border border-red-100">
-                <p className="text-xs font-medium text-red-600 mb-0.5">סיבת ביטול</p>
+                <p className="text-xs font-medium text-red-600 mb-0.5">{t("detail.cancellationReason")}</p>
                 <p className="text-xs text-red-700">{selectedAppointment.cancellationNote}</p>
               </div>
             )}
@@ -3579,8 +3606,8 @@ function CalendarContent() {
             <a
               href={(() => {
                 const appt = selectedAppointment;
-                const date = new Date(appt.date).toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" });
-                const msg = `שלום ${appt.customer.name}! 😊\nתזכורת לתור שלך:\n📅 ${date} בשעה ${appt.startTime}\n${v("calendar.reminder_service_icon")} ${getAppointmentLabel(appt)}${appt.pet ? ` עם ${appt.pet.name}` : ""}\n\nנתראה! 🌟`;
+                const date = new Date(appt.date).toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" }); // i18n-ok — customer WhatsApp text (Phase 3)
+                const msg = `שלום ${appt.customer.name}! 😊\nתזכורת לתור שלך:\n📅 ${date} בשעה ${appt.startTime}\n${v("calendar.reminder_service_icon")} ${getAppointmentLabel(appt, "תור")}${appt.pet ? ` עם ${appt.pet.name}` : ""}\n\nנתראה! 🌟`; // i18n-ok — customer WhatsApp text (Phase 3)
                 return `https://api.whatsapp.com/send?phone=${toWhatsAppPhone(appt.customer.phone)}&text=${encodeURIComponent(msg)}`;
               })()}
               target="_blank"
@@ -3588,25 +3615,25 @@ function CalendarContent() {
               className="mt-3 w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-green-700 bg-green-50 hover:bg-green-100 border border-green-200 transition-colors"
             >
               <MessageCircle className="w-4 h-4" />
-              שלח תזכורת בוואטסאפ
+              {t("detail.sendWhatsappReminder")}
             </a>
 
             {/* Reschedule form */}
             {rescheduling && (
               <div className="mt-3 p-3 rounded-xl bg-brand-50 border border-brand-100 space-y-3">
-                <p className="text-xs font-semibold text-brand-700">העבר תור</p>
+                <p className="text-xs font-semibold text-brand-700">{t("detail.reschedule")}</p>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="label text-[10px]">תאריך</label>
+                    <label className="label text-[10px]">{t("detail.date")}</label>
                     <input
-                      type="date" lang="he"
+                      type="date" lang={cfg.lang}
                       className="input text-xs py-1.5"
                       value={rescheduleForm.date}
                       onChange={(e) => setRescheduleForm({ ...rescheduleForm, date: e.target.value })}
                     />
                   </div>
                   <div>
-                    <label className="label text-[10px]">שעת התחלה</label>
+                    <label className="label text-[10px]">{t("detail.startTime")}</label>
                     <input
                       type="time"
                       className="input text-xs py-1.5"
@@ -3623,7 +3650,7 @@ function CalendarContent() {
                   const newEnd = rescheduleForm.startTime ? addMinutes(rescheduleForm.startTime, origDur) : "";
                   return (
                     <p className="text-[10px] text-brand-600">
-                      משך התור נשמר ({origDur} דק׳){newEnd ? ` · סיום ${newEnd}` : ""}
+                      {t("detail.durationKept", { minutes: origDur })}{newEnd ? t("detail.endSuffix", { time: newEnd }) : ""}
                     </p>
                   );
                 })()}
@@ -3646,9 +3673,9 @@ function CalendarContent() {
                       });
                     }}
                   >
-                    {rescheduleMutation.isPending ? "שומר..." : "אשר העברה"}
+                    {rescheduleMutation.isPending ? tc("progress.saving") : t("detail.confirmMove")}
                   </button>
-                  <button className="btn-secondary text-xs" onClick={() => setRescheduling(false)}>ביטול</button>
+                  <button className="btn-secondary text-xs" onClick={() => setRescheduling(false)}>{tc("actions.cancel")}</button>
                 </div>
               </div>
             )}
@@ -3660,7 +3687,7 @@ function CalendarContent() {
                 className="mt-3 w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition-colors disabled:opacity-50"
               >
                 <Copy className="w-3.5 h-3.5" />
-                {duplicateMutation.isPending ? "משכפל..." : "שכפל תור (אותו מועד)"}
+                {duplicateMutation.isPending ? t("detail.duplicating") : t("detail.duplicate")}
               </button>
             )}
 
@@ -3671,7 +3698,7 @@ function CalendarContent() {
                 className="mt-3 w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
-                פתח הזמנה
+                {t("detail.openOrder")}
               </a>
             )}
 
@@ -3681,34 +3708,34 @@ function CalendarContent() {
               className="mt-3 w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm font-medium text-brand-700 bg-brand-50 hover:bg-brand-100 border border-brand-200 transition-colors"
             >
               <ExternalLink className="w-3.5 h-3.5" />
-              כרטיס לקוח
+              {t("detail.customerCard")}
             </a>
 
             <div className="flex flex-wrap gap-2 mt-2 pt-3 border-t border-slate-100">
               {confirmDeleteId === selectedAppointment.id ? (
                 <div className="flex-1 flex items-center gap-2 bg-red-50 rounded-xl px-3 py-2">
-                  <span className="text-xs text-red-700 flex-1">למחוק את התור לצמיתות?</span>
+                  <span className="text-xs text-red-700 flex-1">{t("detail.deleteConfirm")}</span>
                   <button
                     className="text-xs font-semibold text-red-600 hover:text-red-800"
                     disabled={deleteMutation.isPending}
                     onClick={() => deleteMutation.mutate(selectedAppointment.id)}
                   >
-                    {deleteMutation.isPending ? "..." : "כן, מחק"}
+                    {deleteMutation.isPending ? "..." : t("detail.yesDelete")}
                   </button>
                   <button
                     className="text-xs text-petra-muted hover:text-petra-text"
                     onClick={() => setConfirmDeleteId(null)}
                   >
-                    לא
+                    {t("detail.no")}
                   </button>
                 </div>
               ) : confirmCancelId === selectedAppointment.id ? (
                 <div className="flex-1 flex flex-col gap-2 bg-red-50 rounded-xl px-3 py-2">
-                  <span className="text-xs font-semibold text-red-700">לבטל את התור?</span>
+                  <span className="text-xs font-semibold text-red-700">{t("detail.cancelConfirm")}</span>
                   <input
                     type="text"
                     className="input text-xs py-1"
-                    placeholder="סיבת ביטול (אופציונלי)"
+                    placeholder={t("detail.cancelReasonPlaceholder")}
                     value={cancellationNote}
                     onChange={(e) => setCancellationNote(e.target.value)}
                   />
@@ -3722,13 +3749,13 @@ function CalendarContent() {
                         setCancellationNote("");
                       }}
                     >
-                      כן, בטל
+                      {t("detail.yesCancel")}
                     </button>
                     <button
                       className="text-xs text-petra-muted hover:text-petra-text"
                       onClick={() => { setConfirmCancelId(null); setCancellationNote(""); }}
                     >
-                      לא
+                      {t("detail.no")}
                     </button>
                   </div>
                 </div>
@@ -3739,7 +3766,7 @@ function CalendarContent() {
                       className="w-9 h-9 flex items-center justify-center rounded-xl bg-green-50 text-green-600 hover:bg-green-100 border border-transparent hover:border-green-200 transition-colors flex-shrink-0"
                       disabled={remindMutation.isPending}
                       onClick={() => remindMutation.mutate(selectedAppointment.id)}
-                      title="שלח תזכורת WhatsApp"
+                      title={t("detail.sendReminderTitle")}
                     >
                       <MessageCircle className="w-4 h-4" />
                     </button>
@@ -3755,7 +3782,7 @@ function CalendarContent() {
                         })
                       }
                     >
-                      הושלם
+                      {t("detail.completed")}
                     </button>
                   )}
                   {selectedAppointment.status === "scheduled" && (
@@ -3767,7 +3794,7 @@ function CalendarContent() {
                         setRescheduleForm({ date: dateStr, startTime: selectedAppointment.startTime, endTime: selectedAppointment.endTime });
                         setRescheduling(true);
                       }}
-                      title="העבר תור"
+                      title={t("detail.reschedule")}
                     >
                       <Clock className="w-3.5 h-3.5" />
                     </button>
@@ -3777,7 +3804,7 @@ function CalendarContent() {
                       className="w-9 h-9 flex items-center justify-center rounded-xl text-amber-500 hover:bg-amber-50 border border-transparent hover:border-amber-200 transition-colors flex-shrink-0"
                       disabled={statusMutation.isPending}
                       onClick={() => statusMutation.mutate({ id: selectedAppointment.id, status: "no_show" })}
-                      title="לא הגיע"
+                      title={t("detail.noShow")}
                     >
                       <UserX className="w-4 h-4" />
                     </button>
@@ -3787,7 +3814,7 @@ function CalendarContent() {
                       className="btn-danger flex-1 text-xs"
                       onClick={() => setConfirmCancelId(selectedAppointment.id)}
                     >
-                      בטל תור
+                      {t("detail.cancelAppointment")}
                     </button>
                   )}
                   {selectedAppointment.status === "completed" && (
@@ -3797,20 +3824,20 @@ function CalendarContent() {
                         onClick={() => setShowQuickPayment(true)}
                       >
                         <CreditCard className="w-3.5 h-3.5" />
-                        הוסף תשלום
+                        {t("detail.addPayment")}
                       </button>
                       {selectedAppointment.customer.phone && (
                         <a
                           href={(() => {
                             const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
                             const bookingUrl = `${baseUrl}/book/${user?.businessSlug || user?.businessId || ""}`;
-                            const msg = `שלום ${selectedAppointment.customer.name}! 😊\nתודה על הביקור! מוזמנ/ת לקבוע את התור הבא:\n${bookingUrl}\n${v("calendar.next_booking_signoff")}`;
+                            const msg = `שלום ${selectedAppointment.customer.name}! 😊\nתודה על הביקור! מוזמנ/ת לקבוע את התור הבא:\n${bookingUrl}\n${vData("calendar.next_booking_signoff")}`; // i18n-ok — customer WhatsApp text (Phase 3)
                             return `https://api.whatsapp.com/send?phone=${toWhatsAppPhone(selectedAppointment.customer.phone)}&text=${encodeURIComponent(msg)}`;
                           })()}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="w-9 h-9 flex items-center justify-center rounded-xl bg-green-50 text-green-600 hover:bg-green-100 border border-transparent hover:border-green-200 transition-colors flex-shrink-0"
-                          title="שלח לינק לתור הבא"
+                          title={t("detail.sendNextLinkTitle")}
                         >
                           <MessageCircle className="w-4 h-4" />
                         </a>
@@ -3820,7 +3847,7 @@ function CalendarContent() {
                   <button
                     className="w-9 h-9 flex items-center justify-center rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 border border-transparent hover:border-red-200 transition-colors flex-shrink-0"
                     onClick={() => setConfirmDeleteId(selectedAppointment.id)}
-                    title="מחק תור"
+                    title={t("detail.deleteAppointment")}
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>

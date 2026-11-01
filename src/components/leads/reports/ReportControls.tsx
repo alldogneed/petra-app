@@ -1,6 +1,8 @@
 "use client";
 
 import { CalendarRange } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { cn } from "@/lib/utils";
 import type { LeadReportBasis } from "@/lib/analytics-types";
 import { BASIS_OPTIONS, RANGE_PRESETS, type RangePreset } from "./format";
@@ -28,13 +30,17 @@ export function ReportControls({
   basis,
   onBasisChange,
 }: ReportControlsProps) {
-  const basisHint = BASIS_OPTIONS.find((b) => b.id === basis)?.hint;
+  const t = useTranslations("leads.reportControls");
+  const tl = useTranslations("leads");
+  const { cfg } = useBusinessLocale();
+  const basisHintKey = BASIS_OPTIONS.find((b) => b.id === basis)?.hintKey;
+  const basisHint = basisHintKey ? tl(basisHintKey) : undefined;
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-4 space-y-3">
       <div className="flex items-center gap-2">
         <CalendarRange className="w-4 h-4 text-brand-500 flex-shrink-0" />
-        <span className="text-sm font-semibold text-petra-text">טווח תאריכים</span>
+        <span className="text-sm font-semibold text-petra-text">{t("dateRange")}</span>
       </div>
 
       <div className="flex items-center gap-1.5 flex-wrap">
@@ -49,7 +55,7 @@ export function ReportControls({
             )}
           >
             {r.id === "custom" && <CalendarRange className="w-3 h-3" />}
-            {r.label}
+            {tl(r.labelKey)}
           </button>
         ))}
       </div>
@@ -58,10 +64,10 @@ export function ReportControls({
         <div className="pt-2 border-t border-slate-100 space-y-1.5">
           <div className="flex items-end gap-3 flex-wrap">
             <div>
-              <label className="text-[11px] font-medium text-petra-muted block mb-1">מתאריך</label>
+              <label className="text-[11px] font-medium text-petra-muted block mb-1">{t("fromDate")}</label>
               <input
                 type="date"
-                lang="he"
+                lang={cfg.lang}
                 className="input h-9 text-sm w-36"
                 value={customFrom}
                 max={customTo || undefined}
@@ -69,10 +75,10 @@ export function ReportControls({
               />
             </div>
             <div>
-              <label className="text-[11px] font-medium text-petra-muted block mb-1">עד תאריך</label>
+              <label className="text-[11px] font-medium text-petra-muted block mb-1">{t("toDate")}</label>
               <input
                 type="date"
-                lang="he"
+                lang={cfg.lang}
                 className="input h-9 text-sm w-36"
                 value={customTo}
                 min={customFrom || undefined}
@@ -85,7 +91,7 @@ export function ReportControls({
       )}
 
       <div className="pt-2 border-t border-slate-100 space-y-1.5">
-        <div className="inline-flex max-w-full rounded-lg bg-slate-100 p-0.5" role="radiogroup" aria-label="בסיס החישוב">
+        <div className="inline-flex max-w-full rounded-lg bg-slate-100 p-0.5" role="radiogroup" aria-label={t("basisAriaLabel")}>
           {BASIS_OPTIONS.map((b) => (
             <button
               key={b.id}
@@ -98,7 +104,7 @@ export function ReportControls({
                 basis === b.id ? "bg-white text-petra-text shadow-sm" : "text-petra-muted hover:text-petra-text"
               )}
             >
-              {b.label}
+              {tl(b.labelKey)}
             </button>
           ))}
         </div>

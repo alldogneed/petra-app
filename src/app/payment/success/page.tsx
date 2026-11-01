@@ -3,19 +3,16 @@
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState, Suspense } from "react";
 import { CheckCircle2, Loader2 } from "lucide-react";
-
-const TIER_LABELS: Record<string, string> = {
-  basic:       "בייסיק",
-  pro:         "פרו",
-  groomer:     "גרומר+",
-  service_dog: "Service Dog",
-};
+import { useLocale, useTranslations } from "next-intl";
+import { LOCALE_CONFIG, localeFromBusiness } from "@/lib/locale";
 
 function SuccessContent() {
   const searchParams = useSearchParams();
+  const t = useTranslations("checkout.paymentResultSuccessPage");
+  const cfg = LOCALE_CONFIG[localeFromBusiness({ locale: useLocale() })];
   const tier = searchParams.get("tier") ?? "";
   const isNewUser = searchParams.get("newuser") === "1";
-  const tierLabel = TIER_LABELS[tier] ?? tier;
+  const tierLabel = t.has(`tiers.${tier}`) ? t(`tiers.${tier}`) : tier;
   const [activating, setActivating] = useState(!isNewUser); // New users already activated by success-redirect
   const [activated, setActivated] = useState(isNewUser);     // New users arrive pre-activated
 
@@ -63,43 +60,47 @@ function SuccessContent() {
   }, [isNewUser]);
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-green-50 to-white p-8 text-center" dir="rtl">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-green-50 to-white p-8 text-center" dir={cfg.dir}>
       <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center mb-6">
         <CheckCircle2 className="w-10 h-10 text-green-500" />
       </div>
-      <h1 className="text-3xl font-bold text-slate-900 mb-3">התשלום הצליח!</h1>
+      <h1 className="text-3xl font-bold text-slate-900 mb-3">{t("title")}</h1>
       {tierLabel && (
         <p className="text-lg text-slate-600 mb-2">
-          המנוי שלך למסלול <span className="font-bold text-green-600">{tierLabel}</span> {activated ? "פעיל עכשיו" : "מופעל..."}
+          {t.rich("subscriptionStatus", {
+            tierLabel,
+            status: activated ? t("statusActive") : t("statusActivating"),
+            tier: (chunks) => <span className="font-bold text-green-600">{chunks}</span>,
+          })}
         </p>
       )}
       {activating && (
         <div className="flex items-center gap-2 text-slate-400 text-sm mb-4">
           <Loader2 className="w-4 h-4 animate-spin" />
-          מפעיל את המנוי...
+          {t("activating")}
         </div>
       )}
       {isNewUser ? (
         <>
           <p className="text-slate-600 text-sm mb-2">
-            שלחנו לך אימייל עם פרטי ההתחברות למערכת.
+            {t("loginEmailSent")}
           </p>
-          <p className="text-slate-400 text-sm mb-8">מועבר לדף ההתחברות בעוד מספר שניות...</p>
+          <p className="text-slate-400 text-sm mb-8">{t("redirectingToLogin")}</p>
           <button
             onClick={() => window.location.replace("/login")}
             className="px-6 py-3 rounded-xl bg-green-500 hover:bg-green-600 text-white font-semibold transition-colors"
           >
-            התחבר עכשיו
+            {t("loginNow")}
           </button>
         </>
       ) : (
         <>
-          <p className="text-slate-400 text-sm mb-8">מועבר לדאשבורד בעוד מספר שניות...</p>
+          <p className="text-slate-400 text-sm mb-8">{t("redirectingToDashboard")}</p>
           <button
             onClick={() => window.location.replace("/dashboard")}
             className="px-6 py-3 rounded-xl bg-green-500 hover:bg-green-600 text-white font-semibold transition-colors"
           >
-            עבור לדאשבורד עכשיו
+            {t("goToDashboardNow")}
           </button>
         </>
       )}

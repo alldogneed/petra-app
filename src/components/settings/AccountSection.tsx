@@ -3,11 +3,18 @@ import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { Loader2, AlertCircle, Shield, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { useAuth } from "@/providers/auth-provider";
 import { useRegisterDirty } from "./SettingsDirtyContext";
 
 export function ChangePasswordSection() {
+  const t = useTranslations("settings.accountSection");
   const { user } = useAuth();
+  const { cfg } = useBusinessLocale();
+  // The inputs are dir="ltr", so logical padding would follow the INPUT's direction —
+  // pick the physical side of the eye button (parent end) from the business direction.
+  const eyeButtonPad = cfg.dir === "rtl" ? "pl-10" : "pr-10"; // rtl-ok
   const isGoogleOnly = user?.authProvider === "google" && !user?.hasPassword;
 
   const [currentPassword, setCurrentPassword] = useState("");
@@ -26,11 +33,11 @@ export function ChangePasswordSection() {
         body: JSON.stringify({ currentPassword, newPassword }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "שגיאה");
+      if (!res.ok) throw new Error(data.error || t("genericError"));
       return data;
     },
     onSuccess: () => {
-      toast.success("הסיסמה שונתה בהצלחה");
+      toast.success(t("passwordChanged"));
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
@@ -47,11 +54,11 @@ export function ChangePasswordSection() {
         body: JSON.stringify({ newPassword }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "שגיאה");
+      if (!res.ok) throw new Error(data.error || t("genericError"));
       return data;
     },
     onSuccess: () => {
-      toast.success("הסיסמה הוגדרה בהצלחה — כעת ניתן להתחבר גם עם אימייל וסיסמה");
+      toast.success(t("passwordSet"));
       setNewPassword("");
       setConfirmPassword("");
       setError(null);
@@ -64,19 +71,19 @@ export function ChangePasswordSection() {
   function handleSubmit() {
     setError(null);
     if (!isGoogleOnly && !currentPassword) {
-      setError("יש למלא את כל השדות");
+      setError(t("fillAllFields"));
       return;
     }
     if (!newPassword || !confirmPassword) {
-      setError("יש למלא את כל השדות");
+      setError(t("fillAllFields"));
       return;
     }
     if (newPassword.length < 12) {
-      setError("הסיסמה החדשה חייבת להכיל לפחות 12 תווים");
+      setError(t("minLength"));
       return;
     }
     if (newPassword !== confirmPassword) {
-      setError("הסיסמאות אינן תואמות");
+      setError(t("mismatch"));
       return;
     }
     mutation.mutate();
@@ -87,7 +94,7 @@ export function ChangePasswordSection() {
       <div className="flex items-center gap-2 mb-4">
         <Shield className="w-4 h-4 text-brand-500" />
         <h3 className="text-sm font-semibold text-petra-text">
-          {isGoogleOnly ? "הגדרת סיסמה" : "שינוי סיסמה"}
+          {isGoogleOnly ? t("setPasswordTitle") : t("changePasswordTitle")}
         </h3>
       </div>
 
@@ -95,7 +102,7 @@ export function ChangePasswordSection() {
         <div className="flex items-start gap-2 p-3 bg-brand-50 border border-brand-100 rounded-xl text-sm text-brand-800 mb-4">
           <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-brand-500" />
           <p>
-            חשבונך מחובר דרך Google. באפשרותך להגדיר סיסמה כדי להתחבר גם עם אימייל וסיסמה בנוסף לכניסה עם Google.
+            {t("googleOnlyNotice")}
           </p>
         </div>
       )}
@@ -103,10 +110,10 @@ export function ChangePasswordSection() {
       <div className="space-y-3">
         {!isGoogleOnly && (
           <div>
-            <label className="label">סיסמה נוכחית</label>
+            <label className="label">{t("currentPassword")}</label>
             <div className="relative">
               <input
-                className="input w-full pl-10"
+                className={`input w-full ${eyeButtonPad}`}
                 type={showCurrent ? "text" : "password"}
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
@@ -115,7 +122,7 @@ export function ChangePasswordSection() {
               />
               <button
                 type="button"
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-petra-muted hover:text-petra-text"
+                className="absolute end-3 top-1/2 -translate-y-1/2 text-petra-muted hover:text-petra-text"
                 onClick={() => setShowCurrent((v) => !v)}
               >
                 {showCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -124,19 +131,19 @@ export function ChangePasswordSection() {
           </div>
         )}
         <div>
-          <label className="label">{isGoogleOnly ? "סיסמה חדשה" : "סיסמה חדשה"}</label>
+          <label className="label">{t("newPassword")}</label>
           <div className="relative">
             <input
-              className="input w-full pl-10"
+              className={`input w-full ${eyeButtonPad}`}
               type={showNew ? "text" : "password"}
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               dir="ltr"
-              placeholder="לפחות 8 תווים"
+              placeholder={t("newPasswordPlaceholder")}
             />
             <button
               type="button"
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-petra-muted hover:text-petra-text"
+              className="absolute end-3 top-1/2 -translate-y-1/2 text-petra-muted hover:text-petra-text"
               onClick={() => setShowNew((v) => !v)}
             >
               {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -144,14 +151,14 @@ export function ChangePasswordSection() {
           </div>
         </div>
         <div>
-          <label className="label">אימות סיסמה</label>
+          <label className="label">{t("confirmPassword")}</label>
           <input
             className="input w-full"
             type="password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             dir="ltr"
-            placeholder="הזן שוב את הסיסמה"
+            placeholder={t("confirmPlaceholder")}
           />
         </div>
         {error && (
@@ -167,8 +174,8 @@ export function ChangePasswordSection() {
         >
           {mutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}
           {mutation.isPending
-            ? isGoogleOnly ? "מגדיר..." : "מחליף..."
-            : isGoogleOnly ? "הגדר סיסמה" : "החלף סיסמה"}
+            ? isGoogleOnly ? t("setting") : t("changing")
+            : isGoogleOnly ? t("setPassword") : t("changePassword")}
         </button>
       </div>
     </div>

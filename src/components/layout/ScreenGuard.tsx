@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { Lock, SearchX } from "lucide-react";
 import type { ReactNode } from "react";
 import { useAuth } from "@/providers/auth-provider";
@@ -19,6 +20,7 @@ import { isScreenHiddenForVertical } from "@/lib/verticals";
 export function ScreenGuard({ children }: { children: ReactNode }) {
   const pathname = usePathname() ?? "";
   const { user, loading } = useAuth();
+  const t = useTranslations("layout.screenGuard");
 
   if (!loading && user && isScreenHiddenForVertical(user.businessVertical, pathname)) {
     return (
@@ -27,10 +29,10 @@ export function ScreenGuard({ children }: { children: ReactNode }) {
           <div className="w-12 h-12 mx-auto mb-4 rounded-2xl bg-slate-100 flex items-center justify-center">
             <SearchX className="w-5 h-5 text-petra-muted" />
           </div>
-          <h1 className="text-lg font-bold text-petra-text mb-1">הדף לא נמצא</h1>
-          <p className="text-sm text-petra-muted mb-5">המסך הזה לא קיים בעסק שלך.</p>
+          <h1 className="text-lg font-bold text-petra-text mb-1">{t("notFoundTitle")}</h1>
+          <p className="text-sm text-petra-muted mb-5">{t("notFoundBody")}</p>
           <Link href="/dashboard" className="btn-primary inline-flex">
-            חזרה לדשבורד
+            {t("backToDashboard")}
           </Link>
         </div>
       </div>
@@ -46,12 +48,12 @@ export function ScreenGuard({ children }: { children: ReactNode }) {
         <div className="w-12 h-12 mx-auto mb-4 rounded-2xl bg-slate-100 flex items-center justify-center">
           <Lock className="w-5 h-5 text-petra-muted" />
         </div>
-        <h1 className="text-lg font-bold text-petra-text mb-1">אין לך גישה למסך הזה</h1>
+        <h1 className="text-lg font-bold text-petra-text mb-1">{t("title")}</h1>
         <p className="text-sm text-petra-muted mb-5">
-          בעל העסק יכול לפתוח אותו עבורך בהגדרות ← צוות והרשאות.
+          {t("body")}
         </p>
         <Link href="/dashboard" className="btn-primary inline-flex">
-          חזרה לדשבורד
+          {t("backToDashboard")}
         </Link>
       </div>
     </div>

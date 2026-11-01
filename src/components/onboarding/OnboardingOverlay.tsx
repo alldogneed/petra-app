@@ -9,6 +9,8 @@ import {
 } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { X, CheckCircle2 } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 
 import { TOTAL_STEPS, getStepConfig, buildOnboardingUrl } from "@/lib/onboarding-state";
 import { trackOnboardingEvent, secondsBetween } from "@/lib/onboarding-analytics";
@@ -24,15 +26,17 @@ function ProgressBar({
   total: number;
   onExit: () => void;
 }) {
+  const t = useTranslations("onboarding.onboardingOverlay");
+  const { cfg } = useBusinessLocale();
   const pct = (step / total) * 100;
   return (
     <div
-      className="fixed top-0 left-0 right-0 z-[70] bg-white border-b border-petra-border shadow-sm"
-      style={{ direction: "rtl" }}
+      className="fixed top-0 end-0 start-0 z-[70] bg-white border-b border-petra-border shadow-sm"
+      style={{ direction: cfg.dir }}
     >
       <div className="flex items-center h-14 px-4 max-w-5xl mx-auto gap-3">
         <span className="text-sm font-semibold text-petra-text whitespace-nowrap">
-          שלב {step} מתוך {total}
+          {t("progressBar.stepOf", { step, total })}
         </span>
         <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
           <div
@@ -47,7 +51,7 @@ function ProgressBar({
           onClick={onExit}
           className="flex items-center gap-1.5 text-xs text-petra-muted hover:text-petra-text transition-colors px-2 py-1.5 rounded-lg hover:bg-slate-50 shrink-0"
         >
-          <span className="hidden sm:inline">יציאה מהדרכה</span>
+          <span className="hidden sm:inline">{t("progressBar.exit")}</span>
           <X className="w-4 h-4" />
         </button>
       </div>
@@ -64,6 +68,7 @@ function Spotlight({
   tooltipText: string;
   tooltipPosition: "top" | "bottom" | "left" | "right";
 }) {
+  const { cfg } = useBusinessLocale();
   const [rect, setRect] = useState<DOMRect | null>(null);
   const rafRef = useRef<number>(0);
 
@@ -116,7 +121,7 @@ function Spotlight({
     position: "fixed",
     zIndex: 66,
     maxWidth: 280,
-    direction: "rtl",
+    direction: cfg.dir,
   };
   const GAP = 12;
   switch (tooltipPosition) {
@@ -173,6 +178,7 @@ function SuccessToast({
   msg: string;
   onDone: () => void;
 }) {
+  const { cfg } = useBusinessLocale();
   useEffect(() => {
     const t = setTimeout(onDone, 2800);
     return () => clearTimeout(t);
@@ -180,8 +186,8 @@ function SuccessToast({
 
   return (
     <div
-      className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[80] animate-slide-up"
-      style={{ direction: "rtl" }}
+      className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[80] animate-slide-up" /* rtl-ok: centered */
+      style={{ direction: cfg.dir }}
     >
       <div className="bg-white rounded-2xl shadow-modal border border-emerald-100 px-5 py-3.5 flex items-center gap-3 min-w-[260px]">
         <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center shrink-0 text-lg">
@@ -200,25 +206,27 @@ function SkipModal({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  const t = useTranslations("onboarding.onboardingOverlay");
+  const { cfg } = useBusinessLocale();
   return (
     <div className="modal-overlay z-[90]">
       <div className="modal-backdrop" onClick={onCancel} />
       <div
         className="modal-content max-w-sm p-6 text-center animate-scale-in"
-        style={{ direction: "rtl" }}
+        style={{ direction: cfg.dir }}
       >
         <p className="text-base font-semibold text-petra-text mb-2">
-          בטוח שתרצה לדלג?
+          {t("skipModal.title")}
         </p>
         <p className="text-sm text-petra-muted mb-6">
-          אפשר לחזור לזה אחר כך מתפריט ההגדרות.
+          {t("skipModal.body")}
         </p>
         <div className="flex gap-3 justify-center">
           <button onClick={onCancel} className="btn-secondary flex-1">
-            חזרה
+            {t("skipModal.back")}
           </button>
           <button onClick={onConfirm} className="btn-danger flex-1">
-            דלג
+            {t("skipModal.skip")}
           </button>
         </div>
       </div>
@@ -235,12 +243,14 @@ function EnableRemindersModal({
   onSkip: () => void;
   loading: boolean;
 }) {
+  const t = useTranslations("onboarding.onboardingOverlay");
+  const { cfg } = useBusinessLocale();
   return (
     <div className="modal-overlay z-[80]">
       <div className="modal-backdrop" />
       <div
         className="modal-content max-w-sm p-6 text-center animate-scale-in"
-        style={{ direction: "rtl" }}
+        style={{ direction: cfg.dir }}
       >
         <div
           className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5"
@@ -252,25 +262,25 @@ function EnableRemindersModal({
           <span className="text-3xl">🔔</span>
         </div>
         <h3 className="text-lg font-bold text-petra-text mb-2">
-          תזכורות אוטומטיות
+          {t("remindersModal.title")}
         </h3>
         <p className="text-sm text-petra-muted mb-6 leading-relaxed">
-          פטרה יכולה לשלוח תזכורת אוטומטית 48 שעות לפני השירות.
+          {t("remindersModal.bodyLine1")}
           <br />
-          רוצה להפעיל?
+          {t("remindersModal.bodyLine2")}
         </p>
         <button
           onClick={onEnabled}
           disabled={loading}
           className="btn-primary w-full justify-center py-3 text-base mb-3"
         >
-          {loading ? "מפעיל..." : "הפעל תזכורות"}
+          {loading ? t("remindersModal.enabling") : t("remindersModal.enable")}
         </button>
         <button
           onClick={onSkip}
           className="text-sm text-petra-muted hover:text-petra-text transition-colors"
         >
-          דלג לעכשיו
+          {t("remindersModal.skipForNow")}
         </button>
       </div>
     </div>
@@ -278,13 +288,20 @@ function EnableRemindersModal({
 }
 
 function CompletionModal({ onDone }: { onDone: () => void }) {
-  const checks = ["לקוח נוסף", "כלב נוסף", "תור נקבע", "תזכורת הופעלה"];
+  const t = useTranslations("onboarding.onboardingOverlay");
+  const { cfg } = useBusinessLocale();
+  const checks = [
+    t("completionModal.checks.customerAdded"),
+    t("completionModal.checks.petAdded"),
+    t("completionModal.checks.appointmentSet"),
+    t("completionModal.checks.reminderEnabled"),
+  ];
   return (
     <div className="modal-overlay z-[80]">
       <div className="modal-backdrop" />
       <div
         className="modal-content max-w-md p-8 text-center animate-scale-in"
-        style={{ direction: "rtl" }}
+        style={{ direction: cfg.dir }}
       >
         <div
           className="w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-6"
@@ -296,14 +313,14 @@ function CompletionModal({ onDone }: { onDone: () => void }) {
           <CheckCircle2 className="w-10 h-10 text-white" />
         </div>
         <h2 className="text-2xl font-bold text-petra-text mb-2">
-          העסק שלך כבר נראה אחרת.
+          {t("completionModal.title")}
         </h2>
         <p className="text-sm text-petra-muted mb-6 leading-relaxed">
-          בעלי עסקים בתחום הכלבים עובדים קשה.
+          {t("completionModal.humanLine1")}
           <br />
-          פטרה כאן כדי להוריד ממך עומס.
+          {t("completionModal.humanLine2")}
         </p>
-        <div className="space-y-2.5 mb-8 text-right max-w-xs mx-auto">
+        <div className="space-y-2.5 mb-8 text-start max-w-xs mx-auto">
           {checks.map((c) => (
             <div
               key={c}
@@ -318,7 +335,7 @@ function CompletionModal({ onDone }: { onDone: () => void }) {
           onClick={onDone}
           className="btn-primary text-base py-3 px-8 inline-flex"
         >
-          המשך לדשבורד
+          {t("completionModal.continueToDashboard")}
         </button>
       </div>
     </div>

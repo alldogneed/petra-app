@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 
 interface AddCustomerFormProps {
   open: boolean;
@@ -20,6 +21,8 @@ export function AddCustomerForm({
   const [petName, setPetName] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const t = useTranslations("onboarding.addCustomerForm");
+  const tc = useTranslations("common");
 
   if (!open) return null;
 
@@ -28,7 +31,7 @@ export function AddCustomerForm({
     setError("");
 
     if (!name.trim() || !phone.trim() || !petName.trim()) {
-      setError("יש למלא את כל השדות");
+      setError(t("errors.fillAll"));
       return;
     }
 
@@ -61,7 +64,7 @@ export function AddCustomerForm({
 
       onSaved({ id: customer.id, name: customer.name });
     } catch {
-      setError("שגיאה בשמירה. נסה שוב.");
+      setError(t("errors.saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -74,28 +77,28 @@ export function AddCustomerForm({
       <div className="modal-backdrop" onClick={onClose} />
       <div className="modal-content max-w-sm p-6 animate-scale-in">
         <h3 className="text-lg font-bold text-petra-text mb-1">
-          הוסף לקוח ראשון
+          {t("title")}
         </h3>
         <p className="text-sm text-petra-muted mb-5">
-          רק הפרטים הבסיסיים — תמיד אפשר להוסיף עוד אחר כך.
+          {t("subtitle")}
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="label">שם לקוח</label>
+            <label className="label">{t("fields.name")}</label>
             <input
               type="text"
               className="input"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="ישראל ישראלי"
+              placeholder={t("placeholders.name")}
               autoFocus
               disabled={isLoading}
             />
           </div>
 
           <div>
-            <label className="label">טלפון</label>
+            <label className="label">{t("fields.phone")}</label>
             <input
               type="tel"
               className="input"
@@ -108,13 +111,13 @@ export function AddCustomerForm({
           </div>
 
           <div>
-            <label className="label">שם הכלב</label>
+            <label className="label">{t("fields.petName")}</label>
             <input
               type="text"
               className="input"
               value={petName}
               onChange={(e) => setPetName(e.target.value)}
-              placeholder="רקסי"
+              placeholder={t("placeholders.petName")}
               disabled={isLoading}
             />
           </div>
@@ -128,7 +131,7 @@ export function AddCustomerForm({
             disabled={isLoading}
             className="btn-primary w-full justify-center py-3"
           >
-            {isLoading ? "שומר..." : "שמור והמשך"}
+            {isLoading ? tc("progress.saving") : t("saveAndContinue")}
           </button>
         </form>
       </div>

@@ -3,6 +3,10 @@
 import { Lock, Crown, Sparkles, ArrowLeft } from "lucide-react";
 import { getTierDisplay, type TierKey } from "@/lib/feature-flags";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
+import { currencySymbol } from "@/lib/format";
+import { planPrice, planPriceCurrency } from "@/lib/plan-prices";
 
 interface PaywallCardProps {
   title: string;
@@ -61,17 +65,26 @@ export function PaywallCard({
   variant = "page",
 }: PaywallCardProps) {
   const router = useRouter();
-  const display = getTierDisplay(requiredTier);
+  const t = useTranslations("paywall.paywallCard");
+  const { locale, currency, cfg } = useBusinessLocale();
+  // Price in the business's pricing currency (plan-prices.ts); null = not sold there → no price shown
+  const symbol = currencySymbol({ locale, currency: planPriceCurrency(currency) });
+  const tierDisplay = getTierDisplay(requiredTier);
+  const display = { name: tierDisplay.name, price: planPrice(requiredTier, currency) ?? 0 };
   const colors = TIER_COLORS[requiredTier];
 
-  const badge = badgeLabel ?? `מסלול ${display.name}`;
-  const cta = ctaLabel ?? `שדרג למסלול ${display.name}${display.price > 0 ? ` — ₪${display.price}/חודש` : ""}`;
+  const badge = badgeLabel ?? t("badge", { planName: display.name });
+  const cta =
+    ctaLabel ??
+    (display.price > 0
+      ? t("ctaWithPrice", { planName: display.name, currencySymbol: symbol, price: display.price })
+      : t("cta", { planName: display.name }));
 
   if (variant === "inline") {
     return (
       <div
         className={`rounded-xl border ${colors.border} bg-gradient-to-br ${colors.bg} p-5 flex items-start gap-4`}
-        dir="rtl"
+        dir={cfg.dir}
       >
         <div className={`mt-0.5 flex-shrink-0 ${colors.icon}`}>
           <Lock className="w-5 h-5" />
@@ -90,7 +103,7 @@ export function PaywallCard({
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] p-6" dir="rtl">
+    <div className="flex flex-col items-center justify-center min-h-[60vh] p-6" dir={cfg.dir}>
       <div
         className={`w-full max-w-md rounded-2xl border-2 ${colors.border} bg-gradient-to-br ${colors.bg} p-8 text-center shadow-sm`}
       >
@@ -115,12 +128,12 @@ export function PaywallCard({
           className="inline-flex items-center justify-center gap-2 w-full py-3 px-6 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-colors shadow-sm"
         >
           {cta}
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeft className="w-4 h-4 ltr:-scale-x-100" />
         </button>
 
         {display.price > 0 && (
           <p className="text-xs text-slate-400 mt-3">
-            ₪{display.price} לחודש · ביטול בכל עת
+            {t("priceNote", { currencySymbol: symbol, price: display.price })}
           </p>
         )}
       </div>

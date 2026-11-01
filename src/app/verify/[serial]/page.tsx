@@ -1,6 +1,8 @@
 import { cache } from "react";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import { getLocale, getTimeZone, getTranslations } from "next-intl/server";
+import { LOCALE_CONFIG, localeFromBusiness } from "@/lib/locale";
 import { getCertificateBySerial } from "@/services/certificates";
 import CertificateView from "@/components/online-classes/CertificateView";
 
@@ -27,12 +29,16 @@ const loadCertificate = cache(async (rawSerial: string) => {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const certificate = await loadCertificate(params.serial);
+  const t = await getTranslations("auth.verifyDetailPage");
   if (!certificate) {
-    return { title: "תעודה לא נמצאה", robots: { index: false, follow: false } };
+    return { title: t("meta.notFoundTitle"), robots: { index: false, follow: false } };
   }
   return {
-    title: `תעודת סיום — ${certificate.studentName}`,
-    description: `אימות תעודת סיום הקורס "${certificate.courseTitle}" מטעם ${certificate.businessName}`,
+    title: t("meta.title", { studentName: certificate.studentName }),
+    description: t("meta.description", {
+      courseTitle: certificate.courseTitle,
+      businessName: certificate.businessName,
+    }),
     robots: { index: false, follow: false },
   };
 }
@@ -41,8 +47,13 @@ export default async function VerifyCertificatePage({ params }: Props) {
   const certificate = await loadCertificate(params.serial);
   if (!certificate) notFound();
 
-  const verifiedDate = new Intl.DateTimeFormat("he-IL", {
-    timeZone: "Asia/Jerusalem",
+  const t = await getTranslations("auth.verifyDetailPage");
+  const locale = localeFromBusiness({ locale: await getLocale() });
+  const cfg = LOCALE_CONFIG[locale];
+  const timeZone = await getTimeZone();
+
+  const verifiedDate = new Intl.DateTimeFormat(locale, {
+    timeZone,
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
@@ -51,13 +62,13 @@ export default async function VerifyCertificatePage({ params }: Props) {
   const isRevoked = certificate.revokedAt != null;
 
   return (
-    <main dir="rtl" className="min-h-screen bg-gray-50 px-4 py-8 sm:py-12">
+    <main dir={cfg.dir} className="min-h-screen bg-gray-50 px-4 py-8 sm:py-12">
       <div className="mx-auto w-full max-w-4xl">
         {isRevoked ? (
           <div className="petra-cert-noprint mb-6 rounded-2xl border-2 border-red-300 bg-red-50 px-5 py-4 text-center">
-            <p className="text-lg font-bold text-red-700">תעודה זו בוטלה</p>
+            <p className="text-lg font-bold text-red-700">{t("revokedBanner.title")}</p>
             <p className="mt-1 text-sm text-red-600">
-              התעודה אינה תקפה עוד ואין להסתמך עליה.
+              {t("revokedBanner.body")}
             </p>
           </div>
         ) : null}
@@ -68,7 +79,7 @@ export default async function VerifyCertificatePage({ params }: Props) {
           {isRevoked ? (
             <div className="petra-cert-noprint pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
               <span className="-rotate-12 rounded-lg border-4 border-red-500 px-6 py-2 text-3xl font-extrabold uppercase tracking-widest text-red-500 sm:text-5xl">
-                בוטלה
+                {t("revokedStamp")}
               </span>
             </div>
           ) : null}
@@ -89,11 +100,11 @@ export default async function VerifyCertificatePage({ params }: Props) {
 
         {isRevoked ? (
           <p className="petra-cert-noprint mt-6 text-center text-sm text-red-600">
-            תעודה זו בוטלה ואינה תקפה.
+            {t("revokedFooter")}
           </p>
         ) : (
           <p className="petra-cert-noprint mt-6 text-center text-sm text-gray-600">
-            ✓ תעודה זו אומתה — הונפקה בתאריך {verifiedDate}
+            {t("verifiedFooter", { date: verifiedDate })}
           </p>
         )}
       </div>

@@ -1,9 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useCallback, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { ArrowUpRight, ArrowDownRight, Minus } from "lucide-react";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { formatCurrency } from "@/lib/format";
+import { DEFAULT_LOCALE, LOCALE_CONFIG } from "@/lib/locale";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 
 // Shared building blocks for the /analytics ("דוחות") tabs.
 
@@ -26,22 +30,64 @@ export function fmtRate(rate: number | null | undefined): string {
   return rate == null ? "—" : `${rate}%`;
 }
 
-export function fmtMoney(amount: number | null | undefined): string {
-  return amount == null ? "—" : formatCurrency(amount);
+/** Business locale + currency for money formatting (default = the Petra default locale). */
+export interface MoneyLocale {
+  locale: string;
+  currency: string;
 }
 
-/** "YYYY-MM-DD" → "D/M" without timezone drift. */
-export function formatDayLabel(value: string): string {
+const DEFAULT_MONEY_LOCALE: MoneyLocale = { locale: DEFAULT_LOCALE, currency: LOCALE_CONFIG[DEFAULT_LOCALE].currency };
+
+/** Pass the business `{ locale, currency }` (see `useReportFormatters()`). */
+export function fmtMoney(amount: number | null | undefined, money: MoneyLocale = DEFAULT_MONEY_LOCALE): string {
+  return amount == null ? "—" : formatCurrency(amount, money);
+}
+
+/** Day / month order of a locale ("D/M" in he-IL, "M/D" in en-US). */
+function dayFirst(locale: string): boolean {
+  try {
+    const parts = new Intl.DateTimeFormat(locale, { day: "numeric", month: "numeric", timeZone: "UTC" }).formatToParts(new Date(Date.UTC(2026, 9, 31)));
+    const di = parts.findIndex((p) => p.type === "day");
+    const mi = parts.findIndex((p) => p.type === "month");
+    return di < mi;
+  } catch {
+    return true;
+  }
+}
+
+/** "YYYY-MM-DD" → "D/M" (he-IL) / "M/D" (en-US) without timezone drift. */
+export function formatDayLabelFor(value: string, locale: string): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
-  if (m) return `${Number(m[3])}/${Number(m[2])}`;
+  if (m) {
+    const day = Number(m[3]);
+    const month = Number(m[2]);
+    return dayFirst(locale) ? `${day}/${month}` : `${month}/${day}`;
+  }
   const d = new Date(value);
-  return Number.isNaN(d.getTime()) ? value : d.toLocaleDateString("he-IL", { day: "numeric", month: "numeric" });
+  return Number.isNaN(d.getTime()) ? value : d.toLocaleDateString(locale, { day: "numeric", month: "numeric" });
+}
+
+/**
+ * Default-locale version (single argument, safe as a Recharts `tickFormatter`).
+ * Prefer `useReportFormatters().formatDayLabel` for the business locale.
+ */
+export function formatDayLabel(value: string): string {
+  return formatDayLabelFor(value, DEFAULT_LOCALE);
+}
+
+/** `fmtMoney` / `formatDayLabel` bound to the active business locale + currency. */
+export function useReportFormatters() {
+  const { locale, currency } = useBusinessLocale();
+  const money = useCallback((amount: number | null | undefined) => fmtMoney(amount, { locale, currency }), [locale, currency]);
+  const dayLabel = useCallback((value: string) => formatDayLabelFor(String(value), locale), [locale]);
+  return { fmtMoney: money, formatDayLabel: dayLabel, locale, currency };
 }
 
 /** Period-over-period change; null = "new" (previous period was 0). */
 export function ChangeIndicator({ value }: { value: number | null }) {
+  const t = useTranslations("analytics.reportBlocks");
   if (value === null)
-    return <span className="text-xs font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-md">חדש</span>;
+    return <span className="text-xs font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-md">{t("new")}</span>;
   if (value === 0)
     return (
       <span className="flex items-center gap-0.5 text-xs text-slate-400">
@@ -216,7 +262,7 @@ interface TooltipPayloadItem {
   dataKey?: string | number;
 }
 
-/** Recharts custom tooltip (Hebrew, RTL). Pass `valueFormatter` for money. */
+/** Recharts custom tooltip (business direction). Pass `valueFormatter` for money. */
 export function ChartTooltip({
   active,
   payload,
@@ -230,10 +276,11 @@ export function ChartTooltip({
   valueFormatter?: (v: number) => string;
   labelFormatter?: (l: string) => string;
 }) {
+  const { cfg } = useBusinessLocale();
   if (!active || !payload?.length) return null;
   const labelText = label == null ? "" : labelFormatter ? labelFormatter(String(label)) : String(label);
   return (
-    <div dir="rtl" className="bg-white border border-slate-200 rounded-lg shadow-lg p-2.5 text-xs">
+    <div dir={cfg.dir} className="bg-white border border-slate-200 rounded-lg shadow-lg p-2.5 text-xs">
       {labelText && <p className="font-semibold text-petra-text mb-1">{labelText}</p>}
       {payload.map((p, i) => {
         const num = typeof p.value === "number" ? p.value : Number(p.value);

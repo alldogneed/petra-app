@@ -5,21 +5,24 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { Lock, Eye, EyeOff, CheckCircle2, AlertCircle } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
+import { LOCALE_CONFIG, localeFromBusiness } from "@/lib/locale";
 
 // Password strength indicator (same as register page)
 function PasswordStrength({ password }: { password: string }) {
+  const t = useTranslations("auth.resetPasswordPage");
   if (!password) return null;
 
   const checks = [
-    { label: "12+ תווים", ok: password.length >= 12 },
-    { label: "אות גדולה", ok: /[A-Z]/.test(password) },
-    { label: "אות קטנה", ok: /[a-z]/.test(password) },
-    { label: "ספרה", ok: /[0-9]/.test(password) },
+    { id: "length", label: t("passwordStrength.checks.length"), ok: password.length >= 12 },
+    { id: "upper", label: t("passwordStrength.checks.upper"), ok: /[A-Z]/.test(password) },
+    { id: "lower", label: t("passwordStrength.checks.lower"), ok: /[a-z]/.test(password) },
+    { id: "digit", label: t("passwordStrength.checks.digit"), ok: /[0-9]/.test(password) },
   ];
 
   const score = checks.filter((c) => c.ok).length;
   const colors = ["#EF4444", "#EF4444", "#F59E0B", "#F59E0B", "#10B981"];
-  const labels = ["חלשה", "חלשה", "בינונית", "בינונית", "חזקה"];
+  const labels = [t("passwordStrength.weak"), t("passwordStrength.weak"), t("passwordStrength.medium"), t("passwordStrength.medium"), t("passwordStrength.strong")];
 
   return (
     <div className="mt-2 space-y-2">
@@ -36,7 +39,7 @@ function PasswordStrength({ password }: { password: string }) {
         <div className="flex gap-3">
           {checks.map((c) => (
             <span
-              key={c.label}
+              key={c.id}
               className="text-[10px] flex items-center gap-0.5"
               style={{ color: c.ok ? "#10B981" : "#94A3B8" }}
             >
@@ -60,6 +63,8 @@ function PasswordStrength({ password }: { password: string }) {
 function ResetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const t = useTranslations("auth.resetPasswordPage");
+  const cfg = LOCALE_CONFIG[localeFromBusiness({ locale: useLocale() })];
   const token = searchParams.get("token") ?? "";
 
   const [password, setPassword] = useState("");
@@ -71,7 +76,7 @@ function ResetPasswordForm() {
 
   // If no token in URL → show error immediately
   useEffect(() => {
-    if (!token) setError("לינק לא תקין — חזור לדף 'שכחתי סיסמה' ובקש לינק חדש.");
+    if (!token) setError(t("errors.invalidLink"));
   }, [token]);
 
   const isValid =
@@ -97,7 +102,7 @@ function ResetPasswordForm() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "שגיאה באיפוס הסיסמה");
+        setError(data.error || t("errors.resetFailed"));
         return;
       }
 
@@ -105,7 +110,7 @@ function ResetPasswordForm() {
       // Redirect to dashboard after 2 seconds (user is now logged in)
       setTimeout(() => router.push("/dashboard"), 2000);
     } catch {
-      setError("שגיאת רשת. אנא נסה שוב.");
+      setError(t("errors.network"));
     } finally {
       setLoading(false);
     }
@@ -119,7 +124,7 @@ function ResetPasswordForm() {
           <Image src="/icon.png" alt="Petra" width={64} height={64} className="w-full h-full" priority />
         </div>
         <h1 className="text-2xl font-bold text-petra-text">Petra</h1>
-        <p className="text-sm text-petra-muted mt-1">ניהול עסקי חיות מחמד</p>
+        <p className="text-sm text-petra-muted mt-1">{t("tagline")}</p>
       </div>
 
       {done ? (
@@ -131,9 +136,9 @@ function ResetPasswordForm() {
             </div>
           </div>
           <div>
-            <h2 className="text-lg font-bold text-petra-text">הסיסמה שונתה!</h2>
+            <h2 className="text-lg font-bold text-petra-text">{t("success.title")}</h2>
             <p className="text-sm text-petra-muted mt-1">
-              הסיסמה עודכנה בהצלחה. מעביר אותך לדשבורד...
+              {t("success.body")}
             </p>
           </div>
           <div
@@ -154,9 +159,9 @@ function ResetPasswordForm() {
         /* ── Form ── */
         <form onSubmit={handleSubmit} className="card p-6 space-y-4">
           <div>
-            <h2 className="text-lg font-bold text-petra-text">איפוס סיסמה</h2>
+            <h2 className="text-lg font-bold text-petra-text">{t("form.title")}</h2>
             <p className="text-sm text-petra-muted mt-0.5">
-              בחר סיסמה חדשה לחשבון שלך
+              {t("form.subtitle")}
             </p>
           </div>
 
@@ -169,13 +174,13 @@ function ResetPasswordForm() {
 
           {/* New password */}
           <div>
-            <label className="label">סיסמה חדשה</label>
+            <label className="label">{t("form.newPassword")}</label>
             <div className="relative">
-              <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Lock className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
                 type={showPassword ? "text" : "password"}
-                className="input pr-10 pl-10"
-                placeholder="לפחות 12 תווים"
+                className="input ps-10 pe-10"
+                placeholder={t("form.newPasswordPlaceholder")}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -186,7 +191,7 @@ function ResetPasswordForm() {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                className="absolute end-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
               >
                 {showPassword ? (
                   <EyeOff className="w-4 h-4" />
@@ -200,13 +205,13 @@ function ResetPasswordForm() {
 
           {/* Confirm */}
           <div>
-            <label className="label">אימות סיסמה</label>
+            <label className="label">{t("form.confirmPassword")}</label>
             <div className="relative">
-              <Lock className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <Lock className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
                 type={showPassword ? "text" : "password"}
-                className="input pr-10"
-                placeholder="הכנס שוב"
+                className={`input ${cfg.dir === "rtl" ? "pr-10" : "pl-10"}`} // rtl-ok: dir=ltr input, padding on the icon side
+                placeholder={t("form.confirmPlaceholder")}
                 value={confirm}
                 onChange={(e) => setConfirm(e.target.value)}
                 required
@@ -216,10 +221,10 @@ function ResetPasswordForm() {
               />
             </div>
             {confirm && password !== confirm && (
-              <p className="text-xs text-red-500 mt-1">הסיסמאות אינן תואמות</p>
+              <p className="text-xs text-red-500 mt-1">{t("form.mismatch")}</p>
             )}
             {confirm && password === confirm && password.length >= 12 && (
-              <p className="text-xs text-green-600 mt-1">✓ הסיסמאות תואמות</p>
+              <p className="text-xs text-green-600 mt-1">{t("form.match")}</p>
             )}
           </div>
 
@@ -229,9 +234,9 @@ function ResetPasswordForm() {
             disabled={loading || !isValid || !token}
           >
             {loading ? (
-              <span className="animate-pulse">מעדכן סיסמה...</span>
+              <span className="animate-pulse">{t("form.updating")}</span>
             ) : (
-              "עדכן סיסמה"
+              t("form.submit")
             )}
           </button>
 
@@ -239,7 +244,7 @@ function ResetPasswordForm() {
             href="/forgot-password"
             className="flex justify-center text-sm text-petra-muted hover:text-petra-text transition-colors"
           >
-            לינק פג תוקף? בקש לינק חדש
+            {t("form.expiredLink")}
           </Link>
         </form>
       )}
@@ -248,10 +253,11 @@ function ResetPasswordForm() {
 }
 
 export default function ResetPasswordPage() {
+  const cfg = LOCALE_CONFIG[localeFromBusiness({ locale: useLocale() })];
   return (
     <div
       className="min-h-screen flex items-center justify-center bg-petra-bg p-4"
-      dir="rtl"
+      dir={cfg.dir}
     >
       <Suspense>
         <ResetPasswordForm />

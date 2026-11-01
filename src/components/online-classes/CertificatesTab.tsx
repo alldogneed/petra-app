@@ -11,6 +11,7 @@ import {
   Ban,
   RotateCcw,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { fetchJSON } from "@/lib/utils";
 import {
   Modal,
@@ -38,15 +39,16 @@ interface CertificateRow {
 
 type StatusFilter = "all" | "valid" | "revoked";
 
-const FILTERS: { id: StatusFilter; label: string }[] = [
-  { id: "all", label: "הכל" },
-  { id: "valid", label: "תקפות" },
-  { id: "revoked", label: "בוטלו" },
+const FILTERS: { id: StatusFilter }[] = [
+  { id: "all" },
+  { id: "valid" },
+  { id: "revoked" },
 ];
 
 const VERIFY_BASE = "/verify/";
 
 export function CertificatesTab() {
+  const t = useTranslations("onlineClasses.certificatesTab");
   const queryClient = useQueryClient();
   const [status, setStatus] = useState<StatusFilter>("all");
   const [courseFilter, setCourseFilter] = useState("");
@@ -88,21 +90,24 @@ export function CertificatesTab() {
       }),
     onSuccess: (_d, vars) => {
       toast.success(
-        vars.body.action === "revoke" ? "התעודה בוטלה" : "התעודה שוחזרה"
+        vars.body.action === "revoke" ? t("toast.revoked") : t("toast.restored")
       );
       invalidate();
     },
-    onError: (e: Error) => toast.error(e.message || "שגיאה בעדכון התעודה"),
+    onError: (e: Error) => toast.error(e.message || t("toast.updateError")),
   });
 
   const handleRevoke = (cert: CertificateRow) => {
     if (
       !window.confirm(
-        `לבטל את התעודה של ${cert.student.name || cert.studentName} בקורס "${cert.courseTitle}"?\nהתעודה תסומן כבוטלה בעמוד האימות.`
+        t("revokeConfirm", {
+          name: cert.student.name || cert.studentName,
+          course: cert.courseTitle,
+        })
       )
     )
       return;
-    const reason = window.prompt("סיבת ביטול (אופציונלי):", "") ?? "";
+    const reason = window.prompt(t("revokeReasonPrompt"), "") ?? "";
     patchMutation.mutate({
       id: cert.id,
       body: { action: "revoke", reason: reason.trim() || undefined },
@@ -117,9 +122,9 @@ export function CertificatesTab() {
     return (
       <div className="card p-8 text-center">
         <AlertTriangle className="w-8 h-8 mx-auto mb-3 text-red-400" />
-        <p className="text-red-600 font-medium mb-2">שגיאה בטעינת התעודות</p>
+        <p className="text-red-600 font-medium mb-2">{t("loadError")}</p>
         <button className="btn-secondary text-sm" onClick={() => refetch()}>
-          נסה שוב
+          {t("retry")}
         </button>
       </div>
     );
@@ -141,7 +146,7 @@ export function CertificatesTab() {
                     : "px-3.5 py-1.5 rounded-full text-xs font-medium bg-slate-100 text-petra-muted hover:bg-slate-200 whitespace-nowrap"
                 }
               >
-                {f.label}
+                {t(`filters.${f.id}`)}
               </button>
             ))}
           </div>
@@ -150,7 +155,7 @@ export function CertificatesTab() {
             value={courseFilter}
             onChange={(e) => setCourseFilter(e.target.value)}
           >
-            <option value="">כל הקורסים</option>
+            <option value="">{t("allCourses")}</option>
             {courses.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.title}
@@ -160,7 +165,7 @@ export function CertificatesTab() {
         </div>
         <button className="btn-primary text-sm" onClick={() => setShowIssue(true)}>
           <Plus className="w-4 h-4" />
-          הנפק תעודה ידנית
+          {t("issueManually")}
         </button>
       </div>
 
@@ -171,10 +176,9 @@ export function CertificatesTab() {
           <div className="empty-state-icon">
             <Award className="w-6 h-6 text-slate-400" />
           </div>
-          <p className="font-medium text-petra-text mb-1">אין תעודות להצגה</p>
+          <p className="font-medium text-petra-text mb-1">{t("empty.title")}</p>
           <p className="text-sm text-petra-muted">
-            תעודות מונפקות אוטומטית כשתלמיד משלים קורס, או ידנית מכאן עבור מי
-            שסיים מחוץ למערכת
+            {t("empty.body")}
           </p>
         </div>
       ) : (
@@ -183,14 +187,14 @@ export function CertificatesTab() {
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-petra-border">
                 <tr>
-                  <th className="table-header-cell">תלמיד</th>
-                  <th className="table-header-cell">קורס</th>
+                  <th className="table-header-cell">{t("table.student")}</th>
+                  <th className="table-header-cell">{t("table.course")}</th>
                   <th className="table-header-cell hidden md:table-cell">
-                    מספר תעודה
+                    {t("table.serial")}
                   </th>
-                  <th className="table-header-cell">תאריך הנפקה</th>
-                  <th className="table-header-cell">סטטוס</th>
-                  <th className="table-header-cell">פעולות</th>
+                  <th className="table-header-cell">{t("table.issuedAt")}</th>
+                  <th className="table-header-cell">{t("table.status")}</th>
+                  <th className="table-header-cell">{t("table.actions")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -211,7 +215,7 @@ export function CertificatesTab() {
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <span>{cert.courseTitle}</span>
                         {cert.issuedManually && (
-                          <span className="badge-neutral">ידני</span>
+                          <span className="badge-neutral">{t("manualBadge")}</span>
                         )}
                       </div>
                     </td>
@@ -226,9 +230,9 @@ export function CertificatesTab() {
                     </td>
                     <td className="table-cell">
                       {cert.revokedAt ? (
-                        <span className="badge-danger">בוטלה</span>
+                        <span className="badge-danger">{t("status.revoked")}</span>
                       ) : (
-                        <span className="badge-success">תקפה</span>
+                        <span className="badge-success">{t("status.valid")}</span>
                       )}
                     </td>
                     <td className="table-cell">
@@ -238,10 +242,10 @@ export function CertificatesTab() {
                           target="_blank"
                           rel="noopener noreferrer"
                           className="btn-secondary text-xs py-1.5"
-                          title="פתח את עמוד התעודה (ניתן להדפיס / לשמור כ-PDF)"
+                          title={t("viewHint")}
                         >
                           <ExternalLink className="w-3.5 h-3.5" />
-                          צפה
+                          {t("view")}
                         </a>
                         {cert.revokedAt ? (
                           <button
@@ -250,7 +254,7 @@ export function CertificatesTab() {
                             onClick={() => handleRestore(cert)}
                           >
                             <RotateCcw className="w-3.5 h-3.5" />
-                            שחזר
+                            {t("restore")}
                           </button>
                         ) : (
                           <button
@@ -259,7 +263,7 @@ export function CertificatesTab() {
                             onClick={() => handleRevoke(cert)}
                           >
                             <Ban className="w-3.5 h-3.5" />
-                            בטל
+                            {t("revoke")}
                           </button>
                         )}
                       </div>
@@ -273,8 +277,7 @@ export function CertificatesTab() {
       )}
 
       <p className="text-[11px] text-petra-muted mt-3">
-        הכפתור &quot;צפה&quot; פותח את עמוד התעודה, שממנו ניתן להדפיס או לשמור
-        כ-PDF.
+        {t("viewFootnote")}
       </p>
 
       {showIssue && (
@@ -302,6 +305,8 @@ function IssueModal({
   onClose: () => void;
   onDone: () => void;
 }) {
+  const t = useTranslations("onlineClasses.certificatesTab");
+  const tc = useTranslations("common");
   const [membershipId, setMembershipId] = useState("");
   const [courseId, setCourseId] = useState("");
 
@@ -327,22 +332,21 @@ function IssueModal({
         body: JSON.stringify({ membershipId, courseId }),
       }),
     onSuccess: () => {
-      toast.success("התעודה הונפקה — נשלחה הודעה לתלמיד");
+      toast.success(t("issueModal.issued"));
       onDone();
     },
-    onError: (e: Error) => toast.error(e.message || "שגיאה בהנפקת התעודה"),
+    onError: (e: Error) => toast.error(e.message || t("issueModal.issueError")),
   });
 
   return (
-    <Modal title="הנפקת תעודה ידנית" onClose={onClose}>
+    <Modal title={t("issueModal.title")} onClose={onClose}>
       <div className="space-y-4">
         <p className="text-sm text-petra-muted">
-          מתאים לתלמיד שסיים את הקורס מחוץ למערכת. התעודה תסומן כהנפקה ידנית
-          ותישלח לתלמיד הודעה עם קישור.
+          {t("issueModal.intro")}
         </p>
 
         <div>
-          <label className="label">תלמיד *</label>
+          <label className="label">{t("issueModal.student")}</label>
           <select
             className="input"
             value={membershipId}
@@ -350,7 +354,7 @@ function IssueModal({
             disabled={membershipsLoading}
           >
             <option value="">
-              {membershipsLoading ? "טוען..." : "בחר תלמיד"}
+              {membershipsLoading ? tc("loading") : t("issueModal.selectStudent")}
             </option>
             {memberships.map((m) => (
               <option key={m.id} value={m.id}>
@@ -362,13 +366,13 @@ function IssueModal({
         </div>
 
         <div>
-          <label className="label">קורס *</label>
+          <label className="label">{t("issueModal.course")}</label>
           <select
             className="input"
             value={courseId}
             onChange={(e) => setCourseId(e.target.value)}
           >
-            <option value="">בחר קורס</option>
+            <option value="">{t("issueModal.selectCourse")}</option>
             {publishedCourses.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.title}
@@ -377,7 +381,7 @@ function IssueModal({
           </select>
           {publishedCourses.length === 0 && (
             <p className="text-[11px] text-amber-600 mt-1">
-              אין קורסים מפורסמים — ניתן להנפיק תעודה רק עבור קורס מפורסם
+              {t("issueModal.noPublishedCourses")}
             </p>
           )}
         </div>
@@ -388,10 +392,10 @@ function IssueModal({
             disabled={createMutation.isPending || !membershipId || !courseId}
             onClick={() => createMutation.mutate()}
           >
-            {createMutation.isPending ? "מנפיק..." : "הנפק תעודה"}
+            {createMutation.isPending ? t("issueModal.issuing") : t("issueModal.issue")}
           </button>
           <button className="btn-secondary" onClick={onClose}>
-            ביטול
+            {tc("actions.cancel")}
           </button>
         </div>
       </div>

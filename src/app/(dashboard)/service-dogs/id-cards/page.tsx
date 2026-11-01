@@ -16,7 +16,10 @@ import {
   CheckCircle2,
   Clock,
 } from "lucide-react";
-import { cn, formatDate, escapeHtml } from "@/lib/utils";
+import { cn, escapeHtml } from "@/lib/utils";
+import { formatDate as formatDateL } from "@/lib/format";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { ServiceDogsTabs } from "@/components/service-dogs/ServiceDogsTabs";
 import { SERVICE_DOG_PHASE_COLORS, SERVICE_DOG_PHASE_MAP } from "@/lib/service-dogs";
 import { toast } from "sonner";
@@ -57,6 +60,10 @@ function IDCardsPageContent() {
   const [viewingCard, setViewingCard] = useState<{ card: IDCard; dogName: string } | null>(null);
   const [qrLoadError, setQrLoadError] = useState(false);
   const queryClient = useQueryClient();
+  const t = useTranslations("serviceDogs.serviceDogsIdCardsPage");
+  const tc = useTranslations("common");
+  const { locale, cfg } = useBusinessLocale();
+  const formatDate = (d: string) => formatDateL(d, { locale });
 
   const { data: dogs = [], isLoading } = useQuery<ServiceDogSummary[]>({
     queryKey: ["service-dogs"],
@@ -71,9 +78,9 @@ function IDCardsPageContent() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["service-dogs"] });
-      toast.success("תעודת הסמכה הונפקה בהצלחה");
+      toast.success(t("toasts.issued"));
     },
-    onError: () => toast.error("שגיאה בהנפקת תעודה"),
+    onError: () => toast.error(t("toasts.issueError")),
   });
 
   const downloadPDF = (card: IDCard, dogName: string) => {
@@ -82,10 +89,10 @@ function IDCardsPageContent() {
     const expiryDate = data.certificationExpiry ? formatDate(data.certificationExpiry) : null;
     const origin = window.location.origin;
     const html = `<!DOCTYPE html>
-<html dir="rtl" lang="he">
+<html dir="${cfg.dir}" lang="${cfg.lang}">
 <head>
   <meta charset="UTF-8">
-  <title>תעודת הסמכה — ${escapeHtml(dogName)}</title>
+  <title>${escapeHtml(t("print.docTitle", { name: dogName }))}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: Arial, Helvetica, sans-serif; background: white; padding: 20mm; }
@@ -112,21 +119,21 @@ function IDCardsPageContent() {
     <div class="header" style="display:flex;align-items:center;gap:14px;padding:16px 20px;">
       <img src="${origin}/petra-logo.png" alt="Petra" style="width:44px;height:44px;object-fit:contain;border-radius:8px;background:rgba(255,255,255,0.15);padding:4px;flex-shrink:0;" />
       <div style="flex:1;text-align:center;">
-        <div class="header-title">תעודת הסמכה — כלב שירות</div>
+        <div class="header-title">${t("print.headerTitle")}</div>
         <div class="header-sub">Certified Service Dog · Official Certification</div>
       </div>
     </div>
     <div class="dog-name"><h2>${escapeHtml(dogName)}</h2></div>
     <div class="details">
-      ${data.breed ? `<div class="field"><span class="field-label">גזע</span><span class="field-value">${escapeHtml(data.breed)}</span></div>` : ""}
-      ${data.registrationNumber ? `<div class="field"><span class="field-label">מספר רישום</span><span class="field-value">${escapeHtml(data.registrationNumber)}</span></div>` : ""}
-      ${data.recipientName ? `<div class="field"><span class="field-label">משתמש / זכאי</span><span class="field-value">${escapeHtml(data.recipientName)}</span></div>` : ""}
-      ${data.certifyingBody ? `<div class="field"><span class="field-label">גוף מסמיך</span><span class="field-value">${escapeHtml(data.certifyingBody)}</span></div>` : ""}
-      ${certDate ? `<div class="field"><span class="field-label">תאריך הסמכה</span><span class="field-value">${certDate}</span></div>` : ""}
-      ${expiryDate ? `<div class="field"><span class="field-label">תוקף</span><span class="field-value">${expiryDate}</span></div>` : ""}
+      ${data.breed ? `<div class="field"><span class="field-label">${t("fields.breed")}</span><span class="field-value">${escapeHtml(data.breed)}</span></div>` : ""}
+      ${data.registrationNumber ? `<div class="field"><span class="field-label">${t("fields.registrationNumber")}</span><span class="field-value">${escapeHtml(data.registrationNumber)}</span></div>` : ""}
+      ${data.recipientName ? `<div class="field"><span class="field-label">${t("print.recipient")}</span><span class="field-value">${escapeHtml(data.recipientName)}</span></div>` : ""}
+      ${data.certifyingBody ? `<div class="field"><span class="field-label">${t("fields.certifyingBody")}</span><span class="field-value">${escapeHtml(data.certifyingBody)}</span></div>` : ""}
+      ${certDate ? `<div class="field"><span class="field-label">${t("fields.certificationDate")}</span><span class="field-value">${certDate}</span></div>` : ""}
+      ${expiryDate ? `<div class="field"><span class="field-label">${t("fields.expiry")}</span><span class="field-value">${expiryDate}</span></div>` : ""}
     </div>
-    ${card.qrPayload ? `<div class="qr-section"><img src="${escapeHtml(card.qrPayload)}" alt="QR Code" onerror="this.style.display='none'" /><p class="qr-note">סרוק לאימות תעודה</p></div>` : ""}
-    <div class="footer">הונפק באמצעות <strong>Petra</strong> — מערכת ניהול עסקי חיות מחמד · מסמך רשמי</div>
+    ${card.qrPayload ? `<div class="qr-section"><img src="${escapeHtml(card.qrPayload)}" alt="QR Code" onerror="this.style.display='none'" /><p class="qr-note">${t("print.qrNote")}</p></div>` : ""}
+    <div class="footer">${t("print.footerBefore")}<strong>Petra</strong>${t("print.footerAfter")}</div>
   </div>
   <script>
     window.onload = function() {
@@ -142,10 +149,10 @@ function IDCardsPageContent() {
         win.document.close();
         win.focus();
       } else {
-        toast.error("חסמת חלונות קופצים — אפשר ידנית בדפדפן");
+        toast.error(t("toasts.popupBlocked"));
       }
     } catch {
-      toast.error("שגיאה בהכנת תעודה להדפסה");
+      toast.error(t("toasts.printError"));
     }
   };
 
@@ -157,10 +164,10 @@ function IDCardsPageContent() {
         setQrLoadError(false);
         setViewingCard({ card, dogName });
       } else {
-        toast.error("לא נמצאה תעודה");
+        toast.error(t("toasts.notFound"));
       }
     } catch {
-      toast.error("שגיאה בטעינת התעודה");
+      toast.error(t("toasts.loadError"));
     }
   };
 
@@ -177,16 +184,16 @@ function IDCardsPageContent() {
       <div className="page-header">
         <div>
           <div className="flex items-center gap-2 text-sm text-petra-muted mb-1">
-            <Link href="/service-dogs" className="hover:text-foreground">כלבי שירות</Link>
-            <ChevronLeft className="w-3.5 h-3.5" />
-            <span>תעודות הסמכה</span>
+            <Link href="/service-dogs" className="hover:text-foreground">{t("breadcrumb.serviceDogs")}</Link>
+            <ChevronLeft className="w-3.5 h-3.5 ltr:-scale-x-100" />
+            <span>{t("title")}</span>
           </div>
           <h1 className="page-title flex items-center gap-2">
             <CreditCard className="w-6 h-6 text-brand-500" />
-            תעודות הסמכה
+            {t("title")}
           </h1>
           <p className="text-sm text-petra-muted mt-1">
-            {dogsWithCards.length} תעודות פעילות · {certifiedWithoutCards.length} מוסמכים ללא תעודה
+            {t("subtitle", { active: dogsWithCards.length, withoutCard: certifiedWithoutCards.length })}
           </p>
         </div>
       </div>
@@ -195,11 +202,11 @@ function IDCardsPageContent() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="rounded-xl p-4 border bg-emerald-50 border-emerald-200">
           <div className="text-2xl font-bold text-emerald-600">{dogsWithCards.length}</div>
-          <div className="text-xs text-emerald-700 mt-0.5">תעודות פעילות</div>
+          <div className="text-xs text-emerald-700 mt-0.5">{t("stats.activeCards")}</div>
         </div>
         <div className="rounded-xl p-4 border bg-blue-50 border-blue-200">
           <div className="text-2xl font-bold text-blue-600">{certifiedDogs.length}</div>
-          <div className="text-xs text-blue-700 mt-0.5">כלבים מוסמכים</div>
+          <div className="text-xs text-blue-700 mt-0.5">{t("stats.certifiedDogs")}</div>
         </div>
         <div className={cn(
           "rounded-xl p-4 border",
@@ -208,7 +215,7 @@ function IDCardsPageContent() {
           <div className={cn("text-2xl font-bold", certifiedWithoutCards.length > 0 ? "text-amber-600" : "text-slate-500")}>
             {certifiedWithoutCards.length}
           </div>
-          <div className="text-xs text-petra-muted mt-0.5">ממתינים לתעודה</div>
+          <div className="text-xs text-petra-muted mt-0.5">{t("stats.awaitingCard")}</div>
         </div>
         <div className={cn(
           "rounded-xl p-4 border",
@@ -221,7 +228,7 @@ function IDCardsPageContent() {
             {expiredCards.length + expiringCards.length}
           </div>
           <div className="text-xs text-petra-muted mt-0.5">
-            {expiredCards.length > 0 ? `${expiredCards.length} פגו · ${expiringCards.length} בקרוב` : expiringCards.length > 0 ? "פג בקרוב" : "תקינות"}
+            {expiredCards.length > 0 ? t("stats.expiredAndSoon", { expired: expiredCards.length, expiring: expiringCards.length }) : expiringCards.length > 0 ? t("stats.expiringSoon") : t("stats.valid")}
           </div>
         </div>
       </div>
@@ -232,7 +239,7 @@ function IDCardsPageContent() {
           <div className="flex items-center gap-2 mb-2">
             <AlertTriangle className="w-4 h-4 text-red-500" />
             <h3 className="font-semibold text-red-700">
-              תעודות שפג תוקפן ({expiredCards.length})
+              {t("expired.title", { count: expiredCards.length })}
             </h3>
           </div>
           <div className="space-y-1.5">
@@ -243,14 +250,14 @@ function IDCardsPageContent() {
                 </Link>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-red-600">
-                    פג {dog.certificationExpiry ? formatDate(dog.certificationExpiry) : ""}
+                    {t("expired.expiredOn", { date: dog.certificationExpiry ? formatDate(dog.certificationExpiry) : "" })}
                   </span>
                   <button
                     onClick={() => generateMutation.mutate(dog.id)}
                     disabled={generateMutation.isPending && generateMutation.variables === dog.id}
                     className="text-xs px-2.5 py-1 rounded-lg font-medium bg-red-600 text-white hover:bg-red-700 transition-colors"
                   >
-                    חדש תעודה
+                    {t("expired.renew")}
                   </button>
                 </div>
               </div>
@@ -265,7 +272,7 @@ function IDCardsPageContent() {
           <div className="flex items-center gap-2 mb-3">
             <AlertTriangle className="w-4 h-4 text-amber-500" />
             <h3 className="font-semibold text-amber-700">
-              כלבים מוסמכים ללא תעודת הסמכה ({certifiedWithoutCards.length})
+              {t("withoutCard.title", { count: certifiedWithoutCards.length })}
             </h3>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
@@ -286,7 +293,7 @@ function IDCardsPageContent() {
                   </div>
                   <p className="text-xs text-petra-muted mt-0.5">
                     {dog.pet.breed || "—"}
-                    {dog.certificationDate && ` · הוסמך ${formatDate(dog.certificationDate)}`}
+                    {dog.certificationDate && t("withoutCard.certifiedOn", { date: formatDate(dog.certificationDate) })}
                   </p>
                 </div>
                 <button
@@ -295,7 +302,7 @@ function IDCardsPageContent() {
                   className="btn-primary text-sm flex items-center gap-1.5"
                 >
                   <QrCode className="w-4 h-4" />
-                  הנפק
+                  {t("withoutCard.issue")}
                 </button>
               </div>
             ))}
@@ -307,7 +314,7 @@ function IDCardsPageContent() {
       <div>
         <div className="flex items-center gap-2 mb-3">
           <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-          <h3 className="font-semibold">תעודות פעילות ({dogsWithCards.length})</h3>
+          <h3 className="font-semibold">{t("active.title", { count: dogsWithCards.length })}</h3>
         </div>
 
         {isLoading ? (
@@ -315,10 +322,10 @@ function IDCardsPageContent() {
         ) : dogsWithCards.length === 0 ? (
           <div className="empty-state py-10">
             <CreditCard className="empty-state-icon" />
-            <p className="text-petra-muted">אין תעודות פעילות</p>
+            <p className="text-petra-muted">{t("active.empty")}</p>
             {certifiedDogs.length === 0 && (
               <p className="text-xs text-petra-muted mt-1">
-                יש להסמיך כלבים לפני הנפקת תעודות
+                {t("active.emptyHint")}
               </p>
             )}
           </div>
@@ -358,15 +365,15 @@ function IDCardsPageContent() {
                         {certStatus.status === "expired" ? (
                           <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200">
                             <AlertTriangle className="w-3 h-3" />
-                            פג תוקף
+                            {t("status.expired")}
                           </span>
                         ) : certStatus.status === "expiring" ? (
                           <span className="inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
                             <Clock className="w-3 h-3" />
-                            פג בקרוב
+                            {t("status.expiringSoon")}
                           </span>
                         ) : (
-                          <span className="badge-success text-xs">תעודה פעילה</span>
+                          <span className="badge-success text-xs">{t("status.active")}</span>
                         )}
                       </div>
                     </div>
@@ -375,7 +382,7 @@ function IDCardsPageContent() {
                   {/* Card body */}
                   <div className="px-4 py-3 space-y-1.5">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-petra-muted">שלב</span>
+                      <span className="text-petra-muted">{t("fields.phase")}</span>
                       <span
                         className="text-xs px-2 py-0.5 rounded-full border"
                         style={{
@@ -389,19 +396,19 @@ function IDCardsPageContent() {
                     </div>
                     {dog.registrationNumber && (
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-petra-muted">מספר רישום</span>
+                        <span className="text-petra-muted">{t("fields.registrationNumber")}</span>
                         <span className="font-mono text-xs">{dog.registrationNumber}</span>
                       </div>
                     )}
                     {dog.certificationDate && (
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-petra-muted">תאריך הסמכה</span>
+                        <span className="text-petra-muted">{t("fields.certificationDate")}</span>
                         <span className="text-xs">{formatDate(dog.certificationDate)}</span>
                       </div>
                     )}
                     {dog.certificationExpiry && (
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-petra-muted">תוקף</span>
+                        <span className="text-petra-muted">{t("fields.expiry")}</span>
                         <span
                           className={cn(
                             "text-xs font-medium",
@@ -425,7 +432,7 @@ function IDCardsPageContent() {
                       className="flex-1 btn-secondary text-sm flex items-center justify-center gap-1.5"
                     >
                       <Eye className="w-3.5 h-3.5" />
-                      צפה
+                      {t("actions.view")}
                     </button>
                     <button
                       onClick={() => fetchAndViewCard(dog.id, dog.pet.name)}
@@ -452,7 +459,7 @@ function IDCardsPageContent() {
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-bold flex items-center gap-2">
                 <Shield className="w-5 h-5 text-brand-500" />
-                תעודת כלב שירות
+                {t("modal.title")}
               </h2>
               <button onClick={() => setViewingCard(null)} className="btn-ghost p-1">
                 <X className="w-5 h-5" />
@@ -461,7 +468,7 @@ function IDCardsPageContent() {
 
             {/* Dog name */}
             <div className="bg-slate-800 text-white rounded-xl p-4 mb-4">
-              <p className="text-xs text-slate-400 mb-1">שם הכלב</p>
+              <p className="text-xs text-slate-400 mb-1">{t("modal.dogName")}</p>
               <p className="text-2xl font-bold">{viewingCard.dogName}</p>
             </div>
 
@@ -478,9 +485,9 @@ function IDCardsPageContent() {
                 <div className="w-48 h-48 flex flex-col items-center justify-center bg-slate-50 rounded-xl border-2 border-dashed border-slate-200">
                   <QrCode className="w-10 h-10 text-slate-300 mb-2" />
                   <p className="text-xs text-petra-muted text-center">
-                    {qrLoadError ? "שגיאה בטעינת QR" : "QR לא זמין"}
+                    {qrLoadError ? t("modal.qrLoadError") : t("modal.qrUnavailable")}
                   </p>
-                  <p className="text-[10px] text-petra-muted mt-1">הנפק תעודה מחדש</p>
+                  <p className="text-[10px] text-petra-muted mt-1">{t("modal.reissueHint")}</p>
                 </div>
               )}
             </div>
@@ -489,15 +496,15 @@ function IDCardsPageContent() {
             {(() => {
               const data = JSON.parse(viewingCard.card.cardDataJson || "{}");
               const fields = [
-                { label: "גזע", value: data.breed },
-                { label: "מספר רישום", value: data.registrationNumber },
-                { label: "גוף מסמיך", value: data.certifyingBody },
-                { label: "זכאי", value: data.recipientName },
-                { label: "תאריך הסמכה", value: data.certificationDate ? formatDate(data.certificationDate) : null },
+                { label: t("fields.breed"), value: data.breed },
+                { label: t("fields.registrationNumber"), value: data.registrationNumber },
+                { label: t("fields.certifyingBody"), value: data.certifyingBody },
+                { label: t("fields.recipient"), value: data.recipientName },
+                { label: t("fields.certificationDate"), value: data.certificationDate ? formatDate(data.certificationDate) : null },
               ].filter((f) => f.value);
 
               return fields.length > 0 ? (
-                <div className="text-right space-y-1.5 mb-4 border rounded-xl p-3">
+                <div className="text-start space-y-1.5 mb-4 border rounded-xl p-3">
                   {fields.map((f) => (
                     <div key={f.label} className="flex justify-between text-sm">
                       <span className="font-medium">{f.value}</span>
@@ -514,10 +521,10 @@ function IDCardsPageContent() {
                 className="btn-primary flex-1 flex items-center justify-center gap-2"
               >
                 <Printer className="w-4 h-4" />
-                הדפס תעודה
+                {t("modal.print")}
               </button>
               <button onClick={() => setViewingCard(null)} className="btn-secondary flex-1">
-                סגור
+                {tc("actions.close")}
               </button>
             </div>
           </div>
@@ -528,11 +535,12 @@ function IDCardsPageContent() {
 }
 
 export default function IDCardsPage() {
+  const t = useTranslations("serviceDogs.serviceDogsIdCardsPage");
   return (
     <TierGate
       feature="service_dogs"
-      title="מודול כלבי שירות"
-      description="ניהול כלבי שירות, זכאים, שיבוצים ותעודות הסמכה — זמין במנוי Service Dog בלבד."
+      title={t("tierGate.title")}
+      description={t("tierGate.description")}
       upgradeTier="service_dog"
     >
       <IDCardsPageContent />

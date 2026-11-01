@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 
 interface Service {
   id: string;
@@ -23,6 +25,9 @@ export function ScheduleServiceForm({
   customerId,
   customerName,
 }: ScheduleServiceFormProps) {
+  const t = useTranslations("onboarding.scheduleServiceForm");
+  const tc = useTranslations("common");
+  const { cfg } = useBusinessLocale();
   const [services, setServices] = useState<Service[]>([]);
   const [serviceId, setServiceId] = useState("");
   const [date, setDate] = useState("");
@@ -63,12 +68,12 @@ export function ScheduleServiceForm({
     setError("");
 
     if (!customerId) {
-      setError("לא נמצא לקוח. חזרו לשלב הקודם.");
+      setError(t("errors.noClient"));
       return;
     }
 
     if (!serviceId || !date || !startTime) {
-      setError("יש למלא את כל השדות");
+      setError(t("errors.fillAll"));
       return;
     }
 
@@ -98,7 +103,7 @@ export function ScheduleServiceForm({
 
       onSaved();
     } catch {
-      setError("שגיאה בקביעת השירות. נסה שוב.");
+      setError(t("errors.saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -109,19 +114,19 @@ export function ScheduleServiceForm({
       <div className="modal-backdrop" onClick={onClose} />
       <div className="modal-content max-w-sm p-6 animate-scale-in">
         <h3 className="text-lg font-bold text-petra-text mb-1">
-          קביעת שירות ראשון
+          {t("title")}
         </h3>
         <p className="text-sm text-petra-muted mb-5">
-          קבע שירות עבור {customerName}
+          {t("subtitle", { name: customerName })}
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Service picker */}
           <div>
-            <label className="label">שירות</label>
+            <label className="label">{t("serviceLabel")}</label>
             {services.length === 0 ? (
               <p className="text-sm text-petra-muted">
-                אין שירותים במערכת. ייווצר שירות ברירת מחדל.
+                {t("noServices")}
               </p>
             ) : (
               <select
@@ -132,7 +137,7 @@ export function ScheduleServiceForm({
               >
                 {services.map((s) => (
                   <option key={s.id} value={s.id}>
-                    {s.name} ({s.duration} דק׳)
+                    {t("serviceOption", { name: s.name, duration: s.duration })}
                   </option>
                 ))}
               </select>
@@ -141,9 +146,9 @@ export function ScheduleServiceForm({
 
           {/* Date */}
           <div>
-            <label className="label">תאריך</label>
+            <label className="label">{t("dateLabel")}</label>
             <input
-              type="date" lang="he"
+              type="date" lang={cfg.lang}
               className="input"
               value={date}
               onChange={(e) => setDate(e.target.value)}
@@ -154,7 +159,7 @@ export function ScheduleServiceForm({
 
           {/* Time */}
           <div>
-            <label className="label">שעה</label>
+            <label className="label">{t("timeLabel")}</label>
             <input
               type="time"
               className="input"
@@ -174,7 +179,7 @@ export function ScheduleServiceForm({
             disabled={saving || (!serviceId && services.length > 0)}
             className="btn-primary w-full justify-center py-3"
           >
-            {saving ? "שומר..." : "שמור והמשך"}
+            {saving ? tc("progress.saving") : t("saveAndContinue")}
           </button>
         </form>
       </div>

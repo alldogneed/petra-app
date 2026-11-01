@@ -8,6 +8,7 @@
  */
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import type { WaConnectionStatus } from "@/lib/whatsapp-connections";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Palette } from "lucide-react";
@@ -40,6 +41,8 @@ export function BrandingCard() {
 }
 
 function BrandingCardInner() {
+  const t = useTranslations("settings.brandingCard");
+  const tc = useTranslations("common");
   const qc = useQueryClient();
   const { refreshUser, user } = useAuth();
   // Phase 4: `{slug}.petra.app` — shown only when sub-domains are switched on.
@@ -66,11 +69,11 @@ function BrandingCardInner() {
       setSubdomain("");
       await fetch("/api/auth/me", { cache: "reload" }).catch(() => null);
       await refreshUser();
-      toast.success("הכתובת עודכנה");
+      toast.success(t("toasts.addressUpdated"));
     },
     onError: (e: Error) => {
       setConfirmSubdomain(false);
-      toast.error(e.message || "שגיאה בעדכון הכתובת");
+      toast.error(e.message || t("toasts.addressUpdateError"));
     },
   });
   const canEdit = usePermissions().canCriticalSettings;
@@ -112,9 +115,9 @@ function BrandingCardInner() {
       // /api/auth/me is HTTP-cached for 60s — reload it so the new colour applies now.
       await fetch("/api/auth/me", { cache: "reload" }).catch(() => null);
       await refreshUser();
-      toast.success("המיתוג נשמר");
+      toast.success(t("toasts.saved"));
     },
-    onError: (e: Error) => toast.error(e.message || "שגיאה בשמירת המיתוג"),
+    onError: (e: Error) => toast.error(e.message || t("toasts.saveError")),
   });
 
   if (isLoading) return <PetraLoader variant="inline" />;
@@ -128,27 +131,27 @@ function BrandingCardInner() {
     <div className="max-w-xl mt-10 pt-8 border-t border-slate-100" data-testid="branding-card">
       <SettingsSectionHeader
         icon={Palette}
-        title="מיתוג"
-        description="הצבעים והשם שהלקוחות שלך רואים — במערכת, בדף ההזמנות, במיילים ובדף החתימה. הלוגו הוא לוגו העסק שלמעלה."
+        title={t("title")}
+        description={t("description")}
       />
       {!canEdit && <ReadOnlyNotice className="mb-5" />}
 
       {tenantRoot && (
         <div className="mb-5 p-3 rounded-xl bg-slate-50 border border-slate-200 text-sm" data-testid="tenant-address">
-          <p className="text-petra-muted text-xs mb-1">הכתובת של העסק שלך</p>
+          <p className="text-petra-muted text-xs mb-1">{t("address.title")}</p>
           {tenantAddress ? (
             <a href={tenantAddress} target="_blank" rel="noopener noreferrer" dir="ltr" className="font-medium text-brand-600 hover:underline">
               {tenantAddress.replace("https://", "")}
             </a>
           ) : (
-            <p className="text-xs text-amber-700">לשם העסק עדיין אין כתובת באנגלית — בחרו כתובת כאן למטה.</p>
+            <p className="text-xs text-amber-700">{t("address.noAddress")}</p>
           )}
-          <p className="text-[11px] text-petra-muted mt-1">דף ההזמנות בכתובת שלך; גם כניסה למערכת עובדת שם.</p>
+          <p className="text-[11px] text-petra-muted mt-1">{t("address.hint")}</p>
           {canEdit && (
             <div className="mt-3 flex items-center gap-2" dir="ltr">
               <input
-                aria-label="כתובת חדשה"
-                className="input flex-1 text-left"
+                aria-label={t("address.newAddressAria")}
+                className="input flex-1 text-left" // rtl-ok — the row is dir="ltr" (Latin sub-domain)
                 placeholder="my-studio"
                 value={subdomain}
                 onChange={(e) => setSubdomain(e.target.value.trim().toLowerCase())}
@@ -160,7 +163,7 @@ function BrandingCardInner() {
                 disabled={!isValidCustomSubdomain(subdomain) || subdomain === user?.businessSlug || saveSubdomain.isPending}
                 onClick={() => setConfirmSubdomain(true)}
               >
-                שמירה
+                {t("address.save")}
               </button>
             </div>
           )}
@@ -168,20 +171,20 @@ function BrandingCardInner() {
       )}
       {waStatus && waStatus.status !== "active" && (
         <div className="mb-5 p-3 rounded-xl bg-amber-50 border border-amber-200 text-sm" data-testid="wa-sender-hint">
-          <p className="font-medium text-amber-800">הודעות WhatsApp יוצאות כרגע מהמספר של המערכת</p>
+          <p className="font-medium text-amber-800">{t("whatsapp.title")}</p>
           <p className="text-xs text-amber-700 mt-1">
-            הלקוחות רואים את שם המספר של המערכת ולא את שם העסק. כדי שההודעות ייצאו בשם העסק — חברו מספר WhatsApp עסקי משלכם.
+            {t("whatsapp.body")}
           </p>
           <Link href="/settings?tab=integrations" className="inline-block mt-2 text-xs font-semibold text-brand-600 hover:underline">
-            לחיבור מספר משלכם ←
+            {t("whatsapp.connectLink")}
           </Link>
         </div>
       )}
       <ConfirmDialog
         open={confirmSubdomain}
-        title="שינוי כתובת העסק"
-        description={`הכתובת החדשה תהיה ${subdomain}.${tenantRoot}. קישור ההזמנות הקודם (/book/${user?.businessSlug ?? ""}) יפסיק לעבוד — יש לעדכן אותו בכל מקום ששיתפתם.`}
-        confirmLabel="שנה כתובת"
+        title={t("confirm.title")}
+        description={t("confirm.description", { subdomain, tenantRoot, slug: user?.businessSlug ?? "" })}
+        confirmLabel={t("confirm.confirmLabel")}
         loading={saveSubdomain.isPending}
         onConfirm={() => saveSubdomain.mutate()}
         onCancel={() => setConfirmSubdomain(false)}
@@ -189,12 +192,12 @@ function BrandingCardInner() {
 
       <fieldset disabled={!canEdit} className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
-          <ColorField id="brand-primary" label="צבע ראשי" value={primary} onChange={setPrimary} invalid={!validPrimary} />
-          <ColorField id="brand-secondary" label="צבע משני (אופציונלי)" value={secondary} onChange={setSecondary} invalid={!validSecondary} allowEmpty />
+          <ColorField id="brand-primary" label={t("colors.primary")} value={primary} onChange={setPrimary} invalid={!validPrimary} />
+          <ColorField id="brand-secondary" label={t("colors.secondary")} value={secondary} onChange={setSecondary} invalid={!validSecondary} allowEmpty />
         </div>
 
         <div>
-          <label className="label" htmlFor="brand-sender">שם השולח במיילים ללקוחות</label>
+          <label className="label" htmlFor="brand-sender">{t("senderName")}</label>
           <input
             id="brand-sender"
             className="input w-full"
@@ -206,7 +209,7 @@ function BrandingCardInner() {
         </div>
 
         <div>
-          <p className="label">תצוגה מקדימה</p>
+          <p className="label">{t("preview")}</p>
           <div className="flex rounded-xl overflow-hidden border border-slate-200" aria-hidden="true">
             {([50, 100, 200, 300, 400, 500, 600, 700, 800, 900] as const).map((shade) => (
               <div key={shade} className="flex-1 h-8" style={{ background: palette[shade] }} title={`${shade}`} />
@@ -222,7 +225,7 @@ function BrandingCardInner() {
               disabled={!dirty || !validPrimary || !validSecondary || save.isPending}
               onClick={() => save.mutate()}
             >
-              {save.isPending ? "שומר..." : "שמור מיתוג"}
+              {save.isPending ? tc("progress.saving") : t("saveBranding")}
             </button>
             {dirty && (
               <button
@@ -234,7 +237,7 @@ function BrandingCardInner() {
                   setSender(data.senderName || "");
                 }}
               >
-                ביטול
+                {tc("actions.cancel")}
               </button>
             )}
           </div>
@@ -249,6 +252,7 @@ function ColorField({
 }: {
   id: string; label: string; value: string; onChange: (v: string) => void; invalid: boolean; allowEmpty?: boolean;
 }) {
+  const t = useTranslations("settings.brandingCard");
   return (
     <div>
       <label className="label" htmlFor={id}>{label}</label>
@@ -270,7 +274,7 @@ function ColorField({
           aria-invalid={invalid}
         />
       </div>
-      {invalid && <p className="text-xs text-red-500 mt-1">צבע בפורמט #RRGGBB</p>}
+      {invalid && <p className="text-xs text-red-500 mt-1">{t("colors.invalidHex")}</p>}
     </div>
   );
 }

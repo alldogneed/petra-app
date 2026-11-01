@@ -19,9 +19,10 @@
  * Pure + client-safe (the JSON is bundled).
  */
 import he from "../../../messages/he.json";
+import en from "../../../messages/en.json";
 import { DEFAULT_VERTICAL, normalizeVertical, type Vertical } from "./index";
 
-export type VocabLocale = "he";
+export type VocabLocale = "he" | "en";
 export const DEFAULT_VOCAB_LOCALE: VocabLocale = "he";
 
 type VocabEntry = Record<Vertical, string>;
@@ -29,6 +30,7 @@ type VocabTable = Record<string, VocabEntry>;
 
 const MESSAGES: Record<VocabLocale, { vocab: VocabTable }> = {
   he: he as { vocab: VocabTable },
+  en: en as unknown as { vocab: VocabTable },
 };
 
 export type VocabKey = keyof typeof he.vocab;

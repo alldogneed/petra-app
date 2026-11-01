@@ -21,7 +21,10 @@ import {
   MapPin,
   Plus,
 } from "lucide-react";
-import { cn, formatDate, escapeHtml } from "@/lib/utils";
+import { useTranslations } from "next-intl";
+import { cn, escapeHtml } from "@/lib/utils";
+import { formatDate as formatDateL } from "@/lib/format";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { ServiceDogsTabs } from "@/components/service-dogs/ServiceDogsTabs";
 import {
   SERVICE_DOG_PHASE_MAP, SERVICE_DOG_PHASE_COLORS,
@@ -59,6 +62,9 @@ interface TrainingProgram {
 
 function ServiceDogsReportsPageContent() {
   const { canExportData } = usePermissions();
+  const t = useTranslations("serviceDogs.serviceDogsReportsPage");
+  const { locale, cfg } = useBusinessLocale();
+  const formatDate = (d: Date | string) => formatDateL(d, { locale, style: "long" });
   const { data: dogs = [], isLoading: dogsLoading } = useQuery<ServiceDogSummary[]>({
     queryKey: ["service-dogs"],
     queryFn: () => fetch("/api/service-dogs").then((r) => r.ok ? r.json() : []),
@@ -97,8 +103,8 @@ function ServiceDogsReportsPageContent() {
   const upcomingRenewals: Array<{ dogId: string; dogName: string; label: string; expiry: Date; urgency: "overdue" | "soon" | "ok" }> = [];
   dogs.forEach((dog) => {
     const checks = [
-      { label: "תוקף רישיון", date: dog.licenseExpiry ? new Date(dog.licenseExpiry) : null },
-      { label: "תוקף הסמכה", date: dog.certificationExpiry ? new Date(dog.certificationExpiry) : null },
+      { label: t("renewals.licenseExpiry"), date: dog.licenseExpiry ? new Date(dog.licenseExpiry) : null },
+      { label: t("renewals.certificationExpiry"), date: dog.certificationExpiry ? new Date(dog.certificationExpiry) : null },
     ];
     checks.forEach(({ label, date }) => {
       if (!date) return;
@@ -134,23 +140,23 @@ function ServiceDogsReportsPageContent() {
       <div className="print-header">
         <img src="/petra-logo.png" alt="Petra" style={{ width: 38, height: 38, objectFit: "contain", borderRadius: 6 }} />
         <div>
-          <div style={{ fontWeight: 700, fontSize: 16, color: "#1e293b" }}>דוחות פנימיים — כלבי שירות</div>
-          <div style={{ fontSize: 11, color: "#64748b" }}>הופק: {new Date().toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" })}</div>
+          <div style={{ fontWeight: 700, fontSize: 16, color: "#1e293b" }}>{t("title")}</div>
+          <div style={{ fontSize: 11, color: "#64748b" }}>{t("generatedAt", { date: new Date().toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" }) })}</div>
         </div>
       </div>
       <ServiceDogsTabs />
       <div className="page-header">
         <div>
           <div className="flex items-center gap-2 text-sm text-petra-muted mb-1">
-            <Link href="/service-dogs" className="hover:text-foreground">כלבי שירות</Link>
-            <ChevronLeft className="w-3.5 h-3.5" />
-            <span>דוחות פנימיים</span>
+            <Link href="/service-dogs" className="hover:text-foreground">{t("breadcrumb.serviceDogs")}</Link>
+            <ChevronLeft className="w-3.5 h-3.5 ltr:-scale-x-100" />
+            <span>{t("breadcrumb.reports")}</span>
           </div>
           <h1 className="page-title flex items-center gap-2">
             <BarChart2 className="w-6 h-6 text-brand-500" />
-            דוחות פנימיים — כלבי שירות
+            {t("title")}
           </h1>
-          <p className="text-sm text-petra-muted mt-1">סיכום תפעולי · אימונים · שיבוצים</p>
+          <p className="text-sm text-petra-muted mt-1">{t("subtitle")}</p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -158,17 +164,17 @@ function ServiceDogsReportsPageContent() {
             className="btn-secondary flex items-center gap-2 text-sm px-3 py-2 print:hidden"
           >
             <Printer className="w-4 h-4" />
-            הדפס
+            {t("actions.print")}
           </button>
           {canExportData && (<>
           <a
             href="/api/service-dogs/export/government"
             download
             className="btn-primary flex items-center gap-2 text-sm px-3 py-2"
-            title="דיווח ממשלתי — פורמט משרד החקלאות"
+            title={t("actions.govReportTitle")}
           >
             <Download className="w-4 h-4" />
-            דיווח ממשלתי
+            {t("actions.govReport")}
           </a>
           <a
             href="/api/service-dogs/export"
@@ -176,7 +182,7 @@ function ServiceDogsReportsPageContent() {
             className="btn-secondary flex items-center gap-2 text-sm px-3 py-2"
           >
             <Download className="w-4 h-4" />
-            ייצוא כלבים לאקסל
+            {t("actions.exportDogs")}
           </a>
           <a
             href="/api/service-recipients/export"
@@ -184,7 +190,7 @@ function ServiceDogsReportsPageContent() {
             className="btn-secondary flex items-center gap-2 text-sm px-3 py-2"
           >
             <Download className="w-4 h-4" />
-            ייצוא זכאים לאקסל
+            {t("actions.exportRecipients")}
           </a>
           <a
             href="/api/service-recipients/export/by-funding?source=BITUACH_LEUMI"
@@ -192,7 +198,7 @@ function ServiceDogsReportsPageContent() {
             className="btn-secondary flex items-center gap-2 text-sm px-3 py-2"
           >
             <Download className="w-4 h-4" />
-            ייצוא ביטוח לאומי
+            {t("actions.exportBituachLeumi")}
           </a>
           <a
             href="/api/service-recipients/export/by-funding?source=MINISTRY_OF_DEFENSE"
@@ -200,40 +206,40 @@ function ServiceDogsReportsPageContent() {
             className="btn-secondary flex items-center gap-2 text-sm px-3 py-2"
           >
             <Download className="w-4 h-4" />
-            ייצוא משרד הביטחון
+            {t("actions.exportMinistryOfDefense")}
           </a>
           <a
             href="/api/service-dogs/export/care"
             download
             className="btn-secondary flex items-center gap-2 text-sm px-3 py-2"
-            title="גיליון 1: האכלות | גיליון 2: תרופות — כלבי שירות בלבד"
+            title={t("actions.careExportTitle")}
           >
             <Download className="w-4 h-4" />
-            האכלות ותרופות
+            {t("actions.careExport")}
           </a>
           </>)}
           <button
             onClick={() => {
-              const certRows = certified.map((dog) => `<tr><td>${escapeHtml(dog.pet.name)}</td><td>${escapeHtml(dog.pet.breed) || "—"}</td><td>${dog.certificationDate ? formatDate(dog.certificationDate) : "—"}</td><td>${dog.activePlacement ? `משובץ — ${escapeHtml(dog.activePlacement.recipientName)}` : "ללא שיבוץ"}</td></tr>`).join("");
+              const certRows = certified.map((dog) => `<tr><td>${escapeHtml(dog.pet.name)}</td><td>${escapeHtml(dog.pet.breed) || "—"}</td><td>${dog.certificationDate ? formatDate(dog.certificationDate) : "—"}</td><td>${dog.activePlacement ? t("print.placedTo", { name: escapeHtml(dog.activePlacement.recipientName) }) : t("noPlacement")}</td></tr>`).join("");
               const phaseRows = Object.entries(byPhase).map(([phase, count]) => `<tr><td>${phase}</td><td>${count}</td></tr>`).join("");
               const win = window.open("", "_blank");
               if (!win) return;
-              win.document.write(`<html dir="rtl"><head><title>דוחות פנימיים — כלבי שירות</title>
-                <style>body{font-family:Arial,sans-serif;padding:32px;direction:rtl}h1{font-size:20px;margin-bottom:4px}h2{font-size:15px;margin:24px 0 10px;border-bottom:2px solid #eee;padding-bottom:4px}table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:16px}th,td{border:1px solid #ddd;padding:7px 10px;text-align:right}th{background:#f5f5f5;font-weight:600}tr:nth-child(even){background:#fafafa}.stat{display:inline-block;margin:0 8px 8px 0;padding:6px 14px;border:1px solid #ddd;border-radius:8px;font-size:13px}footer{margin-top:24px;font-size:11px;color:#888;border-top:1px solid #eee;padding-top:8px}</style>
+              win.document.write(`<html dir="${cfg.dir}"><head><title>${t("title")}</title>
+                <style>body{font-family:Arial,sans-serif;padding:32px;direction:${cfg.dir}}h1{font-size:20px;margin-bottom:4px}h2{font-size:15px;margin:24px 0 10px;border-bottom:2px solid #eee;padding-bottom:4px}table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:16px}th,td{border:1px solid #ddd;padding:7px 10px;text-align:start}th{background:#f5f5f5;font-weight:600}tr:nth-child(even){background:#fafafa}.stat{display:inline-block;margin:0 8px 8px 0;padding:6px 14px;border:1px solid #ddd;border-radius:8px;font-size:13px}footer{margin-top:24px;font-size:11px;color:#888;border-top:1px solid #eee;padding-top:8px}</style>
               </head><body>
-                <h1>דוחות פנימיים — כלבי שירות</h1>
-                <p style="color:#888;font-size:12px">הופק: ${formatDate(new Date())}</p>
+                <h1>${t("title")}</h1>
+                <p style="color:#888;font-size:12px">${t("generatedAt", { date: formatDate(new Date()) })}</p>
                 <div>
-                  <span class="stat">סה"כ כלבים: <strong>${totalDogs}</strong></span>
-                  <span class="stat">מוסמכים: <strong>${certified.length}</strong></span>
-                  <span class="stat">באימון: <strong>${inTraining.length}</strong></span>
-                  <span class="stat">משובצים: <strong>${placed.length}</strong></span>
+                  <span class="stat">${t("print.statTotalDogs")} <strong>${totalDogs}</strong></span>
+                  <span class="stat">${t("print.statCertified")} <strong>${certified.length}</strong></span>
+                  <span class="stat">${t("print.statInTraining")} <strong>${inTraining.length}</strong></span>
+                  <span class="stat">${t("print.statPlaced")} <strong>${placed.length}</strong></span>
                 </div>
-                <h2>כלבים מוסמכים (${certified.length})</h2>
-                <table><thead><tr><th>שם</th><th>גזע</th><th>תאריך הסמכה</th><th>שיבוץ</th></tr></thead><tbody>${certRows}</tbody></table>
-                <h2>כלבים לפי שלב</h2>
-                <table><thead><tr><th>שלב</th><th>כמות</th></tr></thead><tbody>${phaseRows}</tbody></table>
-                <footer>הופק ממערכת Petra · ${formatDate(new Date())}</footer>
+                <h2>${t("certified.heading", { count: certified.length })}</h2>
+                <table><thead><tr><th>${t("print.colName")}</th><th>${t("print.colBreed")}</th><th>${t("print.colCertDate")}</th><th>${t("print.colPlacement")}</th></tr></thead><tbody>${certRows}</tbody></table>
+                <h2>${t("print.byPhaseHeading")}</h2>
+                <table><thead><tr><th>${t("print.colPhase")}</th><th>${t("print.colCount")}</th></tr></thead><tbody>${phaseRows}</tbody></table>
+                <footer>${t("print.footer", { date: formatDate(new Date()) })}</footer>
               </body></html>`);
               win.document.close();
               win.print();
@@ -241,7 +247,7 @@ function ServiceDogsReportsPageContent() {
             className="btn-secondary flex items-center gap-2 text-sm px-3 py-2 print:hidden"
           >
             <Printer className="w-4 h-4" />
-            הדפס דוח
+            {t("actions.printReport")}
           </button>
         </div>
       </div>
@@ -261,7 +267,7 @@ function ServiceDogsReportsPageContent() {
               <div className="card p-5">
                 <h2 className="font-semibold mb-4 flex items-center gap-2">
                   <MapPin className="w-4 h-4 text-brand-500" />
-                  מיקום כלבים
+                  {t("location.heading")}
                 </h2>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
                   {byLocation.map((l) => (
@@ -307,22 +313,22 @@ function ServiceDogsReportsPageContent() {
             <div className="card p-4 text-center">
               <Dog className="w-6 h-6 mx-auto text-brand-500 mb-2" />
               <div className="text-3xl font-bold">{totalDogs}</div>
-              <div className="text-xs text-petra-muted mt-1">סה״כ כלבים</div>
+              <div className="text-xs text-petra-muted mt-1">{t("stats.totalDogs")}</div>
             </div>
             <div className="card p-4 text-center">
               <Shield className="w-6 h-6 mx-auto text-emerald-500 mb-2" />
               <div className="text-3xl font-bold text-emerald-600">{certified.length}</div>
-              <div className="text-xs text-petra-muted mt-1">מוסמכים</div>
+              <div className="text-xs text-petra-muted mt-1">{t("stats.certified")}</div>
             </div>
             <div className="card p-4 text-center">
               <GraduationCap className="w-6 h-6 mx-auto text-blue-500 mb-2" />
               <div className="text-3xl font-bold text-blue-600">{inTraining.length}</div>
-              <div className="text-xs text-petra-muted mt-1">באימון</div>
+              <div className="text-xs text-petra-muted mt-1">{t("stats.inTraining")}</div>
             </div>
             <div className="card p-4 text-center">
               <Activity className="w-6 h-6 mx-auto text-purple-500 mb-2" />
               <div className="text-3xl font-bold text-purple-600">{placed.length}</div>
-              <div className="text-xs text-petra-muted mt-1">שיבוצים פעילים</div>
+              <div className="text-xs text-petra-muted mt-1">{t("stats.activePlacements")}</div>
             </div>
           </div>
 
@@ -334,7 +340,7 @@ function ServiceDogsReportsPageContent() {
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="font-semibold flex items-center gap-2">
                     <UserCheck className="w-4 h-4 text-brand-500" />
-                    פיפליין זכאים ({recipients.length})
+                    {t("pipeline.heading", { count: recipients.length })}
                   </h2>
                   <button
                     onClick={() => {
@@ -342,12 +348,12 @@ function ServiceDogsReportsPageContent() {
                         .map(s => `<tr><td>${s.label}</td><td>${s.count}</td></tr>`).join("");
                       const win = window.open("", "_blank");
                       if (!win) return;
-                      win.document.write(`<html dir="rtl"><head><title>פיפליין זכאים</title>
-                        <style>body{font-family:Arial,sans-serif;padding:32px;direction:rtl}h2{font-size:18px;margin-bottom:16px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{border:1px solid #ddd;padding:8px 10px;text-align:right}th{background:#f5f5f5;font-weight:600}tr:nth-child(even){background:#fafafa}footer{margin-top:24px;font-size:11px;color:#888;border-top:1px solid #eee;padding-top:8px}</style>
+                      win.document.write(`<html dir="${cfg.dir}"><head><title>${t("pipeline.title")}</title>
+                        <style>body{font-family:Arial,sans-serif;padding:32px;direction:${cfg.dir}}h2{font-size:18px;margin-bottom:16px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{border:1px solid #ddd;padding:8px 10px;text-align:start}th{background:#f5f5f5;font-weight:600}tr:nth-child(even){background:#fafafa}footer{margin-top:24px;font-size:11px;color:#888;border-top:1px solid #eee;padding-top:8px}</style>
                       </head><body>
-                        <h2>פיפליין זכאים (${recipients.length})</h2>
-                        <table><thead><tr><th>שלב</th><th>כמות</th></tr></thead><tbody>${rows}</tbody></table>
-                        <footer>הופק ממערכת Petra · ${formatDate(new Date())}</footer>
+                        <h2>${t("pipeline.heading", { count: recipients.length })}</h2>
+                        <table><thead><tr><th>${t("print.colPhase")}</th><th>${t("print.colCount")}</th></tr></thead><tbody>${rows}</tbody></table>
+                        <footer>${t("print.footer", { date: formatDate(new Date()) })}</footer>
                       </body></html>`);
                       win.document.close();
                       win.print();
@@ -355,7 +361,7 @@ function ServiceDogsReportsPageContent() {
                     className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100 border border-slate-200 transition-colors print:hidden"
                   >
                     <Printer className="w-3.5 h-3.5" />
-                    הדפס
+                    {t("actions.print")}
                   </button>
                 </div>
                 <div className="space-y-2">
@@ -381,20 +387,20 @@ function ServiceDogsReportsPageContent() {
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="font-semibold flex items-center gap-2">
                     <Calendar className="w-4 h-4 text-brand-500" />
-                    לפי מקור מימון
+                    {t("funding.title")}
                   </h2>
                   <button
                     onClick={() => {
                       const rows = Object.entries(byFunding)
-                        .map(([source, count]) => `<tr><td>${FUNDING_SOURCE_MAP[source] || "לא ידוע"}</td><td>${count}</td></tr>`).join("");
+                        .map(([source, count]) => `<tr><td>${FUNDING_SOURCE_MAP[source] || t("funding.unknown")}</td><td>${count}</td></tr>`).join("");
                       const win = window.open("", "_blank");
                       if (!win) return;
-                      win.document.write(`<html dir="rtl"><head><title>לפי מקור מימון</title>
-                        <style>body{font-family:Arial,sans-serif;padding:32px;direction:rtl}h2{font-size:18px;margin-bottom:16px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{border:1px solid #ddd;padding:8px 10px;text-align:right}th{background:#f5f5f5;font-weight:600}tr:nth-child(even){background:#fafafa}footer{margin-top:24px;font-size:11px;color:#888;border-top:1px solid #eee;padding-top:8px}</style>
+                      win.document.write(`<html dir="${cfg.dir}"><head><title>${t("funding.title")}</title>
+                        <style>body{font-family:Arial,sans-serif;padding:32px;direction:${cfg.dir}}h2{font-size:18px;margin-bottom:16px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{border:1px solid #ddd;padding:8px 10px;text-align:start}th{background:#f5f5f5;font-weight:600}tr:nth-child(even){background:#fafafa}footer{margin-top:24px;font-size:11px;color:#888;border-top:1px solid #eee;padding-top:8px}</style>
                       </head><body>
-                        <h2>זכאים לפי מקור מימון</h2>
-                        <table><thead><tr><th>מקור מימון</th><th>כמות</th></tr></thead><tbody>${rows}</tbody></table>
-                        <footer>הופק ממערכת Petra · ${formatDate(new Date())}</footer>
+                        <h2>${t("funding.printHeading")}</h2>
+                        <table><thead><tr><th>${t("funding.colSource")}</th><th>${t("print.colCount")}</th></tr></thead><tbody>${rows}</tbody></table>
+                        <footer>${t("print.footer", { date: formatDate(new Date()) })}</footer>
                       </body></html>`);
                       win.document.close();
                       win.print();
@@ -402,7 +408,7 @@ function ServiceDogsReportsPageContent() {
                     className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100 border border-slate-200 transition-colors print:hidden"
                   >
                     <Printer className="w-3.5 h-3.5" />
-                    הדפס
+                    {t("actions.print")}
                   </button>
                 </div>
                 <div className="space-y-3">
@@ -411,7 +417,7 @@ function ServiceDogsReportsPageContent() {
                     return (
                       <div key={source}>
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm">{FUNDING_SOURCE_MAP[source] || "לא ידוע"}</span>
+                          <span className="text-sm">{FUNDING_SOURCE_MAP[source] || t("funding.unknown")}</span>
                           <span className="text-sm font-bold">{count} ({pct}%)</span>
                         </div>
                         <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
@@ -430,7 +436,7 @@ function ServiceDogsReportsPageContent() {
             <div className="card p-5">
               <h2 className="font-semibold mb-4 flex items-center gap-2">
                 <Dog className="w-4 h-4 text-brand-500" />
-                התפלגות לפי שלב
+                {t("phases.heading")}
               </h2>
               <div className="space-y-2">
                 {Object.entries(byPhase).map(([phase, count]) => {
@@ -460,7 +466,7 @@ function ServiceDogsReportsPageContent() {
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-semibold flex items-center gap-2">
                   <Shield className="w-4 h-4 text-emerald-500" />
-                  כלבים מוסמכים ({certified.length})
+                  {t("certified.heading", { count: certified.length })}
                 </h2>
                 <button
                   onClick={() => {
@@ -469,17 +475,17 @@ function ServiceDogsReportsPageContent() {
                         <td>${escapeHtml(dog.pet.name)}</td>
                         <td>${escapeHtml(dog.pet.breed) || "—"}</td>
                         <td>${dog.certificationDate ? formatDate(dog.certificationDate) : "—"}</td>
-                        <td>${dog.activePlacement ? `משובץ — ${escapeHtml(dog.activePlacement.recipientName)}` : "ללא שיבוץ"}</td>
+                        <td>${dog.activePlacement ? t("print.placedTo", { name: escapeHtml(dog.activePlacement.recipientName) }) : t("noPlacement")}</td>
                       </tr>`).join("");
                     const win = window.open("", "_blank");
                     if (!win) return;
-                    win.document.write(`<html dir="rtl"><head><title>כלבים מוסמכים</title>
-                      <style>body{font-family:Arial,sans-serif;padding:32px;direction:rtl}h2{font-size:18px;margin-bottom:16px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{border:1px solid #ddd;padding:8px 10px;text-align:right}th{background:#f5f5f5;font-weight:600}tr:nth-child(even){background:#fafafa}footer{margin-top:24px;font-size:11px;color:#888;border-top:1px solid #eee;padding-top:8px}</style>
+                    win.document.write(`<html dir="${cfg.dir}"><head><title>${t("certified.title")}</title>
+                      <style>body{font-family:Arial,sans-serif;padding:32px;direction:${cfg.dir}}h2{font-size:18px;margin-bottom:16px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{border:1px solid #ddd;padding:8px 10px;text-align:start}th{background:#f5f5f5;font-weight:600}tr:nth-child(even){background:#fafafa}footer{margin-top:24px;font-size:11px;color:#888;border-top:1px solid #eee;padding-top:8px}</style>
                     </head><body>
-                      <h2>כלבים מוסמכים (${certified.length})</h2>
-                      <table><thead><tr><th>שם הכלב</th><th>גזע</th><th>תאריך הסמכה</th><th>שיבוץ</th></tr></thead>
+                      <h2>${t("certified.heading", { count: certified.length })}</h2>
+                      <table><thead><tr><th>${t("print.colDogName")}</th><th>${t("print.colBreed")}</th><th>${t("print.colCertDate")}</th><th>${t("print.colPlacement")}</th></tr></thead>
                       <tbody>${rows}</tbody></table>
-                      <footer>הופק ממערכת Petra · ${formatDate(new Date())}</footer>
+                      <footer>${t("print.footer", { date: formatDate(new Date()) })}</footer>
                     </body></html>`);
                     win.document.close();
                     win.print();
@@ -487,11 +493,11 @@ function ServiceDogsReportsPageContent() {
                   className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100 border border-slate-200 transition-colors print:hidden"
                 >
                   <Printer className="w-3.5 h-3.5" />
-                  הדפס
+                  {t("actions.print")}
                 </button>
               </div>
               {certified.length === 0 ? (
-                <p className="text-sm text-petra-muted">אין כלבים מוסמכים עדיין</p>
+                <p className="text-sm text-petra-muted">{t("certified.empty")}</p>
               ) : (
                 <div className="divide-y max-h-64 overflow-y-auto">
                   {certified.map((dog) => (
@@ -503,16 +509,16 @@ function ServiceDogsReportsPageContent() {
                       <div>
                         <p className="text-sm font-medium">{dog.pet.name}</p>
                         <p className="text-xs text-petra-muted mt-0.5">
-                          {dog.certificationDate ? `הוסמך ${formatDate(dog.certificationDate)}` : "ללא תאריך הסמכה"}
+                          {dog.certificationDate ? t("certified.certifiedOn", { date: formatDate(dog.certificationDate) }) : t("certified.noCertDate")}
                         </p>
                       </div>
-                      <div className="text-left">
+                      <div className="text-end">
                         {dog.activePlacement ? (
                           <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">
-                            משובץ — {dog.activePlacement.recipientName}
+                            {t("certified.placedTo", { name: dog.activePlacement.recipientName })}
                           </span>
                         ) : (
-                          <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">ללא שיבוץ</span>
+                          <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">{t("noPlacement")}</span>
                         )}
                       </div>
                     </Link>
@@ -528,25 +534,25 @@ function ServiceDogsReportsPageContent() {
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-semibold flex items-center gap-2">
                   <RefreshCw className="w-4 h-4 text-amber-500" />
-                  חידושים קרובים — 90 יום
+                  {t("renewals.heading")}
                   <span className="text-xs font-medium bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
-                    {upcomingRenewals.length} פריטים
+                    {t("renewals.items", { count: upcomingRenewals.length })}
                   </span>
                 </h2>
                 <button
                   onClick={() => {
                     const rows = upcomingRenewals.map(r =>
-                      `<tr><td>${escapeHtml(r.dogName)}</td><td>${escapeHtml(r.label)}</td><td>${r.urgency === "overdue" ? "פג תוקף" : formatDate(r.expiry)}</td></tr>`
+                      `<tr><td>${escapeHtml(r.dogName)}</td><td>${escapeHtml(r.label)}</td><td>${r.urgency === "overdue" ? t("renewals.expired") : formatDate(r.expiry)}</td></tr>`
                     ).join("");
                     const win = window.open("", "_blank");
                     if (!win) return;
-                    win.document.write(`<html dir="rtl"><head><title>חידושים קרובים</title>
-                      <style>body{font-family:Arial,sans-serif;padding:32px;direction:rtl}h2{font-size:18px;margin-bottom:16px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{border:1px solid #ddd;padding:8px 10px;text-align:right}th{background:#f5f5f5;font-weight:600}tr:nth-child(even){background:#fafafa}footer{margin-top:24px;font-size:11px;color:#888;border-top:1px solid #eee;padding-top:8px}</style>
+                    win.document.write(`<html dir="${cfg.dir}"><head><title>${t("renewals.title")}</title>
+                      <style>body{font-family:Arial,sans-serif;padding:32px;direction:${cfg.dir}}h2{font-size:18px;margin-bottom:16px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{border:1px solid #ddd;padding:8px 10px;text-align:start}th{background:#f5f5f5;font-weight:600}tr:nth-child(even){background:#fafafa}footer{margin-top:24px;font-size:11px;color:#888;border-top:1px solid #eee;padding-top:8px}</style>
                     </head><body>
-                      <h2>חידושים קרובים — 90 יום (${upcomingRenewals.length} פריטים)</h2>
-                      <table><thead><tr><th>שם הכלב</th><th>סוג חידוש</th><th>תאריך</th></tr></thead>
+                      <h2>${t("renewals.printHeading", { count: upcomingRenewals.length })}</h2>
+                      <table><thead><tr><th>${t("print.colDogName")}</th><th>${t("renewals.colType")}</th><th>${t("renewals.colDate")}</th></tr></thead>
                       <tbody>${rows}</tbody></table>
-                      <footer>הופק ממערכת Petra · ${formatDate(new Date())}</footer>
+                      <footer>${t("print.footer", { date: formatDate(new Date()) })}</footer>
                     </body></html>`);
                     win.document.close();
                     win.print();
@@ -554,7 +560,7 @@ function ServiceDogsReportsPageContent() {
                   className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:bg-slate-100 border border-slate-200 transition-colors print:hidden"
                 >
                   <Printer className="w-3.5 h-3.5" />
-                  הדפס
+                  {t("actions.print")}
                 </button>
               </div>
               <div className="divide-y max-h-64 overflow-y-auto">
@@ -575,7 +581,7 @@ function ServiceDogsReportsPageContent() {
                           : r.urgency === "soon" ? "bg-amber-100 text-amber-700"
                           : "bg-slate-100 text-slate-600"
                       )}>
-                        {r.urgency === "overdue" ? "פג תוקף" : formatDate(r.expiry.toISOString())}
+                        {r.urgency === "overdue" ? t("renewals.expired") : formatDate(r.expiry.toISOString())}
                       </span>
                     </div>
                   </Link>
@@ -591,11 +597,12 @@ function ServiceDogsReportsPageContent() {
 }
 
 export default function ServiceDogsReportsPage() {
+  const t = useTranslations("serviceDogs.serviceDogsReportsPage");
   return (
     <TierGate
       feature="service_dogs"
-      title="מודול כלבי שירות"
-      description="ניהול כלבי שירות, זכאים, שיבוצים ותעודות הסמכה — זמין במנוי Service Dog בלבד."
+      title={t("tierGate.title")}
+      description={t("tierGate.description")}
       upgradeTier="service_dog"
     >
       <ServiceDogsReportsPageContent />

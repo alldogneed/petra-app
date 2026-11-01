@@ -3,11 +3,13 @@ import { useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Pencil, Tag } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { parseTags, type EnhancedCustomer } from "./types";
 
 // ─── Inline Tag Editor ──────────────────────────────────────────
 
 export function InlineTagEditor({ customer, presetTags }: { customer: EnhancedCustomer; presetTags: string[] }) {
+  const t = useTranslations("customers");
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -26,12 +28,12 @@ export function InlineTagEditor({ customer, presetTags }: { customer: EnhancedCu
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customers"] });
     },
-    onError: () => toast.error("שגיאה בעדכון התגיות. נסה שוב."),
+    onError: () => toast.error(t("inlineTagEditor.updateError")),
   });
 
   const toggleTag = (tag: string) => {
     const newTags = tags.includes(tag)
-      ? tags.filter((t) => t !== tag)
+      ? tags.filter((tg) => tg !== tag)
       : [...tags, tag];
     mutation.mutate(newTags);
   };
@@ -57,12 +59,12 @@ export function InlineTagEditor({ customer, presetTags }: { customer: EnhancedCu
           setIsOpen(!isOpen);
         }}
         className="flex items-center gap-1 group/tags cursor-pointer"
-        title="עריכת תגיות"
+        title={t("inlineTagEditor.editTitle")}
       >
-        {tags.filter((t) => t !== "VIP").length > 0 ? (
+        {tags.filter((tg) => tg !== "VIP").length > 0 ? (
           <div className="flex gap-1 flex-wrap">
             {tags
-              .filter((t) => t !== "VIP")
+              .filter((tg) => tg !== "VIP")
               .slice(0, 3)
               .map((tag) => (
                 <span
@@ -72,31 +74,31 @@ export function InlineTagEditor({ customer, presetTags }: { customer: EnhancedCu
                   {tag}
                 </span>
               ))}
-            {tags.filter((t) => t !== "VIP").length > 3 && (
+            {tags.filter((tg) => tg !== "VIP").length > 3 && (
               <span className="text-[10px] text-[#8B7355]">
-                +{tags.filter((t) => t !== "VIP").length - 3}
+                +{tags.filter((tg) => tg !== "VIP").length - 3}
               </span>
             )}
-            <Pencil className="w-3 h-3 text-slate-300 opacity-0 group-hover/tags:opacity-100 transition-opacity mr-0.5" />
+            <Pencil className="w-3 h-3 text-slate-300 opacity-0 group-hover/tags:opacity-100 transition-opacity ms-0.5" />
           </div>
         ) : (
           <span className="flex items-center gap-1 text-[10px] text-slate-300 group-hover/tags:text-[#8B7355] transition-colors">
             <Tag className="w-3 h-3" />
-            הוסף תגיות
+            {t("inlineTagEditor.addTags")}
           </span>
         )}
       </button>
 
       {isOpen && (
         <div
-          className="absolute top-full right-0 mt-1 bg-white rounded-xl shadow-lg border border-[#E8DFD5] p-2.5 z-50 min-w-[200px] animate-fade-in"
+          className="absolute top-full start-0 mt-1 bg-white rounded-xl shadow-lg border border-[#E8DFD5] p-2.5 z-50 min-w-[200px] animate-fade-in"
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
           }}
         >
           <div className="text-[11px] font-semibold text-[#8B7355] mb-2 px-1">
-            תגיות לקוח
+            {t("inlineTagEditor.heading")}
           </div>
           <div className="flex flex-wrap gap-1.5">
             {presetTags.map((tag) => (

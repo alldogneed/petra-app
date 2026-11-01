@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, MessageSquare } from "lucide-react";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { IntakeWhatsAppModal } from "./IntakeWhatsAppModal";
 
 interface IntakeStatus {
@@ -21,6 +22,7 @@ interface IntakeStatus {
  * Shows prompt to send intake form via WhatsApp.
  */
 export function IntakeBanner({ customerId }: { customerId: string }) {
+  const t = useTranslations("intake");
   const [showModal, setShowModal] = useState(false);
 
   const { data: status } = useQuery<IntakeStatus>({
@@ -45,13 +47,13 @@ export function IntakeBanner({ customerId }: { customerId: string }) {
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-amber-900">
-            חסרים פרטים על הכלב — שלח ללקוח טופס מילוי מהיר.
+            {t("intakeBanner.title")}
           </p>
           <p className="text-xs text-amber-700 mt-0.5">
-            {status.noDogs && "לא נרשם כלב. "}
-            {status.missingHealth && "חסרים פרטי בריאות. "}
-            {status.missingBehavior && "חסר שאלון התנהגות. "}
-            {hasPending && " (טופס כבר נשלח — ניתן לשלוח שוב)"}
+            {status.noDogs && t("intakeBanner.noDogs")}
+            {status.missingHealth && t("intakeBanner.missingHealth")}
+            {status.missingBehavior && t("intakeBanner.missingBehavior")}
+            {hasPending && t("intakeBanner.alreadySent")}
           </p>
         </div>
         <div className="flex gap-2 flex-shrink-0">
@@ -60,7 +62,7 @@ export function IntakeBanner({ customerId }: { customerId: string }) {
             className="inline-flex items-center gap-1.5 px-3 py-2 bg-emerald-600 text-white rounded-xl text-xs font-semibold hover:bg-emerald-700 transition-colors shadow-sm"
           >
             <MessageSquare className="w-3.5 h-3.5" />
-            שלח בוואטסאפ
+            {t("intakeBanner.sendWhatsApp")}
           </button>
         </div>
       </div>

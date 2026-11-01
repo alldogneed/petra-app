@@ -1,6 +1,10 @@
 "use client";
 import React from "react";
 import { Star, Zap, Crown } from "lucide-react";
+import type { useTranslations } from "next-intl";
+
+/** Translator for the `settings.shared` namespace (validation messages, labels). */
+export type SettingsSharedT = ReturnType<typeof useTranslations<"settings.shared">>;
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -28,21 +32,27 @@ export const DEFAULT_SD_SETTINGS: SdSettings = {
   vaccinationScheduleEnabled: false,
 };
 
+// Labels are message keys under `settings.shared` (render with
+// `useTranslations("settings.shared")` → `t(item.labelKey)`).
 export const SD_VACCINE_TREATMENTS = [
-  { key: "RABIES_BOOSTER" as const, label: "כלבת", doses: 1 },
-  { key: "DHPP_BOOSTER"   as const, label: "משושה", doses: 1 },
-  { key: "DEWORMING"      as const, label: "תילוע", doses: 2 },
-  { key: "PARK_WORM"      as const, label: "תולעת הפארק", doses: 4 },
-  { key: "FLEA_TICK"      as const, label: "קרציות ופרעושים", doses: 4 },
+  { key: "RABIES_BOOSTER" as const, labelKey: "treatments.rabies" as const, doses: 1 },
+  { key: "DHPP_BOOSTER"   as const, labelKey: "treatments.dhpp" as const, doses: 1 },
+  { key: "DEWORMING"      as const, labelKey: "treatments.deworming" as const, doses: 2 },
+  { key: "PARK_WORM"      as const, labelKey: "treatments.parkWorm" as const, doses: 4 },
+  { key: "FLEA_TICK"      as const, labelKey: "treatments.fleaTick" as const, doses: 4 },
 ];
 export const SD_PUPPY_TREATMENTS = [
-  { key: "RABIES_PRIMARY" as const, label: "כלבת", doses: 2 },
-  { key: "DHPP_PRIMARY"   as const, label: "משושה גורים", doses: 3 },
-  { key: "DEWORMING"      as const, label: "תילוע", doses: 4 },
-  { key: "PARK_WORM"      as const, label: "תולעת הפארק", doses: 4 },
-  { key: "FLEA_TICK"      as const, label: "קרציות ופרעושים", doses: 4 },
+  { key: "RABIES_PRIMARY" as const, labelKey: "treatments.rabies" as const, doses: 2 },
+  { key: "DHPP_PRIMARY"   as const, labelKey: "treatments.dhppPuppy" as const, doses: 3 },
+  { key: "DEWORMING"      as const, labelKey: "treatments.deworming" as const, doses: 4 },
+  { key: "PARK_WORM"      as const, labelKey: "treatments.parkWorm" as const, doses: 4 },
+  { key: "FLEA_TICK"      as const, labelKey: "treatments.fleaTick" as const, doses: 4 },
 ];
-export const HE_MONTHS_SETTINGS = ["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"];
+/** Month names (index 0 = January) as message keys under `settings.shared`. */
+export const MONTH_KEYS_SETTINGS = [
+  "months.jan", "months.feb", "months.mar", "months.apr", "months.may", "months.jun",
+  "months.jul", "months.aug", "months.sep", "months.oct", "months.nov", "months.dec",
+] as const;
 export const PUPPY_WEEKS_OPTIONS = [4,6,8,10,12,14,16,18,20,22,24,28,32,36,40,48];
 
 export interface Business {
@@ -80,20 +90,20 @@ export interface ValidationErrors {
 
 // ─── Validation helpers ──────────────────────────────────────────────────────
 
-export function validatePhone(phone: string): string | undefined {
+export function validatePhone(phone: string, t: SettingsSharedT): string | undefined {
   if (!phone) return undefined; // optional
   const digits = phone.replace(/[\s\-().]/g, "");
   // Israeli phone: 0X-XXXXXXX (9-10 digits starting with 0) or +972...
   if (digits.startsWith("+972") && digits.length >= 12 && digits.length <= 13) return undefined;
   if (digits.startsWith("0") && digits.length >= 9 && digits.length <= 10) return undefined;
-  return "מספר טלפון לא תקין (פורמט ישראלי)";
+  return t("errors.phoneInvalid");
 }
 
-export function validateVatNumber(vat: string): string | undefined {
+export function validateVatNumber(vat: string, t: SettingsSharedT): string | undefined {
   if (!vat) return undefined; // optional
   const digits = vat.replace(/\D/g, "");
   if (digits.length === 9) return undefined;
-  return "מספר עוסק מורשה חייב להכיל 9 ספרות";
+  return t("errors.vatInvalid");
 }
 
 // ─── Tier Icons ──────────────────────────────────────────────────────────────

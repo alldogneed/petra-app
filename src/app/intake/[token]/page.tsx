@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import Image from "next/image";
 import {
   Dog,
@@ -13,6 +14,7 @@ import {
   } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { LOCALE_CONFIG, localeFromBusiness } from "@/lib/locale";
 
 interface FormInfo {
   id: string;
@@ -23,29 +25,31 @@ interface FormInfo {
 }
 
 const STEPS = [
-  { label: "פרטי הכלב", icon: Dog },
-  { label: "בריאות", icon: Heart },
-  { label: "התנהגות", icon: Brain },
-  { label: "תרופות", icon: Pill },
-];
+  { id: "dogDetails", icon: Dog },
+  { id: "health", icon: Heart },
+  { id: "behavior", icon: Brain },
+  { id: "medications", icon: Pill },
+] as const;
 
 const BEHAVIOR_FLAGS = [
-  { key: "dogAggression", label: "תוקפנות כלפי כלבים" },
-  { key: "humanAggression", label: "תוקפנות כלפי בני אדם" },
-  { key: "leashReactivity", label: "תגובתיות ברצועה" },
-  { key: "leashPulling", label: "משיכה ברצועה" },
-  { key: "jumping", label: "קפיצה על אנשים" },
-  { key: "separationAnxiety", label: "חרדת נטישה" },
-  { key: "excessiveBarking", label: "נביחות מוגזמות" },
-  { key: "destruction", label: "הרס חפצים" },
-  { key: "resourceGuarding", label: "שמירת משאבים" },
-  { key: "fears", label: "פחדים (רעשים, זיקוקים)" },
-  { key: "badWithKids", label: "בעייתי עם ילדים" },
-  { key: "houseSoiling", label: "עושה צרכים בבית" },
-  { key: "biteHistory", label: "היסטוריית נשיכות" },
+  { key: "dogAggression" },
+  { key: "humanAggression" },
+  { key: "leashReactivity" },
+  { key: "leashPulling" },
+  { key: "jumping" },
+  { key: "separationAnxiety" },
+  { key: "excessiveBarking" },
+  { key: "destruction" },
+  { key: "resourceGuarding" },
+  { key: "fears" },
+  { key: "badWithKids" },
+  { key: "houseSoiling" },
+  { key: "biteHistory" },
 ];
 
 export default function IntakeFormPage({ params }: { params: { token: string } }) {
+  const t = useTranslations("publicIntake.intakeDetailPage");
+  const cfg = LOCALE_CONFIG[localeFromBusiness({ locale: useLocale() })];
   const [formInfo, setFormInfo] = useState<FormInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -118,7 +122,7 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
           }
         }
       })
-      .catch(() => setError("שגיאה בטעינת הטופס"))
+      .catch(() => setError(t("errors.loadFailed")))
       .finally(() => setLoading(false));
   }, [params.token]);
 
@@ -132,12 +136,12 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "שגיאה בשמירה");
+        setError(data.error || t("errors.saveFailed"));
         return;
       }
       setSuccess(true);
     } catch {
-      setError("שגיאה בשליחת הטופס");
+      setError(t("errors.submitFailed"));
     } finally {
       setSubmitting(false);
     }
@@ -149,11 +153,11 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
 
   if (error && !formInfo) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4" dir="rtl">
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4" dir={cfg.dir}>
         <div className="bg-white rounded-2xl shadow-sm p-8 max-w-sm w-full text-center">
           <AlertTriangle className="w-10 h-10 text-amber-500 mx-auto mb-3" />
           <h1 className="text-lg font-bold text-slate-900 mb-1">{error}</h1>
-          <p className="text-sm text-slate-500">פנה לבעל העסק לקבלת קישור חדש</p>
+          <p className="text-sm text-slate-500">{t("errorState.contactBusiness")}</p>
         </div>
       </div>
     );
@@ -161,25 +165,25 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4" dir="rtl">
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4" dir={cfg.dir}>
         <div className="bg-white rounded-2xl shadow-sm p-8 max-w-sm w-full text-center">
           <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto mb-3" />
-          <h1 className="text-xl font-bold text-slate-900 mb-2">הטופס נשלח בהצלחה!</h1>
-          <p className="text-sm text-slate-500">תודה שמילאת את טופס הקליטה</p>
+          <h1 className="text-xl font-bold text-slate-900 mb-2">{t("success.title")}</h1>
+          <p className="text-sm text-slate-500">{t("success.thanks")}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4" dir="rtl">
+    <div className="min-h-screen bg-slate-50 p-4" dir={cfg.dir}>
       <div className="max-w-lg mx-auto">
         {/* Header */}
         <div className="text-center mb-4 pt-4">
           <div className="w-10 h-10 rounded-xl mx-auto mb-2 overflow-hidden">
             <Image src="/logo.svg" alt="Petra" width={40} height={40} className="w-full h-full object-cover" />
           </div>
-          <h1 className="text-base font-bold text-slate-900">טופס קליטה</h1>
+          <h1 className="text-base font-bold text-slate-900">{t("header.title")}</h1>
           <p className="text-xs text-slate-500">{formInfo?.businessName}</p>
         </div>
 
@@ -201,7 +205,7 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
                 )}
               >
                 <Icon className="w-3.5 h-3.5" />
-                {s.label}
+                {t(`steps.${s.id}`)}
               </button>
             );
           })}
@@ -211,9 +215,9 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
           {/* Step 0: Dog Details */}
           {step === 0 && (
             <div className="space-y-3">
-              <h2 className="text-base font-bold text-slate-900 mb-3">פרטי הכלב</h2>
+              <h2 className="text-base font-bold text-slate-900 mb-3">{t("steps.dogDetails")}</h2>
               <div>
-                <label className="text-xs font-medium text-slate-600 block mb-1">שם הכלב *</label>
+                <label className="text-xs font-medium text-slate-600 block mb-1">{t("dog.nameLabel")}</label>
                 <input
                   className="w-full px-3 py-2.5 rounded-xl border border-petra-border text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400"
                   value={dog.name}
@@ -222,7 +226,7 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-medium text-slate-600 block mb-1">גזע</label>
+                  <label className="text-xs font-medium text-slate-600 block mb-1">{t("dog.breedLabel")}</label>
                   <input
                     className="w-full px-3 py-2.5 rounded-xl border border-petra-border text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400"
                     value={dog.breed}
@@ -230,21 +234,21 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-slate-600 block mb-1">מין</label>
+                  <label className="text-xs font-medium text-slate-600 block mb-1">{t("dog.genderLabel")}</label>
                   <select
                     className="w-full px-3 py-2.5 rounded-xl border border-petra-border text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400"
                     value={dog.gender}
                     onChange={(e) => setDog({ ...dog, gender: e.target.value })}
                   >
-                    <option value="">בחר</option>
-                    <option value="male">זכר</option>
-                    <option value="female">נקבה</option>
+                    <option value="">{t("dog.genderSelect")}</option>
+                    <option value="male">{t("dog.genderMale")}</option>
+                    <option value="female">{t("dog.genderFemale")}</option>
                   </select>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-medium text-slate-600 block mb-1">משקל (ק&quot;ג)</label>
+                  <label className="text-xs font-medium text-slate-600 block mb-1">{t("dog.weightLabel")}</label>
                   <input
                     type="number"
                     className="w-full px-3 py-2.5 rounded-xl border border-petra-border text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400"
@@ -253,9 +257,9 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-slate-600 block mb-1">תאריך לידה</label>
+                  <label className="text-xs font-medium text-slate-600 block mb-1">{t("dog.birthDateLabel")}</label>
                   <input
-                    type="date" lang="he"
+                    type="date" lang={cfg.lang}
                     className="w-full px-3 py-2.5 rounded-xl border border-petra-border text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400"
                     value={dog.birthDate}
                     onChange={(e) => setDog({ ...dog, birthDate: e.target.value })}
@@ -265,10 +269,10 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
               {!formInfo?.customerName && (
                 <>
                   <div className="border-t border-slate-100 pt-3 mt-3">
-                    <p className="text-xs font-medium text-slate-500 mb-2">פרטי בעלים</p>
+                    <p className="text-xs font-medium text-slate-500 mb-2">{t("owner.sectionTitle")}</p>
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-slate-600 block mb-1">שם הבעלים *</label>
+                    <label className="text-xs font-medium text-slate-600 block mb-1">{t("owner.nameLabel")}</label>
                     <input
                       className="w-full px-3 py-2.5 rounded-xl border border-petra-border text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400"
                       value={dog.customerName}
@@ -276,7 +280,7 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-slate-600 block mb-1">טלפון *</label>
+                    <label className="text-xs font-medium text-slate-600 block mb-1">{t("owner.phoneLabel")}</label>
                     <input
                       className="w-full px-3 py-2.5 rounded-xl border border-petra-border text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400"
                       value={dog.customerPhone}
@@ -292,60 +296,60 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
           {/* Step 1: Health */}
           {step === 1 && (
             <div className="space-y-3">
-              <h2 className="text-base font-bold text-slate-900 mb-3">בריאות</h2>
+              <h2 className="text-base font-bold text-slate-900 mb-3">{t("steps.health")}</h2>
               <div>
-                <label className="text-xs font-medium text-slate-600 block mb-1">אלרגיות</label>
+                <label className="text-xs font-medium text-slate-600 block mb-1">{t("health.allergiesLabel")}</label>
                 <textarea
                   className="w-full px-3 py-2.5 rounded-xl border border-petra-border text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400 resize-none"
                   rows={2}
                   value={health.allergies}
                   onChange={(e) => setHealth({ ...health, allergies: e.target.value })}
-                  placeholder="פרט אלרגיות ידועות..."
+                  placeholder={t("health.allergiesPlaceholder")}
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-slate-600 block mb-1">מצבים רפואיים</label>
+                <label className="text-xs font-medium text-slate-600 block mb-1">{t("health.conditionsLabel")}</label>
                 <textarea
                   className="w-full px-3 py-2.5 rounded-xl border border-petra-border text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400 resize-none"
                   rows={2}
                   value={health.medicalConditions}
                   onChange={(e) => setHealth({ ...health, medicalConditions: e.target.value })}
-                  placeholder="מצבים רפואיים קיימים..."
+                  placeholder={t("health.conditionsPlaceholder")}
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-slate-600 block mb-1">ניתוחים בעבר</label>
+                <label className="text-xs font-medium text-slate-600 block mb-1">{t("health.surgeriesLabel")}</label>
                 <textarea
                   className="w-full px-3 py-2.5 rounded-xl border border-petra-border text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400 resize-none"
                   rows={2}
                   value={health.surgeriesHistory}
                   onChange={(e) => setHealth({ ...health, surgeriesHistory: e.target.value })}
-                  placeholder="אם עבר ניתוחים — פרט סוג ותאריך..."
+                  placeholder={t("health.surgeriesPlaceholder")}
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-slate-600 block mb-1">מגבלות פעילות</label>
+                <label className="text-xs font-medium text-slate-600 block mb-1">{t("health.activityLabel")}</label>
                 <textarea
                   className="w-full px-3 py-2.5 rounded-xl border border-petra-border text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400 resize-none"
                   rows={2}
                   value={health.activityLimitations}
                   onChange={(e) => setHealth({ ...health, activityLimitations: e.target.value })}
-                  placeholder="האם יש מגבלות על פעילות גופנית? פרט..."
+                  placeholder={t("health.activityPlaceholder")}
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-slate-600 block mb-1">הוראות האכלה / אוכל</label>
+                <label className="text-xs font-medium text-slate-600 block mb-1">{t("health.foodLabel")}</label>
                 <textarea
                   className="w-full px-3 py-2.5 rounded-xl border border-petra-border text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400 resize-none"
                   rows={2}
                   value={health.foodNotes}
                   onChange={(e) => setHealth({ ...health, foodNotes: e.target.value })}
-                  placeholder="כמה ארוחות ביום, איזה מזון, כמות..."
+                  placeholder={t("health.foodPlaceholder")}
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-medium text-slate-600 block mb-1">שם וטרינר</label>
+                  <label className="text-xs font-medium text-slate-600 block mb-1">{t("health.vetNameLabel")}</label>
                   <input
                     className="w-full px-3 py-2.5 rounded-xl border border-petra-border text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400"
                     value={health.vetName}
@@ -353,7 +357,7 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-slate-600 block mb-1">טלפון וטרינר</label>
+                  <label className="text-xs font-medium text-slate-600 block mb-1">{t("health.vetPhoneLabel")}</label>
                   <input
                     className="w-full px-3 py-2.5 rounded-xl border border-petra-border text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400"
                     value={health.vetPhone}
@@ -363,11 +367,11 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
                 </div>
               </div>
               <div>
-                <label className="text-xs font-medium text-slate-600 block mb-1">מסורס/מעוקרת?</label>
+                <label className="text-xs font-medium text-slate-600 block mb-1">{t("health.neuteredLabel")}</label>
                 <div className="flex gap-3">
                   {[
-                    { label: "כן", value: true },
-                    { label: "לא", value: false },
+                    { id: "yes", value: true },
+                    { id: "no", value: false },
                   ].map((opt) => (
                     <button
                       key={String(opt.value)}
@@ -379,27 +383,27 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
                           : "bg-slate-50 text-slate-600 border border-slate-200"
                       )}
                     >
-                      {opt.label}
+                      {t(`yesNo.${opt.id}`)}
                     </button>
                   ))}
                 </div>
               </div>
               <div>
-                <label className="text-xs font-medium text-slate-600 block mb-1">מאיפה הכלב? (מקור)</label>
+                <label className="text-xs font-medium text-slate-600 block mb-1">{t("health.originLabel")}</label>
                 <input
                   className="w-full px-3 py-2.5 rounded-xl border border-petra-border text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400"
                   value={health.originInfo}
                   onChange={(e) => setHealth({ ...health, originInfo: e.target.value })}
-                  placeholder="מגדל, כלביה, אימוץ..."
+                  placeholder={t("health.originPlaceholder")}
                 />
               </div>
               <div>
-                <label className="text-xs font-medium text-slate-600 block mb-1">כמה זמן הכלב אצלכם?</label>
+                <label className="text-xs font-medium text-slate-600 block mb-1">{t("health.timeWithOwnerLabel")}</label>
                 <input
                   className="w-full px-3 py-2.5 rounded-xl border border-petra-border text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400"
                   value={health.timeWithOwner}
                   onChange={(e) => setHealth({ ...health, timeWithOwner: e.target.value })}
-                  placeholder="שנתיים, 3 חודשים..."
+                  placeholder={t("health.timeWithOwnerPlaceholder")}
                 />
               </div>
             </div>
@@ -408,8 +412,8 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
           {/* Step 2: Behavior */}
           {step === 2 && (
             <div className="space-y-3">
-              <h2 className="text-base font-bold text-slate-900 mb-1">התנהגות</h2>
-              <p className="text-xs text-slate-500 mb-3">סמן את הבעיות הרלוונטיות</p>
+              <h2 className="text-base font-bold text-slate-900 mb-1">{t("steps.behavior")}</h2>
+              <p className="text-xs text-slate-500 mb-3">{t("behavior.markRelevant")}</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {BEHAVIOR_FLAGS.map((flag) => (
                   <button
@@ -418,7 +422,7 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
                       setBehavior({ ...behavior, [flag.key]: !behavior[flag.key] })
                     }
                     className={cn(
-                      "flex items-center gap-2 p-2.5 rounded-xl text-right text-xs font-medium transition-all",
+                      "flex items-center gap-2 p-2.5 rounded-xl text-start text-xs font-medium transition-all",
                       behavior[flag.key]
                         ? "bg-red-50 text-red-700 border-2 border-red-300"
                         : "bg-slate-50 text-slate-600 border border-slate-200"
@@ -436,7 +440,7 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
                         <span className="text-white text-[10px]">✓</span>
                       )}
                     </div>
-                    {flag.label}
+                    {t(`behaviorFlags.${flag.key}`)}
                   </button>
                 ))}
               </div>
@@ -444,7 +448,7 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
               {behavior.biteHistory && (
                 <div>
                   <label className="text-xs font-medium text-slate-600 block mb-1">
-                    פרט על היסטוריית נשיכות
+                    {t("behavior.biteDetailsLabel")}
                   </label>
                   <textarea
                     className="w-full px-3 py-2.5 rounded-xl border border-petra-border text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400 resize-none"
@@ -457,38 +461,38 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
 
               <div>
                 <label className="text-xs font-medium text-slate-600 block mb-1">
-                  טריגרים ידועים
+                  {t("behavior.triggersLabel")}
                 </label>
                 <textarea
                   className="w-full px-3 py-2.5 rounded-xl border border-petra-border text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400 resize-none"
                   rows={2}
                   value={behavior.triggers as string}
                   onChange={(e) => setBehavior({ ...behavior, triggers: e.target.value })}
-                  placeholder="מה גורם לבעיות ההתנהגות..."
+                  placeholder={t("behavior.triggersPlaceholder")}
                 />
               </div>
 
               <div>
                 <label className="text-xs font-medium text-slate-600 block mb-1">
-                  הערות התנהגות נוספות
+                  {t("behavior.notesLabel")}
                 </label>
                 <textarea
                   className="w-full px-3 py-2.5 rounded-xl border border-petra-border text-sm focus:outline-none focus:ring-2 focus:ring-brand-400/30 focus:border-brand-400 resize-none"
                   rows={2}
                   value={behavior.customIssues as string}
                   onChange={(e) => setBehavior({ ...behavior, customIssues: e.target.value })}
-                  placeholder="פרט כל מידע נוסף על התנהגות הכלב..."
+                  placeholder={t("behavior.notesPlaceholder")}
                 />
               </div>
 
               <div>
                 <label className="text-xs font-medium text-slate-600 block mb-1">
-                  עבר אילוף קודם?
+                  {t("behavior.priorTrainingLabel")}
                 </label>
                 <div className="flex gap-3 mb-2">
                   {[
-                    { label: "כן", value: true },
-                    { label: "לא", value: false },
+                    { id: "yes", value: true },
+                    { id: "no", value: false },
                   ].map((opt) => (
                     <button
                       key={String(opt.value)}
@@ -502,7 +506,7 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
                           : "bg-slate-50 text-slate-600 border border-slate-200"
                       )}
                     >
-                      {opt.label}
+                      {t(`yesNo.${opt.id}`)}
                     </button>
                   ))}
                 </div>
@@ -514,7 +518,7 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
                     onChange={(e) =>
                       setBehavior({ ...behavior, priorTrainingDetails: e.target.value })
                     }
-                    placeholder="פרט על האילוף הקודם..."
+                    placeholder={t("behavior.priorTrainingPlaceholder")}
                   />
                 )}
               </div>
@@ -524,12 +528,12 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
           {/* Step 3: Medications */}
           {step === 3 && (
             <div className="space-y-3">
-              <h2 className="text-base font-bold text-slate-900 mb-3">תרופות</h2>
+              <h2 className="text-base font-bold text-slate-900 mb-3">{t("steps.medications")}</h2>
               {medications.map((med, i) => (
                 <div key={i} className="bg-slate-50 rounded-xl p-3 space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-medium text-slate-600">
-                      תרופה {i + 1}
+                      {t("medications.itemTitle", { n: i + 1 })}
                     </span>
                     <button
                       onClick={() =>
@@ -537,12 +541,12 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
                       }
                       className="text-[10px] text-red-500"
                     >
-                      הסר
+                      {t("medications.remove")}
                     </button>
                   </div>
                   <input
                     className="w-full px-3 py-2 rounded-xl border border-petra-border text-sm"
-                    placeholder="שם התרופה"
+                    placeholder={t("medications.namePlaceholder")}
                     value={med.medName}
                     onChange={(e) => {
                       const updated = [...medications];
@@ -553,7 +557,7 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
                   <div className="grid grid-cols-2 gap-2">
                     <input
                       className="px-3 py-2 rounded-xl border border-petra-border text-sm"
-                      placeholder="מינון"
+                      placeholder={t("medications.dosagePlaceholder")}
                       value={med.dosage}
                       onChange={(e) => {
                         const updated = [...medications];
@@ -563,7 +567,7 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
                     />
                     <input
                       className="px-3 py-2 rounded-xl border border-petra-border text-sm"
-                      placeholder="תדירות"
+                      placeholder={t("medications.frequencyPlaceholder")}
                       value={med.frequency}
                       onChange={(e) => {
                         const updated = [...medications];
@@ -584,12 +588,12 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
                 }
                 className="w-full py-2.5 rounded-xl border-2 border-dashed border-slate-200 text-xs text-slate-500 hover:border-orange-300 hover:text-orange-500 transition-colors"
               >
-                + הוסף תרופה
+                {t("medications.add")}
               </button>
 
               {medications.length === 0 && (
                 <p className="text-xs text-slate-400 text-center py-2">
-                  אם הכלב לא לוקח תרופות, המשך לשליחה
+                  {t("medications.noneHint")}
                 </p>
               )}
 
@@ -605,7 +609,7 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
                   disabled={submitting || !dog.name}
                   className="w-full py-3 rounded-xl bg-orange-500 text-white text-sm font-bold disabled:opacity-50 hover:bg-orange-600 transition-colors"
                 >
-                  {submitting ? "שולח..." : "שלח טופס קליטה"}
+                  {submitting ? t("submit.sending") : t("submit.button")}
                 </button>
               </div>
             </div>
@@ -618,8 +622,8 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
                 onClick={() => setStep(step - 1)}
                 className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700"
               >
-                <ChevronRight className="w-3 h-3" />
-                חזור
+                <ChevronRight className="w-3 h-3 ltr:-scale-x-100" />
+                {t("nav.back")}
               </button>
             ) : (
               <div />
@@ -630,7 +634,7 @@ export default function IntakeFormPage({ params }: { params: { token: string } }
                 disabled={step === 0 && !dog.name}
                 className="px-4 py-2 rounded-xl bg-orange-500 text-white text-xs font-medium disabled:opacity-50 hover:bg-orange-600 transition-colors"
               >
-                הבא
+                {t("nav.next")}
               </button>
             )}
           </div>

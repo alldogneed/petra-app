@@ -27,6 +27,7 @@ import { TierGate } from "@/components/paywall/TierGate";
 import { usePermissions } from "@/hooks/usePermissions";
 import { ConfirmDeleteModal } from "@/components/ui/ConfirmDeleteModal";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { useTranslations } from "next-intl";
 
 interface Pet {
   id: string;
@@ -53,22 +54,15 @@ interface Pet {
 }
 
 const SPECIES_OPTIONS = [
-  { value: "", label: "כל הסוגים" },
-  { value: "dog", label: "כלבים" },
-  { value: "cat", label: "חתולים" },
-  { value: "other", label: "אחר" },
+  { value: "", key: "all" },
+  { value: "dog", key: "dog" },
+  { value: "cat", key: "cat" },
+  { value: "other", key: "other" },
 ];
 
-const GENDER_LABELS: Record<string, string> = {
-  male: "זכר",
-  female: "נקבה",
-};
+const GENDER_KEYS = ["male", "female"];
 
-const SPECIES_LABELS: Record<string, string> = {
-  dog: "כלב",
-  cat: "חתול",
-  other: "אחר",
-};
+const SPECIES_KEYS = ["dog", "cat", "other"];
 
 function SpeciesIcon({ species, className }: { species: string; className?: string }) {
   if (species === "dog") return <Dog className={cn("w-4 h-4", className)} />;
@@ -77,11 +71,12 @@ function SpeciesIcon({ species, className }: { species: string; className?: stri
 }
 
 function VaccineBadge({ status }: { status: Pet["vaccinationStatus"] }) {
+  const t = useTranslations("pets.petsPage");
   if (status === "expired") {
     return (
       <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">
         <AlertTriangle className="w-2.5 h-2.5" />
-        חיסון פג
+        {t("vaccineBadge.expired")}
       </span>
     );
   }
@@ -89,7 +84,7 @@ function VaccineBadge({ status }: { status: Pet["vaccinationStatus"] }) {
     return (
       <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 font-medium">
         <Clock className="w-2.5 h-2.5" />
-        חיסון פוקע
+        {t("vaccineBadge.expiring")}
       </span>
     );
   }
@@ -97,7 +92,7 @@ function VaccineBadge({ status }: { status: Pet["vaccinationStatus"] }) {
     return (
       <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">
         <CheckCircle2 className="w-2.5 h-2.5" />
-        חיסון תקין
+        {t("vaccineBadge.ok")}
       </span>
     );
   }
@@ -105,17 +100,17 @@ function VaccineBadge({ status }: { status: Pet["vaccinationStatus"] }) {
 }
 
 const GENDER_FILTER_OPTIONS = [
-  { value: "", label: "כל המינים" },
-  { value: "male", label: "זכרים" },
-  { value: "female", label: "נקבות" },
+  { value: "", key: "all" },
+  { value: "male", key: "male" },
+  { value: "female", key: "female" },
 ];
 
 const VACCINE_FILTER_OPTIONS = [
-  { value: "", label: "כל החיסונים" },
-  { value: "expired", label: "פג תוקף" },
-  { value: "expiring", label: "עומד לפוג" },
-  { value: "ok", label: "תקין" },
-  { value: "unknown", label: "לא ידוע" },
+  { value: "", key: "all" },
+  { value: "expired", key: "expired" },
+  { value: "expiring", key: "expiring" },
+  { value: "ok", key: "ok" },
+  { value: "unknown", key: "unknown" },
 ];
 
 // ─── WhatsApp Icon (official logo SVG — mirrors customers page QuickActions) ──
@@ -142,6 +137,8 @@ interface CustomerOption {
 }
 
 function AddPetModal({ onClose }: { onClose: () => void }) {
+  const t = useTranslations("pets.petsPage");
+  const tc = useTranslations("common");
   const queryClient = useQueryClient();
   const [customerSearch, setCustomerSearch] = useState("");
   const [debouncedCustomerSearch, setDebouncedCustomerSearch] = useState("");
@@ -155,8 +152,8 @@ function AddPetModal({ onClose }: { onClose: () => void }) {
   });
 
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedCustomerSearch(customerSearch), 300);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setDebouncedCustomerSearch(customerSearch), 300);
+    return () => clearTimeout(timer);
   }, [customerSearch]);
 
   const { data: customerResults = [], isFetching: searchingCustomers } = useQuery<CustomerOption[]>({
@@ -197,10 +194,10 @@ function AddPetModal({ onClose }: { onClose: () => void }) {
       if (selectedCustomer) {
         queryClient.invalidateQueries({ queryKey: ["customer", selectedCustomer.id] });
       }
-      toast.success("חיית המחמד נוספה בהצלחה");
+      toast.success(t("addModal.toastSuccess"));
       onClose();
     },
-    onError: () => toast.error("שגיאה בהוספת חיית המחמד"),
+    onError: () => toast.error(t("addModal.toastError")),
   });
 
   const canSubmit = !!selectedCustomer && !!form.name.trim() && !mutation.isPending;
@@ -210,7 +207,7 @@ function AddPetModal({ onClose }: { onClose: () => void }) {
       <div className="modal-backdrop" onClick={onClose} />
       <div className="modal-content max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-bold text-petra-text">חיית מחמד חדשה</h2>
+          <h2 className="text-lg font-bold text-petra-text">{t("addModal.title")}</h2>
           <button
             onClick={onClose}
             className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted"
@@ -222,7 +219,7 @@ function AddPetModal({ onClose }: { onClose: () => void }) {
         <div className="space-y-4">
           {/* Customer picker */}
           <div>
-            <label className="label">לקוח *</label>
+            <label className="label">{t("addModal.customerLabel")}</label>
             {selectedCustomer ? (
               <div className="flex items-center justify-between gap-2 border border-brand-200 bg-brand-50 rounded-lg px-3 py-2">
                 <span className="text-sm font-medium text-petra-text truncate">
@@ -234,7 +231,7 @@ function AddPetModal({ onClose }: { onClose: () => void }) {
                 <button
                   className="w-6 h-6 flex items-center justify-center rounded hover:bg-brand-100 text-petra-muted shrink-0"
                   onClick={() => setSelectedCustomer(null)}
-                  title="החלף לקוח"
+                  title={t("addModal.changeCustomer")}
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -242,10 +239,10 @@ function AddPetModal({ onClose }: { onClose: () => void }) {
             ) : (
               <>
                 <div className="relative">
-                  <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted pointer-events-none" />
+                  <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted pointer-events-none" />
                   <input
-                    className="input pr-9 w-full"
-                    placeholder="חפש לקוח לפי שם או טלפון..."
+                    className="input ps-9 w-full"
+                    placeholder={t("addModal.customerSearchPlaceholder")}
                     value={customerSearch}
                     onChange={(e) => setCustomerSearch(e.target.value)}
                     autoFocus
@@ -253,15 +250,15 @@ function AddPetModal({ onClose }: { onClose: () => void }) {
                 </div>
                 <div className="mt-2 max-h-44 overflow-y-auto border border-slate-100 rounded-lg divide-y divide-slate-50">
                   {searchingCustomers ? (
-                    <p className="text-xs text-petra-muted p-3 text-center">מחפש...</p>
+                    <p className="text-xs text-petra-muted p-3 text-center">{t("addModal.searching")}</p>
                   ) : customerResults.length === 0 ? (
-                    <p className="text-xs text-petra-muted p-3 text-center">לא נמצאו לקוחות</p>
+                    <p className="text-xs text-petra-muted p-3 text-center">{t("addModal.noCustomers")}</p>
                   ) : (
                     customerResults.map((c) => (
                       <button
                         key={c.id}
                         type="button"
-                        className="w-full text-right px-3 py-2 hover:bg-brand-50 transition-colors flex items-center justify-between gap-2"
+                        className="w-full text-start px-3 py-2 hover:bg-brand-50 transition-colors flex items-center justify-between gap-2"
                         onClick={() => setSelectedCustomer(c)}
                       >
                         <span className="text-sm text-petra-text truncate">{c.name}</span>
@@ -277,7 +274,7 @@ function AddPetModal({ onClose }: { onClose: () => void }) {
           </div>
 
           <div>
-            <label className="label">שם *</label>
+            <label className="label">{t("addModal.nameLabel")}</label>
             <input
               className="input"
               value={form.name}
@@ -287,19 +284,19 @@ function AddPetModal({ onClose }: { onClose: () => void }) {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">סוג</label>
+              <label className="label">{t("addModal.speciesLabel")}</label>
               <select
                 className="input"
                 value={form.species}
                 onChange={(e) => setForm({ ...form, species: e.target.value })}
               >
-                <option value="dog">כלב</option>
-                <option value="cat">חתול</option>
-                <option value="other">אחר</option>
+                <option value="dog">{t("speciesLabel.dog")}</option>
+                <option value="cat">{t("speciesLabel.cat")}</option>
+                <option value="other">{t("speciesLabel.other")}</option>
               </select>
             </div>
             <div>
-              <label className="label">גזע</label>
+              <label className="label">{t("addModal.breedLabel")}</label>
               <input
                 className="input"
                 value={form.breed}
@@ -310,19 +307,19 @@ function AddPetModal({ onClose }: { onClose: () => void }) {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">מין</label>
+              <label className="label">{t("addModal.genderLabel")}</label>
               <select
                 className="input"
                 value={form.gender}
                 onChange={(e) => setForm({ ...form, gender: e.target.value })}
               >
-                <option value="">לא צוין</option>
-                <option value="male">זכר</option>
-                <option value="female">נקבה</option>
+                <option value="">{t("addModal.genderUnspecified")}</option>
+                <option value="male">{t("genderLabel.male")}</option>
+                <option value="female">{t("genderLabel.female")}</option>
               </select>
             </div>
             <div>
-              <label className="label">תאריך לידה</label>
+              <label className="label">{t("addModal.birthDateLabel")}</label>
               <input
                 type="date"
                 className="input"
@@ -338,10 +335,10 @@ function AddPetModal({ onClose }: { onClose: () => void }) {
               disabled={!canSubmit}
               onClick={() => mutation.mutate()}
             >
-              {mutation.isPending ? "שומר..." : "הוסף חיית מחמד"}
+              {mutation.isPending ? tc("progress.saving") : t("addModal.submit")}
             </button>
             <button className="btn-secondary flex-1" onClick={onClose}>
-              ביטול
+              {tc("actions.cancel")}
             </button>
           </div>
         </div>
@@ -351,11 +348,12 @@ function AddPetModal({ onClose }: { onClose: () => void }) {
 }
 
 export default function PetsPage() {
+  const t = useTranslations("pets.petsPage");
   return (
     <TierGate
       feature="pets_advanced"
-      title="ניהול חיות מחמד"
-      description="ניהול מתקדם של חיות מחמד — גרף משקל, גלריית תמונות, היסטוריה רפואית ועוד. שדרג כדי לגשת."
+      title={t("tierGate.title")}
+      description={t("tierGate.description")}
     >
       <PetsPageContent />
     </TierGate>
@@ -363,6 +361,8 @@ export default function PetsPage() {
 }
 
 function PetsPageContent() {
+  const t = useTranslations("pets.petsPage");
+  const tc = useTranslations("common");
   const [search, setSearch] = useState("");
   const [species, setSpecies] = useState("");
   const [gender, setGender] = useState("");
@@ -385,7 +385,7 @@ function PetsPageContent() {
       }) as Promise<Record<string, unknown>>,
     onSuccess: (data, { customerId }) => {
       if (data.pendingApproval) {
-        toast.success("הבקשה נשלחה לאישור הבעלים");
+        toast.success(t("toasts.pendingApproval"));
         setDeletingPetId(null);
         setDeletingPetOwner(null);
         return;
@@ -393,12 +393,12 @@ function PetsPageContent() {
       queryClient.invalidateQueries({ queryKey: ["pets-all"] });
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       if (customerId) queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
-      toast.success("חיית המחמד נמחקה");
+      toast.success(t("toasts.deleted"));
       setDeletingPetId(null);
       setDeletingPetOwner(null);
     },
     onError: (err) => {
-      toast.error(err?.message || "שגיאה במחיקת חיית המחמד");
+      toast.error(err?.message || t("toasts.deleteError"));
       setDeletingPetId(null);
       setDeletingPetOwner(null);
     },
@@ -437,7 +437,7 @@ function PetsPageContent() {
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch {
-      alert("שגיאה בייצוא");
+      alert(t("toasts.exportError"));
     } finally {
       setIsExporting(false);
     }
@@ -462,13 +462,13 @@ function PetsPageContent() {
 
   return (
     <div className="p-0 sm:p-6 space-y-6 animate-fade-in">
-      <PageTitle title="חיות מחמד" />
+      <PageTitle title={t("header.title")} />
       {/* Header */}
       <div className="page-header">
         <div>
-          <h1 className="page-title">חיות מחמד</h1>
+          <h1 className="page-title">{t("header.title")}</h1>
           <p className="text-sm text-petra-muted mt-1">
-            כל החיות הרשומות בעסק
+            {t("header.subtitle")}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -477,7 +477,7 @@ function PetsPageContent() {
             className="btn-primary gap-2 inline-flex items-center"
           >
             <Plus className="w-4 h-4" />
-            הוסף חיית מחמד
+            {t("header.addPet")}
           </button>
           {perms.canExportData && (
           <button
@@ -486,12 +486,12 @@ function PetsPageContent() {
             className="btn-secondary gap-2 inline-flex items-center"
           >
             <Download className="w-4 h-4" />
-            {isExporting ? "מייצא..." : "ייצוא XLSX"}
+            {isExporting ? tc("progress.exporting") : t("header.exportXlsx")}
           </button>
           )}
           <button onClick={() => refetch()} className="btn-secondary gap-2 inline-flex items-center">
             <RefreshCw className="w-4 h-4" />
-            רענן
+            {t("header.refresh")}
           </button>
         </div>
       </div>
@@ -505,7 +505,7 @@ function PetsPageContent() {
             </div>
             <div>
               <p className="text-xl font-bold text-petra-text">{data?.total ?? 0}</p>
-              <p className="text-xs text-petra-muted">חיות סה״כ</p>
+              <p className="text-xs text-petra-muted">{t("stats.total")}</p>
             </div>
           </div>
           <div className="card p-3 flex items-center gap-3">
@@ -514,7 +514,7 @@ function PetsPageContent() {
             </div>
             <div>
               <p className="text-xl font-bold text-petra-text">{dogs}</p>
-              <p className="text-xs text-petra-muted">כלבים · {cats} חתולים</p>
+              <p className="text-xs text-petra-muted">{t("stats.dogsCats", { cats: String(cats) })}</p>
             </div>
           </div>
           <div className="card p-3 flex items-center gap-3">
@@ -523,7 +523,7 @@ function PetsPageContent() {
             </div>
             <div>
               <p className="text-xl font-bold text-petra-text">{vaccinationIssues}</p>
-              <p className="text-xs text-petra-muted">בעיות חיסון</p>
+              <p className="text-xs text-petra-muted">{t("stats.vaccinationIssues")}</p>
             </div>
           </div>
           <div className="card p-3 flex items-center gap-3">
@@ -532,7 +532,7 @@ function PetsPageContent() {
             </div>
             <div>
               <p className="text-xl font-bold text-petra-text">{withMeds}</p>
-              <p className="text-xs text-petra-muted">עם תרופות פעילות</p>
+              <p className="text-xs text-petra-muted">{t("stats.withMeds")}</p>
             </div>
           </div>
         </div>
@@ -542,10 +542,10 @@ function PetsPageContent() {
       <div className="card p-4 space-y-3">
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted pointer-events-none" />
+            <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted pointer-events-none" />
             <input
-              className="input pr-9 w-full"
-              placeholder="חפש לפי שם חיה, גזע, בעלים..."
+              className="input ps-9 w-full"
+              placeholder={t("filters.searchPlaceholder")}
               value={search}
               onChange={(e) => handleSearchChange(e.target.value)}
             />
@@ -562,7 +562,7 @@ function PetsPageContent() {
                     : "bg-white text-petra-muted border-slate-200 hover:border-brand-300"
                 )}
               >
-                {opt.label}
+                {t(`speciesFilter.${opt.key}`)}
               </button>
             ))}
           </div>
@@ -580,7 +580,7 @@ function PetsPageContent() {
                     : "bg-white text-petra-muted border-slate-200 hover:border-blue-300"
                 )}
               >
-                {opt.label}
+                {t(`genderFilter.${opt.key}`)}
               </button>
             ))}
           </div>
@@ -596,16 +596,15 @@ function PetsPageContent() {
                     : "bg-white text-petra-muted border-slate-200 hover:border-emerald-300"
                 )}
               >
-                {opt.label}
+                {t(`vaccineFilter.${opt.key}`)}
               </button>
             ))}
           </div>
           {data && (
             <span className="text-sm text-petra-muted ms-auto">
               {filteredPets.length !== pets.length
-                ? `${filteredPets.length} מתוך ${data.total}`
-                : `${data.total}`}{" "}
-              חיות
+                ? t("filters.countFiltered", { filtered: String(filteredPets.length), total: String(data.total) })
+                : t("filters.countAll", { total: String(data.total) })}
             </span>
           )}
         </div>
@@ -614,13 +613,13 @@ function PetsPageContent() {
       {/* Loading / Error */}
       {isLoading && <PetraLoader />}
       {isError && (
-        <div className="card p-8 text-center text-red-500 text-sm">שגיאה בטעינת נתונים</div>
+        <div className="card p-8 text-center text-red-500 text-sm">{t("states.loadError")}</div>
       )}
       {!isLoading && !isError && filteredPets.length === 0 && (
         <div className="card p-12 text-center">
           <PawPrint className="w-10 h-10 mx-auto mb-3 text-petra-muted opacity-30" />
           <p className="text-petra-muted text-sm">
-            {debouncedSearch || species || gender || vaccineStatus ? "לא נמצאו חיות התואמות את הסינון" : "אין חיות רשומות עדיין"}
+            {debouncedSearch || species || gender || vaccineStatus ? t("states.emptyFiltered") : t("states.empty")}
           </p>
           {!debouncedSearch && !species && !gender && !vaccineStatus && (
             <button
@@ -628,7 +627,7 @@ function PetsPageContent() {
               className="btn-primary mt-4 inline-flex items-center gap-2"
             >
               <Plus className="w-4 h-4" />
-              הוסף חיית מחמד
+              {t("header.addPet")}
             </button>
           )}
         </div>
@@ -639,19 +638,19 @@ function PetsPageContent() {
         <div className="card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <caption className="sr-only">רשימת חיות מחמד</caption>
+              <caption className="sr-only">{t("table.caption")}</caption>
               <thead>
                 <tr className="border-b border-slate-100">
-                  <th scope="col" className="table-header-cell">שם</th>
-                  <th scope="col" className="table-header-cell">גזע / סוג</th>
-                  <th scope="col" className="table-header-cell">בעלים</th>
-                  <th scope="col" className="table-header-cell">גיל / משקל</th>
-                  <th scope="col" className="table-header-cell">חיסון</th>
-                  <th scope="col" className="table-header-cell">תרופות</th>
-                  <th scope="col" className="table-header-cell">תורים</th>
+                  <th scope="col" className="table-header-cell">{t("table.name")}</th>
+                  <th scope="col" className="table-header-cell">{t("table.breedSpecies")}</th>
+                  <th scope="col" className="table-header-cell">{t("table.owner")}</th>
+                  <th scope="col" className="table-header-cell">{t("table.ageWeight")}</th>
+                  <th scope="col" className="table-header-cell">{t("table.vaccine")}</th>
+                  <th scope="col" className="table-header-cell">{t("table.meds")}</th>
+                  <th scope="col" className="table-header-cell">{t("table.appointments")}</th>
                   {!perms.isStaff && !perms.isVolunteer && (
                     <th scope="col" className="table-header-cell">
-                      <span className="sr-only">פעולות</span>
+                      <span className="sr-only">{t("table.actions")}</span>
                     </th>
                   )}
                 </tr>
@@ -663,8 +662,8 @@ function PetsPageContent() {
                         const bd = new Date(pet.birthDate);
                         const now = new Date();
                         const months = (now.getFullYear() - bd.getFullYear()) * 12 + (now.getMonth() - bd.getMonth());
-                        if (months < 24) return `${months} חודשים`;
-                        return `${Math.floor(months / 12)} שנים`;
+                        if (months < 24) return t("table.ageMonths", { count: months });
+                        return t("table.ageYears", { count: Math.floor(months / 12) });
                       })()
                     : null;
 
@@ -686,17 +685,17 @@ function PetsPageContent() {
                             </Link>
                             {pet.gender && (
                               <p className="text-[10px] text-petra-muted">
-                                {GENDER_LABELS[pet.gender] ?? pet.gender}
-                                {pet.health?.neuteredSpayed ? " · מסורס/מעוקרת" : ""}
+                                {GENDER_KEYS.includes(pet.gender) ? t(`genderLabel.${pet.gender}`) : pet.gender}
+                                {pet.health?.neuteredSpayed ? t("table.neutered") : ""}
                               </p>
                             )}
                           </div>
                         </div>
                       </td>
                       <td className="table-cell">
-                        <span className="text-petra-text">{pet.breed || SPECIES_LABELS[pet.species] || pet.species}</span>
+                        <span className="text-petra-text">{pet.breed || (SPECIES_KEYS.includes(pet.species) ? t(`speciesLabel.${pet.species}`) : "") || pet.species}</span>
                         {pet.species && pet.breed && (
-                          <span className="block text-[10px] text-petra-muted">{SPECIES_LABELS[pet.species] || pet.species}</span>
+                          <span className="block text-[10px] text-petra-muted">{(SPECIES_KEYS.includes(pet.species) ? t(`speciesLabel.${pet.species}`) : "") || pet.species}</span>
                         )}
                       </td>
                       <td className="table-cell">
@@ -717,16 +716,16 @@ function PetsPageContent() {
                                       target="_blank"
                                       rel="noopener noreferrer"
                                       className="w-6 h-6 rounded-lg flex items-center justify-center text-[#25D366] hover:bg-[#E8FEF0] transition-colors"
-                                      title="שלח הודעת WhatsApp"
-                                      aria-label="שלח הודעת WhatsApp"
+                                      title={t("table.sendWhatsApp")}
+                                      aria-label={t("table.sendWhatsApp")}
                                     >
                                       <WhatsAppIcon className="w-3.5 h-3.5" />
                                     </a>
                                     <a
                                       href={`tel:${pet.customer.phone}`}
                                       className="w-6 h-6 rounded-lg flex items-center justify-center text-emerald-600 hover:bg-emerald-50 transition-colors"
-                                      title={`התקשר ל־${pet.customer.phone}`}
-                                      aria-label={`התקשר ל־${pet.customer.phone}`}
+                                      title={t("table.call", { phone: pet.customer.phone })}
+                                      aria-label={t("table.call", { phone: pet.customer.phone })}
                                     >
                                       <Phone className="w-3.5 h-3.5" />
                                     </a>
@@ -737,13 +736,13 @@ function PetsPageContent() {
                             )}
                           </>
                         ) : (
-                          <span className="text-petra-muted text-sm">כלב שירות</span>
+                          <span className="text-petra-muted text-sm">{t("table.serviceDog")}</span>
                         )}
                       </td>
                       <td className="table-cell">
                         {ageStr && <span className="text-petra-text">{ageStr}</span>}
                         {pet.weight && (
-                          <span className="block text-[10px] text-petra-muted">{pet.weight} ק״ג</span>
+                          <span className="block text-[10px] text-petra-muted">{t("table.weight", { weight: String(pet.weight) })}</span>
                         )}
                         {!ageStr && !pet.weight && <span className="text-petra-muted">—</span>}
                       </td>
@@ -752,7 +751,7 @@ function PetsPageContent() {
                         {pet.vaccinationStatus === "unknown" && (
                           <span className="inline-flex items-center gap-1 text-[10px] text-petra-muted">
                             <HelpCircle className="w-2.5 h-2.5" />
-                            לא ידוע
+                            {t("table.vaccineUnknown")}
                           </span>
                         )}
                       </td>
@@ -760,7 +759,7 @@ function PetsPageContent() {
                         {pet.activeMedicationCount > 0 ? (
                           <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 font-medium">
                             <Pill className="w-2.5 h-2.5" />
-                            {pet.activeMedicationCount} תרופות
+                            {t("table.medsCount", { count: pet.activeMedicationCount })}
                           </span>
                         ) : (
                           <span className="text-petra-muted text-[10px]">—</span>
@@ -780,7 +779,7 @@ function PetsPageContent() {
                                 setDeletingPetId({ id: pet.id, customerId: pet.customer?.id ?? null });
                               }
                             }}
-                            title={perms.isOwner ? "מחק" : "שלח בקשת מחיקה לאישור"}
+                            title={perms.isOwner ? tc("actions.delete") : t("table.sendDeleteRequest")}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -803,9 +802,9 @@ function PetsPageContent() {
         <div className="modal-overlay">
           <div className="modal-backdrop" onClick={() => setDeletingPetId(null)} />
           <div className="modal-content max-w-sm mx-4 p-6">
-            <h3 className="text-base font-bold text-petra-text mb-2">בקשת מחיקת חיית מחמד</h3>
+            <h3 className="text-base font-bold text-petra-text mb-2">{t("managerDelete.title")}</h3>
             <p className="text-sm text-petra-muted mb-5">
-              הבקשה תישלח לאישור הבעלים לפני ביצוע המחיקה. האם להמשיך?
+              {t("managerDelete.body")}
             </p>
             <div className="flex gap-3">
               <button
@@ -813,10 +812,10 @@ function PetsPageContent() {
                 disabled={deletePetMutation.isPending}
                 onClick={() => deletePetMutation.mutate({ petId: deletingPetId.id, customerId: deletingPetId.customerId })}
               >
-                {deletePetMutation.isPending ? "שולח..." : "שלח לאישור"}
+                {deletePetMutation.isPending ? t("managerDelete.sending") : t("managerDelete.submit")}
               </button>
               <button className="btn-secondary flex-1" onClick={() => setDeletingPetId(null)}>
-                ביטול
+                {tc("actions.cancel")}
               </button>
             </div>
           </div>
@@ -835,9 +834,9 @@ function PetsPageContent() {
               confirmAction: `DELETE_PET_${deletingPetOwner.id}`,
             })
           }
-          title="מחיקת חיית מחמד"
+          title={t("ownerDelete.title")}
           confirmText={deletingPetOwner.name}
-          description={`מחיקת ${deletingPetOwner.name} תסיר את כל הנתונים הרפואיים, המשקל וההיסטוריה המשויכים. פעולה זו אינה ניתנת לביטול.`}
+          description={t("ownerDelete.description", { name: deletingPetOwner.name })}
           loading={deletePetMutation.isPending}
         />
       )}

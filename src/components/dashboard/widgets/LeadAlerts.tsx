@@ -1,5 +1,7 @@
 "use client";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { DashboardStats } from "@/components/dashboard/dashboard-shared";
 import { DashCard, DashCardHeader, DashLink, DashRow, MiniButton } from "@/components/dashboard/dash-ui";
 
@@ -9,6 +11,7 @@ import { DashCard, DashCardHeader, DashLink, DashRow, MiniButton } from "@/compo
 type Lead = DashboardStats["urgentLeads"][0];
 
 function LeadRow({ lead, meta, metaClass }: { lead: Lead; meta: string; metaClass: string }) {
+  const t = useTranslations("dashboard.leadAlerts");
   return (
     <DashRow>
       <div className="flex-1 min-w-0 flex flex-col gap-0.5">
@@ -20,17 +23,18 @@ function LeadRow({ lead, meta, metaClass }: { lead: Lead; meta: string; metaClas
         </Link>
         <span className="text-xs truncate">
           <span className={metaClass}>{meta}</span>
-          {lead.customer?.name && <span className="text-slate-500"> · לקוח: {lead.customer.name}</span>}
+          {lead.customer?.name && <span className="text-slate-500">{t("row.customer", { name: lead.customer.name })}</span>}
         </span>
       </div>
-      <MiniButton href={`/leads?lead=${lead.id}`} title="לטפל בליד">
-        לטיפול
+      <MiniButton href={`/leads?lead=${lead.id}`} title={t("row.handleTitle")}>
+        {t("row.handle")}
       </MiniButton>
     </DashRow>
   );
 }
 
 export function TodayFollowUpsWidget({ leads }: { leads: DashboardStats["urgentLeads"] }) {
+  const t = useTranslations("dashboard.leadAlerts");
   const todayLeads = leads.filter((l) => {
     if (!l.nextFollowUpAt) return false;
     const d = new Date(l.nextFollowUpAt);
@@ -47,18 +51,24 @@ export function TodayFollowUpsWidget({ leads }: { leads: DashboardStats["urgentL
   return (
     <DashCard>
       <DashCardHeader
-        title="מעקבים להיום"
-        subtitle={`${todayLeads.length} ${todayLeads.length === 1 ? "ליד" : "לידים"} לטיפול היום`}
-        actions={<DashLink href="/leads?view=followup">למעקבים</DashLink>}
+        title={t("today.title")}
+        subtitle={
+          todayLeads.length === 1
+            ? t("today.subtitleOne", { count: todayLeads.length })
+            : t("today.subtitleOther", { count: todayLeads.length })
+        }
+        actions={<DashLink href="/leads?view=followup">{t("today.link")}</DashLink>}
       />
       {todayLeads.map((lead) => (
-        <LeadRow key={lead.id} lead={lead} meta="מעקב היום" metaClass="text-blue-700" />
+        <LeadRow key={lead.id} lead={lead} meta={t("today.meta")} metaClass="text-blue-700" />
       ))}
     </DashCard>
   );
 }
 
 export function UrgentLeadsAlert({ leads }: { leads: DashboardStats["urgentLeads"] }) {
+  const t = useTranslations("dashboard.leadAlerts");
+  const { locale } = useBusinessLocale();
   const overdueLeads = leads.filter((l) => {
     if (!l.nextFollowUpAt) return false;
     const d = new Date(l.nextFollowUpAt);
@@ -75,18 +85,22 @@ export function UrgentLeadsAlert({ leads }: { leads: DashboardStats["urgentLeads
   return (
     <DashCard>
       <DashCardHeader
-        title="לידים שעבר מועד הפולואפ"
-        subtitle={`${overdueLeads.length} ${overdueLeads.length === 1 ? "ליד" : "לידים"} עבר זמן הטיפול`}
-        actions={<DashLink href="/leads">ללוח הלידים</DashLink>}
+        title={t("overdue.title")}
+        subtitle={
+          overdueLeads.length === 1
+            ? t("overdue.subtitleOne", { count: overdueLeads.length })
+            : t("overdue.subtitleOther", { count: overdueLeads.length })
+        }
+        actions={<DashLink href="/leads">{t("overdue.link")}</DashLink>}
       />
       {overdueLeads.map((lead) => {
         const timeStr = lead.nextFollowUpAt
-          ? new Date(lead.nextFollowUpAt).toLocaleString("he-IL", {
+          ? new Date(lead.nextFollowUpAt).toLocaleString(locale, {
             day: "2-digit",
             month: "2-digit",
           })
           : "";
-        return <LeadRow key={lead.id} lead={lead} meta={`עבר: ${timeStr}`} metaClass="text-red-700" />;
+        return <LeadRow key={lead.id} lead={lead} meta={t("overdue.meta", { time: timeStr })} metaClass="text-red-700" />;
       })}
     </DashCard>
   );

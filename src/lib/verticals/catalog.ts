@@ -66,9 +66,9 @@ export function isValueOffered(vertical: unknown, value: string): boolean {
 }
 
 /** Display label of a stored enum value. dogs → `dogsLabel` unchanged. */
-export function valueLabel(vertical: unknown, value: string, dogsLabel: string): string {
+export function valueLabel(vertical: unknown, value: string, dogsLabel: string, locale?: string | null): string {
   if (normalizeVertical(vertical) === "dogs") return dogsLabel;
-  if (PROGRAM_VALUES.includes(value)) return vocab("pricing.category_program", { vertical: "generic" });
+  if (PROGRAM_VALUES.includes(value)) return vocab("pricing.category_program", { vertical: "generic", locale });
   return dogsLabel;
 }
 

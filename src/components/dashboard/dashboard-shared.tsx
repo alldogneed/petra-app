@@ -1,17 +1,7 @@
 // Shared dashboard types, labels and helpers (used by the page and widgets/*).
 import { Calendar, Clock, CheckCircle2, AlertCircle, Hotel, Package, Dumbbell, Scissors } from "lucide-react";
-
-// ─── Constants ───────────────────────────────────────────────────────────────
-
-export const TASK_CATEGORY_LABELS: Record<string, string> = {
-  GENERAL: "כללי",
-  BOARDING: "פנסיון",
-  TRAINING: "אילוף",
-  LEADS: "לידים",
-  HEALTH: "בריאות",
-  MEDICATION: "תרופות",
-  FEEDING: "האכלה",
-};
+import { useMemo } from "react";
+import { useTranslations } from "next-intl";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -157,38 +147,32 @@ export interface ActivityItem {
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-export const STATUS_CONFIG: Record<
-  string,
-  { label: string; color: string; bg: string; icon: React.ElementType }
-> = {
-  scheduled: { label: "מתוכנן", color: "#3B82F6", bg: "#EFF6FF", icon: Clock },
-  completed: { label: "הושלם", color: "#10B981", bg: "#ECFDF5", icon: CheckCircle2 },
-  canceled: { label: "בוטל", color: "#EF4444", bg: "#FEF2F2", icon: AlertCircle },
-  no_show: { label: "לא הגיע", color: "#F59E0B", bg: "#FFFBEB", icon: AlertCircle },
+/** Appointment status colours/icons — labels via `useDashboardLabels().appointmentStatus(key)`. */
+export const STATUS_CONFIG: Record<string, { color: string; bg: string; icon: React.ElementType }> = {
+  scheduled: { color: "#3B82F6", bg: "#EFF6FF", icon: Clock },
+  completed: { color: "#10B981", bg: "#ECFDF5", icon: CheckCircle2 },
+  canceled: { color: "#EF4444", bg: "#FEF2F2", icon: AlertCircle },
+  no_show: { color: "#F59E0B", bg: "#FFFBEB", icon: AlertCircle },
 };
 
-export const SERVICE_TYPE_TABS = [
-  { key: "all", label: "הכל" },
-  { key: "training", label: "אילוף" },
-  { key: "boarding", label: "פנסיון" },
-  { key: "grooming", label: "טיפוח" },
-];
+/** Service-type filter tabs — labels via `useDashboardLabels().serviceTab(key)`. */
+export const SERVICE_TYPE_TABS = [{ key: "all" }, { key: "training" }, { key: "boarding" }, { key: "grooming" }];
 
 // Maps Hebrew price-list category names → filter key
 export const CATEGORY_TO_FILTER: Record<string, string> = {
-  "אילוף": "training",
-  "פנסיון": "boarding",
-  "טיפוח": "grooming",
+  "אילוף": "training", // i18n-ok — DB price-list category value (data)
+  "פנסיון": "boarding", // i18n-ok — DB price-list category value (data)
+  "טיפוח": "grooming", // i18n-ok — DB price-list category value (data)
 };
 
-// Maps filter key → Hebrew label for badge display
-export const ORDER_TYPE_INFO: Record<string, { label: string; icon: React.ElementType }> = {
-  sale: { label: "מוצרים", icon: Package },
-  products: { label: "מוצרים", icon: Package },
-  appointment: { label: "תור", icon: Calendar },
-  boarding: { label: "פנסיון", icon: Hotel },
-  training: { label: "אילוף", icon: Dumbbell },
-  grooming: { label: "טיפוח", icon: Scissors },
+/** Order type icons — labels via `useDashboardLabels().orderType(key)`. */
+export const ORDER_TYPE_INFO: Record<string, { icon: React.ElementType }> = {
+  sale: { icon: Package },
+  products: { icon: Package },
+  appointment: { icon: Calendar },
+  boarding: { icon: Hotel },
+  training: { icon: Dumbbell },
+  grooming: { icon: Scissors },
 };
 
 /** Order status text colours (new dashboard design — status as coloured text, no pill). */
@@ -201,22 +185,37 @@ export const ORDER_STATUS_COLOR: Record<string, string> = {
   canceled: "#B91C1C",
 };
 
-export const ORDER_STATUS_LABEL: Record<string, string> = {
-  draft: "טיוטה",
-  confirmed: "מאושר",
-  completed: "הושלם",
-  canceled: "בוטל",
-  cancelled: "בוטל",
-};
-
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-export function relativeTime(dateStr: string): string {
+export type DashboardSharedT = ReturnType<typeof useTranslations<"dashboard.dashboardShared">>;
+
+export function relativeTime(dateStr: string, t: DashboardSharedT): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "עכשיו";
-  if (mins < 60) return `לפני ${mins} דקות`;
+  if (mins < 1) return t("relativeTime.now");
+  if (mins < 60) return t("relativeTime.minutesAgo", { count: mins });
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `לפני ${hours} שעות`;
-  return `לפני ${Math.floor(hours / 24)} ימים`;
+  if (hours < 24) return t("relativeTime.hoursAgo", { count: hours });
+  return t("relativeTime.daysAgo", { count: Math.floor(hours / 24) });
+}
+
+/**
+ * Translated dashboard labels (task category, appointment status, service tab, order type/status; keys/ids unchanged).
+ * Each returns `undefined` for an unknown key — same as a map lookup, so callers
+ * keep their own fallback (`?? task.category`, `|| order.status`…).
+ */
+export function useDashboardLabels() {
+  const t = useTranslations("dashboard.dashboardShared");
+  return useMemo(() => {
+    const pick = (group: string, key: string | null | undefined): string | undefined =>
+      key && t.has(`${group}.${key}`) ? t(`${group}.${key}`) : undefined;
+    return {
+      taskCategory: (key: string | null | undefined) => pick("taskCategories", key),
+      appointmentStatus: (key: string | null | undefined) => pick("appointmentStatus", key),
+      serviceTab: (key: string | null | undefined) => pick("serviceTabs", key),
+      orderType: (key: string | null | undefined) => pick("orderTypes", key),
+      orderStatus: (key: string | null | undefined) => pick("orderStatus", key),
+      relativeTime: (dateStr: string) => relativeTime(dateStr, t),
+    };
+  }, [t]);
 }

@@ -12,6 +12,9 @@ import { useGrantableCapabilities } from "@/hooks/useGrantableCapabilities";
 import { usePermissions } from "@/hooks/usePermissions";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { InviteMemberModal, PendingInvitations } from "@/components/settings/TeamInvitations";
+import { useTranslations } from "next-intl";
+
+type TeamT = ReturnType<typeof useTranslations<"settings.teamTab">>;
 
 // ─── Team Tab (Owner only) ───────────────────────────────────────────────────
 
@@ -31,7 +34,9 @@ interface TeamMember {
   };
 }
 
-const ROLE_LABELS: Record<string, string> = { owner: "בעלים", manager: "מנהל", user: "עובד", volunteer: "מתנדב" };
+const ROLE_IDS = new Set(["owner", "manager", "user", "volunteer"]);
+/** Translated role label; unknown roles render as-is. */
+const roleLabel = (t: TeamT, role: string) => (ROLE_IDS.has(role) ? t(`roles.${role}` as Parameters<TeamT>[0]) : role);
 const ROLE_COLORS: Record<string, string> = {
   owner: "badge-brand",
   manager: "badge-warning",
@@ -42,8 +47,8 @@ const ROLE_COLORS: Record<string, string> = {
 const ROLE_RANK: Record<string, number> = { owner: 3, manager: 2, user: 1, volunteer: 0 };
 
 /** PATCH a membership; surfaces the server's error message (403 hierarchy etc.). */
-async function patchMember(businessId: string | null | undefined, memberId: string, body: Record<string, unknown>) {
-  if (!businessId) throw new Error("מזהה העסק חסר. נסה לרענן את הדף.");
+async function patchMember(businessId: string | null | undefined, memberId: string, body: Record<string, unknown>, missingBusinessError: string) {
+  if (!businessId) throw new Error(missingBusinessError);
   const r = await fetch(`/api/admin/${businessId}/members/${memberId}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -60,6 +65,8 @@ type PendingConfirm =
   | { kind: "delete"; member: TeamMember };
 
 export function TeamTab() {
+  const t = useTranslations("settings.teamTab");
+  const tc = useTranslations("common");
   const { user } = useAuth();
   const perms = usePermissions();
   // Server: PATCH/POST members → USERS_WRITE; owner role + per-member overrides → owner only.
@@ -81,39 +88,39 @@ export function TeamTab() {
 
   const roleMutation = useMutation({
     mutationFn: ({ memberId, role }: { memberId: string; role: string }) =>
-      patchMember(user?.businessId, memberId, { role }),
+      patchMember(user?.businessId, memberId, { role }, t("errors.missingBusiness")),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["team-members"] });
       setPending(null);
-      toast.success("התפקיד עודכן בהצלחה");
+      toast.success(t("toasts.roleUpdated"));
     },
-    onError: (e: Error) => toast.error(e.message || "שגיאה בעדכון התפקיד. נסה שוב."),
+    onError: (e: Error) => toast.error(e.message || t("toasts.roleUpdateError")),
   });
 
   const permsMutation = useMutation({
     mutationFn: ({ memberId, permissionOverrides }: { memberId: string; permissionOverrides: Record<string, boolean> }) =>
-      patchMember(user?.businessId, memberId, { permissionOverrides }),
+      patchMember(user?.businessId, memberId, { permissionOverrides }, t("errors.missingBusiness")),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["team-members"] });
-      toast.success("ההרשאות נשמרו");
+      toast.success(t("toasts.permsSaved"));
     },
-    onError: (e: Error) => toast.error(e.message || "שגיאה בשמירת ההרשאות. נסה שוב."),
+    onError: (e: Error) => toast.error(e.message || t("toasts.permsSaveError")),
   });
 
   const toggleActiveMutation = useMutation({
     mutationFn: ({ memberId, isActive }: { memberId: string; isActive: boolean }) =>
-      patchMember(user?.businessId, memberId, { isActive }),
+      patchMember(user?.businessId, memberId, { isActive }, t("errors.missingBusiness")),
     onSuccess: (_, { isActive }) => {
       queryClient.invalidateQueries({ queryKey: ["team-members"] });
       setPending(null);
-      toast.success(isActive ? "המשתמש הופעל" : "המשתמש הושבת");
+      toast.success(isActive ? t("toasts.userActivated") : t("toasts.userDeactivated"));
     },
-    onError: (e: Error) => toast.error(e.message || "שגיאה בעדכון הסטטוס. נסה שוב."),
+    onError: (e: Error) => toast.error(e.message || t("toasts.statusUpdateError")),
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (memberId: string) => {
-      if (!user?.businessId) throw new Error("מזהה העסק חסר. נסה לרענן את הדף.");
+      if (!user?.businessId) throw new Error(t("errors.missingBusiness"));
       const r = await fetch(`/api/admin/${user.businessId}/members/${memberId}`, { method: "DELETE" });
       const data = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(typeof data.error === "string" ? data.error : "");
@@ -121,9 +128,9 @@ export function TeamTab() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["team-members"] });
       setPending(null);
-      toast.success("העובד נמחק מהצוות");
+      toast.success(t("toasts.memberDeleted"));
     },
-    onError: (e: Error) => toast.error(e.message || "שגיאה במחיקת העובד. נסה שוב."),
+    onError: (e: Error) => toast.error(e.message || t("toasts.deleteError")),
   });
 
   /** Role select: downgrades and promotions to owner are confirmed first. */
@@ -144,26 +151,26 @@ export function TeamTab() {
   const confirmBusy = roleMutation.isPending || toggleActiveMutation.isPending || deleteMutation.isPending;
   let confirmTitle = "";
   let confirmDescription: React.ReactNode = null;
-  let confirmLabel = "אישור";
+  let confirmLabel = t("confirm.defaultLabel");
   if (pending?.kind === "deactivate") {
-    confirmTitle = `להשבית את ${pending.member.user.name}?`;
-    confirmDescription = "המשתמש ינותק מהמערכת מיד והגישה שלו לעסק תיחסם. אפשר להפעיל אותו מחדש בכל עת.";
-    confirmLabel = "השבת";
+    confirmTitle = t("confirm.deactivate.title", { name: pending.member.user.name });
+    confirmDescription = t("confirm.deactivate.description");
+    confirmLabel = t("confirm.deactivate.label");
   } else if (pending?.kind === "delete") {
-    confirmTitle = `למחוק את ${pending.member.user.name} מהצוות?`;
-    confirmDescription = "העובד יוסר מהעסק לצמיתות. הנתונים שיצר (משימות, הערות, פעילות) נשארים. כדי להחזיר אותו בעתיד — שולחים הזמנה חדשה.";
-    confirmLabel = "מחק לצמיתות";
+    confirmTitle = t("confirm.delete.title", { name: pending.member.user.name });
+    confirmDescription = t("confirm.delete.description");
+    confirmLabel = t("confirm.delete.label");
   } else if (pending?.kind === "role") {
-    const from = ROLE_LABELS[pending.member.role] ?? pending.member.role;
-    const to = ROLE_LABELS[pending.role] ?? pending.role;
+    const from = roleLabel(t, pending.member.role);
+    const to = roleLabel(t, pending.role);
     if (pending.role === "owner") {
-      confirmTitle = `להפוך את ${pending.member.user.name} לבעלים?`;
-      confirmDescription = "לבעלים יש גישה מלאה לעסק — כולל הכנסות, מחיקות, הגדרות קריטיות וניהול הצוות (כולל אותך). לא תוכל/י לשנות את התפקיד שלו בחזרה.";
-      confirmLabel = "הפוך לבעלים";
+      confirmTitle = t("confirm.makeOwner.title", { name: pending.member.user.name });
+      confirmDescription = t("confirm.makeOwner.description");
+      confirmLabel = t("confirm.makeOwner.label");
     } else {
-      confirmTitle = `להוריד את ${pending.member.user.name} מ${from} ל${to}?`;
-      confirmDescription = "המשתמש יאבד מיד את ההרשאות של התפקיד הקודם. הרשאות שסומנו לו אישית נשמרות.";
-      confirmLabel = "שנה תפקיד";
+      confirmTitle = t("confirm.downgrade.title", { name: pending.member.user.name, from, to });
+      confirmDescription = t("confirm.downgrade.description");
+      confirmLabel = t("confirm.downgrade.label");
     }
   }
 
@@ -172,13 +179,13 @@ export function TeamTab() {
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2">
           <Shield className="w-5 h-5 text-brand-500" />
-          <h3 className="text-base font-semibold text-petra-text">ניהול צוות</h3>
+          <h3 className="text-base font-semibold text-petra-text">{t("header.title")}</h3>
           <span className="text-sm text-petra-muted">({members?.length ?? 0})</span>
         </div>
         {canManageTeam && (
           <button className="btn-primary flex items-center gap-2 text-sm" onClick={() => setShowAddModal(true)}>
             <UserPlus className="w-4 h-4" />
-            הזמן עובד
+            {t("header.invite")}
           </button>
         )}
       </div>
@@ -206,19 +213,19 @@ export function TeamTab() {
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-medium text-petra-text truncate max-w-full">{member.user.name}</span>
                   <span className={cn("badge text-xs", ROLE_COLORS[member.role] ?? "badge-neutral")}>
-                    {ROLE_LABELS[member.role] ?? member.role}
+                    {roleLabel(t, member.role)}
                   </span>
                   {!member.isActive && (
-                    <span className="badge badge-danger text-xs">מושבת</span>
+                    <span className="badge badge-danger text-xs">{t("member.inactive")}</span>
                   )}
                   {isSelf && (
-                    <span className="text-xs text-petra-muted">(את/ה)</span>
+                    <span className="text-xs text-petra-muted">{t("member.self")}</span>
                   )}
                 </div>
                 <div className="flex items-center gap-x-3 gap-y-0.5 mt-0.5 flex-wrap min-w-0">
                   <span className="text-xs text-petra-muted truncate max-w-full" dir="ltr">{member.user.email}</span>
                   <span className="text-xs text-petra-muted">
-                    {lastSeen ? formatRelativeTime(lastSeen) : "לא התחבר"}
+                    {lastSeen ? formatRelativeTime(lastSeen) : t("member.neverLoggedIn")}
                   </span>
                 </div>
               </div>
@@ -231,12 +238,12 @@ export function TeamTab() {
                     value={member.role}
                     onChange={(e) => requestRoleChange(member, e.target.value)}
                     disabled={roleMutation.isPending}
-                    aria-label={`תפקיד של ${member.user.name}`}
+                    aria-label={t("member.roleAria", { name: member.user.name })}
                   >
-                    {isOwner && <option value="owner">בעלים</option>}
-                    <option value="manager">מנהל</option>
-                    <option value="user">עובד</option>
-                    {member.role === "volunteer" && <option value="volunteer" disabled>מתנדב</option>}
+                    {isOwner && <option value="owner">{t("roles.owner")}</option>}
+                    <option value="manager">{t("roles.manager")}</option>
+                    <option value="user">{t("roles.user")}</option>
+                    {member.role === "volunteer" && <option value="volunteer" disabled>{t("roles.volunteer")}</option>}
                   </select>
                   <button
                     className={cn(
@@ -252,7 +259,7 @@ export function TeamTab() {
                     }
                     disabled={toggleActiveMutation.isPending}
                   >
-                    {member.isActive ? "השבת" : "הפעל"}
+                    {member.isActive ? t("member.deactivate") : t("member.activate")}
                   </button>
                   {!member.isActive && (
                     <button
@@ -260,7 +267,7 @@ export function TeamTab() {
                       onClick={() => setPending({ kind: "delete", member })}
                       disabled={deleteMutation.isPending}
                     >
-                      מחק
+                      {tc("actions.delete")}
                     </button>
                   )}
                   {isOwner && member.role !== "owner" && (
@@ -269,7 +276,7 @@ export function TeamTab() {
                       onClick={() => setPermsOpenFor(permsOpenFor === member.id ? null : member.id)}
                       aria-expanded={permsOpenFor === member.id}
                     >
-                      הרשאות
+                      {t("member.permissions")}
                     </button>
                   )}
                 </div>
@@ -353,6 +360,7 @@ function MemberCapabilities({
   pending: boolean;
   onChange: (overrides: Record<string, boolean>) => void;
 }) {
+  const t = useTranslations("settings.teamTab");
   const overrides = member.permissionOverrides ?? {};
   const role = member.role as TenantRole;
   const { groups, capabilities } = useGrantableCapabilities();
@@ -367,8 +375,8 @@ function MemberCapabilities({
     <div className="mt-4 pt-4 border-t space-y-4">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <p className="text-xs text-petra-muted max-w-md">
-          מה מותר ל{member.user.name}? ברירת המחדל נגזרת מהתפקיד ({ROLE_LABELS[member.role] ?? member.role}) — כל שינוי כאן גובר עליה.
-          {" "}<span className="font-medium text-petra-text">{granted} מתוך {capabilities.length} מותרות.</span>
+          {t("capabilities.intro", { name: member.user.name, role: roleLabel(t, member.role) })}
+          {" "}<span className="font-medium text-petra-text">{t("capabilities.grantedCount", { granted, total: capabilities.length })}</span>
         </p>
         {customized > 0 && (
           <button
@@ -377,7 +385,7 @@ function MemberCapabilities({
             disabled={pending}
             onClick={() => onChange({})}
           >
-            אפס לברירת המחדל של התפקיד ({customized} שינויים)
+            {t("capabilities.reset", { count: customized })}
           </button>
         )}
       </div>
@@ -411,8 +419,8 @@ function MemberCapabilities({
                         {isCustom && (
                           <span
                             className="w-1.5 h-1.5 rounded-full bg-amber-500 flex-shrink-0"
-                            title="שונה ידנית — שונה מברירת המחדל של התפקיד"
-                            aria-label="שונה ידנית"
+                            title={t("capabilities.customTitle")}
+                            aria-label={t("capabilities.customAria")}
                           />
                         )}
                       </span>

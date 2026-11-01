@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Tag, X } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { fetchJSON } from "@/lib/utils";
 import { TAG_MAX_LEN } from "@/lib/customer-filters";
 
@@ -18,6 +19,8 @@ export function BulkTagModal({
   onClose: () => void;
   onDone: () => void;
 }) {
+  const t = useTranslations("customers.bulkTagModal");
+  const tc = useTranslations("common");
   const queryClient = useQueryClient();
   const [tag, setTag] = useState("");
   const trimmed = tag.trim();
@@ -33,12 +36,12 @@ export function BulkTagModal({
       queryClient.invalidateQueries({ queryKey: ["customers"] });
       toast.success(
         action === "add_tag"
-          ? `התגית "${trimmed}" נוספה ל-${res.updated} לקוחות`
-          : `התגית "${trimmed}" הוסרה מ-${res.updated} לקוחות`
+          ? t("toastAdded", { tag: trimmed, count: res.updated })
+          : t("toastRemoved", { tag: trimmed, count: res.updated })
       );
       onDone();
     },
-    onError: (err: Error) => toast.error(err.message || "שגיאה בעדכון הלקוחות. נסה שוב."),
+    onError: (err: Error) => toast.error(err.message || t("updateError")),
   });
 
   return (
@@ -46,33 +49,33 @@ export function BulkTagModal({
       <div className="modal-content max-w-sm w-full mx-4 p-5" role="dialog" aria-modal="true" aria-labelledby="bulk-tag-title">
         <div className="flex items-center justify-between mb-4">
           <h2 id="bulk-tag-title" className="text-lg font-bold text-slate-900 flex items-center gap-2">
-            <Tag className="w-4 h-4" /> תגיות ל-{ids.length} לקוחות
+            <Tag className="w-4 h-4" /> {t("title", { count: ids.length })}
           </h2>
-          <button onClick={onClose} aria-label="סגור" className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
+          <button onClick={onClose} aria-label={tc("actions.close")} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
             <X className="w-4 h-4" />
           </button>
         </div>
-        <label className="label" htmlFor="bulk-tag-input">תגית</label>
+        <label className="label" htmlFor="bulk-tag-input">{t("tagLabel")}</label>
         <input
           id="bulk-tag-input"
           className="input"
           value={tag}
           maxLength={TAG_MAX_LEN}
           onChange={(e) => setTag(e.target.value)}
-          placeholder="בחר או הקלד תגית"
+          placeholder={t("tagPlaceholder")}
         />
         {presetTags.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mt-2">
-            {presetTags.map((t) => (
+            {presetTags.map((preset) => (
               <button
-                key={t}
+                key={preset}
                 type="button"
-                onClick={() => setTag(t)}
+                onClick={() => setTag(preset)}
                 className={`px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors ${
-                  trimmed === t ? "bg-[#3D2E1F] text-white border-[#3D2E1F]" : "bg-[#FAF7F3] text-[#8B7355] border-[#E8DFD5] hover:border-[#C4956A]"
+                  trimmed === preset ? "bg-[#3D2E1F] text-white border-[#3D2E1F]" : "bg-[#FAF7F3] text-[#8B7355] border-[#E8DFD5] hover:border-[#C4956A]"
                 }`}
               >
-                {t}
+                {preset}
               </button>
             ))}
           </div>
@@ -83,14 +86,14 @@ export function BulkTagModal({
             disabled={!trimmed || mutation.isPending}
             onClick={() => mutation.mutate("add_tag")}
           >
-            הוסף תגית
+            {t("addTag")}
           </button>
           <button
             className="btn-secondary flex-1"
             disabled={!trimmed || mutation.isPending}
             onClick={() => mutation.mutate("remove_tag")}
           >
-            הסר תגית
+            {t("removeTag")}
           </button>
         </div>
       </div>

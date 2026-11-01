@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import { ShieldX } from "lucide-react";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import type { TenantPermission } from "@/lib/permissions";
 
 const ROLE_LEVEL: Record<string, number> = { owner: 0, manager: 1, user: 2 };
@@ -58,18 +59,19 @@ export function ProtectedRoute({
 }
 
 function AccessDenied() {
+  const t = useTranslations("layout.protectedRoute");
   return (
     <div className="flex items-center justify-center min-h-[60vh] animate-fade-in">
       <div className="card p-8 max-w-sm text-center space-y-4">
         <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center mx-auto">
           <ShieldX className="w-7 h-7 text-red-400" />
         </div>
-        <h2 className="text-lg font-semibold text-petra-text">אין הרשאה</h2>
+        <h2 className="text-lg font-semibold text-petra-text">{t("title")}</h2>
         <p className="text-sm text-petra-muted">
-          אין לך הרשאה לגשת לעמוד זה. פנה למנהל העסק לקבלת גישה.
+          {t("message")}
         </p>
         <Link href="/dashboard" className="btn-primary inline-flex items-center gap-2">
-          חזרה לדשבורד
+          {t("backToDashboard")}
         </Link>
       </div>
     </div>

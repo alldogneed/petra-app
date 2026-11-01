@@ -1,8 +1,7 @@
 "use client";
 
 import { useVertical } from "@/hooks/useVertical";
-import { vocab, type VocabKey } from "@/lib/verticals/vocab";
-import { hasDogText } from "@/lib/verticals/help";
+import type { VocabKey } from "@/lib/verticals/vocab";
 import { Check, X, MessageCircle, Crown, Zap, CreditCard, Loader2 } from "lucide-react";
 import { usePlan } from "@/hooks/usePlan";
 import { cn } from "@/lib/utils";
@@ -11,76 +10,49 @@ import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useAuth } from "@/providers/auth-provider";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
+import { currencySymbol } from "@/lib/format";
+import { planPrice, planPriceCurrency, hasOnlineCheckout } from "@/lib/plan-prices";
 
 // ─── Public plans (sold via checkout) ────────────────────────────────────────
-const PLANS: {
+// Texts live in messages under paywall.upgradePage.plans.<msgKey>.*
+type PlanDef = {
   key: TierKey;
-  name: string;
-  price: number;
-  description: string;
-  badge?: string;
+  /** messages key under paywall.upgradePage.plans */
+  msgKey: string;
+  hasBadge?: boolean;
   highlight?: boolean;
   features: string[];
   notIncluded: string[];
-}[] = [
+};
+
+const PLANS: PlanDef[] = [
   {
     key: "free",
-    name: "חינמי",
-    price: 0,
-    description: "התחל לנהל את העסק שלך — בחינם, ללא הגבלת זמן",
-    features: [
-      "עד 30 לקוחות",
-      "CRM / לידים (עד 15)",
-      "מערכת ניהול תהליכי אילוף (עד 10 תוכניות)",
-      "תורים (עד 20 סה״כ)",
-      "הזמנות (עד 15 סה״כ)",
-      "ניהול משימות (עד 20 פתוחות)",
-      "מחירון שירותים (עד 8 פריטים)",
-    ],
-    notIncluded: [
-      "מערכת תורים + Google Calendar ללא הגבלה",
-      "תזכורות WhatsApp אוטומטיות",
-      "ניהול פנסיון",
-      "שליחת טפסי קליטה ללקוח",
-      "ניהול צוות",
-    ],
+    msgKey: "free",
+    features: ["clients", "leads", "trainingPrograms", "appointments", "orders", "tasks", "priceList"],
+    notIncluded: ["unlimitedCalendar", "whatsappReminders", "boarding", "intakeForms", "team"],
   },
   {
     key: "basic",
-    name: "Basic",
-    price: 99,
-    description: "מושלם לגרומרים ומאלפים עצמאיים — יחיד, מקצועי, חסכוני",
-    features: [
-      "לקוחות ותורים ללא הגבלה",
-      "יומן תורים ופגישות + Google Calendar",
-      "תיק עבודות לפני/אחרי",
-      "בקשת תשלום + טפסי קליטה דיגיטליים",
-      "CRM / לידים ללא הגבלה",
-      "דוחות ואנליטיקס",
-    ],
-    notIncluded: [
-      "תזכורות WhatsApp אוטומטיות",
-      "ניהול צוות ומשתמשים",
-      "ניהול פנסיון",
-      "הזמנות אונליין",
-      "אוטומציות WhatsApp מתקדמות",
-    ],
+    msgKey: "basic",
+    features: ["unlimitedClients", "calendar", "portfolio", "paymentsAndForms", "unlimitedLeads", "reports"],
+    notIncluded: ["whatsappReminders", "teamAndUsers", "boarding", "onlineBooking", "whatsappAutomations"],
   },
   {
     key: "pro",
-    name: "Pro",
-    price: 199,
-    description: "מושלם לפנסיונים ומרכזי אילוף — צוות, גדילה, שליטה מלאה",
+    msgKey: "pro",
     highlight: true,
-    badge: "הכי פופולרי",
+    hasBadge: true,
     features: [
-      "הכל ב-Basic",
-      "תזכורות WhatsApp אוטומטיות",
-      "חתימת חוזים דיגיטלית",
-      "ניהול צוות והרשאות מתקדמות",
-      "ניהול פנסיון וחדרים",
-      "הזמנות אונליין — לקוחות קובעים לבד 24/7",
-      "אוטומציות WhatsApp מתקדמות",
+      "everythingInBasic",
+      "whatsappReminders",
+      "contracts",
+      "teamPermissions",
+      "boardingRooms",
+      "onlineBooking",
+      "whatsappAutomations",
     ],
     notIncluded: [],
   },
@@ -89,55 +61,43 @@ const PLANS: {
 // ─── Verticals: a "generic" business reads the plans without dog-domain lines ───
 // (renamed lines come from the dictionary; dog-only features — boarding, grooming
 // portfolio, pet intake forms — are not offered there). Dogs → the plan unchanged.
+// Keyed by `<msgKey>.<path>` of paywall.upgradePage.plans (i18n: the plan texts are messages).
 const GENERIC_LINE_KEYS: Record<string, VocabKey> = {
-  "מערכת ניהול תהליכי אילוף (עד 10 תוכניות)": "plans.free_programs",
-  "בקשת תשלום + טפסי קליטה דיגיטליים": "plans.payment_request",
-  "מושלם לגרומרים ומאלפים עצמאיים — יחיד, מקצועי, חסכוני": "plans.basic_description",
-  "מושלם לפנסיונים ומרכזי אילוף — צוות, גדילה, שליטה מלאה": "plans.pro_description",
+  "free.features.trainingPrograms": "plans.free_programs",
+  "basic.features.paymentsAndForms": "plans.payment_request",
+  "basic.description": "plans.basic_description",
+  "pro.description": "plans.pro_description",
 };
-const GENERIC_DROPPED = /תיק עבודות|טפסי קליטה/;
+// Lines with dog-domain wording (hasDogText) or a portfolio / intake-forms feature.
+const GENERIC_DROPPED = new Set(["boarding", "intakeForms", "portfolio", "boardingRooms", "advancedTraining", "serviceDogs"]);
 
-function planForVertical<P extends { description: string; features: string[]; notIncluded: string[] }>(plan: P, vertical: string): P {
+function planForVertical<P extends { features: string[]; notIncluded: string[] }>(plan: P, vertical: string): P {
   if (vertical !== "generic") return plan;
-  const line = (t: string) => (GENERIC_LINE_KEYS[t] ? vocab(GENERIC_LINE_KEYS[t], { vertical }) : t);
-  const keep = (t: string) => !!GENERIC_LINE_KEYS[t] || (!hasDogText(t) && !GENERIC_DROPPED.test(t));
+  const keep = (f: string) => !GENERIC_DROPPED.has(f);
   return {
     ...plan,
-    description: line(plan.description),
-    features: plan.features.filter(keep).map(line),
-    notIncluded: plan.notIncluded.filter(keep).map(line),
+    features: plan.features.filter(keep),
+    notIncluded: plan.notIncluded.filter(keep),
   };
 }
 
 // ─── Legacy plans (DB only — for display when user is currently on one) ───────
-const LEGACY_PLANS: typeof PLANS = [
+const LEGACY_PLANS: PlanDef[] = [
   {
     key: "groomer",
-    name: "Groomer+ (legacy)",
-    price: 169,
-    description: "מסלול ישן — כבר לא נמכר. ניתן לעבור ל-Basic או Pro.",
-    features: [
-      "תיק עבודות לפני/אחרי",
-      "אוטומציות WhatsApp",
-      "ניהול צוות",
-      "ייצוא Excel",
-    ],
-    notIncluded: ["פנסיון", "אילוף מתקדם"],
+    msgKey: "groomer",
+    features: ["portfolio", "whatsappAutomations", "team", "excelExport"],
+    notIncluded: ["boarding", "advancedTraining"],
   },
   {
     key: "service_dog",
-    name: "Service Dog",
-    price: 229,
-    description: "מסלול ארגוני לכלבי שירות — ניהול זכאים, הכשרות ורגולציה.",
-    features: [
-      "הכל ב-Pro",
-      "ניהול כלבי שירות ותיק זכאים",
-      "מבחני הסמכה ופרוטוקולים רפואיים",
-      "דיווח למשרד החקלאות",
-    ],
+    msgKey: "serviceDog",
+    features: ["everythingInPro", "serviceDogs", "certification", "ministryReporting"],
     notIncluded: [],
   },
 ];
+
+const FAQ_KEYS = ["howToUpgrade", "canCancel", "dataOnCancel", "securePayment"] as const;
 
 const WHATSAPP_UPGRADE_PHONE = "972504828080";
 
@@ -154,15 +114,21 @@ const TIER_RANK: Record<string, number> = {
 const CARDCOM_TIERS = new Set(["basic", "pro"]);
 
 export default function UpgradePage() {
-  const { vertical } = useVertical();
+  const { vertical, isGeneric, v } = useVertical();
   const { tier, cancelPending, subscriptionEndsAt } = usePlan();
   const { refreshUser } = useAuth();
   const searchParams = useSearchParams();
   const router = useRouter();
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+  const t = useTranslations("paywall.upgradePage");
+  const { locale, currency } = useBusinessLocale();
+  // Prices come from plan-prices.ts in the business's pricing currency (ILS / USD)
+  const symbol = currencySymbol({ locale, currency: planPriceCurrency(currency) });
+  // Cardcom checkout charges ILS only — other currencies upgrade via sales until Stripe (Phase 6)
+  const onlineCheckout = hasOnlineCheckout(currency);
 
-  const endsAtFormatted = subscriptionEndsAt ? new Date(subscriptionEndsAt).toLocaleDateString("he-IL") : "";
+  const endsAtFormatted = subscriptionEndsAt ? new Date(subscriptionEndsAt).toLocaleDateString(locale) : "";
   const isFree = tier === "free";
   const canCancel = !isFree && !cancelPending;
 
@@ -172,14 +138,14 @@ export default function UpgradePage() {
       const res = await fetch("/api/subscription/cancel", { method: "POST" });
       if (!res.ok) {
         const d = await res.json();
-        toast.error(d.error ?? "שגיאה בביטול המנוי");
+        toast.error(d.error ?? t("toasts.cancelError"));
         return;
       }
-      toast.success(endsAtFormatted ? `הביטול נקלט. תמשיך ליהנות מהמנוי עד ${endsAtFormatted}.` : "הביטול נקלט.");
+      toast.success(endsAtFormatted ? t("toasts.cancelSuccessUntil", { date: endsAtFormatted }) : t("toasts.cancelSuccess"));
       setShowCancelConfirm(false);
       await refreshUser();
     } catch {
-      toast.error("שגיאת רשת. נסה שוב.");
+      toast.error(t("toasts.networkError"));
     } finally {
       setCancelling(false);
     }
@@ -188,7 +154,7 @@ export default function UpgradePage() {
   // Auto-redirect to checkout if ?autostart=plan is present (e.g. after registration)
   useEffect(() => {
     const autostart = searchParams.get("autostart");
-    if (autostart && CARDCOM_TIERS.has(autostart)) {
+    if (autostart && CARDCOM_TIERS.has(autostart) && onlineCheckout) {
       router.replace(`/checkout?tier=${autostart}`);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -200,14 +166,20 @@ export default function UpgradePage() {
     ? [...PLANS, ...(LEGACY_PLANS.filter(p => p.key === tier))]
     : PLANS).map((plan) => planForVertical(plan, vertical));
 
+  /** A plan text (`description`, `features.x`, `notIncluded.x`) — generic wording from the vocab when renamed. */
+  function planText(msgKey: string, path: string) {
+    const renamed = isGeneric ? GENERIC_LINE_KEYS[`${msgKey}.${path}`] : undefined;
+    return renamed ? v(renamed) : t(`plans.${msgKey}.${path}`);
+  }
+
   function goToCheckout(planKey: string) {
     router.push(`/checkout?tier=${planKey}`);
   }
 
-  function openWhatsApp(planName: string, price: number, isDowngrade: boolean) {
-    const action = isDowngrade ? "לשנמך" : "לשדרג";
+  function openWhatsApp(planName: string, price: number | null, isDowngrade: boolean) {
+    const action = isDowngrade ? t("whatsapp.downgradeAction") : t("whatsapp.upgradeAction");
     const msg = encodeURIComponent(
-      `שלום, אני רוצה ${action} את המנוי שלי ב-Petra למסלול ${planName} (₪${price}/חודש). תוכלו לעזור לי?`
+      t("whatsapp.message", { action, planName, currencySymbol: symbol, price: price ?? "" })
     );
     window.open(`https://api.whatsapp.com/send?phone=${WHATSAPP_UPGRADE_PHONE}&text=${msg}`, "_blank");
   }
@@ -218,11 +190,11 @@ export default function UpgradePage() {
       <div className="text-center mb-10">
         <div className="inline-flex items-center gap-2 bg-brand-50 text-brand-600 px-4 py-1.5 rounded-full text-sm font-medium mb-4">
           <Crown className="w-4 h-4" />
-          שדרג את המנוי שלך
+          {t("header.badge")}
         </div>
-        <h1 className="text-3xl font-bold text-slate-900 mb-3">בחר את המסלול המתאים לך</h1>
+        <h1 className="text-3xl font-bold text-slate-900 mb-3">{t("header.title")}</h1>
         <p className="text-slate-500 max-w-lg mx-auto">
-          כל המסלולים כוללים גישה מלאה לפיצ׳רים הבסיסיים. ניתן לשדרג, להוריד מסלול, או לבטל בכל עת.
+          {t("header.subtitle")}
         </p>
       </div>
 
@@ -232,6 +204,8 @@ export default function UpgradePage() {
           const isCurrent = tier === plan.key;
           const isHighlight = plan.highlight;
           const isDowngrade = TIER_RANK[plan.key] < TIER_RANK[tier ?? "free"];
+          const planName = t(`plans.${plan.msgKey}.name`);
+          const price = planPrice(plan.key, currency);
 
           return (
             <div
@@ -245,30 +219,30 @@ export default function UpgradePage() {
               )}
             >
               {/* Badge */}
-              {plan.badge && !isCurrent && (
+              {plan.hasBadge && !isCurrent && (
                 <div className={cn(
-                  "absolute -top-3 right-4 text-xs font-bold px-3 py-1 rounded-full",
+                  "absolute -top-3 start-4 text-xs font-bold px-3 py-1 rounded-full",
                   isHighlight ? "bg-brand-500 text-white" : "bg-amber-500 text-white"
                 )}>
-                  {plan.badge}
+                  {t(`plans.${plan.msgKey}.badge`)}
                 </div>
               )}
               {isCurrent && (
-                <div className="absolute -top-3 right-4 text-xs font-bold px-3 py-1 rounded-full bg-green-500 text-white">
-                  המסלול הנוכחי שלך
+                <div className="absolute -top-3 start-4 text-xs font-bold px-3 py-1 rounded-full bg-green-500 text-white">
+                  {t("card.currentBadge")}
                 </div>
               )}
 
               {/* Plan info */}
               <div className="mb-5">
-                <h2 className="text-lg font-bold text-slate-900">{plan.name}</h2>
+                <h2 className="text-lg font-bold text-slate-900">{planName}</h2>
                 <div className="flex items-baseline gap-1 mt-1 mb-2">
                   <span className="text-3xl font-extrabold text-slate-900">
-                    {plan.price === 0 ? "חינם" : `₪${plan.price}`}
+                    {price === 0 ? t("card.free") : price != null ? t("card.price", { currencySymbol: symbol, price }) : null}
                   </span>
-                  {plan.price > 0 && <span className="text-slate-400 text-sm">/חודש</span>}
+                  {price != null && price > 0 && <span className="text-slate-400 text-sm">{t("card.perMonth")}</span>}
                 </div>
-                <p className="text-xs text-slate-500 leading-relaxed">{plan.description}</p>
+                <p className="text-xs text-slate-500 leading-relaxed">{planText(plan.msgKey, "description")}</p>
               </div>
 
               {/* Features */}
@@ -276,13 +250,13 @@ export default function UpgradePage() {
                 {plan.features.map((f) => (
                   <div key={f} className="flex items-start gap-2 text-sm text-slate-700">
                     <Check className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
-                    {f}
+                    {planText(plan.msgKey, `features.${f}`)}
                   </div>
                 ))}
                 {plan.notIncluded.map((f) => (
                   <div key={f} className="flex items-start gap-2 text-sm text-slate-400">
                     <X className="w-4 h-4 flex-shrink-0 mt-0.5 text-red-400" />
-                    {f}
+                    {planText(plan.msgKey, `notIncluded.${f}`)}
                   </div>
                 ))}
               </div>
@@ -290,7 +264,7 @@ export default function UpgradePage() {
               {/* CTA */}
               {isCurrent ? (
                 <div className="w-full py-2.5 rounded-xl text-center text-sm font-semibold bg-green-100 text-green-700">
-                  ✓ המסלול שלך
+                  {t("card.yourPlan")}
                 </div>
               ) : plan.key === "free" && !isFree ? (
                 // Downgrade to free = cancellation, not a plan switch
@@ -302,21 +276,21 @@ export default function UpgradePage() {
                   }}
                   className="w-full py-2.5 rounded-xl text-sm font-semibold transition-colors bg-slate-100 hover:bg-red-50 text-slate-500 hover:text-red-600 border border-slate-200 hover:border-red-200"
                 >
-                  בטל מנוי ← מעבר לחינמי
+                  {t("card.cancelToFree")}
                 </button>
               ) : isDowngrade ? (
                 <button
-                  onClick={() => openWhatsApp(plan.name, plan.price, true)}
+                  onClick={() => openWhatsApp(planName, price, true)}
                   className="w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-colors bg-slate-200 hover:bg-slate-300 text-slate-700"
                 >
                   <MessageCircle className="w-4 h-4" />
-                  {`שנמך ל-${plan.name}`}
+                  {t("card.downgradeTo", { planName })}
                 </button>
-              ) : plan.price === 0 ? (
+              ) : price === 0 ? (
                 <div className="w-full py-2.5 rounded-xl text-center text-sm text-slate-400 border border-dashed border-slate-300">
-                  חינמי תמיד
+                  {t("card.alwaysFree")}
                 </div>
-              ) : CARDCOM_TIERS.has(plan.key) ? (
+              ) : CARDCOM_TIERS.has(plan.key) && onlineCheckout ? (
                 <div className="flex flex-col gap-2">
                   <button
                     onClick={() => goToCheckout(plan.key)}
@@ -328,19 +302,19 @@ export default function UpgradePage() {
                     )}
                   >
                     <CreditCard className="w-4 h-4" />
-                    שלם עכשיו
+                    {t("card.payNow")}
                   </button>
                   <button
-                    onClick={() => openWhatsApp(plan.name, plan.price, false)}
+                    onClick={() => openWhatsApp(planName, price, false)}
                     className="w-full py-2 rounded-xl text-xs font-medium flex items-center justify-center gap-1.5 transition-colors text-slate-500 hover:text-green-600 hover:bg-green-50"
                   >
                     <MessageCircle className="w-3.5 h-3.5" />
-                    שדרג דרך WhatsApp
+                    {t("card.upgradeViaWhatsapp")}
                   </button>
                 </div>
               ) : (
                 <button
-                  onClick={() => openWhatsApp(plan.name, plan.price, false)}
+                  onClick={() => openWhatsApp(planName, price, false)}
                   className={cn(
                     "w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-colors",
                     isHighlight
@@ -349,7 +323,7 @@ export default function UpgradePage() {
                   )}
                 >
                   <MessageCircle className="w-4 h-4" />
-                  {`שדרג ל-${plan.name}`}
+                  {t("card.upgradeTo", { planName })}
                 </button>
               )}
             </div>
@@ -361,7 +335,7 @@ export default function UpgradePage() {
       <div id="cancel-section" />
       {cancelPending && (
         <div className="mb-6 rounded-xl bg-amber-50 border border-amber-200 px-5 py-4 text-sm text-amber-700">
-          הביטול נקלט — גישה מלאה עד <strong>{endsAtFormatted}</strong>. לאחר מכן תעבור למסלול חינמי.
+          {t.rich("cancel.pending", { date: endsAtFormatted, strong: (c) => <strong>{c}</strong> })}
         </div>
       )}
 
@@ -371,7 +345,7 @@ export default function UpgradePage() {
             onClick={() => setShowCancelConfirm(true)}
             className="text-sm text-slate-400 hover:text-red-500 transition-colors underline"
           >
-            רוצה לבטל את המנוי?
+            {t("cancel.wantToCancel")}
           </button>
         </div>
       )}
@@ -379,7 +353,7 @@ export default function UpgradePage() {
       {canCancel && showCancelConfirm && (
         <div className="mb-6 rounded-xl bg-red-50 border border-red-200 px-5 py-4">
           <p className="text-sm text-red-700 font-medium mb-3">
-            המנוי יבוטל בסוף תקופת החיוב{endsAtFormatted ? ` (${endsAtFormatted})` : ""}. עד אז תמשיך ליהנות מכל התכונות — ללא חיוב נוסף.
+            {endsAtFormatted ? t("cancel.confirmWithDate", { date: endsAtFormatted }) : t("cancel.confirm")}
           </p>
           <div className="flex gap-2 justify-end">
             <button
@@ -388,13 +362,13 @@ export default function UpgradePage() {
               className="text-sm px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center gap-1.5"
             >
               {cancelling && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              {cancelling ? "מבטל..." : "כן, בטל מנוי"}
+              {cancelling ? t("cancel.cancelling") : t("cancel.yesCancel")}
             </button>
             <button
               onClick={() => setShowCancelConfirm(false)}
               className="text-sm px-4 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
             >
-              חזרה
+              {t("cancel.back")}
             </button>
           </div>
         </div>
@@ -404,18 +378,13 @@ export default function UpgradePage() {
       <div className="card p-6">
         <h2 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
           <Zap className="w-5 h-5 text-amber-500" />
-          שאלות נפוצות
+          {t("faq.title")}
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {[
-            { q: "איך משדרגים?", a: "לחץ על \"שלם עכשיו\" — תועבר לדף תשלום מאובטח. המסלול יתעדכן מיד לאחר אישור התשלום." },
-            { q: "האם ניתן לבטל?", a: "כן, ניתן לבטל בכל עת ללא קנסות. לחץ \"רוצה לבטל את המנוי?\" למעלה, או עבור להגדרות ← ניהול מנוי." },
-            { q: "מה קורה לנתונים בביטול?", a: "הנתונים נשמרים. בתום המנוי תחזור לסלול החינמי עם הגבלות הרגילות שלו." },
-            { q: "האם התשלום מאובטח?", a: "כן. פרטי הכרטיס מוזנים ישירות בסביבה המאובטחת של Cardcom (PCI DSS). Petra אינה רואה את פרטי הכרטיס." },
-          ].map(({ q, a }) => (
-            <div key={q} className="bg-slate-50 rounded-xl p-4">
-              <div className="font-medium text-slate-800 text-sm mb-1">{q}</div>
-              <div className="text-slate-500 text-xs leading-relaxed">{a}</div>
+          {FAQ_KEYS.map((k) => (
+            <div key={k} className="bg-slate-50 rounded-xl p-4">
+              <div className="font-medium text-slate-800 text-sm mb-1">{t(`faq.${k}.q`)}</div>
+              <div className="text-slate-500 text-xs leading-relaxed">{t(`faq.${k}.a`)}</div>
             </div>
           ))}
         </div>
@@ -424,14 +393,14 @@ export default function UpgradePage() {
       {/* Contact */}
       <div className="mt-6 text-center">
         <p className="text-sm text-slate-400">
-          שאלות? פנה אלינו ב-WhatsApp ונשמח לעזור בבחירת המסלול המתאים.
+          {t("contact.text")}
         </p>
         <button
           onClick={() => window.open(`https://wa.me/${WHATSAPP_UPGRADE_PHONE}`, "_blank")}
           className="mt-3 inline-flex items-center gap-2 text-sm font-medium text-green-600 hover:text-green-700"
         >
           <MessageCircle className="w-4 h-4" />
-          צור קשר עכשיו
+          {t("contact.cta")}
         </button>
       </div>
     </div>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 import {
   AlertTriangle,
   Award,
@@ -90,33 +91,36 @@ interface Dossier {
   liveClasses: DossierLiveClass[];
 }
 
-const STATUS_META: Record<string, { label: string; cls: string }> = {
-  pending: { label: "ממתין לאישור", cls: "badge-warning" },
-  active: { label: "פעיל", cls: "badge-success" },
-  expired: { label: "פג תוקף", cls: "badge-neutral" },
-  suspended: { label: "מושהה", cls: "badge-neutral" },
+type DossierT = ReturnType<typeof useTranslations<"onlineClasses.studentDossier">>;
+
+// Labels live in messages: onlineClasses.studentDossier.statuses.<id> / regStatuses.<id>
+const STATUS_META: Record<string, { cls: string }> = {
+  pending: { cls: "badge-warning" },
+  active: { cls: "badge-success" },
+  expired: { cls: "badge-neutral" },
+  suspended: { cls: "badge-neutral" },
 };
 
-const REG_STATUS_META: Record<string, { label: string; cls: string }> = {
-  registered: { label: "רשום", cls: "badge-success" },
-  waitlist: { label: "רשימת המתנה", cls: "badge-warning" },
-  cancelled: { label: "בוטל", cls: "badge-neutral" },
+const REG_STATUS_META: Record<string, { cls: string }> = {
+  registered: { cls: "badge-success" },
+  waitlist: { cls: "badge-warning" },
+  cancelled: { cls: "badge-neutral" },
 };
 
-function courseStatusLabel(status: string): string {
-  return status === "published" ? "מפורסם" : "טיוטה";
+function courseStatusLabel(status: string, t: DossierT): string {
+  return status === "published" ? t("courseStatus.published") : t("courseStatus.draft");
 }
 
-function fmtMinutes(min: number | null): string {
+function fmtMinutes(min: number | null, t: DossierT): string {
   if (!min || min <= 0) return "";
-  return `${min} דק'`;
+  return t("minutes", { min });
 }
 
-function fmtWatched(seconds: number): string {
+function fmtWatched(seconds: number, t: DossierT): string {
   if (!seconds || seconds <= 0) return "";
   const m = Math.round(seconds / 60);
-  if (m < 1) return "פחות מדקה";
-  return `${m} דק'`;
+  if (m < 1) return t("lessThanMinute");
+  return t("minutes", { min: m });
 }
 
 // ─── Small building blocks ──────────────────────────────────────
@@ -153,6 +157,7 @@ function ProgressBar({ percent }: { percent: number }) {
 }
 
 function CourseCard({ course }: { course: DossierCourse }) {
+  const t = useTranslations("onlineClasses.studentDossier");
   const [open, setOpen] = useState(false);
   const cert = course.certificate;
 
@@ -163,7 +168,7 @@ function CourseCard({ course }: { course: DossierCourse }) {
           <div className="flex items-center gap-2 flex-wrap">
             <BookOpen className="w-4 h-4 text-brand-500 shrink-0" />
             <span className="font-semibold text-petra-text truncate">{course.title}</span>
-            <span className="badge-neutral text-[11px]">{courseStatusLabel(course.status)}</span>
+            <span className="badge-neutral text-[11px]">{courseStatusLabel(course.status, t)}</span>
           </div>
         </div>
         <span className="text-sm font-bold text-petra-text shrink-0">{course.percent}%</span>
@@ -173,10 +178,10 @@ function CourseCard({ course }: { course: DossierCourse }) {
         <ProgressBar percent={course.percent} />
         <div className="flex items-center justify-between mt-1.5 text-[11px] text-petra-muted">
           <span>
-            {course.completedLessons}/{course.totalLessons} שיעורים
+            {t("course.lessonsProgress", { completed: course.completedLessons, total: course.totalLessons })}
           </span>
           <span>
-            {course.lastActivityAt ? `פעילות אחרונה: ${heDate(course.lastActivityAt)}` : "טרם התחיל"}
+            {course.lastActivityAt ? t("course.lastActivity", { date: heDate(course.lastActivityAt) }) : t("notStarted")}
           </span>
         </div>
       </div>
@@ -187,29 +192,29 @@ function CourseCard({ course }: { course: DossierCourse }) {
           cert.revokedAt ? (
             <span className="inline-flex items-center gap-1.5 text-red-600 font-medium">
               <Award className="w-4 h-4" />
-              התעודה בוטלה
+              {t("certificate.revoked")}
             </span>
           ) : (
             <span className="inline-flex items-center gap-1.5 flex-wrap">
               <span className="inline-flex items-center gap-1.5 text-green-600 font-medium">
                 <Award className="w-4 h-4" />
-                תעודה הונפקה {heDate(cert.issuedAt)}
+                {t("certificate.issued", { date: heDate(cert.issuedAt) })}
               </span>
-              {cert.issuedManually && <span className="badge-neutral text-[11px]">ידני</span>}
+              {cert.issuedManually && <span className="badge-neutral text-[11px]">{t("certificate.manual")}</span>}
               <a
                 href={`/verify/${cert.serial}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-brand-500 hover:underline font-medium"
               >
-                אימות תעודה
+                {t("certificate.verify")}
               </a>
             </span>
           )
         ) : (
           <span className="inline-flex items-center gap-1.5 text-petra-muted">
             <Award className="w-4 h-4" />
-            אין תעודה עדיין
+            {t("certificate.none")}
           </span>
         )}
       </div>
@@ -222,14 +227,14 @@ function CourseCard({ course }: { course: DossierCourse }) {
             onClick={() => setOpen((v) => !v)}
           >
             <ChevronDown className={`w-4 h-4 transition-transform ${open ? "rotate-180" : ""}`} />
-            {open ? "הסתר שיעורים" : `הצג ${course.lessons.length} שיעורים`}
+            {open ? t("course.hideLessons") : t("course.showLessons", { count: course.lessons.length })}
           </button>
           {open && (
             <ul className="mt-2 space-y-1.5">
               {course.lessons.map((lesson) => {
                 const done = !!lesson.completedAt;
-                const watched = fmtWatched(lesson.watchedSeconds);
-                const duration = fmtMinutes(lesson.durationMin);
+                const watched = fmtWatched(lesson.watchedSeconds, t);
+                const duration = fmtMinutes(lesson.durationMin, t);
                 return (
                   <li key={lesson.id} className="flex items-start gap-2 text-xs">
                     {done ? (
@@ -243,7 +248,7 @@ function CourseCard({ course }: { course: DossierCourse }) {
                           {lesson.title}
                         </span>
                         <span className="text-petra-muted shrink-0">
-                          {done ? "הושלם" : `${lesson.percent}%`}
+                          {done ? t("lesson.completed") : `${lesson.percent}%`}
                         </span>
                       </div>
                       <div className="text-[11px] text-petra-muted/80">
@@ -251,7 +256,7 @@ function CourseCard({ course }: { course: DossierCourse }) {
                         {duration && (
                           <>
                             {" · "}
-                            {watched ? `${watched} מתוך ${duration}` : duration}
+                            {watched ? t("lesson.watchedOf", { watched, duration }) : duration}
                           </>
                         )}
                       </div>
@@ -276,29 +281,33 @@ export function StudentDossier({
   membershipId: string;
   onClose: () => void;
 }) {
+  const t = useTranslations("onlineClasses.studentDossier");
   const { data, isLoading, isError, refetch } = useQuery<Dossier>({
     queryKey: ["oc-dossier", membershipId],
     queryFn: () => fetchJSON(`/api/online-classes/students/${membershipId}`),
   });
 
+  const statusKey = data?.student.status?.toLowerCase();
   const statusMeta = data
-    ? STATUS_META[data.student.status?.toLowerCase()] ?? {
-        label: data.student.status,
-        cls: "badge-neutral",
-      }
+    ? statusKey && STATUS_META[statusKey]
+      ? { label: t(`statuses.${statusKey}`), cls: STATUS_META[statusKey].cls }
+      : {
+          label: data.student.status,
+          cls: "badge-neutral",
+        }
     : null;
 
   const lastActivityText = data
     ? data.summary.lastActivityAt === null
-      ? "טרם התחיל"
+      ? t("notStarted")
       : data.summary.stalledDays !== null && data.summary.stalledDays >= 7
-        ? `לא פעיל ${data.summary.stalledDays} ימים`
+        ? t("inactiveDays", { days: data.summary.stalledDays })
         : heDate(data.summary.lastActivityAt)
     : "—";
 
   return (
     <Modal
-      title={data ? `תיק סטודנט — ${data.student.name}` : "תיק סטודנט"}
+      title={data ? t("titleWithName", { name: data.student.name }) : t("title")}
       onClose={onClose}
       maxWidth="max-w-3xl"
     >
@@ -307,13 +316,13 @@ export function StudentDossier({
       ) : isError || !data ? (
         <div className="card p-8 text-center">
           <AlertTriangle className="w-8 h-8 mx-auto mb-3 text-red-400" />
-          <p className="text-red-600 font-medium mb-2">שגיאה בטעינת תיק הסטודנט</p>
+          <p className="text-red-600 font-medium mb-2">{t("loadError")}</p>
           <button className="btn-secondary text-sm" onClick={() => refetch()}>
-            נסה שוב
+            {t("retry")}
           </button>
         </div>
       ) : (
-        <div className="space-y-5 max-h-[70vh] overflow-y-auto pl-1">
+        <div className="space-y-5 max-h-[70vh] overflow-y-auto pe-1">
           {/* Header */}
           <div className="rounded-xl border border-petra-border bg-slate-50/60 p-4">
             <div className="flex items-center gap-2 flex-wrap mb-2">
@@ -322,30 +331,30 @@ export function StudentDossier({
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-sm">
               <div className="text-petra-muted">
-                אימייל: <span dir="ltr" className="text-petra-text">{data.student.email}</span>
+                {t("header.email")} <span dir="ltr" className="text-petra-text">{data.student.email}</span>
               </div>
               <div className="text-petra-muted">
-                טלפון:{" "}
+                {t("header.phone")}{" "}
                 <span dir="ltr" className="text-petra-text">
                   {data.student.phone || "—"}
                 </span>
               </div>
               <div className="text-petra-muted">
-                הצטרף: <span className="text-petra-text">{heDate(data.student.joinedAt)}</span>
+                {t("header.joined")} <span className="text-petra-text">{heDate(data.student.joinedAt)}</span>
               </div>
               <div className="text-petra-muted">
-                בתוקף עד:{" "}
+                {t("header.validUntil")}{" "}
                 <span className="text-petra-text">
                   {data.student.validUntil
                     ? heDate(data.student.validUntil)
                     : data.student.status?.toLowerCase() === "active"
-                      ? 'הו"ק'
+                      ? t("header.standingOrder")
                       : "—"}
                 </span>
               </div>
               {data.student.paymentNote && (
                 <div className="text-petra-muted sm:col-span-2">
-                  הערת תשלום: <span className="text-petra-text">{data.student.paymentNote}</span>
+                  {t("header.paymentNote")} <span className="text-petra-text">{data.student.paymentNote}</span>
                 </div>
               )}
             </div>
@@ -353,11 +362,11 @@ export function StudentDossier({
 
           {/* Summary stat row */}
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-            <StatBox label="קורסים שהתחיל" value={String(data.summary.coursesStarted)} />
-            <StatBox label="קורסים שהשלים" value={String(data.summary.coursesCompleted)} />
-            <StatBox label="תעודות" value={String(data.summary.certificatesCount)} />
+            <StatBox label={t("stats.coursesStarted")} value={String(data.summary.coursesStarted)} />
+            <StatBox label={t("stats.coursesCompleted")} value={String(data.summary.coursesCompleted)} />
+            <StatBox label={t("stats.certificates")} value={String(data.summary.certificatesCount)} />
             <StatBox
-              label="פעילות אחרונה"
+              label={t("stats.lastActivity")}
               value={lastActivityText}
               tone={
                 data.summary.lastActivityAt === null
@@ -367,17 +376,17 @@ export function StudentDossier({
                     : undefined
               }
             />
-            <StatBox label="שאלות ששאל" value={String(data.summary.questionsAsked)} />
+            <StatBox label={t("stats.questionsAsked")} value={String(data.summary.questionsAsked)} />
           </div>
 
           {/* Courses */}
           <div>
             <h3 className="text-sm font-bold text-petra-text mb-2 flex items-center gap-1.5">
               <BookOpen className="w-4 h-4 text-brand-500" />
-              קורסים
+              {t("sections.courses")}
             </h3>
             {data.courses.length === 0 ? (
-              <p className="text-sm text-petra-muted">אין קורסים להצגה</p>
+              <p className="text-sm text-petra-muted">{t("sections.noCourses")}</p>
             ) : (
               <div className="space-y-3">
                 {data.courses.map((course) => (
@@ -391,15 +400,15 @@ export function StudentDossier({
           <div>
             <h3 className="text-sm font-bold text-petra-text mb-2 flex items-center gap-1.5">
               <MessageSquare className="w-4 h-4 text-brand-500" />
-              שאלות ששאל
+              {t("sections.questions")}
               {data.summary.questionsUnanswered > 0 && (
                 <span className="badge-warning text-[11px]">
-                  {data.summary.questionsUnanswered} ממתינות
+                  {t("sections.pendingCount", { count: data.summary.questionsUnanswered })}
                 </span>
               )}
             </h3>
             {data.questions.length === 0 ? (
-              <p className="text-sm text-petra-muted">לא נשאלו שאלות</p>
+              <p className="text-sm text-petra-muted">{t("sections.noQuestions")}</p>
             ) : (
               <div className="space-y-2.5">
                 {data.questions.map((q) => (
@@ -418,9 +427,9 @@ export function StudentDossier({
                     </div>
                     <p className="text-sm text-petra-text whitespace-pre-wrap">{q.body}</p>
                     {q.answeredAt ? (
-                      <div className="mt-2 border-r-2 border-green-400 pr-2.5">
+                      <div className="mt-2 border-s-2 border-green-400 ps-2.5">
                         <div className="text-[11px] font-medium text-green-600 mb-0.5">
-                          נענתה · {heDate(q.answeredAt)}
+                          {t("question.answered", { date: heDate(q.answeredAt) })}
                         </div>
                         <p className="text-sm text-petra-muted whitespace-pre-wrap">
                           {q.answerBody}
@@ -429,7 +438,7 @@ export function StudentDossier({
                     ) : (
                       <div className="mt-2 inline-flex items-center gap-1.5 text-[11px] font-medium text-amber-600">
                         <HelpCircle className="w-3.5 h-3.5" />
-                        ממתינה לתשובה
+                        {t("question.awaitingAnswer")}
                       </div>
                     )}
                   </div>
@@ -443,12 +452,13 @@ export function StudentDossier({
             <div>
               <h3 className="text-sm font-bold text-petra-text mb-2 flex items-center gap-1.5">
                 <Video className="w-4 h-4 text-brand-500" />
-                שיעורים חיים
+                {t("sections.liveClasses")}
               </h3>
               <div className="space-y-2">
                 {data.liveClasses.map((cls, i) => {
-                  const meta =
-                    REG_STATUS_META[cls.status] ?? { label: cls.status, cls: "badge-neutral" };
+                  const meta = REG_STATUS_META[cls.status]
+                    ? { label: t(`regStatuses.${cls.status}`), cls: REG_STATUS_META[cls.status].cls }
+                    : { label: cls.status, cls: "badge-neutral" };
                   return (
                     <div
                       key={`${cls.title}-${cls.startsAt}-${i}`}

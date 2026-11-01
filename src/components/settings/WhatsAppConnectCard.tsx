@@ -13,6 +13,8 @@ import { PetraLoader } from "@/components/ui/PetraLoader";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useAuth } from "@/providers/auth-provider";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 declare global {
@@ -75,22 +77,25 @@ async function ensureFbSdk(): Promise<void> {
   throw lastErr instanceof Error ? lastErr : new Error("sdk load failed");
 }
 
-const TEMPLATE_STATUS: Record<string, { label: string; cls: string }> = {
-  APPROVED: { label: "מאושר", cls: "badge-success" },
-  PENDING: { label: "ממתין", cls: "badge-warning" },
-  REJECTED: { label: "נדחה", cls: "badge-danger" },
+// Labels: settings.whatsAppConnectCard.templateStatus.<key> / .quality.<key>
+const TEMPLATE_STATUS: Record<string, { cls: string }> = {
+  APPROVED: { cls: "badge-success" },
+  PENDING: { cls: "badge-warning" },
+  REJECTED: { cls: "badge-danger" },
 };
-const QUALITY: Record<string, { label: string; cls: string }> = {
-  GREEN: { label: "איכות: ירוק", cls: "badge-success" },
-  YELLOW: { label: "איכות: צהוב", cls: "badge-warning" },
-  RED: { label: "איכות: אדום", cls: "badge-danger" },
+const QUALITY: Record<string, { cls: string }> = {
+  GREEN: { cls: "badge-success" },
+  YELLOW: { cls: "badge-warning" },
+  RED: { cls: "badge-danger" },
 };
-const heDate = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleDateString("he-IL", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—";
+const shortDate = (iso: string | null, locale: string) =>
+  iso ? new Date(iso).toLocaleDateString(locale, { day: "2-digit", month: "2-digit", year: "numeric" }) : "—";
 
 type SignupData = { phoneNumberId: string; wabaId: string };
 
 export function WhatsAppConnectCard() {
+  const t = useTranslations("settings.whatsAppConnectCard");
+  const { locale } = useBusinessLocale();
   const queryClient = useQueryClient();
   const perms = usePermissions();
   const { user } = useAuth();
@@ -103,9 +108,9 @@ export function WhatsAppConnectCard() {
   // screen so a stuck signup can be diagnosed without opening devtools.
   const [debugLog, setDebugLog] = useState<string[]>([]);
   const pushDebug = useCallback((line: string) => {
-    const t = new Date().toLocaleTimeString("he-IL", { hour12: false });
-    setDebugLog((prev) => [...prev.slice(-14), `${t}  ${line}`]);
-  }, []);
+    const time = new Date().toLocaleTimeString(locale, { hour12: false });
+    setDebugLog((prev) => [...prev.slice(-14), `${time}  ${line}`]);
+  }, [locale]);
   const [awaitingMeta, setAwaitingMeta] = useState(false);
   const [testPhone, setTestPhone] = useState("");
   const codeRef = useRef<string | null>(null);
@@ -136,19 +141,19 @@ export function WhatsAppConnectCard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       }),
-    onSuccess: () => { invalidate(); toast.success("הוואטסאפ של העסק חובר בהצלחה"); },
-    onError: (err: Error) => toast.error(err.message || "החיבור נכשל"),
+    onSuccess: () => { invalidate(); toast.success(t("toasts.connected")); },
+    onError: (err: Error) => toast.error(err.message || t("toasts.connectFailed")),
     onSettled: resetFlow,
   });
   const syncMutation = useMutation({
     mutationFn: () => fetchJSON<WaConnectionStatus>("/api/integrations/whatsapp/connection/sync-templates", { method: "POST" }),
-    onSuccess: () => { invalidate(); toast.success("התבניות סונכרנו"); },
-    onError: (err: Error) => toast.error(err.message || "סנכרון התבניות נכשל"),
+    onSuccess: () => { invalidate(); toast.success(t("toasts.templatesSynced")); },
+    onError: (err: Error) => toast.error(err.message || t("toasts.syncFailed")),
   });
   const disconnectMutation = useMutation({
     mutationFn: () => fetchJSON<{ ok: boolean }>("/api/integrations/whatsapp/connection", { method: "DELETE" }),
-    onSuccess: () => { invalidate(); setConfirmDisconnect(false); toast.success("המספר נותק. הודעות יישלחו שוב מהמספר של Petra"); },
-    onError: (err: Error) => toast.error(err.message || "הניתוק נכשל"),
+    onSuccess: () => { invalidate(); setConfirmDisconnect(false); toast.success(t("toasts.disconnected")); },
+    onError: (err: Error) => toast.error(err.message || t("toasts.disconnectFailed")),
   });
   const testMutation = useMutation({
     mutationFn: (phone: string) =>
@@ -157,8 +162,8 @@ export function WhatsAppConnectCard() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone }),
       }),
-    onSuccess: (d) => toast.success(d.message || "הודעת בדיקה נשלחה"),
-    onError: (err: Error) => toast.error(err.message || "שליחת הבדיקה נכשלה"),
+    onSuccess: (d) => toast.success(d.message || t("toasts.testSent")),
+    onError: (err: Error) => toast.error(err.message || t("toasts.testFailed")),
   });
 
   // Fire the connect POST once BOTH the login code and the signup payload are present
@@ -185,7 +190,7 @@ export function WhatsAppConnectCard() {
       // usually means Meta posted something other than the expected FINISH.
       if (FB_ORIGINS.has(event.origin)) {
         const raw = typeof event.data === "string" ? event.data : JSON.stringify(event.data);
-        pushDebug(`מ-Meta: ${String(raw).slice(0, 300)}`);
+        pushDebug(t("debug.fromMeta", { raw: String(raw).slice(0, 300) }));
       }
       if (!FB_ORIGINS.has(event.origin) || typeof event.data !== "string") return;
       let msg: any; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -195,7 +200,7 @@ export function WhatsAppConnectCard() {
         const phoneNumberId = msg.data?.phone_number_id;
         const wabaId = msg.data?.waba_id;
         if (!phoneNumberId || !wabaId) {
-          toast.error("התהליך הסתיים בלי מספר טלפון. יש להוסיף מספר WhatsApp Business בתהליך של Meta ולנסות שוב");
+          toast.error(t("flow.noPhone"));
           resetFlow();
           return;
         }
@@ -203,42 +208,42 @@ export function WhatsAppConnectCard() {
         setAwaitingMeta(false);
         tryConnect();
       } else if (msg.event === "CANCEL") {
-        toast.error(`התהליך בוטל${msg.data?.current_step ? ` (שלב: ${msg.data.current_step})` : ""}`);
+        toast.error(msg.data?.current_step ? t("flow.canceledAtStep", { step: String(msg.data.current_step) }) : t("flow.canceled"));
         resetFlow();
       } else if (msg.event === "ERROR") {
-        toast.error(msg.data?.error_message || "שגיאה בתהליך של Meta");
+        toast.error(msg.data?.error_message || t("flow.metaError"));
         resetFlow();
       }
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [status?.signupAvailable, resetFlow, tryConnect, pushDebug]);
+  }, [status?.signupAvailable, resetFlow, tryConnect, pushDebug, t]);
 
   const launchSignup = () => {
-    if (!META_APP_ID || !META_ES_CONFIG_ID) { toast.error("חיבור מספר עצמאי אינו מוגדר בסביבה זו"); return; }
+    if (!META_APP_ID || !META_ES_CONFIG_ID) { toast.error(t("flow.notConfigured")); return; }
     // No awaits before FB.login — the popup must open inside the click's user gesture,
     // otherwise Chrome's popup blocker eats it silently.
     if (!window.FB) {
       setLaunching(true);
       ensureFbSdk()
-        .then(() => { setLaunching(false); toast.info("מוכן — לחצו שוב על הכפתור כדי להיכנס ל-Facebook"); })
-        .catch(() => { setLaunching(false); toast.error("לא ניתן לטעון את Facebook SDK. בדקו חוסם פרסומות ונסו שוב"); });
+        .then(() => { setLaunching(false); toast.info(t("flow.sdkReady")); })
+        .catch(() => { setLaunching(false); toast.error(t("flow.sdkLoadFailed")); });
       return;
     }
     setLaunching(true);
     codeRef.current = null;
     signupRef.current = null;
     setDebugLog([]);
-    pushDebug(`נפתח חלון Meta (config ${META_ES_CONFIG_ID}, coexistence=${coexistenceRef.current ? "כן" : "לא"})`);
+    pushDebug(t("debug.windowOpened", { config: String(META_ES_CONFIG_ID), coexistence: coexistenceRef.current ? t("debug.yes") : t("debug.no") }));
     setAwaitingMeta(true);
     window.FB.login(
       (response: any) => { // eslint-disable-line @typescript-eslint/no-explicit-any
         try {
-          pushDebug(`תשובת FB.login: ${JSON.stringify({ status: response?.status, hasCode: !!response?.authResponse?.code, keys: response ? Object.keys(response) : null, authKeys: response?.authResponse ? Object.keys(response.authResponse) : null })}`);
-        } catch { pushDebug("תשובת FB.login: (לא ניתן לקריאה)"); }
+          pushDebug(t("debug.loginResponse", { json: JSON.stringify({ status: response?.status, hasCode: !!response?.authResponse?.code, keys: response ? Object.keys(response) : null, authKeys: response?.authResponse ? Object.keys(response.authResponse) : null }) }));
+        } catch { pushDebug(t("debug.loginResponseUnreadable")); }
         const code: string | undefined = response?.authResponse?.code;
         if (!code) {
-          toast.error("ההתחברות ל-Facebook לא הושלמה");
+          toast.error(t("flow.loginIncomplete"));
           resetFlow();
           return;
         }
@@ -273,9 +278,9 @@ export function WhatsAppConnectCard() {
   const disconnectDialog = (
     <ConfirmDialog
       open={confirmDisconnect}
-      title="לנתק את מספר העסק?"
-      description="ההודעות האוטומטיות יחזרו לצאת מהמספר של Petra. אפשר לחבר את המספר מחדש בכל עת."
-      confirmLabel="נתק"
+      title={t("disconnectDialog.title")}
+      description={t("disconnectDialog.description")}
+      confirmLabel={t("actions.disconnect")}
       danger
       loading={disconnectMutation.isPending}
       onConfirm={() => disconnectMutation.mutate()}
@@ -283,7 +288,7 @@ export function WhatsAppConnectCard() {
     />
   );
   const readOnlyNote = (
-    <p className="text-xs text-petra-muted">חיבור, ניתוק וניהול המספר זמינים לבעלים ולמנהלים בלבד.</p>
+    <p className="text-xs text-petra-muted">{t("readOnlyNote")}</p>
   );
 
   const header = (
@@ -292,8 +297,8 @@ export function WhatsAppConnectCard() {
         <MessageCircle className={cn("w-5 h-5", status.status === "active" ? "text-emerald-600" : "text-slate-400")} />
       </div>
       <div className="flex-1 min-w-0">
-        <h3 className="font-semibold text-petra-text">המספר של העסק ב-WhatsApp</h3>
-        <p className="text-sm text-petra-muted mt-0.5">שליחת תזכורות והודעות ללקוחות מהמספר שלכם, במקום מהמספר של Petra</p>
+        <h3 className="font-semibold text-petra-text">{t("header.title")}</h3>
+        <p className="text-sm text-petra-muted mt-0.5">{t("header.subtitle")}</p>
       </div>
     </div>
   );
@@ -310,8 +315,8 @@ export function WhatsAppConnectCard() {
         <div className="flex items-start gap-2 p-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-800 text-sm">
           <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="font-medium">חיבור מספר עצמאי — בקרוב</p>
-            <p className="text-xs mt-0.5">בינתיים כל ההודעות האוטומטיות יוצאות מהמספר של Petra.</p>
+            <p className="font-medium">{t("comingSoon.title")}</p>
+            <p className="text-xs mt-0.5">{t("comingSoon.body")}</p>
           </div>
         </div>
       </div>
@@ -328,8 +333,8 @@ export function WhatsAppConnectCard() {
         disabled={busy}
       />
       <span className="text-sm text-petra-text">
-        להשאיר את אפליקציית WhatsApp Business פעילה על אותו מספר (Coexistence)
-        <span className="block text-xs text-petra-muted mt-0.5">תמשיכו לשוחח עם לקוחות מהאפליקציה בטלפון, ו-Petra תשלח את ההודעות האוטומטיות מאותו מספר.</span>
+        {t("coexistence.label")}
+        <span className="block text-xs text-petra-muted mt-0.5">{t("coexistence.hint")}</span>
       </span>
     </label>
   );
@@ -337,11 +342,11 @@ export function WhatsAppConnectCard() {
   const connectButton = (label: string) => (
     <button onClick={launchSignup} disabled={busy} className="btn-primary flex items-center gap-2 w-full sm:w-auto justify-center">
       {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageCircle className="w-4 h-4" />}
-      {connectMutation.isPending ? "מחבר…" : awaitingMeta ? "ממתין לסיום התהליך ב-Meta…" : label}
+      {connectMutation.isPending ? t("connect.connecting") : awaitingMeta ? t("connect.awaitingMeta") : label}
     </button>
   );
   const cancelLink = awaitingMeta && !connectMutation.isPending && (
-    <button onClick={resetFlow} className="text-xs text-petra-muted underline">בטל</button>
+    <button onClick={resetFlow} className="text-xs text-petra-muted underline">{t("connect.cancel")}</button>
   );
 
   // On-screen trail of what Meta sent back. Only appears once a signup was attempted,
@@ -349,19 +354,19 @@ export function WhatsAppConnectCard() {
   const debugPanel = debugLog.length > 0 && (
     <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
       <div className="flex items-center justify-between gap-2 mb-1.5">
-        <p className="text-xs font-semibold text-petra-text">יומן אבחון — מה Meta החזירה</p>
+        <p className="text-xs font-semibold text-petra-text">{t("debug.title")}</p>
         <button
           type="button"
-          onClick={() => { navigator.clipboard?.writeText(debugLog.join("\n")); toast.success("היומן הועתק"); }}
+          onClick={() => { navigator.clipboard?.writeText(debugLog.join("\n")); toast.success(t("debug.copied")); }}
           className="text-[11px] text-petra-muted underline"
         >
-          העתק
+          {t("debug.copy")}
         </button>
       </div>
       <div dir="ltr" className="text-left font-mono text-[11px] leading-relaxed text-slate-700 space-y-0.5 max-h-48 overflow-auto">
         {debugLog.map((line, i) => (<div key={i} className="break-all">{line}</div>))}
       </div>
-      <p className="text-[11px] text-petra-muted mt-1.5">אם החלון נסגר בלי כלום — צלמו את היומן הזה.</p>
+      <p className="text-[11px] text-petra-muted mt-1.5">{t("debug.hint")}</p>
     </div>
   );
 
@@ -373,19 +378,19 @@ export function WhatsAppConnectCard() {
         <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm">
           <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="font-medium">החיבור למספר {status.displayPhone ?? "העסק"} נתקל בבעיה</p>
+            <p className="font-medium">{status.displayPhone != null ? t("error.title", { phone: status.displayPhone }) : t("error.titleNoPhone")}</p>
             {status.lastError && <p className="text-xs mt-0.5 break-words">{status.lastError}</p>}
-            <p className="text-xs mt-0.5">עד לתיקון, ההודעות יוצאות מהמספר של Petra.</p>
+            <p className="text-xs mt-0.5">{t("error.fallbackNote")}</p>
           </div>
         </div>
         {canManage ? (
-          <TierGate feature="whatsapp_reminders" title="WhatsApp מהמספר של העסק" description="חיבור מספר WhatsApp עצמאי זמין במנוי PRO ומעלה.">
+          <TierGate feature="whatsapp_reminders" title={t("tierGate.title")} description={t("tierGate.description")}>
             <div className="space-y-3">
               {coexistenceToggle}
               <div className="flex flex-wrap items-center gap-3">
-                {connectButton("חבר מחדש")}
+                {connectButton(t("connect.reconnect"))}
                 <button onClick={() => setConfirmDisconnect(true)} disabled={disconnectMutation.isPending} className="btn-danger text-sm flex items-center gap-1.5">
-                  {disconnectMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Unplug className="w-4 h-4" />} נתק
+                  {disconnectMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Unplug className="w-4 h-4" />} {t("actions.disconnect")}
                 </button>
                 {cancelLink}
               </div>
@@ -410,36 +415,36 @@ export function WhatsAppConnectCard() {
         {header}
         <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 space-y-2">
           <div className="flex items-center gap-2 text-emerald-800 font-medium text-sm">
-            <CheckCircle2 className="w-4 h-4" /> מחובר — ההודעות יוצאות מהמספר של העסק
+            <CheckCircle2 className="w-4 h-4" /> {t("active.banner")}
           </div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-petra-text">
             {status.displayPhone && <span dir="ltr" className="font-mono">{status.displayPhone}</span>}
             {status.verifiedName && <span>{status.verifiedName}</span>}
-            <span className="text-xs text-petra-muted">מחובר מאז {heDate(status.connectedAt)}</span>
+            <span className="text-xs text-petra-muted">{t("active.connectedSince", { date: shortDate(status.connectedAt, locale) })}</span>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
-            {quality ? <span className={cn("badge text-xs", quality.cls)}>{quality.label}</span>
-              : status.qualityRating ? <span className="badge badge-neutral text-xs">איכות: {status.qualityRating}</span> : null}
+            {quality ? <span className={cn("badge text-xs", quality.cls)}>{t(`quality.${status.qualityRating!.toUpperCase() as "GREEN" | "YELLOW" | "RED"}`)}</span>
+              : status.qualityRating ? <span className="badge badge-neutral text-xs">{t("quality.raw", { rating: status.qualityRating })}</span> : null}
             <span className={cn("badge text-xs", status.coexistence ? "badge-brand" : "badge-neutral")}>
-              {status.coexistence ? "Coexistence: האפליקציה פעילה במקביל" : "ללא Coexistence"}
+              {status.coexistence ? t("active.coexistenceOn") : t("active.coexistenceOff")}
             </span>
           </div>
         </div>
 
         <div>
           <div className="flex items-center justify-between gap-2 mb-2">
-            <h4 className="text-sm font-semibold text-petra-text">תבניות הודעה</h4>
+            <h4 className="text-sm font-semibold text-petra-text">{t("templates.title")}</h4>
             <div className="flex items-center gap-2">
-              {status.templatesSyncedAt && <span className="text-xs text-petra-muted hidden sm:inline">סונכרן {heDate(status.templatesSyncedAt)}</span>}
+              {status.templatesSyncedAt && <span className="text-xs text-petra-muted hidden sm:inline">{t("templates.syncedAt", { date: shortDate(status.templatesSyncedAt, locale) })}</span>}
               {canManage && (
                 <button onClick={() => syncMutation.mutate()} disabled={syncMutation.isPending} className="btn-secondary text-xs flex items-center gap-1.5">
-                  <RefreshCw className={cn("w-3.5 h-3.5", syncMutation.isPending && "animate-spin")} /> סנכרן תבניות
+                  <RefreshCw className={cn("w-3.5 h-3.5", syncMutation.isPending && "animate-spin")} /> {t("templates.sync")}
                 </button>
               )}
             </div>
           </div>
           {templateRows.length === 0 ? (
-            <p className="text-xs text-petra-muted">עדיין לא סונכרנו תבניות.{canManage && <> לחצו &quot;סנכרן תבניות&quot;.</>}</p>
+            <p className="text-xs text-petra-muted">{t("templates.empty")}{canManage && <>{" "}{t("templates.emptyHint")}</>}</p>
           ) : (
             <div className="rounded-xl border border-slate-200 overflow-hidden">
               <table className="w-full text-sm">
@@ -449,10 +454,10 @@ export function WhatsAppConnectCard() {
                     return (
                       <tr key={name} className="border-b border-slate-100 last:border-0">
                         <td className="px-3 py-2 font-mono text-xs text-petra-text break-all" dir="ltr">{name}</td>
-                        <td className="px-3 py-2 text-left">
+                        <td className="px-3 py-2 text-end">
                           {st === "MISSING"
-                            ? <span className="badge badge-neutral text-xs">חסרה</span>
-                            : <span className={cn("badge text-xs", meta?.cls ?? "badge-neutral")}>{meta?.label ?? st}</span>}
+                            ? <span className="badge badge-neutral text-xs">{t("templates.missing")}</span>
+                            : <span className={cn("badge text-xs", meta?.cls ?? "badge-neutral")}>{meta ? t(`templateStatus.${st as "APPROVED" | "PENDING" | "REJECTED"}`) : st}</span>}
                         </td>
                       </tr>
                     );
@@ -462,7 +467,7 @@ export function WhatsAppConnectCard() {
             </div>
           )}
           {status.missingTemplates.length > 0 && (
-            <p className="text-xs text-amber-700 mt-1.5">תבניות שטרם אושרו אצלכם נשלחות בינתיים מהמספר של Petra.</p>
+            <p className="text-xs text-amber-700 mt-1.5">{t("templates.missingNote")}</p>
           )}
         </div>
 
@@ -477,14 +482,14 @@ export function WhatsAppConnectCard() {
             onKeyDown={(e) => e.key === "Enter" && testPhone.trim() && testMutation.mutate(testPhone.trim())}
           />
           <button onClick={() => testMutation.mutate(testPhone.trim())} disabled={!testPhone.trim() || testMutation.isPending} className="btn-secondary text-sm flex items-center gap-1.5 justify-center">
-            {testMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} שלח הודעת בדיקה
+            {testMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} {t("test.send")}
           </button>
           <button
             onClick={() => setConfirmDisconnect(true)}
             disabled={disconnectMutation.isPending}
             className="btn-danger text-sm flex items-center gap-1.5 justify-center"
           >
-            {disconnectMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Unplug className="w-4 h-4" />} נתק
+            {disconnectMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Unplug className="w-4 h-4" />} {t("actions.disconnect")}
           </button>
         </div>
         ) : readOnlyNote}
@@ -498,19 +503,19 @@ export function WhatsAppConnectCard() {
     <div className="card p-5 space-y-4">
       {header}
       {status.status === "disconnected" && (
-        <p className="text-xs text-petra-muted">המספר נותק. עד לחיבור מחדש ההודעות יוצאות מהמספר של Petra.</p>
+        <p className="text-xs text-petra-muted">{t("none.disconnectedNote")}</p>
       )}
       {!canManage ? readOnlyNote : (
-      <TierGate feature="whatsapp_reminders" title="WhatsApp מהמספר של העסק" description="חיבור מספר WhatsApp עצמאי זמין במנוי PRO ומעלה.">
+      <TierGate feature="whatsapp_reminders" title={t("tierGate.title")} description={t("tierGate.description")}>
         <div className="space-y-4">
           <ul className="text-sm text-petra-text space-y-1.5">
-            <li className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" /> חשבון Facebook של העסק (Business Manager)</li>
-            <li className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" /> מספר WhatsApp Business (אפשר את המספר שכבר בשימוש)</li>
-            <li className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" /> אימות בעלות על המספר ב-SMS או בשיחה</li>
+            <li className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" /> {t("none.requirements.facebook")}</li>
+            <li className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" /> {t("none.requirements.number")}</li>
+            <li className="flex items-start gap-2"><CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" /> {t("none.requirements.verify")}</li>
           </ul>
           {coexistenceToggle}
           <div className="flex flex-wrap items-center gap-3">
-            {connectButton("חבר את הוואטסאפ של העסק")}
+            {connectButton(t("connect.connectCta"))}
             {cancelLink}
           </div>
           {debugPanel}

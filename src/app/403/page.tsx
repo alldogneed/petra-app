@@ -1,9 +1,14 @@
 import Link from "next/link";
 import { ShieldX } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 
-export const metadata = { title: "403 אין הרשאה — Petra" };
+export async function generateMetadata() {
+  const t = await getTranslations("errors.forbiddenPage");
+  return { title: t("metaTitle") };
+}
 
-export default function ForbiddenPage() {
+export default async function ForbiddenPage() {
+  const t = await getTranslations("errors.forbiddenPage");
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
       <div className="text-center max-w-md">
@@ -13,22 +18,22 @@ export default function ForbiddenPage() {
           </div>
         </div>
         <h1 className="text-4xl font-bold text-slate-900 mb-2">403</h1>
-        <p className="text-lg font-semibold text-slate-700 mb-2">אין הרשאה</p>
+        <p className="text-lg font-semibold text-slate-700 mb-2">{t("title")}</p>
         <p className="text-sm text-slate-500 mb-8">
-          אין לך הרשאה לגשת למשאב הזה. אם אתה חושב שמדובר בטעות, פנה למנהל המערכת.
+          {t("description")}
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Link
             href="/dashboard"
             className="btn-primary px-6 py-2.5 rounded-xl text-sm font-medium"
           >
-            חזרה לדשבורד
+            {t("backToDashboard")}
           </Link>
           <Link
             href="/login"
             className="px-6 py-2.5 rounded-xl border border-slate-200 text-slate-700 text-sm font-medium hover:bg-slate-50 transition-colors"
           >
-            החלף חשבון
+            {t("switchAccount")}
           </Link>
         </div>
       </div>

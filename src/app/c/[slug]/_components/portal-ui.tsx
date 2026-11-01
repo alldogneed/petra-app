@@ -1,6 +1,8 @@
 "use client"
 
 import React from "react"
+import { useLocale, useTranslations } from "next-intl"
+import { localeFromBusiness } from "@/lib/locale"
 
 /** Filled primary button colored by the business portal branding (CSS var --portal-primary). */
 export function PortalButton({
@@ -59,11 +61,13 @@ export function isActiveMembershipClient(m: PortalMembership): boolean {
   return new Date(m.validUntil).getTime() >= Date.now()
 }
 
-/** Colored membership status badge (Hebrew). */
+/** Colored membership status badge (localized). */
 export function MembershipBadge({ membership }: { membership: PortalMembership }) {
+  const t = useTranslations("portal.portalUi")
+  const locale = localeFromBusiness({ locale: useLocale() })
   if (!membership) return null
   const validUntil = membership.validUntil
-    ? new Date(membership.validUntil).toLocaleDateString("he-IL", {
+    ? new Date(membership.validUntil).toLocaleDateString(locale, {
         day: "numeric",
         month: "numeric",
         year: "numeric",
@@ -74,8 +78,8 @@ export function MembershipBadge({ membership }: { membership: PortalMembership }
     return (
       <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-sm font-medium">
         <span className="w-2 h-2 rounded-full bg-emerald-500" />
-        מנוי פעיל
-        {validUntil && <span className="text-emerald-600 font-normal">עד {validUntil}</span>}
+        {t("membership.active")}
+        {validUntil && <span className="text-emerald-600 font-normal">{t("membership.validUntil", { date: validUntil })}</span>}
       </span>
     )
   }
@@ -83,7 +87,7 @@ export function MembershipBadge({ membership }: { membership: PortalMembership }
     return (
       <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-sm font-medium">
         <span className="w-2 h-2 rounded-full bg-amber-500" />
-        ממתין לאישור העסק
+        {t("membership.pending")}
       </span>
     )
   }
@@ -91,7 +95,7 @@ export function MembershipBadge({ membership }: { membership: PortalMembership }
     return (
       <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-sm font-medium">
         <span className="w-2 h-2 rounded-full bg-rose-500" />
-        המנוי מושהה
+        {t("membership.suspended")}
       </span>
     )
   }
@@ -99,7 +103,7 @@ export function MembershipBadge({ membership }: { membership: PortalMembership }
   return (
     <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200 text-sm font-medium">
       <span className="w-2 h-2 rounded-full bg-slate-400" />
-      המנוי הסתיים
+      {t("membership.expired")}
     </span>
   )
 }

@@ -1,3 +1,5 @@
+import { validatePhone } from "./format";
+
 /** Validates an Israeli phone number. Returns null if valid, error message if invalid. */
 export function validateIsraeliPhone(phone: string): string | null {
   if (!phone.trim()) return "שדה חובה";
@@ -69,4 +71,20 @@ export function validateSafeUrl(url: string): string | null {
   } catch {
     return "כתובת URL לא תקינה";
   }
+}
+
+/**
+ * Validates a phone number for the business's country (libphonenumber-js).
+ * Returns null when valid, otherwise a message from the caller's translator —
+ * `t` is next-intl's `useTranslations("common")` / `getTranslations(...)`:
+ * keys `errors.required` and `errors.phoneInvalid`.
+ * `validateIsraeliPhone` stays as-is for un-migrated callers (Phase 4).
+ */
+export function validatePhoneForCountry(
+  phone: string,
+  country: string,
+  t: (key: "errors.required" | "errors.phoneInvalid") => string,
+): string | null {
+  if (!phone.trim()) return t("errors.required");
+  return validatePhone(phone, country) ? null : t("errors.phoneInvalid");
 }

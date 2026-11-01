@@ -7,26 +7,28 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { DogMedication, MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, Pet, PetDoc, compressImage, formatFileSize } from "./types";
 
 export const DOG_BREEDS = [
-  "גולדן רטריוור", "לברדור", "בורדר קולי", "ג'ק ראסל", "פודל", "צ'יוואווה",
-  "ביגל", "בולדוג", "הסקי סיבירי", "בוקסר", "רוטוויילר", "גרמן שפרד",
-  "מלמוט", "שנאוצר", "דלמציה", "דוברמן", "שיצו", "מלטזי",
-  "יורקשייר טריאר", "פומרניאן", "קניש", "שפניאל", "ספינגר ספניאל",
-  "קוקר ספניאל", "ויזסלה", "ויימרנר", "סמויד", "מלמוט אלסקי",
-  "אמריקן בולי", "פיטבול", "אמריקן סטפורדשייר", "סטפורדשייר בול",
-  "רידג'בק רודזיאני", "בסנג'י", "שרפיי", "אקיטה", "שיבה אינו",
-  "צ'או צ'או", "ניופאונדלנד", "ברנר זנן הר", "גרייהאונד", "וויפט",
-  "אפגן האונד", "סלוקי", "דוג דה בורדו", "מונגרל", "כלב כנעני", "מעורב",
-  "פינשר", "דוברמן פינשר", "ארגנטינה דוגו", "קאנה קורסו", "ספינוני",
-  "קאלי", "אוסטרלי שפרד", "קורגי", "פלוודה מוגת'", "שטלנד שפדוג'",
+  "גולדן רטריוור", "לברדור", "בורדר קולי", "ג'ק ראסל", "פודל", "צ'יוואווה", // i18n-ok — stored value (pet.breed / pet.tags)
+  "ביגל", "בולדוג", "הסקי סיבירי", "בוקסר", "רוטוויילר", "גרמן שפרד", // i18n-ok — stored value (pet.breed / pet.tags)
+  "מלמוט", "שנאוצר", "דלמציה", "דוברמן", "שיצו", "מלטזי", // i18n-ok — stored value (pet.breed / pet.tags)
+  "יורקשייר טריאר", "פומרניאן", "קניש", "שפניאל", "ספינגר ספניאל", // i18n-ok — stored value (pet.breed / pet.tags)
+  "קוקר ספניאל", "ויזסלה", "ויימרנר", "סמויד", "מלמוט אלסקי", // i18n-ok — stored value (pet.breed / pet.tags)
+  "אמריקן בולי", "פיטבול", "אמריקן סטפורדשייר", "סטפורדשייר בול", // i18n-ok — stored value (pet.breed / pet.tags)
+  "רידג'בק רודזיאני", "בסנג'י", "שרפיי", "אקיטה", "שיבה אינו", // i18n-ok — stored value (pet.breed / pet.tags)
+  "צ'או צ'או", "ניופאונדלנד", "ברנר זנן הר", "גרייהאונד", "וויפט", // i18n-ok — stored value (pet.breed / pet.tags)
+  "אפגן האונד", "סלוקי", "דוג דה בורדו", "מונגרל", "כלב כנעני", "מעורב", // i18n-ok — stored value (pet.breed / pet.tags)
+  "פינשר", "דוברמן פינשר", "ארגנטינה דוגו", "קאנה קורסו", "ספינוני", // i18n-ok — stored value (pet.breed / pet.tags)
+  "קאלי", "אוסטרלי שפרד", "קורגי", "פלוודה מוגת'", "שטלנד שפדוג'", // i18n-ok — stored value (pet.breed / pet.tags)
 ];
 
 export const CAT_BREEDS = [
-  "פרסי", "מיין קון", "בריטי שורטהייר", "בנגלי", "סיאמי", "אביסיני",
-  "בירמן", "ספינקס", "רגדול", "סקוטיש פולד", "נורבגי יערות",
-  "מיקס", "ללא גזע ידוע",
+  "פרסי", "מיין קון", "בריטי שורטהייר", "בנגלי", "סיאמי", "אביסיני", // i18n-ok — stored value (pet.breed / pet.tags)
+  "בירמן", "ספינקס", "רגדול", "סקוטיש פולד", "נורבגי יערות", // i18n-ok — stored value (pet.breed / pet.tags)
+  "מיקס", "ללא גזע ידוע", // i18n-ok — stored value (pet.breed / pet.tags)
 ];
 
 export function BreedCombobox({
@@ -38,6 +40,7 @@ export function BreedCombobox({
   onChange: (v: string) => void;
   species: string;
 }) {
+  const t = useTranslations("customers.petModals");
   const [open, setOpen] = useState(false);
   const breeds = species === "dog" ? DOG_BREEDS : species === "cat" ? CAT_BREEDS : [];
   const filtered = breeds.filter((b) =>
@@ -50,7 +53,7 @@ export function BreedCombobox({
         className="input"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="הזן גזע"
+        placeholder={t("breed.placeholder")}
       />
     );
   }
@@ -63,17 +66,17 @@ export function BreedCombobox({
         onChange={(e) => { onChange(e.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
-        placeholder="הזן או בחר גזע"
+        placeholder={t("breed.placeholderPick")}
         autoComplete="off"
       />
       {open && filtered.length > 0 && (
-        <div className="absolute z-50 top-full mt-1 right-0 left-0 bg-white border border-slate-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+        <div className="absolute z-50 top-full mt-1 start-0 end-0 bg-white border border-slate-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
           {filtered.slice(0, 12).map((breed) => (
             <button
               key={breed}
               type="button"
               onMouseDown={(e) => { e.preventDefault(); onChange(breed); setOpen(false); }}
-              className="w-full text-right px-3 py-2 text-sm hover:bg-brand-50 text-petra-text"
+              className="w-full text-start px-3 py-2 text-sm hover:bg-brand-50 text-petra-text"
             >
               {breed}
             </button>
@@ -85,16 +88,16 @@ export function BreedCombobox({
 }
 
 export const BEHAVIORAL_TAGS = [
-  "ריאקטיבי",
-  "תוקפן",
-  "חרדת נטישה",
-  "פחדן",
-  "מאומץ",
-  "ריאקטיבי בשרשרת",
-  "שמירת משאבים",
-  "ידידותי",
-  "אנרגטי",
-  "מאולף",
+  "ריאקטיבי", // i18n-ok — stored value (pet.breed / pet.tags)
+  "תוקפן", // i18n-ok — stored value (pet.breed / pet.tags)
+  "חרדת נטישה", // i18n-ok — stored value (pet.breed / pet.tags)
+  "פחדן", // i18n-ok — stored value (pet.breed / pet.tags)
+  "מאומץ", // i18n-ok — stored value (pet.breed / pet.tags)
+  "ריאקטיבי בשרשרת", // i18n-ok — stored value (pet.breed / pet.tags)
+  "שמירת משאבים", // i18n-ok — stored value (pet.breed / pet.tags)
+  "ידידותי", // i18n-ok — stored value (pet.breed / pet.tags)
+  "אנרגטי", // i18n-ok — stored value (pet.breed / pet.tags)
+  "מאולף", // i18n-ok — stored value (pet.breed / pet.tags)
 ];
 
 
@@ -107,6 +110,9 @@ export function AddPetModal({
   isOpen: boolean;
   onClose: () => void;
 }) {
+  const t = useTranslations("customers.petModals");
+  const tc = useTranslations("common");
+  const { cfg } = useBusinessLocale();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const profileInputRef = useRef<HTMLInputElement>(null);
@@ -137,17 +143,17 @@ export function AddPetModal({
       const pet = await res.json();
 
       if (profilePhoto) {
-        setUploadStatus("מעלה תמונת פרופיל...");
+        setUploadStatus(t("add.uploadingProfile"));
         const fd = new FormData();
         fd.append("file", profilePhoto);
         fd.append("type", "profile_photo");
-        fd.append("label", "תמונת פרופיל");
+        fd.append("label", t("fields.profilePhoto"));
         const attachRes = await fetch(`/api/pets/${pet.id}/attachments`, { method: "POST", body: fd });
-        if (!attachRes.ok) throw new Error("שגיאה בהעלאת תמונת פרופיל");
+        if (!attachRes.ok) throw new Error(t("add.profileUploadError"));
       }
 
       if (pendingFiles.length > 0) {
-        setUploadStatus("מעלה מסמכים...");
+        setUploadStatus(t("add.uploadingDocs"));
         for (const file of pendingFiles) {
           const fd = new FormData();
           fd.append("file", file);
@@ -155,7 +161,7 @@ export function AddPetModal({
             method: "POST",
             body: fd,
           });
-          if (!docRes.ok) throw new Error("שגיאה בהעלאת מסמך");
+          if (!docRes.ok) throw new Error(t("add.docUploadError"));
         }
         setUploadStatus("");
       }
@@ -187,7 +193,7 @@ export function AddPetModal({
     setForm((f) => ({
       ...f,
       behavioralTags: f.behavioralTags.includes(tag)
-        ? f.behavioralTags.filter((t) => t !== tag)
+        ? f.behavioralTags.filter((x) => x !== tag)
         : [...f.behavioralTags, tag],
     }));
   };
@@ -199,7 +205,7 @@ export function AddPetModal({
       <div className="modal-backdrop" onClick={onClose} />
       <div className="modal-content max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-bold text-petra-text">חיית מחמד חדשה</h2>
+          <h2 className="text-lg font-bold text-petra-text">{t("add.title")}</h2>
           <button
             onClick={onClose}
             className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted"
@@ -210,7 +216,7 @@ export function AddPetModal({
 
         <div className="space-y-4">
           <div>
-            <label className="label">שם *</label>
+            <label className="label">{t("fields.name")}</label>
             <input
               className="input"
               value={form.name}
@@ -220,19 +226,19 @@ export function AddPetModal({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">סוג</label>
+              <label className="label">{t("fields.species")}</label>
               <select
                 className="input"
                 value={form.species}
                 onChange={(e) => setForm({ ...form, species: e.target.value })}
               >
-                <option value="dog">כלב</option>
-                <option value="cat">חתול</option>
-                <option value="other">אחר</option>
+                <option value="dog">{t("species.dog")}</option>
+                <option value="cat">{t("species.cat")}</option>
+                <option value="other">{t("species.other")}</option>
               </select>
             </div>
             <div>
-              <label className="label">גזע</label>
+              <label className="label">{t("fields.breed")}</label>
               <BreedCombobox
                 value={form.breed}
                 onChange={(v) => setForm({ ...form, breed: v })}
@@ -243,19 +249,19 @@ export function AddPetModal({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">מין</label>
+              <label className="label">{t("fields.gender")}</label>
               <select
                 className="input"
                 value={form.gender}
                 onChange={(e) => setForm({ ...form, gender: e.target.value })}
               >
                 <option value="">—</option>
-                <option value="male">זכר</option>
-                <option value="female">נקבה</option>
+                <option value="male">{t("gender.male")}</option>
+                <option value="female">{t("gender.female")}</option>
               </select>
             </div>
             <div>
-              <label className="label">משקל (ק״ג)</label>
+              <label className="label">{t("fields.weight")}</label>
               <input
                 className="input"
                 type="number"
@@ -268,10 +274,10 @@ export function AddPetModal({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">תאריך לידה</label>
+              <label className="label">{t("fields.birthDate")}</label>
               <input
                 className="input"
-                type="date" lang="he"
+                type="date" lang={cfg.lang}
                 value={form.birthDate}
                 onChange={(e) =>
                   setForm({ ...form, birthDate: e.target.value })
@@ -279,14 +285,14 @@ export function AddPetModal({
               />
             </div>
             <div>
-              <label className="label">מיקרוצ׳יפ</label>
+              <label className="label">{t("fields.microchip")}</label>
               <input
                 className="input"
                 value={form.microchip}
                 onChange={(e) =>
                   setForm({ ...form, microchip: e.target.value })
                 }
-                placeholder="מספר שבב"
+                placeholder={t("fields.microchipPlaceholder")}
               />
             </div>
           </div>
@@ -296,7 +302,7 @@ export function AddPetModal({
             <div className="flex items-center gap-2">
               <Scissors className="w-4 h-4 text-amber-600" />
               <label className="text-sm font-medium text-petra-text">
-                עיקור / סירוס
+                {t("fields.neutered")}
               </label>
             </div>
             <button
@@ -313,7 +319,7 @@ export function AddPetModal({
               <span
                 className={cn(
                   "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-all",
-                  form.neuteredSpayed ? "left-5" : "left-0.5"
+                  form.neuteredSpayed ? "left-5" : "left-0.5" // rtl-ok — knob of a dir="ltr" switch
                 )}
               />
             </button>
@@ -321,7 +327,7 @@ export function AddPetModal({
 
           {/* Profile Photo */}
           <div>
-            <label className="label">תמונת פרופיל</label>
+            <label className="label">{t("fields.profilePhoto")}</label>
             <input
               ref={profileInputRef}
               type="file"
@@ -342,7 +348,7 @@ export function AddPetModal({
                 <img
                   src={profilePhotoPreview}
                   className="w-20 h-20 rounded-xl object-cover border border-slate-200"
-                  alt="פרופיל"
+                  alt={t("add.profileAlt")}
                 />
                 <button
                   type="button"
@@ -351,14 +357,14 @@ export function AddPetModal({
                     setProfilePhoto(null);
                     setProfilePhotoPreview(null);
                   }}
-                  className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600"
+                  className="absolute -top-1.5 -start-1.5 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600"
                 >
                   <X className="w-2.5 h-2.5" />
                 </button>
                 <button
                   type="button"
                   onClick={() => profileInputRef.current?.click()}
-                  className="absolute -bottom-1.5 -right-1.5 w-5 h-5 bg-brand-500 text-white rounded-full flex items-center justify-center hover:bg-brand-600"
+                  className="absolute -bottom-1.5 -start-1.5 w-5 h-5 bg-brand-500 text-white rounded-full flex items-center justify-center hover:bg-brand-600"
                 >
                   <Pencil className="w-2.5 h-2.5" />
                 </button>
@@ -370,14 +376,14 @@ export function AddPetModal({
                 className="w-20 h-20 rounded-xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center gap-1 hover:border-brand-300 hover:bg-brand-50/30 transition-colors text-petra-muted"
               >
                 <Upload className="w-5 h-5" />
-                <span className="text-[10px]">תמונה</span>
+                <span className="text-[10px]">{t("add.photo")}</span>
               </button>
             )}
           </div>
 
           {/* Behavioral tags */}
           <div>
-            <label className="label">פרופיל התנהגותי</label>
+            <label className="label">{t("add.behavior")}</label>
             <div className="flex flex-wrap gap-1.5 mt-1">
               {BEHAVIORAL_TAGS.map((tag) => (
                 <button
@@ -399,15 +405,15 @@ export function AddPetModal({
 
           {/* File upload */}
           <div>
-            <label className="label">מסמכים (רישיונות, חיסונים, תמונות)</label>
+            <label className="label">{t("add.documents")}</label>
             <div
               className="border-2 border-dashed border-stone-200 rounded-xl p-4 text-center cursor-pointer hover:border-amber-300 hover:bg-amber-50/30 transition-all"
               onClick={() => fileInputRef.current?.click()}
             >
               <Upload className="w-5 h-5 text-stone-400 mx-auto mb-1" />
-              <p className="text-xs text-petra-muted">לחץ לבחירת קבצים</p>
+              <p className="text-xs text-petra-muted">{t("add.clickToChoose")}</p>
               <p className="text-[10px] text-slate-400 mt-0.5">
-                PDF, JPG, PNG — עד {MAX_UPLOAD_MB}MB לקובץ · תמונות מכווצות אוטומטית
+                {t("add.fileHint", { max: MAX_UPLOAD_MB })}
               </p>
             </div>
             <input
@@ -457,16 +463,16 @@ export function AddPetModal({
           >
             <Plus className="w-4 h-4" />
             {mutation.isPending
-              ? uploadStatus || "שומר..."
-              : "הוסף חיית מחמד"}
+              ? uploadStatus || tc("progress.saving")
+              : t("add.submit")}
           </button>
           <button className="btn-secondary" onClick={onClose}>
-            ביטול
+            {tc("actions.cancel")}
           </button>
         </div>
         {mutation.isError && (
           <p className="text-xs text-red-500 mt-2 text-center">
-            שגיאה בשמירה — נסה שוב
+            {t("add.saveError")}
           </p>
         )}
       </div>
@@ -489,6 +495,9 @@ export function PetDocumentsModal({
   isOpen: boolean;
   onClose: () => void;
 }) {
+  const t = useTranslations("customers.petModals");
+  const tc = useTranslations("common");
+  const { locale } = useBusinessLocale();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -508,10 +517,10 @@ export function PetDocumentsModal({
     mutationFn: (docId: string) =>
       fetch(`/api/pets/${petId}/documents?docId=${docId}`, {
         method: "DELETE",
-      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה במחיקה"); return d; }),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || t("docs.deleteError")); return d; }),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ["petDocs", petId] }),
-    onError: () => toast.error("שגיאה במחיקת מסמך"),
+    onError: () => toast.error(t("docs.deleteDocError")),
   });
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -521,13 +530,13 @@ export function PetDocumentsModal({
     for (const rawFile of files) {
       const file = await compressImage(rawFile);
       if (file.size > MAX_UPLOAD_BYTES) {
-        toast.error(`${file.name} גדול מדי (מקסימום ${MAX_UPLOAD_MB}MB)`);
+        toast.error(t("docs.tooLarge", { fileName: file.name, max: MAX_UPLOAD_MB }));
         continue;
       }
       const fd = new FormData();
       fd.append("file", file);
       const uploadRes = await fetch(`/api/pets/${petId}/documents`, { method: "POST", body: fd });
-      if (!uploadRes.ok) toast.error("שגיאה בהעלאת קובץ");
+      if (!uploadRes.ok) toast.error(t("docs.uploadError"));
     }
     setIsUploading(false);
     queryClient.invalidateQueries({ queryKey: ["petDocs", petId] });
@@ -543,7 +552,7 @@ export function PetDocumentsModal({
       <div className="modal-content max-w-md mx-4 p-6 max-h-[80vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-bold text-petra-text">
-            מסמכי {petName}
+            {t("docs.title", { petName })}
           </h2>
           <button
             onClick={onClose}
@@ -557,7 +566,7 @@ export function PetDocumentsModal({
           <PetraLoader variant="inline" />
         ) : docs.length === 0 ? (
           <div className="text-center py-6 text-petra-muted text-sm">
-            אין מסמכים עדיין
+            {t("docs.empty")}
           </div>
         ) : (
           <div className="space-y-2 mb-4">
@@ -573,7 +582,7 @@ export function PetDocumentsModal({
                   </p>
                   <p className="text-[10px] text-petra-muted">
                     {formatFileSize(doc.size)} ·{" "}
-                    {new Date(doc.createdAt).toLocaleDateString("he-IL")}
+                    {new Date(doc.createdAt).toLocaleDateString(locale)}
                   </p>
                 </div>
                 <a
@@ -587,8 +596,8 @@ export function PetDocumentsModal({
                 <button
                   onClick={() => setConfirmDeleteId(doc.id)}
                   className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-red-400 hover:text-red-600"
-                  title="מחק מסמך"
-                  aria-label="מחק מסמך"
+                  title={t("docs.deleteDoc")}
+                  aria-label={t("docs.deleteDoc")}
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -603,10 +612,10 @@ export function PetDocumentsModal({
         >
           <Upload className="w-5 h-5 text-stone-400 mx-auto mb-1" />
           <p className="text-xs text-petra-muted">
-            {isUploading ? "מעלה..." : "הוסף מסמך"}
+            {isUploading ? t("docs.uploading") : t("docs.addDoc")}
           </p>
           <p className="text-[10px] text-slate-400 mt-0.5">
-            PDF, JPG, PNG — עד {MAX_UPLOAD_MB}MB · תמונות מכווצות אוטומטית
+            {t("docs.fileHint", { max: MAX_UPLOAD_MB })}
           </p>
         </div>
         <input
@@ -620,9 +629,9 @@ export function PetDocumentsModal({
       </div>
       <ConfirmDialog
         open={!!confirmDeleteId}
-        title="מחיקת מסמך"
-        description="המסמך יימחק לצמיתות. להמשיך?"
-        confirmLabel="מחק"
+        title={t("docs.confirmTitle")}
+        description={t("docs.confirmDescription")}
+        confirmLabel={tc("actions.delete")}
         danger
         loading={deleteMutation.isPending}
         onCancel={() => setConfirmDeleteId(null)}
@@ -650,6 +659,9 @@ export function EditPetModal({
   customerId: string | null;
   onClose: () => void;
 }) {
+  const t = useTranslations("customers.petModals");
+  const tc = useTranslations("common");
+  const { cfg } = useBusinessLocale();
   const queryClient = useQueryClient();
   const existingTags: string[] = (() => { try { return JSON.parse(pet.tags || "[]"); } catch { return []; } })();
   const [form, setForm] = useState({
@@ -666,7 +678,7 @@ export function EditPetModal({
     setForm((f) => ({
       ...f,
       selectedTags: f.selectedTags.includes(tag)
-        ? f.selectedTags.filter((t) => t !== tag)
+        ? f.selectedTags.filter((x) => x !== tag)
         : [...f.selectedTags, tag],
     }));
 
@@ -684,15 +696,15 @@ export function EditPetModal({
           microchip: form.microchip,
           tags: JSON.stringify(form.selectedTags),
         }),
-      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בעדכון"); return d; }),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || t("errors.update")); return d; }),
     onSuccess: () => {
       if (customerId) queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
       queryClient.invalidateQueries({ queryKey: ["pet", pet.id] });
       queryClient.invalidateQueries({ queryKey: ["pets"] });
-      toast.success("הפרטים נשמרו");
+      toast.success(t("edit.saved"));
       onClose();
     },
-    onError: () => toast.error("שגיאה בעדכון חיית המחמד. נסה שוב."),
+    onError: () => toast.error(t("edit.saveError")),
   });
 
   return (
@@ -700,18 +712,18 @@ export function EditPetModal({
       <div className="modal-backdrop" onClick={onClose} />
       <div className="modal-content max-w-md mx-4 p-6 max-h-[85vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-bold text-petra-text">עריכת {pet.name}</h2>
+          <h2 className="text-lg font-bold text-petra-text">{t("edit.title", { name: pet.name })}</h2>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
             <X className="w-4 h-4" />
           </button>
         </div>
         <div className="space-y-3">
           <div>
-            <label className="label">שם *</label>
+            <label className="label">{t("fields.name")}</label>
             <input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           </div>
           <div>
-            <label className="label">גזע</label>
+            <label className="label">{t("fields.breed")}</label>
             <BreedCombobox
               value={form.breed}
               onChange={(v) => setForm({ ...form, breed: v })}
@@ -720,30 +732,30 @@ export function EditPetModal({
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">מין</label>
+              <label className="label">{t("fields.gender")}</label>
               <select className="input" value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })}>
-                <option value="">לא ידוע</option>
-                <option value="male">זכר</option>
-                <option value="female">נקבה</option>
+                <option value="">{t("gender.unknown")}</option>
+                <option value="male">{t("gender.male")}</option>
+                <option value="female">{t("gender.female")}</option>
               </select>
             </div>
             <div>
-              <label className="label">משקל (ק״ג)</label>
+              <label className="label">{t("fields.weight")}</label>
               <input className="input" type="number" step="0.1" value={form.weight} onChange={(e) => setForm({ ...form, weight: e.target.value })} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">תאריך לידה</label>
-              <input className="input" type="date" lang="he" value={form.birthDate} onChange={(e) => setForm({ ...form, birthDate: e.target.value })} />
+              <label className="label">{t("fields.birthDate")}</label>
+              <input className="input" type="date" lang={cfg.lang} value={form.birthDate} onChange={(e) => setForm({ ...form, birthDate: e.target.value })} />
             </div>
             <div>
-              <label className="label">מיקרוצ׳יפ</label>
+              <label className="label">{t("fields.microchip")}</label>
               <input className="input" value={form.microchip} onChange={(e) => setForm({ ...form, microchip: e.target.value })} />
             </div>
           </div>
           <div>
-            <label className="label">תגיות התנהגותיות</label>
+            <label className="label">{t("edit.tags")}</label>
             <div className="flex flex-wrap gap-1.5 mt-1">
               {BEHAVIORAL_TAGS.map((tag) => (
                 <button
@@ -765,9 +777,9 @@ export function EditPetModal({
         </div>
         <div className="flex gap-3 mt-5">
           <button className="btn-primary flex-1" disabled={!form.name.trim() || mutation.isPending} onClick={() => mutation.mutate()}>
-            {mutation.isPending ? "שומר..." : "שמור שינויים"}
+            {mutation.isPending ? tc("progress.saving") : t("edit.saveChanges")}
           </button>
-          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+          <button className="btn-secondary" onClick={onClose}>{tc("actions.cancel")}</button>
         </div>
       </div>
     </div>
@@ -791,6 +803,8 @@ export function EditPetNoteModal({
   customerId: string;
   onClose: () => void;
 }) {
+  const t = useTranslations("customers.petModals");
+  const tc = useTranslations("common");
   const queryClient = useQueryClient();
   const [text, setText] = useState(value);
 
@@ -800,12 +814,12 @@ export function EditPetNoteModal({
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ [field]: text || null }),
-      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בעדכון"); return d; }),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || t("errors.update")); return d; }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
       onClose();
     },
-    onError: () => toast.error("שגיאה בשמירת ההערה. נסה שוב."),
+    onError: () => toast.error(t("note.saveError")),
   });
 
   return (
@@ -823,13 +837,13 @@ export function EditPetNoteModal({
           value={text}
           onChange={(e) => setText(e.target.value)}
           autoFocus
-          placeholder="הזן הערות..."
+          placeholder={t("note.placeholder")}
         />
         <div className="flex gap-3 mt-4">
           <button className="btn-primary flex-1" disabled={mutation.isPending} onClick={() => mutation.mutate()}>
-            {mutation.isPending ? "שומר..." : "שמור"}
+            {mutation.isPending ? tc("progress.saving") : tc("actions.save")}
           </button>
-          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+          <button className="btn-secondary" onClick={onClose}>{tc("actions.cancel")}</button>
         </div>
       </div>
     </div>
@@ -851,6 +865,9 @@ export function MedicationModal({
   customerId: string;
   onClose: () => void;
 }) {
+  const t = useTranslations("customers.petModals");
+  const tc = useTranslations("common");
+  const { cfg } = useBusinessLocale();
   const queryClient = useQueryClient();
   const [form, setForm] = useState({
     medName: med?.medName ?? "",
@@ -869,19 +886,19 @@ export function MedicationModal({
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(form),
-        }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בעדכון"); return d; });
+        }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || t("errors.update")); return d; });
       }
       return fetch(`/api/pets/${petId}/medications`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
-      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בהוספה"); return d; });
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || t("med.addError")); return d; });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
       onClose();
     },
-    onError: () => toast.error("שגיאה בשמירת התרופה. נסה שוב."),
+    onError: () => toast.error(t("med.saveError")),
   });
 
   return (
@@ -890,7 +907,7 @@ export function MedicationModal({
       <div className="modal-content max-w-md mx-4 p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-bold text-petra-text">
-            {med ? "עריכת תרופה" : `הוספת תרופה — ${petName}`}
+            {med ? t("med.editTitle") : t("med.addTitle", { petName })}
           </h2>
           <button
             onClick={onClose}
@@ -901,37 +918,37 @@ export function MedicationModal({
         </div>
         <div className="space-y-3">
           <div>
-            <label className="label">שם תרופה *</label>
+            <label className="label">{t("med.name")}</label>
             <input
               className="input"
               value={form.medName}
               onChange={(e) => setForm({ ...form, medName: e.target.value })}
-              placeholder="ריבוקסיב, אמוקסיצילין..."
+              placeholder={t("med.namePlaceholder")}
               autoFocus
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">מינון</label>
+              <label className="label">{t("med.dosage")}</label>
               <input
                 className="input"
                 value={form.dosage}
                 onChange={(e) => setForm({ ...form, dosage: e.target.value })}
-                placeholder="25 מ״ג"
+                placeholder={t("med.dosagePlaceholder")}
               />
             </div>
             <div>
-              <label className="label">תדירות</label>
+              <label className="label">{t("med.frequency")}</label>
               <input
                 className="input"
                 value={form.frequency}
                 onChange={(e) => setForm({ ...form, frequency: e.target.value })}
-                placeholder="פעם ביום"
+                placeholder={t("med.frequencyPlaceholder")}
               />
             </div>
           </div>
           <div>
-            <label className="label">שעות מתן</label>
+            <label className="label">{t("med.times")}</label>
             <input
               className="input"
               value={form.times}
@@ -940,29 +957,29 @@ export function MedicationModal({
             />
           </div>
           <div>
-            <label className="label">הוראות</label>
+            <label className="label">{t("med.instructions")}</label>
             <input
               className="input"
               value={form.instructions}
               onChange={(e) => setForm({ ...form, instructions: e.target.value })}
-              placeholder="עם אוכל, לא לחצות..."
+              placeholder={t("med.instructionsPlaceholder")}
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">תאריך התחלה</label>
+              <label className="label">{t("med.startDate")}</label>
               <input
                 className="input"
-                type="date" lang="he"
+                type="date" lang={cfg.lang}
                 value={form.startDate}
                 onChange={(e) => setForm({ ...form, startDate: e.target.value })}
               />
             </div>
             <div>
-              <label className="label">תאריך סיום</label>
+              <label className="label">{t("med.endDate")}</label>
               <input
                 className="input"
-                type="date" lang="he"
+                type="date" lang={cfg.lang}
                 value={form.endDate}
                 onChange={(e) => setForm({ ...form, endDate: e.target.value })}
               />
@@ -975,10 +992,10 @@ export function MedicationModal({
             disabled={!form.medName.trim() || mutation.isPending}
             onClick={() => mutation.mutate()}
           >
-            {mutation.isPending ? "שומר..." : med ? "שמור שינויים" : "הוסף תרופה"}
+            {mutation.isPending ? tc("progress.saving") : med ? t("edit.saveChanges") : t("med.add")}
           </button>
           <button className="btn-secondary" onClick={onClose}>
-            ביטול
+            {tc("actions.cancel")}
           </button>
         </div>
       </div>

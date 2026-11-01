@@ -1,8 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { X, CreditCard } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { currencySymbol } from "@/lib/format";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -20,21 +23,22 @@ interface PaymentModalProps {
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
+// Labels: payments.paymentModal.methods.<value> / .statuses.<key>
 
 export const PAYMENT_METHODS = [
-  { value: "cash",          label: "מזומן",              emoji: "💵" },
-  { value: "credit_card",  label: "כרטיס אשראי",        emoji: "💳" },
-  { value: "bank_transfer", label: "העברה בנקאית",       emoji: "🏦" },
-  { value: "bit",      label: "ביט",                emoji: "📱" },
-  { value: "paybox",   label: "פייבוקס",             emoji: "📱" },
-  { value: "check",    label: "צ׳ק",                emoji: "📝" },
+  { value: "cash",          emoji: "💵" },
+  { value: "credit_card",  emoji: "💳" },
+  { value: "bank_transfer", emoji: "🏦" },
+  { value: "bit",      emoji: "📱" },
+  { value: "paybox",   emoji: "📱" },
+  { value: "check",    emoji: "📝" },
 ];
 
-export const PAYMENT_STATUS_MAP: Record<string, { label: string; color: string }> = {
-  paid:    { label: "שולם",       color: "bg-emerald-50 text-emerald-700 border-emerald-100" },
-  pending: { label: "ממתין",      color: "bg-amber-50 text-amber-700 border-amber-100" },
-  partial: { label: "חלקי",       color: "bg-blue-50 text-blue-700 border-blue-100" },
-  refunded:{ label: "הוחזר",      color: "bg-red-50 text-red-600 border-red-100" },
+export const PAYMENT_STATUS_MAP: Record<string, { color: string }> = {
+  paid:    { color: "bg-emerald-50 text-emerald-700 border-emerald-100" },
+  pending: { color: "bg-amber-50 text-amber-700 border-amber-100" },
+  partial: { color: "bg-blue-50 text-blue-700 border-blue-100" },
+  refunded:{ color: "bg-red-50 text-red-600 border-red-100" },
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -50,6 +54,10 @@ export function PaymentModal({
   suggestedAmount,
   suggestedDescription,
 }: PaymentModalProps) {
+  const t = useTranslations("payments.paymentModal");
+  const tc = useTranslations("common");
+  const { locale, currency, cfg: localeCfg } = useBusinessLocale();
+  const symbol = currencySymbol({ locale, currency });
   const [amount, setAmount] = useState(suggestedAmount?.toString() ?? "");
   const [method, setMethod] = useState("cash");
   const [status, setStatus] = useState("paid");
@@ -73,7 +81,7 @@ export function PaymentModal({
     e.preventDefault();
     const parsedAmount = parseFloat(amount);
     if (!parsedAmount || parsedAmount <= 0) {
-      setError("יש להזין סכום תקין");
+      setError(t("errors.invalidAmount"));
       return;
     }
     setSaving(true);
@@ -95,12 +103,12 @@ export function PaymentModal({
       });
       if (!res.ok) {
         const d = await res.json();
-        throw new Error(d.error ?? "שגיאה");
+        throw new Error(d.error ?? t("errors.generic"));
       }
       reset();
       onCreated();
     } catch (err) {
-      setError((err as Error).message || "שגיאה בשמירת התשלום");
+      setError((err as Error).message || t("errors.saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -119,7 +127,7 @@ export function PaymentModal({
               <CreditCard className="w-5 h-5 text-emerald-600" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-petra-text">רישום תשלום</h2>
+              <h2 className="text-lg font-bold text-petra-text">{t("title")}</h2>
               {customerName && (
                 <p className="text-xs text-petra-muted">{customerName}</p>
               )}
@@ -139,15 +147,15 @@ export function PaymentModal({
 
           {/* Amount */}
           <div>
-            <label className="label">סכום (₪)</label>
+            <label className="label">{t("amountLabel", { symbol })}</label>
             <div className="relative">
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-petra-muted font-medium text-sm">₪</span>
+              <span className="absolute start-3 top-1/2 -translate-y-1/2 text-petra-muted font-medium text-sm">{symbol}</span>
               <input
                 type="number"
                 step="0.01"
                 min="0"
                 placeholder="0.00"
-                className="input pr-8"
+                className={cn("input", localeCfg.dir === "rtl" ? "pr-8" : "pl-8")} // rtl-ok
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 autoFocus
@@ -158,7 +166,7 @@ export function PaymentModal({
 
           {/* Payment method — pill selector */}
           <div>
-            <label className="label">אמצעי תשלום</label>
+            <label className="label">{t("methodLabel")}</label>
             <div className="grid grid-cols-3 gap-1.5">
               {PAYMENT_METHODS.map((m) => (
                 <button
@@ -173,7 +181,7 @@ export function PaymentModal({
                   )}
                 >
                   <span className="text-base leading-none">{m.emoji}</span>
-                  <span className="text-xs">{m.label}</span>
+                  <span className="text-xs">{t(`methods.${m.value}`)}</span>
                 </button>
               ))}
             </div>
@@ -181,7 +189,7 @@ export function PaymentModal({
 
           {/* Status */}
           <div>
-            <label className="label">סטטוס</label>
+            <label className="label">{t("statusLabel")}</label>
             <div className="flex gap-2">
               {(["paid", "pending"] as const).map((s) => {
                 const cfg = PAYMENT_STATUS_MAP[s];
@@ -195,7 +203,7 @@ export function PaymentModal({
                       status === s ? cfg.color : "bg-white border-petra-border text-petra-muted hover:border-slate-300"
                     )}
                   >
-                    {cfg.label}
+                    {t(`statuses.${s}`)}
                   </button>
                 );
               })}
@@ -214,19 +222,19 @@ export function PaymentModal({
             >
               <span className={cn(
                 "absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all",
-                isDeposit ? "right-0.5" : "left-0.5"
+                isDeposit ? "start-0.5" : "end-0.5"
               )} />
             </button>
-            <span className="text-sm text-petra-text">מקדמה</span>
+            <span className="text-sm text-petra-text">{t("deposit")}</span>
           </div>
 
           {/* Notes */}
           <div>
-            <label className="label">הערות</label>
+            <label className="label">{t("notesLabel")}</label>
             <input
               type="text"
               className="input"
-              placeholder="הערה אופציונלית..."
+              placeholder={t("notesPlaceholder")}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
             />
@@ -235,10 +243,10 @@ export function PaymentModal({
           {/* Actions */}
           <div className="flex gap-2 pt-1">
             <button type="button" onClick={handleClose} className="btn-secondary flex-1">
-              ביטול
+              {tc("actions.cancel")}
             </button>
             <button type="submit" disabled={saving} className="btn-primary flex-1">
-              {saving ? "שומר..." : "רשום תשלום"}
+              {saving ? tc("progress.saving") : t("submit")}
             </button>
           </div>
         </form>

@@ -2,15 +2,10 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
+import { getServerT } from "@/i18n/server";
 
-const ACTION_LABELS: Record<string, string> = {
-  CREATED: "נוצרה",
-  COMPLETED: "הושלמה",
-  REOPENED: "נפתחה מחדש",
-  CANCELED: "בוטלה",
-  UPDATED: "עודכנה",
-  DELETED: "נמחקה",
-};
+// Labels live in messages: api.tasks.auditActions.<ACTION>
+const AUDIT_ACTIONS = new Set(["CREATED", "COMPLETED", "REOPENED", "CANCELED", "UPDATED", "DELETED"]);
 
 export async function GET(
   request: NextRequest,
@@ -38,10 +33,11 @@ export async function GET(
       take: 50,
     });
 
+    const t = await getServerT("api.tasks.auditActions");
     const formatted = logs.map((log) => ({
       id: log.id,
       action: log.action,
-      actionLabel: ACTION_LABELS[log.action] ?? log.action,
+      actionLabel: AUDIT_ACTIONS.has(log.action) ? t(log.action) : log.action,
       userId: log.userId,
       payload: (() => { try { return JSON.parse(log.payload || "{}"); } catch { return {}; } })(),
       createdAt: log.createdAt,

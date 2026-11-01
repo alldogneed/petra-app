@@ -38,6 +38,7 @@ import {
   ShieldAlert,
   ListChecks,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { cn, fetchJSON } from "@/lib/utils";
 import { QuizEditor } from "./QuizEditor";
 import {
@@ -52,10 +53,11 @@ import {
 } from "./shared";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 
-const LESSON_TYPES: { value: string; label: string; icon: React.ReactNode }[] = [
-  { value: "video", label: "וידאו", icon: <Video className="w-3.5 h-3.5" /> },
-  { value: "pdf", label: "PDF", icon: <FileText className="w-3.5 h-3.5" /> },
-  { value: "text", label: "טקסט", icon: <Type className="w-3.5 h-3.5" /> },
+// Labels: onlineClasses.coursesTab.lessonTypes.<value>
+const LESSON_TYPES: { value: "video" | "pdf" | "text"; icon: React.ReactNode }[] = [
+  { value: "video", icon: <Video className="w-3.5 h-3.5" /> },
+  { value: "pdf", icon: <FileText className="w-3.5 h-3.5" /> },
+  { value: "text", icon: <Type className="w-3.5 h-3.5" /> },
 ];
 
 function lessonTypeMeta(type: string) {
@@ -71,6 +73,8 @@ function courseLessonCount(c: CourseItem): number {
 // ═══════════════════════════════════════════════════════
 
 export function CoursesTab() {
+  const t = useTranslations("onlineClasses.coursesTab");
+  const tc = useTranslations("common");
   const queryClient = useQueryClient();
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
@@ -96,12 +100,12 @@ export function CoursesTab() {
         }),
       }),
     onSuccess: () => {
-      toast.success("הקורס נוצר");
+      toast.success(t("toasts.courseCreated"));
       setShowCreate(false);
       setCreateForm({ title: "", description: "", coverUrl: "" });
       queryClient.invalidateQueries({ queryKey: ["oc-courses"] });
     },
-    onError: (e: Error) => toast.error(e.message || "שגיאה ביצירת הקורס"),
+    onError: (e: Error) => toast.error(e.message || t("toasts.courseCreateError")),
   });
 
   if (selectedCourseId) {
@@ -120,8 +124,8 @@ export function CoursesTab() {
     return (
       <div className="card p-8 text-center">
         <AlertTriangle className="w-8 h-8 mx-auto mb-3 text-red-400" />
-        <p className="text-red-600 font-medium mb-2">שגיאה בטעינת הקורסים</p>
-        <button className="btn-secondary text-sm" onClick={() => refetch()}>נסה שוב</button>
+        <p className="text-red-600 font-medium mb-2">{t("list.errorLoading")}</p>
+        <button className="btn-secondary text-sm" onClick={() => refetch()}>{t("retry")}</button>
       </div>
     );
   }
@@ -129,10 +133,10 @@ export function CoursesTab() {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-base font-bold text-petra-text">קורסים מוקלטים</h2>
+        <h2 className="text-base font-bold text-petra-text">{t("list.title")}</h2>
         <button className="btn-primary text-sm" onClick={() => setShowCreate(true)}>
           <Plus className="w-4 h-4" />
-          קורס חדש
+          {t("list.newCourse")}
         </button>
       </div>
 
@@ -143,13 +147,13 @@ export function CoursesTab() {
           <div className="empty-state-icon">
             <BookOpen className="w-6 h-6 text-slate-400" />
           </div>
-          <p className="font-medium text-petra-text mb-1">אין קורסים עדיין</p>
+          <p className="font-medium text-petra-text mb-1">{t("list.emptyTitle")}</p>
           <p className="text-sm text-petra-muted mb-4">
-            בנה קורס מוקלט ראשון עם פרקים ושיעורי וידאו מיוטיוב
+            {t("list.emptyHint")}
           </p>
           <button className="btn-primary text-sm" onClick={() => setShowCreate(true)}>
             <Plus className="w-4 h-4" />
-            קורס חדש
+            {t("list.newCourse")}
           </button>
         </div>
       ) : (
@@ -159,7 +163,7 @@ export function CoursesTab() {
             return (
               <div key={c.id} className="card overflow-hidden flex flex-col">
                 <button
-                  className="text-right hover:opacity-95 transition-opacity"
+                  className="text-start hover:opacity-95 transition-opacity"
                   onClick={() => setSelectedCourseId(c.id)}
                 >
                   <div className="h-28 relative">
@@ -173,11 +177,11 @@ export function CoursesTab() {
                     )}
                     <span
                       className={cn(
-                        "absolute top-2 left-2",
+                        "absolute top-2 end-2",
                         published ? "badge-success" : "badge-neutral"
                       )}
                     >
-                      {published ? "פורסם" : "טיוטה"}
+                      {published ? t("status.published") : t("status.draft")}
                     </span>
                   </div>
                   <div className="p-4 pb-2">
@@ -186,7 +190,7 @@ export function CoursesTab() {
                       <p className="text-xs text-petra-muted mt-1 line-clamp-2">{c.description}</p>
                     )}
                     <p className="text-xs text-petra-muted mt-2">
-                      {courseLessonCount(c)} שיעורים
+                      {t("lessonsCount", { count: courseLessonCount(c) })}
                     </p>
                   </div>
                 </button>
@@ -196,18 +200,18 @@ export function CoursesTab() {
                   <button
                     className="btn-secondary text-xs px-2.5 py-1.5"
                     onClick={() => setEnrollFor(c)}
-                    title="הוסף תלמידים לקורס לפי אימייל"
+                    title={t("list.addStudentsTitle")}
                   >
                     <UserPlus className="w-3.5 h-3.5" />
-                    הוסף תלמידים
+                    {t("list.addStudents")}
                   </button>
                   <button
                     className="btn-danger text-xs px-2.5 py-1.5"
                     onClick={() => setDeleteFor(c)}
-                    title="מחק קורס"
+                    title={t("list.deleteCourseTitle")}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
-                    מחק
+                    {tc("actions.delete")}
                   </button>
                 </div>
               </div>
@@ -217,19 +221,19 @@ export function CoursesTab() {
       )}
 
       {showCreate && (
-        <Modal title="קורס חדש" onClose={() => setShowCreate(false)}>
+        <Modal title={t("list.newCourse")} onClose={() => setShowCreate(false)}>
           <div className="space-y-4">
             <div>
-              <label className="label">שם הקורס *</label>
+              <label className="label">{t("create.titleLabel")}</label>
               <input
                 className="input"
                 value={createForm.title}
                 onChange={(e) => setCreateForm({ ...createForm, title: e.target.value })}
-                placeholder="למשל: קורס גורים מהבית"
+                placeholder={t("create.titlePlaceholder")}
               />
             </div>
             <div>
-              <label className="label">תיאור</label>
+              <label className="label">{t("create.descriptionLabel")}</label>
               <textarea
                 className="input min-h-[70px]"
                 value={createForm.description}
@@ -237,7 +241,7 @@ export function CoursesTab() {
               />
             </div>
             <div>
-              <label className="label">קישור לתמונת שער</label>
+              <label className="label">{t("create.coverUrlLabel")}</label>
               <input
                 className="input"
                 dir="ltr"
@@ -252,9 +256,9 @@ export function CoursesTab() {
                 disabled={createMutation.isPending || !createForm.title.trim()}
                 onClick={() => createMutation.mutate()}
               >
-                {createMutation.isPending ? "יוצר..." : "צור קורס"}
+                {createMutation.isPending ? t("create.creating") : t("create.submit")}
               </button>
-              <button className="btn-secondary" onClick={() => setShowCreate(false)}>ביטול</button>
+              <button className="btn-secondary" onClick={() => setShowCreate(false)}>{tc("actions.cancel")}</button>
             </div>
           </div>
         </Modal>
@@ -300,6 +304,8 @@ function EnrollStudentsModal({
   onClose: () => void;
   onDone: () => void;
 }) {
+  const t = useTranslations("onlineClasses.coursesTab");
+  const tc = useTranslations("common");
   const [emails, setEmails] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -337,30 +343,33 @@ function EnrollStudentsModal({
       if (n > 0) {
         toast.success(
           notify
-            ? `${n === 1 ? "תלמיד/ה נוסף/ה" : `${n} תלמידים נוספו`} וקיבלו הודעה`
-            : `${n === 1 ? "תלמיד/ה נוסף/ה" : `${n} תלמידים נוספו`}`
+            ? n === 1
+              ? t("toasts.addedOneNotified")
+              : t("toasts.addedManyNotified", { count: n })
+            : n === 1
+              ? t("toasts.addedOne")
+              : t("toasts.addedMany", { count: n })
         );
         setEmails("");
         setName("");
         setPhone("");
         onDone();
       } else {
-        toast.error("אף תלמיד לא נוסף");
+        toast.error(t("toasts.noneAdded"));
       }
     },
-    onError: (e: Error) => toast.error(e.message || "שגיאה בהוספת התלמידים"),
+    onError: (e: Error) => toast.error(e.message || t("toasts.enrollError")),
   });
 
   return (
-    <Modal title={`הוספת תלמידים — ${course.title}`} onClose={onClose}>
+    <Modal title={t("enroll.modalTitle", { title: course.title })} onClose={onClose}>
       <div className="space-y-4">
         <div className="rounded-xl bg-brand-50 border border-brand-100 p-3 text-xs text-petra-text leading-relaxed">
-          הוספה ידנית מפעילה לתלמיד/ה <strong>מנוי פעיל</strong> בפורטל שלך ושולחת הודעה עם
-          קישור ישיר לקורס. מנוי פעיל פותח את כל הקורסים שפרסמת ואת השיעורים החיים.
+          {t.rich("enroll.intro", { strong: (c) => <strong>{c}</strong> })}
         </div>
 
         <div>
-          <label className="label">כתובות אימייל *</label>
+          <label className="label">{t("enroll.emailsLabel")}</label>
           <textarea
             className="input min-h-[80px]"
             dir="ltr"
@@ -369,24 +378,24 @@ function EnrollStudentsModal({
             placeholder="dana@example.com, yossi@example.com"
           />
           <p className="text-xs text-petra-muted mt-1">
-            אפשר להדביק כמה כתובות — מופרדות בפסיק, רווח או שורה חדשה
-            {parsed.length > 1 && ` (${parsed.length} כתובות)`}
+            {t("enroll.emailsHint")}
+            {parsed.length > 1 && t("enroll.emailsCount", { count: parsed.length })}
           </p>
         </div>
 
         {single && (
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">שם (לא חובה)</label>
+              <label className="label">{t("enroll.nameLabel")}</label>
               <input
                 className="input"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="לתלמיד/ה חדש/ה"
+                placeholder={t("enroll.namePlaceholder")}
               />
             </div>
             <div>
-              <label className="label">טלפון (לא חובה)</label>
+              <label className="label">{t("enroll.phoneLabel")}</label>
               <input
                 className="input"
                 dir="ltr"
@@ -400,7 +409,7 @@ function EnrollStudentsModal({
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="label">תוקף מנוי (לא חובה)</label>
+            <label className="label">{t("enroll.validUntilLabel")}</label>
             <input
               className="input"
               type="date"
@@ -409,12 +418,12 @@ function EnrollStudentsModal({
             />
           </div>
           <div>
-            <label className="label">תיעוד תשלום</label>
+            <label className="label">{t("enroll.paymentNoteLabel")}</label>
             <input
               className="input"
               value={paymentNote}
               onChange={(e) => setPaymentNote(e.target.value)}
-              placeholder="למשל: שולם בביט"
+              placeholder={t("enroll.paymentNotePlaceholder")}
             />
           </div>
         </div>
@@ -426,7 +435,7 @@ function EnrollStudentsModal({
             checked={notify}
             onChange={(e) => setNotify(e.target.checked)}
           />
-          שלח הודעה על ההוספה (וואטסאפ + אימייל)
+          {t("enroll.notify")}
         </label>
 
         {result && (
@@ -434,12 +443,12 @@ function EnrollStudentsModal({
             {result.added.length > 0 && (
               <div>
                 <p className="text-xs font-semibold text-emerald-700 mb-1">
-                  נוספו ({result.added.length})
+                  {t("enroll.added", { count: result.added.length })}
                 </p>
                 {result.added.map((a) => (
                   <p key={a.email} className="text-xs text-petra-muted" dir="ltr">
                     {a.email}
-                    {a.created ? " — משתמש חדש" : ""}
+                    {a.created ? t("enroll.newUserSuffix") : ""}
                   </p>
                 ))}
               </div>
@@ -447,7 +456,7 @@ function EnrollStudentsModal({
             {result.skipped.length > 0 && (
               <div>
                 <p className="text-xs font-semibold text-red-600 mb-1">
-                  לא נוספו ({result.skipped.length})
+                  {t("enroll.skipped", { count: result.skipped.length })}
                 </p>
                 {result.skipped.map((s, i) => (
                   <p key={`${s.email}-${i}`} className="text-xs text-petra-muted">
@@ -466,13 +475,13 @@ function EnrollStudentsModal({
             onClick={() => mutation.mutate()}
           >
             {mutation.isPending
-              ? "מוסיף..."
+              ? t("enroll.adding")
               : parsed.length > 1
-                ? `הוסף ${parsed.length} תלמידים`
-                : "הוסף לקורס"}
+                ? t("enroll.submitMany", { count: parsed.length })
+                : t("enroll.submitOne")}
           </button>
           <button className="btn-secondary" onClick={onClose}>
-            {result ? "סגור" : "ביטול"}
+            {result ? tc("actions.close") : tc("actions.cancel")}
           </button>
         </div>
       </div>
@@ -493,6 +502,8 @@ function DeleteCourseModal({
   onClose: () => void;
   onDeleted: () => void;
 }) {
+  const t = useTranslations("onlineClasses.coursesTab");
+  const tc = useTranslations("common");
   const [confirmText, setConfirmText] = useState("");
   const lessons = courseLessonCount(course);
   const matches = confirmText.trim() === course.title.trim();
@@ -501,26 +512,29 @@ function DeleteCourseModal({
     mutationFn: () =>
       fetchJSON(`/api/online-classes/courses/${course.id}`, { method: "DELETE" }),
     onSuccess: () => {
-      toast.success("הקורס נמחק");
+      toast.success(t("toasts.courseDeleted"));
       onDeleted();
     },
-    onError: (e: Error) => toast.error(e.message || "שגיאה במחיקת הקורס"),
+    onError: (e: Error) => toast.error(e.message || t("toasts.courseDeleteError")),
   });
 
   return (
-    <Modal title="מחיקת קורס" onClose={onClose}>
+    <Modal title={t("deleteModal.title")} onClose={onClose}>
       <div className="space-y-4">
         <div className="rounded-xl bg-red-50 border border-red-200 p-4">
           <div className="flex items-start gap-3">
             <ShieldAlert className="w-6 h-6 text-red-600 shrink-0 mt-0.5" />
             <div className="text-sm text-red-800 leading-relaxed">
-              <p className="font-bold mb-1">הפעולה הזו בלתי הפיכה.</p>
+              <p className="font-bold mb-1">{t("deleteModal.irreversible")}</p>
               <p>
-                מחיקת <strong>&quot;{course.title}&quot;</strong> תמחק לצמיתות את כל הפרקים,
-                {" "}{lessons} השיעורים, וכל נתוני ההתקדמות של התלמידים בקורס.
+                {t.rich("deleteModal.body", {
+                  title: course.title,
+                  lessons,
+                  strong: (c) => <strong>{c}</strong>,
+                })}
               </p>
               <p className="mt-1">
-                תלמידים שצופים בקורס יאבדו אליו גישה מיידית. אין שחזור.
+                {t("deleteModal.lossOfAccess")}
               </p>
             </div>
           </div>
@@ -528,7 +542,7 @@ function DeleteCourseModal({
 
         <div>
           <label className="label">
-            להמשך, הקלד/י את שם הקורס במדויק:
+            {t("deleteModal.confirmLabel")}
           </label>
           <p className="text-xs text-petra-muted mb-1.5 font-mono bg-slate-50 rounded-lg px-2 py-1 inline-block">
             {course.title}
@@ -537,7 +551,7 @@ function DeleteCourseModal({
             className="input"
             value={confirmText}
             onChange={(e) => setConfirmText(e.target.value)}
-            placeholder="שם הקורס"
+            placeholder={t("deleteModal.confirmPlaceholder")}
             autoFocus
           />
         </div>
@@ -549,9 +563,9 @@ function DeleteCourseModal({
             onClick={() => mutation.mutate()}
           >
             <Trash2 className="w-4 h-4" />
-            {mutation.isPending ? "מוחק..." : "מחק את הקורס לצמיתות"}
+            {mutation.isPending ? tc("progress.deleting") : t("deleteModal.submit")}
           </button>
-          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+          <button className="btn-secondary" onClick={onClose}>{tc("actions.cancel")}</button>
         </div>
       </div>
     </Modal>
@@ -585,6 +599,8 @@ const EMPTY_LESSON: LessonFormState = {
 };
 
 function CourseBuilder({ courseId, onBack }: { courseId: string; onBack: () => void }) {
+  const t = useTranslations("onlineClasses.coursesTab");
+  const tc = useTranslations("common");
   const queryClient = useQueryClient();
   const [modules, setModules] = useState<CourseModuleItem[]>([]);
   const [newModuleTitle, setNewModuleTitle] = useState("");
@@ -626,7 +642,7 @@ function CourseBuilder({ courseId, onBack }: { courseId: string; onBack: () => v
         body: JSON.stringify(body),
       }),
     onError: (e: Error) => {
-      toast.error(e.message || "שגיאה בשינוי הסדר");
+      toast.error(e.message || t("toasts.reorderError"));
       invalidateTree();
     },
   });
@@ -639,20 +655,20 @@ function CourseBuilder({ courseId, onBack }: { courseId: string; onBack: () => v
         body: JSON.stringify({ status }),
       }),
     onSuccess: (_d, status) => {
-      toast.success(status === "published" ? "הקורס פורסם בפורטל" : "הקורס הוסתר (טיוטה)");
+      toast.success(status === "published" ? t("toasts.coursePublished") : t("toasts.courseUnpublished"));
       invalidateTree();
     },
-    onError: (e: Error) => toast.error(e.message || "שגיאה בעדכון סטטוס הקורס"),
+    onError: (e: Error) => toast.error(e.message || t("toasts.statusError")),
   });
 
   const deleteCourseMutation = useMutation({
     mutationFn: () =>
       fetchJSON(`/api/online-classes/courses/${courseId}`, { method: "DELETE" }),
     onSuccess: () => {
-      toast.success("הקורס נמחק");
+      toast.success(t("toasts.courseDeleted"));
       onBack();
     },
-    onError: (e: Error) => toast.error(e.message || "שגיאה במחיקת הקורס"),
+    onError: (e: Error) => toast.error(e.message || t("toasts.courseDeleteError")),
   });
 
   const addModuleMutation = useMutation({
@@ -663,12 +679,12 @@ function CourseBuilder({ courseId, onBack }: { courseId: string; onBack: () => v
         body: JSON.stringify({ title }),
       }),
     onSuccess: () => {
-      toast.success("הפרק נוסף");
+      toast.success(t("toasts.moduleAdded"));
       setNewModuleTitle("");
       setShowAddModule(false);
       invalidateTree();
     },
-    onError: (e: Error) => toast.error(e.message || "שגיאה בהוספת פרק"),
+    onError: (e: Error) => toast.error(e.message || t("toasts.moduleAddError")),
   });
 
   const renameModuleMutation = useMutation({
@@ -679,20 +695,20 @@ function CourseBuilder({ courseId, onBack }: { courseId: string; onBack: () => v
         body: JSON.stringify({ title }),
       }),
     onSuccess: () => {
-      toast.success("שם הפרק עודכן");
+      toast.success(t("toasts.moduleRenamed"));
       invalidateTree();
     },
-    onError: (e: Error) => toast.error(e.message || "שגיאה בעדכון הפרק"),
+    onError: (e: Error) => toast.error(e.message || t("toasts.moduleUpdateError")),
   });
 
   const deleteModuleMutation = useMutation({
     mutationFn: (id: string) =>
       fetchJSON(`/api/online-classes/modules/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      toast.success("הפרק נמחק");
+      toast.success(t("toasts.moduleDeleted"));
       invalidateTree();
     },
-    onError: (e: Error) => toast.error(e.message || "שגיאה במחיקת הפרק"),
+    onError: (e: Error) => toast.error(e.message || t("toasts.moduleDeleteError")),
   });
 
   const saveLessonMutation = useMutation({
@@ -722,21 +738,21 @@ function CourseBuilder({ courseId, onBack }: { courseId: string; onBack: () => v
       });
     },
     onSuccess: () => {
-      toast.success(lessonModal?.lesson ? "השיעור עודכן" : "השיעור נוסף");
+      toast.success(lessonModal?.lesson ? t("toasts.lessonUpdated") : t("toasts.lessonAdded"));
       setLessonModal(null);
       invalidateTree();
     },
-    onError: (e: Error) => toast.error(e.message || "שגיאה בשמירת השיעור"),
+    onError: (e: Error) => toast.error(e.message || t("toasts.lessonSaveError")),
   });
 
   const deleteLessonMutation = useMutation({
     mutationFn: (id: string) =>
       fetchJSON(`/api/online-classes/lessons/${id}`, { method: "DELETE" }),
     onSuccess: () => {
-      toast.success("השיעור נמחק");
+      toast.success(t("toasts.lessonDeleted"));
       invalidateTree();
     },
-    onError: (e: Error) => toast.error(e.message || "שגיאה במחיקת השיעור"),
+    onError: (e: Error) => toast.error(e.message || t("toasts.lessonDeleteError")),
   });
 
   // ─── Drag handlers ───
@@ -771,10 +787,10 @@ function CourseBuilder({ courseId, onBack }: { courseId: string; onBack: () => v
     return (
       <div className="card p-8 text-center">
         <AlertTriangle className="w-8 h-8 mx-auto mb-3 text-red-400" />
-        <p className="text-red-600 font-medium mb-2">שגיאה בטעינת הקורס</p>
+        <p className="text-red-600 font-medium mb-2">{t("builder.errorLoading")}</p>
         <div className="flex gap-2 justify-center">
-          <button className="btn-secondary text-sm" onClick={() => refetch()}>נסה שוב</button>
-          <button className="btn-ghost text-sm" onClick={onBack}>חזרה לקורסים</button>
+          <button className="btn-secondary text-sm" onClick={() => refetch()}>{t("retry")}</button>
+          <button className="btn-ghost text-sm" onClick={onBack}>{t("backToCourses")}</button>
         </div>
       </div>
     );
@@ -805,14 +821,14 @@ function CourseBuilder({ courseId, onBack }: { courseId: string; onBack: () => v
       {/* Builder header */}
       <div className="flex items-center gap-3 mb-5 flex-wrap">
         <button className="btn-ghost text-sm" onClick={onBack}>
-          <ArrowRight className="w-4 h-4" />
-          חזרה לקורסים
+          <ArrowRight className="w-4 h-4 ltr:-scale-x-100" />
+          {t("backToCourses")}
         </button>
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <h2 className="text-base font-bold text-petra-text truncate">{course.title}</h2>
             <span className={published ? "badge-success" : "badge-neutral"}>
-              {published ? "פורסם" : "טיוטה"}
+              {published ? t("status.published") : t("status.draft")}
             </span>
           </div>
         </div>
@@ -825,20 +841,20 @@ function CourseBuilder({ courseId, onBack }: { courseId: string; onBack: () => v
             {published ? (
               <>
                 <EyeOff className="w-4 h-4" />
-                בטל פרסום
+                {t("builder.unpublish")}
               </>
             ) : (
               <>
                 <Globe className="w-4 h-4" />
-                פרסם קורס
+                {t("builder.publish")}
               </>
             )}
           </button>
           <button
             className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 text-petra-muted hover:text-red-600"
-            title="מחיקת הקורס"
+            title={t("builder.deleteCourseTitle")}
             onClick={() => {
-              if (window.confirm(`למחוק את הקורס "${course.title}" על כל הפרקים והשיעורים שבו?`)) {
+              if (window.confirm(t("builder.confirmDeleteCourse", { title: course.title }))) {
                 deleteCourseMutation.mutate();
               }
             }}
@@ -854,8 +870,8 @@ function CourseBuilder({ courseId, onBack }: { courseId: string; onBack: () => v
           <div className="empty-state-icon">
             <BookOpen className="w-6 h-6 text-slate-400" />
           </div>
-          <p className="font-medium text-petra-text mb-1">אין פרקים בקורס</p>
-          <p className="text-sm text-petra-muted">הוסף פרק ראשון כדי להתחיל לבנות את הקורס</p>
+          <p className="font-medium text-petra-text mb-1">{t("builder.emptyTitle")}</p>
+          <p className="text-sm text-petra-muted">{t("builder.emptyHint")}</p>
         </div>
       ) : (
         <DndContext
@@ -874,7 +890,7 @@ function CourseBuilder({ courseId, onBack }: { courseId: string; onBack: () => v
                   onRename={(title) => renameModuleMutation.mutate({ id: mod.id, title })}
                   onDelete={() => {
                     if (
-                      window.confirm(`למחוק את הפרק "${mod.title}" על כל השיעורים שבו?`)
+                      window.confirm(t("builder.confirmDeleteModule", { title: mod.title }))
                     ) {
                       deleteModuleMutation.mutate(mod.id);
                     }
@@ -897,7 +913,7 @@ function CourseBuilder({ courseId, onBack }: { courseId: string; onBack: () => v
                     setLessonModal({ moduleId: mod.id, lesson });
                   }}
                   onDeleteLesson={(lesson) => {
-                    if (window.confirm(`למחוק את השיעור "${lesson.title}"?`)) {
+                    if (window.confirm(t("builder.confirmDeleteLesson", { title: lesson.title }))) {
                       deleteLessonMutation.mutate(lesson.id);
                     }
                   }}
@@ -916,7 +932,7 @@ function CourseBuilder({ courseId, onBack }: { courseId: string; onBack: () => v
           <input
             className="input flex-1"
             autoFocus
-            placeholder="שם הפרק..."
+            placeholder={t("builder.moduleNamePlaceholder")}
             value={newModuleTitle}
             onChange={(e) => setNewModuleTitle(e.target.value)}
             onKeyDown={(e) => {
@@ -930,16 +946,16 @@ function CourseBuilder({ courseId, onBack }: { courseId: string; onBack: () => v
             disabled={addModuleMutation.isPending || !newModuleTitle.trim()}
             onClick={() => addModuleMutation.mutate(newModuleTitle.trim())}
           >
-            הוסף
+            {tc("actions.add")}
           </button>
           <button className="btn-ghost text-sm" onClick={() => setShowAddModule(false)}>
-            ביטול
+            {tc("actions.cancel")}
           </button>
         </div>
       ) : (
         <button className="btn-secondary text-sm" onClick={() => setShowAddModule(true)}>
           <Plus className="w-4 h-4" />
-          הוסף פרק
+          {t("builder.addModule")}
         </button>
       )}
 
@@ -954,12 +970,12 @@ function CourseBuilder({ courseId, onBack }: { courseId: string; onBack: () => v
       {/* Lesson modal */}
       {lessonModal && (
         <Modal
-          title={lessonModal.lesson ? "עריכת שיעור" : "שיעור חדש"}
+          title={lessonModal.lesson ? t("lessonModal.editTitle") : t("lessonModal.newTitle")}
           onClose={() => setLessonModal(null)}
         >
           <div className="space-y-4">
             <div>
-              <label className="label">שם השיעור *</label>
+              <label className="label">{t("lessonModal.titleLabel")}</label>
               <input
                 className="input"
                 value={lessonForm.title}
@@ -967,12 +983,12 @@ function CourseBuilder({ courseId, onBack }: { courseId: string; onBack: () => v
               />
             </div>
             <div>
-              <label className="label">תיאור השיעור</label>
+              <label className="label">{t("lessonModal.descriptionLabel")}</label>
               <textarea
                 className="input min-h-[80px]"
                 value={lessonForm.description}
                 onChange={(e) => setLessonForm({ ...lessonForm, description: e.target.value })}
-                placeholder="מה נלמד בשיעור הזה?"
+                placeholder={t("lessonModal.descriptionPlaceholder")}
               />
               {previousLessonDescription && (
                 <button
@@ -982,25 +998,25 @@ function CourseBuilder({ courseId, onBack }: { courseId: string; onBack: () => v
                     setLessonForm({ ...lessonForm, description: previousLessonDescription })
                   }
                 >
-                  העתק תיאור מהשיעור הקודם
+                  {t("lessonModal.copyPrevious")}
                 </button>
               )}
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="label">סוג</label>
+                <label className="label">{t("lessonModal.typeLabel")}</label>
                 <select
                   className="input"
                   value={lessonForm.type}
                   onChange={(e) => setLessonForm({ ...lessonForm, type: e.target.value })}
                 >
-                  {LESSON_TYPES.map((t) => (
-                    <option key={t.value} value={t.value}>{t.label}</option>
+                  {LESSON_TYPES.map((lt) => (
+                    <option key={lt.value} value={lt.value}>{t(`lessonTypes.${lt.value}`)}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="label">משך (דקות)</label>
+                <label className="label">{t("lessonModal.durationLabel")}</label>
                 <input
                   type="number"
                   min={1}
@@ -1012,7 +1028,7 @@ function CourseBuilder({ courseId, onBack }: { courseId: string; onBack: () => v
             </div>
             {lessonForm.type === "video" && (
               <div>
-                <label className="label">מזהה סרטון יוטיוב *</label>
+                <label className="label">{t("lessonModal.videoLabel")}</label>
                 <input
                   className="input"
                   dir="ltr"
@@ -1023,13 +1039,13 @@ function CourseBuilder({ courseId, onBack }: { courseId: string; onBack: () => v
                   placeholder="dQw4w9WgXcQ"
                 />
                 <p className="text-[11px] text-petra-muted mt-1">
-                  מזהה סרטון יוטיוב — האותיות אחרי v= בכתובת. אפשר גם להדביק כתובת מלאה והמזהה יחולץ אוטומטית.
+                  {t("lessonModal.videoHint")}
                 </p>
               </div>
             )}
             {lessonForm.type === "pdf" && (
               <div>
-                <label className="label">קישור לקובץ PDF *</label>
+                <label className="label">{t("lessonModal.pdfLabel")}</label>
                 <input
                   className="input"
                   dir="ltr"
@@ -1041,7 +1057,7 @@ function CourseBuilder({ courseId, onBack }: { courseId: string; onBack: () => v
             )}
             {lessonForm.type === "text" && (
               <div>
-                <label className="label">תוכן השיעור *</label>
+                <label className="label">{t("lessonModal.textLabel")}</label>
                 <textarea
                   className="input min-h-[120px]"
                   value={lessonForm.textContent}
@@ -1058,7 +1074,7 @@ function CourseBuilder({ courseId, onBack }: { courseId: string; onBack: () => v
                   setLessonForm({ ...lessonForm, isFreePreview: e.target.checked })
                 }
               />
-              שיעור לצפייה חופשית
+              {t("lessonModal.freePreview")}
               <Eye className="w-3.5 h-3.5 text-petra-muted" />
             </label>
             <div className="flex gap-2 pt-1">
@@ -1068,12 +1084,12 @@ function CourseBuilder({ courseId, onBack }: { courseId: string; onBack: () => v
                 onClick={() => saveLessonMutation.mutate()}
               >
                 {saveLessonMutation.isPending
-                  ? "שומר..."
+                  ? tc("progress.saving")
                   : lessonModal.lesson
-                    ? "שמור שינויים"
-                    : "הוסף שיעור"}
+                    ? t("lessonModal.saveChanges")
+                    : t("addLesson")}
               </button>
-              <button className="btn-secondary" onClick={() => setLessonModal(null)}>ביטול</button>
+              <button className="btn-secondary" onClick={() => setLessonModal(null)}>{tc("actions.cancel")}</button>
             </div>
           </div>
         </Modal>
@@ -1109,6 +1125,7 @@ function SortableModule({
   onLessonDragEnd: (event: DragEndEvent) => void;
   sensors: ReturnType<typeof useSensors>;
 }) {
+  const t = useTranslations("onlineClasses.coursesTab");
   const [collapsed, setCollapsed] = useState(false);
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(mod.title);
@@ -1129,7 +1146,7 @@ function SortableModule({
       <div className="flex items-center gap-2 px-4 py-3 bg-slate-50 border-b border-slate-100">
         <button
           className="cursor-grab active:cursor-grabbing text-slate-400 hover:text-petra-text touch-none"
-          title="גרור לשינוי סדר"
+          title={t("dragToReorder")}
           {...attributes}
           {...listeners}
         >
@@ -1162,22 +1179,22 @@ function SortableModule({
           />
         ) : (
           <p className="font-semibold text-petra-text text-sm flex-1 truncate">
-            פרק {index + 1}: {mod.title}
+            {t("module.title", { number: index + 1, title: mod.title })}
           </p>
         )}
         <span className="text-xs text-petra-muted whitespace-nowrap">
-          {mod.lessons.length} שיעורים
+          {t("lessonsCount", { count: mod.lessons.length })}
         </span>
         <button
           className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-200 text-petra-muted"
-          title="בוחן הפרק"
+          title={t("module.quiz")}
           onClick={onOpenQuiz}
         >
           <ListChecks className="w-3.5 h-3.5" />
         </button>
         <button
           className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-slate-200 text-petra-muted"
-          title="שינוי שם"
+          title={t("module.rename")}
           onClick={() => {
             setTitleDraft(mod.title);
             setEditingTitle(true);
@@ -1187,7 +1204,7 @@ function SortableModule({
         </button>
         <button
           className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-petra-muted hover:text-red-600"
-          title="מחיקת פרק"
+          title={t("module.delete")}
           onClick={onDelete}
         >
           <Trash2 className="w-3.5 h-3.5" />
@@ -1203,7 +1220,7 @@ function SortableModule({
       {!collapsed && (
         <div className="p-3">
           {mod.lessons.length === 0 ? (
-            <p className="text-xs text-petra-muted text-center py-3">אין שיעורים בפרק זה</p>
+            <p className="text-xs text-petra-muted text-center py-3">{t("module.noLessons")}</p>
           ) : (
             <DndContext
               sensors={sensors}
@@ -1229,7 +1246,7 @@ function SortableModule({
           )}
           <button className="btn-ghost text-xs mt-2" onClick={onAddLesson}>
             <Plus className="w-3.5 h-3.5" />
-            הוסף שיעור
+            {t("addLesson")}
           </button>
         </div>
       )}
@@ -1246,6 +1263,8 @@ function SortableLesson({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const t = useTranslations("onlineClasses.coursesTab");
+  const tc = useTranslations("common");
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: lesson.id });
   const meta = lessonTypeMeta(lesson.type);
@@ -1262,7 +1281,7 @@ function SortableLesson({
     >
       <button
         className="cursor-grab active:cursor-grabbing text-slate-300 hover:text-petra-text touch-none"
-        title="גרור לשינוי סדר"
+        title={t("dragToReorder")}
         {...attributes}
         {...listeners}
       >
@@ -1276,25 +1295,25 @@ function SortableLesson({
           title={lesson.description ?? undefined}
         >
           <FileText className="w-3 h-3" />
-          תיאור
+          {t("lesson.description")}
         </span>
       )}
       {lesson.durationMin != null && lesson.durationMin > 0 && (
         <span className="text-[11px] text-petra-muted whitespace-nowrap">
-          {lesson.durationMin} דק׳
+          {t("lesson.minutes", { count: lesson.durationMin })}
         </span>
       )}
-      {lesson.isFreePreview && <span className="badge-brand">צפייה חופשית</span>}
+      {lesson.isFreePreview && <span className="badge-brand">{t("lesson.freePreview")}</span>}
       <button
         className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-slate-100 text-petra-muted"
-        title="עריכה"
+        title={tc("actions.edit")}
         onClick={onEdit}
       >
         <Pencil className="w-3 h-3" />
       </button>
       <button
         className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-red-50 text-petra-muted hover:text-red-600"
-        title="מחיקה"
+        title={t("lesson.delete")}
         onClick={onDelete}
       >
         <Trash2 className="w-3 h-3" />

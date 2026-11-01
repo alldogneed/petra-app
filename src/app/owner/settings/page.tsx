@@ -5,6 +5,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { fetchJSON, cn } from "@/lib/utils";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 
 interface FeatureFlag {
   id: string;
@@ -15,6 +17,9 @@ interface FeatureFlag {
 }
 
 export default function OwnerSettingsPage() {
+  const t = useTranslations("settings.ownerSettingsPage");
+  const tc = useTranslations("common");
+  const { locale } = useBusinessLocale();
   const queryClient = useQueryClient();
   const [newKey, setNewKey] = useState("");
   const [newValue, setNewValue] = useState("false");
@@ -57,12 +62,12 @@ export default function OwnerSettingsPage() {
 
   return (
     <div>
-      <h1 className="page-title mb-6">הגדרות פלטפורמה</h1>
+      <h1 className="page-title mb-6">{t("title")}</h1>
 
       <div className="card overflow-hidden mb-6">
         <div className="px-5 py-4 border-b border-slate-100">
           <h2 className="font-semibold text-slate-900">Feature Flags</h2>
-          <p className="text-xs text-slate-400 mt-0.5">הגדרות בוליאניות או JSON גלובליות לפיצ׳רים של הפלטפורמה</p>
+          <p className="text-xs text-slate-400 mt-0.5">{t("flagsDescription")}</p>
         </div>
 
         {isLoading ? (
@@ -96,7 +101,7 @@ export default function OwnerSettingsPage() {
                       <span
                         className={cn(
                           "pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow-sm transition-transform",
-                          parsedValue ? "translate-x-5" : "translate-x-0"
+                          parsedValue ? "translate-x-5" : "translate-x-0" // rtl-ok: toggle is dir="ltr"
                         )}
                       />
                     </button>
@@ -106,20 +111,20 @@ export default function OwnerSettingsPage() {
                     </span>
                   )}
                   <span className="text-xs text-slate-400 whitespace-nowrap">
-                    {new Date(flag.updatedAt).toLocaleDateString("he-IL")}
+                    {new Date(flag.updatedAt).toLocaleDateString(locale)}
                   </span>
                 </div>
               );
             })}
             {flags.length === 0 && (
-              <div className="px-5 py-8 text-center text-slate-400 text-sm">אין flags מוגדרים עדיין</div>
+              <div className="px-5 py-8 text-center text-slate-400 text-sm">{t("empty")}</div>
             )}
           </div>
         )}
 
         {/* Add new flag */}
         <div className="px-5 py-4 border-t border-slate-100 bg-slate-50/50">
-          <div className="text-xs font-medium text-slate-600 mb-3">הוספה / עדכון flag</div>
+          <div className="text-xs font-medium text-slate-600 mb-3">{t("addOrUpdate")}</div>
           <div className="flex gap-2">
             <input
               type="text"
@@ -131,7 +136,7 @@ export default function OwnerSettingsPage() {
             />
             <input
               type="text"
-              placeholder="ערך (JSON)"
+              placeholder={t("valuePlaceholder")}
               value={newValue}
               onChange={(e) => setNewValue(e.target.value)}
               dir="ltr"
@@ -139,7 +144,7 @@ export default function OwnerSettingsPage() {
             />
             <input
               type="text"
-              placeholder="תיאור (אופציונלי)"
+              placeholder={t("descriptionPlaceholder")}
               value={newDesc}
               onChange={(e) => setNewDesc(e.target.value)}
               className="input flex-1"
@@ -150,7 +155,7 @@ export default function OwnerSettingsPage() {
               className="btn-primary flex items-center gap-1.5 disabled:opacity-40"
             >
               <Plus className="w-4 h-4" />
-              שמור
+              {tc("actions.save")}
             </button>
           </div>
           {addMutation.error && (

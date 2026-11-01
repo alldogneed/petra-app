@@ -3,12 +3,13 @@ import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Loader2, Save, UserRound } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { useAuth } from "@/providers/auth-provider";
 import { ChangePasswordSection } from "./AccountSection";
 import { SecurityTab } from "./SecurityTab";
 import { useRegisterDirty } from "./SettingsDirtyContext";
 
-const ROLE_LABELS: Record<string, string> = { owner: "בעלים", manager: "מנהל/ת", user: "עובד/ת", volunteer: "מתנדב/ת" };
+const ROLE_IDS = new Set(["owner", "manager", "user", "volunteer"]);
 
 /** "פרופיל ואבטחה" — personal settings of the signed-in member (not the business). */
 export function AccountTab() {
@@ -22,6 +23,7 @@ export function AccountTab() {
 }
 
 function ProfileCard() {
+  const t = useTranslations("settings.accountTab");
   const { user, refreshUser } = useAuth();
   const [name, setName] = useState(user?.name ?? "");
   useEffect(() => { if (user?.name) setName(user.name); }, [user?.name]);
@@ -38,28 +40,28 @@ function ProfileCard() {
         body: JSON.stringify({ name: newName }),
       });
       const d = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(d.error || "שגיאה בעדכון השם");
+      if (!r.ok) throw new Error(d.error || t("nameUpdateError"));
       return d;
     },
     onSuccess: async () => {
       await refreshUser();
-      toast.success("השם עודכן");
+      toast.success(t("nameUpdated"));
     },
-    onError: (err: Error) => toast.error(err.message || "שגיאה בעדכון השם"),
+    onError: (err: Error) => toast.error(err.message || t("nameUpdateError")),
   });
 
   return (
     <div className="card p-6">
       <div className="flex items-center gap-2 mb-4">
         <UserRound className="w-4 h-4 text-brand-500" />
-        <h3 className="text-sm font-semibold text-petra-text">הפרופיל שלי</h3>
+        <h3 className="text-sm font-semibold text-petra-text">{t("title")}</h3>
       </div>
       <form
         className="space-y-4"
         onSubmit={(e) => { e.preventDefault(); if (dirty) mutation.mutate(trimmed); }}
       >
         <div>
-          <label className="label" htmlFor="profile-name">השם שלך (מוצג בתוך המערכת וביומן הפעילות)</label>
+          <label className="label" htmlFor="profile-name">{t("nameLabel")}</label>
           <div className="flex gap-2">
             <input
               id="profile-name"
@@ -67,22 +69,22 @@ function ProfileCard() {
               value={name}
               maxLength={100}
               onChange={(e) => setName(e.target.value)}
-              placeholder="שם מלא"
+              placeholder={t("namePlaceholder")}
             />
             <button type="submit" disabled={!dirty || mutation.isPending} className="btn-primary flex items-center gap-1.5 px-4 flex-shrink-0">
               {mutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              עדכן
+              {t("update")}
             </button>
           </div>
         </div>
         <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
           <div>
-            <dt className="text-petra-muted text-xs mb-0.5">אימייל להתחברות</dt>
+            <dt className="text-petra-muted text-xs mb-0.5">{t("loginEmail")}</dt>
             <dd className="text-petra-text break-all" dir="ltr">{user?.email ?? "—"}</dd>
           </div>
           <div>
-            <dt className="text-petra-muted text-xs mb-0.5">התפקיד שלך בעסק</dt>
-            <dd className="text-petra-text">{ROLE_LABELS[user?.businessRole ?? ""] ?? "—"}</dd>
+            <dt className="text-petra-muted text-xs mb-0.5">{t("yourRole")}</dt>
+            <dd className="text-petra-text">{ROLE_IDS.has(user?.businessRole ?? "") ? t(`roles.${user?.businessRole as string}`) : "—"}</dd>
           </div>
         </dl>
       </form>

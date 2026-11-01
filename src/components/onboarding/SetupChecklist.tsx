@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import Link from "next/link";
 import { CheckCircle2, Circle, ChevronLeft, X, Rocket, AlertTriangle } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { SETUP_STEPS, countCompletedSteps, TOTAL_STEPS } from "@/lib/onboarding-state";
 
 interface OnboardingProgress {
@@ -23,6 +24,8 @@ function isCompleted(progress: OnboardingProgress, step: number): boolean {
 }
 
 export function SetupChecklist() {
+  const t = useTranslations("onboarding.setupChecklist");
+  const tc = useTranslations("common");
   const queryClient = useQueryClient();
 
   const { data: progress, isLoading } = useQuery<OnboardingProgress>({
@@ -67,13 +70,13 @@ export function SetupChecklist() {
       <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 mb-2">
         <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0" />
         <p className="text-sm text-amber-800 flex-1">
-          חסרים פרטי עסק — תזכורות WhatsApp והזמנות אונליין לא יעבדו כראוי.
+          {t("missingDetailsBanner")}
         </p>
         <Link
           href="/settings?tab=business"
           className="text-sm font-semibold text-amber-700 hover:text-amber-900 underline flex-shrink-0"
         >
-          השלם עכשיו
+          {t("completeNow")}
         </Link>
       </div>
     );
@@ -127,17 +130,17 @@ export function SetupChecklist() {
             </div>
             <div>
               <h3 className="text-base font-semibold text-white leading-tight">
-                הגדרת העסק
+                {t("title")}
               </h3>
               <p className="text-xs text-slate-400 mt-0.5">
-                {completed} מתוך {total} שלבים הושלמו
+                {t("stepsCompleted", { completed, total })}
               </p>
             </div>
           </div>
           <button
             onClick={() => skipMutation.mutate()}
             className="p-1.5 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-white/10 transition-colors flex-shrink-0"
-            title="סגור"
+            title={tc("actions.close")}
           >
             <X className="w-4 h-4" />
           </button>
@@ -146,7 +149,7 @@ export function SetupChecklist() {
         {/* Progress bar */}
         <div className="mt-4">
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs text-slate-400">{pct}% הושלם</span>
+            <span className="text-xs text-slate-400">{t("percentCompleted", { pct })}</span>
           </div>
           <div className="h-2 rounded-full" style={{ background: "rgba(255,255,255,0.08)" }}>
             <div
@@ -189,7 +192,7 @@ export function SetupChecklist() {
                           border: "1px solid rgba(249,115,22,0.3)",
                         }}
                       >
-                        חובה
+                        {t("badges.required")}
                       </span>
                     )}
                     {step.step === 2 && (
@@ -201,7 +204,7 @@ export function SetupChecklist() {
                           border: "1px solid rgba(249,115,22,0.3)",
                         }}
                       >
-                        חשוב
+                        {t("badges.important")}
                       </span>
                     )}
                   </div>
@@ -209,7 +212,7 @@ export function SetupChecklist() {
                     {step.description}
                   </p>
                 </div>
-                <ChevronLeft className="w-4 h-4 text-slate-600 group-hover:text-slate-400 flex-shrink-0 transition-colors" />
+                <ChevronLeft className="w-4 h-4 ltr:-scale-x-100 text-slate-600 group-hover:text-slate-400 flex-shrink-0 transition-colors" />
               </Link>
             );
           })}
@@ -221,7 +224,7 @@ export function SetupChecklist() {
         <div className="px-5 pb-5 pt-1 flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 flex-shrink-0" style={{ color: "#4ade80" }} />
           <p className="text-xs text-slate-400">
-            העסק שלך מוכן לחלוטין — כל הכבוד! 🎉
+            {t("allDone")}
           </p>
         </div>
       )}

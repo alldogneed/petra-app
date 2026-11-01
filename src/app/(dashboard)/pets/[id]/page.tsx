@@ -30,7 +30,10 @@ import {
   ChevronRight,
   Pencil,
 } from "lucide-react";
-import { cn, formatDate, formatCurrency } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { formatDate as formatDateL } from "@/lib/format";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { toast } from "sonner";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { EditPetModal } from "@/components/customers/detail/pet-modals";
@@ -147,17 +150,35 @@ interface Pet {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  scheduled: { label: "מתוכנן", className: "badge-brand" },
-  completed: { label: "הושלם", className: "badge-success" },
-  canceled:  { label: "בוטל",  className: "badge-danger" },
-  checked_in:  { label: "נמצא", className: "badge-success" },
-  checked_out: { label: "יצא",  className: "badge-neutral" },
-  reserved:    { label: "שמור", className: "badge-brand" },
-  active:   { label: "פעיל",   className: "badge-success" },
-  completed_prog: { label: "הושלם", className: "badge-neutral" },
-  paused:   { label: "מושהה", className: "badge-warning" },
+// Labels: pets.petsDetailPage.status.<key>
+const STATUS_CONFIG: Record<string, { className: string }> = {
+  scheduled: { className: "badge-brand" },
+  completed: { className: "badge-success" },
+  canceled:  { className: "badge-danger" },
+  checked_in:  { className: "badge-success" },
+  checked_out: { className: "badge-neutral" },
+  reserved:    { className: "badge-brand" },
+  active:   { className: "badge-success" },
+  completed_prog: { className: "badge-neutral" },
+  paused:   { className: "badge-warning" },
 };
+
+type PetT = ReturnType<typeof useTranslations<"pets">>;
+
+/** Badge for a status; unknown statuses show the raw value (as before). */
+function statusBadge(t: PetT, ...keys: string[]): { label: string; className: string } | null {
+  for (const key of keys) {
+    const cfg = STATUS_CONFIG[key];
+    if (cfg) return { label: t(`petsDetailPage.status.${key}`), className: cfg.className };
+  }
+  return null;
+}
+
+/** Same output as the old utils.formatDate for a he-IL business. */
+function useFormatDay() {
+  const { locale } = useBusinessLocale();
+  return (d: Date | string) => formatDateL(d, { locale, style: "long" });
+}
 
 function isVaccineExpiringSoon(date: string | null): boolean {
   if (!date) return false;
@@ -173,6 +194,8 @@ function isVaccineExpired(date: string | null): boolean {
 // ─── Weight Chart (inline SVG) ────────────────────────────────────────────────
 
 function WeightChart({ entries }: { entries: WeightEntry[] }) {
+  const t = useTranslations("pets");
+  const formatDate = useFormatDay();
   if (entries.length < 2) return null;
 
   const sorted = [...entries].sort(
@@ -232,7 +255,7 @@ function WeightChart({ entries }: { entries: WeightEntry[] }) {
       <div className="flex justify-between text-[10px] text-petra-muted mt-1">
         <span>{formatDate(new Date(sorted[0].recordedAt))}</span>
         <span className="font-medium text-brand-600">
-          {sorted[sorted.length - 1].weight} ק"ג
+          {t("petsDetailPage.weight.kg", { weight: sorted[sorted.length - 1].weight })}
         </span>
         <span>{formatDate(new Date(sorted[sorted.length - 1].recordedAt))}</span>
       </div>
@@ -243,6 +266,10 @@ function WeightChart({ entries }: { entries: WeightEntry[] }) {
 // ─── Weight History Section ───────────────────────────────────────────────────
 
 function WeightSection({ petId }: { petId: string }) {
+  const t = useTranslations("pets");
+  const tc = useTranslations("common");
+  const { cfg } = useBusinessLocale();
+  const formatDate = useFormatDay();
   const queryClient = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({
@@ -265,16 +292,16 @@ function WeightSection({ petId }: { petId: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
       }).then(async (r) => {
-        if (!r.ok) throw new Error("שגיאה");
+        if (!r.ok) throw new Error(t("petsDetailPage.weight.error"));
         return r.json();
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["weight", petId] });
       setShowForm(false);
       setForm({ weight: "", recordedAt: new Date().toISOString().split("T")[0], notes: "" });
-      toast.success("מדידה נוספה");
+      toast.success(t("petsDetailPage.weight.added"));
     },
-    onError: () => toast.error("שגיאה בהוספת מדידה"),
+    onError: () => toast.error(t("petsDetailPage.weight.addError")),
   });
 
   const deleteMutation = useMutation({
@@ -282,7 +309,7 @@ function WeightSection({ petId }: { petId: string }) {
       fetch(`/api/pets/${petId}/weight?entryId=${entryId}`, { method: "DELETE" }).then((r) => r.json()),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["weight", petId] });
-      toast.success("מדידה נמחקה");
+      toast.success(t("petsDetailPage.weight.deleted"));
     },
   });
 
@@ -291,10 +318,10 @@ function WeightSection({ petId }: { petId: string }) {
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-sm font-bold text-petra-text flex items-center gap-2">
           <TrendingUp className="w-4 h-4 text-indigo-500" />
-          מעקב משקל
+          {t("petsDetailPage.weight.title")}
           {entries.length > 0 && (
             <span className="text-xs font-normal text-petra-muted">
-              ({entries.length} מדידות)
+              {t("petsDetailPage.weight.count", { count: entries.length })}
             </span>
           )}
         </h2>
@@ -303,7 +330,7 @@ function WeightSection({ petId }: { petId: string }) {
           className="btn-secondary text-xs flex items-center gap-1 py-1 px-2"
         >
           <Plus className="w-3 h-3" />
-          הוסף מדידה
+          {t("petsDetailPage.weight.addEntry")}
         </button>
       </div>
 
@@ -311,7 +338,7 @@ function WeightSection({ petId }: { petId: string }) {
         <div className="mb-4 p-3 bg-slate-50 rounded-xl space-y-2">
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="label text-xs">משקל (ק"ג) *</label>
+              <label className="label text-xs">{t("petsDetailPage.weight.weightLabel")}</label>
               <input
                 className="input text-sm"
                 type="number"
@@ -323,22 +350,22 @@ function WeightSection({ petId }: { petId: string }) {
               />
             </div>
             <div>
-              <label className="label text-xs">תאריך</label>
+              <label className="label text-xs">{t("petsDetailPage.weight.dateLabel")}</label>
               <input
                 className="input text-sm"
-                type="date" lang="he"
+                type="date" lang={cfg.lang}
                 value={form.recordedAt}
                 onChange={(e) => setForm({ ...form, recordedAt: e.target.value })}
               />
             </div>
           </div>
           <div>
-            <label className="label text-xs">הערות (אופציונלי)</label>
+            <label className="label text-xs">{t("petsDetailPage.weight.notesLabel")}</label>
             <input
               className="input text-sm"
               value={form.notes}
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              placeholder="הערות על המשקל..."
+              placeholder={t("petsDetailPage.weight.notesPlaceholder")}
             />
           </div>
           <div className="flex gap-2">
@@ -347,17 +374,17 @@ function WeightSection({ petId }: { petId: string }) {
               disabled={!form.weight || addMutation.isPending}
               onClick={() => addMutation.mutate()}
             >
-              {addMutation.isPending ? "שומר..." : "הוסף"}
+              {addMutation.isPending ? tc("progress.saving") : tc("actions.add")}
             </button>
             <button className="btn-secondary text-xs py-1.5" onClick={() => setShowForm(false)}>
-              ביטול
+              {tc("actions.cancel")}
             </button>
           </div>
         </div>
       )}
 
       {entries.length === 0 && !showForm ? (
-        <p className="text-xs text-petra-muted text-center py-4">אין מדידות משקל עדיין</p>
+        <p className="text-xs text-petra-muted text-center py-4">{t("petsDetailPage.weight.empty")}</p>
       ) : (
         <>
           <WeightChart entries={entries} />
@@ -366,8 +393,8 @@ function WeightSection({ petId }: { petId: string }) {
               {entries.slice(0, 8).map((entry) => (
                 <div key={entry.id} className="py-2 flex items-center justify-between gap-2">
                   <div className="flex-1 min-w-0">
-                    <span className="font-semibold text-sm text-petra-text">{entry.weight} ק"ג</span>
-                    <span className="text-xs text-petra-muted mr-2">
+                    <span className="font-semibold text-sm text-petra-text">{t("petsDetailPage.weight.kg", { weight: entry.weight })}</span>
+                    <span className="text-xs text-petra-muted ms-2">
                       {formatDate(new Date(entry.recordedAt))}
                     </span>
                     {entry.notes && (
@@ -394,6 +421,7 @@ function WeightSection({ petId }: { petId: string }) {
 // ─── Photo Gallery Section ─────────────────────────────────────────────────────
 
 function PhotoGallery({ petId, attachmentsJson }: { petId: string; attachmentsJson: string }) {
+  const t = useTranslations("pets");
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
@@ -415,19 +443,19 @@ function PhotoGallery({ petId, attachmentsJson }: { petId: string; attachmentsJs
     try {
       for (const file of files) {
         if (file.size > 5 * 1024 * 1024) {
-          toast.error(`${file.name} גדול מ-5MB`);
+          toast.error(t("petsDetailPage.photos.tooLarge", { name: file.name }));
           continue;
         }
         const fd = new FormData();
         fd.append("file", file);
         fd.append("type", "photo");
         const res = await fetch(`/api/pets/${petId}/attachments`, { method: "POST", body: fd });
-        if (!res.ok) throw new Error("שגיאה בהעלאה");
+        if (!res.ok) throw new Error(t("petsDetailPage.photos.uploadError"));
       }
       queryClient.invalidateQueries({ queryKey: ["pet", petId] });
-      toast.success("תמונות הועלו בהצלחה");
+      toast.success(t("petsDetailPage.photos.uploaded"));
     } catch {
-      toast.error("שגיאה בהעלאת תמונות");
+      toast.error(t("petsDetailPage.photos.uploadFailed"));
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -443,9 +471,9 @@ function PhotoGallery({ petId, attachmentsJson }: { petId: string; attachmentsJs
         body: JSON.stringify({ attachments: JSON.stringify(updated) }),
       });
       queryClient.invalidateQueries({ queryKey: ["pet", petId] });
-      toast.success("תמונה נמחקה");
+      toast.success(t("petsDetailPage.photos.deleted"));
     } catch {
-      toast.error("שגיאה במחיקת תמונה");
+      toast.error(t("petsDetailPage.photos.deleteError"));
     }
   };
 
@@ -454,7 +482,7 @@ function PhotoGallery({ petId, attachmentsJson }: { petId: string; attachmentsJs
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-sm font-bold text-petra-text flex items-center gap-2">
           <ImageIcon className="w-4 h-4 text-sky-500" />
-          גלריית תמונות
+          {t("petsDetailPage.photos.title")}
           {photos.length > 0 && (
             <span className="text-xs font-normal text-petra-muted">({photos.length})</span>
           )}
@@ -465,7 +493,7 @@ function PhotoGallery({ petId, attachmentsJson }: { petId: string; attachmentsJs
           className="btn-secondary text-xs flex items-center gap-1 py-1 px-2"
         >
           <Upload className="w-3 h-3" />
-          {uploading ? "מעלה..." : "הוסף תמונה"}
+          {uploading ? t("petsDetailPage.photos.uploading") : t("petsDetailPage.photos.add")}
         </button>
         <input
           ref={fileInputRef}
@@ -483,7 +511,7 @@ function PhotoGallery({ petId, attachmentsJson }: { petId: string; attachmentsJs
           onClick={() => fileInputRef.current?.click()}
         >
           <ImageIcon className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-          <p className="text-xs text-petra-muted">לחץ להעלאת תמונות</p>
+          <p className="text-xs text-petra-muted">{t("petsDetailPage.photos.clickToUpload")}</p>
         </div>
       ) : (
         <div className="grid grid-cols-3 gap-2">
@@ -498,7 +526,7 @@ function PhotoGallery({ petId, attachmentsJson }: { petId: string; attachmentsJs
               />
               <button
                 onClick={() => handleDelete(photo.id)}
-                className="absolute top-1 left-1 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center text-white opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+                className="absolute top-1 end-1 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center text-white opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
               >
                 <X className="w-3 h-3" />
               </button>
@@ -511,25 +539,25 @@ function PhotoGallery({ petId, attachmentsJson }: { petId: string; attachmentsJs
       {lightboxIdx !== null && photos[lightboxIdx] && (
         <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center" onClick={() => setLightboxIdx(null)}>
           <button
-            className="absolute top-4 right-4 text-white hover:text-slate-300"
+            className="absolute top-4 start-4 text-white hover:text-slate-300"
             onClick={() => setLightboxIdx(null)}
           >
             <X className="w-6 h-6" />
           </button>
           {lightboxIdx > 0 && (
             <button
-              className="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:text-slate-300"
+              className="absolute start-4 top-1/2 -translate-y-1/2 text-white hover:text-slate-300"
               onClick={(e) => { e.stopPropagation(); setLightboxIdx((i) => (i! - 1 + photos.length) % photos.length); }}
             >
-              <ChevronRight className="w-8 h-8" />
+              <ChevronRight className="w-8 h-8 ltr:-scale-x-100" />
             </button>
           )}
           {lightboxIdx < photos.length - 1 && (
             <button
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-white hover:text-slate-300"
+              className="absolute end-4 top-1/2 -translate-y-1/2 text-white hover:text-slate-300"
               onClick={(e) => { e.stopPropagation(); setLightboxIdx((i) => (i! + 1) % photos.length); }}
             >
-              <ChevronLeft className="w-8 h-8" />
+              <ChevronLeft className="w-8 h-8 ltr:-scale-x-100" />
             </button>
           )}
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -552,6 +580,8 @@ function PhotoGallery({ petId, attachmentsJson }: { petId: string; attachmentsJs
 
 export default function PetProfilePage() {
   const params = useParams<{ id: string }>();
+  const t = useTranslations("pets");
+  const formatDate = useFormatDay();
 
   const { data: pet, isLoading, isError, refetch } = useQuery<Pet>({
     queryKey: ["pet", params.id],
@@ -567,7 +597,7 @@ export default function PetProfilePage() {
   if (isError || !pet) {
     return (
       <div className="p-6">
-        <div className="card p-10 text-center text-red-500">שגיאה בטעינת פרטי החיה</div>
+        <div className="card p-10 text-center text-red-500">{t("petsDetailPage.loadError")}</div>
       </div>
     );
   }
@@ -594,7 +624,7 @@ export default function PetProfilePage() {
       {/* Header */}
       <div className="flex items-center gap-4">
         <Link href="/pets" className="text-petra-muted hover:text-petra-text transition-colors">
-          <ArrowRight className="w-5 h-5" />
+          <ArrowRight className="w-5 h-5 ltr:-scale-x-100" />
         </Link>
         <div className="w-14 h-14 rounded-2xl bg-brand-50 flex items-center justify-center flex-shrink-0 overflow-hidden">
           {profilePhoto ? (
@@ -613,18 +643,18 @@ export default function PetProfilePage() {
               className="btn-secondary text-xs px-3 py-1.5 flex items-center gap-1"
             >
               <Pencil className="w-3.5 h-3.5" />
-              ערוך פרטים
+              {t("petsDetailPage.header.editDetails")}
             </button>
             {pet.breed && <span className="text-petra-muted text-sm">({pet.breed})</span>}
             {activeMeds.length > 0 && (
               <span className="badge badge-warning gap-1 flex items-center text-xs">
-                <Pill className="w-3 h-3" /> {activeMeds.length} תרופות
+                <Pill className="w-3 h-3" /> {t("petsDetailPage.header.medsCount", { count: activeMeds.length })}
               </span>
             )}
             {(rabiesExpired || rabiesExpiringSoon) && (
               <span className={cn("badge text-xs flex items-center gap-1", rabiesExpired ? "badge-danger" : "badge-warning")}>
                 <Syringe className="w-3 h-3" />
-                {rabiesExpired ? "חיסון פג תוקף" : "חיסון עומד לפוג"}
+                {rabiesExpired ? t("petsDetailPage.header.vaccineExpired") : t("petsDetailPage.header.vaccineExpiring")}
               </span>
             )}
           </div>
@@ -649,7 +679,7 @@ export default function PetProfilePage() {
                 )}
               </>
             ) : (
-              <span className="text-sm text-petra-muted">ללא לקוח משויך</span>
+              <span className="text-sm text-petra-muted">{t("petsDetailPage.header.noCustomer")}</span>
             )}
           </div>
         </div>
@@ -658,7 +688,7 @@ export default function PetProfilePage() {
           className="btn-secondary flex items-center gap-1.5 text-sm"
         >
           <RefreshCw className="w-3.5 h-3.5" />
-          רענן
+          {t("petsDetailPage.header.refresh")}
         </button>
       </div>
 
@@ -669,15 +699,15 @@ export default function PetProfilePage() {
           <div className="card p-5 space-y-4">
             <h2 className="text-sm font-bold text-petra-text flex items-center gap-2">
               <PawPrint className="w-4 h-4 text-brand-500" />
-              פרטי חיה
+              {t("petsDetailPage.info.title")}
             </h2>
             <dl className="space-y-2.5 text-sm">
               {[
-                { label: "מין", value: pet.gender === "male" ? "זכר" : pet.gender === "female" ? "נקבה" : null },
-                { label: "תאריך לידה", value: pet.birthDate ? formatDate(new Date(pet.birthDate)) : null },
-                { label: "משקל", value: pet.weight ? `${pet.weight} ק"ג` : null },
-                { label: "מיקרוצ'יפ", value: pet.microchip },
-                { label: "מסורס/מעוקרת", value: pet.health?.neuteredSpayed ? "כן" : null },
+                { label: t("petsDetailPage.info.gender"), value: pet.gender === "male" ? t("petsDetailPage.info.male") : pet.gender === "female" ? t("petsDetailPage.info.female") : null },
+                { label: t("petsDetailPage.info.birthDate"), value: pet.birthDate ? formatDate(new Date(pet.birthDate)) : null },
+                { label: t("petsDetailPage.info.weight"), value: pet.weight ? t("petsDetailPage.weight.kg", { weight: pet.weight }) : null },
+                { label: t("petsDetailPage.info.microchip"), value: pet.microchip },
+                { label: t("petsDetailPage.info.neutered"), value: pet.health?.neuteredSpayed ? t("petsDetailPage.info.yes") : null },
               ]
                 .filter((r) => r.value)
                 .map(({ label, value }) => (
@@ -689,8 +719,8 @@ export default function PetProfilePage() {
             </dl>
             {tags.length > 0 && (
               <div className="flex flex-wrap gap-1 pt-1 border-t">
-                {tags.map((t) => (
-                  <span key={t} className="badge badge-neutral text-xs">{t}</span>
+                {tags.map((tag) => (
+                  <span key={tag} className="badge badge-neutral text-xs">{tag}</span>
                 ))}
               </div>
             )}
@@ -701,15 +731,15 @@ export default function PetProfilePage() {
             <div className="card p-5 space-y-3">
               <h2 className="text-sm font-bold text-petra-text flex items-center gap-2">
                 <Heart className="w-4 h-4 text-rose-500" />
-                בריאות
+                {t("petsDetailPage.health.title")}
               </h2>
               <dl className="space-y-2 text-sm">
                 {[
-                  { label: "כלבת – תוקף", value: pet.health.rabiesValidUntil ? formatDate(new Date(pet.health.rabiesValidUntil)) : null, warn: rabiesExpired || rabiesExpiringSoon },
-                  { label: "חיסון מחלות", value: pet.health.dhppLastDate ? formatDate(new Date(pet.health.dhppLastDate)) : null },
-                  { label: "תילוע", value: pet.health.dewormingLastDate ? formatDate(new Date(pet.health.dewormingLastDate)) : null },
-                  { label: "רופא וטרינר", value: pet.health.vetName },
-                  { label: "טלפון וטרינר", value: pet.health.vetPhone },
+                  { label: t("petsDetailPage.health.rabiesValid"), value: pet.health.rabiesValidUntil ? formatDate(new Date(pet.health.rabiesValidUntil)) : null, warn: rabiesExpired || rabiesExpiringSoon },
+                  { label: t("petsDetailPage.health.dhpp"), value: pet.health.dhppLastDate ? formatDate(new Date(pet.health.dhppLastDate)) : null },
+                  { label: t("petsDetailPage.health.deworming"), value: pet.health.dewormingLastDate ? formatDate(new Date(pet.health.dewormingLastDate)) : null },
+                  { label: t("petsDetailPage.health.vetName"), value: pet.health.vetName },
+                  { label: t("petsDetailPage.health.vetPhone"), value: pet.health.vetPhone },
                 ]
                   .filter((r) => r.value)
                   .map(({ label, value, warn }) => (
@@ -721,13 +751,13 @@ export default function PetProfilePage() {
               </dl>
               {pet.health.medicalConditions && (
                 <div className="pt-2 border-t">
-                  <p className="text-xs text-petra-muted mb-1">מצבים רפואיים</p>
+                  <p className="text-xs text-petra-muted mb-1">{t("petsDetailPage.health.medicalConditions")}</p>
                   <p className="text-sm text-petra-text">{pet.health.medicalConditions}</p>
                 </div>
               )}
               {pet.health.allergies && (
                 <div className="pt-2 border-t">
-                  <p className="text-xs text-petra-muted mb-1">אלרגיות</p>
+                  <p className="text-xs text-petra-muted mb-1">{t("petsDetailPage.health.allergies")}</p>
                   <p className="text-sm text-petra-text text-amber-600">{pet.health.allergies}</p>
                 </div>
               )}
@@ -739,23 +769,23 @@ export default function PetProfilePage() {
             <div className="card p-5 space-y-3">
               <h2 className="text-sm font-bold text-petra-text flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 text-amber-500" />
-                הערות
+                {t("petsDetailPage.notes.title")}
               </h2>
               {pet.medicalNotes && (
                 <div>
-                  <p className="text-xs text-petra-muted mb-1">רפואי</p>
+                  <p className="text-xs text-petra-muted mb-1">{t("petsDetailPage.notes.medical")}</p>
                   <p className="text-sm text-petra-text">{pet.medicalNotes}</p>
                 </div>
               )}
               {pet.foodNotes && (
                 <div>
-                  <p className="text-xs text-petra-muted mb-1">אוכל</p>
+                  <p className="text-xs text-petra-muted mb-1">{t("petsDetailPage.notes.food")}</p>
                   <p className="text-sm text-petra-text">{pet.foodNotes}</p>
                 </div>
               )}
               {pet.behaviorNotes && (
                 <div>
-                  <p className="text-xs text-petra-muted mb-1">התנהגות</p>
+                  <p className="text-xs text-petra-muted mb-1">{t("petsDetailPage.notes.behavior")}</p>
                   <p className="text-sm text-petra-text">{pet.behaviorNotes}</p>
                 </div>
               )}
@@ -765,28 +795,28 @@ export default function PetProfilePage() {
           {/* Behavior */}
           {pet.behavior && (() => {
             const alerts = [
-              pet.behavior.dogAggression && "אגרסיבי כלפי כלבים",
-              pet.behavior.humanAggression && "אגרסיבי כלפי בני אדם",
-              pet.behavior.biteHistory && "היסטוריית נשיכה",
-              pet.behavior.leashPulling && "מושך רצועה",
-              pet.behavior.leashReactivity && "ריאקטיבי ברצועה",
-              pet.behavior.separationAnxiety && "חרדת נטישה",
-              pet.behavior.excessiveBarking && "נביחות מוגזמות",
-              pet.behavior.resourceGuarding && "שמירת משאבים",
-              pet.behavior.fears && "פחדים",
-              pet.behavior.badWithKids && "לא מתאים לילדים",
-              pet.behavior.destruction && "הרסני",
-              pet.behavior.houseSoiling && "מתלכלך בבית",
+              pet.behavior.dogAggression && t("petsDetailPage.behavior.dogAggression"),
+              pet.behavior.humanAggression && t("petsDetailPage.behavior.humanAggression"),
+              pet.behavior.biteHistory && t("petsDetailPage.behavior.biteHistory"),
+              pet.behavior.leashPulling && t("petsDetailPage.behavior.leashPulling"),
+              pet.behavior.leashReactivity && t("petsDetailPage.behavior.leashReactivity"),
+              pet.behavior.separationAnxiety && t("petsDetailPage.behavior.separationAnxiety"),
+              pet.behavior.excessiveBarking && t("petsDetailPage.behavior.excessiveBarking"),
+              pet.behavior.resourceGuarding && t("petsDetailPage.behavior.resourceGuarding"),
+              pet.behavior.fears && t("petsDetailPage.behavior.fears"),
+              pet.behavior.badWithKids && t("petsDetailPage.behavior.badWithKids"),
+              pet.behavior.destruction && t("petsDetailPage.behavior.destruction"),
+              pet.behavior.houseSoiling && t("petsDetailPage.behavior.houseSoiling"),
             ].filter(Boolean) as string[];
             const positives = [
-              pet.behavior.priorTraining && "אילוף קודם",
+              pet.behavior.priorTraining && t("petsDetailPage.behavior.priorTraining"),
             ].filter(Boolean) as string[];
             if (alerts.length === 0 && positives.length === 0) return null;
             return (
               <div className="card p-5 space-y-3">
                 <h2 className="text-sm font-bold text-petra-text flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 text-violet-500" />
-                  התנהגות
+                  {t("petsDetailPage.behavior.title")}
                 </h2>
                 {alerts.length > 0 && (
                   <div className="flex flex-wrap gap-1">
@@ -821,13 +851,13 @@ export default function PetProfilePage() {
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-sm font-bold text-petra-text flex items-center gap-2">
                   <Pill className="w-4 h-4 text-violet-500" />
-                  תרופות
+                  {t("petsDetailPage.meds.title")}
                 </h2>
                 <Link
                   href="/medications"
                   className="text-xs text-brand-500 hover:text-brand-600"
                 >
-                  לוח תרופות
+                  {t("petsDetailPage.meds.board")}
                 </Link>
               </div>
               <div className="divide-y">
@@ -841,7 +871,7 @@ export default function PetProfilePage() {
                           {m.dosage && <span className="text-xs text-petra-muted">{m.dosage}</span>}
                           {m.frequency && <span className="badge badge-neutral text-[10px]">{m.frequency}</span>}
                           <span className={cn("badge text-[10px]", active ? "badge-success" : "badge-neutral")}>
-                            {active ? "פעיל" : "הסתיים"}
+                            {active ? t("petsDetailPage.meds.active") : t("petsDetailPage.meds.ended")}
                           </span>
                         </div>
                         {m.instructions && (
@@ -849,8 +879,8 @@ export default function PetProfilePage() {
                         )}
                         {(m.startDate || m.endDate) && (
                           <p className="text-xs text-petra-muted mt-0.5">
-                            {m.startDate && `מ-${formatDate(new Date(m.startDate))}`}
-                            {m.startDate && m.endDate && " עד "}
+                            {m.startDate && t("petsDetailPage.meds.from", { date: formatDate(new Date(m.startDate)) })}
+                            {m.startDate && m.endDate && t("petsDetailPage.meds.until")}
                             {m.endDate && formatDate(new Date(m.endDate))}
                           </p>
                         )}
@@ -868,20 +898,20 @@ export default function PetProfilePage() {
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-sm font-bold text-petra-text flex items-center gap-2">
                   <Calendar className="w-4 h-4 text-brand-500" />
-                  היסטוריית תורים ({pet.appointments.length})
+                  {t("petsDetailPage.appointments.title", { count: pet.appointments.length })}
                 </h2>
                 <Link href="/calendar" className="text-xs text-brand-500 hover:text-brand-600 hover:underline">
-                  יומן ←
+                  {t("petsDetailPage.appointments.calendarLink")}
                 </Link>
               </div>
               <div className="divide-y">
                 {pet.appointments.map((a) => {
-                  const cfg = STATUS_CONFIG[a.status] ?? { label: a.status, className: "badge-neutral" };
+                  const cfg = statusBadge(t, a.status) ?? { label: a.status, className: "badge-neutral" };
                   return (
                     <div key={a.id} className="py-3 flex items-center justify-between gap-3 hover:bg-slate-50 rounded-lg px-2 -mx-2 transition-colors">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-petra-text truncate">{a.service?.name ?? "שירות לא ידוע"}</p>
+                          <p className="text-sm font-medium text-petra-text truncate">{a.service?.name ?? t("petsDetailPage.appointments.unknownService")}</p>
                           <p className="text-xs text-petra-muted flex items-center gap-1">
                             <Clock className="w-3 h-3" />
                             {formatDate(new Date(a.date))} · {a.startTime}–{a.endTime}
@@ -902,15 +932,15 @@ export default function PetProfilePage() {
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-sm font-bold text-petra-text flex items-center gap-2">
                   <Hotel className="w-4 h-4 text-brand-500" />
-                  היסטוריית פנסיון ({pet.boardingStays.length})
+                  {t("petsDetailPage.boarding.title", { count: pet.boardingStays.length })}
                 </h2>
                 <Link href="/boarding" className="text-xs text-brand-500 hover:text-brand-600 hover:underline">
-                  פנסיון ←
+                  {t("petsDetailPage.boarding.link")}
                 </Link>
               </div>
               <div className="divide-y">
                 {pet.boardingStays.map((s) => {
-                  const cfg = STATUS_CONFIG[s.status] ?? { label: s.status, className: "badge-neutral" };
+                  const cfg = statusBadge(t, s.status) ?? { label: s.status, className: "badge-neutral" };
                   return (
                     <div key={s.id} className="py-3 flex items-center justify-between gap-3 hover:bg-slate-50 rounded-lg px-2 -mx-2 transition-colors">
                       <div>
@@ -936,15 +966,15 @@ export default function PetProfilePage() {
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-sm font-bold text-petra-text flex items-center gap-2">
                   <GraduationCap className="w-4 h-4 text-brand-500" />
-                  תוכניות אימון ({pet.trainingPrograms.length})
+                  {t("petsDetailPage.training.title", { count: pet.trainingPrograms.length })}
                 </h2>
                 <Link href="/training" className="text-xs text-brand-500 hover:text-brand-600 hover:underline">
-                  אילוף ←
+                  {t("petsDetailPage.training.link")}
                 </Link>
               </div>
               <div className="divide-y">
                 {pet.trainingPrograms.map((p) => {
-                  const cfg = STATUS_CONFIG[p.status] ?? STATUS_CONFIG[p.status + "_prog"] ?? { label: p.status, className: "badge-neutral" };
+                  const cfg = statusBadge(t, p.status, p.status + "_prog") ?? { label: p.status, className: "badge-neutral" };
                   return (
                     <Link
                       key={p.id}
@@ -954,7 +984,7 @@ export default function PetProfilePage() {
                       <div>
                         <p className="text-sm font-medium text-petra-text">{p.name}</p>
                         {p.startDate && (
-                          <p className="text-xs text-petra-muted">התחיל: {formatDate(new Date(p.startDate))}</p>
+                          <p className="text-xs text-petra-muted">{t("petsDetailPage.training.started", { date: formatDate(new Date(p.startDate)) })}</p>
                         )}
                       </div>
                       <span className={cn("badge text-xs", cfg.className)}>{cfg.label}</span>
@@ -969,7 +999,7 @@ export default function PetProfilePage() {
           {pet.appointments.length === 0 && pet.boardingStays.length === 0 && pet.medications.length === 0 && (
             <div className="card p-10 text-center">
               <CheckCircle2 className="w-10 h-10 mx-auto mb-3 text-slate-300" />
-              <p className="text-petra-muted text-sm">אין היסטוריה עדיין לחיה זו</p>
+              <p className="text-petra-muted text-sm">{t("petsDetailPage.emptyHistory")}</p>
             </div>
           )}
         </div>

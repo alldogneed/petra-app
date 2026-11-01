@@ -2,6 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useRef } from "react";
+import { useTranslations } from "next-intl";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -11,7 +12,9 @@ import {
   Link2, Printer, Search, Upload, Users, Smartphone, Package,
   ClipboardList, Camera,
 } from "lucide-react";
-import { cn, formatDate } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { formatDate } from "@/lib/format";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import {
   RECIPIENT_STATUS_MAP, DISABILITY_TYPE_MAP,
   PLACEMENT_STATUS_MAP, SERVICE_DOG_PHASE_MAP, RECIPIENT_FUNDING_SOURCES, FUNDING_SOURCE_MAP,
@@ -94,42 +97,54 @@ interface RecipientDetail {
   placements: Placement[];
 }
 
+type RecipientT = ReturnType<typeof useTranslations<"serviceDogs.recipientsDetailPage">>;
+
 const MEETING_TYPES = [
-  { id: "ASSESSMENT", label: "הערכה ראשונית" },
-  { id: "INITIAL_TRAINING", label: "הדרכה ראשונית" },
-  { id: "RECIPIENT_TRAINING", label: "אימון עם זכאי" },
-  { id: "COMPATIBILITY_CHECK", label: "בדיקת התאמה" },
-  { id: "FOLLOW_UP", label: "מעקב" },
-  { id: "ANNUAL_REVIEW", label: "בדיקה שנתית" },
-  { id: "GROUP_TRAINING", label: "אימון קבוצתי" },
-  { id: "OTHER", label: "אחר" },
+  { id: "ASSESSMENT" },
+  { id: "INITIAL_TRAINING" },
+  { id: "RECIPIENT_TRAINING" },
+  { id: "COMPATIBILITY_CHECK" },
+  { id: "FOLLOW_UP" },
+  { id: "ANNUAL_REVIEW" },
+  { id: "GROUP_TRAINING" },
+  { id: "OTHER" },
 ];
-const MEETING_TYPE_MAP = Object.fromEntries(MEETING_TYPES.map((t) => [t.id, t.label]));
+
+/** Meeting type id → label (unknown ids are shown as stored). */
+function meetingTypeLabel(t: RecipientT, type: string): string {
+  return t.has(`meetingTypes.${type}`) ? t(`meetingTypes.${type}`) : type;
+}
 
 const MEETING_STATUSES = [
-  { id: "SCHEDULED", label: "מתוכנן", color: "bg-blue-100 text-blue-700" },
-  { id: "COMPLETED", label: "הושלם", color: "bg-emerald-100 text-emerald-700" },
-  { id: "CANCELLED", label: "בוטל", color: "bg-slate-100 text-slate-500" },
+  { id: "SCHEDULED", color: "bg-blue-100 text-blue-700" },
+  { id: "COMPLETED", color: "bg-emerald-100 text-emerald-700" },
+  { id: "CANCELLED", color: "bg-slate-100 text-slate-500" },
 ];
 const MEETING_STATUS_MAP = Object.fromEntries(MEETING_STATUSES.map((s) => [s.id, s]));
 
 const DOC_TYPES = [
-  { id: "INTAKE_DOCS", label: "מסמכי קבלה" },
-  { id: "HANDOVER_DOCS", label: "מסמכי מסירה" },
-  { id: "PHOTOS", label: "צילומים" },
-  { id: "CONTACT_NOTE", label: "סיכום שיחה" },
-  { id: "OTHER", label: "אחר" },
+  { id: "INTAKE_DOCS" },
+  { id: "HANDOVER_DOCS" },
+  { id: "PHOTOS" },
+  { id: "CONTACT_NOTE" },
+  { id: "OTHER" },
 ];
-const DOC_TYPE_MAP = Object.fromEntries(DOC_TYPES.map((d) => [d.id, d.label]));
 
+// `value` is stored as-is in the recipient's contactPersons JSON (data) — only the label is translated.
 const CONTACT_PERSON_ROLES = [
-  "קרוב משפחה",
-  "גורם מטפל",
-  'עו"ס',
-  "רופא",
-  "מטפל",
-  "אחר",
+  { value: "קרוב משפחה", key: "relative" }, // i18n-ok
+  { value: "גורם מטפל", key: "caregiver" }, // i18n-ok
+  { value: 'עו"ס', key: "socialWorker" }, // i18n-ok
+  { value: "רופא", key: "doctor" }, // i18n-ok
+  { value: "מטפל", key: "therapist" }, // i18n-ok
+  { value: "אחר", key: "other" }, // i18n-ok
 ];
+
+/** Stored contact role → label (free-text / unknown roles are shown as stored). */
+function contactRoleLabel(t: RecipientT, role: string): string {
+  const r = CONTACT_PERSON_ROLES.find((x) => x.value === role);
+  return r ? t(`contactRoles.${r.key}`) : role;
+}
 
 type Tab = "details" | "documents" | "meetings" | "guidelines";
 
@@ -148,6 +163,10 @@ function RecipientDetailPageContent() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
+  const t = useTranslations("serviceDogs.recipientsDetailPage");
+  const tc = useTranslations("common");
+  const { locale } = useBusinessLocale();
+  const fmtDate = (d: string) => formatDate(d, { locale });
   const [activeTab, setActiveTab] = useState<Tab>("details");
   const [showAddMeeting, setShowAddMeeting] = useState(false);
   const [editingMeeting, setEditingMeeting] = useState<Meeting | null>(null);
@@ -185,18 +204,18 @@ function RecipientDetailPageContent() {
         headers: { "x-confirm-action": `DELETE_RECIPIENT_${id}` },
       }).then(async (r) => {
         const data = await r.json();
-        if (r.status === 202) { toast.success("הבקשה נשלחה לאישור הבעלים"); return data; }
-        if (!r.ok) throw new Error(data.error || "שגיאה");
+        if (r.status === 202) { toast.success(t("toasts.deleteSentForApproval")); return data; }
+        if (!r.ok) throw new Error(data.error || t("toasts.error"));
         return data;
       }),
     onSuccess: (data) => {
       if (!data.pendingApproval) {
-        toast.success("הזכאי נמחק");
+        toast.success(t("toasts.deleted"));
         router.push("/service-dogs/recipients");
       }
       setShowDeleteConfirm(false);
     },
-    onError: (err: Error) => toast.error(err.message || "שגיאה במחיקה"),
+    onError: (err: Error) => toast.error(err.message || t("toasts.deleteError")),
   });
 
   const patchMutation = useMutation({
@@ -212,10 +231,10 @@ function RecipientDetailPageContent() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["service-recipient", id] });
       queryClient.invalidateQueries({ queryKey: ["service-recipients"] });
-      toast.success("פרטים עודכנו");
+      toast.success(t("toasts.updated"));
       setEditMode(false);
     },
-    onError: () => toast.error("שגיאה בעדכון"),
+    onError: () => toast.error(t("toasts.updateError")),
   });
 
   const saveMeeting = (meeting: Meeting) => {
@@ -231,21 +250,21 @@ function RecipientDetailPageContent() {
 
   const deleteMeeting = (meetingId: string) => {
     if (!recipient) return;
-    if (!confirm("למחוק את המפגש?")) return;
+    if (!confirm(t("confirms.deleteMeeting"))) return;
     const meetings = safeJsonArray<Meeting>(recipient.meetings).filter((m) => m.id !== meetingId);
     patchMutation.mutate({ meetings });
   };
 
   const deleteAttachment = (attId: string) => {
     if (!recipient) return;
-    if (!confirm("למחוק את המסמך?")) return;
+    if (!confirm(t("confirms.deleteDocument"))) return;
     const attachments = safeJsonArray<Attachment>(recipient.attachments).filter((a) => a.id !== attId);
     patchMutation.mutate({ attachments });
   };
 
   const renameAttachment = (attId: string, currentName: string) => {
     if (!recipient) return;
-    const next = window.prompt("שם המסמך:", currentName);
+    const next = window.prompt(t("confirms.documentNamePrompt"), currentName);
     if (next === null) return;
     const trimmed = next.trim();
     if (!trimmed || trimmed === currentName) return;
@@ -268,7 +287,7 @@ function RecipientDetailPageContent() {
 
   const deleteContactPerson = (cpId: string) => {
     if (!recipient) return;
-    if (!confirm("למחוק גורם קשר זה?")) return;
+    if (!confirm(t("confirms.deleteContactPerson"))) return;
     const contactPersons = safeJsonArray<ContactPerson>(recipient.contactPersons).filter((c) => c.id !== cpId);
     const attachments = safeJsonArray<Attachment>(recipient.attachments).filter((a) => a.contactPersonId !== cpId);
     patchMutation.mutate({ contactPersons, attachments });
@@ -282,8 +301,8 @@ function RecipientDetailPageContent() {
     return (
       <div className="card p-8 text-center">
         <AlertCircle className="w-10 h-10 text-red-400 mx-auto mb-3" />
-        <p className="text-petra-muted">זכאי לא נמצא</p>
-        <button onClick={() => router.back()} className="btn-secondary mt-4">חזרה</button>
+        <p className="text-petra-muted">{t("notFound.message")}</p>
+        <button onClick={() => router.back()} className="btn-secondary mt-4">{t("notFound.back")}</button>
       </div>
     );
   }
@@ -299,20 +318,20 @@ function RecipientDetailPageContent() {
   const handoverDocs = mainDocs.filter((a) => a.docType === "HANDOVER_DOCS");
 
   const tabs = [
-    { id: "details" as Tab, label: "פרטים", icon: UserCheck },
-    { id: "documents" as Tab, label: "מסמכים", icon: FileText, badge: mainDocs.length },
-    { id: "meetings" as Tab, label: "מפגשים", icon: Calendar, badge: meetingsArray.length },
-    { id: "guidelines" as Tab, label: "הנחיות", icon: ClipboardList },
+    { id: "details" as Tab, label: t("tabs.details"), icon: UserCheck },
+    { id: "documents" as Tab, label: t("tabs.documents"), icon: FileText, badge: mainDocs.length },
+    { id: "meetings" as Tab, label: t("tabs.meetings"), icon: Calendar, badge: meetingsArray.length },
+    { id: "guidelines" as Tab, label: t("tabs.guidelines"), icon: ClipboardList },
   ];
 
   return (
     <div className="animate-fade-in space-y-5">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-petra-muted">
-        <Link href="/service-dogs" className="hover:text-foreground">כלבי שירות</Link>
-        <ChevronLeft className="w-3.5 h-3.5" />
-        <Link href="/service-dogs/recipients" className="hover:text-foreground">זכאים</Link>
-        <ChevronLeft className="w-3.5 h-3.5" />
+        <Link href="/service-dogs" className="hover:text-foreground">{t("breadcrumb.serviceDogs")}</Link>
+        <ChevronLeft className="w-3.5 h-3.5 ltr:-scale-x-100" />
+        <Link href="/service-dogs/recipients" className="hover:text-foreground">{t("breadcrumb.recipients")}</Link>
+        <ChevronLeft className="w-3.5 h-3.5 ltr:-scale-x-100" />
         <span className="text-petra-text font-medium">{recipient.name}</span>
       </div>
 
@@ -365,7 +384,7 @@ function RecipientDetailPageContent() {
               >
                 <Dog className="w-4 h-4" />
                 <span>{activePlacement.serviceDog.pet.name}</span>
-                <ArrowRight className="w-3.5 h-3.5" />
+                <ArrowRight className="w-3.5 h-3.5 ltr:-scale-x-100" />
               </Link>
             )}
             {recipient.customer ? (
@@ -382,7 +401,7 @@ function RecipientDetailPageContent() {
                 className="btn-ghost flex items-center gap-1.5 text-sm"
               >
                 <Link2 className="w-4 h-4" />
-                קשר ללקוח
+                {t("header.linkCustomer")}
               </button>
             )}
             <button
@@ -390,21 +409,21 @@ function RecipientDetailPageContent() {
               className="btn-ghost flex items-center gap-1.5 text-sm"
             >
               <Printer className="w-4 h-4" />
-              דוח
+              {t("header.report")}
             </button>
             <button
               onClick={() => setEditMode(true)}
               className="btn-ghost flex items-center gap-1.5 text-sm"
             >
               <Pencil className="w-4 h-4" />
-              עריכה
+              {tc("actions.edit")}
             </button>
             <button
               onClick={() => setShowDeleteConfirm(true)}
               className="btn-ghost flex items-center gap-1.5 text-sm text-red-500 hover:bg-red-50"
             >
               <Trash2 className="w-4 h-4" />
-              מחק
+              {tc("actions.delete")}
             </button>
           </div>
         </div>
@@ -446,19 +465,19 @@ function RecipientDetailPageContent() {
             <div className="card p-5">
               <h3 className="font-semibold mb-4 flex items-center gap-2">
                 <UserCheck className="w-4 h-4 text-brand-500" />
-                פרטי קשר
+                {t("details.contactInfo")}
               </h3>
               <div className="space-y-2.5">
                 {[
-                  { label: "שם מלא", value: recipient.name },
-                  { label: "מקור מימון", value: recipient.fundingSource ? (FUNDING_SOURCE_MAP[recipient.fundingSource] || recipient.fundingSource) : null },
-                  { label: "טלפון", value: recipient.phone, href: recipient.phone ? `tel:${recipient.phone}` : undefined },
-                  { label: "נייד", value: recipient.mobile, href: recipient.mobile ? `tel:${recipient.mobile}` : undefined },
-                  { label: "אימייל", value: recipient.email, href: recipient.email ? `mailto:${recipient.email}` : undefined },
-                  { label: "תעודת זהות", value: recipient.idNumber },
-                  { label: "כתובת", value: recipient.address },
-                  { label: "אישור צילום", value: recipient.photoConsent ? "✓ יש הסכמה לצילום" : "אין הסכמה לצילום" },
-                  { label: "תאריך רשימת המתנה", value: recipient.waitlistDate ? formatDate(recipient.waitlistDate) : null },
+                  { label: t("fields.fullName"), value: recipient.name },
+                  { label: t("fields.fundingSource"), value: recipient.fundingSource ? (FUNDING_SOURCE_MAP[recipient.fundingSource] || recipient.fundingSource) : null },
+                  { label: t("fields.phone"), value: recipient.phone, href: recipient.phone ? `tel:${recipient.phone}` : undefined },
+                  { label: t("fields.mobile"), value: recipient.mobile, href: recipient.mobile ? `tel:${recipient.mobile}` : undefined },
+                  { label: t("fields.email"), value: recipient.email, href: recipient.email ? `mailto:${recipient.email}` : undefined },
+                  { label: t("fields.idNumber"), value: recipient.idNumber },
+                  { label: t("fields.address"), value: recipient.address },
+                  { label: t("fields.photoConsent"), value: recipient.photoConsent ? t("details.photoConsentYes") : t("details.photoConsentNo") },
+                  { label: t("fields.waitlistDate"), value: recipient.waitlistDate ? fmtDate(recipient.waitlistDate) : null },
                 ].filter((r) => r.value).map((row) => (
                   <div key={row.label} className="py-2 border-b last:border-0">
                     <p className="text-xs text-petra-muted mb-0.5">{row.label}</p>
@@ -479,19 +498,19 @@ function RecipientDetailPageContent() {
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold flex items-center gap-2">
                   <Users className="w-4 h-4 text-brand-500" />
-                  גורמי קשר ({contactPersonsArray.length})
+                  {t("contactPersons.title", { count: contactPersonsArray.length })}
                 </h3>
                 <button
                   onClick={() => { setEditingContact(null); setShowAddContact(true); }}
                   className="btn-ghost text-sm flex items-center gap-1.5"
                 >
                   <Plus className="w-4 h-4" />
-                  הוסף
+                  {tc("actions.add")}
                 </button>
               </div>
               <div className="space-y-3">
                 {contactPersonsArray.length === 0 ? (
-                  <p className="text-sm text-petra-muted text-center py-4">אין גורמי קשר עדיין</p>
+                  <p className="text-sm text-petra-muted text-center py-4">{t("contactPersons.empty")}</p>
                 ) : (
                   contactPersonsArray.map((cp) => {
                     const cpFiles = attachmentsArray.filter((a) => a.contactPersonId === cp.id);
@@ -500,7 +519,7 @@ function RecipientDetailPageContent() {
                         <div className="flex items-start justify-between gap-2">
                           <div>
                             <p className="font-medium text-sm">{cp.name}</p>
-                            <p className="text-xs text-petra-muted">{cp.role}</p>
+                            <p className="text-xs text-petra-muted">{contactRoleLabel(t, cp.role)}</p>
                             {cp.phone && (
                               <a href={`tel:${cp.phone}`} className="text-xs text-brand-500 hover:underline flex items-center gap-1 mt-0.5">
                                 <Phone className="w-3 h-3" />
@@ -532,7 +551,7 @@ function RecipientDetailPageContent() {
                                 <div className="flex items-center gap-2 min-w-0">
                                   <FileText className="w-3 h-3 text-petra-muted shrink-0" />
                                   <span className="truncate font-medium">{f.name}</span>
-                                  <span className="text-petra-muted shrink-0">{f.uploadedAt ? formatDate(f.uploadedAt) : ""}</span>
+                                  <span className="text-petra-muted shrink-0">{f.uploadedAt ? fmtDate(f.uploadedAt) : ""}</span>
                                 </div>
                                 <div className="flex items-center gap-0.5 shrink-0">
                                   {f.url && (
@@ -543,14 +562,14 @@ function RecipientDetailPageContent() {
                                   <button
                                     onClick={() => renameAttachment(f.id, f.name)}
                                     className="opacity-100 sm:opacity-0 sm:group-hover/file:opacity-100 w-6 h-6 rounded flex items-center justify-center hover:bg-slate-200 transition-all"
-                                    title="ערוך שם"
+                                    title={t("contactPersons.renameTitle")}
                                   >
                                     <Pencil className="w-3 h-3 text-slate-500" />
                                   </button>
                                   <button
                                     onClick={() => deleteAttachment(f.id)}
                                     className="opacity-100 sm:opacity-0 sm:group-hover/file:opacity-100 w-6 h-6 rounded flex items-center justify-center hover:bg-red-100 transition-all"
-                                    title="מחק"
+                                    title={tc("actions.delete")}
                                   >
                                     <Trash2 className="w-3 h-3 text-red-500" />
                                   </button>
@@ -565,7 +584,7 @@ function RecipientDetailPageContent() {
                           className="text-xs text-brand-500 hover:text-brand-600 flex items-center gap-1 transition-colors"
                         >
                           <Upload className="w-3 h-3" />
-                          העלה סיכום שיחה
+                          {t("contactPersons.uploadNote")}
                         </button>
                       </div>
                     );
@@ -579,11 +598,11 @@ function RecipientDetailPageContent() {
               <div className="card p-5">
                 <h3 className="font-semibold mb-3 flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 text-amber-500" />
-                  מידע על הלקות
+                  {t("details.disabilityInfo")}
                 </h3>
                 {recipient.disabilityType && (
                   <div className="py-2 border-b">
-                    <p className="text-xs text-petra-muted mb-0.5">סוג לקות</p>
+                    <p className="text-xs text-petra-muted mb-0.5">{t("fields.disabilityType")}</p>
                     <p className="text-sm font-medium">{DISABILITY_TYPE_MAP[recipient.disabilityType]}</p>
                   </div>
                 )}
@@ -596,7 +615,7 @@ function RecipientDetailPageContent() {
             {/* Notes */}
             {recipient.notes && (
               <div className="card p-5">
-                <h3 className="font-semibold mb-2 text-sm text-petra-muted">הערות</h3>
+                <h3 className="font-semibold mb-2 text-sm text-petra-muted">{t("fields.notes")}</h3>
                 <p className="text-sm text-petra-text whitespace-pre-wrap">{recipient.notes}</p>
               </div>
             )}
@@ -607,10 +626,10 @@ function RecipientDetailPageContent() {
             <div className="card p-5">
               <h3 className="font-semibold mb-4 flex items-center gap-2">
                 <Dog className="w-4 h-4 text-brand-500" />
-                שיבוצים ({recipient.placements?.length || 0})
+                {t("placements.title", { count: recipient.placements?.length || 0 })}
               </h3>
               {recipient.placements?.length === 0 ? (
-                <p className="text-sm text-petra-muted text-center py-4">אין שיבוצים עדיין</p>
+                <p className="text-sm text-petra-muted text-center py-4">{t("placements.empty")}</p>
               ) : (
                 <div className="space-y-3">
                   {recipient.placements?.map((p) => {
@@ -633,15 +652,15 @@ function RecipientDetailPageContent() {
                           {SERVICE_DOG_PHASE_MAP[p.serviceDog.phase]?.label}
                         </p>
                         {p.placementDate && (
-                          <p className="text-xs text-petra-muted">שיבוץ: {formatDate(p.placementDate)}</p>
+                          <p className="text-xs text-petra-muted">{t("placements.placedOn", { date: fmtDate(p.placementDate) })}</p>
                         )}
                         {p.certifiedAt && (
-                          <p className="text-xs text-petra-muted">הסמכה: {formatDate(p.certifiedAt)}</p>
+                          <p className="text-xs text-petra-muted">{t("placements.certifiedOn", { date: fmtDate(p.certifiedAt) })}</p>
                         )}
                         {p.nextCheckInAt && (
                           <p className="text-xs text-amber-600 flex items-center gap-1">
                             <Clock className="w-3 h-3" />
-                            בדיקה: {formatDate(p.nextCheckInAt)}
+                            {t("placements.checkInOn", { date: fmtDate(p.nextCheckInAt) })}
                           </p>
                         )}
                       </div>
@@ -654,8 +673,8 @@ function RecipientDetailPageContent() {
             {/* Certification date below placements */}
             {recipient.handoverDate && (
               <div className="card p-4 mt-3">
-                <p className="text-xs text-petra-muted mb-0.5">תאריך הסמכה</p>
-                <p className="text-sm font-semibold">{formatDate(recipient.handoverDate)}</p>
+                <p className="text-xs text-petra-muted mb-0.5">{t("fields.certificationDate")}</p>
+                <p className="text-sm font-semibold">{fmtDate(recipient.handoverDate)}</p>
               </div>
             )}
           </div>
@@ -668,14 +687,14 @@ function RecipientDetailPageContent() {
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold flex items-center gap-2">
               <FileText className="w-4 h-4 text-brand-500" />
-              מסמכים ({mainDocs.length})
+              {t("documents.title", { count: mainDocs.length })}
             </h3>
             <button
               onClick={() => { setAddDocDefaultType("OTHER"); setShowAddDoc(true); }}
               className="btn-primary flex items-center gap-1.5 text-sm"
             >
               <Upload className="w-4 h-4" />
-              העלה מסמך
+              {t("documents.upload")}
             </button>
           </div>
 
@@ -685,7 +704,7 @@ function RecipientDetailPageContent() {
             if (docs.length === 0) return null;
             return (
               <div key={dt.id} className="mb-5">
-                <p className="text-xs font-semibold text-petra-muted uppercase tracking-wide mb-2">{dt.label}</p>
+                <p className="text-xs font-semibold text-petra-muted uppercase tracking-wide mb-2">{t(`docTypes.${dt.id}`)}</p>
                 <div className="space-y-2">
                   {docs.map((att) => (
                     <div key={att.id} className="flex items-center justify-between p-3 rounded-xl border bg-slate-50/50 group">
@@ -697,7 +716,7 @@ function RecipientDetailPageContent() {
                           <p className="text-sm font-medium">{att.name}</p>
                           <p className="text-xs text-petra-muted">
                             {att.fileName && `${att.fileName} · `}
-                            {att.uploadedAt && formatDate(att.uploadedAt)}
+                            {att.uploadedAt && fmtDate(att.uploadedAt)}
                           </p>
                         </div>
                       </div>
@@ -708,7 +727,7 @@ function RecipientDetailPageContent() {
                             target="_blank"
                             rel="noreferrer"
                             className="w-8 h-8 rounded flex items-center justify-center hover:bg-brand-50 transition-colors"
-                            title="פתח מסמך"
+                            title={t("documents.openTitle")}
                           >
                             <ExternalLink className="w-4 h-4 text-brand-500" />
                           </a>
@@ -716,14 +735,14 @@ function RecipientDetailPageContent() {
                         <button
                           onClick={() => renameAttachment(att.id, att.name)}
                           className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 w-8 h-8 rounded flex items-center justify-center hover:bg-slate-200 transition-all"
-                          title="ערוך שם"
+                          title={t("contactPersons.renameTitle")}
                         >
                           <Pencil className="w-4 h-4 text-slate-500" />
                         </button>
                         <button
                           onClick={() => deleteAttachment(att.id)}
                           className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 w-8 h-8 rounded flex items-center justify-center hover:bg-red-100 transition-all"
-                          title="מחק"
+                          title={tc("actions.delete")}
                         >
                           <Trash2 className="w-4 h-4 text-red-500" />
                         </button>
@@ -739,7 +758,7 @@ function RecipientDetailPageContent() {
           {mainDocs.length === 0 && (
             <div className="text-center py-8">
               <FileText className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-              <p className="text-sm text-petra-muted">אין מסמכים עדיין</p>
+              <p className="text-sm text-petra-muted">{t("documents.empty")}</p>
             </div>
           )}
         </div>
@@ -760,7 +779,7 @@ function RecipientDetailPageContent() {
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold flex items-center gap-2">
               <Calendar className="w-4 h-4 text-brand-500" />
-              מפגשים ותיאומים ({meetingsArray.length})
+              {t("meetings.title", { count: meetingsArray.length })}
             </h3>
           </div>
           <div className="space-y-3">
@@ -772,11 +791,11 @@ function RecipientDetailPageContent() {
                     <div className="space-y-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-sm font-semibold">
-                          {MEETING_TYPE_MAP[meeting.type] || meeting.type}
+                          {meetingTypeLabel(t, meeting.type)}
                         </span>
                         {ms && (
                           <span className={cn("text-xs px-2 py-0.5 rounded-full", ms.color)}>
-                            {ms.label}
+                            {t(`meetingStatuses.${ms.id}`)}
                           </span>
                         )}
                       </div>
@@ -784,7 +803,7 @@ function RecipientDetailPageContent() {
                         {meeting.date && (
                           <span className="flex items-center gap-1">
                             <Calendar className="w-3 h-3" />
-                            {formatDate(meeting.date)}
+                            {fmtDate(meeting.date)}
                           </span>
                         )}
                         {meeting.trainerName && (
@@ -796,7 +815,7 @@ function RecipientDetailPageContent() {
                         {meeting.duration && (
                           <span className="flex items-center gap-1">
                             <Clock className="w-3 h-3" />
-                            {meeting.duration} דקות
+                            {t("meetings.minutes", { count: meeting.duration })}
                           </span>
                         )}
                       </div>
@@ -808,21 +827,21 @@ function RecipientDetailPageContent() {
                       <button
                         onClick={() => setCopyingMeeting(meeting)}
                         className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 w-7 h-7 rounded flex items-center justify-center hover:bg-indigo-50 transition-all"
-                        title="העתק מפגש לזכאי אחר"
+                        title={t("meetings.copyTitle")}
                       >
                         <Copy className="w-3.5 h-3.5 text-indigo-500" />
                       </button>
                       <button
                         onClick={() => setEditingMeeting(meeting)}
                         className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 w-7 h-7 rounded flex items-center justify-center hover:bg-brand-50 transition-all"
-                        title="ערוך"
+                        title={t("meetings.editTitle")}
                       >
                         <Pencil className="w-3.5 h-3.5 text-brand-500" />
                       </button>
                       <button
                         onClick={() => deleteMeeting(meeting.id)}
                         className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 w-7 h-7 rounded flex items-center justify-center hover:bg-red-100 transition-all"
-                        title="מחק"
+                        title={tc("actions.delete")}
                       >
                         <Trash2 className="w-3.5 h-3.5 text-red-500" />
                       </button>
@@ -835,7 +854,7 @@ function RecipientDetailPageContent() {
               onClick={() => setShowAddMeeting(true)}
               className="w-full text-sm text-brand-500 hover:text-brand-600 py-2.5 border border-dashed border-brand-200 hover:border-brand-300 rounded-xl transition-colors"
             >
-              + הוסף מפגש
+              {t("meetings.add")}
             </button>
           </div>
         </div>
@@ -878,7 +897,7 @@ function RecipientDetailPageContent() {
           onSuccess={() => {
             queryClient.invalidateQueries({ queryKey: ["service-recipient", id] });
             setShowAddDoc(false);
-            toast.success("מסמך הועלה בהצלחה");
+            toast.success(t("toasts.docUploaded"));
           }}
           onClose={() => setShowAddDoc(false)}
         />
@@ -902,7 +921,7 @@ function RecipientDetailPageContent() {
           onSuccess={() => {
             queryClient.invalidateQueries({ queryKey: ["service-recipient", id] });
             setUploadingForContact(null);
-            toast.success("קובץ הועלה בהצלחה");
+            toast.success(t("toasts.fileUploaded"));
           }}
           onClose={() => setUploadingForContact(null)}
         />
@@ -937,21 +956,24 @@ function RecipientDetailPageContent() {
                 <Trash2 className="w-5 h-5 text-red-600" />
               </div>
               <div>
-                <h3 className="font-semibold text-petra-text">מחיקת זכאי</h3>
+                <h3 className="font-semibold text-petra-text">{t("deleteDialog.title")}</h3>
                 <p className="text-sm text-petra-muted mt-1">
-                  בטוח שברצונך למחוק את <span className="font-medium text-petra-text">{recipient.name}</span>?
-                  <br />פעולה זו אינה ניתנת לביטול.
+                  {t.rich("deleteDialog.confirm", {
+                    name: recipient.name,
+                    b: (c) => <span className="font-medium text-petra-text">{c}</span>,
+                  })}
+                  <br />{t("deleteDialog.irreversible")}
                 </p>
               </div>
             </div>
             <div className="flex gap-2 justify-end">
-              <button className="btn-secondary" onClick={() => setShowDeleteConfirm(false)}>ביטול</button>
+              <button className="btn-secondary" onClick={() => setShowDeleteConfirm(false)}>{tc("actions.cancel")}</button>
               <button
                 className="btn-primary bg-red-600 hover:bg-red-700 border-red-600"
                 onClick={() => deleteRecipientMutation.mutate()}
                 disabled={deleteRecipientMutation.isPending}
               >
-                {deleteRecipientMutation.isPending ? "מוחק..." : "מחק"}
+                {deleteRecipientMutation.isPending ? tc("progress.deleting") : tc("actions.delete")}
               </button>
             </div>
           </div>
@@ -962,11 +984,12 @@ function RecipientDetailPageContent() {
 }
 
 export default function RecipientDetailPage() {
+  const t = useTranslations("serviceDogs.recipientsDetailPage");
   return (
     <TierGate
       feature="service_dogs"
-      title="מודול כלבי שירות"
-      description="ניהול כלבי שירות, זכאים, שיבוצים ותעודות הסמכה — זמין במנוי Service Dog בלבד."
+      title={t("tierGate.title")}
+      description={t("tierGate.description")}
       upgradeTier="service_dog"
     >
       <RecipientDetailPageContent />
@@ -985,13 +1008,15 @@ function CrisisInstructionsCard({
   isSaving: boolean;
   onSave: (text: string | null) => void;
 }) {
+  const t = useTranslations("serviceDogs.recipientsDetailPage");
+  const tc = useTranslations("common");
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(value ?? "");
 
   const startEdit = () => { setDraft(value ?? ""); setOpen(true); };
   const save = () => { onSave(draft.trim() || null); setOpen(false); };
   const remove = () => {
-    if (!confirm("למחוק את ההנחיות בזמן התקף?")) return;
+    if (!confirm(t("confirms.deleteCrisisInstructions"))) return;
     onSave(null);
     setOpen(false);
   };
@@ -1001,47 +1026,47 @@ function CrisisInstructionsCard({
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-semibold flex items-center gap-2">
           <ClipboardList className="w-4 h-4 text-brand-500" />
-          הנחיות
+          {t("crisis.title")}
         </h3>
       </div>
 
       {!open && (
         <button
           onClick={startEdit}
-          className="w-full text-right p-4 rounded-xl border-2 border-dashed border-orange-200 bg-orange-50/40 hover:border-orange-400 transition-colors"
+          className="w-full text-start p-4 rounded-xl border-2 border-dashed border-orange-200 bg-orange-50/40 hover:border-orange-400 transition-colors"
         >
           <p className="font-semibold text-sm flex items-center gap-2 text-orange-700">
             <AlertCircle className="w-4 h-4" />
-            הנחיות בזמן התקף
+            {t("crisis.heading")}
           </p>
           {value ? (
             <p className="text-sm text-petra-text mt-2 whitespace-pre-wrap">{value}</p>
           ) : (
-            <p className="text-xs text-petra-muted mt-1">לחץ כדי להוסיף — למשל: לגשת מקדימה, להחזיק שתי ידיים בחוזקה, לתת מים</p>
+            <p className="text-xs text-petra-muted mt-1">{t("crisis.hint")}</p>
           )}
         </button>
       )}
 
       {open && (
         <div className="space-y-3">
-          <label className="label text-xs">הנחיות בזמן התקף</label>
+          <label className="label text-xs">{t("crisis.heading")}</label>
           <textarea
             className="input w-full"
             rows={6}
             maxLength={5000}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            placeholder="לדוגמה: לגשת מקדימה, להחזיק שתי ידיים בחוזקה, לתת מים"
+            placeholder={t("crisis.placeholder")}
             autoFocus
           />
           <div className="flex gap-2">
             <button className="btn-primary text-sm" onClick={save} disabled={isSaving}>
-              {isSaving ? "שומר..." : "שמור"}
+              {isSaving ? tc("progress.saving") : tc("actions.save")}
             </button>
-            <button className="btn-secondary text-sm" onClick={() => setOpen(false)}>ביטול</button>
+            <button className="btn-secondary text-sm" onClick={() => setOpen(false)}>{tc("actions.cancel")}</button>
             {value && (
-              <button className="text-sm text-red-600 hover:bg-red-50 px-3 rounded-lg mr-auto flex items-center gap-1" onClick={remove} disabled={isSaving}>
-                <Trash2 className="w-3.5 h-3.5" /> מחק
+              <button className="text-sm text-red-600 hover:bg-red-50 px-3 rounded-lg ms-auto flex items-center gap-1" onClick={remove} disabled={isSaving}>
+                <Trash2 className="w-3.5 h-3.5" /> {tc("actions.delete")}
               </button>
             )}
           </div>
@@ -1060,6 +1085,9 @@ function EditRecipientModal({
   onClose: () => void;
   isSaving: boolean;
 }) {
+  const t = useTranslations("serviceDogs.recipientsDetailPage");
+  const tc = useTranslations("common");
+  const { cfg } = useBusinessLocale();
   const [name, setName] = useState(recipient.name);
   const [phone, setPhone] = useState(recipient.phone || "");
   const [mobile, setMobile] = useState(recipient.mobile || "");
@@ -1077,10 +1105,10 @@ function EditRecipientModal({
   const [photoConsent, setPhotoConsent] = useState(!!recipient.photoConsent);
 
   const DISABILITY_TYPES_LIST = [
-    { id: "PTSD", label: "PTSD" }, { id: "VISUAL", label: "לקות ראייה" },
-    { id: "HEARING", label: "לקות שמיעה" }, { id: "MOBILITY", label: "לקות תנועה" },
-    { id: "AUTISM", label: "אוטיזם" }, { id: "DIABETES", label: "סוכרת" },
-    { id: "EPILEPSY", label: "אפילפסיה" }, { id: "OTHER", label: "אחר" },
+    { id: "PTSD" }, { id: "VISUAL" },
+    { id: "HEARING" }, { id: "MOBILITY" },
+    { id: "AUTISM" }, { id: "DIABETES" },
+    { id: "EPILEPSY" }, { id: "OTHER" },
   ];
 
   return (
@@ -1090,40 +1118,40 @@ function EditRecipientModal({
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold flex items-center gap-2">
             <UserCheck className="w-5 h-5 text-brand-500" />
-            עריכת פרטי זכאי
+            {t("editModal.title")}
           </h2>
           <button onClick={onClose} className="btn-ghost p-1"><X className="w-5 h-5" /></button>
         </div>
         <div className="space-y-3 max-h-[70vh] overflow-y-auto">
           <div className="grid grid-cols-2 gap-3">
             <div className="col-span-2">
-              <label className="label text-xs">שם מלא *</label>
-              <input className="input w-full" value={name} onChange={(e) => setName(e.target.value)} placeholder="שם פרטי ושם משפחה" />
+              <label className="label text-xs">{t("editModal.fullNameRequired")}</label>
+              <input className="input w-full" value={name} onChange={(e) => setName(e.target.value)} placeholder={t("editModal.fullNamePlaceholder")} />
             </div>
             <div>
-              <label className="label text-xs">נייד</label>
+              <label className="label text-xs">{t("fields.mobile")}</label>
               <input type="tel" dir="ltr" className="input w-full text-right" value={mobile} onChange={(e) => setMobile(e.target.value)} />
             </div>
             <div>
-              <label className="label text-xs">מייל</label>
+              <label className="label text-xs">{t("editModal.email")}</label>
               <input type="email" dir="ltr" className="input w-full text-right" value={email} onChange={(e) => setEmail(e.target.value)} />
             </div>
             <div>
-              <label className="label text-xs">טלפון</label>
+              <label className="label text-xs">{t("fields.phone")}</label>
               <input type="tel" dir="ltr" className="input w-full text-right" value={phone} onChange={(e) => setPhone(e.target.value)} />
             </div>
             <div>
-              <label className="label text-xs">ת.ז.</label>
+              <label className="label text-xs">{t("editModal.idNumber")}</label>
               <input className="input w-full" value={idNumber} onChange={(e) => setIdNumber(e.target.value)} />
             </div>
             <div>
-              <label className="label text-xs">שלב/סטטוס</label>
+              <label className="label text-xs">{t("editModal.stageStatus")}</label>
               <select className="input w-full text-sm" value={status} onChange={(e) => setStatus(e.target.value)}>
                 {stages.map((s) => <option key={s.key} value={s.key}>{s.name}</option>)}
               </select>
             </div>
             <div className="col-span-2">
-              <label className="label text-xs">כתובת</label>
+              <label className="label text-xs">{t("fields.address")}</label>
               <input className="input w-full" value={address} onChange={(e) => setAddress(e.target.value)} />
             </div>
             <label className="col-span-2 flex items-center gap-2 cursor-pointer select-none py-1">
@@ -1134,33 +1162,33 @@ function EditRecipientModal({
                 onChange={(e) => setPhotoConsent(e.target.checked)}
               />
               <Camera className="w-4 h-4 text-petra-muted" />
-              <span className="text-sm">אישור צילום — הזכאי מסכים להצטלם</span>
+              <span className="text-sm">{t("editModal.photoConsent")}</span>
             </label>
             <div>
-              <label className="label text-xs">סוג מוגבלות</label>
+              <label className="label text-xs">{t("editModal.disabilityType")}</label>
               <select className="input w-full text-sm" value={disabilityType} onChange={(e) => setDisabilityType(e.target.value)}>
-                <option value="">בחר...</option>
-                {DISABILITY_TYPES_LIST.map((d) => <option key={d.id} value={d.id}>{d.label}</option>)}
+                <option value="">{t("editModal.choose")}</option>
+                {DISABILITY_TYPES_LIST.map((d) => <option key={d.id} value={d.id}>{t(`disabilityTypes.${d.id}`)}</option>)}
               </select>
             </div>
             <div>
-              <label className="label text-xs">מקור מימון</label>
+              <label className="label text-xs">{t("fields.fundingSource")}</label>
               <select className="input w-full text-sm" value={fundingSource} onChange={(e) => setFundingSource(e.target.value)}>
-                <option value="">בחר...</option>
+                <option value="">{t("editModal.choose")}</option>
                 {RECIPIENT_FUNDING_SOURCES.map((f) => <option key={f.id} value={f.id}>{f.label}</option>)}
               </select>
             </div>
             <div className="col-span-2">
-              <label className="label text-xs">הערות מוגבלות</label>
+              <label className="label text-xs">{t("editModal.disabilityNotes")}</label>
               <input className="input w-full" value={disabilityNotes} onChange={(e) => setDisabilityNotes(e.target.value)} />
             </div>
             <div className="col-span-2">
-              <label className="label text-xs">הערות</label>
+              <label className="label text-xs">{t("fields.notes")}</label>
               <textarea className="input w-full" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
             </div>
             <div>
-              <label className="label text-xs">תאריך הסמכה</label>
-              <input type="date" lang="he" className="input w-full" value={handoverDate} onChange={(e) => setHandoverDate(e.target.value)} />
+              <label className="label text-xs">{t("fields.certificationDate")}</label>
+              <input type="date" lang={cfg.lang} className="input w-full" value={handoverDate} onChange={(e) => setHandoverDate(e.target.value)} />
             </div>
           </div>
         </div>
@@ -1170,9 +1198,9 @@ function EditRecipientModal({
             onClick={() => onSave({ name, phone, mobile, email, idNumber, address, disabilityType, disabilityNotes, fundingSource, notes, status, handoverDate: handoverDate || null, photoConsent })}
             disabled={!name.trim() || isSaving}
           >
-            {isSaving ? "שומר..." : "שמור שינויים"}
+            {isSaving ? tc("progress.saving") : t("editModal.saveChanges")}
           </button>
-          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+          <button className="btn-secondary" onClick={onClose}>{tc("actions.cancel")}</button>
         </div>
       </div>
     </div>
@@ -1190,6 +1218,8 @@ function UploadDocModal({
   onSuccess: () => void;
   onClose: () => void;
 }) {
+  const t = useTranslations("serviceDogs.recipientsDetailPage");
+  const tc = useTranslations("common");
   const [name, setName] = useState("");
   const [docType, setDocType] = useState(defaultDocType || "OTHER");
   const [file, setFile] = useState<File | null>(null);
@@ -1208,17 +1238,17 @@ function UploadDocModal({
       const res = await fetch(`/api/service-recipients/${recipientId}/documents`, { method: "POST", body: fd });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "שגיאה בהעלאה");
+        throw new Error(err.error || t("uploadModal.uploadError"));
       }
       onSuccess();
     } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "שגיאה בהעלאת הקובץ");
+      toast.error(e instanceof Error ? e.message : t("uploadModal.uploadFileError"));
     } finally {
       setUploading(false);
     }
   };
 
-  const title = contactPersonId ? "העלאת סיכום שיחה" : "העלאת מסמך";
+  const title = contactPersonId ? t("uploadModal.titleNote") : t("uploadModal.titleDoc");
   const visibleTypes = contactPersonId
     ? DOC_TYPES.filter((d) => d.id === "CONTACT_NOTE" || d.id === "OTHER")
     : DOC_TYPES.filter((d) => d.id !== "CONTACT_NOTE");
@@ -1233,21 +1263,21 @@ function UploadDocModal({
         </div>
         <div className="space-y-3">
           <div>
-            <label className="label">שם המסמך *</label>
-            <input value={name} onChange={(e) => setName(e.target.value)} className="input w-full" placeholder="לדוג׳ אישור רפואי 2025" />
+            <label className="label">{t("uploadModal.nameLabel")}</label>
+            <input value={name} onChange={(e) => setName(e.target.value)} className="input w-full" placeholder={t("uploadModal.namePlaceholder")} />
           </div>
           {!contactPersonId && (
             <div>
-              <label className="label">סוג מסמך</label>
+              <label className="label">{t("uploadModal.typeLabel")}</label>
               <select value={docType} onChange={(e) => setDocType(e.target.value)} className="input w-full">
                 {visibleTypes.map((d) => (
-                  <option key={d.id} value={d.id}>{d.label}</option>
+                  <option key={d.id} value={d.id}>{t(`docTypes.${d.id}`)}</option>
                 ))}
               </select>
             </div>
           )}
           <div>
-            <label className="label">קובץ *</label>
+            <label className="label">{t("uploadModal.fileLabel")}</label>
             <div
               onClick={() => fileRef.current?.click()}
               className={cn(
@@ -1265,8 +1295,8 @@ function UploadDocModal({
               ) : (
                 <div className="space-y-1">
                   <Upload className="w-6 h-6 text-petra-muted mx-auto" />
-                  <p className="text-sm text-petra-muted">לחץ לבחירת קובץ</p>
-                  <p className="text-xs text-petra-muted">עד 10MB</p>
+                  <p className="text-sm text-petra-muted">{t("uploadModal.clickToChoose")}</p>
+                  <p className="text-xs text-petra-muted">{t("uploadModal.maxSize")}</p>
                 </div>
               )}
             </div>
@@ -1280,16 +1310,16 @@ function UploadDocModal({
               {uploading ? (
                 <>
                   <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  מעלה...
+                  {t("uploadModal.uploading")}
                 </>
               ) : (
                 <>
                   <Upload className="w-4 h-4" />
-                  העלה
+                  {t("uploadModal.upload")}
                 </>
               )}
             </button>
-            <button onClick={onClose} className="btn-secondary flex-1">ביטול</button>
+            <button onClick={onClose} className="btn-secondary flex-1">{tc("actions.cancel")}</button>
           </div>
         </div>
       </div>
@@ -1306,8 +1336,10 @@ function ContactPersonModal({
   onSave: (cp: ContactPerson) => void;
   onClose: () => void;
 }) {
+  const t = useTranslations("serviceDogs.recipientsDetailPage");
+  const tc = useTranslations("common");
   const [name, setName] = useState(person?.name || "");
-  const [role, setRole] = useState(person?.role || CONTACT_PERSON_ROLES[0]);
+  const [role, setRole] = useState(person?.role || CONTACT_PERSON_ROLES[0].value);
   const [phone, setPhone] = useState(person?.phone || "");
 
   return (
@@ -1315,24 +1347,24 @@ function ContactPersonModal({
       <div className="modal-backdrop" />
       <div className="modal-content max-w-sm mx-4 p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-bold">{person ? "עריכת גורם קשר" : "הוספת גורם קשר"}</h2>
+          <h2 className="text-lg font-bold">{person ? t("contactModal.editTitle") : t("contactModal.addTitle")}</h2>
           <button onClick={onClose} className="btn-ghost p-1"><X className="w-5 h-5" /></button>
         </div>
         <div className="space-y-3">
           <div>
-            <label className="label">שם *</label>
-            <input value={name} onChange={(e) => setName(e.target.value)} className="input w-full" placeholder="שם מלא" />
+            <label className="label">{t("contactModal.nameLabel")}</label>
+            <input value={name} onChange={(e) => setName(e.target.value)} className="input w-full" placeholder={t("contactModal.namePlaceholder")} />
           </div>
           <div>
-            <label className="label">תפקיד / קשר</label>
+            <label className="label">{t("contactModal.roleLabel")}</label>
             <select value={role} onChange={(e) => setRole(e.target.value)} className="input w-full">
               {CONTACT_PERSON_ROLES.map((r) => (
-                <option key={r} value={r}>{r}</option>
+                <option key={r.value} value={r.value}>{t(`contactRoles.${r.key}`)}</option>
               ))}
             </select>
           </div>
           <div>
-            <label className="label">טלפון</label>
+            <label className="label">{t("fields.phone")}</label>
             <input type="tel" dir="ltr" value={phone} onChange={(e) => setPhone(e.target.value)} className="input w-full text-right" placeholder="05X-XXXXXXX" />
           </div>
           <div className="flex gap-2 pt-2">
@@ -1341,9 +1373,9 @@ function ContactPersonModal({
               disabled={!name.trim()}
               className="btn-primary flex-1"
             >
-              {person ? "שמור" : "הוסף"}
+              {person ? tc("actions.save") : tc("actions.add")}
             </button>
-            <button onClick={onClose} className="btn-secondary flex-1">ביטול</button>
+            <button onClick={onClose} className="btn-secondary flex-1">{tc("actions.cancel")}</button>
           </div>
         </div>
       </div>
@@ -1361,6 +1393,9 @@ function CopyMeetingToRecipientModal({
   onClose: () => void;
   onDone: () => void;
 }) {
+  const t = useTranslations("serviceDogs.recipientsDetailPage");
+  const tc = useTranslations("common");
+  const { locale } = useBusinessLocale();
   const [targetId, setTargetId] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -1390,13 +1425,13 @@ function CopyMeetingToRecipientModal({
         body: JSON.stringify({ meetings: [copy, ...existing] }),
       });
       if (res.ok) {
-        toast.success("המפגש הועתק לזכאי הנבחר");
+        toast.success(t("copyModal.success"));
         onDone();
       } else {
-        toast.error("שגיאה בהעתקת המפגש");
+        toast.error(t("copyModal.error"));
       }
     } catch {
-      toast.error("שגיאה בהעתקת המפגש");
+      toast.error(t("copyModal.error"));
     } finally {
       setSaving(false);
     }
@@ -1407,18 +1442,20 @@ function CopyMeetingToRecipientModal({
       <div className="modal-backdrop" onClick={onClose} />
       <div className="modal-content max-w-sm mx-4 p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-petra-text">העתק מפגש לזכאי אחר</h3>
+          <h3 className="text-lg font-bold text-petra-text">{t("meetings.copyTitle")}</h3>
           <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
             <X className="w-4 h-4" />
           </button>
         </div>
         <p className="text-xs text-petra-muted mb-3">
-          {MEETING_TYPE_MAP[meeting.type] || meeting.type}
-          {meeting.date ? ` · ${formatDate(meeting.date)}` : ""} יועתק לזכאי שתבחר/י.
+          {t("copyModal.description", {
+            meeting: meetingTypeLabel(t, meeting.type),
+            date: meeting.date ? ` · ${formatDate(meeting.date, { locale })}` : "",
+          })}
         </p>
-        <label className="label">בחר/י זכאי יעד</label>
+        <label className="label">{t("copyModal.targetLabel")}</label>
         <select className="input mb-4" value={targetId} onChange={(e) => setTargetId(e.target.value)}>
-          <option value="">— בחר/י זכאי —</option>
+          <option value="">{t("copyModal.targetPlaceholder")}</option>
           {others.map((r) => (
             <option key={r.id} value={r.id}>{r.name}</option>
           ))}
@@ -1426,9 +1463,9 @@ function CopyMeetingToRecipientModal({
         <div className="flex gap-2">
           <button className="btn-primary flex-1" disabled={!targetId || saving} onClick={handleCopy}>
             <Copy className="w-4 h-4" />
-            {saving ? "מעתיק..." : "העתק מפגש"}
+            {saving ? t("copyModal.copying") : t("copyModal.copy")}
           </button>
-          <button className="btn-secondary" onClick={onClose}>ביטול</button>
+          <button className="btn-secondary" onClick={onClose}>{tc("actions.cancel")}</button>
         </div>
       </div>
     </div>
@@ -1444,6 +1481,9 @@ function MeetingModal({
   onSave: (m: Meeting) => void;
   onClose: () => void;
 }) {
+  const t = useTranslations("serviceDogs.recipientsDetailPage");
+  const tc = useTranslations("common");
+  const { cfg } = useBusinessLocale();
   const [type, setType] = useState(meeting?.type || "FOLLOW_UP");
   const [date, setDate] = useState(meeting?.date ? meeting.date.split("T")[0] : new Date().toISOString().split("T")[0]);
   const [trainerName, setTrainerName] = useState(meeting?.trainerName || "");
@@ -1468,51 +1508,51 @@ function MeetingModal({
       <div className="modal-backdrop" />
       <div className="modal-content max-w-md mx-4 p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-bold">{meeting ? "עריכת מפגש" : "הוספת מפגש"}</h2>
+          <h2 className="text-lg font-bold">{meeting ? t("meetingModal.editTitle") : t("meetingModal.addTitle")}</h2>
           <button onClick={onClose} className="btn-ghost p-1"><X className="w-5 h-5" /></button>
         </div>
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">סוג מפגש</label>
+              <label className="label">{t("meetingModal.type")}</label>
               <select value={type} onChange={(e) => setType(e.target.value)} className="input w-full">
-                {MEETING_TYPES.map((t) => (
-                  <option key={t.id} value={t.id}>{t.label}</option>
+                {MEETING_TYPES.map((mt) => (
+                  <option key={mt.id} value={mt.id}>{t(`meetingTypes.${mt.id}`)}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="label">סטטוס</label>
+              <label className="label">{t("fields.status")}</label>
               <select value={status} onChange={(e) => setStatus(e.target.value)} className="input w-full">
                 {MEETING_STATUSES.map((s) => (
-                  <option key={s.id} value={s.id}>{s.label}</option>
+                  <option key={s.id} value={s.id}>{t(`meetingStatuses.${s.id}`)}</option>
                 ))}
               </select>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">תאריך</label>
-              <input type="date" lang="he" value={date} onChange={(e) => setDate(e.target.value)} className="input w-full" />
+              <label className="label">{t("meetingModal.date")}</label>
+              <input type="date" lang={cfg.lang} value={date} onChange={(e) => setDate(e.target.value)} className="input w-full" />
             </div>
             <div>
-              <label className="label">משך (דקות)</label>
+              <label className="label">{t("meetingModal.duration")}</label>
               <input type="number" value={duration} onChange={(e) => setDuration(e.target.value)} className="input w-full" placeholder="60" />
             </div>
           </div>
           <div>
-            <label className="label">שם המאמן</label>
-            <input value={trainerName} onChange={(e) => setTrainerName(e.target.value)} className="input w-full" placeholder="שם מאמן כלבי השירות" />
+            <label className="label">{t("meetingModal.trainer")}</label>
+            <input value={trainerName} onChange={(e) => setTrainerName(e.target.value)} className="input w-full" placeholder={t("meetingModal.trainerPlaceholder")} />
           </div>
           <div>
-            <label className="label">הערות</label>
-            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="input w-full" rows={3} placeholder="סיכום המפגש, תוצאות, משימות המשך..." />
+            <label className="label">{t("fields.notes")}</label>
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="input w-full" rows={3} placeholder={t("meetingModal.notesPlaceholder")} />
           </div>
           <div className="flex gap-2 pt-2">
             <button onClick={handleSave} className="btn-primary flex-1">
-              {meeting ? "שמור" : "הוסף מפגש"}
+              {meeting ? tc("actions.save") : t("meetingModal.addMeeting")}
             </button>
-            <button onClick={onClose} className="btn-secondary flex-1">ביטול</button>
+            <button onClick={onClose} className="btn-secondary flex-1">{tc("actions.cancel")}</button>
           </div>
         </div>
       </div>
@@ -1528,6 +1568,8 @@ function LinkCustomerModal({
   onLink: (customerId: string) => void;
   onClose: () => void;
 }) {
+  const t = useTranslations("serviceDogs.recipientsDetailPage");
+  const tc = useTranslations("common");
   const [search, setSearch] = useState("");
   const { data: customers = [], isLoading } = useQuery<{ id: string; name: string; phone: string | null; email: string | null }[]>({
     queryKey: ["customers-search", search],
@@ -1542,34 +1584,34 @@ function LinkCustomerModal({
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold flex items-center gap-2">
             <Link2 className="w-5 h-5 text-brand-500" />
-            קישור ללקוח במערכת
+            {t("linkModal.title")}
           </h2>
           <button onClick={onClose} className="btn-ghost p-1"><X className="w-5 h-5" /></button>
         </div>
         <p className="text-sm text-petra-muted mb-4">
-          חיפוש לקוח קיים במערכת וקישורו לתיק הזכאי. הלקוח יופיע בפרופיל ותוכל לנווט בין שני הפרופילים.
+          {t("linkModal.description")}
         </p>
         <div className="relative mb-4">
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted" />
+          <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-petra-muted" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="input pr-10 w-full"
-            placeholder="חיפוש לפי שם או טלפון..."
+            className="input ps-10 w-full"
+            placeholder={t("linkModal.searchPlaceholder")}
             autoFocus
           />
         </div>
         <div className="space-y-2 max-h-72 overflow-y-auto">
-          {isLoading && <p className="text-sm text-petra-muted text-center py-4">מחפש...</p>}
+          {isLoading && <p className="text-sm text-petra-muted text-center py-4">{t("linkModal.searching")}</p>}
           {!isLoading && search.length >= 1 && customers.length === 0 && (
-            <p className="text-sm text-petra-muted text-center py-4">לא נמצאו לקוחות</p>
+            <p className="text-sm text-petra-muted text-center py-4">{t("linkModal.noResults")}</p>
           )}
           {customers.map((c) => (
             <button
               key={c.id}
               onClick={() => onLink(c.id)}
-              className="w-full flex items-center gap-3 p-3 rounded-xl border hover:bg-brand-50 hover:border-brand-200 transition-colors text-right"
+              className="w-full flex items-center gap-3 p-3 rounded-xl border hover:bg-brand-50 hover:border-brand-200 transition-colors text-start"
             >
               <div className="w-9 h-9 rounded-full bg-brand-50 border border-brand-100 flex items-center justify-center shrink-0">
                 <UserCheck className="w-4 h-4 text-brand-500" />
@@ -1583,7 +1625,7 @@ function LinkCustomerModal({
             </button>
           ))}
         </div>
-        <button onClick={onClose} className="btn-secondary w-full mt-4">ביטול</button>
+        <button onClick={onClose} className="btn-secondary w-full mt-4">{tc("actions.cancel")}</button>
       </div>
     </div>
   );
@@ -1597,8 +1639,11 @@ function GovernmentReportModal({
   recipient: RecipientDetail;
   onClose: () => void;
 }) {
+  const t = useTranslations("serviceDogs.recipientsDetailPage");
+  const { locale } = useBusinessLocale();
+  const fmtDate = (d: string) => formatDate(d, { locale });
   const activePlacement = recipient.placements?.find((p) => p.status === "ACTIVE");
-  const today = new Date().toLocaleDateString("he-IL", { day: "numeric", month: "long", year: "numeric" });
+  const today = new Date().toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" });
 
   const handlePrint = () => {
     window.print();
@@ -1611,12 +1656,12 @@ function GovernmentReportModal({
         <div className="flex items-center justify-between mb-5 print:hidden">
           <h2 className="text-lg font-bold flex items-center gap-2">
             <Printer className="w-5 h-5 text-brand-500" />
-            דוח מצב זכאי לרשויות
+            {t("report.title")}
           </h2>
           <div className="flex items-center gap-2">
             <button onClick={handlePrint} className="btn-primary flex items-center gap-2">
               <Printer className="w-4 h-4" />
-              הדפס
+              {t("report.print")}
             </button>
             <button onClick={onClose} className="btn-ghost p-1"><X className="w-5 h-5" /></button>
           </div>
@@ -1624,24 +1669,24 @@ function GovernmentReportModal({
 
         <div className="space-y-5 text-sm" id="gov-report">
           <div className="text-center border-b pb-4">
-            <h3 className="text-xl font-bold">דוח מצב זכאי — כלב שירות</h3>
-            <p className="text-petra-muted mt-1">תאריך הפקה: {today}</p>
+            <h3 className="text-xl font-bold">{t("report.heading")}</h3>
+            <p className="text-petra-muted mt-1">{t("report.generatedOn", { date: today })}</p>
           </div>
 
           <div className="border rounded-xl p-4">
-            <h4 className="font-bold mb-3 text-base border-b pb-2">פרטי הזכאי</h4>
+            <h4 className="font-bold mb-3 text-base border-b pb-2">{t("report.recipientDetails")}</h4>
             <div className="grid grid-cols-2 gap-x-6 gap-y-2">
               {[
-                { label: "שם מלא", value: recipient.name },
-                { label: "תעודת זהות", value: recipient.idNumber },
-                { label: "טלפון", value: recipient.phone },
-                { label: "נייד", value: recipient.mobile },
-                { label: "אימייל", value: recipient.email },
-                { label: "כתובת", value: recipient.address },
-                { label: "סוג לקות", value: DISABILITY_TYPE_MAP[recipient.disabilityType || ""] || recipient.disabilityType },
-                { label: "מקור מימון", value: FUNDING_SOURCE_MAP[recipient.fundingSource || ""] || recipient.fundingSource },
-                { label: "סטטוס", value: RECIPIENT_STATUS_MAP[recipient.status]?.label || recipient.status },
-                { label: "תאריך הסמכה", value: recipient.handoverDate ? formatDate(recipient.handoverDate) : null },
+                { label: t("fields.fullName"), value: recipient.name },
+                { label: t("fields.idNumber"), value: recipient.idNumber },
+                { label: t("fields.phone"), value: recipient.phone },
+                { label: t("fields.mobile"), value: recipient.mobile },
+                { label: t("fields.email"), value: recipient.email },
+                { label: t("fields.address"), value: recipient.address },
+                { label: t("fields.disabilityType"), value: DISABILITY_TYPE_MAP[recipient.disabilityType || ""] || recipient.disabilityType },
+                { label: t("fields.fundingSource"), value: FUNDING_SOURCE_MAP[recipient.fundingSource || ""] || recipient.fundingSource },
+                { label: t("fields.status"), value: RECIPIENT_STATUS_MAP[recipient.status]?.label || recipient.status },
+                { label: t("fields.certificationDate"), value: recipient.handoverDate ? fmtDate(recipient.handoverDate) : null },
               ].filter((r) => r.value).map((row) => (
                 <div key={row.label} className="flex gap-2">
                   <span className="text-petra-muted font-medium min-w-28">{row.label}:</span>
@@ -1651,7 +1696,7 @@ function GovernmentReportModal({
             </div>
             {recipient.disabilityNotes && (
               <div className="mt-3 pt-3 border-t">
-                <span className="text-petra-muted font-medium">פרטים על הלקות: </span>
+                <span className="text-petra-muted font-medium">{t("report.disabilityDetails")}</span>
                 <span>{recipient.disabilityNotes}</span>
               </div>
             )}
@@ -1660,12 +1705,12 @@ function GovernmentReportModal({
           {/* Contact persons in report */}
           {safeJsonArray<ContactPerson>(recipient.contactPersons).length > 0 && (
             <div className="border rounded-xl p-4">
-              <h4 className="font-bold mb-3 text-base border-b pb-2">גורמי קשר</h4>
+              <h4 className="font-bold mb-3 text-base border-b pb-2">{t("report.contactPersons")}</h4>
               <div className="space-y-2">
                 {safeJsonArray<ContactPerson>(recipient.contactPersons).map((cp) => (
                   <div key={cp.id} className="flex gap-4 text-sm py-1.5 border-b last:border-0">
                     <span className="font-medium min-w-28">{cp.name}</span>
-                    <span className="text-petra-muted">{cp.role}</span>
+                    <span className="text-petra-muted">{contactRoleLabel(t, cp.role)}</span>
                     {cp.phone && <span>{cp.phone}</span>}
                   </div>
                 ))}
@@ -1675,44 +1720,44 @@ function GovernmentReportModal({
 
           {activePlacement && (
             <div className="border rounded-xl p-4">
-              <h4 className="font-bold mb-3 text-base border-b pb-2">פרטי הכלב המשובץ</h4>
+              <h4 className="font-bold mb-3 text-base border-b pb-2">{t("report.dogDetails")}</h4>
               <div className="grid grid-cols-2 gap-x-6 gap-y-2">
                 <div className="flex gap-2">
-                  <span className="text-petra-muted font-medium min-w-28">שם הכלב:</span>
+                  <span className="text-petra-muted font-medium min-w-28">{t("report.dogName")}</span>
                   <span className="font-medium">{activePlacement.serviceDog.pet.name}</span>
                 </div>
                 {activePlacement.serviceDog.pet.breed && (
                   <div className="flex gap-2">
-                    <span className="text-petra-muted font-medium min-w-28">גזע:</span>
+                    <span className="text-petra-muted font-medium min-w-28">{t("report.breed")}</span>
                     <span className="font-medium">{activePlacement.serviceDog.pet.breed}</span>
                   </div>
                 )}
                 <div className="flex gap-2">
-                  <span className="text-petra-muted font-medium min-w-28">שלב אימון:</span>
+                  <span className="text-petra-muted font-medium min-w-28">{t("report.phase")}</span>
                   <span className="font-medium">{SERVICE_DOG_PHASE_MAP[activePlacement.serviceDog.phase]?.label || activePlacement.serviceDog.phase}</span>
                 </div>
                 {activePlacement.placementDate && (
                   <div className="flex gap-2">
-                    <span className="text-petra-muted font-medium min-w-28">תאריך שיבוץ:</span>
-                    <span className="font-medium">{formatDate(activePlacement.placementDate)}</span>
+                    <span className="text-petra-muted font-medium min-w-28">{t("report.placementDate")}</span>
+                    <span className="font-medium">{fmtDate(activePlacement.placementDate)}</span>
                   </div>
                 )}
                 {(activePlacement.certifiedAt || recipient.handoverDate) && (
                   <div className="flex gap-2">
-                    <span className="text-petra-muted font-medium min-w-28">תאריך הסמכה:</span>
-                    <span className="font-medium">{formatDate((activePlacement.certifiedAt ?? recipient.handoverDate)!)}</span>
+                    <span className="text-petra-muted font-medium min-w-28">{t("report.certificationDate")}</span>
+                    <span className="font-medium">{fmtDate((activePlacement.certifiedAt ?? recipient.handoverDate)!)}</span>
                   </div>
                 )}
                 {activePlacement.nextCheckInAt && (
                   <div className="flex gap-2">
-                    <span className="text-petra-muted font-medium min-w-28">בדיקת מעקב:</span>
-                    <span className="font-medium">{formatDate(activePlacement.nextCheckInAt)}</span>
+                    <span className="text-petra-muted font-medium min-w-28">{t("report.checkIn")}</span>
+                    <span className="font-medium">{fmtDate(activePlacement.nextCheckInAt)}</span>
                   </div>
                 )}
               </div>
               {activePlacement.notes && (
                 <div className="mt-3 pt-3 border-t">
-                  <span className="text-petra-muted font-medium">הערות שיבוץ: </span>
+                  <span className="text-petra-muted font-medium">{t("report.placementNotes")}</span>
                   <span>{activePlacement.notes}</span>
                 </div>
               )}
@@ -1722,7 +1767,7 @@ function GovernmentReportModal({
           {safeJsonArray<Meeting>(recipient.meetings).length > 0 && (
             <div className="border rounded-xl p-4">
               <h4 className="font-bold mb-3 text-base border-b pb-2">
-                מפגשים ותיאומים ({safeJsonArray<Meeting>(recipient.meetings).length})
+                {t("meetings.title", { count: safeJsonArray<Meeting>(recipient.meetings).length })}
               </h4>
               <div className="space-y-2">
                 {[...safeJsonArray<Meeting>(recipient.meetings)]
@@ -1730,8 +1775,8 @@ function GovernmentReportModal({
                   .slice(0, 10)
                   .map((m) => (
                     <div key={m.id} className="flex gap-3 text-xs py-1.5 border-b last:border-0">
-                      <span className="text-petra-muted min-w-24">{m.date ? formatDate(m.date) : ""}</span>
-                      <span className="font-medium">{MEETING_TYPE_MAP[m.type] || m.type}</span>
+                      <span className="text-petra-muted min-w-24">{m.date ? fmtDate(m.date) : ""}</span>
+                      <span className="font-medium">{meetingTypeLabel(t, m.type)}</span>
                       {m.trainerName && <span className="text-petra-muted">— {m.trainerName}</span>}
                       {m.notes && <span className="text-petra-muted truncate">{m.notes}</span>}
                     </div>
@@ -1742,13 +1787,13 @@ function GovernmentReportModal({
 
           {recipient.notes && (
             <div className="border rounded-xl p-4">
-              <h4 className="font-bold mb-2 text-base">הערות כלליות</h4>
+              <h4 className="font-bold mb-2 text-base">{t("report.generalNotes")}</h4>
               <p className="text-sm whitespace-pre-wrap">{recipient.notes}</p>
             </div>
           )}
 
           <div className="text-center text-xs text-petra-muted border-t pt-4">
-            דוח זה הופק ממערכת Petra · {today}
+            {t("report.footer", { date: today })}
           </div>
         </div>
       </div>

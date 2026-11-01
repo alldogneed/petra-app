@@ -6,7 +6,10 @@ import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import {
   Search, Users, PawPrint, Calendar, Home, X, ArrowLeft,
 } from "lucide-react";
-import { cn, formatDate, getStatusColor, getStatusLabel } from "@/lib/utils";
+import { useTranslations } from "next-intl";
+import { cn, getStatusColor, getStatusLabel } from "@/lib/utils";
+import { formatDate } from "@/lib/format";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -42,16 +45,16 @@ interface FlatResult {
 const PET_EMOJI: Record<string, string> = { dog: "🐕", cat: "🐈" };
 function petEmoji(species: string) { return PET_EMOJI[species] ?? "🐾"; }
 
-const STATUS_BOARDING: Record<string, { label: string; color: string }> = {
-  reserved:    { label: "מוזמן",  color: "bg-blue-50 text-blue-700" },
-  checked_in:  { label: "שוהה",  color: "bg-emerald-50 text-emerald-700" },
-  checked_out: { label: "עזב",   color: "bg-slate-100 text-slate-500" },
-  cancelled:   { label: "בוטל",  color: "bg-red-50 text-red-600" },
+const STATUS_BOARDING: Record<string, { color: string }> = {
+  reserved:    { color: "bg-blue-50 text-blue-700" },
+  checked_in:  { color: "bg-emerald-50 text-emerald-700" },
+  checked_out: { color: "bg-slate-100 text-slate-500" },
+  cancelled:   { color: "bg-red-50 text-red-600" },
 };
 
-function formatShortDate(d: string) {
+function formatShortDate(d: string, locale: string) {
   const dt = new Date(d);
-  return `${dt.getDate()} ${dt.toLocaleString("he", { month: "short" })}`;
+  return `${dt.getDate()} ${dt.toLocaleString(locale, { month: "short" })}`;
 }
 
 // ─── Result item renderers ─────────────────────────────────────────────────────
@@ -67,12 +70,13 @@ function CustomerItem({ c }: { c: SearchResults["customers"][0] }) {
         <p className="text-sm font-medium text-petra-text truncate">{c.name}</p>
         <p className="text-xs text-petra-muted" dir="ltr">{c.phone}</p>
       </div>
-      <ArrowLeft className="w-3.5 h-3.5 text-slate-300 flex-shrink-0" />
+      <ArrowLeft className="w-3.5 h-3.5 text-slate-300 flex-shrink-0 ltr:-scale-x-100" />
     </div>
   );
 }
 
 function PetItem({ p }: { p: SearchResults["pets"][0] }) {
+  const t = useTranslations("search");
   return (
     <div className="flex items-center gap-3 min-w-0">
       <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center text-lg flex-shrink-0">
@@ -83,25 +87,27 @@ function PetItem({ p }: { p: SearchResults["pets"][0] }) {
           {p.name}
           {p.breed && <span className="text-petra-muted font-normal"> · {p.breed}</span>}
         </p>
-        <p className="text-xs text-petra-muted truncate">של: {p.customer.name}</p>
+        <p className="text-xs text-petra-muted truncate">{t("searchModal.pet.owner", { name: p.customer.name })}</p>
       </div>
-      <ArrowLeft className="w-3.5 h-3.5 text-slate-300 flex-shrink-0" />
+      <ArrowLeft className="w-3.5 h-3.5 text-slate-300 flex-shrink-0 ltr:-scale-x-100" />
     </div>
   );
 }
 
 function AppointmentItem({ a }: { a: SearchResults["appointments"][0] }) {
+  const t = useTranslations("search");
+  const { locale } = useBusinessLocale();
   return (
     <div className="flex items-center gap-3 min-w-0">
       <div className="w-2 h-8 rounded-full flex-shrink-0"
         style={{ backgroundColor: a.service?.color || "#3B82F6" }} />
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-petra-text truncate">
-          {a.service?.name ?? "שירות לא ידוע"}
+          {a.service?.name ?? t("searchModal.appointment.unknownService")}
           {a.pet && <span className="text-petra-muted font-normal"> · {a.pet.name}</span>}
         </p>
         <p className="text-xs text-petra-muted truncate">
-          {a.customer.name} · {formatDate(a.date)} {a.startTime}
+          {a.customer.name} · {formatDate(a.date, { locale, style: "long" })} {a.startTime}
         </p>
       </div>
       <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full font-medium flex-shrink-0",
@@ -113,7 +119,10 @@ function AppointmentItem({ a }: { a: SearchResults["appointments"][0] }) {
 }
 
 function BoardingItem({ b }: { b: SearchResults["boarding"][0] }) {
-  const s = STATUS_BOARDING[b.status] ?? STATUS_BOARDING.reserved;
+  const t = useTranslations("search");
+  const { locale } = useBusinessLocale();
+  const statusKey = STATUS_BOARDING[b.status] ? b.status : "reserved";
+  const s = STATUS_BOARDING[statusKey];
   return (
     <div className="flex items-center gap-3 min-w-0">
       <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center text-lg flex-shrink-0">
@@ -124,12 +133,12 @@ function BoardingItem({ b }: { b: SearchResults["boarding"][0] }) {
           {b.pet.name}
         </p>
         <p className="text-xs text-petra-muted truncate">
-          {b.customer.name} · {formatShortDate(b.checkIn)}
-          {b.checkOut ? ` – ${formatShortDate(b.checkOut)}` : ""}
+          {b.customer.name} · {formatShortDate(b.checkIn, locale)}
+          {b.checkOut ? ` – ${formatShortDate(b.checkOut, locale)}` : ""}
         </p>
       </div>
       <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full font-medium flex-shrink-0", s.color)}>
-        {s.label}
+        {t(`searchModal.boardingStatus.${statusKey}`)}
       </span>
     </div>
   );
@@ -138,10 +147,10 @@ function BoardingItem({ b }: { b: SearchResults["boarding"][0] }) {
 // ─── Group config ─────────────────────────────────────────────────────────────
 
 const GROUPS = [
-  { key: "customers" as const,    label: "לקוחות",       Icon: Users    },
-  { key: "pets" as const,         label: "חיות מחמד",    Icon: PawPrint },
-  { key: "appointments" as const, label: "תורים",        Icon: Calendar },
-  { key: "boarding" as const,     label: "פנסיון",       Icon: Home     },
+  { key: "customers" as const,    Icon: Users    },
+  { key: "pets" as const,         Icon: PawPrint },
+  { key: "appointments" as const, Icon: Calendar },
+  { key: "boarding" as const,     Icon: Home     },
 ];
 
 function getHref(type: string, item: { id?: string; customer?: { id: string } }) {
@@ -165,6 +174,8 @@ export function SearchModal({
   onClose: () => void;
   initialQuery?: string;
 }) {
+  const t = useTranslations("search");
+  const tc = useTranslations("common");
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [inputValue, setInputValue] = useState(initialQuery);
@@ -177,15 +188,15 @@ export function SearchModal({
       setInputValue(initialQuery);
       setDebouncedQuery(initialQuery);
       setFocusedIndex(-1);
-      const t = setTimeout(() => inputRef.current?.focus(), 50);
-      return () => clearTimeout(t);
+      const timer = setTimeout(() => inputRef.current?.focus(), 50);
+      return () => clearTimeout(timer);
     }
   }, [isOpen, initialQuery]);
 
   // Debounce input → query
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedQuery(inputValue), 250);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setDebouncedQuery(inputValue), 250);
+    return () => clearTimeout(timer);
   }, [inputValue]);
 
   // Reset focus when query changes
@@ -239,7 +250,8 @@ export function SearchModal({
 
   // Build per-group flat index start positions
   let cursor = 0;
-  const groupsWithIndex = GROUPS.map(({ key, label, Icon }) => {
+  const groupsWithIndex = GROUPS.map(({ key, Icon }) => {
+    const label = t(`searchModal.groups.${key}`);
     const results = (data?.[key] ?? []) as Array<{ id: string; customer?: { id: string } }>;
     const startIndex = cursor;
     cursor += results.length;
@@ -274,7 +286,7 @@ export function SearchModal({
           <input
             ref={inputRef}
             type="text"
-            placeholder="חיפוש לקוחות, חיות, תורים, פנסיון..."
+            placeholder={t("searchModal.inputPlaceholder")}
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             className="flex-1 text-sm text-petra-text bg-transparent outline-none placeholder:text-slate-400"
@@ -301,20 +313,20 @@ export function SearchModal({
               <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
                 <Search className="w-5 h-5 text-slate-400" />
               </div>
-              <p className="text-sm font-medium text-petra-text mb-1">חיפוש מהיר</p>
-              <p className="text-xs text-petra-muted">הקלד לפחות 2 תווים לחיפוש</p>
+              <p className="text-sm font-medium text-petra-text mb-1">{t("searchModal.prompt.title")}</p>
+              <p className="text-xs text-petra-muted">{t("searchModal.prompt.minChars")}</p>
               <div className="flex items-center justify-center gap-3 mt-4 text-xs text-petra-muted">
-                <span className="flex items-center gap-1"><Users className="w-3 h-3" /> לקוחות</span>
-                <span className="flex items-center gap-1"><PawPrint className="w-3 h-3" /> חיות</span>
-                <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> תורים</span>
-                <span className="flex items-center gap-1"><Home className="w-3 h-3" /> פנסיון</span>
+                <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {t("searchModal.groups.customers")}</span>
+                <span className="flex items-center gap-1"><PawPrint className="w-3 h-3" /> {t("searchModal.prompt.pets")}</span>
+                <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {t("searchModal.groups.appointments")}</span>
+                <span className="flex items-center gap-1"><Home className="w-3 h-3" /> {t("searchModal.groups.boarding")}</span>
               </div>
             </div>
           ) : !isFetching && !hasResults ? (
             /* No results */
             <div className="py-12 text-center">
-              <p className="text-sm font-medium text-petra-text mb-1">לא נמצאו תוצאות</p>
-              <p className="text-xs text-petra-muted">אין תוצאות עבור &ldquo;{debouncedQuery}&rdquo;</p>
+              <p className="text-sm font-medium text-petra-text mb-1">{t("searchModal.empty.title")}</p>
+              <p className="text-xs text-petra-muted">{t("searchModal.empty.body", { query: debouncedQuery })}</p>
             </div>
           ) : (
             /* Result groups */
@@ -343,7 +355,7 @@ export function SearchModal({
                           onClick={() => { router.push(href); onClose(); }}
                           onMouseEnter={() => setFocusedIndex(flatIdx)}
                           className={cn(
-                            "w-full px-4 py-2.5 text-right transition-colors",
+                            "w-full px-4 py-2.5 text-start transition-colors",
                             isFocused ? "bg-brand-50" : "hover:bg-slate-50"
                           )}
                         >
@@ -374,18 +386,18 @@ export function SearchModal({
           <div className="px-4 py-2 border-t border-petra-border flex items-center gap-4 text-[11px] text-petra-muted flex-shrink-0 bg-slate-50/50">
             <span className="flex items-center gap-1">
               <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-[10px] font-mono">↑↓</kbd>
-              ניווט
+              {t("searchModal.footer.navigate")}
             </span>
             <span className="flex items-center gap-1">
               <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-[10px] font-mono">↵</kbd>
-              פתח
+              {t("searchModal.footer.open")}
             </span>
             <span className="flex items-center gap-1">
               <kbd className="px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded text-[10px] font-mono">ESC</kbd>
-              סגור
+              {tc("actions.close")}
             </span>
             <span className="ms-auto text-slate-300">
-              {flatResults.length} תוצאות
+              {t("searchModal.footer.resultsCount", { count: flatResults.length })}
             </span>
           </div>
         )}

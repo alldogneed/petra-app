@@ -12,6 +12,9 @@ import { triggerLimitModal } from "@/lib/limit-reached";
 import { toast } from "sonner";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
+import { currencySymbol } from "@/lib/format";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -42,18 +45,31 @@ interface PriceList {
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const UNITS: { id: string; label: string }[] = [
-  { id: "per_session", label: "לפגישה" },
-  { id: "per_day", label: "ליום" },
-  { id: "per_night", label: "ללילה" },
-  { id: "per_hour", label: "לשעה" },
-  { id: "per_item", label: "ליחידה" },
-  { id: "fixed", label: "מחיר קבוע" },
+// Unit ids are stored values; labels come from messages (pricing.priceListsPage.units.*)
+const UNITS: { id: string; key: string }[] = [
+  { id: "per_session", key: "perSession" },
+  { id: "per_day", key: "perDay" },
+  { id: "per_night", key: "perNight" },
+  { id: "per_hour", key: "perHour" },
+  { id: "per_item", key: "perItem" },
+  { id: "fixed", key: "fixed" },
 ];
 
-const CATEGORIES = ["אילוף", "טיפוח", "פנסיון", "ייעוץ", "מוצרים", "תוסף", "אחר"];
+// Category suggestions (datalist) — labels from messages (pricing.priceListsPage.categories.*)
+const CATEGORY_KEYS = ["training", "grooming", "boarding", "consulting", "products", "addon", "other"] as const;
+// Stored PriceListItem.category values are Hebrew DATA compared elsewhere (calendar, orders, scheduler) —
+// the suggestion inserts the stored value; only the visible label is translated (Phase 3: locale-aware categories).
+const CATEGORY_VALUES: Record<(typeof CATEGORY_KEYS)[number], string> = {
+  training: "אילוף", // i18n-ok
+  grooming: "טיפוח", // i18n-ok
+  boarding: "פנסיון", // i18n-ok
+  consulting: "ייעוץ", // i18n-ok
+  products: "מוצרים", // i18n-ok
+  addon: "תוסף", // i18n-ok
+  other: "אחר", // i18n-ok
+};
 
-const UNIT_LABEL: Record<string, string> = Object.fromEntries(UNITS.map((u) => [u.id, u.label]));
+const UNIT_KEY: Record<string, string> = Object.fromEntries(UNITS.map((u) => [u.id, u.key]));
 
 // ─── Item Form Modal ──────────────────────────────────────────────────────────
 
@@ -69,6 +85,9 @@ function ItemFormModal({
   onClose: () => void;
 }) {
   const qc = useQueryClient();
+  const t = useTranslations("pricing.priceListsPage");
+  const tc = useTranslations("common");
+  const { locale, currency } = useBusinessLocale();
   const isEdit = !!item;
   const [form, setForm] = useState({
     name: item?.name ?? "",
@@ -99,8 +118,8 @@ function ItemFormModal({
         body: JSON.stringify({ ...data, basePrice: parseFloat(data.basePrice) }),
       }).then(async (r) => {
         if (!r.ok) {
-          const body = await r.json().catch(() => ({ error: "שגיאה" }));
-          const err = new Error(body.error || "שגיאה");
+          const body = await r.json().catch(() => ({ error: t("errors.generic") }));
+          const err = new Error(body.error || t("errors.generic"));
           if (body.code) (err as unknown as Record<string, unknown>).code = body.code;
           throw err;
         }
@@ -116,16 +135,16 @@ function ItemFormModal({
       if ((err as unknown as Record<string, unknown>).code === "LIMIT_REACHED") {
         triggerLimitModal(err.message);
       } else {
-        toast.error(err.message || "שגיאה בהוספת פריט. נסה שוב.");
+        toast.error(err.message || t("form.addError"));
       }
     },
   });
 
   const validate = () => {
     const e: Record<string, string> = {};
-    if (!form.name.trim()) e.name = "שם חובה";
-    if (form.basePrice === "" || isNaN(parseFloat(form.basePrice)) || parseFloat(form.basePrice) < 0) e.basePrice = "מחיר חייב להיות >= 0";
-    if (!form.unit) e.unit = "יחידה חובה";
+    if (!form.name.trim()) e.name = t("form.nameRequired");
+    if (form.basePrice === "" || isNaN(parseFloat(form.basePrice)) || parseFloat(form.basePrice) < 0) e.basePrice = t("form.priceInvalid");
+    if (!form.unit) e.unit = t("form.unitRequired");
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -138,8 +157,8 @@ function ItemFormModal({
       <div className="modal-content max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-start justify-between mb-5">
           <div>
-            <h2 className="text-lg font-bold text-petra-text">{isEdit ? "עריכת פריט" : "פריט חדש"}</h2>
-            <p className="text-xs text-petra-muted mt-0.5">הוסף שירות או מוצר למחירון</p>
+            <h2 className="text-lg font-bold text-petra-text">{isEdit ? t("form.editTitle") : t("newItem")}</h2>
+            <p className="text-xs text-petra-muted mt-0.5">{t("form.subtitle")}</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-all">
             <X className="w-4 h-4" />
@@ -149,62 +168,62 @@ function ItemFormModal({
         <div className="space-y-4">
           {/* Type toggle */}
           <div className="flex gap-2">
-            {(["service", "product"] as const).map((t) => (
+            {(["service", "product"] as const).map((typ) => (
               <button
-                key={t}
-                onClick={() => setForm({ ...form, type: t })}
+                key={typ}
+                onClick={() => setForm({ ...form, type: typ })}
                 className={cn(
                   "flex-1 py-2 rounded-xl text-sm font-medium border transition-all",
-                  form.type === t
+                  form.type === typ
                     ? "border-brand-400 bg-brand-50 text-brand-600"
                     : "border-petra-border text-petra-muted hover:bg-slate-50"
                 )}
               >
-                {t === "service" ? "🔧 שירות" : "📦 מוצר"}
+                {typ === "service" ? t("form.typeService") : t("form.typeProduct")}
               </button>
             ))}
           </div>
 
           <div>
-            <label className="label">שם *</label>
+            <label className="label">{t("form.nameLabel")}</label>
             <input
               className={cn("input", errors.name && "border-red-400")}
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="לדוגמה: שיעור אילוף יחיד"
+              placeholder={t("form.namePlaceholder")}
             />
             {errors.name && <p className="text-xs text-red-500 mt-1">{errors.name}</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">קטגוריה</label>
+              <label className="label">{t("form.categoryLabel")}</label>
               <input
                 className="input"
                 list="categories"
                 value={form.category}
                 onChange={(e) => setForm({ ...form, category: e.target.value })}
-                placeholder="לדוגמה: אילוף"
+                placeholder={t("form.categoryPlaceholder")}
               />
               <datalist id="categories">
-                {CATEGORIES.map((c) => <option key={c} value={c} />)}
+                {CATEGORY_KEYS.map((c) => <option key={c} value={CATEGORY_VALUES[c]} label={t(`categories.${c}`)} />)}
               </datalist>
             </div>
             <div>
-              <label className="label">יחידה *</label>
+              <label className="label">{t("form.unitLabel")}</label>
               <select
                 className={cn("input", errors.unit && "border-red-400")}
                 value={form.unit}
                 onChange={(e) => setForm({ ...form, unit: e.target.value })}
               >
-                {UNITS.map((u) => <option key={u.id} value={u.id}>{u.label}</option>)}
+                {UNITS.map((u) => <option key={u.id} value={u.id}>{t(`units.${u.key}`)}</option>)}
               </select>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">מחיר בסיס (₪) *</label>
+              <label className="label">{t("form.basePriceLabel", { currency: currencySymbol({ locale, currency }) })}</label>
               <input
                 type="number"
                 min="0"
@@ -218,22 +237,22 @@ function ItemFormModal({
               {errors.basePrice && <p className="text-xs text-red-500 mt-1">{errors.basePrice}</p>}
             </div>
             <div>
-              <label className="label">מע&quot;מ</label>
+              <label className="label">{t("form.vatLabel")}</label>
               <select
                 className="input"
                 value={form.taxMode}
                 onChange={(e) => setForm({ ...form, taxMode: e.target.value })}
               >
-                <option value="taxable">חייב מע&quot;מ</option>
-                <option value="exempt">פטור מע&quot;מ</option>
-                <option value="inherit">לפי הגדרת עסק</option>
+                <option value="taxable">{t("form.taxable")}</option>
+                <option value="exempt">{t("form.exempt")}</option>
+                <option value="inherit">{t("form.inherit")}</option>
               </select>
             </div>
           </div>
 
           {form.type === "service" && (
             <div>
-              <label className="label">משך (דקות)</label>
+              <label className="label">{t("form.durationLabel")}</label>
               <input
                 type="number"
                 min="0"
@@ -247,20 +266,20 @@ function ItemFormModal({
           )}
 
           <div>
-            <label className="label">תיאור</label>
+            <label className="label">{t("form.descriptionLabel")}</label>
             <textarea
               className="input resize-none"
               rows={2}
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
-              placeholder="תיאור קצר (אופציונלי)"
+              placeholder={t("form.descriptionPlaceholder")}
             />
           </div>
 
           <div>
             <label className="label flex items-center gap-1.5">
               <Link2 className="w-3.5 h-3.5 text-petra-muted" />
-              קישור לדף תשלום
+              {t("form.paymentUrlLabel")}
             </label>
             <input
               className="input"
@@ -271,7 +290,7 @@ function ItemFormModal({
               dir="ltr"
             />
             <p className="text-[11px] text-petra-muted mt-1">
-              קישור לדף תשלום של המסלקה שלך (Meshulam, Tranzila, iCount וכו׳). יישלח ללקוח בסיום הזמנה.
+              {t("form.paymentUrlHint")}
             </p>
           </div>
         </div>
@@ -286,9 +305,9 @@ function ItemFormModal({
             disabled={mutation.isPending}
             onClick={() => validate() && mutation.mutate(form)}
           >
-            {mutation.isPending ? "שומר..." : isEdit ? "שמור" : "הוסף פריט"}
+            {mutation.isPending ? tc("progress.saving") : isEdit ? tc("actions.save") : t("form.addItem")}
           </button>
-          <button onClick={onClose} className="btn-secondary">ביטול</button>
+          <button onClick={onClose} className="btn-secondary">{tc("actions.cancel")}</button>
         </div>
       </div>
     </div>
@@ -321,6 +340,9 @@ function ItemRow({
   /** No PRICING_WRITE — hide all mutation buttons (server returns 403 anyway) */
   readOnly?: boolean;
 }) {
+  const t = useTranslations("pricing.priceListsPage");
+  const tc = useTranslations("common");
+  const { locale, currency } = useBusinessLocale();
   return (
     <div className={cn(
       "flex items-center gap-3 px-4 py-3 border-b border-petra-border hover:bg-slate-50/50 transition-colors group",
@@ -338,16 +360,16 @@ function ItemRow({
           )}
           {item.durationMinutes && (
             <span className="text-[10px] text-slate-400 flex items-center gap-0.5">
-              <Clock className="w-2.5 h-2.5" />{item.durationMinutes}ד׳
+              <Clock className="w-2.5 h-2.5" />{t("row.minutesShort", { minutes: item.durationMinutes })}
             </span>
           )}
         </div>
         {item.description && <p className="text-xs text-petra-muted truncate mt-0.5">{item.description}</p>}
       </div>
 
-      <div className="text-right flex-shrink-0">
-        <p className="text-sm font-bold text-petra-text">₪{item.basePrice.toFixed(2)}</p>
-        <p className="text-[10px] text-petra-muted">{UNIT_LABEL[item.unit] ?? item.unit}</p>
+      <div className="text-start flex-shrink-0">
+        <p className="text-sm font-bold text-petra-text">{currencySymbol({ locale, currency })}{item.basePrice.toFixed(2)}</p>
+        <p className="text-[10px] text-petra-muted">{UNIT_KEY[item.unit] ? t(`units.${UNIT_KEY[item.unit]}`) : item.unit}</p>
       </div>
 
       {item.paymentUrl && (
@@ -355,7 +377,7 @@ function ItemRow({
           href={item.paymentUrl}
           target="_blank"
           rel="noopener noreferrer"
-          title="דף תשלום"
+          title={t("row.paymentPage")}
           className="w-7 h-7 rounded-lg flex items-center justify-center text-emerald-500 hover:bg-emerald-50 transition-all flex-shrink-0"
           onClick={(e) => e.stopPropagation()}
         >
@@ -369,7 +391,7 @@ function ItemRow({
           <button
             onClick={onMoveUp}
             disabled={!canMoveUp}
-            title="הזז למעלה"
+            title={t("row.moveUp")}
             className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all disabled:opacity-30 disabled:pointer-events-none"
           >
             <ChevronUp className="w-3.5 h-3.5" />
@@ -379,24 +401,24 @@ function ItemRow({
           <button
             onClick={onMoveDown}
             disabled={!canMoveDown}
-            title="הזז למטה"
+            title={t("row.moveDown")}
             className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all disabled:opacity-30 disabled:pointer-events-none"
           >
             <ChevronDown className="w-3.5 h-3.5" />
           </button>
         )}
-        <button onClick={onEdit} title="ערוך" className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all">
+        <button onClick={onEdit} title={t("row.edit")} className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all">
           <Edit2 className="w-3.5 h-3.5" />
         </button>
-        <button onClick={onDuplicate} title="שכפל" className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all">
+        <button onClick={onDuplicate} title={t("row.duplicate")} className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all">
           <Copy className="w-3.5 h-3.5" />
         </button>
-        <button onClick={onToggle} title={item.isActive ? "השבת" : "הפעל"} className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all">
+        <button onClick={onToggle} title={item.isActive ? t("row.deactivate") : t("row.activate")} className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-all">
           {item.isActive ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> : <XCircle className="w-3.5 h-3.5 text-red-400" />}
         </button>
         <button
           onClick={onDelete}
-          title="מחק"
+          title={tc("actions.delete")}
           className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-all"
         >
           <Trash2 className="w-3.5 h-3.5" />
@@ -411,6 +433,8 @@ function ItemRow({
 
 export default function PriceListPage() {
   const qc = useQueryClient();
+  const t = useTranslations("pricing.priceListsPage");
+  const tc = useTranslations("common");
   const { canEditPricing } = usePermissions();
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
@@ -439,7 +463,7 @@ export default function PriceListPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isActive }),
-      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בעדכון"); return d; }),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || t("errors.update")); return d; }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["price-list-items", priceList?.id] }),
   });
 
@@ -449,25 +473,25 @@ export default function PriceListPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: `${item.name} (עותק)`,
+          name: t("copyName", { name: item.name }),
           type: item.type, category: item.category, unit: item.unit,
           basePrice: item.basePrice, taxMode: item.taxMode,
           durationMinutes: item.durationMinutes, description: item.description,
           defaultQuantity: item.defaultQuantity,
         }),
-      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בשכפול"); return d; }),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || t("errors.duplicate")); return d; }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["price-list-items", priceList?.id] }),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) =>
-      fetch(`/api/price-list-items/${id}`, { method: "DELETE" }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה במחיקה"); return d; }),
+      fetch(`/api/price-list-items/${id}`, { method: "DELETE" }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || t("errors.delete")); return d; }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["price-list-items", priceList?.id] });
       setDeleteItem(null);
-      toast.success("פריט נמחק");
+      toast.success(t("itemDeleted"));
     },
-    onError: (err: Error) => toast.error(err.message || "שגיאה במחיקה"),
+    onError: (err: Error) => toast.error(err.message || t("errors.delete")),
   });
 
   // Persist a new order within a displayed group: reindex sortOrder sequentially
@@ -479,11 +503,11 @@ export default function PriceListPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ sortOrder: u.sortOrder }),
         });
-        if (!r.ok) throw new Error("שגיאה בשמירת הסדר");
+        if (!r.ok) throw new Error(t("errors.saveOrder"));
       }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["price-list-items", priceList?.id] }),
-    onError: () => toast.error("שגיאה בשמירת סדר הפריטים"),
+    onError: () => toast.error(t("errors.saveItemsOrder")),
   });
 
   function moveItem(group: PriceListItem[], index: number, dir: -1 | 1) {
@@ -518,12 +542,12 @@ export default function PriceListPage() {
   const grouped = useMemo(() => {
     const map: Record<string, PriceListItem[]> = {};
     filtered.forEach((item) => {
-      const cat = item.category || "ללא קטגוריה";
+      const cat = item.category || t("uncategorized");
       if (!map[cat]) map[cat] = [];
       map[cat].push(item);
     });
     return map;
-  }, [filtered]);
+  }, [filtered, t]);
 
   const createPriceListMutation = useMutation({
     mutationFn: () =>
@@ -532,7 +556,7 @@ export default function PriceListPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({}),
       }).then(async (r) => {
-        if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || "שגיאה ביצירת מחירון");
+        if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || t("errors.create"));
         return r.json();
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["price-lists"] }),
@@ -550,8 +574,8 @@ export default function PriceListPage() {
         <div className="empty-state-icon mx-auto">
           <Tag className="w-7 h-7 text-slate-400" />
         </div>
-        <p className="text-sm font-semibold text-petra-text mb-1">אין עדיין מחירון</p>
-        <p className="text-xs text-petra-muted mb-4">צור מחירון כדי להתחיל להוסיף שירותים ומוצרים</p>
+        <p className="text-sm font-semibold text-petra-text mb-1">{t("empty.title")}</p>
+        <p className="text-xs text-petra-muted mb-4">{t("empty.hint")}</p>
         {canEditPricing && (
         <button
           className="btn-primary"
@@ -559,7 +583,7 @@ export default function PriceListPage() {
           disabled={createPriceListMutation.isPending}
         >
           <Plus className="w-4 h-4" />
-          {createPriceListMutation.isPending ? "יוצר..." : "צור מחירון"}
+          {createPriceListMutation.isPending ? t("empty.creating") : t("empty.create")}
         </button>
         )}
       </div>
@@ -570,9 +594,9 @@ export default function PriceListPage() {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6 flex-wrap flex-shrink-0">
-        <h1 className="page-title flex items-center gap-2">מחירון</h1>
+        <h1 className="page-title flex items-center gap-2">{t("title")}</h1>
         <p className="text-sm text-petra-muted">
-          {items.filter((i) => i.isActive).length} פריטים פעילים · {priceList?.name}
+          {t("activeCount", { count: items.filter((i) => i.isActive).length, name: priceList?.name ?? "" })}
         </p>
         {canEditPricing && (
         <button
@@ -580,7 +604,7 @@ export default function PriceListPage() {
           className="btn-primary"
         >
           <Plus className="w-4 h-4" />
-          פריט חדש
+          {t("newItem")}
         </button>
         )}
         {items.filter((i) => i.isActive).length > 0 && (
@@ -589,16 +613,16 @@ export default function PriceListPage() {
               const activeItems = items.filter((i) => i.isActive);
               const grouped: Record<string, typeof activeItems> = {};
               for (const item of activeItems) {
-                const cat = item.category || "כללי";
+                const cat = item.category || "כללי"; // i18n-ok — WhatsApp text the owner sends to clients
                 if (!grouped[cat]) grouped[cat] = [];
                 grouped[cat].push(item);
               }
-              const lines = [`📋 *מחירון ${priceList?.name ?? ""}*`, ""];
+              const lines = [`📋 *מחירון ${priceList?.name ?? ""}*`, ""]; // i18n-ok — WhatsApp text the owner sends to clients
               for (const [cat, catItems] of Object.entries(grouped)) {
                 lines.push(`*${cat}:*`);
                 for (const item of catItems) {
-                  const price = `₪${item.basePrice.toFixed(0)}`;
-                  const dur = item.durationMinutes ? ` · ${item.durationMinutes} דק׳` : "";
+                  const price = `₪${item.basePrice.toFixed(0)}`; // i18n-ok — WhatsApp text the owner sends to clients
+                  const dur = item.durationMinutes ? ` · ${item.durationMinutes} דק׳` : ""; // i18n-ok — WhatsApp text the owner sends to clients
                   lines.push(`• ${item.name} — ${price}${dur}`);
                 }
                 lines.push("");
@@ -608,10 +632,10 @@ export default function PriceListPage() {
             target="_blank"
             rel="noopener noreferrer"
             className="btn-secondary"
-            title="שתף מחירון בוואטסאפ"
+            title={t("shareTitle")}
           >
             <Share2 className="w-4 h-4" />
-            שתף מחירון
+            {t("share")}
           </a>
         )}
       </div>
@@ -619,10 +643,10 @@ export default function PriceListPage() {
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-2 mb-4 flex-shrink-0">
         <div className="relative">
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
-            className="input pr-10 w-56"
-            placeholder="חיפוש..."
+            className="input ps-10 w-56"
+            placeholder={tc("searchPlaceholder")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -633,7 +657,7 @@ export default function PriceListPage() {
           value={filterCategory}
           onChange={(e) => setFilterCategory(e.target.value)}
         >
-          <option value="">כל הקטגוריות</option>
+          <option value="">{t("filters.allCategories")}</option>
           {categories.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
 
@@ -642,9 +666,9 @@ export default function PriceListPage() {
           value={filterType}
           onChange={(e) => setFilterType(e.target.value)}
         >
-          <option value="">הכל</option>
-          <option value="service">שירותים</option>
-          <option value="product">מוצרים</option>
+          <option value="">{t("filters.allTypes")}</option>
+          <option value="service">{t("filters.services")}</option>
+          <option value="product">{t("filters.products")}</option>
         </select>
 
         <button
@@ -656,7 +680,7 @@ export default function PriceListPage() {
               : "border-petra-border text-petra-muted hover:bg-slate-50"
           )}
         >
-          {showInactive ? "הסתר לא פעילים" : "הצג לא פעילים"}
+          {showInactive ? t("filters.hideInactive") : t("filters.showInactive")}
         </button>
       </div>
 
@@ -670,14 +694,14 @@ export default function PriceListPage() {
               <Tag className="w-7 h-7 text-slate-400" />
             </div>
             <p className="text-sm font-semibold text-petra-text mb-1">
-              {search || filterCategory || filterType ? "לא נמצאו פריטים" : "המחירון ריק"}
+              {search || filterCategory || filterType ? t("list.noResults") : t("list.empty")}
             </p>
             <p className="text-xs text-petra-muted mb-4">
-              {search ? "נסה חיפוש אחר" : "הוסף את הפריט הראשון"}
+              {search ? t("list.tryOtherSearch") : t("list.addFirst")}
             </p>
             {!search && canEditPricing && (
               <button onClick={() => setModalState({ open: true, item: null })} className="btn-primary">
-                <Plus className="w-4 h-4" /> פריט חדש
+                <Plus className="w-4 h-4" /> {t("newItem")}
               </button>
             )}
           </div>
@@ -686,7 +710,7 @@ export default function PriceListPage() {
             <div key={cat}>
               <div className="px-4 py-2 bg-slate-50/80 border-b border-petra-border">
                 <span className="text-xs font-semibold text-petra-muted uppercase tracking-wider">{cat}</span>
-                <span className="text-xs text-slate-400 mr-2">({catItems.length})</span>
+                <span className="text-xs text-slate-400 ms-2">({catItems.length})</span>
               </div>
               {catItems.map((item, idx) => (
                 <ItemRow
@@ -724,19 +748,19 @@ export default function PriceListPage() {
               <AlertTriangle className="w-6 h-6 text-red-500" />
             </div>
             <h3 className="text-base font-bold text-petra-text mb-1">
-              למחוק את &quot;{deleteItem.name}&quot;?
+              {t("deleteDialog.title", { name: deleteItem.name })}
             </h3>
-            <p className="text-sm text-petra-muted mb-4">פעולה זו לא ניתנת לביטול.</p>
+            <p className="text-sm text-petra-muted mb-4">{t("deleteDialog.irreversible")}</p>
             <div className="flex gap-3">
               <button
                 onClick={() => deleteMutation.mutate(deleteItem.id)}
                 disabled={deleteMutation.isPending}
                 className="flex-1 py-2 rounded-xl bg-red-500 text-white text-sm font-medium hover:bg-red-600 transition-colors disabled:opacity-60"
               >
-                {deleteMutation.isPending ? "מוחק..." : "כן, מחק"}
+                {deleteMutation.isPending ? tc("progress.deleting") : t("deleteDialog.confirm")}
               </button>
               <button onClick={() => setDeleteItem(null)} className="btn-secondary flex-1">
-                חזרה
+                {t("deleteDialog.back")}
               </button>
             </div>
           </div>

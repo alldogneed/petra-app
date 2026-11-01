@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { useTranslations } from "next-intl"
 import { Mail, KeyRound, UserRound, ArrowRight, ShieldAlert } from "lucide-react"
 import { PortalButton } from "../_components/portal-ui"
 import { getOrCreateDeviceId } from "@/lib/portal-device"
@@ -15,6 +16,7 @@ const PHONE_RE = /^05\d{8}$/
 export default function PortalLoginPage({ params }: { params: { slug: string } }) {
   const { slug } = params
   const router = useRouter()
+  const t = useTranslations("portal.detailLoginPage")
 
   const [step, setStep] = useState<LoginStep>("email")
   const [email, setEmail] = useState("")
@@ -38,8 +40,8 @@ export default function PortalLoginPage({ params }: { params: { slug: string } }
   // resend cooldown ticker
   useEffect(() => {
     if (resendCooldown <= 0) return
-    const t = setInterval(() => setResendCooldown((s) => (s > 0 ? s - 1 : 0)), 1000)
-    return () => clearInterval(t)
+    const timer = setInterval(() => setResendCooldown((s) => (s > 0 ? s - 1 : 0)), 1000)
+    return () => clearInterval(timer)
   }, [resendCooldown])
 
   useEffect(() => {
@@ -50,7 +52,7 @@ export default function PortalLoginPage({ params }: { params: { slug: string } }
     async (isResend = false) => {
       const trimmed = email.trim().toLowerCase()
       if (!EMAIL_RE.test(trimmed)) {
-        setEmailError("כתובת אימייל לא תקינה")
+        setEmailError(t("errors.invalidEmail"))
         return
       }
       setEmailError("")
@@ -62,12 +64,12 @@ export default function PortalLoginPage({ params }: { params: { slug: string } }
           body: JSON.stringify({ email: trimmed }),
         })
         if (res.status === 429) {
-          setEmailError("יותר מדי ניסיונות — נסו שוב בעוד כמה דקות")
+          setEmailError(t("errors.tooManyRequests"))
           return
         }
         if (!res.ok) {
           const d = await res.json().catch(() => ({}))
-          setEmailError(d.error ?? "שגיאה בשליחת הקוד")
+          setEmailError(d.error ?? t("errors.sendFailed"))
           return
         }
         setResendCooldown(30)
@@ -77,29 +79,29 @@ export default function PortalLoginPage({ params }: { params: { slug: string } }
           setStep("code")
         }
       } catch {
-        setEmailError("שגיאה בשליחת הקוד — בדקו את החיבור לרשת")
+        setEmailError(t("errors.sendNetwork"))
       } finally {
         setSending(false)
       }
     },
-    [email]
+    [email, t]
   )
 
   const verify = useCallback(
     async (withProfile: boolean) => {
       const trimmed = email.trim().toLowerCase()
       if (code.length !== 6) {
-        setCodeError("יש להזין קוד בן 6 ספרות")
+        setCodeError(t("errors.codeLength"))
         return
       }
       if (withProfile) {
         let bad = false
         if (name.trim().length < 2) {
-          setNameError("יש להזין שם מלא")
+          setNameError(t("errors.nameRequired"))
           bad = true
         } else setNameError("")
         if (!PHONE_RE.test(phone.replace(/\D/g, ""))) {
-          setPhoneError("מספר טלפון לא תקין (05X-XXXXXXX)")
+          setPhoneError(t("errors.phoneInvalid"))
           bad = true
         } else setPhoneError("")
         if (bad) return
@@ -130,8 +132,8 @@ export default function PortalLoginPage({ params }: { params: { slug: string } }
           if (signedOut > 0) {
             setDeviceNotice(
               signedOut === 1
-                ? "נותקת ממכשיר אחר — חשבון זה מוגבל למספר מכשירים"
-                : `נותקת מ-${signedOut} מכשירים אחרים — חשבון זה מוגבל למספר מכשירים`
+                ? t("deviceNotice.one")
+                : t("deviceNotice.many", { count: signedOut })
             )
             setRedirecting(true)
             setTimeout(() => router.push(`/c/${slug}`), 2200)
@@ -141,17 +143,17 @@ export default function PortalLoginPage({ params }: { params: { slug: string } }
           return
         }
         if (res.status === 429) {
-          setCodeError("יותר מדי ניסיונות — בקשו קוד חדש")
+          setCodeError(t("errors.tooManyAttempts"))
         } else {
-          setCodeError(d.error ?? "קוד שגוי או שפג תוקפו — נסו שוב")
+          setCodeError(d.error ?? t("errors.invalidCode"))
         }
       } catch {
-        setCodeError("שגיאה באימות — בדקו את החיבור לרשת")
+        setCodeError(t("errors.verifyNetwork"))
       } finally {
         setVerifying(false)
       }
     },
-    [email, code, name, phone, router, slug]
+    [email, code, name, phone, router, slug, t]
   )
 
   // auto-submit when 6 digits entered on the code step
@@ -168,8 +170,8 @@ export default function PortalLoginPage({ params }: { params: { slug: string } }
         href={`/c/${slug}`}
         className="inline-flex items-center gap-1 text-sm text-petra-muted hover:text-petra-text transition-colors mb-4"
       >
-        <ArrowRight className="w-4 h-4" />
-        חזרה לפורטל
+        <ArrowRight className="w-4 h-4 ltr:-scale-x-100" />
+        {t("backToPortal")}
       </Link>
 
       <div className="bg-white rounded-2xl shadow-card border border-petra-border p-6">
@@ -189,14 +191,14 @@ export default function PortalLoginPage({ params }: { params: { slug: string } }
               >
                 <Mail className="w-6 h-6 text-white" />
               </div>
-              <h1 className="text-lg font-bold text-petra-text">התחברות לפורטל</h1>
+              <h1 className="text-lg font-bold text-petra-text">{t("email.title")}</h1>
               <p className="text-sm text-petra-muted mt-1">
-                נשלח לך קוד חד-פעמי למייל — בלי סיסמאות
+                {t("email.subtitle")}
               </p>
             </div>
             <div>
               <label htmlFor="portal-email" className="block text-sm font-medium text-petra-text mb-1.5">
-                כתובת אימייל
+                {t("email.label")}
               </label>
               <input
                 id="portal-email"
@@ -213,7 +215,7 @@ export default function PortalLoginPage({ params }: { params: { slug: string } }
               {emailError && <p className="text-xs text-rose-600 mt-1.5">{emailError}</p>}
             </div>
             <PortalButton type="submit" className="w-full" loading={sending}>
-              שלח קוד
+              {t("email.submit")}
             </PortalButton>
           </form>
         )}
@@ -234,9 +236,9 @@ export default function PortalLoginPage({ params }: { params: { slug: string } }
               >
                 <KeyRound className="w-6 h-6 text-white" />
               </div>
-              <h1 className="text-lg font-bold text-petra-text">הזינו את הקוד</h1>
+              <h1 className="text-lg font-bold text-petra-text">{t("code.title")}</h1>
               <p className="text-sm text-petra-muted mt-1">
-                שלחנו קוד בן 6 ספרות אל <span dir="ltr">{email.trim()}</span>
+                {t.rich("code.sentTo", { email: email.trim(), ltr: (c) => <span dir="ltr">{c}</span> })}
               </p>
             </div>
             <div>
@@ -256,12 +258,12 @@ export default function PortalLoginPage({ params }: { params: { slug: string } }
               {codeError && <p className="text-xs text-rose-600 mt-1.5 text-center">{codeError}</p>}
             </div>
             <PortalButton type="submit" className="w-full" loading={verifying || redirecting}>
-              אימות
+              {t("code.submit")}
             </PortalButton>
             <div className="text-center">
               {resendCooldown > 0 ? (
                 <p className="text-xs text-petra-muted">
-                  אפשר לבקש קוד חדש בעוד {resendCooldown} שניות
+                  {t("code.resendIn", { count: resendCooldown })}
                 </p>
               ) : (
                 <button
@@ -271,7 +273,7 @@ export default function PortalLoginPage({ params }: { params: { slug: string } }
                   className="text-xs font-medium hover:opacity-80 transition-opacity disabled:opacity-50"
                   style={{ color: "var(--portal-primary)" }}
                 >
-                  לא קיבלתי — שלחו קוד חדש
+                  {t("code.resend")}
                 </button>
               )}
             </div>
@@ -285,7 +287,7 @@ export default function PortalLoginPage({ params }: { params: { slug: string } }
                 }}
                 className="text-xs text-petra-muted hover:text-petra-text transition-colors"
               >
-                שינוי כתובת אימייל
+                {t("code.changeEmail")}
               </button>
             </div>
           </form>
@@ -307,14 +309,14 @@ export default function PortalLoginPage({ params }: { params: { slug: string } }
               >
                 <UserRound className="w-6 h-6 text-white" />
               </div>
-              <h1 className="text-lg font-bold text-petra-text">נעים להכיר!</h1>
+              <h1 className="text-lg font-bold text-petra-text">{t("profile.title")}</h1>
               <p className="text-sm text-petra-muted mt-1">
-                עוד רגע מסיימים — נשארו רק שם וטלפון
+                {t("profile.subtitle")}
               </p>
             </div>
             <div>
               <label htmlFor="portal-name" className="block text-sm font-medium text-petra-text mb-1.5">
-                שם מלא
+                {t("profile.nameLabel")}
               </label>
               <input
                 id="portal-name"
@@ -323,14 +325,14 @@ export default function PortalLoginPage({ params }: { params: { slug: string } }
                 autoFocus
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="השם שלך"
+                placeholder={t("profile.namePlaceholder")}
                 className="w-full px-4 py-2.5 rounded-xl border border-petra-border text-sm focus:outline-none focus:ring-2 focus:ring-offset-1"
               />
               {nameError && <p className="text-xs text-rose-600 mt-1.5">{nameError}</p>}
             </div>
             <div>
               <label htmlFor="portal-phone" className="block text-sm font-medium text-petra-text mb-1.5">
-                טלפון נייד
+                {t("profile.phoneLabel")}
               </label>
               <input
                 id="portal-phone"
@@ -347,7 +349,7 @@ export default function PortalLoginPage({ params }: { params: { slug: string } }
             </div>
             {codeError && <p className="text-xs text-rose-600 text-center">{codeError}</p>}
             <PortalButton type="submit" className="w-full" loading={verifying || redirecting}>
-              סיום והתחברות
+              {t("profile.submit")}
             </PortalButton>
           </form>
         )}

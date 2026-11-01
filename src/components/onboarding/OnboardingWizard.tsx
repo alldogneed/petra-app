@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { Check } from "lucide-react";
+import { useTranslations } from "next-intl";
 import StepWelcomeProfile from "./StepWelcomeProfile";
 import StepBusinessDetails from "./StepBusinessDetails";
 import StepFirstService from "./StepFirstService";
@@ -14,23 +15,25 @@ import { PetraLoader } from "@/components/ui/PetraLoader";
 // ─── Step config ──────────────────────────────────────────────────────────────
 
 const STEPS = [
-  { id: 0, label: "היכרות", emoji: "👋" },
-  { id: 1, label: "פרטי עסק", emoji: "🏢" },
-  { id: 2, label: "שירות", emoji: "🏷️" },
-  { id: 3, label: "לקוח", emoji: "👤" },
-  { id: 4, label: "סיום", emoji: "🎉" },
+  { id: 0, key: "intro", emoji: "👋" },
+  { id: 1, key: "businessDetails", emoji: "🏢" },
+  { id: 2, key: "service", emoji: "🏷️" },
+  { id: 3, key: "client", emoji: "👤" },
+  { id: 4, key: "finish", emoji: "🎉" },
 ];
 
 // ─── Step Indicator ───────────────────────────────────────────────────────────
 
 function StepIndicator({ currentStep }: { currentStep: number }) {
+  const t = useTranslations("onboarding.onboardingWizard");
+  const currentKey = STEPS[currentStep]?.key;
   return (
     <div className="w-full mb-8">
       {/* Mobile: text only */}
       <p className="sm:hidden text-center text-sm text-petra-muted mb-4">
-        שלב {currentStep + 1} מתוך {STEPS.length}:{" "}
+        {t("stepOf", { step: currentStep + 1, total: STEPS.length })}{" "}
         <span className="font-bold" style={{ color: "#F97316" }}>
-          {STEPS[currentStep]?.label}
+          {currentKey ? t(`steps.${currentKey}`) : undefined}
         </span>
       </p>
 
@@ -74,7 +77,7 @@ function StepIndicator({ currentStep }: { currentStep: number }) {
                       : "#94A3B8",
                   }}
                 >
-                  {step.label}
+                  {t(`steps.${step.key}`)}
                 </span>
               </div>
 
@@ -111,6 +114,7 @@ function StepIndicator({ currentStep }: { currentStep: number }) {
 // ─── Main Wizard ──────────────────────────────────────────────────────────────
 
 export default function OnboardingWizard() {
+  const t = useTranslations("onboarding.onboardingWizard");
   const router = useRouter();
   const queryClient = useQueryClient();
   const [currentStep, setCurrentStep] = useState<number>(0);
@@ -233,7 +237,7 @@ export default function OnboardingWizard() {
 
       {/* Footer hint */}
       <p className="text-center text-xs text-petra-muted mt-6">
-        ניתן לשנות את כל ההגדרות בהמשך מדף ההגדרות
+        {t("footerHint")}
       </p>
     </div>
   );

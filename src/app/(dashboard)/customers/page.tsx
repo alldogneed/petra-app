@@ -43,6 +43,9 @@ import {
 import { useSubscription } from "@/hooks/useSubscription";
 import dynamic from "next/dynamic";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
+import { currencySymbol } from "@/lib/format";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import {
@@ -85,12 +88,13 @@ function getAvatarGradient(status: string) {
 }
 
 function NewBadge({ createdAt }: { createdAt: string }) {
+  const t = useTranslations("customers.customersPage");
   const daysAgo = Math.floor((Date.now() - new Date(createdAt).getTime()) / 86400000);
   if (daysAgo > 7) return null;
-  const label = daysAgo <= 0 ? "היום" : daysAgo === 1 ? "אתמול" : `לפני ${daysAgo} ימים`;
+  const label = daysAgo <= 0 ? t("newBadge.today") : daysAgo === 1 ? t("newBadge.yesterday") : t("newBadge.daysAgo", { count: daysAgo });
   return (
     <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-green-100 text-green-700 border border-green-200 flex-shrink-0">
-      חדש · {label}
+      {t("newBadge.label", { label })}
     </span>
   );
 }
@@ -112,6 +116,7 @@ function SortHeader({
   onSort: (s: CustomerSort) => void;
   className?: string;
 }) {
+  const t = useTranslations("customers.customersPage");
   const active = sortBy === primary || (secondary !== undefined && sortBy === secondary);
   const next = sortBy === primary ? secondary ?? "newest" : primary;
   const ariaSort = active ? (sortBy === "last_visit_asc" || sortBy === "name_asc" ? "ascending" : "descending") : "none";
@@ -121,7 +126,7 @@ function SortHeader({
         type="button"
         onClick={() => onSort(next)}
         className={cn("inline-flex items-center gap-1 hover:text-petra-text transition-colors", active && "text-petra-text font-bold")}
-        title="מיון"
+        title={t("table.sort")}
       >
         {label}
         {active ? (
@@ -135,13 +140,14 @@ function SortHeader({
 }
 
 function CustomersPermGate({ children }: { children: React.ReactNode }) {
+  const t = useTranslations("customers.customersPage");
   const perms = usePermissions();
   if (!perms.canSeePii) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
         <Users className="w-12 h-12 text-slate-300 mb-4" />
-        <h2 className="text-lg font-semibold text-petra-text mb-2">אין הרשאה</h2>
-        <p className="text-sm text-petra-muted">אין לך הרשאה לצפות בלקוחות. פנה למנהל העסק.</p>
+        <h2 className="text-lg font-semibold text-petra-text mb-2">{t("noAccess.title")}</h2>
+        <p className="text-sm text-petra-muted">{t("noAccess.description")}</p>
       </div>
     );
   }
@@ -157,6 +163,9 @@ export default function CustomersPage() {
 }
 
 function CustomersList() {
+  const t = useTranslations("customers.customersPage");
+  const tc = useTranslations("common");
+  const { locale, currency, timezone } = useBusinessLocale();
   const queryClient = useQueryClient();
   const { canExportData, canImportData, canSeeFinance, canSendMessages, canCriticalDelete } = usePermissions();
   // Verticals: "generic" has no pets — no pets column.
@@ -234,9 +243,9 @@ function CustomersList() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["settings"] });
       queryClient.invalidateQueries({ queryKey: ["customers"] });
-      toast.success("התגיות נשמרו");
+      toast.success(t("toasts.tagsSaved"));
     },
-    onError: () => toast.error("שגיאה בשמירת התגיות. נסה שוב."),
+    onError: () => toast.error(t("toasts.tagsSaveError")),
   });
 
   // ── Data: server-side filters + cursor pagination ──
@@ -327,14 +336,14 @@ function CustomersList() {
       clearSelection();
       setBulkDeleteStep(0);
       const parts = [
-        deleted > 0 && `${deleted} נמחקו`,
-        pending > 0 && `${pending} נשלחו לאישור הבעלים`,
-        failed > 0 && `${failed} נכשלו`,
+        deleted > 0 && t("bulkDelete.deleted", { count: deleted }),
+        pending > 0 && t("bulkDelete.pending", { count: pending }),
+        failed > 0 && t("bulkDelete.failed", { count: failed }),
       ].filter(Boolean);
       if (failed > 0) toast.error(parts.join(", "));
-      else toast.success(parts.join(", ") || "לא נמחקו לקוחות");
+      else toast.success(parts.join(", ") || t("bulkDelete.none"));
     },
-    onError: () => toast.error("שגיאה במחיקת הלקוחות. נסה שוב."),
+    onError: () => toast.error(t("bulkDelete.error")),
   });
 
   // ── Export (current filters, or the selected rows) ──
@@ -356,38 +365,38 @@ function CustomersList() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `customers-export-${new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" })}.xlsx`;
+      a.download = `customers-export-${new Date().toLocaleDateString("en-CA", { timeZone: timezone })}.xlsx`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      toast.success("הקובץ הורד בהצלחה");
+      toast.success(t("export.success"));
     } catch (e) {
-      toast.error(e instanceof Error && e.message !== "Export failed" ? e.message : "שגיאה בייצוא. נסה שוב.");
+      toast.error(e instanceof Error && e.message !== "Export failed" ? e.message : t("export.error"));
     } finally {
       setExporting(false);
     }
-  }, [listParams, selectedIds]);
+  }, [listParams, selectedIds, t, timezone]);
 
   const onSort = useCallback((s: CustomerSort) => updateFilters({ sortBy: s }), [updateFilters]);
   const hasAnyFilter = !!debouncedSearch || JSON.stringify(filters) !== JSON.stringify(DEFAULT_LIST_FILTERS);
 
   return (
     <div className="min-w-0">
-      <PageTitle title="לקוחות" />
+      <PageTitle title={t("header.title")} />
       {/* ─── Page Header ─── */}
       <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
         <div className="flex items-center gap-2">
           <div>
-            <h1 className="page-title">לקוחות</h1>
+            <h1 className="page-title">{t("header.title")}</h1>
             <p className="text-sm text-petra-muted">
-              {businessTotal === null ? "—" : <>{businessTotal} {businessTotal === 1 ? "לקוח" : "לקוחות"} במערכת</>}
+              {businessTotal === null ? "—" : <>{businessTotal === 1 ? t("header.countOne", { count: businessTotal }) : t("header.countMany", { count: businessTotal })}</>}
             </p>
           </div>
           <button
             onClick={() => queryClient.invalidateQueries({ queryKey: ["customers"] })}
-            title="רענן נתונים"
-            aria-label="רענן נתונים"
+            title={t("header.refresh")}
+            aria-label={t("header.refresh")}
             className="w-7 h-7 flex items-center justify-center rounded-lg text-petra-muted hover:text-petra-text hover:bg-slate-100 transition-colors"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isCustomersFetching ? "animate-spin" : ""}`} />
@@ -397,12 +406,12 @@ function CustomersList() {
           {atFreeLimit ? (
             <a href="/upgrade" className="btn-primary gap-2 bg-amber-500 hover:bg-amber-600 border-amber-500 text-white rounded-xl px-4 py-2.5 text-sm font-semibold flex items-center">
               <Sparkles className="w-4 h-4" />
-              שדרג לבייסיק
+              {t("header.upgrade")}
             </a>
           ) : (
             <button className="btn-primary" onClick={() => setShowNewModal(true)}>
               <Plus className="w-4 h-4" />
-              לקוח חדש
+              {t("header.newCustomer")}
             </button>
           )}
           <button
@@ -412,17 +421,17 @@ function CustomersList() {
             onClick={() => setShowOrderModal(true)}
           >
             <ShoppingCart className="w-4 h-4" />
-            הזמנה חדשה
+            {t("header.newOrder")}
           </button>
           {canExportData && (
             <button
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-colors disabled:opacity-50"
-              title={selectedIds.size > 0 ? "ייצוא הלקוחות הנבחרים לאקסל" : "ייצוא הלקוחות המסוננים לאקסל"}
+              title={selectedIds.size > 0 ? t("export.selectedTitle") : t("export.filteredTitle")}
               onClick={handleExport}
               disabled={exporting}
             >
               <FileDown className="w-4 h-4" />
-              {selectedIds.size > 0 ? `ייצוא ${selectedIds.size}` : "ייצוא"}
+              {selectedIds.size > 0 ? t("export.labelCount", { count: selectedIds.size }) : t("export.label")}
             </button>
           )}
           {canImportData && (
@@ -430,10 +439,10 @@ function CustomersList() {
               href="/settings?tab=data"
               prefetch={false}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-colors"
-              title="ייבוא לקוחות מאקסל"
+              title={t("import.title")}
             >
               <Upload className="w-4 h-4" />
-              ייבוא
+              {t("import.label")}
             </Link>
           )}
         </div>
@@ -445,12 +454,12 @@ function CustomersList() {
           <div className="flex items-center gap-2 text-sm">
             <Sparkles className={`w-4 h-4 flex-shrink-0 ${atFreeLimit ? "text-amber-500" : "text-slate-400"}`} />
             <span className={atFreeLimit ? "text-amber-800" : "text-slate-600"}>
-              {businessTotal}/{maxCustomers} לקוחות — מגבלת המנוי החינמי
+              {t("freeLimit.usage", { used: businessTotal, max: maxCustomers })}
             </span>
           </div>
           {atFreeLimit && (
             <a href="/upgrade" className="text-xs font-semibold text-amber-700 hover:text-amber-900 whitespace-nowrap">
-              שדרג לבייסיק ←
+              {t("freeLimit.upgrade")}
             </a>
           )}
         </div>
@@ -459,15 +468,15 @@ function CustomersList() {
       {/* ─── Search & Filters Card ─── */}
       <div className="card p-4 mb-4 space-y-3 bg-gradient-to-b from-[#FDFBF8] to-white border-[#E8DFD5] min-w-0">
         <div className="relative">
-          <Search className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#A0845C]" />
+          <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#A0845C]" />
           <input
             type="search"
-            placeholder="חיפוש לפי שם, טלפון, אימייל או שם חיה..."
-            className="input pr-10 bg-white border-[#E8DFD5] focus:border-[#C4956A] focus:ring-[#C4956A]/20"
+            placeholder={t("search.placeholder")}
+            className="input ps-10 bg-white border-[#E8DFD5] focus:border-[#C4956A] focus:ring-[#C4956A]/20"
             value={search}
             maxLength={100}
             onChange={(e) => setSearch(e.target.value)}
-            aria-label="חיפוש לקוחות"
+            aria-label={t("search.ariaLabel")}
           />
         </div>
         <CustomerFiltersPanel
@@ -497,7 +506,7 @@ function CustomersList() {
         <div className="card p-3 mb-4 flex flex-wrap items-center gap-2 sm:gap-3 bg-[#FEF9F4] border-brand-200 animate-slide-up">
           <div className="flex items-center gap-2">
             <CheckSquare className="w-4 h-4 text-brand-500" />
-            <span className="text-sm font-semibold text-petra-text">{selectedIds.size} נבחרו</span>
+            <span className="text-sm font-semibold text-petra-text">{t("bulk.selected", { count: selectedIds.size })}</span>
           </div>
           {canSendMessages && (
             <button
@@ -505,7 +514,7 @@ function CustomersList() {
               onClick={() => setShowBulkWhatsApp(true)}
             >
               <MessageCircle className="w-3.5 h-3.5" />
-              שלח הודעה
+              {t("bulk.sendMessage")}
             </button>
           )}
           <button
@@ -513,7 +522,7 @@ function CustomersList() {
             onClick={() => setShowBulkTags(true)}
           >
             <Tag className="w-3.5 h-3.5" />
-            תגיות
+            {t("bulk.tags")}
           </button>
           {canCriticalDelete && (
             <button
@@ -521,14 +530,14 @@ function CustomersList() {
               onClick={() => setBulkDeleteStep(1)}
             >
               <Trash2 className="w-3.5 h-3.5" />
-              מחק נבחרים
+              {t("bulk.deleteSelected")}
             </button>
           )}
           <button
             className="text-xs text-petra-muted hover:text-petra-text transition-colors"
             onClick={() => { clearSelection(); setSelectionMode(false); }}
           >
-            בטל בחירה
+            {t("selection.cancel")}
           </button>
         </div>
       )}
@@ -542,22 +551,22 @@ function CustomersList() {
             {hasAnyFilter ? <Search className="w-6 h-6 text-slate-400" /> : <Users className="w-6 h-6 text-slate-400" />}
           </div>
           <h3 className="text-base font-semibold text-petra-text mb-1">
-            {debouncedSearch ? `לא נמצאו תוצאות עבור "${debouncedSearch}"` : hasAnyFilter ? "אין תוצאות" : "אין לקוחות"}
+            {debouncedSearch ? t("empty.noResultsFor", { query: debouncedSearch }) : hasAnyFilter ? t("empty.noResults") : t("empty.noCustomers")}
           </h3>
           <p className="text-sm text-petra-muted mb-4">
-            {hasAnyFilter ? "נסה לשנות את החיפוש או הסינון" : "התחל על ידי הוספת הלקוח הראשון"}
+            {hasAnyFilter ? t("empty.tryChanging") : t("empty.getStarted")}
           </p>
           {hasAnyFilter ? (
             <button
               className="btn-secondary text-sm"
               onClick={() => { setSearch(""); setRawFilters(DEFAULT_LIST_FILTERS); }}
             >
-              נקה חיפוש וסינון
+              {t("empty.clear")}
             </button>
           ) : (
             <button className="btn-primary" onClick={() => setShowNewModal(true)}>
               <Plus className="w-4 h-4" />
-              הוסף לקוח
+              {t("empty.addCustomer")}
             </button>
           )}
         </div>
@@ -578,7 +587,7 @@ function CustomersList() {
               }}
             >
               <CheckSquare className="w-3.5 h-3.5" />
-              {selectionMode ? "בטל בחירה" : "בחר"}
+              {selectionMode ? t("selection.cancel") : t("selection.select")}
             </button>
             {selectionMode && (
               <button onClick={toggleSelectAll} className="md:hidden flex items-center gap-1.5 text-xs text-[#8B7355]">
@@ -589,7 +598,7 @@ function CustomersList() {
                 ) : (
                   <Square className="w-4 h-4" />
                 )}
-                בחר את כל המוצגים ({customers.length})
+                {t("selection.selectAllCount", { count: customers.length })}
               </button>
             )}
           </div>
@@ -608,7 +617,7 @@ function CustomersList() {
                       <button
                         onClick={() => toggleSelect(customer.id)}
                         className="mt-1 flex-shrink-0 text-slate-400 hover:text-petra-text transition-colors"
-                        aria-label={isSelected ? `בטל בחירה של ${customer.name}` : `בחר את ${customer.name}`}
+                        aria-label={isSelected ? t("selection.deselectOne", { name: customer.name }) : t("selection.selectOne", { name: customer.name })}
                       >
                         {isSelected ? <CheckSquare className="w-4 h-4 text-brand-500" /> : <Square className="w-4 h-4" />}
                       </button>
@@ -662,15 +671,15 @@ function CustomersList() {
           {/* ── Desktop table (≥ md) ── */}
           <div className="overflow-x-auto hidden md:block">
             <table className="w-full">
-              <caption className="sr-only">רשימת לקוחות</caption>
+              <caption className="sr-only">{t("table.caption")}</caption>
               <thead>
                 <tr className="bg-[#FAF7F3] border-b border-[#E8DFD5]">
                   {selectionMode && (
-                    <th scope="col" className="text-right px-3 py-3 w-10">
+                    <th scope="col" className="text-start px-3 py-3 w-10">
                       <button
                         onClick={toggleSelectAll}
                         className="text-slate-400 hover:text-petra-text transition-colors"
-                        aria-label="בחר את כל המוצגים"
+                        aria-label={t("selection.selectAll")}
                       >
                         {allSelected ? (
                           <CheckSquare className="w-4 h-4 text-brand-500" aria-hidden="true" />
@@ -682,11 +691,11 @@ function CustomersList() {
                       </button>
                     </th>
                   )}
-                  <SortHeader label="שם" sortBy={filters.sortBy} primary="name_asc" onSort={onSort} />
-                  <th scope="col" className="table-header-cell">סטטוס</th>
-                  {!noPets && <th scope="col" className="table-header-cell">חיות</th>}
+                  <SortHeader label={t("table.name")} sortBy={filters.sortBy} primary="name_asc" onSort={onSort} />
+                  <th scope="col" className="table-header-cell">{t("table.status")}</th>
+                  {!noPets && <th scope="col" className="table-header-cell">{t("table.pets")}</th>}
                   <SortHeader
-                    label="פגישות"
+                    label={t("table.appointments")}
                     sortBy={filters.sortBy}
                     primary="last_visit_desc"
                     secondary="last_visit_asc"
@@ -694,9 +703,9 @@ function CustomersList() {
                     className="hidden lg:table-cell"
                   />
                   {canSeeFinance && (
-                    <SortHeader label="כספי" sortBy={filters.sortBy} primary="balance_desc" onSort={onSort} className="hidden lg:table-cell" />
+                    <SortHeader label={t("table.finance")} sortBy={filters.sortBy} primary="balance_desc" onSort={onSort} className="hidden lg:table-cell" />
                   )}
-                  <th scope="col" className="table-header-cell w-44">פעולות</th>
+                  <th scope="col" className="table-header-cell w-44">{t("table.actions")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -712,7 +721,7 @@ function CustomersList() {
                           <button
                             onClick={() => toggleSelect(customer.id)}
                             className="text-slate-400 hover:text-petra-text transition-colors"
-                            aria-label={isSelected ? `בטל בחירה של ${customer.name}` : `בחר את ${customer.name}`}
+                            aria-label={isSelected ? t("selection.deselectOne", { name: customer.name }) : t("selection.selectOne", { name: customer.name })}
                           >
                             {isSelected ? <CheckSquare className="w-4 h-4 text-brand-500" /> : <Square className="w-4 h-4" />}
                           </button>
@@ -798,7 +807,7 @@ function CustomersList() {
             <div className="flex justify-center py-3 border-t border-slate-100">
               <button onClick={() => fetchNextPage()} disabled={isFetchingNextPage} className="btn-secondary text-sm gap-2">
                 {isFetchingNextPage ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                {isFetchingNextPage ? "טוען..." : "טען עוד לקוחות"}
+                {isFetchingNextPage ? tc("loading") : t("loadMore")}
               </button>
             </div>
           )}
@@ -806,15 +815,17 @@ function CustomersList() {
           {/* Footer — server totals */}
           <div className="px-4 sm:px-5 py-3 bg-[#FAF7F3] border-t border-[#E8DFD5] flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[#8B7355]">
             <span>
-              מציג {customers.length} מתוך {filteredTotal} {filteredTotal === 1 ? "לקוח" : "לקוחות"}
+              {filteredTotal === 1
+                ? t("footer.showingOne", { shown: customers.length, total: filteredTotal })
+                : t("footer.showingMany", { shown: customers.length, total: filteredTotal })}
             </span>
             <div className="flex-1" />
             {stats && (
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                <span className="font-medium text-[#6B5744]">{stats.total} סה״כ</span>
+                <span className="font-medium text-[#6B5744]">{t("footer.total", { count: stats.total })}</span>
                 <span className="flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                  {stats.active} פעילים
+                  {t("footer.active", { count: stats.active })}
                 </span>
                 <span className="flex items-center gap-1">
                   <Crown className="w-3 h-3 text-amber-600" />
@@ -822,7 +833,7 @@ function CustomersList() {
                 </span>
                 {canSeeFinance && stats.withDebt > 0 && (
                   <span className="text-red-500 font-medium">
-                    {stats.withDebt} עם חוב{stats.totalDebt !== null ? ` · ₪${stats.totalDebt.toLocaleString("he-IL")}` : ""}
+                    {t("footer.withDebt", { count: stats.withDebt })}{stats.totalDebt !== null ? ` · ${currencySymbol({ locale, currency })}${stats.totalDebt.toLocaleString(locale)}` : ""}
                   </span>
                 )}
               </div>
@@ -862,13 +873,17 @@ function CustomersList() {
       <ConfirmDialog
         open={bulkDeleteStep === 1}
         danger
-        title="מחיקת לקוחות"
+        title={t("bulkDelete.confirmTitle")}
         description={
           <>
-            אתה עומד למחוק <span className="font-semibold">{selectedIds.size} לקוחות</span>. {v("customer.bulk_delete_warning")}
+            {t.rich("bulkDelete.confirmDescriptionWarning", {
+              count: selectedIds.size,
+              warning: v("customer.bulk_delete_warning"),
+              b: (chunks) => <span className="font-semibold">{chunks}</span>,
+            })}
           </>
         }
-        confirmLabel="המשך"
+        confirmLabel={t("bulkDelete.continue")}
         onConfirm={() => setBulkDeleteStep(2)}
         onCancel={() => setBulkDeleteStep(0)}
       />
@@ -876,13 +891,16 @@ function CustomersList() {
         open={bulkDeleteStep === 2}
         danger
         loading={bulkDeleteMutation.isPending}
-        title="אישור סופי"
+        title={t("bulkDelete.finalTitle")}
         description={
           <>
-            למחוק <span className="font-bold text-red-700">{selectedIds.size} לקוחות</span> לצמיתות? לא ניתן לשחזר פעולה זו.
+            {t.rich("bulkDelete.finalDescription", {
+              count: selectedIds.size,
+              b: (chunks) => <span className="font-bold text-red-700">{chunks}</span>,
+            })}
           </>
         }
-        confirmLabel={`מחק ${selectedIds.size} לקוחות`}
+        confirmLabel={t("bulkDelete.confirmLabel", { count: selectedIds.size })}
         onConfirm={() => bulkDeleteMutation.mutate(Array.from(selectedIds))}
         onCancel={() => setBulkDeleteStep(0)}
       />

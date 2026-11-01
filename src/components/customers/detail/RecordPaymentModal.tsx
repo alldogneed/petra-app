@@ -5,8 +5,11 @@ import { OUTSTANDING_ORDER_STATUSES } from "@/lib/outstanding-balances";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { toast } from "sonner";
-import { fetchJSON, formatCurrency } from "@/lib/utils";
-import { ORDER_TYPE_LABELS, PAYMENT_METHOD_LABELS } from "./constants";
+import { useTranslations } from "next-intl";
+import { fetchJSON } from "@/lib/utils";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
+import { formatCurrency as formatCurrencyL, currencySymbol } from "@/lib/format";
+import { constantLabel } from "./constants";
 import { formatDayDate, type OrderInfo } from "./types";
 
 /** Same allowlist as POST /api/payments (src/app/api/payments/route.ts). */
@@ -38,6 +41,12 @@ export function RecordPaymentModal({
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
+  const t = useTranslations("customers.recordPaymentModal");
+  const tc = useTranslations("common");
+  const tk = useTranslations("customers.constants");
+  const { locale, currency, cfg } = useBusinessLocale();
+  const formatCurrency = (n: number) => formatCurrencyL(n, { locale, currency });
+  const symbol = currencySymbol({ locale, currency });
   // Open orders that still have something to pay, oldest first.
   const openOrders = orders
     .filter((o) => OPEN_ORDER_STATUSES.includes(o.status) && orderRemaining(o) > 0.009)
@@ -65,18 +74,18 @@ export function RecordPaymentModal({
       queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
       queryClient.invalidateQueries({ queryKey: ["payments"] });
       queryClient.invalidateQueries({ queryKey: ["orders"] });
-      toast.success(status === "paid" ? "התשלום נרשם" : "התשלום נרשם כממתין");
+      toast.success(status === "paid" ? t("toastPaid") : t("toastPending"));
       onClose();
     },
-    onError: (e: Error) => setError(e.message || "שגיאה ברישום התשלום"),
+    onError: (e: Error) => setError(e.message || t("errorGeneric")),
   });
 
   const submit = () => {
     setError(null);
     const value = Math.round(Number(amount) * 100) / 100;
-    if (!Number.isFinite(value) || value <= 0) return setError("יש להזין סכום חיובי");
-    if (value > 1_000_000) return setError("סכום חורג מהמותר (מקסימום ₪1,000,000)");
-    if (method === "credit_card" && cardLast4 && !/^\d{4}$/.test(cardLast4)) return setError("4 ספרות אחרונות — 4 ספרות בדיוק");
+    if (!Number.isFinite(value) || value <= 0) return setError(t("errorPositive"));
+    if (value > 1_000_000) return setError(t("errorMax", { currencySymbol: symbol }));
+    if (method === "credit_card" && cardLast4 && !/^\d{4}$/.test(cardLast4)) return setError(t("errorCardLast4"));
     mutation.mutate({
       amount: value,
       method,
@@ -91,15 +100,15 @@ export function RecordPaymentModal({
   };
 
   return (
-    <div className="modal-overlay" dir="rtl">
+    <div className="modal-overlay" dir={cfg.dir}>
       <div className="modal-backdrop" onClick={() => !mutation.isPending && onClose()} />
       <div className="modal-content max-w-md mx-4 p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-5">
           <div>
-            <h2 className="text-lg font-bold text-petra-text">רישום תשלום</h2>
+            <h2 className="text-lg font-bold text-petra-text">{t("title")}</h2>
             <p className="text-xs text-petra-muted">{customerName}</p>
           </div>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted" aria-label="סגור">
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted" aria-label={tc("actions.close")}>
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -107,7 +116,7 @@ export function RecordPaymentModal({
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="label">סכום (₪)</label>
+              <label className="label">{t("amountLabel", { currencySymbol: symbol })}</label>
               <input
                 type="number"
                 inputMode="decimal"
@@ -120,10 +129,10 @@ export function RecordPaymentModal({
               />
             </div>
             <div>
-              <label className="label">אמצעי תשלום</label>
+              <label className="label">{t("method")}</label>
               <select className="input" value={method} onChange={(e) => setMethod(e.target.value as Method)}>
                 {METHODS.map((m) => (
-                  <option key={m} value={m}>{PAYMENT_METHOD_LABELS[m] ?? m}</option>
+                  <option key={m} value={m}>{constantLabel(tk, "paymentMethods", m) ?? m}</option>
                 ))}
               </select>
             </div>
@@ -131,28 +140,28 @@ export function RecordPaymentModal({
 
           {method === "credit_card" && (
             <div>
-              <label className="label">4 ספרות אחרונות (אופציונלי)</label>
+              <label className="label">{t("cardLast4")}</label>
               <input className="input" inputMode="numeric" maxLength={4} value={cardLast4} onChange={(e) => setCardLast4(e.target.value.replace(/\D/g, ""))} dir="ltr" />
             </div>
           )}
           {method === "check" && (
             <div>
-              <label className="label">מספר צ׳ק (אופציונלי)</label>
+              <label className="label">{t("checkNumber")}</label>
               <input className="input" maxLength={30} value={checkNumber} onChange={(e) => setCheckNumber(e.target.value)} dir="ltr" />
             </div>
           )}
 
           <div>
-            <label className="label">סטטוס</label>
+            <label className="label">{t("status")}</label>
             <div className="flex gap-2">
-              {([["paid", "שולם"], ["pending", "ממתין"]] as const).map(([key, label]) => (
+              {(["paid", "pending"] as const).map((key) => (
                 <button
                   key={key}
                   type="button"
                   onClick={() => setStatus(key)}
                   className={status === key ? "btn-primary text-xs py-1.5 px-4" : "btn-secondary text-xs py-1.5 px-4"}
                 >
-                  {label}
+                  {t(`statuses.${key}`)}
                 </button>
               ))}
             </div>
@@ -160,7 +169,7 @@ export function RecordPaymentModal({
 
           {openOrders.length > 0 && (
             <div>
-              <label className="label">שיוך להזמנה</label>
+              <label className="label">{t("linkToOrder")}</label>
               <select
                 className="input"
                 value={orderId}
@@ -170,10 +179,10 @@ export function RecordPaymentModal({
                   if (o && !amount) setAmount(String(orderRemaining(o)));
                 }}
               >
-                <option value="">ללא שיוך</option>
+                <option value="">{t("noLink")}</option>
                 {openOrders.map((o) => (
                   <option key={o.id} value={o.id}>
-                    {ORDER_TYPE_LABELS[o.orderType] || o.orderType} · {formatDayDate(o.createdAt)} · יתרה {formatCurrency(orderRemaining(o))}
+                    {t("orderOption", { type: constantLabel(tk, "orderTypes", o.orderType) || o.orderType, date: formatDayDate(o.createdAt, locale), remaining: formatCurrency(orderRemaining(o)) })}
                   </option>
                 ))}
               </select>
@@ -181,21 +190,21 @@ export function RecordPaymentModal({
           )}
 
           <div>
-            <label className="label">הערות</label>
+            <label className="label">{t("notes")}</label>
             <textarea className="input resize-none" rows={2} maxLength={500} value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
 
           <label className="flex items-center gap-2 text-sm text-petra-text cursor-pointer">
             <input type="checkbox" checked={isDeposit} onChange={(e) => setIsDeposit(e.target.checked)} />
-            מקדמה
+            {t("deposit")}
           </label>
 
           {error && <p className="text-sm text-red-600">{error}</p>}
 
           <div className="flex justify-end gap-3 pt-1">
-            <button className="btn-secondary" onClick={onClose} disabled={mutation.isPending}>ביטול</button>
+            <button className="btn-secondary" onClick={onClose} disabled={mutation.isPending}>{tc("actions.cancel")}</button>
             <button className="btn-primary" onClick={submit} disabled={mutation.isPending || !amount}>
-              {mutation.isPending ? "שומר..." : "רשום תשלום"}
+              {mutation.isPending ? tc("progress.saving") : t("submit")}
             </button>
           </div>
         </div>

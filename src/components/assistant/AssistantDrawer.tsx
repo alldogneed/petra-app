@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { LifeBuoy, RotateCcw, Send, Sparkles, ThumbsDown, ThumbsUp, UserRound, X } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { resolveAssistantScreen, suggestionsForPath } from "@/lib/assistant/screens";
 import {
@@ -32,10 +33,10 @@ interface AssistantDrawerProps {
   onOpenHelpCenter: () => void;
 }
 
-const GENERIC_ERROR = "Petra AI לא הצליח לענות כרגע. נסו שוב.";
-
 /** Petra AI — the support chat drawer. Kept mounted so the chat survives closing it. */
 export function AssistantDrawer({ open, onOpenChange, onOpenHelpCenter }: AssistantDrawerProps) {
+  const t = useTranslations("help.assistantDrawer");
+  const GENERIC_ERROR = t("genericError");
   const pathname = usePathname() ?? "";
   const screen = resolveAssistantScreen(pathname);
 
@@ -154,7 +155,7 @@ export function AssistantDrawer({ open, onOpenChange, onOpenHelpCenter }: Assist
     }).catch(() => null);
     if (!res?.ok) {
       patchMessage(message.key, { rating: message.rating });
-      toast.error("הדירוג לא נשמר. נסו שוב.");
+      toast.error(t("ratingFailed"));
     }
   }
 
@@ -173,15 +174,15 @@ export function AssistantDrawer({ open, onOpenChange, onOpenHelpCenter }: Assist
       });
       const data = (await res.json().catch(() => null)) as { error?: string } | null;
       if (!res.ok) {
-        toast.error(data?.error || "הפנייה לא נשלחה. נסו שוב.");
+        toast.error(data?.error || t("escalateFailed"));
         return;
       }
       setEscalated(true);
       setEscalating(false);
       setEscalateNote("");
-      toast.success("הפנייה נשלחה. הצוות של פטרה יחזור אליך.");
+      toast.success(t("escalateSent"));
     } catch {
-      toast.error("הפנייה לא נשלחה. נסו שוב.");
+      toast.error(t("escalateFailed"));
     } finally {
       setEscalateSending(false);
     }
@@ -197,7 +198,7 @@ export function AssistantDrawer({ open, onOpenChange, onOpenHelpCenter }: Assist
         <Dialog.Overlay className="fixed inset-0 z-50 bg-slate-900/30 no-print" />
         <Dialog.Content
           aria-describedby={undefined}
-          className="fixed inset-0 sm:inset-y-0 sm:right-auto sm:left-0 sm:w-[420px] z-50 flex flex-col bg-white shadow-2xl sm:border-r border-petra-border focus:outline-none no-print"
+          className="fixed inset-0 sm:inset-y-0 sm:start-auto sm:end-0 sm:w-[420px] z-50 flex flex-col bg-white shadow-2xl sm:border-s border-petra-border focus:outline-none no-print"
         >
           {/* Header — the X is always visible: on mobile there is no ESC key and no backdrop to tap */}
           <div className="flex items-center gap-3 px-4 py-3 border-b border-petra-border">
@@ -207,15 +208,15 @@ export function AssistantDrawer({ open, onOpenChange, onOpenHelpCenter }: Assist
             <div className="min-w-0 flex-1">
               <Dialog.Title className="text-base font-bold text-petra-text leading-tight">Petra AI</Dialog.Title>
               <p className="text-xs text-petra-muted truncate">
-                {screen ? `עזרה במסך: ${screen.name}` : "עזרה בשימוש בפטרה"}
+                {screen ? t("helpOnScreen", { screen: screen.name }) : t("helpGeneral")}
               </p>
             </div>
             {hasChat && (
-              <button type="button" onClick={startNewConversation} className="btn-ghost px-2" aria-label="שיחה חדשה" title="שיחה חדשה">
+              <button type="button" onClick={startNewConversation} className="btn-ghost px-2" aria-label={t("newConversation")} title={t("newConversation")}>
                 <RotateCcw className="w-4 h-4" />
               </button>
             )}
-            <Dialog.Close className="btn-ghost px-2" aria-label="סגירה">
+            <Dialog.Close className="btn-ghost px-2" aria-label={t("close")}>
               <X className="w-5 h-5" />
             </Dialog.Close>
           </div>
@@ -225,16 +226,16 @@ export function AssistantDrawer({ open, onOpenChange, onOpenHelpCenter }: Assist
             {!hasChat && (
               <div className="space-y-4">
                 <p className="text-sm text-petra-text leading-relaxed">
-                  היי! אני Petra AI. אפשר לשאול אותי איך עושים כל דבר בפטרה, ואסביר צעד אחר צעד.
+                  {t("welcome")}
                 </p>
                 <div className="space-y-2">
-                  <p className="text-xs font-medium text-petra-muted">שאלות נפוצות במסך הזה</p>
+                  <p className="text-xs font-medium text-petra-muted">{t("suggestionsTitle")}</p>
                   {suggestionsForPath(pathname).map((suggestion) => (
                     <button
                       key={suggestion}
                       type="button"
                       onClick={() => send(suggestion)}
-                      className="block w-full text-right text-sm px-3.5 py-2.5 rounded-xl border border-petra-border bg-white hover:border-brand-300 hover:bg-brand-50 transition-colors"
+                      className="block w-full text-start text-sm px-3.5 py-2.5 rounded-xl border border-petra-border bg-white hover:border-brand-300 hover:bg-brand-50 transition-colors"
                     >
                       {suggestion}
                     </button>
@@ -246,7 +247,7 @@ export function AssistantDrawer({ open, onOpenChange, onOpenHelpCenter }: Assist
             {messages.map((message) =>
               message.role === "user" ? (
                 <div key={message.key} className="flex justify-start">
-                  <div dir="auto" className="max-w-[85%] rounded-2xl rounded-tr-md bg-brand-500 text-white px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-words">
+                  <div dir="auto" className="max-w-[85%] rounded-2xl rounded-ss-md bg-brand-500 text-white px-3.5 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-words">
                     {message.content}
                   </div>
                 </div>
@@ -255,14 +256,14 @@ export function AssistantDrawer({ open, onOpenChange, onOpenHelpCenter }: Assist
                   <div
                     dir="auto"
                     className={cn(
-                      "max-w-[92%] rounded-2xl rounded-tl-md px-3.5 py-2.5 break-words",
+                      "max-w-[92%] rounded-2xl rounded-se-md px-3.5 py-2.5 break-words",
                       message.failed ? "bg-red-50 text-red-700 border border-red-100" : "bg-slate-100 text-petra-text"
                     )}
                   >
                     {message.content ? (
                       <AssistantMarkdown content={message.content} onNavigate={() => onOpenChange(false)} />
                     ) : (
-                      <span className="flex gap-1 py-1.5" role="status" aria-label="Petra AI כותב תשובה">
+                      <span className="flex gap-1 py-1.5" role="status" aria-label={t("typing")}>
                         <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" />
                         <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:120ms]" />
                         <span className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce [animation-delay:240ms]" />
@@ -270,11 +271,11 @@ export function AssistantDrawer({ open, onOpenChange, onOpenHelpCenter }: Assist
                     )}
                   </div>
                   {message.serverId && (
-                    <div className="flex items-center gap-1 pl-1">
+                    <div className="flex items-center gap-1 pe-1">
                       <button
                         type="button"
                         onClick={() => rate(message, 1)}
-                        aria-label="התשובה עזרה"
+                        aria-label={t("helpful")}
                         aria-pressed={message.rating === 1}
                         className={cn("p-1.5 rounded-lg transition-colors", message.rating === 1 ? "text-green-600 bg-green-50" : "text-slate-400 hover:text-petra-text hover:bg-slate-100")}
                       >
@@ -283,7 +284,7 @@ export function AssistantDrawer({ open, onOpenChange, onOpenHelpCenter }: Assist
                       <button
                         type="button"
                         onClick={() => rate(message, -1)}
-                        aria-label="התשובה לא עזרה"
+                        aria-label={t("notHelpful")}
                         aria-pressed={message.rating === -1}
                         className={cn("p-1.5 rounded-lg transition-colors", message.rating === -1 ? "text-red-600 bg-red-50" : "text-slate-400 hover:text-petra-text hover:bg-slate-100")}
                       >
@@ -297,32 +298,32 @@ export function AssistantDrawer({ open, onOpenChange, onOpenHelpCenter }: Assist
 
             {escalated && (
               <p className="text-sm text-green-700 bg-green-50 border border-green-100 rounded-xl px-3.5 py-2.5">
-                הפנייה הועברה לצוות של פטרה, יחד עם השיחה הזו. נחזור אליך בהקדם.
+                {t("escalatedNotice")}
               </p>
             )}
 
             {escalating && (
               <div className="card p-3.5 space-y-2.5">
-                <p className="text-sm font-semibold text-petra-text">דבר עם אדם</p>
+                <p className="text-sm font-semibold text-petra-text">{t("talkToHuman")}</p>
                 <p className="text-xs text-petra-muted leading-relaxed">
                   {hasChat
-                    ? "נעביר לצוות של פטרה את השיחה, המסך שבו אתם נמצאים ופרטי העסק. אפשר להוסיף הערה."
-                    : "כתבו בכמה מילים במה צריך עזרה. נעביר את הפנייה לצוות של פטרה יחד עם המסך ופרטי העסק."}
+                    ? t("escalateWithChat")
+                    : t("escalateNoChat")}
                 </p>
                 <textarea
                   value={escalateNote}
                   onChange={(e) => setEscalateNote(e.target.value)}
                   maxLength={ASSISTANT_MAX_NOTE_CHARS}
                   rows={3}
-                  placeholder={hasChat ? "הערה (לא חובה)" : "במה צריך עזרה?"}
+                  placeholder={hasChat ? t("notePlaceholderOptional") : t("notePlaceholderRequired")}
                   className="input resize-none"
                 />
                 <div className="flex gap-2">
                   <button type="button" onClick={escalate} disabled={!canEscalate} className="btn-primary">
-                    {escalateSending ? "שולח..." : "שליחת הפנייה"}
+                    {escalateSending ? t("sending") : t("submitEscalation")}
                   </button>
                   <button type="button" onClick={() => setEscalating(false)} className="btn-ghost">
-                    ביטול
+                    {t("cancel")}
                   </button>
                 </div>
               </div>
@@ -334,7 +335,7 @@ export function AssistantDrawer({ open, onOpenChange, onOpenHelpCenter }: Assist
             {conversationFull ? (
               <button type="button" onClick={startNewConversation} className="btn-secondary w-full justify-center">
                 <RotateCcw className="w-4 h-4" />
-                השיחה ארוכה — פתיחת שיחה חדשה
+                {t("conversationFull")}
               </button>
             ) : (
               <form
@@ -355,12 +356,12 @@ export function AssistantDrawer({ open, onOpenChange, onOpenHelpCenter }: Assist
                   }}
                   maxLength={ASSISTANT_MAX_MESSAGE_CHARS}
                   rows={1}
-                  placeholder="איך עושים...?"
-                  aria-label="שאלה ל-Petra AI"
+                  placeholder={t("inputPlaceholder")}
+                  aria-label={t("inputAriaLabel")}
                   className="input resize-none max-h-32"
                 />
-                <button type="submit" disabled={!input.trim() || streaming} className="btn-primary px-3" aria-label="שליחה">
-                  <Send className="w-4 h-4 -scale-x-100" />
+                <button type="submit" disabled={!input.trim() || streaming} className="btn-primary px-3" aria-label={t("send")}>
+                  <Send className="w-4 h-4 -scale-x-100 ltr:scale-x-100" />
                 </button>
               </form>
             )}
@@ -372,7 +373,7 @@ export function AssistantDrawer({ open, onOpenChange, onOpenHelpCenter }: Assist
                 className="inline-flex items-center gap-1.5 text-xs font-medium text-petra-muted hover:text-petra-text disabled:opacity-50 disabled:hover:text-petra-muted"
               >
                 <UserRound className="w-3.5 h-3.5" />
-                דבר עם אדם
+                {t("talkToHuman")}
               </button>
               <button
                 type="button"
@@ -383,10 +384,10 @@ export function AssistantDrawer({ open, onOpenChange, onOpenHelpCenter }: Assist
                 className="inline-flex items-center gap-1.5 text-xs font-medium text-petra-muted hover:text-petra-text"
               >
                 <LifeBuoy className="w-3.5 h-3.5" />
-                מרכז העזרה
+                {t("helpCenter")}
               </button>
             </div>
-            <p className="text-[11px] text-slate-400 text-center">Petra AI עונה על שימוש בפטרה ועלול לטעות.</p>
+            <p className="text-[11px] text-slate-400 text-center">{t("disclaimer")}</p>
           </div>
         </Dialog.Content>
       </Dialog.Portal>

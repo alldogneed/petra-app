@@ -6,8 +6,10 @@ import {
   AlertTriangle, ChevronDown, ChevronUp, FileText, Gift, GraduationCap, Heart, PawPrint, Pencil, Pill, Scissors,
   Trash2, UtensilsCrossed,
 } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
-import { BEHAVIOR_FLAG_LABELS, SEVERITY_COLORS } from "./constants";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
+import { BEHAVIOR_FLAG_SEVERITY, SEVERITY_COLORS, constantLabel } from "./constants";
 import { waLink } from "./customer-actions";
 import { calcAge, type DogMedication, type Pet, type TrainingProgramInfo } from "./types";
 
@@ -51,6 +53,11 @@ export function PetCard({
   deleteIsRequest: boolean;
   actions: PetCardActions;
 }) {
+  const t = useTranslations("customers.petCard");
+  const tCustomers = useTranslations("customers");
+  const tk = useTranslations("customers.constants");
+  const tc = useTranslations("common");
+  const { locale } = useBusinessLocale();
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
   const toggleSection = (section: string) => setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
   const isSectionOpen = (section: string) => !!openSections[section];
@@ -62,7 +69,7 @@ export function PetCard({
       return [];
     }
   })();
-  const age = calcAge(pet.birthDate);
+  const age = calcAge(pet.birthDate, tCustomers);
   const attachmentsList: { type: string; url: string; mimeType?: string }[] = (() => {
     try { return JSON.parse(pet.attachments || "[]"); } catch { return []; }
   })();
@@ -77,7 +84,7 @@ export function PetCard({
 
   // Gather active behavior flags
   const activeBehaviorFlags = pet.behavior
-    ? Object.entries(BEHAVIOR_FLAG_LABELS).filter(
+    ? Object.entries(BEHAVIOR_FLAG_SEVERITY).filter(
         ([key]) => pet.behavior?.[key as keyof typeof pet.behavior] === true
       )
     : [];
@@ -123,28 +130,28 @@ export function PetCard({
             </div>
             <div className="text-xs text-petra-muted">
               {pet.species === "dog"
-                ? "כלב"
+                ? t("species.dog")
                 : pet.species === "cat"
-                ? "חתול"
+                ? t("species.cat")
                 : pet.species}
               {pet.breed ? ` · ${pet.breed}` : ""}
               {pet.gender
-                ? ` · ${pet.gender === "male" ? "זכר" : "נקבה"}`
+                ? ` · ${pet.gender === "male" ? t("gender.male") : t("gender.female")}`
                 : ""}
             </div>
           </div>
           <div className="flex-shrink-0 flex items-center gap-1">
             {customerPhone && canSendMessages && (() => {
               const agePart = age ? ` ${age}` : "";
-              const bdMsg = `יום הולדת שמח ל-${pet.name}! 🎂🐾\n\n${pet.name} מלא/ה${agePart} היום – כל הכבוד! 🎉\n\nכמתנה קטנה, נשמח להעניק לכם 10% הנחה על הפגישה הבאה 🎁\n(ציינו שקיבלתם הודעה זו בעת קביעת הפגישה)`;
+              const bdMsg = `יום הולדת שמח ל-${pet.name}! 🎂🐾\n\n${pet.name} מלא/ה${agePart} היום – כל הכבוד! 🎉\n\nכמתנה קטנה, נשמח להעניק לכם 10% הנחה על הפגישה הבאה 🎁\n(ציינו שקיבלתם הודעה זו בעת קביעת הפגישה)`; // i18n-ok
               return (
                 <a
                   href={waLink(customerPhone, bdMsg)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className={HOVER_ACTION + " hover:bg-amber-200"}
-                  title="שלח ברכת יום הולדת WhatsApp"
-                  aria-label="שלח ברכת יום הולדת WhatsApp"
+                  title={t("birthdayWhatsApp")}
+                  aria-label={t("birthdayWhatsApp")}
                   onClick={(e) => e.stopPropagation()}
                 >
                   <Gift className="w-3 h-3 text-amber-700" />
@@ -155,8 +162,8 @@ export function PetCard({
             <button
               className="w-7 h-7 flex items-center justify-center rounded transition-all hover:bg-amber-200"
               onClick={(e) => { e.stopPropagation(); actions.onEdit(pet); }}
-              title="ערוך פרטים"
-              aria-label="ערוך פרטי חיית המחמד"
+              title={t("editDetails")}
+              aria-label={t("editDetailsAria")}
             >
               <Pencil className="w-3.5 h-3.5 text-amber-700" />
             </button>
@@ -164,8 +171,8 @@ export function PetCard({
               <button
                 className={HOVER_ACTION + " hover:bg-red-100"}
                 onClick={(e) => { e.stopPropagation(); actions.onDelete(pet); }}
-                title={deleteIsRequest ? "שלח בקשת מחיקה לאישור" : "מחק"}
-                aria-label={deleteIsRequest ? "שלח בקשת מחיקה לאישור" : "מחק חיית מחמד"}
+                title={deleteIsRequest ? t("sendDeleteRequest") : tc("actions.delete")}
+                aria-label={deleteIsRequest ? t("sendDeleteRequest") : t("deletePetAria")}
               >
                 <Trash2 className="w-3 h-3 text-red-500" />
               </button>
@@ -180,21 +187,21 @@ export function PetCard({
 
         {/* Quick info: age, weight, indicators */}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-xs text-stone-500">
-          {age && <span>גיל: {age}</span>}
-          {pet.weight && <span>משקל: {pet.weight} ק״ג</span>}
+          {age && <span>{t("quick.age", { age })}</span>}
+          {pet.weight && <span>{t("quick.weight", { weight: pet.weight })}</span>}
           {pet.microchip && (
-            <span className="text-stone-400">שבב: {pet.microchip}</span>
+            <span className="text-stone-400">{t("quick.microchip", { microchip: pet.microchip })}</span>
           )}
           {hasMeds && (
             <span className="flex items-center gap-0.5 text-red-500">
               <Pill className="w-3 h-3" />
-              {pet.medications.length} תרופות
+              {t("quick.medsCount", { count: pet.medications.length })}
             </span>
           )}
           {hasFood && (
             <span className="flex items-center gap-0.5 text-amber-600">
               <UtensilsCrossed className="w-3 h-3" />
-              האכלה
+              {t("feeding.title")}
             </span>
           )}
         </div>
@@ -225,13 +232,13 @@ export function PetCard({
             >
               <div className="flex items-center gap-1.5">
                 <UtensilsCrossed className="w-3.5 h-3.5 text-amber-600" />
-                <span className="text-xs font-bold text-petra-text">האכלה</span>
+                <span className="text-xs font-bold text-petra-text">{t("feeding.title")}</span>
                 {isSectionOpen("feeding") ? <ChevronUp className="w-3 h-3 text-stone-400" /> : <ChevronDown className="w-3 h-3 text-stone-400" />}
               </div>
               <button
                 className="w-5 h-5 rounded flex items-center justify-center hover:bg-amber-100 transition-colors"
                 onClick={(e) => { e.stopPropagation(); actions.onFeeding(pet); }}
-                title="ערוך האכלה"
+                title={t("feeding.edit")}
               >
                 <Pencil className="w-3 h-3 text-amber-600" />
               </button>
@@ -240,20 +247,20 @@ export function PetCard({
               <div className="bg-white/60 rounded-lg p-2.5 space-y-1.5">
                 {pet.foodBrand && (
                   <div className="text-[11px]">
-                    <span className="text-stone-500">מותג: </span>
+                    <span className="text-stone-500">{t("feeding.brand")}</span>
                     <span className="text-stone-700 font-medium">{pet.foodBrand}</span>
                   </div>
                 )}
                 <div className="flex gap-4 text-[11px]">
                   {pet.foodGramsPerDay && (
                     <div>
-                      <span className="text-stone-500">כמות: </span>
-                      <span className="text-stone-700 font-medium">{pet.foodGramsPerDay} גרם/יום</span>
+                      <span className="text-stone-500">{t("feeding.amount")}</span>
+                      <span className="text-stone-700 font-medium">{t("feeding.gramsPerDay", { grams: pet.foodGramsPerDay })}</span>
                     </div>
                   )}
                   {pet.foodFrequency && (
                     <div>
-                      <span className="text-stone-500">תדירות: </span>
+                      <span className="text-stone-500">{t("feeding.frequency")}</span>
                       <span className="text-stone-700">{pet.foodFrequency}</span>
                     </div>
                   )}
@@ -267,7 +274,7 @@ export function PetCard({
                 className="w-full text-xs text-amber-400 hover:text-amber-600 py-1.5 border border-dashed border-amber-200 hover:border-amber-300 rounded-lg transition-colors"
                 onClick={(e) => { e.stopPropagation(); actions.onFeeding(pet); }}
               >
-                + הוסף פרטי האכלה
+                {t("feeding.add")}
               </button>
             ))}
           </div>
@@ -281,14 +288,14 @@ export function PetCard({
               <div className="flex items-center gap-1.5">
                 <Pill className="w-3.5 h-3.5 text-red-500" />
                 <span className="text-xs font-bold text-petra-text">
-                  תרופות ({pet.medications.length})
+                  {t("meds.title", { count: pet.medications.length })}
                 </span>
                 {isSectionOpen("medications") ? <ChevronUp className="w-3 h-3 text-stone-400" /> : <ChevronDown className="w-3 h-3 text-stone-400" />}
               </div>
               <button
                 className="w-5 h-5 rounded flex items-center justify-center hover:bg-red-100 transition-colors"
                 onClick={(e) => { e.stopPropagation(); actions.onMedication(pet, null); }}
-                title="ערוך תרופות"
+                title={t("meds.edit")}
               >
                 <Pencil className="w-3 h-3 text-red-500" />
               </button>
@@ -309,33 +316,33 @@ export function PetCard({
                       <button
                         className={HOVER_ACTION + " hover:bg-brand-50"}
                         onClick={(e) => { e.stopPropagation(); actions.onMedication(pet, med); }}
-                        title="ערוך"
+                        title={t("meds.editOne")}
                       >
                         <Pencil className="w-3 h-3 text-brand-500" />
                       </button>
                       <button
                         className={HOVER_ACTION + " hover:bg-red-100"}
                         onClick={(e) => { e.stopPropagation(); actions.onDeleteMedication(pet, med); }}
-                        title="מחק"
+                        title={tc("actions.delete")}
                       >
                         <Trash2 className="w-3 h-3 text-red-500" />
                       </button>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[10px] text-stone-500 mt-1">
-                    {med.frequency && <span>תדירות: {med.frequency}</span>}
-                    {med.times && <span>שעות: {med.times}</span>}
+                    {med.frequency && <span>{t("meds.frequency", { frequency: med.frequency })}</span>}
+                    {med.times && <span>{t("meds.times", { times: med.times })}</span>}
                     {med.instructions && (
                       <span className="text-stone-400">{med.instructions}</span>
                     )}
                     {med.startDate && (
                       <span>
-                        מ-{new Date(med.startDate).toLocaleDateString("he-IL")}
+                        {t("meds.from", { date: new Date(med.startDate).toLocaleDateString(locale) })}
                       </span>
                     )}
                     {med.endDate && (
                       <span>
-                        עד {new Date(med.endDate).toLocaleDateString("he-IL")}
+                        {t("meds.until", { date: new Date(med.endDate).toLocaleDateString(locale) })}
                       </span>
                     )}
                   </div>
@@ -346,14 +353,14 @@ export function PetCard({
                   className="w-full text-xs text-red-400 hover:text-red-600 py-1.5 border border-dashed border-red-200 hover:border-red-300 rounded-lg transition-colors"
                   onClick={(e) => { e.stopPropagation(); actions.onMedication(pet, null); }}
                 >
-                  + הוסף תרופה נוספת
+                  {t("meds.addAnother")}
                 </button>
               ) : (
                 <button
                   className="w-full text-xs text-red-400 hover:text-red-600 py-1.5 border border-dashed border-red-200 hover:border-red-300 rounded-lg transition-colors"
                   onClick={(e) => { e.stopPropagation(); actions.onMedication(pet, null); }}
                 >
-                  + הוסף תרופה ראשונה
+                  {t("meds.addFirst")}
                 </button>
               )}
             </div>}
@@ -367,13 +374,13 @@ export function PetCard({
             >
               <div className="flex items-center gap-1.5">
                 <Heart className="w-3.5 h-3.5 text-rose-500" />
-                <span className="text-xs font-bold text-petra-text">בריאות</span>
+                <span className="text-xs font-bold text-petra-text">{t("health.title")}</span>
                 {isSectionOpen("health") ? <ChevronUp className="w-3 h-3 text-stone-400" /> : <ChevronDown className="w-3 h-3 text-stone-400" />}
               </div>
               <button
                 className="w-5 h-5 rounded flex items-center justify-center hover:bg-rose-100 transition-colors"
                 onClick={(e) => { e.stopPropagation(); actions.onHealth(pet); }}
-                title="ערוך בריאות"
+                title={t("health.edit")}
               >
                 <Pencil className="w-3 h-3 text-rose-500" />
               </button>
@@ -389,120 +396,120 @@ export function PetCard({
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px]">
                     {pet.health.rabiesLastDate && (
                       <div>
-                        <span className="text-stone-500">כלבת: </span>
+                        <span className="text-stone-500">{t("health.rabies")}</span>
                         <span className="text-stone-700">
-                          {new Date(pet.health.rabiesLastDate).toLocaleDateString("he-IL")}
+                          {new Date(pet.health.rabiesLastDate).toLocaleDateString(locale)}
                         </span>
                       </div>
                     )}
                     {pet.health.rabiesValidUntil && (
                       <div>
-                        <span className="text-stone-500">כלבת עד: </span>
+                        <span className="text-stone-500">{t("health.rabiesUntil")}</span>
                         <span className="text-stone-700">
-                          {new Date(pet.health.rabiesValidUntil).toLocaleDateString("he-IL")}
+                          {new Date(pet.health.rabiesValidUntil).toLocaleDateString(locale)}
                         </span>
                       </div>
                     )}
                     {pet.health.dhppPuppy1Date && (
                       <div>
-                        <span className="text-stone-500">משושה גורים מ1: </span>
+                        <span className="text-stone-500">{t("health.dhppPuppy1")}</span>
                         <span className="text-stone-700">
-                          {new Date(pet.health.dhppPuppy1Date).toLocaleDateString("he-IL")}
+                          {new Date(pet.health.dhppPuppy1Date).toLocaleDateString(locale)}
                         </span>
                       </div>
                     )}
                     {pet.health.dhppPuppy2Date && (
                       <div>
-                        <span className="text-stone-500">משושה גורים מ2: </span>
+                        <span className="text-stone-500">{t("health.dhppPuppy2")}</span>
                         <span className="text-stone-700">
-                          {new Date(pet.health.dhppPuppy2Date).toLocaleDateString("he-IL")}
+                          {new Date(pet.health.dhppPuppy2Date).toLocaleDateString(locale)}
                         </span>
                       </div>
                     )}
                     {pet.health.dhppPuppy3Date && (
                       <div>
-                        <span className="text-stone-500">משושה גורים מ3: </span>
+                        <span className="text-stone-500">{t("health.dhppPuppy3")}</span>
                         <span className="text-stone-700">
-                          {new Date(pet.health.dhppPuppy3Date).toLocaleDateString("he-IL")}
+                          {new Date(pet.health.dhppPuppy3Date).toLocaleDateString(locale)}
                         </span>
                       </div>
                     )}
                     {pet.health.dhppLastDate && (
                       <div>
-                        <span className="text-stone-500">משושה בוגר: </span>
+                        <span className="text-stone-500">{t("health.dhppAdult")}</span>
                         <span className="text-stone-700">
-                          {new Date(pet.health.dhppLastDate).toLocaleDateString("he-IL")}
+                          {new Date(pet.health.dhppLastDate).toLocaleDateString(locale)}
                         </span>
                       </div>
                     )}
                     {pet.health.bordatellaDate && (
                       <div>
-                        <span className="text-stone-500">שעלת מכלאות: </span>
+                        <span className="text-stone-500">{t("health.bordetella")}</span>
                         <span className="text-stone-700">
-                          {new Date(pet.health.bordatellaDate).toLocaleDateString("he-IL")}
+                          {new Date(pet.health.bordatellaDate).toLocaleDateString(locale)}
                         </span>
                       </div>
                     )}
                     {pet.health.parkWormDate && (
                       <div>
-                        <span className="text-stone-500">תולעת פארק: </span>
+                        <span className="text-stone-500">{t("health.parkWorm")}</span>
                         <span className="text-stone-700">
-                          {new Date(pet.health.parkWormDate).toLocaleDateString("he-IL")}
+                          {new Date(pet.health.parkWormDate).toLocaleDateString(locale)}
                         </span>
                       </div>
                     )}
                     {pet.health.dewormingLastDate && (
                       <div>
-                        <span className="text-stone-500">תילוע: </span>
+                        <span className="text-stone-500">{t("health.deworming")}</span>
                         <span className="text-stone-700">
-                          {new Date(pet.health.dewormingLastDate).toLocaleDateString("he-IL")}
+                          {new Date(pet.health.dewormingLastDate).toLocaleDateString(locale)}
                         </span>
                       </div>
                     )}
                     {pet.health.fleaTickDate && (
                       <div>
-                        <span className="text-stone-500">קרציות/פרעושים: </span>
+                        <span className="text-stone-500">{t("health.fleaTick")}</span>
                         <span className="text-stone-700">
                           {pet.health.fleaTickType ? `${pet.health.fleaTickType} · ` : ""}
-                          {new Date(pet.health.fleaTickDate).toLocaleDateString("he-IL")}
+                          {new Date(pet.health.fleaTickDate).toLocaleDateString(locale)}
                         </span>
                       </div>
                     )}
-                    {pet.health.notVaccinatedFlags?.rabies && <div><span className="text-orange-600 font-medium">כלבת: לא חוסן</span></div>}
-                    {pet.health.notVaccinatedFlags?.dhpp && <div><span className="text-orange-600 font-medium">משושה: לא חוסן</span></div>}
-                    {pet.health.notVaccinatedFlags?.deworming && <div><span className="text-orange-600 font-medium">תילוע: לא טופל</span></div>}
-                    {pet.health.notVaccinatedFlags?.parkWorm && <div><span className="text-orange-600 font-medium">תולעת הפארק: לא טופל</span></div>}
-                    {pet.health.notVaccinatedFlags?.fleaTick && <div><span className="text-orange-600 font-medium">קרציות/פרעושים: לא טופל</span></div>}
-                    {pet.health.notVaccinatedFlags?.bordetella && <div><span className="text-orange-600 font-medium">שעלת מכלאות: לא חוסן</span></div>}
+                    {pet.health.notVaccinatedFlags?.rabies && <div><span className="text-orange-600 font-medium">{t("health.notVaccinated.rabies")}</span></div>}
+                    {pet.health.notVaccinatedFlags?.dhpp && <div><span className="text-orange-600 font-medium">{t("health.notVaccinated.dhpp")}</span></div>}
+                    {pet.health.notVaccinatedFlags?.deworming && <div><span className="text-orange-600 font-medium">{t("health.notVaccinated.deworming")}</span></div>}
+                    {pet.health.notVaccinatedFlags?.parkWorm && <div><span className="text-orange-600 font-medium">{t("health.notVaccinated.parkWorm")}</span></div>}
+                    {pet.health.notVaccinatedFlags?.fleaTick && <div><span className="text-orange-600 font-medium">{t("health.notVaccinated.fleaTick")}</span></div>}
+                    {pet.health.notVaccinatedFlags?.bordetella && <div><span className="text-orange-600 font-medium">{t("health.notVaccinated.bordetella")}</span></div>}
                   </div>
                 )}
                 {pet.health.allergies && (
                   <div className="text-[11px]">
-                    <span className="text-stone-500">אלרגיות: </span>
+                    <span className="text-stone-500">{t("health.allergies")}</span>
                     <span className="text-stone-700">{pet.health.allergies}</span>
                   </div>
                 )}
                 {pet.health.medicalConditions && (
                   <div className="text-[11px]">
-                    <span className="text-stone-500">מצבים רפואיים: </span>
+                    <span className="text-stone-500">{t("health.medicalConditions")}</span>
                     <span className="text-stone-700">{pet.health.medicalConditions}</span>
                   </div>
                 )}
                 {pet.health.surgeriesHistory && (
                   <div className="text-[11px]">
-                    <span className="text-stone-500">ניתוחים: </span>
+                    <span className="text-stone-500">{t("health.surgeries")}</span>
                     <span className="text-stone-700">{pet.health.surgeriesHistory}</span>
                   </div>
                 )}
                 {pet.health.activityLimitations && (
                   <div className="text-[11px]">
-                    <span className="text-stone-500">מגבלות פעילות: </span>
+                    <span className="text-stone-500">{t("health.activityLimitations")}</span>
                     <span className="text-stone-700">{pet.health.activityLimitations}</span>
                   </div>
                 )}
                 {(pet.health.vetName || pet.health.vetPhone) && (
                   <div className="text-[11px]">
-                    <span className="text-stone-500">וטרינר: </span>
+                    <span className="text-stone-500">{t("health.vet")}</span>
                     <span className="text-stone-700">
                       {pet.health.vetName}
                       {pet.health.vetPhone ? ` · ${pet.health.vetPhone}` : ""}
@@ -511,13 +518,13 @@ export function PetCard({
                 )}
                 {pet.health.originInfo && (
                   <div className="text-[11px]">
-                    <span className="text-stone-500">מקור: </span>
+                    <span className="text-stone-500">{t("health.origin")}</span>
                     <span className="text-stone-700">{pet.health.originInfo}</span>
                   </div>
                 )}
                 {pet.health.timeWithOwner && (
                   <div className="text-[11px]">
-                    <span className="text-stone-500">זמן עם הבעלים: </span>
+                    <span className="text-stone-500">{t("health.timeWithOwner")}</span>
                     <span className="text-stone-700">{pet.health.timeWithOwner}</span>
                   </div>
                 )}
@@ -533,13 +540,13 @@ export function PetCard({
             >
               <div className="flex items-center gap-1.5">
                 <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
-                <span className="text-xs font-bold text-petra-text">התנהגות</span>
+                <span className="text-xs font-bold text-petra-text">{t("behavior.title")}</span>
                 {isSectionOpen("behavior") ? <ChevronUp className="w-3 h-3 text-stone-400" /> : <ChevronDown className="w-3 h-3 text-stone-400" />}
               </div>
               <button
                 className="w-5 h-5 rounded flex items-center justify-center hover:bg-amber-100 transition-colors"
                 onClick={(e) => { e.stopPropagation(); actions.onBehavior(pet); }}
-                title="ערוך התנהגות"
+                title={t("behavior.edit")}
               >
                 <Pencil className="w-3 h-3 text-amber-600" />
               </button>
@@ -547,15 +554,15 @@ export function PetCard({
             {isSectionOpen("behavior") && (activeBehaviorFlags.length > 0 || (() => { try { return JSON.parse(pet.behavior?.customIssues || "[]"); } catch { return []; } })().length > 0 || pet.behavior?.triggers || pet.behavior?.biteDetails || pet.behavior?.priorTrainingDetails) && (
               <div className="bg-white/60 rounded-lg p-2.5 space-y-2">
                 <div className="flex flex-wrap gap-1.5">
-                  {activeBehaviorFlags.map(([key, info]) => (
+                  {activeBehaviorFlags.map(([key, severity]) => (
                     <span
                       key={key}
                       className={cn(
                         "px-2 py-0.5 rounded-full text-[10px] font-medium border",
-                        SEVERITY_COLORS[info.severity]
+                        SEVERITY_COLORS[severity]
                       )}
                     >
-                      {info.label}
+                      {constantLabel(tk, "behaviorFlags", key) ?? key}
                     </span>
                   ))}
                   {(() => { try { return JSON.parse(pet.behavior?.customIssues || "[]") as string[]; } catch { return [] as string[]; } })().map((issue: string, idx: number) => (
@@ -569,19 +576,19 @@ export function PetCard({
                 </div>
                 {pet.behavior?.triggers && (
                   <div className="text-[11px]">
-                    <span className="text-stone-500">טריגרים: </span>
+                    <span className="text-stone-500">{t("behavior.triggers")}</span>
                     <span className="text-stone-700">{pet.behavior.triggers}</span>
                   </div>
                 )}
                 {pet.behavior?.biteDetails && (
                   <div className="text-[11px]">
-                    <span className="text-stone-500">פרטי נשיכה: </span>
+                    <span className="text-stone-500">{t("behavior.biteDetails")}</span>
                     <span className="text-stone-700">{pet.behavior.biteDetails}</span>
                   </div>
                 )}
                 {pet.behavior?.priorTrainingDetails && (
                   <div className="text-[11px]">
-                    <span className="text-stone-500">אילוף קודם: </span>
+                    <span className="text-stone-500">{t("behavior.priorTraining")}</span>
                     <span className="text-stone-700">{pet.behavior.priorTrainingDetails}</span>
                   </div>
                 )}
@@ -599,7 +606,7 @@ export function PetCard({
                 <div className="flex items-center gap-1.5">
                   <GraduationCap className="w-3.5 h-3.5 text-indigo-500" />
                   <span className="text-xs font-bold text-petra-text">
-                    אילוף ({petPrograms.length})
+                    {t("training.title", { count: petPrograms.length })}
                   </span>
                   {isSectionOpen("training") ? <ChevronUp className="w-3 h-3 text-stone-400" /> : <ChevronDown className="w-3 h-3 text-stone-400" />}
                 </div>
@@ -608,7 +615,7 @@ export function PetCard({
                   onClick={(e) => e.stopPropagation()}
                   className="text-[10px] text-indigo-500 hover:underline"
                 >
-                  פתח אילוף ←
+                  {t("training.open")}
                 </a>
               </div>
               {isSectionOpen("training") && (
@@ -622,10 +629,6 @@ export function PetCard({
                       COMPLETED: "bg-blue-100 text-blue-700 border-blue-200",
                       CANCELED: "bg-red-100 text-red-700 border-red-200",
                     };
-                    const statusLabels: Record<string, string> = {
-                      ACTIVE: "פעיל", PAUSED: "מושהה",
-                      COMPLETED: "הושלם", CANCELED: "בוטל",
-                    };
                     const achievedGoals = prog.goals.filter(g => g.status === "ACHIEVED").length;
                     return (
                       <Link
@@ -637,14 +640,14 @@ export function PetCard({
                         <div className="flex items-center justify-between">
                           <span className="text-xs font-medium text-petra-text">{prog.name}</span>
                           <span className={`text-[10px] px-1.5 py-0.5 rounded-full border font-medium ${statusColors[prog.status] ?? "bg-slate-100 text-slate-600"}`}>
-                            {statusLabels[prog.status] ?? prog.status}
+                            {t.has(`training.status.${prog.status}`) ? t(`training.status.${prog.status}`) : prog.status}
                           </span>
                         </div>
                         {/* Sessions progress */}
                         {(totalSessions || completedSessions > 0) && (
                           <div className="space-y-1">
                             <div className="flex justify-between text-[10px] text-stone-500">
-                              <span>מפגשים</span>
+                              <span>{t("training.sessions")}</span>
                               <span>{completedSessions}{totalSessions ? `/${totalSessions}` : ""}</span>
                             </div>
                             {totalSessions && (
@@ -661,7 +664,7 @@ export function PetCard({
                         {prog.goals.length > 0 && (
                           <div className="space-y-1">
                             <p className="text-[10px] text-stone-500 font-medium">
-                              יעדים: {achievedGoals}/{prog.goals.length} הושגו
+                              {t("training.goalsAchieved", { achieved: achievedGoals, total: prog.goals.length })}
                             </p>
                             {prog.goals.slice(0, 4).map(goal => (
                               <div key={goal.id} className="flex items-center gap-1.5">
@@ -678,7 +681,7 @@ export function PetCard({
                               </div>
                             ))}
                             {prog.goals.length > 4 && (
-                              <p className="text-[10px] text-stone-400">+{prog.goals.length - 4} יעדים נוספים</p>
+                              <p className="text-[10px] text-stone-400">{t("training.moreGoals", { count: prog.goals.length - 4 })}</p>
                             )}
                           </div>
                         )}
@@ -697,24 +700,24 @@ export function PetCard({
           <div className="space-y-1.5">
             <div className="group flex items-start gap-1.5 bg-white/60 rounded-lg p-2.5">
               <div className="flex-1 text-[11px]">
-                <span className="text-stone-500 font-medium">הערות רפואיות: </span>
-                <span className="text-stone-700">{pet.medicalNotes || <span className="italic text-stone-400">לא הוזן</span>}</span>
+                <span className="text-stone-500 font-medium">{t("notes.medicalLabel")}</span>
+                <span className="text-stone-700">{pet.medicalNotes || <span className="italic text-stone-400">{t("notes.notEntered")}</span>}</span>
               </div>
               <button
                 className={HOVER_ACTION + " hover:bg-brand-50 flex-shrink-0"}
-                onClick={(e) => { e.stopPropagation(); actions.onNote(pet, "medicalNotes", "הערות רפואיות", pet.medicalNotes || ""); }}
+                onClick={(e) => { e.stopPropagation(); actions.onNote(pet, "medicalNotes", t("notes.medicalTitle"), pet.medicalNotes || ""); }}
               >
                 <Pencil className="w-3 h-3 text-brand-500" />
               </button>
             </div>
             <div className="group flex items-start gap-1.5 bg-white/60 rounded-lg p-2.5">
               <div className="flex-1 text-[11px]">
-                <span className="text-stone-500 font-medium">הערות התנהגות: </span>
-                <span className="text-stone-700">{pet.behaviorNotes || <span className="italic text-stone-400">לא הוזן</span>}</span>
+                <span className="text-stone-500 font-medium">{t("notes.behaviorLabel")}</span>
+                <span className="text-stone-700">{pet.behaviorNotes || <span className="italic text-stone-400">{t("notes.notEntered")}</span>}</span>
               </div>
               <button
                 className={HOVER_ACTION + " hover:bg-brand-50 flex-shrink-0"}
-                onClick={(e) => { e.stopPropagation(); actions.onNote(pet, "behaviorNotes", "הערות התנהגות", pet.behaviorNotes || ""); }}
+                onClick={(e) => { e.stopPropagation(); actions.onNote(pet, "behaviorNotes", t("notes.behaviorTitle"), pet.behaviorNotes || ""); }}
               >
                 <Pencil className="w-3 h-3 text-brand-500" />
               </button>
@@ -733,8 +736,8 @@ export function PetCard({
       >
         <FileText className="w-3.5 h-3.5" />
         {docCount > 0
-          ? `${docCount} מסמכים`
-          : "מסמכים ותמונות"}
+          ? t("documents.count", { count: docCount })
+          : t("documents.empty")}
       </button>
     </div>
   );

@@ -20,7 +20,11 @@ import {
   X,
   BadgeCheck,
 } from "lucide-react";
-import { cn, fetchJSON, formatDate } from "@/lib/utils";
+import { cn, fetchJSON } from "@/lib/utils";
+import { useTranslations } from "next-intl";
+import { useBusinessLocale } from "@/hooks/useBusinessLocale";
+import { formatDate } from "@/lib/format";
+import type { Locale, LocaleConfig } from "@/lib/locale";
 import { toast } from "sonner";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -43,16 +47,18 @@ interface ScheduledMessage {
   delivery?: { status: string; error: string | null; at: string } | null;
 }
 
+type MessagesT = ReturnType<typeof useTranslations<"messages">>;
+
 /** What WhatsApp reported for a SENT message: accepted/sent → on its way, delivered, read, failed. */
-function deliveryInfo(msg: ScheduledMessage): { label: string; className: string; title?: string } | null {
+function deliveryInfo(msg: ScheduledMessage, t: MessagesT): { label: string; className: string; title?: string } | null {
   if (msg.status !== "SENT") return null;
   const d = msg.delivery;
-  if (!d) return { label: "אין אישור מסירה", className: "text-slate-400", title: "הודעה שנשלחה לפני שהמערכת התחילה לעקוב אחרי מסירה" };
+  if (!d) return { label: t("scheduledMessagesPage.delivery.noReceipt"), className: "text-slate-400", title: t("scheduledMessagesPage.delivery.noReceiptTitle") };
   switch (d.status) {
-    case "read": return { label: "✓✓ נקרא", className: "text-sky-600 font-medium" };
-    case "delivered": return { label: "✓✓ נמסר", className: "text-emerald-600" };
-    case "failed": return { label: "לא נמסר", className: "text-red-600 font-medium", title: d.error ?? undefined };
-    default: return { label: "✓ בדרך ללקוח", className: "text-slate-500" };
+    case "read": return { label: t("scheduledMessagesPage.delivery.read"), className: "text-sky-600 font-medium" };
+    case "delivered": return { label: t("scheduledMessagesPage.delivery.delivered"), className: "text-emerald-600" };
+    case "failed": return { label: t("scheduledMessagesPage.delivery.failed"), className: "text-red-600 font-medium", title: d.error ?? undefined };
+    default: return { label: t("scheduledMessagesPage.delivery.onTheWay"), className: "text-slate-500" };
   }
 }
 
@@ -71,31 +77,31 @@ interface PageData {
 
 const STATUS_INFO: Record<
   string,
-  { label: string; badgeClass: string; icon: React.ElementType; iconColor: string; bgColor: string }
+  { labelKey: string; badgeClass: string; icon: React.ElementType; iconColor: string; bgColor: string }
 > = {
   PENDING: {
-    label: "ממתין",
+    labelKey: "PENDING",
     badgeClass: "badge-warning",
     icon: Clock,
     iconColor: "#F59E0B",
     bgColor: "#FEF3C715",
   },
   SENT: {
-    label: "נשלח",
+    labelKey: "SENT",
     badgeClass: "badge-success",
     icon: CheckCircle2,
     iconColor: "#22C55E",
     bgColor: "#F0FDF415",
   },
   FAILED: {
-    label: "נכשל",
+    labelKey: "FAILED",
     badgeClass: "badge-danger",
     icon: AlertTriangle,
     iconColor: "#EF4444",
     bgColor: "#FEF2F215",
   },
   CANCELED: {
-    label: "בוטל",
+    labelKey: "CANCELED",
     badgeClass: "badge-neutral",
     icon: XCircle,
     iconColor: "#94A3B8",
@@ -108,16 +114,16 @@ const CHANNEL_INFO: Record<string, { label: string; icon: React.ElementType; col
 };
 
 const FILTER_STATUSES = [
-  { id: "ALL", label: "הכל" },
-  { id: "PENDING", label: "ממתינות" },
-  { id: "SENT", label: "נשלחו" },
-  { id: "FAILED", label: "נכשלו" },
-  { id: "CANCELED", label: "בוטלו" },
+  { id: "ALL" },
+  { id: "PENDING" },
+  { id: "SENT" },
+  { id: "FAILED" },
+  { id: "CANCELED" },
 ];
 
 const FILTER_CHANNELS = [
-  { id: "ALL", label: "כל הערוצים" },
-  { id: "whatsapp", label: "WhatsApp" },
+  { id: "ALL" },
+  { id: "whatsapp" },
 ];
 
 function getPayloadPreview(payloadJson: string): string {
@@ -130,7 +136,7 @@ function getPayloadPreview(payloadJson: string): string {
 }
 
 /** Who a message without a customer was sent to — label from the related entity + phone from the payload. */
-function nonCustomerRecipient(msg: ScheduledMessage): { label: string; phone: string } {
+function nonCustomerRecipient(msg: ScheduledMessage, t: MessagesT): { label: string; phone: string } {
   let phone = "";
   try {
     const to = JSON.parse(msg.payloadJson)?.to;
@@ -140,10 +146,10 @@ function nonCustomerRecipient(msg: ScheduledMessage): { label: string; phone: st
   }
   const label =
     msg.relatedEntityType === "LEAD_FOLLOWUP" || msg.relatedEntityType === LEAD_MEETING_ENTITY
-      ? "ליד"
+      ? t("scheduledMessagesPage.recipient.lead")
       : msg.relatedEntityType === "SERVICE_DOG_MEETING"
-        ? "מקבל כלב שירות"
-        : "נמען ללא כרטיס לקוח";
+        ? t("scheduledMessagesPage.recipient.serviceDogRecipient")
+        : t("scheduledMessagesPage.recipient.noClientCard");
   return { label, phone };
 }
 
@@ -158,12 +164,15 @@ function getPayloadFlow(payloadJson: string): string | null {
 
 /** Full message as the customer received it — approved Meta template text or the custom text. */
 function MessagePreviewModal({ msg, onClose }: { msg: ScheduledMessage; onClose: () => void }) {
+  const t = useTranslations("messages");
+  const tc = useTranslations("common");
+  const { locale, cfg } = useBusinessLocale();
   const { data, isLoading, isError } = useQuery<MessagePreview>({
     queryKey: ["scheduled-message-preview", msg.id],
     queryFn: () => fetchJSON(`/api/scheduled-messages/${msg.id}`),
     staleTime: 5 * 60 * 1000,
   });
-  const { date, time } = formatSendAt(msg.sendAt);
+  const { date, time } = formatSendAt(msg.sendAt, locale, cfg);
   const si = STATUS_INFO[msg.status] ?? STATUS_INFO.PENDING;
 
   return (
@@ -180,20 +189,20 @@ function MessagePreviewModal({ msg, onClose }: { msg: ScheduledMessage; onClose:
                 {msg.customer?.name ? `${msg.customer.name} · ` : ""}{date} {time}
               </p>
             </div>
-            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 text-petra-muted" aria-label="סגור">
+            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-slate-100 text-petra-muted" aria-label={tc("actions.close")}>
               <X className="w-4 h-4" />
             </button>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 mb-3">
-            <span className={cn("badge flex items-center gap-1.5 w-fit", si.badgeClass)}>{si.label}</span>
+            <span className={cn("badge flex items-center gap-1.5 w-fit", si.badgeClass)}>{t(`scheduledMessagesPage.status.${si.labelKey}`)}</span>
             {(data?.source === "template" || data?.source === "unavailable") && (
               <span className="badge badge-success flex items-center gap-1 w-fit">
                 <BadgeCheck className="w-3.5 h-3.5" />
-                תבנית מאושרת של Meta
+                {t("scheduledMessagesPage.preview.approvedTemplate")}
               </span>
             )}
-            {data?.source === "custom" && <span className="badge badge-neutral w-fit">טקסט חופשי</span>}
+            {data?.source === "custom" && <span className="badge badge-neutral w-fit">{t("scheduledMessagesPage.preview.freeText")}</span>}
           </div>
 
           {isLoading ? (
@@ -201,7 +210,7 @@ function MessagePreviewModal({ msg, onClose }: { msg: ScheduledMessage; onClose:
               <PetraLoader variant="inline" />
             </div>
           ) : isError || !data ? (
-            <p className="text-sm text-red-500 py-4">לא הצלחנו לטעון את תוכן ההודעה</p>
+            <p className="text-sm text-red-500 py-4">{t("scheduledMessagesPage.preview.loadError")}</p>
           ) : data.text ? (
             <div className="rounded-2xl bg-[#E7FFDB] border border-emerald-100 px-4 py-3">
               <p className="text-sm text-slate-800 whitespace-pre-wrap leading-relaxed" dir="auto">
@@ -212,8 +221,8 @@ function MessagePreviewModal({ msg, onClose }: { msg: ScheduledMessage; onClose:
           ) : (
             <p className="text-sm text-petra-muted py-2">
               {data.source === "unavailable"
-                ? "ההודעה נשלחה בתבנית מאושרת, אבל לא ניתן להציג כרגע את הנוסח שלה."
-                : "אין תוכן שמור להודעה הזו."}
+                ? t("scheduledMessagesPage.preview.unavailable")
+                : t("scheduledMessagesPage.preview.noContent")}
             </p>
           )}
 
@@ -223,10 +232,10 @@ function MessagePreviewModal({ msg, onClose }: { msg: ScheduledMessage; onClose:
             </p>
           )}
           {msg.status === "FAILED" && (
-            <p className="text-xs text-red-500 mt-3">ההודעה לא נשלחה ללקוח. זה הנוסח שתוכנן.</p>
+            <p className="text-xs text-red-500 mt-3">{t("scheduledMessagesPage.preview.failedNote")}</p>
           )}
           {data?.reconstructed && (
-            <p className="text-[11px] text-slate-400 mt-1">הנוסח שוחזר מפרטי התור.</p>
+            <p className="text-[11px] text-slate-400 mt-1">{t("scheduledMessagesPage.preview.reconstructed")}</p>
           )}
         </div>
       </div>
@@ -234,23 +243,21 @@ function MessagePreviewModal({ msg, onClose }: { msg: ScheduledMessage; onClose:
   );
 }
 
-function formatSendAt(dateStr: string): { date: string; time: string } {
+function formatSendAt(dateStr: string, locale: Locale, cfg: LocaleConfig): { date: string; time: string } {
   const d = new Date(dateStr);
-  const date = new Intl.DateTimeFormat("he-IL", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(d);
-  const time = new Intl.DateTimeFormat("he-IL", {
-    hour: "2-digit",
+  const date = formatDate(d, { locale, style: "long" });
+  const time = new Intl.DateTimeFormat(locale, {
+    hour: cfg.hourCycle === "h23" ? "2-digit" : "numeric",
     minute: "2-digit",
-    hour12: false,
+    hour12: cfg.hourCycle !== "h23",
   }).format(d);
   return { date, time };
 }
 
 export default function ScheduledMessagesPage() {
   const { canSendMessages } = usePermissions();
+  const t = useTranslations("messages");
+  const { locale, cfg } = useBusinessLocale();
   const [activeStatus, setActiveStatus] = useState("ALL");
   const [activeChannel, setActiveChannel] = useState("ALL");
   const [page, setPage] = useState(1);
@@ -289,7 +296,7 @@ export default function ScheduledMessagesPage() {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "CANCELED" }),
-      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בביטול"); return d; }),
+      }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || t("scheduledMessagesPage.toasts.cancelErrorShort")); return d; }),
     onSuccess: (res) => {
       if (res.error) {
         toast.error(res.error);
@@ -297,22 +304,22 @@ export default function ScheduledMessagesPage() {
       }
       qc.invalidateQueries({ queryKey: ["scheduled-messages"] });
       qc.invalidateQueries({ queryKey: ["scheduled-messages-stats"] });
-      toast.success("הודעה בוטלה בהצלחה");
+      toast.success(t("scheduledMessagesPage.toasts.canceled"));
       setCancelId(null);
     },
-    onError: () => toast.error("שגיאה בביטול הודעה"),
+    onError: () => toast.error(t("scheduledMessagesPage.toasts.cancelError")),
   });
 
   const sendNowMutation = useMutation({
     mutationFn: (id: string) =>
-      fetch(`/api/scheduled-messages/${id}/send`, { method: "POST" }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || "שגיאה בשליחה"); return d; }),
+      fetch(`/api/scheduled-messages/${id}/send`, { method: "POST" }).then(async (r) => { const d = await r.json(); if (!r.ok) throw new Error(d.error || t("scheduledMessagesPage.toasts.sendErrorShort")); return d; }),
     onSuccess: (res, id) => {
       if (res.error) { toast.error(res.error); return; }
       qc.invalidateQueries({ queryKey: ["scheduled-messages"] });
       qc.invalidateQueries({ queryKey: ["scheduled-messages-stats"] });
-      toast.success(res.stub ? "הודעה נרשמה (Stub — אין Twilio)" : "הודעה נשלחה בהצלחה!");
+      toast.success(res.stub ? t("scheduledMessagesPage.toasts.stub") : t("scheduledMessagesPage.toasts.sent"));
     },
-    onError: () => toast.error("שגיאה בשליחת הודעה"),
+    onError: () => toast.error(t("scheduledMessagesPage.toasts.sendError")),
   });
 
   function handleStatusChange(s: string) {
@@ -328,7 +335,6 @@ export default function ScheduledMessagesPage() {
   const statCards = [
     {
       key: "PENDING",
-      label: "ממתינות",
       value: stats.PENDING,
       icon: Clock,
       color: "#F59E0B",
@@ -337,7 +343,6 @@ export default function ScheduledMessagesPage() {
     },
     {
       key: "SENT",
-      label: "נשלחו",
       value: stats.SENT,
       icon: CheckCircle2,
       color: "#22C55E",
@@ -346,7 +351,6 @@ export default function ScheduledMessagesPage() {
     },
     {
       key: "FAILED",
-      label: "נכשלו",
       value: stats.FAILED,
       icon: AlertTriangle,
       color: "#EF4444",
@@ -355,7 +359,6 @@ export default function ScheduledMessagesPage() {
     },
     {
       key: "CANCELED",
-      label: "בוטלו",
       value: stats.CANCELED,
       icon: XCircle,
       color: "#94A3B8",
@@ -365,16 +368,14 @@ export default function ScheduledMessagesPage() {
   ];
 
   return (
-    <div dir="rtl">
+    <div dir={cfg.dir}>
       <BookingsTabs />
       {/* Header */}
       <div className="page-header flex items-center gap-3 mb-6 flex-wrap">
         <div>
-          <h1 className="page-title">הודעות אוטומטיות</h1>
+          <h1 className="page-title">{t("scheduledMessagesPage.title")}</h1>
           <p className="text-sm text-petra-muted mt-0.5">
-            הודעות שנוצרו אוטומטית על ידי המערכת ומתוזמנות לשליחה.
-            מתחת ל&quot;נשלח&quot; מופיע הדיווח של וואטסאפ עצמו: ✓ בדרך ללקוח, ✓✓ נמסר או ✓✓ נקרא —
-            ואם ההודעה לא הגיעה ללקוח תראו כאן &quot;לא נמסר&quot; ואת הסיבה.
+            {t("scheduledMessagesPage.subtitle")}
           </p>
         </div>
         <button
@@ -383,7 +384,7 @@ export default function ScheduledMessagesPage() {
           className="btn-secondary flex items-center gap-2 text-sm"
         >
           <RefreshCw className={cn("w-4 h-4", isFetching && "animate-spin")} />
-          רענן
+          {t("scheduledMessagesPage.refresh")}
         </button>
       </div>
 
@@ -396,7 +397,7 @@ export default function ScheduledMessagesPage() {
               key={s.key}
               onClick={() => handleStatusChange(s.key)}
               className={cn(
-                "card p-4 text-right transition-all hover:shadow-md",
+                "card p-4 text-start transition-all hover:shadow-md",
                 activeStatus === s.key && "ring-2 ring-brand-500"
               )}
             >
@@ -408,7 +409,7 @@ export default function ScheduledMessagesPage() {
                 </div>
               </div>
               <p className="text-2xl font-bold text-petra-text">{s.value}</p>
-              <p className={cn("text-xs font-medium mt-0.5", s.textColor)}>{s.label}</p>
+              <p className={cn("text-xs font-medium mt-0.5", s.textColor)}>{t(`scheduledMessagesPage.statCards.${s.key}`)}</p>
             </button>
           );
         })}
@@ -429,7 +430,7 @@ export default function ScheduledMessagesPage() {
                   : "bg-slate-100 text-petra-muted hover:bg-slate-200"
               )}
             >
-              {s.label}
+              {t(`scheduledMessagesPage.statusFilters.${s.id}`)}
             </button>
           ))}
         </div>
@@ -449,14 +450,14 @@ export default function ScheduledMessagesPage() {
                   : "bg-slate-100 text-petra-muted hover:bg-slate-200"
               )}
             >
-              {c.label}
+              {t(`scheduledMessagesPage.channelFilters.${c.id}`)}
             </button>
           ))}
         </div>
 
         {data && (
-          <span className="text-xs text-petra-muted mr-auto">
-            {data.total} תוצאות
+          <span className="text-xs text-petra-muted ms-auto">
+            {t("scheduledMessagesPage.resultsCount", { count: data.total })}
           </span>
         )}
       </div>
@@ -469,15 +470,15 @@ export default function ScheduledMessagesPage() {
           <div className="empty-state-icon">
             <Send className="w-6 h-6 text-slate-400" />
           </div>
-          <h3 className="text-base font-semibold text-petra-text mb-1">אין הודעות מתוזמנות</h3>
+          <h3 className="text-base font-semibold text-petra-text mb-1">{t("scheduledMessagesPage.empty.title")}</h3>
           <p className="text-sm text-petra-muted mb-4">
             {activeStatus !== "ALL" || activeChannel !== "ALL"
-              ? "לא נמצאו הודעות עם הפילטרים הנוכחיים"
-              : "הודעות יופיעו כאן כשאוטומציות יפעלו"}
+              ? t("scheduledMessagesPage.empty.noMatches")
+              : t("scheduledMessagesPage.empty.description")}
           </p>
           <Link href="/automations" className="btn-primary flex items-center gap-2 w-fit mx-auto">
             <Send className="w-4 h-4" />
-            הגדר אוטומציה
+            {t("scheduledMessagesPage.empty.setupAutomation")}
           </Link>
         </div>
       ) : (
@@ -486,12 +487,12 @@ export default function ScheduledMessagesPage() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-slate-100">
-                  <th className="table-header-cell text-right">לקוח</th>
-                  <th className="table-header-cell text-right">ערוץ</th>
-                  <th className="table-header-cell text-right">תוכן ההודעה</th>
-                  <th className="table-header-cell text-right">מועד שליחה</th>
-                  <th className="table-header-cell text-right">סטטוס</th>
-                  <th className="table-header-cell text-right">פעולות</th>
+                  <th className="table-header-cell text-start">{t("scheduledMessagesPage.table.client")}</th>
+                  <th className="table-header-cell text-start">{t("scheduledMessagesPage.table.channel")}</th>
+                  <th className="table-header-cell text-start">{t("scheduledMessagesPage.table.content")}</th>
+                  <th className="table-header-cell text-start">{t("scheduledMessagesPage.table.sendAt")}</th>
+                  <th className="table-header-cell text-start">{t("scheduledMessagesPage.table.status")}</th>
+                  <th className="table-header-cell text-start">{t("scheduledMessagesPage.table.actions")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -505,7 +506,7 @@ export default function ScheduledMessagesPage() {
                   };
                   const ChIcon = ch.icon;
                   const preview = getPayloadPreview(msg.payloadJson);
-                  const { date: sendDate, time: sendTime } = formatSendAt(msg.sendAt);
+                  const { date: sendDate, time: sendTime } = formatSendAt(msg.sendAt, locale, cfg);
                   const isPast =
                     msg.status === "PENDING" && new Date(msg.sendAt) < new Date();
 
@@ -527,7 +528,7 @@ export default function ScheduledMessagesPage() {
                           </Link>
                         ) : (
                           (() => {
-                            const r = nonCustomerRecipient(msg);
+                            const r = nonCustomerRecipient(msg, t);
                             return (
                               <div className="flex items-center gap-2">
                                 <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center flex-shrink-0">
@@ -562,8 +563,8 @@ export default function ScheduledMessagesPage() {
                         <button
                           type="button"
                           onClick={() => setPreviewMsg(msg)}
-                          className="block max-w-[220px] text-right text-sm text-petra-muted hover:text-brand-500 underline-offset-2 hover:underline truncate transition-colors"
-                          title="לחצו לצפייה בהודעה המלאה"
+                          className="block max-w-[220px] text-start text-sm text-petra-muted hover:text-brand-500 underline-offset-2 hover:underline truncate transition-colors"
+                          title={t("scheduledMessagesPage.table.previewHint")}
                         >
                           {preview || messageLabel(msg.templateKey, getPayloadFlow(msg.payloadJson))}
                         </button>
@@ -587,7 +588,7 @@ export default function ScheduledMessagesPage() {
                         >
                           <Clock className="w-3 h-3" />
                           {sendTime}
-                          {isPast && <span className="text-red-400">• באיחור</span>}
+                          {isPast && <span className="text-red-400">{t("scheduledMessagesPage.table.late")}</span>}
                         </div>
                       </td>
 
@@ -595,10 +596,10 @@ export default function ScheduledMessagesPage() {
                       <td className="table-cell">
                         <span className={cn("badge flex items-center gap-1.5 w-fit", si.badgeClass)}>
                           <StatusIcon className="w-3.5 h-3.5 flex-shrink-0" />
-                          {si.label}
+                          {t(`scheduledMessagesPage.status.${si.labelKey}`)}
                         </span>
                         {(() => {
-                          const di = deliveryInfo(msg);
+                          const di = deliveryInfo(msg, t);
                           return di ? (
                             <div className={cn("text-xs mt-1", di.className)} title={di.title}>
                               {di.label}
@@ -615,11 +616,11 @@ export default function ScheduledMessagesPage() {
                             <button
                               onClick={() => sendNowMutation.mutate(msg.id)}
                               disabled={sendNowMutation.isPending}
-                              title="שלח עכשיו"
+                              title={t("scheduledMessagesPage.actions.sendNow")}
                               className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition-colors font-medium"
                             >
                               <Send className="w-3.5 h-3.5" />
-                              שלח עכשיו
+                              {t("scheduledMessagesPage.actions.sendNow")}
                             </button>
                           )}
                           {msg.status === "PENDING" && (
@@ -628,7 +629,7 @@ export default function ScheduledMessagesPage() {
                               className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg text-red-500 bg-red-50 hover:bg-red-100 transition-colors font-medium"
                             >
                               <Ban className="w-3.5 h-3.5" />
-                              בטל
+                              {t("scheduledMessagesPage.actions.cancel")}
                             </button>
                           )}
                           {msg.status !== "PENDING" && msg.status !== "FAILED" && (
@@ -652,20 +653,20 @@ export default function ScheduledMessagesPage() {
             onClick={() => setPage((p) => Math.max(1, p - 1))}
             disabled={page === 1}
             className="p-2 rounded-lg hover:bg-slate-100 disabled:opacity-40 transition-colors"
-            aria-label="עמוד קודם"
+            aria-label={t("scheduledMessagesPage.pagination.previous")}
           >
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="w-4 h-4 ltr:-scale-x-100" />
           </button>
           <span className="text-sm text-petra-muted">
-            עמוד {page} מתוך {totalPages}
+            {t("scheduledMessagesPage.pagination.pageOf", { page, totalPages })}
           </span>
           <button
             onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
             disabled={page === totalPages}
             className="p-2 rounded-lg hover:bg-slate-100 disabled:opacity-40 transition-colors"
-            aria-label="עמוד הבא"
+            aria-label={t("scheduledMessagesPage.pagination.next")}
           >
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeft className="w-4 h-4 ltr:-scale-x-100" />
           </button>
         </div>
       )}
@@ -681,23 +682,23 @@ export default function ScheduledMessagesPage() {
               <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-3">
                 <Ban className="w-6 h-6 text-red-500" />
               </div>
-              <h3 className="text-base font-semibold text-petra-text mb-1">ביטול הודעה</h3>
+              <h3 className="text-base font-semibold text-petra-text mb-1">{t("scheduledMessagesPage.cancelModal.title")}</h3>
               <p className="text-sm text-petra-muted mb-5">
-                ההודעה לא תישלח. לא ניתן לבטל פעולה זו.
+                {t("scheduledMessagesPage.cancelModal.body")}
               </p>
               <div className="flex gap-2">
                 <button
                   onClick={() => setCancelId(null)}
                   className="flex-1 py-2.5 rounded-xl bg-slate-100 text-sm font-medium hover:bg-slate-200 transition-colors"
                 >
-                  חזור
+                  {t("scheduledMessagesPage.cancelModal.back")}
                 </button>
                 <button
                   onClick={() => cancelMutation.mutate(cancelId)}
                   disabled={cancelMutation.isPending}
                   className="flex-1 py-2.5 rounded-xl bg-red-500 text-white text-sm font-semibold hover:bg-red-600 disabled:opacity-50 transition-colors"
                 >
-                  {cancelMutation.isPending ? "מבטל..." : "בטל הודעה"}
+                  {cancelMutation.isPending ? t("scheduledMessagesPage.cancelModal.canceling") : t("scheduledMessagesPage.cancelModal.confirm")}
                 </button>
               </div>
             </div>
