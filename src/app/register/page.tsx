@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Mail, Lock, Eye, EyeOff, User, UserPlus, CheckSquare, Square, Briefcase } from "lucide-react";
 import { vocab } from "@/lib/verticals/vocab";
@@ -63,7 +63,6 @@ function PasswordStrength({ password }: { password: string }) {
 const VALID_PLANS = new Set(["basic", "pro", "groomer", "service_dog"]);
 
 function RegisterForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const planParam = searchParams.get("plan") ?? "";
   // Verticals: /register?type=other = a business that isn't about pets. Plain /register = dogs (unchanged).
@@ -115,14 +114,16 @@ function RegisterForm() {
         return;
       }
 
+      // Full page load (like /login): AuthProvider lives above every page and would keep
+      // the user who was signed in on this browser before (or none) — its 30s/focus check
+      // then saw a different user and sent the new account to /login?reason=access_ended.
       // Plan selected — go to checkout to enter card details
       if (planParam && VALID_PLANS.has(planParam)) {
-        router.push(`/checkout?tier=${planParam}`);
+        window.location.href = `/checkout?tier=${planParam}`;
         return;
       }
       // Registered + logged in → go to onboarding wizard
-      router.push("/onboarding");
-      router.refresh();
+      window.location.href = "/onboarding";
     } catch {
       setError("שגיאת רשת. אנא נסה שוב.");
     } finally {
