@@ -15731,5 +15731,30 @@
       "dogs": "Training order",
       "generic": "Sessions order"
     }
+  },
+  "api": {
+    "common": {
+      "rateLimit": {
+        "generic": "Too many requests",
+        "tryLater": "Too many requests. Please try again later.",
+        "tryInMinute": "Too many requests. Please try again in a minute.",
+        "tryInFewMinutes": "Too many requests. Please try again in a few minutes.",
+        "tryIn15Minutes": "Too many requests. Please try again in 15 minutes.",
+        "tryInFewMinutesPlural": "Too many requests. Please try again in a few minutes.",
+        "export": "Too many export requests. Please try again in a minute.",
+        "sync": "Too many sync requests. Please try again in a few minutes.",
+        "fromThisNumber": "Too many requests from this number. Please try again later."
+      }
+    },
+    "tasks": {
+      "auditActions": {
+        "CREATED": "Created",
+        "COMPLETED": "Completed",
+        "REOPENED": "Reopened",
+        "CANCELED": "Canceled",
+        "UPDATED": "Updated",
+        "DELETED": "Deleted"
+      }
+    }
   }
 }

@@ -7,6 +7,8 @@
  *       → also accept keys from not-yet-merged agent fragments
  *
  * Understands: const t = useTranslations("ns") | await getTranslations("ns")
+ * | await getServerT("ns") | translatorFor(locale, "ns") | (await getServerT("ns"))("k")
+ * | translate(locale, "full.key")
  * | await getTranslations({ namespace: "ns", … }), and calls t("k"),
  * t.rich/markup/raw/has("k"). A template key t(`a.${x}`) checks that the
  * object "ns.a" exists. Keys held in variables are listed as "dynamic" (info).
@@ -72,7 +74,11 @@ for (const file of files) {
   const nsOf = new Map(); // translator variable name → namespace ("" = root)
   const nsFromCall = (call) => {
     const callee = call.expression.getText(sf);
-    if (!/^(useTranslations|getTranslations)$/.test(callee)) return null;
+    if (callee === "translatorFor") {
+      const a2 = call.arguments[1];
+      return a2 && ts.isStringLiteral(a2) ? a2.text : a2 ? null : "";
+    }
+    if (!/^(useTranslations|getTranslations|getServerT)$/.test(callee)) return null;
     const a = call.arguments[0];
     if (!a) return "";
     if (ts.isStringLiteral(a)) return a.text;
@@ -104,8 +110,18 @@ for (const file of files) {
         method = callee.name.text;
         callee = callee.expression;
       }
-      if (ts.isIdentifier(callee) && nsOf.has(callee.text)) {
-        const ns = nsOf.get(callee.text);
+      // (await getServerT("ns"))("key") / translatorFor(l, "ns")("key")
+      let inlineNs = null;
+      let inner = callee;
+      while (ts.isParenthesizedExpression(inner) || ts.isAwaitExpression(inner)) inner = inner.expression;
+      if (ts.isCallExpression(inner)) inlineNs = nsFromCall(inner);
+      // translate(locale, "full.key")
+      if (ts.isIdentifier(callee) && callee.text === "translate" && node.arguments[1] && ts.isStringLiteral(node.arguments[1])) {
+        used++;
+        if (typeof lookup(node.arguments[1].text) !== "string") { missing++; console.error(`${file}:${line(node)}: missing key "${node.arguments[1].text}"`); }
+      }
+      if ((ts.isIdentifier(callee) && nsOf.has(callee.text)) || inlineNs !== null) {
+        const ns = inlineNs !== null ? inlineNs : nsOf.get(callee.text);
         const arg = node.arguments[0];
         const full = (k) => (ns ? `${ns}.${k}` : k);
         if (arg && (ts.isStringLiteral(arg) || ts.isNoSubstitutionTemplateLiteral(arg))) {

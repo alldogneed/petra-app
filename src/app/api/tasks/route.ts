@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
+import { getServerT } from "@/i18n/server";
 import prisma from "@/lib/prisma";
 import { logActivity } from "@/lib/activity-log";
 import { ENTITY_TYPES } from "@/lib/activity-actions";
@@ -48,7 +49,7 @@ export async function POST(request: NextRequest) {
     const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
     const rl = rateLimit("api:tasks:write", ip, RATE_LIMITS.API_WRITE);
     if (!rl.allowed) {
-      return NextResponse.json({ error: "יותר מדי בקשות" }, { status: 429 });
+      return NextResponse.json({ error: (await getServerT("api.common.rateLimit"))("generic") }, { status: 429 });
     }
 
     const body = await request.json();

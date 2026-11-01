@@ -47,6 +47,11 @@ async function businessLocale(businessId: string): Promise<RequestLocale | null>
   return value;
 }
 
+/** Locale + timezone of a business (cached) — used by src/i18n/server.ts. */
+export function businessRequestLocale(businessId: string): Promise<RequestLocale | null> {
+  return businessLocale(businessId);
+}
+
 /** Drop the cached locale of a business (call after changing Business.locale/timezone). */
 export function invalidateBusinessLocaleCache(businessId: string): void {
   businessCache.delete(businessId);

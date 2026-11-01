@@ -292,3 +292,7 @@ src/app/(dashboard)/layout.tsx
 src/components/ChunkErrorReload.tsx
 src/components/settings/BrandingCard.tsx
 src/components/training/GenericProgramsView.tsx
+
+# Phase 2 — server side (API routes, services, src/lib)
+src/app/api/tasks/route.ts
+src/app/api/tasks/[id]/audit/route.ts
