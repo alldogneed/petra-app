@@ -27,6 +27,25 @@ export function priceCategoryLabel(vertical: unknown, category: string): string 
   return category;
 }
 
+/** Price-list categories in display order (stored values — never rewritten). */
+export const PRICE_CATEGORIES: readonly string[] = ["פנסיון", "אילוף", "טיפוח", "מוצרים"];
+
+/**
+ * What a business is offered in category pickers: value = stored key, label = what it reads.
+ * dogs → the four categories, label = value (unchanged); generic → "מפגשים וחבילות" + "מוצרים".
+ */
+export function getPriceCategories(vertical: unknown): { value: string; label: string }[] {
+  return offeredPriceCategories(vertical, PRICE_CATEGORIES).map((value) => ({
+    value,
+    label: priceCategoryLabel(vertical, value),
+  }));
+}
+
+/** Display label of a stored category (alias kept for call sites outside pricing). */
+export function formatCategoryLabel(value: string, vertical: unknown): string {
+  return priceCategoryLabel(vertical, value);
+}
+
 /**
  * Stored enum values (task categories, order types, appointment categories…) that only
  * exist in the dog domain. They are never rewritten — "generic" just isn't offered them

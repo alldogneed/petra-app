@@ -9,6 +9,12 @@ import { vocab, type VocabKey } from "@/lib/verticals/vocab";
 const CASES: { key: VocabKey; params?: Record<string, string>; before: string }[] = [
   { key: "nav.training", before: "ניהול תהליכי אילוף" },
   { key: "register.tagline", before: "ניהול עסקי חיות מחמד" },
+  { key: "pricing.name_placeholder", before: "לדוגמה: שיעור אילוף יחיד" },
+  { key: "pricing.package_title", before: "חבילת אילוף (אופציונלי)" },
+  // JSX had &quot; around the package name — renders as a plain double quote.
+  { key: "pricing.package_hint", before: 'אם מוגדרת כמות מפגשים, הפריט יוצג כ"חבילת אילוף" בהזמנה ויפתח מעקב מפגשים אוטומטי.' },
+  { key: "pricing.empty_hint", before: "הוסף שירותים ומוצרים לפי קטגוריות (פנסיון, אילוף, טיפוח, מוצרים)" },
+  { key: "order.modal_title_training", before: "הזמנת אילוף" },
   { key: "register.business_placeholder", before: "לדוגמה: פנסיון הכלבים של דניאל" },
   { key: "register.footer", before: "כל הזכויות שמורות all-dog - המרכז הישראלי להתנהגות הכלב" },
   {

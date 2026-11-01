@@ -67,6 +67,22 @@ export function generateBusinessSlug(name: string): string {
 }
 
 /**
+ * ASCII-only slug ("generic" signups): a valid sub-domain label as is (docs/verticals
+ * phase 4 — Hebrew + hex mixes fail the IDNA BIDI rule). Latin letters/digits of the
+ * name when there are ≥ 3, else "biz-<8 hex>". Dogs keep generateBusinessSlug().
+ */
+export function generateAsciiBusinessSlug(name: string): string {
+  const base = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 30)
+    .replace(/-+$/g, "");
+  if (base.replace(/-/g, "").length >= 3) return `${base}-${crypto.randomBytes(4).toString("hex")}`;
+  return `biz-${crypto.randomBytes(4).toString("hex")}`;
+}
+
+/**
  * Ensures a user has at least one active Business membership.
  * If not, auto-creates a Business + BusinessUser (owner).
  * Used for new registrations (Google OAuth, legacy users without membership).
@@ -87,7 +103,7 @@ export async function ensureUserHasBusiness(
   if (existing) return existing.businessId;
 
   // Auto-create a business for this user (atomic transaction)
-  const slug = generateBusinessSlug(displayName);
+  const slug = vertical === "generic" ? generateAsciiBusinessSlug(businessName?.trim() || displayName) : generateBusinessSlug(displayName);
 
   // Sequential operations (no interactive $transaction — Supabase PgBouncer incompatible)
   const biz = await prisma.business.create({

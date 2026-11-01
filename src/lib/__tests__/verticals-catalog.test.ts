@@ -38,3 +38,24 @@ describe("generic", () => {
     expect(valueLabel("generic", "GENERAL", "כללי")).toBe("כללי");
   });
 });
+
+describe("getPriceCategories (QA 1/11)", () => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { getPriceCategories, formatCategoryLabel } = require("@/lib/verticals/catalog");
+  it("dogs: the four categories, label = value", () => {
+    expect(getPriceCategories("dogs")).toEqual([
+      { value: "פנסיון", label: "פנסיון" },
+      { value: "אילוף", label: "אילוף" },
+      { value: "טיפוח", label: "טיפוח" },
+      { value: "מוצרים", label: "מוצרים" },
+    ]);
+    expect(formatCategoryLabel("אילוף", "dogs")).toBe("אילוף");
+  });
+  it("generic: stored key אילוף reads מפגשים וחבילות, no boarding/grooming", () => {
+    expect(getPriceCategories("generic")).toEqual([
+      { value: "אילוף", label: "מפגשים וחבילות" },
+      { value: "מוצרים", label: "מוצרים" },
+    ]);
+    expect(formatCategoryLabel("אילוף", "generic")).toBe("מפגשים וחבילות");
+  });
+});
