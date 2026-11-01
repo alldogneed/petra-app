@@ -18,6 +18,8 @@ import { usePlan } from "@/hooks/usePlan";
 import { getMaxPriceItems } from "@/lib/feature-flags";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useVertical } from "@/hooks/useVertical";
+import { PRICE_CATEGORIES, getPriceCategories, priceCategoryLabel } from "@/lib/verticals/catalog";
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -75,7 +77,7 @@ const TAX_LABELS: Record<string, string> = {
 };
 
 // These 4 main categories are used by the order modal to filter items
-const CATEGORIES = ["פנסיון", "אילוף", "טיפוח", "מוצרים"];
+const CATEGORIES = PRICE_CATEGORIES;
 
 // ─── Item Modal ───────────────────────────────────────────────
 
@@ -109,6 +111,7 @@ function ItemModal({
   isSaving: boolean;
   isVatExempt?: boolean;
 }) {
+  const { v, vertical } = useVertical();
   const isEdit = Boolean(item);
   const [form, setForm] = useState<ItemFormData>({
     name: item?.name ?? "",
@@ -178,7 +181,7 @@ function ItemModal({
             <label className="label">שם *</label>
             <input
               className="input mt-1"
-              placeholder="לדוגמה: שיעור אילוף יחיד"
+              placeholder={v("pricing.name_placeholder")}
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               autoFocus
@@ -196,7 +199,11 @@ function ItemModal({
                 required
               >
                 <option value="">בחר קטגוריה...</option>
-                {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                {getPriceCategories(vertical).map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+                {/* A stored category this vertical no longer offers stays selectable for its own item. */}
+                {form.category && !getPriceCategories(vertical).some((c) => c.value === form.category) && (
+                  <option value={form.category}>{priceCategoryLabel(vertical, form.category)}</option>
+                )}
               </select>
             </div>
             <div>
@@ -264,7 +271,7 @@ function ItemModal({
             <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-3 space-y-2">
               <p className="text-xs font-semibold text-blue-700 flex items-center gap-1.5">
                 <Package className="w-3.5 h-3.5" />
-                חבילת אילוף (אופציונלי)
+                {v("pricing.package_title")}
               </p>
               <div>
                 <label className="label text-[11px]">כמות מפגשים בחבילה</label>
@@ -280,7 +287,7 @@ function ItemModal({
                 />
               </div>
               <p className="text-[11px] text-blue-600">
-                אם מוגדרת כמות מפגשים, הפריט יוצג כ&quot;חבילת אילוף&quot; בהזמנה ויפתח מעקב מפגשים אוטומטי.
+                {v("pricing.package_hint")}
               </p>
             </div>
           )}
@@ -581,6 +588,7 @@ function ItemRow({
 // ─── Main Page ────────────────────────────────────────────────
 
 function PricingPageContent() {
+  const { v, vertical } = useVertical();
   const { isFree, tier } = usePlan();
   const { canEditPricing } = usePermissions();
   const maxPriceItems = getMaxPriceItems(tier);
@@ -902,7 +910,7 @@ function PricingPageContent() {
             </div>
             <p className="text-sm font-semibold text-petra-text mt-2">אין פריטים במחירון</p>
             <p className="text-xs text-petra-muted mt-1 max-w-xs text-center">
-              הוסף שירותים ומוצרים לפי קטגוריות (פנסיון, אילוף, טיפוח, מוצרים)
+              {v("pricing.empty_hint")}
             </p>
             {canEditPricing && (
             <button
@@ -924,7 +932,7 @@ function PricingPageContent() {
               <div className="px-4 py-2 bg-slate-50/80 border-b border-petra-border flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-semibold text-petra-muted uppercase tracking-wider">
-                    {cat}
+                    {priceCategoryLabel(vertical, cat)}
                   </span>
                   <span className="text-xs text-slate-400">({grouped[cat].length})</span>
                 </div>
