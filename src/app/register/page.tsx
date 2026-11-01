@@ -69,6 +69,11 @@ function RegisterForm() {
   const signupVertical = signupVerticalFromParam(searchParams.get("type"));
   const vertical = signupVertical ?? "dogs";
   useEffect(() => rememberSignupVertical(signupVertical), [signupVertical]);
+  // Tab title: the page is a client component (no metadata export) and only the
+  // client knows ?type=other. Plain /register keeps the root title.
+  useEffect(() => {
+    if (signupVertical === "generic") document.title = "Petra — ניהול לקוחות, תורים ותשלומים";
+  }, [signupVertical]);
   const [name, setName] = useState("");
   const [businessName, setBusinessName] = useState("");
   const [email, setEmail] = useState("");
