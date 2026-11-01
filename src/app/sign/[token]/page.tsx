@@ -326,7 +326,7 @@ export default function SignContractPage() {
   // ── Signed ───────────────────────────────────────────────────────────────────
   if (signed) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-orange-50 via-white to-white p-6" dir="rtl">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-brand-50 via-white to-white p-6" dir="rtl">
         <div className="space-y-6 max-w-sm w-full">
           <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto">
             <CheckCircle2 className="w-10 h-10 text-emerald-500" />
@@ -392,8 +392,8 @@ export default function SignContractPage() {
       <div className="sticky top-0 z-20 bg-white border-b border-slate-100 shadow-sm">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
           <div className="min-w-0 flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-orange-50 rounded-lg flex items-center justify-center flex-shrink-0">
-              <FileText className="w-4 h-4 text-orange-500" />
+            <div className="w-8 h-8 bg-brand-50 rounded-lg flex items-center justify-center flex-shrink-0">
+              <FileText className="w-4 h-4 text-brand-500" />
             </div>
             <div className="min-w-0">
               <p className="text-sm font-bold text-slate-800 truncate leading-tight">{contract.templateName}</p>
@@ -403,7 +403,7 @@ export default function SignContractPage() {
           <button
             type="button"
             onClick={() => signatureSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
-            className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold rounded-xl transition-colors"
+            className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 bg-brand-500 hover:bg-brand-600 text-white text-xs font-semibold rounded-xl transition-colors"
           >
             <PenLine className="w-3.5 h-3.5" />
             חתום
@@ -435,7 +435,7 @@ export default function SignContractPage() {
         <div className="bg-white sm:rounded-2xl sm:border sm:border-slate-200 overflow-hidden shadow-sm">
           <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50">
             <div className="flex items-center gap-2">
-              <span className="w-5 h-5 rounded-full bg-orange-500 text-white text-[11px] font-bold flex items-center justify-center">1</span>
+              <span className="w-5 h-5 rounded-full bg-brand-500 text-white text-[11px] font-bold flex items-center justify-center">1</span>
               <span className="text-sm font-semibold text-slate-700">קרא את החוזה</span>
             </div>
             {/* Page nav + open-in-new-window escape hatch */}
@@ -475,7 +475,7 @@ export default function SignContractPage() {
                 <div className="text-center space-y-3 px-6">
                   <AlertCircle className="w-8 h-8 text-amber-400 mx-auto" />
                   <p className="text-sm text-slate-500">לא ניתן להציג את המסמך כאן</p>
-                  <a href={pdfProxyUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm font-semibold text-orange-600 hover:text-orange-700">
+                  <a href={pdfProxyUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-600 hover:text-brand-700">
                     <Download className="w-4 h-4" />
                     פתח PDF בחלון חדש
                   </a>
@@ -521,7 +521,7 @@ export default function SignContractPage() {
         {/* ── Step 2: Signature ────────────────────────────────────────────────── */}
         <div ref={signatureSectionRef} className="bg-white sm:rounded-2xl sm:border sm:border-slate-200 overflow-hidden shadow-sm">
           <div className="px-4 py-3 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
-            <span className="w-5 h-5 rounded-full bg-orange-500 text-white text-[11px] font-bold flex items-center justify-center">2</span>
+            <span className="w-5 h-5 rounded-full bg-brand-500 text-white text-[11px] font-bold flex items-center justify-center">2</span>
             <span className="text-sm font-semibold text-slate-700">חתום כאן</span>
             {hasSignature && <span className="mr-auto text-xs text-emerald-600 font-medium">✓ חתימה נרשמה</span>}
           </div>
@@ -567,7 +567,7 @@ export default function SignContractPage() {
                 type="checkbox"
                 checked={readConfirmed}
                 onChange={(e) => setReadConfirmed(e.target.checked)}
-                className="mt-0.5 w-4 h-4 rounded border-slate-300 text-orange-500 accent-orange-500"
+                className="mt-0.5 w-4 h-4 rounded border-slate-300 text-brand-500 accent-brand-500"
               />
               <span className="text-xs text-slate-500 leading-relaxed group-hover:text-slate-700 transition-colors">
                 קראתי את <strong className="text-slate-700">{contract.templateName}</strong> של {contract.businessName}, הבנתי את תנאיו ואני מסכים לחתום עליו.
@@ -579,7 +579,7 @@ export default function SignContractPage() {
             <button
               onClick={handleSubmit}
               disabled={!hasSignature || !readConfirmed || submitting}
-              className="w-full py-4 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 disabled:bg-slate-100 disabled:text-slate-400 text-white font-bold text-base rounded-2xl transition-colors flex items-center justify-center gap-2"
+              className="w-full py-4 bg-brand-500 hover:bg-brand-600 active:bg-brand-700 disabled:bg-slate-100 disabled:text-slate-400 text-white font-bold text-base rounded-2xl transition-colors flex items-center justify-center gap-2"
             >
               {submitting ? (
                 <><Loader2 className="w-5 h-5 animate-spin" /> שולח...</>

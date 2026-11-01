@@ -570,8 +570,8 @@ function SchedulerContent() {
       <BookingsTabs />
       {/* Header */}
       <div className="flex items-center gap-3 flex-wrap">
-        <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center">
-          <CalendarClock className="w-5 h-5 text-orange-600" />
+        <div className="w-10 h-10 rounded-xl bg-brand-100 flex items-center justify-center">
+          <CalendarClock className="w-5 h-5 text-brand-600" />
         </div>
         <div>
           <h1 className="text-xl font-bold text-gray-900">תורים</h1>
@@ -661,8 +661,8 @@ function SchedulerContent() {
                         className={cn(
                           "w-full text-start px-4 py-2.5 text-sm transition-colors",
                           selectedServiceId === s.id
-                            ? "bg-orange-50 text-orange-700 font-medium"
-                            : "text-gray-700 hover:bg-orange-50/50"
+                            ? "bg-brand-50 text-brand-700 font-medium"
+                            : "text-gray-700 hover:bg-brand-50/50"
                         )}
                       >
                         {s.name} — {s.duration} דק׳ — {formatCurrency(s.price)}
@@ -729,9 +729,9 @@ function SchedulerContent() {
                     className={cn(
                       "h-9 rounded-lg text-sm font-medium transition-all",
                       disabled && "text-gray-300 cursor-not-allowed",
-                      !disabled && !isSelected && "hover:bg-orange-50 text-gray-700",
-                      isSelected && "bg-orange-500 text-white shadow-sm",
-                      isToday && !isSelected && "ring-2 ring-orange-300",
+                      !disabled && !isSelected && "hover:bg-brand-50 text-gray-700",
+                      isSelected && "bg-brand-500 text-white shadow-sm",
+                      isToday && !isSelected && "ring-2 ring-brand-300",
                       isClosed && !isPast && "bg-gray-50"
                     )}
                   >
@@ -794,11 +794,11 @@ function SchedulerContent() {
                       className={cn(
                         "h-11 rounded-lg text-sm font-medium transition-all border",
                         slot.available && !isSelected &&
-                          "bg-white border-gray-200 text-gray-700 hover:border-orange-300 hover:bg-orange-50",
+                          "bg-white border-gray-200 text-gray-700 hover:border-brand-300 hover:bg-brand-50",
                         !slot.available &&
                           "bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed",
                         isSelected &&
-                          "bg-orange-500 border-orange-500 text-white shadow-sm"
+                          "bg-brand-500 border-brand-500 text-white shadow-sm"
                       )}
                     >
                       {slot.time}
@@ -849,7 +849,7 @@ function SchedulerContent() {
                   createNewLabel="צור לקוח חדש"
                 />
               ) : (
-                <div className="space-y-2 p-3 bg-orange-50 rounded-xl border border-orange-200">
+                <div className="space-y-2 p-3 bg-brand-50 rounded-xl border border-brand-200">
                   <div className="flex items-center justify-between mb-1">
                     <button
                       onClick={() => {
@@ -861,7 +861,7 @@ function SchedulerContent() {
                     >
                       → חזור לחיפוש
                     </button>
-                    <span className="text-xs font-medium text-orange-700">
+                    <span className="text-xs font-medium text-brand-700">
                       לקוח חדש
                     </span>
                   </div>
@@ -919,11 +919,11 @@ function SchedulerContent() {
 
           {/* Attach to a training package */}
           {attachProgram && selectedCustomerId && !showNewCustomer && (
-            <div className="border border-orange-200 bg-orange-50/60 rounded-xl p-3 space-y-2">
+            <div className="border border-brand-200 bg-brand-50/60 rounded-xl p-3 space-y-2">
               <label className="flex items-start gap-3 cursor-pointer">
                 <input
                   type="checkbox"
-                  className="w-4 h-4 mt-0.5 rounded accent-orange-500"
+                  className="w-4 h-4 mt-0.5 rounded accent-brand-500"
                   checked={attachToProgram}
                   onChange={(e) => setAttachToProgram(e.target.checked)}
                 />

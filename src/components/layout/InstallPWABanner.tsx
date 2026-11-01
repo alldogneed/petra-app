@@ -139,7 +139,7 @@ export default function InstallPWABanner() {
         {!iosSafari && canInstall && (
           <button
             onClick={handleInstall}
-            className="flex items-center gap-1.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex-shrink-0 transition-colors"
+            className="flex items-center gap-1.5 bg-brand-500 hover:bg-brand-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex-shrink-0 transition-colors"
           >
             <Download className="w-3.5 h-3.5" />
             התקנה
@@ -161,7 +161,7 @@ export default function InstallPWABanner() {
           type="checkbox"
           checked={dontShowAgain}
           onChange={(e) => setDontShowAgain(e.target.checked)}
-          className="w-3.5 h-3.5 accent-orange-500"
+          className="w-3.5 h-3.5 accent-brand-500"
         />
         אל תציג שוב
       </label>

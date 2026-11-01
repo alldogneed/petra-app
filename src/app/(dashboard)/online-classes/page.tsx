@@ -102,8 +102,8 @@ function OnlineClassesContent() {
     {
       label: "שיעורים קרובים",
       value: upcomingClasses,
-      color: "bg-orange-50 text-orange-600",
-      iconBg: "bg-orange-100",
+      color: "bg-brand-50 text-brand-600",
+      iconBg: "bg-brand-100",
       icon: <Video className="w-5 h-5" />,
     },
     {

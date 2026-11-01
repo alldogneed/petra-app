@@ -1499,7 +1499,7 @@ function TaskCard({
               <Link
                 href="/leads"
                 onClick={(e) => e.stopPropagation()}
-                className="inline-flex items-center gap-1 text-[11px] font-medium text-orange-600 hover:text-orange-800 bg-orange-50 hover:bg-orange-100 border border-orange-100 px-2 py-0.5 rounded-full transition-colors"
+                className="inline-flex items-center gap-1 text-[11px] font-medium text-brand-600 hover:text-brand-800 bg-brand-50 hover:bg-brand-100 border border-brand-100 px-2 py-0.5 rounded-full transition-colors"
               >
                 <Target className="w-3 h-3 flex-shrink-0" />
                 {task.relatedEntityName}

@@ -67,8 +67,8 @@ export function ReportBugButton({ menuMode = false }: { menuMode?: boolean }) {
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center">
-                  <LifeBuoy className="w-4 h-4 text-orange-600" />
+                <div className="w-8 h-8 rounded-lg bg-brand-100 flex items-center justify-center">
+                  <LifeBuoy className="w-4 h-4 text-brand-600" />
                 </div>
                 <div>
                   <h2 className="text-sm font-semibold text-slate-800">דיווח על בעיה</h2>

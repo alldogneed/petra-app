@@ -1179,10 +1179,10 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
                   <Link
                     href="/support"
                     onClick={() => onOpenChange(false)}
-                    className="flex items-center gap-3 p-3 rounded-xl border border-orange-200 bg-orange-50/50 hover:bg-orange-50 transition-colors"
+                    className="flex items-center gap-3 p-3 rounded-xl border border-brand-200 bg-brand-50/50 hover:bg-brand-50 transition-colors"
                   >
-                    <div className="w-9 h-9 rounded-xl bg-orange-100 flex items-center justify-center flex-shrink-0">
-                      <LifeBuoy className="w-4 h-4 text-orange-600" />
+                    <div className="w-9 h-9 rounded-xl bg-brand-100 flex items-center justify-center flex-shrink-0">
+                      <LifeBuoy className="w-4 h-4 text-brand-600" />
                     </div>
                     <div>
                       <p className="text-sm font-medium text-petra-text">הפניות שלי</p>
@@ -1237,9 +1237,9 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
 
               {/* Bug report form */}
               <div className="card overflow-hidden">
-                <div className="flex items-center gap-2.5 px-4 py-3 bg-orange-50/80 border-b border-petra-border">
-                  <div className="w-7 h-7 rounded-lg bg-orange-100 flex items-center justify-center">
-                    <LifeBuoy className="w-3.5 h-3.5 text-orange-600" />
+                <div className="flex items-center gap-2.5 px-4 py-3 bg-brand-50/80 border-b border-petra-border">
+                  <div className="w-7 h-7 rounded-lg bg-brand-100 flex items-center justify-center">
+                    <LifeBuoy className="w-3.5 h-3.5 text-brand-600" />
                   </div>
                   <h3 className="text-sm font-semibold text-petra-text">דווח על תקלה</h3>
                 </div>
