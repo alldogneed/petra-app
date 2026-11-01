@@ -66,7 +66,7 @@ export function VaccinationAlertWidget() {
             <div className="flex-1 min-w-0 flex flex-col gap-0.5">
               <Link
                 href={v.customerId ? `/customers/${v.customerId}` : "/customers"}
-                className="text-sm font-medium text-slate-900 hover:text-orange-600 truncate"
+                className="text-sm font-medium text-slate-900 hover:text-brand-600 truncate"
               >
                 {v.petName}
                 {v.customerName && <span className="font-normal text-slate-500"> · {v.customerName}</span>}

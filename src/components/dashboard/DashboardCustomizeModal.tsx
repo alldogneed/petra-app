@@ -189,11 +189,11 @@ export function DashboardCustomizeModal({
                       className={cn(
                         "flex items-center gap-2 py-2.5 px-3 rounded-xl border text-sm text-right transition-colors",
                         shown
-                          ? "border-orange-200 bg-orange-50/50 text-slate-900"
+                          ? "border-brand-200 bg-brand-50/50 text-slate-900"
                           : "border-slate-100 bg-slate-50 text-slate-500"
                       )}
                     >
-                      {shown ? <Eye className="w-4 h-4 text-orange-500" /> : <EyeOff className="w-4 h-4" />}
+                      {shown ? <Eye className="w-4 h-4 text-brand-500" /> : <EyeOff className="w-4 h-4" />}
                       {s.label}
                     </button>
                   );

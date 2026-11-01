@@ -326,7 +326,7 @@ export default function DashboardPage() {
                     <DashRow key={s.id}>
                       <Link
                         href={s.customer?.id ? `/customers/${s.customer.id}` : "/boarding"}
-                        className="flex-1 flex flex-col gap-0.5 min-w-0 text-slate-900 hover:text-orange-600"
+                        className="flex-1 flex flex-col gap-0.5 min-w-0 text-slate-900 hover:text-brand-600"
                       >
                         <span className="text-sm font-medium truncate">{s.pet?.name ?? ""}</span>
                         <span className="text-xs text-slate-500 truncate">
@@ -450,7 +450,7 @@ export default function DashboardPage() {
                     <Link
                       href={`/tasks?task=${task.id}`}
                       className={cn(
-                        "flex-1 min-w-0 truncate text-sm font-medium text-slate-900 hover:text-orange-600 transition-colors",
+                        "flex-1 min-w-0 truncate text-sm font-medium text-slate-900 hover:text-brand-600 transition-colors",
                         isCompleting && "line-through text-slate-400"
                       )}
                     >
@@ -559,7 +559,7 @@ export default function DashboardPage() {
               <button
                 type="button"
                 onClick={() => setDashDate("")}
-                className="h-7 px-2.5 ms-1 rounded-lg bg-orange-50 text-orange-700 text-[13px] font-medium hover:bg-orange-100"
+                className="h-7 px-2.5 ms-1 rounded-lg bg-brand-50 text-brand-700 text-[13px] font-medium hover:bg-brand-100"
               >
                 היום
               </button>
@@ -576,7 +576,7 @@ export default function DashboardPage() {
           </button>
           <Link
             href="/calendar?new=1"
-            className="h-10 px-4 rounded-xl bg-white border border-orange-500 text-orange-600 text-sm font-medium flex items-center justify-center gap-2 whitespace-nowrap hover:bg-orange-50 active:scale-[0.98] transition-all"
+            className="h-10 px-4 rounded-xl bg-white border border-brand-500 text-brand-600 text-sm font-medium flex items-center justify-center gap-2 whitespace-nowrap hover:bg-brand-50 active:scale-[0.98] transition-all"
           >
             <CalendarClock className="w-4 h-4 shrink-0" />
             קביעת תור
@@ -701,8 +701,8 @@ export default function DashboardPage() {
                 intakeCopied && "border-green-300 bg-green-50/50"
               )}
             >
-              <div className="w-9 h-9 rounded-lg bg-orange-50 flex items-center justify-center flex-shrink-0">
-                {intakeCopied ? <ClipboardCheck className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4 text-orange-600" />}
+              <div className="w-9 h-9 rounded-lg bg-brand-50 flex items-center justify-center flex-shrink-0">
+                {intakeCopied ? <ClipboardCheck className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4 text-brand-600" />}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-petra-text">{intakeCopied ? "הועתק!" : "טופס קליטה"}</p>
