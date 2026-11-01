@@ -199,7 +199,7 @@ export function CreateOrderModal({
   const { isGroomer } = usePlan();
   // Verticals (docs/verticals): "generic" has no pets, no boarding, no grooming — orders
   // never require a pet and a program / package opens without a subject.
-  const { vertical, hides, v } = useVertical();
+  const { vertical, hides, v, isGeneric } = useVertical();
   const noPets = hides("pets");
 
   // Step state: "category" → "customer" → "items" → "review" → "payment"
@@ -687,7 +687,10 @@ export function CreateOrderModal({
             <button
               key={cat.id}
               onClick={() => { setOrderType(cat.id); setStep("customer"); }}
-              className="group flex flex-col items-center gap-3 p-5 rounded-xl border-2 border-slate-100 hover:border-[#f38d49]/40 hover:shadow-md transition-all bg-white"
+              className={cn(
+                "group flex flex-col items-center gap-3 p-5 rounded-xl border-2 border-slate-100 hover:shadow-md transition-all bg-white",
+                isGeneric ? "hover:border-brand-500/40" : "hover:border-[#f38d49]/40",
+              )}
             >
               <div className={cn(
                 "w-14 h-14 rounded-2xl bg-gradient-to-br flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform",
@@ -1977,7 +1980,9 @@ export function CreateOrderModal({
             <h2 className="text-xl font-bold text-petra-text">
               {step === "category"
                 ? "הזמנה חדשה"
-                : `הזמנת ${CATEGORY_LABELS[orderType] ?? "שירות"}`}
+                : orderType === "training"
+                  ? v("order.modal_title_training")
+                  : `הזמנת ${CATEGORY_LABELS[orderType] ?? "שירות"}`}
             </h2>
             <div className="flex items-center gap-2 mt-1">
               {[1, 2, 3].map((s) => (
@@ -1985,10 +1990,11 @@ export function CreateOrderModal({
                   key={s}
                   className={cn(
                     "h-1.5 rounded-full transition-all",
+                    // dogs: the exact previous hex; generic: the business colour.
                     s === stepPhase
-                      ? "w-8 bg-gradient-to-l from-[#f38d49] to-[#FB923C]"
+                      ? isGeneric ? "w-8 bg-gradient-to-l from-brand-500 to-brand-400" : "w-8 bg-gradient-to-l from-[#f38d49] to-[#FB923C]"
                       : s < stepPhase
-                        ? "w-6 bg-[#f38d49]/40"
+                        ? isGeneric ? "w-6 bg-brand-500/40" : "w-6 bg-[#f38d49]/40"
                         : "w-6 bg-slate-200"
                   )}
                 />
