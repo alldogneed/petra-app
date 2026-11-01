@@ -60,3 +60,20 @@ describe("custom sub-domain", () => {
     for (const v of ["ab", "www", "Noa", "נועה", "-noa", "noa_", ""]) expect(isValidCustomSubdomain(v)).toBe(false);
   });
 });
+
+describe("generateAsciiBusinessSlug (generic signups, QA 1/11)", () => {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { generateAsciiBusinessSlug } = require("@/lib/auth");
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { tenantSlugFromHost } = require("@/lib/verticals/tenant-host");
+  it("Hebrew name → biz-<8 hex>, a valid sub-domain", () => {
+    const s = generateAsciiBusinessSlug("סטודיו נועה – פילאטיס");
+    expect(s).toMatch(/^biz-[0-9a-f]{8}$/);
+    expect(tenantSlugFromHost(`${s}.petra.app`, "petra.app")).toBe(s);
+  });
+  it("Latin letters in the name are kept", () => {
+    const s = generateAsciiBusinessSlug("Noa Pilates Studio");
+    expect(s).toMatch(/^noa-pilates-studio-[0-9a-f]{8}$/);
+    expect(tenantSlugFromHost(`${s}.petra.app`, "petra.app")).toBe(s);
+  });
+});

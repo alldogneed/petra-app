@@ -126,7 +126,7 @@ export function SetupChecklist() {
               className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
               style={{ background: "rgba(249,115,22,0.15)", border: "1px solid rgba(249,115,22,0.25)" }}
             >
-              <Rocket className="w-5 h-5" style={{ color: "#F97316" }} />
+              <Rocket className="w-5 h-5" style={{ color: "rgb(var(--brand-500))" }} />
             </div>
             <div>
               <h3 className="text-base font-semibold text-white leading-tight">
@@ -156,7 +156,7 @@ export function SetupChecklist() {
               className="h-2 rounded-full transition-all duration-500"
               style={{
                 width: `${pct}%`,
-                background: "linear-gradient(90deg, #F97316 0%, #FB923C 100%)",
+                background: "linear-gradient(90deg, rgb(var(--brand-500)) 0%, rgb(var(--brand-400)) 100%)",
               }}
             />
           </div>
@@ -188,7 +188,7 @@ export function SetupChecklist() {
                         className="text-[10px] px-1.5 py-0.5 rounded font-bold"
                         style={{
                           background: "rgba(249,115,22,0.2)",
-                          color: "#FB923C",
+                          color: "rgb(var(--brand-400))",
                           border: "1px solid rgba(249,115,22,0.3)",
                         }}
                       >
@@ -200,7 +200,7 @@ export function SetupChecklist() {
                         className="text-[10px] px-1.5 py-0.5 rounded font-bold"
                         style={{
                           background: "rgba(249,115,22,0.2)",
-                          color: "#FB923C",
+                          color: "rgb(var(--brand-400))",
                           border: "1px solid rgba(249,115,22,0.3)",
                         }}
                       >

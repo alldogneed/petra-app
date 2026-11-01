@@ -15710,6 +15710,26 @@
     "register.footer": {
       "dogs": "All rights reserved all-dog - The Israeli Center for Dog Behavior",
       "generic": "All rights reserved all-dog"
+    },
+    "pricing.name_placeholder": {
+      "dogs": "e.g. Private training lesson",
+      "generic": "e.g. Consultation"
+    },
+    "pricing.package_title": {
+      "dogs": "Training package (optional)",
+      "generic": "Session package (optional)"
+    },
+    "pricing.package_hint": {
+      "dogs": "If a number of sessions is set, the item shows as a \"Training package\" in orders and session tracking starts automatically.",
+      "generic": "If a number of sessions is set, the item shows as a \"Session package\" in orders and session tracking starts automatically."
+    },
+    "pricing.empty_hint": {
+      "dogs": "Add services and products by category (Boarding, Training, Grooming, Products)",
+      "generic": "Add services and products by category (Sessions and packages, Products)"
+    },
+    "order.modal_title_training": {
+      "dogs": "Training order",
+      "generic": "Sessions order"
     }
   }
 }

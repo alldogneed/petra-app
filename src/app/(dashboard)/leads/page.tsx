@@ -469,7 +469,7 @@ const PANEL = "bg-white border border-slate-200 rounded-2xl shadow-[0_1px_3px_rg
 const TOOL_BTN = "h-9 px-3 rounded-[10px] border border-slate-200 bg-white text-[13px] font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-colors flex items-center gap-1.5 whitespace-nowrap disabled:opacity-50";
 const TOOL_BTN_ON = "!bg-brand-50 !border-brand-200 !text-brand-700";
 const WA_BTN = "flex items-center justify-center rounded-lg bg-[#059669] hover:bg-[#047857] text-white transition-colors flex-shrink-0";
-const CALL_BTN = "flex items-center justify-center rounded-lg bg-[#F97316] hover:bg-[#EA580C] text-white transition-colors flex-shrink-0";
+const CALL_BTN = "flex items-center justify-center rounded-lg bg-brand-500 hover:bg-brand-600 text-white transition-colors flex-shrink-0";
 
 function chipClass(on: boolean, big = false): string {
   return cn(
@@ -557,7 +557,7 @@ function FollowUpPicker({ lead, onClose }: { lead: Lead; onClose: () => void }) 
             type="button"
             disabled={mutation.isPending}
             onClick={saveCustom}
-            className="flex-1 h-8 rounded-lg bg-[#F97316] hover:bg-[#EA580C] text-white text-xs font-semibold transition-colors disabled:opacity-50"
+            className="flex-1 h-8 rounded-lg bg-brand-500 hover:bg-brand-600 text-white text-xs font-semibold transition-colors disabled:opacity-50"
           >
             {mutation.isPending ? tc("progress.saving") : t("followUp.picker.save")}
           </button>
@@ -2123,7 +2123,7 @@ function LeadsPageContent() {
                 <Sparkles className="w-5 h-5" />
               </a>
             ) : (
-              <button type="button" aria-label={t("header.newLead")} onClick={() => setShowModal(true)} className="md:hidden w-11 h-11 rounded-xl bg-[#F97316] active:bg-[#EA580C] text-white flex items-center justify-center flex-shrink-0">
+              <button type="button" aria-label={t("header.newLead")} onClick={() => setShowModal(true)} className="md:hidden w-11 h-11 rounded-xl bg-brand-500 active:bg-brand-600 text-white flex items-center justify-center flex-shrink-0">
                 <Plus className="w-5 h-5" />
               </button>
             )}
@@ -2161,7 +2161,7 @@ function LeadsPageContent() {
             <button
               type="button"
               onClick={() => setShowModal(true)}
-              className="hidden md:flex h-[38px] px-4 rounded-[10px] bg-[#F97316] hover:bg-[#EA580C] text-white text-sm font-semibold items-center gap-1.5 flex-shrink-0 transition-colors"
+              className="hidden md:flex h-[38px] px-4 rounded-[10px] bg-brand-500 hover:bg-brand-600 text-white text-sm font-semibold items-center gap-1.5 flex-shrink-0 transition-colors"
             >
               <Plus className="w-4 h-4" />{t("header.newLead")}
               {maxLeads !== null && <span className="opacity-75 text-xs tabular-nums">({leads.length}/{maxLeads})</span>}
@@ -2190,7 +2190,7 @@ function LeadsPageContent() {
           </div>
 
           {archiveHits > 0 && (
-            <button type="button" onClick={() => setActiveTab("archive")} className="text-[13px] font-medium text-[#EA580C] hover:text-[#C2410C] flex items-center gap-1">
+            <button type="button" onClick={() => setActiveTab("archive")} className="text-[13px] font-medium text-brand-600 hover:text-brand-700 flex items-center gap-1">
               <Archive className="w-3.5 h-3.5" />{t("toolbar.archiveHits", { count: archiveHits })}
             </button>
           )}
@@ -2281,7 +2281,7 @@ function LeadsPageContent() {
                     </div>
                   </div>
                   <p className="text-[11px] text-petra-muted">{t("toolbar.exportHint")}</p>
-                  <button type="button" className="w-full h-9 rounded-[10px] bg-[#F97316] hover:bg-[#EA580C] text-white text-sm font-semibold flex items-center justify-center gap-1.5 transition-colors" onClick={exportLeads}>
+                  <button type="button" className="w-full h-9 rounded-[10px] bg-brand-500 hover:bg-brand-600 text-white text-sm font-semibold flex items-center justify-center gap-1.5 transition-colors" onClick={exportLeads}>
                     <Download className="w-3.5 h-3.5" />{t("toolbar.downloadCsv")}
                   </button>
                 </div>

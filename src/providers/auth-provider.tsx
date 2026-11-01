@@ -90,17 +90,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!signedInUserId) return;
     let stopped = false;
+    let misses = 0;
     const check = async () => {
       if (stopped || document.visibilityState === "hidden") return;
       try {
         const res = await fetch("/api/auth/me", { cache: "no-store" });
-        if (res.status >= 500) return; // server hiccup — never log out on that
+        // Only "not signed in" counts (401/403). Server hiccups, rate limits and odd
+        // statuses never log anyone out.
+        if (!res.ok && res.status !== 401 && res.status !== 403) return;
         const data = res.ok ? await res.json() : null;
         const me = data?.user ?? null;
-        if (!me || me.id !== signedInUserId) {
+        if (!me) {
+          // Two answers in a row (≥ 30s apart, or a focus + the next tick) before
+          // "access ended" — one stray 401 right after a login/signup is not an offboarding.
+          misses += 1;
+          if (misses < 2) return;
           stopped = true;
           queryClient.clear();
           window.location.href = "/login?reason=access_ended";
+          return;
+        }
+        misses = 0;
+        if (me.id !== signedInUserId) {
+          // Another account signed in on this browser (e.g. a signup in this tab):
+          // reload as that account — not an offboarding.
+          stopped = true;
+          queryClient.clear();
+          window.location.reload();
         } else if ((me.businessId ?? null) !== signedInBusinessId) {
           stopped = true;
           window.location.href = "/dashboard";

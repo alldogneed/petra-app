@@ -83,7 +83,7 @@ function getAvatarGradient(status: string) {
     case "dormant":
       return "linear-gradient(135deg, #94A3B8, #64748B)";
     default:
-      return "linear-gradient(135deg, #F97316, #FB923C)";
+      return "linear-gradient(135deg, rgb(var(--brand-500)), rgb(var(--brand-400)))";
   }
 }
 
@@ -169,7 +169,7 @@ function CustomersList() {
   const queryClient = useQueryClient();
   const { canExportData, canImportData, canSeeFinance, canSendMessages, canCriticalDelete } = usePermissions();
   // Verticals: "generic" has no pets — no pets column.
-  const { hides, v } = useVertical();
+  const { hides, v, isGeneric } = useVertical();
   const noPets = hides("pets");
   const { maxCustomers, tier } = useSubscription();
 
@@ -416,7 +416,8 @@ function CustomersList() {
           )}
           <button
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-white text-sm shadow-sm transition-all hover:shadow-md"
-            style={{ background: "linear-gradient(135deg, #f38d49, #FB923C)" }}
+            // dogs: the exact previous gradient; generic: the business colour.
+            style={{ background: isGeneric ? "linear-gradient(135deg, rgb(var(--brand-500)), rgb(var(--brand-400)))" : "linear-gradient(135deg, #f38d49, #FB923C)" }}
             onClick={() => setShowOrderModal(true)}
           >
             <ShoppingCart className="w-4 h-4" />

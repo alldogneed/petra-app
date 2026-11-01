@@ -21,6 +21,8 @@ import { usePlan } from "@/hooks/usePlan";
 import { getMaxPriceItems } from "@/lib/feature-flags";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useVertical } from "@/hooks/useVertical";
+import { PRICE_CATEGORIES, PROGRAM_PRICE_CATEGORY, getPriceCategories } from "@/lib/verticals/catalog";
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -68,7 +70,7 @@ const UNITS: { id: string }[] = [
 const TAX_MODES = ["taxable", "exempt", "inherit", "inclusive", "exclusive"];
 
 // These 4 main categories are used by the order modal to filter items
-const CATEGORIES = ["פנסיון", "אילוף", "טיפוח", "מוצרים"]; // i18n-ok — stored category values (DB data)
+const CATEGORIES = PRICE_CATEGORIES;
 
 // Display label key per stored category value (the values themselves stay Hebrew data)
 const CATEGORY_KEY: Record<string, string> = {
@@ -84,7 +86,10 @@ const GENERAL_CATEGORY = "כללי"; // i18n-ok
 
 type PricingT = ReturnType<typeof useTranslations<"pricing">>;
 
-function categoryLabel(t: PricingT, cat: string): string {
+// `programLabel` = v("pricing.category_program") — the vertical's name for the program
+// category (dogs → the category itself, as before).
+function categoryLabel(t: PricingT, cat: string, programLabel: string): string {
+  if (cat === PROGRAM_PRICE_CATEGORY) return programLabel;
   const key = CATEGORY_KEY[cat];
   return key ? t(`pricingPage.categories.${key}`) : cat;
 }
@@ -132,6 +137,7 @@ function ItemModal({
   const t = useTranslations("pricing");
   const tc = useTranslations("common");
   const { locale, currency } = useBusinessLocale();
+  const { v, vertical } = useVertical();
   const isEdit = Boolean(item);
   const [form, setForm] = useState<ItemFormData>({
     name: item?.name ?? "",
@@ -201,7 +207,7 @@ function ItemModal({
             <label className="label">{t("pricingPage.modal.nameLabel")}</label>
             <input
               className="input mt-1"
-              placeholder={t("pricingPage.modal.namePlaceholder")}
+              placeholder={v("pricing.name_placeholder")}
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               autoFocus
@@ -219,7 +225,11 @@ function ItemModal({
                 required
               >
                 <option value="">{t("pricingPage.modal.categoryPlaceholder")}</option>
-                {CATEGORIES.map((c) => <option key={c} value={c}>{categoryLabel(t, c)}</option>)}
+                {getPriceCategories(vertical).map((c) => <option key={c.value} value={c.value}>{categoryLabel(t, c.value, v("pricing.category_program"))}</option>)}
+                {/* A stored category this vertical no longer offers stays selectable for its own item. */}
+                {form.category && !getPriceCategories(vertical).some((c) => c.value === form.category) && (
+                  <option value={form.category}>{categoryLabel(t, form.category, v("pricing.category_program"))}</option>
+                )}
               </select>
             </div>
             <div>
@@ -287,7 +297,7 @@ function ItemModal({
             <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-3 space-y-2">
               <p className="text-xs font-semibold text-blue-700 flex items-center gap-1.5">
                 <Package className="w-3.5 h-3.5" />
-                {t("pricingPage.modal.trainingPackageTitle")}
+                {v("pricing.package_title")}
               </p>
               <div>
                 <label className="label text-[11px]">{t("pricingPage.modal.sessionsLabel")}</label>
@@ -303,7 +313,7 @@ function ItemModal({
                 />
               </div>
               <p className="text-[11px] text-blue-600">
-                {t("pricingPage.modal.sessionsHint")}
+                {v("pricing.package_hint")}
               </p>
             </div>
           )}
@@ -610,6 +620,7 @@ function PricingPageContent() {
   const t = useTranslations("pricing");
   const tcPage = useTranslations("common");
   const { currency } = useBusinessLocale();
+  const { v } = useVertical();
   const { isFree, tier } = usePlan();
   const { canEditPricing } = usePermissions();
   const maxPriceItems = getMaxPriceItems(tier);
@@ -931,7 +942,7 @@ function PricingPageContent() {
             </div>
             <p className="text-sm font-semibold text-petra-text mt-2">{t("pricingPage.emptyItems.title")}</p>
             <p className="text-xs text-petra-muted mt-1 max-w-xs text-center">
-              {t("pricingPage.emptyItems.body")}
+              {v("pricing.empty_hint")}
             </p>
             {canEditPricing && (
             <button
@@ -953,7 +964,7 @@ function PricingPageContent() {
               <div className="px-4 py-2 bg-slate-50/80 border-b border-petra-border flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-semibold text-petra-muted uppercase tracking-wider">
-                    {categoryLabel(t, cat)}
+                    {categoryLabel(t, cat, v("pricing.category_program"))}
                   </span>
                   <span className="text-xs text-slate-400">({grouped[cat].length})</span>
                 </div>

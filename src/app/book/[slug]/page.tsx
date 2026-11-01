@@ -578,7 +578,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                             type={svc.type}
                             className="w-5 h-5"
                             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                            {...({ style: { color: svc.color || "#F97316" } } as any)}
+                            {...({ style: { color: svc.color || "rgb(var(--brand-500))" } } as any)}
                           />
                         </div>
                         <div className="flex-1 min-w-0">
@@ -639,7 +639,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
               {/* Service summary */}
               <div className="bg-brand-50 rounded-xl p-3 mb-4 flex items-center gap-2 border border-brand-100">
                 <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: selectedService.color ? `${selectedService.color}33` : "#FFF0E0" }}>
-                  <ServiceIcon generic={noPets} type={selectedService.type} className="w-3.5 h-3.5" {...({ style: { color: selectedService.color || "#F97316" } } as any)} />
+                  <ServiceIcon generic={noPets} type={selectedService.type} className="w-3.5 h-3.5" {...({ style: { color: selectedService.color || "rgb(var(--brand-500))" } } as any)} />
                 </div>
                 <span className="text-sm font-medium text-brand-800 flex-1 truncate">{selectedService.name}</span>
                 <span className="text-xs text-brand-600 font-medium">{t("service.minutes", { count: selectedService.duration })}</span>
@@ -798,7 +798,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
               {/* Service summary */}
               <div className="bg-brand-50 rounded-xl p-3 mb-5 flex items-center gap-2 border border-brand-100">
                 <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: selectedService.color ? `${selectedService.color}33` : "#FFF0E0" }}>
-                  <ServiceIcon generic={noPets} type={selectedService.type} className="w-3.5 h-3.5" {...({ style: { color: selectedService.color || "#F97316" } } as any)} />
+                  <ServiceIcon generic={noPets} type={selectedService.type} className="w-3.5 h-3.5" {...({ style: { color: selectedService.color || "rgb(var(--brand-500))" } } as any)} />
                 </div>
                 <span className="text-sm font-medium text-brand-800 flex-1 truncate">{selectedService.name}</span>
                 <span className="text-xs text-brand-600 font-medium">{t("boarding.perNight", { price: formatPrice(selectedService.price) })}</span>
@@ -1051,7 +1051,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
               {/* Service context banner */}
               <div className="bg-brand-50 rounded-xl p-3 mb-4 flex items-center gap-2 border border-brand-100">
                 <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: selectedService.color ? `${selectedService.color}33` : "#FFF0E0" }}>
-                  <ServiceIcon generic={noPets} type={selectedService.type} className="w-3.5 h-3.5" {...({ style: { color: selectedService.color || "#F97316" } } as any)} />
+                  <ServiceIcon generic={noPets} type={selectedService.type} className="w-3.5 h-3.5" {...({ style: { color: selectedService.color || "rgb(var(--brand-500))" } } as any)} />
                 </div>
                 <span className="text-sm font-medium text-brand-800">{t("dogs.forService", { service: selectedService.name })}</span>
               </div>
@@ -1185,7 +1185,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                 <div className="bg-slate-50 rounded-xl p-4 space-y-3">
                   <div className="flex items-start gap-3">
                     <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5" style={{ backgroundColor: selectedService.color ? `${selectedService.color}22` : "#FFF7ED" }}>
-                      <ServiceIcon generic={noPets} type={selectedService.type} className="w-4 h-4" {...({ style: { color: selectedService.color || "#F97316" } } as any)} />
+                      <ServiceIcon generic={noPets} type={selectedService.type} className="w-4 h-4" {...({ style: { color: selectedService.color || "rgb(var(--brand-500))" } } as any)} />
                     </div>
                     <div>
                       <p className="text-xs text-petra-muted">{t("confirm.service")}</p>
