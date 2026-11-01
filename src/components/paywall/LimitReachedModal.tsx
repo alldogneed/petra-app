@@ -7,6 +7,7 @@ import { LIMIT_REACHED_EVENT, type LimitReachedDetail } from "@/lib/limit-reache
 import { useTranslations } from "next-intl";
 import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { currencySymbol } from "@/lib/format";
+import { planPrice, planPriceCurrency } from "@/lib/plan-prices";
 
 const BENEFIT_KEYS = ["unlimited", "whatsappReminders", "googleCalendar", "reports", "paymentLinks"] as const;
 
@@ -72,7 +73,7 @@ export function LimitReachedModal() {
           className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-brand-500 hover:bg-brand-600 text-white font-semibold text-sm transition-colors"
         >
           <Crown className="w-4 h-4" />
-          {t("upgradeCta", { currencySymbol: currencySymbol({ locale, currency }) })}
+          {t("upgradeCta", { currencySymbol: currencySymbol({ locale, currency: planPriceCurrency(currency) }), price: planPrice("basic", currency) ?? "" })}
         </Link>
 
         {/* What you get */}

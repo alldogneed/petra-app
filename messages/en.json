@@ -5109,7 +5109,7 @@
         "subtitle": "Pick the plan that fits your business. You can switch plans or cancel later, with no long-term commitment."
       },
       "plansAria": "Subscription plans",
-      "priceAmount": "₪{price}",
+      "priceAmount": "{currencySymbol}{price}",
       "perMonth": "/month",
       "perMonthAria": "per month",
       "newBadge": "New",
@@ -10222,7 +10222,7 @@
     },
     "limitReachedModal": {
       "title": "You've reached the Free plan limit",
-      "upgradeCta": "Upgrade to Basic — {currencySymbol}99/month",
+      "upgradeCta": "Upgrade to Basic — {currencySymbol}{price}/month",
       "whatYouGet": "What you get with Basic:",
       "benefits": {
         "unlimited": "Unlimited appointments, clients and orders",

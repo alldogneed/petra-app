@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { currencySymbol } from "@/lib/format";
+import { planPrice, planPriceCurrency } from "@/lib/plan-prices";
 
 interface PaywallCardProps {
   title: string;
@@ -66,9 +67,10 @@ export function PaywallCard({
   const router = useRouter();
   const t = useTranslations("paywall.paywallCard");
   const { locale, currency, cfg } = useBusinessLocale();
-  // Plan prices are ILS amounts; the symbol follows the business (USD pricing = Phase 6)
-  const symbol = currencySymbol({ locale, currency });
-  const display = getTierDisplay(requiredTier);
+  // Price in the business's pricing currency (plan-prices.ts); null = not sold there → no price shown
+  const symbol = currencySymbol({ locale, currency: planPriceCurrency(currency) });
+  const tierDisplay = getTierDisplay(requiredTier);
+  const display = { name: tierDisplay.name, price: planPrice(requiredTier, currency) ?? 0 };
   const colors = TIER_COLORS[requiredTier];
 
   const badge = badgeLabel ?? t("badge", { planName: display.name });

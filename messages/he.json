@@ -5109,7 +5109,7 @@
         "subtitle": "בוחרים את המסלול שמתאים לעסק שלכם. אפשר לשנות מסלול או לבטל את התשלום בהמשך, בלי התחייבות ארוכה."
       },
       "plansAria": "מסלולי מנוי",
-      "priceAmount": "₪{price}",
+      "priceAmount": "{currencySymbol}{price}",
       "perMonth": "/חודש",
       "perMonthAria": "לחודש",
       "newBadge": "חדש",
@@ -10222,7 +10222,7 @@
     },
     "limitReachedModal": {
       "title": "הגעת לתקרת המנוי החינמי",
-      "upgradeCta": "שדרג לבייסיק — {currencySymbol}99/חודש",
+      "upgradeCta": "שדרג לבייסיק — {currencySymbol}{price}/חודש",
       "whatYouGet": "מה מקבלים בבייסיק:",
       "benefits": {
         "unlimited": "תורים, לקוחות והזמנות ללא הגבלה",

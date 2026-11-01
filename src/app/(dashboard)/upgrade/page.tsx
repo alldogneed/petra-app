@@ -11,6 +11,7 @@ import { useAuth } from "@/providers/auth-provider";
 import { useTranslations } from "next-intl";
 import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { currencySymbol } from "@/lib/format";
+import { planPrice, planPriceCurrency, hasOnlineCheckout } from "@/lib/plan-prices";
 
 // ─── Public plans (sold via checkout) ────────────────────────────────────────
 // Texts live in messages under paywall.upgradePage.plans.<msgKey>.*
@@ -18,7 +19,6 @@ type PlanDef = {
   key: TierKey;
   /** messages key under paywall.upgradePage.plans */
   msgKey: string;
-  price: number;
   hasBadge?: boolean;
   highlight?: boolean;
   features: string[];
@@ -29,21 +29,18 @@ const PLANS: PlanDef[] = [
   {
     key: "free",
     msgKey: "free",
-    price: 0,
     features: ["clients", "leads", "trainingPrograms", "appointments", "orders", "tasks", "priceList"],
     notIncluded: ["unlimitedCalendar", "whatsappReminders", "boarding", "intakeForms", "team"],
   },
   {
     key: "basic",
     msgKey: "basic",
-    price: 99,
     features: ["unlimitedClients", "calendar", "portfolio", "paymentsAndForms", "unlimitedLeads", "reports"],
     notIncluded: ["whatsappReminders", "teamAndUsers", "boarding", "onlineBooking", "whatsappAutomations"],
   },
   {
     key: "pro",
     msgKey: "pro",
-    price: 199,
     highlight: true,
     hasBadge: true,
     features: [
@@ -64,14 +61,12 @@ const LEGACY_PLANS: PlanDef[] = [
   {
     key: "groomer",
     msgKey: "groomer",
-    price: 169,
     features: ["portfolio", "whatsappAutomations", "team", "excelExport"],
     notIncluded: ["boarding", "advancedTraining"],
   },
   {
     key: "service_dog",
     msgKey: "serviceDog",
-    price: 229,
     features: ["everythingInPro", "serviceDogs", "certification", "ministryReporting"],
     notIncluded: [],
   },
@@ -102,8 +97,10 @@ export default function UpgradePage() {
   const [cancelling, setCancelling] = useState(false);
   const t = useTranslations("paywall.upgradePage");
   const { locale, currency } = useBusinessLocale();
-  // Plan prices are ILS amounts; the symbol follows the business (USD pricing = Phase 6)
-  const symbol = currencySymbol({ locale, currency });
+  // Prices come from plan-prices.ts in the business's pricing currency (ILS / USD)
+  const symbol = currencySymbol({ locale, currency: planPriceCurrency(currency) });
+  // Cardcom checkout charges ILS only — other currencies upgrade via sales until Stripe (Phase 6)
+  const onlineCheckout = hasOnlineCheckout(currency);
 
   const endsAtFormatted = subscriptionEndsAt ? new Date(subscriptionEndsAt).toLocaleDateString(locale) : "";
   const isFree = tier === "free";
@@ -131,7 +128,7 @@ export default function UpgradePage() {
   // Auto-redirect to checkout if ?autostart=plan is present (e.g. after registration)
   useEffect(() => {
     const autostart = searchParams.get("autostart");
-    if (autostart && CARDCOM_TIERS.has(autostart)) {
+    if (autostart && CARDCOM_TIERS.has(autostart) && onlineCheckout) {
       router.replace(`/checkout?tier=${autostart}`);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -147,10 +144,10 @@ export default function UpgradePage() {
     router.push(`/checkout?tier=${planKey}`);
   }
 
-  function openWhatsApp(planName: string, price: number, isDowngrade: boolean) {
+  function openWhatsApp(planName: string, price: number | null, isDowngrade: boolean) {
     const action = isDowngrade ? t("whatsapp.downgradeAction") : t("whatsapp.upgradeAction");
     const msg = encodeURIComponent(
-      t("whatsapp.message", { action, planName, currencySymbol: symbol, price })
+      t("whatsapp.message", { action, planName, currencySymbol: symbol, price: price ?? "" })
     );
     window.open(`https://api.whatsapp.com/send?phone=${WHATSAPP_UPGRADE_PHONE}&text=${msg}`, "_blank");
   }
@@ -176,6 +173,7 @@ export default function UpgradePage() {
           const isHighlight = plan.highlight;
           const isDowngrade = TIER_RANK[plan.key] < TIER_RANK[tier ?? "free"];
           const planName = t(`plans.${plan.msgKey}.name`);
+          const price = planPrice(plan.key, currency);
 
           return (
             <div
@@ -208,9 +206,9 @@ export default function UpgradePage() {
                 <h2 className="text-lg font-bold text-slate-900">{planName}</h2>
                 <div className="flex items-baseline gap-1 mt-1 mb-2">
                   <span className="text-3xl font-extrabold text-slate-900">
-                    {plan.price === 0 ? t("card.free") : t("card.price", { currencySymbol: symbol, price: plan.price })}
+                    {price === 0 ? t("card.free") : price != null ? t("card.price", { currencySymbol: symbol, price }) : null}
                   </span>
-                  {plan.price > 0 && <span className="text-slate-400 text-sm">{t("card.perMonth")}</span>}
+                  {price != null && price > 0 && <span className="text-slate-400 text-sm">{t("card.perMonth")}</span>}
                 </div>
                 <p className="text-xs text-slate-500 leading-relaxed">{t(`plans.${plan.msgKey}.description`)}</p>
               </div>
@@ -250,17 +248,17 @@ export default function UpgradePage() {
                 </button>
               ) : isDowngrade ? (
                 <button
-                  onClick={() => openWhatsApp(planName, plan.price, true)}
+                  onClick={() => openWhatsApp(planName, price, true)}
                   className="w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-colors bg-slate-200 hover:bg-slate-300 text-slate-700"
                 >
                   <MessageCircle className="w-4 h-4" />
                   {t("card.downgradeTo", { planName })}
                 </button>
-              ) : plan.price === 0 ? (
+              ) : price === 0 ? (
                 <div className="w-full py-2.5 rounded-xl text-center text-sm text-slate-400 border border-dashed border-slate-300">
                   {t("card.alwaysFree")}
                 </div>
-              ) : CARDCOM_TIERS.has(plan.key) ? (
+              ) : CARDCOM_TIERS.has(plan.key) && onlineCheckout ? (
                 <div className="flex flex-col gap-2">
                   <button
                     onClick={() => goToCheckout(plan.key)}
@@ -275,7 +273,7 @@ export default function UpgradePage() {
                     {t("card.payNow")}
                   </button>
                   <button
-                    onClick={() => openWhatsApp(planName, plan.price, false)}
+                    onClick={() => openWhatsApp(planName, price, false)}
                     className="w-full py-2 rounded-xl text-xs font-medium flex items-center justify-center gap-1.5 transition-colors text-slate-500 hover:text-green-600 hover:bg-green-50"
                   >
                     <MessageCircle className="w-3.5 h-3.5" />
@@ -284,7 +282,7 @@ export default function UpgradePage() {
                 </div>
               ) : (
                 <button
-                  onClick={() => openWhatsApp(planName, plan.price, false)}
+                  onClick={() => openWhatsApp(planName, price, false)}
                   className={cn(
                     "w-full py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-colors",
                     isHighlight

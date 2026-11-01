@@ -3,7 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Check, X, ChevronDown, ChevronUp, MessageCircle, CreditCard, Sparkles, Shield } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { currencySymbol } from "@/lib/format";
+import { LOCALE_CONFIG, localeFromBusiness } from "@/lib/locale";
+import { planPrice, hasOnlineCheckout } from "@/lib/plan-prices";
 import { useAuth } from "@/providers/auth-provider";
 
 const CARDCOM_TIERS = new Set(["basic", "pro"]);
@@ -14,7 +17,6 @@ type FeatureEntry = string | { id: string; star: true };
 const PLANS: {
   key: "free" | "basic" | "pro";
   subtitle?: string;
-  price: number;
   hasBadge: boolean;
   highlight: boolean;
   features: FeatureEntry[];
@@ -22,7 +24,6 @@ const PLANS: {
 }[] = [
   {
     key: "free",
-    price: 0,
     hasBadge: false,
     highlight: false,
     features: ["clients30", "appointments20", "orders15", "leads15", "training10", "priceList8", "tasks20"],
@@ -30,7 +31,6 @@ const PLANS: {
   },
   {
     key: "basic",
-    price: 99,
     hasBadge: false,
     highlight: false,
     features: [
@@ -49,7 +49,6 @@ const PLANS: {
   },
   {
     key: "pro",
-    price: 199,
     hasBadge: true,
     highlight: true,
     features: [
@@ -216,6 +215,13 @@ export function PricingSection() {
   const [showComparison, setShowComparison] = useState(false);
   const { user } = useAuth();
   const t = useTranslations("landing.pricingSection");
+  // Public page: no business → prices follow the visitor's UI locale (he → ILS, en → USD; plan-prices.ts)
+  const locale = localeFromBusiness({ locale: useLocale() });
+  const currency = LOCALE_CONFIG[locale].currency;
+  const priceOf = (key: (typeof PLANS)[number]["key"]) => planPrice(key, currency) ?? 0;
+  const symbol = currencySymbol({ locale, currency });
+  // Cardcom checkout charges ILS only — USD visitors start free until Stripe (Phase 6)
+  const onlineCheckout = hasOnlineCheckout(currency);
 
   return (
     <section aria-labelledby="pricing-heading" className="py-20 bg-white" id="pricing">
@@ -279,9 +285,9 @@ export function PricingSection() {
                   <p className="text-[13px] text-slate-500 leading-snug mb-3">{t(`plans.${plan.key}.description`)}</p>
                   <div className="flex items-baseline gap-1">
                     <span className="text-2xl font-extrabold text-slate-900">
-                      {t("priceAmount", { price: plan.price })}
+                      {t("priceAmount", { currencySymbol: symbol, price: priceOf(plan.key) })}
                     </span>
-                    {plan.price > 0 && (
+                    {priceOf(plan.key) > 0 && (
                       <span className="text-slate-400 text-xs" aria-label={t("perMonthAria")}>{t("perMonth")}</span>
                     )}
                   </div>
@@ -330,7 +336,7 @@ export function PricingSection() {
                 )}
 
                 {/* CTA */}
-                {CARDCOM_TIERS.has(plan.key) ? (
+                {CARDCOM_TIERS.has(plan.key) && onlineCheckout ? (
                   <div className="flex flex-col gap-1.5">
                     <Link
                       href={user ? `/checkout?tier=${plan.key}` : `/checkout?tier=${plan.key}`}
@@ -443,7 +449,7 @@ export function PricingSection() {
                         </span>
                       )}
                       <span className="block font-normal text-slate-500 mt-0.5 text-xs">
-                        {p.price === 0 ? t("compare.freePrice") : t("priceAmount", { price: p.price })}
+                        {priceOf(p.key) === 0 ? t("compare.freePrice") : t("priceAmount", { currencySymbol: symbol, price: priceOf(p.key) })}
                       </span>
                     </th>
                   ))}
