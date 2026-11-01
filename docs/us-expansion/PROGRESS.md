@@ -326,7 +326,7 @@ Branch: `claude/gracious-dijkstra-p3eq67` (ראו DECISIONS D-001). סשן חי�
 - (שלב 3) `Business.currency/timezone/country` — allowlist לפני שיהיה נתיב כתיבה (סקירת אבטחה, LOW).
 - (שלב 3) לחבר `invalidateBusinessLocaleCache()` לנתיב שמשנה locale.
 - (שלב 8) root layout קורא cookie בכל בקשה → כל הדפים דינמיים, כולל שיווק. לבדוק ביצועים / per-segment provider (D-005).
-- (שלב 6) מחירי המנויים בדף upgrade הם ILS; לעסק USD יוצג "$99" עד שיהיה מחירון USD.
+- ~~(שלב 6) מחירי המנויים בדף upgrade הם ILS; לעסק USD יוצג "$99" עד שיהיה מחירון USD.~~ נפתר 01.11 (D-021).
 - (שלב 2) `getTierDisplay()` / תוויות ב‑src/lib נשארו בעברית (PaywallCard מציג `display.name`).
 - (שלב 7) placeholder טלפון `050-0000000` ישראלי; תכונת "משרד החקלאות" בתוכנית כלבי שירות ספציפית לישראל.
 
@@ -334,7 +334,7 @@ Branch: `claude/gracious-dijkstra-p3eq67` (ראו DECISIONS D-001). סשן חי�
 עשרות סומנו בקבצים עצמם (`grep -rn "rtl-ok" src`). הקטגוריות: inputs עם `dir="ltr"` (טלפון/מייל/URL) שנשארים עם קלאסים פיזיים או בוחרים לפי `cfg.dir`; ציר הזמן של הפנסיון (`dir="ltr"` בכוונה בשתי השפות); טוסטים/נקודות ממורכזים (`left-1/2 -translate-x-1/2`); קואורדינטות PDF בחוזים; אייקון Play; גלגלת הצעצועים בלוגו PetraLoader.
 
 ## שאלות לאור (לא חוסמות)
-1. **מחירון USD** — דפי upgrade/pricing/checkout/landing מציגים מחירי ILS (גם באנגלית "₪99"). מחכה לשלב 6.
+1. ✅ **מחירון USD** — נענה 01.11: Basic $29, Pro $39 לחודש (D-021, `src/lib/plan-prices.ts`; upgrade, PaywallCard, LimitReachedModal, landing). פתוח לשלב 6: מחיר שנתי ב‑USD, Stripe products, `/checkout` דו‑ספקי. QA: [usd-prices](qa/usd-prices/) — he 3/4 זהים, landing desktop 3.3% = תמונת hero lazy שלא נטענה בצילום (אותו דבר בשני ה‑builds; אזור המחירון זהה).
 2. **מונחים**: "Client" (לא Customer), "Recipient" לזכאי, "Board & train" לאילוף בפנסיון, "Sales" למערכת מכירות, "Admin & oversight" לניהול ובקרה — לאשר.
 3. **תכונות ישראליות** באנגלית (משרד החקלאות, ביטוח לאומי, Simba, ת"ז, Bit/PayBox, Morning/חשבונית ירוקה, ייבוא חגים) — להסתיר לעסק US או לנסח מחדש?
 4. **תוכן משפטי** (terms/privacy/accessibility/tos-accept) — כרגע תרגום מילולי; גרסה אמריקאית בשלב 7 עם עו"ד.

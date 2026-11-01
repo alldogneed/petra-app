@@ -100,7 +100,7 @@ src/lib/billing/
   stripe.ts    Stripe Checkout + Billing (subscriptions, trial, customer portal), webhook /api/webhooks/stripe
 ```
 - Stripe כותב לאותם שדות: `subscriptionStatus`, `subscriptionEndsAt`, `trialEndsAt`, `tier`. שדות ספציפיים: `stripeCustomerId`, `stripeSubscriptionId`.
-- מחירון USD ב‑Stripe Products (Basic/Pro/Master, חודשי+שנתי) — **המספרים טרם נקבעו (שאלה פתוחה).**
+- מחירון USD ב‑Stripe Products (Basic/Pro/Master, חודשי+שנתי) — **חודשי נקבע 01.11.2026: Basic $29, Pro $39** (`src/lib/plan-prices.ts`, D-021); שנתי ו‑Master טרם נקבעו.
 - מס בחיוב של Petra עצמה: Stripe Tax (אוטומטי לפי מדינה) — SaaS חייב sales tax בחלק מהמדינות.
 - Idempotency ב‑webhooks (אותו עיקרון כמו ב‑Cardcom, Vercel cron ללא retry).
 
@@ -178,7 +178,7 @@ src/lib/billing/
 
 1. **דומיין/כתובת:** `petra-app.com/en` או דומיין נפרד? (משפיע על SEO ועל שלב 7 בלבד)
 2. **ישות וחשבון Stripe:** ישראלי או אמריקאי (Atlas/LLC)? — להתייעץ עם רו"ח. לא חוסם פיתוח.
-3. **מחירון USD** ל‑Basic/Pro/Master חודשי+שנתי.
+3. **מחירון USD** — ✅ חודשי: Basic $29, Pro $39 (01.11.2026). פתוח: שנתי, Master.
 4. **מי מבקר את האנגלית** — Ariel? דובר ילידי? מאלף אמריקאי מוכר?
 5. **פונט** לאנגלית (ברירת מחדל מוצעת: Inter).
 6. **Twilio vs. חלופה** (Telnyx כבר על השולחן להקלטת שיחות — אפשר ספק אחד ל‑SMS + voice).
