@@ -18,6 +18,7 @@ Branch: `claude/gracious-dijkstra-p3eq67` (ראו DECISIONS D-001). סשן חי�
 | גל ה — training, online-classes, portal | ✅ | 21 | ~2,700 (he+en) | ~40 | [wave-def](qa/wave-def/) | 7761ea6 |
 | גל ו — service-dogs | ✅ | 12 | ~2,100 (he+en) | ~60 | [wave-def](qa/wave-def/) — אין דאטה של כלב שירות ב‑seed: הפרופיל (977 מחרוזות) נבדק ב‑verify-he + tsc, לא בצילום | 7761ea6 |
 | גל ז — landing, auth, legal, public pages, owner | ✅ | 45 | 3,928 (he+en) | ~90 | [wave-g](qa/wave-g/) — he 56/56 ≤0.5% (owner + ציבוריים), en ✅ (owner + ציבוריים עם cookie) | 71fc8f1 |
+| מיזוג main (verticals #190–#195) | ✅ | 58+4 קונפליקטים + 2 קבצים חדשים | 136 (he+en) + 70 vocab באנגלית | 0 | [merge-verticals](qa/merge-verticals/) — he מול main: dogs 42/44 ≤0.5% (2 = דשבורד, שורות "התחברות" שגדלות בין הרצות), generic 22/22 | ed8dffe, 4d95f31 |
 
 ## רשימות קבצים לפי גל (נכתבו לפני תחילת כל גל)
 
@@ -310,6 +311,8 @@ Branch: `claude/gracious-dijkstra-p3eq67` (ראו DECISIONS D-001). סשן חי�
 - `src/app/sign/[token]/page.tsx` → `sign.signDetailPage` (54)
 
 ## ממצאים לשלבים הבאים
+- (שלב 2) אחרי המיזוג: באנגלית עדיין מופיעים labels מ‑src/lib (מיון לקוחות "Sort: חדש לישן", חודשים בגרף הכנסות מה‑API, קטגוריות) — בדיוק היקף שלב 2.
+- (שלב 3) `vData()` (תמיד עברית) משמש בהודעות WhatsApp ללקוח שעדיין דאטה עברית (סיום/ברכה בהזמנה, scheduler, bookings, calendar) — יעבור לשפת הלקוח בשלב 3. `customer.bulk_placeholder` באנגלית שומר את הטוקן `{שם}` כי BulkWhatsAppModal מחליף אותו מילולית.
 - (שלב 2/3, סקירת אבטחה) דפים ציבוריים של עסק (`/book/[slug]`, `/c/[slug]`) לוקחים locale מהמבקר (cookie/סשן שלו) — צריך locale + currency של העסק מה‑API (`/api/book/[slug]` לא מחזיר `currency`). תוקן חלקית: המטבע בדף ההזמנה נופל ל‑ILS ולא למטבע של המבקר.
 - (שלב 3, סקירת אבטחה) קטגוריות מחירון: ההצעות ב‑`price-lists` שומרות את הערך העברי (דאטה) עם label מתורגם — עד שיהיו קטגוריות לפי locale.
 - (שלב 8, ביצועים) כל ה‑messages (~750KB he) נשלחים בכל עמוד, כולל ציבוריים — לפצל provider לפי אזור (D-005).
