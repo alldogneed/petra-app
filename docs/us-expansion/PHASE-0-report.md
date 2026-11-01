@@ -4,7 +4,7 @@
 | סעיף | תוצאה |
 |---|---|
 | 0.1 | `next-intl@3.26.5` + `libphonenumber-js@1.13.15`. postcss לא נגע (8.4.47). |
-| 0.2 | `Business.locale/country/currency/messagingChannel/billingProvider` (defaults ישראליים) + `prisma/us_expansion_phase0.sql` (additive, idempotent — **לא הורץ ב‑prod**). `schema.production.prisma` מסונכרן. `src/lib/locale.ts`. `getCurrentUser()` חושף `businessLocale/Country/Currency/Timezone` (בלי `platformRole`). |
+| 0.2 | `Business.locale/country/currency/messagingChannel/billingProvider` (defaults ישראליים) + `prisma/us_expansion_phase0.sql` (additive, idempotent — **הורץ ב‑prod 01.11.2026** בבקשת אור, דרך Supabase; 70 עסקים קיבלו he-IL/IL/ILS/whatsapp/cardcom). `schema.production.prisma` מסונכרן. `src/lib/locale.ts`. `getCurrentUser()` חושף `businessLocale/Country/Currency/Timezone` (בלי `platformRole`). |
 | 0.3 | next-intl בלי routing: `src/i18n/request.ts` + `resolve-locale.ts` (עסק מהסשן → cookie `NEXT_LOCALE` בדפים ציבוריים → he-IL; cache 60s לעסק). root layout: `<html lang dir>` דינמי, Inter לאנגלית, `NextIntlClientProvider`, Toaster לפי כיוון. **תוקן:** `globals.css` כפה `html { direction: rtl }` ודרס את `dir`. |
 | 0.4 | `src/lib/format.ts` (מטבע/תאריך/שעה/טלפון, `dateFnsLocaleFor`, `currencySymbol`); `utils.formatCurrency/Date/Time` = wrappers זהים לפלט הקודם (נבדק על דגימות); `validatePhoneForCountry`; `useBusinessLocale()`. |
 | 0.5 | `check:i18n` (עברית + ערכים ישראליים קשיחים + `lang="he"`/`dir="rtl"`/`direction:rtl` + זוגיות he/en + ICU + מפתחות קיימים), `codemod-logical-css.mjs`, `extract-hebrew.mjs`, `i18n-verify-he.mjs` (עברית זהה ל‑origin/main), `i18n-merge-fragments.mjs`, `i18n-check-keys.mjs`, `i18n-qa-screens.js` + `i18n-qa-diff.py`. |
