@@ -2087,7 +2087,8 @@
           "sendError": "Failed to send",
           "limitReached": "You've reached the appointment limit — upgrade to Basic to add more",
           "createError": "Couldn't book the appointment. Please try again."
-        }
+        },
+        "attachLabelVertical": "{label}: <strong>{name}</strong> — session {session}"
       },
       "payment": {
         "title": "Record payment",
@@ -2186,7 +2187,8 @@
         "training": "Training",
         "eventsCount": "{count, plural, one {# event} other {# events}}",
         "noEvents": "No events",
-        "customerCard": "Client file"
+        "customerCard": "Client file",
+        "sessionWith": "{prefix} · {name}"
       },
       "detail": {
         "notesPlaceholder": "Add notes to the appointment...",
@@ -2218,7 +2220,9 @@
         "addPayment": "Add payment",
         "sendNextLinkTitle": "Send a link to book the next appointment",
         "deleteAppointment": "Delete appointment"
-      }
+      },
+      "sessionTitleWithTime": "{prefix}: {label}{customer} ({time})",
+      "sessionTitle": "{prefix}: {label}{customer}"
     }
   },
   "checkout": {
@@ -2825,7 +2829,8 @@
         "continue": "Continue",
         "finalTitle": "Final confirmation",
         "finalDescription": "Permanently delete <b>{count, plural, one {# client} other {# clients}}</b>? This can't be undone.",
-        "confirmLabel": "Delete {count, plural, one {# client} other {# clients}}"
+        "confirmLabel": "Delete {count, plural, one {# client} other {# clients}}",
+        "confirmDescriptionWarning": "You're about to delete <b>{count, plural, one {# client} other {# clients}}</b>. {warning}"
       },
       "export": {
         "success": "File downloaded",
@@ -5627,7 +5632,9 @@
     "screenGuard": {
       "title": "You don't have access to this screen",
       "body": "The business owner can turn it on for you in Settings → Team & permissions.",
-      "backToDashboard": "Back to dashboard"
+      "backToDashboard": "Back to dashboard",
+      "notFoundTitle": "Page not found",
+      "notFoundBody": "This screen doesn't exist in your business."
     },
     "systemInbox": {
       "title": "Inbox",
@@ -6209,7 +6216,8 @@
       },
       "confirmDeleteLog": {
         "title": "Delete this call log?"
-      }
+      },
+      "toCustomerCard": "Go to client card"
     },
     "leadMeetingsSection": {
       "toasts": {
@@ -7300,7 +7308,8 @@
         "fields": {
           "name": "Business name *",
           "phone": "Business phone *",
-          "legalEntityType": "Business type"
+          "legalEntityType": "Business type",
+          "kind": "Business type"
         },
         "placeholders": {
           "name": "e.g. Happy Paws Dog Training"
@@ -7491,7 +7500,8 @@
             "trainer": "Dog trainer",
             "boarding": "Boarding",
             "grooming": "Grooming salon",
-            "combined": "Combined"
+            "combined": "Combined",
+            "otherBusiness": "Other business"
           }
         },
         "activeClientsRange": {
@@ -7624,7 +7634,8 @@
         "trainer": "Dog trainer",
         "boarding": "Dog boarding",
         "grooming": "Pet grooming",
-        "combined": "Combined (training, boarding, grooming)"
+        "combined": "Combined (training, boarding, grooming)",
+        "otherBusiness": "Other business (not pets)"
       },
       "clientRanges": {
         "upTo20": "Up to 20"
@@ -11091,7 +11102,8 @@
       },
       "attach": {
         "label": "Add to training package: <strong>{name}</strong> — session {session}",
-        "optionSession": "— session {session}"
+        "optionSession": "— session {session}",
+        "labelWithPrefix": "{prefix}: <strong>{name}</strong> — session {session}"
       },
       "summary": {
         "date": "Date:",
@@ -14262,6 +14274,41 @@
         "importMore": "Import more",
         "retry": "Try again"
       }
+    },
+    "brandingCard": {
+      "title": "Branding",
+      "description": "The colors and name your clients see — in the app, on the booking page, in emails and on the signing page. The logo is the business logo above.",
+      "toasts": {
+        "addressUpdated": "Address updated",
+        "addressUpdateError": "Error updating the address",
+        "saved": "Branding saved",
+        "saveError": "Error saving branding"
+      },
+      "address": {
+        "title": "Your business address",
+        "noAddress": "Your business name doesn't have a Latin address yet — choose one below.",
+        "hint": "Your booking page lives at your address; signing in works there too.",
+        "newAddressAria": "New address",
+        "save": "Save"
+      },
+      "whatsapp": {
+        "title": "WhatsApp messages are currently sent from the system number",
+        "body": "Clients see the system number's name, not your business name. To send messages under your business name, connect your own WhatsApp Business number.",
+        "connectLink": "Connect your own number →"
+      },
+      "confirm": {
+        "title": "Change business address",
+        "description": "The new address will be {subdomain}.{tenantRoot}. The previous booking link (/book/{slug}) will stop working — update it everywhere you've shared it.",
+        "confirmLabel": "Change address"
+      },
+      "colors": {
+        "primary": "Primary color",
+        "secondary": "Secondary color (optional)",
+        "invalidHex": "Color in #RRGGBB format"
+      },
+      "senderName": "Sender name in client emails",
+      "preview": "Preview",
+      "saveBranding": "Save branding"
     }
   },
   "sign": {
@@ -15333,6 +15380,57 @@
       "tierGate": {
         "title": "Training program engine",
         "description": "Manage training programs, goals and sessions. Track every dog's progress in every program."
+      },
+      "generic": {
+        "pageTitle": "Programs",
+        "tierGate": {
+          "title": "Programs and sessions",
+          "description": "Manage session packages and programs for clients."
+        }
+      }
+    },
+    "genericPrograms": {
+      "title": "Programs",
+      "subtitle": "Session packages and programs for clients · {count} active",
+      "newProgram": "New program",
+      "tabs": {
+        "active": "Active",
+        "done": "Completed"
+      },
+      "searchPlaceholder": "Search by program or client...",
+      "toasts": {
+        "finished": "Program completed",
+        "finishError": "Error updating the program"
+      },
+      "empty": {
+        "active": "No active programs",
+        "done": "No completed programs",
+        "hint": "Programs are opened here, or automatically from a session package order."
+      },
+      "card": {
+        "sessionsOfTotal": "{done}/{total} sessions",
+        "sessions": "{done, plural, one {# session} other {# sessions}}",
+        "start": "Start: {date}",
+        "logSession": "Log session",
+        "finish": "Complete program"
+      },
+      "newModal": {
+        "created": "Program created",
+        "createError": "Error creating the program",
+        "client": "Client *",
+        "name": "Program name *",
+        "namePlaceholder": "e.g. 10-session package",
+        "totalSessions": "Number of sessions",
+        "price": "Price ({symbol})",
+        "submit": "Create program"
+      },
+      "logModal": {
+        "logged": "Session logged",
+        "logError": "Error logging the session",
+        "title": "Log session — {name}",
+        "date": "Date",
+        "summary": "Summary (optional)",
+        "submit": "Save session"
       }
     }
   },
@@ -15350,6 +15448,268 @@
     },
     "desktopBanner": {
       "message": "This page is designed for desktop — some actions may be limited on mobile"
+    }
+  },
+  "vocab": {
+    "business.kind": {
+      "dogs": "Pet business",
+      "generic": "Other business"
+    },
+    "business.kind_hint": {
+      "dogs": "Training, boarding, grooming or service dogs",
+      "generic": "Any other service business — clients, appointments and payments"
+    },
+    "nav.training": {
+      "dogs": "Training programs",
+      "generic": "Programs"
+    },
+    "training.page_title": {
+      "dogs": "Training",
+      "generic": "Programs"
+    },
+    "training.page_subtitle": {
+      "dogs": "Classes and training programs",
+      "generic": "Programs and sessions for clients"
+    },
+    "search.placeholder": {
+      "dogs": "Search clients, pets, appointments, leads, tasks...",
+      "generic": "Search clients, appointments, leads, tasks..."
+    },
+    "customer.followup_message": {
+      "dogs": "Hi {name} 😊\n\nJust checking in to see how {pet} is doing after {service}{petPart}.\n\nIf you have any questions, we're always here 🐾",
+      "generic": "Hi {name} 😊\n\nJust checking in to see how {service} went.\n\nIf you have any questions, we're always here 🙂"
+    },
+    "customer.welcome_message": {
+      "dogs": "Hi {name} 😊\n\nWelcome! We're so glad you joined us 🐾\nWe're here for any question or request.\n\nHope to see you soon!",
+      "generic": "Hi {name} 😊\n\nWelcome! We're so glad you joined us\nWe're here for any question or request.\n\nHope to see you soon!"
+    },
+    "customer.bulk_placeholder": {
+      "dogs": "Hi {שם}! We'd love to book your next appointment... 🐾",
+      "generic": "Hi {שם}! We'd love to book your next appointment..."
+    },
+    "service_type.training": {
+      "dogs": "Training",
+      "generic": "Sessions and programs"
+    },
+    "pricing.category_program": {
+      "dogs": "Training",
+      "generic": "Sessions and packages"
+    },
+    "order.training_kind": {
+      "dogs": "Training type",
+      "generic": "Order type"
+    },
+    "order.package_label": {
+      "dogs": "Training package",
+      "generic": "Session package"
+    },
+    "order.no_packages": {
+      "dogs": "No active packages. Add a training item with a number of sessions to the price list.",
+      "generic": "No active packages. Add an item with a number of sessions to the price list."
+    },
+    "order.payment_request_greeting": {
+      "dogs": "Hi {name}! 🐾",
+      "generic": "Hi {name}!"
+    },
+    "order.open_program": {
+      "dogs": "Open training program →",
+      "generic": "Open the program →"
+    },
+    "picker.customer_placeholder": {
+      "dogs": "Search by client name, phone or dog name",
+      "generic": "Search by client name or phone"
+    },
+    "customer.bulk_delete_warning": {
+      "dogs": "This also permanently deletes the pets, appointments and client data.",
+      "generic": "This also permanently deletes the appointments and client data."
+    },
+    "calendar.group_training": {
+      "dogs": "Professional training",
+      "generic": "Programs"
+    },
+    "calendar.category_training_home": {
+      "dogs": "In-home training",
+      "generic": "Program sessions"
+    },
+    "calendar.session_title_prefix": {
+      "dogs": "Training",
+      "generic": "Session"
+    },
+    "calendar.session_icon": {
+      "dogs": "🐕",
+      "generic": "📋"
+    },
+    "calendar.reminder_service_icon": {
+      "dogs": "🐾",
+      "generic": "🗓️"
+    },
+    "calendar.next_booking_signoff": {
+      "dogs": "See you soon! 🐾",
+      "generic": "See you soon!"
+    },
+    "appointment.attach_to_package": {
+      "dogs": "Add to a training package",
+      "generic": "Add to a package"
+    },
+    "appointment.default_session_note": {
+      "dogs": "Training session",
+      "generic": "Session"
+    },
+    "appointment.booked_signoff": {
+      "dogs": "Thank you! 🐾",
+      "generic": "Thank you!"
+    },
+    "gcal.service_icon": {
+      "dogs": "🐾",
+      "generic": "🛎️"
+    },
+    "booking.confirm_signoff": {
+      "dogs": "Looking forward to seeing you! 🐾",
+      "generic": "Looking forward to seeing you!"
+    },
+    "order.type_training": {
+      "dogs": "🐕 Training",
+      "generic": "📋 Sessions and packages"
+    },
+    "starter.appointment_reminder": {
+      "dogs": "Hi {customerName}! 🐾\n\nA reminder about our appointment on {date} at {time}.\nService: {serviceName}.\n\nLooking forward to seeing you! 😊",
+      "generic": "Hi {customerName}!\n\nA reminder about our appointment on {date} at {time}.\nService: {serviceName}.\n\nLooking forward to seeing you! 😊"
+    },
+    "starter.appointment_confirmation": {
+      "dogs": "Hi {customerName}! ✅\n\nYour appointment is booked!\n📅 Date: {date}\n🕐 Time: {time}\nService: {serviceName}\n\nLooking forward to seeing you! 🐾",
+      "generic": "Hi {customerName}! ✅\n\nYour appointment is booked!\n📅 Date: {date}\n🕐 Time: {time}\nService: {serviceName}\n\nLooking forward to seeing you!"
+    },
+    "starter.payment_request": {
+      "dogs": "Hi {customerName}! 🐾\n\n*Payment request*\nFor: {serviceName} – {petName}\n\n💰 Total due: *{orderTotal}*\n\n💳 Pay securely here:\n{paymentUrl}\n\nThank you for choosing us! 😊\n_Questions: {businessPhone}_",
+      "generic": "Hi {customerName}!\n\n*Payment request*\nFor: {serviceName}\n\n💰 Total due: *{orderTotal}*\n\n💳 Pay securely here:\n{paymentUrl}\n\nThank you for choosing us! 😊\n_Questions: {businessPhone}_"
+    },
+    "starter.lead_followup": {
+      "dogs": "Hi {customerName}! 🐾\n\nWe got your inquiry about {serviceName} and we'd love to help!\nWe'll get back to you soon.",
+      "generic": "Hi {customerName}!\n\nWe got your inquiry about {serviceName} and we'd love to help!\nWe'll get back to you soon."
+    },
+    "starter.appointment_followup": {
+      "dogs": "Hi {customerName}! 🌟\n\nWe wanted to know how {petName} is doing after the last appointment.\nIf all is well, we'd love to hear it! And if something isn't right, we want to know.\n\nThank you for choosing us 💛",
+      "generic": "Hi {customerName}! 🌟\n\nWe wanted to know how the last appointment went.\nIf all is well, we'd love to hear it! And if something isn't right, we want to know.\n\nThank you for choosing us 💛"
+    },
+    "starter.new_customer": {
+      "dogs": "Hi {customerName}! 😊\n\nWelcome! We're happy to have you and {petName} with us.\n\nWe have lots to celebrate together — see you at the first appointment! 🐾",
+      "generic": "Hi {customerName}! 😊\n\nWelcome! We're happy to have you with us.\n\nSee you at the first appointment!"
+    },
+    "starter.review_request": {
+      "dogs": "Hi {customerName}! ⭐\n\nThank you for trusting us with {petName}.\n\nIf you enjoyed it, we'd really appreciate a short review — it helps us and other pet owners find professional care 🙏\n\nThank you so much!",
+      "generic": "Hi {customerName}! ⭐\n\nThank you for trusting us.\n\nIf you enjoyed it, we'd really appreciate a short review — it helps us and others find professional service 🙏\n\nThank you so much!"
+    },
+    "booking.customer_step_title": {
+      "dogs": "Dog owner details",
+      "generic": "Your details"
+    },
+    "booking.customer_label": {
+      "dogs": "Dog owner",
+      "generic": "Client details"
+    },
+    "booking.meta_description": {
+      "dogs": "Book an appointment with {name} quickly and easily. Dog services",
+      "generic": "Book an appointment with {name} quickly and easily."
+    },
+    "onboarding.business_name_placeholder": {
+      "dogs": "e.g. Happy Paws Dog Training",
+      "generic": "e.g. Noa's Studio"
+    },
+    "onboarding.first_service_placeholder": {
+      "dogs": "e.g. Basic training lesson",
+      "generic": "e.g. Consultation"
+    },
+    "onboarding.next_service_placeholder": {
+      "dogs": "e.g. Advanced training lesson",
+      "generic": "e.g. 5-session package"
+    },
+    "onboarding.done_title": {
+      "dogs": "All set! 🐾",
+      "generic": "All set! 🎉"
+    },
+    "dashboard.welcome_icon": {
+      "dogs": "🐾",
+      "generic": "👋"
+    },
+    "dashboard.at_risk_message": {
+      "dogs": "Hi {name}! 🐾\nIt's been a while — we miss you!\nWould you like to book an appointment? We'd love to see you again 😊",
+      "generic": "Hi {name}!\nIt's been a while — we miss you!\nWould you like to book an appointment? We'd love to see you again 😊"
+    },
+    "team.critical_delete_label": {
+      "dogs": "Delete clients and dogs",
+      "generic": "Delete clients"
+    },
+    "team.view_training_label": {
+      "dogs": "Training programs",
+      "generic": "Programs"
+    },
+    "team.view_training_hint": {
+      "dogs": "Training programs and classes",
+      "generic": "Programs and session packages"
+    },
+    "booking.share_link_message": {
+      "dogs": "Hi! 🐾\nWant to book an appointment? You can do it easily with this link:\n{url}",
+      "generic": "Hi!\nWant to book an appointment? You can do it easily with this link:\n{url}"
+    },
+    "analytics.training_title": {
+      "dogs": "Training",
+      "generic": "Programs"
+    },
+    "analytics.active_programs": {
+      "dogs": "Active training programs",
+      "generic": "Active programs"
+    },
+    "analytics.program_revenue": {
+      "dogs": "Training revenue in period",
+      "generic": "Program revenue in period"
+    },
+    "analytics.operations_tab": {
+      "dogs": "Training and boarding",
+      "generic": "Programs"
+    },
+    "messages.followup_subject": {
+      "dogs": "your dog",
+      "generic": "you"
+    },
+    "messages.greeting_emoji": {
+      "dogs": "🐾",
+      "generic": "🙂"
+    },
+    "plans.free_programs": {
+      "dogs": "Training program management (up to 10 programs)",
+      "generic": "Programs and session packages (up to 10)"
+    },
+    "plans.payment_request": {
+      "dogs": "Payment requests + digital intake forms",
+      "generic": "Digital payment requests"
+    },
+    "plans.basic_description": {
+      "dogs": "Perfect for independent groomers and trainers — solo, professional, affordable",
+      "generic": "Perfect for solo professionals — professional, affordable"
+    },
+    "plans.pro_description": {
+      "dogs": "Perfect for boarding and training centers — team, growth, full control",
+      "generic": "Perfect for businesses with a team — growth and full control"
+    },
+    "register.tagline": {
+      "dogs": "Pet business management",
+      "generic": "Clients, appointments and payments"
+    },
+    "register.business_placeholder": {
+      "dogs": "e.g. Daniel's Dog Boarding",
+      "generic": "e.g. Daniel's Studio"
+    },
+    "onboarding.welcome_intro": {
+      "dogs": "Petra is a management system for pet businesses — trainers, boarding, groomers and service-dog organizations. Everything you need in one place: clients, appointments, payments and communication.",
+      "generic": "Petra is a management system for service businesses. Everything you need in one place: clients, appointments, payments and communication."
+    },
+    "onboarding.feature_customers_desc": {
+      "dogs": "Client cards, dogs, history",
+      "generic": "Client cards, history and documents"
+    },
+    "register.footer": {
+      "dogs": "All rights reserved all-dog - The Israeli Center for Dog Behavior",
+      "generic": "All rights reserved all-dog"
     }
   }
 }

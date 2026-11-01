@@ -41,7 +41,7 @@ export function getDaysUntilExpiry(expiresAt: string): number {
   return Math.ceil((new Date(expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
 }
 
-export function SendContractSection({ customerId, customerName, pets }: { customerId: string; customerName: string; pets: { id: string; name: string }[] }) {
+export function SendContractSection({ customerId, customerName, pets, hidePetLink }: { customerId: string; customerName: string; pets: { id: string; name: string }[]; hidePetLink?: boolean }) {
   const queryClient = useQueryClient();
   const t = useTranslations("customers.sendContractSection");
   const tc = useTranslations("common");
@@ -283,7 +283,7 @@ export function SendContractSection({ customerId, customerName, pets }: { custom
                   {templates.map((tpl) => <option key={tpl.id} value={tpl.id}>{tpl.name}</option>)}
                 </select>
               </div>
-              {pets.length > 0 && (
+              {!hidePetLink && pets.length > 0 && (
                 <div>
                   <label className="label">{t("linkToDog")}</label>
                   <select className="input w-full" value={selectedPetId} onChange={(e) => setSelectedPetId(e.target.value)}>

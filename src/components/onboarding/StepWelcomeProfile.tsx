@@ -18,6 +18,7 @@ const BUSINESS_TYPES = [
   { value: "פנסיון", labelKey: "boarding", emoji: "🏠" }, // i18n-ok — stored value
   { value: "מספרה", labelKey: "grooming", emoji: "✂️" }, // i18n-ok — stored value
   { value: "משולב", labelKey: "combined", emoji: "🌟" }, // i18n-ok — stored value
+  { value: "עסק אחר", labelKey: "otherBusiness", emoji: "💼" }, // i18n-ok — stored value
 ];
 
 const CLIENT_RANGES: { value: string; labelKey?: string }[] = [

@@ -1,5 +1,6 @@
 "use client";
 
+import { useVertical } from "@/hooks/useVertical";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -240,6 +241,7 @@ function AddPaymentModal({
 }
 
 export default function OrderDetailPage() {
+  const { v } = useVertical();
   const params = useParams();
   const router = useRouter();
   const qc = useQueryClient();
@@ -452,7 +454,7 @@ export default function OrderDetailPage() {
                   {t(`status.${statusKey}`)}
                 </span>
                 <span className="text-xs text-petra-muted bg-slate-100 px-2 py-1 rounded-lg">
-                  {labelOr(t, "orderTypes", order.orderType)}
+                  {order.orderType === "training" ? v("order.type_training") : labelOr(t, "orderTypes", order.orderType)}
                 </span>
               </div>
               <p className="text-sm text-petra-muted mt-0.5">
@@ -576,8 +578,8 @@ export default function OrderDetailPage() {
           href="/training"
           className="card p-4 flex items-center gap-3 hover:bg-slate-50 transition-colors group"
         >
-          <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center flex-shrink-0">
-            <GraduationCap className="w-5 h-5 text-orange-500" />
+          <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center flex-shrink-0">
+            <GraduationCap className="w-5 h-5 text-brand-500" />
           </div>
           <div className="flex-1">
             <p className="text-sm font-semibold text-petra-text">{t("training.open")}</p>

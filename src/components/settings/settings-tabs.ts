@@ -3,6 +3,7 @@
 // feature unlocks it. The lock icon in the nav and the PaywallCard both read
 // `isTabLocked()`, so they can never disagree.
 import type { FeatureKey } from "@/lib/feature-flags";
+import { isModuleHidden, type VerticalModule } from "@/lib/verticals";
 
 export type SettingsTabId =
   | "business"
@@ -46,6 +47,8 @@ export interface SettingsTabDef {
   paywallDescriptionKey?: string;
   /** Who can see the tab at all. */
   visibility?: "owner" | "ownerOrManager" | "mcpAllowed" | "notGroomer";
+  /** Verticals (docs/verticals): module of the tab — hidden (not locked) when the vertical hides it. */
+  module?: VerticalModule;
 }
 
 export const SETTINGS_TABS: SettingsTabDef[] = [
@@ -59,13 +62,13 @@ export const SETTINGS_TABS: SettingsTabDef[] = [
   },
   {
     id: "boarding", labelKey: "settings.settingsTabs.tabs.boarding.label", group: "operations", descriptionKey: "settings.settingsTabs.tabs.boarding.description",
-    feature: "boarding", requiredTier: "pro", visibility: "notGroomer",
+    feature: "boarding", requiredTier: "pro", visibility: "notGroomer", module: "boarding",
     paywallTitleKey: "settings.settingsTabs.tabs.boarding.paywallTitle",
     paywallDescriptionKey: "settings.settingsTabs.tabs.boarding.paywallDescription",
   },
   {
     id: "service-dogs", labelKey: "settings.settingsTabs.tabs.serviceDogs.label", group: "operations", descriptionKey: "settings.settingsTabs.tabs.serviceDogs.description",
-    feature: "service_dogs", requiredTier: "service_dog", visibility: "notGroomer",
+    feature: "service_dogs", requiredTier: "service_dog", visibility: "notGroomer", module: "service_dogs",
     paywallTitleKey: "settings.settingsTabs.tabs.serviceDogs.paywallTitle",
     paywallDescriptionKey: "settings.settingsTabs.tabs.serviceDogs.paywallDescription",
   },
@@ -129,9 +132,12 @@ export interface TabAccessContext {
   isManager: boolean;
   isGroomer: boolean;
   mcpAllowed: boolean;
+  /** Business vertical; missing = "dogs" (nothing hidden). */
+  vertical?: string | null;
 }
 
 export function isTabVisible(tab: SettingsTabDef, ctx: TabAccessContext): boolean {
+  if (tab.module && isModuleHidden(ctx.vertical, tab.module)) return false;
   switch (tab.visibility) {
     case "owner": return ctx.isOwner;
     case "ownerOrManager": return ctx.isOwner || ctx.isManager;

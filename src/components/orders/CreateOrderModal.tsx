@@ -13,6 +13,8 @@ import { triggerLimitModal } from "@/lib/limit-reached";
 import { toast } from "sonner";
 import { calcOrder, CalcLineInput } from "@/lib/order-calc";
 import { VAT_RATE } from "@/lib/constants";
+import { useVertical } from "@/hooks/useVertical";
+import { isPriceCategoryOffered, PROGRAM_PRICE_CATEGORY } from "@/lib/verticals/catalog";
 import { usePlan } from "@/hooks/usePlan";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { useTranslations } from "next-intl";
@@ -203,6 +205,13 @@ export function CreateOrderModal({
   const { locale, currency, cfg } = useBusinessLocale();
   const curSym = currencySymbol({ locale, currency });
   const fmt = (n: number) => `${curSym}${n.toFixed(2)}`;
+  // Verticals (docs/verticals): "generic" has no pets, no boarding, no grooming — orders
+  // never require a pet and a program / package opens without a subject.
+  const { vertical, isGeneric, hides, v, vData } = useVertical();
+  const noPets = hides("pets");
+  // Category label: the program category reads differently for "generic" (priceCategoryLabel).
+  const categoryLabel = (id: string) =>
+    isGeneric && CATEGORY_LABELS[id] === PROGRAM_PRICE_CATEGORY ? v("pricing.category_program") : t(`categories.${id}`);
 
   // Step state: "category" → "customer" → "items" → "review" → "payment"
   const [step, setStep] = useState<"category" | "customer" | "items" | "review" | "payment">("category");
@@ -536,7 +545,7 @@ export function CreateOrderModal({
           suppressPaymentRequest: opts.payNow ? true : undefined,
           // Training: pass sub-type, package id, and program type for auto-program creation
           trainingSubType: orderType === "training" ? trainingSubType : undefined,
-          programType: orderType === "training" ? trainingProgramType : undefined,
+          programType: orderType === "training" ? (noPets ? "CUSTOM" : trainingProgramType) : undefined,
           trainingPackageId: orderType === "training" && trainingSubType === "package" && selectedPackageId ? selectedPackageId : undefined,
           trainingBoardingStart: orderType === "training" && trainingSubType === "boarding" ? trainingBoardingStart : undefined,
           trainingBoardingEnd: orderType === "training" && trainingSubType === "boarding" ? trainingBoardingEnd : undefined,
@@ -681,7 +690,9 @@ export function CreateOrderModal({
     <div>
       <p className="text-sm text-petra-muted mb-4">{t("categoryStep.prompt")}</p>
       <div className="grid grid-cols-2 gap-3">
-        {CATEGORY_DEFS.filter((cat) => !(isGroomer && (cat.id === "training" || cat.id === "boarding"))).map((cat) => {
+        {CATEGORY_DEFS.filter((cat) => !(isGroomer && (cat.id === "training" || cat.id === "boarding")))
+          .filter((cat) => isPriceCategoryOffered(vertical, CATEGORY_LABELS[cat.id]))
+          .map((cat) => {
           const Icon = cat.icon;
           return (
             <button
@@ -695,7 +706,7 @@ export function CreateOrderModal({
               )}>
                 <Icon className="w-7 h-7 text-white" />
               </div>
-              <span className="text-sm font-semibold text-petra-text">{t(`categories.${cat.id}`)}</span>
+              <span className="text-sm font-semibold text-petra-text">{categoryLabel(cat.id)}</span>
             </button>
           );
         })}
@@ -931,7 +942,7 @@ export function CreateOrderModal({
               </label>
               {petsLoading ? (
                 <PetraLoader variant="inline" className="py-4" />
-              ) : customerPets.length === 0 ? (
+              ) : customerPets.length === 0 && !noPets ? (
                 <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-xl">
                   <span className="text-xl leading-none mt-0.5">🐾</span>
                   <div>
@@ -986,7 +997,7 @@ export function CreateOrderModal({
           {!isBoardingOrder && petsLoading && (
             <PetraLoader variant="inline" className="py-4" />
           )}
-          {!isBoardingOrder && !petsLoading && customerPets.length === 0 && (
+          {!isBoardingOrder && !petsLoading && customerPets.length === 0 && !noPets && (
             <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-xl">
               <span className="text-xl leading-none mt-0.5">🐾</span>
               <div>
@@ -1055,7 +1066,7 @@ export function CreateOrderModal({
         className="btn-primary w-full"
         disabled={
           !customerId ||
-          (!petsLoading && customerPets.length === 0) ||
+          (!petsLoading && customerPets.length === 0 && !noPets) ||
           (orderType === "training" && !petsLoading && customerPets.length > 0 && !selectedPetId)
         }
         onClick={handleAdvanceToItems}
@@ -1067,9 +1078,9 @@ export function CreateOrderModal({
 
   // ── Step 2: Items ─────────────────────────────────────────────────────────
   const renderItemsStep = () => {
-    const CHIP_CATS = CHIP_CAT_IDS.map((id) => ({ id, value: CATEGORY_LABELS[id] }));
+    const CHIP_CATS = CHIP_CAT_IDS.filter((id) => isPriceCategoryOffered(vertical, CATEGORY_LABELS[id])).map((id) => ({ id, value: CATEGORY_LABELS[id] }));
     const addCatId = CHIP_CAT_IDS.find((id) => CATEGORY_LABELS[id] === addCat);
-    const addCatLabel = addCatId ? t(`categories.${addCatId}`) : addCat;
+    const addCatLabel = addCatId ? categoryLabel(addCatId) : addCat;
     const catItems = allItems.filter(i => (i.category ?? "").toLowerCase() === addCat.toLowerCase());
     const selectedAddItem = catItems.find(i => i.id === addItemId);
 
@@ -1103,7 +1114,7 @@ export function CreateOrderModal({
           <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-3 space-y-3">
             <p className="text-xs font-semibold text-blue-700 flex items-center gap-1.5">
               <GraduationCap className="w-3.5 h-3.5" />
-              {t("itemsStep.trainingType")}
+              {v("order.training_kind")}
             </p>
             <div className="grid grid-cols-2 gap-2">
               {([
@@ -1111,7 +1122,7 @@ export function CreateOrderModal({
                 { id: "package" as const },
                 { id: "boarding" as const },
                 { id: "group" as const },
-              ] as const).map((opt) => (
+              ] as const).filter((opt) => !(noPets && (opt.id === "boarding" || opt.id === "group"))).map((opt) => (
                 <button
                   key={opt.id}
                   type="button"
@@ -1123,7 +1134,7 @@ export function CreateOrderModal({
                       : "border-petra-border bg-white hover:bg-slate-50"
                   )}
                 >
-                  <p className={cn("text-sm font-semibold", trainingSubType === opt.id ? "text-blue-700" : "text-petra-text")}>{t(`itemsStep.subTypes.${opt.id}.label`)}</p>
+                  <p className={cn("text-sm font-semibold", trainingSubType === opt.id ? "text-blue-700" : "text-petra-text")}>{opt.id === "package" ? v("order.package_label") : t(`itemsStep.subTypes.${opt.id}.label`)}</p>
                   <p className="text-[11px] text-petra-muted">{t(`itemsStep.subTypes.${opt.id}.sub`)}</p>
                 </button>
               ))}
@@ -1134,7 +1145,7 @@ export function CreateOrderModal({
               <div className="space-y-2 pt-1">
                 <p className="text-xs font-semibold text-petra-muted">{t("itemsStep.choosePackage")}</p>
                 {trainingPackages.length === 0 ? (
-                  <p className="text-xs text-petra-muted">{t("itemsStep.noPackages")}</p>
+                  <p className="text-xs text-petra-muted">{v("order.no_packages")}</p>
                 ) : (
                   <div className="space-y-1.5">
                     {trainingPackages.map((pkg) => {
@@ -1287,7 +1298,7 @@ export function CreateOrderModal({
                     : "bg-white text-petra-text border-petra-border hover:border-[#1a3a5c]/40"
                 )}
               >
-                {t(`categories.${cat.id}`)}
+                {categoryLabel(cat.id)}
               </button>
             ))}
             <button
@@ -1542,7 +1553,7 @@ export function CreateOrderModal({
       : "";
     const footer = business?.phone ? `\n\n_לפניות ושאלות: ${business.phone}_` : ""; // i18n-ok — WhatsApp text to the customer (Phase 3)
 
-    return `שלום ${name}! 🐾\n\n*דרישת תשלום*\nעבור: ${serviceNames}\n\n${itemLines}${discountLine}${taxLine}\n\n💰 סה"כ לתשלום: *${fmt(calc.total)}*${linkBlock}\n\nתודה שבחרתם בנו! 😊${footer}`; // i18n-ok — WhatsApp text to the customer (Phase 3)
+    return `${vData("order.payment_request_greeting", { name })}\n\n*דרישת תשלום*\nעבור: ${serviceNames}\n\n${itemLines}${discountLine}${taxLine}\n\n💰 סה"כ לתשלום: *${fmt(calc.total)}*${linkBlock}\n\nתודה שבחרתם בנו! 😊${footer}`; // i18n-ok — WhatsApp text to the customer (Phase 3)
   };
 
   // Fallback: generate a one-off Stripe checkout link when no product URL is configured.
@@ -1669,7 +1680,7 @@ export function CreateOrderModal({
             handleClose();
           }}
         >
-          {t("paymentStep.openTrainingProgram")}
+          {v("order.open_program")}
         </button>
       )}
 

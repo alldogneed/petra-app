@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
       .map((p) => ({
         id: p.id,
         dogId: p.dogId,
-        dogName: p.dog.name,
+        dogName: p.dog?.name ?? "",
         lastSessionDate: p.sessions[0]?.sessionDate ?? null,
         daysSinceLastSession: p.sessions[0]
           ? Math.floor((now.getTime() - new Date(p.sessions[0].sessionDate).getTime()) / 86400000)

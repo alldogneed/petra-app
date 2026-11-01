@@ -22,7 +22,7 @@ import {
   Plus,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { currencySymbol } from "@/lib/format";
 import { Toaster } from "sonner";
@@ -31,6 +31,10 @@ import { hasFeature } from "@/lib/feature-flags";
 import type { TierKey } from "@/lib/feature-flags";
 import { LEGAL_ENTITY_TYPES } from "@/lib/legal-entity";
 import { PetraLoader } from "@/components/ui/PetraLoader";
+import { VERTICALS, normalizeVertical, type Vertical } from "@/lib/verticals";
+import { vocab } from "@/lib/verticals/vocab";
+import { clearSignupVertical, readSignupVertical } from "@/lib/verticals/signup";
+import { PROGRAM_PRICE_CATEGORY, isPriceCategoryOffered } from "@/lib/verticals/catalog";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -38,6 +42,7 @@ interface BusinessInfo {
   name: string;
   phone: string;
   tier: TierKey;
+  vertical: Vertical;
 }
 
 // ─── Step definitions ─────────────────────────────────────────────────────────
@@ -57,6 +62,10 @@ function OnboardingInner() {
   const searchParams = useSearchParams();
   const [step, setStep] = useState(0);
   const [business, setBusiness] = useState<BusinessInfo | null>(null);
+  // /register?type=other (kept across "המשך עם Google") — read after mount, no hydration mismatch.
+  const [signupVertical, setSignupVertical] = useState<Vertical | null>(null);
+  useEffect(() => setSignupVertical(readSignupVertical()), []);
+  const welcomeVertical: Vertical = business?.vertical === "generic" || signupVertical === "generic" ? "generic" : "dogs";
 
   // Load business info
   useEffect(() => {
@@ -67,9 +76,10 @@ function OnboardingInner() {
           name: d.name ?? "",
           phone: d.phone ?? "",
           tier: (d.effectiveTier ?? d.tier ?? "free") as TierKey,
+          vertical: normalizeVertical(d.vertical),
         });
       })
-      .catch(() => setBusiness({ name: "", phone: "", tier: "free" }));
+      .catch(() => setBusiness({ name: "", phone: "", tier: "free", vertical: "dogs" }));
   }, []);
 
   // Detect return from Google OAuth (keep for backward-compat)
@@ -163,6 +173,7 @@ function OnboardingInner() {
       <div className="card p-8 shadow-lg animate-fade-in">
         {step === 4 ? (
           <StepDone
+            vertical={business?.vertical ?? "dogs"}
             onGoToDashboard={async () => {
               await fetch("/api/onboarding/progress", {
                 method: "PATCH",
@@ -182,21 +193,24 @@ function OnboardingInner() {
           <StepWelcome
             businessName={business?.name ?? ""}
             tier={tier}
+            vertical={welcomeVertical}
             onNext={() => setStep(1)}
           />
         ) : step === 1 ? (
           <StepBusiness
             initialName={business?.name ?? ""}
             initialPhone={business?.phone ?? ""}
-            onNext={(updatedName) => {
-              setBusiness((prev) => prev ? { ...prev, name: updatedName } : prev);
+            initialVertical={business?.vertical ?? "dogs"}
+            preferredVertical={signupVertical}
+            onNext={(updatedName, vertical) => {
+              setBusiness((prev) => prev ? { ...prev, name: updatedName, vertical } : prev);
               setStep(2);
             }}
           />
         ) : step === 2 ? (
-          <StepPricing onNext={() => setStep(3)} onBack={() => setStep(1)} />
+          <StepPricing vertical={business?.vertical ?? "dogs"} onNext={() => setStep(3)} onBack={() => setStep(1)} />
         ) : (
-          <StepClient onNext={() => setStep(4)} onBack={() => setStep(2)} onSkip={handleSkip} />
+          <StepClient vertical={business?.vertical ?? "dogs"} onNext={() => setStep(4)} onBack={() => setStep(2)} onSkip={handleSkip} />
         )}
       </div>
     </div>
@@ -220,6 +234,9 @@ export default function OnboardingPage() {
 // ─── Step 0: Welcome ──────────────────────────────────────────────────────────
 
 // `id` → welcome.features.<id>.{title,desc} in messages
+/** Features whose desc is the vertical's "client card" text (dogs: unchanged). */
+const CUSTOMERS_DESC_IDS = new Set(["customers", "unlimitedCustomers"]);
+
 const FEATURES_BY_TIER: Record<string, { icon: React.ComponentType<{ className?: string }>; id: string }[]> = {
   free: [
     { icon: Users,         id: "customers" },
@@ -244,13 +261,16 @@ const FEATURES_BY_TIER: Record<string, { icon: React.ComponentType<{ className?:
 function StepWelcome({
   businessName,
   tier,
+  vertical,
   onNext,
 }: {
   businessName: string;
   tier: TierKey;
+  vertical: Vertical;
   onNext: () => void;
 }) {
   const t = useTranslations("onboarding.onboardingPage");
+  const locale = useLocale();
   const features = FEATURES_BY_TIER[tier] ?? FEATURES_BY_TIER.default;
   const greeting = businessName ? t("welcome.greetingNamed", { name: businessName }) : t("welcome.greeting");
 
@@ -259,7 +279,7 @@ function StepWelcome({
       <div className="text-center">
         <h1 className="text-2xl font-bold text-petra-text mb-2">{greeting}</h1>
         <p className="text-petra-muted text-sm leading-relaxed max-w-md mx-auto">
-          {t("welcome.intro")}
+          {vocab("onboarding.welcome_intro", { vertical, locale })}
         </p>
       </div>
 
@@ -275,7 +295,9 @@ function StepWelcome({
               </div>
               <div>
                 <p className="text-sm font-semibold text-petra-text leading-tight">{t(`welcome.features.${id}.title`)}</p>
-                <p className="text-[11px] text-petra-muted mt-0.5 leading-snug">{t(`welcome.features.${id}.desc`)}</p>
+                <p className="text-[11px] text-petra-muted mt-0.5 leading-snug">
+                  {CUSTOMERS_DESC_IDS.has(id) ? vocab("onboarding.feature_customers_desc", { vertical, locale }) : t(`welcome.features.${id}.desc`)}
+                </p>
               </div>
             </div>
           ))}
@@ -301,13 +323,20 @@ function StepWelcome({
 function StepBusiness({
   initialName,
   initialPhone,
+  initialVertical,
+  preferredVertical,
   onNext,
 }: {
   initialName: string;
   initialPhone: string;
-  onNext: (name: string) => void;
+  initialVertical: Vertical;
+  /** /register?type=other → "עסק אחר" pre-selected; null → the business's own value. */
+  preferredVertical?: Vertical | null;
+  onNext: (name: string, vertical: Vertical) => void;
 }) {
   const [name, setName] = useState(initialName);
+  // Verticals (docs/verticals): "עסק אחר" hides the dog modules. Default = today's flow.
+  const [vertical, setVertical] = useState<Vertical>(preferredVertical ?? initialVertical);
   const [phone, setPhone] = useState(initialPhone);
   const [legalEntityType, setLegalEntityType] = useState("");
   const [vatNumber, setVatNumber] = useState("");
@@ -315,6 +344,7 @@ function StepBusiness({
   const [error, setError] = useState("");
   const t = useTranslations("onboarding.onboardingPage");
   const tc = useTranslations("common");
+  const locale = useLocale();
 
   const selectedEntity = LEGAL_ENTITY_TYPES.find((e) => e.key === legalEntityType);
 
@@ -332,16 +362,23 @@ function StepBusiness({
           phone: phone.trim(),
           ...(legalEntityType ? { legalEntityType } : {}),
           ...(legalEntityType && vatNumber.trim() ? { vatNumber: vatNumber.trim() } : {}),
+          // Sent only when changed — the default (dogs) request body is exactly as before.
+          ...(vertical !== initialVertical ? { vertical } : {}),
         }),
       });
       if (!res.ok) { const d = await res.json(); setError(d.error || t("business.errors.saveFailed")); return; }
+      if (vertical !== initialVertical) {
+        // /api/auth/me is HTTP-cached for 60s — refresh it so the dashboard opens with the new vertical.
+        await fetch("/api/auth/me", { cache: "reload" }).catch(() => null);
+      }
       await fetch("/api/onboarding/progress", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ stepCompleted1: true }),
       });
+      clearSignupVertical();
       toast.success(t("business.toasts.saved"));
-      onNext(name.trim());
+      onNext(name.trim(), vertical);
     } finally {
       setSaving(false);
     }
@@ -355,10 +392,32 @@ function StepBusiness({
       </div>
 
       <div>
+        <label className="label">{t("business.fields.kind")}</label>
+        <div className="grid grid-cols-2 gap-2 mt-1">
+          {VERTICALS.map((key) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setVertical(key)}
+              aria-pressed={vertical === key}
+              className={`px-3 py-2.5 rounded-xl border text-start transition-colors ${
+                vertical === key
+                  ? "border-brand-500 bg-brand-50 text-brand-700"
+                  : "border-slate-200 bg-white text-petra-muted hover:border-slate-300"
+              }`}
+            >
+              <span className="block text-sm font-medium">{vocab("business.kind", { vertical: key, locale })}</span>
+              <span className="block text-[11px] mt-0.5 opacity-80">{vocab("business.kind_hint", { vertical: key, locale })}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
         <label className="label">{t("business.fields.name")}</label>
         <input
           className="input w-full mt-1"
-          placeholder={t("business.placeholders.name")}
+          placeholder={vocab("onboarding.business_name_placeholder", { vertical, locale })}
           value={name}
           onChange={(e) => setName(e.target.value)}
           autoFocus
@@ -443,10 +502,12 @@ const SERVICE_TYPES = [
 ] as const;
 const DEFAULT_SERVICE_TYPE: string = SERVICE_TYPES[0].value;
 
-function StepPricing({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
+function StepPricing({ vertical, onNext, onBack }: { vertical: Vertical; onNext: () => void; onBack: () => void }) {
   const t = useTranslations("onboarding.onboardingPage");
   const tc = useTranslations("common");
   const { locale, currency } = useBusinessLocale();
+  // Verticals: "generic" offers no boarding / grooming category; "אילוף" (the key) reads "מפגשים וחבילות".
+  const serviceTypes = SERVICE_TYPES.filter((st) => isPriceCategoryOffered(vertical, st.value));
   const [name, setName] = useState("");
   const [type, setType] = useState<string>(DEFAULT_SERVICE_TYPE);
   const [duration, setDuration] = useState("60");
@@ -523,7 +584,9 @@ function StepPricing({ onNext, onBack }: { onNext: () => void; onBack: () => voi
         <label className="label">{servicesAdded === 0 ? t("pricing.fields.firstName") : t("pricing.fields.nextName")}</label>
         <input
           className="input w-full mt-1"
-          placeholder={servicesAdded === 0 ? t("pricing.placeholders.firstName") : t("pricing.placeholders.nextName")}
+          placeholder={servicesAdded === 0
+            ? vocab("onboarding.first_service_placeholder", { vertical, locale })
+            : vocab("onboarding.next_service_placeholder", { vertical, locale })}
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
@@ -532,7 +595,7 @@ function StepPricing({ onNext, onBack }: { onNext: () => void; onBack: () => voi
       <div>
         <label className="label mb-2">{t("pricing.fields.category")}</label>
         <div className="flex flex-wrap gap-2 mt-1">
-          {SERVICE_TYPES.map((st) => (
+          {serviceTypes.map((st) => (
             <button key={st.value} onClick={() => setType(st.value)}
               className={cn(
                 "px-3 py-1.5 rounded-lg border text-sm transition-all",
@@ -540,7 +603,9 @@ function StepPricing({ onNext, onBack }: { onNext: () => void; onBack: () => voi
                   ? "border-brand-500 bg-brand-50 text-brand-700 font-medium"
                   : "border-slate-200 text-petra-muted hover:border-brand-300"
               )}>
-              {t(`pricing.serviceTypes.${st.id}`)}
+              {st.value === PROGRAM_PRICE_CATEGORY
+                ? vocab("pricing.category_program", { vertical, locale })
+                : t(`pricing.serviceTypes.${st.id}`)}
             </button>
           ))}
         </div>
@@ -604,10 +669,12 @@ function StepPricing({ onNext, onBack }: { onNext: () => void; onBack: () => voi
 // ─── Step 3: First Client (skippable) ────────────────────────────────────────
 
 function StepClient({
+  vertical,
   onNext,
   onBack,
   onSkip,
 }: {
+  vertical: Vertical;
   onNext: () => void;
   onBack: () => void;
   onSkip: () => void;
@@ -665,6 +732,8 @@ function StepClient({
         </div>
       </div>
 
+      {/* Verticals: no pets in "generic" */}
+      {vertical !== "generic" && (
       <div className="border-t pt-4">
         <p className="text-sm font-medium text-petra-text mb-3">{t("client.dogSection")}</p>
         <div className="grid grid-cols-2 gap-4">
@@ -680,6 +749,7 @@ function StepClient({
           </div>
         </div>
       </div>
+      )}
 
       {error && <p className="text-sm text-red-500">{error}</p>}
 
@@ -702,15 +772,16 @@ function StepClient({
 
 // ─── Step 4: Done ─────────────────────────────────────────────────────────────
 
-function StepDone({ onGoToDashboard }: { onGoToDashboard: () => void }) {
+function StepDone({ vertical, onGoToDashboard }: { vertical: Vertical; onGoToDashboard: () => void }) {
   const t = useTranslations("onboarding.onboardingPage");
+  const locale = useLocale();
   return (
     <div className="text-center space-y-6 py-4">
       <div className="w-20 h-20 rounded-full bg-emerald-50 flex items-center justify-center mx-auto">
         <CheckCircle2 className="w-10 h-10 text-emerald-500" />
       </div>
       <div>
-        <h2 className="text-2xl font-bold text-petra-text mb-2">{t("done.title")}</h2>
+        <h2 className="text-2xl font-bold text-petra-text mb-2">{vocab("onboarding.done_title", { vertical, locale })}</h2>
         <p className="text-petra-muted leading-relaxed text-sm">
           {t.rich("done.body", {
             link: (chunks) => <a href="/settings" className="text-brand-600 underline">{chunks}</a>,

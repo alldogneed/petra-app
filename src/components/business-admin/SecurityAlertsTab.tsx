@@ -40,7 +40,7 @@ function Toggle({
       disabled={disabled}
       onClick={() => onChange(!checked)}
       className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors disabled:opacity-40 ${
-        checked ? "bg-orange-500" : "bg-slate-300"
+        checked ? "bg-brand-500" : "bg-slate-300"
       }`}
     >
       <span
@@ -136,7 +136,7 @@ export function SecurityAlertsTab() {
 
       <div className="card p-4 sm:p-5">
         <div className="flex items-center gap-2 mb-1">
-          <ShieldCheck className="w-5 h-5 text-orange-500" />
+          <ShieldCheck className="w-5 h-5 text-brand-500" />
           <h3 className="font-semibold text-slate-800">{t("title")}</h3>
         </div>
         <p className="text-xs text-petra-muted mb-3">

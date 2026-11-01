@@ -40,6 +40,7 @@ import {
   MonitorPlay,
   MessageSquare,
   Sparkles,
+  ClipboardList,
 } from "lucide-react";
 import { hasFeatureWithOverrides, type FeatureKey, type TierKey } from "@/lib/feature-flags";
 import { cn } from "@/lib/utils";
@@ -50,6 +51,8 @@ import { hasTenantPermission, screenPermissionForPath, type PermissionOverrides,
 import { usePWAInstall } from "./PWAInstallProvider";
 import { useTranslations } from "next-intl";
 import { useBusinessLocale } from "@/hooks/useBusinessLocale";
+import { useVertical } from "@/hooks/useVertical";
+import type { VocabKey } from "@/lib/verticals/vocab";
 
 interface NavItem {
   /** Full message key (from the root), e.g. "layout.sidebar.nav.reports". */
@@ -63,6 +66,9 @@ interface NavItem {
   hiddenForTiers?: TierKey[];
   /** Show orange "חדש" badge */
   isNew?: boolean;
+  /** Verticals: label from the dictionary (dogs value = `name`) + icon used by "generic". */
+  vocabKey?: VocabKey;
+  genericIcon?: React.ComponentType<{ className?: string }>;
 }
 
 interface NavGroup {
@@ -124,7 +130,7 @@ const navEntries: NavEntry[] = [
   { eyebrowKey: "layout.sidebar.eyebrows.modules" },
   { nameKey: "layout.sidebar.nav.boarding", href: "/boarding", icon: Hotel, lockedFeature: "boarding", hiddenForTiers: ["groomer", "groomer_plus"] },
   { nameKey: "layout.sidebar.nav.serviceDogs", href: "/service-dogs", icon: Shield, lockedFeature: "service_dogs", hiddenForTiers: ["groomer", "groomer_plus"] },
-  { nameKey: "layout.sidebar.nav.training", href: "/training", icon: Dog, hiddenForTiers: ["groomer", "groomer_plus"] },
+  { nameKey: "layout.sidebar.nav.training", vocabKey: "nav.training", href: "/training", icon: Dog, genericIcon: ClipboardList, hiddenForTiers: ["groomer", "groomer_plus"] },
   { nameKey: "layout.sidebar.nav.pets", href: "/pets", icon: PawPrint, minRole: "manager", lockedFeature: "pets_advanced" },
   { nameKey: "layout.sidebar.nav.onlineClasses", href: "/online-classes", icon: MonitorPlay, lockedFeature: "online_classes", isNew: true },
   // Connecting an AI assistant (POST /api/mcp/connections) is owner/manager-only, so staff never see it.
@@ -156,6 +162,8 @@ export function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname();
   const { user, loading: authLoading } = useAuth();
+  const { v, isGeneric, hidesScreen } = useVertical();
+  const brand = user?.businessBranding ?? null;
   const isMaster = user?.isAdmin === true;
   const t = useTranslations("layout.sidebar");
   const tRoot = useTranslations();
@@ -234,6 +242,9 @@ export function Sidebar({
   const HIDDEN_WHEN_LOCKED: FeatureKey[] = ["pets_advanced", "online_classes"];
 
   function isItemHidden(item: NavItem): boolean {
+    // Verticals: a module the business's vertical hides is not rendered at all (hidden ≠ locked).
+    // Unknown vertical (auth loading) = "dogs" = nothing hidden.
+    if (hidesScreen(item.href)) return true;
     // While auth is loading, never hide an item — same optimistic policy as locking.
     if (authLoading || !user) return false;
     // Hidden if tier is in the item's hiddenForTiers list
@@ -265,6 +276,8 @@ export function Sidebar({
 
   const { data: sdAlerts } = useQuery<{ total: number }>({
     queryKey: ["sd-alerts"],
+    // Hidden module for "generic" → the API answers 404; don't ask.
+    enabled: !hidesScreen("/service-dogs"),
     queryFn: () => fetch("/api/service-dogs/alerts").then((r) => {
       if (!r.ok) throw new Error("Failed");
       return r.json();
@@ -289,7 +302,13 @@ export function Sidebar({
     "/service-dogs": t("badges.serviceDogAlerts", { count: sdAlerts?.total || 0 }),
   };
 
-  const renderNavItem = (item: NavItem, isMobile: boolean, isChild = false) => {
+  const renderNavItem = (rawItem: NavItem, isMobile: boolean, isChild = false) => {
+    const item: NavItem = {
+      ...rawItem,
+      icon: isGeneric && rawItem.genericIcon ? rawItem.genericIcon : rawItem.icon,
+    };
+    // Verticals: label from the vocab dictionary when the item has one (dogs value = the nameKey text).
+    const itemName = rawItem.vocabKey ? v(rawItem.vocabKey) : tRoot(rawItem.nameKey);
     const isActive =
       item.href === "/dashboard"
         ? pathname === "/" || pathname === "/dashboard"
@@ -329,12 +348,12 @@ export function Sidebar({
         style={
           !locked && isActive
             ? {
-                background: "rgba(249,115,22,0.15)",
-                boxShadow: "inset 0 0 0 1px rgba(249,115,22,0.4)",
+                background: "rgb(var(--brand-500) / 0.15)",
+                boxShadow: "inset 0 0 0 1px rgb(var(--brand-500) / 0.4)",
               }
             : undefined
         }
-        title={!isMobile && collapsed ? tRoot(item.nameKey) : undefined}
+        title={!isMobile && collapsed ? itemName : undefined}
       >
         <div
           className={cn(
@@ -354,7 +373,7 @@ export function Sidebar({
           )}
         </div>
         {isExpanded && (
-          <span className={cn("flex-1", !locked && isActive ? "text-white" : "")}>{tRoot(item.nameKey)}</span>
+          <span className={cn("flex-1", !locked && isActive ? "text-white" : "")}>{itemName}</span>
         )}
         {/* Lock badge — shown instead of notification badge */}
         {locked && isExpanded && (
@@ -371,7 +390,7 @@ export function Sidebar({
         {!locked && isActive && isExpanded && (
           <span
             className="absolute start-0 w-1 h-5 rounded-e-full"
-            style={{ background: "#F97316" }}
+            style={{ background: "rgb(var(--brand-500))" }}
           />
         )}
       </Link>
@@ -399,8 +418,8 @@ export function Sidebar({
           style={
             anyChildActive
               ? {
-                  background: "rgba(249,115,22,0.15)",
-                  boxShadow: "inset 0 0 0 1px rgba(249,115,22,0.4)",
+                  background: "rgb(var(--brand-500) / 0.15)",
+                  boxShadow: "inset 0 0 0 1px rgb(var(--brand-500) / 0.4)",
                 }
               : undefined
           }
@@ -429,8 +448,8 @@ export function Sidebar({
           style={
             anyChildActive && !isOpen
               ? {
-                  background: "rgba(249,115,22,0.15)",
-                  boxShadow: "inset 0 0 0 1px rgba(249,115,22,0.4)",
+                  background: "rgb(var(--brand-500) / 0.15)",
+                  boxShadow: "inset 0 0 0 1px rgb(var(--brand-500) / 0.4)",
                 }
               : undefined
           }
@@ -493,10 +512,28 @@ export function Sidebar({
             !isMobile && collapsed ? "justify-center px-0" : "px-4 gap-3"
           )}
         >
-          <div className="w-9 h-9 rounded-xl overflow-hidden flex-shrink-0">
-            <Image src="/logo.svg" alt="Petra" width={36} height={36} className="w-full h-full object-cover" priority />
-          </div>
-          {isExpanded && (
+          {/* Verticals phase 3: a "generic" business shows its own logo + name. Dogs: Petra, unchanged. */}
+          {brand ? (
+            <div className="w-9 h-9 rounded-xl overflow-hidden flex-shrink-0 bg-brand-500 flex items-center justify-center">
+              {brand.logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element -- uploaded logo (any host), not a static asset
+                <img src={brand.logoUrl} alt={brand.name} className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-white font-bold text-base">{brand.name.trim().charAt(0)}</span>
+              )}
+            </div>
+          ) : (
+            <div className="w-9 h-9 rounded-xl overflow-hidden flex-shrink-0">
+              <Image src="/logo.svg" alt="Petra" width={36} height={36} className="w-full h-full object-cover" priority />
+            </div>
+          )}
+          {isExpanded && (brand ? (
+            <div className="flex-1 min-w-0">
+              <span className="block text-white font-bold text-[15px] tracking-tight leading-tight truncate">
+                {brand.name}
+              </span>
+            </div>
+          ) : (
             <div className="flex-1">
               <span className="text-white font-bold text-[17px] tracking-tight leading-none">
                 Petra
@@ -505,7 +542,7 @@ export function Sidebar({
                 Pet Business
               </span>
             </div>
-          )}
+          ))}
           {isMobile && (
             <button
               onClick={onMobileClose}

@@ -126,7 +126,9 @@ function resolveMessageKeys(value) {
   if (!value || typeof value !== "object") return value;
   const out = {};
   for (const [k, v] of Object.entries(value)) {
-    if (k.endsWith("Key") && k.length > 3 && typeof v === "string" && v.includes(".")) {
+    // vocabKey = a verticals vocab key (messages vocab.<key>.{dogs,generic}); the label comes from nameKey
+    if (k === "vocabKey") out[k] = v;
+    else if (k.endsWith("Key") && k.length > 3 && typeof v === "string" && v.includes(".")) {
       const field = k.slice(0, -3);
       if (out[field] === undefined) out[field] = heMessage(v);
     } else out[k] = resolveMessageKeys(v);

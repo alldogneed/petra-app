@@ -20,6 +20,8 @@ import {
 } from "@/lib/customer-filters";
 import { FilterPill } from "./cells";
 import { REFERRAL_SOURCES, type CustomerListStats } from "./types";
+import { useVertical } from "@/hooks/useVertical";
+import { isServiceTypeOffered } from "@/lib/verticals";
 
 export type ListFilters = Omit<CustomerFilters, "search">;
 
@@ -71,6 +73,9 @@ export function CustomerFiltersPanel({
   const t = useTranslations("customers.customerFiltersPanel");
   const tCustomers = useTranslations("customers");
   const { locale, currency, cfg } = useBusinessLocale();
+  // Verticals: no pets in "generic" → no species filter.
+  const { hides, vertical, v } = useVertical();
+  const hidePets = hides("pets");
   const activeCount = countActiveFilters(filters);
   const hiddenOnMobile = collapsed ? "hidden sm:flex" : "flex";
 
@@ -135,8 +140,8 @@ export function CustomerFiltersPanel({
       <div className={cn("flex-wrap items-center gap-2", hiddenOnMobile)}>
         <SelectPill label={t("serviceType")} value={filters.serviceType ?? ""} onChange={(v) => onChange({ serviceType: v || null })}>
           <option value="">{t("serviceType")}</option>
-          {SERVICE_TYPES.map((st) => (
-            <option key={st.id} value={st.id}>{st.label}</option>
+          {SERVICE_TYPES.filter((st) => isServiceTypeOffered(vertical, st.id)).map((st) => (
+            <option key={st.id} value={st.id}>{st.id === "training" ? v("service_type.training") : st.label}</option>
           ))}
         </SelectPill>
         <SelectPill
@@ -150,6 +155,7 @@ export function CustomerFiltersPanel({
           <option value="90">{t("lastVisit.days90")}</option>
           <option value="never">{t("lastVisit.never")}</option>
         </SelectPill>
+{!hidePets && (
         <SelectPill
           label={t("species.label")}
           value={filters.species ?? ""}
@@ -160,6 +166,7 @@ export function CustomerFiltersPanel({
           <option value="cat">{t("species.cat")}</option>
           <option value="other">{t("species.other")}</option>
         </SelectPill>
+        )}
         <SelectPill label={t("source")} value={filters.source ?? ""} onChange={(v) => onChange({ source: v || null })}>
           <option value="">{t("source")}</option>
           {REFERRAL_SOURCES.map((s) => (

@@ -10,6 +10,7 @@ import { useTranslations } from "next-intl";
 import { toWhatsAppPhone } from "@/lib/utils";
 import { personalizeMessage } from "@/lib/customer-filters";
 import type { EnhancedCustomer } from "./types";
+import { useVertical } from "@/hooks/useVertical";
 
 type RowState = "pending" | "sent" | "skipped";
 
@@ -22,6 +23,7 @@ export function BulkWhatsAppModal({
 }) {
   const t = useTranslations("customers.bulkWhatsAppModal");
   const tc = useTranslations("common");
+  const { v } = useVertical();
   const recipients = useMemo(
     () => customers.filter((c) => c.phone && c.phone.replace(/\D/g, "").length >= 9),
     [customers]
@@ -66,7 +68,7 @@ export function BulkWhatsAppModal({
               maxLength={2000}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder={t("messagePlaceholder")}
+              placeholder={v("customer.bulk_placeholder")}
             />
             <p className="text-xs text-petra-muted mt-1">
               {t.rich("hint", {

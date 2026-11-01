@@ -1,4 +1,6 @@
 export const dynamic = 'force-dynamic';
+import { getBusinessVertical } from "@/lib/verticals/server";
+import { isModuleHidden } from "@/lib/verticals";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
@@ -111,6 +113,8 @@ async function exportCustomers(request: NextRequest, bodyIds: string[] | null) {
       }
     }
 
+    const noPets = isModuleHidden(await getBusinessVertical(businessId), "pets");
+
     const SOURCE_LABELS: Record<string, string> = {
       referral: "המלצה מלקוח", google: "גוגל", instagram: "אינסטגרם",
       facebook: "פייסבוק", tiktok: "טיקטוק", signage: "שלט / מעבר ברחוב", other: "אחר",
@@ -120,7 +124,8 @@ async function exportCustomers(request: NextRequest, bodyIds: string[] | null) {
       "שם לקוח", "טלפון", "אימייל", "כתובת", "תגיות", "מקור הגעה",
       "הערות", "תורים", "תאריך הצטרפות",
       ...(canSeeFinance ? ["יתרת חוב (₪)", "סה״כ שולם (₪)"] : []),
-      "שם חיית מחמד", "סוג", "גזע", "מין", "משקל (ק״ג)",
+      // Verticals: a "generic" business has no pets → no pet columns.
+      ...(noPets ? [] : ["שם חיית מחמד", "סוג", "גזע", "מין", "משקל (ק״ג)"]),
     ];
 
     const rows: (string | number)[][] = [headers];
@@ -153,7 +158,9 @@ async function exportCustomers(request: NextRequest, bodyIds: string[] | null) {
           : []),
       ];
 
-      if (c.pets.length === 0) {
+      if (noPets) {
+        rows.push(customerBase);
+      } else if (c.pets.length === 0) {
         rows.push([...customerBase, "", "", "", "", ""]);
       } else {
         for (const pet of c.pets) {

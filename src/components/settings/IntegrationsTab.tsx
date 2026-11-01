@@ -1,4 +1,5 @@
 "use client";
+import { useVertical } from "@/hooks/useVertical";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import React, { useState } from "react";
 import { useTranslations } from "next-intl";
@@ -315,7 +316,7 @@ export function IntegrationsTab() {
                                     onSuccess: () => refetchCalendars(),
                                   });
                                 }}
-                                className="rounded accent-orange-500 w-3.5 h-3.5 flex-shrink-0"
+                                className="rounded accent-brand-500 w-3.5 h-3.5 flex-shrink-0"
                               />
                               <span
                                 className="w-2.5 h-2.5 rounded-full flex-shrink-0"
@@ -851,6 +852,7 @@ function MakeWebhookCard() {
   const tWeb = useTranslations("settings.integrationsTab.webhook");
   const tCard = useTranslations("settings.integrationsTab.card");
   const queryClient = useQueryClient();
+  const noPets = useVertical().hides("pets"); // verticals: no pet fields to document for "generic"
   const appUrl =
     typeof window !== "undefined"
       ? window.location.origin
@@ -1044,7 +1046,7 @@ function MakeWebhookCard() {
             "petName",
             "notes",
             "source",
-          ].map((field) => (
+          ].filter((field) => !(noPets && (field === "breed" || field === "petName"))).map((field) => (
             <div key={field} className="flex gap-2">
               <code className="text-violet-600 font-mono">{field}</code>
               <span>{tWeb(`fields.${field}`)}</span>

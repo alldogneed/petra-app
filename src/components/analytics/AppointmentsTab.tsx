@@ -1,5 +1,6 @@
 "use client";
 
+import { useVertical } from "@/hooks/useVertical";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { Calendar, Clock, PawPrint, Repeat, Activity } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -10,6 +11,7 @@ import { ReportCard, EmptyState, BarList, MiniStat, ChartTooltip, CHART_COLORS, 
 const axisTick = { fontSize: 10, fill: "#64748b" };
 
 export function AppointmentsTab({ data }: { data: AnalyticsData }) {
+  const { hides } = useVertical(); // verticals: "generic" has no pets
   const o = data.overview;
   const byDate = data.charts.appointmentsByDate ?? [];
   const dow = data.charts.appointmentsByDayOfWeek ?? [];
@@ -112,6 +114,7 @@ export function AppointmentsTab({ data }: { data: AnalyticsData }) {
           </p>
         </ReportCard>
 
+        {!hides("pets") && (
         <ReportCard
           title={t("petMix")}
           icon={<PawPrint className="w-4 h-4 text-brand-500" />}
@@ -144,6 +147,7 @@ export function AppointmentsTab({ data }: { data: AnalyticsData }) {
             </div>
           )}
         </ReportCard>
+        )}
       </div>
     </div>
   );

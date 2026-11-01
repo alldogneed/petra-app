@@ -1,5 +1,6 @@
 "use client";
 
+import { useVertical } from "@/hooks/useVertical";
 import { Suspense, useCallback, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -68,7 +69,7 @@ export default function AnalyticsPage() {
   );
 }
 
-function buildShareText(data: AnalyticsData, periodLabel: string, t: PageT, money: CurrencyOptions): string {
+function buildShareText(data: AnalyticsData, periodLabel: string, t: PageT, money: CurrencyOptions, noBoarding = false): string {
   const from = new Date(data.from).toLocaleDateString(money.locale);
   const to = new Date(data.to).toLocaleDateString(money.locale);
   const o = data.overview;
@@ -91,7 +92,10 @@ function buildShareText(data: AnalyticsData, periodLabel: string, t: PageT, mone
         ]
       : []),
     t("share.tasksCompleted", { count: data.tasks.completedThisPeriod }),
-    `${t("share.boardingStays", { count: data.boarding.staysThisPeriod })}${data.boarding.occupancyRate != null ? t("share.occupancy", { rate: data.boarding.occupancyRate }) : ""}`,
+    // Verticals: "generic" has no boarding.
+    ...(noBoarding
+      ? []
+      : [`${t("share.boardingStays", { count: data.boarding.staysThisPeriod })}${data.boarding.occupancyRate != null ? t("share.occupancy", { rate: data.boarding.occupancyRate }) : ""}`]),
     ...(data.finance && data.finance.outstanding.total > 0
       ? [t("share.outstanding", { amount: formatCurrency(data.finance.outstanding.total, money) })]
       : []),
@@ -108,6 +112,7 @@ function AnalyticsContent() {
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab");
   const activeTab: TabId = isTabId(tabParam) ? tabParam : "overview";
+  const { hides: hidesModule, v } = useVertical();
 
   const setTab = useCallback(
     (tab: TabId) => {
@@ -156,9 +161,9 @@ function AnalyticsContent() {
   const shareHref = useMemo(
     () =>
       data
-        ? `https://api.whatsapp.com/send?text=${encodeURIComponent(buildShareText(data, periodLabel, t, { locale, currency }))}`
+        ? `https://api.whatsapp.com/send?text=${encodeURIComponent(buildShareText(data, periodLabel, t, { locale, currency }, hidesModule("boarding")))}`
         : "",
-    [data, periodLabel, t, locale, currency]
+    [data, periodLabel, t, locale, currency, hidesModule]
   );
 
   const startCustom = () => {
@@ -279,7 +284,7 @@ function AnalyticsContent() {
                 )}
               >
                 <Icon className={cn("w-4 h-4", active ? "text-brand-500" : "")} />
-                {t(`tabs.${tab.id}`)}
+                {tab.id === "operations" ? v("analytics.operations_tab") : t(`tabs.${tab.id}`)}
               </button>
             );
           })}

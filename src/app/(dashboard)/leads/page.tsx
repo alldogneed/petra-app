@@ -467,7 +467,7 @@ const CARD_HOVER_SHADOW = "hover:shadow-[0_8px_24px_-4px_rgba(0,0,0,0.10),0_2px_
 const POPOVER_SHADOW = "shadow-[0_8px_24px_-4px_rgba(0,0,0,0.10),0_2px_8px_-2px_rgba(0,0,0,0.06)]";
 const PANEL = "bg-white border border-slate-200 rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.06)]";
 const TOOL_BTN = "h-9 px-3 rounded-[10px] border border-slate-200 bg-white text-[13px] font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition-colors flex items-center gap-1.5 whitespace-nowrap disabled:opacity-50";
-const TOOL_BTN_ON = "!bg-[#FFF7ED] !border-[#FED7AA] !text-[#C2410C]";
+const TOOL_BTN_ON = "!bg-brand-50 !border-brand-200 !text-brand-700";
 const WA_BTN = "flex items-center justify-center rounded-lg bg-[#059669] hover:bg-[#047857] text-white transition-colors flex-shrink-0";
 const CALL_BTN = "flex items-center justify-center rounded-lg bg-[#F97316] hover:bg-[#EA580C] text-white transition-colors flex-shrink-0";
 
@@ -530,7 +530,7 @@ function FollowUpPicker({ lead, onClose }: { lead: Lead; onClose: () => void }) 
               type="button"
               disabled={mutation.isPending}
               onClick={() => mutation.mutate(q.at())}
-              className="h-8 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-700 hover:border-[#FED7AA] hover:bg-[#FFF7ED] hover:text-[#C2410C] transition-colors disabled:opacity-50"
+              className="h-8 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-700 hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700 transition-colors disabled:opacity-50"
             >
               {t(`followUp.quick.${q.id}`)}
             </button>
@@ -542,14 +542,14 @@ function FollowUpPicker({ lead, onClose }: { lead: Lead; onClose: () => void }) 
             lang={cfg.lang}
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="h-9 w-full border border-slate-200 rounded-lg px-2 text-[13px] bg-white outline-none focus:border-[#FB923C] focus:ring-[3px] focus:ring-orange-500/15"
+            className="h-9 w-full border border-slate-200 rounded-lg px-2 text-[13px] bg-white outline-none focus:border-brand-400 focus:ring-[3px] focus:ring-brand-500/15"
           />
           <input
             type="time"
             step={900}
             value={time}
             onChange={(e) => setTime(e.target.value)}
-            className="h-9 w-full border border-slate-200 rounded-lg px-2 text-[13px] bg-white outline-none focus:border-[#FB923C] focus:ring-[3px] focus:ring-orange-500/15"
+            className="h-9 w-full border border-slate-200 rounded-lg px-2 text-[13px] bg-white outline-none focus:border-brand-400 focus:ring-[3px] focus:ring-brand-500/15"
           />
         </div>
         <div className="flex gap-1.5 mt-2.5">
@@ -624,7 +624,7 @@ function LeadCard({
         CARD_HOVER_SHADOW,
         selectionMode ? "cursor-pointer" : "cursor-grab active:cursor-grabbing",
         isDragging && "opacity-35",
-        selectionMode && isSelected && "!border-[#FB923C] ring-2 ring-orange-200 bg-[#FFF7ED]",
+        selectionMode && isSelected && "!border-brand-400 ring-2 ring-brand-200 bg-brand-50",
       )}
     >
       {/* Selection overlay — whole card toggles selection, inner actions blocked */}
@@ -1167,7 +1167,7 @@ function MobileBoard({
               aria-checked={selectionMode ? isSelected : undefined}
               className={cn(
                 "bg-white border border-slate-200 rounded-[14px] p-3.5 active:bg-slate-50",
-                isSelected && "!border-[#FB923C] ring-2 ring-orange-200 bg-[#FFF7ED]",
+                isSelected && "!border-brand-400 ring-2 ring-brand-200 bg-brand-50",
               )}
             >
               <div className="flex items-baseline gap-2">
@@ -1324,7 +1324,7 @@ function ArchiveTab({
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); setRestoreLead(lead); }}
-                    className="h-[30px] px-3 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-700 hover:border-[#FED7AA] hover:text-[#C2410C] hover:bg-[#FFF7ED] transition-colors whitespace-nowrap"
+                    className="h-[30px] px-3 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-700 hover:border-brand-200 hover:text-brand-700 hover:bg-brand-50 transition-colors whitespace-nowrap"
                   >
                     {t("archive.restore")}
                   </button>
@@ -2111,7 +2111,7 @@ function LeadsPageContent() {
                 aria-pressed={selectionMode}
                 className={cn(
                   "md:hidden h-11 px-3.5 rounded-xl border text-[13px] font-semibold flex items-center gap-1.5 flex-shrink-0 ms-auto",
-                  selectionMode ? "bg-[#FFF7ED] border-[#FB923C] text-[#C2410C]" : "bg-white border-slate-200 text-slate-600 active:bg-slate-50",
+                  selectionMode ? "bg-brand-50 border-brand-400 text-brand-700" : "bg-white border-slate-200 text-slate-600 active:bg-slate-50",
                 )}
               >
                 <CheckSquare className="w-4 h-4" />
@@ -2179,7 +2179,7 @@ function LeadsPageContent() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={activeTab === "archive" ? t("toolbar.searchArchive") : t("toolbar.searchPlaceholder")}
-              className="w-full h-9 border border-slate-200 rounded-[10px] ps-[34px] pe-8 text-[13px] bg-white outline-none transition-shadow focus:border-[#FB923C] focus:ring-[3px] focus:ring-orange-500/15"
+              className="w-full h-9 border border-slate-200 rounded-[10px] ps-[34px] pe-8 text-[13px] bg-white outline-none transition-shadow focus:border-brand-400 focus:ring-[3px] focus:ring-brand-500/15"
             />
             <Search className="absolute start-[11px] top-2.5 w-4 h-4 text-slate-400 pointer-events-none" />
             {searchQuery && (
@@ -2351,7 +2351,7 @@ function LeadsPageContent() {
 
         {/* ─── Bulk Selection Bar ─── */}
         {activeTab === "board" && selectionMode && !editMode && (
-          <div className="p-3 mb-4 hidden md:flex flex-wrap items-center gap-3 rounded-xl bg-[#FFF7ED] border border-[#FED7AA]">
+          <div className="p-3 mb-4 hidden md:flex flex-wrap items-center gap-3 rounded-xl bg-brand-50 border border-brand-200">
             <button onClick={toggleSelectAll} className="flex items-center gap-2 text-slate-500 hover:text-petra-text transition-colors">
               {allSelected ? (
                 <CheckSquare className="w-4 h-4 text-brand-500" />

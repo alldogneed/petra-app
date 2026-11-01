@@ -120,7 +120,7 @@ function Bubble({ side, author, at, children }: { side: "customer" | "staff" | "
         className={cn(
           "max-w-[92%] sm:max-w-[80%] rounded-2xl px-4 py-3 border",
           side === "customer" && "bg-slate-50 border-slate-100 rounded-ss-sm",
-          side === "staff" && "bg-orange-50 border-orange-100 rounded-se-sm",
+          side === "staff" && "bg-brand-50 border-brand-100 rounded-se-sm",
           side === "internal" && "bg-yellow-50 border-dashed border-yellow-300 rounded-se-sm"
         )}
       >

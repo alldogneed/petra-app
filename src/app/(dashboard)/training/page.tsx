@@ -1,4 +1,6 @@
 "use client";
+import { useVertical } from "@/hooks/useVertical";
+import { GenericProgramsView } from "@/components/training/GenericProgramsView";
 import { PageTitle } from "@/components/ui/PageTitle";
 import { useTranslations } from "next-intl";
 import { useBusinessLocale } from "@/hooks/useBusinessLocale";
@@ -7394,6 +7396,19 @@ function AddRecipientInlineModal({ onClose }: { onClose: () => void }) {
 
 export default function TrainingPage() {
   const t = useTranslations("training.trainingPage");
+  // Verticals (docs/verticals): a "generic" business gets the programs view (same module,
+  // same API, no dogs). Every "dogs" business keeps exactly the page below.
+  const { isGeneric } = useVertical();
+  if (isGeneric) {
+    return (
+      <>
+        <PageTitle title={t("generic.pageTitle")} />
+        <TierGate feature="training" title={t("generic.tierGate.title")} description={t("generic.tierGate.description")}>
+          <GenericProgramsView />
+        </TierGate>
+      </>
+    );
+  }
   return (
     <>
       <PageTitle title={t("pageTitle")} />

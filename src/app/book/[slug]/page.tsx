@@ -2,12 +2,15 @@
 
 import { useState, useEffect, useCallback } from "react"
 import Image from "next/image"
-import { ChevronRight, ChevronLeft, Check, Clock, Calendar, PawPrint, User, Plus, X, MapPin, Mail, CreditCard, ExternalLink, Scissors, GraduationCap, Hotel, Sparkles, MessageCircle, CalendarPlus } from "lucide-react"
+import { ChevronRight, ChevronLeft, Check, Clock, Calendar, PawPrint, User, Plus, X, MapPin, Mail, CreditCard, ExternalLink, Scissors, GraduationCap, Hotel, Sparkles, MessageCircle, CalendarPlus, CalendarCheck } from "lucide-react"
 import { useLocale, useTranslations } from "next-intl"
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { toWhatsAppPhone } from "@/lib/utils";
 import { formatCurrency } from "@/lib/format";
 import { DEFAULT_LOCALE, LOCALE_CONFIG, localeFromBusiness } from "@/lib/locale";
+import { isModuleHidden, normalizeVertical } from "@/lib/verticals";
+import { vocab, type VocabKey } from "@/lib/verticals/vocab";
+import { brandCssVariables } from "@/lib/verticals/branding";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -47,6 +50,10 @@ interface BusinessInfo {
   depositInstructions: string | null
   /** Not returned by /api/book/[slug] yet — falls back to the locale default currency */
   currency?: string | null
+  /** "dogs" | "generic" (docs/verticals) — generic: no dogs step, no dog words */
+  vertical?: string | null
+  /** Own brand of a "generic" business (null = Petra look) — docs/verticals phase 3 */
+  branding?: { name: string; logoUrl: string; primaryColor: string } | null
   services: BusinessService[]
   availabilityRules: AvailabilityRule[]
 }
@@ -115,14 +122,15 @@ function buildWhatsAppReminder(t: BookT, locale: string, formatPrice: (n: number
     t("reminder.service", { name: service.name }),
     t("reminder.date", { date: dateLabel }),
     t("reminder.time", { time: slotTime }),
-    dogNames.length > 0 ? t("reminder.dogs", { names: dogNames.join(", ") }) : "",
+    dogNames.length > 0 ? t("reminder.dogs", { names: dogNames.join(", ") }) : "", // never for "generic" (no dogs)
     t("reminder.price", { price: formatPrice(service.price) }),
   ].filter(Boolean)
   return encodeURIComponent(lines.join("\n"))
 }
 
 // Service type → icon mapping
-function ServiceIcon({ type, className }: { type: string; className?: string }) {
+function ServiceIcon({ type, className, generic }: { type: string; className?: string; generic?: boolean }) {
+  if (generic) return <CalendarCheck className={className} />
   switch (type?.toLowerCase()) {
     case "grooming": return <Scissors className={className} />
     case "training": return <GraduationCap className={className} />
@@ -153,9 +161,9 @@ const STEPS_BOARDING: { key: Step; labelKey: StepLabelKey }[] = [
   { key: "confirm", labelKey: "confirm" },
 ]
 
-function StepIndicator({ current, isBoarding }: { current: Step; isBoarding: boolean }) {
+function StepIndicator({ current, isBoarding, noPets }: { current: Step; isBoarding: boolean; noPets?: boolean }) {
   const t = useTranslations("booking.bookDetailPage")
-  const STEPS = isBoarding ? STEPS_BOARDING : STEPS_DEFAULT
+  const STEPS = (isBoarding ? STEPS_BOARDING : STEPS_DEFAULT).filter((s) => !(noPets && s.key === "dogs"))
   const currentIdx = STEPS.findIndex((s) => s.key === current)
   if (currentIdx === -1) return null
   const progress = Math.round(((currentIdx) / (STEPS.length - 1)) * 100)
@@ -215,6 +223,10 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
   // Business data
   const [business, setBusiness] = useState<BusinessInfo | null>(null)
   const [loadError, setLoadError] = useState("")
+  // Verticals: a "generic" business books without a dogs step.
+  const vertical = normalizeVertical(business?.vertical)
+  const noPets = isModuleHidden(vertical, "pets")
+  const bv = (key: VocabKey) => vocab(key, { vertical, locale })
 
   // Booking state
   const [step, setStep] = useState<Step>("service")
@@ -272,12 +284,12 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
       time: t("pageTitle.time", v),
       "boarding-dates": t("pageTitle.boardingDates", v),
       customer: t("pageTitle.customer", v),
-      dogs: t("pageTitle.dogs", v),
+      ...(noPets ? {} : { dogs: t("pageTitle.dogs", v) }),
       confirm: t("pageTitle.confirm", v),
       done: t("pageTitle.done", v),
     }
     document.title = labels[step] ?? t("pageTitle.default", v)
-  }, [step, business, t])
+  }, [step, business, t, noPets])
 
   // ── Load business ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -471,10 +483,22 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
   // ─── Render card ──────────────────────────────────────────────────────────
   return (
     <main id="main-content" className="min-h-screen bg-petra-bg" dir={cfg.dir}>
+      {business.branding && (
+        <style dangerouslySetInnerHTML={{ __html: `:root{${brandCssVariables(business.branding.primaryColor)}}` }} />
+      )}
       {/* Header */}
       <header className="bg-white/95 backdrop-blur-sm border-b border-petra-border sticky top-0 z-10">
         <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">
-          {business.logo ? (
+          {business.branding ? (
+            business.branding.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- uploaded logo (any host)
+              <img src={business.branding.logoUrl} alt={business.name} className="w-10 h-10 rounded-xl object-cover" />
+            ) : (
+              <div className="w-10 h-10 rounded-xl bg-brand-500 text-white font-bold flex items-center justify-center flex-shrink-0">
+                {business.name.trim().charAt(0)}
+              </div>
+            )
+          ) : business.logo ? (
             <Image src={business.logo} alt={business.name} width={40} height={40} className="w-10 h-10 rounded-xl object-cover" />
           ) : (
             <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0">
@@ -503,7 +527,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
       <div className="max-w-lg mx-auto px-4 py-6">
         {step !== "done" && step !== "deposit" && (
           <nav aria-label={t("steps.ariaLabel")}>
-            <StepIndicator current={step} isBoarding={selectedService?.type === "boarding"} />
+            <StepIndicator current={step} isBoarding={selectedService?.type === "boarding"} noPets={noPets} />
           </nav>
         )}
 
@@ -615,7 +639,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
               {/* Service summary */}
               <div className="bg-brand-50 rounded-xl p-3 mb-4 flex items-center gap-2 border border-brand-100">
                 <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: selectedService.color ? `${selectedService.color}33` : "#FFF0E0" }}>
-                  <ServiceIcon type={selectedService.type} className="w-3.5 h-3.5" {...({ style: { color: selectedService.color || "#F97316" } } as any)} />
+                  <ServiceIcon generic={noPets} type={selectedService.type} className="w-3.5 h-3.5" {...({ style: { color: selectedService.color || "#F97316" } } as any)} />
                 </div>
                 <span className="text-sm font-medium text-brand-800 flex-1 truncate">{selectedService.name}</span>
                 <span className="text-xs text-brand-600 font-medium">{t("service.minutes", { count: selectedService.duration })}</span>
@@ -774,7 +798,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
               {/* Service summary */}
               <div className="bg-brand-50 rounded-xl p-3 mb-5 flex items-center gap-2 border border-brand-100">
                 <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: selectedService.color ? `${selectedService.color}33` : "#FFF0E0" }}>
-                  <ServiceIcon type={selectedService.type} className="w-3.5 h-3.5" {...({ style: { color: selectedService.color || "#F97316" } } as any)} />
+                  <ServiceIcon generic={noPets} type={selectedService.type} className="w-3.5 h-3.5" {...({ style: { color: selectedService.color || "#F97316" } } as any)} />
                 </div>
                 <span className="text-sm font-medium text-brand-800 flex-1 truncate">{selectedService.name}</span>
                 <span className="text-xs text-brand-600 font-medium">{t("boarding.perNight", { price: formatPrice(selectedService.price) })}</span>
@@ -889,7 +913,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                 <button onClick={() => setStep(selectedService?.type === "boarding" ? "boarding-dates" : "time")} className="text-brand-600 text-sm flex items-center gap-1 hover:text-brand-700 hover:underline">
                   <ChevronRight className="w-4 h-4 ltr:-scale-x-100" /> {t("back")}
                 </button>
-                <h2 className="text-lg font-bold text-petra-text">{t("customer.title")}</h2>
+                <h2 className="text-lg font-bold text-petra-text">{bv("booking.customer_step_title")}</h2>
               </div>
 
               <div className="space-y-4">
@@ -1004,7 +1028,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                     if (!validatePhone(phone)) { setPhoneError(t("errors.phoneInvalid")); return }
                     if (isNewCustomer === true && customerName.trim().length < 2) { setNameError(t("errors.nameMin")); return }
                     if (isNewCustomer === true && !validateEmail(customerEmail)) { setEmailError(t("errors.emailInvalid")); return }
-                    setStep("dogs")
+                    setStep(noPets ? "confirm" : "dogs")
                   }}
                   className="btn-primary w-full py-3 justify-center disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -1027,7 +1051,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
               {/* Service context banner */}
               <div className="bg-brand-50 rounded-xl p-3 mb-4 flex items-center gap-2 border border-brand-100">
                 <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: selectedService.color ? `${selectedService.color}33` : "#FFF0E0" }}>
-                  <ServiceIcon type={selectedService.type} className="w-3.5 h-3.5" {...({ style: { color: selectedService.color || "#F97316" } } as any)} />
+                  <ServiceIcon generic={noPets} type={selectedService.type} className="w-3.5 h-3.5" {...({ style: { color: selectedService.color || "#F97316" } } as any)} />
                 </div>
                 <span className="text-sm font-medium text-brand-800">{t("dogs.forService", { service: selectedService.name })}</span>
               </div>
@@ -1150,7 +1174,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
           {step === "confirm" && selectedService && (selectedSlot || selectedService.type === "boarding") && (
             <div className="p-6 animate-fade-in">
               <div className="flex items-center justify-between mb-4">
-                <button onClick={() => setStep("dogs")} className="text-brand-600 text-sm flex items-center gap-1 hover:text-brand-700 hover:underline">
+                <button onClick={() => setStep(noPets ? "customer" : "dogs")} className="text-brand-600 text-sm flex items-center gap-1 hover:text-brand-700 hover:underline">
                   <ChevronRight className="w-4 h-4 ltr:-scale-x-100" /> {t("back")}
                 </button>
                 <h2 className="text-lg font-bold text-petra-text">{t("confirm.title")}</h2>
@@ -1161,7 +1185,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                 <div className="bg-slate-50 rounded-xl p-4 space-y-3">
                   <div className="flex items-start gap-3">
                     <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5" style={{ backgroundColor: selectedService.color ? `${selectedService.color}22` : "#FFF7ED" }}>
-                      <ServiceIcon type={selectedService.type} className="w-4 h-4" {...({ style: { color: selectedService.color || "#F97316" } } as any)} />
+                      <ServiceIcon generic={noPets} type={selectedService.type} className="w-4 h-4" {...({ style: { color: selectedService.color || "#F97316" } } as any)} />
                     </div>
                     <div>
                       <p className="text-xs text-petra-muted">{t("confirm.service")}</p>
@@ -1205,7 +1229,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                       <User className="w-4 h-4 text-emerald-600" />
                     </div>
                     <div>
-                      <p className="text-xs text-petra-muted">{t("confirm.owner")}</p>
+                      <p className="text-xs text-petra-muted">{bv("booking.customer_label")}</p>
                       <p className="font-semibold text-petra-text">{customerName || t("customer.existing")}</p>
                       <p className="text-sm text-petra-muted">{phone}</p>
                       {customerEmail && (
@@ -1217,6 +1241,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                     </div>
                   </div>
 
+                  {!noPets && (
                   <div className="border-t border-slate-200 pt-3 flex items-start gap-3">
                     <div className="w-8 h-8 rounded-xl bg-purple-100 flex items-center justify-center flex-shrink-0 mt-0.5">
                       <PawPrint className="w-4 h-4 text-purple-600" />
@@ -1228,6 +1253,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
                       ))}
                     </div>
                   </div>
+                  )}
                 </div>
 
                 {selectedService.bookingMode === "requires_approval" && (
@@ -1372,7 +1398,7 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
               {/* Summary */}
               <div className="bg-slate-50 rounded-xl p-4 text-sm text-start space-y-2 mb-5">
                 <div className="flex items-center gap-2">
-                  <ServiceIcon type={selectedService.type} className="w-4 h-4 text-brand-500 flex-shrink-0" />
+                  <ServiceIcon generic={noPets} type={selectedService.type} className="w-4 h-4 text-brand-500 flex-shrink-0" />
                   <span className="text-petra-muted">{t("done.service")}</span>
                   <span className="font-medium text-petra-text">{selectedService.name}</span>
                 </div>
@@ -1465,16 +1491,18 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
 
         </div>
 
-        {/* Footer */}
-        <p className="text-center text-xs text-petra-muted mt-6">
-          {t.rich("footer.poweredBy", {
-            link: (c) => (
-              <a href="https://petra-app.com" target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-600 hover:underline">
-                {c}
-              </a>
-            ),
-          })}
-        </p>
+        {/* Footer — a "generic" business's page carries its own brand only */}
+        {!business.branding && (
+          <p className="text-center text-xs text-petra-muted mt-6">
+            {t.rich("footer.poweredBy", {
+              link: (c) => (
+                <a href="https://petra-app.com" target="_blank" rel="noopener noreferrer" className="font-semibold text-brand-600 hover:underline">
+                  {c}
+                </a>
+              ),
+            })}
+          </p>
+        )}
       </div>
     </main>
   )

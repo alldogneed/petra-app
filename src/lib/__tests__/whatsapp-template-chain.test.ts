@@ -9,6 +9,9 @@ jest.mock("@/lib/whatsapp", () => ({
   sendWhatsAppTemplate: jest.fn(),
   sendWhatsAppMessage: jest.fn(),
 }));
+jest.mock("@/lib/verticals/server", () => ({
+  getBusinessVertical: jest.fn(async (id: string) => (id === "biz-generic" ? "generic" : "dogs")),
+}));
 
 import { sendWhatsAppTemplate, sendWhatsAppMessage } from "@/lib/whatsapp";
 import {
@@ -216,5 +219,24 @@ describe("contextForScheduledMessage", () => {
 
   it("ignores a flow value that is not a plain identifier", () => {
     expect(contextForScheduledMessage({ flow: "drop table; --" }, "BOARDING")).toBe("boarding_checkout");
+  });
+});
+
+describe("sendWithTemplateChain — verticals", () => {
+  const REMINDER = [
+    { name: "petra_appointment_reminder_v2", params: ["דנה", "שני", "10:00", "שיעור", "050"] },
+    { name: "petra_appointment_reminder", params: ["דנה", "שני", "10:00", "שיעור"] },
+  ];
+  it("dogs business: the approved dog templates, unchanged", async () => {
+    mockTemplate.mockResolvedValueOnce({ success: true, messageSid: "w1" });
+    const res = await sendWithTemplateChain({ ...BASE, steps: REMINDER, context: "appointment_reminder" });
+    expect(res.templateName).toBe("petra_appointment_reminder_v2");
+  });
+  it("generic business: neutral twin, never the dog-worded templates", async () => {
+    mockTemplate.mockResolvedValue({ success: false, error: "(#132001) Template name does not exist" });
+    mockText.mockResolvedValueOnce({ success: true, messageSid: "t1" });
+    await sendWithTemplateChain({ ...BASE, businessId: "biz-generic", steps: REMINDER, context: "appointment_reminder" });
+    expect(mockTemplate.mock.calls.map((c) => c[0].templateName)).toEqual(["petra_meeting_reminder"]);
+    expect(mockText).toHaveBeenCalledTimes(1);
   });
 });

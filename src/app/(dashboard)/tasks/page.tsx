@@ -1,4 +1,5 @@
 "use client";
+import { useVertical } from "@/hooks/useVertical";
 import { PageTitle } from "@/components/ui/PageTitle";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -183,6 +184,7 @@ export default function TasksPage() {
   const t = useTranslations("tasks");
   const tc = useTranslations("common");
   const { cfg } = useBusinessLocale();
+  const vt = useVertical();
   const { canExportData } = usePermissions();
   const { isFree, tier } = usePlan();
   const maxTasks = getMaxTasks(tier);
@@ -714,7 +716,7 @@ export default function TasksPage() {
       <div className="flex items-center gap-2 mb-2">
         <Filter className="w-3.5 h-3.5 text-petra-muted flex-shrink-0" />
         <div className="flex gap-1.5 overflow-x-auto scrollbar-hide flex-nowrap flex-1 min-w-0">
-          {CATEGORIES.map((c) => (
+          {CATEGORIES.filter((c) => vt.offers(c.id)).map((c) => (
             <button
               key={c.id}
               onClick={() => setActiveCategory(c.id)}
@@ -725,7 +727,7 @@ export default function TasksPage() {
                   : "bg-slate-100 text-petra-muted hover:bg-slate-200"
               )}
             >
-              {t(`categories.${c.id}`)}
+              {vt.label(c.id, t(`categories.${c.id}`))}
             </button>
           ))}
         </div>
@@ -1015,6 +1017,7 @@ function AutomationTab({ onTasksGenerated }: { onTasksGenerated: () => void }) {
   const t = useTranslations("tasks");
   const tc = useTranslations("common");
   const { locale, cfg } = useBusinessLocale();
+  const vt = useVertical();
   const queryClient = useQueryClient();
 
   // Template state
@@ -1133,7 +1136,7 @@ function AutomationTab({ onTasksGenerated }: { onTasksGenerated: () => void }) {
               <div>
                 <label className="label">{t("form.category")}</label>
                 <select className="input w-full" value={tplForm.defaultCategory} onChange={(e) => setTplForm({ ...tplForm, defaultCategory: e.target.value })}>
-                  {CATEGORIES.filter((c) => c.id !== "ALL").map((c) => <option key={c.id} value={c.id}>{t(`categories.${c.id}`)}</option>)}
+                  {CATEGORIES.filter((c) => c.id !== "ALL" && vt.offers(c.id)).map((c) => <option key={c.id} value={c.id}>{vt.label(c.id, t(`categories.${c.id}`))}</option>)}
                 </select>
               </div>
               <div>
@@ -1167,7 +1170,7 @@ function AutomationTab({ onTasksGenerated }: { onTasksGenerated: () => void }) {
                   <p className="text-sm font-semibold text-petra-text truncate">{tpl.name}</p>
                   <p className="text-xs text-petra-muted truncate">{tpl.defaultTitleTemplate}</p>
                   <div className="flex gap-1.5 mt-1">
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-600">{categoryLabel(t, tpl.defaultCategory)}</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-600">{vt.label(tpl.defaultCategory, categoryLabel(t, tpl.defaultCategory))}</span>
                     <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-600">{priorityLabel(t, tpl.defaultPriority)}</span>
                   </div>
                 </div>
@@ -1289,7 +1292,7 @@ function AutomationTab({ onTasksGenerated }: { onTasksGenerated: () => void }) {
                     </div>
                     <div className="flex flex-wrap gap-1.5 mt-1.5">
                       <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-brand-100 text-brand-700 font-medium">{humanizeRrule(rule.rrule, t)}</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-600">{categoryLabel(t, rule.template.defaultCategory)}</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-600">{vt.label(rule.template.defaultCategory, categoryLabel(t, rule.template.defaultCategory))}</span>
                       <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-slate-200 text-slate-600">{t("automation.taskCount", { count: rule._count.tasks })}</span>
                     </div>
                     {rule.lastGeneratedAt && <p className="text-[10px] text-petra-muted mt-1">{t("automation.lastRun", { date: new Date(rule.lastGeneratedAt).toLocaleDateString(locale) })}</p>}
@@ -1401,6 +1404,7 @@ function TaskCard({
 }) {
   const t = useTranslations("tasks");
   const tc = useTranslations("common");
+  const vt = useVertical();
   const computed = computeTaskStatus(task);
   const config = STATUS_CONFIG[computed];
   const priorityId = PRIORITIES[task.priority] ? task.priority : "MEDIUM";
@@ -1507,7 +1511,7 @@ function TaskCard({
               <Link
                 href="/leads"
                 onClick={(e) => e.stopPropagation()}
-                className="inline-flex items-center gap-1 text-[11px] font-medium text-orange-600 hover:text-orange-800 bg-orange-50 hover:bg-orange-100 border border-orange-100 px-2 py-0.5 rounded-full transition-colors"
+                className="inline-flex items-center gap-1 text-[11px] font-medium text-brand-600 hover:text-brand-800 bg-brand-50 hover:bg-brand-100 border border-brand-100 px-2 py-0.5 rounded-full transition-colors"
               >
                 <Target className="w-3 h-3 flex-shrink-0" />
                 {task.relatedEntityName}
@@ -1534,7 +1538,7 @@ function TaskCard({
             )}
             {/* Category */}
             <span className="badge-neutral text-[10px]">
-              {categoryLabel(t, task.category)}
+              {vt.label(task.category, categoryLabel(t, task.category))}
             </span>
             {/* Priority dot */}
             <div
@@ -1601,6 +1605,7 @@ function EntityPicker({
   onChange: (type: string | null, id: string | null, name: string | null) => void;
 }) {
   const t = useTranslations("tasks");
+  const noPets = useVertical().hides("pets");
   const [search, setSearch] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -1631,7 +1636,7 @@ function EntityPicker({
     { value: null,       label: t("entityPicker.none"),     icon: null },
     { value: "CUSTOMER", label: t("entityPicker.customer"), icon: Users },
     { value: "DOG",      label: t("entityPicker.pet"),      icon: PawPrint },
-  ];
+  ].filter((o) => !(noPets && o.value === "DOG")); // verticals: "generic" has no pets
 
   return (
     <div>
@@ -1729,6 +1734,7 @@ function NewTaskModal({
   const t = useTranslations("tasks");
   const tc = useTranslations("common");
   const { locale, cfg } = useBusinessLocale();
+  const vt = useVertical();
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -1787,9 +1793,9 @@ function NewTaskModal({
                   setForm({ ...form, category: e.target.value })
                 }
               >
-                {CATEGORIES.filter((c) => c.id !== "ALL").map((c) => (
+                {CATEGORIES.filter((c) => c.id !== "ALL" && vt.offers(c.id)).map((c) => (
                   <option key={c.id} value={c.id}>
-                    {t(`categories.${c.id}`)}
+                    {vt.label(c.id, t(`categories.${c.id}`))}
                   </option>
                 ))}
               </select>
@@ -1894,6 +1900,7 @@ function EditTaskModal({
   const t = useTranslations("tasks");
   const tc = useTranslations("common");
   const { locale, cfg } = useBusinessLocale();
+  const vt = useVertical();
   const initialDate = task.dueAt
     ? format(new Date(task.dueAt), "yyyy-MM-dd")
     : task.dueDate
@@ -1954,8 +1961,8 @@ function EditTaskModal({
                 value={form.category}
                 onChange={(e) => setForm({ ...form, category: e.target.value })}
               >
-                {CATEGORIES.filter((c) => c.id !== "ALL").map((c) => (
-                  <option key={c.id} value={c.id}>{t(`categories.${c.id}`)}</option>
+                {CATEGORIES.filter((c) => c.id !== "ALL" && vt.offers(c.id)).map((c) => (
+                  <option key={c.id} value={c.id}>{vt.label(c.id, t(`categories.${c.id}`))}</option>
                 ))}
               </select>
             </div>
@@ -2187,6 +2194,7 @@ function ExportTasksModal({
 }) {
   const t = useTranslations("tasks");
   const tc = useTranslations("common");
+  const vt = useVertical();
   const [selectedCols, setSelectedCols] = useState<Set<string>>(
     () => new Set(EXPORT_COLUMNS.filter((c) => c.default).map((c) => c.key))
   );
@@ -2232,7 +2240,7 @@ function ExportTasksModal({
               row[col.label] = task.description ?? "";
               break;
             case "category":
-              row[col.label] = categoryLabel(t, task.category);
+              row[col.label] = vt.label(task.category, categoryLabel(t, task.category));
               break;
             case "priority":
               row[col.label] = priorityLabel(t, task.priority);

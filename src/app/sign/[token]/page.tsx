@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { Loader2, CheckCircle2, AlertCircle, RotateCcw, PenLine, ChevronLeft, ChevronRight, User, Phone, MapPin, CreditCard, FileText, Download, Clock, Dog, PawPrint, Cpu, Calendar, Heart, Palette } from "lucide-react";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { LOCALE_CONFIG, localeFromBusiness } from "@/lib/locale";
+import { brandCssVariables } from "@/lib/verticals/branding";
 
 interface ContractField {
   id: string;
@@ -21,6 +22,8 @@ interface ContractField {
 interface ContractData {
   customerName: string;
   businessName: string;
+  /** Own brand of a "generic" business (null = Petra) — docs/verticals phase 3 */
+  branding?: { name: string; logoUrl: string; primaryColor: string } | null;
   templateName: string;
   pdfUrl: string;
   status: string;
@@ -314,7 +317,7 @@ export default function SignContractPage() {
   // ── Signed ───────────────────────────────────────────────────────────────────
   if (signed) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-orange-50 via-white to-white p-6" dir={cfg.dir}>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-brand-50 via-white to-white p-6" dir={cfg.dir}>
         <div className="space-y-6 max-w-sm w-full">
           <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto">
             <CheckCircle2 className="w-10 h-10 text-emerald-500" />
@@ -355,11 +358,7 @@ export default function SignContractPage() {
           )}
           <p className="text-xs text-slate-400 text-center">{t("signedDone.canClose")}</p>
           <div className="pt-6 border-t border-slate-100 text-center">
-            <div className="flex items-center justify-center gap-2">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo.svg" alt="Petra" className="w-7 h-7 rounded-lg" />
-              <span className="text-sm font-bold text-slate-600">Petra</span>
-            </div>
+            <SignBrandMark branding={contract?.branding ?? null} size="md" />
             <p className="text-[11px] text-slate-400 mt-1.5">{t("footer.secureSignature")}</p>
           </div>
         </div>
@@ -387,8 +386,8 @@ export default function SignContractPage() {
       <div className="sticky top-0 z-20 bg-white border-b border-slate-100 shadow-sm">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
           <div className="min-w-0 flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-orange-50 rounded-lg flex items-center justify-center flex-shrink-0">
-              <FileText className="w-4 h-4 text-orange-500" />
+            <div className="w-8 h-8 bg-brand-50 rounded-lg flex items-center justify-center flex-shrink-0">
+              <FileText className="w-4 h-4 text-brand-500" />
             </div>
             <div className="min-w-0">
               <p className="text-sm font-bold text-slate-800 truncate leading-tight">{contract.templateName}</p>
@@ -398,7 +397,7 @@ export default function SignContractPage() {
           <button
             type="button"
             onClick={() => signatureSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
-            className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold rounded-xl transition-colors"
+            className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 bg-brand-500 hover:bg-brand-600 text-white text-xs font-semibold rounded-xl transition-colors"
           >
             <PenLine className="w-3.5 h-3.5" />
             {t("topBar.sign")}
@@ -430,7 +429,7 @@ export default function SignContractPage() {
         <div className="bg-white sm:rounded-2xl sm:border sm:border-slate-200 overflow-hidden shadow-sm">
           <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50">
             <div className="flex items-center gap-2">
-              <span className="w-5 h-5 rounded-full bg-orange-500 text-white text-[11px] font-bold flex items-center justify-center">1</span>
+              <span className="w-5 h-5 rounded-full bg-brand-500 text-white text-[11px] font-bold flex items-center justify-center">1</span>
               <span className="text-sm font-semibold text-slate-700">{t("read.title")}</span>
             </div>
             {/* Page nav + open-in-new-window escape hatch */}
@@ -470,7 +469,7 @@ export default function SignContractPage() {
                 <div className="text-center space-y-3 px-6">
                   <AlertCircle className="w-8 h-8 text-amber-400 mx-auto" />
                   <p className="text-sm text-slate-500">{t("read.cannotDisplay")}</p>
-                  <a href={pdfProxyUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm font-semibold text-orange-600 hover:text-orange-700">
+                  <a href={pdfProxyUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-sm font-semibold text-brand-600 hover:text-brand-700">
                     <Download className="w-4 h-4" />
                     {t("read.openPdf")}
                   </a>
@@ -516,7 +515,7 @@ export default function SignContractPage() {
         {/* ── Step 2: Signature ────────────────────────────────────────────────── */}
         <div ref={signatureSectionRef} className="bg-white sm:rounded-2xl sm:border sm:border-slate-200 overflow-hidden shadow-sm">
           <div className="px-4 py-3 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
-            <span className="w-5 h-5 rounded-full bg-orange-500 text-white text-[11px] font-bold flex items-center justify-center">2</span>
+            <span className="w-5 h-5 rounded-full bg-brand-500 text-white text-[11px] font-bold flex items-center justify-center">2</span>
             <span className="text-sm font-semibold text-slate-700">{t("signature.title")}</span>
             {hasSignature && <span className="ms-auto text-xs text-emerald-600 font-medium">{t("signature.recorded")}</span>}
           </div>
@@ -562,7 +561,7 @@ export default function SignContractPage() {
                 type="checkbox"
                 checked={readConfirmed}
                 onChange={(e) => setReadConfirmed(e.target.checked)}
-                className="mt-0.5 w-4 h-4 rounded border-slate-300 text-orange-500 accent-orange-500"
+                className="mt-0.5 w-4 h-4 rounded border-slate-300 text-brand-500 accent-brand-500"
               />
               <span className="text-xs text-slate-500 leading-relaxed group-hover:text-slate-700 transition-colors">
                 {t.rich("signature.consent", {
@@ -578,7 +577,7 @@ export default function SignContractPage() {
             <button
               onClick={handleSubmit}
               disabled={!hasSignature || !readConfirmed || submitting}
-              className="w-full py-4 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 disabled:bg-slate-100 disabled:text-slate-400 text-white font-bold text-base rounded-2xl transition-colors flex items-center justify-center gap-2"
+              className="w-full py-4 bg-brand-500 hover:bg-brand-600 active:bg-brand-700 disabled:bg-slate-100 disabled:text-slate-400 text-white font-bold text-base rounded-2xl transition-colors flex items-center justify-center gap-2"
             >
               {submitting ? (
                 <><Loader2 className="w-5 h-5 animate-spin" /> {t("submit.sending")}</>
@@ -599,16 +598,42 @@ export default function SignContractPage() {
           </div>
         </div>
 
-        {/* Petra branding footer */}
+        {/* Branding footer — Petra, or the business's own brand ("generic") */}
         <div className="py-6 flex flex-col items-center gap-1.5">
-          <div className="flex items-center gap-2">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.svg" alt="Petra" className="w-6 h-6 rounded-lg" />
-            <span className="text-sm font-bold text-slate-400">Petra</span>
-          </div>
+          <SignBrandMark branding={contract.branding ?? null} size="sm" />
           <p className="text-[11px] text-slate-400">{t("footer.secureSignature")}</p>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Footer mark of the sign page: Petra (dogs, unchanged) or the business's logo + name. */
+function SignBrandMark({ branding, size }: { branding: ContractData["branding"]; size: "sm" | "md" }) {
+  const box = size === "md" ? "w-7 h-7" : "w-6 h-6";
+  const text = size === "md" ? "text-sm font-bold text-slate-600" : "text-sm font-bold text-slate-400";
+  if (!branding) {
+    return (
+      <div className="flex items-center justify-center gap-2">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.svg" alt="Petra" className={`${box} rounded-lg`} />
+        <span className={text}>Petra</span>
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-center justify-center gap-2">
+      {/* the page's brand-* colours follow the business colour too */}
+      <style dangerouslySetInnerHTML={{ __html: `:root{${brandCssVariables(branding.primaryColor)}}` }} />
+      {branding.logoUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element -- uploaded logo (any host)
+        <img src={branding.logoUrl} alt={branding.name} className={`${box} rounded-lg object-cover`} />
+      ) : (
+        <span className={`${box} rounded-lg text-white text-xs font-bold flex items-center justify-center`} style={{ background: branding.primaryColor }}>
+          {branding.name.trim().charAt(0)}
+        </span>
+      )}
+      <span className={text}>{branding.name}</span>
     </div>
   );
 }

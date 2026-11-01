@@ -472,7 +472,7 @@ export default function AvailabilityPage() {
           <button
             onClick={addBreak}
             disabled={breakSaving}
-            className="mt-3 flex items-center gap-2 px-4 py-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-semibold rounded-lg text-sm"
+            className="mt-3 flex items-center gap-2 px-4 py-2 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white font-semibold rounded-lg text-sm"
           >
             <Plus className="w-4 h-4" />
             {breakSaving ? tc("progress.saving") : t("breaks.add")}

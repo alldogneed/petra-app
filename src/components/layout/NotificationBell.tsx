@@ -104,7 +104,7 @@ export function NotificationBell() {
         {badgeCount > 0 && (
           <span
             className="absolute top-1 end-1 min-w-[16px] h-4 px-0.5 rounded-full border-2 border-white flex items-center justify-center text-[9px] font-bold text-white"
-            style={{ background: "#F97316", lineHeight: 1 }}
+            style={{ background: "rgb(var(--brand-500))", lineHeight: 1 }}
           >
             {badgeCount > 9 ? "9+" : badgeCount}
           </span>
@@ -160,7 +160,7 @@ export function NotificationBell() {
                       <div
                         className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0"
                         style={{
-                          background: appt.service?.color ?? "#F97316",
+                          background: appt.service?.color ?? "rgb(var(--brand-500))",
                         }}
                       />
                       <div className="flex-1 min-w-0">
@@ -197,7 +197,7 @@ export function NotificationBell() {
             <div className="px-4 py-2.5 border-t border-slate-100 bg-slate-50">
               <a
                 href="/calendar"
-                className="text-[12px] font-medium text-orange-500 hover:text-orange-600 transition-colors"
+                className="text-[12px] font-medium text-brand-500 hover:text-brand-600 transition-colors"
                 onClick={() => setOpen(false)}
               >
                 {t("openCalendar")}

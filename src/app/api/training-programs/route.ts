@@ -5,6 +5,7 @@ import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 import { getMaxTrainingPrograms, normalizeTier } from "@/lib/feature-flags";
 import { PROGRAM_TYPE_LABELS, TRAINING_TYPE_LABELS } from "@/lib/training-programs";
+import { getBusinessVertical } from "@/lib/verticals/server";
 import { listTrainingPrograms, createTrainingProgram, ServiceError } from "@/services/training";
 
 export async function GET(request: NextRequest) {
@@ -38,8 +39,19 @@ export async function POST(request: NextRequest) {
     if (!body.name || typeof body.name !== "string" || !body.name.trim()) {
       return NextResponse.json({ error: "שם תוכנית הוא שדה חובה" }, { status: 400 });
     }
+    // Verticals (docs/verticals): a "generic" business has no pets — its program has no
+    // subject (dogId null), is a home program for one customer, type CUSTOM. Dogs: unchanged.
     if (!body.dogId || typeof body.dogId !== "string") {
-      return NextResponse.json({ error: "יש לבחור כלב" }, { status: 400 });
+      if ((await getBusinessVertical(authResult.businessId)) !== "generic") {
+        return NextResponse.json({ error: "יש לבחור כלב" }, { status: 400 });
+      }
+      if (!body.customerId || typeof body.customerId !== "string") {
+        return NextResponse.json({ error: "יש לבחור לקוח" }, { status: 400 });
+      }
+      body.dogId = null;
+      body.trainingType = "HOME";
+      body.programType = body.programType || "CUSTOM";
+      body.boardingStayId = null;
     }
     if (body.programType && !PROGRAM_TYPE_LABELS[body.programType]) {
       return NextResponse.json({ error: "סוג תוכנית לא תקין" }, { status: 400 });

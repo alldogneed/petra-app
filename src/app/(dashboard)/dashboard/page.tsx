@@ -1,4 +1,5 @@
 "use client";
+import { useVertical } from "@/hooks/useVertical";
 import { PageTitle } from "@/components/ui/PageTitle";
 import { useState, useCallback } from "react";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
@@ -81,9 +82,12 @@ export default function DashboardPage() {
   const labels = useDashboardLabels();
   const { locale, currency, timezone, cfg } = useBusinessLocale();
   const money = (n: number) => formatCurrency(n, { locale, currency });
+  const vt = useVertical();
   const { user } = useAuth();
   const { subscriptionActive, subscriptionExpired, subscriptionDaysLeft, hasRecurring, isFree, isGroomer } = usePlan();
   const perms = usePermissions();
+  // Verticals: "generic" has no pets / boarding → those widgets + quick actions don't exist.
+  const { hides: hidesModule, v } = useVertical();
   const queryClient = useQueryClient();
   const [showNewCustomer, setShowNewCustomer] = useState(false);
   const [showNewAppointment, setShowNewAppointment] = useState(false);
@@ -207,6 +211,8 @@ export default function DashboardPage() {
     revenue: perms.canSeeRevenueSummary,
     leads: perms.canViewLeads,
     activity: !perms.isStaff && !perms.isVolunteer,
+    pets: !hidesModule("pets"),
+    boarding: !hidesModule("boarding"),
   };
   const dashPrefs = prefsData?.prefs ?? defaultDashboardPrefs(null);
   const layoutBlocks = computeLayout(visibleBlocks(dashPrefs, widgetFlags));
@@ -327,7 +333,7 @@ export default function DashboardPage() {
                     <DashRow key={s.id}>
                       <Link
                         href={s.customer?.id ? `/customers/${s.customer.id}` : "/boarding"}
-                        className="flex-1 flex flex-col gap-0.5 min-w-0 text-slate-900 hover:text-orange-600"
+                        className="flex-1 flex flex-col gap-0.5 min-w-0 text-slate-900 hover:text-brand-600"
                       >
                         <span className="text-sm font-medium truncate">{s.pet?.name ?? ""}</span>
                         <span className="text-xs text-slate-500 truncate">
@@ -365,10 +371,13 @@ export default function DashboardPage() {
             />
             <div className="pb-2.5">
               <Segmented
-                options={SERVICE_TYPE_TABS.filter((tab) => !(isGroomer && (tab.key === "training" || tab.key === "boarding"))).map((tab) => ({
-                  key: tab.key,
-                  label: labels.serviceTab(tab.key) ?? tab.key,
-                }))}
+                options={SERVICE_TYPE_TABS.filter((tab) => !(isGroomer && (tab.key === "training" || tab.key === "boarding")))
+                  // Verticals: "generic" has no boarding / grooming; "אילוף" reads "מפגשים וחבילות".
+                  .filter((tab) => !(hidesModule("pets") && (tab.key === "boarding" || tab.key === "grooming")))
+                  .map((tab) => ({
+                    key: tab.key,
+                    label: tab.key === "training" ? v("pricing.category_program") : labels.serviceTab(tab.key) ?? tab.key,
+                  }))}
                 value={serviceFilter}
                 onChange={setServiceFilter}
               />
@@ -397,7 +406,7 @@ export default function DashboardPage() {
                   >
                     <div className="flex flex-col gap-0.5 min-w-0">
                       <span className="text-sm font-medium truncate">{order.customerName}</span>
-                      <span className="text-xs text-slate-500">{typeLabel}</span>
+                      <span className="text-xs text-slate-500">{vt.label(order.orderType, typeLabel ?? "")}</span>
                     </div>
                     <span className="text-xs font-medium" style={{ color: ORDER_STATUS_COLOR[order.status] ?? "#64748B" }}>
                       {labels.orderStatus(order.status) || order.status}
@@ -448,13 +457,13 @@ export default function DashboardPage() {
                     <Link
                       href={`/tasks?task=${task.id}`}
                       className={cn(
-                        "flex-1 min-w-0 truncate text-sm font-medium text-slate-900 hover:text-orange-600 transition-colors",
+                        "flex-1 min-w-0 truncate text-sm font-medium text-slate-900 hover:text-brand-600 transition-colors",
                         isCompleting && "line-through text-slate-400"
                       )}
                     >
                       {task.title}
                     </Link>
-                    <span className="text-xs text-slate-500 flex-shrink-0">{labels.taskCategory(task.category) ?? task.category}</span>
+                    <span className="text-xs text-slate-500 flex-shrink-0">{vt.label(task.category, labels.taskCategory(task.category) ?? task.category)}</span>
                   </div>
                 );
               })
@@ -557,7 +566,7 @@ export default function DashboardPage() {
               <button
                 type="button"
                 onClick={() => setDashDate("")}
-                className="h-7 px-2.5 ms-1 rounded-lg bg-orange-50 text-orange-700 text-[13px] font-medium hover:bg-orange-100"
+                className="h-7 px-2.5 ms-1 rounded-lg bg-brand-50 text-brand-700 text-[13px] font-medium hover:bg-brand-100"
               >
                 {t("header.today")}
               </button>
@@ -574,7 +583,7 @@ export default function DashboardPage() {
           </button>
           <Link
             href="/calendar?new=1"
-            className="h-10 px-4 rounded-xl bg-white border border-orange-500 text-orange-600 text-sm font-medium flex items-center justify-center gap-2 whitespace-nowrap hover:bg-orange-50 active:scale-[0.98] transition-all"
+            className="h-10 px-4 rounded-xl bg-white border border-brand-500 text-brand-600 text-sm font-medium flex items-center justify-center gap-2 whitespace-nowrap hover:bg-brand-50 active:scale-[0.98] transition-all"
           >
             <CalendarClock className="w-4 h-4 shrink-0" />
             {t("actions.bookAppointment")}
@@ -586,6 +595,8 @@ export default function DashboardPage() {
             <ShoppingCart className="w-4 h-4 shrink-0" />
             {t("actions.newOrder")}
           </button>
+          {/* Verticals: the intake form is a pet form — not for "generic" */}
+          {!hidesModule("pets") && (
           <button
             onClick={handleCopyIntakeForm}
             disabled={intakeLoading}
@@ -600,6 +611,7 @@ export default function DashboardPage() {
             {intakeCopied ? <ClipboardCheck className="w-4 h-4 shrink-0" /> : <Copy className="w-4 h-4 shrink-0" />}
             {intakeCopied ? t("actions.copied") : t("actions.intakeForm")}
           </button>
+          )}
           {user?.businessSlug && (
             <button
               onClick={() => {
@@ -635,15 +647,15 @@ export default function DashboardPage() {
           <div
             className="card p-8 text-center animate-slide-up"
             style={{
-              background: "linear-gradient(135deg, rgba(249,115,22,0.06) 0%, rgba(59,130,246,0.04) 100%)",
-              borderColor: "rgba(249,115,22,0.15)",
+              background: "linear-gradient(135deg, rgb(var(--brand-500) / 0.06) 0%, rgba(59,130,246,0.04) 100%)",
+              borderColor: "rgb(var(--brand-500) / 0.15)",
             }}
           >
             <div
               className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 text-3xl"
-              style={{ background: "linear-gradient(135deg, #F97316, #FB923C)" }}
+              style={{ background: "linear-gradient(135deg, rgb(var(--brand-500)), rgb(var(--brand-400)))" }}
             >
-              🐾
+              {v("dashboard.welcome_icon")}
             </div>
             <h2 className="text-xl font-bold text-petra-text mb-2">{t("welcome.title")}</h2>
             <p className="text-sm text-petra-muted max-w-md mx-auto">
@@ -687,6 +699,7 @@ export default function DashboardPage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {!hidesModule("pets") && (
             <button
               onClick={handleCopyIntakeForm}
               disabled={intakeLoading}
@@ -695,14 +708,15 @@ export default function DashboardPage() {
                 intakeCopied && "border-green-300 bg-green-50/50"
               )}
             >
-              <div className="w-9 h-9 rounded-lg bg-orange-50 flex items-center justify-center flex-shrink-0">
-                {intakeCopied ? <ClipboardCheck className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4 text-orange-600" />}
+              <div className="w-9 h-9 rounded-lg bg-brand-50 flex items-center justify-center flex-shrink-0">
+                {intakeCopied ? <ClipboardCheck className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4 text-brand-600" />}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-petra-text">{intakeCopied ? t("actions.copied") : t("actions.intakeForm")}</p>
                 <p className="text-xs text-petra-muted">{t("welcome.intakeDesc")}</p>
               </div>
             </button>
+            )}
 
             {user?.businessSlug && (
               <button

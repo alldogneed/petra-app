@@ -1,5 +1,7 @@
 "use client";
 
+import { useVertical } from "@/hooks/useVertical";
+import type { VocabKey } from "@/lib/verticals/vocab";
 import { Check, X, MessageCircle, Crown, Zap, CreditCard, Loader2 } from "lucide-react";
 import { usePlan } from "@/hooks/usePlan";
 import { cn } from "@/lib/utils";
@@ -56,6 +58,29 @@ const PLANS: PlanDef[] = [
   },
 ];
 
+// ─── Verticals: a "generic" business reads the plans without dog-domain lines ───
+// (renamed lines come from the dictionary; dog-only features — boarding, grooming
+// portfolio, pet intake forms — are not offered there). Dogs → the plan unchanged.
+// Keyed by `<msgKey>.<path>` of paywall.upgradePage.plans (i18n: the plan texts are messages).
+const GENERIC_LINE_KEYS: Record<string, VocabKey> = {
+  "free.features.trainingPrograms": "plans.free_programs",
+  "basic.features.paymentsAndForms": "plans.payment_request",
+  "basic.description": "plans.basic_description",
+  "pro.description": "plans.pro_description",
+};
+// Lines with dog-domain wording (hasDogText) or a portfolio / intake-forms feature.
+const GENERIC_DROPPED = new Set(["boarding", "intakeForms", "portfolio", "boardingRooms", "advancedTraining", "serviceDogs"]);
+
+function planForVertical<P extends { features: string[]; notIncluded: string[] }>(plan: P, vertical: string): P {
+  if (vertical !== "generic") return plan;
+  const keep = (f: string) => !GENERIC_DROPPED.has(f);
+  return {
+    ...plan,
+    features: plan.features.filter(keep),
+    notIncluded: plan.notIncluded.filter(keep),
+  };
+}
+
 // ─── Legacy plans (DB only — for display when user is currently on one) ───────
 const LEGACY_PLANS: PlanDef[] = [
   {
@@ -89,6 +114,7 @@ const TIER_RANK: Record<string, number> = {
 const CARDCOM_TIERS = new Set(["basic", "pro"]);
 
 export default function UpgradePage() {
+  const { vertical, isGeneric, v } = useVertical();
   const { tier, cancelPending, subscriptionEndsAt } = usePlan();
   const { refreshUser } = useAuth();
   const searchParams = useSearchParams();
@@ -136,9 +162,15 @@ export default function UpgradePage() {
 
   // If user is on a legacy tier, append their current plan card so they see it
   const isLegacyTier = tier && !["free", "basic", "pro"].includes(tier);
-  const visiblePlans = isLegacyTier
+  const visiblePlans = (isLegacyTier
     ? [...PLANS, ...(LEGACY_PLANS.filter(p => p.key === tier))]
-    : PLANS;
+    : PLANS).map((plan) => planForVertical(plan, vertical));
+
+  /** A plan text (`description`, `features.x`, `notIncluded.x`) — generic wording from the vocab when renamed. */
+  function planText(msgKey: string, path: string) {
+    const renamed = isGeneric ? GENERIC_LINE_KEYS[`${msgKey}.${path}`] : undefined;
+    return renamed ? v(renamed) : t(`plans.${msgKey}.${path}`);
+  }
 
   function goToCheckout(planKey: string) {
     router.push(`/checkout?tier=${planKey}`);
@@ -210,7 +242,7 @@ export default function UpgradePage() {
                   </span>
                   {price != null && price > 0 && <span className="text-slate-400 text-sm">{t("card.perMonth")}</span>}
                 </div>
-                <p className="text-xs text-slate-500 leading-relaxed">{t(`plans.${plan.msgKey}.description`)}</p>
+                <p className="text-xs text-slate-500 leading-relaxed">{planText(plan.msgKey, "description")}</p>
               </div>
 
               {/* Features */}
@@ -218,13 +250,13 @@ export default function UpgradePage() {
                 {plan.features.map((f) => (
                   <div key={f} className="flex items-start gap-2 text-sm text-slate-700">
                     <Check className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
-                    {t(`plans.${plan.msgKey}.features.${f}`)}
+                    {planText(plan.msgKey, `features.${f}`)}
                   </div>
                 ))}
                 {plan.notIncluded.map((f) => (
                   <div key={f} className="flex items-start gap-2 text-sm text-slate-400">
                     <X className="w-4 h-4 flex-shrink-0 mt-0.5 text-red-400" />
-                    {t(`plans.${plan.msgKey}.notIncluded.${f}`)}
+                    {planText(plan.msgKey, `notIncluded.${f}`)}
                   </div>
                 ))}
               </div>

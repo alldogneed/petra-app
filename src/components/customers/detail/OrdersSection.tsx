@@ -1,5 +1,6 @@
 "use client";
 
+import { useVertical } from "@/hooks/useVertical";
 import { useState } from "react";
 import Link from "next/link";
 import { ChevronDown, ChevronUp, Link2, Plus, ShoppingCart } from "lucide-react";
@@ -30,6 +31,7 @@ export function OrdersSection({
   const tk = useTranslations("customers.constants");
   const { locale, currency, timezone } = useBusinessLocale();
   const formatCurrency = (amount: number) => formatMoney(amount, { locale, currency });
+  const vt = useVertical();
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   return (
@@ -77,11 +79,11 @@ export function OrdersSection({
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium text-petra-text">
-                      {canSeeFinance ? formatCurrency(order.total) : constantLabel(tk, "orderTypes", order.orderType) || order.orderType}
+                      {canSeeFinance ? formatCurrency(order.total) : vt.label(order.orderType, constantLabel(tk, "orderTypes", order.orderType) || order.orderType)}
                       <span className="text-xs text-petra-muted ms-1">{t("itemsCount", { count: order.lines.length })}</span>
                     </div>
                     <div className="text-xs text-petra-muted">
-                      {canSeeFinance && <>{constantLabel(tk, "orderTypes", order.orderType) || order.orderType} · </>}
+                      {canSeeFinance && <>{vt.label(order.orderType, constantLabel(tk, "orderTypes", order.orderType) || order.orderType)} · </>}
                       {formatDayDate(order.createdAt, locale)}
                     </div>
                   </div>

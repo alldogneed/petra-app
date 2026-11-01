@@ -1,4 +1,5 @@
 "use client";
+import { useVertical } from "@/hooks/useVertical";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import React, { useState, useRef } from "react";
 import { CheckCircle2, Loader2, XCircle, CheckCircle, AlertCircle, Download, Upload, FileSpreadsheet, Clock, Info, Users, PawPrint, RefreshCw, CalendarRange, Lock } from "lucide-react";
@@ -67,6 +68,8 @@ function fmtFileSize(bytes: number | null): string {
 }
 
 export function DataTab() {
+  // Verticals: "generic" has no pets — only the customers export.
+  const noPets = useVertical().hides("pets");
   const queryClient = useQueryClient();
   const { canExportData, canImportData } = usePermissions();
   // POST /api/import/parse + /api/import/execute require DATA_IMPORT (owner-grantable).
@@ -222,7 +225,7 @@ export function DataTab() {
             <div>
               <label className="label mb-2 block">{t("export.type")}</label>
               <div className="space-y-2">
-                {EXPORT_DATA_TYPES.map((dt) => {
+                {EXPORT_DATA_TYPES.filter((dt) => !(noPets && dt.value !== "customers")).map((dt) => {
                   const Icon = dt.icon;
                   const sel = exportType === dt.value;
                   return (
@@ -405,10 +408,12 @@ export function DataTab() {
                 <p className="text-lg font-bold text-emerald-700">{importStats.totalCustomers}</p>
                 <p className="text-xs text-emerald-600">{t("import.newCustomers")}</p>
               </div>
+{!noPets && (
               <div className="p-3 rounded-xl bg-blue-50 border border-blue-100 text-center">
                 <p className="text-lg font-bold text-blue-700">{importStats.totalPets}</p>
                 <p className="text-xs text-blue-600">{t("import.pets")}</p>
               </div>
+              )}
               <div className="p-3 rounded-xl bg-amber-50 border border-amber-100 text-center">
                 <p className="text-lg font-bold text-amber-700">{importStats.skippedRows}</p>
                 <p className="text-xs text-amber-600">{t("import.skippedRows")}</p>
@@ -473,10 +478,12 @@ export function DataTab() {
                 <p className="text-lg font-bold text-blue-700">{importResult.mergedCustomers}</p>
                 <p className="text-xs text-blue-600">{t("import.mergedCustomers")}</p>
               </div>
+{!noPets && (
               <div className="p-3 rounded-xl bg-violet-50 border border-violet-100 text-center">
                 <p className="text-lg font-bold text-violet-700">{importResult.createdPets}</p>
                 <p className="text-xs text-violet-600">{t("import.createdPets")}</p>
               </div>
+              )}
             </div>
             <button className="btn-secondary" onClick={resetImport}>{t("import.importMore")}</button>
           </div>

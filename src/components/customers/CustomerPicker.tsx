@@ -10,6 +10,7 @@ import { useTranslations } from "next-intl";
 import { Search, X, UserPlus } from "lucide-react";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { cn } from "@/lib/utils";
+import { useVertical } from "@/hooks/useVertical";
 
 export interface PickerPet {
   id: string;
@@ -117,7 +118,9 @@ export function CustomerPicker({
   createNewLabel,
 }: CustomerPickerProps) {
   const t = useTranslations("customers.customerPicker");
-  const placeholderText = placeholder ?? t("placeholder");
+  // Verticals: the default placeholder mentions the dog name only for "dogs".
+  const { v } = useVertical();
+  const placeholderText = placeholder ?? v("picker.customer_placeholder");
   const createNewText = createNewLabel ?? t("createNew");
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
@@ -315,7 +318,7 @@ export function CustomerPicker({
                       onClick={() => choose(c)}
                       className={cn(
                         "w-full text-start px-3 py-2.5 min-h-[48px] border-b border-slate-50 last:border-0 transition-colors",
-                        idx === active ? "bg-orange-50" : "hover:bg-slate-50"
+                        idx === active ? "bg-brand-50" : "hover:bg-slate-50"
                       )}
                     >
                       <div className="flex items-center justify-between gap-2">
@@ -330,7 +333,7 @@ export function CustomerPicker({
                           {c.pets.map((p, i) => (
                             <span key={p.id}>
                               {i > 0 && ", "}
-                              <span className={petHits.has(p.id) ? "font-semibold text-orange-600" : undefined}>
+                              <span className={petHits.has(p.id) ? "font-semibold text-brand-600" : undefined}>
                                 {p.name}
                               </span>
                             </span>
@@ -355,7 +358,7 @@ export function CustomerPicker({
                     }}
                     className={cn(
                       "w-full text-start px-3 py-3 text-sm font-medium text-brand-600 flex items-center gap-2 border-t border-slate-100",
-                      active === rows.length ? "bg-orange-50" : "hover:bg-slate-50"
+                      active === rows.length ? "bg-brand-50" : "hover:bg-slate-50"
                     )}
                   >
                     <UserPlus className="w-4 h-4" />

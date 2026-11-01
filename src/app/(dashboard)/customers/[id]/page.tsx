@@ -36,6 +36,7 @@ import { PackageTracking, TrainingProgramsCard } from "@/components/customers/de
 import { WhatsAppComposeModal } from "@/components/customers/detail/WhatsAppComposeModal";
 import { useIntakeFormSender } from "@/components/customers/detail/customer-actions";
 import type { CustomerDetail } from "@/components/customers/detail/types";
+import { useVertical } from "@/hooks/useVertical";
 
 const CreateOrderModal = dynamic(
   () => import("@/components/orders/CreateOrderModal").then((m) => ({ default: m.CreateOrderModal })),
@@ -69,6 +70,10 @@ function CustomerProfile() {
   const { user } = useAuth();
   const { isGroomer, can } = usePlan();
   const perms = usePermissions();
+  // Verticals: "generic" has no pets — the pets section, its nav chip and the
+  // "add a pet before an order" rule don't exist there (docs/verticals).
+  const { hides } = useVertical();
+  const noPets = hides("pets");
   const [modal, setModal] = useState<ModalName | null>(null);
   const closeModal = () => setModal(null);
 
@@ -137,7 +142,7 @@ function CustomerProfile() {
   const invalidateCustomer = () => queryClient.invalidateQueries({ queryKey: ["customer", customerId] });
 
   const openOrderModal = () => {
-    if (!customer.pets?.length) {
+    if (!noPets && !customer.pets?.length) {
       toast.error(t("toasts.petRequired"), { description: t("toasts.petRequiredHint") });
       return;
     }
@@ -149,7 +154,7 @@ function CustomerProfile() {
   };
 
   const navItems: SectionNavItem[] = [
-    { id: "pets", label: t("nav.pets") },
+    ...(noPets ? [] : [{ id: "pets", label: t("nav.pets") }]),
     { id: "appointments", label: t("nav.appointments") },
     { id: "finance", label: t("nav.finance") },
     ...(salesHistory?.leads?.length ? [{ id: "sales-history", label: t("nav.sales") }] : []),
@@ -168,6 +173,7 @@ function CustomerProfile() {
         deleteIsRequest={deleteIsRequest}
         canMerge={perms.canCriticalDelete}
         intakeSending={intake.sending}
+        showIntake={!noPets}
         onNewAppointment={() => setModal("appointment")}
         onNewTask={() => setModal("task")}
         onNewOrder={openOrderModal}
@@ -202,13 +208,15 @@ function CustomerProfile() {
 
         {/* ── Main column ── */}
         <div className="lg:col-span-2 space-y-6 min-w-0">
-          <PetsSection
-            customer={customer}
-            isGroomer={isGroomer}
-            canSendMessages={perms.canSendMessages}
-            canDelete={canDelete}
-            deleteIsRequest={deleteIsRequest}
-          />
+          {!noPets && (
+            <PetsSection
+              customer={customer}
+              isGroomer={isGroomer}
+              canSendMessages={perms.canSendMessages}
+              canDelete={canDelete}
+              deleteIsRequest={deleteIsRequest}
+            />
+          )}
 
           <div id="sales-history" className="scroll-mt-32 empty:hidden">
             <CustomerSalesHistory customerId={customerId} />
@@ -237,7 +245,7 @@ function CustomerProfile() {
           {!isGroomer && <TrainingProgramsCard programs={customer.trainingPrograms || []} />}
 
           <div id="documents" className="space-y-6 scroll-mt-32">
-            <SendContractSection customerId={customerId} customerName={customer.name} pets={customer.pets.map((p) => ({ id: p.id, name: p.name }))} />
+            <SendContractSection customerId={customerId} customerName={customer.name} pets={customer.pets.map((p) => ({ id: p.id, name: p.name }))} hidePetLink={noPets} />
             <CustomerDocumentsSection customerId={customerId} documentsJson={customer.documents || "[]"} />
           </div>
 

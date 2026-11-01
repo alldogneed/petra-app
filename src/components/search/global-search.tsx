@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
+import { useVertical } from "@/hooks/useVertical";
 import { Search, Users, PawPrint, Calendar, Hotel, X, Loader2, UserPlus, CheckSquare } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useBusinessLocale } from "@/hooks/useBusinessLocale";
@@ -55,6 +56,7 @@ interface SearchResults {
 }
 
 export function GlobalSearch() {
+  const { v } = useVertical();
   const t = useTranslations("search");
   const { locale, cfg } = useBusinessLocale();
   const [open, setOpen] = useState(false);
@@ -191,7 +193,7 @@ export function GlobalSearch() {
               type="search"
               value={query}
               onChange={(e) => handleInput(e.target.value)}
-              placeholder={t("globalSearch.inputPlaceholder")}
+              placeholder={v("search.placeholder")}
               className="flex-1 text-base sm:text-sm text-petra-text bg-transparent border-none outline-none placeholder-slate-400"
               dir={cfg.dir}
               aria-label={t("globalSearch.label")}

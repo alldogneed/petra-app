@@ -13,6 +13,7 @@ const QUESTIONS = [
       { value: "פנסיון", key: "boarding" }, // i18n-ok
       { value: "מספרה", key: "grooming" }, // i18n-ok
       { value: "משולב", key: "combined" }, // i18n-ok
+      { value: "עסק אחר", key: "otherBusiness" }, // i18n-ok
     ],
   },
   {

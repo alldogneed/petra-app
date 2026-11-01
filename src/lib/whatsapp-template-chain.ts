@@ -23,6 +23,20 @@
  */
 
 import { sendWhatsAppMessage, sendWhatsAppTemplate } from "@/lib/whatsapp";
+import { adaptChainForVertical, chainNeedsVerticalCheck } from "@/lib/verticals/template-audit";
+
+/** Vertical of the sending business — only looked up when the chain holds a dog-worded template. */
+async function stepsForBusiness(steps: TemplateStep[], businessId: string | null): Promise<TemplateStep[]> {
+  if (!businessId || !chainNeedsVerticalCheck(steps)) return steps;
+  try {
+    const { getBusinessVertical } = await import("@/lib/verticals/server");
+    return adaptChainForVertical(steps, await getBusinessVertical(businessId));
+  } catch (err) {
+    // Lookup failed → same chain as before the verticals work (dogs behaviour).
+    console.error("[WhatsApp chain] vertical lookup failed —", err instanceof Error ? err.message : String(err));
+    return steps;
+  }
+}
 
 export interface TemplateStep {
   name: string;      // approved Meta template name, e.g. "petra_lead_followup_notice"
@@ -134,7 +148,9 @@ export function contextForScheduledMessage(payload: LoosePayload, relatedEntityT
  * go out (24h window only). Never throws.
  */
 export async function sendWithTemplateChain(input: ChainSendInput): Promise<ChainSendResult> {
-  const { to, steps, fallbackBody, businessId, context } = input;
+  const { to, fallbackBody, businessId, context } = input;
+  // "generic" vertical: never send an approved template whose body talks about dogs.
+  const steps = await stepsForBusiness(input.steps, businessId);
   const failedTemplates: FailedTemplate[] = [];
 
   for (const step of steps) {

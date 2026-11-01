@@ -1,4 +1,5 @@
 "use client";
+import { useVertical } from "@/hooks/useVertical";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { CheckCircle2, MessageCircle, ExternalLink, Info, Copy, CreditCard, CalendarRange } from "lucide-react";
@@ -14,6 +15,7 @@ const PUBLIC_APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://petra-app.com
 /** Public booking link: copy, share on WhatsApp, open. Read-only — safe for every member. */
 function BookingLinkBox({ slug }: { slug: string }) {
   const t = useTranslations("settings.bookingTab");
+  const { v } = useVertical();
   const [copied, setCopied] = useState(false);
   const bookingUrl = `${PUBLIC_APP_URL}/book/${slug}`;
 
@@ -24,7 +26,7 @@ function BookingLinkBox({ slug }: { slug: string }) {
     });
   }
 
-  const waMsg = `היי! 🐾\nרוצה לקבוע תור? אפשר לעשות את זה בקלות דרך הלינק הזה:\n${bookingUrl}`; // i18n-ok — share text sent to clients via WhatsApp (Phase 3)
+  const waMsg = v("booking.share_link_message", { url: bookingUrl });
   const waLink = `https://api.whatsapp.com/send?text=${encodeURIComponent(waMsg)}`;
 
   return (

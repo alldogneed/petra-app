@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { toWhatsAppPhone } from "@/lib/utils";
+import { useVertical } from "@/hooks/useVertical";
 import { DashboardStats } from "@/components/dashboard/dashboard-shared";
 import { DashCard, DashCardHeader, DashLink, SentMark, WaIconButton, WaTextButton } from "@/components/dashboard/dash-ui";
 
@@ -12,11 +13,12 @@ export function AtRiskCustomersWidget({ customers }: { customers: DashboardStats
   const t = useTranslations("dashboard.atRiskCustomers");
   const [sentIds, setSentIds] = useState<Set<string>>(new Set());
   const [bulkSending, setBulkSending] = useState(false);
+  const { v } = useVertical();
 
   if (!customers || customers.length === 0) return null;
 
   function buildMsg(c: DashboardStats["atRiskCustomers"][0]) {
-    return `שלום ${c.name}! 🐾\nזמן רב לא ראינו אתכם, מתגעגעים!\nהאם תרצו לקבוע תור? נשמח לראות אתכם שוב 😊`; // i18n-ok — WhatsApp text sent to the customer (Phase 3: business-language template)
+    return v("dashboard.at_risk_message", { name: c.name });
   }
 
   function handleBulkSend() {
@@ -61,7 +63,7 @@ export function AtRiskCustomersWidget({ customers }: { customers: DashboardStats
             <div className="flex-1 min-w-0 flex flex-col gap-0.5">
               <Link
                 href={`/customers/${c.id}`}
-                className="text-sm font-medium text-slate-900 hover:text-orange-600 truncate"
+                className="text-sm font-medium text-slate-900 hover:text-brand-600 truncate"
               >
                 {c.name}
               </Link>

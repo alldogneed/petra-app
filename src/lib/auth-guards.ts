@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSessionByToken, SESSION_COOKIE } from "./session";
 import type { FullSession } from "./session";
+import { isApiHiddenForVertical } from "./verticals";
 import {
   hasPlatformPermission,
   hasTenantPermission,
@@ -250,6 +251,20 @@ export async function requireAuth(
  * Requires a valid session and returns the user's first active businessId.
  * Platform super_admins get a fallback businessId if they have no membership.
  */
+/** Pathname of a guarded request (NextRequest or a plain Request in tests). */
+function requestPath(request: NextRequest | Request): string {
+  try {
+    return (request as NextRequest).nextUrl?.pathname ?? new URL(request.url).pathname;
+  } catch {
+    return "";
+  }
+}
+
+/** Response for a module hidden by the business's vertical — same as a route that doesn't exist. */
+export function verticalHiddenResponse(): NextResponse {
+  return NextResponse.json({ error: "Not found" }, { status: 404 });
+}
+
 export async function requireBusinessAuth(
   request: NextRequest
 ): Promise<{ session: FullSession; businessId: string } | NextResponse> {
@@ -270,10 +285,11 @@ export async function requireBusinessAuth(
   if (session.impersonatedBusinessId) {
     const biz = await prisma.business.findUnique({
       where: { id: session.impersonatedBusinessId },
-      select: { status: true },
+      select: { status: true, vertical: true },
     });
     if (biz?.status === "suspended") return NextResponse.json({ error: "business_suspended" }, { status: 403 });
     if (biz?.status === "closed") return NextResponse.json({ error: "business_closed" }, { status: 403 });
+    if (isApiHiddenForVertical(biz?.vertical, requestPath(request))) return verticalHiddenResponse();
     return { session, businessId: session.impersonatedBusinessId };
   }
 
@@ -300,10 +316,13 @@ export async function requireBusinessAuth(
   // Check if the business is suspended/closed + auto-downgrade expired subscriptions
   const biz = await prisma.business.findUnique({
     where: { id: membership.businessId },
-    select: { status: true, tier: true, subscriptionStatus: true, subscriptionEndsAt: true },
+    select: { status: true, tier: true, vertical: true, subscriptionStatus: true, subscriptionEndsAt: true },
   });
   if (biz?.status === "suspended") return NextResponse.json({ error: "business_suspended" }, { status: 403 });
   if (biz?.status === "closed") return NextResponse.json({ error: "business_closed" }, { status: 403 });
+  // Verticals: a module the business's vertical hides answers 404 (hidden ≠ locked).
+  // "dogs" hides nothing, so this never fires for existing businesses.
+  if (isApiHiddenForVertical(biz?.vertical, requestPath(request))) return verticalHiddenResponse();
 
   // Auto-downgrade: if subscription period has ended and status is cancel_pending,
   // immediately downgrade to free (don't wait for daily cron)

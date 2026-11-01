@@ -500,8 +500,8 @@ function PaymentRequestContent() {
 
             {selectedCustomer ? (
               <div className="flex items-center gap-3 bg-slate-50 rounded-xl px-4 py-3">
-                <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
-                  <User className="w-5 h-5 text-orange-600" />
+                <div className="w-10 h-10 rounded-full bg-brand-100 flex items-center justify-center">
+                  <User className="w-5 h-5 text-brand-600" />
                 </div>
                 <div className="flex-1">
                   <p className="font-medium text-petra-text">{selectedCustomer.name}</p>
@@ -526,7 +526,7 @@ function PaymentRequestContent() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder={t("customer.searchPlaceholder")}
-                    className="w-full ps-10 pe-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+                    className="w-full ps-10 pe-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
                   />
                 </div>
 
@@ -575,7 +575,7 @@ function PaymentRequestContent() {
                   className={cn(
                     "px-3 py-1.5 rounded-lg text-sm transition-colors",
                     activeCategory === cat
-                      ? "bg-orange-500 text-white"
+                      ? "bg-brand-500 text-white"
                       : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                   )}
                 >
@@ -608,7 +608,7 @@ function PaymentRequestContent() {
                     className={cn(
                       "rounded-xl border p-4 transition-all",
                       qty > 0
-                        ? "border-orange-300 bg-orange-50/50"
+                        ? "border-brand-300 bg-brand-50/50"
                         : "border-slate-200 hover:border-slate-300"
                     )}
                   >
@@ -633,7 +633,7 @@ function PaymentRequestContent() {
                         <span className="w-8 text-center text-sm font-semibold">{qty}</span>
                         <button
                           onClick={() => addItem(product.id)}
-                          className="w-8 h-8 rounded-lg bg-orange-500 hover:bg-orange-600 text-white flex items-center justify-center transition-colors"
+                          className="w-8 h-8 rounded-lg bg-brand-500 hover:bg-brand-600 text-white flex items-center justify-center transition-colors"
                         >
                           <Plus className="w-4 h-4" />
                         </button>
@@ -647,7 +647,7 @@ function PaymentRequestContent() {
                     ) : (
                       <button
                         onClick={() => addItem(product.id)}
-                        className="mt-3 w-full py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium transition-colors flex items-center justify-center gap-1.5"
+                        className="mt-3 w-full py-2 rounded-lg bg-brand-500 hover:bg-brand-600 text-white text-sm font-medium transition-colors flex items-center justify-center gap-1.5"
                       >
                         <Plus className="w-4 h-4" />
                         {t("products.add")}
@@ -747,7 +747,7 @@ function PaymentRequestContent() {
                           setIsManualOverride(e.target.checked);
                           if (e.target.checked) setManualPrice(calculatedTotal);
                         }}
-                        className="w-4 h-4 rounded border-slate-300 text-orange-500 focus:ring-orange-500"
+                        className="w-4 h-4 rounded border-slate-300 text-brand-500 focus:ring-brand-500"
                       />
                       <span className="text-sm text-slate-600">{t("summary.manualOverride")}</span>
                     </label>
@@ -759,7 +759,7 @@ function PaymentRequestContent() {
                           min={0}
                           value={manualPrice || ""}
                           onChange={(e) => setManualPrice(Number(e.target.value))}
-                          className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+                          className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500"
                         />
                       </div>
                     )}
@@ -770,7 +770,7 @@ function PaymentRequestContent() {
                 <div className="border-t border-slate-200 pt-4">
                   <div className="flex items-center justify-between">
                     <span className="text-base font-bold text-petra-text">{t("summary.totalToPay")}</span>
-                    <span className="text-xl font-bold text-orange-600">{sym}{finalPrice}</span>
+                    <span className="text-xl font-bold text-brand-600">{sym}{finalPrice}</span>
                   </div>
                 </div>
 
@@ -848,7 +848,7 @@ function PaymentRequestContent() {
                     }}
                     placeholder={autoPaymentUrl || t("paymentLink.placeholder")}
                     dir="ltr"
-                    className={cn("w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 placeholder:text-slate-300", !autoPaymentUrl && localeCfg.dir === "rtl" && "placeholder:text-right")} // rtl-ok: dir="ltr" input, Hebrew placeholder aligned right
+                    className={cn("w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 placeholder:text-slate-300", !autoPaymentUrl && localeCfg.dir === "rtl" && "placeholder:text-right")} // rtl-ok: dir="ltr" input, Hebrew placeholder aligned right
                   />
                   {stripeLink && customPaymentUrl === stripeLink && (
                     <p className="text-xs text-violet-600 flex items-center gap-1">

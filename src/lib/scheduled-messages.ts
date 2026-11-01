@@ -24,13 +24,14 @@ export async function chainForScheduledMessage(
   if (steps.length || msg.relatedEntityType !== "APPOINTMENT_FOLLOWUP" || !msg.relatedEntityId) return steps;
   const appt = await prisma.appointment.findFirst({
     where: { id: msg.relatedEntityId, businessId: msg.businessId },
-    select: { customer: { select: { name: true } }, pet: { select: { name: true } }, business: { select: { phone: true } } },
+    select: { customer: { select: { name: true } }, pet: { select: { name: true } }, business: { select: { phone: true, vertical: true } } },
   });
   if (!appt) return steps;
   return appointmentFollowupChain({
     customerName: appt.customer.name,
     petName: appt.pet?.name,
     businessPhone: appt.business.phone ?? "",
+    vertical: appt.business.vertical,
   });
 }
 

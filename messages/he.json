@@ -2087,7 +2087,8 @@
           "sendError": "שגיאה בשליחה",
           "limitReached": "הגעת למגבלת הפגישות — שדרג לבייסיק כדי להוסיף עוד",
           "createError": "שגיאה בקביעת התור. נסה שוב."
-        }
+        },
+        "attachLabelVertical": "{label}: <strong>{name}</strong> — מפגש {session}"
       },
       "payment": {
         "title": "רישום תשלום",
@@ -2186,7 +2187,8 @@
         "training": "אילוף",
         "eventsCount": "{count} אירועים",
         "noEvents": "אין אירועים",
-        "customerCard": "כרטיס לקוח"
+        "customerCard": "כרטיס לקוח",
+        "sessionWith": "{prefix} · {name}"
       },
       "detail": {
         "notesPlaceholder": "הוסף הערות לתור...",
@@ -2218,7 +2220,9 @@
         "addPayment": "הוסף תשלום",
         "sendNextLinkTitle": "שלח לינק לתור הבא",
         "deleteAppointment": "מחק תור"
-      }
+      },
+      "sessionTitleWithTime": "{prefix}: {label}{customer} ({time})",
+      "sessionTitle": "{prefix}: {label}{customer}"
     }
   },
   "checkout": {
@@ -2825,7 +2829,8 @@
         "continue": "המשך",
         "finalTitle": "אישור סופי",
         "finalDescription": "למחוק <b>{count} לקוחות</b> לצמיתות? לא ניתן לשחזר פעולה זו.",
-        "confirmLabel": "מחק {count} לקוחות"
+        "confirmLabel": "מחק {count} לקוחות",
+        "confirmDescriptionWarning": "אתה עומד למחוק <b>{count} לקוחות</b>. {warning}"
       },
       "export": {
         "success": "הקובץ הורד בהצלחה",
@@ -5627,7 +5632,9 @@
     "screenGuard": {
       "title": "אין לך גישה למסך הזה",
       "body": "בעל העסק יכול לפתוח אותו עבורך בהגדרות ← צוות והרשאות.",
-      "backToDashboard": "חזרה לדשבורד"
+      "backToDashboard": "חזרה לדשבורד",
+      "notFoundTitle": "הדף לא נמצא",
+      "notFoundBody": "המסך הזה לא קיים בעסק שלך."
     },
     "systemInbox": {
       "title": "דואר נכנס",
@@ -6209,7 +6216,8 @@
       },
       "confirmDeleteLog": {
         "title": "למחוק את תיעוד השיחה?"
-      }
+      },
+      "toCustomerCard": "לכרטיס הלקוח"
     },
     "leadMeetingsSection": {
       "toasts": {
@@ -7300,7 +7308,8 @@
         "fields": {
           "name": "שם העסק *",
           "phone": "טלפון עסק *",
-          "legalEntityType": "סוג עוסק"
+          "legalEntityType": "סוג עוסק",
+          "kind": "סוג העסק"
         },
         "placeholders": {
           "name": "לדוגמה: אילוף כלבים ישראלי"
@@ -7491,7 +7500,8 @@
             "trainer": "מאלף כלבים",
             "boarding": "פנסיון",
             "grooming": "מספרה",
-            "combined": "משולב"
+            "combined": "משולב",
+            "otherBusiness": "עסק אחר"
           }
         },
         "activeClientsRange": {
@@ -7624,7 +7634,8 @@
         "trainer": "מאלף / מאלפת כלבים",
         "boarding": "פנסיון לכלבים",
         "grooming": "מספרה לחיות מחמד",
-        "combined": "משולב (אילוף, פנסיון, מספרה)"
+        "combined": "משולב (אילוף, פנסיון, מספרה)",
+        "otherBusiness": "עסק אחר (לא חיות מחמד)"
       },
       "clientRanges": {
         "upTo20": "עד 20"
@@ -11091,7 +11102,8 @@
       },
       "attach": {
         "label": "לשייך לחבילת אילוף: <strong>{name}</strong> — מפגש {session}",
-        "optionSession": "— מפגש {session}"
+        "optionSession": "— מפגש {session}",
+        "labelWithPrefix": "{prefix}: <strong>{name}</strong> — מפגש {session}"
       },
       "summary": {
         "date": "תאריך:",
@@ -14262,6 +14274,41 @@
         "importMore": "ייבוא נוסף",
         "retry": "נסה שוב"
       }
+    },
+    "brandingCard": {
+      "title": "מיתוג",
+      "description": "הצבעים והשם שהלקוחות שלך רואים — במערכת, בדף ההזמנות, במיילים ובדף החתימה. הלוגו הוא לוגו העסק שלמעלה.",
+      "toasts": {
+        "addressUpdated": "הכתובת עודכנה",
+        "addressUpdateError": "שגיאה בעדכון הכתובת",
+        "saved": "המיתוג נשמר",
+        "saveError": "שגיאה בשמירת המיתוג"
+      },
+      "address": {
+        "title": "הכתובת של העסק שלך",
+        "noAddress": "לשם העסק עדיין אין כתובת באנגלית — בחרו כתובת כאן למטה.",
+        "hint": "דף ההזמנות בכתובת שלך; גם כניסה למערכת עובדת שם.",
+        "newAddressAria": "כתובת חדשה",
+        "save": "שמירה"
+      },
+      "whatsapp": {
+        "title": "הודעות WhatsApp יוצאות כרגע מהמספר של המערכת",
+        "body": "הלקוחות רואים את שם המספר של המערכת ולא את שם העסק. כדי שההודעות ייצאו בשם העסק — חברו מספר WhatsApp עסקי משלכם.",
+        "connectLink": "לחיבור מספר משלכם ←"
+      },
+      "confirm": {
+        "title": "שינוי כתובת העסק",
+        "description": "הכתובת החדשה תהיה {subdomain}.{tenantRoot}. קישור ההזמנות הקודם (/book/{slug}) יפסיק לעבוד — יש לעדכן אותו בכל מקום ששיתפתם.",
+        "confirmLabel": "שנה כתובת"
+      },
+      "colors": {
+        "primary": "צבע ראשי",
+        "secondary": "צבע משני (אופציונלי)",
+        "invalidHex": "צבע בפורמט #RRGGBB"
+      },
+      "senderName": "שם השולח במיילים ללקוחות",
+      "preview": "תצוגה מקדימה",
+      "saveBranding": "שמור מיתוג"
     }
   },
   "sign": {
@@ -15333,6 +15380,57 @@
       "tierGate": {
         "title": "מנוע תהליכי אילוף",
         "description": "ניהול תוכניות אילוף, מטרות ומפגשים. עקוב אחרי ההתקדמות של כל כלב בכל תוכנית אילוף."
+      },
+      "generic": {
+        "pageTitle": "תוכניות",
+        "tierGate": {
+          "title": "תוכניות ומפגשים",
+          "description": "ניהול חבילות מפגשים ותוכניות ללקוחות."
+        }
+      }
+    },
+    "genericPrograms": {
+      "title": "תוכניות",
+      "subtitle": "חבילות מפגשים ותוכניות ללקוחות · {count} פעילות",
+      "newProgram": "תוכנית חדשה",
+      "tabs": {
+        "active": "פעילות",
+        "done": "הסתיימו"
+      },
+      "searchPlaceholder": "חיפוש לפי תוכנית או לקוח...",
+      "toasts": {
+        "finished": "התוכנית הסתיימה",
+        "finishError": "שגיאה בעדכון התוכנית"
+      },
+      "empty": {
+        "active": "אין תוכניות פעילות",
+        "done": "אין תוכניות שהסתיימו",
+        "hint": "תוכנית נפתחת כאן, או אוטומטית מהזמנה של חבילת מפגשים."
+      },
+      "card": {
+        "sessionsOfTotal": "{done}/{total} מפגשים",
+        "sessions": "{done} מפגשים",
+        "start": "התחלה: {date}",
+        "logSession": "תיעוד מפגש",
+        "finish": "סיום תוכנית"
+      },
+      "newModal": {
+        "created": "התוכנית נוצרה",
+        "createError": "שגיאה ביצירת התוכנית",
+        "client": "לקוח *",
+        "name": "שם התוכנית *",
+        "namePlaceholder": "לדוגמה: חבילת 10 מפגשים",
+        "totalSessions": "כמות מפגשים",
+        "price": "מחיר ({symbol})",
+        "submit": "צור תוכנית"
+      },
+      "logModal": {
+        "logged": "המפגש תועד",
+        "logError": "שגיאה בתיעוד המפגש",
+        "title": "תיעוד מפגש — {name}",
+        "date": "תאריך",
+        "summary": "סיכום (אופציונלי)",
+        "submit": "שמור מפגש"
       }
     }
   },
@@ -15350,6 +15448,268 @@
     },
     "desktopBanner": {
       "message": "הדף הזה מותאם לשימוש בדסקטופ — חלק מהפעולות עשויות להיות מוגבלות במובייל"
+    }
+  },
+  "vocab": {
+    "business.kind": {
+      "dogs": "עסק לחיות מחמד",
+      "generic": "עסק אחר"
+    },
+    "business.kind_hint": {
+      "dogs": "אילוף, פנסיון, מספרה או כלבי שירות",
+      "generic": "כל עסק שירות אחר — לקוחות, תורים ותשלומים"
+    },
+    "nav.training": {
+      "dogs": "ניהול תהליכי אילוף",
+      "generic": "ניהול תוכניות"
+    },
+    "training.page_title": {
+      "dogs": "אימונים",
+      "generic": "תוכניות"
+    },
+    "training.page_subtitle": {
+      "dogs": "קבוצות ותוכניות אימון",
+      "generic": "תוכניות ומפגשים ללקוחות"
+    },
+    "search.placeholder": {
+      "dogs": "חפש לקוח, חיית מחמד, תור, ליד, משימה...",
+      "generic": "חפש לקוח, תור, ליד, משימה..."
+    },
+    "customer.followup_message": {
+      "dogs": "שלום {name} 😊\n\nרציתי לבדוק איך {pet} מרגיש/ת אחרי {service}{petPart}.\n\nאם יש שאלות אנחנו כאן תמיד 🐾",
+      "generic": "שלום {name} 😊\n\nרציתי לבדוק איך היה {service}.\n\nאם יש שאלות אנחנו כאן תמיד 🙂"
+    },
+    "customer.welcome_message": {
+      "dogs": "שלום {name} 😊\n\nברוכים הבאים! שמחים שהצטרפתם אלינו 🐾\nאנחנו כאן לכל שאלה ובקשה.\n\nנשמח לראותכם בקרוב!",
+      "generic": "שלום {name} 😊\n\nברוכים הבאים! שמחים שהצטרפתם אלינו\nאנחנו כאן לכל שאלה ובקשה.\n\nנשמח לראותכם בקרוב!"
+    },
+    "customer.bulk_placeholder": {
+      "dogs": "שלום {שם}! רצינו להזמין אותך לתור הבא שלך... 🐾",
+      "generic": "שלום {שם}! רצינו להזמין אותך לתור הבא שלך..."
+    },
+    "service_type.training": {
+      "dogs": "אילוף",
+      "generic": "מפגשים ותוכניות"
+    },
+    "pricing.category_program": {
+      "dogs": "אילוף",
+      "generic": "מפגשים וחבילות"
+    },
+    "order.training_kind": {
+      "dogs": "סוג האילוף",
+      "generic": "סוג ההזמנה"
+    },
+    "order.package_label": {
+      "dogs": "חבילת אילוף",
+      "generic": "חבילת מפגשים"
+    },
+    "order.no_packages": {
+      "dogs": "אין חבילות פעילות. הגדר פריט אילוף עם כמות מפגשים במחירון.",
+      "generic": "אין חבילות פעילות. הגדר פריט עם כמות מפגשים במחירון."
+    },
+    "order.payment_request_greeting": {
+      "dogs": "שלום {name}! 🐾",
+      "generic": "שלום {name}!"
+    },
+    "order.open_program": {
+      "dogs": "פתח תוכנית אילוף →",
+      "generic": "פתח את התוכנית →"
+    },
+    "picker.customer_placeholder": {
+      "dogs": "חיפוש לפי שם לקוח, טלפון או שם הכלב",
+      "generic": "חיפוש לפי שם לקוח או טלפון"
+    },
+    "customer.bulk_delete_warning": {
+      "dogs": "פעולה זו תמחק גם את חיות המחמד, התורים ונתוני הלקוח לצמיתות.",
+      "generic": "פעולה זו תמחק גם את התורים ונתוני הלקוח לצמיתות."
+    },
+    "calendar.group_training": {
+      "dogs": "אילוף מקצועי",
+      "generic": "תוכניות"
+    },
+    "calendar.category_training_home": {
+      "dogs": "אילוף בבית הלקוח",
+      "generic": "מפגשי תוכנית"
+    },
+    "calendar.session_title_prefix": {
+      "dogs": "אילוף",
+      "generic": "מפגש"
+    },
+    "calendar.session_icon": {
+      "dogs": "🐕",
+      "generic": "📋"
+    },
+    "calendar.reminder_service_icon": {
+      "dogs": "🐾",
+      "generic": "🗓️"
+    },
+    "calendar.next_booking_signoff": {
+      "dogs": "נתראה! 🐾",
+      "generic": "נתראה!"
+    },
+    "appointment.attach_to_package": {
+      "dogs": "לשייך לחבילת אילוף",
+      "generic": "לשייך לחבילה"
+    },
+    "appointment.default_session_note": {
+      "dogs": "מפגש אילוף",
+      "generic": "מפגש"
+    },
+    "appointment.booked_signoff": {
+      "dogs": "תודה! 🐾",
+      "generic": "תודה!"
+    },
+    "gcal.service_icon": {
+      "dogs": "🐾",
+      "generic": "🛎️"
+    },
+    "booking.confirm_signoff": {
+      "dogs": "מחכים לראותכם! 🐾",
+      "generic": "מחכים לראותכם!"
+    },
+    "order.type_training": {
+      "dogs": "🐕 אילוף",
+      "generic": "📋 מפגשים וחבילות"
+    },
+    "starter.appointment_reminder": {
+      "dogs": "שלום {customerName}! 🐾\n\nתזכורת לפגישה שלנו ב-{date} בשעה {time}.\nשירות: {serviceName}.\n\nמחכים לראות אתכם! 😊",
+      "generic": "שלום {customerName}!\n\nתזכורת לפגישה שלנו ב-{date} בשעה {time}.\nשירות: {serviceName}.\n\nמחכים לראות אתכם! 😊"
+    },
+    "starter.appointment_confirmation": {
+      "dogs": "שלום {customerName}! ✅\n\nהפגישה שלך נקבעה בהצלחה!\n📅 תאריך: {date}\n🕐 שעה: {time}\nשירות: {serviceName}\n\nמחכים לראות אתכם! 🐾",
+      "generic": "שלום {customerName}! ✅\n\nהפגישה שלך נקבעה בהצלחה!\n📅 תאריך: {date}\n🕐 שעה: {time}\nשירות: {serviceName}\n\nמחכים לראות אתכם!"
+    },
+    "starter.payment_request": {
+      "dogs": "שלום {customerName}! 🐾\n\n*דרישת תשלום*\nעבור: {serviceName} – {petName}\n\n💰 סה\"כ לתשלום: *{orderTotal}*\n\n💳 לתשלום מאובטח לחצו כאן:\n{paymentUrl}\n\nתודה שבחרתם בנו! 😊\n_לפניות ושאלות: {businessPhone}_",
+      "generic": "שלום {customerName}!\n\n*דרישת תשלום*\nעבור: {serviceName}\n\n💰 סה\"כ לתשלום: *{orderTotal}*\n\n💳 לתשלום מאובטח לחצו כאן:\n{paymentUrl}\n\nתודה שבחרתם בנו! 😊\n_לפניות ושאלות: {businessPhone}_"
+    },
+    "starter.lead_followup": {
+      "dogs": "שלום {customerName}! 🐾\n\nקיבלנו את פנייתך לגבי {serviceName} ונשמח לעזור!\nנחזור אליך בהקדם.",
+      "generic": "שלום {customerName}!\n\nקיבלנו את פנייתך לגבי {serviceName} ונשמח לעזור!\nנחזור אליך בהקדם."
+    },
+    "starter.appointment_followup": {
+      "dogs": "שלום {customerName}! 🌟\n\nרצינו לדעת איך {petName} מרגיש/ת לאחר הפגישה האחרונה.\nאם הכל בסדר – נשמח לשמוע! ואם יש משהו שלא כשורה, חשוב לנו לדעת.\n\nתודה שבחרתם בנו 💛",
+      "generic": "שלום {customerName}! 🌟\n\nרצינו לדעת איך הייתה הפגישה האחרונה.\nאם הכל בסדר – נשמח לשמוע! ואם יש משהו שלא כשורה, חשוב לנו לדעת.\n\nתודה שבחרתם בנו 💛"
+    },
+    "starter.new_customer": {
+      "dogs": "שלום {customerName}! 😊\n\nברוכים הבאים! שמחים לקבל אתכם ואת {petName} אלינו.\n\nיש לנו הרבה מה לחגוג ביחד – מחכים לראות אתכם בפגישה הראשונה! 🐾",
+      "generic": "שלום {customerName}! 😊\n\nברוכים הבאים! שמחים לקבל אתכם אלינו.\n\nמחכים לראות אתכם בפגישה הראשונה!"
+    },
+    "starter.review_request": {
+      "dogs": "שלום {customerName}! ⭐\n\nתודה שסמכתם עלינו לטפל ב-{petName}.\n\nאם אהבתם, נשמח מאוד לביקורת קצרה – זה עוזר לנו ולבעלי חיות אחרים בחיפוש שירות מקצועי 🙏\n\nתודה מהלב!",
+      "generic": "שלום {customerName}! ⭐\n\nתודה שסמכתם עלינו.\n\nאם אהבתם, נשמח מאוד לביקורת קצרה – זה עוזר לנו ולאחרים בחיפוש שירות מקצועי 🙏\n\nתודה מהלב!"
+    },
+    "booking.customer_step_title": {
+      "dogs": "פרטי בעל הכלב",
+      "generic": "הפרטים שלך"
+    },
+    "booking.customer_label": {
+      "dogs": "בעל הכלב",
+      "generic": "פרטי הלקוח"
+    },
+    "booking.meta_description": {
+      "dogs": "קבע/י תור אצל {name} בקלות ובמהירות. שירותים לכלבים",
+      "generic": "קבע/י תור אצל {name} בקלות ובמהירות."
+    },
+    "onboarding.business_name_placeholder": {
+      "dogs": "לדוגמה: אילוף כלבים ישראלי",
+      "generic": "לדוגמה: סטודיו נועה"
+    },
+    "onboarding.first_service_placeholder": {
+      "dogs": "לדוגמה: שיעור אילוף בסיסי",
+      "generic": "לדוגמה: פגישת ייעוץ"
+    },
+    "onboarding.next_service_placeholder": {
+      "dogs": "לדוגמה: שיעור אילוף מתקדם",
+      "generic": "לדוגמה: חבילת 5 מפגשים"
+    },
+    "onboarding.done_title": {
+      "dogs": "הכל מוכן! 🐾",
+      "generic": "הכל מוכן! 🎉"
+    },
+    "dashboard.welcome_icon": {
+      "dogs": "🐾",
+      "generic": "👋"
+    },
+    "dashboard.at_risk_message": {
+      "dogs": "שלום {name}! 🐾\nזמן רב לא ראינו אתכם, מתגעגעים!\nהאם תרצו לקבוע תור? נשמח לראות אתכם שוב 😊",
+      "generic": "שלום {name}!\nזמן רב לא ראינו אתכם, מתגעגעים!\nהאם תרצו לקבוע תור? נשמח לראות אתכם שוב 😊"
+    },
+    "team.critical_delete_label": {
+      "dogs": "למחוק לקוחות וכלבים",
+      "generic": "למחוק לקוחות"
+    },
+    "team.view_training_label": {
+      "dogs": "תהליכי אילוף",
+      "generic": "תוכניות"
+    },
+    "team.view_training_hint": {
+      "dogs": "תוכניות אילוף וקבוצות",
+      "generic": "תוכניות וחבילות מפגשים"
+    },
+    "booking.share_link_message": {
+      "dogs": "היי! 🐾\nרוצה לקבוע תור? אפשר לעשות את זה בקלות דרך הלינק הזה:\n{url}",
+      "generic": "היי!\nרוצה לקבוע תור? אפשר לעשות את זה בקלות דרך הלינק הזה:\n{url}"
+    },
+    "analytics.training_title": {
+      "dogs": "אילוף",
+      "generic": "תוכניות"
+    },
+    "analytics.active_programs": {
+      "dogs": "תוכניות אילוף פעילות",
+      "generic": "תוכניות פעילות"
+    },
+    "analytics.program_revenue": {
+      "dogs": "הכנסות אילוף בתקופה",
+      "generic": "הכנסות מתוכניות בתקופה"
+    },
+    "analytics.operations_tab": {
+      "dogs": "אילוף ופנסיון",
+      "generic": "תוכניות"
+    },
+    "messages.followup_subject": {
+      "dogs": "הכלב שלכם",
+      "generic": "את/ה"
+    },
+    "messages.greeting_emoji": {
+      "dogs": "🐾",
+      "generic": "🙂"
+    },
+    "plans.free_programs": {
+      "dogs": "מערכת ניהול תהליכי אילוף (עד 10 תוכניות)",
+      "generic": "תוכניות וחבילות מפגשים (עד 10)"
+    },
+    "plans.payment_request": {
+      "dogs": "בקשת תשלום + טפסי קליטה דיגיטליים",
+      "generic": "בקשת תשלום דיגיטלית"
+    },
+    "plans.basic_description": {
+      "dogs": "מושלם לגרומרים ומאלפים עצמאיים — יחיד, מקצועי, חסכוני",
+      "generic": "מושלם לעצמאים — יחיד, מקצועי, חסכוני"
+    },
+    "plans.pro_description": {
+      "dogs": "מושלם לפנסיונים ומרכזי אילוף — צוות, גדילה, שליטה מלאה",
+      "generic": "מושלם לעסקים עם צוות — גדילה ושליטה מלאה"
+    },
+    "register.tagline": {
+      "dogs": "ניהול עסקי חיות מחמד",
+      "generic": "ניהול לקוחות, תורים ותשלומים"
+    },
+    "register.business_placeholder": {
+      "dogs": "לדוגמה: פנסיון הכלבים של דניאל",
+      "generic": "לדוגמה: הסטודיו של דניאל"
+    },
+    "onboarding.welcome_intro": {
+      "dogs": "Petra היא מערכת ניהול לעסקי חיות מחמד בישראל — מאלפים, פנסיון, גרומרים ומרכזי הכשרת כלבי שירות. כל הכלים שצריך במקום אחד: לקוחות, תורים, תשלומים ותקשורת.",
+      "generic": "Petra היא מערכת ניהול לעסקי שירות בישראל. כל הכלים שצריך במקום אחד: לקוחות, תורים, תשלומים ותקשורת."
+    },
+    "onboarding.feature_customers_desc": {
+      "dogs": "כרטיסי לקוח, כלבים, היסטוריה",
+      "generic": "כרטיסי לקוח, היסטוריה ומסמכים"
+    },
+    "register.footer": {
+      "dogs": "כל הזכויות שמורות all-dog - המרכז הישראלי להתנהגות הכלב",
+      "generic": "כל הזכויות שמורות all-dog"
     }
   }
 }

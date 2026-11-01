@@ -2,6 +2,7 @@ import { cache } from "react"
 import prisma from "@/lib/prisma"
 import type { Metadata } from "next"
 import { getLocale, getTranslations } from "next-intl/server"
+import { vocab } from "@/lib/verticals/vocab"
 
 type Props = { params: { slug: string }; children: React.ReactNode }
 
@@ -9,7 +10,7 @@ const getBusiness = cache(async (slug: string) => {
   try {
     return await prisma.business.findUnique({
       where: { slug },
-      select: { name: true, logo: true },
+      select: { name: true, logo: true, vertical: true },
     })
   } catch {
     return null
@@ -21,13 +22,15 @@ export async function generateMetadata({ params }: Omit<Props, "children">): Pro
   const t = await getTranslations("booking.bookDetailLayout")
   if (!business) return { title: t("defaultTitle") }
 
+  const locale = await getLocale()
   const title = t("title", { name: business.name })
-  const description = t("description", { name: business.name })
+  const description = vocab("booking.meta_description", { locale, vertical: business.vertical, params: { name: business.name } })
   // Open Graph wants "he_IL" / "en_US"
-  const ogLocale = (await getLocale()).replace("-", "_")
+  const ogLocale = locale.replace("-", "_")
 
   return {
-    title,
+    // Verticals phase 3: a "generic" business's page title carries no "| Petra" suffix.
+    title: business.vertical === "generic" ? { absolute: title } : title,
     description,
     openGraph: {
       title,

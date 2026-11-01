@@ -781,7 +781,7 @@ export function registerTrainingTools(server: McpServer, ctx: ToolCtx): void {
           if (program.trainingType === "SERVICE_DOG") {
             const wasCompleted = existing.status === "COMPLETED";
             const nowCompleted = args.status === "COMPLETED";
-            if (wasCompleted !== nowCompleted) {
+            if (wasCompleted !== nowCompleted && program.dogId) {
               const sdProfile = await prisma.serviceDogProfile.findFirst({ where: { petId: program.dogId, businessId }, select: { id: true } });
               if (sdProfile) {
                 const mins = args.duration_minutes ?? existing.durationMinutes;

@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Mail, Lock, Eye, EyeOff, User, UserPlus, CheckSquare, Square, Briefcase } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { LOCALE_CONFIG, localeFromBusiness } from "@/lib/locale";
+import { vocab } from "@/lib/verticals/vocab";
+import { rememberSignupVertical, signupVerticalFromParam } from "@/lib/verticals/signup";
 
 // Password strength indicator
 function PasswordStrength({ password }: { password: string }) {
@@ -67,8 +69,13 @@ function RegisterForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const t = useTranslations("auth.registerPage");
-  const cfg = LOCALE_CONFIG[localeFromBusiness({ locale: useLocale() })];
+  const locale = useLocale();
+  const cfg = LOCALE_CONFIG[localeFromBusiness({ locale })];
   const planParam = searchParams.get("plan") ?? "";
+  // Verticals: /register?type=other = a business that isn't about pets. Plain /register = dogs (unchanged).
+  const signupVertical = signupVerticalFromParam(searchParams.get("type"));
+  const vertical = signupVertical ?? "dogs";
+  useEffect(() => rememberSignupVertical(signupVertical), [signupVertical]);
   const [name, setName] = useState("");
   const [businessName, setBusinessName] = useState("");
   const [email, setEmail] = useState("");
@@ -104,7 +111,7 @@ function RegisterForm() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, businessName: businessName.trim() || name.trim(), email, password, tosAccepted, tosVersion: "1.0", plan: planParam || undefined }),
+        body: JSON.stringify({ name, businessName: businessName.trim() || name.trim(), email, password, tosAccepted, tosVersion: "1.0", plan: planParam || undefined, ...(signupVertical ? { vertical: signupVertical } : {}) }),
       });
 
       const data = await res.json();
@@ -147,7 +154,7 @@ function RegisterForm() {
             <span className="text-white text-2xl font-bold">P</span>
           </div>
           <h1 className="text-2xl font-bold text-petra-text">Petra</h1>
-          <p className="text-sm text-petra-muted mt-1">{t("tagline")}</p>
+          <p className="text-sm text-petra-muted mt-1">{vocab("register.tagline", { vertical, locale })}</p>
         </div>
 
         {/* Google signup */}
@@ -220,7 +227,7 @@ function RegisterForm() {
               <input
                 type="text"
                 className="input ps-10"
-                placeholder={t("form.businessNamePlaceholder")}
+                placeholder={vocab("register.business_placeholder", { vertical, locale })}
                 value={businessName}
                 onChange={(e) => setBusinessName(e.target.value)}
                 required
@@ -349,7 +356,7 @@ function RegisterForm() {
           Petra &copy; {new Date().getFullYear()}
         </p>
         <p className="text-center text-xs text-petra-muted mt-1">
-          {t("copyright")}
+          {vocab("register.footer", { vertical, locale })}
         </p>
       </div>
     </div>

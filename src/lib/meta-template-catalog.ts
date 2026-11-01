@@ -83,6 +83,27 @@ export const PETRA_TEMPLATE_CATALOG: readonly CatalogTemplate[] = [
     footer: FOOTER,
     params: ["pet name", "age sentence", "business name"],
   },
+  // ── "generic" vertical (docs/verticals): neutral twins of the hand-made appointment
+  // templates, whose approved bodies use dog wording (prod verticalAudit, 31/10/2026).
+  // Same params as petra_appointment_*_v2; swapped in by adaptChainForVertical().
+  {
+    name: "petra_meeting_reminder",
+    category: "UTILITY",
+    language: "he",
+    body: "שלום {{1}}, תזכורת לתור שלך ב{{2}} בשעה {{3}}, {{4}}. לשינוי או לביטול אפשר להתקשר ל-{{5}}. נתראה!",
+    examples: ["דנה", "יום שני 3.11", "17:30", "שיעור פרטי", "050-1234567"],
+    footer: FOOTER,
+    params: ["customer name", "date", "time", "service", "business phone"],
+  },
+  {
+    name: "petra_meeting_confirmation",
+    category: "UTILITY",
+    language: "he",
+    body: "שלום {{1}}, התור שלך נקבע ל{{2}} בשעה {{3}}, {{4}}. לשאלות או לשינוי אפשר להתקשר ל-{{5}}. נתראה!",
+    examples: ["דנה", "יום שני 3.11", "17:30", "שיעור פרטי", "050-1234567"],
+    footer: FOOTER,
+    params: ["customer name", "date", "time", "service", "business phone"],
+  },
   // ── Alerts to the platform owner (Or), sent by notify-owner.ts ─────────────
   // Before these, every owner alert reused petra_owner_alert, whose fixed text is the
   // NEW-USER message ("נרשם משתמש חדש לפטרה") — bot handoffs and support tickets showed

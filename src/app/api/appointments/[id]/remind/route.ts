@@ -1,5 +1,7 @@
 export const dynamic = 'force-dynamic';
 
+import { vocab } from "@/lib/verticals/vocab";
+import { getBusinessVertical } from "@/lib/verticals/server";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
@@ -92,7 +94,7 @@ export async function POST(
       .replace(/\{businessPhone\}/g, bizPhone);
   } else {
     const petPart = appt.pet ? ` עם ${appt.pet.name}` : "";
-    body = `שלום ${appt.customer.name}! 🐾\n\nתזכורת לתור שלך ב-${formattedDate} בשעה ${appt.startTime}.\nשירות: ${serviceName}${petPart}.\n\nנתראה! 😊${footer}`;
+    body = `שלום ${appt.customer.name}! ${vocab("messages.greeting_emoji", { vertical: await getBusinessVertical(authResult.businessId) })}\n\nתזכורת לתור שלך ב-${formattedDate} בשעה ${appt.startTime}.\nשירות: ${serviceName}${petPart}.\n\nנתראה! 😊${footer}`;
   }
 
   const to = toWhatsAppNum(appt.customer.phone);

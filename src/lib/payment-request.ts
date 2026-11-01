@@ -26,6 +26,8 @@
  *      never request money that was already collected.
  */
 
+import { vocab } from "@/lib/verticals/vocab";
+import { getBusinessVertical } from "@/lib/verticals/server";
 import prisma from "@/lib/prisma";
 import { sendWhatsAppMessage, sendWhatsAppTemplate, interpolateTemplate } from "@/lib/whatsapp";
 import { toWhatsAppPhone, formatCurrency } from "@/lib/utils";
@@ -145,7 +147,7 @@ export async function sendPaymentRequestForOrder(
     });
   } else {
     const forPart = [serviceName, petName].filter(Boolean).join(" – ");
-    body = `שלום ${customer.name}! 🐾\n\n*דרישת תשלום*${forPart ? `\nעבור: ${forPart}` : ""}\n\n💰 סה"כ לתשלום: *${orderTotal}*\n\n💳 לתשלום מאובטח לחצו כאן:\n${paymentUrl}\n\nתודה שבחרתם בנו! 😊${businessPhone ? `\n_לפניות ושאלות: ${businessPhone}_` : ""}`;
+    body = `${vocab("order.payment_request_greeting", { vertical: await getBusinessVertical(businessId), params: { name: customer.name } })}\n\n*דרישת תשלום*${forPart ? `\nעבור: ${forPart}` : ""}\n\n💰 סה"כ לתשלום: *${orderTotal}*\n\n💳 לתשלום מאובטח לחצו כאן:\n${paymentUrl}\n\nתודה שבחרתם בנו! 😊${businessPhone ? `\n_לפניות ושאלות: ${businessPhone}_` : ""}`;
   }
 
   // ── Send immediately (mirrors the inline confirmation pattern in the orders

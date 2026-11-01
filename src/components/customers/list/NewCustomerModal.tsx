@@ -12,6 +12,7 @@ import { triggerLimitModal } from "@/lib/limit-reached";
 import { validateIsraeliPhone, validateEmail, sanitizeName, validateName, normalizeIsraeliPhone } from "@/lib/validation";
 import { samePhone } from "@/lib/customer-filters";
 import { REFERRAL_SOURCES } from "./types";
+import { useVertical } from "@/hooks/useVertical";
 
 // ─── New Customer Modal ─────────────────────────────────────────
 
@@ -26,6 +27,7 @@ export function NewCustomerModal({
 }) {
   const t = useTranslations("customers");
   const tc = useTranslations("common");
+  const { v } = useVertical();
   const queryClient = useQueryClient();
   const router = useRouter();
   const [form, setForm] = useState({
@@ -88,7 +90,7 @@ export function NewCustomerModal({
       setDuplicate(null);
       const waPhone = newCustomer.phone ? toWhatsAppPhone(newCustomer.phone) : null;
       if (waPhone) {
-        const welcomeMsg = `שלום ${newCustomer.name} 😊\n\nברוכים הבאים! שמחים שהצטרפתם אלינו 🐾\nאנחנו כאן לכל שאלה ובקשה.\n\nנשמח לראותכם בקרוב!`; // i18n-ok
+        const welcomeMsg = v("customer.welcome_message", { name: newCustomer.name });
         toast.success(t("newCustomerModal.toastCreated"), {
           action: {
             label: t("newCustomerModal.sendWelcome"),

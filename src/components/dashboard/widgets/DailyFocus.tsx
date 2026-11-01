@@ -1,4 +1,5 @@
 "use client";
+import { useVertical } from "@/hooks/useVertical";
 import { useState } from "react";
 import Link from "next/link";
 import { isToday, isPast, isYesterday, differenceInMinutes, format, startOfDay } from "date-fns";
@@ -67,6 +68,7 @@ export function DailyFocusSection({ todayTasks, overdueTasks, onComplete }: {
 }) {
   const t = useTranslations("dashboard.dailyFocus");
   const labels = useDashboardLabels();
+  const vt = useVertical();
   const [completingIds, setCompletingIds] = useState<Set<string>>(new Set());
   const [focusFilterState, setFocusFilter] = useState<"overdue" | "today" | null>(null);
   // A filter whose bucket emptied (e.g. all overdue tasks completed) falls back to "all"
@@ -110,7 +112,8 @@ export function DailyFocusSection({ todayTasks, overdueTasks, onComplete }: {
         const isCompleting = completingIds.has(task.id);
         const focusStatus = computeFocusStatus(task);
         const overdue = focusStatus === "overdue";
-        const category = labels.taskCategory(task.category) ?? null;
+        const categoryLabel = labels.taskCategory(task.category);
+        const category = categoryLabel ? vt.label(task.category, categoryLabel) : null;
         return (
           <div
             key={task.id}
@@ -124,7 +127,7 @@ export function DailyFocusSection({ todayTasks, overdueTasks, onComplete }: {
             <Link
               href={`/tasks?task=${task.id}`}
               className={cn(
-                "flex-1 min-w-0 truncate text-sm font-medium text-slate-900 hover:text-orange-600 transition-colors",
+                "flex-1 min-w-0 truncate text-sm font-medium text-slate-900 hover:text-brand-600 transition-colors",
                 isCompleting && "line-through text-slate-400"
               )}
             >

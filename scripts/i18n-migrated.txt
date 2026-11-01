@@ -290,3 +290,5 @@ src/app/sign/[token]/page.tsx
 # comment-only Hebrew
 src/app/(dashboard)/layout.tsx
 src/components/ChunkErrorReload.tsx
+src/components/settings/BrandingCard.tsx
+src/components/training/GenericProgramsView.tsx

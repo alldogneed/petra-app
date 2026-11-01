@@ -1,5 +1,6 @@
 "use client";
 
+import { useVertical } from "@/hooks/useVertical";
 import Link from "next/link";
 import { GraduationCap, Hotel, Users, Calendar, TrendingUp, CreditCard, BedDouble } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -12,21 +13,24 @@ export function OperationsTab({ data }: { data: AnalyticsData }) {
   const tr = data.training;
   const b = data.boarding;
   const noRooms = b.capacityNights === 0;
+  // Verticals: "generic" — programs without groups, no boarding (docs/verticals).
+  const { isGeneric, hides, v } = useVertical();
 
   return (
     <div className="space-y-4">
-      <ReportCard title={t("training")} icon={<GraduationCap className="w-4 h-4 text-teal-500" />}>
+      <ReportCard title={v("analytics.training_title")} icon={<GraduationCap className="w-4 h-4 text-teal-500" />}>
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-          <KpiCard icon={<GraduationCap className="w-5 h-5" />} iconClassName="bg-teal-50 text-teal-500" label={t("activePrograms")} value={tr.activePrograms} />
+          <KpiCard icon={<GraduationCap className="w-5 h-5" />} iconClassName="bg-teal-50 text-teal-500" label={v("analytics.active_programs")} value={tr.activePrograms} />
           <KpiCard icon={<TrendingUp className="w-5 h-5" />} iconClassName="bg-teal-50 text-teal-500" label={t("completedSessions")} value={tr.completedSessionsThisPeriod} />
-          <KpiCard icon={<Users className="w-5 h-5" />} iconClassName="bg-violet-50 text-violet-500" label={t("activeGroups")} value={tr.activeGroups} />
-          <KpiCard icon={<Calendar className="w-5 h-5" />} iconClassName="bg-fuchsia-50 text-fuchsia-500" label={t("groupSessions")} value={tr.groupSessionsThisPeriod} />
+          {!isGeneric && <KpiCard icon={<Users className="w-5 h-5" />} iconClassName="bg-violet-50 text-violet-500" label={t("activeGroups")} value={tr.activeGroups} />}
+          {!isGeneric && <KpiCard icon={<Calendar className="w-5 h-5" />} iconClassName="bg-fuchsia-50 text-fuchsia-500" label={t("groupSessions")} value={tr.groupSessionsThisPeriod} />}
           {tr.revenue !== null && (
-            <KpiCard icon={<CreditCard className="w-5 h-5" />} iconClassName="bg-emerald-50 text-emerald-500" label={t("trainingRevenue")} value={fmtMoney(tr.revenue)} />
+            <KpiCard icon={<CreditCard className="w-5 h-5" />} iconClassName="bg-emerald-50 text-emerald-500" label={v("analytics.program_revenue")} value={fmtMoney(tr.revenue)} />
           )}
         </div>
       </ReportCard>
 
+      {!hides("boarding") && (
       <ReportCard title={t("boarding")} icon={<Hotel className="w-4 h-4 text-pink-500" />}>
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
           <KpiCard
@@ -58,6 +62,7 @@ export function OperationsTab({ data }: { data: AnalyticsData }) {
           )}
         </div>
       </ReportCard>
+      )}
     </div>
   );
 }

@@ -10,6 +10,7 @@ import { useBusinessLocale } from "@/hooks/useBusinessLocale";
 import { cn, fetchJSON, getStatusColor, getStatusLabel } from "@/lib/utils";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { waLink } from "./customer-actions";
+import { useVertical } from "@/hooks/useVertical";
 import { appointmentServiceName, formatDayDate, type CustomerAppointment, type CustomerDetail, type PagedAppointments } from "./types";
 
 type Scope = "upcoming" | "past";
@@ -31,6 +32,7 @@ export function AppointmentsSection({
   const tc = useTranslations("common");
   const tCustomers = useTranslations("customers");
   const { locale } = useBusinessLocale();
+  const { v } = useVertical();
   const customerId = customer.id;
   const queryClient = useQueryClient();
   const counts = customer.summary?.counts;
@@ -81,7 +83,12 @@ export function AppointmentsSection({
   const followUpLink = (apt: CustomerAppointment) => {
     const serviceName = appointmentServiceName(apt, "הטיפול"); // i18n-ok — part of the WhatsApp text sent to the client
     const petPart = apt.pet ? ` של ${apt.pet.name}` : ""; // i18n-ok — WhatsApp text sent to the client
-    const msg = `שלום ${customer.name} 😊\n\nרציתי לבדוק איך ${apt.pet ? apt.pet.name : "הכלב"} מרגיש/ת אחרי ${serviceName}${petPart}.\n\nאם יש שאלות אנחנו כאן תמיד 🐾`; // i18n-ok — WhatsApp text sent to the client
+    const msg = v("customer.followup_message", {
+      name: customer.name,
+      pet: apt.pet ? apt.pet.name : "הכלב", // i18n-ok — WhatsApp text sent to the client
+      service: serviceName,
+      petPart,
+    });
     return waLink(customer.phone, msg);
   };
 

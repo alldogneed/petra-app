@@ -1,4 +1,6 @@
 "use client";
+import { useVertical } from "@/hooks/useVertical";
+import { offeredPriceCategories, priceCategoryLabel } from "@/lib/verticals/catalog";
 import { PageTitle } from "@/components/ui/PageTitle";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -194,6 +196,9 @@ const CAL_GROUPS: { key: CalGroupKey; keys: CalCategory[] }[] = [
 ];
 
 const ALL_CAL_CATEGORIES: CalCategory[] = CAL_CATEGORIES.map((c) => c.key);
+
+/** Verticals: categories that only exist in the dog domain — not offered to "generic". */
+const DOG_ONLY_CAL_CATEGORIES: readonly CalCategory[] = ["grooming", "boarding", "training_boarding", "training_group"];
 
 /** Resolve an appointment/booking to a canonical category from its service metadata. */
 function resolveAppointmentCategory(
@@ -466,6 +471,7 @@ function NewAppointmentModal({
   const queryClient = useQueryClient();
   const { can: canPlan } = usePlan();
   const { canSendMessages } = usePermissions();
+  const { vertical, v } = useVertical();
   const [form, setForm] = useState({
     customerId: "",
     priceListItemId: "",
@@ -664,11 +670,11 @@ function NewAppointmentModal({
               }
             >
               <option value="">{t("newModal.noService")}</option>
-              {PRICE_LIST_CATEGORIES.map(({ value: cat, key: catKey }) => {
+              {PRICE_LIST_CATEGORIES.filter(({ value }) => offeredPriceCategories(vertical, [value]).length > 0).map(({ value: cat, key: catKey }) => {
                 const catItems = priceListItems.filter((i) => i.category === cat);
                 if (catItems.length === 0) return null;
                 return (
-                  <optgroup key={cat} label={t(`priceCategories.${catKey}`)}>
+                  <optgroup key={cat} label={priceCategoryLabel(vertical, cat) !== cat ? v("pricing.category_program") : t(`priceCategories.${catKey}`)}>
                     {catItems.map((i) => (
                       <option key={i.id} value={i.id}>
                         {i.name}{i.durationMinutes ? t("newModal.durationSuffix", { minutes: i.durationMinutes }) : ""}{t("newModal.priceSuffix", { symbol, price: String(i.basePrice) })}
@@ -715,16 +721,17 @@ function NewAppointmentModal({
           )}
           {/* Attach to a training package */}
           {attachProgram && !recurring && (
-            <div className="border border-orange-200 bg-orange-50/60 rounded-xl p-3 space-y-2">
+            <div className="border border-brand-200 bg-brand-50/60 rounded-xl p-3 space-y-2">
               <label className="flex items-start gap-3 cursor-pointer">
                 <input
                   type="checkbox"
-                  className="w-4 h-4 mt-0.5 rounded accent-orange-500"
+                  className="w-4 h-4 mt-0.5 rounded accent-brand-500"
                   checked={attachToProgram}
                   onChange={(e) => setAttachToProgram(e.target.checked)}
                 />
                 <span className="text-sm text-petra-text">
-                  {t.rich("newModal.attachLabel", {
+                  {t.rich("newModal.attachLabelVertical", {
+                    label: v("appointment.attach_to_package"),
                     name: attachProgram.name,
                     session: attachProgram.nextSessionNumber,
                     strong: (c) => <strong>{c}</strong>,
@@ -804,7 +811,7 @@ function NewAppointmentModal({
             <label className="flex items-center gap-3 cursor-pointer">
               <input
                 type="checkbox"
-                className="w-4 h-4 rounded accent-orange-500"
+                className="w-4 h-4 rounded accent-brand-500"
                 checked={recurring}
                 onChange={(e) => setRecurring(e.target.checked)}
               />
@@ -835,7 +842,7 @@ function NewAppointmentModal({
                     onChange={(e) => setOccurrences(Number(e.target.value))}
                   />
                 </div>
-                <div className="col-span-2 text-xs text-petra-muted bg-orange-50 border border-orange-100 rounded-lg px-3 py-2">
+                <div className="col-span-2 text-xs text-petra-muted bg-brand-50 border border-brand-100 rounded-lg px-3 py-2">
                   {t.rich("newModal.recurringSummary", {
                     count: occurrences,
                     date: form.date || t("newModal.selectedDate"),
@@ -856,7 +863,7 @@ function NewAppointmentModal({
                 // Server requires a service, price-list item, OR notes to describe
                 // the appointment. For a service-less general appointment, fall
                 // back to a default note so booking still succeeds.
-                notes: form.notes || (form.priceListItemId ? "" : (willAttach ? t("newModal.defaultNoteTraining") : t("newModal.defaultNoteGeneral"))),
+                notes: form.notes || (form.priceListItemId ? "" : (willAttach ? v("appointment.default_session_note") : t("newModal.defaultNoteGeneral"))),
                 endTime,
                 // Attaching to a package: link the dog of that package when none was chosen
                 ...(willAttach && attachProgram
@@ -992,8 +999,21 @@ function CalendarContent() {
   const aptLabel = (apt: AppointmentEvent) => getAppointmentLabel(apt, t("appointmentFallback"));
   const taskCategoryLabel = (category: string) =>
     t.has(`taskCategories.${category}`) ? t(`taskCategories.${category}`) : category;
+  const vt = useVertical();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  // Verticals (docs/verticals): "generic" sees no dog-only categories and no boarding.
+  const { isGeneric, v, vData, hides } = useVertical();
+  const calGroups = isGeneric
+    ? CAL_GROUPS.map((g) => ({
+        ...g,
+        keys: g.keys.filter((k) => !DOG_ONLY_CAL_CATEGORIES.includes(k)),
+      }))
+    : CAL_GROUPS;
+  const calGroupLabel = (key: CalGroupKey) =>
+    isGeneric && key === "training" ? v("calendar.group_training") : t(`groups.${key}`);
+  const calLabel = (key: CalCategory) =>
+    key === "training_home" ? v("calendar.category_training_home") : t(`categories.${key}`);
   const { canSendMessages } = usePermissions();
   const { isFree, tier, can } = usePlan();
   const maxAppts = getMaxAppointments(tier);
@@ -1249,7 +1269,7 @@ function CalendarContent() {
     queryKey: ["boarding-calendar", from, to],
     queryFn: () =>
       fetchJSON(`/api/boarding?from=${from}&to=${to}`),
-    enabled: viewMode !== "month",
+    enabled: viewMode !== "month" && !hides("boarding"),
   });
 
   const { data: tasksRaw = [] } = useQuery<TaskEvent[]>({
@@ -1849,7 +1869,7 @@ function CalendarContent() {
         </div>
         {!compact && (
           <div className={cn("truncate", overdue ? "text-red-500 text-[10px] font-medium" : "text-petra-muted")}>
-            {overdue ? t("overdue") : taskCategoryLabel(task.category)}
+            {overdue ? t("overdue") : vt.label(task.category, taskCategoryLabel(task.category))}
           </div>
         )}
       </div>
@@ -2035,7 +2055,7 @@ function CalendarContent() {
               keys.length === activeCategories.size && keys.every((k) => activeCategories.has(k));
             const lenses: { label: string; keys: CalCategory[] }[] = [
               { label: t("lenses.all"), keys: ALL_CAL_CATEGORIES },
-              ...CAL_GROUPS.map((g) => ({
+              ...calGroups.map((g) => ({
                 label: g.key === "customer" ? t("lenses.customer") : g.key === "training" ? t("lenses.training") : t("lenses.mgmt"),
                 keys: g.keys,
               })),
@@ -2062,10 +2082,10 @@ function CalendarContent() {
 
         {/* Grouped category chips (legend + filter in one) */}
         <div className="flex items-center gap-x-3 gap-y-2 flex-nowrap overflow-x-auto pb-1 md:flex-wrap md:overflow-visible md:pb-0 [&>*]:flex-shrink-0">
-          {CAL_GROUPS.map((group, gi) => (
+          {calGroups.map((group, gi) => (
             <div key={group.key} className="flex items-center gap-1.5 whitespace-nowrap">
               {gi > 0 && <div className="w-px h-4 bg-petra-border me-1 hidden md:block" />}
-              <span className="text-[10px] tracking-wide text-petra-muted/80">{t(`groups.${group.key}`)}</span>
+              <span className="text-[10px] tracking-wide text-petra-muted/80">{calGroupLabel(group.key)}</span>
               {group.keys.map((key) => {
                 const def = CAL_CATEGORY_MAP[key];
                 const isActive = activeCategories.has(key);
@@ -2080,7 +2100,7 @@ function CalendarContent() {
                         : "border-transparent opacity-40 hover:opacity-70"
                     )}
                     style={{ color: isActive ? def.color : undefined }}
-                    title={t("toggleCategoryTitle", { label: t(`categories.${def.key}`) })}
+                    title={t("toggleCategoryTitle", { label: calLabel(key) })}
                   >
                     {key === "gcal" ? (
                       <span className="text-[9px] font-bold text-white rounded px-1 flex-shrink-0" style={{ background: def.color }}>G</span>
@@ -2090,7 +2110,7 @@ function CalendarContent() {
                         style={{ background: def.color }}
                       />
                     )}
-                    <span className={isActive ? "" : "text-petra-muted"}>{t(`categories.${def.key}`)}</span>
+                    <span className={isActive ? "" : "text-petra-muted"}>{calLabel(key)}</span>
                   </button>
                 );
               })}
@@ -2620,10 +2640,10 @@ function CalendarContent() {
                   const label = s.program.dog?.name ?? s.program.name;
                   return (
                     <a key={`tp-${s.id}`} href="/training"
-                      title={t("trainingTitleWithTime", { label, customer: s.program.customer ? " · " + s.program.customer.name : "", time: startTime })}
+                      title={t("sessionTitleWithTime", { prefix: v("calendar.session_title_prefix"), label, customer: s.program.customer ? " · " + s.program.customer.name : "", time: startTime })}
                       className="absolute rounded-lg px-1.5 py-0.5 overflow-hidden border flex flex-col justify-center hover:opacity-90 transition-opacity"
                       style={{ top, height: Math.max(height, 20), insetInlineStart: `calc(60px + ${dayIdx} * (100% - 60px) / 7)`, width: `calc((100% - 60px) / 7 - 4px)`, marginInlineStart: 2, background: "#3B82F6", borderColor: "#3B82F6", zIndex: 6 }}>
-                      <div className="text-[10px] font-semibold truncate text-white drop-shadow-sm">🐕 {label}</div>
+                      <div className="text-[10px] font-semibold truncate text-white drop-shadow-sm">{v("calendar.session_icon")} {label}</div>
                     </a>
                   );
                 })}
@@ -2719,7 +2739,7 @@ function CalendarContent() {
                       <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
                       <span className="truncate text-petra-text">{task.title}</span>
                       <span className="text-petra-muted ms-auto">
-                        {taskCategoryLabel(task.category)}
+                        {vt.label(task.category, taskCategoryLabel(task.category))}
                       </span>
                     </div>
                   );
@@ -2966,10 +2986,10 @@ function CalendarContent() {
               const label = s.program.dog?.name ?? s.program.name;
               return (
                 <a key={`tp-day-${s.id}`} href="/training"
-                  title={t("trainingTitle", { label, customer: s.program.customer ? " · " + s.program.customer.name : "" })}
+                  title={t("sessionTitle", { prefix: v("calendar.session_title_prefix"), label, customer: s.program.customer ? " · " + s.program.customer.name : "" })}
                   className="absolute rounded-lg px-2 py-0.5 overflow-hidden border flex flex-col justify-center hover:opacity-90 transition-opacity"
                   style={{ top, height: Math.max(height, 22), insetInlineStart: 60, width: "calc(100% - 64px)", background: "#3B82F6", borderColor: "#3B82F6", zIndex: 6 }}>
-                  <div className="text-xs font-semibold truncate text-white drop-shadow-sm">🐕 {label}</div>
+                  <div className="text-xs font-semibold truncate text-white drop-shadow-sm">{v("calendar.session_icon")} {label}</div>
                   {s.program.customer && <div className="text-[10px] truncate text-white/80">{s.program.customer.name}</div>}
                 </a>
               );
@@ -3241,7 +3261,7 @@ function CalendarContent() {
                 time: dateTimeToTime(tk.dueAt!),
                 sortKey: dateTimeToTime(tk.dueAt!),
                 title: tk.title,
-                subtitle: taskCategoryLabel(tk.category),
+                subtitle: vt.label(tk.category, taskCategoryLabel(tk.category)),
                 color: overdue ? "#EF4444" : (TASK_PRIORITY_COLORS[tk.priority] || "#9CA3AF"),
                 href: "/tasks",
                 icon: overdue ? "⚠️" : "✅",
@@ -3327,10 +3347,10 @@ function CalendarContent() {
                   time,
                   sortKey: time,
                   title: label,
-                  subtitle: s.program.customer ? t("agenda.trainingWith", { name: s.program.customer.name }) : t("agenda.training"),
+                  subtitle: s.program.customer ? t("agenda.sessionWith", { prefix: v("calendar.session_title_prefix"), name: s.program.customer.name }) : v("calendar.session_title_prefix"),
                   color: "#3B82F6",
                   href: "/training",
-                  icon: "🐕",
+                  icon: v("calendar.session_icon"),
                 });
               });
           }
@@ -3584,7 +3604,7 @@ function CalendarContent() {
               href={(() => {
                 const appt = selectedAppointment;
                 const date = new Date(appt.date).toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long" }); // i18n-ok — customer WhatsApp text (Phase 3)
-                const msg = `שלום ${appt.customer.name}! 😊\nתזכורת לתור שלך:\n📅 ${date} בשעה ${appt.startTime}\n🐾 ${getAppointmentLabel(appt, "תור")}${appt.pet ? ` עם ${appt.pet.name}` : ""}\n\nנתראה! 🌟`; // i18n-ok — customer WhatsApp text (Phase 3)
+                const msg = `שלום ${appt.customer.name}! 😊\nתזכורת לתור שלך:\n📅 ${date} בשעה ${appt.startTime}\n${v("calendar.reminder_service_icon")} ${getAppointmentLabel(appt, "תור")}${appt.pet ? ` עם ${appt.pet.name}` : ""}\n\nנתראה! 🌟`; // i18n-ok — customer WhatsApp text (Phase 3)
                 return `https://api.whatsapp.com/send?phone=${toWhatsAppPhone(appt.customer.phone)}&text=${encodeURIComponent(msg)}`;
               })()}
               target="_blank"
@@ -3808,7 +3828,7 @@ function CalendarContent() {
                           href={(() => {
                             const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
                             const bookingUrl = `${baseUrl}/book/${user?.businessSlug || user?.businessId || ""}`;
-                            const msg = `שלום ${selectedAppointment.customer.name}! 😊\nתודה על הביקור! מוזמנ/ת לקבוע את התור הבא:\n${bookingUrl}\nנתראה! 🐾`; // i18n-ok — customer WhatsApp text (Phase 3)
+                            const msg = `שלום ${selectedAppointment.customer.name}! 😊\nתודה על הביקור! מוזמנ/ת לקבוע את התור הבא:\n${bookingUrl}\n${vData("calendar.next_booking_signoff")}`; // i18n-ok — customer WhatsApp text (Phase 3)
                             return `https://api.whatsapp.com/send?phone=${toWhatsAppPhone(selectedAppointment.customer.phone)}&text=${encodeURIComponent(msg)}`;
                           })()}
                           target="_blank"

@@ -40,6 +40,19 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useVertical } from "@/hooks/useVertical";
+import { hasDogText, helpCategoriesForVertical } from "@/lib/verticals/help";
+// The dog-domain filter (DOG_TEXT_RE) reads the Hebrew source text, whatever the UI language.
+// he.json is already in the client bundle (src/lib/verticals/vocab.ts imports it).
+import heMessages from "../../../messages/he.json";
+
+function heText(key: string): string {
+  const value = key.split(".").reduce<unknown>(
+    (node, part) => (node && typeof node === "object" ? (node as Record<string, unknown>)[part] : undefined),
+    heMessages,
+  );
+  return typeof value === "string" ? value : "";
+}
 
 interface FaqItem {
   questionKey: string;
@@ -751,10 +764,39 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
     },
   });
 
-  const filteredCategories = useMemo(() => {
-    if (!search.trim() && !selectedCategory) return faqCategories;
+  // Verticals: a "generic" business sees only help without dog-domain content.
+  const { vertical } = useVertical();
+  const verticalCategories = useMemo(
+    () =>
+      vertical === "dogs"
+        ? faqCategories
+        : helpCategoriesForVertical(
+            faqCategories.map((cat) => ({
+              ...cat,
+              items: cat.items.map((item) => ({ ...item, question: heText(item.questionKey), answer: heText(item.answerKey) })),
+            })),
+            vertical,
+          ),
+    [vertical],
+  );
+  // Same rule as changelogForVertical() (src/lib/verticals/help.ts), on the Hebrew text of each key.
+  const verticalChangelog = useMemo(
+    () =>
+      vertical === "dogs"
+        ? changelog
+        : changelog
+            .map((release) => ({
+              ...release,
+              items: release.items.filter((item) => !hasDogText(heText(`help.helpCenter.changelog.${release.id}.items.${item}`))),
+            }))
+            .filter((release) => !hasDogText(heText(`help.helpCenter.changelog.${release.id}.title`)) && release.items.length > 0),
+    [vertical],
+  );
 
-    return faqCategories
+  const filteredCategories = useMemo(() => {
+    if (!search.trim() && !selectedCategory) return verticalCategories;
+
+    return verticalCategories
       .filter((cat) => !selectedCategory || cat.id === selectedCategory)
       .map((cat) => ({
         ...cat,
@@ -766,7 +808,7 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
         ),
       }))
       .filter((cat) => cat.items.length > 0);
-  }, [search, selectedCategory, tr]);
+  }, [search, selectedCategory, tr, verticalCategories]);
 
   const totalResults = filteredCategories.reduce(
     (acc, cat) => acc + cat.items.length,
@@ -834,7 +876,7 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
                 >
                   {t("faqTab.all")}
                 </button>
-                {faqCategories.map((cat) => {
+                {verticalCategories.map((cat) => {
                   const Icon = cat.icon;
                   return (
                     <button
@@ -914,7 +956,7 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
           {/* Changelog Tab */}
           {activeTab === "changelog" && (
             <div className="space-y-4">
-              {changelog.map((release) => (
+              {verticalChangelog.map((release) => (
                 <div key={release.version} className="card overflow-hidden">
                   <div className="flex items-center gap-3 px-4 py-3 bg-slate-50/80 border-b border-petra-border">
                     <div className="w-7 h-7 rounded-lg bg-brand-50 flex items-center justify-center">
@@ -956,10 +998,10 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
                   <Link
                     href="/support"
                     onClick={() => onOpenChange(false)}
-                    className="flex items-center gap-3 p-3 rounded-xl border border-orange-200 bg-orange-50/50 hover:bg-orange-50 transition-colors"
+                    className="flex items-center gap-3 p-3 rounded-xl border border-brand-200 bg-brand-50/50 hover:bg-brand-50 transition-colors"
                   >
-                    <div className="w-9 h-9 rounded-xl bg-orange-100 flex items-center justify-center flex-shrink-0">
-                      <LifeBuoy className="w-4 h-4 text-orange-600" />
+                    <div className="w-9 h-9 rounded-xl bg-brand-100 flex items-center justify-center flex-shrink-0">
+                      <LifeBuoy className="w-4 h-4 text-brand-600" />
                     </div>
                     <div>
                       <p className="text-sm font-medium text-petra-text">{t("contact.myTickets")}</p>
@@ -1014,9 +1056,9 @@ export function HelpCenter({ open, onOpenChange }: HelpCenterProps) {
 
               {/* Bug report form */}
               <div className="card overflow-hidden">
-                <div className="flex items-center gap-2.5 px-4 py-3 bg-orange-50/80 border-b border-petra-border">
-                  <div className="w-7 h-7 rounded-lg bg-orange-100 flex items-center justify-center">
-                    <LifeBuoy className="w-3.5 h-3.5 text-orange-600" />
+                <div className="flex items-center gap-2.5 px-4 py-3 bg-brand-50/80 border-b border-petra-border">
+                  <div className="w-7 h-7 rounded-lg bg-brand-100 flex items-center justify-center">
+                    <LifeBuoy className="w-3.5 h-3.5 text-brand-600" />
                   </div>
                   <h3 className="text-sm font-semibold text-petra-text">{t("bugReport.heading")}</h3>
                 </div>

@@ -1,0 +1,705 @@
+# scan-vocab — 2026-10-31T09:43Z — 50301369
+# total: 622 lines in 141 files
+
+════════ 1. ניווט (23)
+src/components/search/SearchModal.tsx:42:const PET_EMOJI: Record<string, string> = { dog: "🐕", cat: "🐈" };
+src/components/search/SearchModal.tsx:43:function petEmoji(species: string) { return PET_EMOJI[species] ?? "🐾"; }
+src/components/search/SearchModal.tsx:142:  { key: "pets" as const,         label: "חיות מחמד",    Icon: PawPrint },
+src/components/search/global-search.tsx:188:              placeholder="חפש לקוח, חיית מחמד, תור, ליד, משימה..."
+src/components/search/global-search.tsx:242:                title="חיות מחמד"
+src/components/search/global-search.tsx:246:                  title: `${p.name} (${p.species === "dog" ? "כלב" : p.species === "cat" ? "חתול" : p.species})`,
+src/components/layout/sidebar.tsx:124:  { name: "חיות מחמד", href: "/pets", icon: PawPrint, minRole: "manager", lockedFeature: "pets_advanced" },
+src/components/layout/sidebar.tsx:281:    "/boarding": `${counters?.activeBoarding || 0} כלבים בפנסיון`,
+src/components/layout/topbar.tsx:72:  "/vaccinations": { title: "חיסונים", subtitle: "תזכורות חיסוני כלבת" },
+src/components/layout/topbar.tsx:73:  "/pets": { title: "חיות מחמד", subtitle: "כל החיות הרשומות בעסק" },
+src/app/manifest.ts:5:    name: "Petra - ניהול עסקי חיות מחמד",
+src/app/manifest.ts:7:    description: "מערכת ניהול מתקדמת לעסקי חיות מחמד",
+src/app/layout.tsx:27:    default: "Petra — מערכת ניהול לעסקי חיות מחמד",
+src/app/layout.tsx:31:    "ניהול לקוחות, תורים, WhatsApp ופנסיון — כל הכלים לעסק שלך במקום אחד. מסלול חינמי ללא כרטיס אשראי. מאלפי כלבים, ג
+src/app/layout.tsx:33:    "מערכת ניהול כלבים",
+src/app/layout.tsx:34:    "תוכנה לאלף כלבים",
+src/app/layout.tsx:35:    "ניהול פנסיון כלבים",
+src/app/layout.tsx:38:    "CRM לעסקי חיות מחמד",
+src/app/layout.tsx:40:    "אילוף כלבים תוכנה",
+src/app/layout.tsx:41:    "ניהול עסק כלבים ישראל",
+src/app/layout.tsx:63:    title: "Petra — מערכת ניהול לעסקי חיות מחמד",
+src/app/layout.tsx:71:        alt: "Petra — מערכת ניהול לעסקי חיות מחמד",
+src/app/layout.tsx:77:    title: "Petra — מערכת ניהול לעסקי חיות מחמד",
+
+════════ 2. Pet (111)
+src/components/orders/CreateOrderModal.tsx:932:                    <a href={`/customers/${customerId}`} className="text-xs text-brand-600 underline mt-1 inline-block">הוסף חיית מחמד ← דף הלקוח</a>
+src/components/orders/CreateOrderModal.tsx:985:                <a href={`/customers/${customerId}`} className="text-xs text-brand-600 underline mt-1 inline-block">הוסף חיית מחמד ← דף הלקוח</a>
+src/components/customers/detail/PetsSection.tsx:79:      toast.success("חיית המחמד נמחקה");
+src/components/customers/detail/PetsSection.tsx:83:      toast.error(err?.message || "שגיאה במחיקת חיית המחמד");
+src/components/customers/detail/PetsSection.tsx:103:          חיות מחמד ({customer.summary?.counts.pets ?? customer.pets.length})
+src/components/customers/detail/PetsSection.tsx:114:          <p className="text-sm text-petra-muted mt-2">אין חיות מחמד רשומות</p>
+src/components/customers/detail/PetsSection.tsx:117:            הוסף חיית מחמד
+src/components/customers/detail/PetsSection.tsx:208:          title={deleteIsRequest ? "בקשת מחיקת חיית מחמד" : "מחיקת חיית מחמד"}
+src/components/customers/detail/NewAppointmentModal.tsx:135:              <label className="label">חיית מחמד</label>
+src/components/customers/detail/PetCard.tsx:126:                ? "כלב"
+src/components/customers/detail/PetCard.tsx:139:              const bdMsg = `יום הולדת שמח ל-${pet.name}! 🎂🐾\n\n${pet.name} מלא/ה${agePart} היום – כל הכבוד! 🎉\n\nכמתנה קטנה,
+src/components/customers/detail/PetCard.tsx:159:              aria-label="ערוך פרטי חיית המחמד"
+src/components/customers/detail/PetCard.tsx:168:                aria-label={deleteIsRequest ? "שלח בקשת מחיקה לאישור" : "מחק חיית מחמד"}
+src/components/customers/detail/PetCard.tsx:392:                        <span className="text-stone-500">כלבת: </span>
+src/components/customers/detail/PetCard.tsx:400:                        <span className="text-stone-500">כלבת עד: </span>
+src/components/customers/detail/PetCard.tsx:471:                    {pet.health.notVaccinatedFlags?.rabies && <div><span className="text-orange-600 font-medium">כלבת: לא חוסן</span></div>}
+src/components/customers/detail/SendContractSection.tsx:284:                  <label className="label">שייך לכלב (אופציונלי)</label>
+src/components/customers/detail/SendContractSection.tsx:286:                    <option value="">ללא שיוך לכלב</option>
+src/components/customers/detail/SendContractSection.tsx:289:                  <p className="text-xs text-petra-muted mt-1">פרטי הכלב (שם, גזע, שבב, מין, צבע) יוטבעו אוטומטית בחוזה
+src/components/customers/detail/pet-modals.tsx:21:  "אפגן האונד", "סלוקי", "דוג דה בורדו", "מונגרל", "כלב כנעני", "מעורב",
+src/components/customers/detail/pet-modals.tsx:202:          <h2 className="text-lg font-bold text-petra-text">חיית מחמד חדשה</h2>
+src/components/customers/detail/pet-modals.tsx:229:                <option value="dog">כלב</option>
+src/components/customers/detail/pet-modals.tsx:461:              : "הוסף חיית מחמד"}
+src/components/customers/detail/pet-modals.tsx:695:    onError: () => toast.error("שגיאה בעדכון חיית המחמד. נסה שוב."),
+src/components/customers/detail/AppointmentsSection.tsx:78:    const msg = `שלום ${customer.name} 😊\n\nרציתי לבדוק איך ${apt.pet ? apt.pet.name : "הכלב"} מרגיש/ת אחרי ${serviceName}${pet
+src/components/customers/detail/pet-care-modals.tsx:208:            {/* כלבת */}
+src/components/customers/detail/pet-care-modals.tsx:211:                <p className="text-xs font-medium text-petra-text">כלבת — אחת לשנה</p>
+src/components/customers/detail/pet-care-modals.tsx:444:  { key: "dogAggression", label: "תוקפנות כלפי כלבים" },
+src/components/customers/detail/pet-care-modals.tsx:563:                placeholder="קולות חזקים, כלבים אחרים..."
+src/components/customers/detail/constants.ts:27:  dogAggression: { label: "תוקפנות כלבים", severity: "red" },
+src/components/customers/detail/customer-actions.ts:24:    `שלום ${customer.name}! 📅\nקבע/י תור אונליין בקישור הבא:\n${origin}/book/${businessSlug}\nנשמח לראותך! 🐾`
+src/components/customers/detail/customer-actions.ts:52:      const msg = `שלום ${customer.name}! 📋\nאנא מלא טופס קבלה עבור הכלב שלך:\n${data.url}\nהקישור בתוקף ל-7 ימים. ת
+src/components/customers/CustomerPicker.tsx:110:  placeholder = "חיפוש לפי שם לקוח, טלפון או שם הכלב",
+src/components/customers/CustomerPicker.tsx:247:              <span className="truncate">🐕 {selected.pets.map((p) => p.name).join(", ")}</span>
+src/components/customers/CustomerPicker.tsx:325:                          🐕{" "}
+src/components/customers/list/NewCustomerModal.tsx:88:        const welcomeMsg = `שלום ${newCustomer.name} 😊\n\nברוכים הבאים! שמחים שהצטרפתם אלינו 🐾\nאנחנו כאן לכל שאל
+src/components/customers/list/BulkWhatsAppModal.tsx:66:              placeholder="שלום {שם}! רצינו להזמין אותך לתור הבא שלך... 🐾"
+src/components/customers/list/CustomerFiltersPanel.tsx:153:          <option value="dog">כלבים</option>
+src/components/layout/topbar.tsx:72:  "/vaccinations": { title: "חיסונים", subtitle: "תזכורות חיסוני כלבת" },
+src/components/dashboard/widgets/Vaccinations.tsx:60:        const waMsg = `שלום ${v.customerName}! 💉\nחיסון ${v.vaccineLabel} של ${v.petName} ${v.isExpired ? "פג תוקפו" : `עומד לפוג בתאר
+src/services/pets.ts:229:    throw new ServiceError("שם חיית מחמד ארוך מדי (מקסימום 100 תווים)", "VALIDATION");
+src/services/pets.ts:737:    buildVaccineEntry(h, "rabies",     "כלבת",                  h.rabiesLastDate,    (h.rabiesUnknown || !h.rabiesValidUntil) ? null : h.rabiesValidUntil, now),
+src/app/api/cron/vaccination-reminders/route.ts:41:    label: "כלבת",
+src/app/api/cron/vaccination-reminders/route.ts:187:          const body = `שלום ${customerName}, תזכורת: ${def.label} של ${petName} פוקע/ת ${urgency} (${formattedExpiry}). אנחנו ממליצים לח
+src/app/api/customers/[id]/pets/route.ts:56:      return NextResponse.json({ error: "שם חיית מחמד חובה" }, { status: 400 });
+src/app/api/customers/[id]/pets/route.ts:59:      return NextResponse.json({ error: "שם חיית מחמד ארוך מדי (מקסימום 100 תווים)" }, { status: 400 });
+src/app/api/customers/[id]/pets/route.ts:105:        description: `חיית מחמד חדשה נוספה: ${pet.name}`,
+src/app/api/customers/export/route.ts:123:      "שם חיית מחמד", "סוג", "גזע", "מין", "משקל (ק״ג)",
+src/app/api/customers/export/route.ts:160:          const speciesLabel = pet.species === "dog" ? "כלב" : pet.species === "cat" ? "חתול" : "אחר";
+src/app/api/pets/export/route.ts:69:      dog: "כלב",
+src/app/api/pets/export/route.ts:94:      "כלבת – תוקף": rabies,
+src/app/api/pets/export/route.ts:104:  XLSX.utils.book_append_sheet(wb, ws, "חיות מחמד");
+src/app/api/pets/export/route.ts:110:    entityLabel: "חיות מחמד",
+src/app/api/pets/export/route.ts:122:    return NextResponse.json({ error: "שגיאה בייצוא חיות מחמד" }, { status: 500 });
+src/app/api/pets/[petId]/route.ts:72:      return NextResponse.json({ error: "אין הרשאה למחיקת חיית מחמד" }, { status: 403 });
+src/app/api/pets/[petId]/route.ts:85:        description: `מחיקת חיית מחמד: ${existing.name}`,
+src/app/api/pets/[petId]/route.ts:132:        { error: "לא ניתן למחוק — קיימות רשומות המקושרות לחיית המחמד (תורים, פנסיון או אילוף). נסו שוב או פנו 
+src/app/api/pets/[petId]/route.ts:136:    return NextResponse.json({ error: "שגיאה במחיקת חיית המחמד" }, { status: 500 });
+src/app/(dashboard)/vaccinations/page.tsx:68:  { type: "rabies",    label: "כלבת" },
+src/app/(dashboard)/vaccinations/page.tsx:76:  { value: "rabies",     label: "כלבת" },
+src/app/(dashboard)/vaccinations/page.tsx:130:    msg = `שלום! רצינו להודיע לך שה${vaccineLabel} של הכלב ${petName} פג תוקפו. אנא פנה לווטרינר בהקדם. – הצוות של
+src/app/(dashboard)/vaccinations/page.tsx:133:    msg = `שלום! רצינו להזכיר לך שה${vaccineLabel} של הכלב ${petName} עומד לפוג בתאריך ${dateStr}. כדאי לתאם חידוש. – ה
+src/app/(dashboard)/vaccinations/page.tsx:335:          <p className="text-sm text-petra-muted mt-1">מעקב חיסונים וטיפולים לכלבי העסק</p>
+src/app/(dashboard)/vaccinations/page.tsx:384:            placeholder="חיפוש לפי כלב, לקוח..."
+src/app/(dashboard)/vaccinations/page.tsx:437:          <span className="ms-auto text-sm text-petra-muted">{filteredGroups.length} כלבים</span>
+src/app/(dashboard)/vaccinations/page.tsx:451:              ? "לא נמצאו כלבים מתאימים לפילטר הנבחר"
+src/app/(dashboard)/vaccinations/page.tsx:465:            {" – מומלץ לשלוח תזכורת לבעלי הכלבים"}
+src/app/(dashboard)/vaccinations/page.tsx:477:                  <th className="table-header-cell">שם הכלב</th>
+src/app/(dashboard)/vaccinations/page.tsx:478:                  <th className="table-header-cell">בעל הכלב</th>
+src/app/(dashboard)/vaccinations/page.tsx:524:                          <span className="text-xs text-petra-muted">כלב שירות</span>
+src/app/(dashboard)/vaccinations/page.tsx:573:                              תיק כלב
+src/app/(dashboard)/customers/[id]/page.tsx:136:      toast.error("חובה להוסיף חיית מחמד ללקוח לפני יצירת הזמנה", { description: "לחץ על 'הוסף' בקטע חיות המחמד" 
+src/app/(dashboard)/pets/[id]/page.tsx:708:                  { label: "כלבת – תוקף", value: pet.health.rabiesValidUntil ? formatDate(new Date(pet.health.rabiesValidUntil)) : null, warn: rabiesExpired || rabiesE
+src/app/(dashboard)/pets/[id]/page.tsx:768:              pet.behavior.dogAggression && "אגרסיבי כלפי כלבים",
+src/app/(dashboard)/pets/page.tsx:57:  { value: "dog", label: "כלבים" },
+src/app/(dashboard)/pets/page.tsx:68:  dog: "כלב",
+src/app/(dashboard)/pets/page.tsx:200:      toast.success("חיית המחמד נוספה בהצלחה");
+src/app/(dashboard)/pets/page.tsx:203:    onError: () => toast.error("שגיאה בהוספת חיית המחמד"),
+src/app/(dashboard)/pets/page.tsx:213:          <h2 className="text-lg font-bold text-petra-text">חיית מחמד חדשה</h2>
+src/app/(dashboard)/pets/page.tsx:296:                <option value="dog">כלב</option>
+src/app/(dashboard)/pets/page.tsx:341:              {mutation.isPending ? "שומר..." : "הוסף חיית מחמד"}
+src/app/(dashboard)/pets/page.tsx:357:      title="ניהול חיות מחמד"
+src/app/(dashboard)/pets/page.tsx:358:      description="ניהול מתקדם של חיות מחמד — גרף משקל, גלריית תמונות, היסטוריה רפואית ועוד. שדרג כדי לגשת."
+src/app/(dashboard)/pets/page.tsx:396:      toast.success("חיית המחמד נמחקה");
+src/app/(dashboard)/pets/page.tsx:401:      toast.error(err?.message || "שגיאה במחיקת חיית המחמד");
+src/app/(dashboard)/pets/page.tsx:465:      <PageTitle title="חיות מחמד" />
+src/app/(dashboard)/pets/page.tsx:469:          <h1 className="page-title">חיות מחמד</h1>
+src/app/(dashboard)/pets/page.tsx:480:            הוסף חיית מחמד
+src/app/(dashboard)/pets/page.tsx:517:              <p className="text-xs text-petra-muted">כלבים · {cats} חתולים</p>
+src/app/(dashboard)/pets/page.tsx:631:              הוסף חיית מחמד
+src/app/(dashboard)/pets/page.tsx:642:              <caption className="sr-only">רשימת חיות מחמד</caption>
+src/app/(dashboard)/pets/page.tsx:740:                          <span className="text-petra-muted text-sm">כלב שירות</span>
+src/app/(dashboard)/pets/page.tsx:806:            <h3 className="text-base font-bold text-petra-text mb-2">בקשת מחיקת חיית מחמד</h3>
+src/app/(dashboard)/pets/page.tsx:838:          title="מחיקת חיית מחמד"
+src/lib/import-utils.ts:76:  "שם כלב": "pet_name", "כלב": "pet_name", "שם חיית מחמד": "pet_name", "שם": "pet_name",
+src/lib/import-utils.ts:95:  "שם כלב": "pet_name", "כלב": "pet_name", "שם חיית מחמד": "pet_name", "שם חיה": "pet_name",
+src/lib/import-utils.ts:100:  "הערות כלב": "notes", "הערות חיה": "notes", "הערות חיית מחמד": "notes",
+src/lib/import-utils.ts:274:      issues.push({ rowNumber: rowNum, entityType: "pet", issueCode: "MISSING_PET_NAME", message: "שם חיית מחמד חסר", raw: row });
+src/lib/import-utils.ts:421:      s.includes("pet") || s.includes("dog") || s.includes("כלב") || s.includes("חיות")
+src/lib/import-utils.ts:496:    ["שם מלא", "טלפון", "מייל", "עיר", "הערות", "שם כלב", "גזע", "מין", "גיל", "הערות כלב"],
+src/lib/import-utils.ts:522:  name: "name", dog_name: "name", "שם כלב": "name", "שם": "name",
+src/lib/import-utils.ts:709:    ["שם כלב", "גזע", "מין", "תאריך לידה", "מיקרוצ'יפ", "שלב", "סוג שירות", "מיקום נוכחי", "הערות"],
+src/lib/import-utils.ts:711:    ["לונה", "לברדור", "נקבה", "01/08/2023", "985112000654321", "אימון מתקדם", "נחייה", "משפחת אומנה", "כלבה מצטיינת"],
+src/lib/import-utils.ts:718:  XLSX.utils.book_append_sheet(wb, sheet, "כלבי שירות");
+src/lib/vaccine-plan.ts:42:  { key: "RABIES_BOOSTER", label: "כלבת", doses: 1 },
+src/lib/vaccine-plan.ts:50:  { key: "RABIES_PRIMARY", label: "כלבת", doses: 2 },
+src/lib/permissions.ts:290:  { id: "sd_vaccines", label: "כלבי שירות — מסך החיסונים" },
+src/lib/permissions.ts:327:  { perms: [TENANT_PERMS.SD_VACCINES_ADULTS], key: TENANT_PERMS.SD_VACCINES_ADULTS, group: "sd_vaccines", label: "חיסונים וטיפולים בוגרים", hint: "טבלת החיסונים
+src/lib/lead-pet-notes.ts:2: * Lead has no pet columns — pet details live in the notes as one "🐾 פרטי הכלב" block.
+src/lib/lead-pet-notes.ts:6:export const PET_BLOCK_HEADER = "🐾 פרטי הכלב:";
+src/lib/dashboard-widgets.ts:82:  { id: "vaccinations", label: "חיסוני כלבת", hint: "חיסונים שפג תוקפם או עומד לפוג", span: "full" },
+
+════════ 3. יומן (32)
+src/components/customers/detail/NewAppointmentModal.tsx:135:              <label className="label">חיית מחמד</label>
+src/components/customers/detail/AppointmentsSection.tsx:78:    const msg = `שלום ${customer.name} 😊\n\nרציתי לבדוק איך ${apt.pet ? apt.pet.name : "הכלב"} מרגיש/ת אחרי ${serviceName}${pet
+src/components/dashboard/NewAppointmentModal.tsx:134:              <label className="label">חיית מחמד (אופציונלי)</label>
+src/components/dashboard/NewAppointmentModal.tsx:140:                <option value="">ללא בחירת חיית מחמד</option>
+src/components/analytics/AppointmentsTab.tsx:8:const SPECIES_LABELS: Record<string, string> = { dog: "🐕 כלבים", cat: "🐈 חתולים", other: "🐾 אחר" };
+src/components/analytics/AppointmentsTab.tsx:118:            <EmptyState text="אין חיות מחמד רשומות" />
+src/services/appointments.ts:179:    if (!pet) throw new ServiceError("חיית מחמד לא נמצאה", "NOT_FOUND");
+src/services/appointments.ts:333:    if (!pet) throw new ServiceError("חיית מחמד לא נמצאה", "NOT_FOUND");
+src/services/training-appointments.ts:178:  if (appt.petId && appt.petId !== program.dogId) throw new ServiceError("התוכנית שייכת לכלב אחר", "VALIDATION");
+src/app/api/appointments/[id]/remind/route.ts:95:    body = `שלום ${appt.customer.name}! 🐾\n\nתזכורת לתור שלך ב-${formattedDate} בשעה ${appt.startTime}.\nשירות: ${serviceName}${petPart}.\n\n
+src/app/(dashboard)/orders/[id]/page.tsx:76:  sale: "🛒 מכירה", appointment: "📅 תור", boarding: "🏠 פנסיון", training: "🐕 אילוף",
+src/app/(dashboard)/scheduler/page.tsx:462:      `שלום ${bookingResult.customerName}! התור שלך ל${bookingResult.serviceName} נקבע ל${formatHebDate(bookingResult.date)} בשעה ${bookingResult.time}. ס�
+src/app/(dashboard)/scheduler/page.tsx:887:                חיית מחמד
+src/app/(dashboard)/scheduler/page.tsx:901:                      {p.name} ({p.species === "dog" ? "כלב" : p.species === "cat" ? "חתול" : "אחר"})
+src/app/(dashboard)/scheduler/page.tsx:908:                    ? "אין חיות מחמד רשומות"
+src/app/(dashboard)/bookings/page.tsx:418:                      <p className="text-xs text-petra-muted font-medium">כלבים</p>
+src/app/(dashboard)/bookings/page.tsx:601:                              `🐾 שירות: ${modalSvcInfo.name}`,
+src/app/(dashboard)/bookings/page.tsx:602:                              petNames ? `🐕 חיית מחמד: ${petNames}` : null,
+src/app/(dashboard)/bookings/page.tsx:604:                              `מחכים לראותכם! 🐾`,
+src/app/(dashboard)/calendar/page.tsx:412:            ? "כלב"
+src/app/(dashboard)/calendar/page.tsx:695:              <label className="label">חיית מחמד</label>
+src/app/(dashboard)/calendar/page.tsx:2601:                      <div className="text-[10px] font-semibold truncate text-white drop-shadow-sm">🐕 {label}</div>
+src/app/(dashboard)/calendar/page.tsx:2947:                  <div className="text-xs font-semibold truncate text-white drop-shadow-sm">🐕 {label}</div>
+src/app/(dashboard)/calendar/page.tsx:3308:                  icon: "🐕",
+src/app/(dashboard)/calendar/page.tsx:3562:                const msg = `שלום ${appt.customer.name}! 😊\nתזכורת לתור שלך:\n📅 ${date} בשעה ${appt.startTime}\n🐾 ${getAppointmentLabel(appt)}${app
+src/app/(dashboard)/calendar/page.tsx:3786:                            const msg = `שלום ${selectedAppointment.customer.name}! 😊\nתודה על הביקור! מוזמנ/ת לקבוע את התור הבא:\n${booki
+src/lib/google-calendar.ts:312:    `🐾 שירות: ${serviceName}`,
+src/lib/google-calendar.ts:314:    petNames ? `🐶 כלבים: ${petNames}` : null,
+src/lib/google-calendar.ts:726:    appt.pet ? `🐾 חיית מחמד: ${appt.pet.name}` : null,
+src/lib/google-calendar.ts:1055:  const dogName = s.program.dog?.name ?? "כלב";
+src/lib/google-calendar.ts:1062:      `🐕 אילוף${s.program.name ? ` – ${s.program.name}` : ""}`,
+src/lib/google-calendar.ts:1187:      `🐾 כלב: ${stay.pet.name}`,
+
+════════ 4. אימון (79)
+src/services/training-appointments.ts:178:  if (appt.petId && appt.petId !== program.dogId) throw new ServiceError("התוכנית שייכת לכלב אחר", "VALIDATION");
+src/services/training.ts:418:  if (!dog) throw new ServiceError("הכלב אינו שייך ללקוח שנבחר", "NOT_FOUND");
+src/services/training.ts:423:  if (existing) throw new ServiceError("הכלב כבר רשום לקבוצה זו", "CONFLICT");
+src/services/training.ts:1012:  if (!dogCheck) throw new ServiceError("כלב לא נמצא", "NOT_FOUND");
+src/services/training.ts:1239:      name: `אילוף פרטני - ${participant.dog?.name ?? "כלב"}`,
+src/app/api/training-programs/route.ts:42:      return NextResponse.json({ error: "יש לבחור כלב" }, { status: 400 });
+src/app/api/analytics/export/route.ts:609:    const trainingHeaders = ["שם תוכנית", "כלב", "לקוח", "סוג", "סטטוס", "מפגשים מתוכננים", "מפגשים שבוצעו", "מחיר", "תאר�
+src/app/(dashboard)/training/page.tsx:331:    ratingLabel: "דירוג הכלב באימון (אופציונלי)",
+src/app/(dashboard)/training/page.tsx:345:    ratingLabel: "דירוג הכלב במפגש (אופציונלי)",
+src/app/(dashboard)/training/page.tsx:388:              <p className="text-[11px] text-petra-muted mt-1">מעבר בין פרטני לחבילה הוא מיידי. בחירת &ldquo;קבוצתי&rdquo; תעביר את ה
+src/app/(dashboard)/training/page.tsx:718:          הכלב יתווסף כמשתתף בקבוצה הנבחרת, ותוכנית האילוף הפרטנית הקיימת (כולל המפגשים והיעדים שלה) ת
+src/app/(dashboard)/training/page.tsx:1103:        toast.success("הכלב נוסף לקבוצה");
+src/app/(dashboard)/training/page.tsx:1106:    onError: (err: Error) => toast.error(err.message || "שגיאה בהוספת כלב לקבוצה"),
+src/app/(dashboard)/training/page.tsx:1121:      toast.success("הכלב הוסר מהקבוצה");
+src/app/(dashboard)/training/page.tsx:1123:    onError: () => toast.error("שגיאה בהסרת הכלב מהקבוצה"),
+src/app/(dashboard)/training/page.tsx:1210:      toast.success("הכלב הומר לאילוף פרטני");
+src/app/(dashboard)/training/page.tsx:1369:      toast.success(variables.status === "COMPLETED" ? "אילוף הסתיים ✓" : "כלב עבר לארכיון");
+src/app/(dashboard)/training/page.tsx:1570:            toast.info("תוכנית האימון של כלב שירות מנוהלת בעמוד כלבי שירות");
+src/app/(dashboard)/training/page.tsx:1572:            toast.info("לכלב זה אין תוכנית פעילה");
+src/app/(dashboard)/training/page.tsx:1584:    { label: "כלבים באימון", value: allDogs.length, color: "bg-orange-50 text-orange-600", iconBg: "bg-orange-100" },
+src/app/(dashboard)/training/page.tsx:1608:        <h1 className="page-title">אימונים וניהול כלבים</h1>
+src/app/(dashboard)/training/page.tsx:1685:          placeholder="חיפוש לפי שם כלב או בעלים..."
+src/app/(dashboard)/training/page.tsx:2048:                `שלום ${sessionSummarySend.customerName}! 🐾`,
+src/app/(dashboard)/training/page.tsx:2056:              lines.push("", "נתראה בפגישה הבאה! 🐾");
+src/app/(dashboard)/training/page.tsx:2278:          message={`להמיר את ${convertParticipantTarget.dogName} מהקבוצה לאילוף פרטני? תיווצר תוכנית אילוף פרטנית והכלב יו
+src/app/(dashboard)/training/page.tsx:2326:    ? `https://api.whatsapp.com/send?phone=${toWhatsAppPhone(dog.customerPhone)}&text=${encodeURIComponent(`שלום! עדכון אימון עבור ${dog.dogName} 🐾`)}`
+src/app/(dashboard)/training/page.tsx:2425:    ? `https://api.whatsapp.com/send?phone=${toWhatsAppPhone(dog.customerPhone)}&text=${encodeURIComponent(`שלום! עדכון אימון עבור ${dog.dogName} 🐾`)}`
+src/app/(dashboard)/training/page.tsx:2493:        <h3 className="text-base font-semibold text-petra-text mb-1">אין כלבים באימון</h3>
+src/app/(dashboard)/training/page.tsx:2494:        <p className="text-sm text-petra-muted">הוסף כלבים לאימון דרך הטאבים השונים</p>
+src/app/(dashboard)/training/page.tsx:2550:                <th className="p-3 font-medium text-petra-muted">כלב</th>
+src/app/(dashboard)/training/page.tsx:2734:            "יש להתאמן על הנקודות הנ״ל עד המפגש הבא 🐾",
+src/app/(dashboard)/training/page.tsx:3486:        <h3 className="text-base font-semibold text-petra-text mb-1">אין תוכניות אילוף לכלבי שירות</h3>
+src/app/(dashboard)/training/page.tsx:3536:                  <Shield className="w-3.5 h-3.5" /> ניהול כלב שירות ←
+src/app/(dashboard)/training/page.tsx:3848:                              `שלום ${program.customer?.name ?? ""}! 🐾`,
+src/app/(dashboard)/training/page.tsx:3877:                              `כלב: ${program.dog.name}${program.dog.breed ? ` (${program.dog.breed})` : ""}`,
+src/app/(dashboard)/training/page.tsx:3884:                              `מברכים אתכם ומאחלים המשך הנאה עם הכלב! 🐾`,
+src/app/(dashboard)/training/page.tsx:4030:        <span className="text-xs text-petra-muted">{availableStays.length} כלבים בפנסיון ללא אילוף</span>
+src/app/(dashboard)/training/page.tsx:4067:          <h3 className="text-base font-semibold text-petra-text mb-1">אין כלבים באילוף בפנסיון</h3>
+src/app/(dashboard)/training/page.tsx:4212:                          {daysRemaining <= 0 ? "הכלב צפוי לצאת היום!" : `נותרו ${daysRemaining} ימים בלבד`}
+src/app/(dashboard)/training/page.tsx:4575:        `שלום ${data.customer?.name ?? ""}! 🐾`,
+src/app/(dashboard)/training/page.tsx:4580:      lines.push("", `לשאלות אנחנו זמינים${data.businessPhone ? ` בטלפון ${data.businessPhone}` : ""}. תודה! 🐾`);
+src/app/(dashboard)/training/page.tsx:4998:                                <label className="label text-[10px]">המר כלב לאילוף פרטני</label>
+src/app/(dashboard)/training/page.tsx:5004:                                  <option value="">— בחר כלב —</option>
+src/app/(dashboard)/training/page.tsx:5041:                            const dogName = att.participant?.dog.name ?? participant?.dog.name ?? "כלב";
+src/app/(dashboard)/training/page.tsx:5191:              <label className="label">כלב *</label>
+src/app/(dashboard)/training/page.tsx:5194:                  ללקוח זה אין כלבים רשומים — יש להוסיף כלב בפרופיל הלקוח תחילה.
+src/app/(dashboard)/training/page.tsx:5198:                  <option value="">בחר כלב...</option>
+src/app/(dashboard)/training/page.tsx:5436:                  <label className="label">כלב *</label>
+src/app/(dashboard)/training/page.tsx:5438:                    <option value="">בחר כלב...</option>
+src/app/(dashboard)/training/page.tsx:5758:          <h2 className="text-lg font-bold text-petra-text">שיוך לקוח וכלב — {groupName}</h2>
+src/app/(dashboard)/training/page.tsx:5784:              <label className="label">כלב *</label>
+src/app/(dashboard)/training/page.tsx:5787:                  ללקוח זה אין כלבים רשומים — יש להוסיף כלב בפרופיל הלקוח תחילה.
+src/app/(dashboard)/training/page.tsx:5791:                  <option value="">בחר כלב...</option>
+src/app/(dashboard)/training/page.tsx:5826:            {isPending ? "שומר..." : waitlist ? "הוסף להמתנה" : "שייך לקוח וכלב"}
+src/app/(dashboard)/training/page.tsx:5863:        <p className="text-sm text-petra-muted">{filtered.length} תוכניות כלבי שירות</p>
+src/app/(dashboard)/training/page.tsx:5873:          <h3 className="text-base font-semibold text-petra-text mb-1">אין תוכניות אילוף לכלבי שירות</h3>
+src/app/(dashboard)/training/page.tsx:5912:                  צפה בפרופיל כלב שירות ←
+src/app/(dashboard)/training/page.tsx:6282:              placeholder="תאר את ההתנהגות הנוכחית של הכלב: רמת עצמאות, תגובות לגירויים, כישורים קיימים..."
+src/app/(dashboard)/training/page.tsx:6430:              <p className="text-[11px] text-petra-muted mt-1">מעבר בין פרטני לחבילה הוא מיידי. בחירת &ldquo;קבוצתי&rdquo; תעביר את �
+src/app/(dashboard)/training/page.tsx:6573:          הכלב יועבר לארכיון עם סטטוס &ldquo;נשר&rdquo;. ניתן לציין את סיבת הנשירה לצורכי מעקב.
+src/app/(dashboard)/training/page.tsx:6783:    const headers = ["שם הכלב", "גזע", "שם הלקוח", "טלפון", "סוג תוכנית", "מפגשים שהושלמו", "תאריך התחלה", "תאריך סי�
+src/app/(dashboard)/training/page.tsx:6874:            placeholder="חיפוש לפי כלב / לקוח..."
+src/app/(dashboard)/training/page.tsx:6898:              ? 'תהליכי אילוף שהסתיימו או שבהם הכלב נשר יופיעו כאן. לחץ "סיים אילוף" או "נשר מתהליך" בכרטיס
+src/app/(dashboard)/training/page.tsx:6991:      toast.success("כלב שירות נוסף בהצלחה");
+src/app/(dashboard)/training/page.tsx:6995:    onError: () => toast.error("שגיאה בהוספת כלב"),
+src/app/(dashboard)/training/page.tsx:7005:            הוסף כלב שירות
+src/app/(dashboard)/training/page.tsx:7012:          כלב זה יופיע בתהליכי אילוף — כלבי שירות ובניהול כלבי שירות. לא ישויך ללקוח.
+src/app/(dashboard)/training/page.tsx:7016:            <label className="label">שם הכלב *</label>
+src/app/(dashboard)/training/page.tsx:7017:            <input type="text" className="input" placeholder="שם הכלב" value={name} onChange={(e) => setName(e.target.value)} />
+src/app/(dashboard)/training/page.tsx:7049:            <input type="text" className="input" placeholder="כלב ניידות / פרכוסים / רגשי..." value={serviceType} onChange={(e) => setServiceType(e.target.va
+src/app/(dashboard)/training/page.tsx:7070:            {mutation.isPending ? "שומר..." : "הוסף כלב שירות"}
+src/app/(dashboard)/training/page.tsx:7118:          name: `הכשרת כלב שירות — ${dog.pet.name}`,
+src/app/(dashboard)/training/page.tsx:7146:            תוכנית אימון חדשה — כלב שירות
+src/app/(dashboard)/training/page.tsx:7154:            <label className="label">כלב שירות *</label>
+src/app/(dashboard)/training/page.tsx:7161:                <option value="">בחר כלב...</option>
+src/app/(dashboard)/training/page.tsx:7306:      description="ניהול תוכניות אילוף, מטרות ומפגשים. עקוב אחרי ההתקדמות של כל כלב בכל תוכנית אילוף."
+src/app/(dashboard)/orders/[id]/page.tsx:76:  sale: "🛒 מכירה", appointment: "📅 תור", boarding: "🏠 פנסיון", training: "🐕 אילוף",
+src/lib/training-groups.ts:64:    body: "היי {{customer_name}}, תזכורת שהיום בשעה {{session_time}} יש מפגש {{group_name}} עם {{dog_name}} ב{{location}}. נתראה! 🐾",
+src/lib/training-programs.ts:6:  { id: "SERVICE_DOG", label: "כלב שירות" },
+
+════════ 5. הודעות (20)
+src/app/(dashboard)/training/page.tsx:2326:    ? `https://api.whatsapp.com/send?phone=${toWhatsAppPhone(dog.customerPhone)}&text=${encodeURIComponent(`שלום! עדכון אימון עבור ${dog.dogName} 🐾`)}`
+src/app/(dashboard)/training/page.tsx:2425:    ? `https://api.whatsapp.com/send?phone=${toWhatsAppPhone(dog.customerPhone)}&text=${encodeURIComponent(`שלום! עדכון אימון עבור ${dog.dogName} 🐾`)}`
+src/lib/whatsapp-failure.ts:25:  pet_birthday: "יום הולדת לכלב",
+src/lib/meta-template-catalog.ts:39:    params: ["customer name", "pet name or 'הכלב שלכם'", "business phone"],
+src/lib/meta-template-catalog.ts:46:    examples: ["דנה", "אילוף בבית", "24.10.2026", "17:30", "נדב מאמן הכלבים"],
+src/lib/meta-template-catalog.ts:55:    examples: ["דנה", "24.10.2026", "17:30", "נדב מאמן הכלבים"],
+src/lib/meta-template-catalog.ts:64:    examples: ["דנה", "נדב מאמן הכלבים", "https://petra-app.com/sign/abc123"],
+src/lib/meta-template-catalog.ts:73:    examples: ["דנה", "חיסון כלבת", "רקסי", "5 בנובמבר 2026"],
+src/lib/meta-template-catalog.ts:81:    body: "יום הולדת שמח ל{{1}}! 🎂 היום {{2}}. מאחלים בריאות, שמחה והרבה עצמות, באהבה {{3}} 🐾",
+src/lib/meta-template-catalog.ts:82:    examples: ["רקסי", "מלאות לו 3 שנים", "נדב מאמן הכלבים"],
+src/lib/reminder-service.ts:126:      params: [p.customerName, p.petName?.trim() || "הכלב שלכם", p.businessPhone],
+src/lib/reminder-service.ts:238:    body = `שלום ${appt.customer.name}! 🐾\n\nתזכורת לתור שלך ב-${formattedDate} בשעה ${appt.startTime}.${appt.service?.name ? `\nשירות: ${appt.service.name}${
+src/lib/reminder-service.ts:354:    body = `שלום ${appt.customer.name}! 🐾\n\nתודה שהגעתם${petPart}. מקווים שהיה מעולה!\nנשמח לשמוע איך הולך, ואם יש שאלות אנחנ
+src/lib/reminder-service.ts:516:    body = `שלום ${lead.name}! 🐾\n\nקיבלנו את פנייתך${servicePart} ונשמח לעזור!\nנחזור אליך בהקדם.${footer}`;
+src/lib/reminder-service.ts:627:    body = `שלום ${meeting.lead.name}! 🐾\n\nתזכורת לפגישה שלנו ב-${formattedDate} בשעה ${meeting.startTime}.${typePart}${placePart}\n\nנתראה! 😊${footer}
+src/lib/reminder-service.ts:725:    body = `שלום ${stay.customer.name}! 🏨\n\nתזכורת – מחר (${formattedDate}) הוא יום האיסוף של ${stay.pet.name} מהפנסיון.\n\n${stay.pet.name} נהנ
+src/lib/reminder-service.ts:810:  const body = `שלום ${stay.customer.name}! 🐾 תודה ש-${stay.pet.name} שהה/שהתה אצלנו. היה לנו כיף ואנחנו מקווים שגם ${stay.pet.name} נהנ�
+src/lib/reminder-service.ts:1105:  RECIPIENT_TRAINING: "אימון עם כלב השירות",
+src/lib/reminder-service.ts:1166:    body = `שלום ${meeting.recipientName}! 🐾 תזכורת: מחר (${formattedDate}) בשעה ${formattedTime} יש לנו ${typeLabel} עם כלב השירות. מאמן: ${meetin
+src/lib/reminder-service.ts:1245:  const body = `שלום ${data.customerName}! 🐾\n\nתזכורת למפגש אילוף עם ${data.dogName} ב-${formattedDate}${timeStr}.\n\nנתראה! 😊${footer}`;
+
+════════ 6. booking (36)
+src/components/intake/IntakeBanner.tsx:48:            חסרים פרטים על הכלב — שלח ללקוח טופס מילוי מהיר.
+src/components/intake/IntakeBanner.tsx:51:            {status.noDogs && "לא נרשם כלב. "}
+src/components/intake/IntakeWhatsAppModal.tsx:173:              value={messageOverride || `היי ${customerName}, כאן [שם העסק] 👋\nכדי שנתכונן בצורה הכי טובה, אשמח שתמלא/י ב�
+src/app/book/[slug]/page.tsx:115:    dogNames.length > 0 ? `כלב/ים: ${dogNames.join(", ")}` : "",
+src/app/book/[slug]/page.tsx:139:  { key: "dogs", label: "כלבים" },
+src/app/book/[slug]/page.tsx:147:  { key: "dogs", label: "כלבים" },
+src/app/book/[slug]/page.tsx:260:      dogs: `${business.name} — בחירת כלב`,
+src/app/book/[slug]/page.tsx:869:                <h2 className="text-lg font-bold text-petra-text">פרטי בעל הכלב</h2>
+src/app/book/[slug]/page.tsx:972:                        הכלבים שלך: <span className="font-medium">{existingDogNames.join(", ")}</span>
+src/app/book/[slug]/page.tsx:1001:                <h2 className="text-lg font-bold text-petra-text">בחירת כלב לשירות</h2>
+src/app/book/[slug]/page.tsx:1009:                <span className="text-sm font-medium text-brand-800">בחר כלב עבור: {selectedService.name}</span>
+src/app/book/[slug]/page.tsx:1050:                          <label className="block text-xs font-medium text-petra-muted mb-1">שם הכלב *</label>
+src/app/book/[slug]/page.tsx:1109:                  <Plus className="w-4 h-4" /> הוסף כלב נוסף
+src/app/book/[slug]/page.tsx:1113:                  <p className="text-xs text-amber-600 text-center">יש להזין שם כלב אחד לפחות</p>
+src/app/book/[slug]/page.tsx:1185:                      <p className="text-xs text-petra-muted">בעל הכלב</p>
+src/app/book/[slug]/page.tsx:1202:                      <p className="text-xs text-petra-muted">כלבים</p>
+src/app/book/[slug]/page.tsx:1392:                    <span className="text-petra-muted">כלב:</span>
+src/app/book/[slug]/layout.tsx:23:  const description = `קבע/י תור אצל ${business.name} בקלות ובמהירות. שירותים לכלבים`
+src/app/api/book/[slug]/booking/route.ts:103:  message: "שם הכלב הוא שדה חובה",
+src/app/api/intake/route.ts:66:          { error: "חיית המחמד לא נמצאה או אינה שייכת לעסק" },
+src/app/api/intake/create/route.ts:31:        return NextResponse.json({ error: "חיית מחמד לא נמצאה" }, { status: 404 });
+src/app/my-booking/[token]/page.tsx:189:                <p className="text-xs text-slate-500">כלבים</p>
+src/app/(dashboard)/intake-forms/page.tsx:59:  dog: "פרטי הכלב",
+src/app/(dashboard)/intake-forms/page.tsx:68:  name: "שם הכלב",
+src/app/(dashboard)/intake-forms/page.tsx:81:  originInfo: "מקור הכלב",
+src/app/(dashboard)/intake-forms/page.tsx:85:  dogAggression: "תוקפנות כלפי כלבים",
+src/app/intake/[token]/page.tsx:26:  { label: "פרטי הכלב", icon: Dog },
+src/app/intake/[token]/page.tsx:33:  { key: "dogAggression", label: "תוקפנות כלפי כלבים" },
+src/app/intake/[token]/page.tsx:214:              <h2 className="text-base font-bold text-slate-900 mb-3">פרטי הכלב</h2>
+src/app/intake/[token]/page.tsx:216:                <label className="text-xs font-medium text-slate-600 block mb-1">שם הכלב *</label>
+src/app/intake/[token]/page.tsx:388:                <label className="text-xs font-medium text-slate-600 block mb-1">מאיפה הכלב? (מקור)</label>
+src/app/intake/[token]/page.tsx:393:                  placeholder="מגדל, כלביה, אימוץ..."
+src/app/intake/[token]/page.tsx:397:                <label className="text-xs font-medium text-slate-600 block mb-1">כמה זמן הכלב אצלכם?</label>
+src/app/intake/[token]/page.tsx:480:                  placeholder="פרט כל מידע נוסף על התנהגות הכלב..."
+src/app/intake/[token]/page.tsx:592:                  אם הכלב לא לוקח תרופות, המשך לשליחה
+src/lib/intake.ts:59:  return `היי ${vars.customerName}, כאן ${vars.businessName} 👋\nכדי שנתכונן בצורה הכי טובה, אשמח שתמלא/י בקישור את פרטי הכלב והבריאות 
+
+════════ 7. אונבורדינג (29)
+src/components/onboarding/StepFirstClient.tsx:52:        <div className="text-4xl mb-3">🐶</div>
+src/components/onboarding/StepFirstClient.tsx:53:        <h1 className="text-2xl font-bold text-petra-text">לקוח (וכלב) ראשון</h1>
+src/components/onboarding/StepFirstClient.tsx:101:            פרטי הכלב{" "}
+src/components/onboarding/StepFirstClient.tsx:106:              <label className="label">שם הכלב</label>
+src/components/onboarding/OnboardingOverlay.tsx:281:  const checks = ["לקוח נוסף", "כלב נוסף", "תור נקבע", "תזכורת הופעלה"];
+src/components/onboarding/OnboardingOverlay.tsx:302:          בעלי עסקים בתחום הכלבים עובדים קשה.
+src/components/onboarding/StepBusinessDetails.tsx:71:            placeholder='למשל: "הכלבים של דני" או "Doggy Style"'
+src/components/onboarding/CompletionScreen.tsx:52:          בעלי עסקים בתחום הכלבים עובדים קשה.
+src/components/onboarding/AddCustomerForm.tsx:111:            <label className="label">שם הכלב</label>
+src/components/onboarding/WhatNextScreen.tsx:73:  "מאלף כלבים": {
+src/components/onboarding/PersonalizationScreen.tsx:10:    options: ["מאלף כלבים", "פנסיון", "מספרה", "משולב", "עסק אחר"],
+src/components/onboarding/StepWelcomeProfile.tsx:15:  { value: "מאלף כלבים", label: "מאלף / מאלפת כלבים", emoji: "🐕" },
+src/components/onboarding/StepWelcomeProfile.tsx:16:  { value: "פנסיון", label: "פנסיון לכלבים", emoji: "🏠" },
+src/components/onboarding/StepWelcomeProfile.tsx:17:  { value: "מספרה", label: "מספרה לחיות מחמד", emoji: "✂️" },
+src/components/onboarding/StepWelcomeProfile.tsx:19:  { value: "עסק אחר", label: "עסק אחר (לא חיות מחמד)", emoji: "💼" },
+src/components/onboarding/StepWelcomeProfile.tsx:26:  { value: "ניהול לקוחות", label: "לנהל טוב יותר לקוחות וכלבים" },
+src/app/api/onboarding/client/route.ts:34:            return NextResponse.json({ error: "שם כלב לא תקין" }, { status: 400 });
+src/app/register/page.tsx:145:          <p className="text-sm text-petra-muted mt-1">ניהול עסקי חיות מחמד</p>
+src/app/register/page.tsx:218:                placeholder="לדוגמה: פנסיון הכלבים של דניאל"
+src/app/register/page.tsx:341:          כל הזכויות שמורות all-dog - המרכז הישראלי להתנהגות הכלב
+src/app/login/page.tsx:220:        כל הזכויות שמורות all-dog - המרכז הישראלי להתנהגות הכלב
+src/app/login/page.tsx:272:              <div className="text-xs text-white/70 mt-0.5">מאלפת כלבים בכירה · סטודיו קנין, תל אביב</div>
+src/app/onboarding/page.tsx:224:    { icon: Users,         title: "ניהול לקוחות",     desc: "כרטיסי לקוח, כלבים, היסטוריה" },
+src/app/onboarding/page.tsx:230:    { icon: Users,         title: "לקוחות ללא הגבלה", desc: "כרטיסי לקוח, כלבים, היסטוריה" },
+src/app/onboarding/page.tsx:260:          Petra היא מערכת ניהול לעסקי חיות מחמד בישראל — מאלפים, פנסיון, גרומרים ומרכזי הכשרת כלבי שירות.
+src/app/onboarding/page.tsx:390:          placeholder="לדוגמה: אילוף כלבים ישראלי"
+src/app/onboarding/page.tsx:686:        <p className="text-sm font-medium text-petra-text mb-3">פרטי כלב (אופציונלי)</p>
+src/app/onboarding/page.tsx:689:            <label className="label">שם הכלב</label>
+src/app/onboarding/page.tsx:729:        <h2 className="text-2xl font-bold text-petra-text mb-2">הכל מוכן! 🐾</h2>
+
+════════ 8. דשבורד (18)
+src/components/dashboard/NewAppointmentModal.tsx:134:              <label className="label">חיית מחמד (אופציונלי)</label>
+src/components/dashboard/NewAppointmentModal.tsx:140:                <option value="">ללא בחירת חיית מחמד</option>
+src/components/dashboard/NewCustomerModal.tsx:246:                      <option value="dog">כלב</option>
+src/components/dashboard/widgets/AtRiskCustomers.tsx:17:    return `שלום ${c.name}! 🐾\nזמן רב לא ראינו אתכם, מתגעגעים!\nהאם תרצו לקבוע תור? נשמח לראות אתכם שו�
+src/components/dashboard/widgets/Vaccinations.tsx:52:        title="חיסוני כלבת"
+src/components/dashboard/widgets/Vaccinations.tsx:53:        subtitle={`${data.total} חיות מחמד עם חיסון פג תוקף / עומד לפוג`}
+src/components/dashboard/widgets/Vaccinations.tsx:60:        const waMsg = `שלום ${v.customerName}! 💉\nחיסון ${v.vaccineLabel} של ${v.petName} ${v.isExpired ? "פג תוקפו" : `עומד לפוג בתאר
+src/components/dashboard/widgets/Vaccinations.tsx:88:                    title: `חידוש חיסון כלבת — ${v.petName} (${v.customerName})`,
+src/components/dashboard/widgets/TomorrowReminders.tsx:26:      `שלום ${a.customerName}! 😊\nתזכורת לתור מחר בשעה ${a.startTime}${a.petName ? ` עם ${a.petName}` : ""} לשירות ${a.serviceName
+src/components/dashboard/widgets/PetBirthdays.tsx:26:          `מאחלים לכם ול${pet.name} המון שנות אושר ובריאות! 🐾`,
+src/app/api/dashboard/activity/route.ts:30:  ADD_PET: "הוספת חיית מחמד",
+src/app/(dashboard)/dashboard/page.tsx:253:      message: (s: DashboardStats["todayArrivals"][0]) => `שלום ${s.customer?.name ?? ""}! מזכירים לך שהיום הגעה של ${s.pet?.name ?? ""} לפנסיון �
+src/app/(dashboard)/dashboard/page.tsx:258:      message: (s: DashboardStats["todayArrivals"][0]) => `שלום ${s.customer?.name ?? ""}! כלב שלך ${s.pet?.name ?? ""} מחכה לפיקאפ היום מהפנסיון
+src/app/(dashboard)/dashboard/page.tsx:264:      message: (s: DashboardStats["todayArrivals"][0]) => `שלום ${s.customer?.name ?? ""}! כלב שלך ${s.pet?.name ?? ""} מחכה לאיסוף מהפנסיון 🐾`,
+src/app/(dashboard)/dashboard/page.tsx:639:              🐾
+src/lib/dashboard-widgets.ts:82:  { id: "vaccinations", label: "חיסוני כלבת", hint: "חיסונים שפג תוקפם או עומד לפוג", span: "full" },
+src/lib/dashboard-widgets.ts:83:  { id: "medications", label: "תרופות בפנסיון", hint: "תרופות לכלבים שנמצאים בפנסיון", span: "full" },
+src/lib/dashboard-widgets.ts:149:    case "מאלף כלבים":
+
+════════ 9. מודולים מוסתרים ב-generic (פנסיון / חיות / האכלה / תרופות) — לא דורש מילון (130)
+src/components/orders/CreateOrderModal.tsx:839:                  ? `${boardingNights} × ${boardingPetIds.length} כלבים = ${boardingUnits}`
+src/components/orders/CreateOrderModal.tsx:850:              ✓ הכמות בעגלה מתעדכנת אוטומטית לפי {boardingPetIds.length > 1 ? `לילות × ${boardingPetIds.length} כלבים` : "מספר �
+src/components/orders/CreateOrderModal.tsx:969:                  ✓ {boardingPetIds.length === 1 ? "הכלב" : `${boardingPetIds.length} הכלבים`} יופיע{boardingPetIds.length > 1 ? "ו" : ""} אוטומטית
+src/components/orders/CreateOrderModal.tsx:1100:                { id: "boarding" as const, label: "אילוף פנסיון", sub: "שהייה בכלבייה" },
+src/components/orders/CreateOrderModal.tsx:1254:                  ? `${boardingNights} × ${boardingPetIds.length} כלבים = ${boardingUnits} ${business?.boardingCalcMode === "days" ? "ימים" : "לילות"}`
+src/components/layout/sidebar.tsx:281:    "/boarding": `${counters?.activeBoarding || 0} כלבים בפנסיון`,
+src/components/onboarding/StepFirstClient.tsx:52:        <div className="text-4xl mb-3">🐶</div>
+src/components/onboarding/StepFirstClient.tsx:53:        <h1 className="text-2xl font-bold text-petra-text">לקוח (וכלב) ראשון</h1>
+src/components/onboarding/StepFirstClient.tsx:101:            פרטי הכלב{" "}
+src/components/onboarding/StepFirstClient.tsx:106:              <label className="label">שם הכלב</label>
+src/components/onboarding/OnboardingOverlay.tsx:281:  const checks = ["לקוח נוסף", "כלב נוסף", "תור נקבע", "תזכורת הופעלה"];
+src/components/onboarding/OnboardingOverlay.tsx:302:          בעלי עסקים בתחום הכלבים עובדים קשה.
+src/components/onboarding/StepBusinessDetails.tsx:71:            placeholder='למשל: "הכלבים של דני" או "Doggy Style"'
+src/components/onboarding/CompletionScreen.tsx:52:          בעלי עסקים בתחום הכלבים עובדים קשה.
+src/components/onboarding/AddCustomerForm.tsx:111:            <label className="label">שם הכלב</label>
+src/components/onboarding/WhatNextScreen.tsx:73:  "מאלף כלבים": {
+src/components/onboarding/PersonalizationScreen.tsx:10:    options: ["מאלף כלבים", "פנסיון", "מספרה", "משולב", "עסק אחר"],
+src/components/onboarding/StepWelcomeProfile.tsx:15:  { value: "מאלף כלבים", label: "מאלף / מאלפת כלבים", emoji: "🐕" },
+src/components/onboarding/StepWelcomeProfile.tsx:16:  { value: "פנסיון", label: "פנסיון לכלבים", emoji: "🏠" },
+src/components/onboarding/StepWelcomeProfile.tsx:17:  { value: "מספרה", label: "מספרה לחיות מחמד", emoji: "✂️" },
+src/components/onboarding/StepWelcomeProfile.tsx:19:  { value: "עסק אחר", label: "עסק אחר (לא חיות מחמד)", emoji: "💼" },
+src/components/onboarding/StepWelcomeProfile.tsx:26:  { value: "ניהול לקוחות", label: "לנהל טוב יותר לקוחות וכלבים" },
+src/services/boarding.ts:141:  // canceled stays (גבעת הכלבים: 546 canceled → the 7 checked-in dogs fell off).
+src/services/boarding.ts:174:  return `החדר מלא — הקיבולת היא ${capacity} כלבים בתאריכים אלה`;
+src/services/boarding.ts:284:  if (!petCheck) throw new ServiceError("חיית מחמד לא נמצאה", "NOT_FOUND");
+src/services/boarding.ts:290:      `לכלב הזה כבר יש הזמנת פנסיון חופפת (${formatStayRange(dup.checkIn, dup.checkOut)}). אפשר לערוך אותה במקום ליצור חדשה`,
+src/app/api/boarding/export/route.ts:33:        "שם הכלב": s.pet.name,
+src/app/api/boarding/export/route.ts:35:        "בעלים": s.customer?.name ?? "כלב שירות",
+src/app/api/onboarding/client/route.ts:34:            return NextResponse.json({ error: "שם כלב לא תקין" }, { status: 400 });
+src/app/api/analytics/export/route.ts:629:    const boardingHeaders = ["חיית מחמד", "לקוח", "חדר", "כניסה", "יציאה", "סטטוס", "הערות"];
+src/app/(dashboard)/feeding/page.tsx:303:        <p className="text-petra-muted text-sm">אין כלבים עם תרופות פעילות בפנסיון</p>
+src/app/(dashboard)/feeding/page.tsx:341:                      <span className="mr-2 badge badge-blue text-[10px]">כלב שירות</span>
+src/app/(dashboard)/feeding/page.tsx:353:                    <span className="text-xs text-petra-muted">כלב שירות</span>
+src/app/(dashboard)/feeding/page.tsx:668:            אין כלבים בפנסיון בתאריך זה
+src/app/(dashboard)/feeding/page.tsx:685:              כל {activePets.length} הכלבים הואכלו ב
+src/app/(dashboard)/feeding/page.tsx:699:                  <th className="table-header-cell">שם הכלב</th>
+src/app/(dashboard)/feeding/page.tsx:767:                              <span className="text-xs text-petra-muted">כלב שירות</span>
+src/app/(dashboard)/feeding/page.tsx:798:                                      מפרופיל הכלב
+src/app/(dashboard)/orders/[id]/page.tsx:76:  sale: "🛒 מכירה", appointment: "📅 תור", boarding: "🏠 פנסיון", training: "🐕 אילוף",
+src/app/(dashboard)/boarding/page.tsx:372:                        <div className="text-[10px] text-petra-muted truncate">{stay.customer?.name ?? "כלב שירות"}</div>
+src/app/(dashboard)/boarding/page.tsx:409:                        <div className="text-[10px] text-petra-muted truncate">{stay.customer?.name ?? "כלב שירות"}</div>
+src/app/(dashboard)/boarding/page.tsx:745:          title={`${stay.pet.name} — ${stay.customer?.name ?? "כלב שירות"}\n${range}\nלחצו לפתיחת ההזמנה`}
+src/app/(dashboard)/boarding/page.tsx:966:                  <div className="text-[10px] text-petra-muted">{stay.customer?.name ?? "כלב שירות"}</div>
+src/app/(dashboard)/boarding/page.tsx:1043:              title="עבור לפרופיל כלב שירות"
+src/app/(dashboard)/boarding/page.tsx:1045:              <Sparkles className="w-2.5 h-2.5" />כלב שירות
+src/app/(dashboard)/boarding/page.tsx:1058:            <span className="text-sm text-blue-600 font-medium">כלב שירות</span>
+src/app/(dashboard)/boarding/page.tsx:1124:              `מחכים לכם! 🐾`,
+src/app/(dashboard)/boarding/page.tsx:1155:              `תודה ולהתראות! 🐾`,
+src/app/(dashboard)/boarding/page.tsx:1173:              `🐾 הוראות טיפול — ${stay.pet.name}`,
+src/app/(dashboard)/boarding/page.tsx:1231:  if (pet.behavior?.dogAggression) warnings.push({ icon: "🐕", text: "תוקפנות כלפי כלבים", urgent: true });
+src/app/(dashboard)/boarding/page.tsx:1255:          {hasUrgent ? "⚠️ שים לב — מידע חשוב על הכלב" : "מידע על הכלב"}
+src/app/(dashboard)/boarding/page.tsx:1302:            <p className="text-sm text-petra-muted mt-0.5">{stay.pet.name} — {stay.customer?.name ?? "כלב שירות"}</p>
+src/app/(dashboard)/boarding/page.tsx:1478:            <p className="text-sm text-petra-muted mt-0.5">{stay.pet.name} — {stay.customer?.name ?? "כלב שירות"}</p>
+src/app/(dashboard)/boarding/page.tsx:1493:              <span className="font-medium">{stay.customer?.name ?? "כלב שירות"}</span>
+src/app/(dashboard)/boarding/page.tsx:1661:            <p className="text-sm text-petra-muted mt-0.5">{stay.pet.name} — {stay.customer?.name ?? "כלב שירות"}</p>
+src/app/(dashboard)/boarding/page.tsx:1768:            <p className="text-sm text-petra-muted mt-0.5">{stay.pet.name} — {stay.customer?.name ?? "כלב שירות"}</p>
+src/app/(dashboard)/boarding/page.tsx:1862:            {summaryParts.length > 0 ? `כלבים: ${summaryParts.join(" · ")}` : `${data.expiringSoon} כלבים עם חיסון פג בקרוב`}
+src/app/(dashboard)/boarding/page.tsx:1880:                ? `שלום ${alert.customerName}, הכלב ${alert.petName} אינו מחוסן. נא לחסן לפני הכניסה לפנסיון.`
+src/app/(dashboard)/boarding/page.tsx:1881:                : `שלום ${alert.customerName}, חיסון הכלב של ${alert.petName} פג תוקף${alert.rabiesValidUntil ? ` בתאריך ${formatDate(alert.rabiesVali
+src/app/(dashboard)/boarding/page.tsx:1912:                      כלב: {formatDate(alert.rabiesValidUntil)}
+src/app/(dashboard)/boarding/page.tsx:2895:              lines.push(`🐾 *${s.pet.name}*${s.pet.breed ? ` (${s.pet.breed})` : ""} — ${s.room?.name || "ללא חדר"}`);
+src/app/(dashboard)/boarding/page.tsx:2934:              lines.push(`🐾 *${s.pet.name}* — ${s.room?.name || "ללא חדר"}`);
+src/app/(dashboard)/boarding/page.tsx:3112:                    {occTotalDogs} כלבים
+src/app/(dashboard)/boarding/page.tsx:3307:                    <div className="text-[10px] text-petra-muted">{draggedStay.customer?.name ?? "כלב שירות"}</div>
+src/app/(dashboard)/boarding/page.tsx:3454:            כלבי שירות בפנסיון
+src/app/(dashboard)/boarding/page.tsx:3472:                    תיק כלב
+src/app/(dashboard)/boarding/page.tsx:3693:              {/* Mode toggle: לקוח רגיל / כלב שירות */}
+src/app/(dashboard)/boarding/page.tsx:3707:                  כלב שירות
+src/app/(dashboard)/boarding/page.tsx:3750:                <label className="label">כלב שירות *</label>
+src/app/(dashboard)/boarding/page.tsx:3755:                        🐕
+src/app/(dashboard)/boarding/page.tsx:3798:                          <div className="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-sm flex-shrink-0">🐕</div>
+src/app/(dashboard)/boarding/page.tsx:3815:                  <label className="label">חיות מחמד * ({form.petIds.length} נבחרו)</label>
+src/app/(dashboard)/boarding/page.tsx:3818:                      <div className="py-3 text-center text-sm text-petra-muted">אין חיות מחמד</div>
+src/app/(dashboard)/boarding/page.tsx:3845:                            <span className="text-xs text-petra-muted">{p.species === "dog" ? "כלב" : p.species === "cat" ? "חתול" : "אחר"}</span>
+src/app/(dashboard)/boarding/page.tsx:3989:                  <p className="text-amber-700 text-xs mb-2">אפשר לרשום כלבים שכבר נמצאים בפנסיון (או שהיות שהסתיימו) בלי לעב
+src/app/(dashboard)/boarding/page.tsx:3995:                    <option value="checked_in">הכלב כבר בפנסיון (צ׳ק-אין בוצע)</option>
+src/app/(dashboard)/boarding/page.tsx:4056:                כלב שירות בהכשרה — ללא חיוב
+src/app/(dashboard)/boarding/page.tsx:4077:                    <span>כלבים</span>
+src/app/(dashboard)/boarding/page.tsx:4160:                <p className="text-sm text-petra-muted">{deleteDialogStay.pet.name} — {deleteDialogStay.customer?.name ?? "כלב שירות"}</p>
+src/app/(dashboard)/boarding/page.tsx:4205:      description="ניהול חדרים, לינות ותפוסה. עקוב אחרי כל כלב שנמצא בפנסיון בזמן אמת."
+src/app/(dashboard)/boarding/yards/page.tsx:87:          {stay.customer?.name ?? "כלב שירות"}
+src/app/(dashboard)/boarding/yards/page.tsx:129:      <div className="text-[10px] text-teal-700 truncate">{stay.customer?.name ?? "כלב שירות"}</div>
+src/app/(dashboard)/boarding/yards/page.tsx:242:            <p className="text-[10px] text-slate-400">{isOver ? "שחרר כאן להוספה" : "גרור כלב לכאן"}</p>
+src/app/(dashboard)/boarding/yards/page.tsx:372:      toast.error("שגיאה בשיבוץ הכלב");
+src/app/(dashboard)/boarding/yards/page.tsx:463:          <p className="text-sm text-slate-500 mt-0.5">{yards.length} חצרות · {yards.reduce((n, y) => n + y.boardingStays.length, 0)} כלבים בחצרות</p>
+src/app/(dashboard)/boarding/yards/page.tsx:471:          {yards.length} חצרות · {yards.reduce((n, y) => n + y.boardingStays.length, 0)} כלבים בחצרות
+src/app/(dashboard)/boarding/yards/page.tsx:482:                lines.push(`  🐾 ${s.pet.name}${s.customer ? ` — ${s.customer.name}` : ""}`);
+src/app/(dashboard)/boarding/yards/page.tsx:660:                    {allStays.length > 0 ? "כל הכלבים שובצו ✓" : "אין כלבים בתאריכים אלו"}
+src/app/(dashboard)/boarding/yards/page.tsx:747:                      {draggedStay.customer?.name ?? "כלב שירות"}
+src/app/(dashboard)/boarding/daily/page.tsx:269:              <div className="text-sm text-petra-muted">כלב שירות</div>
+src/app/(dashboard)/boarding/daily/page.tsx:567:            { label: "כלבים", value: summary.total, color: "bg-slate-50 text-slate-600" },
+src/app/(dashboard)/boarding/daily/page.tsx:589:          <p className="font-semibold text-petra-text mb-1">אין כלבים בפנסיון</p>
+src/app/(dashboard)/medications/page.tsx:313:            <label className="label">בחר כלב *</label>
+src/app/(dashboard)/medications/page.tsx:321:                <option value="">-- בחר כלב --</option>
+src/app/(dashboard)/medications/page.tsx:492:            מעקב תרופות לכלבים – כל העסק
+src/app/(dashboard)/medications/page.tsx:520:            placeholder="חיפוש לפי כלב, לקוח או תרופה..."
+src/app/(dashboard)/medications/page.tsx:590:                  <th className="table-header-cell">שם הכלב</th>
+src/app/(dashboard)/medications/page.tsx:591:                  <th className="table-header-cell">בעל הכלב</th>
+src/app/(dashboard)/pets/[id]/page.tsx:708:                  { label: "כלבת – תוקף", value: pet.health.rabiesValidUntil ? formatDate(new Date(pet.health.rabiesValidUntil)) : null, warn: rabiesExpired || rabiesE
+src/app/(dashboard)/pets/[id]/page.tsx:768:              pet.behavior.dogAggression && "אגרסיבי כלפי כלבים",
+src/app/(dashboard)/pets/page.tsx:57:  { value: "dog", label: "כלבים" },
+src/app/(dashboard)/pets/page.tsx:68:  dog: "כלב",
+src/app/(dashboard)/pets/page.tsx:200:      toast.success("חיית המחמד נוספה בהצלחה");
+src/app/(dashboard)/pets/page.tsx:203:    onError: () => toast.error("שגיאה בהוספת חיית המחמד"),
+src/app/(dashboard)/pets/page.tsx:213:          <h2 className="text-lg font-bold text-petra-text">חיית מחמד חדשה</h2>
+src/app/(dashboard)/pets/page.tsx:296:                <option value="dog">כלב</option>
+src/app/(dashboard)/pets/page.tsx:341:              {mutation.isPending ? "שומר..." : "הוסף חיית מחמד"}
+src/app/(dashboard)/pets/page.tsx:357:      title="ניהול חיות מחמד"
+src/app/(dashboard)/pets/page.tsx:358:      description="ניהול מתקדם של חיות מחמד — גרף משקל, גלריית תמונות, היסטוריה רפואית ועוד. שדרג כדי לגשת."
+src/app/(dashboard)/pets/page.tsx:396:      toast.success("חיית המחמד נמחקה");
+src/app/(dashboard)/pets/page.tsx:401:      toast.error(err?.message || "שגיאה במחיקת חיית המחמד");
+src/app/(dashboard)/pets/page.tsx:465:      <PageTitle title="חיות מחמד" />
+src/app/(dashboard)/pets/page.tsx:469:          <h1 className="page-title">חיות מחמד</h1>
+src/app/(dashboard)/pets/page.tsx:480:            הוסף חיית מחמד
+src/app/(dashboard)/pets/page.tsx:517:              <p className="text-xs text-petra-muted">כלבים · {cats} חתולים</p>
+src/app/(dashboard)/pets/page.tsx:631:              הוסף חיית מחמד
+src/app/(dashboard)/pets/page.tsx:642:              <caption className="sr-only">רשימת חיות מחמד</caption>
+src/app/(dashboard)/pets/page.tsx:740:                          <span className="text-petra-muted text-sm">כלב שירות</span>
+src/app/(dashboard)/pets/page.tsx:806:            <h3 className="text-base font-bold text-petra-text mb-2">בקשת מחיקת חיית מחמד</h3>
+src/app/(dashboard)/pets/page.tsx:838:          title="מחיקת חיית מחמד"
+src/app/(dashboard)/analytics/page.tsx:87:    `🐾 שהות פנסיון: ${data.boarding.staysThisPeriod}${data.boarding.occupancyRate != null ? ` (${data.boarding.occupancyRate}% תפוסה)` : ""}`,
+src/app/onboarding/page.tsx:224:    { icon: Users,         title: "ניהול לקוחות",     desc: "כרטיסי לקוח, כלבים, היסטוריה" },
+src/app/onboarding/page.tsx:230:    { icon: Users,         title: "לקוחות ללא הגבלה", desc: "כרטיסי לקוח, כלבים, היסטוריה" },
+src/app/onboarding/page.tsx:260:          Petra היא מערכת ניהול לעסקי חיות מחמד בישראל — מאלפים, פנסיון, גרומרים ומרכזי הכשרת כלבי שירות.
+src/app/onboarding/page.tsx:390:          placeholder="לדוגמה: אילוף כלבים ישראלי"
+src/app/onboarding/page.tsx:686:        <p className="text-sm font-medium text-petra-text mb-3">פרטי כלב (אופציונלי)</p>
+src/app/onboarding/page.tsx:689:            <label className="label">שם הכלב</label>
+src/app/onboarding/page.tsx:729:        <h2 className="text-2xl font-bold text-petra-text mb-2">הכל מוכן! 🐾</h2>
+src/lib/assistant/system-prompt.ts:77:תשובה: בלוח התרופות שב[פנסיון](/boarding) מסמנים כל מתן תרופה כבוצע. הלוח מתמלא לבד מהרשומות הרפואיות של ה
+src/lib/dashboard-widgets.ts:83:  { id: "medications", label: "תרופות בפנסיון", hint: "תרופות לכלבים שנמצאים בפנסיון", span: "full" },
+
+════════ 10. שאר (הגדרות / עזרה / ייצוא / הרשאות …) — לבדוק ידנית (204)
+src/components/orders/CreateOrderModal.tsx:104:const PET_EMOJI: Record<string, string> = { dog: "🐕", cat: "🐈" };
+src/components/orders/CreateOrderModal.tsx:105:function petEmoji(species: string) { return PET_EMOJI[species] ?? "🐾"; }
+src/components/orders/CreateOrderModal.tsx:917:                🐾 כלבים לפנסיון
+src/components/orders/CreateOrderModal.tsx:928:                  <span className="text-xl leading-none mt-0.5">🐾</span>
+src/components/orders/CreateOrderModal.tsx:931:                    <p className="text-xs text-red-600 mt-0.5">חובה להוסיף חיית מחמד ללקוח לפני יצירת הזמנה.</p>
+src/components/orders/CreateOrderModal.tsx:981:              <span className="text-xl leading-none mt-0.5">🐾</span>
+src/components/orders/CreateOrderModal.tsx:984:                <p className="text-xs text-red-600 mt-0.5">חובה להוסיף חיית מחמד ללקוח לפני יצירת הזמנה.</p>
+src/components/orders/CreateOrderModal.tsx:992:                🐾 עבור איזה כלב?
+src/components/orders/CreateOrderModal.tsx:1006:                    כל הכלבים
+src/components/orders/CreateOrderModal.tsx:1040:          יש לבחור כלב ספציפי לפני המשך — ההזמנה תקשר לתוכנית אילוף
+src/components/orders/CreateOrderModal.tsx:1533:    return `שלום ${name}! 🐾\n\n*דרישת תשלום*\nעבור: ${serviceNames}\n\n${itemLines}${discountLine}${taxLine}\n\n💰 סה"כ לתשלום: *${fmt(calc.
+src/components/orders/PaymentRequestDialog.tsx:44:  return `שלום ${order.customer.name}! 🐾\n\n*דרישת תשלום*\n\n${itemLines}${discountLine}${taxLine}\n\n💰 סה"כ לתשלום: *${fmt(order.total)}*${l
+src/components/online-classes/BrandingTab.tsx:277:              placeholder="לדוגמה: הסמכה בהכרת ארגון מאלפי הכלבים בישראל"
+src/components/online-classes/MembershipsTab.tsx:144:            כשבעלי כלבים יבקשו להצטרף דרך הפורטל — הם יופיעו כאן לאישור
+src/components/leads/LeadDetailsModal.tsx:78:              הוסף כלב עכשיו
+src/components/settings/ContractsTab.tsx:157:        description={deleteTarget ? <>התבנית &quot;{deleteTarget.name}&quot; תימחק לצמיתות — <strong>יחד עם כל בקשות ההחתמה שנשלחו 
+src/components/settings/ContractsTab.tsx:192:  { type: "pet_name",       label: "🐕 שם הכלב",   color: "#b45309", bgColor: "rgba(180,83,9,0.12)" },
+src/components/settings/ContractsTab.tsx:193:  { type: "pet_breed",      label: "🐾 גזע",       color: "#a16207", bgColor: "rgba(161,98,7,0.12)" },
+src/components/settings/ContractsTab.tsx:196:  { type: "pet_gender",     label: "⚥ מין הכלב",    color: "#0d9488", bgColor: "rgba(13,148,136,0.12)" },
+src/components/settings/ContractsTab.tsx:220:  pet_name: "שם הכלב",
+src/components/settings/BookingTab.tsx:25:  const waMsg = `היי! 🐾\nרוצה לקבוע תור? אפשר לעשות את זה בקלות דרך הלינק הזה:\n${bookingUrl}`;
+src/components/settings/shared.tsx:32:  { key: "RABIES_BOOSTER" as const, label: "כלבת", doses: 1 },
+src/components/settings/shared.tsx:39:  { key: "RABIES_PRIMARY" as const, label: "כלבת", doses: 2 },
+src/components/settings/settings-tabs.ts:67:    paywallTitle: "הגדרות כלבי שירות",
+src/components/settings/settings-tabs.ts:68:    paywallDescription: "הגדרות תוכנית כלבי שירות — זמין במנוי Service Dog בלבד.",
+src/components/settings/DataTab.tsx:48:  { value: "dogs", label: "כלבים בלבד", description: "שם, גזע, מין, משקל, בעלים", icon: PawPrint },
+src/components/settings/DataTab.tsx:49:  { value: "customers_dogs", label: "לקוחות + כלבים", description: "נתוני לקוחות וכלבים משולבים", icon: FileSpreadsheet },
+src/components/settings/DataTab.tsx:59:  customers: "לקוחות בלבד", dogs: "כלבים בלבד", customers_dogs: "לקוחות + כלבים",
+src/components/settings/DataTab.tsx:60:  pets: "חיות מחמד", both: "לקוחות + חיות",
+src/components/settings/DataTab.tsx:406:                <p className="text-xs text-blue-600">חיות מחמד</p>
+src/components/settings/PendingApprovalsPanel.tsx:26:  DELETE_PET:         "מחיקת חיית מחמד",
+src/components/settings/PendingApprovalsPanel.tsx:30:  DELETE_SERVICE_DOG: "מחיקת כלב שירות",
+src/components/settings/IntegrationsTab.tsx:564:          description="קבל לידים אוטומטית מטפסי Make.com ואתר האינטרנט שלך — זמין במנוי פרו וכלבי שירות."
+src/components/settings/IntegrationsTab.tsx:1038:            ["breed", "גזע הכלב"],
+src/components/settings/IntegrationsTab.tsx:1040:            ["petName", "שם הכלב"],
+src/components/help/HelpCenter.tsx:74:          "סרגל ההתראות מציג הודעות מערכת חשובות: חיסונים שפגו תוקפם, תרופות שצריך לתת לכלבים הנמצאים בפ�
+src/components/help/HelpCenter.tsx:84:          "סרגל החיפוש מאפשר חיפוש חופשי בכל המערכת בו-זמנית: לקוחות (לפי שם, טלפון, אימייל), חיות מחמד (לפי
+src/components/help/HelpCenter.tsx:96:          "היכנסו ל\"לקוחות\" בתפריט ולחצו \"לקוח חדש\", או לחצו \"לקוח חדש\" בסרגל התחתון בנייד. מלאו שם מלא, ט
+src/components/help/HelpCenter.tsx:101:          "כרטיס הלקוח כולל: שורת סיכום בראש (יתרה לתשלום, התור הבא, הביקור האחרון ומספר התורים), פרטי קשר 
+src/components/help/HelpCenter.tsx:111:          "פתחו את כרטיס הלקוח הכפול ובחרו \"מיזוג לקוח כפול\". המערכת מציעה מועמדים דומים (לפי טלפון ושם), 
+src/components/help/HelpCenter.tsx:127:    name: "חיות מחמד",
+src/components/help/HelpCenter.tsx:131:        question: "איך מוסיפים חיית מחמד ללקוח?",
+src/components/help/HelpCenter.tsx:133:          "בפרופיל הלקוח, לחצו \"הוסף חיה\". מלאו שם, מין (כלב/חתול/אחר), גזע (מתוך רשימה של 60+ גזעי כלבים ו-14 ג
+src/components/help/HelpCenter.tsx:136:        question: "מה כולל המידע הרפואי של כלב?",
+src/components/help/HelpCenter.tsx:138:          "כרטיס הבריאות כולל: סירוס/עיקור, אלרגיות, מצבים רפואיים כרוניים, ניתוחים, שם וטלפון הווטרינר. �
+src/components/help/HelpCenter.tsx:143:          "הפרופיל ההתנהגותי כולל 13+ דגלים: תוקפנות כלפי כלבים/אנשים/זרים, תגובתיות, קפיצות, משיכה ברצועה
+src/components/help/HelpCenter.tsx:148:          "עמוד \"חיות מחמד\" (נפרד מפרופיל הלקוח) מציג את כל החיות במערכת עם אפשרות חיפוש, סינון לפי מין וג
+src/components/help/HelpCenter.tsx:153:          "בפרופיל החיה (עמוד \"חיות מחמד\") קיימת לשונית מעקב משקל. ניתן להוסיף רשומות משקל עם תאריך והערו
+src/components/help/HelpCenter.tsx:163:          "יומן הטיפול עוקב אחרי כל הפעולות שבוצעו לכלב בשהות בפנסיון: האכלה, מתן תרופה, טיול ועוד. לחצו \"
+src/components/help/HelpCenter.tsx:175:          "בעמוד \"יומן\" לחצו על משבצת ריקה בשעה הרצויה, או על כפתור \"+\" בראש המסך. בחרו לקוח, שירות, חיית מ�
+src/components/help/HelpCenter.tsx:232:          "בעמוד \"ניהול משימות\" לחצו \"משימה חדשה\". הגדירו כותרת, תיאור מפורט, קטגוריה, עדיפות, תאריך יעד �
+src/components/help/HelpCenter.tsx:237:          "7 קטגוריות: כללי, פנסיון (טיפול בכלבים בשהייה), אילוף (הכנה למפגשים), לידים (מעקב אחרי לקוחות פוט
+src/components/help/HelpCenter.tsx:311:          "לכל עסק יש קישור ציבורי ייחודי. לקוחות נכנסים לקישור ועוברים אשף: בחירת שירות ← בחירת חיית מח�
+src/components/help/HelpCenter.tsx:326:          "טופס קליטה הוא שאלון מקוון שנשלח ללקוח לפני ביקור ראשון. כולל 4 שלבים: פרטי הכלב ← מידע רפואי (�
+src/components/help/HelpCenter.tsx:338:          "בעמוד \"ניהול חדרים\" תמצאו את רשת החדרים עם שם וקיבולת. ניתן להוסיף חדרים חדשים, לעדכן קיבולת, �
+src/components/help/HelpCenter.tsx:343:          "לחצו \"שהייה חדשה\" ← בחרו לקוח ← בחרו כלב ← בחרו חדר ← הגדירו תאריכי כניסה ויציאה + שעות. בחיר�
+src/components/help/HelpCenter.tsx:348:          "כשכלב עובר את שעת הצ'ק-אאוט המתוכננת (ברירת מחדל: 11:00), מוצג באנר אדום עם שם הכלב, מספר שעות האיח�
+src/components/help/HelpCenter.tsx:353:          "לוח האכלה מציג את כל הכלבים הנמצאים כרגע בפנסיון עם הוראות האכלה אישיות: סוג מזון, כמות, שעות ה
+src/components/help/HelpCenter.tsx:358:          "לוח התרופות מציג את כל התרופות שצריך לתת לכלבים בפנסיון היום. כולל שם התרופה, המינון, השעות ומ�
+src/components/help/HelpCenter.tsx:368:          "לשונית \"חצרות\" מציגה את כל חצרות הפנסיון בתצוגת כרטיסים — כמה כלבים נמצאים בכל חצר, שמותיהם ו
+src/components/help/HelpCenter.tsx:380:          "קבוצות אילוף מיועדות למספר כלבים יחד (כמו כיתת גורים) עם מפגשים קבועים ביום ושעה קבועים. תוכני
+src/components/help/HelpCenter.tsx:390:          "בלשונית \"תוכניות אישיות\", לחצו \"תוכנית חדשה\". הגדירו מטרות עם אחוז התקדמות לכל מטרה, הוסיפו מ�
+src/components/help/HelpCenter.tsx:401:    name: "כלבי שירות",
+src/components/help/HelpCenter.tsx:405:        question: "מה זה מודול כלבי השירות?",
+src/components/help/HelpCenter.tsx:407:          "מודול מקיף לניהול תוכניות כלבי שירות ועזר: כלבי ניידות, כלבי PTSD, כלבי נחייה, כלבי אוטיזם, כלבי �
+src/components/help/HelpCenter.tsx:410:        question: "מה מוצג בדשבורד כלבי השירות?",
+src/components/help/HelpCenter.tsx:412:          "דשבורד כלבי השירות מציג: סטטיסטיקות מרכזיות (סה\"כ כלבים, מוסמכים, באימון, שיבוצים פעילים), ווי�
+src/components/help/HelpCenter.tsx:415:        question: "מה כוללות 10 הלשוניות בפרופיל הכלב?",
+src/components/help/HelpCenter.tsx:417:          "1) תיק כלב — פרטים בסיסיים, גזע, תמונה, מצב בריאותי. 2) חיסונים וטיפולים — חיסונים, תרופות ובריא�
+src/components/help/HelpCenter.tsx:420:        question: "מה הם שלבי האימון של כלב שירות?",
+src/components/help/HelpCenter.tsx:422:          "8 שלבים: בחירה (SELECTION) ← גידול (RAISING) ← גור (PUPPY) ← באימון (IN_TRAINING) ← אימון מתקדם (ADVANCED_TRAINING) ← מוסמ
+src/components/help/HelpCenter.tsx:425:        question: "אילו סוגי שירות זמינים לכלבים?",
+src/components/help/HelpCenter.tsx:427:          "7 סוגי שירות: ניידות (עזרה בתנועה), פסיכיאטרי (חרדה, דיכאון), PTSD (טראומה, פוסט-טראומה — נפרד מפסי�
+src/components/help/HelpCenter.tsx:430:        question: "מה זה מיקום נוכחי של כלב?",
+src/components/help/HelpCenter.tsx:432:          "כל כלב מסומן במיקום: אצל המאמן (ברירת מחדל), משפחת אומנה, פנסיון, או שטח. המיקום מוצג כתג על כרטי
+src/components/help/HelpCenter.tsx:437:          "לשונית \"מבחני הסמכה\" מנהלת כמה סוגי בדיקות: ADI (Assistance Dogs International) — 18 קטגוריות סטנדרטיות (הסחות
+src/components/help/HelpCenter.tsx:442:          "לשונית \"יומן אימונים\" מתעדת כל מפגש אימון עם: תאריך, שעות (מצטברות אוטומטית), מיקום, מאלף, פעיל�
+src/components/help/HelpCenter.tsx:447:          "לשונית \"פרוטוקולים רפואיים\" מציגה רשימה מותאמת של בדיקות ופרוצדורות נדרשות לכלב: חיסונים (כל
+src/components/help/HelpCenter.tsx:452:          "בעמוד \"תעודות זיהוי\" ובלשונית \"הסמכה\" בפרופיל הכלב ניתן ליצור תעודת זיהוי דיגיטלית עם QR. התע�
+src/components/help/HelpCenter.tsx:462:          "זכאים מנוהלים בתצוגת קנבן או טבלה עם שלבים מותאמים אישית (ניתן ליצור, לשנות שם, צבע וסדר). כל כר
+src/components/help/HelpCenter.tsx:465:        question: "איך עובד שיבוץ כלב לזכאי?",
+src/components/help/HelpCenter.tsx:467:          "שיבוץ נעשה בלשונית \"שיבוצים\" בפרופיל הכלב. בחרו זכאי ותאריך שיבוץ. לכל שיבוץ יש שני סטטוסים ב�
+src/components/help/HelpCenter.tsx:470:        question: "איך מייבאים כלבי שירות וזכאים מקובץ?",
+src/components/help/HelpCenter.tsx:472:          "בעמוד \"כלבי שירות\" (רשימת כלבים) לחצו \"ייבוא מקובץ\" → הורידו תבנית Excel לדוגמה → מלאו פרטים (שם
+src/components/help/HelpCenter.tsx:477:          "עמוד \"ציות\" ולשונית \"דיווח ממשלתי\" בפרופיל כלב מנהלים אירועי תאימות (דיווח 48 שעות, ביקורות). כ
+src/components/help/HelpCenter.tsx:480:        question: "מה זה עמוד הדוחות של כלבי שירות?",
+src/components/help/HelpCenter.tsx:482:          "עמוד \"דוחות\" מאפשר ייצוא XLSX מפורט: פרופילי כלבים, היסטוריה רפואית, סיכום אימונים ושיבוצים. הד�
+src/components/help/HelpCenter.tsx:509:          "לחצו \"הזמנה חדשה\" ← בחרו קטגוריה: פנסיון, אילוף, מוצרים, או טיפוח. לאחר מכן בחרו לקוח וחיית/ות �
+src/components/help/HelpCenter.tsx:514:          "בהזמנת פנסיון: בחרו לקוח ← סמנו כלב אחד או יותר ← הגדירו תאריך ושעת כניסה ויציאה. המערכת מחשב�
+src/components/help/HelpCenter.tsx:566:          "כל תבנית ידנית מציגה בדיוק מהיכן בממשק היא נשלחת. למשל: תזכורת תור — מלוח השנה דרך כפתור WhatsApp; 
+src/components/help/HelpCenter.tsx:583:          "בהגדרות ← נתונים ← \"ייצוא\" — בחרו סוג: לקוחות, חיות מחמד, כלבי שירות, או זכאים. הקובץ יורד ב-XLSX
+src/components/help/HelpCenter.tsx:588:          "ייבוא זמין עבור לקוחות (הגדרות ← נתונים), כלבי שירות (עמוד כלבים ← \"ייבוא מקובץ\"), וזכאים (עמוד
+src/components/help/HelpCenter.tsx:600:          "ההגדרות מחולקות לקבוצות: העסק (פרטי העסק, מנוי וחיוב), תפעול (זמינות והזמנות, פנסיון, כלבי שירו�
+src/components/help/HelpCenter.tsx:642:          "4 רמות: בעלים — גישה מלאה לכל הפיצ'רים כולל הגדרות, אנליטיקס, פיננסים ומחיקות. מנהל — גישה מלאה
+src/components/help/HelpCenter.tsx:657:          "סרטוני ההדרכה נגישים מהסיידבר (\"סרטוני הדרכה\" עם תג חדש) ומהתפריט התחתון במובייל (\"הדרכה\"). הס
+src/components/help/HelpCenter.tsx:695:      "פנסיון — יומן הטיפול משותף בין הלוח היומי ללוח ההאכלה; כלבי שירות — טופס ביטוח פשוט יותר",
+src/components/help/HelpCenter.tsx:709:      "עשרות תיקוני יציבות: מחיקת חיות מחמד עם היסטוריה, הוספת לקוח מהתפריט התחתון במובייל, רשימת לקוח�
+src/components/help/HelpCenter.tsx:721:      "עמוד חיות מחמד: הוספה ומחיקה של חיות ישירות מהעמוד, וטלפון הבעלים לחיץ לשיחה ולוואטסאפ",
+src/components/help/HelpCenter.tsx:752:      "תיקוני יציבות: מחיקת כלב המשובץ בקבוצה, ספירת נוכחות מדויקת, ובדיקות תקינות בכל יצירת תוכנית/קב�
+src/components/help/HelpCenter.tsx:764:      "תגי \"חדש\" בסיידבר: ניהול משימות, חיות מחמד, יומן וניהול ובקרה",
+src/components/help/HelpCenter.tsx:772:    title: "צילום מסך בדיווח + שיפורי כלבי שירות",
+src/components/help/HelpCenter.tsx:776:      "שלב גידול (RAISING) חדש במחזור כלב שירות — בין בחירה לגור",
+src/components/help/HelpCenter.tsx:780:      "שיפורי UX: לשוניות כלב שסודרו מחדש, ניהול שלבי זכאים, עמודת שם כלב בטבלה",
+src/components/help/HelpCenter.tsx:786:    title: "ייבוא כלבי שירות + ביצועים",
+src/components/help/HelpCenter.tsx:788:      "ייבוא כלבי שירות וזכאים מקובץ Excel — תבנית מוכנה להורדה, תצוגה מקדימה ואישור",
+src/components/help/HelpCenter.tsx:802:      "מחיקת לקוח/כלב/תוכנית דורשת אישור כפול מבעלים",
+src/components/help/HelpCenter.tsx:803:      "מעקב מיקום כלבי שירות: מאמן / אומנה / פנסיון / שטח",
+src/components/help/HelpCenter.tsx:820:    title: "חוויית משתמש + כלבי שירות",
+src/components/help/HelpCenter.tsx:823:      "שיבוץ כלב שירות לזכאי ישירות מתיק הכלב",
+src/components/help/HelpCenter.tsx:831:    title: "מודול חיות מחמד",
+src/components/help/HelpCenter.tsx:836:      "קומבובוקס 60+ גזעי כלבים ו-14 גזעי חתולים",
+src/components/help/HelpCenter.tsx:843:    title: "WhatsApp Meta API + כלבי שירות",
+src/components/help/HelpCenter.tsx:846:      "דשבורד כלבי שירות עם ווידג'ט התראות",
+src/components/help/HelpCenter.tsx:855:      "ייצוא לקוחות + חיות מחמד ל-XLSX/CSV",
+src/components/help/HelpCenter.tsx:863:    title: "מודול כלבי שירות",
+src/services/orders.ts:227:    if (!petCheck) throw new ServiceError("חיית מחמד לא נמצאה בעסק זה", "VALIDATION");
+src/services/business-admin-health.ts:152:    title: "כלבים ללא רישום חיסונים",
+src/services/business-admin-health.ts:153:    description: "כלבים שלא הוזן להם אף חיסון (כלבת / משושה / שעלת) — אין מעקב תוקף ואין התראות.",
+src/services/business-admin-health.ts:162:    fixHint: "בכרטיס הכלב ← בריאות, הזינו תאריכי חיסונים (או סמנו כלבת \"לא ידוע\").",
+src/services/business-admin-health.ts:199:    description: "כלבים שחיסון הכלבת או המשושה שלהם פג — חשוב במיוחד לפני פנסיון או אילוף קבוצתי.",
+src/services/business-admin-health.ts:208:    fixHint: "עדכנו את תאריך החיסון האחרון בכרטיס הכלב, או שלחו לבעלים תזכורת לחדש.",
+src/services/business-admin-health.ts:371:    title: "לקוחות ללא כלב",
+src/services/business-admin-health.ts:372:    description: "לקוחות שלא משויכת אליהם אף חיית מחמד — אי אפשר לקבוע להם פנסיון, אילוף או מעקב חיסונים.",
+src/services/business-admin-health.ts:381:    fixHint: "הוסיפו את הכלב בכרטיס הלקוח (או מחקו לקוחות שנפתחו בטעות).",
+src/services/business.ts:212:    throw new ServiceError("הגדרות כלבי שירות גדולות מדי", "VALIDATION");
+src/services/business.ts:215:    throw new ServiceError("הגדרות כלבי שירות גדולות מדי", "VALIDATION");
+src/app/sign/[token]/page.tsx:34:  pet_name: "שם הכלב",
+src/app/forgot-password/page.tsx:52:          <p className="text-sm text-petra-muted mt-1">ניהול עסקי חיות מחמד</p>
+src/app/accessibility/page.tsx:97:              פטרה היא מערכת ניהול עסקי B2B לעסקי חיות מחמד בישראל — מאלפי כלבים, גרומרים, פנסיונים וארגוני כל
+src/app/accessibility/page.tsx:111:              הנגישות אינה רק חובה חוקית עבורנו — היא ערך מרכזי. ציבור לקוחותינו כולל בעלי עסקים ומאלפים המ�
+src/app/tos-accept/page.tsx:176:              ברוכים הבאים ל-Petra – מערכת ניהול מתקדמת למאלפי כלבים, בעלי פנסיונים ונותני שירותים פרטיים בתחום
+src/app/api/cron/online-classes-engagement/route.ts:335:            `למידה נעימה! 🐾`
+src/app/api/cron/online-classes-engagement/route.ts:341:            `למידה נעימה! 🐾`;
+src/app/api/cron/online-classes-engagement/route.ts:614:            `למידה נעימה! 🐾`;
+src/app/api/cron/online-class-reminders/route.ts:145:        `נתראה בשיעור! 🐾`;
+src/app/api/cron/birthday-reminders/route.ts:132:        body = `יום הולדת שמח ל-${pet.name}! 🎂🐾 ${pet.name} מלא/ה ${ageText} היום. מאחלים בריאות, שמחה והרבה עצמות! –
+src/app/api/cron/charge-trials/route.ts:217:              <td style="text-align:right;"><span style="color:#F97316;font-size:22px;font-weight:800;">Petra 🐾</span></td>
+src/app/api/cron/charge-trials/route.ts:282:          <p style="margin:0;font-size:11px;color:#94A3B8;">Petra · ניהול עסקי חיות מחמד · <a href="https://petra-app.com" style="color:#F97316;text-decorati
+src/app/api/exports/download/route.ts:100:        ["שם לקוח", "טלפון", "מייל", "כתובת", "תגיות", "תאריך הצטרפות", "תורים", "שם חיית מחמד", "סוג", "גזע", "מין",
+src/app/api/exports/download/route.ts:117:            const speciesLabel = pet.species === "dog" ? "כלב" : pet.species === "cat" ? "חתול" : "אחר";
+src/app/api/exports/download/route.ts:153:          p.species === "dog" ? "כלב" : p.species === "cat" ? "חתול" : "אחר",
+src/app/api/exports/download/route.ts:166:      XLSX.utils.book_append_sheet(wb, petSheet, "חיות מחמד");
+src/app/api/exports/download/route.ts:174:      entityLabel: type === "both" ? "לקוחות וחיות מחמד" : type === "pets" ? "חיות מחמד" : "לקוחות",
+src/app/api/settings/route.ts:71:          body: `שלום מ-Petra! 👋\n\nהודעות ה-WhatsApp שלך פועלות בהצלחה.\nלקוחות יקבלו תזכורות ועדכונים אוטומטית ישירו
+src/app/api/import/route.ts:4: * POST /api/import  – dry-run validation או ייבוא אמיתי של לקוחות/חיות מחמד
+src/app/api/webhooks/lead/route.ts:153:  if (petName) notesParts.push(`שם כלב: ${petName}`);
+src/app/api/contracts/templates/[id]/route.ts:81:        { error: `לתבנית יש ${signedCount} חוזים חתומים — רק מי שמורשה למחוק לקוחות וכלבים יכול למחוק אותה`, c
+src/app/api/contracts/send/route.ts:70:      if (!pet) return NextResponse.json({ error: "חיית המחמד לא נמצאה" }, { status: 404 });
+src/app/api/analytics/export/route.ts:76:  SERVICE_DOG: "כלב שירות",
+src/app/api/analytics/export/route.ts:124:  dog: "כלב",
+src/app/api/analytics/export/route.ts:413:      ["חיות מחמד חדשות", pets.length],
+src/app/api/analytics/export/route.ts:479:    const apptHeaders = ["תאריך", "שעת התחלה", "שעת סיום", "סטטוס", "לקוח", "חיית מחמד", "שירות", "הערות"];
+src/app/api/analytics/export/route.ts:680:    XLSX.utils.book_append_sheet(wb, wsPets, "חיות מחמד");
+src/app/terms/page.tsx:6:  description: "תנאי השימוש של מערכת Petra לניהול עסקי חיות מחמד",
+src/app/reset-password/page.tsx:122:        <p className="text-sm text-petra-muted mt-1">ניהול עסקי חיות מחמד</p>
+src/app/(dashboard)/tasks/page.tsx:1620:    { value: "DOG",      label: "חיית מחמד",    icon: PawPrint },
+src/app/(dashboard)/tasks/page.tsx:1654:            placeholder={entityType === "CUSTOMER" ? "הקלד שם לקוח..." : "הקלד שם חיית מחמד..."}
+src/app/(dashboard)/upgrade/page.tsx:105:    description: "מסלול ארגוני לכלבי שירות — ניהול זכאים, הכשרות ורגולציה.",
+src/app/(dashboard)/upgrade/page.tsx:108:      "ניהול כלבי שירות ותיק זכאים",
+src/app/global-error.tsx:22:            <p style={{ fontSize: "48px", marginBottom: "16px" }}>🐾</p>
+src/app/privacy/page.tsx:6:  description: "מדיניות הפרטיות של מערכת Petra לניהול עסקי חיות מחמד",
+src/app/privacy/page.tsx:13:      'Petra ("המערכת", "אנחנו") היא פלטפורמה לניהול עסקים בתחום חיות המחמד – מאלפי כלבים, פנסיונים, וספקי שירותי�
+src/app/privacy/page.tsx:24:      "2.3 נתוני חיות מחמד: שם, מין, גזע, תאריך לידה, פרטים רפואיים ומידע התנהגותי.",
+src/app/invite/page.tsx:117:        <p className="text-sm text-petra-muted mt-1">ניהול עסקי חיות מחמד</p>
+src/lib/utils.ts:88: *  text and turns every emoji outside the BMP (🐾 💳 😊…) into "�". Without text wa.me is fine.
+src/lib/tutorials-config.ts:62:    title: "חיות מחמד",
+src/lib/tutorials-config.ts:63:    description: "ניהול פרופיל חיית המחמד, חיסונים, מסמכים ונתוני בריאות",
+src/lib/tutorials-config.ts:117:    description: "ניהול צ׳ק-אין ואאוט, חדרים, לוח יומי והזנה לכלבים בפנסיון",
+src/lib/pending-approvals.ts:74:  DELETE_PET:         "מחיקת חיית מחמד",
+src/lib/pending-approvals.ts:78:  DELETE_SERVICE_DOG: "מחיקת כלב שירות",
+src/lib/activity-actions.ts:79:  ADD_PET: "הוסיף/ה חיית מחמד",
+src/lib/activity-actions.ts:80:  DELETE_PET: "מחק/ה חיית מחמד",
+src/lib/activity-actions.ts:108:  DELETE_SERVICE_DOG: "מחק/ה כלב שירות",
+src/lib/activity-actions.ts:145:  { value: "ADD_PET", label: "הוספת חיית מחמד" },
+src/lib/lead-alert.ts:110:              <h2 style="color: #fb923c; margin: 0; font-size: 20px;">🐾 ליד חדש נכנס לפטרה</h2>
+src/lib/constants.ts:11:      "ניהול לקוחות וחיות מחמד",
+src/lib/assistant/system-prompt.ts:16:const INSTRUCTIONS = `אתה Petra AI, עוזר התמיכה שבתוך פטרה — מערכת ניהול לעסקים של חיות מחמד (מאלפי כלבים, פנסיוני�
+src/lib/assistant/system-prompt.ts:39:פטרה משרתת עסקים שונים מאוד זה מזה: מאלף כלבים, פנסיון, מספרה (גרומר), ועסק שמשלב כמה מהם. אותה שאלה מק�
+src/lib/assistant/system-prompt.ts:54:כתוב כמו איש תמיכה ותיק שעונה ללקוח בוואטסאפ: מכיר את המערכת בעל פה, עונה ישר ולא מבזבז ללקוח זמן. הלק
+src/lib/assistant/system-prompt.ts:76:שאלה: איך מסמנים שכלב קיבל את התרופה שלו?
+src/lib/assistant/system-prompt.ts:114:const BUSINESS_TYPES = ["מאלף כלבים", "פנסיון", "מספרה", "משולב"];
+src/lib/assistant/screens.ts:50:  "/pets": ["איך מוסיפים חיית מחמד ללקוח?", "איך עובד מעקב המשקל?", "מה כולל המידע הרפואי של כלב?"],
+src/lib/payment-request.ts:148:    body = `שלום ${customer.name}! 🐾\n\n*דרישת תשלום*${forPart ? `\nעבור: ${forPart}` : ""}\n\n💰 סה"כ לתשלום: *${orderTotal}*\n\n💳 לתשלום מאוב�
+src/lib/data-health.ts:117:  if (!h.rabiesUnknown && expired(h.rabiesValidUntil)) out.push("כלבת");
+src/lib/notify-owner.ts:399:        <h2 style="color: #fb923c; margin: 0; font-size: 20px;">🐾 Petra</h2>
+src/lib/notify-owner.ts:490:    `בהצלחה! 🐾`;
+src/lib/notify-owner.ts:501:        <h2 style="color: #fb923c; margin: 0; font-size: 20px;">🐾 Petra</h2>
+src/lib/notify-owner.ts:502:        <p style="color: #94a3b8; margin: 4px 0 0; font-size: 13px;">מערכת ניהול לעסקי חיות מחמד</p>
+src/lib/notify-owner.ts:556:      <h2 style="color: #ea580c;">🐶 ${escapeHtml(p.title)}</h2>
+src/lib/email.ts:42:          <p style="color:rgba(255,255,255,0.9);margin:8px 0 0;font-size:14px;">ניהול עסקי חיות מחמד</p>
+src/lib/email.ts:49:          <p style="margin:0;font-size:12px;color:#94a3b8;">Petra — ניהול עסקי חיות מחמד — <a href="https://petra-app.com" style="color:#f97316;text-decoration:none;">petra-app.co
+src/lib/permissions.ts:289:  { id: "sd_dogs", label: "כלבי שירות — לשוניות בתיק הכלב" },
+src/lib/permissions.ts:308:  { perms: [TENANT_PERMS.VIEW_SERVICE_DOGS], key: TENANT_PERMS.VIEW_SERVICE_DOGS, group: "screens", label: "כלבי שירות", hint: "כלבים, זכאים ושיבוצים" },
+src/lib/permissions.ts:310:  { perms: [TENANT_PERMS.VIEW_PETS], key: TENANT_PERMS.VIEW_PETS, group: "screens", label: "חיות מחמד", hint: "רשימת כל חיות המחמד" },
+src/lib/permissions.ts:314:  // ── כלבי שירות — לשוניות בתיק הכלב ──
+src/lib/permissions.ts:315:  { perms: [TENANT_PERMS.SD_DOG_FILE], key: TENANT_PERMS.SD_DOG_FILE, group: "sd_dogs", label: "תיק כלב", hint: "פרטי הכלב, בריאות והאכלה" },
+src/lib/permissions.ts:316:  { perms: [TENANT_PERMS.SD_DOG_VACCINATIONS], key: TENANT_PERMS.SD_DOG_VACCINATIONS, group: "sd_dogs", label: "חיסונים וטיפולים", hint: "תוכנית החיסונים והטיפ
+src/lib/permissions.ts:317:  { perms: [TENANT_PERMS.SD_DOG_PLACEMENTS], key: TENANT_PERMS.SD_DOG_PLACEMENTS, group: "sd_dogs", label: "שיבוצים", hint: "שיבוצי הכלב אצל זכאים" },
+src/lib/permissions.ts:318:  { perms: [TENANT_PERMS.SD_DOG_TRAINING], key: TENANT_PERMS.SD_DOG_TRAINING, group: "sd_dogs", label: "יומן אימונים", hint: "שעות ואימונים שנרשמו לכלב" },
+src/lib/permissions.ts:320:  { perms: [TENANT_PERMS.SD_DOG_DOCUMENTS], key: TENANT_PERMS.SD_DOG_DOCUMENTS, group: "sd_dogs", label: "מסמכים", hint: "קבצים ומסמכים של הכלב" },
+src/lib/permissions.ts:322:  { perms: [TENANT_PERMS.SD_DOG_EQUIPMENT], key: TENANT_PERMS.SD_DOG_EQUIPMENT, group: "sd_dogs", label: "ציוד", hint: "ציוד שהוקצה לכלב" },
+src/lib/permissions.ts:326:  // ── כלבי שירות — מסך החיסונים ──
+src/lib/permissions.ts:335:  { perms: [TENANT_PERMS.CRITICAL_DELETE], key: TENANT_PERMS.CRITICAL_DELETE, group: "customers", label: "למחוק לקוחות וכלבים", hint: "גם מחיקת תבנית חוזה שי�
+src/lib/business-admin-activity.ts:292:  PET: "חיית מחמד",
+

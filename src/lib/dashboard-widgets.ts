@@ -17,7 +17,11 @@ export type WidgetRequirement =
   | "finance"         // perms.canSeeFinance
   | "revenue"         // perms.canSeeRevenueSummary
   | "leads"           // !perms.isStaff
-  | "activity";       // !perms.isStaff && !perms.isVolunteer
+  | "activity"        // !perms.isStaff && !perms.isVolunteer
+  // Verticals (docs/verticals): module exists for the business's vertical. Always true for
+  // "dogs", so these widgets behave exactly as before; "generic" hides them (not a paywall).
+  | "pets"            // !useVertical().hides("pets")
+  | "boarding";       // !useVertical().hides("boarding")
 
 export interface DashboardBlockDef {
   id: DashboardBlockId;
@@ -73,15 +77,15 @@ export const DASHBOARD_BLOCKS: DashboardBlockDef[] = [
   { id: "overdue_leads", label: "לידים שעבר מועד הפולואפ", hint: "לידים שלא טופלו בזמן", span: "full", requires: "leads" },
   { id: "top_debtors", label: "תשלומים פתוחים", hint: "הלקוחות עם החוב הגבוה ביותר", span: "full", requires: "finance" },
   { id: "stats", label: "כרטיסי מספרים", hint: "הכנסות, הזמנות, תורים ולידים במבט אחד", span: "full" },
-  { id: "boarding_today", label: "פנסיון — כניסות ויציאות היום", hint: "מי מגיע ומי יוצא היום", span: "full" },
+  { id: "boarding_today", label: "פנסיון — כניסות ויציאות היום", hint: "מי מגיע ומי יוצא היום", span: "full", requires: "boarding" },
   { id: "revenue_chart", label: "גרף הכנסות", hint: "הכנסות 6 החודשים האחרונים מול היעד", span: "half", requires: "revenue" },
   { id: "upcoming_appointments", label: "תורים קרובים", hint: "התורים הבאים לפי סוג שירות", span: "half" },
   { id: "recent_orders", label: "הזמנות אחרונות", hint: "5 ההזמנות האחרונות", span: "half" },
   { id: "activity_feed", label: "פעילות אחרונה", hint: "מה קרה במערכת ב-24 השעות האחרונות", span: "half", requires: "activity" },
   { id: "tomorrow_reminders", label: "תזכורות למחר", hint: "תורים של מחר ושליחת תזכורת בוואטסאפ", span: "full" },
-  { id: "vaccinations", label: "חיסוני כלבת", hint: "חיסונים שפג תוקפם או עומד לפוג", span: "full" },
-  { id: "medications", label: "תרופות בפנסיון", hint: "תרופות לכלבים שנמצאים בפנסיון", span: "full" },
-  { id: "birthdays", label: "ימי הולדת השבוע", hint: "חיות שחוגגות ב-7 הימים הקרובים", span: "full" },
+  { id: "vaccinations", label: "חיסוני כלבת", hint: "חיסונים שפג תוקפם או עומד לפוג", span: "full", requires: "pets" },
+  { id: "medications", label: "תרופות בפנסיון", hint: "תרופות לכלבים שנמצאים בפנסיון", span: "full", requires: "boarding" },
+  { id: "birthdays", label: "ימי הולדת השבוע", hint: "חיות שחוגגות ב-7 הימים הקרובים", span: "full", requires: "pets" },
   { id: "at_risk", label: "לקוחות בסיכון אי-חזרה", hint: "לקוחות שלא ביקרו 60+ יום", span: "full" },
   { id: "open_tasks", label: "משימות פתוחות", hint: "המשימות הפתוחות האחרונות", span: "full" },
 ];

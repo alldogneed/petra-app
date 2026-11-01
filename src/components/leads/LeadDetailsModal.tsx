@@ -1,5 +1,6 @@
 "use client";
 
+import { useVertical } from "@/hooks/useVertical";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
@@ -58,6 +59,7 @@ interface Toast {
 
 function ToastNotification({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }) {
   const t = useTranslations("leads");
+  const noPets = useVertical().hides("pets");
   useEffect(() => {
     const timer = setTimeout(onDismiss, 6000);
     return () => clearTimeout(timer);
@@ -78,8 +80,8 @@ function ToastNotification({ toast, onDismiss }: { toast: Toast; onDismiss: () =
               href={`/customers/${toast.customerId}`}
               className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-brand-600 hover:text-brand-700 bg-brand-50 hover:bg-brand-100 rounded-lg px-3 py-1.5 transition-colors"
             >
-              <PawPrint className="w-3.5 h-3.5" />
-              {t("leadDetailsModal.addDogNow")}
+              {noPets ? null : <PawPrint className="w-3.5 h-3.5" />}
+              {noPets ? t("leadDetailsModal.toCustomerCard") : t("leadDetailsModal.addDogNow")}
             </Link>
           )}
         </div>

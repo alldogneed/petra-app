@@ -4,6 +4,7 @@
  * contract in src/lib/customer-filters.ts + src/services/customer-list.ts) — never over the
  * loaded pages. Modals / popovers / cells live in src/components/customers/list/*.
  */
+import { useVertical } from "@/hooks/useVertical";
 import { PageTitle } from "@/components/ui/PageTitle";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
@@ -167,6 +168,9 @@ function CustomersList() {
   const { locale, currency, timezone } = useBusinessLocale();
   const queryClient = useQueryClient();
   const { canExportData, canImportData, canSeeFinance, canSendMessages, canCriticalDelete } = usePermissions();
+  // Verticals: "generic" has no pets — no pets column.
+  const { hides, v } = useVertical();
+  const noPets = hides("pets");
   const { maxCustomers, tier } = useSubscription();
 
   // ── State ──
@@ -651,7 +655,7 @@ function CustomersList() {
 
                       <div className="mt-2 ms-11 flex items-center justify-between gap-2 flex-wrap">
                         <div className="flex items-center gap-3 min-w-0">
-                          {customer._count.pets > 0 && <PetsCell pets={customer.pets} count={customer._count.pets} />}
+                          {!noPets && customer._count.pets > 0 && <PetsCell pets={customer.pets} count={customer._count.pets} />}
                           {canSeeFinance && <FinancialBadge financial={customer.financial} />}
                         </div>
                         <QuickActions customer={customer} onEdit={() => setEditingCustomer(customer)} />
@@ -688,7 +692,7 @@ function CustomersList() {
                   )}
                   <SortHeader label={t("table.name")} sortBy={filters.sortBy} primary="name_asc" onSort={onSort} />
                   <th scope="col" className="table-header-cell">{t("table.status")}</th>
-                  <th scope="col" className="table-header-cell">{t("table.pets")}</th>
+                  {!noPets && <th scope="col" className="table-header-cell">{t("table.pets")}</th>}
                   <SortHeader
                     label={t("table.appointments")}
                     sortBy={filters.sortBy}
@@ -774,9 +778,11 @@ function CustomersList() {
                       <td className="table-cell">
                         <StatusBadge status={customer.status} />
                       </td>
-                      <td className="table-cell">
-                        <PetsCell pets={customer.pets} count={customer._count.pets} />
-                      </td>
+                      {!noPets && (
+                        <td className="table-cell">
+                          <PetsCell pets={customer.pets} count={customer._count.pets} />
+                        </td>
+                      )}
                       <td className="table-cell hidden lg:table-cell">
                         <AppointmentDates last={customer.lastAppointment} next={customer.nextAppointment} />
                       </td>
@@ -869,8 +875,9 @@ function CustomersList() {
         title={t("bulkDelete.confirmTitle")}
         description={
           <>
-            {t.rich("bulkDelete.confirmDescription", {
+            {t.rich("bulkDelete.confirmDescriptionWarning", {
               count: selectedIds.size,
+              warning: v("customer.bulk_delete_warning"),
               b: (chunks) => <span className="font-semibold">{chunks}</span>,
             })}
           </>

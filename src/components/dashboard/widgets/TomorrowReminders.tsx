@@ -76,7 +76,7 @@ export function TomorrowReminders({
             <span className="text-sm font-semibold text-slate-900 tabular-nums">{a.startTime}</span>
             <Link
               href={`/customers/${a.customerId}`}
-              className="flex flex-col gap-0.5 min-w-0 text-slate-900 hover:text-orange-600"
+              className="flex flex-col gap-0.5 min-w-0 text-slate-900 hover:text-brand-600"
             >
               <span className="text-sm font-medium truncate">{a.customerName}</span>
               {detail && <span className="text-xs text-slate-500 truncate">{detail}</span>}
@@ -102,7 +102,7 @@ export function TomorrowReminders({
         <p className="m-0 pt-3 pb-1 text-xs text-slate-500">
           {t.rich("upgradeHint", {
             link: (c) => (
-              <Link href="/upgrade" className="text-orange-600 hover:text-orange-700 hover:underline">
+              <Link href="/upgrade" className="text-brand-600 hover:text-brand-700 hover:underline">
                 {c}
               </Link>
             ),

@@ -50,7 +50,7 @@ export default function RevenueChart({
         actions={
           <div className="flex items-center gap-3.5 text-xs text-slate-500">
             <span className="inline-flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-[2px] bg-[#F97316]" />
+              <span className="w-2 h-2 rounded-[2px] bg-brand-500" />
               {t("legendRevenue")}
             </span>
             <span className="inline-flex items-center gap-1.5">
@@ -76,7 +76,8 @@ export default function RevenueChart({
           <div className="absolute inset-0 flex items-end gap-2 sm:gap-4 px-1">
             {data.map((d, i) => {
               const h = pct(d.amount);
-              const fill = hover === i ? "#EA580C" : i === last ? "#F97316" : "#FDBA74";
+              // brand-* = Petra orange for dogs (same hex), the business colour for "generic".
+              const fill = hover === i ? "rgb(var(--brand-600))" : i === last ? "rgb(var(--brand-500))" : "rgb(var(--brand-300))";
               return (
                 <div
                   key={`${d.month}-${i}`}

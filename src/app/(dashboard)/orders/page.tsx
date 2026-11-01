@@ -1,4 +1,5 @@
 "use client";
+import { useVertical } from "@/hooks/useVertical";
 import { PageTitle } from "@/components/ui/PageTitle";
 
 import { TierGate } from "@/components/paywall/TierGate";
@@ -191,6 +192,7 @@ function get30DaysAgoStr() {
 }
 
 function OrdersPageContent() {
+  const vt = useVertical();
   const { canExportData } = usePermissions();
   const t = useTranslations("orders");
   const tc = useTranslations("common");
@@ -333,7 +335,7 @@ function OrdersPageContent() {
         <tr>
           <td>#${o.id.slice(-8).toUpperCase()}</td>
           <td>${escapeHtml(o.customer.name)}<br/><small>${escapeHtml(o.customer.phone)}</small></td>
-          <td>${orderTypeLabel(t, o.orderType)}</td>
+          <td>${vt.label(o.orderType, orderTypeLabel(t, o.orderType))}</td>
           <td>${orderStatusLabel(t, o.status)}</td>
           <td style="text-align:end">${sym}${o.total.toFixed(2)}</td>
           <td style="text-align:end;color:${paid >= o.total ? "#059669" : paid > 0 ? "#d97706" : "#dc2626"}">
@@ -711,7 +713,7 @@ function OrdersPageContent() {
                     <div className="flex items-center justify-between mt-2 text-xs text-petra-muted">
                       <div className="flex items-center gap-2">
                         <span className="badge-neutral text-[10px]">
-                          {orderTypeLabel(t, order.orderType)}
+                          {vt.label(order.orderType, orderTypeLabel(t, order.orderType))}
                         </span>
                         <span>{t("ordersPage.card.items", { count: order.lines.length })}</span>
                       </div>
@@ -935,7 +937,7 @@ function OrdersPageContent() {
                       {/* Type */}
                       <td className="table-cell hidden lg:table-cell">
                         <span className="badge-neutral text-xs">
-                          {orderTypeLabel(t, order.orderType)}
+                          {vt.label(order.orderType, orderTypeLabel(t, order.orderType))}
                         </span>
                       </td>
 

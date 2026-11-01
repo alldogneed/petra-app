@@ -3,6 +3,7 @@
  * Used for transactional emails (welcome, password reset, etc.)
  */
 
+import type { ResolvedBranding } from "@/lib/verticals/branding";
 import { Resend } from "resend";
 
 /** Escapes user-controlled strings before inserting into HTML email templates. */
@@ -32,9 +33,29 @@ function getFromEmail(): string {
   return process.env.EMAIL_FROM || "Petra <onboarding@resend.dev>";
 }
 
+/** "Petra <a@b>" + "סטודיו נועה" → "סטודיו נועה <a@b>" (quotes / angle brackets stripped). */
+export function withDisplayName(from: string, name: string): string {
+  const address = /<([^>]+)>/.exec(from)?.[1] ?? from.trim();
+  const safe = name.replace(/["<>\r\n]/g, "").trim().slice(0, 80);
+  return safe ? `"${safe}" <${address}>` : from;
+}
+
 // ─── Brand email wrapper helpers ────────────────────────────────────────────
 
-export function brandHeader(): string {
+export function brandHeader(branding?: ResolvedBranding | null): string {
+  // Verticals phase 3: a "generic" business's customer e-mails carry its own name, logo
+  // and colour. No branding / dogs → the Petra header, byte-for-byte as before.
+  if (branding?.enabled) {
+    const c = escapeHtml(branding.primaryColor);
+    const logo = /^https:\/\//.test(branding.logoUrl)
+      ? `<img src="${escapeHtml(branding.logoUrl)}" alt="${escapeHtml(branding.name)}" width="64" height="64" style="display:block;margin:0 auto 12px;border-radius:12px;object-fit:cover;" />`
+      : "";
+    return `
+        <div style="background:${c};padding:32px 24px;text-align:center;border-radius:12px 12px 0 0;">
+          ${logo}
+          <h1 style="color:#fff;margin:0;font-size:28px;font-weight:800;">${escapeHtml(branding.name)}</h1>
+        </div>`;
+  }
   return `
         <div style="background:linear-gradient(135deg,#f97316,#fb923c);padding:32px 24px;text-align:center;border-radius:12px 12px 0 0;">
           <img src="https://petra-app.com/petra-logo.png" alt="Petra" width="64" height="64" style="display:block;margin:0 auto 12px;border-radius:12px;" />
@@ -43,11 +64,29 @@ export function brandHeader(): string {
         </div>`;
 }
 
-export function brandFooter(): string {
+export function brandFooter(branding?: ResolvedBranding | null): string {
+  if (branding?.enabled) {
+    return `
+        <div style="background:#f8fafc;padding:16px 24px;text-align:center;border-radius:0 0 12px 12px;border-top:1px solid #e2e8f0;">
+          <p style="margin:0;font-size:12px;color:#94a3b8;">${escapeHtml(branding.name)}</p>
+        </div>`;
+  }
   return `
         <div style="background:#f8fafc;padding:16px 24px;text-align:center;border-radius:0 0 12px 12px;border-top:1px solid #e2e8f0;">
           <p style="margin:0;font-size:12px;color:#94a3b8;">Petra — ניהול עסקי חיות מחמד — <a href="https://petra-app.com" style="color:#f97316;text-decoration:none;">petra-app.com</a></p>
         </div>`;
+}
+
+/**
+ * Markers for e-mails built before the business's branding is known (cron helpers):
+ * build with the markers, then `applyEmailBranding(html, branding)` right before sending.
+ * Without branding (or for a dogs business) the result is the Petra header/footer.
+ */
+export const EMAIL_BRAND_HEADER = "<!--petra:brand-header-->";
+export const EMAIL_BRAND_FOOTER = "<!--petra:brand-footer-->";
+
+export function applyEmailBranding(html: string, branding?: ResolvedBranding | null): string {
+  return html.split(EMAIL_BRAND_HEADER).join(brandHeader(branding)).split(EMAIL_BRAND_FOOTER).join(brandFooter(branding));
 }
 
 // ─── Checkout Welcome Email (immediate-payment checkout-first flow) ──────────
@@ -199,10 +238,12 @@ export async function sendUpgradeConfirmationEmail(params: UpgradeConfirmationEm
 
 // ─── Generic email sender ────────────────────────────────────────────────────
 
-export async function sendEmail(params: { to: string; subject: string; html: string }): Promise<void> {
+export async function sendEmail(params: { to: string; subject: string; html: string; fromName?: string | null }): Promise<void> {
   const resend = getResend();
   await resend.emails.send({
-    from: getFromEmail(),
+    // fromName (verticals phase 3): a "generic" business's customer mail shows its own
+    // sender name; the address stays the platform's verified sender.
+    from: params.fromName ? withDisplayName(getFromEmail(), params.fromName) : getFromEmail(),
     to: params.to,
     subject: params.subject,
     html: params.html,

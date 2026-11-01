@@ -1,4 +1,5 @@
 "use client";
+import { useVertical } from "@/hooks/useVertical";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Save, Loader2, FileText, X, Pencil, Trash2, Plus, AlertTriangle } from "lucide-react";
@@ -117,8 +118,8 @@ export function ContractsTab() {
             try { fieldCount = JSON.parse(tpl.fields || "[]").length; } catch { fieldCount = 0; }
             return (
               <div key={tpl.id} className="card p-4 flex items-center gap-4">
-                <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center flex-shrink-0">
-                  <FileText className="w-5 h-5 text-orange-500" />
+                <div className="w-10 h-10 bg-brand-50 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <FileText className="w-5 h-5 text-brand-500" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-petra-text text-sm truncate">{tpl.name}</p>
@@ -355,6 +356,8 @@ function FieldsSummary({ fields, onClear }: { fields: ContractField[]; onClear: 
 function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
   const t = useTranslations("settings.contractsTab");
   const tc = useTranslations("common");
+  // Verticals: no pet fields for "generic".
+  const noPets = useVertical().hides("pets");
   const [name, setName] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [signaturePage, setSignaturePage] = useState(1);
@@ -558,7 +561,7 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
               <div>
                 <p className="text-xs text-petra-muted mb-2">{t("modal.pickFieldType")}</p>
                 <div className="flex flex-wrap gap-2">
-                  {FIELD_TYPES.map((ft) => (
+                  {FIELD_TYPES.filter((ft) => !(noPets && ft.type.startsWith("pet_"))).map((ft) => (
                     <button
                       key={ft.type}
                       type="button"
@@ -566,7 +569,7 @@ function AddContractTemplateModal({ onClose, onSaved }: { onClose: () => void; o
                       className={cn(
                         "px-3 py-1.5 rounded-lg text-xs font-medium border transition-all",
                         selectedType === ft.type
-                          ? "ring-2 ring-orange-500 border-transparent"
+                          ? "ring-2 ring-brand-500 border-transparent"
                           : "border-slate-200 hover:border-slate-300"
                       )}
                       style={selectedType === ft.type ? { background: ft.bgColor, color: ft.color } : {}}
@@ -652,6 +655,8 @@ function EditContractTemplateModal({
 }) {
   const t = useTranslations("settings.contractsTab");
   const tc = useTranslations("common");
+  // Verticals: no pet fields for "generic".
+  const noPets = useVertical().hides("pets");
   const [name, setName] = useState(template.name);
   const [signaturePage, setSignaturePage] = useState(template.signaturePage);
   const [totalPages, setTotalPages] = useState(0);
@@ -830,9 +835,9 @@ function EditContractTemplateModal({
             <div>
               <p className="text-xs text-petra-muted mb-2">{t("modal.pickFieldType")}</p>
               <div className="flex flex-wrap gap-2">
-                {FIELD_TYPES.map((ft) => (
+                {FIELD_TYPES.filter((ft) => !(noPets && ft.type.startsWith("pet_"))).map((ft) => (
                   <button key={ft.type} type="button" onClick={() => setSelectedType(ft.type)}
-                    className={cn("px-3 py-1.5 rounded-lg text-xs font-medium border transition-all", selectedType === ft.type ? "ring-2 ring-orange-500 border-transparent" : "border-slate-200 hover:border-slate-300")}
+                    className={cn("px-3 py-1.5 rounded-lg text-xs font-medium border transition-all", selectedType === ft.type ? "ring-2 ring-brand-500 border-transparent" : "border-slate-200 hover:border-slate-300")}
                     style={selectedType === ft.type ? { background: ft.bgColor, color: ft.color } : {}}>
                     {t(`fieldTypes.${ft.type}`)}
                   </button>
