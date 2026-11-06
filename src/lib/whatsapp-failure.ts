@@ -15,6 +15,7 @@ export const WHATSAPP_CONTEXT_LABELS: Record<string, string> = {
   boarding_thank_you: "תודה אחרי פנסיון",
   payment_request: "בקשת תשלום",
   customer_message: "הודעה ידנית מכרטיס לקוח",
+  inbound_ack: "אישור קבלה לתשובת לקוח",
   booking_confirmation: "אישור הזמנה אונליין",
   booking_pending: "הזמנה אונליין ממתינה",
   booking_request_received: "בקשת הזמנה התקבלה",
