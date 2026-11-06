@@ -10,7 +10,7 @@
  * Pure — tested (alldog-nudge.test.ts). DB side: nudge.ts.
  */
 import { israelParts, callbackPhraseFor, callbackSlot } from "@/lib/alldog/time";
-import { isQuietTime, nextSendTime } from "@/lib/alldog/missed-call-rules";
+import { autoMessageSendTime, isQuietTime, isShabbatOrHoliday, nextSendTime, type QuietBlock } from "@/lib/alldog/missed-call-rules";
 import { closingAlreadySent, repIsActive } from "@/lib/alldog-bot/handoff";
 import { towardYou, type Gender } from "@/lib/alldog-bot/address";
 
@@ -89,9 +89,13 @@ function isQuietAt(d: Date): boolean {
   return isQuietTime(p.ymd, p.hhmm);
 }
 
-/** The time, moved to 08:00 when it falls in 22:00–08:00. */
-export function outOfQuietHours(d: Date): Date {
-  return nextSendTime(d);
+/**
+ * The time, moved to 08:00 when it falls in 22:00–08:00; item 42 (31/10: a partial closing went out
+ * on Shabbat at 08:00): also past Shabbat / a holiday, like every other automatic message.
+ */
+export function outOfQuietHours(d: Date, holidays: QuietBlock[] = []): Date {
+  const t = nextSendTime(d);
+  return isShabbatOrHoliday(t, holidays) ? nextSendTime(autoMessageSendTime(t, holidays)) : t;
 }
 
 /** The callback phrase of the closing: "בהקדם" while open, else `callbackSlot` ("מחר בבוקר"…). */
@@ -142,8 +146,11 @@ export function decideNudge(input: {
   lastHumanAt: Date | null;
   messages: NudgeMessage[];
   now: Date;
+  /** Holiday blocks (item 42): no reminder and no partial closing on Shabbat / a holiday. */
+  holidays?: QuietBlock[];
 }): NudgeDecision {
   const { messages, now } = input;
+  const holidays = input.holidays ?? [];
   if (input.status !== "active") return { action: "none", reason: "status" };
   const last = messages[messages.length - 1];
   if (!last || last.role !== "assistant") return { action: "none", reason: "customer_last" };
@@ -154,17 +161,18 @@ export function decideNudge(input: {
   if (isThanksOrBye(lastUser.text)) return { action: "none", reason: "thanks" };
 
   if (last.kind === NUDGE_KIND) {
-    const closeAt = outOfQuietHours(new Date(last.createdAt.getTime() + CLOSE_AFTER_NUDGE_MS));
+    const closeAt = outOfQuietHours(new Date(last.createdAt.getTime() + CLOSE_AFTER_NUDGE_MS), holidays);
     return now >= closeAt ? { action: "close", anchorId: last.id } : { action: "wait", until: closeAt };
   }
   if (last.kind !== "text" || !isBotQuestion(last.text)) return { action: "none", reason: "not_question" };
   // The question = the bot's whole last turn (≤ 3 parts): its last part is `last`.
   const nudgeAt = new Date(last.createdAt.getTime() + nudgeDelayMs(last.id));
   if (now < nudgeAt) return { action: "wait", until: nudgeAt };
-  const canNudge = !isQuietAt(nudgeAt) && !isQuietAt(now) && now.getTime() - nudgeAt.getTime() <= NUDGE_LATE_MS;
+  const canNudge =
+    !isQuietAt(nudgeAt) && !isQuietAt(now) && !isShabbatOrHoliday(now, holidays) && now.getTime() - nudgeAt.getTime() <= NUDGE_LATE_MS;
   if (canNudge) return { action: "nudge", anchorId: last.id };
   // Night (or a late run): no reminder; the closing as if it had gone out, at 08:00 at the earliest.
-  const closeAt = outOfQuietHours(new Date(nudgeAt.getTime() + CLOSE_AFTER_NUDGE_MS));
+  const closeAt = outOfQuietHours(new Date(nudgeAt.getTime() + CLOSE_AFTER_NUDGE_MS), holidays);
   return now >= closeAt ? { action: "close", anchorId: last.id } : { action: "wait", until: closeAt };
 }
 

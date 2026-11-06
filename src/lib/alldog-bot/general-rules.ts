@@ -260,7 +260,13 @@ export function fixWhoCallsBack(text: string): string {
 
 /** The short price answer (item 37 §5 + Or 26/10 on the offset). */
 export const PRICE_ANSWER_LINE =
-  "שיחת הייעוץ בטלפון בחינם, ואבחון בבית עולה 350 ₪ ומתקזז אם ממשיכים לאילוף אינטנסיבי. אילוף אינטנסיבי ופנסיון: לפי אבחון, ואפשר לפרוס לתשלומים.";
+  "שיחת הייעוץ בטלפון בחינם, ואבחון בבית עולה 350 ₪ ומתקזז אם ממשיכים לאילוף אינטנסיבי. אילוף אינטנסיבי ואילוף בתנאי פנסיון: לפי אבחון, ואפשר לפרוס לתשלומים.";
+
+/**
+ * Plain boarding (a stay, no training) — Or, 6/11: about 120–140 ₪ a day, depending on the place
+ * that takes the dog; the rep comes back with exact prices. Training in boarding stays "לפי אבחון".
+ */
+export const BOARDING_PRICE_LINE = "פנסיון רגיל (בלי אילוף): בערך 120 עד 140 ₪ ליום, תלוי במקום שיקבל אתכם. הנציגה תחזור עם מחירים מסודרים.";
 
 /** The reply to a price question must carry the diagnosis price — else the short answer opens it. Pure — tested. */
 export function enforcePriceAnswer(reply: string): string {

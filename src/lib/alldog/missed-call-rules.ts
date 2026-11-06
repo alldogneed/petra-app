@@ -184,6 +184,14 @@ export function isHolidayBlock(b: QuietBlock): boolean {
  * Shabbat → its end; a holiday block → its end; 21:30–08:00 → 08:00. Repeated until all pass
  * (Shabbat ending at 21:40 → Sunday 08:00).
  */
+/** Shabbat (candle lighting → its end) or a holiday block right now — item 42 (the bot's reminder / partial closing). */
+export function isShabbatOrHoliday(d: Date, holidays: QuietBlock[] = []): boolean {
+  const p = israelParts(d);
+  if (p.weekday === 5 && d.getTime() >= shabbatStartsAt(p.ymd).getTime()) return true;
+  if (p.weekday === 6 && d.getTime() < shabbatEndsAt(p.ymd).getTime()) return true;
+  return holidays.some((b) => isHolidayBlock(b) && b.startAt.getTime() <= d.getTime() && b.endAt.getTime() > d.getTime());
+}
+
 export function autoMessageSendTime(at: Date, holidays: QuietBlock[] = []): Date {
   let t = at;
   for (let i = 0; i < 10; i++) {
