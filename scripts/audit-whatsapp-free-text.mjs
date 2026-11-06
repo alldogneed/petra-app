@@ -32,6 +32,8 @@ const ALLOWED_FREE_TEXT = {
   "app/api/integrations/whatsapp/test/route.ts": { count: 1, kind: "BY_DESIGN", why: "connection test message" },
   // Typed by the business for one customer, right now (UI explains the 24h window)
   "app/api/customers/[id]/whatsapp/route.ts": { count: 1, kind: "BY_DESIGN", why: "manual message from the customer card" },
+  // A reply to a customer who just wrote to the same platform number (inside the 24h window they opened)
+  "lib/whatsapp-inbound.ts": { count: 1, kind: "BY_DESIGN", why: "one 'received' acknowledgement to a customer reply (≤ 1/phone/hour, platform number only)" },
   // Customer-facing free text that still needs an approved template
   "app/api/booking/book/route.ts": { count: 1, kind: "OWNER", why: "booking request alert to the business phone" },
   "app/api/cron/online-class-reminders/route.ts": { count: 1, kind: "KNOWN_GAP", why: "online class reminder to students" },

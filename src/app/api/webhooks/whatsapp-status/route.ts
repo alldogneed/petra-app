@@ -23,6 +23,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createHmac, timingSafeEqual } from "crypto";
 import prisma from "@/lib/prisma";
 import { findBusinessIdByPhoneNumberId } from "@/lib/whatsapp-connections";
+import { parseInboundMessages, type InboundMessage } from "@/lib/whatsapp-inbound-rules";
+import { runAfterResponse } from "@/lib/wait-until";
 import { explainWhatsAppFailure, contextLabel, isCustomerFacingContext, maskPhone, type MetaError } from "@/lib/whatsapp-failure";
 
 export const dynamic = "force-dynamic";
@@ -59,7 +61,7 @@ interface MetaStatus {
 interface MetaChangeValue {
   metadata?: { phone_number_id?: string; display_phone_number?: string };
   statuses?: MetaStatus[];
-  /** Inbound customer messages (business numbers) — acknowledged, not stored. */
+  /** Inbound customer messages — replies to the platform number become a task (src/lib/whatsapp-inbound.ts). */
   messages?: unknown[];
 }
 
@@ -68,6 +70,10 @@ interface MetaChangeValue {
  * X-Hub-Signature-256: sha256=<hex hmac>. Enforced only when META_APP_SECRET is set
  * (keeps current accept-all behavior on deployments without Embedded Signup).
  */
+function signatureEnforced(): boolean {
+  return !!process.env.META_APP_SECRET?.trim();
+}
+
 function verifySignature(rawBody: string, header: string | null): boolean {
   const secret = process.env.META_APP_SECRET?.trim();
   if (!secret) return true;
@@ -107,12 +113,24 @@ export async function POST(request: NextRequest) {
     const entries = (body as { entry?: Array<{ changes?: Array<{ value?: MetaChangeValue }> }> })?.entry ?? [];
     // Keep each status paired with the sending number (metadata lives on the change value).
     const items: Array<{ status: MetaStatus; phoneNumberId: string | null }> = [];
+    const inbound: Array<{ messages: InboundMessage[]; phoneNumberId: string | null }> = [];
     for (const e of entries) {
       for (const c of e.changes ?? []) {
         const phoneNumberId = c.value?.metadata?.phone_number_id ?? null;
         for (const status of c.value?.statuses ?? []) items.push({ status, phoneNumberId });
-        // Inbound customer replies (value.messages) on business numbers: out of scope for now —
-        // we only acknowledge them (200) so Meta stops retrying. Content is NOT stored.
+        const messages = parseInboundMessages(c.value?.messages);
+        if (messages.length) inbound.push({ messages, phoneNumberId });
+      }
+    }
+
+    // Customer replies to our automatic messages (3/11/2026: a cancellation nobody saw). Handled only
+    // when the body is signed (META_APP_SECRET set) — an unsigned body could plant tasks in a business.
+    if (inbound.length) {
+      if (signatureEnforced()) {
+        const { handleInboundMessages } = await import("@/lib/whatsapp-inbound");
+        await runAfterResponse(Promise.all(inbound.map((b) => handleInboundMessages(b.messages, b.phoneNumberId))));
+      } else {
+        console.warn("[whatsapp-status] inbound customer message ignored: META_APP_SECRET is not set (unsigned webhook)");
       }
     }
 
