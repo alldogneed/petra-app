@@ -8,6 +8,7 @@ import {
   inboundTaskTitle,
   INBOUND_TASK_PREFIX,
   isAckOnly,
+  isTrustedInbound,
   localPhone,
   looksLikeCancellation,
   parseInboundMessages,
@@ -135,5 +136,19 @@ describe("texts", () => {
   it("acknowledgement: business name + customer contact phone; no phone → no phone line", () => {
     expect(autoReplyText("AllDog", "03-3818670")).toBe("תודה, קיבלנו את ההודעה 🙏 AllDog יחזרו אליך בהקדם. לפניות ישירות: 03-3818670");
     expect(autoReplyText(null, null)).toBe("תודה, קיבלנו את ההודעה 🙏 העסק יחזור אליך בהקדם.");
+  });
+});
+
+describe("unsigned webhook (META_APP_SECRET not set) — only quoted replies", () => {
+  it("signed → every reply; unsigned → only a swipe-reply that quotes our message", () => {
+    expect(isTrustedInbound({ repliedToWamid: null }, true)).toBe(true);
+    expect(isTrustedInbound({ repliedToWamid: "wamid.A" }, false)).toBe(true);
+    expect(isTrustedInbound({ repliedToWamid: null }, false)).toBe(false);
+  });
+  it("unsigned attribution never falls back to the phone alone", () => {
+    // handleOne passes no recent messages when unsigned; a forged context id to another phone is refused.
+    expect(chooseAttribution({ from: FROM, platformPhoneNumberId: PLATFORM, repliedTo: null, recent: [], now: NOW })).toBeNull();
+    expect(chooseAttribution({ from: FROM, platformPhoneNumberId: PLATFORM, repliedTo: log({ toPhone: "972509999999" }), recent: [], now: NOW })).toBeNull();
+    expect(chooseAttribution({ from: FROM, platformPhoneNumberId: PLATFORM, repliedTo: log({}), recent: [], now: NOW })?.via).toBe("reply");
   });
 });

@@ -32,6 +32,7 @@ import {
   inboundPhoneLine,
   inboundTaskTitle,
   isAckOnly,
+  isTrustedInbound,
   localPhone,
   looksLikeCancellation,
   phoneVariants,
@@ -45,7 +46,18 @@ export function platformPhoneNumberId(): string | null {
 }
 
 /** Handle the inbound messages of one webhook change. Never throws. */
-export async function handleInboundMessages(messages: InboundMessage[], phoneNumberId: string | null): Promise<void> {
+export async function handleInboundMessages(
+  messages: InboundMessage[],
+  phoneNumberId: string | null,
+  opts: { signed: boolean } = { signed: true }
+): Promise<void> {
+  if (!messages.length) return;
+  // Unsigned webhook (META_APP_SECRET not set): only replies that quote one of our messages.
+  const trusted = messages.filter((m) => isTrustedInbound(m, opts.signed));
+  if (trusted.length < messages.length) {
+    console.log(`${LOG} ${messages.length - trusted.length} unquoted repl(ies) skipped — set META_APP_SECRET to handle every reply`);
+  }
+  messages = trusted;
   if (!messages.length) return;
   const platformId = platformPhoneNumberId();
   // Only the platform number: a message to a business's own number belongs to that business's app.
@@ -57,14 +69,14 @@ export async function handleInboundMessages(messages: InboundMessage[], phoneNum
   for (const m of messages) {
     try {
       if (!(await claimOnce(`wa-inbound:${m.id}`, 7 * 24 * 60 * 60))) continue; // Meta retry
-      await handleOne(m, platformId);
+      await handleOne(m, platformId, opts.signed);
     } catch (err) {
       console.error(`${LOG} message failed (${maskPhone(m.from)}):`, err instanceof Error ? err.message : err);
     }
   }
 }
 
-async function handleOne(m: InboundMessage, platformId: string | null): Promise<void> {
+async function handleOne(m: InboundMessage, platformId: string | null, signed: boolean): Promise<void> {
   if (isAckOnly(m.text)) return;
   const variants = phoneVariants(m.from);
   const now = new Date();
@@ -75,12 +87,15 @@ async function handleOne(m: InboundMessage, platformId: string | null): Promise<
           select: { businessId: true, toPhone: true, phoneNumberId: true, createdAt: true, wamid: true },
         })
       : Promise.resolve(null),
-    prisma.whatsAppMessageLog.findMany({
-      where: { toPhone: { in: variants }, businessId: { not: null }, createdAt: { gte: new Date(now.getTime() - ATTRIBUTION_WINDOW_MS) } },
-      orderBy: { createdAt: "desc" },
-      take: 5,
-      select: { businessId: true, toPhone: true, phoneNumberId: true, createdAt: true, wamid: true },
-    }),
+    // Unsigned: never by phone alone (anyone can name a phone) — only the quoted message counts.
+    signed
+      ? prisma.whatsAppMessageLog.findMany({
+          where: { toPhone: { in: variants }, businessId: { not: null }, createdAt: { gte: new Date(now.getTime() - ATTRIBUTION_WINDOW_MS) } },
+          orderBy: { createdAt: "desc" },
+          take: 5,
+          select: { businessId: true, toPhone: true, phoneNumberId: true, createdAt: true, wamid: true },
+        })
+      : Promise.resolve([]),
   ]);
   const owner = chooseAttribution({ from: m.from, platformPhoneNumberId: platformId, repliedTo, recent, now });
   if (!owner) {

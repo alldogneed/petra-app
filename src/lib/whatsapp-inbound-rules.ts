@@ -174,6 +174,15 @@ export function chooseAttribution(input: {
   return latest?.businessId ? { businessId: latest.businessId, wamid: latest.wamid, via: "recent" } : null;
 }
 
+/**
+ * A reply we may act on. Signed webhook (META_APP_SECRET set) → any. Unsigned → only a swipe-reply
+ * that quotes one of our messages (its wamid is checked against the log and must have gone to this
+ * phone — chooseAttribution); a body naming only a phone number could be forged. Pure.
+ */
+export function isTrustedInbound(m: Pick<InboundMessage, "repliedToWamid">, signed: boolean): boolean {
+  return signed || !!m.repliedToWamid;
+}
+
 /** Messages within this window after a task was opened are appended to it (one task per conversation). */
 export const APPEND_WINDOW_MS = 60 * 60 * 1000;
 /** At most one acknowledgement per phone per hour. */

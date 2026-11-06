@@ -123,15 +123,13 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Customer replies to our automatic messages (3/11/2026: a cancellation nobody saw). Handled only
-    // when the body is signed (META_APP_SECRET set) — an unsigned body could plant tasks in a business.
+    // Customer replies to our automatic messages (3/11/2026: a cancellation nobody saw).
+    // Signed body (META_APP_SECRET set) → every reply. Unsigned → only swipe-replies whose quoted
+    // wamid is a message we sent to that phone (a wamid cannot be guessed, a phone number can).
     if (inbound.length) {
-      if (signatureEnforced()) {
-        const { handleInboundMessages } = await import("@/lib/whatsapp-inbound");
-        await runAfterResponse(Promise.all(inbound.map((b) => handleInboundMessages(b.messages, b.phoneNumberId))));
-      } else {
-        console.warn("[whatsapp-status] inbound customer message ignored: META_APP_SECRET is not set (unsigned webhook)");
-      }
+      const signed = signatureEnforced();
+      const { handleInboundMessages } = await import("@/lib/whatsapp-inbound");
+      await runAfterResponse(Promise.all(inbound.map((b) => handleInboundMessages(b.messages, b.phoneNumberId, { signed }))));
     }
 
     // phone_number_id → businessId, resolved once per request per number.
