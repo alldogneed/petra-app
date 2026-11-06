@@ -200,7 +200,7 @@ export const UNREADABLE_MEDIA_NOTE =
   `הלקוח שלח קובץ (סרטון / מסמך / תמונה) שאין לך גישה לתוכן שלו. אל תאמר את זה. פתח בדיוק ב"${MEDIA_REPLY}" ומיד המשך בשיחה: השאלה הבאה שחסרה, או אישור קצר אם הכול כבר נאסף. בלי "היי" ובלי לחשוף מגבלה.`;
 
 const LIMITATION_RE =
-  /(יודע|יודעת|יכול|יכולה)\s+(?:לקרוא|לראות|לפתוח|לשמוע)\s+רק|רק\s+הודעות\s+טקסט|(?:לא|אינני|איני)\s+(?:יכול|יכולה|מסוגל|מסוגלת|יודע|יודעת)\s+(?:לראות|לפתוח|לצפות|לשמוע)|(?:לא|אינני)\s+רואה\s+(?:תמונות|את\s+התמונה|סרטונים)|אני\s+(?:רק\s+)?בוט/u;
+  /(יודע|יודעת|יכול|יכולה)\s+(?:לקרוא|לראות|לפתוח|לשמוע)\s+רק|רק\s+הודעות\s+טקסט|(?:לא|אינני|איני)\s+(?:יכול|יכולה|מסוגל|מסוגלת|יודע|יודעת)\s+(?:לראות|לפתוח|לצפות|לשמוע)|(?:לא|אינני)\s+רואה\s+(?:תמונות|את\s+התמונה|סרטונים)|(?:לא|אינני)\s+(?:מצליח|מצליחה)\s+(?:לפתוח|לראות|לשמוע|לצפות)|(?:התמונה|הקובץ|הסרטון)\s+לא\s+נפתח|can'?t\s+(?:open|see|view)\s+(?:the\s+)?(?:image|photo|picture|file)|אני\s+(?:רק\s+)?בוט/u;
 
 /** A line that exposes a limitation ("אני יודע לקרוא רק טקסט", "אני לא יכול לראות תמונות", "אני בוט"). */
 export function revealsLimitation(line: string): boolean {
@@ -923,7 +923,7 @@ export const PRICE_REPEAT_LINE = "המחירים שכתבתי למעלה בתו�
 
 // ─── Item 38 (Or, 26/10): a price question always gets a number ───────────────────────
 
-const PRICE_QUESTION_RE = /כמה\s+(?:זה\s+|זה\s+הכל\s+|הכל\s+|בערך\s+)?(?:עולה|עולים|יעלה|תעלה|יעלו|עלה)|(?<![\p{L}])(?:ה|ו|ב|ל)?(?:מחיר|מחירים|מחירון|עלות|עלויות|תמחור)(?![\p{L}])|price|cost/iu;
+const PRICE_QUESTION_RE = /כמה\s+(?:זה\s+|זה\s+הכל\s+|הכל\s+|בערך\s+)?(?:עולה|עולים|יעלה|תעלה|יעלו|עלה)|(?<![\p{L}])(?:ה|ו|ב|ל)?(?:מחיר|מחירים|מחירון|עלות|עלויות|תמחור)(?![\p{L}])|price|cost|how\s+much|fees?|rates?|prix|tarif|combien|co[uû]te?|цен|стоим|сколько|سعر|أسعار|اسعار|تكلفة|بكم/iu;
 
 /** The customer asked what it costs ("כמה זה עולה", "פרטים ועלויות", "מה המחיר"). Pure. */
 export function asksPrice(text: string): boolean {
@@ -937,7 +937,7 @@ export function pricesAlreadySent(priorBotTexts: string[]): boolean {
 
 /** Context note for a price question before any price was sent (Gil, 26/10: asked "פרטים ועלויות", got no number). */
 export const PRICE_QUESTION_NOTE =
-  "הלקוח שאל עכשיו על מחיר ועוד לא קיבל מחיר בשיחה. בתשובה הזו חייב להופיע מספר: שיחת ייעוץ בטלפון בחינם, ואבחון בבית 350 ₪ שמתקזז אם ממשיכים לאילוף אינטנסיבי, ואז האבחון בעצם בחינם (גם לגור). אילוף אינטנסיבי ופנסיון: לפי אבחון. מחיר כולל או מחיר לאינטנסיבי לא נותנים: את זה קובעים באבחון והנציגה תפרט בטלפון. אחר כך ממשיכים בשיחה כרגיל.";
+  "הלקוח שאל עכשיו על מחיר ועוד לא קיבל מחיר בשיחה. בתשובה הזו חייב להופיע מספר: שיחת ייעוץ בטלפון בחינם, ואבחון בבית 350 ₪ שמתקזז אם ממשיכים לאילוף אינטנסיבי, ואז האבחון בעצם בחינם (גם לגור). אילוף אינטנסיבי ואילוף בתנאי פנסיון: לפי אבחון. פנסיון רגיל (בלי אילוף): בערך 120 עד 140 ₪ ליום, תלוי במקום, והנציגה תחזור עם מחירים מסודרים. מחיר כולל או מחיר לאינטנסיבי לא נותנים: את זה קובעים באבחון והנציגה תפרט בטלפון. אחר כך ממשיכים בשיחה כרגיל.";
 
 const sentencesOf = (line: string): string[] => line.split(/(?<=[.!?])\s+/u).filter((x) => x.trim());
 
@@ -967,13 +967,24 @@ export function trimRepeats(reply: string, priorBotTexts: string[], userTexts: s
       stock.forEach((re) => usedInReply.add(re));
       // Item 41: prices the customer did not ask for again → the repeated money sentence goes, silently
       // (never "כתבתי למעלה"). Asked now → the numbers always stay.
-      if (pricesSent && !opts.priceAskedNow && MONEY_RE.test(sentence)) continue;
+      if (pricesSent && !opts.priceAskedNow && MONEY_RE.test(sentence)) {
+        // Item 42 (Hanna, 5/11: "Here are the prices I can give you:" + nothing) — its intro goes too.
+        if (kept.length && /:\s*$/u.test(kept[kept.length - 1])) kept.pop();
+        continue;
+      }
       kept.push(sentence);
     }
     line = kept.join(" ").replace(/\.$/u, "").trim();
     return line || null;
   });
-  return out.filter((l): l is string => l !== null).join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  // An intro line ("המחירים בקצרה:") whose list was dropped goes too (item 42).
+  const dangling = (l: string | null, i: number) => l !== null && /:\s*$/u.test(l) && (i + 1 >= out.length || out[i + 1] === null || !out[i + 1]?.trim());
+  const cleaned = out.map((l, i) => {
+    if (!dangling(l, i)) return l;
+    const rest = sentencesOf(l as string).filter((x) => !/:\s*$/u.test(x)).join(" ").replace(/\.$/u, "").trim();
+    return rest || null;
+  });
+  return cleaned.filter((l): l is string => l !== null).join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
 // ─── Item 37: Or's sales rules from 33 real PayCall calls ───────────────────────────────
@@ -999,8 +1010,13 @@ const POLICY_RULES: Array<{ kind: PolicyIssueKind; re: RegExp }> = [
 
 /** Which of Or's rules a bot text breaks (tests + simulator). Pure. */
 export function findPolicyIssues(text: string): PolicyIssueKind[] {
-  return POLICY_RULES.filter((r) => r.re.test(text)).map((r) => r.kind);
+  // Item 42 (Or, 6/11): the plain-boarding range "120 עד 140 ₪ ליום" is allowed.
+  const t = text.replace(BOARDING_RANGE_RE, " ");
+  return POLICY_RULES.filter((r) => r.re.test(t)).map((r) => r.kind);
 }
+
+/** "120 עד 140 ₪ ליום", "120-140 ש״ח", "120 to 140 ₪ a day". */
+export const BOARDING_RANGE_RE = /120\s*(?:₪\s*)?(?:עד|-|–|to|до|à|إلى)\s*140\s*(?:₪|ש["״']?ח|שקל(?:ים)?|ILS|NIS)?(?:\s*(?:ליום|ללילה|a\s+day|per\s+day|в\s+день|par\s+jour|لليوم))?/giu;
 
 /**
  * Applied to every reply (inside applyConversationGuards): a sentence that breaks a rule is

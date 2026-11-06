@@ -14,6 +14,7 @@
 export const HANDOFF_ACK_COOLDOWN_MS = 6 * 60 * 60 * 1000;
 export const HANDOFF_AUTO_RESUME_MS = 24 * 60 * 60 * 1000;
 
+import { FOREIGN_CLOSING_MARKERS, FOREIGN_TRANSITION_MARKERS } from "@/lib/alldog-bot/language";
 import { israelParts, weekdayOfYmd } from "@/lib/alldog/time";
 import { towardYou, type Gender } from "@/lib/alldog-bot/address";
 
@@ -85,7 +86,15 @@ export const CLOSING_MARKER = "רשמתי הכל";
 const CLOSING_MARKERS = [CLOSING_MARKER, "קיבלנו הכל"];
 
 export function isClosingText(text: string): boolean {
-  return CLOSING_MARKERS.some((m) => text.includes(m));
+  const lower = text.toLowerCase();
+  // Item 42: a closing in the customer's language counts too.
+  return CLOSING_MARKERS.some((m) => text.includes(m)) || FOREIGN_CLOSING_MARKERS.some((m) => lower.includes(m.toLowerCase()));
+}
+
+/** The transition line was already sent (Hebrew or the customer's language — item 42). */
+export function isTransitionText(text: string): boolean {
+  const lower = text.toLowerCase();
+  return text.includes(TRANSITION_MARKER) || FOREIGN_TRANSITION_MARKERS.some((m) => lower.includes(m.toLowerCase()));
 }
 
 /**
@@ -130,11 +139,21 @@ export const CLOSED_NOTE =
  * that promise a callback (or ask something) are dropped, the fixed closing is appended.
  */
 export function withClosing(modelText: string, closing: string): string {
-  if (isClosingText(modelText)) return modelText.includes(TRANSITION_MARKER) || !closing.includes(TRANSITION_MARKER) ? modelText : `${TRANSITION_LINE} ${modelText.trim()}`;
+  if (isClosingText(modelText)) {
+    if (modelText.includes(TRANSITION_MARKER) || !closing.includes(TRANSITION_MARKER)) return modelText;
+    // Item 42 (Mika, 30/10: "…עם שני הדברים אני מעביר את כל הפרטים"): the model's answer stays its own
+    // paragraph; the transition goes right before the closing sentence, never glued to the answer.
+    const at = modelText.search(/(?:מעולה,\s*)?רשמתי הכל|קיבלנו הכל/u);
+    const answer = at > 0 ? modelText.slice(0, at).trim() : "";
+    const closingPart = at > 0 ? modelText.slice(at).trim() : modelText.trim();
+    return [answer, `${TRANSITION_LINE} ${closingPart.replace(/^מעולה,\s*/u, "")}`].filter(Boolean).join("\n\n");
+  }
   const keep = modelText
     .split(/\n+/)
     .map((l) => l.trim())
-    .filter((l) => l && !/[?]/.test(l) && !/(יחזור|תחזור|יחזרו|יתקשר|תתקשר|נחזור|בהקדם|קיבלנו|רשמתי|העברתי|העברנו|מעבירה|מעביר|דואג)/.test(l));
+    .filter((l) => l && !/[?؟]/.test(l) && !/(יחזור|תחזור|יחזרו|יתקשר|תתקשר|נחזור|בהקדם|קיבלנו|רשמתי|העברתי|העברנו|מעבירה|מעביר|דואג)/.test(l))
+    // Item 42: the same promise in the customer's language ("will call you back", "перезвонит"…).
+    .filter((l) => !/call\s+you\s+back|get\s+back\s+to\s+you|passing\s+(?:all\s+)?(?:the\s+)?details|перезвон|переда[юм]|rappeler|rappellera|transmets|يتصل|ستتصل|أنقل/iu.test(l));
   // The model's own lines (its answer, a guide link) = ONE message before the transition / closing.
   return [keep.join("\n"), closing].filter(Boolean).join("\n\n");
 }

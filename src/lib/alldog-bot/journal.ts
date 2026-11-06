@@ -17,7 +17,7 @@ export const FACT_BULLET = "• ";
 const DEFAULT_BODY = `${BOT_LOG_PREFIX} שיחה בוואטסאפ`;
 
 /** Facts of these kinds are replaced (one per conversation); others are added once each. */
-const SINGLE_FACTS = ["לחזור טלפונית", "אזור לבדיקה", "⚠ דחוף", "זמן לשיחה", "לא השלים"];
+const SINGLE_FACTS = ["לחזור טלפונית", "אזור לבדיקה", "⚠ דחוף", "זמן לשיחה", "לא השלים", "הלקוח כותב ב"];
 
 export const URGENT_FACT = "⚠ דחוף";
 export const callbackFact = (note?: string | null) => `לחזור טלפונית${note ? ` · ${note}` : ""}`;

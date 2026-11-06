@@ -8,20 +8,20 @@ import { towardYou, type Gender } from "@/lib/alldog-bot/address";
 
 /** Home-training cities (the same list as the prompt). Each entry: the name + spellings customers use. */
 export const SERVICE_CITIES: Array<{ name: string; re: RegExp }> = [
-  { name: "תל אביב", re: /תל[\s-]?אביב|^ת["״׳']?א$|יפו/u },
-  { name: "רמת גן", re: /רמת[\s-]?גן|^ר["״׳']?ג$/u },
-  { name: "גבעתיים", re: /גבעתיים/u },
-  { name: "חולון", re: /חולון/u },
-  { name: "פתח תקווה", re: /פתח[\s-]?תקו?וה|^פ["״׳']?ת$/u },
-  { name: "ראש העין", re: /ראש[\s-]?העין/u },
-  { name: "כפר סבא", re: /כפר[\s-]?סבא|^כ["״׳']?ס$/u },
-  { name: "רעננה", re: /רעננה/u },
-  { name: "הוד השרון", re: /הוד[\s-]?השרון/u },
-  { name: "הרצליה", re: /הרצליה/u },
-  { name: "נתניה", re: /נתניה/u },
-  { name: "ראשון לציון", re: /ראשון(?:[\s-]?לציון)?|^ראשל["״׳']?צ$/u },
-  { name: "רחובות", re: /רחובות/u },
-  { name: "נס ציונה", re: /נס[\s-]?ציונה/u },
+  { name: "תל אביב", re: /תל[\s-]?אביב|^ת["״׳']?א$|יפו|tel[\s-]?aviv|jaffa|yafo|тель[\s-]?авив|яффо/iu },
+  { name: "רמת גן", re: /רמת[\s-]?גן|^ר["״׳']?ג$|ramat[\s-]?gan|рамат[\s-]?ган/iu },
+  { name: "גבעתיים", re: /גבעתיים|giv['a]?atayim|гиватаим/iu },
+  { name: "חולון", re: /חולון|holon|холон/iu },
+  { name: "פתח תקווה", re: /פתח[\s-]?תקו?וה|^פ["״׳']?ת$|peta?c?h?[\s-]?tikv?a|петах[\s-]?тикв/iu },
+  { name: "ראש העין", re: /ראש[\s-]?העין|rosh[\s-]?ha[\s-]?ayin|рош[\s-]?ха[\s-]?айин/iu },
+  { name: "כפר סבא", re: /כפר[\s-]?סבא|^כ["״׳']?ס$|kfar[\s-]?sa?ba|кфар[\s-]?саба/iu },
+  { name: "רעננה", re: /רעננה|ra'?anana|раанана/iu },
+  { name: "הוד השרון", re: /הוד[\s-]?השרון|hod[\s-]?hasharon|ход[\s-]?ха[\s-]?шарон/iu },
+  { name: "הרצליה", re: /הרצליה|herz[e]?liy?a|герцлия/iu },
+  { name: "נתניה", re: /נתניה|netanya|нетания/iu },
+  { name: "ראשון לציון", re: /ראשון(?:[\s-]?לציון)?|^ראשל["״׳']?צ$|rishon|ришон/iu },
+  { name: "רחובות", re: /רחובות|rehovot|реховот/iu },
+  { name: "נס ציונה", re: /נס[\s-]?ציונה|ness?[\s-]?ziona|нес[\s-]?циона/iu },
 ];
 
 export function isKnownServiceCity(city: string | null | undefined): boolean {

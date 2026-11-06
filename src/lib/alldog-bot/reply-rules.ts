@@ -21,12 +21,18 @@ export const FULL_PRICE_LIST = [
   "• שיחת ייעוץ בטלפון: בחינם",
   "• אבחון בבית: 350 ₪, מתקזז אם ממשיכים לאילוף",
   "• שיעורים פרטיים: 350 ₪ למפגש בודד, או 300 ₪ למפגש בחבילה של מינימום 6 מפגשים",
-  "• אילוף אינטנסיבי ופנסיון: לפי אבחון, ואפשר לפרוס לתשלומים",
+  "• פנסיון רגיל: בערך 120 עד 140 ₪ ליום, תלוי במקום שיקבל אתכם. הנציגה תחזור עם מחירים מסודרים",
+  "• אילוף אינטנסיבי ואילוף בתנאי פנסיון: לפי אבחון, ואפשר לפרוס לתשלומים",
 ].join("\n");
 
 /** "כמה עולה כל מסלול?", "מה המחיר של כל אחד", "כמה עולים שיעורים פרטיים", "מחירון". */
 export function asksTrackPrices(text: string): boolean {
   return /כל\s+(?:אחד|אחת|מסלול)|(?:שני|שתי|כל)\s+ה?(?:מסלולים|אפשרויות)|שיעור(?:ים)?\s+פרטי|מחירון|כמה\s+(?:עולה|עולים)\s+(?:ה)?(?:אינטנסיבי|שיעור|פנסיון|מסלול)/u.test(clean(text));
+}
+
+/** The customer asks about a boarding stay (פנסיון / boarding / pension / передержка). */
+export function asksBoarding(text: string): boolean {
+  return /פנסיון|לשכן\s+את\s+ה?כלב|boarding|kennel|pension|передерж|гостиниц|بنسيون|فندق/iu.test(clean(text));
 }
 
 /** "המחירים שכתבתי למעלה", "כמו שכתבתי קודם", "שציינתי" — pointing at an earlier message. */
@@ -50,20 +56,26 @@ export function dropBackReferences(text: string): string {
  * track / asked again) → the full price list unless the lesson prices are already in it; else the
  * short answer unless the diagnosis price is in it. Pure — tested.
  */
-export function priceAnswer(reply: string, opts: { full: boolean; shortLine: string }): string {
+export function priceAnswer(
+  reply: string,
+  opts: { full: boolean; shortLine: string; fullList?: string; boardingLine?: string | null }
+): string {
   const body = dropBackReferences(reply);
+  const fullList = opts.fullList ?? FULL_PRICE_LIST;
+  // Item 42 (Or, 6/11): a boarding question gets the per-day range (120–140 ₪), once.
+  const withBoarding = (t: string) => (opts.boardingLine && !/120/.test(t) ? `${t}\n${opts.boardingLine}` : t);
   if (opts.full) {
-    if (/300/.test(body) && /350/.test(body)) return body;
+    if (/300/.test(body) && /350/.test(body)) return withBoarding(body);
     // The list carries the numbers; the model's own money sentences would only repeat them.
     const rest = body
       .split("\n")
       .map((line) => sentences(line).filter((s) => !/₪|ש["״']?ח|שקל|\d{3}/u.test(s)).join(" ").trim())
       .filter(Boolean)
       .join("\n");
-    return rest ? `${FULL_PRICE_LIST}\n${rest}` : FULL_PRICE_LIST;
+    return rest ? `${fullList}\n${rest}` : fullList;
   }
-  if (/350/.test(body)) return body;
-  return body ? `${opts.shortLine}\n${body}` : opts.shortLine;
+  if (/350/.test(body)) return withBoarding(body);
+  return withBoarding(body ? `${opts.shortLine}\n${body}` : opts.shortLine);
 }
 
 // ─── 2. The bot is masculine when it speaks about itself ──────────────────────

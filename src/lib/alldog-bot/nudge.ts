@@ -17,6 +17,8 @@ import { allDogBusinessId, isWaBotEnabled } from "@/lib/alldog/config";
 import { createLeadTask, findLeadByPhone, isPlaceholderLeadName } from "@/lib/alldog/leads";
 import { addressStyleFor } from "@/lib/alldog-bot/address";
 import { botMayReply, currentSession, customerWords } from "@/lib/alldog-bot/logic";
+import { detectLanguage, partialClosingIn } from "@/lib/alldog-bot/language";
+import { holidayBlocks } from "@/lib/alldog/holidays";
 import { closingWhenNow, createDbExecutor, nameWasTyped, updateConversationLog, type BotConversationRef } from "@/lib/alldog-bot/actions";
 import { withFact, withoutFact } from "@/lib/alldog-bot/journal";
 import {
@@ -32,6 +34,7 @@ import {
   partialCallbackPhrase,
   partialClosingText,
   pickNudge,
+  VOICE_NUDGE,
   type NudgeMessage,
 } from "@/lib/alldog-bot/nudge-rules";
 
@@ -111,6 +114,9 @@ async function sendNudge(conv: Conv, messages: NudgeMessage[], anchorId: string)
   const used = (
     await prisma.waBotMessage.findMany({ where: { conversationId: conv.id, role: "assistant", kind: NUDGE_KIND }, select: { text: true } })
   ).map((r) => r.text);
+  // Item 42: the voice-note reminder is Hebrew — not in a conversation in another language.
+  const userTexts = messages.filter((m) => m.role === "user").map(customerWords).filter((t): t is string => !!t);
+  if (detectLanguage(userTexts) !== "he") used.push(VOICE_NUDGE);
   const text = pickNudge(await typedFirstName(conv, messages), used, anchorId);
   if (!text) return "skipped"; // every reminder text was used in this conversation → only the closing follows
   if (!(await claimOnce(`alldog-bot-nudge:${anchorId}`, 7 * 24 * 60 * 60))) return "skipped";
@@ -136,7 +142,8 @@ async function closePartial(conv: Conv, messages: NudgeMessage[], anchorId: stri
   const when = await closingWhenNow(conv.businessId);
   // closingWhenNow = "after_holiday" or the callbackSlot phrase ("בהקדם" while open, "מחר בבוקר"…).
   const phrase = when === "after_holiday" ? partialCallbackPhrase(new Date(), true) : when === "after_shabbat" ? "אחרי השבת" : when === "soon" ? "בהקדם" : when;
-  const text = partialClosingText({ firstName, gender: style.gender, phrase, seed: conv.id });
+  const lang = detectLanguage(userWords);
+  const text = lang === "he" ? partialClosingText({ firstName, gender: style.gender, phrase, seed: conv.id }) : partialClosingIn(lang, phrase, firstName);
   // Outside the 24h window WhatsApp allows no free text: the rep still gets everything below.
   const sent = botMayReply({ status: "active", lastInboundAt: conv.lastInboundAt }) ? await sendBotText(conv, text, PARTIAL_CLOSE_KIND) : false;
 
@@ -202,12 +209,14 @@ export async function processDueNudges(opts: { budgetMs: number; limit: number }
   });
   // The bot spoke last (Prisma cannot compare two columns).
   const candidates = convs.filter((c) => c.lastBotReplyAt && (!c.lastInboundAt || c.lastBotReplyAt > c.lastInboundAt)).slice(0, opts.limit);
+  // Item 42: no reminder / partial closing on Shabbat or a holiday.
+  const holidays = candidates.length ? await holidayBlocks(businessId, now) : [];
   for (const conv of candidates) {
     if (Date.now() - started > opts.budgetMs) break;
     out.checked++;
     try {
       const messages = await sessionMessages(conv.id);
-      const d = decideNudge({ status: conv.status, lastHumanAt: conv.lastHumanAt, messages, now: new Date() });
+      const d = decideNudge({ status: conv.status, lastHumanAt: conv.lastHumanAt, messages, now: new Date(), holidays });
       if (d.action === "nudge" && (await sendNudge(conv, messages, d.anchorId)) === "sent") out.nudged++;
       if (d.action === "close" && (await closePartial(conv, messages, d.anchorId)) === "closed") out.closed++;
     } catch (err) {

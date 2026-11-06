@@ -93,7 +93,7 @@ import {
   pricesAlreadySent,
   PRICE_QUESTION_NOTE,
 } from "@/lib/alldog-bot/logic";
-import { buildBotContext, enforceIdentityAnswer, enforceOpening, HUMAN_BITE_NOTE, mentionsHumanBite } from "@/lib/alldog-bot/prompt";
+import { buildBotContext, enforceIdentityAnswer, enforceOpening, HUMAN_BITE_NOTE, isBareGreeting, isGenericFirstMessage, mentionsHumanBite } from "@/lib/alldog-bot/prompt";
 import { HANDOFF_MODE_TOOLS, runBotTurn } from "@/lib/alldog-bot/agent";
 import { closingWhenNow, createDbExecutor, dropDeletedLeadLink, flagMediaForHuman, updateConversationLog, type BotConversationRef } from "@/lib/alldog-bot/actions";
 import { MINOR_FACT, withFact } from "@/lib/alldog-bot/journal";
@@ -114,9 +114,27 @@ import {
   repIsActive,
   RESUMED_NOTE,
   TRANSITION_MARKER,
+  isTransitionText,
   shouldAutoResume,
   withClosing,
 } from "@/lib/alldog-bot/handoff";
+import {
+  ASK_ABOUT_DOG,
+  closingIn,
+  detectLanguage,
+  ensureEndsWithQuestion,
+  FALLBACK,
+  GREETING,
+  languageFact,
+  languageNote,
+  missingBasics,
+  nextQuestionFor,
+  PRICE_FULL,
+  PRICE_SHORT,
+  type BotLang,
+} from "@/lib/alldog-bot/language";
+import { isThanksOrBye } from "@/lib/alldog-bot/nudge-rules";
+import { parsePetNotesBlock } from "@/lib/lead-pet-notes";
 import { claimOnce } from "@/lib/rate-limit";
 import { downloadMedia, markReadWithTyping, sendText } from "@/lib/alldog-bot/wa";
 import { alertAllDogFailure, explainFailure } from "@/lib/alldog/failure-alerts";
@@ -124,6 +142,7 @@ import { displayMissedCallMessage, isMissedCallTemplateMessage, MISSED_CALL_CONT
 import { FORM_LEAD_MESSAGE_KIND, formLeadContextNote } from "@/lib/alldog/form-lead-rules";
 import { transcribeAudio } from "@/lib/stt";
 import {
+  asksBoarding,
   asksTrackPrices,
   customerLines,
   dropBackReferences,
@@ -137,6 +156,7 @@ import {
   alreadyWithRep,
   fixWhoCallsBack,
   PRICE_ANSWER_LINE,
+  BOARDING_PRICE_LINE,
   GENERAL_FOLLOWUP_ACK,
   GENERAL_KIND_LABELS,
   generalClosingFor,
@@ -456,7 +476,8 @@ async function failSafeReply(item: PendingInbound, err: unknown): Promise<void> 
       attributionPage: conv.attributionPage,
     };
     if (conv.status === "active" && botMayReply(conv)) {
-      const text = botFallbackText(await conversationGender(conv));
+      const lang = await conversationLanguage(conv.id);
+      const text = lang === "he" ? botFallbackText(await conversationGender(conv)) : FALLBACK[lang];
       const wamid = await sendText(conv.phone, text);
       if (wamid) {
         await prisma.waBotMessage
@@ -689,7 +710,9 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
     name: knownName ?? conv.profileName,
   });
   ref.gender = style.gender;
-  ref.transitionSent = rows.some((r) => r.role === "assistant" && r.text.includes(TRANSITION_MARKER));
+  ref.transitionSent = rows.some((r) => r.role === "assistant" && isTransitionText(r.text));
+  // Item 42 (Or, 6/11): the conversation follows the customer's language.
+  const lang: BotLang = detectLanguage(userWords);
   // An attack / bite was described → no "מעולה" in the closing (item 29c).
   ref.serious = isSeriousIncident(userWords);
   // Item 39 update: the breed the owner gave (lead pet notes "גזע: …"), an earlier photo in this conversation, a breed-guess question.
@@ -741,7 +764,7 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
         ? formLeadContextNote({ name: activeLead.name, city: activeLead.city, service: activeLead.requestedService })
         : null,
       voiceName ? voiceNameNote(voiceName, priorBotTexts) : null,
-      addressNote(style),
+      lang === "he" ? addressNote(style) : languageNote(lang, style.gender),
     ].filter(Boolean).join("\n") || null,
   });
 
@@ -775,16 +798,32 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
   // same question again → the full short price list.
   if (batchWords.some((t) => asksPrice(t))) {
     const earlierUser = userWords.slice(0, Math.max(0, userWords.length - batchWords.length));
-    text = priceAnswer(text, { full: earlierUser.some((t) => asksPrice(t)) || batchWords.some((t) => asksTrackPrices(t)), shortLine: PRICE_ANSWER_LINE });
+    const boarding = userWords.some((t) => asksBoarding(t));
+    const full = earlierUser.some((t) => asksPrice(t)) || batchWords.some((t) => asksTrackPrices(t));
+    text =
+      lang === "he"
+        ? priceAnswer(text, { full, shortLine: PRICE_ANSWER_LINE, boardingLine: boarding ? BOARDING_PRICE_LINE : null })
+        : // Item 42: the price lines in the customer's language (Hanna got a Hebrew line in an English chat).
+          priceAnswer(text, { full: full || boarding, shortLine: PRICE_SHORT[lang], fullList: PRICE_FULL[lang] });
   } else if (!pricesAlreadySent(priorBotTexts)) {
     text = dropBackReferences(text);
+  }
+  if (executor.closing && !closed && lang !== "he") {
+    // Item 42: the transition + closing in the customer's language.
+    executor.closing = closingIn(lang, await closingWhenNow(conv.businessId), {
+      transition: executor.closing.includes(TRANSITION_MARKER),
+      serious: ref.serious,
+    });
   }
   if (executor.closing && !closed) {
     // After schedule_callback / handoff_to_human the last message is always the fixed closing.
     text = withClosing(text, executor.closing);
   } else if (!handoffMode) {
     const firstUserText = batchWords.join("\n");
-    text = enforceOpening(lastAssistant < 0 && !automaticOpening, firstUserText, text);
+    text =
+      lang === "he"
+        ? enforceOpening(lastAssistant < 0 && !automaticOpening, firstUserText, text)
+        : enforceOpeningIn(lang, lastAssistant < 0 && !automaticOpening, text);
   }
   // Item 39 update: no "מעורב" / "נראה כמו" in a reply to a photo, and the breed-guess question gets the fixed answer.
   if (imageBlocks.length || breedGuessAsked) text = dropBreedGuesses(text);
@@ -792,19 +831,35 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
   // Item 39.6: "היי" / "שלום" only in the very first reply.
   text = dropMidConversationGreeting(text, lastAssistant < 0 && !automaticOpening);
   // Item 39.4: a file the bot could not open → the reply opens with the thank-you line.
-  if (unreadable && text && !text.includes("תודה ששלחת") && !imageBlocks.length) text = `${MEDIA_REPLY}\n${text}`;
+  if (unreadable && text && lang === "he" && !text.includes("תודה ששלחת") && !imageBlocks.length) text = `${MEDIA_REPLY}\n${text}`;
   let afterHandoff = result.handedOff || handoffMode;
+  // Item 42 (9703 / 8040, 2 & 5/11): a reply before the closing ends with a question — otherwise no
+  // reminder goes out and the customer is left with nothing to answer. The question = the first
+  // basic still missing (never one the bot asked in its last messages).
+  const askNext =
+    !handoffMode && !closed && !executor.closing && !result.handedOff && !minor && !ref.serious && !guideToSend &&
+    !batchWords.every((t) => isThanksOrBye(t))
+      ? await nextMissingQuestion(conv.businessId, conv.phone, lang, userWords, priorBotTexts, known.city)
+      : null;
   if (!text && result.reply.trim() && !executor.closing) {
-    // Everything the model wrote was already sent earlier in this conversation (item 26a) → say nothing.
-    console.log(`${LOG} reply repeated an earlier bot message — not sent (${maskPhone(conv.phone)})`);
-    return;
+    // Everything the model wrote was already sent earlier in this conversation (item 26a).
+    // Item 42 (Einav, 2/11 — left without an answer): ask the next missing detail instead of silence.
+    if (!askNext) {
+      console.log(`${LOG} reply repeated an earlier bot message — not sent (${maskPhone(conv.phone)})`);
+      return;
+    }
+    text = askNext;
   }
+  if (text && askNext) text = ensureEndsWithQuestion(text, askNext);
   if (!text) {
     if (handoffMode) return;
     if (!result.handedOff) {
       // Refusal / empty answer: a person takes over rather than the customer being ignored.
       await createDbExecutor(ref).handoff({ reason: `הבוט לא הצליח לענות (${result.stopReason ?? "ללא תשובה"})`, urgency: "normal" });
-      text = handoffClosingText(await closingWhenNow(conv.businessId), style.gender, { serious: ref.serious });
+      text =
+        lang === "he"
+          ? handoffClosingText(await closingWhenNow(conv.businessId), style.gender, { serious: ref.serious })
+          : closingIn(lang, await closingWhenNow(conv.businessId), { transition: false, serious: ref.serious });
       afterHandoff = true;
     } else {
       return;
@@ -812,6 +867,8 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
   }
 
   if (minor && ref.leadId) await updateConversationLog(ref, ref.leadId, (current) => withFact(current, MINOR_FACT));
+  const langFact = languageFact(lang);
+  if (langFact && ref.leadId) await updateConversationLog(ref, ref.leadId, (current) => withFact(current, langFact)).catch(() => {});
 
   // Item 39 addition: guide links never come from the model; a precise guide is offered once the basics are in.
   text = stripGuideLinks(text);
@@ -821,7 +878,7 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
   if (guideToSend) {
     extraParts.push(guideLinkMessage(guideToSend));
     extraKinds.push(GUIDE_LINK_MESSAGE_KIND);
-  } else if (!offer && !handoffMode && !minor && !ref.serious && !userWords.some((t) => mentionsHumanBite(t))) {
+  } else if (lang === "he" && !offer && !handoffMode && !minor && !ref.serious && !userWords.some((t) => mentionsHumanBite(t))) {
     const entry = executor.guideSlug ? guideBySlug(executor.guideSlug) : await rememberedGuide(conv.id);
     const basics = !!executor.closing || closed || (await leadHasBasics(ref));
     // Item 41: the offer goes in its own message, never next to an open question of the bot.
@@ -1313,4 +1370,125 @@ async function handleGeneralFollowup(item: PendingInbound): Promise<void> {
     await saveGeneralState(conv.id, { ...state, ackSent: true });
     await sendParts(item, conv.phone, [GENERAL_FOLLOWUP_ACK], false, [], true);
   }
+}
+
+// ─── Item 42 (Or, 6/11) ──────────────────────────────────────────────────────
+
+/** The conversation's language from the customer's messages (current session). */
+async function conversationLanguage(conversationId: string): Promise<BotLang> {
+  const rows = currentSession(
+    (
+      await prisma.waBotMessage.findMany({
+        where: { conversationId, role: { not: "system" } },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        take: 40,
+        select: { id: true, role: true, kind: true, text: true, createdAt: true },
+      })
+    ).reverse()
+  );
+  return detectLanguage(rows.filter((r) => r.role === "user").map(customerWords).filter((t): t is string => !!t));
+}
+
+/**
+ * First reply in a non-Hebrew conversation: the greeting in the customer's language, never the
+ * Hebrew one (Hanna, 5/11, got "היי, מה קורה?" and then the same in English).
+ */
+function enforceOpeningIn(lang: Exclude<BotLang, "he">, isFirstReply: boolean, reply: string): string {
+  if (!isFirstReply) return reply;
+  const rest = reply.trim().replace(/^היי[^\n]{0,30}?AllDog[ !,.]*🙂?\s*/u, "").trim();
+  if (!rest) return `${GREETING[lang]} ${ASK_ABOUT_DOG[lang]}`;
+  if (/^[^\n]{0,40}AllDog/u.test(rest)) return rest; // the model already greeted in the customer's language
+  return `${GREETING[lang]}\n\n${rest}`;
+}
+
+/** The question for the first basic detail still missing (lead + conversation), or null. */
+async function nextMissingQuestion(
+  businessId: string,
+  phone: string,
+  lang: BotLang,
+  userWords: string[],
+  priorBotTexts: string[],
+  cityKnown: boolean
+): Promise<string | null> {
+  const lead = await findLeadByPhone(businessId, phone).catch(() => null);
+  const pet = parsePetNotesBlock(lead?.notes ?? null);
+  const problem =
+    !!lead?.requestedService ||
+    userWords.some((t) => !isGenericFirstMessage(t) && !isBareGreeting(t) && t.replace(/\s+/g, "").length >= 12);
+  const missing = missingBasics({
+    problem,
+    dogName: !!pet?.name,
+    city: cityKnown || !!lead?.city,
+    breedAge: !!pet?.breed || !!pet?.age,
+  });
+  // Never a question the bot asked in its last two messages (the customer may still be answering it).
+  const recent = priorBotTexts.slice(-2).join("\n");
+  for (let i = 0; i < missing.length; i++) {
+    const q = nextQuestionFor(lang, missing.slice(i));
+    if (q && !recent.includes(q)) return q;
+  }
+  return null;
+}
+
+/** A customer message older than this with no answer from the bot = the bot dropped it. */
+export const UNANSWERED_AFTER_MS = 3 * 60 * 1000;
+const UNANSWERED_WINDOW_MS = 30 * 60 * 1000;
+
+/**
+ * Watchdog (item 42 — Einav, 2/11 13:28: her answer got no reply, no fallback and no alert).
+ * Every minute from the cron: an active conversation whose last message is the customer's, 3–30 min
+ * old, with no bot reply after it → the bot answers it now; still nothing → the item-31 fail-safe
+ * (fallback to the customer + an urgent task + an alert to Or). Once per message (claimOnce).
+ */
+export async function processUnanswered(opts: { limit: number; budgetMs: number } = { limit: 1, budgetMs: 25_000 }) {
+  const out = { checked: 0, retried: 0, fallback: 0 };
+  const businessId = allDogBusinessId();
+  if (!businessId || !isWaBotEnabled()) return out;
+  const started = Date.now();
+  const now = Date.now();
+  const convs = await prisma.waBotConversation.findMany({
+    where: {
+      businessId,
+      status: "active",
+      lastInboundAt: { gte: new Date(now - UNANSWERED_WINDOW_MS), lte: new Date(now - UNANSWERED_AFTER_MS) },
+    },
+    orderBy: { lastInboundAt: "asc" },
+    take: 20,
+  });
+  const candidates = convs.filter((c) => c.lastInboundAt && (!c.lastBotReplyAt || c.lastBotReplyAt < c.lastInboundAt));
+  for (const conv of candidates) {
+    if (out.retried >= opts.limit || Date.now() - started > opts.budgetMs) break;
+    out.checked++;
+    try {
+      if (!botMayReply(conv)) continue;
+      const last = await prisma.waBotMessage.findFirst({
+        where: { conversationId: conv.id, role: { not: "system" } },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        select: { id: true, role: true, waMessageId: true, createdAt: true },
+      });
+      if (!last || last.role !== "user" || !last.waMessageId || last.createdAt.getTime() > now - UNANSWERED_AFTER_MS) continue;
+      if (!(await claimOnce(`alldog-bot-unanswered:${last.id}`, 6 * 60 * 60))) continue;
+      out.retried++;
+      console.log(`${LOG} unanswered customer message — answering now (${maskPhone(conv.phone)})`);
+      const item: PendingInbound = { conversationId: conv.id, waMessageId: last.waMessageId };
+      try {
+        await reply(item);
+      } catch (err) {
+        await failSafeReply(item, err);
+        out.fallback++;
+        continue;
+      }
+      const answered = await prisma.waBotMessage.findFirst({
+        where: { conversationId: conv.id, role: { in: ["assistant", "human"] }, createdAt: { gt: last.createdAt } },
+        select: { id: true },
+      });
+      if (!answered) {
+        await failSafeReply(item, new Error("הבוט לא ענה ללקוח גם בניסיון חוזר"));
+        out.fallback++;
+      }
+    } catch (err) {
+      console.error(`${LOG} watchdog failed (${maskPhone(conv.phone)}):`, err instanceof Error ? err.message : err);
+    }
+  }
+  return out;
 }
