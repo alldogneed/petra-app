@@ -55,6 +55,7 @@ import { registerPetsTools } from "@/lib/mcp/tools-pets";
 import { registerTrainingTools } from "@/lib/mcp/tools-training";
 import { registerFinanceTools } from "@/lib/mcp/tools-finance";
 import { registerCalendarTools, findAppointmentConflicts } from "@/lib/mcp/tools-calendar";
+import { registerHoursTools } from "@/lib/mcp/tools-hours";
 
 // ─── Scopes ───────────────────────────────────────────────────────────────────
 
@@ -1392,6 +1393,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
   registerTrainingTools(server, ctx);
   registerFinanceTools(server, ctx);
   registerCalendarTools(server, ctx);
+  registerHoursTools(server, ctx);
   registerSupportTools(server, ctx);
 
   return server;

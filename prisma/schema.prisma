@@ -963,6 +963,9 @@ model PriceListItem {
   depositRequired   Boolean  @default(false)
   depositAmount     Float?
   maxBookingsPerDay Int?     // capacity limit: max confirmed bookings per day
+  /// Online-booking hours for this item only (replaces the business hours for it). null = business hours.
+  /// Shape: [{ dayOfWeek 0-6, isOpen, openTime "HH:mm", closeTime "HH:mm" }] — src/lib/booking-hours.ts
+  bookingHours      Json?
   sessions          Int?     // training packages: number of sessions included
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt

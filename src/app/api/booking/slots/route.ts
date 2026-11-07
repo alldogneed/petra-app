@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAvailableSlots } from "@/lib/slots";
+import { parseStoredBookingHours, type BookingHours } from "@/lib/booking-hours";
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
 export async function GET(request: NextRequest) {
@@ -28,6 +29,7 @@ export async function GET(request: NextRequest) {
     let duration: number;
     let bufferBefore = 0;
     let bufferAfter  = 0;
+    let hours: BookingHours | null = null;
 
     if (serviceId) {
       const service = await prisma.service.findUnique({
@@ -42,11 +44,12 @@ export async function GET(request: NextRequest) {
     } else {
       const item = await prisma.priceListItem.findUnique({
         where: { id: priceListItemId! },
-        select: { businessId: true, durationMinutes: true },
+        select: { businessId: true, durationMinutes: true, bookingHours: true },
       });
       if (!item) return NextResponse.json({ error: "פריט מחירון לא נמצא" }, { status: 404 });
       businessId = item.businessId;
       duration   = item.durationMinutes ?? 60;
+      hours      = parseStoredBookingHours(item.bookingHours);
     }
 
     const slots = await getAvailableSlots(
@@ -55,6 +58,7 @@ export async function GET(request: NextRequest) {
       dateStr,
       bufferBefore,
       bufferAfter,
+      { hours },
     );
 
     return NextResponse.json(

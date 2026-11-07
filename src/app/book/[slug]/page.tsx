@@ -23,6 +23,8 @@ interface BusinessService {
   depositAmount: number | null
   bookingMode: string
   paymentUrl: string | null
+  /** The item's own weekly hours (Sun..Sat); null = business hours */
+  weeklyHours?: Array<{ dayOfWeek: number; isOpen: boolean }> | null
 }
 
 interface AvailabilityRule {
@@ -448,6 +450,8 @@ export default function BookingPage({ params }: { params: { slug: string } }) {
 
   const isOpenDay = (date: Date) => {
     const dow = date.getDay()
+    const own = selectedService?.weeklyHours?.find((d) => d.dayOfWeek === dow)
+    if (selectedService?.weeklyHours) return own?.isOpen ?? false
     const rule = business.availabilityRules.find((r) => r.dayOfWeek === dow)
     if (rule) return rule.isOpen
     // Default when no availability rules are configured:

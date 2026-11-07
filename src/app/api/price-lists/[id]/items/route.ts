@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
+import { bookingHoursWrite } from "@/lib/booking-hours-db";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError, requireBusinessPermission } from "@/lib/auth-guards";
 import { TENANT_PERMS } from "@/lib/permissions";
@@ -99,6 +100,9 @@ export async function POST(
       if (urlError) return NextResponse.json({ error: urlError }, { status: 400 });
     }
 
+    const hours = bookingHoursWrite(body.bookingHours);
+    if (!hours.ok) return NextResponse.json({ error: hours.error }, { status: 400 });
+
     const item = await prisma.priceListItem.create({
       data: {
         businessId: authResult.businessId,
@@ -119,6 +123,7 @@ export async function POST(
         depositRequired: body.depositRequired ?? false,
         depositAmount: body.depositAmount || null,
         maxBookingsPerDay: body.maxBookingsPerDay || null,
+        ...(hours.value !== undefined && { bookingHours: hours.value }),
       },
     });
 

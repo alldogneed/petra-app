@@ -3,6 +3,7 @@ import { normalizeVertical } from "@/lib/verticals"
 import { NextRequest, NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
 import { getAvailableSlots, utcToLocalDateStr } from "@/lib/slots"
+import { isBoardingStayItem, parseStoredBookingHours } from "@/lib/booking-hours"
 import { z } from "zod"
 import { rateLimitAsync } from "@/lib/rate-limit"
 import { sendWhatsAppMessage } from "@/lib/whatsapp"
@@ -193,7 +194,7 @@ export async function POST(
     return NextResponse.json({ error: "Invalid startAt" }, { status: 400 })
   }
 
-  const isBoarding = item.category === "פנסיון"
+  const isBoarding = isBoardingStayItem(item)
   const durationMinutes = item.durationMinutes ?? 60
 
   let endAt: Date
@@ -212,7 +213,9 @@ export async function POST(
   // For non-boarding services: re-validate the slot is still available (prevent double-booking)
   if (!isBoarding) {
     const localDate = utcToLocalDateStr(startAt, business.timezone)
-    const availableSlots = await getAvailableSlots(business.id, durationMinutes, localDate)
+    const availableSlots = await getAvailableSlots(business.id, durationMinutes, localDate, 0, 0, {
+      hours: parseStoredBookingHours(item.bookingHours),
+    })
     const slotStillFree = availableSlots.some(
       (s) => Math.abs(s.startAt.getTime() - startAt.getTime()) < 60_000
     )
