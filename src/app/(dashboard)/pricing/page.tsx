@@ -18,6 +18,8 @@ import { usePlan } from "@/hooks/usePlan";
 import { getMaxPriceItems } from "@/lib/feature-flags";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { usePermissions } from "@/hooks/usePermissions";
+import { BookingHoursEditor, bookingHoursProblem } from "@/components/pricing/BookingHoursEditor";
+import { formatWeeklyHours, parseStoredBookingHours, type BookingHours } from "@/lib/booking-hours";
 import { useVertical } from "@/hooks/useVertical";
 import { PRICE_CATEGORIES, getPriceCategories, priceCategoryLabel } from "@/lib/verticals/catalog";
 
@@ -42,6 +44,7 @@ interface PriceListItem {
   depositAmount: number | null;
   maxBookingsPerDay: number | null;
   sessions: number | null;
+  bookingHours?: unknown;
 }
 
 interface PriceList {
@@ -96,6 +99,8 @@ interface ItemFormData {
   depositAmount: string;
   maxBookingsPerDay: string;
   sessions: string;
+  /** null = business hours */
+  bookingHours: BookingHours | null;
 }
 
 function ItemModal({
@@ -128,6 +133,7 @@ function ItemModal({
     depositAmount: item?.depositAmount?.toString() ?? "",
     maxBookingsPerDay: item?.maxBookingsPerDay?.toString() ?? "",
     sessions: item?.sessions?.toString() ?? "",
+    bookingHours: parseStoredBookingHours(item?.bookingHours ?? null),
   });
 
   return (
@@ -150,6 +156,8 @@ function ItemModal({
           onSubmit={(e) => {
             e.preventDefault();
             if (!form.name.trim() || form.basePrice === "") return;
+            const hoursProblem = form.isBookableOnline ? bookingHoursProblem(form.bookingHours) : null;
+            if (hoursProblem) { toast.error(hoursProblem); return; }
             onSave(form);
           }}
           className="space-y-4"
@@ -394,6 +402,12 @@ function ItemModal({
                   />
                   <p className="text-[11px] text-petra-muted mt-1">הגבל כמה הזמנות אפשר לקבוע לשירות זה ביום אחד</p>
                 </div>
+                <div className="pt-1 border-t border-petra-border">
+                  <BookingHoursEditor
+                    value={form.bookingHours}
+                    onChange={(bookingHours) => setForm((f) => ({ ...f, bookingHours }))}
+                  />
+                </div>
               </>
             )}
           </div>
@@ -496,10 +510,19 @@ function ItemRow({
 
         {item.isBookableOnline && (
           <span
-            title="זמין לתיאום תור אונליין"
+            title={(() => {
+              const own = parseStoredBookingHours(item.bookingHours ?? null);
+              return own ? `זמין לתיאום תור אונליין · ${formatWeeklyHours(own)}` : "זמין לתיאום תור אונליין";
+            })()}
             className="w-5 h-5 rounded-md flex items-center justify-center bg-brand-50 text-brand-500 flex-shrink-0"
           >
             <CalendarCheck className="w-3 h-3" />
+          </span>
+        )}
+        {item.isBookableOnline && parseStoredBookingHours(item.bookingHours ?? null) && (
+          <span className="text-[10px] text-brand-600 flex items-center gap-0.5 flex-shrink-0" title={formatWeeklyHours(parseStoredBookingHours(item.bookingHours ?? null)!)}>
+            <Clock className="w-3 h-3" />
+            שעות מיוחדות
           </span>
         )}
         {item.paymentUrl && (

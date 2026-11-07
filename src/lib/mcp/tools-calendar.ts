@@ -46,6 +46,7 @@ import {
   type ToolCtx,
 } from "@/lib/mcp/helpers";
 import { getAvailableSlots, localTimeToUtc, utcToLocalHHMM } from "@/lib/slots";
+import { parseStoredBookingHours, resolveDayWindow, type BookingHours } from "@/lib/booking-hours";
 
 /**
  * MCP results go to a third-party AI client (Claude / ChatGPT). Google Calendar
@@ -162,6 +163,11 @@ function openHoursFor(rules: RuleRow[], ymd: string, timezone: string): OpenHour
     openTime: rule?.openTime ?? "09:00",
     closeTime: rule?.closeTime ?? (dow === 5 ? "13:00" : "18:00"),
   };
+}
+
+function itemWindowFor(rules: RuleRow[], itemHours: BookingHours, ymd: string, timezone: string): OpenHours {
+  const w = resolveDayWindow(rules, itemHours, dayOfWeekOf(ymd, timezone));
+  return { isOpen: w.isOpen, openTime: w.openTime, closeTime: w.closeTime };
 }
 
 const openHoursLabel = (h: OpenHours) => (h.isOpen ? `${h.openTime}–${h.closeTime}` : "סגור");
@@ -311,10 +317,11 @@ export function registerCalendarTools(server: McpServer, ctx: ToolCtx): void {
   // ── find_free_slots ───────────────────────────────────────────────────────
   server.tool(
     "find_free_slots",
-    "Find free appointment slots on a date using the same availability engine as Petra's online booking (business hours, blocks, breaks, existing appointments and online bookings, minimum notice and max-advance settings). Pass service_id (from list_services — gives duration + buffers) OR duration_minutes. Optional earliest/latest HH:MM window. If the day has nothing free, returns the next days that do. Times are Israel local. Uses Petra's own data only — busy times from the owner's Google Calendar are not included, so tell the user to double-check personal calendar events.",
+    "Find free appointment slots on a date using the same availability engine as Petra's online booking (business hours, blocks, breaks, existing appointments and online bookings, minimum notice and max-advance settings). Pass service_id (from list_services — gives duration + buffers), OR price_list_item_id (from get_working_hours — uses that online-booking service's duration and its own hours, exactly what customers see on the booking page), OR duration_minutes. Optional earliest/latest HH:MM window. If the day has nothing free, returns the next days that do. Times are Israel local. Uses Petra's own data only — busy times from the owner's Google Calendar are not included, so tell the user to double-check personal calendar events.",
     {
       date: z.string().describe("Date YYYY-MM-DD"),
       service_id: z.string().optional().describe("Service id — uses its duration and buffers"),
+      price_list_item_id: z.string().optional().describe("Price-list (online booking) service id — its duration + own booking hours"),
       duration_minutes: z.number().int().min(5).max(720).optional().describe("Slot length in minutes (required when service_id is omitted)"),
       earliest: z.string().optional().describe("Only slots starting at/after this time, HH:MM"),
       latest: z.string().optional().describe("Only slots ending at/before this time, HH:MM"),
@@ -326,7 +333,8 @@ export function registerCalendarTools(server: McpServer, ctx: ToolCtx): void {
       try {
         const ymd = parseYmd(args.date);
         if (!ymd) throw new ServiceError("date חייב להיות בפורמט YYYY-MM-DD", "VALIDATION");
-        if (!args.service_id && !args.duration_minutes) throw new ServiceError("יש לציין service_id או duration_minutes", "VALIDATION");
+        if (!args.service_id && !args.price_list_item_id && !args.duration_minutes) throw new ServiceError("יש לציין service_id, price_list_item_id או duration_minutes", "VALIDATION");
+        if (args.service_id && args.price_list_item_id) throw new ServiceError("יש לבחור service_id או price_list_item_id, לא את שניהם", "VALIDATION");
         if (args.earliest && !HHMM_RE.test(args.earliest)) throw new ServiceError("earliest חייב להיות בפורמט HH:MM", "VALIDATION");
         if (args.latest && !HHMM_RE.test(args.latest)) throw new ServiceError("latest חייב להיות בפורמט HH:MM", "VALIDATION");
         const limit = args.limit ?? 20;
@@ -335,6 +343,18 @@ export function registerCalendarTools(server: McpServer, ctx: ToolCtx): void {
         let bufferBefore = 0;
         let bufferAfter = 0;
         let serviceLabel = "";
+        let itemHours: BookingHours | null = null;
+        if (args.price_list_item_id) {
+          const item = await prisma.priceListItem.findFirst({
+            where: { id: args.price_list_item_id, businessId, isActive: true },
+            select: { id: true, name: true, durationMinutes: true, bookingHours: true },
+          });
+          if (!item) throw new ServiceError("פריט מחירון לא נמצא", "NOT_FOUND");
+          duration = args.duration_minutes ?? item.durationMinutes ?? 60;
+          itemHours = parseStoredBookingHours(item.bookingHours);
+          serviceLabel = ` | שירות: ${safeField(item.name, 40)}${itemHours ? " (שעות מיוחדות)" : ""} (id: ${item.id})`;
+        }
+        const slotOpts = { ...MCP_SLOT_OPTS, hours: itemHours };
         if (args.service_id) {
           // Mirrors /api/booking/slots/route.ts:33-41 (duration ?? 60, buffers ?? 0), scoped to the business.
           const svc = await prisma.service.findFirst({
@@ -360,8 +380,8 @@ export function registerCalendarTools(server: McpServer, ctx: ToolCtx): void {
           });
         const fmt = (s: { time: string; endAt: Date }) => `${s.time}–${utcToLocalHHMM(s.endAt, tz)}`;
 
-        const all = filterSlots(await getAvailableSlots(businessId, duration, ymd, bufferBefore, bufferAfter, MCP_SLOT_OPTS));
-        const hours = openHoursFor(rules, ymd, tz);
+        const all = filterSlots(await getAvailableSlots(businessId, duration, ymd, bufferBefore, bufferAfter, slotOpts));
+        const hours = itemHours ? itemWindowFor(rules, itemHours, ymd, tz) : openHoursFor(rules, ymd, tz);
         const engineNote = `(מנוע ההזמנות: הודעה מוקדמת מינימלית ${settings.bookingMinNotice} שעות, עד ${settings.bookingMaxAdvance} ימים קדימה)`;
         const head = `חלונות פנויים ב-${heYmd(ymd)} (${weekdayHe(ymd)}) — ${duration} דק'${bufferBefore || bufferAfter ? ` + באפר ${bufferBefore}/${bufferAfter}` : ""}${serviceLabel} | שעות פעילות: ${openHoursLabel(hours)}`;
 
@@ -377,7 +397,7 @@ export function registerCalendarTools(server: McpServer, ctx: ToolCtx): void {
         const ahead: string[] = [];
         for (let i = 1; i <= 7 && ahead.length < 3; i++) {
           const d = addDaysYmd(ymd, i);
-          const s = filterSlots(await getAvailableSlots(businessId, duration, d, bufferBefore, bufferAfter, MCP_SLOT_OPTS));
+          const s = filterSlots(await getAvailableSlots(businessId, duration, d, bufferBefore, bufferAfter, slotOpts));
           if (s.length) {
             ahead.push(`• ${heYmd(d)} (${weekdayHe(d)}): ${s.slice(0, 6).map(fmt).join(", ")}${s.length > 6 ? ` …ועוד ${s.length - 6}` : ""}`);
           }

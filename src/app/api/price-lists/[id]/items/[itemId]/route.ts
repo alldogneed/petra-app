@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
+import { bookingHoursWrite } from "@/lib/booking-hours-db";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError, requireBusinessPermission } from "@/lib/auth-guards";
 import { TENANT_PERMS } from "@/lib/permissions";
@@ -76,6 +77,9 @@ export async function PATCH(
       if (urlError) return NextResponse.json({ error: urlError }, { status: 400 });
     }
 
+    const hours = bookingHoursWrite(body.bookingHours);
+    if (!hours.ok) return NextResponse.json({ error: hours.error }, { status: 400 });
+
     const item = await prisma.priceListItem.update({
       where: { id: params.itemId, businessId: authResult.businessId },
       data: {
@@ -94,6 +98,8 @@ export async function PATCH(
         ...(body.depositRequired !== undefined && { depositRequired: body.depositRequired }),
         ...(body.depositAmount !== undefined && { depositAmount: body.depositAmount }),
         ...(body.type !== undefined && { type: body.type }),
+        ...(body.maxBookingsPerDay !== undefined && { maxBookingsPerDay: body.maxBookingsPerDay }),
+        ...(hours.value !== undefined && { bookingHours: hours.value }),
       },
     });
 

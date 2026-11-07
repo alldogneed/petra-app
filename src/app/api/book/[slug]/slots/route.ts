@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
 import { getAvailableSlots, localTimeToUtc } from "@/lib/slots"
+import { parseStoredBookingHours } from "@/lib/booking-hours"
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
 
 // GET /api/book/[slug]/slots?priceListItemId=...&date=YYYY-MM-DD
@@ -48,7 +49,9 @@ export async function GET(
       return NextResponse.json({ error: "Service not found" }, { status: 404 })
     }
 
-    const slots = await getAvailableSlots(business.id, item.durationMinutes ?? 60, date)
+    const slots = await getAvailableSlots(business.id, item.durationMinutes ?? 60, date, 0, 0, {
+      hours: parseStoredBookingHours(item.bookingHours),
+    })
 
     // Capacity check: if maxBookingsPerDay is set, count confirmed bookings for this item on this date
     // Use Israel timezone boundaries (bookings store startAt in UTC)

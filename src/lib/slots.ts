@@ -24,6 +24,7 @@
 
 import { prisma } from "@/lib/prisma"
 import { getGcalBusyIntervals } from "@/lib/google-calendar"
+import { resolveDayWindow, type BookingHours } from "@/lib/booking-hours"
 
 export interface SlotResult {
   time: string    // "HH:mm" in local business timezone
@@ -107,7 +108,8 @@ export async function getAvailableSlots(
   localDateStr: string, // "YYYY-MM-DD" in business timezone
   bufferBefore = 0,
   bufferAfter = 0,
-  opts: { useGoogleBusy?: boolean } = {},
+  /** hours: the item's own weekly hours (PriceListItem.bookingHours) — replace the business hours. */
+  opts: { useGoogleBusy?: boolean; hours?: BookingHours | null } = {},
 ): Promise<SlotResult[]> {
   // 1. Load business (including booking settings), availability rule, blocks,
   //    breaks, and existing bookings in parallel
@@ -193,12 +195,10 @@ export async function getAvailableSlots(
   }
   const dayOfWeek = DOW_MAP[localDayOfWeek ?? "Sun"] ?? 0
 
-  const rule = rules.find((r) => r.dayOfWeek === dayOfWeek)
-
-  // Default when no availability rules are configured:
-  // Open Sunday–Friday (Israeli work week), Saturday closed. Friday half-day.
-  const isOpen = rule ? rule.isOpen : dayOfWeek <= 5
-  if (!isOpen) return []
+  // Item hours (when set) replace the business hours for this item; else the business
+  // rule, else the default (Sunday–Friday, Friday half-day, Saturday closed).
+  const window = resolveDayWindow(rules, opts.hours ?? null, dayOfWeek)
+  if (!window.isOpen) return []
 
   // 2b. Check bookingMaxAdvance — if the requested date is too far ahead, return []
   const todayUtc = new Date()
@@ -208,8 +208,8 @@ export async function getAvailableSlots(
   const diffDays = Math.round((targetMs - todayMs) / (1000 * 60 * 60 * 24))
   if (diffDays > bookingMaxAdvance) return []
 
-  const openTime  = rule?.openTime  ?? "09:00"
-  const closeTime = rule?.closeTime ?? (dayOfWeek === 5 ? "13:00" : "18:00")
+  const openTime  = window.openTime
+  const closeTime = window.closeTime
 
   // 3. Convert working window to UTC
   const windowStart = localTimeToUtc(openTime, localDateStr, timezone)

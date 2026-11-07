@@ -3,6 +3,7 @@ import { resolveBranding } from "@/lib/verticals/branding"
 import { NextRequest, NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
 import { rateLimit, RATE_LIMITS } from "@/lib/rate-limit"
+import { isBoardingStayItem, parseStoredBookingHours, weeklyWindows } from "@/lib/booking-hours"
 
 // GET /api/book/[slug]
 // Public: returns business info + publicly bookable services
@@ -44,6 +45,7 @@ export async function GET(
             depositRequired: true,
             depositAmount: true,
             paymentUrl: true,
+            bookingHours: true,
           },
           orderBy: [{ category: "asc" }, { name: "asc" }],
         },
@@ -68,12 +70,16 @@ export async function GET(
       "מוצרים": "other",
     };
 
+    const availabilityRulesForItems = business.availabilityRules
     // Map price list items to the service shape expected by the booking wizard
     const services = business.priceListItems.map((item) => ({
       id: item.id,
       name: item.name,
-      type: CATEGORY_TO_TYPE[item.category ?? ""] ?? "service",
-      duration: item.durationMinutes ?? (item.category === "פנסיון" ? null : 60),
+      // A "פנסיון" item with a duration (e.g. a 30-min meet-and-greet) books a time slot, not a stay.
+      type: isBoardingStayItem(item)
+        ? "boarding"
+        : item.category === "פנסיון" ? "service" : CATEGORY_TO_TYPE[item.category ?? ""] ?? "service",
+      duration: item.durationMinutes ?? (isBoardingStayItem(item) ? null : 60),
       price: item.basePrice,
       description: item.description ?? null,
       color: null,
@@ -81,6 +87,8 @@ export async function GET(
       depositAmount: item.depositAmount ?? null,
       bookingMode: "automatic",
       paymentUrl: item.paymentUrl ?? null,
+      // Own weekly hours (date picker greys out the item's closed days); null = business hours.
+      weeklyHours: item.bookingHours ? weeklyWindows(availabilityRulesForItems, parseStoredBookingHours(item.bookingHours)) : null,
     }))
 
     const { priceListItems: _unused, status: _status, availabilityRules, brandingSettings, ...businessData } = business
