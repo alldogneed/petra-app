@@ -38,3 +38,19 @@ describe("manualSendFailureText", () => {
     expect(manualSendFailureText(null)).toContain("לא מסר")
   })
 })
+
+import { overwritableStatuses } from "../whatsapp-failure"
+
+describe("overwritableStatuses (status webhook moves forward only)", () => {
+  it("delivered never overwrites read; read overwrites delivered", () => {
+    expect(overwritableStatuses("delivered")).not.toContain("read")
+    expect(overwritableStatuses("read")).toEqual(["accepted", "sent", "delivered"])
+  })
+  it("failed overwrites progress before read, never read or failed (one alert)", () => {
+    expect(overwritableStatuses("failed")).toEqual(["accepted", "sent", "delivered"])
+  })
+  it("accepted / unknown change nothing", () => {
+    expect(overwritableStatuses("accepted")).toEqual([])
+    expect(overwritableStatuses("weird")).toEqual([])
+  })
+})

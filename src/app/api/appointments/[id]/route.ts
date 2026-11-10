@@ -20,7 +20,8 @@ function appointmentLabel(a: { date?: Date | string | null; startTime?: string |
 
 
 const PatchAppointmentSchema = z.object({
-  status: z.enum(["scheduled", "completed", "canceled"]).optional(),
+  // "no_show" = calendar "לא הגיע" (was rejected with 400 — the button always failed)
+  status: z.enum(["scheduled", "completed", "canceled", "no_show"]).optional(),
   notes: z.string().max(2000).nullable().optional(),
   cancellationNote: z.string().max(500).nullable().optional(),
   date: z.string().optional(),
@@ -93,6 +94,11 @@ export async function PATCH(
         },
         { fromCompletion: true }
       ).catch((err) => console.error("Failed to schedule appointment follow-up:", err));
+    } else if (status === "no_show") {
+      // Didn't show up: the pre-appointment reminder is moot; no thank-you follow-up.
+      await cancelAppointmentPreReminder(params.id).catch((err) =>
+        console.error("Failed to cancel appointment reminder:", err)
+      );
     } else if (date !== undefined || startTime !== undefined) {
       await rescheduleAppointmentReminder({
         id: appointment.id,
@@ -116,15 +122,17 @@ export async function PATCH(
       );
     }
 
-    if (status === "canceled" || status === "completed") {
+    if (status === "canceled" || status === "completed" || status === "no_show") {
       const serviceName = appointment.service?.name ?? appointment.priceListItem?.name ?? "תור";
       const petName = appointment.pet?.name ? ` (${appointment.pet.name})` : "";
       const desc = status === "canceled"
         ? `תור בוטל: ${serviceName}${petName} — ${appointment.date} ${appointment.startTime}`
-        : `תור הושלם: ${serviceName}${petName} — ${appointment.date} ${appointment.startTime}`;
+        : status === "no_show"
+          ? `הלקוח לא הגיע לתור: ${serviceName}${petName} — ${appointment.date} ${appointment.startTime}`
+          : `תור הושלם: ${serviceName}${petName} — ${appointment.date} ${appointment.startTime}`;
       prisma.timelineEvent.create({
         data: {
-          type: status === "canceled" ? "APPOINTMENT_CANCELLED" : "APPOINTMENT_COMPLETED",
+          type: status === "canceled" ? "APPOINTMENT_CANCELLED" : status === "no_show" ? "APPOINTMENT_NO_SHOW" : "APPOINTMENT_COMPLETED",
           description: desc,
           businessId: authResult.businessId,
           customerId: appointment.customerId,

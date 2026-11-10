@@ -757,7 +757,9 @@ export function registerBoardingTools(server: McpServer, ctx: ToolCtx): void {
         const stay = await updateBoardingStay(businessId, prisma, args.stay_id, input);
 
         // Side effects — mirror PATCH /api/boarding/[id] (all awaited).
-        if (args.status === "checked_out") {
+        if (args.status === "canceled") {
+          await cancelBoardingCheckoutReminders(stay.id).catch(console.error);
+        } else if (args.status === "checked_out") {
           await cancelBoardingCheckoutReminders(stay.id).catch(console.error);
           if (stay.customerId) {
             await scheduleBoardingThankYou({

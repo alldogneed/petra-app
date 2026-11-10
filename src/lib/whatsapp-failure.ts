@@ -171,3 +171,24 @@ export function manualSendFailureText(errorCode: string | null | undefined): str
   if (code === "131026") return "וואטסאפ לא הצליח למסור את ההודעה: ייתכן שאין וואטסאפ במספר הזה או שהלקוח חסם. בדקו את המספר.";
   return "וואטסאפ לא מסר את ההודעה. נסו לשלוח אותה מהוואטסאפ שלכם.";
 }
+
+// ---------------------------------------------------------------------------
+// Message log status order. Meta can deliver status webhooks out of order and
+// concurrently; the update must only move forward, atomically (updateMany on
+// the current status) so "delivered" never overwrites "read".
+// ---------------------------------------------------------------------------
+
+export const WA_LOG_STATUSES = ["accepted", "sent", "delivered", "read", "failed"] as const;
+
+/**
+ * The current statuses a webhook status may overwrite.
+ * sent / delivered / read → any lower progress status. failed → anything not yet read
+ * or failed (a read message can't fail; a repeated failed webhook is a no-op, so the
+ * owner alert fires once). Unknown status → [] (ignored).
+ */
+export function overwritableStatuses(next: string): string[] {
+  const progress = ["accepted", "sent", "delivered", "read"];
+  if (next === "failed") return ["accepted", "sent", "delivered"];
+  const i = progress.indexOf(next);
+  return i <= 0 ? [] : progress.slice(0, i);
+}

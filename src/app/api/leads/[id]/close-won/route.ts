@@ -61,6 +61,7 @@ export async function POST(
           wonAt: new Date(),
           wonByUserId: authResult.session.user.id,
           lostByUserId: null,
+          lostAt: null, // a lead that was lost before must not stay in the lost reports
         },
         include: { customer: true, callLogs: true },
       });
@@ -96,6 +97,7 @@ export async function POST(
         wonAt: new Date(),
         wonByUserId: authResult.session.user.id,
         lostByUserId: null,
+        lostAt: null,
         customerId: customer.id,
       },
       include: { customer: true, callLogs: true },

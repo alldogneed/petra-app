@@ -1167,7 +1167,8 @@ export async function syncBoardingToGcal(
       customer: { select: { name: true, phone: true } },
     },
   });
-  if (!stay || stay.status === "cancelled") return;
+  // Stays are saved as "canceled" (the old "cancelled" check let a canceled stay's event come back on edit).
+  if (!stay || stay.status === "canceled" || stay.status === "cancelled") return;
 
   const customerName = stay.customer?.name ?? stay.pet.name;
   const customerPhone = stay.customer?.phone ?? "";

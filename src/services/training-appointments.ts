@@ -246,6 +246,7 @@ export async function syncSessionFromAppointment(
 
   const data: Record<string, unknown> = {};
   if (changed.status && appt.status === "completed" && session.status === "SCHEDULED") data.status = "COMPLETED";
+  if (changed.status && appt.status === "no_show" && session.status === "SCHEDULED") data.status = "NO_SHOW";
   if (
     changed.status && LIVE_APPT_STATUSES.includes(appt.status) && session.status === "COMPLETED" &&
     !session.summary && !session.rating
