@@ -88,6 +88,8 @@ import {
   LOCATION_MAP,
 } from "@/lib/service-dogs";
 import { toast } from "sonner";
+import { upload as blobUpload } from "@vercel/blob/client";
+import { directUploadErrorText, fileExtension, uploadContentType, uploadFileProblem } from "@/lib/blob-direct-upload";
 import { TierGate } from "@/components/paywall/TierGate";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 
@@ -3249,20 +3251,31 @@ function UploadDogDocModal({
 
   const handleUpload = async () => {
     if (!file || !name.trim()) return;
+    const problem = uploadFileProblem(file);
+    if (problem) { toast.error(problem); return; }
     setUploading(true);
     try {
-      const fd = new FormData();
-      fd.set("file", file);
-      fd.set("name", name.trim());
-      fd.set("docType", docType);
-      const res = await fetch(`/api/service-dogs/${dogId}/documents`, { method: "POST", body: fd });
+      // Straight to Blob (an API route body stops at 4.5MB on Vercel — files up to the
+      // advertised 10MB used to fail with a bare "שגיאה בהעלאה"), then record it.
+      const ext = fileExtension(file.name);
+      const blob = await blobUpload(`service-dogs/${dogId}/doc.${ext}`, file, {
+        access: "public",
+        handleUploadUrl: `/api/service-dogs/${dogId}/documents/upload-token`,
+        contentType: uploadContentType(file),
+        multipart: file.size > 4 * 1024 * 1024,
+      });
+      const res = await fetch(`/api/service-dogs/${dogId}/documents`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: blob.url, name: name.trim(), docType, fileName: file.name }),
+      });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || "שגיאה בהעלאה");
       }
       onSuccess();
     } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "שגיאה בהעלאת הקובץ");
+      toast.error(directUploadErrorText(e));
     } finally {
       setUploading(false);
     }
