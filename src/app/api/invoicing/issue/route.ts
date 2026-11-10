@@ -5,7 +5,7 @@ import { isGuardError, requireBusinessPermission } from "@/lib/auth-guards";
 import { TENANT_PERMS } from "@/lib/permissions";
 import { InvoicingService } from "@/lib/invoicing/invoicing-service";
 import { DOCUMENT_TYPES, type DocumentType } from "@/lib/invoicing/types";
-import { maskSensitive, logInvoicing } from "@/lib/invoicing/logger";
+import { logInvoicing } from "@/lib/invoicing/logger";
 
 const VALID_DOC_TYPES = new Set(Object.values(DOCUMENT_TYPES));
 
@@ -38,33 +38,25 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Mark as pending
-      await prisma.invoiceDocument.update({
-        where: { id: invoiceId },
+      // Claim draft|failed → pending atomically: a double click / second tab gets 409
+      // instead of issuing a second legal document at the provider.
+      const claimed = await prisma.invoiceDocument.updateMany({
+        where: { id: invoiceId, businessId: authResult.businessId, status: { in: ["draft", "failed"] } },
         data: { status: "pending" },
       });
+      if (claimed.count === 0) {
+        return NextResponse.json({ error: "המסמך כבר בתהליך הנפקה" }, { status: 409 });
+      }
 
       try {
         // If linked to a payment, use the existing service flow
         if (draft.paymentId) {
+          // Issued INTO this draft row (no second InvoiceDocument for the same legal document).
           const result = await InvoicingService.issue(
             authResult.businessId,
             draft.paymentId,
-            { docType: draft.docType as DocumentType }
+            { docType: draft.docType as DocumentType, existingDocumentId: invoiceId }
           );
-
-          // Update the draft with provider response
-          await prisma.invoiceDocument.update({
-            where: { id: invoiceId },
-            data: {
-              status: "issued",
-              providerDocId: result.providerDocId,
-              documentNumber: result.documentNumber,
-              documentUrl: result.documentUrl,
-              providerRawJson: JSON.stringify(maskSensitive(result)),
-              failureReason: null,
-            },
-          });
 
           return NextResponse.json(result);
         }

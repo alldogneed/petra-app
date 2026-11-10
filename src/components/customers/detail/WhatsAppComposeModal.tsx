@@ -1,9 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { X, MessageCircle, AlertTriangle, Send } from "lucide-react";
+import { X, MessageCircle, AlertTriangle, Send, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
+import { buildWhatsAppUrl } from "@/lib/utils";
 
+/**
+ * Manual WhatsApp to a customer.
+ * Primary: open the text in the business's OWN WhatsApp (always delivered).
+ * Secondary: send from Petra's number — Meta delivers free text only when the customer
+ * wrote to that number in the last 24h; the route waits for Meta's answer and returns
+ * a clear error when it was rejected (never "sent" for a failed message).
+ */
 export function WhatsAppComposeModal({
   customerId,
   customerName,
@@ -21,8 +29,23 @@ export function WhatsAppComposeModal({
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleSend() {
-    if (!message.trim()) return;
+  const text = message.trim();
+  const ownUrl = customerPhone && text ? buildWhatsAppUrl(customerPhone, text) : null;
+
+  function logOwnSend() {
+    // Timeline only — the message itself goes from the business's own WhatsApp.
+    fetch(`/api/customers/${customerId}/whatsapp`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: text, via: "own" }),
+      keepalive: true,
+    })
+      .then(() => onSent())
+      .catch(() => {});
+  }
+
+  async function handleSendViaPetra() {
+    if (!text) return;
     if (!customerPhone) { setError("אין מספר טלפון ללקוח"); return; }
     setSending(true);
     setError(null);
@@ -30,7 +53,7 @@ export function WhatsAppComposeModal({
       const res = await fetch(`/api/customers/${customerId}/whatsapp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: message.trim() }),
+        body: JSON.stringify({ message: text }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -40,6 +63,8 @@ export function WhatsAppComposeModal({
       }
       if (data.stub) {
         toast.success("ההודעה תועדה (WhatsApp לא מחובר — שליחה בפועל בהמתנה לאימות)");
+      } else if (data.delivery === "unknown") {
+        toast.success("ההודעה נשלחה, עדיין אין אישור מסירה מוואטסאפ");
       } else {
         toast.success("ההודעה נשלחה בהצלחה");
       }
@@ -64,7 +89,7 @@ export function WhatsAppComposeModal({
               <p className="text-xs text-petra-muted">{customerName}</p>
             </div>
           </div>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted">
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-petra-muted" aria-label="סגור">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -76,7 +101,7 @@ export function WhatsAppComposeModal({
               className="input resize-none"
               rows={5}
               value={message}
-              onChange={(e) => setMessage(e.target.value)}
+              onChange={(e) => { setMessage(e.target.value); setError(null); }}
               placeholder={`שלום ${customerName}, ...`}
               maxLength={1500}
               dir="rtl"
@@ -84,21 +109,53 @@ export function WhatsAppComposeModal({
             />
             <p className="text-xs text-petra-muted mt-1 text-left">{message.length}/1500</p>
           </div>
+
           {error && (
-            <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
-              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-              {error}
+            <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 space-y-2">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <span>{error}</span>
+              </div>
+              {ownUrl && (
+                <a
+                  href={ownUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={logOwnSend}
+                  className="inline-flex items-center gap-1.5 text-green-700 font-semibold hover:underline"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" /> פתח בוואטסאפ שלי
+                </a>
+              )}
             </div>
           )}
-          <div className="flex justify-end gap-3">
-            <button onClick={onClose} className="btn-secondary">ביטול</button>
+
+          <div className="space-y-2">
+            {ownUrl ? (
+              <a
+                href={ownUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={logOwnSend}
+                className="btn-primary w-full flex items-center justify-center gap-2"
+              >
+                <MessageCircle className="w-4 h-4" /> פתח בוואטסאפ שלי
+              </a>
+            ) : (
+              <button disabled className="btn-primary w-full flex items-center justify-center gap-2">
+                <MessageCircle className="w-4 h-4" /> פתח בוואטסאפ שלי
+              </button>
+            )}
             <button
-              onClick={handleSend}
-              disabled={!message.trim() || sending}
-              className="btn-primary flex items-center gap-2"
+              onClick={handleSendViaPetra}
+              disabled={!text || sending}
+              className="btn-secondary w-full flex items-center justify-center gap-2"
             >
-              <Send className="w-4 h-4" /> {sending ? "שולח..." : "שלח הודעה"}
+              <Send className="w-4 h-4" /> {sending ? "שולח ומחכה לאישור מוואטסאפ..." : "שלח מהמספר של פטרה"}
             </button>
+            <p className="text-[11px] text-petra-muted leading-relaxed">
+              &quot;פתח בוואטסאפ שלי&quot; תמיד מגיע ללקוח. שליחה מהמספר של פטרה נמסרת רק אם הלקוח כתב למספר הזה ב-24 השעות האחרונות.
+            </p>
           </div>
         </div>
       </div>

@@ -148,19 +148,15 @@ async function handleCheckoutCompleted(
     },
   });
 
-  // Update appointment status if linked
-  if (appointmentId) {
-    await prisma.appointment.updateMany({
-      where: { id: appointmentId, businessId },
-      data: { status: "confirmed" },
-    });
-  }
-
-  // Update order status if linked
+  // The Payment row above is what marks it paid. Statuses are NOT rewritten here:
+  // the old code set appointments to "confirmed" and orders to "paid" — values outside
+  // their status sets — which revived canceled appointments/orders and hid them from
+  // every filter (calendar buttons, active/outstanding totals, cancel guard).
+  // Only a still-draft order moves to "confirmed" (the customer paid for it).
   if (orderId) {
     await prisma.order.updateMany({
-      where: { id: orderId, businessId },
-      data: { status: "paid" },
+      where: { id: orderId, businessId, status: "draft" },
+      data: { status: "confirmed" },
     });
   }
 

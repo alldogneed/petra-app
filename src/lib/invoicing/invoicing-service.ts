@@ -181,7 +181,9 @@ export const InvoicingService = {
   async issue(
     businessId: string,
     paymentId: string,
-    options?: { docType?: DocumentType }
+    // existingDocumentId: issue INTO this draft row (update it) instead of creating a
+    // second row — issuing a payment-linked draft used to leave two rows per legal document.
+    options?: { docType?: DocumentType; existingDocumentId?: string }
   ): Promise<IssuedDocument> {
     const settings = await loadSettings(businessId);
     const provider = getProviderByName(settings.providerName);
@@ -256,27 +258,33 @@ export const InvoicingService = {
     const taxTotal = vatFree ? 0 : payment.amount - subtotal;
 
     // Save document record with masked raw response
-    await prisma.invoiceDocument.create({
-      data: {
-        businessId,
-        paymentId,
-        customerId: payment.customerId,
-        providerName: settings.providerName,
-        providerDocId: result.providerDocId,
-        docType,
-        docTypeName: DOCUMENT_TYPE_LABELS[docType] ?? String(docType),
-        subtotal: Math.round(subtotal * 100) / 100,
-        taxTotal: Math.round(taxTotal * 100) / 100,
-        amount: payment.amount,
-        currency: "ILS",
-        vatRate,
-        vatNumber: business?.vatNumber ?? null,
-        documentUrl: result.documentUrl,
-        documentNumber: result.documentNumber,
-        providerRawJson: JSON.stringify(maskSensitive(result)),
-        status: "issued",
-      },
-    });
+    const docData = {
+      businessId,
+      paymentId,
+      customerId: payment.customerId,
+      providerName: settings.providerName,
+      providerDocId: result.providerDocId,
+      docType,
+      docTypeName: DOCUMENT_TYPE_LABELS[docType] ?? String(docType),
+      subtotal: Math.round(subtotal * 100) / 100,
+      taxTotal: Math.round(taxTotal * 100) / 100,
+      amount: payment.amount,
+      currency: "ILS",
+      vatRate,
+      vatNumber: business?.vatNumber ?? null,
+      documentUrl: result.documentUrl,
+      documentNumber: result.documentNumber,
+      providerRawJson: JSON.stringify(maskSensitive(result)),
+      status: "issued",
+    };
+    if (options?.existingDocumentId) {
+      await prisma.invoiceDocument.updateMany({
+        where: { id: options.existingDocumentId, businessId },
+        data: { ...docData, failureReason: null },
+      });
+    } else {
+      await prisma.invoiceDocument.create({ data: docData });
+    }
 
     // Update payment with invoice number
     if (result.documentNumber) {

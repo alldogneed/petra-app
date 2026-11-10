@@ -170,6 +170,7 @@ export function getTimelineIcon(type: string) {
     case "MANUAL_NOTE":
       return FileText
     case "whatsapp_sent":
+    case "whatsapp_failed":
       return MessageCircle
     default:
       return Clock

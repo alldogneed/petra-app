@@ -7,10 +7,14 @@ import { requireCustomerAccess, callerCan } from "@/lib/customer-access";
 import { sendWhatsAppMessage } from "@/lib/whatsapp";
 import { toWhatsAppPhone } from "@/lib/utils";
 import { rateLimit } from "@/lib/rate-limit";
+import { manualSendFailureText, waitForDeliveryOutcome } from "@/lib/whatsapp-failure";
 
 // POST /api/customers/[id]/whatsapp
-// Sends a one-off WhatsApp message to a customer.
-// Body: { message: string }
+// Sends a one-off WhatsApp message to a customer from Petra's number.
+// Body: { message: string } — or { message, via: "own" } = the business opened the text in its
+// own WhatsApp (wa.me link); nothing is sent, only the timeline records it.
+// Meta accepts free text at once and reports a failure (e.g. 131047, outside the 24h window)
+// a few seconds later on the statuses webhook, so we wait briefly for the outcome.
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -49,6 +53,18 @@ export async function POST(
     if (typeof message !== "string" || !message.trim()) return NextResponse.json({ error: "נדרש תוכן ההודעה" }, { status: 400 });
     if (message.length > 1500) return NextResponse.json({ error: "ההודעה ארוכה מדי (מקסימום 1500 תווים)" }, { status: 400 });
 
+    if ((body as { via?: unknown } | null)?.via === "own") {
+      await prisma.timelineEvent.create({
+        data: {
+          customerId: customer.id,
+          businessId: authResult.businessId,
+          type: "whatsapp_sent",
+          description: `הודעת WhatsApp נפתחה לשליחה מהוואטסאפ של העסק: "${message.trim().slice(0, 80)}${message.length > 80 ? "..." : ""}"`,
+        },
+      }).catch((err) => console.error("[whatsapp] timeline event write failed:", err));
+      return NextResponse.json({ success: true, via: "own" });
+    }
+
     const phone = toWhatsAppPhone(customer.phone);
     const result = await sendWhatsAppMessage({ to: phone, body: message.trim(), businessId: authResult.businessId, context: "customer_message" });
 
@@ -56,20 +72,49 @@ export async function POST(
       return NextResponse.json({ error: result.error || "שליחה נכשלה" }, { status: 500 });
     }
 
-    // Log to timeline
+    const wamid = result.messageSid ?? "";
+    const stub = wamid.startsWith("STUB_");
+    // Real Meta ids start with "wamid."; fallbacks ("META_…", "STUB_…", Twilio) have no status webhook.
+    const outcome = wamid.startsWith("wamid.")
+      ? await waitForDeliveryOutcome(() =>
+          prisma.whatsAppMessageLog.findFirst({
+            where: { wamid },
+            select: { status: true, errorCode: true, errorMessage: true },
+          })
+        )
+      : ({ state: "unknown" } as const);
+    const snippet = `"${message.trim().slice(0, 80)}${message.length > 80 ? "..." : ""}"`;
+
+    if (outcome.state === "failed") {
+      await prisma.timelineEvent.create({
+        data: {
+          customerId: customer.id,
+          businessId: authResult.businessId,
+          type: "whatsapp_failed",
+          description: `הודעת WhatsApp לא נמסרה (נדחתה ע"י וואטסאפ): ${snippet}`,
+        },
+      }).catch((err) => console.error("[whatsapp] timeline event write failed:", err));
+      return NextResponse.json(
+        { error: manualSendFailureText(outcome.errorCode), failed: true, errorCode: outcome.errorCode },
+        { status: 422 }
+      );
+    }
+
     await prisma.timelineEvent.create({
       data: {
         customerId: customer.id,
         businessId: authResult.businessId,
         type: "whatsapp_sent",
-        description: `הודעת WhatsApp נשלחה: "${message.trim().slice(0, 80)}${message.length > 80 ? "..." : ""}"`,
+        description: `הודעת WhatsApp נשלחה: ${snippet}`,
       },
-    }).catch((err) => console.error("[whatsapp] timeline event write failed:", err)); // fire-and-forget
+    }).catch((err) => console.error("[whatsapp] timeline event write failed:", err));
 
     return NextResponse.json({
       success: true,
-      stub: result.messageSid?.startsWith("STUB_"),
+      stub,
       messageSid: result.messageSid,
+      // "delivered"/"sent"/"read" = Meta confirmed; "unknown" = no answer yet (it may still fail)
+      delivery: outcome.state === "accepted" ? outcome.status : "unknown",
     });
   } catch (error) {
     console.error("Customer WhatsApp send error:", error);

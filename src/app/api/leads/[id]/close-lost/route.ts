@@ -79,6 +79,7 @@ export async function POST(
         lostAt: new Date(),
         lostByUserId: authResult.session.user.id,
         wonByUserId: null,
+        wonAt: null, // same as updateLead: a lost lead is no longer counted as won
         lostReasonCode: reasonCode,
         lostReasonText: reasonText || null,
       },

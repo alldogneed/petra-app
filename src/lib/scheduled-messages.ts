@@ -79,9 +79,10 @@ async function isEventExpired(msg: {
       case "BOARDING": {
         const stay = await prisma.boardingStay.findUnique({
           where: { id: msg.relatedEntityId },
-          select: { checkOut: true },
+          select: { checkOut: true, status: true },
         });
         if (!stay?.checkOut) return true;
+        if (stay.status === "canceled" || stay.status === "cancelled") return true; // canceled stay → drop the reminder
         return stay.checkOut <= now;
       }
       case "SERVICE_DOG_MEETING": {

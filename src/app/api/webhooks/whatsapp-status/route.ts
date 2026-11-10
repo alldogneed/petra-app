@@ -25,18 +25,12 @@ import prisma from "@/lib/prisma";
 import { findBusinessIdByPhoneNumberId } from "@/lib/whatsapp-connections";
 import { parseInboundMessages, type InboundMessage } from "@/lib/whatsapp-inbound-rules";
 import { runAfterResponse } from "@/lib/wait-until";
-import { explainWhatsAppFailure, contextLabel, isCustomerFacingContext, maskPhone, type MetaError } from "@/lib/whatsapp-failure";
+import { explainWhatsAppFailure, contextLabel, isCustomerFacingContext, maskPhone, overwritableStatuses, type MetaError } from "@/lib/whatsapp-failure";
 
 export const dynamic = "force-dynamic";
 
-// Later statuses must not be overwritten by out-of-order webhook deliveries.
-const STATUS_RANK: Record<string, number> = {
-  accepted: 0,
-  sent: 1,
-  delivered: 2,
-  read: 3,
-  failed: 4, // terminal — always record a failure
-};
+// Later statuses must not be overwritten by out-of-order webhook deliveries —
+// see overwritableStatuses() in src/lib/whatsapp-failure.ts.
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -144,19 +138,20 @@ export async function POST(request: NextRequest) {
 
     for (const { status: s, phoneNumberId } of items) {
       if (!s.id || !s.status) continue;
-      const newRank = STATUS_RANK[s.status] ?? -1;
-      if (newRank < 0) continue;
+      const allowedFrom = overwritableStatuses(s.status);
+      if (!allowedFrom.length) continue;
 
       const existing = await prisma.whatsAppMessageLog.findUnique({ where: { wamid: s.id } });
       if (!existing) continue; // not a message we logged (or pre-rollout)
-      if ((STATUS_RANK[existing.status] ?? 0) >= newRank && s.status !== "failed") continue;
+      if (!allowedFrom.includes(existing.status)) continue; // older / duplicate status
 
       // Back-fill tenant attribution for rows logged without it (cheap, optional).
       const businessId = existing.businessId ?? (await businessIdFor(phoneNumberId));
 
       const err = s.errors?.[0];
-      await prisma.whatsAppMessageLog.update({
-        where: { wamid: s.id },
+      // Atomic forward-only move: a concurrent webhook that already advanced the row wins.
+      const moved = await prisma.whatsAppMessageLog.updateMany({
+        where: { wamid: s.id, status: { in: allowedFrom } },
         data: {
           status: s.status,
           ...(!existing.businessId && businessId ? { businessId } : {}),
@@ -167,6 +162,7 @@ export async function POST(request: NextRequest) {
           } : {}),
         },
       });
+      if (moved.count === 0) continue; // another delivery moved it first
 
       if (s.status === "failed") {
         console.error("[whatsapp-status] delivery FAILED:", s.id, existing.context, err?.code, err?.title);

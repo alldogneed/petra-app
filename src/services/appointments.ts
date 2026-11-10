@@ -37,7 +37,7 @@ export interface CreateAppointmentInput {
 }
 
 export interface UpdateAppointmentInput {
-  status?: "scheduled" | "completed" | "canceled";
+  status?: "scheduled" | "completed" | "canceled" | "no_show";
   notes?: string | null;
   cancellationNote?: string | null;
   date?: string;

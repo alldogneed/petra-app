@@ -32,7 +32,9 @@ const PHASE_TO_STATUS: Record<string, string> = {
   IN_TRAINING: "פעיל",
   ADVANCED_TRAINING: "פעיל",
   CERTIFIED: "פעיל",
-  RETIRED: "מוות",
+  // The ministry list has no "retired" value. Left empty for the business to choose before
+  // submitting (was "מוות" — a retired dog was reported as dead). Or, 10/11/2026.
+  RETIRED: "",
   DECERTIFIED: "אבד",
 };
 

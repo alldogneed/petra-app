@@ -71,7 +71,10 @@ export async function PATCH(
     }
 
     // Reminder side effects
-    if (body.status === "checked_out") {
+    if (body.status === "canceled") {
+      // A canceled stay must not get its checkout WhatsApp.
+      await cancelBoardingCheckoutReminders(params.id).catch(console.error);
+    } else if (body.status === "checked_out") {
       await cancelBoardingCheckoutReminders(params.id).catch(console.error);
       if (stay.customerId) {
         await scheduleBoardingThankYou({

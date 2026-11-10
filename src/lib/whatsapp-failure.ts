@@ -129,3 +129,66 @@ export function maskPhone(phone: string | null | undefined): string {
   if (d.length < 7) return "—";
   return `${d.slice(0, 3)}-***-${d.slice(-3)}`;
 }
+
+// ---------------------------------------------------------------------------
+// Manual sends (customer card) — Meta answers "accepted" at once and reports a
+// failure a few seconds later on the statuses webhook. The route waits briefly
+// for that outcome so the business is never told "sent" for a message that failed.
+// ---------------------------------------------------------------------------
+
+export type DeliveryOutcome =
+  | { state: "failed"; errorCode: string | null; errorMessage: string | null }
+  | { state: "accepted"; status: string } // sent / delivered / read
+  | { state: "unknown" }; // no webhook answer yet
+
+/** Polls `getStatus` until a status other than "accepted"/null arrives or the time runs out. */
+export async function waitForDeliveryOutcome(
+  getStatus: () => Promise<{ status: string | null; errorCode: string | null; errorMessage: string | null } | null>,
+  opts: { timeoutMs?: number; intervalMs?: number; sleep?: (ms: number) => Promise<void> } = {},
+): Promise<DeliveryOutcome> {
+  const timeoutMs = opts.timeoutMs ?? 7000;
+  const intervalMs = opts.intervalMs ?? 700;
+  const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  let waited = 0;
+  while (waited <= timeoutMs) {
+    const row = await getStatus().catch(() => null);
+    const status = row?.status ?? null;
+    if (status === "failed") return { state: "failed", errorCode: row?.errorCode ?? null, errorMessage: row?.errorMessage ?? null };
+    if (status && status !== "accepted") return { state: "accepted", status };
+    if (waited >= timeoutMs) break;
+    await sleep(intervalMs);
+    waited += intervalMs;
+  }
+  return { state: "unknown" };
+}
+
+/** Hebrew text for the business (not for Or) when a manual send failed. */
+export function manualSendFailureText(errorCode: string | null | undefined): string {
+  const code = String(errorCode ?? "");
+  if (code === "131047") {
+    return "וואטסאפ דחה את ההודעה: הלקוח לא כתב למספר של פטרה ב-24 השעות האחרונות, ובמצב כזה אי אפשר לשלוח לו הודעה חופשית. שלחו אותה מהוואטסאפ שלכם.";
+  }
+  if (code === "131026") return "וואטסאפ לא הצליח למסור את ההודעה: ייתכן שאין וואטסאפ במספר הזה או שהלקוח חסם. בדקו את המספר.";
+  return "וואטסאפ לא מסר את ההודעה. נסו לשלוח אותה מהוואטסאפ שלכם.";
+}
+
+// ---------------------------------------------------------------------------
+// Message log status order. Meta can deliver status webhooks out of order and
+// concurrently; the update must only move forward, atomically (updateMany on
+// the current status) so "delivered" never overwrites "read".
+// ---------------------------------------------------------------------------
+
+export const WA_LOG_STATUSES = ["accepted", "sent", "delivered", "read", "failed"] as const;
+
+/**
+ * The current statuses a webhook status may overwrite.
+ * sent / delivered / read → any lower progress status. failed → anything not yet read
+ * or failed (a read message can't fail; a repeated failed webhook is a no-op, so the
+ * owner alert fires once). Unknown status → [] (ignored).
+ */
+export function overwritableStatuses(next: string): string[] {
+  const progress = ["accepted", "sent", "delivered", "read"];
+  if (next === "failed") return ["accepted", "sent", "delivered"];
+  const i = progress.indexOf(next);
+  return i <= 0 ? [] : progress.slice(0, i);
+}
