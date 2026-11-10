@@ -2,7 +2,8 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import crypto from "crypto";
-import { put } from "@vercel/blob";
+import { put, head } from "@vercel/blob";
+import { ownBlobPath, MAX_FILE_SIZE as DIRECT_MAX } from "@/lib/blob-direct-upload";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
@@ -24,6 +25,12 @@ export async function POST(
   try {
     const authResult = await requireBusinessAuth(request);
     if (isGuardError(authResult)) return authResult;
+
+    // Direct upload (files up to 10MB): the browser already put the file in Blob via
+    // …/documents/upload-token; here we only record it, after checking the URL is ours.
+    if ((request.headers.get("content-type") || "").includes("application/json")) {
+      return recordDirectUpload(request, params.id, authResult.businessId);
+    }
 
     const formData = await request.formData();
     const file = formData.get("file") as File;
@@ -158,4 +165,54 @@ export async function PATCH(
     console.error("PATCH service-dog document error:", error);
     return NextResponse.json({ error: "שגיאה בעדכון המסמך" }, { status: 500 });
   }
+}
+
+const VALID_DOC_TYPES_DIRECT = ["MEDICAL", "TRAINING", "LEGAL", "INSURANCE", "ID", "OTHER"];
+
+async function recordDirectUpload(request: NextRequest, dogId: string, businessId: string) {
+  let body: Record<string, unknown>;
+  try { body = await request.json(); } catch { return NextResponse.json({ error: "בקשה לא תקינה" }, { status: 400 }); }
+
+  const name = (typeof body.name === "string" ? body.name.trim() : "").replace(/[<>"'&]/g, "").slice(0, 255);
+  if (!name) return NextResponse.json({ error: "שם המסמך חסר" }, { status: 400 });
+  const docType = typeof body.docType === "string" && VALID_DOC_TYPES_DIRECT.includes(body.docType) ? body.docType : "OTHER";
+  const url = typeof body.url === "string" ? body.url : "";
+  if (!ownBlobPath(url, `service-dogs/${dogId}/`)) return NextResponse.json({ error: "קובץ לא תקין" }, { status: 400 });
+
+  const profile = await prisma.serviceDogProfile.findFirst({
+    where: { id: dogId, businessId },
+    select: { id: true, documents: true },
+  });
+  if (!profile) return NextResponse.json({ error: "כלב לא נמצא" }, { status: 404 });
+
+  // The file must really exist in our store (and respect the size limit).
+  let size = 0;
+  try {
+    const meta = await head(url);
+    size = meta.size;
+  } catch {
+    return NextResponse.json({ error: "הקובץ לא נמצא – נסו להעלות שוב" }, { status: 400 });
+  }
+  if (size > DIRECT_MAX) return NextResponse.json({ error: "קובץ גדול מדי – מקסימום 10MB" }, { status: 400 });
+
+  let docs: Array<{ url?: string }> = [];
+  try { docs = JSON.parse((profile.documents as string) || "[]"); } catch { docs = []; }
+  if (docs.some((d) => d?.url === url)) return NextResponse.json({ error: "המסמך כבר נשמר" }, { status: 409 });
+
+  const fileName = (typeof body.fileName === "string" ? body.fileName : name).replace(/[<>"'&]/g, "").slice(0, 255);
+  const newDoc = {
+    id: crypto.randomBytes(16).toString("hex"),
+    name,
+    url,
+    docType,
+    uploadedAt: new Date().toISOString(),
+    isFile: true,
+    fileName,
+    fileSize: size,
+  };
+  await prisma.serviceDogProfile.update({
+    where: { id: dogId, businessId },
+    data: { documents: JSON.stringify([newDoc, ...docs]) },
+  });
+  return NextResponse.json(newDoc, { status: 201 });
 }
