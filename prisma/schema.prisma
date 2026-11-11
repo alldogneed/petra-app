@@ -133,6 +133,7 @@ model LeadMeeting {
   business        Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
   lead            Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
   service         Service?  @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  voiceAgentCalls VoiceAgentCall[]
 
   @@index([businessId, date])
   @@index([leadId])
@@ -720,6 +721,7 @@ model Lead {
   meetings  LeadMeeting[]
   business  Business     @relation(fields: [businessId], references: [id])
   callLogs  CallLog[]
+  voiceAgentCalls VoiceAgentCall[]
 
   @@index([businessId, lastContactedAt])
   @@index([stage, lostReasonCode, createdAt])
@@ -2602,6 +2604,35 @@ model PaycallCallRetry {
 
   @@index([status, nextAttemptAt])
   @@index([businessId, coachedAt])
+}
+
+/// AllDog voice agent ("אלירן", ElevenLabs) — one row per phone call. DDL: prisma/voice_agent_call.sql.
+model VoiceAgentCall {
+  id                     String    @id @default(uuid())
+  businessId             String    // no FK to Business, like WaBotConversation / PaycallCallRetry
+  leadId                 String?   // null until a lead is known/created; SetNull when the lead is deleted
+  callerPhone            String?   // as received from the provider (null for a hidden number)
+  callerPhoneNorm        String?   // "0XXXXXXXXX" — normalizeIsraeliPhone (src/lib/paycall.ts), as resolveLeadForContact
+  providerConversationId String    @unique // ElevenLabs conversation id — idempotency key for every call/webhook
+  externalCallId         String?   // PayCall / Telnyx call id, for cross-checking against PayCall CALLEE
+  status                 String    @default("in_progress") // in_progress | ended | failed
+  outcome                String?   // meeting_booked | details_only | hung_up_early | urgent | not_relevant
+  startedAt              DateTime?
+  endedAt                DateTime?
+  durationSeconds        Int?
+  transcript             Json?
+  summary                String?
+  salesBrief             Json?     // { dog, breed, age, city, problem, urgency, notes }
+  leadMeetingId          String?   // the sales call booked during this call; SetNull when the meeting is deleted
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  lead        Lead?        @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  leadMeeting LeadMeeting? @relation(fields: [leadMeetingId], references: [id], onDelete: SetNull)
+
+  @@index([businessId, createdAt])
+  @@index([leadId])
+  @@index([callerPhoneNorm])
 }
 
 /// AllDog item 36 — transcripts of past PayCall recordings (one-time run, done) for sales analysis.
