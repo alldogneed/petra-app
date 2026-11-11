@@ -47,6 +47,7 @@ import {
 import { cn, formatDate, formatCurrency, toWhatsAppPhone, fetchJSON, escapeHtml } from "@/lib/utils";
 import { triggerLimitModal } from "@/lib/limit-reached";
 import { toast } from "sonner";
+import { scheduledSessionPrefill, type SessionPrefill } from "@/lib/training-session-prefill";
 import {
   GROUP_TYPE_LABELS,
   GROUP_TYPE_COLORS,
@@ -269,6 +270,7 @@ function SessionLogModal({
   programId,
   goals,
   initialData,
+  prefill,
   processKind,
   onSelectProcessType,
 }: {
@@ -282,21 +284,23 @@ function SessionLogModal({
   programId?: string;
   goals?: { id: string; title: string; status: string; progressPercent: number }[];
   initialData?: { summary: string; sessionDate: string; sessionTime: string; rating: number | null; practiceItems: string; nextSessionGoals: string; homeworkForCustomer: string; trainerName: string; durationMinutes: number };
+  /** New log of a meeting that is already scheduled: start from its date / time / duration. */
+  prefill?: SessionPrefill | null;
   processKind?: "INDIVIDUAL" | "PACKAGE";
   onSelectProcessType?: (target: "INDIVIDUAL" | "PACKAGE" | "GROUP") => void;
 }) {
   const isEdit = !!initialData;
   const today = new Date().toISOString().slice(0, 10);
   const [summary, setSummary] = useState(initialData?.summary ?? "");
-  const [sessionDate, setSessionDate] = useState(initialData?.sessionDate ?? today);
-  const [sessionTime, setSessionTime] = useState(initialData?.sessionTime ?? "10:00");
+  const [sessionDate, setSessionDate] = useState(initialData?.sessionDate ?? prefill?.sessionDate ?? today);
+  const [sessionTime, setSessionTime] = useState(initialData?.sessionTime ?? prefill?.sessionTime ?? "10:00");
   const [rating, setRating] = useState<number | null>(initialData?.rating ?? null);
   const [hoverRating, setHoverRating] = useState<number | null>(null);
   const [practiceItems, setPracticeItems] = useState(initialData?.practiceItems ?? "");
   const [nextSessionGoals, setNextSessionGoals] = useState(initialData?.nextSessionGoals ?? "");
   const [homeworkForCustomer, setHomeworkForCustomer] = useState(initialData?.homeworkForCustomer ?? "");
   const [trainerName, setTrainerName] = useState(initialData?.trainerName ?? "");
-  const [durationMinutes, setDurationMinutes] = useState(initialData?.durationMinutes ?? 60);
+  const [durationMinutes, setDurationMinutes] = useState(initialData?.durationMinutes ?? prefill?.durationMinutes ?? 60);
   const [homeSession, setHomeSession] = useState(false);
 
   const isSameWeek = (dateStr: string) => {
@@ -2092,6 +2096,10 @@ function TrainingPageContent() {
           isPending={markAttendanceMutation.isPending}
           programId={sessionLogTarget.programId}
           goals={sessionLogTarget.goals}
+          prefill={scheduledSessionPrefill(
+            [...programs, ...boardingPrograms, ...serviceDogPrograms].find((p) => p.id === sessionLogTarget.programId)?.sessions,
+            sessionLogTarget.sessionNumber
+          )}
           onClose={() => setSessionLogTarget(null)}
           onSubmit={(summary, sessionDate, rating, practiceItems, nextSessionGoals, homeworkForCustomer, trainerName, durationMinutes) =>
             markAttendanceMutation.mutate({
