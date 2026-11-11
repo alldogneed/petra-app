@@ -50,6 +50,15 @@ export function isWaBotEnabled(): boolean {
   );
 }
 
+/** Part C — the voice agent "אלירן" (ElevenLabs) calling /api/webhooks/alldog-voice/*. Off by default. */
+export function isVoiceAgentEnabled(): boolean {
+  return (
+    truthy(readEnv("ALLDOG_VOICE_AGENT_ENABLED")) &&
+    !!allDogBusinessId() &&
+    !!readEnv("ALLDOG_VOICE_AGENT_SECRET")
+  );
+}
+
 export function botModel(): string {
   return readEnv("ALLDOG_BOT_MODEL") || "claude-sonnet-5-5";
 }
