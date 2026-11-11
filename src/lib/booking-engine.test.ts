@@ -2,22 +2,31 @@
  * Integration-style tests for the booking engine logic.
  *
  * We mock Prisma so no real DB is needed. The test covers:
- *   1. getAvailableSlots – closed day
+ *   1. getAvailableSlots – closed day / default hours when no rule exists
  *   2. getAvailableSlots – open day, no conflicts → full slot list
  *   3. getAvailableSlots – existing booking blocks slots correctly (with buffer)
  *   4. getAvailableSlots – availability block removes slots
  *   5. getAvailableSlots – service duration + buffer reduces available range
- *   6. Booking validation: slot re-check rejects taken slot
+ *   6. getAvailableSlots – breaks, manual appointments and lead meetings block slots
+ *
+ * getAvailableSlots(businessId, duration, localDateStr, bufferBefore, bufferAfter, opts)
+ * takes the duration/buffers directly (since the price-list booking sync) — it no
+ * longer loads a Service by id.
  */
 
 // ─── Prisma mock ─────────────────────────────────────────────────────────────
+// Every model getAvailableSlots() reads must be here (src/lib/slots.ts step 1 +
+// prisma.service.findMany for the buffers of existing bookings/appointments).
 
 const mockPrisma = {
   business: { findUniqueOrThrow: jest.fn() },
-  service: { findUniqueOrThrow: jest.fn(), findMany: jest.fn() },
+  service: { findMany: jest.fn() },
   availabilityRule: { findMany: jest.fn() },
   availabilityBlock: { findMany: jest.fn() },
+  availabilityBreak: { findMany: jest.fn() },
   booking: { findMany: jest.fn() },
+  appointment: { findMany: jest.fn() },
+  leadMeeting: { findMany: jest.fn() },
 }
 
 jest.mock("@/lib/prisma", () => ({
@@ -29,15 +38,25 @@ import { getAvailableSlots } from "./slots"
 // ─── Test fixtures ────────────────────────────────────────────────────────────
 
 const BUSINESS_ID = "biz-001"
-const SERVICE_ID  = "svc-001"
 const TZ = "Asia/Jerusalem"
 
 // Monday 2024-01-15 (Israel winter → UTC+2)
 const TEST_DATE = "2024-01-15"
+// Saturday 2024-01-20 (closed by default)
+const SATURDAY = "2024-01-20"
 
-const BUSINESS = { timezone: TZ }
-const SERVICE_60 = { duration: 60, bufferBefore: 0, bufferAfter: 0 }
-const SERVICE_60_BUFFER15 = { duration: 60, bufferBefore: 0, bufferAfter: 15 }
+// The engine skips slots before now + bookingMinNotice, so freeze "now" to the
+// day before TEST_DATE (only Date is faked; promises/timers stay real).
+const NOW = new Date("2024-01-14T00:00:00Z")
+
+const BUSINESS = {
+  timezone: TZ,
+  bookingBuffer: 0,
+  bookingMinNotice: 0,
+  bookingMaxAdvance: 60,
+  gcalBlockExternal: false,
+}
+const DURATION_60 = 60
 
 // Monday = dayOfWeek 1
 const RULES_OPEN = [
@@ -49,12 +68,28 @@ const RULES_CLOSED = [
 
 function resetMocks() {
   mockPrisma.business.findUniqueOrThrow.mockResolvedValue(BUSINESS)
-  mockPrisma.service.findUniqueOrThrow.mockResolvedValue(SERVICE_60)
   mockPrisma.availabilityRule.findMany.mockResolvedValue(RULES_OPEN)
   mockPrisma.availabilityBlock.findMany.mockResolvedValue([])
+  mockPrisma.availabilityBreak.findMany.mockResolvedValue([])
   mockPrisma.booking.findMany.mockResolvedValue([])
+  mockPrisma.appointment.findMany.mockResolvedValue([])
+  mockPrisma.leadMeeting.findMany.mockResolvedValue([])
   mockPrisma.service.findMany.mockResolvedValue([])
 }
+
+beforeAll(() => {
+  jest.useFakeTimers({
+    now: NOW,
+    doNotFake: [
+      "nextTick", "setImmediate", "clearImmediate", "setTimeout", "clearTimeout",
+      "setInterval", "clearInterval", "queueMicrotask", "hrtime", "performance",
+    ],
+  })
+})
+
+afterAll(() => {
+  jest.useRealTimers()
+})
 
 beforeEach(() => {
   jest.clearAllMocks()
@@ -67,21 +102,31 @@ describe("getAvailableSlots – closed day", () => {
   it("returns empty array when the day rule is closed", async () => {
     mockPrisma.availabilityRule.findMany.mockResolvedValue(RULES_CLOSED)
 
-    const slots = await getAvailableSlots(BUSINESS_ID, SERVICE_ID, TEST_DATE)
+    const slots = await getAvailableSlots(BUSINESS_ID, DURATION_60, TEST_DATE)
     expect(slots).toEqual([])
   })
 
-  it("returns empty array when no rule exists for the day", async () => {
+  it("returns empty array when no rule exists and the default day is closed (Saturday)", async () => {
     mockPrisma.availabilityRule.findMany.mockResolvedValue([]) // no rules at all
 
-    const slots = await getAvailableSlots(BUSINESS_ID, SERVICE_ID, TEST_DATE)
+    const slots = await getAvailableSlots(BUSINESS_ID, DURATION_60, SATURDAY)
     expect(slots).toEqual([])
+  })
+
+  it("falls back to the default 09:00–18:00 window when no rule exists for a weekday", async () => {
+    mockPrisma.availabilityRule.findMany.mockResolvedValue([]) // no rules at all
+
+    const slots = await getAvailableSlots(BUSINESS_ID, DURATION_60, TEST_DATE)
+    // 60-min slots every 15 min from 09:00; last one 17:00 (ends 18:00) → 33 slots
+    expect(slots).toHaveLength(33)
+    expect(slots[0].time).toBe("09:00")
+    expect(slots[slots.length - 1].time).toBe("17:00")
   })
 })
 
 describe("getAvailableSlots – open day, no conflicts", () => {
   it("returns correct slots for 60-min service in a 2-hour window (09:00–11:00)", async () => {
-    const slots = await getAvailableSlots(BUSINESS_ID, SERVICE_ID, TEST_DATE)
+    const slots = await getAvailableSlots(BUSINESS_ID, DURATION_60, TEST_DATE)
 
     // Window 09:00–11:00 local. 60-min service, no buffer.
     // Steps of 15 min: 09:00, 09:15, 09:30, 09:45, 10:00 (5 slots; 10:15 would end at 11:15 > 11:00)
@@ -91,7 +136,7 @@ describe("getAvailableSlots – open day, no conflicts", () => {
   })
 
   it("startAt and endAt are Date objects in UTC", async () => {
-    const slots = await getAvailableSlots(BUSINESS_ID, SERVICE_ID, TEST_DATE)
+    const slots = await getAvailableSlots(BUSINESS_ID, DURATION_60, TEST_DATE)
     expect(slots[0].startAt).toBeInstanceOf(Date)
     expect(slots[0].endAt).toBeInstanceOf(Date)
     // UTC diff = 60 minutes
@@ -100,14 +145,14 @@ describe("getAvailableSlots – open day, no conflicts", () => {
   })
 
   it("slot times are formatted as HH:mm strings", async () => {
-    const slots = await getAvailableSlots(BUSINESS_ID, SERVICE_ID, TEST_DATE)
+    const slots = await getAvailableSlots(BUSINESS_ID, DURATION_60, TEST_DATE)
     slots.forEach((s) => {
       expect(s.time).toMatch(/^\d{2}:\d{2}$/)
     })
   })
 
   it("slot times are in ascending order", async () => {
-    const slots = await getAvailableSlots(BUSINESS_ID, SERVICE_ID, TEST_DATE)
+    const slots = await getAvailableSlots(BUSINESS_ID, DURATION_60, TEST_DATE)
     for (let i = 1; i < slots.length; i++) {
       expect(slots[i].startAt.getTime()).toBeGreaterThan(slots[i - 1].startAt.getTime())
     }
@@ -116,9 +161,7 @@ describe("getAvailableSlots – open day, no conflicts", () => {
 
 describe("getAvailableSlots – buffer after service", () => {
   it("bufferAfter=15 reduces available slots (last slot pushed earlier)", async () => {
-    mockPrisma.service.findUniqueOrThrow.mockResolvedValue(SERVICE_60_BUFFER15)
-
-    const slots = await getAvailableSlots(BUSINESS_ID, SERVICE_ID, TEST_DATE)
+    const slots = await getAvailableSlots(BUSINESS_ID, DURATION_60, TEST_DATE, 0, 15)
 
     // Each slot needs 60 + 15 = 75 min until window end (11:00).
     // 09:00 → ends (with buffer) 10:15 ✓
@@ -147,7 +190,7 @@ describe("getAvailableSlots – existing booking blocks slots", () => {
       { id: existingBookingServiceId, bufferBefore: 0, bufferAfter: 0 },
     ])
 
-    const slots = await getAvailableSlots(BUSINESS_ID, SERVICE_ID, TEST_DATE)
+    const slots = await getAvailableSlots(BUSINESS_ID, DURATION_60, TEST_DATE)
     const times = slots.map((s) => s.time)
 
     // 09:00 slot → [09:00,10:00) does NOT overlap [09:30,10:30) → wait…
@@ -177,7 +220,7 @@ describe("getAvailableSlots – existing booking blocks slots", () => {
       { id: existingServiceId, bufferBefore: 0, bufferAfter: 15 },
     ])
 
-    const slots = await getAvailableSlots(BUSINESS_ID, SERVICE_ID, TEST_DATE)
+    const slots = await getAvailableSlots(BUSINESS_ID, DURATION_60, TEST_DATE)
     const times = slots.map((s) => s.time)
 
     // Existing booking busy interval = [09:00, 10:15)
@@ -200,7 +243,7 @@ describe("getAvailableSlots – availability block", () => {
       },
     ])
 
-    const slots = await getAvailableSlots(BUSINESS_ID, SERVICE_ID, TEST_DATE)
+    const slots = await getAvailableSlots(BUSINESS_ID, DURATION_60, TEST_DATE)
     expect(slots).toHaveLength(0)
   })
 
@@ -214,7 +257,7 @@ describe("getAvailableSlots – availability block", () => {
       },
     ])
 
-    const slots = await getAvailableSlots(BUSINESS_ID, SERVICE_ID, TEST_DATE)
+    const slots = await getAvailableSlots(BUSINESS_ID, DURATION_60, TEST_DATE)
     const times = slots.map((s) => s.time)
 
     // Slots at 09:00,09:15,09:30,09:45,10:00 in a 2h window
@@ -225,6 +268,56 @@ describe("getAvailableSlots – availability block", () => {
     expect(times).not.toContain("09:30")
     expect(times).not.toContain("09:45")
     expect(times).not.toContain("10:00")
+  })
+})
+
+describe("getAvailableSlots – breaks, appointments and lead meetings", () => {
+  it("a break on this weekday blocks overlapping slots", async () => {
+    mockPrisma.availabilityBreak.findMany.mockResolvedValue([
+      { id: "br-001", dayOfWeek: 1, startTime: "09:30", endTime: "10:00" },
+    ])
+
+    const slots = await getAvailableSlots(BUSINESS_ID, DURATION_60, TEST_DATE)
+    // [09:00..09:45] + 60 min all overlap [09:30,10:00); 10:00 starts when the break ends
+    expect(slots.map((s) => s.time)).toEqual(["10:00"])
+  })
+
+  it("a break on another weekday has no effect; dayOfWeek -1 applies every day", async () => {
+    mockPrisma.availabilityBreak.findMany.mockResolvedValue([
+      { id: "br-002", dayOfWeek: 2, startTime: "09:00", endTime: "11:00" },
+    ])
+    expect(await getAvailableSlots(BUSINESS_ID, DURATION_60, TEST_DATE)).toHaveLength(5)
+
+    mockPrisma.availabilityBreak.findMany.mockResolvedValue([
+      { id: "br-003", dayOfWeek: -1, startTime: "09:00", endTime: "11:00" },
+    ])
+    expect(await getAvailableSlots(BUSINESS_ID, DURATION_60, TEST_DATE)).toHaveLength(0)
+  })
+
+  it("a manual appointment blocks overlapping slots", async () => {
+    mockPrisma.appointment.findMany.mockResolvedValue([
+      { startTime: "10:00", endTime: "11:00", serviceId: null },
+    ])
+
+    const slots = await getAvailableSlots(BUSINESS_ID, DURATION_60, TEST_DATE)
+    // Only [09:00,10:00) ends before the appointment starts
+    expect(slots.map((s) => s.time)).toEqual(["09:00"])
+  })
+
+  it("a lead meeting blocks slots, including its service bufferBefore", async () => {
+    mockPrisma.leadMeeting.findMany.mockResolvedValue([
+      { startTime: "10:15", endTime: "11:00", serviceId: "svc-meeting" },
+    ])
+    mockPrisma.service.findMany.mockResolvedValue([
+      { id: "svc-meeting", bufferBefore: 15, bufferAfter: 0 },
+    ])
+
+    const slots = await getAvailableSlots(BUSINESS_ID, DURATION_60, TEST_DATE)
+    // Busy [10:00,11:00) with the 15-min buffer → 09:15 ([09:15,10:15)) is blocked too
+    expect(slots.map((s) => s.time)).toEqual(["09:00"])
+    expect(mockPrisma.service.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: { in: ["svc-meeting"] } } }),
+    )
   })
 })
 
