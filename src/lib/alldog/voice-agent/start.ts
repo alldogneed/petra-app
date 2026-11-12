@@ -16,16 +16,8 @@ import { isPlaceholderLeadName, localPhone, resolveLeadForContact } from "@/lib/
 import { parsePetNotesBlock } from "@/lib/lead-pet-notes";
 import { israelInstant, israelYmd } from "@/lib/alldog/time";
 import { toWaId } from "@/lib/alldog/missed-call-rules";
-import {
-  SALES_BLOCK_WORDS,
-  meetingInterval,
-  pickSalesSlots,
-  salesRange,
-  salesWorkdays,
-  spokenSlotLabel,
-  type Interval,
-  type SalesSlot,
-} from "@/lib/alldog/voice-agent/slots";
+import { pickSalesSlots, salesWorkdays, spokenSlotLabel, type SalesSlot } from "@/lib/alldog/voice-agent/slots";
+import { loadSalesBusy } from "@/lib/alldog/voice-agent/busy";
 
 export interface VoiceStartInput {
   conversationId: string;
@@ -81,8 +73,10 @@ export function whatsappSummaryText(raw: string | null | undefined): string | nu
   return text.length > WHATSAPP_SUMMARY_MAX ? `${text.slice(0, WHATSAPP_SUMMARY_MAX - 1).trimEnd()}…` : text;
 }
 
+const CALL_SELECT = { id: true, leadId: true, leadMeetingId: true } as const;
+
 /** Create the call row once; a repeated start returns the existing row (unique providerConversationId). */
-async function upsertCall(businessId: string, input: VoiceStartInput, callerPhoneNorm: string | null, now: Date) {
+export async function upsertCall(businessId: string, input: VoiceStartInput, callerPhoneNorm: string | null, now: Date) {
   const where = { providerConversationId: input.conversationId };
   try {
     return await prisma.voiceAgentCall.upsert({
@@ -96,12 +90,12 @@ async function upsertCall(businessId: string, input: VoiceStartInput, callerPhon
         startedAt: now,
       },
       update: {},
-      select: { id: true, leadId: true },
+      select: CALL_SELECT,
     });
   } catch (e) {
     // Two starts racing on the same conversation id: the loser reads the winner's row.
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
-      return prisma.voiceAgentCall.findUniqueOrThrow({ where, select: { id: true, leadId: true } });
+      return prisma.voiceAgentCall.findUniqueOrThrow({ where, select: CALL_SELECT });
     }
     throw e;
   }
@@ -115,9 +109,8 @@ export async function startVoiceCall(
   const t0 = performance.now();
   const phone = callerPhoneNormOf(input.callerPhone);
   const days = salesWorkdays(now);
-  const range = salesRange(days);
 
-  const [call, leads, customers, waConversation, meetings, blocks] = await Promise.all([
+  const [call, leads, customers, waConversation, busy] = await Promise.all([
     upsertCall(businessId, input, phone, now),
     phone ? resolveLeadForContact(businessId, phone, now) : Promise.resolve({ active: null, previous: null }),
     phone ? findCustomersByPhone(businessId, prisma, phone) : Promise.resolve([]),
@@ -127,23 +120,7 @@ export async function startVoiceCall(
           select: { summaryCallLogId: true },
         })
       : Promise.resolve(null),
-    prisma.leadMeeting.findMany({
-      where: {
-        businessId,
-        status: "scheduled",
-        date: { gte: new Date(`${days[0]}T00:00:00Z`), lte: new Date(`${days[days.length - 1]}T00:00:00Z`) },
-      },
-      select: { date: true, startTime: true, endTime: true },
-    }),
-    prisma.availabilityBlock.findMany({
-      where: {
-        businessId,
-        startAt: { lt: range.end },
-        endAt: { gt: range.start },
-        OR: SALES_BLOCK_WORDS.map((w) => ({ reason: { contains: w } })),
-      },
-      select: { startAt: true, endAt: true },
-    }),
+    loadSalesBusy(businessId, days),
   ]);
   const t1 = performance.now();
 
@@ -175,7 +152,6 @@ export async function startVoiceCall(
   ]);
   const t2 = performance.now();
 
-  const busy: Interval[] = [...meetings.map(meetingInterval), ...blocks.map((b) => ({ start: b.startAt, end: b.endAt }))];
   const upcoming = nextMeetings
     .map((m) => ({ ymd: m.date.toISOString().slice(0, 10), hhmm: m.startTime }))
     .find((m) => israelInstant(m.ymd, m.hhmm).getTime() > now.getTime());

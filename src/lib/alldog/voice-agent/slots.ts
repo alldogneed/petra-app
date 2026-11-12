@@ -66,7 +66,7 @@ export function meetingInterval(m: { date: Date; startTime: string; endTime: str
   return { start: israelInstant(ymd, m.startTime), end: israelInstant(ymd, m.endTime) };
 }
 
-function overlaps(a: Interval, b: Interval): boolean {
+export function overlaps(a: Interval, b: Interval): boolean {
   return a.start.getTime() < b.end.getTime() && b.start.getTime() < a.end.getTime();
 }
 
@@ -86,11 +86,16 @@ export function spokenSlotLabel(ymd: string, hhmm: string, now: Date): string {
   return `${heDayLabel(ymd)} בשעה ${hhmm}`;
 }
 
-interface Candidate { ymd: string; hhmm: string; minutes: number; start: Date }
+export interface Candidate { ymd: string; hhmm: string; minutes: number; start: Date }
 
 /** Every free slot of every window, grouped by window, in time order. */
-export function freeSlotsByWindow(now: Date, busy: Interval[], days: string[] = salesWorkdays(now)): Candidate[][] {
-  const earliest = now.getTime() + SALES_MIN_NOTICE_MS;
+export function freeSlotsByWindow(
+  now: Date,
+  busy: Interval[],
+  days: string[] = salesWorkdays(now),
+  minNoticeMs: number = SALES_MIN_NOTICE_MS
+): Candidate[][] {
+  const earliest = now.getTime() + minNoticeMs;
   const windows: Candidate[][] = [];
   for (const ymd of days) {
     for (const w of SALES_WINDOWS) {
