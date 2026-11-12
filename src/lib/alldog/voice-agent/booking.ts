@@ -89,7 +89,7 @@ function leadLink(leadId: string): string {
 }
 
 /** Create / update the lead (fill empty only), link it to the call, store what Eliran collected. */
-async function saveVoiceLead(businessId: string, input: VoiceLeadInput, phone: string, now: Date) {
+export async function saveVoiceLead(businessId: string, input: VoiceLeadInput, phone: string, now: Date) {
   const name = cleanName(input.fullName);
   const city = cleanCity(input.city);
   const { leadId, created } = await upsertLeadFromContact({
@@ -141,7 +141,7 @@ function openFollowupTask(businessId: string, leadId: string) {
 }
 
 /** One "לחזור טלפונית" task per lead (an open one from the bot counts); urgent → "דחוף: " + URGENT. */
-async function ensureCallbackTask(businessId: string, leadId: string, displayName: string, phone: string, input: VoiceDetails) {
+export async function ensureCallbackTask(businessId: string, leadId: string, displayName: string, phone: string, input: VoiceDetails) {
   const urgent = !!input.urgent;
   const open = await openFollowupTask(businessId, leadId);
   if (open) {

@@ -2624,6 +2624,12 @@ model VoiceAgentCall {
   summary                String?
   salesBrief             Json?     // { dog, breed, age, city, problem, urgency, notes }
   leadMeetingId          String?   // the sales call booked during this call; SetNull when the meeting is deleted
+  // End-of-call summary queue (src/lib/alldog/voice-agent/summary-job.ts) — the row is the lock, like PaycallCallRetry.
+  summaryAttempts        Int       @default(0)
+  summaryNextAt          DateTime? // due time of the next summary attempt; null = nothing to do
+  summaryLockedUntil     DateTime?
+  summaryError           String?
+  summaryCallLogId       String?   // the lead's journal line with this call's summary (updated in place)
   createdAt              DateTime  @default(now())
   updatedAt              DateTime  @updatedAt
 
@@ -2633,6 +2639,8 @@ model VoiceAgentCall {
   @@index([businessId, createdAt])
   @@index([leadId])
   @@index([callerPhoneNorm])
+  @@index([summaryNextAt])
+  @@index([status, createdAt])
 }
 
 /// AllDog item 36 — transcripts of past PayCall recordings (one-time run, done) for sales analysis.

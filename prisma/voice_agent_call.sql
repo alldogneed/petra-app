@@ -21,6 +21,11 @@ CREATE TABLE IF NOT EXISTS "VoiceAgentCall" (
     "summary" TEXT,
     "salesBrief" JSONB,
     "leadMeetingId" TEXT,
+    "summaryAttempts" INTEGER NOT NULL DEFAULT 0,
+    "summaryNextAt" TIMESTAMP(3),
+    "summaryLockedUntil" TIMESTAMP(3),
+    "summaryError" TEXT,
+    "summaryCallLogId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -31,6 +36,15 @@ CREATE UNIQUE INDEX IF NOT EXISTS "VoiceAgentCall_providerConversationId_key" ON
 CREATE INDEX IF NOT EXISTS "VoiceAgentCall_businessId_createdAt_idx" ON "VoiceAgentCall"("businessId", "createdAt");
 CREATE INDEX IF NOT EXISTS "VoiceAgentCall_leadId_idx" ON "VoiceAgentCall"("leadId");
 CREATE INDEX IF NOT EXISTS "VoiceAgentCall_callerPhoneNorm_idx" ON "VoiceAgentCall"("callerPhoneNorm");
+
+-- End-of-call summary queue (section 5). Also added to a table created by an earlier version of this file.
+ALTER TABLE "VoiceAgentCall" ADD COLUMN IF NOT EXISTS "summaryAttempts" INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "VoiceAgentCall" ADD COLUMN IF NOT EXISTS "summaryNextAt" TIMESTAMP(3);
+ALTER TABLE "VoiceAgentCall" ADD COLUMN IF NOT EXISTS "summaryLockedUntil" TIMESTAMP(3);
+ALTER TABLE "VoiceAgentCall" ADD COLUMN IF NOT EXISTS "summaryError" TEXT;
+ALTER TABLE "VoiceAgentCall" ADD COLUMN IF NOT EXISTS "summaryCallLogId" TEXT;
+CREATE INDEX IF NOT EXISTS "VoiceAgentCall_summaryNextAt_idx" ON "VoiceAgentCall"("summaryNextAt");
+CREATE INDEX IF NOT EXISTS "VoiceAgentCall_status_createdAt_idx" ON "VoiceAgentCall"("status", "createdAt");
 
 -- AddForeignKey (Postgres has no ADD CONSTRAINT IF NOT EXISTS → guard via pg_constraint)
 DO $$

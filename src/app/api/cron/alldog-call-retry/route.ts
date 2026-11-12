@@ -4,7 +4,7 @@ export const maxDuration = 300;
 
 import { NextRequest, NextResponse } from "next/server";
 import { verifyCronAuth, verifyCronAuthWithVault } from "@/lib/cron-auth";
-import { isCallSummariesEnabled, isWaBotEnabled } from "@/lib/alldog/config";
+import { isCallSummariesEnabled, isVoiceAgentEnabled, isWaBotEnabled } from "@/lib/alldog/config";
 
 /**
  * GET /api/cron/alldog-call-retry
@@ -15,6 +15,8 @@ import { isCallSummariesEnabled, isWaBotEnabled } from "@/lib/alldog/config";
  * (Vercel Hobby crons are daily only). Safe to overlap: each call row is claimed first.
  * The same run also summarizes AllDog WhatsApp-bot conversations quiet for 30+ minutes into their
  * lead journal (src/lib/alldog-bot/summary.ts, Or item 27i) — one CallLog per conversation.
+ * Voice agent ("אלירן"): end-of-call summaries (2 min after the call, retries +3/+10/+30 min/+2 h) and
+ * the cleanup of calls with no end-of-call webhook after 60 minutes (src/lib/alldog/voice-agent/summary-job.ts).
  * Auth: CRON_SECRET / CRON_SECRET_DB or the pg_cron Vault secret.
  */
 export async function GET(request: NextRequest) {
@@ -40,7 +42,13 @@ export async function GET(request: NextRequest) {
       : { skipped: "disabled" };
     // Fallback for the bot's reminder / partial closing (normally every minute via /api/cron/alldog-form-wa).
     const nudges = await (await import("@/lib/alldog-bot/nudge")).processDueNudges({ budgetMs: 20_000, limit: 30 });
-    return NextResponse.json({ ok: true, ...calls, botSummaries: bot, missedCallWa, formLeadWa, nudges, timestamp: new Date().toISOString() });
+    const voice = isVoiceAgentEnabled()
+      ? await (async () => {
+          const job = await import("@/lib/alldog/voice-agent/summary-job");
+          return { summaries: await job.processDueVoiceSummaries({ budgetMs: 30_000, limit: 10 }), cleanup: await job.cleanupStaleVoiceCalls({ limit: 20 }) };
+        })()
+      : { skipped: "disabled" };
+    return NextResponse.json({ ok: true, ...calls, botSummaries: bot, missedCallWa, formLeadWa, nudges, voice, timestamp: new Date().toISOString() });
   } catch (err) {
     console.error("CRON alldog-call-retry error:", err);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });

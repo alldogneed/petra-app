@@ -10,6 +10,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { allDogBusinessId, isVoiceAgentEnabled } from "@/lib/alldog/config";
 import { verifyVoiceAgentSecret } from "@/lib/alldog/voice-agent/auth";
+import { alertAllDogFailure } from "@/lib/alldog/failure-alerts";
+import { runAfterResponse } from "@/lib/wait-until";
 import { voiceLeadSchema } from "@/lib/alldog/voice-agent/schemas";
 import { saveVoiceDetails } from "@/lib/alldog/voice-agent/booking";
 
@@ -34,6 +36,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(result);
   } catch (e) {
     console.error("[alldog-voice details] failed", e instanceof Error ? e.message : e);
+    await runAfterResponse(alertAllDogFailure({ kind: "voice_agent", error: e, phone: parsed.data.callerPhone ?? undefined }));
     return NextResponse.json({ error: "internal_error" }, { status: 500 });
   }
 }

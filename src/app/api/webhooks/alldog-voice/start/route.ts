@@ -12,6 +12,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { allDogBusinessId, isVoiceAgentEnabled } from "@/lib/alldog/config";
 import { verifyVoiceAgentSecret } from "@/lib/alldog/voice-agent/auth";
+import { alertAllDogFailure } from "@/lib/alldog/failure-alerts";
+import { runAfterResponse } from "@/lib/wait-until";
 import { startVoiceCall } from "@/lib/alldog/voice-agent/start";
 
 export const dynamic = "force-dynamic";
@@ -49,6 +51,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (e) {
     console.error("[alldog-voice start] failed", e instanceof Error ? e.message : e);
+    await runAfterResponse(alertAllDogFailure({ kind: "voice_agent", error: e, phone: parsed.data.callerPhone ?? undefined }));
     return NextResponse.json({ error: "internal_error" }, { status: 500 });
   }
 }

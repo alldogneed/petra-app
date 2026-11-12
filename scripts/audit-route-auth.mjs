@@ -82,6 +82,7 @@ const PUBLIC_ROUTES = new Set([
   "webhooks/alldog-voice/start", // AllDog voice agent — Bearer ALLDOG_VOICE_AGENT_SECRET (verifyVoiceAgentSecret)
   "webhooks/alldog-voice/book",
   "webhooks/alldog-voice/details",
+  "webhooks/alldog-voice/end",   // ElevenLabs post-call webhook — HMAC ElevenLabs-Signature (verifyElevenLabsSignature)
 
   // ── MCP OAuth 2.1 (public by spec: PKCE / refresh-token auth, per-IP rate limits) ──
   // (oauth/authorize uses requireAuth/resolveSession — pattern-detected.)
