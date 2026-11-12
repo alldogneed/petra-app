@@ -82,6 +82,11 @@ export interface VoiceAgentSettings {
   callbackPhone: string;
   /** Racheli's PlatformUser id: bell notification + her Google Calendar. Null = neither. */
   salesRepUserId: string | null;
+  /**
+   * The Telnyx number PayCall forwards unanswered calls to (Eliran). No default on purpose (Or): unset →
+   * PayCall behaves exactly as before + a daily warning (src/lib/alldog/voice-agent/paycall-guard.ts).
+   */
+  voiceAgentNumber: string | null;
 }
 
 export function voiceAgentSettings(): VoiceAgentSettings {
@@ -90,6 +95,7 @@ export function voiceAgentSettings(): VoiceAgentSettings {
     salesRepName: readEnv("ALLDOG_SALES_REP_NAME") || "רחלי",
     callbackPhone: readEnv("ALLDOG_CALLBACK_PHONE") || "03-3818670",
     salesRepUserId: readEnv("ALLDOG_SALES_REP_USER_ID") || null,
+    voiceAgentNumber: readEnv("ALLDOG_VOICE_AGENT_NUMBER") || null,
   };
 }
 

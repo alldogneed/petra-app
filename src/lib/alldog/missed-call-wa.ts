@@ -19,6 +19,7 @@ import { holidayBlocks } from "@/lib/alldog/holidays";
 import { allDogBusinessId } from "@/lib/alldog/config";
 import { readEnv } from "@/lib/read-env";
 import { addLeadCallLog } from "@/lib/alldog/leads";
+import { missedCallSendAt, missedCallVoiceCheck } from "@/lib/alldog/voice-agent/paycall-guard";
 import {
   ANSWERED_RECENTLY_MS,
   answeredSince,
@@ -137,7 +138,9 @@ export async function scheduleMissedCallWhatsApp(
       select: { id: true },
     });
     // Item 40.3: never 21:30–08:00 / Shabbat / a holiday — the message waits (template by the call time).
-    const sendAt = quietDeferral(paycallStart(call.START), now, await holidayBlocks(businessId, now)) ?? now;
+    // Section 6 (voice agent active + Telnyx number set): not before 2 minutes after this PayCall event, so a
+    // conversation with Eliran that starts at the forward (second 20) already exists when it is checked.
+    const sendAt = await missedCallSendAt(quietDeferral(paycallStart(call.START), now, await holidayBlocks(businessId, now)) ?? now, now);
     const payload: PendingPayload = { callId: call.ID, sendAt: sendAt.toISOString(), leadId: ref.leadId, mobile, startedAt: paycallStart(call.START)?.toISOString() ?? null };
     let row: { id: string };
     try {
@@ -186,6 +189,17 @@ export async function sendMissedCallMessage(rowId: string): Promise<{ status: "s
       timeSkip ??
       conversationSkipReason(conv, await lastMissedCallMessageAt(conv.id, row.id), new Date()) ??
       ((await formLeadMessageSince(conv.id, new Date())) ? "sent_recently" : null);
+    // Section 6 (voice agent, only while voiceAgentActiveFor): a real conversation with Eliran blocks it at
+    // once; a call still in progress (no real outcome, < 15 min) defers it; anything else → sent as before.
+    if (!reason) {
+      const voice = await missedCallVoiceCheck(conv.businessId, payload.mobile, payload.startedAt ? new Date(payload.startedAt) : null);
+      if (voice) console.log(`${LOG} call ${payload.callId} (${maskPhone(conv.phone)}): voice-agent check → ${voice.action} (${voice.reason})`);
+      if (voice?.action === "block") reason = "voice_agent_conversation";
+      else if (voice?.action === "defer") {
+        await prisma.waBotMessage.update({ where: { id: row.id }, data: { kind: MISSED_CALL_KINDS.pending, text: JSON.stringify({ ...payload, sendAt: voice.until.toISOString() }) } });
+        return { status: "deferred", reason: voice.reason };
+      }
+    }
     if (!reason) {
       const since = new Date((payload.startedAt ? Date.parse(payload.startedAt) : Date.now()) - ANSWERED_RECENTLY_MS);
       try {
