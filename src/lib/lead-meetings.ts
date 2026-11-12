@@ -24,6 +24,18 @@ export const LEAD_MEETING_REMINDER_HOURS = 24;
 /** Reminder relatedEntityType on ScheduledMessage. */
 export const LEAD_MEETING_ENTITY = "LEAD_MEETING";
 
+/**
+ * A phone sales call booked by a voice agent (AllDog "אלירן") is a LeadMeeting with this location.
+ * Moving it in the UI keeps the location, so its 2-hour reminder rule follows the meeting.
+ */
+export const SALES_CALL_LOCATION = "שיחה טלפונית";
+/** Reminder lead time of a sales call (Or, 12/11/2026): 2 hours before; none when booked closer than that. */
+export const SALES_CALL_REMINDER_HOURS = 2;
+
+export function isSalesCallMeeting(m: { location: string | null }): boolean {
+  return m.location?.trim() === SALES_CALL_LOCATION;
+}
+
 /** Notes tag on the completed Appointment created when a meeting converts the lead. */
 export const LEAD_MEETING_APPOINTMENT_TAG = "[פגישת ליד]";
 

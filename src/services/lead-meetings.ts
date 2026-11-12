@@ -14,6 +14,7 @@ import type { PrismaClient } from "@prisma/client";
 import { ServiceError } from "@/services/types";
 import { clearLeadFollowUps, updateLead } from "@/services/clients";
 import { cancelLeadFollowup, cancelLeadMeetingReminder, scheduleLeadMeetingReminder } from "@/lib/reminder-service";
+import { runAfterResponse } from "@/lib/wait-until";
 import {
   LEAD_MEETING_APPOINTMENT_TAG,
   canTransition,
@@ -72,8 +73,12 @@ async function assertService(businessId: string, db: DbClient, serviceId: string
   return svc.id;
 }
 
-/** Re-schedule the reminder from the current DB row (cancel first; no-op when not applicable). */
-async function refreshReminder(db: DbClient, businessId: string, meetingId: string) {
+/**
+ * Re-schedule the reminder from the current DB row (cancel first; no-op when not applicable).
+ * Exported for the voice agent, which inserts its LeadMeeting inside a locked batch transaction
+ * (src/lib/alldog/voice-agent/booking.ts) instead of createLeadMeeting.
+ */
+export async function refreshReminder(db: DbClient, businessId: string, meetingId: string) {
   await cancelLeadMeetingReminder(meetingId);
   const m = await db.leadMeeting.findFirst({
     where: { id: meetingId, businessId, status: "scheduled" },
@@ -184,6 +189,10 @@ export async function updateLeadMeeting(
   const res = await db.leadMeeting.updateMany({ where: { id: meetingId, businessId, status: "scheduled" }, data });
   if (res.count === 0) throw new ServiceError("הפגישה כבר נסגרה", "CONFLICT");
   await refreshReminder(db, businessId, meetingId);
+  // A voice-agent sales call in the rep's Google Calendar follows the move (no-op for every other meeting).
+  await runAfterResponse(
+    import("@/lib/alldog/voice-agent/calendar").then((m) => m.resyncSalesCallCalendar(businessId, meetingId))
+  );
   return db.leadMeeting.findFirstOrThrow({ where: { id: meetingId, businessId }, select: LEAD_MEETING_SELECT });
 }
 
@@ -194,6 +203,10 @@ export async function cancelLeadMeeting(businessId: string, db: DbClient, leadId
   });
   if (res.count === 0) throw new ServiceError("הפגישה לא נמצאה או כבר נסגרה", "NOT_FOUND");
   await cancelLeadMeetingReminder(meetingId);
+  // Its Google Calendar copy (voice-agent sales call) is removed; no-op for every other meeting.
+  await runAfterResponse(
+    import("@/lib/alldog/voice-agent/calendar").then((m) => m.removeSalesCallFromCalendar(businessId, meetingId))
+  );
   return { ok: true };
 }
 

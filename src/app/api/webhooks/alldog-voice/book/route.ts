@@ -16,7 +16,9 @@ import { voiceBookSchema } from "@/lib/alldog/voice-agent/schemas";
 import { bookSalesCall } from "@/lib/alldog/voice-agent/booking";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 15;
+// The response returns as soon as the booking is saved; the work after it (confirmation, reminder,
+// rep bell, Google Calendar, alerts) runs in waitUntil and is bounded by this limit, not by 15 s.
+export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
   const businessId = allDogBusinessId();

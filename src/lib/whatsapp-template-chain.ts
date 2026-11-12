@@ -49,6 +49,12 @@ export interface ChainSendInput {
   fallbackBody: string;        // free-text body sent when every template fails
   businessId: string | null;   // send on behalf of this business (own number when connected)
   context: string;             // WhatsAppMessageLog.context — the flow name, e.g. "lead_followup"
+  /**
+   * Templates only — never the free-text fallback. For a recipient who has not written to us
+   * (e.g. a voice-agent caller): free text outside the 24h window is rejected anyway (131047).
+   * Off by default — every existing flow is unchanged.
+   */
+  templateOnly?: boolean;
 }
 
 export interface FailedTemplate {
@@ -173,6 +179,11 @@ export async function sendWithTemplateChain(input: ChainSendInput): Promise<Chai
       failedTemplates.push({ name: step.name, error });
       console.error(`[WhatsApp chain] ${context}: template "${step.name}" threw — ${error}`);
     }
+  }
+
+  if (input.templateOnly) {
+    console.warn(`[WhatsApp chain] ${context}: all ${steps.length} template(s) failed — template-only flow, no free text sent`);
+    return { success: false, error: "all templates failed (template-only flow)", failedTemplates };
   }
 
   if (steps.length > 0) {

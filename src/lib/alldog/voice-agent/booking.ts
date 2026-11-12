@@ -16,8 +16,9 @@
  *   5. stage → "תואמה שיחת מכירה" (by name), forward only, with a stage_change journal line;
  *      stage missing → booked anyway + warning (log + lead journal) + an alert to Or once a day.
  *
- * NOT done here (section 4): createLeadMeeting's side effect = the LeadMeeting WhatsApp reminder
- * (refreshReminder → scheduleLeadMeetingReminder). No confirmation message, no alert to Racheli yet.
+ *   6. after the response (after-booking.ts): the LeadMeeting reminder — createLeadMeeting's only
+ *      side effect, via the same refreshReminder — the customer's confirmation, a bell to the rep and
+ *      the event in the rep's Google Calendar. None of them can fail or delay the booking.
  */
 import { randomUUID } from "crypto";
 import prisma from "@/lib/prisma";
@@ -31,10 +32,12 @@ import { israelInstant, israelParts, israelYmd } from "@/lib/alldog/time";
 import { salesWorkdays, spokenSlotLabel, type SalesSlot } from "@/lib/alldog/voice-agent/slots";
 import { loadSalesBusy } from "@/lib/alldog/voice-agent/busy";
 import { callerPhoneNormOf, upsertCall } from "@/lib/alldog/voice-agent/start";
+import { afterSalesCallBooked } from "@/lib/alldog/voice-agent/after-booking";
+import { voiceAgentSettings } from "@/lib/alldog/config";
 import {
   CALLBACK_TASK_PREFIX,
   SALES_CALL_LOCATION,
-  SALES_CALL_NOTE,
+  salesCallNote,
   SALES_CALL_STAGE_NAME,
   URGENT_TITLE_PREFIX,
   VOICE_LEAD_SOURCE,
@@ -288,7 +291,7 @@ export async function bookSalesCall(businessId: string, input: VoiceBookInput, n
     prisma.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${LOCK_PREFIX + businessId}))`,
     prisma.$executeRaw`
       INSERT INTO "LeadMeeting" ("id", "businessId", "leadId", "date", "startTime", "endTime", "location", "notes", "status", "createdAt", "updatedAt")
-      SELECT ${meetingId}, ${businessId}, ${lead.id}, ${day}::timestamp, ${slot.hhmm}, ${slot.endHhmm}, ${SALES_CALL_LOCATION}, ${SALES_CALL_NOTE}, 'scheduled', NOW(), NOW()
+      SELECT ${meetingId}, ${businessId}, ${lead.id}, ${day}::timestamp, ${slot.hhmm}, ${slot.endHhmm}, ${SALES_CALL_LOCATION}, ${salesCallNote(voiceAgentSettings().salesRepName)}, 'scheduled', NOW(), NOW()
       WHERE NOT EXISTS (
           SELECT 1 FROM "LeadMeeting" m
           WHERE m."businessId" = ${businessId} AND m."status" = 'scheduled' AND m."date" = ${day}::timestamp
@@ -324,8 +327,16 @@ export async function bookSalesCall(businessId: string, input: VoiceBookInput, n
   // 5. Stage + journal + outcome.
   const stageChanged = await moveToSalesCallStage(businessId, lead);
   const meeting = meetingRef(slot.ymd, slot.hhmm, now);
-  await addLeadCallLog(lead.id, `${VOICE_LOG_PREFIX} נקבעה שיחת מכירה טלפונית עם רחלי ל${meeting.label}`, "");
+  await addLeadCallLog(lead.id, `${VOICE_LOG_PREFIX} נקבעה שיחת מכירה טלפונית עם ${voiceAgentSettings().salesRepName} ל${meeting.label}`, "");
   await prisma.voiceAgentCall.update({ where: { id: call.id }, data: { outcome: input.urgent ? "urgent" : "meeting_booked" } });
+  // Section 4: reminder + confirmation + bell to the rep + the rep's Google Calendar — after the
+  // response, so none of them can fail or delay the booking.
+  await runAfterResponse(
+    afterSalesCallBooked({
+      businessId, meetingId, leadId: lead.id, leadName: lead.name, displayName, phone,
+      ymd: slot.ymd, hhmm: slot.hhmm, problem: cleanReason(input.problem),
+    })
+  );
   return { status: "booked", meeting, stageChanged };
 }
 

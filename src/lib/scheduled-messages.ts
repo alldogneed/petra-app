@@ -269,6 +269,7 @@ export async function processPendingReminders(): Promise<{
         fallbackBody: body,
         businessId: msg.businessId,
         context,
+        templateOnly: payload.templateOnly === true,
       });
       if (result.success) {
         console.log(

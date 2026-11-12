@@ -14,7 +14,9 @@ import { voiceLeadSchema } from "@/lib/alldog/voice-agent/schemas";
 import { saveVoiceDetails } from "@/lib/alldog/voice-agent/booking";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 15;
+// The response returns as soon as the lead + task are saved; the alerts after it (new-lead alert,
+// urgent owner alert) run in waitUntil and are bounded by this limit, not by 15 s.
+export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
   const businessId = allDogBusinessId();

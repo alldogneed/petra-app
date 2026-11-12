@@ -14,6 +14,8 @@ const FLOW_LABELS: Record<string, string> = {
   appointment_followup: "מעקב אחרי תור",
   lead_followup: "מעקב ליד",
   lead_meeting_reminder: "תזכורת לפגישת ליד",
+  sales_call_confirmation: "אישור שיחת מכירה טלפונית",
+  sales_call_reminder: "תזכורת לשיחת מכירה טלפונית",
   boarding_checkout: "צ׳ק-אאוט פנסיון",
   boarding_thank_you: "תודה אחרי פנסיון",
   group_session_reminder: "תזכורת לשיעור קבוצתי",

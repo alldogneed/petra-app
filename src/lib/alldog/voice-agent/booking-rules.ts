@@ -23,8 +23,12 @@ export const VOICE_LOG_PREFIX = "[שיחה קולית · אלירן]";
 /** Same task titles as the WhatsApp bot (src/lib/alldog-bot/actions.ts), so an open task from either channel counts. */
 export const CALLBACK_TASK_PREFIX = "לחזור טלפונית";
 export const URGENT_TITLE_PREFIX = "דחוף: ";
-export const SALES_CALL_LOCATION = "שיחה טלפונית";
-export const SALES_CALL_NOTE = "שיחת מכירה טלפונית עם רחלי · נקבעה ע\"י אלירן (סוכן קולי)";
+/** Single source: src/lib/lead-meetings.ts (the reminder service recognizes sales calls by it). */
+export { SALES_CALL_LOCATION } from "@/lib/lead-meetings";
+/** LeadMeeting.notes of a voice-agent sales call (the rep's name comes from voiceAgentSettings). */
+export function salesCallNote(repName: string): string {
+  return `שיחת מכירה טלפונית עם ${repName} · נקבעה ע"י אלירן (סוכן קולי)`;
+}
 /**
  * At booking time the minimum notice is 90 minutes (not the 2 hours of /start), so a slot offered
  * at the start of the call is still bookable a few minutes later when the caller picks it.

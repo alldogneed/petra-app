@@ -10,6 +10,7 @@ import { vocab } from "@/lib/verticals/vocab";
 import { prisma } from "./prisma";
 import { encryptToken, decryptToken } from "./encryption";
 import { hasTenantPermission, parsePermissionOverrides, TENANT_PERMS, type TenantRole } from "./permissions";
+import { parsePetNotesBlock } from "./lead-pet-notes";
 
 export { encryptToken, decryptToken };
 
@@ -801,7 +802,8 @@ export type GcalEntityType =
   | "APPOINTMENT"
   | "BOARDING_STAY"
   | "TRAINING_PROGRAM_SESSION"
-  | "TRAINING_GROUP_SESSION";
+  | "TRAINING_GROUP_SESSION"
+  | "LEAD_MEETING";
 
 async function getEventLink(entityType: GcalEntityType, entityId: string, userId: string) {
   return prisma.gcalEventLink.findUnique({
@@ -919,6 +921,90 @@ export async function deleteAppointmentFromGcal(
       data: { gcalEventId: null },
     });
   }
+}
+
+// ─── Lead meeting → ONE user's calendar (voice-agent sales calls, AllDog) ────
+// Unlike appointments (pushed to every connected member), a sales call goes only to the
+// sales rep's calendar. Write only — nothing is read from Google. Callers are in
+// src/lib/alldog/voice-agent/calendar.ts (booking / move / cancel); failures never throw there.
+
+export interface LeadMeetingForGcal {
+  id: string;
+  businessId: string;
+  date: Date;          // Israel calendar day at 00:00Z
+  startTime: string;   // "HH:mm" Israel
+  endTime: string;
+  lead: { id: string; name: string; phone: string | null; city: string | null; notes: string | null };
+}
+
+/** Title "שיחת מכירה: <שם> · <טלפון>", dog / city / problem + lead link, popup 10 minutes before. */
+export function buildLeadMeetingEventPayload(m: LeadMeetingForGcal, appBaseUrl: string) {
+  const ymd = m.date.toISOString().slice(0, 10);
+  const offset = getJerusalemOffset(new Date(`${ymd}T12:00:00Z`));
+  const pet = parsePetNotesBlock(m.lead.notes);
+  const summary = ["שיחת מכירה:", [m.lead.name, m.lead.phone].filter(Boolean).join(" · ")].join(" ");
+  const description = [
+    `שיחת מכירה טלפונית · ${m.lead.name}`,
+    m.lead.phone ? `טלפון: ${m.lead.phone}` : null,
+    "",
+    pet?.name ? `כלב: ${pet.name}` : null,
+    pet?.breed ? `גזע: ${pet.breed}` : null,
+    pet?.age ? `גיל: ${pet.age}` : null,
+    m.lead.city ? `עיר: ${m.lead.city}` : null,
+    pet?.notes ? `הבעיה: ${pet.notes}` : null,
+    "",
+    `הליד בפטרה: ${appBaseUrl}/leads?lead=${m.lead.id}`,
+    "⚙️ מנוהל על ידי Petra",
+  ]
+    .filter((l) => l !== null)
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n");
+
+  return {
+    summary,
+    description,
+    start: { dateTime: `${ymd}T${m.startTime}:00${offset}`, timeZone: BOOKING_TIMEZONE },
+    end: { dateTime: `${ymd}T${m.endTime}:00${offset}`, timeZone: BOOKING_TIMEZONE },
+    // "Petra Bookings" is a secondary calendar — it may have no default notifications.
+    reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 10 }] },
+    extendedProperties: { private: { petraLeadMeetingId: m.id, businessId: m.businessId, source: "petra" } },
+  };
+}
+
+export type LeadMeetingGcalResult =
+  | { ok: true; eventId: string }
+  | { ok: false; reason: "meeting_not_found" | "not_connected" | "error"; error?: string };
+
+/** Create-or-update the meeting's event in ONE user's calendar (only if that user connected Google + may sync). */
+export async function pushLeadMeetingToGcalForUser(meetingId: string, businessId: string, userId: string): Promise<LeadMeetingGcalResult> {
+  const meeting = await prisma.leadMeeting.findFirst({
+    where: { id: meetingId, businessId, status: "scheduled" },
+    select: {
+      id: true, businessId: true, date: true, startTime: true, endTime: true,
+      lead: { select: { id: true, name: true, phone: true, city: true, notes: true } },
+    },
+  });
+  if (!meeting) return { ok: false, reason: "meeting_not_found" };
+  const user = (await findConnectedUsersForBusiness(businessId)).find((u) => u.id === userId && u.gcalSyncEnabled);
+  if (!user) return { ok: false, reason: "not_connected" };
+  try {
+    const appBaseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://petra-app.com";
+    const eventId = await pushEventForUser(userId, "LEAD_MEETING", meetingId, null, buildLeadMeetingEventPayload(meeting, appBaseUrl));
+    return { ok: true, eventId };
+  } catch (err) {
+    return { ok: false, reason: "error", error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+/** Users that hold a calendar copy of this meeting (GcalEventLink). Empty = never synced (any non-voice meeting). */
+export async function leadMeetingGcalUserIds(meetingId: string): Promise<string[]> {
+  const links = await prisma.gcalEventLink.findMany({ where: { entityType: "LEAD_MEETING", entityId: meetingId }, select: { userId: true } });
+  return links.map((l) => l.userId);
+}
+
+/** Remove the meeting's event from every calendar that holds a copy, then drop the links. */
+export async function deleteLeadMeetingFromGcal(meetingId: string, businessId: string): Promise<void> {
+  await deleteEventFromConnectedCalendars(businessId, "LEAD_MEETING", meetingId, null, "GCal lead meeting delete error");
 }
 
 /**
