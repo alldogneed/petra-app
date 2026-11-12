@@ -79,6 +79,10 @@ const PUBLIC_ROUTES = new Set([
   "webhooks/lead",
   "webhooks/whatsapp-status",
   "webhooks/alldog-whatsapp",   // AllDog bot — HMAC X-Hub-Signature-256 (ALLDOG_WA_APP_SECRET)
+  "webhooks/alldog-voice/start", // AllDog voice agent — Bearer ALLDOG_VOICE_AGENT_SECRET (verifyVoiceAgentSecret)
+  "webhooks/alldog-voice/book",
+  "webhooks/alldog-voice/details",
+  "webhooks/alldog-voice/end",   // ElevenLabs post-call webhook — HMAC ElevenLabs-Signature (verifyElevenLabsSignature)
 
   // ── MCP OAuth 2.1 (public by spec: PKCE / refresh-token auth, per-IP rate limits) ──
   // (oauth/authorize uses requireAuth/resolveSession — pattern-detected.)
@@ -137,6 +141,7 @@ const TOKEN_AUTH_PATTERNS = [
   /signatureValid/,                   // common variable name
   /webhookSecret/i,
   /WHATSAPP_WEBHOOK_VERIFY_TOKEN/,  // Meta statuses webhook verify handshake
+  /verifyVoiceAgentSecret\s*\(/,    // AllDog voice agent — Bearer secret, timing-safe (src/lib/alldog/voice-agent/auth.ts)
 ];
 
 function listRouteFiles(dir, prefix = "") {

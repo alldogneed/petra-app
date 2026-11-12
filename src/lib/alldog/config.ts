@@ -50,6 +50,55 @@ export function isWaBotEnabled(): boolean {
   );
 }
 
+/** Part C — the voice agent "אלירן" (ElevenLabs) calling /api/webhooks/alldog-voice/*. Off by default. */
+export function isVoiceAgentEnabled(): boolean {
+  return (
+    truthy(readEnv("ALLDOG_VOICE_AGENT_ENABLED")) &&
+    !!allDogBusinessId() &&
+    !!readEnv("ALLDOG_VOICE_AGENT_SECRET")
+  );
+}
+
+/**
+ * The voice agent's behaviour applies to this business right now: AllDog's business AND the flag on
+ * (isVoiceAgentEnabled). Every voice-only branch inside shared code (LeadMeeting reminder, calendar
+ * hooks) checks this first, so any other business — even with the same meeting location — gets the
+ * regular behaviour, and turning the flag off returns AllDog to it too.
+ */
+export function voiceAgentActiveFor(businessId: string | null | undefined): boolean {
+  return isAllDogBusiness(businessId) && isVoiceAgentEnabled();
+}
+
+/**
+ * AllDog values the voice agent puts into the (business-neutral) sales-call templates and the
+ * Google Calendar event. Env overrides; the defaults are AllDog's own (Or, 12/11/2026).
+ */
+export interface VoiceAgentSettings {
+  /** Business name in customer messages ("תודה שפנית ל-AllDog") — not the legal / GBP name. */
+  businessDisplayName: string;
+  /** Who calls back on a sales call. */
+  salesRepName: string;
+  /** Number customers can call to change the time. */
+  callbackPhone: string;
+  /** Racheli's PlatformUser id: bell notification + her Google Calendar. Null = neither. */
+  salesRepUserId: string | null;
+  /**
+   * The Telnyx number PayCall forwards unanswered calls to (Eliran). No default on purpose (Or): unset →
+   * PayCall behaves exactly as before + a daily warning (src/lib/alldog/voice-agent/paycall-guard.ts).
+   */
+  voiceAgentNumber: string | null;
+}
+
+export function voiceAgentSettings(): VoiceAgentSettings {
+  return {
+    businessDisplayName: readEnv("ALLDOG_DISPLAY_NAME") || "AllDog",
+    salesRepName: readEnv("ALLDOG_SALES_REP_NAME") || "רחלי",
+    callbackPhone: readEnv("ALLDOG_CALLBACK_PHONE") || "03-3818670",
+    salesRepUserId: readEnv("ALLDOG_SALES_REP_USER_ID") || null,
+    voiceAgentNumber: readEnv("ALLDOG_VOICE_AGENT_NUMBER") || null,
+  };
+}
+
 export function botModel(): string {
   return readEnv("ALLDOG_BOT_MODEL") || "claude-sonnet-5-5";
 }

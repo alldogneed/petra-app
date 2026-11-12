@@ -11,6 +11,8 @@ export const WHATSAPP_CONTEXT_LABELS: Record<string, string> = {
   training_session_reminder: "תזכורת למפגש אילוף",
   lead_followup: "מעקב ליד",
   lead_meeting_reminder: "תזכורת לפגישת ליד",
+  sales_call_confirmation: "אישור שיחת מכירה טלפונית",
+  sales_call_reminder: "תזכורת לשיחת מכירה טלפונית",
   boarding_checkout: "יציאה מפנסיון",
   boarding_thank_you: "תודה אחרי פנסיון",
   payment_request: "בקשת תשלום",

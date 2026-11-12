@@ -10,7 +10,9 @@
 import { claimOnce } from "@/lib/rate-limit";
 import { allDogBusinessId } from "@/lib/alldog/config";
 
-export type AllDogFailureKind = "bot_reply" | "wa_send" | "transcription" | "webhook" | "call_summary" | "bot_summary";
+export type AllDogFailureKind =
+  | "bot_reply" | "wa_send" | "transcription" | "webhook" | "call_summary" | "bot_summary"
+  | "voice_agent" | "voice_summary";
 
 export const FAILURE_KIND_TITLES: Record<AllDogFailureKind, string> = {
   bot_reply: "הבוט לא הצליח לענות ללקוח",
@@ -19,6 +21,8 @@ export const FAILURE_KIND_TITLES: Record<AllDogFailureKind, string> = {
   webhook: "ה-webhook של וואטסאפ דחה הודעות או נכשל",
   call_summary: "שיחת PayCall נשארה בלי סיכום",
   bot_summary: "סיכום שיחת הבוט בוואטסאפ נכשל",
+  voice_agent: "הסוכן הקולי (אלירן) נתקל בתקלה",
+  voice_summary: "סיכום שיחה קולית (אלירן) נכשל",
 };
 
 /** One alert per kind per 30 minutes. */

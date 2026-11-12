@@ -12,6 +12,7 @@ import { BOT_SUMMARY_JSON_SCHEMA, parseBotSummary } from "@/lib/alldog-bot/summa
 import { CALL_SUMMARY_JSON_SCHEMA } from "@/lib/alldog/call-summary-schema";
 import { CALL_COACHING_JSON_SCHEMA } from "@/lib/alldog/call-coaching";
 import { IMAGE_DESCRIPTION_JSON_SCHEMA } from "@/lib/alldog-bot/images";
+import { VOICE_SUMMARY_JSON_SCHEMA } from "@/lib/alldog/voice-agent/summary";
 import { FAILURE_KIND_TITLES } from "@/lib/alldog/failure-alerts";
 
 /** Anthropic structured-output limits per request (platform docs, "Explicit limits"). */
@@ -43,6 +44,7 @@ describe("39 — structured-output schemas stay inside the API limits", () => {
     ["PayCall call summary", CALL_SUMMARY_JSON_SCHEMA],
     ["call coaching", CALL_COACHING_JSON_SCHEMA],
     ["photo description", IMAGE_DESCRIPTION_JSON_SCHEMA],
+    ["voice-agent call summary", VOICE_SUMMARY_JSON_SCHEMA],
   ])("%s", (_name, schema) => {
     expect(countUnions(schema as unknown as Schema)).toBeLessThanOrEqual(MAX_UNION_PARAMS);
     expect(countOptional(schema as unknown as Schema)).toBeLessThanOrEqual(MAX_OPTIONAL_PARAMS);
