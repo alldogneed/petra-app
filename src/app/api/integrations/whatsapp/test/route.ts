@@ -1,12 +1,16 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
+import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
-import { sendWhatsAppMessage } from "@/lib/whatsapp";
+import { sendWhatsAppMessage, sendWhatsAppTemplate } from "@/lib/whatsapp";
 import { rateLimit } from "@/lib/rate-limit";
+import { manualSendFailureText, waitForDeliveryOutcome } from "@/lib/whatsapp-failure";
 
 // POST /api/integrations/whatsapp/test
-// Sends a test WhatsApp message to a given phone number.
-// Body: { phone } — Israeli phone number
+// Sends a test WhatsApp message to a given phone number. Body: { phone }.
+// Free text only reaches a number that wrote to us in the last 24h (Meta 131047) — so the
+// test goes as an approved template: petra_connection_test (catalog, he) → Meta's built-in
+// hello_world (en_US) → free text. Then waits ≤ 7s for Meta's verdict and reports it honestly.
 export async function POST(request: NextRequest) {
   const authResult = await requireBusinessAuth(request);
   if (isGuardError(authResult)) return authResult;
@@ -21,56 +25,74 @@ export async function POST(request: NextRequest) {
   }
 
   // Rate limit: 3 test messages per 5 minutes per business
-  const rl = await rateLimit(`wa-test:${authResult.businessId}`, authResult.businessId, {
-    max: 3,
-    windowMs: 5 * 60 * 1000,
-  });
+  const rl = await rateLimit(`wa-test:${businessId}`, businessId, { max: 3, windowMs: 5 * 60 * 1000 });
   if (!rl.allowed) {
-    return NextResponse.json(
-      { error: "יותר מדי ניסיונות. נסה שוב בעוד מספר דקות." },
-      { status: 429 }
-    );
+    return NextResponse.json({ error: "יותר מדי ניסיונות. נסה שוב בעוד מספר דקות." }, { status: 429 });
   }
 
   try {
     const body = await request.json();
     const { phone } = body;
-
-    if (!phone) {
-      return NextResponse.json({ error: "נדרש מספר טלפון" }, { status: 400 });
-    }
+    if (!phone) return NextResponse.json({ error: "נדרש מספר טלפון" }, { status: 400 });
 
     // Normalize: strip non-digits, handle Israeli prefix
     const digits = String(phone).replace(/\D/g, "");
-    const normalized = digits.startsWith("0")
-      ? "972" + digits.slice(1)
-      : digits.startsWith("972")
-      ? digits
-      : "972" + digits;
+    if (digits.length < 9 || digits.length > 15) {
+      return NextResponse.json({ error: "מספר טלפון לא תקין" }, { status: 400 });
+    }
+    const normalized = digits.startsWith("0") ? "972" + digits.slice(1) : digits.startsWith("972") ? digits : "972" + digits;
 
-    const result = await sendWhatsAppMessage({
-      to: normalized,
-      body: "✅ הודעת בדיקה מ-Petra — WhatsApp מחובר בהצלחה!",
-      businessId: authResult.businessId,
-      context: "test",
+    const biz = await prisma.business.findUnique({ where: { id: businessId }, select: { name: true } });
+    const bizName = (biz?.name ?? "העסק").slice(0, 60);
+
+    let result = await sendWhatsAppTemplate({
+      to: normalized, templateName: "petra_connection_test", bodyParams: [bizName], businessId, context: "test",
     });
-
+    let via = "petra_connection_test";
     if (!result.success) {
-      return NextResponse.json(
-        { error: result.error || "שליחה נכשלה" },
-        { status: 500 }
-      );
+      result = await sendWhatsAppTemplate({
+        to: normalized, templateName: "hello_world", bodyParams: [], languageCode: "en_US", businessId, context: "test",
+      });
+      via = "hello_world";
+    }
+    if (!result.success) {
+      result = await sendWhatsAppMessage({
+        to: normalized, body: "✅ הודעת בדיקה מ-Petra — WhatsApp מחובר בהצלחה!", businessId, context: "test",
+      });
+      via = "text";
+    }
+    if (!result.success) {
+      return NextResponse.json({ error: result.error || "שליחה נכשלה" }, { status: 500 });
     }
 
-    const isStub = result.messageSid?.startsWith("STUB_");
+    const wamid = result.messageSid ?? "";
+    if (wamid.startsWith("STUB_")) {
+      return NextResponse.json({
+        success: true, stub: true, messageSid: wamid,
+        message: "הודעה נרשמה בלוג (מצב Stub — הגדר META_WHATSAPP_TOKEN + META_PHONE_NUMBER_ID כדי לשלוח בפועל)",
+      });
+    }
 
+    const outcome = wamid.startsWith("wamid.")
+      ? await waitForDeliveryOutcome(() =>
+          prisma.whatsAppMessageLog.findFirst({ where: { wamid }, select: { status: true, errorCode: true, errorMessage: true } })
+        )
+      : ({ state: "unknown" } as const);
+
+    if (outcome.state === "failed") {
+      const why = via === "text"
+        ? "התבנית המאושרת עדיין לא זמינה, ונשלחה הודעה חופשית. " + manualSendFailureText(outcome.errorCode)
+        : manualSendFailureText(outcome.errorCode);
+      return NextResponse.json({ error: why, failed: true, via }, { status: 422 });
+    }
+
+    const note = via === "hello_world" ? " (נשלחה תבנית הבדיקה של Meta באנגלית — התבנית בעברית עוד ממתינה לאישור)" : "";
     return NextResponse.json({
       success: true,
-      messageSid: result.messageSid,
-      stub: isStub,
-      message: isStub
-        ? "הודעה נרשמה בלוג (מצב Stub — הגדר META_WHATSAPP_TOKEN + META_PHONE_NUMBER_ID כדי לשלוח בפועל)"
-        : "הודעה נשלחה בהצלחה!",
+      messageSid: wamid,
+      via,
+      delivery: outcome.state === "accepted" ? outcome.status : "unknown",
+      message: (outcome.state === "accepted" ? "ההודעה נשלחה ונמסרה לוואטסאפ" : "ההודעה נשלחה, עדיין אין אישור מסירה מוואטסאפ") + note,
     });
   } catch (error) {
     console.error("WhatsApp test error:", error);
