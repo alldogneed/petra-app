@@ -226,6 +226,11 @@ export async function processMissedCall(call: PaycallCall): Promise<{
     leadId = lead.id;
     created = true;
 
+    // Google Contacts (rule #42; gated, never throws). The contact starts as "שיחה מ-<phone>"
+    // and is renamed when the bot / an answered call learns the real name.
+    const { syncLeadToGoogleContacts } = await import("@/lib/google-contacts");
+    await syncLeadToGoogleContacts(businessId, lead.id).catch(() => {});
+
     // "ליד חדש נכנס" alert (WhatsApp + email + bell) — POST /api/leads sends it for its
     // leads; this raw creation path has to send it itself. Gated + never throws.
     const { alertNewLeadIfEnabled } = await import("@/lib/lead-alert");

@@ -88,16 +88,20 @@ async function logOutboundMessage(entry: {
 }): Promise<void> {
   try {
     const { default: prisma } = await import("@/lib/prisma");
-    await prisma.whatsAppMessageLog.create({
-      data: {
-        wamid: entry.wamid,
-        toPhone: entry.toPhone,
-        kind: entry.kind,
-        templateName: entry.templateName ?? null,
-        context: entry.context ?? null,
-        businessId: entry.businessId ?? null,
-        phoneNumberId: entry.phoneNumberId ?? null,
-      },
+    const meta = {
+      toPhone: entry.toPhone,
+      kind: entry.kind,
+      templateName: entry.templateName ?? null,
+      context: entry.context ?? null,
+      businessId: entry.businessId ?? null,
+      phoneNumberId: entry.phoneNumberId ?? null,
+    };
+    // Upsert: Meta's status webhook can create the row before this write lands
+    // (unique wamid collision). The update keeps the status it already recorded.
+    await prisma.whatsAppMessageLog.upsert({
+      where: { wamid: entry.wamid },
+      create: { wamid: entry.wamid, ...meta },
+      update: meta,
     });
   } catch (err) {
     console.error("[WhatsApp] message log write failed:", err);

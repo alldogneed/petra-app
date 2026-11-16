@@ -514,6 +514,16 @@ export async function deleteCustomer(businessId: string, db: DbClient, customerI
   await db.serviceDogRecipient.deleteMany({ where: { customerId: cid } });
   await db.trainingGroupParticipant.deleteMany({ where: { customerId: cid } });
   await db.task.deleteMany({ where: { relatedEntityType: "CUSTOMER", relatedEntityId: cid } });
+  // A dog with boarding stays / training programs can't be deleted (FK) — that failed the
+  // whole delete AFTER payments/appointments were already gone. Keep those dogs (history),
+  // detached from the customer (Pet.customerId is nullable); delete the rest.
+  const keptPets = await db.pet.findMany({
+    where: { customerId: cid, OR: [{ boardingStays: { some: {} } }, { trainingPrograms: { some: {} } }, { careLogs: { some: {} } }, { bookingDogs: { some: {} } }] },
+    select: { id: true },
+  });
+  if (keptPets.length) {
+    await db.pet.updateMany({ where: { id: { in: keptPets.map((p) => p.id) } }, data: { customerId: null } });
+  }
   await db.pet.deleteMany({ where: { customerId: cid } });
   await db.customer.delete({ where: { id: cid } });
 

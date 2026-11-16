@@ -15,6 +15,7 @@
  */
 import prisma from "@/lib/prisma";
 import { createLead, updateLead, createTask, findCustomersByPhone } from "@/services/clients";
+import { syncLeadToGoogleContacts } from "@/lib/google-contacts";
 import { normalizeIsraeliPhone } from "@/lib/paycall";
 import { formatPetNotesBlock, hasPetNotesBlock, mergePetDetails, parsePetNotesBlock, replacePetNotesBlock, type LeadPetDetails } from "@/lib/lead-pet-notes";
 import type { LeadAttribution } from "@/lib/lead-attribution";
@@ -172,6 +173,9 @@ export async function upsertLeadFromContact(input: LeadContactInput): Promise<{ 
     if (input.contactedAt) {
       await updateLead(businessId, prisma, lead.id, { lastContactedAt: input.contactedAt.toISOString() });
     }
+    // Google Contacts (rule #42; gated by Business.googleContactsSync, never throws). Bot / PayCall
+    // leads were never synced — 42 of 96 AllDog leads in 30 days were missing (16/11/2026).
+    await syncLeadToGoogleContacts(businessId, lead.id).catch(() => {});
     return { leadId: lead.id, created: true };
   }
 
@@ -193,6 +197,8 @@ export async function upsertLeadFromContact(input: LeadContactInput): Promise<{ 
   }
   if (input.contactedAt) patch.lastContactedAt = input.contactedAt.toISOString();
   if (Object.keys(patch).length) await updateLead(businessId, prisma, existing.id, patch);
+  // The real name replaced a placeholder ("שיחה מ-…") → update the Google contact too.
+  if (patch.name) await syncLeadToGoogleContacts(businessId, existing.id).catch(() => {});
 
   // Attribution columns are not part of UpdateLeadInput — fill them only while empty
   // (a missed-call lead created earlier gets the gclid/campaign of the answered call).

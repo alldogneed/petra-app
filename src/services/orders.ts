@@ -191,6 +191,20 @@ export async function createOrder(
   if (notes && typeof notes === "string" && notes.length > 2000) {
     throw new ServiceError("הערות ארוכות מדי (מקסימום 2000 תווים)", "VALIDATION");
   }
+  // A meeting with an empty / bad time used to be written (order + program + appointment)
+  // and THEN crash ("Invalid time value") — the user retried and got duplicates (שחר, 15/11/2026).
+  if (appointmentData) {
+    const hhmm = /^([01]\d|2[0-3]):[0-5]\d$/;
+    if (!appointmentData.date || isNaN(new Date(appointmentData.date).getTime())) {
+      throw new ServiceError("יש לבחור תאריך לפגישה", "VALIDATION");
+    }
+    if (!hhmm.test(appointmentData.startTime ?? "") || !hhmm.test(appointmentData.endTime ?? "")) {
+      throw new ServiceError("יש לבחור שעת התחלה ושעת סיום לפגישה", "VALIDATION");
+    }
+    if (appointmentData.endTime <= appointmentData.startTime) {
+      throw new ServiceError("שעת הסיום חייבת להיות אחרי שעת ההתחלה", "VALIDATION");
+    }
+  }
 
   // IDOR checks
   const customerCheck = await db.customer.findFirst({ where: { id: customerId, businessId }, select: { id: true } });
