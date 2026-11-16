@@ -24,7 +24,8 @@ const META_RE = new RegExp(
     `(?:^|[\\s,])(?:אז\\s+|עכשיו\\s+)?(?:מגיב|אגיב|נגיב|עונה|אענה)\\s+(?:לזה|על\\s+זה|לו|לה)(?![\\p{L}])`,
     `(?:^|[\\s,])(?:אז\\s+|עכשיו\\s+)?(?:שואל|אשאל|נשאל)\\s+את\\s+(?:שאלת|השאלה\\s+(?:על|של))`,
     `שאלת\\s+(?:ה)?מזלג`,
-    `\\b(?:save_lead|lookup_guide|schedule_callback|handoff_to_human|tool_use|system\\s+prompt)\\b`,
+    // No \\b in this template string: the production minifier turns "\\b" into an invalid escape (16/11 build).
+    `(?:save_lead|lookup_guide|schedule_callback|handoff_to_human|tool_use|system\\s+prompt)(?![A-Za-z_])`,
     `(?:^|\\s)(?:the\\s+(?:customer|user|client)\\s+(?:said|wrote|asked|wants|is)|I\\s+(?:will|should|'ll)\\s+(?:now\\s+)?(?:respond|reply|ask\\s+the))`,
   ].join("|"),
   "iu"
