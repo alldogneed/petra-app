@@ -211,10 +211,11 @@ export async function syncLeadToGoogleContacts(businessId: string, leadId: strin
 // ─── Bulk sync of existing leads ─────────────────────────────────────────────
 
 /** Leads that were never written to Google Contacts and have something to write. */
-const PENDING_LEADS_WHERE = (businessId: string) => ({
+const PENDING_LEADS_WHERE = (businessId: string, createdAfter?: Date) => ({
   businessId,
   googleContactId: null,
   OR: [{ phone: { not: null } }, { email: { not: null } }],
+  ...(createdAfter ? { createdAt: { gte: createdAfter } } : {}),
 });
 
 /** People API caps batchCreateContacts at 200; 50 keeps one request well inside the function timeout. */
@@ -233,7 +234,14 @@ export type BulkContactSyncResult =
  * batch call). The caller repeats until `remaining` is 0. Leads that already have a
  * contact are never touched here — edits keep flowing through syncLeadToGoogleContacts.
  */
-export async function syncPendingLeadsToGoogleContacts(businessId: string): Promise<BulkContactSyncResult> {
+/**
+ * `createdAfter` (cron safety net) limits the chunk to recent leads — the owner's history
+ * backfill stays a choice made with the "סנכרן לידים קיימים" button.
+ */
+export async function syncPendingLeadsToGoogleContacts(
+  businessId: string,
+  opts: { createdAfter?: Date } = {},
+): Promise<BulkContactSyncResult> {
   const business = await prisma.business.findUnique({
     where: { id: businessId },
     select: { googleContactsSync: true },
@@ -244,7 +252,7 @@ export async function syncPendingLeadsToGoogleContacts(businessId: string): Prom
   if (!accessToken) return { ok: false, reason: "not_connected" };
 
   const leads = await prisma.lead.findMany({
-    where: PENDING_LEADS_WHERE(businessId),
+    where: PENDING_LEADS_WHERE(businessId, opts.createdAfter),
     select: { id: true, name: true, phone: true, email: true, notes: true, requestedService: true, city: true },
     orderBy: { createdAt: "asc" },
     take: BULK_CHUNK,
@@ -279,6 +287,6 @@ export async function syncPendingLeadsToGoogleContacts(businessId: string): Prom
     );
   }
 
-  const remaining = await countLeadsPendingContactSync(businessId);
+  const remaining = await prisma.lead.count({ where: PENDING_LEADS_WHERE(businessId, opts.createdAfter) });
   return { ok: true, synced: updates.length, failed: leads.length - updates.length, remaining };
 }
