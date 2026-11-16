@@ -12,6 +12,7 @@ export const SERVICE_CITIES: Array<{ name: string; re: RegExp }> = [
   { name: "רמת גן", re: /רמת[\s-]?גן|^ר["״׳']?ג$|ramat[\s-]?gan|рамат[\s-]?ган/iu },
   { name: "גבעתיים", re: /גבעתיים|giv['a]?atayim|гиватаим/iu },
   { name: "חולון", re: /חולון|holon|холон/iu },
+  { name: "בת ים", re: /בת[\s-]?ים|bat[\s-]?yam|бат[\s-]?ям/iu },
   { name: "פתח תקווה", re: /פתח[\s-]?תקו?וה|^פ["״׳']?ת$|peta?c?h?[\s-]?tikv?a|петах[\s-]?тикв/iu },
   { name: "ראש העין", re: /ראש[\s-]?העין|rosh[\s-]?ha[\s-]?ayin|рош[\s-]?ха[\s-]?айин/iu },
   { name: "כפר סבא", re: /כפר[\s-]?סבא|^כ["״׳']?ס$|kfar[\s-]?sa?ba|кфар[\s-]?саба/iu },
@@ -19,6 +20,7 @@ export const SERVICE_CITIES: Array<{ name: string; re: RegExp }> = [
   { name: "הוד השרון", re: /הוד[\s-]?השרון|hod[\s-]?hasharon|ход[\s-]?ха[\s-]?шарон/iu },
   { name: "הרצליה", re: /הרצליה|herz[e]?liy?a|герцлия/iu },
   { name: "נתניה", re: /נתניה|netanya|нетания/iu },
+  { name: "בת חפר", re: /בת[\s-]?חפר|bat[\s-]?hefer|бат[\s-]?хефер/iu },
   { name: "ראשון לציון", re: /ראשון(?:[\s-]?לציון)?|^ראשל["״׳']?צ$|rishon|ришон/iu },
   { name: "רחובות", re: /רחובות|rehovot|реховот/iu },
   { name: "נס ציונה", re: /נס[\s-]?ציונה|ness?[\s-]?ziona|нес[\s-]?циона/iu },
@@ -34,7 +36,7 @@ export function isKnownServiceCity(city: string | null | undefined): boolean {
 export function unknownAreaLine(gender: Gender = "unknown"): string {
   const toYou = towardYou(gender);
   const back = toYou ? `תחזור ${toYou} עם תשובה` : "תחזור בטלפון עם תשובה";
-  return `מעולה, אני בודק מי מהמאלפים שלנו זמין באזור שלך, והנציגה ${back} 🙂`;
+  return `אני בודק מי מהמאלפים שלנו זמין באזור שלך, והנציגה ${back} 🙂`;
 }
 /** Fixed part of the line (for detection). */
 export const UNKNOWN_AREA_MARKER = "אני בודק מי מהמאלפים שלנו זמין באזור שלך";

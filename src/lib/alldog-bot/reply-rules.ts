@@ -21,7 +21,6 @@ export const FULL_PRICE_LIST = [
   "• שיחת ייעוץ בטלפון: בחינם",
   "• אבחון בבית: 350 ₪, מתקזז אם ממשיכים לאילוף",
   "• שיעורים פרטיים: 350 ₪ למפגש בודד, או 300 ₪ למפגש בחבילה של מינימום 6 מפגשים",
-  "• פנסיון רגיל: בערך 120 עד 140 ₪ ליום, תלוי במקום שיקבל אתכם. הנציגה תחזור עם מחירים מסודרים",
   "• אילוף אינטנסיבי ואילוף בתנאי פנסיון: לפי אבחון, ואפשר לפרוס לתשלומים",
 ].join("\n");
 
@@ -72,7 +71,9 @@ export function priceAnswer(
       .map((line) => sentences(line).filter((s) => !/₪|ש["״']?ח|שקל|\d{3}/u.test(s)).join(" ").trim())
       .filter(Boolean)
       .join("\n");
-    return rest ? `${fullList}\n${rest}` : fullList;
+    // Item 43: the boarding line only when the customer asked about boarding (a bullet of the list).
+    const list = opts.boardingLine && !/120/.test(fullList) ? `${fullList}\n• ${opts.boardingLine}` : fullList;
+    return rest ? `${list}\n${rest}` : list;
   }
   if (/350/.test(body)) return withBoarding(body);
   return withBoarding(body ? `${opts.shortLine}\n${body}` : opts.shortLine);
