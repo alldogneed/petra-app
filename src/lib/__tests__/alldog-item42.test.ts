@@ -121,7 +121,8 @@ describe("42.2 — boarding price (Or, 6/11): about 120–140 ₪ a day", () => 
     expect(BOARDING_PRICE_LINE).toMatch(/120 עד 140 ₪ ליום/);
     expect(BOARDING_PRICE_LINE).toMatch(/תלוי במקום/);
     expect(BOARDING_PRICE_LINE).toMatch(/מחירים מסודרים/);
-    expect(FULL_PRICE_LIST).toMatch(/פנסיון רגיל: בערך 120 עד 140 ₪ ליום/);
+    // Item 43: the plain-boarding line is added only when the customer asked about boarding.
+    expect(FULL_PRICE_LIST).not.toMatch(/120/);
     expect(FULL_PRICE_LIST).toMatch(/אילוף בתנאי פנסיון: לפי אבחון/);
     expect(findPolicyIssues(BOARDING_PRICE_LINE)).toEqual([]);
     expect(findPolicyIssues(FULL_PRICE_LIST)).toEqual([]);

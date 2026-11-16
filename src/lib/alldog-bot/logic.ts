@@ -2,6 +2,7 @@
  * AllDog WhatsApp bot — pure rules (no DB, no network). Unit-tested in
  * src/lib/__tests__/alldog-bot.test.ts.
  */
+import { dropMetaNarration } from "@/lib/alldog-bot/reply-hygiene";
 
 // ─── Inbound message classification ──────────────────────────────────────────
 
@@ -374,7 +375,11 @@ export function splitReply(text: string, maxParts = 2): string[] {
   // Item 35: the link block ("כתבנו על זה מדריך:" + URL) stays in the message it belongs to.
   parts = parts.reduce<string[]>((acc, p) => {
     const prev = acc[acc.length - 1];
-    if (prev !== undefined && (p.startsWith(GUIDE_LINK_INTRO) || /^https?:\/\//.test(p) || prev.endsWith(GUIDE_LINK_INTRO))) acc[acc.length - 1] = `${prev}\n${p}`;
+    const keepWithPrev =
+      p.startsWith(GUIDE_LINK_INTRO) || /^https?:\/\//.test(p) || prev?.endsWith(GUIDE_LINK_INTRO) ||
+      // Item 43: "המחירים בקצרה:" and its "•" lines are one message.
+      /^[•·*-]\s/u.test(p) || /:\s*$/u.test(prev ?? "");
+    if (prev !== undefined && keepWithPrev) acc[acc.length - 1] = `${prev}\n${p}`;
     else acc.push(p);
     return acc;
   }, []);
@@ -457,7 +462,7 @@ export function proTermCount(text: string): number {
 export function polishReply(text: string): string {
   return arrangeGuideLink(
     tidyPunctuation(
-      fixHebrewSlips(dropCorrectionsAndLabels(text))
+      fixHebrewSlips(dropCorrectionsAndLabels(dropMetaNarration(text)))
         .replace(/\*\*(.+?)\*\*/g, "$1")
         // Or's playbook: never "אל דאגה" (the model still reaches for it).
         .replace(/(^|[\s,])אל דאגה\s*[,!.]?\s*/gu, "$1")
@@ -1001,7 +1006,9 @@ const POLICY_RULES: Array<{ kind: PolicyIssueKind; re: RegExp }> = [
   // a number in ₪ right next to intensive / boarding ("אינטנסיבי עולה 6,000 ₪", "יום פנסיון 150 ₪")
   { kind: "service_price", re: new RegExp(`(?:אינטנסיב|פנסיון)[^.?!\\n₪]{0,25}?${MONEY}|${MONEY}\\s*(?:ל|על|ב)?(?:ה)?(?:אילוף\\s+)?(?:ה)?(?:אינטנסיב|פנסיון)`, "u") },
   { kind: "promise", re: /תוצאות?\s+מובטח|מבטיח(?:ים)?\s+(?:לך\s+)?(?:תוצאה|הצלחה|שהכלב|שהיא|שהוא)|החזר\s+כספי|(?:הכסף|כסף)\s+בחזרה|מאולף\s+לכל|100\s*%|נפתור\s+כל|אחריות\s+מלאה/u },
-  { kind: "puppy_too_early", re: /עוד\s+מוקדם|מוקדם\s+מדי|(?:לחכות|תחכו|נחכה|שווה\s+לחכות|כדאי\s+לחכות)\s+(?:עד\s+|ל)?(?:גיל\s+)?(?:4|ארבעה)\s+חודשים/u },
+  // Item 43 (Michelle 6/11, a 1.5-year-old dog): only "too early" for TRAINING / a puppy's age —
+  // "עוד מוקדם לדעת אם העיקור השפיע" is not a policy issue.
+  { kind: "puppy_too_early", re: /(?:עוד\s+מוקדם|מוקדם\s+מדי)\s+(?:\S+\s+)?(?:ל|בשביל\s+|כדי\s+ל)?(?:התחיל|להתחיל|אלף|לאלף|אילוף|ללמד|לעבוד\s+עם|חינוך)|(?:גור|גורה|גורים|בגיל\s+(?:הזה|כזה)|שבועות|חודשיים)[^.?!\n]{0,40}(?:עוד\s+מוקדם|מוקדם\s+מדי)|(?:עוד\s+מוקדם|מוקדם\s+מדי)[^.?!\n]{0,40}(?:גור|גורה|בגיל\s+(?:הזה|כזה))|(?:לחכות|תחכו|נחכה|שווה\s+לחכות|כדאי\s+לחכות)\s+(?:עד\s+|ל)?(?:גיל\s+)?(?:4|ארבעה)\s+חודשים/u },
   { kind: "too_late", re: /מאוחר\s+מדי|כבר\s+מאוחר/u },
   { kind: "own_boarding", re: /פנסיון\s+(?:ה)?שלנו|פנסיון[^.?!\n]{0,15}אצלנו|(?:יש\s+לנו|אצלנו\s+(?:ב)?(?:ה)?|אלינו\s+ל(?:ה)?)\s*פנסיון|המתקן\s+שלנו/u },
   { kind: "payment", re: /(?:אשלח|שולח|שולחת|הנה)\s+(?:לך\s+)?(?:את\s+)?(?:ה)?קישור\s+(?:ל)?תשלום|https?:\/\/(?![^\s]*all-dog\.co\.il)\S+/u },
@@ -1036,10 +1043,12 @@ export function enforceSalesPolicy(reply: string): string {
       const swap = kinds.includes("puppy_too_early") ? PUPPY_START_LINE : kinds.includes("too_late") ? OLD_DOG_LINE : null;
       if (swap && !used.has(swap) && kinds.every((k) => k === "puppy_too_early" || k === "too_late")) {
         used.add(swap);
-        kept.push(swap);
+        kept.push(`${swap}.`); // a sentence of its own ("…ממשיכים. חשוב לכם…", item 43)
       }
     }
-    const line = kept.join(" ").trim();
+    // The swapped line ends its sentence with "." only when more follows on the line.
+    const joined = kept.join(" ").trim();
+    const line = [...used].some((x) => joined.endsWith(`${x}.`)) ? joined.slice(0, -1) : joined;
     return line || null;
   });
   return out.filter((l): l is string => l !== null).join("\n").replace(/\n{3,}/g, "\n\n").trim();

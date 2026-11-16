@@ -291,7 +291,7 @@ export const SCENARIOS: Scenario[] = [
     "הוא מקנא כשמתקרבים לקערה שלו , נוהם עלינו", "אבי , הכלב זאוס", "ראשון לציון" ] },
   { id: "term-dogs", title: "מינוח: \"משתגע כשהוא רואה כלבים\" (סעיף 39)", lines: [
     "הכלב משתגע כשהוא רואה כלבים , אני כבר מתביישת לצאת איתו", "ליאת , הכלב רוקי", "גבעתיים" ] },
-  // Item 28b: a city outside the list → "מעולה, אני בודק מי מהמאלפים שלנו זמין באזור שלך…", never "מחוץ לאזור".
+  // Item 28b: a city outside the list → "אני בודק מי מהמאלפים שלנו זמין באזור שלך…", never "מחוץ לאזור".
   { id: "unknown-area", title: "עיר מחוץ לרשימה (סעיף 28b)", lines: [
     "היי , הכלב שלי נובח על כל מי שעובר ליד הבית", "שירן , הכלב בונו", "קריית שמונה", "לברדור , בן 3" ] },
   // Item 28c: an extra problem on the way → one sentence + noted in the lead, then the transition line, then the closing.

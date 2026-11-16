@@ -12,6 +12,7 @@
  * ("קיבלנו 🙂 …", then ≤ 1 per 6h); 24h without a person → back to the bot.
  * "#reset" from Or's number only → his conversation starts over.
  */
+import { asksForPhoneCall, dropRepeatedCallbackLine, phoneRequestNote } from "@/lib/alldog-bot/reply-hygiene";
 import Anthropic from "@anthropic-ai/sdk";
 import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
@@ -728,6 +729,7 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
   };
   // The closing was already sent → answer questions only, never repeat it (Or, 24/10).
   const closed = closingAlreadySent(rows);
+  const phoneRequests = userWords.filter((t) => asksForPhoneCall(t)).length;
   // Item 35a: a caller who seems to be a child → no more personal details, a parent talks to the rep.
   const minor = seemsMinor(userWords);
   // Or, 27/10: back after the partial closing (in this session) → collect only what is missing.
@@ -760,6 +762,8 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
       // Item 38: a price question in this batch, no price sent yet → this answer carries a number.
       !handoffMode && batchWords.some((t) => asksPrice(t)) && !pricesAlreadySent(priorBotTexts) ? PRICE_QUESTION_NOTE : null,
       answeringMissedCall ? MISSED_CALL_CONTEXT_NOTE : null,
+      // Item 43 (Mina 13/11): "אפשר לדבר בטלפון" → at most one question, then the closing.
+      !handoffMode && !closed && phoneRequests > 0 ? phoneRequestNote(phoneRequests) : null,
       formLeadSent && activeLead
         ? formLeadContextNote({ name: activeLead.name, city: activeLead.city, service: activeLead.requestedService })
         : null,
@@ -787,6 +791,8 @@ async function reply(item: PendingInbound, mode: "normal" | "handoff" = "normal"
   }), style);
   text = stripVocativeName(text, voiceName);
   if (ref.serious) text = dropCheerfulOpeners(text);
+  // Item 43 (0250, 16/11): after the closing, no second "נציגה תחזור אלייך בטלפון" line.
+  text = dropRepeatedCallbackLine(text, closed);
   // Never "מחוץ לאזור" / "לא ברשימה" — Or's optimistic line instead (item 28b).
   text = fixOutOfAreaLines(text, style.gender, priorBotTexts);
   // Item 40.5: always "נציגת AllDog" calls back — never a promise that a trainer will.
