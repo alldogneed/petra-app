@@ -61,7 +61,7 @@ import { toast } from "sonner";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { CustomerPicker, type PickerCustomer } from "@/components/customers/CustomerPicker";
 import { usePermissions } from "@/hooks/usePermissions";
-import { staysOverlap, israelDayKey } from "@/lib/boarding-overlap";
+import { staysOverlap, staysOverlapAt, israelDayKey } from "@/lib/boarding-overlap";
 import { normalizeHebrewPunct } from "@/lib/text-variants";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -2812,12 +2812,16 @@ function BoardingPageContent() {
           (s) =>
             s.room?.id === room.id &&
             ACTIVE_STATUSES.includes(s.status) &&
-            staysOverlap(s, { checkIn: form.checkIn, checkOut: form.checkOut })
+            // Same rule as the server capacity check: date + time (local = Israel).
+            staysOverlapAt(s, {
+              checkIn: `${form.checkIn}T${form.checkInTime || "12:00"}:00`,
+              checkOut: `${form.checkOut}T${form.checkOutTime || "12:00"}:00`,
+            })
         ).length;
         return [room.id, overlapping < room.capacity];
       })
     );
-  }, [form.checkIn, form.checkOut, rooms, stays]);
+  }, [form.checkIn, form.checkOut, form.checkInTime, form.checkOutTime, rooms, stays]);
 
   // Dogs occupying each room today (Israel day) — for the room dropdown before dates are chosen.
   const roomTodayCount = useMemo(() => {
