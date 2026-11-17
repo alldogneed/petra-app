@@ -144,3 +144,15 @@ describe("applyVaccinationRecord", () => {
     expect(() => applyVaccinationRecord(empty, { date: "nope" })).toThrow();
   });
 });
+
+describe("applyVaccinationRecord keeps expiry tracking (security review H1)", () => {
+  it("a newer date without valid-until keeps a later current valid-until", () => {
+    const { applyVaccinationRecord } = require("@/lib/vaccine-plan");
+    const r = applyVaccinationRecord(
+      { lastDate: "2025-12-01T00:00:00.000Z", validUntil: "2026-12-01T00:00:00.000Z", history: [] },
+      { date: "2026-11-17" },
+    );
+    expect(r.lastDate?.slice(0, 10)).toBe("2026-11-17");
+    expect(r.validUntil?.slice(0, 10)).toBe("2026-12-01");
+  });
+});

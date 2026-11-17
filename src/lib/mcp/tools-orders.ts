@@ -17,6 +17,7 @@
  */
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { TENANT_PERMS } from "@/lib/permissions";
 import prisma from "@/lib/prisma";
 import { createOrder, updateOrder } from "@/services/orders";
 import { ServiceError } from "@/services/types";
@@ -332,6 +333,11 @@ export function registerOrderTools(server: McpServer, ctx: ToolCtx): void {
         if (items !== undefined) {
           const check = canReplaceOrderLines(order);
           if (!check.ok) throw new OrderRuleError(check.reason);
+          // Rewriting the lines of a confirmed order can zero a debt = a cancellation in effect,
+          // so it needs the same capability as cancel_order (rule #34, security review M1).
+          if (order.status !== "draft" && !ctx.hasPermission(TENANT_PERMS.ORDERS_CANCEL)) {
+            return ctx.denyPermission("update_order", TENANT_PERMS.ORDERS_CANCEL);
+          }
           // Keep the pet(s) recorded on the current lines.
           const petIds = new Set<string>();
           for (const l of order.lines) {

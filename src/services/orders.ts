@@ -616,16 +616,34 @@ export async function updateOrder(
     // `existing.status` above is read-then-act and a concurrent confirm could land
     // in between; this shrinks the race to a single statement (no $transaction —
     // Supabase PgBouncer).
+    // Payments recorded on the linked stay / appointment (no orderId) are attributed to this
+    // order by the balance code — they count as "paid" too (security review M3).
+    if (unpaidEdit && existing.relatedEntityId && (existing.relatedEntityType === "BoardingStay" || existing.relatedEntityType === "Appointment")) {
+      const linkedPaid = await db.payment.count({
+        where: {
+          businessId,
+          status: { in: ["paid", "pending"] },
+          ...(existing.relatedEntityType === "BoardingStay"
+            ? { boardingStayId: existing.relatedEntityId }
+            : { appointmentId: existing.relatedEntityId }),
+        },
+      });
+      if (linkedPaid > 0) {
+        throw new ServiceError("יש תשלום על השהייה / התור המקושר — לא ניתן להחליף את פריטי ההזמנה", "CONFLICT");
+      }
+    }
+
     const draftClaim = await db.order.updateMany({
       where: unpaidEdit
         ? {
             id,
             businessId,
+            updatedAt: existing.updatedAt, // CAS: a concurrent edit makes this claim fail (review L1)
             status: { in: ["draft", "confirmed"] },
             payments: { none: { status: { in: ["paid", "pending"] } } },
             invoiceDocuments: { none: { status: { not: "cancelled" } } },
           }
-        : { id, businessId, status: "draft" },
+        : { id, businessId, status: "draft", updatedAt: existing.updatedAt },
       data: { updatedAt: new Date() },
     });
     if (draftClaim.count === 0) {

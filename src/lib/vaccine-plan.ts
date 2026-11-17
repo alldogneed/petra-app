@@ -357,7 +357,10 @@ export function applyVaccinationRecord(
     const nextHistory = curYmd
       ? [...history, { date: ymdToIso(curYmd), validUntil: curValid ? ymdToIso(curValid) : null, recordedAt }]
       : history;
-    return out(true, newYmd, newValid, nextHistory);
+    // No valid-until given (e.g. a dose ticked in the vaccine plan): never drop the dog out
+    // of expiry tracking — keep the current valid-until when it is still after the new date.
+    const keptValid = newValid ?? (curValid && curValid > newYmd ? curValid : null);
+    return out(true, newYmd, keptValid, nextHistory);
   }
 
   const entry: HealthHistoryEntry = { date: ymdToIso(newYmd), validUntil: newValid ? ymdToIso(newValid) : null, recordedAt };

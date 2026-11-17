@@ -461,7 +461,7 @@ export function registerPetsTools(server: McpServer, ctx: ToolCtx): void {
   // ── record_vaccination ────────────────────────────────────────────────────
   server.tool(
     "record_vaccination",
-    "Record a vaccination (rabies / dhpp / bordetella) for a pet: sets the new vaccination date and validity, and archives the previous one into the pet's vaccine history. Use list_pets / get_pet for the pet id. Supports idempotency_key and dry_run.",
+    "Record a vaccination (rabies / dhpp / bordetella) for a pet: a newer date becomes the current one (the previous moves to the vaccine history); an older (back-dated) date is only added to the history and the current one is kept. Use list_pets / get_pet for the pet id. Supports idempotency_key and dry_run.",
     {
       pet_id: z.string().describe("Pet id (from list_pets / get_pet)"),
       vaccine: z.enum(VACCINES).describe("rabies | dhpp | bordetella"),

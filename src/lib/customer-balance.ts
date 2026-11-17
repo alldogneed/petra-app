@@ -56,7 +56,7 @@ export async function computeCustomerBalances(
     }),
     db.payment.findMany({
       where: { businessId, ...customerFilter, status: "pending" },
-      select: { id: true, amount: true, createdAt: true, orderId: true, customerId: true },
+      select: { id: true, amount: true, createdAt: true, orderId: true, customerId: true, appointmentId: true, boardingStayId: true },
       take: BUSINESS_SCAN_CAP,
     }),
     customerIds

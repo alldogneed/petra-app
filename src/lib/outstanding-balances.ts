@@ -49,6 +49,9 @@ export interface OutstandingPendingPaymentInput {
   orderId: string | null;
   customerId: string;
   customer: { id: string; name: string } | null;
+  /** A pending payment recorded on a stay / appointment that has its own order is part of that order. */
+  appointmentId?: string | null;
+  boardingStayId?: string | null;
 }
 
 export interface OutstandingBalanceRow {
@@ -129,6 +132,13 @@ export function aggregateOutstandingBalances(
   }
   for (const p of pendingPayments) {
     if (p.orderId && countedOrderIds.has(p.orderId)) continue; // already represented by the order's outstanding amount
+    // Pending on a stay / appointment whose own order is counted → the same debt; skip it
+    // (create_order boarding_stay_id + record_payment pending on the stay = no double debt).
+    if (!p.orderId) {
+      const key = p.appointmentId ? `Appointment:${p.appointmentId}` : p.boardingStayId ? `BoardingStay:${p.boardingStayId}` : null;
+      const linked = key ? orderByEntity.get(key) : undefined;
+      if (linked && linked.customerId === p.customerId && countedOrderIds.has(linked.id)) continue;
+    }
     let amount = p.amount;
     const credit = creditByCustomer.get(p.customerId) ?? 0;
     if (credit > 0) {
@@ -172,7 +182,7 @@ export async function computeOutstandingBalances(
     }),
     db.payment.findMany({
       where: { businessId, status: "pending" },
-      select: { id: true, amount: true, createdAt: true, orderId: true, customerId: true, customer: { select: { id: true, name: true } } },
+      select: { id: true, amount: true, createdAt: true, orderId: true, customerId: true, appointmentId: true, boardingStayId: true, customer: { select: { id: true, name: true } } },
       orderBy: { createdAt: "asc" },
       take: QUERY_CAP,
     }),

@@ -81,3 +81,26 @@ describe("aggregateOutstandingBalances", () => {
     expect(res.rows.map((r) => [r.id, r.total])).toEqual([["c2", 300], ["c1", 40]]);
   });
 });
+
+describe("pending payment on a stay that has its own order (security review M2)", () => {
+  it("is not counted twice", () => {
+    const { aggregateOutstandingBalances } = require("@/lib/outstanding-balances");
+    const when = new Date("2026-11-01T10:00:00Z");
+    const res = aggregateOutstandingBalances(
+      [{ id: "o1", total: 900, createdAt: when, customerId: "c1", customer: { id: "c1", name: "A" }, payments: [], relatedEntityType: "BoardingStay", relatedEntityId: "s1" }],
+      [{ id: "p1", amount: 900, createdAt: when, orderId: null, customerId: "c1", customer: { id: "c1", name: "A" }, boardingStayId: "s1", appointmentId: null }],
+      [],
+    );
+    expect(res.grandTotal).toBe(900);
+  });
+  it("a pending payment on an unrelated stay still counts", () => {
+    const { aggregateOutstandingBalances } = require("@/lib/outstanding-balances");
+    const when = new Date("2026-11-01T10:00:00Z");
+    const res = aggregateOutstandingBalances(
+      [{ id: "o1", total: 900, createdAt: when, customerId: "c1", customer: { id: "c1", name: "A" }, payments: [], relatedEntityType: "BoardingStay", relatedEntityId: "s1" }],
+      [{ id: "p1", amount: 300, createdAt: when, orderId: null, customerId: "c1", customer: { id: "c1", name: "A" }, boardingStayId: "s2", appointmentId: null }],
+      [],
+    );
+    expect(res.grandTotal).toBe(1200);
+  });
+});
