@@ -9,7 +9,7 @@
  */
 
 import { parseOrderDateTime } from "@/lib/order-time";
-import { staysOverlap, israelDayKey } from "@/lib/boarding-overlap";
+import { staysOverlap, staysOverlapAt, israelDayKey } from "@/lib/boarding-overlap";
 import type { PrismaClient } from "@prisma/client";
 import { ServiceError } from "./types";
 
@@ -273,8 +273,8 @@ function roomFullMessage(capacity: number) {
 
 /**
  * Count active (reserved/checked_in) stays in a room that share a night with the
- * given stay — by Israel calendar day, check-out day free (`staysOverlap`), so a
- * same-day turnover (out 1/10, in 1/10) fits. A null checkOut is open-ended.
+ * given stay — by date + time (`staysOverlapAt`: out 17:00 / in 19:00 the same day fits, a day
+ * stay doesn't block the night after it; day rule when a time is missing). Null checkOut = open-ended.
  */
 async function countOverlappingRoomStays(
   db: DbClient,
@@ -297,7 +297,7 @@ async function countOverlappingRoomStays(
     },
     select: { checkIn: true, checkOut: true },
   });
-  return candidates.filter((s) => staysOverlap(s, { checkIn, checkOut })).length;
+  return candidates.filter((s) => staysOverlapAt(s, { checkIn, checkOut })).length;
 }
 
 /** An active (reserved / checked_in) stay of this pet that shares a night with the range. */
@@ -872,7 +872,14 @@ export async function checkRoomAvailability(
       customer: { select: { id: true, name: true } },
     },
   });
-  const conflicts = candidates.filter((s) => staysOverlap(s, { checkIn: israelDayKey(from), checkOut: israelDayKey(to) }));
+  // With times (ISO / "YYYY-MM-DDTHH:mm", Israel wall-clock) → the same date + time rule as the
+  // save (`staysOverlapAt`); bare days → the day rule.
+  const withTime = from.length > 10 && to.length > 10;
+  const conflicts = candidates.filter((s) =>
+    withTime
+      ? staysOverlapAt(s, { checkIn: stayTime(from), checkOut: stayTime(to) })
+      : staysOverlap(s, { checkIn: israelDayKey(from), checkOut: israelDayKey(to) })
+  );
 
   return {
     available: conflicts.length < room.capacity,
