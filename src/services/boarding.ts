@@ -8,9 +8,21 @@
  * stay in routes. Room status auto-update on check-in/out is domain logic.
  */
 
+import { parseOrderDateTime } from "@/lib/order-time";
 import { staysOverlap, israelDayKey } from "@/lib/boarding-overlap";
 import type { PrismaClient } from "@prisma/client";
 import { ServiceError } from "./types";
+
+/**
+ * Check-in/out arrive as Israel wall-clock strings without an offset ("2026-12-17T14:00:00")
+ * from the boarding form and MCP. `new Date(s)` on the server (UTC on Vercel) stored them
+ * 2h (winter) / 3h (summer) late — and a late-evening time moved to the next day
+ * (גבעת הכלבים, 17/11/2026). A string with Z / ±HH:MM is already an instant and is kept.
+ */
+function stayTime(value: string | Date): Date {
+  if (value instanceof Date) return value;
+  return parseOrderDateTime(value) ?? new Date(value);
+}
 
 export type DbClient = PrismaClient;
 export { ServiceError };
@@ -284,7 +296,7 @@ export async function createBoardingStay(
   if (!petCheck) throw new ServiceError("חיית מחמד לא נמצאה", "NOT_FOUND");
 
   // The same dog can't have two active stays on the same night (duplicate booking).
-  const dup = await findOverlappingPetStay(db, businessId, petId, new Date(checkIn), checkOut ? new Date(checkOut) : null);
+  const dup = await findOverlappingPetStay(db, businessId, petId, stayTime(checkIn), checkOut ? stayTime(checkOut) : null);
   if (dup) {
     throw new ServiceError(
       `לכלב הזה כבר יש הזמנת פנסיון חופפת (${formatStayRange(dup.checkIn, dup.checkOut)}). אפשר לערוך אותה במקום ליצור חדשה`,
@@ -309,14 +321,14 @@ export async function createBoardingStay(
 
   // Room capacity check before create
   if (roomId) {
-    await assertRoomCapacity(db, businessId, roomId, new Date(checkIn), checkOut ? new Date(checkOut) : null);
+    await assertRoomCapacity(db, businessId, roomId, stayTime(checkIn), checkOut ? stayTime(checkOut) : null);
   }
 
   const stay = await db.boardingStay.create({
     data: {
       businessId,
-      checkIn: new Date(checkIn),
-      checkOut: checkOut ? new Date(checkOut) : undefined,
+      checkIn: stayTime(checkIn),
+      checkOut: checkOut ? stayTime(checkOut) : undefined,
       petId,
       customerId: resolvedCustomerId,
       roomId: roomId || null,
@@ -336,7 +348,7 @@ export async function createBoardingStay(
 
   // Post-create race-condition guard: re-check capacity; delete our stay if a concurrent request slipped through
   if (roomId && stay.room) {
-    const postCount = await countOverlappingRoomStays(db, businessId, roomId, new Date(checkIn), checkOut ? new Date(checkOut) : null);
+    const postCount = await countOverlappingRoomStays(db, businessId, roomId, stayTime(checkIn), checkOut ? stayTime(checkOut) : null);
     if (postCount > stay.room.capacity) {
       await db.boardingStay.delete({ where: { id: stay.id } });
       throw new ServiceError(roomFullMessage(stay.room.capacity), "CONFLICT");
@@ -370,12 +382,12 @@ export async function updateBoardingStay(
   const finalCheckIn = input.actualCheckinTime
     ? new Date(input.actualCheckinTime)
     : input.checkIn !== undefined
-    ? new Date(input.checkIn)
+    ? stayTime(input.checkIn)
     : existing.checkIn;
   const finalCheckOut = input.actualCheckoutTime
     ? new Date(input.actualCheckoutTime)
     : input.checkOut !== undefined
-    ? (input.checkOut ? new Date(input.checkOut) : null)
+    ? (input.checkOut ? stayTime(input.checkOut) : null)
     : existing.checkOut;
   // Re-check capacity only when the stay will actively occupy a room and
   // something capacity-relevant changed (room, dates, or reactivated status).
@@ -413,9 +425,9 @@ export async function updateBoardingStay(
   const stay = await db.boardingStay.update({
     where: { id, businessId },
     data: {
-      ...(input.checkIn !== undefined && { checkIn: new Date(input.checkIn) }),
+      ...(input.checkIn !== undefined && { checkIn: stayTime(input.checkIn) }),
       ...(input.actualCheckinTime && { checkIn: new Date(input.actualCheckinTime) }),
-      ...(input.checkOut !== undefined && { checkOut: input.checkOut ? new Date(input.checkOut) : null }),
+      ...(input.checkOut !== undefined && { checkOut: input.checkOut ? stayTime(input.checkOut) : null }),
       ...(input.actualCheckoutTime && { checkOut: new Date(input.actualCheckoutTime) }),
       ...(input.status !== undefined && { status: input.status }),
       ...(input.roomId !== undefined && { roomId: input.roomId }),

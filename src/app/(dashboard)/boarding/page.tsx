@@ -3,7 +3,7 @@ import { PageTitle } from "@/components/ui/PageTitle";
 
 import { TierGate } from "@/components/paywall/TierGate";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState, useMemo, useRef, useCallback, memo } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback, memo } from "react";
 import Link from "next/link";
 import {
   DndContext,
@@ -662,12 +662,25 @@ function TimelineView({
   search?: string;
   onOpenStay?: (stay: BoardingStay) => void;
 }) {
+  // Columns stretch to fill the card (a fixed 44px/day left half of a wide screen white —
+  // גבעת הכלבים 17/11/2026) and the room column is narrower on phones.
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [boxWidth, setBoxWidth] = useState(0);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(([entry]) => setBoxWidth(Math.floor(entry.contentRect.width)));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const roomW = boxWidth && boxWidth < 640 ? 96 : TL_ROOM_W;
+  const dayW = Math.max(TL_DAY_W, boxWidth ? Math.floor((boxWidth - roomW) / numDays) : TL_DAY_W);
   const realToday = startOfDay(new Date());
   // `today` is the timeline origin (kept as the variable name to minimise churn below).
   const today = startDate ? startOfDay(startDate) : realToday;
   const days = Array.from({ length: numDays }, (_, i) => addDays(today, i));
   const originKey = localDayKey(today);
-  const trackWidth = numDays * TL_DAY_W;
+  const trackWidth = numDays * dayW;
 
   /**
    * Bar span in day columns. The check-in day is fully covered and the check-out
@@ -713,8 +726,8 @@ function TimelineView({
     const visibleStart = Math.max(0, start);
     const visibleEnd = Math.min(numDays, end);
     return {
-      left: `${visibleStart * TL_DAY_W}px`,
-      width: `${Math.max(TL_DAY_W / 2, (visibleEnd - visibleStart) * TL_DAY_W)}px`,
+      left: `${visibleStart * dayW}px`,
+      width: `${Math.max(dayW / 2, (visibleEnd - visibleStart) * dayW)}px`,
       days: visibleEnd - visibleStart,
     };
   }
@@ -769,7 +782,7 @@ function TimelineView({
                 withTint && isToday && "bg-orange-50/30",
                 withTint && dayOfWeek === 6 && "bg-slate-50/30"
               )}
-              style={{ width: TL_DAY_W }}
+              style={{ width: dayW }}
             />
           );
         })}
@@ -781,13 +794,13 @@ function TimelineView({
 
   return (
     <div className="card overflow-hidden">
-      <div className="overflow-auto max-h-[75vh] overscroll-contain" dir="ltr" data-no-pull-refresh>
-        <div style={{ width: TL_ROOM_W + trackWidth }}>
+      <div ref={scrollRef} className="overflow-auto max-h-[75vh] overscroll-contain" dir="ltr" data-no-pull-refresh>
+        <div style={{ width: roomW + trackWidth }}>
           {/* Header row — sticky on top while scrolling down through the rooms */}
           <div className="flex sticky top-0 z-20 bg-white border-b border-petra-border">
             <div
               className="sticky left-0 z-30 flex-shrink-0 p-2 text-sm font-semibold text-petra-text bg-slate-50 border-r border-petra-border text-right"
-              style={{ width: TL_ROOM_W }}
+              style={{ width: roomW }}
               dir="rtl"
             >
               חדר
@@ -802,7 +815,7 @@ function TimelineView({
                     "flex-shrink-0 py-1.5 text-center border-l border-petra-border",
                     isToday ? "bg-orange-50" : dayOfWeek === 6 ? "bg-slate-50" : "bg-white"
                   )}
-                  style={{ width: TL_DAY_W }}
+                  style={{ width: dayW }}
                 >
                   <div className={cn("text-[10px]", isToday ? "text-orange-600 font-bold" : "text-petra-muted")}>
                     {HE_DAYS[dayOfWeek]}
@@ -827,7 +840,7 @@ function TimelineView({
                 {/* Room label — sticky on the side while scrolling sideways */}
                 <div
                   className="sticky left-0 z-10 flex-shrink-0 p-2 flex items-center gap-2 bg-slate-50 border-r border-petra-border"
-                  style={{ width: TL_ROOM_W, minHeight: rowHeight }}
+                  style={{ width: roomW, minHeight: rowHeight }}
                   dir="rtl"
                 >
                   <div
@@ -857,7 +870,7 @@ function TimelineView({
             <div className="flex border-b border-slate-100">
               <div
                 className="sticky left-0 z-10 flex-shrink-0 p-2 flex items-center gap-2 bg-slate-100 border-r border-petra-border"
-                style={{ width: TL_ROOM_W, minHeight: Math.max(48, unassigned.length * TL_ROW_H + 8) }}
+                style={{ width: roomW, minHeight: Math.max(48, unassigned.length * TL_ROW_H + 8) }}
                 dir="rtl"
               >
                 <Hotel className="w-3.5 h-3.5 text-slate-400" />
