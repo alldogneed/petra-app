@@ -156,3 +156,20 @@ describe("applyVaccinationRecord keeps expiry tracking (security review H1)", ()
     expect(r.validUntil?.slice(0, 10)).toBe("2026-12-01");
   });
 });
+
+describe("defaultValidUntil (automatic expiry, manual override in the UI)", () => {
+  const { defaultValidUntil } = require("@/lib/vaccine-plan");
+  it("rabies / dhpp / bordetella = 1 year", () => {
+    expect(defaultValidUntil("rabies", "2026-11-17")).toBe("2027-11-17");
+    expect(defaultValidUntil("dhpp", "2026-11-17")).toBe("2027-11-17");
+    expect(defaultValidUntil("bordetella", "2026-11-17")).toBe("2027-11-17");
+  });
+  it("deworming = 180 days, park worm / flea = 90 days", () => {
+    expect(defaultValidUntil("deworming", "2026-01-01")).toBe("2026-06-30");
+    expect(defaultValidUntil("parkWorm", "2026-01-01")).toBe("2026-04-01");
+    expect(defaultValidUntil("fleaTick", "2026-01-01")).toBe("2026-04-01");
+  });
+  it("bad date → null", () => {
+    expect(defaultValidUntil("rabies", "")).toBeNull();
+  });
+});

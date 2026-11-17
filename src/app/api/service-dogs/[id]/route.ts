@@ -43,6 +43,16 @@ export async function PATCH(
 
     const body = await request.json();
 
+    // The pop-up note is set by the owner / manager only (סימבה 17/11/2026).
+    if (body && typeof body === "object" && "alertNote" in body) {
+      const { session, businessId } = authResult;
+      const role = session.memberships.find((m) => m.businessId === businessId && m.isActive)?.role;
+      const isPlatformAdmin = ["super_admin", "admin"].includes(session.user.platformRole ?? "");
+      if (!isPlatformAdmin && role !== "owner" && role !== "manager") {
+        return NextResponse.json({ error: "רק בעל העסק או מנהל יכולים לערוך את ההערה הקופצת" }, { status: 403 });
+      }
+    }
+
     let updated;
     try {
       updated = await updateServiceDog(authResult.businessId, prisma, params.id, body);

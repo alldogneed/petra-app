@@ -55,7 +55,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { cn, formatDate } from "@/lib/utils";
-import {
+import { defaultValidUntil,
   ADULT_TREATMENTS, PUPPY_TREATMENTS, getCellStatus, formatPlannedDisplay,
   getEmptyAdultPlan, getEmptyPuppyPlan,
   VACCINATION_TYPES, buildVaccinationHistory,
@@ -663,6 +663,7 @@ function ServiceDogProfilePageContent() {
                   </p>
                 </div>
               )}
+              {(perms.isOwner || perms.isManager) && (
               <button
                 onClick={() => setShowAlertEditor(true)}
                 className={cn(
@@ -675,6 +676,7 @@ function ServiceDogProfilePageContent() {
                 <AlertTriangle className="w-3.5 h-3.5" />
                 הערה קופצת
               </button>
+              )}
               <button
                 onClick={() => setConfirmDelete(true)}
                 className="flex items-center gap-1 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded transition-colors"
@@ -7227,11 +7229,15 @@ function VaccinationHistorySection({
   const [showForm, setShowForm] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const todayYmd = new Date().toISOString().split("T")[0];
+  // validUntil is filled automatically from the type + date (defaultValidUntil) until the
+  // user edits it by hand; "חשב אוטומטית" brings the automatic value back.
+  const [validTouched, setValidTouched] = useState(false);
   const [form, setForm] = useState<{ type: VaccinationType; date: string; validUntil: string }>({
     type: "rabies",
     date: todayYmd,
-    validUntil: "",
+    validUntil: defaultValidUntil("rabies", todayYmd) ?? "",
   });
+  const autoValid = (type: VaccinationType, date: string) => defaultValidUntil(type, date) ?? "";
 
   const records = buildVaccinationHistory(
     dog.pet.health as unknown as Record<string, unknown> | null,
@@ -7261,7 +7267,8 @@ function VaccinationHistorySection({
       queryClient.invalidateQueries({ queryKey: ["service-dog-detail", dogId] });
       queryClient.invalidateQueries({ queryKey: ["service-dogs-vaccinations"] });
       setShowForm(false);
-      setForm({ type: form.type, date: todayYmd, validUntil: "" });
+      setValidTouched(false);
+      setForm({ type: form.type, date: todayYmd, validUntil: autoValid(form.type, todayYmd) });
       toast.success("הרישום נוסף להיסטוריה");
     },
     onError: (e: Error) => toast.error(e.message || "שגיאה ברישום"),
@@ -7296,7 +7303,10 @@ function VaccinationHistorySection({
               <select
                 className="input text-sm"
                 value={form.type}
-                onChange={(e) => setForm({ ...form, type: e.target.value as VaccinationType })}
+                onChange={(e) => {
+                  const type = e.target.value as VaccinationType;
+                  setForm({ ...form, type, validUntil: validTouched ? form.validUntil : autoValid(type, form.date) });
+                }}
               >
                 {VACCINATION_TYPES.map((t) => (
                   <option key={t.key} value={t.key}>{t.label}</option>
@@ -7311,23 +7321,43 @@ function VaccinationHistorySection({
                 lang="he"
                 max={todayYmd}
                 value={form.date}
-                onChange={(e) => setForm({ ...form, date: e.target.value })}
+                onChange={(e) => {
+                  const date = e.target.value;
+                  setForm({ ...form, date, validUntil: validTouched ? form.validUntil : autoValid(form.type, date) });
+                }}
               />
             </div>
             <div>
-              <label className="label text-xs">בתוקף עד (אופציונלי)</label>
+              <label className="label text-xs">
+                בתוקף עד {validTouched ? "(ידני)" : "(מחושב אוטומטית)"}
+              </label>
               <input
                 className="input text-sm"
                 type="date"
                 lang="he"
                 value={form.validUntil}
-                onChange={(e) => setForm({ ...form, validUntil: e.target.value })}
+                onChange={(e) => {
+                  setValidTouched(true);
+                  setForm({ ...form, validUntil: e.target.value });
+                }}
               />
+              {validTouched && (
+                <button
+                  type="button"
+                  className="text-[11px] text-brand-600 hover:underline mt-0.5"
+                  onClick={() => {
+                    setValidTouched(false);
+                    setForm({ ...form, validUntil: autoValid(form.type, form.date) });
+                  }}
+                >
+                  חשב אוטומטית
+                </button>
+              )}
             </div>
           </div>
           {invalidRange && <p className="text-xs text-red-500">תאריך התוקף חייב להיות אחרי תאריך הטיפול</p>}
           <p className="text-[11px] text-petra-muted">
-            תאריך חדש יותר מהרישום האחרון מעדכן את &quot;תאריך אחרון&quot; בתיק הכלב; תאריך ישן נשמר בהיסטוריה בלבד.
+            תאריך חדש יותר מהרישום האחרון מעדכן את &quot;תאריך אחרון&quot; בתיק הכלב; תאריך ישן נשמר בהיסטוריה בלבד. התוקף מחושב אוטומטית לפי סוג הטיפול (כלבת, משושה ושעלת: שנה · תילוע: חצי שנה · תולעת הפארק וקרציות: 3 חודשים) ואפשר לשנות אותו. כדי לתקן את התוקף של הרישום האחרון, רשמו אותו שוב עם אותו תאריך ותוקף אחר.
           </p>
           <div className="flex gap-2">
             <button

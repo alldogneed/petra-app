@@ -179,6 +179,29 @@ export const VACCINATION_TYPES = [
 
 export type VaccinationType = typeof VACCINATION_TYPES[number]["key"];
 
+/**
+ * Default validity per type (days) — same intervals as the protocol engine
+ * (service-dog-engine.ts: DHPP / bordetella 365, deworming 180) + rabies 1 year and
+ * park worm / flea & tick quarterly (4 doses a year in the plan). The user can override.
+ */
+export const VACCINATION_DEFAULT_VALID_DAYS: Record<VaccinationType, number> = {
+  rabies: 365,
+  dhpp: 365,
+  bordetella: 365,
+  deworming: 180,
+  parkWorm: 90,
+  fleaTick: 90,
+} as Record<VaccinationType, number>;
+
+/** "YYYY-MM-DD" + the type's default validity → "YYYY-MM-DD" (null on a bad date). */
+export function defaultValidUntil(type: VaccinationType, ymd: string): string | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(ymd ?? "");
+  const days = VACCINATION_DEFAULT_VALID_DAYS[type];
+  if (!m || !days) return null;
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])) + days * 86400000);
+  return d.toISOString().slice(0, 10);
+}
+
 export const VACCINATION_TYPE_LABELS: Record<VaccinationType, string> = Object.fromEntries(
   VACCINATION_TYPES.map((t) => [t.key, t.label])
 ) as Record<VaccinationType, string>;

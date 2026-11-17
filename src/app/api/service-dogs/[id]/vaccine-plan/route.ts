@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
-import { buildAdultYearPlan, ADULT_TREATMENTS, PUPPY_TREATMENTS, planKeyToVaccinationType, toYmd, type VaccinePlan, type VaccineSchedule } from "@/lib/vaccine-plan";
+import { buildAdultYearPlan, ADULT_TREATMENTS, PUPPY_TREATMENTS, planKeyToVaccinationType, defaultValidUntil, toYmd, type VaccinePlan, type VaccineSchedule } from "@/lib/vaccine-plan";
 import { renewVaccine } from "@/services/pets";
 
 // ─── helpers ───
@@ -220,7 +220,14 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     const healthType = planKeyToVaccinationType(treatmentKey);
     if (healthType && doneDate && notVaccinated === undefined && toYmd(doneDate)) {
       try {
-        await renewVaccine(authResult.businessId, prisma, dog.petId, { vaccineType: healthType, newDate: doneDate });
+        // Automatic valid-until from the type's default interval (manual override: the
+        // history section's "הוסף רישום" with the same date updates it).
+        const doneYmd = toYmd(doneDate)!;
+        await renewVaccine(authResult.businessId, prisma, dog.petId, {
+          vaccineType: healthType,
+          newDate: doneDate,
+          newValidUntil: defaultValidUntil(healthType, doneYmd) ?? undefined,
+        });
       } catch (e) {
         console.error("vaccine-plan POST: DogHealth history sync failed", e);
       }
