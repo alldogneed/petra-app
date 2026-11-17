@@ -142,7 +142,10 @@ export function registerOrderTools(server: McpServer, ctx: ToolCtx): void {
       "No WhatsApp / payment request is sent. Use list_clients for the customer id, list_services for price_list_item_id.",
     {
       customer_id: z.string().max(64).describe("Customer ID (from list_clients)"),
-      items: z.array(itemSchema).min(1).max(MAX_ORDER_ITEMS).describe(`Order lines (1–${MAX_ORDER_ITEMS})`),
+      items: z.array(itemSchema).min(1).max(MAX_ORDER_ITEMS).optional().describe(`Order lines (1–${MAX_ORDER_ITEMS})`),
+      item_name: z.string().max(200).optional().describe("Legacy single-line form (prefer items): line name"),
+      quantity: z.number().optional().describe("Legacy single-line form: quantity (default 1)"),
+      unit_price: z.number().optional().describe("Legacy single-line form: unit price"),
       pet_id: z.string().max(64).optional().describe("Pet of this customer (default: the pet of the linked appointment / stay)"),
       boarding_stay_id: z.string().max(64).optional().describe("Boarding stay this order charges for (same customer). Not together with appointment_id"),
       appointment_id: z.string().max(64).optional().describe("Appointment this order charges for (same customer). Not together with boarding_stay_id"),
@@ -155,7 +158,14 @@ export function registerOrderTools(server: McpServer, ctx: ToolCtx): void {
     },
     async (args) => {
       if (!hasScope("write:orders")) return denyScope("create_order", "write:orders");
-      const { customer_id, items, pet_id, boarding_stay_id, appointment_id, order_type, notes, status, force, idempotency_key, dry_run } = args;
+      // Older AI clients still send the previous single-line contract (item_name / quantity / unit_price).
+      const items =
+        args.items ??
+        (args.item_name
+          ? [{ name: args.item_name, quantity: args.quantity ?? 1, unit_price: args.unit_price ?? 0 }]
+          : undefined);
+      if (!items || items.length === 0) return errorResult("יש לציין items (או item_name + unit_price)");
+      const { customer_id, pet_id, boarding_stay_id, appointment_id, order_type, notes, status, force, idempotency_key, dry_run } = args;
       const params = {
         customer_id, items_count: items?.length ?? 0, pet_id, boarding_stay_id, appointment_id, order_type,
         notes, status, force, idempotency_key, dry_run,

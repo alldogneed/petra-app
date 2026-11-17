@@ -32,7 +32,8 @@ import { cancelTrainingSessionReminder } from "@/lib/reminder-service";
 import { SALES_JOURNAL_KIND_LABELS, TASK_STATUS_LABELS, type SalesHistoryLead } from "@/lib/lead-sales-history";
 import { LOST_REASON_CODES, LEAD_SOURCES } from "@/lib/constants";
 import { listAppointments, createAppointment, updateAppointment, deleteAppointment } from "@/services/appointments";
-import { listOrders, getOrder, createOrder } from "@/services/orders";
+import { listOrders, getOrder } from "@/services/orders";
+import { registerOrderTools } from "@/lib/mcp/tools-orders";
 import { listPets } from "@/services/pets";
 import { listBoardingStaysPage, STAY_STATUS_HE, type StayStatusFilter } from "@/services/boarding";
 import { listTrainingPrograms } from "@/services/training";
@@ -1050,56 +1051,6 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
     }
   );
 
-  // ── create_order ──────────────────────────────────────────────────────────
-  server.tool(
-    "create_order",
-    "Create a new order (invoice/sale) for a client. Use list_clients to find the customer ID.",
-    {
-      customer_id: z.string().describe("Customer ID (from list_clients)"),
-      item_name: z.string().max(160).describe("Name of the service or product"),
-      quantity: z.number().int().min(1).optional().describe("Quantity (default 1)"),
-      unit_price: z.number().min(0).describe("Price per unit in ILS"),
-      notes: z.string().max(2000).optional().describe("Optional notes on the order"),
-      status: z.enum(["draft", "confirmed"]).optional().describe("Initial status (default: draft)"),
-      idempotency_key: z.string().max(100).optional().describe("Client-generated key; a retry with the same key returns the original result instead of creating a duplicate"),
-      dry_run: z.boolean().optional().describe("If true, only preview what would be created"),
-    },
-    async ({ customer_id, item_name, quantity, unit_price, notes, status, idempotency_key, dry_run }) => {
-      if (!hasScope("write:orders")) return denyScope("create_order", "write:orders");
-      const params = { customer_id, item_name, quantity, unit_price, notes, status, idempotency_key, dry_run };
-      try {
-        const replay = await findIdempotentReplay(connectionId, "create_order", idempotency_key);
-        if (replay) return replayResult(replay);
-        if (dry_run) {
-          const cust = await prisma.customer.findFirst({ where: { id: customer_id, businessId }, select: { name: true } });
-          if (!cust) throw new ServiceError("לקוח לא נמצא", "NOT_FOUND");
-          const previewTotal = ((quantity ?? 1) * unit_price).toLocaleString("he-IL");
-          return dryRunResult(`תיווצר הזמנה ללקוח ${safeField(cust.name)} (id: ${customer_id}): ${safeField(item_name, 100)} × ${quantity ?? 1} | ₪${previewTotal} | סטטוס: ${status ?? "draft"}${notes ? ` | הערות: ${safeField(notes, 200)}` : ""}`);
-        }
-        const result = await createOrder(businessId, prisma, {
-          customerId: customer_id,
-          status: status ?? "draft",
-          notes: notes ?? null,
-          lines: [{
-            name: item_name,
-            unit: "יחידה",
-            quantity: quantity ?? 1,
-            unitPrice: unit_price,
-          }],
-        });
-        const order = result.order;
-        const total = ((quantity ?? 1) * unit_price).toLocaleString("he-IL");
-        const orderSummary = `✅ הזמנה נוצרה בהצלחה!\nסכום: ₪${total}\nסטטוס: ${order.status} (id: ${order.id})`;
-        await auditLog(connectionId, "create_order", params, "success", `created order ${order.id}`);
-        return textResult(orderSummary);
-      } catch (e) {
-        const msg = e instanceof ServiceError ? e.message : "שגיאה ביצירת הזמנה";
-        await auditLog(connectionId, "create_order", params, "error", undefined, msg);
-        return errorResult(msg);
-      }
-    }
-  );
-
   // ── update_appointment ────────────────────────────────────────────────────
   server.tool(
     "update_appointment",
@@ -1650,6 +1601,7 @@ function buildServer(businessId: string, connectionId: string, rawScopes: string
   registerPetsTools(server, ctx);
   registerTrainingTools(server, ctx);
   registerFinanceTools(server, ctx);
+  registerOrderTools(server, ctx);
   registerCalendarTools(server, ctx);
   registerHoursTools(server, ctx);
   registerSupportTools(server, ctx);
