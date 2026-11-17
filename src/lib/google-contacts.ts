@@ -80,6 +80,19 @@ async function googleErrorText(res: Response): Promise<string> {
   }
 }
 
+/** Scopes / remaining lifetime of an access token (never the token, never the email). */
+async function tokenDiagnostics(accessToken: string): Promise<string> {
+  try {
+    const r = await fetch(`${GOOGLE_TOKEN_INFO_URL}?access_token=${encodeURIComponent(accessToken)}`);
+    const j = (await r.json()) as { scope?: string; expires_in?: string | number; error_description?: string; error?: string; aud?: string };
+    if (!r.ok) return `tokeninfo ${r.status} ${j.error ?? ""} ${j.error_description ?? ""}`.slice(0, 200);
+    const scopes = (j.scope ?? "").split(" ").map((x) => x.replace("https://www.googleapis.com/auth/", "")).join(",");
+    return `scopes=[${scopes}] expires_in=${j.expires_in ?? "?"} aud=…${String(j.aud ?? "").slice(-12)} tokenLen=${accessToken.length}`;
+  } catch (e) {
+    return `tokeninfo failed: ${e instanceof Error ? e.message : String(e)}`.slice(0, 200);
+  }
+}
+
 async function getOwnerAccessToken(businessId: string): Promise<string | null> {
   const owners = await prisma.businessUser.findMany({
     where: {
@@ -279,6 +292,7 @@ export async function syncPendingLeadsToGoogleContacts(
   });
   if (!res.ok) {
     console.error(`[GoogleContacts] batchCreateContacts failed (${res.status}) ${await googleErrorText(res)}`);
+    if (res.status === 401 || res.status === 403) console.error(`[GoogleContacts] token diagnostics: ${await tokenDiagnostics(accessToken)}`);
     return { ok: false, reason: "google_error" };
   }
 
