@@ -38,6 +38,43 @@ const VALID_YARD_STATUSES = ["available", "needs_cleaning"];
 export interface ListBoardingOptions {
   from?: string;
   to?: string;
+  /**
+   * Status filter. Omitted = the screen's behaviour (a date range returns only
+   * reserved/checked_in stays). "all" or explicit statuses lift that forcing, so a
+   * range can also return finished (checked_out) / canceled stays.
+   */
+  status?: StayStatusFilter;
+  customerId?: string;
+}
+
+export const STAY_STATUS_VALUES = ["reserved", "checked_in", "checked_out", "canceled"] as const;
+export type StayStatusValue = (typeof STAY_STATUS_VALUES)[number];
+export type StayStatusFilter = StayStatusValue | "all" | StayStatusValue[];
+
+export const STAY_STATUS_HE: Record<string, string> = {
+  reserved: "הוזמן",
+  checked_in: "בפנסיון",
+  checked_out: "יצא",
+  canceled: "בוטל",
+};
+
+/**
+ * Prisma `status` condition for a stay list. Pure.
+ * - undefined + a date range → reserved/checked_in (the boarding screen's range view)
+ * - undefined without a range → no condition
+ * - "all" → no condition
+ * - one status / a list → exactly those
+ */
+export function stayStatusCondition(
+  status: StayStatusFilter | undefined,
+  hasRange: boolean
+): { in: string[] } | undefined {
+  if (status === undefined) return hasRange ? { in: ["reserved", "checked_in"] } : undefined;
+  if (status === "all") return undefined;
+  const list = (Array.isArray(status) ? status : [status]).filter((s) =>
+    (STAY_STATUS_VALUES as readonly string[]).includes(s)
+  );
+  return list.length ? { in: list } : undefined;
 }
 
 export interface CreateBoardingStayInput {
@@ -129,12 +166,16 @@ const PET_SELECT_FULL = {
 export async function listBoardingStays(businessId: string, db: DbClient, opts: ListBoardingOptions = {}) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const where: any = { businessId };
+  if (opts.customerId) where.customerId = opts.customerId;
 
-  if (opts.from && opts.to) {
+  const hasRange = !!(opts.from && opts.to);
+  if (hasRange) {
     where.checkIn = { lte: new Date(opts.to + "T23:59:59") };
-    where.OR = [{ checkOut: { gte: new Date(opts.from) } }, { checkOut: null }];
-    where.status = { in: ["reserved", "checked_in"] };
+    where.OR = [{ checkOut: { gte: new Date(opts.from!) } }, { checkOut: null }];
   }
+  // Only forced to reserved/checked_in when the caller asked for no status (screen behaviour).
+  const statusCond = stayStatusCondition(opts.status, hasRange);
+  if (statusCond) where.status = statusCond;
 
   const include = {
     room: true,
@@ -144,7 +185,7 @@ export async function listBoardingStays(businessId: string, db: DbClient, opts: 
     assignedTo: { select: { id: true, name: true } },
   };
 
-  if (opts.from && opts.to) {
+  if (hasRange || opts.status !== undefined) {
     return db.boardingStay.findMany({ where, include, orderBy: { checkIn: "desc" }, take: 500 });
   }
 
@@ -166,6 +207,50 @@ export async function listBoardingStays(businessId: string, db: DbClient, opts: 
     }),
   ]);
   return [...active, ...history].sort((a, b) => b.checkIn.getTime() - a.checkIn.getTime());
+}
+
+export interface ListBoardingStaysPageOptions extends ListBoardingOptions {
+  offset?: number;
+  limit?: number;
+}
+
+/**
+ * One page of stays + the total matching count (MCP list_boarding_stays). Same filters
+ * as listBoardingStays; without a range and without a status every stay counts
+ * (newest check-in first). `businessId` comes from the token/session only.
+ */
+export async function listBoardingStaysPage(businessId: string, db: DbClient, opts: ListBoardingStaysPageOptions = {}) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const where: any = { businessId };
+  if (opts.customerId) where.customerId = opts.customerId;
+  const hasRange = !!(opts.from && opts.to);
+  if (opts.from || opts.to) {
+    // A one-sided range is allowed here: stays that touch [from, to].
+    if (opts.to) where.checkIn = { lte: new Date(opts.to + "T23:59:59") };
+    if (opts.from) where.OR = [{ checkOut: { gte: new Date(opts.from) } }, { checkOut: null }];
+  }
+  const statusCond = stayStatusCondition(opts.status, hasRange);
+  if (statusCond) where.status = statusCond;
+
+  const offset = Math.max(0, Math.floor(opts.offset ?? 0));
+  const limit = Math.min(Math.max(Math.floor(opts.limit ?? 30), 1), 100);
+  const [stays, total] = await Promise.all([
+    db.boardingStay.findMany({
+      where,
+      include: {
+        room: { select: { id: true, name: true } },
+        yard: { select: { id: true, name: true } },
+        pet: { select: { id: true, name: true } },
+        customer: { select: { id: true, name: true } },
+        payments: { where: { status: "paid" }, select: { amount: true } },
+      },
+      orderBy: [{ checkIn: "desc" }, { id: "asc" }],
+      skip: offset,
+      take: limit,
+    }),
+    db.boardingStay.count({ where }),
+  ]);
+  return { stays, total, offset, limit };
 }
 
 export async function getBoardingStay(businessId: string, db: DbClient, id: string) {

@@ -241,6 +241,23 @@ export async function createServiceDog(
   return profile;
 }
 
+export const ALERT_NOTE_MAX_LENGTH = 1000;
+
+/**
+ * הערה קופצת (ServiceDogProfile.alertNote): trimmed, "" / null → null (cleared),
+ * longer than ALERT_NOTE_MAX_LENGTH or not a string → VALIDATION.
+ */
+export function normalizeAlertNote(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== "string") throw new ServiceError("הערה קופצת לא תקינה", "VALIDATION");
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (trimmed.length > ALERT_NOTE_MAX_LENGTH) {
+    throw new ServiceError(`הערה קופצת ארוכה מדי (עד ${ALERT_NOTE_MAX_LENGTH} תווים)`, "VALIDATION");
+  }
+  return trimmed;
+}
+
 export async function updateServiceDog(
   businessId: string,
   db: DbClient,
@@ -284,6 +301,8 @@ export async function updateServiceDog(
     }
   }
 
+  const alertNote = body.alertNote !== undefined ? normalizeAlertNote(body.alertNote) : undefined;
+
   const existing = await db.serviceDogProfile.findFirst({
     where: { id, businessId },
   });
@@ -301,6 +320,7 @@ export async function updateServiceDog(
       ...(body.trainingTotalHours !== undefined && { trainingTotalHours: body.trainingTotalHours != null ? Number(body.trainingTotalHours) : 0 }),
       ...(body.trainingTargetMonths !== undefined && { trainingTargetMonths: body.trainingTargetMonths as number }),
       ...(body.notes !== undefined && { notes: body.notes as string }),
+      ...(alertNote !== undefined && { alertNote }),
       ...(body.documents !== undefined && { documents: typeof body.documents === "string" ? body.documents : JSON.stringify(body.documents) }),
       ...(body.trainingTests !== undefined && { trainingTests: body.trainingTests }),
       ...(body.pedigreeNumber !== undefined && { pedigreeNumber: body.pedigreeNumber as string }),

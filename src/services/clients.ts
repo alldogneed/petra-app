@@ -26,6 +26,7 @@ import {
   type CustomerSalesHistory, type SalesHistoryLead,
 } from "@/lib/lead-sales-history";
 import { ServiceError } from "./types";
+import { parseTagList, applyTagChange } from "@/lib/customer-filters";
 import {
   getCustomerSummary, CUSTOMER_APPOINTMENT_SELECT, CUSTOMER_PAYMENT_SELECT, CUSTOMER_TIMELINE_SELECT,
   type CustomerSummary,
@@ -419,6 +420,33 @@ export interface UpdateCustomerInput {
   notes?: string | null;
   tags?: string | null;
   source?: string | null;
+}
+
+/** Split a comma-separated tag string (MCP input) into trimmed, de-duplicated tags (≤ 30 chars each). Pure. */
+export function splitTagInput(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  const out: string[] = [];
+  for (const t of raw.split(",")) {
+    const tag = t.trim().slice(0, 30);
+    if (tag && !out.includes(tag)) out.push(tag);
+  }
+  return out;
+}
+
+/**
+ * New tag list for a client update (MCP update_client). Pure.
+ * `tags` replaces the whole list (empty string = clear); `add_tags` / `remove_tags`
+ * apply on top. Returns null when no tag field was given (tags unchanged).
+ */
+export function mergeClientTags(
+  storedTags: string | null | undefined,
+  change: { tags?: string; add_tags?: string; remove_tags?: string }
+): string[] | null {
+  if (change.tags === undefined && change.add_tags === undefined && change.remove_tags === undefined) return null;
+  let list = change.tags !== undefined ? splitTagInput(change.tags) : parseTagList(storedTags);
+  for (const t of splitTagInput(change.add_tags)) list = applyTagChange(list, "add_tag", t);
+  for (const t of splitTagInput(change.remove_tags)) list = applyTagChange(list, "remove_tag", t);
+  return list.slice(0, 50);
 }
 
 export async function updateCustomer(

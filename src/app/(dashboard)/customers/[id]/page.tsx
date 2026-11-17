@@ -16,6 +16,7 @@ import { PetraLoader } from "@/components/ui/PetraLoader";
 import { CustomerSalesHistory, useCustomerSalesHistory } from "@/components/customers/CustomerSalesHistory";
 import { MergeCustomerModal } from "@/components/customers/MergeCustomerModal";
 import { AppointmentsSection } from "@/components/customers/detail/AppointmentsSection";
+import { BoardingSection } from "@/components/customers/detail/BoardingSection";
 import { ContactCard } from "@/components/customers/detail/ContactCard";
 import { CustomerDocumentsSection } from "@/components/customers/detail/CustomerDocumentsSection";
 import { CustomerHeader } from "@/components/customers/detail/CustomerHeader";
@@ -69,6 +70,7 @@ function CustomerProfile() {
   // "add a pet before an order" rule don't exist there (docs/verticals).
   const { hides } = useVertical();
   const noPets = hides("pets");
+  const noBoarding = hides("boarding");
   const [modal, setModal] = useState<ModalName | null>(null);
   const closeModal = () => setModal(null);
 
@@ -151,6 +153,7 @@ function CustomerProfile() {
   const navItems: SectionNavItem[] = [
     ...(noPets ? [] : [{ id: "pets", label: "חיות" }]),
     { id: "appointments", label: "תורים" },
+    ...(noBoarding ? [] : [{ id: "boarding", label: "פנסיון" }]),
     { id: "finance", label: "כספים" },
     ...(salesHistory?.leads?.length ? [{ id: "sales-history", label: "מכירות" }] : []),
     { id: "documents", label: "מסמכים" },
@@ -223,6 +226,8 @@ function CustomerProfile() {
             canRemind={perms.canSendMessages && can("whatsapp_reminders")}
             onNewAppointment={() => setModal("appointment")}
           />
+
+          {!noBoarding && <BoardingSection customerId={customerId} />}
 
           <div id="finance" className="space-y-6 scroll-mt-32">
             {perms.canSeeFinance && (

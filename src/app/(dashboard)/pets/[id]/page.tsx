@@ -20,9 +20,6 @@ import {
   CheckCircle2,
   Clock,
   RefreshCw,
-  Plus,
-  Trash2,
-  TrendingUp,
   X,
   ImageIcon,
   Upload,
@@ -34,6 +31,7 @@ import { cn, formatDate, formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
 import { PetraLoader } from "@/components/ui/PetraLoader";
 import { EditPetModal } from "@/components/customers/detail/pet-modals";
+import { WeightSection } from "@/components/pets/WeightSection";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -104,13 +102,6 @@ interface TrainingProgram {
   startDate: string | null;
 }
 
-interface WeightEntry {
-  id: string;
-  weight: number;
-  recordedAt: string;
-  notes: string | null;
-}
-
 interface PetAttachment {
   id: string;
   name: string;
@@ -168,227 +159,6 @@ function isVaccineExpiringSoon(date: string | null): boolean {
 function isVaccineExpired(date: string | null): boolean {
   if (!date) return false;
   return new Date(date).getTime() < Date.now();
-}
-
-// ─── Weight Chart (inline SVG) ────────────────────────────────────────────────
-
-function WeightChart({ entries }: { entries: WeightEntry[] }) {
-  if (entries.length < 2) return null;
-
-  const sorted = [...entries].sort(
-    (a, b) => new Date(a.recordedAt).getTime() - new Date(b.recordedAt).getTime()
-  ).slice(-12);
-
-  const weights = sorted.map((e) => e.weight);
-  const minW = Math.min(...weights) * 0.95;
-  const maxW = Math.max(...weights) * 1.05;
-  const range = maxW - minW || 1;
-
-  const W = 280;
-  const H = 80;
-  const PAD = 10;
-
-  const points = sorted.map((e, i) => {
-    const x = PAD + (i / (sorted.length - 1)) * (W - PAD * 2);
-    const y = H - PAD - ((e.weight - minW) / range) * (H - PAD * 2);
-    return `${x},${y}`;
-  });
-
-  const polyline = points.join(" ");
-  const lastPoint = points[points.length - 1].split(",");
-
-  return (
-    <div className="mt-3 bg-slate-50 rounded-xl p-3">
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-16">
-        <polyline
-          points={polyline}
-          fill="none"
-          stroke="#6366f1"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        {sorted.map((_, i) => {
-          const [x, y] = points[i].split(",");
-          return (
-            <circle
-              key={i}
-              cx={parseFloat(x)}
-              cy={parseFloat(y)}
-              r="3"
-              fill="#6366f1"
-            />
-          );
-        })}
-        <circle
-          cx={parseFloat(lastPoint[0])}
-          cy={parseFloat(lastPoint[1])}
-          r="4"
-          fill="#6366f1"
-          stroke="white"
-          strokeWidth="1.5"
-        />
-      </svg>
-      <div className="flex justify-between text-[10px] text-petra-muted mt-1">
-        <span>{formatDate(new Date(sorted[0].recordedAt))}</span>
-        <span className="font-medium text-brand-600">
-          {sorted[sorted.length - 1].weight} ק"ג
-        </span>
-        <span>{formatDate(new Date(sorted[sorted.length - 1].recordedAt))}</span>
-      </div>
-    </div>
-  );
-}
-
-// ─── Weight History Section ───────────────────────────────────────────────────
-
-function WeightSection({ petId }: { petId: string }) {
-  const queryClient = useQueryClient();
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({
-    weight: "",
-    recordedAt: new Date().toISOString().split("T")[0],
-    notes: "",
-  });
-
-  const { data } = useQuery<{ entries: WeightEntry[] }>({
-    queryKey: ["weight", petId],
-    queryFn: () => fetch(`/api/pets/${petId}/weight`).then((r) => r.json()),
-  });
-
-  const entries = data?.entries ?? [];
-
-  const addMutation = useMutation({
-    mutationFn: () =>
-      fetch(`/api/pets/${petId}/weight`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      }).then(async (r) => {
-        if (!r.ok) throw new Error("שגיאה");
-        return r.json();
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["weight", petId] });
-      setShowForm(false);
-      setForm({ weight: "", recordedAt: new Date().toISOString().split("T")[0], notes: "" });
-      toast.success("מדידה נוספה");
-    },
-    onError: () => toast.error("שגיאה בהוספת מדידה"),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (entryId: string) =>
-      fetch(`/api/pets/${petId}/weight?entryId=${entryId}`, { method: "DELETE" }).then((r) => r.json()),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["weight", petId] });
-      toast.success("מדידה נמחקה");
-    },
-  });
-
-  return (
-    <div className="card p-5">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-sm font-bold text-petra-text flex items-center gap-2">
-          <TrendingUp className="w-4 h-4 text-indigo-500" />
-          מעקב משקל
-          {entries.length > 0 && (
-            <span className="text-xs font-normal text-petra-muted">
-              ({entries.length} מדידות)
-            </span>
-          )}
-        </h2>
-        <button
-          onClick={() => setShowForm((p) => !p)}
-          className="btn-secondary text-xs flex items-center gap-1 py-1 px-2"
-        >
-          <Plus className="w-3 h-3" />
-          הוסף מדידה
-        </button>
-      </div>
-
-      {showForm && (
-        <div className="mb-4 p-3 bg-slate-50 rounded-xl space-y-2">
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="label text-xs">משקל (ק"ג) *</label>
-              <input
-                className="input text-sm"
-                type="number"
-                step="0.1"
-                min="0.1"
-                value={form.weight}
-                onChange={(e) => setForm({ ...form, weight: e.target.value })}
-                placeholder="0.0"
-              />
-            </div>
-            <div>
-              <label className="label text-xs">תאריך</label>
-              <input
-                className="input text-sm"
-                type="date" lang="he"
-                value={form.recordedAt}
-                onChange={(e) => setForm({ ...form, recordedAt: e.target.value })}
-              />
-            </div>
-          </div>
-          <div>
-            <label className="label text-xs">הערות (אופציונלי)</label>
-            <input
-              className="input text-sm"
-              value={form.notes}
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              placeholder="הערות על המשקל..."
-            />
-          </div>
-          <div className="flex gap-2">
-            <button
-              className="btn-primary text-xs py-1.5 flex-1"
-              disabled={!form.weight || addMutation.isPending}
-              onClick={() => addMutation.mutate()}
-            >
-              {addMutation.isPending ? "שומר..." : "הוסף"}
-            </button>
-            <button className="btn-secondary text-xs py-1.5" onClick={() => setShowForm(false)}>
-              ביטול
-            </button>
-          </div>
-        </div>
-      )}
-
-      {entries.length === 0 && !showForm ? (
-        <p className="text-xs text-petra-muted text-center py-4">אין מדידות משקל עדיין</p>
-      ) : (
-        <>
-          <WeightChart entries={entries} />
-          {entries.length > 0 && (
-            <div className="mt-3 divide-y divide-slate-50">
-              {entries.slice(0, 8).map((entry) => (
-                <div key={entry.id} className="py-2 flex items-center justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <span className="font-semibold text-sm text-petra-text">{entry.weight} ק"ג</span>
-                    <span className="text-xs text-petra-muted mr-2">
-                      {formatDate(new Date(entry.recordedAt))}
-                    </span>
-                    {entry.notes && (
-                      <p className="text-xs text-petra-muted truncate">{entry.notes}</p>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => deleteMutation.mutate(entry.id)}
-                    className="text-petra-muted hover:text-red-500 transition-colors p-1"
-                    disabled={deleteMutation.isPending}
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  );
 }
 
 // ─── Photo Gallery Section ─────────────────────────────────────────────────────
@@ -810,7 +580,7 @@ export default function PetProfilePage() {
         {/* Right column: history + new sections */}
         <div className="lg:col-span-2 space-y-5">
           {/* Weight History */}
-          <WeightSection petId={pet.id} />
+          <WeightSection petId={pet.id} onChanged={() => refetch()} />
 
           {/* Photo Gallery */}
           <PhotoGallery petId={pet.id} attachmentsJson={pet.attachments} />

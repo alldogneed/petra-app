@@ -8,6 +8,10 @@
 import { searchVariants } from "@/lib/text-variants";
 import type { PrismaClient } from "@prisma/client";
 import { ServiceError } from "./types";
+import {
+  VACCINATION_HEALTH_FIELDS, applyVaccinationRecord, isVaccinationType, toYmd,
+  type VaccinationType,
+} from "@/lib/vaccine-plan";
 
 export type DbClient = PrismaClient;
 export { ServiceError };
@@ -89,7 +93,7 @@ export interface WeightEntryInput {
 }
 
 export interface RenewVaccineInput {
-  vaccineType: "rabies" | "dhpp" | "bordetella";
+  vaccineType: VaccinationType;
   newDate: string;
   newValidUntil?: string;
 }
@@ -445,17 +449,25 @@ export async function updatePetHealth(businessId: string, db: DbClient, petId: s
 // Renew vaccine
 // ─────────────────────────────────────────────────────────────────────────────
 
-const VACCINE_MAP: Record<"rabies" | "dhpp" | "bordetella", { dateField: string; validUntilField: string; historyField: string }> = {
-  rabies:     { dateField: "rabiesLastDate",  validUntilField: "rabiesValidUntil",     historyField: "rabiesHistory" },
-  dhpp:       { dateField: "dhppLastDate",    validUntilField: "dhppValidUntil",       historyField: "dhppHistory" },
-  bordetella: { dateField: "bordatellaDate",  validUntilField: "bordatellaValidUntil", historyField: "bordatellaHistory" },
-};
+// Covers all six DogHealth types (vaccines + treatments). Column names and the
+// history merge rules live in src/lib/vaccine-plan.ts (single source).
+const VACCINE_MAP = VACCINATION_HEALTH_FIELDS;
 
+/**
+ * Record a vaccination / treatment. A newer date becomes the current *LastDate
+ * (the previous one moves into *History); an older date (back-filling) is only
+ * appended to *History; the same day just updates valid-until. Creates the
+ * DogHealth row when the pet has none.
+ */
 export async function renewVaccine(businessId: string, db: DbClient, petId: string, input: RenewVaccineInput) {
   const { vaccineType, newDate, newValidUntil } = input;
 
-  if (!VACCINE_MAP[vaccineType]) throw new ServiceError("סוג חיסון לא תקין", "VALIDATION");
-  if (!newDate) throw new ServiceError("תאריך חיסון חסר", "VALIDATION");
+  if (!isVaccinationType(vaccineType) || !VACCINE_MAP[vaccineType]) throw new ServiceError("סוג חיסון לא תקין", "VALIDATION");
+  if (!newDate || !toYmd(newDate)) throw new ServiceError("תאריך חיסון חסר", "VALIDATION");
+  if (newValidUntil && !toYmd(newValidUntil)) throw new ServiceError("תאריך תוקף לא תקין", "VALIDATION");
+  if (newValidUntil && toYmd(newValidUntil)! < toYmd(newDate)!) {
+    throw new ServiceError("תאריך התוקף חייב להיות אחרי תאריך החיסון", "VALIDATION");
+  }
 
   const pet = await db.pet.findFirst({
     where: { id: petId, OR: petOwnership(businessId) },
@@ -466,30 +478,21 @@ export async function renewVaccine(businessId: string, db: DbClient, petId: stri
   const { dateField, validUntilField, historyField } = VACCINE_MAP[vaccineType];
   const currentHealth = pet.health as Record<string, unknown> | null;
 
-  const currentDate = currentHealth?.[dateField];
-  const currentValidUntil = currentHealth?.[validUntilField];
+  const next = applyVaccinationRecord(
+    {
+      lastDate: currentHealth?.[dateField] ?? null,
+      validUntil: currentHealth?.[validUntilField] ?? null,
+      history: currentHealth?.[historyField] ?? null,
+    },
+    { date: newDate, validUntil: newValidUntil ?? null },
+  );
 
-  let existingHistory: unknown[] = [];
-  if (currentHealth) {
-    const raw = currentHealth[historyField];
-    if (Array.isArray(raw)) existingHistory = raw;
-  }
-
-  const updatedHistory = currentDate
-    ? [
-        ...existingHistory,
-        {
-          date: currentDate instanceof Date ? currentDate.toISOString() : currentDate,
-          validUntil: currentValidUntil instanceof Date ? (currentValidUntil as Date).toISOString() : currentValidUntil ?? null,
-          recordedAt: new Date().toISOString(),
-        },
-      ]
-    : existingHistory;
+  if (!next.changed && currentHealth) return pet.health!;
 
   const updateData: Record<string, unknown> = {
-    [dateField]: new Date(newDate),
-    [validUntilField]: newValidUntil ? new Date(newValidUntil) : null,
-    [historyField]: updatedHistory,
+    [dateField]: next.lastDate ? new Date(next.lastDate) : null,
+    [validUntilField]: next.validUntil ? new Date(next.validUntil) : null,
+    [historyField]: next.history,
   };
 
   return db.dogHealth.upsert({
@@ -625,19 +628,37 @@ export async function addWeightEntry(businessId: string, db: DbClient, petId: st
   const weight = typeof input.weight === "number" ? input.weight : parseFloat(String(input.weight));
   if (!Number.isFinite(weight) || weight <= 0) throw new ServiceError("משקל לא תקין", "VALIDATION");
 
-  return db.petWeightEntry.create({
-    data: {
-      petId,
-      businessId,
-      weight,
-      recordedAt: input.recordedAt ? new Date(input.recordedAt) : new Date(),
-      notes: input.notes ?? null,
-    },
+  const recordedAt = input.recordedAt ? new Date(input.recordedAt) : new Date();
+  if (Number.isNaN(recordedAt.getTime())) throw new ServiceError("תאריך לא תקין", "VALIDATION");
+  const notes = typeof input.notes === "string" ? input.notes.trim().slice(0, 500) || null : null;
+
+  const entry = await db.petWeightEntry.create({
+    data: { petId, businessId, weight, recordedAt, notes },
   });
+  await syncPetWeightToLatest(businessId, db, petId);
+  return entry;
 }
 
 export async function deleteWeightEntry(businessId: string, db: DbClient, petId: string, entryId: string) {
-  await db.petWeightEntry.deleteMany({ where: { id: entryId, petId, businessId } });
+  const { count } = await db.petWeightEntry.deleteMany({ where: { id: entryId, petId, businessId } });
+  if (count > 0) await syncPetWeightToLatest(businessId, db, petId);
+}
+
+/**
+ * Pet.weight mirrors the newest weight entry (by recordedAt) so the pet card,
+ * the service-dog header and feeding calculations show the latest measurement.
+ * No entries left → Pet.weight is left as is.
+ */
+async function syncPetWeightToLatest(businessId: string, db: DbClient, petId: string) {
+  const latest = await db.petWeightEntry.findFirst({
+    where: { petId, businessId },
+    orderBy: [{ recordedAt: "desc" }, { createdAt: "desc" }],
+    select: { weight: true },
+  });
+  if (!latest) return;
+  const pet = await db.pet.findFirst({ where: { id: petId, OR: petOwnership(businessId) }, select: { weight: true } });
+  if (!pet || pet.weight === latest.weight) return;
+  await db.pet.update({ where: { id: petId }, data: { weight: latest.weight } });
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
