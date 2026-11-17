@@ -70,6 +70,16 @@ export function buildContactPayload(lead: LeadForContact): ContactPayload {
  * A business can have several owners and only one of them may have connected Google —
  * so we look for the connected ones, never "the first owner".
  */
+/** Google's error status + message only (no request data, capped) — for diagnosing 401/403s. */
+async function googleErrorText(res: Response): Promise<string> {
+  try {
+    const j = (await res.json()) as { error?: { status?: string; message?: string } };
+    return `${j.error?.status ?? ""} ${j.error?.message ?? ""}`.slice(0, 300);
+  } catch {
+    return "";
+  }
+}
+
 async function getOwnerAccessToken(businessId: string): Promise<string | null> {
   const owners = await prisma.businessUser.findMany({
     where: {
@@ -118,7 +128,7 @@ async function createContact(payload: ContactPayload, accessToken: string): Prom
     body: JSON.stringify(payload),
   });
   if (!res.ok) {
-    console.error(`[GoogleContacts] createContact failed (${res.status})`);
+    console.error(`[GoogleContacts] createContact failed (${res.status}) ${await googleErrorText(res)}`);
     return null;
   }
   const data = (await res.json()) as { resourceName?: string };
@@ -140,7 +150,7 @@ async function updateContact(
   const metaRes = await fetch(`${PEOPLE_API_BASE}/${resourceName}?personFields=metadata`, { headers });
   if (metaRes.status === 404) return "gone";
   if (!metaRes.ok) {
-    console.error(`[GoogleContacts] contact lookup failed (${metaRes.status})`);
+    console.error(`[GoogleContacts] contact lookup failed (${metaRes.status}) ${await googleErrorText(metaRes)}`);
     return null;
   }
   const meta = (await metaRes.json()) as { etag?: string };
@@ -156,7 +166,7 @@ async function updateContact(
   );
   if (res.status === 404) return "gone";
   if (!res.ok) {
-    console.error(`[GoogleContacts] updateContact failed (${res.status})`);
+    console.error(`[GoogleContacts] updateContact failed (${res.status}) ${await googleErrorText(res)}`);
     return null;
   }
   const data = (await res.json()) as { resourceName?: string };
@@ -268,7 +278,7 @@ export async function syncPendingLeadsToGoogleContacts(
     }),
   });
   if (!res.ok) {
-    console.error(`[GoogleContacts] batchCreateContacts failed (${res.status})`);
+    console.error(`[GoogleContacts] batchCreateContacts failed (${res.status}) ${await googleErrorText(res)}`);
     return { ok: false, reason: "google_error" };
   }
 
