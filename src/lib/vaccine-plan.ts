@@ -161,3 +161,212 @@ export function formatPlannedDisplay(planned: string): string {
   // ISO date
   return new Intl.DateTimeFormat("he-IL", { day: "numeric", month: "long", year: "numeric" }).format(new Date(planned));
 }
+
+// ─── Vaccination / treatment history (DogHealth + vaccine plan) ───────────────
+// One list of everything ever recorded for a dog: DogHealth *LastDate + *History
+// per type AND every `done` date in the vaccine plan (adults, puppies,
+// adultsHistory). Pure — used by the service-dog "חיסונים וטיפולים" tab, the
+// vaccine-plan POST (mirrors a done slot into DogHealth) and renewVaccine.
+
+export const VACCINATION_TYPES = [
+  { key: "rabies",     label: "כלבת" },
+  { key: "dhpp",       label: "משושה" },
+  { key: "bordetella", label: "שעלת מכלאות" },
+  { key: "parkWorm",   label: "תולעת הפארק" },
+  { key: "deworming",  label: "תילוע" },
+  { key: "fleaTick",   label: "קרציות ופרעושים" },
+] as const;
+
+export type VaccinationType = typeof VACCINATION_TYPES[number]["key"];
+
+export const VACCINATION_TYPE_LABELS: Record<VaccinationType, string> = Object.fromEntries(
+  VACCINATION_TYPES.map((t) => [t.key, t.label])
+) as Record<VaccinationType, string>;
+
+export function isVaccinationType(v: unknown): v is VaccinationType {
+  return typeof v === "string" && v in VACCINATION_TYPE_LABELS;
+}
+
+/** DogHealth columns for each type (note the historical "bordatella" spelling). */
+export const VACCINATION_HEALTH_FIELDS: Record<VaccinationType, { dateField: string; validUntilField: string; historyField: string }> = {
+  rabies:     { dateField: "rabiesLastDate",    validUntilField: "rabiesValidUntil",     historyField: "rabiesHistory" },
+  dhpp:       { dateField: "dhppLastDate",      validUntilField: "dhppValidUntil",       historyField: "dhppHistory" },
+  bordetella: { dateField: "bordatellaDate",    validUntilField: "bordatellaValidUntil", historyField: "bordatellaHistory" },
+  parkWorm:   { dateField: "parkWormDate",      validUntilField: "parkWormValidUntil",   historyField: "parkWormHistory" },
+  deworming:  { dateField: "dewormingLastDate", validUntilField: "dewormingValidUntil",  historyField: "dewormingHistory" },
+  fleaTick:   { dateField: "fleaTickDate",      validUntilField: "fleaTickExpiryDate",   historyField: "fleaTickHistory" },
+};
+
+/** Vaccine-plan treatment key → DogHealth type. SPAY_NEUTER (and unknown keys) → null. */
+export function planKeyToVaccinationType(treatmentKey: string): VaccinationType | null {
+  switch (treatmentKey) {
+    case "RABIES_BOOSTER":
+    case "RABIES_PRIMARY": return "rabies";
+    case "DHPP_BOOSTER":
+    case "DHPP_PRIMARY":   return "dhpp";
+    case "DEWORMING":      return "deworming";
+    case "PARK_WORM":      return "parkWorm";
+    case "FLEA_TICK":      return "fleaTick";
+    default:               return null;
+  }
+}
+
+const ISRAEL_YMD = new Intl.DateTimeFormat("en-CA", {
+  timeZone: "Asia/Jerusalem", year: "numeric", month: "2-digit", day: "2-digit",
+});
+
+/**
+ * Calendar day (YYYY-MM-DD) of a stored date. A bare "YYYY-MM-DD" is taken as is;
+ * a timestamp is read in Israel time (00:00Z and Israel-midnight both land on the
+ * intended day). Invalid / empty → null.
+ */
+export function toYmd(value: unknown): string | null {
+  if (value === null || value === undefined || value === "") return null;
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const d = value instanceof Date ? value : new Date(String(value));
+  if (Number.isNaN(d.getTime())) return null;
+  return ISRAEL_YMD.format(d);
+}
+
+export interface HealthHistoryEntry {
+  date: string;
+  validUntil?: string | null;
+  recordedAt?: string;
+}
+
+export interface VaccinationRecord {
+  type: VaccinationType;
+  label: string;
+  /** YYYY-MM-DD */
+  date: string;
+  /** YYYY-MM-DD when known */
+  validUntil: string | null;
+}
+
+function asHistory(raw: unknown): HealthHistoryEntry[] {
+  return Array.isArray(raw)
+    ? raw.filter((e): e is HealthHistoryEntry => !!e && typeof e === "object" && "date" in e)
+    : [];
+}
+
+/**
+ * Every recorded vaccination / treatment, newest first, de-duplicated by
+ * (type, day). When the same (type, day) appears more than once the copy with a
+ * valid-until wins (DogHealth over a bare plan checkbox).
+ */
+export function buildVaccinationHistory(
+  health: Record<string, unknown> | null | undefined,
+  plan: VaccinePlan | null | undefined,
+): VaccinationRecord[] {
+  const byKey = new Map<string, VaccinationRecord>();
+  const add = (type: VaccinationType, dateRaw: unknown, validRaw?: unknown) => {
+    const date = toYmd(dateRaw);
+    if (!date) return;
+    const validUntil = toYmd(validRaw);
+    const key = `${type}|${date}`;
+    const prev = byKey.get(key);
+    if (!prev) {
+      byKey.set(key, { type, label: VACCINATION_TYPE_LABELS[type], date, validUntil });
+      return;
+    }
+    if (!prev.validUntil && validUntil) prev.validUntil = validUntil;
+  };
+
+  if (health) {
+    for (const t of VACCINATION_TYPES) {
+      const f = VACCINATION_HEALTH_FIELDS[t.key];
+      add(t.key, health[f.dateField], health[f.validUntilField]);
+      for (const h of asHistory(health[f.historyField])) add(t.key, h.date, h.validUntil);
+    }
+  }
+
+  if (plan) {
+    const sections: Record<string, unknown>[] = [];
+    if (plan.adults) sections.push(plan.adults as unknown as Record<string, unknown>);
+    if (plan.puppies) sections.push(plan.puppies as unknown as Record<string, unknown>);
+    for (const y of plan.adultsHistory ?? []) sections.push(y as unknown as Record<string, unknown>);
+    for (const section of sections) {
+      for (const [treatmentKey, entries] of Object.entries(section)) {
+        const type = planKeyToVaccinationType(treatmentKey);
+        if (!type || !Array.isArray(entries)) continue;
+        for (const e of entries as VaccinePlanEntry[]) {
+          if (e && e.done && !e.notVaccinated) add(type, e.done);
+        }
+      }
+    }
+  }
+
+  return [...byKey.values()].sort((a, b) =>
+    a.date === b.date ? a.label.localeCompare(b.label, "he") : a.date < b.date ? 1 : -1
+  );
+}
+
+export interface HealthRecordState {
+  lastDate: unknown;
+  validUntil: unknown;
+  history: unknown;
+}
+
+export interface HealthRecordUpdate {
+  /** false = DogHealth needs no write */
+  changed: boolean;
+  lastDate: string | null;     // ISO
+  validUntil: string | null;   // ISO
+  history: HealthHistoryEntry[];
+}
+
+const ymdToIso = (ymd: string) => `${ymd}T00:00:00.000Z`;
+
+/**
+ * Record one vaccination/treatment on a DogHealth type without losing anything:
+ * - newer than the current *LastDate (or none) → current moves into history,
+ *   the new date becomes current (with its valid-until);
+ * - same day as current → only fills / replaces valid-until;
+ * - older → appended to history (sorted), current untouched;
+ * - already in history for that day → no change (idempotent).
+ */
+export function applyVaccinationRecord(
+  current: HealthRecordState,
+  input: { date: string; validUntil?: string | null; recordedAt?: string },
+): HealthRecordUpdate {
+  const newYmd = toYmd(input.date);
+  if (!newYmd) throw new Error("invalid date");
+  const newValid = toYmd(input.validUntil);
+  const recordedAt = input.recordedAt ?? new Date().toISOString();
+
+  const curYmd = toYmd(current.lastDate);
+  const curValid = toYmd(current.validUntil);
+  const history = asHistory(current.history).map((h) => ({ ...h }));
+  const out = (changed: boolean, last: string | null, valid: string | null, hist: HealthHistoryEntry[]): HealthRecordUpdate => ({
+    changed,
+    lastDate: last ? ymdToIso(last) : null,
+    validUntil: valid ? ymdToIso(valid) : null,
+    history: hist,
+  });
+
+  if (curYmd === newYmd) {
+    const nextValid = newValid ?? curValid;
+    return out(nextValid !== curValid, curYmd, nextValid, history);
+  }
+
+  if (history.some((h) => toYmd(h.date) === newYmd)) {
+    return out(false, curYmd, curValid, history);
+  }
+
+  if (!curYmd || newYmd > curYmd) {
+    const nextHistory = curYmd
+      ? [...history, { date: ymdToIso(curYmd), validUntil: curValid ? ymdToIso(curValid) : null, recordedAt }]
+      : history;
+    // No valid-until given (e.g. a dose ticked in the vaccine plan): never drop the dog out
+    // of expiry tracking — keep the current valid-until when it is still after the new date.
+    const keptValid = newValid ?? (curValid && curValid > newYmd ? curValid : null);
+    return out(true, newYmd, keptValid, nextHistory);
+  }
+
+  const entry: HealthHistoryEntry = { date: ymdToIso(newYmd), validUntil: newValid ? ymdToIso(newValid) : null, recordedAt };
+  const nextHistory = [...history, entry].sort((a, b) => {
+    const ay = toYmd(a.date) ?? "", by = toYmd(b.date) ?? "";
+    return ay < by ? -1 : ay > by ? 1 : 0;
+  });
+  return out(true, curYmd, curValid, nextHistory);
+}

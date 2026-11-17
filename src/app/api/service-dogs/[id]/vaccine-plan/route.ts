@@ -2,7 +2,8 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requireBusinessAuth, isGuardError } from "@/lib/auth-guards";
-import { buildAdultYearPlan, ADULT_TREATMENTS, PUPPY_TREATMENTS, type VaccinePlan, type VaccineSchedule } from "@/lib/vaccine-plan";
+import { buildAdultYearPlan, ADULT_TREATMENTS, PUPPY_TREATMENTS, planKeyToVaccinationType, toYmd, type VaccinePlan, type VaccineSchedule } from "@/lib/vaccine-plan";
+import { renewVaccine } from "@/services/pets";
 
 // ─── helpers ───
 
@@ -212,6 +213,18 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       where: { id: params.id },
       data: { vaccinePlan: newPlan as object },
     });
+
+    // Mirror a done dose into DogHealth (*LastDate when newer, else *History) so
+    // the dog's vaccination history keeps it even after the plan year rolls over
+    // or the checkbox is cleared. Undo never deletes history. Best effort.
+    const healthType = planKeyToVaccinationType(treatmentKey);
+    if (healthType && doneDate && notVaccinated === undefined && toYmd(doneDate)) {
+      try {
+        await renewVaccine(authResult.businessId, prisma, dog.petId, { vaccineType: healthType, newDate: doneDate });
+      } catch (e) {
+        console.error("vaccine-plan POST: DogHealth history sync failed", e);
+      }
+    }
 
     // Sync medical protocol dueDate to next planned date from annual schedule
     if (dog.medicalProtocols.length > 0) {
