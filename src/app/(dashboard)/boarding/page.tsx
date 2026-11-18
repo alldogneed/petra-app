@@ -62,6 +62,15 @@ import { PetraLoader } from "@/components/ui/PetraLoader";
 import { CustomerPicker, type PickerCustomer } from "@/components/customers/CustomerPicker";
 import { usePermissions } from "@/hooks/usePermissions";
 import { staysOverlap, staysShareNight, israelDayKey } from "@/lib/boarding-overlap";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import {
+  buildStayMovePatch,
+  dragDayDelta,
+  isStayDraggable,
+  shiftIsoByIsraelDays,
+  UNASSIGNED_ROW,
+  type StayMovePatch,
+} from "@/lib/boarding-drag";
 import { normalizeHebrewPunct } from "@/lib/text-variants";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -645,6 +654,30 @@ function dayKeyDiff(a: string, b: string): number {
   return Math.round((Date.UTC(by, bm - 1, bd) - Date.UTC(ay, am - 1, ad)) / 86400000);
 }
 
+/** Day + time label for the move confirmation ("12.11, 14:00"). */
+function formatDateTimeShort(iso: string): string {
+  return new Date(iso).toLocaleString("he-IL", { day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+/** Live drag state of a timeline bar (only while a drag is active). */
+interface TimelineDrag {
+  stayId: string;
+  originRow: string;
+  targetRow: string;
+  dayDelta: number;
+}
+
+interface TimelinePendingMove {
+  stay: BoardingStay;
+  patch: StayMovePatch;
+}
+
+const TL_LONG_PRESS_MS = 300;
+const TL_TOUCH_TOLERANCE = 8; // px a finger may move before the long-press = a scroll
+const TL_MOUSE_THRESHOLD = 5; // px before a mouse press becomes a drag
+const TL_EDGE = 36; // px from the scroller edge that auto-scrolls during a drag
+const TL_EDGE_STEP = 14;
+
 function TimelineView({
   rooms,
   stays,
@@ -652,6 +685,7 @@ function TimelineView({
   startDate,
   search = "",
   onOpenStay,
+  canDrag = false,
 }: {
   rooms: Room[];
   stays: BoardingStay[];
@@ -661,6 +695,8 @@ function TimelineView({
   /** Normalised search query (normSearch) — only rows with a matching stay are shown. */
   search?: string;
   onOpenStay?: (stay: BoardingStay) => void;
+  /** Bars can be dragged to another room / other dates (BOARDING_MANAGE). */
+  canDrag?: boolean;
 }) {
   // Columns stretch to fill the card (a fixed 44px/day left half of a wide screen white —
   // גבעת הכלבים 17/11/2026) and the room column is narrower on phones.
@@ -734,28 +770,249 @@ function TimelineView({
 
   const todayIndex = diffDays(realToday, today); // may be out of range when browsing past/future
 
-  function renderBars(list: BoardingStay[]) {
+  // ── Drag a bar to another room row and/or other dates ──
+  // Pointer events (mouse + touch). Mouse: press and move 5px. Touch: long-press 300ms,
+  // then move — a finger that moves earlier is a normal scroll.
+  const queryClient = useQueryClient();
+  const [drag, setDrag] = useState<TimelineDrag | null>(null);
+  const [pendingMove, setPendingMove] = useState<TimelinePendingMove | null>(null);
+  const dayWRef = useRef(dayW);
+  dayWRef.current = dayW;
+  const roomWRef = useRef(roomW);
+  roomWRef.current = roomW;
+  const suppressClickRef = useRef(false);
+  const draggingRef = useRef(false);
+  const cleanupRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => () => cleanupRef.current?.(), []);
+
+  // While a touch drag is active, stop the browser from scrolling the timeline
+  // (needs a non-passive listener — React's onTouchMove is passive).
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const onTouchMove = (ev: TouchEvent) => { if (draggingRef.current) ev.preventDefault(); };
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    return () => el.removeEventListener("touchmove", onTouchMove);
+  }, []);
+
+  const moveMutation = useMutation({
+    mutationFn: ({ id, patch }: { id: string; patch: StayMovePatch }) =>
+      fetchJSON<BoardingStay>(`/api/boarding/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      }),
+    onSuccess: () => {
+      setPendingMove(null);
+      toast.success("ההזמנה עודכנה");
+    },
+    onError: (err: unknown) => {
+      setPendingMove(null);
+      toast.error(err instanceof Error && err.message ? err.message : "שגיאה בעדכון ההזמנה");
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["boarding"] });
+      queryClient.invalidateQueries({ queryKey: ["boarding-occupancy"] });
+      queryClient.invalidateQueries({ queryKey: ["rooms"] });
+    },
+  });
+
+  function rowAtPoint(x: number, y: number): string | null {
+    const el = document.elementFromPoint(x, y) as HTMLElement | null;
+    return el?.closest<HTMLElement>("[data-tl-row]")?.dataset.tlRow ?? null;
+  }
+
+  function handleBarPointerDown(e: React.PointerEvent<HTMLButtonElement>, stay: BoardingStay, originRow: string) {
+    suppressClickRef.current = false;
+    if (!canDrag || !isStayDraggable(stay.status) || moveMutation.isPending) return;
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    const scroller = scrollRef.current;
+    if (!scroller) return;
+    cleanupRef.current?.();
+
+    const pointerId = e.pointerId;
+    const isTouch = e.pointerType !== "mouse";
+    const st = {
+      startX: e.clientX,
+      startY: e.clientY,
+      startScroll: scroller.scrollLeft,
+      lastX: e.clientX,
+      lastY: e.clientY,
+      active: false,
+      targetRow: originRow,
+      dayDelta: 0,
+      timer: 0,
+    };
+
+    const publish = () => {
+      const dx = st.lastX + scroller.scrollLeft - (st.startX + st.startScroll);
+      const delta = dragDayDelta(dx, dayWRef.current);
+      const row = rowAtPoint(st.lastX, st.lastY) ?? st.targetRow;
+      if (delta === st.dayDelta && row === st.targetRow && st.active && draggingRef.current) {
+        // unchanged — skip a re-render
+        return;
+      }
+      st.dayDelta = delta;
+      st.targetRow = row;
+      setDrag({ stayId: stay.id, originRow, targetRow: row, dayDelta: delta });
+    };
+
+    const activate = () => {
+      st.active = true;
+      suppressClickRef.current = true;
+      setDrag({ stayId: stay.id, originRow, targetRow: originRow, dayDelta: 0 });
+      draggingRef.current = true;
+      if (isTouch && typeof navigator !== "undefined" && "vibrate" in navigator) {
+        try { navigator.vibrate(15); } catch { /* not supported */ }
+      }
+    };
+
+    const autoScroll = (x: number, y: number) => {
+      const r = scroller.getBoundingClientRect();
+      if (x < r.left + roomWRef.current + TL_EDGE) scroller.scrollLeft -= TL_EDGE_STEP;
+      else if (x > r.right - TL_EDGE) scroller.scrollLeft += TL_EDGE_STEP;
+      if (y < r.top + TL_EDGE + 40) scroller.scrollTop -= TL_EDGE_STEP;
+      else if (y > r.bottom - TL_EDGE) scroller.scrollTop += TL_EDGE_STEP;
+    };
+
+    const finish = (commit: boolean) => {
+      window.clearTimeout(st.timer);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onCancel);
+      window.removeEventListener("keydown", onKey);
+      cleanupRef.current = null;
+      draggingRef.current = false;
+      setDrag(null);
+      if (!st.active) return;
+      // The click that follows pointerup must not open the stay.
+      window.setTimeout(() => { suppressClickRef.current = false; }, 0);
+      if (!commit) return;
+      // Dropped back on its own row → the room is unchanged (also for a stay whose
+      // room is not in the list and therefore sits in the "ללא חדר" row).
+      const row = st.targetRow === originRow ? (stay.room?.id ?? UNASSIGNED_ROW) : st.targetRow;
+      const patch = buildStayMovePatch(
+        { checkIn: stay.checkIn, checkOut: stay.checkOut, roomId: stay.room?.id ?? null },
+        st.dayDelta,
+        row,
+      );
+      if (patch) setPendingMove({ stay, patch });
+    };
+
+    function onMove(ev: PointerEvent) {
+      if (ev.pointerId !== pointerId) return;
+      st.lastX = ev.clientX;
+      st.lastY = ev.clientY;
+      if (!st.active) {
+        const dist = Math.hypot(ev.clientX - st.startX, ev.clientY - st.startY);
+        if (isTouch) {
+          if (dist > TL_TOUCH_TOLERANCE) finish(false); // a scroll, not a long-press
+          return;
+        }
+        if (dist < TL_MOUSE_THRESHOLD) return;
+        activate();
+      }
+      autoScroll(ev.clientX, ev.clientY);
+      publish();
+    }
+    function onUp(ev: PointerEvent) {
+      if (ev.pointerId !== pointerId) return;
+      if (st.active) {
+        st.lastX = ev.clientX;
+        st.lastY = ev.clientY;
+        publish();
+      }
+      finish(true);
+    }
+    function onCancel(ev: PointerEvent) {
+      if (ev.pointerId === pointerId) finish(false);
+    }
+    function onKey(ev: KeyboardEvent) {
+      if (ev.key === "Escape") finish(false);
+    }
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onCancel);
+    window.addEventListener("keydown", onKey);
+    cleanupRef.current = () => finish(false);
+    if (isTouch) st.timer = window.setTimeout(activate, TL_LONG_PRESS_MS);
+  }
+
+  const draggedStay = drag ? stays.find((s) => s.id === drag.stayId) ?? null : null;
+
+  function renderGhost(rowKey: string, list: BoardingStay[]) {
+    if (!drag || !draggedStay || drag.targetRow !== rowKey) return null;
+    const { start, end } = spanOf(draggedStay);
+    const s = start + drag.dayDelta;
+    const e = end + drag.dayDelta;
+    const visibleStart = Math.max(0, s);
+    const visibleEnd = Math.min(numDays, e);
+    const width = Math.max(dayW / 2, (visibleEnd - visibleStart) * dayW);
+    const sameRow = rowKey === drag.originRow;
+    const idx = sameRow ? Math.max(0, list.findIndex((x) => x.id === draggedStay.id)) : list.length;
+    const newIn = drag.dayDelta ? shiftIsoByIsraelDays(draggedStay.checkIn, drag.dayDelta) : draggedStay.checkIn;
+    const newOut = draggedStay.checkOut
+      ? (drag.dayDelta ? shiftIsoByIsraelDays(draggedStay.checkOut, drag.dayDelta) : draggedStay.checkOut)
+      : null;
+    const offscreen = visibleEnd <= 0 || visibleStart >= numDays;
+    return (
+      <div
+        key="__ghost"
+        dir="rtl"
+        aria-hidden
+        className="absolute z-[5] pointer-events-none rounded-md border-2 border-dashed border-brand-500 bg-brand-100/80 flex items-center gap-1 px-2 text-[10px] font-semibold text-brand-800 overflow-hidden whitespace-nowrap shadow-md"
+        style={{
+          left: `${offscreen ? 0 : visibleStart * dayW}px`,
+          width: `${offscreen ? dayW : width}px`,
+          top: `${4 + idx * TL_ROW_H}px`,
+          height: "22px",
+        }}
+      >
+        <PawPrint className="w-3 h-3 flex-shrink-0" />
+        <span className="truncate">
+          {draggedStay.pet.name} · {formatDate(newIn)}{newOut ? ` → ${formatDate(newOut)}` : ""}
+        </span>
+      </div>
+    );
+  }
+
+  function renderBars(list: BoardingStay[], rowKey: string) {
     return list.map((stay, rowIdx) => {
       const pos = getBarPosition(stay);
       const barColor = stay.status === "checked_in" ? "#22C55E"
         : stay.status === "checked_out" ? "#3B82F6"
         : "#94A3B8";
       const range = `${formatDate(stay.checkIn)}${stay.checkOut ? ` → ${formatDate(stay.checkOut)}` : ""}`;
+      const draggable = canDrag && isStayDraggable(stay.status);
+      const isDragged = drag?.stayId === stay.id;
       return (
         <button
           type="button"
           key={stay.id}
-          onClick={() => onOpenStay?.(stay)}
+          onClick={() => {
+            if (suppressClickRef.current) { suppressClickRef.current = false; return; }
+            onOpenStay?.(stay);
+          }}
+          onPointerDown={draggable ? (e) => handleBarPointerDown(e, stay, rowKey) : undefined}
+          onContextMenu={draggable ? (e) => e.preventDefault() : undefined}
           dir="rtl"
-          className="absolute rounded-md flex items-center gap-1 px-2 text-[10px] font-semibold text-white overflow-hidden whitespace-nowrap shadow-sm cursor-pointer hover:brightness-110 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 transition-[filter,box-shadow]"
+          className={cn(
+            "absolute rounded-md flex items-center gap-1 px-2 text-[10px] font-semibold text-white overflow-hidden whitespace-nowrap shadow-sm hover:brightness-110 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 transition-[filter,box-shadow,opacity]",
+            draggable ? "cursor-grab select-none" : "cursor-pointer",
+            isDragged && "opacity-40 ring-2 ring-brand-400",
+          )}
           style={{
             left: pos.left,
             width: pos.width,
             top: `${4 + rowIdx * TL_ROW_H}px`,
             height: "22px",
             backgroundColor: barColor,
+            WebkitTouchCallout: draggable ? "none" : undefined,
+            WebkitUserSelect: draggable ? "none" : undefined,
           }}
-          title={`${stay.pet.name} — ${stay.customer?.name ?? "כלב שירות"}\n${range}\nלחצו לפתיחת ההזמנה`}
+          title={`${stay.pet.name} — ${stay.customer?.name ?? "כלב שירות"}\n${range}\nלחצו לפתיחת ההזמנה${draggable ? " · גררו להעברת חדר או תאריכים" : ""}`}
           aria-label={`${stay.pet.name}, ${range} — פתח את ההזמנה`}
         >
           <PawPrint className="w-3 h-3 flex-shrink-0" />
@@ -766,6 +1023,27 @@ function TimelineView({
         </button>
       );
     });
+  }
+
+  /** Extra stacked slot for the ghost when it lands in a row it does not come from. */
+  function ghostExtra(rowKey: string): number {
+    return drag && drag.targetRow === rowKey && drag.originRow !== rowKey ? 1 : 0;
+  }
+
+  function moveDescription(m: TimelinePendingMove): string {
+    const parts: string[] = [];
+    if (m.patch.roomId !== undefined) {
+      const room = m.patch.roomId ? rooms.find((r) => r.id === m.patch.roomId) : null;
+      parts.push(room ? `לחדר ${room.name}` : "לשורת ״ללא חדר״");
+    }
+    let text = `להעביר את ${m.stay.pet.name}${parts.length ? ` ${parts[0]}` : ""}`;
+    if (m.patch.checkIn) {
+      const out = m.patch.checkOut;
+      text += ` · ${formatDateTimeShort(m.patch.checkIn)}${out ? ` → ${formatDateTimeShort(out)}` : " (ללא תאריך יציאה)"}`;
+    } else {
+      text += ` · התאריכים לא משתנים`;
+    }
+    return `${text}?`;
   }
 
   function renderGridLines(withTint: boolean) {
@@ -791,10 +1069,22 @@ function TimelineView({
   }
 
   const unassigned = roomStaysMap["unassigned"] || [];
+  const showUnassignedRow = unassigned.length > 0 || !!drag;
+  const unassignedH = Math.max(48, (unassigned.length + ghostExtra(UNASSIGNED_ROW)) * TL_ROW_H + 8);
 
   return (
     <div className="card overflow-hidden">
-      <div ref={scrollRef} className="overflow-auto max-h-[75vh] overscroll-contain" dir="ltr" data-no-pull-refresh>
+      {canDrag && (
+        <p className="px-3 py-1.5 text-[11px] text-petra-muted border-b border-slate-100" dir="rtl">
+          אפשר לגרור הזמנה לחדר אחר או לתאריכים אחרים — בטלפון: לחיצה ארוכה ואז גרירה.
+        </p>
+      )}
+      <div
+        ref={scrollRef}
+        className={cn("overflow-auto max-h-[75vh] overscroll-contain", drag && "cursor-grabbing select-none")}
+        dir="ltr"
+        data-no-pull-refresh
+      >
         <div style={{ width: roomW + trackWidth }}>
           {/* Header row — sticky on top while scrolling down through the rooms */}
           <div className="flex sticky top-0 z-20 bg-white border-b border-petra-border">
@@ -833,10 +1123,11 @@ function TimelineView({
             const roomStays = roomStaysMap[room.id] || [];
             const displayStatus = getRoomDisplayStatus(room);
             const statusColor = ROOM_STATUS_MAP[displayStatus]?.color || "#94A3B8";
-            const rowHeight = Math.max(48, roomStays.length * TL_ROW_H + 8);
+            const rowHeight = Math.max(48, (roomStays.length + ghostExtra(room.id)) * TL_ROW_H + 8);
+            const isDropTarget = !!drag && drag.targetRow === room.id;
 
             return (
-              <div key={room.id} className="flex border-b border-slate-100">
+              <div key={room.id} className="flex border-b border-slate-100" data-tl-row={room.id}>
                 {/* Room label — sticky on the side while scrolling sideways */}
                 <div
                   className="sticky left-0 z-10 flex-shrink-0 p-2 flex items-center gap-2 bg-slate-50 border-r border-petra-border"
@@ -852,10 +1143,14 @@ function TimelineView({
                 </div>
 
                 {/* Timeline cells with bars */}
-                <div className="relative flex-shrink-0" style={{ width: trackWidth, minHeight: rowHeight }}>
+                <div
+                  className={cn("relative flex-shrink-0", isDropTarget && "bg-brand-50/60")}
+                  style={{ width: trackWidth, minHeight: rowHeight }}
+                >
                   {renderGridLines(true)}
-                  {renderBars(roomStays)}
-                  {roomStays.length === 0 && (
+                  {renderBars(roomStays, room.id)}
+                  {renderGhost(room.id, roomStays)}
+                  {roomStays.length === 0 && !isDropTarget && (
                     <div className="absolute inset-0 flex items-center justify-center">
                       <span className="text-[10px] text-slate-300">—</span>
                     </div>
@@ -866,22 +1161,23 @@ function TimelineView({
           })}
 
           {/* Unassigned row */}
-          {unassigned.length > 0 && (
-            <div className="flex border-b border-slate-100">
+          {showUnassignedRow && (
+            <div className="flex border-b border-slate-100" data-tl-row={UNASSIGNED_ROW}>
               <div
                 className="sticky left-0 z-10 flex-shrink-0 p-2 flex items-center gap-2 bg-slate-100 border-r border-petra-border"
-                style={{ width: roomW, minHeight: Math.max(48, unassigned.length * TL_ROW_H + 8) }}
+                style={{ width: roomW, minHeight: unassignedH }}
                 dir="rtl"
               >
                 <Hotel className="w-3.5 h-3.5 text-slate-400" />
                 <span className="text-xs font-medium text-slate-500">ללא חדר</span>
               </div>
               <div
-                className="relative flex-shrink-0"
-                style={{ width: trackWidth, minHeight: Math.max(48, unassigned.length * TL_ROW_H + 8) }}
+                className={cn("relative flex-shrink-0", drag?.targetRow === UNASSIGNED_ROW && "bg-brand-50/60")}
+                style={{ width: trackWidth, minHeight: unassignedH }}
               >
                 {renderGridLines(false)}
-                {renderBars(unassigned)}
+                {renderBars(unassigned, UNASSIGNED_ROW)}
+                {renderGhost(UNASSIGNED_ROW, unassigned)}
               </div>
             </div>
           )}
@@ -891,6 +1187,17 @@ function TimelineView({
           )}
         </div>
       </div>
+      <ConfirmDialog
+        open={!!pendingMove}
+        title="עדכון ההזמנה"
+        description={pendingMove ? moveDescription(pendingMove) : undefined}
+        confirmLabel="העבר"
+        loading={moveMutation.isPending}
+        onConfirm={() => {
+          if (pendingMove) moveMutation.mutate({ id: pendingMove.stay.id, patch: pendingMove.patch });
+        }}
+        onCancel={() => setPendingMove(null)}
+      />
     </div>
   );
 }
@@ -3338,7 +3645,7 @@ function BoardingPageContent() {
               <p className="text-sm text-petra-muted">אין חדרים מוגדרים</p>
             </div>
           ) : (
-            <TimelineView rooms={rooms} stays={stays} search={searchNorm} onOpenStay={setEditStay} numDays={timelineDays} startDate={timelineStart ? new Date(timelineStart + "T00:00:00") : undefined} />
+            <TimelineView rooms={rooms} stays={stays} search={searchNorm} onOpenStay={setEditStay} canDrag={canManageBoarding} numDays={timelineDays} startDate={timelineStart ? new Date(timelineStart + "T00:00:00") : undefined} />
           )}
         </div>
       )}
