@@ -99,7 +99,7 @@ const CreateTenantSchema = z.object({
   tier: z.enum(["free", "basic", "pro", "groomer", "groomer_plus", "service_dog"]).default("pro"),
   trialDays: z.number().int().min(0).max(365).optional().default(14),
   ownerName: z.string().min(1).max(100).optional(),
-  ownerEmail: z.string().email().optional(),
+  ownerEmail: z.string().trim().toLowerCase().email().optional(),
   ownerPassword: z.string().min(8).optional(),
 });
 
