@@ -338,7 +338,7 @@ export const CRITICAL_CAPABILITIES = [
   // ── תפעול ויומן ──
   { perms: [TENANT_PERMS.AVAILABILITY_MANAGE], key: TENANT_PERMS.AVAILABILITY_MANAGE, group: "operations", label: "לשנות שעות פעילות וזמינות", hint: "שעות פעילות, הפסקות, חסימות תאריכים, חגים וחוקי הזמנה אונליין" },
   { perms: [TENANT_PERMS.CALENDAR_SYNC],   key: TENANT_PERMS.CALENDAR_SYNC,   group: "operations", label: "לקבל את פגישות העסק ב-Google Calendar האישי", hint: "פגישות חדשות נשלחות ליומן Google שהעובד חיבר" },
-  { perms: [TENANT_PERMS.BOARDING_MANAGE], key: TENANT_PERMS.BOARDING_MANAGE, group: "operations", label: "לנהל פנסיון (חדרים ותפוסה)", hint: "חדרים, חצרות ומבנה הפנסיון" },
+  { perms: [TENANT_PERMS.BOARDING_MANAGE], key: TENANT_PERMS.BOARDING_MANAGE, group: "operations", label: "לנהל פנסיון (חדרים ותפוסה)", hint: "חדרים, חצרות ומבנה הפנסיון, והעברת שהייה לחדר או לתאריכים אחרים (גם בגרירה)" },
   // ── תקשורת ו-AI ──
   { perms: [TENANT_PERMS.MESSAGES_SEND],   key: TENANT_PERMS.MESSAGES_SEND,   group: "communication", label: "לשלוח הודעות ללקוחות", hint: "WhatsApp, אימייל ותזכורות ידניות" },
   { perms: [TENANT_PERMS.AI_ASSISTANT],    key: TENANT_PERMS.AI_ASSISTANT,    group: "communication", label: "גישה לעוזר AI", hint: "חיבור Claude/ChatGPT לעסק (מנהלים בלבד)" },

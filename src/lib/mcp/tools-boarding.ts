@@ -24,6 +24,7 @@ import { parseOrderDateTime } from "@/lib/order-time";
 const israelInstant = (s: string): Date => parseOrderDateTime(s) ?? new Date(s);
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { TENANT_PERMS } from "@/lib/permissions";
 import prisma from "@/lib/prisma";
 import {
   textResult,
@@ -688,6 +689,10 @@ export function registerBoardingTools(server: McpServer, ctx: ToolCtx): void {
     },
     async (args) => {
       if (!ctx.hasScope("write:boarding")) return ctx.denyScope("update_boarding_stay", "write:boarding");
+      // Room / yard / date changes need BOARDING_MANAGE (same rule as PATCH /api/boarding/[id]).
+      if ((args.room_id || args.yard_id || args.check_in || args.check_out || args.check_in_time || args.check_out_time) && !ctx.hasPermission(TENANT_PERMS.BOARDING_MANAGE)) {
+        return ctx.denyPermission("update_boarding_stay", TENANT_PERMS.BOARDING_MANAGE);
+      }
       const params = { ...args };
       try {
         const replay = await findIdempotentReplay(connectionId, "update_boarding_stay", args.idempotency_key);
