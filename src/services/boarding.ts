@@ -9,7 +9,7 @@
  */
 
 import { parseOrderDateTime } from "@/lib/order-time";
-import { staysOverlap, staysOverlapAt, israelDayKey } from "@/lib/boarding-overlap";
+import { staysOverlap, staysShareNight, israelDayKey } from "@/lib/boarding-overlap";
 import type { PrismaClient } from "@prisma/client";
 import { ServiceError } from "./types";
 
@@ -273,8 +273,8 @@ function roomFullMessage(capacity: number) {
 
 /**
  * Count active (reserved/checked_in) stays in a room that share a night with the
- * given stay — by date + time (`staysOverlapAt`: out 17:00 / in 19:00 the same day fits, a day
- * stay doesn't block the night after it; day rule when a time is missing). Null checkOut = open-ended.
+ * given stay — by shared NIGHTS (`staysShareNight`): hours ignored, the check-out day is free and a
+ * day stay takes no night. Null checkOut = open-ended.
  */
 async function countOverlappingRoomStays(
   db: DbClient,
@@ -297,7 +297,7 @@ async function countOverlappingRoomStays(
     },
     select: { checkIn: true, checkOut: true },
   });
-  return candidates.filter((s) => staysOverlapAt(s, { checkIn, checkOut })).length;
+  return candidates.filter((s) => staysShareNight(s, { checkIn, checkOut })).length;
 }
 
 /** An active (reserved / checked_in) stay of this pet that shares a night with the range. */
@@ -872,12 +872,12 @@ export async function checkRoomAvailability(
       customer: { select: { id: true, name: true } },
     },
   });
-  // With times (ISO / "YYYY-MM-DDTHH:mm", Israel wall-clock) → the same date + time rule as the
-  // save (`staysOverlapAt`); bare days → the day rule.
+  // With times (ISO / "YYYY-MM-DDTHH:mm", Israel wall-clock) → the same nights rule as the save
+  // (`staysShareNight`); bare days → the day rule.
   const withTime = from.length > 10 && to.length > 10;
   const conflicts = candidates.filter((s) =>
     withTime
-      ? staysOverlapAt(s, { checkIn: stayTime(from), checkOut: stayTime(to) })
+      ? staysShareNight(s, { checkIn: stayTime(from), checkOut: stayTime(to) })
       : staysOverlap(s, { checkIn: israelDayKey(from), checkOut: israelDayKey(to) })
   );
 

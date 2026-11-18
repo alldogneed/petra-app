@@ -45,27 +45,20 @@ export function staysOverlap(
 
 type StayTimes = { checkIn: Date | string; checkOut: Date | string | null | undefined };
 
-function instantOf(v: Date | string): number | null {
-  if (v instanceof Date) return Number.isNaN(v.getTime()) ? null : v.getTime();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return null; // a bare day has no time
-  const t = new Date(v).getTime();
-  return Number.isNaN(t) ? null : t;
-}
-
 /**
- * Room CAPACITY overlap by actual date + time (גבעת הכלבים 17/11/2026): a dog that leaves at
- * 17:00 and a dog that arrives at 19:00 the same day can share a capacity-1 room, and a day
- * stay (09:00–16:00) no longer blocks the night after it. Half-open [checkIn, checkOut), so
- * out 12:00 / in 12:00 fits. Falls back to the day rule (`staysOverlap`) when a side has no
- * time (bare "YYYY-MM-DD") or a zero / negative length. Open-ended = no end.
+ * Room CAPACITY rule = shared NIGHTS, Israel calendar days, hours ignored (גבעת הכלבים 18/11/2026:
+ * a dog arriving in the morning and a dog leaving in the evening share a capacity-1 room every
+ * day — the staff arrange them by hand). A stay takes the nights [check-in day, check-out day);
+ * the check-out day is always free whatever the hour, and a same-day stay (day care) takes no
+ * night, so it never blocks the room. Open-ended = every night from check-in.
+ * (`staysOverlap` stays the display / duplicate-dog rule, where a day stay occupies its day.)
  */
-export function staysOverlapAt(a: StayTimes, b: StayTimes): boolean {
-  const aIn = instantOf(a.checkIn);
-  const bIn = instantOf(b.checkIn);
-  const aOut = a.checkOut == null ? Infinity : instantOf(a.checkOut);
-  const bOut = b.checkOut == null ? Infinity : instantOf(b.checkOut);
-  if (aIn == null || bIn == null || aOut == null || bOut == null || aOut <= aIn || bOut <= bIn) {
-    return staysOverlap(a, b);
-  }
-  return aIn < bOut && bIn < aOut;
+export function staysShareNight(a: StayTimes, b: StayTimes): boolean {
+  const aStart = israelDayKey(a.checkIn);
+  const bStart = israelDayKey(b.checkIn);
+  const aEnd = a.checkOut == null ? null : israelDayKey(a.checkOut);
+  const bEnd = b.checkOut == null ? null : israelDayKey(b.checkOut);
+  if (aEnd !== null && aEnd <= aStart) return false; // day stay — no night
+  if (bEnd !== null && bEnd <= bStart) return false;
+  return (aEnd === null || bStart < aEnd) && (bEnd === null || aStart < bEnd);
 }
