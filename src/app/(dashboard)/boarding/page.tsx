@@ -72,6 +72,7 @@ import {
   type StayMovePatch,
 } from "@/lib/boarding-drag";
 import { normalizeHebrewPunct } from "@/lib/text-variants";
+import { packLanes, type LaneLayout } from "@/lib/timeline-lanes";
 import {
   addDayKey,
   dayKeyDiff,
@@ -902,6 +903,17 @@ function TimelineView({
     return map;
   }, [rooms, stays, spanOf, numDays, search]);
 
+  // Non-overlapping stays share a line — otherwise a room with history gets one line per stay.
+  const laneMap = useMemo(() => {
+    const out: Record<string, LaneLayout> = {};
+    for (const [key, list] of Object.entries(roomStaysMap)) {
+      out[key] = packLanes(list.map((st) => ({ id: st.id, ...spanOf(st) })));
+    }
+    return out;
+  }, [roomStaysMap, spanOf]);
+  const lanesOf = (key: string) => laneMap[key]?.lanes ?? 0;
+  const laneIndex = (key: string, stayId: string) => laneMap[key]?.laneOf.get(stayId) ?? 0;
+
   const visibleRooms = search
     ? rooms.filter((r) => (roomStaysMap[r.id] || []).length > 0 || normSearch(r.name).includes(search))
     : rooms;
@@ -1093,7 +1105,8 @@ function TimelineView({
     const visibleEnd = Math.min(numDays, e);
     const width = Math.max(dayW / 2, (visibleEnd - visibleStart) * dayW);
     const sameRow = rowKey === drag.originRow;
-    const idx = sameRow ? Math.max(0, list.findIndex((x) => x.id === draggedStay.id)) : list.length;
+    const layoutKey = rowKey === UNASSIGNED_ROW ? "unassigned" : rowKey;
+    const idx = sameRow ? laneIndex(layoutKey, draggedStay.id) : lanesOf(layoutKey);
     const newIn = drag.dayDelta ? shiftIsoByIsraelDays(draggedStay.checkIn, drag.dayDelta) : draggedStay.checkIn;
     const newOut = draggedStay.checkOut
       ? (drag.dayDelta ? shiftIsoByIsraelDays(draggedStay.checkOut, drag.dayDelta) : draggedStay.checkOut)
@@ -1124,7 +1137,9 @@ function TimelineView({
   }
 
   function renderBars(list: BoardingStay[], rowKey: string) {
-    return list.map((stay, rowIdx) => {
+    const layoutKey = rowKey === UNASSIGNED_ROW ? "unassigned" : rowKey;
+    return list.map((stay) => {
+      const rowIdx = laneIndex(layoutKey, stay.id);
       const pos = getBarPosition(stay);
       const barColor = stay.status === "checked_in" ? "#22C55E"
         : stay.status === "checked_out" ? "#3B82F6"
@@ -1286,7 +1301,7 @@ function TimelineView({
 
   const unassigned = roomStaysMap["unassigned"] || [];
   const showUnassignedRow = unassigned.length > 0 || !!drag;
-  const unassignedH = rowHeightFor(unassigned.length + ghostExtra(UNASSIGNED_ROW));
+  const unassignedH = rowHeightFor(lanesOf("unassigned") + ghostExtra(UNASSIGNED_ROW));
 
   return (
     <div className="card overflow-hidden">
@@ -1313,7 +1328,7 @@ function TimelineView({
             const roomStays = roomStaysMap[room.id] || [];
             const displayStatus = getRoomDisplayStatus(room);
             const statusColor = ROOM_STATUS_MAP[displayStatus]?.color || "#94A3B8";
-            const rowHeight = rowHeightFor(roomStays.length + ghostExtra(room.id));
+            const rowHeight = rowHeightFor(lanesOf(room.id) + ghostExtra(room.id));
             const isDropTarget = !!drag && drag.targetRow === room.id;
 
             return (
