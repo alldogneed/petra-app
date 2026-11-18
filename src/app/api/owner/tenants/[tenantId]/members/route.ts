@@ -46,7 +46,7 @@ export async function GET(
 
 const AddMemberSchema = z.object({
   name: z.string().min(1).max(100),
-  email: z.string().email(),
+  email: z.string().trim().toLowerCase().email(),
   role: z.enum(["owner", "manager", "user"]).default("user"),
   temporaryPassword: z.string().min(8).optional(),
 });
