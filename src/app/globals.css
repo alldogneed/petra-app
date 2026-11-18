@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* No dark theme — keep browsers from auto-darkening the app (see layout.tsx viewport). */
+:root { color-scheme: only light; }
+
 @layer base {
   * {
     box-sizing: border-box;
