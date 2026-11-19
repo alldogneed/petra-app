@@ -268,8 +268,9 @@ export const PRICE_ANSWER_LINE =
 /**
  * Plain boarding (a stay, no training) — Or, 6/11: about 120–140 ₪ a day, depending on the place
  * that takes the dog; the rep comes back with exact prices. Training in boarding stays "לפי אבחון".
+ * Or, 19/11: minimum stay = 2 days (Perach asked Friday → Saturday evening and was promised a match).
  */
-export const BOARDING_PRICE_LINE = "פנסיון רגיל (בלי אילוף): בערך 120 עד 140 ₪ ליום, תלוי במקום שיקבל אתכם. הנציגה תחזור עם מחירים מסודרים.";
+export const BOARDING_PRICE_LINE = "פנסיון רגיל (בלי אילוף): בערך 120 עד 140 ₪ ליום, מינימום יומיים, תלוי במקום שיקבל אתכם. הנציגה תחזור עם מחירים מסודרים.";
 
 /** The reply to a price question must carry the diagnosis price — else the short answer opens it. Pure — tested. */
 export function enforcePriceAnswer(reply: string): string {
