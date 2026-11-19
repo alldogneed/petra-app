@@ -409,17 +409,14 @@ function ServiceDogProfilePageContent() {
     onError: () => toast.error("שגיאה בעדכון מיקום"),
   });
 
-  // Pop-up note: once per browser session per dog (per note text — an edited
-  // note pops up again). sessionStorage can throw (private mode / blocked).
+  // Pop-up note: shown every time the dog's file is opened (סימבה asked for "בעת כניסה
+  // לתיק הכלב"; 19/11/2026). Once per opening — editing the note does not re-open it.
   const alertNote = dog?.alertNote?.trim() || null;
+  const alertShownForRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!alertNote) return;
-    const key = `sd-alert-${dogId}`;
-    let seen = false;
-    try { seen = sessionStorage.getItem(key) === alertNote; } catch { /* storage unavailable */ }
-    if (seen) return;
+    if (!alertNote || alertShownForRef.current === dogId) return;
+    alertShownForRef.current = dogId;
     setShowAlertPopup(true);
-    try { sessionStorage.setItem(key, alertNote); } catch { /* storage unavailable */ }
   }, [alertNote, dogId]);
 
   const alertNoteMutation = useMutation({
@@ -436,11 +433,8 @@ function ServiceDogProfilePageContent() {
         return r.json() as Promise<{ alertNote: string | null }>;
       }),
     onSuccess: (updated) => {
-      // The editor just wrote it — don't pop it up at them again this session.
-      try {
-        if (updated?.alertNote) sessionStorage.setItem(`sd-alert-${dogId}`, updated.alertNote.trim());
-        else sessionStorage.removeItem(`sd-alert-${dogId}`);
-      } catch { /* storage unavailable */ }
+      // The editor just wrote it — don't pop it up at them right away.
+      alertShownForRef.current = dogId;
       queryClient.invalidateQueries({ queryKey: ["service-dog-detail", dogId] });
       setShowAlertEditor(false);
       toast.success(updated?.alertNote ? "ההערה הקופצת נשמרה" : "ההערה הקופצת הוסרה");
