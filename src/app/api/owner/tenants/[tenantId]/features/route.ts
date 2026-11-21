@@ -2,28 +2,12 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { requirePlatformPermission, isGuardError } from "@/lib/auth-guards";
-import type { FeatureKey } from "@/lib/feature-flags";
+import { ALL_FEATURE_KEYS, type FeatureKey } from "@/lib/feature-flags";
 
-// All valid feature keys — used to sanitise the incoming payload
-const VALID_FEATURE_KEYS: FeatureKey[] = [
-  "leads",
-  "boarding",
-  "training",
-  "training_groups",
-  "automations",
-  "custom_messages",
-  "service_dogs",
-  "groomer_portfolio",
-  "invoicing",
-  "staff_management",
-  "excel_export",
-  "gcal_sync",
-  "payments",
-  "orders",
-  "pricing",
-  "pets_advanced",
-  "scheduled_messages",
-];
+// All valid feature keys — used to sanitise the incoming payload. Derived from the
+// matrix: the old hand-written list missed 11 keys (online_classes, analytics,
+// online_bookings, intake_forms, payment_links, …) and silently dropped them with a 200.
+const VALID_FEATURE_KEYS: FeatureKey[] = ALL_FEATURE_KEYS;
 
 /**
  * PATCH /api/owner/tenants/:tenantId/features

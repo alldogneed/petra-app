@@ -51,6 +51,9 @@ const FEATURE_ROWS: { key: FeatureKey; label: string; description: string }[] = 
   { key: "orders",             label: "הזמנות",              description: "ניהול הזמנות ופרטי עסקה" },
   { key: "pricing",            label: "מחירון",              description: "שירותים ופריטי חיוב" },
   { key: "pets_advanced",      label: "חיות מחמד מתקדם",    description: "ניהול חיות מחמד ותיקים מורחבים" },
+  { key: "online_classes",     label: "שיעורים אונליין (בטא)", description: "פורטל קורסים ושיעורים מקוונים — נפתח רק דרך כאן" },
+  { key: "whatsapp_reminders", label: "שליחת וואטסאפ אוטומטית", description: "תזכורות ואוטומציות וואטסאפ ללקוחות" },
+  { key: "contracts",          label: "חוזים דיגיטליים",     description: "שליחת חוזים לחתימה" },
 ];
 
 type OverrideValue = true | false | null; // null = use tier default
