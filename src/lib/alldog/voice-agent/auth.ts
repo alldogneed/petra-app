@@ -21,12 +21,11 @@ export function verifyVoiceInitSecret(request: Request): boolean {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
+/**
+ * The tool calls (/start, /details, /book). ElevenLabs sends a tool's secret header as the raw
+ * value, so both `Authorization: Bearer <secret>` and `Authorization: <secret>` are accepted — the
+ * same timing-safe check as /init.
+ */
 export function verifyVoiceAgentSecret(request: Request): boolean {
-  const secret = readEnv("ALLDOG_VOICE_AGENT_SECRET");
-  if (!secret) return false;
-  const header = request.headers.get("authorization");
-  if (!header?.startsWith("Bearer ")) return false;
-  const a = Buffer.from(header.slice(7));
-  const b = Buffer.from(secret);
-  return a.length === b.length && timingSafeEqual(a, b);
+  return verifyVoiceInitSecret(request);
 }
