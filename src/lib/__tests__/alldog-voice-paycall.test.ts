@@ -22,6 +22,7 @@ import {
   missedCallWriteLabel,
   normalizeIlNumber,
   paycallVoiceLogLine,
+  voiceFallbackDecision,
 } from "@/lib/alldog/voice-agent/paycall-rules";
 import { missedCallSendAt, missedCallVoiceCheck, skipPaycallSummaryForVoiceAgent } from "@/lib/alldog/voice-agent/paycall-guard";
 import { SKIP_REASON_LABELS } from "@/lib/alldog/missed-call-rules";
@@ -154,12 +155,51 @@ describe("answered-call summaries: skip the calls Eliran answered", () => {
     expect(claim).toHaveBeenCalledWith("alldog-voice-agent-number-missing", 24 * 60 * 60);
     expect(notify).toHaveBeenCalledTimes(1);
   });
-  it("sync: the line is logged once per call (claimOnce), the skip decision every time", async () => {
+  it("sync, second sighting: Eliran's call ended in Petra → still skipped, logged once, no alert", async () => {
     flagOn();
     process.env.ALLDOG_VOICE_PAYCALL_FILTER_ENABLED = "true";
     claim.mockResolvedValueOnce(false);
-    expect(await skipPaycallSummaryForVoiceAgent(eliranCall, "sync", 120)).toBe(true);
+    vac.findMany.mockResolvedValue([{ status: "ended", startedAt: new Date("2026-11-21T10:16:05Z"), createdAt: new Date("2026-11-21T10:17:40Z") }]);
+    expect(await skipPaycallSummaryForVoiceAgent({ ...eliranCall, START: "2026-11-21 11:15:40" }, "sync", 120)).toBe(true);
     expect(console.log).not.toHaveBeenCalled();
+    expect(notify).not.toHaveBeenCalled();
+    const where = vac.findMany.mock.calls[0][0].where;
+    expect(where.callerPhoneNorm).toBe("0541110001");
+    // PayCall's clock can read an hour early in winter (issue #223): the window covers it.
+    expect(where.createdAt.gte.toISOString()).toBe("2026-11-21T08:13:40.000Z");
+    expect(where.createdAt.lte.toISOString()).toBe("2026-11-21T09:55:40.000Z");
+  });
+  it("sync, first sighting: skipped without looking for the voice call (the webhook may still arrive)", async () => {
+    flagOn();
+    process.env.ALLDOG_VOICE_PAYCALL_FILTER_ENABLED = "true";
+    expect(await skipPaycallSummaryForVoiceAgent(eliranCall, "sync", 120)).toBe(true);
+    expect(vac.findMany).not.toHaveBeenCalled();
+  });
+  it("sync, second sighting, no voice call in Petra → NOT skipped (PayCall handles it) + one alert, last 4 digits only", async () => {
+    flagOn();
+    process.env.ALLDOG_VOICE_PAYCALL_FILTER_ENABLED = "true";
+    claim.mockResolvedValueOnce(false);
+    vac.findMany.mockResolvedValue([]);
+    expect(await skipPaycallSummaryForVoiceAgent(eliranCall, "sync", 120)).toBe(false);
+    expect(claim).toHaveBeenCalledWith("alldog-voice-fallback:c1", 3 * 24 * 60 * 60);
+    expect(notify).toHaveBeenCalledTimes(1);
+    const text = JSON.stringify((notify.mock.calls[0] as unknown[])[0]);
+    expect(text).toContain("0001");
+    expect(text).not.toContain("0541110001");
+  });
+  it("sync, later sightings of a call already handed back → still not skipped, no second alert", async () => {
+    flagOn();
+    process.env.ALLDOG_VOICE_PAYCALL_FILTER_ENABLED = "true";
+    claim.mockResolvedValueOnce(false).mockResolvedValueOnce(false);
+    vac.findMany.mockResolvedValue([{ status: "failed", startedAt: null, createdAt: new Date("2026-11-21T10:16:05Z") }]);
+    expect(await skipPaycallSummaryForVoiceAgent(eliranCall, "sync", 120)).toBe(false);
+    expect(notify).not.toHaveBeenCalled();
+  });
+  it("sync with the filter off → never looks for the voice call (PayCall already handles everything)", async () => {
+    flagOn();
+    claim.mockResolvedValueOnce(false);
+    expect(await skipPaycallSummaryForVoiceAgent(eliranCall, "sync", 120)).toBe(false);
+    expect(vac.findMany).not.toHaveBeenCalled();
   });
 });
 
@@ -202,5 +242,26 @@ describe("missed-call WhatsApp timing: first check ≥ 2 minutes after the PayCa
     flagOn(null);
     expect(await missedCallSendAt(event, event)).toBe(event);
     expect(notify).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("PayCall filter safety net: voiceFallbackDecision", () => {
+  const now = new Date("2026-11-21T10:30:00Z");
+  const row = (status: string, minAgo: number) => ({ status, outcome: null, startedAt: new Date(now.getTime() - minAgo * 60_000) });
+  it("first sighting → skip whatever is there", () => {
+    expect(voiceFallbackDecision([], true, now)).toEqual({ action: "skip", reason: "first_sighting" });
+  });
+  it("a voice call that ended → skip", () => {
+    expect(voiceFallbackDecision([row("failed", 40), row("ended", 12)], false, now)).toEqual({ action: "skip", reason: "voice_call_ended" });
+  });
+  it("still in progress and younger than 15 minutes → skip (wait)", () => {
+    expect(voiceFallbackDecision([row("in_progress", 6)], false, now)).toEqual({ action: "skip", reason: "voice_call_in_progress" });
+  });
+  it("no voice call → PayCall handles the call", () => {
+    expect(voiceFallbackDecision([], false, now)).toEqual({ action: "fallback", reason: "no_voice_call" });
+  });
+  it("started but never ended (stale / failed) → PayCall handles the call", () => {
+    expect(voiceFallbackDecision([row("in_progress", 20)], false, now)).toEqual({ action: "fallback", reason: "voice_call_never_ended" });
+    expect(voiceFallbackDecision([row("failed", 30)], false, now)).toEqual({ action: "fallback", reason: "voice_call_never_ended" });
   });
 });
