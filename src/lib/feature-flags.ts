@@ -354,6 +354,9 @@ export function normalizeTier(tier: string | null | undefined): TierKey {
   return isValidTier(tier) ? tier : "free";
 }
 
+/** Every feature key — derived from the matrix so new features are never left out. */
+export const ALL_FEATURE_KEYS = Object.keys(FEATURE_ACCESS.free) as FeatureKey[];
+
 /** Does the given tier have access to a feature? */
 export function hasFeature(tier: string | null | undefined, feature: FeatureKey): boolean {
   const t = normalizeTier(tier);

@@ -602,3 +602,26 @@ export interface RequestContext {
 
 // Re-export FullSession from session.ts so existing imports continue to work
 export type { FullSession } from "./session";
+
+/**
+ * Volunteers are read-only (only CONTENT_READ). requireBusinessAuth only checked membership,
+ * so ~94 write routes without their own permission check accepted volunteer writes.
+ * Blocks non-GET for a volunteer unless an override grants CONTENT_WRITE; personal routes
+ * (own account, notifications, onboarding, support) stay open.
+ */
+const VOLUNTEER_WRITE_ALLOWED_PREFIXES = [
+  "/api/auth", "/api/account", "/api/notifications", "/api/system-messages",
+  "/api/onboarding", "/api/support", "/api/user", "/api/push",
+];
+export function isVolunteerWriteBlocked(
+  role: TenantRole | string | null | undefined,
+  overrides: PermissionOverrides | null | undefined,
+  method: string,
+  path: string
+): boolean {
+  if (role !== TENANT_ROLES.VOLUNTEER) return false;
+  const m = (method || "GET").toUpperCase();
+  if (m === "GET" || m === "HEAD" || m === "OPTIONS") return false;
+  if (VOLUNTEER_WRITE_ALLOWED_PREFIXES.some((p) => path === p || path.startsWith(p + "/"))) return false;
+  return !hasTenantPermission(TENANT_ROLES.VOLUNTEER, TENANT_PERMS.CONTENT_WRITE, overrides ?? undefined);
+}
