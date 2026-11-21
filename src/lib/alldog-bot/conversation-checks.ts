@@ -14,7 +14,7 @@ import { isClosingText } from "@/lib/alldog-bot/handoff";
 import { findPolicyIssues, findTerminologyIssues, isRepeatedMessage, proTermCount, revealsLimitation } from "@/lib/alldog-bot/logic";
 
 /** Item 37: basics (3) + professional (1–2) + what the rep needs to close, all only when missing. */
-export const MAX_QUESTIONS_BEFORE_CLOSE = 7;
+export const MAX_QUESTIONS_BEFORE_CLOSE = 5;
 
 export interface Turn {
   role: "user" | "bot";
@@ -89,7 +89,6 @@ export function checkConversation(turns: Turn[]): ConversationReport {
   }
   const problems: string[] = [];
   if (questionsBeforeClose > MAX_QUESTIONS_BEFORE_CLOSE) problems.push(`${questionsBeforeClose} שאלות עד הסגירה (מקסימום ${MAX_QUESTIONS_BEFORE_CLOSE})`);
-  if (closed && professionalQuestions === 0) problems.push("אין אף שאלה מקצועית לפני הסגירה");
   if (identityLines) problems.push(`${identityLines} הודעות זהות בלי שנשאלו`);
   if (repeatedMessages) problems.push(`${repeatedMessages} הודעות שחזרו על הודעה קודמת`);
   if (policyIssues.length) problems.push(`הפרת כללים: ${[...new Set(policyIssues)].join(", ")}`);

@@ -224,8 +224,8 @@ describe("no scheduling at all (Or, 24/10 11:53)", () => {
     expect(NAME_AND_DOG_QUESTION).toBe("נעים מאוד 🙂 איך קוראים לך, ואיך קוראים לכלב?");
     const i1 = ALLDOG_BOT_PROMPT.indexOf("1. השם של הבעלים + שם הכלב");
     const i2 = ALLDOG_BOT_PROMPT.indexOf("2. עיר: ");
-    const i3 = ALLDOG_BOT_PROMPT.indexOf("3. כל השאר: גזע, גיל וכמה זמן");
-    const i4 = ALLDOG_BOT_PROMPT.indexOf("4. מה שהנציגה צריכה כדי לסגור"); // item 37
+    const i3 = ALLDOG_BOT_PROMPT.indexOf("3. גזע וגיל, בהודעה אחת"); // item 44: step 4 (sales questions) is gone
+    const i4 = ALLDOG_BOT_PROMPT.indexOf("לא שואלים: כמה זמן הכלב אצלם");
     expect(i1).toBeGreaterThan(0);
     expect(i2).toBeGreaterThan(i1);
     expect(i3).toBeGreaterThan(i2);

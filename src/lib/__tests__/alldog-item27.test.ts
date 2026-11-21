@@ -46,17 +46,17 @@ describe("b. no surname question", () => {
 describe("c. short first message: no prices / routes unless asked, the guide link once and not first", () => {
   const link = "כתבנו על זה מדריך: https://all-dog.co.il/guides/barking";
   it("a price line goes only when the customer asked", () => {
-    const reply = "שומעים על זה הרבה\nאבחון בבית 350 ₪ שמתקזז\nאיך קוראים לכלב ?";
-    expect(applyConversationGuards(reply, ["היי"], { userTexts: ["הכלב נובח"] })).toBe("שומעים על זה הרבה\nאיך קוראים לכלב ?");
+    const reply = "רשמתי\nאבחון בבית 350 ₪ שמתקזז\nאיך קוראים לכלב ?";
+    expect(applyConversationGuards(reply, ["היי"], { userTexts: ["הכלב נובח"] })).toBe("רשמתי\nאיך קוראים לכלב ?");
     expect(applyConversationGuards(reply, ["היי"], { userTexts: ["כמה זה עולה ?"] })).toBe(reply);
   });
   it("no guide link in the first reply, and only once", () => {
-    expect(applyConversationGuards(`נשמע מתיש\n${link}`, [], { userTexts: ["נובח"] })).toBe("נשמע מתיש");
+    expect(applyConversationGuards(`רשמתי\n${link}`, [], { userTexts: ["נובח"] })).toBe("רשמתי");
     expect(applyConversationGuards(link, ["היי", "באיזו עיר?"], { userTexts: ["נובח"] })).toBe(link);
     expect(applyConversationGuards(link, ["היי", link], { userTexts: ["נובח"] })).toBe("");
   });
   it("the prompt asks for a short first message", () => {
-    expect(ALLDOG_BOT_PROMPT).toContain("משפט הבנה אחד + שאלה אחת");
+    expect(ALLDOG_BOT_PROMPT).toContain("שאלה אחת, וזהו. בלי משפט הבנה"); // item 44
     expect(ALLDOG_BOT_PROMPT).toContain("מסלולים ומחירים רק כשהלקוח שואל");
   });
 });
