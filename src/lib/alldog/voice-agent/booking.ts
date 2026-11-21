@@ -148,7 +148,7 @@ function openFollowupTask(businessId: string, leadId: string) {
       businessId, relatedEntityType: "LEAD", relatedEntityId: leadId, status: { in: ["OPEN", "IN_PROGRESS"] },
       OR: [{ title: { contains: CALLBACK_TASK_PREFIX } }, { title: { startsWith: URGENT_TITLE_PREFIX } }],
     },
-    select: { id: true, title: true, priority: true, dueAt: true },
+    select: { id: true, title: true, description: true, priority: true, dueAt: true },
   });
 }
 
@@ -178,6 +178,8 @@ export async function ensureCallbackTask(
         where: { id: open.id, businessId },
         data: {
           ...(makeUrgent ? { priority: "URGENT", title: open.title.startsWith(URGENT_TITLE_PREFIX) ? open.title : `${URGENT_TITLE_PREFIX}${open.title}` } : {}),
+          // The reason for the urgency goes on top of the existing description (the rep reads the task first).
+          ...(makeUrgent ? { description: [`דחוף: ${urgentLine(input)}`, open.description].filter(Boolean).join("\n").slice(0, 2000) } : {}),
           ...(earlier ? { dueAt } : {}),
         },
       });
