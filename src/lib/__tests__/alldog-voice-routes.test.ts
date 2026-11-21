@@ -102,7 +102,7 @@ import { POST as initPOST } from "@/app/api/webhooks/alldog-voice/init/route";
 import { EMPTY_INIT_VARIABLES, withBudget } from "@/lib/alldog/voice-agent/init";
 import { processVoiceSummary } from "@/lib/alldog/voice-agent/summary-job";
 import { callbackDueAt, callbackDueLabel } from "@/lib/alldog/voice-agent/booking-rules";
-import { repAlertText } from "@/lib/alldog/voice-agent/rep-alert";
+import { repAlertText, voiceCallSubject } from "@/lib/alldog/voice-agent/rep-alert";
 import { israelInstant } from "@/lib/alldog/time";
 
 const SECRET = "tool-secret-for-tests";
@@ -476,6 +476,10 @@ describe("the callback task and the urgent alerts", () => {
     const base = { businessId: "b", conversationId: "c", kind: "summary" as const, leadId: "l1", displayName: "דנה כהן", phone: "0541110001", urgent: false, line: "נובח על אורחים · כלב: רקס", dueLabel: "היום עד 10:19" };
     expect(repAlertText(base)).toEqual({ title: "שיחת טלפון עם אלירן · דנה כהן", who: "דנה כהן · 0541110001", details: "נובח על אורחים · כלב: רקס · לחזור: היום עד 10:19" });
     expect(repAlertText({ ...base, urgent: true }).title).toBe("דחוף: שיחת טלפון עם אלירן · דנה כהן");
+    // {{2}} of the voice-call WhatsApp template: the subject, "דחוף:" first for an urgent call.
+    expect(voiceCallSubject(base)).toBe("נובח על אורחים · כלב: רקס");
+    expect(voiceCallSubject({ ...base, urgent: true })).toBe("דחוף: נובח על אורחים · כלב: רקס");
+    expect(voiceCallSubject({ ...base, line: null })).toBe("הסיכום עוד לא מוכן");
     expect(repAlertText({ ...base, phone: null, displayName: "מתקשר לא מזוהה", dueLabel: null, line: null })).toEqual({ title: "שיחת טלפון עם אלירן · מתקשר לא מזוהה", who: "מתקשר לא מזוהה · מספר חסוי, לא השאיר מספר", details: "הסיכום עוד לא מוכן" });
   });
 });

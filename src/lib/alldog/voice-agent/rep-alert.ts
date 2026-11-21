@@ -44,6 +44,12 @@ export function repAlertText(a: RepAlert): { title: string; who: string; details
   return { title: oneLine(title).slice(0, 120), who: oneLine(who).slice(0, 200), details: details.slice(0, 600) };
 }
 
+/** {{2}} of petra_voice_call_alert: the call's subject, opening with "דחוף:" for an urgent call. Pure — tested. */
+export function voiceCallSubject(a: RepAlert): string {
+  const line = a.line ? oneLine(a.line) : "הסיכום עוד לא מוכן";
+  return `${a.urgent ? "דחוף: " : ""}${line}`.slice(0, 500);
+}
+
 async function bell(a: RepAlert, t: ReturnType<typeof repAlertText>): Promise<void> {
   const { salesRepUserId } = voiceAgentSettings();
   if (!salesRepUserId) return;
@@ -72,8 +78,11 @@ async function whatsapp(a: RepAlert, t: ReturnType<typeof repAlertText>): Promis
   const url = a.leadId ? `${appUrl()}/leads?lead=${a.leadId}` : `${appUrl()}/leads`;
   const result = await sendWithTemplateChain({
     to,
-    // AllDog's own alert template first; the approved "new lead" templates ([name, phone, service]) after it.
+    // The voice-call template first (its own UTILITY wording — petra_alldog_owner_alert was frequency-capped
+    // by Meta, 131049); until Meta approves it the chain skips it. Then AllDog's alert template and the
+    // approved "new lead" templates ([name, phone, service]).
     steps: [
+      { name: "petra_voice_call_alert", params: [t.who, voiceCallSubject(a), a.dueLabel ?? "בהקדם", url] },
       { name: "petra_alldog_owner_alert", params: [t.title, t.who, t.details, url] },
       { name: "petra_lead_notification", params: [t.title, a.phone ?? "מספר חסוי", t.details.slice(0, 200)] },
       { name: "petra_biz_lead_alert", params: [t.title, a.phone ?? "מספר חסוי", t.details.slice(0, 200)] },
