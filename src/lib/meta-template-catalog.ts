@@ -137,6 +137,16 @@ export const PETRA_TEMPLATE_CATALOG: readonly CatalogTemplate[] = [
     examples: ["בוט וואטסאפ: העברה דחופה לנציג", "דנה כהן · 054-*-964", "סיבה: הלקוחה ביקשה לדבר עם נציג", "https://petra-app.com/leads?lead=abc123"],
     params: ["alert title", "who (name · masked phone)", "details line(s), one line", "Petra URL"],
   },
+  // The sales rep's alert for a call the voice agent "אלירן" took (rep-alert.ts). Its own fixed
+  // wording: petra_alldog_owner_alert was frequency-capped by Meta (131049) after a few alerts a day.
+  {
+    name: "petra_voice_call_alert",
+    category: "UTILITY",
+    language: "he",
+    body: "שיחת טלפון נענתה על ידי אלירן, הסוכן הקולי של AllDog.\n\nמתקשר: {{1}}\nנושא השיחה: {{2}}\nלחזור למתקשר: {{3}}\n\nלפתיחת הליד בפטרה: {{4}}\nנשלח אוטומטית ממערכת פטרה",
+    examples: ["דנה כהן · 0541234567", "הכלב נובח על אורחים · כלב: רקסי, רועה גרמני, בן שנתיים", "היום עד 10:30", "https://petra-app.com/leads?lead=abc123"],
+    params: ["who (name · phone)", "what the call was about, one line (opens with \"דחוף:\" for an urgent call)", "callback target label", "Petra URL"],
+  },
   {
     name: "petra_support_ticket_alert",
     category: "UTILITY",
