@@ -2,7 +2,8 @@ export const dynamic = 'force-dynamic';
 import { normalizeVertical } from "@/lib/verticals"
 import { NextRequest, NextResponse } from "next/server"
 import prisma from "@/lib/prisma"
-import { getAvailableSlots, utcToLocalDateStr } from "@/lib/slots"
+import { getAvailableSlots, utcToLocalDateStr, utcToLocalHHMM } from "@/lib/slots"
+import { parseOrderDateTime } from "@/lib/order-time"
 import { isBoardingStayItem, parseStoredBookingHours } from "@/lib/booking-hours"
 import { z } from "zod"
 import { rateLimitAsync } from "@/lib/rate-limit"
@@ -189,7 +190,10 @@ export async function POST(
     return NextResponse.json({ error: "Service not found" }, { status: 404 })
   }
 
-  const startAt = new Date(startAtStr)
+  // Times are the business's wall clock (Vercel runs in UTC): an ISO string with an offset
+  // is an instant; "YYYY-MM-DDTHH:mm" without one is local time (boarding check-in/out).
+  const tz = business.timezone || "Asia/Jerusalem"
+  const startAt = parseOrderDateTime(startAtStr, tz) ?? new Date(NaN)
   if (isNaN(startAt.getTime())) {
     return NextResponse.json({ error: "Invalid startAt" }, { status: 400 })
   }
@@ -199,7 +203,7 @@ export async function POST(
 
   let endAt: Date
   if (isBoarding && checkoutAtStr) {
-    endAt = new Date(checkoutAtStr)
+    endAt = parseOrderDateTime(checkoutAtStr, tz) ?? new Date(NaN)
     if (isNaN(endAt.getTime())) {
       return NextResponse.json({ error: "Invalid checkoutAt" }, { status: 400 })
     }
@@ -400,9 +404,8 @@ export async function POST(
   }
 
   // Build human-readable date/time labels for notifications
-  const pad2 = (n: number) => n.toString().padStart(2, "0")
-  const dateLabel = startAt.toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
-  const timeLabel = `${pad2(startAt.getHours())}:${pad2(startAt.getMinutes())}`
+  const dateLabel = startAt.toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: tz })
+  const timeLabel = utcToLocalHHMM(startAt, tz)
   const serviceName = item.name
 
   // Auto-create linked record for automatically-confirmed bookings
@@ -429,10 +432,11 @@ export async function POST(
       })
     } else {
       // For other services: create an Appointment
-      const pad = (n: number) => n.toString().padStart(2, "0")
-      const startTime = `${pad(startAt.getHours())}:${pad(startAt.getMinutes())}`
-      const endTime = `${pad(endAt.getHours())}:${pad(endAt.getMinutes())}`
-      const dateOnly = new Date(startAt.getFullYear(), startAt.getMonth(), startAt.getDate())
+      // Appointment = local calendar day (stored as 00:00Z) + local "HH:mm". getHours() on the
+      // UTC server put online bookings 2–3h early in the calendar.
+      const startTime = utcToLocalHHMM(startAt, tz)
+      const endTime = utcToLocalHHMM(endAt, tz)
+      const dateOnly = new Date(`${utcToLocalDateStr(startAt, tz)}T00:00:00.000Z`)
       const existing = await prisma.appointment.findFirst({
         where: { businessId: business.id, customerId: customer.id, priceListItemId, date: dateOnly, startTime },
       })

@@ -364,6 +364,16 @@ export async function createBoardingStay(
     throw new ServiceError("הערות ארוכות מדי (מקסימום 2000 תווים)", "VALIDATION");
   }
 
+  // A check-out before (or at) check-in was saved as is and broke nights/price/occupancy.
+  const ciDate = stayTime(checkIn);
+  const coDate = checkOut ? stayTime(checkOut) : null;
+  if (isNaN(ciDate.getTime()) || (coDate && isNaN(coDate.getTime()))) {
+    throw new ServiceError("תאריך לא תקין", "VALIDATION");
+  }
+  if (coDate && coDate <= ciDate) {
+    throw new ServiceError("תאריך היציאה חייב להיות אחרי תאריך הכניסה", "VALIDATION");
+  }
+
   const resolvedCustomerId = customerId || null;
 
   if (assignedToUserId) {
@@ -474,6 +484,12 @@ export async function updateBoardingStay(
     : input.checkOut !== undefined
     ? (input.checkOut ? stayTime(input.checkOut) : null)
     : existing.checkOut;
+  if (
+    (input.checkIn !== undefined || input.checkOut !== undefined) &&
+    (isNaN(finalCheckIn.getTime()) || (finalCheckOut && (isNaN(finalCheckOut.getTime()) || finalCheckOut <= finalCheckIn)))
+  ) {
+    throw new ServiceError("תאריך היציאה חייב להיות אחרי תאריך הכניסה", "VALIDATION");
+  }
   // Re-check capacity only when the stay will actively occupy a room and
   // something capacity-relevant changed (room, dates, or reactivated status).
   const capacityRelevantChange =
