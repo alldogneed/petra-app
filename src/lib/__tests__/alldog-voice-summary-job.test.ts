@@ -103,7 +103,7 @@ describe("the summary is always written", () => {
     expect(c.outcome).toBe("hung_up_early");
     expect(journal).toHaveLength(1);
     expect(String(journal[0].summary).split("\n")).toEqual([
-      "[שיחת טלפון · אלירן] סיכום שיחה (22/11 09:57 · 2:19 דק׳)",
+      "[שיחת טלפון · אלירן, סוכן קולי] סיכום שיחה (22/11 09:57 · 2:19 דק׳)",
       "כלב: רקס · לברדור · שנתיים · עיר: כפר סבא",
       "בעיה: נובח על אורחים · דחיפות: (נמוכה)",
       "הובטח: נציגה תחזור בתוך כחצי שעה · הצעד הבא: לחזור ולתאם אבחון",
@@ -118,7 +118,7 @@ describe("the summary is always written", () => {
   it("save_details WAS called: the same journal line is replaced by the summary, empty lead fields are filled, no second task", async () => {
     summarize.mockResolvedValue(sum());
     leads.push({ id: "lead-1", phone: "0541110001", name: "שיחה מ-0541110001", city: null, dog: null });
-    journal.push({ id: "log-1", leadId: "lead-1", summary: "[שיחת טלפון · אלירן] נאספו פרטים" });
+    journal.push({ id: "log-1", leadId: "lead-1", summary: "[שיחת טלפון · אלירן, סוכן קולי] נאספו פרטים" });
     const c = call({ leadId: "lead-1", outcome: "details_only", summaryCallLogId: "log-1", salesBrief: { problem: "נביחות (מהכלי)" } });
     expect(await processVoiceSummary(String(c.id), NOW)).toBe("done");
     expect(journal).toHaveLength(1);
@@ -148,7 +148,7 @@ describe("the summary is always written", () => {
     await processVoiceSummary(String(c.id), NOW);
     expect(journal).toHaveLength(2);
     expect(journal[0].summary).toBe("[וואטסאפ · בוט] סיכום שיחה (20/11 18:02)\nכלב: רקס");
-    expect(String(journal[1].summary).startsWith("[שיחת טלפון · אלירן] סיכום שיחה")).toBe(true);
+    expect(String(journal[1].summary).startsWith("[שיחת טלפון · אלירן, סוכן קולי] סיכום שיחה")).toBe(true);
   });
 });
 
