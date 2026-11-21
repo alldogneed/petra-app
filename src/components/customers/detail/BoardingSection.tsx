@@ -13,6 +13,8 @@ interface CustomerStay {
   checkIn: string;
   checkOut: string | null;
   status: string;
+  /** Temporary hold (waiting for contract). Optional until the API selects it. */
+  isTentative?: boolean;
   notes: string | null;
   pet: { id: string; name: string };
   room: { id: string; name: string } | null;
@@ -99,9 +101,9 @@ export function BoardingSection({ customerId }: { customerId: string }) {
             return (
               <Link
                 key={stay.id}
-                href="/boarding"
+                href={`/boarding?stay=${encodeURIComponent(stay.id)}`}
                 className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition-colors"
-                title="פתח את לוח הפנסיון"
+                title="פתח את השהייה בלוח הפנסיון"
               >
                 <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0">
                   <Home className="w-4 h-4 text-amber-600" />
@@ -120,6 +122,11 @@ export function BoardingSection({ customerId }: { customerId: string }) {
                 </div>
                 <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
                   <span className={cn("text-xs font-semibold", status.color)}>{status.label}</span>
+                  {stay.status === "reserved" && stay.isTentative === true && (
+                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-800 border border-dashed border-amber-400 whitespace-nowrap">
+                      שמור זמנית
+                    </span>
+                  )}
                   {stay.paidAmount !== null && stay.paidAmount > 0 && (
                     <span className="text-[11px] text-petra-muted">שולם {formatCurrency(stay.paidAmount)}</span>
                   )}

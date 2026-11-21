@@ -8,11 +8,16 @@ import { ServiceError } from "./types";
 
 export const CUSTOMER_STAYS_MAX = 100;
 
+/** Label for a reserved stay held temporarily until the meeting + signed contract (`BoardingStay.isTentative`). */
+export const TENTATIVE_STAY_LABEL = "שמור זמנית – ממתין לחוזה";
+
 export interface CustomerStayRow {
   id: string;
   checkIn: Date;
   checkOut: Date | null;
   status: string;
+  /** Reserved only: "שמור זמנית – ממתין לחוזה" (the service clears it on any other status). */
+  isTentative: boolean;
   notes: string | null;
   pet: { id: string; name: string };
   room: { id: string; name: string } | null;
@@ -55,6 +60,7 @@ export async function listCustomerStays(
         checkIn: true,
         checkOut: true,
         status: true,
+        isTentative: true,
         notes: true,
         pet: { select: { id: true, name: true } },
         room: { select: { id: true, name: true } },
@@ -68,6 +74,7 @@ export async function listCustomerStays(
   return {
     stays: rows.map(({ payments, ...r }) => ({
       ...r,
+      isTentative: r.isTentative && r.status === "reserved",
       paidAmount: payments.reduce((sum, p) => sum + (p.amount ?? 0), 0),
     })),
     total,

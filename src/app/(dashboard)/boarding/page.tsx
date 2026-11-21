@@ -5,6 +5,7 @@ import { TierGate } from "@/components/paywall/TierGate";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback, memo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   DndContext,
   DragOverlay,
@@ -94,6 +95,7 @@ interface RoomStay {
   checkIn: string;
   checkOut: string | null;
   status: string;
+  isTentative?: boolean;
   pet: { id: string; name: string; breed: string | null; species: string };
   customer: { id: string; name: string; phone: string } | null;
 }
@@ -115,6 +117,8 @@ interface BoardingStay {
   checkIn: string;
   checkOut: string | null;
   status: string;
+  /** Temporary hold (waiting for contract) — still a normal reserved stay for capacity. */
+  isTentative?: boolean;
   notes: string | null;
   dailyTrainingMinutes: number | null;
   room: { id: string; name: string } | null;
@@ -156,6 +160,28 @@ const STATUS_MAP: Record<string, { label: string; color: string; bg: string }> =
   checked_out: { label: "יצא",    color: "#64748B", bg: "#F1F5F9" },
   canceled:    { label: "בוטל",   color: "#EF4444", bg: "#FEF2F2" },
 };
+
+const TENTATIVE_LABEL = "שמור זמנית";
+const TENTATIVE_FULL_LABEL = "שמור זמנית – ממתין לחוזה";
+
+/** A reserved stay that only holds the room until it is confirmed (contract pending). */
+function isTentativeStay(stay: { status: string; isTentative?: boolean }): boolean {
+  return stay.status === "reserved" && stay.isTentative === true;
+}
+
+function TentativeBadge({ className }: { className?: string }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-800 border border-dashed border-amber-400 whitespace-nowrap",
+        className,
+      )}
+      title={TENTATIVE_FULL_LABEL}
+    >
+      <Clock className="w-2.5 h-2.5" />{TENTATIVE_LABEL}
+    </span>
+  );
+}
 
 const ROOM_STATUS_MAP: Record<string, { label: string; color: string; bg: string; border: string }> = {
   available:       { label: "פנוי",         color: "#22C55E", bg: "#F0FDF4", border: "#BBF7D0" },
@@ -404,7 +430,13 @@ const RoomStatusCard = memo(function RoomStatusCard({
               const actionStay = reserved.find(s => s.id === stay.id);
               return (
                 <SortableStayInRoom key={stay.id} stayId={stay.id} disabled={!canDrag}>
-                  <div className="p-2 rounded-lg" style={{ background: "#F5F3FF", border: "1px solid #C4B5FD" }}>
+                  <div
+                    className="p-2 rounded-lg"
+                    style={isTentativeStay(stay)
+                      ? { background: "#FFFBEB", border: "1px dashed #F59E0B" }
+                      : { background: "#F5F3FF", border: "1px solid #C4B5FD" }}
+                  >
+                    {isTentativeStay(stay) && <TentativeBadge className="mb-1" />}
                     <div className="flex items-center gap-1 mb-1">
                       <PawPrint className="w-3 h-3 text-purple-500 flex-shrink-0" />
                       <button
@@ -1144,6 +1176,9 @@ function TimelineView({
       const barColor = stay.status === "checked_in" ? "#22C55E"
         : stay.status === "checked_out" ? "#3B82F6"
         : "#94A3B8";
+      // Temporary hold: amber + diagonal stripes + dashed border, dark text (capacity = a normal reservation).
+      const tentative = isTentativeStay(stay);
+      const tentativePrefix = tentative ? `${TENTATIVE_LABEL} · ` : "";
       const range = `${formatDate(stay.checkIn)}${stay.checkOut ? ` → ${formatDate(stay.checkOut)}` : ""}`;
       const draggable = canDrag && isStayDraggable(stay.status);
       const isDragged = drag?.stayId === stay.id;
@@ -1159,8 +1194,9 @@ function TimelineView({
           onContextMenu={draggable ? (e) => e.preventDefault() : undefined}
           dir="rtl"
           className={cn(
-            "absolute flex items-center gap-1 font-semibold text-white overflow-hidden whitespace-nowrap shadow-sm hover:brightness-110 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 transition-[filter,box-shadow,opacity]",
+            "absolute flex items-center gap-1 font-semibold overflow-hidden whitespace-nowrap shadow-sm hover:brightness-110 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 transition-[filter,box-shadow,opacity]",
             compact ? "rounded px-1 text-[9px] leading-none" : "rounded-md px-2 text-[10px]",
+            tentative ? "text-amber-950 border border-dashed border-amber-600" : "text-white",
             draggable ? "cursor-grab select-none" : "cursor-pointer",
             isDragged && "opacity-40 ring-2 ring-brand-400",
           )}
@@ -1169,15 +1205,18 @@ function TimelineView({
             width: pos.width,
             top: `${barTop + rowIdx * rowH}px`,
             height: `${barH}px`,
-            backgroundColor: barColor,
+            backgroundColor: tentative ? "#FCD34D" : barColor,
+            backgroundImage: tentative
+              ? "repeating-linear-gradient(135deg, rgba(255,255,255,0.45) 0 6px, transparent 6px 12px)"
+              : undefined,
             WebkitTouchCallout: draggable ? "none" : undefined,
             WebkitUserSelect: draggable ? "none" : undefined,
           }}
-          title={`${stay.pet.name} — ${stay.customer?.name ?? "כלב שירות"}\n${range}\nלחצו לפתיחת ההזמנה${draggable ? " · גררו להעברת חדר או תאריכים" : ""}`}
-          aria-label={`${stay.pet.name}, ${range} — פתח את ההזמנה`}
+          title={`${tentativePrefix}${stay.pet.name} — ${stay.customer?.name ?? "כלב שירות"}\n${range}\nלחצו לפתיחת ההזמנה${draggable ? " · גררו להעברת חדר או תאריכים" : ""}`}
+          aria-label={`${tentativePrefix}${stay.pet.name}, ${range} — פתח את ההזמנה`}
         >
-          {!compact && <PawPrint className="w-3 h-3 flex-shrink-0" />}
-          <span className="truncate">{stay.pet.name}</span>
+          {!compact && (tentative ? <Clock className="w-3 h-3 flex-shrink-0" /> : <PawPrint className="w-3 h-3 flex-shrink-0" />)}
+          <span className="truncate">{tentative && !compact && pos.days >= 4 ? `${TENTATIVE_LABEL} · ` : ""}{stay.pet.name}</span>
           {pos.days >= (compact ? 6 : 3) && stay.checkOut && (
             <span className="ms-auto ps-1 font-normal opacity-90 flex-shrink-0">עד {formatDate(stay.checkOut)}</span>
           )}
@@ -1498,6 +1537,7 @@ const UnassignedGridCard = memo(function UnassignedGridCard({
                   <div className="text-sm font-semibold text-petra-text truncate">{stay.pet.name}</div>
                   <div className="text-[10px] text-petra-muted">{stay.customer?.name ?? "כלב שירות"}</div>
                 </div>
+                {isTentativeStay(stay) && <TentativeBadge className="flex-shrink-0" />}
               </div>
               <div className="text-[10px] text-petra-muted mt-1">
                 {formatDate(stay.checkIn)}{stay.checkOut ? ` → ${formatDate(stay.checkOut)}` : ""}
@@ -1590,6 +1630,7 @@ function StayRow({
           ) : (
             <span className="text-sm text-blue-600 font-medium">כלב שירות</span>
           )}
+          {isTentativeStay(stay) && <TentativeBadge />}
           {isCheckinToday && (
             <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-brand-50 text-brand-600 border border-brand-100">
               <LogIn className="w-2.5 h-2.5" />צ׳ק-אין היום
@@ -2163,12 +2204,17 @@ function EditStayDialog({
   onSave,
   onCancel,
   isPending,
+  onConfirmTentative,
+  isConfirming = false,
 }: {
   stay: BoardingStay;
   rooms: Room[];
-  onSave: (data: { checkIn: string; checkOut: string | null; roomId: string | null; notes: string }) => void;
+  onSave: (data: { checkIn: string; checkOut: string | null; roomId: string | null; notes: string; isTentative?: boolean }) => void;
   onCancel: () => void;
   isPending: boolean;
+  /** "אשר הזמנה" on a temporary hold — saves `isTentative: false` right away. */
+  onConfirmTentative?: () => void;
+  isConfirming?: boolean;
 }) {
   const toLocalInput = (iso: string) => {
     const d = new Date(iso);
@@ -2180,6 +2226,15 @@ function EditStayDialog({
   const [checkOut, setCheckOut] = useState(stay.checkOut ? toLocalInput(stay.checkOut) : "");
   const [roomId, setRoomId] = useState(stay.room?.id ?? "");
   const [notes, setNotes] = useState(stay.notes ?? "");
+  const initialTentative = stay.isTentative === true;
+  const [isTentative, setIsTentative] = useState(initialTentative);
+  // The stay can be confirmed from the banner while the dialog stays open — follow it.
+  useEffect(() => { setIsTentative(initialTentative); }, [initialTentative]);
+  const isReserved = stay.status === "reserved";
+  const tentativeNow = isTentativeStay(stay);
+  const petHref = stay.pet.serviceDogProfile
+    ? `/service-dogs/${stay.pet.serviceDogProfile.id}`
+    : `/pets/${stay.pet.id}`;
 
   const invalidRange = !!checkOut && new Date(checkOut) <= new Date(checkIn);
   const nights = checkOut && !invalidRange ? calcNights(checkIn, checkOut) : 0;
@@ -2198,15 +2253,48 @@ function EditStayDialog({
           </button>
         </div>
 
-        {stay.customer && (
-          <Link
-            href={`/customers/${stay.customer.id}`}
-            className="mb-4 flex items-center justify-center gap-1.5 w-full py-2 rounded-lg border border-brand-200 bg-brand-50 text-sm font-medium text-brand-700 hover:bg-brand-100 transition-colors"
-          >
-            <Users className="w-4 h-4" />
-            פתח כרטיס לקוח
-          </Link>
+        {tentativeNow && (
+          <div className="mb-4 p-3 rounded-lg border border-dashed border-amber-400 bg-amber-50 flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1.5 flex-1 min-w-[10rem]">
+              <Clock className="w-4 h-4 text-amber-600 flex-shrink-0" />
+              <span className="text-sm font-semibold text-amber-900">{TENTATIVE_FULL_LABEL}</span>
+            </div>
+            {onConfirmTentative && (
+              <button
+                type="button"
+                className="btn-primary text-sm py-1.5"
+                disabled={isConfirming || isPending}
+                onClick={onConfirmTentative}
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                {isConfirming ? "מאשר..." : "אשר הזמנה"}
+              </button>
+            )}
+          </div>
         )}
+
+        <div className={cn("mb-4 grid gap-2", stay.customer ? "grid-cols-2" : "grid-cols-1")}>
+          {stay.customer && (
+            <Link
+              href={`/customers/${stay.customer.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-1.5 min-w-0 px-2 py-2 rounded-lg border border-brand-200 bg-brand-50 text-xs sm:text-sm font-medium text-brand-700 hover:bg-brand-100 transition-colors"
+            >
+              <Users className="w-4 h-4 flex-shrink-0" />
+              <span className="truncate">פתח כרטיס לקוח</span>
+            </Link>
+          )}
+          <Link
+            href={petHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-1.5 min-w-0 px-2 py-2 rounded-lg border border-brand-200 bg-brand-50 text-xs sm:text-sm font-medium text-brand-700 hover:bg-brand-100 transition-colors"
+          >
+            <PawPrint className="w-4 h-4 flex-shrink-0" />
+            <span className="truncate">פתח כרטיס כלב</span>
+          </Link>
+        </div>
 
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
@@ -2242,6 +2330,21 @@ function EditStayDialog({
             <textarea className="input w-full text-sm" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
 
+          {isReserved && (
+            <label className="flex items-start gap-2.5 cursor-pointer">
+              <input
+                type="checkbox"
+                className="mt-0.5 w-4 h-4 accent-amber-500 flex-shrink-0"
+                checked={isTentative}
+                onChange={(e) => setIsTentative(e.target.checked)}
+              />
+              <span className="min-w-0">
+                <span className="block text-sm font-medium text-petra-text">{TENTATIVE_FULL_LABEL}</span>
+                <span className="block text-xs text-petra-muted mt-0.5">השהייה תופסת את החדר עד שמאשרים אותה</span>
+              </span>
+            </label>
+          )}
+
           <p className="text-xs text-petra-muted">
             המחיר וההנחה נקבעים במסך הצ׳ק-אאוט, לפני שליחת דרישת התשלום.
           </p>
@@ -2257,6 +2360,7 @@ function EditStayDialog({
                 checkOut: checkOut ? new Date(checkOut).toISOString() : null,
                 roomId: roomId || null,
                 notes,
+                ...(isReserved && isTentative !== initialTentative ? { isTentative } : {}),
               })
             }
           >
@@ -2700,6 +2804,8 @@ function BoardingPageContent() {
     // Retroactive stays (dog already in the pension before the business joined Petra):
     // "" = let the server decide (reserved), or an explicit status for backdated dates.
     status: "" as "" | "reserved" | "checked_in" | "checked_out",
+    // Temporary hold while the customer comes to sign the contract — sent only for reserved stays.
+    isTentative: false,
   });
   const [serviceDogMode, setServiceDogMode] = useState(false);
   const [pickedCustomer, setPickedCustomer] = useState<PickerCustomer | null>(null);
@@ -2781,6 +2887,34 @@ function BoardingPageContent() {
     queryFn: () => fetchJSON<BusinessSettings>("/api/settings"),
   });
 
+  // Deep link `/boarding?stay=<id>` (customer card, dashboard…) → open that stay's edit dialog
+  // on the timeline at its check-in day, then drop the param so a refresh does not reopen it.
+  const router = useRouter();
+  const deepLinkHandledRef = useRef(false);
+  useEffect(() => {
+    if (deepLinkHandledRef.current || isLoading) return;
+    let stayId: string | null = null;
+    try { stayId = new URLSearchParams(window.location.search).get("stay"); } catch { /* no window */ }
+    if (!stayId) { deepLinkHandledRef.current = true; return; }
+    deepLinkHandledRef.current = true;
+
+    const params = new URLSearchParams(window.location.search);
+    params.delete("stay");
+    const rest = params.toString();
+    router.replace(`/boarding${rest ? `?${rest}` : ""}`, { scroll: false });
+
+    const open = (stay: BoardingStay) => {
+      setViewMode("timeline");
+      setTimelineJump((j) => ({ day: localDayKey(new Date(stay.checkIn)), n: j.n + 1 }));
+      setEditStay(stay);
+    };
+    const loaded = stays.find((s) => s.id === stayId);
+    if (loaded) { open(loaded); return; }
+    fetchJSON<BoardingStay>(`/api/boarding/${encodeURIComponent(stayId)}`)
+      .then((stay) => open({ ...stay, yard: stay.yard ?? null }))
+      .catch(() => toast.error("השהייה לא נמצאה"));
+  }, [isLoading, stays, router]);
+
   const settings: BusinessSettings = settingsData || {
     boardingCheckInTime: "14:00",
     boardingCheckOutTime: "11:00",
@@ -2847,6 +2981,7 @@ function BoardingPageContent() {
             notes: data.notes || null,
             assignedToUserId: data.assignedToUserId || null,
             ...(data.status ? { status: data.status } : {}),
+            ...(data.isTentative && !serviceDogMode && (!data.status || data.status === "reserved") ? { isTentative: true } : {}),
           }),
         }).then(async (r) => { if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || "Failed"); } return r.json(); })
       );
@@ -2856,7 +2991,7 @@ function BoardingPageContent() {
       queryClient.invalidateQueries({ queryKey: ["boarding"] });
       queryClient.invalidateQueries({ queryKey: ["rooms"] });
       setShowNewStay(false);
-      setForm({ customerId: "", petIds: [], roomId: "", checkIn: "", checkOut: "", checkInTime: settings.boardingCheckInTime || "14:00", checkOutTime: settings.boardingCheckOutTime || "11:00", notes: "", pricePerNight: settings.boardingPricePerNight || 150, assignedToUserId: "", status: "" });
+      setForm({ customerId: "", petIds: [], roomId: "", checkIn: "", checkOut: "", checkInTime: settings.boardingCheckInTime || "14:00", checkOutTime: settings.boardingCheckOutTime || "11:00", notes: "", pricePerNight: settings.boardingPricePerNight || 150, assignedToUserId: "", status: "", isTentative: false });
       setPickedCustomer(null);
       setServiceDogMode(false);
       toast.success("ההשמה נוצרה בהצלחה");
@@ -3061,7 +3196,7 @@ function BoardingPageContent() {
   });
 
   const editStayMutation = useMutation({
-    mutationFn: ({ id, ...data }: { id: string; checkIn: string; checkOut: string | null; roomId: string | null; notes: string }) =>
+    mutationFn: ({ id, ...data }: { id: string; checkIn: string; checkOut: string | null; roomId: string | null; notes: string; isTentative?: boolean }) =>
       fetchJSON<BoardingStay>(`/api/boarding/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -3074,6 +3209,27 @@ function BoardingPageContent() {
     onError: (err: unknown) => {
       const msg = err instanceof Error ? err.message : "שגיאה בעדכון ההזמנה";
       toast.error(msg);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["boarding"] });
+      queryClient.invalidateQueries({ queryKey: ["boarding-occupancy"] });
+      queryClient.invalidateQueries({ queryKey: ["rooms"] });
+    },
+  });
+
+  const confirmTentativeMutation = useMutation({
+    mutationFn: (id: string) =>
+      fetchJSON<BoardingStay>(`/api/boarding/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isTentative: false }),
+      }),
+    onSuccess: (_data, id) => {
+      setEditStay((s) => (s && s.id === id ? { ...s, isTentative: false } : s));
+      toast.success("ההזמנה אושרה");
+    },
+    onError: (err: unknown) => {
+      toast.error(err instanceof Error ? err.message : "שגיאה באישור ההזמנה");
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["boarding"] });
@@ -3865,7 +4021,21 @@ function BoardingPageContent() {
               <p className="text-sm text-petra-muted">אין חדרים מוגדרים</p>
             </div>
           ) : (
-            <TimelineView rooms={rooms} stays={stays} search={searchNorm} onOpenStay={setEditStay} canDrag={canManageBoarding} scrollTo={timelineJump} compact={timelineCompact} />
+            <>
+              <TimelineView rooms={rooms} stays={stays} search={searchNorm} onOpenStay={setEditStay} canDrag={canManageBoarding} scrollTo={timelineJump} compact={timelineCompact} />
+              <div className="flex gap-3 mt-2 flex-wrap text-[10px] text-petra-muted">
+                <div className="flex items-center gap-1"><div className="w-3 h-3 rounded" style={{ backgroundColor: "#94A3B8" }} /> הזמנה</div>
+                <div className="flex items-center gap-1">
+                  <div
+                    className="w-3 h-3 rounded border border-dashed border-amber-600"
+                    style={{ backgroundColor: "#FCD34D", backgroundImage: "repeating-linear-gradient(135deg, rgba(255,255,255,0.45) 0 3px, transparent 3px 6px)" }}
+                  />
+                  {TENTATIVE_FULL_LABEL}
+                </div>
+                <div className="flex items-center gap-1"><div className="w-3 h-3 rounded" style={{ backgroundColor: "#22C55E" }} /> בפנסיון</div>
+                <div className="flex items-center gap-1"><div className="w-3 h-3 rounded" style={{ backgroundColor: "#3B82F6" }} /> יצא</div>
+              </div>
+            </>
           )}
         </div>
       )}
@@ -4592,6 +4762,25 @@ function BoardingPageContent() {
                   </select>
                 </div>
               )}
+
+              {/* Temporary hold — only for a stay that will be a plain reservation */}
+              {!serviceDogMode && (!form.checkIn || form.checkIn >= new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Jerusalem" }) || form.status === "reserved") && (
+                <label className={cn(
+                  "flex items-start gap-2.5 p-3 rounded-lg border cursor-pointer transition-colors",
+                  form.isTentative ? "border-amber-300 bg-amber-50" : "border-slate-200 hover:bg-slate-50",
+                )}>
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 w-4 h-4 accent-amber-500 flex-shrink-0"
+                    checked={form.isTentative}
+                    onChange={(e) => setForm((f) => ({ ...f, isTentative: e.target.checked }))}
+                  />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium text-petra-text">{TENTATIVE_FULL_LABEL}</span>
+                    <span className="block text-xs text-petra-muted mt-0.5">השהייה תופסת את החדר עד שמאשרים אותה</span>
+                  </span>
+                </label>
+              )}
             </div>
 
             {/* Training notice for service dogs in training */}
@@ -4677,6 +4866,8 @@ function BoardingPageContent() {
           onSave={(data) => editStayMutation.mutate({ id: editStay.id, ...data })}
           onCancel={() => setEditStay(null)}
           isPending={editStayMutation.isPending}
+          onConfirmTentative={() => confirmTentativeMutation.mutate(editStay.id)}
+          isConfirming={confirmTentativeMutation.isPending}
         />
       )}
 
